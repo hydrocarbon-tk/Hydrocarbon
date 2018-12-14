@@ -2,6 +2,7 @@
 import { LALRTable } from "./lr/lalr.mjs";
 import { SLRTable } from "./lr/slr.mjs";
 import { LRParser } from "./lr/parser.mjs";
+import { LRParserCompiler } from "./lr/compiler.mjs";
 //LL
 
 //GRAMMAR
@@ -40,7 +41,7 @@ let env = {
 const lalr = LALRTable(grammarParser(exercise_a_grammer), env);
 const slr = SLRTable(grammarParser(exercise_a_grammer), env);
 
-console.log(lalr, slr, LRParser("bob + (andy + micheal)", lalr, env));
+console.log(lalr, slr, LRParserCompiler(lalr, env));
 
 export {
     LALRTable,

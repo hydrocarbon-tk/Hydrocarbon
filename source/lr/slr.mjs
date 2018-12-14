@@ -21,6 +21,7 @@ export function SLRTable(grammar, env = {}) {
     let states = [{ action: new Map, goto: new Map, id: state_count++ }];
     states.bodies = bodies;
     states.grammar = grammar;
+    states.type = "lr"
 
     let state_maps = new Map();
 

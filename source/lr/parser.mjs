@@ -1,5 +1,34 @@
 import whind from "/node_modules/@candlefw/whind/source/whind.mjs";
 
+function compare(lex, symbol){
+    if(symbol.length == 1 ){
+        if(whind(symbol).type == whind.types.id)
+            return {bool:false,terminal:false}
+
+        switch(symbol){
+            case "ɛ": // Empty string
+                return {bool:false, terminal:true};
+            default:
+                return {bool:lex.tx == symbol, terminal:true};
+        }
+    }else{
+        if(symbol[0] == "τ") // Literal Terminal
+            return {bool:lex.tx == symbol.slice(1), terminal:true};
+        if(symbol[0] == "θ") // Token type Terminal
+            return {bool:!!(lex.ty & lex.types[symbol.slice(1)]), terminal:true};
+    }
+
+    return {bool:false, terminal:false};
+}
+
+function getVal(lex){
+    if(lex.END)
+        return "$";
+    if(lex.ty == lex.types.id)
+        return "θid";
+    else return lex.tx; 
+}
+
 export function LRParser(input, state_table, env) {
 
     let state = [0];
