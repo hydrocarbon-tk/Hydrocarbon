@@ -1,4 +1,6 @@
-import { FIRST, isNonTerm, createFunctions } from "../common.mjs";
+import { FIRST, isNonTerm, filloutGrammar } from "../common.mjs";
+
+
 
 export function LALRTable(grammar, env = {}) {
     /* Storage for Items is determined by three numbers. 
@@ -12,26 +14,15 @@ export function LALRTable(grammar, env = {}) {
      * The index indicates the start of the first production. Taking the difference of prod[B]- prod[A] gives the number of 
      * bodies in prod[A]
      */
+    filloutGrammar(grammar, env);
 
-    let bodies = [];
+    let bodies = grammar.bodies;
 
-    for (let i = 0, j = 0; i < grammar.length; i++) {
-        let production = grammar[i];
-        for (let i = 0; i < production.bodies.length; i++, j++) {
-            let body = production.bodies[i];
-            body.id = j;
-            bodies.push(body);
-            createFunctions(body, env);
-        }
-    }
-
-    let production = grammar[0];
     //start with first body
-    let body = production.bodies[0];
-
+    let body = bodies[0];
     let state_count = 0;
 
-    let states = [{ action: new Map, goto: new Map, id: state_count++ }];
+    let states = [{ action: new Map, goto: new Map, id: state_count++, body: 0 }];
     states.bodies = bodies;
     states.grammar = grammar;
     states.type = "lr";
@@ -41,10 +32,11 @@ export function LALRTable(grammar, env = {}) {
     let len = body.length;
 
     let items = [
-        [0, len, 0, "$"]
+        [0, len, 0, { v: "$", p: 0 }]
     ];
 
     function Closure(items, offset = 0, added = new Set()) {
+
         let g = items.length;
 
         for (let i = offset; i < g; i++) {
@@ -63,7 +55,8 @@ export function LALRTable(grammar, env = {}) {
                 let first;
 
                 if (Be.length > 0) {
-                    first = FIRST(grammar, ...Be, b);
+                    //console.log(Be, Be.map(x => isNonTerm(x) ? x : {v:x, p:body.precedence}))
+                    first = FIRST(grammar, ...(Be.map(x => isNonTerm(x) ? x : { v: x, p: body.precedence })), b);
                 } else {
                     first = [b];
                 }
@@ -77,7 +70,7 @@ export function LALRTable(grammar, env = {}) {
                     let body = production.bodies[i];
                     for (let i = 0; i < first.length; i++) {
 
-                        let sig = "" + body.id + body.length + 0 + first[i];
+                        let sig = "" + body.id + body.length + 0 + first[i].v;
 
                         if (!added.has(sig)) {
                             items.push([body.id, body.length, 0, first[i]]);
@@ -95,59 +88,86 @@ export function LALRTable(grammar, env = {}) {
 
 
     function Goto(items, state) {
+        let state_body = 0;
         let Sets = new Map();
+        outer:
+            for (let i = 0; i < items.length; i++) {
+                let item = items[i];
+                let body = bodies[item[0]];
+                let len = item[1];
+                let index = item[2];
 
-        for (let i = 0; i < items.length; i++) {
-            let item = items[i];
-            let body = bodies[item[0]];
-            let len = item[1];
-            let index = item[2];
+                if (i == 0)
+                    state_body = item[0];
 
 
-            //Figure out if the item is already in a set. 
-            if (index < len) {
-                //States generated here
+                //Figure out if the item is already in a set. 
+                if (index < len) {
+                    //States generated here
 
-                if (!Sets.has(body[index])) {
-                    Sets.set(body[index], []);
-                    Sets.get(body[index]).body = item[0];
-                    Sets.get(body[index]).len = index;
-                }
+                    if (!Sets.has(body[index])) {
+                        Sets.set(body[index], []);
+                        Sets.get(body[index]).body = item[0];
+                        Sets.get(body[index]).len = index;
+                    }
 
-                Sets.get(body[index]).push([item[0], len, index + 1, item[3]]);
-                //If new items are set already then either merge or discard. 
-            } else {
-                if (item[0] == 0 && item[3] == "$")
-                    state.action.set("$", { name: "ACCEPT", size: len, production: body.production, body: body.id, len });
-                else {
-                    state.action.set(item[3], { name: "REDUCE", size: len, production: body.production, body: body.id, len });
+                    Sets.get(body[index]).push([item[0], len, index + 1, item[3]]);
+                    //If new items are set already then either merge or discard. 
+                } else {
+                    if (item[0] == 0 && item[3].v == "$")
+                        state.action.set("$", { name: "ACCEPT", size: len, production: body.production, body: body.id, len });
+                    else {
+                        let k = item[3].v;
+                        let p1 = body.precedence;
+                        let p2 = item[3].p;
+                        if (p2 < p1 && k !== "$" && i > 0) {
+                            continue outer;
+                        }
+
+
+                        state.action.set(k, { name: "REDUCE", size: len, production: body.production, body: body.id, len });
+                    }
                 }
             }
-        }
 
         Sets.forEach((v, k) => {
+
+            let ASSOCIATION = v[0][0] == state_body && !!grammar.rules.assc;
 
             //If set is already declared, use that instead.
             let signature = "";
             let full_sig = "";
 
-            v.forEach((k) => { let y = k.slice(0, -1).join("");
-                full_sig += k.join(""); if (y != signature) signature += y; });
+            v.forEach((k) => {
+                let y = k.slice(0, -1).join("");
+                full_sig += y + k[3].v;
+                if (y != signature) signature += y;
+            });
 
             let PROCESSED_STATE = state_maps.get(signature);
 
             let state_id = (PROCESSED_STATE) ? PROCESSED_STATE.id : state_count++;
 
             if (!isNonTerm(k)) {
-                if (k != "$") 
-                    state.action.set(k, { name: "SHIFT", state: state_id, body: v.body, len: v.len });
+                if (k != "$") {
+                    let SKIP = false;
+                    if (state.action.has(k)) {
+                        SKIP = true; // Favor reductions
+                        if (ASSOCIATION) {
+                            if (grammar.rules.assc[k] == "right")
+                                SKIP = false;
+                        }
+                    }
+                    if (!SKIP)
+                        state.action.set(k, { name: "SHIFT", state: state_id, body: v.body, len: v.len });
+                }
             } else
                 state.goto.set(k, state_id);
 
             //Set transitions for this function. 
 
             if (!PROCESSED_STATE) {
-                let new_state = { action: new Map, goto: new Map, id: state_id };
+                let new_state = { action: new Map, goto: new Map, id: state_id, body: bodies[v.body].production };
                 states.push(new_state);
                 state_maps.set(signature, { id: state_id, sig: new Set([full_sig]) });
                 Goto(Closure(v), new_state);
@@ -162,7 +182,6 @@ export function LALRTable(grammar, env = {}) {
     }
 
     Goto(Closure(items), states[0]);
-
     //get the closure 
     return states;
 }

@@ -6,6 +6,37 @@ export const EMPTY_PRODUCTION = "ɛ";
 
 export const isNonTerm = (f) => f !== undefined && (typeof(f) == "number" || (f[0] !== "τ" && f[0] !== "ɛ" && f[0] !== "θ" && !(whind(f).type & MASK)));
 
+export const types = whind.types;
+
+export function getToken(l, reserved) {
+    if (l.END) return "$";
+    switch (l.ty) {
+        case types.id:
+            let tx = l.tx;
+            if (reserved.has(tx)) return tx;
+            return "θid";
+        case types.num:
+            return "θnum";
+        default:
+            return l.tx;
+    }
+}
+export  function getPrecedence(term, grammar){
+	let prec = grammar.rules.prec;
+	if(prec && typeof(term) == "string" && typeof(prec[term]) == "number")
+		return prec[term];
+	return -1;
+
+}
+export function createPrecedence(body, grammar){
+	let prec = body.precedence, l = 0;
+	for(let i = 0; i < body.length; i++){
+		l = Math.max(getPrecedence(body[i],grammar), l);
+	}
+	return (l >= 0) ? prec : Math.min(l, prec);
+}
+
+/**************** FIRST and FOLLOW sets ***************************/
 function addNonTerminal(table, nonterm, grammar, body_ind, index = 0) {
     let first = nonterm[index],
         terminal = "",
@@ -13,7 +44,7 @@ function addNonTerminal(table, nonterm, grammar, body_ind, index = 0) {
     if (first[0] == "τ") {
         terminal = first.slice(1);
     } else if (first[0] == EMPTY_PRODUCTION) {
-        table.add(EMPTY_PRODUCTION);
+        table.add({t:EMPTY_PRODUCTION, p:grammar.bodies[body_ind].precedence});
         return true;
     } else if (!isNonTerm(first)) {
         terminal = first;
@@ -22,8 +53,8 @@ function addNonTerminal(table, nonterm, grammar, body_ind, index = 0) {
         let body = grammar[first].bodies;
 
         for (let i = 0; i < body.length; i++)
-            if (i !== body_ind || first !== nonterm.production) {
-                if (addNonTerminal(table, body[i], grammar, i)) {
+            if (i !== body_ind && first !== nonterm.production) {
+                if (addNonTerminal(table, body[i], grammar, body[i].id)) {
                     HAS_E = true;
                 }
             }
@@ -34,13 +65,11 @@ function addNonTerminal(table, nonterm, grammar, body_ind, index = 0) {
         return HAS_E;
     }
 
-
-    table.add(terminal);
+    table.add({t:terminal, p:grammar.bodies[body_ind].precedence});
 
     return HAS_E;
 }
 
-/**************** FIRST and FOLLOW sets ***************************/
 
 const merge = (follow, first) => {
     first.forEach((v) => {
@@ -58,7 +87,7 @@ export function FIRST(grammar, ...symbols) {
         let SYMBOL = symbols[i];
         let subset = new Set();
 
-        if (isNonTerm(SYMBOL)) {
+        if (typeof(SYMBOL) !== "object" && isNonTerm(SYMBOL)) {
             let production = grammar[SYMBOL];
             let HAS_E = false;
             for (let i = 0; i < production.bodies.length; i++) {
@@ -75,7 +104,7 @@ export function FIRST(grammar, ...symbols) {
                 break;
             }
         } else {
-            if (SYMBOL == EMPTY_PRODUCTION)
+            if (SYMBOL.v == EMPTY_PRODUCTION)
                 continue;
 
             set.add(SYMBOL);
@@ -85,8 +114,9 @@ export function FIRST(grammar, ...symbols) {
 
     const val = [...set];
 
-    if (isNonTerm(symbols[0]))
-        grammar[symbols[0]].first = val;
+    let v = (symbols[0].v)  ?symbols[0].v : symbols[0];
+    if (isNonTerm(v))
+        grammar[v].first = val;
 
     return val;
 }
@@ -189,7 +219,8 @@ function setFunction(env, function_body, function_params = [], this_object = nul
 export function createFunctions(body, env) {
 
     body.node = null;
-    body.sr = [];           
+    body.err = null;
+    body.sr = [];
 
     if (body.funct.cstr) {
         let node = null;
@@ -198,7 +229,7 @@ export function createFunctions(body, env) {
         } else {
             node = function() {};
 
-            node = setFunction(null, body.funct.cstr, ["params",  "env", "lex"], node);
+            node = setFunction(null, body.funct.cstr, ["params", "env", "lex", "start"], node);
         }
 
         body.node = node;
@@ -207,13 +238,36 @@ export function createFunctions(body, env) {
     for (let funct in body.funct) {
         if (typeof(body.funct[funct]) == "string") {
             if (funct == "cstr") continue;
-            
-            if(!isNaN(funct)){
-            	body.sr[parseInt(funct)] = new Function("items", "env", "lex", body.funct[funct]);
-            }else if(body.node)
-            	body.node.prototype[funct] = setFunction(env, body.funct.cstr, node.prototype);
+            if (funct == "err") {
+                body.err = Function("items", "env", "lex", "start", body.funct[funct]);
+            } else if (!isNaN(funct)) {
+                body.sr[parseInt(funct)] = Function("items", "env", "lex", "start", body.funct[funct]);
+            } else if (body.node)
+                body.node.prototype[funct] = setFunction(env, body.funct.cstr, node.prototype);
         }
     }
 
     body.funct = null;
+}
+
+export function filloutGrammar(grammar,env){
+	let bodies = [];
+
+    for (let i = 0, j = 0; i < grammar.length; i++) {
+        let production = grammar[i];
+       
+        if(production.funct && production.funct.error){
+            production.error = Function("items", "env", "lex", "start", production.funct.error);
+        }
+        
+        for (let i = 0; i < production.bodies.length; i++, j++) {
+            let body = production.bodies[i];
+            body.id = j;
+            bodies.push(body);
+            body.precedence = createPrecedence(body, grammar);
+            createFunctions(body, env);
+        }
+    }
+
+    grammar.bodies = bodies;
 }
