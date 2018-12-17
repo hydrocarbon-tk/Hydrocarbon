@@ -1,5 +1,5 @@
 
-import whind from "/node_modules/@candlefw/whind/source/whind.mjs";
+import whind from "../../node_modules/@candlefw/whind/source/whind.mjs";
 
 export function LLParser(input, table, grammer){
 	

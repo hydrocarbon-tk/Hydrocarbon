@@ -1,4 +1,4 @@
-import whind from "/node_modules/@candlefw/whind/source/whind.mjs";
+import whind  from "../node_modules/@candlefw/whind/source/whind.mjs";
 
 export const MASK = whind.types.symbol | whind.types.operator | whind.types.open_bracket | whind.types.close_bracket;
 

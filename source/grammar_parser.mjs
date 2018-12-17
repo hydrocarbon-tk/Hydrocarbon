@@ -14,7 +14,7 @@
 
 
 
-import whind from "/node_modules/@candlefw/whind/source/whind.mjs";
+import whind from "../node_modules/@candlefw/whind/source/whind.mjs";
 
 import { isNonTerm } from "./common.mjs";
 
@@ -112,8 +112,12 @@ export function grammarParser(grammer) {
                     } else {
                         if (expression !== null)
                             expression += lex.tx;
-                        else
-                            body.push(lex.tx);
+                        else{
+                            if(body)
+                                body.push(lex.tx);
+                            else
+                                throw lex.throw(`Unable to add symbol "${lex.tx}" to body. No body exists. Check your input file.`);
+                        }
                     }
                     break;
                 case types.symbol:
@@ -162,6 +166,9 @@ export function grammarParser(grammer) {
 
     sealExpression(lex.n.tx);
     convertProductionNamesToIndexes(productions, LU);
+
+    if(productions.length < 1)
+        throw new Error("No productions were generated from the input!");
 
     return productions;
 }

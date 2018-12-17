@@ -1,4 +1,4 @@
-import whind from "/node_modules/@candlefw/whind/source/whind.mjs";
+import whind from "../../node_modules/@candlefw/whind/source/whind.mjs";
 
 function compare(lex, symbol){
     if(symbol.length == 1 ){

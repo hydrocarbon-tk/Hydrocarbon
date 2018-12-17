@@ -1,5 +1,5 @@
 /** Compiles a stand alone JS parser from a LR rules table and env object **/
-import whind  from "/node_modules/@candlefw/whind/source/whind.mjs";
+import whind  from "../../node_modules/@candlefw/whind/source/whind.mjs";
 import { getToken, types, FOLLOW } from "../common.mjs";
 
 
@@ -111,7 +111,9 @@ export function LRParserCompiler(rule_table, env){
 	re = new Set(${[...grammar.reserved]}),
 	throw_ = ()=>{debugger},
 	types = ${JSON.stringify(types)};
-	${getToken.toString().replace(/[\n\t]/g,"")}
+
+	${getToken.toString()}
+	
 	 function parser(l, e = {}){
 		let tk = getToken(l, re), sp = 1, len = 0, off= 0;
 		const o = [], ss = [0,0];

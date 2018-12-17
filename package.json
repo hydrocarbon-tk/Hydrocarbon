@@ -1,8 +1,11 @@
 {
   "name": "@candlefw/hydrocarbon",
-  "version": "0.0.1",
+  "version": "0.0.1a",
   "description": "Parser Compiler",
   "main": "source/hydrocarbon.mjs",
+  "bin": {
+    "hydrocarbon": "./source/cli.mjs"
+  },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
@@ -21,10 +24,15 @@
   },
   "homepage": "https://github.com/candlefw/hydrocarbon#readme",
   "dependencies": {
-    "@candlefw/whind": "^0.2.8"
+    "@candlefw/whind": "^0.2.8",
+    "commander": "^2.19.0",
+    "terser": "^3.11.0"
   },
   "jshintConfig": {
     "esversion": 6,
     "unused": true
+  },
+  "engine": {
+    "node": ">=10.0.0"
   }
 }

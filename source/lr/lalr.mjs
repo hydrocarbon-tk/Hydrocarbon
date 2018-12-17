@@ -1,7 +1,5 @@
 import { FIRST, isNonTerm, filloutGrammar } from "../common.mjs";
 
-
-
 export function LALRTable(grammar, env = {}) {
     /* Storage for Items is determined by three numbers. 
      * 1. The index offset of a production body in a grammar.

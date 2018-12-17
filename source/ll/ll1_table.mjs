@@ -1,11 +1,8 @@
-import { FIRST, FOLLOW, isNonTerm, createFunctions } from "../common.mjs";
-
-
-function CONSTRUCT_LL1_PARSETABLE(grammer){
+export function CONSTRUCT_LL1_PARSETABLE(grammer){
 	let first = CONSTRUCT_FIRST(grammer);
-	console.log(first)
+
 	let follow = CONSTRUCT_FOLLOW(grammer, first);
-	console.log(follow)
+
 	let table = new Map();
 	table.type = "ll";
 
