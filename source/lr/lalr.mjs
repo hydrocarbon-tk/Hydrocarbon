@@ -33,6 +33,8 @@ export function LALRTable(grammar, env = {}) {
         [0, len, 0, { v: "$", p: 0 }]
     ];
 
+
+
     function Closure(items, offset = 0, added = new Set()) {
 
         let g = items.length;

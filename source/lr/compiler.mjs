@@ -37,8 +37,10 @@ export function LRParserCompiler(rule_table, env) {
         production.follow.forEach((v) => {
             matches.push(`case "${v}":`);
         });
-
-        errors.push(`(v)=>{switch(v){${matches.join("")} return 1;} return 0;}`);
+        if(matches.length > 0)
+            errors.push(`(v)=>{switch(v){${matches.join("")} return 1;} return 0;}`);
+        else
+            errors.push(`(v)=>{return 0;}`);
     }
 
     let functions = [];

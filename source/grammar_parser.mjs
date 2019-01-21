@@ -18,22 +18,28 @@ import whind from "../node_modules/@candlefw/whind/source/whind.mjs";
 
 import { isNonTerm } from "./common.mjs";
 
-function convertProductionNamesToIndexes(productions, LU) {
+function convertProductionNamesToIndexes(productions, LU, lex) {
+    let sym = "";
+    try{
+        for (let i = 0; i < productions.length; i++) {
+            let production = productions[i];
+            let bodies = production.bodies;
+            for (let i = 0; i < bodies.length; i++) {
+                let body = bodies[i];
 
-    for (let i = 0; i < productions.length; i++) {
-        let production = productions[i];
-        let bodies = production.bodies;
-        for (let i = 0; i < bodies.length; i++) {
-            let body = bodies[i];
+                if (body.precedence < 0)
+                    body.precedence = bodies.length - i - 1;
 
-            if (body.precedence < 0)
-                body.precedence = bodies.length - i - 1;
-
-            for (let i = 0; i < body.length; i++) {
-                if (isNonTerm(body[i]))
-                    body[i] = LU.get(body[i]).id;
+                for (let i = 0; i < body.length; i++) {
+                    sym = body[i];
+                    if (isNonTerm(body[i]))
+                        body[i] = LU.get(body[i]).id;
+                }
             }
         }
+    }catch(e){
+        console.warn(`Error encountered while processing the symbol "${sym}"`);
+        throw e;
     }
 }
 
@@ -56,10 +62,12 @@ export function grammarParser(grammer) {
 
     function sealExpression(name) {
         if (body && expression !== null) {
+            const exp = expression //lex.slice(time).trim()
             if (expression_name == "error") {
-                current_production.funct = { error: lex.slice(time).trim() };
+
+                current_production.funct = { error: expression };
             } else {
-                body.funct[expression_name] = lex.slice(time).trim();
+                body.funct[expression_name] = expression;
             }
         }
         if (name) {

@@ -49,7 +49,7 @@ export function renderTable(rule_table) {
 
     symbols.forEach((v,k)=>{
 
-    	str+=`${k}${tab}`
+    	str+=`${k.slice(0,7)}${tab}`
     })
     str+=`${ver}${tab}`
 
@@ -99,5 +99,5 @@ export function renderTable(rule_table) {
 
     }
 
-    return str;
+    return str//.replace(/\t/g, (" ").repeat(8));
 }
