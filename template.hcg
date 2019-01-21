@@ -1,0 +1,160 @@
+# #################################################################################################
+#                                Hydrocarbon Grammer template                                     #
+# #################################################################################################
+
+# Use this template as a reference when creating your own grammars.
+
+# Single line comments begin with "#" followed by a white space character.
+
+# Special control statements can defined at the top the of the grammar file (before the first 
+# definition of a non-terminal) to redefine the associativity and precedence of certain 
+# productions. These statements begin with a "#" character, IMMEDIATELY followed by an identifier.
+# The two current control statments that Hydrocarbon recognises are #assoc and #prec 
+
+# "#assoc" will set the ASSOCIATION of a terminal to either "left" or "right". eg:
+
+#assoc + right
+
+# "#prec" will set PRECEDENCE of a terminal. All productions have a default precedence of 1.
+
+#prec - 1
+
+# 
+# Hydrocarbon uses several non-ASCII characters in its syntax to define different constructs. 
+# 
+
+    #   #
+    # → (U+2192) :  This character is used to denote the start of the definition of a 
+    #               non-terminal. Hydrocarbon will set the identifier proceding the
+    #               → character as the non-terminal symbol of the body,  
+    #               and characters to the right as the first production of the non-terminal. 
+    #               eg:
+
+start → stmt                                                            ↦ cstr return sym[0];
+
+
+    #   #
+    # │ (U+2502) :  Note this character is different than the | (U+7C) character. 
+    #               This is used to define alternate productions for a non-terminal
+    #               eg:
+
+stmt → assignment                                                       ↦ cstr return sym[0];
+     │ expression                                                       ↦ cstr return sym[0];
+
+        # Note: the inclusion of a new line is not necessary to define alternate productions. 
+        # "stmt → assignment │ expression" is equivelant to the previous example.
+
+
+    #   #
+    # θ (U+03B8) :  This character denotes a generated terminal. 
+    #               Generated terminals are of the form θ<terminal type>.
+    #               Terminal types that Hydrocarbon produces by default are listed here:
+    #
+    #               |==================|=========================================================|
+    #               | Terminal Type    | Description                                             |
+    #               |==================|=========================================================|
+    #               | id || identifier | A character in the set [a-Z#$] followed by a sequence of|
+    #               |                  | characters in the set [a-Z0-1_-#$]                      |
+    #               |------------------|---------------------------------------------------------|
+    #               | num || number    | Any set of characters that take on the forms: 0x##...,  |
+    #               |                  | 0b##..., 0o##..., ##..(.(##..))(e##...)                 |
+    #               |==================|=========================================================|
+    #
+        # The use of this character can be found in later examples.             
+    
+    # #
+    # τ (U+03C4) :  This character denotes a literal terminal. The parser will look to match
+    #               EXACTLY the the characters that follow this term character. For example, 
+    #               Hydrocarbon will expect to see "for" for any production that has the
+    #               terminal "τfor",        
+
+#### The following control characters apply specifically to individual productions.
+
+    #   #
+    # ↦ (U+21A6) :  This character signals that a production function definition follows.
+    #               
+    #               When called, all production functions, with the exception of the error 
+    #               function, will be passed the same set of arguments in the respective order:
+    #
+    #                       *token :    The last parsed token. Only the error function will be 
+    #                                   passed this argument in addition to the following. All 
+    #                                   other functions will have "sym" passed as the first 
+    #                                   argument.
+    #
+    #                       sym :       The array of productions symbols (terminal strings and/or
+    #                                   objects) that currently exist on the productions stack. 
+    #
+    #                       env :       The environment object which can used however one desires.
+    #                                   An example of its usage is to store a symbol table that 
+    #                                   can be referenced in produciton functions. 
+    #
+    #                       lexer :     The lexer object set to the last parsed token. 
+    #
+    #                       state :     The identifier of the current state.
+    #
+    #                 
+    #               The types of production functions that can be defined are:
+    #                       
+    #                   ↦ cstr <JavaScript Statements> :    
+    #                       Defines the constructor function that will create new object for 
+    #                       this production. This object will pushed on the productions stack and 
+    #                       can be used to build Abstract Syntax Trees from items on the 
+    #                       productions stack. 
+    #                       
+    #                       If a <return statement> is the fist JavaScript statment, then instead 
+    #                       of creating a new object, the value returned will be pushed to the 
+    #                       productions stack.
+    #
+    #                   ↦ cstr ^<function_name> : 
+    #                       Hydrocarbon will match "function_name" to a function found in 
+    #                       env.functions and use that function definition as the constructor 
+    #                       instead using JavaScript statements from the grammar file.
+    #
+    #                   ↦ ^<function_name>: 
+    #                       Hydrocarbon will match "function_name" to a function found in 
+    #                       env.functions. The function will be called as its production is 
+    #                       completed. Anything returned by this function will be ignored and the 
+    #                       productions stack WILL NOT be modified by any value returned by this 
+    #                       function. 
+    #
+    #                   ↦ err <JavaScript Statements>: 
+    #                       Called when an invalid input is incountered. Can be used to generate a
+    #                       error message with lex.throw. 
+    #
+        # The use of this character can be found in later examples. 
+
+    #   #
+    # %% (U+25 U+25) :  These characters, when imediately following the last symbol of a 
+    #                   production, can define a new precedence for the production.
+
+expression → E      ↦ cstr return (sym[0]);
+
+E   → E + E  %%2    ↦ cstr this.left = sym[0]; this.right = sym[2]; this.type ="add";
+    │ E * E  %%1    ↦ cstr this.left = sym[0]; this.right = sym[2]; this.type ="multiply";
+    │ θid           ↦ cstr this.id = sym[0]; this.type = "id";
+    │ θnum          ↦ cstr this.id = sym[0]; this.type = "num";
+
+assignment → θid τassgn E ↦ cstr this.assigned = sym[0]; this.value = sym[2]; this.type ="add";
+
+
+###################################################################################################
+
+# This document should produce the following table when called by "hydrocarbon table"
+#
+# State   ┃       θid     θnum    $       +       *       τassgn  ┃     stmt    assig   expre   E
+# ━━━━━━━━╋━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╋━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# 0       ┃       s4      s6                                      ┃     1       2       3       5
+# 1       ┃                       accept                          ┃     
+# 2       ┃                       r1                              ┃     
+# 3       ┃                       r1                              ┃     
+# 4       ┃                       r1      r1      r1      s7      ┃     
+# 5       ┃                       r1      s8      s9              ┃     
+# 6       ┃                       r1      r1      r1              ┃     
+# 7       ┃       s11     s6                                      ┃             10      
+# 8       ┃       s11     s6                                      ┃             12      
+# 9       ┃       s11     s6                                      ┃             13      
+# 10      ┃                       r3      s8      s9              ┃     
+# 11      ┃                       r1      r1      r1              ┃     
+# 12      ┃                       r3      r3      s9              ┃     
+# 13      ┃                       r3      r3      r3              ┃     
+
