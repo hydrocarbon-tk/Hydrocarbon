@@ -53,7 +53,6 @@ export function LALRTable(grammar, env = {}) {
                 let first;
 
                 if (Be.length > 0) {
-                    //console.log(Be, Be.map(x => isNonTerm(x) ? x : {v:x, p:body.precedence}))
                     first = FIRST(grammar, ...(Be.map(x => isNonTerm(x) ? x : { v: x, p: body.precedence })), b);
                 } else {
                     first = [b];
@@ -66,9 +65,10 @@ export function LALRTable(grammar, env = {}) {
 
                 for (let i = 0; i < production.bodies.length; i++) {
                     let body = production.bodies[i];
+
                     for (let i = 0; i < first.length; i++) {
 
-                        let sig = "" + body.id + body.length + 0 + first[i].v;
+                        let sig = "" + body.id + body.length + 0 + (first[i].v);
 
                         if (!added.has(sig)) {
                             items.push([body.id, body.length, 0, first[i]]);
@@ -84,6 +84,7 @@ export function LALRTable(grammar, env = {}) {
         return items;
     }
 
+    const GOTO = [];
 
     function Goto(items, state) {
         let state_body = 0;
@@ -97,32 +98,33 @@ export function LALRTable(grammar, env = {}) {
 
                 if (i == 0)
                     state_body = item[0];
-
-
                 //Figure out if the item is already in a set. 
                 if (index < len) {
                     //States generated here
-
-                    if (!Sets.has(body[index])) {
-                        Sets.set(body[index], []);
-                        Sets.get(body[index]).body = item[0];
-                        Sets.get(body[index]).len = index;
+                    let k = /*body[index][0] == "τ" ? body[index].slice(1) :*/ body[index]
+                    let set = Sets.get(k);
+                    
+                    if (!set) {
+                        set = [];
+                        set.body = item[0];
+                        set.len = index;
+                        Sets.set(k, set);
                     }
 
-                    Sets.get(body[index]).push([item[0], len, index + 1, item[3]]);
+                    set.push([item[0], len, index + 1, item[3]])
                     //If new items are set already then either merge or discard. 
                 } else {
-                    if (item[0] == 0 && item[3].v == "$")
-                        state.action.set("$", { name: "ACCEPT", size: len, production: body.production, body: body.id, len });
-                    else {
-                        let k = item[3].v;
+                    let k = item[3].v;
                         let p1 = body.precedence;
                         let p2 = item[3].p;
+
+                    if (item[0] == 0 && k == "$")
+                        state.action.set(k, { name: "ACCEPT", size: len, production: body.production, body: body.id, len });
+                    else {
+                      //*  
                         if (p2 < p1 && k !== "$" && i > 0) {
                             continue outer;
-                        }
-
-
+                        }//*/
                         state.action.set(k, { name: "REDUCE", size: len, production: body.production, body: body.id, len });
                     }
                 }
@@ -163,23 +165,29 @@ export function LALRTable(grammar, env = {}) {
                 state.goto.set(k, state_id);
 
             //Set transitions for this function. 
-
             if (!PROCESSED_STATE) {
                 let new_state = { action: new Map, goto: new Map, id: state_id, body: bodies[v.body].production };
                 states.push(new_state);
                 state_maps.set(signature, { id: state_id, sig: new Set([full_sig]) });
-                Goto(Closure(v), new_state);
+                GOTO.push({c:Closure(v),s:new_state});
+                //Goto(Closure(v), new_state);
             } else { //Merge the states
                 let DIFF_MERGE = !PROCESSED_STATE.sig.has(full_sig);
                 if (DIFF_MERGE) {
                     PROCESSED_STATE.sig.add(full_sig);
-                    Goto(Closure(v), states[PROCESSED_STATE.id]);
+                    GOTO.push({c:Closure(v),s:states[PROCESSED_STATE.id]});
+                    //Goto(Closure(v), states[PROCESSED_STATE.id]);
                 }
             }
         });
     }
 
-    Goto(Closure(items), states[0]);
-    //get the closure 
+    GOTO.push({c:Closure(items),s:states[0]})
+
+    while(GOTO.length > 0){
+        const item = GOTO.shift();
+        Goto(item.c, item.s);
+    }
+    
     return states;
 }

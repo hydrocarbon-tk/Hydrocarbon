@@ -26,7 +26,7 @@ function convertProductionNamesToIndexes(productions, LU) {
         for (let i = 0; i < bodies.length; i++) {
             let body = bodies[i];
 
-            if(body.precedence < 0)
+            if (body.precedence < 0)
                 body.precedence = bodies.length - i - 1;
 
             for (let i = 0; i < body.length; i++) {
@@ -38,6 +38,7 @@ function convertProductionNamesToIndexes(productions, LU) {
 }
 
 export function grammarParser(grammer) {
+
     let lex = whind(grammer);
     const types = lex.types;
 
@@ -51,16 +52,19 @@ export function grammarParser(grammer) {
     let rules = {};
     productions.reserved = new Set();
     productions.rules = rules;
+    let time = 0;
 
     function sealExpression(name) {
-        if (body && expression !== null){
-            if(expression_name == "error"){
-                current_production.funct = {error: expression};
-            }else
-                body.funct[expression_name] = expression;
+        if (body && expression !== null) {
+            if (expression_name == "error") {
+                current_production.funct = { error: lex.slice(time).trim() };
+            } else {
+                body.funct[expression_name] = lex.slice(time).trim();
+            }
         }
         if (name) {
             expression_name = name;
+            time = lex.pk.off;
             expression = "";
         } else {
             expression_name = "";
@@ -71,7 +75,7 @@ export function grammarParser(grammer) {
     function createBody() {
         body = [];
         body.funct = {};
-        body.precedence = -1;
+        body.precedence = 1;
         body.production = current_production.id;
         current_production.bodies.push(body);
     }
@@ -81,20 +85,27 @@ export function grammarParser(grammer) {
         let pk;
 
         if (lex.ch == "#" && PREPROCESS) {
+            lex.IWS = false;
             lex.next();
 
-            if (lex.ty !== types.id)
-                lex.throw("Preprocess entry needs to begin with an identifier");
-            
-            let name = lex.tx;
+            if (lex.ty !== types.id) {
 
-            if (!rules[name])
-                rules[name] = {};
+                lex.IWS = false;
+                while (!lex.END && lex.n.ty !== types.new_line) {}
 
-            let x = 0;
-            
-            rules[name][lex.n.tx] = (!isNaN((x = lex.n.tx))) ? parseFloat(x) : x;
+                lex.IWS = true;
+            } else {
+                lex.IWS = true;
 
+                let name = lex.tx;
+
+                if (!rules[name])
+                    rules[name] = {};
+
+                let x = 0;
+
+                rules[name][lex.n.tx] = (!isNaN((x = lex.n.tx))) ? parseFloat(x) : x;
+            }
         } else
 
             switch (lex.ty) {
@@ -112,8 +123,8 @@ export function grammarParser(grammer) {
                     } else {
                         if (expression !== null)
                             expression += lex.tx;
-                        else{
-                            if(body)
+                        else {
+                            if (body)
                                 body.push(lex.tx);
                             else
                                 throw lex.throw(`Unable to add symbol "${lex.tx}" to body. No body exists. Check your input file.`);
@@ -125,6 +136,13 @@ export function grammarParser(grammer) {
                 case types.ob:
                 case types.cb:
                     switch (lex.ch) {
+                        case "#": //comment
+                            sealExpression();
+                            lex.IWS = false;
+                            while (!lex.END && lex.n.ty !== types.new_line) {}
+                            lex.IWS = true;
+                            lex.next();
+                            continue;
                         case "θ":
                             pk = lex.pk.n;
                             body.push(pk.slice(lex).trim());
@@ -144,8 +162,12 @@ export function grammarParser(grammer) {
                             lex.sync();
                             continue;
                         case "%":
-                            body.precedence = parseInt(lex.n.tx);
-                            break;
+                            if(lex.pk.tx == "%"){
+                                lex.sync();
+                                body.precedence = parseInt(lex.n.tx);
+                                break;
+                            }
+                            //intentional
                         default:
                             if (expression !== null)
                                 expression += lex.tx;
@@ -167,7 +189,7 @@ export function grammarParser(grammer) {
     sealExpression(lex.n.tx);
     convertProductionNamesToIndexes(productions, LU);
 
-    if(productions.length < 1)
+    if (productions.length < 1)
         throw new Error("No productions were generated from the input!");
 
     return productions;

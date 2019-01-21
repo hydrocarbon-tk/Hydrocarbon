@@ -8,10 +8,14 @@ import { LRParserCompiler } from "./lr/compiler.mjs";
 //GRAMMAR
 import { grammarParser } from "./grammar_parser.mjs";
 
+//Diagnostics
+import { renderTable } from "./table_diagram.mjs";
+
 export {
     LALRTable,
     SLRTable,
     LRParser,
     grammarParser,
-    LRParserCompiler
+    LRParserCompiler,
+    renderTable
 };
