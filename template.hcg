@@ -86,7 +86,7 @@ stmt → assignment                                                       ↦ cs
     #
     #                       env :       The environment object which can used however one desires.
     #                                   An example of its usage is to store a symbol table that 
-    #                                   can be referenced in produciton functions. 
+    #                                   can be referenced in production functions. 
     #
     #                       lexer :     The lexer object set to the last parsed token. 
     #
@@ -97,28 +97,28 @@ stmt → assignment                                                       ↦ cs
     #                       
     #                   ↦ cstr <JavaScript Statements> :    
     #                       Defines the constructor function that will create new object for 
-    #                       this production. This object will pushed on the productions stack and 
+    #                       this production. This object will be pushed on the productions stack and 
     #                       can be used to build Abstract Syntax Trees from items on the 
     #                       productions stack. 
     #                       
     #                       If a <return statement> is the fist JavaScript statment, then instead 
-    #                       of creating a new object, the value returned will be pushed to the 
+    #                       of creating a new object, the value returned will be directly pushed to the 
     #                       productions stack.
     #
     #                   ↦ cstr ^<function_name> : 
-    #                       Hydrocarbon will match "function_name" to a function found in 
+    #                       Hydrocarbon will match <function_name> to a function found in 
     #                       env.functions and use that function definition as the constructor 
     #                       instead using JavaScript statements from the grammar file.
     #
     #                   ↦ ^<function_name>: 
-    #                       Hydrocarbon will match "function_name" to a function found in 
-    #                       env.functions. The function will be called as its production is 
-    #                       completed. Anything returned by this function will be ignored and the 
+    #                       Hydrocarbon will match <function_name> to a function found in 
+    #                       env.functions. The function will be called as the production is 
+    #                       reduced. Anything returned by this function will be ignored and the 
     #                       productions stack WILL NOT be modified by any value returned by this 
     #                       function. 
     #
     #                   ↦ err <JavaScript Statements>: 
-    #                       Called when an invalid input is incountered. Can be used to generate a
+    #                       Called when an invalid input is incountered. Can be used to generate an
     #                       error message with lex.throw. 
     #
         # The use of this character can be found in later examples. 
