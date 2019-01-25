@@ -50,15 +50,15 @@ stmt → assignment                                                       ↦ cs
     #               Generated terminals are of the form θ<terminal type>.
     #               Terminal types that Hydrocarbon produces by default are listed here:
     #
-    #               |==================|=========================================================|
-    #               | Terminal Type    | Description                                             |
-    #               |==================|=========================================================|
-    #               | id || identifier | A character in the set [a-Z#$] followed by a sequence of|
-    #               |                  | characters in the set [a-Z0-1_-#$]                      |
-    #               |------------------|---------------------------------------------------------|
-    #               | num || number    | Any set of characters that take on the forms: 0x##...,  |
-    #               |                  | 0b##..., 0o##..., ##..(.(##..))(e##...)                 |
-    #               |==================|=========================================================|
+    #               ┏━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+    #               ┃ Terminal Type    ┃ Description                                             ┃
+    #               ┣━━━━━━━━━━━━━━━━━━╋━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┃
+    #               ┃ id || identifier ┃A character in the set [a-Z#$] followed by a sequence of ┃
+    #               ┃                  ┃characters in the set [a-Z0-1_-#$]                       ┃
+    #               ┣━━━━━━━━━━━━━━━━━━╋━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┃
+    #               ┃ num || number    ┃Any set of characters that take on the forms: 0x##...,   ┃
+    #               ┃                  ┃0b##..., 0o##..., ##..(.(##..))(e##...)                  ┃
+    #               ┗━━━━━━━━━━━━━━━━━━┻━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
     #
         # The use of this character can be found in later examples.             
     
@@ -131,30 +131,34 @@ expression → E      ↦ cstr return (sym[0]);
 
 E   → E + E  %%2    ↦ cstr this.left = sym[0]; this.right = sym[2]; this.type ="add";
     │ E * E  %%1    ↦ cstr this.left = sym[0]; this.right = sym[2]; this.type ="multiply";
-    │ θid           ↦ cstr this.id = sym[0]; this.type = "id";
     │ θnum          ↦ cstr this.id = sym[0]; this.type = "num";
+    │ F             ↦ cstr return sym[0];
 
-assignment → θid τassgn E ↦ cstr this.assigned = sym[0]; this.value = sym[2]; this.type ="add";
+F → θid           ↦ cstr this.id = sym[0]; this.type = "id";
+
+assignment → F = E ↦ cstr this.assigned = sym[0]; this.value = sym[2]; this.type ="add";
 
 
 ###################################################################################################
 
 # This document should produce the following table when called by "hydrocarbon table"
-#
-# State   ┃       θid     θnum    $       +       *       τassgn  ┃     stmt    assig   expre   E
-# ━━━━━━━━╋━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╋━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# 0       ┃       s4      s6                                      ┃     1       2       3       5
-# 1       ┃                       accept                          ┃     
-# 2       ┃                       r1                              ┃     
-# 3       ┃                       r1                              ┃     
-# 4       ┃                       r1      r1      r1      s7      ┃     
-# 5       ┃                       r1      s8      s9              ┃     
-# 6       ┃                       r1      r1      r1              ┃     
-# 7       ┃       s11     s6                                      ┃             10      
-# 8       ┃       s11     s6                                      ┃             12      
-# 9       ┃       s11     s6                                      ┃             13      
-# 10      ┃                       r3      s8      s9              ┃     
-# 11      ┃                       r1      r1      r1              ┃     
-# 12      ┃                       r3      r3      s9              ┃     
-# 13      ┃                       r3      r3      r3              ┃     
 
+# ┏━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+# ┃ St. ┃ θid   θnu   $     =     +     *   ┃  stm   ass   exp   F     E   ┃
+# ┣━━━━━╋━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╋━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╋━━━━━━━━━━━━━━━━━━━━━┓
+# ┃ 0   ┃ s5    s7                          ┃  1     2     3     4     6   ┃ start → stmt        ┃
+# ┃ 1   ┃             acc                   ┃                              ┃ start → stmt        ┃
+# ┃ 2   ┃             r1                    ┃                              ┃ stmt → assignment   ┃
+# ┃ 3   ┃             r2                    ┃                              ┃ stmt → expression   ┃
+# ┃ 4   ┃             r7    s8    r7    r7  ┃                              ┃ assignment → F = E  ┃
+# ┃ 5   ┃             r8    r8    r8    r8  ┃                              ┃ F → θid             ┃
+# ┃ 6   ┃             r3          s9    s10 ┃                              ┃ expression → E      ┃
+# ┃ 7   ┃             r6          r6    r6  ┃                              ┃ E → θnum            ┃
+# ┃ 8   ┃ s5    s7                          ┃                    12    11  ┃ assignment → F = E  ┃
+# ┃ 9   ┃ s5    s7                          ┃                    12    13  ┃ E → E + E           ┃
+# ┃ 10  ┃ s5    s7                          ┃                    12    14  ┃ E → E * E           ┃
+# ┃ 11  ┃             r9          s9    s10 ┃                              ┃ assignment → F = E  ┃
+# ┃ 12  ┃             r7          r7    r7  ┃                              ┃ E → F               ┃
+# ┃ 13  ┃             r4          r4    s10 ┃                              ┃ E → E + E           ┃
+# ┃ 14  ┃             r5          r5    r5  ┃                              ┃ E → E * E           ┃
+# ┗━━━━━┻━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┻━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┻━━━━━━━━━━━━━━━━━━━━━┛

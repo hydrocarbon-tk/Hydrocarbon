@@ -43,6 +43,11 @@ export function createPrecedence(body, grammar) {
 
 /**************** FIRST and FOLLOW sets ***************************/
 function addNonTerminal(table, nonterm, grammar, body_ind, index = 0) {
+    if(!nonterm[index]){
+        console.error(nonterm)
+        throw new Error(`Empty production at index ${index} in [${nonterm}]`)
+    }
+
     let first = nonterm[index],
         terminal = "",
         HAS_E = false;
@@ -69,8 +74,10 @@ function addNonTerminal(table, nonterm, grammar, body_ind, index = 0) {
 
         return HAS_E;
     }
-
-    table.add({ v: "τ"+terminal, p: grammar.bodies[body_ind].precedence });
+    let cc = terminal.charCodeAt(0) 
+    if(!(cc < 48 || (cc > 57 && cc < 64) || (cc > 90 && cc < 97) || cc > 123))
+        terminal = "τ"+ terminal;
+    table.add({ v: terminal, p: grammar.bodies[body_ind].precedence });
 
     return HAS_E;
 }
@@ -222,10 +229,13 @@ function setFunction(env, function_body, function_params = [], this_object = nul
     return (Function).apply(this_object, function_params.concat([function_body]));
 }
 
-export function createFunctions(body, env) {
+export function createFunctions(production, body, env) {
     body.node = null;
     body.err = null;
     body.sr = [];
+    
+    if(!production.func_counter)
+        production.func_counter = 0;
 
     if (body.funct.cstr) {
         let node = null;
@@ -246,7 +256,7 @@ export function createFunctions(body, env) {
             if(env.FLUT.has(str)){
                 node = env.FLUT.get(str);
             }else{
-                let id = "__f"+ env.id++;
+                let id = production.name+"$"+production.func_counter++;
                 node = setFunction(null, str, [production_stack_arg_name, environment_arg_name, lexer_arg_name, "state"], ()=>{});
                 env.functions[id] = node;
                 env.FLUT.set(str, node);
@@ -293,9 +303,67 @@ export function filloutGrammar(grammar, env) {
             body.id = j;
             bodies.push(body);
             body.precedence = createPrecedence(body, grammar);
-            createFunctions(body, env);
+            createFunctions(production, body, env);
         }
     }
 
     grammar.bodies = bodies;
+}
+
+
+export class Item extends Array {
+    constructor(body_id, length, offset, v = "", p = -1) {
+        super(body_id, length, offset);
+        this.follow = { v, p };
+        this.USED = false;
+    }
+
+    get v() {
+        return this.follow.v;
+    }
+
+    get p() {
+        return this.follow.p;
+    }
+
+    get id() {
+        return "" + this[0] + this[1] + this[2];
+    }
+
+    get full_id() {
+        return this.id + this.v;
+    }
+
+    get body() {
+        return this[0];
+    }
+
+    get len() {
+        return this[1];
+    }
+
+    get offset() {
+        return this[2];
+    }
+
+    increment() {
+        if (this.offset < this.len)
+            return new Item(this.body, this.len, this.offset + 1, this.v, this.p);
+        return null;
+    }
+
+    match(item) {
+        return item.id == this.id;
+    }
+
+    toString() {
+        return this.id;
+    }
+}
+
+export const actions = {
+    ACCEPT:1,
+    SHIFT:2,
+    REDUCE:3,
+    GOTO:4,
 }

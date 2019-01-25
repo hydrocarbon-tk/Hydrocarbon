@@ -2,6 +2,7 @@
 
 ":" //# comment; exec /usr/bin/env node --experimental-modules "$0" "$@"
 
+
 /* IMPORTS *******************/
 
 //CandleFW stuffs
@@ -16,6 +17,13 @@ import * as terser from "terser";
 import path from "path";
 import fs from "fs";
 import readline from "readline";
+
+/*** BASH COLORS ****/
+const COLOR_KEYBOARD = `\x1b[38;5;15m\x1b[48;5;246m`
+const COLOR_SUCCESS = `\x1b[38;5;254m\x1b[48;5;30m`
+const COLOR_RESET = `\x1b[0m`
+const ADD_COLOR = (str, color) => color +  str  + COLOR_RESET;
+
 
 const fsp = fs.promises;
 
@@ -42,16 +50,17 @@ function write(name, parser_file, options, MOUNT = false) {
             break;
     }
 
-    // compress data if necessary
-   // if (true || options.compress)
-   //     data = terser.default.minify(data).code;
+     //compress data if necessary
+     
+     if (true || options.compress)
+         data = terser.default.minify(data).code;
 
     if (!fs.existsSync(dir))
         fs.mkdirSync(dir);
 
     fsp.writeFile(path.join(dir, filename), data, { encoding: "utf8", flags: "w+" })
         .then(res => {
-            console.log("File has been successfully written!");
+            console.log(ADD_COLOR(`The ${filename} script has been successfully written.`, COLOR_SUCCESS));
         }).catch(err => {
             console.error(err);
         }).then(() => {
@@ -72,6 +81,7 @@ function build(name, grammar_string, env) {
 }
 
 function mount(name, input) {
+
     const parser = ((Function(input + "; return parser"))());
 
     const r1 = readline.createInterface({
@@ -79,14 +89,14 @@ function mount(name, input) {
         output: process.stdout
     });
 
-    console.log(`Type in some text to see how the ${name} parser performs on that input (type 'exit' to end this step):`);
+    console.log(ADD_COLOR("The parser has been mounted in NodeJS", COLOR_SUCCESS))
+    console.log(`\nType something then hit {${ADD_COLOR(" enter ", COLOR_KEYBOARD)}||${ADD_COLOR(" return ", COLOR_KEYBOARD)}} to see how the ${name} parser performs that input. Type 'exit' or use ${ADD_COLOR(" ctrl ", COLOR_KEYBOARD)}+${ADD_COLOR(" c ", COLOR_KEYBOARD)} to return to console:`);
 
     r1.on('line', (input) => {
         if (input == "exit") {
             r1.close();
             return;
         }
-
 
         try {
             console.dir(parser(whind(input), {}));

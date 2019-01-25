@@ -20,7 +20,7 @@ import { isNonTerm } from "./common.mjs";
 
 function convertProductionNamesToIndexes(productions, LU, lex) {
     let sym = "";
-    try{
+    try {
         for (let i = 0; i < productions.length; i++) {
             let production = productions[i];
             let bodies = production.bodies;
@@ -37,7 +37,7 @@ function convertProductionNamesToIndexes(productions, LU, lex) {
                 }
             }
         }
-    }catch(e){
+    } catch (e) {
         console.warn(`Error encountered while processing the symbol "${sym}"`);
         throw e;
     }
@@ -62,12 +62,12 @@ export function grammarParser(grammer) {
 
     function sealExpression(name) {
         if (body && expression !== null) {
-            const exp = expression //lex.slice(time).trim()
+            const exp = expression
             if (expression_name == "error") {
 
-                current_production.funct = { error: expression };
+                current_production.funct = { error: lex.slice(time).trim() };
             } else {
-                body.funct[expression_name] = expression;
+                body.funct[expression_name] = lex.slice(time).trim();
             }
         }
         if (name) {
@@ -80,12 +80,20 @@ export function grammarParser(grammer) {
         }
     }
 
-    function createBody() {
+    function createBody(lex) {
         body = [];
+        body.lex = lex.copy();
         body.funct = {};
         body.precedence = 1;
         body.production = current_production.id;
         current_production.bodies.push(body);
+    }
+
+    function fence(body, lex) {
+        if (body && !body.fenced) {
+            body.lex.fence(lex);
+            body.fenced = true;
+        }
     }
 
     //Terminals are symbols, and identifiers *id*
@@ -119,19 +127,22 @@ export function grammarParser(grammer) {
             switch (lex.ty) {
                 case types.identifier:
                     if (lex.pk.ch == "→") {
+                        fence(body, lex);
+
                         PREPROCESS = false;
-                        current_production = { name: lex.tx, bodies: [], id: 0, follow: null, first: null };
+                        current_production = { name: lex.tx, bodies: [], id: 0, follow: null, first: null, lex: lex.copy() };
                         current_production.id = productions.push(current_production) - 1;
 
                         LU.set(current_production.name, current_production);
 
                         sealExpression();
-                        createBody();
                         lex.sync();
+                        createBody(lex);
                     } else {
-                        if (expression !== null)
+                        if (expression !== null) {
+                            fence(body, lex);
                             expression += lex.tx;
-                        else {
+                        } else {
                             if (body)
                                 body.push(lex.tx);
                             else
@@ -157,11 +168,13 @@ export function grammarParser(grammer) {
                             lex.sync();
                             continue;
                         case "↦":
+                            fence(body, lex);
                             sealExpression(lex.n.tx);
                             break;
                         case "│":
+                            fence(body, lex);
                             sealExpression();
-                            createBody();
+                            createBody(lex);
                             break;
                         case "τ":
                             pk = lex.pk.n;
@@ -170,16 +183,18 @@ export function grammarParser(grammer) {
                             lex.sync();
                             continue;
                         case "%":
-                            if(lex.pk.tx == "%"){
+                            if (lex.pk.tx == "%") {
                                 lex.sync();
+                                fence(body, lex);
                                 body.precedence = parseInt(lex.n.tx);
                                 break;
                             }
                             //intentional
                         default:
-                            if (expression !== null)
+                            if (expression !== null) {
+                                fence(body, lex);
                                 expression += lex.tx;
-                            else {
+                            } else {
                                 body.push(lex.tx);
                             }
                             break;

@@ -1,4 +1,213 @@
-import { FIRST, isNonTerm, filloutGrammar } from "../common.mjs";
+import { FIRST, isNonTerm, filloutGrammar, Item, actions } from "../common.mjs";
+import { gotoCollisionCheck, reduceCollisionCheck, shiftCollisionCheck } from "./error.mjs";
+
+function ProcessState(items, state, states, grammar, items_set, LALR_MODE = false) {
+
+    const bodies = grammar.bodies;
+    let Sets = new Map();
+
+    if (!state.b) {
+        state.b = [grammar[bodies[items[0][0]].production].name, "→", ...bodies[items[0][0]]].map((d) => isNaN(d) ? d : grammar[d].name)
+    }
+
+    for (let i = 0; i < items.length; i++) {
+        let item = items[i];
+
+        if (item.USED) {
+            continue;
+        }
+
+        let body = bodies[item.body];
+        let len = item.len;
+
+        let offset = item.offset;
+
+        if (i == 0 && state.body == undefined)
+            state.body = item[0];
+        //Figure out if the item is already in a set. 
+        if (offset < len) {
+            //consume additional similar items if possible.
+
+            //States generated here  
+            let k = body[offset],
+                new_items = [item.increment()];
+
+            for (let j = i + 1; j < items.length; j++) {
+                let o_item = items[j];
+                if ((k == bodies[o_item.body][o_item.offset])) {
+                    o_item.USED = true;
+                    new_items.push(o_item.increment());
+                }
+            }
+
+
+            let check = new Set(),
+                new_state, MERGE = false,
+                id = new_items
+                .slice()
+                .sort((a, b) => a[0] < b[0] ? -1 : 1)
+                .sort((a, b) => a[2] < b[2] ? -1 : 1)
+                .map(k => (LALR_MODE) ? k.id : k.full_id)
+                .reduce((a, k) => a += check.has(k) ? "" : ((check.add(k), k)), ""),
+                fnc = (s, items) => {
+                    if (s.has(items[0].v))
+                        return s.get(items[0].v)
+                    return undefined;
+                }
+
+            if (
+                (new_state = states.map.get(id)) &&
+                (
+                    (LALR_MODE && (new_state = (new_state.values().next().value))) ||
+                    (new_state = fnc(new_state, items))
+                )
+            ) {
+                let out = [];
+                new_items.forEach(e => {
+                    if (!new_state.sigs.has(e.full_id)) {
+                        out.push(e);
+                        new_state.sigs.add(e.full_id)
+                    }
+                });
+
+                if (out.length > 0) {
+                    MERGE = true;
+                    new_items = out;
+                }
+            } else {
+                MERGE = true;
+                states.push({
+                    action: new Map,
+                    goto: new Map,
+                    id: states.length,
+                    body: body.production,
+                    sigs: new Set(new_items.map((k) => k.full_id)),
+                    real_id: id
+                });
+
+                new_state = states[states.length - 1];
+
+                if (!states.map.has(id))
+                    states.map.set(id, new Map)
+
+                let map = states.map.get(id);
+                new_items.forEach(e => map.set(e.v, new_state));
+            }
+
+            let ASSOCIATION = (item[0] == state.body) && !!grammar.rules.assc;
+
+            if (!isNonTerm(k)) {
+
+                if (k != "$") {
+                    let SKIP = false;
+
+                    if (state.action.has(k) && (SKIP = true))
+                        if (ASSOCIATION && grammar.rules.assc[k] == "right")
+                            SKIP = false;
+
+                    if (!SKIP) {
+                        if (shiftCollisionCheck(grammar, state, new_state, item))
+                            return false
+
+
+                        state.action.set(k, { name: "SHIFT", state: new_state.id, body: item[0], len: offset, original_body: body.id });
+                    }
+                }
+            } else {
+
+                if (gotoCollisionCheck(grammar, state, new_state, item))
+                    return false;
+
+
+                state.goto.set(k, { name: "GOTO", state: new_state.id, body: body.id, fid: item.full_id });
+            }
+
+            //Add closure
+            if (MERGE)
+                items_set.push({ c: Closure(new_items, grammar), s: new_state });
+
+        } else {
+            const k = item.v;
+
+            if (item.body == 0 && k == "$")
+                state.action.set(k, { name: "ACCEPT", size: len, production: body.production, body: body.id, len });
+
+            else {
+                const p1 = body.precedence;
+                const p2 = item.p;
+
+                if (p2 < p1 && k !== "$" && i > 0)
+                    continue;
+
+                if (reduceCollisionCheck(grammar, state, item))
+                    return false;
+
+
+                state.action.set(k, { name: "REDUCE", size: len, production: body.production, body: body.id, len });
+            }
+        }
+    }
+
+    return true;
+}
+
+
+function Closure(items, grammar, offset = 0, added = new Set()) {
+    const bodies = grammar.bodies,
+        g = items.length;
+
+    for (let i = offset; i < g; i++) {
+        let item = items[i];
+        let body = bodies[item.body];
+
+        let len = item.len;
+        let index = item.offset;
+
+        let B = body[index];
+        let Be = body.slice(index + 1);
+        let b = item.follow;
+
+        if (index < len && isNonTerm(B)) { //Taking the closure
+
+            let first;
+
+            if (Be.length > 0) {
+                first = FIRST(grammar, ...(Be.map(x => isNonTerm(x) ? x : { v: x, p: body.precedence })), b);
+            } else {
+                first = [b];
+            }
+            //Add all items B;
+            added.add(B);
+
+            let production = grammar[B];
+
+            for (let i = 0; i < production.bodies.length; i++) {
+                let body = production.bodies[i];
+
+                for (let i = 0; i < first.length; i++) {
+                    let item = new Item(body.id, body.length, 0, first[i].v, first[i].p);
+                    let sig = item.full_id;
+                    if (!added.has(sig)) {
+                        items.push(item);
+                        added.add(sig);
+                    }
+                }
+            }
+            Closure(items, grammar, g, added);
+        }
+    }
+    return items;
+}
+
+function createInitialState(grammar) {
+    let states = [{ action: new Map, goto: new Map, id: 0, body: 0 }];
+    states.bodies = grammar.bodies;
+    states.grammar = grammar;
+    states.type = "lr";
+    states.map = new Map([]);
+    states.count = 1;
+    return states;
+}
 
 export function LALRTable(grammar, env = {}) {
     /* Storage for Items is determined by three numbers. 
@@ -14,182 +223,34 @@ export function LALRTable(grammar, env = {}) {
      */
     filloutGrammar(grammar, env);
 
-    let bodies = grammar.bodies;
+    const bodies = grammar.bodies,
+        start_closure = Closure([new Item(0, bodies[0].length, 0, "$", 0)], grammar);
 
-    //start with first body
-    let body = bodies[0];
-    let state_count = 0;
+    let states = createInitialState(grammar),
+        items_set = [{ c: start_closure, s: states[0] }],
+        LALR_MODE = true,
+        i = 0;
 
-    let states = [{ action: new Map, goto: new Map, id: state_count++, body: 0 }];
-    states.bodies = bodies;
-    states.grammar = grammar;
-    states.type = "lr";
+    while (items_set.length > 0 && i++ < 100000) {
 
-    let state_maps = new Map();
+        const items = items_set.shift();
 
-    let len = body.length;
-
-    let items = [
-        [0, len, 0, { v: "$", p: 0 }]
-    ];
-
-
-
-    function Closure(items, offset = 0, added = new Set()) {
-
-        let g = items.length;
-
-        for (let i = offset; i < g; i++) {
-            let item = items[i];
-            let body = bodies[item[0]];
-
-            let len = item[1];
-            let index = item[2];
-
-            let B = body[index];
-            let Be = body.slice(index + 1);
-            let b = item[3];
-
-            if (index < len && isNonTerm(B)) { //Taking the closure
-
-                let first;
-
-                if (Be.length > 0) {
-                    first = FIRST(grammar, ...(Be.map(x => isNonTerm(x) ? x : { v: x, p: body.precedence })), b);
-                } else {
-                    first = [b];
-                }
-
-                //Add all items B;
-                added.add(B);
-
-                let production = grammar[B];
-
-                for (let i = 0; i < production.bodies.length; i++) {
-                    let body = production.bodies[i];
-
-                    for (let i = 0; i < first.length; i++) {
-
-                        let sig = "" + body.id + body.length + 0 + (first[i].v);
-
-                        if (!added.has(sig)) {
-                            items.push([body.id, body.length, 0, first[i]]);
-                            added.add(sig);
-                        }
-                    }
-                }
-
-                Closure(items, g, added);
+        if (!ProcessState(items.c, items.s, states, grammar, items_set, LALR_MODE)) {
+            if (LALR_MODE) {
+                console.error("Unable to continue in LALR mode. Restarting in CLR Mode. \n")
+                states = createInitialState(grammar)
+                items_set = [{ c: start_closure, s: states[0] }];
+                LALR_MODE = false;
+            } else {
+                console.error("Unable to parse grammar. It does not appear to be a LR grammar.\n")
+                states.INVALID = true;
+                break;
             }
         }
-
-        return items;
     }
 
-    const GOTO = [];
+    if (i == 100000)
+        throw new Error("Failed process grammar. Max step limit reached. The current limit is set to 100000 iterations.")
 
-    function Goto(items, state) {
-        let state_body = 0;
-        let Sets = new Map();
-        outer:
-            for (let i = 0; i < items.length; i++) {
-                let item = items[i];
-                let body = bodies[item[0]];
-                let len = item[1];
-                let index = item[2];
-
-                if (i == 0)
-                    state_body = item[0];
-                //Figure out if the item is already in a set. 
-                if (index < len) {
-                    //States generated here
-                    let k = /*body[index][0] == "τ" ? body[index].slice(1) :*/ body[index]
-                    let set = Sets.get(k);
-                    
-                    if (!set) {
-                        set = [];
-                        set.body = item[0];
-                        set.len = index;
-                        Sets.set(k, set);
-                    }
-
-                    set.push([item[0], len, index + 1, item[3]])
-                    //If new items are set already then either merge or discard. 
-                } else {
-                    let k = item[3].v;
-                        let p1 = body.precedence;
-                        let p2 = item[3].p;
-
-                    if (item[0] == 0 && k == "$")
-                        state.action.set(k, { name: "ACCEPT", size: len, production: body.production, body: body.id, len });
-                    else {
-                      //*  
-                        if (p2 < p1 && k !== "$" && i > 0) {
-                            continue outer;
-                        }//*/
-                        state.action.set(k, { name: "REDUCE", size: len, production: body.production, body: body.id, len });
-                    }
-                }
-            }
-
-        Sets.forEach((v, k) => {
-
-            let ASSOCIATION = v[0][0] == state_body && !!grammar.rules.assc;
-
-            //If set is already declared, use that instead.
-            let signature = "";
-            let full_sig = "";
-
-            v.forEach((k) => {
-                let y = k.slice(0, -1).join("");
-                full_sig += y + k[3].v;
-                if (y != signature) signature += y;
-            });
-
-            let PROCESSED_STATE = state_maps.get(signature);
-
-            let state_id = (PROCESSED_STATE) ? PROCESSED_STATE.id : state_count++;
-
-            if (!isNonTerm(k)) {
-                if (k != "$") {
-                    let SKIP = false;
-                    if (state.action.has(k)) {
-                        SKIP = true; // Favor reductions
-                        if (ASSOCIATION) {
-                            if (grammar.rules.assc[k] == "right")
-                                SKIP = false;
-                        }
-                    }
-                    if (!SKIP)
-                        state.action.set(k, { name: "SHIFT", state: state_id, body: v.body, len: v.len });
-                }
-            } else
-                state.goto.set(k, state_id);
-
-            //Set transitions for this function. 
-            if (!PROCESSED_STATE) {
-                let new_state = { action: new Map, goto: new Map, id: state_id, body: bodies[v.body].production };
-                states.push(new_state);
-                state_maps.set(signature, { id: state_id, sig: new Set([full_sig]) });
-                GOTO.push({c:Closure(v),s:new_state});
-                //Goto(Closure(v), new_state);
-            } else { //Merge the states
-                let DIFF_MERGE = !PROCESSED_STATE.sig.has(full_sig);
-                if (DIFF_MERGE) {
-                    PROCESSED_STATE.sig.add(full_sig);
-                    GOTO.push({c:Closure(v),s:states[PROCESSED_STATE.id]});
-                    //Goto(Closure(v), states[PROCESSED_STATE.id]);
-                }
-            }
-        });
-    }
-
-    GOTO.push({c:Closure(items),s:states[0]})
-
-    while(GOTO.length > 0){
-        const item = GOTO.shift();
-        Goto(item.c, item.s);
-    }
-    
     return states;
 }
