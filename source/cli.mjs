@@ -19,54 +19,108 @@ import fs from "fs";
 import readline from "readline";
 
 /*** BASH COLORS ****/
+const COLOR_ERROR = `\x1b[41m`
 const COLOR_KEYBOARD = `\x1b[38;5;15m\x1b[48;5;246m`
 const COLOR_SUCCESS = `\x1b[38;5;254m\x1b[48;5;30m`
 const COLOR_RESET = `\x1b[0m`
-const ADD_COLOR = (str, color) => color +  str  + COLOR_RESET;
+const ADD_COLOR = (str, color) => color + str + COLOR_RESET;
 
 
 const fsp = fs.promises;
+let grammar_path = "";
+let grammar_string = "";
+let name = "";
+let compiled_grammar_function = "";
 
 /* ****************** HC STUFF *********************/
 
-function write(name, parser_file, options, MOUNT = false) {
-    let filename = name;
-    let dir = path.resolve(options.dir);
-    let data = parser_file;
 
-    switch (options.type) {
+async function loadGrammar(grammar_path, env_path = "") {
+    let env = { functions: {} };
+
+    try {
+        grammar_string = await fsp.readFile(grammar_path, "utf8");
+
+        //check for optional env file
+        if (env_path) {
+
+            const env_path = path.resolve(env_path);
+
+            let env_file = "";
+
+            try {
+                env_file = await fsp.readFile(env_path, "utf8").catch(e);
+            } catch (e) {
+                console.error(`Unable to open the environment file ${env_path}`, err);
+                console.log("Continuing without environment");
+            }
+
+            if (env_file) {
+                try {
+                    env = (Function(env_file + "; return env;"))();
+                } catch (e) {
+                    console.error(e);
+                    console.log("Continuing without environment");
+                }
+            }
+        }
+
+    } catch (err) {
+        console.error(err);
+        throw new Error(`Unable to open the grammar file ${grammar_path}`);
+    };
+
+    return { grammar: grammar_string, env }
+}
+
+function createScript(name, parser, type, compress = false) {
+
+    switch (type) {
         case "mjs":
-            data = `${data}; export default parser;`;
+            parser = `${parser}; export default parser;`;
+            break;
+        case "cjs":
+            parser = `${parser}; module.exports = parser;`;
+            break;
+        default:
+        case "js":
+            parser = `${parser}; const ${name} = parser;`;
+            break;
+    }
+
+    if (compress)
+        return terser.default.minify(parser).code;
+
+    return parser;
+}
+
+function write(name, parser_script, output_directory, type) {
+    let filename = name;
+    let dir = path.resolve(output_directory);
+
+    switch (type) {
+        case "mjs":
             filename += ".mjs";
             break;
         case "cjs":
-            data = `${data}; module.exports = parser;`;
             filename += "_cjs.js";
             break;
         default:
         case "js":
-            data = `${data}; const ${name} = parser;`;
             filename += ".js";
             break;
     }
 
-     //compress data if necessary
-     
-     if (true || options.compress)
-         data = terser.default.minify(data).code;
-
+    //compress data if necessary
     if (!fs.existsSync(dir))
         fs.mkdirSync(dir);
 
-    fsp.writeFile(path.join(dir, filename), data, { encoding: "utf8", flags: "w+" })
+    return fsp.writeFile(path.join(dir, filename), parser_script, { encoding: "utf8", flags: "w+" })
         .then(res => {
-            console.log(ADD_COLOR(`The ${filename} script has been successfully written.`, COLOR_SUCCESS));
+            console.log(ADD_COLOR(`The ${filename} script has been successfully written.`, COLOR_SUCCESS), "\n");
         }).catch(err => {
             console.error(err);
-        }).then(() => {
-            if (MOUNT)
-                mount(name, parser_file);
-        });
+        })
 }
 
 function build(name, grammar_string, env) {
@@ -75,39 +129,66 @@ function build(name, grammar_string, env) {
 
     let output = hc.LRParserCompiler(table, env);
 
-    console.log(`The ${name} parser has been successfully compiled!`);
+    console.log(ADD_COLOR(`The ${name} parser has been successfully compiled!`, COLOR_SUCCESS), "\n");
 
     return output;
 }
 
-function mount(name, input) {
+function CLI_INSTRUCTIONS(full = false) {
+    console.log(`\nType something then hit {${ADD_COLOR(" enter ", COLOR_KEYBOARD)}||${ADD_COLOR(" return ", COLOR_KEYBOARD)}} to see how the ${name} parser performs on that input`)
+    console.log(`Type 'reload' to update the parser with new file changes.`)
+    console.log(`Type 'exit' or use ${ADD_COLOR(" ctrl ", COLOR_KEYBOARD)}+${ADD_COLOR(" c ", COLOR_KEYBOARD)} to return to console:`)
+    console.log(`Type 'help' to show help info.`)
+}
 
-    const parser = ((Function(input + "; return parser"))());
+async function mount(name, input) {
+    let d = await new Promise(res => {
 
-    const r1 = readline.createInterface({
-        input: process.stdin,
-        output: process.stdout
-    });
+        const parser = ((Function(input + "; return parser"))());
 
-    console.log(ADD_COLOR("The parser has been mounted in NodeJS", COLOR_SUCCESS))
-    console.log(`\nType something then hit {${ADD_COLOR(" enter ", COLOR_KEYBOARD)}||${ADD_COLOR(" return ", COLOR_KEYBOARD)}} to see how the ${name} parser performs that input. Type 'exit' or use ${ADD_COLOR(" ctrl ", COLOR_KEYBOARD)}+${ADD_COLOR(" c ", COLOR_KEYBOARD)} to return to console:`);
+        const r1 = readline.createInterface({
+            input: process.stdin,
+            output: process.stdout
+        });
 
-    r1.on('line', (input) => {
-        if (input == "exit") {
-            r1.close();
-            return;
-        }
 
-        try {
-            console.dir(parser(whind(input), {}));
-        } catch (e) {
-            console.error(e);
-        }
+        console.log(ADD_COLOR("The parser has been mounted in NodeJS", COLOR_SUCCESS))
+        CLI_INSTRUCTIONS();
+
+        r1.on('line', (input) => {
+
+            if (input == "exit") {
+                r1.close();
+                return res(false);
+            }
+
+            if (input == "reload") {
+                r1.close();
+                return res(true);
+            }
+
+            if (input == "help") {
+                CLI_INSTRUCTIONS(true);
+                r1.prompt();
+                return;
+            }
+
+            try {
+                console.dir(parser(whind(input), {}));
+            } catch (e) {
+                console.error(e);
+            }
+
+            r1.prompt();
+        });
 
         r1.prompt();
-    });
+    })
 
-    r1.prompt();
+    if (d)
+        console.log(ADD_COLOR(`Reloading ${ name }`, COLOR_SUCCESS))
+
+    return d;
 }
 
 function CreateTable(grammar_string, env) {
@@ -137,7 +218,9 @@ program
             console.log(hc.renderTable(table));
         } catch (err) {
             console.error(err);
-            throw new Error(`Unable to open the grammar file ${grammar_path}`);
+            throw new Error(`
+            Unable to open the grammar file $ { grammar_path }
+            `);
         }
     });
 
@@ -153,64 +236,37 @@ program
     .option("-e, --env <path>", "Optional JavaScript file containing parsing environment information.")
     .option("-m, --mount", "Mounts the compiled parser in the current NodeJS context and allows interactive parsing of user input.")
     .option("-n, --name <output_name>", "The name to give to the output file. Defaults to the name of the grammar file.")
-    .option("-t, --type <type>", `Type of file to output.
-    The type can be:
-        "mjs" - (*.mjs) A module file for use with the modern ES2016 module syntax.
-        "cjs" - (*_cjs.js) A CommonJS module for use with NodeJS and other consumers of CommonJS.
-        "js"  - (*.js) [Default] A regular JavaScript file. 
-                The parser will be available as a global value. 
-                The name of the global object will be same as the output file name. 
-`)
+    .option("-d, --noout", "Do note write to file.")
+    .option("-c, --compress", "Minify output file.")
+    .option("-t, --type <type>", `
+            Type of file to output.The type can be:
+            "mjs" - ( * .mjs) A module file
+            for use with the modern ES2016 module syntax.
+            "cjs" - ( * .c.js) A CommonJS module
+            for use with NodeJS and other consumers of CommonJS.
+            "js" - ( * .js)[Default] A regular JavaScript file that can be embedded in HTML.The parser will be available as a global value.The name of the global object will be same as the output file name.
+            `)
     .action(async (hc_grammar, cmd) => {
-        const grammar_path = path.resolve(hc_grammar),
+        const
+            grammar_path = path.resolve(hc_grammar),
             name = cmd.output_name ? cmd.output_name : path.basename(grammar_path, path.extname(grammar_path)),
             type = cmd.type ? cmd.type : "js",
-            output_directory = cmd.output ? path.resolve(cmd.output) : process.cwd,
-            options = { type, dir: output_directory }
+            output_directory = cmd.output ? path.resolve(cmd.output) : process.cwd(),
+            compress = !!cmd.compress;
 
-        const MOUNT = !!cmd.mount;
-        //attempt to read the file
+        for (;;) {
+            const data = await loadGrammar(grammar_path, "");
+            const parser = build(name, data.grammar, data.env);
+            const script = createScript(name, parser, type, compress);
 
-        try {
-            const grammar_string = await fsp.readFile(grammar_path, "utf8");
+            if (!!cmd.noout) {
+                console.log(ADD_COLOR("No Output. Skipping file saving", COLOR_ERROR), "\n")
+            } else
+                write(name, script, output_directory, type);
 
-            let env = { functions: {} };
-            //check for optional env file
-            if (cmd.env) {
-
-                const env_path = path.resolve(cmd.env);
-
-                let env_file = "";
-
-                try {
-                    env_file = await fsp.readFile(env_path, "utf8").catch(e);
-                } catch (e) {
-                    console.error(`Unable to open the environment file ${env_path}`, err);
-                    console.log("Continuing without environment");
-                }
-
-                if (env_file) {
-                    try {
-                        env = (Function(env_file + "; return env;"))();
-                    } catch (e) {
-                        console.error(e);
-                        console.log("Continuing without environment");
-                    }
-                }
-
-                const parser = build(name, grammar_string, env);
-
-                write(name, parser, options, MOUNT);
-
-            } else {
-                let parser = build(name, grammar_string, env);
-
-                write(name, parser, options, MOUNT);
-            }
-        } catch (err) {
-            console.error(err);
-            throw new Error(`Unable to open the grammar file ${grammar_path}`);
-        };
+            if (!!cmd.mount && !(await mount(name, script)))
+                return;
+        }
     });
 
 program.parse(process.argv);
