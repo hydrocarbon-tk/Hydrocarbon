@@ -141,7 +141,7 @@ assignment → F = E ↦ cstr this.assigned = sym[0]; this.value = sym[2]; this.
 
 ###################################################################################################
 
-# This document should produce the following table when called by "hydrocarbon table"
+# This document should produce the following table when called by "hydrocarbon table template.hgc"
 
 # ┏━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
 # ┃ St. ┃ θid   θnu   $     =     +     *   ┃  stm   ass   exp   F     E   ┃
