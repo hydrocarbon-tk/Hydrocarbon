@@ -15,11 +15,11 @@ const crbl = String.fromCharCode(0x2517)
 
 export function renderTable(rule_table, tab = "   ", tab_s = tab.length) {
 
-    const ws =(count)=>(" ").repeat(count);
-    const tnts = (h)=>((Math.ceil((h+0.5) / tab_s)*tab_s)-h) ;
-    const stnts = (h)=>ws(tnts(h));
+    const ws = (count) => (" ").repeat(count);
+    const tnts = (h) => ((Math.ceil((h + 0.5) / tab_s) * tab_s) - h);
+    const stnts = (h) => ws(tnts(h));
 
-    if(rule_table.INVALID){
+    if (rule_table.INVALID) {
         console.error("Invalid state set passed. Cannot continue.")
         return;
     }
@@ -58,7 +58,7 @@ export function renderTable(rule_table, tab = "   ", tab_s = tab.length) {
                 prods.set(k, prod_count++);
             }
 
-            prep.goto.push({ k, v:v.state, off: prods.get(k) });
+            prep.goto.push({ k, v: v.state, off: prods.get(k) });
         })
 
 
@@ -69,7 +69,7 @@ export function renderTable(rule_table, tab = "   ", tab_s = tab.length) {
     }
     /***** Top Bar ********/
     let tm = tab_s - 1;
-    
+
     str += `${crtl}${hrz.repeat(tm)}${crt}${hrz.repeat(symbol_count * tab_s + tm)}${crt}${hrz.repeat(prod_count * tab_s + tm)}${crtr}\n`
 
     /***** Header ********/
@@ -79,37 +79,37 @@ export function renderTable(rule_table, tab = "   ", tab_s = tab.length) {
     let d = `${ver} ${state + stnts(state_len) + ver + ws(tm)}`;
     let off = d.length;
 
-    let max = 4;
+    let max = 16;
     let act = 0;
 
-    symbols.forEach((v,k)=>{
-        let e = k.slice(0,max-1);
+    symbols.forEach((v, k) => {
+        let e = k.slice(0, max - 1);
         act = Math.max(act, e.length);
         off += e.length;
         d += e + stnts(off);
         off += tnts(off);
-    })
-    
-    d +=`${ver + ws(tm)}`
-    
+    });
+
+    d += `${ver + ws(tm)}`;
+
     off += tab_s;
 
-    prods.forEach((v,k)=>{
-        let e = rule_table.grammar[k].name.slice(0,max-1);
+    prods.forEach((v, k) => {
+        let e = rule_table.grammar[k].name.slice(0, max - 1);
         act = Math.max(act, e.length);
         off += e.length;
         d += e + stnts(off);
         off += tnts(off);
-    })
+    });
 
-    if((act + 2) > tab_s && tab_s < max)
-        return renderTable(rule_table, (" ").repeat(Math.min(max,act + 2)));
+    if ((act + 2) > tab_s && tab_s < max)
+        return renderTable(rule_table, (" ").repeat(Math.min(max, act + 2)));
 
     str += `${d + ver}\n`;
 
     /**** Dividing Bar ********/
 
-	str += `${crl + hrz.repeat(tm) + crs + hrz.repeat(symbol_count * tab_s + tm) + crs + hrz.repeat(prod_count * tab_s + tm) + crs + hrz.repeat(max_body + 3) + crtr}\n`
+    str += `${crl + hrz.repeat(tm) + crs + hrz.repeat(symbol_count * tab_s + tm) + crs + hrz.repeat(prod_count * tab_s + tm) + crs + hrz.repeat(max_body + 3) + crtr}\n`
 
 
     /**** ENTRIES ************************/
@@ -117,48 +117,48 @@ export function renderTable(rule_table, tab = "   ", tab_s = tab.length) {
     for (let i = 0; i < num_states; i++) {
         let p = preps[i];
 
-        if((i+"").length + 2 >= tab_s)
-            return renderTable(rule_table, (" ").repeat((i+"").length + 4))
-        
-        d = `${ver} ${i + stnts(2 + (i+"").length) + ver + ws(tm)}`
+        if ((i + "").length + 2 >= tab_s)
+            return renderTable(rule_table, (" ").repeat((i + "").length + 4));
 
-        let off = 0; 
+        d = `${ver} ${i + stnts(2 + (i+"").length) + ver + ws(tm)}`;
 
-        p.action.forEach((v,k) => {
+        let off = 0;
+
+        p.action.forEach((v, k) => {
             let action = v.v;
 
             d += `${tab.repeat(Math.max((v.off - off), 0))}`;
 
-            switch(action.name){
-            	case "SHIFT":
+            switch (action.name) {
+                case "SHIFT":
                     let state = v.v.state + "";
 
-                    if(state.length + 2 >= tab_s)
-                        return renderTable(rule_table, (" ").repeat(state.length + 4))
+                    if (state.length + 2 >= tab_s)
+                        return renderTable(rule_table, (" ").repeat(state.length + 4));
 
-            		d += `s${state + stnts(state.length+1)}`;
-            	break;
-            	case "REDUCE":
+                    d += `s${state + stnts(state.length+1)}`;
+                    break;
+                case "REDUCE":
                     let body = v.v.body + "";
 
-                    if(body.length + 2 >= tab_s)
-                        return renderTable(rule_table, (" ").repeat(body.length + 4))
+                    if (body.length + 2 >= tab_s)
+                        return renderTable(rule_table, (" ").repeat(body.length + 4));
 
-            		d += `r${body + stnts(body.length+1)}`;
-            	break;
-            	case "ACCEPT":
-            		d += `acc${stnts(3)}`;
-            	break;
+                    d += `r${body + stnts(body.length+1)}`;
+                    break;
+                case "ACCEPT":
+                    d += `acc${stnts(3)}`;
+                    break;
             }
-            
+
             off = v.off + 1;
         })
 
         d += `${tab.repeat(Math.max((symbol_count - off), 0)) + ver + ws(tm)}`;
-        
+
         off = 0
-        p.goto.forEach((v,k) => {
-            let action = v.v+"";
+        p.goto.forEach((v, k) => {
+            let action = v.v + "";
             d += `${tab.repeat(Math.max((v.off - off), 0))}`;
             d += `${action+ stnts(action.length)}`;
             off = v.off + 1;
@@ -166,8 +166,8 @@ export function renderTable(rule_table, tab = "   ", tab_s = tab.length) {
 
         d += `${tab.repeat(Math.max((prod_count - off), 0))}${ver} `;
 
-        let s = rule_table[i].b.join(" ");
-        let diff = max_body - s.length;
+        const s = rule_table[i].b.join(" "),
+            diff = max_body - s.length;
 
         d += `${s + (" ").repeat(diff + 2) + ver}\n`
 
@@ -178,5 +178,5 @@ export function renderTable(rule_table, tab = "   ", tab_s = tab.length) {
     /**** Bottom Bar ************************/
     str += `${crbl + hrz.repeat(tm) + crb + hrz.repeat(symbol_count * tab_s + tm) + crb + hrz.repeat(prod_count * tab_s + tm) + crb + hrz.repeat(max_body + 3) + crbr}\n`
 
-    return str//.replace(/\t/g, (" ").repeat(8));
+    return str //.replace(/\t/g, (" ").repeat(8));
 }

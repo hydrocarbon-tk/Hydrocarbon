@@ -19,18 +19,15 @@ import fs from "fs";
 import readline from "readline";
 
 /*** BASH COLORS ****/
-const COLOR_ERROR = `\x1b[41m`
-const COLOR_KEYBOARD = `\x1b[38;5;15m\x1b[48;5;246m`
-const COLOR_SUCCESS = `\x1b[38;5;254m\x1b[48;5;30m`
-const COLOR_RESET = `\x1b[0m`
-const ADD_COLOR = (str, color) => color + str + COLOR_RESET;
+const COLOR_ERROR = `\x1b[41m`,
+    COLOR_KEYBOARD = `\x1b[38;5;15m\x1b[48;5;246m`,
+    COLOR_SUCCESS = `\x1b[38;5;254m\x1b[48;5;30m`,
+    COLOR_RESET = `\x1b[0m`,
+    ADD_COLOR = (str, color) => color + str + COLOR_RESET,
+    fsp = fs.promises,
+    name = "";
 
-
-const fsp = fs.promises;
-let grammar_path = "";
 let grammar_string = "";
-let name = "";
-let compiled_grammar_function = "";
 
 /* ****************** HC STUFF *********************/
 
@@ -68,9 +65,9 @@ async function loadGrammar(grammar_path, env_path = "") {
     } catch (err) {
         console.error(err);
         throw new Error(`Unable to open the grammar file ${grammar_path}`);
-    };
+    }
 
-    return { grammar: grammar_string, env }
+    return { grammar: grammar_string, env };
 }
 
 function createScript(name, parser, type, compress = false) {
@@ -95,8 +92,9 @@ function createScript(name, parser, type, compress = false) {
 }
 
 function write(name, parser_script, output_directory, type) {
+    const dir = path.resolve(output_directory);
+
     let filename = name;
-    let dir = path.resolve(output_directory);
 
     switch (type) {
         case "mjs":
@@ -125,9 +123,8 @@ function write(name, parser_script, output_directory, type) {
 
 function build(name, grammar_string, env) {
 
-    const table = CreateTable(grammar_string, env);
-
-    let output = hc.LRParserCompiler(table, env);
+    const table = CreateTable(grammar_string, env),
+        output = hc.LRParserCompiler(table, env);
 
     console.log(ADD_COLOR(`The ${name} parser has been successfully compiled!`, COLOR_SUCCESS), "\n");
 
@@ -183,10 +180,10 @@ async function mount(name, input) {
         });
 
         r1.prompt();
-    })
+    });
 
     if (d)
-        console.log(ADD_COLOR(`Reloading ${ name }`, COLOR_SUCCESS))
+        console.log(ADD_COLOR(`Reloading ${ name }`, COLOR_SUCCESS));
 
     return d;
 }
@@ -260,7 +257,7 @@ program
             const script = createScript(name, parser, type, compress);
 
             if (!!cmd.noout) {
-                console.log(ADD_COLOR("No Output. Skipping file saving", COLOR_ERROR), "\n")
+                console.log(ADD_COLOR("No Output. Skipping file saving", COLOR_ERROR), "\n");
             } else
                 write(name, script, output_directory, type);
 

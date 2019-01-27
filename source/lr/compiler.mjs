@@ -64,7 +64,7 @@ export function LRParserCompiler(rule_table, env) {
 
         if (production.error) {
             const funct = production.error;
-            error_handlers.push(`${n}=${funct.toString().replace(/(anonymous)?[\n\t]*/g,"")}`);
+            error_handlers.push(`${funct.toString().replace(/(anonymous)?[\n\t]*/g,"")}`);
         } else {
             error_handlers.push("e")
         }
@@ -237,7 +237,7 @@ export function LRParserCompiler(rule_table, env) {
     let temp_string = ""
 
     output += 
-`const e = (tk,r,o,l,s)=>{throw new SyntaxError(l.errorMessage(\`unexpected token \${tk} on production \${s} \`))}, nf = ()=>-1, ${functions.length > 0 ? functions.join(",\n") +",": "" }
+`const e = (tk,r,o,l,s)=>{throw new SyntaxError(l.errorMessage(\`unexpected token \${tk !== "$" ? tk[0] == "θ" || tk[0] == "τ" ? l.tx : tk : "EOF"} on production \${s} \`))}, nf = ()=>-1, ${functions.length > 0 ? functions.join(",\n") +",": "" }
 goto = [${goto_functions.join(",\n")}],
 err = [${errors.join(",\n")}],
 eh = [${error_handlers.join(",\n")}],
@@ -258,7 +258,7 @@ ${getToken.toString()}
     let time = 10000;
     outer:
     while(time-- > 0){
-        
+        console.log(ss)
         let fn = state[ss[sp]].get(tk) || 0, r, st = 0, gt = -1, c = 0;
 
         if(fn > 0){

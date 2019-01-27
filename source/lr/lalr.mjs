@@ -1,48 +1,52 @@
-import { FIRST, isNonTerm, filloutGrammar, Item, actions } from "../common.mjs";
+import { FIRST, isNonTerm, filloutGrammar, Item, actions, EMPTY_PRODUCTION } from "../common.mjs";
 import { gotoCollisionCheck, reduceCollisionCheck, shiftCollisionCheck } from "./error.mjs";
 
 function ProcessState(items, state, states, grammar, items_set, LALR_MODE = false) {
 
     const bodies = grammar.bodies;
-    let Sets = new Map();
 
     if (!state.b) {
-        state.b = [grammar[bodies[items[0][0]].production].name, "→", ...bodies[items[0][0]]].map((d) => isNaN(d) ? d : grammar[d].name)
+        state.b = [grammar[bodies[items[0][0]].production].name, "→", ...bodies[items[0][0]]].map((d) => isNaN(d) ? d : grammar[d].name);
     }
 
     for (let i = 0; i < items.length; i++) {
-        let item = items[i];
+        const item = items[i];
 
         if (item.USED) {
             continue;
         }
 
-        let body = bodies[item.body];
         let len = item.len;
 
-        let offset = item.offset;
+        let body = bodies[item.body],
+            offset = item.offset;
 
         if (i == 0 && state.body == undefined)
             state.body = item[0];
+
+        let k = body[offset];
+
+        if (body[offset] == EMPTY_PRODUCTION) {
+            offset++;
+            len--;
+            console.log(offset, len)
+        }
         //Figure out if the item is already in a set. 
         if (offset < len) {
             //consume additional similar items if possible.
-
-            //States generated here  
-            let k = body[offset],
+            let new_state, MERGE = false,
                 new_items = [item.increment()];
+            //States generated here  
 
             for (let j = i + 1; j < items.length; j++) {
-                let o_item = items[j];
+                const o_item = items[j];
                 if ((k == bodies[o_item.body][o_item.offset])) {
                     o_item.USED = true;
                     new_items.push(o_item.increment());
                 }
             }
 
-
-            let check = new Set(),
-                new_state, MERGE = false,
+            const check = new Set(),
                 id = new_items
                 .slice()
                 .sort((a, b) => a[0] < b[0] ? -1 : 1)
@@ -51,9 +55,9 @@ function ProcessState(items, state, states, grammar, items_set, LALR_MODE = fals
                 .reduce((a, k) => a += check.has(k) ? "" : ((check.add(k), k)), ""),
                 fnc = (s, items) => {
                     if (s.has(items[0].v))
-                        return s.get(items[0].v)
+                        return s.get(items[0].v);
                     return undefined;
-                }
+                };
 
             if (
                 (new_state = states.map.get(id)) &&
@@ -62,11 +66,11 @@ function ProcessState(items, state, states, grammar, items_set, LALR_MODE = fals
                     (new_state = fnc(new_state, items))
                 )
             ) {
-                let out = [];
+                const out = [];
                 new_items.forEach(e => {
                     if (!new_state.sigs.has(e.full_id)) {
                         out.push(e);
-                        new_state.sigs.add(e.full_id)
+                        new_state.sigs.add(e.full_id);
                     }
                 });
 
@@ -88,17 +92,16 @@ function ProcessState(items, state, states, grammar, items_set, LALR_MODE = fals
                 new_state = states[states.length - 1];
 
                 if (!states.map.has(id))
-                    states.map.set(id, new Map)
+                    states.map.set(id, new Map);
 
-                let map = states.map.get(id);
+                const map = states.map.get(id);
                 new_items.forEach(e => map.set(e.v, new_state));
             }
 
-            let ASSOCIATION = (item[0] == state.body) && !!grammar.rules.assc;
-
+            const ASSOCIATION = (item[0] == state.body) && !!grammar.rules.assc;
             if (!isNonTerm(k)) {
+                if (k != "$" /*&& k !== EMPTY_PRODUCTION*/ ) {
 
-                if (k != "$") {
                     let SKIP = false;
 
                     if (state.action.has(k) && (SKIP = true))
@@ -107,7 +110,7 @@ function ProcessState(items, state, states, grammar, items_set, LALR_MODE = fals
 
                     if (!SKIP) {
                         if (shiftCollisionCheck(grammar, state, new_state, item))
-                            return false
+                            return false;
 
 
                         state.action.set(k, { name: "SHIFT", state: new_state.id, body: item[0], len: offset, original_body: body.id });
@@ -128,6 +131,9 @@ function ProcessState(items, state, states, grammar, items_set, LALR_MODE = fals
 
         } else {
             const k = item.v;
+            
+            if(k == EMPTY_PRODUCTION)
+                continue;
 
             if (item.body == 0 && k == "$")
                 state.action.set(k, { name: "ACCEPT", size: len, production: body.production, body: body.id, len });
@@ -157,18 +163,15 @@ function Closure(items, grammar, offset = 0, added = new Set()) {
         g = items.length;
 
     for (let i = offset; i < g; i++) {
-        let item = items[i];
-        let body = bodies[item.body];
-
-        let len = item.len;
-        let index = item.offset;
-
-        let B = body[index];
-        let Be = body.slice(index + 1);
-        let b = item.follow;
+        const item = items[i],
+            body = bodies[item.body],
+            len = item.len,
+            index = item.offset,
+            B = body[index],
+            Be = body.slice(index + 1),
+            b = item.follow;
 
         if (index < len && isNonTerm(B)) { //Taking the closure
-
             let first;
 
             if (Be.length > 0) {
@@ -176,13 +179,18 @@ function Closure(items, grammar, offset = 0, added = new Set()) {
             } else {
                 first = [b];
             }
+
             //Add all items B;
             added.add(B);
 
-            let production = grammar[B];
+            const production = grammar[B];
 
             for (let i = 0; i < production.bodies.length; i++) {
-                let body = production.bodies[i];
+                const body = production.bodies[i];
+
+                //if(body[0] == EMPTY_PRODUCTION)
+                //    continue;
+
 
                 for (let i = 0; i < first.length; i++) {
                     let item = new Item(body.id, body.length, 0, first[i].v, first[i].p);

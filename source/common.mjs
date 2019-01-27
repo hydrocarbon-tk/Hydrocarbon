@@ -17,10 +17,18 @@ export function getToken(l, reserved) {
     switch (l.ty) {
         case types.id:
             let tx = l.tx;
-            if (reserved.has(tx)) return "τ"+tx;
+            if (reserved.has(tx)) return "τ" + tx;
             return "θid";
         case types.num:
             return "θnum";
+        case types.string:
+            return "θstr";
+        case types.new_line:
+            return "θnl";
+        case types.space:
+            return "θws";
+        case types.data_link:
+            return "θdl";
         default:
             return l.tx;
     }
@@ -43,8 +51,7 @@ export function createPrecedence(body, grammar) {
 
 /**************** FIRST and FOLLOW sets ***************************/
 function addNonTerminal(table, nonterm, grammar, body_ind, index = 0) {
-    if(!nonterm[index]){
-        console.error(nonterm)
+    if (!nonterm[index]) {
         throw new Error(`Empty production at index ${index} in [${nonterm}]`)
     }
 
@@ -74,9 +81,9 @@ function addNonTerminal(table, nonterm, grammar, body_ind, index = 0) {
 
         return HAS_E;
     }
-    let cc = terminal.charCodeAt(0) 
-    if(!(cc < 48 || (cc > 57 && cc < 64) || (cc > 90 && cc < 97) || cc > 123))
-        terminal = "τ"+ terminal;
+    let cc = terminal.charCodeAt(0);
+    if (!(cc < 48 || (cc > 57 && cc < 64) || (cc > 90 && cc < 97) || cc > 123))
+        terminal = "τ" + terminal;
     table.add({ v: terminal, p: grammar.bodies[body_ind].precedence });
 
     return HAS_E;
@@ -94,17 +101,20 @@ export function FIRST(grammar, ...symbols) {
 
     if (!symbols[0]) return [];
 
-    let set = new Set();
+    const set = new Set();
 
     for (let i = 0; i < symbols.length; i++) {
-        let SYMBOL = symbols[i];
-        let subset = new Set();
+        const SYMBOL = symbols[i],
+            subset = new Set();
 
         if (typeof(SYMBOL) !== "object" && isNonTerm(SYMBOL)) {
-            let production = grammar[SYMBOL];
+
+            const production = grammar[SYMBOL];
+
             let HAS_E = false;
+
             for (let i = 0; i < production.bodies.length; i++) {
-                let body = production.bodies[i];
+                const body = production.bodies[i];
                 if (addNonTerminal(subset, body, grammar, body.id)) {
                     HAS_E = true;
                 }
@@ -117,8 +127,9 @@ export function FIRST(grammar, ...symbols) {
                 break;
             }
         } else {
-            if (SYMBOL.v == EMPTY_PRODUCTION)
+            if (SYMBOL.v == EMPTY_PRODUCTION) {
                 continue;
+            }
 
             set.add(SYMBOL);
             break;
@@ -127,7 +138,8 @@ export function FIRST(grammar, ...symbols) {
 
     const val = [...set];
 
-    let v = (symbols[0].v) ? symbols[0].v : symbols[0];
+    const v = (symbols[0].v) ? symbols[0].v : symbols[0];
+
     if (isNonTerm(v))
         grammar[v].first = val;
 
@@ -219,22 +231,31 @@ export function FOLLOW(grammar, production) {
 
 /************ Grammar Production Functions *****************************/
 
-function setFunction(env, function_body, function_params = [], this_object = null) {
+function setFunction(env, function_body, function_params = [], this_object = null, body) {
     if (function_body[0] == "^")
         if (env && env.functions[function_body.slice(1)])
             return env.functions[function_body.slice(1)].bind(this_object);
         else
             return () => {};
+    let funct;
 
-    return (Function).apply(this_object, function_params.concat([function_body]));
+    try {
+        funct = (Function).apply(this_object, function_params.concat([function_body]));
+    } catch (e) {
+        console.log(body, function_body)
+        console.error(e);
+        funct = () => { return { error: e, type: "error" } }
+    }
+
+    return funct
 }
 
 export function createFunctions(production, body, env) {
     body.node = null;
     body.err = null;
     body.sr = [];
-    
-    if(!production.func_counter)
+
+    if (!production.func_counter)
         production.func_counter = 0;
 
     if (body.funct.cstr) {
@@ -245,19 +266,19 @@ export function createFunctions(production, body, env) {
             node.NAME = funct.name;
             node.TYPE = "class";
         } else {
-            if(!env.id)
+            if (!env.id)
                 env.id = 1;
 
-            if(!env.FLUT) 
+            if (!env.FLUT)
                 env.FLUT = new Map();
 
             let str = body.funct.cstr;
 
-            if(env.FLUT.has(str)){
+            if (env.FLUT.has(str)) {
                 node = env.FLUT.get(str);
-            }else{
-                let id = production.name+"$"+production.func_counter++;
-                node = setFunction(null, str, [production_stack_arg_name, environment_arg_name, lexer_arg_name, "state"], ()=>{});
+            } else {
+                let id = production.name + "$" + production.func_counter++;
+                node = setFunction(null, str, [production_stack_arg_name, environment_arg_name, lexer_arg_name, "state"], () => {}, body);
                 env.functions[id] = node;
                 env.FLUT.set(str, node);
                 node.NAME = id;
@@ -265,7 +286,7 @@ export function createFunctions(production, body, env) {
                     node.TYPE = "function"
                 else
                     node.TYPE = "class"
-            }            
+            }
 
         }
 
@@ -362,8 +383,8 @@ export class Item extends Array {
 }
 
 export const actions = {
-    ACCEPT:1,
-    SHIFT:2,
-    REDUCE:3,
-    GOTO:4,
+    ACCEPT: 1,
+    SHIFT: 2,
+    REDUCE: 3,
+    GOTO: 4,
 }
