@@ -28,11 +28,50 @@
     "commander": "^2.19.0",
     "terser": "^3.11.0"
   },
-  "jshintConfig": {
-    "esversion": 6,
-    "unused": true
+  "eslintConfig": {
+    "parserOptions": {
+      "sourceType": "module",
+      "ecmaVersion": 2018
+    },
+    "env": {
+      "es6": true,
+      "browser": true,
+      "node": true
+    },
+    "extends": "eslint:recommended",
+    "rules": {
+      "no-fallthrough": [
+        "error",
+        {
+          "commentPattern": "[iI]ntentional( - [\\w\\W]*){0,1}"
+        }
+      ],
+      "semi-style": [
+        "error",
+        "last"
+      ],
+      "semi": [
+        "warn",
+        "always",
+        {
+          "omitLastInOneLineBlock": true
+        }
+      ],
+      "prefer-const": "warn",
+      "new-cap": [
+        "error"
+      ],
+      "padding-line-between-statements": [
+        "error",
+        {
+          "blankLine": "always",
+          "prev": "function",
+          "next": "*"
+        }
+      ]
+    }
   },
   "engine": {
-    "node": ">=10.0.0"
+    "node": ">=11.6.0"
   }
 }
