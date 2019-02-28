@@ -2,11 +2,11 @@
 import whind from "../../node_modules/@candlefw/whind/source/whind.mjs";
 import { getToken, types, FOLLOW } from "../common.mjs";
 
-function setNode(node, length, functions, id, str = "") {
+function setNode(node, length, functions, id, str = "") {   
     if (node.TYPE == "class") {
-        str += `o[o.length-${length}]=(new ${node.NAME}(o.slice(${-length}),e,l,s));o.length-=${length-1}`;
+        str += `let ln = Math.max(o.length-${length},0); o[ln]=(new ${node.NAME}(o.slice(${-length}),e,l,s));o.length=ln+1;`;
     } else {
-        str += `o[o.length-${length}]=${node.NAME}(o.slice(${-length}),e,l,s);o.length-=${length-1}`;
+        str += `let ln = Math.max(o.length-${length},0); o[ln]=${node.NAME}(o.slice(${-length}),e,l,s);o.length=ln+1;`;
     }
     return { str, id };
 }
@@ -66,7 +66,7 @@ export function LRParserCompiler(rule_table, env) {
             const funct = production.error;
             error_handlers.push(`${funct.toString().replace(/(anonymous)?[\n\t]*/g,"")}`);
         } else {
-            error_handlers.push("e")
+            error_handlers.push("e");
         }
 
         let state_map = [];
@@ -84,19 +84,19 @@ export function LRParserCompiler(rule_table, env) {
             let fn = 0;
             switch (v.name) {
                 case "REDUCE":
-                    st_fn_id = "r"
+                    st_fn_id = "r";
 
-                    if (body.node) {
+                    if (body.node && length > 0) {
                         const out = setNode(body.node, length, functions, fn_id, "");
                         str = out.str;
                         funct = out.str;
                         st_fn_id += body.node.NAME;
                         fn_id = out.id;
-                    }
-
-                    if (body.sr[v.len]) {
+                    }else if(length == 0)
+                        funct = "o.push(null)"; // empty production
+                    
+                    if (body.sr[v.len]) 
                         str += `${body.sr[v.len].name}(o,e,l,s);`;
-                    }
 
                     return_value = (3 | (length << 2) | (v.production << 10));
 
@@ -112,7 +112,7 @@ export function LRParserCompiler(rule_table, env) {
                     state_map.push(`${fn}`);
                     break;
                 case "SHIFT":
-                    st_fn_id = "s"
+                    st_fn_id = "s";
 
                     if (body.sr[v.len]) {
                         let name = body.sr[v.len].name;
@@ -128,7 +128,7 @@ export function LRParserCompiler(rule_table, env) {
 
                     return_value = (2 | (v.state << 2));
 
-                    st_fn_id += return_value
+                    st_fn_id += return_value;
 
                     fn = state_functions_map.get(st_fn_id);
 
@@ -258,7 +258,7 @@ ${getToken.toString()}
     let time = 10000;
     outer:
     while(time-- > 0){
-        console.log(ss)
+        
         let fn = state[ss[sp]].get(tk) || 0, r, st = 0, gt = -1, c = 0;
 
         if(fn > 0){
@@ -311,19 +311,21 @@ ${getToken.toString()}
                 o.push((tk[0] == "θ") ? l.tx : tk); ss.push(off, r >> 2); sp+=2; l.next(); off = l.off; tk = getToken(l, re); 
                 break;
             case 3: // REDUCE
+
                 len = (r & 0x3FC) >> 1;
 
                 ss.length -= len;   
                 sp -= len; 
+
                 gt = goto[ss[sp]](r >> 10);
 
                 if(gt < 0)
                     l.throw("Invalid state reached!");
+                
                 ss.push(off, gt); sp+=2; 
                 break;
         }   
     }
-    console.log(o)
     return o[0];
 }`;
 

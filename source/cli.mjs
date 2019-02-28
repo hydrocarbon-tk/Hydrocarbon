@@ -18,6 +18,9 @@ import path from "path";
 import fs from "fs";
 import readline from "readline";
 
+const Lexer_Path = path.resolve(import.meta.url.replace(/file\:\/\//g,""), "../../node_modules/@candlefw/whind/build/whind.js");
+const LEXER_SCRIPT = `${fs.readFileSync(Lexer_Path)} const lexer = whind.default;`;
+
 /*** BASH COLORS ****/
 const COLOR_ERROR = `\x1b[41m`,
     COLOR_KEYBOARD = `\x1b[38;5;15m\x1b[48;5;246m`,
@@ -35,42 +38,34 @@ let grammar_string = "";
 async function loadGrammar(grammar_path, env_path = "") {
     let env = { functions: {} };
 
-    try {
+    /*try*/{
         grammar_string = await fsp.readFile(grammar_path, "utf8");
 
         //check for optional env file
         if (env_path) {
-
-            const env_path = path.resolve(env_path);
-
-            let env_file = "";
-
-            try {
-                env_file = await fsp.readFile(env_path, "utf8").catch(e);
-            } catch (e) {
-                console.error(`Unable to open the environment file ${env_path}`, err);
-                console.log("Continuing without environment");
-            }
-
-            if (env_file) {
-                try {
-                    env = (Function(env_file + "; return env;"))();
-                } catch (e) {
-                    console.error(e);
-                    console.log("Continuing without environment");
-                }
+            let ext = env_path.split(".").reverse()[0];
+            switch (ext) {
+                case "mjs":
+                    env =  (await import(env_path)).default;
+                    break;
+                case "js":
+                    env = require(env_path);
+                    break;
             }
         }
-
-    } catch (err) {
-        console.error(err);
-        throw new Error(`Unable to open the grammar file ${grammar_path}`);
     }
+    /* catch (err) {
+            console.error(err);
+            throw new Error(`Unable to open the grammar file ${grammar_path}`);
+        }*/
 
     return { grammar: grammar_string, env };
 }
 
-function createScript(name, parser, type, compress = false) {
+function createScript(name, parser, type, compress = false, env) {
+
+        if(env.options && env.options.integrate)
+        parser = hc.StandAloneParserCompiler(parser, LEXER_SCRIPT, env);
 
     switch (type) {
         case "mjs":
@@ -84,6 +79,8 @@ function createScript(name, parser, type, compress = false) {
             parser = `${parser}; const ${name} = parser;`;
             break;
     }
+
+
 
     if (compress)
         return terser.default.minify(parser).code;
@@ -113,6 +110,7 @@ function write(name, parser_script, output_directory, type) {
     if (!fs.existsSync(dir))
         fs.mkdirSync(dir);
 
+
     return fsp.writeFile(path.join(dir, filename), parser_script, { encoding: "utf8", flags: "w+" })
         .then(res => {
             console.log(ADD_COLOR(`The ${filename} script has been successfully written.`, COLOR_SUCCESS), "\n");
@@ -138,7 +136,7 @@ function CLI_INSTRUCTIONS(full = false) {
     console.log(`Type 'help' to show help info.`)
 }
 
-async function mount(name, input) {
+async function mount(name, input, env) {
     let d = await new Promise(res => {
 
         const parser = ((Function(input + "; return parser"))());
@@ -165,12 +163,14 @@ async function mount(name, input) {
             }
 
             if (input == "help") {
-                CLI_INSTRUCTIONS(true);
-                r1.prompt();
+                CLI_INSTRUCTIONS(true);r1.prompt();
                 return;
             }
 
             try {
+                if(env.options && env.options.integrate)
+                console.dir(parser(input));
+            else
                 console.dir(parser(whind(input), {}));
             } catch (e) {
                 console.error(e);
@@ -246,22 +246,25 @@ program
     .action(async (hc_grammar, cmd) => {
         const
             grammar_path = path.resolve(hc_grammar),
+            env_path = cmd.env ? path.resolve(cmd.env) : "",
             name = cmd.output_name ? cmd.output_name : path.basename(grammar_path, path.extname(grammar_path)),
             type = cmd.type ? cmd.type : "js",
             output_directory = cmd.output ? path.resolve(cmd.output) : process.cwd(),
             compress = !!cmd.compress;
 
         for (;;) {
-            const data = await loadGrammar(grammar_path, "");
+            const data = await loadGrammar(grammar_path, env_path);
             const parser = build(name, data.grammar, data.env);
-            const script = createScript(name, parser, type, compress);
+            const script = createScript(name, parser, type, compress, data.env);
 
             if (!!cmd.noout) {
                 console.log(ADD_COLOR("No Output. Skipping file saving", COLOR_ERROR), "\n");
             } else
                 write(name, script, output_directory, type);
 
-            if (!!cmd.mount && !(await mount(name, script)))
+            if (!!cmd.mount && !(await mount(name, script, data.env)))
+                return;
+            else
                 return;
         }
     });

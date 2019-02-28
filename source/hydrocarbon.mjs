@@ -3,6 +3,7 @@ import { LALRTable } from "./lr/lalr.mjs";
 import { SLRTable } from "./lr/slr.mjs";
 import { LRParser } from "./lr/parser.mjs";
 import { LRParserCompiler } from "./lr/compiler.mjs";
+import { StandAloneParserCompiler } from "./lr/parser_compiler.mjs";
 //LL
 
 //GRAMMAR
@@ -17,5 +18,6 @@ export {
     LRParser,
     grammarParser,
     LRParserCompiler,
-    renderTable
+    renderTable,
+    StandAloneParserCompiler
 };

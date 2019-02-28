@@ -16,23 +16,23 @@ function ProcessState(items, state, states, grammar, items_set, LALR_MODE = fals
             continue;
         }
 
-        let len = item.len;
-
-        let body = bodies[item.body],
+        let len = item.len,
             offset = item.offset;
+
+        const body = bodies[item.body];
 
         if (i == 0 && state.body == undefined)
             state.body = item[0];
 
-        let k = body[offset];
-
+        
         if (body[offset] == EMPTY_PRODUCTION) {
-            offset++;
-            len--;
-            console.log(offset, len)
+            offset=len;
+            len=0;
         }
+
         //Figure out if the item is already in a set. 
         if (offset < len) {
+            const k = body[offset];
             //consume additional similar items if possible.
             let new_state, MERGE = false,
                 new_items = [item.increment()];
@@ -186,14 +186,10 @@ function Closure(items, grammar, offset = 0, added = new Set()) {
             const production = grammar[B];
 
             for (let i = 0; i < production.bodies.length; i++) {
-                const body = production.bodies[i];
-
-                //if(body[0] == EMPTY_PRODUCTION)
-                //    continue;
-
+                const pbody = production.bodies[i];
 
                 for (let i = 0; i < first.length; i++) {
-                    let item = new Item(body.id, body.length, 0, first[i].v, first[i].p);
+                    let item = new Item(pbody.id, pbody.length, 0, first[i].v, first[i].p);
                     let sig = item.full_id;
                     if (!added.has(sig)) {
                         items.push(item);

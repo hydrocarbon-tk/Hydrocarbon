@@ -62,7 +62,7 @@ export function grammarParser(grammer) {
 
     function sealExpression(name) {
         if (body && expression !== null) {
-            const exp = expression
+            const exp = expression;
             if (expression_name == "error") {
 
                 current_production.funct = { error: lex.slice(time).trim() };
@@ -73,8 +73,10 @@ export function grammarParser(grammer) {
         if (name) {
             expression_name = name;
             time = lex.pk.off;
+            lex.PARSE_STRING = true;
             expression = "";
         } else {
+            lex.PARSE_STRING = false;
             expression_name = "";
             expression = null;
         }
@@ -107,13 +109,38 @@ export function grammarParser(grammer) {
             if (lex.ty !== types.id) {
 
                 lex.IWS = false;
-                while (!lex.END && lex.n.ty !== types.new_line) {}
+                while (!lex.END && lex.n.ty !== types.new_line);
 
                 lex.IWS = true;
+            } else if (lex.tx == "SYMBOLS") {
+                lex.next();
+
+                lex.IWS = false;
+
+                while (!lex.END && lex.type !== types.new_line) {
+
+                    const l = lex.copy();
+
+                    while (!l.END && !(l.n.ty & (types.new_line | types.ws)));
+
+                    const sym = l.slice(lex);
+
+                    if(sym && l.type !== types.new_line){
+                        
+                        lex.addSymbol(sym.trim());
+                    }
+
+                    lex.sync(l);
+                }
+
+                lex.IWS = true;
+
+                // /lex.next();
+
             } else {
                 lex.IWS = true;
 
-                let name = lex.tx;
+                const name = lex.tx;
 
                 if (!rules[name])
                     rules[name] = {};
@@ -154,11 +181,12 @@ export function grammarParser(grammer) {
                 case types.operator:
                 case types.ob:
                 case types.cb:
+
                     switch (lex.ch) {
                         case "#": //comment
                             sealExpression();
                             lex.IWS = false;
-                            while (!lex.END && lex.n.ty !== types.new_line) {}
+                            while (!lex.END && lex.n.ty !== types.new_line);
                             lex.IWS = true;
                             lex.next();
                             continue;

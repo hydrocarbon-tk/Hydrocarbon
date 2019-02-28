@@ -52,10 +52,11 @@ export function gotoCollisionCheck(grammar, state, new_state, item) {
 }
 
 export function reduceCollisionCheck(grammar, state, item) {
+
     const k = item.v,
         action = state.action.get(k);
 
-    if (action) {
+    if (action && grammar[grammar.bodies[action.body].production].name !== state.b[0]) {
         const bodies = grammar.bodies,
             body_a = bodies[item.body],
             body_b = grammar.bodies[action.body];
@@ -63,7 +64,7 @@ export function reduceCollisionCheck(grammar, state, item) {
         console.error(`  \x1b[41m REDUCE \x1b[43m COLLISION ERROR ENCOUNTERED:\x1b[0m`);
 
         console.error(
-            `   A reduction on symbol <${k}> for state <${state.id}> has already been defined.
+            `   A reduction on symbol <${k}> for state <${state.id}> has already been defined. ${state.b.join(" ")}
 
     Existing Action:
         Reduce to {${grammar[body_b.production].name}} from production { ${body_b.lex.slice().slice(1).trim()} }

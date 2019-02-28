@@ -8,16 +8,15 @@ export const isNonTerm = (f) => f !== undefined && (typeof(f) == "number" || (f[
 
 export const types = whind.types;
 
-let production_stack_arg_name = "sym";
-let environment_arg_name = "env";
-let lexer_arg_name = "lex";
+const production_stack_arg_name = "sym",
+    environment_arg_name = "env",
+    lexer_arg_name = "lex";
 
 export function getToken(l, reserved) {
     if (l.END) return "$";
     switch (l.ty) {
         case types.id:
-            let tx = l.tx;
-            if (reserved.has(tx)) return "τ" + tx;
+            if (reserved.has(l.tx)) return "τ" + l.tx;
             return "θid";
         case types.num:
             return "θnum";
@@ -34,15 +33,15 @@ export function getToken(l, reserved) {
     }
 }
 export function getPrecedence(term, grammar) {
-    let prec = grammar.rules.prec;
+    const prec = grammar.rules.prec;
     if (prec && typeof(term) == "string" && typeof(prec[term]) == "number")
         return prec[term];
     return -1;
 
 }
 export function createPrecedence(body, grammar) {
-    let prec = body.precedence,
-        l = 0;
+    const prec = body.precedence;
+    let l = 0;
     for (let i = 0; i < body.length; i++) {
         l = Math.max(getPrecedence(body[i], grammar), l);
     }
@@ -51,8 +50,9 @@ export function createPrecedence(body, grammar) {
 
 /**************** FIRST and FOLLOW sets ***************************/
 function addNonTerminal(table, nonterm, grammar, body_ind, index = 0) {
+
     if (!nonterm[index]) {
-        throw new Error(`Empty production at index ${index} in [${nonterm}]`)
+        throw new Error(`Empty production at index ${index} in [${grammar[nonterm.production].name}]`)
     }
 
     let first = nonterm[index],
@@ -142,6 +142,8 @@ export function FIRST(grammar, ...symbols) {
 
     if (isNonTerm(v))
         grammar[v].first = val;
+
+    
 
     return val;
 }
