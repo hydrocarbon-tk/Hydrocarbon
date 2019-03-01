@@ -32,6 +32,7 @@ export function getToken(l, reserved) {
             return l.tx;
     }
 }
+
 export function getPrecedence(term, grammar) {
     const prec = grammar.rules.prec;
     if (prec && typeof(term) == "string" && typeof(prec[term]) == "number")

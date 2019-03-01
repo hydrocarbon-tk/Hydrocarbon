@@ -12,9 +12,8 @@ function ProcessState(items, state, states, grammar, items_set, LALR_MODE = fals
     for (let i = 0; i < items.length; i++) {
         const item = items[i];
 
-        if (item.USED) {
+        if (item.USED) 
             continue;
-        }
 
         let len = item.len,
             offset = item.offset;
@@ -145,11 +144,14 @@ function ProcessState(items, state, states, grammar, items_set, LALR_MODE = fals
                 if (p2 < p1 && k !== "$" && i > 0)
                     continue;
 
-                if (reduceCollisionCheck(grammar, state, item))
-                    return false;
-
-
-                state.action.set(k, { name: "REDUCE", size: len, production: body.production, body: body.id, len });
+                switch(reduceCollisionCheck(grammar, state, item)){
+                    case -1: 
+                        return false;
+                    case 0:
+                         state.action.set(k, { name: "REDUCE", size: len, production: body.production, body: body.id, len });
+                         break
+                                  
+                }
             }
         }
     }
@@ -210,6 +212,7 @@ function createInitialState(grammar) {
     states.type = "lr";
     states.map = new Map([]);
     states.count = 1;
+    grammar.states = states;
     return states;
 }
 

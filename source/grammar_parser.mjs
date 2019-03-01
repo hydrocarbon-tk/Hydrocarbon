@@ -184,6 +184,7 @@ export function grammarParser(grammer) {
 
                     switch (lex.ch) {
                         case "#": //comment
+                        fence(body, lex);
                             sealExpression();
                             lex.IWS = false;
                             while (!lex.END && lex.n.ty !== types.new_line);

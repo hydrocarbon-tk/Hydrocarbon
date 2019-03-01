@@ -1,0 +1,4 @@
+[
+   { "keys": ["ctrl+shift+alt+p"], "command": "insert", "args": {"characters": "→"} },
+   { "keys": ["alt+b"], "command": "insert", "args": {"characters": "→"} }
+]bob

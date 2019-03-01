@@ -1,6 +1,6 @@
 ## HYDROCARBON BASE JS ##
 
-#SYMBOLS << >>> >> >>>= >>= <<= <= >= != !== |= === == ** ++ -- **= ... || && =>
+#SYMBOLS << >>> >> >>>= >>= <<= <= >= != !== |= === == ** ++ -- **= ... || && => ** ++ -- **= ... || && += -= /= *= %=  &= |= **=
 
 S → script
 	│ module	
@@ -307,10 +307,10 @@ object_binding_pattern → { }
 	│ { binding_property_list }
 	│ { binding_property_list , elision binding_rest_element }
 
-array_binding_pattern → [ elision binding_rest_element ]
+array_binding_pattern → [ , binding_rest_element ]
 	│ [ binding_rest_element ]
 	│ [ ]
-	│ [ elision ]
+	│ [ , ]
 	│ [ binding_element_list ]
 	│ [ binding_element_list , elision binding_rest_element ]
 
@@ -322,7 +322,7 @@ binding_property_list → binding_property
 binding_element_list → binding_elision_element
 	│ binding_element_list , binding_elision_element
 
-binding_elision_element → elision binding_element
+binding_elision_element → , binding_element
 	│ binding_element
 
 binding_property → single_name_binding
@@ -710,10 +710,4 @@ debugger_statement → τdebugger ;
 	numeric_literal → θnum
 
 	string_literal → θstr
-
-
-
-
-
-
 
