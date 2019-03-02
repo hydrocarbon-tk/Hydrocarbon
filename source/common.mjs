@@ -14,6 +14,7 @@ const production_stack_arg_name = "sym",
 
 export function getToken(l, reserved) {
     if (l.END) return "$";
+    console.log(l.tx)
     switch (l.ty) {
         case types.id:
             if (reserved.has(l.tx)) return "τ" + l.tx;

@@ -235,9 +235,9 @@ export function LRParserCompiler(rule_table, env) {
     }
 
     let temp_string = ""
-
     output += 
 `const e = (tk,r,o,l,s)=>{throw new SyntaxError(l.errorMessage(\`unexpected token \${tk !== "$" ? tk[0] == "θ" || tk[0] == "τ" ? l.tx : tk : "EOF"} on production \${s} \`))}, nf = ()=>-1, ${functions.length > 0 ? functions.join(",\n") +",": "" }
+symbols = [${grammar.symbols.map(e=>`"${e}"`).join(",\n")}],
 goto = [${goto_functions.join(",\n")}],
 err = [${errors.join(",\n")}],
 eh = [${error_handlers.join(",\n")}],
@@ -253,7 +253,16 @@ types = ${JSON.stringify(types)};
 ${getToken.toString()}
 
  function parser(l, e = {}){
+
+    if(symbols.length > 0){
+        symbols.forEach(s=> {l.addSymbol(s), console.log(s)});
+        l.off = 0;
+        l.tl = 0;
+        l.next();
+    }
+
     let tk = getToken(l, re), sp = 1, len = 0, off= 0;
+
     const o = [], ss = [0,0];
     let time = 10000;
     outer:
@@ -329,5 +338,5 @@ ${getToken.toString()}
     return o[0];
 }`;
 
-    return output //==.replace(/[\n\t]/g,"");
+    return output;
 }

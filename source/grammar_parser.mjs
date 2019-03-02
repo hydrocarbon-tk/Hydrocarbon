@@ -56,6 +56,7 @@ export function grammarParser(grammer) {
     let expression_name = null;
     let PREPROCESS = true;
     let rules = {};
+    productions.symbols = [];
     productions.reserved = new Set();
     productions.rules = rules;
     let time = 0;
@@ -126,7 +127,7 @@ export function grammarParser(grammer) {
                     const sym = l.slice(lex);
 
                     if(sym && l.type !== types.new_line){
-                        
+                        productions.symbols.push(sym.trim());
                         lex.addSymbol(sym.trim());
                     }
 

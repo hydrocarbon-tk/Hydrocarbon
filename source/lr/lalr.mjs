@@ -47,7 +47,7 @@ function ProcessState(items, state, states, grammar, items_set, LALR_MODE = fals
 
             const check = new Set(),
                 id = new_items
-                .slice()
+                .slice(0,1)
                 .sort((a, b) => a[0] < b[0] ? -1 : 1)
                 .sort((a, b) => a[2] < b[2] ? -1 : 1)
                 .map(k => (LALR_MODE) ? k.id : k.full_id)
@@ -58,11 +58,13 @@ function ProcessState(items, state, states, grammar, items_set, LALR_MODE = fals
                     return undefined;
                 };
 
+            let state_map;
+
             if (
-                (new_state = states.map.get(id)) &&
+                (state_map = states.map.get(id)) &&
                 (
-                    (LALR_MODE && (new_state = (new_state.values().next().value))) ||
-                    (new_state = fnc(new_state, items))
+                    (LALR_MODE && (new_state = (state_map.values().next().value))) ||
+                    (new_state = fnc(state_map, items))
                 )
             ) {
                 const out = [];
