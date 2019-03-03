@@ -84,8 +84,9 @@ function addNonTerminal(table, nonterm, grammar, body_ind, index = 0) {
         return HAS_E;
     }
     let cc = terminal.charCodeAt(0);
-    if (!(cc < 48 || (cc > 57 && cc < 64) || (cc > 90 && cc < 97) || cc > 123))
+    if (!(cc < 48 || (cc > 57 && cc < 64) || (cc > 90 && cc < 97) || cc > 122)){
         terminal = "τ" + terminal;
+    }
     table.add({ v: terminal, p: grammar.bodies[body_ind].precedence });
 
     return HAS_E;
@@ -352,7 +353,7 @@ export class Item extends Array {
     }
 
     get id() {
-        return "" + this[0] + this[1] + this[2];
+        return "" + this.body + "" + this.len + "" + this.offset + "|";
     }
 
     get full_id() {

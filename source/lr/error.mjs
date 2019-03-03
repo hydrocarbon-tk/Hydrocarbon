@@ -40,8 +40,22 @@ export function gotoCollisionCheck(grammar, state, new_state, item) {
             grammar.states[goto.state].b = [grammar[bodies[goto.body].production].name, "→", ...bodies[goto.body]].map((d) => isNaN(d) ? d : grammar[d].name);
         }
 
+        let old_id = grammar.states[goto.state].real_id;
+        let new_id = new_state.real_id
+
+        if(new_id.length <=  old_id.length && old_id.includes(new_id)){
+            //console.log(new_state.real_id, grammar.states[goto.state].real_id)
+            return -1;
+        }else if(old_id.length <= new_id.length && new_id.includes(old_id)){
+            //console.log(new_state.real_id, grammar.states[goto.state].real_id)
+            return 1;
+        }
+
+        let state_body = grammar.states[goto.state].b.join(" ")
+
+        console.log(new_id, old_id)
+        console.log(state)
         console.error(`  \x1b[42m GOTO \x1b[43m COLLISION ERROR ENCOUNTERED:\x1b[0m`);
-        console.log(grammar.states.length, goto.state, grammar.states[goto.state])
         console.error(
             `   Goto action on symbol <${k}> for state <${state.id}> <${state.b.join(" ")}> has already been defined.
 
@@ -50,12 +64,12 @@ export function gotoCollisionCheck(grammar, state, new_state, item) {
         Definition found on line ${body_b.lex.line+1}:${body_b.lex.char} in input.
 
     Replacing Action:
-        Goto to state {${new_state.b.join(" ")}} ${new_state.id} from reduction of production { ${body_a.lex.slice().slice(1).trim()} }
+        Goto to state {${grammar.states[new_state.body].b.join(" ")}} ${new_state.id} from reduction of production { ${body_a.lex.slice().slice(1).trim()} }
         Definition found on line ${body_a.lex.line+1}:${body_a.lex.char} in input.\n\n`);
 
-        return true;
+        return 0;
     }
-    return false;
+    return 1;
 }
 
 export function reduceCollisionCheck(grammar, state, item) {
@@ -70,12 +84,15 @@ export function reduceCollisionCheck(grammar, state, item) {
             body_b = grammar.bodies[action.body]; 
 
         if(grammar[body_b.production].name == state.b[0]) // TODO: Already reducing to the expected production )
+        {
+            console.log("TODO: Duplicate reduce merge", state.b[0], grammar[body_b.production].name)
             return 1;
+        }
         ; // intentional
 
         if(
             /*//*/ grammar[body_a.production].name !== state.b[0]
-            && body_b.production !== body_a.production // Reduction to same production should not be any error
+            && body_b.production !== body_a.production // Reduction to same production should not be an error
         ) {
 
 

@@ -103,7 +103,7 @@ export function grammarParser(grammer) {
     while (!lex.END) {
         let pk;
 
-        if (lex.ch == "#" && PREPROCESS) {
+        if (PREPROCESS && lex.ch == "#") {
             lex.IWS = false;
             lex.next();
 
@@ -153,8 +153,29 @@ export function grammarParser(grammer) {
         } else
 
             switch (lex.ty) {
-                case types.identifier:
-                    if (lex.pk.ch == "→") {
+                case types.identifier: 
+                    if (lex.tx == "EXCLUDE"){
+                        fence(body, lex);
+                        sealExpression();
+                        while(lex.n.tx !== "ENDEXCLUDE"){
+                            let v = ""
+                            if(lex.ch == "τ"){
+                                v += lex.ch;
+                                lex.next();
+                            }
+
+                            v += lex.tx;
+
+                            if(body)
+                            {
+                                if(!body.exclude)
+                                    body.exclude = [];
+
+                                body.exclude.push(v);
+                            }
+                        }
+                        sealExpression();
+                    }else if (lex.pk.ch == "→") {
                         fence(body, lex);
 
                         PREPROCESS = false;
@@ -166,7 +187,7 @@ export function grammarParser(grammer) {
                         sealExpression();
                         lex.sync();
                         createBody(lex);
-                    } else {
+                    } else{
                         if (expression !== null) {
                             fence(body, lex);
                             expression += lex.tx;
@@ -244,6 +265,6 @@ export function grammarParser(grammer) {
 
     if (productions.length < 1)
         throw new Error("No productions were generated from the input!");
-
+        
     return productions;
 }

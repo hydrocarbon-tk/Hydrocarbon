@@ -255,7 +255,7 @@ ${getToken.toString()}
  function parser(l, e = {}){
 
     if(symbols.length > 0){
-        symbols.forEach(s=> {l.addSymbol(s), console.log(s)});
+        symbols.forEach(s=> {l.addSymbol(s)});
         l.off = 0;
         l.tl = 0;
         l.next();
