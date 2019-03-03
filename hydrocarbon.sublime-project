@@ -1,8 +1,16 @@
 {
-	"folders":
-	[
-		{
-			"path": "."
-		}
-	]
+    "folders": [
+    {	
+    	"name":"main",
+        "folder_exclude_patterns": [".git", "node_modules", "docs"],
+        "binary_folder_patterns": ["build"],
+        "path": "."
+    },{
+    	"name":"docs",
+    	"path":"./docs"
+    }],
+    "setting": {
+    	"tab_size" : 4,
+    	"default_line_ending": "unix"
+    }
 }

@@ -84,7 +84,7 @@ stmt → assignment                                                       ↦ cs
     #                       sym :       The array of productions symbols (terminal strings and/or
     #                                   objects) that currently exist on the productions stack. 
     #
-    #                       env :       The environment object which can used however one desires.
+    #                       env :       The environment object which can be used however one desires.
     #                                   An example of its usage is to store a symbol table that 
     #                                   can be referenced in production functions. 
     #
@@ -121,27 +121,29 @@ stmt → assignment                                                       ↦ cs
     #                       Called when an invalid input is incountered. Can be used to generate an
     #                       error message with lex.throw. 
     #
-        # The use of this character can be found in later examples. 
+        # The use of this character c"auto_close": falsean be found in later examples. 
 
     #   #
     # %% (U+25 U+25) :  These characters, when imediately following the last symbol of a 
     #                   production, can define a new precedence for the production.
 
-expression → E      ↦ cstr return (sym[0]);
+expression → E              ↦ cstr return (sym[0]);
 
-E   → E + E  %%2    ↦ cstr this.left = sym[0]; this.right = sym[2]; this.type ="add";
-    │ E * E  %%1    ↦ cstr this.left = sym[0]; this.right = sym[2]; this.type ="multiply";
-    │ θnum          ↦ cstr this.id = sym[0]; this.type = "num";
-    │ F             ↦ cstr return sym[0];
+E   → E + E  %%2            ↦ cstr this.left = sym[0]; this.right = sym[2]; this.type ="add";
+    │ E * E  %%1            ↦ cstr this.left = sym[0]; this.right = sym[2]; this.type ="multiply";
+    │ θnum                  ↦ cstr this.id = sym[0]; this.type = "num";
+    │ F                     ↦ cstr return sym[0];
 
-F → θid           ↦ cstr this.id = sym[0]; this.type = "id";
+F → θid                     ↦ cstr this.id = sym[0]; this.type = "id";
 
-assignment → F = E ↦ cstr this.assigned = sym[0]; this.value = sym[2]; this.type ="add";
+assignment → F = E          ↦ cstr this.assigned = sym[0]; this.value = sym[2]; this.type ="add";
 
 
 ###################################################################################################
 
-# This document should produce the following table when called by "hydrocarbon table template.hgc"
+# This document should produce the following table when called by the command: 
+
+# hydrocarbon table template.hgc
 
 # ┏━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
 # ┃ St. ┃ θid   θnu   $     =     +     *   ┃  stm   ass   exp   F     E   ┃
