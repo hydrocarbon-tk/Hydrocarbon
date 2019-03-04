@@ -2,21 +2,90 @@
 
 #SYMBOLS { } ( ) [ ] . ... ; , < > <= >= == != === !== + - * % / ** ++ -- << >> >>> & | ^ ! ~ && || ? : += -= *= %= /= **= <<= >>= >>>= &= |= ^= =>  ####
 
-S → block_statement									
+S → script
 
-##############################################################################################################
-# https://www.ecma-international.org/ecma-262/9.0/index.html#sec-block
-##############################################################################################################
+## MODULES
 
-	block_statement → block 								
+	##############################################################################################################
+	# https://www.ecma-international.org/ecma-262/9.0/index.html#sec-ecmascript-language-scripts-and-modules
+	##############################################################################################################
+	
+		module → module_body 
 
-	block → { statement_list }						↦ cstr console.log(sym, "test1"); this.stmts = sym[1]
+		module_body → module_list_item
 
-	statement_list → statement_list_item 			↦ cstr console.log("danger",sym); return sym[0]
-		│ statement_list statement_list_item		↦ cstr console.log("danger2",sym); return (Array.isArray(sym[0])) ? sym[0].concat(sym[1]) : [sym[0],sym[1]]
+		module_list_item → module_item 
+			│ module_list_item module_item
 
-	statement_list_item → statement 
-		# │ declaration
+		module_item → import_declaration 
+			│ export_declaration
+			│ statement_list_item
+
+	##############################################################################################################
+	# https://www.ecma-international.org/ecma-262/9.0/index.html#prod-ImportDeclaration
+	##############################################################################################################
+
+		import_declaration → τimport import_clause from_clause
+			│ τimport module_specifier
+
+		import_clause → imported_default_binding
+			│ name_space_import
+			│ named_imports
+			│ imported_default_binding , name_space_import
+			│ imported_default_binding , named_imports
+
+		imported_default_binding → imported_binding
+
+		name_space_import → * τas imported_binding 
+
+		named_imports → { }
+			│ { imports_list }
+			│ { imports_list , }
+
+		from_clause → τfrom module_specifier
+
+		imports_list → import_specifier 
+			│ imports_list , import_specifier
+
+		import_specifier → imported_binding 
+			│ identifier τas imported_binding
+
+		module_specifier → string_literal
+
+		imported_binding → identifier
+
+	##############################################################################################################
+	# https://www.ecma-international.org/ecma-262/9.0/index.html#sec-exports
+	##############################################################################################################
+
+		export_declaration → τexport * from_clause ;
+			│ τexport export_clause from_clause ;
+			│ τexport export_clause ;
+			│ τexport variable_statement
+			│ τexport declaration
+			│ τexport τdefault hoistable_declaration
+			│ τexport τdefault class_declaration
+			│ τexport τdefault assignement_expression
+
+		export_clause → { } 
+			│ { exports_list }
+			│ { exports_list , }
+
+		exports_list → export_specifier
+			│ exports_list , export_specifier
+
+		export_specifier →  identifier 
+			│ identifier τas identifier
+## SCRIPT
+
+	##############################################################################################################
+	# https://www.ecma-international.org/ecma-262/9.0/index.html#sec-ecmascript-language-scripts-and-modules
+	##############################################################################################################
+		
+		script → script_body
+			│ ɛ
+
+		script_body → statement_list
 
 ## STATEMENTS
 
@@ -24,32 +93,49 @@ S → block_statement
 	# https://www.ecma-international.org/ecma-262/9.0/index.html#prod-Statement
 	##############################################################################################################
 
+
+		statement_list → statement_list_item 			↦ cstr console.log("danger",sym); return sym[0]
+			│ statement_list statement_list_item		↦ cstr console.log("danger2",sym); return (Array.isArray(sym[0])) ? sym[0].concat(sym[1]) : [sym[0],sym[1]]
+
+		statement_list_item → statement 
+			# │ declaration
+
+
 		statement → block_statement 
-			#│ variable_statement
+			│ variable_statement
 			│ empty_statement
 			│ expression_statement
-			#│ if_statement
+			│ if_statement
 			#│ breakable_statement
 			#│ continue_statement
 			#│ break_statement
-			#│ return_statement
+			│ return_statement
 			#│ with_statement
 			#│ labelled_statement
 			#│ throw_statement
 			#│ try_statement
 			#│ debugger_statement
 
-		# declaration → hoistable_declaration
-			# │ class_declaration
+		 declaration → hoistable_declaration
+			 │ class_declaration
 			# │ lexical_declaration
 
-		# hoistable_declaration → function_declaration
+		 hoistable_declaration → function_declaration
 			# │ generator_declaration
 			# │ async_function_declaration
 			# │ async_generator_declaration
 
 		breakable_statement → iteration_statement
 		 	│ switch_statement
+
+
+	##############################################################################################################
+	# https://www.ecma-international.org/ecma-262/9.0/index.html#sec-block
+	##############################################################################################################
+
+		block_statement → block 								
+
+		block → { statement_list }						↦ cstr console.log(sym, "test1"); this.stmts = sym[1]
 
 	##############################################################################################################
 	# https://www.ecma-international.org/ecma-262/9.0/index.html#sec-empty-statement
@@ -205,7 +291,7 @@ S → block_statement
 
 		variable_declaration → identifier initializer
 			│ identifier
-			# │ binding_pattern initializer
+			│ binding_pattern initializer
 
 
 	##############################################################################################################
@@ -236,21 +322,22 @@ S → block_statement
 		unique_formal_parameters → formal_parameters
 
 		formal_parameters → ɛ
-			# │ function_rest_parameter
-			# │ formal_parameter_list
-			# │ formal_parameter_list , 
-			# │ formal_parameter_list , function_rest_parameter
+			 │ function_rest_parameter
+			 │ formal_parameter_list
+			 │ formal_parameter_list , 
+			 │ formal_parameter_list , function_rest_parameter
 
-		# formal_parameter_list → formal_parameter 
-			# │ formal_parameter_list , formal_parameter
+		formal_parameter_list → formal_parameter 
+			 │ formal_parameter_list , formal_parameter
 
-		# function_rest_parameter → binding_rest_element
+		function_rest_parameter → binding_rest_element
 
-		# formal_parameter → binding_element
+		formal_parameter → binding_element
 
 		function_body → function_statement_list
+			│ ɛ
 
-		function_statement_list → statement_list
+		function_statement_list → statement_list 
 
 	##############################################################################################################
 	# https://www.ecma-international.org/ecma-262/9.0/index.html#sec-arrow-function-definitions
@@ -262,8 +349,61 @@ S → block_statement
 			│ cover_parenthesized_expression_and_arrow_parameter_list
 
 		concise_body → assignement_expression 
-			│ { function_body }
+			│ { function_statement_list }
+			│ { }
 
+	##############################################################################################################
+	# https://www.ecma-international.org/ecma-262/9.0/index.html#sec-async-arrow-function-definitions
+	##############################################################################################################
+
+		async_arrow_function → τasync async_arrow_parameters => async_concise_body
+
+		async_arrow_parameters → identifier 
+			│ cover_call_expression_and_async_arrow_head
+
+		async_concise_body → assignement_expression 
+			│ { function_statement_list }
+			│ { }
+
+		cover_call_expression_and_async_arrow_head → member_expression arguments
+
+## CLASSES
+	
+	##############################################################################################################
+	# https://www.ecma-international.org/ecma-262/9.0/index.html#sec-class-definitions
+	##############################################################################################################
+
+		class_declaration → τclass identifier class_tail 
+			│ τclass class_tail
+
+		class_expression → class_declaration
+
+		class_tail → class_heritage { class_body } 
+			│ class_heritage { }
+
+		class_heritage → τextends left_hand_side_expresssion 
+
+		class_body → class_element_list
+
+		class_element_list → class_element 
+			│ class_element_list class_element
+
+		class_element → method_definition 
+			│ τstatic method_definition
+			│ ;
+
+##############################################################################################################
+# https://www.ecma-international.org/ecma-262/9.0/index.html#prod-MethodDefinition
+##############################################################################################################
+
+	method_definition → property_name ( unique_formal_parameters ) { function_body }
+		# │ generator_method
+		# │ async_method
+		# │ async_generator_method
+		│ τget property_name ( ) { function_body }
+		│ τset property_name ( property_set_parameter_list ) { function_body }
+
+	property_set_parameter_list → formal_parameter 
 
 ##############################################################################################################
 # https://www.ecma-international.org/ecma-262/9.0/index.html#sec-comma-operator
@@ -301,7 +441,7 @@ S → block_statement
 		│ super_call
 		│ call_expression arguments
 		│ call_expression [ expression ]
-		# │ cover_call_expression_and_async_arrow_head 
+		│ cover_call_expression_and_async_arrow_head 
 		# │ call_expression template_literal
 
 	super_call → τsuper arguments
@@ -351,7 +491,7 @@ S → block_statement
 	property_definition → identifier
 		│ cover_initialized_name
 		│ property_name : assignement_expression
-		# │ method_definition
+	 	│ method_definition
 		│ ... assignement_expression
 
 	property_name → literal_property_name
@@ -546,6 +686,54 @@ S → block_statement
 			#│ ( ... binding_pattern )
 			│ ( expression , ...identifier )
 			# │ ( expression , ...binding_pattern )
+
+##############################################################################################################
+# https://www.ecma-international.org/ecma-262/9.0/index.html#prod-BindingPattern
+##############################################################################################################
+
+	binding_pattern → object_binding_pattern
+		│	array_binding_pattern
+
+	object_binding_pattern → { }
+		│ { binding_rest_property }
+		│ { binding_property_list }
+		│ { binding_property_list , binding_rest_property}
+		│ { binding_property_list , }
+
+	array_binding_pattern → [ ] 
+		│ [ elision binding_rest_element ]
+		│ [ elision ]
+		│ [ binding_rest_element ]
+		│ [ binding_element_list ]
+		│ [ binding_element_list , ]
+		│ [ binding_element_list , elision ]
+		│ [ binding_element_list , elision binding_rest_element ]
+		│ [ binding_element_list , binding_rest_element ]
+
+	binding_rest_property → ... identifier 
+
+	binding_property_list → binding_property
+		│ binding_property_list , binding_property
+
+	binding_element_list → binding_elison_element 
+		│ binding_element_list , binding_elison_element
+
+	binding_elison_element → elision binding_element 
+		│ binding_element
+
+	binding_property → single_name_binding 
+		│ property_name : binding_element
+
+	binding_element → single_name_binding
+		│ binding_pattern initializer
+		│ binding_pattern
+
+	single_name_binding → identifier initializer
+		│ identifier
+
+	binding_rest_element → ... identifier 
+		│ ... binding_pattern
+
 
 ##############################################################################################################
 # https://www.ecma-international.org/ecma-262/9.0/index.html#sec-ecmascript-language-lexical-grammar
