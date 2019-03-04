@@ -82,7 +82,7 @@ S → script
 	# https://www.ecma-international.org/ecma-262/9.0/index.html#sec-ecmascript-language-scripts-and-modules
 	##############################################################################################################
 		
-		script → script_body
+		script → script_body   ↦ cstr this.body = sym[0]
 			│ ɛ
 
 		script_body → statement_list
@@ -98,7 +98,7 @@ S → script
 			│ statement_list statement_list_item		↦ cstr console.log("danger2",sym); return (Array.isArray(sym[0])) ? sym[0].concat(sym[1]) : [sym[0],sym[1]]
 
 		statement_list_item → statement 
-			# │ declaration
+			│ declaration
 
 
 		statement → block_statement 
@@ -117,8 +117,8 @@ S → script
 			#│ debugger_statement
 
 		 declaration → hoistable_declaration
-			 │ class_declaration
-			# │ lexical_declaration
+			│ class_declaration
+			│ lexical_declaration
 
 		 hoistable_declaration → function_declaration
 			# │ generator_declaration
@@ -284,29 +284,30 @@ S → script
 	# https://www.ecma-international.org/ecma-262/9.0/index.html#sec-variable-statement
 	##############################################################################################################
 
-		variable_statement → τvar variable_declaration_list ;
+		variable_statement → τvar variable_declaration_list ; 			↦ cstr this.declarations = sym[1];
 
-		variable_declaration_list → variable_declaration 
-			│ variable_declaration_list , variable_declaration
+		variable_declaration_list → variable_declaration 				↦ cstr return [sym[0]]
+			│ variable_declaration_list , variable_declaration 			↦ cstr return sym[0].concat(sym[2])
 
-		variable_declaration → identifier initializer
-			│ identifier
-			│ binding_pattern initializer
+		variable_declaration → identifier initializer 					↦ cstr this.id = sym[0]; this.initializer = sym[1]
+			│ identifier 												↦ cstr this.id = sym[0]; this.initializer = null;
+			│ binding_pattern initializer 								↦ cstr this.id = sym[0]; this.initializer = sym[1]
 
 
 	##############################################################################################################
 	# https://www.ecma-international.org/ecma-262/9.0/index.html#sec-let-and-const-declarations
 	##############################################################################################################
 
-		lexical_declaration → let_or_const binding_list
+		lexical_declaration → let_or_const binding_list ;				↦ cstr this.type = sym[0]; this.declarations = sym[1];
 
-		let_or_const → τlet │ τconst
+		let_or_const → τlet 
+			│ τconst
 
-		binding_list → lexical_binding 
-			│ binding_list , lexical_binding
+		binding_list → lexical_binding 									↦ cstr return [sym[0]]
+			│ binding_list , lexical_binding							↦ cstr return sym[0].concat(sym[2])
 
-		lexical_binding → identifier initializer 
-			# │ binding_pattern initializer
+		lexical_binding → identifier initializer 						↦ cstr this.id = sym[0]; this.initializer = sym[1];
+			│ binding_pattern initializer 								↦ cstr this.id = sym[0]; this.initializer = sym[1];
 
 ## FUNCTIONS
 
@@ -380,6 +381,7 @@ S → script
 
 		class_tail → class_heritage { class_body } 
 			│ class_heritage { }
+			│ { }
 
 		class_heritage → τextends left_hand_side_expresssion 
 
@@ -428,7 +430,7 @@ S → script
 		# │ member_expression template_literal
 		│ super_property
 		│ meta_property
-		│ τnew member_expression arguments
+		#│ τnew member_expression arguments
 
 	super_property → τsuper . identifier
 		│ τsuper [ expression ]
@@ -467,7 +469,7 @@ S → script
 		│ array_literal
 		│ object_literal
 		│ function_expression
-		# │ class_expression
+		│ class_expression
 		# │ generator_expression
 		# │ async_function_expression
 		# │ async_generator_expression
@@ -505,7 +507,7 @@ S → script
 
 	cover_initialized_name → identifier initializer
 
-	initializer → = assignement_expression
+	initializer → = assignement_expression						↦cstr return sym[1]
 
 
 ##############################################################################################################
@@ -542,22 +544,22 @@ S → script
 		assignement_expression → conditional_expression 
 			# │ yield_expression
 			│ arrow_function
-			# │ async_arrow_function
-			│ left_hand_side_expresssion = assignement_expression
-			│ left_hand_side_expresssion assignement_operator assignement_expression
+			│ async_arrow_function
+			│ left_hand_side_expresssion = assignement_expression  						↦ cstr this.type= "assignemnt"; this.op = "equal"; this.assigner = sym[0]; this.assignee = sym[2];
+			│ left_hand_side_expresssion assignement_operator assignement_expression	↦ cstr this.type = sym[1]; this.assigner = sym[0]; this.assignee = sym[2];
 
-		assignement_operator → *=
-			│ /=
-			│ %=
-			│ +=
-			│ -=
-			│ <<=
-			│ >>=
-			│ >>>=
-			│ &=
-			│ ^=
-			│ |=
-			│ **=
+		assignement_operator → *= 														↦ cstr return "mul";
+			│ /= 																		↦ cstr return "div";
+			│ %= 																		↦ cstr return "mod";
+			│ += 																		↦ cstr return "add";
+			│ -= 																		↦ cstr return "sub";
+			│ <<= 																		↦ cstr return "lshift";
+			│ >>= 																		↦ cstr return "rshift";
+			│ >>>= 																		↦ cstr return "rshift-zero-fill";
+			│ &= 																		↦ cstr return "bit and";
+			│ ^= 																		↦ cstr return "bit xor";
+			│ |= 																		↦ cstr return "bit or";
+			│ **= 																		↦ cstr return "exp";
 
 	##############################################################################################################
 	# https://www.ecma-international.org/ecma-262/9.0/index.html#prod-ConditionalExpression
@@ -683,9 +685,9 @@ S → script
 			│ ( expression )
 			│ ( expression , )
 			│ ( ... identifier )
-			#│ ( ... binding_pattern )
+			│ ( ... binding_pattern )
 			│ ( expression , ...identifier )
-			# │ ( expression , ...binding_pattern )
+			│ ( expression , ...binding_pattern )
 
 ##############################################################################################################
 # https://www.ecma-international.org/ecma-262/9.0/index.html#prod-BindingPattern
