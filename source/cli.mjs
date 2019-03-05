@@ -2,7 +2,6 @@
 
 ":" //# comment; exec /usr/bin/env node --experimental-modules "$0" "$@"
 
-
 /* IMPORTS *******************/
 
 //CandleFW stuffs
@@ -18,7 +17,10 @@ import path from "path";
 import fs from "fs";
 import readline from "readline";
 
-const Lexer_Path = path.resolve(import.meta.url.replace(/file\:\/\//g,""), "../../node_modules/@candlefw/whind/build/whind.js");
+//Regex to match Protocol and/or Drive letter from module url
+const fn_regex = /(file\:\/\/)(\/)*([A-Z]\:)*/g
+
+const Lexer_Path = path.resolve(import.meta.url.replace(fn_regex,""), "../../node_modules/@candlefw/whind/build/whind.js");
 const LEXER_SCRIPT = `${fs.readFileSync(Lexer_Path)} const lexer = whind.default;`;
 
 /*** BASH COLORS ****/
@@ -36,6 +38,7 @@ let grammar_string = "";
 
 
 async function loadGrammar(grammar_path, env_path = "") {
+
     let env = { functions: {} };
 
     /*try*/{
@@ -89,6 +92,7 @@ function createScript(name, parser, type, compress = false, env) {
 }
 
 function write(name, parser_script, output_directory, type) {
+    
     const dir = path.resolve(output_directory);
 
     let filename = name;

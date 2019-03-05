@@ -36,6 +36,7 @@ function ProcessState(items, state, states, grammar, items_set, LALR_MODE = fals
         //Figure out if the item is already in a set. 
         if (offset < len) {
             const k = body[offset];
+            
             //consume additional similar items if possible.
             let new_state, MERGE = false,
                 new_items = [item.increment()];
