@@ -67,9 +67,14 @@ export function gotoCollisionCheck(grammar, state, new_state, item) {
 
     Replacing Action:
         Goto to state {${grammar.states[new_state.body].b.join(" ")}} ${new_state.id} from reduction of production { ${body_a.lex.slice().slice(1).trim()} }
-        Definition found on line ${body_a.lex.line+1}:${body_a.lex.char} in input.\n\n`);
+        Definition found on line ${body_a.lex.line+1}:${body_a.lex.char} in input.\n\n
 
-        return 0;
+    Keeping Existing Action Goto to state {${grammar.states[goto.state].b.join(" ")}} ${goto.state}
+`);
+
+
+
+        return -1;
     }
     return 1;
 }

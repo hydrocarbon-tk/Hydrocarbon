@@ -1,3 +1,5 @@
+"use strict";
+
 import { FIRST, isNonTerm, filloutGrammar, Item, actions, EMPTY_PRODUCTION } from "../common.mjs";
 import { gotoCollisionCheck, reduceCollisionCheck, shiftCollisionCheck } from "./error.mjs";
 
@@ -60,11 +62,11 @@ function ProcessState(items, state, states, grammar, items_set, LALR_MODE = fals
                 if(getSym(items[j]) == osid){
                     out_items.push(items[j].increment());
                     items[j].USED = true;
-                    if(!LALR_MODE) id_append.add(items[j].follow.v);
+                    id_append.add(items[j].follow.v);
                 }
         
             if(!LALR_MODE)
-                sid += Array.from(id_append.values()).sort((a,b)=>a<b?-1:1).join("");
+                sid += [...id_append.values()].sort((a,b)=>a<b?-1:1).join("");
 
             let MERGE = true;
 
@@ -79,7 +81,7 @@ function ProcessState(items, state, states, grammar, items_set, LALR_MODE = fals
                     b:[grammar[bodies[new_item[0]].production].name, "→", ...bodies[new_item[0]]].map((d) => isNaN(d) ? d : grammar[d].name),
                     sigs: 'dd', //new Set(new_items.map((k) => k.full_id)),
                     real_id: sid,
-                    follows: new Set()
+                    follows: null
                 });
 
                 new_state = states[states.length - 1];
@@ -120,11 +122,13 @@ function ProcessState(items, state, states, grammar, items_set, LALR_MODE = fals
                 }
             }
 
-            if (new_state.follows.has(new_item.follow.v)){
-                continue; // Already parsed the new_state with this item. 
-            }
-
-            new_state.follows = id_append;
+            if (new_state.follows){
+                if(new_state.follows.has(new_item.follow.v))
+                    continue; // Already parsed the new_state with this item. 
+                id_append.forEach(function(e){this.add(e)}, new_state.follows);
+            }else
+                new_state.follows = id_append;
+            
 
             items.s = new_state;
 
@@ -218,23 +222,24 @@ export function LALRTable(grammar, env = {}) {
      */
     filloutGrammar(grammar, env);
 
-    const bodies = grammar.bodies,
-        start_closure = Closure([new Item(0, bodies[0].length, 0, "$", 0)], grammar);
+    const bodies = grammar.bodies;
 
     let states = createInitialState(grammar),
-        items_set = [{ c: start_closure, s: states[0] }],
+        items_set = [{ c: Closure([new Item(0, bodies[0].length, 0, "$", 0)], grammar), s: states[0] }],
         LALR_MODE = true,
         i = 0;
 
     while (items_set.length > 0 && i++ < 100000) {
 
         const items = items_set.shift();
-
+        const item = items.c[0];
+        //console.log(`items length ${items_set.length}`)
+        
         if (!ProcessState(items.c, items.s, states, grammar, items_set, LALR_MODE)) {
             if (LALR_MODE) {
                 console.error("Unable to continue in LALR mode. Restarting in CLR Mode. \n")
                 states = createInitialState(grammar)
-                items_set = [{ c: start_closure, s: states[0] }];
+                items_set = [{ c: Closure([new Item(0, bodies[0].length, 0, "$", 0)], grammar), s: states[0] }];
                 LALR_MODE = false;
                 //states.INVALID = true;
                 //return states;
