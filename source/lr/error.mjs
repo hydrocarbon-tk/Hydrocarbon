@@ -41,7 +41,9 @@ export function gotoCollisionCheck(grammar, state, new_state, item) {
         }
 
         let old_id = grammar.states[goto.state].real_id;
-        let new_id = new_state.real_id
+        let new_id = new_state.real_id;
+
+        console.log("MAM",grammar.states[goto.state], new_state, goto.state)
 
         if(new_id.length <=  old_id.length && old_id.includes(new_id)){
             //console.log(new_state.real_id, grammar.states[goto.state].real_id)
@@ -85,10 +87,9 @@ export function reduceCollisionCheck(grammar, state, item) {
 
         if(grammar[body_b.production].name == state.b[0]) // TODO: Already reducing to the expected production )
         {
-            console.log("TODO: Duplicate reduce merge", state.b[0], grammar[body_b.production].name)
+            //console.log("TODO: Duplicate reduce merge", state.b[0], grammar[body_b.production].name)
             return 1;
         }
-        ; // intentional
 
         if(
             /*//*/ grammar[body_a.production].name !== state.b[0]

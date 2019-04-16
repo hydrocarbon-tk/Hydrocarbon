@@ -12,140 +12,16 @@ function ProcessState(items, state, states, grammar, items_set, LALR_MODE = fals
     if (!state.b) 
         state.b = [grammar[bodies[items[0][0]].production].name, "→", ...bodies[items[0][0]]].map((d) => isNaN(d) ? d : grammar[d].name);
 
-    for (let i = 0; i < items.length; i++) {
-        const item = items[i];
-
-        if (item.USED) 
-            continue;
-
-        let len = item.len,
+    for(let i = 0, l = items.length;i<l; i++){
+        let item = items[i],
+            len = item.len,
             offset = item.offset;
-
         const body = bodies[item.body];
 
-        if (i == 0 && state.body == undefined)
-            state.body = item[0];
+        if(item.USED)
+            continue;
 
-        
-        if (body[offset] == EMPTY_PRODUCTION) {
-            offset=len;
-            len=0;
-        }
-
-        //Figure out if the item is already in a set. 
-        if (offset < len) {
-            const k = body[offset];
-            
-            //consume additional similar items if possible.
-            let new_state, MERGE = false,
-                new_items = [item.increment()];
-
-            if(items.exclude)
-                new_items.exclude = items.exclude.slice();
-            //States generated here  
-
-            for (let j = i + 1; j < items.length; j++) {
-                const o_item = items[j];
-                if ((k == bodies[o_item.body][o_item.offset])) {
-                    o_item.USED = true;
-                    new_items.push(o_item.increment());
-                }
-            }
-
-            const check = new Set(),
-                id = new_items
-                .slice()
-                .sort((a, b) => a[0] < b[0] ? -1 : 1)
-                .sort((a, b) => a[2] < b[2] ? -1 : 1)
-                .map(k => (LALR_MODE) ? k.id : k.full_id)
-                .reduce((a, k) => a += check.has(k) ? "" : ((check.add(k), k)), ""),
-                fnc = (s, items) => {
-                    if (s.has(items[0].v))
-                        return s.get(items[0].v);
-                    return undefined;
-                };
-
-            let state_map;
-
-            if (
-                ((state_map = states.map.get(id)) || (state_map = MergeFind(states, id))) &&
-                (
-                    (LALR_MODE && (new_state = (state_map.values().next().value))) ||
-                    (new_state = fnc(state_map, items))
-                )
-            ) {
-             //   console.log("AA")
-                const out = [];
-                new_items.forEach(e => {
-                    if (!new_state.sigs.has(e.full_id)) {
-                        out.push(e);
-                        new_state.sigs.add(e.full_id);
-                    }
-                });
-
-                if (out.length > 0) {
-                    MERGE = true;
-                    new_items = out;
-                }
-            } else {
-               // console.log("BB")
-                MERGE = true;
-                states.push({
-                    action: new Map,
-                    goto: new Map,
-                    id: states.length,
-                    body: body.production,
-                    sigs: new Set(new_items.map((k) => k.full_id)),
-                    real_id: id
-                });
-
-                new_state = states[states.length - 1];
-
-                if (!states.map.has(id))
-                    states.map.set(id, new Map);
-
-                const map = states.map.get(id);
-                new_items.forEach(e => map.set(e.v, new_state));
-            }
-
-            const ASSOCIATION = (item[0] == state.body) && !!grammar.rules.assc;
-            if (!isNonTerm(k)) {
-                if (k != "$" /*&& k !== EMPTY_PRODUCTION*/ ) {
-
-                    let SKIP = false;
-
-                    if (state.action.has(k) && (SKIP = true))
-                        if (ASSOCIATION && grammar.rules.assc[k] == "right")
-                            SKIP = false;
-
-                    if (!SKIP) {
-                        if (shiftCollisionCheck(grammar, state, new_state, item))
-                            return false;
-
-
-                        state.action.set(k, { name: "SHIFT", state: new_state.id, body: item[0], len: offset, original_body: body.id });
-                    }
-                }
-            } else {
-
-                switch(gotoCollisionCheck(grammar, state, new_state, item)){
-                    case -1: //Original
-                        MERGE = false;
-                        break;
-                    case 0: //Failed
-                        return false;
-                    case 1: //New
-                        state.goto.set(k, { name: "GOTO", state: new_state.id, body: body.id, fid: item.full_id });
-                        break;
-                }
-
-            }
-
-            //Add closure
-            if (MERGE)
-                items_set.push({ c: Closure(new_items, grammar), s: new_state });
-
-        } else {
+        if(offset >= len){ //At an accepting state for this input
             const k = item.v;
             
             if(k == EMPTY_PRODUCTION)
@@ -166,13 +42,95 @@ function ProcessState(items, state, states, grammar, items_set, LALR_MODE = fals
                         return false;
                     case 0:
                          state.action.set(k, { name: "REDUCE", size: len, production: body.production, body: body.id, len });
-                         break;
-                                  
+                         break;        
                 }
             }
+        }else{
+            let getSym =(i)=>bodies[i[0]][i.offset];
+            const k = body[offset];
+            item.USED = true;
+            let new_item = item.increment(), 
+                new_state = null,
+                sid = new_item.id, 
+                osid = getSym(item),
+                id_append = new Set([new_item.follow.v]),
+                out_items = [new_item];
+
+            for(let j = i+1; j < l; j++)
+                if(getSym(items[j]) == osid){
+                    out_items.push(items[j].increment());
+                    items[j].USED = true;
+                    if(!LALR_MODE) id_append.add(items[j].follow.v);
+                }
+        
+            if(!LALR_MODE)
+                sid += Array.from(id_append.values()).sort((a,b)=>a<b?-1:1).join("");
+
+            let MERGE = true;
+
+            if(states.map.has(sid)){
+                new_state = states.map.get(sid);
+            }else{
+                states.push({
+                    action: new Map,
+                    goto: new Map,
+                    id: states.length,
+                    body: body.production,
+                    b:[grammar[bodies[new_item[0]].production].name, "→", ...bodies[new_item[0]]].map((d) => isNaN(d) ? d : grammar[d].name),
+                    sigs: 'dd', //new Set(new_items.map((k) => k.full_id)),
+                    real_id: sid,
+                    follows: new Set()
+                });
+
+                new_state = states[states.length - 1];
+
+                states.map.set(sid, new_state);
+            }
+
+            const ASSOCIATION = (item[0] == state.body) && !!grammar.rules.assc;
+
+            if (!isNonTerm(k)) {
+                if (k != "$" /*&& k !== EMPTY_PRODUCTION*/ ) {
+
+                    let SKIP = false;
+
+                    if (state.action.has(k) && (SKIP = true))
+                        if (ASSOCIATION && grammar.rules.assc[k] == "right")
+                            SKIP = false;
+
+                    if (!SKIP) {
+                        if (shiftCollisionCheck(grammar, state, new_state, item))
+                            return false;
+
+
+                        state.action.set(k, { name: "SHIFT", state: new_state.id, body: item[0], len: offset, original_body: body.id });
+                    }
+                }
+            } else {
+                    
+                switch(gotoCollisionCheck(grammar, state, new_state, item)){
+                    case -1: //Original
+                        MERGE = false;
+                        break;
+                    case 0: //Failed
+                        return false;
+                    case 1: //New
+                        state.goto.set(k, { name: "GOTO", state: new_state.id, body: body.id, fid: item.full_id });
+                        break;
+                }
+            }
+
+            if (new_state.follows.has(new_item.follow.v)){
+                continue; // Already parsed the new_state with this item. 
+            }
+
+            new_state.follows = id_append;
+
+            items.s = new_state;
+
+            items_set.push({ c: Closure(out_items, grammar), s: new_state });
         }
     }
-
     return true;
 }
 
@@ -218,16 +176,6 @@ function Closure(items, grammar, offset = 0, added = new Set(), exclude = []) {
             for (let i = 0; i < production.bodies.length; i++) {
                 
                 const pbody = production.bodies[i];
-                
-                /*
-                if(out_exclude){
-                    for(let J = 0; J < out_exclude.length; J++){
-                        if(pbody[0] == out_exclude[J]){
-                            console.log("AAAAAAAAAAAAAAAAAs")
-                            continue outer;
-                        }
-                    }
-                }*/
 
                 for (let i = 0; i < first.length; i++) {
                     let item = new Item(pbody.id, pbody.length, 0, first[i].v, first[i].p);
@@ -238,6 +186,7 @@ function Closure(items, grammar, offset = 0, added = new Set(), exclude = []) {
                     }
                 }
             }
+
             Closure(items, grammar, g, added, out_exclude);
         }
     }
@@ -287,8 +236,8 @@ export function LALRTable(grammar, env = {}) {
                 states = createInitialState(grammar)
                 items_set = [{ c: start_closure, s: states[0] }];
                 LALR_MODE = false;
-                states.INVALID = true;
-                return states;
+                //states.INVALID = true;
+                //return states;
             } else {
                 console.error("Unable to parse grammar. It does not appear to be a LR grammar.\n")
                 states.INVALID = true;
@@ -299,6 +248,6 @@ export function LALRTable(grammar, env = {}) {
 
     if (i == 100000)
         throw new Error("Failed process grammar. Max step limit reached. The current limit is set to 100000 iterations.")
-
+    //console.log(states)
     return states;
 }

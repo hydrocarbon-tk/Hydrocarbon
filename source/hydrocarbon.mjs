@@ -1,5 +1,5 @@
 //LR
-import { LALRTable } from "./lr/lalr.mjs";
+import { LALRTable } from "./lr/lalr2.mjs";
 import { SLRTable } from "./lr/slr.mjs";
 import { LRParser } from "./lr/parser.mjs";
 import { LRParserCompiler } from "./lr/compiler.mjs";

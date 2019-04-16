@@ -20,8 +20,9 @@ import readline from "readline";
 //Regex to match Protocol and/or Drive letter from module url
 const fn_regex = /(file\:\/\/)(\/)*([A-Z]\:)*/g
 
-const Lexer_Path = path.resolve(import.meta.url.replace(fn_regex,""), "../../node_modules/@candlefw/whind/build/whind.js");
+const Lexer_Path = path.join("/",import.meta.url.replace(fn_regex,""), "../../node_modules/@candlefw/whind/build/whind.js");
 const LEXER_SCRIPT = `${fs.readFileSync(Lexer_Path)} const lexer = whind.default;`;
+
 
 /*** BASH COLORS ****/
 const COLOR_ERROR = `\x1b[41m`,
