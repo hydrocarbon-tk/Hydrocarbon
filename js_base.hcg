@@ -2,7 +2,7 @@
 
 #SYMBOLS { } ( ) [ ] . ... ; , < > <= >= == != === !== + - * % / ** ++ -- << >> >>> & | ^ ! ~ && || ? : += -= *= %= /= **= <<= >>= >>>= &= |= ^= =>  ####
 
-S → expression							↦ cstr return sym[0];
+S → conditional_expression										↦ cstr return sym[0];
 
 ## MODULES
 
@@ -420,20 +420,20 @@ S → expression							↦ cstr return sym[0];
 ##############################################################################################################
 
 	left_hand_side_expresssion → new_expression 		↦ cstr return sym[0]
-		│ call_expression 								↦ cstr return sym[0]
+		#│ call_expression 								↦ cstr return sym[0]
 
 	new_expression → member_expression │ τnew new_expression
 
 	member_expression → primary_expression 				↦ cstr return sym[0]
-		│ member_expression [ expression ]		
+		#│ member_expression [ expression ]		
 		│ member_expression . identifier
 		# │ member_expression template_literal
-		│ super_property
+		#│ super_property
 		│ meta_property
 		#│ τnew member_expression arguments
 
 	super_property → τsuper . identifier
-		│ τsuper [ expression ]
+		#│ τsuper [ expression ]
 
 	meta_property → new_target
 
@@ -466,10 +466,10 @@ S → expression							↦ cstr return sym[0];
 		τthis
 		│ identifier
 		│ literal
-		│ array_literal
-		│ object_literal
-		│ function_expression
-		│ class_expression
+		#│ array_literal
+		#│ object_literal
+		#│ function_expression
+		#│ class_expression
 		# │ generator_expression
 		# │ async_function_expression
 		# │ async_generator_expression
@@ -501,7 +501,7 @@ S → expression							↦ cstr return sym[0];
 
 	literal_property_name → identifier
 		│ string_literal
-		│ numeric_lteral
+		│ numeric_literal
 
 	computed_property_name → [ assignement_expression ]
 
@@ -542,10 +542,10 @@ S → expression							↦ cstr return sym[0];
 
 		assignement_expression → conditional_expression 
 			# │ yield_expression
-			│ arrow_function
-			│ async_arrow_function
-			│ left_hand_side_expresssion = assignement_expression  						↦ cstr this.type= "assignemnt"; this.op = "equal"; this.assigner = sym[0]; this.assignee = sym[2];
-			│ left_hand_side_expresssion assignement_operator assignement_expression	↦ cstr this.type = sym[1]; this.assigner = sym[0]; this.assignee = sym[2];
+			#│ arrow_function
+			#│ async_arrow_function
+			#│ left_hand_side_expresssion = assignement_expression  						↦ cstr this.type= "assignemnt"; this.op = "equal"; this.assigner = sym[0]; this.assignee = sym[2];
+			#│ left_hand_side_expresssion assignement_operator assignement_expression	↦ cstr this.type = sym[1]; this.assigner = sym[0]; this.assignee = sym[2];
 
 		assignement_operator → *= 														↦ cstr return "mul";
 			│ /= 																		↦ cstr return "div";
@@ -626,17 +626,17 @@ S → expression							↦ cstr return sym[0];
 	##############################################################################################################
 
 		additive_expression → multiplicative_expression 
-			│ additive_expression + multiplicative_expression
-			│ additive_expression - multiplicative_expression
+			│ additive_expression + multiplicative_expression   ↦ cstr ^add_expr
+			│ additive_expression - multiplicative_expression	↦ cstr ^sub_expr
 
 	##############################################################################################################
 	# https://www.ecma-international.org/ecma-262/9.0/index.html#sec-multiplicative-operators
 	##############################################################################################################
 
 		multiplicative_expression → exponentiation_expression 
-			│ multiplicative_expression * exponentiation_expression
-			│ multiplicative_expression / exponentiation_expression
-			│ multiplicative_expression % exponentiation_expression
+			│ multiplicative_expression * exponentiation_expression ↦ cstr ^mult_expr
+			│ multiplicative_expression / exponentiation_expression ↦ cstr ^div_expr
+			│ multiplicative_expression % exponentiation_expression ↦ cstr ^mod_expr
 
 	##############################################################################################################
 	# https://www.ecma-international.org/ecma-262/9.0/index.html#sec-exp-operator
@@ -666,8 +666,8 @@ S → expression							↦ cstr return sym[0];
 		update_expression → left_hand_side_expresssion 
 			│ left_hand_side_expresssion ++
 			│ left_hand_side_expresssion --
-			│ ++ unary_expression
-			│ -- unary_expression
+			│ ++ unary_expression		↦ cstr ^pre_inc_expr
+			│ -- unary_expression		↦ cstr ^pre_dec_expr
 
 	##############################################################################################################	
 	# https://www.ecma-international.org/ecma-262/9.0/index.html#prod-AwaitExpression
@@ -680,13 +680,13 @@ S → expression							↦ cstr return sym[0];
 	##############################################################################################################
 
 		cover_parenthesized_expression_and_arrow_parameter_list →
-			( )
-			│ ( expression )
-			│ ( expression , )
-			│ ( ... identifier )
-			│ ( ... binding_pattern )
-			│ ( expression , ...identifier )
-			│ ( expression , ...binding_pattern )
+			( )						
+			│ ( expression )		↦ cstr return sym[1]
+			│ ( expression , )		↦ cstr return sym[1]
+			#│ ( ... identifier )
+			#│ ( ... binding_pattern )
+			#│ ( expression , ...identifier )
+			#│ ( expression , ...binding_pattern )
 
 ##############################################################################################################
 # https://www.ecma-international.org/ecma-262/9.0/index.html#prod-BindingPattern
@@ -741,24 +741,24 @@ S → expression							↦ cstr return sym[0];
 # Incomplete
 ##############################################################################################################
 
-	literal → boolean_literal
+	literal → boolean_literal				
 		│ null_literal
-		│ string_literal
-		│ numeric_lteral
+		│ string_literal					
+		│ numeric_literal					
 
-	string_literal → θstr					↦ cstr console.log(sym[0]); return { type:"string", val: sym[0] }
+	string_literal → θstr					↦ cstr ^string_literal
 
-	numeric_lteral → θnum					↦ cstr console.log(sym[0]); return { type:"numeric", val: parseInt(sym[0]) }
+	numeric_literal → θnum					↦ cstr ^numeric_literal
 
 	null_literal →  τnull
 
-	boolean_literal → τtrue 				↦ cstr console.log(sym[0]); return { type:"boolean", val: true }
-		│ τfalse 							↦ cstr console.log(sym[0]); return { type:"boolean", val: false }
+	boolean_literal → τtrue 				↦ cstr ^true_literal
+		│ τfalse 							↦ cstr ^false_literal
 
 
 	# This replaces IdentifierReference, BindingIdentifier, and LabelIdentifier
 	# https://www.ecma-international.org/ecma-262/9.0/index.html#sec-identifiers
 
-	identifier → θid						↦ cstr console.log(sym[0]); return { type:"identifier", val: sym[0] } 
-		│ τyield 							↦ cstr console.log(sym[0]); return { type:"identifier", val: sym[0] }
-		│ τawait 							↦ cstr console.log(sym[0]); return { type:"identifier", val: sym[0] }
+	identifier → θid						↦ cstr ^identifier
+		│ τyield 							↦ cstr ^yield_id
+		│ τawait 							↦ cstr ^await_id

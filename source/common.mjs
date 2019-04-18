@@ -265,12 +265,20 @@ export function createFunctions(production, body, env) {
 
     if (body.funct.cstr) {
         let node = null;
+        
         if (body.funct.cstr[0] == "^") {
+            
             const funct = env.functions[body.funct.cstr.slice(1)];
-            node = funct;
-            node.NAME = funct.name;
-            node.TYPE = "class";
-        } else {
+            
+            if(funct){
+                node = funct;
+                node.NAME = funct.name;
+                node.TYPE = "class";
+                node.ENV = true;
+            }
+        }
+
+        if(!node){
             if (!env.id)
                 env.id = 1;
 
@@ -292,6 +300,8 @@ export function createFunctions(production, body, env) {
                 else
                     node.TYPE = "class"
             }
+
+            node.ENV = false;
 
         }
 

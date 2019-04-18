@@ -2,12 +2,15 @@
 import whind from "../../node_modules/@candlefw/whind/source/whind.mjs";
 import { getToken, types, FOLLOW } from "../common.mjs";
 
-function setNode(node, length, functions, id, str = "") {   
-    if (node.TYPE == "class") {
-        str += `let ln = Math.max(o.length-${length},0); o[ln]=(new ${node.NAME}(o.slice(${-length}),e,l,s));o.length=ln+1;`;
-    } else {
-        str += `let ln = Math.max(o.length-${length},0); o[ln]=${node.NAME}(o.slice(${-length}),e,l,s);o.length=ln+1;`;
-    }
+function setNode(node, length, functions, id, str = "", COMPILE_FUNCTION = true) {   
+    const prefix = (node.TYPE == "class") ? "new" : ""
+    console.log(node.NAME, node.ENV, COMPILE_FUNCTION)
+    const funct = (!COMPILE_FUNCTION && node.ENV) ? 
+        `o[ln]=(${prefix} e.functions.${node.NAME}(o.slice(${-length}),e,l,s))` : 
+        `o[ln]=(${prefix} ${node.NAME}(o.slice(${-length}),e,l,s))`
+
+    str += `let ln = Math.max(o.length-${length},0); ${funct};o.length=ln+1;`;
+    
     return { str, id };
 }
 
@@ -17,7 +20,8 @@ export function LRParserCompiler(rule_table, env) {
     let output = "";
     if (rule_table.type !== "lr") throw new Error("");
 
-    const states = rule_table,
+    const 
+        states = rule_table,
         grammar = rule_table.grammar,
         bodies = rule_table.bodies,
         state_functions = [],
@@ -28,8 +32,8 @@ export function LRParserCompiler(rule_table, env) {
         state_functions_map = new Map(),
         state_maps = [],
         state_maps_map = new Map(),
-        goto_maps = new Map();
-
+        goto_maps = new Map(),
+        COMPILE_FUNCTION = (env.options) ? !!env.options.integrate  : !0;
 
     //Construct all non existing follows for use with error recovery.
     FOLLOW(grammar, 0);
@@ -87,7 +91,7 @@ export function LRParserCompiler(rule_table, env) {
                     st_fn_id = "r";
 
                     if (body.node && length > 0) {
-                        const out = setNode(body.node, length, functions, fn_id, "");
+                        const out = setNode(body.node, length, functions, fn_id, "", COMPILE_FUNCTION);
                         str = out.str;
                         funct = out.str;
                         st_fn_id += body.node.NAME;
@@ -113,13 +117,15 @@ export function LRParserCompiler(rule_table, env) {
                     break;
                 case "SHIFT":
                     st_fn_id = "s";
-
                     if (body.sr[v.len]) {
                         let name = body.sr[v.len].name;
                         if (body.sr[v.len].name == "anonymous") {
                             name = `f${body.id}_${v.len}`;
-                            if (!env.functions[name])
+
+                            if (!env.functions[name]){
                                 env.functions[name] = body.sr[v.len];
+                                env.functions[name].INCORPORATE = true;
+                            }
                         }
                         st_fn_id += name;
                         funct = `${name}(o,e,l,s)`;
@@ -144,7 +150,7 @@ export function LRParserCompiler(rule_table, env) {
                     st_fn_id = "a"
 
                     if (body.node) {
-                        const out = setNode(body.node, length, functions, fn_id, str);
+                        const out = setNode(body.node, length, functions, fn_id, str, COMPILE_FUNCTION);
                         str = out.str;
                         funct = out.str;
                         st_fn_id += fn_id;
@@ -230,7 +236,8 @@ export function LRParserCompiler(rule_table, env) {
     if (env.functions) {
         for (let n in env.functions) {
             let funct = env.functions[n];
-            functions.push(`${n}=${funct.toString().replace(/(anonymous)?[\n\t]*/g,"")}`);
+            if(COMPILE_FUNCTION || !funct.ENV)
+                functions.push(`${n}=${funct.toString().replace(/(anonymous)?[\n\t]*/g,"")}`);
         }
     }
 
@@ -332,6 +339,7 @@ ${getToken.toString()}
                     l.throw("Invalid state reached!");
                 
                 ss.push(off, gt); sp+=2; 
+                
                 break;
         }   
     }

@@ -48,14 +48,8 @@ async function loadGrammar(grammar_path, env_path = "") {
         //check for optional env file
         if (env_path) {
             let ext = env_path.split(".").reverse()[0];
-            switch (ext) {
-                case "mjs":
+
                     env =  (await import(env_path)).default;
-                    break;
-                case "js":
-                    env = require(env_path);
-                    break;
-            }
         }
     }
     /* catch (err) {
@@ -142,6 +136,7 @@ function CLI_INSTRUCTIONS(full = false) {
 }
 
 async function mount(name, input, env) {
+
     let d = await new Promise(res => {
 
         const parser = ((Function(input + "; return parser"))());
@@ -176,7 +171,7 @@ async function mount(name, input, env) {
                 if(env.options && env.options.integrate)
                 console.dir(parser(input));
             else
-                console.dir(parser(whind(input), {}));
+                console.dir(parser(whind(input), env));
             } catch (e) {
                 console.error(e);
             }
@@ -265,7 +260,7 @@ program
             if (!!cmd.noout) {
                 console.log(ADD_COLOR("No Output. Skipping file saving", COLOR_ERROR), "\n");
             } else
-                write(name, script, output_directory, type);
+                await write(name, script, output_directory, type);
 
             if (!!cmd.mount && !(await mount(name, script, data.env)))
                 return;
