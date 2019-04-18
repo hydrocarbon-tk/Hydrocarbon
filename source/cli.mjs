@@ -20,7 +20,8 @@ import readline from "readline";
 //Regex to match Protocol and/or Drive letter from module url
 const fn_regex = /(file\:\/\/)(\/)*([A-Z]\:)*/g
 
-const Lexer_Path = path.join("/",import.meta.url.replace(fn_regex,""), "../../node_modules/@candlefw/whind/build/whind.js");
+const Lexer_Path = path.join("/",
+    import.meta.url.replace(fn_regex, ""), "../../node_modules/@candlefw/whind/build/whind.js");
 const LEXER_SCRIPT = `${fs.readFileSync(Lexer_Path)} const lexer = whind.default;`;
 
 
@@ -36,33 +37,34 @@ const COLOR_ERROR = `\x1b[41m`,
 let grammar_string = "";
 
 /* ****************** HC STUFF *********************/
-
-
-async function loadGrammar(grammar_path, env_path = "") {
-
+async function loadEnvironment(env_path = "") {
     let env = { functions: {} };
 
-    /*try*/{
-        grammar_string = await fsp.readFile(grammar_path, "utf8");
+    //check for optional env file
+    if (env_path) {
+        let ext = env_path.split(".").reverse()[0];
 
-        //check for optional env file
-        if (env_path) {
-            let ext = env_path.split(".").reverse()[0];
-
-                    env =  (await import(env_path)).default;
-        }
+        env = (await import(env_path)).default;
     }
-    /* catch (err) {
-            console.error(err);
-            throw new Error(`Unable to open the grammar file ${grammar_path}`);
-        }*/
 
-    return { grammar: grammar_string, env };
+
+    return env;
+}
+
+async function loadGrammar(grammar_path, env_path = "") {
+    try {
+        grammar_string = await fsp.readFile(grammar_path, "utf8");
+    } catch (err) {
+        console.error(err);
+        throw new Error(`Unable to open the grammar file ${grammar_path}`);
+
+    }
+    return { grammar: grammar_string, env: await loadEnvironment(env_path) };
 }
 
 function createScript(name, parser, type, compress = false, env) {
 
-        if(env.options && env.options.integrate)
+    if (env.options && env.options.integrate)
         parser = hc.StandAloneParserCompiler(parser, LEXER_SCRIPT, env);
 
     switch (type) {
@@ -87,7 +89,7 @@ function createScript(name, parser, type, compress = false, env) {
 }
 
 function write(name, parser_script, output_directory, type) {
-    
+
     const dir = path.resolve(output_directory);
 
     let filename = name;
@@ -163,15 +165,16 @@ async function mount(name, input, env) {
             }
 
             if (input == "help") {
-                CLI_INSTRUCTIONS(true);r1.prompt();
+                CLI_INSTRUCTIONS(true);
+                r1.prompt();
                 return;
             }
 
             try {
-                if(env.options && env.options.integrate)
-                console.dir(parser(input));
-            else
-                console.dir(parser(whind(input), env));
+                if (env.options && env.options.integrate)
+                    console.dir(parser(input));
+                else
+                    console.dir(parser(whind(input), env));
             } catch (e) {
                 console.error(e);
             }
@@ -223,8 +226,20 @@ program
 
 program
     .command("mount <hydro_carbon_compiled_file>")
-    .description("Mounts a given file into the NodeJS context")
-    .action(() => {});
+    .description("Mounts a HC compiler into the NodeJS context")
+    .option("-e, --env <path>", "Optional JavaScript file containing parsing environment information.")
+    .action(async (hc_compiler, cmd) => {
+
+        const
+            compiler_path = path.resolve(hc_compiler),
+            env_path = cmd.env ? path.resolve(cmd.env) : "",
+            env = await loadEnvironment(env_path),
+            compiler = await fsp.readFile(compiler_path, "utf8");
+
+        mount("undefined", compiler, env)
+
+
+    });
 
 program
     .command("compile <hydrocarbon_grammar_file>")
