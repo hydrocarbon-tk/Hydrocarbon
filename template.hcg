@@ -96,7 +96,7 @@ stmt → assignment                                                       ↦ cs
     #               The types of production functions that can be defined are:
     #                       
     #                   ↦ cstr <JavaScript Statements> :    
-    #                       Defines the constructor function that will create new object for 
+    #                       Defines the constructor function that will create a new object for 
     #                       this production. This object will be pushed on the productions stack and 
     #                       can be used to build Abstract Syntax Trees from items on the 
     #                       productions stack. 
@@ -108,7 +108,7 @@ stmt → assignment                                                       ↦ cs
     #                   ↦ cstr ^<function_name> : 
     #                       Hydrocarbon will match <function_name> to a function found in 
     #                       env.functions and use that function definition as the constructor 
-    #                       instead using JavaScript statements from the grammar file.
+    #                       instead of using JavaScript statements from the grammar file.
     #
     #                   ↦ ^<function_name>: 
     #                       Hydrocarbon will match <function_name> to a function found in 

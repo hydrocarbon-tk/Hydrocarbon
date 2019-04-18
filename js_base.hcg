@@ -2,7 +2,7 @@
 
 #SYMBOLS { } ( ) [ ] . ... ; , < > <= >= == != === !== + - * % / ** ++ -- << >> >>> & | ^ ! ~ && || ? : += -= *= %= /= **= <<= >>= >>>= &= |= ^= =>  ####
 
-S → script
+S → expression							↦ cstr return sym[0];
 
 ## MODULES
 
@@ -104,17 +104,17 @@ S → script
 		statement → block_statement 
 			│ variable_statement
 			│ empty_statement
-			│ expression_statement
+			│ expression_statement						↦ cstr return sym[0];
 			│ if_statement
-			#│ breakable_statement
-			#│ continue_statement
-			#│ break_statement
+			│ breakable_statement
+			│ continue_statement
+			│ break_statement
 			│ return_statement
-			#│ with_statement
-			#│ labelled_statement
-			#│ throw_statement
-			#│ try_statement
-			#│ debugger_statement
+			│ with_statement
+			│ labelled_statement
+			│ throw_statement
+			│ try_statement
+			│ debugger_statement
 
 		 declaration → hoistable_declaration
 			│ class_declaration
@@ -411,21 +411,21 @@ S → script
 # https://www.ecma-international.org/ecma-262/9.0/index.html#sec-comma-operator
 ##############################################################################################################
 
-	expression → assignement_expression 
-		│ expression , assignement_expression
+	expression → assignement_expression 				↦ cstr return sym[0]						
+		│ expression , assignement_expression			↦ cstr this.expr_list = (Array.isArray(sym[0])) ? sym[0].push(sym[2]) : [sym[0], sym[2]]
 
 
 ##############################################################################################################
 # https://www.ecma-international.org/ecma-262/9.0/index.html#sec-left-hand-side-expressions
 ##############################################################################################################
 
-	left_hand_side_expresssion → new_expression 
-		│ call_expression
+	left_hand_side_expresssion → new_expression 		↦ cstr return sym[0]
+		│ call_expression 								↦ cstr return sym[0]
 
 	new_expression → member_expression │ τnew new_expression
 
-	member_expression → primary_expression 
-		│ member_expression [ expression ]
+	member_expression → primary_expression 				↦ cstr return sym[0]
+		│ member_expression [ expression ]		
 		│ member_expression . identifier
 		# │ member_expression template_literal
 		│ super_property
@@ -514,8 +514,7 @@ S → script
 # https://www.ecma-international.org/ecma-262/9.0/index.html#sec-array-initializer
 ##############################################################################################################
 
-	array_literal 
-		→ [ ]
+	array_literal → [ ]
 		│ [ elision ]
 		│ [ element_list ]
 		│ [ element_list elision ]
