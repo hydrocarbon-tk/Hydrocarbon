@@ -2,7 +2,7 @@
 
 #SYMBOLS { } ( ) [ ] . ... ; , < > <= >= == != === !== + - * % / ** ++ -- << >> >>> & | ^ ! ~ && || ? : += -= *= %= /= **= <<= >>= >>>= &= |= ^= =>  ####
 
-S → conditional_expression										↦ cstr return sym[0];
+S → statement_list										↦ cstr return sym[0];
 
 ## MODULES
 
@@ -94,8 +94,8 @@ S → conditional_expression										↦ cstr return sym[0];
 	##############################################################################################################
 
 
-		statement_list → statement_list_item 			↦ cstr console.log("danger",sym); return sym[0]
-			│ statement_list statement_list_item		↦ cstr console.log("danger2",sym); return (Array.isArray(sym[0])) ? sym[0].concat(sym[1]) : [sym[0],sym[1]]
+		statement_list → statement_list_item 			↦ cstr return [sym[0]]
+			│ statement_list statement_list_item		↦ cstr return (sym[0].push(sym[1]), sym[0])
 
 		statement_list_item → statement 
 			│ declaration
@@ -104,21 +104,22 @@ S → conditional_expression										↦ cstr return sym[0];
 		statement → block_statement 
 			│ variable_statement
 			│ empty_statement
-			│ expression_statement						↦ cstr return sym[0];
-			│ if_statement
-			│ breakable_statement
-			│ continue_statement
-			│ break_statement
-			│ return_statement
-			│ with_statement
-			│ labelled_statement
-			│ throw_statement
-			│ try_statement
+			│ expression_statement						
+			#│ if_statement
+			#│ breakable_statement
+			#│ continue_statement
+			#│ break_statement
+			#│ return_statement
+			#│ with_statement
+			#│ labelled_statement
+			#│ throw_statement
+			#│ try_statement
 			│ debugger_statement
 
-		 declaration → hoistable_declaration
-			│ class_declaration
-			│ lexical_declaration
+		 declaration → #hoistable_declaration
+			#│ class_declaration
+			#│ 
+			lexical_declaration
 
 		 hoistable_declaration → function_declaration
 			# │ generator_declaration
@@ -133,9 +134,9 @@ S → conditional_expression										↦ cstr return sym[0];
 	# https://www.ecma-international.org/ecma-262/9.0/index.html#sec-block
 	##############################################################################################################
 
-		block_statement → block 								
+		block_statement → block 						↦ cstr ^block_stmt		
 
-		block → { statement_list }						↦ cstr console.log(sym, "test1"); this.stmts = sym[1]
+		block → { statement_list }						↦ cstr return sym[1]
 
 	##############################################################################################################
 	# https://www.ecma-international.org/ecma-262/9.0/index.html#sec-empty-statement
@@ -276,7 +277,7 @@ S → conditional_expression										↦ cstr return sym[0];
 	# https://www.ecma-international.org/ecma-262/9.0/index.html#sec-debugger-statement
 	##############################################################################################################
 
-		debugger_statement → τdebugger ;
+		debugger_statement → τdebugger ;								↦ cstr ^debugger_stmt
 
 ## DECLARATIONS
 
@@ -284,30 +285,30 @@ S → conditional_expression										↦ cstr return sym[0];
 	# https://www.ecma-international.org/ecma-262/9.0/index.html#sec-variable-statement
 	##############################################################################################################
 
-		variable_statement → τvar variable_declaration_list ; 			↦ cstr this.declarations = sym[1];
+		variable_statement → τvar variable_declaration_list ; 			↦ cstr ^var_stmt
 
-		variable_declaration_list → variable_declaration 				↦ cstr return [sym[0]]
-			│ variable_declaration_list , variable_declaration 			↦ cstr return sym[0].concat(sym[2])
+		variable_declaration_list → variable_declaration 				↦ cstr return [new env.functions.var_declaration(sym[0], e)]
+			│ variable_declaration_list , variable_declaration 			↦ cstr return sym[0].push(new env.functions.var_declaration(sym[1], e))
 
-		variable_declaration → identifier initializer 					↦ cstr this.id = sym[0]; this.initializer = sym[1]
-			│ identifier 												↦ cstr this.id = sym[0]; this.initializer = null;
-			│ binding_pattern initializer 								↦ cstr this.id = sym[0]; this.initializer = sym[1]
+		variable_declaration → identifier initializer 					↦ cstr return {id:sym[0], init:sym[1]}
+			│ identifier 												↦ cstr return {id:sym[0], init:null}
+			│ binding_pattern initializer 								↦ cstr return {id:sym[0], init:sym[1]}
 
 
 	##############################################################################################################
 	# https://www.ecma-international.org/ecma-262/9.0/index.html#sec-let-and-const-declarations
 	##############################################################################################################
 
-		lexical_declaration → let_or_const binding_list ;				↦ cstr this.type = sym[0]; this.declarations = sym[1];
+		lexical_declaration → let_or_const binding_list ;				↦ cstr ^lex_stmt
 
-		let_or_const → τlet 
-			│ τconst
+		let_or_const → τlet 											↦ cstr return "let"
+			│ τconst													↦ cstr return "const"
 
-		binding_list → lexical_binding 									↦ cstr return [sym[0]]
-			│ binding_list , lexical_binding							↦ cstr return sym[0].concat(sym[2])
+		binding_list → lexical_binding 									↦ cstr return [new env.functions.lex_declaration(sym[0], e)]
+			│ binding_list , lexical_binding							↦ cstr return sym[0].push(new env.functions.lex_declaration(sym[1], e))
 
-		lexical_binding → identifier initializer 						↦ cstr this.id = sym[0]; this.initializer = sym[1];
-			│ binding_pattern initializer 								↦ cstr this.id = sym[0]; this.initializer = sym[1];
+		lexical_binding → identifier initializer 						↦ cstr return {id:sym[0], init:sym[1]}
+			│ binding_pattern initializer 								↦ cstr return {id:sym[0], init:sym[1]}
 
 ## FUNCTIONS
 
@@ -344,26 +345,26 @@ S → conditional_expression										↦ cstr return sym[0];
 	# https://www.ecma-international.org/ecma-262/9.0/index.html#sec-arrow-function-definitions
 	##############################################################################################################
 
-		arrow_function → arrow_parameters => concise_body
+		arrow_function → arrow_parameters => concise_body 								↦ cstr ^arrow
 
 		arrow_parameters → identifier 
 			│ cover_parenthesized_expression_and_arrow_parameter_list
 
 		concise_body → assignement_expression 
-			│ { function_statement_list }
+			│ { function_statement_list }												↦ cstr return sym[1]
 			│ { }
 
 	##############################################################################################################
 	# https://www.ecma-international.org/ecma-262/9.0/index.html#sec-async-arrow-function-definitions
 	##############################################################################################################
 
-		async_arrow_function → τasync async_arrow_parameters => async_concise_body
+		async_arrow_function → τasync async_arrow_parameters => async_concise_body		↦ cstr ^async_arrow
 
 		async_arrow_parameters → identifier 
 			│ cover_call_expression_and_async_arrow_head
 
 		async_concise_body → assignement_expression 
-			│ { function_statement_list }
+			│ { function_statement_list }												↦ cstr return sym[1]
 			│ { }
 
 		cover_call_expression_and_async_arrow_head → member_expression arguments
@@ -419,38 +420,39 @@ S → conditional_expression										↦ cstr return sym[0];
 # https://www.ecma-international.org/ecma-262/9.0/index.html#sec-left-hand-side-expressions
 ##############################################################################################################
 
-	left_hand_side_expresssion → new_expression 		↦ cstr return sym[0]
-		#│ call_expression 								↦ cstr return sym[0]
+	left_hand_side_expresssion → new_expression 		
+		│ call_expression 								
 
-	new_expression → member_expression │ τnew new_expression
+	new_expression → member_expression 
+		│ τnew new_expression 							↦ cstr ^new_expr	
 
-	member_expression → primary_expression 				↦ cstr return sym[0]
-		#│ member_expression [ expression ]		
-		│ member_expression . identifier
+	member_expression → primary_expression 				
+		│ member_expression [ expression ]				↦ cstr ^member_expr		
+		│ member_expression . identifier 				↦ cstr ^member_expr
 		# │ member_expression template_literal
-		#│ super_property
+		│ super_property
 		│ meta_property
 		#│ τnew member_expression arguments
 
-	super_property → τsuper . identifier
+	super_property → τsuper . identifier 				↦ cstr ^supper_expr
 		#│ τsuper [ expression ]
 
 	meta_property → new_target
 
-	new_target → τnew . τtarget
+	new_target → τnew . τtarget							↦ cstr ^new_target_expr
 
-	call_expression → call_expression . identifier
-		│ super_call
-		│ call_expression arguments
-		│ call_expression [ expression ]
-		│ cover_call_expression_and_async_arrow_head 
+	call_expression → call_expression . identifier ↦ cstr ^call_expr
+		#│ super_call
+		#│ call_expression arguments ↦ cstr ^call_expr
+		│ call_expression [ expression ] ↦ cstr ^call_expr
+		#│ cover_call_expression_and_async_arrow_head 
 		# │ call_expression template_literal
 
 	super_call → τsuper arguments
 
-	arguments → ( ) 
-		│ ( argument_list )
-		│ ( argument_list , )
+	arguments → ( ) 				↦ cstr return null;
+		│ ( argument_list )			↦ cstr return sym[1]
+		│ ( argument_list , )		↦ cstr return sym[1]
 
 	argument_list → assignement_expression 
 		│ ... assignement_expression
@@ -544,82 +546,82 @@ S → conditional_expression										↦ cstr return sym[0];
 			# │ yield_expression
 			#│ arrow_function
 			#│ async_arrow_function
-			#│ left_hand_side_expresssion = assignement_expression  						↦ cstr this.type= "assignemnt"; this.op = "equal"; this.assigner = sym[0]; this.assignee = sym[2];
-			#│ left_hand_side_expresssion assignement_operator assignement_expression	↦ cstr this.type = sym[1]; this.assigner = sym[0]; this.assignee = sym[2];
+			│ left_hand_side_expresssion = assignement_expression  						↦ cstr ^assignment_expr
+			│ left_hand_side_expresssion assignement_operator assignement_expression	↦ cstr ^assignment_expr
 
-		assignement_operator → *= 														↦ cstr return "mul";
-			│ /= 																		↦ cstr return "div";
-			│ %= 																		↦ cstr return "mod";
-			│ += 																		↦ cstr return "add";
-			│ -= 																		↦ cstr return "sub";
-			│ <<= 																		↦ cstr return "lshift";
-			│ >>= 																		↦ cstr return "rshift";
-			│ >>>= 																		↦ cstr return "rshift-zero-fill";
-			│ &= 																		↦ cstr return "bit and";
-			│ ^= 																		↦ cstr return "bit xor";
-			│ |= 																		↦ cstr return "bit or";
-			│ **= 																		↦ cstr return "exp";
+		assignement_operator → *= 														
+			│ /= 																		
+			│ %= 																		
+			│ += 																		
+			│ -= 																		
+			│ <<= 																		
+			│ >>= 																		
+			│ >>>= 																		
+			│ &= 																		
+			│ ^= 																		
+			│ |= 																		
+			│ **= 																		
 
 	##############################################################################################################
 	# https://www.ecma-international.org/ecma-262/9.0/index.html#prod-ConditionalExpression
 	##############################################################################################################
 
 		conditional_expression → logical_or_expression
-			│ logical_or_expression ? assignement_expression : assignement_expression
+			│ logical_or_expression ? assignement_expression : assignement_expression ↦ cstr ^condition_expr
 
 	##############################################################################################################
 	# https://www.ecma-international.org/ecma-262/9.0/index.html#sec-binary-logical-operators
 	##############################################################################################################
 
 		logical_or_expression → logical_and_expression 
-			│ logical_or_expression || logical_and_expression
+			│ logical_or_expression || logical_and_expression		↦ cstr ^or_expr
 
 		logical_and_expression → bitwise_or_expression 
-			│ logical_and_expression && logical_and_expression
+			│ logical_and_expression && logical_and_expression		↦ cstr ^and_expr
 
 	##############################################################################################################
 	# https://www.ecma-international.org/ecma-262/9.0/index.html#sec-binary-bitwise-operators
 	##############################################################################################################
 
 		bitwise_or_expression → bitwise_xor_expression 
-			│ bitwise_or_expression | bitwise_xor_expression
+			│ bitwise_or_expression | bitwise_xor_expression		↦ cstr ^b_or_expr
 
 		bitwise_xor_expression → bitwise_and_expression 
-			│ bitwise_and_expression ^ bitwise_xor_expression
+			│ bitwise_and_expression ^ bitwise_xor_expression		↦ cstr ^b_xor_expr
 
 		bitwise_and_expression → equality_expression 
-			│ bitwise_and_expression & equality_expression
+			│ bitwise_and_expression & equality_expression			↦ cstr ^b_and_expr
 
 	##############################################################################################################
 	# https://www.ecma-international.org/ecma-262/9.0/index.html#sec-equality-operators
 	##############################################################################################################
 
 		equality_expression → relational_expression 
-			│ equality_expression == relational_expression
-			│ equality_expression != relational_expression
-			│ equality_expression === relational_expression
-			│ equality_expression !== relational_expression
+			│ equality_expression == relational_expression			↦ cstr ^eqality_expr
+			│ equality_expression != relational_expression			↦ cstr ^neqality_expr
+			│ equality_expression === relational_expression			↦ cstr ^eq_expr
+			│ equality_expression !== relational_expression			↦ cstr ^neq_expr
 
 	##############################################################################################################
 	# https://www.ecma-international.org/ecma-262/9.0/index.html#sec-relational-operators
 	##############################################################################################################
 
 		relational_expression → shift_expression 
-			│ relational_expression < shift_expression
-			│ relational_expression >  shift_expression
-			│ relational_expression <= shift_expression
-			│ relational_expression >= shift_expression
-			│ relational_expression τinstanceof shift_expression
-			│ relational_expression τin shift_expression
+			│ relational_expression < shift_expression				↦ cstr ^lt_expr	
+			│ relational_expression >  shift_expression				↦ cstr ^gt_expr	
+			│ relational_expression <= shift_expression				↦ cstr ^gr_eq_expr	
+			│ relational_expression >= shift_expression				↦ cstr ^lt_eq_expr	
+			│ relational_expression τinstanceof shift_expression	↦ cstr ^instanceof_expr	
+			│ relational_expression τin shift_expression			↦ cstr ^in_expr	
 
 	##############################################################################################################
 	# https://www.ecma-international.org/ecma-262/9.0/index.html#sec-bitwise-shift-operators
 	##############################################################################################################
 
 		shift_expression → additive_expression 
-			│ shift_expression << additive_expression
-			│ shift_expression >> additive_expression
-			│ shift_expression >>> additive_expression
+			│ shift_expression << additive_expression			↦ cstr ^l_shift_expr
+			│ shift_expression >> additive_expression			↦ cstr ^r_shift_expr
+			│ shift_expression >>> additive_expression			↦ cstr ^r_shift_fill_expr
 	
 	##############################################################################################################
 	# https://www.ecma-international.org/ecma-262/9.0/index.html#sec-additive-operators
@@ -643,20 +645,20 @@ S → conditional_expression										↦ cstr return sym[0];
 	##############################################################################################################
 
 		exponentiation_expression → unary_expression 
-			│ update_expression ** exponentiation_expression
+			│ update_expression ** exponentiation_expression		↦ cstr ^expo_expr
 
 	##############################################################################################################
 	# https://www.ecma-international.org/ecma-262/9.0/index.html#sec-unary-operators
 	##############################################################################################################
 
 		unary_expression → update_expression 
-			│ τdelete unary_expression
-			│ τvoid unary_expression
-			│ τtypeof unary_expression
-			│ + unary_expression
-			│ - unary_expression
-			│ ~ unary_expression
-			│ ! unary_expression
+			│ τdelete unary_expression			↦ cstr ^delete_expr
+			│ τvoid unary_expression			↦ cstr ^void_expr	
+			│ τtypeof unary_expression			↦ cstr ^typeof_expr
+			│ + unary_expression				↦ cstr ^unary_or_expr
+			│ - unary_expression				↦ cstr ^negate_expr
+			│ ~ unary_expression				↦ cstr ^unary_or_expr
+			│ ! unary_expression				↦ cstr ^unary_not_expr
 			│ await_expression
 
 	##############################################################################################################
@@ -664,23 +666,23 @@ S → conditional_expression										↦ cstr return sym[0];
 	##############################################################################################################
  	
 		update_expression → left_hand_side_expresssion 
-			│ left_hand_side_expresssion ++
-			│ left_hand_side_expresssion --
-			│ ++ unary_expression		↦ cstr ^pre_inc_expr
-			│ -- unary_expression		↦ cstr ^pre_dec_expr
+			│ left_hand_side_expresssion ++		↦ cstr ^post_inc_expr
+			│ left_hand_side_expresssion --		↦ cstr ^post_dec_expr
+			│ ++ unary_expression				↦ cstr ^pre_inc_expr
+			│ -- unary_expression				↦ cstr ^pre_dec_expr
 
 	##############################################################################################################	
 	# https://www.ecma-international.org/ecma-262/9.0/index.html#prod-AwaitExpression
 	##############################################################################################################
 
-		await_expression → τawait unary_expression
+		await_expression → τawait unary_expression	↦ cstr ^await_expr
 
 	##############################################################################################################
 	# https://www.ecma-international.org/ecma-262/9.0/index.html#prod-CoverParenthesizedExpressionAndArrowParameterList
 	##############################################################################################################
 
 		cover_parenthesized_expression_and_arrow_parameter_list →
-			( )						
+			( )						↦ cstr return null;
 			│ ( expression )		↦ cstr return sym[1]
 			│ ( expression , )		↦ cstr return sym[1]
 			#│ ( ... identifier )
@@ -750,10 +752,10 @@ S → conditional_expression										↦ cstr return sym[0];
 
 	numeric_literal → θnum					↦ cstr ^numeric_literal
 
-	null_literal →  τnull
+	null_literal →  τnull					↦ cstr ^null_literal
 
-	boolean_literal → τtrue 				↦ cstr ^true_literal
-		│ τfalse 							↦ cstr ^false_literal
+	boolean_literal → τtrue 				↦ cstr ^bool_literal
+		│ τfalse 							↦ cstr ^bool_literal
 
 
 	# This replaces IdentifierReference, BindingIdentifier, and LabelIdentifier

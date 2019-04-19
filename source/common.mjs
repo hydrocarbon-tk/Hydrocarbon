@@ -264,7 +264,7 @@ export function createFunctions(production, body, env) {
         production.func_counter = 0;
 
     if (body.funct.cstr) {
-        let node = null;
+        let node = null, ENV = false;
         
         if (body.funct.cstr[0] == "^") {
             
@@ -274,8 +274,13 @@ export function createFunctions(production, body, env) {
                 node = funct;
                 node.NAME = funct.name;
                 node.TYPE = "class";
-                node.ENV = true;
+            }else{
+                node = {}
+                node.NAME = body.funct.cstr.slice(1);
+                node.TYPE = "class"
             }
+
+            ENV = true;
         }
 
         if(!node){
@@ -301,9 +306,9 @@ export function createFunctions(production, body, env) {
                     node.TYPE = "class"
             }
 
-            node.ENV = false;
-
         }
+
+        node.ENV = ENV;
 
         body.node = node;
     }

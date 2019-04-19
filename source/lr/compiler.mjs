@@ -4,7 +4,7 @@ import { getToken, types, FOLLOW } from "../common.mjs";
 
 function setNode(node, length, functions, id, str = "", COMPILE_FUNCTION = true) {   
     const prefix = (node.TYPE == "class") ? "new" : ""
-    console.log(node.NAME, node.ENV, COMPILE_FUNCTION)
+    
     const funct = (!COMPILE_FUNCTION && node.ENV) ? 
         `o[ln]=(${prefix} e.functions.${node.NAME}(o.slice(${-length}),e,l,s))` : 
         `o[ln]=(${prefix} ${node.NAME}(o.slice(${-length}),e,l,s))`
