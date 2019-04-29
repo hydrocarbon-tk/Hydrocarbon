@@ -153,9 +153,7 @@ function Closure(items, grammar, offset = 0, added = new Set(), exclude = []) {
             Be = body.slice(index + 1),
             b = item.follow;
 
-        
-
-        if (index < len && isNonTerm(B)) { //Taking the closure
+        if (index < len && isNonTerm(B)) { 
             let first;
 
             let out_exclude = exclude;
@@ -163,14 +161,11 @@ function Closure(items, grammar, offset = 0, added = new Set(), exclude = []) {
             if(body.exclude)
                 out_exclude = out_exclude.concat(body.exclude);
 
-            if (Be.length > 0) {
+            if (Be.length > 0) 
                 first = FIRST(grammar, ...(Be.map(x => isNonTerm(x) ? x : { v: x, p: body.precedence })), b);
-            } else {
+             else 
                 first = [b];
-            }
-
-
-
+            //console.log(first)
             //Add all items B;
             added.add(B);
 
@@ -184,6 +179,8 @@ function Closure(items, grammar, offset = 0, added = new Set(), exclude = []) {
                 for (let i = 0; i < first.length; i++) {
                     let item = new Item(pbody.id, pbody.length, 0, first[i].v, first[i].p);
                     let sig = item.full_id;
+
+
                     if (!added.has(sig)) {
                         items.push(item);
                         added.add(sig);
@@ -251,8 +248,8 @@ export function LALRTable(grammar, env = {}) {
         }
     }
 
-    if (i == 100000)
+    if (i >= 100000)
         throw new Error("Failed process grammar. Max step limit reached. The current limit is set to 100000 iterations.")
-    //console.log(states)
+    console.log(i)
     return states;
 }
