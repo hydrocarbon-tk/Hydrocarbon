@@ -1,5 +1,44 @@
 <http>
-	<head>
-		<script type="module" src="/source/hydrocarbon.mjs"></script>
-	</head>
+
+    <head>
+        <script type="module" src="/js_base.env.js"></script>
+        <script src="/js_base.js"></script>
+        <script src="/cfw/wick"></script>
+    </head>
+
+    <body>
+        <div id="main"></div>
+        <template id="template">
+            <scope>
+                <textarea value=((value))></textarea>
+                <p>((js_output))</p>
+                <script on=((value))>
+                    const env = presets.custom.env;
+					const js_base = presets.custom.js_base;
+					const whind = wick.whind;
+
+					try{
+						let result = js_base(whind(value), env);
+						console.log(result)
+					}catch(e){
+						emit.js_output = e + "";
+					}
+				</script>
+            </scope>
+        </template>
+        <script type="module">
+            import env from "/js_base.env.js";
+			
+			(async ()=> {
+				const presets = wick.presets({
+					custom : {
+						env, 
+						js_base
+					}
+				});
+
+				(await wick(document.getElementById("template"), presets)).mount(document.getElementById("main"));
+			})();
+		</script>
+    </body>
 </http>

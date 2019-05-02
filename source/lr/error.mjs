@@ -4,8 +4,6 @@ export function shiftCollisionCheck(grammar, state, new_state, item) {
         k = body_a[item.offset],
         shift = state.action.get(k);
 
-    
-
     if (shift && shift.state !== new_state.id) {
 
         if(shift.name !== "SHIFT"){
@@ -60,10 +58,8 @@ export function gotoCollisionCheck(grammar, state, new_state, item) {
             return 1;
         }
 
-        let state_body = grammar.states[goto.state].b.join(" ")
+        //let state_body = grammar.states[goto.state].b.join(" ");
 
-        console.log(new_id, old_id)
-        console.log(state)
         console.error(`  \x1b[42m GOTO \x1b[43m COLLISION ERROR ENCOUNTERED:\x1b[0m`);
         console.error(
             `   Goto action on symbol <${k}> for state <${state.id}> <${state.b.join(" ")}> has already been defined.

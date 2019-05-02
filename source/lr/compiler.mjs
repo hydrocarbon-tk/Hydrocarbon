@@ -276,9 +276,7 @@ ${getToken.toString()}
     while(time-- > 0){
         
         let fn = state[ss[sp]].get(tk) || 0, r, st = 0, gt = -1, c = 0;
-
-        console.log(state[ss[sp]], tk, ss[sp], ss)
-
+        
         if(fn > 0){
             r = sf[fn-1](tk, e, o, l, ss[sp-1]);
         } else {

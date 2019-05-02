@@ -368,7 +368,7 @@ start → script
 			│ { function_statement_list }												↦ cstr return sym[1]
 			│ { }
 
-		cover_call_expression_and_async_arrow_head → member_expression arguments
+		cover_call_expression_and_async_arrow_head → member_expression arguments 		↦ cstr ^call_expr
 
 ## CLASSES
 	
@@ -446,7 +446,7 @@ start → script
 		│ super_call
 		│ call_expression arguments ↦ cstr ^call_expr
 		│ call_expression [ expression ] ↦ cstr ^call_expr
-		#│ cover_call_expression_and_async_arrow_head 
+		│ cover_call_expression_and_async_arrow_head 
 		#│ call_expression template_literal
 
 	super_call → τsuper arguments
@@ -457,7 +457,7 @@ start → script
 
 	argument_list → assignement_expression  			↦ cstr return [sym[0]]
 		│ ... assignement_expression  					↦ cstr ^spread_expr
-		│ argument_list , assignement_expression 		↦ cstr return (sym[0].push(sym[2]), sym[1])
+		│ argument_list , assignement_expression 		↦ cstr return (sym[0].push(sym[2]), sym[0])
 		│ argument_list , ... assignement_expression 	↦ cstr return (sym[0].push(new env.functions.spread_expr(env, sym.slice(2,4))), env[0])
 
 
@@ -493,7 +493,7 @@ start → script
 	property_definition_list → property_definition
 		│ property_definition_list , property_definition	
 
-	property_definition → identifier
+	property_definition → literal_identifier
 		│ cover_initialized_name
 		│ property_name : assignement_expression
 	 	│ method_definition
@@ -502,13 +502,13 @@ start → script
 	property_name → literal_property_name
 		│ computed_property_name
 
-	literal_property_name → identifier
+	literal_property_name → literal_identifier
 		│ string_literal
 		│ numeric_literal
 
 	computed_property_name → [ assignement_expression ]
 
-	cover_initialized_name → identifier initializer
+	cover_initialized_name → literal_identifier initializer
 
 	initializer → = assignement_expression						↦cstr return sym[1]
 
@@ -761,7 +761,7 @@ start → script
 
 	# This replaces IdentifierReference, BindingIdentifier, and LabelIdentifier
 	# https://www.ecma-international.org/ecma-262/9.0/index.html#sec-identifiers
-
+literal_identifier → θid					↦ cstr ^identifier
 	identifier → θid						↦ cstr ^identifier
 		│ τyield 							↦ cstr ^yield_id
 		│ τawait 							↦ cstr ^await_id
