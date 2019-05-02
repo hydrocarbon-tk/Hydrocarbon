@@ -1,6 +1,6 @@
 #!/bin/sh
 
-":" //# comment; exec /usr/bin/env node --experimental-modules "$0" "$@"
+":" //# comment; exec /usr/bin/env node --experimental-modules --max-old-space-size=8192 "$0" "$@"
 
 /* IMPORTS *******************/
 

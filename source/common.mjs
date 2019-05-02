@@ -51,36 +51,33 @@ export function createPrecedence(body, grammar) {
 }
 
 /**************** FIRST and FOLLOW sets ***************************/
-function addNonTerminal(table, nonterm, grammar, body_ind, index = 0) {
+function addNonTerminal(table, production_array, grammar, body_ind, index = 0) {
 
-    if (!nonterm[index]) {
-        throw new Error(`Empty production at index ${index} in [${grammar[nonterm.production].name}]`)
+    if (!production_array[index]) {
+        throw new Error(`Empty production at index ${index} in [${grammar[production_array.production].name}]`)
     }
 
-    let first = nonterm[index],
+    let first = production_array[index],
         terminal = "",
         HAS_E = false;
 
     if (first[0] == "τ") {
         terminal = first.slice(1);
-    } else if (first[0] == EMPTY_PRODUCTION) {
-        table.set(EMPTY_PRODUCTION, { v: EMPTY_PRODUCTION, p: grammar.bodies[body_ind].precedence });
+    } else if (first.toString().trim() == EMPTY_PRODUCTION) {
+        //table.set(EMPTY_PRODUCTION, { v: EMPTY_PRODUCTION, p: grammar.bodies[body_ind].precedence });
         return true;
     } else if (!isNonTerm(first)) {
         terminal = first;
     } else {
 
-        let body = grammar[first].bodies;
+        let bodies = grammar[first].bodies;
 
-        for (let i = 0; i < body.length; i++)
-            if (i !== body_ind && first !== nonterm.production) {
-                if (addNonTerminal(table, body[i], grammar, body[i].id)) {
-                    HAS_E = true;
-                }
-            }
-
-        if (index < nonterm.length - 1 && HAS_E)
-            addNonTerminal(table, nonterm, grammar, body_ind, index + 1);
+        for (let i = 0; i < bodies.length; i++)
+            if (i !== body_ind && first !== production_array.production) 
+                HAS_E = addNonTerminal(table, bodies[i], grammar, bodies[i].id);
+            
+        if (index < production_array.length - 1 && HAS_E)
+            addNonTerminal(table, production_array, grammar, body_ind, index + 1);
 
         return HAS_E;
     }
@@ -120,18 +117,16 @@ export function FIRST(grammar, ...symbols) {
             let HAS_E = false;
 
             for (let i = 0; i < production.bodies.length; i++) {
+
                 const body = production.bodies[i];
                 
-                if (addNonTerminal(subset, body, grammar, body.id)) {
-                    HAS_E = true;
-                }
+                HAS_E = addNonTerminal(subset, body, grammar, body.id);
             }
 
             //Merge the sets 
             subset.forEach((v,k) => {if(!set.has(k)) set.set(k,v)});
 
-            if (!HAS_E) 
-                break;
+            if (!HAS_E)  break;
             
         } else {
 

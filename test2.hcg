@@ -1,0 +1,4 @@
+S → s
+s → L = R │ R
+L → * R │ τid
+R → L

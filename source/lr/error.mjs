@@ -4,7 +4,14 @@ export function shiftCollisionCheck(grammar, state, new_state, item) {
         k = body_a[item.offset],
         shift = state.action.get(k);
 
+    
+
     if (shift && shift.state !== new_state.id) {
+
+        if(shift.name !== "SHIFT"){
+       // console.log(shift, "SHIFT CONFLICT!")
+        //return 0;
+    }
         const body_b = bodies[shift.body];
 
         console.error(`  \x1b[43m SHIFT \x1b[43m COLLISION ERROR ENCOUNTERED:\x1b[0m`);
@@ -43,7 +50,7 @@ export function gotoCollisionCheck(grammar, state, new_state, item) {
         let old_id = grammar.states[goto.state].real_id;
         let new_id = new_state.real_id;
 
-        console.log("MAM",grammar.states[goto.state], new_state, goto.state)
+      //  console.log("MAM",grammar.states[goto.state], new_state, goto.state)
 
         if(new_id.length <=  old_id.length && old_id.includes(new_id)){
             //console.log(new_state.real_id, grammar.states[goto.state].real_id)
@@ -86,11 +93,17 @@ export function reduceCollisionCheck(grammar, state, item) {
         
 
     if (action){
+
         const  bodies = grammar.bodies,
             body_a = bodies[item.body],
             body_b = grammar.bodies[action.body]; 
 
-        if(grammar[body_b.production].name == state.b[0]) // TODO: Already reducing to the expected production )
+        if(action.name !== "REDUCE"){
+           // console.log(action, "CONFLICT!", state.b[0], grammar[body_b.production].name, grammar[body_a.production].name, body_b.production, body_a.production)
+            return 1;
+        }
+
+        if(grammar[body_b.production].name == state.b[0] ) // TODO: Already reducing to the expected production )
         {
             //console.log("TODO: Duplicate reduce merge", state.b[0], grammar[body_b.production].name)
             return 1;

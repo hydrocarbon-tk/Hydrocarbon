@@ -1,6 +1,8 @@
 const env =  {
 	table:{},
 	functions:{
+		class_stmt: function(sym){this.identifier = sym[1], this.tail= sym[2]},
+		class_tail:function(sym){this.heritage = sym[0]; this.body = sym[2]},
 		block_stmt:function(sym){this.stmts = sym[0]},
 		debugger_stmt: function(sym){this.DEBUGGER = true},
 		lex_stmt: function(sym){this.type = sym[0]; this.declarations = sym[1]},

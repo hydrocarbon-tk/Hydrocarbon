@@ -4,7 +4,7 @@ import { getToken, types, FOLLOW } from "../common.mjs";
 
 function setNode(node, length, functions, id, str = "", COMPILE_FUNCTION = true) {   
     const prefix = (node.TYPE == "class") ? "new" : ""
-    
+    2+2
     const funct = (!COMPILE_FUNCTION && node.ENV) ? 
         `o[ln]=(${prefix} e.functions.${node.NAME}(o.slice(${-length}),e,l,s))` : 
         `o[ln]=(${prefix} ${node.NAME}(o.slice(${-length}),e,l,s))`
@@ -277,12 +277,14 @@ ${getToken.toString()}
         
         let fn = state[ss[sp]].get(tk) || 0, r, st = 0, gt = -1, c = 0;
 
+        console.log(state[ss[sp]], tk, ss[sp], ss)
+
         if(fn > 0){
             r = sf[fn-1](tk, e, o, l, ss[sp-1]);
         } else {
             //Error Encountered 
             r = re[ss[sp]];
-            eh[ss[sp]](tk, e, o, l, ss[sp-1]);
+            eh[ss[sp]](tk, e, o, l, ss[sp]);
         }
 
         st = r >> 2;

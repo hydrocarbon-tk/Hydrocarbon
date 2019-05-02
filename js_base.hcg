@@ -84,7 +84,8 @@ start → script
 	# https://www.ecma-international.org/ecma-262/9.0/index.html#sec-ecmascript-language-scripts-and-modules
 	##############################################################################################################
 		
-		script → ɛ
+		script → script_body
+			│ ɛ
 
 		script_body → statement_list
 
@@ -413,7 +414,7 @@ start → script
 ##############################################################################################################
 
 	expression → assignement_expression 				↦ cstr return [sym[0]]						
-		│ expression , assignement_expression			↦ cstr return (sym(0).push(sym(2)), sym[0])
+		│ expression , assignement_expression			↦ cstr return (sym[0].push(sym(2)), sym[0])
 
 
 ##############################################################################################################
