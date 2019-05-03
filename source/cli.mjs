@@ -174,7 +174,7 @@ async function mount(name, input, env) {
                 if (env.options && env.options.integrate)
                     console.dir(parser(input));
                 else
-                    console.dir(parser(whind(input), env));
+                    console.dir(parser(whind(input, true), env));
             } catch (e) {
                 console.error(e);
             }

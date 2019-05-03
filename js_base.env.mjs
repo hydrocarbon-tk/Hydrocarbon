@@ -1,9 +1,9 @@
 const env =  {
 	table:{},
 	functions:{
-		call_expr:function(sym){this.name = sym[0]; this.args = sym[1]},
-		member_expr: function(sym){this.name = sym[0]; this.expr = sym[2]},
-		class_stmt: function(sym){this.name = sym[1], this.tail= sym[2]},
+		call_expr:function(sym){this.identifier = sym[0]; this.args = sym[1]},
+		member_expr: function(sym){this.identifier = sym[0]; this.expr = sym[2]},
+		class_stmt: function(sym){this.identifier = sym[1], this.tail= sym[2]},
 		class_tail:function(sym){this.heritage = sym[0]; this.body = sym[2]},
 		block_stmt:function(sym){this.stmts = sym[0]},
 		debugger_stmt: function(sym){this.DEBUGGER = true},
@@ -29,11 +29,8 @@ const env =  {
 	},
 
 	options : {
-		integrate : false,
-		defaultError : (l, )=>{
-
-		}
+		integrate : false
 	}
-};
+}
 
 export default env;

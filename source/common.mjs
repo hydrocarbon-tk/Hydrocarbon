@@ -25,7 +25,7 @@ export function getToken(l, reserved) {
             return "θstr";
         case types.new_line:
             return "θnl";
-        case types.space:
+        case types.ws:
             return "θws";
         case types.data_link:
             return "θdl";

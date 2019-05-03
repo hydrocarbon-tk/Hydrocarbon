@@ -43,9 +43,9 @@ function convertProductionNamesToIndexes(productions, LU, lex) {
     }
 }
 
-export function grammarParser(grammer) {
+export function grammarParser(grammar) {
 
-    let lex = whind(grammer);
+    let lex = whind(grammar);
     const types = lex.types;
 
     let productions = [];
@@ -63,9 +63,7 @@ export function grammarParser(grammer) {
 
     function sealExpression(name) {
         if (body && expression !== null) {
-            const exp = expression;
             if (expression_name == "error") {
-
                 current_production.funct = { error: lex.slice(time).trim() };
             } else {
                 body.funct[expression_name] = lex.slice(time).trim();
@@ -136,9 +134,36 @@ export function grammarParser(grammer) {
 
                 lex.IWS = true;
 
-                // /lex.next();
+            } else if (lex.tx == "IGNORE") {
+                
+                if(!productions.ignore)
+                    productions.ignore = [];
+                
+                lex.next();
 
-            } else {
+                lex.IWS = false;
+
+                while (!lex.END && lex.type !== types.new_line) {
+                    const l = lex.copy();
+
+                    while (!l.END && !(l.n.ty & (types.new_line | types.ws)));
+
+                    let sym = l.slice(lex);
+
+                    if(l.ty == types.id){
+                        l.next();
+                        while (!l.END && !(l.n.ty & (types.new_line | types.ws)));
+                        sym = l.slice(lex);
+                    }
+
+                    if(sym)
+                        productions.ignore.push(sym.trim());
+                    
+                    lex.sync(l);
+                }
+
+                lex.IWS = true;
+            }else {
                 lex.IWS = true;
 
                 const name = lex.tx;
@@ -214,7 +239,13 @@ export function grammarParser(grammer) {
                             lex.next();
                             continue;
                         case "θ":
-                            pk = lex.pk.n;
+                            pk = lex.pk;
+                            
+                            if(pk.ch == "!" && pk.off == lex.off+lex.tl)
+                                pk.next();
+
+                            pk.next();
+
                             body.push(pk.slice(lex).trim());
                             lex.sync();
                             continue;
@@ -262,6 +293,8 @@ export function grammarParser(grammer) {
 
     sealExpression(lex.n.tx);
     convertProductionNamesToIndexes(productions, LU);
+
+    console.log(productions)
 
     if (productions.length < 1)
         throw new Error("No productions were generated from the input!");

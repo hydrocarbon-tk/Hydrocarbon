@@ -1,6 +1,7 @@
 <http>
 
     <head>
+    	<meta charset="utf8">
         <script type="module" src="/js_base.env.js"></script>
         <script src="/js_base.js"></script>
         <script src="/cfw/wick"></script>
@@ -19,7 +20,7 @@
 
 					try{
 						let result = js_base(whind(value), env);
-						console.log(result)
+						emit.js_output = JSON.stringify(result[0])
 					}catch(e){
 						emit.js_output = e + "";
 					}

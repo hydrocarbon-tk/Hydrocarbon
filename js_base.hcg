@@ -2,6 +2,8 @@
 
 #SYMBOLS { } ( ) [ ] . ... ; , < > <= >= == != === !== + - * % / ** ++ -- << >> >>> & | ^ ! ~ && || ? : += -= *= %= /= **= <<= >>= >>>= &= |= ^= =>  ####
 
+#IGNORE θws θnl
+
 S → start											↦ cstr return sym[0];
 
 start → script
@@ -171,13 +173,13 @@ start → script
 			│ τfor ( expression ; expression ;  ) statement 									↦ cstr return (new env.functions.for_stmt(sym[2], sym[4], null, sym[8]))
 			│ τfor ( expression ;  ;  ) statement 												↦ cstr return (new env.functions.for_stmt(sym[2], null, null, sym[8]))
 			│ τfor (  ;  ;  ) statement 														↦ cstr return (new env.functions.for_stmt(null, null, null, sym[8]))
-			│ τfor ( τvar variable_declaration_list ; statement ; statement ) statement  		↦ cstr return (new env.functions.for_stmt(sym[3], sym[5], sym[7], sym[9]))
-			│ τfor ( τvar variable_declaration_list ; statement ;  ) statement 			 		↦ cstr return (new env.functions.for_stmt(sym[3], sym[5], null, sym[9]))
-			│ τfor ( τvar variable_declaration_list ;  ; statement ) statement 			 		↦ cstr return (new env.functions.for_stmt(sym[3], null, sym[7], sym[9]))
+			│ τfor ( τvar variable_declaration_list ; expression ; expression ) statement  		↦ cstr return (new env.functions.for_stmt(sym[3], sym[5], sym[7], sym[9]))
+			│ τfor ( τvar variable_declaration_list ; expression ;  ) statement 			 		↦ cstr return (new env.functions.for_stmt(sym[3], sym[5], null, sym[9]))
+			│ τfor ( τvar variable_declaration_list ;  ; expression ) statement 			 		↦ cstr return (new env.functions.for_stmt(sym[3], null, sym[7], sym[9]))
 			│ τfor ( τvar variable_declaration_list ;  ;  ) statement 					 		↦ cstr return (new env.functions.for_stmt(sym[3], null , null, sym[9]))
-			│ τfor ( lexical_declaration ; statement ; statement ) statement   			 		↦ cstr return (new env.functions.for_stmt(sym[2], sym[4], sym[6], sym[8]))
-			│ τfor ( lexical_declaration ; statement ;  ) statement 					 		↦ cstr return (new env.functions.for_stmt(sym[2], sym[4], null, sym[8]))
-			│ τfor ( lexical_declaration ;  ; statement ) statement 					 		↦ cstr return (new env.functions.for_stmt(sym[2], null, sym[6], sym[8]))
+			│ τfor ( lexical_declaration ; expression ; expression ) statement   			 		↦ cstr return (new env.functions.for_stmt(sym[2], sym[4], sym[6], sym[8]))
+			│ τfor ( lexical_declaration ; expression ;  ) statement 					 		↦ cstr return (new env.functions.for_stmt(sym[2], sym[4], null, sym[8]))
+			│ τfor ( lexical_declaration ;  ; expression ) statement 					 		↦ cstr return (new env.functions.for_stmt(sym[2], null, sym[6], sym[8]))
 			│ τfor ( lexical_declaration ;  ;  ) statement 								 		↦ cstr return (new env.functions.for_stmt(sym[2], null, null, sym[8]))
 			│ τfor ( left_hand_side_expresssion τin expression ) statement 				 		↦ cstr return (new env.functions.for_in_stmt(sym[2], sym[4], sym[6]))
 			│ τfor ( τvar for_binding τin expression ) statement 						 		↦ cstr return (new env.functions.for_in_stmt(sym[3], sym[5], sym[7]))
@@ -199,14 +201,14 @@ start → script
 	##############################################################################################################
 
 		continue_statement → τcontinue ; 	↦ cstr ^continue_stmt
-			│ τcontinue identifier ;		↦ cstr return (new env.functions.continue_stmt(sym[1]))
+			│ τcontinue θnl! label_identifier ;		↦ cstr return (new env.functions.continue_stmt(sym[1]))
 
 	##############################################################################################################
 	# https://www.ecma-international.org/ecma-262/9.0/index.html#sec-break-statement
 	##############################################################################################################
 
 		break_statement → τbreak ;  	↦ cstr ^break_stmt
-			│ τbreak identifier ; 		↦ cstr return (new env.functions.break_stmt(sym[1]))
+			│ τbreak label_identifier ; 		↦ cstr return (new env.functions.break_stmt(sym[1]))
 
 
 	##############################################################################################################
@@ -235,7 +237,7 @@ start → script
 			│ { default_clause } 								↦ cstr return sym[1]
 			│ { case_clauses } 									↦ cstr return sym[1]
 
-		case_clauses → case_clause 								↦ cstr return [sym(0)]
+		case_clauses → case_clause 								↦ cstr return [sym[0]]
 			│ case_clauses case_clause 							↦ cstr return sym[0].concat(sym[1])
 
 		case_clause → τcase expression : statement_list 		↦ cstr return (new env.functions.case_stmt(sym[1], sym[3]))
@@ -248,7 +250,7 @@ start → script
 	# https://www.ecma-international.org/ecma-262/9.0/index.html#sec-labelled-statements
 	##############################################################################################################
 
-		labelled_statement → identifier : labelled_item 		↦ cstr ^label_stmt
+		labelled_statement → label_identifier : labelled_item 		↦ cstr ^label_stmt
 
 		labelled_item → statement
 			│ function_declaration
@@ -381,8 +383,9 @@ start → script
 		class_declaration → τclass identifier class_tail  								↦ cstr ^class_stmt
 			│ τclass class_tail															↦ cstr ^class_stmt
 
-		class_tail → class_heritage { class_body } 										↦ cstr ^class_tail
-			│ class_heritage { }														↦ cstr ^class_tail
+		class_tail → class_heritage { class_body } 										↦ cstr return new env.functions.class_tail(sym)
+			│ { class_body }															↦ cstr return new env.functions.class_tail([null, ... sym[0]])
+			│ class_heritage { }														↦ cstr return new env.functions.class_tail([sym[0], null, null])
 			│ { }																		↦ cstr return null
 
 		class_heritage → τextends left_hand_side_expresssion 							↦ cstr return sym[1]
@@ -414,7 +417,7 @@ start → script
 ##############################################################################################################
 
 	expression → assignement_expression 				↦ cstr return [sym[0]]						
-		│ expression , assignement_expression			↦ cstr return (sym[0].push(sym(2)), sym[0])
+		│ expression , assignement_expression			↦ cstr return (sym[0].push(sym[2]), sym[0])
 
 
 ##############################################################################################################
@@ -467,7 +470,7 @@ start → script
 
 	primary_expression →
 		τthis											↦ cstr ^this_expr
-		│ identifier
+		│ identifier_reference
 		│ literal
 		│ array_literal									↦ cstr ^array_literal
 		│ object_literal								↦ cstr ^obj_literal
@@ -493,7 +496,7 @@ start → script
 	property_definition_list → property_definition
 		│ property_definition_list , property_definition	
 
-	property_definition → literal_identifier
+	property_definition → identifier_reference
 		│ cover_initialized_name
 		│ property_name : assignement_expression
 	 	│ method_definition
@@ -502,13 +505,13 @@ start → script
 	property_name → literal_property_name
 		│ computed_property_name
 
-	literal_property_name → literal_identifier
+	literal_property_name → lidentifier_name
 		│ string_literal
 		│ numeric_literal
 
 	computed_property_name → [ assignement_expression ]
 
-	cover_initialized_name → literal_identifier initializer
+	cover_initialized_name → identifier_reference initializer
 
 	initializer → = assignement_expression						↦cstr return sym[1]
 
@@ -686,9 +689,9 @@ start → script
 			( )						↦ cstr return [];
 			│ ( expression )		↦ cstr return [sym[1]]
 			│ ( expression , )		↦ cstr return [sym[1]]
-			│ ( ... identifier )    ↦ cstr return [sym[0].push(new env.functions.spread_expr(env, sym.slice(1,3)))]
+			│ ( ... binding_identifier )    ↦ cstr return [sym[0].push(new env.functions.spread_expr(env, sym.slice(1,3)))]
 			│ ( ... binding_pattern ) 	↦ cstr return [sym[0].push(new env.functions.spread_expr(env, sym.slice(1,3)))]
-			│ ( expression , ...identifier )
+			│ ( expression , ...binding_identifier )
 			│ ( expression , ...binding_pattern )
 
 ##############################################################################################################
@@ -759,9 +762,21 @@ start → script
 		│ τfalse 							↦ cstr ^bool_literal
 
 
-	# This replaces IdentifierReference, BindingIdentifier, and LabelIdentifier
-	# https://www.ecma-international.org/ecma-262/9.0/index.html#sec-identifiers
-literal_identifier → θid					↦ cstr ^identifier
-	identifier → θid						↦ cstr ^identifier
+
+# https://www.ecma-international.org/ecma-262/9.0/index.html#sec-identifiers
+
+label_identifier → identifier				#↦ cstr ^identifier		
 		│ τyield 							↦ cstr ^yield_id
 		│ τawait 							↦ cstr ^await_id
+
+identifier_reference → identifier			#↦ cstr ^identifier		
+		│ τyield 							↦ cstr ^yield_id
+		│ τawait 							↦ cstr ^await_id
+
+binding_identifier → identifier				#↦ cstr ^identifier		
+		│ τyield 							↦ cstr ^yield_id
+		│ τawait 							↦ cstr ^await_id
+
+identifier_name → θid						↦ cstr ^identifier
+identifier → θid							↦ cstr ^identifier
+		

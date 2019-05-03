@@ -2,15 +2,15 @@
 import whind from "../../node_modules/@candlefw/whind/source/whind.mjs";
 import { getToken, types, FOLLOW } from "../common.mjs";
 
-function setNode(node, length, functions, id, str = "", COMPILE_FUNCTION = true) {   
+function setNode(node, length, functions, id, str = "", COMPILE_FUNCTION = true) {
     const prefix = (node.TYPE == "class") ? "new" : ""
-    2+2
-    const funct = (!COMPILE_FUNCTION && node.ENV) ? 
-        `o[ln]=(${prefix} e.functions.${node.NAME}(o.slice(${-length}),e,l,s))` : 
+    2 + 2
+    const funct = (!COMPILE_FUNCTION && node.ENV) ?
+        `o[ln]=(${prefix} e.functions.${node.NAME}(o.slice(${-length}),e,l,s))` :
         `o[ln]=(${prefix} ${node.NAME}(o.slice(${-length}),e,l,s))`
 
     str += `let ln = Math.max(o.length-${length},0); ${funct};o.length=ln+1;`;
-    
+
     return { str, id };
 }
 
@@ -20,7 +20,7 @@ export function LRParserCompiler(rule_table, env) {
     let output = "";
     if (rule_table.type !== "lr") throw new Error("");
 
-    const 
+    const
         states = rule_table,
         grammar = rule_table.grammar,
         bodies = rule_table.bodies,
@@ -33,7 +33,7 @@ export function LRParserCompiler(rule_table, env) {
         state_maps = [],
         state_maps_map = new Map(),
         goto_maps = new Map(),
-        COMPILE_FUNCTION = (env.options) ? !!env.options.integrate  : !0;
+        COMPILE_FUNCTION = (env.options) ? !!env.options.integrate : !0;
 
     //Construct all non existing follows for use with error recovery.
     FOLLOW(grammar, 0);
@@ -96,10 +96,10 @@ export function LRParserCompiler(rule_table, env) {
                         funct = out.str;
                         st_fn_id += body.node.NAME;
                         fn_id = out.id;
-                    }else if(length == 0)
+                    } else if (length == 0)
                         funct = "o.push(null)"; // empty production
-                    
-                    if (body.sr[v.len]) 
+
+                    if (body.sr[v.len])
                         str += `${body.sr[v.len].name}(o,e,l,s);`;
 
                     return_value = (3 | (length << 2) | (v.production << 10));
@@ -117,37 +117,45 @@ export function LRParserCompiler(rule_table, env) {
                     break;
                 case "SHIFT":
                     st_fn_id = "s";
-                    if (body.sr[v.len]) {
-                        let name = body.sr[v.len].name;
-                        if (body.sr[v.len].name == "anonymous") {
-                            name = `f${body.id}_${v.len}`;
 
-                            if (!env.functions[name]){
-                                env.functions[name] = body.sr[v.len];
-                                env.functions[name].INCORPORATE = true;
+                    if (v.IGNORE) {
+                        //null
+                        return_value = 0xFFFFFFFF;
+                        console.log("momba", return_value)
+                        fn = 0xFFFFFFFF;
+                        funct = null;
+                    } else {
+                        if (body.sr[v.len]) {
+                            let name = body.sr[v.len].name;
+                            if (body.sr[v.len].name == "anonymous") {
+                                name = `f${body.id}_${v.len}`;
+
+                                if (!env.functions[name]) {
+                                    env.functions[name] = body.sr[v.len];
+                                    env.functions[name].INCORPORATE = true;
+                                }
                             }
+                            st_fn_id += name;
+                            funct = `${name}(o,e,l,s)`;
+                            str += `${name}(o,e,l,s);`;
                         }
-                        st_fn_id += name;
-                        funct = `${name}(o,e,l,s)`;
-                        str += `${name}(o,e,l,s);`;
-                    }
+                        return_value = (2 | (v.state << 2));
 
-                    return_value = (2 | (v.state << 2));
+                        st_fn_id += return_value;
 
-                    st_fn_id += return_value;
+                        fn = state_functions_map.get(st_fn_id);
 
-                    fn = state_functions_map.get(st_fn_id);
-
-                    if (!fn) {
-                        fn = state_str_functions.push(`(t, e, o, l, s)=>${ funct ? "{"+funct+"; return "+return_value+")": ""+return_value}`);
-                        state_functions_map.set(st_fn_id, fn);
+                        if (!fn) {
+                            fn = state_str_functions.push(`(t, e, o, l, s)=>${ funct ? "{"+funct+"; return "+return_value+")": ""+return_value}`);
+                            state_functions_map.set(st_fn_id, fn);
+                        }
                     }
 
                     state_map.push(`${fn}`);
 
                     break;
                 case "ACCEPT":
-                    st_fn_id = "a"
+                    st_fn_id = "a";
 
                     if (body.node) {
                         const out = setNode(body.node, length, functions, fn_id, str, COMPILE_FUNCTION);
@@ -196,12 +204,12 @@ export function LRParserCompiler(rule_table, env) {
             .sort((a, b) => a[0] < b[0] ? -1 : 1)
             .forEach(k => {
                 while (v < k[0]) {
-                    goto.push(-1)
+                    goto.push(-1);
                     v++;
                 }
                 goto.push(k[1]);
                 v++;
-            })
+            });
 
         let id = -1;
 
@@ -222,7 +230,7 @@ export function LRParserCompiler(rule_table, env) {
 
         let sm_id = `new Map([${state_map.reduce((a, c, i)=> a + (i%2==0 ? `${i>0?",":""}["${c}"` : "," + c +  "]"), "" )}])`;
         let mm = state_maps_map.get(sm_id);
-        if(mm == undefined){
+        if (mm == undefined) {
             mm = state_maps.length;
             state_maps_map.set(sm_id, mm);
             state_maps.push(sm_id);
@@ -236,14 +244,14 @@ export function LRParserCompiler(rule_table, env) {
     if (env.functions) {
         for (let n in env.functions) {
             let funct = env.functions[n];
-            if(COMPILE_FUNCTION || !funct.ENV)
+            if (COMPILE_FUNCTION || !funct.ENV)
                 functions.push(`${n}=${funct.toString().replace(/(anonymous)?[\n\t]*/g,"")}`);
         }
     }
 
     let temp_string = ""
-    output += 
-`const e = (tk,r,o,l,s)=>{throw new SyntaxError(l.errorMessage(\`unexpected token \${tk !== "$" ? tk[0] == "θ" || tk[0] == "τ" ? l.tx : tk : "EOF"} on production \${s} \`))}, nf = ()=>-1, ${functions.length > 0 ? functions.join(",\n") +",": "" }
+    output +=
+        `const e = (tk,r,o,l,s)=>{throw new SyntaxError(l.errorMessage(\`unexpected token \${tk !== "$" ? tk[0] == "θ" || tk[0] == "τ" ? l.tx : tk : "EOF"} on production \${s} \`))}, nf = ()=>-1, ${functions.length > 0 ? functions.join(",\n") +",": "" }
 symbols = [${grammar.symbols.map(e=>`"${e}"`).join(",\n")}],
 goto = [${goto_functions.join(",\n")}],
 err = [${errors.join(",\n")}],
@@ -277,8 +285,19 @@ ${getToken.toString()}
         
         let fn = state[ss[sp]].get(tk) || 0, r, st = 0, gt = -1, c = 0;
         
+        console.log(fn, tk)
+        if(fn == 0xFFFFFFFF){
+            //Ignore the token
+            l.next();
+            tk = getToken(l, re, state[ss[sp]]);
+            console.log(tk, "IGNORING")
+            //off = l.off;
+            continue;
+        }
+
         if(fn > 0){
             r = sf[fn-1](tk, e, o, l, ss[sp-1]);
+            console.log("DDMS", r & 3)
         } else {
             //Error Encountered 
             r = re[ss[sp]];
@@ -324,11 +343,14 @@ ${getToken.toString()}
             case 1: // ACCEPT
                 break outer;
             case 2: //SHIFT
-                o.push((tk[0] == "θ") ? l.tx : tk); ss.push(off, r >> 2); sp+=2; l.next(); off = l.off; tk = getToken(l, re); 
+                o.push((tk[0] == "θ") ? l.tx : tk); ss.push(off, r >> 2); sp+=2; l.next(); off = l.off; tk = getToken(l, re, state[ss[sp]]); 
                 break;
             case 3: // REDUCE
 
                 len = (r & 0x3FC) >> 1;
+
+                console.log(sp)
+                console.log(ss[sp], len, r, tk)
 
                 ss.length -= len;   
                 sp -= len; 

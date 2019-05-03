@@ -32,7 +32,14 @@ function ProcessState(items, state, states, grammar, items_set, LALR_MODE = fals
         if (offset >= len || tok == EMPTY_PRODUCTION) { //At an accepting state for this input
             const k = item.v;
 
-            if(body[0] == EMPTY_PRODUCTION){
+            const size = body.reduce((r, i)=> r += 
+                (isNonTerm(i)) ? 
+                    (i[i.length-1] == "!" || i == EMPTY_PRODUCTION) ?  0  : 1 : 1 ,
+                0);
+
+            console.log(size)
+
+            if (body[0] == EMPTY_PRODUCTION) {
                 //console.log("AAAAAAAAAA", state.id)
                 len = 0;
             }
@@ -41,7 +48,7 @@ function ProcessState(items, state, states, grammar, items_set, LALR_MODE = fals
                 continue;
 
             if (item.body == 0 && k == "$")
-                state.action.set(k, { name: "ACCEPT", size: len, production: body.production, body: body.id, len });
+                state.action.set(k, { name: "ACCEPT", size, production: body.production, body: body.id, len });
 
             else {
                 const p1 = body.precedence;
@@ -57,7 +64,7 @@ function ProcessState(items, state, states, grammar, items_set, LALR_MODE = fals
                     case -1:
                         return false;
                     case 0:
-                        state.action.set(k, { name: "REDUCE", size: len, production: body.production, body: body.id, len });
+                        state.action.set(k, { name: "REDUCE", size , production: body.production, body: body.id, len });
                         break;
                 }
             }
@@ -107,19 +114,24 @@ function ProcessState(items, state, states, grammar, items_set, LALR_MODE = fals
 
                 if (tok != "$" /*&& tokk !== EMPTY_PRODUCTION */ ) {
 
-                    let SKIP = false;
+                    if (tok[tok.length - 1] == "!") {
+                        //Make this an error token;
+                        state.action.set(tok.slice(0, -1), { name: "ERROR", state: new_state.id, body: item[0], original_body: body.id });
+                    } else {
+                        let SKIP = false;
 
-                    if (state.action.has(tok == EMPTY_PRODUCTION ? item.v : tok) && (SKIP = true))
-                        if (ASSOCIATION && grammar.rules.assc[tok] == "right")
-                            SKIP = false;
+                        if (state.action.has(tok == EMPTY_PRODUCTION ? item.v : tok) && (SKIP = true))
+                            if (ASSOCIATION && grammar.rules.assc[tok] == "right")
+                                SKIP = false;
 
-                    if (!SKIP) {
-                        if (shiftCollisionCheck(grammar, state, new_state, item))
-                            return false;
+                        if (!SKIP) {
+                            if (shiftCollisionCheck(grammar, state, new_state, item))
+                                return false;
 
 
-                        state.action.set(tok, { name: "SHIFT", state: new_state.id, body: item[0], len: tok , original_body: body.id });
-                    }
+                            state.action.set(tok, { name: "SHIFT", state: new_state.id, body: item[0], original_body: body.id });
+                        }
+                    } 
                 }
             } else {
 
@@ -268,6 +280,14 @@ export function LALRTable(grammar, env = {}) {
         }
     }
 
+    if (grammar.ignore) {
+        states.forEach(state => {
+            grammar.ignore.forEach((sym) => {
+                if (!state.action.has(sym))
+                    state.action.set(sym, { name: "SHIFT", state: state.id, body: state.body, len: 0, original_body: state.body, IGNORE: true });
+            });
+        });
+    }
     if (i >= 100000)
         throw new Error("Failed process grammar. Max step limit reached. The current limit is set to 100000 iterations.")
     //console.log(states[63])

@@ -1,0 +1,11 @@
+## HYDROCARBON BASE JS ##
+
+#SYMBOLS << >>> >> >>>= >>= <<= <= >= != !== |= === == ** ++ -- **= ... || && => ** ++ -- **= ... || && += -= /= *= %=  &= |=
+
+#IGNORE θws θnl
+
+S → statement	
+
+statement →  τmovie danger
+
+danger → τdanger
