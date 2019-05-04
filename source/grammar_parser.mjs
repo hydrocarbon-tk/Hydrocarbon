@@ -61,7 +61,9 @@ export function grammarParser(grammar) {
     productions.rules = rules;
     let time = 0;
 
-    function sealExpression(name) {
+    function sealExpression(lex) {
+        let name = "";
+        
         if (body && expression !== null) {
             if (expression_name == "error") {
                 current_production.funct = { error: lex.slice(time).trim() };
@@ -69,9 +71,15 @@ export function grammarParser(grammar) {
                 body.funct[expression_name] = lex.slice(time).trim();
             }
         }
+
+        if(!lex.END && lex.tx == "↦"){
+            name = lex.n.tx;
+            lex.next();
+        }
+
         if (name) {
             expression_name = name;
-            time = lex.pk.off;
+            time = lex.off;
             lex.PARSE_STRING = true;
             expression = "";
         } else {
@@ -124,7 +132,7 @@ export function grammarParser(grammar) {
 
                     const sym = l.slice(lex);
 
-                    if(sym && l.type !== types.new_line){
+                    if(sym){
                         productions.symbols.push(sym.trim());
                         lex.addSymbol(sym.trim());
                     }
@@ -181,7 +189,7 @@ export function grammarParser(grammar) {
                 case types.identifier: 
                     if (lex.tx == "EXCLUDE"){
                         fence(body, lex);
-                        sealExpression();
+                        sealExpression(lex);
                         while(lex.n.tx !== "ENDEXCLUDE"){
                             let v = ""
                             if(lex.ch == "τ"){
@@ -199,8 +207,9 @@ export function grammarParser(grammar) {
                                 body.exclude.push(v);
                             }
                         }
-                        sealExpression();
+                        sealExpression(lex);
                     }else if (lex.pk.ch == "→") {
+
                         fence(body, lex);
 
                         PREPROCESS = false;
@@ -209,7 +218,7 @@ export function grammarParser(grammar) {
 
                         LU.set(current_production.name, current_production);
 
-                        sealExpression();
+                        sealExpression(lex);
                         lex.sync();
                         createBody(lex);
                     } else{
@@ -232,7 +241,7 @@ export function grammarParser(grammar) {
                     switch (lex.ch) {
                         case "#": //comment
                         fence(body, lex);
-                            sealExpression();
+                            sealExpression(lex);
                             lex.IWS = false;
                             while (!lex.END && lex.n.ty !== types.new_line);
                             lex.IWS = true;
@@ -241,8 +250,8 @@ export function grammarParser(grammar) {
                         case "θ":
                             pk = lex.pk;
                             
-                            if(pk.ch == "!" && pk.off == lex.off+lex.tl)
-                                pk.next();
+                            if(pk.pk.ch == "!" && pk.pk.off == pk.off+pk.tl)
+                                pk.sync();
 
                             pk.next();
 
@@ -251,11 +260,11 @@ export function grammarParser(grammar) {
                             continue;
                         case "↦":
                             fence(body, lex);
-                            sealExpression(lex.n.tx);
+                            sealExpression(lex);
                             break;
                         case "│":
                             fence(body, lex);
-                            sealExpression();
+                            sealExpression(lex);
                             createBody(lex);
                             break;
                         case "τ":
@@ -291,10 +300,8 @@ export function grammarParser(grammar) {
         lex.next();
     }
 
-    sealExpression(lex.n.tx);
+    sealExpression(lex);
     convertProductionNamesToIndexes(productions, LU);
-
-    console.log(productions)
 
     if (productions.length < 1)
         throw new Error("No productions were generated from the input!");

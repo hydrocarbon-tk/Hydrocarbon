@@ -505,7 +505,7 @@ start → script
 	property_name → literal_property_name
 		│ computed_property_name
 
-	literal_property_name → lidentifier_name
+	literal_property_name → identifier_name
 		│ string_literal
 		│ numeric_literal
 

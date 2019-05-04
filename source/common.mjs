@@ -67,6 +67,10 @@ function addNonTerminal(table, production_array, grammar, body_ind, index = 0) {
         //table.set(EMPTY_PRODUCTION, { v: EMPTY_PRODUCTION, p: grammar.bodies[body_ind].precedence });
         return true;
     } else if (!isNonTerm(first)) {
+        
+        if(first[first.length-1]=="!")
+            return addNonTerminal(table, production_array, grammar, body_ind, index+1);
+
         terminal = first;
     } else {
 
@@ -312,7 +316,7 @@ export function createFunctions(production, body, env) {
         body.node = node;
     }
 
-    for (let funct in body.funct) {
+    for (const funct in body.funct) {
         if (typeof(body.funct[funct]) == "string") {
             if (funct == "cstr") continue;
             if (funct == "err") {
@@ -406,4 +410,4 @@ export const actions = {
     SHIFT: 2,
     REDUCE: 3,
     GOTO: 4,
-}
+};

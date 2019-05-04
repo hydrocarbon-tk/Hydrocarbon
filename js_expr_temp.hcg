@@ -6,6 +6,6 @@
 
 S → statement	
 
-statement →  τmovie danger
-
-danger → τdanger
+statement →  τm danger τt ;	
+danger → ( ; ; )      	↦ 1 env.ASI = false;
+						↦ 4 env.ASI = true;

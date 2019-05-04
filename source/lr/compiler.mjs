@@ -1,13 +1,13 @@
 /** Compiles a stand alone JS parser from a LR rules table and env object **/
-import whind from "../../node_modules/@candlefw/whind/source/whind.mjs";
 import { getToken, types, FOLLOW } from "../common.mjs";
 
 function setNode(node, length, functions, id, str = "", COMPILE_FUNCTION = true) {
-    const prefix = (node.TYPE == "class") ? "new" : ""
-    2 + 2
+
+    const prefix = (node.TYPE == "class") ? "new" : "";
+
     const funct = (!COMPILE_FUNCTION && node.ENV) ?
         `o[ln]=(${prefix} e.functions.${node.NAME}(o.slice(${-length}),e,l,s))` :
-        `o[ln]=(${prefix} ${node.NAME}(o.slice(${-length}),e,l,s))`
+        `o[ln]=(${prefix} ${node.NAME}(o.slice(${-length}),e,l,s))`;
 
     str += `let ln = Math.max(o.length-${length},0); ${funct};o.length=ln+1;`;
 
@@ -25,7 +25,6 @@ export function LRParserCompiler(rule_table, env) {
         grammar = rule_table.grammar,
         bodies = rule_table.bodies,
         state_functions = [],
-        state_lut = [],
         goto_functions = [],
         state_str_functions = [],
         recovery_states = [],
@@ -33,18 +32,21 @@ export function LRParserCompiler(rule_table, env) {
         state_maps = [],
         state_maps_map = new Map(),
         goto_maps = new Map(),
-        COMPILE_FUNCTION = (env.options) ? !!env.options.integrate : !0;
+        COMPILE_FUNCTION = (env.options) ? !!env.options.integrate : !0,
+        functions = [],
+        errors = [],
+        error_handlers = [];
+
+    let fn_id = 0;
 
     //Construct all non existing follows for use with error recovery.
     FOLLOW(grammar, 0);
 
-    let errors = [];
-    let error_handlers = [];
-
     for (let i = 0; i < grammar.length; i++) {
-        let production = grammar[i];
-        let matches = new Set();
         let str = "";
+
+        const production = grammar[i],
+            matches = new Set();
 
         production.follow.forEach((v) => {
             matches.add(typeof(v) == "object" ? v.v : v);
@@ -52,19 +54,16 @@ export function LRParserCompiler(rule_table, env) {
 
         if (matches.size > 0) {
             let j = 0;
-            errors.push(`(v)=>([${(matches.forEach((v,i) => str+= (j++>0)? `,"${v}"` : `"${v}"`), str)}]).includes(v) ? 1 : 0`);
+            errors.push(`(v)=>([${(matches.forEach(v => str+= (j++>0)? `,"${v}"` : `"${v}"`), str)}]).includes(v) ? 1 : 0`);
         } else
             errors.push(`(v)=>0`);
     }
 
-    let functions = [];
-    let fn_id = 0;
-    let lu_id = 0;
     for (let i = 0; i < states.length; i++) {
-        let state = states[i];
-        let actions = [];
-        let err = `eh[${i}](t,o,e,l,s)`;
-        let production = grammar[bodies[state.body].production];
+        const
+            state = states[i],
+            actions = [],
+            production = grammar[bodies[state.body].production];
 
         if (production.error) {
             const funct = production.error;
@@ -73,21 +72,27 @@ export function LRParserCompiler(rule_table, env) {
             error_handlers.push("e");
         }
 
-        let state_map = [];
+        const state_map = [];
 
-        state.action.forEach((v, k, i) => {
+        state.action.forEach((v, k) => {
 
-            let str = ``;
             state_map.push(k);
 
-            let length = v.size;
-            let body = states.bodies[v.body];
-            let st_fn_id = "";
-            let funct = "";
-            let return_value = -1;
-            let fn = 0;
+            const
+                length = v.size,
+                body = states.bodies[v.body];
+
+            let
+                str = ``,
+                st_fn_id = "",
+                funct = "",
+                return_value = -1,
+                fn = 0;
+
             switch (v.name) {
+
                 case "REDUCE":
+
                     st_fn_id = "r";
 
                     if (body.node && length > 0) {
@@ -114,41 +119,44 @@ export function LRParserCompiler(rule_table, env) {
                     }
 
                     state_map.push(`${fn}`);
+
                     break;
+
+                case "IGNORE":
+                    state_map.push(`0xFFFFFFFF`);
+                    break;
+
+                case "ERROR":
+                    state_map.push(`0`);
+                    break;
+
                 case "SHIFT":
                     st_fn_id = "s";
 
-                    if (v.IGNORE) {
-                        //null
-                        return_value = 0xFFFFFFFF;
-                        console.log("momba", return_value)
-                        fn = 0xFFFFFFFF;
-                        funct = null;
-                    } else {
-                        if (body.sr[v.len]) {
-                            let name = body.sr[v.len].name;
-                            if (body.sr[v.len].name == "anonymous") {
-                                name = `f${body.id}_${v.len}`;
+                    if (body.sr[v.len]) {
+                        let name = body.sr[v.len].name;
+                        if (body.sr[v.len].name == "anonymous") {
+                            name = `f${body.id}_${v.len}`;
 
-                                if (!env.functions[name]) {
-                                    env.functions[name] = body.sr[v.len];
-                                    env.functions[name].INCORPORATE = true;
-                                }
+                            if (!env.functions[name]) {
+                                env.functions[name] = body.sr[v.len];
+                                env.functions[name].INCORPORATE = true;
                             }
-                            st_fn_id += name;
-                            funct = `${name}(o,e,l,s)`;
-                            str += `${name}(o,e,l,s);`;
                         }
-                        return_value = (2 | (v.state << 2));
+                        st_fn_id += name;
+                        funct = `${name}(o,e,l,s)`;
+                        str += `${name}(o,e,l,s);`;
+                    }
 
-                        st_fn_id += return_value;
+                    return_value = (2 | (v.state << 2));
 
-                        fn = state_functions_map.get(st_fn_id);
+                    st_fn_id += return_value;
 
-                        if (!fn) {
-                            fn = state_str_functions.push(`(t, e, o, l, s)=>${ funct ? "{"+funct+"; return "+return_value+")": ""+return_value}`);
-                            state_functions_map.set(st_fn_id, fn);
-                        }
+                    fn = state_functions_map.get(st_fn_id);
+
+                    if (!fn) {
+                        fn = state_str_functions.push(`(t, e, o, l, s)=>${ funct ? "{"+funct+"; return "+return_value+"}": ""+return_value}`);
+                        state_functions_map.set(st_fn_id, fn);
                     }
 
                     state_map.push(`${fn}`);
@@ -197,7 +205,7 @@ export function LRParserCompiler(rule_table, env) {
         state.goto.forEach((v, k) => {
             //v is the state to goto
             //k is the production to match
-            temp.push([k, v.state])
+            temp.push([k, v.state]);
         });
 
         temp
@@ -215,7 +223,7 @@ export function LRParserCompiler(rule_table, env) {
 
         if (goto.length > 0) {
 
-            let goto_id = goto.join("");
+            const goto_id = goto.join("");
 
 
             if (goto_maps.has(goto_id)) {
@@ -235,39 +243,45 @@ export function LRParserCompiler(rule_table, env) {
             state_maps_map.set(sm_id, mm);
             state_maps.push(sm_id);
         }
-
         state_functions.push(`sm[${mm}]`);
-        recovery_states.push(`${(state.body) << 2}`)
+        recovery_states.push(`${(state.body) << 2}`);
 
     }
 
     if (env.functions) {
         for (let n in env.functions) {
-            let funct = env.functions[n];
+            const funct = env.functions[n];
             if (COMPILE_FUNCTION || !funct.ENV)
                 functions.push(`${n}=${funct.toString().replace(/(anonymous)?[\n\t]*/g,"")}`);
         }
     }
 
-    let temp_string = ""
+    let default_error = `(tk,r,o,l,s)=>{throw new SyntaxError(l.errorMessage(\`unexpected token \${tk !== "$" ? tk[0] == "θ" || tk[0] == "τ" ? l.tx : tk : "EOF"} on production \${s} \`))}`;
+
+    if (env.functions.defaultError)
+        default_error = env.functions.defaultError.toString().replace(/(anonymous)?[\n\t]*/g, "");
+
+    let temp_string = "";
+
     output +=
-        `const e = (tk,r,o,l,s)=>{throw new SyntaxError(l.errorMessage(\`unexpected token \${tk !== "$" ? tk[0] == "θ" || tk[0] == "τ" ? l.tx : tk : "EOF"} on production \${s} \`))}, nf = ()=>-1, ${functions.length > 0 ? functions.join(",\n") +",": "" }
+        `const e = ${default_error}, nf = ()=>-1, ${functions.length > 0 ? functions.join(",\n") +",": "" }
 symbols = [${grammar.symbols.map(e=>`"${e}"`).join(",\n")}],
 goto = [${goto_functions.join(",\n")}],
 err = [${errors.join(",\n")}],
 eh = [${error_handlers.join(",\n")}],
-${(temp_string = "", goto_maps.forEach(v => {temp_string += `gt${v.id} = [${v.goto.join(",")}],\n`;}), temp_string)}
+${(temp_string = "", goto_maps.forEach(v => {temp_string += `gt${v.id} = [${v.goto.join(",")}],\n`}), temp_string)}
 sf = [${state_str_functions.join(",\n")}],
 rec = [${recovery_states.join(",\n")}],
 sm = [${state_maps.join(",\n")}],
 state = [${state_functions.join(",\n")}],
-re = new Set([${[...grammar.reserved].map(e => `\"${e.trim()}\"`).join()}]),
+re = new Set([${[...grammar.reserved].map(e => `"${e.trim()}"`).join()}]),
 throw_ = ()=>{debugger},
 types = ${JSON.stringify(types)};
 
 ${getToken.toString()}
 
  function parser(l, e = {}){
+    l.IWS = false;
 
     if(symbols.length > 0){
         symbols.forEach(s=> {l.addSymbol(s)});
@@ -276,81 +290,70 @@ ${getToken.toString()}
         l.next();
     }
 
-    let tk = getToken(l, re), sp = 1, len = 0, off= 0;
-
     const o = [], ss = [0,0];
-    let time = 10000;
+    
+    let time = 10000, RECOVERING = false,
+        tk = getToken(l, re), p = l.copy(), sp = 1, len = 0, off= 0;
+    
     outer:
+
     while(time-- > 0){
         
         let fn = state[ss[sp]].get(tk) || 0, r, st = 0, gt = -1, c = 0;
-        
-        console.log(fn, tk)
+
         if(fn == 0xFFFFFFFF){
             //Ignore the token
             l.next();
             tk = getToken(l, re, state[ss[sp]]);
-            console.log(tk, "IGNORING")
-            //off = l.off;
             continue;
         }
 
         if(fn > 0){
             r = sf[fn-1](tk, e, o, l, ss[sp-1]);
-            console.log("DDMS", r & 3)
         } else {
             //Error Encountered 
             r = re[ss[sp]];
-            eh[ss[sp]](tk, e, o, l, ss[sp]);
+            
+            const recovery_token = eh[ss[sp]](tk, e, o, l, p, ss[sp]);
+            
+            if(!RECOVERING && typeof(recovery_token) == "string"){
+                RECOVERING = true; // To prevent infinite recursion
+                tk = recovery_token;
+                //reset current token
+                l.tl = 0;
+                continue;
+            }
         }
 
         st = r >> 2;
 
         switch(r & 3){
             case 0: // ERROR
-                console.log(\` Error on input \${tk} \`)
                 
                 if(tk == "$")
-                    l.throw("Unexpected EOF");
-                
-                //pull up error routine for this production
-                const ALLOW_RECOVERY = (r>>2) & 0xFF;
-                
-                if(ALLOW_RECOVERY){
-                    
-                    while(sp > -1){
-                        if((gt = goto[ss[sp]](st)) >= 0)
-                            break;
-                        sp-=2;
-                        c++;
-                    }
+                    l.throw("Unexpected end of input");
 
-                    if(gt >= 0){
-                        ss.length = sp+1;
-                        ss.push(off, gt);
-                        sp+=2;
+                l.throw(\`Unexpected token [\${RECOVERING ? l.next().tx : l.tx}]\`); 
 
-                        //o.length -= c;
+                return [null];
 
-                        while(!err[st](tk) && !l.END){
-                            tk = getToken(l.next(), re);
-                        }
-                    }
-                    break;
-                }
-                l.throw("Unrecoverable error encountered here"); 
-                break;
             case 1: // ACCEPT
                 break outer;
+
             case 2: //SHIFT
-                o.push((tk[0] == "θ") ? l.tx : tk); ss.push(off, r >> 2); sp+=2; l.next(); off = l.off; tk = getToken(l, re, state[ss[sp]]); 
+                o.push((tk[0] == "θ") ? l.tx : tk); 
+                ss.push(off, r >> 2); 
+                sp+=2; 
+                p.sync(l);
+                l.next(); 
+                off = l.off; 
+                tk = getToken(l, re, state[ss[sp]]); 
+                
                 break;
+
             case 3: // REDUCE
 
                 len = (r & 0x3FC) >> 1;
-
-                console.log(sp)
-                console.log(ss[sp], len, r, tk)
 
                 ss.length -= len;   
                 sp -= len; 
@@ -363,7 +366,9 @@ ${getToken.toString()}
                 ss.push(off, gt); sp+=2; 
                 
                 break;
-        }   
+        }  
+
+        RECOVERING = false;
     }
     return o[0];
 }`;

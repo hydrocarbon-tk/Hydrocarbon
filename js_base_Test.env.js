@@ -1,13 +1,12 @@
 const env =  {
 	table:{},
-	ASI:true,
 	functions:{
-		call_expr:function(sym){this.identifier = sym[0]; this.args = sym[1]},
-		member_expr: function(sym){this.identifier = sym[0]; this.expr = sym[2]},
-		class_stmt: function(sym){this.identifier = sym[1], this.tail= sym[2]},
+		call_expr:function(sym){this.name = sym[0]; this.args = sym[1]},
+		member_expr: function(sym){this.name = sym[0]; this.expr = sym[2]},
+		class_stmt: function(sym){this.name = sym[1], this.tail= sym[2]},
 		class_tail:function(sym){this.heritage = sym[0]; this.body = sym[2]},
 		block_stmt:function(sym){this.stmts = sym[0]},
-		debugger_stmt: function(){this.DEBUGGER = true},
+		debugger_stmt: function(sym){this.DEBUGGER = true},
 		lex_stmt: function(sym){this.type = sym[0]; this.declarations = sym[1]},
 		var_stmt: function(sym){this.declarations = sym[1]},
 		lex_declaration : function(v){this.id = v.id; this.expr = v.init},
@@ -26,34 +25,15 @@ const env =  {
 		post_inc_expr : function (sym){this.expr = sym[1]; this.type = "POST INCR"},
 		post_dec_expr : function (sym){this.expr = sym[1]; this.type = "POST DEC"},
 		condition_expr : function (sym){this.condition = sym[0]; this.left = sym[2]; this.right = sym[4]},
-		assignment_expr : function (sym){this.assignee = sym[0]; this.op = sym[1]; this.expr = sym[2]; console.log(env.table)},
-		defaultError: (tk, env, output, lex, prv_lex) => {
-            /*USED for ASI*/
-            if (env.ASI && lex.tx !== ")") {
-                let ENCOUNTERED_NL = (lex.tx == "}" || lex.END);
-
-                while (!ENCOUNTERED_NL && !prv_lex.END && prv_lex.off < lex.off) {
-                    prv_lex.next();
-                    if (prv_lex.ty == prv_lex.types.nl)
-                        ENCOUNTERED_NL = true;
-                }
-
-	            if (ENCOUNTERED_NL)
-	                return ";";
-            }
-
-            return null;
-        }
-
+		assignment_expr : function (sym){this.assignee = sym[0]; this.op = sym[1]; this.expr = sym[2]; console.log(env.table)}
 	},
-
 
 	options : {
 		integrate : false,
-		onstart : ()=>{
-        	env.ASI = true;	
-        }
+		defaultError : (l, )=>{
+
+		}
 	}
-}
+};
 
 export default env;

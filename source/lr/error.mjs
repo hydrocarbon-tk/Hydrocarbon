@@ -59,6 +59,7 @@ export function gotoCollisionCheck(grammar, state, new_state, item) {
         }
 
         //let state_body = grammar.states[goto.state].b.join(" ");
+        console.log(k, old_id, grammar.states[goto.state].b)
 
         console.error(`  \x1b[42m GOTO \x1b[43m COLLISION ERROR ENCOUNTERED:\x1b[0m`);
         console.error(
