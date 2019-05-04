@@ -1,3 +1,9 @@
-S → s
+#IGNORE θws
+
+S → s 
 s → C C
-C → τc C │ τd
+│ b
+b → D 
+C → G C │ D
+D → τa τb 
+G → τc

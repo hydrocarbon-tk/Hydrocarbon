@@ -91,6 +91,7 @@ export function grammarParser(grammar) {
 
     function createBody(lex) {
         body = [];
+        body.notFirsts = new Set();
         body.lex = lex.copy();
         body.funct = {};
         body.precedence = 1;
@@ -109,10 +110,12 @@ export function grammarParser(grammar) {
     while (!lex.END) {
         let pk;
 
+
         if (PREPROCESS && lex.ch == "#") {
             lex.IWS = false;
             lex.next();
 
+        console.log(lex.ch, PREPROCESS)
             if (lex.ty !== types.id) {
 
                 lex.IWS = false;
@@ -239,6 +242,15 @@ export function grammarParser(grammar) {
                 case types.cb:
 
                     switch (lex.ch) {
+                        case "!":
+                            lex.IWS = false;
+                            if(lex.pk.ty == (types.symbol | types.operator | types.ob | types.cb)){
+                                if(body){
+                                    body.notFirsts.get(index);
+                                }
+                            }
+                            lex.IWS = true;
+                            continue;
                         case "#": //comment
                         fence(body, lex);
                             sealExpression(lex);

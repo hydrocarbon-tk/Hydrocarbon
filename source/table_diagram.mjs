@@ -50,7 +50,7 @@ export function renderTable(rule_table, tab = "   ", tab_s = tab.length) {
             }
 
             prep.action.push({ k, v, off: symbols.get(k) });
-        })
+        });
 
         state.goto.forEach((v, k) => {
 
@@ -59,7 +59,7 @@ export function renderTable(rule_table, tab = "   ", tab_s = tab.length) {
             }
 
             prep.goto.push({ k, v: v.state, off: prods.get(k) });
-        })
+        });
 
 
         prep.action.sort((a, b) => a.off < b.off ? -1 : 0);
@@ -130,6 +130,21 @@ export function renderTable(rule_table, tab = "   ", tab_s = tab.length) {
             d += `${tab.repeat(Math.max((v.off - off), 0))}`;
 
             switch (action.name) {
+                case "ERROR":
+
+                    //if (state.length + 2 >= tab_s)
+                    //    return renderTable(rule_table, (" ").repeat(state.length + 4));
+
+                    d += `err` + stnts(3);
+                    break;
+
+                case "IGNORE":
+                    //if (state.length + 2 >= tab_s)
+                    //    return renderTable(rule_table, (" ").repeat(state.length + 4));
+
+                    d += `ign` + stnts(3);
+                    break;
+
                 case "SHIFT":
                     let state = v.v.state + "";
 

@@ -8,11 +8,11 @@ function MergeFind(states, id) {
 }
 
 function ProcessState(items, state, states, grammar, items_set, LALR_MODE = false) {
-
     const bodies = grammar.bodies;
 
     items = Closure(state.id, items, grammar);
 
+    //console.log(items)
     //if(state.id ="$"= 63)
     //    console.log(items, state.follows)
 
@@ -27,9 +27,10 @@ function ProcessState(items, state, states, grammar, items_set, LALR_MODE = fals
             offset = item.offset,
             tok = body[offset];
 
-
+        //console.log("A",tok)
         if (item.USED)
             continue;
+       // console.log("B",tok)
 
         if (offset < len && !isNonTerm(tok) && tok[tok.length - 1] == "!" && tok.length > 1) {
 
@@ -51,13 +52,6 @@ function ProcessState(items, state, states, grammar, items_set, LALR_MODE = fals
         if (offset >= len || tok == EMPTY_PRODUCTION) { //At an accepting state for this input
             const k = item.v;
 
-
-            if (body[0] == EMPTY_PRODUCTION)
-                len = 0;
-
-            if (k == EMPTY_PRODUCTION)
-                continue;
-
             if (item.body == 0 && k == "$")
                 state.action.set(k, { name: "ACCEPT", size, production: body.production, body: body.id, len });
 
@@ -75,12 +69,15 @@ function ProcessState(items, state, states, grammar, items_set, LALR_MODE = fals
                     case -1:
                         return false;
                     case 0:
-                        state.action.set(k, { name: "REDUCE", size, production: body.production, body: body.id, len });
+                        state.action.set(k, { name: "REDUCE", state: state.id, size, production: body.production, body: body.id, len });
                         break;
                 }
             }
         } else {
             let getSym = (i) => bodies[i[0]][i.offset];
+
+            if(tok == EMPTY_PRODUCTION) 
+                continue;
 
             item.USED = true;
 
@@ -94,13 +91,15 @@ function ProcessState(items, state, states, grammar, items_set, LALR_MODE = fals
 
             for (let j = i + 1; j < l; j++)
                 if (getSym(items[j]) == osid) {
-                    out_items.push(items[j].increment());
-                    items[j].USED = true;
-                    id_append.add(items[j].full_id);
+                    if(!id_append.has(items[j].full_id)){
+                        out_items.push(items[j].increment());
+                        items[j].USED = true;
+                        id_append.add(items[j].full_id);
+                    }
                 }
 
             if (!LALR_MODE)
-                sid += [...id_append.values()].sort((a, b) => a < b ? -1 : 1).join("");
+                sid = [...id_append.values()].slice(1).sort((a, b) => a < b ? -1 : 1).join("");
 
             if (states.map.has(sid)) {
                 new_state = states.map.get(sid);
@@ -125,31 +124,30 @@ function ProcessState(items, state, states, grammar, items_set, LALR_MODE = fals
 
             if (!isNonTerm(tok)) {
 
-                if (tok != "$" /*&& tokk !== EMPTY_PRODUCTION */ ) {
+                if (tok != "$" /*&& tok !== EMPTY_PRODUCTION */ ) {
 
                     let SKIP = false;
 
-                    if (state.action.has(tok == EMPTY_PRODUCTION ? item.v : tok) && (SKIP = true))
-                        if (ASSOCIATION && grammar.rules.assc[tok] == "right")
-                            SKIP = false;
-
                     if (!SKIP) {
-                        if (shiftCollisionCheck(grammar, state, new_state, item))
-                            return false;
-
-
-                        state.action.set(tok, { name: "SHIFT", state: new_state.id, body: item[0], original_body: body.id, len: size });
+                              //  console.log(tok,shiftCollisionCheck(grammar, state, new_state, item, size))
+                        switch (shiftCollisionCheck(grammar, state, new_state, item, size)) {
+                            case -1:
+                                return false;
+                            case 0:
+                                state.action.set(tok, { name: "SHIFT", state: new_state.id, body: item[0], original_body: body.id, len: size });
+                                break;
+                        }
                     }
                 }
 
             } else {
+                
 
                 switch (gotoCollisionCheck(grammar, state, new_state, item)) {
-                    case -1: //Original
-                        //MERGE = false;
-                        break;
-                    case 0: //Failed
+                    case -1: //failed
                         return false;
+                    case 0: //Original
+                        break;
                     case 1: //New
                         state.goto.set(tok == EMPTY_PRODUCTION ? item.v : tok, { name: "GOTO", state: new_state.id, body: body.id, fid: item.full_id });
                         break;
@@ -158,10 +156,6 @@ function ProcessState(items, state, states, grammar, items_set, LALR_MODE = fals
 
             if (new_state.follows) {
                 out_items = out_items.reduce((a, i) => (!new_state.follows.has(i.full_id)) ? (new_state.follows.add(i.full_id), a.push(i), a) : a, []);
-                //console.log(out_items)
-                //if()
-                //    continue; // Already parsed the new_state with this item. 
-                //id_append.forEach(function(e){this.add(e)}, new_state.follows);
             } else
                 new_state.follows = id_append;
 
@@ -193,8 +187,12 @@ function Closure(state_id, items, grammar, offset = 0, added = new Set(), exclud
             B = body[index],
             Be = body.slice(index + 1),
             b = item.follow;
-
-
+            /*
+        if(index < len && !isNonTerm(B) && B.length > 1 && B[B.length-1] == "!"){
+            items[i] = item.increment();
+            i--;
+            continue;
+        }*/
 
         if (index < len && isNonTerm(B)) {
             let first;

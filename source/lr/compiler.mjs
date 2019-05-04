@@ -86,7 +86,7 @@ export function LRParserCompiler(rule_table, env) {
                 str = ``,
                 st_fn_id = "",
                 funct = "",
-                return_value = -1,
+                return_value = 0,
                 fn = 0;
 
             switch (v.name) {

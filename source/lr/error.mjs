@@ -1,37 +1,56 @@
-export function shiftCollisionCheck(grammar, state, new_state, item) {
+export function shiftCollisionCheck(grammar, state, new_state, item, size) {
     const bodies = grammar.bodies,
         body_a = bodies[item.body],
         k = body_a[item.offset],
-        shift = state.action.get(k);
+        action = state.action.get(k);
 
-    if (shift && shift.state !== new_state.id) {
-
-        if(shift.name !== "SHIFT"){
-       // console.log(shift, "SHIFT CONFLICT!")
-        //return 0;
-    }
-        const body_b = bodies[shift.body];
-
+    //console.log("ASADASDASD")
+    if (action && action.state !== new_state.id) {
+        const body_b = bodies[action.body];
         console.error(`  \x1b[43m SHIFT \x1b[43m COLLISION ERROR ENCOUNTERED:\x1b[0m`);
-        console.error(
-            `   Shift action on symbol <${k}> for state <${state.id}> <${state.b.join(" ")}> has already been defined.
+        const v = grammar.states[new_state.id].b.slice();
+        v.splice(size + 1, 0, ">");
+
+        if (action.name !== "SHIFT") {
+            console.log("SHIFT/REDUCE CONFLICT!");
+            console.error(
+                `Reduce action on symbol <${k}> for state <${state.id}> <${state.b.join(" ")}> has already been defined.
+    Existing Action: 
+         Reduce to Terminal ${grammar[body_b.production].name} from production { ${body_b.lex.slice().slice(1).trim()} }
+         Definition found on line ${body_b.lex.line+1}:${body_b.lex.char} in input.
+
+    Replacing Action: 
+        Shift to state {${v.join(" ")}}  from input { ${k} }
+        Definition found on line ${body_a.lex.line+1}:${body_a.lex.char} in input.\n\n
+`);
+
+            return -1;
+        } else {
+
+            const r = grammar.states[action.state].b.slice();
+            r.splice(action.len + 1, 0, ">");
+
+            console.error(
+                `   Shift action on symbol <${k}> for state <${state.id}> <${state.b.join(" ")}> has already been defined.
 
 
     Existing Action: 
-        Shift to state {${grammar.states[new_state.id].b}} from input { ${body_b.lex.slice().slice(1).trim()} }
+        Shift to state {${r.join(" ")}}  from input { ${k} }
         Definition found on line ${body_b.lex.line+1}:${body_b.lex.char} in input.
 
     Replacing Action: 
-        Shift to state {${grammar.states[shift.state].b}} from input { ${body_a.lex.slice().slice(1).trim()} }
+        Shift to state {${v.join(" ")}}  from input { ${k} }
         Definition found on line ${body_a.lex.line+1}:${body_a.lex.char} in input.\n\n`);
 
-        return true;
+            return -1;
+        }
     }
-    return false;
+    return 0;
 }
 
 
 export function gotoCollisionCheck(grammar, state, new_state, item) {
+
     const bodies = grammar.bodies,
         body_a = bodies[item.body],
         k = body_a[item.offset],
@@ -48,67 +67,87 @@ export function gotoCollisionCheck(grammar, state, new_state, item) {
         let old_id = grammar.states[goto.state].real_id;
         let new_id = new_state.real_id;
 
-      //  console.log("MAM",grammar.states[goto.state], new_state, goto.state)
-
-        if(new_id.length <=  old_id.length && old_id.includes(new_id)){
+        //  console.log("MAM",grammar.states[goto.state], new_state, goto.state)
+        /*
+        if (new_id.length <= old_id.length && old_id.includes(new_id)) {
             //console.log(new_state.real_id, grammar.states[goto.state].real_id)
-            return -1;
-        }else if(old_id.length <= new_id.length && new_id.includes(old_id)){
-            //console.log(new_state.real_id, grammar.states[goto.state].real_id)
+            return 0;
+        } else if (old_id.length <= new_id.length && new_id.includes(old_id)) {
+           // console.log(new_state.real_id, grammar.states[goto.state].real_id)
             return 1;
         }
+        */
 
         //let state_body = grammar.states[goto.state].b.join(" ");
-        console.log(k, old_id, grammar.states[goto.state].b)
-
+        //console.log(k, old_id, grammar.states[goto.state].b)
+        //*
+        let production = grammar[grammar.bodies[k].production].name
+        let new_state_body = [grammar[bodies[new_state.body].production].name, "→", ...bodies[new_state.body]].map((d) => isNaN(d) ? d : grammar[d].name)
         console.error(`  \x1b[42m GOTO \x1b[43m COLLISION ERROR ENCOUNTERED:\x1b[0m`);
         console.error(
-            `   Goto action on symbol <${k}> for state <${state.id}> <${state.b.join(" ")}> has already been defined.
+            `   Goto on production {${production}} for state <${state.id}> <${state.b.join(" ")}> has already been defined.
 
     Existing Action: 
         Goto to state {${grammar.states[goto.state].b.join(" ")}} ${goto.state} from reduction of production { ${body_b.lex.slice().slice(1).trim()} }
         Definition found on line ${body_b.lex.line+1}:${body_b.lex.char} in input.
 
     Replacing Action:
-        Goto to state {${grammar.states[new_state.body].b.join(" ")}} ${new_state.id} from reduction of production { ${body_a.lex.slice().slice(1).trim()} }
+        Goto to state {${new_state_body.join(" ")}} ${new_state.id} from reduction of production { ${body_a.lex.slice().slice(1).trim()} }
         Definition found on line ${body_a.lex.line+1}:${body_a.lex.char} in input.\n\n
 
     Keeping Existing Action Goto to state {${grammar.states[goto.state].b.join(" ")}} ${goto.state}
 `);
+        //*/
 
 
-
-        return -1;
+        return 0;
     }
     return 1;
 }
 
 export function reduceCollisionCheck(grammar, state, item) {
-    
+
     const k = item.v,
         action = state.action.get(k);
-        
 
-    if (action){
 
-        const  bodies = grammar.bodies,
+    if (action) {
+
+        const bodies = grammar.bodies,
             body_a = bodies[item.body],
-            body_b = grammar.bodies[action.body]; 
+            body_b = grammar.bodies[action.body];
 
-        if(action.name !== "REDUCE"){
-           // console.log(action, "CONFLICT!", state.b[0], grammar[body_b.production].name, grammar[body_a.production].name, body_b.production, body_a.production)
-            return 1;
+        if (action.name !== "REDUCE") {
+
+            const body_b = bodies[action.body];
+            console.error(`  \x1b[43m REDUCE/SHIFT  \x1b[43m COLLISION ERROR ENCOUNTERED:\x1b[0m`);
+            const v = grammar.states[action.state].b.slice();
+            v.splice(size + 1, 0, ">");
+
+            console.error(
+                `Reduce action on symbol <${k}> for state <${state.id}> <${state.b.join(" ")}> has already been defined.
+        Existing Action: 
+            Shift to state {${v.join(" ")}}  from input { ${body_b.lex.slice()} }
+            Definition found on line ${body_b.lex.line+1}:${body_b.lex.char} in input.\n\n
+
+        Replacing Action: 
+             Reduce to {${grammar[body_a.production].name}} from production { ${body_a.lex.slice(1).trim()} }
+             Definition found on line ${body_a.lex.line+1}:${body_a.lex.char} in input.
+    `);
+            //console.log("REDUCE/SHIFT CONFLICT!", k, action, grammar[body_a.production], grammar[body_b.production], state.id, action.state)
+            return -1;
         }
 
-        if(grammar[body_b.production].name == state.b[0] ) // TODO: Already reducing to the expected production )
+        if (grammar[body_b.production].name == state.b[0]) // TODO: Already reducing to the expected production )
         {
             //console.log("TODO: Duplicate reduce merge", state.b[0], grammar[body_b.production].name)
             return 1;
         }
 
-        if(
-            /*//*/ grammar[body_a.production].name !== state.b[0]
-            && body_b.production !== body_a.production // Reduction to same production should not be an error
+        if (
+            //true || /*//*/
+            grammar[body_a.production].name !== state.b[0] &&
+            body_b.production !== body_a.production // Reduction to same production should not be an error
         ) {
 
 

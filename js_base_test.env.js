@@ -1,6 +1,7 @@
 const env =  {
 	table:{},
 	functions:{
+		for_stmt:function(set,bool,iter, body){this.set = set; this.bool = bool, this.iter=iter, this.body = body},
 		call_expr:function(sym){this.name = sym[0]; this.args = sym[1]},
 		member_expr: function(sym){this.name = sym[0]; this.expr = sym[2]},
 		class_stmt: function(sym){this.name = sym[1], this.tail= sym[2]},
