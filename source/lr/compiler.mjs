@@ -256,7 +256,7 @@ export function LRParserCompiler(rule_table, env) {
         }
     }
 
-    let default_error = `(tk,r,o,l,s)=>{throw new SyntaxError(l.errorMessage(\`unexpected token \${tk !== "$" ? tk[0] == "θ" || tk[0] == "τ" ? l.tx : tk : "EOF"} on production \${s} \`))}`;
+    let default_error = `(tk,r,o,l,s)=>{throw new SyntaxError(l.errorMessage(\`unexpected token \${tk !== "$" ? tk[0] == "θ" || tk[0] == "τ" ? l.tx : tk : "EOF"} on input \${s} \`))}`;
 
     if (env.functions.defaultError)
         default_error = env.functions.defaultError.toString().replace(/(anonymous)?[\n\t]*/g, "");

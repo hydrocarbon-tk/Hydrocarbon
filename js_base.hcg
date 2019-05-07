@@ -106,7 +106,7 @@ start → script 						↦ cstr return sym[0]
 
 
 		statement → block_statement 
-			│ !{ expression_statement						
+			│ !{ !τfunction !τclass ![τlet [ ] ![τasync τfunction ] expression_statement						
 			│ labelled_statement
 			│ variable_statement
 			│ empty_statement
@@ -169,16 +169,16 @@ start → script 						↦ cstr return sym[0]
 			│ τfor ( expression ; expression ; expression ) statement  							↦ cstr return (new env.functions.for_stmt(sym[2], sym[4], sym[6], sym[8]))
 																								↦ 1 env.ASI = false;
 																								↦ 8 env.ASI = true;
-			│ τfor (  ; expression ; expression ) statement 									↦ cstr return (new env.functions.for_stmt(null, sym[4], sym[6], sym[8]))
+			│ τfor ( ![τlet [ ] ; expression ; expression ) statement 							↦ cstr return (new env.functions.for_stmt(null, sym[4], sym[6], sym[8]))
 																								↦ 1 env.ASI = false;
 																								↦ 7 env.ASI = true;
-			│ τfor ( expression ;  ; expression ) statement 									↦ cstr return (new env.functions.for_stmt(sym[2], null, sym[6], sym[8]))
+			│ τfor ( ![τlet [ ] expression ;  ; expression ) statement 							↦ cstr return (new env.functions.for_stmt(sym[2], null, sym[6], sym[8]))
 																								↦ 1 env.ASI = false;
 																								↦ 7 env.ASI = true;
-			│ τfor ( expression ; expression ;  ) statement 									↦ cstr return (new env.functions.for_stmt(sym[2], sym[4], null, sym[8]))
+			│ τfor ( ![τlet [ ] expression ; expression ;  ) statement 							↦ cstr return (new env.functions.for_stmt(sym[2], sym[4], null, sym[8]))
 																								↦ 1 env.ASI = false;
 																								↦ 1 env.ASI = true;
-			│ τfor (  ;  ; expression ) statement 												↦ cstr return (new env.functions.for_stmt(null, null, sym[6], sym[8]))
+			│ τfor ( ![τlet [ ] ;  ; expression ) statement 									↦ cstr return (new env.functions.for_stmt(null, null, sym[6], sym[8]))
 																								↦ 1 env.ASI = false;
 																								↦ 6 env.ASI = true;
 			│ τfor ( expression ;  ;  ) statement 												↦ cstr return (new env.functions.for_stmt(sym[2], null, null, sym[8]))
@@ -211,13 +211,13 @@ start → script 						↦ cstr return sym[0]
 			│ τfor ( lexical_declaration ;  ;  ) statement 								 		↦ cstr return (new env.functions.for_stmt(sym[2], null, null, sym[8]))
 																								↦ 1 env.ASI = false;
 																								↦ 6 env.ASI = true;
-			│ τfor ( left_hand_side_expresssion τin expression ) statement 				 		↦ cstr return (new env.functions.for_in_stmt(sym[2], sym[4], sym[6]))
+			│ τfor ( ![τlet [ ] left_hand_side_expresssion τin expression ) statement 			↦ cstr return (new env.functions.for_in_stmt(sym[2], sym[4], sym[6]))
 			│ τfor ( τvar for_binding τin expression ) statement 						 		↦ cstr return (new env.functions.for_in_stmt(sym[3], sym[5], sym[7]))
 			│ τfor ( for_declaration τin expression ) statement 						 		↦ cstr return (new env.functions.for_in_stmt(sym[2], sym[4], sym[6]))
-			│ τfor ( left_hand_side_expresssion τof assignment_expression ) statement   		↦ cstr return (new env.functions.for_of_stmt(sym[2], sym[4], sym[6]))
+			│ τfor ( ![τlet  ] left_hand_side_expresssion τof assignment_expression ) statement ↦ cstr return (new env.functions.for_of_stmt(sym[2], sym[4], sym[6]))
 			│ τfor ( τvar for_binding τof assignment_expression ) statement 			 		↦ cstr return (new env.functions.for_of_stmt(sym[2], sym[4], sym[6]))
 			│ τfor ( for_declaration τof assignment_expression ) statement 			 			↦ cstr return (new env.functions.for_of_stmt(sym[2], sym[4], sym[6]))
-			│ τfor τawait ( left_hand_side_expresssion τof assignment_expression ) statement 	↦ cstr return (new env.functions.for_of_stmt(sym[3], sym[5], sym[7], true))
+			│ τfor τawait ( ![τlet ] left_hand_side_expresssion τof assignment_expression ) statement 	↦ cstr return (new env.functions.for_of_stmt(sym[3], sym[5], sym[7], true))
 			│ τfor τawait ( τvar for_binding τof assignment_expression ) statement 				↦ cstr return (new env.functions.for_of_stmt(sym[4], sym[6], sym[8], true))
 			│ τfor τawait ( for_declaration τof assignment_expression ) statement 				↦ cstr return (new env.functions.for_of_stmt(sym[3], sym[5], sym[7], true))
 
@@ -385,9 +385,8 @@ start → script 						↦ cstr return sym[0]
 		arrow_parameters → binding_identifier 
 			│ cover_parenthesized_expression_and_arrow_parameter_list
 
-		concise_body → assignment_expression 
+		concise_body → !{ assignment_expression 
 			│ { function_statement_list }												↦ cstr return sym[1]
-			│ { }
 
 	##############################################################################################################
 	# https://www.ecma-international.org/ecma-262/9.0/index.html#sec-async-arrow-function-definitions
@@ -398,9 +397,8 @@ start → script 						↦ cstr return sym[0]
 		async_arrow_parameters → binding_identifier 
 			│ cover_call_expression_and_async_arrow_head
 
-		async_concise_body → assignment_expression 
+		async_concise_body → !{ assignment_expression 
 			│ { function_statement_list }												↦ cstr return sym[1]
-			│ { }
 
 		cover_call_expression_and_async_arrow_head → member_expression arguments 		↦ cstr ^call_expr
 
@@ -705,9 +703,9 @@ start → script 						↦ cstr return sym[0]
 	# https://www.ecma-international.org/ecma-262/9.0/index.html#sec-update-expressions
 	##############################################################################################################
  	
-		update_expression → left_hand_side_expresssion 
+		update_expression →  left_hand_side_expresssion 
 			│ left_hand_side_expresssion ++		↦ cstr ^post_inc_expr
-			│ left_hand_side_expresssion --		↦ cstr ^post_dec_expr
+			│ left_hand_side_expresssion  --		↦ cstr ^post_dec_expr
 			│ ++ unary_expression				↦ cstr ^pre_inc_expr
 			│ -- unary_expression				↦ cstr ^pre_dec_expr
 

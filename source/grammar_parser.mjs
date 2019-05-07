@@ -61,9 +61,10 @@ export function grammarParser(grammar) {
     productions.rules = rules;
     let time = 0;
 
+
     function sealExpression(lex) {
         let name = "";
-        
+
         if (body && expression !== null) {
             if (expression_name == "error") {
                 current_production.funct = { error: lex.slice(time).trim() };
@@ -72,7 +73,7 @@ export function grammarParser(grammar) {
             }
         }
 
-        if(!lex.END && lex.tx == "↦"){
+        if (!lex.END && lex.tx == "↦") {
             name = lex.n.tx;
             lex.next();
         }
@@ -91,7 +92,8 @@ export function grammarParser(grammar) {
 
     function createBody(lex) {
         body = [];
-        body.notFirsts = new Set();
+        body.excludeSet = new Map();
+        body.errorOnSet = new Map();
         body.lex = lex.copy();
         body.funct = {};
         body.precedence = 1;
@@ -106,16 +108,37 @@ export function grammarParser(grammar) {
         }
     }
 
+    function getSymbol(lex) {
+        let pk = lex.pk;
+        pk.sync(lex);
+
+        switch (lex.ch) {
+            case "θ":
+            case "τ":
+                pk.next();
+                break;
+            default:
+                break;
+        }
+
+        if (pk.pk.ch == "!" && pk.pk.off == pk.off + pk.tl)
+            pk.sync();
+        pk.next();
+
+        const sym = pk.slice(lex);
+        lex.sync();
+        return sym.trim();
+    }
+
     //Terminals are symbols, and identifiers *id*
     while (!lex.END) {
-        let pk;
+        let pk, sym;
 
 
         if (PREPROCESS && lex.ch == "#") {
             lex.IWS = false;
             lex.next();
 
-        console.log(lex.ch, PREPROCESS)
             if (lex.ty !== types.id) {
 
                 lex.IWS = false;
@@ -135,7 +158,7 @@ export function grammarParser(grammar) {
 
                     const sym = l.slice(lex);
 
-                    if(sym){
+                    if (sym) {
                         productions.symbols.push(sym.trim());
                         lex.addSymbol(sym.trim());
                     }
@@ -146,10 +169,10 @@ export function grammarParser(grammar) {
                 lex.IWS = true;
 
             } else if (lex.tx == "IGNORE") {
-                
-                if(!productions.ignore)
+
+                if (!productions.ignore)
                     productions.ignore = [];
-                
+
                 lex.next();
 
                 lex.IWS = false;
@@ -161,20 +184,20 @@ export function grammarParser(grammar) {
 
                     let sym = l.slice(lex);
 
-                    if(l.ty == types.id){
+                    if (l.ty == types.id) {
                         l.next();
                         while (!l.END && !(l.n.ty & (types.new_line | types.ws)));
                         sym = l.slice(lex);
                     }
 
-                    if(sym)
+                    if (sym)
                         productions.ignore.push(sym.trim());
-                    
+
                     lex.sync(l);
                 }
 
                 lex.IWS = true;
-            }else {
+            } else {
                 lex.IWS = true;
 
                 const name = lex.tx;
@@ -186,128 +209,161 @@ export function grammarParser(grammar) {
 
                 rules[name][lex.n.tx] = (!isNaN((x = lex.n.tx))) ? parseFloat(x) : x;
             }
-        } else
-
-            switch (lex.ty) {
-                case types.identifier: 
-                    if (lex.tx == "EXCLUDE"){
-                        fence(body, lex);
-                        sealExpression(lex);
-                        while(lex.n.tx !== "ENDEXCLUDE"){
-                            let v = ""
-                            if(lex.ch == "τ"){
-                                v += lex.ch;
-                                lex.next();
-                            }
-
-                            v += lex.tx;
-
-                            if(body)
-                            {
-                                if(!body.exclude)
-                                    body.exclude = [];
-
-                                body.exclude.push(v);
-                            }
+        } else switch (lex.ty) {
+            case types.identifier:
+                if (lex.tx == "EXCLUDE") {
+                    fence(body, lex);
+                    sealExpression(lex);
+                    while (lex.n.tx !== "ENDEXCLUDE") {
+                        let v = "";
+                        if (lex.ch == "τ") {
+                            v += lex.ch;
+                            lex.next();
                         }
-                        sealExpression(lex);
-                    }else if (lex.pk.ch == "→") {
 
+                        v += lex.tx;
+
+                        if (body) {
+                            if (!body.exclude)
+                                body.exclude = [];
+
+                            body.exclude.push(v);
+                        }
+                    }
+                    sealExpression(lex);
+                } else if (lex.pk.ch == "→") {
+
+                    fence(body, lex);
+
+                    PREPROCESS = false;
+                    current_production = { name: lex.tx, bodies: [], id: 0, follow: null, first: null, lex: lex.copy() };
+                    current_production.id = productions.push(current_production) - 1;
+
+                    LU.set(current_production.name, current_production);
+
+                    sealExpression(lex);
+                    lex.sync();
+                    createBody(lex);
+                } else {
+                    if (expression !== null) {
                         fence(body, lex);
+                        expression += lex.tx;
+                    } else {
+                        if (body)
+                            body.push(lex.tx);
+                        else
+                            throw lex.throw(`Unable to add symbol "${lex.tx}" to body. No body exists. Check your input file.`);
+                    }
+                }
+                break;
+            case types.symbol:
+            case types.operator:
+            case types.ob:
+            case types.cb:
 
-                        PREPROCESS = false;
-                        current_production = { name: lex.tx, bodies: [], id: 0, follow: null, first: null, lex: lex.copy() };
-                        current_production.id = productions.push(current_production) - 1;
-
-                        LU.set(current_production.name, current_production);
-
+                switch (lex.ch) {
+                    case "#": //comment
+                        fence(body, lex);
                         sealExpression(lex);
-                        lex.sync();
+                        lex.IWS = false;
+                        while (!lex.END && lex.n.ty !== types.new_line);
+                        lex.IWS = true;
+                        lex.next();
+                        continue;
+
+                    case "↦":
+                        fence(body, lex);
+                        sealExpression(lex);
+                        break;
+                    case "│":
+                        fence(body, lex);
+                        sealExpression(lex);
                         createBody(lex);
-                    } else{
+                        break;
+                    case "θ":
+                        sym = getSymbol(lex);
+                        body.push(sym);
+                        continue;
+                    case "τ":
+                        sym = getSymbol(lex);
+                        productions.reserved.add(sym.slice(1));
+                        body.push(sym.trim());
+                        continue;
+                    case "!":
+
+                        var ERROR_ON_SYMBOL = false,
+                            ARRAY_LIST = false;
+
+                        if (lex.pk.ch == "!") {
+                            ERROR_ON_SYMBOL = true;
+                            lex.next();
+                        }
+
+                        if(lex.pk.ch == "["){
+                            ARRAY_LIST = true;
+                            lex.next();
+                        }
+
+                        var off = lex.off + lex.tl;
+                        lex.next();
+                        if ((off - lex.off) == 0) {
+
+                            const pos = body.length;
+
+                            if (ERROR_ON_SYMBOL) {
+                                if (!body.errorOnSet.has(pos))
+                                    body.errorOnSet.set(pos, new Set());
+
+                                body.errorOnSet.get(pos).add(getSymbol(lex));
+                            } else {
+                                if (!body.excludeSet.has(pos))
+                                    body.excludeSet.set(pos, new Set());
+
+                                if(ARRAY_LIST){
+                                    const arr = [];
+
+                                    while(!lex.END && lex.tx !== "]" ){
+                                        const s = getSymbol(lex)
+                                        console.log(s)
+                                        arr.push(s);
+
+                                    }
+
+                                    lex.next();
+                                    
+                                    body.excludeSet.get(pos).add(arr);
+                                }else
+                                    body.excludeSet.get(pos).add(getSymbol(lex));
+
+                                //console.log(body)
+                            }
+
+                            continue;
+                        }
+                        //intentional
+                    case "%":
+                        if (lex.pk.tx == "%") {
+                            lex.sync();
+                            fence(body, lex);
+                            body.precedence = parseInt(lex.n.tx);
+                            break;
+                        }
+                        //intentional
+                    default:
                         if (expression !== null) {
                             fence(body, lex);
                             expression += lex.tx;
                         } else {
-                            if (body)
-                                body.push(lex.tx);
-                            else
-                                throw lex.throw(`Unable to add symbol "${lex.tx}" to body. No body exists. Check your input file.`);
+                            body.push(lex.tx);
                         }
-                    }
-                    break;
-                case types.symbol:
-                case types.operator:
-                case types.ob:
-                case types.cb:
+                        break;
+                }
+                break;
+            default:
+                if (expression !== null)
+                    expression += lex.tx;
 
-                    switch (lex.ch) {
-                        case "!":
-                            lex.IWS = false;
-                            if(lex.pk.ty == (types.symbol | types.operator | types.ob | types.cb)){
-                                if(body){
-                                    body.notFirsts.get(index);
-                                }
-                            }
-                            lex.IWS = true;
-                            continue;
-                        case "#": //comment
-                        fence(body, lex);
-                            sealExpression(lex);
-                            lex.IWS = false;
-                            while (!lex.END && lex.n.ty !== types.new_line);
-                            lex.IWS = true;
-                            lex.next();
-                            continue;
-                        case "θ":
-                            pk = lex.pk;
-                            
-                            if(pk.pk.ch == "!" && pk.pk.off == pk.off+pk.tl)
-                                pk.sync();
-
-                            pk.next();
-
-                            body.push(pk.slice(lex).trim());
-                            lex.sync();
-                            continue;
-                        case "↦":
-                            fence(body, lex);
-                            sealExpression(lex);
-                            break;
-                        case "│":
-                            fence(body, lex);
-                            sealExpression(lex);
-                            createBody(lex);
-                            break;
-                        case "τ":
-                            pk = lex.pk.n;
-                            productions.reserved.add(pk.slice(lex).slice(1));
-                            body.push(pk.slice(lex).trim());
-                            lex.sync();
-                            continue;
-                        case "%":
-                            if (lex.pk.tx == "%") {
-                                lex.sync();
-                                fence(body, lex);
-                                body.precedence = parseInt(lex.n.tx);
-                                break;
-                            }
-                            //intentional
-                        default:
-                            if (expression !== null) {
-                                fence(body, lex);
-                                expression += lex.tx;
-                            } else {
-                                body.push(lex.tx);
-                            }
-                            break;
-                    }
-                    break;
-                default:
-                    if (expression !== null)
-                        expression += lex.tx;
-
-            }
+        }
 
         lex.next();
     }
@@ -317,6 +373,6 @@ export function grammarParser(grammar) {
 
     if (productions.length < 1)
         throw new Error("No productions were generated from the input!");
-        
+
     return productions;
 }

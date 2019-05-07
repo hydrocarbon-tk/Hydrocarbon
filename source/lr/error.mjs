@@ -2,13 +2,18 @@ export function shiftCollisionCheck(grammar, state, new_state, item, size) {
     const bodies = grammar.bodies,
         body_a = bodies[item.body],
         k = body_a[item.offset],
-        action = state.action.get(k);
+        action = state.action.get(k),
+        e_state = grammar.states;
+
+
 
     //console.log("ASADASDASD")
     if (action && action.state !== new_state.id) {
+
+
         const body_b = bodies[action.body];
         console.error(`  \x1b[43m SHIFT \x1b[43m COLLISION ERROR ENCOUNTERED:\x1b[0m`);
-        const v = grammar.states[new_state.id].b.slice();
+        const v = new_state.b.slice();
         v.splice(size + 1, 0, ">");
 
         if (action.name !== "SHIFT") {
@@ -18,15 +23,19 @@ export function shiftCollisionCheck(grammar, state, new_state, item, size) {
     Existing Action: 
          Reduce to Terminal ${grammar[body_b.production].name} from production { ${body_b.lex.slice().slice(1).trim()} }
          Definition found on line ${body_b.lex.line+1}:${body_b.lex.char} in input.
+         Production Path ${grammar.states[action.state].d}
 
     Replacing Action: 
         Shift to state {${v.join(" ")}}  from input { ${k} }
-        Definition found on line ${body_a.lex.line+1}:${body_a.lex.char} in input.\n\n
+        Definition found on line ${body_a.lex.line+1}:${body_a.lex.char} in input.
+        Production Path ${new_state.d}\n\n
 `);
-
-            return -1;
+            console.log("Favoring Shift Action");
+            return 0;
         } else {
 
+            if(state)
+            console.log("new:", new_state.id , new_state.real_id, "existing:", action.state, grammar.states[action.state].real_id, state)
             const r = grammar.states[action.state].b.slice();
             r.splice(action.len + 1, 0, ">");
 
@@ -37,10 +46,13 @@ export function shiftCollisionCheck(grammar, state, new_state, item, size) {
     Existing Action: 
         Shift to state {${r.join(" ")}}  from input { ${k} }
         Definition found on line ${body_b.lex.line+1}:${body_b.lex.char} in input.
+        Production Path ${grammar.states[action.state].d}
 
     Replacing Action: 
         Shift to state {${v.join(" ")}}  from input { ${k} }
-        Definition found on line ${body_a.lex.line+1}:${body_a.lex.char} in input.\n\n`);
+        Definition found on line ${body_a.lex.line+1}:${body_a.lex.char} in input.
+        Production Path ${new_state.d}\n\n`);
+
 
             return -1;
         }
@@ -122,20 +134,22 @@ export function reduceCollisionCheck(grammar, state, item) {
             const body_b = bodies[action.body];
             console.error(`  \x1b[43m REDUCE/SHIFT  \x1b[43m COLLISION ERROR ENCOUNTERED:\x1b[0m`);
             const v = grammar.states[action.state].b.slice();
-            v.splice(size + 1, 0, ">");
+            v.splice(action.len + 1, 0, ">");
 
             console.error(
                 `Reduce action on symbol <${k}> for state <${state.id}> <${state.b.join(" ")}> has already been defined.
         Existing Action: 
-            Shift to state {${v.join(" ")}}  from input { ${body_b.lex.slice()} }
+            Shift to state {${v.join(" ")}}  from input { ${k} }
             Definition found on line ${body_b.lex.line+1}:${body_b.lex.char} in input.\n\n
+            Production Path ${grammar.states[action.state].d}
 
         Replacing Action: 
-             Reduce to {${grammar[body_a.production].name}} from production { ${body_a.lex.slice(1).trim()} }
+             Reduce to {${grammar[body_a.production].name}} from production { ${body_a.lex.slice().slice(1).trim()} }
              Definition found on line ${body_a.lex.line+1}:${body_a.lex.char} in input.
+             Production Path ${state.d}
     `);
-            //console.log("REDUCE/SHIFT CONFLICT!", k, action, grammar[body_a.production], grammar[body_b.production], state.id, action.state)
-            return -1;
+            console.log("Favoring Shift Action")
+            return 1;
         }
 
         if (grammar[body_b.production].name == state.b[0]) // TODO: Already reducing to the expected production )
@@ -159,10 +173,12 @@ export function reduceCollisionCheck(grammar, state, item) {
         Existing Action:
             Reduce to {${grammar[body_b.production].name}} from production { ${body_b.lex.slice().slice(1).trim()} }
             Definition found on line ${body_b.lex.line+1}:${body_b.lex.char} in input.
+            Production Path ${grammar.states[action.state].d}
 
         Replacing Action:
             Reduce to {${grammar[body_a.production].name}} from production { ${body_a.lex.slice().slice(1).trim()} }
-            Definition found on line ${body_a.lex.line+1}:${body_a.lex.char} in input.\n\n`);
+            Definition found on line ${body_a.lex.line+1}:${body_a.lex.char} in input.
+            Production Path ${state.d}\n\n`);
 
             return -1;
         }
