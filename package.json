@@ -1,6 +1,6 @@
 {
   "name": "@candlefw/hydrocarbon",
-  "version": "0.0.1a",
+  "version": "0.0.2a",
   "description": "Parser Compiler",
   "main": "source/hydrocarbon.mjs",
   "bin": {
@@ -72,6 +72,6 @@
     }
   },
   "engine": {
-    "node": ">=11.6.0"
+    "node": ">=12.0.0"
   }
 }

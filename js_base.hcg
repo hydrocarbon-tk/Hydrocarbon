@@ -393,7 +393,7 @@ start → script 						↦ cstr return sym[0]
 		arrow_parameters → binding_identifier 
 			│ cover_parenthesized_expression_and_arrow_parameter_list
 
-		concise_body → !{ assignment_expression 
+		concise_body → !EXC { END_EXC assignment_expression 
 			│ { function_statement_list }												↦ cstr return sym[1]
 
 	##############################################################################################################
@@ -405,7 +405,7 @@ start → script 						↦ cstr return sym[0]
 		async_arrow_parameters → binding_identifier 
 			│ cover_call_expression_and_async_arrow_head
 
-		async_concise_body → !{ assignment_expression 
+		async_concise_body → !EXC { END_EXC assignment_expression 
 			│ { function_statement_list }												↦ cstr return sym[1]
 
 		cover_call_expression_and_async_arrow_head → member_expression arguments 		↦ cstr ^call_expr
@@ -712,8 +712,8 @@ start → script 						↦ cstr return sym[0]
 	##############################################################################################################
  	
 		update_expression →  left_hand_side_expresssion 
-			│ left_hand_side_expresssion ++		↦ cstr ^post_inc_expr
-			│ left_hand_side_expresssion --		↦ cstr ^post_dec_expr
+			│ left_hand_side_expresssion !ERR θnl ++		↦ cstr ^post_inc_expr
+			│ left_hand_side_expresssion !ERR θnl --		↦ cstr ^post_dec_expr
 			│ ++ unary_expression				↦ cstr ^pre_inc_expr
 			│ -- unary_expression				↦ cstr ^pre_dec_expr
 

@@ -14,16 +14,14 @@ function setNode(node, length, functions, id, str = "", COMPILE_FUNCTION = true)
     return { str, id };
 }
 
-export function LRParserCompiler(rule_table, env) {
+export function LRParserCompiler(states, grammar, env) {
     //Build new env variables if they are missing 
-
+    console.log(states)
     let output = "";
-    if (rule_table.type !== "lr") throw new Error("");
+    if (states.type !== "lr") throw new Error("");
 
     const
-        states = rule_table,
-        grammar = rule_table.grammar,
-        bodies = rule_table.bodies,
+        bodies = grammar.bodies,
         state_functions = [],
         goto_functions = [],
         state_str_functions = [],
@@ -80,7 +78,7 @@ export function LRParserCompiler(rule_table, env) {
 
             const
                 length = v.size,
-                body = states.bodies[v.body];
+                body = bodies[v.body];
 
             let
                 str = ``,

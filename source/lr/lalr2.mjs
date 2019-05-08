@@ -259,7 +259,7 @@ function ProcessState(items, state, states, grammar, items_set, LALR_MODE = fals
                     case 0: //Original
                         break;
                     case 1: //New
-                        state.goto.set(tok == EMPTY_PRODUCTION ? item.v : tok, { name: "GOTO", state: new_state.id, body: body.id, fid: item.full_id });
+                        state.goto.set(tok == EMPTY_PRODUCTION ? item.v : tok, { name: "GOTO", state: new_state.id, body: body.id});
                         break;
                 }
             }
@@ -345,8 +345,8 @@ function Closure(state_id, items, grammar, exclude = null, offset = 0, added = n
 
 function createInitialState(grammar) {
     const states = [{ action: new Map, goto: new Map, map: new Map, id: 0, body: 0, exclude: new Set(), d: "start" }];
-    states.bodies = grammar.bodies;
-    states.grammar = grammar;
+    //states.bodies = grammar.bodies;
+    //states.grammar = grammar;
     states.type = "lr";
     states.map = new Map([]);
     states.count = 1;
@@ -380,7 +380,6 @@ export function LALRTable(grammar, env = {}) {
     while (items_set.length > 0 && i++ < 2000000) {
         let items = items_set.shift();
 
-        console.log(items_set.length, i)
         if (!ProcessState(items.c, items.s, states, grammar, items_set, LALR_MODE)) {
             if (LALR_MODE) {
                 console.error("Unable to continue in LALR mode. Restarting in CLR Mode. \n");
@@ -404,6 +403,9 @@ export function LALRTable(grammar, env = {}) {
             });
         });
     }
+
+    console.log(states)
+    
     if (i >= 100000)
         throw new Error("Failed process grammar. Max step limit reached. The current limit is set to 100000 iterations.");
 

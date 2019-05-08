@@ -12,12 +12,12 @@ export function shiftCollisionCheck(grammar, state, new_state, item, size) {
 
 
         const body_b = bodies[action.body];
-        console.error(`  \x1b[43m SHIFT \x1b[43m COLLISION ERROR ENCOUNTERED:\x1b[0m`);
+        
         const v = new_state.b.slice();
         v.splice(size + 1, 0, ">");
 
         if (action.name !== "SHIFT") {
-            console.log("SHIFT/REDUCE CONFLICT!");
+            console.error(`  \x1b[43m SHIFT/REDUCE \x1b[43m COLLISION ERROR ENCOUNTERED:\x1b[0m`);
             console.error(
                 `Reduce action on symbol <${k}> for state <${state.id}> <${state.b.join(" ")}> has already been defined.
     Existing Action: 
@@ -28,12 +28,12 @@ export function shiftCollisionCheck(grammar, state, new_state, item, size) {
     Replacing Action: 
         Shift to state {${v.join(" ")}}  from input { ${k} }
         Definition found on line ${body_a.lex.line+1}:${body_a.lex.char} in input.
-        Production Path ${new_state.d}\n\n
-`);
-            console.log("Favoring Shift Action");
+        Production Path ${new_state.d}\n
+
+    Favoring Shift Action\n`);
             return 0;
         } else {
-
+            console.error(`  \x1b[43m SHIFT \x1b[43m COLLISION ERROR ENCOUNTERED:\x1b[0m`);
             if(state)
             console.log("new:", new_state.id , new_state.real_id, "existing:", action.state, grammar.states[action.state].real_id, state)
             const r = grammar.states[action.state].b.slice();
@@ -147,8 +147,8 @@ export function reduceCollisionCheck(grammar, state, item) {
              Reduce to {${grammar[body_a.production].name}} from production { ${body_a.lex.slice().slice(1).trim()} }
              Definition found on line ${body_a.lex.line+1}:${body_a.lex.char} in input.
              Production Path ${state.d}
-    `);
-            console.log("Favoring Shift Action")
+
+        Favoring Shift Action \n`);
             return 1;
         }
 

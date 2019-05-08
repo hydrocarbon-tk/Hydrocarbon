@@ -51,7 +51,12 @@ async function loadEnvironment(env_path = "") {
     return env;
 }
 
-async function loadGrammar(grammar_path, env_path = "") {
+
+/******************** FILE HANDLING ***************************/
+
+
+
+async function loadFiles(grammar_path, env_path = "") {
     try {
         grammar_string = await fsp.readFile(grammar_path, "utf8");
     } catch (err) {
@@ -59,10 +64,44 @@ async function loadGrammar(grammar_path, env_path = "") {
         throw new Error(`Unable to open the grammar file ${grammar_path}`);
 
     }
-    return { grammar: grammar_string, env: await loadEnvironment(env_path) };
+    return { grammar_string, env: await loadEnvironment(env_path) };
 }
 
-function createScript(name, parser, type, compress = false, env) {
+function write(name, parser_script, output_directory, type) {
+    let filename = name;
+
+    switch (type) {
+        case "mjs":
+            filename += ".mjs";
+            break;
+        case "cjs":
+            filename += "_cjs.js";
+            break;
+        default:
+        case "js":
+            filename += ".js";
+            break;
+    }
+
+    writeFile(filename, parser_script, output_directory);
+}
+
+async function writeFile(name,  data = "", dir = process.env.PWD) {
+
+    try{
+        if (!fs.existsSync(dir))
+            fs.mkdirSync(dir);
+
+        let file = await fsp.writeFile(path.join(dir, name), data, { encoding: "utf8", flags: "w+" })
+         console.log(ADD_COLOR(`The file ${name} has been successfully written to {${dir}}.`, COLOR_SUCCESS), "\n");
+    }catch(err){
+        console.log(ADD_COLOR(`Filed to write ${name} to {${dir}}`, COLOR_ERROR), "\n");
+        console.error(err);
+    }
+}
+
+
+function createScript(name, parser, type, env, compress = false) {
 
     if (env.options && env.options.integrate)
         parser = hc.StandAloneParserCompiler(parser, LEXER_SCRIPT, env);
@@ -88,47 +127,36 @@ function createScript(name, parser, type, compress = false, env) {
     return parser;
 }
 
-function write(name, parser_script, output_directory, type) {
+/* *************** HCG GRAMMAR DATA *********************/
 
-    const dir = path.resolve(output_directory);
-
-    let filename = name;
-
-    switch (type) {
-        case "mjs":
-            filename += ".mjs";
-            break;
-        case "cjs":
-            filename += "_cjs.js";
-            break;
-        default:
-        case "js":
-            filename += ".js";
-            break;
-    }
-
-    //compress data if necessary
-    if (!fs.existsSync(dir))
-        fs.mkdirSync(dir);
-
-
-    return fsp.writeFile(path.join(dir, filename), parser_script, { encoding: "utf8", flags: "w+" })
-        .then(res => {
-            console.log(ADD_COLOR(`The ${filename} script has been successfully written.`, COLOR_SUCCESS), "\n");
-        }).catch(err => {
-            console.error(err);
-        })
+function parseGrammar(grammar_string, env) {
+    return hc.grammarParser(grammar_string, env);
 }
 
-function build(name, grammar_string, env) {
+/* *************** LR GRAMMARS ********************/
 
-    const table = CreateTable(grammar_string, env),
-        output = hc.LRParserCompiler(table, env);
-
-    console.log(ADD_COLOR(`The ${name} parser has been successfully compiled!`, COLOR_SUCCESS), "\n");
-
-    return output;
+function stringifyLRStates(states) {
+    return hc.ExportStates(states);
 }
+
+function parseLRJsonStates(states_string) {
+    return hc.ImportStates(states_string);
+}
+
+function compileLRStates(parsed_grammar, env) {
+    return hc.LALRTable(parsed_grammar, env);
+}
+
+function buildLRCompilerScript(states, parsed_grammar, env) {
+    return hc.LRParserCompiler(states, parsed_grammar, env);
+}
+
+function CreateStates(grammar_string, env) {
+    let grammar = hc.grammarParser(grammar_string, env);
+    return hc.LALRTable(grammar, env);
+}
+
+/* ************* RUNTIME ************************/
 
 function CLI_INSTRUCTIONS(full = false) {
     console.log(`\nType something then hit {${ADD_COLOR(" enter ", COLOR_KEYBOARD)}||${ADD_COLOR(" return ", COLOR_KEYBOARD)}} to see how the ${name} parser performs on that input`)
@@ -191,17 +219,13 @@ async function mount(name, input, env) {
     return d;
 }
 
-function CreateTable(grammar_string, env) {
-    let grammar = hc.grammarParser(grammar_string, env);
-    return hc.LALRTable(grammar, env);
-}
 
 /* ************* PROGRAM ************************/
 
 const program = commander.default;
 
 program
-    .version("0.0.2")
+    .version("0.0.3")
     .parse(process.argv);
 
 program
@@ -213,7 +237,7 @@ program
                 name = path.basename(grammar_path, path.extname(grammar_path)),
                 grammar_string = await fsp.readFile(grammar_path, "utf8");
 
-            let table = CreateTable(grammar_string, { functions: {} });
+            let table = CreateStates(grammar_string, { functions: {} });
 
             console.log(hc.renderTable(table));
         } catch (err) {
@@ -243,7 +267,7 @@ program
 
 program
     .command("compile <hydrocarbon_grammar_file>")
-    .description("Compiles a JavaScript parser from a HydroCarbon grammar file and an optional ENV.js file")
+    .description("Compiles a JavaScript parser from a HydroCarbon grammar file, an optional HCGStates file, and an optional ENV.js file")
     .option("-o, --output <path>", "Optional output location. Defaults to CWD.")
     .option("-e, --env <path>", "Optional JavaScript file containing parsing environment information.")
     .option("-m, --mount", "Mounts the compiled parser in the current NodeJS context and allows interactive parsing of user input.")
@@ -265,23 +289,47 @@ program
             name = cmd.output_name ? cmd.output_name : path.basename(grammar_path, path.extname(grammar_path)),
             type = cmd.type ? cmd.type : "js",
             output_directory = cmd.output ? path.resolve(cmd.output) : process.cwd(),
-            compress = !!cmd.compress;
+            COMPRESS = !!cmd.compress;
 
-        for (;;) {
-            const data = await loadGrammar(grammar_path, env_path);
-            const parser = build(name, data.grammar, data.env);
-            const script = createScript(name, parser, type, compress, data.env);
+
+        try {
+
+            const { grammar_string, env } = await loadFiles(grammar_path, env_path);
+
+            const grammar = parseGrammar(grammar_string, env)
+
+            const states = compileLRStates(grammar, env);
+
+            const states_string = stringifyLRStates(states);
+
+            writeFile(`${name}.hcs`, states_string);
+
+            console.log("###################################")
+
+            const states_imported = parseLRJsonStates(states_string);
+
+            //console.log(states_string, states_imported)
+
+            const script_string = buildLRCompilerScript(states_imported, grammar, env);
+
+            const script = createScript(name, script_string, type, env, COMPRESS);
+
+            console.log(ADD_COLOR(`The ${name} parser has been successfully compiled!`, COLOR_SUCCESS), "\n");
 
             if (!!cmd.noout) {
                 console.log(ADD_COLOR("No Output. Skipping file saving", COLOR_ERROR), "\n");
             } else
                 await write(name, script, output_directory, type);
 
-            if (!!cmd.mount && !(await mount(name, script, data.env)))
+            if (!!cmd.mount && !(await mount(name, script, env)))
                 return;
             else
                 return;
+
+        } catch (e) {
+            console.error(e);
         }
+
     });
 
 program.parse(process.argv);
