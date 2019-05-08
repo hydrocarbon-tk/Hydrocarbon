@@ -8,6 +8,8 @@
 import * as hc from "./hydrocarbon.mjs";
 import whind from "@candlefw/whind";
 
+import runner from "./compiler_worker.mjs"
+
 //Third Party stuff
 import * as commander from "commander";
 import * as terser from "terser";
@@ -56,7 +58,10 @@ async function loadEnvironment(env_path = "") {
 
 
 
-async function loadFiles(grammar_path, env_path = "") {
+async function loadFiles(grammar_path, env_path = "", states_path = "") {
+
+    let grammar_string = "", states_string = "";
+
     try {
         grammar_string = await fsp.readFile(grammar_path, "utf8");
     } catch (err) {
@@ -64,7 +69,19 @@ async function loadFiles(grammar_path, env_path = "") {
         throw new Error(`Unable to open the grammar file ${grammar_path}`);
 
     }
-    return { grammar_string, env: await loadEnvironment(env_path) };
+
+    if(states_path){
+        try {
+            states_string = await fsp.readFile(states_path, "utf8");
+        } catch (err) {
+            console.error(err);
+            throw new Error(`Unable to open the states file ${states_path}`);
+        }
+    }
+
+    const env = await loadEnvironment(env_path);
+
+    return { grammar_string, env, states_string};
 }
 
 function write(name, parser_script, output_directory, type) {
@@ -139,21 +156,16 @@ function stringifyLRStates(states) {
     return hc.ExportStates(states);
 }
 
-function parseLRJsonStates(states_string) {
+function parseLRJSONStates(states_string) {
     return hc.ImportStates(states_string);
 }
 
-function compileLRStates(parsed_grammar, env) {
-    return hc.LALRTable(parsed_grammar, env);
+async function compileLRStates(grammar, env) {
+    return await runner(grammar, env);
 }
 
 function buildLRCompilerScript(states, parsed_grammar, env) {
     return hc.LRParserCompiler(states, parsed_grammar, env);
-}
-
-function CreateStates(grammar_string, env) {
-    let grammar = hc.grammarParser(grammar_string, env);
-    return hc.LALRTable(grammar, env);
 }
 
 /* ************* RUNTIME ************************/
@@ -230,16 +242,35 @@ program
 
 program
     .command("table <hydrocarbon_grammar_file>")
-    .description("Parses grammar and outputs a text representation of the parse table.")
-    .action(async hc_grammar => {
+    .option("-s, --states <states>", "Use a *.hcs file from a previous compilation instead of a compiling the grammar file.")
+    .option("-o, --output <path>", "Optional output location. Defaults to CWD.")
+    .option("-os, --output_states", "Output a *.hcs file.")
+    .description("Parses grammar and outputs a UTF representation of the parse table.")
+    .action(async (hc_grammar, cmd) => {
+        const
+            states_path = cmd.states ? path.resolve(cmd.states) : "",
+            output_directory = cmd.output ? path.resolve(cmd.output) : process.cwd(),
+            grammar_path = path.resolve(hc_grammar);
+
         try {
-            const grammar_path = path.resolve(hc_grammar),
-                name = path.basename(grammar_path, path.extname(grammar_path)),
-                grammar_string = await fsp.readFile(grammar_path, "utf8");
+            const { grammar_string, env, states_string } = await loadFiles(grammar_path, "", states_path);
 
-            let table = CreateStates(grammar_string, { functions: {} });
+            let states;
 
-            console.log(hc.renderTable(table));
+            const grammar = parseGrammar(grammar_string, env)
+
+            if(states_string){
+                states = parseLRJSONStates(states_string);
+            }else{
+                states = await compileLRStates(grammar, env);
+                if(!!cmd.output_states){
+                    states_output = stringifyLRStates(states);
+                    writeFile(`${name}.hcs`, states_output, output_directory);
+                }
+            }
+
+            console.log(hc.renderTable(states, grammar));
+
         } catch (err) {
             console.error(err);
             throw new Error(`
@@ -269,6 +300,8 @@ program
     .command("compile <hydrocarbon_grammar_file>")
     .description("Compiles a JavaScript parser from a HydroCarbon grammar file, an optional HCGStates file, and an optional ENV.js file")
     .option("-o, --output <path>", "Optional output location. Defaults to CWD.")
+    .option("-os, --output_states", "Output a *.hcs file.")
+    .option("-s, --states <states>", "Use a *.hcs file from a previous compilation instead of a compiling the grammar file.")
     .option("-e, --env <path>", "Optional JavaScript file containing parsing environment information.")
     .option("-m, --mount", "Mounts the compiled parser in the current NodeJS context and allows interactive parsing of user input.")
     .option("-n, --name <output_name>", "The name to give to the output file. Defaults to the name of the grammar file.")
@@ -284,6 +317,7 @@ program
             `)
     .action(async (hc_grammar, cmd) => {
         const
+            states_path = cmd.states ? path.resolve(cmd.states) : "",
             grammar_path = path.resolve(hc_grammar),
             env_path = cmd.env ? path.resolve(cmd.env) : "",
             name = cmd.output_name ? cmd.output_name : path.basename(grammar_path, path.extname(grammar_path)),
@@ -294,23 +328,25 @@ program
 
         try {
 
-            const { grammar_string, env } = await loadFiles(grammar_path, env_path);
+            const { grammar_string, states_string, env } = await loadFiles(grammar_path, env_path, states_path);
 
             const grammar = parseGrammar(grammar_string, env)
 
-            const states = compileLRStates(grammar, env);
+            let states = null;
+            
+            if(states_string){
+                states = parseLRJSONStates(states_string);
+            }else{
 
-            const states_string = stringifyLRStates(states);
+                states = await compileLRStates(grammar, env);
 
-            writeFile(`${name}.hcs`, states_string);
-
-            console.log("###################################")
-
-            const states_imported = parseLRJsonStates(states_string);
-
-            //console.log(states_string, states_imported)
-
-            const script_string = buildLRCompilerScript(states_imported, grammar, env);
+                if(!!cmd.output_states){
+                    states_output = stringifyLRStates(states);
+                    writeFile(`${name}.hcs`, states_output, output_directory);
+                }
+            }
+            
+            const script_string = buildLRCompilerScript(states, grammar, env);
 
             const script = createScript(name, script_string, type, env, COMPRESS);
 

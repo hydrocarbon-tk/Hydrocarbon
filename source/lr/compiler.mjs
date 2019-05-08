@@ -1,5 +1,5 @@
 /** Compiles a stand alone JS parser from a LR rules table and env object **/
-import { getToken, types, FOLLOW } from "../common.mjs";
+import { getToken, types, FOLLOW, filloutGrammar } from "../common.mjs";
 
 function setNode(node, length, functions, id, str = "", COMPILE_FUNCTION = true) {
 
@@ -16,7 +16,10 @@ function setNode(node, length, functions, id, str = "", COMPILE_FUNCTION = true)
 
 export function LRParserCompiler(states, grammar, env) {
     //Build new env variables if they are missing 
-    console.log(states)
+
+    if(!grammar.bodies)
+        filloutGrammar(grammar, env);
+
     let output = "";
     if (states.type !== "lr") throw new Error("");
 

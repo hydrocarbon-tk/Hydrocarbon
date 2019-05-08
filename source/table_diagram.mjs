@@ -13,18 +13,23 @@ const crbr = String.fromCharCode(0x251B)
 const crbl = String.fromCharCode(0x2517)
 //(T)o (N)ext (T)ab (S)top
 
-export function renderTable(rule_table, tab = "   ", tab_s = tab.length) {
+export function renderTable(states, grammar, tab = "   ", tab_s = tab.length) {
 
     const ws = (count) => (" ").repeat(count);
     const tnts = (h) => ((Math.ceil((h + 0.5) / tab_s) * tab_s) - h);
     const stnts = (h) => ws(tnts(h));
 
+    
+
+    let str = "";
+    
+    const 
+        rule_table = states;
+
     if (rule_table.INVALID) {
         console.error("Invalid state set passed. Cannot continue.")
         return;
     }
-
-    let str = "";
 
     let num_states = rule_table.length;
     let symbols = new Map();
@@ -95,7 +100,7 @@ export function renderTable(rule_table, tab = "   ", tab_s = tab.length) {
     off += tab_s;
 
     prods.forEach((v, k) => {
-        let e = rule_table.grammar[k].name.slice(0, max - 1);
+        let e = grammar[k].name.slice(0, max - 1);
         act = Math.max(act, e.length);
         off += e.length;
         d += e + stnts(off);
@@ -103,7 +108,7 @@ export function renderTable(rule_table, tab = "   ", tab_s = tab.length) {
     });
 
     if ((act + 2) > tab_s && tab_s < max)
-        return renderTable(rule_table, (" ").repeat(Math.min(max, act + 2)));
+        return renderTable(rule_table, grammar, (" ").repeat(Math.min(max, act + 2)));
 
     str += `${d + ver}\n`;
 
@@ -118,7 +123,7 @@ export function renderTable(rule_table, tab = "   ", tab_s = tab.length) {
         let p = preps[i];
 
         if ((i + "").length + 2 >= tab_s)
-            return renderTable(rule_table, (" ").repeat((i + "").length + 4));
+            return renderTable(rule_table,grammar,  (" ").repeat((i + "").length + 4));
 
         d = `${ver} ${i + stnts(2 + (i+"").length) + ver + ws(tm)}`;
 
@@ -149,7 +154,7 @@ export function renderTable(rule_table, tab = "   ", tab_s = tab.length) {
                     let state = v.v.state + "";
 
                     if (state.length + 2 >= tab_s)
-                        return renderTable(rule_table, (" ").repeat(state.length + 4));
+                        return renderTable(rule_table,grammar, (" ").repeat(state.length + 4));
 
                     d += `s${state + stnts(state.length+1)}`;
                     break;
@@ -157,7 +162,7 @@ export function renderTable(rule_table, tab = "   ", tab_s = tab.length) {
                     let body = v.v.body + "";
 
                     if (body.length + 2 >= tab_s)
-                        return renderTable(rule_table, (" ").repeat(body.length + 4));
+                        return renderTable(rule_table,grammar, (" ").repeat(body.length + 4));
 
                     d += `r${body + stnts(body.length+1)}`;
                     break;

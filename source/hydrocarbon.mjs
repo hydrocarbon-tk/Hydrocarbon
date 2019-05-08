@@ -1,5 +1,5 @@
 //LR
-import { LALRTable } from "./lr/lalr2.mjs";
+import { compileLRStates } from "./lr/lalr2.mjs";
 import { ExportStates, ImportStates } from "./lr/export_states.mjs";
 import { SLRTable } from "./lr/slr.mjs";
 import { LRParser } from "./lr/parser.mjs";
@@ -14,7 +14,7 @@ import { grammarParser } from "./grammar_parser.mjs";
 import { renderTable } from "./table_diagram.mjs";
 
 export {
-    LALRTable,
+    compileLRStates,
     SLRTable,
     LRParser,
     grammarParser,

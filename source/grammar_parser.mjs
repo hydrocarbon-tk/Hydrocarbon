@@ -295,7 +295,6 @@ export function grammarParser(grammar) {
                             const pos = body.length;
                             if (NEXT_SYMBOL_ADJACENT) {
                                 if (lex.pk.tx == "ERR") {
-                                    ERROR_ON_SYMBOL = true;
                                     lex.next().next(); // ! > ERR > ? 
 
                                     if (!body.errorOnSet.has(pos))
@@ -315,7 +314,6 @@ export function grammarParser(grammar) {
 
                                     while (!lex.END && lex.tx !== "END_EXC") {
                                         const s = getSymbol(lex)
-                                        console.log(s)
                                         arr.push(s);
 
                                     }
@@ -327,7 +325,6 @@ export function grammarParser(grammar) {
 
                                     body.excludeSet.get(pos).add(arr);
 
-                                     console.log(body.excludeSet)
                                     continue;
                                 }
                             }

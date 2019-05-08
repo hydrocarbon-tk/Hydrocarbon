@@ -3,7 +3,7 @@
 import { FIRST, isNonTerm, filloutGrammar, Item, EMPTY_PRODUCTION } from "../common.mjs";
 import { gotoCollisionCheck, reduceCollisionCheck, shiftCollisionCheck } from "./error.mjs";
 
-function ProcessState(items, state, states, grammar, items_set, LALR_MODE = false) {
+function ProcessState(items, state, states, grammar, items_set, error, LALR_MODE = false) {
     const bodies = grammar.bodies;
 
     items = Closure(state.id, items, grammar);
@@ -43,7 +43,7 @@ function ProcessState(items, state, states, grammar, items_set, LALR_MODE = fals
                 if (p2 < p1 && k !== "$" && i > 0)
                     continue;
 
-                switch (reduceCollisionCheck(grammar, state, item)) {
+                switch (reduceCollisionCheck(grammar, state, item, error)) {
                     case -1:
                         return false;
                     case 0:
@@ -241,7 +241,7 @@ function ProcessState(items, state, states, grammar, items_set, LALR_MODE = fals
                     if (!SKIP) {
                         //console.log(`${tok} ${sid} [${new_state.d}]`);
                         //  console.log(tok,shiftCollisionCheck(grammar, state, new_state, item, size))
-                        switch (shiftCollisionCheck(grammar, state, new_state, item, size)) {
+                        switch (shiftCollisionCheck(grammar, state, new_state, item, size, error)) {
                             case -1:
                                 return false;
                             case 0:
@@ -253,7 +253,7 @@ function ProcessState(items, state, states, grammar, items_set, LALR_MODE = fals
 
             } else {
 
-                switch (gotoCollisionCheck(grammar, state, new_state, item)) {
+                switch (gotoCollisionCheck(grammar, state, new_state, item, error)) {
                     case -1: //failed
                         return false;
                     case 0: //Original
@@ -354,7 +354,18 @@ function createInitialState(grammar) {
     return states;
 }
 
-export function LALRTable(grammar, env = {}) {
+export function * compileLRStates(grammar, env = {}) {
+
+    const error = new (class{
+        constructor(){
+            this.strings=  []
+        }
+
+        log(...vals){
+            this.strings.push(`${vals.join(",")}`);
+        }
+        get output(){return strings.join("\n")}
+    })
     /* Storage for Items is determined by three numbers. 
      * 1. The index offset of a production body in a grammar.
      * 2. The length of the production body
@@ -373,26 +384,33 @@ export function LALRTable(grammar, env = {}) {
     let states = createInitialState(grammar),
         items_set = [{ c: [new Item(0, bodies[0].length, 0, "$", 0, grammar)], s: states[0] }],
         LALR_MODE = true,
-        i = 0;
+        i = 0,
+        total_items = 1;
 
     items_set[0].c.exclude = [];
 
-    while (items_set.length > 0 && i++ < 2000000) {
+    while (items_set.length > 0) {
+        let start = items_set.length;
+
         let items = items_set.shift();
 
-        if (!ProcessState(items.c, items.s, states, grammar, items_set, LALR_MODE)) {
+        if (!ProcessState(items.c, items.s, states, grammar, items_set, error, LALR_MODE)) {
             if (LALR_MODE) {
-                console.error("Unable to continue in LALR mode. Restarting in CLR Mode. \n");
                 states = createInitialState(grammar);
                 items_set = [{ c: Closure(0, [new Item(0, bodies[0].length, 0, "$", 0, grammar)], grammar), s: states[0] }];
                 LALR_MODE = false;
+                yield {error, states: states,num_of_states: states.length, total_items, items_left: items_set.length, COMPLETE:false, ERROR:true, error_msg: "Unable to continue in LALR mode. Restarting in CLR Mode. \n"}
                 break
             } else {
-                console.error("Unable to parse grammar. It does not appear to be a LR grammar.\n");
                 states.INVALID = true;
-                break;
+                return {error, states, num_of_states: states.length,total_items,  items_left: items_set.length, COMPLETE:true, ERROR:true, error_msg: "Unable to parse grammar. It does not appear to be a LR grammar.\n"}
             }
         }
+
+        if(items_set.length > start)
+            total_items += items_set.length - start;
+
+        yield {error, states, num_of_states: states.length,total_items, items_left: items_set.length, COMPLETE:false}
     }
 
     if (grammar.ignore) {
@@ -403,11 +421,6 @@ export function LALRTable(grammar, env = {}) {
             });
         });
     }
-
-    console.log(states)
     
-    if (i >= 100000)
-        throw new Error("Failed process grammar. Max step limit reached. The current limit is set to 100000 iterations.");
-
-    return states;
+    return {error, states, num_of_states: states.length,total_items, items_left:0, COMPLETE:true, ERROR:false};
 }
