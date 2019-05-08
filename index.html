@@ -20,6 +20,7 @@
 
 					try{
 						let result = js_base(whind(value), env);
+						console.log(result)
 						emit.js_output = JSON.stringify(result[0])
 					}catch(e){
 						emit.js_output = e + "";

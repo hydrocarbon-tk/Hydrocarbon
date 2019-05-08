@@ -1,7 +1,7 @@
 #IGNORE θws ;
 
 S → s 
-s → D τd │ ![τa τb] E E
+s → D τd │ !EXC τa τb END_EXC E E
 E → τa τb τd │ τa τd │ τc 
 D → τa B 
 B → τb 

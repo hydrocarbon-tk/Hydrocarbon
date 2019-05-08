@@ -63,8 +63,11 @@ function ProcessState(items, state, states, grammar, items_set, LALR_MODE = fals
 
             let new_state = null,
                 sid = new Set(),
+                exc_cache = new Set(),
                 out_items = [],
                 new_exclude = [];
+
+                let I = 0;
 
             for (let j = i; j < l; j++) {
                 const item = items[j];
@@ -76,6 +79,8 @@ function ProcessState(items, state, states, grammar, items_set, LALR_MODE = fals
 
                         for (let i = 0; i < items.exclude.length; i++) {
                             let e = items.exclude[i];
+
+
 
                             if (SKIP) break;
 
@@ -94,10 +99,16 @@ function ProcessState(items, state, states, grammar, items_set, LALR_MODE = fals
 
                                     if (e.symbols[e.offset + 1] && item.body_[item.offset + 1] == e.symbols[e.offset + 1]) {
                                         grammar[item.sym].bodies.forEach(b => {
+                                            //console.log({ body: b.id, symbols: e.symbols.slice(1), offset: 0, l: e.l - 1 })
                                             items.exclude.push({ body: b.id, symbols: e.symbols.slice(1), offset: 0, l: e.l - 1 });
                                             //new_exclude.add({ body: b.id, symbols: e.symbols.slice(1), offset: 0, l: e.l - 1 });
                                         });
                                     } else {
+
+
+                                        if(sid.has(item.increment().id)) continue; // Have already added all bodies for this particular item. 
+                                        
+                                        
                                         const sym_bodies = grammar[item.sym].bodies,
                                             stack = [],
                                             set = new Set();
@@ -113,7 +124,12 @@ function ProcessState(items, state, states, grammar, items_set, LALR_MODE = fals
 
                                             if (!isNonTerm(body[0])) {
                                                 if (body[0] == e.symbols[e.offset]) {
-                                                    items.exclude.push({ body: body.id, symbols: e.symbols, offset: e.offset, l: e.l });
+                                                    I++
+                                                    let id = body.id + "" + e.symbols.join("") + e.offset + e.l;
+                                                    if(!exc_cache.has(id)){
+                                                        items.exclude.push({ body: body.id, symbols: e.symbols, offset: e.offset, l: e.l });
+                                                        exc_cache.add(id);
+                                                    }
                                                 }
                                             } else {
                                                 const sym_bodies = grammar[body[0]].bodies;

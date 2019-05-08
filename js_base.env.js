@@ -24,7 +24,7 @@ const env =  {
 		gte_expr : function (sym){this.left = sym[0]; this.right=sym[2]; this.type = "GTE"},
 		eq_expr : function (sym){this.left = sym[0]; this.right=sym[2]; this.type = "EQ"},
 		seq_expr : function (sym){this.left = sym[0]; this.right=sym[2]; this.type = "STRICT_EQ"},
-		neq_expr : function (sym){this.left = sym[0]; this.right=sym[2]; this.type = "ENQ"},
+		neq_expr : function (sym){this.left = sym[0]; this.right=sym[2]; this.type = "NEQ"},
 		sneq_expr : function (sym){this.left = sym[0]; this.right=sym[2]; this.type = "STRICT_NEQ"},
 		pre_inc_expr : function (sym){this.expr = sym[1]; this.type = "PRE INCR"},
 		pre_dec_expr : function (sym){this.expr = sym[1]; this.type = "PRE DEC"},

@@ -290,59 +290,52 @@ export function grammarParser(grammar) {
                         body.push(sym.trim());
                         continue;
                     case "!":
-
-                        var ERROR_ON_SYMBOL = false,
-                            ARRAY_LIST = false;
-
-                        if (lex.pk.ch == "!") {
-                            ERROR_ON_SYMBOL = true;
-                            lex.next();
-                        }
-
-                        if(lex.pk.ch == "["){
-                            ARRAY_LIST = true;
-                            lex.next();
-                        }
-
-                        var off = lex.off + lex.tl;
-                        lex.next();
-                        if ((off - lex.off) == 0) {
-
+                        if (lex.tx == "!") {
+                            const NEXT_SYMBOL_ADJACENT = (((lex.off + lex.tl) - lex.pk.off) == 0);
                             const pos = body.length;
+                            if (NEXT_SYMBOL_ADJACENT) {
+                                if (lex.pk.tx == "ERR") {
+                                    ERROR_ON_SYMBOL = true;
+                                    lex.next().next(); // ! > ERR > ? 
 
-                            if (ERROR_ON_SYMBOL) {
-                                if (!body.errorOnSet.has(pos))
-                                    body.errorOnSet.set(pos, new Set());
+                                    if (!body.errorOnSet.has(pos))
+                                        body.errorOnSet.set(pos, new Set());
 
-                                body.errorOnSet.get(pos).add(getSymbol(lex));
-                            } else {
-                                if (!body.excludeSet.has(pos))
-                                    body.excludeSet.set(pos, new Set());
+                                    body.errorOnSet.get(pos).add(getSymbol(lex));
 
-                                if(ARRAY_LIST){
+                                    lex.next(); // ?
+
+                                    continue;
+                                }
+
+                                if (lex.pk.tx == "EXC") {
+                                    lex.next().next(); // ! > EXC > ?                                    
+
                                     const arr = [];
 
-                                    while(!lex.END && lex.tx !== "]" ){
+                                    while (!lex.END && lex.tx !== "END_EXC") {
                                         const s = getSymbol(lex)
                                         console.log(s)
                                         arr.push(s);
 
                                     }
 
-                                    lex.next();
-                                    
-                                    body.excludeSet.get(pos).add(arr);
-                                }else
-                                    body.excludeSet.get(pos).add(getSymbol(lex));
+                                    lex.next(); // END_EXC
 
-                                //console.log(body)
+                                    if (!body.excludeSet.has(pos))
+                                        body.excludeSet.set(pos, new Set());
+
+                                    body.excludeSet.get(pos).add(arr);
+
+                                     console.log(body.excludeSet)
+                                    continue;
+                                }
                             }
 
-                            continue;
                         }
                         //intentional
                     case "%":
-                        if (lex.pk.tx == "%") {
+                        if (lex.ch == "%" && lex.pk.tx == "%") {
                             lex.sync();
                             fence(body, lex);
                             body.precedence = parseInt(lex.n.tx);
