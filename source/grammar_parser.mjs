@@ -19,17 +19,17 @@ import whind from "../node_modules/@candlefw/whind/source/whind.mjs";
 import { isNonTerm } from "./common.mjs";
 
 function convertProductionNamesToIndexes(productions, LU, lex) {
-    let sym = "";
+    let sym = "", body;
     try {
         for (let i = 0; i < productions.length; i++) {
             let production = productions[i];
             let bodies = production.bodies;
             for (let i = 0; i < bodies.length; i++) {
-                let body = bodies[i];
+                body = bodies[i];
 
                 if (body.precedence < 0)
                     body.precedence = bodies.length - i - 1;
-
+                
                 for (let i = 0; i < body.length; i++) {
                     sym = body[i];
                     if (isNonTerm(body[i]))
@@ -38,7 +38,9 @@ function convertProductionNamesToIndexes(productions, LU, lex) {
             }
         }
     } catch (e) {
-        console.warn(`Error encountered while processing the symbol "${sym}"`);
+        console.error(e)
+        if(body)
+            body.lex.throw(`Error encountered while processing the symbol "${sym}"`);
         throw e;
     }
 }
@@ -162,7 +164,6 @@ export function grammarParser(grammar) {
                         productions.symbols.push(sym.trim());
                         lex.addSymbol(sym.trim());
                     }
-
                     lex.sync(l);
                 }
 

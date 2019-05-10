@@ -84,7 +84,7 @@ async function loadFiles(grammar_path, env_path = "", states_path = "") {
     return { grammar_string, env, states_string};
 }
 
-function write(name, parser_script, output_directory, type) {
+async function write(name, parser_script, output_directory, type) {
     let filename = name;
 
     switch (type) {
@@ -100,7 +100,7 @@ function write(name, parser_script, output_directory, type) {
             break;
     }
 
-    writeFile(filename, parser_script, output_directory);
+    await writeFile(filename, parser_script, output_directory);
 }
 
 async function writeFile(name,  data = "", dir = process.env.PWD) {
@@ -110,7 +110,7 @@ async function writeFile(name,  data = "", dir = process.env.PWD) {
             fs.mkdirSync(dir);
 
         let file = await fsp.writeFile(path.join(dir, name), data, { encoding: "utf8", flags: "w+" })
-         console.log(ADD_COLOR(`The file ${name} has been successfully written to {${dir}}.`, COLOR_SUCCESS), "\n");
+         console.log(ADD_COLOR(`The file ${name} has been successfully written to ${dir}.`, COLOR_SUCCESS), "\n");
     }catch(err){
         console.log(ADD_COLOR(`Filed to write ${name} to {${dir}}`, COLOR_ERROR), "\n");
         console.error(err);
@@ -160,8 +160,8 @@ function parseLRJSONStates(states_string) {
     return hc.ImportStates(states_string);
 }
 
-async function compileLRStates(grammar, env) {
-    return await runner(grammar, env);
+async function compileLRStates(grammar, env, name) {
+    return await runner(grammar, env, name);
 }
 
 function buildLRCompilerScript(states, parsed_grammar, env) {
@@ -173,7 +173,6 @@ function buildLRCompilerScript(states, parsed_grammar, env) {
 function CLI_INSTRUCTIONS(full = false) {
     console.log(`\nType something then hit {${ADD_COLOR(" enter ", COLOR_KEYBOARD)}||${ADD_COLOR(" return ", COLOR_KEYBOARD)}} to see how the ${name} parser performs on that input`)
     console.log(`Type 'reload' to update the parser with new file changes.`)
-    console.log(`Type 'exit' or use ${ADD_COLOR(" ctrl ", COLOR_KEYBOARD)}+${ADD_COLOR(" c ", COLOR_KEYBOARD)} to return to console:`)
     console.log(`Type 'help' to show help info.`)
 }
 
@@ -271,6 +270,8 @@ program
 
             console.log(hc.renderTable(states, grammar));
 
+            console.log(`Use ${ADD_COLOR(" ctrl ", COLOR_KEYBOARD)}+${ADD_COLOR(" c ", COLOR_KEYBOARD)} to return to console,`)
+
         } catch (err) {
             console.error(err);
             throw new Error(`
@@ -300,7 +301,7 @@ program
     .command("compile <hydrocarbon_grammar_file>")
     .description("Compiles a JavaScript parser from a HydroCarbon grammar file, an optional HCGStates file, and an optional ENV.js file")
     .option("-o, --output <path>", "Optional output location. Defaults to CWD.")
-    .option("-os, --output_states", "Output a *.hcs file.")
+    .option("--statesout", "Output a *.hcs file.")
     .option("-s, --states <states>", "Use a *.hcs file from a previous compilation instead of a compiling the grammar file.")
     .option("-e, --env <path>", "Optional JavaScript file containing parsing environment information.")
     .option("-m, --mount", "Mounts the compiled parser in the current NodeJS context and allows interactive parsing of user input.")
@@ -338,11 +339,11 @@ program
                 states = parseLRJSONStates(states_string);
             }else{
 
-                states = await compileLRStates(grammar, env);
+                states = await compileLRStates(grammar, env, name);
 
-                if(!!cmd.output_states){
-                    states_output = stringifyLRStates(states);
-                    writeFile(`${name}.hcs`, states_output, output_directory);
+                if(!!cmd.statesout){
+                    const states_output = stringifyLRStates(states);
+                    await writeFile(`${name}.hcs`, states_output, output_directory);
                 }
             }
             
@@ -356,6 +357,8 @@ program
                 console.log(ADD_COLOR("No Output. Skipping file saving", COLOR_ERROR), "\n");
             } else
                 await write(name, script, output_directory, type);
+
+            console.log(`Use ${ADD_COLOR(" ctrl ", COLOR_KEYBOARD)}+${ADD_COLOR(" c ", COLOR_KEYBOARD)} to return to console.`)
 
             if (!!cmd.mount && !(await mount(name, script, env)))
                 return;

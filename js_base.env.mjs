@@ -26,10 +26,10 @@ const env =  {
 		post_inc_expr : function (sym){this.expr = sym[1]; this.type = "POST INCR"},
 		post_dec_expr : function (sym){this.expr = sym[1]; this.type = "POST DEC"},
 		condition_expr : function (sym){this.condition = sym[0]; this.left = sym[2]; this.right = sym[4]},
-		assignment_expr : function (sym){this.assignee = sym[0]; this.op = sym[1]; this.expr = sym[2]; console.log(env.table)},
+		assignment_expr : function (sym){this.assignee = sym[0]; this.op = sym[1]; this.expr = sym[2];},
 		defaultError: (tk, env, output, lex, prv_lex) => {
-            /*USED for ASI*/
-            if (env.ASI && lex.tx !== ")") {
+
+            if (env.ASI && lex.tx !== ")" && !lex.END) {
                 let ENCOUNTERED_NL = (lex.tx == "}" || lex.END);
 
                 while (!ENCOUNTERED_NL && !prv_lex.END && prv_lex.off < lex.off) {
@@ -42,6 +42,9 @@ const env =  {
 	                return ";";
             }
 
+            if(lex.END)
+            	return ";";
+
             return null;
         }
 
@@ -51,6 +54,7 @@ const env =  {
 	options : {
 		integrate : false,
 		onstart : ()=>{
+			env.table = {};
         	env.ASI = true;	
         }
 	}

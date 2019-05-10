@@ -21,18 +21,19 @@ export function shiftCollisionCheck(grammar, state, new_state, item, size, error
         if (action.name !== "SHIFT") {
             error.log(
                 `\x1b[43m SHIFT/REDUCE \x1b[43m COLLISION ERROR ENCOUNTERED:\x1b[0m
- Reduce action on symbol <${k}> for state <${state.id}> <${state.b.join(" ")}> has already been defined.
+
+ Reduce action on symbol <${k}> has already been defined for state:
+ <${state.id}> ${state.b.join(" ")} 
+ 
     Existing Action: 
          Reduce to Terminal ${grammar[body_b.production].name} from production { ${Lexer.prototype.slice.call(body_b.lex).slice(1).trim()} }
          Definition found on line ${body_b.lex.line+1}:${body_b.lex.char} in input.
-         Production Path ${grammar.states[action.state].d}
 
     Replacing Action: 
         Shift to state {${v.join(" ")}}  from input { ${k} }
         Definition found on line ${body_a.lex.line+1}:${body_a.lex.char} in input.
-        Production Path ${new_state.d}\n
 
-    Favoring Shift Action\n`);
+    Favoring Shift Action`);
             return 0;
         } else {
 
@@ -42,7 +43,9 @@ export function shiftCollisionCheck(grammar, state, new_state, item, size, error
 
             error.log(
                 `\x1b[43m SHIFT \x1b[43m COLLISION ERROR ENCOUNTERED:\x1b[0m
- Shift action on symbol <${k}> for state <${state.id}> <${state.b.join(" ")}> has already been defined.
+
+ Shift action on symbol <${k}> has already been defined for state:
+ <${state.id}> ${state.b.join(" ")} 
 
     Existing Action: 
         Shift to state {${r.join(" ")}}  from input { ${k} }
@@ -51,9 +54,7 @@ export function shiftCollisionCheck(grammar, state, new_state, item, size, error
 
     Replacing Action: 
         Shift to state {${v.join(" ")}}  from input { ${k} }
-        Definition found on line ${body_a.lex.line+1}:${body_a.lex.char} in input.
-        Production Path ${new_state.d}\n\n`);
-
+        Definition found on line ${body_a.lex.line+1}:${body_a.lex.char} in input.`);
 
             return -1;
         }
@@ -98,7 +99,9 @@ export function gotoCollisionCheck(grammar, state, new_state, item, error) {
         let new_state_body = [grammar[bodies[new_state.body].production].name, "→", ...bodies[new_state.body]].map((d) => isNaN(d) ? d : grammar[d].name)
         error.log(
             `\x1b[42m GOTO \x1b[43m COLLISION ERROR ENCOUNTERED:\x1b[0m
- Goto on production {${production}} for state <${state.id}> <${state.b.join(" ")}> has already been defined.
+
+ Goto on production {${production}} has already been defined for state: 
+ <${state.id}> ${state.b.join(" ")}
 
     Existing Action: 
         Goto to state {${grammar.states[goto.state].b.join(" ")}} ${goto.state} from reduction of production { ${Lexer.prototype.slice.call(body_b.lex).slice(1).trim()} }
@@ -129,6 +132,7 @@ export function reduceCollisionCheck(grammar, state, item, error) {
         const bodies = grammar.bodies,
             body_a = bodies[item.body],
             body_b = grammar.bodies[action.body];
+       // error.log(action, body_a.slice(), body_b.slice(), state.b[0], grammar[item.body_.production].name)
 
         if (action.name !== "REDUCE") {
 
@@ -138,46 +142,48 @@ export function reduceCollisionCheck(grammar, state, item, error) {
             error.log(
 `\x1b[43m REDUCE/SHIFT  \x1b[43m COLLISION ERROR ENCOUNTERED:\x1b[0m
 
- Reduce action on symbol <${k}> for state <${state.id}> <${state.b.join(" ")}> has already been defined.
+ Reduce action on symbol <${k}> has already been defined for state:
+ <${state.id}> ${state.b.join(" ")}
+
         Existing Action: 
             Shift to state {${v.join(" ")}}  from input { ${k} }
-            Definition found on line ${body_b.lex.line+1}:${body_b.lex.char} in input.\n\n
-            Production Path ${grammar.states[action.state].d}
+            Definition found on line ${body_b.lex.line+1}:${body_b.lex.char} in input.
 
         Replacing Action: 
              Reduce to {${grammar[body_a.production].name}} from production { ${Lexer.prototype.slice.call(body_a.lex).slice(1).trim()} }
              Definition found on line ${body_a.lex.line+1}:${body_a.lex.char} in input.
-             Production Path ${state.d}
 
         Favoring Shift Action \n`);
             return 1;
         }
 
-        if (grammar[body_b.production].name == state.b[0]) // TODO: Already reducing to the expected production )
+        if (grammar[item.body_.production].name == state.b[0]) // TODO: Already reducing to the expected production )
         {
             //console.log("TODO: Duplicate reduce merge", state.b[0], grammar[body_b.production].name)
             return 1;
         }
 
         if (
-            //true || /*//*/
             grammar[body_a.production].name !== state.b[0] &&
             body_b.production !== body_a.production // Reduction to same production should not be an error
         ) {
 
             error.log(
                 `\x1b[41m REDUCE \x1b[43m COLLISION ERROR ENCOUNTERED:\x1b[0m
- A reduction on symbol <${k}> for state <${state.id}> has already been defined. ${state.b.join(" ")}
+                
+ A reduction on symbol <${k}> has already been defined for state:
+ <${state.id}> ${state.b.join(" ")}
 
         Existing Action:
-            Reduce to {${grammar[body_b.production].name}} from production { ${body_b.lex.slice().slice(1).trim()} }
+            Reduce to {${grammar[body_b.production].name}} from production { ${Lexer.prototype.slice.call(body_b.lex).slice(1).trim()} }
             Definition found on line ${body_b.lex.line+1}:${body_b.lex.char} in input.
-            Production Path ${grammar.states[action.state].d}
+            ${grammar.states[action.state].d}
 
         Replacing Action:
-            Reduce to {${grammar[body_a.production].name}} from production { ${body_a.lex.slice().slice(1).trim()} }
+            Reduce to {${grammar[body_a.production].name}} from production { ${Lexer.prototype.slice.call(body_a.lex).slice(1).trim()} }
             Definition found on line ${body_a.lex.line+1}:${body_a.lex.char} in input.
-            Production Path ${state.d}\n\n`);
+            ${state.d}
+            `);
 
             return -1;
         }

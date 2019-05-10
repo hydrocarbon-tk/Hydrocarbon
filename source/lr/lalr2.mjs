@@ -3,10 +3,11 @@
 import { FIRST, isNonTerm, filloutGrammar, Item, EMPTY_PRODUCTION } from "../common.mjs";
 import { gotoCollisionCheck, reduceCollisionCheck, shiftCollisionCheck } from "./error.mjs";
 
-function ProcessState(items, state, states, grammar, items_set, error, LALR_MODE = false) {
+function processState(items, state, states, grammar, items_set, error, LALR_MODE = false) {
+
     const bodies = grammar.bodies;
 
-    items = Closure(state.id, items, grammar);
+    processClosure(state.id, items, grammar, error);
 
     if (!state.b)
         state.b = [grammar[bodies[items[0][0]].production].name, "→", ...bodies[items[0][0]]].map((d) => isNaN(d) ? d : grammar[d].name);
@@ -56,8 +57,6 @@ function ProcessState(items, state, states, grammar, items_set, error, LALR_MODE
             if (tok == EMPTY_PRODUCTION)
                 continue;
 
-            item.USED = true;
-
             const id_append = new Set(),
                 osid = item.sym;
 
@@ -67,90 +66,23 @@ function ProcessState(items, state, states, grammar, items_set, error, LALR_MODE
                 out_items = [],
                 new_exclude = [];
 
-                let I = 0;
+            let I = 0;
 
             for (let j = i; j < l; j++) {
                 const item = items[j];
 
                 if (item.sym == osid) {
                     if (!id_append.has(item.full_id)) {
-                        item.USED = true;
-                        let SKIP = false;
-
-                        for (let i = 0; i < items.exclude.length; i++) {
-                            let e = items.exclude[i];
-
-
-
-                            if (SKIP) break;
-
-                            if (item.body == e.body && item.offset == e.offset) {
-                                if (!isNonTerm(item.sym)) {
-                                    if (item.sym == e.symbols[e.offset]) {
-                                        if (e.offset == e.l - 1) {
-                                            const body = item.body_
-                                            //console.log(state.id, grammar[body.production].name + " " + body.join(" "), e.symbols.join(" "),item.follow.v);
-                                            SKIP = true;
-                                            break;
-                                        }
-                                        new_exclude.push({ body: e.body, symbols: e.symbols, offset: e.offset + 1, l: e.l });
-                                    }
-                                } else {
-
-                                    if (e.symbols[e.offset + 1] && item.body_[item.offset + 1] == e.symbols[e.offset + 1]) {
-                                        grammar[item.sym].bodies.forEach(b => {
-                                            //console.log({ body: b.id, symbols: e.symbols.slice(1), offset: 0, l: e.l - 1 })
-                                            items.exclude.push({ body: b.id, symbols: e.symbols.slice(1), offset: 0, l: e.l - 1 });
-                                            //new_exclude.add({ body: b.id, symbols: e.symbols.slice(1), offset: 0, l: e.l - 1 });
-                                        });
-                                    } else {
-
-
-                                        if(sid.has(item.increment().id)) continue; // Have already added all bodies for this particular item. 
-                                        
-                                        
-                                        const sym_bodies = grammar[item.sym].bodies,
-                                            stack = [],
-                                            set = new Set();
-
-                                        for (let i = 0; i < sym_bodies.length; i++) {
-                                            stack.push(sym_bodies[i]);
-                                            //if (isNonTerm(sym_bodies[i][0]))
-                                            set.add(sym_bodies[i]);
-                                        }
-
-                                        while (stack.length > 0) {
-                                            let body = stack.shift();
-
-                                            if (!isNonTerm(body[0])) {
-                                                if (body[0] == e.symbols[e.offset]) {
-                                                    I++
-                                                    let id = body.id + "" + e.symbols.join("") + e.offset + e.l;
-                                                    if(!exc_cache.has(id)){
-                                                        items.exclude.push({ body: body.id, symbols: e.symbols, offset: e.offset, l: e.l });
-                                                        exc_cache.add(id);
-                                                    }
-                                                }
-                                            } else {
-                                                const sym_bodies = grammar[body[0]].bodies;
-                                                for (let i = 0; i < sym_bodies.length; i++) {
-                                                    if (!set.has(sym_bodies[i])) {
-                                                        stack.push(sym_bodies[i]);
-                                                        set.add(sym_bodies[i]);
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
+                        if (item.USED) {
+                            //error.log(item.body_.slice())
+                            continue;
                         }
 
-                        const new_item = item.increment();
-                        sid.add(new_item.id);
+                        item.USED = true;
 
-                        if (SKIP)
-                            continue;
+                        const new_item = item.increment();
+
+                        sid.add(new_item.id);
 
                         out_items.push(new_item);
                         id_append.add(new_item.full_id);
@@ -160,50 +92,29 @@ function ProcessState(items, state, states, grammar, items_set, error, LALR_MODE
 
             sid = [...sid.values()].sort((a, b) => a < b ? -1 : 1).join(";");
 
-            if (out_items.length == 0) 
+            if (out_items.length == 0)
                 continue
 
             if (!LALR_MODE)
                 sid = [...id_append.values()].slice(1).sort((a, b) => a < b ? -1 : 1).join("");
 
-            //console.log(tok,state.id, [...state.map.keys()].join("`"), );
-            //while (true) {
-                
+            if (state.map.has(tok)) {
+                const existing_state = state.map.get(tok);
 
-                if (state.map.has(tok)) {
-                    //
-                    //console.log(state.id, "state_existing", tok)
-                    const existing_state = state.map.get(tok);
+                const nsid = [...(new Set(...existing_state.real_id.split(";"), sid.split(";")))].sort((a, b) => a < b ? -1 : 1).join(";");
 
-                    const nsid = [...(new Set(...existing_state.real_id.split(";"), sid.split(";")))].sort((a, b) => a < b ? -1 : 1).join(";");
+                new_state = existing_state;
+                existing_state.real_id = nsid;
 
-                    //console.log("nnn", existing_state.real_id, nsid);
-                    //if(new_state.real_id.length < sid.length)
-                    new_state = existing_state;
-                    existing_state.real_id = nsid;
-
-
-
-                    if(!(states.map.has(nsid)) ){
-                        states.map.set(nsid, existing_state);
-                      //  break;
-                    }
-
-                   // continue;
-                    
-                }else
-
-                if (states.map.has(sid)) {
-                    //console.log(state.id, "existing", tok)
-                    new_state = states.map.get(sid);
+                if (!(states.map.has(nsid))) {
+                    states.map.set(nsid, existing_state);
                 }
-
-               // break;
-            //}
+            } else if (states.map.has(sid)) {
+                new_state = states.map.get(sid);
+            }
 
             if (!new_state) {
                 const body = out_items[0].body_;
-                //console.log(state.id, "new", tok)
                 states.push({
                     action: new Map,
                     goto: new Map,
@@ -211,7 +122,6 @@ function ProcessState(items, state, states, grammar, items_set, error, LALR_MODE
                     body: body.production,
                     b: [grammar[body.production].name, "→", ...body.map((d) => isNaN(d) ? d : grammar[d].name)],
                     d: `${state.d} => [${[...(out_items.map(i=>`${grammar[i.body_.production].name} → ${(i.body_.slice().map((d) => isNaN(d) ? d : grammar[d].name)).join(" ")}`)).reduce((r,e)=>(r.add(e), r) ,new Set).values()].join(", ")}]`,
-                    sigs: 'dd', //new Set(new_items.map((k) => k.full_id)),
                     real_id: sid,
                     follows: null,
                     map: new Map(),
@@ -220,17 +130,11 @@ function ProcessState(items, state, states, grammar, items_set, error, LALR_MODE
 
                 new_state = states[states.length - 1];
 
-                //console.log(new_state.id , sid)
                 state.map.set(tok, new_state);
                 states.map.set(sid, new_state);
             }
 
             state.map.set(tok, new_state);
-
-            if (!state.map.has(tok))
-                console.log("AWEASDASDWQWDASDASDEW")
-
-            //const ASSOCIATION = (item[0] == state.body) && !!grammar.rules.assc;
 
             if (!isNonTerm(tok)) {
 
@@ -239,8 +143,6 @@ function ProcessState(items, state, states, grammar, items_set, error, LALR_MODE
                     let SKIP = false;
 
                     if (!SKIP) {
-                        //console.log(`${tok} ${sid} [${new_state.d}]`);
-                        //  console.log(tok,shiftCollisionCheck(grammar, state, new_state, item, size))
                         switch (shiftCollisionCheck(grammar, state, new_state, item, size, error)) {
                             case -1:
                                 return false;
@@ -250,7 +152,6 @@ function ProcessState(items, state, states, grammar, items_set, error, LALR_MODE
                         }
                     }
                 }
-
             } else {
 
                 switch (gotoCollisionCheck(grammar, state, new_state, item, error)) {
@@ -259,11 +160,10 @@ function ProcessState(items, state, states, grammar, items_set, error, LALR_MODE
                     case 0: //Original
                         break;
                     case 1: //New
-                        state.goto.set(tok == EMPTY_PRODUCTION ? item.v : tok, { name: "GOTO", state: new_state.id, body: body.id});
+                        state.goto.set(tok == EMPTY_PRODUCTION ? item.v : tok, { name: "GOTO", state: new_state.id, body: body.id });
                         break;
                 }
             }
-
 
             if (new_state.follows) {
                 out_items = out_items.reduce((a, i) => (!new_state.follows.has(i.full_id)) ? (new_state.follows.add(i.full_id), a.push(i), a) : a, []);
@@ -272,8 +172,8 @@ function ProcessState(items, state, states, grammar, items_set, error, LALR_MODE
 
             if (out_items.length == 0)
                 continue;
-            //console.log(new_state.id, "ZOmbie", new_exclude);
-            out_items.exclude = new_exclude;
+
+            out_items.excludes = items.excludes.slice();
 
             items.s = new_state;
 
@@ -283,8 +183,17 @@ function ProcessState(items, state, states, grammar, items_set, error, LALR_MODE
     return true;
 }
 
+function processClosure(state_id, items, grammar, error, excludes, offset = 0, added = new Set()) {
+    let exclusion_count = 0;
 
-function Closure(state_id, items, grammar, exclude = null, offset = 0, added = new Set()) {
+    if (!excludes) {
+        if (items.excludes)
+            excludes = items.excludes.slice();
+        else
+            excludes = [];
+        items.excludes = [];
+    }
+
     const bodies = grammar.bodies,
         g = items.length;
 
@@ -295,12 +204,47 @@ function Closure(state_id, items, grammar, exclude = null, offset = 0, added = n
             index = item.offset,
             B = body[index],
             Be = body.slice(index + 1),
-            b = item.follow;
+            b = item.follow,
+            end = items.length;
+
+        const step_excludes = excludes.slice();
 
         if (body.excludeSet.has(index)) {
-            if (!items.exclude)
-                items.exclude = [];
-            body.excludeSet.get(index).forEach(e => items.exclude.push({ body: item.body, symbols: Array.isArray(e) ? e : [e], offset: 0, l: Array.isArray(e) ? e.length : 1 }));
+            if (!items.excludes)
+                items.excludes = [];
+            body.excludeSet.get(index).forEach(e => step_excludes.push({ body: item.body, symbols: Array.isArray(e) ? e : [e], offset: 0, l: Array.isArray(e) ? e.length : 1, inner_offset: index }));
+        }
+
+        const new_excludes = [];
+        const out_excludes = [];
+        const item_excludes = [];
+
+        for (let u = 0; u < step_excludes.length; u++) {
+
+            let ex = step_excludes[u];
+
+            if (item.body == ex.body && index == ex.inner_offset) {
+                let d = ex.offset,
+                    j = index; //, clock = 0;
+                let i_sym = body[j];
+                let e_sym = ex.symbols[d];
+
+                if (!isNonTerm(i_sym) && i_sym == e_sym) {
+
+                    if (d == ex.l - 1) {
+                        const body = item.body_
+                        exclusion_count++;
+                        item.USED = true;
+                        break;
+                    }
+
+                    //Excludes going to next round
+                    items.excludes.push({ body: ex.body, symbols: ex.symbols, offset: d + 1, l: ex.l, inner_offset: j + 1 });
+                } else {
+                    new_excludes.push({ body: ex.body, symbols: ex.symbols, offset: d, l: ex.l, inner_offset: 0 });
+
+                }
+            }
         }
 
         if (item.USED)
@@ -320,8 +264,9 @@ function Closure(state_id, items, grammar, exclude = null, offset = 0, added = n
             for (let i = 0; i < production.bodies.length; i++) {
 
                 const pbody = production.bodies[i];
+                const body_index = pbody.id;
 
-                //Check the first in the body to see if there is a set that should exclude a particular production of B
+                out_excludes.push(...new_excludes.map(e => ({ body: body_index, symbols: e.symbols, offset: e.offset, l: e.l, inner_offset: e.inner_offset })));
 
                 for (let i = 0; i < first.length; i++) {
                     if (!first[i])
@@ -336,17 +281,25 @@ function Closure(state_id, items, grammar, exclude = null, offset = 0, added = n
                     }
                 }
             }
+            const added_count = items.length - end;
 
-            Closure(state_id, items, grammar, exclude, g, added);
+            const count = processClosure(state_id, items, grammar, error, out_excludes, g, added)
+
+            if (count > 0 && count == added_count) {
+                item.USED = true;
+                exclusion_count++;
+            }
+
+            exclusion_count += count;
         }
     }
-    return items;
+
+
+    return exclusion_count;
 }
 
 function createInitialState(grammar) {
     const states = [{ action: new Map, goto: new Map, map: new Map, id: 0, body: 0, exclude: new Set(), d: "start" }];
-    //states.bodies = grammar.bodies;
-    //states.grammar = grammar;
     states.type = "lr";
     states.map = new Map([]);
     states.count = 1;
@@ -354,17 +307,17 @@ function createInitialState(grammar) {
     return states;
 }
 
-export function * compileLRStates(grammar, env = {}) {
+export function* compileLRStates(grammar, env = {}) {
 
-    const error = new (class{
-        constructor(){
-            this.strings=  []
+    const error = new(class {
+        constructor() {
+            this.strings = []
         }
 
-        log(...vals){
-            this.strings.push(`${vals.join(",")}`);
+        log(...vals) {
+            this.strings.push(`${vals.map(e=>typeof e !== "string" ? JSON.stringify(e).replace(/\"/g,"") : e).join(", ")}`);
         }
-        get output(){return strings.join("\n")}
+        get output() { return strings.join("\n") }
     })
     /* Storage for Items is determined by three numbers. 
      * 1. The index offset of a production body in a grammar.
@@ -387,30 +340,32 @@ export function * compileLRStates(grammar, env = {}) {
         i = 0,
         total_items = 1;
 
-    items_set[0].c.exclude = [];
+    items_set[0].c.excludes = [];
 
     while (items_set.length > 0) {
         let start = items_set.length;
 
         let items = items_set.shift();
 
-        if (!ProcessState(items.c, items.s, states, grammar, items_set, error, LALR_MODE)) {
+        if (!processState(items.c, items.s, states, grammar, items_set, error, LALR_MODE)) {
             if (LALR_MODE) {
+                error.log("Unable to continue in LALR mode. Restarting in CLR Mode. \n")
                 states = createInitialState(grammar);
-                items_set = [{ c: Closure(0, [new Item(0, bodies[0].length, 0, "$", 0, grammar)], grammar), s: states[0] }];
+                items_set = [{ c: [new Item(0, bodies[0].length, 0, "$", 0, grammar)], s: states[0] }];
                 LALR_MODE = false;
-                yield {error, states: states,num_of_states: states.length, total_items, items_left: items_set.length, COMPLETE:false, ERROR:true, error_msg: "Unable to continue in LALR mode. Restarting in CLR Mode. \n"}
+                yield { error, states: states, num_of_states: states.length, total_items, items_left: items_set.length, COMPLETE: false, ERROR: true, error_msg: "Unable to continue in LALR mode. Restarting in CLR Mode. \n" }
+                return { error, states: states, num_of_states: states.length, total_items, items_left: items_set.length, COMPLETE: true, ERROR: true, error_msg: "Unable to continue in LALR mode. Restarting in CLR Mode. \n" }
                 break
             } else {
                 states.INVALID = true;
-                return {error, states, num_of_states: states.length,total_items,  items_left: items_set.length, COMPLETE:true, ERROR:true, error_msg: "Unable to parse grammar. It does not appear to be a LR grammar.\n"}
+                return { error, states, num_of_states: states.length, total_items, items_left: items_set.length, COMPLETE: true, ERROR: true, error_msg: "Unable to parse grammar. It does not appear to be a LR grammar.\n" }
             }
         }
 
-        if(items_set.length > start)
+        if (items_set.length > start)
             total_items += items_set.length - start;
 
-        yield {error, states, num_of_states: states.length,total_items, items_left: items_set.length, COMPLETE:false}
+        yield { error, states, num_of_states: states.length, total_items, items_left: items_set.length, COMPLETE: false }
     }
 
     if (grammar.ignore) {
@@ -421,6 +376,6 @@ export function * compileLRStates(grammar, env = {}) {
             });
         });
     }
-    
-    return {error, states, num_of_states: states.length,total_items, items_left:0, COMPLETE:true, ERROR:false};
+
+    return { error, states, num_of_states: states.length, total_items, items_left: 0, COMPLETE: true, ERROR: false };
 }

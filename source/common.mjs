@@ -284,10 +284,10 @@ export function createFunctions(production, body, env) {
         if (body.funct.cstr[0] == "^") {
 
             const funct = env.functions[body.funct.cstr.slice(1)];
-
+            
             if (funct) {
-                node = funct;
-                node.NAME = funct.name;
+                node = {};
+                node.NAME = body.funct.cstr.slice(1);
                 node.TYPE = "class";
             } else {
                 node = {}
@@ -296,6 +296,7 @@ export function createFunctions(production, body, env) {
             }
 
             ENV = true;
+            node.ENV = ENV;
         }
 
         if (!node) {

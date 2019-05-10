@@ -11,19 +11,18 @@
         <div id="main"></div>
         <template id="template">
             <scope>
-                <textarea value=((value))></textarea>
-                <p>((js_output))</p>
+                <textarea value=((value)())></textarea>
+                <textarea value=((js_output))></textarea>
+                <div>((table_output))</div>
                 <script on=((value))>
-                    const env = presets.custom.env;
-					const js_base = presets.custom.js_base;
-					const whind = wick.whind;
-
 					try{
+						env.table = {};
 						let result = js_base(whind(value), env);
-						console.log(result)
-						emit.js_output = JSON.stringify(result[0])
+						console.log(result[0])
+						emit("js_output",JSON.stringify(result[0]))
+						table_output = JSON.stringify(env.table)
 					}catch(e){
-						emit.js_output = e + "";
+						emit.js_output = (e + "");
 					}
 				</script>
             </scope>

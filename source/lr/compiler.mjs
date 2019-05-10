@@ -252,7 +252,8 @@ export function LRParserCompiler(states, grammar, env) {
     if (env.functions) {
         for (let n in env.functions) {
             const funct = env.functions[n];
-            if (COMPILE_FUNCTION || !funct.ENV)
+            
+            if (COMPILE_FUNCTION || funct.ENV === false)
                 functions.push(`${n}=${funct.toString().replace(/(anonymous)?[\n\t]*/g,"")}`);
         }
     }
@@ -286,14 +287,13 @@ ${getToken.toString()}
 
     if(symbols.length > 0){
         symbols.forEach(s=> {l.addSymbol(s)});
-        l.off = 0;
         l.tl = 0;
         l.next();
     }
 
     const o = [], ss = [0,0];
     
-    let time = 10000, RECOVERING = false,
+    let time = 10000, RECOVERING = 1,
         tk = getToken(l, re), p = l.copy(), sp = 1, len = 0, off= 0;
     
     outer:
@@ -317,8 +317,8 @@ ${getToken.toString()}
             
             const recovery_token = eh[ss[sp]](tk, e, o, l, p, ss[sp]);
             
-            if(!RECOVERING && typeof(recovery_token) == "string"){
-                RECOVERING = true; // To prevent infinite recursion
+            if(RECOVERING > 1 && typeof(recovery_token) == "string"){
+                RECOVERING = 0; // To prevent infinite recursion
                 tk = recovery_token;
                 //reset current token
                 l.tl = 0;
@@ -349,7 +349,7 @@ ${getToken.toString()}
                 l.next(); 
                 off = l.off; 
                 tk = getToken(l, re, state[ss[sp]]); 
-                
+                RECOVERING++;
                 break;
 
             case 3: // REDUCE
@@ -365,12 +365,10 @@ ${getToken.toString()}
                     l.throw("Invalid state reached!");
                 
                 ss.push(off, gt); sp+=2; 
-                
                 break;
         }  
-
-        RECOVERING = false;
     }
+    console.log(time)
     return o[0];
 }`;
 

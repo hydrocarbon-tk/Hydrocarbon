@@ -90,7 +90,6 @@ start → script 						↦ cstr return sym[0]
 			│ ɛ
 
 		script_body → statement_list 					↦ cstr return sym[0]
-
 ## STATEMENTS
 
 	##############################################################################################################
@@ -165,8 +164,8 @@ start → script 						↦ cstr return sym[0]
 	# https://www.ecma-international.org/ecma-262/9.0/index.html#sec-expression-statement
 	##############################################################################################################
 
-		if_statement → τif ( expression ) statement τelse statement 				↦ cstr return (new env.functions.if_stmt(sym[2], sym[4], sym[6]))
-			│ τif ( expression ) statement 											↦ cstr return (new env.functions.if_stmt(sym[2], sym[4]))
+		if_statement → τif ( expression ) statement τelse statement 				↦ cstr ^if_stmt
+			│ τif ( expression ) statement 											↦ cstr ^if_stmt
 
 	##############################################################################################################
 	# https://www.ecma-international.org/ecma-262/9.0/index.html#sec-iteration-statements
@@ -177,7 +176,7 @@ start → script 						↦ cstr return sym[0]
 			│ τfor ( expression ; expression ; expression ) statement  							↦ cstr return (new env.functions.for_stmt(sym[2], sym[4], sym[6], sym[8]))
 																								↦ 1 env.ASI = false;
 																								↦ 8 env.ASI = true;
-			│ τfor ( !EXC τlet [ END_EXC ; expression ; expression ) statement 							↦ cstr return (new env.functions.for_stmt(null, sym[4], sym[6], sym[8]))
+			│ τfor ( ; expression ; expression ) statement 										↦ cstr return (new env.functions.for_stmt(null, sym[4], sym[6], sym[8]))
 																								↦ 1 env.ASI = false;
 																								↦ 7 env.ASI = true;
 			│ τfor ( !EXC τlet [ END_EXC expression ;  ; expression ) statement 							↦ cstr return (new env.functions.for_stmt(sym[2], null, sym[6], sym[8]))
@@ -186,13 +185,13 @@ start → script 						↦ cstr return sym[0]
 			│ τfor ( !EXC τlet [ END_EXC expression ; expression ;  ) statement 							↦ cstr return (new env.functions.for_stmt(sym[2], sym[4], null, sym[8]))
 																								↦ 1 env.ASI = false;
 																								↦ 1 env.ASI = true;
-			│ τfor ( !EXC τlet [ END_EXC ;  ; expression ) statement 									↦ cstr return (new env.functions.for_stmt(null, null, sym[6], sym[8]))
+			│ τfor ( ;  ; expression ) statement 												↦ cstr return (new env.functions.for_stmt(null, null, sym[4], sym[6]))
 																								↦ 1 env.ASI = false;
 																								↦ 6 env.ASI = true;
-			│ τfor ( expression ;  ;  ) statement 												↦ cstr return (new env.functions.for_stmt(sym[2], null, null, sym[8]))
+			│ τfor (  !EXC τlet [ END_EXC expression ;  ;  ) statement 							↦ cstr return (new env.functions.for_stmt(sym[2], null, null, sym[8]))
 																								↦ 1 env.ASI = false;
 																								↦ 6 env.ASI = true;
-			│ τfor (  ;  ;  ) statement 														↦ cstr return (new env.functions.for_stmt(null, null, null, sym[8]))
+			│ τfor (  ;  ;  ) statement 														↦ cstr return (new env.functions.for_stmt(null, null, null, sym[5]))
 																								↦ 1 env.ASI = false;
 																								↦ 5 env.ASI = true;
 			│ τfor ( τvar variable_declaration_list ; expression ; expression ) statement  		↦ cstr return (new env.functions.for_stmt(sym[3], sym[5], sym[7], sym[9]))
@@ -207,16 +206,16 @@ start → script 						↦ cstr return sym[0]
 			│ τfor ( τvar variable_declaration_list ;  ;  ) statement 					 		↦ cstr return (new env.functions.for_stmt(sym[3], null , null, sym[9]))
 																								↦ 1 env.ASI = false;
 																								↦ 7 env.ASI = true;
-			│ τfor ( lexical_declaration ; expression ; expression ) statement   			 	↦ cstr return (new env.functions.for_stmt(sym[2], sym[4], sym[6], sym[8]))
+			│ τfor ( lexical_declaration expression ; expression ) statement   			 		↦ cstr return (new env.functions.for_stmt(sym[2], sym[4], sym[6], sym[8]))
 																								↦ 1 env.ASI = false;
 																								↦ 8 env.ASI = true;
-			│ τfor ( lexical_declaration ; expression ;  ) statement 					 		↦ cstr return (new env.functions.for_stmt(sym[2], sym[4], null, sym[8]))
+			│ τfor ( lexical_declaration expression ;  ) statement 					 			↦ cstr return (new env.functions.for_stmt(sym[2], sym[3], null, sym[6]))
 																								↦ 1 env.ASI = false;
 																								↦ 7 env.ASI = true;
-			│ τfor ( lexical_declaration ;  ; expression ) statement 					 		↦ cstr return (new env.functions.for_stmt(sym[2], null, sym[6], sym[8]))
+			│ τfor ( lexical_declaration  ; expression ) statement 					 			↦ cstr return (new env.functions.for_stmt(sym[2], null, sym[5], sym[6]))
 																								↦ 1 env.ASI = false;
 																								↦ 7 env.ASI = true;
-			│ τfor ( lexical_declaration ;  ;  ) statement 								 		↦ cstr return (new env.functions.for_stmt(sym[2], null, null, sym[8]))
+			│ τfor ( lexical_declaration  ;  ) statement 								 		↦ cstr return (new env.functions.for_stmt(sym[2], null, null, sym[5]))
 																								↦ 1 env.ASI = false;
 																								↦ 6 env.ASI = true;
 			│ τfor ( !EXC τlet [ END_EXC left_hand_side_expresssion τin expression ) statement 			↦ cstr return (new env.functions.for_in_stmt(sym[2], sym[4], sym[6]))
@@ -253,8 +252,8 @@ start → script 						↦ cstr return sym[0]
 	# https://www.ecma-international.org/ecma-262/9.0/index.html#sec-return-statement
 	##############################################################################################################
 
-		return_statement → τreturn ; 			↦ cstr ^return_stmt
-			│ τreturn  expression ; 		↦ cstr return (new env.functions.return_stmt(sym[1]))
+		return_statement → τreturn ; 			↦ cstr return (new env.functions.return_stmt([]))
+			│ τreturn  expression ; 		↦ cstr ^return_stmt
 
 	##############################################################################################################
 	# https://www.ecma-international.org/ecma-262/9.0/index.html#sec-throw-statement
@@ -296,7 +295,7 @@ start → script 						↦ cstr return sym[0]
 
 		labelled_statement → label_identifier label_assign 		↦ cstr ^label_stmt
 
-		label_assign → : labelled_item
+		label_assign → : labelled_item 							↦ cstr return sym[1]
 
 		labelled_item → statement
 			│ function_declaration
@@ -359,21 +358,22 @@ start → script 						↦ cstr return sym[0]
 	# https://www.ecma-international.org/ecma-262/9.0/index.html#sec-function-definitions
 	##############################################################################################################
 
-		function_declaration → τfunction ( formal_parameters ) { function_body } 
-			│ τfunction binding_identifier ( formal_parameters ) { function_body }
-
 		function_expression → function_declaration
+
+		function_declaration → τfunction ( formal_parameters ) { function_body }  		↦ cstr return new env.functions.funct_decl(null, sym[2], sym[5])
+			│ τfunction binding_identifier ( formal_parameters ) { function_body } 		↦ cstr return new env.functions.funct_decl(sym[1], sym[3], sym[6])
+
 
 		unique_formal_parameters → formal_parameters
 
 		formal_parameters → ɛ
 			 │ function_rest_parameter
 			 │ formal_parameter_list
-			 │ formal_parameter_list , 
-			 │ formal_parameter_list , function_rest_parameter
+			 │ formal_parameter_list , 								↦ cstr return sym[0]
+			 │ formal_parameter_list , function_rest_parameter		↦ cstr return (sym[0].push(sym[2]), sym[0])	
 
-		formal_parameter_list → formal_parameter 
-			 │ formal_parameter_list , formal_parameter
+		formal_parameter_list → formal_parameter 					↦ cstr return [sym[0]]	
+			 │ formal_parameter_list , formal_parameter 			↦ cstr return (sym[0].push(sym[2]), sym[0])	
 
 		function_rest_parameter → binding_rest_element
 
@@ -388,7 +388,7 @@ start → script 						↦ cstr return sym[0]
 	# https://www.ecma-international.org/ecma-262/9.0/index.html#sec-arrow-function-definitions
 	##############################################################################################################
 
-		arrow_function → arrow_parameters => concise_body 								↦ cstr ^arrow
+		arrow_function → arrow_parameters => concise_body 								↦ cstr return new env.functions.funct_decl(null, sym[0], sym[2])
 
 		arrow_parameters → binding_identifier 
 			│ cover_parenthesized_expression_and_arrow_parameter_list
@@ -454,7 +454,7 @@ start → script 						↦ cstr return sym[0]
 # https://www.ecma-international.org/ecma-262/9.0/index.html#sec-comma-operator
 ##############################################################################################################
 
-	expression → assignment_expression 				↦ cstr return [sym[0]]						
+	expression → assignment_expression 					↦ cstr return [sym[0]]						
 		│ expression , assignment_expression			↦ cstr return (sym[0].push(sym[2]), sym[0])
 
 
@@ -655,8 +655,8 @@ start → script 						↦ cstr return sym[0]
 		relational_expression → shift_expression 
 			│ relational_expression < shift_expression				↦ cstr ^lt_expr	
 			│ relational_expression >  shift_expression				↦ cstr ^gt_expr	
-			│ relational_expression <= shift_expression				↦ cstr ^gr_eq_expr	
-			│ relational_expression >= shift_expression				↦ cstr ^lt_eq_expr	
+			│ relational_expression <= shift_expression				↦ cstr ^lt_eq_expr	
+			│ relational_expression >= shift_expression				↦ cstr ^gt_eq_expr	
 			│ relational_expression τinstanceof shift_expression	↦ cstr ^instanceof_expr	
 			│ relational_expression τin shift_expression			↦ cstr ^in_expr	
 
@@ -691,7 +691,7 @@ start → script 						↦ cstr return sym[0]
 	##############################################################################################################
 
 		exponentiation_expression → unary_expression 
-			│ update_expression ** exponentiation_expression		↦ cstr ^expo_expr
+			│ update_expression ** exponentiation_expression		↦ cstr ^exp_expr
 
 	##############################################################################################################
 	# https://www.ecma-international.org/ecma-262/9.0/index.html#sec-unary-operators
@@ -701,7 +701,7 @@ start → script 						↦ cstr return sym[0]
 			│ τdelete unary_expression			↦ cstr ^delete_expr
 			│ τvoid unary_expression			↦ cstr ^void_expr	
 			│ τtypeof unary_expression			↦ cstr ^typeof_expr
-			│ + unary_expression				↦ cstr ^unary_or_expr
+			│ + unary_expression				↦ cstr ^plus_expr
 			│ - unary_expression				↦ cstr ^negate_expr
 			│ ~ unary_expression				↦ cstr ^unary_or_expr
 			│ ! unary_expression				↦ cstr ^unary_not_expr
@@ -712,10 +712,10 @@ start → script 						↦ cstr return sym[0]
 	##############################################################################################################
  	
 		update_expression →  left_hand_side_expresssion 
-			│ left_hand_side_expresssion !ERR θnl ++		↦ cstr ^post_inc_expr
-			│ left_hand_side_expresssion !ERR θnl --		↦ cstr ^post_dec_expr
-			│ ++ unary_expression				↦ cstr ^pre_inc_expr
-			│ -- unary_expression				↦ cstr ^pre_dec_expr
+			│ left_hand_side_expresssion  ++			↦ cstr ^post_inc_expr
+			│ left_hand_side_expresssion  --			↦ cstr ^post_dec_expr
+			│ ++ unary_expression						↦ cstr ^pre_inc_expr
+			│ -- unary_expression						↦ cstr ^pre_dec_expr
 
 	##############################################################################################################	
 	# https://www.ecma-international.org/ecma-262/9.0/index.html#prod-AwaitExpression

@@ -1,8 +1,10 @@
 #IGNORE θws ;
 
 S → s 
-s → D τd │ !EXC τa τb END_EXC E E
-E → τa τb τd │ τa τd │ τc 
+s → E τd │ !EXC τa τb END_EXC J E
+E → τa τb τd │ τd τd │ τc 
+J → τa F │ τa
+F → τb τd
 D → τa B 
 B → τb 
 
