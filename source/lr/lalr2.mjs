@@ -121,7 +121,7 @@ function processState(items, state, states, grammar, items_set, error, LALR_MODE
                     id: states.length,
                     body: body.production,
                     b: [grammar[body.production].name, "→", ...body.map((d) => isNaN(d) ? d : grammar[d].name)],
-                    d: `${state.d} => [${[...(out_items.map(i=>`${grammar[i.body_.production].name} → ${(i.body_.slice().map((d) => isNaN(d) ? d : grammar[d].name)).join(" ")}`)).reduce((r,e)=>(r.add(e), r) ,new Set).values()].join(", ")}]`,
+                    d: `${state.d} =>\n [${[...(out_items.map(i=>`${grammar[i.body_.production].name} → ${(i.body_.slice().map((d) => isNaN(d) ? d : grammar[d].name)).join(" ")}`)).reduce((r,e)=>(r.add(e), r) ,new Set).values()].join(", ")}]`,
                     real_id: sid,
                     follows: null,
                     map: new Map(),

@@ -1,0 +1,104 @@
+#################################
+#### Hydrocarbon HCG Grammar ####
+#################################
+#SYMBOLS (( )) -- @PREC @SYMBOL @IGNORE @NAME WERWER
+
+#IGNORE θws θnl
+
+
+S → head															↦cstr return sym[0]
+
+head → preamble productions 				 						↦cstr this.pre = sym[0]; this.prods = sym[1]
+
+preamble → preamble_components										
+	│ ɛ
+
+preamble_components → preamble_component 							↦cstr return [sym[0]] 
+	│ preamble_components preamble_component 						↦cstr return sym[0].push(sym[1]), sym[0]
+
+preamble_component →  ignore_preamble
+	│ symbols_preamble
+	│ precedence_preamble
+	│ name_preamble
+	│ comment  	
+
+precedence_preamble → @PREC terminal_symbol θnum comment_delimiter 	↦cstr this.type='precedence'; this.terminal = sym[1]; this.val = parseInt(sym[2])
+symbols_preamble → @SYMBOL ignore_symbols comment_delimiter 		↦cstr this.type='symbols'; this.symbols = sym[1]
+ignore_preamble → @IGNORE ignore_symbols comment_delimiter			↦cstr this.type='ignore'; this.symbols = sym[1]
+name_preamble → @NAME identifier comment_delimiter 					↦cstr this.type='name'; this.id = sym[1]
+
+productions → production  											↦cstr return [sym[0]] 	
+			│ productions production 	 							↦cstr return sym[0].push(sym[1]), sym[0]
+			│ productions comment 	 							    ↦cstr return sym[0].push(sym[1]), sym[0]
+			│ ɛ 	
+
+production → production_id \→ production_bodies --					↦cstr this.id = sym[0]; this.bodies = sym[2]
+
+production_bodies → production_body 					 			↦cstr return [sym[0]] 
+			│ production_bodies \│ production_body 					↦cstr return sym[0].push(sym[2]), sym[0]
+
+
+
+production_body → entries  											
+
+
+entries → body_entries 												↦cstr this.body = sym[0]; this.body_functs = null				
+		│ body_entries body_functions 								↦cstr this.body = sym[0]; this.body_functs = sym[1]
+		│ \ɛ body_functions 										↦cstr this.body = null; this.body_functs = sym[1]
+		│ \ɛ  														↦cstr this.body = null; this.body_functs = null
+
+body_entries → symbol 												↦cstr this.sym = [sym[0]]; this.length = 1; this.conditions = []; this.functions = [];
+  			 │ condition_clause 									↦cstr this.sym = []; this.length = 0; this.conditions = [sym[0]]; this.functions = []; sym[0].offset = this.length;
+  			 │ function_clause	 									↦cstr this.sym = []; this.length = 0; this.conditions = []; this.functions = [sym[0]]; sym[0].offset = this.length;
+			 │ body_entries function_clause 						↦cstr return (sym[0].functions.push(sym[1]),  sym[1].offset = sym[0].length, sym[0])
+			 │ body_entries condition_clause 						↦cstr return (sym[0].conditions.push(sym[1]),  sym[1].offset = sym[0].length, sym[0])
+			 │ body_entries symbol 									↦cstr return (sym[0].sym.push(sym[1]), sym[0].length++, sym[0])
+
+condition_clause → (( τEXC condition_symbol_list )) 				↦cstr this.type = "exc"; this.id = sym[2]
+				 │ (( τERR condition_symbol_list )) 				↦cstr this.type = "err"; this.id = sym[2]
+				 │ (( τIGN condition_symbol_list )) 				↦cstr this.type = "ign"; this.id = sym[2]
+
+
+condition_symbol_list → terminal_symbol  							↦cstr return [sym[0]]
+	│ condition_symbol_list terminal_symbol 						↦cstr return sym[0].push(sym[1]), sym[0]
+
+ignore_symbols → ignore_symbol  									↦cstr return [sym[0]]
+	│ ignore_symbols ignore_symbol 								    ↦cstr return sym[0].push(sym[1]), sym[0]
+
+ignore_symbol → generated_symbol
+	│ literal_symbol
+	│ θsym
+
+terminal_symbol → generated_symbol
+	│ literal_symbol
+	│ escaped_symbol
+	│ θsym 															↦cstr this.type = "symbol"; this.id = sym[0]
+
+symbol → generated_symbol
+	│ production_symbol
+	│ literal_symbol
+	│ escaped_symbol
+	│ θsym 																↦cstr this.type = "symbol"; this.id = sym[0]
+
+generated_symbol → \θ !ERR θws END_ERR !ERR θnl END_ERR identifier 		↦cstr this.type = "generated"; this.id = sym[1]
+literal_symbol → \τ !ERR θws END_ERR !ERR θnl END_ERR identifier 		↦cstr this.type = "literal"; this.id = sym[1]
+escaped_symbol → \\ !ERR θws END_ERR !ERR θnl END_ERR θsym 				↦cstr this.type = "escaped"; this.id = sym[1]
+production_symbol → identifier 											↦cstr this.type = "production"; this.id = sym[0]
+
+production_id → identifier 
+
+identifier → θid
+
+
+comment → \# comment_data comment_delimiter							↦cstr this.val = sym[1]	
+
+comment_delimiter → θnl │ ɛ
+
+comment_data → comment_primitive 									↦cstr return sym[0]	
+			 │ comment_data comment_primitive						↦cstr return sym[0]	 + sym[1]
+
+comment_primitive → θid │ θnum │ θws │ θsym
+
+body_functions → \↦ τcstr { comment_data } 							↦cstr this.type = "cstr"; this.txt = sym[3]; this.id = "";
+ 		│ \↦ τcstr ^ identifier 									↦cstr this.type = "cstr"; this.txt = ""; this.id = sym[3];
+function_clause → \↦ { comment_data } 								↦cstr this.type = "inline"; this.txt = sym[2]; this.id = "";

@@ -1,10 +1,10 @@
 import whind from "../node_modules/@candlefw/whind/source/whind.mjs";
 
-export const MASK = whind.types.symbol | whind.types.operator | whind.types.open_bracket | whind.types.close_bracket;
+export const MASK = whind.types.symbol | whind.types.operator | whind.types.open_bracket | whind.types.close_bracket | whind.types.string;
 
-export const EMPTY_PRODUCTION = "ɛ";
+export const EMPTY_PRODUCTION = "{!--EMPTY_PRODUCTION--!}"//"ɛ";
 
-export const isNonTerm = (f) => f !== undefined && (typeof(f) == "number" || (f[0] !== "τ" && f[0] !== "ɛ" && f[0] !== "θ" && !(whind(f).type & MASK)));
+export const isNonTerm = (f) => f !== undefined && (typeof(f) == "number" || (f[0] !== "τ" && f[0] !== EMPTY_PRODUCTION && f[0] !== "θ" && !(whind(f).type & MASK)));
 
 export const types = whind.types;
 

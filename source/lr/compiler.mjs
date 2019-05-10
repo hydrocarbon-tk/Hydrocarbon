@@ -55,7 +55,7 @@ export function LRParserCompiler(states, grammar, env) {
 
         if (matches.size > 0) {
             let j = 0;
-            errors.push(`(v)=>([${(matches.forEach(v => str+= (j++>0)? `,"${v}"` : `"${v}"`), str)}]).includes(v) ? 1 : 0`);
+            errors.push(`(v)=>([${(matches.forEach(v =>( (v = (v == "\\") ? "\\\\" : v),  str+= (j++>0)? `,\`${v}\`` : `\`${v}\``)), str)}]).includes(v) ? 1 : 0`);
         } else
             errors.push(`(v)=>0`);
     }
@@ -237,7 +237,7 @@ export function LRParserCompiler(states, grammar, env) {
 
         goto_functions.push((goto.length > 0) ? `(v,r = gt${id}[v]) => (r >= 0 ? r : -1)` : `nf`);
 
-        let sm_id = `new Map([${state_map.reduce((a, c, i)=> a + (i%2==0 ? `${i>0?",":""}["${c}"` : "," + c +  "]"), "" )}])`;
+        let sm_id = `new Map([${state_map.reduce((a, c, i)=> a + (i%2==0 ? `${i>0?",":""}[\`${c}\`` : "," + c +  "]"), "" )}])`;
         let mm = state_maps_map.get(sm_id);
         if (mm == undefined) {
             mm = state_maps.length;
@@ -312,6 +312,12 @@ ${getToken.toString()}
         if(fn > 0){
             r = sf[fn-1](tk, e, o, l, ss[sp-1]);
         } else {
+
+            if((l.type & (l.types.op | l.types.sym)) && tk !== "θsym"){
+                tk = "θsym";
+                continue;
+            }
+
             //Error Encountered 
             r = re[ss[sp]];
             

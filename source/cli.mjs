@@ -18,6 +18,7 @@ import * as terser from "terser";
 import path from "path";
 import fs from "fs";
 import readline from "readline";
+import util from "util";
 
 //Regex to match Protocol and/or Drive letter from module url
 const fn_regex = /(file\:\/\/)(\/)*([A-Z]\:)*/g
@@ -191,6 +192,8 @@ async function mount(name, input, env) {
         console.log(ADD_COLOR("The parser has been mounted in NodeJS", COLOR_SUCCESS))
         CLI_INSTRUCTIONS();
 
+        let data = [];
+
         r1.on('line', (input) => {
 
             if (input == "exit") {
@@ -209,14 +212,28 @@ async function mount(name, input, env) {
                 return;
             }
 
+            if (input == "parse") {
+
+
             try {
+                let parse;
                 if (env.options && env.options.integrate)
-                    console.dir(parser(input));
-                else
-                    console.dir(parser(whind(input, true), env));
-            } catch (e) {
-                console.error(e);
+                        parse = parser(data.join("\n"));
+                    else
+                        parse = parser(whind(data.join("\n"), true), env);
+
+                    console.log(util.inspect(parse, false, null, true))
+                } catch (e) {
+                    console.error(e);
+                }
+
+                data = [];
+            }else{
+                data.push(input);
+                console.clear();
+                console.log(data.join("\n"))
             }
+
 
             r1.prompt();
         });

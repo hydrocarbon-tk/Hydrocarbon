@@ -16,7 +16,7 @@
 
 import whind from "../node_modules/@candlefw/whind/source/whind.mjs";
 
-import { isNonTerm } from "./common.mjs";
+import { isNonTerm , EMPTY_PRODUCTION } from "./common.mjs";
 
 function convertProductionNamesToIndexes(productions, LU, lex) {
     let sym = "", body;
@@ -49,6 +49,8 @@ export function grammarParser(grammar) {
 
     let lex = whind(grammar);
     const types = lex.types;
+
+    lex.PARSE_STRING = true;
 
     let productions = [];
     let LU = new Map();
@@ -83,10 +85,10 @@ export function grammarParser(grammar) {
         if (name) {
             expression_name = name;
             time = lex.off;
-            lex.PARSE_STRING = true;
+            //lex.PARSE_STRING = true;
             expression = "";
         } else {
-            lex.PARSE_STRING = false;
+            //lex.PARSE_STRING = false;
             expression_name = "";
             expression = null;
         }
@@ -290,6 +292,37 @@ export function grammarParser(grammar) {
                         productions.reserved.add(sym.slice(1));
                         body.push(sym.trim());
                         continue;
+                    case "\\": //Escaped symbol
+                        if(lex.pk.off == lex.off + lex.tl){
+                            lex.next();
+                            if (expression !== null) {
+                                fence(body, lex);
+                                expression += lex.tx;
+                            } else {
+                                if(lex.tx == '\\')
+                                    body.push("\\\\");
+                                    else
+                                body.push(lex.tx);
+                            }
+                        }else{
+                            if (expression !== null) {
+                                fence(body, lex);
+                                expression += lex.tx;
+                            } else {
+                                body.push(lex.tx);
+                            }
+                        }
+                        break;
+                        //*
+                    case "ɛ": //Empty
+                        if (expression !== null) {
+                            fence(body, lex);
+                            expression += lex.tx;
+                        } else {
+                            body.push(EMPTY_PRODUCTION);
+                        }
+                        break;
+                        //*/
                     case "!":
                         if (lex.tx == "!") {
                             const NEXT_SYMBOL_ADJACENT = (((lex.off + lex.tl) - lex.pk.off) == 0);
