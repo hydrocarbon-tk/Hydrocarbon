@@ -2,9 +2,9 @@ import whind from "../node_modules/@candlefw/whind/source/whind.mjs";
 
 export const MASK = whind.types.symbol | whind.types.operator | whind.types.open_bracket | whind.types.close_bracket | whind.types.string;
 
-export const EMPTY_PRODUCTION = "{!--EMPTY_PRODUCTION--!}"//"ɛ";
+export const EMPTY_PRODUCTION = "{!--EMPTY_PRODUCTION--!}" //"ɛ";
 
-export const isNonTerm = (f) => f !== undefined && (typeof(f) == "number" || (f[0] !== "τ" && f[0] !== EMPTY_PRODUCTION && f[0] !== "θ" && !(whind(f).type & MASK)));
+export const isNonTerm = (f) => f.type == "production";
 
 export const types = whind.types;
 
@@ -12,32 +12,32 @@ const production_stack_arg_name = "sym",
     environment_arg_name = "env",
     lexer_arg_name = "lex";
 
-export function getToken(l, reserved) {
-    if (l.END) return "$";
+export function getToken(l, SYM_LU) {
+    if (l.END) return 0; //"$"
 
     switch (l.ty) {
         case types.id:
-            if (reserved.has(l.tx)) return "τ" + l.tx;
-            return "θid";
+            if (SYM_LU.has(l.tx)) return SYM_LU.get(l.tx);
+            return "id";
         case types.num:
-            return "θnum";
+            return "num";
         case types.string:
-            return "θstr";
+            return "str";
         case types.new_line:
-            return "θnl";
+            return "nl";
         case types.ws:
-            return "θws";
+            return "ws";
         case types.data_link:
-            return "θdl";
+            return "dl";
         default:
-            return l.tx;
+            return SYM_LU.get(l.tx) || SYM_LU.get(l.ty);
     }
 }
 
 export function getPrecedence(term, grammar) {
-    const prec = grammar.rules.prec;
-    if (prec && typeof(term) == "string" && typeof(prec[term]) == "number")
-        return prec[term];
+    //const prec = grammar.rules.prec;
+    //if (prec && typeof(term) == "string" && typeof(prec[term]) == "number")
+    //    return prec[term];
     return -1;
 
 }
@@ -51,37 +51,39 @@ export function createPrecedence(body, grammar) {
 }
 
 /**************** FIRST and FOLLOW sets ***************************/
-function addNonTerminal(table, production_array, grammar, body_ind, index = 0) {
-
-    if (!production_array[index]) {
-        throw new Error(`Empty production at index ${index} in [${grammar[production_array.production].name}]`);
+function addNonTerminal(table, body, grammar, body_ind, index = 0) {
+    if (!body.sym[index]) {
+        return true;
+        //throw new Error(`Empty production at index ${index} in [${body.production.name}]`);
     }
 
-    let first = production_array[index],
+    let first = body.sym[index],
         terminal = "",
         HAS_E = false;
 
-    if (first[0] == "τ") {
-        terminal = first.slice(1);
-    } else if (first.toString().trim() == EMPTY_PRODUCTION) {
+
+    if (first.type == "literal") {
+        terminal = /*"τ" + */ first.val;
+
+    } else if (first.type == "empty") {
         //table.set(EMPTY_PRODUCTION, { v: EMPTY_PRODUCTION, p: grammar.bodies[body_ind].precedence });
         return true;
-    } else if (!isNonTerm(first)) {
+    } else if (first.type !== "production") {
 
-        if (first[first.length - 1] == "!")
-            return addNonTerminal(table, production_array, grammar, body_ind, index + 1, );
+        //if (first[first.length - 1] == "!")
+        //    return addNonTerminal(table, production_array, grammar, body_ind, index + 1, );
 
-        terminal = first;
+        terminal = first.val;
     } else {
 
-        let bodies = grammar[first].bodies;
+        let bodies = grammar[first.val].bodies;
 
         for (let i = 0; i < bodies.length; i++)
-            if (i !== body_ind && first !== production_array.production)
+            if (i !== body_ind && first.val !== body.production.id)
                 HAS_E = addNonTerminal(table, bodies[i], grammar, bodies[i].id);
 
-        if (index < production_array.length - 1 && HAS_E)
-            addNonTerminal(table, production_array, grammar, body_ind, index + 1, );
+        if (index < body.length - 1 && HAS_E)
+            addNonTerminal(table, body, grammar, body_ind, index + 1);
 
         return HAS_E;
     }
@@ -90,11 +92,11 @@ function addNonTerminal(table, production_array, grammar, body_ind, index = 0) {
     let cc = terminal.charCodeAt(0);
 
     //If the first character of the terminal is in the alphabet, treat the token as a identifier terminal
-    if (!(cc < 48 || (cc > 57 && cc < 65) || (cc > 90 && cc < 97) || cc > 122)){
-        terminal = "τ" + terminal;
+    if (!(cc < 48 || (cc > 57 && cc < 65) || (cc > 90 && cc < 97) || cc > 122)) {
+        terminal = /*"τ"*/ "" + terminal;
     }
 
-    table.set(terminal, { v: terminal, p: grammar.bodies[body_ind].precedence });
+    table.set(terminal, { v: terminal, p: grammar.bodies[body_ind].precedence, type: first.type });
 
     return HAS_E;
 }
@@ -108,11 +110,11 @@ const merge = (follow, first) => {
 };
 
 export function FIRST(grammar, ...symbols) {
-
+    /*
     if(symbols.length == 1 && typeof(symbols[0]) !== "object"){
         if(grammar.bodies[symbols[0]].f)
             return grammar.bodies[symbols[0]].f;
-    }
+    }*/
 
     if (!symbols[0]) return [];
 
@@ -122,9 +124,9 @@ export function FIRST(grammar, ...symbols) {
         const SYMBOL = symbols[i],
             subset = new Map();
 
-        if (typeof(SYMBOL) !== "object" /*&& isNonTerm(SYMBOL)*/ ) {
+        if (SYMBOL.type == "production") {
 
-            const production = grammar[SYMBOL];
+            const production = grammar[SYMBOL.val];
 
             let HAS_E = false;
 
@@ -140,12 +142,14 @@ export function FIRST(grammar, ...symbols) {
 
             if (!HAS_E) break;
 
+        } else if (SYMBOL.v) {
+            set.set(SYMBOL.v, SYMBOL);
         } else {
 
-            if (SYMBOL.v == EMPTY_PRODUCTION)
+            if (SYMBOL.type == "empty")
                 continue;
 
-            set.set(SYMBOL.v, SYMBOL);
+            set.set(SYMBOL.val, { v: SYMBOL.val, p: 0, type: SYMBOL.type });
 
             break;
         }
@@ -155,14 +159,16 @@ export function FIRST(grammar, ...symbols) {
 
     set.forEach((v) => val.push(v));
 
-    const v = (symbols[0].v) ? symbols[0].v : symbols[0];
+    //const v = (symbols[0].v) ? symbols[0].v : symbols[0];
 
-    if (isNonTerm(v))
-        grammar[v].first = val;
+    //if (isNonTerm(v))
+    //    grammar[v].first = val;
 
+    /*
     if(symbols.length == 1 && typeof(symbols[0]) !== "object"){
         grammar.bodies[symbols[0]].f = val;
     }
+    */
 
     return val;
 }
@@ -252,132 +258,85 @@ export function FOLLOW(grammar, production) {
 
 /************ Grammar Production Functions *****************************/
 
-function setFunction(env, function_body, function_params = [], this_object = null, body) {
-    if (function_body[0] == "^")
-        if (env && env.functions[function_body.slice(1)])
-            return env.functions[function_body.slice(1)].bind(this_object);
-        else
-            return () => {};
-    let funct;
-
+function setFunction(env, funct, function_params = [], this_object = null) {
+    let func;
     try {
-        funct = (Function).apply(this_object, function_params.concat([function_body]));
+        func = (Function).apply(this_object, function_params.concat([ (funct.type == "RETURNED" ? "return " : "") + funct.txt.trim()]));
     } catch (e) {
-        console.log(function_body)
+
+        console.log(funct.txt)
         console.error(e);
-        funct = () => { return { error: e, type: "error" } }
+        func = () => { return { error: e, type: "error" } }
     }
 
-    return funct
+    return func;
 }
 
-export function createFunctions(production, body, env) {
-    body.node = null;
-    body.err = null;
-    body.sr = [];
+function addFunctions(funct, production, env) {
+    if (!env.id)
+        env.id = 1;
+
+    if (!env.FLUT)
+        env.FLUT = new Map;
 
     if (!production.func_counter)
         production.func_counter = 0;
 
-    if (body.funct.cstr) {
-        let node = null,
-            ENV = false;
+    if (!funct.env) {
+        const str = funct.txt.trim();
+        let name = env.FLUT.get(str);
 
-        if (body.funct.cstr[0] == "^") {
-
-            const funct = env.functions[body.funct.cstr.slice(1)];
-            
-            if (funct) {
-                node = {};
-                node.NAME = body.funct.cstr.slice(1);
-                node.TYPE = "class";
-            } else {
-                node = {}
-                node.NAME = body.funct.cstr.slice(1);
-                node.TYPE = "class"
-            }
-
-            ENV = true;
-            node.ENV = ENV;
+        if (!name) {
+            name = production.name + funct.type + production.func_counter++;
+            env.functions[name] = setFunction(null, funct, [production_stack_arg_name, environment_arg_name, lexer_arg_name, "state"], {});
+            env.functions[name].INTEGRATE = true;
+            env.FLUT.set(str, name);
         }
 
-        if (!node) {
-            if (!env.id)
-                env.id = 1;
-
-            if (!env.FLUT)
-                env.FLUT = new Map();
-
-            let str = body.funct.cstr;
-
-            if (env.FLUT.has(str)) {
-                node = env.FLUT.get(str);
-            } else {
-                let id = production.name + "$" + production.func_counter++;
-                node = setFunction(null, str, [production_stack_arg_name, environment_arg_name, lexer_arg_name, "state"], () => {}, body);
-                env.functions[id] = node;
-                env.FLUT.set(str, node);
-                node.NAME = id;
-                if (str.slice(0, 6) == "return")
-                    node.TYPE = "function"
-                else
-                    node.TYPE = "class"
-            }
-
-        }
-
-        node.ENV = ENV;
-
-        body.node = node;
+        funct.name = name;
     }
-
-    for (const funct in body.funct) {
-        if (typeof(body.funct[funct]) == "string") {
-            if (funct == "cstr") continue;
-            if (funct == "err") {
-                body.err = Function(production_stack_arg_name, environment_arg_name, lexer_arg_name, "state", body.funct[funct]);
-            } else if (!isNaN(funct)) {
-                body.sr[parseInt(funct)] = Function(production_stack_arg_name, environment_arg_name, lexer_arg_name, "state", body.funct[funct]);
-            } else if (body.node)
-                body.node.prototype[funct] = setFunction(env, body.funct.cstr, node.prototype);
-        }
-    }
-
-
-    body.funct = null;
 }
 
 export function filloutGrammar(grammar, env) {
-    let bodies = [];
+
+    let bodies = [],
+        symbols = new Map();
 
     for (let i = 0, j = 0; i < grammar.length; i++) {
         let production = grammar[i];
 
-        if (production.funct && production.funct.error) {
-            production.error = Function("items", environment_arg_name, lexer_arg_name, "start", production.funct.error);
-        }
+        if (production.error_function)
+            addFunctions(production.error_function, production, env)
 
         for (let i = 0; i < production.bodies.length; i++, j++) {
             let body = production.bodies[i];
             body.id = j;
             bodies.push(body);
             body.precedence = createPrecedence(body, grammar);
-            createFunctions(production, body, env);
+            body.sym.forEach(s => { if (s.type !== "production") symbols.set(s.val, s) })
+
+            if (body.reduce_function){
+                addFunctions(body.reduce_function, production, env)
+            }
+            //if (body.functions)
+            body.functions.forEach(f => {
+                addFunctions(r, production, env)
+            })
         }
     }
-
+    grammar.meta.symbols = symbols;
     grammar.bodies = bodies;
 }
 
 
 export class Item extends Array {
-    constructor(body_id, length, offset, v = "", p = -1, g = null) {
+    constructor(body_id, length, offset, follow, g = null) {
         super(body_id, length, offset);
-        this.follow = { v, p };
+        this.follow = follow;
         this.USED = false;
         this.grammar = g;
 
-        if(this.body_[this.len -1] == "$"){
+        if (this.body_[this.len - 1] == "$") {
             this[1]--;
             this.follow.v = "$";
         }
@@ -413,13 +372,13 @@ export class Item extends Array {
     get body_() {
         return this.grammar.bodies[this.body];
     }
-    get sym(){
-        return this.body_[this.offset];
+    get sym() {
+        return this.body_.sym[this.offset];
     }
 
     increment() {
         if (this.offset < this.len)
-            return new Item(this.body, this.len, this.offset + 1, this.v, this.p, this.grammar);
+            return new Item(this.body, this.len, this.offset + 1, this.follow, this.grammar);
         return null;
     }
 

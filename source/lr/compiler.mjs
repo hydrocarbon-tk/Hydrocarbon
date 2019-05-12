@@ -293,13 +293,12 @@ ${getToken.toString()}
 
     const o = [], ss = [0,0];
     
-    let time = 10000, RECOVERING = 1,
+    let time = 1000000, RECOVERING = 1,
         tk = getToken(l, re), p = l.copy(), sp = 1, len = 0, off= 0;
     
     outer:
 
     while(time-- > 0){
-        
         let fn = state[ss[sp]].get(tk) || 0, r, st = 0, gt = -1, c = 0;
 
         if(fn == 0xFFFFFFFF){
@@ -313,10 +312,12 @@ ${getToken.toString()}
             r = sf[fn-1](tk, e, o, l, ss[sp-1]);
         } else {
 
-            if((l.type & (l.types.op | l.types.sym)) && tk !== "θsym"){
-                tk = "θsym";
+            if(tk !== "θany"){
+                tk = "θany";
                 continue;
             }
+
+            tk = getToken(l, re);
 
             //Error Encountered 
             r = re[ss[sp]];

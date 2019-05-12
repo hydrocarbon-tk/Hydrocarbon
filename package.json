@@ -26,6 +26,7 @@
   "dependencies": {
     "@candlefw/whind": "^0.2.8",
     "commander": "^2.19.0",
+    "eslint": "^5.16.0",
     "terser": "^3.11.0"
   },
   "eslintConfig": {

@@ -59,7 +59,7 @@ async function loadEnvironment(env_path = "") {
 
 
 
-async function loadFiles(grammar_path, env_path = "", states_path = "") {
+async function loadFiles(grammar_path, env_path = "", states_path = "", quiet = false) {
 
     let grammar_string = "", states_string = "";
 
@@ -325,6 +325,7 @@ program
     .option("-n, --name <output_name>", "The name to give to the output file. Defaults to the name of the grammar file.")
     .option("-d, --noout", "Do note write to file.")
     .option("-c, --compress", "Minify output file.")
+    .option("-q, --quiet", "Do not wait for user input. Only show results")
     .option("-t, --type <type>", `
             Type of file to output.The type can be:
             "mjs" - ( * .mjs) A module file
@@ -341,19 +342,20 @@ program
             name = cmd.output_name ? cmd.output_name : path.basename(grammar_path, path.extname(grammar_path)),
             type = cmd.type ? cmd.type : "js",
             output_directory = cmd.output ? path.resolve(cmd.output) : process.cwd(),
+            quiet = !!cmd.quiet,
             COMPRESS = !!cmd.compress;
 
 
         try {
 
-            const { grammar_string, states_string, env } = await loadFiles(grammar_path, env_path, states_path);
+            const { grammar_string, states_string, env } = await loadFiles(grammar_path, env_path, states_path, quiet);
 
             const grammar = parseGrammar(grammar_string, env)
 
             let states = null;
             
             if(states_string){
-                states = parseLRJSONStates(states_string);
+                states = parseLRJSONStates(states_string, quiet);
             }else{
 
                 states = await compileLRStates(grammar, env, name);
