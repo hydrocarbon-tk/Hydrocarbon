@@ -21,7 +21,7 @@ export function shiftCollisionCheck(grammar, state, new_state, item, size, error
         const body_b = bodies[action.body];
         
         const v = new_state.b.slice();
-        v.splice(size + 2, 0, ">");
+        v.splice(item.offset + 2, 0, ">");
 
         if (action.name !== "SHIFT") {
             error.log(
@@ -44,7 +44,7 @@ export function shiftCollisionCheck(grammar, state, new_state, item, size, error
 
             const r = grammar.states[action.state].b.slice();
             
-            r.splice(action.len + 2, 0, ">");
+            r.splice(action.offset + 2, 0, ">");
 
             error.log(
                 `\x1b[43m SHIFT \x1b[43m COLLISION ERROR ENCOUNTERED:\x1b[0m
@@ -143,7 +143,7 @@ export function reduceCollisionCheck(grammar, state, item, error) {
 
             const body_b = bodies[action.body];
             const v = grammar.states[action.state].b.slice();
-            v.splice(action.len + 2, 0, ">");
+            v.splice(action.offset + 2, 0, ">");
             error.log(
 `\x1b[43m REDUCE/SHIFT  \x1b[43m COLLISION ERROR ENCOUNTERED:\x1b[0m
 
