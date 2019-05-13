@@ -1,25 +1,70 @@
 ## HYDROCARBON BASE JS ##
 
-#SYMBOLS </
+@NAME CandleFW Hyper Text Markup Langauge Parser
 
-#IGNORE θws θnl 
+@EXT html
 
-S → GOAL_TAG
+@SYMBOL </ (( )) )( " ' 
 
-GOAL_TAG → TAG
+@IGNORE θws θnl 
 
-TAG → < TAGNAME ATTRIBUTES > TAG_BODY </ TAGNAME > │ < TAGNAME ATTRIBUTES />
+-- S → GOAL_TAG
 
-TAG_BODY →  TAG_BODY BODY_STRING │ TAG_BODY TAG │ ɛ 
+-- GOAL_TAG → TAG 								 	
 
-ATTRIBUTES → ATTRIBUTES ATTRIBUTE │ ATTRIBUTE │ ɛ
+-- TAG → < TAGNAME ATTRIBUTES > TAG_BODY </ TAGNAME >	 ↦cstr { 
+																this.tagname = sym[1];
+																this.attr = sym[2];
+																this.children = sym[4] || [];
+																this.parent = null;
+																this.children.forEach(e=>e.parent=this);
+															}
 
-ATTRIBUTE → θid = θstr
-│ θid = θid 
-│ θid 
+	│ < TAGNAME ATTRIBUTES />							↦cstr { 
+																this.tagname = sym[1];
+																this.attr = sym[2];
+																this.children = [];
+																this.parent = null;
+															}
 
-TAGNAME → θid
+-- TAG_BODY →  TAG_BODY TEXT_NODE  					↦return { sym[0].push(sym[1]), sym[0] }
+	│ TAG_BODY TAG  								↦return { sym[0].push(sym[1]), sym[0] }
+	│ TAG 											↦return { [sym[0]] }
+	│ TEXT_NODE 									↦return { [sym[0]] }
+	│ ɛ 
 
-BODY_STRING → BODY_STRING BODY_SYMBOLS │ BODY_SYMBOLS
+-- ATTRIBUTES → ATTRIBUTES ATTRIBUTE  				↦return { sym[0].push(sym[1]), sym[0] }
+	│ ATTRIBUTE 									↦return { [sym[0]] }
+	│ ɛ
 
-BODY_SYMBOLS → θid │ θnum
+-- ATTRIBUTE → ATTRIBUTE_HEAD = ATTRIBUTE_BODY 	 	↦cstr { this.id = sym[0]; this.val = sym[2] }
+ 	│ ATTRIBUTE_HEAD 								↦cstr { this.id = sym[0]; this.val = true }
+
+-- ATTRIBUTE_HEAD → ' θid '							↦return { sym[1] }
+	│ " θid "										↦return { sym[1] }
+	│ θid
+
+-- ATTRIBUTE_BODY → " ATTRIBUTE_DATA " 				↦return { sym[1] }
+	│ ' ATTRIBUTE_DATA ' 							↦return { sym[1] }
+	│ θid
+
+
+-- ATTRIBUTE_DATA → ATTRUBUTE_DATA_VALUE 			↦return { sym[0] + "" }	
+	│ ATTRIBUTE_DATA ATTRUBUTE_DATA_VALUE 			↦return { sym[0] + sym[1]}
+
+-- ATTRUBUTE_DATA_VALUE → θid 
+	│ θws │ θany
+
+-- TAGNAME → θid
+
+-- TEXT_NODE → BODY_STRING 							↦cstr { 
+																this.val = sym[0];
+																this.parent = null;
+															}
+
+-- BODY_STRING → BODY_STRING BODY_SYMBOLS 			↦return { sym[0] + sym[1] }			
+	│ BODY_SYMBOLS 									↦return { sym[0] + "" }
+
+-- BODY_SYMBOLS → θid │ θany │ θws │ θnl
+
+

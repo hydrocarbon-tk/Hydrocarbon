@@ -5,7 +5,7 @@
 /* IMPORTS *******************/
 
 //CandleFW stuffs
-import * as hc from "./hydrocarbon.mjs";
+import * as hc from "../hydrocarbon.mjs";
 import whind from "@candlefw/whind";
 
 import runner from "./compiler_worker.mjs"
@@ -20,11 +20,12 @@ import fs from "fs";
 import readline from "readline";
 import util from "util";
 
+//import {center} from "terminal_tools.mjs";
+
 //Regex to match Protocol and/or Drive letter from module url
 const fn_regex = /(file\:\/\/)(\/)*([A-Z]\:)*/g
 
-const Lexer_Path = path.join("/",
-    import.meta.url.replace(fn_regex, ""), "../../node_modules/@candlefw/whind/build/whind.js");
+const Lexer_Path = path.join("/", import.meta.url.replace(fn_regex, ""), "../../../node_modules/@candlefw/whind/build/whind.js");
 const LEXER_SCRIPT = `${fs.readFileSync(Lexer_Path)} const lexer = whind.default;`;
 
 
@@ -325,7 +326,7 @@ program
     .option("-n, --name <output_name>", "The name to give to the output file. Defaults to the name of the grammar file.")
     .option("-d, --noout", "Do note write to file.")
     .option("-c, --compress", "Minify output file.")
-    .option("-q, --quiet", "Do not wait for user input. Only show results")
+    .option("-q, --nowait", "Do not wait for user input. Only show results")
     .option("-t, --type <type>", `
             Type of file to output.The type can be:
             "mjs" - ( * .mjs) A module file
@@ -342,7 +343,7 @@ program
             name = cmd.output_name ? cmd.output_name : path.basename(grammar_path, path.extname(grammar_path)),
             type = cmd.type ? cmd.type : "js",
             output_directory = cmd.output ? path.resolve(cmd.output) : process.cwd(),
-            quiet = !!cmd.quiet,
+            quiet = !!cmd.nowait,
             COMPRESS = !!cmd.compress;
 
 

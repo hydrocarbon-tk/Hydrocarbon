@@ -30,7 +30,7 @@
     #               and characters to the right as the first production of the non-terminal. 
     #               eg:
 
-start → stmt                                                            ↦ cstr return sym[0];
+-- start → stmt                                                            ↦ {cstr return sym[0];}
 
 
     #   #
@@ -38,8 +38,8 @@ start → stmt                                                            ↦ cs
     #               This is used to define alternate productions for a non-terminal
     #               eg:
 
-stmt → assignment                                                       ↦ cstr return sym[0];
-     │ expression                                                       ↦ cstr return sym[0];
+-- stmt → assignment                                                       ↦ cstr { return sym[0];}
+        │ expression                                                       ↦ cstr { return sym[0];}
 
         # Note: the inclusion of a new line is not necessary to define alternate productions. 
         # "stmt → assignment │ expression" is equivelant to the previous example.
@@ -127,16 +127,16 @@ stmt → assignment                                                       ↦ cs
     # %% (U+25 U+25) :  These characters, when imediately following the last symbol of a 
     #                   production, can define a new precedence for the production.
 
-expression → E              ↦ cstr return (sym[0]);
+expression → E              ↦ cstr{ return (sym[0]);}
 
-E   → E + E  %%2            ↦ cstr this.left = sym[0]; this.right = sym[2]; this.type ="add";
-    │ E * E  %%1            ↦ cstr this.left = sym[0]; this.right = sym[2]; this.type ="multiply";
-    │ θnum                  ↦ cstr this.id = sym[0]; this.type = "num";
-    │ F                     ↦ cstr return sym[0];
+E   → E + E  %%2            ↦ cstr{ this.left = sym[0]; this.right = sym[2]; this.type ="add";}
+    │ E * E  %%1            ↦ cstr{ this.left = sym[0]; this.right = sym[2]; this.type ="multiply";}
+    │ θnum                  ↦ cstr{ this.id = sym[0]; this.type = "num";}
+    │ F                     ↦ cstr{ return sym[0];}
 
-F → θid                     ↦ cstr this.id = sym[0]; this.type = "id";
+F → θid                     ↦ cstr{ this.id = sym[0]; this.type = "id";}
 
-assignment → F = E          ↦ cstr this.assigned = sym[0]; this.value = sym[2]; this.type ="add";
+assignment → F = E          ↦ cstr{ this.assigned = sym[0]; this.value = sym[2]; this.type ="add";}
 
 
 ###################################################################################################

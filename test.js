@@ -1,31 +1,49 @@
-const e = (tk,r,o,l,s)=>{throw new SyntaxError(l.errorMessage(`unexpected token ${tk !== "$" ? tk[0] == "θ" || tk[0] == "τ" ? l.tx : tk : "EOF"} on input ${s} `))}, nf = ()=>-1, 
-symbols = [],
-goto = [(v,r = gt0[v]) => (r >= 0 ? r : -1),
-nf,
-nf,
-(v,r = gt1[v]) => (r >= 0 ? r : -1),
-(v,r = gt2[v]) => (r >= 0 ? r : -1),
-nf,
-nf,
-nf,
-nf,
-nf,
-nf,
-nf,
-nf,
-nf],
-err = [(v)=>(["$"]).includes(v) ? 1 : 0,
-(v)=>(["$"]).includes(v) ? 1 : 0,
-(v)=>(["τd","$"]).includes(v) ? 1 : 0,
-(v)=>(["τa","τd","τc"]).includes(v) ? 1 : 0,
-(v)=>(["τa","τd","τc"]).includes(v) ? 1 : 0,
-(v)=>0,
-(v)=>0],
-eh = [e,
-e,
-e,
-e,
-e,
+const 
+/************** Maps **************/
+
+    /* Symbols To Inject into the Lexer */
+    symbols = [],
+
+    /* Goto lookup maps */
+    gt0 = [0,-1,1,2],
+
+    // State action lookup maps
+    sm0=[0,-4,0,-9,1,2,-1,3],
+sm1=[0,4,-3,0],
+sm2=[0,-4,0,-9,5],
+sm3=[0,-2,0,-1,0,-11,6],
+sm4=[0,-4,0,-9,7],
+sm5=[0,-4,0,-9,8],
+sm6=[0,9,-3,0],
+sm7=[0,-4,0,-9,10],
+sm8=[0,-4,0,-9,11],
+sm9=[0,-4,0,-9,12],
+
+    // Symbol Lookup map
+    lu = new Map([[1,1],[2,2],[4,3],[8,4],[16,5],[32,6],[64,7],[128,8],[256,9],[512,10],[3,11],[264,11],["any",13],["d",14],["a",15],["b",16],["c",17]]),
+
+    //Reverse Symbol Lookup map
+    rlu = new Map([[1,1],[2,2],[3,4],[4,8],[5,16],[6,32],[7,64],[8,128],[9,256],[10,512],[11,3],[11,264],[13,"any"],[14,"d"],[15,"a"],[16,"b"],[17,"c"]]),
+
+    // States 
+    state = [sm0,
+sm1,
+sm2,
+sm3,
+sm4,
+sm5,
+sm6,
+sm7,
+sm8,
+sm9],
+
+/************ Functions *************/
+
+    max = Math.max,
+
+    //Error Functions
+    e = (tk,r,o,l,p)=>{if(l.END)l.throw("Unexpected end of input");else if(l.ty & (264)) l.throw(`Unexpected space character within input "${p.slice(l)}" `) ; else l.throw(`Nnexpected token ${l.tx} within input "${p.slice(l)}" `)}, 
+    eh = [e,
 e,
 e,
 e,
@@ -35,181 +53,179 @@ e,
 e,
 e,
 e],
-gt0 = [-1,1,2,3],
-gt1 = [-1,-1,8],
-gt2 = [-1,-1,-1,-1,11],
 
-sf = [(t, e, o, l, s)=>18,
-(t, e, o, l, s)=>22,
-(t, e, o, l, s)=>26,
-(t, e, o, l, s)=>5,
-(t, e, o, l, s)=>30,
-(t, e, o, l, s)=>38,
-(t, e, o, l, s)=>42,
-(t, e, o, l, s)=>3079,
-(t, e, o, l, s)=>50,
-(t, e, o, l, s)=>2055,
-(t, e, o, l, s)=>1035,
-(t, e, o, l, s)=>54,
-(t, e, o, l, s)=>3083,
-(t, e, o, l, s)=>2059,
-(t, e, o, l, s)=>2063],
-rec = [0,
-0,
-4,
-4,
-8,
-8,
-8,
-4,
-4,
-8,
-8,
-12,
-8,
-8],
-sm = [new Map([["τa",1],["τd",2],["τc",3],["θws",0xFFFFFFFF],[";",0xFFFFFFFF]]),
-new Map([["$",4],["θws",0xFFFFFFFF],[";",0xFFFFFFFF]]),
-new Map([["τd",5],["θws",0xFFFFFFFF],[";",0xFFFFFFFF]]),
-new Map([["τa",6],["τd",2],["τc",3],["θws",0xFFFFFFFF],[";",0xFFFFFFFF]]),
-new Map([["τb",7],["τa",8],["τd",8],["τc",8],["θws",0xFFFFFFFF],[";",0xFFFFFFFF]]),
-new Map([["τd",9],["θws",0xFFFFFFFF],[";",0xFFFFFFFF]]),
-new Map([["τd",10],["$",10],["θws",0xFFFFFFFF],[";",0xFFFFFFFF]]),
-new Map([["$",11],["θws",0xFFFFFFFF],[";",0xFFFFFFFF]]),
-new Map([["τb",7],["θws",0xFFFFFFFF],[";",0xFFFFFFFF]]),
-new Map([["τd",12],["θws",0xFFFFFFFF],[";",0xFFFFFFFF]]),
-new Map([["τa",13],["τd",13],["τc",13],["θws",0xFFFFFFFF],[";",0xFFFFFFFF]]),
-new Map([["τd",14],["$",14],["θws",0xFFFFFFFF],[";",0xFFFFFFFF]]),
-new Map([["τd",15],["$",15],["θws",0xFFFFFFFF],[";",0xFFFFFFFF]])],
-state = [sm[0],
-sm[1],
-sm[2],
-sm[3],
-sm[4],
-sm[5],
-sm[6],
-sm[7],
-sm[7],
-sm[8],
-sm[9],
-sm[10],
-sm[11],
-sm[12]],
-re = new Set(["d","a","b","c"]),
-throw_ = ()=>{debugger},
-types = {"num":1,"number":1,"id":2,"identifier":2,"str":4,"string":4,"ws":8,"white_space":8,"ob":16,"open_bracket":16,"cb":32,"close_bracket":32,"op":64,"operator":64,"sym":128,"symbol":128,"nl":256,"new_line":256,"dl":512,"data_link":512,"alpha_numeric":3,"white_space_new_line":264};
+    //Empty Function
+    nf = ()=>-1, 
 
-function getToken(l, reserved) {
-    if (l.END) return "$";
+    //Environment Functions
+    
+redv = (ret, fn, plen, ln, t, e, o, l, s) => {        ln = max(o.length - plen, 0);        o[ln] = fn(o.slice(-plen), e, l, s);        o.length = ln + 1;        return ret;    },
+rednv = (ret, Fn, plen, ln, t, e, o, l, s) => {        ln = max(o.length - plen, 0);        o[ln] = new Fn(o.slice(-plen), e, l, s);        o.length = ln + 1;        return ret;    },
+redn = (ret, t, e, o) => (o.push(null), ret),
+shftf = (ret, fn, t, e, o, l, s) => (fn(o, e, l, s), ret),
+
+    //Sparse Map Lookup
+    lsm = (index, map) => {    if (map[0] == 0xFFFFFFFF) return map[index+1];    for (let i = 1, ind = 0, l = map.length, n = 0; i < l && ind <= index; i++) {        if (ind !== index) {            if ((n = map[i]) > -1) ind++;            else ind += -n;        } else return map[i];    }    return -1;},
+
+    //State Action Functions
+    state_funct = [()=>(18),
+()=>(14),
+()=>(22),
+()=>(5),
+()=>(26),
+()=>(30),
+()=>(34),
+()=>(2055),
+()=>(1035),
+()=>(38),
+()=>(2059),
+()=>(2063)],
+
+    //Goto Lookup Functions
+    goto = [v=>lsm(v,gt0),
+nf,
+nf,
+nf,
+nf,
+nf,
+nf,
+nf,
+nf,
+nf];
+
+function getToken(l, SYM_LU) {
+    if (l.END) return 0; /*$*/
 
     switch (l.ty) {
-        case types.id:
-            if (reserved.has(l.tx)) return "τ" + l.tx;
-            return "θid";
-        case types.num:
-            return "θnum";
-        case types.string:
-            return "θstr";
-        case types.new_line:
-            return "θnl";
-        case types.ws:
-            return "θws";
-        case types.data_link:
-            return "θdl";
+        case 2:
+            if (SYM_LU.has(l.tx)) return SYM_LU.get(l.tx);
+            return 2;
+        case 1:
+            return 1;
+        case 4:
+            return 3;
+        case 256:
+            return 9;
+        case 8:
+            return 4;
+        case 512:
+            return 10;
         default:
-            return l.tx;
+            return SYM_LU.get(l.tx) || SYM_LU.get(l.ty);
     }
 }
 
- function parser(l, e = {}){
+/************ Parser *************/
+
+function parser(l, e = {}) {
     l.IWS = false;
 
-    if(symbols.length > 0){
-        symbols.forEach(s=> {l.addSymbol(s)});
-        l.off = 0;
+    if (symbols.length > 0) {
+        symbols.forEach(s => { l.addSymbol(s) });
         l.tl = 0;
         l.next();
     }
 
-    const o = [], ss = [0,0];
-    
-    let time = 10000, RECOVERING = false,
-        tk = getToken(l, re), p = l.copy(), sp = 1, len = 0, off= 0;
-    
+    const o = [],
+        ss = [0, 0];
+
+    let time = 1000000,
+        RECOVERING = 100,
+        tk = getToken(l, lu),
+        p = l.copy(),
+        sp = 1,
+        len = 0,
+        off = 0;
+
     outer:
 
-    while(time-- > 0){
-        
-        let fn = state[ss[sp]].get(tk) || 0, r, st = 0, gt = -1, c = 0;
+        while (time-- > 0) {
 
-        if(fn == 0xFFFFFFFF){
-            //Ignore the token
-            l.next();
-            tk = getToken(l, re, state[ss[sp]]);
-            continue;
-        }
+            const fn = lsm(tk, state[ss[sp]]) || 0;
 
-        if(fn > 0){
-            r = sf[fn-1](tk, e, o, l, ss[sp-1]);
-        } else {
-            //Error Encountered 
-            r = re[ss[sp]];
-            
-            const recovery_token = eh[ss[sp]](tk, e, o, l, p, ss[sp]);
-            
-            if(!RECOVERING && typeof(recovery_token) == "string"){
-                RECOVERING = true; // To prevent infinite recursion
-                tk = recovery_token;
-                //reset current token
-                l.tl = 0;
+            /*@*/// console.log({end:l.END, state:ss[sp], tx:l.tx, ty:l.ty, tk:tk, rev:rlu.get(tk), s_map:state[ss[sp]], res:lsm(tk, state[ss[sp]])});
+
+            let r,
+                gt = -1;
+
+            if (fn == 0) {
+                /*Ignore the token*/
+                l.next();
+                tk = getToken(l, lu);
                 continue;
             }
+
+            if (fn > 0) {
+                r = state_funct[fn - 1](tk, e, o, l, ss[sp - 1]);
+            } else {
+
+                if (RECOVERING > 1 && !l.END) {
+                    if (tk !== lu.get(l.ty)) {
+                        tk = lu.get(l.ty);
+                        continue;
+                    }
+
+                    if (tk !== 13) {
+                        tk = 13;
+                        RECOVERING = 1;
+                        continue;
+                    }
+                }
+
+                tk = getToken(l, lu);
+
+                const recovery_token = eh[ss[sp]](tk, e, o, l, p, ss[sp]);
+
+                if (RECOVERING > 0 && typeof(recovery_token) == "string") {
+                    RECOVERING = -1; /* To prevent infinite recursion */
+                    tk = recovery_token;
+                    l.tl = 0; /*reset current token */
+                    continue;
+                }
+            }
+
+            switch (r & 3) {
+                case 0:
+                    /* ERROR */
+
+                    if (tk == "$")
+                        l.throw("Unexpected end of input");
+                    l.throw(`Unexpected token [\${RECOVERING ? l.next().tx : l.tx}]`);
+                    return [null];
+
+                case 1:
+                    /* ACCEPT */
+                    break outer;
+
+                case 2:
+                    /*SHIFT */
+                    o.push(l.tx);
+                    ss.push(off, r >> 2);
+                    sp += 2;
+                    p.sync(l);
+                    l.next();
+                    off = l.off;
+                    tk = getToken(l, lu);
+                    RECOVERING++;
+                    break;
+
+                case 3:
+                    /* REDUCE */
+
+                    len = (r & 0x3FC) >> 1;
+
+                    ss.length -= len;
+                    sp -= len;
+                    gt = goto[ss[sp]](r >> 10);
+
+                    if (gt < 0)
+                        l.throw("Invalid state reached!");
+
+                    ss.push(off, gt);
+                    sp += 2;
+                    break;
+            }
         }
-
-        st = r >> 2;
-
-        switch(r & 3){
-            case 0: // ERROR
-                
-                if(tk == "$")
-                    l.throw("Unexpected end of input");
-
-                l.throw(`Unexpected token [${RECOVERING ? l.next().tx : l.tx}]`); 
-
-                return [null];
-
-            case 1: // ACCEPT
-                break outer;
-
-            case 2: //SHIFT
-                o.push((tk[0] == "θ") ? l.tx : tk); 
-                ss.push(off, r >> 2); 
-                sp+=2; 
-                p.sync(l);
-                l.next(); 
-                off = l.off; 
-                tk = getToken(l, re, state[ss[sp]]); 
-                
-                break;
-
-            case 3: // REDUCE
-
-                len = (r & 0x3FC) >> 1;
-
-                ss.length -= len;   
-                sp -= len; 
-
-                gt = goto[ss[sp]](r >> 10);
-
-                if(gt < 0)
-                    l.throw("Invalid state reached!");
-                
-                ss.push(off, gt); sp+=2; 
-                
-                break;
-        }  
-
-        RECOVERING = false;
-    }
+    console.log(time);
     return o[0];
 }; const test = parser;

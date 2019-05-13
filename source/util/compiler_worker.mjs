@@ -1,4 +1,4 @@
-import * as hc from "./hydrocarbon.mjs";
+import * as hc from "../hydrocarbon.mjs";
 import whind from "@candlefw/whind";
 import url from "url";
 import { Worker, isMainThread, parentPort, workerData } from "worker_threads";

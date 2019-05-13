@@ -1,0 +1,808 @@
+const 
+/************** Maps **************/
+
+    /* Symbols To Inject into the Lexer */
+    symbols = ["((","))","--","@PREC","@SYMBOL","@IGNORE","@NAME","@EXT"],
+
+    /* Goto lookup maps */
+    gt0 = [0,-1,1,2,3,4,6,7,5,8,9,-20,10],
+gt1 = [0,-10,17,18],
+gt2 = [0,-4,20,6,7,5,8,9,-20,10],
+gt3 = [0,-18,21,22,-4,23,24,25],
+gt4 = [0,-18,30,22,-4,23,24,25],
+gt5 = [0,-20,31,-3,32,33,34],
+gt6 = [0,-32,36,37],
+gt7 = [0,-29,42],
+gt8 = [0,-32,44,37],
+gt9 = [0,-11,45,-18,46],
+gt10 = [0,-28,47,48],
+gt11 = [0,-19,50,-4,23,24,25],
+gt12 = [0,-29,51],
+gt13 = [0,-29,52],
+gt14 = [0,-33,57],
+gt15 = [0,-31,59,-1,57],
+gt16 = [0,-12,65,66,67,68,72,-4,71,70,69,74,76,77,75,-1,79,-5,73],
+gt17 = [0,-16,88,-4,89,86,-1,74,76,77,75,-1,79,-4,85,87],
+gt18 = [0,-13,96,67,68,72,-4,71,70,69,74,76,77,75,-1,79,-5,73],
+gt19 = [0,-34,97],
+gt20 = [0,-17,101,-2,102,-3,32,33,34],
+gt21 = [0,-17,103,-2,102,-3,32,33,34],
+gt22 = [0,-17,104,-2,102,-3,32,33,34],
+gt23 = [0,-32,105,37],
+gt24 = [0,-29,106],
+gt25 = [0,-20,111,-3,32,33,34],
+gt26 = [0,-32,115,37],
+gt27 = [0,-29,116],
+gt28 = [0,-32,117,37],
+
+    // State action lookup maps
+    sm0=[0,1,-3,0,-4,0,-4,2,-1,3,-1,4,5,6,1,-14,7],
+sm1=[0,8,-3,0,-4,0],
+sm2=[0,9,-3,0,-4,0,-11,10,-14,9],
+sm3=[0,11,-3,0,-4,0,-4,2,-1,3,-1,4,5,6,11,-14,7],
+sm4=[0,12,-3,0,-4,0,-4,12,-1,12,-1,12,12,12,12,-14,12],
+sm5=[0,13,-3,0,-4,0,-4,13,-1,13,-1,13,13,13,13,-14,13],
+sm6=[0,-4,0,-4,0,-3,14,-18,15,16,17],
+sm7=[0,-4,0,-4,0,-3,18,-18,15,16,17],
+sm8=[0,-1,19,20,-1,21,-4,0,-3,22],
+sm9=[0,-2,23,-1,0,-4,0],
+sm10=[0,24,-3,0,-4,0,-11,10,-14,7],
+sm11=[0,25,-3,0,-4,0,-11,25,-14,25],
+sm12=[0,26,-3,0,-4,0,-4,26,-1,26,-1,26,26,26,26,-14,26],
+sm13=[0,-4,0,-4,27,-3,14,-18,15,16,17],
+sm14=[0,-4,0,-4,28,-3,28,-18,28,28,28],
+sm15=[0,-4,0,-4,29,-3,29,-18,29,29,29],
+sm16=[0,-4,0,-4,0,-3,30],
+sm17=[0,-4,0,-4,31,-3,14,-18,15,16,17],
+sm18=[0,-1,32,-2,0,-4,0],
+sm19=[0,-1,33,-2,0,-4,0,-3,33,-12,33,-5,33,33,33],
+sm20=[0,-1,34,-2,0,-4,0,-3,34,-12,34,-5,34,34,34],
+sm21=[0,-1,19,20,-1,21,-4,35,-3,22],
+sm22=[0,36,36,36,-1,36,-4,36,-3,36,-23,36,-4,36],
+sm23=[0,37,37,37,-1,37,-4,37,-3,37,-23,37,-4,37],
+sm24=[0,-4,0,-4,38],
+sm25=[0,39,39,39,-1,0,-4,39,-3,39,-7,39,39,39,39,-1,39,-5,39,39,39,-1,39,-2,39],
+sm26=[0,40,19,20,-1,21,-4,41,-3,22,-23,42],
+sm27=[0,43,-3,0,-4,0,-11,43,-14,43],
+sm28=[0,44,-3,0,-4,0,-11,44,-14,44],
+sm29=[0,-4,0,-4,0,-12,45],
+sm30=[0,-4,0,-4,0,-12,46],
+sm31=[0,47,-3,0,-4,0,-4,47,-1,47,-1,47,47,47,47,-14,47],
+sm32=[0,-4,0,-4,48,-3,48,-18,48,48,48],
+sm33=[0,49,49,49,-1,0,-4,49,-3,49,-7,49,-1,49,49,-1,49,-5,49,49,49,-1,49,-2,49],
+sm34=[0,50,50,50,-1,0,-4,50,-3,50,-7,50,-1,50,50,-1,50,-5,50,50,50,-1,50,-2,50],
+sm35=[0,51,51,51,-1,0,-4,51,-3,51,-7,51,-1,51,51,-1,51,-5,51,51,51,-1,51,-2,51],
+sm36=[0,52,-3,0,-4,0,-4,52,-1,52,-1,52,52,52,52,-14,52],
+sm37=[0,-4,0,-4,53],
+sm38=[0,54,-3,0,-4,0,-4,54,-1,54,-1,54,54,54,54,-14,54],
+sm39=[0,55,55,55,-1,55,-4,55,-3,55,-23,55,-4,55],
+sm40=[0,56,-3,0,-4,0,-4,56,-1,56,-1,56,56,56,56,-14,56],
+sm41=[0,57,-3,0,-4,0,-4,57,-1,57,-1,57,57,57,57,-14,57],
+sm42=[0,58,-3,0,-4,0,-4,58,-1,58,-1,58,58,58,58,-14,58],
+sm43=[0,59,-1,23,-1,0,-4,0,-3,60,-10,61,-6,62,15,16,17,-4,63],
+sm44=[0,64,-3,0,-4,0,-4,64,-1,64,-1,64,64,64,64,-14,64],
+sm45=[0,65,-3,0,-4,0,-11,65,-1,66,-12,65],
+sm46=[0,67,-3,0,-4,0,-11,67,-1,67,-12,67],
+sm47=[0,68,-3,0,-4,0,-11,68,-1,68,-12,68],
+sm48=[0,59,-1,23,-1,0,-4,0,-3,60,-7,69,-1,69,61,-7,15,16,17,-1,69,-2,70],
+sm49=[0,71,-3,0,-4,0,-11,71,-1,71,-12,71],
+sm50=[0,72,-3,0,-4,0,-11,72,-1,72,-12,72],
+sm51=[0,73,-1,73,-1,0,-4,0,-3,73,-7,73,-1,73,73,-7,73,73,73,-1,73,-2,73],
+sm52=[0,74,-1,74,-1,0,-4,0,-3,74,-7,74,-1,74,74,-7,74,74,74,-1,74,-2,74],
+sm53=[0,75,-1,75,-1,0,-4,0,-3,75,-7,75,-1,75,75,-7,75,75,75,-1,75,-2,75],
+sm54=[0,76,-1,76,-1,0,-4,0,-3,76,-7,76,-1,76,76,-7,76,76,76,-1,76,-2,76],
+sm55=[0,77,-1,77,-1,0,-4,0,-3,77,-7,77,-1,77,77,-7,77,77,77,-1,77,-2,77],
+sm56=[0,78,-1,78,-1,0,-4,0,-3,78,-7,78,-1,78,78,-7,78,78,78,-1,78,-2,78],
+sm57=[0,-4,0,-4,0,-15,79,-1,80,81],
+sm58=[0,-4,0,-4,0,-31,82,-2,83],
+sm59=[0,84,-3,0,-4,0,-11,84,-1,84,-12,84],
+sm60=[0,85,-3,0,-4,0,-11,85,-1,85,-12,85,-2,85],
+sm61=[0,86,-3,0,-4,0,-11,86,-1,86,-12,86],
+sm62=[0,-4,0,-4,0,-29,87],
+sm63=[0,88,-1,88,-1,0,-4,0,-3,88,-7,88,-1,88,88,-7,88,88,88,-1,88,-2,88],
+sm64=[0,89,-1,89,-1,0,-4,0,-3,89,-7,89,-1,89,89,-7,89,89,89,-1,89,-2,89],
+sm65=[0,90,-1,90,-1,0,-4,0,-3,90,-7,90,-1,90,90,-7,90,90,90,-1,90,-2,90],
+sm66=[0,-4,0,-4,0,-30,91,82,-1,92,83],
+sm67=[0,93,-3,0,-4,0,-11,93,-1,93,-12,93],
+sm68=[0,94,-3,0,-4,0,-11,94,-1,94,-12,94],
+sm69=[0,-4,0,-4,0,-30,91,-2,92],
+sm70=[0,-4,0,-4,0,-31,95,-2,96],
+sm71=[0,-4,0,-4,0,-31,97],
+sm72=[0,-4,0,-4,0,-3,18,-12,98,-5,15,16,17],
+sm73=[0,-4,0,-4,0,-3,99,-12,99,-5,99,99,99],
+sm74=[0,-4,0,-4,0,-3,18,-12,100,-5,15,16,17],
+sm75=[0,-4,0,-4,0,-3,18,-12,101,-5,15,16,17],
+sm76=[0,-1,19,20,-1,21,-4,0,-3,22,-28,102],
+sm77=[0,103,-1,103,-1,0,-4,0,-3,103,-7,103,-1,103,103,-7,103,103,103,-1,103,-2,103],
+sm78=[0,104,-1,104,-1,0,-4,0,-3,104,-7,104,-1,104,104,-7,104,104,104,-1,104,-2,104],
+sm79=[0,-4,0,-4,0,-3,105,-12,105,-5,105,105,105],
+sm80=[0,106,-1,106,-1,0,-4,0,-3,106,-7,106,-1,106,106,-7,106,106,106,-1,106,-2,106],
+sm81=[0,107,-1,107,-1,0,-4,0,-3,107,-7,107,-1,107,107,-7,107,107,107,-1,107,-2,107],
+sm82=[0,108,-1,108,-1,0,-4,0,-3,108,-7,108,-1,108,108,-7,108,108,108,-1,108,-2,108],
+sm83=[0,-1,19,20,-1,21,-4,0,-3,22,-28,109],
+sm84=[0,110,-3,0,-4,0,-11,110,-1,110,-12,110],
+sm85=[0,-1,19,20,-1,21,-4,0,-3,22,-28,111],
+sm86=[0,112,-3,0,-4,0,-11,112,-1,112,-12,112],
+sm87=[0,113,-3,0,-4,0,-11,113,-1,113,-12,113],
+
+    // Symbol Lookup map
+    lu = new Map([[1,1],[2,2],[4,3],[8,4],[16,5],[32,6],[64,7],[128,8],[256,9],[512,10],[3,11],[264,11],["any",13],["@SYMBOL",14],[null,4],["@PREC",16],["@IGNORE",18],["@NAME",19],["@EXT",20],["--",21],["→",22],["│",23],["((",24],["EXC",25],["))",26],["ERR",27],["IGN",28],["$",30],["ɛ",31],["θ",32],["τ",33],["\\",34],["#",36],[";",37],["↦",39],["cstr",40],["{",41],["}",42],["return",43],["^",44]]),
+
+    //Reverse Symbol Lookup map
+    rlu = new Map([[1,1],[2,2],[3,4],[4,8],[5,16],[6,32],[7,64],[8,128],[9,256],[10,512],[11,3],[11,264],[13,"any"],[14,"@SYMBOL"],[4,null],[16,"@PREC"],[18,"@IGNORE"],[19,"@NAME"],[20,"@EXT"],[21,"--"],[22,"→"],[23,"│"],[24,"(("],[25,"EXC"],[26,"))"],[27,"ERR"],[28,"IGN"],[30,"$"],[31,"ɛ"],[32,"θ"],[33,"τ"],[34,"\\"],[36,"#"],[37,";"],[39,"↦"],[40,"cstr"],[41,"{"],[42,"}"],[43,"return"],[44,"^"]]),
+
+    // States 
+    state = [sm0,
+sm1,
+sm2,
+sm3,
+sm4,
+sm5,
+sm5,
+sm5,
+sm5,
+sm5,
+sm5,
+sm6,
+sm6,
+sm7,
+sm8,
+sm9,
+sm8,
+sm10,
+sm11,
+sm9,
+sm12,
+sm13,
+sm14,
+sm15,
+sm15,
+sm15,
+sm15,
+sm9,
+sm9,
+sm16,
+sm17,
+sm18,
+sm19,
+sm19,
+sm19,
+sm20,
+sm21,
+sm22,
+sm23,
+sm23,
+sm23,
+sm23,
+sm24,
+sm25,
+sm26,
+sm27,
+sm28,
+sm29,
+sm30,
+sm31,
+sm32,
+sm33,
+sm34,
+sm35,
+sm36,
+sm37,
+sm38,
+sm39,
+sm40,
+sm41,
+sm42,
+sm42,
+sm42,
+sm43,
+sm44,
+sm45,
+sm46,
+sm47,
+sm48,
+sm49,
+sm50,
+sm51,
+sm52,
+sm53,
+sm54,
+sm54,
+sm54,
+sm54,
+sm55,
+sm56,
+sm57,
+sm58,
+sm59,
+sm60,
+sm43,
+sm61,
+sm62,
+sm63,
+sm64,
+sm65,
+sm66,
+sm7,
+sm7,
+sm7,
+sm8,
+sm9,
+sm67,
+sm68,
+sm69,
+sm70,
+sm71,
+sm72,
+sm73,
+sm74,
+sm75,
+sm76,
+sm77,
+sm8,
+sm9,
+sm8,
+sm78,
+sm79,
+sm80,
+sm81,
+sm82,
+sm83,
+sm84,
+sm85,
+sm86,
+sm87],
+
+/************ Functions *************/
+
+    max = Math.max,
+
+    //Error Functions
+    e = (tk,r,o,l,s)=>{if(l.END)l.throw("Unexpected end of input");else l.throw(`unexpected token ${l.tx} on input ${2} `)}, 
+    eh = [e,
+e,
+e,
+e,
+e,
+e,
+e,
+e,
+e,
+e,
+e,
+e,
+e,
+e,
+e,
+e,
+e,
+e,
+e,
+e,
+e,
+e,
+e,
+e,
+e,
+e,
+e,
+e,
+e,
+e,
+e,
+e,
+e,
+e,
+e,
+e,
+e,
+e,
+e,
+e,
+e,
+e,
+e,
+e,
+e,
+e,
+e,
+e,
+e,
+e,
+e,
+e,
+e,
+e,
+e,
+e,
+e,
+e,
+e,
+e,
+e,
+e,
+e,
+e,
+e,
+e,
+e,
+e,
+e,
+e,
+e,
+e,
+e,
+e,
+e,
+e,
+e,
+e,
+e,
+e,
+e,
+e,
+e,
+e,
+e,
+e,
+e,
+e,
+e,
+e,
+e,
+e,
+e,
+e,
+e,
+e,
+e,
+e,
+e,
+e,
+e,
+e,
+e,
+e,
+e,
+e,
+e,
+e,
+e,
+e,
+e,
+e,
+e,
+e,
+e,
+e,
+e,
+e,
+e,
+e],
+
+    //Empty Function
+    nf = ()=>-1, 
+
+    //Environment Functions
+    
+redv = (ret, fn, plen, ln, t, e, o, l, s) => {        ln = max(o.length - plen, 0);        o[ln] = fn(o.slice(-plen), e, l, s);        o.length = ln + 1;        return ret;    },
+rednv = (ret, Fn, plen, ln, t, e, o, l, s) => {        ln = max(o.length - plen, 0);        o[ln] = new Fn(o.slice(-plen), e, l, s);        o.length = ln + 1;        return ret;    },
+redn = (ret, t, e, o) => (o.push(null), ret),
+shftf = (ret, fn, t, e, o, l, s) => (fn(o, e, l, s), ret),
+R0_S=function (sym,env,lex,state) {return sym[0]},
+R0_head=function (sym,env,lex,state) {return sym[1].meta = sym[0],sym[1]},
+R0_preamble_clauses=function (sym,env,lex,state) {return [sym[0]]},
+R1_preamble_clauses=function (sym,env,lex,state) {return sym[0].push(sym[1]), sym[0]},
+C0_symbols_preamble=function (sym,env,lex,state) {this.type='symbols'; this.symbols = sym[1]},
+C0_precedence_preamble=function (sym,env,lex,state) {this.type='precedence';    this.terminal = sym[1];    this.val = parseInt(sym[2])},
+C0_ignore_preamble=function (sym,env,lex,state) {this.type='ignore'; this.symbols = sym[1]},
+C0_name_preamble=function (sym,env,lex,state) {this.type='name'; this.id = sym[1]},
+C0_ext_preamble=function (sym,env,lex,state) {this.type='ext'; this.id = sym[1]},
+R0_productions=function (sym,env,lex,state) {return sym[1].id = sym[0].length, sym[0].push(sym[1]), sym[0]},
+C0_production=function (sym,env,lex,state) {this.name = sym[1]; this.bodies = sym[3]; this.id = -1;},
+R0_production_bodies=function (sym,env,lex,state) {return sym[0].push(sym[2]), sym[0]},
+C0_production_body=function (sym,env,lex,state) {let s = sym[0]; this.sym = s.body.sym || []; this.length = s.body.length || 0; this.excludes = s.body.excludes || new Map();this.ignore = s.body.ignore || new Map(); this.error = s.body.error || new Map(); this.functions = s.body.functions || [];this.reduce_function = s.reduce || null;},
+C0_entries=function (sym,env,lex,state) {this.body = sym[0]; this.reduce = null},
+C1_entries=function (sym,env,lex,state) {this.body = sym[0]; this.reduce = sym[1]},
+C2_entries=function (sym,env,lex,state) {this.body = new Object();    this.body.length = 0;    this.body.sym = [];    this.reduce = null;},
+C3_entries=function (sym,env,lex,state) {this.body = new Object();    this.reduce = null;     this.body.length = 0;    this.body.sym = [sym[0]];},
+C0_body_entries=function (sym,env,lex,state) {this.sym = [sym[0]]; this.length = 1; this.excludes = new Map([[1,[]]]);   this.error = new Map([[1,[]]]);   this.ignore = new Map([[1,[]]]);this.excludes = new Map();    this.conditions = []; this.functions = [];},
+C1_body_entries=function (sym,env,lex,state) {this.sym = []; this.length = 0;    this.excludes = new Map([[0,[]]]);   this.error = new Map([[0,[]]]);   this.ignore = new Map([[0,[]]]);   sym[0].off = this.length;    if (sym[0].type="exc")  sym[0].excludes.get(sym[0].length).push(...sym[1].sym); if (sym[0].type="err")  sym[0].error.get(sym[0].length).push(...sym[1].sym); if (sym[0].type="ign")  sym[0].ignore.get(sym[0].length).push(...sym[1].sym);   this.conditions =[];    this.functions = [];},
+C2_body_entries=function (sym,env,lex,state) {this.sym = []; this.length = 0;    this.excludes = new Map([[0,[]]]);   this.error = new Map([[0,[]]]);   this.ignore = new Map([[0,[]]]);   this.functions = [sym[0]];    sym[0].offset = this.length;},
+R3_body_entries=function (sym,env,lex,state) {return (sym[0].functions.push(sym[1]),   sym[1].offset = sym[0].length,  sym[0])},
+R4_body_entries=function (sym,env,lex,state) {return ( (sym[0].type=="exc") ? sym[0].excludes.get(sym[0].length).push(...sym[1].sym):null, (sym[0].type=="err") ? sym[0].error.get(sym[0].length).push(...sym[1].sym):null, (sym[0].type=="ign") ? sym[0].ignore.get(sym[0].length).push(...sym[1].sym):null, sym[1].offset = sym[0].length,  sym[0])},
+R5_body_entries=function (sym,env,lex,state) {return (sym[0].sym.push(sym[1]),  sym[0].excludes.set(sym[0].length+1,[]), sym[0].ignore.set(sym[0].length+1,[]), sym[0].error.set(sym[0].length+1,[]), sym[0].length++, sym[0])},
+C0_condition_clause=function (sym,env,lex,state) {this.type = "exc"; this.sym = sym[2]; this.offset = -1;},
+C1_condition_clause=function (sym,env,lex,state) {this.type = "err"; this.sym = sym[2]; this.offset = -1;},
+C2_condition_clause=function (sym,env,lex,state) {this.type = "ign"; this.sym = sym[2]; this.offset = -1;},
+C0_terminal_symbol=function (sym,env,lex,state) {this.type = "symbol"; this.val = sym[0]},
+C0_EOF_symbol=function (sym,env,lex,state) {this.type = "eof"; this.val = "$"},
+C0_empty_symbol=function (sym,env,lex,state) {this.type = "empty";},
+C0_generated_symbol=function (sym,env,lex,state) {this.type = "generated"; this.val = sym[1]},
+C0_literal_symbol=function (sym,env,lex,state) {this.type = "literal"; this.val = sym[1]},
+C0_escaped_symbol=function (sym,env,lex,state) {this.type = "escaped"; this.val = sym[1]},
+C0_production_symbol=function (sym,env,lex,state) {this.type = "production"; this.name = sym[0]; this.val = -1},
+C0_comment=function (sym,env,lex,state) {this.val = sym[1]},
+R0_comment_data=function (sym,env,lex,state) {return sym[0] + sym[1]},
+C0_reduce_function=function (sym,env,lex,state) {this.type = "CLASS"; this.txt = sym[3]; this.name = ""; this.env = false;},
+C1_reduce_function=function (sym,env,lex,state) {this.type = "RETURNED"; this.txt = sym[3]; this.name = ""; this.env = false;},
+C2_reduce_function=function (sym,env,lex,state) {this.type = "CLASS"; this.txt = "";    this.name = sym[3]; this.env = true;},
+C0_function_clause=function (sym,env,lex,state) {this.type = "INLINE"; this.txt = sym[2]; this.name = ""; this.env = false;},
+C1_function_clause=function (sym,env,lex,state) {this.type = "INLINE"; this.txt = sym[2]; this.name = sym[3]; this.env = true;},
+
+    //Sparse Map Lookup
+    lsm = (index, map) => {    if (map[0] == 0xFFFFFFFF) return map[index+1];    for (let i = 1, ind = 0, l = map.length, n = 0; i < l && ind <= index; i++) {        if (ind !== index) {            if ((n = map[i]) > -1) ind++;            else ind += -n;        } else return map[i];    }    return -1;},
+
+    //State Action Functions
+    state_funct = [(...v)=>((redn(2051,...v))),
+()=>(50),
+()=>(54),
+()=>(46),
+()=>(58),
+()=>(62),
+()=>(66),
+(...v)=>(redv(5,R0_S,1,0,...v)),
+(...v)=>((redn(10243,...v))),
+()=>(78),
+()=>(2055),
+(...v)=>(redv(3079,R0_preamble_clauses,1,0,...v)),
+()=>(4103),
+()=>(106),
+()=>(110),
+()=>(114),
+()=>(118),
+()=>(142),
+()=>(158),
+()=>(154),
+()=>(162),
+()=>(166),
+()=>(174),
+(...v)=>(redv(1035,R0_head,2,0,...v)),
+(...v)=>(redv(10247,R0_preamble_clauses,1,0,...v)),
+(...v)=>(redv(3083,R1_preamble_clauses,2,0,...v)),
+()=>(198),
+(...v)=>(redv(18439,R0_preamble_clauses,1,0,...v)),
+()=>(19463),
+()=>(214),
+()=>(218),
+()=>(222),
+()=>(20487),
+(...v)=>(rednv(20487,C0_terminal_symbol,1,0,...v)),
+()=>(226),
+(...v)=>(redv(32775,R0_S,1,0,...v)),
+()=>(33799),
+()=>(234),
+()=>(29703),
+()=>(246),
+()=>(242),
+()=>(250),
+(...v)=>(redv(10251,R0_productions,2,0,...v)),
+(...v)=>(redv(10251,R0_S,2,0,...v)),
+()=>(254),
+()=>(28679),
+(...v)=>(rednv(7183,C0_ignore_preamble,3,0,...v)),
+(...v)=>(redv(18443,R1_preamble_clauses,2,0,...v)),
+(...v)=>(rednv(24587,C0_generated_symbol,2,0,...v)),
+(...v)=>(rednv(25611,C0_literal_symbol,2,0,...v)),
+(...v)=>(rednv(26635,C0_escaped_symbol,2,0,...v)),
+(...v)=>(rednv(5135,C0_symbols_preamble,3,0,...v)),
+()=>(258),
+(...v)=>(rednv(8207,C0_name_preamble,3,0,...v)),
+(...v)=>(redv(32779,R0_comment_data,2,0,...v)),
+(...v)=>(rednv(9231,C0_ext_preamble,3,0,...v)),
+(...v)=>(rednv(30735,C0_comment,3,0,...v)),
+()=>(31751),
+()=>(334),
+()=>(314),
+()=>(322),
+()=>(330),
+()=>(326),
+(...v)=>(rednv(6163,C0_precedence_preamble,4,0,...v)),
+(...v)=>(rednv(11283,C0_production,4,0,...v)),
+()=>(338),
+(...v)=>(redv(12295,R0_preamble_clauses,1,0,...v)),
+(...v)=>(rednv(13319,C0_production_body,1,0,...v)),
+(...v)=>(rednv(14343,C0_entries,1,0,...v)),
+()=>(362),
+(...v)=>(rednv(14343,C2_entries,1,0,...v)),
+(...v)=>(rednv(14343,C3_entries,1,0,...v)),
+(...v)=>(rednv(15367,C0_body_entries,1,0,...v)),
+(...v)=>(rednv(15367,C1_body_entries,1,0,...v)),
+(...v)=>(rednv(15367,C2_body_entries,1,0,...v)),
+()=>(21511),
+(...v)=>(rednv(21511,C0_terminal_symbol,1,0,...v)),
+(...v)=>(rednv(27655,C0_production_symbol,1,0,...v)),
+()=>(366),
+()=>(370),
+()=>(374),
+()=>(378),
+()=>(382),
+(...v)=>(rednv(23559,C0_empty_symbol,1,0,...v)),
+(...v)=>(rednv(22535,C0_EOF_symbol,1,0,...v)),
+(...v)=>(rednv(14347,C1_entries,2,0,...v)),
+()=>(394),
+(...v)=>(redv(15371,R3_body_entries,2,0,...v)),
+(...v)=>(redv(15371,R4_body_entries,2,0,...v)),
+(...v)=>(redv(15371,R5_body_entries,2,0,...v)),
+()=>(398),
+()=>(402),
+(...v)=>(redv(12303,R0_production_bodies,3,0,...v)),
+(...v)=>(rednv(14351,C1_entries,3,0,...v)),
+()=>(430),
+()=>(434),
+()=>(438),
+()=>(442),
+(...v)=>(redv(17415,R0_preamble_clauses,1,0,...v)),
+()=>(450),
+()=>(454),
+()=>(458),
+(...v)=>(rednv(35855,C1_function_clause,3,0,...v)),
+(...v)=>(rednv(16403,C0_condition_clause,4,0,...v)),
+(...v)=>(redv(17419,R1_preamble_clauses,2,0,...v)),
+(...v)=>(rednv(16403,C1_condition_clause,4,0,...v)),
+(...v)=>(rednv(16403,C2_condition_clause,4,0,...v)),
+(...v)=>(rednv(35859,C0_function_clause,4,0,...v)),
+()=>(474),
+(...v)=>(rednv(34835,C2_reduce_function,4,0,...v)),
+()=>(478),
+(...v)=>(rednv(34839,C0_reduce_function,5,0,...v)),
+(...v)=>(rednv(34839,C1_reduce_function,5,0,...v))],
+
+    //Goto Lookup Functions
+    goto = [v=>lsm(v,gt0),
+nf,
+v=>lsm(v,gt1),
+v=>lsm(v,gt2),
+nf,
+nf,
+nf,
+nf,
+nf,
+nf,
+nf,
+v=>lsm(v,gt3),
+v=>lsm(v,gt4),
+v=>lsm(v,gt5),
+v=>lsm(v,gt6),
+v=>lsm(v,gt7),
+v=>lsm(v,gt8),
+v=>lsm(v,gt9),
+nf,
+v=>lsm(v,gt10),
+nf,
+v=>lsm(v,gt11),
+nf,
+nf,
+nf,
+nf,
+nf,
+v=>lsm(v,gt12),
+v=>lsm(v,gt13),
+nf,
+v=>lsm(v,gt11),
+nf,
+nf,
+nf,
+nf,
+nf,
+v=>lsm(v,gt14),
+nf,
+nf,
+nf,
+nf,
+nf,
+nf,
+nf,
+v=>lsm(v,gt15),
+nf,
+nf,
+nf,
+nf,
+nf,
+nf,
+nf,
+nf,
+nf,
+nf,
+nf,
+nf,
+nf,
+nf,
+nf,
+nf,
+nf,
+nf,
+v=>lsm(v,gt16),
+nf,
+nf,
+nf,
+nf,
+v=>lsm(v,gt17),
+nf,
+nf,
+nf,
+nf,
+nf,
+nf,
+nf,
+nf,
+nf,
+nf,
+nf,
+nf,
+nf,
+nf,
+nf,
+v=>lsm(v,gt18),
+nf,
+v=>lsm(v,gt19),
+nf,
+nf,
+nf,
+nf,
+v=>lsm(v,gt20),
+v=>lsm(v,gt21),
+v=>lsm(v,gt22),
+v=>lsm(v,gt23),
+v=>lsm(v,gt24),
+nf,
+nf,
+nf,
+nf,
+nf,
+v=>lsm(v,gt25),
+nf,
+v=>lsm(v,gt25),
+v=>lsm(v,gt25),
+v=>lsm(v,gt14),
+nf,
+v=>lsm(v,gt26),
+v=>lsm(v,gt27),
+v=>lsm(v,gt28),
+nf,
+nf,
+nf,
+nf,
+nf,
+v=>lsm(v,gt14),
+nf,
+v=>lsm(v,gt14),
+nf,
+nf];
+
+function getToken(l, SYM_LU) {
+    if (l.END) return 0; /*4*/
+
+    switch (l.ty) {
+        case 2:
+            if (SYM_LU.has(l.tx)) return SYM_LU.get(l.tx);
+            return 2;
+        case 1:
+            return 1;
+        case 4:
+            return 3;
+        case 256:
+            return 9;
+        case 8:
+            return 4;
+        case 512:
+            return 10;
+        default:
+            return SYM_LU.get(l.tx) || SYM_LU.get(l.ty);
+    }
+}
+
+/************ Parser *************/
+
+function parser(l, e = {}) {
+    l.IWS = false;
+
+    if (symbols.length > 0) {
+        symbols.forEach(s => { l.addSymbol(s) });
+        l.tl = 0;
+        l.next();
+    }
+
+    const o = [],
+        ss = [0, 0];
+
+    let time = 1000000,
+        RECOVERING = 100,
+        tk = getToken(l, lu),
+        p = l.copy(),
+        sp = 1,
+        len = 0,
+        off = 0;
+
+    outer:
+
+        while (time-- > 0) {
+
+            const fn = lsm(tk, state[ss[sp]]) || 0;
+
+            /*@*/// console.log({end:l.END, state:ss[sp], tx:l.tx, ty:l.ty, tk:tk, rev:rlu.get(tk), s_map:state[ss[sp]], res:lsm(tk, state[ss[sp]])});
+
+            let r,
+                gt = -1;
+
+            if (fn == 0) {
+                /*Ignore the token*/
+                l.next();
+                tk = getToken(l, lu);
+                continue;
+            }
+
+            if (fn > 0) {
+                r = state_funct[fn - 1](tk, e, o, l, ss[sp - 1]);
+            } else {
+
+                if (RECOVERING > 1 && !l.END) {
+                    if (tk !== lu.get(l.ty)) {
+                        tk = lu.get(l.ty);
+                        continue;
+                    }
+
+                    if (tk !== 13) {
+                        tk = 13;
+                        RECOVERING = 1;
+                        continue;
+                    }
+                }
+
+                tk = getToken(l, lu);
+
+                const recovery_token = eh[ss[sp]](tk, e, o, l, p, ss[sp]);
+
+                if (RECOVERING > 0 && typeof(recovery_token) == "string") {
+                    RECOVERING = -1; /* To prevent infinite recursion */
+                    tk = recovery_token;
+                    l.tl = 0; /*reset current token */
+                    continue;
+                }
+            }
+
+            switch (r & 3) {
+                case 0:
+                    /* ERROR */
+
+                    if (tk == "$")
+                        l.throw("Unexpected end of input");
+                    l.throw(`Unexpected token [\${RECOVERING ? l.next().tx : l.tx}]`);
+                    return [null];
+
+                case 1:
+                    /* ACCEPT */
+                    break outer;
+
+                case 2:
+                    /*SHIFT */
+                    o.push(l.tx);
+                    ss.push(off, r >> 2);
+                    sp += 2;
+                    p.sync(l);
+                    l.next();
+                    off = l.off;
+                    tk = getToken(l, lu);
+                    RECOVERING++;
+                    break;
+
+                case 3:
+                    /* REDUCE */
+
+                    len = (r & 0x3FC) >> 1;
+
+                    ss.length -= len;
+                    sp -= len;
+                    gt = goto[ss[sp]](r >> 10);
+
+                    if (gt < 0)
+                        l.throw("Invalid state reached!");
+
+                    ss.push(off, gt);
+                    sp += 2;
+                    break;
+            }
+        }
+    console.log(time);
+    return o[0];
+}; export default parser;

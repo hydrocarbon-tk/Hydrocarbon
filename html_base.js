@@ -1,41 +1,150 @@
-const e = (tk,r,o,l,s)=>{throw new SyntaxError(l.errorMessage(`unexpected token ${tk !== "$" ? tk[0] == "θ" || tk[0] == "τ" ? l.tx : tk : "EOF"} on input ${s} `))}, nf = ()=>-1, 
-symbols = ["</"],
-goto = [(v,r = gt0[v]) => (r >= 0 ? r : -1),
-nf,
-nf,
-(v,r = gt1[v]) => (r >= 0 ? r : -1),
-(v,r = gt2[v]) => (r >= 0 ? r : -1),
-nf,
-(v,r = gt3[v]) => (r >= 0 ? r : -1),
-nf,
-nf,
-(v,r = gt4[v]) => (r >= 0 ? r : -1),
-nf,
-nf,
-nf,
-(v,r = gt5[v]) => (r >= 0 ? r : -1),
-nf,
-nf,
-nf,
-(v,r = gt6[v]) => (r >= 0 ? r : -1),
-(v,r = gt7[v]) => (r >= 0 ? r : -1),
-nf,
-nf,
-nf,
-nf,
-nf,
-nf,
-nf],
-err = [(v)=>(["$"]).includes(v) ? 1 : 0,
-(v)=>(["$"]).includes(v) ? 1 : 0,
-(v)=>(["$","</","θid","θnum","<"]).includes(v) ? 1 : 0,
-(v)=>(["</","θid","θnum","<"]).includes(v) ? 1 : 0,
-(v)=>([">","/","θid"]).includes(v) ? 1 : 0,
-(v)=>([">","/","θid"]).includes(v) ? 1 : 0,
-(v)=>(["θid",">"]).includes(v) ? 1 : 0,
-(v)=>(["θid","θnum","</","<"]).includes(v) ? 1 : 0,
-(v)=>(["θid","θnum","</","<"]).includes(v) ? 1 : 0],
-eh = [e,
+const 
+/************** Maps **************/
+
+    /* Symbols To Inject into the Lexer */
+    symbols = ["</","((","))",")(","\"","'"],
+
+    /* Goto lookup maps */
+    gt0 = [0,-1,1,2],
+gt1 = [0,-10,4],
+gt2 = [0,-4,6,7,8],
+gt3 = [0,-5,14,8],
+gt4 = [0,-2,19,18,-7,20,21,22],
+gt5 = [0,-7,28],
+gt6 = [0,-2,36,-8,35,21,22],
+gt7 = [0,-13,37],
+gt8 = [0,-8,38,39],
+gt9 = [0,-8,43,39],
+gt10 = [0,-10,44],
+gt11 = [0,-9,46],
+
+    // State action lookup maps
+    sm0=[0,-4,0,-4,0,-4,1],
+sm1=[0,2,-3,0,-4,0],
+sm2=[0,3,-3,0,-4,0],
+sm3=[0,-2,4,-1,0,-4,0],
+sm4=[0,-2,5,-1,0,-4,0,-5,6,-1,6,-1,7,-1,8],
+sm5=[0,-2,9,-1,0,-4,0,-5,9,-1,9,-1,9,-1,9],
+sm6=[0,-2,5,-1,0,-4,0,-5,10,-1,11,-1,7,-1,8],
+sm7=[0,-2,12,-1,0,-4,0,-5,12,-1,12,-1,12,-1,12],
+sm8=[0,-2,13,-1,0,-4,0,-5,13,-1,13,14,13,-1,13],
+sm9=[0,-2,15,-1,0,-4,0],
+sm10=[0,-2,16,-1,0,-4,0],
+sm11=[0,-2,17,-1,0,-4,0,-5,17,-1,17,17,17,-1,17],
+sm12=[0,-2,18,-1,19,-4,20,-3,21,1,-1,22],
+sm13=[0,-4,0,-4,0,-5,23],
+sm14=[0,-2,24,-1,0,-4,0,-5,24,-1,24,-1,24,-1,24],
+sm15=[0,-2,25,-1,0,-4,0,-9,26,-1,27],
+sm16=[0,-4,0,-4,0,-9,28],
+sm17=[0,-4,0,-4,0,-11,29],
+sm18=[0,-2,18,-1,19,-4,20,-3,21,1,-1,30],
+sm19=[0,-2,31,-1,31,-4,31,-3,31,31,-1,31],
+sm20=[0,-2,18,-1,19,-4,20,-3,21,32,-1,32],
+sm21=[0,-2,33,-1,33,-4,33,-3,33,33,-1,33],
+sm22=[0,-2,34,-1,34,-4,34,-3,34,34,-1,34],
+sm23=[0,35,-1,35,-1,35,-4,35,-3,35,35,-1,35],
+sm24=[0,-2,36,-1,0,-4,0,-5,36,-1,36,-1,36,-1,36],
+sm25=[0,-2,37,-1,38,-4,0,-3,39],
+sm26=[0,-2,40,-1,0,-4,0,-5,40,-1,40,-1,40,-1,40],
+sm27=[0,-2,41,-1,0,-4,0,-5,41,-1,41,41,41,-1,41],
+sm28=[0,-2,42,-1,42,-4,42,-3,42,42,-1,42],
+sm29=[0,-2,43,-1,43,-4,43,-3,43,43,-1,43],
+sm30=[0,-2,37,-1,38,-4,0,-3,39,-7,44],
+sm31=[0,-2,45,-1,45,-4,0,-3,45,-5,45,-1,45],
+sm32=[0,-2,46,-1,46,-4,0,-3,46,-5,46,-1,46],
+sm33=[0,-2,37,-1,38,-4,0,-3,39,-5,47],
+sm34=[0,-4,0,-4,0,-5,48],
+sm35=[0,-2,49,-1,0,-4,0,-5,49,-1,49,-1,49,-1,49],
+sm36=[0,-2,50,-1,50,-4,0,-3,50,-5,50,-1,50],
+sm37=[0,51,-1,51,-1,51,-4,51,-3,51,51,-1,51],
+
+    // Symbol Lookup map
+    lu = new Map([[1,1],[2,2],[4,3],[8,4],[16,5],[32,6],[64,7],[128,8],[256,9],[512,10],[3,11],[264,11],["any",13],["<",14],[">",15],["</",16],["/",17],["=",18],["'",19],[null,9],["\"",21]]),
+
+    //Reverse Symbol Lookup map
+    rlu = new Map([[1,1],[2,2],[3,4],[4,8],[5,16],[6,32],[7,64],[8,128],[9,256],[10,512],[11,3],[11,264],[13,"any"],[14,"<"],[15,">"],[16,"</"],[17,"/"],[18,"="],[19,"'"],[9,null],[21,"\""]]),
+
+    // States 
+    state = [sm0,
+sm1,
+sm2,
+sm3,
+sm4,
+sm5,
+sm6,
+sm7,
+sm8,
+sm9,
+sm10,
+sm11,
+sm12,
+sm13,
+sm14,
+sm15,
+sm16,
+sm17,
+sm18,
+sm19,
+sm19,
+sm20,
+sm21,
+sm22,
+sm22,
+sm22,
+sm22,
+sm23,
+sm24,
+sm25,
+sm25,
+sm26,
+sm27,
+sm27,
+sm3,
+sm28,
+sm28,
+sm29,
+sm30,
+sm31,
+sm32,
+sm32,
+sm32,
+sm33,
+sm34,
+sm35,
+sm36,
+sm35,
+sm37],
+
+/************ Functions *************/
+
+    max = Math.max,
+
+    //Error Functions
+    e = (tk,r,o,l,p)=>{if(l.END)l.throw("Unexpected end of input");else if(l.ty & (264)) l.throw(`Unexpected space character within input "${1}" `) ; else l.throw(`Unexpected token ${l.tx} within input "${111}" `)}, 
+    eh = [e,
+e,
+e,
+e,
+e,
+e,
+e,
+e,
+e,
+e,
+e,
+e,
+e,
+e,
+e,
+e,
+e,
+e,
+e,
+e,
+e,
+e,
+e,
+e,
 e,
 e,
 e,
@@ -61,233 +170,270 @@ e,
 e,
 e,
 e],
-gt0 = [-1,1,2],
-gt1 = [-1,-1,-1,-1,-1,-1,4],
-gt2 = [-1,-1,-1,-1,6,7],
-gt3 = [-1,-1,-1,-1,-1,11],
-gt4 = [-1,-1,-1,13],
-gt5 = [-1,-1,19,-1,-1,-1,-1,18,20],
-gt6 = [-1,-1,-1,-1,-1,-1,23],
-gt7 = [-1,-1,-1,-1,-1,-1,-1,-1,24],
 
-sf = [(t, e, o, l, s)=>14,
-(t, e, o, l, s)=>5,
-(t, e, o, l, s)=>1031,
-(t, e, o, l, s)=>22,
-(t, e, o, l, s)=>{o.push(null); return 4099},
-(t, e, o, l, s)=>34,
-(t, e, o, l, s)=>6151,
-(t, e, o, l, s)=>38,
-(t, e, o, l, s)=>42,
-(t, e, o, l, s)=>4103,
-(t, e, o, l, s)=>50,
-(t, e, o, l, s)=>5127,
-(t, e, o, l, s)=>{o.push(null); return 3075},
-(t, e, o, l, s)=>58,
-(t, e, o, l, s)=>4107,
-(t, e, o, l, s)=>62,
-(t, e, o, l, s)=>66,
-(t, e, o, l, s)=>70,
-(t, e, o, l, s)=>86,
-(t, e, o, l, s)=>90,
-(t, e, o, l, s)=>2071,
-(t, e, o, l, s)=>5135,
-(t, e, o, l, s)=>3083,
-(t, e, o, l, s)=>7175,
-(t, e, o, l, s)=>8199,
-(t, e, o, l, s)=>102,
-(t, e, o, l, s)=>7179,
-(t, e, o, l, s)=>2083],
-rec = [0,
-0,
-4,
-8,
-8,
-24,
-8,
-16,
-20,
-8,
-8,
-16,
-20,
-8,
-8,
-20,
-20,
-8,
-12,
-12,
-28,
-32,
-32,
-8,
-28,
-8],
-sm = [new Map([["<",1],["θws",0xFFFFFFFF],["θnl",0xFFFFFFFF],["",0xFFFFFFFF]]),
-new Map([["$",2],["θws",0xFFFFFFFF],["θnl",0xFFFFFFFF],["",0xFFFFFFFF]]),
-new Map([["$",3],["θws",0xFFFFFFFF],["θnl",0xFFFFFFFF],["",0xFFFFFFFF]]),
-new Map([["θid",4],["θws",0xFFFFFFFF],["θnl",0xFFFFFFFF],["",0xFFFFFFFF]]),
-new Map([[">",5],["θid",6],["/",5],["θws",0xFFFFFFFF],["θnl",0xFFFFFFFF],["",0xFFFFFFFF]]),
-new Map([["θid",7],[">",7],["/",7],["θws",0xFFFFFFFF],["θnl",0xFFFFFFFF],["",0xFFFFFFFF]]),
-new Map([[">",8],["/",9],["θid",6],["θws",0xFFFFFFFF],["θnl",0xFFFFFFFF],["",0xFFFFFFFF]]),
-new Map([[">",10],["θid",10],["/",10],["θws",0xFFFFFFFF],["θnl",0xFFFFFFFF],["",0xFFFFFFFF]]),
-new Map([["=",11],["θid",12],[">",12],["/",12],["θws",0xFFFFFFFF],["θnl",0xFFFFFFFF],["",0xFFFFFFFF]]),
-new Map([["</",13],["θid",13],["θnum",13],["<",13],["θws",0xFFFFFFFF],["θnl",0xFFFFFFFF],["",0xFFFFFFFF]]),
-new Map([[">",14],["θws",0xFFFFFFFF],["θnl",0xFFFFFFFF],["",0xFFFFFFFF]]),
-new Map([[">",15],["θid",15],["/",15],["θws",0xFFFFFFFF],["θnl",0xFFFFFFFF],["",0xFFFFFFFF]]),
-new Map([["θstr",16],["θid",17],["θws",0xFFFFFFFF],["θnl",0xFFFFFFFF],["",0xFFFFFFFF]]),
-new Map([["</",18],["θid",19],["θnum",20],["<",1],["θws",0xFFFFFFFF],["θnl",0xFFFFFFFF],["",0xFFFFFFFF]]),
-new Map([["$",21],["</",21],["θid",21],["θnum",21],["<",21],["θws",0xFFFFFFFF],["θnl",0xFFFFFFFF],["",0xFFFFFFFF]]),
-new Map([["θid",22],[">",22],["/",22],["θws",0xFFFFFFFF],["θnl",0xFFFFFFFF],["",0xFFFFFFFF]]),
-new Map([["</",23],["θid",19],["θnum",20],["<",23],["θws",0xFFFFFFFF],["θnl",0xFFFFFFFF],["",0xFFFFFFFF]]),
-new Map([["</",23],["θid",23],["θnum",23],["<",23],["θws",0xFFFFFFFF],["θnl",0xFFFFFFFF],["",0xFFFFFFFF]]),
-new Map([["</",24],["θid",24],["θnum",24],["<",24],["θws",0xFFFFFFFF],["θnl",0xFFFFFFFF],["",0xFFFFFFFF]]),
-new Map([["θid",25],["θnum",25],["</",25],["<",25],["θws",0xFFFFFFFF],["θnl",0xFFFFFFFF],["",0xFFFFFFFF]]),
-new Map([[">",26],["θws",0xFFFFFFFF],["θnl",0xFFFFFFFF],["",0xFFFFFFFF]]),
-new Map([["</",27],["θid",27],["θnum",27],["<",27],["θws",0xFFFFFFFF],["θnl",0xFFFFFFFF],["",0xFFFFFFFF]]),
-new Map([["$",28],["</",28],["θid",28],["θnum",28],["<",28],["θws",0xFFFFFFFF],["θnl",0xFFFFFFFF],["",0xFFFFFFFF]])],
-state = [sm[0],
-sm[1],
-sm[2],
-sm[3],
-sm[4],
-sm[5],
-sm[6],
-sm[7],
-sm[8],
-sm[9],
-sm[10],
-sm[11],
-sm[12],
-sm[13],
-sm[14],
-sm[15],
-sm[15],
-sm[3],
-sm[16],
-sm[17],
-sm[18],
-sm[19],
-sm[19],
-sm[20],
-sm[21],
-sm[22]],
-re = new Set([]),
-throw_ = ()=>{debugger},
-types = {"num":1,"number":1,"id":2,"identifier":2,"str":4,"string":4,"ws":8,"white_space":8,"ob":16,"open_bracket":16,"cb":32,"close_bracket":32,"op":64,"operator":64,"sym":128,"symbol":128,"nl":256,"new_line":256,"dl":512,"data_link":512,"alpha_numeric":3,"white_space_new_line":264};
+    //Empty Function
+    nf = ()=>-1, 
 
-function getToken(l, reserved) {
-    if (l.END) return "$";
+    //Environment Functions
+    
+redv = (ret, fn, plen, ln, t, e, o, l, s) => {        ln = max(o.length - plen, 0);        o[ln] = fn(o.slice(-plen), e, l, s);        o.length = ln + 1;        return ret;    },
+rednv = (ret, Fn, plen, ln, t, e, o, l, s) => {        ln = max(o.length - plen, 0);        o[ln] = new Fn(o.slice(-plen), e, l, s);        o.length = ln + 1;        return ret;    },
+redn = (ret, t, e, o) => (o.push(null), ret),
+shftf = (ret, fn, t, e, o, l, s) => (fn(o, e, l, s), ret),
+C0_TAG=function (sym,env,lex,state) {this.tagname = sym[1];this.attr = sym[2];this.children = sym[4] || [];this.parent = null;this.children.forEach(e=>e.parent=this);},
+C1_TAG=function (sym,env,lex,state) {this.tagname = sym[1];this.attr = sym[2];this.children = [];this.parent = null;},
+R0_TAG_BODY=function (sym,env,lex,state) {return sym[0].push(sym[1]), sym[0]},
+R1_TAG_BODY=function (sym,env,lex,state) {return [sym[0]]},
+C0_ATTRIBUTE=function (sym,env,lex,state) {this.id = sym[0]; this.val = sym[2]},
+C1_ATTRIBUTE=function (sym,env,lex,state) {this.id = sym[0]; this.val = true},
+R0_ATTRIBUTE_HEAD=function (sym,env,lex,state) {return sym[1]},
+R0_ATTRIBUTE_DATA=function (sym,env,lex,state) {return sym[0] + ""},
+R1_ATTRIBUTE_DATA=function (sym,env,lex,state) {return sym[0] + sym[1]},
+C0_TEXT_NODE=function (sym,env,lex,state) {this.val = sym[0];this.parent = null;},
+
+    //Sparse Map Lookup
+    lsm = (index, map) => {    if (map[0] == 0xFFFFFFFF) return map[index+1];    for (let i = 1, ind = 0, l = map.length, n = 0; i < l && ind <= index; i++) {        if (ind !== index) {            if ((n = map[i]) > -1) ind++;            else ind += -n;        } else return map[i];    }    return -1;},
+
+    //State Action Functions
+    state_funct = [()=>(14),
+()=>(5),
+()=>(1031),
+()=>(22),
+()=>(46),
+(...v)=>((redn(4099,...v))),
+()=>(38),
+()=>(42),
+()=>(10247),
+()=>(50),
+()=>(54),
+(...v)=>(redv(4103,R1_TAG_BODY,1,0,...v)),
+(...v)=>(rednv(5127,C1_ATTRIBUTE,1,0,...v)),
+()=>(62),
+()=>(66),
+()=>(70),
+()=>(6151),
+()=>(94),
+()=>(102),
+()=>(106),
+()=>(98),
+(...v)=>((redn(3075,...v))),
+()=>(110),
+(...v)=>(redv(4107,R0_TAG_BODY,2,0,...v)),
+()=>(126),
+()=>(122),
+()=>(118),
+()=>(130),
+()=>(134),
+()=>(138),
+(...v)=>(redv(3079,R1_TAG_BODY,1,0,...v)),
+(...v)=>(rednv(11271,C0_TEXT_NODE,1,0,...v)),
+(...v)=>(redv(12295,R0_ATTRIBUTE_DATA,1,0,...v)),
+()=>(13319),
+(...v)=>(rednv(2071,C1_TAG,5,0,...v)),
+(...v)=>(rednv(5135,C0_ATTRIBUTE,3,0,...v)),
+()=>(162),
+()=>(166),
+()=>(170),
+()=>(7175),
+(...v)=>(redv(6159,R0_ATTRIBUTE_HEAD,3,0,...v)),
+(...v)=>(redv(3083,R0_TAG_BODY,2,0,...v)),
+(...v)=>(redv(12299,R1_ATTRIBUTE_DATA,2,0,...v)),
+()=>(182),
+(...v)=>(redv(8199,R0_ATTRIBUTE_DATA,1,0,...v)),
+()=>(9223),
+()=>(190),
+()=>(194),
+(...v)=>(redv(7183,R0_ATTRIBUTE_HEAD,3,0,...v)),
+(...v)=>(redv(8203,R1_ATTRIBUTE_DATA,2,0,...v)),
+(...v)=>(rednv(2083,C0_TAG,8,0,...v))],
+
+    //Goto Lookup Functions
+    goto = [v=>lsm(v,gt0),
+nf,
+nf,
+v=>lsm(v,gt1),
+v=>lsm(v,gt2),
+nf,
+v=>lsm(v,gt3),
+nf,
+nf,
+nf,
+nf,
+nf,
+v=>lsm(v,gt4),
+nf,
+nf,
+v=>lsm(v,gt5),
+nf,
+nf,
+v=>lsm(v,gt6),
+nf,
+nf,
+v=>lsm(v,gt7),
+nf,
+nf,
+nf,
+nf,
+nf,
+nf,
+nf,
+v=>lsm(v,gt8),
+v=>lsm(v,gt9),
+nf,
+nf,
+nf,
+v=>lsm(v,gt10),
+nf,
+nf,
+nf,
+v=>lsm(v,gt11),
+nf,
+nf,
+nf,
+nf,
+v=>lsm(v,gt11),
+nf,
+nf,
+nf,
+nf,
+nf];
+
+function getToken(l, SYM_LU) {
+    if (l.END) return 0; /*9*/
 
     switch (l.ty) {
-        case types.id:
-            if (reserved.has(l.tx)) return "τ" + l.tx;
-            return "θid";
-        case types.num:
-            return "θnum";
-        case types.string:
-            return "θstr";
-        case types.new_line:
-            return "θnl";
-        case types.ws:
-            return "θws";
-        case types.data_link:
-            return "θdl";
+        case 2:
+            if (SYM_LU.has(l.tx)) return SYM_LU.get(l.tx);
+            return 2;
+        case 1:
+            return 1;
+        case 4:
+            return 3;
+        case 256:
+            return 9;
+        case 8:
+            return 4;
+        case 512:
+            return 10;
         default:
-            return l.tx;
+            return SYM_LU.get(l.tx) || SYM_LU.get(l.ty);
     }
 }
 
- function parser(l, e = {}){
-    l.IWS = false;
+/************ Parser *************/
 
-    if(symbols.length > 0){
-        symbols.forEach(s=> {l.addSymbol(s)});
-        l.off = 0;
+function parser(l, e = {}) {
+    l.IWS = false;
+    l.PARSE_STRING = true;
+
+    if (symbols.length > 0) {
+        symbols.forEach(s => { l.addSymbol(s) });
         l.tl = 0;
         l.next();
     }
 
-    const o = [], ss = [0,0];
-    
-    let time = 10000, RECOVERING = false,
-        tk = getToken(l, re), p = l.copy(), sp = 1, len = 0, off= 0;
-    
+    const o = [],
+        ss = [0, 0];
+
+    let time = 1000000,
+        RECOVERING = 100,
+        tk = getToken(l, lu),
+        p = l.copy(),
+        sp = 1,
+        len = 0,
+        off = 0;
+
     outer:
 
-    while(time-- > 0){
-        
-        let fn = state[ss[sp]].get(tk) || 0, r, st = 0, gt = -1, c = 0;
+        while (time-- > 0) {
 
-        if(fn == 0xFFFFFFFF){
-            //Ignore the token
-            l.next();
-            tk = getToken(l, re, state[ss[sp]]);
-            continue;
-        }
+            const fn = lsm(tk, state[ss[sp]]) || 0;
 
-        if(fn > 0){
-            r = sf[fn-1](tk, e, o, l, ss[sp-1]);
-        } else {
-            //Error Encountered 
-            r = re[ss[sp]];
-            
-            const recovery_token = eh[ss[sp]](tk, e, o, l, p, ss[sp]);
-            
-            if(!RECOVERING && typeof(recovery_token) == "string"){
-                RECOVERING = true; // To prevent infinite recursion
-                tk = recovery_token;
-                //reset current token
-                l.tl = 0;
+            /*@*/// console.log({end:l.END, state:ss[sp], tx:l.tx, ty:l.ty, tk:tk, rev:rlu.get(tk), s_map:state[ss[sp]], res:lsm(tk, state[ss[sp]])});
+
+            let r,
+                gt = -1;
+
+            if (fn == 0) {
+                /*Ignore the token*/
+                l.next();
+                tk = getToken(l, lu);
                 continue;
             }
+
+            if (fn > 0) {
+                r = state_funct[fn - 1](tk, e, o, l, ss[sp - 1]);
+            } else {
+
+                if (RECOVERING > 1 && !l.END) {
+                    if (tk !== lu.get(l.ty)) {
+                        //console.log("ABLE", rlu.get(tk), l.tx, tk )
+                        tk = lu.get(l.ty);
+                        continue;
+                    }
+
+                    if (tk !== 13) {
+                        //console.log("MABLE")
+                        tk = 13;
+                        RECOVERING = 1;
+                        continue;
+                    }
+                }
+
+                tk = getToken(l, lu);
+
+                const recovery_token = eh[ss[sp]](tk, e, o, l, p, ss[sp]);
+
+                if (RECOVERING > 0 && typeof(recovery_token) == "string") {
+                    RECOVERING = -1; /* To prevent infinite recursion */
+                    tk = recovery_token;
+                    l.tl = 0; /*reset current token */
+                    continue;
+                }
+            }
+
+            switch (r & 3) {
+                case 0:
+                    /* ERROR */
+
+                    if (tk == "$")
+                        l.throw("Unexpected end of input");
+                    l.throw(`Unexpected token [\${RECOVERING ? l.next().tx : l.tx}]`);
+                    return [null];
+
+                case 1:
+                    /* ACCEPT */
+                    break outer;
+
+                case 2:
+                    /*SHIFT */
+                    o.push(l.tx);
+                    ss.push(off, r >> 2);
+                    sp += 2;
+                    p.sync(l);
+                    l.next();
+                    off = l.off;
+                    tk = getToken(l, lu);
+                    RECOVERING++;
+                    break;
+
+                case 3:
+                    /* REDUCE */
+
+                    len = (r & 0x3FC) >> 1;
+
+                    ss.length -= len;
+                    sp -= len;
+                    gt = goto[ss[sp]](r >> 10);
+
+                    if (gt < 0)
+                        l.throw("Invalid state reached!");
+
+                    ss.push(off, gt);
+                    sp += 2;
+                    break;
+            }
         }
-
-        st = r >> 2;
-
-        switch(r & 3){
-            case 0: // ERROR
-                
-                if(tk == "$")
-                    l.throw("Unexpected end of input");
-
-                l.throw(`Unexpected token [${RECOVERING ? l.next().tx : l.tx}]`); 
-
-                return [null];
-
-            case 1: // ACCEPT
-                break outer;
-
-            case 2: //SHIFT
-                o.push((tk[0] == "θ") ? l.tx : tk); 
-                ss.push(off, r >> 2); 
-                sp+=2; 
-                p.sync(l);
-                l.next(); 
-                off = l.off; 
-                tk = getToken(l, re, state[ss[sp]]); 
-                
-                break;
-
-            case 3: // REDUCE
-
-                len = (r & 0x3FC) >> 1;
-
-                ss.length -= len;   
-                sp -= len; 
-
-                gt = goto[ss[sp]](r >> 10);
-
-                if(gt < 0)
-                    l.throw("Invalid state reached!");
-                
-                ss.push(off, gt); sp+=2; 
-                
-                break;
-        }  
-
-        RECOVERING = false;
-    }
+    console.log(time);
     return o[0];
 }; const html_base = parser;

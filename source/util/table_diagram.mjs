@@ -1,24 +1,33 @@
 //Creates a state table diagram for diognostic purposes
 //Outputs string containing table value
-const crs = String.fromCharCode(0x254B)
-const crt = String.fromCharCode(0x2533)
-const crb = String.fromCharCode(0x253B)
-const crl = String.fromCharCode(0x2523)
-const crr = String.fromCharCode(0x252B)
-const hrz = String.fromCharCode(0x2501)
-const ver = String.fromCharCode(0x2503)
-const crtl = String.fromCharCode(0x250F)
-const crtr = String.fromCharCode(0x2513)
-const crbr = String.fromCharCode(0x251B)
-const crbl = String.fromCharCode(0x2517)
-//(T)o (N)ext (T)ab (S)top
+const crs = String.fromCharCode(0x254B);
+const crt = String.fromCharCode(0x2533);
+const crb = String.fromCharCode(0x253B);
+const crl = String.fromCharCode(0x2523);
+const crr = String.fromCharCode(0x252B);
+const hrz = String.fromCharCode(0x2501);
+const ver = String.fromCharCode(0x2503);
+const crtl = String.fromCharCode(0x250F);
+const crtr = String.fromCharCode(0x2513);
+const crbr = String.fromCharCode(0x251B);
+const crbl = String.fromCharCode(0x2517);
+import util from "util";
+
+import { types, filloutGrammar } from "./common.mjs";
 
 export function renderTable(states, grammar, tab = "   ", tab_s = tab.length) {
+
+     //Build new env variables if they are missing 
+    if (!grammar.bodies) {
+        filloutGrammar(grammar, {functions:{}});
+    }
+    
+    console.log(util.inspect(grammar.meta.all_symbols, false, 5, true))
+
 
     const ws = (count) => (" ").repeat(count);
     const tnts = (h) => ((Math.ceil((h + 0.5) / tab_s) * tab_s) - h);
     const stnts = (h) => ws(tnts(h));
-
     
 
     let str = "";
@@ -27,7 +36,7 @@ export function renderTable(states, grammar, tab = "   ", tab_s = tab.length) {
         rule_table = states;
 
     if (rule_table.INVALID) {
-        console.error("Invalid state set passed. Cannot continue.")
+        console.error("Invalid state set passed. Cannot continue.");
         return;
     }
 
@@ -172,7 +181,7 @@ export function renderTable(states, grammar, tab = "   ", tab_s = tab.length) {
             }
 
             off = v.off + 1;
-        })
+        });
 
         d += `${tab.repeat(Math.max((symbol_count - off), 0)) + ver + ws(tm)}`;
 
@@ -182,21 +191,21 @@ export function renderTable(states, grammar, tab = "   ", tab_s = tab.length) {
             d += `${tab.repeat(Math.max((v.off - off), 0))}`;
             d += `${action+ stnts(action.length)}`;
             off = v.off + 1;
-        })
+        });
 
         d += `${tab.repeat(Math.max((prod_count - off), 0))}${ver} `;
 
         const s = rule_table[i].b.join(" "),
             diff = max_body - s.length;
 
-        d += `${s + (" ").repeat(diff + 2) + ver}\n`
+        d += `${s + (" ").repeat(diff + 2) + ver}\n`;
 
         str += d;
 
     }
 
     /**** Bottom Bar ************************/
-    str += `${crbl + hrz.repeat(tm) + crb + hrz.repeat(symbol_count * tab_s + tm) + crb + hrz.repeat(prod_count * tab_s + tm) + crb + hrz.repeat(max_body + 3) + crbr}\n`
+    str += `${crbl + hrz.repeat(tm) + crb + hrz.repeat(symbol_count * tab_s + tm) + crb + hrz.repeat(prod_count * tab_s + tm) + crb + hrz.repeat(max_body + 3) + crbr}\n`;
 
-    return str //.replace(/\t/g, (" ").repeat(8));
+    return str;//.replace(/\t/g, (" ").repeat(8));
 }

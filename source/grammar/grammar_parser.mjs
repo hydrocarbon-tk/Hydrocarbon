@@ -1,13 +1,9 @@
 /**
  * Parses HC Grammars. Parser Built by Hydrocarbon
  */
-import parser from './hcg.mjs'
+import parser from './hcg_v1.mjs'
 
-import whind from "../node_modules/@candlefw/whind/source/whind.mjs";
-
-import { isNonTerm, EMPTY_PRODUCTION } from "./common2.mjs";
-
-import util from "util";
+import whind from "@candlefw/whind";
 
 function convertProductionNamesToIndexes(productions, LU) {
     let sym = "",
@@ -28,8 +24,10 @@ function convertProductionNamesToIndexes(productions, LU) {
                 for (let i = 0; i < body.length; i++) {
                     sym = body.sym[i];
 
-                    if (sym.type == "production")
+                    if (sym.type == "production"){
+                        console.log(sym.name)
                         sym.val = LU.get(sym.name).id;
+                    }
                     else if (sym.type == "literal")
                         productions.reserved.add(sym.val);
                 }
@@ -40,6 +38,7 @@ function convertProductionNamesToIndexes(productions, LU) {
             if(productions.meta[i].type == "ignore")
                 productions.meta.ignore = productions.meta[i];
         }
+
     } catch (e) {
         console.error(e);
         throw e;
@@ -49,23 +48,24 @@ function convertProductionNamesToIndexes(productions, LU) {
 export function grammarParser(grammar) {
     try {
         const productions = parser(whind(grammar));
-        
         //Setup the productions object
         productions.forEach((p, i) => p.id = i);
+
         productions.reserved = new Set();
         productions.symbols = null;
         
         const LU = new Map(productions.map(p => [p.name, p]));
         convertProductionNamesToIndexes(productions, LU);
 
-        for (let pre in productions.meta) {
+        for (let pre of productions.meta) {
             switch (pre.type) {
                 case "symbols":
-                    productions.symbols = pre.symbols;
+                    productions.meta.symbols = new Map(pre.symbols.map(e=>[e, {val:e}]));
                     break;
             }
 
         }
+
         return productions;
     } catch (e) {
         console.error(e);

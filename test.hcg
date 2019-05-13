@@ -1,13 +1,21 @@
-@IGNORE θws 
-
-# S → s 
-# s → E τd │ !EXC τa τb END_EXC J E
-# E → τa τb τd │ τd τd │ τc 
-# J → τa F │ τa
-# F → τb τd
-# D → τa B 
-# B → τb 
+@IGNORE θws θnum
 
 -- S → s 
--- s → C C
--- C → τc C │ τd 
+
+-- s → E τd │  ((EXC  τa τb )) J E
+
+-- E → τa ((IGN  τa )) ((ERR θnum)) τb τd │ τd τd │ τc 
+
+-- J → τa F │ τa
+
+-- F → τb τd
+
+-- D → τa B 
+
+-- B → τb 
+
+# -- S → s 
+# -- s → C C
+# -- C → τc C │ τd 
+
+

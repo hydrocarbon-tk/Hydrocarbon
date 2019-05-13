@@ -1,11 +1,16 @@
 import {Lexer} from "@candlefw/whind";
 
+function stripLexBody(lex){
+    let val = Lexer.prototype.slice.call(lex).slice(1).trim();
+
+    return val.replace(/(?<!\\)\(\([^\)]+\)\)/g, "").replace(/↦[^\}]+\}/g,"").replace(/\s\s+/g," ");
+}
+
 export function shiftCollisionCheck(grammar, state, new_state, item, size, error) {
     const bodies = grammar.bodies,
         body_a = bodies[item.body],
         k = body_a[item.offset],
-        action = state.action.get(k),
-        e_state = grammar.states;
+        action = state.action.get(k);
 
 
 
@@ -16,7 +21,7 @@ export function shiftCollisionCheck(grammar, state, new_state, item, size, error
         const body_b = bodies[action.body];
         
         const v = new_state.b.slice();
-        v.splice(size + 1, 0, ">");
+        v.splice(size + 2, 0, ">");
 
         if (action.name !== "SHIFT") {
             error.log(
@@ -26,7 +31,7 @@ export function shiftCollisionCheck(grammar, state, new_state, item, size, error
  <${state.id}> ${state.b.join(" ")} 
  
     Existing Action: 
-         Reduce to Terminal ${grammar[body_b.production].name} from production { ${Lexer.prototype.slice.call(body_b.lex).slice(1).trim()} }
+         Reduce to {${body_b.production.name}} from production { ${stripLexBody(body_b.lex)} }
          Definition found on line ${body_b.lex.line+1}:${body_b.lex.char} in input.
 
     Replacing Action: 
@@ -39,7 +44,7 @@ export function shiftCollisionCheck(grammar, state, new_state, item, size, error
 
             const r = grammar.states[action.state].b.slice();
             
-            r.splice(action.len + 1, 0, ">");
+            r.splice(action.len + 2, 0, ">");
 
             error.log(
                 `\x1b[43m SHIFT \x1b[43m COLLISION ERROR ENCOUNTERED:\x1b[0m
@@ -75,7 +80,7 @@ export function gotoCollisionCheck(grammar, state, new_state, item, error) {
 
         if (!grammar.states[goto.state].b) {
             const bodies = grammar.bodies;
-            grammar.states[goto.state].b = [grammar[bodies[goto.body].production].name, "→", ...bodies[goto.body]].map((d) => isNaN(d) ? d : grammar[d].name);
+            grammar.states[goto.state].b = [bodies[goto.body].production.name, "→", ...bodies[goto.body]].map((d) => isNaN(d) ? d : grammar[d].name);
         }
 
         let old_id = grammar.states[goto.state].real_id;
@@ -95,8 +100,8 @@ export function gotoCollisionCheck(grammar, state, new_state, item, error) {
         //let state_body = grammar.states[goto.state].b.join(" ");
         //console.log(k, old_id, grammar.states[goto.state].b)
         //*
-        let production = grammar[grammar.bodies[k].production].name
-        let new_state_body = [grammar[bodies[new_state.body].production].name, "→", ...bodies[new_state.body]].map((d) => isNaN(d) ? d : grammar[d].name)
+        let production = bodies[k].production.name;
+        let new_state_body = [bodies[new_state.body].production.name, "→", ...bodies[new_state.body]].map((d) => isNaN(d) ? d : grammar[d].name);
         error.log(
             `\x1b[42m GOTO \x1b[43m COLLISION ERROR ENCOUNTERED:\x1b[0m
 
@@ -104,11 +109,11 @@ export function gotoCollisionCheck(grammar, state, new_state, item, error) {
  <${state.id}> ${state.b.join(" ")}
 
     Existing Action: 
-        Goto to state {${grammar.states[goto.state].b.join(" ")}} ${goto.state} from reduction of production { ${Lexer.prototype.slice.call(body_b.lex).slice(1).trim()} }
+        Goto to state {${grammar.states[goto.state].b.join(" ")}} ${goto.state} from reduction of production { ${stripLexBody(body_b.lex)} }
         Definition found on line ${body_b.lex.line+1}:${body_b.lex.char} in input.
 
     Replacing Action:
-        Goto to state {${new_state_body.join(" ")}} ${new_state.id} from reduction of production { ${Lexer.prototype.slice.call(body_a.lex).slice(1).trim()} }
+        Goto to state {${new_state_body.join(" ")}} ${new_state.id} from reduction of production { ${stripLexBody(body_a.lex)} }
         Definition found on line ${body_a.lex.line+1}:${body_a.lex.char} in input.\n\n
 
     Keeping Existing Action Goto to state {${grammar.states[goto.state].b.join(" ")}} ${goto.state}
@@ -138,7 +143,7 @@ export function reduceCollisionCheck(grammar, state, item, error) {
 
             const body_b = bodies[action.body];
             const v = grammar.states[action.state].b.slice();
-            v.splice(action.len + 1, 0, ">");
+            v.splice(action.len + 2, 0, ">");
             error.log(
 `\x1b[43m REDUCE/SHIFT  \x1b[43m COLLISION ERROR ENCOUNTERED:\x1b[0m
 
@@ -149,22 +154,23 @@ export function reduceCollisionCheck(grammar, state, item, error) {
             Shift to state {${v.join(" ")}}  from input { ${k} }
             Definition found on line ${body_b.lex.line+1}:${body_b.lex.char} in input.
 
+
         Replacing Action: 
-             Reduce to {${grammar[body_a.production].name}} from production { ${Lexer.prototype.slice.call(body_a.lex).slice(1).trim()} }
-             Definition found on line ${body_a.lex.line+1}:${body_a.lex.char} in input.
+            Reduce to {${body_a.production.name}} from production { ${stripLexBody(body_a.lex)} } }
+            Definition found on line ${body_a.lex.line+1}:${body_a.lex.char} in input.
 
         Favoring Shift Action \n`);
             return 1;
         }
 
-        if (grammar[item.body_.production].name == state.b[0]) // TODO: Already reducing to the expected production )
+        if (item.body_.production.name == state.b[0]) // TODO: Already reducing to the expected production )
         {
             //console.log("TODO: Duplicate reduce merge", state.b[0], grammar[body_b.production].name)
             return 1;
         }
 
         if (
-            grammar[body_a.production].name !== state.b[0] &&
+            body_a.production.name !== state.b[0] &&
             body_b.production !== body_a.production // Reduction to same production should not be an error
         ) {
 
@@ -175,12 +181,12 @@ export function reduceCollisionCheck(grammar, state, item, error) {
  <${state.id}> ${state.b.join(" ")}
 
         Existing Action:
-            Reduce to {${grammar[body_b.production].name}} from production { ${Lexer.prototype.slice.call(body_b.lex).slice(1).trim()} }
+            Reduce to {${body_b.production.name}} from production { ${stripLexBody(body_b.lex)} }
             Definition found on line ${body_b.lex.line+1}:${body_b.lex.char} in input.
             ${grammar.states[action.state].d}
 
         Replacing Action:
-            Reduce to {${grammar[body_a.production].name}} from production { ${Lexer.prototype.slice.call(body_a.lex).slice(1).trim()} }
+            Reduce to {${body_a.production.name}} from production { ${stripLexBody(body_a.lex)} }
             Definition found on line ${body_a.lex.line+1}:${body_a.lex.char} in input.
             ${state.d}
             `);

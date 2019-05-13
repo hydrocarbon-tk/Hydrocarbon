@@ -1,16 +1,17 @@
 //Root State Functions
-import { getToken, types, FOLLOW, filloutGrammar } from "../common2.mjs";
+import { types } from "../util/common.mjs";
+
+const max = Math.max;
 
 const reduce_with_value = (ret, fn, plen, ln, t, e, o, l, s) => {
-        ln = max(o.length - plen,0);
+        ln = max(o.length - plen, 0);
         o[ln] = fn(o.slice(-plen), e, l, s);
         o.length = ln + 1;
         return ret;
     },
-    reduce_with_new_value = (ret, fn, plen, ln, t, e, o, l, s) => {
-        console.log(plen, o);
-        ln = max(o.length - plen,0);
-        o[ln] = new fn(o.slice(-plen), e, l, s);
+    reduce_with_new_value = (ret, Fn, plen, ln, t, e, o, l, s) => {
+        ln = max(o.length - plen, 0);
+        o[ln] = new Fn(o.slice(-plen), e, l, s);
         o.length = ln + 1;
         return ret;
     },
@@ -22,15 +23,14 @@ const reduce_with_value = (ret, fn, plen, ln, t, e, o, l, s) => {
     shift_with_function_name = "shftf";
 
 function setNode(funct, length, functions, id, return_val, COMPILE_FUNCTION = true) {
-    console.log(funct)
     if (funct.type == "CLASS") {
-        return (!COMPILE_FUNCTION && funct.env) 
-        ? { id, str: `${reduce_with_new_value_name}(${return_val},v[1].functions.${funct.name},${length},0,...v)` } 
-        : { id, str: `${reduce_with_new_value_name}(${return_val},${funct.name},${length},0,...v)` }
+        return (!COMPILE_FUNCTION && funct.env) ?
+            { id, str: `${reduce_with_new_value_name}(${return_val},v[1].functions.${funct.name},${length},0,...v)` } :
+            { id, str: `${reduce_with_new_value_name}(${return_val},${funct.name},${length},0,...v)` };
     } else {
-        return (!COMPILE_FUNCTION && funct.env) 
-        ? { id, str: `${reduce_with_value_name}(${return_val},v[1].functions.${funct.name},${length},0,...v)` } 
-        : { id, str: `${reduce_with_value_name}(${return_val},${funct.name},${length},0,...v)` }
+        return (!COMPILE_FUNCTION && funct.env) ?
+            { id, str: `${reduce_with_value_name}(${return_val},v[1].functions.${funct.name},${length},0,...v)` } :
+            { id, str: `${reduce_with_value_name}(${return_val},${funct.name},${length},0,...v)` };
     }
 }
 
@@ -61,6 +61,8 @@ export default function(grammar, states, env, functions, SYM_LU) {
             state = states[i],
             production = bodies[state.body].production;
 
+        const STATE = state;
+
         if (production.error) {
             const funct = production.error;
             error_handlers.push(`${funct.toString().replace(/(anonymous)?[\n\t]*/g,"")}`);
@@ -68,16 +70,19 @@ export default function(grammar, states, env, functions, SYM_LU) {
             error_handlers.push("e");
         }
 
-        const state_map = [-0XFFFFFFFF];
+        const state_map = [0];
+
 
         let last_pos = -1;
-
         ([...state.action.entries()]).map(s => {
             const state = s[1],
                 k = s[0];
 
+
+
             if (k == "$")
                 s[0] = 0;
+            
             else switch (state.symbol_type) {
                 case "literal":
                 case "escaped":
@@ -85,11 +90,13 @@ export default function(grammar, states, env, functions, SYM_LU) {
                     s[0] = SYM_LU.get(k);
                     break;
                 case "generated":
-                    if (k == "any")
+                    if (k == "any") {
                         s[0] = SYM_LU.get(k);
-                    else
+                    } else
                         s[0] = SYM_LU.get(types[k]);
             }
+
+            //console.log(k, s[0])
             return s;
         }).sort((a, b) => (a[0] < b[0]) ? -1 : 1).forEach(s => {
             const state = s[1],
@@ -97,10 +104,19 @@ export default function(grammar, states, env, functions, SYM_LU) {
                 length = state.size,
                 body = bodies[state.body],
                 funct = [];
+            
+            if (k == last_pos) 
+                return;
 
-
-            if (k - last_pos > 1)
+            if (k - last_pos > 1) {
+                /*
+                    let v = k - last_pos - 1;
+                    while (v-- > 0)
+                        state_map.push(-1);
+                */
                 state_map.push(-(k - last_pos - 1));
+            }
+            //console.log(k, last_pos, k - last_pos, state.name)
 
             last_pos = k;
 
@@ -108,14 +124,13 @@ export default function(grammar, states, env, functions, SYM_LU) {
                 st_fn_id = "",
                 return_value = 0,
                 fn = 0;
-
             switch (state.name) {
                 case "ACCEPT":
 
                     st_fn_id = "a";
                     return_value = 1 | (length << 2);
 
-                    //intentional
+                    /*intentional*/
                 case "REDUCE":
 
                     if (!st_fn_id) {
@@ -129,12 +144,12 @@ export default function(grammar, states, env, functions, SYM_LU) {
                         if (body.reduce_function) {
                             const out = setNode(body.reduce_function, length, functions, fn_id, return_value, COMPILE_FUNCTION);
                             funct.push(out.str);
-                            st_fn_id += funct.name;
+                            st_fn_id += body.reduce_function.name;
                             fn_id = out.id;
                         }
                     } else if (length == 0)
-                        funct.push(`(${reduce_to_null_name}(${return_value},...v))`); // empty production
-                    //intentional
+                        funct.push(`(${reduce_to_null_name}(${return_value},...v))`); /* empty production*/
+                    /*intentional*/
                 case "SHIFT":
 
                     if (!st_fn_id) {
@@ -145,14 +160,15 @@ export default function(grammar, states, env, functions, SYM_LU) {
                     }
 
                     for (let i = 0; i < body.functions.length; i++) {
-                        const f = body.functions[0];
-                        if (f.offset == state.len) {
+                        const f = body.functions[i];
+                        if (f.offset == state.offset) {
+                        console.log(f, state.offset)
                             const name = f.name;
                             st_fn_id += name;
                             if (f.env)
-                                funct.shift(`${shift_with_function_name}(${return_value},v[1].functions.${name},...v)`);
+                                funct.push(`${shift_with_function_name}(${return_value},v[1].functions.${name},...v)`);
                             else
-                                funct.shift(`${shift_with_function_name}(${return_value},${name},...v)`);
+                                funct.push(`${shift_with_function_name}(${return_value},${name},...v)`);
                         }
                     }
 
@@ -188,6 +204,11 @@ export default function(grammar, states, env, functions, SYM_LU) {
         .sort((a, b) => a[0] < b[0] ? -1 : 1)
             .forEach(k => {
                 if (k[0] - last > 1) {
+                    /*
+                    let v = k[0] - last - 1;
+                    while (v-- > 0)
+                        goto.push(-1);
+                    */
                     goto.push(-(k[0] - last - 1));
                 }
                 goto.push(k[1].state);
