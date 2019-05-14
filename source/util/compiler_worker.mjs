@@ -130,6 +130,9 @@ function center(string) {
 
 async function runner(grammar, env_path, name) {
 
+    if(!grammar)
+        throw new Error(`Unable to parse grammar, the grammar is ${gramamr}`);
+
     const start = performance.now();
 
     let loop = 0;
@@ -149,10 +152,19 @@ async function runner(grammar, env_path, name) {
             conflict_number = -1,
             time = new Date(performance.now() - start);;
 
-        const worker = new Worker((new URL(
-            import.meta.url)).pathname, {
-            workerData: { grammar, env_path }
-        })
+        let worker;
+
+        if(process.platform == "win32"){
+            worker = new Worker(import.meta.url.replace(/file\:\/\/\//g,""), 
+            {
+                workerData: { grammar, env_path }
+            })
+        }else{
+            worker = new Worker((new URL(import.meta.url)).pathname, 
+            {
+                workerData: { grammar, env_path }
+            })
+        }
 
 
         worker.on("message", (e, d) => {
@@ -179,6 +191,7 @@ async function runner(grammar, env_path, name) {
 
         stdin.on('data', function(key) {
             const keypress = key.charCodeAt(2) | key.charCodeAt(1) << 8 | key.charCodeAt(0) << 16
+
             switch (keypress) {
                 case 1792836: // Left Arrow
                     if (conflict_number > -1)
@@ -232,11 +245,11 @@ async function runner(grammar, env_path, name) {
 
             if (conflicts_generated > 0) {
                 if (conflict_number > -1) {
-                    const conflict_tabs_header = `${-1 < conflict_number ? "<" : " " }     Conflict ${ conflict_number + 1 }     ${ conflict_number < conflicts_generated ? ">" : " " }`;
+                    const conflict_tabs_header = `${-1 < conflict_number ? "<" : " " }     Conflict ${ conflict_number + 1 }     ${ conflict_number < conflicts_generated-1 ? ">" : " " }`;
                     const conflict_tabs = Array.apply(null, Array(conflicts_generated)).map((a, i) => i == conflict_number ? "o" : "O").join("        ")
                     conflicts = `${center(conflict_tabs_header)}\n${center(conflict_tabs)}\n${error.strings[conflict_number]}`
                 } else
-                    conflicts = center(`${COLOR_ERROR}Use arrow keys to review conflicts. =>${COLOR_RESET}`)
+                    conflicts = center(`${COLOR_ERROR}Use arrow keys to review conflicts. > ${COLOR_RESET}`)
             }
 
             console.log(
@@ -247,7 +260,7 @@ async function runner(grammar, env_path, name) {
                     ` ${p} Pending Items:       ${gray_b}${(("               ")+items_left).slice(-8)}`,
                     ` ${p} Number Of States:    ${gray_b}${(("               ")+number_of_states).slice(-8)}`,
                     ` ${p} Conflicts Generated: ${gray_b}${conflicts_generated ? red_f : ""}${(("               ")+conflicts_generated).slice(-8)}`, "",
-                    center(`${(EXIT && !COMPLETE) ? `Exit primed. Compiling will exit on completion.`: ""}${COMPLETE ? `${COLOR_SUCCESS}Compilation complete.${COLOR_RESET} Press ${COLOR_KEYBOARD}esc${COLOR_RESET} to complete this compilation step.${COLOR_RESET}`: ""}`), "",
+                    center(`${(EXIT && !COMPLETE) ? `Exit primed. Compiling will exit on completion.`: ""}${COMPLETE ? `${ !states.COMPILED ? `${COLOR_ERROR}Compilation failed.`:`${COLOR_SUCCESS}Compilation complete.`}${COLOR_RESET} Press ${COLOR_KEYBOARD}esc${COLOR_RESET} to end this step.${COLOR_RESET}`: ""}`), "",
                     conflicts
                 ].join(clear + "\n"))
         }, 200)

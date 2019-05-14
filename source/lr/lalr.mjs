@@ -356,6 +356,8 @@ export function* compileLRStates(grammar, env = {}) {
 
     items_set[0].c.excludes = [];
 
+    states.COMPILED = false;
+
     while (items_set.length > 0) {
         let start = items_set.length;
 
@@ -392,6 +394,8 @@ export function* compileLRStates(grammar, env = {}) {
             });
         });
     }
+
+    states.COMPILED = true;
 
     //console.log(util.inspect(states, false, null, true))
     //console.log(grammar.meta.ignore)

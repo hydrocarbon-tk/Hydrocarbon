@@ -1,6 +1,4 @@
-#!/bin/sh
-
-":" //# comment; exec /usr/bin/env node --max-old-space-size=8192 --experimental-modules "$0" "$@"
+#!/usr/bin/env node --experimental-modules
 
 /* IMPORTS *******************/
 
@@ -286,6 +284,11 @@ program
                 }
             }
 
+            if(!states.COMPILED){
+                (console.error(`Failed to compile grammar ${grammar.name}. Exiting`), undefined);
+                process.exit(1)
+            }
+
             console.log(hc.renderTable(states, grammar));
 
             console.log(`Use ${ADD_COLOR(" ctrl ", COLOR_KEYBOARD)}+${ADD_COLOR(" c ", COLOR_KEYBOARD)} to return to console,`)
@@ -366,8 +369,15 @@ program
                     await writeFile(`${name}.hcs`, states_output, output_directory);
                 }
             }
+
+            if(!states.COMPILED){
+                (console.error(`Failed to compile grammar ${grammar.name}. Exiting`), undefined);
+                process.exit(1)
+            }
+
             
             const script_string = buildLRCompilerScript(states, grammar, env);
+
 
             const script = createScript(name, script_string, type, env, COMPRESS);
 

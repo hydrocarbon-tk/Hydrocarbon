@@ -771,7 +771,7 @@ function getToken(l, SYM_LU) {
 function parser(l, e = {}) {
     l.IWS = false;
     l.PARSE_STRING = true;
-
+    
     if (symbols.length > 0) {
         symbols.forEach(s => { l.addSymbol(s) });
         l.tl = 0;
