@@ -1,7 +1,7 @@
 /**
  * Parses HC Grammars. Parser Built by Hydrocarbon
  */
-import parser from './hcg_v1.mjs'
+import parser from './hcg_v1.mjs';
 
 import whind from "@candlefw/whind";
 
@@ -10,8 +10,9 @@ function convertProductionNamesToIndexes(productions, LU) {
         body;
     try {
         for (let i = 0; i < productions.length; i++) {
-            let production = productions[i];
-            let bodies = production.bodies;
+            const 
+                production = productions[i],
+                bodies = production.bodies;
 
             for (let i = 0; i < bodies.length; i++) {
                 body = bodies[i];
@@ -25,7 +26,7 @@ function convertProductionNamesToIndexes(productions, LU) {
                     sym = body.sym[i];
 
                     if (sym.type == "production"){
-                        console.log(sym.name)
+                        console.log(sym.name);
                         sym.val = LU.get(sym.name).id;
                     }
                     else if (sym.type == "literal")
@@ -57,7 +58,7 @@ export function grammarParser(grammar) {
         const LU = new Map(productions.map(p => [p.name, p]));
         convertProductionNamesToIndexes(productions, LU);
 
-        for (let pre of productions.meta) {
+        for (const pre of productions.meta) {
             switch (pre.type) {
                 case "symbols":
                     productions.meta.symbols = new Map(pre.symbols.map(e=>[e, {val:e}]));

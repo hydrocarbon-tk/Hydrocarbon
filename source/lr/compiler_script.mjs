@@ -15,6 +15,9 @@ const lookupSparseMap = (index, map) => {
 var goto, symbols, lu, lsm, state, state_funct, $_any, eh;
 
 function parser(l, e = {}) {
+    
+    fn = e.functions;
+
     l.IWS = false;
     l.PARSE_STRING = true;
 
@@ -90,7 +93,7 @@ function parser(l, e = {}) {
 
                     if (tk == "$")
                         l.throw("Unexpected end of input");
-                    l.throw(`Unexpected token [\${RECOVERING ? l.next().tx : l.tx}]`);
+                    l.throw(`Unexpected token [${RECOVERING ? l.next().tx : l.tx}]`);
                     return [null];
 
                 case 1:
@@ -202,7 +205,7 @@ export function verboseCompiler(
     goto_functions,
     GEN_SYM_LU,
     symbols) {
-    return `const 
+    return `let fn = {}; const 
 /************** Maps **************/
 
     /* Symbols To Inject into the Lexer */
@@ -265,7 +268,7 @@ export function compressedCompiler(
     goto_functions,
     GEN_SYM_LU,
     symbols) {
-    return ("const symbols=" +
+    return ("let fn = {}; const symbols=" +
         `${renderSymbols(symbols)},` +
         `${renderGotoMap(goto_maps)},` +
         `${renderStateMaps(state_maps)},` +

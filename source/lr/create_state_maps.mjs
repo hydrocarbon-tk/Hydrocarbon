@@ -1,21 +1,24 @@
 //Root State Functions
 import { types } from "../util/common.mjs";
 
-const max = Math.max;
+const max = Math.max,
 
-const reduce_with_value = (ret, fn, plen, ln, t, e, o, l, s) => {
+    reduce_with_value = (ret, fn, plen, ln, t, e, o, l, s) => {
         ln = max(o.length - plen, 0);
         o[ln] = fn(o.slice(-plen), e, l, s);
         o.length = ln + 1;
         return ret;
     },
+
     reduce_with_new_value = (ret, Fn, plen, ln, t, e, o, l, s) => {
         ln = max(o.length - plen, 0);
         o[ln] = new Fn(o.slice(-plen), e, l, s);
         o.length = ln + 1;
         return ret;
     },
+
     reduce_to_null = (ret, t, e, o) => (o.push(null), ret),
+
     shift_with_function = (ret, fn, t, e, o, l, s) => (fn(o, e, l, s), ret),
     reduce_with_value_name = "redv",
     reduce_with_new_value_name = "rednv",
@@ -25,11 +28,11 @@ const reduce_with_value = (ret, fn, plen, ln, t, e, o, l, s) => {
 function setNode(funct, length, functions, id, return_val, COMPILE_FUNCTION = true) {
     if (funct.type == "CLASS") {
         return (!COMPILE_FUNCTION && funct.env) ?
-            { id, str: `${reduce_with_new_value_name}(${return_val},v[1].functions.${funct.name},${length},0,...v)` } :
+            { id, str: `${reduce_with_new_value_name}(${return_val},fn.${funct.name},${length},0,...v)` } :
             { id, str: `${reduce_with_new_value_name}(${return_val},${funct.name},${length},0,...v)` };
     } else {
         return (!COMPILE_FUNCTION && funct.env) ?
-            { id, str: `${reduce_with_value_name}(${return_val},v[1].functions.${funct.name},${length},0,...v)` } :
+            { id, str: `${reduce_with_value_name}(${return_val},fn.${funct.name},${length},0,...v)` } :
             { id, str: `${reduce_with_value_name}(${return_val},${funct.name},${length},0,...v)` };
     }
 }
@@ -57,11 +60,11 @@ export default function(grammar, states, env, functions, SYM_LU) {
         error_handlers = [];
 
     for (let i = 0; i < states.length; i++) {
+
         const
             state = states[i],
-            production = bodies[state.body].production;
-
-        const STATE = state;
+            production = bodies[state.body].production,
+            state_map = [0];
 
         if (production.error) {
             const funct = production.error;
@@ -70,15 +73,12 @@ export default function(grammar, states, env, functions, SYM_LU) {
             error_handlers.push("e");
         }
 
-        const state_map = [0];
-
-
         let last_pos = -1;
         ([...state.action.entries()]).map(s => {
+
             const state = s[1],
+            
                 k = s[0];
-
-
 
             if (k == "$")
                 s[0] = 0;

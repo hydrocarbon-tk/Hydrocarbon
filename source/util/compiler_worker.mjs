@@ -3,7 +3,7 @@ import whind from "@candlefw/whind";
 import url from "url";
 import { Worker, isMainThread, parentPort, workerData } from "worker_threads";
 import readline from "readline";
-import {performance} from "perf_hooks";
+import { performance } from "perf_hooks";
 
 const gray_b = "\x1b[48;5;233m";
 const grn_b = "\x1b[48;5;100m";
@@ -128,7 +128,7 @@ function center(string) {
     return fill.repeat(Math.max(0, Math.round(col / 2 - length / 2))) + string;
 }
 
-async function runner(grammar, env, name) {
+async function runner(grammar, env_path, name) {
 
     const start = performance.now();
 
@@ -136,7 +136,7 @@ async function runner(grammar, env, name) {
 
     return (new Promise((res) => {
 
-        let 
+        let
             COMPLETE = false,
             EXIT = false,
             completion_ratio = 0,
@@ -151,7 +151,7 @@ async function runner(grammar, env, name) {
 
         const worker = new Worker((new URL(
             import.meta.url)).pathname, {
-            workerData: { grammar, env }
+            workerData: { grammar, env_path }
         })
 
 
@@ -204,6 +204,7 @@ async function runner(grammar, env, name) {
 
         const id = setInterval(function test() {
 
+            // Clearing console to provide a dashboard interface.
             console.clear();
 
             if (COMPLETE && EXIT) {
@@ -225,7 +226,7 @@ async function runner(grammar, env, name) {
                 num = "\x1b[48;5;53m",
                 c = Math.round(completion_ratio_bar_size * completion_ratio),
                 r = (completion_ratio_bar_size - c) > 0 ? colorLoad(completion_ratio_bar_size - c, loop, color_loading_gs, " ", false) : "";
-            
+
             let conflicts = "";
 
 
@@ -254,25 +255,79 @@ async function runner(grammar, env, name) {
 }
 
 if (!isMainThread) {
-    const { grammar, env } = workerData;
-    let gen = hc.compileLRStates(grammar, env);
-    let status = gen.next().value;
-    let number_of_completed_items = 0;
-    let loop = 0;
-    let completion_ratio = 0
-    let items_left = 0
-    let total_items_processed = 0
-    let number_of_states = 0
-    let conflicts_generated = 0
 
-    do {
-        completion_ratio = ((status.total_items - status.items_left) / status.total_items);
-        items_left = status.items_left;
-        total_items_processed = loop++;
-        number_of_states = status.num_of_states;
-        conflicts_generated = status.error.strings.length;
+    async function loadEnv(env_path) {
+        let env = { functions: {} };
+
+        //check for optional env file
+        if (env_path) {
+            let ext = env_path.split(".").reverse()[0];
+
+            env = (await import(env_path)).default;
+        }
 
 
+        return env;
+    }
+
+
+    async function runner() {
+        const { grammar, env_path } = workerData;
+
+        let env = null;
+
+        try {
+            env = await loadEnv(env_path)
+        } catch (e) {
+            parentPort.postMessage({
+                error: { strings: [e.toString()] },
+                conflicts_generated: 1,
+                completion_ratio: 0,
+                items_left: 0,
+                total_items_processed: 0,
+                number_of_states: 0,
+                completed: true,
+                states: { COMPILED: false }
+            });
+
+            process.exit();
+        }
+
+
+        let gen = hc.compileLRStates(grammar, env);
+        let status = gen.next().value;
+        let number_of_completed_items = 0;
+        let loop = 0;
+        let completion_ratio = 0
+        let items_left = 0
+        let total_items_processed = 0
+        let number_of_states = 0
+        let conflicts_generated = 0
+
+        do {
+            completion_ratio = ((status.total_items - status.items_left) / status.total_items);
+            items_left = status.items_left;
+            total_items_processed = loop++;
+            number_of_states = status.num_of_states;
+            conflicts_generated = status.error.strings.length;
+
+
+
+            parentPort.postMessage({
+                error: status.error,
+                conflicts_generated,
+                completion_ratio,
+                items_left,
+                total_items_processed,
+                number_of_states,
+                completed: false,
+                states: null
+            });
+
+            status = gen.next().value;
+        } while (!status.COMPLETE)
+
+        const states = status.states;
 
         parentPort.postMessage({
             error: status.error,
@@ -281,26 +336,13 @@ if (!isMainThread) {
             items_left,
             total_items_processed,
             number_of_states,
-            completed: false,
-            states: null
+            completed: true,
+            states
         });
+    }
 
-        status = gen.next().value;
-    } while (!status.COMPLETE)
-
-    const states = status.states;
-
-    parentPort.postMessage({
-        error: status.error,
-        conflicts_generated,
-        completion_ratio,
-        items_left,
-        total_items_processed,
-        number_of_states,
-        completed: true,
-        states
-    });
-
+    runner();
+    //Load environment object
 }
 
 export default runner;

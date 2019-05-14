@@ -162,8 +162,8 @@ function parseLRJSONStates(states_string) {
     return hc.ImportStates(states_string);
 }
 
-async function compileLRStates(grammar, env, name) {
-    return await runner(grammar, env, name);
+async function compileLRStates(grammar, env_path, name) {
+    return await runner(grammar, env_path, name);
 }
 
 function buildLRCompilerScript(states, parsed_grammar, env) {
@@ -359,7 +359,7 @@ program
                 states = parseLRJSONStates(states_string, quiet);
             }else{
 
-                states = await compileLRStates(grammar, env, name);
+                states = await compileLRStates(grammar, env_path, name);
 
                 if(!!cmd.statesout){
                     const states_output = stringifyLRStates(states);
