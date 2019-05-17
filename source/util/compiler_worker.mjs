@@ -113,6 +113,11 @@ let color_loading_gs = ([
     "\x1b[48;5;233m",
 ])
 
+function getTimeStamp(date_object, USE_MILLISECONDS){
+    const div = ":";
+    return ("0"+(date_object.getHours()-17)).slice(-2) + div + ("0"+(date_object.getMinutes())).slice(-2) +div+ ("0"+(date_object.getSeconds())).slice(-2) + (USE_MILLISECONDS ? "."+ date_object.getMilliseconds() : "");
+}
+
 color_loading_gs = color_loading_gs.concat(color_loading_gs).concat(color_loading_gs);
 
 function colorLoad(length, step, color_array, fill = " ", clear_color = true) {
@@ -128,10 +133,10 @@ function center(string) {
     return fill.repeat(Math.max(0, Math.round(col / 2 - length / 2))) + string;
 }
 
-async function runner(grammar, env_path, name) {
+async function runner(grammar, env_path, name, UNATTENDED = false) {
 
     if(!grammar)
-        throw new Error(`Unable to parse grammar, the grammar is ${gramamr}`);
+        throw new Error(`Unable to parse grammar, the grammar is ${grammar}`);
 
     const start = performance.now();
 
@@ -166,7 +171,6 @@ async function runner(grammar, env_path, name) {
             })
         }
 
-
         worker.on("message", (e, d) => {
             completion_ratio = e.completion_ratio;
             items_left = e.items_left;
@@ -181,6 +185,8 @@ async function runner(grammar, env_path, name) {
                 states = e.states;
                 time = new Date(performance.now() - start);
             }
+            if(UNATTENDED)
+                test()
         })
 
         const stdin = process.stdin;
@@ -203,8 +209,6 @@ async function runner(grammar, env_path, name) {
                     break;
                 case 196608:
                     console.log("ctr-c pressed. Exiting")
-
-
                     console.clear();
                     return process.exit();
                 case 1769472:
@@ -215,13 +219,16 @@ async function runner(grammar, env_path, name) {
             return key;
         });
 
-        const id = setInterval(function test() {
+        function test() {
 
             // Clearing console to provide a dashboard interface.
-            console.clear();
+            if(!UNATTENDED) console.clear();
 
-            if (COMPLETE && EXIT) {
-                clearInterval(id);
+            if (COMPLETE && (EXIT || UNATTENDED)) {
+                if(id)
+                    clearInterval(id);
+
+                console.log(error)
                 res(states);
                 return;
             } else if (!COMPLETE) {
@@ -229,6 +236,7 @@ async function runner(grammar, env_path, name) {
                 time = new Date(performance.now() - start);
             }
 
+            let conflicts = "";
 
             const
                 col = process.stdout.columns,
@@ -240,9 +248,6 @@ async function runner(grammar, env_path, name) {
                 c = Math.round(completion_ratio_bar_size * completion_ratio),
                 r = (completion_ratio_bar_size - c) > 0 ? colorLoad(completion_ratio_bar_size - c, loop, color_loading_gs, " ", false) : "";
 
-            let conflicts = "";
-
-
             if (conflicts_generated > 0) {
                 if (conflict_number > -1) {
                     const conflict_tabs_header = `${-1 < conflict_number ? "<" : " " }     Conflict ${ conflict_number + 1 }     ${ conflict_number < conflicts_generated-1 ? ">" : " " }`;
@@ -252,18 +257,23 @@ async function runner(grammar, env_path, name) {
                     conflicts = center(`${COLOR_ERROR}Use arrow keys to review conflicts. > ${COLOR_RESET}`)
             }
 
-            console.log(
-                ["CFW Hydrocarbon - Compiling " + name + " grammar", "",
-                    ` Elapsed Time ${("0"+(time.getHours()-17)).slice(-2)}:${("0"+(time.getMinutes())).slice(-2)}:${("0"+(time.getSeconds())).slice(-2)}${COMPLETE ? "."+ time.getMilliseconds() : ""}`, "",
-                    ` ${p} Completion Ratio:    ${prpl_b}${(" ").repeat(c)}${r}${(Math.round(completion_ratio*10000)*0.01).toFixed(2)}%`,
-                    ` ${p} Total Items:         ${gray_b}${(("               ")+total_items_processed).slice(-8)}`,
-                    ` ${p} Pending Items:       ${gray_b}${(("               ")+items_left).slice(-8)}`,
-                    ` ${p} Number Of States:    ${gray_b}${(("               ")+number_of_states).slice(-8)}`,
-                    ` ${p} Conflicts Generated: ${gray_b}${conflicts_generated ? red_f : ""}${(("               ")+conflicts_generated).slice(-8)}`, "",
-                    center(`${(EXIT && !COMPLETE) ? `Exit primed. Compiling will exit on completion.`: ""}${COMPLETE ? `${ !states.COMPILED ? `${COLOR_ERROR}Compilation failed.`:`${COLOR_SUCCESS}Compilation complete.`}${COLOR_RESET} Press ${COLOR_KEYBOARD}esc${COLOR_RESET} to end this step.${COLOR_RESET}`: ""}`), "",
-                    conflicts
-                ].join(clear + "\n"))
-        }, 200)
+            if(!UNATTENDED)
+                console.log(
+                    ["CFW Hydrocarbon - Compiling " + name + " grammar", "",
+                        ` Elapsed Time ${getTimeStamp(time, COMPLETE)}`, "",
+                        ` ${p} Completion Ratio:    ${prpl_b}${(" ").repeat(c)}${r}${(Math.round(completion_ratio*10000)*0.01).toFixed(2)}%`,
+                        ` ${p} Total Items:         ${gray_b}${(("               ")+total_items_processed).slice(-8)}`,
+                        ` ${p} Pending Items:       ${gray_b}${(("               ")+items_left).slice(-8)}`,
+                        ` ${p} Number Of States:    ${gray_b}${(("               ")+number_of_states).slice(-8)}`,
+                        ` ${p} Conflicts Generated: ${gray_b}${conflicts_generated ? red_f : ""}${(("               ")+conflicts_generated).slice(-8)}`, "",
+                        center(`${(EXIT && !COMPLETE) ? `Exit primed. Compiling will exit on completion.`: ""}${COMPLETE ? `${ !states.COMPILED ? `${COLOR_ERROR}Compilation failed.`:`${COLOR_SUCCESS}Compilation complete.`}${COLOR_RESET} Press ${COLOR_KEYBOARD}esc${COLOR_RESET} to end this step.${COLOR_RESET}`: ""}`), "",
+                        conflicts
+                    ].join(clear + "\n"));
+            else 
+                console.log("tick:", getTimeStamp(time, true),  "number of states:", number_of_states);
+        }
+
+        const id = setInterval(test, 200)
     }))
 }
 
@@ -276,7 +286,7 @@ if (!isMainThread) {
         if (env_path) {
             let ext = env_path.split(".").reverse()[0];
 
-            env = (await import(env_path)).default;
+            env = (await import("file://"+env_path)).default; // WyTF is file:// a thing !?!?!
         }
 
 
@@ -341,6 +351,7 @@ if (!isMainThread) {
         } while (!status.COMPLETE)
 
         const states = status.states;
+
 
         parentPort.postMessage({
             error: status.error,

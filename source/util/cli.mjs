@@ -18,49 +18,42 @@ import fs from "fs";
 import readline from "readline";
 import util from "util";
 
-//import {center} from "terminal_tools.mjs";
-
 //Regex to match Protocol and/or Drive letter from module url
-const fn_regex = /(file\:\/\/)(\/)*([A-Z]\:)*/g
+const
+    fn_regex = /(file\:\/\/)(\/)*([A-Z]\:)*/g,
+    Lexer_Path = path.join("/",
+        import.meta.url.replace(fn_regex, ""), "../../../node_modules/@candlefw/whind/build/whind.js"),
+    LEXER_SCRIPT = `${fs.readFileSync(Lexer_Path)} const lexer = whind.default;`,
+    fsp = fs.promises,
 
-const Lexer_Path = path.join("/", import.meta.url.replace(fn_regex, ""), "../../../node_modules/@candlefw/whind/build/whind.js");
-const LEXER_SCRIPT = `${fs.readFileSync(Lexer_Path)} const lexer = whind.default;`;
 
-
-/*** BASH COLORS ****/
-const COLOR_ERROR = `\x1b[41m`,
+    /* ** BASH COLORS ****/
+    COLOR_ERROR = `\x1b[41m`,
     COLOR_KEYBOARD = `\x1b[38;5;15m\x1b[48;5;246m`,
     COLOR_SUCCESS = `\x1b[38;5;254m\x1b[48;5;30m`,
     COLOR_RESET = `\x1b[0m`,
-    ADD_COLOR = (str, color) => color + str + COLOR_RESET,
-    fsp = fs.promises,
-    name = "";
-
-let grammar_string = "";
+    ADD_COLOR = (str, color) => color + str + COLOR_RESET;
 
 /* ****************** HC STUFF *********************/
+
 async function loadEnvironment(env_path = "") {
     let env = { functions: {} };
 
     //check for optional env file
-    if (env_path) {
-        let ext = env_path.split(".").reverse()[0];
-
-        env = (await import(env_path)).default;
-    }
-
+    if (env_path)
+        env = (await import("file://" + env_path)).default; // TODO: Why is file:// a thing !?!
 
     return env;
 }
 
-
-/******************** FILE HANDLING ***************************/
+/* ******************* FILE HANDLING ***************************/
 
 
 
 async function loadFiles(grammar_path, env_path = "", states_path = "", quiet = false) {
 
-    let grammar_string = "", states_string = "";
+    let grammar_string = "",
+        states_string = "";
 
     try {
         grammar_string = await fsp.readFile(grammar_path, "utf8");
@@ -70,7 +63,7 @@ async function loadFiles(grammar_path, env_path = "", states_path = "", quiet = 
 
     }
 
-    if(states_path){
+    if (states_path) {
         try {
             states_string = await fsp.readFile(states_path, "utf8");
         } catch (err) {
@@ -81,7 +74,7 @@ async function loadFiles(grammar_path, env_path = "", states_path = "", quiet = 
 
     const env = await loadEnvironment(env_path);
 
-    return { grammar_string, env, states_string};
+    return { grammar_string, env, states_string };
 }
 
 async function write(name, parser_script, output_directory, type) {
@@ -103,15 +96,15 @@ async function write(name, parser_script, output_directory, type) {
     await writeFile(filename, parser_script, output_directory);
 }
 
-async function writeFile(name,  data = "", dir = process.env.PWD) {
+async function writeFile(name, data = "", dir = process.env.PWD) {
 
-    try{
+    try {
         if (!fs.existsSync(dir))
             fs.mkdirSync(dir);
 
         let file = await fsp.writeFile(path.join(dir, name), data, { encoding: "utf8", flags: "w+" })
-         console.log(ADD_COLOR(`The file ${name} has been successfully written to ${dir}.`, COLOR_SUCCESS), "\n");
-    }catch(err){
+        console.log(ADD_COLOR(`The file ${name} has been successfully written to ${dir}.`, COLOR_SUCCESS), "\n");
+    } catch (err) {
         console.log(ADD_COLOR(`Filed to write ${name} to {${dir}}`, COLOR_ERROR), "\n");
         console.error(err);
     }
@@ -160,8 +153,8 @@ function parseLRJSONStates(states_string) {
     return hc.ImportStates(states_string);
 }
 
-async function compileLRStates(grammar, env_path, name) {
-    return await runner(grammar, env_path, name);
+async function compileLRStates(grammar, env_path, name, unattended) {
+    return await runner(grammar, env_path, name, unattended);
 }
 
 function buildLRCompilerScript(states, parsed_grammar, env) {
@@ -214,9 +207,9 @@ async function mount(name, input, env) {
             if (input == "parse") {
 
 
-            try {
-                let parse;
-                if (env.options && env.options.integrate)
+                try {
+                    let parse;
+                    if (env.options && env.options.integrate)
                         parse = parser(data.join("\n"));
                     else
                         parse = parser(whind(data.join("\n"), true), env);
@@ -227,7 +220,7 @@ async function mount(name, input, env) {
                 }
 
                 data = [];
-            }else{
+            } else {
                 data.push(input);
                 console.clear();
                 console.log(data.join("\n"))
@@ -274,17 +267,17 @@ program
 
             const grammar = parseGrammar(grammar_string, env)
 
-            if(states_string){
+            if (states_string) {
                 states = parseLRJSONStates(states_string);
-            }else{
+            } else {
                 states = await compileLRStates(grammar, env);
-                if(!!cmd.output_states){
+                if (!!cmd.output_states) {
                     states_output = stringifyLRStates(states);
                     writeFile(`${name}.hcs`, states_output, output_directory);
                 }
             }
 
-            if(!states.COMPILED){
+            if (!states.COMPILED) {
                 (console.error(`Failed to compile grammar ${grammar.name}. Exiting`), undefined);
                 process.exit(1)
             }
@@ -329,7 +322,7 @@ program
     .option("-n, --name <output_name>", "The name to give to the output file. Defaults to the name of the grammar file.")
     .option("-d, --noout", "Do note write to file.")
     .option("-c, --compress", "Minify output file.")
-    .option("-q, --nowait", "Do not wait for user input. Only show results")
+    .option("-u, --unattended", "Do not wait for user input. Exit to console when compilation is complete. Quit on any error.")
     .option("-t, --type <type>", `
             Type of file to output.The type can be:
             "mjs" - ( * .mjs) A module file
@@ -346,36 +339,35 @@ program
             name = cmd.output_name ? cmd.output_name : path.basename(grammar_path, path.extname(grammar_path)),
             type = cmd.type ? cmd.type : "js",
             output_directory = cmd.output ? path.resolve(cmd.output) : process.cwd(),
-            quiet = !!cmd.nowait,
+            unattended = !!cmd.unattended,
             COMPRESS = !!cmd.compress;
-
-
         try {
 
-            const { grammar_string, states_string, env } = await loadFiles(grammar_path, env_path, states_path, quiet);
+            const { grammar_string, states_string, env } = await loadFiles(grammar_path, env_path, states_path, unattended);
 
             const grammar = parseGrammar(grammar_string, env)
 
             let states = null;
-            
-            if(states_string){
-                states = parseLRJSONStates(states_string, quiet);
-            }else{
 
-                states = await compileLRStates(grammar, env_path, name);
+            if (states_string) {
+                states = parseLRJSONStates(states_string, unattended);
+            } else {
 
-                if(!!cmd.statesout){
+                states = await compileLRStates(grammar, env_path, name, unattended);
+
+                if (!!cmd.statesout) {
                     const states_output = stringifyLRStates(states);
                     await writeFile(`${name}.hcs`, states_output, output_directory);
                 }
             }
 
-            if(!states.COMPILED){
+            if (!states.COMPILED) {
+                console.log(states);
                 (console.error(`Failed to compile grammar ${grammar.name}. Exiting`), undefined);
                 process.exit(1)
             }
 
-            
+
             const script_string = buildLRCompilerScript(states, grammar, env);
 
 
@@ -388,12 +380,18 @@ program
             } else
                 await write(name, script, output_directory, type);
 
-            console.log(`Use ${ADD_COLOR(" ctrl ", COLOR_KEYBOARD)}+${ADD_COLOR(" c ", COLOR_KEYBOARD)} to return to console.`)
 
-            if (!!cmd.mount && !(await mount(name, script, env)))
-                return;
-            else
-                return;
+            if(!unattended){
+                
+                console.log(`Use ${ADD_COLOR(" ctrl ", COLOR_KEYBOARD)}+${ADD_COLOR(" c ", COLOR_KEYBOARD)} to return to console.`)
+
+                if (!!cmd.mount) {
+                    if (!(await mount(name, script, env)))
+                        {};
+                } 
+            }
+
+            process.exit();
 
         } catch (e) {
             console.error(e);

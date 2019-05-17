@@ -80,6 +80,32 @@
 																			this.name = sym[1]; 
 																			this.bodies = sym[3]; 
 																			this.id = -1; 
+
+																			//Expanding Bodies containing optional symbols
+																			for(let i = 0; i < this.bodies.length; i++){
+																				let body = this.bodies[i];
+																				
+																				for(let j = 0; j < body.sym.length; j++){
+																					let sym = body.sym;	
+																					
+																					if(sym.optional){
+																						let new_sym = body.slice();
+																						new_sym.slice(j,1);
+																						
+																						let new_body = {
+																							sym : new_sym, 
+																							length : new_sym.lenght, 
+																							excludes : body.excludes,
+																							ignore : body.ignore,
+																							error : body.error,
+																							functions : body.functions,
+																							reduce_function : reduce,
+																						}
+																						
+																						this.bodies.push(new_body);
+																					}																	
+																				}
+																			}
 																		}
 
 ########################################################################################################################
@@ -220,7 +246,8 @@
 	│ production_symbol
 	│ literal_symbol
 	│ escaped_symbol
-	│ θany 															↦cstr{ this.type = "symbol"; this.val = sym[0] }
+	│ θany															↦cstr{ this.type = "symbol"; this.val = sym[0] }
+	│ symbol \? 													↦return{ sym[0].optional = true, sym[0] }		
 
 <> EOF_symbol → \$  												↦cstr{ this.type = "eof"; this.val = "$" }
 <> empty_symbol → \ɛ  												↦cstr{ this.type = "empty";  }

@@ -8,35 +8,44 @@
     <body>
         <div id="main"></div>
         <template id="template">
-            <scope>
+            <scope model="js_base">
+                
                 <textarea value=((value)())></textarea>
+                
                 <textarea value=((js_output))></textarea>
+                
                 <div>((table_output))</div>
-                <script on=((value))>
-					try{
-						env.table = {};
-						let result = js_base(whind(value), env);
-						console.log(result[0]);
-						emit("js_output",JSON.stringify(result[0]));
-						table_output = JSON.stringify(env.table);
-					}catch(e){
-						emit.js_output = (e + "");
-					}
+                
+                <input type=number value=((slice_size))>
+                
+                <script on=((trs_out))>
+                	slice_size = trs;
+                	table_output = pos.x;
+                	js_output = trs * pos.x;
 				</script>
+
             </scope>
         </template>
         <script type="module">
-			
-			(async ()=> {
+			const m = wick.model({macho:"true", trs_out:{trs:33, pos:{x:50}}});
+
+			let start = (async ()=> {
 				const presets = wick.presets({
 					custom : {
-						env : {macho:"test"}, 
-						js_base : {test:true}
+						env: {macho:"test"}, 
+						js_base : m
+					},
+					models :{
+						js_base: m
 					}
+
 				});
 
+
 				(await wick(document.getElementById("template"), presets)).mount(document.getElementById("main"));
-			})();
+			});
+
+			window.addEventListener("load",(start));
 		</script>
     </body>
 </http>

@@ -26,7 +26,6 @@ function convertProductionNamesToIndexes(productions, LU) {
                     sym = body.sym[i];
 
                     if (sym.type == "production"){
-                        console.log(sym.name);
                         sym.val = LU.get(sym.name).id;
                     }
                     else if (sym.type == "literal")
