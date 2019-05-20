@@ -4,7 +4,7 @@
   "description": "Parser Compiler",
   "main": "source/hydrocarbon.mjs",
   "bin": {
-    "hydrocarbon": "./source/util/cli.mjs"
+    "hydrocarbon": "./console.js"
   },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"

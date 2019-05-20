@@ -1,21 +1,14 @@
-//LR
-import { ExportStates, ImportStates } from "./lr/export_states.mjs";
-//import { SLRTable } from "./lr/slr.mjs";
-//import { LRParser } from "./lr/parser.mjs";
-//import { StandAloneParserCompiler } from "./lr/parser_compiler.mjs";
-//LL
 
-//GRAMMAR
-/*
-import { LRParserCompiler } from "./lr/compiler.mjs";
-import { compileLRStates } from "./lr/lalr2.mjs";
-import { grammarParser } from "./grammar_parser.mjs";
-/*/
+import { ExportStates, ImportStates } from "./lr/export_states.mjs";
+
+//LALR1
 import { LRParserCompiler } from "./lr/compiler.mjs";
 import { compileLRStates } from "./lr/lalr.mjs";
 import { grammarParser } from "./grammar/grammar_parser.mjs";
-//*/
 
+//EARLEY
+import earleyItems from "./earley/items.mjs";
+import earleyCompiler from "./earley/compiler.mjs";
 //Diagnostics
 import { renderTable } from "./util/table_diagram.mjs";
 
@@ -25,5 +18,7 @@ export {
     LRParserCompiler,
     renderTable,
     ExportStates,
-    ImportStates
+    ImportStates,
+    earleyItems,
+    earleyCompiler
 };

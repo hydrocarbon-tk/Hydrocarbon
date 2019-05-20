@@ -1,6 +1,4 @@
-#! /bin/sh
-
-":" //# comment; exec /usr/bin/env node --experimental-modules "$0" "$@"
+#!/usr/bin/env node
 
 /* IMPORTS *******************/
 
@@ -23,8 +21,7 @@ import util from "util";
 //Regex to match Protocol and/or Drive letter from module url
 const
     fn_regex = /(file\:\/\/)(\/)*([A-Z]\:)*/g,
-    Lexer_Path = path.join("/",
-        import.meta.url.replace(fn_regex, ""), "../../../node_modules/@candlefw/whind/build/whind.js"),
+    Lexer_Path = path.join("/", import.meta.url.replace(fn_regex, ""), "../../../node_modules/@candlefw/whind/build/whind.js"),
     LEXER_SCRIPT = `${fs.readFileSync(Lexer_Path)} const lexer = whind.default;`,
     fsp = fs.promises,
 
@@ -163,7 +160,17 @@ function buildLRCompilerScript(states, parsed_grammar, env) {
     return hc.LRParserCompiler(states, parsed_grammar, env);
 }
 
-/* ************* RUNTIME ************************/
+/* *************** EARLEY ********************/
+
+function createEarleyItems(grammar, env){
+    return hc.earleyItems(grammar, env);
+};
+
+function createEarleyCompiler(items, grammar, env){
+
+};
+
+/* *************** RUNTIME ********************/
 
 function CLI_INSTRUCTIONS(full = false) {
     console.log(`\nType something then hit {${ADD_COLOR(" enter ", COLOR_KEYBOARD)}||${ADD_COLOR(" return ", COLOR_KEYBOARD)}} to see how the ${name} parser performs on that input`)
@@ -333,6 +340,7 @@ program
             for use with NodeJS and other consumers of CommonJS.
             "js" - ( * .js)[Default] A regular JavaScript file that can be embedded in HTML.The parser will be available as a global value.The name of the global object will be same as the output file name.
             `)
+    .option("--parser <parser>", "The type of compiler that hydrocarbon will create. Select from `lalr1` and `earling`")
     .action(async (hc_grammar, cmd) => {
         const
             states_path = cmd.states ? path.resolve(cmd.states) : "",
@@ -342,6 +350,7 @@ program
             type = cmd.type ? cmd.type : "js",
             output_directory = cmd.output ? path.resolve(cmd.output) : process.cwd(),
             unattended = !!cmd.unattended,
+            parser = cmd.parser || "lalr1",
             COMPRESS = !!cmd.compress;
         try {
 
@@ -351,26 +360,31 @@ program
 
             let states = null;
 
-            if (states_string) {
-                states = parseLRJSONStates(states_string, unattended);
-            } else {
+            switch (parser) {
+                case "lalr1":
+                default:
+                    if (states_string) {
+                        states = parseLRJSONStates(states_string, unattended);
+                    } else {
 
-                states = await compileLRStates(grammar, env_path, name, unattended);
+                         states = await compileLRStates(grammar, env_path, name, unattended);
 
-                if (!!cmd.statesout) {
-                    const states_output = stringifyLRStates(states);
-                    await writeFile(`${name}.hcs`, states_output, output_directory);
-                }
+                        if (!!cmd.statesout) {
+                            const states_output = stringifyLRStates(states);
+                            await writeFile(`${name}.hcs`, states_output, output_directory);
+                        }
+                    }
+                    if (!states.COMPILED) {
+                        (console.error(`Failed to compile grammar ${grammar.name}. Exiting`), undefined);
+                        process.exit(1)
+                    }
+                    const script_string = buildLRCompilerScript(states, grammar, env);
+                    break;
+                case "earley":
+                    const items = createEarleyItems(grammar, env);
+                    createEarleyCompiler(items, grammar, env);
+                    break
             }
-
-            if (!states.COMPILED) {
-                console.log(states);
-                (console.error(`Failed to compile grammar ${grammar.name}. Exiting`), undefined);
-                process.exit(1)
-            }
-
-
-            const script_string = buildLRCompilerScript(states, grammar, env);
 
 
             const script = createScript(name, script_string, type, env, COMPRESS);

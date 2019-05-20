@@ -1,18 +1,18 @@
 @IGNORE θws θnum
 
--- S → s 
+<> S → s 
 
--- s → E τd │  ((EXC  τa τb )) J E
+<> s → E τd │  ((EXC  τa τb )) J E
 
--- E → τa ((IGN  τa )) ((ERR θnum)) τb τd │ τd τd │ τc 
+<> E → τa ((IGN  τa )) ((ERR θnum)) τb τd │ τd τd │ τc 
 
--- J → τa F │ τa
+<> J → τa F │ τa
 
--- F → τb τd
+<> F → τb τd
 
--- D → τa B 
+<> D → τa B 
 
--- B → τb 
+<> B → τb 
 
 # -- S → s 
 # -- s → C C

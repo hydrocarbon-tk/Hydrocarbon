@@ -1,6 +1,6 @@
 "use strict";
 
-import { FIRST, isNonTerm, filloutGrammar, Item, EMPTY_PRODUCTION, types } from "../util/common.mjs";
+import { FIRST, isNonTerm, filloutGrammar, Item, EMPTY_PRODUCTION, types, processClosure } from "../util/common.mjs";
 import { gotoCollisionCheck, reduceCollisionCheck, shiftCollisionCheck } from "./error.mjs";
 import util from "util";
 
@@ -192,124 +192,6 @@ function processState(items, state, states, grammar, items_set, error, LALR_MODE
         }
     }
     return true;
-}
-
-function processClosure(state_id, items, grammar, error, excludes, offset = 0, added = new Set()) {
-    let exclusion_count = 0;
-
-    if (!excludes) {
-        if (items.excludes)
-            excludes = items.excludes.slice();
-        else
-            excludes = [];
-        items.excludes = [];
-    }
-
-    const bodies = grammar.bodies,
-        g = items.length;
-
-    for (let i = offset; i < g; i++) {
-        const item = items[i],
-            body = bodies[item.body],
-            len = item.len,
-            index = item.offset,
-            B = body.sym[index],
-            Be = body.sym.slice(index + 1),
-            b = item.follow,
-            end = items.length;
-
-        const step_excludes = excludes.slice();
-
-        //*
-        if (body.excludes.has(index)) {
-            if (!items.excludes)
-                items.excludes = [];
-            body.excludes.get(index).forEach(e => step_excludes.push({ body: item.body, symbols: Array.isArray(e) ? e : [e], offset: 0, l: Array.isArray(e) ? e.length : 1, inner_offset: index }));
-        }
-        //*/
-
-        const new_excludes = [];
-        const out_excludes = [];
-        const item_excludes = [];
-
-        for (let u = 0; u < step_excludes.length; u++) {
-
-            const ex = step_excludes[u];
-
-            if (item.body == ex.body && index == ex.inner_offset) {
-                let d = ex.offset,
-                    j = index; //, clock = 0;
-                let i_sym = body.sym[j];
-
-                let e_sym = ex.symbols[d];
-
-                if (i_sym.type !== "production" && i_sym.val == e_sym.val) {
-
-                    if (d == ex.l - 1) {
-                        const body = item.body_;
-                        exclusion_count++;
-                        item.USED = true;
-                        break;
-                    }
-
-                    //Excludes going to next round
-                    items.excludes.push({ body: ex.body, symbols: ex.symbols, offset: d + 1, l: ex.l, inner_offset: j + 1 });
-                } else {
-                    new_excludes.push({ body: ex.body, symbols: ex.symbols, offset: d, l: ex.l, inner_offset: 0 });
-
-                }
-            }
-        }
-
-        if (item.USED)
-            continue;
-
-        if (index < len && B.type == "production") {
-            let first;
-
-            if (Be.length > 0)
-                first = FIRST(grammar, ...Be, b);
-            else
-                first = [b];
-
-            const production = grammar[B.val];
-
-            for (let i = 0; i < production.bodies.length; i++) {
-
-                const pbody = production.bodies[i];
-                const body_index = pbody.id;
-
-                out_excludes.push(...new_excludes.map(e => ({ body: body_index, symbols: e.symbols, offset: e.offset, l: e.l, inner_offset: e.inner_offset })));
-
-                for (let i = 0; i < first.length; i++) {
-                    
-                    if (!first[i])
-                        continue;
-
-                    const item = new Item(pbody.id, pbody.length, 0, first[i], grammar);
-                    const sig = item.full_id;
-
-                    if (!added.has(sig)) {
-                        items.push(item);
-                        added.add(sig);
-                    }
-                }
-            }
-            const added_count = items.length - end;
-
-            const count = processClosure(state_id, items, grammar, error, out_excludes, g, added);
-
-            if (count > 0 && count == added_count) {
-                item.USED = true;
-                exclusion_count++;
-            }
-
-            exclusion_count += count;
-        }
-    }
-
-
-    return exclusion_count;
 }
 
 function createInitialState(grammar) {
