@@ -2,7 +2,7 @@
 
 const { spawn } = require('child_process'),
     path = require("path"),
-    runner = spawn("node", ["--experimental-modules", path.resolve(".", "source/util/cli.mjs"), ...process.argv.slice(2)]);
+    runner = spawn("node", ["--experimental-modules", path.resolve(__dirname, "source/util/cli.mjs"), ...process.argv.slice(2)]);
 
 runner.stdin.pipe(process.stdin);
 

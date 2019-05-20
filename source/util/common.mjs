@@ -458,7 +458,7 @@ export function processClosure(state_id, items, grammar, error, excludes, offset
 
                 let e_sym = ex.symbols[d];
 
-                if (i_sym && i_sym.type !== "production" && i_sym.val == e_sym.val) {
+                if (i_sym.type !== "production" && i_sym.val == e_sym.val) {
 
                     if (d == ex.l - 1) {
                         const body = item.body_;

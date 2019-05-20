@@ -51,7 +51,6 @@
 <> symbols_preamble → 		@SYMBOL lexer_symbols θnl 				↦cstr{ 
 																			this.type='symbols'; 
 																			this.symbols = sym[1];
-																			console.log(this.symbols);
 																			this.symbols.forEach(lex.addSymbol.bind(lex));
 																		 }
 
@@ -207,8 +206,8 @@
 <> condition_symbol_list → terminal_symbol  						↦return {  [sym[0]] }
 	│ condition_symbol_list terminal_symbol 						↦return {  sym[0].push(sym[1]), sym[0] }
 
-<> lexer_symbols → lexer_symbol 									↦return {  console.log("Adding Symbols",sym[0]), [ sym[0] ] }
-	│ lexer_symbols lexer_symbol 								    ↦return {  console.log("Adding Symbols",sym[1], sym[0]), sym[0].push(sym[1]), sym[0] }
+<> lexer_symbols → lexer_symbol 									↦return {  [ sym[0] ] }
+	│ lexer_symbols lexer_symbol 								    ↦return {  sym[0].push(sym[1]), sym[0] }
 
 <> ignore_symbols → ignore_symbol  									↦return {  [sym[0]] }
 	│ ignore_symbols ignore_symbol 								    ↦return {  sym[0].push(sym[1]), sym[0] }
