@@ -262,10 +262,13 @@ program
     .option("-s, --states <states>", "Use a *.hcs file from a previous compilation instead of a compiling the grammar file.")
     .option("-o, --output <path>", "Optional output location. Defaults to CWD.")
     .option("-os, --output_states", "Output a *.hcs file.")
+    .option("-u, --unattended", "Do not wait for user input. Exit to console when compilation is complete. Quit on any error.")
     .description("Parses grammar and outputs a UTF representation of the parse table.")
     .action(async (hc_grammar, cmd) => {
         const
             states_path = cmd.states ? path.resolve(cmd.states) : "",
+            env_path = "",
+            unattended = !!cmd.unattended,
             output_directory = cmd.output ? path.resolve(cmd.output) : process.cwd(),
             grammar_path = path.resolve(hc_grammar);
 
@@ -279,7 +282,7 @@ program
             if (states_string) {
                 states = parseLRJSONStates(states_string);
             } else {
-                states = await compileLRStates(grammar, env);
+                states = await compileLRStates(grammar, env_path, "", true);
                 if (!!cmd.output_states) {
                     states_output = stringifyLRStates(states);
                     writeFile(`${name}.hcs`, states_output, output_directory);
@@ -293,7 +296,8 @@ program
 
             console.log(hc.renderTable(states, grammar));
 
-            console.log(`Use ${ADD_COLOR(" ctrl ", COLOR_KEYBOARD)}+${ADD_COLOR(" c ", COLOR_KEYBOARD)} to return to console,`)
+            //console.log(`Use ${ADD_COLOR(" ctrl ", COLOR_KEYBOARD)}+${ADD_COLOR(" c ", COLOR_KEYBOARD)} to return to console,`)
+            process.exit(0)
 
         } catch (err) {
             console.error(err);
@@ -358,7 +362,7 @@ program
 
             const grammar = parseGrammar(grammar_string, env)
 
-            let states = null;
+            let states = null, script_string="";
 
             switch (parser) {
                 case "lalr1":
@@ -378,7 +382,7 @@ program
                         (console.error(`Failed to compile grammar ${grammar.name}. Exiting`), undefined);
                         process.exit(1)
                     }
-                    const script_string = buildLRCompilerScript(states, grammar, env);
+                    script_string = buildLRCompilerScript(states, grammar, env);
                     break;
                 case "earley":
                     const items = createEarleyItems(grammar, env);

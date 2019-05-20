@@ -13,7 +13,7 @@ function convertProductionNamesToIndexes(productions, LU) {
             const 
                 production = productions[i],
                 bodies = production.bodies;
-
+                
             for (let i = 0; i < bodies.length; i++) {
                 body = bodies[i];
 
@@ -38,6 +38,7 @@ function convertProductionNamesToIndexes(productions, LU) {
             if(productions.meta[i].type == "ignore")
                 productions.meta.ignore = productions.meta[i];
         }
+
 
     } catch (e) {
         console.error(e);

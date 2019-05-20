@@ -80,27 +80,25 @@
 																			this.name = sym[1]; 
 																			this.bodies = sym[3]; 
 																			this.id = -1; 
-
-																			//Expanding Bodies containing optional symbols
 																			for(let i = 0; i < this.bodies.length; i++){
 																				let body = this.bodies[i];
 																				
 																				for(let j = 0; j < body.sym.length; j++){
-																					let sym = body.sym;	
+																					let sym = body.sym[j];	
 																					
 																					if(sym.optional){
-																						let new_sym = body.slice();
-																						new_sym.slice(j,1);
+																						let new_sym = body.sym.slice();
+																						new_sym.splice(j,1);
 																						
 																						let new_body = {
 																							sym : new_sym, 
-																							length : new_sym.lenght, 
+																							length : new_sym.length, 
 																							excludes : body.excludes,
 																							ignore : body.ignore,
 																							error : body.error,
 																							functions : body.functions,
-																							reduce_function : reduce,
-																						}
+																							reduce_function : body.reduce_function
+																						};
 																						
 																						this.bodies.push(new_body);
 																					}																	
@@ -166,9 +164,9 @@
   			 																this.error = new Map([[0,[]]]);
   			 																this.ignore = new Map([[0,[]]]);
   			 																sym[0].offset = this.length; 
-  			 																if (sym[0].type="exc")  this.excludes.get(0).push(...sym[0].sym);
-			 																if (sym[0].type="err")  this.error.get(0).push(...sym[0].sym);
-			 																if (sym[0].type="ign")  this.ignore.get(0).push(...sym[0].sym);
+  			 																if (sym[0].type=="exc")  this.excludes.get(0).push(sym[0].sym);
+			 																if (sym[0].type=="err")  this.error.get(0).push(...sym[0].sym);
+			 																if (sym[0].type=="ign")  this.ignore.get(0).push(...sym[0].sym);
   			 																this.conditions =[]; 
   			 																this.functions = []; 
   			 															}
@@ -186,7 +184,7 @@
 
 			 │ body_entries condition_clause 						↦return {  (
 			 																	sym[1].offset = sym[0].length, 
-			 																	(sym[1].type=="exc") ? sym[0].excludes.get(sym[1].offset).push(...sym[1].sym):null,
+			 																	(sym[1].type=="exc") ? sym[0].excludes.get(sym[1].offset).push(sym[1].sym):null,
 			 																	(sym[1].type=="err") ? sym[0].error.get(sym[1].offset).push(...sym[1].sym):null,
 			 																	(sym[1].type=="ign") ? sym[0].ignore.get(sym[1].offset).push(...sym[1].sym):null,
 			 																	sym[0]) }
@@ -278,18 +276,19 @@
 ######################################  FUNCTIONS
 ########################################################################################################################
 
-<> reduce_function → \↦ τcstr { comment_data } 						↦cstr{ this.type = "CLASS"; 		
+<> reduce_function → \↦ τcstr { js_data } 						↦cstr{ this.type = "CLASS"; 		
 																			this.txt = sym[3]; 
 																			this.name = ""; 	
 																			this.env = false;	
 																		}
 
-		│ \↦ τreturn { comment_data } 								↦cstr{ this.type = "RETURNED"; 	
+		│ \↦ τreturn { js_data } 								↦cstr{ this.type = "RETURNED"; 	
 																			this.txt = sym[3]; 
 																			this.name = ""; 	
 																			this.env = false;
+																		}
 
-		│ \↦ τreturn ^ identifier 								↦cstr{ this.type = "RETURNED"; 	
+		│ \↦ τreturn ^ identifier 									↦cstr{ this.type = "RETURNED"; 	
 																			this.txt = ""; 
 																			this.name = sym[3]; 	
 																			this.env = true;
@@ -301,7 +300,7 @@
 																			this.env = true;
 																		}
 
-<> function_clause → \↦ { comment_data } 							↦cstr{this.type = "INLINE"; 	
+<> function_clause → \↦ { js_data } 								↦cstr{this.type = "INLINE"; 	
 																			this.txt = sym[2]; 
 																			this.name = ""; 	
 																			this.env = false;
@@ -313,3 +312,9 @@
 																			this.env = true;
 																		}
 
+<> js_data → comment_data
+		│ js_data_block
+		│ js_data js_data											↦return { sym[0] + sym[1] }
+		│ ɛ
+
+<> js_data_block → { js_data }										↦return { sym[0] + sym[1] + sym[2] }

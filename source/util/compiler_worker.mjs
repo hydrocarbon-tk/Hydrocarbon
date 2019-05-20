@@ -191,7 +191,7 @@ async function runner(grammar, env_path, name, UNATTENDED = false) {
 
         const stdin = process.stdin;
 
-        stdin.setRawMode(true);
+        // /stdin.setRawMode(true);
         stdin.resume();
         stdin.setEncoding('utf8');
 
@@ -228,7 +228,7 @@ async function runner(grammar, env_path, name, UNATTENDED = false) {
                 if(id)
                     clearInterval(id);
 
-                console.log(error)
+                error.strings.forEach(str=>console.log(str));
                 res(states);
                 return;
             } else if (!COMPLETE) {
@@ -273,7 +273,7 @@ async function runner(grammar, env_path, name, UNATTENDED = false) {
                 console.log("tick:", getTimeStamp(time, true),  "number of states:", number_of_states);
         }
 
-        const id = setInterval(test, 200)
+        var id = setInterval(test, 200)
     }))
 }
 

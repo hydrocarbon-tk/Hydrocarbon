@@ -7,7 +7,8 @@
     "hydrocarbon": "./console.js"
   },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "compile.grammar": "hydrocarbon compile --unattended -t mjs -o ./source/grammar/ ./source/grammar/hcg_v1.hcg"
   },
   "repository": {
     "type": "git",

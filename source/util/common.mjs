@@ -453,11 +453,12 @@ export function processClosure(state_id, items, grammar, error, excludes, offset
             if (item.body == ex.body && index == ex.inner_offset) {
                 let d = ex.offset,
                     j = index; //, clock = 0;
+
                 let i_sym = body.sym[j];
 
                 let e_sym = ex.symbols[d];
 
-                if (i_sym.type !== "production" && i_sym.val == e_sym.val) {
+                if (i_sym && i_sym.type !== "production" && i_sym.val == e_sym.val) {
 
                     if (d == ex.l - 1) {
                         const body = item.body_;
@@ -470,7 +471,6 @@ export function processClosure(state_id, items, grammar, error, excludes, offset
                     items.excludes.push({ body: ex.body, symbols: ex.symbols, offset: d + 1, l: ex.l, inner_offset: j + 1 });
                 } else {
                     new_excludes.push({ body: ex.body, symbols: ex.symbols, offset: d, l: ex.l, inner_offset: 0 });
-
                 }
             }
         }
