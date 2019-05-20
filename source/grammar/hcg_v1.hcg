@@ -288,6 +288,11 @@
 																			this.txt = sym[3]; 
 																			this.name = ""; 	
 																			this.env = false;
+
+		│ \↦ τreturn ^ identifier 								↦cstr{ this.type = "RETURNED"; 	
+																			this.txt = ""; 
+																			this.name = sym[3]; 	
+																			this.env = true;
 																		}
 
  		│ \↦ τcstr ^ identifier 									↦cstr{ this.type = "CLASS"; 		
@@ -303,8 +308,8 @@
 																		}
 
 		│ \↦ ^ identifier 										 	↦cstr{this.type = "INLINE"; 	
-																			this.txt = sym[2]; 
-																			this.name = sym[3]; 	
+																			this.txt = ""; 
+																			this.name = sym[2]; 	
 																			this.env = true;
 																		}
 

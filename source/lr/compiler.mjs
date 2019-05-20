@@ -62,7 +62,7 @@ export function LRParserCompiler(states, grammar, env) {
     let default_error = `(tk,r,o,l,p)=>{if(l.END)l.throw("Unexpected end of input");else if(l.ty & (${types.ws | types.nl})) l.throw(\`Unexpected space character within input "\${1}" \`) ; else l.throw(\`Unexpected token \${l.tx} within input "\${111}" \`)}`;
 
     if (env.functions.defaultError)
-        default_error = env.functions.defaultError.toString().replace(/(anonymous)?[\n\t]*/g, "");
+        default_error = `(...d)=>fn.defaultError(...d)`;
 
     const output = verboseCompiler(
         goto_maps,

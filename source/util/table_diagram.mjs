@@ -22,7 +22,7 @@ export function renderTable(states, grammar, tab = "   ", tab_s = tab.length) {
         filloutGrammar(grammar, {functions:{}});
     }
     
-    console.log(util.inspect(grammar.meta.all_symbols, false, 5, true))
+    //console.log(util.inspect(grammar.meta.all_symbols, false, 5, true))
 
 
     const ws = (count) => (" ").repeat(count);

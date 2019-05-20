@@ -859,6 +859,6 @@ function getToken(l, reserved) {
                 break;
         }  
     }
-    console.log(time)
+    
     return o[0];
 }; export default parser;

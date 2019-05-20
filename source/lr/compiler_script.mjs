@@ -77,9 +77,9 @@ function parser(l, e = {}) {
 
                 tk = getToken(l, lu);
 
-                const recovery_token = eh[ss[sp]](tk, e, o, l, p, ss[sp]);
+                const recovery_token = eh[ss[sp]](tk, e, o, l, p, ss[sp], lu);
 
-                if (RECOVERING > 0 && typeof(recovery_token) == "string") {
+                if (RECOVERING > 0 && recovery_token) {
                     RECOVERING = -1; /* To prevent infinite recursion */
                     tk = recovery_token;
                     l.tl = 0; /*reset current token */
