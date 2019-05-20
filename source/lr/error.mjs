@@ -1,9 +1,14 @@
 import { Lexer } from "@candlefw/whind";
 
 function stripLexBody(lex) {
-    let val = Lexer.prototype.slice.call(lex).slice(1).trim();
+    try{
 
-    return val.replace(/(?<!\\)\(\([^\)]+\)\)/g, "").replace(/↦[^\}]+\}/g, "").replace(/\s\s+/g, " ");
+        let val = Lexer.prototype.slice.call(lex).slice(1).trim();
+
+        return val.replace(/(?<!\\)\(\([^\)]+\)\)/g, "").replace(/↦[^\}]+\}/g, "").replace(/\s\s+/g, " ");
+    }finally{
+        return "";
+    }
 }
 
 export function shiftCollisionCheck(grammar, state, new_state, item, size, error) {
