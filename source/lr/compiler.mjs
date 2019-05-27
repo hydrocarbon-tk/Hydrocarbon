@@ -1,5 +1,5 @@
 /** Compiles a stand alone JS parser from a LR rules table and env object **/
-import { types, filloutGrammar } from "../util/common.mjs";
+import { types as t, filloutGrammar } from "../util/common.mjs";
 
 import createSparseStateMaps from "./create_state_maps.mjs";
 
@@ -19,6 +19,10 @@ export function LRParserCompiler(states, grammar, env) {
 
     let n = 0;
 
+    let types = Object.assign({}, t);
+
+    types.any = 200;
+
     for (let a in types)
         GEN_SYM_LU.set(a, (((n++) / 2) | 0) + 1);
 
@@ -33,12 +37,13 @@ export function LRParserCompiler(states, grammar, env) {
         SYMBOL_INDEX_OFFSET = 14, //Must leave room for symbol types indices
         //Convert all terminals to indices and create lookup map for terminals
         SYM_LU = new Map([
-            ...[...GEN_SYM_LU.entries()].map(e => [(e[0] == "any") ? e[0] : types[e[0]], e[1]]),
-            ...[...grammar.meta.all_symbols.values()].map((e, i) => ([(e.type == "generated") ? ((e[0] == "any") ? e[0] : types[e[0]]) : e.val, (e.type == "generated") ? GEN_SYM_LU.get(e.val) : i + SYMBOL_INDEX_OFFSET]))
+            ...[...GEN_SYM_LU.entries()].map(e => [types[e[0]], e[1]]),
+            ...[...grammar.meta.all_symbols.values()].map((e, i) => ([(e.type == "generated") ? (types[e[0]]) : e.val, (e.type == "generated") ? GEN_SYM_LU.get(e.val) : i + SYMBOL_INDEX_OFFSET]))
         ]),
 
 
-        { state_functions, goto_functions, state_str_functions, state_maps, goto_maps } = createSparseStateMaps(grammar, states, env, functions, SYM_LU);
+
+        { state_functions, goto_functions, state_str_functions, state_maps, goto_maps } = createSparseStateMaps(grammar, states, env, functions, SYM_LU, types);
 
     for (let i = 0; i < states.length; i++) {
         const production = grammar.bodies[states[i].body].production;

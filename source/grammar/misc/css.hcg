@@ -1,0 +1,79 @@
+@SYMBOL || ^= $= *=
+
+@IGNORE θnl θws
+
+@IMPORT ./css2.hcg AS css2
+
+@IMPORT ./binding.hcg AS b
+
+↦a {console.log(len);this.sel = len > 1 ? sym[1]: sym[0]; this.op = len > 1 ? sym[0] : null;}
+
+##############################################################################################
+##############################################################################################
+#### CSS
+##############################################################################################
+##############################################################################################	
+	<> goal → css_RULE		
+
+	<> css_RULE → css_COMPLEX_SELECTOR(+,) css_RULE_BODY ↦c{this.selectors=sym[0]; this.body = sym[1]} 
+
+##############################################################################################
+#### Modified from https://drafts.csswg.org/selectors-4/#grammar
+##############################################################################################
+
+	<> css_COMPLEX_SELECTOR →  css_COMPOUND_SELECTOR (( css_COMBINATOR? css_COMPOUND_SELECTOR ↦c=>a )) (*)
+
+	<> css_COMPOUND_SELECTOR →  css_TYPE_SELECTOR? css_SUBCLASS_SELECTOR(*) (( css_PSEUDO_ELEMENT_SELECTOR css_PSEUDO_CLASS_SELECTOR(*) ))(*) ! 
+		↦c{
+			this.sym = sym
+		}
+
+	<> css_COMBINATOR →  > 
+		│ + 
+		│ ~ 
+		│ ||
+
+
+	<> css_TYPE_SELECTOR →  css_WQ_NAME 	↦c{this.type="ts"; this.sym = sym[0]}
+		│ css_NS_PREFIX? *					↦c{this.type="ts_any"; this.prefix = (sym[0].length > 1) ? sym[0] : "" }
+		│ b::binding
+		
+	
+	<> css_NS_PREFIX →  ((θid │ * ))? | 
+
+	<> css_WQ_NAME →  css_NS_PREFIX? θid
+
+	<> css_SUBCLASS_SELECTOR →  css_ID_SELECTOR 
+		│ css_CLASS_SELECTOR 
+		│ css_ATTRIBUTE_SELECTOR 
+		│ css_PSEUDO_CLASS_SELECTOR
+		│ css2::START
+
+	<> css_ID_SELECTOR →  \# θid  			↦c{ this.type="id"; this.id = sym[1]}
+
+	<> css_CLASS_SELECTOR →  . θid 			↦c{ this.type="class"; this.id = sym[1]}
+
+	<> css_ATTRIBUTE_SELECTOR →  [ css_WQ_NAME ] 
+		│ [ css_WQ_NAME css_ATTR_MATCHER (( θid │ θstr )) css_ATTR_MODIFIER? ]
+
+	<> css_ATTR_MATCHER → ~=
+		│ ^= 
+		│ $= 
+		│ *=
+		│ =
+
+	<> css_ATTR_MODIFIER →  τi 
+		│ τs
+
+	<> css_PSEUDO_CLASS_SELECTOR →  : θid 
+		│ : θid ( θany )
+
+	<> css_PSEUDO_ELEMENT_SELECTOR →  : css_PSEUDO_CLASS_SELECTOR
+	
+	<> css_RULE_BODY → { css_PROP(*;)  } 					↦return { sym[1] }
+						
+
+	<> css_PROP → θid \: css_PROP_BODY ;? 						↦return { {name:sym[0], body:sym[2]} }		
+
+	# Let the css parser handle the actual prop. 
+	<> css_PROP_BODY → " θid "  								↦return { [sym[1] ] }

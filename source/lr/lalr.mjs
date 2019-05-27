@@ -8,10 +8,16 @@ function processState(items, state, states, grammar, items_set, error, LALR_MODE
 
     const bodies = grammar.bodies;
 
-    processClosure(state.id, items, grammar, error);
-    
+    try {
+        processClosure(state.id, items, grammar, error);
+    } catch (e) {
+        console.error(e);
+        console.log(items);
+        return -1;
+    }
+
     if (!state.b)
-        state.b = [bodies[items[0][0]].production.name, "→", ...bodies[items[0][0]].sym.map((d) => d.type=="production" ? grammar[d.val].name : d.val )];
+        state.b = [bodies[items[0][0]].production.name, "→", ...bodies[items[0][0]].sym.map((d) => d.type == "production" ? grammar[d.val].name : d.val)];
 
     for (let i = 0, l = items.length; i < l; i++) {
 
@@ -26,15 +32,15 @@ function processState(items, state, states, grammar, items_set, error, LALR_MODE
         //*
         if (body.error.has(offset)) {
             body.error.get(offset).forEach(sym => {
-                state.action.set(sym.val, {symbol_type:sym.type, name: "ERROR", state: state.id, body: state.body, len: 0, original_body: state.body });
+                state.action.set(sym.val, { symbol_type: sym.type, name: "ERROR", state: state.id, body: state.body, len: 0, original_body: state.body });
             });
-        }//*/
+        } //*/
 
-         if (body.ignore.has(offset)) {
+        if (body.ignore.has(offset)) {
             body.ignore.get(offset).forEach(sym => {
-                state.action.set(sym.val, {symbol_type:sym.type, name: "IGNORE", state: state.id, body: state.body, len: 0, original_body: state.body });
+                state.action.set(sym.val, { symbol_type: sym.type, name: "IGNORE", state: state.id, body: state.body, len: 0, original_body: state.body });
             });
-        }//*/
+        } //*/
 
         //const size = tok.type == "empty" ? 0 : len;
 
@@ -44,7 +50,7 @@ function processState(items, state, states, grammar, items_set, error, LALR_MODE
             const k = item.v;
 
             if (item.body == 0 && k == "$")
-                state.action.set(k, { name: "ACCEPT", symbol_type:item.follow.type,  size, production: body.production, body: body.id, len, offset:item.offset });
+                state.action.set(k, { name: "ACCEPT", symbol_type: item.follow.type, size, production: body.production, body: body.id, len, offset: item.offset });
 
             else {
                 const p1 = body.precedence;
@@ -57,7 +63,7 @@ function processState(items, state, states, grammar, items_set, error, LALR_MODE
                     case -1:
                         return false;
                     case 0:
-                        state.action.set(k, { name: "REDUCE", symbol_type:item.follow.type, state: state.id, size, production: body.production, body: body.id, len,offset:item.offset });
+                        state.action.set(k, { name: "REDUCE", symbol_type: item.follow.type, state: state.id, size, production: body.production, body: body.id, len, offset: item.offset });
                         break;
                 }
             }
@@ -127,11 +133,12 @@ function processState(items, state, states, grammar, items_set, error, LALR_MODE
             if (!new_state) {
                 const body = out_items[0].body_;
                 states.push({
+                    grammar_stamp:body.grammar_stamp,
                     action: new Map,
                     goto: new Map,
                     id: states.length,
                     body: body.id,
-                    b: [body.production.name, "→", ...body.sym.map(d =>d.type == "production" ? grammar[d.val].name : d.val)],
+                    b: [body.production.name, "→", ...body.sym.map(d => d.type == "production" ? grammar[d.val].name : d.val)],
                     d: `${state.d} =>\n [${[...(out_items.map(i=>`${i.body_.production.name} → ${(i.body_.sym.slice().map(d=>d.type == "production" ? grammar[d.val].name : d.val)).join(" ")}`)).reduce((r,e)=>(r.add(e), r) ,new Set).values()].join(", ")}]`,
                     real_id: sid,
                     follows: null,
@@ -158,7 +165,7 @@ function processState(items, state, states, grammar, items_set, error, LALR_MODE
                             case -1:
                                 return false;
                             case 0:
-                                state.action.set(tok.val, {name: "SHIFT",  symbol_type:tok.type,  state: new_state.id, body: item[0], original_body: body.id, len: size, offset:item.offset+1 });
+                                state.action.set(tok.val, { name: "SHIFT", symbol_type: tok.type, state: new_state.id, body: item[0], original_body: body.id, len: size, offset: item.offset + 1 });
                                 break;
                         }
                     }
@@ -171,7 +178,7 @@ function processState(items, state, states, grammar, items_set, error, LALR_MODE
                     case 0: //Original
                         break;
                     case 1: //New
-                        state.goto.set(tok.type == "empty" ? item.v : tok.val, { name: "GOTO", symbol_type:tok.type == "empty" ? item.follow.type:tok.type, state: new_state.id, body: body.id });
+                        state.goto.set(tok.type == "empty" ? item.v : tok.val, { name: "GOTO", symbol_type: tok.type == "empty" ? item.follow.type : tok.type, state: new_state.id, body: body.id });
                         break;
                 }
             }
@@ -195,7 +202,7 @@ function processState(items, state, states, grammar, items_set, error, LALR_MODE
 }
 
 function createInitialState(grammar) {
-    const states = [{ action: new Map, goto: new Map, map: new Map, id: 0, body: 0, exclude: new Set(), d: "start" }];
+    const states = [{grammar_stamp:grammar.bodies[0].grammar_stamp, action: new Map, goto: new Map, map: new Map, id: 0, body: 0, exclude: new Set(), d: "start" }];
     states.type = "lr";
     states.map = new Map([]);
     states.count = 1;
@@ -231,7 +238,7 @@ export function* compileLRStates(grammar, env = {}) {
     const bodies = grammar.bodies;
 
     let states = createInitialState(grammar),
-        items_set = [{ c: [new Item(0, bodies[0].length, 0, {v:"$",p:0,type:"generated"},grammar)], s: states[0] }],
+        items_set = [{ c: [new Item(0, bodies[0].length, 0, { v: "$", p: 0, type: "generated" }, grammar)], s: states[0] }],
         LALR_MODE = true,
         i = 0,
         total_items = 1;
@@ -269,11 +276,13 @@ export function* compileLRStates(grammar, env = {}) {
 
     if (grammar.meta.ignore) {
         states.forEach(state => {
-            grammar.meta.ignore.symbols.forEach((sym) => {
-                if (!state.action.has(sym.val)){
-                    state.action.set(sym.val, {symbol_type:sym.type, name: "IGNORE", state: state.id, body: state.body, len: 0, original_body: state.body });
-                }
-            });
+            grammar.meta.ignore.forEach(
+                i => i.symbols.forEach((sym) => {
+                    if (!state.action.has(sym.val) && state.grammar_stamp == i.grammar_stamp) {
+                        state.action.set(sym.val, { symbol_type: sym.type, name: "IGNORE", state: state.id, body: state.body, len: 0, original_body: state.body });
+                    }
+                })
+            );
         });
     }
 

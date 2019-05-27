@@ -123,8 +123,7 @@ export function reduceCollisionCheck(grammar, state, item, error) {
         }
 
         if (
-            body_a.production.name !== state.b[0] &&
-            body_b.production !== body_a.production // Reduction to same production should not be an error
+            body_a.production.name !== body_b.production.name // Reduction to same production should not be an error
         ) {
 
             error.log(

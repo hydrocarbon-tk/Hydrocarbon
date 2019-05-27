@@ -191,7 +191,7 @@ async function runner(grammar, env_path, name, UNATTENDED = false) {
 
         const stdin = process.stdin;
 
-        // /stdin.setRawMode(true);
+        stdin.setRawMode(true);
         stdin.resume();
         stdin.setEncoding('utf8');
 

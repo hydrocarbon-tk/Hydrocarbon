@@ -1,23 +1,26 @@
 //Root State Functions
-import { types } from "../util/common.mjs";
-
 const max = Math.max,
 
     reduce_with_value = (ret, fn, plen, ln, t, e, o, l, s) => {
         ln = max(o.length - plen, 0);
-        o[ln] = fn(o.slice(-plen), e, l, s);
+        o[ln] = fn(o.slice(-plen), e, l, s, o, plen);
         o.length = ln + 1;
         return ret;
     },
 
     reduce_with_new_value = (ret, Fn, plen, ln, t, e, o, l, s) => {
         ln = max(o.length - plen, 0);
-        o[ln] = new Fn(o.slice(-plen), e, l, s);
+        o[ln] = new Fn(o.slice(-plen), e, l, s, o, plen);
         o.length = ln + 1;
         return ret;
     },
 
-    reduce_to_null = (ret, t, e, o) => (o.push(null), ret),
+    reduce_to_null = (ret, plen, t, e, o, l, s) => {
+        let ln = max(o.length - plen, 0);
+        o[ln] = o[o.length -1];
+        o.length = ln + 1;
+        return ret;
+    },
 
     shift_with_function = (ret, fn, t, e, o, l, s) => (fn(o, e, l, s), ret),
     reduce_with_value_name = "redv",
@@ -25,7 +28,7 @@ const max = Math.max,
     reduce_to_null_name = "redn",
     shift_with_function_name = "shftf";
 
-function setNode(funct, length, functions, id, return_val, COMPILE_FUNCTION = true) {
+function setNode(funct, length, functions, id, return_val, COMPILE_FUNCTION = false) {
     if (funct.type == "CLASS") {
         return (!COMPILE_FUNCTION && funct.env) ?
             { id, str: `${reduce_with_new_value_name}(${return_val},fn.${funct.name},${length},0,...v)` } :
@@ -37,7 +40,7 @@ function setNode(funct, length, functions, id, return_val, COMPILE_FUNCTION = tr
     }
 }
 
-export default function(grammar, states, env, functions, SYM_LU) {
+export default function(grammar, states, env, functions, SYM_LU, types) {
     functions.push(
         `${reduce_with_value_name} = ${reduce_with_value.toString().replace(/(anonymous)?[\n\t]*/g,"")}`,
         `${reduce_with_new_value_name} = ${reduce_with_new_value.toString().replace(/(anonymous)?[\n\t]*/g,"")}`,
@@ -56,7 +59,7 @@ export default function(grammar, states, env, functions, SYM_LU) {
         state_maps = [],
         state_maps_map = new Map(),
         goto_maps = new Map(),
-        COMPILE_FUNCTION = (env.options) ? !!env.options.integrate : !0,
+        COMPILE_FUNCTION = (env.options) ? !!env.options.integrate : !1,
         error_handlers = [];
 
     for (let i = 0; i < states.length; i++) {
@@ -72,6 +75,8 @@ export default function(grammar, states, env, functions, SYM_LU) {
         } else {
             error_handlers.push("e");
         }
+
+        console.log(SYM_LU)
 
         let last_pos = -1;
         ([...state.action.entries()]).map(s => {
@@ -90,9 +95,9 @@ export default function(grammar, states, env, functions, SYM_LU) {
                     s[0] = SYM_LU.get(k);
                     break;
                 case "generated":
-                    if (k == "any") {
-                        s[0] = SYM_LU.get(k);
-                    } else
+                    //if (k == "any") {
+                    //    s[0] = SYM_LU.get(k);
+                    //} else
                         s[0] = SYM_LU.get(types[k]);
             }
 
@@ -146,9 +151,11 @@ export default function(grammar, states, env, functions, SYM_LU) {
                             funct.push(out.str);
                             st_fn_id += body.reduce_function.name;
                             fn_id = out.id;
+                        }else{
+                            funct.push(`redn(${return_value},${length},...v)`);
                         }
                     } else if (length == 0)
-                        funct.push(`(${reduce_to_null_name}(${return_value},...v))`); /* empty production*/
+                        funct.push(`(${reduce_to_null_name}(${return_value},0,...v))`); /* empty production*/
                     /*intentional*/
                 case "SHIFT":
 

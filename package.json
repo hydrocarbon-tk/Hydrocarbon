@@ -8,7 +8,8 @@
   },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "compile.grammar": "hydrocarbon compile --unattended -t mjs -o ./source/grammar/ ./source/grammar/hcg_v1.hcg"
+    "compile.grammar": "hydrocarbon compile --unattended -t mjs -o ./source/grammar/ ./source/grammar/hcg_v1.hcg",
+    "compile.test": "hydrocarbon compile -d -m --unattended ./source/grammar/misc/css.hcg"
   },
   "repository": {
     "type": "git",
@@ -62,9 +63,6 @@
         }
       ],
       "prefer-const": "warn",
-      "new-cap": [
-        "error"
-      ],
       "padding-line-between-statements": [
         "error",
         {

@@ -289,7 +289,7 @@ function addFunctions(funct, production, env) {
         if (!name) {
             name = funct.type[0] + (production.func_counter++) + "_" + production.name;
         funct.name = name;
-            env.functions[name] = setFunction(null, funct, [production_stack_arg_name, environment_arg_name, lexer_arg_name, "state"], {});
+            env.functions[name] = setFunction(null, funct, [production_stack_arg_name, environment_arg_name, lexer_arg_name, "state","output", "len"], {});
             env.functions[name].INTEGRATE = true;
             env.FLUT.set(str, name);
         }   
@@ -314,7 +314,7 @@ export function filloutGrammar(grammar, env) {
             bodies.push(body);
             body.precedence = createPrecedence(body, grammar);
 
-            const sym_function = s => { if (s.type !== "production") symbols.set(s.val, s); };
+            const sym_function = s => { if (s.type !== "production") symbols.set(s.val + s.type, s); };
             body.sym.forEach(sym_function);
             [...body.ignore.values()].forEach(a=>a.forEach(sym_function));
             [...body.excludes.values()].forEach(a=>a.forEach(sym_function));
@@ -342,14 +342,6 @@ export class Item extends Array {
         this.follow = follow;
         this.USED = false;
         this.grammar = g;
-
-        //console.log(this.body_.sym[this.len - 1],"ASDASD")
-        /*
-        if (this.body_.sym[this.len - 1].val == "$") {
-            this[1]--;
-            this.follow.v = "$";
-        }
-        */
     }
 
     get v() {
@@ -456,9 +448,11 @@ export function processClosure(state_id, items, grammar, error, excludes, offset
 
                 let i_sym = body.sym[j];
 
+                console.log(body.sym, j,i_sym)
+
                 let e_sym = ex.symbols[d];
 
-                if (i_sym.type !== "production" && i_sym.val == e_sym.val) {
+                if (i_sym && i_sym.type !== "production" && i_sym.val == e_sym.val) {
 
                     if (d == ex.l - 1) {
                         const body = item.body_;

@@ -93,7 +93,7 @@ export function renderTable(states, grammar, tab = "   ", tab_s = tab.length) {
     let d = `${ver} ${state + stnts(state_len) + ver + ws(tm)}`;
     let off = d.length;
 
-    let max = 16;
+    let max = 8;
     let act = 0;
 
     symbols.forEach((v, k) => {

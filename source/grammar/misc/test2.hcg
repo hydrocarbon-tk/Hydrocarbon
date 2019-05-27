@@ -1,4 +1,9 @@
-S → s
-s → L = R │ R
-L → * R │ τid
-R → L
+@IGNORE θnl θws
+
+↦a{ this.l = sym[0]; this.r = sym[2]; }
+
+↦b{	sym[0] }
+
+<> S → s
+<> s → θid (( R = R  ↦c=>a │ τsym ↦r=>b ))(*) τdi?  ↦c{this.syms = sym[1]}
+<> R → ((θid? τdid? θsym? !)) ↦r{sym}  

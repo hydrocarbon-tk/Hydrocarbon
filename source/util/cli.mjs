@@ -5,6 +5,9 @@
 //CandleFW stuffs
 import * as hc from "../hydrocarbon.mjs";
 import whind from "@candlefw/whind";
+import URL from "@candlefw/url";
+
+URL.polyfill();
 
 import runner from "./compiler_worker.mjs"
 
@@ -21,7 +24,8 @@ import util from "util";
 //Regex to match Protocol and/or Drive letter from module url
 const
     fn_regex = /(file\:\/\/)(\/)*([A-Z]\:)*/g,
-    Lexer_Path = path.join("/", import.meta.url.replace(fn_regex, ""), "../../../node_modules/@candlefw/whind/build/whind.js"),
+    Lexer_Path = path.join("/",
+        import.meta.url.replace(fn_regex, ""), "../../../node_modules/@candlefw/whind/build/whind.js"),
     LEXER_SCRIPT = `${fs.readFileSync(Lexer_Path)} const lexer = whind.default;`,
     fsp = fs.promises,
 
@@ -138,8 +142,13 @@ function createScript(name, parser, type, env, compress = false) {
 
 /* *************** HCG GRAMMAR DATA *********************/
 
-function parseGrammar(grammar_string, env) {
-    return hc.grammarParser(grammar_string, env);
+async function parseGrammar(grammar_string, PATH) {
+    try{
+        return await hc.grammarParser(grammar_string, PATH);
+    }catch(e){
+        console.err(e);
+        return null;
+    }
 }
 
 /* *************** LR GRAMMARS ********************/
@@ -162,27 +171,33 @@ function buildLRCompilerScript(states, parsed_grammar, env) {
 
 /* *************** EARLEY ********************/
 
-function createEarleyItems(grammar, env){
+function createEarleyItems(grammar, env) {
     return hc.earleyItems(grammar, env);
 };
 
-function createEarleyCompiler(items, grammar, env){
+function createEarleyCompiler(items, grammar, env) {
 
 };
 
 /* *************** RUNTIME ********************/
 
 function CLI_INSTRUCTIONS(full = false) {
-    console.log(`\nType something then hit {${ADD_COLOR(" enter ", COLOR_KEYBOARD)}||${ADD_COLOR(" return ", COLOR_KEYBOARD)}} to see how the ${name} parser performs on that input`)
+    console.log(`\nType something then hit {${ADD_COLOR(" enter ", COLOR_KEYBOARD)}||${ADD_COLOR(" return ", COLOR_KEYBOARD)}} to see how the parser performs on that input`)
     console.log(`Type 'reload' to update the parser with new file changes.`)
     console.log(`Type 'help' to show help info.`)
 }
 
-async function mount(name, input, env) {
+async function mount(name, input, env, states, grammar) {
 
     let d = await new Promise(res => {
-
-        const parser = ((Function(input + "; return parser"))());
+        let parser;
+        try{
+            parser = ((Function(input + "; return parser"))());
+        }catch(e){
+            console.log(input)
+            console.dir(e, {depth:null})
+            return 
+        }
 
         const r1 = readline.createInterface({
             input: process.stdin,
@@ -213,7 +228,7 @@ async function mount(name, input, env) {
                 return;
             }
 
-            if (input == "parse") {
+            if (input == " ") {
 
 
                 try {
@@ -222,7 +237,7 @@ async function mount(name, input, env) {
                         parse = parser(data.join("\n"));
                     else
                         parse = parser(whind(data.join("\n"), true), env);
-
+                    console.log("OUTPUT!")
                     console.log(util.inspect(parse, false, null, true))
                 } catch (e) {
                     console.error(e);
@@ -232,6 +247,7 @@ async function mount(name, input, env) {
             } else {
                 data.push(input);
                 console.clear();
+                console.log(hc.renderTable(states, grammar));
                 console.log(data.join("\n"))
             }
 
@@ -360,9 +376,16 @@ program
 
             const { grammar_string, states_string, env } = await loadFiles(grammar_path, env_path, states_path, unattended);
 
-            const grammar = parseGrammar(grammar_string, env)
+            const grammar = await parseGrammar(grammar_string, new URL(grammar_path))
 
-            let states = null, script_string="";
+            if(!grammar){
+                console.error(`Failed to compile grammar ${grammar.name}. Exiting`);
+                process.exit(1);
+            }
+
+
+            let states = null,
+                script_string = "";
 
             switch (parser) {
                 case "lalr1":
@@ -371,7 +394,7 @@ program
                         states = parseLRJSONStates(states_string, unattended);
                     } else {
 
-                         states = await compileLRStates(grammar, env_path, name, unattended);
+                        states = await compileLRStates(grammar, env_path, name, unattended);
 
                         if (!!cmd.statesout) {
                             const states_output = stringifyLRStates(states);
@@ -401,15 +424,14 @@ program
                 await write(name, script, output_directory, type);
 
 
-            if(!unattended){
-                
+
+            if (!unattended)
                 console.log(`Use ${ADD_COLOR(" ctrl ", COLOR_KEYBOARD)}+${ADD_COLOR(" c ", COLOR_KEYBOARD)} to return to console.`)
 
-                if (!!cmd.mount) {
-                    if (!(await mount(name, script, env)))
-                        {};
-                } 
+            if (!!cmd.mount) {
+                if (!(await mount(name, script, env, states, grammar))) {};
             }
+
 
             process.exit();
 
