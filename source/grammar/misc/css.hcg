@@ -34,6 +34,7 @@
 		│ ||
 
 
+
 	<> css_TYPE_SELECTOR →  css_WQ_NAME 	↦c{this.type="ts"; this.sym = sym[0]}
 		│ css_NS_PREFIX? *					↦c{this.type="ts_any"; this.prefix = (sym[0].length > 1) ? sym[0] : "" }
 		│ b::binding

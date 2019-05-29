@@ -79,7 +79,7 @@ export async function grammarParser(grammar, FILE_URL, stamp = 112, meta_importe
                         try {
                             this.name = productions.LU.get(this.name).name;
                         } catch (e) {
-                            throw Error(`Grammar ${id} does not have a production named ${this.name}.`)
+                            throw Error(`Grammar ${id} does not have a production named ${this.name}.`);
                         }
                     }
                 } else {
@@ -116,7 +116,7 @@ export async function grammarParser(grammar, FILE_URL, stamp = 112, meta_importe
 
                     for (let i = 0; i < prods.length; i++) {
                         const prod = prods[i];
-                        console.log(prod.name)
+
                         prod.name = `${id}$${prod.name}`;
                         for (let i = 0; i < prod.bodies.length; i++) {
                             const body = prod.bodies[i];
@@ -366,8 +366,6 @@ export async function grammarParser(grammar, FILE_URL, stamp = 112, meta_importe
                 }
 
             }
-
-            console.log(productions)
         }
 
         return productions;

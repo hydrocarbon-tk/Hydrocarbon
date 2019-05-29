@@ -126,6 +126,7 @@ export function reduceCollisionCheck(grammar, state, item, error) {
             body_a.production.name !== body_b.production.name // Reduction to same production should not be an error
         ) {
 
+
             error.log(
                 `\x1b[41m REDUCE \x1b[43m COLLISION ERROR ENCOUNTERED:\x1b[0m
                 
@@ -143,6 +144,11 @@ export function reduceCollisionCheck(grammar, state, item, error) {
             ${state.d}
             `);
 
+            if(body_a.production.id < body_b.production.id)
+                return 0;
+            else 
+                return 1;
+            
             return -1;
         }
 

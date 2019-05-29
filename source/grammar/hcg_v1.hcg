@@ -89,6 +89,16 @@
 																			env.functions.compileProduction(this);
 																		}
 
+	│ <> imported_production_symbol \→ ↦{env.host_lex = lex.copy(); env.prod_name = sym[sym.length - 1];} production_bodies
+
+																		↦cstr{ 
+																			this.IMPORT_OVERRIDE = true;
+																			this.name = sym[1]; 
+																			this.bodies = sym[3]; 
+																			this.id = -1; 
+																			env.functions.compileProduction(this);
+																		}
+
 ########################################################################################################################
 ######################################  PRODUCTION BODIES
 ########################################################################################################################

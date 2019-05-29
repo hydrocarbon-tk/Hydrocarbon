@@ -76,8 +76,6 @@ export default function(grammar, states, env, functions, SYM_LU, types) {
             error_handlers.push("e");
         }
 
-        console.log(SYM_LU)
-
         let last_pos = -1;
         ([...state.action.entries()]).map(s => {
 

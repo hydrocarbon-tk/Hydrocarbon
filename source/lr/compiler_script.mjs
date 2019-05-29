@@ -59,7 +59,6 @@ function parser(l, e = {}) {
             if (fn > 0) {
                 r = state_funct[fn - 1](tk, e, o, l, ss[sp - 1]);
             } else {
-
                 if (RECOVERING > 1 && !l.END) {
                     if (tk !== lu.get(l.ty)) {
                         //console.log("ABLE", rlu.get(tk), l.tx, tk )
@@ -129,7 +128,6 @@ function parser(l, e = {}) {
                     break;
             }
         }
-    console.log(time);
     return o[0];
 }
 
