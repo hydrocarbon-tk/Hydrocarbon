@@ -27,6 +27,7 @@ function convertProductionNamesToIndexes(productions, LU) {
 
                     if (sym.type == "production") {
                         try {
+                            sym.resolveFunction = null; // For DataClone 
                             sym.val = LU.get(sym.name).id;
                         } catch (e) {
                             throw new SyntaxError(`Missing Production for symbol ${sym.name}`);
@@ -69,6 +70,9 @@ export async function grammarParser(grammar, FILE_URL, stamp = 112, meta_importe
                 this.name = sym[2];
                 this.val = -1;
                 this.IMPORTED = true;
+                this.RESOLVED = false;
+                this.production = null;
+                this.resolveFunction = ()=>{};
 
                 const id = env.imported.get(sym[0]);
                 const productions = meta_imported_productions.get(id);
@@ -77,7 +81,9 @@ export async function grammarParser(grammar, FILE_URL, stamp = 112, meta_importe
                         productions.push(this);
                     } else {
                         try {
-                            this.name = productions.LU.get(this.name).name;
+                            const production = productions.LU.get(this.name);
+                            this.name = production.name;
+                            this.RESOLVED = true;
                         } catch (e) {
                             throw Error(`Grammar ${id} does not have a production named ${this.name}.`);
                         }
@@ -88,6 +94,7 @@ export async function grammarParser(grammar, FILE_URL, stamp = 112, meta_importe
                     meta_imported_productions.set(id, list);
                 }
             },
+
             importData: function(sym, env, lex) {
                 const id = sym[5];
                 const url = sym[2];
@@ -133,21 +140,27 @@ export async function grammarParser(grammar, FILE_URL, stamp = 112, meta_importe
                     if (meta_imported_productions.has(key)) {
 
                         const p = meta_imported_productions.get(key);
-
                         if (p.SYMBOL_LIST) {
+                           // meta_imported_productions.set(key, prods);
                             p.forEach(sym => {
                                 try {
-                                    sym.name = prods.LU.get(sym.name).name;
+                                    console.log(sym.name, sym, sym.name,prods.LU)
+                                    const production = prods.LU.get(sym.name);
+                                    sym.name = production.name;
+                                    sym.RESOLVED = true;
+                                    sym.production = production;
+                                    sym.resolveFunction(production);
                                 } catch (e) {
-                                    throw Error(`Grammar ${id} does not have a production named ${sym.name}.`);
+                                    console.error(e)
+                                    throw Error(`Grammar ${id} does not have a production named ${sym.name}`);
                                 }
+
                             });
                         }else
                             EXISTING = true;
                     } 
 
                     if(!EXISTING) {
-                        //Morph names to prevent collisions;
                         env.productions.push(...prods);
                         env.productions.meta.push(...prods.meta);
                         meta_imported_productions.set(key, prods);
@@ -155,7 +168,6 @@ export async function grammarParser(grammar, FILE_URL, stamp = 112, meta_importe
 
                     AWAIT--;
                 }).catch(e => {
-                    console.log(uri, FILE_URL)
                     throw e;
                 });
 
@@ -250,7 +262,22 @@ export async function grammarParser(grammar, FILE_URL, stamp = 112, meta_importe
             },
 
             compileProduction: function(production, lex) {
+                if(production.IMPORT_APPEND || production.IMPORT_OVERRIDE){
 
+                    production.name.resolveFunction = (p)=>{
+                        if(production.IMPORT_APPEND)
+                            p.bodies.push(...production.bodies);
+                        else
+                            p.bodies = production.bodies;
+                        env.functions.compileProduction(p, lex);
+                    };
+                    
+                    if(production.name.RESOLVED){
+                        production.name.resolveFunction(production.name.production);
+                    }
+                    
+                    return;
+                }
 
                 const bodies = production.bodies;
 

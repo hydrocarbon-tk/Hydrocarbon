@@ -14,7 +14,7 @@
 # The @SYMBOL preamble defines symbols for the lexer to recognize and tokenize. This is useful when there is a need to 
 # identify symbols that are comprised of multiple characters. 
 
-@SYMBOL (( )) <> @PREC @SYMBOL @IGNORE @IMPORT @NAME @EXT => (* (+ ::
+@SYMBOL (( )) <> +> @PREC @SYMBOL @IGNORE @IMPORT @NAME @EXT => (* (+ ::
 
 # The @IGNORE preamble defines tokens that should be ignored when encountered in productions. Can be overriden per 
 # production body with the ((IGN symbol)) clause or a by explicitly declaring the symbol within the grammar.
@@ -67,15 +67,15 @@
 
 <> ext_preamble → 			@EXT identifier θnl 					↦cstr{ this.type='ext'; this.id = sym[1] }
 
-<> import_preamble → 		@IMPORT θws(*) (( θid │ θany ))(+") θws(*) ((τAS│τas)) θid θnl 	↦return ^importData 
+<> import_preamble → 		@IMPORT θws(*) (( θid │ θany ))(+") θws(+) ((τAS│τas)) θid θnl 	↦return ^importData 
 
 ########################################################################################################################
 ######################################  PRODUCTIONS
 ########################################################################################################################
 
-<> productions → production  										↦return {  env.productions.push(sym[0]) }
+<> productions → production  										↦return {  (!(sym[0].IMPORT_OVERRIDE || sym[0].IMPORT_APPEND)) ? env.productions.push(sym[0]) : 0 }
 			│ referenced_function									↦return {  env.refs.set(sym[0].id, sym[0]), null }
-			│ productions production 	 							↦return {  sym[1].id = env.productions.length, env.productions.push(sym[1]), env.productions }
+			│ productions production 	 							↦return {  sym[1].id = env.productions.length, (!(sym[1].IMPORT_OVERRIDE || sym[1].IMPORT_APPEND)) ? env.productions.push(sym[1]) : 0, env.productions }
 			│ productions comment 	 							    ↦return {  env.productions }
 			│ productions referenced_function						↦return {  env.refs.set(sym[1].id, sym[1]), sym[0] }
 			│ ɛ 	
@@ -89,10 +89,20 @@
 																			env.functions.compileProduction(this);
 																		}
 
-	│ <> imported_production_symbol \→ ↦{env.host_lex = lex.copy(); env.prod_name = sym[sym.length - 1];} production_bodies
+	│ <> imported_production_symbol \→ ↦{env.host_lex = lex.copy(); env.prod_name = sym[sym.length - 1].name;} production_bodies
 
 																		↦cstr{ 
 																			this.IMPORT_OVERRIDE = true;
+																			this.name = sym[1]; 
+																			this.bodies = sym[3]; 
+																			this.id = -1; 
+																			env.functions.compileProduction(this);
+																		}
+
+	│ +> imported_production_symbol \→ ↦{env.host_lex = lex.copy(); env.prod_name = sym[sym.length - 1].name;} production_bodies
+
+																		↦cstr{ 
+																			this.IMPORT_APPEND = true;
 																			this.name = sym[1]; 
 																			this.bodies = sym[3]; 
 																			this.id = -1; 

@@ -1,4 +1,4 @@
-@SYMBOL || ^= $= *=
+@SYMBOL || ^= $= *= ({ })
 
 @IGNORE θnl θws
 
@@ -38,8 +38,9 @@
 	<> css_TYPE_SELECTOR →  css_WQ_NAME 	↦c{this.type="ts"; this.sym = sym[0]}
 		│ css_NS_PREFIX? *					↦c{this.type="ts_any"; this.prefix = (sym[0].length > 1) ? sym[0] : "" }
 		│ b::binding
+
+	+> b::binding → \({ ((θany│θws))(+")  \}) ↦c {this.val = sym[1]}
 		
-	
 	<> css_NS_PREFIX →  ((θid │ * ))? | 
 
 	<> css_WQ_NAME →  css_NS_PREFIX? θid
