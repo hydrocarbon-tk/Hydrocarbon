@@ -448,8 +448,6 @@ export function processClosure(state_id, items, grammar, error, excludes, offset
 
                 let i_sym = body.sym[j];
 
-                console.log(body.sym, j,i_sym)
-
                 let e_sym = ex.symbols[d];
 
                 if (i_sym && i_sym.type !== "production" && i_sym.val == e_sym.val) {

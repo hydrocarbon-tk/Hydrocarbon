@@ -12,7 +12,7 @@ function processState(items, state, states, grammar, items_set, error, LALR_MODE
         processClosure(state.id, items, grammar, error);
     } catch (e) {
         console.error(e);
-        console.log(items);
+      //  console.log(items);
         return -1;
     }
 

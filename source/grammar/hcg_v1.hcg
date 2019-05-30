@@ -155,9 +155,9 @@
 			 │ body_entries \!										↦return { sym[0].map(e => (e.NO_BLANK = true, e))}
 
 
-<> condition_clause → \(( τEXC condition_symbol_list \)) 			↦return{ this.type = "exc"; this.sym = sym[2]; this.offset = -1; }
-				 │ \(( τERR condition_symbol_list \)) 				↦cstr{ this.type = "err"; this.sym = sym[2]; this.offset = -1; }
-				 │ \(( τIGN condition_symbol_list \)) 				↦cstr{ this.type = "ign"; this.sym = sym[2]; this.offset = -1; }
+<> condition_clause → \(( τEXC condition_symbol_list \)) 			↦c{ this.type = "exc"; this.sym = sym[2]; this.offset = -1; }
+				 │ \(( τERR condition_symbol_list \)) 				↦c{ this.type = "err"; this.sym = sym[2]; this.offset = -1; }
+				 │ \(( τIGN condition_symbol_list \)) 				↦c{ this.type = "ign"; this.sym = sym[2]; this.offset = -1; }
 
 
 ########################################################################################################################
