@@ -1,0 +1,16 @@
+@IGNORE θws θnl
+
+# sddfs
+
+########################################################################################################################
+######################################  COMMENTS
+########################################################################################################################
+
+<> comment → \# comment_data comment_delimiter						↦cstr{ this.val = $sym2 }
+
+<> comment_delimiter → θnl │ $eof │ ;
+
+<> comment_data → comment_primitive 								↦return { $sym1 }
+			 │ comment_data comment_primitive						↦return { $sym1 + $sym2 }
+
+<> comment_primitive → θid │ θnum │ θws │ θany

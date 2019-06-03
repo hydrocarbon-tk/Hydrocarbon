@@ -49,14 +49,14 @@ function processState(items, state, states, grammar, items_set, error, LALR_MODE
         if (offset >= len || tok.type == "empty") { //At an accepting state for this input
             const k = item.v;
 
-            if (item.body == 0 && k == "$")
+            if (item.body == 0 && k == "$eof")
                 state.action.set(k, { name: "ACCEPT", symbol_type: item.follow.type, size, production: body.production, body: body.id, len, offset: item.offset });
 
             else {
                 const p1 = body.precedence;
                 const p2 = item.p;
 
-                if (p2 < p1 && k !== "$" && i > 0)
+                if (p2 < p1 && k !== "$eof" && i > 0)
                     continue;
 
                 switch (reduceCollisionCheck(grammar, state, item, error)) {
@@ -238,7 +238,7 @@ export function* compileLRStates(grammar, env = {}) {
     const bodies = grammar.bodies;
 
     let states = createInitialState(grammar),
-        items_set = [{ c: [new Item(0, bodies[0].length, 0, { v: "$", p: 0, type: "generated" }, grammar)], s: states[0] }],
+        items_set = [{ c: [new Item(0, bodies[0].length, 0, { v: "$eof", p: 0, type: "generated" }, grammar)], s: states[0] }],
         LALR_MODE = true,
         i = 0,
         total_items = 1;
@@ -248,15 +248,15 @@ export function* compileLRStates(grammar, env = {}) {
     states.COMPILED = false;
 
     while (items_set.length > 0) {
-        let start = items_set.length;
-
-        let items = items_set.shift();
+        const 
+            start = items_set.length,
+            items = items_set.shift();
 
         if (!processState(items.c, items.s, states, grammar, items_set, error, LALR_MODE)) {
             if (LALR_MODE) {
                 error.log("Unable to continue in LALR mode. Restarting in CLR Mode. \n")
                 states = createInitialState(grammar);
-                items_set = [{ c: [new Item(0, bodies[0].length, 0, "$", 0, grammar)], s: states[0] }];
+                items_set = [{ c: [new Item(0, bodies[0].length, 0, "$eof", 0, grammar)], s: states[0] }];
                 LALR_MODE = false;
                 yield { error, states: states, num_of_states: states.length, total_items, items_left: items_set.length, COMPLETE: false, ERROR: true, error_msg: "Unable to continue in LALR mode. Restarting in CLR Mode. \n" }
                 return { error, states: states, num_of_states: states.length, total_items, items_left: items_set.length, COMPLETE: true, ERROR: true, error_msg: "Unable to continue in LALR mode. Restarting in CLR Mode. \n" }

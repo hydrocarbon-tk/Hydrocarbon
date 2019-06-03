@@ -16,9 +16,11 @@ const max = Math.max,
     },
 
     reduce_to_null = (ret, plen, t, e, o, l, s) => {
-        let ln = max(o.length - plen, 0);
-        o[ln] = o[o.length -1];
-        o.length = ln + 1;
+        if(plen > 0){
+            let ln = max(o.length - plen, 0);
+            o[ln] = o[o.length -1];
+            o.length = ln + 1;
+        }
         return ret;
     },
 
@@ -83,7 +85,7 @@ export default function(grammar, states, env, functions, SYM_LU, types) {
             
                 k = s[0];
 
-            if (k == "$")
+            if (k == "$eof")
                 s[0] = 0;
             
             else switch (state.symbol_type) {
@@ -152,7 +154,7 @@ export default function(grammar, states, env, functions, SYM_LU, types) {
                         }else{
                             funct.push(`redn(${return_value},${length},...v)`);
                         }
-                    } else if (length == 0)
+                    } else
                         funct.push(`(${reduce_to_null_name}(${return_value},0,...v))`); /* empty production*/
                     /*intentional*/
                 case "SHIFT":

@@ -1,0 +1,79 @@
+# This annotated grammar definition is continued from hcg_v2.hcg
+
+# Imported files can have their own imports. 
+
+@IMPORT ./comments.hcg as cm
+
+# sddfs
+
+
+@IMPORT ./symbols.hcg as sym
+
+# Productions can be defined through the [ <> ID → symbol ... ] form as will as using parenthesis ( ) to define a 
+# production group. The production group is a virtual production that can have multiple production bodies within it 
+# seperated by the │ symbol ( U+2502 BOX DRAWINGS LIGHT VERTICAL )
+
+# The (*) symbol represents a zero-or-more repeating pattern and is bound to the preceding symbol. In this case 
+# the preamble production is composed of zero-or-more preamble clauses. Symbols defined this way are reduced to an 
+# array containing the matching productions.
+
+@IGNORE θws θnl
+
+# sddfs
+
+<> preamble → (preamble_clause)(*)									
+
+# As in productions groups, multiple bodies in a production can be separated by 
+# the │ symbol ( U+2502 BOX DRAWINGS LIGHT VERTICAL )
+
+<> preamble_clause →  ignore_preamble
+	│ symbols_preamble
+	│ precedence_preamble
+	│ name_preamble
+	│ ext_preamble
+	│ import_preamble
+	│ cm::comment 
+
+
+
+<> symbols_preamble → 		@ (ERR θws ) τSYMBOL sym::lexer_symbols θnl 			
+																		
+																		↦cstr{ 
+																			this.type="symbols"; 
+																			this.symbols = $sym3;
+																			this.symbols.forEach(lex.addSymbol.bind(lex));
+																		 }
+
+
+<> precedence_preamble → 	@ (ERR θws ) τPREC sym::terminal_symbol θnum θnl 			
+																		
+																		↦cstr{ 	
+																			this.grammar_stamp = env.stamp; 
+																			this.type="precedence"; 
+																	   		this.terminal = $sym3; 
+																	   		this.val = parseInt($sym4)
+																		}
+
+
+<> ignore_preamble → 		@ (ERR θws ) τIGNORE sym::ignore_symbols θnl				
+																		
+																		↦cstr{ 	
+																			this.grammar_stamp = env.stamp; 
+																			this.type="ignore"; 
+																			this.symbols = $sym3;
+																		}
+
+
+<> name_preamble → 			@ (ERR θws ) τNAME cm::comment_data θnl 					
+																		
+																		↦cstr{ this.type="name"; this.id = $sym3 }
+
+
+<> ext_preamble → 			@ (ERR θws ) τEXT sym::identifier θnl 					
+																		
+																		↦cstr{ this.type="ext"; this.id = $sym3 }
+
+
+<> import_preamble → 		@ (ERR θws ) τIMPORT θws(*) ( θid │ θany )(+") θws(+) (τAS│τas) θid θnl 	
+																		
+																		↦return ^importData 

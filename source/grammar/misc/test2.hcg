@@ -1,9 +1,9 @@
 @IGNORE θnl θws
 
-↦a{ this.l = sym[0]; this.r = sym[2]; }
+↦a{ this.l = $sym1; this.r = $sym2; }
 
 ↦b{	sym[0] }
 
 <> S → s
-<> s → θid (( R = R  ↦c=>a │ τsym ↦r=>b ))(*) τdi?  ↦c{this.syms = sym[1]}
-<> R → ((θid? τdid? θsym? !)) ↦r{sym}  
+<> s → θid ( R (= R)?  ↦c=>a │ τsym ↦r=>b )(*) τdi?  ↦c{this.syms = $sym3; this.test = $sym2 }
+<> R → [ θid? τdid? τmango? ] ↦r{ $sym1 + $sym2 + $sym3 }  

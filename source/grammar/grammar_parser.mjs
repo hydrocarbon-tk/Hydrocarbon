@@ -1,9 +1,18 @@
 /**
  * Parses HC Grammars. Parser Built by Hydrocarbon
  */
-import parser from './hcg_v1.mjs';
+
+import js_env from "./js/env.mjs";
+import js from "./js/javascript.mjs";
+import _null from "./js/null.mjs";
+import mem from "./js/member.mjs";
+import num from "./js/number.mjs";
+import id from "./js/identifier.mjs";
+
+import parser from './hcg_v2.mjs';
 import whind from "@candlefw/whind";
 import URL from "@candlefw/url";
+
 
 function convertProductionNamesToIndexes(productions, LU) {
     let sym = "",
@@ -27,14 +36,13 @@ function convertProductionNamesToIndexes(productions, LU) {
 
                     if (sym.type == "production") {
                         sym.resolveFunction = null; // For DataClone 
-                          //console.log(sym)
-                        if(sym.IMPORTED && sym.RESOLVED){
+                        if (sym.IMPORTED && sym.RESOLVED) {
                             sym.val = sym.production.id;
-                        }else try {
-                            
+                        } else try {
+
                             sym.val = LU.get(sym.name).id;
                         } catch (e) {
-                            console.log(production)
+                            console.log(bodies.map(b => b.sym));
                             throw new SyntaxError(`Missing Production for symbol ${sym.name}`);
                         }
                     } else if (sym.type == "literal")
@@ -77,7 +85,7 @@ export async function grammarParser(grammar, FILE_URL, stamp = 112, meta_importe
                 this.IMPORTED = true;
                 this.RESOLVED = false;
                 this.production = null;
-                this.resolveFunction = ()=>{};
+                this.resolveFunction = () => {};
 
                 const id = env.imported.get(sym[0]);
                 const productions = meta_imported_productions.get(id);
@@ -88,6 +96,7 @@ export async function grammarParser(grammar, FILE_URL, stamp = 112, meta_importe
                         try {
                             const production = productions.LU.get(this.name);
                             this.name = production.name;
+                            this.production = production;
                             this.RESOLVED = true;
                         } catch (e) {
                             throw Error(`Grammar ${id} does not have a production named ${this.name}.`);
@@ -101,8 +110,8 @@ export async function grammarParser(grammar, FILE_URL, stamp = 112, meta_importe
             },
 
             importData: function(sym, env, lex) {
-                const url = sym[2];
-                const id = sym[5];
+                const url = sym[3];
+                const id = sym[6];
 
                 const symbol = {
                         type: "production",
@@ -114,47 +123,56 @@ export async function grammarParser(grammar, FILE_URL, stamp = 112, meta_importe
                     uri = URL.resolveRelative(url, FILE_URL + ""),
 
                     key = uri + "";
+
+
+                env.imported.set(id, key);
+
+
+                if (meta_imported_productions.has(key)) {
+                    const p = meta_imported_productions.get(key);
+                    if (!p.SYMBOL_LIST || p.PENDING)
+                        return { type: "import", id, url };
+                } else
+                    meta_imported_productions.set(key, Object.assign([], { SYMBOL_LIST: true, PENDING: true }));
                 
-
-                env.imported.set(sym[5], key);
-
                 AWAIT++;
 
                 uri.fetchText().then(async txt => {
+                    const prods = await grammarParser(txt, uri, stamp * env.body_count ** AWAIT + 1 + (Math.random()  * 10000) |0, meta_imported_productions);
 
-                    const prods = await grammarParser(txt, uri, stamp * env.body_count ** AWAIT + 1, meta_imported_productions);
                     let EXISTING = false;
                     prods.imported = true;
 
-                      for (let i = 0; i < prods.length; i++) {
-                            const prod = prods[i];
-                            
-                            if(!prod.IMPORTED){ //Only allow one level of namespacing
+                    for (let i = 0; i < prods.length; i++) {
+                        const prod = prods[i];
 
-                                 prod.name = `${id}$${prod.name}`;
-                                 prod.IMPORTED = true;
-                                
-                                for (let i = 0; i < prod.bodies.length; i++) {
-                                    const body = prod.bodies[i];
-                                    for (let i = 0; i < body.sym.length; i++) {
-                                        const sym = body.sym[i];
-                                        if (sym.type == "production" && !sym.IMPORTED && sym.val !== -55){
-                                            sym.val = -55;
-                                            sym.name = `${id}$${sym.name}`;
-                                        }
+                        if (!prod.IMPORTED) { //Only allow one level of namespacing
+
+                            prod.name = `${id}$${prod.name}`;
+                            prod.IMPORTED = true;
+
+                            for (let i = 0; i < prod.bodies.length; i++) {
+                                const body = prod.bodies[i];
+                                for (let i = 0; i < body.sym.length; i++) {
+                                    const sym = body.sym[i];
+                                    if (sym.type == "production" && !sym.IMPORTED && sym.val !== -55) {
+                                        sym.val = -55;
+                                        sym.name = `${id}$${sym.name}`;
                                     }
                                 }
                             }
                         }
+                    }
 
                     let p;
                     //Make sure only one instance of any URL resource is used in grammar.
-                    
+
                     if ((p = meta_imported_productions.get(key))) {
                         if (p.SYMBOL_LIST) {
                             //meta_imported_productions.set(key, prods);
                             p.forEach(sym => {
                                 try {
+
                                     const production = prods.LU.get(sym.name);
                                     //console.log(sym.name, sym, production)
                                     sym.name = `${id}$${production.name}`;
@@ -162,18 +180,16 @@ export async function grammarParser(grammar, FILE_URL, stamp = 112, meta_importe
                                     sym.production = production;
                                     sym.resolveFunction(production);
                                 } catch (e) {
-                                    console.error(e)
+                                    console.error(e);
                                     throw Error(`Grammar ${id} does not have a production named ${sym.name}`);
                                 }
 
                             });
-                        }else
+                        } else 
                             EXISTING = true;
-                    } 
+                    }
 
-                    if(!EXISTING) {
-                      
-
+                    if (!EXISTING) {
                         env.productions.push(...prods);
                         env.productions.meta.push(...prods.meta);
                         meta_imported_productions.set(key, prods);
@@ -195,6 +211,7 @@ export async function grammarParser(grammar, FILE_URL, stamp = 112, meta_importe
 
                 const s = sym[0];
                 this.sym = s.body || [];
+                this.sym_map = this.sym.map((e, i) => i);
                 this.length = 0;
                 this.excludes = new Map();
                 this.ignore = new Map();
@@ -203,6 +220,53 @@ export async function grammarParser(grammar, FILE_URL, stamp = 112, meta_importe
                 this.reduce_function = s.reduce || null;
                 this.grammar_stamp = env.stamp;
 
+                //Used to identifier the unique form of the body.
+                this.uid = this.sym.map(e => e.type == "production" ? e.name : e.val).join(":");
+                //*
+                this.build = function() {
+                    if (true && this.reduce_function && this.reduce_function.txt) {
+                        const str = (this.reduce_function.type == "RETURNED") ?
+                            `function temp(temp){return ${this.reduce_function.txt}}` :
+                            `function temp(temp){ ${this.reduce_function.txt}}`;
+                        const fn = js(whind(str), js_env);
+
+                        const iter = fn.traverseDepthFirst();
+
+                        let i = 0;
+
+                        for (const node of iter) {
+
+                            //If encountering an identifier with a value of the form "$sym*" where * is an integer.
+                            if (node instanceof id && node.val.slice(0, 4) == "$sym") {
+
+                                // Retrieve the symbol index
+                                const index = parseInt(node.val.slice(4)) - 1;
+
+                                let n = null,
+                                    v = -1;
+                                // Replace node with either null or "sym[*]"" depending on the presence of nonterms
+                                // within the body.  
+                                if ((v = this.sym_map.indexOf(index)) >= 0) {
+                                    n = new mem([new id(["sym"]), null, new num([v])]);
+                                }
+
+                                node.replace(n);
+                            }
+                        }
+
+                        // Replace the reduce_function with a new object (that contains the modified
+                        // functions string)?
+                        this.reduce_function = Object.assign({}, this.reduce_function);
+                        this.reduce_function.txt = (this.reduce_function.type == "RETURNED") ?
+                            fn.body.expr.render() :
+                            fn.body.render();
+                        // /console.log(this.reduce_function.txt);
+                        //console.log(fn.render(), this.sym_map);
+                    }
+
+                    //Removing build function ensures that this object can be serialized. 
+                    delete this.build;
+                }; //*/
             },
 
             groupProduction: function(sym, env, lex) {
@@ -275,20 +339,20 @@ export async function grammarParser(grammar, FILE_URL, stamp = 112, meta_importe
             },
 
             compileProduction: function(production, lex) {
-                if(production.IMPORT_APPEND || production.IMPORT_OVERRIDE){
+                if (production.IMPORT_APPEND || production.IMPORT_OVERRIDE) {
 
-                    production.name.resolveFunction = (p)=>{
-                        if(production.IMPORT_APPEND)
+                    production.name.resolveFunction = (p) => {
+                        if (production.IMPORT_APPEND)
                             p.bodies.push(...production.bodies);
                         else
                             p.bodies = production.bodies;
                         env.functions.compileProduction(p, lex);
                     };
-                    
-                    if(production.name.RESOLVED){
+
+                    if (production.name.RESOLVED) {
                         production.name.resolveFunction(production.name.production);
                     }
-                    
+
                     return;
                 }
 
@@ -299,22 +363,34 @@ export async function grammarParser(grammar, FILE_URL, stamp = 112, meta_importe
                     const lex = body.lex;
 
                     //First pass splits optionals, expands repeats, and handles lists
-                    for (let j = 0; j < body.sym.length; j++) {
-                        const sym = body.sym[j];
+                    outer:
+                        for (let j = 0; j < body.sym.length; j++) {
+                            const sym = body.sym[j];
 
-                        if (sym.IS_OPTIONAL && (!sym.NO_BLANK || body.sym.length > 1)) {
+                            if (sym.IS_OPTIONAL && (!sym.NO_BLANK || body.sym.length > 1)) {
 
-                            const new_sym = body.sym.slice();
+                                const new_sym = body.sym.slice();
+                                const sym_map = body.sym_map.slice();
 
-                            new_sym.splice(j, 1);
+                                new_sym.splice(j, 1);
+                                sym_map.splice(j, 1);
 
-                            const new_body = new env.functions.body([{ body: new_sym, reduce: body.reduce_function }], env, lex);
+                                const new_body = new env.functions.body([{ body: new_sym, reduce: body.reduce_function }], env, lex);
 
-                            new_body.lex = lex;
+                                new_body.lex = lex;
+                                new_body.sym_map = sym_map;
 
-                            bodies.push(new_body);
+                                //Check to see if we have already derived this body form. 
+                                // If so, skip adding to list of production bodies.
+
+                                for (let j = 0; j < bodies.length; j++) {
+                                    if (bodies[j].uid == new_body.uid)
+                                        continue outer;
+                                }
+
+                                bodies.push(new_body);
+                            }
                         }
-                    }
 
                     //second pass removes functions, excludes, errors, and ignores
                     for (let j = 0; j < body.sym.length; j++) {
@@ -364,6 +440,7 @@ export async function grammarParser(grammar, FILE_URL, stamp = 112, meta_importe
                     }
 
                     body.length = body.sym.length;
+                    body.build();
                 }
             }
         }
@@ -379,7 +456,7 @@ export async function grammarParser(grammar, FILE_URL, stamp = 112, meta_importe
         //Convient lookup map for production non-terminal names. 
         productions.LU = new Map(productions.map(p => [p.name, p]));
 
-        //If the production is at the root of the import tree, then complete the processing of the production data. 
+        //If the production is at the root of the import tree, then complete the processing of production data. 
         if (stamp == 112) {
             //Setup the productions object
             productions.forEach((p, i) => p.id = i);
@@ -391,23 +468,23 @@ export async function grammarParser(grammar, FILE_URL, stamp = 112, meta_importe
 
 
             for (const pre of productions.meta) {
-                switch (pre.type) {
-                    case "ignore":
-                        if (!productions.meta.ignore)
-                            productions.meta.ignore = [];
-                        productions.meta.ignore.push(pre);
-                        break;
-                    case "symbols":
-                        if (!productions.meta.symbols)
-                            productions.meta.symbols = new Map(pre.symbols.map(e => [e, { val: e }]));
-                        else
-                            pre.symbols.forEach(e => productions.meta.symbols.set(e, { val: e }));
-                        break;
-                }
-
+                if (pre)
+                    switch (pre.type) {
+                        case "ignore":
+                            if (!productions.meta.ignore)
+                                productions.meta.ignore = [];
+                            productions.meta.ignore.push(pre);
+                            break;
+                        case "symbols":
+                            if (!productions.meta.symbols)
+                                productions.meta.symbols = new Map(pre.symbols.map(e => [e, { val: e }]));
+                            else
+                                pre.symbols.forEach(e => productions.meta.symbols.set(e, { val: e }));
+                            break;
+                    }
             }
         }
-
+        //throw("ENDING")
         return productions;
     } catch (e) {
         console.error(e);

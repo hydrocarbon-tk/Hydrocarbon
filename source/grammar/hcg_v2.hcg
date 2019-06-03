@@ -2,6 +2,11 @@
 ############################################## Hydrocarbon Grammar #####################################################
 ########################################################################################################################
 
+# v2
+
+# This is the Hydrocarbon Grammar Definition and parser file. It contains information to build the Hydrocarbon 
+# Grammar parser.
+
 # This is a preamble clause. It allows meta information to be defined at the head of a HCG grammar file. This particular 
 # preamble, @NAME, is used to define the name of the grammer
 
@@ -12,289 +17,38 @@
 @EXT hcg
 
 # The @SYMBOL preamble defines symbols for the lexer to recognize and tokenize. This is useful when there is a need to 
-# identify symbols that are comprised of multiple characters. 
+# tokenize symbols that are comprised of multiple characters. Symbols are defined per file and only apply terminal symbols
+# defined within that file. 
 
-@SYMBOL (( )) <> @PREC @SYMBOL @IGNORE @NAME @EXT
+@SYMBOL (( )) <> +> => (* (+ ::
 
-# The @IGNORE preamble defines tokens that should be ignored when encountered in productions. Can be overriden per 
-# production body with special condition clauses
+# The @IGNORE preamble defines tokens that should be ignored when encountered in productions. This can be overriden per 
+# production body with the ((IGN symbol)) clause or by explicitly declaring the ignored symbol within the grammar.
 
 @IGNORE θws θnl
 
-# Hydrocarbon expects the first production to be the goal production. All other productions should resolve to this one.
+# The @IMPORT preamble allows productions to be defined in external files and incorporated into the host file 
+# through import symbols. The imported file is referenced by the identfier following the "as" keyword.
 
-<> S → head												 			↦return {  env.productions }
+@IMPORT ./preambles.hcg as pre
 
-# Hydrocarbon uses several non-ASCII characters in its syntax to define different constructs. 
+# sddfs
 
-<> head → preamble productions 				 						↦return { env.productions.meta = sym[0]}
+@IMPORT ./productions.hcg as prd
 
-########################################################################################################################
-######################################  PREAMBLES
-########################################################################################################################
+# The goal production is the first production defined in the grammar.
 
+# Hydrocarbon V2 productions are defined using a mix of ASCII and extended UTF characters to indicate
+# operators. A production is defined as [ <> ID → symbol symbol symbol ... ] where the → character is 
+# U+2192 Rightwards Arrow Character.
 
+<> hydrocarbon → head									↦return { env.productions }
 
-<> preamble → preamble_clauses										
-	│ ɛ
+# Productions symbols are categorized into several groups and:
 
-<> preamble_clauses → preamble_clause 								↦return {  [sym[0]]  }
-	│ preamble_clauses preamble_clause 								↦return {  sym[0].push(sym[1]), sym[0] }
+<> head → pre::preamble prd::productions 				↦return { env.productions.meta = $sym1 }
 
-<> preamble_clause →  ignore_preamble
-	│ symbols_preamble
-	│ precedence_preamble
-	│ name_preamble
-	│ ext_preamble
-	│ comment 
+# This annotated grammar definition is continued in preambles.hcg
 
-<> symbols_preamble → 		@SYMBOL lexer_symbols θnl 				↦cstr{ 
-																			this.type='symbols'; 
-																			this.symbols = sym[1];
-																			this.symbols.forEach(lex.addSymbol.bind(lex));
-																		 }
 
-<> precedence_preamble → 	@PREC terminal_symbol θnum θnl 			↦cstr{ this.type='precedence'; 
-																		   this.terminal = sym[1]; 
-																		   this.val = parseInt(sym[2]) }
 
-<> ignore_preamble → 		@IGNORE ignore_symbols θnl				↦cstr{ this.type='ignore'; this.symbols = sym[1] }
-
-<> name_preamble → 			@NAME comment_data θnl 					↦cstr{ this.type='name'; this.id = sym[1] }
-
-<> ext_preamble → 			@EXT identifier θnl 					↦cstr{ this.type='ext'; this.id = sym[1] }
-
-########################################################################################################################
-######################################  PRODUCTIONS
-########################################################################################################################
-
-<> productions → production  										↦return {  env.productions.push(sym[0]) }
-			│ productions production 	 							↦return {  sym[1].id = env.productions.length, env.productions.push(sym[1]), env.productions }
-			│ productions comment 	 							    ↦return {  env.productions }
-			│ ɛ 	
- 
-<> production → \<>  production_id \→ ↦{env.host_lex = lex.copy()} production_bodies  			
-																		
-																		↦cstr{ 
-																			this.name = sym[1]; 
-																			this.bodies = sym[3]; 
-																			this.id = -1; 
-																			env.functions.compileProduction(this);
-																		}
-
-########################################################################################################################
-######################################  PRODUCTION BODIES
-########################################################################################################################
-
-<> production_bodies → production_body 					 			↦return {  [sym[0]]  }
-			
-			│ production_bodies \│ ↦{env.host_lex = lex.copy()} production_body 					
-																	
-																	↦return {  sym[0].push(sym[2]), sym[0] }
-
-			│ production_bodies comment 					
-																	
-																	↦return {  sym[0] }
-
-<> production_body → entries  										↦cstr{
-																			const c = env.host_lex;
-																			c.fence(lex);
-																			this.lex = c;
-
-																			const s = sym[0]; 
-																			this.sym = s.body.sym || []; 
-																			this.length = s.body.length || 0; 
-																			this.excludes = s.body.excludes || new Map();
-																			this.ignore = s.body.ignore || new Map(); 
-																			this.error = s.body.error || new Map(); 
-																			this.functions = s.body.functions || [];
-																			this.reduce_function = s.reduce || null;
-																		}
-
-
-<> entries → body_entries 											↦cstr{ this.body = sym[0]; this.reduce = null}
-
-		│ body_entries reduce_function 								↦cstr{ this.body = sym[0]; this.reduce = sym[1]}								
-
-		│ empty_symbol  											↦cstr{ 
-																			this.body = new Object(); 
-																		   	this.body.length = 0; 
-																		   	this.body.sym = []; 
-																		   	this.reduce = null; }
-
-		│ EOF_symbol  												↦cstr{ this.body = new Object(); 
-																		   	this.reduce = null;  
-																		   	this.body.length = 0; 
-																		   	this.body.sym = [sym[0]]; 
-																		   }
-
-
-<> body_entries → symbol 											↦cstr{ this.sym = [sym[0]]; this.length = 1; 
-																			this.excludes = new Map([[1,[]]]);
-  			 																this.error = new Map([[1,[]]]);
-  			 																this.ignore = new Map([[1,[]]]);
-																		    this.conditions = []; this.functions = []; }
-
-  			 │ condition_clause 									↦cstr{ this.sym = []; this.length = 0; 
-  			 																this.excludes = new Map([[0,[]]]);
-  			 																this.error = new Map([[0,[]]]);
-  			 																this.ignore = new Map([[0,[]]]);
-  			 																sym[0].offset = this.length; 
-  			 																if (sym[0].type=="exc")  this.excludes.get(0).push(sym[0].sym);
-			 																if (sym[0].type=="err")  this.error.get(0).push(...sym[0].sym);
-			 																if (sym[0].type=="ign")  this.ignore.get(0).push(...sym[0].sym);
-  			 																this.conditions =[]; 
-  			 																this.functions = []; 
-  			 															}
-
-  			 │ function_clause	 									↦cstr{ this.sym = []; this.length = 0; 
-  			 																this.excludes = new Map([[0,[]]]);
-  			 																this.error = new Map([[0,[]]]);
-  			 																this.ignore = new Map([[0,[]]]);
-  			 																this.functions = [sym[0]]; 
-  			 																sym[0].offset = this.length; }
-
-			 │ body_entries function_clause 						↦return {  (sym[0].functions.push(sym[1]),  
-			 																	sym[1].offset = sym[0].length, 
-			 																	sym[0]) }
-
-			 │ body_entries condition_clause 						↦return {  (
-			 																	sym[1].offset = sym[0].length, 
-			 																	(sym[1].type=="exc") ? sym[0].excludes.get(sym[1].offset).push(sym[1].sym):null,
-			 																	(sym[1].type=="err") ? sym[0].error.get(sym[1].offset).push(...sym[1].sym):null,
-			 																	(sym[1].type=="ign") ? sym[0].ignore.get(sym[1].offset).push(...sym[1].sym):null,
-			 																	sym[0]) }
-
-			 │ body_entries symbol 									↦return {  (sym[0].sym.push(sym[1]), 
-			 																	sym[0].excludes.set(sym[0].length+1,[]),
-			 																	sym[0].ignore.set(sym[0].length+1,[]),
-			 																	sym[0].error.set(sym[0].length+1,[]),
-			 																	sym[0].length++, sym[0]) }
-
-<> condition_clause → \(( τEXC condition_symbol_list )) 			↦cstr{ this.type = "exc"; this.sym = sym[2]; this.offset = -1; }
-				 │ \(( τERR condition_symbol_list )) 				↦cstr{ this.type = "err"; this.sym = sym[2]; this.offset = -1; }
-				 │ \(( τIGN condition_symbol_list )) 				↦cstr{ this.type = "ign"; this.sym = sym[2]; this.offset = -1; }
-
-
-########################################################################################################################
-######################################  SYMBOLS
-########################################################################################################################
-
-<> condition_symbol_list → terminal_symbol  						↦return {  [sym[0]] }
-	│ condition_symbol_list terminal_symbol 						↦return {  sym[0].push(sym[1]), sym[0] }
-
-<> lexer_symbols → lexer_symbol 									↦return {  [ sym[0] ] }
-	│ lexer_symbols lexer_symbol 								    ↦return {  sym[0].push(sym[1]), sym[0] }
-
-<> ignore_symbols → ignore_symbol  									↦return {  [sym[0]] }
-	│ ignore_symbols ignore_symbol 								    ↦return {  sym[0].push(sym[1]), sym[0] }
-
-<> lexer_symbol → generated_symbol
-	│ literal_symbol
-	│ escaped_symbol
-	│ grouped_symbol grouped_delimiter								↦return { sym[0] }
-
-<> grouped_delimiter →  θnl │ θws									
-
-<> grouped_symbol →  θsym 															
-	│ θop 															
-	│ θcb 															
-	│ θob 															
-	│ grouped_symbol θsym 											↦return { sym[0] + sym[1] }
-	│ grouped_symbol θop 											↦return { sym[0] + sym[1] }	
-	│ grouped_symbol θcb 											↦return { sym[0] + sym[1] }
-	│ grouped_symbol θob 											↦return { sym[0] + sym[1] }
-
-
-<> ignore_symbol → generated_symbol
-	│ literal_symbol
-	│ escaped_symbol
-	│ θany
-
-<> terminal_symbol → generated_symbol
-	│ literal_symbol
-	│ escaped_symbol
-	│ θany 															↦cstr{ this.type = "symbol"; this.val = sym[0] }
-
-<> symbol → generated_symbol
-	│ production_symbol
-	│ literal_symbol
-	│ escaped_symbol
-	│ θany															↦cstr{ this.type = "symbol"; this.val = sym[0] }
-	│ symbol \? 													↦return{ sym[0].IS_OPTIONAL = true, sym[0] }	
-	│ symbol \! 													↦return{ sym[0].NO_BLANK = true, sym[0] }
-	│ symbol \# 													↦cstr ^listProduction	
-	│ symbol \* 													↦cstr ^listProduction	
-	│ \(( lexer_symbols \)) 										↦return{ sym[1].GROUP = true, sym[1] }	
-
-<> EOF_symbol → \$  												↦cstr{ this.type = "eof"; this.val = "$" }
-<> empty_symbol → \ɛ  												↦cstr{ this.type = "empty";  }
-<> generated_symbol → \θ ((ERR θws )) ((ERR θnl )) identifier 		↦cstr{ this.type = "generated"; this.val = sym[1] }
-<> literal_symbol → \τ ((ERR θws )) ((ERR θnl )) identifier 		↦cstr{ this.type = "literal"; this.val = sym[1] }
-<> escaped_symbol → \\ ((ERR θws )) ((ERR θnl )) θany 				↦cstr{ this.type = "escaped"; this.val = sym[1] }
-<> production_symbol → identifier 									↦cstr{ this.type = "production"; this.name = sym[0]; this.val = -1}
-
-<> production_id → identifier 
-<> identifier → θid 												
-
-
-########################################################################################################################
-######################################  COMMENTS
-########################################################################################################################
-
-<> comment → \# comment_data comment_delimiter						↦cstr{ this.val = sym[1] }
-
-<> comment_delimiter → θnl │ $ │ ;
-
-<> comment_data → comment_primitive 								↦return { sym[0] }
-			 │ comment_data comment_primitive						↦return { sym[0] + sym[1] }
-
-<> comment_primitive → θid │ θnum │ θws │ θany
-
-
-########################################################################################################################
-######################################  FUNCTIONS
-########################################################################################################################
-
-<> reduce_function → \↦ τcstr { js_data } 						↦cstr{ this.type = "CLASS"; 		
-																			this.txt = sym[3]; 
-																			this.name = ""; 	
-																			this.env = false;	
-																		}
-
-		│ \↦ τreturn { js_data } 								↦cstr{ this.type = "RETURNED"; 	
-																			this.txt = sym[3]; 
-																			this.name = ""; 	
-																			this.env = false;
-																		}
-
-		│ \↦ τreturn ^ identifier 									↦cstr{ this.type = "RETURNED"; 	
-																			this.txt = ""; 
-																			this.name = sym[3]; 	
-																			this.env = true;
-																		}
-
- 		│ \↦ τcstr ^ identifier 									↦cstr{ this.type = "CLASS"; 		
-																			this.txt = ""; 	   
-																			this.name = sym[3]; 
-																			this.env = true;
-																		}
-
-<> function_clause → \↦ { js_data } 								↦cstr{this.type = "INLINE"; 	
-																			this.txt = sym[2]; 
-																			this.name = ""; 	
-																			this.env = false;
-																		}
-
-		│ \↦ ^ identifier 										 	↦cstr{this.type = "INLINE"; 	
-																			this.txt = ""; 
-																			this.name = sym[2]; 	
-																			this.env = true;
-																		}
-
-<> js_data → comment_data
-		│ js_data_block
-		│ js_data js_data											↦return { sym[0] + sym[1] }
-		│ ɛ
-
-<> js_data_block → { js_data }										↦return { sym[0] + sym[1] + sym[2] }

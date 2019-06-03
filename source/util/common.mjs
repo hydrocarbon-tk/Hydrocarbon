@@ -13,7 +13,7 @@ const production_stack_arg_name = "sym",
     lexer_arg_name = "lex";
 
 export function getToken(l, SYM_LU) {
-    if (l.END) return 0; /*"$"*/
+    if (l.END) return 0; /*"$eof"*/
 
     switch (l.ty) {
         case types.id:
@@ -87,8 +87,7 @@ function addNonTerminal(table, body, grammar, body_ind, index = 0) {
 
         return HAS_E;
     }
-
-
+    
     let cc = terminal.charCodeAt(0);
 
     //If the first character of the terminal is in the alphabet, treat the token as a identifier terminal
@@ -186,7 +185,7 @@ export function FOLLOW(grammar, production) {
         table.push(grammar[i].follow);
     }
 
-    table[0].add("$"); //End of Line
+    table[0].add("$eof"); //End of Line
 
     for (let i = 0; i < grammar.length; i++) {
         let production = grammar[i];

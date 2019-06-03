@@ -1,0 +1,89 @@
+
+
+@SYMBOL :: $eof
+
+# sddfs
+
+@IMPORT ./production_bodies.hcg as pb
+
+# sddfs
+
+@IGNORE θws θnl
+
+
+#######################################################################################################################
+######################################  SYMBOLS
+########################################################################################################################
+
+	
+
+<> condition_symbol_list → terminal_symbol(+)
+
+<> lexer_symbols → lexer_symbol(+) 									
+
+<> ignore_symbols → ignore_symbol(+)  									
+
+<> lexer_symbol → generated_symbol
+	│ literal_symbol
+	│ escaped_symbol
+	│ grouped_symbol grouped_delimiter				↦return { $sym1 }
+
+<> grouped_delimiter →  θnl │ θws									
+
+<> grouped_symbol →  θany(+") 															
+
+<> ignore_symbol → generated_symbol
+	│ literal_symbol
+	│ escaped_symbol
+	│ θany
+
+<> terminal_symbol → generated_symbol
+	│ literal_symbol
+	│ escaped_symbol
+	│ θany 											↦cstr{ this.type = "symbol"; this.val = $sym1 }
+
+<> symbol → generated_symbol
+	│ production_symbol
+	│ imported_production_symbol
+	│ literal_symbol
+	│ escaped_symbol
+	│ \( pb::production_bodies \) 									
+													↦cstr ^groupProduction	
+	│ symbol \? 									↦return{ $sym1.IS_OPTIONAL = true, $sym1 }	
+	
+	# This defines a list virtual productions that reduces to an array of reduced productions. 
+	# A delimeter "terminal_symbol" can be defined to cause the parser to match such productions as { sym , sym , sym ...} 
+	# or { term . term . term ...}. If the "terminal_symbol" is a single or double quotation (\" or \') then the productions
+	# are reduced to a concated string of the values of the reduced productions. 
+
+	│ symbol ( \(+ │ \(* )  terminal_symbol?  \) 					
+													↦cstr ^listProduction
+													
+	│ θany											↦cstr{ this.type = "symbol"; this.val = $sym1 }
+
+<> EOF_symbol → 
+	\$eof  											↦cstr{ this.type = "eof"; this.val = "$eof" }
+
+<> empty_symbol → 
+	\ɛ  											↦cstr{ this.type = "empty";  }
+
+<> generated_symbol → 
+	\θ (ERR θws θnl) identifier 					↦cstr{ this.type = "generated"; this.val = $sym2 }
+
+<> literal_symbol → 
+	\τ (ERR θws θnl)  identifier 					↦cstr{ this.type = "literal"; this.val = $sym2 }
+
+<> escaped_symbol → 
+	\\ (ERR θws θnl)  θany 							↦cstr{ this.type = "escaped"; this.val = $sym2 }
+
+<> production_symbol → 
+	identifier 										↦cstr{ this.type = "production"; this.name = $sym1; this.val = -1}
+
+<> imported_production_symbol → 
+	θid \:: θid										↦c ^importProduction
+
+<> production_id → 
+	identifier 
+
+<> identifier → 
+	θid 		

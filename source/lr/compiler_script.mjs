@@ -90,7 +90,7 @@ function parser(l, e = {}) {
                 case 0:
                     /* ERROR */
 
-                    if (tk == "$")
+                    if (tk == "$eof")
                         l.throw("Unexpected end of input");
                     l.throw(`Unexpected token [${RECOVERING ? l.next().tx : l.tx}]`);
                     return [null];
@@ -183,7 +183,7 @@ function renderGetTokenFunction(getToken, SYM_LU, verbose = false) {
     const str = getToken.toString().replace(/types\.([^:]*):/g, (match, p1) => {
         return types[p1] + ":";
     }).replace(/"([^"]*)"/g, (match, p1) => {
-        return SYM_LU.get(types[p1]) || "$";
+        return SYM_LU.get(types[p1]) || "$eof";
     });
 
     if (!verbose)
@@ -226,7 +226,7 @@ export function verboseCompiler(
 
 /************ Functions *************/
 
-    max = Math.max,
+    max = Math.max, min = Math.min,
 
     //Error Functions
     e = ${default_error}, 
