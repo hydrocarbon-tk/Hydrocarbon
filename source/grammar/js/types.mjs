@@ -56,5 +56,6 @@ export default{
 		prop_bind:54,
 		function_declaration:55,
 		debugger:56,
-		expression_list:57
+		expression_list:57,
+		new_member:58
 	};

@@ -1,4 +1,4 @@
-/** OPERATOR **/
+/** POSTFIX INCREMENT **/
 
 import unary_post from "./unary_postfix_op.mjs";
 import types from "./types.mjs";

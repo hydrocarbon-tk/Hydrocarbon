@@ -1,0 +1,25 @@
+{
+    "name": "hcg",
+    "displayName": "hcg",
+    "description": "Hydrocarbon Grammar Definition",
+    "version": "0.0.1",
+    "engines": {
+        "vscode": "^1.34.0"
+    },
+    "categories": [
+        "Programming Languages"
+    ],
+    "contributes": {
+        "languages": [{
+            "id": "hydrocarbon-grammar",
+            "aliases": ["Hydrocarbon Grammar", "hydrocarbon-grammar"],
+            "extensions": [".hcg"],
+            "configuration": "./language-configuration.json"
+        }],
+        "grammars": [{
+            "language": "hydrocarbon-grammar",
+            "scopeName": "hydrocarbon",
+            "path": "./syntaxes/hydrocarbon-grammar.tmLanguage.json"
+        }]
+    }
+}

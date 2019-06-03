@@ -1,9 +1,9 @@
-/** OPERATOR **/
+/** POSTFIX INCREMENT **/
 
-import base from "./base.mjs";
+import unary_post from "./unary_postfix_op.mjs";
 import types from "./types.mjs";
 
-export default class extends base {
+export default class extends unary_post {
 
     constructor(sym) {
         super(sym);

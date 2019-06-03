@@ -260,8 +260,6 @@ export async function grammarParser(grammar, FILE_URL, stamp = 112, meta_importe
                         this.reduce_function.txt = (this.reduce_function.type == "RETURNED") ?
                             fn.body.expr.render() :
                             fn.body.render();
-                        // /console.log(this.reduce_function.txt);
-                        //console.log(fn.render(), this.sym_map);
                     }
 
                     //Removing build function ensures that this object can be serialized. 

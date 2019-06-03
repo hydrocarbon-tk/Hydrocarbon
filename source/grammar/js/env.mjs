@@ -38,6 +38,8 @@ import expr_stmt from "./expression_statement.mjs";
 import _or from "./or.mjs";
 import _and from "./and.mjs";
 import not from "./not.mjs";
+import new_member_stmt from "./new_member_expression.mjs";
+import spread from "./spread.mjs";
 
 const env = {
     table: {},
@@ -74,6 +76,8 @@ const env = {
         and:_and,
         arrow,
         unary_not_expr:not,
+        new_member_stmt,
+        spread_expr:spread,
         while_stmt: function(sym) { this.bool = sym[1];
             this.body = sym[3];},
         return_stmt: rtrn,
