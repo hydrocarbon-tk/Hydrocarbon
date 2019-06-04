@@ -3,7 +3,7 @@ import types from "./types.mjs";
 
 export default class extends base {
     constructor(sym) {
-        super(sym[0], sym[1]);
+        super(sym[0], (Array.isArray(sym[1])) ? sym[1] : [sym[1]]);
     }
 
     get id() { return this.vals[0] }
@@ -34,5 +34,7 @@ export default class extends base {
     get name() { return this.id.name }
     get type() { return types.call }
 
-    render() { return `${this.id.render()}(${this.args.map(a=>a.render()).join(",")})` }
+    render() { 
+        return `${this.id.render()}(${this.args.map(a=>a.render()).join(",")})` 
+    }
 }

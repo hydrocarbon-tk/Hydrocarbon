@@ -1,8 +1,10 @@
-import * as hc from "../hydrocarbon.mjs";
 import whind from "@candlefw/whind";
+
+import * as hc from "../hydrocarbon.mjs";
+
 import url from "url";
-import { Worker, isMainThread, parentPort, workerData } from "worker_threads";
 import readline from "readline";
+import { Worker, isMainThread, parentPort, workerData } from "worker_threads";
 import { performance } from "perf_hooks";
 
 const gray_b = "\x1b[48;5;233m";

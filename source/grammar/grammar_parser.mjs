@@ -345,6 +345,8 @@ export async function grammarParser(grammar, FILE_URL, stamp = 112, meta_importe
                         else
                             p.bodies = production.bodies;
                         env.functions.compileProduction(p, lex);
+
+                        delete production.name.resolveFunction;
                     };
 
                     if (production.name.RESOLVED) {
@@ -436,9 +438,11 @@ export async function grammarParser(grammar, FILE_URL, stamp = 112, meta_importe
                             j--;
                         }
                     }
-
                     body.length = body.sym.length;
-                    body.build();
+
+
+                    if(body.build)
+                        body.build();
                 }
             }
         }

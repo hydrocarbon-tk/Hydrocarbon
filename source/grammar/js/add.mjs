@@ -6,7 +6,7 @@ export default class extends operator {
 
     constructor(sym) {
         super(sym);
-        this.op = "+";
+        this.op = "<=";
     }
 
     get type() { return types.add }
