@@ -1,6 +1,6 @@
 {
   "name": "@candlefw/hydrocarbon",
-  "version": "0.0.2a",
+  "version": "0.1.0a",
   "description": "Parser Compiler",
   "main": "source/hydrocarbon.mjs",
   "bin": {
@@ -27,7 +27,8 @@
   },
   "homepage": "https://github.com/candlefw/hydrocarbon#readme",
   "dependencies": {
-    "@candlefw/whind": "^0.2.8"
+    "@candlefw/whind": "latest",
+    "@candlefw/js": "latest"
   },
   "devDependencies": {
     "commander": "^2.19.0",

@@ -2,17 +2,11 @@
  * Parses HC Grammars. Parser Built by Hydrocarbon
  */
 
-import js_env from "./js/env.mjs";
-import js from "./js/javascript.mjs";
-import _null from "./js/null.mjs";
-import mem from "./js/member.mjs";
-import num from "./js/number.mjs";
-import id from "./js/identifier.mjs";
-
-import parser from './hcg_v2.mjs';
+import {member, number, identifier, parse as ecmascript_parse } from "@candlefw/js";
 import whind from "@candlefw/whind";
 import URL from "@candlefw/url";
 
+import parser from './hcg_v2.mjs';
 
 function convertProductionNamesToIndexes(productions, LU) {
     let sym = "",
@@ -228,16 +222,16 @@ export async function grammarParser(grammar, FILE_URL, stamp = 112, meta_importe
                         const str = (this.reduce_function.type == "RETURNED") ?
                             `function temp(temp){return ${this.reduce_function.txt}}` :
                             `function temp(temp){ ${this.reduce_function.txt}}`;
-                        const fn = js(whind(str), js_env);
-
+                        const fn = ecmascript_parse(str);
                         const iter = fn.traverseDepthFirst();
 
                         let i = 0;
 
                         for (const node of iter) {
 
+                            console.log(node)
                             //If encountering an identifier with a value of the form "$sym*" where * is an integer.
-                            if (node instanceof id && node.val.slice(0, 4) == "$sym") {
+                            if (node instanceof identifier && node.val.slice(0, 4) == "$sym") {
 
                                 // Retrieve the symbol index
                                 const index = parseInt(node.val.slice(4)) - 1;
@@ -247,7 +241,7 @@ export async function grammarParser(grammar, FILE_URL, stamp = 112, meta_importe
                                 // Replace node with either null or "sym[*]"" depending on the presence of nonterms
                                 // within the body.  
                                 if ((v = this.sym_map.indexOf(index)) >= 0) {
-                                    n = new mem([new id(["sym"]), null, new num([v])]);
+                                    n = new member([new identifier(["sym"]), null, new number([v])]);
                                 }
 
                                 node.replace(n);
