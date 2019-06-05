@@ -2,7 +2,7 @@
  * Parses HC Grammars. Parser Built by Hydrocarbon
  */
 
-import {member, number, identifier, parse as ecmascript_parse } from "@candlefw/js";
+import {null_ as null_literal, member, number, identifier, parse as ecmascript_parse } from "@candlefw/js";
 import whind from "@candlefw/whind";
 import URL from "@candlefw/url";
 
@@ -225,25 +225,32 @@ export async function grammarParser(grammar, FILE_URL, stamp = 112, meta_importe
                         const fn = ecmascript_parse(str);
                         const iter = fn.traverseDepthFirst();
 
-                        let i = 0;
+                        let i = 0, log = false;
 
                         for (const node of iter) {
 
-                            console.log(node)
                             //If encountering an identifier with a value of the form "$sym*" where * is an integer.
-                            if (node instanceof identifier && node.val.slice(0, 4) == "$sym") {
+                            if (node instanceof identifier && (node.val.slice(0, 4) == "$sym" || node.val.slice(0, 5) == "$sym_")) {
 
                                 // Retrieve the symbol index
-                                const index = parseInt(node.val.slice(4)) - 1;
+                                const index = parseInt(
+                                    node.val.slice(0, 5) == "$sym_" ?
+                                    node.val.slice(5) :
+                                    node.val.slice(4)
+                                ) - 1;
 
                                 let n = null,
                                     v = -1;
                                 // Replace node with either null or "sym[*]"" depending on the presence of nonterms
                                 // within the body.  
+
                                 if ((v = this.sym_map.indexOf(index)) >= 0) {
                                     n = new member([new identifier(["sym"]), null, new number([v])]);
+                                }else if(node.val.slice(0,5) == "$sym_"){
+                                    n = new null_literal();
                                 }
 
+                                    log = true;
                                 node.replace(n);
                             }
                         }
@@ -254,6 +261,9 @@ export async function grammarParser(grammar, FILE_URL, stamp = 112, meta_importe
                         this.reduce_function.txt = (this.reduce_function.type == "RETURNED") ?
                             fn.body.expr.render() :
                             fn.body.render();
+
+                        if(log)
+                            console.log(fn.body.render());
                     }
 
                     //Removing build function ensures that this object can be serialized. 
@@ -338,7 +348,10 @@ export async function grammarParser(grammar, FILE_URL, stamp = 112, meta_importe
                             p.bodies.push(...production.bodies);
                         else
                             p.bodies = production.bodies;
+                        
                         env.functions.compileProduction(p, lex);
+
+                        production.name = p.name;
 
                         delete production.name.resolveFunction;
                     };
@@ -480,7 +493,7 @@ export async function grammarParser(grammar, FILE_URL, stamp = 112, meta_importe
                     }
             }
         }
-        //throw("ENDING")
+       throw("ENDING")
         return productions;
     } catch (e) {
         console.error(e);

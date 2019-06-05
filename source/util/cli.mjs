@@ -247,7 +247,7 @@ async function mount(name, input, env, states, grammar) {
             } else {
                 data.push(input);
                 console.clear();
-                console.log(hc.renderTable(states, grammar));
+                //console.log(hc.renderTable(states, grammar));
                 console.log(data.join("\n"))
             }
 

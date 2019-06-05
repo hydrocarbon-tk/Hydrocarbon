@@ -222,7 +222,7 @@ async function runner(grammar, env_path, name, UNATTENDED = false) {
         });
 
         function test() {
-
+            console.clear();
             // Clearing console to provide a dashboard interface.
             if(!UNATTENDED) console.clear();
 
@@ -271,8 +271,12 @@ async function runner(grammar, env_path, name, UNATTENDED = false) {
                         center(`${(EXIT && !COMPLETE) ? `Exit primed. Compiling will exit on completion.`: ""}${COMPLETE ? `${ !states.COMPILED ? `${COLOR_ERROR}Compilation failed.`:`${COLOR_SUCCESS}Compilation complete.`}${COLOR_RESET} Press ${COLOR_KEYBOARD}esc${COLOR_RESET} to end this step.${COLOR_RESET}`: ""}`), "",
                         conflicts
                     ].join(clear + "\n"));
-            else 
+            else {
+
+                process.stdout.clearLine();
+                process.stdout.cursorTo(0); 
                 console.log("tick:", getTimeStamp(time, true),  "number of states:", number_of_states);
+            }
         }
 
         var id = setInterval(test, 200)

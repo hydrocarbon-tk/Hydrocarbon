@@ -272,6 +272,7 @@ function setFunction(env, funct, function_params = [], this_object = null) {
 }
 
 function addFunctions(funct, production, env) {
+
     if (!env.id)
         env.id = 1;
 
@@ -285,9 +286,10 @@ function addFunctions(funct, production, env) {
         const str = funct.txt.trim();
         let name = env.FLUT.get(str);
 
+
         if (!name) {
             name = funct.type[0] + (production.func_counter++) + "_" + production.name;
-        funct.name = name;
+            funct.name = name;
             env.functions[name] = setFunction(null, funct, [production_stack_arg_name, environment_arg_name, lexer_arg_name, "state","output", "len"], {});
             env.functions[name].INTEGRATE = true;
             env.FLUT.set(str, name);
@@ -300,6 +302,7 @@ export function filloutGrammar(grammar, env) {
 
     const bodies = [],
         symbols = new Map();
+
 
     for (let i = 0, j = 0; i < grammar.length; i++) {
         const production = grammar[i];
@@ -321,12 +324,15 @@ export function filloutGrammar(grammar, env) {
 
             if (body.reduce_function) {
                 addFunctions(body.reduce_function, production, env);
+                if(i == 1) console.log("ASDASD2",body.reduce_function.type[0] , (production.func_counter++),"_" ,production.name)
             }
 
             body.functions.forEach(f => {
                 addFunctions(f, production, env);
             });
         }
+
+
     }
 
     grammar.meta.all_symbols = symbols;
