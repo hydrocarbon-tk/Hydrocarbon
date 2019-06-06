@@ -6,7 +6,7 @@ import {null_literal, member_expression, numeric_literal, identifier, parse as e
 import whind from "@candlefw/whind";
 import URL from "@candlefw/url";
 
-import parser from './hcg_v2.mjs';
+import parser from './hcg.mjs';
 
 function convertProductionNamesToIndexes(productions, LU) {
     let sym = "",

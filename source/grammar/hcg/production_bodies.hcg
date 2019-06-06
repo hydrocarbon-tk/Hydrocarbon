@@ -68,8 +68,8 @@
 		│ body_entries sym::symbol 								
 			 														↦return { env.body_offset = $sym1.length,  $sym1.push($sym2), $sym1 }
 
-		│ body_entries \!										
-			 														↦return { $sym1.map(e => (e.NO_BLANK = true, e))}
+		│ \[ body_entries \]										
+			 														↦return { $sym2.map(e => (e.NO_BLANK = true, e))}
 
 
 <> condition_clause → 
