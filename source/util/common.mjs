@@ -288,7 +288,7 @@ function addFunctions(funct, production, env) {
 
 
         if (!name) {
-            name = funct.type[0] + (production.func_counter++) + "_" + production.name;
+            name = funct.type[0] + production.id + (production.func_counter++) + "_" + production.name.replace(/\$/g,"_");
             funct.name = name;
             env.functions[name] = setFunction(null, funct, [production_stack_arg_name, environment_arg_name, lexer_arg_name, "state","output", "len"], {});
             env.functions[name].INTEGRATE = true;
@@ -324,7 +324,6 @@ export function filloutGrammar(grammar, env) {
 
             if (body.reduce_function) {
                 addFunctions(body.reduce_function, production, env);
-                if(i == 1) console.log("ASDASD2",body.reduce_function.type[0] , (production.func_counter++),"_" ,production.name)
             }
 
             body.functions.forEach(f => {

@@ -2,7 +2,7 @@
  * Parses HC Grammars. Parser Built by Hydrocarbon
  */
 
-import {null_ as null_literal, member, number, identifier, parse as ecmascript_parse } from "@candlefw/js";
+import {null_literal, member_expression, numeric_literal, identifier, parse as ecmascript_parse } from "@candlefw/js";
 import whind from "@candlefw/whind";
 import URL from "@candlefw/url";
 
@@ -230,11 +230,11 @@ export async function grammarParser(grammar, FILE_URL, stamp = 112, meta_importe
                         for (const node of iter) {
 
                             //If encountering an identifier with a value of the form "$sym*" where * is an integer.
-                            if (node instanceof identifier && (node.val.slice(0, 4) == "$sym" || node.val.slice(0, 5) == "$sym_")) {
+                            if (node instanceof identifier && (node.val.slice(0, 4) == "$sym" || node.val.slice(0, 5) == "$$sym")) {
 
                                 // Retrieve the symbol index
                                 const index = parseInt(
-                                    node.val.slice(0, 5) == "$sym_" ?
+                                    node.val.slice(0, 5) == "$$sym" ?
                                     node.val.slice(5) :
                                     node.val.slice(4)
                                 ) - 1;
@@ -245,8 +245,8 @@ export async function grammarParser(grammar, FILE_URL, stamp = 112, meta_importe
                                 // within the body.  
 
                                 if ((v = this.sym_map.indexOf(index)) >= 0) {
-                                    n = new member([new identifier(["sym"]), null, new number([v])]);
-                                }else if(node.val.slice(0,5) == "$sym_"){
+                                    n = new member_expression([new identifier(["sym"]), null, new numeric_literal([v])]);
+                                }else if(node.val.slice(0,5) == "$$sym"){
                                     n = new null_literal();
                                 }
 
@@ -493,7 +493,7 @@ export async function grammarParser(grammar, FILE_URL, stamp = 112, meta_importe
                     }
             }
         }
-       throw("ENDING")
+       //throw("ENDING")
         return productions;
     } catch (e) {
         console.error(e);
