@@ -484,6 +484,9 @@ export function processClosure(state_id, items, grammar, error, excludes, offset
 
             const production = grammar[B.val];
 
+            if(production.graph_id < 0)
+                production.graph_id = grammar.graph_id++;
+
             for (let i = 0; i < production.bodies.length; i++) {
 
                 const pbody = production.bodies[i];

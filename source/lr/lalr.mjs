@@ -214,14 +214,14 @@ export function* compileLRStates(grammar, env = {}) {
 
     const error = new(class {
         constructor() {
-            this.strings = []
+            this.strings = [];
         }
 
         log(...vals) {
             this.strings.push(`${vals.map(e=>typeof e !== "string" ? JSON.stringify(e).replace(/\"/g,"") : e).join(", ")}`);
         }
         get output() { return strings.join("\n") }
-    })
+    });
     /* Storage for Items is determined by three numbers. 
      * 1. The index offset of a production body in a grammar.
      * 2. The length of the production body
@@ -235,7 +235,11 @@ export function* compileLRStates(grammar, env = {}) {
      */
     filloutGrammar(grammar, env);
 
+    grammar.graph_id = 0;
+
     const bodies = grammar.bodies;
+    
+    bodies[0].production.graph_id = grammar.graph_id++;
 
     let states = createInitialState(grammar),
         items_set = [{ c: [new Item(0, bodies[0].length, 0, { v: "$eof", p: 0, type: "generated" }, grammar)], s: states[0] }],

@@ -136,15 +136,17 @@ export function reduceCollisionCheck(grammar, state, item, error) {
         Existing Action:
             Reduce to {${body_b.production.name}} from production { ${stripLexBody(body_b.lex)} }
             Definition found on line ${body_b.lex.line+1}:${body_b.lex.char} in input.
-            ${grammar.states[action.state].d}
+            Graph ID: ${body_b.production.graph_id}
 
         Replacing Action:
             Reduce to {${body_a.production.name}} from production { ${stripLexBody(body_a.lex)} }
             Definition found on line ${body_a.lex.line+1}:${body_a.lex.char} in input.
-            ${state.d}
-            `);
+            Graph ID: ${body_a.production.graph_id}
+            `); 
 
-            if(body_a.production.id < body_b.production.id)
+
+
+            if(body_a.production.graph_id < body_b.production.graph_id)
                 return 0;
             else 
                 return 1;

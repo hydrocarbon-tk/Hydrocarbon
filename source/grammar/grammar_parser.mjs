@@ -16,6 +16,7 @@ function convertProductionNamesToIndexes(productions, LU) {
             const
                 production = productions[i],
                 bodies = production.bodies;
+                production.graph_id = -1;
 
             for (let i = 0; i < bodies.length; i++) {
                 body = bodies[i];
@@ -76,6 +77,7 @@ export async function grammarParser(grammar, FILE_URL, stamp = 112, meta_importe
                 this.type = "production";
                 this.name = sym[2];
                 this.val = -1;
+
                 this.IMPORTED = true;
                 this.RESOLVED = false;
                 this.production = null;
@@ -133,7 +135,6 @@ export async function grammarParser(grammar, FILE_URL, stamp = 112, meta_importe
 
                 uri.fetchText().then(async txt => {
                     const prods = await grammarParser(txt, uri, stamp * env.body_count ** AWAIT + 1 + (Math.random()  * 10000) |0, meta_imported_productions);
-
                     let EXISTING = false;
                     prods.imported = true;
 
@@ -345,7 +346,7 @@ export async function grammarParser(grammar, FILE_URL, stamp = 112, meta_importe
 
                     production.name.resolveFunction = (p) => {
                         if (production.IMPORT_APPEND)
-                            p.bodies.push(...production.bodies);
+                            p.bodies.unshift(...production.bodies);
                         else
                             p.bodies = production.bodies;
                         
@@ -492,8 +493,9 @@ export async function grammarParser(grammar, FILE_URL, stamp = 112, meta_importe
                             break;
                     }
             }
-        }
        //throw("ENDING")
+       console.dir(productions.map(p=>p.bodies.map(b=>b.sym)), {depth:3})
+        }
         return productions;
     } catch (e) {
         console.error(e);

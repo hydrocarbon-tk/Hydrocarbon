@@ -222,7 +222,7 @@ async function runner(grammar, env_path, name, UNATTENDED = false) {
         });
 
         function test() {
-            console.clear();
+           // console.clear();
             // Clearing console to provide a dashboard interface.
             if(!UNATTENDED) console.clear();
 
