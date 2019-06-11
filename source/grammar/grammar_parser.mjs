@@ -476,13 +476,20 @@ export async function grammarParser(grammar, FILE_URL, stamp = 112, meta_importe
 
             convertProductionNamesToIndexes(productions, productions.LU);
 
+            if (!productions.meta.error)
+                productions.meta.error = [];
+            if (!productions.meta.ignore)
+                productions.meta.ignore = [];
 
             for (const pre of productions.meta) {
                 if (pre)
                     switch (pre.type) {
+                        case "error":
+                            
+                            productions.meta.error.push(pre);
+                            break;
                         case "ignore":
-                            if (!productions.meta.ignore)
-                                productions.meta.ignore = [];
+                            
                             productions.meta.ignore.push(pre);
                             break;
                         case "symbols":

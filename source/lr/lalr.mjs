@@ -287,6 +287,14 @@ export function* compileLRStates(grammar, env = {}) {
                     }
                 })
             );
+            
+            grammar.meta.error.forEach(
+                i => i.symbols.forEach((sym) => {
+                    if (!state.action.has(sym.val) && state.grammar_stamp == i.grammar_stamp) {
+                        state.action.set(sym.val, { symbol_type: sym.type, name: "ERROR", state: state.id, body: state.body, len: 0, original_body: state.body });
+                    }
+                })
+            );
         });
     }
 

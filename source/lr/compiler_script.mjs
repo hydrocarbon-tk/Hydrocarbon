@@ -36,13 +36,16 @@ function parser(l, e = {}) {
         p = l.copy(),
         sp = 1,
         len = 0,
-        off = 0;
+        off = 0,
+        reduceStack = (e.reduceStack = []);
+
 
     outer:
 
         while (time-- > 0) {
 
             const fn = lsm(tk, state[ss[sp]]) || 0;
+
 
             /*@*/// console.log({end:l.END, state:ss[sp], tx:l.tx, ty:l.ty, tk:tk, rev:rlu.get(tk), s_map:state[ss[sp]], res:lsm(tk, state[ss[sp]])});
 
@@ -59,7 +62,19 @@ function parser(l, e = {}) {
             if (fn > 0) {
                 r = state_funct[fn - 1](tk, e, o, l, ss[sp - 1]);
             } else {
+                
+                if(l.ty == $_sym && l.tl > 1){ 
+                    // Make sure that special tokens are not getting in the way
+                    l.tl = 0;
+                    // This will skip the generation of a custom symbol
+                    l.next(l, false);
+
+                    if(l.tl == 0)
+                        continue;
+                }
+
                 if (RECOVERING > 1 && !l.END) {
+
                     if (tk !== lu.get(l.ty)) {
                         //console.log("ABLE", rlu.get(tk), l.tx, tk )
                         tk = lu.get(l.ty);
@@ -76,9 +91,9 @@ function parser(l, e = {}) {
 
                 tk = getToken(l, lu);
 
-                const recovery_token = eh[ss[sp]](tk, e, o, l, p, ss[sp], lu);
+                const recovery_token = eh[ss[sp]](tk, e, o, l, p, ss[sp], (lex)=>getToken(lex, lu));
 
-                if (RECOVERING > 0 && recovery_token) {
+                if (RECOVERING > 0 && recovery_token >= 0) {
                     RECOVERING = -1; /* To prevent infinite recursion */
                     tk = recovery_token;
                     l.tl = 0; /*reset current token */
@@ -123,6 +138,21 @@ function parser(l, e = {}) {
                     if (gt < 0)
                         l.throw("Invalid state reached!");
 
+                    if(reduceStack.length > 0){
+                        let i = reduceStack.length -1;
+                        while(i > -1){
+                            let item = reduceStack[i--];
+
+                            if(item.index == sp){
+                                item.action(output)
+                            }else if(item.index > sp){
+                                reduceStack.length--;
+                            }else{
+                                break;
+                            }
+                        }
+                    }
+
                     ss.push(off, gt);
                     sp += 2;
                     break;
@@ -164,7 +194,10 @@ function renderSparseMapFunction(lookupSparseMap) {
 }
 
 function renderParseFunction(parseFunction, GEN_SYM_LU, verbose = false) {
-    const str = parseFunction.toString().replace(/\$_any/g, GEN_SYM_LU.get("any"));
+    const str = parseFunction
+                    .toString()
+                    .replace(/\$_any/g, GEN_SYM_LU.get("any"))
+                    .replace(/\$_sym/g, GEN_SYM_LU.get("sym"));
 
     if (!verbose)
         return str.replace(/\n/g, "");

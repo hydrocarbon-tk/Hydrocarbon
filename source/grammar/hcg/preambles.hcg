@@ -31,6 +31,7 @@
 	│ precedence_preamble
 	│ name_preamble
 	│ ext_preamble
+	│ error_preamble
 	│ import_preamble
 	│ cm::comment 
 
@@ -64,6 +65,15 @@
 																		}
 
 
+<> error_preamble → 		@ (ERR θws ) τERROR sym::ignore_symbols θnl				
+																		
+																		↦cstr{ 	
+																			this.grammar_stamp = env.stamp; 
+																			this.type="error"; 
+																			this.symbols = $sym3;
+																		}
+
+
 <> name_preamble → 			@ (ERR θws ) τNAME cm::comment_data θnl 					
 																		
 																		↦cstr{ this.type="name"; this.id = $sym3 }
@@ -77,3 +87,5 @@
 <> import_preamble → 		@ (ERR θws ) τIMPORT θws(*) ( θid │ θany )(+") θws(+) (τAS│τas) θid θnl 	
 																		
 																		↦return ^importData 
+
+
