@@ -258,6 +258,7 @@ export async function grammarParser(grammar, FILE_URL, stamp = 112, meta_importe
                         // Replace the reduce_function with a new object (that contains the modified
                         // functions string)?
                         this.reduce_function = Object.assign({}, this.reduce_function);
+                        console.log(fn)
                         this.reduce_function.txt = (this.reduce_function.type == "RETURNED") ?
                             fn.body.expr.render() :
                             fn.body.render();
@@ -316,7 +317,7 @@ export async function grammarParser(grammar, FILE_URL, stamp = 112, meta_importe
                             reduce: {
                                 type: "RETURNED",
                                 txt: STRING ?
-                                    `sym[0] + sym[1]` : `sym[0].push(sym[${delimeter?2:1}]),sym[0]`,
+                                    `sym[0] + sym[1]` : `(sym[1] !== null) ? sym[0].push(sym[${delimeter?2:1}]) : null,sym[0]`,
                                 name: "",
                                 env: false
                             }
@@ -326,7 +327,7 @@ export async function grammarParser(grammar, FILE_URL, stamp = 112, meta_importe
                             reduce: {
                                 type: "RETURNED",
                                 txt: STRING ?
-                                    `sym[0] + ""` : "[sym[0]]",
+                                    `sym[0] + ""` : "(sym[0] !== null) ? [sym[0]] : []",
                                 name: "",
                                 env: false
                             }

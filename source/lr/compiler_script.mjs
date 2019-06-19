@@ -27,18 +27,21 @@ function parser(l, e = {}) {
         l.next();
     }
 
+    const recovery_chain = [];
+
     const o = [],
         ss = [0, 0];
 
     let time = 1000000,
         RECOVERING = 100,
+        RESTARTED = true,
         tk = getToken(l, lu),
         p = l.copy(),
         sp = 1,
         len = 0,
-        off = 0,
         reduceStack = (e.reduceStack = []);
-
+        ROOT = 10000,
+        off = 0;
 
     outer:
 
@@ -107,7 +110,8 @@ function parser(l, e = {}) {
 
                     if (tk == "$eof")
                         l.throw("Unexpected end of input");
-                    l.throw(`Unexpected token [${RECOVERING ? l.next().tx : l.tx}]`);
+
+                    l.throw(`Unexpected token [${RECOVERING ? l.next().tx : l.tx}] ${l.slice(p)}`);
                     return [null];
 
                 case 1:
@@ -115,11 +119,11 @@ function parser(l, e = {}) {
                     break outer;
 
                 case 2:
+
                     /*SHIFT */
                     o.push(l.tx);
                     ss.push(off, r >> 2);
                     sp += 2;
-                    p.sync(l);
                     l.next();
                     off = l.off;
                     tk = getToken(l, lu);
@@ -128,6 +132,7 @@ function parser(l, e = {}) {
 
                 case 3:
                     /* REDUCE */
+                    RESTARTED = true;
 
                     len = (r & 0x3FC) >> 1;
 
