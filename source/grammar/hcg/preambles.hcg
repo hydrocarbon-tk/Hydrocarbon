@@ -84,7 +84,7 @@
 																		↦cstr{ this.type="ext"; this.id = $sym3 }
 
 
-<> import_preamble → 		@ (ERR θws ) τIMPORT θws(*) ( θid │ θany )(+") θws(+) (τAS│τas) θid θnl 	
+<> import_preamble → 		@ (ERR θws ) τIMPORT θws(*) ( θid │ θany )(+") θws(+) (τAS│τas) sym::identifier θnl 	
 																		
 																		↦return ^importData 
 

@@ -37,7 +37,6 @@ function convertProductionNamesToIndexes(productions, LU) {
 
                             sym.val = LU.get(sym.name).id;
                         } catch (e) {
-                            console.log(bodies.map(b => b.sym));
                             throw new SyntaxError(`Missing Production for symbol ${sym.name}`);
                         }
                     } else if (sym.type == "literal")
@@ -263,8 +262,8 @@ export async function grammarParser(grammar, FILE_URL, stamp = 112, meta_importe
                             fn.body.expr.render() :
                             fn.body.render();
 
-                        if(log)
-                            console.log(fn.body.render());
+                        //if(log)
+                        //    console.log(fn.body.render());
                     }
 
                     //Removing build function ensures that this object can be serialized. 

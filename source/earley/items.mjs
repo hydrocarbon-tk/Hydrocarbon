@@ -12,10 +12,7 @@ export default function(grammar, env){
 
 
 	let start = grammar[0];
-
 	
-
-	console.log(lex)
 
 	//
 }

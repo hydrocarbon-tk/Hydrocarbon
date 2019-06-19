@@ -18,7 +18,7 @@
 
 <> referenced_function → 
 
-	\↦  sym::identifier  ^ (ERR θws ) sym::identifier  		
+	\↦  sym::identifier  ^ (ERR θws ) sym::js_identifier  		
 																	↦cstr{ 		
 																		this.id = $sym2; 	
 																		this.name = $sym4;
@@ -44,7 +44,7 @@
 																		this.ref = ""; 	
 																	}
 
-	│ \↦ ( τerr │ τe ) ^ (ERR θws θnl ) sym::identifier 	
+	│ \↦ ( τerr │ τe ) ^ (ERR θws θnl ) sym::js_identifier 	
 
  																	↦cstr{ 
 																		this.type = "ERROR"; 			
@@ -64,7 +64,7 @@
 																		this.ref = ""; 	
 																	}
 
- 	│ \↦ ( τcstr │ τc │ τreturn │ τr ) ^ (ERR θws θnl ) sym::identifier 	
+ 	│ \↦ ( τcstr │ τc │ τreturn │ τr ) ^ (ERR θws θnl ) sym::js_identifier 	
 
  																	↦cstr{ 
 																		this.type = ($sym2[0] == "c" ) ?"CLASS" :"RETURNED"; 			
@@ -73,7 +73,7 @@
 																		this.env = true;
 																		this.ref = ""; 	   
 																	}
-	│ \↦ ( τcstr │ τc │ τreturn │ τr ) =>  sym::identifier	
+	│ \↦ ( τcstr │ τc │ τreturn │ τr ) =>  sym::js_identifier	
 																	↦cstr{ 
 																		this.type = ($sym2[0] == "c" ) ?"CLASS" :"RETURNED"; 			
 																		this.ref = $sym4;
@@ -109,7 +109,7 @@
 																		this.env = false;
 																	}
 
-	│ \↦ ^ (ERR θws θnl ) sym::identifier 							
+	│ \↦ ^ (ERR θws θnl ) sym::js_identifier 							
 																	↦cstr{
 																		this.type = "INLINE"; 	
 																		this.txt = ""; 

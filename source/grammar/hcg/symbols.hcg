@@ -80,10 +80,11 @@
 	identifier 										↦cstr{ this.type = "production"; this.name = $sym1; this.val = -1}
 
 <> imported_production_symbol → 
-	θid \:: θid										↦c ^importProduction
+	identifier \:: identifier										↦c ^importProduction
 
 <> production_id → 
 	identifier 
 
-<> identifier → 
-	θid 		
+<> identifier →  (θid │ \_ │ θnum ) (θid │ \_  │ \- │ \$ │ \num)(*') (θws │ θnl)? 	↦r { $sym1 + $sym2 }
+
+<> js_identifier →  (θid │ \_ │ \$) (θid │ \_ │ \$ │ \num)(*') (θws │ θnl)?			↦r { $sym1 + $sym2 }
