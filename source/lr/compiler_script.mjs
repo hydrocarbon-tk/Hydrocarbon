@@ -39,7 +39,7 @@ function parser(l, e = {}) {
         p = l.copy(),
         sp = 1,
         len = 0,
-        reduceStack = (e.reduceStack = []);
+        reduceStack = (e.reduceStack = []),
         ROOT = 10000,
         off = 0;
 
