@@ -30,15 +30,16 @@ function convertProductionNamesToIndexes(productions, LU) {
                     sym = body.sym[i];
 
                     if (sym.type == "production") {
-                        sym.resolveFunction = null; // For DataClone 
-                        if (sym.IMPORTED && sym.RESOLVED) {
+                        if (sym.production  || (sym.IMPORTED && sym.RESOLVED)) {
                             sym.val = sym.production.id;
                         } else try {
-
+                            sym.production = LU.get(sym.name);
                             sym.val = LU.get(sym.name).id;
                         } catch (e) {
-                            throw new SyntaxError(`Missing Production for symbol ${sym.name}`);
+                            console.log(sym)
+                            throw new SyntaxError(`Missing Production for symbol ${sym.name} in body of production ${production.name}`);
                         }
+                        sym.resolveFunction = null; // For DataClone 
                     } else if (sym.type == "literal")
                         productions.reserved.add(sym.val);
                 }
@@ -51,13 +52,14 @@ function convertProductionNamesToIndexes(productions, LU) {
     }
 }
 
-export async function grammarParser(grammar, FILE_URL, stamp = 112, meta_imported_productions = new Map) {
-    let AWAIT = 0;
+export async function grammarParser(grammar, FILE_URL, stamp = 112, meta_imported_productions = new Map, pending_hook = {count:0}) {
 
-    async function SLEEPER() {
+    const AWAIT = {count:0};
+
+    async function SLEEPER(data) {
         return new Promise(res => {
             const id = setInterval(() => {
-                if (AWAIT == 0) {
+                if (data.count == 0) {
                     clearInterval(id);
                     res();
                 }
@@ -73,6 +75,7 @@ export async function grammarParser(grammar, FILE_URL, stamp = 112, meta_importe
         imported: new Map(),
         functions: {
             importProduction: function(sym, env, lex) {
+
                 this.type = "production";
                 this.name = sym[2];
                 this.val = -1;
@@ -130,10 +133,14 @@ export async function grammarParser(grammar, FILE_URL, stamp = 112, meta_importe
                 } else
                     meta_imported_productions.set(key, Object.assign([], { SYMBOL_LIST: true, PENDING: true }));
                 
-                AWAIT++;
+                AWAIT.count++;
+                pending_hook.count++;
 
                 uri.fetchText().then(async txt => {
-                    const prods = await grammarParser(txt, uri, stamp * env.body_count ** AWAIT + 1 + (Math.random()  * 10000) |0, meta_imported_productions);
+
+                    const prods = await grammarParser(txt, uri, stamp * env.body_count ** AWAIT + 1 + (Math.random()  * 10000) |0, meta_imported_productions, pending_hook);
+
+     
                     let EXISTING = false;
                     prods.imported = true;
 
@@ -161,12 +168,12 @@ export async function grammarParser(grammar, FILE_URL, stamp = 112, meta_importe
                     let p;
                     //Make sure only one instance of any URL resource is used in grammar.
 
+                            
                     if ((p = meta_imported_productions.get(key))) {
                         if (p.SYMBOL_LIST) {
                             //meta_imported_productions.set(key, prods);
                             p.forEach(sym => {
                                 try {
-
                                     const production = prods.LU.get(sym.name);
                                     //console.log(sym.name, sym, production)
                                     sym.name = `${id}$${production.name}`;
@@ -183,13 +190,14 @@ export async function grammarParser(grammar, FILE_URL, stamp = 112, meta_importe
                             EXISTING = true;
                     }
 
-                    if (!EXISTING) {
+                    if(!EXISTING){
                         env.productions.push(...prods);
                         env.productions.meta.push(...prods.meta);
                         meta_imported_productions.set(key, prods);
                     }
 
-                    AWAIT--;
+                    pending_hook.count--;
+                    AWAIT.count--;
                 }).catch(e => {
                     throw e;
                 });
@@ -258,7 +266,7 @@ export async function grammarParser(grammar, FILE_URL, stamp = 112, meta_importe
                         // Replace the reduce_function with a new object (that contains the modified
                         // functions string)?
                         this.reduce_function = Object.assign({}, this.reduce_function);
-                        console.log(fn)
+
                         this.reduce_function.txt = (this.reduce_function.type == "RETURNED") ?
                             fn.body.expr.render() :
                             fn.body.render();
@@ -343,13 +351,21 @@ export async function grammarParser(grammar, FILE_URL, stamp = 112, meta_importe
 
             compileProduction: function(production, lex) {
                 if (production.IMPORT_APPEND || production.IMPORT_OVERRIDE) {
-
+                    
                     production.name.resolveFunction = (p) => {
                         if (production.IMPORT_APPEND)
                             p.bodies.unshift(...production.bodies);
                         else
                             p.bodies = production.bodies;
-                        
+
+                        //Set production entries for all production symbols in the bodies that are defined in this production.
+                        production.bodies.forEach(body=>body.sym.forEach((sym)=>{
+                            if(sym.type== "production" && !sym.IMPORTED){
+                                sym.production = env.productions.LU.get(sym.name)//.filter(p=>p.name == sym.name)[0];
+                                console.log("!!!!",sym.name, env.productions[0].name );
+                            }
+                        }));
+
                         env.functions.compileProduction(p, lex);
 
                         production.name = p.name;
@@ -460,19 +476,25 @@ export async function grammarParser(grammar, FILE_URL, stamp = 112, meta_importe
 
         const productions = parser(whind(grammar), env);
 
-        //Pause here to allow impoted productions to process.
-        await SLEEPER();
-
-        //Convient lookup map for production non-terminal names. 
         productions.LU = new Map(productions.map(p => [p.name, p]));
+        //Pause here to allow impoted productions to process.
+        await SLEEPER(AWAIT);
 
+        productions.LU = new Map(productions.map(p => [p.name, p]));
+        
         //If the production is at the root of the import tree, then complete the processing of production data. 
         if (stamp == 112) {
+            console.log(pending_hook)
+            await SLEEPER(pending_hook);
+            //Convient lookup map for production non-terminal names. 
+
+
+
             //Setup the productions object
             productions.forEach((p, i) => p.id = i);
-            productions.reserved = new Set();
             productions.symbols = null;
             productions.meta = productions.meta || [];
+            productions.reserved = new Set();
 
             convertProductionNamesToIndexes(productions, productions.LU);
 

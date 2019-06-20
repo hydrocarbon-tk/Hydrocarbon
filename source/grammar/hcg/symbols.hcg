@@ -80,7 +80,7 @@
 	identifier 										↦cstr{ this.type = "production"; this.name = $sym1; this.val = -1}
 
 <> imported_production_symbol → 
-	identifier \:: identifier										↦c ^importProduction
+	production_id \:: identifier					↦c ^importProduction
 
 <> production_id → 
 	identifier 
