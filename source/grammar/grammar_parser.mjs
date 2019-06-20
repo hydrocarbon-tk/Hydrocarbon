@@ -210,6 +210,7 @@ export async function grammarParser(grammar, FILE_URL, stamp = 112, meta_importe
                 this.excludes = new Map();
                 this.ignore = new Map();
                 this.error = new Map();
+                this.reset = new Map();
                 this.functions = [];
                 this.reduce_function = s.reduce || null;
                 this.grammar_stamp = env.stamp;
@@ -426,10 +427,14 @@ export async function grammarParser(grammar, FILE_URL, stamp = 112, meta_importe
                                 map = 3;
                                 extract = true;
                                 break;
+                            case "rst":
+                                map = 4;
+                                extract = true;
+                                break;
                         }
 
                         if (map > 0) {
-                            const m = body[(["excludes", "ignore", "error"][map - 1])];
+                            const m = body[(["excludes", "ignore", "error", "reset"][map - 1])];
                             if (!m.get(j))
                                 m.set(j, []);
 
@@ -454,58 +459,55 @@ export async function grammarParser(grammar, FILE_URL, stamp = 112, meta_importe
             }
         }
     };
+ 
+    const productions = parser(whind(grammar), env);
 
-    try {
+    //Pause here to allow impoted productions to process.
+    await SLEEPER();
 
-        const productions = parser(whind(grammar), env);
+    //Convient lookup map for production non-terminal names. 
+    productions.LU = new Map(productions.map(p => [p.name, p]));
 
-        //Pause here to allow impoted productions to process.
-        await SLEEPER();
+    //If the production is at the root of the import tree, then complete the processing of production data. 
+    if (stamp == 112) {
+        //Setup the productions object
+        productions.forEach((p, i) => p.id = i);
+        productions.reserved = new Set();
+        productions.symbols = null;
+        productions.meta = productions.meta || [];
 
-        //Convient lookup map for production non-terminal names. 
-        productions.LU = new Map(productions.map(p => [p.name, p]));
+        convertProductionNamesToIndexes(productions, productions.LU);
 
-        //If the production is at the root of the import tree, then complete the processing of production data. 
-        if (stamp == 112) {
-            //Setup the productions object
-            productions.forEach((p, i) => p.id = i);
-            productions.reserved = new Set();
-            productions.symbols = null;
-            productions.meta = productions.meta || [];
+        if (!productions.meta.error)
+            productions.meta.error = [];
+        if (!productions.meta.ignore)
+            productions.meta.ignore = [];
 
-            convertProductionNamesToIndexes(productions, productions.LU);
-
-            if (!productions.meta.error)
-                productions.meta.error = [];
-            if (!productions.meta.ignore)
-                productions.meta.ignore = [];
-
-            for (const pre of productions.meta) {
-                if (pre)
-                    switch (pre.type) {
-                        case "error":
-                            
-                            productions.meta.error.push(pre);
-                            break;
-                        case "ignore":
-                            
-                            productions.meta.ignore.push(pre);
-                            break;
-                        case "symbols":
-                            if (!productions.meta.symbols)
-                                productions.meta.symbols = new Map(pre.symbols.map(e => [e, { val: e }]));
-                            else
-                                pre.symbols.forEach(e => productions.meta.symbols.set(e, { val: e }));
-                            break;
-                    }
-            }
-       //throw("ENDING")
-       console.dir(productions.map(p=>p.bodies.map(b=>b.sym)), {depth:3})
+        for (const pre of productions.meta) {
+            if (pre)
+                switch (pre.type) {
+                    case "error":
+                        
+                        productions.meta.error.push(pre);
+                        break;
+                    case "ignore":
+                        
+                        productions.meta.ignore.push(pre);
+                        break;
+                    case "symbols":
+                        if (!productions.meta.symbols)
+                            productions.meta.symbols = new Map(pre.symbols.map(e => [e, { val: e }]));
+                        else
+                            pre.symbols.forEach(e => productions.meta.symbols.set(e, { val: e }));
+                        break;
+                }
         }
-        return productions;
-    } catch (e) {
-        console.error(e);
     }
+
+    if(productions.length == 0)
+        throw  ("This grammar does not define any productions.");
+    return productions;
+    
 
     return null;
 }

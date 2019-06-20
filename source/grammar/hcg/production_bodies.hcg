@@ -76,4 +76,5 @@
 		  \( τEXC sym::condition_symbol_list \) 					↦c{ this.type = "exc"; this.sym = $sym3; this.offset = -1; }
 		│ \( τERR sym::condition_symbol_list \) 					↦c{ this.type = "err"; this.sym = $sym3; this.offset = -1; }
 		│ \( τIGN sym::condition_symbol_list \) 					↦c{ this.type = "ign"; this.sym = $sym3; this.offset = -1; }
+		│ \( τRST sym::condition_symbol_list \) 					↦c{ this.type = "rst"; this.sym = $sym3; this.offset = -1; }
 

@@ -17,7 +17,12 @@ export function getToken(l, SYM_LU) {
 
     switch (l.ty) {
         case types.id:
-            if (SYM_LU.has(l.tx)) return SYM_LU.get(l.tx);
+            //*
+            if (SYM_LU.has(l.tx)) return  "keyword";
+            /*/
+                console.log(l.tx, SYM_LU.has(l.tx), SYM_LU.get(l.tx))
+                if (SYM_LU.has(l.tx)) return SYM_LU.get(l.tx);
+            //*/
             return "id";
         case types.num:
             return "num";

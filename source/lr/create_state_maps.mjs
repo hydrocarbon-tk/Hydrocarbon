@@ -169,7 +169,6 @@ export default function(grammar, states, env, functions, SYM_LU, types) {
                     for (let i = 0; i < body.functions.length; i++) {
                         const f = body.functions[i];
                         if (f.offset == state.offset) {
-                        //console.log(f, state.offset)
                             const name = f.name;
                             st_fn_id += name;
                             if (f.env)
@@ -193,6 +192,10 @@ export default function(grammar, states, env, functions, SYM_LU, types) {
                     break;
 
                 case "IGNORE":
+                    state_map.push(0);
+                    break;
+
+                case "DO-NOTHING":
                     state_map.push(0);
                     break;
 
