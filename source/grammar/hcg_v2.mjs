@@ -1195,9 +1195,7 @@ function parser(l, e = {}) {
         while (time-- > 0) {
 
             const fn = lsm(tk, state[ss[sp]]) || 0;
-
-            /*@*/// console.log({end:l.END, state:ss[sp], tx:l.tx, ty:l.ty, tk:tk, rev:rlu.get(tk), s_map:state[ss[sp]], res:lsm(tk, state[ss[sp]])});
-
+            
             let r,
                 gt = -1;
 
@@ -1213,13 +1211,11 @@ function parser(l, e = {}) {
             } else {
                 if (RECOVERING > 1 && !l.END) {
                     if (tk !== lu.get(l.ty)) {
-                        //console.log("ABLE", rlu.get(tk), l.tx, tk )
                         tk = lu.get(l.ty);
                         continue;
                     }
 
                     if (tk !== 13) {
-                        //console.log("MABLE")
                         tk = 13;
                         RECOVERING = 1;
                         continue;

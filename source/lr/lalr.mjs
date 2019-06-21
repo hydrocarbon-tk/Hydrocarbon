@@ -36,6 +36,12 @@ function processState(items, state, states, grammar, items_set, error, LALR_MODE
             });
         } //*/
 
+        if (body.reset.has(offset)) {
+            body.reset.get(offset).forEach(sym => {
+                state.action.set(sym.val, { symbol_type: sym.type, name: "DO-NOTHING", state: state.id, body: state.body, len: 0, original_body: state.body });
+            });
+        }
+
         if (body.ignore.has(offset)) {
             body.ignore.get(offset).forEach(sym => {
                 state.action.set(sym.val, { symbol_type: sym.type, name: "IGNORE", state: state.id, body: state.body, len: 0, original_body: state.body });

@@ -143,12 +143,7 @@ function createScript(name, parser, type, env, compress = false) {
 /* *************** HCG GRAMMAR DATA *********************/
 
 async function parseGrammar(grammar_string, PATH) {
-    try{
-        return await hc.grammarParser(grammar_string, PATH);
-    }catch(e){
-        console.err(e);
-        return null;
-    }
+     return await hc.grammarParser(grammar_string, PATH);
 }
 
 /* *************** LR GRAMMARS ********************/
@@ -236,9 +231,7 @@ async function mount(name, input, env, states, grammar) {
                     if (env.options && env.options.integrate)
                         parse = parser(data.join("\n"));
                     else
-                        parse = parser(whind(data.join("\n"), true), env);
-                    console.log("OUTPUT!")
-                    console.log(util.inspect(parse, false, null, true))
+                        console.dir(parser(whind(data.join("\n"), true), env), {depth:null});
                 } catch (e) {
                     console.error(e);
                 }

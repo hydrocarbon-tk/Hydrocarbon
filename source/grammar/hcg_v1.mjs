@@ -1128,13 +1128,11 @@ function parser(l, e = {}) {
             } else {
                 if (RECOVERING > 1 && !l.END) {
                     if (tk !== lu.get(l.ty)) {
-                        //console.log("ABLE", rlu.get(tk), l.tx, tk )
                         tk = lu.get(l.ty);
                         continue;
                     }
 
                     if (tk !== 13) {
-                        //console.log("MABLE")
                         tk = 13;
                         RECOVERING = 1;
                         continue;

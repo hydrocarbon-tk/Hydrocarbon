@@ -22,11 +22,14 @@ export function LRParserCompiler(states, grammar, env) {
     let types = Object.assign({}, t);
 
     types.any = 200;
+    types.keyword = 201;
 
     for (let a in types)
         GEN_SYM_LU.set(a, (((n++) / 2) | 0) + 1);
 
     GEN_SYM_LU.set("any", 13);
+    GEN_SYM_LU.set("keyword", 14);
+    
 
 
     //parse body function
@@ -34,13 +37,12 @@ export function LRParserCompiler(states, grammar, env) {
         COMPILE_FUNCTION = (env.options) ? !!env.options.integrate : false,
         functions = [],
         error_handlers = [],
-        SYMBOL_INDEX_OFFSET = 14, //Must leave room for symbol types indices
+        SYMBOL_INDEX_OFFSET = 15, //Must leave room for symbol types indices
         //Convert all terminals to indices and create lookup map for terminals
         SYM_LU = new Map([
             ...[...GEN_SYM_LU.entries()].map(e => [types[e[0]], e[1]]),
             ...[...grammar.meta.all_symbols.values()].map((e, i) => ([(e.type == "generated") ? (types[e[0]]) : e.val, (e.type == "generated") ? GEN_SYM_LU.get(e.val) : i + SYMBOL_INDEX_OFFSET]))
         ]),
-
 
 
         { state_functions, goto_functions, state_str_functions, state_maps, goto_maps } = createSparseStateMaps(grammar, states, env, functions, SYM_LU, types);

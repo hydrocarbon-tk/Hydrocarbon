@@ -6,8 +6,6 @@ const max = Math.max,
         const slice = o.slice(-plen);
         o.length = ln + 1;
         o[ln] = fn(slice, e, l, s, o, plen);
-        if (!o[ln]) {
-        }
         return ret;
     },
 
@@ -16,12 +14,10 @@ const max = Math.max,
         const slice = o.slice(-plen);
         o.length = ln + 1;
         o[ln] = new Fn(slice, e, l, s, o, plen);
-        if (!o[ln]) {        
-        }
         return ret;
     },
 
-    reduce_to_null = (ret, plen, t, e, o, l, s) => {
+    reduce_to_null = (ret, plen, t, e, o) => {
         if (plen > 0) {
             let ln = max(o.length - plen, 0);
             o[ln] = o[o.length - 1];
@@ -103,7 +99,6 @@ export default function(grammar, states, env, functions, SYM_LU, types) {
                     s[0] = SYM_LU.get(types[k]);
             }
 
-            //console.log(k, s[0])
             return s;
         }).sort((a, b) => (a[0] < b[0]) ? -1 : 1).forEach(s => {
             const state = s[1],
@@ -116,14 +111,8 @@ export default function(grammar, states, env, functions, SYM_LU, types) {
                 return;
 
             if (k - last_pos > 1) {
-                /*
-                    let v = k - last_pos - 1;
-                    while (v-- > 0)
-                        state_map.push(-1);
-                */
                 state_map.push(-(k - last_pos - 1));
             }
-            //console.log(k, last_pos, k - last_pos, state.name)
 
             last_pos = k;
 
@@ -171,7 +160,6 @@ export default function(grammar, states, env, functions, SYM_LU, types) {
                     for (let i = 0; i < body.functions.length; i++) {
                         const f = body.functions[i];
                         if (f.offset == state.offset) {
-                            //console.log(f, state.offset)
                             const name = f.name;
                             st_fn_id += name;
                             if (f.env)
@@ -198,6 +186,10 @@ export default function(grammar, states, env, functions, SYM_LU, types) {
                     state_map.push(0);
                     break;
 
+                case "DO-NOTHING":
+                    state_map.push(0);
+                    break;
+
                 case "ERROR":
                     state_map.push(-1);
                     break;
@@ -213,11 +205,6 @@ export default function(grammar, states, env, functions, SYM_LU, types) {
         .sort((a, b) => a[0] < b[0] ? -1 : 1)
             .forEach(k => {
                 if (k[0] - last > 1) {
-                    /*
-                    let v = k[0] - last - 1;
-                    while (v-- > 0)
-                        goto.push(-1);
-                    */
                     goto.push(-(k[0] - last - 1));
                 }
                 goto.push(k[1].state);

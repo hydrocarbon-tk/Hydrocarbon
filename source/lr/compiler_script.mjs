@@ -2,7 +2,7 @@ import { getToken, types } from "../util/common.mjs";
 
 
 const lookupSparseMap = (index, map) => {
-    if (map[0] == 0xFFFFFFFF) return map[index+1];
+    if (map[0] == 0xFFFFFFFF) return map[index + 1];
     for (let i = 1, ind = 0, l = map.length, n = 0; i < l && ind <= index; i++) {
         if (ind !== index) {
             if ((n = map[i]) > -1) ind++;
@@ -15,7 +15,7 @@ const lookupSparseMap = (index, map) => {
 var goto, symbols, lu, lsm, state, state_funct, $_any, eh;
 
 function parser(l, e = {}) {
-    
+
     fn = e.functions;
 
     l.IWS = false;
@@ -49,43 +49,42 @@ function parser(l, e = {}) {
 
             const fn = lsm(tk, state[ss[sp]]) || 0;
 
-
-            /*@*/// console.log({end:l.END, state:ss[sp], tx:l.tx, ty:l.ty, tk:tk, rev:rlu.get(tk), s_map:state[ss[sp]], res:lsm(tk, state[ss[sp]])});
-
             let r,
                 gt = -1;
 
             if (fn == 0) {
                 /*Ignore the token*/
-                l.next();
-                tk = getToken(l, lu);
+                tk = getToken(l.next(), lu);
                 continue;
             }
 
             if (fn > 0) {
                 r = state_funct[fn - 1](tk, e, o, l, ss[sp - 1]);
             } else {
-                
-                if(l.ty == $_sym && l.tl > 1){ 
+
+                if (tk == $_keyword) {
+                    tk = lu.get(l.tx);
+                    continue;
+                }
+
+                if (l.ty == $_sym && l.tl > 1) {
                     // Make sure that special tokens are not getting in the way
                     l.tl = 0;
                     // This will skip the generation of a custom symbol
                     l.next(l, false);
 
-                    if(l.tl == 0)
+                    if (l.tl == 1)
                         continue;
                 }
 
                 if (RECOVERING > 1 && !l.END) {
 
                     if (tk !== lu.get(l.ty)) {
-                        //console.log("ABLE", rlu.get(tk), l.tx, tk )
                         tk = lu.get(l.ty);
                         continue;
                     }
 
                     if (tk !== $_any) {
-                        //console.log("MABLE")
                         tk = $_any;
                         RECOVERING = 1;
                         continue;
@@ -94,7 +93,7 @@ function parser(l, e = {}) {
 
                 tk = getToken(l, lu);
 
-                const recovery_token = eh[ss[sp]](tk, e, o, l, p, ss[sp], (lex)=>getToken(lex, lu));
+                const recovery_token = eh[ss[sp]](tk, e, o, l, p, ss[sp], (lex) => getToken(lex, lu));
 
                 if (RECOVERING > 0 && recovery_token >= 0) {
                     RECOVERING = -1; /* To prevent infinite recursion */
@@ -143,16 +142,16 @@ function parser(l, e = {}) {
                     if (gt < 0)
                         l.throw("Invalid state reached!");
 
-                    if(reduceStack.length > 0){
-                        let i = reduceStack.length -1;
-                        while(i > -1){
+                    if (reduceStack.length > 0) {
+                        let i = reduceStack.length - 1;
+                        while (i > -1) {
                             let item = reduceStack[i--];
 
-                            if(item.index == sp){
+                            if (item.index == sp) {
                                 item.action(output)
-                            }else if(item.index > sp){
+                            } else if (item.index > sp) {
                                 reduceStack.length--;
-                            }else{
+                            } else {
                                 break;
                             }
                         }
@@ -200,9 +199,10 @@ function renderSparseMapFunction(lookupSparseMap) {
 
 function renderParseFunction(parseFunction, GEN_SYM_LU, verbose = false) {
     const str = parseFunction
-                    .toString()
-                    .replace(/\$_any/g, GEN_SYM_LU.get("any"))
-                    .replace(/\$_sym/g, GEN_SYM_LU.get("sym"));
+        .toString()
+        .replace(/\$_any/g, GEN_SYM_LU.get("any"))
+        .replace(/\$_keyword/g, GEN_SYM_LU.get("keyword"))
+        .replace(/\$_sym/g, GEN_SYM_LU.get("sym"));
 
     if (!verbose)
         return str.replace(/\n/g, "");
@@ -217,15 +217,15 @@ function renderStateActionFunctions(state_action_functions, verbose = false) {
     return state_action_functions.join((verbose) ? ",\n" : ",");
 }
 
-function renderGetTokenFunction(getToken, SYM_LU, verbose = false) {
-    const str = getToken.toString().replace(/types\.([^:]*):/g, (match, p1) => {
-        return types[p1] + ":";
-    }).replace(/"([^"]*)"/g, (match, p1) => {
-        return SYM_LU.get(types[p1]) || "$eof";
-    });
+function renderGetTokenFunction(getToken, SYM_LU, RV_SYM_LU, verbose = false) {
+    const str = getToken.toString().replace(/types\.([^:]*):/g, (match, p1) => 
+         types[p1] + ":"
+    ).replace(/"([^"]*)"/g, (match, p1) => 
+         SYM_LU.get(types[p1] || p1) || RV_SYM_LU.get(p1) || "$eof"
+    );
 
     if (!verbose)
-        return str.replace(/\/\*@\*\/[^\n]*\n/g,"").replace(/\n/g, "");
+        return str.replace(/\/\*@\*\/[^\n]*\n/g, "").replace(/\n/g, "");
     return str;
 }
 
@@ -285,7 +285,7 @@ export function verboseCompiler(
     //Goto Lookup Functions
     goto = [${renderGotoFunctions(goto_functions, true)}];
 
-${renderGetTokenFunction(getToken, SYM_LU, true)}
+${renderGetTokenFunction(getToken, SYM_LU,GEN_SYM_LU, true)}
 
 /************ Parser *************/
 

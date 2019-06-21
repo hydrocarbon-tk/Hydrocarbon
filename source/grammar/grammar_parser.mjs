@@ -2,7 +2,7 @@
  * Parses HC Grammars. Parser Built by Hydrocarbon
  */
 
-import {null_literal, member_expression, numeric_literal, identifier, parse as ecmascript_parse } from "@candlefw/js";
+import { null_literal, member_expression, numeric_literal, identifier, parse as ecmascript_parse } from "@candlefw/js";
 import whind from "@candlefw/whind";
 import URL from "@candlefw/url";
 
@@ -16,7 +16,7 @@ function convertProductionNamesToIndexes(productions, LU) {
             const
                 production = productions[i],
                 bodies = production.bodies;
-                production.graph_id = -1;
+            production.graph_id = -1;
 
             for (let i = 0; i < bodies.length; i++) {
                 body = bodies[i];
@@ -30,7 +30,7 @@ function convertProductionNamesToIndexes(productions, LU) {
                     sym = body.sym[i];
 
                     if (sym.type == "production") {
-                        if (sym.production  || (sym.IMPORTED && sym.RESOLVED)) {
+                        if (sym.production || (sym.IMPORTED && sym.RESOLVED)) {
                             sym.val = sym.production.id;
                         } else try {
                             sym.production = LU.get(sym.name);
@@ -52,9 +52,9 @@ function convertProductionNamesToIndexes(productions, LU) {
     }
 }
 
-export async function grammarParser(grammar, FILE_URL, stamp = 112, meta_imported_productions = new Map, pending_hook = {count:0}) {
+export async function grammarParser(grammar, FILE_URL, stamp = 112, meta_imported_productions = new Map, pending_hook = { count: 0 }) {
 
-    const AWAIT = {count:0};
+    const AWAIT = { count: 0 };
 
     async function SLEEPER(data) {
         return new Promise(res => {
@@ -132,15 +132,15 @@ export async function grammarParser(grammar, FILE_URL, stamp = 112, meta_importe
                         return { type: "import", id, url };
                 } else
                     meta_imported_productions.set(key, Object.assign([], { SYMBOL_LIST: true, PENDING: true }));
-                
+
                 AWAIT.count++;
                 pending_hook.count++;
 
                 uri.fetchText().then(async txt => {
 
-                    const prods = await grammarParser(txt, uri, stamp * env.body_count ** AWAIT + 1 + (Math.random()  * 10000) |0, meta_imported_productions, pending_hook);
+                    const prods = await grammarParser(txt, uri, stamp * env.body_count ** AWAIT + 1 + (Math.random() * 10000) | 0, meta_imported_productions, pending_hook);
 
-     
+
                     let EXISTING = false;
                     prods.imported = true;
 
@@ -168,7 +168,7 @@ export async function grammarParser(grammar, FILE_URL, stamp = 112, meta_importe
                     let p;
                     //Make sure only one instance of any URL resource is used in grammar.
 
-                            
+
                     if ((p = meta_imported_productions.get(key))) {
                         if (p.SYMBOL_LIST) {
                             //meta_imported_productions.set(key, prods);
@@ -186,11 +186,11 @@ export async function grammarParser(grammar, FILE_URL, stamp = 112, meta_importe
                                 }
 
                             });
-                        } else 
+                        } else
                             EXISTING = true;
                     }
 
-                    if(!EXISTING){
+                    if (!EXISTING) {
                         env.productions.push(...prods);
                         env.productions.meta.push(...prods.meta);
                         meta_imported_productions.set(key, prods);
@@ -218,6 +218,7 @@ export async function grammarParser(grammar, FILE_URL, stamp = 112, meta_importe
                 this.excludes = new Map();
                 this.ignore = new Map();
                 this.error = new Map();
+                this.reset = new Map();
                 this.functions = [];
                 this.reduce_function = s.reduce || null;
                 this.grammar_stamp = env.stamp;
@@ -230,10 +231,14 @@ export async function grammarParser(grammar, FILE_URL, stamp = 112, meta_importe
                         const str = (this.reduce_function.type == "RETURNED") ?
                             `function temp(temp){return ${this.reduce_function.txt}}` :
                             `function temp(temp){ ${this.reduce_function.txt}}`;
-                        const fn = ecmascript_parse(str);
+                        let fn = ecmascript_parse(str);
+
+                        fn = fn.statements;
+
                         const iter = fn.traverseDepthFirst();
 
-                        let i = 0, log = false;
+                        let i = 0,
+                            log = false;
 
                         for (const node of iter) {
 
@@ -254,11 +259,11 @@ export async function grammarParser(grammar, FILE_URL, stamp = 112, meta_importe
 
                                 if ((v = this.sym_map.indexOf(index)) >= 0) {
                                     n = new member_expression([new identifier(["sym"]), null, new numeric_literal([v])]);
-                                }else if(node.val.slice(0,5) == "$$sym"){
+                                } else if (node.val.slice(0, 5) == "$$sym") {
                                     n = new null_literal();
                                 }
 
-                                    log = true;
+                                log = true;
                                 node.replace(n);
                             }
                         }
@@ -351,7 +356,7 @@ export async function grammarParser(grammar, FILE_URL, stamp = 112, meta_importe
 
             compileProduction: function(production, lex) {
                 if (production.IMPORT_APPEND || production.IMPORT_OVERRIDE) {
-                    
+
                     production.name.resolveFunction = (p) => {
                         if (production.IMPORT_APPEND)
                             p.bodies.unshift(...production.bodies);
@@ -359,10 +364,9 @@ export async function grammarParser(grammar, FILE_URL, stamp = 112, meta_importe
                             p.bodies = production.bodies;
 
                         //Set production entries for all production symbols in the bodies that are defined in this production.
-                        production.bodies.forEach(body=>body.sym.forEach((sym)=>{
-                            if(sym.type== "production" && !sym.IMPORTED){
-                                sym.production = env.productions.LU.get(sym.name)//.filter(p=>p.name == sym.name)[0];
-                                console.log("!!!!",sym.name, env.productions[0].name );
+                        production.bodies.forEach(body => body.sym.forEach((sym) => {
+                            if (sym.type == "production" && !sym.IMPORTED) {
+                                sym.production = env.productions.LU.get(sym.name) //.filter(p=>p.name == sym.name)[0];
                             }
                         }));
 
@@ -443,10 +447,14 @@ export async function grammarParser(grammar, FILE_URL, stamp = 112, meta_importe
                                 map = 3;
                                 extract = true;
                                 break;
+                            case "rst":
+                                map = 4;
+                                extract = true;
+                                break;
                         }
 
                         if (map > 0) {
-                            const m = body[(["excludes", "ignore", "error"][map - 1])];
+                            const m = body[(["excludes", "ignore", "error", "reset"][map - 1])];
                             if (!m.get(j))
                                 m.set(j, []);
 
@@ -465,70 +473,67 @@ export async function grammarParser(grammar, FILE_URL, stamp = 112, meta_importe
                     body.length = body.sym.length;
 
 
-                    if(body.build)
+                    if (body.build)
                         body.build();
                 }
             }
         }
     };
 
-    try {
+    const productions = parser(whind(grammar), env);
 
-        const productions = parser(whind(grammar), env);
+    productions.LU = new Map(productions.map(p => [p.name, p]));
+    //Pause here to allow impoted productions to process.
+    await SLEEPER(AWAIT);
 
-        productions.LU = new Map(productions.map(p => [p.name, p]));
-        //Pause here to allow impoted productions to process.
-        await SLEEPER(AWAIT);
+    productions.LU = new Map(productions.map(p => [p.name, p]));
 
-        productions.LU = new Map(productions.map(p => [p.name, p]));
+    //If the production is at the root of the import tree, then complete the processing of production data. 
+    if (stamp == 112) {
         
-        //If the production is at the root of the import tree, then complete the processing of production data. 
-        if (stamp == 112) {
-            console.log(pending_hook)
-            await SLEEPER(pending_hook);
-            //Convient lookup map for production non-terminal names. 
+        await SLEEPER(pending_hook);
+        //Convient lookup map for production non-terminal names. 
 
 
 
-            //Setup the productions object
-            productions.forEach((p, i) => p.id = i);
-            productions.symbols = null;
-            productions.meta = productions.meta || [];
-            productions.reserved = new Set();
+        //Setup the productions object
+        productions.forEach((p, i) => p.id = i);
+        productions.symbols = null;
+        productions.meta = productions.meta || [];
+        productions.reserved = new Set();
 
-            convertProductionNamesToIndexes(productions, productions.LU);
+        convertProductionNamesToIndexes(productions, productions.LU);
 
-            if (!productions.meta.error)
-                productions.meta.error = [];
-            if (!productions.meta.ignore)
-                productions.meta.ignore = [];
+        if (!productions.meta.error)
+            productions.meta.error = [];
+        if (!productions.meta.ignore)
+            productions.meta.ignore = [];
 
-            for (const pre of productions.meta) {
-                if (pre)
-                    switch (pre.type) {
-                        case "error":
-                            
-                            productions.meta.error.push(pre);
-                            break;
-                        case "ignore":
-                            
-                            productions.meta.ignore.push(pre);
-                            break;
-                        case "symbols":
-                            if (!productions.meta.symbols)
-                                productions.meta.symbols = new Map(pre.symbols.map(e => [e, { val: e }]));
-                            else
-                                pre.symbols.forEach(e => productions.meta.symbols.set(e, { val: e }));
-                            break;
-                    }
-            }
-       //throw("ENDING")
-       console.dir(productions.map(p=>p.bodies.map(b=>b.sym)), {depth:3})
+        for (const pre of productions.meta) {
+            if (pre)
+                switch (pre.type) {
+                    case "error":
+
+                        productions.meta.error.push(pre);
+                        break;
+                    case "ignore":
+
+                        productions.meta.ignore.push(pre);
+                        break;
+                    case "symbols":
+                        if (!productions.meta.symbols)
+                            productions.meta.symbols = new Map(pre.symbols.map(e => [e, { val: e }]));
+                        else
+                            pre.symbols.forEach(e => productions.meta.symbols.set(e, { val: e }));
+                        break;
+                }
         }
-        return productions;
-    } catch (e) {
-        console.error(e);
     }
+    //throw("ENDING")
 
-    return null;
+
+    if (productions.length == 0)
+        throw ("This grammar does not define any productions.");
+    
+    return productions;
 }
