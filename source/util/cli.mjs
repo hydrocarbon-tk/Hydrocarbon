@@ -105,6 +105,27 @@ async function writeFile(name, data = "", dir = process.env.PWD) {
         if (!fs.existsSync(dir))
             fs.mkdirSync(dir);
 
+        //Save existing file as a backup file if it exists
+        try{
+            const data = await fsp.readFile(path.join(dir, name))
+            let increment = 0;
+            
+            while(1){
+                try{
+                    try{
+                        while(await fsp.readFile(path.join(dir, name+".hcgb_"+increment))){increment++}
+                    }catch(e){}
+
+                    let a = await fsp.writeFile(path.join(dir, name+".hcgb_"+increment), data, { encoding: "utf8", flags: "wx" })
+                    console.log({a})
+                    break;
+                }catch(e){
+                    console.error(e)
+                    increment++;
+                }
+            }
+
+        }catch(e){}
         let file = await fsp.writeFile(path.join(dir, name), data, { encoding: "utf8", flags: "w+" })
         console.log(ADD_COLOR(`The file ${name} has been successfully written to ${dir}.`, COLOR_SUCCESS), "\n");
     } catch (err) {

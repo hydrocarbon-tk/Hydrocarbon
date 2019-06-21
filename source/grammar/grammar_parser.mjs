@@ -232,7 +232,7 @@ export async function grammarParser(grammar, FILE_URL, stamp = 112, meta_importe
                             `function temp(temp){return ${this.reduce_function.txt}}` :
                             `function temp(temp){ ${this.reduce_function.txt}}`;
                         let fn = ecmascript_parse(str);
-
+                        
                         fn = fn.statements;
 
                         const iter = fn.traverseDepthFirst();
