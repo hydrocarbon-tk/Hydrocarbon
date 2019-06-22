@@ -258,7 +258,7 @@ export async function grammarParser(grammar, FILE_URL, stamp = 112, meta_importe
                                 // within the body.  
 
                                 if ((v = this.sym_map.indexOf(index)) >= 0) {
-                                    n = new member_expression([new identifier(["sym"]), null, new numeric_literal([v])]);
+                                    n = new member_expression(new identifier(["sym"]),new numeric_literal([v]), true);
                                 } else if (node.val.slice(0, 5) == "$$sym") {
                                     n = new null_literal();
                                 }
