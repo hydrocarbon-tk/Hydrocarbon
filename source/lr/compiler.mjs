@@ -66,7 +66,7 @@ export function LRParserCompiler(states, grammar, env) {
         }
     }
 
-    let default_error = `(tk,r,o,l,p)=>{if(l.END)l.throw("Unexpected end of input");else if(l.ty & (${types.ws | types.nl})) l.throw(\`Unexpected space character within input "\${p.slice(l)}" \`) ; else l.throw(\`Unexpected token \${l.tx} within input "\${111}" \`)}`;
+    let default_error = `(tk,r,o,l,p)=>{if(l.END)l.throw("Unexpected end of input");else if(l.ty & (${types.ws | types.nl})) l.throw(\`Unexpected space character within input "\${p.slice(l)}" \`) ; else l.throw(\`Unexpected token \${l.tx}" \`)}`;
 
     if (env.functions.defaultError)
         default_error = `(...d)=>fn.defaultError(...d)`;

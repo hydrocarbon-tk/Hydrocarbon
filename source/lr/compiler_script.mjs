@@ -110,7 +110,7 @@ function parser(l, e = {}) {
                     if (tk == "$eof")
                         l.throw("Unexpected end of input");
 
-                    l.throw(`Unexpected token [${RECOVERING ? l.next().tx : l.tx}] ${l.slice(p)}`);
+                    l.throw(`Unexpected token [${RECOVERING ? l.next().tx : l.tx}]`);
                     return [null];
 
                 case 1:
