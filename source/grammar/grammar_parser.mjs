@@ -67,6 +67,8 @@ export async function grammarParser(grammar, FILE_URL, stamp = 112, meta_importe
         });
     }
 
+    const bodies = new Map();
+
     const env = {
         productions: [],
         refs: new Map(),
@@ -202,7 +204,7 @@ export async function grammarParser(grammar, FILE_URL, stamp = 112, meta_importe
                     throw e;
                 });
 
-                return { type: "import", id, url };
+            return { type: "import", id, url };
             },
 
             body: function(sym, env, lex) {
@@ -225,6 +227,7 @@ export async function grammarParser(grammar, FILE_URL, stamp = 112, meta_importe
 
                 //Used to identifier the unique form of the body.
                 this.uid = this.sym.map(e => e.type == "production" ? e.name : e.val).join(":");
+
                 //*
                 this.build = function() {
                     if (true && this.reduce_function && this.reduce_function.txt) {
@@ -290,6 +293,13 @@ export async function grammarParser(grammar, FILE_URL, stamp = 112, meta_importe
                 this.type = "production";
                 this.name = env.prod_name + "" + env.body_count + "" + env.body_offset + sym[1].length + "_group";
                 this.val = -1;
+
+                var uid = sym[1].map(e=>e.uid).sort((a,b)=>a < b ? -1:1).join(":");
+   
+                if(bodies.has(uid))
+                    return bodies.get(uid);
+
+                bodies.set(uid, this);
 
                 const groupProduction = {
                     name: this.name,
