@@ -36,7 +36,6 @@ function convertProductionNamesToIndexes(productions, LU) {
                             sym.production = LU.get(sym.name);
                             sym.val = LU.get(sym.name).id;
                         } catch (e) {
-                            console.log(sym)
                             throw new SyntaxError(`Missing Production for symbol ${sym.name} in body of production ${production.name}`);
                         }
                         sym.resolveFunction = null; // For DataClone 
@@ -204,15 +203,14 @@ export async function grammarParser(grammar, FILE_URL, stamp = 112, meta_importe
                     throw e;
                 });
 
-            return { type: "import", id, url };
+                return { type: "import", id, url };
             },
 
             body: function(sym, env, lex) {
 
-                const c = env.host_lex;
-                c.fence(lex);
-                this.lex = c;
-
+                //const c = lex.host_lex.copy();
+                
+                this.lex = lex.trim(1);
                 const s = sym[0];
                 this.sym = s.body || [];
                 this.sym_map = this.sym.map((e, i) => i);
@@ -221,6 +219,7 @@ export async function grammarParser(grammar, FILE_URL, stamp = 112, meta_importe
                 this.ignore = new Map();
                 this.error = new Map();
                 this.reset = new Map();
+                this.reduce = [];
                 this.functions = [];
                 this.reduce_function = s.reduce || null;
                 this.grammar_stamp = env.stamp;
@@ -235,7 +234,7 @@ export async function grammarParser(grammar, FILE_URL, stamp = 112, meta_importe
                             `function temp(temp){return ${this.reduce_function.txt}}` :
                             `function temp(temp){ ${this.reduce_function.txt}}`;
                         let fn = ecmascript_parse(str);
-                        
+
                         fn = fn.statements;
 
                         const iter = fn.traverseDepthFirst();
@@ -261,7 +260,7 @@ export async function grammarParser(grammar, FILE_URL, stamp = 112, meta_importe
                                 // within the body.  
 
                                 if ((v = this.sym_map.indexOf(index)) >= 0) {
-                                    n = new member_expression(new identifier(["sym"]),new numeric_literal([v]), true);
+                                    n = new member_expression(new identifier(["sym"]), new numeric_literal([v]), true);
                                 } else if (node.val.slice(0, 5) == "$$sym") {
                                     n = new null_literal();
                                 }
@@ -294,10 +293,11 @@ export async function grammarParser(grammar, FILE_URL, stamp = 112, meta_importe
                 this.name = env.prod_name + "" + env.body_count + "" + env.body_offset + sym[1].length + "_group";
                 this.val = -1;
 
-                var uid = sym[1].map(e=>e.uid).sort((a,b)=>a < b ? -1:1).join(":");
-   
-                if(bodies.has(uid))
+                var uid = sym[1].map(e => e.uid).sort((a, b) => a < b ? -1 : 1).join(":");
+
+                if (bodies.has(uid)) {
                     return bodies.get(uid);
+                }
 
                 bodies.set(uid, this);
 
@@ -461,16 +461,25 @@ export async function grammarParser(grammar, FILE_URL, stamp = 112, meta_importe
                                 map = 4;
                                 extract = true;
                                 break;
+                            case "red":
+                                map = 5;
+                                extract = true;
+                                break;
                         }
 
                         if (map > 0) {
-                            const m = body[(["excludes", "ignore", "error", "reset"][map - 1])];
-                            if (!m.get(j))
-                                m.set(j, []);
 
-                            if (m == 1) {
+                            const m = body[(["excludes", "ignore", "error", "reset", "reduce"][map - 1])];
+
+                            if (map == 5) {
+                                m.push({v: new_sym.sym.val, p:undefined, type:new_sym.sym.type});
+                            } else if (map == 1) {
+                                if (!m.get(j))
+                                    m.set(j, []);
                                 m.get(j).push(new_sym.sym);
                             } else {
+                                if (!m.get(j))
+                                    m.set(j, []);
                                 m.get(j).push(...new_sym.sym);
                             }
                         }
@@ -500,7 +509,7 @@ export async function grammarParser(grammar, FILE_URL, stamp = 112, meta_importe
 
     //If the production is at the root of the import tree, then complete the processing of production data. 
     if (stamp == 112) {
-        
+
         await SLEEPER(pending_hook);
         //Convient lookup map for production non-terminal names. 
 
@@ -544,6 +553,6 @@ export async function grammarParser(grammar, FILE_URL, stamp = 112, meta_importe
 
     if (productions.length == 0)
         throw ("This grammar does not define any productions.");
-    
+
     return productions;
 }

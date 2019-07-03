@@ -2,11 +2,10 @@ import { Lexer } from "@candlefw/whind";
 
 function stripLexBody(lex) {
     try{
-
-        let val = Lexer.prototype.slice.call(lex).slice(1).trim();
+        let val = Lexer.prototype.slice.apply(lex).trim();
 
         return val.replace(/(?<!\\)\(\([^\)]+\)\)/g, "").replace(/↦[^\}]+\}/g, "").replace(/\s\s+/g, " ");
-    }finally{
+    }catch(e){
         return "";
     }
 }

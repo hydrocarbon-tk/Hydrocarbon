@@ -27,7 +27,7 @@
 																	↦return { $sym1 }
 
 
-<> production_body → entries  										↦cstr ^body
+<> production_body → entries  										↦r {new fn.body([$sym1], env, (env.host_lex.fence(lex), env.host_lex) ) }
 
 
 <> entries → body_entries fn::reduce_function? fn::error_function?	
@@ -77,4 +77,5 @@
 		│ \( τERR sym::condition_symbol_list \) 					↦c{ this.type = "err"; this.sym = $sym3; this.offset = -1; }
 		│ \( τIGN sym::condition_symbol_list \) 					↦c{ this.type = "ign"; this.sym = $sym3; this.offset = -1; }
 		│ \( τRST sym::condition_symbol_list \) 					↦c{ this.type = "rst"; this.sym = $sym3; this.offset = -1; }
+		│ \( τRED sym::symbol \) 									↦c{ this.type = "red"; this.sym = $sym3; this.offset = -1; }
 

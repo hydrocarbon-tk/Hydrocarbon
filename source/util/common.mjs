@@ -18,7 +18,7 @@ export function getToken(l, SYM_LU) {
     switch (l.ty) {
         case types.id:
             //*
-            if (SYM_LU.has(l.tx)) return  "keyword";
+            if (SYM_LU.has(l.tx)) return "keyword";
             /*/
                 console.log(l.tx, SYM_LU.has(l.tx), SYM_LU.get(l.tx))
                 if (SYM_LU.has(l.tx)) return SYM_LU.get(l.tx);
@@ -92,7 +92,7 @@ function addNonTerminal(table, body, grammar, body_ind, index = 0) {
 
         return HAS_E;
     }
-    
+
     let cc = terminal.charCodeAt(0);
 
     //If the first character of the terminal is in the alphabet, treat the token as a identifier terminal
@@ -293,12 +293,12 @@ function addFunctions(funct, production, env) {
 
 
         if (!name) {
-            name = funct.type[0] + production.id + (production.func_counter++) + "_" + production.name.replace(/\$/g,"_");
+            name = funct.type[0] + production.id + (production.func_counter++) + "_" + production.name.replace(/\$/g, "_");
             funct.name = name;
-            env.functions[name] = setFunction(null, funct, [production_stack_arg_name, environment_arg_name, lexer_arg_name, "state","output", "len"], {});
+            env.functions[name] = setFunction(null, funct, [production_stack_arg_name, environment_arg_name, lexer_arg_name, "state", "output", "len"], {});
             env.functions[name].INTEGRATE = true;
             env.FLUT.set(str, name);
-        }   
+        }
         funct.name = name;
     }
 }
@@ -323,9 +323,9 @@ export function filloutGrammar(grammar, env) {
 
             const sym_function = s => { if (s.type !== "production") symbols.set(s.val + s.type, s); };
             body.sym.forEach(sym_function);
-            [...body.ignore.values()].forEach(a=>a.forEach(sym_function));
-            [...body.excludes.values()].forEach(a=>a.forEach(sym_function));
-            [...body.error.values()].forEach(a=>a.forEach(sym_function));
+            [...body.ignore.values()].forEach(a => a.forEach(sym_function));
+            [...body.excludes.values()].forEach(a => a.forEach(sym_function));
+            [...body.error.values()].forEach(a => a.forEach(sym_function));
 
             if (body.reduce_function) {
                 addFunctions(body.reduce_function, production, env);
@@ -445,24 +445,21 @@ export function processClosure(state_id, items, grammar, error, excludes, offset
 
         const new_excludes = [];
         const out_excludes = [];
-        const item_excludes = [];
 
         for (let u = 0; u < step_excludes.length; u++) {
 
             const ex = step_excludes[u];
 
             if (item.body == ex.body && index == ex.inner_offset) {
-                let d = ex.offset,
-                    j = index; //, clock = 0;
 
-                let i_sym = body.sym[j];
-
-                let e_sym = ex.symbols[d];
+                const
+                    d = ex.offset,
+                    j = index, //, clock = 0;
+                    i_sym = body.sym[j],
+                    e_sym = ex.symbols[d];
 
                 if (i_sym && i_sym.type !== "production" && i_sym.val == e_sym.val) {
-
                     if (d == ex.l - 1) {
-                        const body = item.body_;
                         exclusion_count++;
                         item.USED = true;
                         break;
@@ -489,7 +486,7 @@ export function processClosure(state_id, items, grammar, error, excludes, offset
 
             const production = grammar[B.val];
 
-            if(production.graph_id < 0)
+            if (production.graph_id < 0)
                 production.graph_id = grammar.graph_id++;
 
             for (let i = 0; i < production.bodies.length; i++) {
@@ -497,14 +494,16 @@ export function processClosure(state_id, items, grammar, error, excludes, offset
                 const pbody = production.bodies[i];
                 const body_index = pbody.id;
 
+                const first_mod = [...first.slice(), ...pbody.reduce];
+
                 out_excludes.push(...new_excludes.map(e => ({ body: body_index, symbols: e.symbols, offset: e.offset, l: e.l, inner_offset: e.inner_offset })));
 
-                for (let i = 0; i < first.length; i++) {
-                    
-                    if (!first[i])
+                for (let i = 0, l = first_mod.length; i < l; i++) {
+
+                    if (!first_mod[i])
                         continue;
 
-                    const item = new Item(pbody.id, pbody.length, 0, first[i], grammar);
+                    const item = new Item(pbody.id, pbody.length, 0, first_mod[i], grammar);
                     const sig = item.full_id;
 
                     if (!added.has(sig)) {

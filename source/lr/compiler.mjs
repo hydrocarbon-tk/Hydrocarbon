@@ -5,6 +5,8 @@ import createSparseStateMaps from "./create_state_maps.mjs";
 
 import { verboseCompiler, compressedCompiler } from "./compiler_script.mjs";
 
+import { types as js_types, null_literal, arrow_function_declaration, argument_list, member_expression, numeric_literal, identifier, parse as ecmascript_parse } from "@candlefw/js";
+
 export function LRParserCompiler(states, grammar, env) {
     //Build new env variables if they are missing 
     if (!grammar.bodies) {
@@ -29,7 +31,7 @@ export function LRParserCompiler(states, grammar, env) {
 
     GEN_SYM_LU.set("any", 13);
     GEN_SYM_LU.set("keyword", 14);
-    
+
 
 
     //parse body function
@@ -61,8 +63,11 @@ export function LRParserCompiler(states, grammar, env) {
         for (let n in env.functions) {
             const funct = env.functions[n];
 
-            if (COMPILE_FUNCTION || funct.INTEGRATE)
-                functions.push(`${n}=${funct.toString().replace(/(anonymous)?[\n\t]*/g,"")}`);
+            if (COMPILE_FUNCTION || funct.INTEGRATE) {
+                console.log(generateCompactFunction(funct.toString()));
+                //functions.push(`${n}=${funct.toString().replace(/(anonymous)?[\n\t]*/g,"")}`);
+                functions.push(`${n}=${generateCompactFunction(funct.toString())}`);
+            }
         }
     }
 
@@ -85,4 +90,66 @@ export function LRParserCompiler(states, grammar, env) {
         [...(grammar.meta.symbols || new Map).values()].map(e => e.val));
 
     return output;
+}
+
+function generateCompactFunction(function_string) {
+    const fn = ecmascript_parse(function_string).statements;
+
+           // / console.log(function_string);
+    if (fn.body) {
+
+        const ids = new Set;
+        const cls = new Set;
+
+        if (fn.body.type == js_types.return_statement) {
+            const arrow = new arrow_function_declaration(null, [new argument_list(fn.args)], fn.body);
+
+            arrow.vals[2] = arrow.body.expr;
+
+            arrow.body.getRootIds(ids, cls);
+
+            const args = arrow.args;
+
+            for (let i = args.length - 1; i > -1; i--) {
+                let id = args.args[i].name;
+                if (ids.has(id)) {
+                    args.vals[0] = args.args.slice(0, i + 1);
+                    break;
+                }
+
+                if(i == 0){
+                    args.vals[0] = [];
+                }
+            }
+
+            return arrow.render();
+        } else {
+
+
+            fn.body.getRootIds(ids, cls);
+
+            const args = fn.args;
+
+            for (let i = args.length - 1; i > -1; i--) {
+                let id = args[i].name;
+                if (ids.has(id)) {
+                    fn.vals[1] = args.slice(0, i + 1);
+                    break;
+                }
+
+                if(i == 0){
+                    fn.vals[1] = [];
+                }
+            }
+            //return function_string.replace(/(anonymous)?[\n\t]*/g, "");
+        }
+    } else {
+        fn.vals[1] = [];
+    }
+
+    fn.id.vals[0] = "";
+
+    return fn.render();
+
+
 }

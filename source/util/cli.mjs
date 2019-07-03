@@ -92,6 +92,7 @@ async function write(name, parser_script, output_directory, type) {
             break;
         default:
         case "js":
+        case "mjs.js":
             filename += ".js";
             break;
     }
@@ -142,6 +143,7 @@ function createScript(name, parser, type, env, compress = false) {
 
     switch (type) {
         case "mjs":
+        case "mjs.js":
             parser = `${parser}; export default parser;`;
             break;
         case "cjs":
@@ -210,7 +212,6 @@ async function mount(name, input, env, states, grammar) {
         try{
             parser = ((Function(input + "; return parser"))());
         }catch(e){
-            console.log(input)
             console.dir(e, {depth:null})
             return 
         }
