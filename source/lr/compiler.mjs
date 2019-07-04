@@ -64,7 +64,6 @@ export function LRParserCompiler(states, grammar, env) {
             const funct = env.functions[n];
 
             if (COMPILE_FUNCTION || funct.INTEGRATE) {
-                console.log(generateCompactFunction(funct.toString()));
                 //functions.push(`${n}=${funct.toString().replace(/(anonymous)?[\n\t]*/g,"")}`);
                 functions.push(`${n}=${generateCompactFunction(funct.toString())}`);
             }
@@ -93,63 +92,42 @@ export function LRParserCompiler(states, grammar, env) {
 }
 
 function generateCompactFunction(function_string) {
-    const fn = ecmascript_parse(function_string).statements;
+    
+    //return function_string.replace(/(anonymous)?[\n\t]*/g, "");
+    let fn = ecmascript_parse(function_string).statements;
+    
+    fn.id.vals[0] = "";
 
-           // / console.log(function_string);
     if (fn.body) {
 
         const ids = new Set;
         const cls = new Set;
 
         if (fn.body.type == js_types.return_statement) {
-            const arrow = new arrow_function_declaration(null, [new argument_list(fn.args)], fn.body);
+            fn = new arrow_function_declaration(null, fn.args, fn.body);
 
-            arrow.vals[2] = arrow.body.expr;
-
-            arrow.body.getRootIds(ids, cls);
-
-            const args = arrow.args;
-
-            for (let i = args.length - 1; i > -1; i--) {
-                let id = args.args[i].name;
-                if (ids.has(id)) {
-                    args.vals[0] = args.args.slice(0, i + 1);
-                    break;
-                }
-
-                if(i == 0){
-                    args.vals[0] = [];
-                }
-            }
-
-            return arrow.render();
-        } else {
-
-
-            fn.body.getRootIds(ids, cls);
-
-            const args = fn.args;
-
-            for (let i = args.length - 1; i > -1; i--) {
-                let id = args[i].name;
-                if (ids.has(id)) {
-                    fn.vals[1] = args.slice(0, i + 1);
-                    break;
-                }
-
-                if(i == 0){
-                    fn.vals[1] = [];
-                }
-            }
-            //return function_string.replace(/(anonymous)?[\n\t]*/g, "");
+            fn.vals[2] = fn.body.expr;
         }
+
+        fn.body.getRootIds(ids, cls);
+
+        const args = fn.args;
+
+        for (let i = args.length - 1; i > -1; i--) {
+            let id = args.args[i].name;
+            if (ids.has(id)) {
+                args.vals = args.args.slice(0, i + 1);
+                break;
+            }
+
+            if (i == 0) {
+                args.vals = [];
+            }
+        }
+
     } else {
         fn.vals[1] = [];
     }
-
-    fn.id.vals[0] = "";
-
     return fn.render();
-
 
 }

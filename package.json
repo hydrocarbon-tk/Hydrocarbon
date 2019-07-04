@@ -9,6 +9,7 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "compile.grammar": "hydrocarbon compile --unattended -t mjs -o ./source/grammar/ ./source/grammar/hcg/hcg.hcg",
+    "compile.grammar.test": "hydrocarbon compile -d --unattended -t mjs -o ./source/grammar/ ./source/grammar/hcg/hcg.hcg",
     "compile.test": "hydrocarbon compile -d -m --unattended ./source/grammar/misc/test2.hcg"
   },
   "repository": {

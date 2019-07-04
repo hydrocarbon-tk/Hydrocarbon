@@ -51,7 +51,7 @@
 													↦cstr ^groupProduction	
 	│ symbol \? 									↦return{ $sym1.IS_OPTIONAL = true, $sym1 }	
 	
-	# This defines a list virtual productions that reduces to an array of reduced productions. 
+	# This defines a list of virtual productions that reduces to an array of productions. 
 	# A delimeter "terminal_symbol" can be defined to cause the parser to match such productions as { sym , sym , sym ...} 
 	# or { term . term . term ...}. If the "terminal_symbol" is a single or double quotation (\" or \') then the productions
 	# are reduced to a concated string of the values of the reduced productions. 

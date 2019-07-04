@@ -270,7 +270,7 @@ export function* compileLRStates(grammar, env = {}) {
                 LALR_MODE = false;
                 yield { error, states: states, num_of_states: states.length, total_items, items_left: items_set.length, COMPLETE: false, ERROR: true, error_msg: "Unable to continue in LALR mode. Restarting in CLR Mode. \n" }
                 return { error, states: states, num_of_states: states.length, total_items, items_left: items_set.length, COMPLETE: true, ERROR: true, error_msg: "Unable to continue in LALR mode. Restarting in CLR Mode. \n" }
-                break
+                break;
             } else {
                 states.INVALID = true;
                 return { error, states, num_of_states: states.length, total_items, items_left: items_set.length, COMPLETE: true, ERROR: true, error_msg: "Unable to parse grammar. It does not appear to be a LR grammar.\n" }
@@ -280,7 +280,7 @@ export function* compileLRStates(grammar, env = {}) {
         if (items_set.length > start)
             total_items += items_set.length - start;
 
-        yield { error, states, num_of_states: states.length, total_items, items_left: items_set.length, COMPLETE: false }
+        yield { error, states, num_of_states: states.length, total_items, items_left: items_set.length, COMPLETE: false };
     }
 
 

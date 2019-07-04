@@ -210,10 +210,11 @@ export async function grammarParser(grammar, FILE_URL, stamp = 112, meta_importe
 
                 //const c = lex.host_lex.copy();
                 
-                this.lex = lex.trim(1);
+                this.lex = lex;
                 const s = sym[0];
                 this.sym = s.body || [];
-                this.sym_map = this.sym.map((e, i) => i);
+                let bc = 0;
+                this.sym_map = this.sym.map((e, i) =>(e.IS_CONDITION ? -1 : bc++  ));
                 this.length = 0;
                 this.excludes = new Map();
                 this.ignore = new Map();
@@ -376,7 +377,7 @@ export async function grammarParser(grammar, FILE_URL, stamp = 112, meta_importe
                         //Set production entries for all production symbols in the bodies that are defined in this production.
                         production.bodies.forEach(body => body.sym.forEach((sym) => {
                             if (sym.type == "production" && !sym.IMPORTED) {
-                                sym.production = env.productions.LU.get(sym.name) //.filter(p=>p.name == sym.name)[0];
+                                sym.production = env.productions.LU.get(sym.name); //.filter(p=>p.name == sym.name)[0];
                             }
                         }));
 
@@ -486,6 +487,7 @@ export async function grammarParser(grammar, FILE_URL, stamp = 112, meta_importe
 
                         if (extract) {
                             body.sym.splice(j, 1);
+                            body.sym_map.splice(j, 1);
                             j--;
                         }
                     }

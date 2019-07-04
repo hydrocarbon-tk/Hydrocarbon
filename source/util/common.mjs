@@ -267,10 +267,11 @@ function setFunction(env, funct, function_params = [], this_object = null) {
     try {
         func = (Function).apply(this_object, function_params.concat([(funct.type == "RETURNED" ? "return " : "") + funct.txt.trim()]));
     } catch (e) {
-
-        console.log(funct.name, funct.txt)
-        console.error(e);
+        console.log("ASDSADA", funct.name, funct.txt)
+        console.dir(funct)
         func = () => { return { error: e, type: "error" } };
+
+        throw "";
     }
 
     return func;

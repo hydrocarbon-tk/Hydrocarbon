@@ -174,7 +174,11 @@ export default function(grammar, states, env, functions, SYM_LU, types) {
                     fn = state_functions_map.get(st_fn_id);
 
                     if (!fn) {
-                        fn = state_str_functions.push(`(${funct.length > 0 ? "...v" : ""})=>(${ funct.length > 0 ?  funct.join(",") : ""+return_value})`);
+                        fn = state_str_functions.push(`${funct.length > 0 ? "(...v)" : "e"}=>${ funct.length > 0 
+                            ?  funct.length > 1 
+                                ? "(" + funct.join(",")+")" 
+                                : funct.join(",") 
+                            : return_value}`);
                         state_functions_map.set(st_fn_id, fn);
                     }
 

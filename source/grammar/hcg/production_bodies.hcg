@@ -73,9 +73,9 @@
 
 
 <> condition_clause → 
-		  \( τEXC sym::condition_symbol_list \) 					↦c{ this.type = "exc"; this.sym = $sym3; this.offset = -1; }
-		│ \( τERR sym::condition_symbol_list \) 					↦c{ this.type = "err"; this.sym = $sym3; this.offset = -1; }
-		│ \( τIGN sym::condition_symbol_list \) 					↦c{ this.type = "ign"; this.sym = $sym3; this.offset = -1; }
-		│ \( τRST sym::condition_symbol_list \) 					↦c{ this.type = "rst"; this.sym = $sym3; this.offset = -1; }
-		│ \( τRED sym::symbol \) 									↦c{ this.type = "red"; this.sym = $sym3; this.offset = -1; }
+		  \( τEXC sym::condition_symbol_list \) 					↦c{ this.IS_CONDITION = true; this.type = "exc"; this.sym = $sym3; this.offset = -1; }
+		│ \( τERR sym::condition_symbol_list \) 					↦c{ this.IS_CONDITION = true; this.type = "err"; this.sym = $sym3; this.offset = -1; }
+		│ \( τIGN sym::condition_symbol_list \) 					↦c{ this.IS_CONDITION = true; this.type = "ign"; this.sym = $sym3; this.offset = -1; }
+		│ \( τRST sym::condition_symbol_list \) 					↦c{ this.IS_CONDITION = true; this.type = "rst"; this.sym = $sym3; this.offset = -1; }
+		│ \( τRED sym::symbol \) 									↦c{ this.IS_CONDITION = true; this.type = "red"; this.sym = $sym3; this.offset = -1; }
 
