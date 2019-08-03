@@ -1,12 +1,13 @@
 {
   "name": "@candlefw/hydrocarbon",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Parser Compiler",
   "main": "source/hydrocarbon.mjs",
   "bin": {
     "hydrocarbon": "./console.js"
   },
   "scripts": {
+    "prepublish": "cp ./node_modules/@candlefw/whind/build/whind.js ./data",
     "test": "echo \"Error: no test specified\" && exit 1",
     "compile.grammar": "hydrocarbon compile --unattended -t mjs -o ./source/grammar/ ./source/grammar/hcg/hcg.hcg",
     "compile.grammar.test": "hydrocarbon compile -d --unattended -t mjs -o ./source/grammar/ ./source/grammar/hcg/hcg.hcg",
@@ -27,8 +28,8 @@
   },
   "homepage": "https://github.com/candlefw/hydrocarbon#readme",
   "dependencies": {
-    "@candlefw/js": "latest",
-    "@candlefw/whind": "latest",
+    "@candlefw/js": "^0.0.6",
+    "@candlefw/whind": "^0.3.5",
     "commander": "^2.19.0",
     "terser": "^3.11.0"
   },

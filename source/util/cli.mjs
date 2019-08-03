@@ -25,7 +25,7 @@ import util from "util";
 const
     fn_regex = /(file\:\/\/)(\/)*([A-Z]\:)*/g,
     Lexer_Path = path.join("/",
-        import.meta.url.replace(fn_regex, ""), "../../../node_modules/@candlefw/whind/build/whind.js"),
+        import.meta.url.replace(fn_regex, ""), "../../../data/whind.js"),
     LEXER_SCRIPT = `${fs.readFileSync(Lexer_Path)} const lexer = whind.default;`,
     fsp = fs.promises,
 
