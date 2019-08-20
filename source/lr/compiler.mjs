@@ -3,9 +3,9 @@ import { types as t, filloutGrammar } from "../util/common.mjs";
 
 import createSparseStateMaps from "./create_state_maps.mjs";
 
-import { verboseCompiler, compressedCompiler } from "./compiler_script.mjs";
+import { verboseCompiler } from "./compiler_script.mjs";
 
-import { types as js_types, null_literal, arrow_function_declaration, argument_list, member_expression, numeric_literal, identifier, parse as ecmascript_parse } from "@candlefw/js";
+import { types as js_types, arrow_function_declaration, parse as ecmascript_parse } from "@candlefw/js";
 
 export function LRParserCompiler(states, grammar, env) {
     //Build new env variables if they are missing 
@@ -29,9 +29,9 @@ export function LRParserCompiler(states, grammar, env) {
     for (let a in types)
         GEN_SYM_LU.set(a, (((n++) / 2) | 0) + 1);
 
+    GEN_SYM_LU.set("white_space_new_line", 12);
     GEN_SYM_LU.set("any", 13);
     GEN_SYM_LU.set("keyword", 14);
-
 
 
     //parse body function
@@ -70,7 +70,7 @@ export function LRParserCompiler(states, grammar, env) {
         }
     }
 
-    let default_error = `(tk,r,o,l,p)=>{if(l.END)l.throw("Unexpected end of input");else if(l.ty & (${types.ws | types.nl})) l.throw(\`Unexpected space character within input "\${p.slice(l)}" \`) ; else l.throw(\`Unexpected token \${l.tx}" \`)}`;
+    let default_error = `(tk,r,o,l,p)=>{if(l.END)l.throw("Unexpected end of input");else if(l.ty & (${types.ws | types.nl})) l.throw(\`Unexpected space character within input "\${p.slice(l)}" \`) ; else l.throw(\`Unexpected token [\${l.tx}]\`)}`;
 
     if (env.functions.defaultError)
         default_error = `(...d)=>fn.defaultError(...d)`;

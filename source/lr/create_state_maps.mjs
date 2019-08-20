@@ -87,16 +87,15 @@ export default function(grammar, states, env, functions, SYM_LU, types) {
                 s[0] = 0;
 
             else switch (state.symbol_type) {
+                case "generated":
+                    s[0] = SYM_LU.get(types[k]);
+                    break;
                 case "literal":
                 case "escaped":
                 default:
                     s[0] = SYM_LU.get(k);
                     break;
-                case "generated":
-                    //if (k == "any") {
-                    //    s[0] = SYM_LU.get(k);
-                    //} else
-                    s[0] = SYM_LU.get(types[k]);
+
             }
 
             return s;

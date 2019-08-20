@@ -15,10 +15,7 @@ export function shiftCollisionCheck(grammar, state, new_state, item, size, error
         body_a = bodies[item.body],
         k = body_a[item.offset],
         action = state.action.get(k);
-
-
-
-    //console.log("ASADASDASD")
+        
     if (action && action.state !== new_state.id) {
 
 

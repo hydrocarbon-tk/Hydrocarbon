@@ -118,7 +118,7 @@ async function writeFile(name, data = "", dir = process.env.PWD) {
                     }catch(e){}
 
                     let a = await fsp.writeFile(path.join(dir, name+".hcgb_"+increment), data, { encoding: "utf8", flags: "wx" })
-                    console.log({a})
+
                     break;
                 }catch(e){
                     console.error(e)

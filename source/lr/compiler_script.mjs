@@ -27,8 +27,6 @@ function parser(l, e = {}) {
         l.next();
     }
 
-    const recovery_chain = [];
-
     const o = [],
         ss = [0, 0];
 
@@ -145,10 +143,10 @@ function parser(l, e = {}) {
                     if (reduceStack.length > 0) {
                         let i = reduceStack.length - 1;
                         while (i > -1) {
-                            let item = reduceStack[i--];
+                            const item = reduceStack[i--];
 
                             if (item.index == sp) {
-                                item.action(output)
+                                item.action(output);
                             } else if (item.index > sp) {
                                 reduceStack.length--;
                             } else {
