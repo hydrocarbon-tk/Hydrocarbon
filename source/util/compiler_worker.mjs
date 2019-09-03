@@ -341,7 +341,6 @@ if (!isMainThread) {
             conflicts_generated = status.error.strings.length;
 
 
-
             parentPort.postMessage({
                 error: status.error,
                 conflicts_generated,

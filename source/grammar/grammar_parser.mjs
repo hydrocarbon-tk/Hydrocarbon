@@ -108,16 +108,11 @@ export async function grammarParser(grammar, FILE_URL, stamp = 112, meta_importe
                 }
             },
 
-            importData: function(sym, env, lex) {
+            importData: function(sym, env) {
                 const url = sym[3];
                 const id = sym[6];
 
-                const symbol = {
-                        type: "production",
-                        name: "",
-                        val: -1
-                    },
-
+                const 
                     //load data from the other file
                     uri = URL.resolveRelative(url, FILE_URL + ""),
 
@@ -206,14 +201,15 @@ export async function grammarParser(grammar, FILE_URL, stamp = 112, meta_importe
                 return { type: "import", id, url };
             },
 
-            body: function(sym, env, lex) {
+            body: function(sym, env, lex, form = (~(0xFFFFFFFFFFFFF << sym[0].body.length)) & 0xFFFFFF) {
 
                 //const c = lex.host_lex.copy();
                 
-                this.lex = lex;
                 const s = sym[0];
-                this.sym = s.body || [];
                 let bc = 0;
+
+                this.lex = lex;
+                this.sym = s.body || [];
                 this.sym_map = this.sym.map((e, i) =>(e.IS_CONDITION ? -1 : bc++  ));
                 this.length = 0;
                 this.excludes = new Map();
@@ -224,6 +220,7 @@ export async function grammarParser(grammar, FILE_URL, stamp = 112, meta_importe
                 this.functions = [];
                 this.reduce_function = s.reduce || null;
                 this.grammar_stamp = env.stamp;
+                this.form = form;
 
                 //Used to identifier the unique form of the body.
                 this.uid = this.sym.map(e => e.type == "production" ? e.name : e.val).join(":");
@@ -377,7 +374,7 @@ export async function grammarParser(grammar, FILE_URL, stamp = 112, meta_importe
                         //Set production entries for all production symbols in the bodies that are defined in this production.
                         production.bodies.forEach(body => body.sym.forEach((sym) => {
                             if (sym.type == "production" && !sym.IMPORTED) {
-                                sym.production = env.productions.LU.get(sym.name); //.filter(p=>p.name == sym.name)[0];
+                                sym.production = env.productions.LU.get(sym.name);
                             }
                         }));
 
@@ -400,6 +397,7 @@ export async function grammarParser(grammar, FILE_URL, stamp = 112, meta_importe
                 for (let i = 0; i < bodies.length; i++) {
                     const body = bodies[i];
                     const lex = body.lex;
+                    var form = body.form;
 
                     //First pass splits optionals, expands repeats, and handles lists
                     outer:
@@ -412,9 +410,11 @@ export async function grammarParser(grammar, FILE_URL, stamp = 112, meta_importe
                                 const sym_map = body.sym_map.slice();
 
                                 new_sym.splice(j, 1);
-                                sym_map.splice(j, 1);
+                                const s = sym_map.splice(j, 1)[0];
 
-                                const new_body = new env.functions.body([{ body: new_sym, reduce: body.reduce_function }], env, lex);
+                                console.log(s,form, form ^ (1<<s), new_sym.length)
+
+                                const new_body = new env.functions.body([{ body: new_sym, reduce: body.reduce_function }], env, lex, form ^ (1<<s));
 
                                 new_body.lex = lex;
                                 new_body.sym_map = sym_map;

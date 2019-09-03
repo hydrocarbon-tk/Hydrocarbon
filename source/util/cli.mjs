@@ -84,6 +84,9 @@ async function write(name, parser_script, output_directory, type) {
     let filename = name;
 
     switch (type) {
+        case "cpp":
+            filename += ".cpp";
+            break;
         case "mjs":
             filename += ".mjs";
             break;
@@ -97,37 +100,47 @@ async function write(name, parser_script, output_directory, type) {
             break;
     }
 
-    await writeFile(filename, parser_script, output_directory);
+    await writeFile(filename, parser_script, output_directory, type);
 }
 
-async function writeFile(name, data = "", dir = process.env.PWD) {
+async function writeFile(name, data = "", dir = process.env.PWD, type) {
 
     try {
         if (!fs.existsSync(dir))
             fs.mkdirSync(dir);
 
         //Save existing file as a backup file if it exists
-        try{
+        try {
             const data = await fsp.readFile(path.join(dir, name))
             let increment = 0;
-            
-            while(1){
-                try{
-                    try{
-                        while(await fsp.readFile(path.join(dir, name+".hcgb_"+increment))){increment++}
-                    }catch(e){}
 
-                    let a = await fsp.writeFile(path.join(dir, name+".hcgb_"+increment), data, { encoding: "utf8", flags: "wx" })
+            while (1) {
+                try {
+                    try {
+                        while (await fsp.readFile(path.join(dir, name + ".hcgb_" + increment))) { increment++ }
+                    } catch (e) {}
+
+                    let a = await fsp.writeFile(path.join(dir, name + ".hcgb_" + increment), data, { encoding: "utf8", flags: "wx" })
 
                     break;
-                }catch(e){
+                } catch (e) {
                     console.error(e)
                     increment++;
                 }
             }
 
-        }catch(e){}
+        } catch (e) {}
+
         let file = await fsp.writeFile(path.join(dir, name), data, { encoding: "utf8", flags: "w+" })
+
+        //Copy C++ files into same directory
+        if (type == "cpp") {
+            const tokenizer = await fsp.readFile(path.join("/",import.meta.url.replace(fn_regex, ""), "../cpp/tokenizer.h"), "utf8");
+            const parser = await fsp.readFile(path.join("/",import.meta.url.replace(fn_regex, ""), "../cpp/parser.h"), "utf8");
+            await fsp.writeFile(path.join(dir, "tokenizer.h"), tokenizer, { encoding: "utf8", flags: "w+" })
+            await fsp.writeFile(path.join(dir, "parser.h"), parser, { encoding: "utf8", flags: "w+" })
+        }
+
         console.log(ADD_COLOR(`The file ${name} has been successfully written to ${dir}.`, COLOR_SUCCESS), "\n");
     } catch (err) {
         console.log(ADD_COLOR(`Filed to write ${name} to {${dir}}`, COLOR_ERROR), "\n");
@@ -138,10 +151,13 @@ async function writeFile(name, data = "", dir = process.env.PWD) {
 
 function createScript(name, parser, type, env, compress = false) {
 
-    if (env.options && env.options.integrate)
+    if (env.options && env.options.integrate && type !== "cpp")
         parser = hc.StandAloneParserCompiler(parser, LEXER_SCRIPT, env);
 
     switch (type) {
+        case "cpp":
+            parser = `${parser}`;
+            break;
         case "mjs":
         case "mjs.js":
             parser = `${parser}; export default parser;`;
@@ -155,9 +171,7 @@ function createScript(name, parser, type, env, compress = false) {
             break;
     }
 
-
-
-    if (compress)
+    if (compress && type !== "cpp")
         return terser.default.minify(parser).code;
 
     return parser;
@@ -166,7 +180,7 @@ function createScript(name, parser, type, env, compress = false) {
 /* *************** HCG GRAMMAR DATA *********************/
 
 async function parseGrammar(grammar_string, PATH) {
-     return await hc.grammarParser(grammar_string, PATH);
+    return await hc.grammarParser(grammar_string, PATH);
 }
 
 /* *************** LR GRAMMARS ********************/
@@ -181,6 +195,10 @@ function parseLRJSONStates(states_string) {
 
 async function compileLRStates(grammar, env_path, name, unattended) {
     return await runner(grammar, env_path, name, unattended);
+}
+
+function buildLRCompilerScriptCPP(states, parsed_grammar, env) {
+    return hc.LRParserCompilerCPP(states, parsed_grammar, env);
 }
 
 function buildLRCompilerScript(states, parsed_grammar, env) {
@@ -209,11 +227,11 @@ async function mount(name, input, env, states, grammar) {
 
     let d = await new Promise(res => {
         let parser;
-        try{
+        try {
             parser = ((Function(input + "; return parser"))());
-        }catch(e){
-            console.dir(e, {depth:null})
-            return 
+        } catch (e) {
+            console.dir(e, { depth: null })
+            return
         }
 
         const r1 = readline.createInterface({
@@ -253,7 +271,7 @@ async function mount(name, input, env, states, grammar) {
                     if (env.options && env.options.integrate)
                         parse = parser(data.join("\n"));
                     else
-                        console.dir(parser(whind(data.join("\n"), true), env), {depth:null});
+                        console.dir(parser(whind(data.join("\n"), true), env), { depth: null });
                 } catch (e) {
                     console.error(e);
                 }
@@ -366,6 +384,7 @@ program
     .option("-n, --name <output_name>", "The name to give to the output file. Defaults to the name of the grammar file.")
     .option("-d, --noout", "Do note write to file.")
     .option("-c, --compress", "Minify output file.")
+    .option("--cpp", "Create C++ output")
     .option("-u, --unattended", "Do not wait for user input. Exit to console when compilation is complete. Quit on any error.")
     .option("-t, --type <type>", `
             Type of file to output.The type can be:
@@ -382,18 +401,20 @@ program
             grammar_path = path.resolve(hc_grammar),
             env_path = cmd.env ? path.resolve(cmd.env) : "",
             name = cmd.output_name ? cmd.output_name : path.basename(grammar_path, path.extname(grammar_path)),
-            type = cmd.type ? cmd.type : "js",
             output_directory = cmd.output ? path.resolve(cmd.output) : process.cwd(),
             unattended = !!cmd.unattended,
             parser = cmd.parser || "lalr1",
+            CPP = !!cmd.cpp,
             COMPRESS = !!cmd.compress;
+        let
+            type = cmd.type ? cmd.type : "js";
         try {
 
             const { grammar_string, states_string, env } = await loadFiles(grammar_path, env_path, states_path, unattended);
 
             const grammar = await parseGrammar(grammar_string, new URL(grammar_path))
 
-            if(!grammar){
+            if (!grammar) {
                 console.error(`Failed to compile grammar ${grammar.name}. Exiting`);
                 process.exit(1);
             }
@@ -420,7 +441,11 @@ program
                         (console.error(`Failed to compile grammar ${grammar.name}. Exiting`), undefined);
                         process.exit(1)
                     }
-                    script_string = buildLRCompilerScript(states, grammar, env);
+                    if (CPP || type == "cpp") {
+                        type = "cpp";
+                        script_string = buildLRCompilerScriptCPP(states, grammar, env);
+                    } else
+                        script_string = buildLRCompilerScript(states, grammar, env);
                     break;
                 case "earley":
                     const items = createEarleyItems(grammar, env);

@@ -1351,21 +1351,16 @@ function parser(l, e = {}) {
         l.tl = 0;
         l.next();
     }
-
-    const recovery_chain = [];
-
     const o = [],
         ss = [0, 0];
 
     let time = 1000000,
         RECOVERING = 100,
-        RESTARTED = true,
         tk = getToken(l, lu),
         p = l.copy(),
         sp = 1,
         len = 0,
         reduceStack = (e.reduceStack = []),
-        ROOT = 10000,
         off = 0;
 
     outer:
@@ -1456,7 +1451,7 @@ function parser(l, e = {}) {
 
                 case 3:
                     /* REDUCE */
-                    RESTARTED = true;
+                    // /RESTARTED = true;
 
                     len = (r & 0x3FC) >> 1;
 
