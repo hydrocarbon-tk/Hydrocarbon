@@ -79,10 +79,11 @@ namespace ${"HC_TEMP"}{
         }
     }
 
-    void reduceToValue(Token& tk, int& output_offset, void ** output, int plen, Action action, unsigned bitfield){
+    template<class Alloc>
+    void reduceToValue(Token& tk, int& output_offset, void ** output, int plen, Action action, unsigned bitfield, void * allocator){
         auto ln = max(output_offset - plen + 1, 0);
         output_offset = ln;
-        output[ln] = (* action)(tk, plen, bitfield,  ln, output);
+        output[ln] = (* action)(tk, plen, bitfield,  ln, output, *(Alloc *)allocator);
 
         cout << "output: " <<(long long) output[ln] << endl;
     }
@@ -117,6 +118,7 @@ namespace ${"HC_TEMP"}{
     /************ Functions *************/
     //Error Functions
     ErrorAction error_actions[]{${renderErrorHandlers(error_handlers, true)}};
-    int (* const state_actions[${state_action_functions.length}])(Token&, int&, void **){${renderStateActionFunctions(state_action_functions, true)}};
+    
+    int (* const state_actions[${state_action_functions.length}])(Token&, int&, void **, void*){${renderStateActionFunctions(state_action_functions, true)}};
 }`);
 }

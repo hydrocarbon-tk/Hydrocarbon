@@ -1,7 +1,7 @@
 //Root State Functions
 
 function setNode(funct, length, functions, id, form) {
-    return { id:id+""+form, str: `reduceToValue(tk,output_offset,output,${length},&HC_NODES::${funct.name}, ${form})` };
+    return { id:id+""+form, str: `reduceToValue<Allocator>(tk,output_offset,output,${length},&HC_NODES::${funct.name}<Allocator>, ${form}, alloc)` };
 }
 
 export default function(grammar, states, env, functions, SYM_LU, types) {
@@ -135,7 +135,7 @@ export default function(grammar, states, env, functions, SYM_LU, types) {
                     fn = state_functions_map.get(st_fn_id);
 
                     if (!fn) {
-                        fn = state_str_functions.push(`[](Token& tk, int& output_offset, void ** output)->int{${ funct.join(";") + ";"                            } return ${return_value};}`);
+                        fn = state_str_functions.push(`[](Token& tk, int& output_offset, void ** output, void * alloc)->int{${ funct.join(";") + ";"                            } return ${return_value};}`);
                         state_functions_map.set(st_fn_id, fn);
                     }
 
