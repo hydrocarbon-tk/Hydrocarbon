@@ -81,29 +81,29 @@ async function loadFiles(grammar_path, env_path = "", states_path = "", quiet = 
 }
 
 async function write(name, parser_script, output_directory, type) {
-    let filename = name;
+    let ext = "";
 
     switch (type) {
         case "cpp":
-            filename += ".cpp";
+            ext = ".h";
             break;
         case "mjs":
-            filename += ".mjs";
+            ext = ".mjs";
             break;
         case "cjs":
-            filename += "_cjs.js";
+            ext = "_cjs.js";
             break;
         default:
         case "js":
         case "mjs.js":
-            filename += ".js";
+            ext = ".js";
             break;
     }
 
-    await writeFile(filename, parser_script, output_directory, type);
+    await writeFile(name, ext, parser_script, output_directory, type);
 }
 
-async function writeFile(name, data = "", dir = process.env.PWD, type) {
+async function writeFile(name, ext, data = "", dir = process.env.PWD, type) {
 
     try {
         if (!fs.existsSync(dir))
@@ -131,14 +131,23 @@ async function writeFile(name, data = "", dir = process.env.PWD, type) {
 
         } catch (e) {}
 
-        let file = await fsp.writeFile(path.join(dir, name), data, { encoding: "utf8", flags: "w+" })
+        let file = "";
 
-        //Copy C++ files into same directory
         if (type == "cpp") {
+            //Split C++ string into header and definition
+
+            const [header, definition] = data.split("/--Split--/");
+
+            await fsp.writeFile(path.join(dir, name + ".h"), header, { encoding: "utf8", flags: "w+" })
+            await fsp.writeFile(path.join(dir, name + ".cpp"), `#include "./${name}.h" \n ${definition}`, { encoding: "utf8", flags: "w+" })
+
+            //Copy C++ files into same directory
             const tokenizer = await fsp.readFile(path.join("/",import.meta.url.replace(fn_regex, ""), "../cpp/tokenizer.h"), "utf8");
             const parser = await fsp.readFile(path.join("/",import.meta.url.replace(fn_regex, ""), "../cpp/parser.h"), "utf8");
             await fsp.writeFile(path.join(dir, "tokenizer.h"), tokenizer, { encoding: "utf8", flags: "w+" })
             await fsp.writeFile(path.join(dir, "parser.h"), parser, { encoding: "utf8", flags: "w+" })
+        }else{
+            file = await fsp.writeFile(path.join(dir, name+ext), data, { encoding: "utf8", flags: "w+" })
         }
 
         console.log(ADD_COLOR(`The file ${name} has been successfully written to ${dir}.`, COLOR_SUCCESS), "\n");

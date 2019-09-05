@@ -51,25 +51,24 @@ export function Compiler(
     goto_pointers,
     GEN_SYM_LU,
     symbols) {
+
+const namespace = "HC_TEMP";
+
     return (
 `
-#include <map>
+#pragma once
 #include <unordered_map>
 #include <algorithm>
 #include <cstring>
 #include "./tokenizer.h"
-#include "./parser.h"
-#include "./nodes.h"
 
-namespace ${"HC_TEMP"}{
+namespace ${namespace}{
     using namespace std;
-    using namespace HC_NODES;
 
     typedef HC_Tokenizer::Token Token;
     typedef unordered_map<wstring, unsigned> SymbolLookup;
     typedef int(*StateAction)(Token&, unsigned, void **);
     typedef int(*ErrorAction)(Token&, unsigned, void **);
-    typedef void * (* Action)(Token&, unsigned, unsigned, int, void **);
 
     void reduceToNull(int plen, int& output_offset, void ** output){
         if (plen > 0) {
@@ -79,46 +78,69 @@ namespace ${"HC_TEMP"}{
         }
     }
 
-    template<class Alloc>
-    void reduceToValue(Token& tk, int& output_offset, void ** output, int plen, Action action, unsigned bitfield, void * allocator){
-        auto ln = max(output_offset - plen + 1, 0);
-        output_offset = ln;
-        output[ln] = (* action)(tk, plen, bitfield,  ln, output, *(Alloc *)allocator);
-
-        cout << "output: " <<(long long) output[ln] << endl;
-    }
-
-    int e(Token& tk, unsigned output_offset, void ** output){
+    int e(Token& tk, unsigned output_offset, void ** output) {
         return -1;
     }
 
-    int emptyFunction(Token& tk, unsigned output_offset, void ** output){
+    int emptyFunction(Token& tk, unsigned output_offset, void ** output) {
         return -1;
     }
 
     /************** Maps **************/
-    int
+    const int
         ${renderGotoMap(goto_maps)},
         ${renderStateMaps(state_maps)}
     ;
 
-    int 
-        // State Lookup
-        * state_lookup[]{${renderStatePointers(state_pointers)}},
-        //Goto Lookup
-        * goto_lookup[]{${renderGotoPointers(goto_pointers)}}
-    ;
+    template <class Allocator, class NodeFunctions>
+    struct Data {
 
-    // Symbol Lookup map
-    SymbolLookup symbol_lu{${renderSymbolLookUp(SYM_LU, true)}};
+        typedef void * (* Action)(Token&, unsigned, unsigned, int, void **, Allocator *);
 
-    //Lexer Symbol Array
-    wstring tk_symbols[${symbols.length}]{${symbols.map(s=>"L"+JSON.stringify(s)).join(",")}};
+    private:
+        static void reduceToValue(Token& tk, int& output_offset, void ** output, int plen, Action action, unsigned bitfield, void * allocator) {
+            auto ln = max(output_offset - plen + 1, 0);
+            output_offset = ln;
+            output[ln] = (* action)(tk, plen, bitfield,  ln, output, (Allocator *)allocator);
+        }
+    public:
+        
+        static const int * state_lookup[];
+        static const int * goto_lookup[];
+        // Symbol Lookup map
+        static const SymbolLookup symbol_lu;
+        //Lexer Symbol Array
+        static const wstring tk_symbols[];
 
-    /************ Functions *************/
-    //Error Functions
-    ErrorAction error_actions[]{${renderErrorHandlers(error_handlers, true)}};
-    
-    int (* const state_actions[${state_action_functions.length}])(Token&, int&, void **, void*){${renderStateActionFunctions(state_action_functions, true)}};
-}`);
+        /************ Functions *************/
+        //Error Functions
+        static const ErrorAction error_actions[];
+
+        static int (* const state_actions[])(Token&, int&, void **, void*);
+    };
+}
+
+/--Split--/
+
+using namespace ${namespace};
+
+ template <class Allocator, class NodeFunctions>
+const ErrorAction Data<Allocator, NodeFunctions>::error_actions[] = {${renderErrorHandlers(error_handlers, true)}};
+
+ template <class Allocator, class NodeFunctions>
+const int * Data<Allocator, NodeFunctions>::goto_lookup[] = {${renderGotoPointers(goto_pointers)}};
+
+ template <class Allocator, class NodeFunctions>
+const int * Data<Allocator, NodeFunctions>::state_lookup[] = {${renderStatePointers(state_pointers)}};
+
+ template <class Allocator, class NodeFunctions>
+const wstring Data<Allocator, NodeFunctions>::tk_symbols[] = {${symbols.map(s=>"L"+JSON.stringify(s)).join(",")}};
+
+ template <class Allocator, class NodeFunctions>
+const SymbolLookup Data<Allocator, NodeFunctions>::symbol_lu = {${renderSymbolLookUp(SYM_LU, true)}};
+
+template <class Allocator, class NodeFunctions>
+int (* const Data<Allocator, NodeFunctions>::state_actions[])(Token&, int&, void **, void*) = {${renderStateActionFunctions(state_action_functions, true)}};
+
+`);
 }
