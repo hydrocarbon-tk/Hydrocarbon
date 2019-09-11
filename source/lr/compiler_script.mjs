@@ -32,6 +32,7 @@ function parser(l, e = {}) {
 
     let time = 1000000,
         RECOVERING = 100,
+        RESTARTED = true,
         tk = getToken(l, lu),
         p = l.copy(),
         sp = 1,
@@ -119,7 +120,7 @@ function parser(l, e = {}) {
                     /*SHIFT */
                     o.push(l.tx);
                     ss.push(off, r >> 2);
-               
+                    sp += 2;
                     l.next();
                     off = l.off;
                     tk = getToken(l, lu);
@@ -159,7 +160,6 @@ function parser(l, e = {}) {
                     break;
             }
         }
-        
     return o[0];
 }
 

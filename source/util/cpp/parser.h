@@ -1,338 +1,232 @@
 #pragma once
+
 #include  "./tokenizer.h"
+#include  "./parse_buffer.h"
 #include <stdlib.h>
+#include <unordered_map>
 
-enum class ParseErrorCode : int
+namespace HC_Parser
 {
-	InvalidToken,
-	ErrorStateReached,
-	InvalidGotoState,
-	UnexpectedEndOfOutput,
-	CannotAllocateBuffer,
-	CannotAllocateSpace
-};
+	using std::unordered_map;
+	using std::wostream;
+	using std::wstring;
+	using std::endl;
+	using std::wcout;
+	using std::cout;
 
-/*
-	Provides a buffer to hold output data from parser.
-	Allows the instantaneous freeing of all parse result data
-	provided that all objects were allocated through this mechanism.
-*/
-template <class T>
-class ParseBuffer {
-private:
-	char * watch = nullptr;
-	char * buffer = nullptr;
-	T * root_object = nullptr;
+	using HC_Tokenizer::Token;
+	using HC_Tokenizer::TYPE;
 
-	unsigned allocation_pointer = 0;
-	unsigned size = 0;
-public:
+	typedef unordered_map<wstring, unsigned> SymbolLookup;
+	typedef int(*StateAction)(Token&, int&, void **, void *);
+	typedef int(*ErrorAction)(Token&, unsigned, void **);
+	typedef void * (* Action)(Token&, unsigned, int, void **, void *);
 
-	ParseBuffer(size_t s) : size(s) {
-
-		watch = new char(1);
-
-		if (size == 0)
-			buffer = nullptr;
-		else
-			buffer = (char *)malloc(size);
-
-		if (!buffer)
-			throw ParseErrorCode::CannotAllocateBuffer;
-	}
-
-	ParseBuffer(ParseBuffer& b) {
-		watch = b.watch;
-		buffer = b.buffer;
-		root_object = b.root_object;
-		allocation_pointer = b.allocation_pointer;
-		size = b.size;
-
-		(*watch)++;
-	}
-
-	~ParseBuffer() {
-
-		(*watch)--;
-
-		if (*watch <= 0) {
-			delete watch;
-			free(buffer);
-		}
+	enum class TOKEN_STATE
+	{
+	    NUMBER = 1,
+	    IDENTIFIER = 2,
+	    STRING = 3,
+	    WHITE_SPACE = 4,
+	    SYMBOL = 8,
+	    NEW_LINE = 9,
+	    DATA_LINK = 10,
+	    ANY = 13,
+	    KEYWORD = 14
 	};
 
-	void * alloc(size_t s) {
-		if (allocation_pointer + s < size) {
-			unsigned temp = allocation_pointer;
-			allocation_pointer += s;
-			return (buffer + temp);
-		}
-		else
-			return nullptr;
-	}
+	int getLookUpValue(wstring str, const SymbolLookup& sym_lu);
 
-	void dealloc(void * ptr) noexcept {
-		//Only deallocate if the ptr + size is equal to the allocation_pointer + buffer
-		//if(ptr+size == buffer + allocation_pointer)
-		//	allocation_pointer -= size;
-	}
+	int getToken(Token& tk, const SymbolLookup& sym_lu);
 
-	T& getRootObject() {
-		return * root_object;
-	}
+	template <class Allocator>
+	void parseRunner(
+	    Allocator* buffer,
+	    Token& tk,
+	    const SymbolLookup& sym_lu,
+	    const int * state_table[],
+	    const int * goto_lu[],
+	    const StateAction * state_actions,
+	    const ErrorAction * error_actions
+	)
+	{
 
-	void setRootObject(void * ptr) {
-		root_object = (T*) ptr;
-	}
-};
+		void * output[100];
 
+		unsigned active_states[100];
 
-template <class T>
-inline void * operator new(size_t s, ParseBuffer<T>& buffer) {
-
-	return buffer.alloc(s);
-}
-
-template <class T>
-void operator delete(void * ptr, ParseBuffer<T>& buffer) {
-	buffer.dealloc(ptr);
-}
-
-namespace HC_Parser {
-
-using HC_Tokenizer::Token;
-using HC_Tokenizer::TYPE;
-
-typedef unordered_map<wstring, unsigned> SymbolLookup;
-typedef int(*StateAction)(Token&, int&, void **, void *);
-typedef int(*ErrorAction)(Token&, unsigned, void **);
-typedef void * (* Action)(Token&, unsigned, int, void **, void *);
-
-enum class TOKEN_STATE {
-	NUMBER = 1,
-	IDENTIFIER = 2,
-	STRING = 3,
-	WHITE_SPACE = 4,
-	SYMBOL = 8,
-	NEW_LINE = 9,
-	DATA_LINK = 10,
-	ANY = 13,
-	KEYWORD = 14
-};
-
-int getLookUpValue(wstring str, const SymbolLookup& sym_lu) {
-
-	auto got = sym_lu.find(str);
-
-	if (got != sym_lu.end())
-		return got->second;
-
-	return -1;
-};
-
-int getToken(Token& tk, const SymbolLookup& sym_lu) {
-
-	if (tk.END) return 0;
-
-	switch (tk.type) {
-	case TYPE::IDENTIFIER: {
-
-		auto got = sym_lu.find(tk.text());
-
-		if (got != sym_lu.end())
-			return 14;
-
-		return (int)TOKEN_STATE::IDENTIFIER;
-	}
-	case TYPE::NUMBER: {
-		return (int)TOKEN_STATE::NUMBER;
-	}
-	case TYPE::STRING: {
-		return (int)TOKEN_STATE::STRING;
-	}
-	case TYPE::NEW_LINE: {
-		return (int)TOKEN_STATE::NEW_LINE;
-	}
-	case TYPE::WHITE_SPACE: {
-		return  (int)TOKEN_STATE::WHITE_SPACE;
-	}
-	case TYPE::DATA_LINK: {
-		return (int)TOKEN_STATE::DATA_LINK;
-	}
-	default: {
-		auto v = getLookUpValue(tk.text(), sym_lu);
-
-		if (v > -1)
-			return v;
-
-		return getLookUpValue(wstring(1, (wchar_t) (0xF00000 | (unsigned) tk.type)), sym_lu);
-	}
-	}
-};
-
-
-template <class Allocator>
-void parseRunner(
-    Allocator* buffer,
-    Token& tk,
-    const SymbolLookup& sym_lu,
-    const int * state_table[],
-    const int * goto_lu[],
-    const StateAction * state_actions,
-    const ErrorAction * error_actions
-)
-{
-
-	void * output[100];
-
-	unsigned active_states[100];
-
-	output[0] = nullptr;
-
-	active_states[0] = 0;
-	active_states[1] = 0;
-
-	int
-		state_pointer = 1,
+		int
+		state_pointer = 0,
 		token_index = getToken(tk, sym_lu),
 		action = 0,
 		offset = 0,
 		output_offset = 0,
 		RECOVERING = 100,
+		index  = 0;
 
-	index  = 0;
+		output[0] = nullptr;
 
-	while (index++ < 10000) {
+		active_states[0] = 0;
 
-		if (token_index < 0) throw ParseErrorCode::InvalidToken;
+		while (index++ < 10000) {
 
+			if (state_pointer >= 100) throw ParseErrorCode::MaxStatePointerReached;
 
-		int state = state_table[active_states[state_pointer]][token_index];
+			if (token_index < 0) throw ParseErrorCode::InvalidToken;
 
+			int state = state_table[active_states[state_pointer]][token_index];
 
-		if (state == 0) {
-			tk.next();
-			token_index = getToken(tk, sym_lu);
-			continue;
-		} else if (state > 0) {
-			action = (state_actions[state - 1])(tk, output_offset, output, buffer);
-		} else {
-			//Error Recovery
-			if (token_index == (int)TOKEN_STATE::KEYWORD) {
-				token_index = getLookUpValue(tk.text(), sym_lu);
+			if (state == 0) {
+				tk.next();
+				token_index = getToken(tk, sym_lu);
 				continue;
-			}
-
-			if (tk.type == TYPE::SYMBOL && tk.length > 1) {
-				tk.length = 0;
-				tk.next(&tk, false);
-				if (tk.length == 1)
-					continue;
-			}
-
-			if (RECOVERING > 1 && !tk.END) {
-				if (token_index != getLookUpValue(wstring(1, (wchar_t) (0xF00000 | (unsigned) tk.type)), sym_lu)) {
-					token_index = getLookUpValue(wstring(1, (wchar_t) (0xF00000 | (unsigned) tk.type)), sym_lu);
+			} else if (state > 0) {
+				action = (state_actions[state - 1])(tk, output_offset, output, buffer);
+			} else {
+				//Error Recovery
+				if (token_index == (int)TOKEN_STATE::KEYWORD) {
+					token_index = getLookUpValue(tk.text(), sym_lu);
 					continue;
 				}
 
-				if (token_index != (int)TOKEN_STATE::ANY) {
-					token_index = (int)TOKEN_STATE::ANY;
-					RECOVERING = 1;
+				if (tk.type == TYPE::SYMBOL && tk.length > 1) {
+					tk.length = 0;
+					tk.next(&tk, false);
+					if (tk.length == 1)
+						continue;
+				}
+
+				if (RECOVERING > 1 && !tk.END) {
+					if (token_index != getLookUpValue(wstring(1, (wchar_t) (0xF00000 | (unsigned) tk.type)), sym_lu)) {
+						token_index = getLookUpValue(wstring(1, (wchar_t) (0xF00000 | (unsigned) tk.type)), sym_lu);
+						continue;
+					}
+
+					if (token_index != (int)TOKEN_STATE::ANY) {
+						token_index = (int)TOKEN_STATE::ANY;
+						RECOVERING = 1;
+						continue;
+					}
+				}
+
+				token_index = getToken(tk, sym_lu);
+
+				int recovery_token = -1;
+
+				if (RECOVERING > 0 && recovery_token >= 0) {
+					RECOVERING = -1;
+					token_index = recovery_token;
+					tk.length = 0;
 					continue;
 				}
+
+				throw 104;
 			}
 
-			token_index = getToken(tk, sym_lu);
+			switch (action & 3) {
+				case 0:
 
-			int recovery_token = -1;
+					throw ParseErrorCode::ErrorStateReached;
+					break;
+				case 1: //ACCEPT
 
-			if (RECOVERING > 0 && recovery_token >= 0) {
-				RECOVERING = -1;
-				token_index = recovery_token;
-				tk.length = 0;
-				continue;
+					goto complete;
+				case 2: //SHIFT
+
+					output_offset++;
+
+					output[output_offset] = (void *)(unsigned long long) offset;
+
+					state_pointer++;
+
+					active_states[state_pointer] = action >> 2;
+
+					tk.next();
+
+					offset = tk.offset;
+
+					token_index = getToken(tk, sym_lu);
+
+					RECOVERING++;
+
+					break;
+				case 3: //REDUCE
+					state_pointer -= (action & 0x3FC) >> 2;
+
+					int goto_state = goto_lu[active_states[state_pointer]][(action >> 10)];
+
+					if (goto_state < 0)
+						throw ParseErrorCode::InvalidGotoState;
+
+					state_pointer++;
+
+					active_states[state_pointer] = goto_state;
+
+					break;
 			}
-
-			throw 104;
 		}
 
-		switch (action & 3) {
-		case 0:
-			throw ParseErrorCode::ErrorStateReached;
-			break;
-		case 1: //ACCEPT
-			goto complete;
-		case 2: //SHIFT
-			output_offset++;
-			output[output_offset] = (void *)(unsigned long long) offset;
-			state_pointer += 2;
-			active_states[state_pointer - 1] = offset;
-			active_states[state_pointer] = action >> 2;
-			tk.next();
-			offset = tk.offset;
-			token_index = getToken(tk, sym_lu);
-			RECOVERING++;
-			break;
-		case 3: //REDUCE
-			state_pointer -= (action & 0x3FC) >> 1;
-
-			int goto_state = goto_lu[active_states[state_pointer]][(action >> 10)];
-
-			if (goto_state < 0)
-				throw ParseErrorCode::InvalidGotoState;
-
-			state_pointer += 2;
-
-			active_states[state_pointer] = goto_state;
-
-			break;
-		}
-	}
-
-	if (tk.END)
-		throw ParseErrorCode::UnexpectedEndOfOutput;
+		if (tk.END)
+			throw ParseErrorCode::UnexpectedEndOfOutput;
 
 complete:
-	buffer->setRootObject(output[1]);
+		buffer->setRootObject(output[1]);
 
-	return;
-};
+		return;
+	};
 
-/**
-	Sets up buffer and runs checks before running the parser.
-	Handles parser exceptions. Deconstructs buffer and isses a
-	void buffer if necessary.
-**/
-template <class Allocator, class Data>
-Allocator parse(
-    Token& tk
-) {
-	try {
 
-		Allocator buffer(8192);
+	/**
+		Sets up buffer and runs checks before running the parser.
+		Handles parser exceptions. Deconstructs buffer and isses a
+		void buffer if necessary.
+	**/
+	template <class Allocator, class Data>
+	Allocator parse(
+	    Token& tk,
+	    wostream& os = std::wcout
+	)
+	{
 
-		parseRunner<Allocator>(&buffer, tk, Data::symbol_lu, Data::state_lookup, Data::goto_lookup, Data::state_actions, Data::error_actions);
+		tk.IGNORE_WHITE_SPACE = false;
 
-		return buffer;
+		tk.reset();
 
-	} catch (ParseErrorCode error_code) {
-		switch (error_code) {
-		case ParseErrorCode::InvalidToken:
-			break;
-		case ParseErrorCode::ErrorStateReached:
-			break;
-		case ParseErrorCode::InvalidGotoState:
-			break;
-		case ParseErrorCode::UnexpectedEndOfOutput:
-			break;
-		case ParseErrorCode::CannotAllocateBuffer:
-			break;
-		case ParseErrorCode::CannotAllocateSpace:
-			break;
+		try {
+
+			Allocator buffer(8192);
+
+			parseRunner<Allocator>(&buffer, tk, Data::symbol_lu, Data::state_lookup, Data::goto_lookup, Data::state_actions, Data::error_actions);
+
+			return buffer;
+
+		} catch (ParseErrorCode error_code) {
+			switch (error_code) {
+
+				case ParseErrorCode::InvalidToken:
+					os << "Parse error: " << (unsigned) ParseErrorCode::InvalidToken << endl;
+					break;
+				case ParseErrorCode::ErrorStateReached:
+					os << "Parse error: " << (unsigned) ParseErrorCode::ErrorStateReached << endl;
+					break;
+				case ParseErrorCode::InvalidGotoState:
+					os << "Parse error: " << (unsigned) ParseErrorCode::InvalidGotoState << endl;
+					break;
+				case ParseErrorCode::UnexpectedEndOfOutput:
+					os << "Parse error: " << (unsigned) ParseErrorCode::UnexpectedEndOfOutput << endl;
+					break;
+				case ParseErrorCode::CannotAllocateBuffer:
+					os << "Parse error: " << (unsigned) ParseErrorCode::CannotAllocateBuffer << endl;
+					break;
+				case ParseErrorCode::CannotAllocateSpace:
+					os << "Parse error: " << (unsigned) ParseErrorCode::CannotAllocateSpace << endl;
+					break;
+				case ParseErrorCode::MaxStatePointerReached:
+					os << "Parse error: " << (unsigned) ParseErrorCode::MaxStatePointerReached << endl;
+					break;
+			}
 		}
-	}
 
-	return Allocator(0);
-}
+		return Allocator(0);
+	}
 }

@@ -144,7 +144,11 @@ async function writeFile(name, ext, data = "", dir = process.env.PWD, type) {
             //Copy C++ files into same directory
             const tokenizer = await fsp.readFile(path.join("/",import.meta.url.replace(fn_regex, ""), "../cpp/tokenizer.h"), "utf8");
             const parser = await fsp.readFile(path.join("/",import.meta.url.replace(fn_regex, ""), "../cpp/parser.h"), "utf8");
+            const parser_cpp = await fsp.readFile(path.join("/",import.meta.url.replace(fn_regex, ""), "../cpp/parser.cpp"), "utf8");
+            const parse_buffer = await fsp.readFile(path.join("/",import.meta.url.replace(fn_regex, ""), "../cpp/parse_buffer.h"), "utf8");
             await fsp.writeFile(path.join(dir, "tokenizer.h"), tokenizer, { encoding: "utf8", flags: "w+" })
+            await fsp.writeFile(path.join(dir, "parse_buffer.h"), parse_buffer, { encoding: "utf8", flags: "w+" })
+            await fsp.writeFile(path.join(dir, "parser.cpp"), parser_cpp, { encoding: "utf8", flags: "w+" })
             await fsp.writeFile(path.join(dir, "parser.h"), parser, { encoding: "utf8", flags: "w+" })
         }else{
             file = await fsp.writeFile(path.join(dir, name+ext), data, { encoding: "utf8", flags: "w+" })

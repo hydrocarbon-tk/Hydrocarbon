@@ -1,31 +1,35 @@
 #pragma once
 #include <iostream>
 #include <cstring>
-#include <map>
 #include <unordered_map>
 
-using namespace std;
+namespace HC_Tokenizer
+{
+	using std::wstring;
+	using std::unordered_map;
+	using std::wostream;
+	using std::cout;
+	using std::endl;
 
-namespace HC_Tokenizer{
-
-	class SymbolMap : public unordered_map<wchar_t, void *>{
-		public:
-			bool IS_SYM = false;
+	class SymbolMap : public unordered_map<wchar_t, void *>
+	{
+	public:
+		bool IS_SYM = false;
 	};
 
 	enum JUMP_TYPE : char {
-		NUMBER, 
-		IDENTIFIER,
-		STRING, 
-		SPACE, 
-		TAB,
-		CARRIAGE_RETURN,
-		LINEFEED,
-		SYMBOL,
-		OPERATOR,
-		OPEN_BRACKET,
-		CLOSE_BRACKET,
-		DATA_LINK
+	    NUMBER,
+	    IDENTIFIER,
+	    STRING,
+	    SPACE,
+	    TAB,
+	    CARRIAGE_RETURN,
+	    LINEFEED,
+	    SYMBOL,
+	    OPERATOR,
+	    OPEN_BRACKET,
+	    CLOSE_BRACKET,
+	    DATA_LINK
 	};
 
 	const char JUMP_TABLE[] {
@@ -296,11 +300,12 @@ namespace HC_Tokenizer{
 		0,		/* CLOSE_CURLY */
 		0,		/* TILDE */
 		0		/* DELETE */
-	};	
+	};
 
-	enum class TYPE : unsigned {
-		NUMBER = 1,
-		NUM = 1,
+	enum class TYPE : unsigned
+	{
+	    NUMBER = 1,
+	    NUM = 1,
 	    IDENTIFIER = 2,
 	    ID = 2,
 	    STRING = 4,
@@ -322,11 +327,12 @@ namespace HC_Tokenizer{
 	    UNDEFINED = 32768
 	};
 
-	class Token {
+	class Token
+	{
 	private:
-		
+
 		void * custom_symbols = NULL;
-		
+
 	public:
 
 		const wstring & string;
@@ -351,29 +357,25 @@ namespace HC_Tokenizer{
 
 	public:
 
-		Token(wstring& s, bool PEEKING = false) : string(s){
-			
+		Token(const wstring& s, bool PEEKING = false) : string(s) {
+
 			string_length = string.length();
 
-
-
-				cout << "test t " << PEEKING << endl;
-			
 			if(!PEEKING) next();
 		}
 
-		Token(const Token& token) : string(token.string){
+		Token(const Token& token) : string(token.string) {
 			CLONED = true;
 			sync(token);
 		}
 
-		~Token(){
-			if(!CLONED && custom_symbols != NULL){
+		~Token() {
+			if(!CLONED && custom_symbols != NULL) {
 				delete (SymbolMap *) custom_symbols;
 			}
 		}
 
-		friend wostream& operator<<(wostream& os, const Token& tk){
+		friend wostream& operator<<(wostream& os, const Token& tk) {
 			return os << tk.text();
 		}
 
@@ -384,26 +386,26 @@ namespace HC_Tokenizer{
 
 			SymbolMap * sm = (SymbolMap *) custom_symbols;
 
-	        for (auto i = 0; i < sym.length(); i++) {
-	            wchar_t code = sym[i];
-	            
-	            auto iter = sm->find(code);
-	            
-	            if (iter == sm->end()) {
-	            	SymbolMap * nm = new SymbolMap;
+			for (auto i = 0; i < sym.length(); i++) {
+				wchar_t code = sym[i];
 
-	                sm->insert({code, (void *) nm});
+				auto iter = sm->find(code);
 
-	                sm = nm;
-	            }else{
-	            	sm = (SymbolMap *) iter->second;
-	            }
-	        }
+				if (iter == sm->end()) {
+					SymbolMap * nm = new SymbolMap;
 
-	        sm->IS_SYM = true;
-	    }
+					sm->insert( {code, (void *) nm});
 
-		void sync(const Token& token){
+					sm = nm;
+				} else {
+					sm = (SymbolMap *) iter->second;
+				}
+			}
+
+			sm->IS_SYM = true;
+		}
+
+		void sync(const Token& token) {
 			if(token.string != string) return;
 
 			offset = token.offset;
@@ -414,15 +416,15 @@ namespace HC_Tokenizer{
 			chr = token.chr;
 			length = token.length;
 			IGNORE_WHITE_SPACE = token.IGNORE_WHITE_SPACE;
-		 	PARSE_STRING = token.PARSE_STRING;
-		 	CHARACTERS_ONLY = token.CHARACTERS_ONLY;
+			PARSE_STRING = token.PARSE_STRING;
+			CHARACTERS_ONLY = token.CHARACTERS_ONLY;
 		}
 
 		wstring text() const {
 			return string.substr(offset, length);
 		}
 
-		bool assert(wstring& str){
+		bool assert(wstring& str) {
 			if(offset < 0) return false;
 
 			if(str.compare(offset, length, string) != 0) return false;
@@ -432,7 +434,7 @@ namespace HC_Tokenizer{
 			return true;
 		}
 
-		bool assertCharacter(wchar_t c){
+		bool assertCharacter(wchar_t c) {
 			if(offset < 0) return false;
 
 			if(c != string[offset]) return false;
@@ -442,19 +444,19 @@ namespace HC_Tokenizer{
 			return true;
 		}
 
-		wstring slice(unsigned start = 41923685){
-			
+		wstring slice(unsigned start = 41923685) {
+
 			if(start == 41923685)
 				start = offset;
 
 			return string.substr(start, string_length - start);
 		}
 
-		wstring slice(const Token& token){
+		wstring slice(const Token& token) {
 			return string.substr(token.offset, offset < token.offset ? string_length - token.offset : string_length - offset);
 		}
 
-		Token& reset(){
+		Token& reset() {
 			type = TYPE::UNDEFINED;
 			offset = 0;
 			END = false;
@@ -465,20 +467,14 @@ namespace HC_Tokenizer{
 			return *this;
 		}
 
-		Token& next(Token* mk = NULL, bool USE_CUSTOM_SYMBOLS = true){
-
-			
-								
-			
-
-
+		Token& next(Token* mk = NULL, bool USE_CUSTOM_SYMBOLS = true) {
 
 			if(mk == NULL)
 				mk = this;
 
 			Token& marker = *mk;
-				
-			if(marker.string_length < 1){
+
+			if(marker.string_length < 1) {
 				marker.offset = 0;
 				marker.type = TYPE::UNDEFINED;
 				marker.END = true;
@@ -489,58 +485,58 @@ namespace HC_Tokenizer{
 			}
 
 			unsigned const int string_length = marker.string_length;
-			
+
 			const wstring& string = marker.string;
-			
+
 			bool NORMAL_PARSE = true, IGNORE_WHITE_SPACE = marker.IGNORE_WHITE_SPACE;
 
 			unsigned length = marker.length,
-				offset = marker.offset + length,
-				line = marker.line,
-				base = offset,
-				chr = marker.chr,
-				root = marker.offset;
+			         offset = marker.offset + length,
+			         line = marker.line,
+			         base = offset,
+			         chr = marker.chr,
+			         root = marker.offset;
 
 			TYPE type = TYPE::SYMBOL;
 
-			if(USE_CUSTOM_SYMBOLS && marker.custom_symbols != NULL){
-				
+			if(USE_CUSTOM_SYMBOLS && marker.custom_symbols != NULL) {
+
 				wchar_t code = string[offset];
-	            
-	            int offset2 = offset, i = 0;
-	            
-	            SymbolMap * map = (SymbolMap *) custom_symbols;
 
-	            while (
-	            	code == 32 
-	            	&& IGNORE_WHITE_SPACE 
-	            	&& offset < string_length
-	            ){
-	            	code = string[++offset2];
-	            	offset++;
-	            }
+				int offset2 = offset;
 
-	            if(offset >= string_length)
-	            	goto end;
+				SymbolMap * map = (SymbolMap *) custom_symbols;
 
-	            auto iter = map->find(code);
+				while (
+				    code == 32
+				    && IGNORE_WHITE_SPACE
+				    && offset < string_length
+				) {
+					code = string[++offset2];
+					offset++;
+				}
 
-	            while (iter != map->end()) {
-	                map = (SymbolMap *) iter->second;
-	                offset2++;
-	                iter = map->find(string[offset2]);
-	            }
+				if(offset >= string_length)
+					goto end;
 
-	            if (map->IS_SYM) {
-	                NORMAL_PARSE = false;
-	                base = offset;
-	                length = offset2 - offset;
-	            }
+				auto iter = map->find(code);
+
+				while (iter != map->end()) {
+					map = (SymbolMap *) iter->second;
+					offset2++;
+					iter = map->find(string[offset2]);
+				}
+
+				if (map->IS_SYM) {
+					NORMAL_PARSE = false;
+					base = offset;
+					length = offset2 - offset;
+				}
 			}
 
-			end:
+end:
 
-			if(offset >= string_length){
+			if(offset >= string_length) {
 				marker.offset = string_length;
 				marker.type = TYPE::UNDEFINED;
 				marker.length = 0;
@@ -551,7 +547,8 @@ namespace HC_Tokenizer{
 			}
 
 
-			while(NORMAL_PARSE){
+			while(NORMAL_PARSE) {
+
 
 				base = offset;
 
@@ -559,21 +556,20 @@ namespace HC_Tokenizer{
 
 				wchar_t code = string[offset];
 
-				if(code < 128){
-					switch(JUMP_TABLE[code]){
+				if(code < 128) {
+					switch(JUMP_TABLE[code]) {
 						case JUMP_TYPE::NUMBER:
 							while
 							(
-								++offset < string_length 
-								&& ((code = string[offset]) < 128) 
-								&& (12 & number_and_identifier_table[code])
+							    ++offset < string_length
+							    && ((code = string[offset]) < 128)
+							    && (12 & number_and_identifier_table[code])
 							);
 
 							if(
-								(code == L'e' || code == L'E')
-								&& number_and_identifier_table[code]
-							)
-							{
+							    (code == L'e' || code == L'E')
+							    && number_and_identifier_table[code]
+							) {
 								offset++;
 								if(string[offset] == L'-') offset++;
 								marker.offset = offset;
@@ -584,48 +580,48 @@ namespace HC_Tokenizer{
 
 							type = TYPE::NUMBER;
 							length = offset - base;
-						break; 
+							break;
 						case JUMP_TYPE::IDENTIFIER:
 							while
 							(
-								++offset < string_length 
-								&& ((code = string[offset]) < 128) 
-								&& (10 & number_and_identifier_table[code])
+							    ++offset < string_length
+							    && ((code = string[offset]) < 128)
+							    && (10 & number_and_identifier_table[code])
 							);
 							type = TYPE::IDENTIFIER;
 							length = offset - base;
+
 							break;
-						break;
 						case JUMP_TYPE::STRING:
-							if(!marker.PARSE_STRING){
+							if(!marker.PARSE_STRING) {
 								while
 								(
-									++offset < string_length 
-									&& (code != string[offset])
+								    ++offset < string_length
+								    && (code != string[offset])
 								);
 
 								type = TYPE::STRING;
 								length = offset - base + 1;
 							}
-						break; 
+							break;
 						case JUMP_TYPE::SPACE:
 							while
 							(
-								++offset < string_length 
-								&& (L' ' != string[offset])
+							    ++offset < string_length
+							    && (code == string[offset])
 							);
 							type = TYPE::WHITE_SPACE;
 							length = offset - base;
-						break; 
+							break;
 						case JUMP_TYPE::TAB:
 							while
 							(
-								++offset < string_length 
-								&& (L'\t' != string[offset])
+							    ++offset < string_length
+							    && (L'\t' != string[offset])
 							);
 							type = TYPE::WHITE_SPACE;
 							length = offset - base;
-						break;
+							break;
 						case JUMP_TYPE::CARRIAGE_RETURN:
 							length = 2;
 							//Intentional
@@ -637,28 +633,28 @@ namespace HC_Tokenizer{
 							offset += length;
 							chr = 0;
 							break;
-						break;
 						case JUMP_TYPE::SYMBOL:
-						break;
+							break;
 						case JUMP_TYPE::OPERATOR:
 							type = TYPE::OPERATOR;
-						break;
+							break;
 						case JUMP_TYPE::OPEN_BRACKET:
 							type = TYPE::OPEN_BRACKET;
-						break;
+							break;
 						case JUMP_TYPE::CLOSE_BRACKET:
 							type = TYPE::CLOSE_BRACKET;
-						break;
-						/*
-						case JUMP_TYPE::DATA_LINK:
-							type = TYPE::DATA_LINK;
-						break;				
-						*/
+							break;
+							/*
+							case JUMP_TYPE::DATA_LINK:
+								type = TYPE::DATA_LINK;
+							break;
+							*/
 					}
 				} else break;
-				
-				if(IGNORE_WHITE_SPACE && ((unsigned)type & ((unsigned)TYPE::WHITE_SPACE | (unsigned)TYPE::NEW_LINE))){
-					if(offset < string_length){
+
+				if(IGNORE_WHITE_SPACE && ((unsigned)type & ((unsigned)TYPE::WHITE_SPACE | (unsigned)TYPE::NEW_LINE))) {
+
+					if(offset < string_length) {
 						type = TYPE::SYMBOL;
 						continue;
 					}
@@ -666,9 +662,11 @@ namespace HC_Tokenizer{
 
 				break;
 			}
+
 			marker.type = type;
 			marker.offset = base;
-			marker.length = (CHARACTERS_ONLY) ? (length == 0) ? 0 : 1 : length;
+			marker.length = (CHARACTERS_ONLY)
+                ? (length == 0) ? 0 : 1 : length;
 			marker.chr = chr  + base - root;
 			marker.line = line;
 
