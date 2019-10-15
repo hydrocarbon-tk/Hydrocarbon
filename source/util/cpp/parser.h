@@ -85,6 +85,7 @@ namespace HC_Parser
 			} else {
 				//Error Recovery
 				if (token_index == (int)TOKEN_STATE::KEYWORD) {
+
 					token_index = getLookUpValue(tk.text(), sym_lu);
 					continue;
 				}

@@ -1,7 +1,5 @@
 #include "./parser.h"
 
-using namespace HC_Parser;
-
 int HC_Parser::getLookUpValue(wstring str, const SymbolLookup& sym_lu)
 {
 
@@ -21,11 +19,11 @@ int HC_Parser::getToken(Token& tk, const SymbolLookup& sym_lu)
 	switch (tk.type) {
 		case TYPE::IDENTIFIER: {
 
+
 				auto got = sym_lu.find(tk.text());
 
 				if (got != sym_lu.end())
-					return 14;
-
+					return (int)TOKEN_STATE::KEYWORD;
 				return (int)TOKEN_STATE::IDENTIFIER;
 			}
 		case TYPE::NUMBER: {

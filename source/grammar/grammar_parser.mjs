@@ -36,6 +36,7 @@ function convertProductionNamesToIndexes(productions, LU) {
                             sym.production = LU.get(sym.name);
                             sym.val = LU.get(sym.name).id;
                         } catch (e) {
+                            console.error("Error found in " + productions.uri)
                             throw new SyntaxError(`Missing Production for symbol ${sym.name} in body of production ${production.name}`);
                         }
                         sym.resolveFunction = null; // For DataClone 
@@ -112,7 +113,7 @@ export async function grammarParser(grammar, FILE_URL, stamp = 112, meta_importe
                 const url = sym[3];
                 const id = sym[6];
 
-                const 
+                const
                     //load data from the other file
                     uri = URL.resolveRelative(url, FILE_URL + ""),
 
@@ -133,8 +134,15 @@ export async function grammarParser(grammar, FILE_URL, stamp = 112, meta_importe
                 pending_hook.count++;
 
                 uri.fetchText().then(async txt => {
+                    let prods = null;
 
-                    const prods = await grammarParser(txt, uri, stamp * env.body_count ** AWAIT + 1 + (Math.random() * 10000) | 0, meta_imported_productions, pending_hook);
+                    try {
+                        prods = await grammarParser(txt, uri, stamp * env.body_count ** AWAIT + 1 + (Math.random() * 10000) | 0, meta_imported_productions, pending_hook);
+                    } catch (e) {
+                        console.warn("Error encountered in " + uri);
+                        throw e;
+                    }
+
 
 
                     let EXISTING = false;
@@ -148,13 +156,15 @@ export async function grammarParser(grammar, FILE_URL, stamp = 112, meta_importe
                             prod.name = `${id}$${prod.name}`;
                             prod.IMPORTED = true;
 
-                            for (let i = 0; i < prod.bodies.length; i++) {
-                                const body = prod.bodies[i];
-                                for (let i = 0; i < body.sym.length; i++) {
-                                    const sym = body.sym[i];
-                                    if (sym.type == "production" && !sym.IMPORTED && sym.val !== -55) {
-                                        sym.val = -55;
-                                        sym.name = `${id}$${sym.name}`;
+                            if (prod.bodies) {
+                                for (let i = 0; i < prod.bodies.length; i++) {
+                                    const body = prod.bodies[i];
+                                    for (let i = 0; i < body.sym.length; i++) {
+                                        const sym = body.sym[i];
+                                        if (sym.type == "production" && !sym.IMPORTED && sym.val !== -55) {
+                                            sym.val = -55;
+                                            sym.name = `${id}$${sym.name}`;
+                                        }
                                     }
                                 }
                             }
@@ -171,12 +181,12 @@ export async function grammarParser(grammar, FILE_URL, stamp = 112, meta_importe
                             p.forEach(sym => {
                                 try {
                                     const production = prods.LU.get(sym.name);
-                                    //console.log(sym.name, sym, production)
                                     sym.name = `${id}$${production.name}`;
                                     sym.RESOLVED = true;
                                     sym.production = production;
                                     sym.resolveFunction(production);
                                 } catch (e) {
+                                    console.error(`Error in ${uri}`)
                                     console.error(e);
                                     throw Error(`Grammar ${id} does not have a production named ${sym.name}`);
                                 }
@@ -204,13 +214,13 @@ export async function grammarParser(grammar, FILE_URL, stamp = 112, meta_importe
             body: function(sym, env, lex, form = (~(0xFFFFFFFFFFFFF << sym[0].body.length)) & 0xFFFFFF) {
 
                 //const c = lex.host_lex.copy();
-                
+
                 const s = sym[0];
                 let bc = 0;
 
                 this.lex = lex;
                 this.sym = s.body || [];
-                this.sym_map = this.sym.map((e, i) =>(e.IS_CONDITION ? -1 : bc++  ));
+                this.sym_map = this.sym.map((e, i) => (e.IS_CONDITION ? -1 : bc++));
                 this.length = 0;
                 this.excludes = new Map();
                 this.ignore = new Map();
@@ -363,6 +373,9 @@ export async function grammarParser(grammar, FILE_URL, stamp = 112, meta_importe
             },
 
             compileProduction: function(production, lex) {
+
+                
+
                 if (production.IMPORT_APPEND || production.IMPORT_OVERRIDE) {
 
                     production.name.resolveFunction = (p) => {
@@ -412,9 +425,7 @@ export async function grammarParser(grammar, FILE_URL, stamp = 112, meta_importe
                                 new_sym.splice(j, 1);
                                 const s = sym_map.splice(j, 1)[0];
 
-                                console.log(s,form, form ^ (1<<s), new_sym.length)
-
-                                const new_body = new env.functions.body([{ body: new_sym, reduce: body.reduce_function }], env, lex, form ^ (1<<s));
+                                const new_body = new env.functions.body([{ body: new_sym, reduce: body.reduce_function }], env, lex, form ^ (1 << s));
 
                                 new_body.lex = lex;
                                 new_body.sym_map = sym_map;
@@ -473,7 +484,7 @@ export async function grammarParser(grammar, FILE_URL, stamp = 112, meta_importe
                             const m = body[(["excludes", "ignore", "error", "reset", "reduce"][map - 1])];
 
                             if (map == 5) {
-                                m.push({v: new_sym.sym.val, p:undefined, type:new_sym.sym.type});
+                                m.push({ v: new_sym.sym.val, p: undefined, type: new_sym.sym.type });
                             } else if (map == 1) {
                                 if (!m.get(j))
                                     m.set(j, []);
@@ -502,6 +513,8 @@ export async function grammarParser(grammar, FILE_URL, stamp = 112, meta_importe
     };
 
     const productions = parser(whind(grammar), env);
+
+    productions.uri = FILE_URL;
 
     productions.LU = new Map(productions.map(p => [p.name, p]));
     //Pause here to allow impoted productions to process.

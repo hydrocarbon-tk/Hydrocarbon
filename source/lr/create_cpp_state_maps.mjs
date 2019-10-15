@@ -72,7 +72,7 @@ export default function(grammar, states, env, functions, SYM_LU, types) {
 
             if (k - last_pos > 1) 
                 state_map.push(...(new Array(k - last_pos - 1).fill(-1)));
-
+            
             last_pos = k;
 
             let
@@ -157,9 +157,7 @@ export default function(grammar, states, env, functions, SYM_LU, types) {
             }
         });
 
-
         state_map.push(...(new Array(symbol_count - last_pos).fill(-1)));
-
 
         //Create the goto tables. Find matches and consolidate.
         //Goto tables are found at top of the parser.

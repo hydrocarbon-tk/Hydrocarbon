@@ -110,7 +110,7 @@ export default function(grammar, states, env, functions, SYM_LU, types) {
                 return;
 
             if (k - last_pos > 1) {
-                state_map.push(-(k - last_pos - 1));
+                state_map.push(-(k - last_pos - 1).fill(-1));
             }
 
             last_pos = k;
