@@ -24,7 +24,7 @@ export default function(grammar, states, env, functions, SYM_LU, types) {
     goto_maps.set("gtd",{id:"d", goto:(new Array(states.length)).fill(0)});
 
     for (let i = 0; i < states.length; i++) {
-
+        var HAS_ANY = false;
         const
             state = states[i],
             production = bodies[state.body].production,
@@ -49,6 +49,8 @@ export default function(grammar, states, env, functions, SYM_LU, types) {
 
             else switch (state.symbol_type) {
                 case "generated":
+                    if(k == "any")
+                        HAS_ANY = true;
                     s[0] = SYM_LU.get(types[k]);
                     break;
                 case "literal":
@@ -158,6 +160,9 @@ export default function(grammar, states, env, functions, SYM_LU, types) {
         });
 
         state_map.push(...(new Array(symbol_count - last_pos).fill(-1)));
+
+        if(HAS_ANY)
+            console.log(state_map)
 
         //Create the goto tables. Find matches and consolidate.
         //Goto tables are found at top of the parser.

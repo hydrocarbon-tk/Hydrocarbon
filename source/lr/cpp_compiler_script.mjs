@@ -51,6 +51,7 @@ const namespace = "HC_TEMP";
 #include <algorithm>
 #include <cstring>
 #include "./tokenizer.h"
+#include "./parse_buffer.h"
 
 namespace ${namespace}{
     using std::wstring;
@@ -82,16 +83,18 @@ namespace ${namespace}{
         ${renderStateMaps(state_maps)}
     ;
 
-    template <class Allocator, class NodeFunctions>
+    template <class NodeFunctions>
     struct Data {
 
-        typedef void * (* Action)(Token&, unsigned, unsigned, int, void **, Allocator *);
+        typedef ParseBuffer<char> ParseBuffer;
+
+        typedef void * (* Action)(Token&, unsigned, unsigned, int, void **, ParseBuffer *);
 
     private:
         static void reduceToValue(Token& tk, int& output_offset, void ** output, int plen, Action action, unsigned bitfield, void * allocator) {
             auto ln = max(output_offset - plen + 1, 0);
             output_offset = ln;
-            output[ln] = (* action)(tk, plen, bitfield,  ln, output, (Allocator *)allocator);
+            output[ln] = (* action)(tk, plen, bitfield,  ln, output, (ParseBuffer *)allocator);
         }
     public:
         
@@ -108,24 +111,24 @@ namespace ${namespace}{
     };
 
 
-    template <class Allocator, class NodeFunctions>
-    const ErrorAction ${namespace}::Data<Allocator, NodeFunctions>::error_actions[] = {${renderErrorHandlers(error_handlers, true)}};
+    template <class NodeFunctions>
+    const ErrorAction ${namespace}::Data<NodeFunctions>::error_actions[] = {${renderErrorHandlers(error_handlers, true)}};
 
-    template <class Allocator, class NodeFunctions>
-    const int * ${namespace}::Data<Allocator, NodeFunctions>::goto_lookup[] = {${renderGotoPointers(goto_pointers)}};
+    template <class NodeFunctions>
+    const int * ${namespace}::Data<NodeFunctions>::goto_lookup[] = {${renderGotoPointers(goto_pointers)}};
 
-    template <class Allocator, class NodeFunctions>
-    const int * ${namespace}::Data<Allocator, NodeFunctions>::state_lookup[] = {${renderStatePointers(state_pointers)}};
+    template <class NodeFunctions>
+    const int * ${namespace}::Data<NodeFunctions>::state_lookup[] = {${renderStatePointers(state_pointers)}};
 
-    template <class Allocator, class NodeFunctions>
-    const wstring ${namespace}::Data<Allocator, NodeFunctions>::tk_symbols[] = {${symbols.map(s=>"L"+JSON.stringify(s)).join(",")}};
+    template <class NodeFunctions>
+    const wstring ${namespace}::Data<NodeFunctions>::tk_symbols[] = {${symbols.map(s=>"L"+JSON.stringify(s)).join(",")}};
 
-    template <class Allocator, class NodeFunctions>
-    const SymbolLookup ${namespace}::Data<Allocator, NodeFunctions>::symbol_lu = {
+    template <class NodeFunctions>
+    const SymbolLookup ${namespace}::Data<NodeFunctions>::symbol_lu = {
         ${renderSymbolLookUp(SYM_LU, true)}};
 
-    template <class Allocator, class NodeFunctions>
-    int (* const ${namespace}::Data<Allocator, NodeFunctions>::state_actions[])(Token&, int&, void **, void*) = {
+    template <class NodeFunctions>
+    int (* const ${namespace}::Data<NodeFunctions>::state_actions[])(Token&, int&, void **, void*) = {
         ${renderStateActionFunctions(state_action_functions, true)}
     };
 }

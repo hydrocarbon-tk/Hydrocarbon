@@ -23,8 +23,8 @@ export function LRParserCompilerCPP(states, grammar, env) {
 
     let types = Object.assign({}, t);
 
-    types.any = 200;
-    types.keyword = 201;
+    types.any = 13;
+    types.keyword = 14;
 
     for (let a in types)
         GEN_SYM_LU.set(a, (((n++) / 2) | 0) + 1);
