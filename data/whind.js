@@ -205,7 +205,7 @@ var whind = (function (exports) {
     0,		/* PLUS */
     0,		/* COMMA */
     0,		/* HYPHEN */
-    4,		/* PERIOD */
+    0,		/* PERIOD */
     0,		/* FORWARD_SLASH */
     8,		/* ZERO */
     8,		/* ONE */
@@ -617,9 +617,7 @@ var whind = (function (exports) {
                 }
             }
 
-            if (NORMAL_PARSE) {
-
-                for (;;) {
+            while (NORMAL_PARSE) {
 
                     base = off;
 
@@ -711,7 +709,6 @@ var whind = (function (exports) {
                         }
                     }
                     break;
-                }
             }
 
             marker.type = type;

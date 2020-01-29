@@ -1,6 +1,6 @@
 {
   "name": "@candlefw/hydrocarbon",
-  "version": "0.1.4",
+  "version": "0.1.6",
   "description": "Parser Compiler",
   "main": "source/hydrocarbon.mjs",
   "bin": {
@@ -28,13 +28,13 @@
   },
   "homepage": "https://github.com/candlefw/hydrocarbon#readme",
   "dependencies": {
-    "@candlefw/js": "^latest",
+    "@candlefw/js": "^0.0.9",
     "@candlefw/whind": "latest",
-    "commander": "^2.19.0",
-    "terser": "^3.11.0"
+    "commander": "^4.1.0",
+    "terser": "^4.6.3"
   },
   "devDependencies": {
-    "eslint": "^5.16.0"
+    "eslint": "^6.8.0"
   },
   "eslintConfig": {
     "parserOptions": {
