@@ -1,0 +1,22 @@
+<>start → defaultproduction
+
+<>defaultproduction → identifier 
+	│ float 
+	│ integer 
+	│ hex 
+	│ binary 
+	│ octal 
+
+<>hex →  τ0 (τx│τX) ( natural │ τa │ τb │ τc │ τd │ τe │ τf │ τA │ τB │ τC │ τD │ τE │ τF )(+") 
+
+<>binary → τ0 (τb│τB) (  τ0 │ τ1  )(+")
+
+<>octal → τ0 (τo│τO) (  τ0 │ τ1  )(+")
+
+<>float → integer \. (natural ( τe integer ↦r {"e" + $$sym2} )? ↦r { $sym1 + "" + $sym2 } )? ↦r { console.log($sym1 + "." + $sym3), parseFloat($sym1 + "." + $sym3) }
+
+<>integer → -? natural ↦r {parseInt($sym1 + $sym2)}
+
+<>natural →  θnum
+
+<>identifier → θid ( \_ θid )?

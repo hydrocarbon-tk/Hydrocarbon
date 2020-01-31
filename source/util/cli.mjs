@@ -188,7 +188,7 @@ function createScript(name, parser, type, env, compress = false) {
             break;
         default:
         case "js":
-            parser = `${parser}; const ${name} = parser;`;
+            parser = `${parser}; const ${name.replace("-","_")} = parser;`;
             break;
     }
 
