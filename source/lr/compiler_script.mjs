@@ -94,9 +94,9 @@ function parser(l, e = {}) {
                 const recovery_token = eh[ss[sp]](tk, e, o, l, p, ss[sp], (lex) => getToken(lex, lu));
 
                 if (RECOVERING > 0 && recovery_token >= 0) {
-                    RECOVERING = -1; /* To prevent infinite recursion */
+                    RECOVERING = 100; 
                     tk = recovery_token;
-                    l.tl = 0; /*reset current token */
+                    //l.tl = 0; /* Let the implementor handle reseting token length, if necessary */
                     continue;
                 }
             }
@@ -105,11 +105,19 @@ function parser(l, e = {}) {
                 case 0:
                     /* ERROR */
 
-                    if (tk == "$eof")
-                        l.throw("Unexpected end of input");
+                    if (tk == "$eof") {
+                        if (e.err_eof && (tk = e.err_eof(tk, o, l, p)))
+                            continue;
+                        else
+                            l.throw("Unexpected end of input");
+                    } else {
+                        if (e.err_general && (tk = e.err_general(tk, o, l, p)))
+                            continue;
+                        else
+                            l.throw(`Unexpected token [${RECOVERING ? l.next().tx : l.tx}]`);
+                    }
 
-                    l.throw(`Unexpected token [${RECOVERING ? l.next().tx : l.tx}]`);
-                    return [null];
+                    return { result: o[0], error: true };
 
                 case 1:
                     /* ACCEPT */
@@ -160,7 +168,8 @@ function parser(l, e = {}) {
                     break;
             }
         }
-    return o[0];
+
+    return { result: o[0], error: false };
 }
 
 function renderSymbols(symbols, verbose = false) {
