@@ -20,7 +20,7 @@
 # tokenize symbols that are comprised of multiple characters. Symbols are defined per file and only apply to productions
 # defined within that file. 
 
-@SYMBOL (( )) <> +> => (* (+ ::
+@SYMBOL (( )) <> +> => (* (+ :: \τ \θ \ɛ
 
 # The @IGNORE preamble defines tokens that should be ignored when encountered in productions. This can be overriden per 
 # production body with the ((IGN symbol)) clause or by explicitly declaring the ignored symbol within the grammar.

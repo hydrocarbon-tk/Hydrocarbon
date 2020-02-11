@@ -512,7 +512,7 @@ export async function grammarParser(grammar, FILE_URL, stamp = 112, meta_importe
         }
     };
 
-    const productions = parser(whind(grammar), env);
+    const productions = parser(whind(grammar), env).result;
 
     productions.uri = FILE_URL;
 
