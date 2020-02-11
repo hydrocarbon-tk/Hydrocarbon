@@ -17,7 +17,7 @@
 @EXT hcg
 
 # The @SYMBOL preamble defines symbols for the lexer to recognize and tokenize. This is useful when there is a need to 
-# tokenize symbols that are comprised of multiple characters. Symbols are defined per file and only apply terminal symbols
+# tokenize symbols that are comprised of multiple characters. Symbols are defined per file and only apply to productions
 # defined within that file. 
 
 @SYMBOL (( )) <> +> => (* (+ ::
@@ -28,11 +28,11 @@
 @IGNORE θws θnl
 
 # The @IMPORT preamble allows productions to be defined in external files and incorporated into the host file 
-# through import symbols. The imported file is referenced by the identfier following the "as" keyword.
+# through import symbols defined after the [as] keyword. 
 
 @IMPORT ./preambles.hcg as pre
 
-# sddfs
+# 
 
 @IMPORT ./productions.hcg as prd
 
@@ -44,7 +44,7 @@
 
 <> hydrocarbon → head									↦return { env.productions }
 
-# Productions symbols are categorized into several groups and:
+# Productions symbols are categorized into several groups in:
 
 <> head → pre::preamble prd::productions 				↦return { env.productions.meta = $sym1 }
 
