@@ -34,9 +34,9 @@ const max = Math.max,
 
 function setNode(funct, length, functions, id, return_val, COMPILE_FUNCTION = false) {
     if (funct.type == "CLASS") {
-        return (!COMPILE_FUNCTION && funct.env) ? { id, str: `${reduce_with_new_value_name}(${return_val},fn.${funct.name},${length},0,...v)` } : { id, str: `${reduce_with_new_value_name}(${return_val},${funct.name},${length},0,...v)` };
+        return (!COMPILE_FUNCTION && funct.env) ? { id, str: `${reduce_with_new_value_name}(${return_val},fn.${funct.name},${length},0,a,b,c,e,f)` } : { id, str: `${reduce_with_new_value_name}(${return_val},${funct.name},${length},0,a,b,c,e,f)` };
     } else {
-        return (!COMPILE_FUNCTION && funct.env) ? { id, str: `${reduce_with_value_name}(${return_val},fn.${funct.name},${length},0,...v)` } : { id, str: `${reduce_with_value_name}(${return_val},${funct.name},${length},0,...v)` };
+        return (!COMPILE_FUNCTION && funct.env) ? { id, str: `${reduce_with_value_name}(${return_val},fn.${funct.name},${length},0,a,b,c,e,f)` } : { id, str: `${reduce_with_value_name}(${return_val},${funct.name},${length},0,a,b,c,e,f)` };
     }
 }
 
@@ -142,10 +142,10 @@ export default function(grammar, states, env, functions, SYM_LU, types) {
                             st_fn_id += body.reduce_function.name;
                             fn_id = out.id;
                         } else {
-                            funct.push(`redn(${return_value},${length},...v)`);
+                            funct.push(`redn(${return_value},${length},a,b,c,e,f)`);
                         }
                     } else
-                        funct.push(`(${reduce_to_null_name}(${return_value},0,...v))`); /* empty production*/
+                        funct.push(`(${reduce_to_null_name}(${return_value},0,a,b,c,e,f))`); /* empty production*/
                     /*intentional*/
                 case "SHIFT":
 
@@ -162,9 +162,9 @@ export default function(grammar, states, env, functions, SYM_LU, types) {
                             const name = f.name;
                             st_fn_id += name;
                             if (f.env)
-                                funct.push(`${shift_with_function_name}(${return_value},v[1].functions.${name},...v)`);
+                                funct.push(`${shift_with_function_name}(${return_value},v[1].functions.${name},a,b,c,e,f)`);
                             else
-                                funct.push(`${shift_with_function_name}(${return_value},${name},...v)`);
+                                funct.push(`${shift_with_function_name}(${return_value},${name},a,b,c,e,f)`);
                         }
                     }
 
@@ -173,7 +173,7 @@ export default function(grammar, states, env, functions, SYM_LU, types) {
                     fn = state_functions_map.get(st_fn_id);
 
                     if (!fn) {
-                        fn = state_str_functions.push(`${funct.length > 0 ? "(...v)" : "e"}=>${ funct.length > 0 
+                        fn = state_str_functions.push(`${funct.length > 0 ? "(a,b,c,e,f)" : "e"}=>${ funct.length > 0 
                             ?  funct.length > 1 
                                 ? "(" + funct.join(",")+")" 
                                 : funct.join(",") 
