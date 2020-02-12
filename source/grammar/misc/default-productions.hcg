@@ -1,32 +1,37 @@
 @SYMBOL 0x 0X 0b 0B 0o 0O
 
+@IGNORE θws θnl
+
 <>start → defaultproduction
 
 <>defaultproduction → identifier 
 	│ float 
-	│ integer 
 	│ hex 
 	│ binary 
-	│ octal 
+	│ octal
 
 
-<>hex →  hex_start (EXC θws ) ( natural │ τa │ τb │ τc │ τd │ τe │ τf │ τA │ τB │ τC │ τD │ τE │ τF )(+") ↦{lex.CHARACTERS_ONLY = false}
-<> hex_start → 0x ↦{lex.CHARACTERS_ONLY = true}
-	│ 0X ↦{lex.CHARACTERS_ONLY = true}
+<>hex →  hex_start ( natural │ τa │ τb │ τc │ τd │ τe │ τf │ τA │ τB │ τC │ τD │ τE │ τF )(+") (θws │ θnl)? ↦r{$sym1 + $sym2}
+<> hex_start → 0x (ERR θws ) 
+	│ 0X (ERR θws ) 
 
-<>binary →  binary_start (EXC θws ) (  τ0 │ τ1  )(+") ↦{lex.CHARACTERS_ONLY = false}
-<> binary_start → 0b ↦{lex.CHARACTERS_ONLY = true}
-	│ 0B ↦{lex.CHARACTERS_ONLY = true}
+<>binary →  binary_start ( \0 │ \1  )(+") (θws │ θnl)? ↦r{$sym1 + $sym2}
+<> binary_start → 0b (ERR θws ) 
+	│ 0B (ERR θws )
 
-<>octal →  octal_start  (EXC θws ) (  τ0 │ τ1  )(+") ↦{lex.CHARACTERS_ONLY = false}
-<> octal_start → 0o ↦{lex.CHARACTERS_ONLY = true}
-	│ 0O ↦{lex.CHARACTERS_ONLY = true}
+<>octal →  octal_start (  \0 │ \1  )(+") (θws │ θnl)? ↦r{ $sym1 + $sym2}
+<> octal_start → 0o (ERR θws )	
+	│ 0O (ERR θws )
 
-<>float → integer \. (natural ( τe integer ↦r {"e" + $$sym2} )? ↦r { $sym1 + "" + $sym2 } )? ↦r { parseFloat($sym1 + "." + $sym3) }
+<>float → integer (\. natural? ↦r { $sym1 + $sym2 } )? (  τe ( \+ │ \- ) ? natural ↦r {"e" + $sym2 + $$sym3} )? (θws │ θnl)? ↦r { parseFloat($sym1 + $sym2 + $sym3) }
 
-<>integer → -? natural  ↦r {parseInt($sym1 + $sym2)}
+<>integer → -?  natural (θws │ θnl)? ↦r {parseInt($sym1 + $sym2)}
 
 <>natural →  θnum
 
-<>identifier → (\$ │ \_ │θid) (\# │ \$ │ \_ │ θid │ θnum │ θkeyword )(*") ↦r { $sym1 + $sym2 }
+<>identifier → identifier_start identifier_continue(*") (θws │ θnl)? ↦r { $sym1 + $sym2 }
+
+<> identifier_start → \_ │ θid 
+
+<> identifier_continue → \_ │ θid │ θnum │ θkeyword 
 

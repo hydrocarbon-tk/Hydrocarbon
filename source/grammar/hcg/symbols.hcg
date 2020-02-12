@@ -8,6 +8,8 @@
 
 # sddfs
 
+@IMPORT ../misc/default-productions.hcg as def
+
 @IGNORE θws θnl
 
 
@@ -71,7 +73,7 @@
 	\θ (ERR θws θnl) identifier 					↦cstr{ this.type = "generated"; this.val = $sym2 }
 
 <> literal_symbol → 
-	\τ (ERR θws θnl)  identifier 					↦cstr{ this.type = "literal"; this.val = $sym2 }
+	\τ (ERR θws θnl)  ( identifier │ def::natural ) ↦cstr{ this.type = "literal"; this.val = $sym2 }
 
 <> escaped_symbol → 
 	\\ (ERR θws θnl)  θany 							↦cstr{ this.type = "escaped"; this.val = $sym2 }
@@ -85,6 +87,6 @@
 <> production_id → 
 	identifier 
 
-<> identifier →  (θid │ \_ │ θnum ) (θid │ \_  │ \- │ \$ │ \num)(*') (θws │ θnl)? 	↦r { $sym1 + $sym2 }
+<> identifier →  def::identifier
 
-<> js_identifier →  (θid │ \_ │ \$) (θid │ \_ │ \$ │ \num)(*') (θws │ θnl)?			↦r { $sym1 + $sym2 }
+<> js_identifier →  ( def::identifier_start │ \$ ) (def::identifier_continue│ \$)? ↦r { $sym1 + $sym2 }
