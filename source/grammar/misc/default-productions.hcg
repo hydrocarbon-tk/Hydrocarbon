@@ -11,7 +11,8 @@
 	│ octal
 
 
-<>hex →  hex_start ( natural │ τa │ τb │ τc │ τd │ τe │ τf │ τA │ τB │ τC │ τD │ τE │ τF )(+") (θws │ θnl)? ↦r{$sym1 + $sym2}
+<>hex →  hex_start hex_digit(+") (θws │ θnl)? ↦r{$sym1 + $sym2}
+<>hex_digit →  natural │ τa │ τb │ τc │ τd │ τe │ τf │ τA │ τB │ τC │ τD │ τE │ τF
 <> hex_start → 0x (ERR θws ) 
 	│ 0X (ERR θws ) 
 
@@ -19,7 +20,7 @@
 <> binary_start → 0b (ERR θws ) 
 	│ 0B (ERR θws )
 
-<>octal →  octal_start (  \0 │ \1  )(+") (θws │ θnl)? ↦r{ $sym1 + $sym2}
+<>octal →  octal_start ( \0 │ \1 │ \2 │ \3 │ \4 │ \5 │ \6 │ \7 )(+") (θws │ θnl)? ↦r{ $sym1 + $sym2}
 <> octal_start → 0o (ERR θws )	
 	│ 0O (ERR θws )
 
