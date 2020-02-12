@@ -64,7 +64,7 @@ function parser(l, e = {}) {
                     tk = lu.get(l.tx);
                     continue;
                 }
-
+                //*//
                 if (l.ty == $_sym && l.tl > 1) {
                     // Make sure that special tokens are not getting in the way
                     l.tl = 0;
@@ -75,10 +75,35 @@ function parser(l, e = {}) {
                         continue;
                 }
 
+                //
+                //try treating the token as a single char symbol 
+                //*/
+
+                //*/
+                // Make sure that special tokens are not getting in the way
+                /*if (l.ty == l.types.sym && l.tl > 1) {
+                    l.tl = 0;
+                    // This will skip the generation of a custom symbol
+                    l.next(l, false);
+
+                    if (l.tl == 1) {
+                     //   tk = getToken(l, lu);
+                        continue;
+                    }
+                }
+                //*/
+
                 if (RECOVERING > 1 && !l.END) {
 
                     if (tk !== lu.get(l.ty)) {
                         tk = lu.get(l.ty);
+                        continue;
+                    }
+
+                    if (!(l.ty & (l.types.ws | l.types.nl | l.types.sym))) {
+                        l.tl = 1;
+                        l.type = l.types.sym;
+                        tk = lu.get(l.tx);
                         continue;
                     }
 
@@ -89,12 +114,16 @@ function parser(l, e = {}) {
                     }
                 }
 
+                //Reset the token to the original failing value;
+                l.tl = 0;
+                l.next();
+
                 tk = getToken(l, lu);
 
                 const recovery_token = eh[ss[sp]](tk, e, o, l, p, ss[sp], (lex) => getToken(lex, lu));
 
-                if (RECOVERING > 0 && recovery_token >= 0) {
-                    RECOVERING = 100; 
+                if (recovery_token >= 0) {
+                    RECOVERING = 100;
                     tk = recovery_token;
                     //l.tl = 0; /* Let the implementor handle reseting token length, if necessary */
                     continue;
@@ -225,10 +254,10 @@ function renderStateActionFunctions(state_action_functions, verbose = false) {
 }
 
 function renderGetTokenFunction(getToken, SYM_LU, RV_SYM_LU, verbose = false) {
-    const str = getToken.toString().replace(/types\.([^:]*):/g, (match, p1) => 
-         types[p1] + ":"
-    ).replace(/"([^"]*)"/g, (match, p1) => 
-         SYM_LU.get(types[p1] || p1) || RV_SYM_LU.get(p1) || "$eof"
+    const str = getToken.toString().replace(/types\.([^:]*):/g, (match, p1) =>
+        types[p1] + ":"
+    ).replace(/"([^"]*)"/g, (match, p1) =>
+        SYM_LU.get(types[p1] || p1) || RV_SYM_LU.get(p1) || "$eof"
     );
 
     if (!verbose)
