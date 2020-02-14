@@ -4,35 +4,27 @@ const crs = String.fromCharCode(0x254B);
 const crt = String.fromCharCode(0x2533);
 const crb = String.fromCharCode(0x253B);
 const crl = String.fromCharCode(0x2523);
-const crr = String.fromCharCode(0x252B);
+//const crr = String.fromCharCode(0x252B);
 const hrz = String.fromCharCode(0x2501);
 const ver = String.fromCharCode(0x2503);
 const crtl = String.fromCharCode(0x250F);
 const crtr = String.fromCharCode(0x2513);
 const crbr = String.fromCharCode(0x251B);
 const crbl = String.fromCharCode(0x2517);
-import util from "util";
+//import util from "util";
 
-import { types, filloutGrammar } from "./common.mjs";
+import { filloutGrammar } from "./common.mjs";
 
 export function renderTable(states, grammar, tab = "   ", tab_s = tab.length) {
 
-     //Build new env variables if they are missing 
+    //Build new env variables if they are missing 
     if (!grammar.bodies) {
-        filloutGrammar(grammar, {functions:{}});
+        filloutGrammar(grammar, { functions: {} });
     }
-    
-    //console.log(util.inspect(grammar.meta.all_symbols, false, 5, true))
 
-
-    const ws = (count) => (" ").repeat(count);
-    const tnts = (h) => ((Math.ceil((h + 0.5) / tab_s) * tab_s) - h);
-    const stnts = (h) => ws(tnts(h));
-    
-
-    let str = "";
-    
-    const 
+    const ws = (count) => (" ").repeat(count),
+        tnts = (h) => ((Math.ceil((h + 0.5) / tab_s) * tab_s) - h),
+        stnts = (h) => ws(tnts(h)),
         rule_table = states;
 
     if (rule_table.INVALID) {
@@ -40,22 +32,26 @@ export function renderTable(states, grammar, tab = "   ", tab_s = tab.length) {
         return;
     }
 
-    let num_states = rule_table.length;
-    let symbols = new Map();
-    let prods = new Map();
-    let max_body = 0;
-    let symbol_count = 0;
-    let prod_count = 0;
-    let preps = [];
+    const
+        num_states = rule_table.length,
+        symbols = new Map(),
+        prods = new Map(),
+        preps = [];
+
+    let
+        max_body = 0,
+        symbol_count = 0,
+        prod_count = 0,
+        str = "";
 
     /****** Preperation ********/
 
     for (let i = 0; i < num_states; i++) {
-        let state = rule_table[i];
+        const
+            state = rule_table[i],
+            prep = { action: [], goto: [] };
 
-        let prep = { action: [], goto: [] };
-
-        max_body = Math.max(max_body, state.b.join(" ").length)
+        max_body = Math.max(max_body, state.production_string.length);
 
         state.action.forEach((v, k) => {
 
@@ -109,7 +105,7 @@ export function renderTable(states, grammar, tab = "   ", tab_s = tab.length) {
     off += tab_s;
 
     prods.forEach((v, k) => {
-        let e = grammar[k].name.slice(0, max - 1);
+        const e = grammar[k].name.slice(0, max - 1);
         act = Math.max(act, e.length);
         off += e.length;
         d += e + stnts(off);
@@ -123,55 +119,48 @@ export function renderTable(states, grammar, tab = "   ", tab_s = tab.length) {
 
     /**** Dividing Bar ********/
 
-    str += `${crl + hrz.repeat(tm) + crs + hrz.repeat(symbol_count * tab_s + tm) + crs + hrz.repeat(prod_count * tab_s + tm) + crs + hrz.repeat(max_body + 3) + crtr}\n`
+    str += `${crl + hrz.repeat(tm) + crs + hrz.repeat(symbol_count * tab_s + tm) + crs + hrz.repeat(prod_count * tab_s + tm) + crs + hrz.repeat(max_body + 3) + crtr}\n`;
 
 
     /**** ENTRIES ************************/
 
     for (let i = 0; i < num_states; i++) {
-        let p = preps[i];
+        const p = preps[i];
 
         if ((i + "").length + 2 >= tab_s)
-            return renderTable(rule_table,grammar,  (" ").repeat((i + "").length + 4));
+            return renderTable(rule_table, grammar, (" ").repeat((i + "").length + 4));
 
         d = `${ver} ${i + stnts(2 + (i+"").length) + ver + ws(tm)}`;
 
         let off = 0;
 
-        p.action.forEach((v, k) => {
-            let action = v.v;
+        for (const value of p.action.values()) {
+            const action = value.v;
 
-            d += `${tab.repeat(Math.max((v.off - off), 0))}`;
+            d += `${tab.repeat(Math.max((value.off - off), 0))}`;
 
             switch (action.name) {
                 case "ERROR":
-
-                    //if (state.length + 2 >= tab_s)
-                    //    return renderTable(rule_table, (" ").repeat(state.length + 4));
-
                     d += `err` + stnts(3);
                     break;
 
                 case "IGNORE":
-                    //if (state.length + 2 >= tab_s)
-                    //    return renderTable(rule_table, (" ").repeat(state.length + 4));
-
                     d += `ign` + stnts(3);
                     break;
 
                 case "SHIFT":
-                    let state = v.v.state + "";
+                    const state = value.v.state + "";
 
                     if (state.length + 2 >= tab_s)
-                        return renderTable(rule_table,grammar, (" ").repeat(state.length + 4));
+                        return renderTable(rule_table, grammar, (" ").repeat(state.length + 4));
 
                     d += `s${state + stnts(state.length+1)}`;
                     break;
                 case "REDUCE":
-                    let body = v.v.body + "";
+                    const body = value.v.body + "";
 
                     if (body.length + 2 >= tab_s)
-                        return renderTable(rule_table,grammar, (" ").repeat(body.length + 4));
+                        return renderTable(rule_table, grammar, (" ").repeat(body.length + 4));
 
                     d += `r${body + stnts(body.length+1)}`;
                     break;
@@ -180,12 +169,12 @@ export function renderTable(states, grammar, tab = "   ", tab_s = tab.length) {
                     break;
             }
 
-            off = v.off + 1;
-        });
+            off = value.off + 1;
+        }
 
         d += `${tab.repeat(Math.max((symbol_count - off), 0)) + ver + ws(tm)}`;
 
-        off = 0
+        off = 0;
         p.goto.forEach((v, k) => {
             let action = v.v + "";
             d += `${tab.repeat(Math.max((v.off - off), 0))}`;
@@ -207,5 +196,5 @@ export function renderTable(states, grammar, tab = "   ", tab_s = tab.length) {
     /**** Bottom Bar ************************/
     str += `${crbl + hrz.repeat(tm) + crb + hrz.repeat(symbol_count * tab_s + tm) + crb + hrz.repeat(prod_count * tab_s + tm) + crb + hrz.repeat(max_body + 3) + crbr}\n`;
 
-    return str;//.replace(/\t/g, (" ").repeat(8));
+    return str;
 }

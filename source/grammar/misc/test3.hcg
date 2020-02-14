@@ -1,4 +1,17 @@
-e → E
-E → E + T │ T
-T → T * F │ F
-F → (E) │ θid
+
+@IGNORE θws
+
+<>e → A
+
+<>A → E │ a 
+
+<>E → E + T ^ θnum	↦c{ this.act="+"; this.l =$sym1; this.r =$sym3   }
+	│ T
+
+<>T → T + F ^ a  	↦c{ this.act="*"; this.l =$sym1; this.r =$sym3  }
+	│ F 
+		
+<>a → T \^ A
+
+<>F → \( E \)   ↦r{$sym2}
+	│ θid 		↦c{ this.sym=$sym1 }

@@ -10,6 +10,7 @@ import URL from "@candlefw/url";
 URL.polyfill();
 
 import runner from "./compiler_worker.mjs"
+import parser from "../lr/runtime/lr_parser.js"
 
 //Third Party stuff
 import * as commander from "commander";
@@ -142,20 +143,26 @@ async function writeFile(name, ext, data = "", dir = process.env.PWD, type) {
             await fsp.writeFile(path.join(dir, name + ".cpp"), `#include "./${name}.h" \n ${definition}`, { encoding: "utf8", flags: "w+" })
 
             //Copy C++ files into same directory
-            const tokenizer = await fsp.readFile(path.join("/",import.meta.url.replace(fn_regex, ""), "../cpp/tokenizer.h"), "utf8");
-            const parser = await fsp.readFile(path.join("/",import.meta.url.replace(fn_regex, ""), "../cpp/parser.h"), "utf8");
-            const parser_cpp = await fsp.readFile(path.join("/",import.meta.url.replace(fn_regex, ""), "../cpp/parser.cpp"), "utf8");
-            const parse_buffer = await fsp.readFile(path.join("/",import.meta.url.replace(fn_regex, ""), "../cpp/parse_buffer.h"), "utf8");
-            const node_utils = await fsp.readFile(path.join("/",import.meta.url.replace(fn_regex, ""), "../cpp/node_utils.h"), "utf8");
-            const error_codes = await fsp.readFile(path.join("/",import.meta.url.replace(fn_regex, ""), "../cpp/parse_error_codes.h"), "utf8");
+            const tokenizer = await fsp.readFile(path.join("/",
+                import.meta.url.replace(fn_regex, ""), "../cpp/tokenizer.h"), "utf8");
+            const parser = await fsp.readFile(path.join("/",
+                import.meta.url.replace(fn_regex, ""), "../cpp/parser.h"), "utf8");
+            const parser_cpp = await fsp.readFile(path.join("/",
+                import.meta.url.replace(fn_regex, ""), "../cpp/parser.cpp"), "utf8");
+            const parse_buffer = await fsp.readFile(path.join("/",
+                import.meta.url.replace(fn_regex, ""), "../cpp/parse_buffer.h"), "utf8");
+            const node_utils = await fsp.readFile(path.join("/",
+                import.meta.url.replace(fn_regex, ""), "../cpp/node_utils.h"), "utf8");
+            const error_codes = await fsp.readFile(path.join("/",
+                import.meta.url.replace(fn_regex, ""), "../cpp/parse_error_codes.h"), "utf8");
             await fsp.writeFile(path.join(dir, "tokenizer.h"), tokenizer, { encoding: "utf8", flags: "w+" })
             await fsp.writeFile(path.join(dir, "parse_buffer.h"), parse_buffer, { encoding: "utf8", flags: "w+" })
             await fsp.writeFile(path.join(dir, "parser.cpp"), parser_cpp, { encoding: "utf8", flags: "w+" })
             await fsp.writeFile(path.join(dir, "parser.h"), parser, { encoding: "utf8", flags: "w+" })
             await fsp.writeFile(path.join(dir, "node_utils.h"), node_utils, { encoding: "utf8", flags: "w+" })
             await fsp.writeFile(path.join(dir, "parse_error_codes.h"), error_codes, { encoding: "utf8", flags: "w+" })
-        }else{
-            file = await fsp.writeFile(path.join(dir, name+ext), data, { encoding: "utf8", flags: "w+" })
+        } else {
+            file = await fsp.writeFile(path.join(dir, name + ext), data, { encoding: "utf8", flags: "w+" })
         }
 
         console.log(ADD_COLOR(`The file ${name} has been successfully written to ${dir}.`, COLOR_SUCCESS), "\n");
@@ -181,14 +188,14 @@ function createScript(name, parser, type, env, compress = false) {
             break;
         case "mjs":
         case "mjs.js":
-            parser = `${parser}; export default parser;`;
+            parser = `export default ${parser};`;
             break;
         case "cjs":
-            parser = `${parser}; module.exports = parser;`;
+            parser = `module.exports = ${parser};`;
             break;
         default:
         case "js":
-            parser = `${parser}; const ${name.replace("-","_")} = parser;`;
+            parser = `const ${name.replace("-","_")} = ${parser};`;
             break;
     }
 
@@ -215,7 +222,11 @@ function parseLRJSONStates(states_string) {
 }
 
 async function compileLRStates(grammar, env_path, name, unattended) {
-    return await runner(grammar, env_path, name, unattended);
+    return await runner(grammar, env_path, name, false, unattended);
+}
+
+async function compileGLRStates(grammar, env_path, name, unattended) {
+    return await runner(grammar, env_path, name, true, unattended);
 }
 
 function buildLRCompilerScriptCPP(states, parsed_grammar, env) {
@@ -247,9 +258,9 @@ function CLI_INSTRUCTIONS(full = false) {
 async function mount(name, input, env, states, grammar) {
 
     let d = await new Promise(res => {
-        let parser;
+        let parser_data = null;
         try {
-            parser = ((Function(input + "; return parser"))());
+            parser_data = ((Function("return " + input))()); 
         } catch (e) {
             console.dir(e, { depth: null })
             return
@@ -286,13 +297,12 @@ async function mount(name, input, env, states, grammar) {
 
             if (input == " ") {
 
-
                 try {
                     let parse;
                     if (env.options && env.options.integrate)
-                        parse = parser(data.join("\n"));
+                        parse = parser(data.join("\n"),  parser_data, {}, 0);
                     else
-                        console.dir(parser(whind(data.join("\n"), true), env), { depth: null });
+                        console.dir(parser(whind(data.join("\n"), false),parser_data, env), { depth: null });
                 } catch (e) {
                     console.error(e);
                 }
@@ -300,9 +310,6 @@ async function mount(name, input, env, states, grammar) {
                 data = [];
             } else {
                 data.push(input);
-                console.clear();
-                //console.log(hc.renderTable(states, grammar));
-                console.log(data.join("\n"))
             }
 
 
@@ -445,14 +452,15 @@ program
                 script_string = "";
 
             switch (parser) {
-                case "lalr1":
+                case "lr":
+                case "lalr":
                 default:
                     if (states_string) {
                         states = parseLRJSONStates(states_string, unattended);
                     } else {
 
                         states = await compileLRStates(grammar, env_path, name, unattended);
-
+                        //console.log(states)
                         if (!!cmd.statesout) {
                             const states_output = stringifyLRStates(states);
                             await writeFile(`${name}.hcs`, states_output, output_directory);
@@ -465,6 +473,27 @@ program
                     if (CPP || type == "cpp") {
                         type = "cpp";
                         script_string = buildLRCompilerScriptCPP(states, grammar, env);
+                    } else
+                        script_string = buildLRCompilerScript(states, grammar, env);
+                    break;
+                case "glr":
+                case "glalr":
+                    if (states_string) {
+                      //  states = parseGLRJSONStates(states_string, unattended);
+                    } else {
+                        states = await compileGLRStates(grammar, env_path, name, unattended);
+                        if (!!cmd.statesout) {
+                            //const states_output = stringifyGLRStates(states);
+                            //await writeFile(`${name}.hcs`, states_output, output_directory);
+                        }
+                    }
+                    if (!states.COMPILED) {
+                        (console.error(`Failed to compile grammar ${grammar.name}. Exiting`), undefined);
+                        process.exit(1)
+                    }
+                    if (CPP || type == "cpp") {
+                        //type = "cpp";
+                        //script_string = buildLRCompilerScriptCPP(states, grammar, env);
                     } else
                         script_string = buildLRCompilerScript(states, grammar, env);
                     break;
@@ -484,16 +513,13 @@ program
             } else
                 await write(name, script, output_directory, type);
 
-
-
             if (!unattended)
                 console.log(`Use ${ADD_COLOR(" ctrl ", COLOR_KEYBOARD)}+${ADD_COLOR(" c ", COLOR_KEYBOARD)} to return to console.`)
 
             if (!!cmd.mount) {
-                if (!(await mount(name, script, env, states, grammar))) {};
+                if (!(await mount(name, script_string, env, states, grammar))) {};
             }
-
-
+            
             process.exit();
 
         } catch (e) {

@@ -5,5 +5,5 @@
 ↦b{	sym[0] }
 
 <> S → s
-<> s → θid ( R (= R)?  ↦c=>a │ τsym ↦r=>b )(*) τdi?  ↦c{this.syms = $sym3; this.test = $sym2 }
+<> s → θid ( R (= R)?  ↦c=>a │ τsym ↦r=>b )(*) τdi?  ↦c{this.syms = $sym3; this.test = $sym2; this.root = $sym1 }
 <> R → [ θid? τdid? τmango? ] ↦r{ $sym1 + $sym2 + $sym3 }  

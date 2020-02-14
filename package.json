@@ -4,14 +4,16 @@
   "description": "Parser Compiler",
   "main": "source/hydrocarbon.mjs",
   "bin": {
-    "hydrocarbon": "./console.js"
+    "hydrocarbon": "./source/cli/cli.js"
   },
+  "type":"module",
   "scripts": {
     "prepublish": "cp ./node_modules/@candlefw/whind/build/whind.js ./data",
     "test": "echo \"Error: no test specified\" && exit 1",
     "compile.grammar": "hydrocarbon compile --unattended -t mjs -o ./source/grammar/ ./source/grammar/hcg/hcg.hcg",
     "compile.grammar.test": "hydrocarbon compile -d --unattended -t mjs -o ./source/grammar/ ./source/grammar/hcg/hcg.hcg",
-    "compile.test": "hydrocarbon compile -d -m --unattended ./source/grammar/misc/test2.hcg",
+    "compile.test": "hydrocarbon compile --parser glalr -d -m --unattended ./source/grammar/misc/test.hcg",
+    "compile.test.table": "hydrocarbon compile --parser glalr -d -m --unattended ./source/grammar/misc/test.hcg",
     "compile.default": "hydrocarbon compile -d -m ./source/grammar/misc/default-productions.hcg"
   },
   "repository": {

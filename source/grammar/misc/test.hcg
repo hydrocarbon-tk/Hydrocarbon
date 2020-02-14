@@ -1,21 +1,14 @@
 @IGNORE θws θnum
 
-<> S → s 
+<> S → add
 
-<> s → E τd │  ((EXC  τa τb )) J E
+<> add → num  ↦r{$sym1}
+	│ add + num ↦r{$sym1 + $sym3}
 
-<> E → τa ((IGN  τa )) ((ERR θnum)) τb τd │ τd? τd τr │ τc 
-
-<> J → τa F │ τa
-
-<> F → τb τd
-
-<> D → τa B 
-
-<> B → τb 
+<> num → τ1 ↦r{2}
+	│ τ2 ↦r{1}
 
 # -- S → s 
 # -- s → C C
 # -- C → τc C │ τd 
-
 

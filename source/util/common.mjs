@@ -8,23 +8,20 @@ export const isNonTerm = (f) => f.type == "production";
 
 export const types = whind.types;
 
-const production_stack_arg_name = "sym",
+const 
+    production_stack_arg_name = "sym",
     environment_arg_name = "env",
     lexer_arg_name = "lex";
 
-export function getToken(l, SYM_LU) {
+export function getToken(l, SYM_LU, IGNORE_KEYWORDS = false) {
     if (l.END) return 0; /*"$eof"*/
-
+    
     switch (l.ty) {
         case types.id:
-            //*
-            if (SYM_LU.has(l.tx)) return "keyword";
-            /*/
-                console.log(l.tx, SYM_LU.has(l.tx), SYM_LU.get(l.tx))
-                if (SYM_LU.has(l.tx)) return SYM_LU.get(l.tx);
-            //*/
+            if (!IGNORE_KEYWORDS && SYM_LU.has(l.tx)) return "keyword";
             return "id";
         case types.num:
+            if (!IGNORE_KEYWORDS && SYM_LU.has(l.tx)) return SYM_LU.get(l.tx);
             return "num";
         case types.string:
             return "str";
@@ -62,26 +59,21 @@ function addNonTerminal(table, body, grammar, body_ind, index = 0) {
         //throw new Error(`Empty production at index ${index} in [${body.production.name}]`);
     }
 
-    let first = body.sym[index],
-        terminal = "",
+    const first = body.sym[index];
+
+    let terminal = "",
         HAS_E = false;
 
 
     if (first.type == "literal") {
-        terminal = /*"τ" + */ first.val;
-
-    } else if (first.type == "empty") {
-        //table.set(EMPTY_PRODUCTION, { v: EMPTY_PRODUCTION, p: grammar.bodies[body_ind].precedence });
+        terminal = first.val;   
+     } else if (first.type == "empty") {
         return true;
     } else if (first.type !== "production") {
-
-        //if (first[first.length - 1] == "!")
-        //    return addNonTerminal(table, production_array, grammar, body_ind, index + 1, );
-
         terminal = first.val;
     } else {
 
-        let bodies = grammar[first.val].bodies;
+        const bodies = grammar[first.val].bodies;
 
         for (let i = 0; i < bodies.length; i++)
             if (i !== body_ind && first.val !== body.production.id)
@@ -93,11 +85,11 @@ function addNonTerminal(table, body, grammar, body_ind, index = 0) {
         return HAS_E;
     }
 
-    let cc = terminal.charCodeAt(0);
+    const cc = terminal.charCodeAt(0);
 
     //If the first character of the terminal is in the alphabet, treat the token as a identifier terminal
     if (!(cc < 48 || (cc > 57 && cc < 65) || (cc > 90 && cc < 97) || cc > 122)) {
-        terminal = /*"τ"*/ "" + terminal;
+        terminal = "" + terminal;
     }
 
     table.set(terminal, { v: terminal, p: grammar.bodies[body_ind].precedence, type: first.type });
@@ -114,11 +106,6 @@ const merge = (follow, first) => {
 };
 
 export function FIRST(grammar, ...symbols) {
-    /*
-    if(symbols.length == 1 && typeof(symbols[0]) !== "object"){
-        if(grammar.bodies[symbols[0]].f)
-            return grammar.bodies[symbols[0]].f;
-    }*/
 
     if (!symbols[0]) return [];
 
@@ -163,29 +150,18 @@ export function FIRST(grammar, ...symbols) {
 
     set.forEach((v) => val.push(v));
 
-    //const v = (symbols[0].v) ? symbols[0].v : symbols[0];
-
-    //if (isNonTerm(v))
-    //    grammar[v].first = val;
-
-    /*
-    if(symbols.length == 1 && typeof(symbols[0]) !== "object"){
-        grammar.bodies[symbols[0]].f = val;
-    }
-    */
-
     return val;
 }
 
 export function FOLLOW(grammar, production) {
 
-    let prod = grammar[production];
+    const
+        prod = grammar[production],
+        table = [];
 
     if (prod.follow) return grammar[production].follow;
 
-    let table = [];
     for (let i = 0; i < grammar.length; i++) {
-
         grammar[i].follow = new Set();
         table.push(grammar[i].follow);
     }
@@ -193,21 +169,22 @@ export function FOLLOW(grammar, production) {
     table[0].add("$eof"); //End of Line
 
     for (let i = 0; i < grammar.length; i++) {
-        let production = grammar[i];
+        const production = grammar[i];
 
         for (let i = 0; i < production.bodies.length; i++) {
-            let body = production.bodies[i];
+            const body = production.bodies[i];
 
             for (let i = 0; i < body.length; i++) {
-                let val = body[i];
+                const val = body[i];
 
                 if (isNonTerm(val)) {
 
-                    let follow = table[val];
+                    const follow = table[val];
 
                     for (var j = i + 1; j < body.length; j++) {
-                        let val = body[j],
 
+                        const
+                            val = body[j],
                             body_index = i;
 
                         if (isNonTerm(val)) {
@@ -228,18 +205,17 @@ export function FOLLOW(grammar, production) {
         }
     }
 
-    for (let i = 0; i < grammar.length; i++) {
+    for (let production_index = 0; production_index < grammar.length; production_index++) {
 
-        let production = grammar[i];
-
-        let production_index = i;
+        const production = grammar[production_index];
 
         for (let i = 0; i < production.bodies.length; i++) {
 
-            let body = production.bodies[i];
+            const body = production.bodies[i];
 
             for (let i = body.length; i > 0; i--) {
-                let val = body[i - 1];
+
+                const val = body[i - 1];
 
                 if (isNonTerm(val)) {
 
@@ -267,8 +243,6 @@ function setFunction(env, funct, function_params = [], this_object = null) {
     try {
         func = (Function).apply(this_object, function_params.concat([(funct.type == "RETURNED" ? "return " : "") + funct.txt.trim()]));
     } catch (e) {
-        console.log("ASDSADA", funct.name, funct.txt)
-        console.dir(funct)
         func = () => { return { error: e, type: "error" } };
 
         throw "";
@@ -347,11 +321,16 @@ export function filloutGrammar(grammar, env) {
 
 
 export class Item extends Array {
+
     constructor(body_id, length, offset, follow, g = null) {
         super(body_id, length, offset);
         this.follow = follow;
         this.USED = false;
         this.grammar = g;
+    }
+
+    get atEND(){
+        return this.offset >= this.len;
     }
 
     get v() {
@@ -386,6 +365,23 @@ export class Item extends Array {
     }
     get sym() {
         return this.body_.sym[this.offset];
+    }
+
+    render() {
+        const a = this.body_.sym
+            .map(sym=> sym.type == "production" ? {val:this.grammar[sym.val].name} : sym )
+            .flatMap((sym, i) => (i == this.offset) ? [sym.val, "•"] : sym.val);
+        if (a.length == this.offset)
+            a.push("•");
+        return a.join(" ");
+    }
+
+    renderWithProduction(){
+        return `[ ${this.body_.production.name} ⇒ ${this.render()} ]`;
+    }
+
+    renderWithProductionAndFollow(){
+        return `[${this.body_.production.name}⇒${this.render()}, ${this.v}]`;
     }
 
     increment() {
@@ -425,27 +421,24 @@ export function processClosure(state_id, items, grammar, error, excludes, offset
         g = items.length;
 
     for (let i = offset; i < g; i++) {
-        const item = items[i],
+        const
+            item = items[i],
             body = bodies[item.body],
             len = item.len,
             index = item.offset,
             B = body.sym[index],
             Be = body.sym.slice(index + 1),
             b = item.follow,
-            end = items.length;
+            end = items.length,
+            step_excludes = excludes.slice(),
+            new_excludes = [],
+            out_excludes = [];
 
-        const step_excludes = excludes.slice();
-
-        //*
         if (body.excludes.has(index)) {
             if (!items.excludes)
                 items.excludes = [];
             body.excludes.get(index).forEach(e => step_excludes.push({ body: item.body, symbols: Array.isArray(e) ? e : [e], offset: 0, l: Array.isArray(e) ? e.length : 1, inner_offset: index }));
         }
-        //*/
-
-        const new_excludes = [];
-        const out_excludes = [];
 
         for (let u = 0; u < step_excludes.length; u++) {
 
@@ -492,10 +485,10 @@ export function processClosure(state_id, items, grammar, error, excludes, offset
 
             for (let i = 0; i < production.bodies.length; i++) {
 
-                const pbody = production.bodies[i];
-                const body_index = pbody.id;
-
-                const first_mod = [...first.slice(), ...pbody.reduce];
+                const
+                    pbody = production.bodies[i],
+                    body_index = pbody.id,
+                    first_mod = [...first.slice(), ...pbody.reduce];
 
                 out_excludes.push(...new_excludes.map(e => ({ body: body_index, symbols: e.symbols, offset: e.offset, l: e.l, inner_offset: e.inner_offset })));
 
@@ -504,8 +497,9 @@ export function processClosure(state_id, items, grammar, error, excludes, offset
                     if (!first_mod[i])
                         continue;
 
-                    const item = new Item(pbody.id, pbody.length, 0, first_mod[i], grammar);
-                    const sig = item.full_id;
+                    const
+                        item = new Item(pbody.id, pbody.length, 0, first_mod[i], grammar),
+                        sig = item.full_id;
 
                     if (!added.has(sig)) {
                         items.push(item);
@@ -513,9 +507,10 @@ export function processClosure(state_id, items, grammar, error, excludes, offset
                     }
                 }
             }
-            const added_count = items.length - end;
 
-            const count = processClosure(state_id, items, grammar, error, out_excludes, g, added);
+            const
+                added_count = items.length - end,
+                count = processClosure(state_id, items, grammar, error, out_excludes, g, added);
 
             if (count > 0 && count == added_count) {
                 item.USED = true;

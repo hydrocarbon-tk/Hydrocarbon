@@ -115,9 +115,9 @@ let color_loading_gs = ([
     "\x1b[48;5;233m",
 ])
 
-function getTimeStamp(date_object, USE_MILLISECONDS){
+function getTimeStamp(date_object, USE_MILLISECONDS) {
     const div = ":";
-    return ("0"+(date_object.getHours()-17)).slice(-2) + div + ("0"+(date_object.getMinutes())).slice(-2) +div+ ("0"+(date_object.getSeconds())).slice(-2) + (USE_MILLISECONDS ? "."+ date_object.getMilliseconds() : "");
+    return ("0" + (date_object.getHours() - 17)).slice(-2) + div + ("0" + (date_object.getMinutes())).slice(-2) + div + ("0" + (date_object.getSeconds())).slice(-2) + (USE_MILLISECONDS ? "." + date_object.getMilliseconds() : "");
 }
 
 color_loading_gs = color_loading_gs.concat(color_loading_gs).concat(color_loading_gs);
@@ -135,9 +135,11 @@ function center(string) {
     return fill.repeat(Math.max(0, Math.round(col / 2 - length / 2))) + string;
 }
 
-async function runner(grammar, env_path, name, UNATTENDED = false) {
+async function runner(grammar, env_path, name, GLR = false, UNATTENDED = false) {
 
-    if(!grammar)
+
+    //console.dir(grammar,{depth:null})
+    if (!grammar)
         throw new Error(`Unable to parse grammar, the grammar is ${grammar}`);
 
     const start = performance.now();
@@ -161,15 +163,15 @@ async function runner(grammar, env_path, name, UNATTENDED = false) {
 
         let worker;
 
-        if(process.platform == "win32"){
-            worker = new Worker(import.meta.url.replace(/file\:\/\/\//g,""), 
-            {
-                workerData: { grammar, env_path }
-            })
-        }else{
-            worker = new Worker((new URL(import.meta.url)).pathname, 
-            {
-                workerData: { grammar, env_path }
+        if (process.platform == "win32") {
+            worker = new Worker(
+                import.meta.url.replace(/file\:\/\/\//g, ""), {
+                    workerData: { grammar, env_path, GLR }
+                })
+        } else {
+            worker = new Worker((new URL(
+                import.meta.url)).pathname, {
+                workerData: { grammar, env_path, GLR }
             })
         }
 
@@ -187,7 +189,7 @@ async function runner(grammar, env_path, name, UNATTENDED = false) {
                 states = e.states;
                 time = new Date(performance.now() - start);
             }
-            if(UNATTENDED)
+            if (UNATTENDED)
                 test()
         })
 
@@ -222,15 +224,15 @@ async function runner(grammar, env_path, name, UNATTENDED = false) {
         });
 
         function test() {
-           // console.clear();
+            // console.clear();
             // Clearing console to provide a dashboard interface.
-            if(!UNATTENDED) console.clear();
+            if (!UNATTENDED) console.clear();
 
             if (COMPLETE && (EXIT || UNATTENDED)) {
-                if(id)
+                if (id)
                     clearInterval(id);
 
-                error.strings.forEach(str=>console.log(str));
+                error.strings.forEach(str => console.log(str));
                 res(states);
                 return;
             } else if (!COMPLETE) {
@@ -259,7 +261,7 @@ async function runner(grammar, env_path, name, UNATTENDED = false) {
                     conflicts = center(`${COLOR_ERROR}Use arrow keys to review conflicts. > ${COLOR_RESET}`)
             }
 
-            if(!UNATTENDED)
+            if (!UNATTENDED)
                 console.log(
                     ["CFW Hydrocarbon - Compiling " + name + " grammar", "",
                         ` Elapsed Time ${getTimeStamp(time, COMPLETE)}`, "",
@@ -274,8 +276,8 @@ async function runner(grammar, env_path, name, UNATTENDED = false) {
             else {
 
                 process.stdout.clearLine();
-                process.stdout.cursorTo(0); 
-                console.log("tick:", getTimeStamp(time, true),  "number of states:", number_of_states);
+                process.stdout.cursorTo(0);
+                console.log("tick:", getTimeStamp(time, true), "number of states:", number_of_states);
             }
         }
 
@@ -292,7 +294,7 @@ if (!isMainThread) {
         if (env_path) {
             let ext = env_path.split(".").reverse()[0];
 
-            env = (await import("file://"+env_path)).default; // WyTF is file:// a thing !?!?!
+            env = (await import("file://" + env_path)).default;
         }
 
 
@@ -301,7 +303,8 @@ if (!isMainThread) {
 
 
     async function runner() {
-        const { grammar, env_path } = workerData;
+
+        const { grammar, env_path, GLR } = workerData;
 
         let env = null;
 
@@ -322,16 +325,16 @@ if (!isMainThread) {
             process.exit();
         }
 
-
-        let gen = hc.compileLRStates(grammar, env);
-        let status = gen.next().value;
-        let number_of_completed_items = 0;
-        let loop = 0;
-        let completion_ratio = 0
-        let items_left = 0
-        let total_items_processed = 0
-        let number_of_states = 0
-        let conflicts_generated = 0
+        let
+            gen = hc[GLR ? "compileGLRStates" : "compileLRStates"](grammar, env),
+            status = gen.next().value,
+            number_of_completed_items = 0,
+            loop = 0,
+            completion_ratio = 0,
+            items_left = 0,
+            total_items_processed = 0,
+            number_of_states = 0,
+            conflicts_generated = 0
 
         do {
             completion_ratio = ((status.total_items - status.items_left) / status.total_items);
@@ -339,7 +342,6 @@ if (!isMainThread) {
             total_items_processed = loop++;
             number_of_states = status.num_of_states;
             conflicts_generated = status.error.strings.length;
-
 
             parentPort.postMessage({
                 error: status.error,
@@ -353,10 +355,10 @@ if (!isMainThread) {
             });
 
             status = gen.next().value;
+
         } while (!status.COMPLETE)
 
         const states = status.states;
-
 
         parentPort.postMessage({
             error: status.error,

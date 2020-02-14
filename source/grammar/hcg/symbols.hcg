@@ -73,7 +73,7 @@
 	\θ (ERR θws θnl) identifier 					↦cstr{ this.type = "generated"; this.val = $sym2 }
 
 <> literal_symbol → 
-	\τ (ERR θws θnl)  ( identifier │ def::natural ) ↦cstr{ this.type = "literal"; this.val = $sym2 }
+	\τ (ERR θws θnl)  ( identifier │ def::natural ) ↦cstr{ this.type = "literal"; this.val = ""+$sym2 }
 
 <> escaped_symbol → 
 	\\ (ERR θws θnl)  θany 							↦cstr{ this.type = "escaped"; this.val = $sym2 }

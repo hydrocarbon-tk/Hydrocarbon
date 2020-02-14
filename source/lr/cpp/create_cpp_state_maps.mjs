@@ -161,9 +161,6 @@ export default function(grammar, states, env, functions, SYM_LU, types) {
 
         state_map.push(...(new Array(symbol_count - last_pos).fill(-1)));
 
-        if(HAS_ANY)
-            console.log(state_map)
-
         //Create the goto tables. Find matches and consolidate.
         //Goto tables are found at top of the parser.
         const goto = [];

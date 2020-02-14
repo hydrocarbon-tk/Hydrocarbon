@@ -7,7 +7,7 @@ import { verboseCompiler } from "./compiler_script.mjs";
 
 import { types as js_types, arrow_function_declaration, parse as ecmascript_parse } from "@candlefw/js";
 
-export function LRParserCompiler(states, grammar, env) {
+export default function GenerateLRParseDataObject(states, grammar, env) {
     //Build new env variables if they are missing 
     if (!grammar.bodies) {
         filloutGrammar(grammar, env);
@@ -21,23 +21,33 @@ export function LRParserCompiler(states, grammar, env) {
 
     let n = 0;
 
-    let types = Object.assign({}, t);
+    const types = Object.assign({}, t);
 
     types.any = 200;
     types.keyword = 201;
 
-    for (let a in types)
+    for (const a in types)
         GEN_SYM_LU.set(a, (((n++) / 2) | 0) + 1);
 
     GEN_SYM_LU.set("white_space_new_line", 12);
     GEN_SYM_LU.set("any", 13);
     GEN_SYM_LU.set("keyword", 14);
 
-
     //parse body function
     const
-        COMPILE_FUNCTION = (env.options) ? !!env.options.integrate : false,
-        functions = [],
+        COMPILE_FUNCTION = (env.options) ? !!env.options.integrate : false, functions = [];
+
+
+    if (env.functions) {
+        for (let n in env.functions) {
+            const funct = env.functions[n];
+            if (COMPILE_FUNCTION || funct.INTEGRATE) 
+                funct.id  = functions.push(`${generateCompactFunction(funct.toString())}`) -1;
+        }
+    }
+
+
+    const
         error_handlers = [],
         SYMBOL_INDEX_OFFSET = 15, //Must leave room for symbol types indices
         //Convert all terminals to indices and create lookup map for terminals
@@ -47,7 +57,7 @@ export function LRParserCompiler(states, grammar, env) {
         ]),
 
 
-        { state_functions, goto_functions, state_str_functions, state_maps, goto_maps } = createSparseStateMaps(grammar, states, env, functions, SYM_LU, types);
+        { state_functions, goto_functions, state_str_functions, state_maps, goto_maps, fork_map } = createSparseStateMaps(grammar, states, env, functions, SYM_LU, types);
 
     for (let i = 0; i < states.length; i++) {
         const production = grammar.bodies[states[i].body].production;
@@ -59,16 +69,7 @@ export function LRParserCompiler(states, grammar, env) {
         }
     }
 
-    if (env.functions) {
-        for (let n in env.functions) {
-            const funct = env.functions[n];
 
-            if (COMPILE_FUNCTION || funct.INTEGRATE) {
-                //functions.push(`${n}=${funct.toString().replace(/(anonymous)?[\n\t]*/g,"")}`);
-                functions.push(`${n}=${generateCompactFunction(funct.toString())}`);
-            }
-        }
-    }
 
     let default_error = `(tk,r,o,l,p)=>{if(l.END)l.throw("Unexpected end of input");else if(l.ty & (${types.ws | types.nl})) l.throw(\`Unexpected space character within input "\${p.slice(l)}" \`) ; else l.throw(\`Unexpected token [\${l.tx}]\`)}`;
 
@@ -76,6 +77,7 @@ export function LRParserCompiler(states, grammar, env) {
         default_error = `(...d)=>fn.defaultError(...d)`;
 
     const output = verboseCompiler(
+        fork_map,
         goto_maps,
         state_maps,
         state_functions,
@@ -92,10 +94,10 @@ export function LRParserCompiler(states, grammar, env) {
 }
 
 function generateCompactFunction(function_string) {
-    
+
     //return function_string.replace(/(anonymous)?[\n\t]*/g, "");
     let fn = ecmascript_parse(function_string).statements;
-    
+
     fn.id.vals[0] = "";
 
     if (fn.body) {

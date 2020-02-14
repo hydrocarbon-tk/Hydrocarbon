@@ -5,8 +5,8 @@
 import { null_literal, member_expression, numeric_literal, identifier, parse as ecmascript_parse } from "@candlefw/js";
 import whind from "@candlefw/whind";
 import URL from "@candlefw/url";
-
-import parser from './hcg.mjs';
+import parser_data from "./hcg.mjs";
+import parser from "../lr/runtime/lr_parser.js";
 
 function convertProductionNamesToIndexes(productions, LU) {
     let sym = "",
@@ -36,7 +36,7 @@ function convertProductionNamesToIndexes(productions, LU) {
                             sym.production = LU.get(sym.name);
                             sym.val = LU.get(sym.name).id;
                         } catch (e) {
-                            console.error("Error found in " + productions.uri)
+                            console.error("Error found in " + productions.uri);
                             throw new SyntaxError(`Missing Production for symbol ${sym.name} in body of production ${production.name}`);
                         }
                         sym.resolveFunction = null; // For DataClone 
@@ -143,8 +143,6 @@ export async function grammarParser(grammar, FILE_URL, stamp = 112, meta_importe
                         throw e;
                     }
 
-
-
                     let EXISTING = false;
                     prods.imported = true;
 
@@ -247,9 +245,6 @@ export async function grammarParser(grammar, FILE_URL, stamp = 112, meta_importe
 
                         const iter = fn.traverseDepthFirst();
 
-                        let i = 0,
-                            log = false;
-
                         for (const node of iter) {
 
                             //If encountering an identifier with a value of the form "$sym*" where * is an integer.
@@ -273,7 +268,6 @@ export async function grammarParser(grammar, FILE_URL, stamp = 112, meta_importe
                                     n = new null_literal();
                                 }
 
-                                log = true;
                                 node.replace(n);
                             }
                         }
@@ -285,14 +279,11 @@ export async function grammarParser(grammar, FILE_URL, stamp = 112, meta_importe
                         this.reduce_function.txt = (this.reduce_function.type == "RETURNED") ?
                             fn.body.expr.render() :
                             fn.body.render();
-
-                        //if(log)
-                        //    console.log(fn.body.render());
                     }
 
                     //Removing build function ensures that this object can be serialized. 
                     delete this.build;
-                }; //*/
+                };
             },
 
             groupProduction: function(sym, env, lex) {
@@ -512,7 +503,7 @@ export async function grammarParser(grammar, FILE_URL, stamp = 112, meta_importe
         }
     };
 
-    const productions = parser(whind(grammar), env).result;
+    const productions = parser(whind(grammar), parser_data, env).result;
 
     productions.uri = FILE_URL;
 
@@ -527,8 +518,6 @@ export async function grammarParser(grammar, FILE_URL, stamp = 112, meta_importe
 
         await SLEEPER(pending_hook);
         //Convient lookup map for production non-terminal names. 
-
-
 
         //Setup the productions object
         productions.forEach((p, i) => p.id = i);
@@ -563,8 +552,6 @@ export async function grammarParser(grammar, FILE_URL, stamp = 112, meta_importe
                 }
         }
     }
-    //throw("ENDING")
-
 
     if (productions.length == 0)
         throw ("This grammar does not define any productions.");

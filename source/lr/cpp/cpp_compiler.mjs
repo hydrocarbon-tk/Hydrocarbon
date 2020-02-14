@@ -1,5 +1,5 @@
 /** Compiles a stand alone JS parser from a LR rules table and env object **/
-import { types as t, filloutGrammar } from "../util/common.mjs";
+import { types as t, filloutGrammar } from "../../util/common.mjs";
 
 import createSparseStateMaps from "./create_cpp_state_maps.mjs";
 
