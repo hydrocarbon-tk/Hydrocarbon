@@ -232,7 +232,7 @@ async function runner(grammar, env_path, name, GLR = false, UNATTENDED = false) 
                 if (id)
                     clearInterval(id);
 
-                error.strings.forEach(str => console.log(str));
+            //    error.strings.forEach(str => console.log(str));
                 res(states);
                 return;
             } else if (!COMPLETE) {
@@ -277,7 +277,7 @@ async function runner(grammar, env_path, name, GLR = false, UNATTENDED = false) 
 
                 process.stdout.clearLine();
                 process.stdout.cursorTo(0);
-                console.log("tick:", getTimeStamp(time, true), "number of states:", number_of_states);
+             //   console.log("tick:", getTimeStamp(time, true), "number of states:", number_of_states);
             }
         }
 

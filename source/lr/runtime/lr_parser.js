@@ -43,7 +43,7 @@ function deepClone(obj, visited = new Map()) {
     entry: the starting state in the parse table. 
     data: parser data including look up tables and default parse action functions.
 */
-function parser(l, data = null, e = {}, entry = 0, sp = 1, len = 0, off = 0, o = [], state_stack = [0, entry], SKIP_LEXER_SETUP = false, forked_time = 6000, previous_forked_state = 0) {
+function parser(l, data = null, e = {}, entry = 0, sp = 1, len = 0, off = 0, o = [], state_stack = [0, entry], SKIP_LEXER_SETUP = false, max_cycles = 600000, previous_forked_state = 0, fork_stack = []) {
 
     if (!data)
         return { result: [], error: "Data object is empty" };
@@ -61,7 +61,7 @@ function parser(l, data = null, e = {}, entry = 0, sp = 1, len = 0, off = 0, o =
         ty: types,
     } = data;
 
-    let time = forked_time;
+    let cycles = max_cycles;
 
     const { sym, keyword, any, num } = types;
 
@@ -75,6 +75,8 @@ function parser(l, data = null, e = {}, entry = 0, sp = 1, len = 0, off = 0, o =
         }
     }
 
+
+
     if (!e.fn)
         e.fn = e.functions;
 
@@ -86,7 +88,7 @@ function parser(l, data = null, e = {}, entry = 0, sp = 1, len = 0, off = 0, o =
 
         outer:
 
-            while (time-- > 0) {
+            while (cycles-- > 0) {
 
                 const
                     map = states[state_stack[sp]],
@@ -101,6 +103,8 @@ function parser(l, data = null, e = {}, entry = 0, sp = 1, len = 0, off = 0, o =
 
                     continue;
                 }
+
+               // console.log(`[${l.tx}]`,off);
 
                 if (fn > 0) {
                     r = state_actions[fn - 1](tk, e, o, l, state_stack[sp - 1], state_action_functions, parser);
@@ -219,9 +223,17 @@ function parser(l, data = null, e = {}, entry = 0, sp = 1, len = 0, off = 0, o =
                         var
                             fork_states_start = r >> 16,
                             fork_states_length = (r >> 3) & 0x1FFF,
-                            result = { result: null, error: "", time };
+                            result = { result: null, error: "", cycles },
+                            cpfs = fork_stack;
+                          //   console.log("FORK-----------------------------------------------------------------------------------------------", `[${l.tx}]`, l.ty, l.END)
+
 
                         for (const state of data.fm.slice(fork_states_start, fork_states_start + fork_states_length)) {
+                            
+                            const fork_Stack = cpfs.slice();
+
+                            fork_stack.push(state)
+                            
                             let
                                 res = null,
                                 csp = sp,
@@ -234,9 +246,12 @@ function parser(l, data = null, e = {}, entry = 0, sp = 1, len = 0, off = 0, o =
                                 copied_state_stack = state_stack.slice(),
                                 r = state_actions[state - 1](tk, e, copied_output, copied_lex, copied_state_stack[csp - 1], state_action_functions, parser);
 
+
                             try {
                                 switch (r & 7) {
                                     case SHIFT:
+
+                                        //console.log("SHIFT A ----------------------------------------------", `[${copied_lex.tx}]`, copied_lex.ty, copied_lex.END, copied_lex.off)
 
                                         copied_output.push(l.tx);
 
@@ -244,9 +259,10 @@ function parser(l, data = null, e = {}, entry = 0, sp = 1, len = 0, off = 0, o =
 
                                         copied_lex.next();
 
-                                        res = parser(copied_lex, data, e, 0, csp + 2, clen, copied_lex.off, copied_output, copied_state_stack, true, time-1, state);
+                                        //console.log("SHIFT B ----------------------------------------------", `[${copied_lex.tx}]`, copied_lex.ty, copied_lex.END, copied_lex.off)
+
+                                        res = parser(copied_lex, data, e, 0, csp + 2, clen, copied_lex.off, copied_output, copied_state_stack, true, cycles-1, state, fork_stack.slice());
                                      
-                                        console.log("SHIFT", state, res)
                                         break;
 
                                     case REDUCE:
@@ -266,24 +282,29 @@ function parser(l, data = null, e = {}, entry = 0, sp = 1, len = 0, off = 0, o =
 
                                         csp += 2;
 
-                                        res = parser(copied_lex, data, e, 0, csp, clen, off, copied_output, copied_state_stack, true, time-1, state);
+                                        res = parser(copied_lex, data, e, 0, csp, clen, off, copied_output, copied_state_stack, true, cycles-1, state, fork_stack.slice() );
 
                                         break;
+
+                                    default:
+                                        console.log("############################################### ERROR ############################################### ERROR ############################################### ERROR ############################################### ERROR ############################################### ERROR ############################################### ERROR ############################################### ERROR ############################################### ERROR ############################################### ERROR ############################################### ERROR ############################################### ERROR ############################################### ERROR ############################################### ERROR ############################################### ERROR ############################################### ERROR ############################################### ERROR ############################################### ERROR ############################################### ERROR ############################################### ERROR ############################################### ERROR ############################################### ERROR ############################################### ERROR ############################################### ERROR ############################################### ERROR ")
+
                                 }
 
                                 if (!res.error) {
                                     return res;
                                 }
-
-                                if (res.time <= result.time) {
+                              //  console.log("FAIL ----------------------------------------------", `[${copied_lex.tx}]`, copied_lex.ty, copied_lex.END, copied_lex.off, res.error)
+                                if (res.cycles <= result.cycles) {
                                     result = res;
-                                    result.time = res.time;
+                                    result.cycles = res.cycles;
                                 }
 
                             } catch (e) {
-                                if (e.time && e.time <= result.time) {
+                            //    console.log("FAIL ----------------------------------------------", `[${copied_lex.tx}]`, copied_lex.ty, copied_lex.END, copied_lex.off, e.error)
+                                if (e.cycles && e.cycles <= result.cycles) {
                                     result.error = e.error;
-                                    result.time = e.time;
+                                    result.cycles = e.cycles;
                                 }
                             }
                         }
@@ -295,13 +316,14 @@ function parser(l, data = null, e = {}, entry = 0, sp = 1, len = 0, off = 0, o =
                 }
             }
     } catch (e) {
-        throw { error: e, time };
+        throw { error: e, cycles };
     }
 
-    if(time <= 0)
-        return { result: o[0], error: "Max Depth Reached", time };
+    if(cycles <= 0)
+        return { result: o[0], error: "Max Depth Reached", cycles };
 
-    return { result: o[0], error: false, time };
+    console.log(cycles)
+    return { result: o[0], error: false, cycles };
 }
 
 export default (lex, data, environment, entry_point) => parser(lex, data, environment, entry_point);
