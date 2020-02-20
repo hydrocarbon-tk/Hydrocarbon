@@ -74,6 +74,7 @@ function processStateTransition(
         fn = 0;
     switch (state.name) {
         case FORK_ACTION:
+            //console.log(state.actions.map(s=>({id:s.item_string, type: s.name == SHIFT ? "SHIFT":"REDUCE"})))
 
             var fork_ids = state.actions.map(s => convertSymbols([k, s], SYM_LU, types))
                 .map(s => processStateTransition(

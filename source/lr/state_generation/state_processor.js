@@ -24,7 +24,8 @@ export default class StateProcessor {
             state: state.id,
             body: state.body,
             symbol_type: symbol.type,
-            item
+            item,
+            item_string:item.renderWithProduction()
         });
     }
 
@@ -34,7 +35,8 @@ export default class StateProcessor {
             state: state.id,
             body: state.body,
             symbol_type: symbol.type,
-            item
+            item,
+            item_string:item.renderWithProduction()
         });
     }
 
@@ -44,7 +46,8 @@ export default class StateProcessor {
             state: state.id,
             body: state.body,
             symbol_type: symbol.type,
-            item
+            item,
+            item_string:item.renderWithProduction()
         });
     }
 
@@ -56,7 +59,8 @@ export default class StateProcessor {
             body: body.id,
             symbol_type: symbol.type,
             production: body.production,
-            item
+            item,
+            item_string:item.renderWithProduction()
         });
     }
 
@@ -68,7 +72,8 @@ export default class StateProcessor {
             body: body.id,
             symbol_type: symbol.type,
             production: body.production,
-            item
+            item,
+            item_string:item.renderWithProduction()
         });
     }
 
@@ -80,7 +85,8 @@ export default class StateProcessor {
             offset: item.offset + 1,
             body: body.id,
             symbol_type: symbol.type,
-            item
+            item,
+            item_string:item.renderWithProduction()
         });
     }
 
@@ -90,7 +96,8 @@ export default class StateProcessor {
             symbol_type: symbol.type == "empty" ? item.follow.type : symbol.type,
             state: goto_state.id,
             body: body.id,
-            item
+            item,
+            item_string:item.renderWithProduction()
         });
     }
 

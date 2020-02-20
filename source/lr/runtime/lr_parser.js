@@ -104,8 +104,6 @@ function parser(l, data = null, e = {}, entry = 0, sp = 1, len = 0, off = 0, o =
                     continue;
                 }
 
-               // console.log(`[${l.tx}]`,off);
-
                 if (fn > 0) {
                     r = state_actions[fn - 1](tk, e, o, l, state_stack[sp - 1], state_action_functions, parser);
                 } else {
@@ -225,9 +223,7 @@ function parser(l, data = null, e = {}, entry = 0, sp = 1, len = 0, off = 0, o =
                             fork_states_length = (r >> 3) & 0x1FFF,
                             result = { result: null, error: "", cycles },
                             cpfs = fork_stack;
-                          //   console.log("FORK-----------------------------------------------------------------------------------------------", `[${l.tx}]`, l.ty, l.END)
-
-
+                        
                         for (const state of data.fm.slice(fork_states_start, fork_states_start + fork_states_length)) {
                             
                             const fork_Stack = cpfs.slice();
@@ -251,15 +247,11 @@ function parser(l, data = null, e = {}, entry = 0, sp = 1, len = 0, off = 0, o =
                                 switch (r & 7) {
                                     case SHIFT:
 
-                                        //console.log("SHIFT A ----------------------------------------------", `[${copied_lex.tx}]`, copied_lex.ty, copied_lex.END, copied_lex.off)
-
                                         copied_output.push(l.tx);
 
                                         copied_state_stack.push(off, r >> 3);
 
                                         copied_lex.next();
-
-                                        //console.log("SHIFT B ----------------------------------------------", `[${copied_lex.tx}]`, copied_lex.ty, copied_lex.END, copied_lex.off)
 
                                         res = parser(copied_lex, data, e, 0, csp + 2, clen, copied_lex.off, copied_output, copied_state_stack, true, cycles-1, state, fork_stack.slice());
                                      
@@ -285,10 +277,6 @@ function parser(l, data = null, e = {}, entry = 0, sp = 1, len = 0, off = 0, o =
                                         res = parser(copied_lex, data, e, 0, csp, clen, off, copied_output, copied_state_stack, true, cycles-1, state, fork_stack.slice() );
 
                                         break;
-
-                                    default:
-                                        console.log("############################################### ERROR ############################################### ERROR ############################################### ERROR ############################################### ERROR ############################################### ERROR ############################################### ERROR ############################################### ERROR ############################################### ERROR ############################################### ERROR ############################################### ERROR ############################################### ERROR ############################################### ERROR ############################################### ERROR ############################################### ERROR ############################################### ERROR ############################################### ERROR ############################################### ERROR ############################################### ERROR ############################################### ERROR ############################################### ERROR ############################################### ERROR ############################################### ERROR ############################################### ERROR ############################################### ERROR ")
-
                                 }
 
                                 if (!res.error) {
@@ -322,7 +310,7 @@ function parser(l, data = null, e = {}, entry = 0, sp = 1, len = 0, off = 0, o =
     if(cycles <= 0)
         return { result: o[0], error: "Max Depth Reached", cycles };
 
-    console.log(cycles)
+   // console.log(cycles)
     return { result: o[0], error: false, cycles };
 }
 
