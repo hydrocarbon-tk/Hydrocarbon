@@ -19,31 +19,79 @@ import {
 export default class StateProcessor {
 
     errorAtSymbol(state, symbol, body, item) {
-        state.action.set(symbol.val, { symbol_type: symbol.type, name: ERROR, state: state.id, body: state.body,original_body: state.body, item });
+        state.action.set(symbol.val, {
+            name: ERROR,
+            state: state.id,
+            body: state.body,
+            symbol_type: symbol.type,
+            item
+        });
     }
 
     resetAtSymbol(state, symbol, body, item) {
-        state.action.set(symbol.val, { symbol_type: symbol.type, name: DO_NOTHING, state: state.id, body: state.body, original_body: state.body,item });
+        state.action.set(symbol.val, {
+            name: DO_NOTHING,
+            state: state.id,
+            body: state.body,
+            symbol_type: symbol.type,
+            item
+        });
     }
 
     ignoreAtSymbol(state, symbol, body, item) {
-        state.action.set(symbol.val, { symbol_type: symbol.type, name: IGNORE, state: state.id, body: state.body,  original_body: state.body,item });
+        state.action.set(symbol.val, {
+            name: IGNORE,
+            state: state.id,
+            body: state.body,
+            symbol_type: symbol.type,
+            item
+        });
     }
 
     acceptAtSymbol(state, symbol, body, item) {
-        state.action.set(item.v, { name: ACCEPT, symbol_type: symbol.type, size: item.len, production: body.production, body: body.id, item });
+        state.action.set(item.v, {
+            name: ACCEPT,
+            state: state.id,
+            size: item.len,
+            body: body.id,
+            symbol_type: symbol.type,
+            production: body.production,
+            item
+        });
     }
 
     reduceAtSymbol(state, symbol, body, item) {
-        state.action.set(item.v, { name: REDUCE, symbol_type: symbol.type, state: state.id, size: item.len, production: body.production, body: body.id, item });
+        state.action.set(item.v, {
+            name: REDUCE,
+            state: state.id,
+            size: item.len,
+            body: body.id,
+            symbol_type: symbol.type,
+            production: body.production,
+            item
+        });
+    }
+
+
+    shiftAtSymbol(state, symbol, body, item, shift_state) {
+        state.action.set(symbol.val, {
+            name: SHIFT,
+            state: shift_state.id,
+            offset: item.offset + 1,
+            body: body.id,
+            symbol_type: symbol.type,
+            item
+        });
     }
 
     gotoAtSymbol(state, symbol, body, item, goto_state) {
-         state.goto.set(symbol.type == "empty" ? item.v : symbol.val, { name: GOTO, symbol_type: symbol.type == "empty" ? item.follow.type : symbol.type, state: goto_state.id, body: body.id, item });
-    }
-
-    shiftAtSymbol(state, symbol, body, item, shift_state) {
-        state.action.set(symbol.val, { name: SHIFT, symbol_type: symbol.type, state: shift_state.id, body: item[0], original_body: body.id,  offset: item.offset + 1, item });
+        state.goto.set(symbol.type == "empty" ? item.v : symbol.val, {
+            name: GOTO,
+            symbol_type: symbol.type == "empty" ? item.follow.type : symbol.type,
+            state: goto_state.id,
+            body: body.id,
+            item
+        });
     }
 
     createState(state, body, item, out_items, states, grammar, sid) {
@@ -53,7 +101,7 @@ export default class StateProcessor {
             goto: new Map,
             id: states.length,
             body: body.id,
-            production:item.body_.production,
+            production: item.body_.production,
             production_string: item.renderWithProduction(),
             d: `${state.d} =>\n [${[...(out_items.map(i=>`${i.body_.production.name} → ${(i.body_.sym.slice().map(d=>d.type == "production" ? grammar[d.val].name : d.val)).join(" ")}`)).reduce((r,e)=>(r.add(e), r) ,new Set).values()].join(", ")}]`,
             real_id: sid,
@@ -64,35 +112,30 @@ export default class StateProcessor {
     }
 
     handleReduceCollision(grammar, states, state, item) {
-        const k = item.v,
-            action = state.action.get(k);
+        const symbol = item.v,
+            existing_action = state.action.get(symbol);
 
         const bodies = grammar.bodies,
             body_a = bodies[item.body],
-            body_b = grammar.bodies[action.body];
+            body_b = grammar.bodies[existing_action.body];
 
-        if(action.name == "SHIFT")
-            return this.handleShiftReduceCollision(grammar, states, state, item);
+        if (existing_action.name == SHIFT)
+            return this.handleShiftReduceCollision({ val: symbol }, grammar, states, state, item);
 
-        if (body_a.production.graph_id < body_b.production.graph_id) {
-            return SET_NEW_ACTION; // Kepp 
-        } else {
+        if (body_a.production.graph_id < body_b.production.graph_id)
+            return SET_NEW_ACTION;
+        else
             return KEEP_EXISTING_ACTION;
-        }
     }
 
-    handleShiftReduceCollision(grammar, states, state, item){
-        const k = item.v,
-            action = state.action.get(k);
+    handleShiftReduceCollision(symbol, grammar, states, state) {
 
-        const shift = action.name == "REDUCE" ? item : action;
-        const reduce = action.name == "REDUCE" ? item : action;
+        const existing_action = state.action.get(symbol.val);
 
-        if (shift == item) {
-            return SET_NEW_ACTION; // Shift by default.
-        } else {
+        if (existing_action.name == REDUCE)
+            return SET_NEW_ACTION;
+        else
             return KEEP_EXISTING_ACTION;
-        }
     }
 
     process(items, state, states, grammar, items_set, error, LALR_MODE = false) {
@@ -126,10 +169,9 @@ export default class StateProcessor {
 
                 const k = item.v;
 
-                if (item.body == 0 && k == "$eof")
+                if (item.body == 0 && k == "$eof") {
                     this.acceptAtSymbol(state, item.follow, body, item);
-
-                else {
+                } else {
 
                     if (body.precedence < item.p && k !== "$eof" && i > 0)
                         continue;
@@ -159,7 +201,8 @@ export default class StateProcessor {
 
                 let new_state = null,
                     sid = new Set(),
-                    out_items = [];
+                    out_items = [],
+                    old_items = [item];
 
                 for (let j = i; j < l; j++) {
                     const item = items[j];
@@ -174,6 +217,7 @@ export default class StateProcessor {
 
                             sid.add(new_item.id);
                             out_items.push(new_item);
+                            old_items.push(item);
                             id_append.add(new_item.full_id);
                         }
                     }
@@ -210,14 +254,12 @@ export default class StateProcessor {
 
                 state.map.set(symbol.val, new_state);
 
-               
+                if (symbol.type !== "production") {
+                    if (symbol.type !== "EOF") {
+                        let action = shiftCollisionCheck(grammar, state, new_state, item, body_length, error);
 
-                if (symbol.type != "production") {
-                    if (symbol.type != "EOF") {
-                         let action = shiftCollisionCheck(grammar, state, new_state, item, body_length, error);
-
-                        if (action == ACTION_COLLISION_ERROR)
-                            action = this.handleShiftReduceCollision(grammar, states, state, item, body, error);
+                        if (action === ACTION_COLLISION_ERROR)
+                            action = this.handleShiftReduceCollision(symbol, grammar, states, state, item, body, new_state, error);
 
                         switch (action) {
                             case ACTION_COLLISION_ERROR:
@@ -225,27 +267,29 @@ export default class StateProcessor {
                             case SET_NEW_ACTION:
                                 this.shiftAtSymbol(state, symbol, body, item, new_state);
                                 break;
-                            case KEEP_EXISTING_ACTION: //Original
+                            case KEEP_EXISTING_ACTION:
                                 break;
                         }
                     }
                 } else {
-                    
-                    switch (gotoCollisionCheck(grammar, state, new_state, item, error)) {   
-                        case ACTION_COLLISION_ERROR: //failed
-                            return false;
-                        case SET_NEW_ACTION: //New
-                            this.gotoAtSymbol(state, symbol, body, item, new_state);
-                            break;
-                        case KEEP_EXISTING_ACTION: //Original
-                            break;
+                    for (const item of old_items) {
+
+                        switch (gotoCollisionCheck(grammar, state, new_state, item, error)) {
+                            case ACTION_COLLISION_ERROR:
+                                return false;
+                            case SET_NEW_ACTION:
+                                this.gotoAtSymbol(state, symbol, body, item, new_state);
+                                break;
+                            case KEEP_EXISTING_ACTION:
+                                break;
+                        }
                     }
                 }
-
                 if (new_state.follows)
                     out_items = out_items.reduce((a, i) => (!new_state.follows.has(i.full_id)) ? (new_state.follows.add(i.full_id), a.push(i), a) : a, []);
                 else
                     new_state.follows = id_append;
+
 
                 if (out_items.length == 0)
                     continue;
@@ -257,6 +301,7 @@ export default class StateProcessor {
                 items_set.push({ c: out_items, s: new_state });
             }
         }
+
         return true;
     }
 }

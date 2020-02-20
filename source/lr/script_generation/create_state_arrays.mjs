@@ -3,7 +3,7 @@ import {
     ACCEPT,
     SHIFT,
     REDUCE,
-    FORK_REDUCE,
+    FORK_ACTION,
     DO_NOTHING,
     IGNORE
 } from "../common/state_action_enums.js";
@@ -77,7 +77,7 @@ function processStateTransition(
         return_value = 0,
         fn = 0;
     switch (state.name) {
-        case FORK_REDUCE:
+        case FORK_ACTION:
 
             var fork_ids = state.actions.map(s => convertSymbols([k, s], SYM_LU, types))
                 .map(s => processStateTransition(
@@ -92,7 +92,7 @@ function processStateTransition(
                     types
                 ));
 
-            return_value = (FORK_REDUCE | (fork_ids.length << 3) | (fork_map.length << 16));
+            return_value = (FORK_ACTION | (fork_ids.length << 3) | (fork_map.length << 16));
 
             fork_map.push(...fork_ids);
 

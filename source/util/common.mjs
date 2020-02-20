@@ -370,7 +370,7 @@ export class Item extends Array {
     render() {
         const a = this.body_.sym
             .map(sym=> sym.type == "production" ? {val:this.grammar[sym.val].name} : sym )
-            .flatMap((sym, i) => (i == this.offset) ? [sym.val, "•"] : sym.val);
+            .flatMap((sym, i) => (i == this.offset) ? ["•", sym.val] : sym.val);
         if (a.length == this.offset)
             a.push("•");
         return a.join(" ");
@@ -381,7 +381,7 @@ export class Item extends Array {
     }
 
     renderWithProductionAndFollow(){
-        return `[${this.body_.production.name}⇒${this.render()}, ${this.v}]`;
+        return `[${this.body_.production.name}⇒ ${this.render()}, ${this.v}]`;
     }
 
     increment() {
@@ -407,6 +407,7 @@ export const actions = {
 };
 
 export function processClosure(state_id, items, grammar, error, excludes, offset = 0, added = new Set()) {
+    
     let exclusion_count = 0;
 
     if (!excludes) {

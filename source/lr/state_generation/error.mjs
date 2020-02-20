@@ -2,6 +2,7 @@ import {
     ERROR,
     SHIFT,
     REDUCE,
+    FORK,
     IGNORE
 } from "../common/state_action_enums.js";
 
@@ -12,12 +13,15 @@ import {
 } from "../common/state_parse_action_enums.js";
 
 export function shiftCollisionCheck(grammar, state, new_state, item, size, error) {
-    const sym = item.body_[item.offset],
+    const sym = item.sym.val,
         action = state.action.get(sym);
-
+        
     if (action && action.state !== new_state.id) {
         if (action.name == IGNORE || action.name == ERROR)
             return KEEP_EXISTING_ACTION;
+        
+        if (action.name === FORK)
+            return ACTION_COLLISION_ERROR;
 
         if (action.name !== SHIFT) {
             error.log(
@@ -69,6 +73,9 @@ export function reduceCollisionCheck(grammar, state, item, error) {
         if (action.name == IGNORE || action.name == ERROR)
             return KEEP_EXISTING_ACTION;
 
+        if (action.name === FORK)
+            return ACTION_COLLISION_ERROR;
+
         if (action.name !== REDUCE) {
 
             error.log(
@@ -85,8 +92,7 @@ export function reduceCollisionCheck(grammar, state, item, error) {
         Replacing Action: 
             Reduce to {${item.body_.production.name}} from production ${item.renderWithProduction()}
             Definition found on line ${item.body_.lex.line+1}:${item.body_.lex.char} in input.
-
-        Favoring Shift Action \n`);
+`);
             return ACTION_COLLISION_ERROR;
         }
 
@@ -119,6 +125,10 @@ export function reduceCollisionCheck(grammar, state, item, error) {
 }
 
 export function gotoCollisionCheck(grammar, state, new_state, item, error) {
+
+
+
+                
 
     const
         bodies = grammar.bodies,

@@ -3,7 +3,7 @@ import {
     ACCEPT,
     SHIFT,
     REDUCE,
-    FORK_REDUCE
+    FORK
 } from "../common/state_action_enums.js";
 
 function deepClone(obj, visited = new Map()) {
@@ -22,11 +22,11 @@ function deepClone(obj, visited = new Map()) {
 
         const val = obj[a];
 
-        if(typeof val == "object"){
-            
-            if(!visited.has(val)){
+        if (typeof val == "object") {
+
+            if (!visited.has(val)) {
                 visited.set(val, null);
-                visited.set(val, visited.set(val, null));
+                visited.set(val, deepClone(val, visited));
             }
 
             out[a] = visited.get(val);
@@ -43,7 +43,7 @@ function deepClone(obj, visited = new Map()) {
     entry: the starting state in the parse table. 
     data: parser data including look up tables and default parse action functions.
 */
-function parser(l, data = null, e = {}, entry = 0, sp = 1, len = 0, off = 0, o = [], state_stack = [0, entry], SKIP_LEXER_SETUP = false) {
+function parser(l, data = null, e = {}, entry = 0, sp = 1, len = 0, off = 0, o = [], state_stack = [0, entry], SKIP_LEXER_SETUP = false, time = 1000000) {
 
     if (!data)
         return { result: [], error: "Data object is empty" };
@@ -61,7 +61,7 @@ function parser(l, data = null, e = {}, entry = 0, sp = 1, len = 0, off = 0, o =
         ty: types,
     } = data;
 
-    const  { sym, keyword, any, num } = types;
+    const { sym, keyword, any, num } = types;
 
     if (!SKIP_LEXER_SETUP) {
         l.IWS = false;
@@ -72,23 +72,22 @@ function parser(l, data = null, e = {}, entry = 0, sp = 1, len = 0, off = 0, o =
             l.next();
         }
     }
-    
-    if(!e.fn)
+
+    if (!e.fn)
         e.fn = e.functions;
 
-    let time = 1000000, // Prevent infinite loop
-        RECOVERING = 100,
+    let RECOVERING = 100,
         tk = getToken(l, token_lu),
         p = l.copy();
 
     outer:
 
         while (time-- > 0) {
-            
-            const 
+
+            const
                 map = states[state_stack[sp]],
-                fn = (tk < map.length) ? map[tk]  : -1;
-            
+                fn = (tk < map.length) ? map[tk] : -1;
+
             let r,
                 gt = -1;
 
@@ -104,7 +103,7 @@ function parser(l, data = null, e = {}, entry = 0, sp = 1, len = 0, off = 0, o =
 
                 if (tk == keyword) {
                     //If the keyword is a number, convert to the number type.
-                    if(l.ty == num)
+                    if (l.ty == num)
                         tk = getToken(l, token_lu, true);
                     else
                         tk = token_lu.get(l.tx);
@@ -176,13 +175,12 @@ function parser(l, data = null, e = {}, entry = 0, sp = 1, len = 0, off = 0, o =
 
                     return { result: o[0], error: true };
 
-                case ACCEPT: //1
-                    /* ACCEPT */
+                case ACCEPT:
+
                     break outer;
 
-                case SHIFT: //2
+                case SHIFT:
 
-                    /*SHIFT */
                     o.push(l.tx);
                     state_stack.push(off, r >> 3);
                     sp += 2;
@@ -192,8 +190,8 @@ function parser(l, data = null, e = {}, entry = 0, sp = 1, len = 0, off = 0, o =
                     RECOVERING++;
                     break;
 
-                case REDUCE: //3
-                    /* REDUCE */
+                case REDUCE:
+
                     len = (r & 0x7F8) >> 2;
 
                     state_stack.length -= len;
@@ -207,58 +205,93 @@ function parser(l, data = null, e = {}, entry = 0, sp = 1, len = 0, off = 0, o =
                     state_stack.push(off, gt);
 
                     sp += 2;
+
                     break;
 
-                case FORK_REDUCE: //4
-                    /* GLALR(1) BRANCH */
+                case FORK:
 
                     //Look Up Fork productions. 
                     var
                         fork_states_start = r >> 16,
-                        fork_states_length = (r >> 3) & 0x1FFF;
+                        fork_states_length = (r >> 3) & 0x1FFF,
+                        result = { result: null, error: "", time };
 
                     for (const state of data.fm.slice(fork_states_start, fork_states_start + fork_states_length)) {
 
                         let
+                            res = null,
                             csp = sp,
-                            clen = len;
+                            clen = len,
+                            gt = 0;
+
 
                         const
                             copied_lex = l.copy(),
                             copied_output = deepClone(o),
                             copied_state_stack = state_stack.slice(),
                             r = state_actions[state - 1](tk, e, copied_output, copied_lex, copied_state_stack[csp - 1], state_action_functions, parser);
-
-                        clen = (r & 0x7F8) >> 2;
-
-                        copied_state_stack.length -= clen;
-                        csp -= clen;
-
-                        const gt = goto[copied_state_stack[csp]][r >> 11];
-
-                        if (gt < 0)
-                            l.throw("Invalid state reached!");
-
-                        copied_state_stack.push(off, gt);
-
-                        csp += 2;
+                            
                         try {
-                            const result = parser(copied_lex, data, e, 0, csp, clen, off, copied_output, copied_state_stack, true);
-                            if (!result.error) {
-                                console.log("forked parse succeeded");
-                                return result;
+                            switch (r & 7) {
+                                case SHIFT:
+
+                                    copied_output.push(l.tx);
+
+                                    copied_state_stack.push(off, r >> 3);
+
+                                    csp += 2;
+
+                                    copied_lex.next();
+
+                                    off = copied_lex.off;
+
+                                    res = parser(copied_lex, data, e, 0, csp, clen, off, copied_output, copied_state_stack, true);
+
+                                    break;
+
+                                case REDUCE:
+
+                                    clen = (r & 0x7F8) >> 2;
+
+                                    copied_state_stack.length -= clen;
+
+                                    csp -= clen;
+
+                                    gt = goto[copied_state_stack[csp]][r >> 11];
+
+                                    if (gt < 0)
+                                        l.throw("Invalid state reached!");
+
+                                    copied_state_stack.push(off, gt);
+
+                                    csp += 2;
+
+                                    res = parser(copied_lex, data, e, 0, csp, clen, off, copied_output, copied_state_stack, true, time);
+
+                                    break;
                             }
+
+                            if (!res.error)
+                                return res;
+
+                            if (res.time <= result.time)
+                                result = res;
+
                         } catch (e) {
-                            //console.log(e);
+                            result.error = e;
                         }
-                        console.log("tyrying next", r);
                     }
 
-                    return { result: o[0], error: false, msg: "parse failed during fork" };
+                    if (!result.error)
+                        result.error = "failed to parse at fork";
+
+                    result.time = time;
+
+                    return result;
             }
         }
 
-    return { result: o[0], error: false };
+    return { result: o[0], error: false, time };
 }
 
 export default (lex, data, environment, entry_point) => parser(lex, data, environment, entry_point);

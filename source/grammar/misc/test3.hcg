@@ -5,10 +5,10 @@
 
 <>A → E │ a 
 
-<>E → E + T ^ θnum	↦c{ this.act="+"; this.l =$sym1; this.r =$sym3   }
+<>E → E + T - θnum	↦c{ this.act="+"; this.l =$sym1; this.m =$sym3; this.r =$sym5   }
 	│ T
 
-<>T → T + F ^ a  	↦c{ this.act="*"; this.l =$sym1; this.r =$sym3  }
+<>T → T + F \^ a  	↦c{ this.act="*"; this.l =$sym1; this.m =$sym3; this.r =$sym5  }
 	│ F 
 		
 <>a → T \^ A

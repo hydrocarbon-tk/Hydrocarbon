@@ -3,7 +3,8 @@ export const
     ACCEPT = 1,
     SHIFT = 2,
     REDUCE = 3,
-    FORK_REDUCE = 4,
+    FORK_ACTION = 4,
+    FORK = 4,
     GOTO = 5,
     DO_NOTHING = 6,
     IGNORE  = 6;
