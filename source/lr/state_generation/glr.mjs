@@ -4,7 +4,9 @@ import { KEEP_EXISTING_ACTION } from "../common/state_parse_action_enums.js";
 import { FORK_REDUCE } from "../common/state_action_enums.js";
 
 class GLStateProcessor extends StateProcessor {
+    handleShiftReduceCollision(grammar, states, state, item, body, error){
 
+    }
     handleReduceCollision(grammar, states, state, item, body, error) {
         const key = item.v;
         /* 

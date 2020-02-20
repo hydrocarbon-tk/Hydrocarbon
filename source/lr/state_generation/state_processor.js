@@ -71,9 +71,25 @@ export default class StateProcessor {
             body_a = bodies[item.body],
             body_b = grammar.bodies[action.body];
 
+        if(action.name == "SHIFT")
+            return this.handleShiftReduceCollision(grammar, states, state, item);
 
         if (body_a.production.graph_id < body_b.production.graph_id) {
             return SET_NEW_ACTION; // Kepp 
+        } else {
+            return KEEP_EXISTING_ACTION;
+        }
+    }
+
+    handleShiftReduceCollision(grammar, states, state, item){
+        const k = item.v,
+            action = state.action.get(k);
+
+        const shift = action.name == "REDUCE" ? item : action;
+        const reduce = action.name == "REDUCE" ? item : action;
+
+        if (shift == item) {
+            return SET_NEW_ACTION; // Shift by default.
         } else {
             return KEEP_EXISTING_ACTION;
         }
@@ -194,9 +210,16 @@ export default class StateProcessor {
 
                 state.map.set(symbol.val, new_state);
 
+               
+
                 if (symbol.type != "production") {
                     if (symbol.type != "EOF") {
-                        switch (shiftCollisionCheck(grammar, state, new_state, item, body_length, error)) {
+                         let action = shiftCollisionCheck(grammar, state, new_state, item, body_length, error);
+
+                        if (action == ACTION_COLLISION_ERROR)
+                            action = this.handleShiftReduceCollision(grammar, states, state, item, body, error);
+
+                        switch (action) {
                             case ACTION_COLLISION_ERROR:
                                 return false;
                             case SET_NEW_ACTION:

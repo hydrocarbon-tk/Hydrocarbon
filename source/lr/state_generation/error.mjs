@@ -35,7 +35,7 @@ export function shiftCollisionCheck(grammar, state, new_state, item, size, error
         Definition found on line ${item.body_.lex.line+1}:${item.body_.lex.char} in input.
 
     Favoring Shift Action`);
-            return SET_NEW_ACTION;
+            return ACTION_COLLISION_ERROR;
         } else {
             error.log(
                 `\x1b[43m SHIFT \x1b[43m COLLISION ERROR ENCOUNTERED:\x1b[0m
@@ -87,7 +87,7 @@ export function reduceCollisionCheck(grammar, state, item, error) {
             Definition found on line ${item.body_.lex.line+1}:${item.body_.lex.char} in input.
 
         Favoring Shift Action \n`);
-            return KEEP_EXISTING_ACTION;
+            return ACTION_COLLISION_ERROR;
         }
 
         if (item.body_.production.name == state.production.name)
