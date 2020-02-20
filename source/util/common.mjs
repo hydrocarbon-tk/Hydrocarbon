@@ -41,8 +41,8 @@ export function getPrecedence(term, grammar) {
     //if (prec && typeof(term) == "string" && typeof(prec[term]) == "number")
     //    return prec[term];
     return -1;
-
 }
+
 export function createPrecedence(body, grammar) {
     const prec = body.precedence;
     let l = 0;

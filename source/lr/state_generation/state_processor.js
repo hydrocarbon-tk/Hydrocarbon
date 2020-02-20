@@ -201,8 +201,7 @@ export default class StateProcessor {
 
                 let new_state = null,
                     sid = new Set(),
-                    out_items = [],
-                    old_items = [item];
+                    out_items = [];
 
                 for (let j = i; j < l; j++) {
                     const item = items[j];
@@ -217,7 +216,6 @@ export default class StateProcessor {
 
                             sid.add(new_item.id);
                             out_items.push(new_item);
-                            old_items.push(item);
                             id_append.add(new_item.full_id);
                         }
                     }
@@ -272,17 +270,14 @@ export default class StateProcessor {
                         }
                     }
                 } else {
-                    for (const item of old_items) {
-
-                        switch (gotoCollisionCheck(grammar, state, new_state, item, error)) {
-                            case ACTION_COLLISION_ERROR:
-                                return false;
-                            case SET_NEW_ACTION:
-                                this.gotoAtSymbol(state, symbol, body, item, new_state);
-                                break;
-                            case KEEP_EXISTING_ACTION:
-                                break;
-                        }
+                    switch (gotoCollisionCheck(grammar, state, new_state, item, error)) {
+                        case ACTION_COLLISION_ERROR:
+                            return false;
+                        case SET_NEW_ACTION:
+                            this.gotoAtSymbol(state, symbol, body, item, new_state);
+                            break;
+                        case KEEP_EXISTING_ACTION:
+                            break;
                     }
                 }
                 if (new_state.follows)

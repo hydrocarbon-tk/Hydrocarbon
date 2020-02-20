@@ -503,7 +503,11 @@ export async function grammarParser(grammar, FILE_URL, stamp = 112, meta_importe
         }
     };
 
-    const productions = parser(whind(grammar), parser_data, env).result;
+    const result = parser(whind(grammar), parser_data, env);
+
+    console.log(result.error);
+
+    const productions = result.result;
 
     productions.uri = FILE_URL;
 

@@ -41,7 +41,7 @@ class GLStateProcessor extends StateProcessor {
             : (state.action.set(key, {
                 name: FORK_ACTION,
                 actions: [existing_action],
-                symbol_type: symbol.type,
+                symbol_type: existing_action.symbol_type,
                 state: state.id,
                 body: body.id,
                 offset: item.offset,
@@ -52,12 +52,10 @@ class GLStateProcessor extends StateProcessor {
         const action = this.createInterceptedShiftAction(symbol, state, item, body, shift_state);
 
         if (!fork.registered.has(item.id)) {
-            fork.registered.add(item.id);
+            //fork.registered.add(item.id);
             fork.actions.push(action);
-            fork.actions.sort((a, b) => grammar.bodies[a.body].production.graph_id < grammar.bodies[b.body].production.graph_id ? -1 : 1);
+            //fork.actions.sort((a, b) => a.name < b.name ? -1 : 1);
         }
-
-        fork.actions.sort((a, b) => grammar.bodies[a.body].production.graph_id < grammar.bodies[b.body].production.graph_id ? -1 : 1);
 
         return KEEP_EXISTING_ACTION;
     }
@@ -80,7 +78,7 @@ class GLStateProcessor extends StateProcessor {
             : (state.action.set(key, {
                 name: FORK_ACTION,
                 actions: [existing_action],
-                symbol_type: item.follow.type,
+                symbol_type: existing_action.symbol_type,
                 state: state.id,
                 body: body.id,
                 offset: item.offset,
@@ -91,9 +89,9 @@ class GLStateProcessor extends StateProcessor {
         const action = this.createInterceptedReduceAction(state, item, body);
 
         if (!fork.registered.has(item.id)) {
-            fork.registered.add(item.id);
+           // fork.registered.add(item.id);
             fork.actions.push(action);
-            fork.actions.sort((a, b) => grammar.bodies[a.body].production.graph_id < grammar.bodies[b.body].production.graph_id ? -1 : 1);
+           // fork.actions.sort((a, b) => a.name < b.name ? -1 : 1);
         }
 
 

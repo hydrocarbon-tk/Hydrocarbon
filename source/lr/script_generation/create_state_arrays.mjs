@@ -66,10 +66,6 @@ function processStateTransition(
     if (k == st.pos)
         return;
 
-    //if (state_map[k] ==undefined && k - st.pos > 1) 
-    //state_map.push(-(k - st.pos - 1));
-
-
     st.pos = k;
 
     let

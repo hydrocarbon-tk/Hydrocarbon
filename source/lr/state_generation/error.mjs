@@ -27,7 +27,7 @@ export function shiftCollisionCheck(grammar, state, new_state, item, size, error
             error.log(
                 `\x1b[43m SHIFT/REDUCE \x1b[43m COLLISION ERROR ENCOUNTERED:\x1b[0m
 
- Reduce action on symbol <${sym}> has already been defined for state:
+ Reduce action on symbol < ${sym} > has already been defined for state:
  <${state.id}> ${state.production_string} 
  
     Existing Action: 
@@ -35,7 +35,7 @@ export function shiftCollisionCheck(grammar, state, new_state, item, size, error
          Definition found on line ${action.item.body_.lex.line+1}:${action.item.body_.lex.char} in input.
 
     Replacing Action: 
-        Shift to state ${item.renderWithProduction()} from input { ${sym} }
+        Shift to state ${item.increment().renderWithProduction()} from input { ${sym} }
         Definition found on line ${item.body_.lex.line+1}:${item.body_.lex.char} in input.
 
     Favoring Shift Action`);
@@ -44,11 +44,11 @@ export function shiftCollisionCheck(grammar, state, new_state, item, size, error
             error.log(
                 `\x1b[43m SHIFT \x1b[43m COLLISION ERROR ENCOUNTERED:\x1b[0m
 
- Shift action on symbol <${sym}> has already been defined for state:
+ Shift action on symbol < ${sym} > has already been defined for state:
  <${state.id}> ${state.production_string} 
 
     Existing Action: 
-        Shift to state ${action.item.renderWithProduction()} from input { ${sym} }
+        Shift to state ${action.item.increment().renderWithProduction()} from input { ${sym} }
         Definition found on line ${action.item.body_.lex.line+1}:${action.item.body_.lex.char} in input.
         Production Path ${grammar.states[action.state].d}
 
@@ -81,11 +81,11 @@ export function reduceCollisionCheck(grammar, state, item, error) {
             error.log(
                 `\x1b[43m REDUCE/SHIFT  \x1b[43m COLLISION ERROR ENCOUNTERED:\x1b[0m
 
- Reduce action on symbol <${sym}> has already been defined for state:
+ Reduce action on symbol < ${sym} > has already been defined for state:
  <${state.id}> ${state.production_string}
 
         Existing Action: 
-            Shift to state ${action.item.renderWithProduction()}  from input { ${sym} }
+            Shift to state ${action.item.increment().renderWithProduction()}  from input { ${sym} }
             Definition found on line ${action.item.body_.lex.line+1}:${action.item.body_.lex.char} in input.
 
 
@@ -103,7 +103,7 @@ export function reduceCollisionCheck(grammar, state, item, error) {
             error.log(
                 `\x1b[41m REDUCE \x1b[43m COLLISION ERROR ENCOUNTERED:\x1b[0m
                 
- A reduction on symbol <${sym}> has already been defined for state:
+ A reduction on symbol < ${sym} > has already been defined for state:
  <${state.id}> ${state.production_string}
 
         Existing Action:
@@ -125,10 +125,6 @@ export function reduceCollisionCheck(grammar, state, item, error) {
 }
 
 export function gotoCollisionCheck(grammar, state, new_state, item, error) {
-
-
-
-                
 
     const
         bodies = grammar.bodies,
