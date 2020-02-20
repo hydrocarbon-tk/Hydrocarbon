@@ -30,9 +30,7 @@
 
 <> natural →  θnum
 
-<> identifier → identifier_start identifier_continue(*") (θws │ θnl)? ↦r { $sym1 + $sym2 }
-
-<> identifier_start → \_ │ θid 
+<> identifier → \_? θid ↦r { $sym1 + $sym2 }
 
 <> identifier_continue → \_ │ θid │ θnum │ θkeyword 
 

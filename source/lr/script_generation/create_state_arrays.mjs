@@ -8,6 +8,8 @@ import {
     IGNORE
 } from "../common/state_action_enums.js";
 
+import { Item } from "../../util/common.mjs";
+
 function setNode(funct, length, functions, return_val, COMPILE_FUNCTION = false) {
     if (funct.type == "CLASS") {
         return (!COMPILE_FUNCTION && funct.env)
@@ -74,7 +76,7 @@ function processStateTransition(
         fn = 0;
     switch (state.name) {
         case FORK_ACTION:
-            //console.log(state.actions.map(s=>({id:s.item_string, type: s.name == SHIFT ? "SHIFT":"REDUCE"})))
+            console.log(state.actions.map(s=>({id:s.item_string, type: s.name == SHIFT ? "SHIFT":"REDUCE"})))
 
             var fork_ids = state.actions.map(s => convertSymbols([k, s], SYM_LU, types))
                 .map(s => processStateTransition(

@@ -89,4 +89,4 @@
 
 <> identifier →  def::identifier
 
-<> js_identifier →  ( def::identifier_start │ \$ ) (def::identifier_continue│ \$)? ↦r { $sym1 + $sym2 }
+<> js_identifier →  \$? def::identifier ↦r { $sym1 + $sym2 }

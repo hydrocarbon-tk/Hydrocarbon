@@ -36,11 +36,8 @@ class GLStateProcessor extends StateProcessor {
         */
         const existing_action = state.action.get(key);
 
-        if(existing_action.name == REDUCE && existing_action.item.len == 0)
-            return SET_NEW_ACTION;
-
-        if(existing_action.name == ERROR | existing_action.name == IGNORE)
-            error.log("############################################### ERROR ############################################### ERROR ############################################### ERROR ############################################### ERROR ############################################### ERROR ############################################### ERROR ############################################### ERROR ############################################### ERROR ############################################### ERROR ############################################### ERROR ############################################### ERROR ############################################### ERROR ############################################### ERROR ############################################### ERROR ############################################### ERROR ############################################### ERROR ############################################### ERROR ############################################### ERROR ############################################### ERROR ############################################### ERROR ############################################### ERROR ############################################### ERROR ############################################### ERROR ############################################### ERROR ")
+      //  if(existing_action.name == REDUCE && existing_action.item.len == 0)
+      //      return SET_NEW_ACTION;
 
         if(existing_action.name == REDUCE && existing_action.item.body_.production.id === item.body_.production.id){
             errors.log("############ REDUNDANT SHIFT/REDUCE #############", existing_action.item.renderWithProduction(), item.renderWithProduction())
@@ -63,9 +60,9 @@ class GLStateProcessor extends StateProcessor {
         const action = this.createInterceptedShiftAction(symbol, state, item, body, shift_state);
 
         if (!fork.registered.has(item.id)) {
-            fork.registered.add(item.id);
+         //   fork.registered.add(item.id);
             //Replace any matching REDUCE productions with this SHIFT action. 
-            fork.actions = fork.actions.filter(e=> e.name !== REDUCE ||  e.item.body_.production.id !== item.body_.production.id );
+        // /    fork.actions = fork.actions.filter(e=> e.name !== REDUCE ||  e.item.body_.production.id !== item.body_.production.id );
             fork.actions.push(action);
             fork.actions.sort((a, b) => a.name < b.name ? -1 : 1);
         }
@@ -76,8 +73,8 @@ class GLStateProcessor extends StateProcessor {
 
     handleReduceCollision(grammar, states, state, item, body, errors) {
 
-        if(item.len == 0)
-            return KEEP_EXISTING_ACTION;
+//        if(item.len == 0)
+//            return KEEP_EXISTING_ACTION;
 
         const key = item.v;
         /* 
@@ -89,9 +86,6 @@ class GLStateProcessor extends StateProcessor {
         */
 
         const existing_action = state.action.get(key);
-
-        if(existing_action.name == ERROR || existing_action.name == IGNORE)
-            error.log("############################################### ERROR ############################################### ERROR ############################################### ERROR ############################################### ERROR ############################################### ERROR ############################################### ERROR ############################################### ERROR ############################################### ERROR ############################################### ERROR ############################################### ERROR ############################################### ERROR ############################################### ERROR ############################################### ERROR ############################################### ERROR ############################################### ERROR ############################################### ERROR ############################################### ERROR ############################################### ERROR ############################################### ERROR ############################################### ERROR ############################################### ERROR ############################################### ERROR ############################################### ERROR ############################################### ERROR ")
 
         if(existing_action.name == SHIFT && existing_action.item.body_.production.id === item.body_.production.id){
             errors.log("############ REDUNDANT REDUCE/SHIFT #############", existing_action.item.renderWithProduction(), item.renderWithProduction())
@@ -114,8 +108,8 @@ class GLStateProcessor extends StateProcessor {
         const action = this.createInterceptedReduceAction(state, item, body);
 
         if (!fork.registered.has(item.id)) {
-           fork.registered.add(item.id);
-            if(!fork.actions.find(e=> e.name == SHIFT && e.item.body_.production.id === item.body_.production.id))
+        //   fork.registered.add(item.id);
+         //   if(!fork.actions.find(e=> e.name == SHIFT && e.item.body_.production.id === item.body_.production.id))
             fork.actions.push(action);
            fork.actions.sort((a, b) => a.name < b.name ? -1 : 1);
         }

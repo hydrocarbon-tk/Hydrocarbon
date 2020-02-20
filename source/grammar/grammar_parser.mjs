@@ -179,6 +179,7 @@ export async function grammarParser(grammar, FILE_URL, stamp = 112, meta_importe
                             p.forEach(sym => {
                                 try {
                                     const production = prods.LU.get(sym.name);
+                                    console.log(sym, production)
                                     sym.name = `${id}$${production.name}`;
                                     sym.RESOLVED = true;
                                     sym.production = production;
@@ -503,8 +504,10 @@ export async function grammarParser(grammar, FILE_URL, stamp = 112, meta_importe
         }
     };
 
+
     const result = parser(whind(grammar), parser_data, env);
-    
+
+    console.log(result)
     const productions = result.result;
 
     productions.uri = FILE_URL;

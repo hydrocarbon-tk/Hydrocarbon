@@ -43,7 +43,7 @@ function deepClone(obj, visited = new Map()) {
     entry: the starting state in the parse table. 
     data: parser data including look up tables and default parse action functions.
 */
-function parser(l, data = null, e = {}, entry = 0, sp = 1, len = 0, off = 0, o = [], state_stack = [0, entry], SKIP_LEXER_SETUP = false, max_cycles = 600000, previous_forked_state = 0, fork_stack = []) {
+function parser(l, data = null, e = {}, entry = 0, sp = 1, len = 0, start_off = 0, o = [], state_stack = [0, entry], SKIP_LEXER_SETUP = false, max_cycles = 600000, previous_forked_state = 0, fork_stack = [], shift_fork_depth = 0) {
 
     if (!data)
         return { result: [], error: "Data object is empty" };
@@ -60,6 +60,8 @@ function parser(l, data = null, e = {}, entry = 0, sp = 1, len = 0, off = 0, o =
         gtk: getToken,
         ty: types,
     } = data;
+
+    let off = start_off;
 
     let cycles = max_cycles;
 
@@ -89,8 +91,8 @@ function parser(l, data = null, e = {}, entry = 0, sp = 1, len = 0, off = 0, o =
         outer:
 
             while (cycles-- > 0) {
-
-                const
+                
+                const   
                     map = states[state_stack[sp]],
                     fn = (tk < map.length) ? map[tk] : -1;
 
@@ -194,6 +196,7 @@ function parser(l, data = null, e = {}, entry = 0, sp = 1, len = 0, off = 0, o =
                         l.next();
                         off = l.off;
                         tk = getToken(l, token_lu);
+                        
                         RECOVERING++;
                         break;
 
@@ -210,12 +213,25 @@ function parser(l, data = null, e = {}, entry = 0, sp = 1, len = 0, off = 0, o =
                             l.throw("Invalid state reached!");
 
                         state_stack.push(off, gt);
-
+                        
                         sp += 2;
+
+                        if(sp < shift_fork_depth){
+                            return {
+                                SQUASH : true,
+                                o,
+                                sp,
+                                len, 
+                                tk,
+                                ss:state_stack,
+                                l
+                            }    
+                        }
 
                         break;
 
                     case FORK:
+
 
                         //Look Up Fork productions. 
                         var
@@ -223,6 +239,8 @@ function parser(l, data = null, e = {}, entry = 0, sp = 1, len = 0, off = 0, o =
                             fork_states_length = (r >> 3) & 0x1FFF,
                             result = { result: null, error: "", cycles },
                             cpfs = fork_stack;
+
+                        console.log(`FORKING ${l.tx}`)
                         
                         for (const state of data.fm.slice(fork_states_start, fork_states_start + fork_states_length)) {
                             
@@ -245,7 +263,7 @@ function parser(l, data = null, e = {}, entry = 0, sp = 1, len = 0, off = 0, o =
 
                             try {
                                 switch (r & 7) {
-                                    case SHIFT:
+                                    case SHIFT: // Make shift open ended
 
                                         copied_output.push(l.tx);
 
@@ -253,8 +271,8 @@ function parser(l, data = null, e = {}, entry = 0, sp = 1, len = 0, off = 0, o =
 
                                         copied_lex.next();
 
-                                        res = parser(copied_lex, data, e, 0, csp + 2, clen, copied_lex.off, copied_output, copied_state_stack, true, cycles-1, state, fork_stack.slice());
-                                     
+                                        res = parser(copied_lex, data, e, 0, csp + 2, clen, off, copied_output, copied_state_stack, true, cycles-1, state, fork_stack.slice(), csp);
+
                                         break;
 
                                     case REDUCE:
@@ -274,22 +292,36 @@ function parser(l, data = null, e = {}, entry = 0, sp = 1, len = 0, off = 0, o =
 
                                         csp += 2;
 
-                                        res = parser(copied_lex, data, e, 0, csp, clen, off, copied_output, copied_state_stack, true, cycles-1, state, fork_stack.slice() );
+                                        res = parser(copied_lex, data, e, 0, csp, clen, off, copied_output, copied_state_stack, true, cycles-1, state, fork_stack.slice(), depth+1 );
 
                                         break;
+                                }   
+
+
+                                if(res.SQUASH){
+
+                                   if(shift_fork_depth > 1 && res.sp < shift_fork_depth)
+                                       return res;
+
+                                    state_stack = res.ss;
+                                    o = res.o;
+                                    l = res.l;
+                                    sp = res.sp;
+                                    len = res.len;
+                                    tk = res.tk;
+                                   console.log("SQASHING", state_stack[sp], sp)
+                                    continue outer;
                                 }
 
-                                if (!res.error) {
+                                if (!res.error) 
                                     return res;
-                                }
-                              //  console.log("FAIL ----------------------------------------------", `[${copied_lex.tx}]`, copied_lex.ty, copied_lex.END, copied_lex.off, res.error)
+                                
                                 if (res.cycles <= result.cycles) {
                                     result = res;
                                     result.cycles = res.cycles;
                                 }
 
                             } catch (e) {
-                            //    console.log("FAIL ----------------------------------------------", `[${copied_lex.tx}]`, copied_lex.ty, copied_lex.END, copied_lex.off, e.error)
                                 if (e.cycles && e.cycles <= result.cycles) {
                                     result.error = e.error;
                                     result.cycles = e.cycles;
