@@ -48,7 +48,7 @@ function deepClone(obj, visited = new Map()) {
     entry: the starting state in the parse table. 
     data: parser data including look up tables and default parse action functions.
 */
-function parser(l, data = null, e = {}, entry = 0, sp = 1, len = 0, off = 0, o = [], state_stack = [0, entry], SKIP_LEXER_SETUP = false, cycles = 0, fork_depth = 0, forks = 0) {
+function parser(l, data = null, e = {}, entry = 0, sp = 1, len = 0, off = 0, o = [], state_stack = [l.copy(), entry], SKIP_LEXER_SETUP = false, cycles = 0, fork_depth = 0, forks = 0) {
 
     if (!data)
         return { result: [], error: "Data object is empty" };
@@ -203,11 +203,11 @@ function parser(l, data = null, e = {}, entry = 0, sp = 1, len = 0, off = 0, o =
                     case SHIFT:
 
                         o.push(l.tx);
-                        state_stack.push(off, r >> 3);
                         sp += 2;
                         l.next();
                         off = l.off;
                         tk = getToken(l, token_lu);
+                        state_stack.push(l.copy(), r >> 3);
 
                         RECOVERING++;
                         break;
@@ -216,6 +216,7 @@ function parser(l, data = null, e = {}, entry = 0, sp = 1, len = 0, off = 0, o =
 
                         len = (r & 0x7F8) >> 2;
 
+                        var c = state_stack[sp-len-1];
                         state_stack.length -= len;
                         sp -= len;
 
@@ -224,7 +225,7 @@ function parser(l, data = null, e = {}, entry = 0, sp = 1, len = 0, off = 0, o =
                         if (gt < 0)
                             l.throw("Invalid state reached!");
 
-                        state_stack.push(off, gt);
+                        state_stack.push(l.copy(), gt);
 
                         sp += 2;
 
@@ -273,9 +274,9 @@ function parser(l, data = null, e = {}, entry = 0, sp = 1, len = 0, off = 0, o =
 
                                     copied_output.push(l.tx);
 
-                                    copied_state_stack.push(off, r >> 3);
-
                                     copied_lex.next();
+
+                                    copied_state_stack.push(copied_lex.copy(), r >> 3);
 
                                     res = parser(copied_lex, data, e, 0, csp + 2, clen, off, copied_output, copied_state_stack, true, cycles, csp, forks + 1);
 
@@ -294,7 +295,7 @@ function parser(l, data = null, e = {}, entry = 0, sp = 1, len = 0, off = 0, o =
                                     if (gt < 0)
                                         l.throw("Invalid state reached!");
 
-                                    copied_state_stack.push(off, gt);
+                                    copied_state_stack.push(l.copy(), gt);
 
                                     csp += 2;
 
