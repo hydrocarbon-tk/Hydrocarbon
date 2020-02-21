@@ -5,7 +5,7 @@ import {
     REDUCE,
     FORK
 } from "../common/state_action_enums.js";
-
+/*
 function deepClone(obj, visited = new Map()) {
 
     const proto = Object.getPrototypeOf(obj) || Object;
@@ -35,7 +35,7 @@ function deepClone(obj, visited = new Map()) {
 
     return out;
 }
-
+*/
 /*
     Parses an input. Returns an object with parse results and an error flag if parse could not complete.
     l: Lexer - lexer object with an interface defined in candlefw/whind.
@@ -43,7 +43,7 @@ function deepClone(obj, visited = new Map()) {
     entry: the starting state in the parse table. 
     data: parser data including look up tables and default parse action functions.
 */
-function parser(l, data = null, e = {}, entry = 0, sp = 1, len = 0, start_off = 0, o = [], state_stack = [0, entry], SKIP_LEXER_SETUP = false, max_cycles = 600000, previous_forked_state = 0, fork_stack = [], shift_fork_depth = 0) {
+function parser(l, data = null, e = {}, entry = 0, sp = 1, len = 0, start_off = 0, o = [], state_stack = [0, entry], SKIP_LEXER_SETUP = false, max_cycles = 600000,  shift_fork_depth = 0) {
 
     if (!data)
         return { result: [], error: "Data object is empty" };
@@ -237,16 +237,11 @@ function parser(l, data = null, e = {}, entry = 0, sp = 1, len = 0, start_off = 
                         var
                             fork_states_start = r >> 16,
                             fork_states_length = (r >> 3) & 0x1FFF,
-                            result = { result: null, error: "", cycles },
-                            cpfs = fork_stack;
+                            result = { result: null, error: "", cycles };
 
                         console.log(`FORKING ${l.tx}`)
                         
                         for (const state of data.fm.slice(fork_states_start, fork_states_start + fork_states_length)) {
-                            
-                            const fork_Stack = cpfs.slice();
-
-                            fork_stack.push(state)
                             
                             let
                                 res = null,
@@ -271,7 +266,7 @@ function parser(l, data = null, e = {}, entry = 0, sp = 1, len = 0, start_off = 
 
                                         copied_lex.next();
 
-                                        res = parser(copied_lex, data, e, 0, csp + 2, clen, off, copied_output, copied_state_stack, true, cycles-1, state, fork_stack.slice(), csp);
+                                        res = parser(copied_lex, data, e, 0, csp + 2, clen, off, copied_output, copied_state_stack, true, cycles-1, csp);
 
                                         break;
 
@@ -292,7 +287,7 @@ function parser(l, data = null, e = {}, entry = 0, sp = 1, len = 0, start_off = 
 
                                         csp += 2;
 
-                                        res = parser(copied_lex, data, e, 0, csp, clen, off, copied_output, copied_state_stack, true, cycles-1, state, fork_stack.slice(), depth+1 );
+                                        res = parser(copied_lex, data, e, 0, csp, clen, off, copied_output, copied_state_stack, true, cycles-1, csp);
 
                                         break;
                                 }   
@@ -309,7 +304,7 @@ function parser(l, data = null, e = {}, entry = 0, sp = 1, len = 0, start_off = 
                                     sp = res.sp;
                                     len = res.len;
                                     tk = res.tk;
-                                   console.log("SQASHING", state_stack[sp], sp)
+                                   console.log("SQASHING", state_stack[sp], sp);
                                     continue outer;
                                 }
 
