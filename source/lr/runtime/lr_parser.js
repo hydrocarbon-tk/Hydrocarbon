@@ -5,6 +5,10 @@ import {
     REDUCE,
     FORK
 } from "../common/state_action_enums.js";
+
+import whind from "@candlefw/whind";
+
+const MAX_CYCLES = 600000;
 /*
 function deepClone(obj, visited = new Map()) {
 
@@ -36,6 +40,7 @@ function deepClone(obj, visited = new Map()) {
     return out;
 }
 */
+
 /*
     Parses an input. Returns an object with parse results and an error flag if parse could not complete.
     l: Lexer - lexer object with an interface defined in candlefw/whind.
@@ -43,7 +48,7 @@ function deepClone(obj, visited = new Map()) {
     entry: the starting state in the parse table. 
     data: parser data including look up tables and default parse action functions.
 */
-function parser(l, data = null, e = {}, entry = 0, sp = 1, len = 0, start_off = 0, o = [], state_stack = [0, entry], SKIP_LEXER_SETUP = false, max_cycles = 600000,  shift_fork_depth = 0) {
+function parser(l, data = null, e = {}, entry = 0, sp = 1, len = 0, off = 0, o = [], state_stack = [0, entry], SKIP_LEXER_SETUP = false, cycles = 0, shift_fork_depth = 0) {
 
     if (!data)
         return { result: [], error: "Data object is empty" };
@@ -61,9 +66,7 @@ function parser(l, data = null, e = {}, entry = 0, sp = 1, len = 0, start_off = 
         ty: types,
     } = data;
 
-    let off = start_off;
-
-    let cycles = max_cycles;
+    let total_cycles = cycles;
 
     const { sym, keyword, any, num } = types;
 
@@ -75,24 +78,23 @@ function parser(l, data = null, e = {}, entry = 0, sp = 1, len = 0, start_off = 
             l.tl = 0;
             l.next();
         }
+
+        if (!e.fn)
+            e.fn = e.functions;
     }
 
-
-
-    if (!e.fn)
-        e.fn = e.functions;
+    const p = l.copy();
 
     let RECOVERING = 100,
-        tk = getToken(l, token_lu),
-        p = l.copy();
-    try {
+        tk = getToken(l, token_lu);
 
+    try {
 
         outer:
 
-            while (cycles-- > 0) {
-                
-                const   
+            while (cycles++ < MAX_CYCLES) {
+
+                const
                     map = states[state_stack[sp]],
                     fn = (tk < map.length) ? map[tk] : -1;
 
@@ -166,23 +168,20 @@ function parser(l, data = null, e = {}, entry = 0, sp = 1, len = 0, start_off = 
                 }
 
                 switch (r & 7) {
-                    case ERROR: // 0
+                    case ERROR:
                         //IF START IS NOT AT THE HEAD TRY REDUCING INSTEAD;
-                        /* ERROR */
 
                         if (tk == "$eof") {
                             if (e.err_eof && (tk = e.err_eof(tk, o, l, p)))
                                 continue;
                             else
-                                l.throw("Unexpected end of input");
+                                return { result: null, error: l.errorMessage("Unexpected end of input"), cycles, total_cycles, off };
                         } else {
                             if (e.err_general && (tk = e.err_general(tk, o, l, p)))
                                 continue;
                             else
-                                l.throw(`Unexpected token [${RECOVERING ? l.next().tx : l.tx}]`);
+                                return { result: null, error: l.errorMessage(`Unexpected token [${RECOVERING ? l.next().tx : l.tx}]`), cycles, total_cycles, off };
                         }
-
-                        return { result: o[0], error: true };
 
                     case ACCEPT:
 
@@ -196,7 +195,7 @@ function parser(l, data = null, e = {}, entry = 0, sp = 1, len = 0, start_off = 
                         l.next();
                         off = l.off;
                         tk = getToken(l, token_lu);
-                        
+
                         RECOVERING++;
                         break;
 
@@ -213,19 +212,22 @@ function parser(l, data = null, e = {}, entry = 0, sp = 1, len = 0, start_off = 
                             l.throw("Invalid state reached!");
 
                         state_stack.push(off, gt);
-                        
+
                         sp += 2;
 
-                        if(sp < shift_fork_depth){
+                        if (sp < shift_fork_depth) {
                             return {
-                                SQUASH : true,
+                                SQUASH: true,
                                 o,
                                 sp,
-                                len, 
+                                len,
                                 tk,
-                                ss:state_stack,
-                                l
-                            }    
+                                ss: state_stack,
+                                l,
+                                cycles,
+                                total_cycles,
+                                off
+                            };
                         }
 
                         break;
@@ -237,12 +239,10 @@ function parser(l, data = null, e = {}, entry = 0, sp = 1, len = 0, start_off = 
                         var
                             fork_states_start = r >> 16,
                             fork_states_length = (r >> 3) & 0x1FFF,
-                            result = { result: null, error: "", cycles };
+                            result = { result: null, error: "", cycles, total_cycles, off };
 
-                        console.log(`FORKING ${l.tx}`)
-                        
                         for (const state of data.fm.slice(fork_states_start, fork_states_start + fork_states_length)) {
-                            
+
                             let
                                 res = null,
                                 csp = sp,
@@ -255,7 +255,6 @@ function parser(l, data = null, e = {}, entry = 0, sp = 1, len = 0, start_off = 
                                 copied_state_stack = state_stack.slice(),
                                 r = state_actions[state - 1](tk, e, copied_output, copied_lex, copied_state_stack[csp - 1], state_action_functions, parser);
 
-
                             try {
                                 switch (r & 7) {
                                     case SHIFT: // Make shift open ended
@@ -266,7 +265,7 @@ function parser(l, data = null, e = {}, entry = 0, sp = 1, len = 0, start_off = 
 
                                         copied_lex.next();
 
-                                        res = parser(copied_lex, data, e, 0, csp + 2, clen, off, copied_output, copied_state_stack, true, cycles-1, csp);
+                                        res = parser(copied_lex, data, e, 0, csp + 2, clen, off, copied_output, copied_state_stack, true, cycles + 1, csp);
 
                                         break;
 
@@ -287,16 +286,16 @@ function parser(l, data = null, e = {}, entry = 0, sp = 1, len = 0, start_off = 
 
                                         csp += 2;
 
-                                        res = parser(copied_lex, data, e, 0, csp, clen, off, copied_output, copied_state_stack, true, cycles-1, csp);
+                                        res = parser(copied_lex, data, e, 0, csp, clen, off, copied_output, copied_state_stack, true, cycles + 1, csp);
 
                                         break;
-                                }   
+                                }
 
 
-                                if(res.SQUASH){
+                                if (res.SQUASH) {
 
-                                   if(shift_fork_depth > 1 && res.sp < shift_fork_depth)
-                                       return res;
+                                    if (shift_fork_depth > 1 && res.sp < shift_fork_depth)
+                                        return res;
 
                                     state_stack = res.ss;
                                     o = res.o;
@@ -304,44 +303,59 @@ function parser(l, data = null, e = {}, entry = 0, sp = 1, len = 0, start_off = 
                                     sp = res.sp;
                                     len = res.len;
                                     tk = res.tk;
-                                   console.log("SQASHING", state_stack[sp], sp);
+                                    cycles = res.cycles;
+                                    total_cycles = res.total_cycles;
+                                    off = res.off;
+
                                     continue outer;
                                 }
 
-                                if (!res.error) 
+                                if (!res.error)
                                     return res;
-                                
-                                if (res.cycles <= result.cycles) {
+
+                                if (res.off > result.off)
                                     result = res;
-                                    result.cycles = res.cycles;
-                                }
 
                             } catch (e) {
-                                if (e.cycles && e.cycles <= result.cycles) {
-                                    result.error = e.error;
-                                    result.cycles = e.cycles;
+                                if (e.off) {
+                                    if(e.off > result.off || !result.error){
+                                        result = e;
+                                    }
+                                } else {
+                                    result = { result: null, error: e, total_cycles, cycles, off };
                                 }
+
+                                total_cycles += e.total_cycles;
                             }
                         }
 
                         if (!result.error)
-                            result.error = "failed to parse at fork";
+                            result.error = l.errorMessage("failed to parse at fork");
+
+                        result.total_cycles = total_cycles;
 
                         return result;
                 }
             }
-    } catch (e) {
-        throw { error: e, cycles };
+    }
+    catch (e) {
+        total_cycles += cycles;
+        throw { error: e, cycles, total_cycles, off };
     }
 
-    if(cycles <= 0)
-        return { result: o[0], error: "Max Depth Reached", cycles };
+    total_cycles += cycles;
 
-   // console.log(cycles)
-    return { result: o[0], error: false, cycles };
+    if (cycles >= MAX_CYCLES)
+        return { result: o[0], error: l.errorMessage("Max Depth Reached"), cycles, off };
+
+    return { result: o[0], error: false, cycles, total_cycles, off };
 }
 
-export default (lex, data, environment, entry_point) => parser(lex, data, environment, entry_point);
+export default (lex, data, environment, entry_point) => {
+    const res = parser((typeof lex == "string") ? new whind(lex) : lex, data, environment, entry_point);
+    res.efficiency = res.cycles / res.total_cycles * 100;
+    return res;
+};
 
 const max = Math.max;
 
