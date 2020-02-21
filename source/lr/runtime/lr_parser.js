@@ -48,7 +48,7 @@ function deepClone(obj, visited = new Map()) {
     entry: the starting state in the parse table. 
     data: parser data including look up tables and default parse action functions.
 */
-function parser(l, data = null, e = {}, entry = 0, sp = 1, len = 0, off = 0, o = [], state_stack = [0, entry], SKIP_LEXER_SETUP = false, cycles = 0, shift_fork_depth = 0) {
+function parser(l, data = null, e = {}, entry = 0, sp = 1, len = 0, off = 0, o = [], state_stack = [0, entry], SKIP_LEXER_SETUP = false, cycles = 0, fork_depth = 0, forks = 0) {
 
     if (!data)
         return { result: [], error: "Data object is empty" };
@@ -64,11 +64,9 @@ function parser(l, data = null, e = {}, entry = 0, sp = 1, len = 0, off = 0, o =
         eh: error_handlers,
         gtk: getToken,
         ty: types,
-    } = data;
+    } = data,
 
-    let total_cycles = cycles;
-
-    const { sym, keyword, any, num } = types;
+    { sym, keyword, any, num } = types;
 
     if (!SKIP_LEXER_SETUP) {
         l.IWS = false;
@@ -86,13 +84,15 @@ function parser(l, data = null, e = {}, entry = 0, sp = 1, len = 0, off = 0, o =
     const p = l.copy();
 
     let RECOVERING = 100,
-        tk = getToken(l, token_lu);
+        tk = getToken(l, token_lu),
+        total_cycles = 0;
 
     try {
 
         outer:
 
             while (cycles++ < MAX_CYCLES) {
+                total_cycles++;
 
                 const
                     map = states[state_stack[sp]],
@@ -104,7 +104,6 @@ function parser(l, data = null, e = {}, entry = 0, sp = 1, len = 0, off = 0, o =
                 if (fn == 0) {
                     /*Ignore the token*/
                     tk = getToken(l.next(), token_lu);
-
                     continue;
                 }
 
@@ -175,12 +174,26 @@ function parser(l, data = null, e = {}, entry = 0, sp = 1, len = 0, off = 0, o =
                             if (e.err_eof && (tk = e.err_eof(tk, o, l, p)))
                                 continue;
                             else
-                                return { result: null, error: l.errorMessage("Unexpected end of input"), cycles, total_cycles, off };
+                                return {
+                                    result: null,
+                                    error: l.errorMessage("Unexpected end of input"),
+                                    cycles,
+                                    total_cycles,
+                                    off,
+                                    fork_depth
+                                };
                         } else {
                             if (e.err_general && (tk = e.err_general(tk, o, l, p)))
                                 continue;
                             else
-                                return { result: null, error: l.errorMessage(`Unexpected token [${RECOVERING ? l.next().tx : l.tx}]`), cycles, total_cycles, off };
+                                return {
+                                    result: null,
+                                    error: l.errorMessage(`Unexpected token [${RECOVERING ? l.next().tx : l.tx}]`),
+                                    cycles,
+                                    total_cycles,
+                                    off,
+                                    fork_depth
+                                };
                         }
 
                     case ACCEPT:
@@ -215,7 +228,7 @@ function parser(l, data = null, e = {}, entry = 0, sp = 1, len = 0, off = 0, o =
 
                         sp += 2;
 
-                        if (sp < shift_fork_depth) {
+                        if (sp < fork_depth - 1) {
                             return {
                                 SQUASH: true,
                                 o,
@@ -233,8 +246,7 @@ function parser(l, data = null, e = {}, entry = 0, sp = 1, len = 0, off = 0, o =
                         break;
 
                     case FORK:
-
-
+                    
                         //Look Up Fork productions. 
                         var
                             fork_states_start = r >> 16,
@@ -251,104 +263,117 @@ function parser(l, data = null, e = {}, entry = 0, sp = 1, len = 0, off = 0, o =
 
                             const
                                 copied_lex = l.copy(),
-                                copied_output = o.slice(), //deepClone(o),
+                                copied_output = o.slice(), 
                                 copied_state_stack = state_stack.slice(),
                                 r = state_actions[state - 1](tk, e, copied_output, copied_lex, copied_state_stack[csp - 1], state_action_functions, parser);
 
-                            try {
-                                switch (r & 7) {
-                                    case SHIFT: // Make shift open ended
 
-                                        copied_output.push(l.tx);
+                            switch (r & 7) {
+                                case SHIFT: 
 
-                                        copied_state_stack.push(off, r >> 3);
+                                    copied_output.push(l.tx);
 
-                                        copied_lex.next();
+                                    copied_state_stack.push(off, r >> 3);
 
-                                        res = parser(copied_lex, data, e, 0, csp + 2, clen, off, copied_output, copied_state_stack, true, cycles + 1, csp);
+                                    copied_lex.next();
 
-                                        break;
+                                    res = parser(copied_lex, data, e, 0, csp + 2, clen, off, copied_output, copied_state_stack, true, cycles, csp, forks + 1);
 
-                                    case REDUCE:
+                                    break;
 
-                                        clen = (r & 0x7F8) >> 2;
+                                case REDUCE:
 
-                                        copied_state_stack.length -= clen;
+                                    clen = (r & 0x7F8) >> 2;
 
-                                        csp -= clen;
+                                    copied_state_stack.length -= clen;
 
-                                        gt = goto[copied_state_stack[csp]][r >> 11];
+                                    csp -= clen;
 
-                                        if (gt < 0)
-                                            l.throw("Invalid state reached!");
+                                    gt = goto[copied_state_stack[csp]][r >> 11];
 
-                                        copied_state_stack.push(off, gt);
+                                    if (gt < 0)
+                                        l.throw("Invalid state reached!");
 
-                                        csp += 2;
+                                    copied_state_stack.push(off, gt);
 
-                                        res = parser(copied_lex, data, e, 0, csp, clen, off, copied_output, copied_state_stack, true, cycles + 1, csp);
+                                    csp += 2;
 
-                                        break;
-                                }
+                                    res = parser(copied_lex, data, e, 0, csp, clen, off, copied_output, copied_state_stack, true, cycles, csp, forks + 1);
+
+                                    break;
+                            }
 
 
-                                if (res.SQUASH) {
+                            if (res.SQUASH) {
 
-                                    if (shift_fork_depth > 1 && res.sp < shift_fork_depth)
-                                        return res;
-
-                                    state_stack = res.ss;
-                                    o = res.o;
-                                    l = res.l;
-                                    sp = res.sp;
-                                    len = res.len;
-                                    tk = res.tk;
-                                    cycles = res.cycles;
-                                    total_cycles = res.total_cycles;
-                                    off = res.off;
-
-                                    continue outer;
-                                }
-
-                                if (!res.error)
+                                if (fork_depth > 1 && res.sp < fork_depth) {
+                                    res.total_cycles += result.total_cycles;
                                     return res;
-
-                                if (res.off > result.off)
-                                    result = res;
-
-                            } catch (e) {
-                                if (e.off) {
-                                    if(e.off > result.off || !result.error){
-                                        result = e;
-                                    }
-                                } else {
-                                    result = { result: null, error: e, total_cycles, cycles, off };
                                 }
 
-                                total_cycles += e.total_cycles;
+                                state_stack = res.ss;
+                                o = res.o;
+                                l = res.l;
+                                sp = res.sp;
+                                len = res.len;
+                                tk = res.tk;
+                                cycles = res.cycles;
+                                total_cycles += res.total_cycles;
+                                off = res.off;
+
+                                continue outer;
+                            }
+
+                            result.total_cycles += res.total_cycles;
+
+                            if (!res.error) {
+                                res.total_cycles = result.total_cycles;
+                                return res;
+                            }
+
+                            if (res.off > result.off) {
+                                res.total_cycles = result.total_cycles;
+                                result = res;
                             }
                         }
 
                         if (!result.error)
                             result.error = l.errorMessage("failed to parse at fork");
 
-                        result.total_cycles = total_cycles;
-
                         return result;
                 }
             }
     }
     catch (e) {
-        total_cycles += cycles;
-        throw { error: e, cycles, total_cycles, off };
+        return {
+            result: null,
+            error: e,
+            cycles,
+            total_cycles,
+            off,
+            fork_depth
+        };
     }
 
-    total_cycles += cycles;
-
     if (cycles >= MAX_CYCLES)
-        return { result: o[0], error: l.errorMessage("Max Depth Reached"), cycles, off };
+        return {
+            result: o[0],
+            error: l.errorMessage("Max Depth Reached"),
+            total_cycles,
+            cycles,
+            off,
+            fork_depth
+        };
 
-    return { result: o[0], error: false, cycles, total_cycles, off };
+    return {
+        result: o[0],
+        error: "",
+        cycles,
+        total_cycles,
+        off,
+        fork_depth,
+        forks
+    };
 }
 
 export default (lex, data, environment, entry_point) => {

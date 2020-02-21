@@ -179,7 +179,7 @@ export async function grammarParser(grammar, FILE_URL, stamp = 112, meta_importe
                             p.forEach(sym => {
                                 try {
                                     const production = prods.LU.get(sym.name);
-                                    console.log(sym, production)
+                                    
                                     sym.name = `${id}$${production.name}`;
                                     sym.RESOLVED = true;
                                     sym.production = production;
