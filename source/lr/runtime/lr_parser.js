@@ -50,6 +50,7 @@ function deepClone(obj, visited = new Map()) {
 */
 function parser(l, data = null, e = {}, entry = 0, sp = 1, len = 0, off = 0, o = [], state_stack = [l.copy(), entry], SKIP_LEXER_SETUP = false, cycles = 0, fork_depth = 0, forks = 0) {
 
+
     if (!data)
         return { result: [], error: "Data object is empty" };
 
@@ -84,6 +85,7 @@ function parser(l, data = null, e = {}, entry = 0, sp = 1, len = 0, off = 0, o =
     const p = l.copy();
 
     let RECOVERING = 100,
+        FINAL_RECOVERY = false,
         tk = getToken(l, token_lu),
         total_cycles = 0;
 
@@ -157,12 +159,15 @@ function parser(l, data = null, e = {}, entry = 0, sp = 1, len = 0, off = 0, o =
 
                     tk = getToken(l, token_lu);
 
-                    const recovery_token = error_handlers[state_stack[sp]](tk, e, o, l, p, state_stack[sp], (lex) => getToken(lex, token_lu));
+                    if (!FINAL_RECOVERY) {
+                        const recovery_token = error_handlers[state_stack[sp]](tk, e, o, l, p, state_stack[sp], (lex) => getToken(lex, token_lu));
 
-                    if (recovery_token >= 0) {
-                        RECOVERING = 100;
-                        tk = recovery_token;
-                        continue;
+                        if (recovery_token >= 0) {
+                            FINAL_RECOVERY = true;
+                            RECOVERING = 100;
+                            tk = recovery_token;
+                            continue;
+                        }
                     }
                 }
 
@@ -201,24 +206,33 @@ function parser(l, data = null, e = {}, entry = 0, sp = 1, len = 0, off = 0, o =
                         break outer;
 
                     case SHIFT:
+                        FINAL_RECOVERY = false;
 
+                        state_stack.push(l.copy(), r >> 3);
                         o.push(l.tx);
                         sp += 2;
                         l.next();
                         off = l.off;
                         tk = getToken(l, token_lu);
-                        state_stack.push(l.copy(), r >> 3);
 
                         RECOVERING++;
                         break;
 
                     case REDUCE:
+                        FINAL_RECOVERY = false;
 
                         len = (r & 0x7F8) >> 2;
 
-                        var c = state_stack[sp-len-1];
+                        var end = state_stack[sp - 1];
+                        var start = state_stack[sp - len - 1];
+
+                        end.sl = end.off;
+                        end.sync(start);
+
                         state_stack.length -= len;
                         sp -= len;
+                        end.sl = off;
+
 
                         gt = goto[state_stack[sp]][r >> 11];
 
@@ -247,7 +261,7 @@ function parser(l, data = null, e = {}, entry = 0, sp = 1, len = 0, off = 0, o =
                         break;
 
                     case FORK:
-                    
+
                         //Look Up Fork productions. 
                         var
                             fork_states_start = r >> 16,
@@ -264,13 +278,13 @@ function parser(l, data = null, e = {}, entry = 0, sp = 1, len = 0, off = 0, o =
 
                             const
                                 copied_lex = l.copy(),
-                                copied_output = o.slice(), 
+                                copied_output = o.slice(),
                                 copied_state_stack = state_stack.slice(),
                                 r = state_actions[state - 1](tk, e, copied_output, copied_lex, copied_state_stack[csp - 1], state_action_functions, parser);
 
 
                             switch (r & 7) {
-                                case SHIFT: 
+                                case SHIFT:
 
                                     copied_output.push(l.tx);
 

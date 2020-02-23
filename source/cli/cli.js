@@ -221,12 +221,12 @@ function parseLRJSONStates(states_string) {
     return hc.ImportStates(states_string);
 }
 
-async function compileLRStates(grammar, env_path, name, unattended) {
-    return await runner(grammar, env_path, name, false, unattended);
+async function compileLRStates(grammar, env, env_path, name, unattended) {
+    return await runner(grammar, env, env_path, name, false, unattended);
 }
 
-async function compileGLRStates(grammar, env_path, name, unattended) {
-    return await runner(grammar, env_path, name, true, unattended);
+async function compileGLRStates(grammar, env, env_path, name, unattended) {
+    return await runner(grammar, env, env_path, name, true, unattended);
 }
 
 function buildLRCompilerScriptCPP(states, parsed_grammar, env) {
@@ -259,19 +259,27 @@ async function mount(name, input, env, states, grammar) {
 
     let d = await new Promise(res => {
         let parser_data = null;
-        try {
-            parser_data = ((Function("return " + input))()); 
-        } catch (e) {
-            console.dir(e, { depth: null })
-            return
+
+        if (typeof input !== "string") {
+            parser_data = input;
+        } else {
+
+            try {
+                parser_data = ((Function("return " + input))());
+            } catch (e) {
+                console.dir(e, { depth: null })
+                return
+            }
+
+
         }
+
+        console.log(parser_data)
 
         const r1 = readline.createInterface({
             input: process.stdin,
             output: process.stdout
         });
-
-
         console.log(ADD_COLOR("The parser has been mounted in NodeJS", COLOR_SUCCESS))
         CLI_INSTRUCTIONS();
 
@@ -300,9 +308,9 @@ async function mount(name, input, env, states, grammar) {
                 try {
                     let parse;
                     if (env.options && env.options.integrate)
-                        parse = parser(data.join("\n"),  parser_data, {}, 0);
+                        parse = parser(data.join("\n"), parser_data, {}, 0);
                     else
-                        console.dir(parser(whind(data.join("\n"), false),parser_data, env), { depth: null });
+                        console.dir(parser(whind(data.join("\n"), false), parser_data, env), { depth: null });
                 } catch (e) {
                     console.error(e);
                 }
@@ -359,7 +367,7 @@ program
             if (states_string) {
                 states = parseLRJSONStates(states_string);
             } else {
-                states = await compileLRStates(grammar, env_path, "", true);
+                states = await compileLRStates(grammar, env, env_path, "", true);
                 if (!!cmd.output_states) {
                     states_output = stringifyLRStates(states);
                     writeFile(`${name}.hcs`, states_output, output_directory);
@@ -394,7 +402,7 @@ program
             compiler_path = path.resolve(hc_compiler),
             env_path = cmd.env ? path.resolve(cmd.env) : "",
             env = await loadEnvironment(env_path),
-            compiler = await fsp.readFile(compiler_path, "utf8");
+            compiler = (await import(compiler_path)).default;
 
         mount("undefined", compiler, env)
 
@@ -459,7 +467,7 @@ program
                         states = parseLRJSONStates(states_string, unattended);
                     } else {
 
-                        states = await compileLRStates(grammar, env_path, name, unattended);
+                        states = await compileLRStates(grammar, env, env_path, name, unattended);
                         //console.log(states)
                         if (!!cmd.statesout) {
                             const states_output = stringifyLRStates(states);
@@ -479,9 +487,9 @@ program
                 case "glr":
                 case "glalr":
                     if (states_string) {
-                      //  states = parseGLRJSONStates(states_string, unattended);
+                        //  states = parseGLRJSONStates(states_string, unattended);
                     } else {
-                        states = await compileGLRStates(grammar, env_path, name, unattended);
+                        states = await compileGLRStates(grammar, env, env_path, name, unattended);
                         if (!!cmd.statesout) {
                             //const states_output = stringifyGLRStates(states);
                             //await writeFile(`${name}.hcs`, states_output, output_directory);
@@ -519,7 +527,7 @@ program
             if (!!cmd.mount) {
                 if (!(await mount(name, script_string, env, states, grammar))) {};
             }
-            
+
             process.exit();
 
         } catch (e) {

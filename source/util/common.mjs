@@ -283,7 +283,6 @@ export function filloutGrammar(grammar, env) {
     const bodies = [],
         symbols = new Map();
 
-
     for (let i = 0, j = 0; i < grammar.length; i++) {
         const production = grammar[i];
 
@@ -310,8 +309,6 @@ export function filloutGrammar(grammar, env) {
                 addFunctions(f, production, env);
             });
         }
-
-
     }
 
     grammar.meta.all_symbols = symbols;
@@ -321,6 +318,10 @@ export function filloutGrammar(grammar, env) {
 
 
 export class Item extends Array {
+
+    static fromArray(array, grammar){
+        return new Item(array[0], array[1], array[2], array.follow, grammar);
+    }
 
     constructor(body_id, length, offset, follow, g = null) {
         super(body_id, length, offset);
@@ -406,7 +407,7 @@ export const actions = {
     GOTO: 4,
 };
 
-export function processClosure(state_id, items, grammar, error, excludes, offset = 0, added = new Set()) {
+export function processClosure(items, grammar, error, excludes, offset = 0, added = new Set()) {
     
     let exclusion_count = 0;
 
@@ -511,7 +512,7 @@ export function processClosure(state_id, items, grammar, error, excludes, offset
 
             const
                 added_count = items.length - end,
-                count = processClosure(state_id, items, grammar, error, out_excludes, g, added);
+                count = processClosure(items, grammar, error, out_excludes, g, added);
 
             if (count > 0 && count == added_count) {
                 item.USED = true;
