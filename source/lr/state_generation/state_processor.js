@@ -19,40 +19,40 @@ import {
 export default class StateProcessor {
 
     errorAtSymbol(state, symbol, body, item) {
-        state.action.set(symbol.val, {
+        state.actions.set(symbol.val, {
             name: ERROR,
             state: state.id,
             body: state.body,
             symbol_type: symbol.type,
             item,
-            item_string:item.renderWithProduction()
+            item_string:item.renderWithProduction(grammar)
         });
     }
 
     resetAtSymbol(state, symbol, body, item) {
-        state.action.set(symbol.val, {
+        state.actions.set(symbol.val, {
             name: DO_NOTHING,
             state: state.id,
             body: state.body,
             symbol_type: symbol.type,
             item,
-            item_string:item.renderWithProduction()
+            item_string:item.renderWithProduction(grammar)
         });
     }
 
     ignoreAtSymbol(state, symbol, body, item) {
-        state.action.set(symbol.val, {
+        state.actions.set(symbol.val, {
             name: IGNORE,
             state: state.id,
             body: state.body,
             symbol_type: symbol.type,
             item,
-            item_string:item.renderWithProduction()
+            item_string:item.renderWithProduction(grammar)
         });
     }
 
     acceptAtSymbol(state, symbol, body, item) {
-        state.action.set(item.v, {
+        state.actions.set(item.v, {
             name: ACCEPT,
             state: state.id,
             size: item.len,
@@ -60,12 +60,12 @@ export default class StateProcessor {
             symbol_type: symbol.type,
             production: body.production,
             item,
-            item_string:item.renderWithProduction()
+            item_string:item.renderWithProduction(grammar)
         });
     }
 
     reduceAtSymbol(state, symbol, body, item) {
-        state.action.set(item.v, {
+        state.actions.set(item.v, {
             name: REDUCE,
             state: state.id,
             size: item.len,
@@ -73,20 +73,20 @@ export default class StateProcessor {
             symbol_type: symbol.type,
             production: body.production,
             item,
-            item_string:item.renderWithProduction()
+            item_string:item.renderWithProduction(grammar)
         });
     }
 
 
     shiftAtSymbol(state, symbol, body, item, shift_state) {
-        state.action.set(symbol.val, {
+        state.actions.set(symbol.val, {
             name: SHIFT,
             state: shift_state.id,
             offset: item.offset + 1,
             body: body.id,
             symbol_type: symbol.type,
             item,
-            item_string:item.renderWithProduction()
+            item_string:item.renderWithProduction(grammar)
         });
     }
 
@@ -97,30 +97,29 @@ export default class StateProcessor {
             state: goto_state.id,
             body: body.id,
             item,
-            item_string:item.renderWithProduction()
+            item_string:item.renderWithProduction(grammar)
         });
     }
 
     createState(state, body, item, out_items, states, grammar, sid) {
         return ({
             grammar_stamp: body.grammar_stamp,
-            action: new Map,
-            goto: new Map,
+            actions: null,
+            goto: null,
             id: states.length,
             body: body.id,
-            production: item.body_.production,
-            production_string: item.renderWithProduction(),
-            d: `${state.d} =>\n [${[...(out_items.map(i=>`${i.body_.production.name} → ${(i.body_.sym.slice().map(d=>d.type == "production" ? grammar[d.val].name : d.val)).join(" ")}`)).reduce((r,e)=>(r.add(e), r) ,new Set).values()].join(", ")}]`,
+            production: item.body_(grammar).production,
+            production_string: item.renderWithProduction(grammar),
+            d: `${state.d} =>\n [${[...(out_items.map(i=>`${i.body_(grammar).production.name} → ${(i.body_(grammar).sym.slice().map(d=>d.type == "production" ? grammar[d.val].name : d.val)).join(" ")}`)).reduce((r,e)=>(r.add(e), r) ,new Set).values()].join(", ")}]`,
             real_id: sid,
             follows: null,
-            map: new Map(),
             item: item.render(),
         });
     }
 
     handleReduceCollision(grammar, states, state, item) {
         const symbol = item.v,
-            existing_action = state.action.get(symbol);
+            existing_action = state.actions.get(symbol);
 
         const bodies = grammar.bodies,
             body_a = bodies[item.body],
@@ -137,7 +136,7 @@ export default class StateProcessor {
 
     handleShiftReduceCollision(symbol, grammar, states, state) {
 
-        const existing_action = state.action.get(symbol.val);
+        const existing_action = state.actions.get(symbol.val);
 
         if (existing_action.name == REDUCE)
             return SET_NEW_ACTION;
@@ -155,12 +154,12 @@ export default class StateProcessor {
         }
 
         if (!state.production_string)
-            state.production_string = items[0].renderWithProduction();
+            state.production_string = items[0].renderWithProduction(grammar);
 
         for (let i = 0, l = items.length; i < l; i++) {
 
             const item = items[i],
-                body = item.body_,
+                body = item.body_(grammar),
                 body_length = item.len,
                 offset = item.offset,
                 symbol = body.sym[offset];
@@ -251,7 +250,7 @@ export default class StateProcessor {
                     new_state = states.map.get(sid);
 
                 if (!new_state) {
-                    states.push(this.createState(state, out_items[0].body_, item, out_items, states, grammar, sid));
+                    states.push(this.createState(state, out_items[0].body_(grammar), item, out_items, states, grammar, sid));
                     new_state = states[states.length - 1];
                     state.map.set(symbol.val, new_state);
                     states.map.set(sid, new_state);

@@ -1,15 +1,11 @@
-import whind from "@candlefw/whind";
-
 import * as hc from "../hydrocarbon.mjs";
 
-import url from "url";
-import readline from "readline";
 import { performance } from "perf_hooks";
 
+//import cli from "@candlefw/wick.cli"
+
 const gray_b = "\x1b[48;5;233m";
-const grn_b = "\x1b[48;5;100m";
 const prpl_b = "\x1b[48;5;57m";
-const drk_orng_b = "\x1b[48;5;88m";
 const red_f = "\x1b[38;5;196m";
 const COLOR_ERROR = `\x1b[41m`,
     COLOR_KEYBOARD = `\x1b[38;5;15m\x1b[48;5;246m`,
@@ -112,7 +108,7 @@ let color_loading_gs = ([
     "\x1b[48;5;233m",
     "\x1b[48;5;233m",
     "\x1b[48;5;233m",
-])
+]);
 
 function getTimeStamp(date_object, USE_MILLISECONDS) {
     const div = ":";
@@ -129,7 +125,7 @@ function colorLoad(length, step, color_array, fill = " ", clear_color = true) {
 function center(string) {
     const fill = " ";
     const length = string.replace(/\x1b[^m]*m/g, "").length;
-    const col = process.stdout.columns
+    const col = process.stdout.columns;
 
     return fill.repeat(Math.max(0, Math.round(col / 2 - length / 2))) + string;
 }
@@ -148,7 +144,7 @@ async function runner(grammar, env, env_path, name, GLR = false, UNATTENDED = fa
         stdin.setEncoding('utf8');
 
         let
-            gen = hc[ /*GLR*/ false ? "compileGLRStatesMT" : "compileLRStatesMT"](grammar, env, env_path),
+            gen = hc[GLR ? "compileGLRStatesMT" : "compileLRStatesMT"](grammar, env, env_path),
             COMPLETE = false,
             EXIT = false,
             completion_ratio = 0,
@@ -203,17 +199,7 @@ async function runner(grammar, env, env_path, name, GLR = false, UNATTENDED = fa
 
             if (!UNATTENDED) console.clear();
 
-            if (status.COMPLETE && (EXIT || UNATTENDED)) {
-                if (runner_id)
-                    clearInterval(runner_id);
-                //error.strings.forEach(str => console.log(str));
-                return res(status.states);
-            } else if (!COMPLETE) {
-                loop++;
-                time = new Date(performance.now() - start);
-            }
-
-            if ((render_time++ % 200) == 0) {
+            if ((render_time++ % 200) == 0 || status.COMPLETE) {
 
                 let conflicts = "";
 
@@ -253,9 +239,20 @@ async function runner(grammar, env, env_path, name, GLR = false, UNATTENDED = fa
                     console.log("tick:", getTimeStamp(time, true), "number of states:", number_of_states);
                 }
             }
+
+            if (status.COMPLETE && (EXIT || UNATTENDED)) {
+                if (runner_id)
+                    clearInterval(runner_id);
+                //error.strings.forEach(str => console.log(str));
+                return res(status.states);
+            } else if (!COMPLETE) {
+                loop++;
+                time = new Date(performance.now() - start);
+            }
+
         }
 
-        const runner_id = setInterval(run, 2);
+        const runner_id = setInterval(run, 1);
     });
 }
 

@@ -6,16 +6,20 @@ export const EMPTY_PRODUCTION = "{!--EMPTY_PRODUCTION--!}";
 
 export const isNonTerm = (f) => f.type == "production";
 
+import { Item } from "./item.mjs";
+
+export { Item };
+
 export const types = whind.types;
 
-const 
+const
     production_stack_arg_name = "sym",
     environment_arg_name = "env",
     lexer_arg_name = "lex";
 
 export function getToken(l, SYM_LU, IGNORE_KEYWORDS = false) {
     if (l.END) return 0; /*"$eof"*/
-    
+
     switch (l.ty) {
         case types.id:
             if (!IGNORE_KEYWORDS && SYM_LU.has(l.tx)) return "keyword";
@@ -66,8 +70,8 @@ function addNonTerminal(table, body, grammar, body_ind, index = 0) {
 
 
     if (first.type == "literal") {
-        terminal = first.val;   
-     } else if (first.type == "empty") {
+        terminal = first.val;
+    } else if (first.type == "empty") {
         return true;
     } else if (first.type !== "production") {
         terminal = first.val;
@@ -316,90 +320,6 @@ export function filloutGrammar(grammar, env) {
     grammar.bodies = bodies;
 }
 
-
-export class Item extends Array {
-
-    static fromArray(array, grammar){
-        return new Item(array[0], array[1], array[2], array.follow, grammar);
-    }
-
-    constructor(body_id, length, offset, follow, g = null) {
-        super(body_id, length, offset);
-        this.follow = follow;
-        this.USED = false;
-        this.grammar = g;
-    }
-
-    get atEND(){
-        return this.offset >= this.len;
-    }
-
-    get v() {
-        return this.follow.v;
-    }
-
-    get p() {
-        return this.follow.p;
-    }
-
-    get id() {
-        return "" + this.body + "" + this.len + "" + this.offset + "|";
-    }
-
-    get full_id() {
-        return this.id + this.v;
-    }
-
-    get body() {
-        return this[0];
-    }
-
-    get len() {
-        return this[1];
-    }
-
-    get offset() {
-        return this[2];
-    }
-    get body_() {
-        return this.grammar.bodies[this.body];
-    }
-    get sym() {
-        return this.body_.sym[this.offset];
-    }
-
-    render() {
-        const a = this.body_.sym
-            .map(sym=> sym.type == "production" ? {val:this.grammar[sym.val].name} : sym )
-            .flatMap((sym, i) => (i == this.offset) ? ["•", sym.val] : sym.val);
-        if (a.length == this.offset)
-            a.push("•");
-        return a.join(" ");
-    }
-
-    renderWithProduction(){
-        return `[ ${this.body_.production.name} ⇒ ${this.render()} ]`;
-    }
-
-    renderWithProductionAndFollow(){
-        return `[${this.body_.production.name}⇒ ${this.render()}, ${this.v}]`;
-    }
-
-    increment() {
-        if (this.offset < this.len)
-            return new Item(this.body, this.len, this.offset + 1, this.follow, this.grammar);
-        return null;
-    }
-
-    match(item) {
-        return item.id == this.id;
-    }
-
-    toString() {
-        return this.id;
-    }
-}
-
 export const actions = {
     ACCEPT: 1,
     SHIFT: 2,
@@ -408,7 +328,7 @@ export const actions = {
 };
 
 export function processClosure(items, grammar, error, excludes, offset = 0, added = new Set()) {
-    
+
     let exclusion_count = 0;
 
     if (!excludes) {

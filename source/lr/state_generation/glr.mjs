@@ -39,8 +39,8 @@ class GLStateProcessor extends StateProcessor {
         if(existing_action.name == REDUCE && existing_action.item.len == 0)
             return SET_NEW_ACTION;
 
-        //if(existing_action.name == REDUCE && existing_action.item.body_.production.id === item.body_.production.id){
-        //    errors.log("############ REDUNDANT SHIFT/REDUCE #############", existing_action.item.renderWithProduction(), item.renderWithProduction())
+        //if(existing_action.name == REDUCE && existing_action.item.body_(grammar).production.id === item.body_(grammar).production.id){
+        //    errors.log("############ REDUNDANT SHIFT/REDUCE #############", existing_action.item.renderWithProduction(grammar), item.renderWithProduction(grammar))
         //    return SET_NEW_ACTION;
         //}
 
@@ -62,7 +62,7 @@ class GLStateProcessor extends StateProcessor {
         if (!fork.registered.has(item.id)) {
             fork.registered.add(item.id);
             //Replace any matching REDUCE productions with this SHIFT action. 
-            //fork.actions = fork.actions.filter(e=> e.name !== REDUCE ||  e.item.body_.production.id !== item.body_.production.id );
+            //fork.actions = fork.actions.filter(e=> e.name !== REDUCE ||  e.item.body_(grammar).production.id !== item.body_(grammar).production.id );
             fork.actions.push(action);
             fork.actions.sort((a, b) => a.name < b.name ? -1 : 1);
         }
@@ -87,8 +87,8 @@ class GLStateProcessor extends StateProcessor {
 
         const existing_action = state.action.get(key);
 
-        //if(existing_action.name == SHIFT && existing_action.item.body_.production.id === item.body_.production.id){
-        //    errors.log("############ REDUNDANT REDUCE/SHIFT #############", existing_action.item.renderWithProduction(), item.renderWithProduction())
+        //if(existing_action.name == SHIFT && existing_action.item.body_(grammar).production.id === item.body_(grammar).production.id){
+        //    errors.log("############ REDUNDANT REDUCE/SHIFT #############", existing_action.item.renderWithProduction(grammar), item.renderWithProduction(grammar))
         //    return KEEP_EXISTING_ACTION;
         //}
 
@@ -109,7 +109,7 @@ class GLStateProcessor extends StateProcessor {
 
         if (!fork.registered.has(item.id)) {
            fork.registered.add(item.id);
-         //   if(!fork.actions.find(e=> e.name == SHIFT && e.item.body_.production.id === item.body_.production.id))
+         //   if(!fork.actions.find(e=> e.name == SHIFT && e.item.body_(grammar).production.id === item.body_(grammar).production.id))
             fork.actions.push(action);
            fork.actions.sort((a, b) => a.name < b.name ? -1 : 1);
         }

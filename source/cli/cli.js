@@ -1,4 +1,6 @@
-#!/usr/bin/env node
+#!/bin/sh
+':' //; exec node --max-old-space-size=8192  "$0" "$@" 
+
 
 /* IMPORTS *******************/
 
@@ -468,7 +470,7 @@ program
                     } else {
 
                         states = await compileLRStates(grammar, env, env_path, name, unattended);
-                        //console.log(states)
+                        
                         if (!!cmd.statesout) {
                             const states_output = stringifyLRStates(states);
                             await writeFile(`${name}.hcs`, states_output, output_directory);
@@ -490,6 +492,7 @@ program
                         //  states = parseGLRJSONStates(states_string, unattended);
                     } else {
                         states = await compileGLRStates(grammar, env, env_path, name, unattended);
+
                         if (!!cmd.statesout) {
                             //const states_output = stringifyGLRStates(states);
                             //await writeFile(`${name}.hcs`, states_output, output_directory);
