@@ -162,7 +162,7 @@ async function runner(grammar, env, env_path, name, GLR = false, UNATTENDED = fa
         if (status.COMPLETE) //FAILURE
             res(status.states);
 
-        stdin.on('data', function(key) {
+         function onKeyEvent(key) {
             const keypress = key.charCodeAt(2) | key.charCodeAt(1) << 8 | key.charCodeAt(0) << 16;
 
             switch (keypress) {
@@ -186,7 +186,9 @@ async function runner(grammar, env, env_path, name, GLR = false, UNATTENDED = fa
             run();
 
             return key;
-        });
+        };
+
+        stdin.on('data',onKeyEvent);
 
         let render_time = 0;
 
@@ -258,6 +260,7 @@ async function runner(grammar, env, env_path, name, GLR = false, UNATTENDED = fa
                 }
 
                 if ((EXIT || UNATTENDED)) {
+                    stdin.removeListener('data',onKeyEvent);
                     error.strings.forEach(str => console.log(str));
                     return res(status.states);
                 }
