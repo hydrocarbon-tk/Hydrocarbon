@@ -137,9 +137,8 @@ export default class StateProcessor {
             state = this.createState(items[0], osid, grammar);
 
         try {
-            processClosure(items, grammar, error, []);
+            processClosure(items, grammar, error, excludes);
         } catch (e) {
-            console.log(e)
             return { error: "Could not create closure for items " + items.map(e => e.renderWithProduction(grammar)).join(" | "), msg: e };
         }
 
@@ -198,17 +197,11 @@ export default class StateProcessor {
                 if (out_items.length == 0)
                     continue;
 
-                // /if (!LALR_MODE)
-                // /    sid = [...id_append.values()].slice(1).sort((a, b) => a < b ? -1 : 1).join("");
-
                 if (symbol.type !== "production") {
                     if (symbol.type !== "EOF")
                         actions.push(this.shiftAtSymbol(grammar, state, symbol, body, item, sid));
                 } else
                     actions.push(this.gotoAtSymbol(grammar, state, symbol, body, item, sid));
-
-                if (out_items.length == 0)
-                    continue;
 
                 to_process_items.push({ items: out_items, state_id: { id: sid, sym: symbol.val }, excludes });
             }

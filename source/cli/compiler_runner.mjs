@@ -59,7 +59,7 @@ const color_loading = ([
     "\x1b[48;5;53m",
     "\x1b[48;5;53m",
     "\x1b[48;5;53m",
-])
+]);
 
 let color_loading_gs = ([
     "\x1b[48;5;233m",
@@ -131,21 +131,21 @@ function center(string) {
 }
 
 async function runner(grammar, env, env_path, name, GLR = false, UNATTENDED = false) {
-    return new Promise(async res => {
+    return new Promise(res => {
 
         if (!grammar)
             throw new Error(`Unable to parse grammar, the grammar is ${grammar}`);
 
-        const start = performance.now();
-        const stdin = process.stdin;
+        const
+            gen = hc[GLR ? "compileGLRStatesMT" : "compileLRStatesMT"](grammar, env, env_path),
+            start = performance.now(),
+            stdin = process.stdin;
 
         stdin.setRawMode(true);
         stdin.resume();
         stdin.setEncoding('utf8');
 
         let
-            gen = hc[GLR ? "compileGLRStatesMT" : "compileLRStatesMT"](grammar, env, env_path),
-            COMPLETE = false,
             EXIT = false,
             completion_ratio = 0,
             items_left = 0,
@@ -156,6 +156,7 @@ async function runner(grammar, env, env_path, name, GLR = false, UNATTENDED = fa
             conflict_number = -1,
             time = new Date(performance.now() - start),
             loop = 0,
+            states = null,
             status = gen.next().value;
 
         if (status.COMPLETE) //FAILURE
@@ -193,6 +194,8 @@ async function runner(grammar, env, env_path, name, GLR = false, UNATTENDED = fa
 
             completion_ratio = ((status.total_items - status.items_left) / status.total_items);
             items_left = status.items_left;
+            error = status.errors;
+            states = status.states;
             total_items_processed = loop++;
             number_of_states = status.num_of_states;
             conflicts_generated = 0; //status.error.strings.length;
@@ -223,13 +226,13 @@ async function runner(grammar, env, env_path, name, GLR = false, UNATTENDED = fa
                 if (!UNATTENDED)
                     console.log(
                     ["CFW Hydrocarbon - Compiling " + name + " grammar", "",
-                        ` Elapsed Time ${getTimeStamp(time, COMPLETE)}`, "",
+                        ` Elapsed Time ${getTimeStamp(time, status.COMPLETE)}`, "",
                         ` ${p} Completion Ratio:    ${prpl_b}${(" ").repeat(c)}${r}${(Math.round(completion_ratio*10000)*0.01).toFixed(2)}%`,
                         ` ${p} Total Items:         ${gray_b}${(("               ")+total_items_processed).slice(-8)}`,
                         ` ${p} Pending Items:       ${gray_b}${(("               ")+items_left).slice(-8)}`,
                         ` ${p} Number Of States:    ${gray_b}${(("               ")+number_of_states).slice(-8)}`,
                         ` ${p} Conflicts Generated: ${gray_b}${conflicts_generated ? red_f : ""}${(("               ")+conflicts_generated).slice(-8)}`, "",
-                        center(`${(EXIT && !COMPLETE) ? `Exit primed. Compiling will exit on completion.`: ""}${COMPLETE ? `${ !states.COMPILED ? `${COLOR_ERROR}Compilation failed.`:`${COLOR_SUCCESS}Compilation complete.`}${COLOR_RESET} Press ${COLOR_KEYBOARD}esc${COLOR_RESET} to end this step.${COLOR_RESET}`: ""}`), "",
+                        center(`${(EXIT && !status.COMPLETE) ? `Exit primed. Compiling will exit on completion.`: ""}${status.COMPLETE ? `${ !states.COMPILED ? `${COLOR_ERROR}Compilation failed.`:`${COLOR_SUCCESS}Compilation complete.`}${COLOR_RESET} Press ${COLOR_KEYBOARD}esc${COLOR_RESET} to end this step.${COLOR_RESET}`: ""}`), "",
                         conflicts
                     ].join(clear + "\n"));
                 else {
@@ -243,13 +246,12 @@ async function runner(grammar, env, env_path, name, GLR = false, UNATTENDED = fa
             if (status.COMPLETE && (EXIT || UNATTENDED)) {
                 if (runner_id)
                     clearInterval(runner_id);
-                //error.strings.forEach(str => console.log(str));
+                error.strings.forEach(str => console.log(str));
                 return res(status.states);
-            } else if (!COMPLETE) {
+            } else if (!status.COMPLETE) {
                 loop++;
                 time = new Date(performance.now() - start);
             }
-
         }
 
         const runner_id = setInterval(run, 1);

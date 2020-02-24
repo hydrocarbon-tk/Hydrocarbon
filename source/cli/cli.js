@@ -11,7 +11,7 @@ import URL from "@candlefw/url";
 
 URL.polyfill();
 
-import runner from "./compiler_worker.mjs"
+import runner from "./compiler_runner.mjs"
 import parser from "../lr/runtime/lr_parser.js"
 
 //Third Party stuff

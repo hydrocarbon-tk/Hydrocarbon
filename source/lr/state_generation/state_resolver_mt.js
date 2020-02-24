@@ -15,14 +15,15 @@ import {
 
 export default class StateResolver {
 
-    handleShiftReduceCollision(grammar, state, shift_action, reduce_action) {
-        shiftReduceCollision(grammar, state, shift_action, reduce_action);
+
+    handleShiftReduceCollision(grammar, state, shift_action, reduce_action, errors) {
+        shiftReduceCollision(grammar, state, shift_action, reduce_action, errors);
         state.actions.set(shift_action.symbol, shift_action);
     }
 
-    handleReduceCollision(grammar, state, existing_reduce, new_reduce) {
+    handleReduceCollision(grammar, state, existing_reduce, new_reduce, errors) {
 
-        if (existing_reduce.state_real_id == new_reduce.state_real_id)
+        if (existing_reduce.state_real_id == new_reduce.state_real_id, errors)
             return;
 
         reduceCollision(grammar, state, existing_reduce, new_reduce);
@@ -44,6 +45,10 @@ export default class StateResolver {
     handleForkShiftCollision() {
         //DO Nothing in LALR
     }
+
+    getActionIterator(state){
+        return state.actions.values();
+    }
     /* 
         Completes the states by converting state_ids to integers and assgning integer state IDs to actions
     */
@@ -54,7 +59,7 @@ export default class StateResolver {
 
         for (const state of states) {
 
-            for (const action of state.actions.values()) {
+            for (const action of this.getActionIterator(state)) {
                 action.state = states_map.get(action.state_real_id).id;
             }
 
@@ -90,7 +95,7 @@ export default class StateResolver {
         Resolves the merger of a new state into the current set of states. 
         Merges new state if existing state has matching sid.
     */
-    resolve(states, new_state, grammar) {
+    resolve(states, new_state, grammar, errors) {
 
         const sid = new_state.real_id;
 
@@ -107,11 +112,12 @@ export default class StateResolver {
         states.set(sid, existing_state);
 
         for (const action of new_state.to_process_actions) {
+
             action.item = Item.fromArray(action.item, grammar);
 
             const symbol = action.symbol;
 
-            //if (action.item.len <= 0) continue;
+            if (action.item.len <= 0) continue;
 
             if (action.name == GOTO) {
                 if (!existing_state.goto.get(symbol))
@@ -137,10 +143,10 @@ export default class StateResolver {
                                     throw "NEED to fix this bug: shift shift conflicts should not exist in LALR"; //Serious error. The processor FUped;
                                 break;
                             case REDUCE:
-                                this.handleShiftReduceCollision(grammar, existing_state, action, existing_action);
+                                this.handleShiftReduceCollision(grammar, existing_state, action, existing_action, errors);
                                 break;
                             case FORK:
-                                this.handleForkShiftCollision(grammar, existing_state, existing_action, action);
+                                this.handleForkShiftCollision(grammar, existing_state, existing_action, action, errors);
                                 break;
                         }
                         break;
@@ -151,14 +157,14 @@ export default class StateResolver {
                             case ACCEPT:
                                 break;
                             case SHIFT:
-                                this.handleShiftReduceCollision(grammar, existing_state, existing_action, action);
+                                this.handleShiftReduceCollision(grammar, existing_state, existing_action, action, errors);
                                 break;
                             case REDUCE:
 
-                                this.handleReduceCollision(grammar, existing_state, action, existing_action);
+                                this.handleReduceCollision(grammar, existing_state, action, existing_action, errors);
                                 break;
                             case FORK:
-                                this.handleForkReduceCollision(grammar, existing_state, existing_action, action);
+                                this.handleForkReduceCollision(grammar, existing_state, existing_action, action, errors);
                                 break;
                         }
                         break;
