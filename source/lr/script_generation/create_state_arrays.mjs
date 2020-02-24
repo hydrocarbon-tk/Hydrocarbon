@@ -113,7 +113,7 @@ function processStateTransition(
             if (!st_fn_id) {
 
                 st_fn_id = "r";
-
+                
                 return_value = (REDUCE | (length << 3) | (state.production << 11));
             }
 

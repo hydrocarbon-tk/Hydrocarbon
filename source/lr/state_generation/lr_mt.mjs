@@ -103,7 +103,7 @@ export class LRMultiThreadRunner {
             : (new URL(
                 import.meta.url)).pathname;
 
-        this.number_of_workers = Math.max(1, os.cpus().length - 2);
+        this.number_of_workers = Math.max(1, /*os.cpus().length - 2*/ 0);
 
         console.log({
             ["number of workers"]: this.number_of_workers

@@ -21,7 +21,8 @@ export default class StateResolver {
     }
 
     handleReduceCollision(grammar, state, existing_reduce, new_reduce) {
-        if (existing_reduce.item.body_(grammar).production.id == new_reduce.item.body_(grammar).production.id)
+
+        if (existing_reduce.state_real_id == new_reduce.state_real_id)
             return;
 
         reduceCollision(grammar, state, existing_reduce, new_reduce);
@@ -52,6 +53,7 @@ export default class StateResolver {
         states.forEach((state, i) => state.id = i);
 
         for (const state of states) {
+
             for (const action of state.actions.values()) {
                 action.state = states_map.get(action.state_real_id).id;
             }
@@ -59,26 +61,22 @@ export default class StateResolver {
             for (const goto of state.goto.values()) {
                 goto.state = states_map.get(goto.state_real_id).id;
             }
-        }
 
-        if (grammar.meta.ignore) {
-            states.forEach(state => {
-                grammar.meta.ignore.forEach(
-                    i => i.symbols.forEach((sym) => {
-                        if (!state.actions.has(sym.val) && state.grammar_stamp == i.grammar_stamp) {
-                            state.actions.set(sym.val, { symbol_type: sym.type, name: IGNORE, state: state.id, body: state.body, len: 0, original_body: state.body });
-                        }
-                    })
-                );
+            grammar.meta.ignore.forEach(
+                i => i.symbols.forEach((sym) => {
+                    if (!state.actions.has(sym.val) && state.grammar_stamp == i.grammar_stamp) {
+                        state.actions.set(sym.val, { symbol_type: sym.type, name: IGNORE, state: state.id, body: state.body, len: 0, original_body: state.body });
+                    }
+                })
+            );
 
-                grammar.meta.error.forEach(
-                    i => i.symbols.forEach((sym) => {
-                        if (!state.actions.has(sym.val) && state.grammar_stamp == i.grammar_stamp) {
-                            state.actions.set(sym.val, { symbol_type: sym.type, name: ERROR, state: state.id, body: state.body, len: 0, original_body: state.body });
-                        }
-                    })
-                );
-            });
+            grammar.meta.error.forEach(
+                i => i.symbols.forEach((sym) => {
+                    if (!state.actions.has(sym.val) && state.grammar_stamp == i.grammar_stamp) {
+                        state.actions.set(sym.val, { symbol_type: sym.type, name: ERROR, state: state.id, body: state.body, len: 0, original_body: state.body });
+                    }
+                })
+            );
         }
 
         states.type = "lr";
@@ -113,7 +111,7 @@ export default class StateResolver {
 
             const symbol = action.symbol;
 
-            if (action.item.len <= 0) continue;
+            //if (action.item.len <= 0) continue;
 
             if (action.name == GOTO) {
                 if (!existing_state.goto.get(symbol))
@@ -128,7 +126,6 @@ export default class StateResolver {
             } else {
                 switch (action.name) {
                     case ACCEPT: //ACCEPT always wins
-                        console.log("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
                         existing_state.actions.set(symbol, action);
                         break;
                     case SHIFT:
@@ -148,6 +145,8 @@ export default class StateResolver {
                         }
                         break;
                     case REDUCE:
+                        if (action.item.len <= 0) continue;
+
                         switch (existing_action.name) {
                             case ACCEPT:
                                 break;
@@ -155,6 +154,7 @@ export default class StateResolver {
                                 this.handleShiftReduceCollision(grammar, existing_state, existing_action, action);
                                 break;
                             case REDUCE:
+
                                 this.handleReduceCollision(grammar, existing_state, action, existing_action);
                                 break;
                             case FORK:
@@ -165,10 +165,10 @@ export default class StateResolver {
                     case IGNORE:
                     case ERROR:
                     default:
-                        if(existing_action.name !== ACCEPT){
-                            if(existing_action.name !== action.name)
+                        if (existing_action.name !== ACCEPT) {
+                            if (existing_action.name !== action.name)
                                 throw "Conflicting actions";
-                            existing_state.actions.set(symbol, action);
+                            //existing_state.actions.set(symbol, action);
                         }
                 }
             }

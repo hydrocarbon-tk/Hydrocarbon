@@ -67,6 +67,7 @@ export default class StateProcessor {
     }
 
     reduceAtSymbol(grammar, state, symbol, body, item) {
+        
         return {
             name: REDUCE,
             state_real_id: state.real_id,
