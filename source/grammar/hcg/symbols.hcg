@@ -58,8 +58,7 @@
 	# or { term . term . term ...}. If the "terminal_symbol" is a single or double quotation (\" or \') then the productions
 	# are reduced to a concated string of the values of the reduced productions. 
 
-	│ symbol ( \(+ │ \(* )  terminal_symbol?  \) 					
-													↦cstr ^listProduction
+	│ symbol ( \(+ │ \(* )  terminal_symbol?  \) 	↦cstr ^listProduction
 													
 	│ θany											↦cstr{ this.type = "symbol"; this.val = $sym1 }
 

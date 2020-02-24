@@ -152,8 +152,6 @@ export class LRMultiThreadRunner {
 
     async mergeWorkerData(wkr, to_process_items, state, errors) {
 
-        this.total_items += to_process_items.length;
-
         this.item_set.push(...(to_process_items.filter(i => {
             const id = i.state_id.id,
                 sym = i.state_id.sym;
@@ -166,14 +164,19 @@ export class LRMultiThreadRunner {
             if (this.processed_states.has(id)) {
                 const
                     set = this.processed_states.get(id),
-                    out_items = i.items.filter(i => !set.has(i.full_id) && (!set.add(i.full_id), true) );
+                    out_items = i.items.filter(i => !set.has(i.full_id) && (!set.add(i.full_id), true));
 
                 if (out_items.length < 1)
                     return false;
 
+
                 i.items = out_items;
-            } else
+            } else {
+
                 this.processed_states.set(id, new Set(...i.items.map(i => i.full_id)));
+            }
+            
+            this.total_items++;
 
             return true;
         })));

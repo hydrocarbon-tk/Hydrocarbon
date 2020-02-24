@@ -153,6 +153,7 @@ export async function grammarParser(grammar, FILE_URL, stamp = 112, meta_importe
 
                             prod.name = `${id}$${prod.name}`;
                             prod.IMPORTED = true;
+                            prod.url = uri.path;
 
                             if (prod.bodies) {
                                 for (let i = 0; i < prod.bodies.length; i++) {
@@ -179,7 +180,6 @@ export async function grammarParser(grammar, FILE_URL, stamp = 112, meta_importe
                             p.forEach(sym => {
                                 try {
                                     const production = prods.LU.get(sym.name);
-                                    
                                     sym.name = `${id}$${production.name}`;
                                     sym.RESOLVED = true;
                                     sym.production = production;
@@ -217,7 +217,7 @@ export async function grammarParser(grammar, FILE_URL, stamp = 112, meta_importe
                 const s = sym[0];
                 let bc = 0;
 
-                this.lex = lex;
+                this.lex = {line:lex.line, char:lex.char};
                 this.sym = s.body || [];
                 this.sym_map = this.sym.map((e, i) => (e.IS_CONDITION ? -1 : bc++));
                 this.length = 0;
@@ -231,7 +231,7 @@ export async function grammarParser(grammar, FILE_URL, stamp = 112, meta_importe
                 this.grammar_stamp = env.stamp;
                 this.form = form;
 
-                //Used to identifier the unique form of the body.
+                //Used to identifiy the unique form of the body.
                 this.uid = this.sym.map(e => e.type == "production" ? e.name : e.val).join(":");
 
                 //*
@@ -290,18 +290,18 @@ export async function grammarParser(grammar, FILE_URL, stamp = 112, meta_importe
             groupProduction: function(sym, env, lex) {
 
                 this.type = "production";
-                this.name = env.prod_name + "" + env.body_count + "" + env.body_offset + sym[1].length + "_group";
+                this.name = env.prod_name + "" + "_group_" + env.body_offset + "" + env.body_count;
                 this.val = -1;
 
                 var uid = sym[1].map(e => e.uid).sort((a, b) => a < b ? -1 : 1).join(":");
 
-                if (bodies.has(uid)) {
+                if (bodies.has(uid)) 
                     return bodies.get(uid);
-                }
 
                 bodies.set(uid, this);
 
                 const groupProduction = {
+                    subtype: "group",
                     name: this.name,
                     bodies: sym[1],
                     id: -1
@@ -313,12 +313,12 @@ export async function grammarParser(grammar, FILE_URL, stamp = 112, meta_importe
             },
 
             listProduction: function(sym, env, lex, s, a, b) {
-                if (sym[0].type == "production") {
-                    this.name = sym[0].name + "_list";
-                } else {
-                    this.name = env.prod_name + env.body_offset + "_list";
-                }
-
+                //if (sym[0].type == "production") {
+                //    this.name = sym[0].name + "_list";
+                //} else {
+                this.name = env.prod_name + "_list_" + env.body_offset;
+                //}
+                this.subtype = "list";
                 this.type = "production";
                 this.val = -1;
                 this.IS_OPTIONAL = (sym[1] == "(*");
@@ -331,29 +331,33 @@ export async function grammarParser(grammar, FILE_URL, stamp = 112, meta_importe
                     delimeter = sym[2];
 
                 const listProduction = {
+                    subtype: "list",
                     name: this.name,
                     bodies: [
-                        new env.functions.body([{
-                            body: [{ type: "production", name: this.name, val: -1 },
-                                ...(delimeter ? [delimeter, sym[0]] : [sym[0]])
-                            ],
-                            reduce: {
-                                type: "RETURNED",
-                                txt: STRING ?
-                                    `sym[0] + sym[1]` : `(sym[1] !== null) ? sym[0].push(sym[${delimeter?2:1}]) : null,sym[0]`,
-                                name: "",
-                                env: false
-                            }
+                        new env.functions.body([
+                            {
+                                body: [{ type: "production", name: this.name, val: -1 },
+                                ...(delimeter ? [delimeter, sym[0]] : [sym[0]]), {
+                                        type: "INLINE",
+                                        txt: STRING
+                                            ? `const b =  sym.length - 1,a = b - 1; sym[a] = sym[a] + sym[b]`
+                                            : `const b =  sym.length - 1,a = b - ${delimeter?2:1}; sym[a] = (sym[b] !== null) ? sym[a].push(sym[b]) : null,sym[a]`,
+                                        name: "",
+                                        env: false,
+                                        IS_CONDITION: true
+                            }]
                         }], env, lex),
-                        new env.functions.body([{
-                            body: [sym[0]],
-                            reduce: {
-                                type: "RETURNED",
-                                txt: STRING ?
-                                    `sym[0] + ""` : "(sym[0] !== null) ? [sym[0]] : []",
-                                name: "",
-                                env: false
-                            }
+                        new env.functions.body([
+                            {
+                                body: [sym[0], {
+                                    type: "INLINE",
+                                    txt: STRING ?
+                                        `const b =  sym.length - 1; sym[b] = sym[b] + ""`
+                                        : "const b =  sym.length - 1; sym[b] = (sym[b] !== null) ? [sym[b]] : []",
+                                    name: "",
+                                    env: false,
+                                    IS_CONDITION: true
+                            }]
                         }], env, lex)
                     ],
                     id: -1
@@ -366,7 +370,7 @@ export async function grammarParser(grammar, FILE_URL, stamp = 112, meta_importe
 
             compileProduction: function(production, lex) {
 
-                
+                production.url = FILE_URL.path;
 
                 if (production.IMPORT_APPEND || production.IMPORT_OVERRIDE) {
 
@@ -398,8 +402,44 @@ export async function grammarParser(grammar, FILE_URL, stamp = 112, meta_importe
                 }
 
                 const bodies = production.bodies;
+                if (bodies.length == 1) {
+                    //This may be a group. If so, we'll flatten it into the current production. 
+                    const body = bodies[0];
+                    if (body.sym.filter(s=>!s.IS_CONDITION).length == 1 && body.sym[0].subtype == "list") {
+                        //Retrieve the production
+                        const sym = body.sym[0];
+                        const prod = env.productions.filter(e => e.name == sym.name)[0];
+
+                        //We'll replece our bodies with replicas of the two bodies found in the other production
+                        const [bodyA, bodyB] = prod.bodies;
+                        const newBodyA = Object.assign({}, bodyA);
+                        const newBodyB = Object.assign({}, bodyB);
+
+                        newBodyA.sym = newBodyA.sym.map(a => Object.assign({}, a));
+
+                        //Rename the production these bodies point to.
+                        newBodyA.sym[0].name = production.name;
+                        //newBodyB.sym[0].name = production.name;
+
+                        console.log(newBodyA.sym[0], bodyA.sym[0], newBodyB.sym[0], bodyB.sym);
+
+                        //Merge any functions found on the existing body
+                        newBodyA.sym.push(...body.sym.filter(s=>s.IS_CONDITION));
+                        newBodyB.sym.push(...body.sym.filter(s=>s.IS_CONDITION));
+
+
+                        //replace the productions body with the new ones.
+                        production.bodies = [newBodyA, newBodyB];
+
+                        console.dir(production, {depth:10});
+
+                        //prost
+                    }
+
+                }
 
                 for (let i = 0; i < bodies.length; i++) {
+
                     const body = bodies[i];
                     const lex = body.lex;
                     var form = body.form;
@@ -507,11 +547,11 @@ export async function grammarParser(grammar, FILE_URL, stamp = 112, meta_importe
 
     const result = parser(whind(grammar), parser_data, env);
 
-    if(result.error){
+    if (result.error) {
         throw result.error;
     }
 
-    
+
     const productions = result.result;
 
     productions.uri = FILE_URL;
@@ -529,7 +569,7 @@ export async function grammarParser(grammar, FILE_URL, stamp = 112, meta_importe
         //Convient lookup map for production non-terminal names. 
 
         //Setup the productions object
-        productions.forEach((p, i) => p.id = i);
+        productions.forEach((p, i) => (p.id = i));
         productions.symbols = null;
         productions.meta = productions.meta || [];
         productions.reserved = new Set();

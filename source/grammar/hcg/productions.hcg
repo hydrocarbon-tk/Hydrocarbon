@@ -54,7 +54,7 @@
  
 <> production → 
 	
-	\<>  sym::production_id  \→ ↦{ env.host_lex = lex.copy(); env.prod_name = sym[sym.length - 1].name } pb::production_bodies  			
+	\<>  sym::production_id  \→ ↦{ env.host_lex = lex.copy(); env.prod_name = sym[sym.length - 1] } pb::production_bodies  			
 																		
 															↦cstr{ 
 																this.name = $sym2; 

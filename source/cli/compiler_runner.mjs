@@ -183,14 +183,19 @@ async function runner(grammar, env, env_path, name, GLR = false, UNATTENDED = fa
                     break;
             }
 
+            run();
+
             return key;
         });
 
         let render_time = 0;
 
         async function run() {
+            const iter = gen.next();
 
-            status = gen.next().value;
+            if (iter.value)
+                status = iter.value;
+
 
             completion_ratio = ((status.total_items - status.items_left) / status.total_items);
             items_left = status.items_left;
@@ -198,11 +203,12 @@ async function runner(grammar, env, env_path, name, GLR = false, UNATTENDED = fa
             states = status.states;
             total_items_processed = loop++;
             number_of_states = status.num_of_states;
-            conflicts_generated = 0; //status.error.strings.length;
+            conflicts_generated = error.strings.length;
 
-            if (!UNATTENDED) console.clear();
 
-            if ((render_time++ % 200) == 0 || status.COMPLETE) {
+            if ((render_time++ % (!UNATTENDED ? 120 : 200)) == 0 || status.COMPLETE) {
+
+                if (!UNATTENDED) console.clear();
 
                 let conflicts = "";
 
@@ -216,14 +222,15 @@ async function runner(grammar, env, env_path, name, GLR = false, UNATTENDED = fa
 
                 if (conflicts_generated > 0) {
                     if (conflict_number > -1) {
-                        const conflict_tabs_header = `${-1 < conflict_number ? "<" : " " }     Conflict ${ conflict_number + 1 }     ${ conflict_number < conflicts_generated-1 ? ">" : " " }`;
-                        const conflict_tabs = Array.apply(null, Array(conflicts_generated)).map((a, i) => i == conflict_number ? "o" : "O").join("        ");
-                        conflicts = `${center(conflict_tabs_header)}\n${center(conflict_tabs)}\n${error.strings[conflict_number]}`;
+                        const conflict_tabs_header = `${-1 < conflict_number ? "🡄" : " " }     Conflict ${ conflict_number + 1 }     ${ conflict_number < conflicts_generated-1 ? "🡆" : " " }`;
+                        const conflict_tabs = Array.apply(null, Array(conflicts_generated)).map((a, i) => i == conflict_number ? "🌑" : "🌕").join("");
+                        conflicts = `${center(conflict_tabs_header)}\n${center(conflict_tabs)}\n\n${error.strings[conflict_number]}`;
                     } else
-                        conflicts = center(`${COLOR_ERROR}Use arrow keys to review conflicts. > ${COLOR_RESET}`);
+                        conflicts = center(`${COLOR_ERROR} Use arrow keys to review conflicts. 🡆 ${COLOR_RESET}`);
                 }
 
-                if (!UNATTENDED)
+                if (!UNATTENDED) {
+
                     console.log(
                     ["CFW Hydrocarbon - Compiling " + name + " grammar", "",
                         ` Elapsed Time ${getTimeStamp(time, status.COMPLETE)}`, "",
@@ -235,7 +242,7 @@ async function runner(grammar, env, env_path, name, GLR = false, UNATTENDED = fa
                         center(`${(EXIT && !status.COMPLETE) ? `Exit primed. Compiling will exit on completion.`: ""}${status.COMPLETE ? `${ !states.COMPILED ? `${COLOR_ERROR}Compilation failed.`:`${COLOR_SUCCESS}Compilation complete.`}${COLOR_RESET} Press ${COLOR_KEYBOARD}esc${COLOR_RESET} to end this step.${COLOR_RESET}`: ""}`), "",
                         conflicts
                     ].join(clear + "\n"));
-                else {
+                } else {
 
                     process.stdout.clearLine();
                     process.stdout.cursorTo(0);
@@ -243,18 +250,24 @@ async function runner(grammar, env, env_path, name, GLR = false, UNATTENDED = fa
                 }
             }
 
-            if (status.COMPLETE && (EXIT || UNATTENDED)) {
-                if (runner_id)
+            if (status.COMPLETE) {
+
+                if (runner_id) {
                     clearInterval(runner_id);
-                error.strings.forEach(str => console.log(str));
-                return res(status.states);
+                    runner_id = null;
+                }
+
+                if ((EXIT || UNATTENDED)) {
+                    error.strings.forEach(str => console.log(str));
+                    return res(status.states);
+                }
             } else if (!status.COMPLETE) {
                 loop++;
                 time = new Date(performance.now() - start);
             }
         }
 
-        const runner_id = setInterval(run, 1);
+        var runner_id = setInterval(run, 1);
     });
 }
 

@@ -11,7 +11,7 @@
 	│ octal
 
 
-<> hex →  hex_start hex_digit(+") (θws │ θnl)? ↦r{$sym1 + $sym2}
+<> hex →  0x (ERR θws ) hex_digit(+") (θws │ θnl)? ↦r{$sym1 + $sym2}
 <> hex_digit →  natural │ τa │ τb │ τc │ τd │ τe │ τf │ τA │ τB │ τC │ τD │ τE │ τF
 <> hex_start → 0x (ERR θws ) 
 	│ 0X (ERR θws ) 
