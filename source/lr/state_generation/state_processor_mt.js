@@ -159,6 +159,8 @@ export default class StateProcessor {
 
             if (item.atEND || symbol.type == "empty") { //At an accepting state for this input
 
+                if (body.reduce.has(offset)) body.reduce.get(offset).forEach(s => (console.log("reduce on"), actions.push(this.reduceAtSymbol(grammar, state, s, body, item))));
+
                 if (item.body == 0 && item.v == "$eof")
                     actions.push(this.acceptAtSymbol(grammar, state, item.follow, body, item));
                 else

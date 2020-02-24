@@ -70,7 +70,7 @@ export class LRMultiThreadProcessWorker {
                 errors.push(`${vals.map(e=>typeof e !== "string" ? JSON.stringify(e).replace(/"/g,"") : e).join(", ")}`);
             }
         };
-
+        
         const { to_process_items, state, error: state_error } = this.processor.process(item_obj.items, item_obj.state_id, grammar, item_obj.excludes, error, true);
 
         state.thread_id = this.id;

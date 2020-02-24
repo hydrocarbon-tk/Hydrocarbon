@@ -225,7 +225,7 @@ export async function grammarParser(grammar, FILE_URL, stamp = 112, meta_importe
                 this.ignore = new Map();
                 this.error = new Map();
                 this.reset = new Map();
-                this.reduce = [];
+                this.reduce = new Map();
                 this.functions = [];
                 this.reduce_function = s.reduce || null;
                 this.grammar_stamp = env.stamp;
@@ -514,7 +514,10 @@ export async function grammarParser(grammar, FILE_URL, stamp = 112, meta_importe
                             const m = body[(["excludes", "ignore", "error", "reset", "reduce"][map - 1])];
 
                             if (map == 5) {
-                                m.push({ v: new_sym.sym.val, p: undefined, type: new_sym.sym.type });
+                                if (!m.get(j))
+                                    m.set(j, []);
+                                m.get(j).push(new_sym.sym);
+                                //m.push({ v: new_sym.sym.val, p: undefined, type: new_sym.sym.type });
                             } else if (map == 1) {
                                 if (!m.get(j))
                                     m.set(j, []);

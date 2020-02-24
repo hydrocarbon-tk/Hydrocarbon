@@ -275,8 +275,6 @@ async function mount(name, input, env, states, grammar) {
 
         }
 
-        console.log(parser_data)
-
         const r1 = readline.createInterface({
             input: process.stdin,
             output: process.stdout

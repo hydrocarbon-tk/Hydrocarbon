@@ -14,7 +14,7 @@
     "compile.grammar.test": "hydrocarbon compile --parser glalr -d --unattended -t mjs -o ./source/grammar/ ./source/grammar/hcg/hcg.hcg",
     "compile.test": "hydrocarbon compile --parser glalr -d -m --unattended ./source/grammar/misc/test3.hcg",
     "compile.test.table": "hydrocarbon compile --parser glalr -d -m --unattended ./source/grammar/misc/test.hcg",
-    "compile.default": "hydrocarbon compile -d -m ./source/grammar/misc/default-productions.hcg"
+    "compile.default": "hydrocarbon compile -d -u -m ./source/grammar/misc/default-productions.hcg"
   },
   "repository": {
     "type": "git",
