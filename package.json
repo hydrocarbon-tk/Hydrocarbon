@@ -1,12 +1,12 @@
 {
   "name": "@candlefw/hydrocarbon",
-  "version": "0.1.7",
+  "version": "0.2.0-ht",
   "description": "Parser Compiler",
   "main": "source/hydrocarbon.mjs",
   "bin": {
     "hydrocarbon": "./source/cli/cli.js"
   },
-  "type":"module",
+  "type": "module",
   "scripts": {
     "prepublish": "cp ./node_modules/@candlefw/whind/build/whind.js ./data",
     "test": "echo \"Error: no test specified\" && exit 1",
