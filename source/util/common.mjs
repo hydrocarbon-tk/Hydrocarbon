@@ -80,7 +80,7 @@ function addFunctions(funct, production, env) {
         if (!name) {
             name = funct.type[0] + production.id + (production.func_counter++) + "_" + production.name.replace(/\$/g, "_");
             funct.name = name;
-            env.functions[name] = setFunction(null, funct, [production_stack_arg_name, environment_arg_name, lexer_arg_name, "state", "output", "len"], {});
+            env.functions[name] = setFunction(null, funct, [production_stack_arg_name, environment_arg_name, lexer_arg_name, "pos", "output", "len"], {});
             env.functions[name].INTEGRATE = true;
             env.FLUT.set(str, name);
         }

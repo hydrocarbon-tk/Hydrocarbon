@@ -9,37 +9,6 @@ import {
 import whind from "@candlefw/whind";
 
 const MAX_CYCLES = 600000;
-/*
-function deepClone(obj, visited = new Map()) {
-
-    const proto = Object.getPrototypeOf(obj) || Object;
-
-    let out = Object.create(proto);
-
-    if (Array.isArray(obj))
-        out = obj.slice();
-
-    for (const key of Object.getOwnPropertyNames(obj)) {
-        const description = Object.getOwnPropertyDescriptor(obj, key);
-
-        const val = description.value;
-
-        if (val && typeof val == "object") {
-
-            if (!visited.has(val)) {
-                visited.set(val, null);
-                visited.set(val, deepClone(val, visited));
-            }
-
-            description.value = visited.get(val);
-        }
-
-        Object.defineProperty(out, key, description);
-    }
-
-    return out;
-}
-*/
 
 /*
     Parses an input. Returns an object with parse results and an error flag if parse could not complete.

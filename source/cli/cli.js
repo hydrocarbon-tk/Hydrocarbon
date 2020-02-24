@@ -1,5 +1,4 @@
-#!/bin/sh
-':' //; exec node --max-old-space-size=8192  "$0" "$@" 
+#!/usr/bin/env node
 
 
 /* IMPORTS *******************/

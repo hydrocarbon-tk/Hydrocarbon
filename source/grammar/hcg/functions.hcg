@@ -19,7 +19,7 @@
 <> referenced_function → 
 
 	\↦  sym::identifier  ^ (ERR θws ) sym::js_identifier  		
-																	↦cstr{ 		
+																	↦cstr{		
 																		this.id = $sym2; 	
 																		this.name = $sym4;
 																		this.txt = ""; 

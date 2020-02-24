@@ -506,6 +506,11 @@ export async function grammarParser(grammar, FILE_URL, stamp = 112, meta_importe
 
 
     const result = parser(whind(grammar), parser_data, env);
+
+    if(result.error){
+        throw result.error;
+    }
+
     
     const productions = result.result;
 
