@@ -325,7 +325,10 @@ function parser(l, data = null, e = {}, entry = 0, sp = 1, len = 0, off = 0, o =
                             result.error = l.errorMessage("failed to parse at fork");
 
                         return result;
+
+                    default:
                 }
+
             }
     }
     catch (e) {
@@ -368,27 +371,24 @@ export default (lex, data, environment, entry_point) => {
 
 const max = Math.max;
 
-parser.reduce_with_value = parser.rv = (ret, fn, plen, ln, t, e, o, l, s) => {
+parser.reduce_with_value = parser.rv = (fn, plen, ln, t, e, o, l, s) => {
     ln = max(o.length - plen, 0);
     o[ln] = fn(o.slice(-plen), e, l, s, o, plen);
     o.length = ln + 1;
-    return ret;
 };
 
-parser.reduce_with_new_value = parser.rnv = (ret, Fn, plen, ln, t, e, o, l, s) => {
+parser.reduce_with_new_value = parser.rnv = (Fn, plen, ln, t, e, o, l, s) => {
     ln = max(o.length - plen, 0);
     o[ln] = new Fn(o.slice(-plen), e, l, s, o, plen);
     o.length = ln + 1;
-    return ret;
 };
 
-parser.reduce_with_null = parser.rn = (ret, plen, t, e, o) => {
+parser.reduce_with_null = parser.rn = (plen, t, e, o) => {
     if (plen > 0) {
         const ln = max(o.length - plen, 0);
         o[ln] = o[o.length - 1];
         o.length = ln + 1;
     }
-    return ret;
 };
 
-parser.shift_with_function = parser.s = (ret, fn, t, e, o, l, s) => (fn(o, e, l, s), ret);
+parser.shift_with_function = parser.s = (fn, t, e, o, l, s) => (fn(o, e, l, s));

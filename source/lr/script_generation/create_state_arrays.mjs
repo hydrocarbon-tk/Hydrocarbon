@@ -11,12 +11,12 @@ import {
 function setNode(funct, length, functions, return_val, COMPILE_FUNCTION = false) {
     if (funct.type == "CLASS") {
         return (!COMPILE_FUNCTION && funct.env)
-            ? { str: `p.rnv(${return_val},b.fn.${funct.name},${length},0,a,b,c,e,f)` }
-            : { str: `p.rnv(${return_val},g[${functions[funct.name].id}],${length},0,a,b,c,e,f)` };
+            ? { str: `p.rnv(b.fn.${funct.name},${length},0,a,b,c,e,f)` }
+            : { str: `p.rnv(g[${functions[funct.name].id}],${length},0,a,b,c,e,f)` };
     } else {
         return (!COMPILE_FUNCTION && funct.env)
-            ? { str: `p.rv(${return_val},b.fn.${funct.name},${length},0,a,b,c,e,f)` }
-            : { str: `p.rv(${return_val},g[${functions[funct.name].id}],${length},0,a,b,c,e,f)` };
+            ? { str: `p.rv(b.fn.${funct.name},${length},0,a,b,c,e,f)` }
+            : { str: `p.rv(g[${functions[funct.name].id}],${length},0,a,b,c,e,f)` };
     }
 }
 
@@ -72,7 +72,20 @@ function processStateTransition(
         st_fn_id = "",
         return_value = 0,
         fn = 0;
-        
+
+    if (body && body.functions)
+        for (let i = 0; i < body.functions.length; i++) {
+            const f = body.functions[i];
+            if (f.offset == state.offset) {
+                const name = f.name;
+                st_fn_id += name;
+                if (f.env)
+                    funct.push(`p.s(b.functions.${name},a,b,c,e,f)`);
+                else
+                    funct.push(`p.s(g[${env.functions[name].id}],a,b,c,e,f)`);
+            }
+        }
+
     switch (state.name) {
         case FORK_ACTION:
 
@@ -105,15 +118,15 @@ function processStateTransition(
             break;
         case ACCEPT:
 
-            st_fn_id = "a";
+            st_fn_id += "a";
             return_value = (ACCEPT | (state.state << 3));
             /*intentional*/
         case REDUCE:
 
-            if (!st_fn_id) {
+            if (!return_value) {
 
-                st_fn_id = "r";
-                
+                st_fn_id += "r";
+
                 return_value = (REDUCE | (length << 3) | (state.production << 11));
             }
 
@@ -123,30 +136,18 @@ function processStateTransition(
                     funct.push(out.str);
                     st_fn_id += body.reduce_function.name;
                 } else {
-                    funct.push(`p.rn(${return_value},${length},a,b,c,e,f)`);
+                    funct.push(`p.rn(${length},a,b,c,e,f)`);
                 }
             } else
-                funct.push(`(p.rn(${return_value},0,a,b,c,e,f))`); /* empty production*/
+                funct.push(`(p.rn(0,a,b,c,e,f))`); /* empty production*/
             /*intentional*/
         case SHIFT:
 
-            if (!st_fn_id) {
+            if (!return_value) {
 
-                st_fn_id = "s";
+                st_fn_id += "s";
 
                 return_value = (SHIFT | (state.state << 3));
-            }
-
-            for (let i = 0; i < body.functions.length; i++) {
-                const f = body.functions[i];
-                if (f.offset == state.offset) {
-                    const name = f.name;
-                    st_fn_id += name;
-                    if (f.env)
-                        funct.push(`p.s(${return_value},b.functions.${name},a,b,c,e,f)`);
-                    else
-                        funct.push(`p.s(${return_value},g[${env.functions[name].id}],a,b,c,e,f)`);
-                }
             }
 
             st_fn_id += return_value;
@@ -155,8 +156,8 @@ function processStateTransition(
 
             if (!fn) {
                 fn = state_str_functions.push(`${funct.length > 0 ? "(a,b,c,e,f,g,p)" : "e"}=>${ funct.length > 0 
-                            ?  funct.length > 1 
-                                ? "(" + funct.join(",")+")" 
+                            ?  funct.length > 0 
+                                ? "(" + funct.join(",")+`,${return_value})` 
                                 : funct.join(",") 
                             : return_value}`);
                 state_functions_map.set(st_fn_id, fn);

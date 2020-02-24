@@ -18,7 +18,7 @@
 
 <> production_bodies → production_body 					 			↦return { env.body_count++, [$sym1]  }
 			
-		│ production_bodies \│ 	↦{env.host_lex = lex.copy()} production_body 					
+		│ production_bodies ↦{env.host_lex = lex.pk.copy()} \│  production_body 					
 																	
 																	↦return { env.body_count++, $sym1.push($sym3), $sym1 }
 

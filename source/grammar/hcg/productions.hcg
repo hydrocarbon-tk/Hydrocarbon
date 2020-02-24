@@ -54,7 +54,7 @@
  
 <> production → 
 	
-	\<>  sym::production_id  \→ ↦{ env.host_lex = lex.copy(); env.prod_name = sym[sym.length - 1] } pb::production_bodies  			
+	\<>  sym::production_id  ↦{ env.host_lex = lex.copy(); env.prod_name = sym[sym.length - 1] } \→  pb::production_bodies  			
 																		
 															↦cstr{ 
 																this.name = $sym2; 
@@ -65,7 +65,7 @@
 
 	# REDEFINED IMPORT production. Allows an imported production to be redefined entirely. 
 
-	│ \<> sym::imported_production_symbol \→ ↦{ env.host_lex = lex.copy(); env.prod_name = sym[sym.length - 1].name; } pb::production_bodies
+	│ \<> sym::imported_production_symbol ↦{ env.host_lex = lex.copy(); env.prod_name = sym[sym.length - 1].name; } \→ pb::production_bodies
 
 															↦cstr{ 
 																this.IMPORT_OVERRIDE = true;
@@ -77,7 +77,7 @@
 
 	# APPENDED IMPORT production. Allows additional bodies to defined for productions imported from other files. 
 
-	│ \+> sym::imported_production_symbol \→ ↦{ env.host_lex = lex.copy(); env.prod_name = sym[sym.length - 1].name;} pb::production_bodies
+	│ \+> sym::imported_production_symbol ↦{ env.host_lex = lex.copy(); env.prod_name = sym[sym.length - 1].name;} \→  pb::production_bodies
 
 															↦cstr{ 
 																this.IMPORT_APPEND = true;

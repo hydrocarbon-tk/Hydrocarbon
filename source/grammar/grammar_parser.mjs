@@ -185,7 +185,7 @@ export async function grammarParser(grammar, FILE_URL, stamp = 112, meta_importe
                                     sym.production = production;
                                     sym.resolveFunction(production);
                                 } catch (e) {
-                                    console.error(`Error in ${uri}`)
+                                    console.error(`Error in ${uri}`);
                                     console.error(e);
                                     throw Error(`Grammar ${id} does not have a production named ${sym.name}`);
                                 }
@@ -295,7 +295,7 @@ export async function grammarParser(grammar, FILE_URL, stamp = 112, meta_importe
 
                 var uid = sym[1].map(e => e.uid).sort((a, b) => a < b ? -1 : 1).join(":");
 
-                if (bodies.has(uid)) 
+                if (bodies.has(uid))
                     return bodies.get(uid);
 
                 bodies.set(uid, this);
@@ -340,8 +340,8 @@ export async function grammarParser(grammar, FILE_URL, stamp = 112, meta_importe
                                 ...(delimeter ? [delimeter, sym[0]] : [sym[0]]), {
                                         type: "INLINE",
                                         txt: STRING
-                                            ? `const b =  sym.length - 1,a = b - 1; sym[a] = sym[a] + sym[b]`
-                                            : `const b =  sym.length - 1,a = b - ${delimeter?2:1}; sym[a] = (sym[b] !== null) ? sym[a].push(sym[b]) : null,sym[a]`,
+                                            ? `const b =  sym.length - 1, a = b - 1; sym[a] = sym[a] + sym[b]; sym[b] = sym[a]`
+                                            : `const b =  sym.length - 1, a = b - ${delimeter?2:1}; if(sym[b] !== null) sym[a].push(sym[b]); sym[b] = sym[a]`,
                                         name: "",
                                         env: false,
                                         IS_CONDITION: true
@@ -353,7 +353,7 @@ export async function grammarParser(grammar, FILE_URL, stamp = 112, meta_importe
                                     type: "INLINE",
                                     txt: STRING ?
                                         `const b =  sym.length - 1; sym[b] = sym[b] + ""`
-                                        : "const b =  sym.length - 1; sym[b] = (sym[b] !== null) ? [sym[b]] : []",
+                                        : "const b =  sym.length - 1; sym[b] = ((sym[b] !== null) ? [sym[b]] : [])",
                                     name: "",
                                     env: false,
                                     IS_CONDITION: true
@@ -405,7 +405,7 @@ export async function grammarParser(grammar, FILE_URL, stamp = 112, meta_importe
                 if (bodies.length == 1) {
                     //This may be a group. If so, we'll flatten it into the current production. 
                     const body = bodies[0];
-                    if (body.sym.filter(s=>!s.IS_CONDITION).length == 1 && body.sym[0].subtype == "list") {
+                    if (body.sym.filter(s => !s.IS_CONDITION).length == 1 && body.sym[0].subtype == "list") {
                         //Retrieve the production
                         const sym = body.sym[0];
                         const prod = env.productions.filter(e => e.name == sym.name)[0];
@@ -421,17 +421,15 @@ export async function grammarParser(grammar, FILE_URL, stamp = 112, meta_importe
                         newBodyA.sym[0].name = production.name;
                         //newBodyB.sym[0].name = production.name;
 
-                        console.log(newBodyA.sym[0], bodyA.sym[0], newBodyB.sym[0], bodyB.sym);
+                        //console.log(newBodyA.sym[0], bodyA.sym[0], newBodyB.sym[0], bodyB.sym);
 
                         //Merge any functions found on the existing body
-                        newBodyA.sym.push(...body.sym.filter(s=>s.IS_CONDITION));
-                        newBodyB.sym.push(...body.sym.filter(s=>s.IS_CONDITION));
+                        newBodyA.sym.push(...body.sym.filter(s => s.IS_CONDITION));
+                        newBodyB.sym.push(...body.sym.filter(s => s.IS_CONDITION));
 
 
                         //replace the productions body with the new ones.
                         production.bodies = [newBodyA, newBodyB];
-
-                        console.dir(production, {depth:10});
 
                         //prost
                     }

@@ -201,7 +201,7 @@ async function runner(grammar, env, env_path, name, GLR = false, UNATTENDED = fa
             items_left = status.items_left;
             error = status.errors;
             states = status.states;
-            total_items_processed = loop++;
+            total_items_processed = status.total_items;
             number_of_states = status.num_of_states;
             conflicts_generated = error.strings.length;
 
