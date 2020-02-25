@@ -264,14 +264,13 @@ async function mount(name, input, env, states, grammar) {
         if (typeof input !== "string") {
             parser_data = input;
         } else {
-
+            
             try {
                 parser_data = ((Function("return " + input))());
             } catch (e) {
                 console.dir(e, { depth: null })
-                return
+                return res(false);
             }
-
 
         }
 
