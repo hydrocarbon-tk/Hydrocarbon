@@ -27,7 +27,7 @@
 																	↦return { $sym1 }
 
 
-<> production_body → entries  										↦r {new env.fn.body([$sym1], env, (env.host_lex.fence(lex), env.host_lex) ) }
+<> production_body → entries  										↦r { new env.fn.body([$sym1], env, (env.host_lex.fence(lex), env.host_lex) ) }
 
 
 <> entries → body_entries fn::reduce_function? fn::error_function?	
@@ -69,7 +69,7 @@
 			 														↦return { env.body_offset = $sym1.length,  $sym1.push($sym2), $sym1 }
 
 		│ \[ body_entries \]										
-			 														↦return { $sym2.map(e => (e.NO_BLANK = true, e))}
+			 														↦return { $sym2.map(e => (e.NO_BLANK = true, e) ) }
 
 
 <> condition_clause → 

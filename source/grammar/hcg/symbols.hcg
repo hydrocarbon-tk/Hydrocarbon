@@ -86,6 +86,6 @@
 <> production_id → 
 	identifier 
 
-<> identifier →  def::identifier
+<> identifier →  def::id
 
-<> js_identifier →  \$? def::identifier ↦r { $sym1 + $sym2 }
+<> js_identifier →  def::id

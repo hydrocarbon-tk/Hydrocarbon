@@ -1,6 +1,6 @@
 import { Item } from "./item.mjs";
 
-import {FIRST} from "./first.js";
+import { FIRST } from "./first.js";
 
 export function processClosure(items, grammar, error, excludes = [], offset = 0, added = new Set()) {
 
@@ -10,6 +10,7 @@ export function processClosure(items, grammar, error, excludes = [], offset = 0,
         g = items.length;
 
     for (let i = offset; i < g; i++) {
+
         const
             item = items[i],
             body = bodies[item.body],
@@ -23,8 +24,10 @@ export function processClosure(items, grammar, error, excludes = [], offset = 0,
             new_excludes = [],
             out_excludes = [];
 
-        if (body.excludes.has(index)) 
+        if (body.excludes.has(index))
             body.excludes.get(index).forEach(e => step_excludes.push({ body: item.body, symbols: Array.isArray(e) ? e : [e], offset: 0, l: Array.isArray(e) ? e.length : 1, inner_offset: index }));
+
+
 
         for (let u = 0; u < step_excludes.length; u++) {
 
@@ -39,7 +42,7 @@ export function processClosure(items, grammar, error, excludes = [], offset = 0,
                     e_sym = ex.symbols[d];
 
                 if (i_sym && i_sym.type !== "production" && i_sym.val == e_sym.val) {
-                    
+
                     if (d == ex.l - 1) {
                         exclusion_count++;
                         item.USED = true;
@@ -92,6 +95,21 @@ export function processClosure(items, grammar, error, excludes = [], offset = 0,
                         added.add(sig);
                     }
                 }
+                
+
+                if (pbody.reduce && pbody.reduce.size > 0)
+                    pbody.reduce.forEach(v => v.forEach(s => {
+                            const
+                                item = new Item(pbody.id, pbody.length, 0, s),
+                                sig = item.full_id;
+
+                            if (!added.has(sig)) {
+                                items.push(item);
+                                added.add(sig);
+                            }
+                        })
+
+                    );
             }
 
             const

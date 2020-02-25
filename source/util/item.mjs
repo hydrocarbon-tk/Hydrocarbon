@@ -25,8 +25,10 @@ export class Item extends Array {
     constructor(body_id, length, offset, follow) {
         super(body_id, length, offset);
         this.follow = follow;
-        if(follow)
+        
+        if(follow.v)
             follow.val = follow.v;
+        
         this.USED = false;
         //this.grammar = g;
     }
@@ -36,11 +38,11 @@ export class Item extends Array {
     }
 
     get v() {
-        return this.follow.v;
+        return this.follow.val;
     }
 
     get p() {
-        return this.follow.p;
+        return this.follow.m;
     }
 
     get id() {

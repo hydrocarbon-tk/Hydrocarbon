@@ -66,10 +66,7 @@ export default class StateProcessor {
         };
     }
 
-    reduceAtSymbol(grammar, state, symbol, body, item) {
-
-        console.log(symbol)
-        
+    reduceAtSymbol(grammar, state, symbol, body, item) {        
         return {
             name: REDUCE,
             state_real_id: state.real_id,
@@ -156,12 +153,13 @@ export default class StateProcessor {
                 continue;
 
             if (body.error.has(offset)) body.error.get(offset).forEach(s => actions.push(this.errorAtSymbol(grammar, state, s, body, item)));
-            if (body.reset.has(offset)) body.error.get(offset).forEach(s => actions.push(this.resetAtSymbol(grammar, state, s, body, item)));
-            if (body.ignore.has(offset)) body.error.get(offset).forEach(s => actions.push(this.ignoreAtSymbol(grammar, state, s, body, item)));
+            if (body.reset.has(offset)) body.reset.get(offset).forEach(s => actions.push(this.resetAtSymbol(grammar, state, s, body, item)));
+            if (body.ignore.has(offset)) body.ignore.get(offset).forEach(s => actions.push(this.ignoreAtSymbol(grammar, state, s, body, item)));
 
             if (item.atEND || symbol.type == "empty") { //At an accepting state for this input
 
-                if (body.reduce.has(offset)) body.reduce.get(offset).forEach(s => (console.log(`reduce on ${s.val} ${item.renderWithProduction(grammar)}`), actions.push(this.reduceAtSymbol(grammar, state, s, body, item))));
+               // if (body.reduce.has(offset)) body.reduce.get(offset).forEach(s => (console.log(`reduce on ${s.val} ${item.renderWithProduction(grammar)}`), actions.push(this.reduceAtSymbol(grammar, state, s, body, item))));
+
 
                 if (item.body == 0 && item.v == "$eof")
                     actions.push(this.acceptAtSymbol(grammar, state, item.follow, body, item));

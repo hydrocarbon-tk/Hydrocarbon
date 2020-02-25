@@ -6,33 +6,42 @@
 
 <> defaultproductions → defaultproduction(+)
 
-<>defaultproduction → identifier 
-	│ float 
-	│ hex 
-	│ binary 
-	│ octal
+<>defaultproduction → id (RED θws)
+	│ float (RED θws)
+	│ hex
+	│ binary (RED θws)
+	│ octal (RED θws)
 
 
-<> hex →  0x (ERR θws ) hex_digit(+") (θws │ θnl)? ↦r{$sym1 + $sym2}
-<> hex_digit →  natural │ τa │ τb │ τc │ τd │ τe │ τf │ τA │ τB │ τC │ τD │ τE │ τF
-<> hex_start → 0x (ERR θws ) 
-	│ 0X (ERR θws ) 
+<> hex →  hex_start hex_digit(+")  ↦r{ $sym1 + $sym2 }
+<> hex_digit →  θnum │ τa │ τb │ τc │ τd │ τe │ τf │ τA │ τB │ τC │ τD │ τE │ τF
+<> hex_start → 0x  
+	│ 0X
+ 
+<> binary →  binary_start ( τ0 │ τ1  )(+") ↦r{ $sym1 + $sym2 }
+<> binary_start → 0b
+	│ 0B
 
-<> binary →  binary_start ( \0 │ \1  )(+") (θws │ θnl)? ↦r{$sym1 + $sym2}
-<> binary_start → 0b (ERR θws ) 
-	│ 0B (ERR θws )
+<> octal →  octal_start ( \0 │ \1 │ \2 │ \3 │ \4 │ \5 │ \6 │ \7 )(+") ↦r{ $sym1 + $sym2 }
+<> octal_start → 0o 
+	│ 0O
 
-<> octal →  octal_start ( \0 │ \1 │ \2 │ \3 │ \4 │ \5 │ \6 │ \7 )(+") (θws │ θnl)? ↦r{ $sym1 + $sym2}
-<> octal_start → 0o (ERR θws )	
-	│ 0O (ERR θws )
+<> float → integer  (\. natural? ↦r { $sym1 + $sym2 } )? (  τe ( \+ │ \- )? natural ↦r {"e" + $sym3} )? ↦r { parseFloat($sym1 + $sym2 + $sym3) }
 
-<> float → integer (\. natural? ↦r { $sym1 + $sym2 } )? (  τe ( \+ │ \- ) ? natural ↦r {"e" + $sym2 + $$sym3} )? (θws │ θnl)? ↦r { parseFloat($sym1 + $sym2 + $sym3) }
+<> integer → -? natural ↦r {console.log($sym1 + $sym2), parseInt($sym1 + $sym2)}
 
-<> integer → -?  natural (θws │ θnl)? ↦r {parseInt($sym1 + $sym2)}
+<> natural →  θnum (RED θws)
 
-<> natural →  θnum
+<> id → identifier (RED θws)
 
-<> identifier → \_(*") θid? identifier_continue(*") (RED θws) ↦r { $sym1 + $sym2 + $sym3 }
+<> identifier →  identifier θid  ↦r { console.log($sym1 + $sym2), $sym1 + $sym2 }
+	│ identifier θnum  ↦r { console.log($sym1 + $sym2), $sym1 + $sym2 }
+	│ identifier θkeyword  ↦r { console.log($sym1 + $sym2), $sym1 + $sym2 }
+	│ identifier \_  ↦r { console.log($sym1 + $sym2), $sym1 + $sym2 }
+	│ identifier \$  ↦r { console.log($sym1 + $sym2), $sym1 + $sym2 }
+	│ \_ 
+	│ \$ 
+	│ θid 
 
-<> identifier_continue → \_ │ θid │ θnum │ θkeyword 
+<> identifier_continue → θid │ θnum │ θkeyword 
 

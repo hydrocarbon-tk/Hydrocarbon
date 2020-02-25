@@ -10,11 +10,11 @@
   "scripts": {
     "prepublish": "cp ./node_modules/@candlefw/whind/build/whind.js ./data",
     "test": "echo \"Error: no test specified\" && exit 1",
-    "compile.grammar": "hydrocarbon compile --parser glalr --unattended -t mjs -o ./source/grammar/ ./source/grammar/hcg/hcg.hcg",
-    "compile.grammar.test": "hydrocarbon compile --parser glalr -d --unattended -t mjs -o ./source/grammar/ ./source/grammar/hcg/hcg.hcg",
+    "compile.grammar": "hydrocarbon compile --parser glalr --unattended -t mjs -o ./source/grammar/parser_data/ ./source/grammar/hcg/hcg.hcg",
+    "compile.grammar.test": "hydrocarbon compile --parser glalr -d --unattended -t mjs -o ./source/grammar/parser_data/ ./source/grammar/hcg/hcg.hcg",
     "compile.test": "hydrocarbon compile --parser glalr -d -m --unattended ./source/grammar/misc/test3.hcg",
     "compile.test.table": "hydrocarbon compile --parser glalr -d -m --unattended ./source/grammar/misc/test.hcg",
-    "compile.default": "hydrocarbon compile -d -u -m ./source/grammar/misc/default-productions.hcg"
+    "compile.default": "hydrocarbon compile --parser glalr -d -u -m ./source/grammar/misc/default-productions.hcg"
   },
   "repository": {
     "type": "git",
@@ -82,6 +82,6 @@
     }
   },
   "engine": {
-    "node": ">=12.0.0"
+    "node": ">=13.7.0"
   }
 }

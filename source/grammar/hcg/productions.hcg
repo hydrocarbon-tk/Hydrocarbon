@@ -60,7 +60,7 @@
 																this.name = $sym2; 
 																this.bodies = $sym4; 
 																this.id = -1; 
-																env.functions.compileProduction(this);
+																env.functions.compileProduction(this, env, pos);
 															}
 
 	# REDEFINED IMPORT production. Allows an imported production to be redefined entirely. 
@@ -72,7 +72,7 @@
 																this.name = $sym2; 
 																this.bodies = $sym4; 
 																this.id = -1; 
-																env.functions.compileProduction(this);
+																env.functions.compileProduction(this, env, pos);
 															}
 
 	# APPENDED IMPORT production. Allows additional bodies to defined for productions imported from other files. 
@@ -84,6 +84,6 @@
 																this.name = $sym2; 
 																this.bodies = $sym4; 
 																this.id = -1; 
-																env.functions.compileProduction(this);
+																env.functions.compileProduction(this, env, pos);
 															}
 	

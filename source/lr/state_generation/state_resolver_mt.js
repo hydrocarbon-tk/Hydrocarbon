@@ -173,8 +173,8 @@ export default class StateResolver {
                     default:
                         if (existing_action.name !== ACCEPT) {
                             if (existing_action.name !== action.name)
-                                throw "Conflicting actions";
-                            //existing_state.actions.set(symbol, action);
+                                existing_state.actions.set(symbol, action);
+                                //throw "Conflicting actions";
                         }
                 }
             }

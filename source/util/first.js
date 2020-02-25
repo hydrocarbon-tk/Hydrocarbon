@@ -37,7 +37,7 @@ function addNonTerminal(table, body, grammar, body_ind, index = 0) {
         terminal = "" + terminal;
     }
 
-    table.set(terminal, { v: terminal, p: grammar.bodies[body_ind].precedence, type: first.type });
+    table.set(terminal, { v: terminal, p: grammar.bodies[body_ind].precedence || 0, type: first.type });
 
     return HAS_E;
 }
