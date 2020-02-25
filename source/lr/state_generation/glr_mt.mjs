@@ -101,7 +101,7 @@ export default function*(grammar, env, env_path) {
         return yield* runner.run();
     } catch (e) {
         return yield {
-            error: { e },
+            errors: { strings:[e] },
             states: { COMPILED: false },
             num_of_states: 0,
             total_items: 0,
