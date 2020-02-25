@@ -42,13 +42,15 @@ function renderStateActionFunctions(state_action_functions) {
 }
 
 function renderGetTokenFunction(getToken, SYM_LU, RV_SYM_LU, verbose = false) {
-    const str = getToken.toString().replace(/types\.([^:]*):/g, (match, p1) =>
-        types[p1] + ":"
-    ).replace(/"([^"]*)"/g, (match, p1) =>
-        SYM_LU.get(types[p1] || p1) || RV_SYM_LU.get(p1) || "$eof"
+    const str = getToken.toString().replace(/types\.([\w]+)/g, (match, p1) =>{
+        return types[p1]
+    }
+    ).replace(/"([^"]*)"/g, (match, p1) =>{
+        return SYM_LU.get(types[p1] || p1) || RV_SYM_LU.get(p1) || "$eof"
+    }
     );
+
     return str.replace(/\/\*@\*\/[^\n]*\n/g, "").replace(/\n/g, "");
-    return str;
 }
 
 export function verboseTemplate(

@@ -1,6 +1,6 @@
 /** Compiles a stand alone JS parser from a LR rules table and env object **/
 import createStateArrays from "./create_state_arrays.mjs";
-import { verboseTemplate } from "./object_template.js";
+import { verboseTemplate } from "./data_object_template.js";
 import { types as t, filloutGrammar } from "../../util/common.mjs";
 import { types as js_types, arrow_function_declaration, parse as ecmascript_parse } from "@candlefw/js";
 
