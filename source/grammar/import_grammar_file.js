@@ -82,9 +82,7 @@ export default function(sym, env) {
                         sym.production = production;
                         sym.resolveFunction(production);
                     } catch (e) {
-                        console.error(`Error in ${uri}`);
-                        console.error(e);
-                        throw Error(`Grammar ${id} does not have a production named ${sym.name}`);
+                        throw Error(`\nError in: \nfile://${uri}:\n\tGrammar ${id} does not have a production named ${sym.name}`);
                     }
 
                 });
