@@ -53,6 +53,8 @@ function parser(l, data = null, e = {}, entry = 0, sp = 1, len = 0, off = 0, o =
 
     const p = l.copy();
 
+    const lex_num_type = l.types.num;
+
     let RECOVERING = 100,
         FINAL_RECOVERY = false,
         tk = getToken(l, token_lu),
@@ -81,6 +83,12 @@ function parser(l, data = null, e = {}, entry = 0, sp = 1, len = 0, off = 0, o =
                 if (fn > 0) {
                     r = state_actions[fn - 1](tk, e, o, l, state_stack[sp - 1], state_action_functions, parser);
                 } else {
+
+                    //Treat specialized number forms as regular numbers. 
+                    if(l.ty & lex_num_type && (l.ty !== lex_num_type)){
+                        tk = num
+                        continue
+                    }
 
                     if (tk == keyword) {
                         //If the keyword is a number, convert to the number type.

@@ -25,14 +25,36 @@ const
 
 export function getToken(l, SYM_LU, IGNORE_KEYWORDS = false) {
     if (l.END) return 0; /*"$eof"*/
+    
+    if((l.ty & types.num)){
+
+        if (!IGNORE_KEYWORDS && SYM_LU.has(l.tx)) return SYM_LU.get(l.tx);
+        
+        //*
+        switch(l.ty){
+            case types.sci:
+                return "sci";
+            case types.hex:
+                return "hex";
+            case types.oct:
+                return "oct";
+            case types.bin:
+                return "bin";
+            case types.flt:
+                return "flt";
+            case types.int:
+                return "int";
+            default:
+            case types.num:
+                return "num";
+        }
+        //*/
+    }
 
     switch (l.ty) {
         case types.id:
             if (!IGNORE_KEYWORDS && SYM_LU.has(l.tx)) return "keyword";
             return "id";
-        case types.num:
-            if (!IGNORE_KEYWORDS && SYM_LU.has(l.tx)) return SYM_LU.get(l.tx);
-            return "num";
         case types.string:
             return "str";
         case types.new_line:

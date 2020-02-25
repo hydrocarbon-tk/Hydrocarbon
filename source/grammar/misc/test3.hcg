@@ -3,15 +3,11 @@
 
 <>e → A
 
-<>A → E │ a 
+<>A → S
 
-<>E → E + T - θnum	↦c{ this.act="+"; this.l =$sym1; this.m =$sym3; this.r =$sym5   }
-	│ T
-
-<>T → T + F \^ a  	↦c{ this.act="*"; this.l =$sym1; this.m =$sym3; this.r =$sym5  }
-	│ F 
-		
-<>a → T \^ A
-
-<>F → \( E \)   ↦r{$sym2}
-	│ θid 		↦c{ this.sym=$sym1 }
+<>S → θnum ↦r { {sym:$sym1, type: "num"} }
+	│ θsci ↦r { {sym:$sym1, type: "sci"} }
+	│ θhex ↦r { {sym:$sym1, type: "hex"} }
+	│ θoct ↦r { {sym:$sym1, type: "oct"} }
+	│ θbin ↦r { {sym:$sym1, type: "bin"} }
+	│ θflt ↦r { {sym:$sym1, type: "flt"} }

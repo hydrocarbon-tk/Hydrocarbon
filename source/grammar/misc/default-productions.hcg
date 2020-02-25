@@ -1,38 +1,36 @@
-@SYMBOL 0x 0X 0b 0B 0o 0O
-
 @IGNORE θws θnl
 
 <>start → defaultproductions
 
 <> defaultproductions → defaultproduction(+)
 
-<>defaultproduction → id (RED θws)
-	│ float (RED θws)
+<> defaultproduction → id
 	│ hex
-	│ binary (RED θws)
-	│ octal (RED θws)
+	│ binary
+	│ octal
+	│ scientific
 
+<> hex_digit →  θint │ τa │ τb │ τc │ τd │ τe │ τf │ τA │ τB │ τC │ τD │ τE │ τF
 
-<> hex →  hex_start hex_digit(+")  ↦r{ $sym1 + $sym2 }
-<> hex_digit →  θnum │ τa │ τb │ τc │ τd │ τe │ τf │ τA │ τB │ τC │ τD │ τE │ τF
-<> hex_start → 0x  
-	│ 0X
+<> hex →  θhex
  
-<> binary →  binary_start ( τ0 │ τ1  )(+") ↦r{ $sym1 + $sym2 }
-<> binary_start → 0b
-	│ 0B
+<> binary →  θbin
 
-<> octal →  octal_start ( \0 │ \1 │ \2 │ \3 │ \4 │ \5 │ \6 │ \7 )(+") ↦r{ $sym1 + $sym2 }
-<> octal_start → 0o 
-	│ 0O
+<> octal →  θoct
 
-<> float → integer  (\. natural? ↦r { $sym1 + $sym2 } )? (  τe ( \+ │ \- )? natural ↦r {"e" + $sym3} )? ↦r { parseFloat($sym1 + $sym2 + $sym3) }
+<> scientific → θsci 
+	│ float 
 
-<> integer → -? natural ↦r {console.log($sym1 + $sym2), parseInt($sym1 + $sym2)}
+<> float → θflt  				
+	│ integer
 
-<> natural →  θnum (RED θws)
+<> integer → natural
 
-<> id → identifier (RED θws)
+<> natural →  θnum
+
+<> id → reduced_id
+
+<> reduced_id → identifier (RED θws)
 
 <> identifier →  identifier θid  ↦r { console.log($sym1 + $sym2), $sym1 + $sym2 }
 	│ identifier θnum  ↦r { console.log($sym1 + $sym2), $sym1 + $sym2 }
@@ -41,7 +39,4 @@
 	│ identifier \$  ↦r { console.log($sym1 + $sym2), $sym1 + $sym2 }
 	│ \_ 
 	│ \$ 
-	│ θid 
-
-<> identifier_continue → θid │ θnum │ θkeyword 
-
+	│ θid
