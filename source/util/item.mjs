@@ -25,6 +25,8 @@ export class Item extends Array {
     constructor(body_id, length, offset, follow) {
         super(body_id, length, offset);
         this.follow = follow;
+        if(follow)
+            follow.val = follow.v;
         this.USED = false;
         //this.grammar = g;
     }

@@ -59,7 +59,7 @@ export default class StateProcessor {
             size: item.len,
             body: body.id,
             symbol_type: symbol.type,
-            symbol: item.v,
+            symbol: symbol.val,
             production: body.production,
             item,
             item_string: item.renderWithProduction(grammar)
@@ -67,6 +67,8 @@ export default class StateProcessor {
     }
 
     reduceAtSymbol(grammar, state, symbol, body, item) {
+
+        console.log(symbol)
         
         return {
             name: REDUCE,
@@ -76,7 +78,7 @@ export default class StateProcessor {
             body: body.id,
             offset: item.offset,
             symbol_type: symbol.type,
-            symbol: item.v,
+            symbol: symbol.val,
             production: body.production.id,
             item,
             item_string: item.renderWithProduction(grammar)
@@ -159,7 +161,7 @@ export default class StateProcessor {
 
             if (item.atEND || symbol.type == "empty") { //At an accepting state for this input
 
-                if (body.reduce.has(offset)) body.reduce.get(offset).forEach(s => (console.log("reduce on"), actions.push(this.reduceAtSymbol(grammar, state, s, body, item))));
+                if (body.reduce.has(offset)) body.reduce.get(offset).forEach(s => (console.log(`reduce on ${s.val} ${item.renderWithProduction(grammar)}`), actions.push(this.reduceAtSymbol(grammar, state, s, body, item))));
 
                 if (item.body == 0 && item.v == "$eof")
                     actions.push(this.acceptAtSymbol(grammar, state, item.follow, body, item));

@@ -2,7 +2,9 @@
 
 @IGNORE θws θnl
 
-<>start → defaultproduction
+<>start → defaultproductions
+
+<> defaultproductions → defaultproduction(+)
 
 <>defaultproduction → identifier 
 	│ float 
@@ -30,7 +32,7 @@
 
 <> natural →  θnum
 
-<> identifier → \_(*") θid identifier_continue(+") (RED θws) ↦r { $sym1 + $sym2 + $sym3 }
+<> identifier → \_(*") θid? identifier_continue(*") (RED θws) ↦r { $sym1 + $sym2 + $sym3 }
 
 <> identifier_continue → \_ │ θid │ θnum │ θkeyword 
 
