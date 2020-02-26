@@ -29,7 +29,6 @@ export default function convertProductionNamesToIndexes(productions, LU) {
                             sym.production = LU.get(sym.name);
                             sym.val = LU.get(sym.name).id;
                         } catch (e) {
-                            console.error("Error found in " + productions.uri);
                             throw new SyntaxError(`Missing Production for symbol ${sym.name} in body of production ${production.name}`);
                         }
                         sym.resolveFunction = null; // For DataClone 

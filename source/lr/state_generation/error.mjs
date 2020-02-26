@@ -3,14 +3,12 @@ import {SymbolToString} from "../../util/item.mjs";
 export function shiftReduceCollision(grammar, state, shift, reduce, error = console) {
     const sym = shift.item.renderSymbol(grammar);
 
-    const symA = shift.item.sym(grammar);
-
     error.log(
         `\x1b[43m SHIFT/REDUCE \x1b[43m COLLISION ERROR ENCOUNTERED:\x1b[0m
 
  Reduce action on {${sym}} has already been defined for state:
 
- ${state.production_string} ${symA.type} ${symA.type} ${symA.val}
+ ${state.production_string}
  
     Shift Action: 
         Shift to state ${shift.item.increment().renderWithProduction(grammar)}
