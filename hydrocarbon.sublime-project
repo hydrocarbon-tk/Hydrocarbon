@@ -9,7 +9,7 @@
 				"docs"
 			],
 			"name": "main",
-			"path": "."
+			"path": "./"
 		},
 		{
 			"name": "docs",
