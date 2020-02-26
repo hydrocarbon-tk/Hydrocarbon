@@ -63,7 +63,7 @@
 	│ θany											↦cstr{ this.type = "symbol"; this.val = $sym1 }
 
 <> EOF_symbol → 
-	\$eof  											↦cstr{ this.type = "eof"; this.val = "$eof" }
+	$eof  											↦cstr{ this.type = "eof"; this.val = "$eof" }
 
 <> empty_symbol → 
 	\ɛ  											↦cstr{ this.type = "empty";  }

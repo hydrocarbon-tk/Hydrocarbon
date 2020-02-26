@@ -33,7 +33,6 @@
 <> reduced_id → identifier (RED θws)
 
 <> identifier →  identifier θid  ↦r { console.log($sym1 + $sym2), $sym1 + $sym2 }
-	│ identifier θnum  ↦r { console.log($sym1 + $sym2), $sym1 + $sym2 }
 	│ identifier θkeyword  ↦r { console.log($sym1 + $sym2), $sym1 + $sym2 }
 	│ identifier \_  ↦r { console.log($sym1 + $sym2), $sym1 + $sym2 }
 	│ identifier \$  ↦r { console.log($sym1 + $sym2), $sym1 + $sym2 }

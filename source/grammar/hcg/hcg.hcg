@@ -30,11 +30,11 @@
 # The @IMPORT preamble allows productions to be defined in external files and incorporated into the host file 
 # through import symbols defined after the [as] keyword. 
 
-@IMPORT ./preambles.hcg as pre
+ @IMPORT ./preambles.hcg as pre 
 
-# 
+#  
 
-@IMPORT ./productions.hcg as prd
+ @IMPORT ./productions.hcg as prd
 
 # The goal production is the first production defined in the grammar.
 
@@ -42,7 +42,7 @@
 # operators. A production is defined as [ <> ID → symbol symbol symbol ... ] where the → character is 
 # U+2192 Rightwards Arrow Character.
 
-<> hydrocarbon → head									↦return { env.productions }
+<> hydrocarbon → head 									↦return { env.productions }
 
 # Productions symbols are categorized into several groups in:
 
