@@ -17,7 +17,7 @@ const MAX_CYCLES = 600000;
     entry: the starting state in the parse table. 
     data: parser data including look up tables and default parse action functions.
 */
-function parser(l, data = null, e = {}, entry = 0, sp = 1, len = 0, off = 0, o = [], state_stack = [l.copy(), entry], SKIP_LEXER_SETUP = false, cycles = 0, fork_depth = 0, forks = 0) {
+function parser(l, data = null, e = {}, entry = 0, sp = 1, len = 0, off = 0, o = [], state_stack = [l.copy(), entry], FORKED_ENTRY = false, cycles = 0, fork_depth = 0, forks = 0, state_action = 0) {
 
 
     if (!data)
@@ -40,7 +40,7 @@ function parser(l, data = null, e = {}, entry = 0, sp = 1, len = 0, off = 0, o =
 
         { keyword, any } = types;
 
-    if (!SKIP_LEXER_SETUP) {
+    if (!FORKED_ENTRY) {
         l.IWS = false;
         l.PARSE_STRING = true;
         if (symbols.length > 0) {
@@ -58,32 +58,30 @@ function parser(l, data = null, e = {}, entry = 0, sp = 1, len = 0, off = 0, o =
     let RECOVERING = 100,
         FINAL_RECOVERY = false,
         tk = getToken(l, token_lu),
-        total_cycles = 0;
+        total_cycles = 0,
+        state = states[state_stack[sp]],
+        state_length = state.length;
 
     try {
 
-        outer:
+        outer: while (cycles++ < MAX_CYCLES) {
+            total_cycles++;
 
-            while (cycles++ < MAX_CYCLES) {
-                total_cycles++;
+            if(!FORKED_ENTRY)
+                state_action = (tk < state_length) ? state[tk] : -1;
+            FORKED_ENTRY = false;
 
-                const
-                    map = states[state_stack[sp]],
-                    fn = (tk < map.length) ? map[tk] : -1;
+            let action, gt = -1;
 
-                let r,
-                    gt = -1;
+            if (state_action == 0) {
+                /*Ignore the token*/
+                tk = getToken(l.next(), token_lu);
+                continue;
+            } else if (state_action > 0) {
+                action = state_actions[state_action - 1](tk, e, o, l, state_stack[sp - 1], state_action_functions, parser);
+            } else {
 
-                if (fn == 0) {
-                    /*Ignore the token*/
-                    tk = getToken(l.next(), token_lu);
-                    continue;
-                }
-
-                if (fn > 0) {
-                    r = state_actions[fn - 1](tk, e, o, l, state_stack[sp - 1], state_action_functions, parser);
-                } else {
-
+                if (RECOVERING > 1 && !l.END) {
                     //Treat specialized number forms as regular numbers. 
                     if ((l.ty & lex_num) && (l.ty ^ lex_num)) {
                         tk = 1;
@@ -99,236 +97,202 @@ function parser(l, data = null, e = {}, entry = 0, sp = 1, len = 0, off = 0, o =
                         continue;
                     }
 
-                    if (RECOVERING > 1 && !l.END) {
-
-
-                        if (tk !== token_lu.get(l.ty)) {
-                            tk = token_lu.get(l.ty);
-                            continue;
-                        }
-
-                        if (!(l.ty & (lex_ws | lex_nl | lex_sym))) {
-                            l.tl = 1;
-                            l.type = lex_sym;
-                            tk = token_lu.get(l.tx);
-                            continue;
-                        }
-
-                        if (tk !== any) {
-                            tk = any;
-                            RECOVERING = 1;
-                            continue;
-                        }
+                    //If token is different when evaluating the lexers type, 
+                    //get new token based on lexer type.
+                    if (tk !== token_lu.get(l.ty)) {
+                        tk = token_lu.get(l.ty);
+                        continue;
                     }
 
-                    //Reset the token to the original failing value;
-                    l.tl = 0;
-                    l.next();
+                    //Treat token as a 1 character symbol if
+                    //lex type is not space, new_line, or symbol.
+                    if (!(l.ty & (lex_ws | lex_nl | lex_sym))) {
+                        l.tl = 1;
+                        l.type = lex_sym;
+                        tk = token_lu.get(l.tx);
+                        continue;
+                    }
 
-                    tk = getToken(l, token_lu);
-
-                    if (!FINAL_RECOVERY) {
-                        const recovery_token = error_handlers[state_stack[sp]](tk, e, o, l, p, state_stack[sp], (lex) => getToken(lex, token_lu));
-
-                        if (recovery_token >= 0) {
-                            FINAL_RECOVERY = true;
-                            RECOVERING = 100;
-                            tk = recovery_token;
-                            continue;
-                        }
+                    //Last resrt, treat token as the θany type.
+                    if (tk !== any) {
+                        tk = any;
+                        RECOVERING = 1;
+                        continue;
                     }
                 }
 
-                switch (r & 7) {
-                    case ERROR:
-                        //IF START IS NOT AT THE HEAD TRY REDUCING INSTEAD;
+                //Reset the token to the original failing value;
+                l.tl = 0;
+                l.next();
 
-                        if (tk == "$eof") {
-                            if (e.err_eof && (tk = e.err_eof(tk, o, l, p)))
-                                continue;
-                            else
-                                return {
-                                    result: null,
-                                    error: l.errorMessage("Unexpected end of input"),
-                                    cycles,
-                                    total_cycles,
-                                    off,
-                                    fork_depth
-                                };
-                        } else {
-                            if (e.err_general && (tk = e.err_general(tk, o, l, p)))
-                                continue;
-                            else
-                                return {
-                                    result: null,
-                                    error: l.errorMessage(`Unexpected token [${RECOVERING ? l.next().tx : l.tx}]`),
-                                    cycles,
-                                    total_cycles,
-                                    off,
-                                    fork_depth
-                                };
-                        }
+                tk = getToken(l, token_lu);
 
-                    case ACCEPT:
+                if (!FINAL_RECOVERY) {
+                    const recovery_token = error_handlers[state_stack[sp]](tk, e, o, l, p, state_stack[sp], (lex) => getToken(lex, token_lu));
 
-                        break outer;
+                    if (recovery_token >= 0) {
+                        FINAL_RECOVERY = true;
+                        RECOVERING = 100;
+                        tk = recovery_token;
+                        continue;
+                    }
+                }
+            }
 
-                    case SHIFT:
-                        FINAL_RECOVERY = false;
-
-                        state_stack.push(l.copy(), r >> 3);
-                        o.push(l.tx);
-                        sp += 2;
-                        l.next();
-                        off = l.off;
-                        tk = getToken(l, token_lu);
-
-                        RECOVERING++;
-                        break;
-
-                    case REDUCE:
-                        FINAL_RECOVERY = false;
-
-                        len = (r & 0x7F8) >> 2;
-
-                        var end = state_stack[sp - 1];
-                        var start = state_stack[sp - len - 1];
-
-                        end.sl = end.off;
-                        end.sync(start);
-
-                        state_stack.length -= len;
-                        sp -= len;
-                        end.sl = off;
-
-
-                        gt = goto[state_stack[sp]][r >> 11];
-
-                        if (gt < 0)
-                            l.throw("Invalid state reached!");
-
-                        state_stack.push(l.copy(), gt);
-
-                        sp += 2;
-
-                        if (sp < fork_depth - 1) {
+            switch (action & 7) {
+                case ERROR:
+                    //IF START IS NOT AT THE HEAD TRY REDUCING INSTEAD;
+                    if (tk == "$eof") {
+                        if (e.err_eof && (tk = e.err_eof(tk, o, l, p)))
+                            continue;
+                        else
                             return {
-                                SQUASH: true,
-                                o,
-                                sp,
-                                len,
-                                tk,
-                                ss: state_stack,
-                                l,
+                                result: null,
+                                error: l.errorMessage("Unexpected end of input"),
                                 cycles,
                                 total_cycles,
-                                off
+                                off,
+                                fork_depth
                             };
-                        }
+                    } else {
+                        if (e.err_general && (tk = e.err_general(tk, o, l, p)))
+                            continue;
+                        else
+                            return {
+                                result: null,
+                                error: l.errorMessage(`Unexpected token [${RECOVERING ? l.next().tx : l.tx}]`),
+                                cycles,
+                                total_cycles,
+                                off,
+                                fork_depth
+                            };
+                    }
 
-                        break;
+                case ACCEPT:
 
-                    case FORK:
+                    break outer;
 
-                        //Look Up Fork productions. 
-                        var
-                            fork_states_start = r >> 16,
-                            fork_states_length = (r >> 3) & 0x1FFF,
-                            result = { result: null, error: "", cycles, total_cycles, off };
+                case SHIFT:
+                    FINAL_RECOVERY = false;
 
-                        for (const state of data.fm.slice(fork_states_start, fork_states_start + fork_states_length)) {
+                    state_stack.push(l.copy(), action >> 3);
+                    o.push(l.tx);
+                    sp += 2;
+                    l.next();
+                    off = l.off;
+                    tk = getToken(l, token_lu);
 
-                            let
-                                res = null,
-                                csp = sp,
-                                clen = len,
-                                gt = 0;
+                    RECOVERING++;
+                    break;
 
-                            const
-                                copied_lex = l.copy(),
-                                copied_output = o.slice(),
-                                copied_state_stack = state_stack.slice(),
-                                r = state_actions[state - 1](tk, e, copied_output, copied_lex, copied_state_stack[csp - 1], state_action_functions, parser);
+                case REDUCE:
+                    FINAL_RECOVERY = false;
 
+                    len = (action & 0x7F8) >> 2;
 
-                            switch (r & 7) {
-                                case SHIFT:
+                    var end = state_stack[sp - 1];
+                    var start = state_stack[sp - len - 1];
 
-                                    copied_output.push(l.tx);
+                    end.sl = end.off;
+                    end.sync(start);
 
-                                    copied_lex.next();
-
-                                    copied_state_stack.push(copied_lex.copy(), r >> 3);
-
-                                    res = parser(copied_lex, data, e, 0, csp + 2, clen, off, copied_output, copied_state_stack, true, cycles, csp, forks + 1);
-
-                                    break;
-
-                                case REDUCE:
-
-                                    clen = (r & 0x7F8) >> 2;
-
-                                    copied_state_stack.length -= clen;
-
-                                    csp -= clen;
-
-                                    gt = goto[copied_state_stack[csp]][r >> 11];
-
-                                    if (gt < 0)
-                                        l.throw("Invalid state reached!");
-
-                                    copied_state_stack.push(l.copy(), gt);
-
-                                    csp += 2;
-
-                                    res = parser(copied_lex, data, e, 0, csp, clen, off, copied_output, copied_state_stack, true, cycles, csp, forks + 1);
-
-                                    break;
-                            }
+                    state_stack.length -= len;
+                    sp -= len;
+                    end.sl = off;
 
 
-                            if (res.SQUASH) {
+                    gt = goto[state_stack[sp]][action >> 11];
 
-                                if (fork_depth > 1 && res.sp < fork_depth) {
-                                    res.total_cycles += result.total_cycles;
-                                    return res;
-                                }
+                    if (gt < 0)
+                        l.throw("Invalid state reached!");
 
-                                state_stack = res.ss;
-                                o = res.o;
-                                l = res.l;
-                                sp = res.sp;
-                                len = res.len;
-                                tk = res.tk;
-                                cycles = res.cycles;
-                                total_cycles += res.total_cycles;
-                                off = res.off;
+                    state_stack.push(l.copy(), gt);
 
-                                continue outer;
-                            }
+                    sp += 2;
 
-                            result.total_cycles += res.total_cycles;
+                    if (sp < fork_depth - 1) {
+                        return {
+                            SQUASH: true,
+                            o,
+                            sp,
+                            len,
+                            tk,
+                            ss: state_stack,
+                            l,
+                            cycles,
+                            total_cycles,
+                            off
+                        };
+                    }
 
-                            if (!res.error) {
-                                res.total_cycles = result.total_cycles;
+                    break;
+
+                case FORK:
+
+                    //Look Up Fork productions. 
+                    var
+                        fork_states_start = r >> 16,
+                        fork_states_length = (r >> 3) & 0x1FFF,
+                        result = { result: null, error: "", cycles, total_cycles, off };
+
+                    for (const state_action of data.fm.slice(fork_states_start, fork_states_start + fork_states_length)) {
+
+                        let
+                            res = null;
+
+                        const
+                            copied_lex = l.copy(),
+                            copied_output = o.slice(),
+                            copied_state_stack = state_stack.slice();
+
+                        res = parser(copied_lex, data, e, 0, sp, len, off, copied_output, copied_state_stack, true, cycles, sp, forks + 1, state_action);
+
+                        if (res.SQUASH) {
+
+                            if (fork_depth > 1 && res.sp < fork_depth) {
+                                res.total_cycles += result.total_cycles;
                                 return res;
                             }
 
-                            if (res.off > result.off) {
-                                res.total_cycles = result.total_cycles;
-                                result = res;
-                            }
+                            state_stack = res.ss;
+                            o = res.o;
+                            l = res.l;
+                            sp = res.sp;
+                            len = res.len;
+                            tk = res.tk;
+                            cycles = res.cycles;
+                            total_cycles += res.total_cycles;
+                            off = res.off;
+
+                            continue outer;
                         }
 
-                        if (!result.error)
-                            result.error = l.errorMessage("failed to parse at fork");
+                        result.total_cycles += res.total_cycles;
 
-                        return result;
+                        if (!res.error) {
+                            res.total_cycles = result.total_cycles;
+                            return res;
+                        }
 
-                    default:
-                }
+                        if (res.off > result.off) {
+                            res.total_cycles = result.total_cycles;
+                            result = res;
+                        }
+                    }
 
+                    if (!result.error)
+                        result.error = l.errorMessage("failed to parse at fork");
+
+                    return result;
+
+                default:
             }
+
+            //Update state value
+            state = states[state_stack[sp]];
+            state_length = state.length;
+        }
+
     }
     catch (e) {
         return {
