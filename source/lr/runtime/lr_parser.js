@@ -23,7 +23,7 @@ function parser(l, data = null, e = {}, entry = 0, sp = 1, len = 0, off = 0, o =
     if (!data)
         return { result: [], error: "Data object is empty" };
 
-    //Unwrap parser objects
+    //Unpack parser objects
     const {
         gt: goto,
         sym: symbols,
@@ -36,7 +36,9 @@ function parser(l, data = null, e = {}, entry = 0, sp = 1, len = 0, off = 0, o =
         ty: types,
     } = data,
 
-    { sym, keyword, any, num } = types;
+    { sym: lex_sym, num: lex_num, ws: lex_ws, nl: lex_nl } = l.types,
+
+        { keyword, any } = types;
 
     if (!SKIP_LEXER_SETUP) {
         l.IWS = false;
@@ -52,8 +54,6 @@ function parser(l, data = null, e = {}, entry = 0, sp = 1, len = 0, off = 0, o =
     }
 
     const p = l.copy();
-
-    const lex_num_type = l.types.num;
 
     let RECOVERING = 100,
         FINAL_RECOVERY = false,
@@ -85,40 +85,31 @@ function parser(l, data = null, e = {}, entry = 0, sp = 1, len = 0, off = 0, o =
                 } else {
 
                     //Treat specialized number forms as regular numbers. 
-                    if(l.ty & lex_num_type && (l.ty !== lex_num_type)){
-                        tk = num
-                        continue
+                    if ((l.ty & lex_num) && (l.ty ^ lex_num)) {
+                        tk = 1;
+                        continue;
                     }
 
                     if (tk == keyword) {
                         //If the keyword is a number, convert to the number type.
-                        if (l.ty == num)
+                        if (l.ty & lex_num)
                             tk = getToken(l, token_lu, true);
                         else
                             tk = token_lu.get(l.tx);
                         continue;
                     }
-                    //*//
-                    if (l.ty == sym && l.tl > 1) {
-                        // Make sure that special tokens are not getting in the way
-                        l.tl = 0;
-                        // This will skip the generation of a custom symbol
-                        l.next(l, false);
-
-                        if (l.tl == 1)
-                            continue;
-                    }
 
                     if (RECOVERING > 1 && !l.END) {
+
 
                         if (tk !== token_lu.get(l.ty)) {
                             tk = token_lu.get(l.ty);
                             continue;
                         }
 
-                        if (!(l.ty & (l.types.ws | l.types.nl | l.types.sym))) {
+                        if (!(l.ty & (lex_ws | lex_nl | lex_sym))) {
                             l.tl = 1;
-                            l.type = l.types.sym;
+                            l.type = lex_sym;
                             tk = token_lu.get(l.tx);
                             continue;
                         }

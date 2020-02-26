@@ -66,9 +66,12 @@ export default function GenerateLRParseDataObject(states, grammar, env) {
     for (const a in types)
         GEN_SYM_LU.set(a, (((n++) / 2) | 0) + 1);
 
-    GEN_SYM_LU.set("white_space_new_line", 12);
-    GEN_SYM_LU.set("any", 13);
-    GEN_SYM_LU.set("keyword", 14);
+    n = n/2;
+
+    GEN_SYM_LU.set("white_space_new_line", n++);
+    GEN_SYM_LU.set("any", n++);
+    GEN_SYM_LU.set("keyword", n++);
+    
 
     //parse body function
     const
@@ -82,11 +85,10 @@ export default function GenerateLRParseDataObject(states, grammar, env) {
             if (COMPILE_FUNCTION || funct.INTEGRATE)
                 funct.id = functions.push(`${generateCompactFunction(funct.toString())}`) - 1;
         }
-
         
     const
         error_handlers = [],
-        SYMBOL_INDEX_OFFSET = 15, //Must leave room for symbol types indices
+        SYMBOL_INDEX_OFFSET = ++n, //Must leave room for symbol types indices
         //Convert all terminals to indices and create lookup map for terminals
 
         SYM_LU = new Map([
