@@ -63,8 +63,7 @@ async function loadFiles(grammar_path, env_path = "", states_path = "", quiet = 
     try {
         grammar_string = await fsp.readFile(grammar_path, "utf8");
     } catch (err) {
-        console.error(err);
-        throw new Error(`Unable to open the grammar file ${grammar_path}`);
+        throw new Error(`Unable to open the grammar file ${grammar_path} ${err}`);
 
     }
 
@@ -72,8 +71,7 @@ async function loadFiles(grammar_path, env_path = "", states_path = "", quiet = 
         try {
             states_string = await fsp.readFile(states_path, "utf8");
         } catch (err) {
-            console.error(err);
-            throw new Error(`Unable to open the states file ${states_path}`);
+            throw new Error(`Unable to open the states file ${states_path} ${err}`);
         }
     }
 
@@ -531,6 +529,7 @@ program
 
         } catch (e) {
             console.error(e);
+            process.exit();
         }
 
     });
