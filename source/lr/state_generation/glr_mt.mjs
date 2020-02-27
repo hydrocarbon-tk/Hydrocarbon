@@ -89,8 +89,9 @@ import { LRMultiThreadProcessWorker, LRMultiThreadRunner } from "./lr_mt.mjs";
 if (!isMainThread) {
 
     const { grammar, env_path, id } = workerData;
-
-    new LRMultiThreadProcessWorker(grammar, env_path, id);
+    
+    if(grammar)
+        new LRMultiThreadProcessWorker(grammar, env_path, id);
 
 }
 

@@ -244,12 +244,13 @@ export class LRMultiThreadRunner {
 if (!isMainThread) {
 
     const { grammar, env_path, id } = workerData;
-
-    new LRMultiThreadProcessWorker(grammar, env_path, id);
+    
+    if(grammar)
+        new LRMultiThreadProcessWorker(grammar, env_path, id);
 
 }
 
-export default function*(grammar, env, env_path) {
+export default function * (grammar, env, env_path) {
 
     try {
         const runner = new LRMultiThreadRunner(grammar, env, env_path);
