@@ -254,7 +254,7 @@ function CLI_INSTRUCTIONS(full = false) {
     console.log(`Type 'help' to show help info.`)
 }
 
-async function mount(name, input, env, states, grammar) {
+async function mount(name, input, env, test_data = "") {
 
     let d = await new Promise(res => {
         let parser_data = null;
@@ -262,7 +262,7 @@ async function mount(name, input, env, states, grammar) {
         if (typeof input !== "string") {
             parser_data = input;
         } else {
-            
+
             try {
                 parser_data = ((Function("return " + input))());
             } catch (e) {
@@ -272,55 +272,70 @@ async function mount(name, input, env, states, grammar) {
 
         }
 
-        const r1 = readline.createInterface({
-            input: process.stdin,
-            output: process.stdout
-        });
-        console.log(ADD_COLOR("The parser has been mounted in NodeJS", COLOR_SUCCESS))
-        CLI_INSTRUCTIONS();
+        //If there is test data, then run the parser on that data and immediatly return. 
+        if (test_data) {
+            const result = parser(whind(test_data, false), parser_data, env);
 
-        let data = [];
+            if(result.error)
+                console.error(result.error);
+             
+             console.dir(result.result, { depth: null });
+             
+             res(false);
+        } else {
+            const r1 = readline.createInterface({
+                input: process.stdin,
+                output: process.stdout
+            });
+            console.log(ADD_COLOR("The parser has been mounted in NodeJS", COLOR_SUCCESS))
+            CLI_INSTRUCTIONS();
 
-        r1.on('line', (input) => {
+            let data = [];
 
-            if (input == "exit") {
-                r1.close();
-                return res(false);
-            }
 
-            if (input == "reload") {
-                r1.close();
-                return res(true);
-            }
 
-            if (input == "help") {
-                CLI_INSTRUCTIONS(true);
-                r1.prompt();
-                return;
-            }
 
-            if (input == " ") {
+            r1.on('line', (input) => {
 
-                try {
-                    let parse;
-                    if (env.options && env.options.integrate)
-                        parse = parser(data.join("\n"), parser_data, {}, 0);
-                    else
-                        console.dir(parser(whind(data.join("\n"), false), parser_data, env), { depth: null });
-                } catch (e) {
-                    console.error(e);
+                if (input == "exit") {
+                    r1.close();
+                    return res(false);
                 }
 
-                data = [];
-            } else {
-                data.push(input);
-            }
+                if (input == "reload") {
+                    r1.close();
+                    return res(true);
+                }
 
+                if (input == "help") {
+                    CLI_INSTRUCTIONS(true);
+                    r1.prompt();
+                    return;
+                }
+
+                if (input == " ") {
+
+                    try {
+                        let parse;
+                        if (env.options && env.options.integrate)
+                            parse = parser(data.join("\n"), parser_data, {}, 0);
+                        else
+                            console.dir(parser(whind(data.join("\n"), false), parser_data, env), { depth: null });
+                    } catch (e) {
+                        console.error(e);
+                    }
+
+                    data = [];
+                } else {
+                    data.push(input);
+                }
+
+
+                r1.prompt();
+            });
 
             r1.prompt();
-        });
-
-        r1.prompt();
+        }
     });
 
     if (d)
@@ -391,18 +406,20 @@ program
 program
     .command("mount <hydro_carbon_compiled_file>")
     .description("Mounts a HC compiler into the NodeJS context")
+    .option("-s, --string <string_data>", "Optional string to pass to the parser. Will exit after printing parser results")
     .option("-e, --env <path>", "Optional JavaScript file containing parsing environment information.")
     .action(async (hc_compiler, cmd) => {
 
         const
             compiler_path = path.resolve(hc_compiler),
+            string = cmd.string,
             env_path = cmd.env ? path.resolve(cmd.env) : "",
             env = await loadEnvironment(env_path),
             compiler = (await import(compiler_path)).default;
 
-        mount("undefined", compiler, env)
+            console.log(cmd.string)
 
-
+        mount("undefined", compiler, env, string)
     });
 
 program
@@ -464,7 +481,7 @@ program
                     } else {
 
                         states = await compileLRStates(grammar, env, env_path, name, unattended);
-                        
+
                         if (!!cmd.statesout) {
                             const states_output = stringifyLRStates(states);
                             await writeFile(`${name}.hcs`, states_output, output_directory);
