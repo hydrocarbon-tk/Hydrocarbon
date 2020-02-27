@@ -10,10 +10,11 @@ import whind from "@candlefw/whind";
 
 const MAX_CYCLES = 600000;
 
-function errorReport(env, tk, lex, off, cycles, total_cycles, fork_depth, eof) {
-    if (tk == eof) {
+function errorReport(env, tk, lex, off, cycles, total_cycles, fork_depth) {
+
+    if (tk == 0) {
         return {
-            result: null,
+            value: null,
             error: lex.errorMessage("Unexpected end of input"),
             cycles,
             total_cycles,
@@ -22,7 +23,7 @@ function errorReport(env, tk, lex, off, cycles, total_cycles, fork_depth, eof) {
         };
     } else {
         return {
-            result: null,
+            value: null,
             error: lex.errorMessage(`Unexpected token [${lex.tx}]`),
             cycles,
             total_cycles,
@@ -41,8 +42,7 @@ function errorReport(env, tk, lex, off, cycles, total_cycles, fork_depth, eof) {
 */
 function parser(lex, data = null, e = {}, sp = 1, len = 0, off = 0, o = [], state_stack = [lex.copy(), 0], FORKED_ENTRY = false, state_action_lu = 0, cycles = 0, fork_depth = 0, forks = 0) {
 
-
-    if (!data) return { result: [], error: "Data object is empty" };
+    if (!data) return { value: [], error: "Data object is empty" };
 
     //Unpack parser objects
     const {
@@ -65,7 +65,7 @@ function parser(lex, data = null, e = {}, sp = 1, len = 0, off = 0, o = [], stat
     let RECOVERING = 100,
         FINAL_RECOVERY = false,
         tk = 0,
-        total_cycles = 0,
+        total_cycles = cycles,
         state = null,
         state_length = 0;
 
@@ -89,12 +89,11 @@ function parser(lex, data = null, e = {}, sp = 1, len = 0, off = 0, o = [], stat
     }
 
     const p = lex.copy();
-
+    
     try {
 
         outer: while ((++total_cycles, cycles++ < MAX_CYCLES)) {
-
-
+            //console.log({cycles, total_cycles, forks})
             // Skip this step if we entered this function through a fork. 
             // State action will have been set in the outer scope. 
             let action = 0,
@@ -103,8 +102,10 @@ function parser(lex, data = null, e = {}, sp = 1, len = 0, off = 0, o = [], stat
             if (state_action_lu == 0) {
                 /*Ignore the token*/
                 tk = getToken(lex.next(), token_lu);
+                state_stack[sp-1] = lex.copy();
             } else if (state_action_lu < 0) {
-                while (true) {
+
+                while (/*intentional*/ 1 /*intentional*/) { 
 
                     if (RECOVERING > 1 && !lex.END) {
                         //Treat specialized number forms as regular numbers. 
@@ -180,11 +181,18 @@ function parser(lex, data = null, e = {}, sp = 1, len = 0, off = 0, o = [], stat
 
                     case SHIFT:
 
-                        state_stack.push(lex.copy(), action >> 3);
+                        FINAL_RECOVERY = false;
+                        
                         o.push(lex.tx);
+
                         sp += 2;
+
                         lex.next();
+
+                        state_stack.push(lex.copy(), action >> 3);
+
                         off = lex.off;
+
                         tk = getToken(lex, token_lu);
 
                         RECOVERING++;
@@ -193,6 +201,7 @@ function parser(lex, data = null, e = {}, sp = 1, len = 0, off = 0, o = [], stat
 
                     case REDUCE:
 
+                        FINAL_RECOVERY = false;
                         len = (action & 0x7F8) >> 2;
 
                         var end = state_stack[sp - 1];
@@ -225,7 +234,8 @@ function parser(lex, data = null, e = {}, sp = 1, len = 0, off = 0, o = [], stat
                                 lex,
                                 cycles,
                                 total_cycles,
-                                off
+                                off,
+                                forks
                             };
                         }
                         break;
@@ -237,12 +247,13 @@ function parser(lex, data = null, e = {}, sp = 1, len = 0, off = 0, o = [], stat
                             fork_states_start = action >> 16,
                             fork_states_length = (action >> 3) & 0x1FFF,
                             fork_states_end = fork_states_start + fork_states_length,
-                            result = { result: null, error: "", cycles, total_cycles, off };
+                            result = { value: null, error: "", cycles, total_cycles, off };
 
                         FORKED_ENTRY = true;
 
                         for (const forked_state_action_lu of data.fm.slice(fork_states_start, fork_states_end)) {
 
+                            console.log({state_action_lu, forked_state_action_lu, tk, tx:lex, END:lex.END, t:lex.tx})
                             const
                                 copied_lex = lex.copy(),
                                 copied_output = o.slice(),
@@ -262,8 +273,11 @@ function parser(lex, data = null, e = {}, sp = 1, len = 0, off = 0, o = [], stat
                                     sp,
                                     forks + 1
                                 );
+                            
+                            total_cycles += res.total_cycles;
 
                             if (res.SQUASH) {
+                                console.log("SQUASHING")
 
                                 if (fork_depth > 1 && res.sp < fork_depth) {
                                     res.total_cycles += result.total_cycles;
@@ -276,9 +290,9 @@ function parser(lex, data = null, e = {}, sp = 1, len = 0, off = 0, o = [], stat
                                 sp = res.sp;
                                 len = res.len;
                                 tk = res.tk;
-                                cycles = res.cycles;
-                                total_cycles += res.total_cycles;
+                                cycles += res.total_cycles;
                                 off = res.off;
+                                forks += res.forks;
 
                                 state = states[state_stack[sp]];
                                 state_length = state.length;
@@ -287,15 +301,14 @@ function parser(lex, data = null, e = {}, sp = 1, len = 0, off = 0, o = [], stat
                                 continue outer;
                             }
 
-                            result.total_cycles += res.total_cycles;
 
                             if (!res.error) {
-                                res.total_cycles = result.total_cycles;
+                                res.total_cycles = total_cycles;
                                 return res;
                             }
 
                             if (res.off > result.off) {
-                                res.total_cycles = result.total_cycles;
+                                res.total_cycles = total_cycles;
                                 result = res;
                             }
                         }
@@ -306,7 +319,6 @@ function parser(lex, data = null, e = {}, sp = 1, len = 0, off = 0, o = [], stat
                         return result;
                 }
             }
-            FINAL_RECOVERY = false;
             //Update states values
             state = states[state_stack[sp]];
             state_length = state.length;
@@ -314,7 +326,7 @@ function parser(lex, data = null, e = {}, sp = 1, len = 0, off = 0, o = [], stat
         }
     } catch (e) {
         return {
-            result: null,
+            value: null,
             error: e,
             cycles,
             total_cycles,
@@ -325,7 +337,7 @@ function parser(lex, data = null, e = {}, sp = 1, len = 0, off = 0, o = [], stat
 
     if (cycles >= MAX_CYCLES)
         return {
-            result: o[0],
+            value: o[0],
             error: lex.errorMessage("Max Depth Reached"),
             total_cycles,
             cycles,
@@ -334,7 +346,7 @@ function parser(lex, data = null, e = {}, sp = 1, len = 0, off = 0, o = [], stat
         };
 
     return {
-        result: o[0],
+        value: o[0],
         error: "",
         cycles,
         total_cycles,
