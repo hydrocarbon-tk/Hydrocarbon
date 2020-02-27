@@ -10,7 +10,7 @@
   "scripts": {
     "prepublish": "cp ./node_modules/@candlefw/whind/build/whind.js ./data",
     "test": "echo \"Error: no test specified\" && exit 1",
-    "compile.grammar": "hydrocarbon compile --parser glalr --unattended -t mjs -o ./source/grammar/parser_data/ ./source/grammar/hcg/hcg.hcg",
+    "compile.grammar": "hydrocarbon compile --unattended -t mjs -o ./source/grammar/parser_data/ ./source/grammar/hcg/hcg.hcg",
     "compile.grammar.test": "hydrocarbon compile --parser glalr -d --unattended -t mjs -o ./source/grammar/parser_data/ ./source/grammar/hcg/hcg.hcg",
     "compile.test": "hydrocarbon compile --parser glalr -d -m --unattended ./source/grammar/misc/test3.hcg",
     "compile.test.table": "hydrocarbon compile --parser glalr -d -m --unattended ./source/grammar/misc/test.hcg",
