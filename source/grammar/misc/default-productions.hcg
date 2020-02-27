@@ -5,37 +5,38 @@
 <> defaultproductions → defaultproduction(+)
 
 <> defaultproduction → id
-	│ hex
-	│ binary
-	│ octal
-	│ scientific
+    │ hex
+    │ binary
+    │ octal
+    │ scientific
 
 <> hex_digit →  θint │ τa │ τb │ τc │ τd │ τe │ τf │ τA │ τB │ τC │ τD │ τE │ τF
 
-<> hex →  θhex
+
+<> hex →  θhex                                  ↦r { {val:parseFloat($sym1), type: "hex", original_val:$sym1} }
  
-<> binary →  θbin
+<> binary →  θbin                               ↦r { {val:parseFloat($sym1), type: "bin", original_val:$sym1} }
 
-<> octal →  θoct
+<> octal →  θoct                                ↦r { {val:parseFloat($sym1), type: "oct", original_val:$sym1} }
 
-<> scientific → θsci 
-	│ float 
+<> scientific → θsci                            ↦r { {val:parseFloat($sym1), type: "sci", original_val:$sym1} }
+    │ float 
 
-<> float → θflt  				
-	│ integer
+<> float → θflt                                 ↦r { {val:parseFloat($sym1), type: "flt", original_val:$sym1} }
+    │ integer                                   
 
-<> integer → natural
+<> integer → natural                            ↦r { {val:parseFloat($sym1), type: "int", original_val:$sym1} }
 
-<> natural →  θnum
+<> natural →  θnum                              
 
-<> id → reduced_id
+<> id → θid
 
-<> reduced_id → identifier (RED θws)
+<> js_identifier → js_id_symbols (RED θws)
 
-<> identifier →  identifier θid  ↦r { console.log($sym1 + $sym2), $sym1 + $sym2 }
-	│ identifier θkeyword  ↦r { console.log($sym1 + $sym2), $sym1 + $sym2 }
-	│ identifier \_  ↦r { console.log($sym1 + $sym2), $sym1 + $sym2 }
-	│ identifier \$  ↦r { console.log($sym1 + $sym2), $sym1 + $sym2 }
-	│ \_ 
-	│ \$ 
-	│ θid
+<> js_id_symbols →  js_id_symbols θid           ↦r { $sym1 + $sym2 }
+    │ js_id_symbols θkeyword                    ↦r { $sym1 + $sym2 }
+    │ js_id_symbols \_                          ↦r { $sym1 + $sym2 }
+    │ js_id_symbols \$                          ↦r { $sym1 + $sym2 }
+    │ \_ 
+    │ \$ 
+    │ θid
