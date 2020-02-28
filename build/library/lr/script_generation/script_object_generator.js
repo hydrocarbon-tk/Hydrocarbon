@@ -4,7 +4,7 @@ import { types as js_types, arrow_function_declaration, parse as ecmascript_pars
 import createStateArrays from "./create_state_arrays.js";
 import { verboseTemplate } from "./data_object_template.js";
 import { types as t, filloutGrammar } from "../../util/common.js";
-import { SymbolType } from "../../types/grammar";
+import { SymbolType } from "../../types/grammar.js";
 function generateCompactFunction(function_string) {
     //return function_string.replace(/(anonymous)?[\n\t]*/g, "");
     let fn = ecmascript_parse(function_string).statements;

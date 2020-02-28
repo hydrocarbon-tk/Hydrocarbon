@@ -1,4 +1,4 @@
-import { Production } from "../types/grammar";
+import { Production } from "../types/grammar.js";
 
 export default class implements Production {
     

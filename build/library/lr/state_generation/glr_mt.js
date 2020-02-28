@@ -3,6 +3,7 @@ import { isMainThread, workerData } from "worker_threads";
 import StateResolver from "./state_resolver_mt.js";
 import { StateActionEnum } from "../../types/state_action_enums.js";
 import { shiftReduceCollision, reduceCollision } from "./error.js";
+import { LRMultiThreadProcessWorker, LRMultiThreadRunner } from "./lr_mt.js";
 class GLStateResolver extends StateResolver {
     getActionIterator(state) {
         return [...state.actions.values()].flatMap(s => s.name == StateActionEnum.FORK ? [s, ...s.actions] : s);
@@ -56,7 +57,6 @@ class GLStateResolver extends StateResolver {
         this.handleForkOtherActionCollision(state, fork_action, shift_action);
     } //*/
 }
-import { LRMultiThreadProcessWorker, LRMultiThreadRunner } from "./lr_mt.js";
 if (!isMainThread) {
     const { grammar, env_path, id } = workerData;
     if (grammar)

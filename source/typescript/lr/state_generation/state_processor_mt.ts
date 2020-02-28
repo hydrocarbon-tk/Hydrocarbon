@@ -4,7 +4,7 @@ import { LRState, ParserAction } from "../../types/lr_state.js";
 import { Item } from "../../util/item.js";
 import { Grammar, SymbolType, Symbol, ProductionBody } from "../../types/grammar.js";
 import { StateActionEnum } from "../../types/state_action_enums.js";
-import { ItemSet } from "../../types/item_set.d";
+import { ItemSet } from "../../types/item_set.js";
 
 
 

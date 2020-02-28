@@ -3,7 +3,7 @@ import { null_literal, member_expression, numeric_literal, identifier, parse as 
 import { Lexer } from "@candlefw/whind";
 
 import { Production, Symbol,ProductionBodyFunction,ProductionBodyReduceFunction, ProductionBody } from "../types/grammar.js";
-import { GrammarParserEnvironment } from "../types/grammar_compiler_environment.d.js";
+import { GrammarParserEnvironment } from "../types/grammar_compiler_environment.js";
 
 export default class implements ProductionBody {
     

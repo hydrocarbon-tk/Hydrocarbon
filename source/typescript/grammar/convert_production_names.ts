@@ -1,4 +1,4 @@
-import { ProductionBody, Symbol } from "../types/grammar";
+import { ProductionBody, Symbol } from "../types/grammar.js";
 
 export default function convertProductionNamesToIndexes(productions, LU) {
     let sym : Symbol,

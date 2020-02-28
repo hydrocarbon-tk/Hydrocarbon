@@ -4,7 +4,7 @@ import {Lexer} from "@candlefw/whind";
 export function LLParser(input, table, grammer){
 	
 	let stack = ["$", grammer[0].name];
-	let lex = Lexer(input); 
+	let lex = new Lexer(input); 
 		
 		let ip = 1;
 	while(stack[ip] != "$"){

@@ -6,7 +6,7 @@ import { ParserSquashResultData } from "../../types/parser_squash_result_data.js
 import { ParserResultData } from "../../types/parser_result_data.js";
 import { errorReport } from "./error_report.js";
 import { ParserEnvironment } from "../../types/parser_environment.js";
-import { StateStack } from "../../types/state_stack";
+import { StateStack } from "../../types/state_stack.js";
 
 const MAX_CYCLES = 600000;
 

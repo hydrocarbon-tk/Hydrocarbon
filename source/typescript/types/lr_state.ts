@@ -1,4 +1,4 @@
-import { Item } from "../util/item.js";
+import { Item } from "../util/item";
 import { SymbolType, Production } from "./grammar.js";
 import { StateActionEnum } from "./state_action_enums.js";
 

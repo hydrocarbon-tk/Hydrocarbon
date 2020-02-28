@@ -11,7 +11,7 @@ import URL from "@candlefw/url";
 URL.polyfill();
 
 import runner from "./compiler_runner.mjs"
-import parser from "../lr/runtime/lr_parser.js"
+import parser from "../lr/runtime/lr_parser"
 
 //Third Party stuff
 import * as commander from "commander";
@@ -27,7 +27,7 @@ import util from "util";
 const
     fn_regex = /(file\:\/\/)(\/)*([A-Z]\:)*/g,
     Lexer_Path = path.join("/",
-        import.meta.url.replace(fn_regex, ""), "../../../data/whind.js"),
+        import.meta.url.replace(fn_regex, ""), "../../../data/whind"),
     LEXER_SCRIPT = `${fs.readFileSync(Lexer_Path)} const lexer = whind.default;`,
     fsp = fs.promises,
 
@@ -91,12 +91,12 @@ async function write(name, parser_script, output_directory, type) {
             ext = ".mjs";
             break;
         case "cjs":
-            ext = "_cjs.js";
+            ext = "_cjs";
             break;
         default:
         case "js":
-        case "mjs.js":
-            ext = ".js";
+        case "mjs":
+            ext = "";
             break;
     }
 
@@ -186,7 +186,7 @@ function createScript(name, parser, type, env, compress = false) {
             parser = `${parser}`;
             break;
         case "mjs":
-        case "mjs.js":
+        case "mjs":
             parser = `export default ${parser};`;
             break;
         case "cjs":

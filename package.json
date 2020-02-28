@@ -3,9 +3,9 @@
   "version": "0.2.1-ts",
   "description": "Parser Compiler",
   "main": "build/library/hydrocarbon.js",
-  "types": "build/types/hydrocarbin.d.ts",
+  "types": "build/types/hydrocarbon.d.ts",
   "bin": {
-    "hydrocarbon": "./source/cli/cli.js"
+    "hydrocarbon": "./source/cli/cli"
   },
   "type": "module",
   "scripts": {

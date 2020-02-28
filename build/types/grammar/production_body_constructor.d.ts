@@ -1,6 +1,6 @@
 import { Lexer } from "@candlefw/whind";
 import { Symbol, ProductionBodyFunction, ProductionBodyReduceFunction, ProductionBody } from "../types/grammar.js";
-import { GrammarParserEnvironment } from "../types/grammar_compiler_environment.d.js";
+import { GrammarParserEnvironment } from "../types/grammar_compiler_environment.js";
 export default class implements ProductionBody {
     name: string;
     val: number;

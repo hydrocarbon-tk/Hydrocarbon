@@ -1,4 +1,4 @@
-import { ProductionBody, Grammar, Symbol, SymbolType } from "../types/grammar";
+import { ProductionBody, Grammar, Symbol, SymbolType } from "../types/grammar.js";
 export declare function SymbolToString(sym: {
     type?: SymbolType;
     val: string;

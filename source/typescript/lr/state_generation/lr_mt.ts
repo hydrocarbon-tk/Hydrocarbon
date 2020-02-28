@@ -10,7 +10,7 @@ import * as os from 'os';
 import { Grammar, SymbolType } from "../../types/grammar.js";
 import { ParserEnvironment } from "../../types/parser_environment.js";
 import { LRState } from "../../types/lr_state.js";
-import { ItemSet } from "../../types/item_set.d.js";
+import { ItemSet } from "../../types/item_set.js";
 import { CompilerErrorStore } from "./compiler_error_store.js";
 
 

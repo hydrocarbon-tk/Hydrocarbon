@@ -11,4 +11,5 @@ import lrParse from "./lr/runtime/lr_parser.js";
 import earleyCompiler from "./earley/compiler.js";
 //Diagnostics
 import { renderTable } from "./util/table_diagram.js";
+//Definitions
 export { compileLRStatesMT, grammarParser, compileGLRStatesMT, LRParserCompiler, LRParserCompilerCPP, renderTable, ExportStates, ImportStates, earleyCompiler, lrParse };

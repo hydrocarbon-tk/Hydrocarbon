@@ -5,9 +5,9 @@ import { types as js_types, arrow_function_declaration, parse as ecmascript_pars
 import createStateArrays from "./create_state_arrays.js";
 import { verboseTemplate } from "./data_object_template.js";
 import { types as t, filloutGrammar } from "../../util/common.js";
-import { LRStates } from "../../types/lr_state";
-import { Grammar, SymbolType } from "../../types/grammar";
-import { ParserEnvironment } from "../../types/parser_environment";
+import { LRStates } from "../../types/lr_state.js";
+import { Grammar, SymbolType } from "../../types/grammar.js";
+import { ParserEnvironment } from "../../types/parser_environment.js";
 
 function generateCompactFunction(function_string:string) {
 

@@ -11,10 +11,10 @@
             "skipFiles": [
                 "<node_internals>/**"
             ],
-            "program": "${workspaceFolder}/build/library/hydrocarbon.js",
+            "program": "${workspaceFolder}/build/library/hydrocarbon",
             "preLaunchTask": "tsc: build - tsconfig.json",
             "outFiles": [
-                "${workspaceFolder}/build/library/**/*.js"
+                "${workspaceFolder}/build/library/**/*"
             ]
         }
     ]

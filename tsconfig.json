@@ -14,6 +14,7 @@
         "declarationDir": "./build/types",
         "declaration": true,
         "watch": true,
-        "moduleResolution": "node"
+        "moduleResolution": "node",
+        "typeRoots": ["./source/typescript/types"]
     }
 }

@@ -16,8 +16,14 @@ import earleyCompiler from "./earley/compiler.js";
 
 //Diagnostics
 import { renderTable } from "./util/table_diagram.js";
+import { ParserEnvironment } from "./types/parser_environment.js";
+import { ErrorHandler } from "./types/parser_data.js";
 
-export {
+//Definitions
+
+export { 
+    ParserEnvironment,
+    ErrorHandler,    
     compileLRStatesMT,
     grammarParser,
     compileGLRStatesMT,

@@ -2,9 +2,10 @@ import { Lexer } from "@candlefw/whind";
 import { ParserEnvironment } from "./parser_environment.js";
 
 export type OutputStack = Array<any>;
+
 type TokenLookupMap = Map<string | number, number>;
 
-type ErrorHandler = (
+export type ErrorHandler = (
     arg0 :number, 
     arg1 :ParserEnvironment, 
     arg2 :OutputStack, 
@@ -13,7 +14,7 @@ type ErrorHandler = (
     arg5 :number, 
     arg6 :(arg0 : Lexer)  => number) => number;
 
-type ActionFunction = (
+export type ActionFunction = (
         arg0 :number, 
         arg1 :ParserEnvironment, 
         arg2 :OutputStack, 

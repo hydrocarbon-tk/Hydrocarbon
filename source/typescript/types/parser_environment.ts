@@ -1,10 +1,12 @@
+import { Lexer } from "@candlefw/whind";
+import { ErrorHandler } from "./parser_data.js";
 
 /**
  * Defines custom function handlers and options for lrParser
  */
 export interface ParserEnvironment {
     functions?: {
-        defaultError?:()=>number;
+        defaultError?:ErrorHandler;
         /**
          * Functions used within the lr_parser to handle REDUCE, SHIFT, and ACCEPT
          * actions. 

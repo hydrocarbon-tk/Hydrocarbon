@@ -7,7 +7,9 @@ import {
     shiftReduceCollision,
     reduceCollision
 } from "./error.js";
-
+import { LRMultiThreadProcessWorker, LRMultiThreadRunner } from "./lr_mt.js";
+import { ParserAction, LRState } from "../../types/lr_state.js";
+import { Grammar } from "../../types/grammar.js";
 
 class GLStateResolver extends StateResolver {
 
@@ -83,9 +85,9 @@ class GLStateResolver extends StateResolver {
     } //*/
 }
 
-import { LRMultiThreadProcessWorker, LRMultiThreadRunner } from "./lr_mt.js";
-import { ParserAction, LRState } from "../../types/lr_state.js";
-import { Grammar } from "../../types/grammar.js";
+
+
+
 
 if (!isMainThread) {
 

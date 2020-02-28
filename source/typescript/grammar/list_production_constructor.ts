@@ -1,6 +1,6 @@
-import { Production, Symbol } from "../types/grammar";
 import { Lexer } from "@candlefw/whind";
-import { GrammarParserEnvironment } from "../types/grammar_compiler_environment";
+import { Production, Symbol } from "../types/grammar.js";
+import { GrammarParserEnvironment } from "../types/grammar_compiler_environment.js";
 
 export default class implements Production {
 

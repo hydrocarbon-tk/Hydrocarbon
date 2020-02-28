@@ -11,8 +11,8 @@ import groupProduction from "./group_production_constructor.js";
 import listProduction from "./list_production_constructor.js";
 import body from "./production_body_constructor.js";
 
-import {Grammar} from "../types/grammar";
-import { GrammarParserEnvironment } from "../types/grammar_compiler_environment";
+import {Grammar} from "../types/grammar.js";
+import { GrammarParserEnvironment } from "../types/grammar_compiler_environment.js";
 import { ParserEnvironment } from "../types/parser_environment.js";
 
 

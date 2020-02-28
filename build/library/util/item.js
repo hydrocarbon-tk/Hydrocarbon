@@ -1,4 +1,4 @@
-import { SymbolType } from "../types/grammar";
+import { SymbolType } from "../types/grammar.js";
 export function SymbolToString(sym) {
     switch (sym.type) {
         case SymbolType.ESCAPED:

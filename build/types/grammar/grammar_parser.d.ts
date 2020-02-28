@@ -1,4 +1,4 @@
-import { Grammar } from "../types/grammar";
+import { Grammar } from "../types/grammar.js";
 export declare type AwaitTracker = {
     count: number;
 };

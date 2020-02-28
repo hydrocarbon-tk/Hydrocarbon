@@ -4,7 +4,7 @@ import {
     reduceCollision
 } from "./error.js";
 import { Grammar } from "../../types/grammar.js";
-import { LRState, LRStates, ParserAction } from "../../types/lr_state.d";
+import { LRState, LRStates, ParserAction } from "../../types/lr_state.js";
 import { StateActionEnum } from "../../types/state_action_enums.js";
 import { CompilerErrorStore } from "./compiler_error_store.js";
 

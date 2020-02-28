@@ -5,7 +5,7 @@ import StateResolver from "./state_resolver_mt.js";
 import { Grammar } from "../../types/grammar.js";
 import { ParserEnvironment } from "../../types/parser_environment.js";
 import { LRState } from "../../types/lr_state.js";
-import { ItemSet } from "../../types/item_set.d.js";
+import { ItemSet } from "../../types/item_set.js";
 declare type WorkerContainer = {
     target: Worker;
     id: number;

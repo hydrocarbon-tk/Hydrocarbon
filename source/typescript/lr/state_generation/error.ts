@@ -1,7 +1,7 @@
 
-import { ParserAction,LRState } from "../../types/lr_state.d.js";
-import { CompilerErrorStore } from "./compiler_error_store";
-import { Grammar } from "../../types/grammar";
+import { ParserAction,LRState } from "../../types/lr_state.js";
+import { CompilerErrorStore } from "./compiler_error_store.js";
+import { Grammar } from "../../types/grammar.js";
 
 export function shiftReduceCollision(grammar: Grammar, state: LRState, shift: ParserAction, reduce: ParserAction, error: CompilerErrorStore) {
     const sym = shift.item.renderSymbol(grammar);
