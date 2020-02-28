@@ -38,6 +38,11 @@
   resolved "https://registry.yarnpkg.com/@candlefw/whind/-/whind-0.3.6.tgz#5add1d4b4a7fda2a692e396270c2f19da02828bb"
   integrity sha512-t4HrxFwuzbq4VmMOgymhsU+hvK+jNiT9USmlLIcQCdQI9JnAYS8soTp/8iJqcLcJnyyL3KHdmn8Y0WMqslxaLQ==
 
+"@types/node@^13.7.6":
+  version "13.7.6"
+  resolved "https://registry.yarnpkg.com/@types/node/-/node-13.7.6.tgz#cb734a7c191472ae6a2b3a502b4dfffcea974113"
+  integrity sha512-eyK7MWD0R1HqVTp+PtwRgFeIsemzuj4gBFSQxfPHY5iMjS7474e5wq+VFgTcdpyHeNxyKSaetYAjdMLJlKoWqA==
+
 acorn-jsx@^5.1.0:
   version "5.1.0"
   resolved "https://registry.yarnpkg.com/acorn-jsx/-/acorn-jsx-5.1.0.tgz#294adb71b57398b0680015f0a38c563ee1db5384"

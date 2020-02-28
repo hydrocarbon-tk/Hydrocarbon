@@ -4,7 +4,7 @@
 /* IMPORTS *******************/
 
 //CandleFW stuffs
-import * as hc from "../hydrocarbon.mjs";
+import * as hc from "@candlefw/hydrocarbon";
 import whind from "@candlefw/whind";
 import URL from "@candlefw/url";
 

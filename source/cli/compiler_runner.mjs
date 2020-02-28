@@ -1,8 +1,6 @@
-import * as hc from "../hydrocarbon.mjs";
+import * as hc from "@candlefw/hydrocarbon";
 
 import { performance } from "perf_hooks";
-
-//import cli from "@candlefw/wick.cli"
 
 const gray_b = "\x1b[48;5;233m";
 const prpl_b = "\x1b[48;5;57m";
