@@ -1,17 +1,17 @@
-import { ProductionBody, Grammar, Symbol } from "../types/grammar";
+import { ProductionBody, Grammar, Symbol, SymbolType } from "../types/grammar";
 
-export function SymbolToString(sym:Symbol) {
+export function SymbolToString(sym:{type?:SymbolType, val:string}) {
     switch (sym.type) {
-        case "escaped":
-        case "symbol":
+        case SymbolType.ESCAPED:
+        case SymbolType.SYMBOL:
             return `\x1b[38;5;208m${sym.val}`;
-        case "generated":
+        case SymbolType.GENERATED:
             return `\x1b[38;5;208mθ${sym.val}`;
-        case "literal":
+        case SymbolType.LITERAL:
             return `\x1b[38;5;229mτ${sym.val}`;
-        case "empty":
+        case SymbolType.EMPTY:
             return `\x1b[38;5;208mɛ`;
-        case "eof":
+        case SymbolType.END_OF_FILE:
             return `\x1b[38;5;208m$eof`;
         default:
             return `\x1b[38;5;68m${sym.val}`;
@@ -44,7 +44,7 @@ export class Item extends Array {
     }
 
     get p() {
-        return this.follow.m;
+        return this.follow.precedence;
     }
 
     get id() {
@@ -77,8 +77,10 @@ export class Item extends Array {
     }
 
     render(grammar:Grammar) {
+        
         const a = this.body_(grammar).sym
             .map(sym => sym.type == "production" ? { val: "\x1b[38;5;8m" + grammar[sym.val].name.replace(/\$/, "::\x1b[38;5;153m") } : sym)
+            //@ts-ignore
             .flatMap((sym, i) => (i == this.offset) ? ["\x1b[38;5;226m•", SymbolToString(sym)] : SymbolToString(sym));
         if (a.length == this.offset)
             a.push("\x1b[38;5;226m•");
@@ -90,19 +92,23 @@ export class Item extends Array {
     }
 
     renderWithProductionAndFollow(grammar:Grammar):string {
+        //@ts-ignore
         return `[ ${this.body_(grammar).production.name.replace(/\$/, "::")}\x1b[0m ⇒ ${this.render(grammar)}, ${this.v}]`;
     }
 
     renderProductionName(grammar:Grammar):string{
+        //@ts-ignore
         return `\x1b[38;5;8m${this.body_(grammar).production.name.replace(/\$/, "::\x1b[38;5;153m")}`;
     }
 
     renderProductionNameWithBackground(grammar):string{
+        //@ts-ignore
         return `\x1b[48;5;233m\x1b[38;5;8m ${this.body_(grammar).production.name.replace(/\$/, "::\x1b[38;5;153m")} \x1b[0m`;
     }
 
     renderSymbol(grammar:Grammar):string{
         const sym = this.sym(grammar);
+        //@ts-ignore
         return `\x1b[48;5;233m ${SymbolToString(sym)} \x1b[0m`;
     }
 

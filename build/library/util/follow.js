@@ -1,6 +1,6 @@
 export const EMPTY_PRODUCTION = "{!--EMPTY_PRODUCTION--!}";
 export const isNonTerm = (f) => f.type == "production";
-import { FIRST } from "./first.js.js";
+import { FIRST } from "./first.js";
 const merge = (follow, first) => {
     first.forEach((v) => {
         if (v !== EMPTY_PRODUCTION)
@@ -27,7 +27,7 @@ export function FOLLOW(grammar, production) {
                     for (var j = i + 1; j < body.length; j++) {
                         const val = body[j], body_index = i;
                         if (isNonTerm(val)) {
-                            merge(follow, FIRST(grammar, val), body_index);
+                            merge(follow, FIRST(grammar, val));
                             if (new Set(FIRST(grammar, val)).has(EMPTY_PRODUCTION))
                                 continue;
                         }

@@ -104,7 +104,7 @@ namespace ${namespace}{
 
     template <class NodeFunctions>
     const SymbolLookup ${namespace}::Data<NodeFunctions>::symbol_lu = {
-        ${renderSymbolLookUp(SYM_LU, true)}};
+        ${renderSymbolLookUp(SYM_LU)}};
 
     template <class NodeFunctions>
     int (* const ${namespace}::Data<NodeFunctions>::state_actions[])(Token&, int&, void **, void*) = {

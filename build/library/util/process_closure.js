@@ -1,4 +1,4 @@
-import { Item } from "./item.ts";
+import { Item } from "./item.js";
 import { FIRST } from "./first.js";
 export function processClosure(items, grammar, error, excludes = [], offset = 0, added = new Set()) {
     let exclusion_count = 0;

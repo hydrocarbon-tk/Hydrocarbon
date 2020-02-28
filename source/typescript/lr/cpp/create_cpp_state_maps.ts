@@ -99,7 +99,7 @@ export default function(grammar, states, env, functions, SYM_LU, types) {
 
                     if (length > 0) {
                         if (body.reduce_function) {
-                            const out = setNode(body.reduce_function, length, functions, fn_id, body.form, COMPILE_FUNCTION);
+                            const out = setNode(body.reduce_function, length, functions, fn_id, body.form);
                             funct.push(out.str);
                             st_fn_id += body.reduce_function.name + body.form;
                             fn_id = out.id;

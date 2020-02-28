@@ -1,4 +1,4 @@
-import { getToken, types } from "../../util/common.mjs";
+import { getToken, types } from "../../util/common.js";
 
 
 function renderSymbols(symbols) {
@@ -54,7 +54,7 @@ function renderGetTokenFunction(getToken, SYM_LU, RV_SYM_LU, verbose = false) {
 }
 
 export function verboseTemplate(
-    fork_map = [],
+    fork_map,
     goto_maps,
     state_maps,
     state_functions,
@@ -71,21 +71,21 @@ export function verboseTemplate(
 /************** Maps **************/
     st:s,
     /* Types */ ty: {${[...GEN_SYM_LU.entries()].map(e=>`${e[0]}:${e[1]}`).join(",")}},
-    /* Symbols To Inject into the Lexer */ sym : ${renderSymbols(symbols, true)},
-    /* Symbol Lookup map */ lu : new Map(${renderSymbolLookUp(SYM_LU, true)}),
+    /* Symbols To Inject into the Lexer */ sym : ${renderSymbols(symbols)},
+    /* Symbol Lookup map */ lu : new Map(${renderSymbolLookUp(SYM_LU)}),
     /* Reverse Symbol Lookup map */ rlu : new Map(${JSON.stringify([...SYM_LU.entries()].map(e=>[e[1],e[0]]))}),
-    /* States */ sts : [${renderStateFunctions(state_functions, true)}].map(i=>s[i]),
-    /* Fork Map */fm: [${renderForkMap(fork_map, true)}],
+    /* States */ sts : [${renderStateFunctions(state_functions)}].map(i=>s[i]),
+    /* Fork Map */fm: [${renderForkMap(fork_map)}],
     /*Goto Lookup Functions*/ gt:g[0].map(i=>i>=0?u[i]:[]),
 /************ Functions *************/
-    /* Error Functions */ eh : [${renderErrorHandlers(error_handlers, true)}],
-    /* Environment Functions*/ fns: [${renderFunctions(functions, true)}],
-    /* State Action Functions */ sa : [${renderStateActionFunctions(state_action_functions, true)}],
+    /* Error Functions */ eh : [${renderErrorHandlers(error_handlers)}],
+    /* Environment Functions*/ fns: [${renderFunctions(functions)}],
+    /* State Action Functions */ sa : [${renderStateActionFunctions(state_action_functions)}],
     /* Get Token Function  */ gtk:${renderGetTokenFunction(getToken, SYM_LU,GEN_SYM_LU, true)},
 }))(${default_error},...([
-    [${renderStateMaps(state_maps, true)}],
-    [${renderGotoMap(goto_maps, true)}],
-    [[${renderGotoMapLU(goto_map_lookup, true)}]]
+    [${renderStateMaps(state_maps)}],
+    [${renderGotoMap(goto_maps)}],
+    [[${renderGotoMapLU(goto_map_lookup)}]]
     ]).map(e=>e.map(s=>s.flatMap(d=> d < 0 ? (new Array(-d)).fill(-1) : d)))
 )`;
 }
@@ -105,16 +105,16 @@ export function compressedTemplate(
     symbols) {
     return `((s,e, nf = ()=>{}, st = s.map(s=>s.flatMap(d=> d < 0 ? (new Array(-d)).fill(-1) : d)) )=>({
         st, fn : {}, ty: {${[...GEN_SYM_LU.entries()].map(e=>`${e[0]}:${e[1]}`).join(",")}},
-    sym : ${renderSymbols(symbols, true)},
-    gt : [${renderGotoMap(goto_maps, true)}],
-    lu : new Map(${renderSymbolLookUp(SYM_LU, true)}),
+    sym : ${renderSymbols(symbols)},
+    gt : [${renderGotoMap(goto_maps)}],
+    lu : new Map(${renderSymbolLookUp(SYM_LU)}),
     rlu : new Map(${JSON.stringify([...SYM_LU.entries()].map(e=>[e[1],e[0]]))}),
-    sts : [${renderStateFunctions(state_functions, true)}],
-    fm: [${renderForkMap(fork_map, true)}],
-    eh : [${renderErrorHandlers(error_handlers, true)}],
-    fns: [${renderFunctions(functions, true)}],
-    sa : [${renderStateActionFunctions(state_action_functions, true)}],
+    sts : [${renderStateFunctions(state_functions)}],
+    fm: [${renderForkMap(fork_map)}],
+    eh : [${renderErrorHandlers(error_handlers)}],
+    fns: [${renderFunctions(functions)}],
+    sa : [${renderStateActionFunctions(state_action_functions)}],
     gtk:${renderGetTokenFunction(getToken, SYM_LU,GEN_SYM_LU, true)},
-    gta : [${renderGotoMapLU(goto_functions, true)}]
-}))([${renderStateMaps(state_maps, true)}],${default_error})`;
+    gta : [${renderGotoMapLU(goto_functions)}]
+}))([${renderStateMaps(state_maps)}],${default_error})`;
 }

@@ -1,12 +1,12 @@
 export declare const MASK: number;
 export declare const EMPTY_PRODUCTION = "{!--EMPTY_PRODUCTION--!}";
 export declare const isNonTerm: (f: any) => boolean;
-import { Item } from "./item.ts";
-import { FIRST } from "./first.js.js";
-import { FOLLOW } from "./follow.js.js";
-import { processClosure } from "./process_closure.js.js";
+import { Item } from "./item.js";
+import { FIRST } from "./first.js";
+import { FOLLOW } from "./follow.js";
+import { processClosure } from "./process_closure.js";
 export { Item, FOLLOW, FIRST, processClosure };
-export declare const types: any;
+export declare const types: typeof import("@candlefw/whind").TokenType;
 export declare function getToken(l: any, SYM_LU: any, IGNORE_KEYWORDS?: boolean): any;
 export declare function getPrecedence(term: any, grammar: any): number;
 export declare function createPrecedence(body: any, grammar: any): any;

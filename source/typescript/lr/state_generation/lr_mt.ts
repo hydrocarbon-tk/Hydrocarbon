@@ -164,11 +164,11 @@ export class LRMultiThreadRunner {
         this.processed_states = new Map();
     }
 
-    resolveNewState(state: StateActionEnum) {
+    resolveNewState(state: LRState) {
         this.resolver.resolve(this.states, state, this.grammar, this.errors);
     }
 
-    async mergeWorkerData(wkr:WorkerContainer, to_process_items:Array<ItemSet>, state:StateActionEnum, errors:any) {
+    async mergeWorkerData(wkr:WorkerContainer, to_process_items:Array<ItemSet>, state:LRState, errors:any) {
 
         this.item_set.push(...(to_process_items.filter(i => {
             const id = i.state_id.id,

@@ -21,8 +21,8 @@ export enum SymbolType {
  */
 export interface Symbol{
     type: SymbolType;
-    val:string | number;
-    subtype:string;
+    val: string | number;
+    subtype?:string;
     offset?:number;
     name?:string;
     sym?:string;
@@ -37,10 +37,32 @@ export interface Symbol{
 }
 
 export interface ProductionBodyFunction{
-
+    /**
+     * Name of the of the function if it is a numed ParserEnvironment function
+     * Otherwise blank.
+     */
+    name:string,
+    /**
+     * Index position of the terminal symbol proceding the function
+     * in production body.
+     */
+    offset:number,
+    /**
+     * If true the function is defined within the ParserEnvironment object.
+     */
+    env:boolean;
 }
 
 export interface ProductionBodyReduceFunction {
+    /**
+     * Name of the of the function if it is a numed ParserEnvironment function
+     * Otherwise blank.
+     */
+    name:string,
+    /**
+     * If true the function is defined within the ParserEnvironment object.
+     */
+    env:boolean;
     txt: string;
     type: "RETURNED" | "CLASS"
 }
@@ -96,9 +118,24 @@ export interface Production{
     graph_id?:number;
 }
 
+export interface Preamble{
+    type : "symbols" | "precedence" | "ignore" | "error" | "name" | "ext"; 
+    symbols?:any[];
+    grammar_stamp?:number; 
+    id?:Symbol;
+    terminal? : Symbol; 
+    val?: number;
+}
+
 export type Grammar = Array<Production> & {
     LU: Map<string, Production>;
-    meta: any;
+    meta: {
+        all_symbols?: Map<string, Symbol>
+        symbols? : Map<string, {val:string}>
+        error?:any[],
+        ignore?:any[],
+        preambles?:Preamble[]
+    };
     uri: string;
     symbols : Array<any>
     reserved: Set<any>

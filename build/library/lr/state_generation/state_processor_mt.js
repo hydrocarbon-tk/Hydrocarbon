@@ -1,5 +1,3 @@
-original_body: any;
-original_body: any;
 import { processClosure } from "../../util/common.js";
 import { SymbolType } from "../../types/grammar.js";
 import { StateActionEnum } from "../../types/state_action_enums.js";
@@ -122,10 +120,13 @@ export default class StateProcessor {
             const item = items[i], body = item.body_(grammar), offset = item.offset, symbol = body.sym[offset];
             if (item.USED)
                 continue;
+            //@ts-ignore
             if (body.error.has(offset))
                 body.error.get(offset).forEach(s => actions.push(this.errorAtSymbol(grammar, state, s, body, item)));
+            //@ts-ignore
             if (body.reset.has(offset))
                 body.reset.get(offset).forEach(s => actions.push(this.resetAtSymbol(grammar, state, s, item)));
+            //@ts-ignore
             if (body.ignore.has(offset))
                 body.ignore.get(offset).forEach(s => actions.push(this.ignoreAtSymbol(grammar, state, s, item)));
             if (item.atEND || symbol.type == SymbolType.EMPTY) { //At an accepting state for this input

@@ -1,4 +1,4 @@
-import { Item } from "./item.ts";
+import { Item } from "./item.js";
 
 import { FIRST } from "./first.js";
 

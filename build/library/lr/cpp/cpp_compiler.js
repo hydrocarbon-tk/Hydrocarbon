@@ -1,8 +1,8 @@
 /** Compiles a stand alone JS parser from a LR rules table and env object **/
-import { types as t, filloutGrammar } from "../../util/common.mjs";
-import createSparseStateMaps from "./create_cpp_state_maps.mjs";
-import { Compiler } from "./cpp_compiler_script.mjs";
-import { types as js_types, arrow_function_declaration, parse as ecmascript_parse } from "source/typescript/lr/cpp/@candlefw/js";
+import { types as t, filloutGrammar } from "../../util/common.js";
+import createSparseStateMaps from "./create_cpp_state_maps.js";
+import { Compiler } from "./cpp_compiler_script.js";
+import { types as js_types, arrow_function_declaration, parse as ecmascript_parse } from "@candlefw/js";
 export function LRParserCompilerCPP(states, grammar, env) {
     //Build new env variables if they are missing 
     if (!grammar.bodies) {

@@ -13,6 +13,7 @@ import body from "./production_body_constructor.js";
 
 import {Grammar} from "../types/grammar";
 import { GrammarParserEnvironment } from "./grammar_compiler_environment";
+import { ParserEnvironment } from "../types/parser_environment.js";
 
 
 async function sleep(data: AwaitTracker) : Promise<void> {
@@ -75,7 +76,7 @@ export async function grammarParser(
         result = parser(
             whind(grammar_string),
             hcg_parser_data,
-            constructCompilerEnvironment(
+            <ParserEnvironment> constructCompilerEnvironment(
                 grammar_file_url,
                 global_pending_files,
                 local_pending_files,
@@ -88,12 +89,15 @@ export async function grammarParser(
     if (result.error) { throw result.error }
 
     productions.uri = grammar_file_url;
-    productions.LU = new Map(productions.map(p => [p.name, p]));
+
+    //load in productions from the current grammar file into Lookup
+    productions.LU = new Map(productions.map(p => [<string>p.name, p]));
 
     //Pause here to allow impoted productions to process.
     await sleep(local_pending_files);
 
-    productions.LU = new Map(productions.map(p => [p.name, p]));
+    //Reload all productions that have been identified in all grammar files.
+    productions.LU = new Map(productions.map(p => [<string>p.name, p]));
 
     //If the production is at the root of the import tree, then complete the processing of production data. 
     if (unique_grammar_file_id == 112) {
@@ -104,7 +108,7 @@ export async function grammarParser(
         //Setup the productions object
         productions.forEach((p, i) => (p.id = i));
         productions.symbols = null;
-        productions.meta = productions.meta || [];
+        productions.meta = productions.meta || {};
         productions.reserved = new Set();
 
         convertProductionNamesToIndexes(productions, productions.LU);
@@ -118,11 +122,10 @@ export async function grammarParser(
         if (!productions.meta.ignore)
             productions.meta.ignore = [];
 
-        for (const pre of productions.meta) {
+        for (const pre of productions.meta.preambles ) {
             if (pre)
                 switch (pre.type) {
                     case "error":
-
                         productions.meta.error.push(pre);
                         break;
                     case "ignore":
@@ -130,9 +133,9 @@ export async function grammarParser(
                         break;
                     case "symbols":
                         if (!productions.meta.symbols)
-                            productions.meta.symbols = new Map(pre.symbols.map(e => [e, { val: e }]));
+                            productions.meta.symbols = new Map(pre.symbols.map(e => [e.val, e]));
                         else
-                            pre.symbols.forEach(e => productions.meta.symbols.set(e, { val: e }));
+                            pre.symbols.forEach(e => productions.meta.symbols.set(e.val, e));
                         break;
                 }
         }

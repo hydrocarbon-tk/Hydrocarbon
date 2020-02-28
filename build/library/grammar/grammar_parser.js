@@ -50,9 +50,11 @@ export async function grammarParser(grammar_string, grammar_file_url, unique_gra
         throw result.error;
     }
     productions.uri = grammar_file_url;
+    //load in productions from the current grammar file into Lookup
     productions.LU = new Map(productions.map(p => [p.name, p]));
     //Pause here to allow impoted productions to process.
     await sleep(local_pending_files);
+    //Reload all productions that have been identified in all grammar files.
     productions.LU = new Map(productions.map(p => [p.name, p]));
     //If the production is at the root of the import tree, then complete the processing of production data. 
     if (unique_grammar_file_id == 112) {
@@ -61,7 +63,7 @@ export async function grammarParser(grammar_string, grammar_file_url, unique_gra
         //Setup the productions object
         productions.forEach((p, i) => (p.id = i));
         productions.symbols = null;
-        productions.meta = productions.meta || [];
+        productions.meta = productions.meta || {};
         productions.reserved = new Set();
         convertProductionNamesToIndexes(productions, productions.LU);
         //Insure meta error and ignore arrays are present to prevent errors in grammar compiling,
@@ -70,7 +72,7 @@ export async function grammarParser(grammar_string, grammar_file_url, unique_gra
             productions.meta.error = [];
         if (!productions.meta.ignore)
             productions.meta.ignore = [];
-        for (const pre of productions.meta) {
+        for (const pre of productions.meta.preambles) {
             if (pre)
                 switch (pre.type) {
                     case "error":
@@ -81,9 +83,9 @@ export async function grammarParser(grammar_string, grammar_file_url, unique_gra
                         break;
                     case "symbols":
                         if (!productions.meta.symbols)
-                            productions.meta.symbols = new Map(pre.symbols.map(e => [e, { val: e }]));
+                            productions.meta.symbols = new Map(pre.symbols.map(e => [e.val, e]));
                         else
-                            pre.symbols.forEach(e => productions.meta.symbols.set(e, { val: e }));
+                            pre.symbols.forEach(e => productions.meta.symbols.set(e.val, e));
                         break;
                 }
         }

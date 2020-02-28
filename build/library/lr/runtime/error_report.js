@@ -6,7 +6,8 @@ export function errorReport(tk, lex, off, cycles, total_cycles, fork_depth) {
             cycles,
             total_cycles,
             off,
-            fork_depth
+            fork_depth,
+            efficiency: 0
         };
     }
     else {
@@ -16,7 +17,8 @@ export function errorReport(tk, lex, off, cycles, total_cycles, fork_depth) {
             cycles,
             total_cycles,
             off,
-            fork_depth
+            fork_depth,
+            efficiency: 0
         };
     }
 }

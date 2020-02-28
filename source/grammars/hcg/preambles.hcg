@@ -41,7 +41,7 @@
 																		
 																		↦cstr{ 
 																			this.type="symbols"; 
-																			this.symbols = $sym3.map(sym => (sym.val ? sym.val : sym));
+																			this.symbols = $sym3;
 																			this.symbols.map(sym=>sym.val ? sym.val : sym ).forEach(lex.addSymbol.bind(lex));
 																		 }
 

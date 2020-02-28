@@ -1,6 +1,5 @@
 
-    original_body:any;
-    original_body:any;import { processClosure } from "../../util/common.js";
+import { processClosure } from "../../util/common.js";
 import { LRState, ParserAction } from "../../types/LRState.js";
 import { Item } from "../../util/item.js";
 import { Grammar, SymbolType, Symbol, ProductionBody } from "../../types/grammar.js";
@@ -151,9 +150,11 @@ export default class StateProcessor {
 
             if (item.USED)
                 continue;
-
+            //@ts-ignore
             if (body.error.has(offset)) body.error.get(offset).forEach(s => actions.push(this.errorAtSymbol(grammar, state, s, body, item)));
+            //@ts-ignore
             if (body.reset.has(offset)) body.reset.get(offset).forEach(s => actions.push(this.resetAtSymbol(grammar, state, s, item)));
+            //@ts-ignore
             if (body.ignore.has(offset)) body.ignore.get(offset).forEach(s => actions.push(this.ignoreAtSymbol(grammar, state, s, item)));
 
             if (item.atEND || symbol.type == SymbolType.EMPTY) { //At an accepting state for this input

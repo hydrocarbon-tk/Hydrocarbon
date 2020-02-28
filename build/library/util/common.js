@@ -1,11 +1,11 @@
-import whind from "source/typescript/util/@candlefw/whind";
+import whind from "@candlefw/whind";
 export const MASK = whind.types.symbol | whind.types.operator | whind.types.open_bracket | whind.types.close_bracket | whind.types.string;
 export const EMPTY_PRODUCTION = "{!--EMPTY_PRODUCTION--!}";
 export const isNonTerm = (f) => f.type == "production";
-import { Item } from "./item.ts";
-import { FIRST } from "./first.js.js";
-import { FOLLOW } from "./follow.js.js";
-import { processClosure } from "./process_closure.js.js";
+import { Item } from "./item.js";
+import { FIRST } from "./first.js";
+import { FOLLOW } from "./follow.js";
+import { processClosure } from "./process_closure.js";
 export { Item, FOLLOW, FIRST, processClosure };
 export const types = whind.types;
 const production_stack_arg_name = "sym", environment_arg_name = "env", lexer_arg_name = "lex";

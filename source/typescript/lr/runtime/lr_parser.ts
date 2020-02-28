@@ -346,7 +346,7 @@ function parser(
         efficiency: cycles / total_cycles
     };
 }
-stringstring
+
 /**
     Parses an input. Returns an object with parse results and an error flag if parse could not complete.
     @param lex: Lexer - lexer object with an interface defined in candlefw/whind.

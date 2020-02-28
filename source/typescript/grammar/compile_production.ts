@@ -1,6 +1,6 @@
 import { Lexer } from "@candlefw/whind";
 
-import { Production, Symbol } from "../types/grammar.js";
+import { Production, Symbol, ProductionBodyFunction } from "../types/grammar.js";
 import { GrammarParserEnvironment } from "./grammar_compiler_environment.js";
 
 const
@@ -137,7 +137,7 @@ export default function(production : Production, env :GrammarParserEnvironment, 
 
             switch (new_sym.type) {
                 case "INLINE":
-                    body.functions.push(new_sym);
+                    body.functions.push(<ProductionBodyFunction><unknown>new_sym);
                     extract = true;
                     break;
                 case "exc":

@@ -1,5 +1,8 @@
-import { ProductionBody, Grammar, Symbol } from "../types/grammar";
-export declare function SymbolToString(sym: Symbol): string;
+import { ProductionBody, Grammar, Symbol, SymbolType } from "../types/grammar";
+export declare function SymbolToString(sym: {
+    type?: SymbolType;
+    val: string;
+}): string;
 export declare class Item extends Array {
     static fromArray(array: Item): Item;
     USED: boolean;
@@ -7,7 +10,7 @@ export declare class Item extends Array {
     constructor(body_id: number, length: number, offset: number, follow: Symbol);
     get atEND(): boolean;
     get v(): string | number;
-    get p(): any;
+    get p(): number;
     get id(): string;
     get full_id(): string;
     get body(): any;

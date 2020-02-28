@@ -1,4 +1,7 @@
-export function CONSTRUCT_LL1_PARSETABLE(grammer){
+import { Grammar } from "../types/grammar";
+
+export function CONSTRUCT_LL1_PARSETABLE(grammer:Grammar){
+	
 	let first = CONSTRUCT_FIRST(grammer);
 
 	let follow = CONSTRUCT_FOLLOW(grammer, first);

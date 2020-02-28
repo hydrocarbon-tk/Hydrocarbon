@@ -46,7 +46,7 @@
 
 # Productions symbols are categorized into several groups in:
 
-<> head → pre::preamble prd::productions 				↦return { env.productions.meta = $sym1 }
+<> head → pre::preamble prd::productions 				↦return { env.productions.meta.preambles = $sym1 }
 
 # This annotated grammar definition is continued in preambles.hcg
 

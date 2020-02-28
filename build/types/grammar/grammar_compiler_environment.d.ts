@@ -41,11 +41,11 @@ export interface GrammarParserEnvironment {
      */
     meta_imported_productions: ImportedProductions;
     functions: {
-        compileProduction: any;
-        importProduction: any;
-        importData: any;
-        body: any;
-        groupProduction: any;
-        listProduction: any;
+        compileProduction?: any;
+        importProduction?: any;
+        importData?: any;
+        body?: any;
+        groupProduction?: any;
+        listProduction?: any;
     };
 }

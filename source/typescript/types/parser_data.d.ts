@@ -32,4 +32,5 @@ export interface ParserData {
     eh: Array<ErrorHandler>;
     gtk: (arg0: Lexer, arg1: TokenLookupMap, arg2?: boolean) => number;
     ty: any;
+    fm: Array<number>;
 }

@@ -1,1 +1,2 @@
-export declare function CONSTRUCT_LL1_PARSETABLE(grammer: any): Map<any, any>;
+import { Grammar } from "../types/grammar";
+export declare function CONSTRUCT_LL1_PARSETABLE(grammer: Grammar): Map<any, any>;

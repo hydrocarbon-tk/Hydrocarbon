@@ -32,12 +32,12 @@
 
 <> grouped_delimiter →  θnl │ θws									
 
-<> grouped_symbol →  θany(+") 															
+<> grouped_symbol →  θany(+") 						↦cstr{ this.type = "symbol"; this.val = $sym1 }													
 
 <> ignore_symbol → generated_symbol
 	│ literal_symbol
 	│ escaped_symbol
-	│ θany
+	│ θany											↦cstr{ this.type = "symbol"; this.val = $sym1 }
 
 <> terminal_symbol → generated_symbol
 	│ literal_symbol

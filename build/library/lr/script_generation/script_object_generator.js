@@ -1,8 +1,9 @@
 /** Compiles a stand alone JS parser from a LR rules table and env object **/
-import createStateArrays from "./create_state_arrays.mjs";
-import { verboseTemplate } from "./data_object_template.js";
-import { types as t, filloutGrammar } from "../../util/common.mjs";
 import { types as js_types, arrow_function_declaration, parse as ecmascript_parse } from "@candlefw/js";
+import createStateArrays from "./create_state_arrays.js";
+import { verboseTemplate } from "./data_object_template.js";
+import { types as t, filloutGrammar } from "../../util/common.js";
+import { SymbolType } from "source/typescript/types/grammar";
 function generateCompactFunction(function_string) {
     //return function_string.replace(/(anonymous)?[\n\t]*/g, "");
     let fn = ecmascript_parse(function_string).statements;
@@ -60,7 +61,15 @@ export default function GenerateLRParseDataObject(states, grammar, env) {
     //Convert all terminals to indices and create lookup map for terminals
     SYM_LU = new Map([
         ...[...GEN_SYM_LU.entries()].map(e => [types[e[0]], e[1]]),
-        ...[...grammar.meta.all_symbols.values()].map((e, i) => ([(e.type == "generated") ? (types[e[0]]) : e.val, (e.type == "generated") ? GEN_SYM_LU.get(e.val) : i + SYMBOL_INDEX_OFFSET]))
+        ...[...grammar.meta.all_symbols.values()]
+            .map((e, i) => [
+            (e.type == SymbolType.GENERATED)
+                ? types[e[0]]
+                : e.val,
+            (e.type == SymbolType.GENERATED)
+                ? GEN_SYM_LU.get(e.val)
+                : i + SYMBOL_INDEX_OFFSET
+        ])
     ]), { state_functions, goto_map_lookup, state_str_functions, state_maps, goto_maps, fork_map } = createStateArrays(grammar, states, env, functions, SYM_LU, types);
     for (let i = 0; i < states.length; i++) {
         const production = grammar.bodies[states[i].body].production;

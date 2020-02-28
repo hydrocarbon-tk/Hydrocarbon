@@ -6,7 +6,6 @@ import { Grammar } from "../../types/grammar.js";
 import { ParserEnvironment } from "../../types/parser_environment.js";
 import { LRState } from "../../types/LRState.js";
 import { ItemSet } from "./ItemSet.js";
-import { StateActionEnum } from "../../types/state_action_enums.js";
 declare type WorkerContainer = {
     target: Worker;
     id: number;
@@ -37,8 +36,8 @@ export declare class LRMultiThreadRunner {
     errors: any;
     processed_states: Map<string, Set<string>>;
     constructor(grammar: Grammar, env: ParserEnvironment, env_url: string, resolver_constructor?: typeof StateResolver);
-    resolveNewState(state: StateActionEnum): void;
-    mergeWorkerData(wkr: WorkerContainer, to_process_items: Array<ItemSet>, state: StateActionEnum, errors: any): Promise<void>;
+    resolveNewState(state: LRState): void;
+    mergeWorkerData(wkr: WorkerContainer, to_process_items: Array<ItemSet>, state: LRState, errors: any): Promise<void>;
     run(): Generator<{
         errors: any;
         states: Map<string, LRState>;
