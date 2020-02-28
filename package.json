@@ -9,6 +9,7 @@
   },
   "type": "module",
   "scripts": {
+    "build":"tsc",
     "prepublish": "cp ./node_modules/@candlefw/whind/build/whind.js ./data",
     "test": "echo \"Error: no test specified\" && exit 1",
     "compile.grammar": "hydrocarbon compile --unattended -t mjs -o ./source/typescript/grammar ./source/grammars/hcg/hcg.hcg",
