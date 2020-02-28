@@ -9,9 +9,8 @@ import StateResolver from "./state_resolver_mt.js";
 import * as os from 'os';
 import { Grammar, SymbolType } from "../../types/grammar.js";
 import { ParserEnvironment } from "../../types/parser_environment.js";
-import { LRState } from "../../types/LRState.js";
-import { ItemSet } from "./ItemSet.js";
-import { StateActionEnum } from "../../types/state_action_enums.js";
+import { LRState } from "../../types/lr_state.js";
+import { ItemSet } from "../../types/item_set.d.js";
 import { CompilerErrorStore } from "./compiler_error_store.js";
 
 

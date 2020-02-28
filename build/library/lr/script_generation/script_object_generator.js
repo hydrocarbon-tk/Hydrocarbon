@@ -1,9 +1,10 @@
 /** Compiles a stand alone JS parser from a LR rules table and env object **/
+//@ts-ignore
 import { types as js_types, arrow_function_declaration, parse as ecmascript_parse } from "@candlefw/js";
 import createStateArrays from "./create_state_arrays.js";
 import { verboseTemplate } from "./data_object_template.js";
 import { types as t, filloutGrammar } from "../../util/common.js";
-import { SymbolType } from "source/typescript/types/grammar";
+import { SymbolType } from "../../types/grammar";
 function generateCompactFunction(function_string) {
     //return function_string.replace(/(anonymous)?[\n\t]*/g, "");
     let fn = ecmascript_parse(function_string).statements;
@@ -40,7 +41,9 @@ export default function GenerateLRParseDataObject(states, grammar, env) {
     if (states.type !== "lr")
         throw new Error("");
     const GEN_SYM_LU = new Map(), types = Object.assign({}, t);
+    //@ts-ignore
     types.any = 200;
+    //@ts-ignore
     types.keyword = 201;
     let n = 0;
     for (const a in types)

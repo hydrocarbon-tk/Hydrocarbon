@@ -12,7 +12,7 @@ import listProduction from "./list_production_constructor.js";
 import body from "./production_body_constructor.js";
 
 import {Grammar} from "../types/grammar";
-import { GrammarParserEnvironment } from "./grammar_compiler_environment";
+import { GrammarParserEnvironment } from "../types/grammar_compiler_environment";
 import { ParserEnvironment } from "../types/parser_environment.js";
 
 

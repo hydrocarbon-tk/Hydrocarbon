@@ -1,13 +1,13 @@
 /** Compiles a stand alone JS parser from a LR rules table and env object **/
-
+//@ts-ignore
 import { types as js_types, arrow_function_declaration, parse as ecmascript_parse } from "@candlefw/js";
 
 import createStateArrays from "./create_state_arrays.js";
 import { verboseTemplate } from "./data_object_template.js";
 import { types as t, filloutGrammar } from "../../util/common.js";
-import { LRStates } from "source/typescript/types/LRState";
-import { Grammar, SymbolType } from "source/typescript/types/grammar";
-import { ParserEnvironment } from "source/typescript/types/parser_environment.js";
+import { LRStates } from "../../types/lr_state";
+import { Grammar, SymbolType } from "../../types/grammar";
+import { ParserEnvironment } from "../../types/parser_environment";
 
 function generateCompactFunction(function_string:string) {
 
@@ -61,8 +61,11 @@ export default function GenerateLRParseDataObject(states:LRStates, grammar:Gramm
     const
         GEN_SYM_LU = <Map<string|number, number>>new Map(),
         types = Object.assign({}, t);
-
+    
+    //@ts-ignore
     types.any = 200;
+    
+    //@ts-ignore
     types.keyword = 201;
 
     let n = 0;

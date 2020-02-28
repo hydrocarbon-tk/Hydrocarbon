@@ -1,5 +1,5 @@
 import { Production, Symbol } from "../types/grammar";
-import { GrammarParserEnvironment, ImportedProductionList } from "./grammar_compiler_environment";
+import { GrammarParserEnvironment, ImportedProductionList } from "../types/grammar_compiler_environment";
 
 export default class implements Production {
 

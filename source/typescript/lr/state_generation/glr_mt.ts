@@ -84,7 +84,7 @@ class GLStateResolver extends StateResolver {
 }
 
 import { LRMultiThreadProcessWorker, LRMultiThreadRunner } from "./lr_mt.js";
-import { ParserAction, LRState } from "../../types/LRState.js";
+import { ParserAction, LRState } from "../../types/lr_state.js";
 import { Grammar } from "../../types/grammar.js";
 
 if (!isMainThread) {

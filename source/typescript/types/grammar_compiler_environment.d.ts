@@ -1,8 +1,8 @@
 import URL from "@candlefw/url"
 
-import { Grammar, ProductionBody, Production } from "../types/grammar";
+import { Grammar, ProductionBody, Production } from "./grammar";
 
-import { AwaitTracker } from "./grammar_parser";
+import { AwaitTracker } from "../grammar/grammar_parser";
 
 export type ImportedProductionList = Array<Production> & {
     SYMBOL_LIST: boolean;

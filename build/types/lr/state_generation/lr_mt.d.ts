@@ -4,8 +4,8 @@ import StateProcessor from "./state_processor_mt.js";
 import StateResolver from "./state_resolver_mt.js";
 import { Grammar } from "../../types/grammar.js";
 import { ParserEnvironment } from "../../types/parser_environment.js";
-import { LRState } from "../../types/LRState.js";
-import { ItemSet } from "./ItemSet.js";
+import { LRState } from "../../types/lr_state.js";
+import { ItemSet } from "../../types/item_set.d.js";
 declare type WorkerContainer = {
     target: Worker;
     id: number;
@@ -47,7 +47,7 @@ export declare class LRMultiThreadRunner {
         COMPLETE: boolean;
     } | {
         errors: any;
-        states: import("../../types/LRState.js").LRStates;
+        states: import("../../types/lr_state.js").LRStates;
         num_of_states: number;
         total_items: number;
         items_left: number;
@@ -63,7 +63,7 @@ export default function (grammar: Grammar, env: ParserEnvironment, env_path: str
     COMPLETE: boolean;
 } | {
     errors: any;
-    states: import("../../types/LRState.js").LRStates;
+    states: import("../../types/lr_state.js").LRStates;
     num_of_states: number;
     total_items: number;
     items_left: number;

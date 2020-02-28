@@ -4,7 +4,7 @@ import {
     reduceCollision
 } from "./error.js";
 import { Grammar } from "../../types/grammar.js";
-import { LRState, LRStates, ParserAction } from "../../types/LRState.js";
+import { LRState, LRStates, ParserAction } from "../../types/lr_state.d";
 import { StateActionEnum } from "../../types/state_action_enums.js";
 import { CompilerErrorStore } from "./compiler_error_store.js";
 
@@ -110,7 +110,7 @@ export default class StateResolver {
 
         for (const action of new_state.to_process_actions) {
 
-            action.item = Item.fromArray(action.item, grammar);
+            action.item = Item.fromArray(action.item);
 
             const symbol = action.symbol;
 

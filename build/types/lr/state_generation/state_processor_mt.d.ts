@@ -1,7 +1,6 @@
-import { LRState, ParserAction } from "../../types/LRState.js";
+import { LRState, ParserAction } from "../../types/lr_state.js";
 import { Item } from "../../util/item.js";
 import { Grammar, Symbol, ProductionBody } from "../../types/grammar.js";
-import { ItemSet } from "./ItemSet.js";
 export default class StateProcessor {
     errorAtSymbol(grammar: Grammar, state: LRState, symbol: {
         type: any;
@@ -23,7 +22,7 @@ export default class StateProcessor {
         to_process_items?: undefined;
         state?: undefined;
     } | {
-        to_process_items: ItemSet[];
+        to_process_items: any[];
         state: LRState;
         error: string;
         msg?: undefined;

@@ -1,4 +1,4 @@
-import { LRState } from "../../types/LRState.js";
+import { LRState } from "../../types/lr_state.js";
 export default function (grammar: any, env: any, env_path: any): Generator<{
     errors: any;
     states: Map<string, LRState>;
@@ -8,7 +8,7 @@ export default function (grammar: any, env: any, env_path: any): Generator<{
     COMPLETE: boolean;
 } | {
     errors: any;
-    states: import("../../types/LRState.js").LRStates;
+    states: import("../../types/lr_state.js").LRStates;
     num_of_states: number;
     total_items: number;
     items_left: number;

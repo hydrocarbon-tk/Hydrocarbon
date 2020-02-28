@@ -1,5 +1,5 @@
 import { ProductionBody } from "source/typescript/types/grammar.js";
-import { ParserAction } from "source/typescript/types/LRState.js";
+import { ParserAction } from "source/typescript/types/lr_state.js";
 import { ParserEnvironment } from "source/typescript/types/parser_environment.js";
 export declare function setNode(funct: any, length: any, functions: any, return_val: any, COMPILE_FUNCTION?: boolean): {
     str: string;

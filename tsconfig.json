@@ -1,7 +1,7 @@
 {
     "compileOnSave": true,
+    "files": ["./source/typescript/hydrocarbon.ts"],
     "include": ["./source/typescript/**/*"],
-    "exclude": ["./source/cli/*","./source/cpp/*"],
     "compilerOptions": {
         "types" : ["@types/node"],
         "allowJs": true,

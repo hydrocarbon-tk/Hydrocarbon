@@ -1,5 +1,5 @@
 import { Grammar } from "source/typescript/types/grammar.js";
-import { LRStates } from "source/typescript/types/LRState.js";
+import { LRStates } from "source/typescript/types/lr_state.js";
 import { ParserEnvironment } from "source/typescript/types/parser_environment.js";
 import { processStateTransition, convertSymbols } from "./processStateTransition.js";
 

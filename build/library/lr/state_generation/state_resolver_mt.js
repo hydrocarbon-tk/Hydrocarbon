@@ -69,7 +69,7 @@ export default class StateResolver {
             existing_state.actions = new Map();
         states.set(sid, existing_state);
         for (const action of new_state.to_process_actions) {
-            action.item = Item.fromArray(action.item, grammar);
+            action.item = Item.fromArray(action.item);
             const symbol = action.symbol;
             if (action.item.len <= 0)
                 continue;

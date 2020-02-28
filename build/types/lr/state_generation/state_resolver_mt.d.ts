@@ -1,5 +1,5 @@
 import { Grammar } from "../../types/grammar.js";
-import { LRState, LRStates, ParserAction } from "../../types/LRState.js";
+import { LRState, LRStates, ParserAction } from "../../types/lr_state.d";
 import { CompilerErrorStore } from "./compiler_error_store.js";
 export default class StateResolver {
     handleShiftReduceCollision(grammar: Grammar, state: LRState, shift_action: ParserAction, reduce_action: ParserAction, errors: CompilerErrorStore): void;

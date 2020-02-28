@@ -1,5 +1,5 @@
 import { Item } from "../util/item.js";
-import { SymbolType, Production } from "./grammar.d.js";
+import { SymbolType, Production } from "./grammar.js";
 import { StateActionEnum } from "./state_action_enums.js";
 
 export interface ParserAction{

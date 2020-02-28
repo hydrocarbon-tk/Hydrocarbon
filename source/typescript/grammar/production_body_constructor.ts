@@ -1,8 +1,9 @@
+//@ts-ignore
 import { null_literal, member_expression, numeric_literal, identifier, parse as ecmascript_parse } from "@candlefw/js";
 import { Lexer } from "@candlefw/whind";
 
 import { Production, Symbol,ProductionBodyFunction,ProductionBodyReduceFunction, ProductionBody } from "../types/grammar.js";
-import { GrammarParserEnvironment } from "./grammar_compiler_environment.js";
+import { GrammarParserEnvironment } from "../types/grammar_compiler_environment.d.js";
 
 export default class implements ProductionBody {
     

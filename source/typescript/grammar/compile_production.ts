@@ -1,7 +1,7 @@
 import { Lexer } from "@candlefw/whind";
 
 import { Production, Symbol, ProductionBodyFunction } from "../types/grammar.js";
-import { GrammarParserEnvironment } from "./grammar_compiler_environment.js";
+import { GrammarParserEnvironment } from "../types/grammar_compiler_environment.js";
 
 const
     EXCLUDE_MAP = 1,

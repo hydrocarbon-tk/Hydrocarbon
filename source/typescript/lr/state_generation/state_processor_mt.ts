@@ -1,10 +1,10 @@
 
 import { processClosure } from "../../util/common.js";
-import { LRState, ParserAction } from "../../types/LRState.js";
+import { LRState, ParserAction } from "../../types/lr_state.js";
 import { Item } from "../../util/item.js";
 import { Grammar, SymbolType, Symbol, ProductionBody } from "../../types/grammar.js";
 import { StateActionEnum } from "../../types/state_action_enums.js";
-import { ItemSet } from "./ItemSet.js";
+import { ItemSet } from "../../types/item_set.d";
 
 
 

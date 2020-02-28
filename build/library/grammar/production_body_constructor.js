@@ -1,3 +1,4 @@
+//@ts-ignore
 import { null_literal, member_expression, numeric_literal, identifier, parse as ecmascript_parse } from "@candlefw/js";
 export default class {
     constructor(sym, env, lex, form = (~(0xFFFFFFFFFFFFF << sym[0].body.length)) & 0xFFFFFF) {
