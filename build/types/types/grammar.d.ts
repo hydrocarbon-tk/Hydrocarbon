@@ -101,6 +101,7 @@ export interface Production {
     IMPORT_APPEND?: boolean;
     IMPORT_OVERRIDE?: boolean;
     RESOLVED?: boolean;
+    IMPORTED?: boolean;
     resolveFunction?: (arg0: Production) => void;
     graph_id?: number;
 }
@@ -123,6 +124,7 @@ export declare type Grammar = Array<Production> & {
         ignore?: any[];
         preambles?: Preamble[];
     };
+    imported: boolean;
     uri: string;
     symbols: Array<any>;
     reserved: Set<any>;

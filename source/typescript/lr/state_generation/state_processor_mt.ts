@@ -64,7 +64,8 @@ export default class StateProcessor {
         };
     }
 
-    reduceAtSymbol(grammar: Grammar, state: LRState, symbol: Symbol, body: ProductionBody, item: Item)  :ParserAction{        
+    reduceAtSymbol(grammar: Grammar, state: LRState, symbol: Symbol, body: ProductionBody, item: Item)  :ParserAction{      
+  
         return {
             name: StateActionEnum.REDUCE,
             state_real_id: state.real_id,

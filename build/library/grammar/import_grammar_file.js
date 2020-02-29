@@ -4,7 +4,7 @@ export default function (sym, env) {
     const 
     //load data from the other file
     uri = URL.resolveRelative(url, FILE_URL + ""), key = uri + "";
-    env.imported.set(id, key);
+    env.imported_grammar_name_resolution_map.set(id, key);
     if (meta_imported_productions.has(key)) {
         const p = meta_imported_productions.get(key);
         if (!p.SYMBOL_LIST || p.PENDING)
@@ -17,7 +17,7 @@ export default function (sym, env) {
     uri.fetchText().then(async (txt) => {
         let prods = null;
         try {
-            prods = await env.grammarParser(txt, uri, env.stamp * env.body_count ** AWAIT.cont + 1 + (Math.random() * 10000) | 0, meta_imported_productions, PENDING_FILES);
+            prods = (await env.grammarParser(txt, uri, env.stamp * env.body_count ** AWAIT.cont + 1 + (Math.random() * 10000) | 0, meta_imported_productions, PENDING_FILES));
         }
         catch (e) {
             console.warn("Error encountered in " + uri);
@@ -68,7 +68,7 @@ export default function (sym, env) {
         }
         if (!EXISTING) {
             env.productions.push(...prods);
-            env.productions.meta.push(...prods.meta);
+            env.productions.meta.preambles.push(...prods.meta.preambles);
             meta_imported_productions.set(key, prods);
         }
         env.PENDING_FILES.count--;

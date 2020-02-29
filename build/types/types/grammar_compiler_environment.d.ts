@@ -5,7 +5,7 @@ export declare type ImportedProductionList = Array<Production> & {
     SYMBOL_LIST: boolean;
     LU: Map<string, Production>;
 };
-export declare type ImportedProductions = Map<string, ImportedProductionList>;
+export declare type ImportedProductions = Map<string, Grammar>;
 export interface GrammarParserEnvironment {
     /**
      * Polls the count value of an object and resolves the promise
@@ -24,7 +24,7 @@ export interface GrammarParserEnvironment {
     body_count: number;
     stamp: string;
     /**
-     * The index of the symbol in production that is currently being parsed.
+     * The index of the body being parsed in the current production.
      */
     body_offset: number;
     /**
@@ -35,7 +35,7 @@ export interface GrammarParserEnvironment {
      * Maps local grammar file identifiers to global grammar file identifiers to
      * resolve grammar files that have been imported from multiple sources
      */
-    imported: Map<string, string>;
+    imported_grammar_name_resolution_map: Map<string, string>;
     /**
      * Productions imported through the importProductionConstructor
      */

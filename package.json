@@ -2,10 +2,10 @@
   "name": "@candlefw/hydrocarbon",
   "version": "0.2.1-ts",
   "description": "Parser Compiler",
-  "main": "build/library/hydrocarbon.js",
-  "types": "build/types/hydrocarbon.d.ts",
+  "main": "./build/library/hydrocarbon.js",
+  "types": "./build/types/hydrocarbon.d.ts",
   "bin": {
-    "hydrocarbon": "./source/cli/cli"
+    "hydrocarbon": "./source/cli/cli.js"
   },
   "type": "module",
   "scripts": {
@@ -13,7 +13,7 @@
     "prepublish": "cp ./node_modules/@candlefw/whind/build/whind.js ./data",
     "test": "echo \"Error: no test specified\" && exit 1",
     "compile.grammar": "hydrocarbon compile --unattended -t mjs -o ./source/typescript/grammar ./source/grammars/hcg/hcg.hcg",
-    "compile.grammar.test": "hydrocarbon compile --parser glalr -d --unattended -t mjs -o ./source/typescript/grammar ./source/grammars/hcg/hcg.hcg",
+    "compile.grammar.test": "hydrocarbon compile -d --unattended -t mjs -o ./source/typescript/grammar ./source/grammars/hcg/hcg.hcg",
     "compile.test": "hydrocarbon compile --parser glalr -d -m --unattended ./source/grammars/misc/test3.hcg",
     "compile.test.table": "hydrocarbon compile --parser glalr -d -m --unattended ./source/grammars/misc/test.hcg",
     "compile.default": "hydrocarbon compile --parser glalr -d -u -m ./source/grammars/misc/default-productions.hcg"

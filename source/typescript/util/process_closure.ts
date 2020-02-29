@@ -1,8 +1,10 @@
 import { Item } from "./item.js";
 
 import { FIRST } from "./first.js";
+import { Grammar, Symbol } from "../types/grammar.js";
+import { CompilerErrorStore } from "../lr/state_generation/compiler_error_store.js";
 
-export function processClosure(items, grammar, error, excludes = [], offset = 0, added = new Set()) {
+export function processClosure(items: Item[], grammar:Grammar, error:CompilerErrorStore, excludes : [], offset = 0, added = new Set()) {
 
     let exclusion_count = 0;
 
@@ -60,7 +62,7 @@ export function processClosure(items, grammar, error, excludes = [], offset = 0,
             continue;
 
         if (index < len && B.type == "production") {
-            let first;
+            let first : Symbol[];
 
             if (Be.length > 0)
                 first = FIRST(grammar, ...Be, b);

@@ -23,7 +23,7 @@ export default class implements Production {
         this.resolveFunction = () => {};
 
         const
-            grammar_id = env.imported.get(sym[0]),
+            grammar_id = env.imported_grammar_name_resolution_map.get(sym[0]),
             productions = env.meta_imported_productions.get(grammar_id);
 
         if (productions) {

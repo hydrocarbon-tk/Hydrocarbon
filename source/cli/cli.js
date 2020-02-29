@@ -10,8 +10,8 @@ import URL from "@candlefw/url";
 
 URL.polyfill();
 
-import runner from "./compiler_runner.mjs"
-import parser from "../lr/runtime/lr_parser"
+import runner from "./compiler_runner.js"
+import parser from "../../build/library/lr/runtime/lr_parser.js"
 
 //Third Party stuff
 import * as commander from "commander";
@@ -28,7 +28,7 @@ const
     fn_regex = /(file\:\/\/)(\/)*([A-Z]\:)*/g,
     Lexer_Path = path.join("/",
         import.meta.url.replace(fn_regex, ""), "../../../data/whind"),
-    LEXER_SCRIPT = `${fs.readFileSync(Lexer_Path)} const lexer = whind.default;`,
+    LEXER_SCRIPT = "",//`${fs.readFileSync(Lexer_Path)} const lexer = whind.default;`,
     fsp = fs.promises,
 
 
@@ -88,7 +88,7 @@ async function write(name, parser_script, output_directory, type) {
             ext = ".h";
             break;
         case "mjs":
-            ext = ".mjs";
+            ext = ".js";
             break;
         case "cjs":
             ext = "_cjs";
@@ -96,7 +96,7 @@ async function write(name, parser_script, output_directory, type) {
         default:
         case "js":
         case "mjs":
-            ext = "";
+            ext = ".js";
             break;
     }
 
@@ -468,6 +468,7 @@ program
                 process.exit(1);
             }
 
+//            process.exit(-1)
 
             let states = null,
                 script_string = "";

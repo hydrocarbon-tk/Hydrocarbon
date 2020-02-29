@@ -13,9 +13,9 @@ export declare class Item extends Array {
     get p(): number;
     get id(): string;
     get full_id(): string;
-    get body(): any;
-    get len(): any;
-    get offset(): any;
+    get body(): number;
+    get len(): number;
+    get offset(): number;
     body_(grammar: Grammar): ProductionBody;
     sym(grammar: Grammar): Symbol;
     render(grammar: Grammar): string;

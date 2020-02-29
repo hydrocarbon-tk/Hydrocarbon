@@ -1,6 +1,6 @@
 import { Item } from "./item.js";
 import { FIRST } from "./first.js";
-export function processClosure(items, grammar, error, excludes = [], offset = 0, added = new Set()) {
+export function processClosure(items, grammar, error, excludes, offset = 0, added = new Set()) {
     let exclusion_count = 0;
     const bodies = grammar.bodies, g = items.length;
     for (let i = offset; i < g; i++) {

@@ -35,36 +35,36 @@ export class Item extends Array {
         this.USED = false;
     }
 
-    get atEND() {
+    get atEND() : boolean {
         return this.offset >= this.len;
     }
 
-    get v() {
+    get v() : string | number {
         return this.follow.val;
     }
 
-    get p() {
+    get p() :number {
         return this.follow.precedence;
     }
 
-    get id() {
+    get id(): string {
         return "" + this.body + "" + this.len + "" + this.offset + "|";
     }
 
-    get full_id() {
+    get full_id() : string{
         return this.id + this.v;
     }
 
-    get body() {
+    get body() : number{
         return this[0];
     }
 
-    get len() {
+    get len() : number{
         return this[1];
     }
 
 
-    get offset() {
+    get offset(): number {
         return this[2];
     }
 
@@ -72,11 +72,11 @@ export class Item extends Array {
         return grammar.bodies[this.body];
     }
 
-    sym(grammar:Grammar) {
+    sym(grammar:Grammar): Symbol {
         return this.body_(grammar).sym[this.offset];
     }
 
-    render(grammar:Grammar) {
+    render(grammar:Grammar) :string {
         
         const a = this.body_(grammar).sym
             .map(sym => sym.type == "production" ? { val: "\x1b[38;5;8m" + grammar[sym.val].name.replace(/\$/, "::\x1b[38;5;153m") } : sym)

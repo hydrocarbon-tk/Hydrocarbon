@@ -9,7 +9,7 @@ export type ImportedProductionList = Array<Production> & {
     LU: Map<string, Production>;
 };
 
-export type ImportedProductions = Map<string, ImportedProductionList>;
+export type ImportedProductions = Map<string, Grammar>;
 
 export interface GrammarParserEnvironment {
     /**
@@ -28,8 +28,9 @@ export interface GrammarParserEnvironment {
     refs: Map<string, string>;
     body_count: number;
     stamp: string;
+
     /**
-     * The index of the symbol in production that is currently being parsed.
+     * The index of the body being parsed in the current production.
      */
     body_offset: number;
     /**
@@ -40,7 +41,7 @@ export interface GrammarParserEnvironment {
      * Maps local grammar file identifiers to global grammar file identifiers to
      * resolve grammar files that have been imported from multiple sources
      */
-    imported: Map<string, string>;
+    imported_grammar_name_resolution_map: Map<string, string>;
     /**
      * Productions imported through the importProductionConstructor
      */

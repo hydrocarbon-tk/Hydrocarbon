@@ -49,7 +49,7 @@ function constructCompilerEnvironment (
         refs: new Map(),
         body_count: 0,
         stamp: unique_grammar_file_id+"",
-        imported: new Map(),
+        imported_grammar_name_resolution_map: new Map(),
         meta_imported_productions,
         body_offset:0,
         prod_name:'',
@@ -133,10 +133,14 @@ export async function grammarParser(
                         break;
                     case "symbols":
                         if (!productions.meta.symbols)
-                            productions.meta.symbols = new Map(pre.symbols.map(e => [e.val, e]));
-                        else
-                            pre.symbols.forEach(e => productions.meta.symbols.set(e.val, e));
-                        break;
+                            productions.meta.symbols = new Map(pre.symbols.map(e => !e.type ? [e, {val:e}] : [e.val, e]));
+                        else{
+                            
+                            pre.symbols.forEach(e =>!e.type 
+                                ? productions.meta.symbols.set(e, {val:e})
+                                : productions.meta.symbols.set(e.val, e)
+                                );
+                        } break;
                 }
         }
     }

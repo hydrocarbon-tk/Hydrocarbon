@@ -112,7 +112,7 @@ export interface Production{
     IMPORT_APPEND?:boolean;
     IMPORT_OVERRIDE?:boolean;
     RESOLVED?:boolean;
-    
+    IMPORTED?:boolean
     resolveFunction?:(arg0:Production)=>void;
 
     graph_id?:number;
@@ -128,18 +128,33 @@ export interface Preamble{
 }
 
 export type Grammar = Array<Production> & {
+
     LU: Map<string, Production>;
+
     meta: {
+        
         all_symbols?: Map<string, Symbol>
+
         symbols? : Map<string, {val:string}>
+
         error?:any[],
+
         ignore?:any[],
+
         preambles?:Preamble[]
     };
+
+    imported:boolean;
+
     uri: string;
+
     symbols : Array<any>
+
     reserved: Set<any>
+
     SYMBOL_LIST:Array<Production>
+
     graph_id:number;
+
     bodies:Array<ProductionBody>
 };

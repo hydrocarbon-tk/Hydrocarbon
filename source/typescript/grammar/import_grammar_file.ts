@@ -1,6 +1,8 @@
 import URL from "@candlefw/url";
+import { GrammarParserEnvironment } from "../types/grammar_compiler_environment";
+import { Grammar } from "../types/grammar";
 
-export default function(sym, env) {
+export default function(sym, env : GrammarParserEnvironment) {
 
     const 
         FILE_URL = env.FILE_URL,
@@ -16,9 +18,7 @@ export default function(sym, env) {
 
         key = uri + "";
 
-
-    env.imported.set(id, key);
-
+    env.imported_grammar_name_resolution_map.set(id, key);
 
     if (meta_imported_productions.has(key)) {
         const p = meta_imported_productions.get(key);
@@ -31,10 +31,10 @@ export default function(sym, env) {
     env.PENDING_FILES.count++;
 
     uri.fetchText().then(async txt => {
-        let prods = null;
+        let prods : Grammar = null;
 
         try {
-            prods = await env.grammarParser(txt, uri, env.stamp * env.body_count ** AWAIT.cont + 1 + (Math.random() * 10000) | 0, meta_imported_productions, PENDING_FILES);
+            prods = <Grammar> (await env.grammarParser(txt, uri, env.stamp * env.body_count ** AWAIT.cont + 1 + (Math.random() * 10000) | 0, meta_imported_productions, PENDING_FILES));
         } catch (e) {
             console.warn("Error encountered in " + uri);
             throw e;
@@ -89,10 +89,10 @@ export default function(sym, env) {
             } else
                 EXISTING = true;
         }
-
+        
         if (!EXISTING) {
             env.productions.push(...prods);
-            env.productions.meta.push(...prods.meta);
+            env.productions.meta.preambles.push(...prods.meta.preambles);
             meta_imported_productions.set(key, prods);
         }
 

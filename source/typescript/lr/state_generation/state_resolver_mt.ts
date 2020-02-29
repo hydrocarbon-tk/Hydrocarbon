@@ -49,7 +49,6 @@ export default class StateResolver {
     */
     complete(states_map:Map<string, LRState>, grammar:Grammar) {
         
-
         const states = <LRStates> [...(states_map.values())];
 
         states.forEach((state, i) => state.id = i);
@@ -122,9 +121,8 @@ export default class StateResolver {
                 continue;
             }
 
-            
             const existing_action = existing_state.actions.get(symbol);
-
+                
             if (!existing_action) {
                 existing_state.actions.set(symbol, action);
             } else {
