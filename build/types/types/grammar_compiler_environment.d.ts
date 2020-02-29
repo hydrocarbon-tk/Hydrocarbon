@@ -22,7 +22,7 @@ export interface GrammarParserEnvironment {
     productions: Grammar;
     refs: Map<string, string>;
     body_count: number;
-    stamp: string;
+    stamp: number;
     /**
      * The index of the body being parsed in the current production.
      */

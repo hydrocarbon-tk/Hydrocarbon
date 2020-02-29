@@ -34,7 +34,7 @@ export default function(sym, env : GrammarParserEnvironment) {
         let prods : Grammar = null;
 
         try {
-            prods = <Grammar> (await env.grammarParser(txt, uri, env.stamp * env.body_count ** AWAIT.cont + 1 + (Math.random() * 10000) | 0, meta_imported_productions, PENDING_FILES));
+            prods = <Grammar> (await env.grammarParser(txt, uri, env.stamp * env.body_count ** AWAIT.count + 1 + (Math.random() * 10000) | 0, meta_imported_productions, PENDING_FILES));
         } catch (e) {
             console.warn("Error encountered in " + uri);
             throw e;

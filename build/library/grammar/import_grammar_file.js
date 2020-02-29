@@ -17,7 +17,7 @@ export default function (sym, env) {
     uri.fetchText().then(async (txt) => {
         let prods = null;
         try {
-            prods = (await env.grammarParser(txt, uri, env.stamp * env.body_count ** AWAIT.cont + 1 + (Math.random() * 10000) | 0, meta_imported_productions, PENDING_FILES));
+            prods = (await env.grammarParser(txt, uri, env.stamp * env.body_count ** AWAIT.count + 1 + (Math.random() * 10000) | 0, meta_imported_productions, PENDING_FILES));
         }
         catch (e) {
             console.warn("Error encountered in " + uri);
