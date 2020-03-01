@@ -3,39 +3,227 @@
 	"name": "Hydrocarbon Grammar",
 	"patterns": [
 		{
-			"include": "#keywords"
-		},
-		{
-			"include": "#strings"
-		},
-		{
 			"include": "#comments"
+		},
+		{
+			"include": "#importPreamble"
+		},
+		{
+			"include": "#preamble"
+		},
+		{
+			"include": "#production"
 		}
 	],
 	"repository": {
-		"comments":{
-			"patterns":[{
-				"name":"comment",
-				"match": "\\#.+"
-			}]
+		"importPreamble": {
+			"match": "(\\@IMPORT)\\s+([\\w-_\\/\\.\\@]+)\\s+(AS|as)\\s+([\\w]+)",
+			"captures": {
+				"1": {
+					"name": "keyword.other"
+				},
+				"2": {
+					"name": "string"
+				},
+				"3": {
+					"name": "keyword.other"
+				},
+				"4": {
+					"name": "operator.production-symbol"
+				}
+			}
 		},
-		"keywords": {
-			"patterns": [{
-				"name": "keyword.control.hydrocarbon-grammar",
-				"match": "\\b(if|while|for|return)\\b"
-			}]
-		},
-		"strings": {
-			"name": "string.quoted.double.hydrocarbon-grammar",
-			"begin": "\"",
-			"end": "\"",
+		"preamble": {
+			"begin": "(\\@\\w+)",
+			"end": "$\\n?",
+			"name": "keyword.other",
 			"patterns": [
 				{
-					"name": "constant.character.escape.hydrocarbon-grammar",
-					"match": "\\\\."
+					"include": "#symbols"
+				}
+			]
+		},
+		"functionReference": {
+			"name": "support.function",
+			"match": "↦\\s*\\w*\\s*\\^\\w+\\s*"
+		},
+		"function": {
+			"name": "support.function",
+			"begin": "↦\\s*\\w*\\s*{",
+			"end": "}",
+			"patterns": [
+				{
+					"include": "source.js"
+				}
+			]
+		},
+		"symbols": {
+			"patterns": [
+				{
+					"include": "#terminal-escaped-symbol"
+				},
+				{
+					"include": "#terminal-symbol"
+				},
+				{
+					"include": "#terminal-keyword"
+				},
+				{
+					"include": "#terminal-generated"
+				}
+			]
+		},
+		"terminal-keyword": {
+			"name": "keyword",
+			"match": "(\\τ[a-zA-Z\\_\\-]*|\\θ[a-zA-Z\\_\\-]*|ɛ)|(\\$oef)"
+		},
+		"terminal-generated": {
+			"name": "keyword",
+			"match": "(\\θ[a-zA-Z\\_\\-]*|\\θ[a-zA-Z\\_\\-]*|ɛ)|(\\$oef)"
+		},
+		"terminal-symbol": {
+			"name": "keyword",
+			"match": "[^\\θ\\\\\\w\\↦\\│\\[\\]\\#\\?\\→\\s][^\\\\\\(\\↦\\│\\)\\(\\[\\]\\#\\?\\→\\s]*"
+		},
+		"terminal-escaped-symbol": {
+			"name": "keyword",
+			"match": "\\\\[^\\s]+"
+		},
+		"nonterm": {
+			"name": "entity.name.class.production-instance",
+			"match": "\\w+"
+		},
+		"importTerm": {
+			"match": "(\\w+::)(\\w+)",
+			"captures": {
+				"1": {
+					"name": "operator.production-symbol"
+				},
+				"2": {
+					"name": "entity.name.class.production-instance"
+				}
+			}
+		},
+		"meta": {
+			"patterns": [
+				{
+					"include": "#symbol-actions"
+				},
+				{
+					"include": "#symbol-modifiers"
+				}
+			]
+		},
+		"symbol-actions": {
+			"name": "constant.numeric",
+			"begin": "(\\()\\s*(ERR|IGN|EXC|RED|RES)",
+			"end": "\\)",
+			"patterns": [
+				{
+					"include": "#symbols"
+				}
+			]
+		},
+		"symbol-modifiers": {
+			"name": "constant.numeric",
+			"match": "\\([\\+\\*].?\\)|\\?"
+		},
+		"groupedBody": {
+			"name": "operator.production-symbol",
+			"begin": "\\(",
+			"end": "\\)",
+			"patterns": [
+				{
+					"include": "#productionBodyContents"
+				},
+				{
+					"include": "#inlineProductionBody"
+				}
+			]
+		},
+		"productionBody": {
+			"name": "operator.production-symbol",
+			"begin": "│",
+			"end": "^\\s*(?=(<>|│))",
+			"patterns": [
+				{
+					"include": "#productionBodyContents"
+				}
+			]
+		},
+		"inlineProductionBody": {
+			"name": "operator.production-symbol",
+			"begin": "│",
+			"end": "\\s*(?=\\)|\\│)",
+			"patterns": [
+				{
+					"include": "#productionBodyContents"
+				},
+				{
+					"include": "#inlineProductionBody"
+				}
+			]
+		},
+		"productionBodyContents": {
+			"patterns": [
+				{
+					"include": "#meta"
+				},
+				{
+					"include": "#groupedBody"
+				},
+				{
+					"include": "#terminal-escaped-symbol"
+				},
+				{
+					"include": "#symbols"
+				},
+				{
+					"include": "#function"
+				},
+				{
+					"include": "#functionReference"
+				},
+				{
+					"include": "#importTerm"
+				},
+				{
+					"include": "#term"
+				},
+				{
+					"include": "#nonterm"
+				},
+				{
+					"include": "#comments"
+				}
+			]
+		},
+		"production": {
+			"name": "operator.production-symbol",
+			"begin": "(<>)?\\s*(\\w+)\\s*(→)",
+			"end": "^\\s*(?=<>)",
+			"captures": {
+				"2": {
+					"name": "entity.name.class.production"
+				}
+			},
+			"patterns": [
+				{
+					"include": "#productionBodyContents"
+				},
+				{
+					"include": "#productionBody"
+				}
+			]
+		},
+		"comments": {
+			"patterns": [
+				{
+					"name": "comment.block",
+					"match": "\\#.+"
 				}
 			]
 		}
 	},
-	"scopeName": "hydrocarbon"
+	"scopeName": "source.hydrocarbon"
 }

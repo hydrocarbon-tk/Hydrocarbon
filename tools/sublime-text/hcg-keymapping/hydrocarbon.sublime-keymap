@@ -1,0 +1,8 @@
+[
+   { "keys": ["shift+alt+e"], "command": "insert", "args": {"characters": "ɛ"}, "context":[{"key":"selector","operator":"equal","operand":"source.hydrocarbon_grammar"}] },
+	{ "keys": ["shift+alt+t"], "command": "insert", "args": {"characters": "τ"} , "context":[{"key":"selector","operator":"equal","operand":"source.hydrocarbon_grammar"}]},
+	{ "keys": ["shift+alt+c"], "command": "insert", "args": {"characters": "θ"} , "context":[{"key":"selector","operator":"equal","operand":"source.hydrocarbon_grammar"}]},
+	{ "keys": ["shift+alt+p"], "command": "insert", "args": {"characters": "→ │"} , "context":[{"key":"selector","operator":"equal","operand":"source.hydrocarbon_grammar"}]},
+	{ "keys": ["shift+alt+b"], "command": "insert", "args": {"characters": "│"}, "context":[{"key":"selector","operator":"equal","operand":"source.hydrocarbon_grammar"}]},
+	{ "keys": ["shift+alt+f"], "command": "insert", "args": {"characters": "↦"}, "context":[{"key":"selector","operator":"equal","operand":"source.hydrocarbon_grammar"}]}
+]
