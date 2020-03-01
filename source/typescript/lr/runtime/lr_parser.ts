@@ -23,8 +23,8 @@ function parser(
     sp = 1,
     len = 0,
     off = 0,
-    o : OutputStack = [],
-    state_stack : StateStack = [lex.copy(), 0],
+    o: OutputStack = [],
+    state_stack: StateStack = [lex.copy(), 0],
     FORKED_ENTRY = false,
     state_action_lu = 0,
     cycles = 0,
@@ -52,7 +52,7 @@ function parser(
 
         { keyword, any, $eof: eof } = types;
 
-    let 
+    let
         RECOVERING = 100,
         FINAL_RECOVERY = false,
         tk = 0,
@@ -65,7 +65,7 @@ function parser(
         lex.PARSE_STRING = true;
 
         if (symbols.length > 0) {
-            symbols.forEach(s => { lex.addSymbol(s) });
+            symbols.forEach(s => { lex.addSymbol(s); });
             lex.tl = 0;
             lex.next();
         }
@@ -195,7 +195,7 @@ function parser(
                         FINAL_RECOVERY = false;
                         len = (action & 0x7F8) >> 2;
 
-                        var end = <Lexer> state_stack[sp - 1];
+                        var end = <Lexer>state_stack[sp - 1];
                         var start = <Lexer>state_stack[sp - len - 1];
 
                         end.sl = end.off;
@@ -216,7 +216,8 @@ function parser(
 
                         if (sp < fork_depth - 1) {
                             return <ParserSquashResultData>{
-                                forks,    
+                                SQUASH: true,
+                                forks,
                                 o,
                                 sp,
                                 len,
@@ -265,8 +266,8 @@ function parser(
 
                             total_cycles += res.total_cycles;
 
-                            if ((<ParserSquashResultData> res).SQUASH) {
-                                const ret = <ParserSquashResultData> res;
+                            if ((<ParserSquashResultData>res).SQUASH) {
+                                const ret = <ParserSquashResultData>res;
 
                                 if (fork_depth > 1 && ret.sp < fork_depth) {
                                     ret.total_cycles += result.total_cycles;
@@ -353,11 +354,11 @@ function parser(
     @param data: parser data that includs the look up tables and built in parse action functions.
     @param environment: Environment object containing user defined parse action functions.
 */
-export default (lex: Lexer, data: ParserData, environment: ParserEnvironment) : ParserResultData =>  {
+export default (lex: Lexer, data: ParserData, environment: ParserEnvironment): ParserResultData => {
     const res = <ParserResultData>parser((typeof lex == "string") ? new Lexer(lex) : lex, data, environment);
-    
+
     res.efficiency = res.cycles / res.total_cycles * 100;
-    
+
     return res;
 };
 

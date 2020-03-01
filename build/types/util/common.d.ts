@@ -6,7 +6,7 @@ import { FIRST } from "./first.js";
 import { FOLLOW } from "./follow.js";
 import { processClosure } from "./process_closure.js";
 export { Item, FOLLOW, FIRST, processClosure };
-export declare const types: any;
+export declare const types: typeof import("@candlefw/whind").TokenType;
 export declare function getToken(l: any, SYM_LU: any, IGNORE_KEYWORDS?: boolean): any;
 export declare function getPrecedence(term: any, grammar: any): number;
 export declare function createPrecedence(body: any, grammar: any): any;
