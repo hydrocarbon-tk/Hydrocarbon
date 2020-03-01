@@ -10,8 +10,8 @@ import URL from "@candlefw/url";
 
 URL.polyfill();
 
-import runner from "./compiler_runner.js"
-import parser from "../../build/library/lr/runtime/lr_parser.js"
+import runner from "./compiler_runner.js";
+import parser from "../../build/library/lr/runtime/lr_parser.js";
 
 //Third Party stuff
 import * as commander from "commander";
@@ -95,7 +95,7 @@ async function write(name, parser_script, output_directory, type) {
             break;
         default:
         case "js":
-        case "mjs":
+        case "module":
             ext = ".js";
             break;
     }
@@ -111,25 +111,25 @@ async function writeFile(name, ext, data = "", dir = process.env.PWD, type) {
 
         //Save existing file as a backup file if it exists
         try {
-            const data = await fsp.readFile(path.join(dir, name))
+            const data = await fsp.readFile(path.join(dir, name));
             let increment = 0;
 
             while (1) {
                 try {
                     try {
-                        while (await fsp.readFile(path.join(dir, name + ".hcgb_" + increment))) { increment++ }
-                    } catch (e) {}
+                        while (await fsp.readFile(path.join(dir, name + ".hcgb_" + increment))) { increment++; }
+                    } catch (e) { }
 
-                    let a = await fsp.writeFile(path.join(dir, name + ".hcgb_" + increment), data, { encoding: "utf8", flags: "wx" })
+                    let a = await fsp.writeFile(path.join(dir, name + ".hcgb_" + increment), data, { encoding: "utf8", flags: "wx" });
 
                     break;
                 } catch (e) {
-                    console.error(e)
+                    console.error(e);
                     increment++;
                 }
             }
 
-        } catch (e) {}
+        } catch (e) { }
 
         let file = "";
 
@@ -138,8 +138,8 @@ async function writeFile(name, ext, data = "", dir = process.env.PWD, type) {
 
             const [header, definition] = data.split("/--Split--/");
 
-            await fsp.writeFile(path.join(dir, name + ".h"), header, { encoding: "utf8", flags: "w+" })
-            await fsp.writeFile(path.join(dir, name + ".cpp"), `#include "./${name}.h" \n ${definition}`, { encoding: "utf8", flags: "w+" })
+            await fsp.writeFile(path.join(dir, name + ".h"), header, { encoding: "utf8", flags: "w+" });
+            await fsp.writeFile(path.join(dir, name + ".cpp"), `#include "./${name}.h" \n ${definition}`, { encoding: "utf8", flags: "w+" });
 
             //Copy C++ files into same directory
             const tokenizer = await fsp.readFile(path.join("/",
@@ -154,14 +154,14 @@ async function writeFile(name, ext, data = "", dir = process.env.PWD, type) {
                 import.meta.url.replace(fn_regex, ""), "../cpp/node_utils.h"), "utf8");
             const error_codes = await fsp.readFile(path.join("/",
                 import.meta.url.replace(fn_regex, ""), "../cpp/parse_error_codes.h"), "utf8");
-            await fsp.writeFile(path.join(dir, "tokenizer.h"), tokenizer, { encoding: "utf8", flags: "w+" })
-            await fsp.writeFile(path.join(dir, "parse_buffer.h"), parse_buffer, { encoding: "utf8", flags: "w+" })
-            await fsp.writeFile(path.join(dir, "parser.cpp"), parser_cpp, { encoding: "utf8", flags: "w+" })
-            await fsp.writeFile(path.join(dir, "parser.h"), parser, { encoding: "utf8", flags: "w+" })
-            await fsp.writeFile(path.join(dir, "node_utils.h"), node_utils, { encoding: "utf8", flags: "w+" })
-            await fsp.writeFile(path.join(dir, "parse_error_codes.h"), error_codes, { encoding: "utf8", flags: "w+" })
+            await fsp.writeFile(path.join(dir, "tokenizer.h"), tokenizer, { encoding: "utf8", flags: "w+" });
+            await fsp.writeFile(path.join(dir, "parse_buffer.h"), parse_buffer, { encoding: "utf8", flags: "w+" });
+            await fsp.writeFile(path.join(dir, "parser.cpp"), parser_cpp, { encoding: "utf8", flags: "w+" });
+            await fsp.writeFile(path.join(dir, "parser.h"), parser, { encoding: "utf8", flags: "w+" });
+            await fsp.writeFile(path.join(dir, "node_utils.h"), node_utils, { encoding: "utf8", flags: "w+" });
+            await fsp.writeFile(path.join(dir, "parse_error_codes.h"), error_codes, { encoding: "utf8", flags: "w+" });
         } else {
-            file = await fsp.writeFile(path.join(dir, name + ext), data, { encoding: "utf8", flags: "w+" })
+            file = await fsp.writeFile(path.join(dir, name + ext), data, { encoding: "utf8", flags: "w+" });
         }
 
         console.log(ADD_COLOR(`The file ${name} has been successfully written to ${dir}.`, COLOR_SUCCESS), "\n");
@@ -176,7 +176,7 @@ function createScript(name, parser, type, env, compress = false) {
 
     //The name argument must be a legitimate JaveScript Identifier symbol.
     //Replace any . characters in the name string with an underscore. 
-    name = name.replace(/\./g, "_")
+    name = name.replace(/\./g, "_");
 
     if (env.options && env.options.integrate && type !== "cpp")
         parser = hc.StandAloneParserCompiler(parser, LEXER_SCRIPT, env);
@@ -185,16 +185,16 @@ function createScript(name, parser, type, env, compress = false) {
         case "cpp":
             parser = `${parser}`;
             break;
-        case "mjs":
-        case "mjs":
+        case "module":
             parser = `export default ${parser};`;
             break;
         case "cjs":
             parser = `module.exports = ${parser};`;
             break;
         default:
+        case "iife":
         case "js":
-            parser = `const ${name.replace("-","_")} = ${parser};`;
+            parser = `const ${name.replace("-", "_")} = ${parser};`;
             break;
     }
 
@@ -249,9 +249,9 @@ function createEarleyCompiler(items, grammar, env) {
 /* *************** RUNTIME ********************/
 
 function CLI_INSTRUCTIONS(full = false) {
-    console.log(`\nType something then hit {${ADD_COLOR(" enter ", COLOR_KEYBOARD)}||${ADD_COLOR(" return ", COLOR_KEYBOARD)}} to see how the parser performs on that input`)
-    console.log(`Type 'reload' to update the parser with new file changes.`)
-    console.log(`Type 'help' to show help info.`)
+    console.log(`\nType something then hit {${ADD_COLOR(" enter ", COLOR_KEYBOARD)}||${ADD_COLOR(" return ", COLOR_KEYBOARD)}} to see how the parser performs on that input`);
+    console.log(`Type 'reload' to update the parser with new file changes.`);
+    console.log(`Type 'help' to show help info.`);
 }
 
 async function mount(name, input, env, test_data = "") {
@@ -266,7 +266,7 @@ async function mount(name, input, env, test_data = "") {
             try {
                 parser_data = ((Function("return " + input))());
             } catch (e) {
-                console.dir(e, { depth: null })
+                console.dir(e, { depth: null });
                 return res(false);
             }
 
@@ -276,18 +276,18 @@ async function mount(name, input, env, test_data = "") {
         if (test_data) {
             const result = parser(whind(test_data, false), parser_data, env);
 
-            if(result.error)
+            if (result.error)
                 console.error(result.error);
-             
-             console.dir(result.result, { depth: null });
-             
-             res(false);
+
+            console.dir(result.result, { depth: null });
+
+            res(false);
         } else {
             const r1 = readline.createInterface({
                 input: process.stdin,
                 output: process.stdout
             });
-            console.log(ADD_COLOR("The parser has been mounted in NodeJS", COLOR_SUCCESS))
+            console.log(ADD_COLOR("The parser has been mounted in NodeJS", COLOR_SUCCESS));
             CLI_INSTRUCTIONS();
 
             let data = [];
@@ -339,7 +339,7 @@ async function mount(name, input, env, test_data = "") {
     });
 
     if (d)
-        console.log(ADD_COLOR(`Reloading ${ name }`, COLOR_SUCCESS));
+        console.log(ADD_COLOR(`Reloading ${name}`, COLOR_SUCCESS));
 
     return d;
 }
@@ -373,7 +373,7 @@ program
 
             let states;
 
-            const grammar = parseGrammar(grammar_string, env)
+            const grammar = parseGrammar(grammar_string, env);
 
             if (states_string) {
                 states = parseLRJSONStates(states_string);
@@ -387,13 +387,13 @@ program
 
             if (!states.COMPILED) {
                 (console.error(`Failed to compile grammar ${grammar.name}. Exiting`), undefined);
-                process.exit(1)
+                process.exit(1);
             }
 
             console.log(hc.renderTable(states, grammar));
 
             //console.log(`Use ${ADD_COLOR(" ctrl ", COLOR_KEYBOARD)}+${ADD_COLOR(" c ", COLOR_KEYBOARD)} to return to console,`)
-            process.exit(0)
+            process.exit(0);
 
         } catch (err) {
             console.error(err);
@@ -417,9 +417,9 @@ program
             env = await loadEnvironment(env_path),
             compiler = (await import(compiler_path)).default;
 
-            console.log(cmd.string)
+        console.log(cmd.string);
 
-        mount("undefined", compiler, env, string)
+        mount("undefined", compiler, env, string);
     });
 
 program
@@ -437,11 +437,11 @@ program
     .option("-u, --unattended", "Do not wait for user input. Exit to console when compilation is complete. Quit on any error.")
     .option("-t, --type <type>", `
             Type of file to output.The type can be:
-            "mjs" - ( * .mjs) A module file
+            "module" - ( * .js) A module file
             for use with the modern ES2016 module syntax.
             "cjs" - ( * .c.js) A CommonJS module
             for use with NodeJS and other consumers of CommonJS.
-            "js" - ( * .js)[Default] A regular JavaScript file that can be embedded in HTML.The parser will be available as a global value.The name of the global object will be same as the output file name.
+            "iife" - ( * .js)[Default] A regular JavaScript file that can be embedded in HTML.The parser will be available as a global value.The name of the global object will be same as the output file name.
             `)
     .option("--parser <parser>", "The type of compiler that hydrocarbon will create. Select from `lalr1` and `earling`")
     .action(async (hc_grammar, cmd) => {
@@ -461,14 +461,14 @@ program
 
             const { grammar_string, states_string, env } = await loadFiles(grammar_path, env_path, states_path, unattended);
 
-            const grammar = await parseGrammar(grammar_string, new URL(grammar_path))
+            const grammar = await parseGrammar(grammar_string, new URL(grammar_path));
 
             if (!grammar) {
                 console.error(`Failed to compile grammar ${grammar.name}. Exiting`);
                 process.exit(1);
             }
 
-//            process.exit(-1)
+            //            process.exit(-1)
 
             let states = null,
                 script_string = "";
@@ -490,7 +490,7 @@ program
                     }
                     if (!states.COMPILED) {
                         (console.error(`Failed to compile grammar ${grammar.name}. Exiting`), undefined);
-                        process.exit(1)
+                        process.exit(1);
                     }
                     if (CPP || type == "cpp") {
                         type = "cpp";
@@ -512,7 +512,7 @@ program
                     }
                     if (!states.COMPILED) {
                         (console.error(`Failed to compile grammar ${grammar.name}. Exiting`), undefined);
-                        process.exit(1)
+                        process.exit(1);
                     }
                     if (CPP || type == "cpp") {
                         //type = "cpp";
@@ -523,7 +523,7 @@ program
                 case "earley":
                     const items = createEarleyItems(grammar, env);
                     createEarleyCompiler(items, grammar, env);
-                    break
+                    break;
             }
 
 
@@ -537,10 +537,10 @@ program
                 await write(name, script, output_directory, type);
 
             if (!unattended)
-                console.log(`Use ${ADD_COLOR(" ctrl ", COLOR_KEYBOARD)}+${ADD_COLOR(" c ", COLOR_KEYBOARD)} to return to console.`)
+                console.log(`Use ${ADD_COLOR(" ctrl ", COLOR_KEYBOARD)}+${ADD_COLOR(" c ", COLOR_KEYBOARD)} to return to console.`);
 
             if (!!cmd.mount) {
-                if (!(await mount(name, script_string, env, states, grammar))) {};
+                if (!(await mount(name, script_string, env, states, grammar))) { };
             }
 
             process.exit();
