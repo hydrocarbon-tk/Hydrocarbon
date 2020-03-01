@@ -130,6 +130,7 @@ function parser(lex, data = null, e = {}, sp = 1, len = 0, off = 0, o = [], stat
                         sp += 2;
                         if (sp < fork_depth - 1) {
                             return {
+                                SQUASH: true,
                                 forks,
                                 o,
                                 sp,
