@@ -120,26 +120,19 @@ export default class StateProcessor {
             const item = items[i], body = item.body_(grammar), offset = item.offset, symbol = body.sym[offset];
             if (item.USED)
                 continue;
-            //@ts-ignore
             if (body.error.has(offset))
                 body.error.get(offset).forEach(s => actions.push(this.errorAtSymbol(grammar, state, s, body, item)));
-            //@ts-ignore
             if (body.reset.has(offset))
                 body.reset.get(offset).forEach(s => actions.push(this.resetAtSymbol(grammar, state, s, item)));
-            //@ts-ignore
             if (body.ignore.has(offset))
                 body.ignore.get(offset).forEach(s => actions.push(this.ignoreAtSymbol(grammar, state, s, item)));
             if (item.atEND || symbol.type == SymbolType.EMPTY) { //At an accepting state for this input
-                // if (body.reduce.has(offset)) body.reduce.get(offset).forEach(s => (console.log(`reduce on ${s.val} ${item.renderWithProduction(grammar)}`), actions.push(this.reduceAtSymbol(grammar, state, s, body, item))));
                 if (item.body == 0 && item.v == "$eof")
                     actions.push(this.acceptAtSymbol(grammar, state, item.follow, body, item));
                 else
                     actions.push(this.reduceAtSymbol(grammar, state, item.follow, body, item));
             }
             else {
-                //@ts-ignore
-                if (symbol.type == SymbolType.EMPTY)
-                    continue;
                 const id_append = new Set(), osid = item.sym(grammar), out_items = [], sid_set = new Set();
                 for (let j = i; j < l; j++) {
                     const item = items[j];
