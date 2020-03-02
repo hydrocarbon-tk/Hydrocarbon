@@ -11,7 +11,7 @@ import URL from "@candlefw/url";
 URL.polyfill();
 
 import runner from "./compiler_runner.js";
-import parser from "../../build/library/lr/runtime/lr_parser.js";
+import { lrParse as parser } from "../../build/library/lr/runtime/lr_parser.js";
 
 //Third Party stuff
 import * as commander from "commander";
