@@ -17,15 +17,6 @@ lib-cov
 # Coverage directory used by tools like istanbul
 coverage
 
-# nyc test coverage
-.nyc_output
-
-# Grunt intermediate storage (http://gruntjs.com/creating-plugins#storing-task-files)
-.grunt
-
-# Bower dependency directory (https://bower.io/)
-bower_components
-
 # node-waf configuration
 .lock-wscript
 
@@ -35,9 +26,6 @@ build/Release
 # Dependency directories
 node_modules/
 jspm_packages/
-
-# TypeScript v1 declaration files
-typings/
 
 # Optional npm cache directory
 .npm
@@ -60,34 +48,15 @@ typings/
 # next.js build output
 .next
 
-# vuepress build output
-.vuepress/dist
-
 # Serverless directories
 .serverless
-© 2018 GitHub, Inc.
-Terms
-Privacy
-Security
-Status
-Help
-Contact GitHub
-API
-Training
-Shop
-Blog
-About
-Press h to open a hovercard with more details.
 
 #Build directory
-!build/build_config/
-!build/wick.css
-
-#Api directory
-documents/api/*
+build/
 
 #sublime  workspace
 *.sublime-workspace
 
-#HCG backup compiler files.
+#HCG compiler backup files.
 *.hcgb*
+
