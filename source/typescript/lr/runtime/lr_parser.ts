@@ -354,7 +354,7 @@ function parser(
     @param data: parser data that includs the look up tables and built in parse action functions.
     @param environment: Environment object containing user defined parse action functions.
 */
-export default (lex: Lexer, data: ParserData, environment: ParserEnvironment): ParserResultData => {
+const lrParse = (lex: Lexer, data: ParserData, environment: ParserEnvironment): ParserResultData => {
     const res = <ParserResultData>parser((typeof lex == "string") ? new Lexer(lex) : lex, data, environment);
 
     res.efficiency = res.cycles / res.total_cycles * 100;
@@ -385,3 +385,5 @@ parser.reduce_with_null = parser.rn = (plen, t, e, o) => {
 };
 
 parser.shift_with_function = parser.s = (fn, t, e, o, lex, s) => (fn(o, e, lex, s));
+
+export { lrParse };

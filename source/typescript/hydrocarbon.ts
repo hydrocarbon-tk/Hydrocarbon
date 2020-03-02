@@ -9,7 +9,7 @@ import compileLRStatesMT from "./lr/state_generation/lr_mt.js";
 import compileGLRStatesMT from "./lr/state_generation/glr_mt.js";
 
 //Runtime
-import lrParse from "./lr/runtime/lr_parser.js";
+import { lrParse } from "./lr/runtime/lr_parser.js";
 
 //EARLEY
 import earleyCompiler from "./earley/compiler.js";
@@ -17,13 +17,16 @@ import earleyCompiler from "./earley/compiler.js";
 //Diagnostics
 import { renderTable } from "./util/table_diagram.js";
 import { ParserEnvironment } from "./types/parser_environment.js";
-import { ErrorHandler } from "./types/parser_data.js";
+import { ErrorHandler, ParserData } from "./types/parser_data.js";
+
 
 //Definitions
 
-export { 
+export {
+    ErrorHandler,
+    ParserData,
+
     ParserEnvironment,
-    ErrorHandler,    
     compileLRStatesMT,
     grammarParser,
     compileGLRStatesMT,
@@ -33,5 +36,6 @@ export {
     ExportStates,
     ImportStates,
     earleyCompiler,
+
     lrParse
 };
