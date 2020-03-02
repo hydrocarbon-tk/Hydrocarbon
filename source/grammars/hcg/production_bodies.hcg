@@ -1,0 +1,81 @@
+@IMPORT ./symbols.hcg as sym
+
+# sddfs
+
+@IMPORT ./comments.hcg as cm
+
+# sddfs
+
+@IMPORT ./functions.hcg as fn
+
+# sddfs
+
+@IGNORE θws θnl
+
+########################################################################################################################
+######################################  PRODUCTION BODIES
+########################################################################################################################
+
+<> production_bodies → production_body 					 			↦return { env.body_count++, [$sym1]  }
+			
+		│ production_bodies ↦{env.host_lex = lex.pk.copy()} \│  production_body 					
+																	
+																	↦return { env.body_count++, $sym1.push($sym3), $sym1 }
+
+		│ production_bodies cm::comment 					
+																	
+																	↦return { $sym1 }
+
+
+<> production_body → entries  										↦r { new env.fn.body([$sym1], env, (env.host_lex.fence(lex), env.host_lex) ) }
+
+
+<> entries → body_entries fn::reduce_function? fn::error_function?	
+																	↦cstr{ 
+																		this.body = $sym1; 
+																		this.reduce = $sym2; 
+																		this.err = $sym3;
+																	}								
+
+		│ sym::empty_symbol  											
+																	↦cstr{ 
+																	   	this.body = []; 
+																	   	this.reduce = null; 
+																	}
+
+		│ sym::EOF_symbol  												
+																	↦cstr{ 
+																	   	this.reduce = null;  
+																	   	this.body = [$sym1]; 
+																	}
+
+
+<> body_entries → sym::symbol 										
+																	↦return{ env.body_offset = 0, [$sym1] }
+
+  		│ condition_clause 									
+  			 														↦return{ env.body_offset = 0, [$sym1] }
+
+  		│ fn::function_clause	 								
+  			 														↦return{ env.body_offset = 0, [$sym1] }
+
+		│ body_entries fn::function_clause 					
+			 														↦return { env.body_offset = $sym1.length, $sym1.push($sym2), $sym1 }
+
+		│ body_entries condition_clause 						
+			 														↦return { env.body_offset = $sym1.length, $sym1.push($sym2), $sym1 }
+
+		│ body_entries sym::symbol 								
+			 														↦return { env.body_offset = $sym1.length,  $sym1.push($sym2), $sym1 }
+
+		│ \[ body_entries \]										
+			 														↦return { $sym2.map(e => (e.NO_BLANK = true, e) ) }
+
+
+<> condition_clause → 
+		  \( τEXC sym::condition_symbol_list \) 					↦c{ this.IS_CONDITION = true; this.type = "exc"; this.sym = $sym3; this.offset = -1; }
+		│ \( τERR sym::condition_symbol_list \) 					↦c{ this.IS_CONDITION = true; this.type = "err"; this.sym = $sym3; this.offset = -1; }
+		│ \( τIGN sym::condition_symbol_list \) 					↦c{ this.IS_CONDITION = true; this.type = "ign"; this.sym = $sym3; this.offset = -1; }
+		│ \( τRST sym::condition_symbol_list \) 					↦c{ this.IS_CONDITION = true; this.type = "rst"; this.sym = $sym3; this.offset = -1; }
+		│ \( τRED sym::symbol \) 									↦c{ this.IS_CONDITION = true; this.type = "red"; this.sym = $sym3; this.offset = -1; }
+

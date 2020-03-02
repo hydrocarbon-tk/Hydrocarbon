@@ -1,0 +1,54 @@
+########################################################################################################################
+############################################## Hydrocarbon Grammar #####################################################
+########################################################################################################################
+
+# v2
+
+# This is the Hydrocarbon Grammar Definition and parser file. It contains information to build the Hydrocarbon 
+# Grammar parser.
+
+# This is a preamble clause. It allows meta information to be defined at the head of a HCG grammar file. This particular 
+# preamble, @NAME, is used to define the name of the grammer
+
+@NAME Hydrocarbon Grammar
+
+# The @EXT preamble defines the extension types that this grammar is expected to parse.
+
+@EXT hcg
+
+# The @SYMBOL preamble defines symbols for the lexer to recognize and tokenize. This is useful when there is a need to 
+# tokenize symbols that are comprised of multiple characters. Symbols are defined per file and only apply to productions
+# defined within that file. 
+
+@SYMBOL (( )) <> +> => (* (+ :: \τ \θ \ɛ
+
+# The @IGNORE preamble defines tokens that should be ignored when encountered in productions. This can be overriden per 
+# production body with the ((IGN symbol)) clause or by explicitly declaring the ignored symbol within the grammar.
+
+@IGNORE θws θnl
+
+# The @IMPORT preamble allows productions to be defined in external files and incorporated into the host file 
+# through import symbols defined after the [as] keyword. 
+
+ @IMPORT ./preambles.hcg as pre 
+
+#  
+
+ @IMPORT ./productions.hcg as prd
+
+# The goal production is the first production defined in the grammar.
+
+# Hydrocarbon V2 productions are defined using a mix of ASCII and extended UTF characters to indicate
+# operators. A production is defined as [ <> ID → symbol symbol symbol ... ] where the → character is 
+# U+2192 Rightwards Arrow Character.
+
+<> hydrocarbon → head 									↦return { env.productions }
+
+# Productions symbols are categorized into several groups in:
+
+<> head → pre::preamble prd::productions 				↦return { env.productions.meta = {preambles : $sym1} }
+
+# This annotated grammar definition is continued in preambles.hcg
+
+
+

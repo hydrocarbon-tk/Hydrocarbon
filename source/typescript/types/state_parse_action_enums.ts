@@ -1,0 +1,4 @@
+export const
+    SET_NEW_ACTION = 0,
+    KEEP_EXISTING_ACTION = 1,
+    ACTION_COLLISION_ERROR = -1;

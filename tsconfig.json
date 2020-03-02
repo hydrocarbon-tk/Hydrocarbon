@@ -1,0 +1,20 @@
+{
+    "compileOnSave": true,
+    "files": ["./source/typescript/hydrocarbon.ts"],
+    "include": ["./source/typescript/**/*"],
+    "compilerOptions": {
+        "types" : ["@types/node"],
+        "allowJs": true,
+        "baseUrl": "./",
+        "alwaysStrict": true,
+        "target": "ES2020",
+        "lib": ["ES2020", "DOM"],
+        "module": "ESNext",
+        "outDir":"./build/library",
+        "declarationDir": "./build/types",
+        "declaration": true,
+        "watch": true,
+        "moduleResolution": "node",
+        "typeRoots": ["./source/typescript/types"]
+    }
+}

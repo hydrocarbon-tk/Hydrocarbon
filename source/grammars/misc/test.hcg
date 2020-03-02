@@ -1,0 +1,18 @@
+@IGNORE θws θnum
+
+<> S → add
+
+<> add → num  		↦r{$sym1}
+	│ add + num 	↦r{$sym1 + $sym3}
+	│ num * add 	↦r{$sym1 * $sym3}
+	│ add + let		↦r{$sym1 + $sym3 }
+
+<> num → τ1 		↦r{1}
+	│ τ2 			↦r{2}
+
+<> let → θid 		↦r{parseInt($sym1)}
+
+# -- S → s 
+# -- s → C C
+# -- C → τc C │ τd 
+

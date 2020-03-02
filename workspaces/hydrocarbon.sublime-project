@@ -1,0 +1,27 @@
+{
+	"folders":
+	[
+		{
+			"folder_exclude_patterns":
+			[
+				".git",
+				"node_modules",
+				"docs"
+			],
+			"name": "main",
+			"path": "./"
+		},
+		{
+			"name": "docs",
+			"path": "docs"
+		},
+		{
+			"path": "source/lr/script_generation"
+		}
+	],
+	"setting":
+	{
+		"default_line_ending": "unix",
+		"tab_size": 4
+	}
+}
