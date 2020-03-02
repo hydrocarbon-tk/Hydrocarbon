@@ -1,1 +1,0 @@
-export declare function Compiler(goto_maps: any, state_maps: any, state_pointers: any, SYM_LU: any, default_error: any, error_handlers: any, functions: any, state_action_functions: any, goto_pointers: any, GEN_SYM_LU: any, symbols: any): string;
