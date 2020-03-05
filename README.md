@@ -1,20 +1,18 @@
-# CandleFW Hydrocarbon
+# cfw.Hydrocarbon
 
+## Compile LALR Parsers
 
-Parses HC Grammars.
+Hydrocarbon is a LALR and GLALR parser compiler that uses a self hosted, custom grammar that is inspired by Backus-Naur syntax.
 
-HC grammar - based on BNS syntax
- 
-View template.hgc for info on the syntax.
+You can review the Hydrocarbon grammar definition in [./source/grammars/hcg](./source/grammars/hcg/hcg.hcg). The definition is split across 5 files starting with **hcg.hcg**.
 
-
-# usage
+The primary reason this exists is to provide a flexible parser compiler to handle the parsing demands of the CandleFW libraries Wick, JS, and CSS. It provides a way to rapidly define new syntax and compile grammars of different languages into one meta-parser.
 
 ## Compile
 
 ### ``compile <hydrocarbon_grammar_file>``
 
-Compiles a JavaScript parser from a HydroCarbon grammar file, an optional HCGStates file, and an optional ENV.js file.
+Compiles a JavaScript parser from a HydroCarbon grammar file
 
 #### Output Path
 `-o, --output <path>` Optional output location. Defaults to current directory.
@@ -30,14 +28,14 @@ Compiles a JavaScript parser from a HydroCarbon grammar file, an optional HCGSta
 
 #### Mount
 `[-m | --mount]`  
-	Mounts the compiled parser in the current NodeJS context and allows interactive parsing of user input.
+	Mounts the compiled parser in the current NodeJS context and allows interactive parsing of command line input.
 
 #### Grammar Name
 `[-n | --name] <output_name>`, 
 	The name to give to the output file. Defaults to the name of the grammar file.
 
 #### Skip Output
-`[-d | --noout]`  
+`[-d | --no-out]`  
 	Skip writing to file.
 
 #### Compress
@@ -45,8 +43,8 @@ Compiles a JavaScript parser from a HydroCarbon grammar file, an optional HCGSta
 	Minify output file.
 
 #### Unattended Compilation
-`[-u |--unattended]`  
-	Do not wait for user input. Exit to console when compilation is complete. Quits on any error.
+`[-u |--unattended ]`  
+	Do not wait for user input. Exit to console when compilation is complete. Quits on errors.
 
 #### Generated File Type
 `[-t |--type] <type> `
@@ -59,3 +57,9 @@ Compiles a JavaScript parser from a HydroCarbon grammar file, an optional HCGSta
 
 #### Parser Type
 `--parser <parser>` The type of compiler that hydrocarbon will create. Select from `lalr1` and `earling`
+
+
+# License
+
+[MIT](./LICENSE)
+
