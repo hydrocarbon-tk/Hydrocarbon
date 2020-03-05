@@ -1,3 +1,4 @@
+//@ts-nocheck
 export const EMPTY_PRODUCTION = "{!--EMPTY_PRODUCTION--!}";
 
 export const isNonTerm = (f) => f.type == "production";

@@ -17,10 +17,10 @@ export default class implements ProductionBody {
     reduce_function: ProductionBodyReduceFunction;
     grammar_stamp : string;
     form:number;
-    excludes: Map<number, Symbol>
-    ignore: Map<number, Symbol>
-    error: Map<number, Symbol>
-    reset: Map<number, Symbol>
+    excludes: Map<number, Symbol[]>
+    ignore: Map<number, Symbol[]>
+    error: Map<number, Symbol[]>
+    reset: Map<number, Symbol[]>
     reduce: Map<number, Symbol>
     BUILT:boolean;
     uid:string;

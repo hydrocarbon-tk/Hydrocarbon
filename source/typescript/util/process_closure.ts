@@ -4,7 +4,7 @@ import { FIRST } from "./first.js";
 import { Grammar, Symbol } from "../types/grammar.js";
 import { CompilerErrorStore } from "../lr/state_generation/compiler_error_store.js";
 
-export function processClosure(items: Item[], grammar:Grammar, error:CompilerErrorStore, excludes : [], offset = 0, added = new Set()) {
+export function processClosure(items: Item[], grammar:Grammar, error:CompilerErrorStore, excludes : any[] = [], offset = 0, added = new Set()) {
 
     let exclusion_count = 0;
 

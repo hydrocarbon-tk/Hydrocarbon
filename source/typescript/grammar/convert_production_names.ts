@@ -10,7 +10,7 @@ export default function convertProductionNamesToIndexes(productions, LU) {
                 production = productions[i],
                 bodies = production.bodies;
 
-            production.graph_id = -1;
+            production.graph_id = -1; 
 
             for (let i = 0; i < bodies.length; i++) {
                 body = bodies[i];

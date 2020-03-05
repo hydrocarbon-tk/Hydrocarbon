@@ -76,15 +76,9 @@ export class LRMultiThreadProcessWorker {
 
         const grammar = this.grammar;
 
-        const errors = [];
-
-        const error = {
-            log(...vals) {
-                errors.push(`${vals.map(e=>typeof e !== "string" ? JSON.stringify(e).replace(/"/g,"") : e).join(", ")}`);
-            }
-        };
+        const error = new CompilerErrorStore();
         
-        const { to_process_items, state, error: state_error } = this.processor.process(item_obj.items, item_obj.state_id, grammar, item_obj.excludes, error, true);
+        const { to_process_items, state, error: state_error } = this.processor.process(item_obj.items, item_obj.state_id, grammar, item_obj.excludes, error);
 
         state.thread_id = this.id;
 
@@ -93,7 +87,7 @@ export class LRMultiThreadProcessWorker {
         }
 
         //sanitize items and remove anything thet is not strictly needed per item. 
-        parentPort.postMessage({ to_process_items, state, errors: errors.length > 0 ? errors : null });
+        parentPort.postMessage({ to_process_items, state, errors: error.strings.length > 0 ? error.strings : null });
     }
 }
 

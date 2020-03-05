@@ -9,7 +9,7 @@ export type ImportedProductionList = Array<Production> & {
     LU: Map<string, Production>;
 };
 
-export type ImportedProductions = Map<string, Grammar>;
+export type ImportedProductions = Map<string, ImportedProductionList>;
 
 export interface GrammarParserEnvironment {
     /**
@@ -27,7 +27,7 @@ export interface GrammarParserEnvironment {
     productions: Grammar;
     refs: Map<string, string>;
     body_count: number;
-    stamp: number;
+    stamp: string;
 
     /**
      * The index of the body being parsed in the current production.

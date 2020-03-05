@@ -1,3 +1,4 @@
+//@ts-nocheck
 //Root State Functions
 
 function setNode(funct, length, functions, id, form) {

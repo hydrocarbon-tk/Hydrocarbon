@@ -5,6 +5,7 @@ import { Item } from "../../util/item.js";
 import { Grammar, SymbolType, Symbol, ProductionBody } from "../../types/grammar.js";
 import { StateActionEnum } from "../../types/state_action_enums.js";
 import { ItemSet } from "../../types/item_set.js";
+import { CompilerErrorStore } from "./compiler_error_store.js";
 
 
 
@@ -127,7 +128,7 @@ export default class StateProcessor {
         };
     }
 
-    process(items:Array<Item>, state_id:{id:string, sym:string}, grammar:Grammar, excludes = [], error = {}, LALR_MODE = true) {
+    process(items:Array<Item>, state_id:{id:string, sym:string}, grammar:Grammar, excludes : any[] = [], error : CompilerErrorStore) {
 
         const
             osid = state_id.id,

@@ -1,4 +1,4 @@
-
+//@ts-nocheck
 import {Lexer} from "@candlefw/whind";
 
 export function LLParser(input, table, grammer){
