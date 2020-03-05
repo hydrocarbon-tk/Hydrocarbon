@@ -1,30 +1,40 @@
-# This annotated grammar definition is continued from hcg_v2.hcg
+#
+# This annotated grammar definition is continued from hcg.hcg
+#
+# Imported files can have their own imports. Hydrocarbon automatically resolves 
+# dependency loops and prevents duplication of imported productions.
+#
 
-# Imported files can have their own imports. 
 
 @IMPORT ./comments.hcg as cm
-
-# sddfs
 
 
 @IMPORT ./symbols.hcg as sym
 
-# Productions can be defined through the [ <> ID → symbol ... ] form as will as using parenthesis ( ) to define a 
-# production group. The production group is a virtual production that can have multiple production bodies within it 
-# seperated by the │ symbol ( U+2502 BOX DRAWINGS LIGHT VERTICAL )
-
-# The (*) symbol represents a zero-or-more repeating pattern and is bound to the preceding symbol. In this case 
-# the preamble production is composed of zero-or-more preamble clauses. Symbols defined this way are reduced to an 
-# array containing the matching productions.
 
 @IGNORE θws θnl
 
-# sddfs
 
-<> preamble → (preamble_clause)(*)									
-
-# As in productions groups, multiple bodies in a production can be separated by 
+#
+# Productions can be defined through the [ <> ID → symbol ... ] form as will 
+# as using parenthesis ( ) to define a production group. The production group is 
+# a virtual production that can have multiple production bodies within it separated by
 # the │ symbol ( U+2502 BOX DRAWINGS LIGHT VERTICAL )
+#
+
+<> preamble → preamble_clause
+
+#
+# The (*) symbol represents a zero-or-more repeating pattern and is bound to the 
+# preceding symbol. In this case the preamble production is composed of zero-or-more 
+# preamble clauses. Symbols defined this way are reduced to an array containing 
+# the matching productions.
+#
+								 (*)									
+#
+# Multiple bodies in a single production are be separated by the │ symbol 
+# ( U+2502 BOX DRAWINGS LIGHT VERTICAL )
+#
 
 <> preamble_clause →  ignore_preamble
 	│ symbols_preamble
@@ -35,9 +45,36 @@
 	│ import_preamble
 	│ cm::comment 
 
+#
+# Production bodies can contain a mixture of non-terminal production names,
+# terminal symbols, meta statements such as "(ERR θws)", and inline production 
+# functions. 
+#
+# Symbols leading with the [ θ ] character are special wild card symbols that
+# certain types of character combinations. If a cfw.Whind Lexer is used as the
+# tokenizer, then these symbols match the names of the Lexer token types.
+# In the production below, the symbol θws matches the type 
+# Lexer.types.whitespace | Lexer.types.ws and the symbol θnl matches the types
+# Lexer.types.newline | Lexer.types.nl
+# 
+# Symbols leading with the [ τ ] character are Literal Terminal symbols that
+# are matched against tokens whose string value is the same as the text following 
+# the τ character.
+#
 
+<> symbols_preamble → 		@ (ERR θws) τSYMBOL  sym::lexer_symbols  θnl 	
 
-<> symbols_preamble → 		@ (ERR θws ) τSYMBOL  sym::lexer_symbols  θnl 			
+#
+# When the parser reaches the end of a production and is ready to reduce,
+# it runs a reduction function that deals with the terminal symbols encountered in 
+# the production. By default the production is reduced to value of the last terminal
+# symbol, but this can be overridden by a reduce function. You would have encountered,
+# one type of this function, the return reduce function [↦return{...}}], which takes 
+# a JavaScript expression and returns the result.
+#
+# The other form is the constructor reduce function, which uses the "new" operator to create
+# new JavaScript object, which is then return to as the value of the production.
+#
 																		
 																		↦cstr{ 
 																			this.type="symbols"; 
@@ -45,8 +82,16 @@
 																			this.symbols.map(sym=>sym.val ? sym.val : sym ).forEach(lex.addSymbol.bind(lex));
 																		 }
 
+<> precedence_preamble → 	@ (ERR θws) τPREC sym::terminal_symbol θnum θnl 	
 
-<> precedence_preamble → 	@ (ERR θws ) τPREC sym::terminal_symbol θnum θnl 			
+#
+# In either the Constructor Reduce function or the Return Expression Reduce function
+# the symbols of the production can be addressed using the $sym operator, which resolves
+# to the index location of the terminal symbol or non-terminal production within the 
+# production body. In the following case, the $sym3 resolves to the third symbol in the proceeding
+# precedence_preamble body, sym::terminal_symbol ( keep in mind [(ERR θws)] is a meta object 
+# and is not an actual symbol of the production body). $sym4 resolves to the θnum symbol.
+#
 																		
 																		↦cstr{ 	
 																			this.grammar_stamp = env.stamp; 
@@ -55,7 +100,6 @@
 																	   		this.val = parseInt($sym4)
 																		}
 
-
 <> ignore_preamble → 		@ (ERR θws ) τIGNORE sym::ignore_symbols θnl				
 																		
 																		↦cstr{ 	
@@ -63,7 +107,7 @@
 																			this.type="ignore"; 
 																			this.symbols = $sym3;
 																		}
-
+ 
 
 <> error_preamble → 		@ (ERR θws ) τERROR sym::ignore_symbols θnl				
 																		

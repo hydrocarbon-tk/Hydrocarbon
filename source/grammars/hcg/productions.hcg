@@ -1,23 +1,18 @@
 
 @SYMBOL <> +>
 
-# sddfs
 
 @IMPORT ./production_bodies.hcg as pb
 
-# sddfs
 
 @IMPORT ./functions.hcg as fn
 
-# sddfs
 
 @IMPORT ./symbols.hcg as sym
 
-# sddfs
 
 @IMPORT ./comments.hcg as cm
 
-# sddfs
 
 @IGNORE θws θnl
 
