@@ -48,7 +48,7 @@ function constructCompilerEnvironment(
         productions: <Grammar>[],
         refs: new Map(),
         body_count: 0,
-        stamp: unique_grammar_file_id + "",
+        stamp: unique_grammar_file_id,
         imported_grammar_name_resolution_map: new Map(),
         meta_imported_productions,
         body_offset: 0,

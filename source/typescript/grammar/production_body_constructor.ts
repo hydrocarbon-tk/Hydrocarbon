@@ -15,7 +15,7 @@ export default class implements ProductionBody {
     length :number;
     functions: Array<ProductionBodyFunction>;
     reduce_function: ProductionBodyReduceFunction;
-    grammar_stamp : string;
+    grammar_stamp : number;
     form:number;
     excludes: Map<number, Symbol[]>
     ignore: Map<number, Symbol[]>

@@ -25,7 +25,7 @@ export default function(sym, env : GrammarParserEnvironment) {
         if (!p.SYMBOL_LIST || p.PENDING)
             return { type: "import", id, url };
     } else
-        meta_imported_productions.set(key, Object.assign([], { SYMBOL_LIST: true, PENDING: true }));
+        meta_imported_productions.set(key, Object.assign([], { SYMBOL_LIST: true, PENDING: true, LU: null }));
 
     env.AWAIT.count++;
     env.PENDING_FILES.count++;
