@@ -1,6 +1,6 @@
 {
   "name": "@candlefw/hydrocarbon",
-  "version": "0.2.1-ts",
+  "version": "0.2.1",
   "description": "Parser Compiler",
   "main": "./build/library/hydrocarbon.js",
   "types": "./build/types/hydrocarbon.d.ts",
@@ -10,7 +10,7 @@
   "type": "module",
   "scripts": {
     "build": "tsc",
-    "prepublish": "cp ./node_modules/@candlefw/whind/build/whind.js ./data",
+    "prepublish": "tsc -p ./tsconfig.json",
     "test": "echo \"Error: no test specified\" && exit 1",
     "compile.grammar": "hydrocarbon compile --unattended -t mjs -o ./source/typescript/grammar ./source/grammars/hcg/hcg.hcg",
     "compile.grammar.test": "hydrocarbon compile -d --unattended -t mjs -o ./source/typescript/grammar ./source/grammars/hcg/hcg.hcg",
@@ -33,17 +33,15 @@
   },
   "homepage": "https://github.com/candlefw/hydrocarbon#readme",
   "dependencies": {
-    "@candlefw/js": "^0.0.9",
-    "@candlefw/whind": "latest",
+    "@candlefw/js": "^0.1.0",
     "@candlefw/url": "latest",
-    "commander": "^4.1.0",
+    "@candlefw/whind": "latest",
+    "commander": "^5.0.0",
     "terser": "^4.6.3"
   },
   "devDependencies": {
     "@types/node": "^13.7.6",
-    "chai": "^4.2.0",
-    "eslint": "^6.8.0",
-    "mocha": "^7.0.1"
+    "eslint": "^6.8.0"
   },
   "eslintConfig": {
     "parserOptions": {
