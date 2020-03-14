@@ -1,9 +1,9 @@
-*.sublime*
-build/config/
+source/
 test/
 tests/
 doc/
 docs/
+workspaces/
 .git/
 
 
