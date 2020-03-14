@@ -18,17 +18,16 @@
     esutils "^2.0.2"
     js-tokens "^4.0.0"
 
-"@candlefw/conflagrate@>=0.0.1":
+"@candlefw/conflagrate@latest":
   version "0.0.1"
   resolved "https://registry.yarnpkg.com/@candlefw/conflagrate/-/conflagrate-0.0.1.tgz#3e0254214c9bd2a36a600885dd4a84af11466d7f"
   integrity sha512-LvfeaJSnxcMVmsPxethO7THzevIlV85FzSNYsE3pfQan1wYNvoU9/bSSHZ+A8JOrRKCTP4EzSrpsvck5vfbfsg==
 
-"@candlefw/js@^0.1.0":
-  version "0.1.0"
-  resolved "https://registry.yarnpkg.com/@candlefw/js/-/js-0.1.0.tgz#4b3b1996e97a03f040156c28c6fa2ee100067d28"
-  integrity sha512-acImCWmPfoa1wr0SYDAlh8Wum0CIj1uDtBH5Zbra9lbGrAC+VbS4g3ER8SoJe2vBg/mw2PZJywa7pCgnRvwdog==
+"@candlefw/js@0.0.9":
+  version "0.0.9"
+  resolved "https://registry.yarnpkg.com/@candlefw/js/-/js-0.0.9.tgz#3cf39b6ffe34cb901aaa9dabece6e0b6ec4b6a8d"
+  integrity sha512-PWTATcE/3NVhTtLbV03BpWgMEBzrIB5Gt4gutMT4tHf9evvybcSZnrmK56oWtIevGhTTGuD9tVrCUcEAqM954A==
   dependencies:
-    "@candlefw/conflagrate" ">=0.0.1"
     "@candlefw/url" latest
     "@candlefw/whind" latest
 

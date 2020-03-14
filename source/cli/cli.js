@@ -3,6 +3,7 @@
 
 /* IMPORTS *******************/
 
+
 //CandleFW stuffs
 import * as hc from "@candlefw/hydrocarbon";
 import whind from "@candlefw/whind";
@@ -170,7 +171,6 @@ async function writeFile(name, ext, data = "", dir = process.env.PWD, type) {
         console.error(err);
     }
 }
-
 
 function createScript(name, parser, type, env, compress = false) {
 
@@ -350,8 +350,7 @@ async function mount(name, input, env, test_data = "") {
 const program = commander.default;
 
 program
-    .version("0.0.3")
-    .parse(process.argv);
+    .version("0.3.2");
 
 program
     .command("table <hydrocarbon_grammar_file>")
@@ -431,7 +430,7 @@ program
     .option("-e, --env <path>", "Optional JavaScript file containing parsing environment information.")
     .option("-m, --mount", "Mounts the compiled parser in the current NodeJS context and allows interactive parsing of user input.")
     .option("-n, --name <output_name>", "The name to give to the output file. Defaults to the name of the grammar file.")
-    .option("-d, --noout", "Do note write to file.")
+    .option("-d, --noout", "Do not write to file.")
     .option("-c, --compress", "Minify output file.")
     .option("--cpp", "Create C++ output")
     .option("-u, --unattended", "Do not wait for user input. Exit to console when compilation is complete. Quit on any error.")
