@@ -22,12 +22,12 @@ type WorkerContainer = {
 
 export class LRMultiThreadProcessWorker {
 
-    processor : StateProcessor;
-    grammar : Grammar;
+    processor: StateProcessor;
+    grammar: Grammar;
     env: ParserEnvironment;
-    id:number;
+    id: number;
 
-    constructor(grammar:Grammar, env_path: string, id: number, processor_constructor = StateProcessor) {
+    constructor(grammar: Grammar, env_path: string, id: number, processor_constructor = StateProcessor) {
 
         this.processor = new processor_constructor;
 
@@ -58,11 +58,11 @@ export class LRMultiThreadProcessWorker {
             }
         }
 
-        parentPort.on("message", (d:{item_set:ItemSet}) => {
+        parentPort.on("message", (d: { item_set: ItemSet; }) => {
             const item_obj = Object.assign({}, d.item_set);
             item_obj.items = item_obj.items.map(i => Item.fromArray(i));
             const result = this.runItem(item_obj);
-        })
+        });
     }
 
     async setupEnvironemnt(env_path) {
@@ -77,7 +77,7 @@ export class LRMultiThreadProcessWorker {
         const grammar = this.grammar;
 
         const error = new CompilerErrorStore();
-        
+
         const { to_process_items, state, error: state_error } = this.processor.process(item_obj.items, item_obj.state_id, grammar, item_obj.excludes, error);
 
         state.thread_id = this.id;
@@ -93,19 +93,19 @@ export class LRMultiThreadProcessWorker {
 
 export class LRMultiThreadRunner {
 
-    resolver:StateResolver;
-    grammar:Grammar;
-    RUN:boolean;
-    env:ParserEnvironment;
-    module_url:string;
-    number_of_workers:number;
-    workers:Array<WorkerContainer>;
-    states:Map<string, LRState>;
-    item_set:Array<ItemSet>;
-    active:number;
-    total_items:number;
-    errors:any;
-    processed_states:Map<string, Set<string>>
+    resolver: StateResolver;
+    grammar: Grammar;
+    RUN: boolean;
+    env: ParserEnvironment;
+    module_url: string;
+    number_of_workers: number;
+    workers: Array<WorkerContainer>;
+    states: Map<string, LRState>;
+    item_set: Array<ItemSet>;
+    active: number;
+    total_items: number;
+    errors: any;
+    processed_states: Map<string, Set<string>>;
 
     constructor(grammar: Grammar, env: ParserEnvironment, env_url: string, resolver_constructor = StateResolver) {
 
@@ -134,13 +134,13 @@ export class LRMultiThreadRunner {
             wkr => {
 
                 wkr.target.on("error", e => {
-                    console.log(e)
+                    console.log(e);
                     this.RUN = false;
                 });
 
                 wkr.target.on("message", (data) => {
-                    this.mergeWorkerData(wkr, data.to_process_items, data.state, data.errors)
-                })
+                    this.mergeWorkerData(wkr, data.to_process_items, data.state, data.errors);
+                });
             }
         );
 
@@ -161,14 +161,11 @@ export class LRMultiThreadRunner {
         this.resolver.resolve(this.states, state, this.grammar, this.errors);
     }
 
-    async mergeWorkerData(wkr:WorkerContainer, to_process_items:Array<ItemSet>, state:LRState, errors:any) {
+    async mergeWorkerData(wkr: WorkerContainer, to_process_items: Array<ItemSet>, state: LRState, errors: any) {
 
         this.item_set.push(...(to_process_items.filter(i => {
             const id = i.state_id.id,
                 sym = i.state_id.sym;
-
-            if (i.excludes.length > 0)
-                console.log(i.excludes)
 
             i.items = i.items.map(i => Item.fromArray(i));
 
@@ -186,7 +183,7 @@ export class LRMultiThreadRunner {
 
                 this.processed_states.set(id, new Set(...i.items.map(i => i.full_id)));
             }
-            
+
             this.total_items++;
 
             return true;
@@ -202,7 +199,7 @@ export class LRMultiThreadRunner {
 
     *run() {
 
-        this.item_set = [{ items: [new Item(0, this.grammar.bodies[0].length, 0, { val: "$eof", precedence: 0, type: SymbolType.GENERATED })], excludes: [], state_id: { sym:"$eof", id: "start" } }];
+        this.item_set = [{ items: [new Item(0, this.grammar.bodies[0].length, 0, { val: "$eof", precedence: 0, type: SymbolType.GENERATED })], excludes: [], state_id: { sym: "$eof", id: "start" } }];
 
         this.total_items = 1;
 
@@ -219,7 +216,7 @@ export class LRMultiThreadRunner {
 
                     worker.target.postMessage({
                         item_set: this.item_set.shift()
-                    })
+                    });
 
                     worker.READY = false;
                 }
@@ -254,26 +251,29 @@ export class LRMultiThreadRunner {
 
 if (!isMainThread) {
 
-    const { grammar, env_path, id } = workerData;
-    
-    if(grammar)
-        new LRMultiThreadProcessWorker(grammar, env_path, id);
+    if (workerData) {
+
+        const { grammar, env_path, id } = workerData;
+
+        if (grammar)
+            new LRMultiThreadProcessWorker(grammar, env_path, id);
+    }
 
 }
 
-export default function * (grammar : Grammar, env : ParserEnvironment, env_path: string) {
+export default function* (grammar: Grammar, env: ParserEnvironment, env_path: string) {
 
     try {
         const runner = new LRMultiThreadRunner(grammar, env, env_path);
         return yield* runner.run();
     } catch (e) {
         return yield {
-            errors: { strings:[e] },
+            errors: { strings: [e] },
             states: { COMPILED: false },
             num_of_states: 0,
             total_items: 0,
             items_left: 0,
             COMPLETE: true
-        }
+        };
     }
 }
