@@ -60,3 +60,4 @@ build/
 #HCG compiler backup files.
 *.hcgb*
 
+.vscode
