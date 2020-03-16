@@ -272,9 +272,9 @@ async function mount(name, input, env, test_data = "") {
 
         }
 
-        //If there is test data, then run the parser on that data and immediatly return. 
-        if (test_data) {
-            const result = parser(whind(test_data, false), parser_data, env);
+        //If there is test data, then run the parser on that data and immediately return. 
+        if (typeof test_data == "string") {
+            const result = parser(whind(test_data.toString(), false), parser_data, env);
 
             if (result.error)
                 console.error(result.error);
