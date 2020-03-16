@@ -1,6 +1,6 @@
 //@ts-ignore
 import { null_literal, member_expression, numeric_literal, identifier, parse as ecmascript_parse } from "@candlefw/js";
-import { Lexer } from "@candlefw/whind";
+import { Lexer } from "@candlefw/wind";
 
 import { Production, Symbol,ProductionBodyFunction,ProductionBodyReduceFunction, ProductionBody } from "../types/grammar.js";
 import { GrammarParserEnvironment } from "../types/grammar_compiler_environment.js";

@@ -1,3 +1,3 @@
-import { Lexer } from "@candlefw/whind";
+import { Lexer } from "@candlefw/wind";
 
 export type StateStack = Array<number | Lexer>;

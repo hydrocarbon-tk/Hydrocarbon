@@ -1,4 +1,4 @@
-import whind from "@candlefw/whind";
+import wind from "@candlefw/wind";
 
 import hcg_parser_data from "./hcg.js";
 import { lrParse as parser } from "../lr/runtime/lr_parser.js";
@@ -74,7 +74,7 @@ export async function grammarParser(
     const
         local_pending_files = { count: 0 },
         result = parser(
-            whind(grammar_string),
+            wind(grammar_string),
             hcg_parser_data,
             <ParserEnvironment>constructCompilerEnvironment(
                 grammar_file_url,

@@ -1,4 +1,4 @@
-import { Lexer } from "@candlefw/whind";
+import { Lexer } from "@candlefw/wind";
 import { StateStack } from "./state_stack.js";
 export interface ParserSquashResultData {
     /**

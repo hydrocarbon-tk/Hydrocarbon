@@ -36,18 +36,17 @@
     "@candlefw/conflagrate": "latest",
     "@candlefw/js": "0.0.9",
     "@candlefw/url": "latest",
-    "@candlefw/whind": "latest",
+    "@candlefw/wind": "latest",
     "commander": "^5.0.0",
     "terser": "^4.6.3"
   },
   "devDependencies": {
-    "@types/node": "^13.7.6",
-    "eslint": "^6.8.0"
+    "@types/node": "^13.7.6"
   },
   "eslintConfig": {
     "parserOptions": {
       "sourceType": "module",
-      "ecmaVersion": 2018
+      "ecmaVersion": 2020
     },
     "env": {
       "es6": true,

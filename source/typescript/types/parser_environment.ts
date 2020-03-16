@@ -1,4 +1,4 @@
-import { Lexer } from "@candlefw/whind";
+import { Lexer } from "@candlefw/wind";
 import { ErrorHandler } from "./parser_data.js";
 
 /**

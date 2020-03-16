@@ -1,4 +1,4 @@
-import { Lexer } from "@candlefw/whind";
+import { Lexer } from "@candlefw/wind";
 
 import { StateActionEnum } from "../../types/state_action_enums.js";
 import { ParserData, OutputStack } from "../../types/parser_data.js";
@@ -12,8 +12,8 @@ const MAX_CYCLES = 600000;
 
 /**
     Parses an input. Returns an object with parse results and an error flag if parse could not complete.
-    @param l: Lexer - lexer object with an interface defined in candlefw/whind.
-    @param data: parser data that includs the look up tables and built in parse action functions.
+    @param l: Lexer - lexer object with an interface defined in candlefw/wind.
+    @param data: parser data that includes the look up tables and built in parse action functions.
     @param e: Environment object containing user defined parse action functions.
 */
 function parser(
@@ -226,7 +226,8 @@ function parser(
                                 lex,
                                 cycles,
                                 total_cycles,
-                                off
+                                off,
+                                error: null
                             };
                         }
                         break;
@@ -350,7 +351,7 @@ function parser(
 
 /**
     Parses an input. Returns an object with parse results and an error flag if parse could not complete.
-    @param lex: Lexer - lexer object with an interface defined in candlefw/whind.
+    @param lex: Lexer - lexer object with an interface defined in candlefw/wind.
     @param data: parser data that includs the look up tables and built in parse action functions.
     @param environment: Environment object containing user defined parse action functions.
 */

@@ -1,6 +1,6 @@
-import whind from "@candlefw/whind";
+import wind from "@candlefw/wind";
 
-export const MASK = whind.types.symbol | whind.types.operator | whind.types.open_bracket | whind.types.close_bracket | whind.types.string;
+export const MASK = wind.types.symbol | wind.types.operator | wind.types.open_bracket | wind.types.close_bracket | wind.types.string;
 
 export const EMPTY_PRODUCTION = "{!--EMPTY_PRODUCTION--!}";
 
@@ -16,7 +16,7 @@ import { processClosure } from "./process_closure.js";
 
 export { Item, FOLLOW, FIRST, processClosure };
 
-export const types = whind.types;
+export const types = wind.types;
 
 const
     production_stack_arg_name = "sym",
@@ -24,14 +24,14 @@ const
     lexer_arg_name = "lex";
 
 export function getToken(l, SYM_LU, IGNORE_KEYWORDS = false) {
-    if (l.END) return 0; 
-    
-    if((l.ty & types.num)){
+    if (l.END) return 0;
+
+    if ((l.ty & types.num)) {
 
         if (!IGNORE_KEYWORDS && SYM_LU.has(l.tx)) return SYM_LU.get(l.tx);
-        
 
-        switch(l.ty){
+
+        switch (l.ty) {
             case types.sci:
                 return "sci";
             case types.hex:
@@ -74,7 +74,7 @@ function setFunction(env, funct, function_params = [], this_object = null) {
     try {
         func = (Function).apply(this_object, function_params.concat([(funct.type == "RETURNED" ? "return " : "") + funct.txt.trim()]));
     } catch (e) {
-        func = () => { return { error: e, type: "error" } };
+        func = () => { return { error: e, type: "error" }; };
 
         throw "";
     }
@@ -137,7 +137,7 @@ export function filloutGrammar(grammar, env) {
         if (production.error_function)
             addFunctions(production.error_function, production, env);
 
-        for (let i = 0; i < production.bodies.length; i++, j++) {
+        for (let i = 0; i < production.bodies.length; i++ , j++) {
             const body = production.bodies[i];
             body.id = j;
             bodies.push(body);

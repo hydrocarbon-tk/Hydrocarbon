@@ -1,4 +1,4 @@
-import { Lexer } from "@candlefw/whind";
+import { Lexer } from "@candlefw/wind";
 import { ParserEnvironment } from "./parser_environment.js";
 
 export type OutputStack = Array<any>;
