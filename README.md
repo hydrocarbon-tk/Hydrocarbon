@@ -1,6 +1,12 @@
-# cfw.Hydrocarbon
+<h1 align=center>
+    <img src="./flavor/cfw-flame-w-lib.svg" type="text/svg" rel="svg" height=80>
+</h1>
 
-## Compile LALR Parsers
+<h3 align=center> LALR Parser Compiler</h3>
+
+<p align=center> <sub><b>v0.3.2</b></sub> </p>
+
+#
 
 Hydrocarbon is a LALR and GLALR parser compiler that uses a self hosted, custom grammar that is inspired by Backus-Naur syntax.
 
