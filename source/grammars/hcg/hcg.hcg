@@ -2,17 +2,18 @@
 ############################################## Hydrocarbon Grammar #####################################################
 ########################################################################################################################
 
-# v2
+
 
 # This is the Hydrocarbon Grammar Definition and parser file. It contains information to build the Hydrocarbon 
 # Grammar parser.
 
 # The file starts with preamble clauses, which define meta information that is used throughout the compile process.
-# Preambles begin with the @ symbol followed by an identifier.
+# Preambles begin with the @ symbol followed by an identifier
 
-# The @NAME preamble allows meta information to be defined at the head of a HCG grammar file. 
 
-@NAME Hydrocarbon Grammar
+# The NAME preamble allows meta information to be defined at the head of a HCG grammar file. 
+
+@NAME HydrocarbonGrammar
 
 # The @EXT preamble defines the extension types that the compiled parser is expected to parse.
 

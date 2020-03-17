@@ -1,32 +1,38 @@
 //@ts-ignore
-import { null_literal, member_expression, numeric_literal, identifier, parse as ecmascript_parse } from "@candlefw/js";
+import { parser, MinTreeNode, MinTreeNodeClass, exp, render, ext, stmt, MinTreeNodeType } from "@candlefw/js";
+
+import { traverse, make_replaceable, bit_filter, extract } from "@candlefw/conflagrate";
+
 import { Lexer } from "@candlefw/wind";
 
-import { Production, Symbol,ProductionBodyFunction,ProductionBodyReduceFunction, ProductionBody } from "../types/grammar.js";
+import { Production, Symbol, ProductionBodyFunction, ProductionBodyReduceFunction, ProductionBody } from "../types/grammar.js";
+
 import { GrammarParserEnvironment } from "../types/grammar_compiler_environment.js";
 
+
+const null_literal = exp("null");
 export default class implements ProductionBody {
-    
-    name : string;
-    val : number;
-    sym: Array<Symbol>
-    lex:Lexer;
-    sym_map:Array<number>;
-    length :number;
+
+    name: string;
+    val: number;
+    sym: Array<Symbol>;
+    lex: Lexer;
+    sym_map: Array<number>;
+    length: number;
     functions: Array<ProductionBodyFunction>;
     reduce_function: ProductionBodyReduceFunction;
-    grammar_stamp : number;
-    form:number;
-    excludes: Map<number, Symbol[]>
-    ignore: Map<number, Symbol[]>
-    error: Map<number, Symbol[]>
-    reset: Map<number, Symbol[]>
-    reduce: Map<number, Symbol>
-    BUILT:boolean;
-    uid:string;
-    precedence:number;
+    grammar_stamp: number;
+    form: number;
+    excludes: Map<number, Symbol[]>;
+    ignore: Map<number, Symbol[]>;
+    error: Map<number, Symbol[]>;
+    reset: Map<number, Symbol[]>;
+    reduce: Map<number, Symbol>;
+    BUILT: boolean;
+    uid: string;
+    precedence: number;
 
-    constructor(sym, env:GrammarParserEnvironment, lex:Lexer, form = (~(0xFFFFFFFFFFFFF << sym[0].body.length)) & 0xFFFFFF) {
+    constructor(sym, env: GrammarParserEnvironment, lex: Lexer, form = (~(0xFFFFFFFFFFFFF << sym[0].body.length)) & 0xFFFFFF) {
 
         const s = sym[0];
         let bc = 0;
@@ -50,7 +56,7 @@ export default class implements ProductionBody {
 
         this.BUILT = false;
 
-        //Used to identifiy the unique form of the body.
+        //Used to identify the unique form of the body.
         this.uid = this.sym.map(e => e.type == "production" ? e.name : e.val).join(":");
     }
 
@@ -60,49 +66,75 @@ export default class implements ProductionBody {
 
             this.BUILT = true;
 
-            const str = (this.reduce_function.type == "RETURNED") ?
-                `function temp(temp){return ${this.reduce_function.txt}}` :
-                `function temp(temp){ ${this.reduce_function.txt}}`;
+            const
+                str =
+                    (this.reduce_function.type == "RETURNED")
+                        ? `function temp(temp){return ${this.reduce_function.txt}}`
+                        : `function temp(temp){ ${this.reduce_function.txt}}`,
+                ast = stmt(str), receiver = { ast: null };
 
-            let fn = ecmascript_parse(str);
+            let alt = render(ast);
+            //*
+            for (const node of traverse(ast, "nodes")
+                .then(bit_filter("type", MinTreeNodeClass.IDENTIFIER))
+                .then(make_replaceable((parent, child, child_index, children, replaceParent) => {
 
-            fn = fn.statements;
+                    if (child == null) {
+                        if (
+                            parent.type == MinTreeNodeType.AssignmentExpression ||
+                            parent.type == MinTreeNodeType.PropertyBinding ||
+                            parent.type == MinTreeNodeType.VariableStatement ||
+                            parent.type == MinTreeNodeType.BindingExpression ||
+                            parent.type == MinTreeNodeType.ExpressionStatement
+                        )
+                            return null;
 
-            const iter = fn.traverseDepthFirst();
-
-            for (const node of iter) {
-
-                //If encountering an identifier with a value of the form "$sym*" where * is an integer.
-                if (node instanceof identifier && (node.val.slice(0, 4) == "$sym" || node.val.slice(0, 5) == "$$sym")) {
-
-                    // Retrieve the symbol index
-                    const index = parseInt(
-                        node.val.slice(0, 5) == "$$sym" ?
-                            node.val.slice(5) :
-                            node.val.slice(4)
-                    ) - 1;
-
-                    let n = null,
-                        v = -1;
-                    // Replace node with either null or "sym[*]"" depending on the presence of nonterms
-                    // within the body.  
-
-                    if ((v = this.sym_map.indexOf(index)) >= 0) {
-                        n = new member_expression(new identifier(["sym"]), new numeric_literal([v]), true);
-                    } else if (node.val.slice(0, 5) == "$$sym") {
-                        n = new null_literal();
+                        if (parent.type & MinTreeNodeClass.BINARY_EXPRESSION) {
+                            replaceParent();
+                            return children[1 - child_index];
+                        }
                     }
 
-                    node.replace(n);
+                    return parent ? Object.assign({}, parent) : null;
+                }))
+                .then(extract(receiver))
+            ) {
+
+                const
+                    value = <string>node.value,
+                    IS_REPLACE_SYM = value.slice(0, 4) == "$sym",
+                    IS_NULLIFY_SYM = value.slice(0, 5) == "$$sym";
+
+                if (IS_NULLIFY_SYM || IS_REPLACE_SYM) {
+                    const index = parseInt(
+                        IS_NULLIFY_SYM ?
+                            value.slice(5) :
+                            value.slice(4)
+                    ) - 1;
+
+                    let v = -1;
+
+                    if ((v = this.sym_map.indexOf(index)) >= 0) {
+                        // alt = { str: alt + `sym[${v}]`, sym: ext(exp(`sym[${v}]`)) };
+                        node.replace(exp(`sym[${v}]`));
+                    } else if (IS_NULLIFY_SYM) {
+                        node.replace(null_literal);
+                    } else {
+                        node.replace(null);
+                    }
                 }
             }
+            //*/
+            const funct = ext(receiver.ast);
 
-            // Replace the reduce_function with a new object (that contains the modified
-            // functions string)?
             this.reduce_function = Object.assign({}, this.reduce_function);
-            this.reduce_function.txt = (this.reduce_function.type == "RETURNED") ?
-                fn.body.expr.render() :
-                fn.body.render();
+            this.reduce_function.alt = alt;
+            try {
+                this.reduce_function.txt = render(funct.nodes[2]);
+            } catch (e) {
+                console.log(e);
+            }
+
         }
 
         //Removing build function ensures that this object can be serialized. 

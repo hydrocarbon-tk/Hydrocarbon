@@ -1,6 +1,6 @@
 /** Compiles a stand alone JS parser from a LR rules table and env object **/
 //@ts-ignore
-import { types as js_types, arrow_function_declaration, parse as ecmascript_parse } from "@candlefw/js";
+import { parser, stmt, render, MinTreeNodeType, ext, exp, MinTreeNodeClass, MinTreeNode } from "@candlefw/js";
 
 import createStateArrays from "./create_state_arrays.js";
 import { verboseTemplate } from "./data_object_template.js";
@@ -8,49 +8,58 @@ import { types as t, filloutGrammar } from "../../util/common.js";
 import { LRStates } from "../../types/lr_state.js";
 import { Grammar, SymbolType } from "../../types/grammar.js";
 import { ParserEnvironment } from "../../types/parser_environment.js";
+import { traverse, bit_filter } from "@candlefw/conflagrate";
+import { MinTreeExtendedNode } from "@candlefw/js/build/types/types/mintree_extended_node";
+/**
+ * 
+ * 
+ * @param function_string A function string to convert into an arrow function expression.
+ */
+function generateCompactFunction(function_string: string) {
 
-function generateCompactFunction(function_string:string) {
+    //*
+    let fn = ext(stmt(function_string), true);
 
-    //return function_string.replace(/(anonymous)?[\n\t]*/g, "");
-    let fn = ecmascript_parse(function_string).statements;
+    fn.name.value = "";
 
-    fn.id.vals[0] = "";
+    const
+        short_names = "ABCDEFGHI",
+        ids = new Map(fn.parameters.nodes.map((e, i) => [e.value, { b: false, s: short_names[i] }])),
+        nodes = fn.parameters.nodes;
 
-    if (fn.body) {
+    for (const node of traverse(fn.body, "nodes")
+        .then(bit_filter("type", MinTreeNodeClass.IDENTIFIER))) {
 
-        const ids = new Set;
-        const cls = new Set;
+        if (node.type & MinTreeNodeClass.PROPERTY_NAME) continue;
 
-        if (fn.body.type == js_types.return_statement) {
-            fn = new arrow_function_declaration(null, fn.args, fn.body);
-
-            fn.vals[2] = fn.body.expr;
-        }
-
-        fn.body.getRootIds(ids, cls);
-
-        const args = fn.args;
-
-        for (let i = args.length - 1; i > -1; i--) {
-            const id = args.args[i].name;
-            if (ids.has(id)) {
-                args.vals = args.args.slice(0, i + 1);
-                break;
-            }
-
-            if (i == 0) {
-                args.vals = [];
-            }
-        }
-
-    } else {
-        fn.vals[1] = [];
+        let v = ids.get(node.value);
+        if (v)
+            (v.b = true, node.value = v.s);
     }
-    return fn.render();
 
+    const last_index = [...ids.values()].reduce((r, v, i) => v.b && i > r ? i : r, -1);
+
+    nodes.forEach((e, i) => e.value = short_names[i]);
+
+    fn.parameters.nodes = nodes.slice(0, last_index + 1);
+
+    if (fn.body && fn.body.nodes[0].type == MinTreeNodeType.ReturnStatement) {
+        const arrow = exp("(a,a)=>(a)");
+        // arrow->  paren-> expression_list->  nodes
+        if (fn.parameters.nodes.length == 1)
+            arrow.nodes[0] = nodes[0];
+        else
+            arrow.nodes[0].nodes[0].nodes = fn.parameters.nodes;
+
+        arrow.nodes[1].nodes[0] = fn.body.nodes[0].nodes[0];
+
+        fn = arrow;
+    }
+
+    return render(fn);
 }
 
-export default function GenerateLRParseDataObject(states:LRStates, grammar:Grammar, env:ParserEnvironment) {
+export default function GenerateLRParseDataObject(states: LRStates, grammar: Grammar, env: ParserEnvironment) {
     //Build new env variables if they are missing 
     if (!grammar.bodies)
         filloutGrammar(grammar, env);
@@ -59,12 +68,12 @@ export default function GenerateLRParseDataObject(states:LRStates, grammar:Gramm
         throw new Error("");
 
     const
-        GEN_SYM_LU = <Map<string|number, number>>new Map(),
+        GEN_SYM_LU = <Map<string | number, number>>new Map(),
         types = Object.assign({}, t);
-    
+
     //@ts-ignore
     types.any = 200;
-    
+
     //@ts-ignore
     types.keyword = 201;
 
@@ -72,7 +81,7 @@ export default function GenerateLRParseDataObject(states:LRStates, grammar:Gramm
     for (const a in types)
         GEN_SYM_LU.set(a, (((n++) / 2) | 0) + 1);
 
-    n = n/2;
+    n = n / 2;
 
     GEN_SYM_LU.set("white_space_new_line", n++);
     GEN_SYM_LU.set("any", n++);
@@ -90,26 +99,26 @@ export default function GenerateLRParseDataObject(states:LRStates, grammar:Gramm
             if (COMPILE_FUNCTION || funct.INTEGRATE)
                 funct.id = functions.push(`${generateCompactFunction(funct.toString())}`) - 1;
         }
-        
+
     const
         error_handlers = [],
         SYMBOL_INDEX_OFFSET = ++n, //Must leave room for symbol types indices
         //Convert all terminals to indices and create lookup map for terminals
 
-        SYM_LU = <Map<number|string, number>> new Map([
-            ...[...GEN_SYM_LU.entries()].map(e => <[string | number, number]> [ types[e[0]], e[1] ]),
+        SYM_LU = <Map<number | string, number>>new Map([
+            ...[...GEN_SYM_LU.entries()].map(e => <[string | number, number]>[types[e[0]], e[1]]),
             ...[...grammar.meta.all_symbols.values()]
                 .map((e, i) => (
-                    <[string | number, number]> [
-                                    (e.type == SymbolType.GENERATED) 
-                                        ? types[e[0]] 
-                                        : e.val, 
-                                    (e.type == SymbolType.GENERATED) 
-                                        ? GEN_SYM_LU.get(e.val) 
-                                        : i + SYMBOL_INDEX_OFFSET
-                                ]
-                                )
-                    )
+                    <[string | number, number]>[
+                        (e.type == SymbolType.GENERATED)
+                            ? types[e[0]]
+                            : e.val,
+                        (e.type == SymbolType.GENERATED)
+                            ? GEN_SYM_LU.get(e.val)
+                            : i + SYMBOL_INDEX_OFFSET
+                    ]
+                )
+                )
         ]),
         { state_functions, goto_map_lookup, state_str_functions, state_maps, goto_maps, fork_map } = createStateArrays(grammar, states, env, functions, SYM_LU, types);
 
@@ -117,7 +126,7 @@ export default function GenerateLRParseDataObject(states:LRStates, grammar:Gramm
         const production = grammar.bodies[states[i].body].production;
         if (production.error) {
             const funct = production.error;
-            error_handlers.push(`${funct.toString().replace(/(anonymous)?[\n\t]*/g,"")}`);
+            error_handlers.push(`${funct.toString().replace(/(anonymous)?[\n\t]*/g, "")}`);
         } else {
             error_handlers.push("e");
         }

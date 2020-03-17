@@ -20,7 +20,7 @@
 																	
 																	↦return { env.body_count++, $sym1.push($sym3), $sym1 }
 
-		│ production_bodies cm::comment 					
+		│ production_bodies cm::comment					
 																	
 																	↦return { $sym1 }
 

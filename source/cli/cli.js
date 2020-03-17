@@ -277,9 +277,9 @@ async function mount(name, input, env, test_data = "") {
             const result = parser(whind(test_data.toString(), false), parser_data, env);
 
             if (result.error)
-                console.error(result.error);
+                console.error({ error: result.error });
 
-            console.dir(result.result, { depth: null });
+            console.dir(result.value, { depth: null });
 
             res(false);
         } else {
@@ -467,8 +467,6 @@ program
                 process.exit(1);
             }
 
-            //            process.exit(-1)
-
             let states = null,
                 script_string = "";
 
@@ -480,6 +478,7 @@ program
                         states = parseLRJSONStates(states_string, unattended);
                     } else {
 
+                        //throw "Can't continue"
                         states = await compileLRStates(grammar, env, env_path, name, unattended);
 
                         if (!!cmd.statesout) {

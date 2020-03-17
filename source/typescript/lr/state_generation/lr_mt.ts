@@ -43,7 +43,7 @@ export class LRMultiThreadProcessWorker {
     async start(env_path: string) {
         const grammar = this.grammar;
 
-        await this.setupEnvironemnt(env_path);
+        await this.setupEnvironment(env_path);
 
         filloutGrammar(this.grammar, this.env);
 
@@ -65,7 +65,7 @@ export class LRMultiThreadProcessWorker {
         });
     }
 
-    async setupEnvironemnt(env_path) {
+    async setupEnvironment(env_path) {
         if (env_path) {
             let ext = env_path.split(".").reverse()[0];
             this.env = (await import("file://" + env_path)).default;

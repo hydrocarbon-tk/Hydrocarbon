@@ -4,11 +4,13 @@
 ######################################  COMMENTS
 ########################################################################################################################
 
-<> comment → \# comment_data comment_delimiter						↦cstr{ this.val = $sym2 }
+<> comment → cm
 
-<> comment_delimiter → θnl │ $eof │ ;
+<>cm → (RED θnl) \# comment_data comment_delimiter					↦cstr{ this.val = $sym2 }
+
+<> comment_delimiter → θnl 
 
 <> comment_data → comment_primitive 								↦return { $sym1 }
 			 │ comment_data comment_primitive						↦return { $sym1 + $sym2 }
 
-<> comment_primitive → θid │ θnum │ θws │ θany
+<> comment_primitive → θany │ θws │ \@ │ \( │ \{

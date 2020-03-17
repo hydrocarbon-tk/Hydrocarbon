@@ -124,9 +124,12 @@
 																		this.IS_CONDITION = true;
 																	}
 
-<> js_data → cm::comment_data
+<> js_data → js_primitive
 	│ js_data_block
-	│ js_data js_data											↦return { $sym1 + $sym2 }
+	│ js_data js_primitive											↦return { $sym1 + $sym2 }
+	│ js_data js_data_block											↦return { $sym1 + $sym2 }
 	│ ɛ
+
+<> js_primitive → θid │ θnum │ θws │ \@ │ θsym │ θkeyword │ θsym 
 
 <> js_data_block → { js_data }									↦return { $sym1 + $sym2 + $sym3 }

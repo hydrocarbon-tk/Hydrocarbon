@@ -70,13 +70,15 @@ export function getToken(l, SYM_LU, IGNORE_KEYWORDS = false) {
 /************ Grammar Production Functions *****************************/
 
 function setFunction(env, funct, function_params = [], this_object = null) {
+
     let func;
+
     try {
-        func = (Function).apply(this_object, function_params.concat([(funct.type == "RETURNED" ? "return " : "") + funct.txt.trim()]));
+        func = (Function).apply(this_object, function_params.concat([(funct.type == "RETURNED" ? "" : "") + funct.txt.trim()]));
     } catch (e) {
         func = () => { return { error: e, type: "error" }; };
 
-        throw "";
+        throw e;
     }
 
     return func;
@@ -105,6 +107,7 @@ function addFunctions(funct, production, env) {
             env.functions[name].INTEGRATE = true;
             env.FLUT.set(str, name);
         }
+
         funct.name = name;
     }
 }
