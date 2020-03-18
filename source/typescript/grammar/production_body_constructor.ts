@@ -10,7 +10,7 @@ import { Production, Symbol, ProductionBodyFunction, ProductionBodyReduceFunctio
 import { GrammarParserEnvironment } from "../types/grammar_compiler_environment.js";
 
 
-const null_literal = exp("null");
+
 export default class implements ProductionBody {
 
     name: string;
@@ -35,6 +35,7 @@ export default class implements ProductionBody {
     constructor(sym, env: GrammarParserEnvironment, lex: Lexer, form = (~(0xFFFFFFFFFFFFF << sym[0].body.length)) & 0xFFFFFF) {
 
         const s = sym[0];
+
         let bc = 0;
 
         this.lex = lex;
@@ -118,7 +119,7 @@ export default class implements ProductionBody {
                         // alt = { str: alt + `sym[${v}]`, sym: ext(exp(`sym[${v}]`)) };
                         node.replace(exp(`sym[${v}]`));
                     } else if (IS_NULLIFY_SYM) {
-                        node.replace(null_literal);
+                        node.replace(exp("null"));
                     } else {
                         node.replace(null);
                     }
@@ -128,7 +129,7 @@ export default class implements ProductionBody {
             const funct = ext(receiver.ast);
 
             this.reduce_function = Object.assign({}, this.reduce_function);
-            this.reduce_function.alt = alt;
+
             try {
                 this.reduce_function.txt = render(funct.nodes[2]);
             } catch (e) {
