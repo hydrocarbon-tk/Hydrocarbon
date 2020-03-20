@@ -54,7 +54,7 @@ function parser(
 
     let
         RECOVERING = 100,
-        FINAL_RECOVERY = false,
+        FINAL_RECOVERY = -1,
         tk = 0,
         total_cycles = cycles,
         state = null,
@@ -84,7 +84,7 @@ function parser(
     try {
 
         outer: while ((++total_cycles, cycles++ < MAX_CYCLES)) {
-            //console.log({cycles, total_cycles, forks})
+
             // Skip this step if we entered this function through a fork. 
             // State action will have been set in the outer scope. 
             let action = 0,
@@ -141,12 +141,13 @@ function parser(
                     lex.next();
                     tk = getToken(lex, token_lu);
 
-                    if (!FINAL_RECOVERY) {
+                    if (FINAL_RECOVERY != lex.off) {
+                        FINAL_RECOVERY = lex.off;
 
                         const recovery_token = error_handlers[<number>state_stack[sp]](tk, e, o, lex, p, <number>state_stack[sp], (lex) => getToken(lex, token_lu));
 
                         if (recovery_token >= 0) {
-                            FINAL_RECOVERY = true;
+                            off = lex.off;
                             RECOVERING = 100;
                             tk = recovery_token;
                             break;
@@ -172,8 +173,6 @@ function parser(
 
                     case StateActionEnum.SHIFT:
 
-                        FINAL_RECOVERY = false;
-
                         o.push(lex.tx);
 
                         sp += 2;
@@ -186,13 +185,13 @@ function parser(
 
                         tk = getToken(lex, token_lu);
 
+
                         RECOVERING++;
 
                         break;
 
                     case StateActionEnum.REDUCE:
 
-                        FINAL_RECOVERY = false;
                         len = (action & 0x7F8) >> 2;
 
                         var end = <Lexer>state_stack[sp - 1];
@@ -271,7 +270,7 @@ function parser(
                                 const ret = <ParserSquashResultData>res;
 
                                 if (fork_depth > 1 && ret.sp < fork_depth) {
-                                    ret.total_cycles += result.total_cycles;
+                                    ret.total_cycles += result.total_cycles - ret.total_cycles;
                                     return ret;
                                 }
 
@@ -281,7 +280,7 @@ function parser(
                                 sp = ret.sp;
                                 len = ret.len;
                                 tk = ret.tk;
-                                cycles += ret.total_cycles;
+                                cycles += ret.cycles - cycles;
                                 off = ret.off;
                                 forks += ret.forks;
 
