@@ -2,17 +2,20 @@ import { Grammar } from "source/typescript/types/grammar.js";
 import { LRStates } from "source/typescript/types/lr_state.js";
 import { ParserEnvironment } from "source/typescript/types/parser_environment.js";
 import { processStateTransition, convertSymbols } from "./processStateTransition.js";
-
+import { fillAndCompress } from "./fillAndCompress.js";
+/*/
 function fillAndCompress(array) {
     const copy = array.slice();
-    /* Fill out empty entries in state_map with -1 */
+    // Fill out empty entries in state_map with -1 
     for (let i = 0; i < copy.length; i++)
         if (copy[i] === undefined) copy[i] = -1;
-    /* Compress state map by reducing -1 entries */
+    // Compress state map by reducing -1 entries 
     return copy.reduce((r, i, l) => (l = r.length - 1, ((+r[l] < 0) && i < 0) ? r[l]-- : r.push(i), r), []);
 }
+//*/
 
-export default function(grammar:Grammar, states:LRStates, env:ParserEnvironment, functions, SYM_LU, types) {
+
+export default function (grammar: Grammar, states: LRStates, env: ParserEnvironment, functions, SYM_LU, types) {
 
     const
         bodies = grammar.bodies,
@@ -36,13 +39,13 @@ export default function(grammar:Grammar, states:LRStates, env:ParserEnvironment,
 
         if (production.error) {
             const funct = production.error;
-            error_handlers.push(`${funct.toString().replace(/(anonymous)?[\n\t]*/g,"")}`);
+            error_handlers.push(`${funct.toString().replace(/(anonymous)?[\n\t]*/g, "")}`);
         } else {
             error_handlers.push("e");
         }
-        
+
         [...state.actions.entries()]
-        .map(s => convertSymbols(s, SYM_LU, types))
+            .map(s => convertSymbols(s, SYM_LU, types))
             .sort((a, b) => (a[0] < b[0]) ? -1 : 1)
             .forEach((s) => (processStateTransition(
                 s,
@@ -61,13 +64,13 @@ export default function(grammar:Grammar, states:LRStates, env:ParserEnvironment,
         //Goto tables are found at top of the parser.
 
         const goto_out = fillAndCompress(([...state.goto.entries()])
-                            .sort((a, b) => a[0] < b[0] ? -1 : 1)
-                            .reduce(((r, k) => (r[k[0]] = (k[1].state), r)), []));
+            .sort((a, b) => a[0] < b[0] ? -1 : 1)
+            .reduce(((r, k) => (r[k[0]] = (k[1].state), r)), []));
 
         let id = -1;
 
         if (goto_out.length > 1) {
-            const goto_id = goto_out.join("");
+            const goto_id = goto_out;//.join("");
             if (goto_maps.has(goto_id)) {
                 id = goto_maps.get(goto_id).id;
             } else {
@@ -78,9 +81,9 @@ export default function(grammar:Grammar, states:LRStates, env:ParserEnvironment,
 
         goto_map_lookup.push((goto_out.length > 1) ? id : `-1`);
 
-        const 
+        const
             out_state_map = fillAndCompress(state_map),
-            sm_id = `[${out_state_map.join(",")}]`;
+            sm_id = `[${out_state_map/*.join(",")*/}]`;
 
         /*  Create a UID for state map and use this to determine 
             if one has been created from another state */
