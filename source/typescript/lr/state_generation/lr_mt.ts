@@ -82,9 +82,8 @@ export class LRMultiThreadProcessWorker {
 
         state.thread_id = this.id;
 
-        if (state_error) {
+        if (state_error)
             console.log(state_error);
-        }
 
         //sanitize items and remove anything thet is not strictly needed per item. 
         parentPort.postMessage({ to_process_items, state, errors: error.strings.length > 0 ? error.strings : null });
@@ -134,7 +133,17 @@ export class LRMultiThreadRunner {
             wkr => {
 
                 wkr.target.on("error", e => {
-                    console.log(e);
+                    function compress(r, i) {
+                        const l = r.length - 1;
+
+                        if (+r[l] < 0 && i < 0) {
+                            r[l]--;
+                        } else {
+                            r.push(i);
+                        }
+
+                        return r;
+                    }(e);
                     this.RUN = false;
                 });
 
