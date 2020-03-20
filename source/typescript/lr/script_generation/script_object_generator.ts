@@ -8,7 +8,7 @@ import { types as t, filloutGrammar } from "../../util/common.js";
 import { LRStates } from "../../types/lr_state.js";
 import { Grammar, SymbolType } from "../../types/grammar.js";
 import { ParserEnvironment } from "../../types/parser_environment.js";
-import { traverse, bit_filter } from "@candlefw/conflagrate";
+import { traverse, bit_filter, filter, add_parent } from "@candlefw/conflagrate";
 import { MinTreeExtendedNode } from "@candlefw/js/build/types/types/mintree_extended_node";
 /**
  * 
@@ -18,6 +18,8 @@ import { MinTreeExtendedNode } from "@candlefw/js/build/types/types/mintree_exte
 function generateCompactFunction(function_string: string) {
 
     //*
+
+
     let fn = ext(stmt(function_string), true);
 
     fn.name.value = "";
@@ -25,7 +27,15 @@ function generateCompactFunction(function_string: string) {
     const
         short_names = "ABCDEFGHI",
         ids = new Map(fn.parameters.nodes.map((e, i) => [e.value, { b: false, s: short_names[i] }])),
-        nodes = fn.parameters.nodes;
+        params = fn.parameters.nodes;
+
+    for (const node of traverse(fn.body, "nodes").then(filter("type", MinTreeNodeType.ObjectLiteral)))
+        for (const id of traverse(node, "nodes").then(bit_filter("type", MinTreeNodeClass.PROPERTY_NAME))) {
+            if (ids.get(id.value)) {
+                ids.get(id.value).b = true;
+                ids.get(id.value).s = "";
+            }
+        }
 
     for (const node of traverse(fn.body, "nodes")
         .then(bit_filter("type", MinTreeNodeClass.IDENTIFIER))) {
@@ -34,20 +44,20 @@ function generateCompactFunction(function_string: string) {
 
         let v = ids.get(node.value);
         if (v)
-            (v.b = true, node.value = v.s);
+            (v.b = true, node.value = v.s || node.value);
     }
 
     const last_index = [...ids.values()].reduce((r, v, i) => v.b && i > r ? i : r, -1);
 
-    nodes.forEach((e, i) => e.value = short_names[i]);
+    params.forEach((e, i) => e.value = ids.get(e.value).s || e.value);
 
-    fn.parameters.nodes = nodes.slice(0, last_index + 1);
+    fn.parameters.nodes = params.slice(0, last_index + 1);
 
     if (fn.body && fn.body.nodes[0].type == MinTreeNodeType.ReturnStatement) {
         const arrow = exp("(a,a)=>(a)");
         // arrow->  paren-> expression_list->  nodes
         if (fn.parameters.nodes.length == 1)
-            arrow.nodes[0] = nodes[0];
+            arrow.nodes[0] = params[0];
         else
             arrow.nodes[0].nodes[0].nodes = fn.parameters.nodes;
 

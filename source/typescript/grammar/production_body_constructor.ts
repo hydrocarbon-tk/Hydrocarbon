@@ -86,6 +86,8 @@ export default class implements ProductionBody {
                             parent.type == MinTreeNodeType.PropertyBinding ||
                             parent.type == MinTreeNodeType.VariableStatement ||
                             parent.type == MinTreeNodeType.BindingExpression ||
+                            parent.type == MinTreeNodeType.MemberExpression ||
+                            parent.type == MinTreeNodeType.SpreadExpression ||
                             parent.type == MinTreeNodeType.ExpressionStatement
                         )
                             return null;
@@ -107,6 +109,7 @@ export default class implements ProductionBody {
                     IS_NULLIFY_SYM = value.slice(0, 5) == "$$sym";
 
                 if (IS_NULLIFY_SYM || IS_REPLACE_SYM) {
+
                     const index = parseInt(
                         IS_NULLIFY_SYM ?
                             value.slice(5) :
@@ -119,6 +122,7 @@ export default class implements ProductionBody {
                         // alt = { str: alt + `sym[${v}]`, sym: ext(exp(`sym[${v}]`)) };
                         node.replace(exp(`sym[${v}]`));
                     } else if (IS_NULLIFY_SYM) {
+
                         node.replace(exp("null"));
                     } else {
                         node.replace(null);
