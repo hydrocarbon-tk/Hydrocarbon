@@ -46,15 +46,12 @@ export default class implements ProductionBody {
         this.reduce_function = s.reduce || null;
         this.grammar_stamp = env.stamp;
         this.form = form;
-
         this.excludes = new Map();
         this.ignore = new Map();
         this.error = new Map();
         this.reset = new Map();
         this.reduce = new Map();
-
         this.precedence = 0;
-
         this.BUILT = false;
 
         //Used to identify the unique form of the body.
@@ -75,10 +72,19 @@ export default class implements ProductionBody {
                 ast = stmt(str), receiver = { ast: null };
 
             let alt = render(ast);
+
             //*
             for (const node of traverse(ast, "nodes")
                 .then(bit_filter("type", MinTreeNodeClass.IDENTIFIER))
-                .then(make_replaceable((parent, child, child_index, children, replaceParent) => {
+                .then(make_replaceable((
+                    parent,
+                    child,
+                    child_index,
+                    children,
+                    replaceParent
+                ) => {
+
+
 
                     if (child == null) {
                         if (
@@ -118,15 +124,13 @@ export default class implements ProductionBody {
 
                     let v = -1;
 
-                    if ((v = this.sym_map.indexOf(index)) >= 0) {
-                        // alt = { str: alt + `sym[${v}]`, sym: ext(exp(`sym[${v}]`)) };
+                    if ((v = this.sym_map.indexOf(index)) >= 0)
                         node.replace(exp(`sym[${v}]`));
-                    } else if (IS_NULLIFY_SYM) {
-
+                    else if (IS_NULLIFY_SYM)
                         node.replace(exp("null"));
-                    } else {
+                    else
                         node.replace(null);
-                    }
+
                 }
             }
             //*/
@@ -137,9 +141,8 @@ export default class implements ProductionBody {
             try {
                 this.reduce_function.txt = render(funct.nodes[2]);
             } catch (e) {
-                console.log(e);
+                throw e;
             }
-
         }
 
         //Removing build function ensures that this object can be serialized. 

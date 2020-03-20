@@ -3,16 +3,16 @@ import { GrammarParserEnvironment, ImportedProductionList } from "../types/gramm
 
 export default class implements Production {
 
-    id:-1;
-    type : "production";
-    name : string;
-    val : number;
-    IMPORTED : boolean;
-    RESOLVED : boolean;
-    production : Production;
-    resolveFunction : any;
+    id: -1;
+    type: "production";
+    name: string;
+    val: number;
+    IMPORTED: boolean;
+    RESOLVED: boolean;
+    production: Production;
+    resolveFunction: any;
 
-    constructor(sym:Array<any>, env:GrammarParserEnvironment) {
+    constructor(sym: Array<any>, env: GrammarParserEnvironment) {
 
         this.type = "production";
         this.name = sym[2];
@@ -20,7 +20,7 @@ export default class implements Production {
         this.IMPORTED = true;
         this.RESOLVED = false;
         this.production = null;
-        this.resolveFunction = () => {};
+        this.resolveFunction = () => { };
 
         const
             grammar_id = env.imported_grammar_name_resolution_map.get(sym[0]),
@@ -40,11 +40,11 @@ export default class implements Production {
                 }
             }
         } else {
-            
-            const list = <ImportedProductionList> [<Production>this];
-            
+
+            const list = <ImportedProductionList>[<Production>this];
+
             list.SYMBOL_LIST = true;
-            
+
             env.meta_imported_productions.set(grammar_id, list);
         }
     }
