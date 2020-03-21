@@ -9,8 +9,6 @@ import { Production, Symbol, ProductionBodyFunction, ProductionBodyReduceFunctio
 
 import { GrammarParserEnvironment } from "../types/grammar_compiler_environment.js";
 
-
-
 export default class implements ProductionBody {
 
     name: string;
@@ -83,20 +81,29 @@ export default class implements ProductionBody {
                     children,
                     replaceParent
                 ) => {
-
-
-
                     if (child == null) {
                         if (
-                            parent.type == MinTreeNodeType.AssignmentExpression ||
-                            parent.type == MinTreeNodeType.PropertyBinding ||
-                            parent.type == MinTreeNodeType.VariableStatement ||
-                            parent.type == MinTreeNodeType.BindingExpression ||
-                            parent.type == MinTreeNodeType.MemberExpression ||
-                            parent.type == MinTreeNodeType.SpreadExpression ||
-                            parent.type == MinTreeNodeType.ExpressionStatement
+                            (parent.type &
+                                (
+                                    MinTreeNodeClass.UNARY_EXPRESSION
+                                    | MinTreeNodeClass.TERNARY_EXPRESSION
+                                )
+                            )
+                            || parent.type == MinTreeNodeType.AssignmentExpression
+                            || parent.type == MinTreeNodeType.PropertyBinding
+                            || parent.type == MinTreeNodeType.VariableStatement
+                            || parent.type == MinTreeNodeType.BindingExpression
+                            || parent.type == MinTreeNodeType.MemberExpression
+                            || parent.type == MinTreeNodeType.SpreadExpression
+                            || parent.type == MinTreeNodeType.Parenthesized
+                            || parent.type == MinTreeNodeType.ExpressionStatement
                         )
                             return null;
+
+                        if (parent.type == MinTreeNodeType.ExpressionList) {
+                            if (child_index == 0 && children.length <= 1)
+                                return null;
+                        }
 
                         if (parent.type & MinTreeNodeClass.BINARY_EXPRESSION) {
                             replaceParent();
@@ -141,9 +148,11 @@ export default class implements ProductionBody {
             try {
                 this.reduce_function.txt = render(funct.nodes[2]);
             } catch (e) {
+                console.log(e);
                 throw e;
             }
         }
+        
 
         //Removing build function ensures that this object can be serialized. 
         delete this.build;
