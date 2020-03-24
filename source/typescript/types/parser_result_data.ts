@@ -1,11 +1,14 @@
 /**
- * Return value of the parser
+ * Return value of the parser.
+ * 
+ * Includes parser meta data.
+ * 
  */
-export interface ParserResultData {
+export interface ParserResultData<T> {
     /**
      * First object off the output stack
      */
-    value: any;
+    value: T;
     /**
      * Error message if parse failed to parser the input.
      */

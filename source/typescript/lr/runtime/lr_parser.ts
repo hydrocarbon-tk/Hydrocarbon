@@ -17,7 +17,7 @@ const MAX_CYCLES = 50000000;
     @param data: parser data that includes the look up tables and built in parse action functions.
     @param e: Environment object containing user defined parse action functions.
 */
-function parser(
+function parser<T>(
     lex: Lexer,
     data: ParserData = null,
     e: ParserEnvironment = {},
@@ -31,9 +31,9 @@ function parser(
     cycles = 0,
     fork_depth = 0,
     forks = 0
-): ParserResultData | ParserSquashResultData {
+): ParserResultData<T> | ParserSquashResultData {
 
-    if (!data) return <ParserResultData>{ value: [], error: "Data object is empty" };
+    if (!data) return <ParserResultData<T>>{ value: null, error: "Data object is empty" };
 
     //Unpack parser objects
     const {
@@ -239,7 +239,7 @@ function parser(
                             fork_states_start = action >> 16,
                             fork_states_length = (action >> 3) & 0x1FFF,
                             fork_states_end = fork_states_start + fork_states_length,
-                            result = <ParserResultData | ParserSquashResultData>{ value: null, error: "", cycles, total_cycles, off };
+                            result = <ParserResultData<T> | ParserSquashResultData>{ value: null, error: "", cycles, total_cycles, off };
 
                         FORKED_ENTRY = true;
 
@@ -249,7 +249,7 @@ function parser(
                                 copied_lex = lex.copy(),
                                 copied_output = o.slice(),
                                 copied_state_stack = state_stack.slice(),
-                                res = parser(
+                                res = parser<T>(
                                     copied_lex,
                                     data,
                                     e,
@@ -316,7 +316,7 @@ function parser(
             state_action_lu = (tk < state_length) ? state[tk] : -1;
         }
     } catch (e) {
-        return <ParserResultData>{
+        return <ParserResultData<T>>{
             value: null,
             error: e,
             cycles,
@@ -327,7 +327,7 @@ function parser(
     }
 
     if (cycles >= MAX_CYCLES)
-        return <ParserResultData>{
+        return <ParserResultData<T>>{
             value: o[0],
             error: lex.errorMessage(`Max Depth Reached ${inspect({ total_cycles, cycles, fork_depth })}`),
             total_cycles,
@@ -337,7 +337,7 @@ function parser(
             efficiency: cycles / total_cycles
         };
 
-    return <ParserResultData>{
+    return <ParserResultData<T>>{
         value: o[0],
         error: "",
         cycles,
@@ -352,11 +352,14 @@ function parser(
 /**
     Parses an input. Returns an object with parse results and an error flag if parse could not complete.
     @param lex: Lexer - lexer object with an interface defined in candlefw/wind.
-    @param data: parser data that includs the look up tables and built in parse action functions.
+    @param data: parser data that includes the look up tables and built in parse action functions.
     @param environment: Environment object containing user defined parse action functions.
 */
-const lrParse = (lex: Lexer, data: ParserData, environment: ParserEnvironment): ParserResultData => {
-    const res = <ParserResultData>parser((typeof lex == "string") ? new Lexer(lex) : lex, data, environment);
+function lrParse<T>(lex: Lexer, data: ParserData, environment: ParserEnvironment): ParserResultData<T> {
+    if (environment.options && environment.options.onstart)
+        environment.options.onstart();
+
+    const res = <ParserResultData<T>>parser<T>((typeof lex == "string") ? new Lexer(lex) : lex, data, environment);
 
     res.efficiency = res.cycles / res.total_cycles * 100;
 

@@ -6,7 +6,7 @@ import { ErrorHandler } from "./parser_data.js";
  */
 export interface ParserEnvironment {
     functions?: {
-        defaultError?:ErrorHandler;
+        defaultError?: ErrorHandler;
         /**
          * Functions used within the lr_parser to handle REDUCE, SHIFT, and ACCEPT
          * actions. 
@@ -19,11 +19,19 @@ export interface ParserEnvironment {
     /**
      * List of options that affect how the grammar is compiled. 
      */
-    options?:{
+    options?: {
         /**
          * If true functions defined in the environment object will be compiled into 
          * the ParserData.
          */
-        integrate?:boolean
-    }
+        integrate?: boolean;
+
+        /**
+         * A function that is called before parsing begins.
+         * 
+         * Useful in resetting environment variables between parsing
+         * runs.
+         */
+        onstart?: () => any;
+    };
 }
