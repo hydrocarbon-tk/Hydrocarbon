@@ -72,7 +72,7 @@ export default class implements ProductionBody {
             let alt = render(ast);
 
             //*
-            for (const node of traverse(ast, "nodes")
+            for (const { node } of traverse(ast, "nodes")
                 .then(bit_filter("type", MinTreeNodeClass.IDENTIFIER))
                 .then(make_replaceable((
                     parent,
@@ -152,7 +152,7 @@ export default class implements ProductionBody {
                 throw e;
             }
         }
-        
+
 
         //Removing build function ensures that this object can be serialized. 
         delete this.build;

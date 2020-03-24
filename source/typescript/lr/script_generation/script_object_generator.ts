@@ -29,15 +29,15 @@ function generateCompactFunction(function_string: string) {
         ids = new Map(fn.parameters.nodes.map((e, i) => [e.value, { b: false, s: short_names[i] }])),
         params = fn.parameters.nodes;
 
-    for (const node of traverse(fn.body, "nodes").then(filter("type", MinTreeNodeType.ObjectLiteral)))
-        for (const id of traverse(node, "nodes").then(bit_filter("type", MinTreeNodeClass.PROPERTY_NAME))) {
+    for (const { node } of traverse(fn.body, "nodes").then(filter("type", MinTreeNodeType.ObjectLiteral)))
+        for (const { node: id } of traverse(node, "nodes").then(bit_filter("type", MinTreeNodeClass.PROPERTY_NAME))) {
             if (ids.get(id.value)) {
                 ids.get(id.value).b = true;
                 ids.get(id.value).s = "";
             }
         }
 
-    for (const node of traverse(fn.body, "nodes")
+    for (const { node } of traverse(fn.body, "nodes")
         .then(bit_filter("type", MinTreeNodeClass.IDENTIFIER))) {
 
         if (node.type & MinTreeNodeClass.PROPERTY_NAME) continue;
@@ -59,7 +59,7 @@ function generateCompactFunction(function_string: string) {
         if (fn.parameters.nodes.length == 1)
             arrow.nodes[0] = params[0];
         else
-            arrow.nodes[0].nodes[0].nodes = fn.parameters.nodes;
+            arrow.nodes[0] = fn.parameters;
 
         arrow.nodes[1].nodes[0] = fn.body.nodes[0].nodes[0];
 
