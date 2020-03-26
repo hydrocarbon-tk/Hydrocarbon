@@ -29,8 +29,8 @@ function generateCompactFunction(function_string: string) {
         ids = new Map(fn.parameters.nodes.map((e, i) => [e.value, { b: false, s: short_names[i] }])),
         params = fn.parameters.nodes;
 
-    for (const { node } of traverse(fn.body, "nodes").then(filter("type", MinTreeNodeType.ObjectLiteral)))
-        for (const { node: id } of traverse(node, "nodes").then(bit_filter("type", MinTreeNodeClass.PROPERTY_NAME))) {
+    for (const { node } of traverse(fn.body, "nodes").filter("type", MinTreeNodeType.ObjectLiteral))
+        for (const { node: id } of traverse(node, "nodes").bitFilter("type", MinTreeNodeClass.PROPERTY_NAME)) {
             if (ids.get(id.value)) {
                 ids.get(id.value).b = true;
                 ids.get(id.value).s = "";
@@ -38,7 +38,7 @@ function generateCompactFunction(function_string: string) {
         }
 
     for (const { node } of traverse(fn.body, "nodes")
-        .then(bit_filter("type", MinTreeNodeClass.IDENTIFIER))) {
+        .bitFilter("type", MinTreeNodeClass.IDENTIFIER)) {
 
         if (node.type & MinTreeNodeClass.PROPERTY_NAME) continue;
 

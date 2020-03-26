@@ -72,9 +72,9 @@ export default class implements ProductionBody {
             let alt = renderCompressed(ast);
 
             //*
-            for (const { node } of traverse(ast, "nodes")
-                .then(bit_filter("type", MinTreeNodeClass.IDENTIFIER))
-                .then(make_replaceable((
+            for (const { node, meta: { replace } } of traverse(ast, "nodes")
+                .bitFilter("type", MinTreeNodeClass.IDENTIFIER)
+                .makeReplaceable((
                     parent,
                     child,
                     child_index,
@@ -112,8 +112,8 @@ export default class implements ProductionBody {
                     }
 
                     return parent ? Object.assign({}, parent) : null;
-                }))
-                .then(extract(receiver))
+                })
+                .extract(receiver)
             ) {
 
                 const
@@ -132,11 +132,11 @@ export default class implements ProductionBody {
                     let v = -1;
 
                     if ((v = this.sym_map.indexOf(index)) >= 0)
-                        node.replace(exp(`sym[${v}]`));
+                        replace(exp(`sym[${v}]`));
                     else if (IS_NULLIFY_SYM)
-                        node.replace(exp("null"));
+                        replace(exp("null"));
                     else
-                        node.replace(null);
+                        replace(null);
 
                 }
             }
