@@ -1,11 +1,11 @@
 //@ts-ignore
-import { parser, MinTreeNode, MinTreeNodeClass, exp, render, ext, stmt, MinTreeNodeType } from "@candlefw/js";
+import { MinTreeNodeClass, exp, ext, stmt, MinTreeNodeType, renderCompressed } from "@candlefw/js";
 
 import { traverse, make_replaceable, bit_filter, extract } from "@candlefw/conflagrate";
 
 import { Lexer } from "@candlefw/wind";
 
-import { Production, Symbol, ProductionBodyFunction, ProductionBodyReduceFunction, ProductionBody } from "../types/grammar.js";
+import { Symbol, ProductionBodyFunction, ProductionBodyReduceFunction, ProductionBody } from "../types/grammar.js";
 
 import { GrammarParserEnvironment } from "../types/grammar_compiler_environment.js";
 
@@ -69,7 +69,7 @@ export default class implements ProductionBody {
                         : `function temp(temp){ ${this.reduce_function.txt}}`,
                 ast = stmt(str), receiver = { ast: null };
 
-            let alt = render(ast);
+            let alt = renderCompressed(ast);
 
             //*
             for (const { node } of traverse(ast, "nodes")
@@ -146,7 +146,7 @@ export default class implements ProductionBody {
             this.reduce_function = Object.assign({}, this.reduce_function);
 
             try {
-                this.reduce_function.txt = render(funct.nodes[2]);
+                this.reduce_function.txt = renderCompressed(funct.nodes[2]);
             } catch (e) {
                 console.log(e);
                 throw e;

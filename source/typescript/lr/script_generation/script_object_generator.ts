@@ -1,6 +1,6 @@
 /** Compiles a stand alone JS parser from a LR rules table and env object **/
 //@ts-ignore
-import { parser, stmt, render, MinTreeNodeType, ext, exp, MinTreeNodeClass, MinTreeNode } from "@candlefw/js";
+import { parser, stmt, renderCompressed, MinTreeNodeType, ext, exp, MinTreeNodeClass, MinTreeNode } from "@candlefw/js";
 
 import createStateArrays from "./create_state_arrays.js";
 import { verboseTemplate } from "./data_object_template.js";
@@ -66,7 +66,7 @@ function generateCompactFunction(function_string: string) {
         fn = arrow;
     }
 
-    return render(fn);
+    return renderCompressed(fn);
 }
 
 export default function GenerateLRParseDataObject(states: LRStates, grammar: Grammar, env: ParserEnvironment) {
