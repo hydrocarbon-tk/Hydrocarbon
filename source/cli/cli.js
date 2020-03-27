@@ -5,11 +5,10 @@
 
 
 //CandleFW stuffs
-import * as hc from "@candlefw/hydrocarbon";
-import whind from "@candlefw/whind";
+import * as hc from "../../build/library/hydrocarbon.js";
+import wind from "@candlefw/wind";
 import URL from "@candlefw/url";
 
-URL.polyfill();
 
 import runner from "./compiler_runner.js";
 import { lrParse as parser } from "../../build/library/lr/runtime/lr_parser.js";
@@ -28,8 +27,8 @@ import util from "util";
 const
     fn_regex = /(file\:\/\/)(\/)*([A-Z]\:)*/g,
     Lexer_Path = path.join("/",
-        import.meta.url.replace(fn_regex, ""), "../../../data/whind"),
-    LEXER_SCRIPT = "",//`${fs.readFileSync(Lexer_Path)} const lexer = whind.default;`,
+        import.meta.url.replace(fn_regex, ""), "../../../data/wind"),
+    LEXER_SCRIPT = "",//`${fs.readFileSync(Lexer_Path)} const lexer = wind.default;`,
     fsp = fs.promises,
 
 
@@ -207,7 +206,9 @@ function createScript(name, parser, type, env, compress = false) {
 /* *************** HCG GRAMMAR DATA *********************/
 
 async function parseGrammar(grammar_string, PATH) {
-    return await hc.grammarParser(grammar_string, PATH);
+    const grammar = await hc.grammarParser(grammar_string, PATH);
+
+    return grammar;
 }
 
 /* *************** LR GRAMMARS ********************/
@@ -274,7 +275,7 @@ async function mount(name, input, env, test_data = "") {
 
         //If there is test data, then run the parser on that data and immediately return. 
         if (typeof test_data == "string") {
-            const result = parser(whind(test_data.toString(), false), parser_data, env);
+            const result = parser(wind(test_data.toString(), false), parser_data, env);
 
             if (result.error)
                 console.error({ error: result.error });
@@ -320,7 +321,7 @@ async function mount(name, input, env, test_data = "") {
                         if (env.options && env.options.integrate)
                             parse = parser(data.join("\n"), parser_data, {}, 0);
                         else
-                            console.dir(parser(whind(data.join("\n"), false), parser_data, env), { depth: null });
+                            console.dir(parser(wind(data.join("\n"), false), parser_data, env), { depth: null });
                     } catch (e) {
                         console.error(e);
                     }
@@ -346,95 +347,98 @@ async function mount(name, input, env, test_data = "") {
 
 
 /* ************* PROGRAM ************************/
+async function start() {
 
-const program = commander.default;
+    await URL.polyfill();
 
-program
-    .version("0.3.2");
+    const program = commander.default;
 
-program
-    .command("table <hydrocarbon_grammar_file>")
-    .option("-s, --states <states>", "Use a *.hcs file from a previous compilation instead of a compiling the grammar file.")
-    .option("-o, --output <path>", "Optional output location. Defaults to CWD.")
-    .option("-os, --output_states", "Output a *.hcs file.")
-    .option("-u, --unattended", "Do not wait for user input. Exit to console when compilation is complete. Quit on any error.")
-    .description("Parses grammar and outputs a UTF representation of the parse table.")
-    .action(async (hc_grammar, cmd) => {
-        const
-            states_path = cmd.states ? path.resolve(cmd.states) : "",
-            env_path = "",
-            unattended = !!cmd.unattended,
-            output_directory = cmd.output ? path.resolve(cmd.output) : process.cwd(),
-            grammar_path = path.resolve(hc_grammar);
+    program
+        .version("0.3.4-dev-1");
 
-        try {
-            const { grammar_string, env, states_string } = await loadFiles(grammar_path, "", states_path);
+    program
+        .command("table <hydrocarbon_grammar_file>")
+        .option("-s, --states <states>", "Use a *.hcs file from a previous compilation instead of a compiling the grammar file.")
+        .option("-o, --output <path>", "Optional output location. Defaults to CWD.")
+        .option("-os, --output_states", "Output a *.hcs file.")
+        .option("-u, --unattended", "Do not wait for user input. Exit to console when compilation is complete. Quit on any error.")
+        .description("Parses grammar and outputs a UTF representation of the parse table.")
+        .action(async (hc_grammar, cmd) => {
+            const
+                states_path = cmd.states ? path.resolve(cmd.states) : "",
+                env_path = "",
+                unattended = !!cmd.unattended,
+                output_directory = cmd.output ? path.resolve(cmd.output) : process.cwd(),
+                grammar_path = path.resolve(hc_grammar);
 
-            let states;
+            try {
+                const { grammar_string, env, states_string } = await loadFiles(grammar_path, "", states_path);
 
-            const grammar = parseGrammar(grammar_string, env);
+                let states;
 
-            if (states_string) {
-                states = parseLRJSONStates(states_string);
-            } else {
-                states = await compileLRStates(grammar, env, env_path, "", true);
-                if (!!cmd.output_states) {
-                    states_output = stringifyLRStates(states);
-                    writeFile(`${name}.hcs`, states_output, output_directory);
+                const grammar = parseGrammar(grammar_string, env);
+
+                if (states_string) {
+                    states = parseLRJSONStates(states_string);
+                } else {
+                    states = await compileLRStates(grammar, env, env_path, "", true);
+                    if (!!cmd.output_states) {
+                        states_output = stringifyLRStates(states);
+                        writeFile(`${name}.hcs`, states_output, output_directory);
+                    }
                 }
-            }
 
-            if (!states.COMPILED) {
-                (console.error(`Failed to compile grammar ${grammar.name}. Exiting`), undefined);
-                process.exit(1);
-            }
+                if (!states.COMPILED) {
+                    (console.error(`Failed to compile grammar ${grammar.name}. Exiting`), undefined);
+                    process.exit(1);
+                }
 
-            console.log(hc.renderTable(states, grammar));
+                console.log(hc.renderTable(states, grammar));
 
-            //console.log(`Use ${ADD_COLOR(" ctrl ", COLOR_KEYBOARD)}+${ADD_COLOR(" c ", COLOR_KEYBOARD)} to return to console,`)
-            process.exit(0);
+                //console.log(`Use ${ADD_COLOR(" ctrl ", COLOR_KEYBOARD)}+${ADD_COLOR(" c ", COLOR_KEYBOARD)} to return to console,`)
+                process.exit(0);
 
-        } catch (err) {
-            console.error(err);
-            throw new Error(`
+            } catch (err) {
+                console.error(err);
+                throw new Error(`
             Unable to open the grammar file $ { grammar_path }
             `);
-        }
-    });
+            }
+        });
 
-program
-    .command("mount <hydro_carbon_compiled_file>")
-    .description("Mounts a HC compiler into the NodeJS context")
-    .option("-s, --string <string_data>", "Optional string to pass to the parser. Will exit after printing parser results")
-    .option("-e, --env <path>", "Optional JavaScript file containing parsing environment information.")
-    .action(async (hc_compiler, cmd) => {
+    program
+        .command("mount <hydro_carbon_compiled_file>")
+        .description("Mounts a HC compiler into the NodeJS context")
+        .option("-s, --string <string_data>", "Optional string to pass to the parser. Will exit after printing parser results")
+        .option("-e, --env <path>", "Optional JavaScript file containing parsing environment information.")
+        .action(async (hc_compiler, cmd) => {
 
-        const
-            compiler_path = path.resolve(hc_compiler),
-            string = cmd.string,
-            env_path = cmd.env ? path.resolve(cmd.env) : "",
-            env = await loadEnvironment(env_path),
-            compiler = (await import(compiler_path)).default;
+            const
+                compiler_path = path.resolve(hc_compiler),
+                string = cmd.string,
+                env_path = cmd.env ? path.resolve(cmd.env) : "",
+                env = await loadEnvironment(env_path),
+                compiler = (await import(compiler_path)).default;
 
-        console.log(cmd.string);
+            console.log(cmd.string);
 
-        mount("undefined", compiler, env, string);
-    });
+            mount("undefined", compiler, env, string);
+        });
 
-program
-    .command("compile <hydrocarbon_grammar_file>")
-    .description("Compiles a JavaScript parser from a HydroCarbon grammar file, an optional HCGStates file, and an optional ENV.js file")
-    .option("-o, --output <path>", "Optional output location. Defaults to CWD.")
-    .option("--statesout", "Output a *.hcs file.")
-    .option("-s, --states <states>", "Use a *.hcs file from a previous compilation instead of a compiling the grammar file.")
-    .option("-e, --env <path>", "Optional JavaScript file containing parsing environment information.")
-    .option("-m, --mount", "Mounts the compiled parser in the current NodeJS context and allows interactive parsing of user input.")
-    .option("-n, --name <output_name>", "The name to give to the output file. Defaults to the name of the grammar file.")
-    .option("-d, --noout", "Do not write to file.")
-    .option("-c, --compress", "Minify output file.")
-    .option("--cpp", "Create C++ output")
-    .option("-u, --unattended", "Do not wait for user input. Exit to console when compilation is complete. Quit on any error.")
-    .option("-t, --type <type>", `
+    program
+        .command("compile <hydrocarbon_grammar_file>")
+        .description("Compiles a JavaScript parser from a HydroCarbon grammar file, an optional HCGStates file, and an optional ENV.js file")
+        .option("-o, --output <path>", "Optional output location. Defaults to CWD.")
+        .option("--statesout", "Output a *.hcs file.")
+        .option("-s, --states <states>", "Use a *.hcs file from a previous compilation instead of a compiling the grammar file.")
+        .option("-e, --env <path>", "Optional JavaScript file containing parsing environment information.")
+        .option("-m, --mount", "Mounts the compiled parser in the current NodeJS context and allows interactive parsing of user input.")
+        .option("-n, --name <output_name>", "The name to give to the output file. Defaults to the name of the grammar file.")
+        .option("-d, --noout", "Do not write to file.")
+        .option("-c, --compress", "Minify output file.")
+        .option("--cpp", "Create C++ output")
+        .option("-u, --unattended", "Do not wait for user input. Exit to console when compilation is complete. Quit on any error.")
+        .option("-t, --type <type>", `
             Type of file to output.The type can be:
             "module" - ( * .js) A module file
             for use with the modern ES2016 module syntax.
@@ -442,112 +446,116 @@ program
             for use with NodeJS and other consumers of CommonJS.
             "iife" - ( * .js)[Default] A regular JavaScript file that can be embedded in HTML.The parser will be available as a global value.The name of the global object will be same as the output file name.
             `)
-    .option("--parser <parser>", "The type of compiler that hydrocarbon will create. Select from `lalr1` and `earling`")
-    .action(async (hc_grammar, cmd) => {
-        const
-            states_path = cmd.states ? path.resolve(cmd.states) : "",
-            grammar_path = path.resolve(hc_grammar),
-            env_path = cmd.env ? path.resolve(cmd.env) : "",
-            name = cmd.output_name ? cmd.output_name : path.basename(grammar_path, path.extname(grammar_path)),
-            output_directory = cmd.output ? path.resolve(cmd.output) : process.cwd(),
-            unattended = !!cmd.unattended,
-            parser = cmd.parser || "lalr1",
-            CPP = !!cmd.cpp,
-            COMPRESS = !!cmd.compress;
-        let
-            type = cmd.type ? cmd.type : "js";
-        try {
+        .option("--parser <parser>", "The type of compiler that hydrocarbon will create. Select from `lalr1` and `earling`")
+        .action(async (hc_grammar, cmd) => {
+            const
+                states_path = cmd.states ? path.resolve(cmd.states) : "",
+                grammar_path = path.resolve(hc_grammar),
+                env_path = cmd.env ? path.resolve(cmd.env) : "",
+                name = cmd.output_name ? cmd.output_name : path.basename(grammar_path, path.extname(grammar_path)),
+                output_directory = cmd.output ? path.resolve(cmd.output) : process.cwd(),
+                unattended = !!cmd.unattended,
+                parser = cmd.parser || "lalr1",
+                CPP = !!cmd.cpp,
+                COMPRESS = !!cmd.compress;
+            let
+                type = cmd.type ? cmd.type : "js";
+            try {
 
-            const { grammar_string, states_string, env } = await loadFiles(grammar_path, env_path, states_path, unattended);
+                const { grammar_string, states_string, env } = await loadFiles(grammar_path, env_path, states_path, unattended);
 
-            const grammar = await parseGrammar(grammar_string, new URL(grammar_path));
+                const grammar = await parseGrammar(grammar_string, new URL(grammar_path));
 
-            if (!grammar) {
-                console.error(`Failed to compile grammar ${grammar.name}. Exiting`);
-                process.exit(1);
-            }
+                if (!grammar) {
+                    console.error(`Failed to compile grammar ${grammar.name}. Exiting`);
+                    process.exit(1);
+                }
 
-            let states = null,
-                script_string = "";
+                let states = null,
+                    script_string = "";
 
-            switch (parser) {
-                case "lr":
-                case "lalr":
-                default:
-                    if (states_string) {
-                        states = parseLRJSONStates(states_string, unattended);
-                    } else {
+                switch (parser) {
+                    case "lr":
+                    case "lalr":
+                    default:
+                        if (states_string) {
+                            states = parseLRJSONStates(states_string, unattended);
+                        } else {
 
-                        //throw "Can't continue"
-                        states = await compileLRStates(grammar, env, env_path, name, unattended);
+                            //throw "Can't continue"
+                            states = await compileLRStates(grammar, env, env_path, name, unattended);
 
-                        if (!!cmd.statesout) {
-                            const states_output = stringifyLRStates(states);
-                            await writeFile(`${name}.hcs`, states_output, output_directory);
+
+                            if (!!cmd.statesout) {
+                                const states_output = stringifyLRStates(states);
+                                await writeFile(`${name}.hcs`, states_output, output_directory);
+                            }
                         }
-                    }
-                    if (!states.COMPILED) {
-                        (console.error(`Failed to compile grammar ${grammar.name}. Exiting`), undefined);
-                        process.exit(1);
-                    }
-                    if (CPP || type == "cpp") {
-                        type = "cpp";
-                        script_string = buildLRCompilerScriptCPP(states, grammar, env);
-                    } else
-                        script_string = buildLRCompilerScript(states, grammar, env);
-                    break;
-                case "glr":
-                case "glalr":
-                    if (states_string) {
-                        //  states = parseGLRJSONStates(states_string, unattended);
-                    } else {
-                        states = await compileGLRStates(grammar, env, env_path, name, unattended);
-
-                        if (!!cmd.statesout) {
-                            //const states_output = stringifyGLRStates(states);
-                            //await writeFile(`${name}.hcs`, states_output, output_directory);
+                        if (!states.COMPILED) {
+                            (console.error(`Failed to compile grammar ${grammar.name}. Exiting`), undefined);
+                            process.exit(1);
                         }
-                    }
-                    if (!states.COMPILED) {
-                        (console.error(`Failed to compile grammar ${grammar.name}. Exiting`), undefined);
-                        process.exit(1);
-                    }
-                    if (CPP || type == "cpp") {
-                        //type = "cpp";
-                        //script_string = buildLRCompilerScriptCPP(states, grammar, env);
-                    } else
-                        script_string = buildLRCompilerScript(states, grammar, env);
-                    break;
-                case "earley":
-                    const items = createEarleyItems(grammar, env);
-                    createEarleyCompiler(items, grammar, env);
-                    break;
+                        if (CPP || type == "cpp") {
+                            type = "cpp";
+                            script_string = buildLRCompilerScriptCPP(states, grammar, env);
+                        } else
+                            script_string = buildLRCompilerScript(states, grammar, env);
+                        break;
+                    case "glr":
+                    case "glalr":
+                        if (states_string) {
+                            //  states = parseGLRJSONStates(states_string, unattended);
+                        } else {
+                            states = await compileGLRStates(grammar, env, env_path, name, unattended);
+
+                            if (!!cmd.statesout) {
+                                //const states_output = stringifyGLRStates(states);
+                                //await writeFile(`${name}.hcs`, states_output, output_directory);
+                            }
+                        }
+                        if (!states.COMPILED) {
+                            (console.error(`Failed to compile grammar ${grammar.name}. Exiting`), undefined);
+                            process.exit(1);
+                        }
+                        if (CPP || type == "cpp") {
+                            //type = "cpp";
+                            //script_string = buildLRCompilerScriptCPP(states, grammar, env);
+                        } else
+                            script_string = buildLRCompilerScript(states, grammar, env);
+                        break;
+                    case "earley":
+                        const items = createEarleyItems(grammar, env);
+                        createEarleyCompiler(items, grammar, env);
+                        break;
+                }
+
+
+                const script = createScript(name, script_string, type, env, COMPRESS);
+
+                console.log(ADD_COLOR(`The ${name} parser has been successfully compiled!`, COLOR_SUCCESS), "\n");
+
+                if (!!cmd.noout) {
+                    console.log(ADD_COLOR("No Output. Skipping file saving", COLOR_ERROR), "\n");
+                } else
+                    await write(name, script, output_directory, type);
+
+                if (!unattended)
+                    console.log(`Use ${ADD_COLOR(" ctrl ", COLOR_KEYBOARD)}+${ADD_COLOR(" c ", COLOR_KEYBOARD)} to return to console.`);
+
+                if (!!cmd.mount) {
+                    if (!(await mount(name, script_string, env, states, grammar))) { };
+                }
+
+                process.exit();
+
+            } catch (e) {
+                console.error(e);
+                process.exit();
             }
 
+        });
 
-            const script = createScript(name, script_string, type, env, COMPRESS);
+    program.parse(process.argv);
+}
 
-            console.log(ADD_COLOR(`The ${name} parser has been successfully compiled!`, COLOR_SUCCESS), "\n");
-
-            if (!!cmd.noout) {
-                console.log(ADD_COLOR("No Output. Skipping file saving", COLOR_ERROR), "\n");
-            } else
-                await write(name, script, output_directory, type);
-
-            if (!unattended)
-                console.log(`Use ${ADD_COLOR(" ctrl ", COLOR_KEYBOARD)}+${ADD_COLOR(" c ", COLOR_KEYBOARD)} to return to console.`);
-
-            if (!!cmd.mount) {
-                if (!(await mount(name, script_string, env, states, grammar))) { };
-            }
-
-            process.exit();
-
-        } catch (e) {
-            console.error(e);
-            process.exit();
-        }
-
-    });
-
-program.parse(process.argv);
+start();

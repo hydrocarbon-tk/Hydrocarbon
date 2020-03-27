@@ -1,4 +1,4 @@
-import * as hc from "@candlefw/hydrocarbon";
+import * as hc from "../../build/library/hydrocarbon.js";
 
 import { performance } from "perf_hooks";
 
@@ -129,7 +129,9 @@ function center(string) {
 }
 
 async function runner(grammar, env, env_path, name, GLR = false, UNATTENDED = false) {
+
     return new Promise(res => {
+
 
         if (!grammar)
             throw new Error(`Unable to parse grammar, the grammar is ${grammar}`);
@@ -164,11 +166,11 @@ async function runner(grammar, env, env_path, name, GLR = false, UNATTENDED = fa
             res(status.states);
 
 
-         function onKeyEvent(key) {
+        function onKeyEvent(key) {
             const keypress = key.charCodeAt(2) | key.charCodeAt(1) << 8 | key.charCodeAt(0) << 16;
-            
-            if(status.COMPLETE)
-                timeout = 60
+
+            if (status.COMPLETE)
+                timeout = 60;
 
             switch (keypress) {
                 case 1792836: // Left Arrow
@@ -193,7 +195,7 @@ async function runner(grammar, env, env_path, name, GLR = false, UNATTENDED = fa
             return key;
         };
 
-        stdin.on('data',onKeyEvent);
+        stdin.on('data', onKeyEvent);
 
         let render_time = 0;
 
@@ -216,7 +218,7 @@ async function runner(grammar, env, env_path, name, GLR = false, UNATTENDED = fa
             if ((render_time++ % (!UNATTENDED ? 120 : 120)) == 0 || status.COMPLETE) {
 
                 //if (!UNATTENDED) 
-                    console.clear();
+                console.clear();
 
                 let conflicts = "";
 
@@ -230,7 +232,7 @@ async function runner(grammar, env, env_path, name, GLR = false, UNATTENDED = fa
 
                 if (conflicts_generated > 0) {
                     if (conflict_number > -1) {
-                        const conflict_tabs_header = `${-1 < conflict_number ? "🡄" : " " }     Conflict ${ conflict_number + 1 }     ${ conflict_number < conflicts_generated-1 ? "🡆" : " " }`;
+                        const conflict_tabs_header = `${-1 < conflict_number ? "🡄" : " "}     Conflict ${conflict_number + 1}     ${conflict_number < conflicts_generated - 1 ? "🡆" : " "}`;
                         const conflict_tabs = Array.apply(null, Array(conflicts_generated)).map((a, i) => i == conflict_number ? "🌑" : "🌕").join("");
                         conflicts = `${center(conflict_tabs_header)}\n${center(conflict_tabs)}\n\n${error.strings[conflict_number]}`;
                     } else
@@ -239,15 +241,15 @@ async function runner(grammar, env, env_path, name, GLR = false, UNATTENDED = fa
 
                 //if (!UNATTENDED) {
 
-                    process.stdout.write(
+                process.stdout.write(
                     ["CFW Hydrocarbon - Compiling " + name + " grammar", "",
-                        ` Elapsed Time ${getTimeStamp(time, status.COMPLETE)}`, "",
-                        ` ${p} Completion Ratio:    ${prpl_b}${(" ").repeat(c)}${r}${(Math.round(completion_ratio*10000)*0.01).toFixed(2)}%`,
-                        ` ${p} Total Items:         ${gray_b}${(("               ")+total_items_processed).slice(-8)}`,
-                        ` ${p} Pending Items:       ${gray_b}${(("               ")+items_left).slice(-8)}`,
-                        ` ${p} Number Of States:    ${gray_b}${(("               ")+number_of_states).slice(-8)}`,
-                        ` ${p} Conflicts Generated: ${gray_b}${conflicts_generated ? red_f : ""}${(("               ")+conflicts_generated).slice(-8)}`, "",
-                        center(`${(EXIT && !status.COMPLETE) ? `Exit primed. Compiling will exit on completion.`: ""}${status.COMPLETE ? `${ !states.COMPILED ? `${COLOR_ERROR}Compilation failed.`:`${COLOR_SUCCESS}Compilation complete.`}${COLOR_RESET} Press ${COLOR_KEYBOARD}esc${COLOR_RESET} to end this step.${COLOR_RESET}`: ""}`), "",
+                    ` Elapsed Time ${getTimeStamp(time, status.COMPLETE)}`, "",
+                    ` ${p} Completion Ratio:    ${prpl_b}${(" ").repeat(c)}${r}${(Math.round(completion_ratio * 10000) * 0.01).toFixed(2)}%`,
+                    ` ${p} Total Items:         ${gray_b}${(("               ") + total_items_processed).slice(-8)}`,
+                    ` ${p} Pending Items:       ${gray_b}${(("               ") + items_left).slice(-8)}`,
+                    ` ${p} Number Of States:    ${gray_b}${(("               ") + number_of_states).slice(-8)}`,
+                    ` ${p} Conflicts Generated: ${gray_b}${conflicts_generated ? red_f : ""}${(("               ") + conflicts_generated).slice(-8)}`, "",
+                    center(`${(EXIT && !status.COMPLETE) ? `Exit primed. Compiling will exit on completion.` : ""}${status.COMPLETE ? `${!states.COMPILED ? `${COLOR_ERROR}Compilation failed.` : `${COLOR_SUCCESS}Compilation complete.`}${COLOR_RESET} Press ${COLOR_KEYBOARD}esc${COLOR_RESET} to end this step.${COLOR_RESET}` : ""}`), "",
                         conflicts,
                         auto_end,
                         ""
@@ -261,40 +263,40 @@ async function runner(grammar, env, env_path, name, GLR = false, UNATTENDED = fa
 
             if (status.COMPLETE) {
 
-                if(timeout < 601){
+                if (timeout < 601) {
                     const new_time = performance.now();
-                    const diff = new_time-old_time;
+                    const diff = new_time - old_time;
 
                     old_time = new_time;
 
-                    timeout-=(diff/1000);
+                    timeout -= (diff / 1000);
 
-                    if(timeout < 10)
-                        auto_end = center(`This screen will auto-exit in ${(timeout|0)} second${(timeout|0) == 1 ? "": "s" } `)
+                    if (timeout < 10)
+                        auto_end = center(`This screen will auto-exit in ${(timeout | 0)} second${(timeout | 0) == 1 ? "" : "s"} `);
                     else
                         auto_end = "";
-                    
-                    if(timeout < 0)
+
+                    if (timeout < 0)
                         EXIT = true;
                 }
 
                 if (runner_id) {
                     clearInterval(runner_id);
                     runner_id = null;
-                    timout_id = setInterval(run, 1000)
+                    timout_id = setInterval(run, 1000);
                 }
 
                 if (EXIT) {
-                    if(timout_id)
-                        clearInterval(timout_id)
-                    stdin.removeListener('data',onKeyEvent);
+                    if (timout_id)
+                        clearInterval(timout_id);
+                    stdin.removeListener('data', onKeyEvent);
                     return res(status.states);
                 }
             } else if (!status.COMPLETE) {
                 loop++;
                 time = new Date(performance.now() - start);
             }
-            
+
             old_time = performance.now();
         }
 

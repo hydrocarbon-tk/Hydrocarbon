@@ -103,7 +103,7 @@ export async function grammarParser(
     if (unique_grammar_file_id == 112) {
 
         await sleep(global_pending_files);
-        //Convient lookup map for production non-terminal names. 
+        //Convenient lookup map for production non-terminal names. 
 
         //Setup the productions object
         productions.forEach((p, i) => (p.id = i));
