@@ -7,7 +7,6 @@ import { ParserResultData } from "../../types/parser_result_data.js";
 import { errorReport } from "./error_report.js";
 import { ParserEnvironment } from "../../types/parser_environment.js";
 import { StateStack } from "../../types/state_stack.js";
-import { inspect } from "util";
 
 const MAX_CYCLES = 50000000;
 
@@ -329,7 +328,7 @@ function parser<T>(
     if (cycles >= MAX_CYCLES)
         return <ParserResultData<T>>{
             value: o[0],
-            error: lex.errorMessage(`Max Depth Reached ${inspect({ total_cycles, cycles, fork_depth })}`),
+            error: lex.errorMessage(`Max Depth Reached ${{ total_cycles, cycles, fork_depth }}`),
             total_cycles,
             cycles,
             off,

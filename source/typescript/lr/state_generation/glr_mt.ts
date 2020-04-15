@@ -1,5 +1,4 @@
 "use strict";
-import { isMainThread, workerData } from "worker_threads";
 
 import StateResolver from "./state_resolver_mt.js";
 import { StateActionEnum } from "../../types/state_action_enums.js";
@@ -7,7 +6,7 @@ import {
     shiftReduceCollision,
     reduceCollision
 } from "./error.js";
-import { LRMultiThreadProcessWorker, LRMultiThreadRunner } from "./lr_mt.js";
+import { LRMultiThreadRunner } from "./lr_mt.js";
 import { ParserAction, LRState } from "../../types/lr_state.js";
 import { Grammar } from "../../types/grammar.js";
 
@@ -83,21 +82,6 @@ class GLStateResolver extends StateResolver {
     handleForkShiftCollision(grammar: Grammar, state: LRState, fork_action: ParserAction, shift_action: ParserAction): void {
         this.handleForkOtherActionCollision(state, fork_action, shift_action);
     } //*/
-}
-
-
-
-
-
-if (!isMainThread) {
-    if (workerData) {
-
-        const { grammar, env_path, id } = workerData;
-
-        if (grammar)
-            new LRMultiThreadProcessWorker(grammar, env_path, id);
-    }
-
 }
 
 export default function* (grammar, env, env_path) {

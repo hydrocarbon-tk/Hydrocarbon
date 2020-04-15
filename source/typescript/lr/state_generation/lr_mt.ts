@@ -1,10 +1,9 @@
 "use strict";
 
-import { Worker, isMainThread, parentPort, workerData } from "worker_threads";
+import { Worker } from "worker_threads";
 
 import { filloutGrammar } from "../../util/common.js";
 import { Item } from "../../util/item.js";
-import StateProcessor from "./state_processor_mt.js";
 import StateResolver from "./state_resolver_mt.js";
 import * as os from 'os';
 import { Grammar, SymbolType } from "../../types/grammar.js";
@@ -19,76 +18,6 @@ type WorkerContainer = {
     id: number;
     READY: boolean;
 };
-
-export class LRMultiThreadProcessWorker {
-
-    processor: StateProcessor;
-    grammar: Grammar;
-    env: ParserEnvironment;
-    id: number;
-
-    constructor(grammar: Grammar, env_path: string, id: number, processor_constructor = StateProcessor) {
-
-        this.processor = new processor_constructor;
-
-        this.grammar = grammar;
-
-        this.env = { functions: {} };
-
-        this.id = id;
-
-        this.start(env_path);
-    }
-
-    async start(env_path: string) {
-        const grammar = this.grammar;
-
-        await this.setupEnvironment(env_path);
-
-        filloutGrammar(this.grammar, this.env);
-
-        const bodies = this.grammar.bodies;
-
-        grammar.graph_id = 0;
-
-        for (const body of grammar.bodies) {
-            const production = body.production;
-            if (production.graph_id < 0) {
-                production.graph_id = grammar.graph_id++;
-            }
-        }
-
-        parentPort.on("message", (d: { item_set: ItemSet; }) => {
-            const item_obj = Object.assign({}, d.item_set);
-            item_obj.items = item_obj.items.map(i => Item.fromArray(i));
-            const result = this.runItem(item_obj);
-        });
-    }
-
-    async setupEnvironment(env_path) {
-        if (env_path) {
-            let ext = env_path.split(".").reverse()[0];
-            this.env = (await import("file://" + env_path)).default;
-        }
-    }
-
-    runItem(item_obj) {
-
-        const grammar = this.grammar;
-
-        const error = new CompilerErrorStore();
-
-        const { to_process_items, state, error: state_error } = this.processor.process(item_obj.items, item_obj.state_id, grammar, item_obj.excludes, error);
-
-        state.thread_id = this.id;
-
-        if (state_error)
-            console.log(state_error);
-
-        //sanitize items and remove anything thet is not strictly needed per item. 
-        parentPort.postMessage({ to_process_items, state, errors: error.strings.length > 0 ? error.strings : null });
-    }
-}
 
 export class LRMultiThreadRunner {
 
@@ -120,8 +49,9 @@ export class LRMultiThreadRunner {
 
         this.module_url = (process.platform == "win32") ?
             import.meta.url.replace(/file\:\/\/\//g, "")
-            : (new URL(
-                import.meta.url)).pathname;
+            : (new URL(import.meta.url)).pathname;
+
+        this.module_url = this.module_url.replace("lr_mt", "lr_wk_mt");
 
         this.number_of_workers = Math.max(1, os.cpus().length - 2);
 
@@ -143,7 +73,7 @@ export class LRMultiThreadRunner {
                         }
 
                         return r;
-                    }(e);
+                    } (e);
                     this.RUN = false;
                 });
 
@@ -256,18 +186,6 @@ export class LRMultiThreadRunner {
             COMPLETE: true
         };
     }
-}
-
-if (!isMainThread) {
-
-    if (workerData) {
-
-        const { grammar, env_path, id } = workerData;
-
-        if (grammar)
-            new LRMultiThreadProcessWorker(grammar, env_path, id);
-    }
-
 }
 
 export default function* (grammar: Grammar, env: ParserEnvironment, env_path: string) {
