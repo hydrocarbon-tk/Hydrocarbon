@@ -58,7 +58,7 @@
 # are matched against tokens whose string value is the same as the text following 
 # the τ character.
 
-<> symbols_preamble → 		@ (ERR θws) τSYMBOL  sym::lexer_symbols  θnl 	↦cstr{ 
+<> symbols_preamble → 		@ (ERR θws) τSYMBOL  sym::lexer_symbol(+)  θnl 	↦cstr{ 
 																			this.type="symbols"; 
 																			this.symbols = $sym3;
 																			this.symbols.map(sym=>sym.val ? sym.val : sym ).forEach(lex.addSymbol.bind(lex));

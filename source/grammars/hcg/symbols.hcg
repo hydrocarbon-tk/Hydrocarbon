@@ -26,21 +26,21 @@
 <> lexer_symbol → generated_symbol
 	│ literal_symbol
 	│ escaped_symbol
-	│ grouped_symbol grouped_delimiter				↦return { $sym1 }
+	│ grouped_symbol grouped_delimiter				↦cstr{ this.type = "symbol"; this.val = $sym1; this.s="sdf" }	
 
 <> grouped_delimiter →  θnl │ θws									
 
-<> grouped_symbol →  θany(+") 						↦cstr{ this.type = "symbol"; this.val = $sym1 }													
+<> grouped_symbol →  (θsym │ θid │ θany)(+") 		 ↦cstr{ this.type = "symbol"; this.val = $sym1; this.s="sdf" }													
 
 <> ignore_symbol → generated_symbol
 	│ literal_symbol
 	│ escaped_symbol
-	│ θany											↦cstr{ this.type = "symbol"; this.val = $sym1 }
+	│ θany											↦cstr{ this.type = "symbol"; this.val = $sym1; this.dfsd="sdfsd1f" }
 
 <> terminal_symbol → generated_symbol
 	│ literal_symbol
 	│ escaped_symbol
-	│ θany 											↦cstr{ this.type = "symbol"; this.val = $sym1 }
+	│ θany 											↦cstr{ this.type = "symbol"; this.val = $sym1; this.dfsd="sdfsdf" }
 
 <> symbol → generated_symbol
 	│ production_symbol
@@ -58,7 +58,7 @@
 
 	│ symbol ( \(+ │ \(* )  terminal_symbol?  \) 	↦cstr ^listProduction
 													
-	│ θany											↦cstr{ this.type = "symbol"; this.val = $sym1 }
+	│ θany											↦cstr{ this.type = "symbol"; this.val = $sym1; this.ssdf="SDFSDF" }
 
 <> EOF_symbol → 
 	$eof  											↦cstr{ this.type = "eof"; this.val = "$eof" }
@@ -67,10 +67,10 @@
 	\ɛ  											↦cstr{ this.type = "empty";  }
 
 <> generated_symbol → 
-	\θ (ERR θws θnl) identifier 					↦cstr{ this.type = "generated"; this.val = $sym2 }
+	( \θ │ τg \: ) (ERR θws θnl) identifier 					↦cstr{ this.type = "generated"; this.val = $sym2 }
 
 <> literal_symbol → 
-	\τ (ERR θws θnl)  ( identifier │ def::natural ) ↦cstr{ this.type = "literal"; this.val = ""+$sym2 }
+	( \τ │ τt \: ) (ERR θws θnl)  ( identifier │ def::natural ) ↦cstr{ this.type = "literal"; this.val = ""+$sym2 }
 
 <> escaped_symbol → 
 	\\ (ERR θws θnl)  θany 							↦cstr{ this.type = "escaped"; this.val = $sym2 }
@@ -81,8 +81,7 @@
 <> imported_production_symbol → 
 	production_id \:: identifier					↦c ^importProduction
 
-<> production_id → 
-	identifier 
+<> production_id → identifier
 
 <> identifier →  def::id
 
