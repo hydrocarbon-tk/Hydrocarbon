@@ -8,6 +8,12 @@ import { errorReport } from "./error_report.js";
 import { ParserEnvironment } from "../../types/parser_environment.js";
 import { StateStack } from "../../types/state_stack.js";
 
+function shallowCopy(stack) {
+    //    for (let i = 0; i < stack.length; i++)
+    //        stack[i] = Object.setPrototypeOf(Object.assign({}, stack[i]), stack[i].prototype);
+    return stack;
+}
+
 const MAX_CYCLES = 50000000;
 
 /**
@@ -99,11 +105,13 @@ function parser<T>(
                 while (/*intentional*/ 1 /*intentional*/) {
 
                     if (RECOVERING > 1 && !lex.END) {
+
                         //Treat specialized number forms as regular numbers. 
                         if ((lex.ty & lex_num) && (lex.ty ^ lex_num)) {
                             tk = 1;
                             break;
                         }
+
                         // If the tk is keyword type and
                         // lex.type is a number, convert to the number token 
                         // or convert keyword type to its literal type
@@ -114,6 +122,7 @@ function parser<T>(
                                 tk = token_lu.get(lex.tx);
                             break;
                         }
+
                         //If token is different when evaluating the lexers type, 
                         //get new token based on lexer type.
                         if (tk !== token_lu.get(lex.ty)) {
@@ -123,18 +132,21 @@ function parser<T>(
 
                         //Treat token as a 1 character symbol if
                         //lex type is not space, new_line, or symbol
-                        if (!(lex.ty & (lex_ws | lex_nl | lex_sym))) {
+                        if (/*(lex.ty & lex_sym && lex.tl > 1) ||*/ !(lex.ty & (lex_ws | lex_nl | lex_sym))) {
                             lex.tl = 1;
                             lex.type = lex_sym;
                             tk = token_lu.get(lex.tx);
                             break;
                         }
+
                         //Last resort, treat token as the θany type.
-                        if (tk !== any) {
+                        if (RECOVERING > 2 && tk !== any) {
                             tk = any;
-                            RECOVERING = 1;
+                            RECOVERING = 2;
                             break;
                         }
+
+                        RECOVERING = 1;
                     }
                     //Reset the token to the original failing value;
                     lex.tl = 0;
@@ -142,6 +154,7 @@ function parser<T>(
                     tk = getToken(lex, token_lu);
 
                     if (FINAL_RECOVERY != lex.off) {
+
                         FINAL_RECOVERY = lex.off;
 
                         const recovery_token = error_handlers[<number>state_stack[sp]](tk, e, o, lex, p, <number>state_stack[sp], (lex) => getToken(lex, token_lu));
@@ -152,8 +165,14 @@ function parser<T>(
                             tk = recovery_token;
                             break;
                         }
-
                     }
+
+                    //if (lex.ty == lex_sym && lex.tl > 1) {
+                    //    lex.tl = 0;
+                    //    lex.next(lex, false);
+                    //    tk = getToken(lex, token_lu);
+                    //    break;
+                    //}
 
                     return errorReport(tk, lex, off, cycles, total_cycles, fork_depth);
 
@@ -186,7 +205,7 @@ function parser<T>(
                         tk = getToken(lex, token_lu);
 
 
-                        RECOVERING++;
+                        RECOVERING = 100;
 
                         break;
 
@@ -242,6 +261,8 @@ function parser<T>(
 
                         FORKED_ENTRY = true;
 
+                        let i = 0;
+
                         for (const forked_state_action_lu of fork_maps.slice(fork_states_start, fork_states_end)) {
 
                             const
@@ -267,6 +288,7 @@ function parser<T>(
                             total_cycles += res.total_cycles;
 
                             if ((<ParserSquashResultData>res).SQUASH) {
+
                                 const ret = <ParserSquashResultData>res;
 
                                 if (fork_depth > 1 && ret.sp < fork_depth) {
@@ -301,10 +323,13 @@ function parser<T>(
                                 res.total_cycles = total_cycles;
                                 result = res;
                             }
+
+                            i++;
                         }
 
-                        if (!result.error)
+                        if (!result.error) {
                             result.error = lex.errorMessage("Failed to parse at FORK action");
+                        }
 
                         return result;
                 }
@@ -313,6 +338,7 @@ function parser<T>(
             state = states[<number>state_stack[sp]];
             state_length = state.length;
             state_action_lu = (tk < state_length) ? state[tk] : -1;
+
         }
     } catch (e) {
         return <ParserResultData<T>>{

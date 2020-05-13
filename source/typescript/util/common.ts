@@ -140,7 +140,7 @@ export function filloutGrammar(grammar, env) {
         if (production.error_function)
             addFunctions(production.error_function, production, env);
 
-        for (let i = 0; i < production.bodies.length; i++ , j++) {
+        for (let i = 0; i < production.bodies.length; i++, j++) {
             const body = production.bodies[i];
             body.id = j;
             bodies.push(body);

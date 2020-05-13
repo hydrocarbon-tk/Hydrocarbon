@@ -136,7 +136,7 @@ export default class StateResolver {
                                 break;
                             case StateActionEnum.SHIFT:
                                 if (action.sid !== existing_action.sid)
-                                    throw "NEED to fix this bug: shift shift conflicts should not exist in LALR"; //Serious error. The processor FUped;
+                                    throw "NEED to fix this bug: shift shift conflicts should not exist in LALR"; //Serious error.
                                 break;
                             case StateActionEnum.REDUCE:
                                 this.handleShiftReduceCollision(grammar, existing_state, action, existing_action, errors);

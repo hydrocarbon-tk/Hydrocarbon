@@ -205,8 +205,8 @@ function createScript(name, parser, type, env, compress = false) {
 
 /* *************** HCG GRAMMAR DATA *********************/
 
-async function parseGrammar(grammar_string, PATH) {
-    const grammar = await hc.grammarParser(grammar_string, PATH);
+async function parseGrammar(grammar_string, grammar_path_string) {
+    const grammar = await hc.grammarParser(grammar_string, grammar_path_string);
 
     return grammar;
 }

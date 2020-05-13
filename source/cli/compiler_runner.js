@@ -132,9 +132,10 @@ async function runner(grammar, env, env_path, name, GLR = false, UNATTENDED = fa
 
     return new Promise(res => {
 
-
         if (!grammar)
             throw new Error(`Unable to parse grammar, the grammar is ${grammar}`);
+
+
 
         const
             gen = hc[GLR ? "compileGLRStatesMT" : "compileLRStatesMT"](grammar, env, env_path),
@@ -162,8 +163,16 @@ async function runner(grammar, env, env_path, name, GLR = false, UNATTENDED = fa
             timeout = UNATTENDED ? 10 : 300,
             status = gen.next().value;
 
+        console.log(status);
+        
         if (status.COMPLETE) //FAILURE
             res(status.states);
+
+
+
+
+
+
 
 
         function onKeyEvent(key) {
@@ -262,7 +271,6 @@ async function runner(grammar, env, env_path, name, GLR = false, UNATTENDED = fa
             }
 
             if (status.COMPLETE) {
-
                 if (timeout < 601) {
                     const new_time = performance.now();
                     const diff = new_time - old_time;

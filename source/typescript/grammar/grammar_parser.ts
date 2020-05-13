@@ -143,6 +143,8 @@ export async function grammarParser(
                         } break;
                 }
         }
+
+        //  throw 1;
     }
 
     if (productions.length == 0)

@@ -17,7 +17,7 @@ const
         red: REDUCE_MAP
     };
 
-export default function(production : Production, env :GrammarParserEnvironment, lex:Lexer) {
+export default function (production: Production, env: GrammarParserEnvironment, lex: Lexer) {
 
     const grammar_file_url = env.FILE_URL;
 
@@ -25,7 +25,7 @@ export default function(production : Production, env :GrammarParserEnvironment, 
 
     if (production.IMPORT_APPEND || production.IMPORT_OVERRIDE) {
 
-        const imported = <Production> <unknown> production.name;
+        const imported = <Production><unknown>production.name;
 
         imported.resolveFunction = (p) => {
             if (production.IMPORT_APPEND)
@@ -57,13 +57,18 @@ export default function(production : Production, env :GrammarParserEnvironment, 
 
     if (bodies.length == 1) {
         //This may be a group. If so, we'll flatten it into the current production. 
+
         const body = bodies[0];
+
+        ///*
         if (body.sym.filter(s => !s.IS_CONDITION).length == 1 && body.sym[0].subtype == "list") {
+            //*
             //Retrieve the production
             const sym = body.sym[0];
+
             const prod = env.productions.filter(e => e.name == sym.name)[0];
 
-            //We'll replece our bodies with replicas of the two bodies found in the other production
+            //We'll replace our bodies with replicas of the two bodies found in the other production
             const [bodyA, bodyB] = prod.bodies;
             const newBodyA = Object.assign({}, bodyA);
             const newBodyB = Object.assign({}, bodyB);
@@ -74,18 +79,16 @@ export default function(production : Production, env :GrammarParserEnvironment, 
             newBodyA.sym[0].name = <string>production.name;
             //newBodyB.sym[0].name = production.name;
 
-            //console.log(newBodyA.sym[0], bodyA.sym[0], newBodyB.sym[0], bodyB.sym);
-
             //Merge any functions found on the existing body
-            newBodyA.sym.push(...body.sym.filter(s => s.IS_CONDITION));
-            newBodyB.sym.push(...body.sym.filter(s => s.IS_CONDITION));
+            //newBodyA.sym.push(...body.sym.filter(s => s.IS_CONDITION));
+            //newBodyB.sym.push(...body.sym.filter(s => s.IS_CONDITION));
 
 
             //replace the productions body with the new ones.
             production.bodies = [newBodyA, newBodyB];
-
             //prost
         }
+        //*/;
 
     }
 
@@ -97,33 +100,36 @@ export default function(production : Production, env :GrammarParserEnvironment, 
 
         //First pass splits optionals, expands repeats, and handles lists
         outer:
-            for (let j = 0; j < body.sym.length; j++) {
-                const sym = body.sym[j];
+        for (let j = 0; j < body.sym.length; j++) {
+            const sym = body.sym[j];
 
-                if (sym.IS_OPTIONAL && (!sym.NO_BLANK || body.sym.length > 1)) {
 
-                    const new_sym = body.sym.slice();
-                    const sym_map = body.sym_map.slice();
 
-                    new_sym.splice(j, 1);
-                    const s = sym_map.splice(j, 1)[0];
+            if (sym.IS_OPTIONAL && (!sym.NO_BLANK || body.sym.length > 1)) {
 
-                    const new_body = new env.functions.body([{ body: new_sym, reduce: body.reduce_function }], env, lex, form ^ (1 << s));
 
-                    new_body.lex = lex;
-                    new_body.sym_map = sym_map;
+                const new_sym = body.sym.slice();
+                const sym_map = body.sym_map.slice();
 
-                    //Check to see if we have already derived this body form. 
-                    // If so, skip adding to list of production bodies.
+                new_sym.splice(j, 1);
+                const s = sym_map.splice(j, 1)[0];
 
-                    for (let j = 0; j < bodies.length; j++) {
-                        if (bodies[j].uid == new_body.uid)
-                            continue outer;
-                    }
+                const new_body = new env.functions.body([{ body: new_sym, reduce: body.reduce_function }], env, lex, form ^ (1 << s));
 
-                    bodies.push(new_body);
+                new_body.lex = lex;
+                new_body.sym_map = sym_map;
+
+                //Check to see if we have already derived this body form. 
+                // If so, skip adding to list of production bodies.
+
+                for (let j = 0; j < bodies.length; j++) {
+                    if (bodies[j].uid == new_body.uid)
+                        continue outer;
                 }
+
+                bodies.push(new_body);
             }
+        }
 
         //second pass removes functions, excludes, errors, and ignores
         for (let j = 0; j < body.sym.length; j++) {
@@ -195,14 +201,14 @@ export default function(production : Production, env :GrammarParserEnvironment, 
                     .reduce((r, sym) => {
                         const map = extractable_symbol_lookup[sym.type] || 0,
                             off = r.length;
-
+    
                         sym.offset = off;
-
+    
                         if (sym.type == "INLINE")
                             body.functions.push(Object.assign({}, sym));
                         else if (map > 0) {
                             const m = body[(["excludes", "ignore", "error", "reset", "reduce"][map - 1])];
-
+    
                             if (!m.get(off))
                                 m.set(off, []);
                             if (map == 1 || map == 5)
@@ -211,7 +217,7 @@ export default function(production : Production, env :GrammarParserEnvironment, 
                                 m.get(off).push(...sym.sym);
                         } else
                             r.push(sym);
-
+    
                         return r;
                     }, []);
         */

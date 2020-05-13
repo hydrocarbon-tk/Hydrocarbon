@@ -53,7 +53,7 @@ class GLStateResolver extends StateResolver {
 
         const symbol = existing_reduce.symbol;
 
-        if (existing_reduce.state_real_id == new_reduce.state_real_id, errors)
+        if (existing_reduce.state_real_id == new_reduce.state_real_id)
             return;
 
         reduceCollision(grammar, state, existing_reduce, new_reduce, errors);

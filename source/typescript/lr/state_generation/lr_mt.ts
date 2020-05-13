@@ -109,6 +109,7 @@ export class LRMultiThreadRunner {
             i.items = i.items.map(i => Item.fromArray(i));
 
             if (this.processed_states.has(id)) {
+
                 const
                     set = this.processed_states.get(id),
                     out_items = i.items.filter(i => !set.has(i.full_id) && (set.add(i.full_id), true));

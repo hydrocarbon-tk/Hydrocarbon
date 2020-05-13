@@ -148,7 +148,7 @@ export default class implements ProductionBody {
             try {
                 this.reduce_function.txt = renderCompressed(funct.nodes[2]);
             } catch (e) {
-                console.log(e);
+                console.error(e);
                 throw e;
             }
         }

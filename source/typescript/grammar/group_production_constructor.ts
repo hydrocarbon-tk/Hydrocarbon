@@ -1,11 +1,11 @@
 import { Production } from "../types/grammar.js";
 
 export default class implements Production {
-    
-    type:"production";
-    name:string;
-    val:number;
-    id:-1;
+
+    type: "production";
+    name: string;
+    val: number;
+    id: -1;
 
     constructor(sym, env, lex) {
 
@@ -15,12 +15,12 @@ export default class implements Production {
             return env.bodies.get(uid);
 
         this.type = "production";
-        this.name = env.prod_name + "" + "_group_" + env.body_offset + "" + env.body_count;
+        this.name = env.prod_name + "" + "_group_" + env.body_offset + "" + env.body_count + "_" + Math.round(Math.random() * 10000);
         this.val = -1;
 
         env.bodies.set(uid, this);
 
-        const groupProduction = <Production> {
+        const groupProduction = <Production>{
             subtype: "group",
             name: this.name,
             bodies: sym[1],

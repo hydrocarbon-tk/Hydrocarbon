@@ -26,21 +26,21 @@
 <> lexer_symbol → generated_symbol
 	│ literal_symbol
 	│ escaped_symbol
-	│ grouped_symbol grouped_delimiter				↦cstr{ this.type = "symbol"; this.val = $sym1; this.s="sdf" }	
+	│ grouped_symbol grouped_delimiter				↦cstr{ this.type = "symbol"; this.val = $sym1; }	
 
 <> grouped_delimiter →  θnl │ θws									
 
-<> grouped_symbol →  (θsym │ θid │ θany)(+") 		 ↦cstr{ this.type = "symbol"; this.val = $sym1; this.s="sdf" }													
+<> grouped_symbol →  (θsym │ θid │ θany)(+") 		 ↦cstr{ this.type = "symbol"; this.val = $sym1;}													
 
 <> ignore_symbol → generated_symbol
 	│ literal_symbol
 	│ escaped_symbol
-	│ θany											↦cstr{ this.type = "symbol"; this.val = $sym1; this.dfsd="sdfsd1f" }
+	│ θany											↦cstr{ this.type = "symbol"; this.val = $sym1;}
 
 <> terminal_symbol → generated_symbol
 	│ literal_symbol
 	│ escaped_symbol
-	│ θany 											↦cstr{ this.type = "symbol"; this.val = $sym1; this.dfsd="sdfsdf" }
+	│ θany 											↦cstr{ this.type = "symbol"; this.val = $sym1; }
 
 <> symbol → generated_symbol
 	│ production_symbol
@@ -58,7 +58,7 @@
 
 	│ symbol ( \(+ │ \(* )  terminal_symbol?  \) 	↦cstr ^listProduction
 													
-	│ θany											↦cstr{ this.type = "symbol"; this.val = $sym1; this.ssdf="SDFSDF" }
+	│ θany											↦cstr{ this.type = "symbol"; this.val = $sym1;}
 
 <> EOF_symbol → 
 	$eof  											↦cstr{ this.type = "eof"; this.val = "$eof" }
