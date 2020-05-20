@@ -2,9 +2,9 @@ import URL from "@candlefw/url";
 import { GrammarParserEnvironment } from "../types/grammar_compiler_environment";
 import { Grammar } from "../types/grammar";
 
-export default function(sym, env : GrammarParserEnvironment) {
+export default function (sym, env: GrammarParserEnvironment) {
 
-    const 
+    const
         FILE_URL = env.FILE_URL,
         AWAIT = env.AWAIT,
         PENDING_FILES = env.PENDING_FILES,
@@ -31,10 +31,10 @@ export default function(sym, env : GrammarParserEnvironment) {
     env.PENDING_FILES.count++;
 
     uri.fetchText().then(async txt => {
-        let prods : Grammar = null;
+        let prods: Grammar = null;
 
         try {
-            prods = <Grammar> (await env.grammarParser(txt, uri, env.stamp * env.body_count ** AWAIT.count + 1 + (Math.random() * 10000) | 0, meta_imported_productions, PENDING_FILES));
+            prods = <Grammar>(await env.grammarParser(txt, uri, env.stamp * env.body_count ** AWAIT.count + 1 + (Math.random() * 10000) | 0, meta_imported_productions, PENDING_FILES));
         } catch (e) {
             console.warn("Error encountered in " + uri);
             throw e;
@@ -70,18 +70,20 @@ export default function(sym, env : GrammarParserEnvironment) {
         let p;
         //Make sure only one instance of any URL resource is used in grammar.
 
-
         if ((p = meta_imported_productions.get(key))) {
             if (p.SYMBOL_LIST) {
                 //meta_imported_productions.set(key, prods);
                 p.forEach(sym => {
+
                     try {
+
                         const production = prods.LU.get(sym.name);
                         sym.name = `${id}$${production.name}`;
                         sym.RESOLVED = true;
                         sym.production = production;
                         sym.resolveFunction(production);
                     } catch (e) {
+                        console.error(e);
                         throw Error(`\nError in: \nfile://${uri}:\n\tGrammar ${id} does not have a production named ${sym.name}`);
                     }
 
@@ -89,7 +91,7 @@ export default function(sym, env : GrammarParserEnvironment) {
             } else
                 EXISTING = true;
         }
-        
+
         if (!EXISTING) {
             env.productions.push(...prods);
             env.productions.meta.preambles.push(...prods.meta.preambles);

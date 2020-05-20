@@ -58,7 +58,7 @@ export default class implements ProductionBody {
 
     build() {
 
-        if (!this.BUILT && this.reduce_function && this.reduce_function.txt) {
+        if (!this.BUILT && this.reduce_function && this.reduce_function.txt && !this.reduce_function.BUILT) {
 
             this.BUILT = true;
 
@@ -151,6 +151,8 @@ export default class implements ProductionBody {
                 console.error(e);
                 throw e;
             }
+
+            this.reduce_function.BUILT = true;
         }
 
 
