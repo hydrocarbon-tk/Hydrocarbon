@@ -8,11 +8,6 @@ import { errorReport } from "./error_report.js";
 import { ParserEnvironment } from "../../types/parser_environment.js";
 import { StateStack } from "../../types/state_stack.js";
 
-function shallowCopy(stack) {
-    //    for (let i = 0; i < stack.length; i++)
-    //        stack[i] = Object.setPrototypeOf(Object.assign({}, stack[i]), stack[i].prototype);
-    return stack;
-}
 
 const MAX_CYCLES = 50000000;
 
@@ -232,7 +227,7 @@ function parser<T>(
 
                         sp += 2;
 
-                        if (sp < fork_depth - 1) {
+                        if (sp < fork_depth) {
                             return <ParserSquashResultData>{
                                 SQUASH: true,
                                 forks,
