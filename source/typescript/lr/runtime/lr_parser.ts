@@ -199,7 +199,6 @@ function parser<T>(
 
                         tk = getToken(lex, token_lu);
 
-
                         RECOVERING = 100;
 
                         break;
@@ -211,7 +210,6 @@ function parser<T>(
                         var end = <Lexer>state_stack[sp - 1];
                         var start = <Lexer>state_stack[sp - len - 1];
 
-                        end.sl = end.off;
                         end.sync(start);
 
                         state_stack.length -= len;
