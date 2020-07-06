@@ -65,6 +65,11 @@ export interface ProductionBodyReduceFunction {
     env: boolean;
     txt: string;
     type: "RETURNED" | "CLASS";
+
+    /**
+     * Indicates that the function statements have been prepared if true.
+     */
+    BUILT?: boolean;
 }
 
 export interface ProductionBody {
