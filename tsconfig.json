@@ -1,6 +1,8 @@
 {
     "compileOnSave": true,
-    "include": ["./source/typescript/**/*"],
+    "include": [
+        "./source/typescript/**/*"
+    ],
     "compilerOptions": {
         "types": [
             "@types/node"
@@ -13,6 +15,7 @@
             "ES2020",
             "DOM"
         ],
+        "allowSyntheticDefaultImports": true,
         "module": "ESNext",
         "outDir": "./build/library",
         "declarationDir": "./build/types",
