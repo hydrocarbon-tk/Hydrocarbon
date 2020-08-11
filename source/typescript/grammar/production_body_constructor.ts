@@ -1,5 +1,5 @@
 //@ts-ignore
-import { MinTreeNodeClass, exp, ext, stmt, MinTreeNodeType, renderCompressed } from "@candlefw/js";
+import { JSNodeClass, exp, ext, stmt, JSNodeType, renderCompressed } from "@candlefw/js";
 
 import { traverse, make_replaceable, bit_filter, extract } from "@candlefw/conflagrate";
 
@@ -73,7 +73,7 @@ export default class implements ProductionBody {
 
             //*
             for (const { node, meta: { replace } } of traverse(ast, "nodes")
-                .bitFilter("type", MinTreeNodeClass.IDENTIFIER)
+                .bitFilter("type", JSNodeClass.IDENTIFIER)
                 .makeReplaceable((
                     parent,
                     child,
@@ -85,27 +85,27 @@ export default class implements ProductionBody {
                         if (
                             (parent.type &
                                 (
-                                    MinTreeNodeClass.UNARY_EXPRESSION
-                                    | MinTreeNodeClass.TERNARY_EXPRESSION
+                                    JSNodeClass.UNARY_EXPRESSION
+                                    | JSNodeClass.TERNARY_EXPRESSION
                                 )
                             )
-                            || parent.type == MinTreeNodeType.AssignmentExpression
-                            || parent.type == MinTreeNodeType.PropertyBinding
-                            || parent.type == MinTreeNodeType.VariableStatement
-                            || parent.type == MinTreeNodeType.BindingExpression
-                            || parent.type == MinTreeNodeType.MemberExpression
-                            || parent.type == MinTreeNodeType.SpreadExpression
-                            || parent.type == MinTreeNodeType.Parenthesized
-                            || parent.type == MinTreeNodeType.ExpressionStatement
+                            || parent.type == JSNodeType.AssignmentExpression
+                            || parent.type == JSNodeType.PropertyBinding
+                            || parent.type == JSNodeType.VariableStatement
+                            || parent.type == JSNodeType.BindingExpression
+                            || parent.type == JSNodeType.MemberExpression
+                            || parent.type == JSNodeType.SpreadExpression
+                            || parent.type == JSNodeType.Parenthesized
+                            || parent.type == JSNodeType.ExpressionStatement
                         )
                             return null;
 
-                        if (parent.type == MinTreeNodeType.ExpressionList) {
+                        if (parent.type == JSNodeType.ExpressionList) {
                             if (child_index == 0 && children.length <= 1)
                                 return null;
                         }
 
-                        if (parent.type & MinTreeNodeClass.BINARY_EXPRESSION) {
+                        if (parent.type & JSNodeClass.BINARY_EXPRESSION) {
                             replaceParent();
                             return children[1 - child_index];
                         }

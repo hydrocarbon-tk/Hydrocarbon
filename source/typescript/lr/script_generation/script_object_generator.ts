@@ -1,6 +1,6 @@
 /** Compiles a stand alone JS parser from a LR rules table and env object **/
 //@ts-ignore
-import { parser, stmt, renderCompressed, MinTreeNodeType, ext, exp, MinTreeNodeClass, MinTreeNode } from "@candlefw/js";
+import { parser, stmt, renderCompressed, JSNodeType, ext, exp, JSNodeClass, JSNode } from "@candlefw/js";
 
 import createStateArrays from "./create_state_arrays.js";
 import { verboseTemplate } from "./data_object_template.js";
@@ -29,8 +29,8 @@ function generateCompactFunction(function_string: string) {
         ids = new Map(fn.parameters.nodes.map((e, i) => [e.value, { b: false, s: short_names[i] }])),
         params = fn.parameters.nodes;
 
-    for (const { node } of traverse(fn.body, "nodes").filter("type", MinTreeNodeType.ObjectLiteral))
-        for (const { node: id } of traverse(node, "nodes").bitFilter("type", MinTreeNodeClass.PROPERTY_NAME)) {
+    for (const { node } of traverse(fn.body, "nodes").filter("type", JSNodeType.ObjectLiteral))
+        for (const { node: id } of traverse(node, "nodes").bitFilter("type", JSNodeClass.PROPERTY_NAME)) {
             if (ids.get(id.value)) {
                 ids.get(id.value).b = true;
                 ids.get(id.value).s = "";
@@ -38,9 +38,9 @@ function generateCompactFunction(function_string: string) {
         }
 
     for (const { node } of traverse(fn.body, "nodes")
-        .bitFilter("type", MinTreeNodeClass.IDENTIFIER)) {
+        .bitFilter("type", JSNodeClass.IDENTIFIER)) {
 
-        if (node.type & MinTreeNodeClass.PROPERTY_NAME) continue;
+        if (node.type & JSNodeClass.PROPERTY_NAME) continue;
 
         let v = ids.get(node.value);
         if (v)
@@ -53,7 +53,7 @@ function generateCompactFunction(function_string: string) {
 
     fn.parameters.nodes = params.slice(0, last_index + 1);
 
-    if (fn.body && fn.body.nodes[0].type == MinTreeNodeType.ReturnStatement) {
+    if (fn.body && fn.body.nodes[0].type == JSNodeType.ReturnStatement) {
         const arrow = exp("(a,a)=>(a)");
         // arrow->  paren-> expression_list->  nodes
         if (fn.parameters.nodes.length == 1)
