@@ -163,8 +163,6 @@ async function runner(grammar, env, env_path, name, GLR = false, UNATTENDED = fa
             timeout = UNATTENDED ? 10 : 300,
             status = gen.next().value;
 
-        console.log(status);
-        
         if (status.COMPLETE) //FAILURE
             res(status.states);
 
