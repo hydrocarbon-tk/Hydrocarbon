@@ -72,7 +72,7 @@
 <> BINDING → CALL_BINDING  							
 	│ BASIC_BINDING
 
-<> BASIC_BINDING → \(( ↦{ env.start = lex.off+2 } BINDING_DATA \))   ↦cstr{ this.lex = lex.copy(); this.lex.sl = lex.off-2; this.lex.off = env.start; console.log(this.lex.slice()) }
+<> BASIC_BINDING → \(( ↦{ env.start = lex.off+2 } BINDING_DATA \))   ↦cstr{ this.lex = lex.copy(); this.lex.sl = lex.off-2; this.lex.off = env.start; }
 
 <> CALL_BINDING → \(( ↦{ env.start = lex.off+2 } BINDING_DATA \)( BINDING_DATA \))    ↦cstr {  }
 
