@@ -100,9 +100,15 @@ export default class implements ProductionBody {
                         )
                             return null;
 
-                        if (parent.type == JSNodeType.ExpressionList) {
-                            if (child_index == 0 && children.length <= 1)
-                                return null;
+                        if (parent.type == JSNodeType.CallExpression
+                            && child_index == 0)
+                            return null;
+
+
+                        if (parent.type == JSNodeType.ExpressionList
+                            && child_index == 0
+                            && children.length <= 1) {
+                            return null;
                         }
 
                         if (parent.type & JSNodeClass.BINARY_EXPRESSION) {
