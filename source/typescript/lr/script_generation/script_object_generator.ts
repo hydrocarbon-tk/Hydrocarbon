@@ -1,6 +1,6 @@
 /** Compiles a stand alone JS parser from a LR rules table and env object **/
 //@ts-ignore
-import { parser, stmt, renderCompressed, JSNodeType, ext, exp, JSNodeClass, JSNode } from "@candlefw/js";
+import { parser, stmt, renderCompressed, JSNodeType, ext, exp, JSNodeClass } from "@candlefw/js";
 
 import createStateArrays from "./create_state_arrays.js";
 import { verboseTemplate } from "./data_object_template.js";
@@ -8,8 +8,14 @@ import { types as t, filloutGrammar } from "../../util/common.js";
 import { LRStates } from "../../types/lr_state.js";
 import { Grammar, SymbolType } from "../../types/grammar.js";
 import { ParserEnvironment } from "../../types/parser_environment.js";
-import { traverse, bit_filter, filter, add_parent } from "@candlefw/conflagrate";
-import { MinTreeExtendedNode } from "@candlefw/js/build/types/types/mintree_extended_node";
+import { traverse } from "@candlefw/conflagrate";
+
+function getValueID(e) {
+    for (const { node: id } of traverse(e, "nodes")
+        .bitFilter("type", JSNodeClass.IDENTIFIER)
+    ) return id;
+    return "";
+}
 /**
  * 
  * 
@@ -17,55 +23,57 @@ import { MinTreeExtendedNode } from "@candlefw/js/build/types/types/mintree_exte
  */
 function generateCompactFunction(function_string: string) {
 
-    //*
+    let fn = stmt(function_string);
 
-
-    let fn = ext(stmt(function_string), true);
-
-    fn.name.value = "";
+    fn.nodes[0] = null;
 
     const
-        short_names = "ABCDEFGHI",
-        ids = new Map(fn.parameters.nodes.map((e, i) => [e.value, { b: false, s: short_names[i] }])),
-        params = fn.parameters.nodes;
+        [, parameters, body] = fn.nodes,
+        { nodes: params } = parameters,
+        short_names = "_$ABCDEFGHI",
+        ids = new Map(params.map((e, i) => {
+            const node = getValueID(e);
 
-    for (const { node } of traverse(fn.body, "nodes").filter("type", JSNodeType.ObjectLiteral))
-        for (const { node: id } of traverse(node, "nodes").bitFilter("type", JSNodeClass.PROPERTY_NAME)) {
-            if (ids.get(id.value)) {
-                ids.get(id.value).b = true;
-                ids.get(id.value).s = "";
-            }
-        }
+            const value = node.value;
 
-    for (const { node } of traverse(fn.body, "nodes")
-        .bitFilter("type", JSNodeClass.IDENTIFIER)) {
+            node.value = short_names[i];
 
-        if (node.type & JSNodeClass.PROPERTY_NAME) continue;
+            return [value, { b: false, s: node.value }];
+        }));
 
-        let v = ids.get(node.value);
-        if (v)
-            (v.b = true, node.value = v.s || node.value);
+    for (const { node: id, meta: { parent } } of traverse(body, "nodes")
+        .filter("type", JSNodeType.IdentifierReference, JSNodeType.IdentifierReferenceProperty)
+    ) if (ids.has(id.value)) {
+
+        const i = ids.get(id.value);
+
+        i.b = true;
+        if (id.type == JSNodeType.IdentifierReference)
+            id.value = i.s;
+        else
+            id.value = `${id.value}:${i.s}`;
+
     }
 
     const last_index = [...ids.values()].reduce((r, v, i) => v.b && i > r ? i : r, -1);
 
-    params.forEach((e, i) => e.value = ids.get(e.value).s || e.value);
+    //params.forEach((e, i) => getValueID(e).value = ids.get(getValueID(e).value).s || getValueID(e).value);
 
-    fn.parameters.nodes = params.slice(0, last_index + 1);
+    fn.nodes[1].nodes = params.slice(0, last_index + 1);
 
-    if (fn.body && fn.body.nodes[0].type == JSNodeType.ReturnStatement) {
+    if (body && body.nodes[0].type == JSNodeType.ReturnStatement) {
         const arrow = exp("(a,a)=>(a)");
         // arrow->  paren-> expression_list->  nodes
-        if (fn.parameters.nodes.length == 1)
+        if (fn.nodes[1].nodes.length == 1)
             arrow.nodes[0] = params[0];
         else
-            arrow.nodes[0] = fn.parameters;
+            arrow.nodes[0] = parameters;
 
-        arrow.nodes[1].nodes[0] = fn.body.nodes[0].nodes[0];
+        arrow.nodes[1].nodes[0] = body.nodes[0].nodes[0];
 
         fn = arrow;
     }
-
+    
     return renderCompressed(fn);
 }
 

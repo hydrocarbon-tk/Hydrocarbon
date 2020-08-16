@@ -39,6 +39,7 @@ function constructCompilerEnvironment(
     meta_imported_productions: Map<any, any>
 ): GrammarParserEnvironment {
     return {
+        options: { integrate: true },
         SLEEP: sleep,
         bodies: new Map(),
         grammarParser,

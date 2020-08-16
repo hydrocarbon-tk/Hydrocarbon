@@ -38,8 +38,21 @@ function renderGetTokenFunction(getToken, SYM_LU, RV_SYM_LU, verbose = false) {
     });
     return str.replace(/\/\*@\*\/[^\n]*\n/g, "").replace(/\n/g, "");
 }
-export function verboseTemplate(fork_map, goto_maps, state_maps, state_functions, SYM_LU, default_error, error_handlers, functions, state_action_functions, goto_map_lookup, GEN_SYM_LU, symbols) {
-    const str = `((e,s,u,g)=>({
+export function verboseTemplate(
+    fork_map,
+    goto_maps,
+    state_maps,
+    state_functions,
+    SYM_LU,
+    default_error,
+    error_handlers,
+    functions,
+    state_action_functions,
+    goto_map_lookup,
+    GEN_SYM_LU,
+    symbols
+) {
+    const str = `((s,u,g)=>({
          fn : {}, 
 /************** Maps **************/
     st:s,
@@ -50,28 +63,26 @@ export function verboseTemplate(fork_map, goto_maps, state_maps, state_functions
     /* Fork Map */fm: [${renderForkMap(fork_map)}],
     /*Goto Lookup Functions*/ gt:g[0].map(i=>i>=0?u[i]:[]),
 /************ Functions *************/
-    /* Error Functions */ eh : [${renderErrorHandlers(error_handlers)}],
     /* Environment Functions*/ fns: [${renderFunctions(functions)}],
     /* State Action Functions */ sa : [${renderStateActionFunctions(state_action_functions)}],
     /* Get Token Function  */ gtk:${renderGetTokenFunction(getToken, SYM_LU, GEN_SYM_LU, true)},
-}))(${default_error},...("${renderStateMaps(state_maps)}|${renderGotoMap(goto_maps)}|${renderGotoMapLU(goto_map_lookup)}")`
+}))(...("${renderStateMaps(state_maps)}|${renderGotoMap(goto_maps)}|${renderGotoMapLU(goto_map_lookup)}")`
         + `.split("|").map(e=>e.split("&")).map(a => a.map(s => s.split(";").map(s=>parseInt(s,36)))`
         + `.map(s=>s.flatMap(d=>d<0?(new Array(-d-1)).fill(-1):(new Array(((d >>> 15) & 0x3FF) + 1)).fill((d >>> 1) & 0x3FFF)))))`;
     return str;
 }
-export function compressedTemplate(fork_map = [], goto_maps, state_maps, state_functions, SYM_LU, default_error, error_handlers, functions, state_action_functions, goto_functions, GEN_SYM_LU, symbols) {
-    return `((s,e, nf = ()=>{}, st = s.map(s=>s.flatMap(d=> d < 0 ? (new Array(-d)).fill(-1) : d)) )=>({
-        st, fn : {}, ty: {${[...GEN_SYM_LU.entries()].map(e => `${e[0]}:${e[1]}`).join(",")}},
-    sym : ${renderSymbols(symbols)},
-    gt : [${renderGotoMap(goto_maps)}],
-    lu : new Map(${renderSymbolLookUp(SYM_LU)}),
-    rlu : new Map(${JSON.stringify([...SYM_LU.entries()].map(e => [e[1], e[0]]))}),
-    sts : [${renderStateFunctions(state_functions)}],
-    fm: [${renderForkMap(fork_map)}],
-    eh : [${renderErrorHandlers(error_handlers)}],
-    fns: [${renderFunctions(functions)}],
-    sa : [${renderStateActionFunctions(state_action_functions)}],
-    gtk:${renderGetTokenFunction(getToken, SYM_LU, GEN_SYM_LU, true)},
-    gta : [${renderGotoMapLU(goto_functions)}]
-}))([${renderStateMaps(state_maps)}],${default_error})`;
+export function compressedTemplate(fork_map, goto_maps, state_maps, state_functions, SYM_LU, default_error, error_handlers, functions, state_action_functions, goto_map_lookup, GEN_SYM_LU, symbols) {
+    return `((s,u,g)=>({ fn : {}, 
+   st:s, ty: {${[...GEN_SYM_LU.entries()].map(e => `${e[0]}:${e[1]}`).join(",")}},
+   sym : ${renderSymbols(symbols)},
+   lu : new Map(${renderSymbolLookUp(SYM_LU)}),
+   sts : [${renderStateFunctions(state_functions)}].map(i=>s[i]),
+   fm: [${renderForkMap(fork_map)}],
+   gt:g[0].map(i=>i>=0?u[i]:[]),
+   fns: [${renderFunctions(functions)}],
+   sa : [${renderStateActionFunctions(state_action_functions)}],
+   gtk:${renderGetTokenFunction(getToken, SYM_LU, GEN_SYM_LU, true)},
+}))(...("${renderStateMaps(state_maps)}|${renderGotoMap(goto_maps)}|${renderGotoMapLU(goto_map_lookup)}")`
+        + `.split("|").map(e=>e.split("&")).map(a => a.map(s => s.split(";").map(s=>parseInt(s,36)))`
+        + `.map(s=>s.flatMap(d=>d<0?(new Array(-d-1)).fill(-1):(new Array(((d >>> 15) & 0x3FF) + 1)).fill((d >>> 1) & 0x3FFF)))))`;
 }

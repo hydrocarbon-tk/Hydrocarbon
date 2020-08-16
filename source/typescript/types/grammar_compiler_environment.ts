@@ -1,9 +1,9 @@
-import URL from "@candlefw/url"
+import URL from "@candlefw/url";
 
 import { Grammar, ProductionBody, Production } from "./grammar";
 
 import { AwaitTracker } from "../grammar/grammar_parser.js";
-
+import { ParserEnvironment } from "./parser_environment";
 export type ImportedProductionList = Array<Production> & {
     SYMBOL_LIST: boolean;
     LU: Map<string, Production>;
@@ -12,7 +12,7 @@ export type ImportedProductionList = Array<Production> & {
 
 export type ImportedProductions = Map<string, ImportedProductionList | Grammar>;
 
-export interface GrammarParserEnvironment {
+export interface GrammarParserEnvironment extends ParserEnvironment {
     /**
      * Polls the count value of an object and resolves the promise 
      * when the value hits 0;
@@ -37,7 +37,7 @@ export interface GrammarParserEnvironment {
     /**
      * Name of the production that is currently being parsed;
      */
-    prod_name : string;
+    prod_name: string;
     /**
      * Maps local grammar file identifiers to global grammar file identifiers to
      * resolve grammar files that have been imported from multiple sources
@@ -47,12 +47,12 @@ export interface GrammarParserEnvironment {
      * Productions imported through the importProductionConstructor
      */
     meta_imported_productions: ImportedProductions;
-    functions: {
-        compileProduction?:any
-        importProduction?:any;
-        importData?:any;
-        body?:any;
-        groupProduction?:any;
-        listProduction?:any;
+    functions: ParserEnvironment["functions"] & {
+        compileProduction?: any;
+        importProduction?: any;
+        importData?: any;
+        body?: any;
+        groupProduction?: any;
+        listProduction?: any;
     };
 }

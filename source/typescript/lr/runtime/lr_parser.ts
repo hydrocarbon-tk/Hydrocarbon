@@ -1,7 +1,7 @@
 import { Lexer } from "@candlefw/wind";
 
 import { StateActionEnum } from "../../types/state_action_enums.js";
-import { ParserData, OutputStack } from "../../types/parser_data.js";
+import { ParserData, OutputStack, ErrorHandler } from "../../types/parser_data.js";
 import { ParserSquashResultData } from "../../types/parser_squash_result_data.js";
 import { ParserResultData } from "../../types/parser_result_data.js";
 import { errorReport } from "./error_report.js";
@@ -10,6 +10,8 @@ import { StateStack } from "../../types/state_stack.js";
 
 
 const MAX_CYCLES = 50000000;
+
+const default_recovery: ErrorHandler = _ => -1;
 
 /**
     Parses an input. Returns an object with parse results and an error flag if parse could not complete.
@@ -43,7 +45,7 @@ function parser<T>(
         sts: states,
         sa: state_action_tables,
         fns: state_action_functions,
-        eh: error_handlers,
+        //eh: error_handlers,
         gtk: getToken,
         ty: types,
         fm: fork_maps
@@ -51,11 +53,14 @@ function parser<T>(
 
         { sym: lex_sym, num: lex_num, ws: lex_ws, nl: lex_nl } = lex.types,
 
-        { keyword, any, $eof: eof } = types;
+        { keyword, any, $eof: eof } = types,
+
+        { frrh: first_resort_recovery = default_recovery, lrrh: last_resort_recovery = default_recovery } = e.functions;
 
     let
         RECOVERING = 100,
-        FINAL_RECOVERY = -1,
+        FIST_RESORT_CUSTOM_RECOVERY_LAST_OFFSET = -1,
+        LAST_RESORT_CUSTOM_RECOVERY_LAST_OFFSET = -1,
         tk = 0,
         total_cycles = cycles,
         state = null,
@@ -98,6 +103,21 @@ function parser<T>(
             } else if (state_action_lu < 0) {
 
                 while (/*intentional*/ 1 /*intentional*/) {
+
+                    if (FIST_RESORT_CUSTOM_RECOVERY_LAST_OFFSET != lex.off) {
+
+                        FIST_RESORT_CUSTOM_RECOVERY_LAST_OFFSET = lex.off;
+
+                        const recovery_token =
+                            first_resort_recovery(tk, e, o, lex, p, <number>state_stack[sp], (lex) => getToken(lex, token_lu));
+
+                        if (recovery_token >= 0) {
+                            off = lex.off;
+                            RECOVERING = 100;
+                            tk = recovery_token;
+                            break;
+                        }
+                    }
 
                     if (RECOVERING > 1 && !lex.END) {
 
@@ -143,16 +163,18 @@ function parser<T>(
 
                         RECOVERING = 1;
                     }
+
                     //Reset the token to the original failing value;
                     lex.tl = 0;
                     lex.next();
                     tk = getToken(lex, token_lu);
 
-                    if (FINAL_RECOVERY != lex.off) {
+                    if (LAST_RESORT_CUSTOM_RECOVERY_LAST_OFFSET != lex.off) {
 
-                        FINAL_RECOVERY = lex.off;
+                        LAST_RESORT_CUSTOM_RECOVERY_LAST_OFFSET = lex.off;
 
-                        const recovery_token = error_handlers[<number>state_stack[sp]](tk, e, o, lex, p, <number>state_stack[sp], (lex) => getToken(lex, token_lu));
+                        const recovery_token =
+                            last_resort_recovery(tk, e, o, lex, p, <number>state_stack[sp], (lex) => getToken(lex, token_lu));
 
                         if (recovery_token >= 0) {
                             off = lex.off;
@@ -161,13 +183,6 @@ function parser<T>(
                             break;
                         }
                     }
-
-                    //if (lex.ty == lex_sym && lex.tl > 1) {
-                    //    lex.tl = 0;
-                    //    lex.next(lex, false);
-                    //    tk = getToken(lex, token_lu);
-                    //    break;
-                    //}
 
                     return errorReport(tk, lex, off, cycles, total_cycles, fork_depth);
 
