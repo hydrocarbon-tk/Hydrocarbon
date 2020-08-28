@@ -13,7 +13,7 @@ export default class implements Production {
 
     constructor(sym: Array<any>, env: GrammarParserEnvironment, lex: Lexer) {
 
-        this.name = env.prod_name + "_HC_listbody" + (env.body_offset + 1) + "_" + Math.round(Math.random() * 10000);
+        this.name = env.prod_name + "_HC_listbody" + (env.body_offset + 1) + "_" + env.counter++;
         this.subtype = "list";
         this.type = "production";
         this.val = -1;

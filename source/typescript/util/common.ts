@@ -13,6 +13,7 @@ import { FIRST } from "./first.js";
 import { FOLLOW } from "./follow.js";
 
 import { processClosure } from "./process_closure.js";
+import { Grammar } from "../types/grammar.js";
 
 export { Item, FOLLOW, FIRST, processClosure };
 
@@ -129,7 +130,7 @@ export function createPrecedence(body, grammar) {
 }
 
 
-export function filloutGrammar(grammar, env) {
+export function filloutGrammar(grammar: Grammar, env) {
 
     const bodies = [],
         symbols = new Map();
@@ -137,12 +138,10 @@ export function filloutGrammar(grammar, env) {
     for (let i = 0, j = 0; i < grammar.length; i++) {
         const production = grammar[i];
 
-        if (production.error_function)
-            addFunctions(production.error_function, production, env);
-
         for (let i = 0; i < production.bodies.length; i++, j++) {
             const body = production.bodies[i];
             body.id = j;
+            body.production = production;
             bodies.push(body);
             body.precedence = createPrecedence(body, grammar);
 
@@ -152,17 +151,19 @@ export function filloutGrammar(grammar, env) {
             [...body.excludes.values()].forEach(a => a.forEach(sym_function));
             [...body.error.values()].forEach(a => a.forEach(sym_function));
 
-            if (body.reduce_function) {
-                addFunctions(body.reduce_function, production, env);
-            }
+            if (env) {
+                if (body.reduce_function) {
+                    addFunctions(body.reduce_function, production, env);
+                }
 
-            body.functions.forEach(f => {
-                addFunctions(f, production, env);
-            });
+                body.functions.forEach(f => {
+                    addFunctions(f, production, env);
+                });
+            }
         }
     }
 
-    grammar.meta.all_symbols = symbols;
+    grammar.meta = Object.assign({}, grammar.meta, { all_symbols: symbols });
 
     grammar.bodies = bodies;
 }

@@ -15,7 +15,7 @@ export default class implements Production {
             return env.bodies.get(uid);
 
         this.type = "production";
-        this.name = env.prod_name + "" + "_group_" + env.body_offset + "" + env.body_count + "_" + Math.round(Math.random() * 10000);
+        this.name = env.prod_name + "" + "_group_" + env.body_offset + "" + env.body_count + "_" + env.counter++;
         this.val = -1;
 
         env.bodies.set(uid, this);

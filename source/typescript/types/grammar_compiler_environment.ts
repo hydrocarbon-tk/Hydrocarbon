@@ -30,6 +30,8 @@ export interface GrammarParserEnvironment extends ParserEnvironment {
     body_count: number;
     stamp: number;
 
+    counter: number;
+
     /**
      * The index of the body being parsed in the current production.
      */

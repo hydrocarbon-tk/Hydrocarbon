@@ -18,7 +18,7 @@ export enum SymbolType {
 
 /**
  * Grammar Symbols
- */
+*/
 export interface Symbol {
     type: SymbolType;
     val: string | number;
@@ -34,6 +34,7 @@ export interface Symbol {
     RESOLVED?: boolean;
     production?: Production;
     resolveFunction?: () => void;
+    pos: Lexer;
 }
 
 export interface ProductionBodyFunction {
@@ -93,13 +94,13 @@ export interface ProductionBody {
     precedence?: number;
     uid: string;
     build?: () => void;
+    FORK_ON_ENTRY: boolean;
 }
 
 export interface Production {
     id: number;
     name: string | Symbol;
-    val: number;
-
+    val?: number;
     type: "production";
     subtype?: string;
 
@@ -133,6 +134,10 @@ export interface Preamble {
 }
 
 export type Grammar = Array<Production> & {
+    /**
+     * Hash of all productions strings and bodies order out starting with the goal production
+     */
+    hash: string;
 
     LU: Map<string, Production>;
 
