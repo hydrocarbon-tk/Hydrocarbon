@@ -58,7 +58,7 @@
 # are matched against tokens whose string value is the same as the text following 
 # the τ character.
 
-<> symbols_preamble → 		@ (ERR θws) τSYMBOL  sym::lexer_symbol(+)  θnl 	↦cstr{ 
+<> symbols_preamble → 		@ τSYMBOL  sym::lexer_symbol(+)  θnl 	↦cstr{ 
 																			this.type="symbols"; 
 																			this.symbols = $sym3;
 																			this.symbols.map(sym=>sym.val ? sym.val : sym ).forEach(lex.addSymbol.bind(lex));
@@ -76,7 +76,7 @@
 																		
 																		
 
-<> precedence_preamble → 	@ (ERR θws) τPREC sym::terminal_symbol θnum θnl ↦cstr{ 	
+<> precedence_preamble → 	@ τPREC sym::terminal_symbol θnum θnl ↦cstr{ 	
 																			this.grammar_stamp = env.stamp; 
 																			this.type="precedence"; 
 																	   		this.terminal = $sym3; 
@@ -92,7 +92,7 @@
 																		
 																		
 
-<> ignore_preamble → 		@ (ERR θws ) τIGNORE sym::ignore_symbols θnl				
+<> ignore_preamble → 		@ τIGNORE sym::ignore_symbols θnl				
 																		
 																		↦cstr{ 	
 																			this.grammar_stamp = env.stamp; 
@@ -101,7 +101,7 @@
 																		}
  
 
-<> error_preamble → 		@ (ERR θws ) τERROR sym::ignore_symbols θnl				
+<> error_preamble → 		@ τERROR sym::ignore_symbols θnl				
 																		
 																		↦cstr{ 	
 																			this.grammar_stamp = env.stamp; 
@@ -110,17 +110,17 @@
 																		}
 
 
-<> name_preamble → 			@ (ERR θws ) τNAME sym::identifier θnl 					
+<> name_preamble → 			@ τNAME sym::identifier θnl 					
 																		
 																		↦cstr{ this.type="name"; this.id = $sym3 }
 
 
-<> ext_preamble → 			@ (ERR θws ) τEXT sym::identifier θnl 					
+<> ext_preamble → 			@ τEXT sym::identifier θnl 					
 																		
 																		↦cstr{ this.type="ext"; this.id = $sym3 }
 
 
-<> import_preamble → 		@ (ERR θws ) τIMPORT θws(*) ( θid │ θany )(+") θws(+) (τAS│τas) sym::identifier θnl 	
+<> import_preamble → 		@ τIMPORT θws(*) ( θid │ θany )(+") θws(+) (τAS│τas) sym::identifier θnl 	
 																		
 																		↦return ^importData 
 

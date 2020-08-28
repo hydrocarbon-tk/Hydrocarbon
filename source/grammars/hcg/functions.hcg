@@ -128,7 +128,7 @@
 	│ js_data js_data_block											↦return { $sym1 + $sym2 }
 	│ ɛ
 
-<> js_primitive → θid │ θnum │ θws │ \@ │ θsym │ θkeyword │ θsym 
+<> js_primitive → θid │ θnum │ θws │ θsym │ θkeyword │ θany 
 
 <> js_data_block → { js_data }									↦return { $sym1 + $sym2 + $sym3 }
 
