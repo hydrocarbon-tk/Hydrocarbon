@@ -1,9 +1,25 @@
 
-@IGNORE θws
+@SYMBOL => ( ) , { }
 
-<>e → A
+@IGNORE θws θnl
 
-<>A → S
+<> S > E
+
+<> E > P
+	| F
+	| I
+	| E ; E
+
+<> P >  (FORK) \( E \)
+
+<> F >  \( L \) => { E }
+
+<> L > E
+ | L , E 
+
+<> I > θid 
+
+<> parameter > θid
 
 <>S → θnum ↦r { {sym:$sym1, type: "num"} }
 	│ θsci ↦r { {sym:$sym1, type: "sci"} }
