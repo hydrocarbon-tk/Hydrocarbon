@@ -3,8 +3,10 @@
 import StateResolver from "./state_resolver_mt.js";
 import { StateActionEnum } from "../../types/state_action_enums.js";
 import {
+    shiftShiftCollision,
     shiftReduceCollision,
-    reduceCollision
+    reduceCollision,
+
 } from "./error.js";
 import { LRMultiThreadRunner } from "./lr_mt.js";
 import { ParserAction, LRState } from "../../types/lr_state.js";
@@ -17,6 +19,7 @@ class GLStateResolver extends StateResolver {
     }
 
     createFork(grammar: Grammar, ...existing_actions: Array<ParserAction>): ParserAction {
+
         const existing_action = existing_actions[0];
 
         return {
@@ -33,12 +36,12 @@ class GLStateResolver extends StateResolver {
         };
     }
     //*
-    handleShiftReduceCollision(grammar, state, shift_action, reduce_action, errors): ParserAction {
+    handleShiftReduceCollision(grammar: Grammar, state: LRState, shift_action: ParserAction, reduce_action: ParserAction, errors): ParserAction {
 
         const symbol = shift_action.symbol;
 
-        if (reduce_action.name == StateActionEnum.REDUCE && reduce_action.item.len == 0)
-            return state.actions.set(symbol, shift_action);
+        // if (reduce_action.name == StateActionEnum.REDUCE && reduce_action.item.len == 1)
+        //     return state.actions.set(symbol, shift_action);
 
         shiftReduceCollision(grammar, state, shift_action, reduce_action, errors);
 
@@ -47,6 +50,22 @@ class GLStateResolver extends StateResolver {
         state.actions.set(symbol, fork);
 
         fork.actions.sort((a, b) => a.name < b.name ? -1 : 1);
+    }
+
+    handleShiftShiftCollision(grammar: Grammar, state: LRState, shift_new_action: ParserAction, shift_existing: ParserAction, errors) {
+
+        if (shift_new_action.state_real_id !== shift_existing.state_real_id) {
+
+            const symbol = shift_new_action.symbol;
+
+            shiftShiftCollision(grammar, state, shift_new_action, shift_existing, errors);
+
+            const fork = this.createFork(grammar, shift_new_action, shift_existing);
+
+            state.actions.set(symbol, fork);
+
+            fork.actions.sort((a, b) => a.name < b.name ? -1 : 1);
+        }
     }
 
     handleReduceCollision(grammar, state, existing_reduce, new_reduce, errors) {
@@ -65,22 +84,27 @@ class GLStateResolver extends StateResolver {
         fork.actions.sort((a, b) => a.name < b.name ? -1 : 1);
     }
 
-    handleForkOtherActionCollision(state, fork_action, other_action) {
+    handleForkOtherActionCollision(grammar, state, fork_action, other_action, error) {
 
-        const item = other_action.item;
-        if (!fork_action.registered.has(item.id)) {
-            fork_action.registered.add(item.id);
+        const id = other_action.state_real_id;
+
+        if (!fork_action.registered.has(id)) {
+
+            fork_action.registered.add(id);
+
             fork_action.actions.push(other_action);
+
+            //Ensure Shift actions are performed before reduce. 
             fork_action.actions.sort((a, b) => a.name < b.name ? -1 : 1);
         }
     }
 
-    handleForkReduceCollision(grammar: Grammar, state: LRState, fork_action: ParserAction, reduce_action: ParserAction): void {
-        this.handleForkOtherActionCollision(state, fork_action, reduce_action);
+    handleForkReduceCollision(grammar: Grammar, state: LRState, fork_action: ParserAction, reduce_action: ParserAction, error): void {
+        this.handleForkOtherActionCollision(grammar, state, fork_action, reduce_action, error);
     }
 
-    handleForkShiftCollision(grammar: Grammar, state: LRState, fork_action: ParserAction, shift_action: ParserAction): void {
-        this.handleForkOtherActionCollision(state, fork_action, shift_action);
+    handleForkShiftCollision(grammar: Grammar, state: LRState, fork_action: ParserAction, shift_action: ParserAction, error): void {
+        this.handleForkOtherActionCollision(grammar, state, fork_action, shift_action, error);
     } //*/
 }
 

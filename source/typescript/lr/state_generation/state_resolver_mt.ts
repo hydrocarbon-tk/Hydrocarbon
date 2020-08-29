@@ -33,23 +33,29 @@ export default class StateResolver {
             state.actions.set(existing_reduce.symbol, existing_reduce);
     }
 
-    handleForkReduceCollision(grammar:Grammar, state:LRState, fork_action:ParserAction, reduce_action:ParserAction) {
+    handleShiftShiftCollision(grammar: Grammar, state: LRState, existing: ParserAction, new_action: ParserAction, errors) {
+        //DO Nothing in LALR
+        if (existing.state_real_id !== new_action.state_real_id)
+            throw new Error("NEED to fix this bug: shift shift conflicts should not exist in LALR"); //Serious error.
+    }
+
+    handleForkReduceCollision(grammar: Grammar, state: LRState, fork_action: ParserAction, reduce_action: ParserAction, errors) {
         //DO Nothing in LALR
     }
 
-    handleForkShiftCollision(grammar:Grammar, state:LRState, fork_action:ParserAction, reduce_action:ParserAction) {
+    handleForkShiftCollision(grammar: Grammar, state: LRState, fork_action: ParserAction, reduce_action: ParserAction, errors) {
         //DO Nothing in LALR
     }
 
-    getActionIterator(state){
+    getActionIterator(state) {
         return state.actions.values();
     }
     /**
      *   Completes the states by converting state_ids to integers and assgning integer state IDs to actions
     */
-    complete(states_map:Map<string, LRState>, grammar:Grammar) {
-        
-        const states = <LRStates> [...(states_map.values())];
+    complete(states_map: Map<string, LRState>, grammar: Grammar) {
+
+        const states = <LRStates>[...(states_map.values())];
 
         states.forEach((state, i) => state.id = i);
 
@@ -91,7 +97,7 @@ export default class StateResolver {
         Resolves the merger of a new state into the current set of states. 
         Merges new state if existing state has matching sid.
     */
-    resolve(states:Map<string, LRState>, new_state:LRState, grammar:Grammar, errors:CompilerErrorStore) {
+    resolve(states: Map<string, LRState>, new_state: LRState, grammar: Grammar, errors: CompilerErrorStore) {
 
         const sid = new_state.real_id;
 
@@ -105,75 +111,99 @@ export default class StateResolver {
         if (!existing_state.actions)
             existing_state.actions = new Map();
 
+
+
+
+        if (existing_state !== new_state) {
+            //only store unique items based on body
+            const exist = new Set();
+
+            existing_state.items = [...existing_state.items, ...new_state.items]
+                .map(i => Item.fromArray(i))
+                .filter(
+                    i => {
+                        if (exist.has(i.id)) return false;
+                        exist.add(i.id);
+                        return true;
+                    }
+                );
+        }
+
         states.set(sid, existing_state);
 
-        for (const action of new_state.to_process_actions) {
+        try {
 
-            action.item = Item.fromArray(action.item);
 
-            const symbol = action.symbol;
+            for (const action of new_state.to_process_actions) {
 
-            if (action.item.len <= 0) continue;
+                action.item = Item.fromArray(action.item);
 
-            if (action.name == StateActionEnum.GOTO) {
-                if (!existing_state.goto.get(symbol))
-                    existing_state.goto.set(symbol, action);
-                continue;
-            }
+                const symbol = action.symbol;
 
-            const existing_action = existing_state.actions.get(symbol);
-                
-            if (!existing_action) {
-                existing_state.actions.set(symbol, action);
-            } else {
-                switch (action.name) {
-                    case StateActionEnum.ACCEPT: //ACCEPT always wins
-                        existing_state.actions.set(symbol, action);
-                        break;
-                    case StateActionEnum.SHIFT:
-                        switch (existing_action.name) {
-                            case StateActionEnum.ACCEPT:
-                                break;
-                            case StateActionEnum.SHIFT:
-                                if (action.sid !== existing_action.sid)
-                                    throw "NEED to fix this bug: shift shift conflicts should not exist in LALR"; //Serious error.
-                                break;
-                            case StateActionEnum.REDUCE:
-                                this.handleShiftReduceCollision(grammar, existing_state, action, existing_action, errors);
-                                break;
-                            case StateActionEnum.FORK:
-                                this.handleForkShiftCollision(grammar, existing_state, existing_action, action);
-                                break;
-                        }
-                        break;
-                    case StateActionEnum.REDUCE:
-                        if (action.item.len <= 0) continue;
 
-                        switch (existing_action.name) {
-                            case StateActionEnum.ACCEPT:
-                                break;
-                            case StateActionEnum.SHIFT:
-                                this.handleShiftReduceCollision(grammar, existing_state, existing_action, action, errors);
-                                break;
-                            case StateActionEnum.REDUCE:
 
-                                this.handleReduceCollision(grammar, existing_state, action, existing_action, errors);
-                                break;
-                            case StateActionEnum.FORK:
-                                this.handleForkReduceCollision(grammar, existing_state, existing_action, action);
-                                break;
-                        }
-                        break;
-                    case StateActionEnum.IGNORE:
-                    case StateActionEnum.ERROR:
-                    default:
-                        if (existing_action.name !== StateActionEnum.ACCEPT) {
-                            if (existing_action.name !== action.name)
-                                existing_state.actions.set(symbol, action);
+                if (action.item.len <= 0) continue;
+
+                if (action.name == StateActionEnum.GOTO) {
+                    if (!existing_state.goto.get(symbol))
+                        existing_state.goto.set(symbol, action);
+                    continue;
+                }
+
+                const existing_action = existing_state.actions.get(symbol);
+
+                if (!existing_action) {
+                    existing_state.actions.set(symbol, action);
+                } else {
+                    switch (action.name) {
+                        case StateActionEnum.ACCEPT: //ACCEPT always wins
+                            existing_state.actions.set(symbol, action);
+                            break;
+                        case StateActionEnum.SHIFT:
+                            switch (existing_action.name) {
+                                case StateActionEnum.ACCEPT:
+                                    break;
+                                case StateActionEnum.SHIFT:
+                                    this.handleShiftShiftCollision(grammar, existing_state, action, existing_action, errors);
+                                    break;
+                                case StateActionEnum.REDUCE:
+                                    this.handleShiftReduceCollision(grammar, existing_state, action, existing_action, errors);
+                                    break;
+                                case StateActionEnum.FORK:
+                                    this.handleForkShiftCollision(grammar, existing_state, existing_action, action, errors);
+                                    break;
+                            }
+                            break;
+                        case StateActionEnum.REDUCE:
+                            if (action.item.len <= 0) continue;
+
+                            switch (existing_action.name) {
+                                case StateActionEnum.ACCEPT:
+                                    break;
+                                case StateActionEnum.SHIFT:
+                                    this.handleShiftReduceCollision(grammar, existing_state, existing_action, action, errors);
+                                    break;
+                                case StateActionEnum.REDUCE:
+                                    this.handleReduceCollision(grammar, existing_state, action, existing_action, errors);
+                                    break;
+                                case StateActionEnum.FORK:
+                                    this.handleForkReduceCollision(grammar, existing_state, existing_action, action, errors);
+                                    break;
+                            }
+                            break;
+                        case StateActionEnum.IGNORE:
+                        case StateActionEnum.ERROR:
+                        default:
+                            if (existing_action.name !== StateActionEnum.ACCEPT) {
+                                if (existing_action.name !== action.name)
+                                    existing_state.actions.set(symbol, action);
                                 //throw "Conflicting actions";
-                        }
+                            }
+                    }
                 }
             }
+        } catch (e) {
+            errors.log(e.stack);
         }
 
         existing_state.to_process_actions = [];

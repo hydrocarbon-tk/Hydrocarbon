@@ -30,7 +30,9 @@ export default class implements ProductionBody {
     uid: string;
     precedence: number;
 
-    constructor(sym, env: GrammarParserEnvironment, lex: Lexer, form = (~(0xFFFFFFFFFFFFF << sym[0].body.length)) & 0xFFFFFF) {
+    FORK_ON_ENTRY: boolean;
+
+    constructor(sym, env: GrammarParserEnvironment, lex: Lexer, form = (~(0xFFFFFFFFFFFFF << sym[0].body.length)) & 0xFFFFFF, force_fork = false) {
 
         const s = sym[0];
 
@@ -51,6 +53,7 @@ export default class implements ProductionBody {
         this.reduce = new Map();
         this.precedence = 0;
         this.BUILT = false;
+        this.FORK_ON_ENTRY = force_fork;
 
         //Used to identify the unique form of the body.
         this.uid = this.sym.map(e => e.type == "production" ? e.name : e.val).join(":");

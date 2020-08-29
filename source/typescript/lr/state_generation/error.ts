@@ -47,3 +47,25 @@ export function reduceCollision(grammar: Grammar, state: LRState, reduce_existin
             Graph ID: ${reduce_new.item.body_(grammar).production.graph_id}
             `);
 }
+
+export function shiftShiftCollision(grammar: Grammar, state: LRState, shift_existing: ParserAction, shift_new: ParserAction, error: { log: (arg0: string) => void; }) {
+    const sym = shift_existing.item.renderSymbol(grammar);
+
+    error.log(`\x1b[41m SHIFT \x1b[43m COLLISION ERROR ENCOUNTERED:\x1b[0m
+                
+        Shift action on {${sym}} has already been defined for state:
+
+        ${state.production_string} 
+
+        Shift Action:
+        Shift to state ${shift_existing.item.increment().renderWithProduction(grammar)}
+        Definition found in: 
+            \x1b[38;5;250mfile://${shift_existing.item.body_(grammar).production.url}:${shift_existing.item.body_(grammar).lex.line + 1}:${shift_existing.item.body_(grammar).lex.char + 1}\x1b[0m
+
+        Shift Action: 
+        Shift to state ${shift_new.item.increment().renderWithProduction(grammar)}
+        Definition found in: 
+            \x1b[38;5;250mfile://${shift_new.item.body_(grammar).production.url}:${shift_new.item.body_(grammar).lex.line + 1}:${shift_new.item.body_(grammar).lex.char + 1}\x1b[0m
+
+            `);
+}

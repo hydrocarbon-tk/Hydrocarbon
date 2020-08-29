@@ -49,12 +49,18 @@ export class LRMultiThreadProcessWorker {
     runItem(item_obj) {
         const grammar = this.grammar;
         const error = new CompilerErrorStore();
-        const { to_process_items, state, error: state_error } = this.processor.process(item_obj.items, item_obj.state_id, grammar, item_obj.excludes, error);
-        state.thread_id = this.id;
-        if (state_error)
-            console.error(state_error);
-        //sanitize items and remove anything thet is not strictly needed per item. 
-        parentPort.postMessage({ to_process_items, state, errors: error.strings.length > 0 ? error.strings : null });
+        try {
+            const { to_process_items, state, error: state_error } = this.processor.process(item_obj.items, item_obj.state_id, grammar, item_obj.excludes, error);
+
+            state.thread_id = this.id;
+            if (state_error)
+                console.error(state_error);
+            //sanitize items and remove anything thet is not strictly needed per item. 
+            parentPort.postMessage({ to_process_items, state, errors: error.strings.length > 0 ? error.strings : null });
+        } catch (e) {
+            console.error(e);
+            parentPort.postMessage({ to_process_items: [], state: null, errors: [e.toString()] });
+        }
     }
 }
 
