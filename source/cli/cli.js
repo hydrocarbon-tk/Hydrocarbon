@@ -496,10 +496,11 @@ async function start() {
                 let debug_info_data = null, debug_info = null;
 
                 try {
-                    if (debug_info_url.fetchText())
-                        debug_info_data = hc.ImportStates((await import(debug_info_url + "")).default);
-                } catch (e) { console.log("No debug info found"); }
-
+                    if (debug_info_url.fetchText()) {
+                        debug_info = (await import(debug_info_url + "")).default;
+                        debug_info_data = hc.ImportStates(debug_info);
+                    }
+                } catch (e) { console.log("No debug info found"); };
 
                 if (!grammar) {
                     console.error(`Failed to compile grammar ${grammar.name}. Exiting`);
@@ -537,9 +538,7 @@ async function start() {
                     case "glr":
                     case "glalr":
                         if (debug_info_data?.hash == grammar.hash) {
-
                             states = debug_info_data.states;
-
                         } else {
                             states = await compileGLRStates(grammar, env, env_path, name, unattended);
                             debug_info = hc.ExportStates(states, grammar);
@@ -569,7 +568,7 @@ async function start() {
                 if (!!cmd.noout) {
                     console.log(ADD_COLOR("No Output. Skipping file saving", COLOR_ERROR), "\n");
                 } else
-                    await write(name, script, output_directory, type, debug_info, path.dirname(grammar_path));
+                    await write(name, script, output_directory, type, typeof debug_info == "string" ? debug_info : null, path.dirname(grammar_path));
 
                 if (!unattended)
                     console.log(`Use ${ADD_COLOR(" ctrl ", COLOR_KEYBOARD)}+${ADD_COLOR(" c ", COLOR_KEYBOARD)} to return to console.`);
