@@ -1,5 +1,6 @@
 import * as hc from "../../build/library/hydrocarbon.js";
 
+
 import { performance } from "perf_hooks";
 
 const gray_b = "\x1b[48;5;233m";
@@ -166,13 +167,6 @@ async function runner(grammar, env, env_path, name, GLR = false, UNATTENDED = fa
         if (status.COMPLETE) //FAILURE
             res(status.states);
 
-
-
-
-
-
-
-
         function onKeyEvent(key) {
             const keypress = key.charCodeAt(2) | key.charCodeAt(1) << 8 | key.charCodeAt(0) << 16;
 
@@ -239,15 +233,15 @@ async function runner(grammar, env, env_path, name, GLR = false, UNATTENDED = fa
 
                 if (conflicts_generated > 0) {
                     if (conflict_number > -1) {
-                        const conflict_tabs_header = `${-1 < conflict_number ? "🡄" : " "}     Conflict ${conflict_number + 1}     ${conflict_number < conflicts_generated - 1 ? "🡆" : " "}`;
+                        const conflict_tabs_header = `${-1 < conflict_number ? "<" : " "}     Conflict ${conflict_number + 1}     ${conflict_number < conflicts_generated - 1 ? ">" : " "}`;
                         const conflict_tabs = Array.apply(null, Array(conflicts_generated)).map((a, i) => i == conflict_number ? "🌑" : "🌕").join("");
                         conflicts = `${center(conflict_tabs_header)}\n${center(conflict_tabs)}\n\n${error.strings[conflict_number]}`;
                     } else
-                        conflicts = center(`${COLOR_ERROR} Use arrow keys to review conflicts. 🡆 ${COLOR_RESET}`);
+                        conflicts = center(`${COLOR_ERROR} Use arrow keys to review conflicts. > ${COLOR_RESET}`);
                 }
 
                 //if (!UNATTENDED) {
-
+                //*
                 process.stdout.write(
                     ["CFW Hydrocarbon - Compiling " + name + " grammar", "",
                     ` Elapsed Time ${getTimeStamp(time, status.COMPLETE)}`, "",
