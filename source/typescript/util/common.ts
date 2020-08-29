@@ -166,6 +166,9 @@ export function filloutGrammar(grammar: Grammar, env) {
     grammar.meta = Object.assign({}, grammar.meta, { all_symbols: symbols });
 
     grammar.bodies = bodies;
+
+    return grammar;
+}
 }
 
 export const actions = {
