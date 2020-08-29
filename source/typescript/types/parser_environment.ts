@@ -42,6 +42,6 @@ export interface ParserEnvironment {
          * Useful in resetting environment variables between parsing
          * runs.
          */
-        onstart?: () => any;
+        onstart?: (env: ParserEnvironment) => void;
     };
 }

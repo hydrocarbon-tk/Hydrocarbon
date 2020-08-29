@@ -482,7 +482,7 @@ function lrParse<T>(
         debug = ImportStates(debug_info);
 
     if (environment.options && environment.options.onstart)
-        environment.options.onstart();
+        environment.options.onstart(environment);
 
     const res = <ParserResultData<T>>parser<T>((typeof lex == "string") ? new Lexer(lex) : lex, data, environment, debug);
 
