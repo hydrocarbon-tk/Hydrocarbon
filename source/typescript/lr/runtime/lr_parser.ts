@@ -18,12 +18,12 @@ const MAX_CYCLES = 50000000,
     Parses an input. Returns an object with parse results and an error flag if parse could not complete.
     @param l: Lexer - lexer object with an interface defined in candlefw/wind.
     @param data: parser data that includes the look up tables and built in parse action functions.
-    @param e: Environment object containing user defined parse action functions.
+    @param enviro: Environment object containing user defined parse action functions.
 */
 function parser<T>(
     lex: Lexer,
     data: ParserData = null,
-    e: ParserEnvironment = {},
+    enviro: ParserEnvironment = {},
     debug: DebugInfo = null,
     stack_pointer: number = 1,
     len = 0,
@@ -40,8 +40,6 @@ function parser<T>(
 
     if (!data) return <ParserResultData<T>>{ value: null, error: "Data object is empty" };
 
-
-
     const
         //Unpack parser objects
 
@@ -52,20 +50,19 @@ function parser<T>(
             sts: states,
             sa: state_action_tables,
             fns: state_action_functions,
-            //eh: error_handlers,
             gtk: getToken,
             ty: types,
             fm: fork_maps
         } = data,
 
-        { id: lex_id, sym: lex_sym, num: lex_num, ws: lex_ws, nl: lex_nl } = lex.types,
+        { num: lex_num, ws: lex_ws, nl: lex_nl } = lex.types,
 
-        { keyword, any, $eof: eof } = types,
+        { keyword, any } = types,
 
-        { frrh: first_resort_recovery = default_recovery,
+        {
+            frrh: first_resort_recovery = default_recovery,
             lrrh: last_resort_recovery = default_recovery
-        } = e.functions,
-        sym_tk = token_lu.get(lex_sym);
+        } = enviro.functions;
 
     let
         RECOVERING = -1,
@@ -77,7 +74,9 @@ function parser<T>(
         state_length = 0;
 
     if (!FORKED_ENTRY) {
+
         lex.IWS = false;
+
         lex.PARSE_STRING = true;
 
         if (symbols.length > 0) {
@@ -88,8 +87,8 @@ function parser<T>(
 
         tk = getToken(lex, token_lu);
 
-        if (!e.fn)
-            e.fn = e.functions;
+        if (!enviro.fn)
+            enviro.fn = enviro.functions;
 
         state = states[<number>state_stack[stack_pointer]];
         state_length = state.length;
@@ -125,7 +124,7 @@ function parser<T>(
                         FIST_RESORT_CUSTOM_RECOVERY_LAST_OFFSET = lex.off;
 
                         const recovery_token =
-                            first_resort_recovery(tk, e, o, lex, p, state_stack, (lex) => getToken(lex, token_lu), stack_pointer);
+                            first_resort_recovery(tk, enviro, o, lex, p, state_stack, (lex) => getToken(lex, token_lu), stack_pointer);
 
                         if (recovery_token >= 0) {
                             off = lex.off;
@@ -200,7 +199,7 @@ function parser<T>(
                         LAST_RESORT_CUSTOM_RECOVERY_LAST_OFFSET = lex.off;
 
                         const recovery_token =
-                            last_resort_recovery(tk, e, o, lex, p, state_stack[stack_pointer], (lex) => getToken(lex, token_lu), stack_pointer);
+                            last_resort_recovery(tk, enviro, o, lex, p, state_stack[stack_pointer], (lex) => getToken(lex, token_lu), stack_pointer);
 
                         if (recovery_token >= 0) {
                             off = lex.off;
@@ -220,7 +219,7 @@ function parser<T>(
                 //ACTION Function
                 //###############################################
 
-                action = state_action_tables[state_action_lu - 1](tk, e, o, lex,
+                action = state_action_tables[state_action_lu - 1](tk, enviro, o, lex,
                     <Lexer>state_stack[stack_pointer - 1],
                     state_action_functions, parser);
 
@@ -330,7 +329,7 @@ function parser<T>(
                                 res = parser<T>(
                                     copied_lex,
                                     data,
-                                    e,
+                                    enviro,
                                     debug,
                                     stack_pointer,
                                     len,
