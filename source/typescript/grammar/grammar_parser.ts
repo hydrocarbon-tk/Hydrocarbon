@@ -11,11 +11,9 @@ import groupProduction from "./group_production_constructor.js";
 import listProduction from "./list_production_constructor.js";
 import body from "./production_body_constructor.js";
 
-import { Grammar, SymbolType } from "../types/grammar.js";
+import { Grammar } from "../types/grammar.js";
 import { GrammarParserEnvironment } from "../types/grammar_compiler_environment.js";
 import { ParserEnvironment } from "../types/parser_environment.js";
-import { filloutGrammar, Item } from "../util/common.js";
-import debug_data from "@candlefw/hydrocarbon/source/grammars/hcg/hcg.debug_info.js";
 
 
 async function sleep(data: AwaitTracker): Promise<void> {
@@ -82,7 +80,9 @@ export async function grammarParser(
 ): Promise<Grammar> {
 
     const
+
         local_pending_files = { count: 0 },
+
         result = parser(
             wind(grammar_string),
             hcg_parser_data,
@@ -93,10 +93,11 @@ export async function grammarParser(
                 unique_grammar_file_id,
                 meta_imported_productions
             ),
-            debug_data
+            //(await import("@candlefw/hydrocarbon/source/grammars/hcg/hcg.debug_info.js")).default
         ),
 
         grammar = <Grammar>result.value;
+
 
     if (result.error) { throw result.error; }
 
@@ -105,11 +106,14 @@ export async function grammarParser(
     //load in productions from the current grammar file into Lookup
     grammar.LU = new Map(grammar.map(p => [<string>p.name, p]));
 
+
     //Pause here to allow impoted productions to process.
     await sleep(local_pending_files);
 
+
     //Reload all productions that have been identified in all grammar files.
     grammar.LU = new Map(grammar.map(p => [<string>p.name, p]));
+
 
     //If the production is at the root of the import tree, then complete the processing of production data. 
     if (unique_grammar_file_id == 112) {

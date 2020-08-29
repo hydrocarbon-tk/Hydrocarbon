@@ -4,7 +4,6 @@ import { Item } from "../../util/item.js";
 import { StateActionEnum } from "../../types/state_action_enums.js";
 import { LRState, ParserAction } from "../../types/lr_state.js";
 import { filloutGrammar } from "../../util/common.js";
-import { a } from "@candlefw/wind/build/types/ascii_code_points";
 
 function extractAction(act: any): ParserAction {
 	return <ParserAction>{
@@ -114,7 +113,7 @@ export function ExportStates(states: LRState[], grammar: Grammar) {
 	});
 }
 
-export function GenerateActionSequence(id: number, states: LRState[], grammar: Grammar, lu) {
+export function GenerateActionSequence(id: number, states: LRState[], grammar: Grammar) {
 	const s = states[id];
 
 	const build_forked_action = (e: ParserAction, i) => `${i}: ${StateActionEnum[e.name]} => state: ${e.state} production: ${new Item(e.body, grammar.bodies[e.body].length, e.offset, {}).renderWithProduction(grammar)}`;

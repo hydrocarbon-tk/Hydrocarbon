@@ -1,94 +1,22 @@
 /** Compiles a stand alone JS parser from a LR rules table and env object **/
 //@ts-ignore
-import { parser, stmt, renderCompressed, JSNodeType, ext, exp, JSNodeClass } from "@candlefw/js";
+import { parser, ext, JSNodeClass } from "@candlefw/js";
 import { traverse } from "@candlefw/conflagrate";
 
 import createStateArrays from "./create_state_arrays.js";
-import { verboseTemplate } from "./data_object_template.js";
+import { verboseTemplate, compressedTemplate } from "./data_object_template.js";
 import { types as t, filloutGrammar } from "../../util/common.js";
 import { LRStates } from "../../types/lr_state.js";
 import { Grammar, SymbolType } from "../../types/grammar.js";
 import { ParserEnvironment } from "../../types/parser_environment.js";
+import { generateCompactFunction } from "./generate_compact_function.js";
 
-function getValueID(e) {
+export function getValueID(e) {
     for (const { node: id } of traverse(e, "nodes")
         .bitFilter("type", JSNodeClass.IDENTIFIER)
     ) return id;
     return "";
 }
-/**
- * 
- * 
- * @param function_string A function string to convert into an arrow function expression.
- */
-function generateCompactFunction(function_string: string) {
-
-    let fn = stmt(function_string);
-
-    fn.nodes[0] = null;
-
-    const
-        [, parameters, body] = fn.nodes,
-        { nodes: params } = parameters,
-        short_names = "_$ABCDEFGHI",
-        ids = new Map(params.map((e, i) => {
-            const node = getValueID(e);
-
-            const value = node.value;
-
-            node.value = short_names[i];
-
-            return [value, { b: false, s: node.value }];
-        }));
-
-    for (const { node: id, meta: { skip } } of traverse(body, "nodes")
-        .makeSkippable()
-    ) {
-
-        if (id.type == JSNodeType.ArrowFunction) {
-            skip();
-            continue;
-        }
-
-        if (
-            id.type == JSNodeType.IdentifierReference
-            || id.type == JSNodeType.IdentifierReferenceProperty
-        ) {
-            if (ids.has(id.value)) {
-
-                const i = ids.get(id.value);
-
-                i.b = true;
-                if (id.type == JSNodeType.IdentifierReference)
-                    id.value = i.s;
-                else
-                    id.value = `${id.value}:${i.s}`;
-            }
-
-        }
-    }
-
-    const last_index = [...ids.values()].reduce((r, v, i) => v.b && i > r ? i : r, -1);
-
-    fn.nodes[1].nodes = params.slice(0, last_index + 1);
-
-    if (body && body.nodes[0].type == JSNodeType.ReturnStatement) {
-        const arrow = exp("(a,a)=>(a)");
-        // arrow->  paren-> expression_list->  nodes
-        if (fn.nodes[1].nodes.length == 1)
-            arrow.nodes[0] = params[0];
-        else
-            arrow.nodes[0] = parameters;
-
-        arrow.nodes[1].nodes[0] = body.nodes[0].nodes[0];
-
-        fn = arrow;
-    }
-
-    return renderCompressed(fn);
-
-}
-
 export default function GenerateLRParseDataObject(states: LRStates, grammar: Grammar, env: ParserEnvironment) {
     //Build new env variables if they are missing 
     if (!grammar.bodies)
@@ -164,7 +92,7 @@ export default function GenerateLRParseDataObject(states: LRStates, grammar: Gra
     if (env.functions.defaultError)
         default_error = `(...d)=>d[1].fn.defaultError(...d)`;
 
-    const output = verboseTemplate(
+    const output = compressedTemplate(
         fork_map,
         goto_maps,
         state_maps,

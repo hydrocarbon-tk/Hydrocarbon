@@ -18,10 +18,15 @@ export default class StateResolver {
 
     handleReduceCollision(grammar: Grammar, state: LRState, existing_reduce: ParserAction, new_reduce: ParserAction, errors: CompilerErrorStore) {
 
+
         if (existing_reduce.state_real_id == new_reduce.state_real_id, errors)
             return;
+        
+
 
         reduceCollision(grammar, state, existing_reduce, new_reduce, errors);
+
+
 
         const
             body_a = new_reduce.item.body_(grammar),

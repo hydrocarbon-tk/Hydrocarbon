@@ -1,11 +1,5 @@
 import wind from "@candlefw/wind";
 
-export const MASK = wind.types.symbol | wind.types.operator | wind.types.open_bracket | wind.types.close_bracket | wind.types.string;
-
-export const EMPTY_PRODUCTION = "{!--EMPTY_PRODUCTION--!}";
-
-export const isNonTerm = (f) => f.type == "production";
-
 import { Item } from "./item.js";
 
 import { FIRST } from "./first.js";
@@ -169,11 +163,3 @@ export function filloutGrammar(grammar: Grammar, env) {
 
     return grammar;
 }
-}
-
-export const actions = {
-    ACCEPT: 1,
-    SHIFT: 2,
-    REDUCE: 3,
-    GOTO: 4,
-};

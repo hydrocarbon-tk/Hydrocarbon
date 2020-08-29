@@ -1,8 +1,8 @@
 import { Grammar } from "source/typescript/types/grammar.js";
 import { LRStates } from "source/typescript/types/lr_state.js";
 import { ParserEnvironment } from "source/typescript/types/parser_environment.js";
-import { processStateTransition, convertSymbols } from "./processStateTransition.js";
-import { fillAndCompress } from "./fillAndCompress.js";
+import { processStateTransition, convertSymbols } from "./process_state_transition.js";
+import { fillAndCompress } from "./fill_and_compress.js";
 
 
 export default function (grammar: Grammar, states: LRStates, env: ParserEnvironment, functions, SYM_LU, types) {

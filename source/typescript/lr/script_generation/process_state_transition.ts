@@ -1,6 +1,6 @@
 import { StateActionEnum } from "../../types/state_action_enums.js";
-import { ProductionBody, Symbol } from "source/typescript/types/grammar.js";
-import { LRState, ParserAction } from "source/typescript/types/lr_state.js";
+import { ProductionBody } from "source/typescript/types/grammar.js";
+import { ParserAction } from "source/typescript/types/lr_state.js";
 import { ParserEnvironment } from "source/typescript/types/parser_environment.js";
 
 export function setNode(funct, length, functions, return_val, COMPILE_FUNCTION = false) {

@@ -1,12 +1,11 @@
 
-import { processClosure, FIRST } from "../../util/common.js";
+import { processClosure } from "../../util/common.js";
 import { LRState, ParserAction } from "../../types/lr_state.js";
 import { Item } from "../../util/item.js";
 import { Grammar, SymbolType, Symbol, ProductionBody } from "../../types/grammar.js";
 import { StateActionEnum } from "../../types/state_action_enums.js";
 import { ItemSet } from "../../types/item_set.js";
 import { CompilerErrorStore } from "./compiler_error_store.js";
-import { convertSymbols } from "../script_generation/processStateTransition.js";
 
 
 
@@ -186,6 +185,7 @@ export default class StateProcessor {
                     sid_set = new Set();
 
                 if (item.offset == 0 && item.body_(grammar).FORK_ON_ENTRY) {
+
                     for (let j = i; j < l; j++) {
                         const item = items[j];
                         if (item.sym(grammar) && item.sym(grammar).val === osid.val) {
@@ -206,6 +206,7 @@ export default class StateProcessor {
                         }
                     }
                 } else {
+
                     for (let j = i; j < l; j++) {
 
                         const item = items[j];
