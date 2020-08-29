@@ -12,7 +12,6 @@
 
 <> hex_digit →  θint │ τa │ τb │ τc │ τd │ τe │ τf │ τA │ τB │ τC │ τD │ τE │ τF
 
-
 <> hex →  θhex                                  ↦r { {val:parseFloat($sym1), type: "hex", original_val:$sym1} }
  
 <> binary →  θbin                               ↦r { {val:parseFloat($sym1), type: "bin", original_val:$sym1} }
@@ -31,7 +30,12 @@
 
 <> id → θid
 
-<> js_identifier → js_id_symbols (RED θws)
+<> string > \" ( string_value | θws )(+')  \"         ↦r { $sym2 }
+    | \' ( string_value | θws )(+")  \'               ↦r { $sym2 }
+
+<> string_value > (RED θws)  ( \- | \_ | θany | θnum | θid | θsym | \\ θany )(+")
+
+<> js_identifier → (RED θws) js_id_symbols 
 
 <> js_id_symbols →  js_id_symbols θid           ↦r { $sym1 + $sym2 }
     │ js_id_symbols θkeyword                    ↦r { $sym1 + $sym2 }

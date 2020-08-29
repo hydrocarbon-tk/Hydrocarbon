@@ -34,7 +34,7 @@
 
 <> error_function → 	
 
-	js_function_start_symbol ( τerr │ τe ) { js_data } 									↦cstr{ 
+	js_function_start_symbol ( τerr │ τe ) { js_data } 				↦cstr{ 
 																		this.type = "ERROR"; 	
 																		this.txt = $sym4; 
 																		this.name = ""; 
