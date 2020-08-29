@@ -1,5 +1,6 @@
 import { Lexer } from "@candlefw/wind";
 import { ParserEnvironment } from "./parser_environment.js";
+import { StateStack } from "./state_stack.js";
 
 export type OutputStack = Array<any>;
 
@@ -11,16 +12,17 @@ export type ErrorHandler = (
     output_stack: OutputStack,
     lexer: Lexer,
     previous_lexer: Lexer,
-    state_stack: number[],
-    lookup: (arg0: Lexer) => number
+    state_stack: StateStack,
+    lookup: (arg0: Lexer) => number,
+    stack_pointer: number,
 ) => number;
 
 export type ActionFunction = (
     token: number,
-    env: ParserEnvironment,
+    /*Deprecate */ env: ParserEnvironment,
     output_stack: OutputStack,
     lexer: Lexer,
-    previous_lexer: Lexer,
+    /*Deprecate */ previous_lexer: Lexer, // Included in state stack.
     state_stack: number[],
     lookup: (arg0: Lexer) => number
 ) => number;
