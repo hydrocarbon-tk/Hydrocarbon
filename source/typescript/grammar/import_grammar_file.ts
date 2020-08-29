@@ -2,6 +2,10 @@ import URL from "@candlefw/url";
 import { GrammarParserEnvironment } from "../types/grammar_compiler_environment";
 import { Grammar } from "../types/grammar";
 
+const default_map = {
+    "default-productions": URL.resolveRelative("../../../../source/grammars/misc/default-productions.hcg", URL.getEXEURL(import.meta))
+};
+
 export default function (sym, env: GrammarParserEnvironment) {
 
     const
@@ -14,11 +18,12 @@ export default function (sym, env: GrammarParserEnvironment) {
 
     const
         //load data from the other file
-        uri = URL.resolveRelative(url, FILE_URL + ""),
+        uri = default_map[url] ?? URL.resolveRelative(url, FILE_URL + ""),
 
         key = uri + "";
 
     env.imported_grammar_name_resolution_map.set(id, key);
+
 
     if (meta_imported_productions.has(key)) {
         const p = meta_imported_productions.get(key);
@@ -34,7 +39,15 @@ export default function (sym, env: GrammarParserEnvironment) {
         let prods: Grammar = null;
 
         try {
-            prods = <Grammar>(await env.grammarParser(txt, uri, env.stamp * env.body_count ** AWAIT.count + 1 + (Math.random() * 10000) | 0, meta_imported_productions, PENDING_FILES));
+            prods = <Grammar>(
+                await env.grammarParser(
+                    txt,
+                    uri,
+                    env.stamp * env.body_count ** AWAIT.count + 1 + (Math.random() * 10000) | 0,
+                    meta_imported_productions,
+                    PENDING_FILES
+                )
+            );
         } catch (e) {
             console.warn("Error encountered in " + uri);
             throw e;
