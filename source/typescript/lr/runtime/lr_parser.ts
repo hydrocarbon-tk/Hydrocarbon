@@ -404,7 +404,7 @@ function parser<T>(
 
         return <ParserResultData<T>>{
             value: null,
-            error: lex.errorMessage(e.message),
+            error: lex.errorMessage(e.stack),
             cycles,
             total_cycles,
             off,
