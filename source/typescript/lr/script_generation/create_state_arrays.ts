@@ -3,16 +3,6 @@ import { LRStates } from "source/typescript/types/lr_state.js";
 import { ParserEnvironment } from "source/typescript/types/parser_environment.js";
 import { processStateTransition, convertSymbols } from "./processStateTransition.js";
 import { fillAndCompress } from "./fillAndCompress.js";
-/*/
-function fillAndCompress(array) {
-    const copy = array.slice();
-    // Fill out empty entries in state_map with -1 
-    for (let i = 0; i < copy.length; i++)
-        if (copy[i] === undefined) copy[i] = -1;
-    // Compress state map by reducing -1 entries 
-    return copy.reduce((r, i, l) => (l = r.length - 1, ((+r[l] < 0) && i < 0) ? r[l]-- : r.push(i), r), []);
-}
-//*/
 
 
 export default function (grammar: Grammar, states: LRStates, env: ParserEnvironment, functions, SYM_LU, types) {
@@ -29,6 +19,7 @@ export default function (grammar: Grammar, states: LRStates, env: ParserEnvironm
         COMPILE_FUNCTION = (env.options) ? !!env.options.integrate : !1,
         error_handlers = [],
         fork_map = [];
+
 
     for (let i = 0; i < states.length; i++) {
 
