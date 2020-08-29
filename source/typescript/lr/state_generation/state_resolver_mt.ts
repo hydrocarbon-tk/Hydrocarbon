@@ -21,7 +21,7 @@ export default class StateResolver {
 
         if (existing_reduce.state_real_id == new_reduce.state_real_id, errors)
             return;
-        
+
 
 
         reduceCollision(grammar, state, existing_reduce, new_reduce, errors);

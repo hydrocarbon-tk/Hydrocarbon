@@ -12,8 +12,7 @@ export function errorReport<T>(tk: number, lex: Lexer, off: number, cycles: numb
             fork_depth,
             efficiency: 0
         };
-    }
-    else {
+    } else {
         return {
             value: null,
             error: lex.errorMessage(`Unexpected token [${lex.tx}]`),

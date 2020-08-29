@@ -11,6 +11,8 @@ import {
 import { LRMultiThreadRunner } from "./lr_mt.js";
 import { ParserAction, LRState } from "../../types/lr_state.js";
 import { Grammar } from "../../types/grammar.js";
+import { ErrorHandler } from "../../types/parser_data.js";
+import { CompilerErrorStore } from "./compiler_error_store.js";
 
 class GLStateResolver extends StateResolver {
 
@@ -32,16 +34,19 @@ class GLStateResolver extends StateResolver {
             item_string: existing_action.item_string,
             body: existing_action.body,
             item: existing_action.item,
-            registered: new Set(existing_actions.map(i => i.item_string))
+            registered: new Set(existing_actions.map(i => i.state_real_id))
         };
     }
     //*
-    handleShiftReduceCollision(grammar: Grammar, state: LRState, shift_action: ParserAction, reduce_action: ParserAction, errors): ParserAction {
+    handleShiftReduceCollision(grammar: Grammar, state: LRState, shift_action: ParserAction, reduce_action: ParserAction, errors: CompilerErrorStore): ParserAction {
 
-        const symbol = shift_action.symbol;
+        const symbol = shift_action.symbol,
+            shift_production = shift_action.item.getProduction(grammar).id,
+            reduce_production = reduce_action.item.getProduction(grammar).id;
 
-        // if (reduce_action.name == StateActionEnum.REDUCE && reduce_action.item.len == 1)
-        //     return state.actions.set(symbol, shift_action);
+        //CASE: Both action lead to reduction to same production. Result: Always Shift
+        if (shift_production == reduce_production)
+            return void state.actions.set(symbol, shift_action);
 
         shiftReduceCollision(grammar, state, shift_action, reduce_action, errors);
 
@@ -52,11 +57,16 @@ class GLStateResolver extends StateResolver {
         fork.actions.sort((a, b) => a.name < b.name ? -1 : 1);
     }
 
-    handleShiftShiftCollision(grammar: Grammar, state: LRState, shift_new_action: ParserAction, shift_existing: ParserAction, errors) {
+    handleShiftShiftCollision(grammar: Grammar, state: LRState, shift_new_action: ParserAction, shift_existing: ParserAction, errors: CompilerErrorStore) {
+        const symbol = shift_new_action.symbol;
 
         if (shift_new_action.state_real_id !== shift_existing.state_real_id) {
 
-            const symbol = shift_new_action.symbol;
+            if (shift_new_action.item.id == shift_existing.item.id) {
+                if (shift_new_action.state_real_id.length > shift_existing.state_real_id.length)
+                    return void state.actions.set(symbol, shift_new_action);
+                else return;
+            }
 
             shiftShiftCollision(grammar, state, shift_new_action, shift_existing, errors);
 

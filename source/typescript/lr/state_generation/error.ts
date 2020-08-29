@@ -9,9 +9,9 @@ export function shiftReduceCollision(grammar: Grammar, state: LRState, shift: Pa
     error.log(
         `\x1b[43m SHIFT/REDUCE \x1b[43m COLLISION ERROR ENCOUNTERED:\x1b[0m
 
- Reduce action on {${sym}} has already been defined for state:
+Reduce action on {${sym}} has already been defined for state:
 
- ${state.production_string}
+${state.production_string}
  
     Shift Action: 
         Shift to state ${shift.item.increment().renderWithProduction(grammar)}
@@ -25,7 +25,7 @@ export function shiftReduceCollision(grammar: Grammar, state: LRState, shift: Pa
 `);
 }
 
-export function reduceCollision(grammar: Grammar, state: LRState, reduce_existing: ParserAction, reduce_new: ParserAction, error: { log: (arg0: string) => void; }) {
+export function reduceCollision(grammar: Grammar, state: LRState, reduce_existing: ParserAction, reduce_new: ParserAction, error: CompilerErrorStore) {
     const sym = reduce_existing.item.renderSymbol(grammar);
 
     error.log(`\x1b[41m REDUCE \x1b[43m COLLISION ERROR ENCOUNTERED:\x1b[0m
@@ -34,38 +34,38 @@ export function reduceCollision(grammar: Grammar, state: LRState, reduce_existin
 
  ${state.production_string} 
 
-        Existing Action:
-            Reduce to ${reduce_existing.item.renderProductionNameWithBackground(grammar)} from production ${reduce_existing.item.renderWithProduction(grammar)}
-            Definition found in:
-                \x1b[38:5:250mfile://${reduce_existing.item.body_(grammar).production.url}:${reduce_existing.item.body_(grammar).lex.line + 1}:${reduce_existing.item.body_(grammar).lex.char + 1}\x1b[0m
-            Graph ID: file://${reduce_existing.item.body_(grammar).production.graph_id}
+    Existing Action:
+        Reduce to ${reduce_existing.item.renderProductionNameWithBackground(grammar)} from production ${reduce_existing.item.renderWithProduction(grammar)}
+        Definition found in:
+            \x1b[38:5:250mfile://${reduce_existing.item.body_(grammar).production.url}:${reduce_existing.item.body_(grammar).lex.line + 1}:${reduce_existing.item.body_(grammar).lex.char + 1}\x1b[0m
+        Graph ID: file://${reduce_existing.item.body_(grammar).production.graph_id}
 
-        New Action:
-            Reduce to {${reduce_new.item.renderProductionNameWithBackground(grammar)}} from production ${reduce_new.item.renderWithProduction(grammar)}
-            Definition found in:
-                \x1b[38:5:250mfile://${reduce_new.item.body_(grammar).production.url}:${reduce_new.item.body_(grammar).lex.line + 1}:${reduce_new.item.body_(grammar).lex.char + 1}\x1b[0m
-            Graph ID: ${reduce_new.item.body_(grammar).production.graph_id}
-            `);
+    New Action:
+        Reduce to {${reduce_new.item.renderProductionNameWithBackground(grammar)}} from production ${reduce_new.item.renderWithProduction(grammar)}
+        Definition found in:
+            \x1b[38:5:250mfile://${reduce_new.item.body_(grammar).production.url}:${reduce_new.item.body_(grammar).lex.line + 1}:${reduce_new.item.body_(grammar).lex.char + 1}\x1b[0m
+        Graph ID: ${reduce_new.item.body_(grammar).production.graph_id}
+        `);
 }
 
-export function shiftShiftCollision(grammar: Grammar, state: LRState, shift_existing: ParserAction, shift_new: ParserAction, error: { log: (arg0: string) => void; }) {
+export function shiftShiftCollision(grammar: Grammar, state: LRState, shift_existing: ParserAction, shift_new: ParserAction, error: CompilerErrorStore) {
     const sym = shift_existing.item.renderSymbol(grammar);
 
     error.log(`\x1b[41m SHIFT \x1b[43m COLLISION ERROR ENCOUNTERED:\x1b[0m
                 
-        Shift action on {${sym}} has already been defined for state:
+Shift action on {${sym}} has already been defined for state:
 
-        ${state.production_string} 
+${state.production_string} 
 
-        Shift Action:
+    Shift Action:
         Shift to state ${shift_existing.item.increment().renderWithProduction(grammar)}
         Definition found in: 
             \x1b[38;5;250mfile://${shift_existing.item.body_(grammar).production.url}:${shift_existing.item.body_(grammar).lex.line + 1}:${shift_existing.item.body_(grammar).lex.char + 1}\x1b[0m
 
-        Shift Action: 
+    Shift Action: 
         Shift to state ${shift_new.item.increment().renderWithProduction(grammar)}
         Definition found in: 
             \x1b[38;5;250mfile://${shift_new.item.body_(grammar).production.url}:${shift_new.item.body_(grammar).lex.line + 1}:${shift_new.item.body_(grammar).lex.char + 1}\x1b[0m
 
-            `);
+`);
 }
