@@ -1,33 +1,46 @@
 import { Symbol, ProductionBody, Grammar, SymbolType } from "../types/grammar.js";
 
-function addNonTerminal(table: Map<string|number, Symbol>, body: ProductionBody, grammar:Grammar, body_ind: number, index = 0) {
 
-    if (!body.sym[index]) {
-        return true;
-        //throw new Error(`Empty production at index ${index} in [${body.production.name}]`);
-    }
+function addNonTerminal(
+    table: Map<string | number, Symbol>,
+    body: ProductionBody,
+    grammar: Grammar,
+    body_ind: number,
+    index = 0,
+    encountered = new Set()
+): /*True if production has an empty body */ boolean {
+
+    if (!body.sym[index]) return true;
 
     const first = body.sym[index];
 
-    let terminal :string = "",
+    let terminal: string = "",
         HAS_EMPTY_PRODUCTION = false;
 
     if (first.type == SymbolType.LITERAL) {
-        terminal = <string> first.val;
+        terminal = <string>first.val;
     } else if (first.type == SymbolType.EMPTY) {
         return true;
     } else if (first.type !== SymbolType.PRODUCTION) {
-        terminal = <string> first.val;
+        terminal = <string>first.val;
     } else {
 
-        const bodies = grammar[first.val].bodies;
+        if (!encountered.has(first.val)) {
 
-        for (let i = 0; i < bodies.length; i++)
-            if (i !== body_ind && first.val !== body.production.id)
-                HAS_EMPTY_PRODUCTION = addNonTerminal(table, bodies[i], grammar, bodies[i].id);
+            encountered.add(first.val);
 
-        if (index < body.length - 1 && HAS_EMPTY_PRODUCTION)
-            addNonTerminal(table, body, grammar, body_ind, index + 1);
+            const bodies = grammar[first.val].bodies;
+
+            for (let i = 0; i < bodies.length; i++)
+                if (i !== body_ind && first.val !== body.production.id) {
+
+                    HAS_EMPTY_PRODUCTION = addNonTerminal(table, bodies[i], grammar, bodies[i].id, 0, encountered);
+                }
+
+
+            if (index < body.length - 1 && HAS_EMPTY_PRODUCTION)
+                addNonTerminal(table, body, grammar, body_ind, index + 1);
+        }
 
         return HAS_EMPTY_PRODUCTION;
     }
@@ -37,16 +50,16 @@ function addNonTerminal(table: Map<string|number, Symbol>, body: ProductionBody,
     return HAS_EMPTY_PRODUCTION;
 }
 
-export function FIRST(grammar:Grammar, ...symbols : Symbol[]) : Array<Symbol> {
+export function FIRST(grammar: Grammar, ...symbols: Symbol[]): Array<Symbol> {
 
     if (!symbols[0]) return [];
 
-    const map: Map<string|number, Symbol> = new Map();
+    const map: Map<string | number, Symbol> = new Map();
 
     for (let i = 0; i < symbols.length; i++) {
 
         const SYMBOL = symbols[i],
-            submap: Map<string|number, Symbol> = new Map();
+            submap: Map<string | number, Symbol> = new Map();
 
         if (SYMBOL.type == SymbolType.PRODUCTION) {
 
@@ -55,7 +68,7 @@ export function FIRST(grammar:Grammar, ...symbols : Symbol[]) : Array<Symbol> {
             let HAS_EMPTY_PRODUCTION = false;
 
             for (let i = 0; i < production.bodies.length; i++) {
-                
+
                 const body = production.bodies[i];
 
                 HAS_EMPTY_PRODUCTION = addNonTerminal(submap, body, grammar, body.id);
