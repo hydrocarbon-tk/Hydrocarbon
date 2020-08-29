@@ -9,3 +9,18 @@ type StateMeta = any & { pos: Lexer; };
  * functions as the [meta] object.
  */
 export type StateStack = Array<number | StateMeta>;
+
+
+export type HistoryInfo = {
+    lex: Lexer,
+    tk: number,
+    ptr: number,
+    forks: number,
+    fork_depth: number,
+};
+
+/**
+ * Stores history of state changes when 
+ * debug info is attached to lrParser.
+ */
+export type HistoryStack = Array<number | HistoryInfo>;

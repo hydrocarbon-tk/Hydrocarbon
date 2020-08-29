@@ -6,16 +6,13 @@ import { ParserSquashResultData } from "../../types/parser_squash_result_data.js
 import { ParserResultData } from "../../types/parser_result_data.js";
 import { errorReport } from "./error_report.js";
 import { ParserEnvironment } from "../../types/parser_environment.js";
-import { StateStack } from "../../types/state_stack.js";
+import { StateStack, HistoryStack, HistoryInfo } from "../../types/state_stack.js";
 import { LRState } from "../../types/lr_state.js";
 import { Grammar } from "../../types/grammar.js";
 import { GenerateActionSequence, ImportStates } from "../script_generation/export_states.js";
-import { env } from "process";
 
-
-const MAX_CYCLES = 50000000;
-
-const default_recovery: ErrorHandler = _ => -1;
+const MAX_CYCLES = 50000000,
+    default_recovery: ErrorHandler = _ => -1;
 
 /**
     Parses an input. Returns an object with parse results and an error flag if parse could not complete.
@@ -38,7 +35,7 @@ function parser<T>(
     cycles = 0,
     fork_depth = 0,
     forks = 0,
-    history
+    history: HistoryStack = null,
 ): ParserResultData<T> | ParserSquashResultData {
 
     if (!data) return <ParserResultData<T>>{ value: null, error: "Data object is empty" };
@@ -101,25 +98,19 @@ function parser<T>(
     } else
         tk = getToken(lex, token_lu);
 
-
-
     const p = lex.copy();
 
-    if (debug) history = [{ lex: lex.copy(), tk }, 0];
+    if (debug && !history) history = [{ lex: lex.copy(), tk, ptr: 1, fork_depth: 0, forks: 0 }, 0];
 
     try {
 
         outer: while ((++total_cycles, cycles++ < MAX_CYCLES)) {
 
-            // Skip this step if we entered this function through a fork. 
-            // State action will have been set in the outer scope. 
-            let action = 0,
-                gt = -1;
+            let action = 0, gt = -1;
 
             if (state_action_lu == 0) {
 
                 /*Ignore the token*/
-
                 tk = getToken(lex.next(), token_lu);
 
                 state_stack[stack_pointer - 1] = lex.copy();
@@ -172,7 +163,6 @@ function parser<T>(
 
                         //Treat token as a 1 character symbol if
                         //lex type is not space, new_line
-                        //*
                         if (!(lex.ty & (lex_ws | lex_nl)) && lex.tl > 1) {
 
                             lex.tl = 0;
@@ -183,13 +173,7 @@ function parser<T>(
 
                             lex.CHARACTERS_ONLY = false;
 
-                            tk = getToken(lex, token_lu); /*/
-
-                            if ( !(lex.ty & (lex_ws | lex_nl | lex_sym))) {
-                                lex.tl = 1;
-                                lex.type = lex_sym;
-                                tk = token_lu.get(lex.tx);
-                                //*/
+                            tk = getToken(lex, token_lu);
 
                             break;
                         }
@@ -225,7 +209,7 @@ function parser<T>(
                         }
                     }
 
-                    if (debug && fork_depth == 0) createStateTrace(stack_pointer, history, debug);
+                    if (debug && fork_depth == 0) createStateTrace(history, debug);
 
                     return errorReport(tk, lex, off, cycles, total_cycles, fork_depth);
                 }
@@ -240,13 +224,10 @@ function parser<T>(
                     <Lexer>state_stack[stack_pointer - 1],
                     state_action_functions, parser);
 
-                // if (total_cycles <= 30)
-                //     console.log("start", lex.tx, state_action_lu, action & 7, (history ?? []).length / 2, tk);
-
                 switch (<StateActionEnumConst>action & 7) {
 
                     case StateActionEnumConst.ERROR: {
-                        if (debug && fork_depth == 0) createStateTrace(stack_pointer, history, debug);
+                        if (debug && fork_depth == 0) createStateTrace(history, debug);
                         return errorReport(tk, lex, off, cycles, total_cycles, fork_depth);
                     }
 
@@ -265,14 +246,7 @@ function parser<T>(
 
                         const shift_copy = lex.copy();
 
-                        if (history)
-                            history.push({ lex: shift_copy, forks, fork_depth, tk }, action >> 3);
-
-                        //if (stack_pointer >= state_stack.length)
-                        //    state_stack.push(lex.copy(), 0, lex.copy(), 0, lex.copy(), 0, lex.copy(), 0);
-                        //
-                        //state_stack[stack_pointer - 1].sync(shift_copy);
-                        //state_stack[stack_pointer] = (action >> 3);
+                        if (history) history.push({ lex: lex.copy(), forks, fork_depth, tk, ptr: (stack_pointer + 1) / 2 }, action >> 3);
 
                         state_stack.push(shift_copy, action >> 3);
 
@@ -288,8 +262,6 @@ function parser<T>(
                         RECOVERING = -1;
 
                         len = (action & 0x7F8) >> 2;
-
-                        const v_ = stack_pointer - 1;
 
                         var
                             end = <Lexer>state_stack[stack_pointer - 1],
@@ -307,24 +279,11 @@ function parser<T>(
 
                         const reduce_copy = lex.copy();
 
-                        if (history) history.push({ lex: lex.copy(), forks, fork_depth, tk }, gt);
-
-                        //  if (v_ == 1 + stack_pointer) {
-                        //      state_stack[2 + stack_pointer] = gt;
-                        //  } else {
-                        //      state_stack[1 + stack_pointer].sync(reduce_copy);
-                        //      state_stack[1 + stack_pointer].cookie = null;
-                        //      state_stack[2 + stack_pointer] = gt;
-                        //  }
-
-                        // if (state_stack[2 + stack_pointer - 1].cookie) console.log(2);
+                        if (history) history.push({ lex: lex.copy(), forks, fork_depth, tk, ptr: (stack_pointer + 1) / 2 }, gt);
 
                         state_stack.push(reduce_copy, gt);
 
                         stack_pointer += 2;
-
-                        //if (stack_pointer >= state_stack.length)
-                        //    state_stack.push(lex.copy(), 0, lex.copy(), 0, lex.copy(), 0, lex.copy(), 0);
 
                         if (stack_pointer < fork_depth) {
                             return <ParserSquashResultData>{
@@ -365,7 +324,7 @@ function parser<T>(
                                 copied_state_stack = state_stack.slice();
 
                             if (history)
-                                history.push({ lex: copied_lex, forks: i++, fork_depth, }, state_stack[stack_pointer]);
+                                history.push({ lex: lex.copy(), forks: i++, fork_depth: fork_depth + 1, tk, ptr: (stack_pointer + 1) / 2 }, state_stack[stack_pointer]);
 
                             const
                                 res = parser<T>(
@@ -428,7 +387,7 @@ function parser<T>(
                             result.error = "Failed to parse at FORK action";
 
 
-                        if (debug && fork_depth == 0) createStateTrace(stack_pointer, history, debug);
+                        if (debug && fork_depth == 0) createStateTrace(history, debug);
 
                         return result;
                 }
@@ -441,7 +400,7 @@ function parser<T>(
         }
     } catch (e) {
 
-        if (debug && fork_depth == 0) createStateTrace(stack_pointer, history, debug);
+        if (debug && fork_depth == 0) createStateTrace(history, debug);
 
         return <ParserResultData<T>>{
             value: null,
@@ -455,7 +414,7 @@ function parser<T>(
 
     if (cycles >= MAX_CYCLES) {
 
-        if (debug) createStateTrace(stack_pointer, history, debug);
+        if (debug) createStateTrace(history, debug);
 
         return <ParserResultData<T>>{
             value: o[0],
@@ -487,12 +446,19 @@ interface DebugInfo {
     grammar: Grammar;
 }
 
-function createStateTrace(sp: number, history_stack: StateStack, debug: DebugInfo) {
+function createStateTrace(history_stack: HistoryStack, debug: DebugInfo) {
     for (let i = Math.max(0, history_stack.length - 40); i < history_stack.length; i += 2) {
+
         const
-            { lex, forks, fork_depth, tk } = <Lexer>history_stack[i],
+            { lex, forks, fork_depth, tk, ptr } = <HistoryInfo>history_stack[i],
+
             state = <number>history_stack[i + 1];
-        console.log(`\n------------------\n index: ${i / 2}; fks:${forks} fkd:${fork_depth}\n tk:[ ${lex.tx}:${tk} ] ${lex.line + 1}:${lex.char}`, GenerateActionSequence(state, debug.states, debug.grammar));
+
+        console.log(
+            `\n------------------\n index: ${i / 2}; ptr:${ptr} fks:${forks} fkd:${fork_depth}\n tx:[${lex.END ? "$eof" : lex.tx}] tk:[${tk}] ${lex.line + 1}:${lex.char}`,
+            GenerateActionSequence(state, debug.states, debug.grammar),
+            "\n"
+        );
     }
 }
 
@@ -503,18 +469,17 @@ function createStateTrace(sp: number, history_stack: StateStack, debug: DebugInf
     @param environment: Environment object containing user defined parse action functions.
     @param debug_info: Optional State and Grammar data exported alongside parser data
 */
-function lrParse<T>(lex: Lexer | string, data: ParserData, environment: ParserEnvironment, debug_info?: DebugInfo | string): ParserResultData<T> {
+function lrParse<T>(
+    lex: Lexer | string,
+    data: ParserData,
+    environment: ParserEnvironment = <ParserEnvironment>{ functions: {} },
+    debug_info?: DebugInfo | string
+): ParserResultData<T> {
 
     let debug = null;
 
     if (debug_info)
         debug = ImportStates(debug_info);
-
-    if (!environment) {
-        environment = <ParserEnvironment>{
-            functions: {},
-        };
-    }
 
     if (environment.options && environment.options.onstart)
         environment.options.onstart();
