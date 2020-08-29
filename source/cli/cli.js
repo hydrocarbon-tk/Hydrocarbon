@@ -5,13 +5,15 @@
 
 
 //CandleFW stuffs
-import * as hc from "../../build/library/hydrocarbon.js";
 import wind from "@candlefw/wind";
 import URL from "@candlefw/url";
+import spark from "@candlefw/spark";
+import * as hc from "../../build/library/hydrocarbon.js";
+import { filloutGrammar } from "../../build/library/util/common.js";
+import { lrParse as parser } from "../../build/library/lr/runtime/lr_parser.js";
 
 
 import runner from "./compiler_runner.js";
-import { lrParse as parser } from "../../build/library/lr/runtime/lr_parser.js";
 
 //Third Party stuff
 import * as commander from "commander";
@@ -21,7 +23,6 @@ import * as terser from "terser";
 import path from "path";
 import fs from "fs";
 import readline from "readline";
-import util from "util";
 
 //Regex to match Protocol and/or Drive letter from module url
 const
@@ -80,7 +81,7 @@ async function loadFiles(grammar_path, env_path = "", states_path = "", quiet = 
     return { grammar_string, env, states_string };
 }
 
-async function write(name, parser_script, output_directory, type) {
+async function write(name, parser_script, output_directory = process.env.PWD, type, debug_info, debug_dir) {
     let ext = "";
 
     switch (type) {
@@ -99,6 +100,9 @@ async function write(name, parser_script, output_directory, type) {
             ext = ".js";
             break;
     }
+
+    if (debug_info)
+        await fsp.writeFile(path.join(debug_dir, name + ".debug_info.js"), `export default ${debug_info.replace(/\"(\w+)\"\:/g, "$1:")};`, { encoding: "utf8", flags: "wx" });
 
     await writeFile(name, ext, parser_script, output_directory, type);
 }
@@ -206,7 +210,7 @@ function createScript(name, parser, type, env, compress = false) {
 /* *************** HCG GRAMMAR DATA *********************/
 
 async function parseGrammar(grammar_string, grammar_path_string) {
-    const grammar = await hc.grammarParser(grammar_string, grammar_path_string);
+    const grammar = await hc.compileGrammars(grammar_string, grammar_path_string);
 
     return grammar;
 }
@@ -255,7 +259,11 @@ function CLI_INSTRUCTIONS(full = false) {
     console.log(`Type 'help' to show help info.`);
 }
 
-async function mount(name, input, env, test_data = "") {
+async function mount(name, input, env, test_data = "", nul, debug_info = "") {
+    let debug = null;
+
+    if (debug_info)
+        debug = hc.ImportStates(debug_info);
 
     let d = await new Promise(res => {
         let parser_data = null;
@@ -274,8 +282,8 @@ async function mount(name, input, env, test_data = "") {
         }
 
         //If there is test data, then run the parser on that data and immediately return. 
-        if (typeof test_data == "string") {
-            const result = parser(wind(test_data.toString(), false), parser_data, env);
+        if (typeof test_data == "string" && test_data.length > 0) {
+            const result = parser(wind(test_data.toString(), false), parser_data, env, debug_info);
 
             if (result.error)
                 console.error({ error: result.error });
@@ -319,9 +327,14 @@ async function mount(name, input, env, test_data = "") {
                     try {
                         let parse;
                         if (env.options && env.options.integrate)
-                            parse = parser(data.join("\n"), parser_data, {}, 0);
-                        else
-                            console.dir(parser(wind(data.join("\n"), false), parser_data, env), { depth: null });
+                            parse = parser(data.join("\n"), parser_data, {}, debug_info);
+                        else {
+                            parse = parser(wind(data.join("\n"), false), parser_data, env, debug_info);
+
+                            if (parse.error) throw parse.error;
+
+                            console.dir(parse.value, { depth: null });
+                        }
                     } catch (e) {
                         console.error(e);
                     }
@@ -382,6 +395,7 @@ async function start() {
                     states = parseLRJSONStates(states_string);
                 } else {
                     states = await compileLRStates(grammar, env, env_path, "", true);
+
                     if (!!cmd.output_states) {
                         states_output = stringifyLRStates(states);
                         writeFile(`${name}.hcs`, states_output, output_directory);
@@ -435,7 +449,8 @@ async function start() {
         .option("-m, --mount", "Mounts the compiled parser in the current NodeJS context and allows interactive parsing of user input.")
         .option("-n, --name <output_name>", "The name to give to the output file. Defaults to the name of the grammar file.")
         .option("-d, --noout", "Do not write to file.")
-        .option("-c, --compress", "Minify output file.")
+        .option("-c, --compress <test_data>", "Minify output file.")
+        .option("-x, --data", "Text input to test the parser on.")
         .option("--cpp", "Create C++ output")
         .option("-u, --unattended", "Do not wait for user input. Exit to console when compilation is complete. Quit on any error.")
         .option("-t, --type <type>", `
@@ -448,10 +463,14 @@ async function start() {
             `)
         .option("--parser <parser>", "The type of compiler that hydrocarbon will create. Select from `lalr1` and `earling`")
         .action(async (hc_grammar, cmd) => {
+
+            //await spark.sleep(1000);
+
             const
                 states_path = cmd.states ? path.resolve(cmd.states) : "",
                 grammar_path = path.resolve(hc_grammar),
                 env_path = cmd.env ? path.resolve(cmd.env) : "",
+                test_data = cmd.test_data ? cmd.test_data + "" : "",
                 name = cmd.output_name ? cmd.output_name : path.basename(grammar_path, path.extname(grammar_path)),
                 output_directory = cmd.output ? path.resolve(cmd.output) : process.cwd(),
                 unattended = !!cmd.unattended,
@@ -460,69 +479,82 @@ async function start() {
                 COMPRESS = !!cmd.compress;
             let
                 type = cmd.type ? cmd.type : "js";
+
             try {
 
-                const { grammar_string, states_string, env } = await loadFiles(grammar_path, env_path, states_path, unattended);
+                const
+                    { grammar_string, states_string, env } = await loadFiles(grammar_path, env_path, states_path, unattended),
 
-                const grammar = await parseGrammar(grammar_string, new URL(grammar_path));
+                    grammar_url = new URL(grammar_path),
+
+                    grammar = await parseGrammar(grammar_string, grammar_url),
+
+                    //Check for existing debug data
+
+                    debug_info_url = (new URL(grammar_url.dir + "/" + grammar_url.filename + ".debug_info.js"));
+
+                let debug_info_data = null, debug_info = null;
+
+                try {
+                    if (debug_info_url.fetchText())
+                        debug_info_data = hc.ImportStates((await import(debug_info_url + "")).default);
+                } catch (e) { console.log("No debug info found"); }
+
 
                 if (!grammar) {
                     console.error(`Failed to compile grammar ${grammar.name}. Exiting`);
                     process.exit(1);
                 }
 
-                let states = null,
-                    script_string = "";
+                let states = null, script_string = "";
+
+                filloutGrammar(grammar, env);
 
                 switch (parser) {
                     case "lr":
                     case "lalr":
                     default:
-                        if (states_string) {
-                            states = parseLRJSONStates(states_string, unattended);
+
+                        if (debug_info_data?.hash == grammar.hash) {
+
+                            states = debug_info_data.states;
+
                         } else {
 
                             //throw "Can't continue"
                             states = await compileLRStates(grammar, env, env_path, name, unattended);
+                            debug_info = hc.ExportStates(states, grammar);
 
-
-                            if (!!cmd.statesout) {
-                                const states_output = stringifyLRStates(states);
-                                await writeFile(`${name}.hcs`, states_output, output_directory);
+                            if (!states.COMPILED) {
+                                (console.error(`Failed to compile grammar ${grammar.name}. Exiting`), undefined);
+                                process.exit(1);
                             }
                         }
-                        if (!states.COMPILED) {
-                            (console.error(`Failed to compile grammar ${grammar.name}. Exiting`), undefined);
-                            process.exit(1);
-                        }
-                        if (CPP || type == "cpp") {
-                            type = "cpp";
-                            script_string = buildLRCompilerScriptCPP(states, grammar, env);
-                        } else
-                            script_string = buildLRCompilerScript(states, grammar, env);
+
+                        script_string = buildLRCompilerScript(states, grammar, env);
+
                         break;
                     case "glr":
                     case "glalr":
-                        if (states_string) {
-                            //  states = parseGLRJSONStates(states_string, unattended);
+                        if (debug_info_data?.hash == grammar.hash) {
+
+                            states = debug_info_data.states;
+
                         } else {
                             states = await compileGLRStates(grammar, env, env_path, name, unattended);
+                            debug_info = hc.ExportStates(states, grammar);
 
-                            if (!!cmd.statesout) {
-                                //const states_output = stringifyGLRStates(states);
-                                //await writeFile(`${name}.hcs`, states_output, output_directory);
+                            if (!states.COMPILED) {
+                                (console.error(`Failed to compile grammar ${grammar.name}. Exiting`), undefined);
+                                process.exit(1);
                             }
+
                         }
-                        if (!states.COMPILED) {
-                            (console.error(`Failed to compile grammar ${grammar.name}. Exiting`), undefined);
-                            process.exit(1);
-                        }
-                        if (CPP || type == "cpp") {
-                            //type = "cpp";
-                            //script_string = buildLRCompilerScriptCPP(states, grammar, env);
-                        } else
-                            script_string = buildLRCompilerScript(states, grammar, env);
+
+                        script_string = buildLRCompilerScript(states, grammar, env);
+
                         break;
+
                     case "earley":
                         const items = createEarleyItems(grammar, env);
                         createEarleyCompiler(items, grammar, env);
@@ -537,14 +569,15 @@ async function start() {
                 if (!!cmd.noout) {
                     console.log(ADD_COLOR("No Output. Skipping file saving", COLOR_ERROR), "\n");
                 } else
-                    await write(name, script, output_directory, type);
+                    await write(name, script, output_directory, type, debug_info, path.dirname(grammar_path));
 
                 if (!unattended)
                     console.log(`Use ${ADD_COLOR(" ctrl ", COLOR_KEYBOARD)}+${ADD_COLOR(" c ", COLOR_KEYBOARD)} to return to console.`);
 
                 if (!!cmd.mount) {
-                    if (!(await mount(name, script_string, env, states, grammar))) { };
+                    if (!(await mount(name, script_string, env, test_data, "", debug_info))) { };
                 }
+
 
                 process.exit();
 
