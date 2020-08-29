@@ -44,8 +44,6 @@ export function verboseTemplate(
     state_maps,
     state_functions,
     SYM_LU,
-    default_error,
-    error_handlers,
     functions,
     state_action_functions,
     goto_map_lookup,

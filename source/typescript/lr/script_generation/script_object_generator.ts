@@ -1,6 +1,7 @@
 /** Compiles a stand alone JS parser from a LR rules table and env object **/
 //@ts-ignore
 import { parser, stmt, renderCompressed, JSNodeType, ext, exp, JSNodeClass } from "@candlefw/js";
+import { traverse } from "@candlefw/conflagrate";
 
 import createStateArrays from "./create_state_arrays.js";
 import { verboseTemplate } from "./data_object_template.js";
@@ -8,7 +9,6 @@ import { types as t, filloutGrammar } from "../../util/common.js";
 import { LRStates } from "../../types/lr_state.js";
 import { Grammar, SymbolType } from "../../types/grammar.js";
 import { ParserEnvironment } from "../../types/parser_environment.js";
-import { traverse } from "@candlefw/conflagrate";
 
 function getValueID(e) {
     for (const { node: id } of traverse(e, "nodes")
@@ -41,23 +41,34 @@ function generateCompactFunction(function_string: string) {
             return [value, { b: false, s: node.value }];
         }));
 
-    for (const { node: id, meta: { parent } } of traverse(body, "nodes")
-        .filter("type", JSNodeType.IdentifierReference, JSNodeType.IdentifierReferenceProperty)
-    ) if (ids.has(id.value)) {
+    for (const { node: id, meta: { skip } } of traverse(body, "nodes")
+        .makeSkippable()
+    ) {
 
-        const i = ids.get(id.value);
+        if (id.type == JSNodeType.ArrowFunction) {
+            skip();
+            continue;
+        }
 
-        i.b = true;
-        if (id.type == JSNodeType.IdentifierReference)
-            id.value = i.s;
-        else
-            id.value = `${id.value}:${i.s}`;
+        if (
+            id.type == JSNodeType.IdentifierReference
+            || id.type == JSNodeType.IdentifierReferenceProperty
+        ) {
+            if (ids.has(id.value)) {
 
+                const i = ids.get(id.value);
+
+                i.b = true;
+                if (id.type == JSNodeType.IdentifierReference)
+                    id.value = i.s;
+                else
+                    id.value = `${id.value}:${i.s}`;
+            }
+
+        }
     }
 
     const last_index = [...ids.values()].reduce((r, v, i) => v.b && i > r ? i : r, -1);
-
-    //params.forEach((e, i) => getValueID(e).value = ids.get(getValueID(e).value).s || getValueID(e).value);
 
     fn.nodes[1].nodes = params.slice(0, last_index + 1);
 
@@ -73,17 +84,15 @@ function generateCompactFunction(function_string: string) {
 
         fn = arrow;
     }
-    
+
     return renderCompressed(fn);
+
 }
 
 export default function GenerateLRParseDataObject(states: LRStates, grammar: Grammar, env: ParserEnvironment) {
     //Build new env variables if they are missing 
     if (!grammar.bodies)
         filloutGrammar(grammar, env);
-
-    if (states.type !== "lr")
-        throw new Error("");
 
     const
         GEN_SYM_LU = <Map<string | number, number>>new Map(),
@@ -161,8 +170,6 @@ export default function GenerateLRParseDataObject(states: LRStates, grammar: Gra
         state_maps,
         state_functions,
         SYM_LU,
-        default_error,
-        error_handlers,
         functions,
         state_str_functions,
         goto_map_lookup,
