@@ -32,11 +32,14 @@ export default function GenerateLRParseDataObject(states: LRStates, grammar: Gra
     //@ts-ignore
     types.keyword = 201;
 
-    let n = 0;
-    for (const a in types)
-        GEN_SYM_LU.set(a, (((n++) / 2) | 0) + 1);
+    let n = 0, sym_num_to_id = new Map();
 
-    n = n / 2;
+    for (const a in types) {
+        if (!sym_num_to_id.has(types[a]))
+            sym_num_to_id.set(types[a], n++);
+
+        GEN_SYM_LU.set(a, sym_num_to_id.get(types[a]));
+    }
 
     GEN_SYM_LU.set("white_space_new_line", n++);
     GEN_SYM_LU.set("any", n++);

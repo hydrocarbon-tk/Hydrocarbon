@@ -11,7 +11,7 @@
 @IMPORT ./symbols.hcg as sym
 
 
-@IGNORE θws θnl
+@IGNORE θws θnl θtb
 
 
 # Productions can be defined through the [ <> ID → symbol ... ] form as will 

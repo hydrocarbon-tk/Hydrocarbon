@@ -55,8 +55,8 @@ export function getToken(l, SYM_LU, IGNORE_KEYWORDS = false) {
             return "nl";
         case types.ws:
             return "ws";
-        case types.data_link:
-            return "dl";
+        case types.tab:
+            return "tb";
         default:
             return SYM_LU.get(l.tx) || SYM_LU.get(l.ty);
     }
