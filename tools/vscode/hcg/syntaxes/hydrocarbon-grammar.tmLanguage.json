@@ -1,6 +1,7 @@
 {
 	"$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
 	"name": "Hydrocarbon Grammar",
+	"scopeName": "source.hydrocarbon",
 	"patterns": [
 		{
 			"include": "#comments"
@@ -17,19 +18,19 @@
 	],
 	"repository": {
 		"importPreamble": {
-			"match": "(\\@IMPORT)\\s+([\\w-_\\/\\.\\@]+)\\s+(AS|as)\\s+([\\w]+)",
+			"match": "(\\@IMPORT)\\s+([\\w\\-_\\/\\.\\@]+)\\s+(AS|as)\\s+(\\w+)",
 			"captures": {
 				"1": {
-					"name": "keyword.other"
+					"name": "storage.type"
 				},
 				"2": {
 					"name": "string"
 				},
 				"3": {
-					"name": "keyword.other"
+					"name": "storage.type"
 				},
 				"4": {
-					"name": "operator.production-symbol"
+					"name": "keyword"
 				}
 			}
 		},
@@ -44,12 +45,12 @@
 			]
 		},
 		"functionReference": {
-			"name": "support.function",
-			"match": "↦\\s*\\w*\\s*\\^\\w+\\s*"
+			"name": "meta.function-call",
+			"match": "(f\\:|↦)\\s*\\w*\\s*\\^\\w+\\s*"
 		},
 		"function": {
-			"name": "support.function",
-			"begin": "↦\\s*\\w*\\s*{",
+			"name": "meta.function-call",
+			"begin": "(f\\:|↦)\\s*\\w*\\s*{",
 			"end": "}",
 			"patterns": [
 				{
@@ -58,6 +59,7 @@
 			]
 		},
 		"symbols": {
+			"name": "keyword.operator",
 			"patterns": [
 				{
 					"include": "#terminal-escaped-symbol"
@@ -74,23 +76,19 @@
 			]
 		},
 		"terminal-keyword": {
-			"name": "keyword",
-			"match": "(\\τ[a-zA-Z\\_\\-]*|\\θ[a-zA-Z\\_\\-]*|ɛ)|(\\$oef)"
+			"match": "((τ|t\\:)[a-zA-Z\\_\\-]*|\\θ[a-zA-Z\\_\\-]*|ɛ)|(\\$oef)"
 		},
 		"terminal-generated": {
-			"name": "keyword",
-			"match": "(\\θ[a-zA-Z\\_\\-]*|\\θ[a-zA-Z\\_\\-]*|ɛ)|(\\$oef)"
+			"match": "((θ|g\\:)[a-zA-Z\\_\\-]*|\\θ[a-zA-Z\\_\\-]*|ɛ)|(\\$oef)"
 		},
 		"terminal-symbol": {
-			"name": "keyword",
 			"match": "[^\\θ\\\\\\w\\↦\\│\\[\\]\\#\\?\\→\\s][^\\\\\\(\\↦\\│\\)\\(\\[\\]\\#\\?\\→\\s]*"
 		},
 		"terminal-escaped-symbol": {
-			"name": "keyword",
 			"match": "\\\\[^\\s]+"
 		},
 		"nonterm": {
-			"name": "entity.name.class.production-instance",
+			"name": "entity.name.type",
 			"match": "\\w+"
 		},
 		"importTerm": {
@@ -115,7 +113,7 @@
 			]
 		},
 		"symbol-actions": {
-			"name": "constant.numeric",
+			"name": "keyword.operator",
 			"begin": "(\\()\\s*(ERR|IGN|EXC|RED|RES)",
 			"end": "\\)",
 			"patterns": [
@@ -125,7 +123,7 @@
 			]
 		},
 		"symbol-modifiers": {
-			"name": "constant.numeric",
+			"name": "keyword.operator",
 			"match": "\\([\\+\\*].?\\)|\\?"
 		},
 		"groupedBody": {
@@ -199,12 +197,12 @@
 			]
 		},
 		"production": {
-			"name": "operator.production-symbol",
-			"begin": "(<>)?\\s*(\\w+)\\s*(→)",
+			"name": "meta.definition.function",
+			"begin": "(<>)?\\s*(\\w+)\\s*(→|>)",
 			"end": "^\\s*(?=<>)",
 			"captures": {
 				"2": {
-					"name": "entity.name.class.production"
+					"name": "meta.definition.function"
 				}
 			},
 			"patterns": [
@@ -224,6 +222,5 @@
 				}
 			]
 		}
-	},
-	"scopeName": "source.hydrocarbon"
+	}
 }
