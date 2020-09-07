@@ -1,6 +1,6 @@
 {
   "name": "@candlefw/hydrocarbon",
-  "version": "0.6.0-dev",
+  "version": "0.6.0",
   "description": "Parser Compiler",
   "main": "./build/library/hydrocarbon.js",
   "types": "./build/types/hydrocarbon.d.ts",
@@ -10,7 +10,7 @@
   "type": "module",
   "scripts": {
     "build": "tsc",
-    "prepublish": "tsc -p ./tsconfig.json",
+    "prepublishOnly": "tsc -p ./tsconfig.json",
     "test": "echo \"Error: no test specified\" && exit 1",
     "compile.grammar": "./source/cli/cli.js compile --unattended -t module -o ./source/typescript/grammar ./source/grammars/hcg/hcg.hcg",
     "compile.grammar.test": "./source/cli/cli.js compile --unattended -d --parser glalr -t mjs -o ./source/typescript/grammar ./source/grammars/hcg/hcg.hcg",
@@ -33,10 +33,10 @@
   },
   "homepage": "https://github.com/candlefw/hydrocarbon#readme",
   "dependencies": {
-    "@candlefw/conflagrate": "^0.0.5-alpha",
-    "@candlefw/js": "^0.2.2-dev",
-    "@candlefw/url": "0.1.1",
-    "@candlefw/wind": "^0.4.1-dev",
+    "@candlefw/conflagrate": "*",
+    "@candlefw/js": "*",
+    "@candlefw/url": "*",
+    "@candlefw/wind": "*",
     "commander": "^5.0.0",
     "terser": "^4.6.3"
   },
