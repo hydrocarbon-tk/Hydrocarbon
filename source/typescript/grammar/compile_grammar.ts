@@ -1,7 +1,6 @@
 import { grammarParser } from "./grammar_parser.js";
 import { filloutGrammar, Item } from "../util/common.js";
 import { Grammar, SymbolType, Production } from "../types/grammar.js";
-import crypto from "crypto";
 
 export async function createGrammar(grammar_string: string, grammar_string_path: string): Promise<Grammar> {
 
@@ -9,13 +8,16 @@ export async function createGrammar(grammar_string: string, grammar_string_path:
 
     filloutGrammar(grammar, null);
 
-    grammar.hash = createGrammarHash(grammar);
+    const crypto = (await import(crypto))?.default;
+
+    grammar.hash = createGrammarHash(grammar, crypto);
 
     return grammar;
 }
 
 
-function createGrammarHash(grammar: Grammar): string {
+
+function createGrammarHash(grammar: Grammar, crypto): string {
 
     let str = "", to_process_productions = [new Item(0, grammar.bodies[0].length, 0, null)], processed: Set<number> = new Set([0]);
 
