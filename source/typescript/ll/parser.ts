@@ -1,7 +1,7 @@
 //@ts-nocheck
 import { Lexer } from "@candlefw/wind";
 
-export function LLParser(input, table, grammer) {
+export function LLParser(input, table, grammer): number {
 
 	let stack = ["$", grammer[0].name];
 	let lex = new Lexer(input);

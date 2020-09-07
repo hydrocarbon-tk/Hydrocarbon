@@ -19,14 +19,12 @@ import earleyCompiler from "./earley/compiler.js";
 import { renderTable } from "./util/table_diagram.js";
 import { ParserEnvironment } from "./types/parser_environment.js";
 import { ErrorHandler, ParserData } from "./types/parser_data.js";
-
-
-//Definitions
+import { LexerError } from "./lr/runtime/lexer_error.js";
 
 export {
     ErrorHandler,
     ParserData,
-
+    LexerError,
     ParserEnvironment,
     compileLRStatesMT,
     createGrammar as compileGrammars,
@@ -37,6 +35,8 @@ export {
     ExportStates,
     ImportStates,
     earleyCompiler,
+
+
 
     lrParse
 };

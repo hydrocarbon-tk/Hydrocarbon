@@ -138,7 +138,7 @@ export class LRMultiThreadRunner {
     }
 
     *run() {
-
+        //@ts-ignore
         this.item_set = [{ items: [new Item(0, this.grammar.bodies[0].length, 0, { val: "$eof", precedence: 0, type: SymbolType.GENERATED })], excludes: [], state_id: { sym: "$eof", id: "start" } }];
 
         this.total_items = 1;

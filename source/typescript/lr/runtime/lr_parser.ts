@@ -1,15 +1,19 @@
 import { Lexer } from "@candlefw/wind";
 
-import { StateActionEnumConst } from "../../types/state_action_enums.js";
-import { ParserData, OutputStack, ErrorHandler } from "../../types/parser_data.js";
-import { ParserSquashResultData } from "../../types/parser_squash_result_data.js";
-import { ParserResultData } from "../../types/parser_result_data.js";
-import { errorReport } from "./error_report.js";
-import { ParserEnvironment } from "../../types/parser_environment.js";
-import { StateStack, HistoryStack, HistoryInfo } from "../../types/state_stack.js";
-import { LRState } from "../../types/lr_state.js";
 import { Grammar } from "../../types/grammar.js";
-import { GenerateActionSequence, ImportStates } from "../script_generation/export_states.js";
+import { LRState } from "../../types/lr_state.js";
+import { ErrorHandler, OutputStack, ParserData } from "../../types/parser_data.js";
+import { ParserEnvironment } from "../../types/parser_environment.js";
+import { ParserResultData } from "../../types/parser_result_data.js";
+import { ParserSquashResultData } from "../../types/parser_squash_result_data.js";
+import { StateActionEnumConst } from "../../types/state_action_enums.js";
+import { HistoryInfo, HistoryStack, StateStack } from "../../types/state_stack.js";
+
+
+import { errorReport } from "./error_report.js";
+//import { GenerateActionSequence, ImportStates } from "../script_generation/export_states.js";
+import { LexerError } from "./lexer_error.js";
+
 
 const MAX_CYCLES = 50000000,
     default_recovery: ErrorHandler = _ => -1;
@@ -19,6 +23,9 @@ const MAX_CYCLES = 50000000,
     @param l: Lexer - lexer object with an interface defined in candlefw/wind.
     @param data: parser data that includes the look up tables and built in parse action functions.
     @param enviro: Environment object containing user defined parse action functions.
+    ```js
+   const  test
+    ```
 */
 function parser<T>(
     lex: Lexer,
@@ -403,7 +410,7 @@ function parser<T>(
 
         return <ParserResultData<T>>{
             value: null,
-            error: lex.errorMessage(e.stack),
+            error: new LexerError(e.message, lex),
             cycles,
             total_cycles,
             off,
@@ -417,7 +424,7 @@ function parser<T>(
 
         return <ParserResultData<T>>{
             value: o[0],
-            error: lex.errorMessage(`Max Depth Reached ${{ total_cycles, cycles, fork_depth }}`),
+            error: new LexerError(`Max Depth Reached ${{ total_cycles, cycles, fork_depth }}`, lex),
             total_cycles,
             cycles,
             off,
@@ -446,6 +453,7 @@ interface DebugInfo {
 }
 
 function createStateTrace(history_stack: HistoryStack, debug: DebugInfo) {
+
     for (let i = Math.max(0, history_stack.length - 40); i < history_stack.length; i += 2) {
 
         const
@@ -455,7 +463,7 @@ function createStateTrace(history_stack: HistoryStack, debug: DebugInfo) {
 
         console.log(
             `\n------------------\n index: ${i / 2}; ptr:${ptr} fks:${forks} fkd:${fork_depth}\n tx:[${lex.END ? "$eof" : lex.tx}] tk:[${tk}] ${lex.line + 1}:${lex.char}`,
-            GenerateActionSequence(state, debug.states, debug.grammar),
+            //    GenerateActionSequence(state, debug.states, debug.grammar),
             "\n"
         );
     }
@@ -493,8 +501,11 @@ function lrParse<T>(
 const max = Math.max;
 
 parser.reduce_with_value = parser.rv = (fn, plen, ln, t, e, o, lex, s) => {
+
     ln = max(o.length - plen, 0);
+
     o[ln] = fn(o.slice(-plen), e, lex, s, o, plen);
+
     o.length = ln + 1;
 };
 
@@ -506,8 +517,11 @@ parser.reduce_with_new_value = parser.rnv = (Fn, plen, ln, t, e, o, lex, s) => {
 
 parser.reduce_with_null = parser.rn = (plen, t, e, o) => {
     if (plen > 0) {
+
         const ln = max(o.length - plen, 0);
+
         o[ln] = o[o.length - 1];
+
         o.length = ln + 1;
     }
 };

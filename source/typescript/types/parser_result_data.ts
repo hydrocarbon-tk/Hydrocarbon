@@ -1,3 +1,6 @@
+import { LexerError } from "../lr/runtime/lexer_error";
+
+
 /**
  * Return value of the parser.
  * 
@@ -12,7 +15,7 @@ export interface ParserResultData<T> {
     /**
      * Error message if parse failed to parser the input.
      */
-    error: string;
+    error: LexerError;
     /**
      * Number of cycles taken to get the result
      */

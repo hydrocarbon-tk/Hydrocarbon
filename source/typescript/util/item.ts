@@ -40,7 +40,7 @@ export class Item extends Array {
 
     static fromArray(array: Item): Item {
         if (array instanceof Item) return array;
-        return new Item(array[0], array[1], array[2], array.follow);
+        return new Item(array[0], array[1], array[2], (<Item>array).follow);
     }
 
     USED: boolean;

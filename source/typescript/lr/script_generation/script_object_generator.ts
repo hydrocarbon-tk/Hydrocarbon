@@ -1,10 +1,10 @@
 /** Compiles a stand alone JS parser from a LR rules table and env object **/
 //@ts-ignore
-import { parser, ext, JSNodeClass } from "@candlefw/js";
+import { JSNodeClass } from "@candlefw/js";
 import { traverse } from "@candlefw/conflagrate";
 
 import createStateArrays from "./create_state_arrays.js";
-import { verboseTemplate, compressedTemplate } from "./data_object_template.js";
+import { compressedTemplate } from "./data_object_template.js";
 import { types as t, filloutGrammar } from "../../util/common.js";
 import { LRStates } from "../../types/lr_state.js";
 import { Grammar, SymbolType } from "../../types/grammar.js";
@@ -91,7 +91,7 @@ export default function GenerateLRParseDataObject(states: LRStates, grammar: Gra
     }
 
     let default_error = `(tk,r,o,l,p)=>{if(l.END)l.throw("Unexpected end of input");else if(l.ty & (${types.ws | types.nl})) l.throw(\`Unexpected space character within input "\${p.slice(l)}" \`) ; else l.throw(\`Unexpected token [\${l.tx}]\`)}`;
-
+    //@ts-ignore
     if (env.functions.defaultError)
         default_error = `(...d)=>d[1].fn.defaultError(...d)`;
 
