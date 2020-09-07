@@ -9,6 +9,8 @@
     │ binary
     │ octal
     │ scientific
+    | js_identifier
+    | identifier
 
 <> hex_digit →  θint │ τa │ τb │ τc │ τd │ τe │ τf │ τA │ τB │ τC │ τD │ τE │ τF
 
@@ -33,7 +35,7 @@
 <> string > \" ( string_value | θws )(+')  \"         ↦r { $sym2 }
     | \' ( string_value | θws )(+")  \'               ↦r { $sym2 }
 
-<> string_value > (RED θws)  ( \- | \_ | θany | θnum | θid | θsym | \\ θany )(+")
+<> string_value > (RED θws)  ( \/ | \\ | \- | \_ | θany | θnum | θid | θsym | \\ θany )(+")
 
 
 
@@ -53,7 +55,7 @@
 
 <> identifier → (RED θws) identifier_symbols 
 
-<> identifier_symbols →  identifier_symbols θid           ↦r { $sym1 + $sym2 }
+<> identifier_symbols →  identifier_symbols θid      ↦r { $sym1 + $sym2 }
     │ identifier_symbols θkeyword                    ↦r { $sym1 + $sym2 }
     │ identifier_symbols \_                          ↦r { $sym1 + $sym2 }
     │ identifier_symbols \-                          ↦r { $sym1 + $sym2 }
@@ -63,7 +65,6 @@
     │ identifier_symbols θbin                        ↦r { $sym1 + $sym2 }
     │ identifier_symbols θoct                        ↦r { $sym1 + $sym2 }
     | θnum
-    │ \- 
     │ \_ 
     │ \$ 
     │ θid
