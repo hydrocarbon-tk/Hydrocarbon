@@ -1,25 +1,41 @@
 {
     "name": "hcg",
-    "displayName": "hcg",
-    "description": "Hydrocarbon Grammar Definition",
-    "version": "0.0.1",
+    "displayName": "Hydrocarbon Grammar Syntax Highlighting",
+    "description": "Syntax highlighting for Hydrocarbon grammar files [*.hcg]",
+    "publisher": "candle-smith",
+    "version": "1.0.0",
     "engines": {
         "vscode": "^1.5.0"
+    },
+    "scripts": {
+        "local.install": "vsce package && code --install-extension ./*.vsix"
     },
     "categories": [
         "Programming Languages"
     ],
     "contributes": {
-        "languages": [{
-            "id": "hydrocarbon-grammar",
-            "aliases": ["Hydrocarbon Grammar", "hydrocarbon-grammar"],
-            "extensions": ["hcg"],
-            "configuration": "./language-configuration.json"
-        }],
-        "grammars": [{
-            "language": "hydrocarbon-grammar",
-            "scopeName": "source.hydrocarbon",
-            "path": "./syntaxes/hydrocarbon-grammar.tmLanguage.json"
-        }]
+        "languages": [
+            {
+                "id": "hydrocarbon-grammar",
+                "aliases": [
+                    "Hydrocarbon Grammar",
+                    "hydrocarbon-grammar"
+                ],
+                "extensions": [
+                    "hcg"
+                ],
+                "configuration": "./language-configuration.json"
+            }
+        ],
+        "grammars": [
+            {
+                "language": "hydrocarbon-grammar",
+                "scopeName": "source.hydrocarbon",
+                "path": "./syntaxes/hydrocarbon-grammar.tmLanguage.json"
+            }
+        ]
+    },
+    "repository": {
+        "url": "github.com/candlefw/hydrocarbon-vscode-syntax-highlighting.git"
     }
 }
