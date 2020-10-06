@@ -18,13 +18,13 @@ const
     environment_arg_name = "env",
     lexer_arg_name = "lex";
 
-export function getToken(l, SYM_LU, IGNORE_KEYWORDS = false) {
+export function getToken(l, SYM_LU, IGNORE_GRAMMAR_SYMBOLS: boolean = false) {
     if (l.END) return 0;
 
+    if (!IGNORE_GRAMMAR_SYMBOLS)
+        if (SYM_LU.has(l.tx) || SYM_LU.has(l.ty)) return SYM_LU.get(l.tx) || SYM_LU.get(l.ty);
+
     if ((l.ty & types.num)) {
-
-        if (!IGNORE_KEYWORDS && SYM_LU.has(l.tx)) return SYM_LU.get(l.tx);
-
 
         switch (l.ty) {
             case types.sci:
@@ -47,7 +47,6 @@ export function getToken(l, SYM_LU, IGNORE_KEYWORDS = false) {
 
     switch (l.ty) {
         case types.id:
-            if (!IGNORE_KEYWORDS && SYM_LU.has(l.tx)) return "keyword";
             return "id";
         case types.string:
             return "str";
@@ -57,9 +56,9 @@ export function getToken(l, SYM_LU, IGNORE_KEYWORDS = false) {
             return "ws";
         case types.tab:
             return "tb";
-        default:
-            return SYM_LU.get(l.tx) || SYM_LU.get(l.ty);
     }
+
+    return "any";
 }
 
 /************ Grammar Production Functions *****************************/

@@ -4,7 +4,7 @@ import { FIRST } from "./first.js";
 import { Grammar, Symbol } from "../types/grammar.js";
 import { CompilerErrorStore } from "../lr/state_generation/compiler_error_store.js";
 
-export function processClosure(items: Item[], grammar:Grammar, error:CompilerErrorStore, excludes : any[] = [], offset = 0, added = new Set()) {
+export function processClosure(items: Item[], grammar: Grammar, error: CompilerErrorStore, excludes: any[] = [], offset = 0, added = new Set()) {
 
     let exclusion_count = 0;
 
@@ -62,7 +62,7 @@ export function processClosure(items: Item[], grammar:Grammar, error:CompilerErr
             continue;
 
         if (index < len && B.type == "production") {
-            let first : Symbol[];
+            let first: Symbol[];
 
             if (Be.length > 0)
                 first = FIRST(grammar, ...Be, b);
@@ -97,19 +97,19 @@ export function processClosure(items: Item[], grammar:Grammar, error:CompilerErr
                         added.add(sig);
                     }
                 }
-                
+
 
                 if (pbody.reduce && pbody.reduce.size > 0)
                     pbody.reduce.forEach(v => v.forEach(s => {
-                            const
-                                item = new Item(pbody.id, pbody.length, 0, s),
-                                sig = item.full_id;
+                        const
+                            item = new Item(pbody.id, pbody.length, 0, s),
+                            sig = item.full_id;
 
-                            if (!added.has(sig)) {
-                                items.push(item);
-                                added.add(sig);
-                            }
-                        })
+                        if (!added.has(sig)) {
+                            items.push(item);
+                            added.add(sig);
+                        }
+                    })
 
                     );
             }

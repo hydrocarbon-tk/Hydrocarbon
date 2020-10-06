@@ -8,7 +8,7 @@ export async function createGrammar(grammar_string: string, grammar_string_path:
 
     filloutGrammar(grammar, null);
 
-    const crypto = (await import(crypto))?.default;
+    const crypto = (await import("crypto"))?.default;
 
     grammar.hash = createGrammarHash(grammar, crypto);
 

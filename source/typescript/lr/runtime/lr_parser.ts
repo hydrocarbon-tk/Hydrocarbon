@@ -44,7 +44,8 @@ function parser<T>(
     forks = 0,
     history: HistoryStack = null,
 ): ParserResultData<T> | ParserSquashResultData {
-
+    
+    //@ts-ignore
     if (!data) return <ParserResultData<T>>{ value: null, error: "Data object is empty" };
 
     const
@@ -126,6 +127,9 @@ function parser<T>(
 
                 while (/*intentional*/ 1 /*intentional*/) {
 
+
+
+
                     if (FIST_RESORT_CUSTOM_RECOVERY_LAST_OFFSET != lex.off) {
 
                         FIST_RESORT_CUSTOM_RECOVERY_LAST_OFFSET = lex.off;
@@ -168,7 +172,7 @@ function parser<T>(
                         }
 
                         //Treat token as a 1 character symbol if
-                        //lex type is not space, new_line
+                        //lex type is not space or new_line
                         if (!(lex.ty & (lex_ws | lex_nl)) && lex.tl > 1) {
 
                             lex.tl = 0;
@@ -228,7 +232,9 @@ function parser<T>(
 
                 action = state_action_tables[state_action_lu - 1](tk, enviro, o, lex,
                     <Lexer>state_stack[stack_pointer - 1],
-                    state_action_functions, parser);
+                    //@ts-ignore
+                    state_action_functions,
+                    parser);
 
                 switch (<StateActionEnumConst>action & 7) {
 
@@ -238,6 +244,9 @@ function parser<T>(
                     }
 
                     case StateActionEnumConst.ACCEPT:
+
+
+
                         break outer;
 
                     case StateActionEnumConst.SHIFT:
@@ -259,8 +268,6 @@ function parser<T>(
                         off = lex.off;
 
                         tk = getToken(lex, token_lu);
-
-
                         break;
 
                     case StateActionEnumConst.REDUCE:
@@ -307,15 +314,18 @@ function parser<T>(
                                 error: null
                             };
                         }
+
                         break;
 
                     case StateActionEnumConst.FORK:
+
 
                         //Look Up Fork productions. 
                         var
                             fork_states_start = action >> 16,
                             fork_states_length = (action >> 3) & 0x1FFF,
                             fork_states_end = fork_states_start + fork_states_length,
+                            //@ts-ignore
                             result = <ParserResultData<T> | ParserSquashResultData>{ value: null, error: "", cycles, total_cycles, off };
 
                         FORKED_ENTRY = true;
@@ -402,7 +412,6 @@ function parser<T>(
             state = states[<number>state_stack[stack_pointer]];
             state_length = state.length;
             state_action_lu = (tk < state_length) ? state[tk] : -1;
-
         }
     } catch (e) {
 
@@ -433,7 +442,7 @@ function parser<T>(
         };
     };
 
-    return <ParserResultData<T>>{
+    return <ParserResultData<T>><any>{
         value: o[0],
         error: "",
         cycles,
@@ -443,6 +452,7 @@ function parser<T>(
         forks,
         efficiency: cycles / total_cycles
     };
+
 }
 
 interface DebugInfo {

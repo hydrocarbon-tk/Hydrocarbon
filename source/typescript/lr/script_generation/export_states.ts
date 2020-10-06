@@ -4,6 +4,7 @@ import { Item } from "../../util/item.js";
 import { StateActionEnum } from "../../types/state_action_enums.js";
 import { LRState, ParserAction } from "../../types/lr_state.js";
 import { filloutGrammar } from "../../util/common.js";
+import { Lexer } from "@candlefw/wind";
 
 function extractAction(act: any): ParserAction {
 	return <ParserAction>{
@@ -104,6 +105,7 @@ export function ExportStates(states: LRState[], grammar: Grammar) {
 		}));
 
 	return JSON.stringify({
+		//@ts-ignore
 		type: states.type,
 		hash: grammar.hash,
 		urls: [...urls.keys()],
@@ -116,7 +118,7 @@ export function ExportStates(states: LRState[], grammar: Grammar) {
 export function GenerateActionSequence(id: number, states: LRState[], grammar: Grammar) {
 	const s = states[id];
 
-	const build_forked_action = (e: ParserAction, i) => `${i}: ${StateActionEnum[e.name]} => state: ${e.state} production: ${new Item(e.body, grammar.bodies[e.body].length, e.offset, {}).renderWithProduction(grammar)}`;
+	const build_forked_action = (e: ParserAction, i) => `${i}: ${StateActionEnum[e.name]} => state: ${e.state} production: ${new Item(e.body, grammar.bodies[e.body].length, e.offset, <Symbol>{}).renderWithProduction(grammar)}`;
 
 	const build_action = e => (e[1].name == StateActionEnum.REDUCE)
 		? (`${StateActionEnum[e[1].name]} [ ${e[0]} ] complete production: ${grammar[e[1].production].name}`) :
@@ -163,7 +165,7 @@ export function ImportStates(exported_states: string | any) {
 					name: p.name,
 					id: p.id,
 					url: data.urls[p.url],
-					bodies: p.bodies.map(b => (<ProductionBody>{
+					bodies: p.bodies.map(b => (<ProductionBody><any>{
 						name: b.name,
 						sym: b.sym.map(s => data.symbols[s]),
 						ignore: new Map(),

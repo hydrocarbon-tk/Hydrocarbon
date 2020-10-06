@@ -85,6 +85,7 @@ export async function grammarParser(
 
         result = parser(
             wind(grammar_string),
+            //@ts-ignore
             hcg_parser_data,
             <ParserEnvironment>constructCompilerEnvironment(
                 grammar_file_url,
