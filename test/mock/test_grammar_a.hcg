@@ -1,0 +1,14 @@
+
+@SYMBOL + *
+
+@IGNORE θws θnl
+
+<> S > A
+
+<> A > R * B
+	| B
+
+<> B > R + A
+	| R
+
+<> R > g:num
