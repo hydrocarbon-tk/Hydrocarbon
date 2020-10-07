@@ -3,12 +3,12 @@
 
 @IGNORE θws θnl
 
-<> S > A
+<> S > A		
 
-<> A > R * B
+<> A > R * B 		f:r{  { sym:"*", a:$sym1, b:$sym2 }   }
 	| B
 
-<> B > R + A
+<> B > R + A 		f:r{  { sym:"+", a:$sym1, b:$sym2 }   }
 	| R
 
 <> R > g:num
