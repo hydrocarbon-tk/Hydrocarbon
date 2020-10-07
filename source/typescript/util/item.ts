@@ -18,6 +18,12 @@ export function SymbolToString(sym: { type?: SymbolType, val: string; }) {
     }
 }
 
+export const enum ItemIndex {
+    body_id = 0,
+    length = 1,
+    offset = 2
+}
+
 export function SymbolToStringUnformatted(sym: { type?: SymbolType, val: string; }) {
     switch (sym.type) {
         case SymbolType.ESCAPED:
@@ -40,7 +46,7 @@ export class Item extends Array {
 
     static fromArray(array: Item): Item {
         if (array instanceof Item) return array;
-        return new Item(array[0], array[1], array[2], (<Item>array).follow);
+        return new Item(array[ItemIndex.body_id], array[ItemIndex.length], array[ItemIndex.offset], (<Item>array).follow);
     }
 
     USED: boolean;
@@ -75,16 +81,16 @@ export class Item extends Array {
     }
 
     get body(): number {
-        return this[0];
+        return this[ItemIndex.body_id];
     }
 
     get len(): number {
-        return this[1];
+        return this[ItemIndex.length];
     }
 
 
     get offset(): number {
-        return this[2];
+        return this[ItemIndex.offset];
     }
 
     body_(grammar: Grammar): ProductionBody {
@@ -158,6 +164,12 @@ export class Item extends Array {
     increment(): Item | null {
         if (this.offset < this.len)
             return new Item(this.body, this.len, this.offset + 1, this.follow);
+        return null;
+    }
+
+    decrement(): Item | null {
+        if (this.offset > 0)
+            return new Item(this.body, this.len, this.offset - 1, this.follow);
         return null;
     }
 
