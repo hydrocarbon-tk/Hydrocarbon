@@ -1,11 +1,38 @@
 import { Grammar, SymbolType, Symbol } from "../types/grammar.js";
-import { processClosure, Item } from "../util/common.js";
+import { processClosure, Item, FIRST } from "../util/common.js";
 import { Lexer } from "@candlefw/wind";
 import { GrammarParserEnvironment } from "../types/grammar_compiler_environment";
 import { CompilerErrorStore } from "../lr/state_generation/compiler_error_store.js";
-import { stmt, renderWithFormatting, extendAll, JSNode } from "@candlefw/js";
+import { stmt, renderWithFormatting, extendAll, JSNode, JSNodeType } from "@candlefw/js";
 import { ItemIndex } from "../util/item.js";
-import { k } from "@candlefw/wind/build/types/ascii_code_points";
+import { k, u, e, P } from "@candlefw/wind/build/types/ascii_code_points";
+import { renderCompressed } from "@candlefw/conflagrate";
+import { Array } from "./array";
+
+
+
+Array.prototype.groupMap = function <T>(this: Array<T>, fn: (T) => (string | number)[]): Map<(string | number), T[]> {
+
+    const groups: Map<number | string, T[]> = new Map;
+
+    this.forEach(e => {
+        const id = fn(e);
+
+        for (const ident of Array.isArray(id) && id || [id]) {
+            if (!groups.has(ident))
+                groups.set(ident, []);
+
+            groups.get(ident).push(e);
+        }
+    });
+
+    return groups;
+};
+
+//@ts-ignore
+Array.prototype.group = function <T>(this: Array<T>, fn: (T) => (string | number)[]): T[][] {
+    return [...this.groupMap(fn).values()];
+};
 
 interface State {
     sym: string;
@@ -72,7 +99,300 @@ interface State {
     refs: number;
 }
 
+export function CompileLL(grammar: Grammar, env: GrammarParserEnvironment) {
+
+
+    console.log("A");
+
+
+    const error = new CompilerErrorStore;
+
+    const production = grammar.map(p => {
+
+        const start_items = p.bodies.map(b => new Item(b.id, b.length, 0, { val: "$eof", precedence: 0, type: SymbolType.GENERATED, pos: new Lexer }));
+        const start_state: State = {
+            sym: "",
+            sid: "",
+            id: "",
+            maps: new Map,
+            state_merge_tracking: new Set,
+            index: 0,
+            HAS_COMPLETED_PRODUCTION: false,
+            PURE: true,
+            TERMINAL_TRANSITION: false,
+            CONTAINS_ONLY_COMPLETE: false,
+            items: start_items,
+        };
+
+
+        const unprocessed_state_items = [
+            { maps: new Map, old_state: start_state, items: start_state.items }
+        ];
+
+        const states: Map<string, State> = new Map([["", start_state]]);
+
+        for (let i = 0; i < unprocessed_state_items.length; i++) {
+
+            const { items: to_process_items, old_state } = unprocessed_state_items[i];
+
+            processClosure(to_process_items, grammar, error, []);
+
+            [...to_process_items.reduce((groups, i) => {
+
+                const first = FIRST(grammar, i.sym(grammar));
+
+                for (const sym of first) {
+                    const val = sym.val;
+                    if (!groups.has(val))
+                        groups.set(val, { sym, items: [] });
+                    groups.get(val).items.push(i.increment());
+                }
+
+
+
+                return groups;
+            }, <Map<string, { sym: string, items: Item[]; }>>new Map()).entries()]
+                .map(([key, values]) => {
+
+
+                    // Now the items need to have an identifier created to 
+                    // identify transition groups that have already been 
+                    // encountered. This identifier is created from the 
+                    // current names of items in the group
+                    const id = values.items
+                        .map(i => { i.end = i.atEND; return i.id; })
+                        .filter((e, i, a) => a.indexOf(e) == i)
+                        .sort((a, b) => a < b ? -1 : 1).join(""),
+                        sid = values.items
+                            .map(i => i.full_id)
+                            .filter((e, i, a) => a.indexOf(e) == i)
+                            .sort((a, b) => a < b ? -1 : 1).join(":");
+
+                    //Out pops a new state. 
+                    return <State>{
+                        sym: [key, ...values.items.map(i => i.decrement()?.sym(grammar)?.val).filter(v => !!v)],
+                        id,
+                        sid,
+                        items: values.items,
+                        PURE: id.length == 4,
+                        HAS_COMPLETED_PRODUCTION: values.items.some(i => i.atEND),
+                        state_merge_tracking: new Set,
+                        index: 0,
+                        maps: new Map
+                    };
+                })
+                .map(state => {
+                    const { id, sid, sym } = state;
+
+                    if (!states.has(id)) {
+                        state.index = states.size;
+                        states.set(id, state);
+                    }
+
+                    for (const s of sym) {
+                        old_state.maps.set(s, state.index);
+
+                    }
+
+
+                    //if (!old_state.maps.has(sym)) {
+                    //    old_state.maps.set(sym, []);
+                    //}
+
+                    const active_state = states.get(id);
+                    // const transition_map = old_state.maps.get(sym);
+
+                    // if (transition_map.indexOf(active_state.index) < 0)
+                    //     transition_map.push(active_state.index);
+                    //
+                    // old_state.maps;
+
+                    states.set(id, active_state);
+
+                    if (!active_state.state_merge_tracking.has(sid)) {
+                        unprocessed_state_items.push({ old_state: state, items: state.items });
+                        active_state.state_merge_tracking.add(sid);
+                    }
+
+                    active_state.items.push(...state.items);
+
+                    const filter_set = new Set();
+
+                    active_state.items = active_state.items.filter(i => (!filter_set.has(i.full_id) && (filter_set.add(i.full_id), true)));
+
+                    return active_state;
+                });
+        }
+
+        function buildTransition(groups: Item[][], state_depth: number = 0, state: State, states: State[]) {
+
+            const stmts = [], shifts = [], reduces = [];
+
+
+            for (const transition_groups of groups) {
+
+                //The first transition of each group is the same;
+                const item: Item = transition_groups[0][0],
+                    new_groups = transition_groups.map(g => g.slice(1)).filter(g => g.length > 0).group(e => e[0].id).reverse(),//.sort((a, b) => (b[0].atEND | 0) - (a[0].atEND | 0)),
+                    sym = item.atEND ? item.follow : item.sym(grammar);
+
+                let statement;
+
+
+                if (sym.type == "production") {
+                    stmts.push(stmt(`"PROD ${item.renderUnformattedWithProduction(grammar)}"`));
+
+                    statement = {
+                        type: JSNodeType.Script,
+                        nodes: [],
+                    };
+                    const
+                        block = statement.nodes;
+
+
+
+                    if (state_depth > 0) {
+
+                        if (item.atEND) {
+                            shifts.push(stmt(`${"sym_end.push($" + (grammar[sym.val].name || "D")}(lex, sym))`));
+                        }
+
+                        shifts.push(stmt(`${"sym.push($" + (grammar[sym.val].name || "D")}(lex, sym))`));
+
+                    }
+
+                    console.log(item.renderUnformattedWithProduction(grammar), state.maps, state.items.map(i => i.renderUnformattedWithProduction(grammar)));
+                    const new_state = state.maps.get(sym.val);
+
+                    if (new_state) block.push(buildRecursiveDescent(states[new_state], states));
+
+                    stmts.push(statement);
+
+                } else {
+                    if (item.atEND) {
+                        stmts.push(stmt(`"END ${item.renderUnformattedWithProduction(grammar)}"`));
+
+                        statement = {
+                            type: JSNodeType.Script,
+                            nodes: [],
+                        };
+                        const
+                            block = statement.nodes;
+
+                        if (state_depth == 1) {
+                            shifts.push(stmt(`${"sym.push($" + (item.getProduction(grammar).name || "D")}(lex, sym))`));
+                        } else {
+                            const reduce_function = item.body_(grammar)?.reduce_function?.txt;
+
+                            if (reduce_function)
+                                shifts.push(stmt(`sym = [${createReduceFunction(reduce_function)}];`));
+                            else { };
+                        }
+
+                        if (new_groups.length > 0)
+                            reduces.push(...buildTransition(new_groups, state_depth, state, states));
+
+                        stmts.push(statement);
+                    } else if (sym.val) {
+                        stmts.push(stmt(`"VAL ${item.renderUnformattedWithProduction(grammar)}"`));
+
+                        statement = stmt(`if(${getLexComparisonString(sym)}){  }`);
+
+                        const
+                            block = statement.nodes[1].nodes;
+
+                        if (state_depth > 0) {
+
+                            const reduce_function = item.body_(grammar)?.reduce_function?.txt;
+
+                            console.log(reduce_function, item.renderUnformattedWithProduction(grammar));
+
+                            if (reduce_function) {
+
+                                //shifts.push(stmt(`symd = [${createReduceFunction(reduce_function)}];`));
+                            }
+                            else { };
+
+                            block.push(stmt(`symd.push(advance_lex(lex))`));
+                        }
+
+                        const new_state = state.maps.get(sym.val);
+
+                        if (new_state) block.push(buildRecursiveDescent(states[new_state], states));
+
+                        stmts.push(statement);
+                    }
+
+                    if (!item.atEND && item.increment().atEND) {
+                        reduces.push(stmt("return sym.pop()"));
+                    }
+                }
+
+
+                // /console.log({ l: new_groups.map(i => i.map(i => i.map(i => i.renderUnformattedWithProductionAndFollow(grammar)))) });
+
+
+            }
+
+            if (groups.length == 1 && groups[0].length == 1 && groups[0][0].length == 1 && state_depth > 0) {
+                //   /  console.log({ l: groups.map(i => i.map(i => i.map(i => i.renderUnformattedWithProductionAndFollow(grammar)))) });
+                reduces.push(stmt("return sym.pop()"));
+            }
+            return [...stmts, ...shifts, ...reduces];
+
+
+        }
+
+        function buildRecursiveDescent(state: State, states) {
+
+            let statement, block;
+
+            statement = {
+                type: JSNodeType.Script,
+                nodes: [],
+            };
+            block = statement.nodes;
+
+            //sort items
+
+
+            const groups = state.items
+                .sort((a, b) => a.body - b.body)
+                .sort((a, b) => a.getProduction(grammar).id == b.sym(grammar)?.val ? 1 : b.getProduction(grammar).id == a.sym(grammar)?.val ? -1 : 0)
+                .reverse()
+                .group(e => e?.sym(grammar)?.val ?? e.follow.val)
+                .group(e => e[0].id);
+
+            console.log(groups.map((i => i.map(i => i.map(i => i.renderUnformattedWithProductionAndFollow(grammar))))));
+
+            block.push(...buildTransition(groups, state.index, state, states));
+
+            return statement;
+        }
+        const s = [...states.values()];
+
+        //        console.log(s[1]);
+
+        console.log(`$${p.name}(){ \n const sym = []; \n${renderWithFormatting(buildRecursiveDescent(s[0], s))}}`);
+
+        return states;
+    });
+
+
+
+
+
+
+    ///    console.log({ production });
+
+
+
+}
+
 export function CompileHybrid(grammar: Grammar, env: GrammarParserEnvironment) {
+
+    CompileLL(grammar, env);
+
     const error = new CompilerErrorStore;
     const start_state: State = {
         sym: "",
@@ -192,7 +512,7 @@ export function CompileHybrid(grammar: Grammar, env: GrammarParserEnvironment) {
         Non-Terminal transitions must occur after the completion of some 
         production, and therefore a dependent on the results of completing
         a production from discovered terminal symbols.
-
+ 
         The number of productions that transition together on the same terminal
         are a transition group. If all members of a transition group are of the 
         same body, with the only difference being the follow, then this is called
@@ -225,38 +545,14 @@ export function CompileHybrid(grammar: Grammar, env: GrammarParserEnvironment) {
         const { maps } = state;
 
         if (state.refs > 0 || state.index == 0) {
-            const fn = stmt(`function State${state.index}(env,a,b,c){const sym = []; }`);
+            const fn = stmt(`function State${state.index}(env,s = [], p = -1){env.states.push(${state.index}); ;}`);
             const fn_id = fn.nodes[0];
             const fn_body_nodes = fn.nodes[2].nodes;
+            fn_body_nodes.pop(); //get rid of empty statement
 
             id_nodes[state.index].push(fn_id);
             functions[state.index] = fn;
 
-
-            /**A state is comprised of two main things
-             * 
-             * - A set terminal symbols that transition to a new state. 
-             *   These transitions can be thought of as natural recursive
-             *   Transitions.
-             * 
-             * - A set of pointers to states that represent the GOTO from 
-             *   a completed production. These transitions may be combined
-             *   to form a complex reduction if the states only have a single 
-             *   ref, i.e. a degree 2 directed acyclic graph aka a basic single link list. 
-            */
-
-            /**
-             * const num = num(lex); // Number is the expected symbol for this production. It is a
-             * // PURE, TERMINAL_TRANSITION, that HAS_COMPLETED_PRODUCTION and CONTAINS_ONLY_COMPLETE 
-             * items.
-             */
-
-            /**  
-             * Each terminal represents a non-terminal production possibility
-             * We can either enter into a new function that represents that possibility,
-             * or incorporate the code into the originating state function itself. 
-             * If the latter occurs, remove one ref count from the transition state.
-             */
 
             fn_body_nodes.push(...reduceState(state, null, state_array, grammar, id_nodes));
 
@@ -280,29 +576,153 @@ export function CompileHybrid(grammar: Grammar, env: GrammarParserEnvironment) {
 
         const d = [...unique.values()].map(v => v.renderWithProduction(grammar)).join("|") ?? "";
 
+        //        const id_name = state?.items?.[0]?.renderWithProductionAndFollow(grammar) ?? "$0"; 
         const id_name = "$" + (i || "start"); // + `[${i}]`;
 
         for (const id of ids)
-            id.value = id_name;
+            id.value = `${id_name}`;
     }
 
-    // console.log({ states });
 
     const parser = stmt(`return function(lexer){
-        return $start({lex:lexer});
+        const states = [];
+        const val = $start({lex:lexer, states}).v;
+        return val;
     }`);
+
 
     parser.nodes[0].nodes[2].nodes.unshift(...functions);
 
     const string = renderWithFormatting(parser);
-
     //console.log(string);
 
+    //return () => string;;;
     return Function(string)();
+}
+
+function gotoState(
+    state: State,
+    previous: State,
+    states: State[],
+    grammar: Grammar,
+    ids: JSNode[][]) {
+
+    const statements = [], gt = getNonTerminalTransitionStates(state), gt_set = new Set;
+
+    if (gt.length > 0) {
+
+
+
+        const married_gotos = gt.filter(([k, v]) => v.length == 1)
+            .map(([k, v]) => <[number, State]>[k, states[v[0]]])
+            .filter(([, v]) => (v).PURE && v.CONTAINS_ONLY_COMPLETE)
+            .sort(([, a], [, b]) => {
+                const pA = getAllProductionIds(a, grammar)[0];
+                const pB = getAllProductionIds(b, grammar)[0];
+
+                return pA < pB ? 1 : pB < pA ? -1 : 0;
+            }).map(a => {
+                gt_set.add(a[1].index);
+                return a;
+            }).reduce((r, a) => {
+                const last = r.length - 1;
+
+                if (r[last]) {
+                    const l_last = r[last].length - 1;
+
+                    const p_state = r[last][l_last];
+
+                    if (getAllProductionIds(p_state, grammar)[0] == a[0]) {
+                        r[last].push(a[1]);
+                        return r;
+                    }
+                }
+
+                r.push([a[1]]);
+
+                return r;
+            }, [])
+            .filter(e => e.length > 1)
+            .map(e => (e.map(a => (gt_set.add(a), a)), e));
+
+        // /console.log(married_gotos);
+
+        //sort goto in order
+        const while_block = stmt(`while(true){ }`);
+        const while_block_fn = while_block.nodes[1].nodes;
+
+        //const while_block = stmt(`{ }`);
+        //const while_block_fn = while_block.nodes;
+
+        statements.push(while_block);;
+
+        let chain = null;
+        /*
+        for (const married_goto of married_gotos) {
+            const statement = stmt(`if(p == ${getAllProductionIds(married_goto[0], grammar)[0]}){ }`);
+            const block = statement.nodes[1].nodes;
+ 
+            if (chain) {
+                chain.nodes[2] = statement;
+                chain = statement;
+            } else {
+                chain = statement;
+                while_block_fn.push(statement);
+            }
+ 
+            for (const state of married_goto) {
+ 
+                const { stmts, productions, bodies } = integrateState(state, grammar, ids);
+ 
+                block.push({
+                    type: JSNodeType.BlockStatement,
+                    nodes: stmts
+                });
+            }
+        }*/
+
+        for (const [key, val] of gt.sort(([a], [b]) => a < b ? 1 : b < a ? -1 : 0)) {
+
+            const statement = stmt(`if(p == ${key}){ }`);
+            const block = statement.nodes[1].nodes;
+
+            for (const state of val.map(i => states[i])) {
+                //   if (gt_set.has(state)) continue;
+
+                const { stmts, productions, bodies } = integrateState(state, grammar, ids);
+
+                block.push(...stmts);
+            }
+
+            if (block.length == 0) continue;
+
+            //if (chain) {
+            //    chain.nodes[2] = statement;
+            //    chain = statement;
+            //} else {
+            chain = statement;
+            while_block_fn.push(statement);
+            // }
+        }
+
+        const tests = [...new Set(state.items.map(i => getLexPeekComparisonString(i.follow, grammar))).values()];
+        // console.log(tests, state.items);
+        let def;
+        if (tests.length == 0)
+            def = stmt(`if(env.lex.END) return {p, v:s}`);
+        else
+            def = stmt(`if(${(tests.join("||"))}) return {p, v:s}`);
+
+        while_block_fn.push(def);
+
+    }
+
+    return statements;
 }
 
 function shiftState(
     state: State,
+    previous: State,
     states: State[],
     grammar: Grammar,
     ids: JSNode[][]
@@ -322,30 +742,17 @@ function shiftState(
             const item = shift_to_state.items[0].decrement();
             const sym = item.sym(grammar);
             const production = item.getProduction(grammar);
+            const all_productions = getAllProductionIds(state, grammar);
             const statement = extendAll(stmt(`if(${getLexComparisonString(sym, grammar)}){ }`));
             statements.push(statement);
             const block = statement.nodes[1].nodes;
 
-            block.push(
-                //    stmt("const v = env.lex.tx;"),
-                stmt("env.lex.next();"),
-            );
+            block.push(stmt("s.push(env.lex.tx), env.lex.next();"));
 
-            const { stmts, productions } = integrateState(shift_to_state, grammar, ids);
-
-            for (const gotos_indices of (productions.map(i => state.maps.get(i)))) {
-                // console.log(gotos_indices);
-                if (gotos_indices)
-                    for (const goto_state of getStatesFromNumericArray(gotos_indices, states))
-                        stmts.push(...reduceState(goto_state, state, states, grammar, ids));
-                else
-                    stmts.push(stmt(`return {p:null, v:null, type:"shift"};`));
-
-
-
-            }
-
+            const { stmts, productions, bodies } = integrateState(shift_to_state, grammar, ids);
             block.push(...stmts);
+            block.push(...gotoState(state, state, states, grammar, ids));
+            block.push(stmt("return {p, v:s}"));
         }
     }
 
@@ -389,40 +796,36 @@ function reduceState(
         const block = statement.nodes[1].nodes;
         block.length = 0;
 
-        const reduce_function = body?.reduce_function?.txt ?? "noop";
+        const reduce_function = body?.reduce_function?.txt;
 
         statements.push(statement);
 
         if (previous) {
             //REturn node if there is ?
-            block.push(
-                stmt(`const node = (_=>_)()`),
-                //stmt(`const node = (()=>{${reduce_function}})()`),
-                stmt("const v = env.lex.tx;"),
+            if (reduce_function) {
+                block.push(stmt(`const HAVE_FUNCT = true;`));
 
-                stmt(`return {p:null, v:null, type:"reduce"};`)
-            );
-            //open up the goto for the next state
-
-            //  if (!previous_state) console.log({ non_prev: state });
-            //
-            //  console.log(previous_state, item);
-
-            //   console.log({ goto_state });
+                block.push(stmt(`return {p:${production.id}, v:(s.splice(-${item.len}, ${item.len}, s[s.length-1]), s), type:"reduce"};`));
+            } else {
+                block.push(stmt(`return {p:${production.id}, v:(s.splice(-${item.len}, ${item.len}, s[s.length-1]), s), type:"reduce"};`));
+            }
 
         } else {
-            block.push(
-                stmt(`const node = (_=>_)()`),
-                // stmt(`const production = ${completed_item.getProduction(grammar).name}`),
-                stmt("const v = env.lex.tx;"),
-                //stmt("env.lex.next();"),
-                stmt(`return {p:null, v:null, type:"reduce"};`),
-            );
+
+            if (reduce_function) {
+                block.push(stmt(`const sym = s.slice(-${item.len});`));
+                // block.push(stmt(`console.log("B",{sym}, ${createReduceFunction(reduce_function)},  ${state.index})`));
+                block.push(stmt(`s.splice(-${item.len}, ${item.len}, ${createReduceFunction(reduce_function)})`));
+                // block.push(stmt(`console.log("B",{sym}, ${state.index})`));
+                block.push(stmt(`return {p:${production.id}, v:s, type:"reduce"};`));
+            } else {
+                block.push(stmt(`return {p:${production.id}, v:(s.splice(-${item.len}, ${item.len}, s[s.length-1]), s), type:"reduce"};`));
+            }
         }
     }
 
 
-    statements.push(...shiftState(state, states, grammar, ids));
+    statements.push(...shiftState(state, null, states, grammar, ids));
 
     return statements;
 }
@@ -464,137 +867,27 @@ function getLexPeekComparisonString(sym: Symbol, grammar: Grammar): string {
 //
 function integrateState(state: State, grammar: Grammar, id_nodes: any[]) {
 
-    const goto_stmt = stmt(`const { p, v:val } = State${state.index}(env);`);
+    const goto_stmt = stmt(`const { p:pval, v:val } = State${state.index}(env,s)`);
 
     const goto_id = goto_stmt.nodes[0].nodes[1].nodes[0];
 
     id_nodes[state.index].push(goto_id);
 
     return {
-        stmts: [goto_stmt],
+        stmts: [goto_stmt, stmt(`s = val, p = pval;`)],
         //The productions that the transition should reduce to eventually
-        productions: state.items.map(i => i.getProduction(grammar).id).filter((g, i, a) => a.indexOf(g) == i)
+        productions: state.items.map(i => i.getProduction(grammar).id).filter((g, i, a) => a.indexOf(g) == i),
+
+        bodies: state.items.map(i => i.body)
     };
     //}
 }
+/** UTILS */
 
 function isStatePurelyCompressible(state: State) {
     return state.PURE && state.HAS_COMPLETED_PRODUCTION && state.CONTAINS_ONLY_COMPLETE;
 }
 
-function createInlineReductions(state, states, grammar, previous_state) {
-
-}
-
-/**
- * TODO: Determine what meets the criteria of an inline parse
- * @param state 
- * @param states 
- * @param grammar 
- */
-function createInlineParse(state: State, states: State[], grammar: Grammar, previous_state: State, depth: number = 0, forced_sym = null): JSNode[] {
-
-    const statements: JSNode[] = [];
-
-    if (depth < 5) {
-
-        if (state.HAS_COMPLETED_PRODUCTION) {
-
-            for (const completed_item of getCompletedItems(state)) {
-
-                const follow_sym = completed_item.follow;
-                const item = completed_item;
-                const sym = follow_sym;
-                if (forced_sym && sym.val != follow_sym) continue;
-                const production = item.getProduction(grammar);
-                const body = item.body_(grammar);
-                const symbol_decode = getLexPeekComparisonString(sym, grammar);
-                const statement = extendAll(stmt(`if(${symbol_decode}, ${state.index}){;}`));
-                const block = statement.nodes[1].nodes;
-                block.length = 0;
-
-                const reduce_function = body?.reduce_function?.txt ?? "noop";
-
-
-                block.push(
-                    stmt(`const node = (()=>{${reduce_function}})()`),
-                    stmt("const v = env.lex.tx;")
-                );
-
-                statements.push(statement);
-
-                if (previous_state) {
-                    //open up the goto for the next state
-
-                    //  if (!previous_state) console.log({ non_prev: state });
-                    //
-                    //  console.log(previous_state, item);
-
-                    const goto_state = previous_state.maps.get(production.id) ?? [];
-
-                    for (const goto of goto_state) {
-
-                        if (goto == 1) {
-                            block.push(
-                                stmt(`return node`),
-                            );
-                        } else {
-                            block.push(...createInlineParse(states[goto], states, grammar, previous_state, depth + 1, sym.val));
-
-                        }
-                    }
-
-                    //   console.log({ goto_state });
-                }
-            }
-        }
-
-
-
-
-        for (const [key, value] of getShiftStates(state)) {
-
-            if (forced_sym && key !== forced_sym) continue;
-            // State starts transition, this continues until at end state. 
-            // collapse on end state and return
-
-            //Turns transition into a 
-            //get proceeding symbol
-
-            // /console.log({ key, value }, state);
-
-            const
-                new_state = states[value],
-                item = new_state.items[0].decrement(),
-                sym = item.sym(grammar),
-                production = item.getProduction(grammar),
-                statement = extendAll(stmt(`if(${getLexComparisonString(sym, grammar)}, ${state.index}){ state=${value};}`)),
-                block = statement.nodes[1].nodes;
-
-            statements.push(statement);
-            // if stmt => [1] block => [0]
-
-
-            //if the statement contains any reduce watch for that first.
-
-
-            //Always consume token;
-            block.push(
-                stmt("const v = env.lex.tx;"),
-                stmt("env.lex.next();"),
-            );
-
-
-
-
-            block.push(...createInlineParse(new_state, states, grammar, state, depth + 1));
-        }
-    }
-
-    return statements;
-}
-
-/** UTILS */
 function getCompletedItems(state: State) {
     return state.items.filter(e => e.atEND);
 }
@@ -611,7 +904,16 @@ function getNonTerminalTransitionStates(state: State): [string | number, number[
 function getStatesFromNumericArray(value: number[], states: State[]) {
     return value.map(i => states[i]);
 }
-/**
- * NEED function to handle the reduction of a string of transitions
- * into one set of statements. ?
- */
+function createReduceFunction(node_str: string): string {
+    const statement = extendAll(stmt(node_str));
+
+    if (statement.type == JSNodeType.ReturnStatement) {
+        return `${renderWithFormatting(statement.nodes[0])}`;
+    }
+
+    return `null`;
+}
+
+function getAllProductionIds(state: State, grammar: Grammar): number[] {
+    return [...new Set(state.items.map(m => m.getProduction(grammar).id)).values()];
+}

@@ -117,10 +117,18 @@ export class Item extends Array {
         const a = this.body_(grammar).sym
             .map(sym => sym.type == SymbolType.PRODUCTION ? { val: grammar[sym.val].name } : sym)
             //@ts-ignore
-            .flatMap((sym, i) => (i == this.offset) ? [".", SymbolToStringUnformatted(sym)] : SymbolToStringUnformatted(sym));
+            .flatMap((sym, i) => (i == this.offset) ? ["•", SymbolToStringUnformatted(sym)] : SymbolToStringUnformatted(sym));
         if (a.length == this.offset)
             a.push("•");
         return a.join(" ");
+    }
+
+    renderUnformattedWithProductionAndFollow(grammar: Grammar): string {
+        return this.renderUnformattedWithProduction(grammar) + "|" + this.follow.val;
+    }
+
+    renderUnformattedWithProduction(grammar: Grammar): string {
+        return this.body_(grammar).production.name + "=>" + this.renderUnformatted(grammar);
     }
 
     renderWithProduction(grammar: Grammar): string {
