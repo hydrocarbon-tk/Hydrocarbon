@@ -1,12 +1,9 @@
 import { Grammar, SymbolType, Symbol } from "../types/grammar.js";
-import { processClosure, Item, FIRST } from "../util/common.js";
+import { processClosure, Item, FIRST, getDerivedItems } from "../util/common.js";
 import { Lexer } from "@candlefw/wind";
 import { GrammarParserEnvironment } from "../types/grammar_compiler_environment";
 import { CompilerErrorStore } from "../lr/state_generation/compiler_error_store.js";
 import { stmt, renderWithFormatting, extendAll, JSNode, JSNodeType } from "@candlefw/js";
-import { ItemIndex } from "../util/item.js";
-import { k, u, e, P } from "@candlefw/wind/build/types/ascii_code_points";
-import { renderCompressed } from "@candlefw/conflagrate";
 import { Array } from "./array";
 
 
@@ -113,266 +110,258 @@ interface State {
     refs: number;
 }
 
-export function CompileLL(grammar: Grammar, env: GrammarParserEnvironment) {
-
-    console.log("A");
+export function CompileLLHybrid(grammar: Grammar, env: GrammarParserEnvironment) {
 
     const error = new CompilerErrorStore;
 
-    const production = grammar.map(p => {
+    const production_fns = grammar.map(p => {
 
-        const start_items = p.bodies.map(b => new Item(b.id, b.length, 0, { val: "$eof", precedence: 0, type: SymbolType.GENERATED, pos: new Lexer }));
+        const fn = stmt(`function $${p.name}(lex){const sym = [];}`);
 
-        function buildTransition(groups: Item[][][], state_depth: number = 0) {
+        const body = fn.nodes[2].nodes;
 
-            const stmts = [], shifts = [], reduces = [];
+        const start_items = p.bodies.map((b, i) => ({ index: b.id, off: 0, len: b.length, item: new Item(b.id, b.length, 0, { val: "$eof", precedence: 0, type: SymbolType.GENERATED, pos: new Lexer }) }));
 
-
-            for (const transition_group of groups) {
-
-                //Top Most item is the transition item
-                const first_group = transition_group[0],
-                    first_item = first_group[0];
-
-                console.log(first_item);
-
-                //This item is always a single terminal ????????????????????????????????????????????????????????????????
-                const if_statement = stmt(`if(${getLexComparisonString(first_item.sym(grammar), grammar)}){  }`);
-                const block = if_statement.nodes[1].nodes;
-                //Push the token on to the stack
-                block.push(stmt("sym.push(lex.tx);"));
-                block.push(stmt("advanceToken(lex);"));
-
-                for (const intermediate_items of transition_group.slice(1)) {
-                    //This item will need to be advanced and integrated into the block.
-
-                }
-
-                //Do the completion for the item.
-                const reduce_function = first_item.body_(grammar)?.reduce_function?.txt;
-                if (reduce_function) { block.push(stmt(`symd = [${createReduceFunction(reduce_function)}];`)); }
-                else {
-                };
-
-                stmts.push(if_statement);
+        const ItemGraph = { sym: null, groups: [] };
 
 
-                for (const item of first_group.slice(1)) {
-                    const reduce_function = item.body_(grammar)?.reduce_function?.txt;
-                    if (reduce_function) { block.push(stmt(`symd = [${createReduceFunction(reduce_function)}];`)); }
-                }
+        function addToMappedArray<T>(map: Map<any, T[]>, id: string | number, obj: T) {
+            if (!map.has(id))
+                map.set(id, []);
+            map.get(id).push(obj);
+        }
 
+        function renderGraph(items: { index: number, item: Item; }[], trs = new Map) {
+            let obs = new Map();
+
+            for (const obj of items) {
+                const { index, item } = obj;
+
+                if (!item.atEND) {
+                    const sym = item.sym(grammar);
+                    if (sym.type == "production") {
+                        // The item needs to go 
+                        addToMappedArray(obs, sym.val, obj);
+                    } else {
+                        // 
+                        addToMappedArray(trs, sym.val, obj);
+                    }
+                } else
+                    addToMappedArray(trs, item.follow.val, obj);
             }
 
-
-
-            /*
-            
-                        //It's action determines what happens with the rest of the groups.
-                        const sym = item.atEND ? item.follow : item.sym(grammar);
-            
-                        for (const transition_groups of groups) {
-                            //Go through the rest of the groups and create transitions.
-            
-                            //Top
-            
-                            //The first transition of each group is the same;
-                            const item: Item = transition_groups[0][0],
-                                new_groups = transition_groups.map(g => g.slice(1)).filter(g => g.length > 0).group(e => e[0].id).reverse().sort((a, b) => (b[0].atEND | 0) - (a[0].atEND | 0)),
-                                sym = item.atEND ? item.follow : item.sym(grammar);
-            
-                            let statement;
-            
-            
-                            if (sym.type == "production") {
-                                stmts.push(stmt(`"PROD ${item.renderUnformattedWithProduction(grammar)}"`));
-            
-                                statement = {
-                                    type: JSNodeType.Script,
-                                    nodes: [],
-                                };
-                                const
-                                    block = statement.nodes;
-            
-            
-            
-                                if (state_depth > 0) {
-            
-                                    if (item.atEND) {
-                                        shifts.push(stmt(`${"sym_end.push($" + (grammar[sym.val].name || "D")}(lex, sym))`));
-                                    }
-            
-                                    shifts.push(stmt(`${"sym.push($" + (grammar[sym.val].name || "D")}(lex, sym))`));
-            
-                                }
-            
-                                const new_items = transition_groups.flatMap(_ => _).map(i => i.increment());
-            
-                                block.push(buildRecursiveDescent(new_items, state_depth));
-            
-                                stmts.push(statement);
-            
-                            } else {
-                                if (item.atEND) {
-                                    stmts.push(stmt(`"END ${item.renderUnformattedWithProduction(grammar)}"`));
-            
-                                    statement = {
-                                        type: JSNodeType.Script,
-                                        nodes: [],
-                                    };
-                                    const
-                                        block = statement.nodes;
-            
-                                    if (state_depth == 0) {
-                                        shifts.push(stmt(`${"sym.push($" + (item.getProduction(grammar).name || "D")}(lex, sym))`));
-                                    } else {
-                                        const reduce_function = item.body_(grammar)?.reduce_function?.txt;
-            
-                                        if (reduce_function)
-                                            shifts.push(stmt(`sym = [${createReduceFunction(reduce_function)}];`));
-                                        else { };
-                                    }
-            
-                                    if (new_groups.length > 0)
-                                        reduces.push(...buildTransition(new_groups, state_depth, state, states));
-            
-                                    stmts.push(statement);
-                                } else if (sym.val) {
-                                    stmts.push(stmt(`"VAL ${item.renderUnformattedWithProduction(grammar)}"`));
-            
-                                    statement = stmt(`if(${getLexComparisonString(sym)}){  }`);
-            
-                                    const   block = statement.nodes[1].nodes;
-            
-                                    if (state_depth > 0) {
-            
-                                        const reduce_function = item.body_(grammar)?.reduce_function?.txt;
-            
-                                        console.log(reduce_function, item.renderUnformattedWithProduction(grammar));
-            
-                                        if (reduce_function) {
-            
-                                            //shifts.push(stmt(`symd = [${createReduceFunction(reduce_function)}];`));
-                                        }
-                                        else { };
-            
-                                        block.push(stmt(`symd.push(advance_lex(lex))`));
-                                    }
-            
-                                    const new_items = transition_groups.flatMap(_ => _).map(i => i.increment());
-            
-                                    block.push(buildRecursiveDescent(new_items, state_depth));
-            
-                                    stmts.push(statement);
-                                }
-            
-                                if (!item.atEND && item.increment().atEND) {
-                                    reduces.push(stmt("return sym.pop()"));
-                                }
-                            }
-            
-            
-                            // /console.log({ l: new_groups.map(i => i.map(i => i.map(i => i.renderUnformattedWithProductionAndFollow(grammar)))) });
+            if (obs.size > 0) {
+                const items = [];
+                for (const [key, vals] of obs.entries()) {
+                    for (const val of vals) {
+                        for (const item of getDerivedItems([val.item], grammar, error)) {
+                            //get the val's next order closure;
+                            items.push({
+                                index: val.index,
+                                off: val.off,
+                                len: val.len,
+                                item
+                            });
                         }
-            
-                        if (groups.length == 1 && groups[0].length == 1 && groups[0][0].length == 1 && state_depth > 0) {
-                            //   /  console.log({ l: groups.map(i => i.map(i => i.map(i => i.renderUnformattedWithProductionAndFollow(grammar)))) });
-                            reduces.push(stmt("return sym.pop()"));
-                        }
-                        */
-
-            return [...stmts, ...shifts, ...reduces];
-
-
-        }
-
-        function buildRecursiveDescent(items: Item[], state_depth: number = 0) {
-
-            let statement, block;
-
-            statement = {
-                type: JSNodeType.Script,
-                nodes: [],
-            };
-            block = statement.nodes;
-
-
-
-
-            //sort items
-
-            const groups = items
-                .sort((a, b) => a.body - b.body)
-                .sort((a, b) => a.len - b.len)
-                .sort((a, b) => a.getProduction(grammar).id == b.sym(grammar)?.val ? 1 : b.getProduction(grammar).id == a.sym(grammar)?.val ? -1 : 0)
-                .reverse()
-                .setFilter(e => e.id)
-                //Sort items into groups based on the FIRST terminal 
-                .group(e => FIRST(grammar, (<Item>e).sym(grammar)).map(s => s.val))
-                //Append to the end of the productions the 
-                .map(e => e.map((e, i, a) => {
-                    let p = (<Item>e).getProduction(grammar).id;
-                    let arr = [e];
-
-                    outer:
-                    while (true) {
-
-                        for (const i of (<Item[]>a)) {
-                            if (i.len == 1) {
-                                const sym = i.sym(grammar);
-                                if (sym.type == "production" && sym.val == p) {
-                                    arr.push(i.increment());
-                                    p = i.getProduction(grammar).id;
-                                    continue outer;
-                                }
-                            }
-                        }
-                        break;
                     }
-                    return arr;
-                })
-                    //Get rid of trailing 1 len productions.
-                    //.filter((a, i) => i == 0 || a[0].len > 1)
-                );
-            //.group(e => e[0].id);
+                }
+                renderGraph(items, trs);
+            } else {// No conflicts, add the production to the last entry
+                for (const [key, vals] of obs.entries())
+                    trs.set(key, vals);
+            }
 
-            /** Result
-             *  Transitions [
-             *      Transitions on id [
-             *      ]
-             *      Transitions on num [
-             *         First completion [] -> Second completed 1 len -> ...
-             *      ]
-             * 
-             *  ]
-             */
-
-            console.log(groups.map(
-                i => i.map(
-                    //i => i.map(
-                    i => i.map(i => i.renderUnformattedWithProductionAndFollow(grammar, state_depth))
-                    //  )
-                )
-            ));
-
-            console.log(groups.map((i => i.map(i => i.map(i => i.renderUnformattedWithProductionAndFollow(grammar, state_depth))))));
-
-            block.push(...buildTransition(groups));
-
-            return statement;
+            return trs;
         }
 
-        processClosure(start_items, grammar, error, []);
+        const trs = renderGraph(start_items);
 
-        console.log(`$${p.name}(){ \n const sym = []; \n${renderWithFormatting(buildRecursiveDescent(start_items))}}`);
+        function renderItem(item: Item): JSNode[] {
+            const stmts = [];
 
-        return null;
+            while (true) {
+                if (item.atEND) {
+                    const body = item.body_(grammar);
+                    const reduce_function = body?.reduce_function?.txt;
+
+                    if (reduce_function) {
+                        stmts.push(stmt(`return (${createReduceFunction(reduce_function)});`));
+                    } else
+                        stmts.push(stmt(`return (sym.pop())`));
+
+                    break;
+                } else {
+                    const sym = item.sym(grammar);
+                    if (sym.type == "production")
+                        stmts.push(stmt(`sym.push($${grammar[sym.val].name}(lex))`));
+                    else
+                        stmts.push(stmt(`sym.push(assertAndAdvance(lex, ${getLexComparisonStringNoEnv(sym, grammar)}))`));
+                }
+                item = item.increment();
+            }
+
+            return stmts;
+        }
+
+        function renderVals(trs, depth = 0) {
+            const stmts = [];
+
+            let i = 0;
+
+            for (const [key, vals] of trs.entries()) {
+
+                const sym = vals[0].item.sym(grammar);
+
+                let if_stmt = stmt(`if(${getLexComparisonStringNoEnv(sym, grammar)}){;}`),
+                    if_body = if_stmt.nodes[1].nodes;
+
+                stmts.push(if_stmt);
+
+                //console.log({ key, val });
+                // The first set of entries represent the general transition terms
+                // That can be present. Any clashes with this items are resolved through
+                // Peeking
+                //If 
+
+                if (vals.length > 0) {
+                    //group the vals based on the follow. 
+                    const groups = vals.group(i => i.item.follow.val);
+                    let i = 0;
+
+                    //the peeking groups
+                    for (const group of groups) {
+                        const follow = group[0].item.follow;
+                        let if_stmt, peek_body;
+
+                        if (i < groups.length - 1) {
+                            let if_stmt = stmt(`if(${getLexComparisonStringPeekNoEnv(follow, grammar)}){;}`);
+                            if_body.push(if_stmt);
+                            peek_body = if_stmt.nodes[1].nodes;
+                        } else {
+                            peek_body = if_body;
+                        }
+
+
+                        if (group.length > 1) {
+
+                        } else {
+                            const v = group[0];
+                            const item = new Item(v.index, v.len, v.off, { val: "$eof", precedence: 0, type: SymbolType.GENERATED, pos: new Lexer });
+                            peek_body.push(...renderItem(item));
+                        }
+                        i++;
+                    }
+
+                    // console.log({ groups });
+                    for (const val of vals) {
+
+                    }
+                }
+
+
+
+                // 
+                continue;
+                if (typeof key == "number") {
+                    //Default Path
+                    const bodies = val.setFilter(i => i.index);
+                    const items = bodies.map(b => new Item(b.index, b.len, b.off, b.item.follow));
+                    const sym = items[0].atEND ? items[0].follow : items[0].sym(grammar);
+                    stmts.push(stmt(`sym.push($${grammar[sym.val].name}(lex))`));
+
+                    stmts.push(
+                        ...renderVals(
+                            renderGraph(items.filter(i => !i.atEND).map(i => {
+                                const inc: Item = i.increment();
+                                return { index: inc.body, off: inc.offset, len: inc.len, item: inc };
+                            })
+                            ), depth + 1
+                        )
+                    );
+                } else {
+                    const sym = val[0].item.atEND ? val[0].item.follow : val[0].item.sym(grammar);
+
+                    const
+                        if_stmt = stmt(`var c${depth} = lex.copy(); if(${getLexComparisonStringNoEnv(sym, grammar)}){}}catch(e){lex.sync(c${depth}); }`),
+                        if_body = if_stmt.nodes[0].nodes[1].nodes[1].nodes,
+                        bodies = val.setFilter(i => i.index),
+                        items = bodies.map(b => new Item(b.index, b.len, b.off, b.item.follow)),
+                        item: Item = items[0];
+
+                    if (item.atEND) {
+                        let end_body = if_body;
+
+                        if (items.length > 1) {
+                            let if_stmt = stmt(`if("${key}"){;}`);
+                            end_body = if_stmt.nodes[1].nodes,
+                                if_body.push(if_stmt);
+                        }
+
+                        const body = item.body_(grammar);
+                        const production = item.getProduction(grammar);
+                        const reduce_function = body?.reduce_function?.txt;
+
+
+                        if (reduce_function) {
+                            end_body.push(stmt(`return (${createReduceFunction(reduce_function)});`));
+                        } else
+                            end_body.push(stmt(`return (sym.pop())`));
+                    } else {
+                        const sym = item.sym(grammar);
+                        if (sym.type == "production")
+                            if_body.push(stmt(`sym.push($${grammar[sym.val].name}(lex))`));
+                        else
+                            if_body.push(stmt(`sym.push(assertAndAdvance(lex, ${getLexComparisonStringNoEnv(sym, grammar)}))`));
+                    }
+
+                    if_body.push(
+                        ...renderVals(
+                            renderGraph(items.filter(i => !i.atEND).map(i => {
+                                const inc: Item = i.increment();
+                                return { index: inc.body, off: inc.offset, len: inc.len, item: inc };
+                            })
+                            ), depth + 1
+                        )
+                    );
+
+                    if (trs.size > 1 && i < trs.size - 1)
+                        stmts.push(if_stmt);
+                    else
+                        stmts.push(...if_body);
+                }
+
+                i++;
+            }
+
+            return stmts;
+        }
+
+        body.push(...renderVals(trs));
+
+        return renderWithFormatting(fn);
     });
+
+    const parser = `
+
+    function assertAndAdvance(lex, bool){
+        const v = lex.tx;
+        if(bool) lex.next();
+        else lex.throw("Unexpected Token");
+        return v;
+    }
+    ${production_fns.join("\n")};
+    return function(lexer){
+        const states = [];
+        return $${grammar[0].name}(lexer);
+
+    }`;
+
+    //console.log(parser);
+
+    return Function(parser)();;
 }
 
 export function CompileHybrid(grammar: Grammar, env: GrammarParserEnvironment) {
-
-    CompileLL(grammar, env);
 
     const error = new CompilerErrorStore;
     const start_state: State = {
@@ -809,6 +798,40 @@ function reduceState(
     statements.push(...shiftState(state, null, states, grammar, ids));
 
     return statements;
+}
+function getLexComparisonStringNoEnv(sym: Symbol, grammar: Grammar): string {
+    switch (sym.type) {
+        case SymbolType.GENERATED:
+            if (sym.val == "$eof")
+                return `lex.END`;
+            return `lex.ty == ${Lexer.types[sym.val]}`;
+        case SymbolType.LITERAL:
+        case SymbolType.ESCAPED:
+        case SymbolType.SYMBOL:
+            return `lex.tx == "${sym.val}"`;
+        case SymbolType.END_OF_FILE:
+            return `lex.END`;
+        case SymbolType.EMPTY:
+            return "true";
+    }
+}
+
+function getLexComparisonStringPeekNoEnv(sym: Symbol, grammar: Grammar, pk_depth: number = 1): string {
+    const pk = "pk.".repeat(pk_depth);
+    switch (sym.type) {
+        case SymbolType.GENERATED:
+            if (sym.val == "$eof")
+                return `lex.${pk}END`;
+            return `lex.${pk}ty == ${Lexer.types[sym.val]}`;
+        case SymbolType.LITERAL:
+        case SymbolType.ESCAPED:
+        case SymbolType.SYMBOL:
+            return `lex.${pk}tx == "${sym.val}"`;
+        case SymbolType.END_OF_FILE:
+            return `lex.${pk}END`;
+        case SymbolType.EMPTY:
+            return "true";
+    }
 }
 
 

@@ -1,0 +1,18 @@
+
+@SYMBOL + *
+
+@IGNORE θws θnl
+
+<> S > stmts
+
+<> stmts > expr         f:r{  [$sym1]  }
+    | stmts ; expr      f:r{  $sym1.concat($sym3)  }
+
+<> expr > B + expr      f:r{  { sym:"+", a:$sym1, b:$sym3 }   }
+    | B
+
+<> B > R * expr 		f:r{  { sym:"+", a:$sym1, b:$sym3 }   }
+	| R
+
+<> R > g:num
+    | g:id

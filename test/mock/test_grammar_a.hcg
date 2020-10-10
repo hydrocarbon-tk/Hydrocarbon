@@ -5,10 +5,10 @@
 
 <> S > A		
 
-<> A > R * B 		f:r{  { sym:"*", a:$sym1, b:$sym2 }   }
+<> A > R * B 		f:r{  { sym:"*", a:$sym1, b:$sym3 }   }
 	| B
 
-<> B > R + A 		f:r{  { sym:"+", a:$sym1, b:$sym2 }   }
+<> B > R + A 		f:r{  { sym:"+", a:$sym1, b:$sym3 }   }
 	| R
 
 <> R > g:num
