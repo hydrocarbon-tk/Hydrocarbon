@@ -53,7 +53,8 @@ export class Item extends Array {
     follow: Symbol;
 
     constructor(body_id: number, length: number, offset: number, follow: Symbol) {
-        super(...[body_id, length, offset]);
+        //@ts-ignore
+        super(body_id, length, offset);
 
         this.follow = follow;
 

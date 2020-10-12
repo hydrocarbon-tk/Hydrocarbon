@@ -6,12 +6,14 @@
 <> S > stmts
 
 <> stmts > expr         f:r{  [$sym1]  }
-    | stmts ; expr      f:r{  $sym1.concat($sym3)  }
+    | stmts f:^asi ; expr      f:r{  $sym1.concat($sym3)  }
 
 <> expr > B + expr      f:r{  { sym:"+", a:$sym1, b:$sym3 }   }
+    | t:for \( expr \) t:do expr          f:r{  { sym:"for do", a:$sym3, b:$sym6 }   }
+    | t:for \( expr \) { expr  }        f:r{  { sym:"for", a:$sym3, b:$sym6 }   }
     | B
 
-<> B > R * expr 		f:r{  { sym:"+", a:$sym1, b:$sym3 }   }
+<> B > R * expr 		f:r{  { sym:"*", a:$sym1, b:$sym3 }   }
 	| R
 
 <> R > g:num

@@ -16,6 +16,8 @@ export enum SymbolType {
     END_OF_FILE = "eof"
 }
 
+export const EOF_SYM: Symbol = { val: "$eof", precedence: 0, type: SymbolType.GENERATED };
+
 /**
  * Grammar Symbols
 */
@@ -34,7 +36,7 @@ export interface Symbol {
     RESOLVED?: boolean;
     production?: Production;
     resolveFunction?: () => void;
-    pos: Lexer;
+    pos?: Lexer;
 }
 
 export interface ProductionBodyFunction {

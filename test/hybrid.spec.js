@@ -1,6 +1,6 @@
 import { compileGrammars, lrParse } from "@candlefw/hydrocarbon";
 import URL from "@candlefw/url";
-import { CompileHybrid, CompileLLHybrid } from "../build/library/hybrid/hybrid_compiler.js";
+import { CompileHybrid, renderLLFN } from "../build/library/hybrid/hybrid_compiler.js";
 import parse_data from "./mock/test_grammar_b.js";
 import { Lexer } from "@candlefw/wind";
 
@@ -8,7 +8,8 @@ const url = await URL.resolveRelative("./mock/test_grammar_b.hcg");
 
 const file = await url.fetchText();
 
-const test_string = "a*b;a+b*2";
+const test_string = `a*b; sa \n +b*2+3;a+b*254+3;a+b*2+3;a+b*2+3*4;a+b
+ *254+3;a+b*2+3;a+b*2+3*4;a+b *254+3;a+b*2+3;a+b*2+3*4;a+b`;
 
 assert_group(() => {
 
@@ -20,14 +21,10 @@ assert_group(() => {
         to a new state;
     */
     const parserLR = CompileHybrid(grammar);
-    //const parserLL = CompileLLHybrid(grammar);
+    const parserLL = renderLLFN(grammar);
 
-    //assert(lrParse(test_string, parse_data).value == parserLR(new Lexer(test_string))[0]);
+    assert(lrParse(test_string, parse_data).value == parserLR(new Lexer(test_string)));
     //assert(lrParse(test_string, parse_data).value == parserLL(new Lexer(test_string)));
-    assert(parserLR);
-    // harness.markTime();
-    assert(parserLR(new Lexer(test_string)) == "");
-    // harness.getTime("hybrid LR");
 
     //harness.markTime();
     //assert(parserLL(new Lexer(test_string)) == "");
@@ -36,6 +33,10 @@ assert_group(() => {
     harness.markTime();
     assert(lrParse(test_string, parse_data) == "");
     harness.getTime("LALR");
+
+    harness.markTime();
+    assert(parserLR(new Lexer(test_string)) == "");
+    harness.getTime("hybrid");
 
     // assert(parser() == "");
 }, sequence);

@@ -1,18 +1,19 @@
+import { FIRST } from "./first.js";
+import { Grammar, Symbol, SymbolType, EOF_SYM } from "../types/grammar.js";
+
 //@ts-nocheck
 export const EMPTY_PRODUCTION = "{!--EMPTY_PRODUCTION--!}";
 
-export const isNonTerm = (f) => f.type == "production";
-
-import { FIRST } from "./first.js";
+export const isNonTerm = (f: Symbol) => f.type == "production";
 
 const merge = (follow, first) => {
     first.forEach((v) => {
         if (v !== EMPTY_PRODUCTION)
-            follow.add(v);
+            follow.set(v.val, v);
     });
 };
 
-export function FOLLOW(grammar, production) {
+export function FOLLOW(grammar: Grammar, production: number) {
 
     const
         prod = grammar[production],
@@ -21,40 +22,41 @@ export function FOLLOW(grammar, production) {
     if (prod.follow) return grammar[production].follow;
 
     for (let i = 0; i < grammar.length; i++) {
-        grammar[i].follow = new Set();
+        grammar[i].follow = new Map();
         table.push(grammar[i].follow);
     }
 
-    table[0].add("$eof"); //End of Line
+    table[0].set("$eof", EOF_SYM); //End of Line
 
     for (let i = 0; i < grammar.length; i++) {
+
         const production = grammar[i];
 
         for (let i = 0; i < production.bodies.length; i++) {
+
             const body = production.bodies[i];
 
             for (let i = 0; i < body.length; i++) {
-                const val = body[i];
+
+                const val = body.sym[i];
 
                 if (isNonTerm(val)) {
 
-                    const follow = table[val];
+                    const follow = table[val.val];
 
                     for (var j = i + 1; j < body.length; j++) {
 
-                        const
-                            val = body[j],
-                            body_index = i;
+                        const sym = body.sym[j];
 
-                        if (isNonTerm(val)) {
+                        if (isNonTerm(sym)) {
 
-                            merge(follow, FIRST(grammar, val));
+                            merge(follow, FIRST(grammar, sym));
 
-                            if (new Set(FIRST(grammar, val)).has(EMPTY_PRODUCTION))
+                            if (new Set(FIRST(grammar, sym)).has(EMPTY_PRODUCTION))
                                 continue;
                         } else {
-                            if (val !== EMPTY_PRODUCTION)
-                                follow.add(val);
+                            if (sym.type != SymbolType.EMPTY)
+                                follow.set(sym.val, sym);
                         }
                         break;
                     }
@@ -74,14 +76,14 @@ export function FOLLOW(grammar, production) {
 
             for (let i = body.length; i > 0; i--) {
 
-                const val = body[i - 1];
+                const sym = body.sym[i - 1];
 
-                if (isNonTerm(val)) {
+                if (isNonTerm(sym)) {
 
-                    if (val !== production_index)
-                        merge(table[val], table[production_index]);
+                    if (sym.val !== production_index)
+                        merge(table[sym.val], table[production_index]);
 
-                    if (new Set(FIRST(grammar, val)).has(EMPTY_PRODUCTION))
+                    if (new Set(FIRST(grammar, sym)).has(EMPTY_PRODUCTION))
                         continue;
                 }
 
@@ -89,8 +91,6 @@ export function FOLLOW(grammar, production) {
             }
         }
     }
-
-
 
     return prod.follow;
 }
