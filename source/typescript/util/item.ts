@@ -189,4 +189,18 @@ export class Item extends Array {
     toString(): string {
         return this.id;
     }
+
+    getFunctions(grammar: Grammar) {
+        const body = this.body_(grammar);
+
+        if (this.atEND) {
+            return body.functions.filter(fn => {
+                return fn.offset >= this.offset;
+            });
+        } else {
+            return body.functions.filter(fn => {
+                return fn.type == "INLINE" && fn.offset == this.offset;
+            });
+        }
+    }
 }

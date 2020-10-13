@@ -5,7 +5,6 @@ import { stmt, extendAll, JSNode } from "@candlefw/js";
 import {
     createReduceFunction,
     getNonTerminalTransitionStates,
-    getAllProductionIds,
     integrateState,
     getLexPeekComparisonString,
     getShiftStates,
@@ -17,6 +16,7 @@ import {
 import { State } from "./State";
 import { Symbol } from "../../../build/types/types/grammar.js";
 import { LLProductionFunction } from "./LLProductionFunction.js";
+import { insertFunctions } from "./insertFunctions.js";
 export interface States {
     states: State[];
     map: Map<string, State>;
@@ -333,6 +333,9 @@ function shiftState(
                 block = statement.nodes[1].nodes,
                 production = yield_map.get(sym.val);
 
+
+            statements.push(...insertFunctions(item, grammar));
+
             statements.push(statement);
 
             if (ll_fns && ll_fns[production] && !ll_fns[production].L_RECURSION) {
@@ -351,7 +354,7 @@ function shiftState(
             //Get skips from grammar - TODO get symbols from bodies / productions
             const skip_symbols = grammar.meta.ignore.flatMap(d => d.symbols);
 
-            block.push(stmt(`s.push(aaa(lex, e, [${skip_symbols.map(translateSymbolValue).join(",")}]));`));
+            block.push(stmt(`s.push(aaa(lex, e, e.eh, [${skip_symbols.map(translateSymbolValue).join(",")}]));`));
 
             state.reachable.add(shift_to_state.index);
 
@@ -450,8 +453,6 @@ function compileState(
 
     return statements;
 }
-
-
 
 export function renderState(
     state: State,

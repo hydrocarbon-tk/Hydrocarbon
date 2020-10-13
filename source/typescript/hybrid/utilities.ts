@@ -10,6 +10,7 @@ Array.prototype.groupMap = function <T>(this: Array<T>, fn: (T) => (string | num
     const groups: Map<number | string, T[]> = new Map;
 
     this.forEach(e => {
+        
         const id = fn(e);
 
         for (const ident of Array.isArray(id) && id || [id]) {

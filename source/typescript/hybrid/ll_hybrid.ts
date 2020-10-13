@@ -7,6 +7,7 @@ import fs from "fs";
 import { LLProductionFunction } from "./LLProductionFunction";
 import { LLItem } from "./LLItem";
 import { getClosureTerminalSymbols } from "./getClosureTerminalSymbols.js";
+import { insertFunctions } from "./insertFunctions.js";
 
 
 function checkForLeftRecursion(p: Production, start_items: Item[], grammar: Grammar) {
@@ -44,6 +45,8 @@ function BodyToLLItem(b: ProductionBody, grammar: Grammar): LLItem {
 function renderItemSym(item: Item, grammar: Grammar): JSNode[] {
     const stmts = [];
 
+    stmts.push(...insertFunctions(item, grammar));
+
     if (item.atEND) {
         const body = item.body_(grammar);
         const reduce_function = body?.reduce_function?.txt;
@@ -51,7 +54,7 @@ function renderItemSym(item: Item, grammar: Grammar): JSNode[] {
         if (reduce_function) {
             stmts.push(stmt(`return (${createReduceFunction(reduce_function)});`));
         } else
-            stmts.push(stmt(`return (sym.pop())`));
+            stmts.push(stmt(`return sym.pop();`));
     } else {
         const sym = item.sym(grammar);
 
@@ -62,7 +65,7 @@ function renderItemSym(item: Item, grammar: Grammar): JSNode[] {
             //Get skips from grammar - TODO get symbols from bodies / productions
             const skip_symbols = grammar.meta.ignore.flatMap(d => d.symbols);
 
-            stmts.push(stmt(`sym.push(aaa(lex, e, [${skip_symbols.map(translateSymbolValue).join(",")}]));`));
+            stmts.push(stmt(`sym.push(aaa(lex, e, e.eh, skips, ${translateSymbolValue(sym)}));`));
         }
     }
 
@@ -194,6 +197,10 @@ function renderVals(trs: LLItem[], grammar: Grammar, peek_depth: number = 0) {
 
         const try_groups: Map<string, TransitionGroup[]> = new Map();
 
+        if (peek_depth > 0) {
+            stmts.push(stmt(`const pk = lex.${"pk".repeat(peek_depth)};`));
+        }
+
         // Determine if these groups are unique - This means 
         // Their ids do not contain ids of other groups. 
         // If they do, they need to be wrapped into try groups
@@ -222,12 +229,27 @@ function renderVals(trs: LLItem[], grammar: Grammar, peek_depth: number = 0) {
                     trs = group.trs,
                     syms = [...group.syms.values()];
 
-                let if_stmt;
+                let if_stmt, lex = "lex";
 
                 if (peek_depth > 0)
-                    if_stmt = stmt(`if(${syms.map(s => getLexComparisonStringPeekNoEnv(sym_map.get(s), grammar)).join(" || ")}){}`);
-                else
-                    if_stmt = stmt(`if(${syms.map(s => getLexComparisonString(sym_map.get(s), grammar)).join(" || ")}){}`);
+                    lex = "pk";
+
+                const
+                    skip_symbols = grammar.meta.ignore.flatMap(d => d.symbols),
+                    skip_sym = skip_symbols.map(translateSymbolValue).join(","),
+                    tx_syms = syms.map(s => sym_map.get(s)).filter(s => !(s.type == "generated" || s.val == "0xFF")).map(translateSymbolValue).join(","),
+                    ty_syms = syms.map(s => sym_map.get(s)).filter(s => (s.type == "generated" || s.val == "0xFF")).map(translateSymbolValue).join(","),
+                    out = [];
+                // console.log({ tx_syms, ty_syms, sym_map });
+                if (tx_syms.length > 0) {
+                    out.push(`chk_tx(${lex}, e, e.eh, skips, ${tx_syms})`);
+                } if (ty_syms.length > 0) {
+                    out.push(`chk_ty(${lex}, e, e.eh, skips, ${ty_syms})`);
+                }
+
+
+                if_stmt = stmt(`if(${out.join("||")}){}`);
+
 
                 const if_body = if_stmt.nodes[1].nodes;
 

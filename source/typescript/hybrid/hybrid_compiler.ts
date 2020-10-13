@@ -2,8 +2,8 @@ import { Grammar } from "../types/grammar.js";
 import { GrammarParserEnvironment } from "../types/grammar_compiler_environment";
 import fs from "fs";
 import { GetLLHybridFunctions } from "./ll_hybrid.js";
-import { renderWithFormatting, stmt, JSNodeType, JSNode } from "@candlefw/js";
-import { CompileHybridLRStates, renderStates, renderState, IntegrateState, States, markReachable } from "./lr_hybrid.js";
+import { renderWithFormatting, JSNode } from "@candlefw/js";
+import { CompileHybridLRStates, renderStates, IntegrateState, States } from "./lr_hybrid.js";
 
 export function renderLLFN(grammar: Grammar, env: GrammarParserEnvironment) {
 
@@ -104,17 +104,26 @@ function createPos(lex, off){
     return copy;
 }
 
-function lm(lex, syms) {
-    for (const sym of syms) {
-        if (typeof sym == "number") {
-            if (sym == 0xFF && lex.END) return true;
-            else if (lex.ty == sym) return true;
-        } else if (lex.tx == sym) return true;
-    }
+function lm(lex, syms) { 
+    for (const sym of syms) 
+        switch (typeof sym) {
+            case "number":
+                if (sym == 0xFF && lex.END) return true;  
+                if (lex.ty == sym) return true; 
+                break;
+            case "string":
+                if (lex.tx == sym) return true
+                break;
+        }
     return false;
 }
+
+
+function lm_ty(lex, syms) {for (const sym of syms)  if (sym == 0xFF && lex.END) return true;  else if (lex.ty == sym) return true; return false;}
+
+function lm_tx(lex, syms) {  for (const sym of syms) if (lex.tx == sym) return true; return false; }
     
-function aaa(lex, e, skips, ...syms) {
+function aaa(lex, e, eh, skips, ...syms) {
     if (syms.length == 0 || lm(lex, syms)) {
         const val = lex.tx;
         lex.next();
@@ -126,12 +135,67 @@ function aaa(lex, e, skips, ...syms) {
     }
 }
 
+function aaa_tx(lex, e, eh, skips, ...syms) {
+    if (syms.length == 0 || lm_tx(lex, syms)) {
+        const val = lex.tx;
+        lex.next();
+        if (skips) while (lm(lex, skips)) lex.next();
+        return val;
+    } else {
+        //error recovery
+        const tx = handleError();
+    }
+}
+
+function aaa_ty(lex, e, eh, skips, ...syms) {
+    if (syms.length == 0 || lm_ty(lex, syms)) {
+        const val = lex.tx;
+        lex.next();
+        if (skips) while (lm(lex, skips)) lex.next();
+        return val;
+    } else {
+        //error recovery
+        //const tx = handleError();
+    }
+}
+
+function chk_tx(lex, e, eh, skips, ...syms) {
+    if (lm_tx(lex, syms)) {
+        return true;
+    } else {
+        //error recovery
+        if(eh) {
+            eh(lex, e);
+            return chk_tx(lex, e, null, skips, ...syms);
+        }
+    }
+    return false;
+}
+
+function chk_ty(lex, e, eh, skips, ...syms) {
+    if (lm_ty(lex, syms)) {
+        return true;
+    } else {
+        //error recovery
+        if(eh) {
+            eh(lex, e);
+            return chk_ty(lex, e, null, skips, ...syms);
+        }
+    }
+    return false;
+}
+
+const skips = [8,256];
+
 ${ fns.map(fn => renderWithFormatting(fn)).join("\n\n")};
 
-return function(lexer){
+return function(lexer, env = {
+    eh: (lex, e)=>{},
+    asi: (lex, env, s) => {}
+}){
     const states = [];
     lexer.IWS = false;
-    const result =  $${grammar[0].name}(lexer);
+    const result =  $${grammar[0].name}(lexer, env);
     if(!lexer.END) lexer.throw(\`Unexpected token [\${lexer.tx}]\`);
     return result;
 }`;
