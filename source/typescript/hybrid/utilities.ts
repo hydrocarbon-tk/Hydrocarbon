@@ -10,7 +10,7 @@ Array.prototype.groupMap = function <T>(this: Array<T>, fn: (T) => (string | num
     const groups: Map<number | string, T[]> = new Map;
 
     this.forEach(e => {
-        
+
         const id = fn(e);
 
         for (const ident of Array.isArray(id) && id || [id]) {
@@ -119,13 +119,13 @@ export function integrateState(state: State, states: State[], grammar: Grammar, 
     }
 
     const
-        goto_stmt = stmt(`const { p:pval, v:val } = State${state.index}(lex, e, s)`),
+        goto_stmt = stmt(`s = State${state.index}(lex, e, s)`),
         goto_id = goto_stmt.nodes[0].nodes[1].nodes[0];
 
     id_nodes[state.index].push(goto_id);
 
     return {
-        stmts: [goto_stmt, stmt(`s = val, p = pval;`)],
+        stmts: [goto_stmt/*, stmt(`s = val, p = pval;`)*/],
         //The productions that the transition should reduce to eventually
         productions: [...state.origins.values()].flatMap(_ => _),
 

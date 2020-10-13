@@ -240,7 +240,7 @@ function gotoState(
 
         //sort goto in order
         const
-            while_block = stmt(`while(1){ let a = false; }`),
+            while_block = stmt(`while(1 ){ let a = false; }`),
             while_block_fn = while_block.nodes[1].nodes;
 
         statements.push(while_block);
@@ -250,7 +250,7 @@ function gotoState(
             if (!active_productions.has(key)) continue;
 
             const
-                statement = stmt(`if(p == ${key}){a = true;}`),
+                statement = stmt(`if(e.p == ${key}){a = true;}`),
                 block = statement.nodes[1].nodes;
 
             for (const st of val.map(i => states[i])) {
@@ -276,9 +276,9 @@ function gotoState(
         let def;
 
         if (tests.length == 0)
-            def = stmt(`if(lex.END) return ${HYBRID ? "s.pop()" : "{p, v:s}"}`);
+            def = stmt(`if(lex.END) return ${HYBRID ? "s.pop()" : "s"}`);
         else
-            def = stmt(`if(${(tests.join("||"))}) return ${HYBRID ? "s.pop()" : "{p, v:s}"}`);
+            def = stmt(`if(true||${(tests.join("||"))}) return ${HYBRID ? "s.pop()" : "s"}`);
 
         while_block_fn.push(def);
 
@@ -344,7 +344,7 @@ function shiftState(
 
                 block.push(stmt(`s.push($${grammar[production].name}(lex, e))`));
 
-                block.push(stmt(`p = ${production};`));
+                block.push(stmt(`e.p = ${production};`));
 
                 active_productions.add(production);
 
@@ -367,7 +367,7 @@ function shiftState(
             if (HYBRID)
                 block.push(stmt(`return s.pop();`));
             else
-                block.push(stmt(`return {p:p, v:s, type:"shift"};`));
+                block.push(stmt(`return s;`));
         }
     }
 
@@ -415,9 +415,9 @@ function reduceState(
 
             block.push(stmt(`s.splice(-${item.len}, ${item.len}, ${createReduceFunction(reduce_function)})`));
 
-            block.push(stmt(`return {p:${production.id}, v:s, type:"reduce"};`));
+            block.push(stmt(`return (e.p = ${production.id}, s);`));
         } else {
-            block.push(stmt(`return {p:${production.id}, v:(s.splice(-${item.len}, ${item.len}, s[s.length-1]), s), type:"reduce"};`));
+            block.push(stmt(`return (e.p=${production.id}, (s.splice(-${item.len}, ${item.len}, s[s.length-1]), s));`));
         }
     }
 
@@ -469,11 +469,11 @@ export function renderState(
 
     const
         //fn = stmt(`function State${state.index}(lex, e, s = [], p = -1){\`${str.join("\n")}\`; ;}`),
-        fn = stmt(`function ${state.name ? state.name : "State" + state.index}(lex, e, s = [], p = -1){;}`),
+        fn = stmt(`function ${state.name ? state.name : "State" + state.index}(lex, e, s = []){e.p=-1;}`),
         fn_id = fn.nodes[0],
         fn_body_nodes = fn.nodes[2].nodes;
 
-    fn_body_nodes.pop(); //get rid of empty statement
+    //fn_body_nodes.pop(); //get rid of empty statement
     id_nodes[state.index].push(fn_id);
     fn_body_nodes.push(...compileState(state, states.states, grammar, id_nodes, ll_fns, HYBRID));
 
@@ -481,7 +481,7 @@ export function renderState(
     if (HYBRID)
         fn_body_nodes.push(stmt(`return s.pop();`));
     else
-        fn_body_nodes.push(stmt(`return {p:p, v:s};`));
+        fn_body_nodes.push(stmt(`return s;`));
     //fn_body_nodes.push(
     //    stmt(`lex.throw("could not continue parse at state ${state.index}");`)
     //);
