@@ -259,9 +259,10 @@ function renderVals(trs: LLItem[], grammar: Grammar, peek_depth: number = 0) {
                     let items: Item[] = trs.filter(_ => !!_).map(LLItemToItem).filter(_ => !!_), peek = peek_depth;
 
                     while (true) {
-                        const sym = items[0].sym(grammar);
+                        const sym = items.map(i => i).filter(i => !i.atEND).shift().sym(grammar);
                         //All items agree
-                        if (!items.reduce((r, i) => (i.atEND ? true : (((i.sym(grammar).val != sym.val)) || r)), false)) {
+                        // /console.log(items, items.map(i => i.atEND), items.map(i => i.sym(grammar)), sym);
+                        if (!items.reduce((r, i) => ((i.atEND ? true : (i.sym(grammar)?.val != sym.val)) || r), false)) {
                             if_body.push(...renderItemSym(items[0], grammar));
                             items = items.map(i => i.increment()).filter(i => i);
                             peek = -1;
