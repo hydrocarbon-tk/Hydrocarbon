@@ -6,7 +6,7 @@
 <> S > stmts
 
 <> stmts > expr         f:r{  [$sym1]  }
-    | stmts f:^asi ; expr      f:r{  $sym1.concat($sym3)  }
+    | stmts ; expr      f:r{  [...$sym1, $sym3] }
 
 <> expr > B + expr      f:r{  { sym:"+", a:$sym1, b:$sym3 }   }
     | t:for \( expr \) t:do expr          f:r{  { sym:"for do", a:$sym3, b:$sym6 }   }

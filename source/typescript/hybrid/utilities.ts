@@ -53,6 +53,7 @@ export function translateSymbolValue(sym: Symbol): string {
         case SymbolType.LITERAL:
         case SymbolType.ESCAPED:
         case SymbolType.SYMBOL:
+            if (sym.val == "\"") return `'"'`;
             return `"${sym.val}"`;
         case SymbolType.END_OF_FILE:
             return `0xFF`;
@@ -66,11 +67,11 @@ export function getLexComparisonStringPeekNoEnv(sym: Symbol, grammar: Grammar, p
         case SymbolType.GENERATED:
             if (sym.val == "$eof")
                 return `lex.${pk}END`;
-            return `lex.${pk}ty == ${Lexer.types[sym.val]}`;
+            return `lex.${pk}ty == ${translateSymbolValue(sym)}`;
         case SymbolType.LITERAL:
         case SymbolType.ESCAPED:
         case SymbolType.SYMBOL:
-            return `lex.${pk}tx == "${sym.val}"`;
+            return `lex.${pk}tx == ${translateSymbolValue(sym)}`;
         case SymbolType.END_OF_FILE:
             return `lex.${pk}END`;
         case SymbolType.EMPTY:
@@ -82,11 +83,29 @@ export function getLexComparisonString(sym: Symbol): string {
         case SymbolType.GENERATED:
             if (sym.val == "$eof")
                 return `lex.END`;
-            return `lex.ty == ${Lexer.types[sym.val]}`;
+            return `lex.ty == ${translateSymbolValue(sym)}`;
         case SymbolType.LITERAL:
         case SymbolType.ESCAPED:
         case SymbolType.SYMBOL:
-            return `lex.tx == "${sym.val}"`;
+            return `lex.tx == ${translateSymbolValue(sym)}`;
+        case SymbolType.END_OF_FILE:
+            return `lex.END`;
+        case SymbolType.EMPTY:
+            return "true";
+    }
+}
+
+export function getLexPeekComparisonStringCached(sym: Symbol): string {
+
+    switch (sym.type) {
+        case SymbolType.GENERATED:
+            if (sym.val == "$eof")
+                return `lex.END`;
+            return `ty == ${translateSymbolValue(sym)}`;
+        case SymbolType.LITERAL:
+        case SymbolType.ESCAPED:
+        case SymbolType.SYMBOL:
+            return `tx == ${translateSymbolValue(sym)}`;
         case SymbolType.END_OF_FILE:
             return `lex.END`;
         case SymbolType.EMPTY:
@@ -99,11 +118,11 @@ export function getLexPeekComparisonString(sym: Symbol): string {
         case SymbolType.GENERATED:
             if (sym.val == "$eof")
                 return `lex.END`;
-            return `lex.ty == ${"$" + sym.val ?? Lexer.types[sym.val]}`;
+            return `lex.ty == ${translateSymbolValue(sym)}`;
         case SymbolType.LITERAL:
         case SymbolType.ESCAPED:
         case SymbolType.SYMBOL:
-            return `lex.tx == "${sym.val}"`;
+            return `lex.tx == ${translateSymbolValue(sym)}`;
         case SymbolType.END_OF_FILE:
             return `lex.END`;
         case SymbolType.EMPTY:

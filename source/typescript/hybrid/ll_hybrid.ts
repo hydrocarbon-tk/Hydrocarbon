@@ -2,12 +2,13 @@ import { Grammar, Production, ProductionBody, EOF_SYM } from "../types/grammar.j
 import { processClosure, Item, FOLLOW } from "../util/common.js";
 import { GrammarParserEnvironment } from "../types/grammar_compiler_environment";
 import { stmt, renderWithFormatting, JSNode, JSNodeType } from "@candlefw/js";
-import { createReduceFunction, translateSymbolValue, getLexComparisonStringPeekNoEnv, getLexComparisonString } from "./utilities.js";
+import { createReduceFunction, translateSymbolValue, getLexComparisonStringPeekNoEnv, getLexComparisonString, getLexPeekComparisonString, getLexPeekComparisonStringCached } from "./utilities.js";
 import fs from "fs";
 import { LLProductionFunction } from "./LLProductionFunction";
 import { LLItem } from "./LLItem";
 import { getClosureTerminalSymbols } from "./getClosureTerminalSymbols.js";
 import { insertFunctions } from "./insertFunctions.js";
+import { e } from "@candlefw/wind/build/types/ascii_code_points";
 
 
 function checkForLeftRecursion(p: Production, start_items: Item[], grammar: Grammar) {
@@ -94,7 +95,7 @@ function incrementClosure(closure: Item[], grammar: Grammar, amount = 1): Item[]
     // If the item is at a production, if the production in the completed
     // site then increment the item. other do nothing.
 
-    const new_partial_closure = [];
+    let new_partial_closure: Item[] = [];
 
     for (const item of closure.map(i => i).reverse()) {
         if (item.atEND) continue;
@@ -121,6 +122,12 @@ function incrementClosure(closure: Item[], grammar: Grammar, amount = 1): Item[]
         }
     }
 
+    new_partial_closure = new_partial_closure.filter(_ => _).setFilter(i => i.full_id);
+
+    //console.log({ new_partial_closure });
+    // if (new_partial_closure.length > 0)
+    //     console.log(new_partial_closure[0].renderUnformattedWithProductionAndFollow(grammar));
+
     //take a new closure on this set to make sure we have all possible values.
     processClosure(new_partial_closure, grammar, [], 0, new Set(new_partial_closure.map(i => i.full_id)));
 
@@ -130,9 +137,17 @@ function incrementClosure(closure: Item[], grammar: Grammar, amount = 1): Item[]
     return new_partial_closure;
 }
 
+
+type TransitionGroup = {
+    id: string;
+    syms: Set<string>;
+    trs: LLItem[];
+};
 function renderVals(trs: LLItem[], grammar: Grammar, peek_depth: number = 0) {
+    // console.log(peek_depth);
 
     const stmts = [];
+    if (peek_depth > 4) throw "Can't complete";
 
     /* 
         Each item has a closure which yields transition symbols. 
@@ -145,156 +160,173 @@ function renderVals(trs: LLItem[], grammar: Grammar, peek_depth: number = 0) {
         need to be disambiguated until we find either matching
         transition symbols or 
     */
-    if (trs.length == 1) {
-        //Just complete the grammar symbols
-        const item = LLItemToItem(trs[0]);
-        stmts.push(...renderItem(item, grammar));
-    } else {
-        const sym_map = new Map();
-        // sort into transition groups - groups gathered based on a single transition symbol
-        const transition_groups: Map<string, LLItem[]> = trs.groupMap((i: LLItem) => {
-            const syms = [];
 
-            for (const sym of getClosureTerminalSymbols(i.closure, grammar)) {
+    const sym_map = new Map();
+
+    // sort into transition groups - groups gathered based on a single transition symbol
+    const transition_groups: Map<string, LLItem[]> = trs.groupMap((i: LLItem) => {
+        const syms = [];
+
+        for (const sym of getClosureTerminalSymbols(i.closure, grammar)) {
+            syms.push(sym.val);
+            sym_map.set(sym.val, sym);
+        }
+
+        if (syms.length == 0 && i.item.atEND) {
+            for (const sym of FOLLOW(grammar, i.item.getProduction(grammar).id).values()) {
                 syms.push(sym.val);
                 sym_map.set(sym.val, sym);
             }
-
-            if (syms.length == 0 && i.item.atEND) {
-                for (const sym of FOLLOW(grammar, i.item.getProduction(grammar).id).values()) {
-                    syms.push(sym.val);
-                    sym_map.set(sym.val, sym);
-                }
-            }
-
-            return syms;
-        });
-
-        type TransitionGroup = {
-            id: string;
-            syms: Set<string>;
-            trs: LLItem[];
-        };
-
-        // find transition combinations: groups that have the same bodies. 
-        const group_maps: Map<string, TransitionGroup> = new Map();
-
-        for (const [key, trs] of transition_groups.entries()) {
-
-            const id = trs.map(i => LLItemToItem(i).id).sort().join("");
-
-            if (!group_maps.has(id)) {
-
-                group_maps.set(id, {
-                    id,
-                    syms: new Set(),
-                    trs
-                });
-            }
-
-            group_maps.get(id).syms.add(key);
         }
 
-        const try_groups: Map<string, TransitionGroup[]> = new Map();
+        return syms;
+    });
 
-        if (peek_depth > 0) {
-            stmts.push(stmt(`const pk = lex.${"pk".repeat(peek_depth)};`));
+    // find transition combinations: groups that have the same bodies. 
+    const group_maps: Map<string, TransitionGroup> = new Map();
+
+    for (const [key, trs] of transition_groups.entries()) {
+
+        const id = trs.map(i => LLItemToItem(i).id).setFilter(i => i).sort().join("");
+
+        if (!group_maps.has(id)) {
+
+            group_maps.set(id, {
+                d: trs.map(LLItemToItem).map(i => i.renderUnformattedWithProduction(grammar)),
+                id,
+                syms: new Set(),
+                trs
+            });
         }
 
-        // Determine if these groups are unique - This means 
-        // Their ids do not contain ids of other groups. 
-        // If they do, they need to be wrapped into try groups
-        outer: for (const [id, group] of group_maps.entries()) {
-            for (const [try_id, try_group] of try_groups.entries()) {
-                const m = try_id.split("|").map(e => e + "|");
-                if (group.trs.map(LLItemToItem).map(i => i.id).some(i => m.indexOf(i) >= 0)) {
-                    const new_group = try_group.concat(group);
-                    try_groups.delete(id);
-                    try_groups.set(try_id + id, new_group);
-                    continue outer;
-                }
-            }
+        group_maps.get(id).syms.add(key);
+    }
 
-            try_groups.set(id, [group]);
+    const try_groups: Map<string, TransitionGroup[]> = new Map();
+
+    if (peek_depth > 0) stmts.push(stmt(`var pk = lex${".pk".repeat(peek_depth)}, tx = pk.tx, ty = pk.ty;`));
+    else stmts.push(stmt(`const tx = lex.tx, ty = lex.ty;`));
+
+    // Determine if these groups are unique - This means 
+    // Their ids do not contain ids of other groups. 
+    // If they do, they need to be wrapped into try groups
+    outer: for (const [id, group] of group_maps.entries()) {
+
+        for (const [try_id, try_group] of try_groups.entries()) {
+
+            const m = try_id.split("|").map(e => e + "|");
+
+            if (group.trs.map(LLItemToItem).map(i => i.id).some(i => m.indexOf(i) >= 0)) {
+
+                const new_group = try_group.concat(group);
+
+                const d = group.trs.map(LLItemToItem).map(i => i.renderUnformattedWithProduction(grammar));
+
+                new_group.d = d;
+
+                try_groups.delete(id);
+
+                try_groups.set(try_id + id, new_group);
+
+                continue outer;
+            }
         }
 
-        //Now create the necessary if statements with peek if depth > 0
-        for (const try_group of try_groups.values()) {
-            if (try_group.length > 1) {
-                console.log("----------------------");
-                //Make a try catch chain.
-            } else {
-                const
-                    group = try_group[0],
-                    trs = group.trs,
-                    syms = [...group.syms.values()];
+        try_groups.set(id, [group]);
+    }
 
-                let if_stmt, lex = "lex";
+    //Now create the necessary if statements with peek if depth > 0
+    for (const try_group of try_groups.values()) {
 
-                if (peek_depth > 0)
-                    lex = "pk";
+        if (try_group.length > 1) {
 
-                const
-                    skip_symbols = grammar.meta.ignore.flatMap(d => d.symbols),
-                    skip_sym = skip_symbols.map(translateSymbolValue).join(","),
-                    tx_syms = syms.map(s => sym_map.get(s)).filter(s => !(s.type == "generated" || s.val == "0xFF")).map(translateSymbolValue).join(","),
-                    ty_syms = syms.map(s => sym_map.get(s)).filter(s => (s.type == "generated" || s.val == "0xFF")).map(translateSymbolValue).join(","),
-                    out = [];
-                // console.log({ tx_syms, ty_syms, sym_map });
-                if (tx_syms.length > 0) {
-                    out.push(`chk_tx(${lex}, e, e.eh, skips, ${tx_syms})`);
-                } if (ty_syms.length > 0) {
-                    out.push(`chk_ty(${lex}, e, e.eh, skips, ${ty_syms})`);
-                }
+            const new_group = try_group[0];
 
+            new_group.trs = try_group.flatMap(i => i.trs);
 
-                if_stmt = stmt(`if(${out.join("||")}){}`);
+            // for (const group of try_group) {
+            buildGroupStatement(grammar, new_group, peek_depth, stmts, sym_map);
+            // }
 
-
-                const if_body = if_stmt.nodes[1].nodes;
-
-                if (trs.length > 1) {
-                    //Advance through each symbol until there is a difference
-                    //When there is a difference create a peeking switch
-                    let items: Item[] = trs.filter(_ => !!_).map(LLItemToItem).filter(_ => !!_), peek = peek_depth;
-
-                    while (true) {
-                        const sym = items.map(i => i).filter(i => !i.atEND).shift().sym(grammar);
-                        //All items agree
-                        // /console.log(items, items.map(i => i.atEND), items.map(i => i.sym(grammar)), sym);
-                        if (!items.reduce((r, i) => ((i.atEND ? true : (i.sym(grammar)?.val != sym.val)) || r), false)) {
-                            if_body.push(...renderItemSym(items[0], grammar));
-                            items = items.map(i => i.increment()).filter(i => i);
-                            peek = -1;
-                        } else {
-                            const new_trs = items.map(i => ItemToLLItem(i, grammar)).map(i => {
-                                i.closure = incrementClosure(i.closure, grammar, peek + 1);
-                                return i;
-                            });
-
-                            if_body.push(...renderVals(new_trs, grammar, peek + 1));
-                            break;
-                        };
-                    }
-                } else {
-                    if_body.push(...renderVals(group.trs, grammar, 0));
-                }
-
-                stmts.push(if_stmt);
-            }
+            //Make a try catch chain.
+        } else {
+            buildGroupStatement(grammar, try_group[0], peek_depth, stmts, sym_map);
         }
     }
+
 
     return stmts;
 }
 
-export function GetLLHybridFunctions(grammar: Grammar, env: GrammarParserEnvironment): LLProductionFunction[] {
+function buildGroupStatement(grammar: Grammar, group: TransitionGroup, peek_depth, stmts, sym_map) {
+    const
+        trs = group.trs,
+        syms = [...group.syms.values()],
+        tests = [...syms.map(s => sym_map.get(s)).map(i => getLexPeekComparisonStringCached(i))];
+
+    let if_stmt = stmt(`if(${tests.join("||")}){}`);
+
+    const if_body = if_stmt.nodes[1].nodes;
+
+    if (trs.length > 1) {
+        //Advance through each symbol until there is a difference
+        //When there is a difference create a peeking switch
+        let items: Item[] = trs.filter(_ => !!_).map(LLItemToItem).filter(_ => !!_), peek = peek_depth;
+
+        while (true) {
+            const sym = items.map(i => i).filter(i => !i.atEND)?.shift()?.sym(grammar);
+            //If any items at end do something
+
+
+            //All items agree
+            if (sym && !items.reduce((r, i) => (r || i.atEND || (i.sym(grammar)?.val != sym.val)), false)) {
+                if_body.push(...renderItemSym(items[0], grammar));
+                items = items.map(i => i.increment()).filter(i => i);
+                peek = -1;
+            } else {
+
+                const
+                    new_items = items
+                        .filter(i => !i.atEND),
+                    new_trs = new_items
+                        .map(i => ItemToLLItem(i, grammar)).map(i => {
+                            const closure = [i.item];
+                            i.closure = closure;
+                            processClosure(closure, grammar);
+                            //i.closure = incrementClosure(i.closure, grammar, peek + 1);
+                            return i;
+                        });
+
+                if (new_trs.length > 0)
+                    if_body.push(...renderVals(new_trs, grammar, peek + 1));
+
+                //If any items at end render here?
+                for (const d of items.filter(i => i.atEND))
+                    if_body.push(...renderItem(d, grammar));
+
+                break;
+            };
+        }
+    } else {
+        //Just complete the grammar symbols
+        const item = LLItemToItem(trs[0]);
+        if_body.push(...renderItem(item, grammar));
+    }
+
+    stmts.push(if_stmt);
+}
+
+export function GetLLHybridFunctions(grammar: Grammar, env: GrammarParserEnvironment, runner): LLProductionFunction[] {
 
     return grammar.map(p => {
 
-        const fn = stmt(`function $${p.name}(lex, e){const sym = [];}`),
+        //console.log(p.name, "------------------------------------------------------------");
+
+        const fn = stmt(`function $${p.name}(lex, e, sym = []){;}`),
             body = fn.nodes[2].nodes,
             start_items: LLItem[] = p.bodies.map(b => BodyToLLItem(b, grammar));
+
+        body.pop();
 
         if (checkForLeftRecursion(p, start_items, grammar)) {
             return {
@@ -304,8 +336,16 @@ export function GetLLHybridFunctions(grammar: Grammar, env: GrammarParserEnviron
                 fn: stmt(`\n\'Left recursion found in ${p.name}'\n`)
             };
         }
-
-        body.push(...renderVals(start_items, grammar));
+        try {
+            body.push(...renderVals(start_items, grammar));
+        } catch (e) {
+            return {
+                refs: 0,
+                id: p.id,
+                L_RECURSION: true,
+                fn: stmt(`\n\'Left recursion found in ${p.name}'\n`)
+            };
+        }
 
         if (body.slice(-1)[0].type != JSNodeType.ReturnStatement) {
             body.push(stmt(`return (sym.pop())`));
@@ -320,4 +360,3 @@ export function GetLLHybridFunctions(grammar: Grammar, env: GrammarParserEnviron
         };
     });
 }
-

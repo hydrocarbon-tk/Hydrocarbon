@@ -26,6 +26,8 @@ export function processClosure(items: Item[], grammar: Grammar, excludes: any[] 
             new_excludes = [],
             out_excludes = [];
 
+        if (item.atEND) continue;
+
         if (body.excludes.has(index))
             body.excludes.get(index).forEach(e => step_excludes.push({ body: item.body, symbols: Array.isArray(e) ? e : [e], offset: 0, l: Array.isArray(e) ? e.length : 1, inner_offset: index }));
 

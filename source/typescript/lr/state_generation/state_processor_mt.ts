@@ -26,7 +26,7 @@ export default class StateProcessor {
 
     resetAtSymbol(grammar: any, state: LRState, symbol: Symbol, item: Item): ParserAction {
         return {
-            name: StateActionEnum.DO_NOTHING,
+            name: StateActionEnum.R,
             state_real_id: state.real_id,
             state: -1,
             body: state.body,
@@ -147,7 +147,7 @@ export default class StateProcessor {
             state = this.createState(items[0], old_state_id, grammar);
 
         try {
-            processClosure(items, grammar, error, excludes);
+            processClosure(items, grammar, excludes);
         } catch (e) {
             console.log(e);
             return { error: "Could not create closure for items " + items.map(e => e.renderWithProduction(grammar)).join(" | "), msg: e };
