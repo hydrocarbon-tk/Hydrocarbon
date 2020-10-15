@@ -204,7 +204,10 @@ function _(lex, e, eh, skips, ...syms) {
         //error recovery
         const tx = eh(lex, e);
         if(tx) return tx;
-        else e.FAILED = true;
+        else {
+            e.FAILED = true;
+            e.error.push(lex.copy());
+        }
         //else lex.throw(\`Could not parse unexpected token \${lex.END ? "EOI" : lex.tx }\`);
 }
 }
@@ -215,11 +218,12 @@ const skips = [8, 256];
 
 ${ fns.map(fn => {
         const id = fn.nodes[0].value;
-        // fn.nodes[2].nodes.splice(0, 0, stmt(`console.log(\`[\${lex.tx}] -> ${id}\`)`));
+        //fn.nodes[2].nodes.splice(0, 0, stmt(`console.log(\`[\${lex.tx}] -> ${id}\`)`));
         return fn;
     }).map(fn => renderWithFormatting(fn)).join("\n\n")};
 
 return function (lexer, env = {
+    error: [],
     eh: (lex, e) => { },
     asi: (lex, env, s) => { }
 }) {
@@ -228,9 +232,31 @@ return function (lexer, env = {
     lexer.IWS = false;
     lexer.addSymbols(${[...grammar.meta.symbols.values()].map(translateSymbolValue).join(",")})
     lexer.tl = 0;
+
+    env.fn =  {
+        ASI_PRE:(lex, env, eh, sym)=>{
+            if(!env.FAILED){
+                if(lex.tx != ";"){
+                    const cp = lex.copy();
+                    cp.IWS = false;
+                    env.ASI_PRIMED = true;
+                }
+            }
+        },
+        ASI_POST:(lex, env, eh, sym)=>{
+            if(env.ASI_PRIMED)
+                env.FAILED =false;
+            env.ASI_PRIMED = false;
+        }
+    }
     _(lexer, env, env.eh,skips)
     const result = $${ grammar[0].name}(lexer, env);
-    if (!lexer.END || env.FAILED) lexer.throw(\`Unexpected token [\${lexer.tx}]\`);
+    
+    if (!lexer.END || env.FAILED) {
+        console.log(env.error.map(e=>e.errorMessage()));
+        const error_lex = env.error.pop();
+        error_lex.throw(\`Unexpected token [\${error_lex.tx}]\`);
+    }
     return result;
 }`;
 

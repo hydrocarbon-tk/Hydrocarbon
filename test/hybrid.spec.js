@@ -8,7 +8,7 @@ const url = await URL.resolveRelative("./mock/test_grammar_e_fork.hcg");
 
 const file = await url.fetchText();
 
-const test_string = `( A ) => { ( B ) => { ( A ) } }`;
+const test_string = `( A, ( A ) , (A) ) => { ( A, ( A ) , (A) ) => { ( A, ( A ) , (A) ) => { ( A, ( A ) , (A) ) => { ( A, ( A ) , (A) ) => { D } } } } } ;`;
 
 assert_group(() => {
 

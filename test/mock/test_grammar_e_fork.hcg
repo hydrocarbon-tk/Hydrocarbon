@@ -1,5 +1,5 @@
 
-@SYMBOL => ( ) , { }
+@SYMBOL => ( ) { }
 
 @IGNORE θws θnl
 
@@ -9,11 +9,12 @@
 	| F
 	| I
 
-<> P >  \( E \)                 ↦r { { o:"JombuliarS", d:$sym2} }      
+<> P >  \( E \)  f:^ASI_PRE ; f:^ASI_POST               ↦r { { o:"JombuliarS", d:$sym2} }      
 
-<> F >  \( L \) ↦{  e.t = 0  } => { E }        ↦r { { o:"Jombuliar", d:$sym6 } }      
+<> F >   \(  L \)  => { E } f:^ASI_PRE ; f:^ASI_POST       ↦r { { o:"Jombuliar", u:$sym2, d:$sym6 } }      
 
-<> L > E
- | L , E 
+<> L >  E
+|  L , E f:^ASI_POST  ↦r { { o:"Aso", o:$sym1, d:$sym3} } 
+
 
 <> I > θid 

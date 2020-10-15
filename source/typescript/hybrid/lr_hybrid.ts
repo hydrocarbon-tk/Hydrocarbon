@@ -228,21 +228,22 @@ function gotoState(
     if (gt.length > 0) {
 
         //sort goto in order
+        statements.push(stmt("let progress =false;"));
         const
-            while_sw = stmt(`o: while(1) switch(e.p) { }`),
-            while_sw_block = while_sw.nodes[1].nodes[1].nodes[1].nodes;
-
+            while_sw = stmt(`o: while(1){switch(e.p) { } progress = true;}`),
+            while_sw_block = while_sw.nodes[1].nodes[1].nodes[0].nodes[1].nodes;
         statements.push(while_sw);
 
         for (const [key, val] of gt.sort(([a], [b]) => a < b ? 1 : b < a ? -1 : 0)) {
 
-            if (!active_productions.has(key)) continue;
+            // if (!active_productions.has(key)) continue;
 
             const
                 case_stmt = stmt(`switch(true) { case ${key}:  } `).nodes[1].nodes[0],
                 clause = case_stmt.nodes;
 
             for (const st of val.map(i => states[i])) {
+
 
                 state.reachable.add(st.index);
 
@@ -252,7 +253,7 @@ function gotoState(
 
                 clause.push(...stmts);
 
-                clause.push(stmt("continue;"));
+                clause.push(stmt(` break ;`));
             }
 
             if (clause.length == 1) continue;
@@ -261,20 +262,18 @@ function gotoState(
             while_sw_block.push(case_stmt);
         }
 
-        const tests = [...new Set(state.items.map(i => getLexPeekComparisonString(i.follow, grammar))).values()];
 
 
         const
             case_stmt = stmt(`switch(true) { default:  } `).nodes[1].nodes[0],
             clause = case_stmt.nodes;
 
-        let def;
-
-        clause.push(def);
 
         clause.push(stmt("break o;"));
 
         while_sw_block.push(case_stmt);
+
+        statements.push(stmt("e.FAILED = e.FAILED || !progress;"));
     }
 
     return runner.add_script(statements, stmt("function(lex, e, s){ return s}"), "s =", state);
@@ -383,18 +382,19 @@ function shiftState(
 
                     let shift_state_stmt;
 
+
                     if (GROUP_NOT_LAST) {
                         clause.push(stmt(`${pdn} = s.slice()`));
                         clause.push(stmt(`${pdn}.push(${lex_name}, e, e.eh, [${skip_symbols.map(translateSymbolValue).join(",")}]);`));
-                        shift_state_stmt = stmt(`${pdn} = State${state.index}(lex, e, ${pdn})`);
+                        shift_state_stmt = stmt(`${pdn} = State${shift_to_state.index}(lex, e, ${pdn})`);
                     } else {
                         clause.push(stmt(`s.push(_(${lex_name}, e, e.eh, [${skip_symbols.map(translateSymbolValue).join(",")}]));`));
-                        shift_state_stmt = stmt(`s = State${state.index}(lex, e, s)`);
+                        shift_state_stmt = stmt(`s = State${shift_to_state.index}(lex, e, s)`);
                     }
 
                     clause.push(shift_state_stmt);
 
-                    ids[state.index].push(shift_state_stmt.nodes[0].nodes[1].nodes[0]);
+                    ids[shift_to_state.index].push(shift_state_stmt.nodes[0].nodes[1].nodes[0]);
 
                     state.reachable.add(shift_to_state.index);
 
@@ -425,9 +425,13 @@ function shiftState(
         swtch.nodes[1].nodes = tx;
 
         if (ty.length > 0) {
-            const sw_ty = stmt("switch(0){default: switch(lex.ty){ } }").nodes[1].nodes[0];
-            sw_ty.nodes[0].nodes[1].nodes = ty;
+            const sw_ty = stmt("switch(0){default: switch(lex.ty){  } }").nodes[1].nodes[0];
+            // const sw_ty = stmt("switch(0){default: switch(lex.ty){ default: e.FAILED = true; } }").nodes[1].nodes[0];
+            sw_ty.nodes[0].nodes[1].nodes.unshift(...ty);
             swtch.nodes[1].nodes.push(sw_ty);
+        } else {
+            const default_error = stmt(`switch(true) { default:  e.FAILED = true;  } `).nodes[1].nodes[0];
+            // swtch.nodes[1].nodes.push(default_error);
         }
     } else if (ty.length > 0) {
         swtch = stmt("switch(lex.ty){}");
@@ -533,6 +537,13 @@ function compileState(
         { statements: shift_stmts, active_productions }
             = shiftState(state, states, grammar, runner, ids, existing_refs, ll_fns, HYBRID);
 
+    //if the previous state is a production
+    // if (typeof state.sym == "number")
+    //     statements.push(stmt(`e.p = ${state.sym};`));
+    // else
+    statements.push(stmt("e.p = -1;"));
+
+
     statements.push(...shift_stmts);
 
     statements.push(...reduceState(state, states, grammar, runner));
@@ -557,8 +568,8 @@ export function renderState(
         str.push(item.renderUnformattedWithProductionAndFollow(grammar).replace(/\"/, "\\\""));
 
     const
-        //fn = stmt(`function ${state.name ? state.name : "State" + state.index}(lex, e, s = []){\`${state.bid}\`;e.p=-1;}`),
-        fn = stmt(`function ${state.name ? state.name : "State" + state.index}(lex, e, s = []){e.p=-1;}`),
+        fn = stmt(`function ${state.name ? state.name : "State" + state.index}(lex, e, s = []){\`${state.bid}\`;}`),
+        //fn = stmt(`function ${state.name ? state.name : "State" + state.index}(lex, e, s = []){e.p=-1;}`),
         fn_id = fn.nodes[0],
         fn_body_nodes = fn.nodes[2].nodes;
 

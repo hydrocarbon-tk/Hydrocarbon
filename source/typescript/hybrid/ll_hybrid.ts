@@ -9,6 +9,7 @@ import { getClosureTerminalSymbols } from "./getClosureTerminalSymbols.js";
 import { insertFunctions } from "./insertFunctions.js";
 
 function checkForLeftRecursion(p: Production, start_items: Item[], grammar: Grammar) {
+
     const closure_items = start_items.map(g => g.item);
 
     processClosure(closure_items, grammar);
@@ -52,9 +53,10 @@ function renderItemSym(item: Item, grammar: Grammar): JSNode[] {
     } else {
         const sym = item.sym(grammar);
 
-        if (sym.type == "production")
+        if (sym.type == "production") {
             stmts.push(stmt(`sym.push($${grammar[sym.val].name}(lex, e))`));
-        else {
+            stmts.push(stmt(`if(e.FAILED) return sym[sym.length-1]`));
+        } else {
 
             //Get skips from grammar - TODO get symbols from bodies / productions
             const skip_symbols = grammar.meta.ignore.flatMap(d => d.symbols);
@@ -221,7 +223,6 @@ function buildGroupStatement(grammar: Grammar, group: TransitionGroup, peek_dept
             const sym = items.map(i => i).filter(i => !i.atEND)?.shift()?.sym(grammar);
             //If any items at end do something
 
-
             //All items agree
             if (sym && !items.reduce((r, i) => (r || i.atEND || (i.sym(grammar)?.val != sym.val)), false)) {
                 if_body.push(...renderItemSym(items[0], grammar));
@@ -237,7 +238,6 @@ function buildGroupStatement(grammar: Grammar, group: TransitionGroup, peek_dept
                             const closure = [i.item];
                             i.closure = closure;
                             processClosure(closure, grammar);
-                            //i.closure = incrementClosure(i.closure, grammar, peek + 1);
                             return i;
                         });
 
