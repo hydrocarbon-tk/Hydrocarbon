@@ -130,7 +130,7 @@ export function getLexPeekComparisonString(sym: Symbol): string {
     }
 }
 //
-export function integrateState(state: State, states: State[], grammar: Grammar, id_nodes: any[], existing_refs: Set<number>) {
+export function integrateState(state: State, states: State[], grammar: Grammar, id_nodes: any[], existing_refs: Set<number>, name = "s") {
 
     if (!existing_refs.has(state.index)) {
         state.refs++;
@@ -138,7 +138,7 @@ export function integrateState(state: State, states: State[], grammar: Grammar, 
     }
 
     const
-        goto_stmt = stmt(`s = State${state.index}(lex, e, s)`),
+        goto_stmt = stmt(`${name} = State${state.index}(lex, e, s)`),
         goto_id = goto_stmt.nodes[0].nodes[1].nodes[0];
 
     id_nodes[state.index].push(goto_id);

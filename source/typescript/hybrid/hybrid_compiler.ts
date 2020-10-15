@@ -1,12 +1,13 @@
+import fs from "fs";
 import { Grammar } from "../types/grammar.js";
 import { GrammarParserEnvironment } from "../types/grammar_compiler_environment";
-import fs from "fs";
 import { GetLLHybridFunctions } from "./ll_hybrid.js";
 import { renderWithFormatting, JSNode, renderCompressed, JSNodeType, stmt } from "@candlefw/js";
 import { CompileHybridLRStates, renderStates, IntegrateState, States } from "./lr_hybrid.js";
 import { traverse } from "@candlefw/conflagrate";
 import { Lexer } from "@candlefw/wind";
 import { State } from "./State.js";
+import { translateSymbolValue } from "./utilities.js";
 
 export function renderLLFN(grammar: Grammar, env: GrammarParserEnvironment) {
 
@@ -129,7 +130,7 @@ export function CompileHybrid(grammar: Grammar, env: GrammarParserEnvironment) {
                     .filter(e => e.nodes.length > 1)
                     .filter(e => e.states.length > 1)
                     .filter(e => e.states.reduce((a, s) => s.REACHABLE || a, false))
-                    .map(e => renderCompressed(e.fn)).join("\n\n");
+                    .map(e => renderWithFormatting(e.fn)).join("\n\n");
             }
         },
         ll_fns = GetLLHybridFunctions(grammar, env, runner),
@@ -193,7 +194,7 @@ function lm_ty(lex, syms) {for (const sym of syms)  if (sym == 0xFF && lex.END) 
 
 function lm_tx(lex, syms) {  for (const sym of syms) if (lex.tx == sym) return true; return false; }
     
-function aaa(lex, e, eh, skips, ...syms) {
+function _(lex, e, eh, skips, ...syms) {
     if (syms.length == 0 || lm(lex, syms)) {
         const val = lex.tx;
         lex.next();
@@ -201,55 +202,42 @@ function aaa(lex, e, eh, skips, ...syms) {
         return val;
     } else {
         //error recovery
-        const tx = handleError();
-    }
+        const tx = eh(lex, e);
+        if(tx) return tx;
+        else e.FAILED = true;
+        //else lex.throw(\`Could not parse unexpected token \${lex.END ? "EOI" : lex.tx }\`);
+}
 }
 
-function aaa_tx(lex, e, eh, skips, ...syms) {
-    if (syms.length == 0 || lm_tx(lex, syms)) {
-        const val = lex.tx;
-        lex.next();
-        if (skips) while (lm(lex, skips)) lex.next();
-        return val;
-    } else {
-        //error recovery
-        const tx = handleError();
-    }
-}
+${ runner.render_functions()}
 
-function aaa_ty(lex, e, eh, skips, ...syms) {
-    if (syms.length == 0 || lm_ty(lex, syms)) {
-        const val = lex.tx;
-        lex.next();
-        if (skips) while (lm(lex, skips)) lex.next();
-        return val;
-    } else {
-        //error recovery
-        //const tx = handleError();
-    }
-}
+const skips = [8, 256];
 
-${runner.render_functions()}
+${ fns.map(fn => {
+        const id = fn.nodes[0].value;
+        // fn.nodes[2].nodes.splice(0, 0, stmt(`console.log(\`[\${lex.tx}] -> ${id}\`)`));
+        return fn;
+    }).map(fn => renderWithFormatting(fn)).join("\n\n")};
 
-const skips = [8,256];
-
-${ fns.map(fn => renderCompressed(fn)).join("\n\n")};
-
-return function(lexer, env = {
-    eh: (lex, e)=>{},
-    asi: (lex, env, s) => {}
-}){
+return function (lexer, env = {
+    eh: (lex, e) => { },
+    asi: (lex, env, s) => { }
+}) {
+    env.FAILED = false;
     const states = [];
     lexer.IWS = false;
-    const result =  $${grammar[0].name}(lexer, env);
-    if(!lexer.END) lexer.throw(\`Unexpected token [\${lexer.tx}]\`);
+    lexer.addSymbols(${[...grammar.meta.symbols.values()].map(translateSymbolValue).join(",")})
+    lexer.tl = 0;
+    _(lexer, env, env.eh,skips)
+    const result = $${ grammar[0].name}(lexer, env);
+    if (!lexer.END || env.FAILED) lexer.throw(\`Unexpected token [\${lexer.tx}]\`);
     return result;
 }`;
 
     fs.writeFileSync("./hybrid.js", parser);
 
     return Function(parser)();
-}
+};
 
 export { GetLLHybridFunctions as CompileLLHybrid };
 

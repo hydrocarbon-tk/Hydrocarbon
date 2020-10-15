@@ -9,7 +9,6 @@ import {
     getLexPeekComparisonString,
     getShiftStates,
     getStatesFromNumericArray,
-    getLexComparisonString,
     getCompletedItems,
     translateSymbolValue
 } from "./utilities.js";
@@ -267,7 +266,7 @@ function gotoState(
 
                 clause.push(...stmts);
 
-                clause.push(stmt("break;"));
+                clause.push(stmt("continue;"));
             }
 
             if (clause.length == 1) continue;
@@ -339,16 +338,15 @@ function shiftState(
 
         for (const shift_to_state of getStatesFromNumericArray(value, states)) {
 
-            //Otherwise, see if it is PURE, and it's chain is also PURE without Shift-Reduce
-            //conflicts.
-
-            //Otherwise create function to transition to new state. 
             const
                 item = shift_to_state.items[0].decrement(),
                 sym = item.sym(grammar),
                 case_stmt = stmt(`switch(true) { case ${translateSymbolValue(sym)}:  } `).nodes[1].nodes[0],
                 clause = case_stmt.nodes,
-                production = yield_map.get(sym.val);
+                groups = shift_to_state.items.group(i => i.getProduction(grammar).id).sort((a, b) => {
+                    const len_a = a[0].len, len_b = b[0].len;
+                    return len_b - len_a;
+                });
 
             switch (sym.type) {
                 case SymbolType.END_OF_FILE:
@@ -362,40 +360,77 @@ function shiftState(
                     tx.push(case_stmt); break;
             }
 
+            const TRY_GROUP = groups.length > 1;
 
-            clause.push(...insertFunctions(item, grammar));
+            let i = 0;
 
-            //statements.push(case_stmt);
+            for (const group of groups) {
 
-            if (ll_fns && ll_fns[production] && !ll_fns[production].L_RECURSION) {
-                // If all items at the beginning and they all reduce to the same production then replace with a call
-                // to that ll production IF the ll production is not recursive. 
+                let lex_name = "lex", pending_data_name = "_s", pdn = pending_data_name;
 
-                clause.push(stmt(`s.push($${grammar[production].name}(lex, e))`));
 
-                clause.push(stmt(`e.p = ${production};`));
+                const item: Item = group[0],
+                    GROUP_NOT_LAST = i < groups.length - 1,
+                    FIRST_GROUP = i == 0,
+                    production = item.getProduction(grammar).id;
 
-                clause.push(stmt(`break;`));
 
-                active_productions.add(production);
+                i++;
 
-                continue;
+                if (GROUP_NOT_LAST) {
+                    if (FIRST_GROUP) { clause.push(stmt(`var cp = lex.copy(), ${pdn} = null;`)); lex_name = 'cp'; }
+                    else { clause.push(stmt("cp = lex.copy()")); lex_name = 'cp'; };
+                }
+
+                clause.push(...insertFunctions(item, grammar));
+
+                if (ll_fns && ll_fns[production] && !ll_fns[production].L_RECURSION) {
+
+                    if (GROUP_NOT_LAST)
+                        clause.push(stmt(`${pdn} = $${grammar[production].name}(${lex_name}, e)`));
+                    else
+                        clause.push(stmt(`s.push($${grammar[production].name}(${lex_name}, e))`));
+
+                    clause.push(stmt(`e.p = ${production};`));
+
+                    active_productions.add(production);
+
+                } else {
+
+                    const skip_symbols = grammar.meta.ignore.flatMap(d => d.symbols);
+
+                    let shift_state_stmt;
+
+                    if (GROUP_NOT_LAST) {
+                        clause.push(stmt(`${pdn} = s.slice()`));
+                        clause.push(stmt(`${pdn}.push(${lex_name}, e, e.eh, [${skip_symbols.map(translateSymbolValue).join(",")}]);`));
+                        shift_state_stmt = stmt(`${pdn} = State${state.index}(lex, e, ${pdn})`);
+                    } else {
+                        clause.push(stmt(`s.push(_(${lex_name}, e, e.eh, [${skip_symbols.map(translateSymbolValue).join(",")}]));`));
+                        shift_state_stmt = stmt(`s = State${state.index}(lex, e, s)`);
+                    }
+
+                    clause.push(shift_state_stmt);
+
+                    ids[state.index].push(shift_state_stmt.nodes[0].nodes[1].nodes[0]);
+
+                    state.reachable.add(shift_to_state.index);
+
+                    [...state.origins.values()].flatMap(_ => _).forEach(i => active_productions.add(i));
+                }
+
+                if (TRY_GROUP && GROUP_NOT_LAST) {
+                    clause.push(stmt(`if(e.FAILED){
+                        e.FAILED = false;
+                    }else{
+                        s.push(${pdn} );
+                        lex.sync(cp);
+                        break;
+                    }`));
+                } else {
+                    clause.push(stmt(`break;`));
+                }
             }
-
-            //Get skips from grammar - TODO get symbols from bodies / productions
-            const skip_symbols = grammar.meta.ignore.flatMap(d => d.symbols);
-
-            clause.push(stmt(`s.push(aaa(lex, e, e.eh, [${skip_symbols.map(translateSymbolValue).join(",")}]));`));
-
-            state.reachable.add(shift_to_state.index);
-
-            const { stmts, productions } = integrateState(shift_to_state, states, grammar, ids, existing_refs);
-
-            productions.map(i => active_productions.add(i));
-
-            clause.push(...stmts);
-
-            clause.push(stmt(`break;`));
         }
     }
 
@@ -442,28 +477,38 @@ function reduceState(
     states: State[],
     /** The grammar for the states */
     grammar: Grammar,
+    runner
 ): JSNode[] {
 
     const statements = [];
 
+    let ADDED_VAR = false;
+
     for (const completed_items of getCompletedItems(state)) {
+        if (!ADDED_VAR) {
+            ADDED_VAR = true;
+            statements.push(stmt(`var $;`));
+        }
 
         //TODO turn into a switch statement
 
         // We reduce on the state, gather the production signatures
         // And proceed processing the next goto state. 
         // If the goto state is the goal state, then we just return. 
-
         const
             follow_syms = completed_items.map(i => i.follow),
             item = completed_items[0],
             production = item.getProduction(grammar),
             body = item.body_(grammar),
-            sym_lookahead = follow_syms.map(sym => getLexPeekComparisonString(sym, grammar)).join("||"),
-            statement = extendAll(stmt(`if(${sym_lookahead}){;}`)),
+            sym_lookahead = follow_syms.map(sym => getLexPeekComparisonString(sym)).join("||"),
+            statement = stmt(`if($){;}`),
             block = statement.nodes[1].nodes;
 
         block.length = 0;
+
+        const bool_statement = stmt(`$ = (${sym_lookahead})`);
+
+        statements.push(...runner.add_script([bool_statement], stmt("function(lex){ return $ }"), "$ =", state));
 
         const reduce_function = body?.reduce_function?.txt;
 
@@ -508,7 +553,7 @@ function compileState(
 
     statements.push(...shift_stmts);
 
-    statements.push(...reduceState(state, states, grammar));
+    statements.push(...reduceState(state, states, grammar, runner));
 
     statements.push(...gotoState(state, states, grammar, runner, ids, active_productions, existing_refs, HYBRID));
 
@@ -542,7 +587,7 @@ export function renderState(
 
 
     if (HYBRID)
-        fn_body_nodes.push(stmt(`return s.pop();`));
+        fn_body_nodes.push(stmt(`return s[s.length - 1];`));
     else
         fn_body_nodes.push(stmt(`return s;`));
     //fn_body_nodes.push(

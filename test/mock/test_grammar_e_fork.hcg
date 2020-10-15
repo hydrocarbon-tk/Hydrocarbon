@@ -1,0 +1,19 @@
+
+@SYMBOL => ( ) , { }
+
+@IGNORE θws θnl
+
+<> S > E
+
+<> E > P
+	| F
+	| I
+
+<> P >  \( E \)                 ↦r { { o:"JombuliarS", d:$sym2} }      
+
+<> F >  \( L \) ↦{  e.t = 0  } => { E }        ↦r { { o:"Jombuliar", d:$sym6 } }      
+
+<> L > E
+ | L , E 
+
+<> I > θid 

@@ -55,7 +55,7 @@ function renderItemSym(item: Item, grammar: Grammar): JSNode[] {
         if (reduce_function) {
             stmts.push(stmt(`return (${createReduceFunction(reduce_function)});`));
         } else
-            stmts.push(stmt(`return sym.pop();`));
+            stmts.push(stmt(`return sym[sym.length - 1];`));
     } else {
         const sym = item.sym(grammar);
 
@@ -66,7 +66,7 @@ function renderItemSym(item: Item, grammar: Grammar): JSNode[] {
             //Get skips from grammar - TODO get symbols from bodies / productions
             const skip_symbols = grammar.meta.ignore.flatMap(d => d.symbols);
 
-            stmts.push(stmt(`sym.push(aaa(lex, e, e.eh, skips, ${translateSymbolValue(sym)}));`));
+            stmts.push(stmt(`sym.push(_(lex, e, e.eh, skips, ${translateSymbolValue(sym)}));`));
         }
     }
 
@@ -124,10 +124,6 @@ function incrementClosure(closure: Item[], grammar: Grammar, amount = 1): Item[]
 
     new_partial_closure = new_partial_closure.filter(_ => _).setFilter(i => i.full_id);
 
-    //console.log({ new_partial_closure });
-    // if (new_partial_closure.length > 0)
-    //     console.log(new_partial_closure[0].renderUnformattedWithProductionAndFollow(grammar));
-
     //take a new closure on this set to make sure we have all possible values.
     processClosure(new_partial_closure, grammar, [], 0, new Set(new_partial_closure.map(i => i.full_id)));
 
@@ -144,7 +140,6 @@ type TransitionGroup = {
     trs: LLItem[];
 };
 function renderVals(trs: LLItem[], grammar: Grammar, peek_depth: number = 0) {
-    // console.log(peek_depth);
 
     const stmts = [];
     if (peek_depth > 4) throw "Can't complete";
@@ -210,7 +205,13 @@ function renderVals(trs: LLItem[], grammar: Grammar, peek_depth: number = 0) {
     // Determine if these groups are unique - This means 
     // Their ids do not contain ids of other groups. 
     // If they do, they need to be wrapped into try groups
-    outer: for (const [id, group] of group_maps.entries()) {
+    outer: for (const [id, group] of [...group_maps.entries()].sort((a, b) => {
+        const
+            syms_val_a = [...a[1].syms.values()].map(s => sym_map.get(s).val).reduce((r, d) => r + (typeof d == "string" ? 1 : d << 1), 0),
+            syms_val_b = [...b[1].syms.values()].map(s => sym_map.get(s).val).reduce((r, d) => r + (typeof d == "string" ? 1 : d << 1), 0);
+
+        return syms_val_a < syms_val_b ? -1 : syms_val_a > syms_val_b ? 1 : 0;
+    })) {
 
         for (const [try_id, try_group] of try_groups.entries()) {
 
@@ -320,8 +321,6 @@ export function GetLLHybridFunctions(grammar: Grammar, env: GrammarParserEnviron
 
     return grammar.map(p => {
 
-        //console.log(p.name, "------------------------------------------------------------");
-
         const fn = stmt(`function $${p.name}(lex, e, sym = []){;}`),
             body = fn.nodes[2].nodes,
             start_items: LLItem[] = p.bodies.map(b => BodyToLLItem(b, grammar));
@@ -348,7 +347,7 @@ export function GetLLHybridFunctions(grammar: Grammar, env: GrammarParserEnviron
         }
 
         if (body.slice(-1)[0].type != JSNodeType.ReturnStatement) {
-            body.push(stmt(`return (sym.pop())`));
+            body.push(stmt(`return sym[sym.length - 1];`));
         }
         //body.push(stmt("lex.throw(`Could not parse token`)"));
 

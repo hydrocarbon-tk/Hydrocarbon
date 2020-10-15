@@ -3,6 +3,10 @@ import { Item } from "../util/common.js";
 
 
 export interface State {
+    /**
+     * A set of state indices that are called from this state.
+     */
+    reachable: Set<number>;
     sym: string;
 
     /**
@@ -61,13 +65,11 @@ export interface State {
     maps: Map<string, number[]>;
 
     /**
-     * Number of proceeding states that will transition to
-     * this state.
-     */
-    refs: number;
-
-    /**
      * All topmost productions that this state will produce
      */
     yields: Set<number>;
+
+    origins: Map<any, any>;
+
+    roots: any[];
 }
