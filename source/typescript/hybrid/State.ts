@@ -23,28 +23,6 @@ export interface State {
      */
     items: Item[];
 
-    /**
-     * The state only has items produced from the
-     * same production body.
-     */
-    PURE: boolean;
-
-    /**
-     * The state represents a transition
-     * from a non-terminal symbol, i.e: GOTO
-     */
-    TERMINAL_TRANSITION: boolean;
-
-    /**
-     * The state contains at least one item
-     * that at the REDUCE point.
-     */
-    HAS_COMPLETED_PRODUCTION: boolean;
-
-    /**
-     * Contains only completed bodies.
-     */
-    CONTAINS_ONLY_COMPLETE: boolean;
 
     /**
      * Tracks item full ids to determine if
@@ -72,4 +50,11 @@ export interface State {
     origins: Map<any, any>;
 
     roots: any[];
+
+    /**
+     * True if another state references this state and 
+     * a path can be made from any of the root states 
+     * to this state
+     */
+    REACHABLE: boolean;
 }

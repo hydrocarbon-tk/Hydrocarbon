@@ -26,24 +26,19 @@ export interface States {
 //Integrates a LR state into existing set of states
 export function IntegrateState(production: Production, states: States, grammar: Grammar, env: GrammarParserEnvironment, runner) {
 
-    const start_state: State = {
+    const start_state: State = <State>{
         sym: "",
         sid: "",
         id: "",
+        index: 0,
         roots: [],
+        items: [],
         maps: new Map,
         state_merge_tracking: new Set,
-        index: 0,
-        HAS_COMPLETED_PRODUCTION: false,
-        PURE: true,
-        TERMINAL_TRANSITION: false,
-        CONTAINS_ONLY_COMPLETE: false,
-        items: [],
         yields: new Set,
         origins: new Map,
-        refs: 0,
         reachable: new Set,
-
+        REACHABLE: false,
     };
 
     CompileHybridLRStates(grammar, env, runner, production.id, states, start_state, [...FOLLOW(grammar, production.id).values()]);
@@ -57,23 +52,19 @@ export function CompileHybridLRStates(
     runner,
     production_index = 0,
     states: States = { map: new Map, states: [] },
-    start_state: State = {
+    start_state: State = <State>{
         sym: "",
         sid: "",
         id: "",
-        maps: new Map,
-        state_merge_tracking: new Set,
         index: 0,
-        HAS_COMPLETED_PRODUCTION: false,
-        PURE: true,
-        TERMINAL_TRANSITION: false,
-        CONTAINS_ONLY_COMPLETE: false,
         items: [],
         roots: [],
+        maps: new Map,
+        state_merge_tracking: new Set,
         yields: new Set,
         origins: new Map,
-        refs: 0,
         reachable: new Set,
+        REACHABLE: false,
     },
     follows: Symbol[] = [EOF_SYM]
 ): States {
@@ -92,7 +83,6 @@ export function CompileHybridLRStates(
         to a new state;
     */
     for (let i = 0; i < unprocessed_state_items.length; i++) {
-        //console.log(states.map.size);
 
         const
             { items: to_process_items, old_state } = unprocessed_state_items[i],
@@ -166,17 +156,13 @@ function processStateItems(item_set: { sym: string; items: Item[]; }, grammar): 
         bid: item_set.items.setFilter(i => i.id).map(i => i.renderUnformattedWithProduction(grammar)).join(" : "),
         roots: [],
         items: item_set.items,
-        PURE: id.length == 4,
-        TERMINAL_TRANSITION: item_set.sym.type !== "production",
-        HAS_COMPLETED_PRODUCTION: item_set.items.some(i => i.atEND),
-        CONTAINS_ONLY_COMPLETE: item_set.items.every(i => i.atEND),
         state_merge_tracking: new Set,
         index: 0,
         maps: new Map,
         yields: new Set,
         origins: new Map,
-        refs: 0,
         reachable: new Set,
+        REACHABLE: false,
     };
 }
 
@@ -281,12 +267,8 @@ function gotoState(
         const
             case_stmt = stmt(`switch(true) { default:  } `).nodes[1].nodes[0],
             clause = case_stmt.nodes;
-        let def;
 
-        //   if (tests.length == 0)
-        //       def = stmt(`if(lex.END) break o;`);
-        //   else
-        //       def = stmt(`if(true||${(tests.join("||"))}) break o;`);
+        let def;
 
         clause.push(def);
 
@@ -580,9 +562,9 @@ export function renderState(
         fn_id = fn.nodes[0],
         fn_body_nodes = fn.nodes[2].nodes;
 
-    //fn_body_nodes.pop(); //get rid of empty statement
+
     id_nodes[state.index].push(fn_id);
-    //compileState(state, states.states, grammar, id_nodes, ll_fns, HYBRID);
+
     fn_body_nodes.push(...compileState(state, states.states, grammar, runner, id_nodes, ll_fns, HYBRID));
 
 
@@ -590,9 +572,6 @@ export function renderState(
         fn_body_nodes.push(stmt(`return s[s.length - 1];`));
     else
         fn_body_nodes.push(stmt(`return s;`));
-    //fn_body_nodes.push(
-    //    stmt(`lex.throw("could not continue parse at state ${state.index}");`)
-    //);
 
     return fn;
 }

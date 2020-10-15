@@ -11,7 +11,7 @@ import { HistoryInfo, HistoryStack, StateStack } from "../../types/state_stack.j
 
 
 import { errorReport } from "./error_report.js";
-//import { GenerateActionSequence, ImportStates } from "../script_generation/export_states.js";
+import { GenerateActionSequence, ImportStates } from "../script_generation/export_states.js";
 import { LexerError } from "./lexer_error.js";
 
 
@@ -44,7 +44,9 @@ function parser<T>(
     forks = 0,
     history: HistoryStack = null,
 ): ParserResultData<T> | ParserSquashResultData {
-    
+
+    const states_n = [];
+
     //@ts-ignore
     if (!data) return <ParserResultData<T>>{ value: null, error: "Data object is empty" };
 
@@ -145,6 +147,7 @@ function parser<T>(
                         }
                     }
 
+
                     if (RECOVERING != lex.off && !lex.END) {
 
                         //Treat specialized number forms as regular numbers. 
@@ -152,6 +155,16 @@ function parser<T>(
                             tk = 1;
                             break;
                         }
+
+                        //If the tk is a grammar symbol then convert to a regular symbol
+                        /* if (tk == token_lu.get(lex.tx) || tk == token_lu.get(lex.ty)) {
+                             //if the lex is an identifier convert to keyword
+                             if (lex.ty == lex.types.id)
+                                 tk = keyword;
+                             else
+                                 tk = getToken(lex, token_lu, true);
+                             break;
+                         }*/
 
                         // If the tk is keyword type and
                         // lex.type is a number, convert to the number token 
@@ -229,6 +242,8 @@ function parser<T>(
                 //###############################################
                 //ACTION Function
                 //###############################################
+
+
 
                 action = state_action_tables[state_action_lu - 1](tk, enviro, o, lex,
                     <Lexer>state_stack[stack_pointer - 1],
@@ -409,6 +424,7 @@ function parser<T>(
                 }
             }
             //Update states values
+            states_n.push(<number>state_stack[stack_pointer]);
             state = states[<number>state_stack[stack_pointer]];
             state_length = state.length;
             state_action_lu = (tk < state_length) ? state[tk] : -1;
@@ -442,6 +458,8 @@ function parser<T>(
         };
     };
 
+    //console.log({ states_n });
+
     return <ParserResultData<T>><any>{
         value: o[0],
         error: "",
@@ -473,7 +491,7 @@ function createStateTrace(history_stack: HistoryStack, debug: DebugInfo) {
 
         console.log(
             `\n------------------\n index: ${i / 2}; ptr:${ptr} fks:${forks} fkd:${fork_depth}\n tx:[${lex.END ? "$eof" : lex.tx}] tk:[${tk}] ${lex.line + 1}:${lex.char}`,
-            //    GenerateActionSequence(state, debug.states, debug.grammar),
+            GenerateActionSequence(state, debug.states, debug.grammar),
             "\n"
         );
     }
@@ -495,7 +513,7 @@ function lrParse<T>(
 
     let debug = null;
 
-    if (debug_info)
+    if (false)
         debug = ImportStates(debug_info);
 
     if (environment.options && environment.options.onstart)
