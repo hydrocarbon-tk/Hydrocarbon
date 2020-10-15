@@ -1,7 +1,7 @@
 import { Grammar, Production, EOF_SYM, SymbolType } from "../types/grammar.js";
 import { processClosure, Item, FOLLOW } from "../util/common.js";
 import { GrammarParserEnvironment } from "../types/grammar_compiler_environment";
-import { stmt, extendAll, JSNode, exp } from "@candlefw/js";
+import { stmt, JSNode } from "@candlefw/js";
 import {
     createReduceFunction,
     getNonTerminalTransitionStates,

@@ -1,15 +1,12 @@
 import { Grammar, Production, ProductionBody, EOF_SYM } from "../types/grammar.js";
 import { processClosure, Item, FOLLOW } from "../util/common.js";
 import { GrammarParserEnvironment } from "../types/grammar_compiler_environment";
-import { stmt, renderWithFormatting, JSNode, JSNodeType } from "@candlefw/js";
-import { createReduceFunction, translateSymbolValue, getLexComparisonStringPeekNoEnv, getLexComparisonString, getLexPeekComparisonString, getLexPeekComparisonStringCached } from "./utilities.js";
-import fs from "fs";
+import { stmt, JSNode, JSNodeType } from "@candlefw/js";
+import { createReduceFunction, translateSymbolValue, getLexPeekComparisonStringCached } from "./utilities.js";
 import { LLProductionFunction } from "./LLProductionFunction";
 import { LLItem } from "./LLItem";
 import { getClosureTerminalSymbols } from "./getClosureTerminalSymbols.js";
 import { insertFunctions } from "./insertFunctions.js";
-import { e } from "@candlefw/wind/build/types/ascii_code_points";
-
 
 function checkForLeftRecursion(p: Production, start_items: Item[], grammar: Grammar) {
     const closure_items = start_items.map(g => g.item);
@@ -23,10 +20,6 @@ function checkForLeftRecursion(p: Production, start_items: Item[], grammar: Gram
     }
 
     return false;
-}
-
-function CopyLLItem(v: LLItem): LLItem {
-    return <LLItem>{ body_index: v.body_index, off: v.off, len: v.len, item: v.item, closure: v.closure };
 }
 
 function LLItemToItem(v: LLItem): Item {
@@ -81,56 +74,6 @@ function renderItem(item: Item, grammar: Grammar): JSNode[] {
         item = item.increment();
     }
     return stmts;
-}
-
-function incrementClosure(closure: Item[], grammar: Grammar, amount = 1): Item[] {
-
-    if (amount == 0) return closure;
-
-    const completed_productions = new Set();
-    // Starting at bottom, if the items symbol is a terminal
-    // increment. If incrementing leads to the item being completed
-    // add the item's production to the completed set.
-
-    // If the item is at a production, if the production in the completed
-    // site then increment the item. other do nothing.
-
-    let new_partial_closure: Item[] = [];
-
-    for (const item of closure.map(i => i).reverse()) {
-        if (item.atEND) continue;
-
-        const sym = item.sym(grammar);
-
-        if (sym.type == "production") {
-            if (completed_productions.has(sym.val)) {
-                const new_item = item.increment();
-
-                if (new_item.atEND)
-                    completed_productions.add(new_item.getProduction(grammar).id);
-                else
-                    new_partial_closure.unshift(new_item);
-            } else
-                new_partial_closure.unshift(item);
-        } else {
-            const new_item = item.increment();
-
-            if (new_item.atEND)
-                completed_productions.add(new_item.getProduction(grammar).id);
-            else
-                new_partial_closure.unshift(new_item);
-        }
-    }
-
-    new_partial_closure = new_partial_closure.filter(_ => _).setFilter(i => i.full_id);
-
-    //take a new closure on this set to make sure we have all possible values.
-    processClosure(new_partial_closure, grammar, [], 0, new Set(new_partial_closure.map(i => i.full_id)));
-
-    if (--amount > 0)
-        return incrementClosure(new_partial_closure, grammar, amount);
-
-    return new_partial_closure;
 }
 
 
