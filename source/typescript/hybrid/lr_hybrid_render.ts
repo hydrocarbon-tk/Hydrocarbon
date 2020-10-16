@@ -15,6 +15,7 @@ import { State } from "./State";
 import { LLProductionFunction } from "./LLProductionFunction.js";
 import { insertFunctions } from "./insertFunctions.js";
 import { createProductionItems, States } from "./lr_hybrid.js";
+import { CompilerRunner } from "./CompilerRunner.js";
 
 function gotoState(
     /**  The state to reduce */
@@ -182,6 +183,8 @@ function shiftState(
 
             let lex_name = "lex", pending_data_name = "_s", pdn = pending_data_name;
 
+
+
             const item: Item = shift_state.items[0],
                 GROUP_NOT_LAST = i < shift_groups.length - 1,
                 FIRST_GROUP = i == 0,
@@ -193,6 +196,18 @@ function shiftState(
                 if (FIRST_GROUP) { clause.push(stmt(`var cp = lex.copy(), ${pdn} = null;`)); lex_name = 'cp'; }
                 else { clause.push(stmt("cp = lex.copy()")); lex_name = 'cp'; };
             }
+
+            if (runner.ANNOTATED)
+                if (TRY_GROUP) {
+                    if (FIRST_GROUP)
+                        clause.push(runner.createAnnotationJSNode(
+                            `LR-SHIFT-ATTEMPT:\${sp}:${i}`, grammar, ...shift_state.items))
+                    else
+                        clause.push(runner.createAnnotationJSNode(
+                            `LR-SHIFT-NEXT-ATTEMPT:\${sp}:${i}`, grammar, ...shift_state.items))
+                } else
+                    clause.push(runner.createAnnotationJSNode("LR-SHIFT", grammar, ...shift_state.items.map(i => i.decrement())))
+
 
             clause.push(...insertFunctions(item, grammar));
 
@@ -304,7 +319,7 @@ function reduceState(
     states: State[],
     /** The grammar for the states */
     grammar: Grammar,
-    runner
+    runner: CompilerRunner
 ): JSNode[] {
 
     const statements = [];
@@ -316,7 +331,6 @@ function reduceState(
             ADDED_VAR = true;
             statements.push(stmt(`var $;`));
         }
-
         //TODO turn into a switch statement
         // We reduce on the state, gather the production signatures
         // And proceed processing the next goto state. 
@@ -331,6 +345,10 @@ function reduceState(
             block = statement.nodes[1].nodes;
 
         block.length = 0;
+
+        if (runner.ANNOTATED)
+            block.push(runner.createAnnotationJSNode("LR-REDUCE", grammar, ...completed_items))
+
 
         const bool_statement = stmt(`$ = (${sym_lookahead})`);
 
@@ -403,7 +421,7 @@ export function renderState(
     state: State,
     states: States,
     grammar: Grammar,
-    runner,
+    runner: CompilerRunner,
     id_nodes: JSNode[][] = states.states.reduce(r => (r.push([]), r), []),
     ll_fns: LLProductionFunction[] = null,
     HYBRID = false
@@ -472,7 +490,6 @@ export function renderStates(
 ): JSNode[] {
 
     const
-        //state_array = states.states(root_states),
         out_functions = root_states.map(s => renderState(s, states, grammar, runner, id_nodes, ll_fns, HYBRID)),
         general_fn = states.states.map(s => renderState(s, states, grammar, runner, id_nodes, ll_fns, false)),
         pending = [...root_states, states.states[0]], reached = new Set;

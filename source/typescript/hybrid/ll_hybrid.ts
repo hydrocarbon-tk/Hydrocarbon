@@ -43,6 +43,7 @@ function renderItemSym(item: Item, grammar: Grammar, runner: CompilerRunner, ind
 
     stmts.push(...insertFunctions(item, grammar));
 
+
     if (item.atEND) {
         const body = item.body_(grammar);
         const reduce_function = body?.reduce_function?.txt;
@@ -55,9 +56,15 @@ function renderItemSym(item: Item, grammar: Grammar, runner: CompilerRunner, ind
         const sym = item.sym(grammar);
 
         if (sym.type == "production") {
+
+            if (runner.ANNOTATED)
+                stmts.push(runner.createAnnotationJSNode("LL-CALL", grammar, item));
+
             stmts.push(stmt(`const ${cn} = $${grammar[sym.val].name}(lex, e)`));
-            stmts.push(stmt(`if(e.FAILED) return ${cn}`));
+            stmts.push(stmt(`if(e.FAILED) return;`));
         } else {
+            if (runner.ANNOTATED)
+                stmts.push(runner.createAnnotationJSNode("LL-ASSERT", grammar, item))
 
             //Get skips from grammar - TODO get symbols from bodies / productions
             const skip_symbols = exp(`[${grammar.meta.ignore.flatMap(d => d.symbols).map(translateSymbolValue).join(",")}]`);
@@ -92,7 +99,13 @@ type TransitionGroup = {
 function renderFunctionBody(trs: LLItem[], grammar: Grammar, runner: CompilerRunner, peek_depth: number = 0) {
 
     const stmts = [];
+
     if (peek_depth > 4) throw "Can't complete";
+
+    //Item annotations if required
+    if (runner.ANNOTATED)
+        stmts.push(runner.createAnnotationJSNode("LL-PEEK:" + (peek_depth + 1), grammar, ...trs.map(LLItemToItem)))
+
 
     /* 
         Each item has a closure which yields transition symbols. 
@@ -215,9 +228,14 @@ function buildGroupStatement(grammar: Grammar, runner: CompilerRunner, group: Tr
     const if_body = if_stmt.nodes[1].nodes;
 
     if (trs.length > 1) {
+
+
         //Advance through each symbol until there is a difference
         //When there is a difference create a peeking switch
         let items: Item[] = trs.filter(_ => !!_).map(LLItemToItem).filter(_ => !!_), peek = peek_depth;
+
+
+
         while (true) {
             const sym = items.map(i => i).filter(i => !i.atEND)?.shift()?.sym(grammar),
                 off = items.filter(i => !i.atEND)[0].offset;
@@ -252,6 +270,7 @@ function buildGroupStatement(grammar: Grammar, runner: CompilerRunner, group: Tr
             };
         }
     } else {
+
         //Just complete the grammar symbols
         const item = LLItemToItem(trs[0]);
         if_body.push(...renderItem(item, grammar, runner, item.offset));
@@ -291,7 +310,7 @@ export function GetLLHybridFunctions(grammar: Grammar, env: GrammarParserEnviron
         }
 
         if (body.slice(-1)[0].type != JSNodeType.ReturnStatement) {
-            body.push(stmt(`return sym[sym.length - 1];`));
+            body.push(stmt(`e.FAILED = true`));
         }
 
         return {

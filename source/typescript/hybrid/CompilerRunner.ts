@@ -2,7 +2,14 @@ import { renderWithFormatting, JSNode, renderCompressed, JSNodeType, stmt } from
 import { traverse } from "@candlefw/conflagrate";
 import { Lexer } from "@candlefw/wind";
 import { State } from "./State.js";
+import { Item } from "../util/item.js";
+import { Grammar } from "../types/grammar.js";
 export interface CompilerRunner {
+    /**
+     * If true item and state annotations
+     * will be generated in the output.
+     */
+    ANNOTATED: boolean;
     function_map: Map<any, any>;
     constant_map: Map<any, any>;
     /**
@@ -14,10 +21,15 @@ export interface CompilerRunner {
     render_constants: () => string;
     add_script: (body: JSNode[], fn: JSNode, call_append: string, state: State) => JSNode[];
     update_nodes: () => void;
+    createAnnotationJSNode: (label: string, grammar: Grammar, ...items: Item[]) => JSNode;
     render_functions: () => string;
 }
-export function constructCompilerRunner(): CompilerRunner {
+export function constructCompilerRunner(ANNOTATED: boolean = false): CompilerRunner {
     const runner = <CompilerRunner>{
+        ANNOTATED,
+        createAnnotationJSNode: function (label: string, grammar: Grammar, ...items: Item[]) {
+            return stmt(`log(\`▎ ${label} ▎ \${glp(lex)} ▎ ${items.setFilter(i => i.id).map(i => i.renderUnformattedWithProduction(grammar)).join(" | ")}\`)`);
+        },
         function_map: new Map,
         constant_map: new Map,
         add_constant: (constant: JSNode): JSNode => {

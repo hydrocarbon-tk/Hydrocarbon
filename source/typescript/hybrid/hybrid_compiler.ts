@@ -73,7 +73,7 @@ export function CompileHybrid(grammar: Grammar, env: GrammarParserEnvironment) {
 
     //get lr states and ll productions
     const
-        runner = constructCompilerRunner(),
+        runner = constructCompilerRunner(true),
         ll_fns = GetLLHybridFunctions(grammar, env, runner),
         rl_states = CompileHybridLRStates(grammar, env, runner),
         hybrid_lr_states = [],
@@ -110,6 +110,20 @@ export function CompileHybrid(grammar: Grammar, env: GrammarParserEnvironment) {
     runner.update_constants();
 
     const parser = `
+function log(...str){
+    console.log(...str);
+}
+
+function glp(lex, padding = 8){
+    const token_length = lex.tl;
+    const offset = lex.off;
+    const string_length = lex.sl;
+    const start = Math.max(0, offset - padding);
+    const mid = offset;
+    const end = Math.min(string_length, offset + token_length  + padding);
+    return \`\${(start > 0 ?" ": "")+lex.str.slice(start, mid) + "•" + lex.str.slice(mid, end) + ((lex.END) ? " $EOF" : " ")}\`;
+}
+
 function createPos(lex, off){
     const copy = lex.copy;
     copy.off = lex.next;
