@@ -41,7 +41,7 @@ function gotoState(
         const accepting_productions = state.items.map(i => i.getProduction(grammar).id).setFilter();
 
         //sort goto in order
-        statements.push(stmt("let accept =-1;"));
+        statements.push(stmt("let a =-1;"));
         const
             while_sw = stmt(`o: while(1){ if(sp > e.sp) break; else e.sp++; switch(e.p) { } }`),
             while_block = while_sw.nodes[1].nodes[1].nodes,
@@ -88,7 +88,7 @@ function gotoState(
             while_sw_block.push(case_stmt);
         }
 
-        while_block.push(stmt(`if(e.p >= 0) accept = e.p;`));
+        while_block.push(stmt(`if(e.p >= 0) a = e.p;`));
 
         const
             case_stmt = stmt(`switch(true) { default:  } `).nodes[1].nodes[0],
@@ -99,12 +99,11 @@ function gotoState(
         //  clause.push(def);
         clause.push(stmt("break o;"));
         while_sw_block.push(case_stmt);
-        statements.push(stmt(`if(sp <= e.sp) e.p = accept;`));
-        statements.push(stmt(`if(![${accepting_productions.join(",")}].includes(accept))fail(lex,e);`));
-        //  statements.push(stmt(`console.log( {st:"State ${state.name || state.index}",s_sp:sp, c_sp:e.sp, accept, tx:lex.slice(), end:lex.END, s, ep: e.p,ac:[${accepting_productions}]})`));
+        statements.push(stmt(`if(sp <= e.sp) e.p = a;`));
+        statements.push(stmt(`if(![${accepting_productions.join(",")}].includes(a))fail(l,e);`));
     }
 
-    return runner.add_script(statements, stmt("function(lex, e, s){ return s}"), "s =", state);
+    return runner.add_script(statements, stmt("function(l, e, s){ return s}"), "s =", state);
 }
 
 
@@ -181,7 +180,7 @@ function shiftState(
 
         for (const shift_state of shift_groups) {
 
-            let lex_name = "lex", pending_data_name = "_s", pdn = pending_data_name;
+            let lex_name = "l", pending_data_name = "_s", pdn = pending_data_name;
 
 
 
@@ -193,8 +192,8 @@ function shiftState(
             i++;
 
             if (GROUP_NOT_LAST) {
-                if (FIRST_GROUP) { clause.push(stmt(`var cp = lex.copy(), ${pdn} = null;`)); lex_name = 'cp'; }
-                else { clause.push(stmt("cp = lex.copy()")); lex_name = 'cp'; };
+                if (FIRST_GROUP) { clause.push(stmt(`var cp = l.copy(), ${pdn} = null;`)); lex_name = 'cp'; }
+                else { clause.push(stmt("cp = l.copy()")); lex_name = 'cp'; };
             }
 
             if (runner.ANNOTATED)
@@ -240,7 +239,7 @@ function shiftState(
                 }
                 else {
                     clause.push(stmt(`s.push(_(${lex_name}, e, e.eh, [${skip_symbols.map(translateSymbolValue).join(",")}]));`));
-                    shift_state_stmt = stmt(`s = State${shift_state.index}(lex, e, s)`);
+                    shift_state_stmt = stmt(`s = State${shift_state.index}(l, e, s)`);
                 }
 
                 clause.push(shift_state_stmt);
@@ -259,7 +258,7 @@ function shiftState(
                         
                     }else{
                         s = ${pdn};
-                        lex.sync(cp);
+                        l.sync(cp);
                         break;
                     }`));
             }
@@ -274,13 +273,13 @@ function shiftState(
 
     if (tx.length > 0) {
 
-        swtch = stmt("switch(lex.tx){}");
+        swtch = stmt("switch(l.tx){}");
 
         swtch.nodes[1].nodes = tx;
 
         if (ty.length > 0) {
-            const sw_ty = stmt("switch(0){default: switch(lex.ty){  } }").nodes[1].nodes[0];
-            // const sw_ty = stmt("switch(0){default: switch(lex.ty){ default: e.FAILED = true; } }").nodes[1].nodes[0];
+            const sw_ty = stmt("switch(0){default: switch(l.ty){  } }").nodes[1].nodes[0];
+            // const sw_ty = stmt("switch(0){default: switch(l.ty){ default: e.FAILED = true; } }").nodes[1].nodes[0];
             sw_ty.nodes[0].nodes[1].nodes.unshift(...ty);
             swtch.nodes[1].nodes.push(sw_ty);
         }
@@ -290,12 +289,12 @@ function shiftState(
         }
     }
     else if (ty.length > 0) {
-        swtch = stmt("switch(lex.ty){}");
+        swtch = stmt("switch(l.ty){}");
         swtch.nodes[1].nodes = ty;
     }
 
     if (end.length > 0) {
-        const node = stmt("if(lex.END){}");
+        const node = stmt("if(l.END){}");
         node.nodes[1].nodes = end.map(n => n.nodes[1]);
         if (swtch)
             node.nodes[2] = swtch;
@@ -305,7 +304,7 @@ function shiftState(
     }
 
     return {
-        statements: runner.add_script(runner_statements, stmt("function(lex, e, s, sp){ return s}"), "s =", state),
+        statements: runner.add_script(runner_statements, stmt("function(l, e, s, sp){ return s}"), "s =", state),
         active_productions
     };
 }
@@ -352,7 +351,7 @@ function reduceState(
 
         const bool_statement = stmt(`$ = (${sym_lookahead})`);
 
-        statements.push(...runner.add_script([bool_statement], stmt("function(lex){ return $ }"), "$ =", state));
+        statements.push(...runner.add_script([bool_statement], stmt("function(l){ return $ }"), "$ =", state));
 
         const reduce_function = body?.reduce_function?.txt;
 
@@ -408,7 +407,7 @@ function compileState(
     // if (reduce_statments.length > 0)
     statements.push(stmt("e.p = -1;"));
 
-    // statements.push(stmt(`console.log({state_start:"${state.name || state.index}", tx:lex.slice(), s})`))
+    // statements.push(stmt(`console.log({state_start:"${state.name || state.index}", tx:l.slice(), s})`))
     //  statements.push(stmt(`console.log({st:"${state.name || state.index}", s:s.length});`));
     statements.push(...shift_stmts);
     statements.push(...reduce_statments);
@@ -434,8 +433,8 @@ export function renderState(
         str.push(item.renderUnformattedWithProductionAndFollow(grammar).replace(/\"/, "\\\""));
 
     const
-        //fn = stmt(`function ${state.name ? state.name : "State" + state.index}(lex, e, s = [], st){\`${state.bid}\`;}`),
-        fn = stmt(`function ${state.name ? state.name : "State" + state.index}(lex, e, s = []){;}`),
+        //fn = stmt(`function ${state.name ? state.name : "State" + state.index}(l, e, s = [], st){\`${state.bid}\`;}`),
+        fn = stmt(`function ${state.name ? state.name : "State" + state.index}(l, e, s = []){;}`),
         fn_id = fn.nodes[0],
         fn_body_nodes = fn.nodes[2].nodes;
 

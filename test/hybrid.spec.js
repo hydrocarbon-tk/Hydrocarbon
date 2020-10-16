@@ -23,7 +23,7 @@ assert_group(() => {
     const parserHybrid = CompileHybrid(grammar);
     //const parserLL = renderLLFN(grammar);
 
-    //assert(lrParse(test_string, parse_data).value == parserLR(new Lexer(test_string)));
+    assert(lrParse(test_string, parse_data).value == parserHybrid(new Lexer(test_string)));
     //assert(lrParse(test_string, parse_data).value == parserLL(new Lexer(test_string)));
 
     //harness.markTime();
@@ -34,20 +34,14 @@ assert_group(() => {
     a.addSymbol("SDFS", "SD");
     a.next().pk.copy().next().END;
 
-
-
     harness.markTime();
     assert(lrParse(test_string, parse_data).value == "");
     harness.getTime("LALR");
-
-
 
     harness.markTime();
     assert(parserHybrid(new Lexer(test_string)) == "");
     harness.getTime("hybrid");
 
-
-    // assert(parser() == "");
 }, sequence);
 
 

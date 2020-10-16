@@ -28,7 +28,7 @@ export function constructCompilerRunner(ANNOTATED: boolean = false): CompilerRun
     const runner = <CompilerRunner>{
         ANNOTATED,
         createAnnotationJSNode: function (label: string, grammar: Grammar, ...items: Item[]) {
-            return stmt(`log(\`▎ ${label} ▎ \${glp(lex)} ▎ ${items.setFilter(i => i.id).map(i => i.renderUnformattedWithProduction(grammar)).join(" | ")}\`)`);
+            return stmt(`log(\`▎\${glp(lex)} ▎${label} ▎${items.setFilter(i => i.id).map(i => i.renderUnformattedWithProduction(grammar)).join(" | ")}\`)`);
         },
         function_map: new Map,
         constant_map: new Map,
@@ -79,7 +79,7 @@ export function constructCompilerRunner(ANNOTATED: boolean = false): CompilerRun
                 node: JSNode = {
                     type: JSNodeType.Module,
                     nodes: body,
-                    pos: Lexer
+                    pos: null
                 }, id = renderCompressed(node);
 
 
@@ -92,6 +92,8 @@ export function constructCompilerRunner(ANNOTATED: boolean = false): CompilerRun
                 fn.nodes[0] = {
                     type: JSNodeType.Identifier,
                     value: name,
+                    nodes: null,
+                    pos: null,
                 };
 
                 runner.function_map.set(id, {
@@ -127,7 +129,7 @@ export function constructCompilerRunner(ANNOTATED: boolean = false): CompilerRun
                 .filter(e => e.nodes.length > 1)
                 .filter(e => e.states.length > 1)
                 .filter(e => e.states.reduce((a, s) => s.REACHABLE || a, false))
-                .map(e => renderWithFormatting(e.fn)).join("\n\n");
+                .map(e => renderCompressed(e.fn)).join("\n\n");
         }
     };
 

@@ -3,6 +3,7 @@ import { Lexer } from "@candlefw/wind";
 import { stmt, renderWithFormatting, extendAll, JSNodeType } from "@candlefw/js";
 import { State } from "./State.js";
 import { traverse } from "@candlefw/conflagrate";
+import { Item } from "../util/item.js";
 
 
 
@@ -67,14 +68,14 @@ export function getLexComparisonStringPeekNoEnv(sym: Symbol, grammar: Grammar, p
     switch (sym.type) {
         case SymbolType.GENERATED:
             if (sym.val == "$eof")
-                return `lex.${pk}END`;
-            return `lex.${pk}ty == ${translateSymbolValue(sym)}`;
+                return `l.${pk}END`;
+            return `l.${pk}ty == ${translateSymbolValue(sym)}`;
         case SymbolType.LITERAL:
         case SymbolType.ESCAPED:
         case SymbolType.SYMBOL:
-            return `lex.${pk}tx == ${translateSymbolValue(sym)}`;
+            return `l.${pk}tx == ${translateSymbolValue(sym)}`;
         case SymbolType.END_OF_FILE:
-            return `lex.${pk}END`;
+            return `l.${pk}END`;
         case SymbolType.EMPTY:
             return "true";
     }
@@ -83,14 +84,14 @@ export function getLexComparisonString(sym: Symbol): string {
     switch (sym.type) {
         case SymbolType.GENERATED:
             if (sym.val == "$eof")
-                return `lex.END`;
-            return `lex.ty == ${translateSymbolValue(sym)}`;
+                return `l.END`;
+            return `l.ty == ${translateSymbolValue(sym)}`;
         case SymbolType.LITERAL:
         case SymbolType.ESCAPED:
         case SymbolType.SYMBOL:
-            return `lex.tx == ${translateSymbolValue(sym)}`;
+            return `l.tx == ${translateSymbolValue(sym)}`;
         case SymbolType.END_OF_FILE:
-            return `lex.END`;
+            return `l.END`;
         case SymbolType.EMPTY:
             return "true";
     }
@@ -101,14 +102,14 @@ export function getLexPeekComparisonStringCached(sym: Symbol): string {
     switch (sym.type) {
         case SymbolType.GENERATED:
             if (sym.val == "$eof")
-                return `lex.END`;
+                return `l.END`;
             return `ty == ${translateSymbolValue(sym)}`;
         case SymbolType.LITERAL:
         case SymbolType.ESCAPED:
         case SymbolType.SYMBOL:
             return `tx == ${translateSymbolValue(sym)}`;
         case SymbolType.END_OF_FILE:
-            return `lex.END`;
+            return `l.END`;
         case SymbolType.EMPTY:
             return "true";
     }
@@ -118,14 +119,14 @@ export function getLexPeekComparisonString(sym: Symbol): string {
     switch (sym.type) {
         case SymbolType.GENERATED:
             if (sym.val == "$eof")
-                return `lex.END`;
-            return `lex.ty == ${translateSymbolValue(sym)}`;
+                return `l.END`;
+            return `l.ty == ${translateSymbolValue(sym)}`;
         case SymbolType.LITERAL:
         case SymbolType.ESCAPED:
         case SymbolType.SYMBOL:
-            return `lex.tx == ${translateSymbolValue(sym)}`;
+            return `l.tx == ${translateSymbolValue(sym)}`;
         case SymbolType.END_OF_FILE:
-            return `lex.END`;
+            return `l.END`;
         case SymbolType.EMPTY:
             return "true";
     }
@@ -139,7 +140,7 @@ export function integrateState(state: State, states: State[], grammar: Grammar, 
     }
 
     const
-        goto_stmt = stmt(`${name} = State${state.index}(lex, e, s, ${existing_state.index})`),
+        goto_stmt = stmt(`${name} = State${state.index}(l, e, s, ${existing_state.index})`),
         goto_id = goto_stmt.nodes[0].nodes[1].nodes[0];
 
     id_nodes[state.index].push(goto_id);
@@ -168,6 +169,27 @@ export function getNonTerminalTransitionStates(state: State): [string | number, 
 }
 export function getStatesFromNumericArray(value: number[], states: State[]): State[] {
     return value.map(i => states[i]);
+}
+
+export function getReduceFunctionSymbolIndiceSet(item: Item, grammar: Grammar): Set<number> {
+
+    const reduce_function = item.body_(grammar).reduce_function, sym_set: Set<number> = new Set;
+
+    if (reduce_function) {
+
+        const statement = stmt(reduce_function.txt);
+
+        if (statement.type == JSNodeType.ReturnStatement) {
+            for (const { node } of traverse(statement.nodes[0], "nodes")
+                .filter("type", JSNodeType.MemberExpression)) {
+                if (node.nodes[0].value == "sym" && node.COMPUTED) {
+                    sym_set.add(parseInt(<string>node.nodes[1].value));
+                }
+            }
+        }
+    }
+
+    return sym_set;
 }
 export function createReduceFunction(node_str: string, pre_fix = "", increment: number = 0, post_fix = ""): string {
 

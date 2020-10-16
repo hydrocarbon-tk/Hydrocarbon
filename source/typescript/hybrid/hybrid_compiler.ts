@@ -2,7 +2,7 @@ import fs from "fs";
 import { Grammar } from "../types/grammar.js";
 import { GrammarParserEnvironment } from "../types/grammar_compiler_environment";
 import { GetLLHybridFunctions } from "./ll_hybrid.js";
-import { renderWithFormatting, JSNode, exp } from "@candlefw/js";
+import { renderWithFormatting, JSNode, exp, renderCompressed } from "@candlefw/js";
 import { CompileHybridLRStates, IntegrateState, States } from "./lr_hybrid.js";
 import { renderStates } from "./lr_hybrid_render.js";
 import { translateSymbolValue } from "./utilities.js";
@@ -73,7 +73,7 @@ export function CompileHybrid(grammar: Grammar, env: GrammarParserEnvironment) {
 
     //get lr states and ll productions
     const
-        runner = constructCompilerRunner(true),
+        runner = constructCompilerRunner(false),
         ll_fns = GetLLHybridFunctions(grammar, env, runner),
         rl_states = CompileHybridLRStates(grammar, env, runner),
         hybrid_lr_states = [],
@@ -114,14 +114,14 @@ function log(...str){
     console.log(...str);
 }
 
-function glp(lex, padding = 8){
+function glp(lex, padding = 4){
     const token_length = lex.tl;
     const offset = lex.off;
     const string_length = lex.sl;
     const start = Math.max(0, offset - padding);
     const mid = offset;
     const end = Math.min(string_length, offset + token_length  + padding);
-    return \`\${(start > 0 ?" ": "")+lex.str.slice(start, mid) + "•" + lex.str.slice(mid, end) + ((lex.END) ? " $EOF" : " ")}\`;
+    return \`\${(start > 0 ?" ": "")+lex.str.slice(start, mid) + "•" + lex.str.slice(mid, end) + ((end == string_length) ? "$EOF" : " ")}\`;
 }
 
 function createPos(lex, off){
@@ -156,6 +156,9 @@ function lm_ty(lex, syms) {for (const sym of syms)  if (sym == 0xFF && lex.END) 
 function lm_tx(lex, syms) {  for (const sym of syms) if (lex.tx == sym) return true; return false; }
     
 function _(lex, e, eh, skips, ...syms) {
+    
+    if(e.FAILED) return "";
+    
     if (syms.length == 0 || lm(lex, syms)) {
         const val = lex.tx;
         lex.next();
@@ -178,14 +181,13 @@ ${ runner.render_constants()}
 
 const skips = [8, 256];
 
-
-    ${ fns.map(fn => {
+${ fns.map(fn => {
         const id = fn.nodes[0].value;
         const member = exp(`({${id}:null})`).nodes[0].nodes[0];
         member.nodes[1] = fn;
         //fn.nodes[2].nodes.splice(0, 0, stmt(`console.log(\`[\${lex.tx}] -> ${id}\`)`));
         return fn;
-    }).map(fn => renderWithFormatting(fn)).join(";\n")}
+    }).map(fn => renderCompressed(fn)).join(";\n")}
 
 
 return Object.assign( function (lexer, env = {
