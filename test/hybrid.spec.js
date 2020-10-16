@@ -8,7 +8,8 @@ const url = await URL.resolveRelative("./mock/test_grammar_e_fork.hcg");
 
 const file = await url.fetchText();
 
-const test_string = `( A, ( A ) , (A) ) => { ( A, ( A ) , (A) ) => { ( A, ( A ) , (A) ) => { ( A, ( A ) , (A) ) => { ( A, ( A ) , (A) ) => { D } } } } } ;`;
+const test_string = `(  a, (A) , (A)=>{A}  ) => {(a)=>{A}}`;
+//const test_string = `( A,  A  ,  A  ) => { ( A,  (d) , A ) => { ( A, A , A  ) => { ( A, A , A ) => { ( A,  A , A ) => { D } } } } }`;
 
 assert_group(() => {
 
@@ -20,7 +21,7 @@ assert_group(() => {
         to a new state;
     */
     const parserHybrid = CompileHybrid(grammar);
-    const parserLL = renderLLFN(grammar);
+    //const parserLL = renderLLFN(grammar);
 
     //assert(lrParse(test_string, parse_data).value == parserLR(new Lexer(test_string)));
     //assert(lrParse(test_string, parse_data).value == parserLL(new Lexer(test_string)));
@@ -33,15 +34,17 @@ assert_group(() => {
     a.addSymbol("SDFS", "SD");
     a.next().pk.copy().next().END;
 
+
+
+    harness.markTime();
+    assert(lrParse(test_string, parse_data).value == "");
+    harness.getTime("LALR");
+
+
+
     harness.markTime();
     assert(parserHybrid(new Lexer(test_string)) == "");
     harness.getTime("hybrid");
-
-
-
-    harness.markTime();
-    assert(lrParse(test_string, parse_data) == "");
-    harness.getTime("LALR");
 
 
     // assert(parser() == "");
