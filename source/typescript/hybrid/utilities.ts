@@ -2,6 +2,7 @@ import { Grammar, SymbolType, Symbol } from "../types/grammar.js";
 import { Lexer } from "@candlefw/wind";
 import { stmt, renderWithFormatting, extendAll, JSNodeType } from "@candlefw/js";
 import { State } from "./State.js";
+import { traverse } from "@candlefw/conflagrate";
 
 
 
@@ -168,11 +169,26 @@ export function getNonTerminalTransitionStates(state: State): [string | number, 
 export function getStatesFromNumericArray(value: number[], states: State[]): State[] {
     return value.map(i => states[i]);
 }
-export function createReduceFunction(node_str: string): string {
-    const statement = extendAll(stmt(node_str));
+export function createReduceFunction(node_str: string, pre_fix = "", increment: number = 0, post_fix = ""): string {
+
+    const statement = stmt(node_str), hook = { ast: null };
 
     if (statement.type == JSNodeType.ReturnStatement) {
-        return `${renderWithFormatting(statement.nodes[0])}`;
+        for (const { node, meta: { replace } } of traverse(statement.nodes[0], "nodes")
+            .filter("type", JSNodeType.MemberExpression)
+            .makeReplaceable()
+            .extract(hook)) {
+            if (node.nodes[0].value == "sym" && node.COMPUTED && (pre_fix || post_fix)) {
+                replace({
+                    type: JSNodeType.Identifier,
+                    value: pre_fix + (increment + parseInt(node.nodes[1].value)) + post_fix,
+                    pos: node.pos,
+                    nodes: []
+                });
+            }
+        }
+
+        return `${renderWithFormatting(hook.ast)}`;
     }
 
     return `null`;
