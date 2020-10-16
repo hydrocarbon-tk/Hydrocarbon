@@ -1,14 +1,15 @@
 import { Grammar, Production, ProductionBody, EOF_SYM } from "../types/grammar.js";
 import { processClosure, Item, FOLLOW } from "../util/common.js";
 import { GrammarParserEnvironment } from "../types/grammar_compiler_environment";
-import { stmt, JSNode, JSNodeType } from "@candlefw/js";
+import { stmt, JSNode, JSNodeType, exp, extendAll } from "@candlefw/js";
 import { createReduceFunction, translateSymbolValue, getLexPeekComparisonStringCached } from "./utilities.js";
 import { LLProductionFunction } from "./LLProductionFunction";
 import { LLItem } from "./LLItem";
 import { getClosureTerminalSymbols } from "./getClosureTerminalSymbols.js";
 import { insertFunctions } from "./insertFunctions.js";
+import { CompilerRunner } from "./CompilerRunner.js";
 
-function checkForLeftRecursion(p: Production, start_items: Item[], grammar: Grammar) {
+function checkForLeftRecursion(p: Production, start_items: LLItem[], grammar: Grammar) {
 
     const closure_items = start_items.map(g => g.item);
 
@@ -37,8 +38,8 @@ function BodyToLLItem(b: ProductionBody, grammar: Grammar): LLItem {
     return ItemToLLItem(new Item(b.id, b.length, 0, EOF_SYM), grammar);
 }
 
-function renderItemSym(item: Item, grammar: Grammar): JSNode[] {
-    const stmts = [];
+function renderItemSym(item: Item, grammar: Grammar, runner: CompilerRunner, index_offset: number = 0): JSNode[] {
+    const stmts = [], sym = "$", cn = `${sym}${index_offset + 1}_`;
 
     stmts.push(...insertFunctions(item, grammar));
 
@@ -47,33 +48,37 @@ function renderItemSym(item: Item, grammar: Grammar): JSNode[] {
         const reduce_function = body?.reduce_function?.txt;
 
         if (reduce_function) {
-            stmts.push(stmt(`return (${createReduceFunction(reduce_function)});`));
+            stmts.push(stmt(`return (${createReduceFunction(reduce_function, sym, 1, "_")});`));
         } else
-            stmts.push(stmt(`return sym[sym.length - 1];`));
+            stmts.push(stmt(`return ${cn}`));
     } else {
         const sym = item.sym(grammar);
 
         if (sym.type == "production") {
-            stmts.push(stmt(`sym.push($${grammar[sym.val].name}(lex, e))`));
-            stmts.push(stmt(`if(e.FAILED) return sym[sym.length-1]`));
+            stmts.push(stmt(`const ${cn} = $${grammar[sym.val].name}(lex, e)`));
+            stmts.push(stmt(`if(e.FAILED) return ${cn}`));
         } else {
 
             //Get skips from grammar - TODO get symbols from bodies / productions
-            const skip_symbols = grammar.meta.ignore.flatMap(d => d.symbols);
+            const skip_symbols = exp(`[${grammar.meta.ignore.flatMap(d => d.symbols).map(translateSymbolValue).join(",")}]`);
+            const call = extendAll(stmt(`const ${cn} = _(lex, e, e.eh, null, ${translateSymbolValue(sym)});`));
 
-            stmts.push(stmt(`sym.push(_(lex, e, e.eh, skips, ${translateSymbolValue(sym)}));`));
+            call.nodes[0].nodes[1].nodes[1].nodes[3] = runner.add_constant(skip_symbols);;
+
+            stmts.push(call);
         }
     }
 
     return stmts;
 }
 
-function renderItem(item: Item, grammar: Grammar): JSNode[] {
+function renderItem(item: Item, grammar: Grammar, runner: CompilerRunner, index_offset = 0): JSNode[] {
     const stmts = [];
     while (true) {
-        stmts.push(...renderItemSym(item, grammar));
+        stmts.push(...renderItemSym(item, grammar, runner, index_offset));
         if (item.atEND) break;
         item = item.increment();
+        if (!item.atEND) index_offset++;
     }
     return stmts;
 }
@@ -84,7 +89,7 @@ type TransitionGroup = {
     syms: Set<string>;
     trs: LLItem[];
 };
-function renderVals(trs: LLItem[], grammar: Grammar, peek_depth: number = 0) {
+function renderFunctionBody(trs: LLItem[], grammar: Grammar, runner: CompilerRunner, peek_depth: number = 0) {
 
     const stmts = [];
     if (peek_depth > 4) throw "Can't complete";
@@ -132,7 +137,6 @@ function renderVals(trs: LLItem[], grammar: Grammar, peek_depth: number = 0) {
         if (!group_maps.has(id)) {
 
             group_maps.set(id, {
-                d: trs.map(LLItemToItem).map(i => i.renderUnformattedWithProduction(grammar)),
                 id,
                 syms: new Set(),
                 trs
@@ -166,10 +170,6 @@ function renderVals(trs: LLItem[], grammar: Grammar, peek_depth: number = 0) {
 
                 const new_group = try_group.concat(group);
 
-                const d = group.trs.map(LLItemToItem).map(i => i.renderUnformattedWithProduction(grammar));
-
-                new_group.d = d;
-
                 try_groups.delete(id);
 
                 try_groups.set(try_id + id, new_group);
@@ -191,12 +191,12 @@ function renderVals(trs: LLItem[], grammar: Grammar, peek_depth: number = 0) {
             new_group.trs = try_group.flatMap(i => i.trs);
 
             // for (const group of try_group) {
-            buildGroupStatement(grammar, new_group, peek_depth, stmts, sym_map);
+            buildGroupStatement(grammar, runner, new_group, peek_depth, stmts, sym_map);
             // }
 
             //Make a try catch chain.
         } else {
-            buildGroupStatement(grammar, try_group[0], peek_depth, stmts, sym_map);
+            buildGroupStatement(grammar, runner, try_group[0], peek_depth, stmts, sym_map);
         }
     }
 
@@ -204,7 +204,7 @@ function renderVals(trs: LLItem[], grammar: Grammar, peek_depth: number = 0) {
     return stmts;
 }
 
-function buildGroupStatement(grammar: Grammar, group: TransitionGroup, peek_depth, stmts, sym_map) {
+function buildGroupStatement(grammar: Grammar, runner: CompilerRunner, group: TransitionGroup, peek_depth, stmts, sym_map) {
     const
         trs = group.trs,
         syms = [...group.syms.values()],
@@ -218,14 +218,14 @@ function buildGroupStatement(grammar: Grammar, group: TransitionGroup, peek_dept
         //Advance through each symbol until there is a difference
         //When there is a difference create a peeking switch
         let items: Item[] = trs.filter(_ => !!_).map(LLItemToItem).filter(_ => !!_), peek = peek_depth;
-
         while (true) {
-            const sym = items.map(i => i).filter(i => !i.atEND)?.shift()?.sym(grammar);
+            const sym = items.map(i => i).filter(i => !i.atEND)?.shift()?.sym(grammar),
+                off = items.filter(i => !i.atEND)[0].offset;
             //If any items at end do something
 
             //All items agree
             if (sym && !items.reduce((r, i) => (r || i.atEND || (i.sym(grammar)?.val != sym.val)), false)) {
-                if_body.push(...renderItemSym(items[0], grammar));
+                if_body.push(...renderItemSym(items[0], grammar, runner, off));
                 items = items.map(i => i.increment()).filter(i => i);
                 peek = -1;
             } else {
@@ -242,11 +242,11 @@ function buildGroupStatement(grammar: Grammar, group: TransitionGroup, peek_dept
                         });
 
                 if (new_trs.length > 0)
-                    if_body.push(...renderVals(new_trs, grammar, peek + 1));
+                    if_body.push(...renderFunctionBody(new_trs, grammar, runner, peek + 1));
 
                 //If any items at end render here?
                 for (const d of items.filter(i => i.atEND))
-                    if_body.push(...renderItem(d, grammar));
+                    if_body.push(...renderItem(d, grammar, runner, off));
 
                 break;
             };
@@ -254,23 +254,23 @@ function buildGroupStatement(grammar: Grammar, group: TransitionGroup, peek_dept
     } else {
         //Just complete the grammar symbols
         const item = LLItemToItem(trs[0]);
-        if_body.push(...renderItem(item, grammar));
+        if_body.push(...renderItem(item, grammar, runner, item.offset));
     }
 
     stmts.push(if_stmt);
 }
 
-export function GetLLHybridFunctions(grammar: Grammar, env: GrammarParserEnvironment, runner): LLProductionFunction[] {
+export function GetLLHybridFunctions(grammar: Grammar, env: GrammarParserEnvironment, runner: CompilerRunner): LLProductionFunction[] {
 
     return grammar.map(p => {
 
-        const fn = stmt(`function $${p.name}(lex, e, sym = []){;}`),
+        const fn = stmt(`function $${p.name}(lex, e){;}`),
             body = fn.nodes[2].nodes,
             start_items: LLItem[] = p.bodies.map(b => BodyToLLItem(b, grammar));
 
         body.pop();
 
-        if (checkForLeftRecursion(p, start_items, grammar)) {
+        if (true || checkForLeftRecursion(p, start_items, grammar)) {
             return {
                 refs: 0,
                 id: p.id,
@@ -279,7 +279,7 @@ export function GetLLHybridFunctions(grammar: Grammar, env: GrammarParserEnviron
             };
         }
         try {
-            body.push(...renderVals(start_items, grammar));
+            body.push(...renderFunctionBody(start_items, grammar, runner));
         } catch (e) {
             return {
                 refs: 0,

@@ -26,7 +26,7 @@ Array.prototype.groupMap = function <T>(this: Array<T>, fn: (T) => (string | num
 /**
  * Filters all items based on whether a certain value is contained within a set or not
  */
-Array.prototype.setFilter = function <T>(this: Array<T>, fn: (T) => (string | number)[]): T[] {
+Array.prototype.setFilter = function <T>(this: Array<T>, fn: (T) => (string | number)[] = _ => _.toString()): T[] {
 
     const set = new Set;
 
@@ -131,7 +131,7 @@ export function getLexPeekComparisonString(sym: Symbol): string {
     }
 }
 //
-export function integrateState(state: State, states: State[], grammar: Grammar, id_nodes: any[], existing_refs: Set<number>, name = "s") {
+export function integrateState(state: State, states: State[], grammar: Grammar, id_nodes: any[], existing_refs: Set<number>, name = "s", existing_state) {
 
     if (!existing_refs.has(state.index)) {
         state.refs++;
@@ -139,7 +139,7 @@ export function integrateState(state: State, states: State[], grammar: Grammar, 
     }
 
     const
-        goto_stmt = stmt(`${name} = State${state.index}(lex, e, s)`),
+        goto_stmt = stmt(`${name} = State${state.index}(lex, e, s, ${existing_state.index})`),
         goto_id = goto_stmt.nodes[0].nodes[1].nodes[0];
 
     id_nodes[state.index].push(goto_id);
