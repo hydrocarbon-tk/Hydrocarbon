@@ -53,7 +53,7 @@ export function processClosure(items: Item[], grammar: Grammar, excludes: any[] 
                         break;
                     }
                     //Excludes going to next round
-                    excludes.push({ body: ex.body, symbols: ex.symbols, offset: d + 1start_items, l: ex.l, inner_offset: 0 });
+                    excludes.push({ body: ex.body, symbols: ex.symbols, offset: d + 1, l: ex.l, inner_offset: 0 });
                 }
             }
         }

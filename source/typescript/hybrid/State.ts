@@ -4,6 +4,10 @@ import { Item } from "../util/common.js";
 
 export interface State {
     /**
+     * Optional name to reference the state function
+     */
+    name?: string;
+    /**
      * A set of state indices that are called from this state.
      */
     reachable: Set<number>;
