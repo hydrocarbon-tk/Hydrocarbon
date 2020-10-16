@@ -43,8 +43,8 @@ function gotoState(
         statements.push(stmt("let accept =-1;"));
         const
             while_sw = stmt(`o: while(1){ if(sp > e.sp) break; else e.sp++; switch(e.p) { } }`),
-            while_sw_block = while_sw.nodes[1].nodes[1].
-                nodes[1].nodes[1].nodes;
+            while_block = while_sw.nodes[1].nodes[1].nodes,
+            while_sw_block = while_block[1].nodes[1].nodes;
         statements.push(while_sw);
 
         for (const [key, val] of gt.sort(([a], [b]) => a < b ? 1 : b < a ? -1 : 0)) {
@@ -80,13 +80,14 @@ function gotoState(
                 }
             }
 
-            clause.push(stmt(`if(e.p >= 0) accept = e.p;`));
             clause.push(stmt(` break ;`));
 
             if (clause.length == 1) continue;
 
             while_sw_block.push(case_stmt);
         }
+
+        while_block.push(stmt(`if(e.p >= 0) accept = e.p;`));
 
         const
             case_stmt = stmt(`switch(true) { default:  } `).nodes[1].nodes[0],
@@ -197,12 +198,14 @@ function shiftState(
 
             if (ll_fns && ll_fns[production] && !ll_fns[production].L_RECURSION) {
 
-                if (GROUP_NOT_LAST)
-                    clause.push(stmt(`${pdn} = $${grammar[production].name}(${lex_name}, e)`));
-                else
+
+                if (GROUP_NOT_LAST) {
+                    clause.push(stmt(`${pdn} = s.slice()`));
+                    clause.push(stmt(`${pdn}.push($${grammar[production].name}(${lex_name}, e))`));
+                } else
                     clause.push(stmt(`s.push($${grammar[production].name}(${lex_name}, e))`));
 
-                clause.push(stmt(`e.p = ${production};`));
+                clause.push(stmt(`e.p = (e.FAILED) ? -1 : ${production};`));
 
                 // active_productions.add(production);
 
@@ -372,21 +375,26 @@ function compileState(
         existing_refs: Set<number> = new Set(),
         statements = [],
         //State should already be assumed to have reducible constructs
-        { statements: shift_stmts, active_productions } = shiftState(state, states, grammar, runner, ids, existing_refs, ll_fns, HYBRID);
+        { statements: shift_stmts, active_productions } = shiftState(state, states, grammar, runner, ids, existing_refs, ll_fns, HYBRID),
+        goto_statements = gotoState(state, states, grammar, runner, ids, active_productions, existing_refs, HYBRID),
+        reduce_statments = reduceState(state, states, grammar, runner);
 
     //if the previous state is a production
     // if (typeof state.sym == "number")
     //     statements.push(stmt(`e.p = ${state.sym};`));
     // else
+
+    if (goto_statements.length > 0)
+        statements.push(stmt("const sp = e.sp;"));
+
+    // if (reduce_statments.length > 0)
     statements.push(stmt("e.p = -1;"));
-    statements.push(stmt("const sp = e.sp;"));
-    //statements.push(stmt(`console.log({prev:st, state_start:"${state.name || state.index}", tx:lex.slice(), sp})`))
+
+    // statements.push(stmt(`console.log({state_start:"${state.name || state.index}", tx:lex.slice(), s})`))
     //  statements.push(stmt(`console.log({st:"${state.name || state.index}", s:s.length});`));
     statements.push(...shift_stmts);
-
-    statements.push(...reduceState(state, states, grammar, runner));
-
-    statements.push(...gotoState(state, states, grammar, runner, ids, active_productions, existing_refs, HYBRID));
+    statements.push(...reduce_statments);
+    statements.push(...goto_statements);
 
     return statements;
 }
@@ -409,9 +417,11 @@ export function renderState(
 
     const
         //fn = stmt(`function ${state.name ? state.name : "State" + state.index}(lex, e, s = [], st){\`${state.bid}\`;}`),
-        fn = stmt(`function ${state.name ? state.name : "State" + state.index}(lex, e, s = []){e.p=-1;}`),
+        fn = stmt(`function ${state.name ? state.name : "State" + state.index}(lex, e, s = []){;}`),
         fn_id = fn.nodes[0],
         fn_body_nodes = fn.nodes[2].nodes;
+
+    fn_body_nodes.pop();
 
     if (!state.name)
 
@@ -466,6 +476,8 @@ export function renderStates(
         out_functions = root_states.map(s => renderState(s, states, grammar, runner, id_nodes, ll_fns, HYBRID)),
         general_fn = states.states.map(s => renderState(s, states, grammar, runner, id_nodes, ll_fns, false)),
         pending = [...root_states, states.states[0]], reached = new Set;
+
+    if (!ll_fns[0].L_RECURSION) pending.pop();
 
     for (let i = 0; i < pending.length; i++) {
 

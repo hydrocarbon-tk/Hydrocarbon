@@ -56,21 +56,17 @@ function $_0(lex, e, s, sp){
 
             var cp= lex.copy(),_s= null;
 
-            e.sp++;
-
             _s = s.slice();
 
-            _s.push(_(cp, e, e.eh, [8,256]));
+            _s.push($F(cp, e));
 
-            _s = $5(cp, e, _s);
+            e.p = (e.FAILED)?-1:3;
 
             if ( e.p!==3 ) {e.FAILED = false; e.sp = sp;}else {s = _s; lex.sync(cp); break;}
 
-            e.sp++;
+            s.push($P(lex, e));
 
-            s.push(_(lex, e, e.eh, [8,256]));
-
-            s = $4(lex, e, s);
+            e.p = (e.FAILED)?-1:2;
 
             break;
          
@@ -81,11 +77,9 @@ function $_0(lex, e, s, sp){
 
                 case 2 : 
 
-                    e.sp++;
+                    s.push($I(lex, e));
 
-                    s.push(_(lex, e, e.eh, [8,256]));
-
-                    s = $6(lex, e, s);
+                    e.p = (e.FAILED)?-1:5;
 
                     break;
                 
@@ -96,88 +90,95 @@ function $_0(lex, e, s, sp){
     return s;
 }
 
-function $_8(lex){
+function $_4(lex){
 
     $ = (lex.END||lex.tx==")"||lex.tx==","||lex.tx=="}");
 
     return $;
 }
 
-function $_14(lex){$ = (lex.tx==")"||lex.tx==","); return $;}
-
+function $_10(lex){$ = (lex.tx==")"||lex.tx==","); return $;}
+const _0 = [8,256];
 
 const skips = [8, 256];
 
 
-    function $S(lex, e, s= []){
+    function $S(lex, e){
 
-    e.p = -1;
+    const tx= lex.tx, ty= lex.ty;
 
-    e.p = -1;
+    if ( tx=="("||ty==2 ) {
 
-    const sp= e.sp;
+        const $1_= $E(lex, e);
 
-    s = $_0(lex, e, s, sp);
+        if ( e.FAILED ) return $1_;
 
-    
-    let accept= -1;
-    o:while(1){
-
-        if ( sp>e.sp ) break;else e.sp++;
-
-        switch(e.p){
-
-            case 5 : 
-
-                s = $3(lex, e, s, 0);
-
-                if ( e.p>=0 ) accept = e.p;
-
-                break;
-             
-
-            case 3 : 
-
-                s = $2(lex, e, s, 0);
-
-                if ( e.p>=0 ) accept = e.p;
-
-                break;
-             
-
-            case 2 : 
-
-                s = $1(lex, e, s, 0);
-
-                if ( e.p>=0 ) accept = e.p;
-
-                break;
-             
-
-            case 1 : 
-
-                s = $0(lex, e, s, 0);
-
-                if ( e.p>=0 ) accept = e.p;
-
-                break;
-             
-
-            default : break o;
-        }
+        return $1_;
     }
-    if ( sp<=e.sp ) e.p = accept;
-    if ( ![0,1,2,3,5].includes(accept) ) fail(lex, e);
 
-    return s[s.length-1];
+    return sym[sym.length-1];
+};
+function $P(lex, e){
+
+    const tx= lex.tx, ty= lex.ty;
+
+    if ( tx=="(" ) {
+
+        const $1_= _(lex, e, e.eh, _0, "(");
+
+        const $2_= $E(lex, e);
+
+        if ( e.FAILED ) return $2_;
+
+        const $3_= _(lex, e, e.eh, _0, ")");
+
+        return ({ o:("parenth"), d:$2_ });
+    }
+
+    return sym[sym.length-1];
+};
+function $F(lex, e){
+
+    const tx= lex.tx, ty= lex.ty;
+
+    if ( tx=="(" ) {
+
+        const $1_= _(lex, e, e.eh, _0, "(");
+
+        const $2_= $L(lex, e);
+
+        if ( e.FAILED ) return $2_;
+
+        const $3_= _(lex, e, e.eh, _0, ")");
+
+        const $4_= _(lex, e, e.eh, _0, "=>");
+
+        const $5_= _(lex, e, e.eh, _0, "{");
+
+        const $6_= $E(lex, e);
+
+        if ( e.FAILED ) return $6_;
+
+        const $7_= _(lex, e, e.eh, _0, "}");
+
+        return ({ o:"function", u:$2_, d:$6_ });
+    }
+
+    return sym[sym.length-1];
+};
+function $I(lex, e){
+
+    const tx= lex.tx, ty= lex.ty;
+
+    if ( ty==2 ) {const $1_= _(lex, e, e.eh, _0, 2); return $1_;}
+
+    return sym[sym.length-1];
 };
 function $E(lex, e, s= []){
 
-    e.p = -1;
-
-    e.p = -1;
-
     const sp= e.sp;
+
+    e.p = -1;
 
     s = $_0(lex, e, s, sp);
 
@@ -189,98 +190,27 @@ function $E(lex, e, s= []){
 
         switch(e.p){
 
-            case 5 : 
+            case 5 : s = $3(lex, e, s, 0); break; 
 
-                s = $3(lex, e, s, 0);
+            case 3 : s = $2(lex, e, s, 0); break; 
 
-                if ( e.p>=0 ) accept = e.p;
-
-                break;
-             
-
-            case 3 : 
-
-                s = $2(lex, e, s, 0);
-
-                if ( e.p>=0 ) accept = e.p;
-
-                break;
-             
-
-            case 2 : 
-
-                s = $1(lex, e, s, 0);
-
-                if ( e.p>=0 ) accept = e.p;
-
-                break;
-             
+            case 2 : s = $1(lex, e, s, 0); break; 
 
             default : break o;
         }
+
+        if ( e.p>=0 ) accept = e.p;
     }
     if ( sp<=e.sp ) e.p = accept;
     if ( ![1,2,3,5].includes(accept) ) fail(lex, e);
 
     return s[s.length-1];
 };
-function $P(lex, e, s= []){
-
-    e.p = -1;
-
-    e.p = -1;
-
-    const sp= e.sp;
-
-    
-    switch(lex.tx){
-
-        case "(" : 
-
-            e.sp++;
-
-            s.push(_(lex, e, e.eh, [8,256]));
-
-            s = $4(lex, e, s);
-
-            break;
-        
-    }
-
-    return s[s.length-1];
-};
-function $F(lex, e, s= []){
-
-    e.p = -1;
-
-    e.p = -1;
-
-    const sp= e.sp;
-
-    
-    switch(lex.tx){
-
-        case "(" : 
-
-            e.sp++;
-
-            s.push(_(lex, e, e.eh, [8,256]));
-
-            s = $5(lex, e, s);
-
-            break;
-        
-    }
-
-    return s[s.length-1];
-};
 function $L(lex, e, s= []){
 
-    e.p = -1;
-
-    e.p = -1;
-
     const sp= e.sp;
+
+    e.p = -1;
 
     s = $_0(lex, e, s, sp);
 
@@ -292,116 +222,33 @@ function $L(lex, e, s= []){
 
         switch(e.p){
 
-            case 5 : 
+            case 5 : s = $3(lex, e, s, 0); break; 
 
-                s = $3(lex, e, s, 0);
+            case 4 : s = $9(lex, e, s, 0); break; 
 
-                if ( e.p>=0 ) accept = e.p;
+            case 3 : s = $2(lex, e, s, 0); break; 
 
-                break;
-             
+            case 2 : s = $1(lex, e, s, 0); break; 
 
-            case 4 : 
-
-                s = $9(lex, e, s, 0);
-
-                if ( e.p>=0 ) accept = e.p;
-
-                break;
-             
-
-            case 3 : 
-
-                s = $2(lex, e, s, 0);
-
-                if ( e.p>=0 ) accept = e.p;
-
-                break;
-             
-
-            case 2 : 
-
-                s = $1(lex, e, s, 0);
-
-                if ( e.p>=0 ) accept = e.p;
-
-                break;
-             
-
-            case 1 : 
-
-                s = $10(lex, e, s, 0);
-
-                if ( e.p>=0 ) accept = e.p;
-
-                break;
-             
+            case 1 : s = $10(lex, e, s, 0); break; 
 
             default : break o;
         }
+
+        if ( e.p>=0 ) accept = e.p;
     }
     if ( sp<=e.sp ) e.p = accept;
     if ( ![4,1,2,3,5].includes(accept) ) fail(lex, e);
 
     return s[s.length-1];
 };
-function $I(lex, e, s= []){
-
-    e.p = -1;
-
-    e.p = -1;
-
-    const sp= e.sp;
-
-    
-    switch(lex.ty){
-
-        case 2 : 
-
-            e.sp++;
-
-            s.push(_(lex, e, e.eh, [8,256]));
-
-            s = $6(lex, e, s);
-
-            break;
-        
-    }
-
-    return s[s.length-1];
-};
-function $0(lex, e, s= []){
-
-    e.p = -1;
-
-    e.p = -1;
-
-    const sp= e.sp;
-
-    var $;
-
-    $ = (lex.END);
-
-    if ( $ ) {
-
-        e.sp -= 1;
-
-        return (e.p = 0, (s.splice(-1, 1, s[s.length-1]), s));
-    }
-
-    return s;
-};
 function $1(lex, e, s= []){
 
     e.p = -1;
 
-    e.p = -1;
-
-    const sp= e.sp;
-
     var $;
 
-    $ = $_8(lex);
+    $ = $_4(lex);
 
     if ( $ ) {
 
@@ -416,13 +263,9 @@ function $2(lex, e, s= []){
 
     e.p = -1;
 
-    e.p = -1;
-
-    const sp= e.sp;
-
     var $;
 
-    $ = $_8(lex);
+    $ = $_4(lex);
 
     if ( $ ) {
 
@@ -437,13 +280,9 @@ function $3(lex, e, s= []){
 
     e.p = -1;
 
-    e.p = -1;
-
-    const sp= e.sp;
-
     var $;
 
-    $ = $_8(lex);
+    $ = $_4(lex);
 
     if ( $ ) {
 
@@ -454,219 +293,9 @@ function $3(lex, e, s= []){
 
     return s;
 };
-function $4(lex, e, s= []){
-
-    e.p = -1;
-
-    e.p = -1;
-
-    const sp= e.sp;
-
-    s = $_0(lex, e, s, sp);
-
-    
-    let accept= -1;
-    o:while(1){
-
-        if ( sp>e.sp ) break;else e.sp++;
-
-        switch(e.p){
-
-            case 5 : 
-
-                s = $3(lex, e, s, 4);
-
-                if ( e.p>=0 ) accept = e.p;
-
-                break;
-             
-
-            case 3 : 
-
-                s = $2(lex, e, s, 4);
-
-                if ( e.p>=0 ) accept = e.p;
-
-                break;
-             
-
-            case 2 : 
-
-                s = $1(lex, e, s, 4);
-
-                if ( e.p>=0 ) accept = e.p;
-
-                break;
-             
-
-            case 1 : 
-
-                s = $7(lex, e, s, 4);
-
-                if ( e.p>=0 ) accept = e.p;
-
-                break;
-             
-
-            default : break o;
-        }
-    }
-    if ( sp<=e.sp ) e.p = accept;
-    if ( ![2].includes(accept) ) fail(lex, e);
-
-    return s;
-};
-function $5(lex, e, s= []){
-
-    e.p = -1;
-
-    e.p = -1;
-
-    const sp= e.sp;
-
-    s = $_0(lex, e, s, sp);
-
-    
-    let accept= -1;
-    o:while(1){
-
-        if ( sp>e.sp ) break;else e.sp++;
-
-        switch(e.p){
-
-            case 5 : 
-
-                s = $3(lex, e, s, 5);
-
-                if ( e.p>=0 ) accept = e.p;
-
-                break;
-             
-
-            case 4 : 
-
-                s = $8(lex, e, s, 5);
-
-                if ( e.p<0 ) s = $9(lex, e, s, 5);
-
-                if ( e.p>=0 ) accept = e.p;
-
-                break;
-             
-
-            case 3 : 
-
-                s = $2(lex, e, s, 5);
-
-                if ( e.p>=0 ) accept = e.p;
-
-                break;
-             
-
-            case 2 : 
-
-                s = $1(lex, e, s, 5);
-
-                if ( e.p>=0 ) accept = e.p;
-
-                break;
-             
-
-            case 1 : 
-
-                s = $10(lex, e, s, 5);
-
-                if ( e.p>=0 ) accept = e.p;
-
-                break;
-             
-
-            default : break o;
-        }
-    }
-    if ( sp<=e.sp ) e.p = accept;
-    if ( ![3].includes(accept) ) fail(lex, e);
-
-    return s;
-};
-function $6(lex, e, s= []){
-
-    e.p = -1;
-
-    e.p = -1;
-
-    const sp= e.sp;
-
-    var $;
-
-    $ = $_8(lex);
-
-    if ( $ ) {
-
-        e.sp -= 1;
-
-        return (e.p = 5, (s.splice(-1, 1, s[s.length-1]), s));
-    }
-
-    return s;
-};
-function $7(lex, e, s= []){
-
-    e.p = -1;
-
-    e.p = -1;
-
-    const sp= e.sp;
-
-    
-    switch(lex.tx){
-
-        case ")" : 
-
-            e.sp++;
-
-            s.push(_(lex, e, e.eh, [8,256]));
-
-            s = $11(lex, e, s);
-
-            break;
-        
-    }
-
-    return s;
-};
-function $8(lex, e, s= []){
-
-    e.p = -1;
-
-    e.p = -1;
-
-    const sp= e.sp;
-
-    
-    switch(lex.tx){
-
-        case ")" : 
-
-            e.sp++;
-
-            s.push(_(lex, e, e.eh, [8,256]));
-
-            s = $12(lex, e, s);
-
-            break;
-        
-    }
-
-    return s;
-};
 function $9(lex, e, s= []){
 
     e.p = -1;
-
-    e.p = -1;
-
-    const sp= e.sp;
 
     
     switch(lex.tx){
@@ -689,13 +318,9 @@ function $10(lex, e, s= []){
 
     e.p = -1;
 
-    e.p = -1;
-
-    const sp= e.sp;
-
     var $;
 
-    $ = $_14(lex);
+    $ = $_10(lex);
 
     if ( $ ) {
 
@@ -710,63 +335,11 @@ function $10(lex, e, s= []){
 
     return s;
 };
-function $11(lex, e, s= []){
-
-    e.p = -1;
-
-    e.p = -1;
-
-    const sp= e.sp;
-
-    var $;
-
-    $ = $_8(lex);
-
-    if ( $ ) {
-
-        e.sp -= 3;
-
-        const sym= s.slice(-3);
-
-        s.splice(-3, 3, { o:("parenth"), d:sym[1] });
-
-        return (e.p = 2, s);
-    }
-
-    return s;
-};
-function $12(lex, e, s= []){
-
-    e.p = -1;
-
-    e.p = -1;
-
-    const sp= e.sp;
-
-    
-    switch(lex.tx){
-
-        case "=>" : 
-
-            e.sp++;
-
-            s.push(_(lex, e, e.eh, [8,256]));
-
-            s = $14(lex, e, s);
-
-            break;
-        
-    }
-
-    return s;
-};
 function $13(lex, e, s= []){
 
-    e.p = -1;
-
-    e.p = -1;
-
     const sp= e.sp;
+
+    e.p = -1;
 
     s = $_0(lex, e, s, sp);
 
@@ -778,72 +351,21 @@ function $13(lex, e, s= []){
 
         switch(e.p){
 
-            case 5 : 
+            case 5 : s = $3(lex, e, s, 13); break; 
 
-                s = $3(lex, e, s, 13);
+            case 3 : s = $2(lex, e, s, 13); break; 
 
-                if ( e.p>=0 ) accept = e.p;
+            case 2 : s = $1(lex, e, s, 13); break; 
 
-                break;
-             
-
-            case 3 : 
-
-                s = $2(lex, e, s, 13);
-
-                if ( e.p>=0 ) accept = e.p;
-
-                break;
-             
-
-            case 2 : 
-
-                s = $1(lex, e, s, 13);
-
-                if ( e.p>=0 ) accept = e.p;
-
-                break;
-             
-
-            case 1 : 
-
-                s = $15(lex, e, s, 13);
-
-                if ( e.p>=0 ) accept = e.p;
-
-                break;
-             
+            case 1 : s = $15(lex, e, s, 13); break; 
 
             default : break o;
         }
+
+        if ( e.p>=0 ) accept = e.p;
     }
     if ( sp<=e.sp ) e.p = accept;
     if ( ![4].includes(accept) ) fail(lex, e);
-
-    return s;
-};
-function $14(lex, e, s= []){
-
-    e.p = -1;
-
-    e.p = -1;
-
-    const sp= e.sp;
-
-    
-    switch(lex.tx){
-
-        case "{" : 
-
-            e.sp++;
-
-            s.push(_(lex, e, e.eh, [8,256]));
-
-            s = $16(lex, e, s);
-
-            break;
-        
-    }
 
     return s;
 };
@@ -851,13 +373,9 @@ function $15(lex, e, s= []){
 
     e.p = -1;
 
-    e.p = -1;
-
-    const sp= e.sp;
-
     var $;
 
-    $ = $_14(lex);
+    $ = $_10(lex);
 
     if ( $ ) {
 
@@ -868,118 +386,6 @@ function $15(lex, e, s= []){
         s.splice(-3, 3, [...sym[0],sym[2]]);
 
         return (e.p = 4, s);
-    }
-
-    return s;
-};
-function $16(lex, e, s= []){
-
-    e.p = -1;
-
-    e.p = -1;
-
-    const sp= e.sp;
-
-    s = $_0(lex, e, s, sp);
-
-    
-    let accept= -1;
-    o:while(1){
-
-        if ( sp>e.sp ) break;else e.sp++;
-
-        switch(e.p){
-
-            case 5 : 
-
-                s = $3(lex, e, s, 16);
-
-                if ( e.p>=0 ) accept = e.p;
-
-                break;
-             
-
-            case 3 : 
-
-                s = $2(lex, e, s, 16);
-
-                if ( e.p>=0 ) accept = e.p;
-
-                break;
-             
-
-            case 2 : 
-
-                s = $1(lex, e, s, 16);
-
-                if ( e.p>=0 ) accept = e.p;
-
-                break;
-             
-
-            case 1 : 
-
-                s = $17(lex, e, s, 16);
-
-                if ( e.p>=0 ) accept = e.p;
-
-                break;
-             
-
-            default : break o;
-        }
-    }
-    if ( sp<=e.sp ) e.p = accept;
-    if ( ![3].includes(accept) ) fail(lex, e);
-
-    return s;
-};
-function $17(lex, e, s= []){
-
-    e.p = -1;
-
-    e.p = -1;
-
-    const sp= e.sp;
-
-    
-    switch(lex.tx){
-
-        case "}" : 
-
-            e.sp++;
-
-            s.push(_(lex, e, e.eh, [8,256]));
-
-            s = $18(lex, e, s);
-
-            break;
-        
-    }
-
-    return s;
-};
-function $18(lex, e, s= []){
-
-    e.p = -1;
-
-    e.p = -1;
-
-    const sp= e.sp;
-
-    var $;
-
-    $ = $_8(lex);
-
-    if ( $ ) {
-
-        e.sp -= 7;
-
-        const sym= s.slice(-7);
-
-        s.splice(-7, 7, { o:"function", u:sym[1], d:sym[5] });
-
-        return (e.p = 3, s);
     }
 
     return s;
@@ -1026,28 +432,16 @@ return Object.assign( function (lexer, env = {
     }
     return result;
 }, {$S,
-$E,
 $P,
 $F,
-$L,
 $I,
-$0,
+$E,
+$L,
 $1,
 $2,
 $3,
-$4,
-$5,
-$6,
-$7,
-$8,
 $9,
 $10,
-$11,
-$12,
 $13,
-$14,
-$15,
-$16,
-$17,
-$18})
+$15})
 

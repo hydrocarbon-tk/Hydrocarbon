@@ -270,7 +270,7 @@ export function GetLLHybridFunctions(grammar: Grammar, env: GrammarParserEnviron
 
         body.pop();
 
-        if (true || checkForLeftRecursion(p, start_items, grammar)) {
+        if (checkForLeftRecursion(p, start_items, grammar)) {
             return {
                 refs: 0,
                 id: p.id,
@@ -278,6 +278,7 @@ export function GetLLHybridFunctions(grammar: Grammar, env: GrammarParserEnviron
                 fn: stmt(`\n\'Left recursion found in ${p.name}'\n`)
             };
         }
+
         try {
             body.push(...renderFunctionBody(start_items, grammar, runner));
         } catch (e) {
@@ -292,7 +293,6 @@ export function GetLLHybridFunctions(grammar: Grammar, env: GrammarParserEnviron
         if (body.slice(-1)[0].type != JSNodeType.ReturnStatement) {
             body.push(stmt(`return sym[sym.length - 1];`));
         }
-        //body.push(stmt("lex.throw(`Could not parse token`)"));
 
         return {
             refs: 0,
