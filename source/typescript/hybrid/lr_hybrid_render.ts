@@ -139,11 +139,13 @@ function shiftState(
         }
     }
 
-    const tx = [];
-    const ty = [];
-    const end = [];
+    const tx = [],
+        ty = [],
+        end = [],
+        shift_states = getShiftStates(state),
+        SINGLE_SHIFT_STATE = shift_states.length == 1;
 
-    for (const [key, value] of getShiftStates(state)) {
+    for (const [key, value] of shift_states) {
 
         const shift_groups = getStatesFromNumericArray(value, states).sort((a, b) => {
             const len_a = a.items[0].len, len_b = b.items[0].len;
@@ -155,8 +157,12 @@ function shiftState(
         const
             item = shift_groups[0].items[0].decrement(),
             sym = item.sym(grammar),
-            case_stmt = stmt(`switch(true) { case ${translateSymbolValue(sym)}:  } `).nodes[1].nodes[0],
-            clause = case_stmt.nodes;
+            branch_stmt = (SINGLE_SHIFT_STATE)
+                ? stmt(`if(${getLexPeekComparisonString(sym)}){}`)
+                : stmt(`switch(true) { case ${translateSymbolValue(sym)}:  } `).nodes[1].nodes[0],
+            branch_body = SINGLE_SHIFT_STATE
+                ? branch_stmt.nodes[1].nodes
+                : branch_stmt.nodes;
         //groups = shift_to_state.items.group(i => i.getProduction(grammar).id).sort((a, b) => {
         //    const len_a = a[0].len, len_b = b[0].len;
         //    return len_b - len_a;
@@ -166,12 +172,12 @@ function shiftState(
             case SymbolType.END_OF_FILE:
             case SymbolType.GENERATED:
                 if (sym.val == "$eof")
-                    end.push(case_stmt);
-                ty.push(case_stmt); break;
+                    end.push(branch_stmt);
+                ty.push(branch_stmt); break;
             case SymbolType.LITERAL:
             case SymbolType.ESCAPED:
             case SymbolType.SYMBOL:
-                tx.push(case_stmt); break;
+                tx.push(branch_stmt); break;
         }
 
         const TRY_GROUP = shift_groups.length > 1;
@@ -192,34 +198,33 @@ function shiftState(
             i++;
 
             if (GROUP_NOT_LAST) {
-                if (FIRST_GROUP) { clause.push(stmt(`var cp = l.copy(), ${pdn} = null;`)); lex_name = 'cp'; }
-                else { clause.push(stmt("cp = l.copy()")); lex_name = 'cp'; };
+                if (FIRST_GROUP) { branch_body.push(stmt(`var cp = l.copy(), ${pdn} = null;`)); lex_name = 'cp'; }
+                else { branch_body.push(stmt("cp = l.copy()")); lex_name = 'cp'; };
             }
 
             if (runner.ANNOTATED)
                 if (TRY_GROUP) {
                     if (FIRST_GROUP)
-                        clause.push(runner.createAnnotationJSNode(
+                        branch_body.push(runner.createAnnotationJSNode(
                             `LR-SHIFT-ATTEMPT:\${sp}:${i}`, grammar, ...shift_state.items))
                     else
-                        clause.push(runner.createAnnotationJSNode(
+                        branch_body.push(runner.createAnnotationJSNode(
                             `LR-SHIFT-NEXT-ATTEMPT:\${sp}:${i}`, grammar, ...shift_state.items))
                 } else
-                    clause.push(runner.createAnnotationJSNode("LR-SHIFT", grammar, ...shift_state.items.map(i => i.decrement())))
-
-
-            clause.push(...insertFunctions(item, grammar));
+                    branch_body.push(runner.createAnnotationJSNode("LR-SHIFT", grammar, ...shift_state.items.map(i => i.decrement())))
 
             if (ll_fns && ll_fns[production] && !ll_fns[production].L_RECURSION) {
 
 
                 if (GROUP_NOT_LAST) {
-                    clause.push(stmt(`${pdn} = s.slice()`));
-                    clause.push(stmt(`${pdn}.push($${grammar[production].name}(${lex_name}, e))`));
+                    branch_body.push(stmt(`${pdn} = s.slice()`));
+                    branch_body.push(stmt(`${pdn}.push($${grammar[production].name}(${lex_name}, e))`));
                 } else
-                    clause.push(stmt(`s.push($${grammar[production].name}(${lex_name}, e))`));
+                    branch_body.push(stmt(`s.push($${grammar[production].name}(${lex_name}, e))`));
 
-                clause.push(stmt(`e.p = (e.FAILED) ? -1 : ${production};`));
+                branch_body.push(...insertFunctions(item, grammar, false));
+
+                branch_body.push(stmt(`e.p = (e.FAILED) ? -1 : ${production};`));
 
                 // active_productions.add(production);
 
@@ -230,19 +235,25 @@ function shiftState(
 
                 let shift_state_stmt;
 
-                clause.push(stmt(`e.sp++`));
+                branch_body.push(stmt(`e.sp++`));
 
                 if (GROUP_NOT_LAST) {
-                    clause.push(stmt(`${pdn} = s.slice()`));
-                    clause.push(stmt(`${pdn}.push(_(${lex_name}, e, e.eh, [${skip_symbols.map(translateSymbolValue).join(",")}]));`));
+                    branch_body.push(stmt(`${pdn} = s.slice()`));
+                    branch_body.push(stmt(`${pdn}.push(_(${lex_name}, e, e.eh, [${skip_symbols.map(translateSymbolValue).join(",")}]));`));
+
+                    branch_body.push(...insertFunctions(item, grammar, false));
+
                     shift_state_stmt = stmt(`${pdn} = State${shift_state.index}(${lex_name}, e, ${pdn})`);
                 }
                 else {
-                    clause.push(stmt(`s.push(_(${lex_name}, e, e.eh, [${skip_symbols.map(translateSymbolValue).join(",")}]));`));
+                    branch_body.push(stmt(`s.push(_(${lex_name}, e, e.eh, [${skip_symbols.map(translateSymbolValue).join(",")}]));`));
+
+                    branch_body.push(...insertFunctions(item, grammar, false));
+
                     shift_state_stmt = stmt(`s = State${shift_state.index}(l, e, s)`);
                 }
 
-                clause.push(shift_state_stmt);
+                branch_body.push(shift_state_stmt);
 
                 ids[shift_state.index].push(shift_state_stmt.nodes[0].nodes[1].nodes[0]);
 
@@ -251,19 +262,32 @@ function shiftState(
                 //[...state.origins.values()].flatMap(_ => _).forEach(i => active_productions.add(i));
             }
 
-            if (TRY_GROUP && GROUP_NOT_LAST) {
-                clause.push(stmt(`if(e.p !== ${production}){
+            if (SINGLE_SHIFT_STATE) {
+                if (TRY_GROUP && GROUP_NOT_LAST) {
+                    branch_body.push(stmt(`if(e.p !== ${production}){
                         e.FAILED = false;
                         e.sp = sp;
-                        
+                    }else{
+                        s = ${pdn};
+                        l.sync(cp);
+                        return s;
+                    }`));
+                }
+            } else {
+
+                if (TRY_GROUP && GROUP_NOT_LAST) {
+                    branch_body.push(stmt(`if(e.p !== ${production}){
+                        e.FAILED = false;
+                        e.sp = sp;
                     }else{
                         s = ${pdn};
                         l.sync(cp);
                         break;
                     }`));
-            }
-            else {
-                clause.push(stmt(`break;`));
+                }
+                else {
+                    branch_body.push(stmt(`break;`));
+                }
             }
         }
         //  }
@@ -271,37 +295,43 @@ function shiftState(
 
     let swtch = null;
 
-    if (tx.length > 0) {
+    if (!SINGLE_SHIFT_STATE) {
 
-        swtch = stmt("switch(l.tx){}");
+        if (tx.length > 0) {
 
-        swtch.nodes[1].nodes = tx;
+            swtch = stmt("switch(l.tx){}");
 
-        if (ty.length > 0) {
-            const sw_ty = stmt("switch(0){default: switch(l.ty){  } }").nodes[1].nodes[0];
-            // const sw_ty = stmt("switch(0){default: switch(l.ty){ default: e.FAILED = true; } }").nodes[1].nodes[0];
-            sw_ty.nodes[0].nodes[1].nodes.unshift(...ty);
-            swtch.nodes[1].nodes.push(sw_ty);
+            swtch.nodes[1].nodes = tx;
+
+            if (ty.length > 0) {
+                const sw_ty = stmt("switch(0){default: switch(l.ty){  } }").nodes[1].nodes[0];
+                // const sw_ty = stmt("switch(0){default: switch(l.ty){ default: e.FAILED = true; } }").nodes[1].nodes[0];
+                sw_ty.nodes[0].nodes[1].nodes.unshift(...ty);
+                swtch.nodes[1].nodes.push(sw_ty);
+            }
+            else {
+                const default_error = stmt(`switch(true) { default:  e.FAILED = true;  } `).nodes[1].nodes[0];
+                // swtch.nodes[1].nodes.push(default_error);
+            }
         }
-        else {
-            const default_error = stmt(`switch(true) { default:  e.FAILED = true;  } `).nodes[1].nodes[0];
-            // swtch.nodes[1].nodes.push(default_error);
+        else if (ty.length > 0) {
+            swtch = stmt("switch(l.ty){}");
+            swtch.nodes[1].nodes = ty;
         }
-    }
-    else if (ty.length > 0) {
-        swtch = stmt("switch(l.ty){}");
-        swtch.nodes[1].nodes = ty;
+
+        if (end.length > 0) {
+            const node = stmt("if(l.END){}");
+            node.nodes[1].nodes = end.map(n => n.nodes[1]);
+            if (swtch)
+                node.nodes[2] = swtch;
+        }
+        else if (swtch) {
+            runner_statements.push(swtch);
+        }
+    } else {
+        runner_statements.push(...ty, ...tx, ...end);
     }
 
-    if (end.length > 0) {
-        const node = stmt("if(l.END){}");
-        node.nodes[1].nodes = end.map(n => n.nodes[1]);
-        if (swtch)
-            node.nodes[2] = swtch;
-    }
-    else if (swtch) {
-        runner_statements.push(swtch);
-    }
 
     return {
         statements: runner.add_script(runner_statements, stmt("function(l, e, s, sp){ return s}"), "s =", state),

@@ -1,14 +1,14 @@
 import { compileGrammars, lrParse } from "@candlefw/hydrocarbon";
 import URL from "@candlefw/url";
 import { CompileHybrid, renderLLFN } from "../build/library/hybrid/hybrid_compiler.js";
-import parse_data from "./mock/test_grammar_e_fork.js";
+import parse_data from "./mock/test_grammar_string.js";
 import { Lexer } from "@candlefw/wind";
 
-const url = await URL.resolveRelative("./mock/test_grammar_e_fork.hcg");
+const url = await URL.resolveRelative("./mock/test_grammar_string.hcg");
 
 const file = await url.fetchText();
 
-const test_string = `(  a, (A) , (A)=>{A}  ) => {(a)=>{A}}`;
+const test_string = `"test"`;
 //const test_string = `( A,  A  ,  A  ) => { ( A,  (d) , A ) => { ( A, A , A  ) => { ( A, A , A ) => { ( A,  A , A ) => { D } } } } }`;
 
 assert_group(() => {
@@ -22,8 +22,27 @@ assert_group(() => {
     */
     const parserHybrid = CompileHybrid(grammar);
     //const parserLL = renderLLFN(grammar);
+    const env = {
+        functions: {
+            parseString(a, b, lex) {
 
-    assert(lrParse(test_string, parse_data).value == parserHybrid(new Lexer(test_string)));
+                const pk = lex.pk,
+                    end = lex.tx;
+
+                lex.next();
+
+                while (!pk.END && pk.tx != end) {
+                    if (pk.tx == "\\")
+                        pk.next();
+                    pk.next();
+                }
+
+                lex.tl = pk.off - lex.off;
+            }
+        }
+    };
+
+    assert(lrParse(test_string, parse_data, env).value == parserHybrid(new Lexer(test_string)));
     //assert(lrParse(test_string, parse_data).value == parserLL(new Lexer(test_string)));
 
     //harness.markTime();
@@ -35,7 +54,7 @@ assert_group(() => {
     a.next().pk.copy().next().END;
 
     harness.markTime();
-    assert(lrParse(test_string, parse_data).value == "");
+    assert(lrParse(test_string, parse_data, env).value == "");
     harness.getTime("LALR");
 
     harness.markTime();

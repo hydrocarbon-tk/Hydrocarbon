@@ -1,4 +1,4 @@
-import { Grammar, SymbolType, Symbol } from "../types/grammar.js";
+import { Grammar, SymbolType, Symbol, ProductionBody } from "../types/grammar.js";
 import { Lexer } from "@candlefw/wind";
 import { stmt, renderWithFormatting, extendAll, JSNodeType } from "@candlefw/js";
 import { State } from "./State.js";
@@ -169,6 +169,10 @@ export function getNonTerminalTransitionStates(state: State): [string | number, 
 }
 export function getStatesFromNumericArray(value: number[], states: State[]): State[] {
     return value.map(i => states[i]);
+}
+
+export function has_INLINE_FUNCTIONS(body: ProductionBody): boolean {
+    return body.functions.length > 0;
 }
 
 export function getReduceFunctionSymbolIndiceSet(item: Item, grammar: Grammar): Set<number> {

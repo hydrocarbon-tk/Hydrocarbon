@@ -1,0 +1,5 @@
+@IGNORE θws θnl
+
+<> S > E
+
+<> E > " f:^parseString " f:r{ { str:$sym1 } }

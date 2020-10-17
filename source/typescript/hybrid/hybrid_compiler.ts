@@ -159,27 +159,34 @@ function _(lex, e, eh, skips, ...syms) {
     
     if(e.FAILED) return "";
     
+    var val = lex.tx;
+   
     if (syms.length == 0 || lm(lex, syms)) {
-        const val = lex.tx;
+   
         lex.next();
+   
         if (skips) while (lm(lex, skips)) lex.next();
+   
         return val;
     } else {
+   
         //error recovery
         const tx = eh(lex, e);
+   
         if(tx) return tx;
+   
         else {
             e.FAILED = true;
             e.error.push(lex.copy());
         }
-        //else lex.throw(\`Could not parse unexpected token \${lex.END ? "EOI" : lex.tx }\`);
+    }
 }
-}
-
-${ runner.render_functions()}
-${ runner.render_constants()}
 
 const skips = [8, 256];
+
+${ runner.render_constants()}
+
+${ runner.render_functions()}
 
 ${ fns.map(fn => {
         const id = fn.nodes[0].value;
@@ -187,7 +194,7 @@ ${ fns.map(fn => {
         member.nodes[1] = fn;
         //fn.nodes[2].nodes.splice(0, 0, stmt(`console.log(\`[\${lex.tx}] -> ${id}\`)`));
         return fn;
-    }).map(fn => renderCompressed(fn)).join(";\n")}
+    }).map(fn => renderWithFormatting(fn)).join(";\n")}
 
 
 return Object.assign( function (lexer, env = {
@@ -200,23 +207,18 @@ return Object.assign( function (lexer, env = {
     env.FAILED = false;
     const states = [];
     lexer.IWS = false;
-    lexer.addSymbols(${[...grammar.meta.symbols.values()].map(translateSymbolValue).join(",")})
+    lexer.PARSE_STRING = true;
+    ${grammar?.meta?.symbols?.size > 0 ? `lexer.addSymbols(${[...grammar.meta.symbols.values()].map(translateSymbolValue).join(",")});` : ""}
     lexer.tl = 0;
 
     env.fn =  {
-        ASI_PRE:(lex, env, eh, sym)=>{
-            if(!env.FAILED){
-                if(lex.tx != ";"){
-                    const cp = lex.copy();
-                    cp.IWS = false;
-                    env.ASI_PRIMED = true;
-                }
-            }
-        },
-        ASI_POST:(lex, env, eh, sym)=>{
-            if(env.ASI_PRIMED)
-                env.FAILED =false;
-            env.ASI_PRIMED = false;
+        parseString(lex, env, symbols, LR){
+            const copy = lex.copy();
+            while(lex.tx != '"' && !lex.END){
+                if(lex.tx == "\\\\") lex.next();
+                lex.next();
+            } 
+            symbols[LR ? symbols.length-1 : 0] = lex.slice(copy)
         }
     }
     _(lexer, env, env.eh,skips)

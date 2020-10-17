@@ -129,7 +129,7 @@ export function constructCompilerRunner(ANNOTATED: boolean = false): CompilerRun
                 .filter(e => e.nodes.length > 1)
                 .filter(e => e.states.length > 1)
                 .filter(e => e.states.reduce((a, s) => s.REACHABLE || a, false))
-                .map(e => renderCompressed(e.fn)).join("\n\n");
+                .map(e => renderWithFormatting(e.fn)).join("\n\n");
         }
     };
 

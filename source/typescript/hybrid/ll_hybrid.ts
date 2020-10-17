@@ -2,7 +2,7 @@ import { Grammar, Production, ProductionBody, EOF_SYM, SymbolType, Symbol } from
 import { processClosure, Item, FOLLOW } from "../util/common.js";
 import { GrammarParserEnvironment } from "../types/grammar_compiler_environment";
 import { stmt, JSNode, JSNodeType, exp, extendAll } from "@candlefw/js";
-import { createReduceFunction, translateSymbolValue, getLexPeekComparisonStringCached, getReduceFunctionSymbolIndiceSet } from "./utilities.js";
+import { createReduceFunction, translateSymbolValue, getLexPeekComparisonStringCached, getReduceFunctionSymbolIndiceSet, has_INLINE_FUNCTIONS } from "./utilities.js";
 import { LLProductionFunction } from "./LLProductionFunction";
 import { LLItem } from "./LLItem";
 import { getClosureTerminalSymbols } from "./getClosureTerminalSymbols.js";
@@ -38,19 +38,29 @@ function BodyToLLItem(b: ProductionBody, grammar: Grammar): LLItem {
     return ItemToLLItem(new Item(b.id, b.length, 0, EOF_SYM), grammar);
 }
 
-function renderItemSym(item: Item, grammar: Grammar, runner: CompilerRunner, index_offset: number = 0, rdi: Set<number> = new Set): JSNode[] {
-    const stmts = [], sym = "$", cn = `${sym}${index_offset + 1}_`;
+function renderItemSym(
+    item: Item,
+    grammar: Grammar,
+    runner: CompilerRunner,
+    index_offset: number = 0,
+    rdi: Set<number> = new Set,
+    HAS_INLINE_FUNCTIONS: boolean = false
+): JSNode[] {
 
-    stmts.push(...insertFunctions(item, grammar));
+    const
+        stmts = [], sym = "$", cn = (HAS_INLINE_FUNCTIONS) ? `s[${index_offset}]` : `${sym}${index_offset + 1}_`,
+        body = item.body_(grammar),
+        reduce_function = body?.reduce_function?.txt;
 
-    const body = item.body_(grammar);
-    const reduce_function = body?.reduce_function?.txt;
-
+    stmts.push(...insertFunctions(item, grammar, true));
 
     if (item.atEND) {
 
         if (reduce_function) {
-            stmts.push(stmt(`return (${createReduceFunction(reduce_function, sym, 1, "_")});`));
+            if (HAS_INLINE_FUNCTIONS)
+                stmts.push(stmt(`return (${createReduceFunction(reduce_function, "s[", 0, "]")});`));
+            else
+                stmts.push(stmt(`return (${createReduceFunction(reduce_function, sym, 1, "_")});`));
         } else {
 
             stmts.push(stmt(`return ${cn}`));
@@ -67,7 +77,9 @@ function renderItemSym(item: Item, grammar: Grammar, runner: CompilerRunner, ind
 
             stmts.push(stmt(`if(e.FAILED) return;`));
 
-            if (rdi.has(index_offset) || REDUCE_TO_LAST)
+            if (HAS_INLINE_FUNCTIONS)
+                stmts.push(stmt(`s.push($${grammar[sym.val].name}(l, e));`));
+            else if (rdi.has(index_offset) || REDUCE_TO_LAST)
                 stmts.push(stmt(`const ${cn} = $${grammar[sym.val].name}(l, e)`));
             else
                 stmts.push(stmt(`$${grammar[sym.val].name}(l, e)`));
@@ -79,12 +91,16 @@ function renderItemSym(item: Item, grammar: Grammar, runner: CompilerRunner, ind
             const skip_symbols = exp(`[${grammar.meta.ignore.flatMap(d => d.symbols).map(translateSymbolValue).join(",")}]`);
             let call;
 
-            if (rdi.has(index_offset) || REDUCE_TO_LAST) {
-                call = extendAll(stmt(`const ${cn} = _(l, e, e.eh, null, ${translateSymbolValue(sym)});`));
-                call.nodes[0].nodes[1].nodes[1].nodes[3] = runner.add_constant(skip_symbols);;
+
+            if (HAS_INLINE_FUNCTIONS) {
+                call = stmt(`s.push(_(l, e, e.eh, null, ${translateSymbolValue(sym)}));`);
+                call.nodes[0].nodes[1].nodes[0].nodes[1].nodes[3] = runner.add_constant(skip_symbols);
+            } else if (rdi.has(index_offset) || REDUCE_TO_LAST) {
+                call = stmt(`const ${cn} = _(l, e, e.eh, null, ${translateSymbolValue(sym)});`);
+                call.nodes[0].nodes[1].nodes[1].nodes[3] = runner.add_constant(skip_symbols);
             } else {
-                call = extendAll(stmt(`_(l, e, e.eh, null, ${translateSymbolValue(sym)});`));
-                call.nodes[0].nodes[1].nodes[3] = runner.add_constant(skip_symbols);;
+                call = stmt(`_(l, e, e.eh, null, ${translateSymbolValue(sym)});`);
+                call.nodes[0].nodes[1].nodes[3] = runner.add_constant(skip_symbols);
             }
 
             stmts.push(call);
@@ -94,10 +110,10 @@ function renderItemSym(item: Item, grammar: Grammar, runner: CompilerRunner, ind
     return stmts;
 }
 
-function renderItem(item: Item, grammar: Grammar, runner: CompilerRunner, index_offset = 0, rdi: Set<number> = new Set): JSNode[] {
+function renderItem(item: Item, grammar: Grammar, runner: CompilerRunner, index_offset = 0, rdi: Set<number> = new Set, HAS_INLINE_FUNCTIONS: boolean = false): JSNode[] {
     const stmts = [];
     while (true) {
-        stmts.push(...renderItemSym(item, grammar, runner, index_offset, rdi));
+        stmts.push(...renderItemSym(item, grammar, runner, index_offset, rdi, HAS_INLINE_FUNCTIONS));
         if (item.atEND) break;
         item = item.increment();
         if (!item.atEND) index_offset++;
@@ -111,7 +127,7 @@ type TransitionGroup = {
     syms: Set<string>;
     trs: LLItem[];
 };
-function renderFunctionBody(llitems: LLItem[], grammar: Grammar, runner: CompilerRunner, peek_depth: number = 0) {
+function renderFunctionBody(llitems: LLItem[], grammar: Grammar, runner: CompilerRunner, peek_depth: number = 0, INLINE_FUNCTIONS = false) {
 
     const stmts = [];
 
@@ -222,12 +238,12 @@ function renderFunctionBody(llitems: LLItem[], grammar: Grammar, runner: Compile
             new_group.trs = try_group.flatMap(i => i.trs);
 
             // for (const group of try_group) {
-            token_bit |= buildGroupStatement(grammar, runner, new_group, peek_depth, stmts, sym_map, !MULTIPLE_GROUPS);
+            token_bit |= buildGroupStatement(grammar, runner, new_group, peek_depth, stmts, sym_map, !MULTIPLE_GROUPS, INLINE_FUNCTIONS);
             // }
 
             //Make a try catch chain.
         } else {
-            token_bit |= buildGroupStatement(grammar, runner, try_group[0], peek_depth, stmts, sym_map, !MULTIPLE_GROUPS);
+            token_bit |= buildGroupStatement(grammar, runner, try_group[0], peek_depth, stmts, sym_map, !MULTIPLE_GROUPS, INLINE_FUNCTIONS);
         }
     }
 
@@ -267,11 +283,19 @@ const enum TOKEN_BIT {
     TYPE = 2,
 }
 
-function buildGroupStatement(grammar: Grammar, runner: CompilerRunner, group: TransitionGroup, peek_depth, stmts, sym_map: Map<string, Symbol>, IS_SINGLE = false) {
+function buildGroupStatement(
+    grammar: Grammar,
+    runner: CompilerRunner,
+    group: TransitionGroup,
+    peek_depth,
+    stmts,
+    sym_map: Map<string, Symbol>,
+    IS_SINGLE = false,
+    INLINE_FUNCTIONS = false
+) {
 
     const
         trs = group.trs,
-
         syms = [...group.syms.values()],
         token_bit = [...syms.map(s => sym_map.get(s))].reduce((r, v) => {
             let bit = 0;
@@ -294,7 +318,8 @@ function buildGroupStatement(grammar: Grammar, runner: CompilerRunner, group: Tr
 
     const if_body = (IS_SINGLE) ? stmts : if_stmt.nodes[1].nodes;
 
-    const reduce_functions_indices = new Set(trs.map(LLItemToItem).setFilter(i => i.id).flatMap(i => [...getReduceFunctionSymbolIndiceSet(i, grammar).values()]));
+    /** Reduce function indices */
+    const rdi: Set<number> = new Set(trs.map(LLItemToItem).setFilter(i => i.id).flatMap(i => [...getReduceFunctionSymbolIndiceSet(i, grammar).values()]));
 
     if (trs.length > 1) {
 
@@ -312,7 +337,7 @@ function buildGroupStatement(grammar: Grammar, runner: CompilerRunner, group: Tr
 
             //All items agree
             if (sym && !items.reduce((r, i) => (r || i.atEND || (i.sym(grammar)?.val != sym.val)), false)) {
-                if_body.push(...renderItemSym(items[0], grammar, runner, off, reduce_functions_indices));
+                if_body.push(...renderItemSym(items[0], grammar, runner, off, rdi, INLINE_FUNCTIONS));
                 items = items.map(i => i.increment()).filter(i => i);
                 peek = -1;
 
@@ -330,11 +355,11 @@ function buildGroupStatement(grammar: Grammar, runner: CompilerRunner, group: Tr
                         });
 
                 if (new_trs.length > 0)
-                    if_body.push(...renderFunctionBody(new_trs, grammar, runner, peek + 1));
+                    if_body.push(...renderFunctionBody(new_trs, grammar, runner, peek + 1, INLINE_FUNCTIONS));
 
                 //If any items at end render here?
                 for (const d of items.filter(i => i.atEND))
-                    if_body.push(...renderItem(d, grammar, runner, off, reduce_functions_indices));
+                    if_body.push(...renderItem(d, grammar, runner, off, rdi, INLINE_FUNCTIONS));
 
                 break;
             };
@@ -343,7 +368,7 @@ function buildGroupStatement(grammar: Grammar, runner: CompilerRunner, group: Tr
 
         //Just complete the grammar symbols
         const item = LLItemToItem(trs[0]);
-        if_body.push(...renderItem(item, grammar, runner, item.offset, reduce_functions_indices));
+        if_body.push(...renderItem(item, grammar, runner, item.offset, rdi, INLINE_FUNCTIONS));
     }
 
     return token_bit;
@@ -355,9 +380,13 @@ export function GetLLHybridFunctions(grammar: Grammar, env: GrammarParserEnviron
 
         const fn = stmt(`function $${p.name}(l, e){;}`),
             body = fn.nodes[2].nodes,
+            INLINE_FUNCTIONS = p.bodies.some(has_INLINE_FUNCTIONS),
             start_items: LLItem[] = p.bodies.map(b => BodyToLLItem(b, grammar));
 
         body.pop();
+
+        if (INLINE_FUNCTIONS)
+            body.push(stmt("const s = []"));
 
         if (checkForLeftRecursion(p, start_items, grammar)) {
             return {
@@ -369,7 +398,7 @@ export function GetLLHybridFunctions(grammar: Grammar, env: GrammarParserEnviron
         }
 
         try {
-            body.push(...renderFunctionBody(start_items, grammar, runner));
+            body.push(...renderFunctionBody(start_items, grammar, runner, 0, INLINE_FUNCTIONS));
         } catch (e) {
             return {
                 refs: 0,
