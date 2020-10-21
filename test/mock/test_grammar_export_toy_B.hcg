@@ -1,0 +1,20 @@
+@IGNORE θws θnl
+
+<> S > expression_list
+
+<> expression_list > expression(+,)
+
+<> expression > add
+    | sym
+
+<> add > mult + add         f:r{ { type:"ADD", l:$sym1, r:$sym3 }  }
+    | mult
+
+<> mult > sym * mult        f:r{ { type:"MUL", l:$sym1, r:$sym3 }  }
+    | sym
+
+<> sym > id
+
+<> id > g:id
+
+<> num > g:num

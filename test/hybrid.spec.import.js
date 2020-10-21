@@ -4,13 +4,13 @@ import { CompileHybrid, renderLLFN } from "../build/library/hybrid/hybrid_compil
 import parse_data from "./mock/test_grammar_import_A.js";
 import { Lexer } from "@candlefw/wind";
 
-const url = await URL.resolveRelative("./mock/test_grammar_import_toy_A.hcg");
-const urlB = await URL.resolveRelative("./mock/test_grammar_export_toy_B.hcg");
+const url = await URL.resolveRelative("./mock/test_grammar_import_A.hcg");
+const urlB = await URL.resolveRelative("./mock/test_grammar_export_B.hcg");
 
 const file = await url.fetchText();
 const fileB = await urlB.fetchText();
 
-const test_string = `for(const T; B; A) i + A ;`;
+const test_string = `[ (total recall 2),  mission impossible 5  ]`;
 //const test_string = `( A,  A  ,  A  ) => { ( A,  (d) , A ) => { ( A, A , A  ) => { ( A, A , A ) => { ( A,  A , A ) => { D } } } } }`;
 
 assert_group(() => {
