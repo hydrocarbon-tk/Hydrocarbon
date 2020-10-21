@@ -180,8 +180,8 @@ function mergeState(
     state: State,
     states: Map<string, State>,
     old_state: State,
-    unprocessed_state_items: { old_state: State; items: Item[]; }[]) {
-
+    unprocessed_state_items: { old_state: State; items: Item[]; }[]
+) {
 
     const { id, sid, sym } = state;
 
@@ -212,9 +212,6 @@ function mergeState(
     const filter_set = new Set();
 
     active_state.items = active_state.items.filter(i => (!filter_set.has(i.full_id) && (filter_set.add(i.full_id), true)));
-
-    //if (old_state.index == 4)
-    //    console.log(0, 2, active_state.index, active_state);
 
     return active_state;
 }

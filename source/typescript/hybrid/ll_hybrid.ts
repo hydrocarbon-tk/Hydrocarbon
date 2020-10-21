@@ -85,7 +85,7 @@ function renderItemSym(
                 stmts.push(stmt(`$${grammar[sym.val].name}(l, e)`));
         } else {
             if (runner.ANNOTATED)
-                stmts.push(runner.createAnnotationJSNode("LL-ASSERT", grammar, item))
+                stmts.push(runner.createAnnotationJSNode("LL-ASSERT", grammar, item));
 
             //Get skips from grammar - TODO get symbols from bodies / productions
             const skip_symbols = exp(`[${grammar.meta.ignore.flatMap(d => d.symbols).map(translateSymbolValue).join(",")}]`);
@@ -250,10 +250,10 @@ function renderFunctionBody(llitems: LLItem[], grammar: Grammar, runner: Compile
     if (MULTIPLE_GROUPS) {
         //Item annotations if required
         if (runner.ANNOTATED)
-            stmts.unshift(runner.createAnnotationJSNode("LL-PEEK:" + (peek_depth + 1), grammar, ...llitems.map(LLItemToItem)))
+            stmts.unshift(runner.createAnnotationJSNode("LL-PEEK:" + (peek_depth + 1), grammar, ...llitems.map(LLItemToItem)));
 
         if (token_bit) {
-            const const_node = stmt("const d;")
+            const const_node = stmt("const d;");
             const nodes = const_node.nodes;
 
             nodes.pop();
@@ -270,7 +270,7 @@ function renderFunctionBody(llitems: LLItem[], grammar: Grammar, runner: Compile
             if (token_bit & TOKEN_BIT.TYPE)
                 nodes.push(exp(`ty = ${lx}.ty`));
 
-            stmts.unshift(const_node)
+            stmts.unshift(const_node);
         }
     }
 
@@ -382,6 +382,19 @@ export function GetLLHybridFunctions(grammar: Grammar, env: GrammarParserEnviron
             body = fn.nodes[2].nodes,
             INLINE_FUNCTIONS = p.bodies.some(has_INLINE_FUNCTIONS),
             start_items: LLItem[] = p.bodies.map(b => BodyToLLItem(b, grammar));
+
+        if (p.IMPORTED && (false && runner.INTEGRATE)) {
+            const foreign_grammar = p.name.split("$");
+            //IF name i
+            return {
+                refs: 0,
+                id: p.id,
+                L_RECURSION: false,
+                fn: stmt(`function $${p.name}(l,e){
+                    return ${foreign_grammar.join(".$")}(l,e)
+                }`)
+            };
+        }
 
         body.pop();
 

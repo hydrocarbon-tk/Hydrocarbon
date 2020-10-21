@@ -7,6 +7,7 @@ import { CompileHybridLRStates, IntegrateState, States } from "./lr_hybrid.js";
 import { renderStates } from "./lr_hybrid_render.js";
 import { translateSymbolValue } from "./utilities.js";
 import { constructCompilerRunner } from "./CompilerRunner.js";
+import URL from "@candlefw/url";
 
 export function renderLLFN(grammar: Grammar, env: GrammarParserEnvironment) {
 
@@ -109,28 +110,20 @@ export function CompileHybrid(grammar: Grammar, env: GrammarParserEnvironment) {
     runner.update_nodes();
     runner.update_constants();
 
-    const parser = `
-function log(...str){
-    console.log(...str);
-}
-
-function glp(lex, padding = 4){
-    const token_length = lex.tl;
-    const offset = lex.off;
-    const string_length = lex.sl;
-    const start = Math.max(0, offset - padding);
-    const mid = offset;
-    const end = Math.min(string_length, offset + token_length  + padding);
-    return \`\${(start > 0 ?" ": "")+lex.str.slice(start, mid) + "•" + lex.str.slice(mid, end) + ((end == string_length) ? "$EOF" : " ")}\`;
-}
-
-function createPos(lex, off){
-    const copy = lex.copy;
-    copy.off = lex.next;
-    copy.fence(lex);
-    return copy;
-}
-
+    const parser = `(b)=>{
+${
+        runner.ANNOTATED ? `function log(...str) {
+            console.log(...str);
+        }\nfunction glp(lex, padding = 4){
+            const token_length = lex.tl;
+            const offset = lex.off;
+            const string_length = lex.sl;
+            const start = Math.max(0, offset - padding);
+            const mid = offset;
+            const end = Math.min(string_length, offset + token_length  + padding);
+            return \`\${(start > 0 ?" ": "")+lex.str.slice(start, mid) + "•" + lex.str.slice(mid, end) + ((end == string_length) ? "$EOF" : " ")}\`;
+        }\n`: ""
+        }
 function lm(lex, syms) { 
     for (const sym of syms) 
         switch (typeof sym) {
@@ -150,11 +143,6 @@ function fail(lex, e) {
     e.error.push(lex.copy());
 }
 
-
-function lm_ty(lex, syms) {for (const sym of syms)  if (sym == 0xFF && lex.END) return true;  else if (lex.ty == sym) return true; return false;}
-
-function lm_tx(lex, syms) {  for (const sym of syms) if (lex.tx == sym) return true; return false; }
-    
 function _(lex, e, eh, skips, ...syms) {
     
     if(e.FAILED) return "";
@@ -189,12 +177,11 @@ ${ runner.render_constants()}
 ${ runner.render_functions()}
 
 ${ fns.map(fn => {
-        const id = fn.nodes[0].value;
-        const member = exp(`({${id}:null})`).nodes[0].nodes[0];
-        member.nodes[1] = fn;
-        //fn.nodes[2].nodes.splice(0, 0, stmt(`console.log(\`[\${lex.tx}] -> ${id}\`)`));
-        return fn;
-    }).map(fn => renderWithFormatting(fn)).join(";\n")}
+            const id = fn.nodes[0].value;
+            const member = exp(`({${id}:null})`).nodes[0].nodes[0];
+            member.nodes[1] = fn;
+            return fn;
+        }).map(fn => renderWithFormatting(fn)).join("\n")}
 
 
 return Object.assign( function (lexer, env = {
@@ -232,18 +219,17 @@ return Object.assign( function (lexer, env = {
     }
     return result;
 }, {${ fns.map(fn => {
-        const id = fn.nodes[0].value;
-        const member = exp(`({${id}:null})`).nodes[0].nodes[0];
-        member.nodes[1] = fn;
-        //fn.nodes[2].nodes.splice(0, 0, stmt(`console.log(\`[\${lex.tx}] -> ${id}\`)`));
-        return id;
-    }).join(",\n")}})
+            const id = fn.nodes[0].value;
+            const member = exp(`({${id}:null})`).nodes[0].nodes[0];
+            member.nodes[1] = fn;
+            //fn.nodes[2].nodes.splice(0, 0, stmt(`console.log(\`[\${lex.tx}] -> ${id}\`)`));
+            return id;
+        }).join(",\n")}})
+}`;
 
-`;
+    fs.writeFileSync(`./hybrid_${new URL(grammar.uri).filename}.js`, "export default " + parser);
 
-    fs.writeFileSync("./hybrid.js", parser);
-
-    return Function(parser)();
+    return Function(`return (${parser})`)();
 };
 
 export { GetLLHybridFunctions as CompileLLHybrid };
