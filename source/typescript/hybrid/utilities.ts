@@ -45,6 +45,29 @@ Array.prototype.group = function <T>(this: Array<T>, fn: (T) => (string | number
     return [...this.groupMap(fn).values()];
 };
 
+export function translateSymbolLiteral(sym: number | string): string {
+    switch (typeof sym) {
+        case "number":
+            return sym + "";
+        case "string":
+            if (sym == "$eof")
+                return `0xFF`;
+            if (sym == "\"") return `'"'`;
+            return `"${sym}"`;
+    }
+}
+
+export function translateSymbolLiteralToLexerBool(sym: number | string, lex_name: string = "l"): string {
+    switch (typeof sym) {
+        case "number":
+            if (sym == 0xFF)
+                return `${lex_name}.END`;
+            return `${lex_name}.ty == ${sym + ""}`;
+        case "string":
+            if (sym == "$eof") return `${lex_name}.END`;
+            return `${lex_name}.tx == ${translateSymbolLiteral(sym)}`;
+    }
+}
 
 export function translateSymbolValue(sym: Symbol): string {
     switch (sym.type) {
@@ -158,8 +181,11 @@ export function integrateState(state: State, states: State[], grammar: Grammar, 
 function isStatePurelyCompressible(state: State) {
     return state.PURE && state.HAS_COMPLETED_PRODUCTION && state.CONTAINS_ONLY_COMPLETE;
 }
-export function getCompletedItems(state: State) {
+export function getCompletedItems(state: State): Item[] {
     return state.items.filter(e => e.atEND).group(i => i.id);
+}
+export function getCompletedItemsNew(state: State): Item[] {
+    return state.items.filter(e => e.atEND);
 }
 export function getShiftStates(state: State): [string | number, number[]][] {
     return [...state.maps.entries()].filter(([k, v]) => typeof k == "string"); //.map(([k, v]) => v);
