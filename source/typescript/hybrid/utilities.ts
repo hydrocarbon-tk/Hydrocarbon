@@ -27,7 +27,7 @@ Array.prototype.groupMap = function <T>(this: Array<T>, fn: (T) => (string | num
 /**
  * Filters all items based on whether a certain value is contained within a set or not
  */
-Array.prototype.setFilter = function <T>(this: Array<T>, fn: (T) => (string | number)[] = _ => _.toString()): T[] {
+Array.prototype.setFilter = function <T>(this: Array<T>, fn: (T) => (string | number)[] = _ => _ ? _.toString() : ""): T[] {
 
     const set = new Set;
 
@@ -62,16 +62,18 @@ export function translateSymbolLiteralToLexerBool(sym: number | string, lex_name
         case "number":
             if (sym == 0xFF)
                 return `${lex_name}.END`;
-            return `${lex_name}.ty == ${sym + ""}`;
+            return `ty == ${sym + ""}`;
         case "string":
+            if (sym == "any") { return "true"; }
             if (sym == "$eof") return `${lex_name}.END`;
-            return `${lex_name}.tx == ${translateSymbolLiteral(sym)}`;
+            return `tx == ${translateSymbolLiteral(sym)}`;
     }
 }
 
 export function translateSymbolValue(sym: Symbol): string {
     switch (sym.type) {
         case SymbolType.GENERATED:
+            if (sym.val == "any") { return "true"; }
             if (sym.val == "$eof")
                 return `0xFF`;
             return Lexer.types[sym.val];
@@ -90,6 +92,7 @@ export function getLexComparisonStringPeekNoEnv(sym: Symbol, grammar: Grammar, p
     const pk = "pk.".repeat(pk_depth);
     switch (sym.type) {
         case SymbolType.GENERATED:
+            if (sym.val == "any") { return "true"; }
             if (sym.val == "$eof")
                 return `l.${pk}END`;
             return `l.${pk}ty == ${translateSymbolValue(sym)}`;
@@ -106,6 +109,7 @@ export function getLexComparisonStringPeekNoEnv(sym: Symbol, grammar: Grammar, p
 export function getLexComparisonString(sym: Symbol): string {
     switch (sym.type) {
         case SymbolType.GENERATED:
+            if (sym.val == "any") { return "true"; }
             if (sym.val == "$eof")
                 return `l.END`;
             return `l.ty == ${translateSymbolValue(sym)}`;
@@ -124,6 +128,7 @@ export function getLexPeekComparisonStringCached(sym: Symbol): string {
 
     switch (sym.type) {
         case SymbolType.GENERATED:
+            if (sym.val == "any") { return "true"; }
             if (sym.val == "$eof")
                 return `l.END`;
             return `ty == ${translateSymbolValue(sym)}`;
@@ -141,6 +146,7 @@ export function getLexPeekComparisonString(sym: Symbol): string {
 
     switch (sym.type) {
         case SymbolType.GENERATED:
+            if (sym.val == "any") { return "true"; }
             if (sym.val == "$eof")
                 return `l.END`;
             return `l.ty == ${translateSymbolValue(sym)}`;
@@ -163,7 +169,7 @@ export function integrateState(state: State, states: State[], grammar: Grammar, 
     }
 
     const
-        goto_stmt = stmt(`${name} = State${state.index}(l, e, s, ${existing_state.index})`),
+        goto_stmt = stmt(`${name} = State${state.index}(l, e, s)`),
         goto_id = goto_stmt.nodes[0].nodes[1].nodes[0];
 
     id_nodes[state.index].push(goto_id);

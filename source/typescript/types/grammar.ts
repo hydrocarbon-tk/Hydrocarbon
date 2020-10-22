@@ -90,7 +90,7 @@ export interface ProductionBody {
     ignore: Map<number, Symbol[]>;
     error: Map<number, Symbol[]>;
     reset: Map<number, Symbol[]>;
-    reduce: Map<number, Symbol>;
+    reduce: Map<number, Symbol[]>;
     BUILT: boolean;
     production?: Production;
     precedence?: number;

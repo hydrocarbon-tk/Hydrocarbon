@@ -5,6 +5,12 @@ import { State } from "./State.js";
 import { Item } from "../util/item.js";
 import { Grammar } from "../types/grammar.js";
 export interface CompilerRunner {
+    /** List of external grammar names to integrate into the parser.
+     * Names must match the name following the `as` terminal in an `IMPORT` statement.
+     * Any grammars with names not present in this set will be referenced as 
+     * an external variable.
+    */
+    INTEGRATE: Set<string>;
     /**
      * If true item and state annotations
      * will be generated in the output.
@@ -26,9 +32,10 @@ export interface CompilerRunner {
 }
 export function constructCompilerRunner(ANNOTATED: boolean = false): CompilerRunner {
     const runner = <CompilerRunner>{
+        INTEGRATE: new Set(),
         ANNOTATED,
         createAnnotationJSNode: function (label: string, grammar: Grammar, ...items: Item[]) {
-            return stmt(`log(\`▎\${glp(lex)} ▎${label} ▎${items.setFilter(i => i.id).map(i => i.renderUnformattedWithProduction(grammar)).join(" | ")}\`)`);
+            return stmt(`log(\`▎\${glp(l)} ->\${l.tx} ▎${label} ▎${items.setFilter(i => i.id).map(i => i.renderUnformattedWithProduction(grammar)).join(" | ")}\`)`);
         },
         function_map: new Map,
         constant_map: new Map,

@@ -87,7 +87,7 @@ export function CompileHybrid(grammar: Grammar, env: GrammarParserEnvironment) {
         if (fn.L_RECURSION) {
             //Integrate function into states and get the entry state ID. 
             const
-                state = IntegrateState(grammar[fn.id], rl_states, grammar, env, runner);
+                state = IntegrateState(grammar[fn.id], rl_states, grammar, env, runner, "$" + grammar[fn.id].name);
 
             //fn.fn = renderState(state, rl_states, grammar, updateStateIDLU(rl_states, ids), ll_fns, true);
             //fn.fn.nodes[0].value = "$" + grammar[fn.id].name;
@@ -111,6 +111,7 @@ export function CompileHybrid(grammar: Grammar, env: GrammarParserEnvironment) {
     runner.update_constants();
 
     const parser = `(b)=>{
+const pos = null;
 ${
         runner.ANNOTATED ? `function log(...str) {
             console.log(...str);
@@ -142,6 +143,38 @@ function fail(lex, e) {
     e.FAILED = true;
     e.error.push(lex.copy());
 }
+
+function _s(s, lex, e, eh, skips, ...syms) {
+    
+    if(e.FAILED) return "";
+    
+    var val = lex.tx;
+   
+    if (syms.length == 0 || lm(lex, syms)) {
+   
+        lex.next();
+   
+        if (skips) while (lm(lex, skips)) lex.next();
+   
+        e.sp++;
+
+        s.push(val);
+        
+    } else {
+   
+        //error recovery
+        const tx = eh(lex, e);
+
+   
+        if(!tx){
+            e.FAILED = true;
+            e.error.push(lex.copy());
+        }
+    }
+
+    return s;
+}
+
 
 function _(lex, e, eh, skips, ...syms) {
     

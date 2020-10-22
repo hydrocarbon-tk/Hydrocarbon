@@ -13,12 +13,19 @@ function checkForLeftRecursion(p: Production, start_items: LLItem[], grammar: Gr
 
     const closure_items = start_items.map(g => g.item);
 
+
     processClosure(closure_items, grammar);
 
-    for (const c of closure_items.map(i => i.sym(grammar))) {
-        if (c.type == "production")
-            if (grammar[c.val] == p)
-                return true;
+    for (const i of closure_items) {
+
+        const sym = i.sym(grammar);
+
+        if (sym) {
+
+            if (sym.type == "production")
+                if (grammar[sym.val] == p)
+                    return true;
+        }
     }
 
     return false;

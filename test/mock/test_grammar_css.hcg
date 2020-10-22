@@ -1,0 +1,274 @@
+@SYMBOL || ^= $= *= <= >= 
+
+@IGNORE θnl θws
+
+@IMPORT default-productions as def 
+
+##############################################################################################
+##############################################################################################
+#### CSS
+##############################################################################################
+##############################################################################################  
+
+    <> CSS > STYLE_SHEET                                                            
+
+    <> STYLE_SHEET > import(*) ( STYLE_RULE │ AT_RULE )(*)                          
+                                                                                    ↦r { {type:"Stylesheet", imports:$$sym1, nodes:$$sym2, pos} }
+
+    <> STYLE_RULE > COMPLEX_SELECTOR(+,) { declaration_list? ;? }                    
+                                                                                    ↦r { {type:"Rule", selectors:$$sym1, props: new Map(($$sym3||[]).map(s=>[s.name, s])), pos, precedence: 0} }
+
+    <> GROUP_RULE_BODY > STYLE_RULE(*)
+
+    <> AT_RULE > media ;?
+        │ import ;?
+        │ keyframes ;?
+        │ supports ;?
+
+##############################################################################################
+##############################################################################################
+#### @Rules
+##############################################################################################
+##############################################################################################  
+
+# adapted from https://www.w3.org/TR/css-cascade-4/#at-import
+
+    <> import >  \@ (ERR g:ws) τimport ( string │ url ) ( τsupports \( ( supports_condition │ import_declaration ) \) )? media_query(*,) 
+                                                                                    ↦r { { import:"@import", type:"Import", nodes:[$$sym3, $$sym4, ...$$sym5], pos } }
+
+<> import_declaration > declaration
+
+# adapted from https://developer.mozilla.org/en-US/docs/Web/CSS/@keyframes#Formal_syntax
+
+    <> keyframes > \@ (ERR g:ws) τkeyframes keyframes_name { keyframes_blocks(+) }         
+                                                                                    ↦r { { keyframes:"@keyframes", type:"Keyframes", name:$sym3, nodes:[$$sym5], pos } }
+
+    <> keyframes_name > g:id │ string
+
+    <> keyframes_blocks > keyframe_selector(+,) { declaration_list ;? }             
+                                                                                    ↦r { { type:"KeyframeBlock", nodes:[
+                                                                                            {type:"KeyframeSelectors", nodes:$sym1, pos}, $$sym3
+                                                                                        ], pos } }
+
+    <> keyframe_selector > τfrom                                                    ↦r { { type:"KeyframeSelector", val:$$sym1, pos } }
+        │ τto                                                                       ↦r { { type:"KeyframeSelector", val:$$sym1, pos } }
+        │ percentage                                                                ↦r { { type:"KeyframeSelector", val:$$sym1, pos } }                      
+                                                                                    
+
+# adapted from https://developer.mozilla.org/en-US/docs/Web/CSS/@supports#Formal_syntax
+
+    <> supports > \@ (ERR g:ws) τsupports ( 
+
+            supports_condition                                                      ↦r { { type:"SupportConditions", nodes:$$sym1, pos } }
+        
+        ) { GROUP_RULE_BODY? }               
+                                                                                    ↦r { { type:"Supports", nodes:[$sym1, $$sym3], pos } }
+
+    <> supports_condition > τnot supports_in_parens                                 ↦r { [{ type:"Not", nodes:[$sym2], pos }] }
+        │ supports_in_parens ( 
+            τand supports_in_parens                                                 
+                                                                                    ↦r { { type:"And", nodes:[$sym2], pos } }
+            | τor supports_in_parens 
+                                                                                    ↦r { { type:"Or", nodes:[$sym2], pos } }
+        )(*) 
+                                                                                    ↦r { [$sym1, ...$sym2] }
+                                                                                    
+
+    <> supports_in_parens > \( supports_condition \)                                
+                                                                                    ↦r { { type:"Parenthesis", nodes:[$sym2], pos } }
+        │ supports_feature
+        │ general_enclosed
+
+    <> supports_feature > supports_feature_fn 
+        │ supports_decl 
+
+    <> supports_decl > \( declaration \)
+    <> supports_feature_fn > t:selector \( COMPLEX_SELECTOR \)
+                                                                                    ↦r { { type:"Function", nodes:[$sym1], pos } }
+
+# adapted from https://developer.mozilla.org/en-US/docs/Web/CSS/@media#Formal_syntax
+
+    <> media >  \@ (ERR g:ws) τmedia media_queries { GROUP_RULE_BODY? }       
+                                                                                    ↦r { { media:"@media",  type:"Media", nodes:[$sym3, ...$sym5], pos } }
+    <> media_queries > ( media_query(+,) )                                          
+                                                                                    ↦r { { queries:true, type:"MediaQueries", nodes:$$sym1, pos } }
+
+    <> media_query > media_condition                                                
+                                                                                    ↦r { { type:"Query", nodes:[$sym1], pos } }                       
+        │ (τnot │ τonly )? media_type (
+                                        τand media_condition_without_or 
+                                                                                    ↦r { { type:"And", nodes:[$sym2], pos } }
+                                        )?      
+                                                                                    ↦r { { type:"Query", condition:$sym1, nodes:[$sym2, $sym3], pos } }
+    
+
+    <> media_condition > media_condition_without_or
+        │ media_or
+
+    <> media_condition_without_or > media_not
+        │ media_and 
+        │ media_in_parenths
+
+    <> media_not > τnot media_in_parenths                                           ↦r { { type:"Not", nodes:[$sym2], pos } }
+
+    <> media_and > media_in_parenths (
+                                        τand media_in_parenths
+                                                                                    ↦r { { type:"And", nodes:[$sym2], pos } }
+                                    )(+)
+                                                                                    ↦r { [$sym1, ...$sym2] }
+
+    <> media_or > media_in_parenths (
+                                        τor media_in_parenths 
+                                                                                    ↦r { { type:"And", nodes:[$sym2], pos } }
+                                    )(+)
+                                                                                    ↦r { [$sym1, ...$sym2] }
+
+    <> media_in_parenths > \( media_condition \)                                    ↦r { { type:"Parenthesis", nodes:[$sym2], pos } }        
+        │ media_feature
+        │ general_enclosed
+
+    <> media_feature > \( ( mf_plain │ mf_boolean │ mf_range ) \)                   
+                                                                                    ↦r { { type:"MediaFeature", nodes:[$sym2], pos } }
+    <> general_enclosed > identifier\( (θany│θws)(*") \)                            
+
+        #│ identifier (θany│θws)(*")                                                 
+                                                                                    ↦r { { type:"MediaFunction", nodes:[$sym3], pos } }
+
+    <> mf_plain > mf_name  \: mf_value                                              ↦r { {type:"MediaValue", key:$sym1, val:$sym3, pos } }   
+
+    <> mf_range > mf_name ( < │ <= │ > │ >= │ = ) mf_value                          
+                                                                                    ↦r { {type:"MediaEquality", sym:$sym2, left:$sym1, right:$sym3, pos } }  
+        │ mf_value ( < │ <= │ > │ >= │ = ) mf_name                                  
+                                                                                    ↦r { {type:"MediaEquality", sym:$sym2, left:$sym1, right:$sym3, pos } }  
+        │ mf_value ( > │ >= ) identifier ( > │ >= ) mf_value                        
+                                                                                    ↦r { {type:"MediaRangeDescending", sym:$sym2, max:$sym1, id:$sym3, min:$sym5, pos } } 
+        │ mf_value ( < │ <= ) identifier ( < │ <= ) mf_value                        
+                                                                                    ↦r { {type:"MediaRangeAscending", sym:$sym2, min:$sym1, id:$sym3, max:$sym5, pos } } 
+
+    <> mf_value > θnum 
+        │ dimension 
+        │ mf_name 
+        │ ratio
+
+    <> mf_boolean > τtrue                                                           ↦r { { type:"Boolean", val:true, pos } }
+        | τfalse                                                                    ↦r { { type:"Boolean", val:false, pos } }
+    
+    <> mf_name > identifier
+
+    <> media_type > identifier                                                      ↦r { { type:"MediaType", val:$sym1, pos } }                                                                                  
+
+    <> ratio > θnum / θnum                                                          
+                                                                                    ↦r { {type:"ratio", num:$sym1, den:$sym3 } }
+    
+    <> percentage > θnum %                                                          
+                                                                                    ↦r { new parseFloat($sym1) }
+    
+    <> dimension > θnum θid                                                         
+                                                                                    ↦r { new parseFloat($sym1) }
+
+    <> url >  τurl \( string \)                                                     
+                                                                                    ↦r { new String($sym3) }                                               
+
+    <>string > " θany(+") " │ ' θany(+") '
+                                                                                    ↦r { $sym2 }                                               
+
+##############################################################################################
+#### Modified from https://drafts.csswg.org/selectors-4/#grammar
+##############################################################################################
+
+    <> COMPLEX_SELECTOR >  COMPOUND_SELECTOR  ( (COMBINATOR ↦r{ {type:"Combinator", val:$sym1} } )? COMPOUND_SELECTOR ↦r { [$sym1, $sym2] } )(*)  
+                                                                                    ↦r { 
+                                                                                        ($$sym1 && $$sym2) ?
+                                                                                        {type:"ComplexSelector", nodes:[$sym1, ...( ($sym2).flat(2) )], pos } 
+                                                                                        : $sym1
+                                                                                    } 
+    
+
+    <> COMPOUND_SELECTOR > (RED g:ws)  TYPE_SELECTOR? SUBCLASS_SELECTOR(*) ( 
+                                                                                PSEUDO_ELEMENT_SELECTOR PSEUDO_CLASS_SELECTOR(*) 
+                                                                                    ↦r { {type:"PseudoSelector", nodes:[$sym1, ...$sym2], pos } } 
+                                                                            )(*) 
+                                                                                    ↦r { 
+                                                                                            ( $$sym1 && !($$sym2 || $$sym3 )) 
+                                                                                            ? $$sym1 
+                                                                                            : 
+                                                                                                ( $$sym2 && $$sym2.length == 1 && !($$sym1 || $$sym3 ))
+                                                                                                ? $$sym2[0]
+                                                                                                :  { type:"CompoundSelector", nodes:[$sym1, ...$sym2, ...$sym3], pos }
+                                                                                    } 
+
+    <> COMBINATOR >  \>                         
+        │ \+     
+        │ \~                                 
+        │ \||                               
+    
+    <> NS_PREFIX >  (identifier │ \* )? \|                                          ↦r { $$sym1 }
+
+    <> WQ_NAME >  NS_PREFIX? identifier                                              ↦r { {type:"QualifiedName", ns:$sym1 || "", val:$sym2, pos } }
+
+    <> SUBCLASS_SELECTOR >  ID_SELECTOR 
+        │ CLASS_SELECTOR 
+        │ ATTRIBUTE_SELECTOR 
+        │ PSEUDO_CLASS_SELECTOR
+
+    <> ID_SELECTOR >  \# (ERR g:ws) identifier                                      ↦r { {type:"IdSelector", val:$sym2, pos, precedence: "B_SPECIFIER" } } 
+    
+    <> CLASS_SELECTOR >  \. (ERR g:ws) identifier                                   ↦r { {type:"ClassSelector", val:$sym2, pos,precedence: "C_SPECIFIER" } } 
+
+    <> PSEUDO_CLASS_SELECTOR >  \: (ERR g:ws) identifier ( \( def::string_value \) ↦r {$sym2} )?        
+                                                                                    ↦r { {type:"PseudoClassSelector", id:$sym2, val:$sym3, pos, precedence: "C_SPECIFIER" } }
+
+    <> ATTRIBUTE_SELECTOR >  \[ WQ_NAME \]                                          ↦r { {type:"AttributeSelector", nodes:[$sym2], pos, precedence: "C_SPECIFIER" } } 
+        │ \[ WQ_NAME ATTR_MATCHER ( identifier │ \" def::string_value \" ↦r { "\"" + $sym2 + "\"" }   ) ATTR_MODIFIER? \]           
+                                        ↦r { {type:"AttributeSelector", nodes:[$sym2], match_type:$sym3, match_val:$sym4, mod:$sym5, pos, precedence: "C_SPECIFIER" } } 
+
+    <> ATTR_MATCHER > ~=                                                
+        │ ^=                                                                
+        │ $=                                                                
+        │ *=                                                                
+        │ =                                                                 
+
+    <> ATTR_MODIFIER >  τi 
+        │ τs
+
+
+
+    <> TYPE_SELECTOR >  WQ_NAME                                                     ↦r { {type:"TypeSelector", nodes:[$sym1], pos,  precedence: "D_SPECIFIER"  } }
+        │ NS_PREFIX? \*                                                             ↦r { {type:"TypeSelector", nodes:[{type:"QualifiedName", ns:$sym1 || "", val:"*", pos, precedence: 0 }], pos } } 
+
+    <> PSEUDO_ELEMENT_SELECTOR >  \: (ERR g:ws) PSEUDO_CLASS_SELECTOR               
+                                                                                    ↦r { $sym2.type = "PseudoElementSelector",  $sym2.precedence = "D_SPECIFIER" , $sym2} 
+
+##############################################################################################
+#### Body
+##############################################################################################
+
+    <> declaration_list > ( ;(*)  rule_declaration )(+;)  ;(*)                          ↦r { $$sym1 }
+
+    <> rule_declaration  > declaration 
+        
+    <> declaration > declaration_id \: declaration_values ( \! t:important )?           ↦r { {type:"Declaration", name:$sym1, val:$sym3, IMPORTANT: !!$sym4 } }
+
+    <> declaration_values > string_value 
+        | declaration_values \( ( g:ws | declaration_values?)(+") \)         ↦r { $sym1 + $sym2 + $sym3 + $sym4 }
+        | declaration_values string_value               ↦r { $sym1 + $sym2 }
+        | declaration_values g:ws                ↦r { $sym1 + $sym2 }
+
+    <> identifier > css_id_symbols  (RED g:ws)  
+
+    <> css_id_symbols >  css_id_symbols θid          ↦r { $sym1 + $sym2 }
+        │ css_id_symbols \_                          ↦r { $sym1 + $sym2 }
+        │ css_id_symbols \-                          ↦r { $sym1 + $sym2 }
+        │ css_id_symbols \$                          ↦r { $sym1 + $sym2 }
+        │ css_id_symbols θnum                        ↦r { $sym1 + $sym2 }
+        │ css_id_symbols θhex                        ↦r { $sym1 + $sym2 }
+        │ css_id_symbols θbin                        ↦r { $sym1 + $sym2 }
+        │ css_id_symbols θoct                        ↦r { $sym1 + $sym2 }
+        │ \$ 
+        │ θid
+        | \-
+
+    <> declaration_id > css_id_symbols
+        #| \- declaration_id                          ↦r { $sym1 + $sym2 }
+
+<> string_value >  ( \- | \_ | θany | θnum | θid | θsym | θob | θcb | θop | \\ θany ) (+")

@@ -16,9 +16,10 @@ export interface States {
 
 
 //Integrates a LR state into existing set of states
-export function IntegrateState(production: Production, states: States, grammar: Grammar, env: GrammarParserEnvironment, runner) {
+export function IntegrateState(production: Production, states: States, grammar: Grammar, env: GrammarParserEnvironment, runner, name: string = undefined) {
 
     const start_state: State = <State>{
+        name,
         sym: "",
         sid: "",
         id: "",

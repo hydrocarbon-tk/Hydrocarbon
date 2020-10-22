@@ -1,7 +1,7 @@
 import { Item } from "./item.js";
 
 import { FIRST } from "./first.js";
-import { Grammar, Symbol } from "../types/grammar.js";
+import { Grammar, Symbol, Production } from "../types/grammar.js";
 import { CompilerErrorStore } from "../lr/state_generation/compiler_error_store.js";
 
 export function processClosure(items: Item[], grammar: Grammar, excludes: any[] = [], offset = 0, added = new Set()) {
@@ -79,7 +79,7 @@ export function processClosure(items: Item[], grammar: Grammar, excludes: any[] 
                 const
                     pbody = production.bodies[i],
                     body_index = pbody.id,
-                    first_mod = [...first.slice(), ...pbody.reduce];
+                    first_mod = ([...first]).concat(...pbody.reduce.values());
 
                 out_excludes.push(...new_excludes.map(e => ({ body: body_index, symbols: e.symbols, offset: e.offset, l: e.l, inner_offset: e.inner_offset })));
 
@@ -101,6 +101,7 @@ export function processClosure(items: Item[], grammar: Grammar, excludes: any[] 
 
                 if (pbody.reduce && pbody.reduce.size > 0)
                     pbody.reduce.forEach(v => v.forEach(s => {
+
                         const
                             item = new Item(pbody.id, pbody.length, 0, s),
                             sig = item.full_id;
@@ -193,7 +194,7 @@ export function getDerivedItems(items: Item[], grammar: Grammar, added = new Set
             else
                 first = [b];
 
-            const production = grammar[B.val];
+            const production: Production = grammar[B.val];
 
             if (production.graph_id < 0)
                 production.graph_id = grammar.graph_id++;
@@ -203,7 +204,7 @@ export function getDerivedItems(items: Item[], grammar: Grammar, added = new Set
                 const
                     pbody = production.bodies[i],
                     body_index = pbody.id,
-                    first_mod = [...first.slice(), ...pbody.reduce];
+                    first_mod = ([...first]).concat(...pbody.reduce.values());
 
                 out_excludes.push(...new_excludes.map(e => ({ body: body_index, symbols: e.symbols, offset: e.offset, l: e.l, inner_offset: e.inner_offset })));
 
