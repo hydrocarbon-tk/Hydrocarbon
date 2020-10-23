@@ -37,32 +37,29 @@ function gotoState(
     HYBRID: boolean = false,
 
     gt = getNonTerminalTransitionStates(state)
-) {
+): string[] {
 
-    const statements = [];
+    const statements: string[] = [];
 
     if (gt.length > 0) {
 
         const accepting_productions = state.items.map(i => i.getProduction(grammar).id).setFilter();
 
         //sort goto in order
-        statements.push(stmt("let a = e.p;"));
+        statements.push("let a = e.p;");
 
-        const
-            while_sw = stmt(`o: while(1){ if(sp > e.sp) break; else e.sp += 1; switch(e.p) { } }`),
-            while_block = while_sw.nodes[1].nodes[1].nodes,
-            while_sw_block = while_block[1].nodes[1].nodes;
+        statements.push(`o: while(1){  `);
 
         if (runner.ANNOTATED)
-            while_block.unshift(stmt(`log(\`Loop State ${state.name || state.index} start sp:\${sp} curr sp:\${e.sp}  curr p:\${e.p} \` );`));
+            statements.push(`log(\`Loop State ${state.name || state.index} start sp:\${sp} curr sp:\${e.sp}  curr p:\${e.p} \` );`);
 
-        statements.push(while_sw);
+        statements.push(`if(sp > e.sp) break; else e.sp += 1;`, `switch(e.p) { `);
+
 
         for (const [key, val] of gt.sort(([a], [b]) => a < b ? 1 : b < a ? -1 : 0)) {
 
-            const
-                case_stmt = stmt(`switch(true) { case ${key}:  } `).nodes[1].nodes[0],
-                clause = case_stmt.nodes;
+
+            statements.push(`case ${key}:`);
 
             let i = 0;
             for (const st of val.map(i => states[i])) {
@@ -71,57 +68,41 @@ function gotoState(
 
                     state.reachable.add(st.index);
 
-                    const node = stmt("if(e.p < 0)");
+                    statements.push("if(e.p < 0)");
 
-                    const { stmts } = integrateState(st, states, grammar, ids, existing_refs, "s", state);
+                    statements.push(integrateState(st, states, grammar, ids, existing_refs, "s", state));
 
-                    node.nodes[1] = stmts[0];
-
-                    clause.push(node);
+                    statements.push("else break;");
 
                 } else {
 
                     state.reachable.add(st.index);
 
-                    const { stmts } = integrateState(st, states, grammar, ids, existing_refs, "s", state);
-
-                    clause.push(...stmts);
+                    statements.push(integrateState(st, states, grammar, ids, existing_refs, "s", state));
                 }
             }
 
-            clause.push(stmt(` break ;`));
-
-            if (clause.length == 1) continue;
-
-            while_sw_block.push(case_stmt);
+            statements.push(` break;`);
         }
 
-        while_block.push(stmt(`if(e.p >= 0) a = e.p;`));
-
-        const
-            case_stmt = stmt(`switch(true) { default:  } `).nodes[1].nodes[0],
-            clause = case_stmt.nodes,
-            tests = [...new Set(state.items.map(i => getLexPeekComparisonString(i.follow))).values()],
-            def = stmt(`if(s.length-start > 1)progress = true; `);
-
-        //  clause.push(def);
-        clause.push(stmt("break o;"));
-        while_sw_block.push(case_stmt);
-        statements.push(stmt(`if(sp <= e.sp) e.p = a;`));
+        statements.push("default: break o;",
+            "}",
+            `if(e.p >= 0) a = e.p;`,
+            "}",
+            `if(sp <= e.sp) e.p = a;`,
+        );
 
         if (HYBRID) {
-            statements.push(stmt(`if(![${accepting_productions.join(",")}].includes(a))fail(l,e); else e.p = ${state.items[0].getProduction(grammar).id}`));
+            statements.push(`if(![${accepting_productions.join(",")}].includes(a))fail(l,e); else e.p = ${state.items[0].getProduction(grammar).id}`);
         } else
-            statements.push(stmt(`if(![${accepting_productions.join(",")}].includes(a))fail(l,e);`));
+            statements.push(`if(![${accepting_productions.join(",")}].includes(a))fail(l,e);`);
 
         if (runner.ANNOTATED)
-            statements.push(stmt(`log(\`Loop State ${state.name || state.index} pass:\${e.FAILED} ep:\${e.p} a:\${a} \` );`));
+            statements.push(`log(\`Loop State ${state.name || state.index} pass:\${e.FAILED} ep:\${e.p} a:\${a} \` );`);
 
     }
 
     return statements;
-
-    return runner.add_script(statements, stmt("function(l, e, s){ return s}"), "s =", state);
 }
 
 function getRealSymValue(sym: Symbol) {
@@ -161,9 +142,9 @@ function shiftReduce(
     /** Optional List of LL recursive descent functions */
     ll_fns: LLProductionFunction[] = null,
     /** Indicates the state results from a transition from LL to LR*/
-    HYBRID = false) {
+    HYBRID = false): string[] {
 
-    const statements = [], HAS_GOTO = getNonTerminalTransitionStates(state).length > 0;
+    const statements: string[] = [], HAS_GOTO = getNonTerminalTransitionStates(state).length > 0;
 
     //Group all states transitions / reductions based on symbols. 
 
@@ -219,12 +200,12 @@ function shiftReduce(
 
         const output = {
             syms,
-            stmts: stmt(`{}`),
+            stmts: <string[]>[],
         };
 
         outputs.push(output);
 
-        const block = output.stmts.nodes;
+        const block = output.stmts;
 
         for (const shift_groups of shift) {
 
@@ -244,8 +225,8 @@ function shiftReduce(
                 i++;
 
                 if (GROUP_NOT_LAST) {
-                    if (FIRST_GROUP) { block.push(stmt(`var cp = l.copy(), ${pdn} = null;`)); lex_name = 'cp'; }
-                    else { block.push(stmt("cp = l.copy()")); lex_name = 'cp'; };
+                    if (FIRST_GROUP) { block.push(`var cp = l.copy(), ${pdn} = null;`); lex_name = 'cp'; }
+                    else { block.push("cp = l.copy()"); lex_name = 'cp'; };
                 }
 
                 if (runner.ANNOTATED)
@@ -260,18 +241,18 @@ function shiftReduce(
                         block.push(runner.createAnnotationJSNode(`LR[${state.index}]-SHIFT:\${e.sp}`, grammar, ...shift_state.items.map(i => i.decrement())));
 
 
-                if (ll_fns && ll_fns[production] && item.offset <= 1 /*&& !item.atEND*/) {
+                if (ll_fns && ll_fns[production].IS_RD && item.offset <= 1 && !item.atEND) {
 
                     if (GROUP_NOT_LAST) {
-                        block.push(stmt(`${pdn} = s.slice()`));
-                        block.push(stmt(`${pdn}.push($${grammar[production].name}(${lex_name}, e))`));
+                        block.push(`${pdn} = s.slice()`);
+                        block.push(`${pdn}.push($${grammar[production].name}(${lex_name}, e))`);
                     } else
-                        block.push(stmt(`s.push($${grammar[production].name}(${lex_name}, e))`));
+                        block.push(`s.push($${grammar[production].name}(${lex_name}, e))`);
 
                     block.push(...insertFunctions(item, grammar, false));
                 } else {
 
-                    let shift_state_stmt;
+                    let shift_state_stmt = "";
 
                     const
                         skip_symbols = grammar.meta.ignore.flatMap(d => d.symbols),
@@ -280,32 +261,23 @@ function shiftReduce(
                         symbols_name = GROUP_NOT_LAST ? pdn : "s";
 
                     if (insert_functions.length > 0) {
-                        const shift_stmt = stmt(shift_fn);
 
-                        for (const { node: array } of traverse(shift_stmt, "nodes").filter("type", JSNodeType.ArrayLiteral))
-                            runner.add_constant(array);
+                        block.push(shift_fn);
 
-                        block.push(shift_stmt);
                         block.push(...insert_functions);
+
                         if (!HAS_GOTO) {
-                            shift_state_stmt = stmt(`return State${shift_state.index}(${lex_name}, e, ${symbols_name})`);
-                            ids[shift_state.index].push(shift_state_stmt.nodes[0].nodes[0]);
+                            shift_state_stmt = `return State${shift_state.index}(${lex_name}, e, ${symbols_name})`;
                         } else {
-                            shift_state_stmt = stmt(`${symbols_name} = State${shift_state.index}(${lex_name}, e, ${symbols_name})`);
-                            ids[shift_state.index].push(shift_state_stmt.nodes[0].nodes[1].nodes[0]);
+                            shift_state_stmt = `${symbols_name} = State${shift_state.index}(${lex_name}, e, ${symbols_name})`;
                         }
                     } else {
                         if (!HAS_GOTO) {
-                            shift_state_stmt = stmt(`return State${shift_state.index}(${lex_name}, e, ${shift_fn})`);
-                            ids[shift_state.index].push(shift_state_stmt.nodes[0].nodes[0]);
+                            shift_state_stmt = `return State${shift_state.index}(${lex_name}, e, ${shift_fn})`;
                         } else {
-                            shift_state_stmt = stmt(`${GROUP_NOT_LAST ? pdn : "s"} = State${shift_state.index}(${lex_name}, e, ${shift_fn})`);
-                            ids[shift_state.index].push(shift_state_stmt.nodes[0].nodes[1].nodes[0]);
+                            shift_state_stmt = `${GROUP_NOT_LAST ? pdn : "s"} = State${shift_state.index}(${lex_name}, e, ${shift_fn})`;
                         }
                     }
-
-                    for (const { node: array } of traverse(shift_state_stmt, "nodes").filter("type", JSNodeType.ArrayLiteral))
-                        runner.add_constant(array);
 
                     block.push(shift_state_stmt);
 
@@ -314,26 +286,26 @@ function shiftReduce(
 
                 if (SINGLE_TRANSITION_BLOCK) {
                     if (TRY_GROUP && GROUP_NOT_LAST) {
-                        block.push(stmt(`if(e.p !== ${production}){
+                        block.push(`if(e.p !== ${production}){
                             e.FAILED = false;
                             e.sp = sp;
                         }else{
                             s = ${pdn};
                             l.sync(cp);
                             return s;
-                        }`));
+                        }`);
                     }
                 } else {
 
                     if (TRY_GROUP && GROUP_NOT_LAST) {
-                        block.push(stmt(`if(e.p !== ${production}){
+                        block.push(`if(e.p !== ${production}){
                             e.FAILED = false;
                             e.sp = sp;
                         }else{
                             s = ${pdn};
                             l.sync(cp);
                             break;
-                        }`));
+                        }`);
                     }
                 }
             }
@@ -351,24 +323,23 @@ function shiftReduce(
 
             const reduce_function = body?.reduce_function?.txt;
 
-            block.push(stmt(`e.sp -= ${item.len} `));
+            block.push(`e.sp -= ${item.len} `);
 
             if (reduce_function) {
 
-                block.push(stmt(`var sym = s.slice(-${item.len});`));
+                block.push(`var sym = s.slice(-${item.len});`);
 
-                block.push(stmt(`s.splice(-${item.len}, ${item.len}, ${createReduceFunction(reduce_function)})`));
+                block.push(`s.splice(-${item.len}, ${item.len}, ${createReduceFunction(reduce_function)})`);
 
-                block.push(stmt(`return (e.p = ${production.id}, s);`));
+                block.push(`return (e.p = ${production.id}, s);`);
             }
             else {
-                block.push(stmt(`return (e.p=${production.id}, (s.splice(-${item.len}, ${item.len}, s[s.length-1]), s));`));
+                block.push(`return (e.p=${production.id}, (s.splice(-${item.len}, ${item.len}, s[s.length-1]), s));`);
             }
         }
     }
 
     if (outputs.length > 0) {
-
         const
             tx = outputs.filter(e => e.syms.some(i => typeof i == "string")),
             ty = outputs.filter(e => e.syms.some(i => ((typeof i == "number") && (i !== 0xFF)))),
@@ -385,95 +356,90 @@ function shiftReduce(
             else
                 output = END[0];
 
-            const { if_body, if_stmt } = ifBlockStatement(`${
+            const if_stmt = [`if(${
                 [
                     END.length > 0 ? "l.END" : undefined,
                     tx.length > 0 ? `[${tx[0].syms.filter(s => typeof s == "string").map(s => translateSymbolLiteral(s)).setFilter().sort().join(",")}].includes(l.tx)` : undefined,
                     ty.length > 0 ? `[${ty[0].syms.filter(s => typeof s == "number").map(s => translateSymbolLiteral(s)).setFilter().sort().join(",")}].includes(l.ty)` : undefined
                 ].filter(_ => _).join("||")
-                } `);
+                }){`];
 
-            for (const { node: array } of traverse(if_stmt.nodes[0], "nodes").filter("type", JSNodeType.ArrayLiteral))
-                runner.add_constant(array);
+            if_stmt.push(...output.stmts);
 
-            if_body.nodes.push(...output.stmts.nodes);
-
-            statements.push(if_stmt);
+            statements.push(...if_stmt, "}");
         } else {
 
-            let tx_switch, ty_switch, end_stmt;
+            let tx_switch: string[], ty_switch: string[], end_stmt: string[];
 
             if (END.length > 0) {
-
-                const { if_body, if_stmt } = ifBlockStatement(`l.END`);
-
-                end_stmt = if_stmt;
+                end_stmt = ["if(l.END){"];
 
                 for (const output of END)
-                    if_body.nodes.push(...output.stmts.nodes);
+                    end_stmt.push(...output.stmts);
+
+                end_stmt.push("}");
             }
 
             if (tx.length > 0) {
-                tx_switch = stmt("switch(l.tx){}");
 
-                const switch_block = tx_switch.nodes[1].nodes;
+                tx_switch = ["switch(l.tx){"];
 
                 for (const output of tx) {
 
                     const tx_syms = output.syms.filter(i => typeof i == "string");
 
-                    switch_block.push(...tx_syms.map(s => caseClauseNode(translateSymbolLiteral(s))));
+                    tx_switch.push(...tx_syms.map(s => caseClauseNode(translateSymbolLiteral(s))));
 
-                    const last = switch_block[switch_block.length - 1];
+                    tx_switch.push(...output.stmts);
 
-                    last.nodes.push(...output.stmts.nodes);
-
-                    if (last.nodes[last.nodes.length - 1].type != JSNodeType.ReturnStatement)
-                        last.nodes.push(stmt("break;"));
+                    if (!tx_switch.slice(-1)[0].includes("return"))
+                        tx_switch.push("break;");
                 }
+
+                tx_switch.push("}");
             }
 
             if (ty.length > 0) {
 
-                ty_switch = stmt("switch(l.ty){}");
-
-                const switch_block = ty_switch.nodes[1].nodes;
+                ty_switch = ["switch(l.ty){"];
 
                 for (const output of ty) {
 
                     const ty_syms = output.syms.filter(i => typeof i == "number");
 
-                    switch_block.push(...ty_syms.map(s => caseClauseNode(s)));
+                    ty_switch.push(...ty_syms.map(s => caseClauseNode(s)));
 
-                    const last = switch_block[switch_block.length - 1];
+                    ty_switch.push(...output.stmts);
 
-                    last.nodes.push(...output.stmts.nodes);
-
-                    if (last.nodes[last.nodes.length - 1].type != JSNodeType.ReturnStatement)
-                        last.nodes.push(stmt("break;"));
+                    if (!ty_switch.slice(-1)[0].includes("return"))
+                        ty_switch.push("break;");
                 }
+
+                ty_switch.push("}");
             }
 
             let switch_ = ty_switch;
 
             if (tx_switch) {
+
                 switch_ = tx_switch;
-                if (ty_switch) {
-                    const default_ = stmt(`switch(1){ default : }`).nodes[1].nodes[0];
-                    default_.nodes.push(ty_switch);
-                    switch_.nodes[1].nodes.push(default_);
-                }
+
+                if (ty_switch)
+                    switch_.splice(switch_.length - 2, 0, ...[` default : `, ...ty_switch]);
             }
 
             if (end_stmt) {
-                statements.push(end_stmt);
-                if (switch_) end_stmt.nodes[2] = switch_;
+
+                statements.push(...end_stmt);
+
+                if (switch_) {
+                    statements.push("else", ...switch_, ";");
+                }
             } else
-                statements.push(switch_);
+                statements.push(...switch_);
         }
     }
-
-    return runner.add_script(statements, stmt("function(l, e, s){ return s}"), "s =", state);
+    return statements;
 }
 
 function ifBlockStatement(if_condition: string) {
@@ -485,8 +451,8 @@ function ifBlockStatement(if_condition: string) {
     return { if_stmt, if_body };
 }
 
-function caseClauseNode(case_condition: string) {
-    return stmt(`switch(1){ case ${case_condition}: }`).nodes[1].nodes[0];
+function caseClauseNode(case_condition: string): string[] {
+    return [`case ${case_condition}: `];
 }
 
 function compileState(
@@ -502,22 +468,29 @@ function compileState(
     /** Optional List of LL recursive descent functions */
     ll_fns: LLProductionFunction[] = null,
     /** Indicates the state results from a transition from LL to LR*/
-    HYBRID = false): JSNode[] {
+    HYBRID = false): string[] {
     const
         existing_refs: Set<number> = new Set(),
-        statements = [];
+        statements: string[] = [];
 
-    const item = state.items[0];
+    const item = state.items[0], symbol = item.sym(grammar)?.val;
     // if (state.index == 14) {
     //If the state has only one transition point
-    if (state.items.setFilter(i => i.id).length == 1 && !item.atEND && item.sym(grammar).type == SymbolType.PRODUCTION) {
+    if (
+        state.items.setFilter(i => i.id).length == 1
+        && !item.atEND
+        && item.sym(grammar).type == SymbolType.PRODUCTION
+        && item.increment().atEND
+        && ll_fns
+        && ll_fns?.[symbol]?.IS_RD
+    ) {
 
         //Find out the production that is to be generated;
         const production = item.getProduction(grammar).id;
         const shift_sym = item.sym(grammar).val;
 
-        statements.push(stmt(`s.push($${grammar[shift_sym].name}(l, e, s))`));
-        statements.push(stmt(`e.sp++`));
+        statements.push(`s.push($${grammar[shift_sym].name}(l, e, s))`);
+        statements.push(`e.sp++`);
 
         const pending_prods = [production];
         const active_gotos = new Set([production]);
@@ -546,24 +519,23 @@ function compileState(
                 statements.push(...gotoState(state, states, grammar, runner, ids, existing_refs, HYBRID, goto_map));
             } else {
                 if (state.maps.has(production))
-                    statements.push(stmt(`s = $${state.maps.get(production)[0]}(l,e,s);`));
+                    statements.push(`s = State${state.maps.get(production)[0]}(l,e,s);`);
             }
         } else {
-            console.log({ production, goto_map, sm: state.maps });
+            console.log({ i: state.items.setFilter(s => s.id).map(s => s.renderUnformattedWithProductionAndFollow(grammar)).join(" "), production, goto_map, sm: state.maps });
         }
 
         //  }
     } else {
-        const
 
+        const
             goto_statements = gotoState(state, states, grammar, runner, ids, existing_refs, HYBRID),
             shift_reduce_statements = shiftReduce(state, states, grammar, runner, ids, ll_fns, HYBRID);
 
 
-        if (goto_statements.length > 0)
-            statements.push(stmt("const sp = e.sp;"));
+        if (goto_statements.length > 0) statements.push("const sp = e.sp;");
 
-        statements.push(stmt("e.p = -1;"));
+        statements.push("e.p = -1;");
 
         statements.push(...shift_reduce_statements);
 
@@ -581,37 +553,30 @@ export function renderState(
     id_nodes: JSNode[][] = states.reduce(r => (r.push([]), r), []),
     ll_fns: LLProductionFunction[] = null,
     HYBRID = false
-): JSNode {
+): string {
 
 
-    let str = [];
+    let str: string[] = [];
 
     for (const item of state.items)
         str.push(item.renderUnformattedWithProductionAndFollow(grammar).replace(/\"/, "\\\""));
 
     const
+        fn: string[] = runner.ANNOTATED
+            ? [`function ${state.name ? state.name : "State" + state.index}(l, e, s = [], st){\`${state.bid}\`;`]
+            : [`function ${state.name ? state.name : "State" + state.index}(l, e, s = []){`];
 
-        fn = runner.ANNOTATED
-            ? stmt(`function ${state.name ? state.name : "State" + state.index}(l, e, s = [], st){\`${state.bid}\`;;}`)
-            : stmt(`function ${state.name ? state.name : "State" + state.index}(l, e, s = []){;}`),
-        fn_id = fn.nodes[0],
-        fn_body_nodes = fn.nodes[2].nodes;
 
-    fn_body_nodes.pop();
-
-    if (!state.name)
-
-        id_nodes[state.index].push(fn_id);
-
-    fn_body_nodes.push(...compileState(state, states, grammar, runner, id_nodes, ll_fns, HYBRID));
-
+    fn.push(...compileState(state, states, grammar, runner, id_nodes, ll_fns, HYBRID));
 
     if (HYBRID)
-        fn_body_nodes.push(stmt(`return s[s.length - 1];`));
+        fn.push(`return s[s.length - 1];`);
     else
-        fn_body_nodes.push(stmt(`return s;`));
+        fn.push(`return s;`);
 
-    return fn;
+    fn.push("}");
+
+    return fn.join("\n");
 }
 
 export function markReachable(states: States, ...root_states: State[]) {

@@ -161,24 +161,14 @@ export function getLexPeekComparisonString(sym: Symbol): string {
     }
 }
 //
-export function integrateState(state: State, states: State[], grammar: Grammar, id_nodes: any[], existing_refs: Set<number>, name = "s", existing_state) {
+export function integrateState(state: State, states: State[], grammar: Grammar, id_nodes: any[], existing_refs: Set<number>, name = "s", existing_state): string {
 
-    if (!existing_refs.has(state.index)) {
-        state.refs++;
+    if (!existing_refs.has(state.index))
         existing_refs.add(state.index);
-    }
 
-    const
-        goto_stmt = stmt(`${name} = State${state.index}(l, e, s)`),
-        goto_id = goto_stmt.nodes[0].nodes[1].nodes[0];
-
-    id_nodes[state.index].push(goto_id);
-
-    return {
-        stmts: [goto_stmt/*, stmt(`s = val, p = pval;`)*/]
-    };
-    //}
+    return `${name} = State${state.index}(l, e, s)`;
 }
+
 export function getCompletedItems(state: State): Item[] {
     return state.items.filter(e => e.atEND).group(i => i.id);
 }

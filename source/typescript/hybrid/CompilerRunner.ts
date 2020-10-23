@@ -27,7 +27,7 @@ export interface CompilerRunner {
     render_constants: () => string;
     add_script: (body: JSNode[], fn: JSNode, call_append: string, state: State) => JSNode[];
     update_nodes: () => void;
-    createAnnotationJSNode: (label: string, grammar: Grammar, ...items: Item[]) => JSNode;
+    createAnnotationJSNode: (label: string, grammar: Grammar, ...items: Item[]) => string;
     render_functions: () => string;
 }
 export function constructCompilerRunner(ANNOTATED: boolean = false): CompilerRunner {
@@ -35,7 +35,7 @@ export function constructCompilerRunner(ANNOTATED: boolean = false): CompilerRun
         INTEGRATE: new Set(),
         ANNOTATED,
         createAnnotationJSNode: function (label: string, grammar: Grammar, ...items: Item[]) {
-            return stmt(`log(\`▎\${glp(l)} ->\${l.tx} ▎${label} ▎${items.setFilter(i => i.id).map(i => i.renderUnformattedWithProduction(grammar)).join(" | ")}\`)`);
+            return `log(\`▎\${glp(l)} ->\${l.tx} ▎${label} ▎${items.setFilter(i => i.id).map(i => i.renderUnformattedWithProduction(grammar)).join(" | ")}\`)`;
         },
         function_map: new Map,
         constant_map: new Map,

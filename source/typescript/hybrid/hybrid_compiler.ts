@@ -5,8 +5,10 @@ import { renderCompressed } from "@candlefw/js";
 import fs from "fs";
 import spark from "@candlefw/spark";
 import URL from "@candlefw/url";
-
+const fsp = fs.promises;
 export async function compileHybrid(grammar: Grammar, env: GrammarParserEnvironment) {
+
+    const type = "WebAssembly";
 
     const mt_runner = new HybridMultiThreadRunner(grammar, env);
 
@@ -14,6 +16,50 @@ export async function compileHybrid(grammar: Grammar, env: GrammarParserEnvironm
         // console.log(0, 3, updates);
         await spark.sleep(10);
     }
+
+    const temp_dir = URL.resolveRelative("./temp/");
+    const temp_source = URL.resolveRelative("./temp/source/");
+    const rust_file = URL.resolveRelative("./temp/source/parser.rs");
+    const cargo_file = URL.resolveRelative("./temp/Cargo.toml");
+    try {
+        //Create the temp directory
+        await fsp.mkdir(temp_source + "", { recursive: true });
+        fsp.writeFile(rust_file + "", mt_runner.parser);
+        fsp.writeFile(rust_file + "",
+            `[package]
+name = "parser"
+version = "0.1.0"
+authors = ["cfw.hydrocarbon <info@candlefw.io>"]
+description = "Automatically Generated Parser"
+documentation = "https://candlefw.io/hydrocarbon/what-now"
+repository = "https://github.com/candlefw/hydrocarbon/"
+license = "MIT"
+
+[dependencies]
+wasm-bindgen = "0.2.68"
+
+[dev-dependencies]
+wasm-bindgen-test = "0.3.13"
+
+[profile.release]
+# Tell `rustc` to optimize for small code size.
+opt-level = "s"`);
+        //run the wasm-pack inside the temp directory
+        /*
+        await new Promise(res{
+            const rust = spawn("wasm-pack", "build", {cwd: temp_dir + "" } (e, stdout, stderr)=>{
+                if(e)
+                    console.log(e);
+                res();
+            })
+        }
+*/
+
+    } catch (e) {
+        console.log(e);
+    }
+
+    //Create the temp directory
     fs.writeFileSync(`./hybrid_${new URL(grammar.uri).filename}.js`, "export default " + mt_runner.parser);
 
     return Function(`return (${mt_runner.parser})()`)();

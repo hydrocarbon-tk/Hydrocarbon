@@ -4,15 +4,11 @@ import { Grammar, SymbolType } from "../types/grammar.js";
 import { ParserEnvironment } from "../types/parser_environment";
 import { Item } from "../util/item.js";
 import { HybridDispatchResponse, HybridJobType, HybridDispatch } from "./hybrid_mt_msg_types.js";
-import { ItemSet } from "../types/item_set.js";
 import { State } from "./State.js";
-import spark from "@candlefw/spark";
-import { W } from "@candlefw/wind/build/types/ascii_code_points";
-import { States, mergeState } from "./lr_hybrid.js";
-import { renderState, renderStates } from "./lr_hybrid_render.js";
+import { mergeState } from "./lr_hybrid.js";
+import { renderStates } from "./lr_hybrid_render.js";
 import { constructCompilerRunner, CompilerRunner } from "./CompilerRunner.js";
 import { JSNode, JSNodeType, exp } from "@candlefw/js";
-import { renderWithFormatting } from "@candlefw/js";
 import { translateSymbolValue } from "./utilities.js";
 
 type WorkerContainer = {
@@ -63,7 +59,7 @@ export class HybridMultiThreadRunner {
         this.grammar = grammar;
         this.env = env;
         this.total_items = 0;
-        this.number_of_workers = 1;
+        this.number_of_workers = 8;
         this.lr_states = new Map;
         this.to_process_ll_fn = this.grammar.map((a, i) => i + 1);
         this.IN_FLIGHT_JOBS = 0;
@@ -103,7 +99,10 @@ export class HybridMultiThreadRunner {
         if (named_state) {
             named_state.items = named_state.items.map(Item.fromArray);
             named_state = mergeState(named_state, this.lr_states, null, this.lr_item_set);
-            this.ll_functions[id] = { type: JSNodeType.EmptyStatement };
+            this.ll_functions[id] = {
+                IS_RD: false,
+                str: `"LR USE FOR ${named_state.items.setFilter(i => i.id).map(i => i.getProduction(this.grammar).name)}"`
+            };
         }
 
         for (const state of potential_states) {
@@ -126,7 +125,10 @@ export class HybridMultiThreadRunner {
                 if (response.CONVERT_RC_TO_LR) {
                     this.to_process_ll_fn[response.production_id] = -response.production_id;
                 } else {
-                    this.ll_functions[response.production_id] = response.fn;
+                    this.ll_functions[response.production_id] = {
+                        IS_RD: true,
+                        str: response.fn
+                    };
                 }
                 break;
 
@@ -226,7 +228,6 @@ export class HybridMultiThreadRunner {
             };
         }
 
-
         //Compile LR Functions
         const states = [...this.lr_states.values()].map(s => {
             s.items = s.items.map(Item.fromArray);
@@ -244,12 +245,7 @@ export class HybridMultiThreadRunner {
             lr_nodes = renderStates(root_states, states, this.grammar, this.runner, ids, this.ll_functions, true);
         }
 
-        const fns = [...this.ll_functions, ...lr_nodes];
-
-        this.runner.update_nodes();
-        this.runner.update_constants();
-
-
+        const fns = [...this.ll_functions.map(fn => fn.str), ...lr_nodes];
 
         //Compile Function
         this.parser = `(b)=>{
@@ -352,22 +348,8 @@ export class HybridMultiThreadRunner {
                 }
             }
             
-            const skips = [8, 256];
-            
-            ${ this.runner.render_constants()}
-            
-            ${ this.runner.render_functions()}
-            
-            ${ fns.map(fn => {
-                if (fn.type == JSNodeType.FunctionDeclaration) {
-
-                    const id = fn.nodes[0].value;
-                    const member = exp(`({${id}:null})`).nodes[0].nodes[0];
-                    member.nodes[1] = fn;
-                }
-                return fn;
-            }).map(fn => renderWithFormatting(fn)).join("\n")}
-            
+    
+            ${ fns.join("\n")}
             
             return Object.assign( function (lexer, env = {
                 error: [],
@@ -393,7 +375,7 @@ export class HybridMultiThreadRunner {
                         symbols[LR ? symbols.length-1 : 0] = lex.slice(copy)
                     }
                 }
-                _(lexer, env, env.eh,skips)
+                _(lexer, env, env.eh,[])
                 const result = $${ this.grammar[0].name}(lexer, env);
                 
                 if (!lexer.END || (env.FAILED )) {
@@ -403,13 +385,7 @@ export class HybridMultiThreadRunner {
                     
                 }
                 return result;
-            }, {${ fns.filter(fn => fn.type == JSNodeType.FunctionDeclaration).map(fn => {
-
-                const id = fn.nodes[0].value;
-                const member = exp(`({${id}:null})`).nodes[0].nodes[0];
-                member.nodes[1] = fn;
-                return id;
-            }).join(",\n")}})
+            })
             }`;
 
         //Clean up workers.

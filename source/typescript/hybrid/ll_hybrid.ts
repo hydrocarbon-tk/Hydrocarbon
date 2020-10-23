@@ -52,25 +52,25 @@ function renderItemSym(
     index_offset: number = 0,
     rdi: Set<number> = new Set,
     HAS_INLINE_FUNCTIONS: boolean = false
-): JSNode[] {
+): string {
 
     const
         stmts = [], sym = "$", cn = (HAS_INLINE_FUNCTIONS) ? `s[${index_offset}]` : `${sym}${index_offset + 1}_`,
         body = item.body_(grammar),
         reduce_function = body?.reduce_function?.txt;
 
-    stmts.push(...insertFunctions(item, grammar, true));
+    stmts.push(insertFunctions(item, grammar, true));
 
     if (item.atEND) {
 
         if (reduce_function) {
             if (HAS_INLINE_FUNCTIONS)
-                stmts.push(stmt(`return (${createReduceFunction(reduce_function, "s[", 0, "]")});`));
+                stmts.push(`return (${createReduceFunction(reduce_function, "s[", 0, "]")});`);
             else
-                stmts.push(stmt(`return (${createReduceFunction(reduce_function, sym, 1, "_")});`));
+                stmts.push(`return (${createReduceFunction(reduce_function, sym, 1, "_")});`);
         } else {
 
-            stmts.push(stmt(`return ${cn}`));
+            stmts.push(`return ${cn}`);
         }
     } else {
         const
@@ -82,51 +82,45 @@ function renderItemSym(
             if (runner.ANNOTATED)
                 stmts.push(runner.createAnnotationJSNode("LL-CALL", grammar, item));
 
-            stmts.push(stmt(`if(e.FAILED) return;`));
+            stmts.push(`if(e.FAILED) return;`);
 
             if (HAS_INLINE_FUNCTIONS)
-                stmts.push(stmt(`s.push($${grammar[sym.val].name}(l, e));`));
+                stmts.push(`s.push($${grammar[sym.val].name}(l, e));`);
             else if (rdi.has(index_offset) || REDUCE_TO_LAST)
-                stmts.push(stmt(`const ${cn} = $${grammar[sym.val].name}(l, e)`));
+                stmts.push(`const ${cn} = $${grammar[sym.val].name}(l, e)`);
             else
-                stmts.push(stmt(`$${grammar[sym.val].name}(l, e)`));
+                stmts.push(`$${grammar[sym.val].name}(l, e)`);
         } else {
             if (runner.ANNOTATED)
                 stmts.push(runner.createAnnotationJSNode("LL-ASSERT", grammar, item));
 
             //Get skips from grammar - TODO get symbols from bodies / productions
-            const skip_symbols = exp(`[${grammar.meta.ignore.flatMap(d => d.symbols).map(translateSymbolValue).join(",")}]`);
-            let call;
-
+            const skip_symbols = `[${grammar.meta.ignore.flatMap(d => d.symbols).map(translateSymbolValue).join(",")}]`;
 
             if (HAS_INLINE_FUNCTIONS) {
-                call = stmt(`s.push(_(l, e, e.eh, null, ${translateSymbolValue(sym)}));`);
-                call.nodes[0].nodes[1].nodes[0].nodes[1].nodes[3] = runner.add_constant(skip_symbols);
+                stmts.push(`s.push(_(l, e, e.eh, ${skip_symbols}, ${translateSymbolValue(sym)}));`);
             } else if (rdi.has(index_offset) || REDUCE_TO_LAST) {
-                call = stmt(`const ${cn} = _(l, e, e.eh, null, ${translateSymbolValue(sym)});`);
-                call.nodes[0].nodes[1].nodes[1].nodes[3] = runner.add_constant(skip_symbols);
+                stmts.push(`const ${cn} = _(l, e, e.eh, ${skip_symbols}, ${translateSymbolValue(sym)});`);
             } else {
-                call = stmt(`_(l, e, e.eh, null, ${translateSymbolValue(sym)});`);
-                call.nodes[0].nodes[1].nodes[3] = runner.add_constant(skip_symbols);
+                stmts.push(`_(l, e, e.eh, ${skip_symbols}, ${translateSymbolValue(sym)});`);
             }
-
-            stmts.push(call);
         }
     }
 
-    return stmts;
+    return stmts.join("\n");
 }
 
-function renderItem(item: Item, grammar: Grammar, runner: CompilerRunner, index_offset = 0, rdi: Set<number> = new Set, HAS_INLINE_FUNCTIONS: boolean = false): JSNode[] {
+function renderItem(item: Item, grammar: Grammar, runner: CompilerRunner, index_offset = 0, rdi: Set<number> = new Set, HAS_INLINE_FUNCTIONS: boolean = false): string {
     const stmts = [];
+
     while (true) {
-        stmts.push(...renderItemSym(item, grammar, runner, index_offset, rdi, HAS_INLINE_FUNCTIONS));
+        stmts.push(renderItemSym(item, grammar, runner, index_offset, rdi, HAS_INLINE_FUNCTIONS));
         if (item.atEND) break;
         item = item.increment();
         if (!item.atEND) index_offset++;
     }
-    stmts.splice(stmts.length - 1, 0, stmt(`e.p = (e.FAILED) ? -1 : ${item.getProduction(grammar).id}`));
-    return stmts;
+    stmts.splice(stmts.length - 1, 0, `e.p = (e.FAILED) ? -1 : ${item.getProduction(grammar).id}`);
+    return stmts.join("\n");
 }
 
 
@@ -135,7 +129,8 @@ type TransitionGroup = {
     syms: Set<string>;
     trs: LLItem[];
 };
-function renderFunctionBody(llitems: LLItem[], grammar: Grammar, runner: CompilerRunner, peek_depth: number = 0, INLINE_FUNCTIONS = false, ELSE_REDUCE = false) {
+function renderFunctionBody(llitems: LLItem[], grammar: Grammar, runner: CompilerRunner, peek_depth: number = 0, INLINE_FUNCTIONS = false, ELSE_REDUCE = false)
+    : string {
 
     const stmts = [];
 
@@ -262,29 +257,28 @@ function renderFunctionBody(llitems: LLItem[], grammar: Grammar, runner: Compile
             stmts.unshift(runner.createAnnotationJSNode("LL-PEEK:" + (peek_depth + 1), grammar, ...llitems.map(LLItemToItem)));
 
         if (token_bit) {
-            const const_node = stmt("const d;");
-            const nodes = const_node.nodes;
-
-            nodes.pop();
+            const const_node = ["const"];
+            const const_body = [];
 
             let lx = "l";
 
             if (peek_depth > 0) {
                 lx = "pk";
-                nodes.push(exp("pk = l" + (".pk".repeat(peek_depth))));
+                const_body.push("pk = l" + (".pk".repeat(peek_depth)));
             }
             if (token_bit & TOKEN_BIT.TEXT)
-                nodes.push(exp(`tx = ${lx}.tx`));
+                const_body.push(`tx = ${lx}.tx`);
 
             if (token_bit & TOKEN_BIT.TYPE)
-                nodes.push(exp(`ty = ${lx}.ty`));
+                const_body.push(`ty = ${lx}.ty`);
 
-            stmts.unshift(const_node);
+            const_node.push(const_body.join(","), ";");
+
+            stmts.unshift(const_node.join(" "));
         }
     }
 
-
-    return stmts;
+    return stmts.join("\n");
 }
 
 const enum TOKEN_BIT {
@@ -321,11 +315,9 @@ function buildGroupStatement(
         }, 0),
         tests = [...syms.map(s => sym_map.get(s)).map(i => getLexPeekComparisonStringCached(i))];
 
-    let if_stmt = stmt(`if(${tests.join("||")}){}`);
+    let if_stmt = [`if(${tests.join("||")}){`];
 
-    if (!IS_SINGLE) stmts.push(if_stmt);
-
-    const if_body = (IS_SINGLE) ? stmts : if_stmt.nodes[1].nodes;
+    const if_body = (IS_SINGLE) ? stmts : if_stmt;
 
     /** Reduce function indices */
     const rdi: Set<number> = new Set(trs.map(LLItemToItem).setFilter(i => i.id).flatMap(i => [...getReduceFunctionSymbolIndiceSet(i, grammar).values()]));
@@ -346,7 +338,7 @@ function buildGroupStatement(
 
             //All items agree
             if (sym && !items.reduce((r, i) => (r || i.atEND || (i.sym(grammar)?.val != sym.val)), false)) {
-                if_body.push(...renderItemSym(items[0], grammar, runner, off, rdi, INLINE_FUNCTIONS));
+                if_body.push(renderItemSym(items[0], grammar, runner, off, rdi, INLINE_FUNCTIONS));
                 items = items.map(i => i.increment()).filter(i => i);
                 peek = -1;
 
@@ -363,11 +355,11 @@ function buildGroupStatement(
                         });
 
                 if (new_trs.length > 0)
-                    if_body.push(...renderFunctionBody(new_trs, grammar, runner, peek + 1, INLINE_FUNCTIONS, items.some(i => i.atEND)));
+                    if_body.push(renderFunctionBody(new_trs, grammar, runner, peek + 1, INLINE_FUNCTIONS, items.some(i => i.atEND)));
 
                 //If any items at end render here?
                 for (const d of items.filter(i => i.atEND))
-                    if_body.push(...renderItem(d, grammar, runner, off - 1, rdi, INLINE_FUNCTIONS));
+                    if_body.push(renderItem(d, grammar, runner, off - 1, rdi, INLINE_FUNCTIONS));
 
                 break;
             };
@@ -376,7 +368,12 @@ function buildGroupStatement(
 
         //Just complete the grammar symbols
         const item = LLItemToItem(trs[0]);
-        if_body.push(...renderItem(item, grammar, runner, item.offset, rdi, INLINE_FUNCTIONS));
+        if_body.push(renderItem(item, grammar, runner, item.offset, rdi, INLINE_FUNCTIONS));
+    }
+
+    if (!IS_SINGLE) {
+        if_stmt.push("}");
+        stmts.push(if_stmt.join("\n"));
     }
 
     return token_bit;
@@ -386,9 +383,10 @@ export function makeLLHybridFunction(production: Production, grammar: Grammar, r
 
     const p = production;
 
-    const fn = stmt(`function $${p.name}(l, e){;}`),
-        body = fn.nodes[2].nodes,
+    const stmts = [`function $${p.name}(l, e){`],
+
         INLINE_FUNCTIONS = p.bodies.some(has_INLINE_FUNCTIONS),
+
         start_items: LLItem[] = p.bodies.map(b => BodyToLLItem(b, grammar));
 
     if (p.IMPORTED && (false && runner.INTEGRATE)) {
@@ -404,99 +402,42 @@ export function makeLLHybridFunction(production: Production, grammar: Grammar, r
         };
     }
 
-    body.pop();
-
     if (INLINE_FUNCTIONS)
-        body.push(stmt("const s = []"));
+        stmts.push("const s = []");
 
     if (checkForLeftRecursion(p, start_items, grammar)) {
         return {
             refs: 0,
             id: p.id,
             L_RECURSION: true,
-            fn: stmt(`\n\'Left recursion found in ${p.name}'\n`)
+            fn: `/* Could Not Parse in Recursive Descent Mode */`
         };
     }
 
     try {
-        body.push(...renderFunctionBody(start_items, grammar, runner, 0, INLINE_FUNCTIONS));
+        stmts.push(renderFunctionBody(start_items, grammar, runner, 0, INLINE_FUNCTIONS));
     } catch (e) {
+        console.log(e);
         return {
             refs: 0,
             id: p.id,
             L_RECURSION: true,
-            fn: stmt(`\n\'Left recursion found in ${p.name}'\n`)
+            fn: `/* Could Not Parse in Recursive Descent Mode */`
         };
     }
 
-    if (body.slice(-1)[0].type != JSNodeType.ReturnStatement) {
-        body.push(stmt(`e.FAILED = true`));
-    }
+    stmts.push(`e.FAILED = true`);
+
+    stmts.push(`}`);
 
     return {
         refs: 0,
         id: p.id,
         L_RECURSION: false,
-        fn
+        fn: stmts.join("\n")
     };
 }
 
 export function GetLLHybridFunctions(grammar: Grammar, env: GrammarParserEnvironment, runner: CompilerRunner): LLProductionFunction[] {
 
-    return grammar.map(p => {
-
-        const fn = stmt(`function $${p.name}(l, e){;}`),
-            body = fn.nodes[2].nodes,
-            INLINE_FUNCTIONS = p.bodies.some(has_INLINE_FUNCTIONS),
-            start_items: LLItem[] = p.bodies.map(b => BodyToLLItem(b, grammar));
-
-        if (p.IMPORTED && (false && runner.INTEGRATE)) {
-            const foreign_grammar = p.name.split("$");
-            //IF name i
-            return {
-                refs: 0,
-                id: p.id,
-                L_RECURSION: false,
-                fn: stmt(`function $${p.name}(l,e){
-                    return ${foreign_grammar.join(".$")}(l,e)
-                }`)
-            };
-        }
-
-        body.pop();
-
-        if (INLINE_FUNCTIONS)
-            body.push(stmt("const s = []"));
-
-        if (checkForLeftRecursion(p, start_items, grammar)) {
-            return {
-                refs: 0,
-                id: p.id,
-                L_RECURSION: true,
-                fn: stmt(`\n\'Left recursion found in ${p.name}'\n`)
-            };
-        }
-
-        try {
-            body.push(...renderFunctionBody(start_items, grammar, runner, 0, INLINE_FUNCTIONS));
-        } catch (e) {
-            return {
-                refs: 0,
-                id: p.id,
-                L_RECURSION: true,
-                fn: stmt(`\n\'Left recursion found in ${p.name}'\n`)
-            };
-        }
-
-        if (body.slice(-1)[0].type != JSNodeType.ReturnStatement) {
-            body.push(stmt(`e.FAILED = true`));
-        }
-
-        return {
-            refs: 0,
-            id: p.id,
-            L_RECURSION: false,
-            fn
-        };
-    });
 }

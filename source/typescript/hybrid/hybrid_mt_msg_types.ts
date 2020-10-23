@@ -26,5 +26,5 @@ export interface HybridDispatchResponse {
     state?: State;
     potential_states?: State[];
     CONVERT_RC_TO_LR?: boolean;
-    fn?: JSNode;
+    fn?: string;
 }

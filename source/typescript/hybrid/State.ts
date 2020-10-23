@@ -8,11 +8,6 @@ export interface State {
      * Optional name to reference the state function
      */
     name?: string;
-
-    /**
-     * A set of state indices that are called from this state.
-     */
-    reachable: Set<number>;
     sym: string;
 
     /**
@@ -30,22 +25,9 @@ export interface State {
     items: Item[];
 
     /**
-     * Tracks item full ids to determine if
-     * the merging state has been encountered
-     * at a previous point.
-     */
-    state_merge_tracking: Set<string>;
-
-    /**
      * The states numerical id for tracking linkages.
      */
     index: number;
-
-    /**
-     * A map of symbols/productions and the expected transition
-     * state(s) that should follow the symbol/production.
-     */
-    maps: Map<number | string, number[]>;
 
     /**
      * True if another state references this state and 
@@ -53,4 +35,23 @@ export interface State {
      * to this state
      */
     REACHABLE: boolean;
+
+    /**
+     * Tracks item full ids to determine if
+     * the merging state has been encountered
+     * at a previous point.
+     */
+    state_merge_tracking?: Set<string>;
+
+    /**
+     * A map of symbols/productions and the expected transition
+     * state(s) that should follow the symbol/production.
+     */
+    maps?: Map<number | string, number[]>;
+
+
+    /**
+     * A set of state indices that are called from this state.
+     */
+    reachable?: Set<number>;
 }

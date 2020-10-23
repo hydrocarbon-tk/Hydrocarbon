@@ -1,16 +1,16 @@
 import { stmt, JSNode } from "@candlefw/js";
 
-export function insertFunctions(item, grammar, LL: boolean = false): JSNode[] {
-    const stmts: JSNode[] = [];
+export function insertFunctions(item, grammar, LL: boolean = false): string[] {
+    const stmts: string[] = [];
     //Check for functions
     const fns = item.getFunctions(grammar);
 
     for (const fn of fns) {
 
         if (!fn.txt) {
-            stmts.push(stmt(`e.fn.${fn.name}(l, e, s, ${!LL})`));
+            stmts.push(`e.fn.${fn.name}(l, e, s, ${!LL})`);
         } else {
-            stmts.push(stmt(fn.txt));
+            stmts.push(fn.txt);
         }
 
     }
