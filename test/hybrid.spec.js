@@ -1,26 +1,30 @@
 import { compileGrammars, lrParse } from "@candlefw/hydrocarbon";
 import URL from "@candlefw/url";
-import { CompileHybrid, } from "../build/library/hybrid/hybrid_compiler.js";
-import parse_data from "./mock/test_grammar_css.js";
+import { compileHybrid } from "../build/library/hybrid/hybrid_compiler.js";
+import parse_data from "./mock/test_grammar_import_A.js";
 import { Lexer } from "@candlefw/wind";
 
-const url = await URL.resolveRelative("./mock/test_grammar_css.hcg");
+const url = await URL.resolveRelative("./mock/test_grammar_import_toy_A.hcg");
+const urlB = await URL.resolveRelative("./mock/test_grammar_export_toy_B.hcg");
 
 const file = await url.fetchText();
+const fileB = await urlB.fetchText();
 
-const test_string = `#s .id{}`;
+const test_string = `for(const T; r*B + d * t; A) i + A + a * t;`;
 //const test_string = `( A,  A  ,  A  ) => { ( A,  (d) , A ) => { ( A, A , A  ) => { ( A, A , A ) => { ( A,  A , A ) => { D } } } } }`;
 
 assert_group(() => {
 
     const grammar = await compileGrammars(file, url + "");
+    //const grammarB = await compileGrammars(fileB, urlB + "");
     /*
         Go through each item ----
         Gather each item that transitions on a particular symbol; 
         This combinations represent whole groups that can transition 
         to a new state;
     */
-    const parserHybrid = CompileHybrid(grammar)();
+    //const B = await compileHybrid(grammarB);
+    const parserHybrid = await compileHybrid(grammar);
 
     //const parserLL = renderLLFN(grammar);
     const env = {

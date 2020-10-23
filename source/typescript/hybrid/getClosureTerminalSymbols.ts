@@ -5,9 +5,12 @@ export function getClosureTerminalSymbols(closure: Item[], grammar: Grammar): Sy
 
 
     for (const item of closure) {
+
         if (item.atEND)
             continue;
+
         const sym = item.sym(grammar);
+
         if (sym.type !== "production")
             syms.push(sym);
     }

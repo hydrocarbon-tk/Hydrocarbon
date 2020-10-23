@@ -1,11 +1,6 @@
 import { Grammar, Production, EOF_SYM } from "../types/grammar.js";
 import { processClosure, Item, FOLLOW } from "../util/common.js";
 import { GrammarParserEnvironment } from "../types/grammar_compiler_environment";
-import { stmt, JSNode } from "@candlefw/js";
-import {
-    getNonTerminalTransitionStates,
-    integrateState
-} from "./utilities.js";
 import { State } from "./State";
 import { Symbol } from "../../../build/types/types/grammar.js";
 export interface States {
@@ -16,120 +11,78 @@ export interface States {
 
 
 //Integrates a LR state into existing set of states
-export function IntegrateState(production: Production, states: States, grammar: Grammar, env: GrammarParserEnvironment, runner, name: string = undefined) {
+export function IntegrateState(production: Production, grammar: Grammar, name: string = undefined) {
 
-    const start_state: State = <State>{
-        name,
+
+    const items = createProductionItems(production.id, grammar, [...FOLLOW(grammar, production.id).values()]);
+
+    const id = items
+        .map(i => i.id)
+        .setFilter(i => i)
+        .sort((a, b) => a < b ? -1 : 1).join(""),
+
+        sid = items
+            .map(i => i.full_id)
+            .filter((e, i, a) => a.indexOf(e) == i)
+            .sort((a, b) => a < b ? -1 : 1).join(":");
+
+    //Out pops a new state. 
+    const start_state = <State>{
         sym: "",
-        sid: "",
-        id: "",
-        index: 0,
+        name,
+        id,
+        sid,
+        bid: "", //items.setFilter(i => i.id).map(i => i.renderUnformattedWithProduction(grammar)).join(" : "),
         roots: [],
-        items: [],
-        maps: new Map,
+        items: items.slice(),
         state_merge_tracking: new Set,
-        yields: new Set,
-        origins: new Map,
+        index: 0,
+        maps: new Map,
         reachable: new Set,
-        REACHABLE: false,
+        REACHABLE: true,
     };
 
-    CompileHybridLRStates(grammar, env, runner, production.id, states, start_state, [...FOLLOW(grammar, production.id).values()]);
+    const potential_states = CompileHybridLRStates(grammar, { old_state: 0, items });
 
-    return start_state;
+    return { start_state, potential_states };
 }
 
 export function CompileHybridLRStates(
     grammar: Grammar,
-    env: GrammarParserEnvironment,
-    runner,
-    production_index = 0,
-    states: States = { map: new Map, states: [] },
-    start_state: State = <State>{
-        sym: "",
-        sid: "",
-        id: "",
-        index: 0,
-        items: [],
-        roots: [],
-        maps: new Map,
-        state_merge_tracking: new Set,
-        yields: new Set,
-        origins: new Map,
-        reachable: new Set,
-        REACHABLE: false,
-    },
-    follows: Symbol[] = [EOF_SYM]
-): States {
+    item_set: { old_state: number; items: Item[]; },
+): State[] {
 
-    const unprocessed_state_items = [{
-        old_state: start_state,
-        items: createProductionItems(production_index, grammar, follows)
-    }];
+    const old_state = item_set.old_state;
+    const to_process_items = item_set.items;
 
-    unprocessed_state_items[0].old_state.items = unprocessed_state_items[0].items;
+    processClosure(to_process_items, grammar);
 
-    /*
-        Go through each item set ----
-        Gather each item that transitions on a particular symbol; 
-        This combinations represent whole groups that can transition 
-        to a new state;
-    */
-    for (let i = 0; i < unprocessed_state_items.length; i++) {
+    const potential_states = [
+        ...to_process_items.reduce((groups, i) => {
 
-        const
-            { items: to_process_items, old_state } = unprocessed_state_items[i],
-            roots = new Set(to_process_items.map(i => i.getProduction(grammar).id));
+            if (i.atEND) return groups;
 
-        old_state.roots.push(...roots.values());
+            const
+                production = i.getProduction(grammar).id,
+                sym = i.sym(grammar),
+                val = sym.val + "";
 
-        to_process_items.filter(i => !i.atEND).forEach(i => {
-            const sym = i.sym(grammar);
+            if (!groups.has(val)) groups.set(val, new Map);
 
-            if (sym.type == "production" && !roots.has(sym.val))
-                old_state.yields.add(sym.val);
-        });
+            const group = groups.get(val);
 
-        processClosure(to_process_items, grammar);
+            if (!group.has(production)) {
+                group.set(production, { sym: i.sym(grammar), items: [i.increment()] });
+            } else {
+                group.get(production).items.push(i.increment());
+            }
 
-        [
-            ...to_process_items.reduce((groups, i) => {
+            return groups;
 
-                if (i.atEND) return groups;
+        }, <Map<string, { sym: string, items: Item[]; }>>new Map()).values()
+    ].flatMap(values => processStateItems(values, grammar));
 
-                const
-                    production = i.getProduction(grammar).id,
-                    sym = i.sym(grammar),
-                    val = sym.val + "";
-
-                if (!groups.has(val)) groups.set(val, new Map);
-
-                const group = groups.get(val);
-
-                if (!group.has(production)) {
-                    group.set(production, { sym: i.sym(grammar), items: [i.increment()] });
-                } else {
-                    group.get(production).items.push(i.increment());
-                }
-
-                if (sym.type != "production")
-                    old_state.origins.set(val, i.getProduction(grammar).id);
-
-                //groups.get(val).items.push(i.increment());
-
-                return groups;
-
-            }, <Map<string, { sym: string, items: Item[]; }>>new Map()).values()
-        ]
-
-            .flatMap(values => processStateItems(values, grammar))
-
-            .map(s => mergeState(s, states.map, old_state, unprocessed_state_items));
-    }
-
-    states.states = [...states.map.values()];
-
-    return states;
+    return potential_states.map(s => (s.os = old_state, s));
 }
 
 export function createProductionItems(production_index: number, grammar: Grammar, follows: Symbol[] = [EOF_SYM]) {
@@ -137,11 +90,12 @@ export function createProductionItems(production_index: number, grammar: Grammar
         b => new Item(
             b.id,
             b.length,
-            0, sym
+            0,
+            sym
         )));
 }
 
-function processStateItems(item_set: { sym: string; items: Item[]; }[], grammar): State[] {
+export function processStateItems(item_set: { sym: string; items: Item[]; }[], grammar): State[] {
 
     const out = [];
 
@@ -167,8 +121,6 @@ function processStateItems(item_set: { sym: string; items: Item[]; }[], grammar)
             state_merge_tracking: new Set,
             index: 0,
             maps: new Map,
-            yields: new Set,
-            origins: new Map,
             reachable: new Set,
             REACHABLE: false,
         });
@@ -177,11 +129,11 @@ function processStateItems(item_set: { sym: string; items: Item[]; }[], grammar)
     return out;
 }
 
-function mergeState(
+export function mergeState(
     state: State,
     states: Map<string, State>,
     old_state: State,
-    unprocessed_state_items: { old_state: State; items: Item[]; }[]
+    unprocessed_state_items: { old_state: number; items: Item[]; }[]
 ) {
 
     const { id, sid, sym } = state;
@@ -191,28 +143,34 @@ function mergeState(
         states.set(id, state);
     }
 
-    if (!old_state.maps.has(sym))
-        old_state.maps.set(sym, []);
+    const active_state = states.get(id);
 
-    const
-        active_state = states.get(id),
-        transition_map = old_state.maps.get(sym);
+    if (state.name && !active_state.name) {
+        state.name = active_state.name;
+        active_state.REACHABLE = true;
+    }
 
-    if (transition_map.indexOf(active_state.index) < 0)
-        transition_map.push(active_state.index);
+    if (old_state) {
+        if (!old_state.maps.has(sym))
+            old_state.maps.set(sym, []);
+
+        const transition_map = old_state.maps.get(sym);
+        if (transition_map.indexOf(active_state.index) < 0)
+            transition_map.push(active_state.index);
+    }
 
     states.set(id, active_state);
 
     if (!active_state.state_merge_tracking.has(sid)) {
-        unprocessed_state_items.push({ old_state: state, items: state.items });
+        unprocessed_state_items.push({ old_state: state.index, items: state.items });
         active_state.state_merge_tracking.add(sid);
     }
 
     active_state.items.push(...state.items);
 
     const filter_set = new Set();
-
-    active_state.items = active_state.items.filter(i => (!filter_set.has(i.full_id) && (filter_set.add(i.full_id), true)));
+    
+    active_state.items = active_state.items.setFilter(i => i.full_id);
 
     return active_state;
 }

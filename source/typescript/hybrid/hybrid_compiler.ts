@@ -1,76 +1,25 @@
-import fs from "fs";
 import { Grammar } from "../types/grammar.js";
 import { GrammarParserEnvironment } from "../types/grammar_compiler_environment";
-import { GetLLHybridFunctions } from "./ll_hybrid.js";
-import { renderWithFormatting, JSNode, exp, renderCompressed } from "@candlefw/js";
-import { CompileHybridLRStates, IntegrateState, States } from "./lr_hybrid.js";
-import { renderStates } from "./lr_hybrid_render.js";
-import { translateSymbolValue } from "./utilities.js";
-import { constructCompilerRunner } from "./CompilerRunner.js";
+import { HybridMultiThreadRunner } from "./hybrid_mt_runner.js";
+import { renderCompressed } from "@candlefw/js";
+import fs from "fs";
+import spark from "@candlefw/spark";
 import URL from "@candlefw/url";
 
-export function renderLLFN(grammar: Grammar, env: GrammarParserEnvironment) {
+export async function compileHybrid(grammar: Grammar, env: GrammarParserEnvironment) {
 
-    const parser = `
+    const mt_runner = new HybridMultiThreadRunner(grammar, env);
 
-    function assertAndAdvance(lex, bool){
-        const v = lex.tx;
-        if(bool) lex.next();
-        else lex.throw("Unexpected Token");
-        return v;
+    for (const updates of mt_runner.run()) {
+        // console.log(0, 3, updates);
+        await spark.sleep(10);
     }
+    fs.writeFileSync(`./hybrid_${new URL(grammar.uri).filename}.js`, "export default " + mt_runner.parser);
 
-    ${GetLLHybridFunctions(grammar, env).map(a => renderWithFormatting(a.fn)).join("\n")};
+    return Function(`return (${mt_runner.parser})()`)();
+    /*
 
-    return function(lexer){
-        const states = [];
-        return $${grammar[0].name}(lexer);
-
-    }`;
-
-    fs.writeFileSync("./ll_hybrid.js", parser);
-
-    return Function(parser)();;
-}
-
-export function renderLRFN(grammar: Grammar, env: GrammarParserEnvironment) {
-
-    const
-        rl_states = CompileHybridLRStates(grammar, env),
-        state = IntegrateState(grammar[0], rl_states, grammar, env),
-        fns = [];
-
-    state.name = "$start";
-
-    fns.push(...renderStates([state], rl_states, grammar));
-
-    const parser = `
-function assertAndAdvance(lex, bool){
-    const v = lex.tx;
-    if(bool) lex.next();
-    else lex.throw("Unexpected Token");
-    return v;
-}
-
-${ fns.map(fn => renderWithFormatting(fn)).join("\n\n")};
-
-return function(lexer, env = {
-    eh: (lex, e)=>{},
-    asi: (lex, env, s) => {}
-}){
-    const states = [];
-    lexer.IWS = false;
-    const result =  $start(lexer, env);
-    if(!lexer.END) lexer.throw(\`Unexpected token [\${lexer.tx}]\`);
-    return result;
-}`;
-
-    fs.writeFileSync("./lr_hybrid.js", parser);
-
-    return Function(parser)();
-}
-
-export function CompileHybrid(grammar: Grammar, env: GrammarParserEnvironment) {
+    
 
     //get lr states and ll productions
     const
@@ -268,5 +217,6 @@ return Object.assign( function (lexer, env = {
 export { GetLLHybridFunctions as CompileLLHybrid };
 function updateStateIDLU(rl_states: States, ids: any[]): JSNode[][] {
     return rl_states.states.reduce((r, a, i) => (r[i] ? null : (r[i] = []), r), ids);
+    */
 }
 

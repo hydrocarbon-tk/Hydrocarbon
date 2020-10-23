@@ -1,72 +1,98 @@
 export default (b)=>{
+            const pos = null;
+            
+            function lm(lex, syms) { 
+                for (const sym of syms) 
+                    switch (typeof sym) {
+                        case "number":
+                            if (sym == 0xFF && lex.END) return true;  
+                            if (lex.ty == sym) return true; 
+                            break;
+                        case "string":
+                            if (lex.tx == sym) return true
+                            break;
+                    }
+                return false;
+            }
+            
+            function fail(lex, e) { 
 
-function lm(lex, syms) { 
-    for (const sym of syms) 
-        switch (typeof sym) {
-            case "number":
-                if (sym == 0xFF && lex.END) return true;  
-                if (lex.ty == sym) return true; 
-                break;
-            case "string":
-                if (lex.tx == sym) return true
-                break;
-        }
-    return false;
-}
 
-function fail(lex, e) { 
-    e.FAILED = true;
-    e.error.push(lex.copy());
-}
+                if(e.FAILED) console.log("_______________________________")
+                e.FAILED = true;
+                e.error.push(lex.copy());
+            }
+            
+            function _s(s, lex, e, eh, skips, ...syms) {
+                
+                if(e.FAILED) return "";
+                
+                var val = lex.tx;
+               
+                if (syms.length == 0 || lm(lex, syms)) {
+               
+                    lex.next();
+               
+                    if (skips) while (lm(lex, skips)) lex.next();
+               
+                    e.sp++;
+            
+                    s.push(val);
+                    
+                } else {
+               
+                    //error recovery
+                    const tx = eh(lex, e);
+            
+               
+                    if(!tx){
+                        if(e.FAILED) console.log("_______________________________a")
+                        e.FAILED = true;
+                        e.error.push(lex.copy());
+                    }
+                }
+            
+                return s;
+            }
+            
+            
+            function _(lex, e, eh, skips, ...syms) {
 
-function _(lex, e, eh, skips, ...syms) {
-    
-    if(e.FAILED) return "";
-    
-    var val = lex.tx;
-   
-    if (syms.length == 0 || lm(lex, syms)) {
-   
-        lex.next();
-   
-        if (skips) while (lm(lex, skips)) lex.next();
-   
-        return val;
-    } else {
-   
-        //error recovery
-        const tx = eh(lex, e);
-   
-        if(tx) return tx;
-   
-        else {
-            e.FAILED = true;
-            e.error.push(lex.copy());
-        }
-    }
-}
+                if(e.FAILED) return "";
+                
+                var val = lex.tx;
 
-const skips = [8, 256];
+                if(e.FAILED) console.log("_______________________________a")
+               
+                if (syms.length == 0 || lm(lex, syms)) {
+               
+                    lex.next();
+               
+                    if (skips) while (lm(lex, skips)) lex.next();
+               
+                    return val;
+                } else {
+               
+                    //error recovery
+                    const tx = eh(lex, e);
+               
+                    if(tx) return tx;
+               
+                    else {
+                        if(e.FAILED) console.log("_______________________________b")
+                        e.FAILED = true;
+                        e.error.push(lex.copy());
+                    }
+                }
+            }
+            
+            const skips = [8, 256];
+            
+            const _0 = [8,256],_1 = [","],_2 = [")",",",";",">"],_3 = [")","*","+",",",";",">"],_4 = [2];
+            
+            function $_3(l, e, s){
 
-const _0 = [8,256];
-
-function $_1(l, e, s){
-
-    if ( l.ty==2 ) {
-
-        e.sp++;
-
-        s.push(_(l, e, e.eh, [8,256]));
-
-        s = $10(l, e, s);
-    }
-
-    return s;
-}
-
-function $_9(l, e, s){
-
-    if ( l.tx==")"||l.tx==","||l.tx==";"||l.tx==">" ) {
+    if ( _2.includes(l.tx) ) {
 
         e.sp -= 1;
 
@@ -76,11 +102,20 @@ function $_9(l, e, s){
     return s;
 }
 
-function $S(l, e){
+function $_8(l, e, s){
+
+    if ( _4.includes(l.ty) ) {s.push($id(l, e));}
+
+    return s;
+}
+            
+            function $S(l, e){
 
     if ( e.FAILED ) return ;
 
     const $1_= $B(l, e);
+
+    e.p = (e.FAILED)?-1:0;
 
     return $1_;
 }
@@ -90,13 +125,15 @@ function $B(l, e){
 
     if ( tx=="<" ) {
 
-        _(l, e, e.eh, _0, "<");
+        _(l, e, e.eh, [8,256], "<");
 
         if ( e.FAILED ) return ;
 
         const $2_= $expression(l, e);
 
-        _(l, e, e.eh, _0, ">");
+        _(l, e, e.eh, [8,256], ">");
+
+        e.p = (e.FAILED)?-1:1;
 
         return ({ type:"BRACKET", val:$2_ });
     }
@@ -107,6 +144,8 @@ function $B(l, e){
 
         const $1_= $for_stmt(l, e);
 
+        e.p = (e.FAILED)?-1:1;
+
         return $1_;
     }
 
@@ -114,9 +153,9 @@ function $B(l, e){
 }
 function $for_stmt(l, e){
 
-    _(l, e, e.eh, _0, "for");
+    _(l, e, e.eh, [8,256], "for");
 
-    _(l, e, e.eh, _0, "(");
+    _(l, e, e.eh, [8,256], "(");
 
     if ( e.FAILED ) return ;
 
@@ -126,19 +165,21 @@ function $for_stmt(l, e){
 
     const $4_= $expression(l, e);
 
-    _(l, e, e.eh, _0, ";");
+    _(l, e, e.eh, [8,256], ";");
 
     if ( e.FAILED ) return ;
 
     const $6_= $expression(l, e);
 
-    _(l, e, e.eh, _0, ")");
+    _(l, e, e.eh, [8,256], ")");
 
     if ( e.FAILED ) return ;
 
     const $8_= $expression(l, e);
 
-    _(l, e, e.eh, _0, ";");
+    _(l, e, e.eh, [8,256], ";");
+
+    e.p = (e.FAILED)?-1:2;
 
     return ({ 
 
@@ -155,31 +196,45 @@ function $for_stmt(l, e){
 }
 function $const(l, e){
 
-    _(l, e, e.eh, _0, "const");
+    _(l, e, e.eh, [8,256], "const");
 
     if ( e.FAILED ) return ;
 
     const $2_= $expression(l, e);
 
-    _(l, e, e.eh, _0, ";");
+    _(l, e, e.eh, [8,256], ";");
+
+    e.p = (e.FAILED)?-1:3;
 
     return ({ type:"CONST", val:$2_ });
 }
+;
+;
+;
 function $add(l, e){
 
     if ( e.FAILED ) return ;
 
     const $1_= $mult(l, e);
 
-    _(l, e, e.eh, _0, "+");
+    const tx = l.tx;
 
-    if ( e.FAILED ) return ;
+    if ( tx=="+" ) {
 
-    const $3_= $add(l, e);
+        _(l, e, e.eh, [8,256], "+");
 
-    return ({ type:"ADD", l:$1_, r:$3_ });
+        if ( e.FAILED ) return ;
 
-    return $2_;
+        const $3_= $add(l, e);
+
+        e.p = (e.FAILED)?-1:7;
+
+        return ({ type:"ADD", l:$1_, r:$3_ });
+    }
+
+    e.p = (e.FAILED)?-1:7;
+
+    return $1_;
 }
 function $mult(l, e){
 
@@ -187,15 +242,24 @@ function $mult(l, e){
 
     const $1_= $sym(l, e);
 
-    _(l, e, e.eh, _0, "*");
+    const tx = l.tx;
 
-    if ( e.FAILED ) return ;
+    if ( tx=="*" ) {
 
-    const $3_= $mult(l, e);
+        _(l, e, e.eh, [8,256], "*");
 
-    return ({ type:"MUL", l:$1_, r:$3_ });
+        if ( e.FAILED ) return ;
 
-    return $2_;
+        const $3_= $mult(l, e);
+
+        e.p = (e.FAILED)?-1:8;
+
+        return ({ type:"MUL", l:$1_, r:$3_ });
+    }
+
+    e.p = (e.FAILED)?-1:8;
+
+    return $1_;
 }
 function $sym(l, e){
 
@@ -203,160 +267,132 @@ function $sym(l, e){
 
     const $1_= $id(l, e);
 
+    e.p = (e.FAILED)?-1:9;
+
     return $1_;
 }
-function $id(l, e){const $1_= _(l, e, e.eh, _0, 2); return $1_;}
-function $num(l, e){const $1_= _(l, e, e.eh, _0, 1); return $1_;}
+function $id(l, e){
+
+    const $1_= _(l, e, e.eh, [8,256], 2);
+
+    e.p = (e.FAILED)?-1:10;
+
+    return $1_;
+}
+function $num(l, e){
+
+    const $1_= _(l, e, e.eh, [8,256], 1);
+
+    e.p = (e.FAILED)?-1:11;
+
+    return $1_;
+}
 function $expression_list_HC_listbody3_100(l, e, s= []){
 
     const sp= e.sp;
 
     e.p = -1;
 
-    s = $_1(l, e, s);
-
     
-    let a= -1;
+    switch(l.tx){
+
+        case "*" : s = $14(l, e, _s(s, l, e, e.eh, _0)); break; 
+
+        case "+" : s = $15(l, e, _s(s, l, e, e.eh, _0)); break; 
+
+        default : switch(l.ty){case 2 : s.push($id(l, e)); break;}
+    }
+
+    let a= e.p;
+
     o:while(1){
 
         if ( sp>e.sp ) break;else e.sp += 1;
 
         switch(e.p){
 
-            case 10 : s = $9(l, e, s, 0); break; 
+            case 10 : s = $7(l, e, s); break; 
 
             case 9 : 
 
-                s = $6(l, e, s, 0);
+                s = $4(l, e, s);
 
-                if ( e.p<0 ) s = $7(l, e, s, 0);
+                if ( e.p<0 ) s = $5(l, e, s);
 
                 break;
              
 
-            case 8 : s = $8(l, e, s, 0); break; 
+            case 8 : 
 
-            case 7 : s = $5(l, e, s, 0); break; 
+                s = $6(l, e, s);
 
-            case 6 : s = $28(l, e, s, 0); break; 
+                if ( e.p<0 ) s = $18(l, e, s);
 
-            case 4 : s = $27(l, e, s, 0); break; 
+                break;
+             
+
+            case 7 : 
+
+                s = $3(l, e, s);
+
+                if ( e.p<0 ) s = $19(l, e, s);
+
+                break;
+             
+
+            case 6 : s = $2(l, e, s); break; 
+
+            case 4 : s = $1(l, e, s); break; 
 
             default : break o;
         }
 
         if ( e.p>=0 ) a = e.p;
     }
+
     if ( sp<=e.sp ) e.p = a;
-    if ( ![4,6,7,8,9,10].includes(a) ) fail(l, e);
 
-    return s[s.length-1];
+    if ( ![4].includes(a) ) fail(l, e);
+
+    return s;
 }
-function $expression_list(l, e, s= []){
-
-    const sp= e.sp;
+function $1(l, e, s= []){
 
     e.p = -1;
 
-    s = $_1(l, e, s);
-
     
-    let a= -1;
-    o:while(1){
+    if ( _1.includes(l.tx) ) {return $13(l, e, _s(s, l, e, e.eh, _0));}
 
-        if ( sp>e.sp ) break;else e.sp += 1;
-
-        switch(e.p){
-
-            case 10 : s = $9(l, e, s, 0); break; 
-
-            case 9 : 
-
-                s = $6(l, e, s, 0);
-
-                if ( e.p<0 ) s = $7(l, e, s, 0);
-
-                break;
-             
-
-            case 8 : s = $8(l, e, s, 0); break; 
-
-            case 7 : s = $5(l, e, s, 0); break; 
-
-            case 6 : s = $32(l, e, s, 0); break; 
-
-            case 5 : s = $31(l, e, s, 0); break; 
-
-            default : break o;
-        }
-
-        if ( e.p>=0 ) a = e.p;
-    }
-    if ( sp<=e.sp ) e.p = a;
-    if ( ![5,6,7,8,9,10].includes(a) ) fail(l, e);
-
-    return s[s.length-1];
+    return s;
 }
-function $expression(l, e, s= []){
-
-    const sp= e.sp;
+function $2(l, e, s= []){
 
     e.p = -1;
 
-    s = $_1(l, e, s);
-
     
-    let a= -1;
-    o:while(1){
+    if ( _1.includes(l.tx) ) {
 
-        if ( sp>e.sp ) break;else e.sp += 1;
+        e.sp -= 1;
 
-        switch(e.p){
+        var sym= s.slice(-1);
 
-            case 10 : s = $9(l, e, s, 0); break; 
+        s.splice(-1, 1, [sym[0]]);
 
-            case 9 : 
-
-                s = $6(l, e, s, 0);
-
-                if ( e.p<0 ) s = $7(l, e, s, 0);
-
-                break;
-             
-
-            case 8 : s = $8(l, e, s, 0); break; 
-
-            case 7 : s = $5(l, e, s, 0); break; 
-
-            default : break o;
-        }
-
-        if ( e.p>=0 ) a = e.p;
+        return (e.p = 4, s);
     }
-    if ( sp<=e.sp ) e.p = a;
-    if ( ![6,7,8,9,10].includes(a) ) fail(l, e);
 
-    return s[s.length-1];
+    return s;
 }
-function $5(l, e, s= []){e.p = -1; s = $_9(l, e, s); return s;}
-function $6(l, e, s= []){e.p = -1; s = $_9(l, e, s); return s;}
-function $7(l, e, s= []){
+function $3(l, e, s= []){e.p = -1; s = $_3(l, e, s); return s;}
+function $4(l, e, s= []){e.p = -1; s = $_3(l, e, s); return s;}
+function $5(l, e, s= []){
 
     e.p = -1;
 
     
     switch(l.tx){
 
-        case "*" : 
-
-            e.sp++;
-
-            s.push(_(l, e, e.eh, [8,256]));
-
-            s = $13(l, e, s);
-
-            break;
-         
+        case "*" : return $14(l, e, _s(s, l, e, e.eh, _0)); 
 
         case ")" :  
 
@@ -376,23 +412,14 @@ function $7(l, e, s= []){
 
     return s;
 }
-function $8(l, e, s= []){
+function $6(l, e, s= []){
 
     e.p = -1;
 
     
     switch(l.tx){
 
-        case "+" : 
-
-            e.sp++;
-
-            s.push(_(l, e, e.eh, [8,256]));
-
-            s = $14(l, e, s);
-
-            break;
-         
+        case "+" : return $15(l, e, _s(s, l, e, e.eh, _0)); 
 
         case ")" :  
 
@@ -410,12 +437,12 @@ function $8(l, e, s= []){
 
     return s;
 }
-function $9(l, e, s= []){
+function $7(l, e, s= []){
 
     e.p = -1;
 
     
-    if ( l.tx==")"||l.tx=="*"||l.tx=="+"||l.tx==","||l.tx==";"||l.tx==">" ) {
+    if ( _3.includes(l.tx) ) {
 
         e.sp -= 1;
 
@@ -424,96 +451,155 @@ function $9(l, e, s= []){
 
     return s;
 }
+function $expression_list(l, e, s= []){
+
+    const sp= e.sp;
+
+    e.p = -1;
+
+    s = $_8(l, e, s);
+
+    let a= e.p;
+
+    o:while(1){
+
+        if ( sp>e.sp ) break;else e.sp += 1;
+
+        switch(e.p){
+
+            case 10 : s = $7(l, e, s); break; 
+
+            case 9 : 
+
+                s = $4(l, e, s);
+
+                if ( e.p<0 ) s = $5(l, e, s);
+
+                break;
+             
+
+            case 8 : s = $6(l, e, s); break; 
+
+            case 7 : s = $3(l, e, s); break; 
+
+            case 6 : s = $11(l, e, s); break; 
+
+            case 5 : s = $10(l, e, s); break; 
+
+            default : break o;
+        }
+
+        if ( e.p>=0 ) a = e.p;
+    }
+
+    if ( sp<=e.sp ) e.p = a;
+
+    if ( ![5].includes(a) ) fail(l, e);
+
+    return s;
+}
 function $10(l, e, s= []){
 
     e.p = -1;
 
     
-    if ( l.tx==")"||l.tx=="*"||l.tx=="+"||l.tx==","||l.tx==";"||l.tx==">" ) {
+    if ( _1.includes(l.tx) ) {return $16(l, e, _s(s, l, e, e.eh, _0));}
+
+    return s;
+}
+function $11(l, e, s= []){
+
+    e.p = -1;
+
+    
+    if ( _1.includes(l.tx) ) {
 
         e.sp -= 1;
 
-        return (e.p = 10, (s.splice(-1, 1, s[s.length-1]), s));
+        var sym= s.slice(-1);
+
+        s.splice(-1, 1, [sym[0]]);
+
+        return (e.p = 5, s);
     }
 
     return s;
 }
-function $13(l, e, s= []){
+function $expression(l, e, s= []){
 
     const sp= e.sp;
 
     e.p = -1;
 
-    s = $_1(l, e, s);
+    s = $_8(l, e, s);
 
-    
-    let a= -1;
+    let a= e.p;
+
     o:while(1){
 
         if ( sp>e.sp ) break;else e.sp += 1;
 
         switch(e.p){
 
-            case 10 : s = $9(l, e, s, 13); break; 
+            case 10 : s = $7(l, e, s); break; 
 
-            case 9 : s = $7(l, e, s, 13); break; 
+            case 9 : 
 
-            case 8 : s = $17(l, e, s, 13); break; 
+                s = $4(l, e, s);
+
+                if ( e.p<0 ) s = $5(l, e, s);
+
+                break;
+             
+
+            case 8 : s = $6(l, e, s); break; 
+
+            case 7 : s = $3(l, e, s); break; 
 
             default : break o;
         }
 
         if ( e.p>=0 ) a = e.p;
     }
+
     if ( sp<=e.sp ) e.p = a;
-    if ( ![8].includes(a) ) fail(l, e);
+
+    if ( ![6].includes(a) ) fail(l, e);
 
     return s;
 }
+function $13(l, e, s= []){s.push($expression(l, e, s)); e.sp++; return s;}
 function $14(l, e, s= []){
 
-    const sp= e.sp;
+    s.push($mult(l, e, s));
 
-    e.p = -1;
+    e.sp++;
 
-    s = $_1(l, e, s);
-
-    
-    let a= -1;
-    o:while(1){
-
-        if ( sp>e.sp ) break;else e.sp += 1;
-
-        switch(e.p){
-
-            case 10 : s = $9(l, e, s, 14); break; 
-
-            case 9 : s = $7(l, e, s, 14); break; 
-
-            case 8 : s = $8(l, e, s, 14); break; 
-
-            case 7 : s = $18(l, e, s, 14); break; 
-
-            default : break o;
-        }
-
-        if ( e.p>=0 ) a = e.p;
-    }
-    if ( sp<=e.sp ) e.p = a;
-    if ( ![7].includes(a) ) fail(l, e);
+    s = $18(l, e, s);
 
     return s;
 }
-function $17(l, e, s= []){
+function $15(l, e, s= []){
+
+    s.push($add(l, e, s));
+
+    e.sp++;
+
+    s = $19(l, e, s);
+
+    return s;
+}
+function $16(l, e, s= []){s.push($expression(l, e, s)); e.sp++; return s;}
+function $18(l, e, s= []){
 
     e.p = -1;
 
     
-    if ( l.tx==")"||l.tx=="+"||l.tx==","||l.tx==";"||l.tx==">" ) {
+    if ( [")","+",",",";",">"].includes(l.tx) ) {
 
         e.sp -= 3;
 
-        const sym= s.slice(-3);
+        var sym= s.slice(-3);
 
         s.splice(-3, 3, { type:"MUL", l:sym[0], r:sym[2] });
 
@@ -522,16 +608,16 @@ function $17(l, e, s= []){
 
     return s;
 }
-function $18(l, e, s= []){
+function $19(l, e, s= []){
 
     e.p = -1;
 
     
-    if ( l.tx==")"||l.tx==","||l.tx==";"||l.tx==">" ) {
+    if ( _2.includes(l.tx) ) {
 
         e.sp -= 3;
 
-        const sym= s.slice(-3);
+        var sym= s.slice(-3);
 
         s.splice(-3, 3, { type:"ADD", l:sym[0], r:sym[2] });
 
@@ -540,233 +626,43 @@ function $18(l, e, s= []){
 
     return s;
 }
-function $27(l, e, s= []){
-
-    e.p = -1;
-
-    
-    if ( l.tx=="," ) {
-
-        e.sp++;
-
-        s.push(_(l, e, e.eh, [8,256]));
-
-        s = $29(l, e, s);
-    }
-
-    return s;
-}
-function $28(l, e, s= []){
-
-    e.p = -1;
-
-    
-    if ( l.tx=="," ) {
-
-        e.sp -= 1;
-
-        const sym= s.slice(-1);
-
-        s.splice(-1, 1, [sym[0]]);
-
-        return (e.p = 4, s);
-    }
-
-    return s;
-}
-function $29(l, e, s= []){
-
-    const sp= e.sp;
-
-    e.p = -1;
-
-    s = $_1(l, e, s);
-
-    
-    let a= -1;
-    o:while(1){
-
-        if ( sp>e.sp ) break;else e.sp += 1;
-
-        switch(e.p){
-
-            case 10 : s = $9(l, e, s, 29); break; 
-
-            case 9 : 
-
-                s = $6(l, e, s, 29);
-
-                if ( e.p<0 ) s = $7(l, e, s, 29);
-
-                break;
-             
-
-            case 8 : s = $8(l, e, s, 29); break; 
-
-            case 7 : s = $5(l, e, s, 29); break; 
-
-            case 6 : s = $30(l, e, s, 29); break; 
-
-            default : break o;
-        }
-
-        if ( e.p>=0 ) a = e.p;
-    }
-    if ( sp<=e.sp ) e.p = a;
-    if ( ![4].includes(a) ) fail(l, e);
-
-    return s;
-}
-function $30(l, e, s= []){
-
-    e.p = -1;
-
-    
-    if ( l.tx=="," ) {
-
-        e.sp -= 3;
-
-        const sym= s.slice(-3);
-
-        s.splice(-3, 3, ([...sym[0],sym[2]]));
-
-        return (e.p = 4, s);
-    }
-
-    return s;
-}
-function $31(l, e, s= []){
-
-    e.p = -1;
-
-    
-    if ( l.tx=="," ) {
-
-        e.sp++;
-
-        s.push(_(l, e, e.eh, [8,256]));
-
-        s = $33(l, e, s);
-    }
-
-    return s;
-}
-function $32(l, e, s= []){
-
-    e.p = -1;
-
-    
-    if ( l.tx=="," ) {
-
-        e.sp -= 1;
-
-        const sym= s.slice(-1);
-
-        s.splice(-1, 1, [sym[0]]);
-
-        return (e.p = 5, s);
-    }
-
-    return s;
-}
-function $33(l, e, s= []){
-
-    const sp= e.sp;
-
-    e.p = -1;
-
-    s = $_1(l, e, s);
-
-    
-    let a= -1;
-    o:while(1){
-
-        if ( sp>e.sp ) break;else e.sp += 1;
-
-        switch(e.p){
-
-            case 10 : s = $9(l, e, s, 33); break; 
-
-            case 9 : 
-
-                s = $6(l, e, s, 33);
-
-                if ( e.p<0 ) s = $7(l, e, s, 33);
-
-                break;
-             
-
-            case 8 : s = $8(l, e, s, 33); break; 
-
-            case 7 : s = $5(l, e, s, 33); break; 
-
-            case 6 : s = $34(l, e, s, 33); break; 
-
-            default : break o;
-        }
-
-        if ( e.p>=0 ) a = e.p;
-    }
-    if ( sp<=e.sp ) e.p = a;
-    if ( ![5].includes(a) ) fail(l, e);
-
-    return s;
-}
-function $34(l, e, s= []){
-
-    e.p = -1;
-
-    
-    if ( l.tx=="," ) {
-
-        e.sp -= 3;
-
-        const sym= s.slice(-3);
-
-        s.splice(-3, 3, ([...sym[0],sym[2]]));
-
-        return (e.p = 5, s);
-    }
-
-    return s;
-}
-
-
-return Object.assign( function (lexer, env = {
-    error: [],
-    eh: (lex, e) => { },
-    sp:0,
-    asi: (lex, env, s) => { }
-}) {
-    
-    env.FAILED = false;
-    const states = [];
-    lexer.IWS = false;
-    lexer.PARSE_STRING = true;
-    
-    lexer.tl = 0;
-
-    env.fn =  {
-        parseString(lex, env, symbols, LR){
-            const copy = lex.copy();
-            while(lex.tx != '"' && !lex.END){
-                if(lex.tx == "\\") lex.next();
-                lex.next();
-            } 
-            symbols[LR ? symbols.length-1 : 0] = lex.slice(copy)
-        }
-    }
-    _(lexer, env, env.eh,skips)
-    const result = $S(lexer, env);
-    
-    if (!lexer.END || (env.FAILED )) {
-
-            const error_lex = env.error.concat(lexer).sort((a,b)=>a.off-b.off).pop();
-            error_lex.throw(`Unexpected token [${error_lex.tx}]`);
-        
-    }
-    return result;
-}, {$S,
+            
+            
+            return Object.assign( function (lexer, env = {
+                error: [],
+                eh: (lex, e) => { },
+                sp:0,
+                asi: (lex, env, s) => { }
+            }) {
+                
+                env.FAILED = false;
+                const states = [];
+                lexer.IWS = false;
+                lexer.PARSE_STRING = true;
+                
+                lexer.tl = 0;
+            
+                env.fn =  {
+                    parseString(lex, env, symbols, LR){
+                        const copy = lex.copy();
+                        while(lex.tx != '"' && !lex.END){
+                            if(lex.tx == "\\") lex.next();
+                            lex.next();
+                        } 
+                        symbols[LR ? symbols.length-1 : 0] = lex.slice(copy)
+                    }
+                }
+                _(lexer, env, env.eh,skips)
+                const result = $S(lexer, env);
+                
+                if (!lexer.END || (env.FAILED )) {
+            
+                        const error_lex = env.error.concat(lexer).sort((a,b)=>a.off-b.off).pop();
+                        error_lex.throw(`Unexpected token [${error_lex.tx}]`);
+                    
+                }
+                return result;
+            }, {$S,
 $B,
 $for_stmt,
 $const,
@@ -776,24 +672,21 @@ $sym,
 $id,
 $num,
 $expression_list_HC_listbody3_100,
-$expression_list,
-$expression,
+$1,
+$2,
+$3,
+$4,
 $5,
 $6,
 $7,
-$8,
-$9,
+$expression_list,
 $10,
+$11,
+$expression,
 $13,
 $14,
-$17,
+$15,
+$16,
 $18,
-$27,
-$28,
-$29,
-$30,
-$31,
-$32,
-$33,
-$34})
-}
+$19})
+            }

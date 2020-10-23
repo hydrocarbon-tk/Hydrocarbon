@@ -3,10 +3,12 @@ import { Item } from "../util/common.js";
 
 
 export interface State {
+
     /**
      * Optional name to reference the state function
      */
     name?: string;
+
     /**
      * A set of state indices that are called from this state.
      */
@@ -27,7 +29,6 @@ export interface State {
      */
     items: Item[];
 
-
     /**
      * Tracks item full ids to determine if
      * the merging state has been encountered
@@ -41,19 +42,10 @@ export interface State {
     index: number;
 
     /**
-     * An map of symbols/productions and the expected transition
+     * A map of symbols/productions and the expected transition
      * state(s) that should follow the symbol/production.
      */
-    maps: Map<string, number[]>;
-
-    /**
-     * All topmost productions that this state will produce
-     */
-    yields: Set<number>;
-
-    origins: Map<any, any>;
-
-    roots: any[];
+    maps: Map<number | string, number[]>;
 
     /**
      * True if another state references this state and 

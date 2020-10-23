@@ -125,6 +125,7 @@ function renderItem(item: Item, grammar: Grammar, runner: CompilerRunner, index_
         item = item.increment();
         if (!item.atEND) index_offset++;
     }
+    stmts.splice(stmts.length - 1, 0, stmt(`e.p = (e.FAILED) ? -1 : ${item.getProduction(grammar).id}`));
     return stmts;
 }
 
@@ -134,7 +135,7 @@ type TransitionGroup = {
     syms: Set<string>;
     trs: LLItem[];
 };
-function renderFunctionBody(llitems: LLItem[], grammar: Grammar, runner: CompilerRunner, peek_depth: number = 0, INLINE_FUNCTIONS = false) {
+function renderFunctionBody(llitems: LLItem[], grammar: Grammar, runner: CompilerRunner, peek_depth: number = 0, INLINE_FUNCTIONS = false, ELSE_REDUCE = false) {
 
     const stmts = [];
 
@@ -142,9 +143,6 @@ function renderFunctionBody(llitems: LLItem[], grammar: Grammar, runner: Compile
 
 
     const items = llitems.map(LLItemToItem);
-
-
-
 
     /* 
         Each item has a closure which yields transition symbols. 
@@ -162,10 +160,13 @@ function renderFunctionBody(llitems: LLItem[], grammar: Grammar, runner: Compile
 
     // sort into transition groups - groups gathered based on a single transition symbol
     const transition_groups: Map<string, LLItem[]> = llitems.groupMap((i: LLItem) => {
+
         const syms = [];
 
         for (const sym of getClosureTerminalSymbols(i.closure, grammar)) {
+
             syms.push(sym.val);
+
             sym_map.set(sym.val, sym);
         }
 
@@ -231,7 +232,8 @@ function renderFunctionBody(llitems: LLItem[], grammar: Grammar, runner: Compile
 
         try_groups.set(id, [group]);
     }
-    const MULTIPLE_GROUPS = try_groups.size > 1;
+    const MULTIPLE_GROUPS = try_groups.size > 1 || ELSE_REDUCE;
+
     let token_bit = 0;
 
 
@@ -349,7 +351,6 @@ function buildGroupStatement(
                 peek = -1;
 
             } else {
-
                 const
                     new_items = items
                         .filter(i => !i.atEND),
@@ -362,11 +363,11 @@ function buildGroupStatement(
                         });
 
                 if (new_trs.length > 0)
-                    if_body.push(...renderFunctionBody(new_trs, grammar, runner, peek + 1, INLINE_FUNCTIONS));
+                    if_body.push(...renderFunctionBody(new_trs, grammar, runner, peek + 1, INLINE_FUNCTIONS, items.some(i => i.atEND)));
 
                 //If any items at end render here?
                 for (const d of items.filter(i => i.atEND))
-                    if_body.push(...renderItem(d, grammar, runner, off, rdi, INLINE_FUNCTIONS));
+                    if_body.push(...renderItem(d, grammar, runner, off - 1, rdi, INLINE_FUNCTIONS));
 
                 break;
             };
@@ -379,6 +380,65 @@ function buildGroupStatement(
     }
 
     return token_bit;
+}
+
+export function makeLLHybridFunction(production: Production, grammar: Grammar, runner: CompilerRunner): LLProductionFunction {
+
+    const p = production;
+
+    const fn = stmt(`function $${p.name}(l, e){;}`),
+        body = fn.nodes[2].nodes,
+        INLINE_FUNCTIONS = p.bodies.some(has_INLINE_FUNCTIONS),
+        start_items: LLItem[] = p.bodies.map(b => BodyToLLItem(b, grammar));
+
+    if (p.IMPORTED && (false && runner.INTEGRATE)) {
+        const foreign_grammar = p.name.split("$");
+        //IF name i
+        return {
+            refs: 0,
+            id: p.id,
+            L_RECURSION: false,
+            fn: stmt(`function $${p.name}(l,e){
+            return ${foreign_grammar.join(".$")}(l,e)
+        }`)
+        };
+    }
+
+    body.pop();
+
+    if (INLINE_FUNCTIONS)
+        body.push(stmt("const s = []"));
+
+    if (checkForLeftRecursion(p, start_items, grammar)) {
+        return {
+            refs: 0,
+            id: p.id,
+            L_RECURSION: true,
+            fn: stmt(`\n\'Left recursion found in ${p.name}'\n`)
+        };
+    }
+
+    try {
+        body.push(...renderFunctionBody(start_items, grammar, runner, 0, INLINE_FUNCTIONS));
+    } catch (e) {
+        return {
+            refs: 0,
+            id: p.id,
+            L_RECURSION: true,
+            fn: stmt(`\n\'Left recursion found in ${p.name}'\n`)
+        };
+    }
+
+    if (body.slice(-1)[0].type != JSNodeType.ReturnStatement) {
+        body.push(stmt(`e.FAILED = true`));
+    }
+
+    return {
+        refs: 0,
+        id: p.id,
+        L_RECURSION: false,
+        fn
+    };
 }
 
 export function GetLLHybridFunctions(grammar: Grammar, env: GrammarParserEnvironment, runner: CompilerRunner): LLProductionFunction[] {

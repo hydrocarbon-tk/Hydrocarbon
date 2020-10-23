@@ -10,8 +10,7 @@ import {
     getNonTerminalTransitionStates,
     integrateState,
     getCompletedItemsNew,
-    translateSymbolLiteral,
-    translateSymbolLiteralToLexerBool
+    translateSymbolLiteral
 } from "./utilities.js";
 import { State } from "./State";
 import { LLProductionFunction } from "./LLProductionFunction.js";
@@ -35,12 +34,15 @@ function gotoState(
 
     existing_refs: Set<number>,
 
-    HYBRID: boolean = false
+    HYBRID: boolean = false,
+
+    gt = getNonTerminalTransitionStates(state)
 ) {
 
-    const statements = [], gt = getNonTerminalTransitionStates(state), gt_set = new Set;
+    const statements = [];
 
     if (gt.length > 0) {
+
         const accepting_productions = state.items.map(i => i.getProduction(grammar).id).setFilter();
 
         //sort goto in order
@@ -71,7 +73,7 @@ function gotoState(
 
                     const node = stmt("if(e.p < 0)");
 
-                    const { stmts, productions } = integrateState(st, states, grammar, ids, existing_refs, "s", state);
+                    const { stmts } = integrateState(st, states, grammar, ids, existing_refs, "s", state);
 
                     node.nodes[1] = stmts[0];
 
@@ -81,7 +83,7 @@ function gotoState(
 
                     state.reachable.add(st.index);
 
-                    const { stmts, productions } = integrateState(st, states, grammar, ids, existing_refs, "s", state);
+                    const { stmts } = integrateState(st, states, grammar, ids, existing_refs, "s", state);
 
                     clause.push(...stmts);
                 }
@@ -142,8 +144,6 @@ function getRealSymValue(sym: Symbol) {
             { val = "emptry"; break; }
     }
 
-    if (!val)
-        console.log({ sym });
     return val;
 }
 
@@ -175,31 +175,42 @@ function shiftReduce(
         ...(getCompletedItemsNew(state).map(i => ({ id: "2R" + i.follow.val, sym: getRealSymValue(i.follow), item: i, index: state.index, type: 2 })))
     ];
 
-    const sym_groups = to_process
+    let sym_groups = to_process
         //Sort into shift and reduce groups
         .sort((a, b) => a.id < b.id ? -1 : a.id > b.id ? 1 : 0)
         .sort((a, b) => a.type - b.type)
         //Group based on transition symbol
-        .group(s => s.sym)
-        //.sort((a, b) => a.id < b.id ? -1 : a.id > b.id ? 1 : 0)
+        .group(s => s.sym);
+    //.sort((a, b) => a.id < b.id ? -1 : a.id > b.id ? 1 : 0)
+
+    sym_groups = sym_groups
         .group(s => {
+            let id = "";
+
             //Merge reduce states that are the same and do not have shift within.
             if (s.every(e => e.type == 2)) {
-                return s.filter(s => s.type == 2).flatMap(s => s.item.body).setFilter().sort().join("-");
+                id = "R" + s.filter(s => s.type == 2).flatMap(s => s.item.body).setFilter().sort().join("-");
             } else {
                 //Group based on states that are shifted to from the symbol
-                return s.filter(s => s.type == 1).flatMap(s => s.states).setFilter().sort().join("-");
+                id = "SR" + s.filter(s => s.type == 1).flatMap(s => s.states).setFilter().sort().join("-");
             }
-        })
+
+            s.id = id;
+
+            return id;
+        });
+
+    sym_groups = sym_groups
         .map(s => {
-            s = s.flatMap(_ => _);
+
+            const trs = s.flat();
+
             return ({
-                syms: s.map(s => {
-                    if (!s.sym)
-                        console.log(0, 4, { s, i: s?.item?.renderUnformattedWithProduction(grammar) });
+                syms: trs.map(s => {
                     return s.sym;
-                }).setFilter(), reduce: s.filter(s => s.type == 2).setFilter(s => s.item.id), shift: s.filter(s => s.type == 1)
+                }).setFilter(), reduce: trs.filter(s => s.type == 2).setFilter(s => s.item.id), shift: trs.filter(s => s.type == 1)
             });
+
         });
 
     const SINGLE_TRANSITION_BLOCK = sym_groups.length == 1, outputs = [];
@@ -249,7 +260,7 @@ function shiftReduce(
                         block.push(runner.createAnnotationJSNode(`LR[${state.index}]-SHIFT:\${e.sp}`, grammar, ...shift_state.items.map(i => i.decrement())));
 
 
-                if (ll_fns && ll_fns[production] && !ll_fns[production].L_RECURSION && item.offset <= 1 && !item.atEND) {
+                if (ll_fns && ll_fns[production] && item.offset <= 1 /*&& !item.atEND*/) {
 
                     if (GROUP_NOT_LAST) {
                         block.push(stmt(`${pdn} = s.slice()`));
@@ -258,9 +269,6 @@ function shiftReduce(
                         block.push(stmt(`s.push($${grammar[production].name}(${lex_name}, e))`));
 
                     block.push(...insertFunctions(item, grammar, false));
-
-                    block.push(stmt(`e.p = (e.FAILED) ? -1 : ${production};`));
-
                 } else {
 
                     let shift_state_stmt;
@@ -331,32 +339,32 @@ function shiftReduce(
             }
         }
 
-        if (shift.length < 1)
-            for (const { item } of reduce) {
+        // if (shift.length < 1)
+        for (const { item } of reduce) {
 
-                const
-                    production = item.getProduction(grammar),
-                    body = item.body_(grammar);
+            const
+                production = item.getProduction(grammar),
+                body = item.body_(grammar);
 
-                if (runner.ANNOTATED)
-                    block.push(runner.createAnnotationJSNode(`LR[${state.index}]-REDUCE_TO:${production.id} sp:\${e.sp}`, grammar, item));
+            if (runner.ANNOTATED)
+                block.push(runner.createAnnotationJSNode(`LR[${state.index}]-REDUCE_TO:${production.id} sp:\${e.sp}`, grammar, item));
 
-                const reduce_function = body?.reduce_function?.txt;
+            const reduce_function = body?.reduce_function?.txt;
 
-                block.push(stmt(`e.sp -= ${item.len} `));
+            block.push(stmt(`e.sp -= ${item.len} `));
 
-                if (reduce_function) {
+            if (reduce_function) {
 
-                    block.push(stmt(`var sym = s.slice(-${item.len});`));
+                block.push(stmt(`var sym = s.slice(-${item.len});`));
 
-                    block.push(stmt(`s.splice(-${item.len}, ${item.len}, ${createReduceFunction(reduce_function)})`));
+                block.push(stmt(`s.splice(-${item.len}, ${item.len}, ${createReduceFunction(reduce_function)})`));
 
-                    block.push(stmt(`return (e.p = ${production.id}, s);`));
-                }
-                else {
-                    block.push(stmt(`return (e.p=${production.id}, (s.splice(-${item.len}, ${item.len}, s[s.length-1]), s));`));
-                }
+                block.push(stmt(`return (e.p = ${production.id}, s);`));
             }
+            else {
+                block.push(stmt(`return (e.p=${production.id}, (s.splice(-${item.len}, ${item.len}, s[s.length-1]), s));`));
+            }
+        }
     }
 
     if (outputs.length > 0) {
@@ -376,9 +384,6 @@ function shiftReduce(
                 output = ty[0];
             else
                 output = END[0];
-
-            if (!output)
-                console.log(0, 3, { outputs });
 
             const { if_body, if_stmt } = ifBlockStatement(`${
                 [
@@ -500,28 +505,80 @@ function compileState(
     HYBRID = false): JSNode[] {
     const
         existing_refs: Set<number> = new Set(),
-        statements = [],
-        goto_statements = gotoState(state, states, grammar, runner, ids, existing_refs, HYBRID),
-        shift_reduce_statements = shiftReduce(state, states, grammar, runner, ids, ll_fns, HYBRID);
+        statements = [];
 
-    if (goto_statements.length > 0)
-        statements.push(stmt("const sp = e.sp;"));
+    const item = state.items[0];
+    // if (state.index == 14) {
+    //If the state has only one transition point
+    if (state.items.setFilter(i => i.id).length == 1 && !item.atEND && item.sym(grammar).type == SymbolType.PRODUCTION) {
 
-    statements.push(stmt("e.p = -1;"));
+        //Find out the production that is to be generated;
+        const production = item.getProduction(grammar).id;
+        const shift_sym = item.sym(grammar).val;
 
-    statements.push(...shift_reduce_statements);
+        statements.push(stmt(`s.push($${grammar[shift_sym].name}(l, e, s))`));
+        statements.push(stmt(`e.sp++`));
 
-    statements.push(...goto_statements);
+        const pending_prods = [production];
+        const active_gotos = new Set([production]);
+
+        for (let i = 0; i < pending_prods.length; i++) {
+
+            //grab all of the productions from each goto
+            for (const s of getStatesFromNumericArray(state.maps.get(production) || [], states)) {
+
+                //get all the potential productions that can be yielded from the state
+                const prods = s.items.setFilter(s => s.id).map(s => s.getProduction(grammar).id).setFilter();
+
+                for (const prod of prods) {
+                    if (!active_gotos.has(prod)) {
+                        active_gotos.add(prod);
+                        pending_prods.push(prod);
+                    }
+                }
+            }
+        }
+
+        const goto_map = new Map([...active_gotos.values()].filter(s => state.maps.has(s)).map(v => [v, state.maps.get(v)]));
+
+        if (item.increment().atEND) {
+            if (goto_map.size > 1) {
+                statements.push(...gotoState(state, states, grammar, runner, ids, existing_refs, HYBRID, goto_map));
+            } else {
+                if (state.maps.has(production))
+                    statements.push(stmt(`s = $${state.maps.get(production)[0]}(l,e,s);`));
+            }
+        } else {
+            console.log({ production, goto_map, sm: state.maps });
+        }
+
+        //  }
+    } else {
+        const
+
+            goto_statements = gotoState(state, states, grammar, runner, ids, existing_refs, HYBRID),
+            shift_reduce_statements = shiftReduce(state, states, grammar, runner, ids, ll_fns, HYBRID);
+
+
+        if (goto_statements.length > 0)
+            statements.push(stmt("const sp = e.sp;"));
+
+        statements.push(stmt("e.p = -1;"));
+
+        statements.push(...shift_reduce_statements);
+
+        statements.push(...goto_statements);
+    }
 
     return statements;
 }
 
 export function renderState(
     state: State,
-    states: States,
+    states: State[],
     grammar: Grammar,
     runner: CompilerRunner,
-    id_nodes: JSNode[][] = states.states.reduce(r => (r.push([]), r), []),
+    id_nodes: JSNode[][] = states.reduce(r => (r.push([]), r), []),
     ll_fns: LLProductionFunction[] = null,
     HYBRID = false
 ): JSNode {
@@ -546,7 +603,7 @@ export function renderState(
 
         id_nodes[state.index].push(fn_id);
 
-    fn_body_nodes.push(...compileState(state, states.states, grammar, runner, id_nodes, ll_fns, HYBRID));
+    fn_body_nodes.push(...compileState(state, states, grammar, runner, id_nodes, ll_fns, HYBRID));
 
 
     if (HYBRID)
@@ -582,18 +639,19 @@ export function markReachable(states: States, ...root_states: State[]) {
 
 export function renderStates(
     root_states: State[],
-    states: States,
+    states: State[],
     grammar: Grammar,
     runner,
-    id_nodes: JSNode[][] = states.states.reduce(r => (r.push([]), r), []),
+    id_nodes: JSNode[][] = states.reduce(r => (r.push([]), r), []),
     ll_fns: LLProductionFunction[] = null,
     HYBRID = false
 ): JSNode[] {
 
     const
-        out_functions = root_states.map(s => renderState(s, states, grammar, runner, id_nodes, ll_fns, HYBRID)),
-        general_fn = states.states.map(s => renderState(s, states, grammar, runner, id_nodes, ll_fns, false)),
-        pending = [...root_states, states.states[0]], reached = new Set;
+        out_functions = [],
+        general_fn = states.map(s => renderState(s, states, grammar, runner, id_nodes, ll_fns, false)),
+        pending = [...root_states], reached = new Set(root_states.map(s => s.index));
+
 
     if (!ll_fns[0].L_RECURSION) pending.pop();
 
@@ -605,18 +663,18 @@ export function renderStates(
 
         state.REACHABLE = true;
 
-        for (const sc of getStatesFromNumericArray([...state.reachable.values()], states.states)) {
+        for (const sc of getStatesFromNumericArray([...state.reachable.values()], states)) {
             if (!reached.has(sc.index)) {
                 pending.push(sc);
             }
         }
     }
 
-    for (let i = 0; i < states.states.length; i++) {
+    for (let i = 0; i < states.length; i++) {
 
         const
             ids = id_nodes[i],
-            state = states.states[i],
+            state = states[i],
             fn = general_fn[i],
             id_name = "$" + (i);
 

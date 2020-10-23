@@ -175,17 +175,9 @@ export function integrateState(state: State, states: State[], grammar: Grammar, 
     id_nodes[state.index].push(goto_id);
 
     return {
-        stmts: [goto_stmt/*, stmt(`s = val, p = pval;`)*/],
-        //The productions that the transition should reduce to eventually
-        productions: [...state.origins.values()].flatMap(_ => _),
-
-        bodies: state.items.map(i => i.body)
+        stmts: [goto_stmt/*, stmt(`s = val, p = pval;`)*/]
     };
     //}
-}
-/** UTILS */
-function isStatePurelyCompressible(state: State) {
-    return state.PURE && state.HAS_COMPLETED_PRODUCTION && state.CONTAINS_ONLY_COMPLETE;
 }
 export function getCompletedItems(state: State): Item[] {
     return state.items.filter(e => e.atEND).group(i => i.id);
