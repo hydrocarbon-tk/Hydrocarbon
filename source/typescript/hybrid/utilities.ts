@@ -166,7 +166,7 @@ export function integrateState(state: State, states: State[], grammar: Grammar, 
     if (!existing_refs.has(state.index))
         existing_refs.add(state.index);
 
-    return `${name} = State${state.index}(l, e, s)`;
+    return `State${state.index}(l, e)`;
 }
 
 export function getCompletedItems(state: State): Item[] {

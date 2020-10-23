@@ -1,6 +1,6 @@
 import { Worker } from "worker_threads";
 
-import { Grammar, SymbolType } from "../types/grammar.js";
+import { Grammar } from "../types/grammar.js";
 import { ParserEnvironment } from "../types/parser_environment";
 import { Item } from "../util/item.js";
 import { HybridDispatchResponse, HybridJobType, HybridDispatch } from "./hybrid_mt_msg_types.js";
@@ -8,7 +8,7 @@ import { State } from "./State.js";
 import { mergeState } from "./lr_hybrid.js";
 import { renderStates } from "./lr_hybrid_render.js";
 import { constructCompilerRunner, CompilerRunner } from "./CompilerRunner.js";
-import { JSNode, JSNodeType, exp } from "@candlefw/js";
+import { JSNode } from "@candlefw/js";
 import { translateSymbolValue } from "./utilities.js";
 
 type WorkerContainer = {
@@ -249,7 +249,41 @@ export class HybridMultiThreadRunner {
 
         //Compile Function
         this.parser = `(b)=>{
-            const pos = null;
+            let action_array = [], mark_= 0;
+
+            //Inline
+            function mark (){
+               mark_ = action_array.length;
+               return mark_;
+            }
+
+            //Inline
+            function reset(mark){
+                action_array.length = mark;
+            }
+            
+            //Inline
+            function add_skip(char_len){
+                const ACTION = 2;
+                const val = ACTION | (char_len << 2);
+                action_array.push(val);
+            }
+
+            //Inline
+            function add_shift(char_len){
+                if(char_len < 1) return;
+                const ACTION = 1;
+                const val = ACTION | (char_len << 2);
+                action_array.push(val);
+            }
+
+            //Inline
+            function add_reduce(sym_len, body){
+                const ACTION = 0;
+                const val = ACTION | ((sym_len & 0x3FFF )<< 2) | (body << 16);
+                action_array.push(val);
+            }
+            
             ${
             this.runner.ANNOTATED ? `function log(...str) {
                         console.log(...str);
@@ -285,52 +319,25 @@ export class HybridMultiThreadRunner {
                 e.error.push(lex.copy());
             }
             
-            function _s(s, lex, e, eh, skips, ...syms) {
-                
-                if(e.FAILED) return "";
-                
-                var val = lex.tx;
-               
-                if (syms.length == 0 || lm(lex, syms)) {
-               
-                    lex.next();
-               
-                    if (skips) while (lm(lex, skips)) lex.next();
-               
-                    e.sp++;
-            
-                    s.push(val);
-                    
-                } else {
-               
-                    //error recovery
-                    const tx = eh(lex, e);
-            
-               
-                    if(!tx){
-                        if(e.FAILED) console.log("_______________________________a")
-                        e.FAILED = true;
-                        e.error.push(lex.copy());
-                    }
-                }
-            
-                return s;
-            }
-            
-            
             function _(lex, e, eh, skips, ...syms) {
 
                 if(e.FAILED) return "";
                 
                 var val = lex.tx;
-
-                if(e.FAILED) console.log("_______________________________a")
                
                 if (syms.length == 0 || lm(lex, syms)) {
-               
+                    
+                    add_shift(val.length);
+
                     lex.next();
                
+                    const off = lex.off;
+               
                     if (skips) while (lm(lex, skips)) lex.next();
+
+                    const diff = lex.off-off;
+
+                    if(diff > 0) add_skip(diff);
                
                     return val;
                 } else {
@@ -341,7 +348,6 @@ export class HybridMultiThreadRunner {
                     if(tx) return tx;
                
                     else {
-                        if(e.FAILED) console.log("_______________________________b")
                         e.FAILED = true;
                         e.error.push(lex.copy());
                     }
@@ -350,6 +356,15 @@ export class HybridMultiThreadRunner {
             
     
             ${ fns.join("\n")}
+
+            const fns = [${
+            this.grammar.bodies.map(b => {
+                if (b.reduce_function)
+                    return b.reduce_function.txt.replace("return", "sym=>(").slice(0, -1) + ")";
+                else
+                    return "";
+            }).join("\n,")
+            }];
             
             return Object.assign( function (lexer, env = {
                 error: [],
@@ -383,6 +398,50 @@ export class HybridMultiThreadRunner {
                         const error_lex = env.error.concat(lexer).sort((a,b)=>a.off-b.off).pop();
                         error_lex.throw(\`Unexpected token [\${error_lex.tx}]\`);
                     
+                }else{
+                    //Build out the productions
+                  
+            const stack = [], str = lexer.str;
+            let offset = 0;
+            for(const action of action_array){
+                switch(action&3){
+                    case 0: //REDUCE;
+                        var body = action>>16;
+
+                        var len = ((action&0xFFFF) >> 2);
+
+                        const fn = fns[body];
+
+                        if(fn)
+                            stack[stack.length-len] = fn(stack.slice(-len));
+                        else if(len > 1)
+                            stack[stack.length-len] = stack[stack.length-1];
+                        
+                        stack.length = stack.length-len+1;
+
+                        break;
+                    case 1: //SHIFT;
+                        var len = action >> 2;
+                        stack.push(str.slice(offset, offset+len));
+                        offset+=len;
+                        break;
+                    case 2: //SKIP;
+                        var len = action >> 2;
+                        offset+=len;
+                        break;
+                }
+            }
+            return stack[0];
+
+            console.log(stack)
+
+
+                    console.log(action_array.map(i=>{
+                        const action = ["REDUCE", "SHIFT", "SKIP"][i&3];
+                        const body = (action == "REDUCE") ? ":"+(i>>16) : "";
+                        const len = (action == "SHIFT" || action == "SKIP")  ? i >> 2 : ((i&0xFFFF) >> 2)
+                        return \`\${ action }:\${len}\${body}\`
+                    }))
                 }
                 return result;
             })

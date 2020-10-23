@@ -55,23 +55,15 @@ function renderItemSym(
 ): string {
 
     const
-        stmts = [], sym = "$", cn = (HAS_INLINE_FUNCTIONS) ? `s[${index_offset}]` : `${sym}${index_offset + 1}_`,
+        stmts = [],
         body = item.body_(grammar),
         reduce_function = body?.reduce_function?.txt;
 
     stmts.push(insertFunctions(item, grammar, true));
 
     if (item.atEND) {
-
-        if (reduce_function) {
-            if (HAS_INLINE_FUNCTIONS)
-                stmts.push(`return (${createReduceFunction(reduce_function, "s[", 0, "]")});`);
-            else
-                stmts.push(`return (${createReduceFunction(reduce_function, sym, 1, "_")});`);
-        } else {
-
-            stmts.push(`return ${cn}`);
-        }
+        stmts.push(`add_reduce(${item.len},${item.body});`);
+        stmts.push(`return;`);
     } else {
         const
             sym = item.sym(grammar),
@@ -85,9 +77,9 @@ function renderItemSym(
             stmts.push(`if(e.FAILED) return;`);
 
             if (HAS_INLINE_FUNCTIONS)
-                stmts.push(`s.push($${grammar[sym.val].name}(l, e));`);
+                stmts.push(`$${grammar[sym.val].name}(l, e);`);
             else if (rdi.has(index_offset) || REDUCE_TO_LAST)
-                stmts.push(`const ${cn} = $${grammar[sym.val].name}(l, e)`);
+                stmts.push(`$${grammar[sym.val].name}(l, e)`);
             else
                 stmts.push(`$${grammar[sym.val].name}(l, e)`);
         } else {
@@ -98,9 +90,9 @@ function renderItemSym(
             const skip_symbols = `[${grammar.meta.ignore.flatMap(d => d.symbols).map(translateSymbolValue).join(",")}]`;
 
             if (HAS_INLINE_FUNCTIONS) {
-                stmts.push(`s.push(_(l, e, e.eh, ${skip_symbols}, ${translateSymbolValue(sym)}));`);
+                stmts.push(`_(l, e, e.eh, ${skip_symbols}, ${translateSymbolValue(sym)});`);
             } else if (rdi.has(index_offset) || REDUCE_TO_LAST) {
-                stmts.push(`const ${cn} = _(l, e, e.eh, ${skip_symbols}, ${translateSymbolValue(sym)});`);
+                stmts.push(`_(l, e, e.eh, ${skip_symbols}, ${translateSymbolValue(sym)});`);
             } else {
                 stmts.push(`_(l, e, e.eh, ${skip_symbols}, ${translateSymbolValue(sym)});`);
             }
