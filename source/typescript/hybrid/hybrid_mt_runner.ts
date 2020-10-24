@@ -141,7 +141,7 @@ export class HybridMultiThreadRunner {
             named_state = mergeState(named_state, this.lr_states, null, this.lr_item_set);
             this.ll_functions[id] = {
                 IS_RD: false,
-                str: `"LR USE FOR ${named_state.items.setFilter(i => i.id).map(i => i.getProduction(this.grammar).name)}"`
+                str: "" ?? `"LR USE FOR ${named_state.items.setFilter(i => i.id).map(i => i.getProduction(this.grammar).name)}"`
             };
         }
 
@@ -298,41 +298,41 @@ export class HybridMultiThreadRunner {
 
             var 
 
-                action_array: Uint32Array = new Uint32Array(60000), 
+                action_array: Uint32Array = new Uint32Array(1048576), 
                 error_array:Uint32Array= new Uint32Array(512),
                 mark_: u32 = 0, 
                 pointer: u32  = 0,
                 error_ptr: u32  = 0;
 
-            //Inline
+            @inline
             function mark (): u32{
                mark_ = pointer;
                return mark_;
             }
 
-            //Inline
+            @inline
             function reset(mark:u32): void{
                 pointer = mark;
             }
             
-            //Inline
+            @inline
             function add_skip(char_len:u32): void{
+                const ACTION: u32 = 3;
+                const val: u32 = ACTION | (char_len << 2);
+                action_array[pointer++] = val;
+            }
+
+            @inline
+            function add_shift(char_len:u32): void{
+                if(char_len < 1) return;
                 const ACTION: u32 = 2;
                 const val: u32 = ACTION | (char_len << 2);
                 action_array[pointer++] = val;
             }
 
-            //Inline
-            function add_shift(char_len:u32): void{
-                if(char_len < 1) return;
-                const ACTION: u32 = 1;
-                const val: u32 = ACTION | (char_len << 2);
-                action_array[pointer++] = val;
-            }
-
-            //Inline
+            @inline
             function add_reduce(sym_len:u32, body:u32): void{
-                const ACTION: u32 = 0;
+                const ACTION: u32 = 1;
                 const val: u32 = ACTION | ((sym_len & 0x3FFF )<< 2) | (body << 16);
                 action_array[pointer++] = val;
             }
@@ -350,162 +350,212 @@ export class HybridMultiThreadRunner {
                         return \`\${(start > 0 ?" ": "")+str.slice(start, mid) + "•" + str.slice(mid, end) + ((end == string_length) ? "$EOF" : " ")}\`;
                     }\n`: ""
             }
+    @inline
+    function lm(lex:Lexer, syms: u32[]): boolean { 
+
+        const l = syms.length;
+
+        for(let i = 0; i < l; i++){
+            const sym = syms[i];
+            if(lex.id == sym || lex.ty == sym) return true;
+        }
+
+        return false;
+    }
+
+    @inline
+    function fail(lex:Lexer):void { 
+        FAILED = true;
+        error_array[error_ptr++] = lex.off;
+    }
             
-            function lm(lex:Lexer, syms: u32[]): boolean { 
-
-                const l = syms.length;
-
-                for(let i = 0; i < l; i++){
-                    const sym = syms[i];
-                    if(lex.id == sym || lex.ty == sym) return true;
-                }
-
-                return false;
-            }
             
-            function fail(lex:Lexer):void { 
-                FAILED = true;
-                error_array[error_ptr++] = lex.off;
-            }
-            
-            
-            function _(lex: Lexer, /* eh, */ skips: u32[], sym: u32 = 0):void {
+    function _(lex: Lexer, /* eh, */ skips: u32[], sym: u32 = 0):void {
 
-                if(FAILED) return;
-               
-                if (sym == 0 || lex.id == sym || lex.ty == sym) {
-                    
-                    add_shift(lex.tl);
-
-                    lex.next();
-               
-                    const off: u32 = lex.off;
-               
-                    if (skips) while (lm(lex, skips)) lex.next();
-
-                    const diff: i32 = lex.off-off;
-
-                    if(diff > 0) add_skip(diff);
-                } else {
-               
-                    //TODO error recovery
-
-                    FAILED = true;
-                    error_array[error_ptr++] = lex.off;
-                }
-            }
-            
-    
-            ${ fns.join("\n")}
-
-            class Export {
-                FAILED: boolean;
-                er: Uint32Array;
-                aa: Uint32Array;
-                constructor(f:boolean, er:Uint32Array, aa: Uint32Array){
-                    this.FAILED = f;
-                    this.er = er;
-                    this.aa = aa;
-                }
-            }
-            
-            export default function main (input_string:string): Export {
-
-                str = input_string;
-
-                const lex = new Lexer();
-
-                lex.next();
-
-                prod = -1; 
-
-                stack_ptr = 0;
-
-                error_ptr = 0;
-
-                pointer = 0;
-
-                FAILED = false;
-
-                $${ this.grammar[0].name}(lex);
-
-                
-            const d: Export =  new Export(
-                 FAILED || lex.END,
-                error_array.slice(0, pointer),
-                action_array.slice(0, pointer)
-            );  
-            
-            return d;
+        if(FAILED) return;
         
+        if (sym == 0 || lex.id == sym || lex.ty == sym) {
+            
+            add_shift(lex.tl);
+
+            lex.next();
+        
+            const off: u32 = lex.off;
+        
+            if (skips) while (lm(lex, skips)) lex.next();
+
+            const diff: i32 = lex.off-off;
+
+            if(diff > 0) add_skip(diff);
+        } else {
+        
+            //TODO error recovery
+
+            FAILED = true;
+            error_array[error_ptr++] = lex.off;
+        }
+    }
+            
     
+    ${fns.map(s => s.split("\n").join("\n    ")).join("\n    ")}
+
+    export class Export {
+
+        FAILED: boolean;
+
+        er: Uint32Array;
+        
+        aa: Uint32Array;
+
+        constructor(f:boolean, er:Uint32Array, aa: Uint32Array){
+            this.FAILED = f;
+            this.er = er;
+            this.aa = aa;
+        }
+
+        getFailed(): boolean { return this.FAILED; }
+        
+        getActionList(): Uint32Array { return this.aa; }
+        
+        getErrorOffsets(): Uint32Array { return this.er; }
+    }
+            
+    export default function main (input_string:string): Export {
+
+        str = input_string;
+
+        const lex = new Lexer();
+
+        lex.next();
+
+        prod = -1; 
+
+        stack_ptr = 0;
+
+        error_ptr = 0;
+
+        pointer = 0;
+
+        FAILED = false;
+
+        $${ this.grammar[0].name}(lex);
+
+        action_array[pointer++] = 0;
+
+        return new Export(
+            FAILED || !lex.END,
+        error_array.subarray(0, error_ptr),
+        action_array.subarray(0, pointer)
+    );    
 }`;
 
-        this.js_resolver = ` 
+        this.js_resolver = `  
+        import { jump_table } from "./jump_table.js";
 
-        const fns = [${
+import fs from "fs";
+
+import loader from "@assemblyscript/loader";
+
+import URL from "@candlefw/url";
+import Lexer from "@candlefw/wind";
+
+await URL.server();
+
+const wasmModule = loader.instantiateSync(fs.readFileSync(URL.resolveRelative("./build/untouched.wasm") + "")),
+    { main, __allocString, __getUint32ArrayView, __getUint16ArrayView, __retain, __release, Export } = wasmModule.exports,
+    wasm_jump_table = __getUint16ArrayView(wasmModule.exports.jump_table.value);
+
+for (let i = 0; i < jump_table.length; i++)
+    wasm_jump_table[i] = jump_table[i];
+
+        
+
+const fns = [${
             this.grammar.bodies.map(b => {
                 if (b.reduce_function)
                     return b.reduce_function.txt.replace("return", "sym=>(").slice(0, -1) + ")";
                 else
                     return "";
             }).join("\n,")
-            }]; ${
-            this.runner.ANNOTATED ? `
-            console.log(new Array(...action_array.slice(0,pointer)).map(i => {
-                const action = ["REDUCE", "SHIFT", "SKIP"][i & 3];
-                const body = (action == "REDUCE") ? ":" + (i >> 16) : "";
-                const len = (action == "SHIFT" || action == "SKIP") ? i >> 2 : ((i & 0xFFFF) >> 2);
-                return \`\${ action }:\${len}\${body}\`
-                }))` : ""
+            }];
+
+export default function jsmain(str) {
+
+    let strPtr = __retain(__allocString(str));
+    let exportPtr = main(strPtr); // call with pointers
+
+    const exports = Export.wrap(exportPtr);
+
+    const FAILED = exports.getFailed();
+    const aaPtr = exports.getActionList();
+    const erPtr = exports.getErrorOffsets();
+
+    const aa = __getUint32ArrayView(aaPtr);
+    const er = __getUint32ArrayView(erPtr);
+
+    const stack = [];
+    let action_length = 0;
+
+    if (FAILED) {
+
+        const error_off = er.sort((a, b) => a - b)[er.length - 1];
+
+        const lexer = new Lexer(str);
+
+        console.log(lexer, error_off, str.length, er);
+
+        while (lexer.off < error_off) lexer.next();
+
+        console.log(lexer.throw(\`Unexpected token[\${ lexer.tx }]\`));
+
+    } else if (true) {
+        //Build out the productions
+
+        let offset = 0;
+
+        o: for (const action of aa) {
+            action_length++;
+            if (action == 0) break;
+
+            switch (action & 3) {
+                case 0: //ACCEPT
+                    return stack[0];
+
+                case 1: //REDUCE;
+                    var body = action >> 16;
+
+                    var len = ((action & 0xFFFF) >> 2);
+
+                    const fn = fns[body];
+
+                    if (fn)
+                        stack[stack.length - len] = fn(stack.slice(-len));
+                    else if (len > 1)
+                        stack[stack.length - len] = stack[stack.length - 1];
+
+                    stack.length = stack.length - len + 1;
+
+                    break;
+                case 2: //SHIFT;
+                    var len = action >> 2;
+                    stack.push(str.slice(offset, offset + len));
+                    offset += len;
+                    break;
+                case 3: //SKIP;
+                    var len = action >> 2;
+                    offset += len;
+                    break;
             }
-                
-                if (!lex.END || (env.FAILED )) {
-                    
-                        const error_off = env.error.concat(lexer.off).sort((a,b)=>a-b).pop();
+        }
+    }
 
-                        console.log({error_off, e:env.error, lex, sl:str.length, end:lex.END})
+    __release(erPtr);
+    __release(aaPtr);
+    __release(exportPtr);
+    __release(strPtr);
 
-                        while(lexer.off < error_off) lexer.next();
-
-                        console.log(lexer.throw(\`Unexpected token [\${lexer.tx}]\`))
-
-                    
-                }else{
-                    //Build out the productions
-                    
-            const stack = [], str = lexer.str;
-            let offset = 0;
-
-            for(const action of action_array.slice(0, pointer)){
-                switch(action&3){
-                    case 0: //REDUCE;
-                        var body = action>>16;
-
-                        var len = ((action&0xFFFF) >> 2);
-
-                        const fn = fns[body];
-
-                        if(fn)
-                            stack[stack.length-len] = fn(stack.slice(-len));
-                        else if(len > 1)
-                            stack[stack.length-len] = stack[stack.length-1];
-                        
-                        stack.length = stack.length-len+1;
-
-                        break;
-                    case 1: //SHIFT;
-                        var len = action >> 2;
-                        stack.push(str.slice(offset, offset+len));
-                        offset+=len;
-                        break;
-                    case 2: //SKIP;
-                        var len = action >> 2;
-                        offset+=len;
-                        break;
-                }
-            }
-        `;
+    return { result: stack[0], FAILED: !!FAILED, action_length };
+}  `;
 
         //Clean up workers.
         this.workers.forEach(wk => wk.target.terminate());
@@ -516,7 +566,7 @@ export class HybridMultiThreadRunner {
             num_of_states: this.lr_states.size,
             total_items: this.total_items,
             items_left: this.lr_item_set.length,
-            COMPLETE: true;
+            COMPLETE: true
         };
 
     }

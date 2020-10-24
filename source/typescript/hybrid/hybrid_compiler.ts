@@ -1,11 +1,12 @@
 import { Grammar } from "../types/grammar.js";
 import { GrammarParserEnvironment } from "../types/grammar_compiler_environment";
 import { HybridMultiThreadRunner } from "./hybrid_mt_runner.js";
-import { renderCompressed } from "@candlefw/js";
 import fs from "fs";
 import spark from "@candlefw/spark";
 import URL from "@candlefw/url";
+import { printJumpTable } from "./ll_lexer.js";
 const fsp = fs.promises;
+
 export async function compileHybrid(grammar: Grammar, env: GrammarParserEnvironment) {
 
     const type = "WebAssembly";
@@ -20,30 +21,15 @@ export async function compileHybrid(grammar: Grammar, env: GrammarParserEnvironm
     const temp_dir = URL.resolveRelative("./temp/");
     const temp_source = URL.resolveRelative("./temp/source/");
     const rust_file = URL.resolveRelative("./temp/source/parser.ts");
-    const cargo_file = URL.resolveRelative("./temp/Cargo.toml");
+    const module_file = URL.resolveRelative("./temp/parser.js");
+    const jump_table_file = URL.resolveRelative("./temp/jump_table.js");
     try {
         //Create the temp directory
         await fsp.mkdir(temp_source + "", { recursive: true });
         fsp.writeFile(rust_file + "", mt_runner.parser);
-        fsp.writeFile(rust_file + "",
-            `[package]
-name = "parser"
-version = "0.1.0"
-authors = ["cfw.hydrocarbon <info@candlefw.io>"]
-description = "Automatically Generated Parser"
-documentation = "https://candlefw.io/hydrocarbon/what-now"
-repository = "https://github.com/candlefw/hydrocarbon/"
-license = "MIT"
+        fsp.writeFile(module_file + "", mt_runner.js_resolver);
+        fsp.writeFile(jump_table_file + "", printJumpTable());
 
-[dependencies]
-wasm-bindgen = "0.2.68"
-
-[dev-dependencies]
-wasm-bindgen-test = "0.3.13"
-
-[profile.release]
-# Tell `rustc` to optimize for small code size.
-opt-level = "s"`);
         //run the wasm-pack inside the temp directory
         /*
         await new Promise(res{

@@ -1,7 +1,7 @@
 import { Grammar, Production, ProductionBody, EOF_SYM, SymbolType, Symbol } from "../types/grammar.js";
 import { processClosure, Item, FOLLOW } from "../util/common.js";
 import { GrammarParserEnvironment } from "../types/grammar_compiler_environment";
-import { stmt, JSNode, JSNodeType, exp, extendAll } from "@candlefw/js";
+import { stmt } from "@candlefw/js";
 import { translateSymbolValue, getLexPeekComparisonStringCached, getReduceFunctionSymbolIndiceSet, has_INLINE_FUNCTIONS, getRootSym } from "./utilities.js";
 import { LLProductionFunction } from "./LLProductionFunction";
 import { LLItem } from "./LLItem";
@@ -49,9 +49,7 @@ function renderItemSym(
     item: Item,
     grammar: Grammar,
     runner: CompilerRunner,
-    index_offset: number = 0,
-    rdi: Set<number> = new Set,
-    HAS_INLINE_FUNCTIONS: boolean = false
+    AUTO_RETURN = true
 ): string {
 
     const
@@ -63,25 +61,19 @@ function renderItemSym(
 
     if (item.atEND) {
         stmts.push(`add_reduce(${item.len},${item.body});`);
-        stmts.push(`return;`);
+        if (AUTO_RETURN) stmts.push(`return;`);
     } else {
-        const
-            sym = getRootSym(item.sym(grammar), grammar),
-            REDUCE_TO_LAST = (item.increment().atEND && !reduce_function);
+        const sym = getRootSym(item.sym(grammar), grammar);
 
         if (sym.type == "production") {
 
             if (runner.ANNOTATED)
                 stmts.push(runner.createAnnotationJSNode("LL-CALL", grammar, item));
 
-            stmts.push(`if(FAILED) return;`);
+            if (AUTO_RETURN) stmts.push(`if(FAILED) return;`);
 
-            if (HAS_INLINE_FUNCTIONS)
-                stmts.push(`$${grammar[sym.val].name}(l);`);
-            else if (rdi.has(index_offset) || REDUCE_TO_LAST)
-                stmts.push(`$${grammar[sym.val].name}(l)`);
-            else
-                stmts.push(`$${grammar[sym.val].name}(l)`);
+            stmts.push(`$${grammar[sym.val].name}(l)`);
+
         } else {
             if (runner.ANNOTATED)
                 stmts.push(runner.createAnnotationJSNode("LL-ASSERT", grammar, item));
@@ -89,29 +81,25 @@ function renderItemSym(
             //Get skips from grammar - TODO get symbols from bodies / productions
             const skip_symbols = `[${grammar.meta.ignore.flatMap(d => d.symbols).map(s => getRootSym(s, grammar)).map(translateSymbolValue).join(",")}]`;
 
-            if (HAS_INLINE_FUNCTIONS) {
-                stmts.push(`_(l, /* e.eh, */ ${skip_symbols}, ${translateSymbolValue(sym)});`);
-            } else if (rdi.has(index_offset) || REDUCE_TO_LAST) {
-                stmts.push(`_(l, /* e.eh, */ ${skip_symbols}, ${translateSymbolValue(sym)});`);
-            } else {
-                stmts.push(`_(l, /* e.eh, */ ${skip_symbols}, ${translateSymbolValue(sym)});`);
-            }
+            stmts.push(`_(l, /* e.eh, */ ${skip_symbols}, ${translateSymbolValue(sym)});`);
         }
     }
 
     return stmts.join("\n");
 }
 
-function renderItem(item: Item, grammar: Grammar, runner: CompilerRunner, index_offset = 0, rdi: Set<number> = new Set, HAS_INLINE_FUNCTIONS: boolean = false): string {
+function renderItem(item: Item, grammar: Grammar, runner: CompilerRunner, AUTO_RETURN: boolean = true): string {
     const stmts = [];
 
     while (true) {
-        stmts.push(renderItemSym(item, grammar, runner, index_offset, rdi, HAS_INLINE_FUNCTIONS));
+        stmts.push(renderItemSym(item, grammar, runner, AUTO_RETURN));
         if (item.atEND) break;
         item = item.increment();
-        if (!item.atEND) index_offset++;
     }
+
     stmts.splice(stmts.length - 1, 0, `prod = (FAILED) ? -1 : ${item.getProduction(grammar).id}`);
+    //stmts.splice(stmts.length - 1, 0, `prod =  (-1&(~(FAILED-1))) | (${item.getProduction(grammar).id}&(~(!FAILED-1)))`);
+
     return stmts.join("\n");
 }
 
@@ -121,15 +109,19 @@ type TransitionGroup = {
     syms: Set<string>;
     trs: LLItem[];
 };
-function renderFunctionBody(llitems: LLItem[], grammar: Grammar, runner: CompilerRunner, peek_depth: number = 0, INLINE_FUNCTIONS = false, ELSE_REDUCE = false)
+export function renderFunctionBody(
+    llitems: LLItem[],
+    grammar: Grammar,
+    runner: CompilerRunner,
+    peek_depth: number = 0,
+    ELSE_REDUCE = false,
+    AUTO_RETURN: boolean = true
+)
     : string {
 
     const stmts = [];
 
     if (peek_depth > 4) throw "Can't complete";
-
-
-    const items = llitems.map(LLItemToItem);
 
     /* 
         Each item has a closure which yields transition symbols. 
@@ -234,12 +226,12 @@ function renderFunctionBody(llitems: LLItem[], grammar: Grammar, runner: Compile
             new_group.trs = try_group.flatMap(i => i.trs);
 
             // for (const group of try_group) {
-            token_bit |= buildGroupStatement(grammar, runner, new_group, peek_depth, stmts, sym_map, !MULTIPLE_GROUPS, INLINE_FUNCTIONS);
+            token_bit |= buildGroupStatement(grammar, runner, new_group, peek_depth, stmts, sym_map, !MULTIPLE_GROUPS, AUTO_RETURN);
             // }
 
             //Make a try catch chain.
         } else {
-            token_bit |= buildGroupStatement(grammar, runner, try_group[0], peek_depth, stmts, sym_map, !MULTIPLE_GROUPS, INLINE_FUNCTIONS);
+            token_bit |= buildGroupStatement(grammar, runner, try_group[0], peek_depth, stmts, sym_map, !MULTIPLE_GROUPS, AUTO_RETURN);
         }
     }
 
@@ -278,7 +270,7 @@ const enum TOKEN_BIT {
     TYPE = 2,
 }
 
-function buildGroupStatement(
+export function buildGroupStatement(
     grammar: Grammar,
     runner: CompilerRunner,
     group: TransitionGroup,
@@ -286,7 +278,7 @@ function buildGroupStatement(
     stmts,
     sym_map: Map<string, Symbol>,
     IS_SINGLE = false,
-    INLINE_FUNCTIONS = false
+    AUTO_RETURN: boolean = true
 ) {
 
     const
@@ -325,12 +317,12 @@ function buildGroupStatement(
 
         while (true) {
             const sym = items.map(i => i).filter(i => !i.atEND)?.shift()?.sym(grammar),
-                off = items.filter(i => !i.atEND)[0].offset;
+                off = items.filter(i => !i.atEND)?.[0]?.offset;
             //If any items at end do something
 
             //All items agree
-            if (sym && !items.reduce((r, i) => (r || i.atEND || (i.sym(grammar)?.val != sym.val)), false)) {
-                if_body.push(renderItemSym(items[0], grammar, runner, off, rdi, INLINE_FUNCTIONS));
+            if (off != undefined && sym && !items.reduce((r, i) => (r || i.atEND || (i.sym(grammar)?.val != sym.val)), false)) {
+                if_body.push(renderItemSym(items[0], grammar, runner, AUTO_RETURN));
                 items = items.map(i => i.increment()).filter(i => i);
                 peek = -1;
 
@@ -347,11 +339,11 @@ function buildGroupStatement(
                         });
 
                 if (new_trs.length > 0)
-                    if_body.push(renderFunctionBody(new_trs, grammar, runner, peek + 1, INLINE_FUNCTIONS, items.some(i => i.atEND)));
+                    if_body.push(renderFunctionBody(new_trs, grammar, runner, peek + 1, items.some(i => i.atEND), AUTO_RETURN));
 
                 //If any items at end render here?
                 for (const d of items.filter(i => i.atEND))
-                    if_body.push(renderItem(d, grammar, runner, off - 1, rdi, INLINE_FUNCTIONS));
+                    if_body.push(renderItem(d, grammar, runner, AUTO_RETURN));
 
                 break;
             };
@@ -360,7 +352,7 @@ function buildGroupStatement(
 
         //Just complete the grammar symbols
         const item = LLItemToItem(trs[0]);
-        if_body.push(renderItem(item, grammar, runner, item.offset, rdi, INLINE_FUNCTIONS));
+        if_body.push(renderItem(item, grammar, runner, AUTO_RETURN));
     }
 
     if (!IS_SINGLE) {
@@ -371,7 +363,16 @@ function buildGroupStatement(
     return token_bit;
 }
 
-export function makeLLHybridFunction(production: Production, grammar: Grammar, runner: CompilerRunner): LLProductionFunction {
+export function buildIntermediateRD(items: Item[], grammar: Grammar, runner: CompilerRunner): string {
+
+    const start_items: LLItem[] = items.map(i => ItemToLLItem(i, grammar));
+
+    //  console.log(start_items);
+
+    return renderFunctionBody(start_items, grammar, runner, 0, false, false);
+}
+
+export function makeRDHybridFunction(production: Production, grammar: Grammar, runner: CompilerRunner): LLProductionFunction {
 
     const p = production;
 
@@ -407,7 +408,7 @@ export function makeLLHybridFunction(production: Production, grammar: Grammar, r
     }
 
     try {
-        stmts.push(renderFunctionBody(start_items, grammar, runner, 0, INLINE_FUNCTIONS));
+        stmts.push(renderFunctionBody(start_items, grammar, runner, 0));
     } catch (e) {
         console.log(e);
         return {

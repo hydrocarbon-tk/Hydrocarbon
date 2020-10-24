@@ -4,7 +4,7 @@ import { filloutGrammar, Item } from "../util/common.js";
 import { workerData, parentPort } from "worker_threads";
 import { HybridDispatch, HybridJobType, HybridDispatchResponse } from "./hybrid_mt_msg_types";
 import { CompilerRunner, constructCompilerRunner } from "./CompilerRunner.js";
-import { makeLLHybridFunction } from "./ll_hybrid.js";
+import { makeRDHybridFunction } from "./ll_hybrid.js";
 import { IntegrateState, CompileHybridLRStates } from "./lr_hybrid.js";
 
 export class HybridMultiThreadProcessWorker {
@@ -68,7 +68,7 @@ export class HybridMultiThreadProcessWorker {
                     break;
 
                 case HybridJobType.CONSTRUCT_RC_FUNCTION:
-                    const { L_RECURSION, fn } = makeLLHybridFunction(this.grammar[job.production_id], this.grammar, this.runner);
+                    const { L_RECURSION, fn } = makeRDHybridFunction(this.grammar[job.production_id], this.grammar, this.runner);
                     Response.fn = fn;
                     Response.production_id = job.production_id;
                     Response.CONVERT_RC_TO_LR = L_RECURSION;

@@ -179,7 +179,7 @@ export class Item extends Array {
     decrement(): Item | null {
         if (this.offset > 0)
             return new Item(this.body, this.len, this.offset - 1, this.follow);
-        return null;
+        return this;
     }
 
     match(item: Item): boolean {

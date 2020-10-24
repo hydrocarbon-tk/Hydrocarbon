@@ -35,7 +35,7 @@ export function IntegrateState(production: Production, grammar: Grammar, name: s
         name,
         id,
         sid,
-        bid: "", //items.setFilter(i => i.id).map(i => i.renderUnformattedWithProduction(grammar)).join(" : "),
+        bid: "",
         roots: [],
         items: items.slice(),
         index: 0,
@@ -84,91 +84,41 @@ export function CompileHybridLRStates(
 
     for (const item_set of groups.values()) {
 
+        const items = [];
+
+        let sym;
+
         for (const iset of item_set.values()) {
-
-            const unique_items = iset.items.setFilter(i => i.id);
-
-            const id = unique_items
-                .map(i => i.id)
-                .sort((a, b) => a < b ? -1 : 1).join(""),
-
-                sid = iset.items
-                    .map(i => i.full_id)
-                    .filter((e, i, a) => a.indexOf(e) == i)
-                    .sort((a, b) => a < b ? -1 : 1).join(":");
-
-            //Out pops a new state. 
-            potential_states.push(<State>{
-                sym: iset.sym.val,
-                id,
-                sid,
-                bid: unique_items.map(i => i.renderUnformattedWithProduction(grammar)).join(" : "),
-                roots: [],
-                items: iset.items,
-                index: 0,
-                REACHABLE: false
-            });
+            sym = iset.sym;
+            items.push(...iset.items);
         }
+
+        const unique_items = items.setFilter(i => i.id);
+
+        const id = unique_items
+            .map(i => i.id)
+            .sort((a, b) => a < b ? -1 : 1).join(""),
+
+            sid = items
+                .map(i => i.full_id)
+                .filter((e, i, a) => a.indexOf(e) == i)
+                .sort((a, b) => a < b ? -1 : 1).join(":");
+
+
+        //Out pops a new state. 
+        potential_states.push(<State>{
+            sym: sym.val,
+            id,
+            sid,
+            bid: unique_items.map(i => i.renderUnformattedWithProduction(grammar)).join(" : "),
+            roots: [],
+            items: items,
+            index: 0,
+            REACHABLE: false
+        });
     }
 
     return potential_states.flat().map(s => (s.os = old_state, s));
-    /*
-
-    const potential_states = [
-        ...to_process_items.reduce((groups, i) => {
-
-            if (i.atEND) return groups;
-
-            const
-                production = i.getProduction(grammar).id,
-                sym = i.sym(grammar),
-                val = sym.val + "";
-
-            if (!groups.has(val)) groups.set(val, new Map);
-
-            const group = groups.get(val);
-
-            if (!group.has(production)) {
-                group.set(production, { sym: i.sym(grammar), items: [i.increment()] });
-            } else {
-                group.get(production).items.push(i.increment());
-            }
-
-            return groups;
-
-        }, <Map<string, { sym: string, items: Item[]; }>>new Map()).values()
-    ].flatMap(values => {
-        const out = [];
-
-        for (const iset of item_set.values()) {
-            const id = iset.items
-                .map(i => i.id)
-                .setFilter(i => i)
-                .sort((a, b) => a < b ? -1 : 1).join(""),
-
-                sid = iset.items
-                    .map(i => i.full_id)
-                    .filter((e, i, a) => a.indexOf(e) == i)
-                    .sort((a, b) => a < b ? -1 : 1).join(":");
-
-            //Out pops a new state. 
-            out.push(<State>{
-                sym: iset.sym.val,
-                id,
-                sid,
-                bid: iset.items.setFilter(i => i.id).map(i => i.renderUnformattedWithProduction(grammar)).join(" : "),
-                roots: [],
-                items: iset.items,
-                index: 0,
-                REACHABLE: false
-            });
-        }
-
-        return out;
-    });
-
-    return potential_states.map(s => (s.os = old_state, s));
-    */
 }
 
 export function createProductionItems(production_index: number, grammar: Grammar, follows: Symbol[] = [EOF_SYM]) {

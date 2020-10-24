@@ -8,7 +8,6 @@ import {
     getNonTerminalTransitionStates,
     integrateState,
     getCompletedItemsNew,
-    translateSymbolLiteral,
     getRootSym
 } from "./utilities.js";
 import { State } from "./State";
@@ -17,7 +16,8 @@ import { insertFunctions } from "./insertFunctions.js";
 import { States } from "./lr_hybrid.js";
 import { CompilerRunner } from "./CompilerRunner.js";
 import { Lexer } from "@candlefw/wind";
-import { traverse } from "@candlefw/conflagrate";
+import { buildIntermediateRD } from "./ll_hybrid.js";
+import { id } from "@candlefw/wind/build/types/tables";
 
 function gotoState(
     /**  The state to reduce */
@@ -143,12 +143,11 @@ function shiftReduce(
     grammar: Grammar,
     /** Compiler utility object */
     runner: CompilerRunner,
-    /** List of id nodes referencing the name of a state function */
-    ids: JSNode[][],
     /** Optional List of LL recursive descent functions */
     ll_fns: LLProductionFunction[] = null,
     /** Indicates the state results from a transition from LL to LR*/
-    HYBRID = false): string[] {
+    active_gotos = []
+): string[] {
 
     const statements: string[] = [], HAS_GOTO = getNonTerminalTransitionStates(state).length > 0;
 
@@ -245,6 +244,8 @@ function shiftReduce(
 
                 i++;
 
+                active_gotos.push(production);
+
                 if (GROUP_NOT_LAST) {
                     if (FIRST_GROUP) {
                         block.push(`var $mark = mark()`);
@@ -268,15 +269,16 @@ function shiftReduce(
                         block.push(runner.createAnnotationJSNode(`LR[${state.index}]-SHIFT:\${stack_ptr}`, grammar, ...shift_state.items.map(i => i.decrement())));
 
 
-                if (ll_fns && ll_fns[production].IS_RD && item.offset <= 1) {
-                    console.log(ll_fns);
+                if (ll_fns/* && ll_fns[production].IS_RD*/) {
 
-                    if (GROUP_NOT_LAST) {
-                        block.push(`$${grammar[production].name}(${lex_name})`);
-                    } else
-                        block.push(`$${grammar[production].name}(${lex_name})`);
+                    block.push(buildIntermediateRD(shift_state.items.setFilter(i => i.id).map(i => i.decrement()), grammar, runner), ";");
 
-                    block.push(...insertFunctions(item, grammar, false));
+                    //if (GROUP_NOT_LAST) {
+                    //    block.push(`$${grammar[production].name}(${lex_name})`);
+                    //} else
+                    //    block.push(`$${grammar[production].name}(${lex_name})`);
+                    //
+                    //block.push(...insertFunctions(item, grammar, false));
                 } else {
 
                     let shift_state_stmt = "";
@@ -451,6 +453,32 @@ function shiftReduce(
     return statements;
 }
 
+function filterGotos(state: State, states: State[], grammar: Grammar, ...pending_prods: number[]): Map<number, number[]> {
+
+    const active_gotos = new Set(pending_prods);
+
+    for (let i = 0; i < pending_prods.length; i++) {
+
+        const production = pending_prods[i];
+
+        //grab all of the productions from each goto
+        for (const s of getStatesFromNumericArray(state.maps.get(production) || [], states)) {
+
+            //get all the potential productions that can be yielded from the state
+            const yielded_prods = s.items.setFilter(s => s.id).map(s => s.getProduction(grammar).id);
+
+            for (const prod of yielded_prods) {
+                if (!active_gotos.has(prod)) {
+                    active_gotos.add(prod);
+                    pending_prods.push(prod);
+                }
+            }
+        }
+    }
+
+    return new Map([...active_gotos.values()].filter(s => state.maps.has(s)).map(v => [v, state.maps.get(v)]));
+}
+
 function caseClauseNode(case_condition: string): string[] {
     return [`case ${case_condition}: `];
 }
@@ -471,9 +499,10 @@ function compileState(
     HYBRID = false): string[] {
     const
         existing_refs: Set<number> = new Set(),
-        statements: string[] = [];
+        statements: string[] = [],
+        active_gotos: number[] = [];
 
-    const item = state.items[0], symbol = item.sym(grammar)?.val;
+    const item = state.items[0], symbol = item.sym(grammar)?.val, production = item.getProduction(grammar).id;
     // if (state.index == 14) {
     //If the state has only one transition point
     if (
@@ -482,9 +511,26 @@ function compileState(
         && item.sym(grammar).type == SymbolType.PRODUCTION
         && item.increment().atEND
         && ll_fns
-        && ll_fns?.[symbol]?.IS_RD
+        && ll_fns?.[production]
     ) {
+        try {
+            statements.push(buildIntermediateRD(state.items.setFilter(i => i.id), grammar, runner));
 
+            active_gotos.push(production);
+
+            console.log({
+                id: state.bid || state.items.map(i => i.renderUnformattedWithProduction(grammar)).join(";"),
+                active_gotos,
+                gt: filterGotos(state, states, grammar, ...active_gotos),
+                state_map: state.maps
+            });
+
+            return statements;
+
+        } catch (e) {
+
+        }
+        /*
         //Find out the production that is to be generated;
         const production = item.getProduction(grammar).id;
         const shift_sym = item.sym(grammar).val;
@@ -523,24 +569,23 @@ function compileState(
             }
         } else {
             console.log({ i: state.items.setFilter(s => s.id).map(s => s.renderUnformattedWithProductionAndFollow(grammar)).join(" "), production, goto_map, sm: state.maps });
-        }
+        }*/
 
         //  }
-    } else {
-
-        const
-            goto_statements = gotoState(state, states, grammar, runner, ids, existing_refs, HYBRID),
-            shift_reduce_statements = shiftReduce(state, states, grammar, runner, ids, ll_fns, HYBRID);
-
-
-        if (goto_statements.length > 0) statements.push("const sp: u32 = stack_ptr;");
-
-        //statements.push("prod = -1;");
-
-        statements.push(...shift_reduce_statements);
-
-        statements.push(...goto_statements);
     }
+
+    const
+        goto_statements = gotoState(state, states, grammar, runner, ids, existing_refs, HYBRID),
+        shift_reduce_statements = shiftReduce(state, states, grammar, runner, ll_fns, active_gotos);
+
+    if (goto_statements.length > 0) statements.push("const sp: u32 = stack_ptr;");
+
+    //statements.push("prod = -1;");
+
+    statements.push(...shift_reduce_statements);
+
+    statements.push(...goto_statements);
+
 
     return statements;
 }
@@ -563,7 +608,7 @@ export function renderState(
 
     const
         fn: string[] = runner.ANNOTATED
-            ? [`function ${state.name ? state.name : "State" + state.index}(l:Lexer, st){\`${state.bid}\`;`]
+            ? [`function ${state.name ? state.name : "State" + state.index}(l:Lexer, st){\`${state.bid || state.items.map(i => i.renderUnformattedWithProduction(grammar)).join(";")}\`;`]
             : [`function ${state.name ? state.name : "State" + state.index}(l:Lexer):void{`];
 
 
