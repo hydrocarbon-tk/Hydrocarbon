@@ -1,6 +1,6 @@
 import { Worker } from "worker_threads";
 
-import { Grammar } from "../types/grammar.js";
+import { Grammar, SymbolType } from "../types/grammar.js";
 import { ParserEnvironment } from "../types/parser_environment";
 import { Item } from "../util/item.js";
 import { HybridDispatchResponse, HybridJobType, HybridDispatch } from "./hybrid_mt_msg_types.js";
@@ -9,7 +9,7 @@ import { mergeState } from "./lr_hybrid.js";
 import { renderStates } from "./lr_hybrid_render.js";
 import { constructCompilerRunner, CompilerRunner } from "./CompilerRunner.js";
 import { JSNode } from "@candlefw/js";
-import { translateSymbolValue } from "./utilities.js";
+import { printLexer } from "./ll_lexer.js";
 
 type WorkerContainer = {
     target: Worker;
@@ -47,8 +47,48 @@ export class HybridMultiThreadRunner {
 
     IN_FLIGHT_JOBS: number;
     constructor(grammar: Grammar, env: ParserEnvironment) {
-        let id = 0;
+        let id = 0, i = 10;
 
+        const ANNOTATED = false;
+
+        const syms = [], keywords = [];
+
+        for (const sym of grammar.meta.all_symbols.values()) {
+            if (
+                sym.type == SymbolType.SYMBOL
+                || sym.type == SymbolType.ESCAPED
+                || sym.type == SymbolType.LITERAL
+            ) {
+                syms.push([sym.val, i]);
+                sym.id = i++;
+            }
+        }
+
+        function buildIfs(syms: [string, number][], off = 0) {
+            const stmts: string[] = [];
+
+            for (const sym of syms) {
+                if (sym[0].length == 0) stmts.unshift(`this.id =${sym[1]}; length = ${off};`);
+            }
+            let first = true;
+
+            for (const group of syms.filter(s => s[0].length > 0).group(s => s[0][0])) {
+                if (first)
+                    stmts.push(`const val: u32 = str.charCodeAt(base+${off})`);
+                const v = group[0][0][0];
+                stmts.push(
+                    `${first ? "" : "else "}if(val == ${v.charCodeAt(0)}){`,
+
+                    ...buildIfs(group.map(s => [s[0].slice(1), s[1]]), off + 1),
+                    "}"
+                );
+                first = false;
+            };
+
+            return stmts;
+        }
+
+        this.ifs = buildIfs(syms).join("\n");
 
         this.RUN = true;
 
@@ -59,13 +99,13 @@ export class HybridMultiThreadRunner {
         this.grammar = grammar;
         this.env = env;
         this.total_items = 0;
-        this.number_of_workers = 8;
+        this.number_of_workers = 1;
         this.lr_states = new Map;
         this.to_process_ll_fn = this.grammar.map((a, i) => i + 1);
         this.IN_FLIGHT_JOBS = 0;
         this.ll_functions = [];
         this.lr_item_set = [];
-        this.runner = constructCompilerRunner(0);
+        this.runner = constructCompilerRunner(ANNOTATED);
 
         this.module_url = ((process.platform == "win32") ?
             import.meta.url.replace(/file\:\/\/\//g, "")
@@ -77,7 +117,7 @@ export class HybridMultiThreadRunner {
             .map(() => ({
                 id,
                 READY: true,
-                target: new Worker(this.module_url, { workerData: { id: id++, grammar } })
+                target: new Worker(this.module_url, { workerData: { id: id++, grammar, ANNOTATED } })
             }));
 
         this.workers.forEach(
@@ -247,41 +287,54 @@ export class HybridMultiThreadRunner {
 
         const fns = [...this.ll_functions.map(fn => fn.str), ...lr_nodes];
 
-        //Compile Function
-        this.parser = `(b)=>{
-            let action_array = [], mark_= 0;
+
+
+        //Compile Function  
+        this.parser = `
+
+            var str: string = "", FAILED:boolean = false, prod:i32 = -1, stack_ptr:u32 = 0;
+
+            ${printLexer(this.ifs)}
+
+            var 
+
+                action_array: Uint32Array = new Uint32Array(60000), 
+                error_array:Uint32Array= new Uint32Array(512),
+                mark_: u32 = 0, 
+                pointer: u32  = 0,
+                error_ptr: u32  = 0;
 
             //Inline
-            function mark (){
-               mark_ = action_array.length;
+            function mark (): u32{
+               mark_ = pointer;
                return mark_;
             }
 
             //Inline
-            function reset(mark){
-                action_array.length = mark;
+            function reset(mark:u32): void{
+                pointer = mark;
             }
             
             //Inline
-            function add_skip(char_len){
-                const ACTION = 2;
-                const val = ACTION | (char_len << 2);
-                action_array.push(val);
+            function add_skip(char_len:u32): void{
+                const ACTION: u32 = 2;
+                const val: u32 = ACTION | (char_len << 2);
+                action_array[pointer++] = val;
             }
 
             //Inline
-            function add_shift(char_len){
+            function add_shift(char_len:u32): void{
                 if(char_len < 1) return;
-                const ACTION = 1;
-                const val = ACTION | (char_len << 2);
-                action_array.push(val);
+                const ACTION: u32 = 1;
+                const val: u32 = ACTION | (char_len << 2);
+                action_array[pointer++] = val;
             }
 
             //Inline
-            function add_reduce(sym_len, body){
-                const ACTION = 0;
-                const val = ACTION | ((sym_len & 0x3FFF )<< 2) | (body << 16);
-                action_array.push(val);
+            function add_reduce(sym_len:u32, body:u32): void{
+                const ACTION: u32 = 0;
+                const val: u32 = ACTION | ((sym_len & 0x3FFF )<< 2) | (body << 16);
+                action_array[pointer++] = val;
             }
             
             ${
@@ -294,116 +347,137 @@ export class HybridMultiThreadRunner {
                         const start = Math.max(0, offset - padding);
                         const mid = offset;
                         const end = Math.min(string_length, offset + token_length  + padding);
-                        return \`\${(start > 0 ?" ": "")+lex.str.slice(start, mid) + "•" + lex.str.slice(mid, end) + ((end == string_length) ? "$EOF" : " ")}\`;
+                        return \`\${(start > 0 ?" ": "")+str.slice(start, mid) + "•" + str.slice(mid, end) + ((end == string_length) ? "$EOF" : " ")}\`;
                     }\n`: ""
             }
-            function lm(lex, syms) { 
-                for (const sym of syms) 
-                    switch (typeof sym) {
-                        case "number":
-                            if (sym == 0xFF && lex.END) return true;  
-                            if (lex.ty == sym) return true; 
-                            break;
-                        case "string":
-                            if (lex.tx == sym) return true
-                            break;
-                    }
+            
+            function lm(lex:Lexer, syms: u32[]): boolean { 
+
+                const l = syms.length;
+
+                for(let i = 0; i < l; i++){
+                    const sym = syms[i];
+                    if(lex.id == sym || lex.ty == sym) return true;
+                }
+
                 return false;
             }
             
-            function fail(lex, e) { 
-
-
-                if(e.FAILED) console.log("_______________________________")
-                e.FAILED = true;
-                e.error.push(lex.copy());
+            function fail(lex:Lexer):void { 
+                FAILED = true;
+                error_array[error_ptr++] = lex.off;
             }
             
-            function _(lex, e, eh, skips, ...syms) {
+            
+            function _(lex: Lexer, /* eh, */ skips: u32[], sym: u32 = 0):void {
 
-                if(e.FAILED) return "";
-                
-                var val = lex.tx;
+                if(FAILED) return;
                
-                if (syms.length == 0 || lm(lex, syms)) {
+                if (sym == 0 || lex.id == sym || lex.ty == sym) {
                     
-                    add_shift(val.length);
+                    add_shift(lex.tl);
 
                     lex.next();
                
-                    const off = lex.off;
+                    const off: u32 = lex.off;
                
                     if (skips) while (lm(lex, skips)) lex.next();
 
-                    const diff = lex.off-off;
+                    const diff: i32 = lex.off-off;
 
                     if(diff > 0) add_skip(diff);
-               
-                    return val;
                 } else {
                
-                    //error recovery
-                    const tx = eh(lex, e);
-               
-                    if(tx) return tx;
-               
-                    else {
-                        e.FAILED = true;
-                        e.error.push(lex.copy());
-                    }
+                    //TODO error recovery
+
+                    FAILED = true;
+                    error_array[error_ptr++] = lex.off;
                 }
             }
             
     
             ${ fns.join("\n")}
 
-            const fns = [${
+            class Export {
+                FAILED: boolean;
+                er: Uint32Array;
+                aa: Uint32Array;
+                constructor(f:boolean, er:Uint32Array, aa: Uint32Array){
+                    this.FAILED = f;
+                    this.er = er;
+                    this.aa = aa;
+                }
+            }
+            
+            export default function main (input_string:string): Export {
+
+                str = input_string;
+
+                const lex = new Lexer();
+
+                lex.next();
+
+                prod = -1; 
+
+                stack_ptr = 0;
+
+                error_ptr = 0;
+
+                pointer = 0;
+
+                FAILED = false;
+
+                $${ this.grammar[0].name}(lex);
+
+                
+            const d: Export =  new Export(
+                 FAILED || lex.END,
+                error_array.slice(0, pointer),
+                action_array.slice(0, pointer)
+            );  
+            
+            return d;
+        
+    
+}`;
+
+        this.js_resolver = ` 
+
+        const fns = [${
             this.grammar.bodies.map(b => {
                 if (b.reduce_function)
                     return b.reduce_function.txt.replace("return", "sym=>(").slice(0, -1) + ")";
                 else
                     return "";
             }).join("\n,")
-            }];
-            
-            return Object.assign( function (lexer, env = {
-                error: [],
-                eh: (lex, e) => { },
-                sp:0,
-                asi: (lex, env, s) => { }
-            }) {
+            }]; ${
+            this.runner.ANNOTATED ? `
+            console.log(new Array(...action_array.slice(0,pointer)).map(i => {
+                const action = ["REDUCE", "SHIFT", "SKIP"][i & 3];
+                const body = (action == "REDUCE") ? ":" + (i >> 16) : "";
+                const len = (action == "SHIFT" || action == "SKIP") ? i >> 2 : ((i & 0xFFFF) >> 2);
+                return \`\${ action }:\${len}\${body}\`
+                }))` : ""
+            }
                 
-                env.FAILED = false;
-                const states = [];
-                lexer.IWS = false;
-                lexer.PARSE_STRING = true;
-                ${this.grammar?.meta?.symbols?.size > 0 ? `lexer.addSymbols(${[...this.grammar.meta.symbols.values()].map(translateSymbolValue).join(",")});` : ""}
-                lexer.tl = 0;
-            
-                env.fn =  {
-                    parseString(lex, env, symbols, LR){
-                        const copy = lex.copy();
-                        while(lex.tx != '"' && !lex.END){
-                            if(lex.tx == "\\\\") lex.next();
-                            lex.next();
-                        } 
-                        symbols[LR ? symbols.length-1 : 0] = lex.slice(copy)
-                    }
-                }
-                _(lexer, env, env.eh,[])
-                const result = $${ this.grammar[0].name}(lexer, env);
-                
-                if (!lexer.END || (env.FAILED )) {
-            
-                        const error_lex = env.error.concat(lexer).sort((a,b)=>a.off-b.off).pop();
-                        error_lex.throw(\`Unexpected token [\${error_lex.tx}]\`);
+                if (!lex.END || (env.FAILED )) {
+                    
+                        const error_off = env.error.concat(lexer.off).sort((a,b)=>a-b).pop();
+
+                        console.log({error_off, e:env.error, lex, sl:str.length, end:lex.END})
+
+                        while(lexer.off < error_off) lexer.next();
+
+                        console.log(lexer.throw(\`Unexpected token [\${lexer.tx}]\`))
+
                     
                 }else{
                     //Build out the productions
-                  
+                    
             const stack = [], str = lexer.str;
             let offset = 0;
-            for(const action of action_array){
+
+            for(const action of action_array.slice(0, pointer)){
                 switch(action&3){
                     case 0: //REDUCE;
                         var body = action>>16;
@@ -431,21 +505,7 @@ export class HybridMultiThreadRunner {
                         break;
                 }
             }
-            return stack[0];
-
-            console.log(stack)
-
-
-                    console.log(action_array.map(i=>{
-                        const action = ["REDUCE", "SHIFT", "SKIP"][i&3];
-                        const body = (action == "REDUCE") ? ":"+(i>>16) : "";
-                        const len = (action == "SHIFT" || action == "SKIP")  ? i >> 2 : ((i&0xFFFF) >> 2)
-                        return \`\${ action }:\${len}\${body}\`
-                    }))
-                }
-                return result;
-            })
-            }`;
+        `;
 
         //Clean up workers.
         this.workers.forEach(wk => wk.target.terminate());
@@ -456,7 +516,7 @@ export class HybridMultiThreadRunner {
             num_of_states: this.lr_states.size,
             total_items: this.total_items,
             items_left: this.lr_item_set.length,
-            COMPLETE: true
+            COMPLETE: true;
         };
 
     }
@@ -481,4 +541,4 @@ export default function* (grammar: Grammar, env: ParserEnvironment) {
             COMPLETE: true
         };
     }
-}
+};

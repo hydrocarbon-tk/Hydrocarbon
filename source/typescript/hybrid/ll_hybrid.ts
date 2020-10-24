@@ -2,7 +2,7 @@ import { Grammar, Production, ProductionBody, EOF_SYM, SymbolType, Symbol } from
 import { processClosure, Item, FOLLOW } from "../util/common.js";
 import { GrammarParserEnvironment } from "../types/grammar_compiler_environment";
 import { stmt, JSNode, JSNodeType, exp, extendAll } from "@candlefw/js";
-import { createReduceFunction, translateSymbolValue, getLexPeekComparisonStringCached, getReduceFunctionSymbolIndiceSet, has_INLINE_FUNCTIONS } from "./utilities.js";
+import { translateSymbolValue, getLexPeekComparisonStringCached, getReduceFunctionSymbolIndiceSet, has_INLINE_FUNCTIONS, getRootSym } from "./utilities.js";
 import { LLProductionFunction } from "./LLProductionFunction";
 import { LLItem } from "./LLItem";
 import { getClosureTerminalSymbols } from "./getClosureTerminalSymbols.js";
@@ -66,7 +66,7 @@ function renderItemSym(
         stmts.push(`return;`);
     } else {
         const
-            sym = item.sym(grammar),
+            sym = getRootSym(item.sym(grammar), grammar),
             REDUCE_TO_LAST = (item.increment().atEND && !reduce_function);
 
         if (sym.type == "production") {
@@ -74,27 +74,27 @@ function renderItemSym(
             if (runner.ANNOTATED)
                 stmts.push(runner.createAnnotationJSNode("LL-CALL", grammar, item));
 
-            stmts.push(`if(e.FAILED) return;`);
+            stmts.push(`if(FAILED) return;`);
 
             if (HAS_INLINE_FUNCTIONS)
-                stmts.push(`$${grammar[sym.val].name}(l, e);`);
+                stmts.push(`$${grammar[sym.val].name}(l);`);
             else if (rdi.has(index_offset) || REDUCE_TO_LAST)
-                stmts.push(`$${grammar[sym.val].name}(l, e)`);
+                stmts.push(`$${grammar[sym.val].name}(l)`);
             else
-                stmts.push(`$${grammar[sym.val].name}(l, e)`);
+                stmts.push(`$${grammar[sym.val].name}(l)`);
         } else {
             if (runner.ANNOTATED)
                 stmts.push(runner.createAnnotationJSNode("LL-ASSERT", grammar, item));
 
             //Get skips from grammar - TODO get symbols from bodies / productions
-            const skip_symbols = `[${grammar.meta.ignore.flatMap(d => d.symbols).map(translateSymbolValue).join(",")}]`;
+            const skip_symbols = `[${grammar.meta.ignore.flatMap(d => d.symbols).map(s => getRootSym(s, grammar)).map(translateSymbolValue).join(",")}]`;
 
             if (HAS_INLINE_FUNCTIONS) {
-                stmts.push(`_(l, e, e.eh, ${skip_symbols}, ${translateSymbolValue(sym)});`);
+                stmts.push(`_(l, /* e.eh, */ ${skip_symbols}, ${translateSymbolValue(sym)});`);
             } else if (rdi.has(index_offset) || REDUCE_TO_LAST) {
-                stmts.push(`_(l, e, e.eh, ${skip_symbols}, ${translateSymbolValue(sym)});`);
+                stmts.push(`_(l, /* e.eh, */ ${skip_symbols}, ${translateSymbolValue(sym)});`);
             } else {
-                stmts.push(`_(l, e, e.eh, ${skip_symbols}, ${translateSymbolValue(sym)});`);
+                stmts.push(`_(l, /* e.eh, */ ${skip_symbols}, ${translateSymbolValue(sym)});`);
             }
         }
     }
@@ -111,7 +111,7 @@ function renderItem(item: Item, grammar: Grammar, runner: CompilerRunner, index_
         item = item.increment();
         if (!item.atEND) index_offset++;
     }
-    stmts.splice(stmts.length - 1, 0, `e.p = (e.FAILED) ? -1 : ${item.getProduction(grammar).id}`);
+    stmts.splice(stmts.length - 1, 0, `prod = (FAILED) ? -1 : ${item.getProduction(grammar).id}`);
     return stmts.join("\n");
 }
 
@@ -256,13 +256,13 @@ function renderFunctionBody(llitems: LLItem[], grammar: Grammar, runner: Compile
 
             if (peek_depth > 0) {
                 lx = "pk";
-                const_body.push("pk = l" + (".pk".repeat(peek_depth)));
+                const_body.push("pk:Lexer = l" + (".pk".repeat(peek_depth)));
             }
             if (token_bit & TOKEN_BIT.TEXT)
-                const_body.push(`tx = ${lx}.tx`);
+                const_body.push(`id:u32 = ${lx}.id`);
 
             if (token_bit & TOKEN_BIT.TYPE)
-                const_body.push(`ty = ${lx}.ty`);
+                const_body.push(`ty:u32 = ${lx}.ty`);
 
             const_node.push(const_body.join(","), ";");
 
@@ -375,7 +375,7 @@ export function makeLLHybridFunction(production: Production, grammar: Grammar, r
 
     const p = production;
 
-    const stmts = [`function $${p.name}(l, e){`],
+    const stmts = [`function $${p.name}(l:Lexer) :void{`],
 
         INLINE_FUNCTIONS = p.bodies.some(has_INLINE_FUNCTIONS),
 
@@ -418,7 +418,7 @@ export function makeLLHybridFunction(production: Production, grammar: Grammar, r
         };
     }
 
-    stmts.push(`e.FAILED = true`);
+    stmts.push(`FAILED = true`);
 
     stmts.push(`}`);
 

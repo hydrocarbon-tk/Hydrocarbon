@@ -69,104 +69,61 @@ export function translateSymbolLiteralToLexerBool(sym: number | string, lex_name
             return `tx == ${translateSymbolLiteral(sym)}`;
     }
 }
+export function getRootSym(sym: Symbol, grammar: Grammar) {
+    const name = sym.val + sym.type;
+    return grammar.meta.all_symbols.get(name) ?? sym;
+}
 
-export function translateSymbolValue(sym: Symbol): string {
+export function translateSymbolValue(sym: Symbol): string | number {
     switch (sym.type) {
         case SymbolType.GENERATED:
             if (sym.val == "any") { return "true"; }
             if (sym.val == "$eof")
-                return `0xFF`;
+                return `0`;
+            switch (sym.val) {
+                case "ws": return 1 + `/* ${sym.val} */`;
+                case "num": return 2 + `/* ${sym.val} */`;
+                case "id": return 3 + `/* ${sym.val} */`;
+                case "nl": return 4 + `/* ${sym.val} */`;
+                case "sym": return 5 + `/* ${sym.val} */`;
+            }
             return Lexer.types[sym.val];
         case SymbolType.LITERAL:
         case SymbolType.ESCAPED:
         case SymbolType.SYMBOL:
-            if (sym.val == "\"") return `'"'`;
-            return `"${sym.val}"`;
+            return sym.id + `/* ${sym.val} */`;
         case SymbolType.END_OF_FILE:
-            return `0xFF`;
+            return 0;
         case SymbolType.EMPTY:
             return "";
     }
 }
-export function getLexComparisonStringPeekNoEnv(sym: Symbol, grammar: Grammar, pk_depth: number = 1): string {
-    const pk = "pk.".repeat(pk_depth);
-    switch (sym.type) {
-        case SymbolType.GENERATED:
-            if (sym.val == "any") { return "true"; }
-            if (sym.val == "$eof")
-                return `l.${pk}END`;
-            return `l.${pk}ty == ${translateSymbolValue(sym)}`;
-        case SymbolType.LITERAL:
-        case SymbolType.ESCAPED:
-        case SymbolType.SYMBOL:
-            return `l.${pk}tx == ${translateSymbolValue(sym)}`;
-        case SymbolType.END_OF_FILE:
-            return `l.${pk}END`;
-        case SymbolType.EMPTY:
-            return "true";
-    }
-}
-export function getLexComparisonString(sym: Symbol): string {
-    switch (sym.type) {
-        case SymbolType.GENERATED:
-            if (sym.val == "any") { return "true"; }
-            if (sym.val == "$eof")
-                return `l.END`;
-            return `l.ty == ${translateSymbolValue(sym)}`;
-        case SymbolType.LITERAL:
-        case SymbolType.ESCAPED:
-        case SymbolType.SYMBOL:
-            return `l.tx == ${translateSymbolValue(sym)}`;
-        case SymbolType.END_OF_FILE:
-            return `l.END`;
-        case SymbolType.EMPTY:
-            return "true";
-    }
-}
 
 export function getLexPeekComparisonStringCached(sym: Symbol): string {
-
     switch (sym.type) {
         case SymbolType.GENERATED:
             if (sym.val == "any") { return "true"; }
             if (sym.val == "$eof")
-                return `l.END`;
+                return `ty == 0`;
             return `ty == ${translateSymbolValue(sym)}`;
         case SymbolType.LITERAL:
         case SymbolType.ESCAPED:
         case SymbolType.SYMBOL:
-            return `tx == ${translateSymbolValue(sym)}`;
+            return `id == ${translateSymbolValue(sym)}`;
         case SymbolType.END_OF_FILE:
             return `l.END`;
         case SymbolType.EMPTY:
             return "true";
     }
 }
-export function getLexPeekComparisonString(sym: Symbol): string {
 
-    switch (sym.type) {
-        case SymbolType.GENERATED:
-            if (sym.val == "any") { return "true"; }
-            if (sym.val == "$eof")
-                return `l.END`;
-            return `l.ty == ${translateSymbolValue(sym)}`;
-        case SymbolType.LITERAL:
-        case SymbolType.ESCAPED:
-        case SymbolType.SYMBOL:
-            return `l.tx == ${translateSymbolValue(sym)}`;
-        case SymbolType.END_OF_FILE:
-            return `l.END`;
-        case SymbolType.EMPTY:
-            return "true";
-    }
-}
 //
 export function integrateState(state: State, states: State[], grammar: Grammar, id_nodes: any[], existing_refs: Set<number>, name = "s", existing_state): string {
 
     if (!existing_refs.has(state.index))
         existing_refs.add(state.index);
 
-    return `State${state.index}(l, e)`;
+    return `State${state.index}(l)`;
 }
 
 export function getCompletedItems(state: State): Item[] {

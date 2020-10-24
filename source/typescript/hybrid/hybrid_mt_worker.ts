@@ -16,7 +16,7 @@ export class HybridMultiThreadProcessWorker {
 
     constructor() {
 
-        const { grammar, env_path, id } = workerData;
+        const { grammar, env_path, id, ANNOTATED } = workerData;
 
         this.grammar = grammar;
 
@@ -24,7 +24,7 @@ export class HybridMultiThreadProcessWorker {
 
         this.id = id;
 
-        this.runner = constructCompilerRunner(0);
+        this.runner = constructCompilerRunner(ANNOTATED);
 
         this.start();
     }

@@ -1,6 +1,6 @@
 export default (b) => {
 
-    let str = "";
+    var str = "", FAILED = false, prod = -1, stack_ptr = 0;
 
 
     /**[API]:license
@@ -118,29 +118,24 @@ export default (b) => {
     air(jump_table, (num | hex) << 8, 48, 57);
 
     class Lexer {
+
         constructor() {
             this.ty = 0; //Default "non-value" for types is 1<<18;
             this.id = 0;
             this.tl = 0;
             this.off = 0;
         }
+
         copy(destination = new Lexer()) {
-
             destination.off = this.off;
-            destination.column = this.column;
-            destination.line = this.line;
+            destination.id = this.id;
+            destination.ty = this.ty;
             destination.tl = this.tl;
-            destination.sl = this.sl;
-            destination.type = this.type;
-            destination.symbol_map = this.symbol_map;
-            destination.masked_values = this.masked_values;
-            destination.source = this.source;
-
             return destination;
         }
-        sync(marker) {
-            marker.copy(this);
-        }
+
+        sync(marker) { marker.copy(this); }
+
         peek(marker = this, peeking_marker = marker) {
 
 
@@ -161,7 +156,7 @@ export default (b) => {
 
         next() {
 
-            let l = str.length,
+            var l = str.length,
                 length = this.tl,
                 off = this.off + length,
                 type = 0,
@@ -208,10 +203,6 @@ export default (b) => {
                     while (++off < l && (num & (jump_table[str.codePointAt(off)] >> 8)));
                     length = off - base;
                     break;
-            }
-
-            if (type == TokenIdentifier) {
-
             }
 
             if (type == TokenSymbol || type == TokenIdentifier) {
@@ -277,24 +268,24 @@ export default (b) => {
         get END() { return this.off >= str.length; }
     }
 
-    let action_array = [], mark_ = 0;
+    var action_array = new Float64Array(60000), mark_ = 0, pointer = 0, error_array = [];
 
     //Inline
     function mark() {
-        mark_ = action_array.length;
+        mark_ = pointer;
         return mark_;
     }
 
     //Inline
     function reset(mark) {
-        action_array.length = mark;
+        pointer = mark;
     }
 
     //Inline
     function add_skip(char_len) {
         const ACTION = 2;
         const val = ACTION | (char_len << 2);
-        action_array.push(val);
+        action_array[pointer++] = (val);
     }
 
     //Inline
@@ -302,14 +293,14 @@ export default (b) => {
         if (char_len < 1) return;
         const ACTION = 1;
         const val = ACTION | (char_len << 2);
-        action_array.push(val);
+        action_array[pointer++] = (val);
     }
 
     //Inline
     function add_reduce(sym_len, body) {
         const ACTION = 0;
         const val = ACTION | ((sym_len & 0x3FFF) << 2) | (body << 16);
-        action_array.push(val);
+        action_array[pointer++] = (val);
     }
 
 
@@ -320,16 +311,16 @@ export default (b) => {
         return false;
     }
 
-    function fail(lex, e) {
-        e.FAILED = true;
-        e.error.push(lex.off);
+    function fail(lex) {
+        FAILED = true;
+        error_array.push(lex.off);
     }
 
-    function _(lex, e, eh, skips, ...syms) {
+    function _(lex, /* eh, */ skips, sym = 0) {
 
-        if (e.FAILED) return "";
+        if (FAILED) return;
 
-        if (syms.length == 0 || lm(lex, syms)) {
+        if (sym == 0 || lex.id == sym || lex.ty == sym) {
 
             add_shift(lex.tl);
 
@@ -344,462 +335,500 @@ export default (b) => {
             if (diff > 0) add_skip(diff);
         } else {
 
-            //error recovery
-            const tx = eh(lex, e);
+            //TODO error recovery
 
-            if (tx) return tx;
-
-            else {
-                e.FAILED = true;
-                e.error.push(lex.off);
-            }
+            FAILED = true;
+            error_array.push(lex.off);
         }
     }
 
 
     function $S(l, e) {
 
-        if (e.FAILED) return;
+        if (FAILED) return;
         $B(l, e);
-        e.p = (e.FAILED) ? -1 : 0;
+        prod = (FAILED) ? -1 : 0;
 
         add_reduce(1, 0);
         return;
-        e.FAILED = true;
+        FAILED = true;
     }
     function $B(l, e) {
         const id = l.id;
-        if (id == 10 /* < */) {
+        if (id == 10/* < */) {
 
-            _(l, e, e.eh, [1, 4], 10 /* < */);
+            _(l, /* e.eh, */[1/* ws */, 4/* nl */], 10/* < */);
 
-            if (e.FAILED) return;
+            if (FAILED) return;
             $expression(l, e);
 
-            _(l, e, e.eh, [1, 4], 11 /* > */);
-            e.p = (e.FAILED) ? -1 : 1;
+            _(l, /* e.eh, */[1/* ws */, 4/* nl */], 11/* > */);
+            prod = (FAILED) ? -1 : 1;
 
             add_reduce(3, 1);
             return;
         }
-        if (id == 12 /* for */) {
+        if (id == 12/* for */) {
 
-            if (e.FAILED) return;
+            if (FAILED) return;
             $for_stmt(l, e);
-            e.p = (e.FAILED) ? -1 : 1;
+            prod = (FAILED) ? -1 : 1;
 
             add_reduce(1, 2);
             return;
         }
-        e.FAILED = true;
+        FAILED = true;
     }
     function $for_stmt(l, e) {
 
-        _(l, e, e.eh, [1, 4], 12 /* for */);
+        _(l, /* e.eh, */[1/* ws */, 4/* nl */], 12/* for */);
 
-        _(l, e, e.eh, [1, 4], 13 /* ( */);
+        _(l, /* e.eh, */[1/* ws */, 4/* nl */], 13/* ( */);
 
-        if (e.FAILED) return;
+        if (FAILED) return;
         $const(l, e);
 
-        if (e.FAILED) return;
+        if (FAILED) return;
         $expression(l, e);
 
-        _(l, e, e.eh, [1, 4], 14 /* ; */);
+        _(l, /* e.eh, */[1/* ws */, 4/* nl */], 14/* ; */);
 
-        if (e.FAILED) return;
+        if (FAILED) return;
         $expression(l, e);
 
-        _(l, e, e.eh, [1, 4], 15 /* ) */);
+        _(l, /* e.eh, */[1/* ws */, 4/* nl */], 15/* ) */);
 
-        if (e.FAILED) return;
+        if (FAILED) return;
         $expression(l, e);
 
-        _(l, e, e.eh, [1, 4], 14 /* ; */);
-        e.p = (e.FAILED) ? -1 : 2;
+        _(l, /* e.eh, */[1/* ws */, 4/* nl */], 14/* ; */);
+        prod = (FAILED) ? -1 : 2;
 
         add_reduce(9, 3);
         return;
-        e.FAILED = true;
+        FAILED = true;
     }
     function $const(l, e) {
 
-        _(l, e, e.eh, [1, 4], 16 /* const */);
+        _(l, /* e.eh, */[1/* ws */, 4/* nl */], 16/* const */);
 
-        if (e.FAILED) return;
+        if (FAILED) return;
         $expression(l, e);
 
-        _(l, e, e.eh, [1, 4], 14 /* ; */);
-        e.p = (e.FAILED) ? -1 : 3;
+        _(l, /* e.eh, */[1/* ws */, 4/* nl */], 14/* ; */);
+        prod = (FAILED) ? -1 : 3;
 
         add_reduce(3, 4);
         return;
-        e.FAILED = true;
+        FAILED = true;
     }
     "LR USE FOR expression_list_HC_listbody3_100,expression_list_HC_listbody3_100";
     "LR USE FOR expression_list,expression_list";
     "LR USE FOR expression,expression";
     function $add(l, e) {
 
-        if (e.FAILED) return;
+        if (FAILED) return;
         $mult(l, e);
         const id = l.id;
-        if (id == 18 /* + */) {
+        if (id == 18/* + */) {
 
-            _(l, e, e.eh, [1, 4], 18 /* + */);
+            _(l, /* e.eh, */[1/* ws */, 4/* nl */], 18/* + */);
 
-            if (e.FAILED) return;
+            if (FAILED) return;
             $add(l, e);
-            e.p = (e.FAILED) ? -1 : 7;
+            prod = (FAILED) ? -1 : 7;
 
             add_reduce(3, 11);
             return;
         }
-        e.p = (e.FAILED) ? -1 : 7;
+        prod = (FAILED) ? -1 : 7;
 
         add_reduce(1, 12);
         return;
-        e.FAILED = true;
+        FAILED = true;
     }
     function $mult(l, e) {
 
-        if (e.FAILED) return;
+        if (FAILED) return;
         $sym(l, e);
         const id = l.id;
-        if (id == 19 /* * */) {
+        if (id == 19/* * */) {
 
-            _(l, e, e.eh, [1, 4], 19 /* * */);
+            _(l, /* e.eh, */[1/* ws */, 4/* nl */], 19/* * */);
 
-            if (e.FAILED) return;
+            if (FAILED) return;
             $mult(l, e);
-            e.p = (e.FAILED) ? -1 : 8;
+            prod = (FAILED) ? -1 : 8;
 
             add_reduce(3, 13);
             return;
         }
-        e.p = (e.FAILED) ? -1 : 8;
+        prod = (FAILED) ? -1 : 8;
 
         add_reduce(1, 14);
         return;
-        e.FAILED = true;
+        FAILED = true;
     }
     function $sym(l, e) {
 
-        if (e.FAILED) return;
+        if (FAILED) return;
         $id(l, e);
-        e.p = (e.FAILED) ? -1 : 9;
+        prod = (FAILED) ? -1 : 9;
 
         add_reduce(1, 15);
         return;
-        e.FAILED = true;
+        FAILED = true;
     }
     function $id(l, e) {
 
-        _(l, e, e.eh, [1, 4], 3);
-        e.p = (e.FAILED) ? -1 : 10;
+        _(l, /* e.eh, */[1/* ws */, 4/* nl */], 3/* id */);
+        prod = (FAILED) ? -1 : 10;
 
         add_reduce(1, 16);
         return;
-        e.FAILED = true;
+        FAILED = true;
     }
     function $num(l, e) {
 
-        _(l, e, e.eh, [1, 4], 2);
-        e.p = (e.FAILED) ? -1 : 11;
+        _(l, /* e.eh, */[1/* ws */, 4/* nl */], 2/* num */);
+        prod = (FAILED) ? -1 : 11;
 
         add_reduce(1, 17);
         return;
-        e.FAILED = true;
+        FAILED = true;
     }
-    function $expression(l, e) {
-        const sp = e.sp;
-        e.p = -1;
+    function $expression_list_HC_listbody3_100(l, e) {
+        const sp = stack_ptr;
         switch (l.id) {
             case 19: /* * */
-                _(l, e, e.eh, [1, 4]); e.sp++;
-                State13(l, e);
+                _(l, /* e.eh, */[1/* ws */, 4/* nl */]); stack_ptr++;
+                State14(l, e);
                 break;
             case 18: /* + */
-                _(l, e, e.eh, [1, 4]); e.sp++;
-                State14(l, e);
+                _(l, /* e.eh, */[1/* ws */, 4/* nl */]); stack_ptr++;
+                State15(l, e);
             default:
                 switch (l.ty) {
-                    case 3: /* id */
-                        _(l, e, e.eh, [1, 4]); e.sp++;
-                        State6(l, e);
+                    case 3/* id */: /* id */
+                        _(l, /* e.eh, */[1/* ws */, 4/* nl */]); stack_ptr++;
+                        State8(l, e);
                         break;
                 }
                 break;
         }
-        let a = e.p;
+        var a = prod;
         o: while (1) {
-            if (sp > e.sp) break; else e.sp += 1;
-            e.p = -1;
+            if (sp > stack_ptr) break; else stack_ptr += 1;
+            prod = -1;
             switch (a) {
                 case 10:
-                    State5(l, e);
+                    State7(l, e);
                     break;
                 case 9:
-                    State2(l, e);
-                    if (e.p < 0)
-                        State3(l, e);
+                    State4(l, e);
+                    if (prod < 0)
+                        State5(l, e);
                     else break;
                     break;
                 case 8:
-                    State4(l, e);
-                    if (e.p < 0)
-                        State17(l, e);
-                    else break;
-                    break;
-                case 7:
-                    State1(l, e);
-                    if (e.p < 0)
+                    State6(l, e);
+                    if (prod < 0)
                         State18(l, e);
                     else break;
                     break;
+                case 7:
+                    State3(l, e);
+                    if (prod < 0)
+                        State19(l, e);
+                    else break;
+                    break;
+                case 6:
+                    State2(l, e);
+                    break;
+                case 4:
+                    State1(l, e);
+                    break;
                 default: break o;
             }
-            if (e.p >= 0) a = e.p;
+            if (prod >= 0) a = prod;
         }
-        if (sp <= e.sp) e.p = a;
-        if (![6].includes(a)) fail(l, e);
+        if (sp <= stack_ptr) prod = a;
+        if (![4].includes(a)) fail(l, e);
     }
     function State1(l, e) {
-        e.p = -1;
-        if ([11, 14, 15, 17].includes(l.id)) {
-            e.sp -= 1;
-            add_reduce(1, 9);
-            e.p = 6;
-            return;
+        if ([17].includes(l.id)) {
+            _(l, /* e.eh, */[1/* ws */, 4/* nl */]); stack_ptr++;
+            return State13(l, e);
         }
     }
     function State2(l, e) {
-        e.p = -1;
-        if ([11, 14, 15, 17].includes(l.id)) {
-            e.sp -= 1;
-            add_reduce(1, 10);
-            e.p = 6;
+        if ([17].includes(l.id)) {
+            stack_ptr -= 1;
+            add_reduce(1, 6);
+            prod = 4;
             return;
         }
     }
     function State3(l, e) {
-        e.p = -1;
-        switch (l.id) {
-            case 19: /* * */
-                _(l, e, e.eh, [1, 4]); e.sp++;
-                return State13(l, e);
-            case 15: /* ) */
-            case 18: /* + */
-            case 17: /* , */
-            case 14: /* ; */
-            case 11: /* > */
-                e.sp -= 1;
-                add_reduce(1, 14);
-                e.p = 8;
-                return;
+        if ([11, 14, 15, 17].includes(l.id)) {
+            stack_ptr -= 1;
+            add_reduce(1, 9);
+            prod = 6;
+            return;
         }
     }
     function State4(l, e) {
-        e.p = -1;
+        if ([11, 14, 15, 17].includes(l.id)) {
+            stack_ptr -= 1;
+            add_reduce(1, 10);
+            prod = 6;
+            return;
+        }
+    }
+    function State5(l, e) {
+        switch (l.id) {
+            case 19: /* * */
+                _(l, /* e.eh, */[1/* ws */, 4/* nl */]); stack_ptr++;
+                return State14(l, e);
+            case 15: /* ) */
+            case 18: /* + */
+            case 17: /* , */
+            case 14: /* ; */
+            case 11: /* > */
+                stack_ptr -= 1;
+                add_reduce(1, 14);
+                prod = 8;
+                return;
+        }
+    }
+    function State6(l, e) {
         switch (l.id) {
             case 18: /* + */
-                _(l, e, e.eh, [1, 4]); e.sp++;
-                return State14(l, e);
+                _(l, /* e.eh, */[1/* ws */, 4/* nl */]); stack_ptr++;
+                return State15(l, e);
             case 15: /* ) */
             case 17: /* , */
             case 14: /* ; */
             case 11: /* > */
-                e.sp -= 1;
+                stack_ptr -= 1;
                 add_reduce(1, 12);
-                e.p = 7;
+                prod = 7;
                 return;
         }
     }
-    function State5(l, e) {
-        e.p = -1;
+    function State7(l, e) {
         if ([11, 14, 15, 17, 18, 19].includes(l.id)) {
-            e.sp -= 1;
+            stack_ptr -= 1;
             add_reduce(1, 15);
-            e.p = 9;
+            prod = 9;
             return;
         }
-    }
-    function State6(l, e) {
-        e.p = -1;
-        if ([11, 14, 15, 17, 18, 19].includes(l.id)) {
-            e.sp -= 1;
-            add_reduce(1, 16);
-            e.p = 10;
-            return;
-        }
-    }
-    function $expression_list_HC_listbody3_100(l, e) {
-        const sp = e.sp;
-        e.p = -1;
-        if ([2].includes(l.ty)) {
-            _(l, e, e.eh, [1, 4]); e.sp++;
-            State6(l, e);
-        }
-        let a = e.p;
-        o: while (1) {
-            if (sp > e.sp) break; else e.sp += 1;
-            e.p = -1;
-            switch (a) {
-                case 10:
-                    State5(l, e);
-                    break;
-                case 9:
-                    State2(l, e);
-                    if (e.p < 0)
-                        State3(l, e);
-                    else break;
-                    break;
-                case 8:
-                    State4(l, e);
-                    break;
-                case 7:
-                    State1(l, e);
-                    break;
-                case 6:
-                    State9(l, e);
-                    break;
-                case 4:
-                    State8(l, e);
-                    break;
-                default: break o;
-            }
-            if (e.p >= 0) a = e.p;
-        }
-        if (sp <= e.sp) e.p = a;
-        if (![4].includes(a)) fail(l, e);
     }
     function State8(l, e) {
-        e.p = -1;
-        if ([17].includes(l.id)) {
-            _(l, e, e.eh, [1, 4]); e.sp++;
-            return State15(l, e);
-        }
-    }
-    function State9(l, e) {
-        e.p = -1;
-        if ([17].includes(l.id)) {
-            e.sp -= 1;
-            add_reduce(1, 6);
-            e.p = 4;
+        if ([11, 14, 15, 17, 18, 19].includes(l.id)) {
+            stack_ptr -= 1;
+            add_reduce(1, 16);
+            prod = 10;
             return;
         }
     }
     function $expression_list(l, e) {
-        const sp = e.sp;
-        e.p = -1;
-        if ([2].includes(l.ty)) {
-            _(l, e, e.eh, [1, 4]); e.sp++;
-            State6(l, e);
+        const sp = stack_ptr;
+        if ([3/* id */].includes(l.ty)) {
+            _(l, /* e.eh, */[1/* ws */, 4/* nl */]); stack_ptr++;
+            State8(l, e);
         }
-        let a = e.p;
+        var a = prod;
         o: while (1) {
-            if (sp > e.sp) break; else e.sp += 1;
-            e.p = -1;
+            if (sp > stack_ptr) break; else stack_ptr += 1;
+            prod = -1;
             switch (a) {
                 case 10:
-                    State5(l, e);
+                    State7(l, e);
                     break;
                 case 9:
-                    State2(l, e);
-                    if (e.p < 0)
-                        State3(l, e);
+                    State4(l, e);
+                    if (prod < 0)
+                        State5(l, e);
                     else break;
                     break;
                 case 8:
-                    State4(l, e);
+                    State6(l, e);
                     break;
                 case 7:
-                    State1(l, e);
+                    State3(l, e);
                     break;
                 case 6:
-                    State12(l, e);
+                    State11(l, e);
                     break;
                 case 5:
-                    State11(l, e);
+                    State10(l, e);
                     break;
                 default: break o;
             }
-            if (e.p >= 0) a = e.p;
+            if (prod >= 0) a = prod;
         }
-        if (sp <= e.sp) e.p = a;
+        if (sp <= stack_ptr) prod = a;
         if (![5].includes(a)) fail(l, e);
     }
+    function State10(l, e) {
+        if ([17].includes(l.id)) {
+            _(l, /* e.eh, */[1/* ws */, 4/* nl */]); stack_ptr++;
+            return State16(l, e);
+        }
+    }
+    function State11(l, e) {
+        if ([17].includes(l.id)) {
+            stack_ptr -= 1;
+            add_reduce(1, 8);
+            prod = 5;
+            return;
+        }
+    }
+    function $expression(l, e) {
+        const sp = stack_ptr;
+        if ([3/* id */].includes(l.ty)) {
+            _(l, /* e.eh, */[1/* ws */, 4/* nl */]); stack_ptr++;
+            State8(l, e);
+        }
+        var a = prod;
+        o: while (1) {
+            if (sp > stack_ptr) break; else stack_ptr += 1;
+            prod = -1;
+            switch (a) {
+                case 10:
+                    State7(l, e);
+                    break;
+                case 9:
+                    State4(l, e);
+                    if (prod < 0)
+                        State5(l, e);
+                    else break;
+                    break;
+                case 8:
+                    State6(l, e);
+                    break;
+                case 7:
+                    State3(l, e);
+                    break;
+                default: break o;
+            }
+            if (prod >= 0) a = prod;
+        }
+        if (sp <= stack_ptr) prod = a;
+        if (![6].includes(a)) fail(l, e);
+    }
     function State13(l, e) {
-        $mult(l, e);
-        e.sp++;
-        State17(l, e);
+        const sp = stack_ptr;
+        if ([3/* id */].includes(l.ty)) {
+            _(l, /* e.eh, */[1/* ws */, 4/* nl */]); stack_ptr++;
+            State8(l, e);
+        }
+        var a = prod;
+        o: while (1) {
+            if (sp > stack_ptr) break; else stack_ptr += 1;
+            prod = -1;
+            switch (a) {
+                case 10:
+                    State7(l, e);
+                    break;
+                case 9:
+                    State4(l, e);
+                    if (prod < 0)
+                        State5(l, e);
+                    else break;
+                    break;
+                case 8:
+                    State6(l, e);
+                    break;
+                case 7:
+                    State3(l, e);
+                    break;
+                case 6:
+                    State17(l, e);
+                    break;
+                default: break o;
+            }
+            if (prod >= 0) a = prod;
+        }
+        if (sp <= stack_ptr) prod = a;
+        if (![4].includes(a)) fail(l, e);
     }
     function State14(l, e) {
-        $add(l, e);
-        e.sp++;
+        $mult(l, e);
+        stack_ptr++;
         State18(l, e);
     }
     function State15(l, e) {
-        const sp = e.sp;
-        e.p = -1;
-        if ([2].includes(l.ty)) {
-            _(l, e, e.eh, [1, 4]); e.sp++;
-            State6(l, e);
+        $add(l, e);
+        stack_ptr++;
+        State19(l, e);
+    }
+    function State16(l, e) {
+        const sp = stack_ptr;
+        if ([3/* id */].includes(l.ty)) {
+            _(l, /* e.eh, */[1/* ws */, 4/* nl */]); stack_ptr++;
+            State8(l, e);
         }
-        let a = e.p;
+        var a = prod;
         o: while (1) {
-            if (sp > e.sp) break; else e.sp += 1;
-            e.p = -1;
+            if (sp > stack_ptr) break; else stack_ptr += 1;
+            prod = -1;
             switch (a) {
                 case 10:
-                    State5(l, e);
+                    State7(l, e);
                     break;
                 case 9:
-                    State2(l, e);
-                    if (e.p < 0)
-                        State3(l, e);
+                    State4(l, e);
+                    if (prod < 0)
+                        State5(l, e);
                     else break;
                     break;
                 case 8:
-                    State4(l, e);
+                    State6(l, e);
                     break;
                 case 7:
-                    State1(l, e);
+                    State3(l, e);
                     break;
                 case 6:
-                    State19(l, e);
+                    State20(l, e);
                     break;
                 default: break o;
             }
-            if (e.p >= 0) a = e.p;
+            if (prod >= 0) a = prod;
         }
-        if (sp <= e.sp) e.p = a;
-        if (![4].includes(a)) fail(l, e);
+        if (sp <= stack_ptr) prod = a;
+        if (![5].includes(a)) fail(l, e);
     }
     function State17(l, e) {
-        e.p = -1;
-        if ([11, 14, 15, 17, 18].includes(l.id)) {
-            e.sp -= 3;
-            add_reduce(3, 13);
-            e.p = 8;
+        if ([17].includes(l.id)) {
+            stack_ptr -= 3;
+            add_reduce(3, 5);
+            prod = 4;
             return;
         }
     }
     function State18(l, e) {
-        e.p = -1;
-        if ([11, 14, 15, 17].includes(l.id)) {
-            e.sp -= 3;
-            add_reduce(3, 11);
-            e.p = 7;
+        if ([11, 14, 15, 17, 18].includes(l.id)) {
+            stack_ptr -= 3;
+            add_reduce(3, 13);
+            prod = 8;
             return;
         }
     }
     function State19(l, e) {
-        e.p = -1;
+        if ([11, 14, 15, 17].includes(l.id)) {
+            stack_ptr -= 3;
+            add_reduce(3, 11);
+            prod = 7;
+            return;
+        }
+    }
+    function State20(l, e) {
         if ([17].includes(l.id)) {
-            e.sp -= 3;
-            add_reduce(3, 5);
-            e.p = 4;
+            stack_ptr -= 3;
+            add_reduce(3, 7);
+            prod = 5;
             return;
         }
     }
@@ -823,7 +852,7 @@ export default (b) => {
         ,
         ,];
 
-    return Object.assign(function (lexer, env = {
+    return function (lexer, env = {
         error: [],
         eh: (lex, e) => { },
         sp: 0,
@@ -833,34 +862,14 @@ export default (b) => {
 
         const lex = new Lexer();
         lex.next();
+        prod = -1;
+        stack_pointer = 0;
+        pointer = 0;
+        FAILED = false;
 
-        env.FAILED = false;
-        const states = [];
-        lexer.IWS = false;
-        lexer.PARSE_STRING = true;
-
-        lexer.tl = 0;
-
-        env.fn = {
-            parseString(lex, env, symbols, LR) {
-                const copy = lex.copy();
-                while (lex.tx != '"' && !lex.END) {
-                    if (lex.tx == "\\") lex.next();
-                    lex.next();
-                }
-                symbols[LR ? symbols.length - 1 : 0] = lex.slice(copy);
-            }
-        };
-        _(lexer, env, env.eh, []);
-        const result = $S(lex, env);
+        $S(lex, env);
 
 
-        console.log(action_array.map(i => {
-            const action = ["REDUCE", "SHIFT", "SKIP"][i & 3];
-            const body = (action == "REDUCE") ? ":" + (i >> 16) : "";
-            const len = (action == "SHIFT" || action == "SKIP") ? i >> 2 : ((i & 0xFFFF) >> 2);
-            return `${action}:${len}${body}`;
-        }));
 
         if (!lex.END || (env.FAILED)) {
 
@@ -879,7 +888,7 @@ export default (b) => {
             const stack = [], str = lexer.str;
             let offset = 0;
 
-            for (const action of action_array) {
+            for (const action of action_array.slice(0, pointer)) {
                 switch (action & 3) {
                     case 0: //REDUCE;
                         var body = action >> 16;
@@ -912,6 +921,5 @@ export default (b) => {
 
 
         }
-        return result;
-    });
+    };
 }

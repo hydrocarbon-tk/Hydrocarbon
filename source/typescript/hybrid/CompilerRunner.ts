@@ -35,7 +35,7 @@ export function constructCompilerRunner(ANNOTATED: boolean = false): CompilerRun
         INTEGRATE: new Set(),
         ANNOTATED,
         createAnnotationJSNode: function (label: string, grammar: Grammar, ...items: Item[]) {
-            return `log(\`▎\${glp(l)} ->\${l.tx} ▎${label} ▎${items.setFilter(i => i.id).map(i => i.renderUnformattedWithProduction(grammar)).join(" | ")}\`)`;
+            return `log(\`▎\${glp(l)} ->\${str.slice(l.off, l.off+l.tl)} ▎${label} ▎${items.setFilter(i => i.id).map(i => i.renderUnformattedWithProduction(grammar)).join(" | ")}\`, {l})`;
         },
         function_map: new Map,
         constant_map: new Map,
@@ -137,7 +137,8 @@ export function constructCompilerRunner(ANNOTATED: boolean = false): CompilerRun
                 .filter(e => e.states.length > 1)
                 .filter(e => e.states.reduce((a, s) => s.REACHABLE || a, false))
                 .map(e => renderWithFormatting(e.fn)).join("\n\n");
-        }
+        },
+
     };
 
     return runner;

@@ -11,7 +11,6 @@ export interface States {
 //Integrates a LR state into existing set of states
 export function IntegrateState(production: Production, grammar: Grammar, name: string = undefined) {
 
-
     const items = [...FOLLOW(grammar, production.id).values()].flatMap(sym => grammar[production.id].bodies.map(
         b => new Item(
             b.id,

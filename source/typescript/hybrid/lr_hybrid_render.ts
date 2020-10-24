@@ -2,15 +2,14 @@ import { Grammar, SymbolType, Symbol } from "../types/grammar.js";
 import { Item } from "../util/common.js";
 import { stmt, JSNode, JSNodeType } from "@candlefw/js";
 import {
-    createReduceFunction,
-    getLexPeekComparisonString,
     getShiftStates,
     getStatesFromNumericArray,
     translateSymbolValue,
     getNonTerminalTransitionStates,
     integrateState,
     getCompletedItemsNew,
-    translateSymbolLiteral
+    translateSymbolLiteral,
+    getRootSym
 } from "./utilities.js";
 import { State } from "./State";
 import { LLProductionFunction } from "./LLProductionFunction.js";
@@ -46,14 +45,20 @@ function gotoState(
         const accepting_productions = state.items.map(i => i.getProduction(grammar).id).setFilter();
 
         //sort goto in order
-        statements.push("let a = e.p;");
+        statements.push("var a:i32 = prod;");
 
-        statements.push(`o: while(1){  `);
+        statements.push(`while(1){  `);
 
         if (runner.ANNOTATED)
-            statements.push(`log(\`Loop State ${state.name || state.index} start sp:\${sp} curr sp:\${e.sp}  curr p:\${e.p} \` );`);
+            statements.push(`log(\`Loop State ${state.name || state.index} start sp:\${sp} curr sp:\${stack_ptr}  curr p:\${prod} \` );`);
 
-        statements.push(`if(sp > e.sp) break; else e.sp += 1;`, `e.p = -1;`, `switch(a) { `);
+        statements.push(
+
+            `if(prod >= 0) a = prod;`,
+            `if(sp > stack_ptr) break; else stack_ptr += 1;`,
+            `prod = -1;`,
+            `switch(a) {`
+        );
 
 
         for (const [key, val] of gt.sort(([a], [b]) => a < b ? 1 : b < a ? -1 : 0)) {
@@ -68,11 +73,11 @@ function gotoState(
 
                     state.reachable.add(st.index);
 
-                    statements.push("if(e.p < 0)");
+                    statements.push("if(prod < 0)");
 
                     statements.push(integrateState(st, states, grammar, ids, existing_refs, "s", state));
 
-                    statements.push("else break;");
+                    statements.push("else continue;");
 
                 } else {
 
@@ -82,23 +87,23 @@ function gotoState(
                 }
             }
 
-            statements.push(` break;`);
+            statements.push(` continue;`);
         }
 
-        statements.push("default: break o;",
+        statements.push(
             "}",
-            `if(e.p >= 0) a = e.p;`,
+            "break;",
             "}",
-            `if(sp <= e.sp) e.p = a;`,
+            `if(sp <= stack_ptr) prod = a;`,
         );
 
         if (HYBRID) {
-            statements.push(`if(![${accepting_productions.join(",")}].includes(a))fail(l,e); else e.p = ${state.items[0].getProduction(grammar).id}`);
+            statements.push(`if(![${accepting_productions.join(",")}].includes(a))fail(l); else prod = ${state.items[0].getProduction(grammar).id}`);
         } else
-            statements.push(`if(![${accepting_productions.join(",")}].includes(a))fail(l,e);`);
+            statements.push(`if(![${accepting_productions.join(",")}].includes(a))fail(l);`);
 
         if (runner.ANNOTATED)
-            statements.push(`log(\`Loop State ${state.name || state.index} pass:\${e.FAILED} ep:\${e.p} a:\${a} \` );`);
+            statements.push(`log(\`Loop State ${state.name || state.index} pass:\${FAILED} ep:\${prod} a:\${a} \` );`);
 
     }
 
@@ -106,6 +111,7 @@ function gotoState(
 }
 
 function getRealSymValue(sym: Symbol) {
+
     let val;
     switch (sym.type) {
         case SymbolType.GENERATED:
@@ -123,11 +129,11 @@ function getRealSymValue(sym: Symbol) {
             { val = 0xFF; break; }
         case SymbolType.EMPTY:
             { val = "emptry"; break; }
+
     }
 
     return val;
 }
-
 function shiftReduce(
     /**  The state to reduce */
     state: State,
@@ -151,9 +157,20 @@ function shiftReduce(
     //Sort groups based on the productions they have. State indices mapped to "-" delim strings
     const to_process = [
         ...getShiftStates(state).map(([sym, val]) => ({
-            type: 1, sym: getRealSymValue(states[val[0]].items[0].decrement().sym(grammar)), states: val.sort(), id: "1S" + sym + val.join(":")
+            type: 1,
+            id: "1S" + sym + val.join(":"),
+            a_sym: getRootSym(states[val[0]].items[0].decrement().sym(grammar), grammar),
+            sym: getRealSymValue(states[val[0]].items[0].decrement().sym(grammar)),
+            states: val.sort(),
         })),
-        ...(getCompletedItemsNew(state).map(i => ({ id: "2R" + i.follow.val, sym: getRealSymValue(i.follow), item: i, index: state.index, type: 2 })))
+        ...(getCompletedItemsNew(state).map(i => ({
+            type: 2,
+            id: "2R" + i.follow.val,
+            a_sym: getRootSym(i.follow, grammar),
+            sym: getRealSymValue(i.follow),
+            item: i,
+            index: state.index,
+        })))
     ];
 
     let sym_groups = to_process
@@ -187,6 +204,9 @@ function shiftReduce(
             const trs = s.flat();
 
             return ({
+                a_syms: trs.map(s => {
+                    return s.a_sym;
+                }).setFilter(s => s.val),
                 syms: trs.map(s => {
                     return s.sym;
                 }).setFilter(), reduce: trs.filter(s => s.type == 2).setFilter(s => s.item.id), shift: trs.filter(s => s.type == 1)
@@ -196,9 +216,10 @@ function shiftReduce(
 
     const SINGLE_TRANSITION_BLOCK = sym_groups.length == 1, outputs = [];
 
-    for (const { syms, shift, reduce } of sym_groups) {
+    for (const { a_syms, syms, shift, reduce } of sym_groups) {
 
         const output = {
+            a_syms,
             syms,
             stmts: <string[]>[],
         };
@@ -244,16 +265,16 @@ function shiftReduce(
                             block.push(runner.createAnnotationJSNode(
                                 `LR[${state.index}]-SHIFT-NEXT-ATTEMPT:\${sp}:${i}`, grammar, ...shift_state.items));
                     } else
-                        block.push(runner.createAnnotationJSNode(`LR[${state.index}]-SHIFT:\${e.sp}`, grammar, ...shift_state.items.map(i => i.decrement())));
+                        block.push(runner.createAnnotationJSNode(`LR[${state.index}]-SHIFT:\${stack_ptr}`, grammar, ...shift_state.items.map(i => i.decrement())));
 
 
-
-                if (ll_fns && ll_fns[production].IS_RD && item.offset <= 1 && !item.atEND) {
+                if (ll_fns && ll_fns[production].IS_RD && item.offset <= 1) {
+                    console.log(ll_fns);
 
                     if (GROUP_NOT_LAST) {
-                        block.push(`$${grammar[production].name}(${lex_name}, e)`);
+                        block.push(`$${grammar[production].name}(${lex_name})`);
                     } else
-                        block.push(`$${grammar[production].name}(${lex_name}, e)`);
+                        block.push(`$${grammar[production].name}(${lex_name})`);
 
                     block.push(...insertFunctions(item, grammar, false));
                 } else {
@@ -263,7 +284,7 @@ function shiftReduce(
                     const
                         skip_symbols = grammar.meta.ignore.flatMap(d => d.symbols),
                         insert_functions = insertFunctions(item, grammar, false),
-                        shift_fn = `_(${lex_name}, e, e.eh, [${skip_symbols.map(translateSymbolValue).join(",")}]); e.sp++;`,
+                        shift_fn = `_(${lex_name}, /* e.eh, */ [${skip_symbols.map(translateSymbolValue).join(",")}]); stack_ptr++;`,
                         symbols_name = GROUP_NOT_LAST ? pdn : "s";
 
                     block.push(shift_fn);
@@ -272,9 +293,9 @@ function shiftReduce(
                         block.push(...insert_functions);
 
                     if (!HAS_GOTO)
-                        shift_state_stmt = `return State${shift_state.index}(${lex_name}, e)`;
+                        shift_state_stmt = `State${shift_state.index}(${lex_name});return;`;
                     else
-                        shift_state_stmt = `State${shift_state.index}(${lex_name}, e)`;
+                        shift_state_stmt = `State${shift_state.index}(${lex_name})`;
 
                     block.push(shift_state_stmt);
 
@@ -283,10 +304,10 @@ function shiftReduce(
 
                 if (SINGLE_TRANSITION_BLOCK) {
                     if (TRY_GROUP && GROUP_NOT_LAST) {
-                        block.push(`if(e.p !== ${production}){
+                        block.push(`if(prod !== ${production}){
                             reset($mark)
-                            e.FAILED = false;
-                            e.sp = sp;
+                            FAILED = false;
+                            stack_ptr = sp;
                         }else{
                             l.sync(cp);
                             return s;
@@ -295,9 +316,9 @@ function shiftReduce(
                 } else {
 
                     if (TRY_GROUP && GROUP_NOT_LAST) {
-                        block.push(`if(e.p !== ${production}){
-                            e.FAILED = false;
-                            e.sp = sp;
+                        block.push(`if(prod !== ${production}){
+                            FAILED = false;
+                            stack_ptr = sp;
                         }else{
                             l.sync(cp);
                             break;
@@ -315,12 +336,12 @@ function shiftReduce(
                 body = item.body_(grammar);
 
             if (runner.ANNOTATED)
-                block.push(runner.createAnnotationJSNode(`LR[${state.index}]-REDUCE_TO:${production.id} sp:\${e.sp}`, grammar, item));
+                block.push(runner.createAnnotationJSNode(`LR[${state.index}]-REDUCE_TO:${production.id} sp:\${stack_ptr}`, grammar, item));
 
             block.push(
-                `e.sp -= ${item.len} `,
+                `stack_ptr -= ${item.len} `,
                 `add_reduce(${item.len},${item.body});`,
-                `e.p = ${production.id}`,
+                `prod = ${production.id}`,
                 `return;`
             );
 
@@ -329,7 +350,7 @@ function shiftReduce(
 
     if (outputs.length > 0) {
         const
-            tx = outputs.filter(e => e.syms.some(i => typeof i == "string")),
+            id = outputs.filter(e => e.syms.some(i => typeof i == "string")),
             ty = outputs.filter(e => e.syms.some(i => ((typeof i == "number") && (i !== 0xFF)))),
             END = outputs.filter(e => e.syms.some(i => (i == 0xFF)));
 
@@ -337,8 +358,8 @@ function shiftReduce(
 
             let output;
 
-            if (tx.length > 0)
-                output = tx[0];
+            if (id.length > 0)
+                output = id[0];
             else if (ty.length > 0)
                 output = ty[0];
             else
@@ -347,8 +368,8 @@ function shiftReduce(
             const if_stmt = [`if(${
                 [
                     END.length > 0 ? "l.END" : undefined,
-                    tx.length > 0 ? `[${tx[0].syms.filter(s => typeof s == "string").map(s => translateSymbolLiteral(s)).setFilter().sort().join(",")}].includes(l.tx)` : undefined,
-                    ty.length > 0 ? `[${ty[0].syms.filter(s => typeof s == "number").map(s => translateSymbolLiteral(s)).setFilter().sort().join(",")}].includes(l.ty)` : undefined
+                    id.length > 0 ? `[${id[0].a_syms.filter(s => s.id != undefined).map(s => s.id).setFilter().sort().join(",")}].includes(l.id)` : undefined,
+                    ty.length > 0 ? `[${ty[0].a_syms.filter(s => s.type == SymbolType.GENERATED).map(s => translateSymbolValue(s)).setFilter().sort().join(",")}].includes(l.ty)` : undefined
                 ].filter(_ => _).join("||")
                 }){`];
 
@@ -357,7 +378,7 @@ function shiftReduce(
             statements.push(...if_stmt, "}");
         } else {
 
-            let tx_switch: string[], ty_switch: string[], end_stmt: string[];
+            let id_switch: string[], ty_switch: string[], end_stmt: string[];
 
             if (END.length > 0) {
                 end_stmt = ["if(l.END){"];
@@ -368,23 +389,23 @@ function shiftReduce(
                 end_stmt.push("}");
             }
 
-            if (tx.length > 0) {
+            if (id.length > 0) {
 
-                tx_switch = ["switch(l.tx){"];
+                id_switch = ["switch(l.id){"];
 
-                for (const output of tx) {
+                for (const output of id) {
 
-                    const tx_syms = output.syms.filter(i => typeof i == "string");
+                    const tx_syms = output.a_syms.filter(s => s.id != undefined);
 
-                    tx_switch.push(...tx_syms.map(s => caseClauseNode(translateSymbolLiteral(s))));
+                    id_switch.push(...tx_syms.map(s => caseClauseNode(s.id) + `/* ${s.val} */`));
 
-                    tx_switch.push(...output.stmts);
+                    id_switch.push(...output.stmts);
 
-                    if (!tx_switch.slice(-1)[0].includes("return"))
-                        tx_switch.push("break;");
+                    if (!id_switch.slice(-1)[0].includes("return"))
+                        id_switch.push("break;");
                 }
 
-                tx_switch.push("}");
+                id_switch.push("}");
             }
 
             if (ty.length > 0) {
@@ -393,9 +414,9 @@ function shiftReduce(
 
                 for (const output of ty) {
 
-                    const ty_syms = output.syms.filter(i => typeof i == "number");
+                    const ty_syms = output.a_syms.filter(s => s.id == undefined);
 
-                    ty_switch.push(...ty_syms.map(s => caseClauseNode(s)));
+                    ty_switch.push(...ty_syms.map(s => caseClauseNode(translateSymbolValue(s)) + `/* ${s.val} */`));
 
                     ty_switch.push(...output.stmts);
 
@@ -408,9 +429,9 @@ function shiftReduce(
 
             let switch_ = ty_switch;
 
-            if (tx_switch) {
+            if (id_switch) {
 
-                switch_ = tx_switch;
+                switch_ = id_switch;
 
                 if (ty_switch)
                     switch_.splice(switch_.length - 2, 0, ...[` default : `, ...ty_switch]);
@@ -468,8 +489,8 @@ function compileState(
         const production = item.getProduction(grammar).id;
         const shift_sym = item.sym(grammar).val;
 
-        statements.push(`$${grammar[shift_sym].name}(l, e)`);
-        statements.push(`e.sp++`);
+        statements.push(`$${grammar[shift_sym].name}(l)`);
+        statements.push(`stack_ptr++`);
 
         const pending_prods = [production];
         const active_gotos = new Set([production]);
@@ -498,7 +519,7 @@ function compileState(
                 statements.push(...gotoState(state, states, grammar, runner, ids, existing_refs, HYBRID, goto_map));
             } else {
                 if (state.maps.has(production))
-                    statements.push(`State${state.maps.get(production)[0]}(l,e);`);
+                    statements.push(`State${state.maps.get(production)[0]}(l);`);
             }
         } else {
             console.log({ i: state.items.setFilter(s => s.id).map(s => s.renderUnformattedWithProductionAndFollow(grammar)).join(" "), production, goto_map, sm: state.maps });
@@ -512,9 +533,9 @@ function compileState(
             shift_reduce_statements = shiftReduce(state, states, grammar, runner, ids, ll_fns, HYBRID);
 
 
-        if (goto_statements.length > 0) statements.push("const sp = e.sp;");
+        if (goto_statements.length > 0) statements.push("const sp: u32 = stack_ptr;");
 
-        statements.push("e.p = -1;");
+        //statements.push("prod = -1;");
 
         statements.push(...shift_reduce_statements);
 
@@ -542,8 +563,8 @@ export function renderState(
 
     const
         fn: string[] = runner.ANNOTATED
-            ? [`function ${state.name ? state.name : "State" + state.index}(l, e, st){\`${state.bid}\`;`]
-            : [`function ${state.name ? state.name : "State" + state.index}(l, e){`];
+            ? [`function ${state.name ? state.name : "State" + state.index}(l:Lexer, st){\`${state.bid}\`;`]
+            : [`function ${state.name ? state.name : "State" + state.index}(l:Lexer):void{`];
 
 
     fn.push(...compileState(state, states, grammar, runner, id_nodes, ll_fns, HYBRID));

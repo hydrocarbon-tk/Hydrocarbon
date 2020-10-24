@@ -19,7 +19,7 @@ export async function compileHybrid(grammar: Grammar, env: GrammarParserEnvironm
 
     const temp_dir = URL.resolveRelative("./temp/");
     const temp_source = URL.resolveRelative("./temp/source/");
-    const rust_file = URL.resolveRelative("./temp/source/parser.rs");
+    const rust_file = URL.resolveRelative("./temp/source/parser.ts");
     const cargo_file = URL.resolveRelative("./temp/Cargo.toml");
     try {
         //Create the temp directory

@@ -1,7 +1,7 @@
 import { compileGrammars, lrParse } from "@candlefw/hydrocarbon";
 import URL from "@candlefw/url";
 import { compileHybrid } from "../build/library/hybrid/hybrid_compiler.js";
-import parse_data from "./mock/test_grammar_import_A.js";
+import parse_data from "./mock/test_grammar_import_toy_A.js";
 import { Lexer } from "@candlefw/wind";
 
 const url = await URL.resolveRelative("./mock/test_grammar_import_toy_A.hcg");
@@ -59,7 +59,7 @@ assert_group(() => {
     a.next().pk.copy().next().END;
 
     harness.markTime();
-    assert(lrParse(test_string, parse_data, env) == "");
+    assert(lrParse(test_string, parse_data, env).value == "");
     harness.getTime("LALR");
 
     harness.markTime();
