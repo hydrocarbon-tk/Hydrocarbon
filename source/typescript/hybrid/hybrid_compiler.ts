@@ -14,8 +14,8 @@ export async function compileHybrid(grammar: Grammar, env: GrammarParserEnvironm
     const mt_runner = new HybridMultiThreadRunner(grammar, env);
 
     for (const updates of mt_runner.run()) {
-        // console.log(0, 3, updates);
-        await spark.sleep(10);
+        // /console.dir({ updates });
+        await spark.sleep(1);
     }
 
     const temp_dir = URL.resolveRelative("./temp/");

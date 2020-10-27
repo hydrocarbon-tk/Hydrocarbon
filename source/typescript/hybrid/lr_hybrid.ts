@@ -1,4 +1,4 @@
-import { Grammar, Production, EOF_SYM } from "../types/grammar.js";
+import { Grammar, Production, EOF_SYM, SymbolType } from "../types/grammar.js";
 import { processClosure, Item, FOLLOW } from "../util/common.js";
 import { State } from "./State";
 import { Symbol } from "../../../build/types/types/grammar.js";
@@ -11,7 +11,7 @@ export interface States {
 //Integrates a LR state into existing set of states
 export function IntegrateState(production: Production, grammar: Grammar, name: string = undefined) {
 
-    const items = [...FOLLOW(grammar, production.id).values()].flatMap(sym => grammar[production.id].bodies.map(
+    const items = [...FOLLOW(grammar, production.id).values(), { type: SymbolType.GENERATED, val: "$eof" }].flatMap(sym => grammar[production.id].bodies.map(
         b => new Item(
             b.id,
             b.length,
@@ -39,7 +39,7 @@ export function IntegrateState(production: Production, grammar: Grammar, name: s
         roots: [],
         items: items.slice(),
         index: 0,
-        REACHABLE: true,
+        REACHABLE: false,
     };
 
     const potential_states = CompileHybridLRStates(grammar, { old_state: 0, items });
@@ -65,54 +65,38 @@ export function CompileHybridLRStates(
         if (i.atEND) continue;
 
         const
-            production = i.getProduction(grammar).id,
             sym = i.sym(grammar),
             val = sym.val + "";
 
-        if (!groups.has(val)) groups.set(val, new Map);
+        if (sym.type == SymbolType.EMPTY || i.len == 0) continue;
+
+        if (!groups.has(val)) groups.set(val, { sym: sym, items: [] });
 
         const group = groups.get(val);
 
-        if (!group.has(production))
-            group.set(production, { sym: i.sym(grammar), items: [i.increment()] });
-        else
-            group.get(production).items.push(i.increment());
-
+        group.items.push(i.increment());
     }
 
     const potential_states = [];
 
-    for (const item_set of groups.values()) {
-
-        const items = [];
-
-        let sym;
-
-        for (const iset of item_set.values()) {
-            sym = iset.sym;
-            items.push(...iset.items);
-        }
+    for (const { sym, items } of groups.values()) {
 
         const unique_items = items.setFilter(i => i.id);
 
         const id = unique_items
             .map(i => i.id)
-            .sort((a, b) => a < b ? -1 : 1).join(""),
+            .sort((a, b) => a < b ? -1 : 1).join(";"),
 
-            sid = items
-                .map(i => i.full_id)
-                .filter((e, i, a) => a.indexOf(e) == i)
-                .sort((a, b) => a < b ? -1 : 1).join(":");
-
+            sid = "";
 
         //Out pops a new state. 
         potential_states.push(<State>{
             sym: sym.val,
             id,
             sid,
-            bid: unique_items.map(i => i.renderUnformattedWithProduction(grammar)).join(" : "),
+            bid: unique_items.map(i => i.renderUnformattedWithProduction(grammar)).join(" :\n "),
             roots: [],
-            items: items,
+            items,
             index: 0,
             REACHABLE: false
         });
@@ -121,46 +105,6 @@ export function CompileHybridLRStates(
     return potential_states.flat().map(s => (s.os = old_state, s));
 }
 
-export function createProductionItems(production_index: number, grammar: Grammar, follows: Symbol[] = [EOF_SYM]) {
-    return follows.flatMap(sym => grammar[production_index].bodies.map(
-        b => new Item(
-            b.id,
-            b.length,
-            0,
-            sym
-        )));
-}
-
-export function processStateItems(item_set: { sym: string; items: Item[]; }[], grammar): State[] {
-
-    const out = [];
-
-    for (const iset of item_set.values()) {
-        const id = iset.items
-            .map(i => i.id)
-            .setFilter(i => i)
-            .sort((a, b) => a < b ? -1 : 1).join(""),
-
-            sid = iset.items
-                .map(i => i.full_id)
-                .filter((e, i, a) => a.indexOf(e) == i)
-                .sort((a, b) => a < b ? -1 : 1).join(":");
-
-        //Out pops a new state. 
-        out.push(<State>{
-            sym: iset.sym.val,
-            id,
-            sid,
-            bid: iset.items.setFilter(i => i.id).map(i => i.renderUnformattedWithProduction(grammar)).join(" : "),
-            roots: [],
-            items: iset.items,
-            index: 0,
-            REACHABLE: false
-        });
-    }
-
-    return out;
-}
 
 export function mergeState(
     state: State,
@@ -169,21 +113,21 @@ export function mergeState(
     unprocessed_state_items: { old_state: number; items: Item[]; }[]
 ) {
 
-    const { id, sid, sym } = state;
+    const { id, sym, items } = state;
+
+    let active_state = states.get(id);
 
     if (!states.has(id)) {
         state.index = states.size;
+
         states.set(id, state);
+
         state.state_merge_tracking = new Set;
         state.maps = new Map;
         state.reachable = new Set;
-    }
+        state.items = [];
 
-    const active_state = states.get(id);
-
-    if (state.name && !active_state.name) {
-        state.name = active_state.name;
-        active_state.REACHABLE = true;
+        active_state = state;
     }
 
     if (old_state) {
@@ -191,22 +135,27 @@ export function mergeState(
             old_state.maps.set(sym, []);
 
         const transition_map = old_state.maps.get(sym);
+
         if (transition_map.indexOf(active_state.index) < 0)
             transition_map.push(active_state.index);
     }
 
-    states.set(id, active_state);
-
-    if (!active_state.state_merge_tracking.has(sid)) {
-        unprocessed_state_items.push({ old_state: state.index, items: state.items });
-        active_state.state_merge_tracking.add(sid);
+    if (state.name && !active_state.name) {
+        state.name = active_state.name;
     }
 
-    active_state.items.push(...state.items);
+    const out_items = [];
 
-    const filter_set = new Set();
+    for (const i of items) {
+        if (!active_state.state_merge_tracking.has(i.full_id)) {
+            active_state.state_merge_tracking.add(i.full_id);
+            active_state.items.push(i);
+            out_items.push(i);
+        }
+    }
 
-    active_state.items = active_state.items.setFilter(i => i.full_id);
+    if (out_items.length > 0)
+        unprocessed_state_items.push({ old_state: state.index, items: out_items });
 
     return active_state;
 }

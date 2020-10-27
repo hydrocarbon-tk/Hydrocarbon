@@ -1,0 +1,19 @@
+{
+  "type":"module",
+  "scripts": {
+    "asbuild:untouched": "asc source/parser.ts --target debug",
+    "asbuild:optimized": "asc source/parser.ts --target release",
+    "asbuild": "npm run asbuild:untouched && npm run asbuild:optimized",
+    "test": "node tests"
+  },
+  "dependencies": {
+    "@assemblyscript/loader": "^0.16.1"
+  },
+  "devDependencies": {
+    "assemblyscript": "^0.16.1"
+  },
+  "name": "temp",
+  "version": "1.0.0",
+  "main": "index.js",
+  "license": "MIT"
+}

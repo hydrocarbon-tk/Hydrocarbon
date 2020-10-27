@@ -4,7 +4,7 @@ import { compileHybrid } from "../build/library/hybrid/hybrid_compiler.js";
 import parse_data from "./mock/test_grammar_import_toy_A.js";
 import { Lexer } from "@candlefw/wind";
 
-const url = await URL.resolveRelative("./mock/test_grammar_import_toy_A.hcg");
+const url = await URL.resolveRelative("./mock/test_grammar_css.hcg");
 const urlB = await URL.resolveRelative("./mock/test_grammar_export_toy_B.hcg");
 
 const file = await url.fetchText();
@@ -67,6 +67,3 @@ assert_group(() => {
     harness.getTime("hybrid");
 
 }, sequence);
-
-
-

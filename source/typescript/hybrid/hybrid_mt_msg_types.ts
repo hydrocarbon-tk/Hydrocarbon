@@ -3,7 +3,7 @@ import { State } from "./State";
 import { ItemSet } from "../types/item_set";
 import { JSNode } from "@candlefw/js";
 
-export const enum HybridJobType {
+export enum HybridJobType {
     UNDEFINED,
     CONSTRUCT_LR_STATE,
     CONSTRUCT_RC_FUNCTION,
@@ -24,6 +24,7 @@ export interface HybridDispatchResponse {
     items?: Item[];
     production_id?: number;
     state?: State;
+    productions?: Set<number>;
     potential_states?: State[];
     CONVERT_RC_TO_LR?: boolean;
     fn?: string;

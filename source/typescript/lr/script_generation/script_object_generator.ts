@@ -90,11 +90,6 @@ export default function GenerateLRParseDataObject(states: LRStates, grammar: Gra
         }
     }
 
-    let default_error = `(tk,r,o,l,p)=>{if(l.END)l.throw("Unexpected end of input");else if(l.ty & (${types.ws | types.nl})) l.throw(\`Unexpected space character within input "\${p.slice(l)}" \`) ; else l.throw(\`Unexpected token [\${l.tx}]\`)}`;
-    //@ts-ignore
-    if (env.functions.defaultError)
-        default_error = `(...d)=>d[1].fn.defaultError(...d)`;
-
     const output = compressedTemplate(
         fork_map,
         goto_maps,

@@ -1,5 +1,4 @@
-
-export const printJumpTable = () => `/**[README; API]:brief
+/**[README; API]:brief
 * 
 * cfw.Wind is a zero dependency tokenizing class that is used extensively throughout 
 * the CFW libraries. It provides a clean API that allows easy integration into projects 
@@ -71,11 +70,11 @@ air(jump_table, 5, [48, 57]);
 /**
 * Lexer Number and Identifier jump table reference
 * Number are masked by 12(4|8) and Identifiers are masked by 10(2|8)
-* entries marked as \`0\` are not evaluated as either being in the number set or the identifier set.
-* entries marked as \`2\` are in the identifier set but not the number set
-* entries marked as \`4\` are in the number set but not the identifier set
-* entries marked as \`8\` are in both number and identifier sets
-* entries marked as \`8\` are in number, identifier, hex, bin, and oct sets;
+* entries marked as `0` are not evaluated as either being in the number set or the identifier set.
+* entries marked as `2` are in the identifier set but not the number set
+* entries marked as `4` are in the number set but not the identifier set
+* entries marked as `8` are in both number and identifier sets
+* entries marked as `8` are in number, identifier, hex, bin, and oct sets;
 */
 
 const id = 2, num = 4, hex = 16, oct = 32, bin = 64;
@@ -104,121 +103,4 @@ air(jump_table, oct << 8, [48, 55]);
 //For the whole natural digit range
 air(jump_table, (num | hex) << 8, [48, 57]);
 
-export { jump_table };`;
-export const printLexer = (syms, keywords) => `
-const TokenSpace:i32 = 1,
-    TokenNumber:i32 = 2,
-    TokenIdentifier:i32 = 3,
-    TokenNewLine:i32 = 4,
-    TokenSymbol:i32 = 5;
-
-const jump_table: Uint16Array = new Uint16Array(191488);
-
-export {jump_table};
-
-const id:u16 = 2, num:u16 = 4, hex:u16 = 16, oct:u16 = 32, bin:u16 = 64;
-
-class Lexer {
-
-    ty:i32;
-    id:i32;
-    tl:i32;
-    off:i32;
-
-
-    constructor() {
-        this.ty = 0; //Default "non-value" for types is 1<<18;
-        this.id = 0;
-        this.tl = 0;
-        this.off = 0;
-    }
-
-    copy(destination: Lexer = new Lexer()) : Lexer {
-        destination.off = this.off;
-        destination.id = this.id;
-        destination.ty = this.ty;
-        destination.tl = this.tl;
-        return destination;
-    }
-
-    sync(marker: Lexer) : void { marker.copy(this); }
-
-    peek() : Lexer {
-
-        var peeking_marker: Lexer = new Lexer();
-
-        peeking_marker.copy(peeking_marker);
-
-        peeking_marker.next();
-
-        return peeking_marker;
-    }
-    
-    next() : Lexer{
-
-        var l: i32 = str.length,
-            length: i32 = this.tl,
-            off: i32 = this.off + length,
-            type: i32 = 0,
-            base: i32 = off;
-
-        this.ty = 0;
-        this.id = 0;
-
-        if (off >= str.length) {
-            this.off = l;
-            this.tl = 0;
-            return this;
-        }
-
-        const code:i32 = str.codePointAt(off);
-
-        switch (unchecked(jump_table[code]) & 255) {
-            default:
-            case 0: //SYMBOL
-                type = TokenSymbol;
-                break;
-            case 1: //IDENTIFIER
-                while (1) {
-                    while (++off < l && (((id | num) & (unchecked(jump_table[str.codePointAt(off)]) >> 8))));
-                    type = TokenIdentifier;
-                    length = off - base;
-                    break;
-                } break;
-            case 2: //SPACE SET
-                ++off;
-                type = TokenSpace;
-                length = off - base;
-                break;
-            case 3: //CARRIAGE RETURN
-                length = 2;
-            //intentional
-            case 4: //LINEFEED
-                type = TokenNewLine;
-                base = off;
-                off += length;
-                break;
-            case 5: //NUMBER
-                type = TokenNumber;
-                //Check for binary, hexadecimal, and octal representation
-                while (++off < l && (num & (unchecked(jump_table[str.codePointAt(off)]) >> 8)));
-                length = off - base;
-                break;
-        }
-        if (type == TokenIdentifier) {
-            ${keywords}
-        }
-        if (type == TokenSymbol) {
-            ${syms}
-        }
-
-        this.ty = type;
-        this.off = base;
-        this.tl = length;
-
-        return this;
-    }
-    get pk() : Lexer { return this.peek(); }
-    get n() : Lexer  { return this.next(); }
-    get END() : boolean { return this.off >= str.length; }
-}`;
+export { jump_table };

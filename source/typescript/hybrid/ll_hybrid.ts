@@ -13,7 +13,6 @@ function checkForLeftRecursion(p: Production, start_items: LLItem[], grammar: Gr
 
     const closure_items = start_items.map(g => g.item);
 
-
     processClosure(closure_items, grammar);
 
     for (const i of closure_items) {
@@ -49,23 +48,28 @@ function renderItemSym(
     item: Item,
     grammar: Grammar,
     runner: CompilerRunner,
-    AUTO_RETURN = true
+    AUTO_RETURN = true,
+    productions: Set<number> = new Set
 ): string {
 
     const
         stmts = [],
-        body = item.body_(grammar),
-        reduce_function = body?.reduce_function?.txt;
+        body = item.body_(grammar);
 
     stmts.push(insertFunctions(item, grammar, true));
 
     if (item.atEND) {
-        stmts.push(`add_reduce(${item.len},${item.body});`);
+
+        if (!(item.len == 1 && !body.reduce_function))
+            stmts.push(`add_reduce(${item.len},${item.body});`);
+
         if (AUTO_RETURN) stmts.push(`return;`);
     } else {
         const sym = getRootSym(item.sym(grammar), grammar);
 
         if (sym.type == "production") {
+
+            productions.add(<number>sym.val);
 
             if (runner.ANNOTATED)
                 stmts.push(runner.createAnnotationJSNode("LL-CALL", grammar, item));
@@ -79,20 +83,20 @@ function renderItemSym(
                 stmts.push(runner.createAnnotationJSNode("LL-ASSERT", grammar, item));
 
             //Get skips from grammar - TODO get symbols from bodies / productions
-            const skip_symbols = `[${grammar.meta.ignore.flatMap(d => d.symbols).map(s => getRootSym(s, grammar)).map(translateSymbolValue).join(",")}]`;
+            const skip_symbols = `[${grammar.meta.ignore.flatMap(d => d.symbols).map(s => getRootSym(s, grammar)).map(s => translateSymbolValue(s, grammar)).join(",")}]`;
 
-            stmts.push(`_(l, /* e.eh, */ ${skip_symbols}, ${translateSymbolValue(sym)});`);
+            stmts.push(`_(l, /* e.eh, */ ${skip_symbols}, ${translateSymbolValue(sym, grammar)});`);
         }
     }
 
     return stmts.join("\n");
 }
 
-function renderItem(item: Item, grammar: Grammar, runner: CompilerRunner, AUTO_RETURN: boolean = true): string {
+function renderItem(item: Item, grammar: Grammar, runner: CompilerRunner, AUTO_RETURN: boolean = true, productions: Set<number> = new Set): string {
     const stmts = [];
 
     while (true) {
-        stmts.push(renderItemSym(item, grammar, runner, AUTO_RETURN));
+        stmts.push(renderItemSym(item, grammar, runner, AUTO_RETURN, productions));
         if (item.atEND) break;
         item = item.increment();
     }
@@ -115,13 +119,14 @@ export function renderFunctionBody(
     runner: CompilerRunner,
     peek_depth: number = 0,
     ELSE_REDUCE = false,
-    AUTO_RETURN: boolean = true
+    AUTO_RETURN: boolean = true,
+    productions: Set<number> = new Set
 )
     : string {
 
     const stmts = [];
 
-    if (peek_depth > 4) throw "Can't complete";
+    if (peek_depth > 2) throw "Can't complete";
 
     /* 
         Each item has a closure which yields transition symbols. 
@@ -215,7 +220,6 @@ export function renderFunctionBody(
 
     let token_bit = 0;
 
-
     //Now create the necessary if statements with peek if depth > 0
     for (const try_group of try_groups.values()) {
 
@@ -226,12 +230,12 @@ export function renderFunctionBody(
             new_group.trs = try_group.flatMap(i => i.trs);
 
             // for (const group of try_group) {
-            token_bit |= buildGroupStatement(grammar, runner, new_group, peek_depth, stmts, sym_map, !MULTIPLE_GROUPS, AUTO_RETURN);
+            token_bit |= buildGroupStatement(grammar, runner, new_group, peek_depth, stmts, sym_map, !MULTIPLE_GROUPS, AUTO_RETURN, productions);
             // }
 
             //Make a try catch chain.
         } else {
-            token_bit |= buildGroupStatement(grammar, runner, try_group[0], peek_depth, stmts, sym_map, !MULTIPLE_GROUPS, AUTO_RETURN);
+            token_bit |= buildGroupStatement(grammar, runner, try_group[0], peek_depth, stmts, sym_map, !MULTIPLE_GROUPS, AUTO_RETURN, productions);
         }
     }
 
@@ -278,7 +282,8 @@ export function buildGroupStatement(
     stmts,
     sym_map: Map<string, Symbol>,
     IS_SINGLE = false,
-    AUTO_RETURN: boolean = true
+    AUTO_RETURN: boolean = true,
+    productions: Set<number> = new Set
 ) {
 
     const
@@ -297,7 +302,7 @@ export function buildGroupStatement(
 
             return r |= bit;
         }, 0),
-        tests = [...syms.map(s => sym_map.get(s)).map(i => getLexPeekComparisonStringCached(i))];
+        tests = [...syms.map(s => sym_map.get(s)).map(i => getLexPeekComparisonStringCached(i, grammar))];
 
     let if_stmt = [`if(${tests.join("||")}){`];
 
@@ -322,7 +327,7 @@ export function buildGroupStatement(
 
             //All items agree
             if (off != undefined && sym && !items.reduce((r, i) => (r || i.atEND || (i.sym(grammar)?.val != sym.val)), false)) {
-                if_body.push(renderItemSym(items[0], grammar, runner, AUTO_RETURN));
+                if_body.push(renderItemSym(items[0], grammar, runner, AUTO_RETURN, productions));
                 items = items.map(i => i.increment()).filter(i => i);
                 peek = -1;
 
@@ -339,11 +344,11 @@ export function buildGroupStatement(
                         });
 
                 if (new_trs.length > 0)
-                    if_body.push(renderFunctionBody(new_trs, grammar, runner, peek + 1, items.some(i => i.atEND), AUTO_RETURN));
+                    if_body.push(renderFunctionBody(new_trs, grammar, runner, peek + 1, items.some(i => i.atEND), AUTO_RETURN, productions));
 
                 //If any items at end render here?
                 for (const d of items.filter(i => i.atEND))
-                    if_body.push(renderItem(d, grammar, runner, AUTO_RETURN));
+                    if_body.push(renderItem(d, grammar, runner, AUTO_RETURN, productions));
 
                 break;
             };
@@ -352,7 +357,7 @@ export function buildGroupStatement(
 
         //Just complete the grammar symbols
         const item = LLItemToItem(trs[0]);
-        if_body.push(renderItem(item, grammar, runner, AUTO_RETURN));
+        if_body.push(renderItem(item, grammar, runner, AUTO_RETURN, productions));
     }
 
     if (!IS_SINGLE) {
@@ -363,18 +368,30 @@ export function buildGroupStatement(
     return token_bit;
 }
 
-export function buildIntermediateRD(items: Item[], grammar: Grammar, runner: CompilerRunner): string {
+export function buildIntermediateRD(items: Item[], grammar: Grammar, runner: CompilerRunner, ll_fns: LLProductionFunction[]): string {
 
     const start_items: LLItem[] = items.map(i => ItemToLLItem(i, grammar));
 
-    //  console.log(start_items);
+    let productions: Set<number> = new Set();
 
-    return renderFunctionBody(start_items, grammar, runner, 0, false, false);
+    const val = renderFunctionBody(start_items, grammar, runner, 0, false, false, productions);
+
+    for (const production of productions.values()) {
+        const ll = ll_fns[production];
+
+        if (ll) {
+            if (!ll.IS_RD) ll.state.REACHABLE = true;
+            else ll.RENDER = true;
+        }
+    }
+
+    return val;
 }
 
 export function makeRDHybridFunction(production: Production, grammar: Grammar, runner: CompilerRunner): LLProductionFunction {
 
     const p = production;
+    let productions: Set<number> = new Set();
 
     const stmts = [`function $${p.name}(l:Lexer) :void{`],
 
@@ -388,7 +405,7 @@ export function makeRDHybridFunction(production: Production, grammar: Grammar, r
         return {
             refs: 0,
             id: p.id,
-            L_RECURSION: false,
+            IS_RD: false,
             fn: stmt(`function $${p.name}(l,e){
             return ${foreign_grammar.join(".$")}(l,e)
         }`)
@@ -402,19 +419,20 @@ export function makeRDHybridFunction(production: Production, grammar: Grammar, r
         return {
             refs: 0,
             id: p.id,
-            L_RECURSION: true,
+            IS_RD: false,
             fn: `/* Could Not Parse in Recursive Descent Mode */`
         };
     }
 
+
     try {
-        stmts.push(renderFunctionBody(start_items, grammar, runner, 0));
+        stmts.push(renderFunctionBody(start_items, grammar, runner, 0, false, true, productions));
     } catch (e) {
-        console.log(e);
+        console.dir(e);
         return {
             refs: 0,
             id: p.id,
-            L_RECURSION: true,
+            IS_RD: false,
             fn: `/* Could Not Parse in Recursive Descent Mode */`
         };
     }
@@ -424,9 +442,11 @@ export function makeRDHybridFunction(production: Production, grammar: Grammar, r
     stmts.push(`}`);
 
     return {
+
+        productions,
         refs: 0,
         id: p.id,
-        L_RECURSION: false,
+        IS_RD: true,
         fn: stmts.join("\n")
     };
 }

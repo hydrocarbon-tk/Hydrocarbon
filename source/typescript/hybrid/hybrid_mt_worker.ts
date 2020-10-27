@@ -2,10 +2,11 @@ import { Grammar } from "../types/grammar";
 import { ParserEnvironment } from "../types/parser_environment.js";
 import { filloutGrammar, Item } from "../util/common.js";
 import { workerData, parentPort } from "worker_threads";
-import { HybridDispatch, HybridJobType, HybridDispatchResponse } from "./hybrid_mt_msg_types";
+import { HybridDispatch, HybridJobType, HybridDispatchResponse } from "./hybrid_mt_msg_types.js";
 import { CompilerRunner, constructCompilerRunner } from "./CompilerRunner.js";
 import { makeRDHybridFunction } from "./ll_hybrid.js";
 import { IntegrateState, CompileHybridLRStates } from "./lr_hybrid.js";
+import { performance } from "perf_hooks";
 
 export class HybridMultiThreadProcessWorker {
 
@@ -50,6 +51,8 @@ export class HybridMultiThreadProcessWorker {
                 job_type: job.job_type
             };
             const production = this.grammar[job.production_id];
+
+            const start = performance.now();
             //*
             switch (job.job_type) {
 
@@ -68,13 +71,16 @@ export class HybridMultiThreadProcessWorker {
                     break;
 
                 case HybridJobType.CONSTRUCT_RC_FUNCTION:
-                    const { L_RECURSION, fn } = makeRDHybridFunction(this.grammar[job.production_id], this.grammar, this.runner);
+                    const { IS_RD, fn, productions } = makeRDHybridFunction(this.grammar[job.production_id], this.grammar, this.runner);
                     Response.fn = fn;
+                    Response.productions = productions;
                     Response.production_id = job.production_id;
-                    Response.CONVERT_RC_TO_LR = L_RECURSION;
+                    Response.CONVERT_RC_TO_LR = !IS_RD;
                     break;
             }
             //*/
+
+            const end = performance.now();
 
             parentPort.postMessage(Response);
         });

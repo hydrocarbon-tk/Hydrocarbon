@@ -56,28 +56,15 @@ export function translateSymbolLiteral(sym: number | string): string {
             return `"${sym}"`;
     }
 }
-
-export function translateSymbolLiteralToLexerBool(sym: number | string, lex_name: string = "l"): string {
-    switch (typeof sym) {
-        case "number":
-            if (sym == 0xFF)
-                return `${lex_name}.END`;
-            return `ty == ${sym + ""}`;
-        case "string":
-            if (sym == "any") { return "true"; }
-            if (sym == "$eof") return `${lex_name}.END`;
-            return `tx == ${translateSymbolLiteral(sym)}`;
-    }
-}
 export function getRootSym(sym: Symbol, grammar: Grammar) {
     const name = sym.val + sym.type;
     return grammar.meta.all_symbols.get(name) ?? sym;
 }
 
-export function translateSymbolValue(sym: Symbol): string | number {
+export function translateSymbolValue(sym: Symbol, grammar: Grammar): string | number {
     switch (sym.type) {
         case SymbolType.GENERATED:
-            if (sym.val == "any") { return "true"; }
+            if (sym.val == "any") { return "88"; }
             if (sym.val == "$eof")
                 return `0`;
             switch (sym.val) {
@@ -85,13 +72,17 @@ export function translateSymbolValue(sym: Symbol): string | number {
                 case "num": return 2 + `/* ${sym.val} */`;
                 case "id": return 3 + `/* ${sym.val} */`;
                 case "nl": return 4 + `/* ${sym.val} */`;
+                default:
                 case "sym": return 5 + `/* ${sym.val} */`;
             }
-            return Lexer.types[sym.val];
+            return Lexer.types[sym.val] + `/* ${sym.val} */`;
         case SymbolType.LITERAL:
         case SymbolType.ESCAPED:
         case SymbolType.SYMBOL:
-            return sym.id + `/* ${sym.val} */`;
+            if (!sym.id)
+                sym = getRootSym(sym, grammar);
+            if (!sym.id) console.log({ sym });
+            return (sym.id ?? 888) + `/* ${sym.val} */`;
         case SymbolType.END_OF_FILE:
             return 0;
         case SymbolType.EMPTY:
@@ -99,17 +90,17 @@ export function translateSymbolValue(sym: Symbol): string | number {
     }
 }
 
-export function getLexPeekComparisonStringCached(sym: Symbol): string {
+export function getLexPeekComparisonStringCached(sym: Symbol, grammar: Grammar): string {
     switch (sym.type) {
         case SymbolType.GENERATED:
             if (sym.val == "any") { return "true"; }
             if (sym.val == "$eof")
                 return `ty == 0`;
-            return `ty == ${translateSymbolValue(sym)}`;
+            return `ty == ${translateSymbolValue(sym, grammar)}`;
         case SymbolType.LITERAL:
         case SymbolType.ESCAPED:
         case SymbolType.SYMBOL:
-            return `id == ${translateSymbolValue(sym)}`;
+            return `id == ${translateSymbolValue(sym, grammar)}`;
         case SymbolType.END_OF_FILE:
             return `l.END`;
         case SymbolType.EMPTY:
@@ -118,7 +109,7 @@ export function getLexPeekComparisonStringCached(sym: Symbol): string {
 }
 
 //
-export function integrateState(state: State, states: State[], grammar: Grammar, id_nodes: any[], existing_refs: Set<number>, name = "s", existing_state): string {
+export function integrateState(state: State, existing_refs: Set<number>): string {
 
     if (!existing_refs.has(state.index))
         existing_refs.add(state.index);

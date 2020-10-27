@@ -1,6 +1,6 @@
 import { Grammar, SymbolType, Symbol } from "../types/grammar.js";
 import { Item } from "../util/common.js";
-import { stmt, JSNode, JSNodeType } from "@candlefw/js";
+import { JSNode } from "@candlefw/js";
 import {
     getShiftStates,
     getStatesFromNumericArray,
@@ -17,7 +17,6 @@ import { States } from "./lr_hybrid.js";
 import { CompilerRunner } from "./CompilerRunner.js";
 import { Lexer } from "@candlefw/wind";
 import { buildIntermediateRD } from "./ll_hybrid.js";
-import { id } from "@candlefw/wind/build/types/tables";
 
 function gotoState(
     /**  The state to reduce */
@@ -28,8 +27,6 @@ function gotoState(
     grammar: Grammar,
     /** Compiler utility object */
     runner: CompilerRunner,
-    /** List of id nodes referencing the name of a state function */
-    ids: JSNode[][],
 
     existing_refs: Set<number>,
 
@@ -37,6 +34,8 @@ function gotoState(
 
     gt = getNonTerminalTransitionStates(state)
 ): string[] {
+
+    if (state.name == "$STYLE_SHEET") console.log({ state });
 
     const statements: string[] = [];
 
@@ -75,15 +74,40 @@ function gotoState(
 
                     statements.push("if(prod < 0)");
 
-                    statements.push(integrateState(st, states, grammar, ids, existing_refs, "s", state));
+                    statements.push(integrateState(st, existing_refs));
 
                     statements.push("else continue;");
 
                 } else {
 
+                    /*
+                    const item = st.items[0], symbol = item.sym(grammar)?.val, production = item.getProduction(grammar).id;
+
+                    if (!st.items.some(i => i.atEND)
+                        //&& item.sym(grammar).type == SymbolType.PRODUCTION
+                        //&& item.increment().atEND
+                    ) {
+                        try {
+                            statements.push(buildIntermediateRD(st.items.setFilter(i => i.id), grammar, runner, ll_fns));
+                        } catch (e) {
+
+
+                            state.reachable.add(st.index);
+
+                            statements.push(integrateState(st, states, grammar,  existing_refs, "s", state));
+                        }
+                    } else {
+
+                        state.reachable.add(st.index);
+
+                        statements.push(integrateState(st, states, grammar,  existing_refs, "s", state));
+                    }
+                    /*/
+
                     state.reachable.add(st.index);
 
-                    statements.push(integrateState(st, states, grammar, ids, existing_refs, "s", state));
+                    statements.push(integrateState(st, existing_refs));
+                    //*/
                 }
             }
 
@@ -154,14 +178,20 @@ function shiftReduce(
     //Group all states transitions / reductions based on symbols. 
 
     //Sort groups based on the productions they have. State indices mapped to "-" delim strings
+
+
     const to_process = [
-        ...getShiftStates(state).map(([sym, val]) => ({
-            type: 1,
-            id: "1S" + sym + val.join(":"),
-            a_sym: getRootSym(states[val[0]].items[0].decrement().sym(grammar), grammar),
-            sym: getRealSymValue(states[val[0]].items[0].decrement().sym(grammar)),
-            states: val.sort(),
-        })),
+        ...getShiftStates(state).map(([sym, val]) => {
+
+            return ({
+                type: 1,
+                id: "1S" + sym + val.join(":"),
+                a_sym: getRootSym(states[val[0]].items[0].decrement().sym(grammar), grammar),
+                sym: getRealSymValue(states[val[0]].items[0].decrement().sym(grammar)),
+                states: val.sort(),
+            });
+        }
+        ),
         ...(getCompletedItemsNew(state).map(i => ({
             type: 2,
             id: "2R" + i.follow.val,
@@ -171,7 +201,6 @@ function shiftReduce(
             index: state.index,
         })))
     ];
-
     let sym_groups = to_process
         //Sort into shift and reduce groups
         .sort((a, b) => a.id < b.id ? -1 : a.id > b.id ? 1 : 0)
@@ -247,7 +276,7 @@ function shiftReduce(
 
                 if (GROUP_NOT_LAST) {
                     if (FIRST_GROUP) {
-                        block.push(`var $mark = mark()`);
+                        block.push(`var $mark = mark(), sp = stack_ptr`);
                         block.push(`var cp = l.copy()`);
                         lex_name = 'cp';
                     } else {
@@ -272,31 +301,30 @@ function shiftReduce(
                 //###############################################//###############################################//###############################################//###############################################
                 //###############################################//###############################################//###############################################//###############################################
                 //###############################################//###############################################//###############################################//###############################################
+                let RUN = true;
 
-                if (ll_fns/* && ll_fns[production].IS_RD*/) {
+                if (false && ll_fns/* && ll_fns[production].IS_RD*/) {
 
-                    block.push(
-                        buildIntermediateRD(shift_state.items.setFilter(i => i.id).map(i => i.decrement()), grammar, runner)
-                    );
+                    RUN = false;
 
-                    if (!state.maps.has(production)) {
-                        block.push(GROUP_NOT_LAST ? "if(!FAILED) return;" : "return");
-                    } else {
-                        active_gotos.push(production);
-                        if (!GROUP_NOT_LAST)
-                            block.push("break");
+                    try {
+
+                        block.push("{",
+                            buildIntermediateRD(shift_state.items.setFilter(i => i.id).map(i => i.decrement()), grammar, runner, ll_fns),
+                            "}"
+                        );
+
+                        if (!state.maps.has(production)) {
+                            block.push(GROUP_NOT_LAST ? "if(!FAILED) return;" : "return");
+                        } else {
+                            active_gotos.push(production);
+                        }
+                    } catch (e) {
+                        RUN = true;
                     }
+                }
 
-
-
-                    //if (GROUP_NOT_LAST) {
-                    //    block.push(`$${grammar[production].name}(${lex_name})`);
-                    //} else
-                    //    block.push(`$${grammar[production].name}(${lex_name})`);
-                    //
-                    //block.push(...insertFunctions(item, grammar, false));
-                } else {
-
+                if (RUN) {
 
                     active_gotos.push(production);
 
@@ -305,7 +333,7 @@ function shiftReduce(
                     const
                         skip_symbols = grammar.meta.ignore.flatMap(d => d.symbols),
                         insert_functions = insertFunctions(item, grammar, false),
-                        shift_fn = `_(${lex_name}, /* e.eh, */ [${skip_symbols.map(translateSymbolValue).join(",")}]); stack_ptr++;`,
+                        shift_fn = `_(${lex_name}, /* e.eh, */ [${skip_symbols.map(s => translateSymbolValue(s, grammar)).join(",")}]); stack_ptr++;`,
                         symbols_name = GROUP_NOT_LAST ? pdn : "s";
 
                     block.push(shift_fn);
@@ -331,25 +359,31 @@ function shiftReduce(
                             stack_ptr = sp;
                         }else{
                             l.sync(cp);
-                            return s;
+                            return;
                         }`);
                     }
                 } else {
 
                     if (TRY_GROUP && GROUP_NOT_LAST) {
                         block.push(`if(prod !== ${production}){
+                            reset($mark)
                             FAILED = false;
                             stack_ptr = sp;
                         }else{
                             l.sync(cp);
-                            break;
+                            return;
                         }`);
                     }
                 }
             }
         }
 
-        // if (shift.length < 1)
+        if (shift.length > 0 && reduce.length > 0) {
+            block.push(`if(prod >= 0) return; else FAILED = false;`);
+        }
+
+        block.push(`//${reduce.map(i => (<Item>i.item).renderUnformattedWithProduction(grammar)).join("  :  ")}\n`);
+
         for (const { item } of reduce) {
 
             const
@@ -359,21 +393,26 @@ function shiftReduce(
             if (runner.ANNOTATED)
                 block.push(runner.createAnnotationJSNode(`LR[${state.index}]-REDUCE_TO:${production.id} sp:\${stack_ptr}`, grammar, item));
 
+            if (!(item.len == 1 && !body.reduce_function))
+                block.push(`add_reduce(${item.len},${item.body});`);
+
             block.push(
                 `stack_ptr -= ${item.len} `,
-                `add_reduce(${item.len},${item.body});`,
                 `prod = ${production.id}`,
                 `return;`
             );
 
         }
+
+
     }
 
+
     if (outputs.length > 0) {
+
         const
-            id = outputs.filter(e => e.syms.some(i => typeof i == "string")),
-            ty = outputs.filter(e => e.syms.some(i => ((typeof i == "number") && (i !== 0xFF)))),
-            END = outputs.filter(e => e.syms.some(i => (i == 0xFF)));
+            id = outputs.filter(e => e.a_syms.some(s => s.id != undefined)),
+            ty = outputs.filter(e => e.a_syms.some(s => s.id == undefined));
 
         if (outputs.length == 1) {
 
@@ -383,14 +422,11 @@ function shiftReduce(
                 output = id[0];
             else if (ty.length > 0)
                 output = ty[0];
-            else
-                output = END[0];
 
             const if_stmt = [`if(${
                 [
-                    END.length > 0 ? "l.END" : undefined,
-                    id.length > 0 ? `[${id[0].a_syms.filter(s => s.id != undefined).map(s => s.id).setFilter().sort().join(",")}].includes(l.id)` : undefined,
-                    ty.length > 0 ? `[${ty[0].a_syms.filter(s => s.type == SymbolType.GENERATED).map(s => translateSymbolValue(s)).setFilter().sort().join(",")}].includes(l.ty)` : undefined
+                    id.length > 0 ? `[${id[0].a_syms.filter(s => s.id != undefined).map(s => s.id + `/* ${s.val} */`).setFilter().sort().join(",")}].includes(l.id)` : undefined,
+                    ty.length > 0 ? `[${ty[0].a_syms.filter(s => s.type == SymbolType.GENERATED).map(s => translateSymbolValue(s, grammar)).setFilter().sort().join(",")}].includes(l.ty)` : undefined
                 ].filter(_ => _).join("||")
                 }){`];
 
@@ -401,72 +437,61 @@ function shiftReduce(
 
             let id_switch: string[], ty_switch: string[], end_stmt: string[];
 
-            if (END.length > 0) {
-                end_stmt = ["if(l.END){"];
-
-                for (const output of END)
-                    end_stmt.push(...output.stmts);
-
-                end_stmt.push("}");
-            }
-
             if (id.length > 0) {
-
-                id_switch = ["switch(l.id){"];
-
+                pre_statements.push(`const idm${state.index}: Map<number, (L:Lexer)=>void> = new Map()`);
+                let i = 0;
                 for (const output of id) {
 
                     const tx_syms = output.a_syms.filter(s => s.id != undefined);
 
-                    id_switch.push(...tx_syms.map(s => caseClauseNode(s.id) + `/* ${s.val} */`));
+                    let fn_name = `_${state.index}id` + i++;
 
-                    id_switch.push(...output.stmts);
+                    const fn_body = `(l:Lexer):void => {${output.stmts.join("\n")}}`;
 
-                    if (!id_switch.slice(-1)[0].includes("return"))
-                        id_switch.push("break;");
+                    if (runner.compression_lookups.has(fn_body)) {
+                        fn_name = runner.compression_lookups.get(fn_body) + "/* compressed */";
+                    } else {
+                        runner.compression_lookups.set(fn_body, fn_name);
+                        pre_statements.push(`const ${fn_name} = ${fn_body}`);
+                    }
+
+                    for (const s of tx_syms)
+                        pre_statements.push(`idm${state.index}.set(${s.id + `/* ${s.val} */`}, ${fn_name})`);
                 }
-
-                id_switch.push("}");
             }
 
             if (ty.length > 0) {
-
-                ty_switch = ["switch(l.ty){"];
-
+                let i = 0;
+                pre_statements.push(`const tym${state.index}: Map<number, (L:Lexer)=>void> = new Map()`);
                 for (const output of ty) {
 
                     const ty_syms = output.a_syms.filter(s => s.id == undefined);
 
-                    ty_switch.push(...ty_syms.map(s => caseClauseNode(translateSymbolValue(s)) + `/* ${s.val} */`));
+                    let fn_name = `_${state.index}ty` + i++;
 
-                    ty_switch.push(...output.stmts);
+                    const fn_body = `(l:Lexer):void => {${output.stmts.join("\n")}}`;
 
-                    if (!ty_switch.slice(-1)[0].includes("return"))
-                        ty_switch.push("break;");
+                    if (runner.compression_lookups.has(fn_body)) {
+                        fn_name = runner.compression_lookups.get(fn_body) + "/* compressed */";
+                    } else {
+                        runner.compression_lookups.set(fn_body, fn_name);
+                        pre_statements.push(`const ${fn_name} = ${fn_body}`);
+                    }
+
+                    for (const s of ty_syms) {
+
+                        if (!translateSymbolValue(s, grammar))
+                            console.dir({ s });
+                        pre_statements.push(`tym${state.index}.set(${translateSymbolValue(s, grammar)}, ${fn_name})`);
+                    }
                 }
-
-                ty_switch.push("}");
             }
 
-            let switch_ = ty_switch;
-
-            if (id_switch) {
-
-                switch_ = id_switch;
-
-                if (ty_switch)
-                    switch_.splice(switch_.length - 2, 0, ...[` default : `, ...ty_switch]);
-            }
-
-            if (end_stmt) {
-
-                statements.push(...end_stmt);
-
-                if (switch_) {
-                    statements.push("else", ...switch_, ";");
-                }
-            } else
-                statements.push(...switch_);
+            if (id.length > 0) {
+                statements.push(`if(idm${state.index}.has(l.id))idm${state.index}.get(l.id)(l)`);
+                if (ty.length > 0)
+                    statements.push(`else if(tym${state.index}.has(l.ty))tym${state.index}.get(l.ty)(l)`);
+            } else if (ty.length > 0) statements.push(`if(tym${state.index}.has(l.ty))tym${state.index}.get(l.ty)(l)`);
         }
     }
     return { body: statements, pre: pre_statements };
@@ -498,10 +523,6 @@ function filterGotos(state: State, states: State[], grammar: Grammar, ...pending
     return new Map([...active_gotos.values()].filter(s => state.maps.has(s)).map(v => [v, state.maps.get(v)]));
 }
 
-function caseClauseNode(case_condition: string): string[] {
-    return [`case ${case_condition}: `];
-}
-
 function compileState(
     /**  The state to reduce */
     state: State,
@@ -510,8 +531,6 @@ function compileState(
     /** The grammar for the states */
     grammar: Grammar,
     runner,
-    /** List of id nodes referencing the name of a state function */
-    ids: JSNode[][],
     /** Optional List of LL recursive descent functions */
     ll_fns: LLProductionFunction[] = null,
     /** Indicates the state results from a transition from LL to LR*/
@@ -526,6 +545,7 @@ function compileState(
     // if (state.index == 14) {
     //If the state has only one transition point
     if (
+        false &&
         state.items.setFilter(i => i.id).length == 1
         && !item.atEND
         && item.sym(grammar).type == SymbolType.PRODUCTION
@@ -534,7 +554,7 @@ function compileState(
         && ll_fns?.[production]
     ) {
         try {
-            statements.push(buildIntermediateRD(state.items.setFilter(i => i.id), grammar, runner));
+            statements.push(buildIntermediateRD(state.items.setFilter(i => i.id), grammar, runner, ll_fns));
 
             active_gotos.push(production);
             /*
@@ -554,19 +574,24 @@ function compileState(
     }
 
     const
-        goto_statements = gotoState(state, states, grammar, runner, ids, existing_refs, HYBRID),
-        { body: sr_body, pre: sr_pre } = shiftReduce(state, states, grammar, runner, ll_fns, active_gotos);
+        goto_statements = gotoState(state, states, grammar, runner, existing_refs, HYBRID);
 
-    console.log({
-        id: state.bid || state.items.map(i => i.renderUnformattedWithProduction(grammar)).join(";"),
-        active_gotos,
-        gt: filterGotos(state, states, grammar, ...active_gotos),
-        state_map: state.maps
-    });
+    const { body: sr_body, pre: sr_pre } = shiftReduce(state, states, grammar, runner, ll_fns, active_gotos);
+    ;
+    /*
+        console.log({
+            id: state.bid || state.items.map(i => i.renderUnformattedWithProduction(grammar)).join(";"),
+            active_gotos,
+            gt: filterGotos(state, states, grammar, ...active_gotos),
+            state_map: state.maps
+        });
+        */
 
     if (goto_statements.length > 0) statements.push("const sp: u32 = stack_ptr;");
 
     pre_statements.push(...sr_pre);
+
+    statements.push("prod = -1;");
 
     statements.push(...sr_body);
 
@@ -580,7 +605,6 @@ export function renderState(
     states: State[],
     grammar: Grammar,
     runner: CompilerRunner,
-    id_nodes: JSNode[][] = states.reduce(r => (r.push([]), r), []),
     ll_fns: LLProductionFunction[] = null,
     HYBRID = false
 ): string {
@@ -597,7 +621,7 @@ export function renderState(
             : [`function ${state.name ? state.name : "State" + state.index}(l:Lexer):void{`];
 
 
-    const { body_stmts, pre_stmts } = compileState(state, states, grammar, runner, id_nodes, ll_fns, HYBRID);
+    const { body_stmts, pre_stmts } = compileState(state, states, grammar, runner, ll_fns, HYBRID);
 
     fn.push(...body_stmts);
 
@@ -634,18 +658,15 @@ export function renderStates(
     states: State[],
     grammar: Grammar,
     runner,
-    id_nodes: JSNode[][] = states.reduce(r => (r.push([]), r), []),
     ll_fns: LLProductionFunction[] = null,
     HYBRID = false
 ): JSNode[] {
+    runner.compression_lookups = new Map();
 
     const
         out_functions = [],
-        general_fn = states.map(s => renderState(s, states, grammar, runner, id_nodes, ll_fns, false)),
+        general_fn = states.map(s => renderState(s, states, grammar, runner, ll_fns, false)),
         pending = [...root_states], reached = new Set(root_states.map(s => s.index));
-
-
-    if (!ll_fns[0].L_RECURSION) pending.pop();
 
     for (let i = 0; i < pending.length; i++) {
 
@@ -656,6 +677,7 @@ export function renderStates(
         state.REACHABLE = true;
 
         for (const sc of getStatesFromNumericArray([...state.reachable.values()], states)) {
+            sc.REACHABLE = true;
             if (!reached.has(sc.index)) {
                 pending.push(sc);
             }
@@ -665,16 +687,12 @@ export function renderStates(
     for (let i = 0; i < states.length; i++) {
 
         const
-            ids = id_nodes[i],
             state = states[i],
-            fn = general_fn[i],
-            id_name = "$" + (i);
+            fn = general_fn[i];
 
-        if (state.REACHABLE) {
-            for (const id of ids)
-                id.value = `${id_name}`;
-            out_functions.push(fn);
-        }
+        //if (state.REACHABLE) {
+        out_functions.push(fn);
+        //}
     }
 
     return out_functions;
