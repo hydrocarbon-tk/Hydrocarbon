@@ -1,9 +1,9 @@
-import { Grammar, SymbolType, Symbol, ProductionBody } from "../types/grammar.js";
+import { Grammar, SymbolType, Symbol, ProductionBody } from "../../types/grammar.js";
 import { Lexer } from "@candlefw/wind";
 import { stmt, renderWithFormatting, extendAll, JSNodeType } from "@candlefw/js";
-import { State } from "./State.js";
+import { State } from "../types/State.js";
 import { traverse } from "@candlefw/conflagrate";
-import { Item } from "../util/item.js";
+import { Item } from "../../util/item.js";
 
 
 

@@ -1,6 +1,6 @@
-import { Grammar, Symbol } from "../types/grammar.js";
-import { Item } from "../util/common.js";
-export function getClosureTerminalSymbols(closure: Item[], grammar: Grammar): Symbol[] {
+import { Grammar, Symbol } from "../../types/grammar.js";
+import { Item } from "../../util/common.js";
+export function getTerminalSymsFromClosure(closure: Item[], grammar: Grammar): Symbol[] {
     const syms = [];
 
 

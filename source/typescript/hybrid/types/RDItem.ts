@@ -1,9 +1,9 @@
-import { Item } from "../util/common.js";
+import { Item } from "../../util/common.js";
 /**
  * Used to keep track of original item origin
  * while progressing through it's sub productions
  */
-export interface LLItem {
+export interface RDItem {
     body_index: number;
 
     off: number;

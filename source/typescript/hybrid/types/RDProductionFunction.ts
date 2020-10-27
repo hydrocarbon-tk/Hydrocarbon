@@ -1,6 +1,6 @@
 import { JSNode } from "@candlefw/js";
 import { State } from "./State";
-export interface LLProductionFunction {
+export interface RDProductionFunction {
     refs: number;
     id: number;
     fn: string;

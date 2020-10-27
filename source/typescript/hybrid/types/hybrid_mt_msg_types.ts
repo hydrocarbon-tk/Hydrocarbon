@@ -1,6 +1,6 @@
-import { Item } from "../util/common";
+import { Item } from "../../util/common";
 import { State } from "./State";
-import { ItemSet } from "../types/item_set";
+import { ItemSet } from "../../types/item_set";
 import { JSNode } from "@candlefw/js";
 
 export enum HybridJobType {

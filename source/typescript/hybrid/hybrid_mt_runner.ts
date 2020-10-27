@@ -3,14 +3,14 @@ import { Worker } from "worker_threads";
 import { Grammar, SymbolType } from "../types/grammar.js";
 import { ParserEnvironment } from "../types/parser_environment";
 import { Item } from "../util/item.js";
-import { HybridDispatchResponse, HybridJobType, HybridDispatch } from "./hybrid_mt_msg_types.js";
-import { State } from "./State.js";
+import { HybridDispatchResponse, HybridJobType, HybridDispatch } from "./types/hybrid_mt_msg_types.js";
+import { State } from "./types/State.js";
 import { mergeState } from "./lr_hybrid.js";
 import { renderStates } from "./lr_hybrid_render.js";
-import { constructCompilerRunner, CompilerRunner } from "./CompilerRunner.js";
+import { constructCompilerRunner, CompilerRunner } from "./types/CompilerRunner.js";
 import { JSNode } from "@candlefw/js";
-import { printLexer } from "./ll_lexer.js";
-import { LLProductionFunction } from "./LLProductionFunction.js";
+import { printLexer } from "./assemblyscript/hybrid_lexer.js";
+import { RDProductionFunction } from "./types/RDProductionFunction.js";
 
 type WorkerContainer = {
     target: Worker;
@@ -30,7 +30,7 @@ export class HybridMultiThreadRunner {
     workers: Array<WorkerContainer>;
 
     lr_functions: Array<LRFunction>;
-    ll_functions: Array<LLProductionFunction>;
+    ll_functions: Array<RDProductionFunction>;
     lr_states: Map<string, State>;
 
     lr_item_set: { old_state: number; items: Item[]; }[];

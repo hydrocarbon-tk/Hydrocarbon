@@ -2,8 +2,8 @@ import { renderWithFormatting, JSNode, renderCompressed, JSNodeType, stmt } from
 import { traverse } from "@candlefw/conflagrate";
 import { Lexer } from "@candlefw/wind";
 import { State } from "./State.js";
-import { Item } from "../util/item.js";
-import { Grammar } from "../types/grammar.js";
+import { Item } from "../../util/item.js";
+import { Grammar } from "../../types/grammar.js";
 export interface CompilerRunner {
     /** List of external grammar names to integrate into the parser.
      * Names must match the name following the `as` terminal in an `IMPORT` statement.

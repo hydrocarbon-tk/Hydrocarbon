@@ -2,9 +2,9 @@ import { Grammar } from "../types/grammar";
 import { ParserEnvironment } from "../types/parser_environment.js";
 import { filloutGrammar, Item } from "../util/common.js";
 import { workerData, parentPort } from "worker_threads";
-import { HybridDispatch, HybridJobType, HybridDispatchResponse } from "./hybrid_mt_msg_types.js";
-import { CompilerRunner, constructCompilerRunner } from "./CompilerRunner.js";
-import { makeRDHybridFunction } from "./ll_hybrid.js";
+import { HybridDispatch, HybridJobType, HybridDispatchResponse } from "./types/hybrid_mt_msg_types.js";
+import { CompilerRunner, constructCompilerRunner } from "./types/CompilerRunner.js";
+import { makeRDHybridFunction } from "./rd_hybrid.js";
 import { IntegrateState, CompileHybridLRStates } from "./lr_hybrid.js";
 import { performance } from "perf_hooks";
 

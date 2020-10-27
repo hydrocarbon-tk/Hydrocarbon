@@ -9,14 +9,14 @@ import {
     integrateState,
     getCompletedItemsNew,
     getRootSym
-} from "./utilities.js";
-import { State } from "./State";
-import { LLProductionFunction } from "./LLProductionFunction.js";
-import { insertFunctions } from "./insertFunctions.js";
+} from "./utilities/utilities.js";
+import { State } from "./types/State";
+import { RDProductionFunction } from "./types/RDProductionFunction.js";
+import { insertFunctions } from "./utilities/insert_body_functions.js";
 import { States } from "./lr_hybrid.js";
-import { CompilerRunner } from "./CompilerRunner.js";
+import { CompilerRunner } from "./types/CompilerRunner.js";
 import { Lexer } from "@candlefw/wind";
-import { buildIntermediateRD } from "./ll_hybrid.js";
+import { buildIntermediateRD } from "./rd_hybrid.js";
 
 function gotoState(
     /**  The state to reduce */
@@ -168,7 +168,7 @@ function shiftReduce(
     /** Compiler utility object */
     runner: CompilerRunner,
     /** Optional List of LL recursive descent functions */
-    ll_fns: LLProductionFunction[] = null,
+    ll_fns: RDProductionFunction[] = null,
     /** Indicates the state results from a transition from LL to LR*/
     active_gotos = []
 ): { body: string[], pre: string[]; } {
@@ -532,7 +532,7 @@ function compileState(
     grammar: Grammar,
     runner,
     /** Optional List of LL recursive descent functions */
-    ll_fns: LLProductionFunction[] = null,
+    ll_fns: RDProductionFunction[] = null,
     /** Indicates the state results from a transition from LL to LR*/
     HYBRID = false): { body_stmts: string[], pre_stmts: string[]; } {
     const
@@ -605,7 +605,7 @@ export function renderState(
     states: State[],
     grammar: Grammar,
     runner: CompilerRunner,
-    ll_fns: LLProductionFunction[] = null,
+    ll_fns: RDProductionFunction[] = null,
     HYBRID = false
 ): string {
 
@@ -658,7 +658,7 @@ export function renderStates(
     states: State[],
     grammar: Grammar,
     runner,
-    ll_fns: LLProductionFunction[] = null,
+    ll_fns: RDProductionFunction[] = null,
     HYBRID = false
 ): JSNode[] {
     runner.compression_lookups = new Map();

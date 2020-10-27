@@ -1,6 +1,6 @@
 import { Grammar, Production, EOF_SYM, SymbolType } from "../types/grammar.js";
 import { processClosure, Item, FOLLOW } from "../util/common.js";
-import { State } from "./State";
+import { State } from "./types/State";
 import { Symbol } from "../../../build/types/types/grammar.js";
 
 export interface States {

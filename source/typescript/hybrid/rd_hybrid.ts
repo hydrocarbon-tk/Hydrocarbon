@@ -2,14 +2,16 @@ import { Grammar, Production, ProductionBody, EOF_SYM, SymbolType, Symbol } from
 import { processClosure, Item, FOLLOW } from "../util/common.js";
 import { GrammarParserEnvironment } from "../types/grammar_compiler_environment";
 import { stmt } from "@candlefw/js";
-import { translateSymbolValue, getLexPeekComparisonStringCached, getReduceFunctionSymbolIndiceSet, has_INLINE_FUNCTIONS, getRootSym } from "./utilities.js";
-import { LLProductionFunction } from "./LLProductionFunction";
-import { LLItem } from "./LLItem";
-import { getClosureTerminalSymbols } from "./getClosureTerminalSymbols.js";
-import { insertFunctions } from "./insertFunctions.js";
-import { CompilerRunner } from "./CompilerRunner.js";
+import { translateSymbolValue, getLexPeekComparisonStringCached, getReduceFunctionSymbolIndiceSet, has_INLINE_FUNCTIONS, getRootSym } from "./utilities/utilities.js";
+import { RDProductionFunction } from "./types/RDProductionFunction";
+import { RDItem } from "./types/RDItem";
+import { getTerminalSymsFromClosure } from "./utilities/get_terminal_syms_from_closure.js";
+import { insertFunctions } from "./utilities/insert_body_functions.js";
+import { CompilerRunner } from "./types/CompilerRunner.js";
 
-function checkForLeftRecursion(p: Production, start_items: LLItem[], grammar: Grammar) {
+let TEMP_FLAG = false;
+
+function checkForLeftRecursion(p: Production, start_items: RDItem[], grammar: Grammar) {
 
     const closure_items = start_items.map(g => g.item);
 
@@ -30,18 +32,18 @@ function checkForLeftRecursion(p: Production, start_items: LLItem[], grammar: Gr
     return false;
 }
 
-function LLItemToItem(v: LLItem): Item {
+function RDItemToItem(v: RDItem): Item {
     return new Item(v.body_index, v.len, v.off, EOF_SYM);
 }
 
-function ItemToLLItem(i: Item, grammar: Grammar): LLItem {
+function ItemToRDItem(i: Item, grammar: Grammar): RDItem {
     const c = [i];
     processClosure(c, grammar);
-    return <LLItem>{ body_index: i.body, off: i.offset, len: i.len, item: i, closure: c };
+    return <RDItem>{ body_index: i.body, off: i.offset, len: i.len, item: i, closure: c };
 }
 
-function BodyToLLItem(b: ProductionBody, grammar: Grammar): LLItem {
-    return ItemToLLItem(new Item(b.id, b.length, 0, EOF_SYM), grammar);
+function BodyToRDItem(b: ProductionBody, grammar: Grammar): RDItem {
+    return ItemToRDItem(new Item(b.id, b.length, 0, EOF_SYM), grammar);
 }
 
 function renderItemSym(
@@ -111,10 +113,10 @@ function renderItem(item: Item, grammar: Grammar, runner: CompilerRunner, AUTO_R
 type TransitionGroup = {
     id: string;
     syms: Set<string>;
-    trs: LLItem[];
+    trs: RDItem[];
 };
 export function renderFunctionBody(
-    llitems: LLItem[],
+    llitems: RDItem[],
     grammar: Grammar,
     runner: CompilerRunner,
     peek_depth: number = 0,
@@ -123,6 +125,11 @@ export function renderFunctionBody(
     productions: Set<number> = new Set
 )
     : string {
+
+    if (TEMP_FLAG)
+        console.log({ items: llitems.map(RDItemToItem).setFilter(i => i.id).map(i => i.renderUnformattedWithProduction(grammar)), peek: peek_depth });
+
+
 
     const stmts = [];
 
@@ -143,11 +150,11 @@ export function renderFunctionBody(
     const sym_map = new Map();
 
     // sort into transition groups - groups gathered based on a single transition symbol
-    const transition_groups: Map<string, LLItem[]> = llitems.groupMap((i: LLItem) => {
+    const transition_groups: Map<string, RDItem[]> = llitems.groupMap((i: RDItem) => {
 
         const syms = [];
 
-        for (const sym of getClosureTerminalSymbols(i.closure, grammar)) {
+        for (const sym of getTerminalSymsFromClosure(i.closure, grammar)) {
 
             syms.push(sym.val);
 
@@ -169,7 +176,7 @@ export function renderFunctionBody(
 
     for (const [key, trs] of transition_groups.entries()) {
 
-        const id = trs.map(i => LLItemToItem(i).id).setFilter(i => i).sort().join("");
+        const id = trs.map(i => RDItemToItem(i).id).setFilter(i => i).sort().join("");
 
         if (!group_maps.has(id)) {
 
@@ -202,7 +209,7 @@ export function renderFunctionBody(
 
             const m = try_id.split("|").map(e => e + "|");
 
-            if (group.trs.map(LLItemToItem).map(i => i.id).some(i => m.indexOf(i) >= 0)) {
+            if (group.trs.map(RDItemToItem).map(i => i.id).some(i => m.indexOf(i) >= 0)) {
 
                 const new_group = try_group.concat(group);
 
@@ -242,7 +249,7 @@ export function renderFunctionBody(
     if (MULTIPLE_GROUPS) {
         //Item annotations if required
         if (runner.ANNOTATED)
-            stmts.unshift(runner.createAnnotationJSNode("LL-PEEK:" + (peek_depth + 1), grammar, ...llitems.map(LLItemToItem)));
+            stmts.unshift(runner.createAnnotationJSNode("LL-PEEK:" + (peek_depth + 1), grammar, ...llitems.map(RDItemToItem)));
 
         if (token_bit) {
             const const_node = ["const"];
@@ -309,14 +316,14 @@ export function buildGroupStatement(
     const if_body = (IS_SINGLE) ? stmts : if_stmt;
 
     /** Reduce function indices */
-    const rdi: Set<number> = new Set(trs.map(LLItemToItem).setFilter(i => i.id).flatMap(i => [...getReduceFunctionSymbolIndiceSet(i, grammar).values()]));
+    const rdi: Set<number> = new Set(trs.map(RDItemToItem).setFilter(i => i.id).flatMap(i => [...getReduceFunctionSymbolIndiceSet(i, grammar).values()]));
 
     if (trs.length > 1) {
 
 
         //Advance through each symbol until there is a difference
         //When there is a difference create a peeking switch
-        let items: Item[] = trs.filter(_ => !!_).map(LLItemToItem).filter(_ => !!_), peek = peek_depth;
+        let items: Item[] = trs.filter(_ => !!_).map(RDItemToItem).filter(_ => !!_), peek = peek_depth;
 
 
 
@@ -336,7 +343,7 @@ export function buildGroupStatement(
                     new_items = items
                         .filter(i => !i.atEND),
                     new_trs = new_items
-                        .map(i => ItemToLLItem(i, grammar)).map(i => {
+                        .map(i => ItemToRDItem(i, grammar)).map(i => {
                             const closure = [i.item];
                             i.closure = closure;
                             processClosure(closure, grammar);
@@ -356,7 +363,7 @@ export function buildGroupStatement(
     } else {
 
         //Just complete the grammar symbols
-        const item = LLItemToItem(trs[0]);
+        const item = RDItemToItem(trs[0]);
         if_body.push(renderItem(item, grammar, runner, AUTO_RETURN, productions));
     }
 
@@ -368,9 +375,9 @@ export function buildGroupStatement(
     return token_bit;
 }
 
-export function buildIntermediateRD(items: Item[], grammar: Grammar, runner: CompilerRunner, ll_fns: LLProductionFunction[]): string {
+export function buildIntermediateRD(items: Item[], grammar: Grammar, runner: CompilerRunner, ll_fns: RDProductionFunction[]): string {
 
-    const start_items: LLItem[] = items.map(i => ItemToLLItem(i, grammar));
+    const start_items: RDItem[] = items.map(i => ItemToRDItem(i, grammar));
 
     let productions: Set<number> = new Set();
 
@@ -388,16 +395,22 @@ export function buildIntermediateRD(items: Item[], grammar: Grammar, runner: Com
     return val;
 }
 
-export function makeRDHybridFunction(production: Production, grammar: Grammar, runner: CompilerRunner): LLProductionFunction {
+export function makeRDHybridFunction(production: Production, grammar: Grammar, runner: CompilerRunner): RDProductionFunction {
 
     const p = production;
+
+    if (p.name == "AT_RULE")
+        TEMP_FLAG = true;
+    else
+        TEMP_FLAG = false;
+
     let productions: Set<number> = new Set();
 
     const stmts = [`function $${p.name}(l:Lexer) :void{`],
 
         INLINE_FUNCTIONS = p.bodies.some(has_INLINE_FUNCTIONS),
 
-        start_items: LLItem[] = p.bodies.map(b => BodyToLLItem(b, grammar));
+        start_items: RDItem[] = p.bodies.map(b => BodyToRDItem(b, grammar));
 
     if (p.IMPORTED && (false && runner.INTEGRATE)) {
         const foreign_grammar = p.name.split("$");
@@ -451,6 +464,6 @@ export function makeRDHybridFunction(production: Production, grammar: Grammar, r
     };
 }
 
-export function GetLLHybridFunctions(grammar: Grammar, env: GrammarParserEnvironment, runner: CompilerRunner): LLProductionFunction[] {
+export function GetLLHybridFunctions(grammar: Grammar, env: GrammarParserEnvironment, runner: CompilerRunner): RDProductionFunction[] {
 
 }
