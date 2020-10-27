@@ -36,10 +36,10 @@ function RDItemToItem(v: RDItem): Item {
     return new Item(v.body_index, v.len, v.off, EOF_SYM);
 }
 
-function ItemToRDItem(i: Item, grammar: Grammar): RDItem {
+function ItemToRDItem(i: Item, grammar: Grammar, body_offset = 0): RDItem {
     const c = [i];
     processClosure(c, grammar);
-    return <RDItem>{ body_index: i.body, off: i.offset, len: i.len, item: i, closure: c };
+    return <RDItem>{ body_index: i.body, body_offset, off: i.offset, len: i.len, item: i, closure: c };
 }
 
 function BodyToRDItem(b: ProductionBody, grammar: Grammar): RDItem {
@@ -74,7 +74,7 @@ function renderItemSym(
             productions.add(<number>sym.val);
 
             if (runner.ANNOTATED)
-                stmts.push(runner.createAnnotationJSNode("LL-CALL", grammar, item));
+                stmts.push(runner.createAnnotationJSNode("RD-CALL", grammar, item));
 
             if (AUTO_RETURN) stmts.push(`if(FAILED) return;`);
 
@@ -82,7 +82,7 @@ function renderItemSym(
 
         } else {
             if (runner.ANNOTATED)
-                stmts.push(runner.createAnnotationJSNode("LL-ASSERT", grammar, item));
+                stmts.push(runner.createAnnotationJSNode("RD-ASSERT", grammar, item));
 
             //Get skips from grammar - TODO get symbols from bodies / productions
             const skip_symbols = `[${grammar.meta.ignore.flatMap(d => d.symbols).map(s => getRootSym(s, grammar)).map(s => translateSymbolValue(s, grammar)).join(",")}]`;
@@ -126,14 +126,19 @@ export function renderFunctionBody(
 )
     : string {
 
-    if (TEMP_FLAG)
-        console.log({ items: llitems.map(RDItemToItem).setFilter(i => i.id).map(i => i.renderUnformattedWithProduction(grammar)), peek: peek_depth });
-
 
 
     const stmts = [];
 
-    if (peek_depth > 2) throw "Can't complete";
+    if (peek_depth > 4) {
+        if (TEMP_FLAG) console.log("AAAAAAAAAAAAAAAAAA00000000000000000000000000AaA");
+        throw "Can't complete";
+    }
+
+    if (TEMP_FLAG) {
+        console.log("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAaA", llitems.map(RDItemToItem).setFilter(i => i.id).map(i => i.renderUnformattedWithProduction(grammar)));
+        console.log("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAaA", llitems.flatMap(i => i.closure).setFilter(i => i.id).map(i => i.renderUnformattedWithProduction(grammar)));
+    }
 
     /* 
         Each item has a closure which yields transition symbols. 
@@ -153,6 +158,9 @@ export function renderFunctionBody(
     const transition_groups: Map<string, RDItem[]> = llitems.groupMap((i: RDItem) => {
 
         const syms = [];
+
+        if (TEMP_FLAG)
+            console.log(getTerminalSymsFromClosure(i.closure, grammar).map(s => s.val));
 
         for (const sym of getTerminalSymsFromClosure(i.closure, grammar)) {
 
@@ -192,6 +200,9 @@ export function renderFunctionBody(
 
     const try_groups: Map<string, TransitionGroup[]> = new Map();
 
+    if (TEMP_FLAG)
+        console.dir({ group_maps }, { depth: 3 });
+
 
 
     // Determine if these groups are unique - This means 
@@ -223,7 +234,6 @@ export function renderFunctionBody(
 
         try_groups.set(id, [group]);
     }
-    const MULTIPLE_GROUPS = try_groups.size > 1 || ELSE_REDUCE;
 
     let token_bit = 0;
 
@@ -236,20 +246,20 @@ export function renderFunctionBody(
 
             new_group.trs = try_group.flatMap(i => i.trs);
 
-            // for (const group of try_group) {
-            token_bit |= buildGroupStatement(grammar, runner, new_group, peek_depth, stmts, sym_map, !MULTIPLE_GROUPS, AUTO_RETURN, productions);
-            // }
+            token_bit |= buildGroupStatement(grammar, runner, new_group, peek_depth, stmts, sym_map, false, AUTO_RETURN, productions);
 
             //Make a try catch chain.
         } else {
-            token_bit |= buildGroupStatement(grammar, runner, try_group[0], peek_depth, stmts, sym_map, !MULTIPLE_GROUPS, AUTO_RETURN, productions);
+            token_bit |= buildGroupStatement(grammar, runner, try_group[0], peek_depth, stmts, sym_map, false, AUTO_RETURN, productions);
         }
     }
+
+    const MULTIPLE_GROUPS = token_bit & TOKEN_BIT.IS_MULTIPLE;
 
     if (MULTIPLE_GROUPS) {
         //Item annotations if required
         if (runner.ANNOTATED)
-            stmts.unshift(runner.createAnnotationJSNode("LL-PEEK:" + (peek_depth + 1), grammar, ...llitems.map(RDItemToItem)));
+            stmts.unshift(runner.createAnnotationJSNode("RD-PEEK:" + (peek_depth + 1), grammar, ...llitems.map(RDItemToItem)));
 
         if (token_bit) {
             const const_node = ["const"];
@@ -261,7 +271,7 @@ export function renderFunctionBody(
                 lx = "pk";
                 const_body.push("pk:Lexer = l" + (".pk".repeat(peek_depth)));
             }
-            if (token_bit & TOKEN_BIT.TEXT)
+            if (token_bit & TOKEN_BIT.ID)
                 const_body.push(`id:u32 = ${lx}.id`);
 
             if (token_bit & TOKEN_BIT.TYPE)
@@ -277,8 +287,10 @@ export function renderFunctionBody(
 }
 
 const enum TOKEN_BIT {
-    TEXT = 1,
+    ID = 1,
     TYPE = 2,
+
+    IS_MULTIPLE = 4
 }
 
 export function buildGroupStatement(
@@ -293,9 +305,14 @@ export function buildGroupStatement(
     productions: Set<number> = new Set
 ) {
 
+    IS_SINGLE = true;
+
     const
+        body = [],
         trs = group.trs,
-        syms = [...group.syms.values()],
+        syms = [...group.syms.values()];
+
+    let
         token_bit = [...syms.map(s => sym_map.get(s))].reduce((r, v) => {
             let bit = 0;
 
@@ -304,41 +321,36 @@ export function buildGroupStatement(
                 case SymbolType.LITERAL:
                 case SymbolType.SYMBOL:
                 case SymbolType.ESCAPED:
-                    bit = TOKEN_BIT.TEXT;
+                    bit = TOKEN_BIT.ID;
             }
 
             return r |= bit;
         }, 0),
         tests = [...syms.map(s => sym_map.get(s)).map(i => getLexPeekComparisonStringCached(i, grammar))];
 
-    let if_stmt = [`if(${tests.join("||")}){`];
-
-    const if_body = (IS_SINGLE) ? stmts : if_stmt;
-
-    /** Reduce function indices */
-    const rdi: Set<number> = new Set(trs.map(RDItemToItem).setFilter(i => i.id).flatMap(i => [...getReduceFunctionSymbolIndiceSet(i, grammar).values()]));
-
     if (trs.length > 1) {
 
+
+        token_bit |= TOKEN_BIT.IS_MULTIPLE;
+        IS_SINGLE = false;
 
         //Advance through each symbol until there is a difference
         //When there is a difference create a peeking switch
         let items: Item[] = trs.filter(_ => !!_).map(RDItemToItem).filter(_ => !!_), peek = peek_depth;
 
-
-
         while (true) {
             const sym = items.map(i => i).filter(i => !i.atEND)?.shift()?.sym(grammar),
                 off = items.filter(i => !i.atEND)?.[0]?.offset;
             //If any items at end do something
-
-            //All items agree
+            //
             if (off != undefined && sym && !items.reduce((r, i) => (r || i.atEND || (i.sym(grammar)?.val != sym.val)), false)) {
-                if_body.push(renderItemSym(items[0], grammar, runner, AUTO_RETURN, productions));
+                //All items transition on the same symbol; resolve body disputes. 
+                body.push(renderItemSym(items[0], grammar, runner, AUTO_RETURN, productions));
                 items = items.map(i => i.increment()).filter(i => i);
                 peek = -1;
 
             } else {
+
                 const
                     new_items = items
                         .filter(i => !i.atEND),
@@ -347,31 +359,34 @@ export function buildGroupStatement(
                             const closure = [i.item];
                             i.closure = closure;
                             processClosure(closure, grammar);
+                            //Remove the root item
+                            i.closure = closure.map((i, a) => a > 0 ? i.increment() : i).filter(i => i);
                             return i;
                         });
 
                 if (new_trs.length > 0)
-                    if_body.push(renderFunctionBody(new_trs, grammar, runner, peek + 1, items.some(i => i.atEND), AUTO_RETURN, productions));
+                    body.push(renderFunctionBody(new_trs, grammar, runner, peek + 1, items.some(i => i.atEND), AUTO_RETURN, productions));
 
-                //If any items at end render here?
+                //If any items at end render here? 
                 for (const d of items.filter(i => i.atEND))
-                    if_body.push(renderItem(d, grammar, runner, AUTO_RETURN, productions));
+                    body.push(renderItem(d, grammar, runner, AUTO_RETURN, productions));
 
                 break;
             };
         }
     } else {
-
+        token_bit |= TOKEN_BIT.IS_MULTIPLE;
+        IS_SINGLE = false;
         //Just complete the grammar symbols
         const item = RDItemToItem(trs[0]);
-        if_body.push(renderItem(item, grammar, runner, AUTO_RETURN, productions));
+        body.push(renderItem(item, grammar, runner, AUTO_RETURN, productions));
     }
 
     if (!IS_SINGLE) {
-        if_stmt.push("}");
-        stmts.push(if_stmt.join("\n"));
+        stmts.push(`if(${tests.join("||")}){`, ...body, "}");
+    } else {
+        stmts.push(...body);
     }
-
     return token_bit;
 }
 
