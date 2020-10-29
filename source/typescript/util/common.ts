@@ -6,10 +6,10 @@ import { FIRST } from "./first.js";
 
 import { FOLLOW } from "./follow.js";
 
-import { processClosure, getDerivedItems } from "./process_closure.js";
+import { processClosure } from "./process_closure.js";
 import { Grammar } from "../types/grammar.js";
 
-export { Item, FOLLOW, FIRST, processClosure, getDerivedItems };
+export { Item, FOLLOW, FIRST, processClosure };
 
 export const types = wind.types;
 

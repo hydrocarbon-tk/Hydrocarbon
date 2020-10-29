@@ -11,6 +11,7 @@ import { constructCompilerRunner, CompilerRunner } from "./types/CompilerRunner.
 import { JSNode } from "@candlefw/js";
 import { printLexer } from "./assemblyscript/hybrid_lexer.js";
 import { RDProductionFunction } from "./types/RDProductionFunction.js";
+import { makeRDHybridFunction } from "./rd_hybrid.js";
 
 type WorkerContainer = {
     target: Worker;
@@ -103,9 +104,6 @@ export class HybridMultiThreadRunner {
 
         this.RUN = true;
 
-        var t = this;
-        this.i = 0;
-
         this.lr_states = new Map;
         this.grammar = grammar;
         this.env = env;
@@ -145,6 +143,9 @@ export class HybridMultiThreadRunner {
                 wkr.target.on("message", data => this.mergeWorkerData(wkr, data));
             }
         );
+
+        const prod = grammar.findIndex(e => e.name == "mf_range");
+        makeRDHybridFunction(grammar[prod], grammar, this.runner);
     }
 
     handleUnprocessedStateItems(potential_states: State[], named_state: State = null, id = -1) {
@@ -168,10 +169,6 @@ export class HybridMultiThreadRunner {
             state.items = state.items.map(Item.fromArray);
 
             let merged_state = mergeState(state, this.lr_states, old_state, this.lr_item_set);
-
-            if (old_state.name == "$STYLE_SHEET_HC_listbody1_100" && merged_state.sym == 71) {
-                console.log(0, 2, { nm: merged_state });
-            }
         }
     }
 
@@ -317,16 +314,16 @@ export class HybridMultiThreadRunner {
         });
 
         const root_states = [];
+        let lr_nodes = [];
 
-        {
-
-            //trace ll states from root and set productions
-            const pending = [this.ll_functions[0], ...this.ll_functions.filter(f => f.RENDER)], reached = new Set([0]);
-
+        //trace ll states from root and set productions
+        const pending = [this.ll_functions[0], ...this.ll_functions.filter(f => f.RENDER)], reached = new Set([0]);
+        try {
             for (let i = 0; i < pending.length; i++) {
                 const ll = pending[i];
                 ll.RENDER = true;
                 if (ll.IS_RD) {
+                    // console.log({ ll: ll.productions });
                     for (const production of ll.productions.values()) {
                         if (!reached.has(production)) {
                             pending.push(this.ll_functions[production]);
@@ -334,25 +331,23 @@ export class HybridMultiThreadRunner {
                         }
                     }
                 } else {
-                    root_states.push(ll.state);
+                    //Build the state
+                    const { reached_rds } = renderStates([ll.state], states, this.grammar, this.runner, this.ll_functions);
+                    //console.log({ reached_rds });
+                    for (const production of reached_rds.values()) {
+                        if (!reached.has(production)) {
+                            pending.push(this.ll_functions[production]);
+                            reached.add(production);
+                        }
+                    }
                 }
-            }
-        }
-
-        let lr_nodes = [];
-        try {
-
-            if (root_states.length > 0) {
-                lr_nodes = renderStates(root_states, states, this.grammar, this.runner, this.ll_functions, true);
             }
         } catch (e) {
             console.dir(e);
-            console.dir("ENDED2");
             process.exit();
         }
 
-        const fns = [...this.ll_functions.map(fn => fn.str), ...lr_nodes];
-
+        const fns = [...this.ll_functions.filter(l => l.RENDER).map(fn => fn.str), ...states.filter(s => s.REACHABLE).map(s => s.function_string)];
 
 
         //Compile Function  
@@ -369,6 +364,10 @@ export class HybridMultiThreadRunner {
                 mark_: u32 = 0, 
                 pointer: u32  = 0,
                 error_ptr: u32  = 0;
+
+            function error_mark(val:u32):void{
+                error_array[error_ptr++] val;
+            }
 
             @inline
             function mark (): u32{
@@ -388,7 +387,6 @@ export class HybridMultiThreadRunner {
                 unchecked(action_array[pointer++] = val);
             }
 
-            @inline
             function add_shift(char_len:u32): void{
                 if(char_len < 1) return;
                 const ACTION: u32 = 2;
@@ -396,7 +394,6 @@ export class HybridMultiThreadRunner {
                 unchecked(action_array[pointer++] = val);
             }
 
-            @inline
             function add_reduce(sym_len:u32, body:u32): void{
                 const ACTION: u32 = 1;
                 const val: u32 = ACTION | ((sym_len & 0x3FFF )<< 2) | (body << 16);
@@ -429,12 +426,26 @@ export class HybridMultiThreadRunner {
         return false;
     }
 
-    @inline
     function fail(lex:Lexer):void { 
+        prod = -1;
         FAILED = true;
         error_array[error_ptr++] = lex.off;
     }
-            
+
+    function setProduction(production: u32):void{
+        prod = (-FAILED) +  (-FAILED+1) * production;
+    }   
+
+    function _pk(lex: Lexer, /* eh, */ skips: u32[]): Lexer {
+
+        lex.next();
+    
+        const off: u32 = lex.off;
+    
+        if (skips) while (lm(lex, skips)) lex.next();
+    
+        return lex;
+    }            
             
     function _(lex: Lexer, /* eh, */ skips: u32[], sym: u32 = 0):void {
 
@@ -463,7 +474,9 @@ export class HybridMultiThreadRunner {
     }
             
     
-    ${fns.map(s => s.split("\n").join("\n    ")).join("\n    ")}
+    ${fns.join("\n    ")}
+
+
 
     export class Export {
 
@@ -564,7 +577,7 @@ export default function jsmain(str) {
 
     if (FAILED) {
 
-        const error_off = er.sort((a, b) => a - b)[er.length - 1];
+        const error_off = er.sort((a, b) => b - a)[0];
 
         const lexer = new Lexer(str);
 

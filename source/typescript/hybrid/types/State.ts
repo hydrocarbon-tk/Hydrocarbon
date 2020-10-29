@@ -54,4 +54,6 @@ export interface State {
      * A set of state indices that are called from this state.
      */
     reachable?: Set<number>;
+
+    function_string?: string;
 }

@@ -56,6 +56,8 @@ export function CompileHybridLRStates(
         old_state = item_set.old_state,
         to_process_items = item_set.items;
 
+    const yields = to_process_items.slice();
+
     processClosure(to_process_items, grammar);
 
     const groups = <Map<string, Map<string | number, { sym: Symbol, items: Item[]; }>>>new Map();
@@ -93,6 +95,7 @@ export function CompileHybridLRStates(
         potential_states.push(<State>{
             sym: sym.val,
             id,
+            yields,
             sid,
             bid: unique_items.map(i => i.renderUnformattedWithProduction(grammar)).join(" :\n "),
             roots: [],
