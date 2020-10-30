@@ -1,8 +1,7 @@
 import { Grammar, Production, ProductionBody, EOF_SYM, SymbolType, Symbol } from "../types/grammar.js";
-import { processClosure, Item, FOLLOW } from "../util/common.js";
+import { processClosure, Item } from "../util/common.js";
 import { GrammarParserEnvironment } from "../types/grammar_compiler_environment";
-import { stmt } from "@candlefw/js";
-import { translateSymbolValue, getLexPeekComparisonStringCached, getReduceFunctionSymbolIndiceSet, has_INLINE_FUNCTIONS, getRootSym } from "./utilities/utilities.js";
+import { translateSymbolValue, getLexPeekComparisonStringCached, has_INLINE_FUNCTIONS, getRootSym, getSkipArray, getIncludeBooleans } from "./utilities/utilities.js";
 import { RDProductionFunction } from "./types/RDProductionFunction";
 import { RDItem } from "./types/RDItem";
 import { getTerminalSymsFromClosure } from "./utilities/get_terminal_syms_from_closure.js";
@@ -10,6 +9,13 @@ import { insertFunctions } from "./utilities/insert_body_functions.js";
 import { CompilerRunner } from "./types/CompilerRunner.js";
 
 let TEMP_FLAG = false;
+
+const enum TOKEN_BIT {
+    ID = 1,
+    TYPE = 2,
+
+    IS_MULTIPLE = 4
+}
 
 function checkForLeftRecursion(p: Production, start_items: RDItem[], grammar: Grammar) {
 
@@ -51,7 +57,8 @@ function renderItemSym(
     grammar: Grammar,
     runner: CompilerRunner,
     AUTO_RETURN = true,
-    productions: Set<number> = new Set
+    productions: Set<number> = new Set,
+    RENDER_WITH_NO_CHECK = false
 ): string {
 
     const
@@ -61,7 +68,6 @@ function renderItemSym(
     stmts.push(insertFunctions(item, grammar, true));
 
     if (item.atEND) {
-        //  stmts.push(`stack_ptr -= 1;`);
         if (!(item.len == 1 && !body.reduce_function))
             stmts.push(`add_reduce(${item.len},${item.body});`);
 
@@ -79,29 +85,72 @@ function renderItemSym(
 
         } else {
 
-            //Get skips from grammar - TODO get symbols from bodies / productions
-            const skip_symbols = `[${grammar.meta.ignore.flatMap(d => d.symbols).map(s => getRootSym(s, grammar)).map(s => translateSymbolValue(s, grammar)).join(",")}]`;
-
-            stmts.push(`_(l, /* e.eh, */ ${skip_symbols}, ${translateSymbolValue(sym, grammar)});`);
+            if (RENDER_WITH_NO_CHECK)
+                stmts.push(`_no_check(l, /* e.eh, */ ${getSkipArray(grammar, runner)});`);
+            else
+                stmts.push(`_(l, /* e.eh, */ ${getSkipArray(grammar, runner)}, ${translateSymbolValue(sym, grammar, runner.ANNOTATED)});`);
         }
     }
 
     return stmts.join("\n");
 }
 
-function renderItem(item: Item, grammar: Grammar, runner: CompilerRunner, AUTO_RETURN: boolean = true, productions: Set<number> = new Set): string {
+function renderItem(item: Item, grammar: Grammar, runner: CompilerRunner, AUTO_RETURN: boolean = true, productions: Set<number> = new Set, NO_CHECK = false): string {
     const stmts = [];
 
     while (true) {
-        stmts.push(renderItemSym(item, grammar, runner, AUTO_RETURN, productions));
+        stmts.push(renderItemSym(item, grammar, runner, AUTO_RETURN, productions, NO_CHECK));
+        NO_CHECK = false;
         if (item.atEND) break;
         item = item.increment();
     }
 
     stmts.splice(stmts.length - 1, 0, `setProduction(${item.getProduction(grammar).id})`);
-    //stmts.splice(stmts.length - 1, 0, `prod =  (-1&(~(FAILED-1))) | (${item.getProduction(grammar).id}&(~(!FAILED-1)))`);
 
     return stmts.join("\n");
+}
+
+
+function getPeekAtDepth(item: Item, grammar: Grammar, depth = 0, visited = new Set()): { closure: Item[], COMPLETED: boolean; } {
+
+    if (!item || item.atEND) return { closure: [], COMPLETED: true };
+
+    const closure = [item];
+
+    let COMPLETED = false;
+
+    processClosure(closure, grammar, true);
+
+    const out = [];
+
+    if (depth <= 0) {
+        return { closure: closure.filter(i => !i.atEND && i.sym(grammar).type != SymbolType.PRODUCTION), COMPLETED };
+    } else {
+        for (const item of closure) {
+            if (item.atEND) {
+                COMPLETED = true;
+            } else if (item.sym(grammar).type == SymbolType.PRODUCTION) {
+                if (!visited.has(item.sym(grammar).val)) {
+                    visited.add(item.sym(grammar).val);
+                    const { closure: c, COMPLETED: C } = getPeekAtDepth(item, grammar, depth, visited);
+                    out.push(...c);
+                    COMPLETED = C || COMPLETED;
+                }
+            } else {
+                const { closure: c, COMPLETED: C } = getPeekAtDepth(item.increment(), grammar, depth - 1);
+                out.push(...c);
+                COMPLETED = C || COMPLETED;
+            }
+        }
+    }
+
+    if (COMPLETED) {
+        const data = getPeekAtDepth(item.increment(), grammar, depth - 1);
+        data.closure.unshift(...out);
+        return data;
+    }
+
+    return { closure: out, COMPLETED };
 }
 
 
@@ -142,6 +191,9 @@ export function renderFunctionBody(
 
     // sort into transition groups - groups gathered based on a single transition symbol
     const transition_groups: Map<string, RDItem[]> = llitems.groupMap((i: RDItem) => {
+
+        if (runner.ANNOTATED && peek_depth > 0)
+            stmts.push(`/*${new Item(i.body_index, grammar.bodies[i.body_index].length, 0, {}).renderUnformattedWithProduction(grammar)} peek ${peek_depth} state: \n${i.closure.map(i => i.renderUnformattedWithProduction(grammar)).join("\n")}*/\n`);
 
         const syms = [];
 
@@ -193,77 +245,25 @@ export function renderFunctionBody(
             let lx = "l";
 
             if (peek_depth > 0) {
-                const skip_symbols = `[${grammar.meta.ignore.flatMap(d => d.symbols).map(s => getRootSym(s, grammar)).map(s => translateSymbolValue(s, grammar)).join(",")}]`;
-
                 lx = `pk${peek_depth}`;
-
-                const_body.push(`${lx}:Lexer =_pk( ${peek_depth > 1 ? "pk" + (peek_depth - 1) : "l"}.copy(), /* e.eh, */${skip_symbols})`);
+                const_body.push(`${lx}:Lexer =_pk( ${peek_depth > 1 ? "pk" + (peek_depth - 1) : "l"}.copy(), /* e.eh, */${getSkipArray(grammar, runner)})`);
             }
 
-            if (token_bit & TOKEN_BIT.ID)
-                const_body.push(`id:u32 = ${lx}.id`);
-
-            if (token_bit & TOKEN_BIT.TYPE)
-                const_body.push(`ty:u32 = ${lx}.ty`);
+            // if (token_bit & TOKEN_BIT.ID)
+            //     const_body.push(`id:u32 = ${lx}.id`);
+            //
+            // if (token_bit & TOKEN_BIT.TYPE)
+            //     const_body.push(`ty:u32 = ${lx}.ty`);
 
             const_node.push(const_body.join(","), ";");
 
-            stmts.unshift(const_node.join(" "));
+            if (const_body.length > 0)
+
+                stmts.unshift(const_node.join(" "));
         }
     }
 
     return stmts.join("\n");
-}
-
-const enum TOKEN_BIT {
-    ID = 1,
-    TYPE = 2,
-
-    IS_MULTIPLE = 4
-}
-
-
-function getPeekAtDepth(item: Item, grammar: Grammar, depth = 0, visited = new Set()): { closure: Item[], COMPLETED: boolean; } {
-
-    if (!item || item.atEND) return { closure: [], COMPLETED: true };
-
-    const closure = [item];
-
-    let COMPLETED = false;
-
-    processClosure(closure, grammar, true);
-
-    const out = [];
-
-    if (depth <= 0) {
-        return { closure: closure.filter(i => !i.atEND && i.sym(grammar).type != SymbolType.PRODUCTION), COMPLETED };
-    } else {
-        for (const item of closure) {
-            if (item.atEND) {
-                COMPLETED = true;
-            } else if (item.sym(grammar).type == SymbolType.PRODUCTION) {
-                if (!visited.has(item.sym(grammar).val)) {
-                    visited.add(item.sym(grammar).val);
-                    const { closure: c, COMPLETED: C } = getPeekAtDepth(item, grammar, depth, visited);
-                    out.push(...c);
-                    COMPLETED = C || COMPLETED;
-                }
-            } else {
-                const { closure: c, COMPLETED: C } = getPeekAtDepth(item.increment(), grammar, depth - 1);
-                out.push(...c);
-                COMPLETED = C || COMPLETED;
-            }
-        }
-    }
-
-    if (COMPLETED) {
-        const data = getPeekAtDepth(item.increment(), grammar, depth - 1);
-        data.closure.unshift(...out);
-        data.COMPLETED = COMPLETED || data.COMPLETED;
-        return data;
-    }
-
-    return { closure: out, COMPLETED };
 }
 export function buildGroupStatement(
     grammar: Grammar,
@@ -277,7 +277,7 @@ export function buildGroupStatement(
     productions: Set<number> = new Set
 ) {
 
-
+    const pk = peek_depth;
 
     const
         body = [],
@@ -298,10 +298,12 @@ export function buildGroupStatement(
 
             return r |= bit;
         }, 0),
-        tests = [...syms.map(s => sym_map.get(s)).map(i => getLexPeekComparisonStringCached(i, grammar))];
+        tests = [...syms.map(s => sym_map.get(s))];
     if (runner.ANNOTATED) {
         body.push("//considered syms: " + syms);
     }
+
+    let offset = 0;
 
     if (trs.length > 1) {
 
@@ -326,56 +328,50 @@ export function buildGroupStatement(
                 peek_depth = -1;
                 peek_depth = -1;
 
+                offset++;
+
             } else {
-                const no_closures = items.filter(i => i.atEND);
-                {
-                    const
-                        new_items = items
-                            .filter(i => !i.atEND && !(i.sym(grammar).type != SymbolType.PRODUCTION)),
-                        new_trs = new_items
-                            .map(i => ItemToRDItem(i, grammar)).map(rd_item => {
 
-                                rd_item.closure = getPeekAtDepth(rd_item.item, grammar, peek_depth + 1).closure;
+                const
+                    no_closures = items.filter(i => i.atEND),
 
-                                return rd_item;
-                            });
+                    prod_items = items
+                        .filter(i => !i.atEND && (i.sym(grammar).type == SymbolType.PRODUCTION)),
 
-                    if (new_trs.length > 0) {
-                        const has_closures = new_trs.filter(f => f.closure.length > 0);
+                    term_items = items
+                        .filter(i => !i.atEND && (i.sym(grammar).type != SymbolType.PRODUCTION)),
 
-                        no_closures.push(...new_trs.filter(f => f.closure.length == 0).map(RDItemToItem));
+                    new_trs = [].concat(prod_items.map(i => {
 
-                        if (runner.ANNOTATED) {
-                            body.push("\n//Production Look Ahead peek:" + (peek_depth + 1));
-                            body.push("/*\n" + new_items.filter(_ => !!_).map(i => i.renderUnformattedWithProduction(grammar)).join("\n"), "*/");
-                        }
+                        const rd_item = ItemToRDItem(i, grammar);
 
-                        body.push(renderFunctionBody(has_closures, grammar, runner, peek_depth + 1, true, AUTO_RETURN, productions));
+                        const { closure, COMPLETED } = getPeekAtDepth(rd_item.item, grammar, peek_depth + 1);
+
+                        rd_item.closure = closure.setFilter(i => i.id);
+
+                        if (TEMP_FLAG)
+                            console.log({ COMPLETED, peek: peek_depth + 1, it: i.renderUnformattedWithProduction(grammar), c_len: rd_item.closure.length });
+
+                        // Variant of production is completed at this peek level.
+                        if (COMPLETED) no_closures.push(i);
+
+                        return rd_item;
+                    })).concat(term_items.map(i => ItemToRDItem(i, grammar)));
+
+                if (new_trs.length > 0) {
+                    const has_closures = new_trs.filter(f => f.closure.length > 0);
+
+                    no_closures.push(...new_trs.filter(f => f.closure.length == 0).map(RDItemToItem));
+
+                    if (runner.ANNOTATED) {
+                        body.push("\n//Look Ahead Level " + (peek_depth + 1));
+                        body.push("/*\n" + prod_items.filter(_ => !!_).map(i => i.renderUnformattedWithProduction(grammar)).join("\n"), "*/");
                     }
-                }
-                {
-                    const
-                        new_items = items
-                            .filter(i => !i.atEND && (i.sym(grammar).type != SymbolType.PRODUCTION)),
 
-                        new_trs = new_items
-                            .map(i => ItemToRDItem(i, grammar)).map(i => {
-                                const closure = [i.item];
-                                i.closure = closure;
-                                processClosure(closure, grammar, true);
-                                //Remove the root item
-                                return i;
-                            });
-                    if (new_trs.length > 0) {
-                        if (runner.ANNOTATED) {
-                            body.push("\n//Terminal Look Ahead");
-                            body.push("/*\n" + new_items.filter(_ => !!_).map(i => i.renderUnformattedWithProduction(grammar)).join("\n"), "*/");
-                        }
-                        body.push(renderFunctionBody(new_trs, grammar, runner, peek_depth, items.some(i => i.atEND), AUTO_RETURN, productions));
-                    }
+                    body.push(renderFunctionBody(has_closures, grammar, runner, peek_depth + 1, true, AUTO_RETURN, productions));
                 }
 
-                for (const d of no_closures) {
+                for (const d of no_closures.setFilter(i => i.id).slice(0)) {
                     if (runner.ANNOTATED) {
                         body.push("\n//Completed Production");
                         body.push("/*\n" + [d].filter(_ => !!_).map(i => i.renderUnformattedWithProduction(grammar)).join("\n"), "*/");
@@ -390,17 +386,17 @@ export function buildGroupStatement(
         //IS_SINGLE = false;
         //Just complete the grammar symbols
         const item = RDItemToItem(trs[0]);
-        if (item.atEND) IS_SINGLE = true;
         if (runner.ANNOTATED) {
             body.push("\n//Single Production Completion");
             body.push("/*\n" + [item].map(i => i.renderUnformattedWithProduction(grammar)).join("\n"), "*/");
         }
-        body.push(renderItem(item, grammar, runner, AUTO_RETURN, productions));
+        body.push(renderItem(item, grammar, runner, AUTO_RETURN, productions, !IS_SINGLE));
+        if (item.atEND) IS_SINGLE = true;
     }
 
     if (!IS_SINGLE) {
         token_bit |= TOKEN_BIT.IS_MULTIPLE;
-        stmts.push(`if(${tests.join("||")}){`, ...body, "}");
+        stmts.push(`if(${getIncludeBooleans(tests, grammar, runner, pk > 0 ? "pk" + (pk) : "l")}){`, ...body, "}");
     } else {
         stmts.push(...body);
     }
@@ -431,7 +427,7 @@ export function makeRDHybridFunction(production: Production, grammar: Grammar, r
 
     const p = production;
 
-    if (p.name == "mf_range")
+    if (p.name == "TYPE_SELECTOR")
         TEMP_FLAG = true;
     else
         TEMP_FLAG = false;
@@ -444,7 +440,11 @@ export function makeRDHybridFunction(production: Production, grammar: Grammar, r
 
         INLINE_FUNCTIONS = p.bodies.some(has_INLINE_FUNCTIONS),
 
-        start_items: RDItem[] = p.bodies.map(b => BodyToRDItem(b, grammar));
+        start_items: RDItem[] = p.bodies.map(b => BodyToRDItem(b, grammar)),
+
+        closure = start_items.map(RDItemToItem);
+
+    processClosure(closure, grammar, true);
 
     if (INLINE_FUNCTIONS)
         stmts.push("const s = []");
@@ -460,15 +460,12 @@ export function makeRDHybridFunction(production: Production, grammar: Grammar, r
     try {
         if (runner.ANNOTATED) {
             stmts.push("//Production Start");
-            stmts.push("/*\n" + start_items.map(RDItemToItem).filter(_ => !!_).map(i => i.renderUnformattedWithProduction(grammar)).join("\n"), "*/");
+            stmts.push("/*\n" + closure.filter(_ => !!_).map(i => i.renderUnformattedWithProduction(grammar)).join("\n"), "*/");
         }
 
         stmts.push(renderFunctionBody(start_items, grammar, runner, 0, false, true, productions));
 
-        if (TEMP_FLAG) {
-            const v = `${stmts.join("\n")}`;
-            console.log({ v });
-        }
+
     } catch (e) {
         return {
             refs: 0,

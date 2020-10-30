@@ -37,6 +37,11 @@ export interface Symbol {
     production?: Production;
     resolveFunction?: () => void;
     pos?: Lexer;
+
+    /**
+     * The numerical identifier for this token
+     */
+    id?: number;
 }
 
 export interface ProductionBodyFunction {
@@ -101,7 +106,7 @@ export interface ProductionBody {
 
 export interface Production {
     id: number;
-    name: string | Symbol;
+    name: string;
     val?: number;
     type: "production";
     subtype?: string;

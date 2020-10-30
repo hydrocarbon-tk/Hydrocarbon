@@ -9,16 +9,11 @@ const fsp = fs.promises;
 
 export async function compileHybrid(grammar: Grammar, env: GrammarParserEnvironment) {
 
-    const type = "WebAssembly";
+    const mt_runner = new HybridMultiThreadRunner(grammar, env, false);
 
-    const mt_runner = new HybridMultiThreadRunner(grammar, env);
-
-    for (const updates of mt_runner.run()) {
-        // /console.dir({ updates });
+    for (const updates of mt_runner.run())
         await spark.sleep(1);
-    }
 
-    const temp_dir = URL.resolveRelative("./temp/");
     const temp_source = URL.resolveRelative("./temp/source/");
     const rust_file = URL.resolveRelative("./temp/source/parser.ts");
     const module_file = URL.resolveRelative("./temp/parser.js");

@@ -1,6 +1,5 @@
-import { Grammar, SymbolType, Symbol } from "../types/grammar.js";
+import { Grammar, SymbolType } from "../types/grammar.js";
 import { Item, processClosure } from "../util/common.js";
-import { JSNode } from "@candlefw/js";
 import {
     getShiftStates,
     getStatesFromNumericArray,
@@ -8,15 +7,16 @@ import {
     getNonTerminalTransitionStates,
     integrateState,
     getCompletedItemsNew,
-    getRootSym
+    getRootSym,
+    getRealSymValue,
+    getSkipArray,
+    getIncludeBooleans
 } from "./utilities/utilities.js";
 import { State } from "./types/State";
 import { RDProductionFunction } from "./types/RDProductionFunction.js";
 import { insertFunctions } from "./utilities/insert_body_functions.js";
 import { States } from "./lr_hybrid.js";
 import { CompilerRunner } from "./types/CompilerRunner.js";
-import { Lexer } from "@candlefw/wind";
-import { buildIntermediateRD } from "./rd_hybrid.js";
 
 
 function filterGotos(state: State, states: State[], grammar: Grammar, ...pending_prods: number[]): Map<number, number[]> {
@@ -69,8 +69,6 @@ function gotoState(
     const statements: string[] = [];
 
     const gotos = filterGotos(state, states, grammar, ...active_gotos);
-    if (state.name == "$STYLE_SHEET")
-        console.log({ gotos, active_gotos });
 
     gt = [...gotos.entries()];
 
@@ -83,9 +81,6 @@ function gotoState(
         statements.push("var a:i32 = prod;");
 
         statements.push(`while(1){  `);
-
-        if (runner.ANNOTATED)
-            statements.push(`log(\`Loop State ${state.name || state.index} start sp:\${sp} curr sp:\${stack_ptr}  curr p:\${prod} \` );`);
 
         statements.push(
 
@@ -116,34 +111,9 @@ function gotoState(
 
                 } else {
 
-                    /*
-                    const item = st.items[0], symbol = item.sym(grammar)?.val, production = item.getProduction(grammar).id;
-
-                    if (!st.items.some(i => i.atEND)
-                        //&& item.sym(grammar).type == SymbolType.PRODUCTION
-                        //&& item.increment().atEND
-                    ) {
-                        try {
-                            statements.push(buildIntermediateRD(st.items.setFilter(i => i.id), grammar, runner, ll_fns));
-                        } catch (e) {
-
-
-                            state.reachable.add(st.index);
-
-                            statements.push(integrateState(st, states, grammar,  existing_refs, "s", state));
-                        }
-                    } else {
-
-                        state.reachable.add(st.index);
-
-                        statements.push(integrateState(st, states, grammar,  existing_refs, "s", state));
-                    }
-                    /*/
-
                     state.reachable.add(st.index);
 
                     statements.push(integrateState(st, existing_refs));
-                    //*/
                 }
             }
 
@@ -161,39 +131,12 @@ function gotoState(
             statements.push(`if(![${accepting_productions.join(",")}].includes(a))fail(l); else prod = ${state.items[0].getProduction(grammar).id}`);
         } else
             statements.push(`FAILED = (![${accepting_productions.join(",")}].includes(a));`);
-
-        if (runner.ANNOTATED)
-            statements.push(`log(\`Loop State ${state.name || state.index} pass:\${FAILED} ep:\${prod} a:\${a} \` );`);
-
     }
 
     return statements;
 }
 
-function getRealSymValue(sym: Symbol) {
 
-    let val;
-    switch (sym.type) {
-        case SymbolType.GENERATED:
-            if (sym.val == "keyword") { val = "keyword"; break; }
-            if (sym.val == "any") { val = "true"; break; }
-            if (sym.val == "$eof") { val = 0xFF; break; }
-            { val = Lexer.types[sym.val]; break; }
-        case SymbolType.LITERAL:
-        case SymbolType.ESCAPED:
-        case SymbolType.SYMBOL:
-            if (sym.val == "\\") { val = `'\\'`; break; }
-            if (sym.val == "\"") { val = `\\"`; break; }
-            { val = sym.val; break; }
-        case SymbolType.END_OF_FILE:
-            { val = 0xFF; break; }
-        case SymbolType.EMPTY:
-            { val = "emptry"; break; }
-
-    }
-
-    return val;
-}
 function shiftReduce(
     /**  The state to reduce */
     state: State,
@@ -217,6 +160,9 @@ function shiftReduce(
 
     //Sort groups based on the productions they have. State indices mapped to "-" delim strings
 
+    const closure: Item[] = state.items.setFilter(s => s.id);
+    processClosure(closure, grammar, true);
+    const cc = closure.sort((a, b) => b.body - a.body).slice(0, -1);
 
     const to_process = [
         ...getShiftStates(state).map(([sym, val]) => {
@@ -306,8 +252,8 @@ function shiftReduce(
 
                 let lex_name = "l", pending_data_name = "_sym", pdn = pending_data_name;
 
-
-                block.push(`//${shift_state.items.setFilter(i => i.id).map(i => (<Item>i).renderUnformattedWithProduction(grammar)).join("  :  ")}\n`);
+                if (runner.ANNOTATED)
+                    block.push(`//${shift_state.items.setFilter(i => i.id).map(i => (<Item>i).renderUnformattedWithProduction(grammar)).join("  :  ")}\n`);
 
                 const item: Item = shift_state.items[0],
                     GROUP_NOT_LAST = i < shift_groups.states.length - 1,
@@ -315,7 +261,6 @@ function shiftReduce(
                     production = item.getProduction(grammar).id;
 
                 i++;
-
 
                 if (GROUP_NOT_LAST) {
                     if (FIRST_GROUP) {
@@ -328,36 +273,14 @@ function shiftReduce(
                     };
                 }
 
-                if (runner.ANNOTATED)
-                    if (TRY_GROUP) {
-                        if (FIRST_GROUP)
-                            block.push(runner.createAnnotationJSNode(
-                                `LR[${state.index}]-SHIFT-ATTEMPT:\${sp}:${i}`, grammar, ...shift_state.items));
-                        else
-                            block.push(runner.createAnnotationJSNode(
-                                `LR[${state.index}]-SHIFT-NEXT-ATTEMPT:\${sp}:${i}`, grammar, ...shift_state.items));
-                    } else
-                        block.push(runner.createAnnotationJSNode(`LR[${state.index}]-SHIFT:\${stack_ptr}`, grammar, ...shift_state.items.map(i => i.decrement())));
-
-                //###############################################//###############################################//###############################################//###############################################
-                //###############################################//###############################################//###############################################//###############################################
-                //###############################################//###############################################//###############################################//###############################################
-                //###############################################//###############################################//###############################################//###############################################
-                //###############################################//###############################################//###############################################//###############################################
                 let RUN = true;
 
                 if (ll_fns) {
 
-                    const closure: Item[] = state.items.setFilter(s => s.id);
-
-                    processClosure(closure, grammar, true);
-
-                    const root_set = new Set(shift_state.items.map(i => i.decrement().id));
-
                     const productions: Map<number, Set<string>> = new Map([[production, new Set()]]);
-                    const cc = closure.sort((a, b) => b.body - a.body).slice(0, -1);
                     let cap = shift_state.items.slice(), added = new Set();
                     let ADDED = true;
+
                     while (ADDED) {
                         ADDED = false;
                         //Get chain of productions that lead from the current one
@@ -395,11 +318,8 @@ function shiftReduce(
                         }
                     }
 
-
                     const map = [...productions.entries()].reverse();
-
-
-
+                    /*
                     if (state.name == "$media_queries_group_039_115" || state.name == "$STYLE_SHEET") {
 
                         console.log({
@@ -409,6 +329,7 @@ function shiftReduce(
                             its: closure.setFilter(s => s.id).map(c => (<Item>c).renderUnformattedWithProduction(grammar) + "graph:" + (<Item>c).body_(grammar).id)
                         });
                     }
+                    */
 
                     // if (map[0][1].size <= 1)
                     for (const [prod, set] of map.slice(0)) {
@@ -441,10 +362,8 @@ function shiftReduce(
                     let shift_state_stmt = "";
 
                     const
-                        skip_symbols = grammar.meta.ignore.flatMap(d => d.symbols),
                         insert_functions = insertFunctions(item, grammar, false),
-                        shift_fn = `_(${lex_name}, /* e.eh, */ [${skip_symbols.map(s => translateSymbolValue(s, grammar)).join(",")}]); stack_ptr++;`,
-                        symbols_name = GROUP_NOT_LAST ? pdn : "s";
+                        shift_fn = `_no_check(${lex_name}, /* e.eh, */ ${getSkipArray(grammar, runner)}); stack_ptr++;`;
 
                     block.push(shift_fn);
 
@@ -488,11 +407,11 @@ function shiftReduce(
             }
         }
 
-        if (shift.length > 0 && reduce.length > 0) {
+        if (shift.length > 0 && reduce.length > 0)
             block.push(`if(prod >= 0) return; else FAILED = false;`);
-        }
 
-        block.push(`//${reduce.map(i => (<Item>i.item).renderUnformattedWithProduction(grammar)).join("  :  ")}\n`);
+        if (runner.ANNOTATED)
+            block.push(`//${reduce.map(i => (<Item>i.item).renderUnformattedWithProduction(grammar)).join("  :  ")}\n`);
 
         for (const { item } of reduce.slice(0, 1)) {
 
@@ -502,114 +421,105 @@ function shiftReduce(
 
             active_gotos.push(production.id);
 
-            if (runner.ANNOTATED)
-                block.push(runner.createAnnotationJSNode(`LR[${state.index}]-REDUCE_TO:${production.id} sp:\${stack_ptr}`, grammar, item));
-
             if (!(item.len == 1 && !body.reduce_function))
                 block.push(`add_reduce(${item.len},${item.body});`);
 
             block.push(
                 `stack_ptr -= ${item.len} `,
-                `prod = ${production.id}`,
+                `prod = ${production.id}`
             );
         }
     }
 
     if (outputs.length > 0) {
 
-        const
-            id = outputs.filter(e => e.a_syms.some(s => s.id != undefined)),
-            ty = outputs.filter(e => e.a_syms.some(s => s.id == undefined));
-
         if (outputs.length == 1) {
-
-            let output;
-
-            if (id.length > 0)
-                output = id[0];
-            else if (ty.length > 0)
-                output = ty[0];
-
-            const if_stmt = [`if(${
-                [
-                    id.length > 0 ? `[${id[0].a_syms.filter(s => s.id != undefined).map(s => s.id + `/* ${s.val} */`).setFilter().sort().join(",")}].includes(l.id)` : undefined,
-                    ty.length > 0 ? `[${ty[0].a_syms.filter(s => s.type == SymbolType.GENERATED).map(s => translateSymbolValue(s, grammar)).setFilter().sort().join(",")}].includes(l.ty)` : undefined
-                ].filter(_ => _).join("||")
-                }){`];
-
-            if_stmt.push(...output.stmts);
-
-            statements.push(...if_stmt, "}");
+            statements.push(`if(${getIncludeBooleans(outputs[0].a_syms, grammar, runner)}){`, ...outputs[0].stmts, "}");
         } else {
 
-            let id_switch: string[], ty_switch: string[], end_stmt: string[];
+            const
+                id = outputs.filter(e => e.a_syms.some(s => s.id != undefined)),
+                ty = outputs.filter(e => e.a_syms.some(s => s.id == undefined));
+
+            let ty_name = `tym${state.index}`, id_name = `idm${state.index}`;
 
             if (id.length > 0) {
-                pre_statements.push(`const idm${state.index}: Map<number, (L:Lexer)=>void> = new Map()`);
+                const
+                    id_stmt = [`const ${id_name}: Map<number, (L:Lexer)=>void> = new Map()`],
+                    map_hash = [];
                 let i = 0;
                 for (const output of id) {
-                    const tx_syms = output.a_syms.filter(s => s.id != undefined);
-
-                    let fn_name = `_${state.index}id` + i++;
+                    const
+                        tx_syms = output.a_syms.filter(s => s.id != undefined),
+                        fn_name = `_${state.index}id` + i++;
                     if (output.IS_PURE_RD) {
-                        for (const s of tx_syms)
-                            pre_statements.push(`idm${state.index}.set(${s.id + `/* ${s.val} */`}, ${output.rd_name})`);
-                    } else {
-                        const fn_body = `(l:Lexer):void => {${output.stmts.join("\n")}}`;
-
-                        if (false && runner.compression_lookups.has(fn_body)) {
-                            fn_name = runner.compression_lookups.get(fn_body) + "/* compressed */";
-                        } else {
-                            runner.compression_lookups.set(fn_body, fn_name);
-                            pre_statements.push(`const ${fn_name} = ${fn_body}`);
+                        for (const s of tx_syms) {
+                            const hash = `${s.id + (runner.ANNOTATED ? `/* ${s.val} */` : "")}, ${output.rd_name}`;
+                            id_stmt.push(`${id_name}.set(${hash})`);
+                            map_hash.push(hash);
                         }
+                    } else {
+                        const
+                            fn_body = `(l:Lexer):void => {${output.stmts.join("\n")}}`,
+                            name = runner.add_constant(fn_body, fn_name);
 
-                        for (const s of tx_syms)
-                            pre_statements.push(`idm${state.index}.set(${s.id + `/* ${s.val} */`}, ${fn_name})`);
+                        for (const s of tx_syms) {
+                            const hash = `${s.id + (runner.ANNOTATED ? `/* ${s.val} */` : "")}, ${name}`;
+                            id_stmt.push(`${id_name}.set(${hash})`);
+                            map_hash.push(hash);
+                        }
                     }
                 }
+
+
+                const hash_string = map_hash.sort().join("");
+                id_name = runner.add_statement(hash_string, id_name, id_stmt.join("\n"));
             }
 
             if (ty.length > 0) {
                 let i = 0;
-                pre_statements.push(`const tym${state.index}: Map<number, (L:Lexer)=>void> = new Map()`);
+
+                const
+                    ty_stmt = [`const ${ty_name}: Map<number, (L:Lexer)=>void> = new Map()`],
+                    map_hash = [];
+
                 for (const output of ty) {
+                    const
+                        ty_syms = output.a_syms.filter(s => s.id == undefined),
+                        fn_name = `_${state.index}ty` + i++;
 
-                    const ty_syms = output.a_syms.filter(s => s.id == undefined);
-                    let fn_name = `_${state.index}ty` + i++;
                     if (output.IS_PURE_RD) {
-                        for (const s of ty_syms)
-                            pre_statements.push(`tym${state.index}.set(${translateSymbolValue(s, grammar)}, ${output.rd_name})`);
-                    } else {
-                        const fn_body = `(l:Lexer):void => {${output.stmts.join("\n")}}`;
-
-                        if (false && runner.compression_lookups.has(fn_body)) {
-                            fn_name = runner.compression_lookups.get(fn_body) + "/* compressed */";
-                        } else {
-                            runner.compression_lookups.set(fn_body, fn_name);
-                            pre_statements.push(`const ${fn_name} = ${fn_body}`);
+                        for (const s of ty_syms) {
+                            const hash = `${translateSymbolValue(s, grammar, runner.ANNOTATED)}, ${output.rd_name}`;
+                            ty_stmt.push(`${ty_name}.set(${hash})`);
+                            map_hash.push(hash);
                         }
+                    } else {
+                        const
+                            fn_body = `(l:Lexer):void => {${output.stmts.join("\n")}}`,
+                            name = runner.add_constant(fn_body, fn_name);
 
                         for (const s of ty_syms) {
-
-                            if (!translateSymbolValue(s, grammar))
-                                console.dir({ s });
-                            pre_statements.push(`tym${state.index}.set(${translateSymbolValue(s, grammar)}, ${fn_name})`);
+                            const hash = `${translateSymbolValue(s, grammar, runner.ANNOTATED)}, ${name}`;
+                            ty_stmt.push(`${ty_name}.set(${hash})`);
+                            map_hash.push(hash);
                         }
                     }
                 }
+
+                const hash_string = map_hash.sort().join("");
+                ty_name = runner.add_statement(hash_string, ty_name, ty_stmt.join("\n"));
             }
 
             if (id.length > 0) {
-                statements.push(`if(idm${state.index}.has(l.id))idm${state.index}.get(l.id)(l)`);
+                statements.push(`if(${id_name}.has(l.id))${id_name}.get(l.id)(l)`);
                 if (ty.length > 0)
-                    statements.push(`else if(tym${state.index}.has(l.ty))tym${state.index}.get(l.ty)(l)`);
-            } else if (ty.length > 0) statements.push(`if(tym${state.index}.has(l.ty))tym${state.index}.get(l.ty)(l)`);
+                    statements.push(`else if(${ty_name}.has(l.ty))${ty_name}.get(l.ty)(l)`);
+            } else if (ty.length > 0) statements.push(`if(${ty_name}.has(l.ty))${ty_name}.get(l.ty)(l)`);
         }
     }
     return { body: statements, pre: pre_statements };
 }
-
 
 function compileState(
     /**  The state to reduce */
@@ -632,51 +542,10 @@ function compileState(
         pre_statements: string[] = [],
         active_gotos: number[] = [];
 
-    const item = state.items[0], symbol = item.sym(grammar)?.val, production = item.getProduction(grammar).id;
-    // if (state.index == 14) {
-    //If the state has only one transition point
-    if (
-        false &&
-        state.items.setFilter(i => i.id).length == 1
-        && !item.atEND
-        && item.sym(grammar).type == SymbolType.PRODUCTION
-        && item.increment().atEND
-        && ll_fns
-        && ll_fns?.[production]
-    ) {
-        try {
-            statements.push(buildIntermediateRD(state.items.setFilter(i => i.id), grammar, runner, ll_fns));
+    const item = state.items[0], symbol = item.sym(grammar)?.val;
 
-            active_gotos.push(production);
-            /*
-            console.log({
-                id: state.bid || state.items.map(i => i.renderUnformattedWithProduction(grammar)).join(";"),
-                active_gotos,
-                gt: filterGotos(state, states, grammar, ...active_gotos),
-                state_map: state.maps
-            });
-            */
-
-            return { body_stmts: statements, pre_stmts: pre_statements };
-
-        } catch (e) {
-            console.log({ e });
-        }
-    }
-    const { body: sr_body, pre: sr_pre } = shiftReduce(state, states, grammar, runner, ll_fns, active_gotos, reached_rds);
-
-    const
+    const { body: sr_body, pre: sr_pre } = shiftReduce(state, states, grammar, runner, ll_fns, active_gotos, reached_rds),
         goto_statements = gotoState(state, states, grammar, runner, existing_refs, HYBRID, active_gotos);
-
-    ;
-    /*
-        console.log({
-            id: state.bid || state.items.map(i => i.renderUnformattedWithProduction(grammar)).join(";"),
-            active_gotos,
-            gt: filterGotos(state, states, grammar, ...active_gotos),
-            state_map: state.maps
-        });
-        */
 
     if (goto_statements.length > 0) statements.push("const sp: u32 = stack_ptr;");
 
@@ -709,7 +578,14 @@ export function renderState(
 
     const
         fn: string[] = runner.ANNOTATED
-            ? [`function ${state.name ? state.name : "State" + state.index}(l:Lexer):void{`, `\`${state.items.setFilter(i => i.id).map(i => i.renderUnformattedWithProduction(grammar) + ((i.sym(grammar)?.type == SymbolType.PRODUCTION) ? (": " + i.getProduction(grammar).id) : (""))).join(";\n")}\``]
+            ? [
+                `function ${state.name ? state.name : "State" + state.index}(l:Lexer):void{`,
+                `\`${state.items.setFilter(i => i.id).map(
+                    i => i.renderUnformattedWithProduction(grammar) + ((i.sym(grammar)?.type == SymbolType.PRODUCTION)
+                        ? (": " + i.getProduction(grammar).id)
+                        : (""))
+                ).join(";\n")}\``
+            ]
             : [`function ${state.name ? state.name : "State" + state.index}(l:Lexer):void{`];
 
 

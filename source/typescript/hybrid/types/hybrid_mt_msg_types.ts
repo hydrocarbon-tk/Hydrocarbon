@@ -1,13 +1,12 @@
 import { Item } from "../../util/common";
 import { State } from "./State";
 import { ItemSet } from "../../types/item_set";
-import { JSNode } from "@candlefw/js";
 
 export enum HybridJobType {
     UNDEFINED,
     CONSTRUCT_LR_STATE,
-    CONSTRUCT_RC_FUNCTION,
-    CONSTRUCT_RCLR_FUNCTION,
+    CONSTRUCT_RD_FUNCTION,
+    CONSTRUCT_RD_TO_LR_FUNCTION,
     CONSTRUCT_LR_STATE_FUNCTION
 }
 
@@ -26,6 +25,7 @@ export interface HybridDispatchResponse {
     state?: State;
     productions?: Set<number>;
     potential_states?: State[];
-    CONVERT_RC_TO_LR?: boolean;
+    CONVERT_RD_TO_LR?: boolean;
+    const_map?: Map<string, { name: string, type: string; }>;
     fn?: string;
 }

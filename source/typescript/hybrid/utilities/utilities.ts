@@ -4,6 +4,7 @@ import { stmt, renderWithFormatting, extendAll, JSNodeType } from "@candlefw/js"
 import { State } from "../types/State.js";
 import { traverse } from "@candlefw/conflagrate";
 import { Item } from "../../util/item.js";
+import { CompilerRunner } from "../types/CompilerRunner.js";
 
 
 
@@ -45,49 +46,117 @@ Array.prototype.group = function <T>(this: Array<T>, fn: (T) => (string | number
     return [...this.groupMap(fn).values()];
 };
 
-export function translateSymbolLiteral(sym: number | string): string {
-    switch (typeof sym) {
-        case "number":
-            return sym + "";
-        case "string":
-            if (sym == "$eof")
-                return `0xFF`;
-            if (sym == "\"") return `'"'`;
-            return `"${sym}"`;
-    }
+export function getSkipArray2(grammar: Grammar, runner: CompilerRunner) {
+    const skip_symbols = grammar.meta.ignore.flatMap(d => d.symbols).map(s => getRootSym(s, grammar)).setFilter(s => s.val).map(s => translateSymbolValue(s, grammar, runner.ANNOTATED));
+    return runner.add_constant(`[${skip_symbols.join(",")}]`, "skip_boo", "u32[]");
 }
-export function getRootSym(sym: Symbol, grammar: Grammar) {
-    const name = sym.val + sym.type;
-    return grammar.meta.all_symbols.get(name) ?? sym;
+export function getSkipArray(grammar: Grammar, runner: CompilerRunner) {
+    const skip_symbols = grammar.meta.ignore.flatMap(d => d.symbols).map(s => getRootSym(s, grammar)).setFilter(s => s.val).map(s => translateSymbolValue(s, grammar, runner.ANNOTATED));
+    return runner.add_constant(`[${skip_symbols.join(",")}]`, undefined, "u32[]");
 }
 
-export function translateSymbolValue(sym: Symbol, grammar: Grammar): string | number {
+export function getRootSym(sym: Symbol, grammar: Grammar) {
+    const name = sym.val + sym.type;
+
+    if (!grammar.meta.all_symbols.has(name) && sym.type !== SymbolType.PRODUCTION && sym.type !== SymbolType.GENERATED) {
+        console.log({ sym, syms: grammar.meta.all_symbols });
+    }
+    return grammar.meta.all_symbols.get(name) || sym;
+}
+
+export function translateSymbolValue(sym: Symbol, grammar: Grammar, ANNOTATED: boolean = false): string | number {
+    const annotation = ANNOTATED ? `/* ${sym.val} */` : "";
     switch (sym.type) {
         case SymbolType.GENERATED:
             if (sym.val == "any") { return "88"; }
             if (sym.val == "$eof")
-                return `0`;
+                return `0` + (ANNOTATED ? "/* EOF */" : "");
             switch (sym.val) {
-                case "ws": return 1 + `/* ${sym.val} */`;
-                case "num": return 2 + `/* ${sym.val} */`;
-                case "id": return 3 + `/* ${sym.val} */`;
-                case "nl": return 4 + `/* ${sym.val} */`;
+                case "ws": return 1 + annotation;
+                case "num": return 2 + annotation;
+                case "id": return 3 + annotation;
+                case "nl": return 4 + annotation;
                 default:
-                case "sym": return 5 + `/* ${sym.val} */`;
+                case "sym": return 5 + annotation;
             }
-            return Lexer.types[sym.val] + `/* ${sym.val} */`;
         case SymbolType.LITERAL:
         case SymbolType.ESCAPED:
         case SymbolType.SYMBOL:
             if (!sym.id)
                 sym = getRootSym(sym, grammar);
             if (!sym.id) console.log({ sym });
-            return (sym.id ?? 888) + `/* ${sym.val} */`;
+            return (sym.id ?? 888) + annotation;
         case SymbolType.END_OF_FILE:
             return 0;
         case SymbolType.EMPTY:
             return "";
     }
+}
+
+
+export function getIncludeBooleans(syms: Symbol[], grammar: Grammar, runner: CompilerRunner, lex_name: string = "l") {
+    syms = syms.map(s => getRootSym(s, grammar));
+
+
+    for (const sym of syms) {
+        if (!sym) console.log(syms);
+    }
+    const
+        id = syms.filter(s => s.id != undefined)
+            .map(s => s.id + (runner.ANNOTATED ? `/* ${s.val} */` : ""))
+            .setFilter().sort(),
+        ty = syms.filter(s => s.type == SymbolType.GENERATED)
+            .map(s => translateSymbolValue(s, grammar, runner.ANNOTATED))
+            .setFilter().sort();
+
+    if (id.length + ty.length == 0) console.log(syms);
+
+    let out_id, out_ty;
+
+    if (id.length > 0) {
+        if (id.length < 3) {
+            out_id = (id.map(s => `${lex_name}.id == ${s}`).join("||"));
+        } else {
+            out_id = `${
+                runner.add_constant(`[${id.join(",")}]`, undefined, "u32[]")}.includes(${lex_name}.id)`;
+        }
+    }
+
+    if (ty.length > 0) {
+        if (ty.length < 3) {
+            out_ty = (ty.map(s => `${lex_name}.ty == ${s}`).join("||"));
+        } else {
+            out_ty = `${
+                runner.add_constant(`[${ty.join(",")}]`, undefined, "u32[]")}.includes(${lex_name}.ty)`;
+        }
+    }
+
+    return [out_id, out_ty].filter(_ => _).join("||");
+}
+
+export function getRealSymValue(sym: Symbol) {
+
+    let val;
+    switch (sym.type) {
+        case SymbolType.GENERATED:
+            if (sym.val == "keyword") { val = "keyword"; break; }
+            if (sym.val == "any") { val = "true"; break; }
+            if (sym.val == "$eof") { val = 0xFF; break; }
+            { val = Lexer.types[sym.val]; break; }
+        case SymbolType.LITERAL:
+        case SymbolType.ESCAPED:
+        case SymbolType.SYMBOL:
+            if (sym.val == "\\") { val = `'\\'`; break; }
+            if (sym.val == "\"") { val = `\\"`; break; }
+            { val = sym.val; break; }
+        case SymbolType.END_OF_FILE:
+            { val = 0xFF; break; }
+        case SymbolType.EMPTY:
+            { val = "emptry"; break; }
+
+    }
+
+    return val;
 }
 
 export function getLexPeekComparisonStringCached(sym: Symbol, grammar: Grammar): string {

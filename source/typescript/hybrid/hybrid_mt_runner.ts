@@ -20,38 +20,27 @@ type WorkerContainer = {
 };
 
 export class HybridMultiThreadRunner {
-    llFnBuilder: llFnBuilder,
-    lrStateBuilder: LRStateBuilder,
-    lrFNBuilder: lrFNBuilder,
     grammar: Grammar;
     RUN: boolean;
     env: ParserEnvironment;
     module_url: string;
     number_of_workers: number;
     workers: Array<WorkerContainer>;
-
-    lr_functions: Array<LRFunction>;
-    ll_functions: Array<RDProductionFunction>;
+    rd_functions: Array<RDProductionFunction>;
     lr_states: Map<string, State>;
 
     lr_item_set: { old_state: number; items: Item[]; }[];
-
-    active: number;
     total_items: number;
 
     errors: any;
-
-    processed_states: Map<string, Set<string>>;
 
     to_process_ll_fn: number[];
 
     runner: CompilerRunner;
 
     IN_FLIGHT_JOBS: number;
-    constructor(grammar: Grammar, env: ParserEnvironment) {
+    constructor(grammar: Grammar, env: ParserEnvironment, INCLUDE_ANNOTATIONS: boolean = false) {
         let id = 0, i = 10;
-
-        const ANNOTATED = false;
 
         const syms = [], keywords = [];
 
@@ -112,11 +101,9 @@ export class HybridMultiThreadRunner {
         this.lr_states = new Map;
         this.to_process_ll_fn = this.grammar.map((a, i) => i + 1);
         this.IN_FLIGHT_JOBS = 0;
-        this.ll_functions = [];
+        this.rd_functions = [];
         this.lr_item_set = [];
-        this.runner = constructCompilerRunner(ANNOTATED);
-
-        this.active_productions = new Set;
+        this.runner = constructCompilerRunner(INCLUDE_ANNOTATIONS);
 
         this.module_url = ((process.platform == "win32") ?
             import.meta.url.replace(/file\:\/\/\//g, "")
@@ -128,24 +115,21 @@ export class HybridMultiThreadRunner {
             .map(() => ({
                 id,
                 READY: true,
-                target: new Worker(this.module_url, { workerData: { id: id++, grammar, ANNOTATED } })
+                target: new Worker(this.module_url, { workerData: { id: id++, grammar, ANNOTATED: INCLUDE_ANNOTATIONS } })
             }));
 
         this.workers.forEach(
             wkr => {
 
                 wkr.target.on("error", e => {
-                    console.log(e);
-
+                    console.log({ e });
+                    process.exit();
                     this.RUN = false;
                 });
 
                 wkr.target.on("message", data => this.mergeWorkerData(wkr, data));
             }
         );
-
-        const prod = grammar.findIndex(e => e.name == "mf_range");
-        makeRDHybridFunction(grammar[prod], grammar, this.runner);
     }
 
     handleUnprocessedStateItems(potential_states: State[], named_state: State = null, id = -1) {
@@ -154,14 +138,13 @@ export class HybridMultiThreadRunner {
             named_state.items = named_state.items.map(Item.fromArray);
             named_state = mergeState(named_state, this.lr_states, null, this.lr_item_set);
             named_state.production = id;
-            this.ll_functions[id] = {
+            this.rd_functions[id] = {
+                id: 0,
                 state: named_state,
                 IS_RD: false,
                 str: "" ?? `"LR USE FOR ${named_state.items.setFilter(i => i.id).map(i => i.getProduction(this.grammar).name)}"`
             };
         }
-
-
 
         for (const state of potential_states) {
             const old_state = named_state || [...this.lr_states.values()][state.os];
@@ -182,24 +165,24 @@ export class HybridMultiThreadRunner {
                 this.handleUnprocessedStateItems(response.potential_states);
                 break;
 
-            case HybridJobType.CONSTRUCT_RC_FUNCTION:
-                if (response.CONVERT_RC_TO_LR) {
+            case HybridJobType.CONSTRUCT_RD_FUNCTION:
+                if (response.CONVERT_RD_TO_LR) {
                     this.to_process_ll_fn[response.production_id] = -(response.production_id + 1);
                 } else {
 
-                    for (const production of response.productions.values()) {
-                        this.active_productions.add(production);
-                    }
+                    const { const_map, fn, productions, production_id } = response;
 
-                    this.ll_functions[response.production_id] = {
-                        productions: response.productions,
+                    this.rd_functions[production_id] = {
+                        id: 0,
+                        fn: "",
+                        productions: productions,
                         IS_RD: true,
-                        str: response.fn
+                        str: this.runner.join_constant_map(const_map, fn)
                     };
                 }
                 break;
 
-            case HybridJobType.CONSTRUCT_RCLR_FUNCTION:
+            case HybridJobType.CONSTRUCT_RD_TO_LR_FUNCTION:
 
 
                 this.handleUnprocessedStateItems(response.potential_states, response.state, response.production_id);
@@ -237,14 +220,14 @@ export class HybridMultiThreadRunner {
                             const production_id = this.to_process_ll_fn[i];
 
                             if (production_id > 0) {
-                                JOB.job_type = HybridJobType.CONSTRUCT_RC_FUNCTION;
+                                JOB.job_type = HybridJobType.CONSTRUCT_RD_FUNCTION;
                                 JOB.production_id = production_id - 1;
                                 this.to_process_ll_fn[i] = 0;
                                 this.IN_FLIGHT_JOBS++;
                                 break o;
                             } else if (production_id < 0) {
                                 // Convert all LL to fn fns if need be
-                                JOB.job_type = HybridJobType.CONSTRUCT_RCLR_FUNCTION;
+                                JOB.job_type = HybridJobType.CONSTRUCT_RD_TO_LR_FUNCTION;
                                 JOB.production_id = (-production_id) - 1;
                                 this.to_process_ll_fn[i] = 0;
                                 this.IN_FLIGHT_JOBS++;
@@ -276,7 +259,6 @@ export class HybridMultiThreadRunner {
                     }
                 }
             }
-
 
             if (this.IN_FLIGHT_JOBS < 1) {
 
@@ -317,7 +299,7 @@ export class HybridMultiThreadRunner {
         let lr_nodes = [];
 
         //trace ll states from root and set productions
-        const pending = [this.ll_functions[0], ...this.ll_functions.filter(f => f.RENDER)], reached = new Set([0]);
+        const pending = [this.rd_functions[0], ...this.rd_functions.filter(f => f.RENDER)], reached = new Set([0]);
         try {
             for (let i = 0; i < pending.length; i++) {
                 const ll = pending[i];
@@ -326,17 +308,17 @@ export class HybridMultiThreadRunner {
                     // console.log({ ll: ll.productions });
                     for (const production of ll.productions.values()) {
                         if (!reached.has(production)) {
-                            pending.push(this.ll_functions[production]);
+                            pending.push(this.rd_functions[production]);
                             reached.add(production);
                         }
                     }
                 } else {
                     //Build the state
-                    const { reached_rds } = renderStates([ll.state], states, this.grammar, this.runner, this.ll_functions);
+                    const { reached_rds } = renderStates([ll.state], states, this.grammar, this.runner, this.rd_functions);
                     //console.log({ reached_rds });
                     for (const production of reached_rds.values()) {
                         if (!reached.has(production)) {
-                            pending.push(this.ll_functions[production]);
+                            pending.push(this.rd_functions[production]);
                             reached.add(production);
                         }
                     }
@@ -347,181 +329,165 @@ export class HybridMultiThreadRunner {
             process.exit();
         }
 
-        const fns = [...this.ll_functions.filter(l => l.RENDER).map(fn => fn.str), ...states.filter(s => s.REACHABLE).map(s => s.function_string)];
+        const fns = [...this.rd_functions.filter(l => l.RENDER).map(fn => fn.str), ...states.filter(s => s.REACHABLE).map(s => s.function_string)];
 
 
         //Compile Function  
         this.parser = `
+var str: string = "", FAILED:boolean = false, prod:i32 = -1, stack_ptr:u32 = 0;
 
-            var str: string = "", FAILED:boolean = false, prod:i32 = -1, stack_ptr:u32 = 0;
+${printLexer(this.sym_ifs, this.keywords)}
 
-            ${printLexer(this.sym_ifs, this.keywords)}
+var 
 
-            var 
+    action_array: Uint32Array = new Uint32Array(1048576), 
+    error_array:Uint32Array= new Uint32Array(512),
+    mark_: u32 = 0, 
+    pointer: u32  = 0,
+    error_ptr: u32  = 0;
 
-                action_array: Uint32Array = new Uint32Array(1048576), 
-                error_array:Uint32Array= new Uint32Array(512),
-                mark_: u32 = 0, 
-                pointer: u32  = 0,
-                error_ptr: u32  = 0;
+function error_mark(val:u32):void{
+    error_array[error_ptr++] = val;
+}
 
-            function error_mark(val:u32):void{
-                error_array[error_ptr++] val;
-            }
+@inline
+function mark (): u32{
+    mark_ = pointer;
+    return mark_;
+}
 
-            @inline
-            function mark (): u32{
-               mark_ = pointer;
-               return mark_;
-            }
+@inline
+function reset(mark:u32): void{
+    pointer = mark;
+}
 
-            @inline
-            function reset(mark:u32): void{
-                pointer = mark;
-            }
-            
-            @inline
-            function add_skip(char_len:u32): void{
-                const ACTION: u32 = 3;
-                const val: u32 = ACTION | (char_len << 2);
-                unchecked(action_array[pointer++] = val);
-            }
+@inline
+function add_skip(char_len:u32): void{
+    const ACTION: u32 = 3;
+    const val: u32 = ACTION | (char_len << 2);
+    unchecked(action_array[pointer++] = val);
+}
 
-            function add_shift(char_len:u32): void{
-                if(char_len < 1) return;
-                const ACTION: u32 = 2;
-                const val: u32 = ACTION | (char_len << 2);
-                unchecked(action_array[pointer++] = val);
-            }
+function add_shift(char_len:u32): void{
+    if(char_len < 1) return;
+    const ACTION: u32 = 2;
+    const val: u32 = ACTION | (char_len << 2);
+    unchecked(action_array[pointer++] = val);
+}
 
-            function add_reduce(sym_len:u32, body:u32): void{
-                const ACTION: u32 = 1;
-                const val: u32 = ACTION | ((sym_len & 0x3FFF )<< 2) | (body << 16);
-                unchecked(action_array[pointer++] = val);
-            }
-            
-            ${
-            this.runner.ANNOTATED ? `function log(...str) {
-                        console.log(...str);
-                    }\nfunction glp(lex, padding = 4){
-                        const token_length = lex.tl;
-                        const offset = lex.off;
-                        const string_length = lex.sl;
-                        const start = Math.max(0, offset - padding);
-                        const mid = offset;
-                        const end = Math.min(string_length, offset + token_length  + padding);
-                        return \`\${(start > 0 ?" ": "")+str.slice(start, mid) + "•" + str.slice(mid, end) + ((end == string_length) ? "$EOF" : " ")}\`;
-                    }\n`: ""
-            }
-    @inline
-    function lm(lex:Lexer, syms: u32[]): boolean { 
+function add_reduce(sym_len:u32, body:u32): void{
+    const ACTION: u32 = 1;
+    const val: u32 = ACTION | ((sym_len & 0x3FFF )<< 2) | (body << 16);
+    unchecked(action_array[pointer++] = val);
+}
 
-        const l = syms.length;
+@inline
+function lm(lex:Lexer, syms: u32[]): boolean { 
 
-        for(let i = 0; i < l; i++){
-            const sym = syms[i];
-            if(lex.id == sym || lex.ty == sym) return true;
-        }
+    const l = syms.length;
 
-        return false;
+    for(let i = 0; i < l; i++){
+        const sym = syms[i];
+        if(lex.id == sym || lex.ty == sym) return true;
     }
 
-    function fail(lex:Lexer):void { 
-        prod = -1;
+    return false;
+}
+
+function fail(lex:Lexer):void { 
+    prod = -1;
+    FAILED = true;
+    error_array[error_ptr++] = lex.off;
+}
+
+function setProduction(production: u32):void{
+    prod = (-FAILED) +  (-FAILED+1) * production;
+}   
+
+function _pk(lex: Lexer, /* eh, */ skips: u32[]): Lexer {
+
+    lex.next();
+
+    if (skips) while (lm(lex, skips)) lex.next();
+
+    return lex;
+}            
+
+function _no_check(lex: Lexer, /* eh, */ skips: u32[]):void {
+    add_shift(lex.tl);
+
+    lex.next();
+
+    const off: u32 = lex.off;
+
+    if (skips) while (lm(lex, skips)) lex.next();
+
+    const diff: i32 = lex.off-off;
+
+    if(diff > 0) add_skip(diff);
+}
+        
+function _(lex: Lexer, /* eh, */ skips: u32[], sym: u32 = 0):void {
+
+    if(FAILED) return;
+    
+    if (sym == 0 || lex.id == sym || lex.ty == sym) {
+        _no_check(lex, skips);
+    } else {
+        //TODO error recovery
         FAILED = true;
         error_array[error_ptr++] = lex.off;
     }
+}
+        
+${this.runner.render_constants()}
+${this.runner.render_statements()}
+${fns.join("\n    ")}
 
-    function setProduction(production: u32):void{
-        prod = (-FAILED) +  (-FAILED+1) * production;
-    }   
+export class Export {
 
-    function _pk(lex: Lexer, /* eh, */ skips: u32[]): Lexer {
+    FAILED: boolean;
 
-        lex.next();
+    er: Uint32Array;
     
-        const off: u32 = lex.off;
-    
-        if (skips) while (lm(lex, skips)) lex.next();
-    
-        return lex;
-    }            
-            
-    function _(lex: Lexer, /* eh, */ skips: u32[], sym: u32 = 0):void {
+    aa: Uint32Array;
 
-        if(FAILED) return;
-        
-        if (sym == 0 || lex.id == sym || lex.ty == sym) {
-            
-            add_shift(lex.tl);
-
-            lex.next();
-        
-            const off: u32 = lex.off;
-        
-            if (skips) while (lm(lex, skips)) lex.next();
-
-            const diff: i32 = lex.off-off;
-
-            if(diff > 0) add_skip(diff);
-        } else {
-        
-            //TODO error recovery
-
-            FAILED = true;
-            error_array[error_ptr++] = lex.off;
-        }
+    constructor(f:boolean, er:Uint32Array, aa: Uint32Array){
+        this.FAILED = f;
+        this.er = er;
+        this.aa = aa;
     }
-            
+
+    getFailed(): boolean { return this.FAILED; }
     
-    ${fns.join("\n    ")}
-
-
-
-    export class Export {
-
-        FAILED: boolean;
-
-        er: Uint32Array;
+    getActionList(): Uint32Array { return this.aa; }
+    
+    getErrorOffsets(): Uint32Array { return this.er; }
+}
         
-        aa: Uint32Array;
+export default function main (input_string:string): Export {
 
-        constructor(f:boolean, er:Uint32Array, aa: Uint32Array){
-            this.FAILED = f;
-            this.er = er;
-            this.aa = aa;
-        }
+    str = input_string;
 
-        getFailed(): boolean { return this.FAILED; }
-        
-        getActionList(): Uint32Array { return this.aa; }
-        
-        getErrorOffsets(): Uint32Array { return this.er; }
-    }
-            
-    export default function main (input_string:string): Export {
+    const lex = new Lexer();
 
-        str = input_string;
+    lex.next();
 
-        const lex = new Lexer();
+    prod = -1; 
 
-        lex.next();
+    stack_ptr = 0;
 
-        prod = -1; 
+    error_ptr = 0;
 
-        stack_ptr = 0;
+    pointer = 0;
 
-        error_ptr = 0;
+    FAILED = false;
 
-        pointer = 0;
+    $${ this.grammar[0].name}(lex);
 
-        FAILED = false;
+    action_array[pointer++] = 0;
 
-        $${ this.grammar[0].name}(lex);
-
-        action_array[pointer++] = 0;
-
-        return new Export(
+    return new Export(
             FAILED || !lex.END,
         error_array.subarray(0, error_ptr),
         action_array.subarray(0, pointer)
@@ -529,7 +495,7 @@ export class HybridMultiThreadRunner {
 }`;
 
         this.js_resolver = `  
-        import { jump_table } from "./jump_table.js";
+import { jump_table } from "./jump_table.js";
 
 import fs from "fs";
 
@@ -609,10 +575,8 @@ export default function jsmain(str) {
                     const fn = fns[body];
                     
                     
-                    if (fn){
-                        console.log({body, len, fn:fn.toString(), syms:stack.slice(-len)})
+                    if (fn)
                         stack[stack.length - len] = fn(stack.slice(-len));
-                    }
                     else if (len > 1)
                         stack[stack.length - len] = stack[stack.length - 1];
 
@@ -659,10 +623,10 @@ function updateStateIDLU(rl_states: State[], ids: any[] = []): JSNode[][] {
     return rl_states.reduce((r, a, i) => (r[i] ? null : (r[i] = []), r), ids);
 }
 
-export default function* (grammar: Grammar, env: ParserEnvironment) {
+export default function* (grammar: Grammar, env: ParserEnvironment, INCLUDE_ANNOTATIONS: boolean = false) {
 
     try {
-        const runner = new HybridMultiThreadRunner(grammar, env);
+        const runner = new HybridMultiThreadRunner(grammar, env, INCLUDE_ANNOTATIONS);
         return yield* runner.run();
     } catch (e) {
         return yield {
