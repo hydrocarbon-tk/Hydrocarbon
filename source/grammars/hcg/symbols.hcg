@@ -47,6 +47,7 @@
 	│ imported_production_symbol
 	│ literal_symbol
 	│ escaped_symbol
+	│ assert_function_symbol
 	│ \( pb::production_bodies \) 									
 													↦cstr ^groupProduction	
 	│ symbol \? 									↦return{ $sym1.IS_OPTIONAL = true, $sym1 }	
@@ -66,8 +67,11 @@
 <> empty_symbol → 
 	\ɛ  											↦cstr{ this.type = "empty"; this.pos = pos }
 
+<> assert_function_symbol → 
+	 τaf \:  (ERR θws θnl) identifier 				↦cstr{ this.type = "assert_token_function"; this.val = $sym2; this.pos = pos }
+
 <> generated_symbol → 
-	( \θ │ τg \: ) (ERR θws θnl) identifier 					↦cstr{ this.type = "generated"; this.val = $sym2; this.pos = pos }
+	( \θ │ τg \: ) (ERR θws θnl) identifier 		↦cstr{ this.type = "generated"; this.val = $sym2; this.pos = pos }
 
 <> literal_symbol → 
 	( \τ │ τt \: ) (ERR θws θnl)  ( identifier │ def::natural ) ↦cstr{ this.type = "literal"; this.val = ""+$sym2; this.pos = pos }
