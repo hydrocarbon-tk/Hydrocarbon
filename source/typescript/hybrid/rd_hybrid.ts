@@ -361,9 +361,6 @@ export function buildGroupStatement(
 
                         rd_item.closure = closure.setFilter(i => i.id);
 
-                        if (TEMP_FLAG)
-                            console.log({ COMPLETED, peek: peek_depth + 1, it: i.renderUnformattedWithProduction(grammar), c_len: rd_item.closure.length });
-
                         // Variant of production is completed at this peek level.
                         if (COMPLETED) no_closures.push(i);
 

@@ -57,17 +57,13 @@ export class HybridMultiThreadRunner {
     workers: Array<WorkerContainer>;
     rd_functions: Array<RDProductionFunction>;
     lr_states: Map<string, State>;
-
     lr_item_set: { old_state: number; items: Item[]; }[];
     total_items: number;
-
     errors: any;
-
-    to_process_ll_fn: number[];
-
+    to_process_rd_fn: number[];
     runner: CompilerRunner;
-
     IN_FLIGHT_JOBS: number;
+
     constructor(grammar: Grammar, env: ParserEnvironment, INCLUDE_ANNOTATIONS: boolean = false) {
         let id = 0, i = 10;
 
@@ -97,7 +93,7 @@ export class HybridMultiThreadRunner {
         this.total_items = 0;
         this.number_of_workers = 10;
         this.lr_states = new Map;
-        this.to_process_ll_fn = this.grammar.map((a, i) => i + 1);
+        this.to_process_rd_fn = this.grammar.map((a, i) => i + 1);
         this.IN_FLIGHT_JOBS = 0;
         this.rd_functions = [];
         this.lr_item_set = [];
@@ -121,7 +117,6 @@ export class HybridMultiThreadRunner {
 
                 wkr.target.on("error", e => {
                     console.log({ e });
-                    process.exit();
                     this.RUN = false;
                 });
 
@@ -165,7 +160,7 @@ export class HybridMultiThreadRunner {
 
             case HybridJobType.CONSTRUCT_RD_FUNCTION:
                 if (response.CONVERT_RD_TO_LR) {
-                    this.to_process_ll_fn[response.production_id] = -(response.production_id + 1);
+                    this.to_process_rd_fn[response.production_id] = -(response.production_id + 1);
                 } else {
 
                     const { const_map, fn, productions, production_id } = response;
@@ -213,21 +208,21 @@ export class HybridMultiThreadRunner {
                     o: while (true) {
 
                         // Dispatch all LL functions first
-                        for (let i = 0; i < this.to_process_ll_fn.length; i++) {
+                        for (let i = 0; i < this.to_process_rd_fn.length; i++) {
 
-                            const production_id = this.to_process_ll_fn[i];
+                            const production_id = this.to_process_rd_fn[i];
 
                             if (production_id > 0) {
                                 JOB.job_type = HybridJobType.CONSTRUCT_RD_FUNCTION;
                                 JOB.production_id = production_id - 1;
-                                this.to_process_ll_fn[i] = 0;
+                                this.to_process_rd_fn[i] = 0;
                                 this.IN_FLIGHT_JOBS++;
                                 break o;
                             } else if (production_id < 0) {
                                 // Convert all LL to fn fns if need be
                                 JOB.job_type = HybridJobType.CONSTRUCT_RD_TO_LR_FUNCTION;
                                 JOB.production_id = (-production_id) - 1;
-                                this.to_process_ll_fn[i] = 0;
+                                this.to_process_rd_fn[i] = 0;
                                 this.IN_FLIGHT_JOBS++;
                                 break o;
                             }
@@ -262,7 +257,7 @@ export class HybridMultiThreadRunner {
 
                 yield {
                     wk: this.workers.some(w => w.READY),
-                    v: this.to_process_ll_fn,
+                    v: this.to_process_rd_fn,
                     jobs: this.IN_FLIGHT_JOBS,
                     errors: this.errors,
                     num_of_states: this.lr_states.size,
@@ -277,7 +272,7 @@ export class HybridMultiThreadRunner {
 
             yield {
                 wk: this.workers.some(w => w.READY),
-                v: this.to_process_ll_fn,
+                v: this.to_process_rd_fn,
                 jobs: this.IN_FLIGHT_JOBS,
                 errors: this.errors,
                 num_of_states: this.lr_states.size,
@@ -293,18 +288,31 @@ export class HybridMultiThreadRunner {
             return s;
         });
 
-        const root_states = [];
-        let lr_nodes = [];
+
+        console.log(states.map(
+            s => (
+                [s.index,
+                (s.items.every(s => s.atEND)),
+                (s.items.setFilter(s => s.id)
+                    .filter(s => s.atEND && !s.body_(this.grammar).reduce_function)
+                    .map(s => s.getProduction(this.grammar).id + "|" + (s.body_(this.grammar).reduce_function ? s.body : ""))
+                    .sort()
+                    .join("|"))
+                + ([...s.maps.entries()]
+                    .filter((s) => typeof s[0] == "number")
+                    .sort()
+                    .map(s => s[0] + ">" + s[1].join(":")).join("|"))]
+            )).filter(s => s[1]).sort((a, b) => a[2] - b[2]).group(s => s[2]).filter(s => s.length > 1));
 
         //trace ll states from root and set productions
         const pending = [this.rd_functions[0], ...this.rd_functions.filter(f => f.RENDER)], reached = new Set([0]);
+
         try {
             for (let i = 0; i < pending.length; i++) {
-                const ll = pending[i];
-                ll.RENDER = true;
-                if (ll.IS_RD) {
-                    // console.log({ ll: ll.productions });
-                    for (const production of ll.productions.values()) {
+                const rd = pending[i];
+                rd.RENDER = true;
+                if (rd.IS_RD) {
+                    for (const production of rd.productions.values()) {
                         if (!reached.has(production)) {
                             pending.push(this.rd_functions[production]);
                             reached.add(production);
@@ -312,8 +320,7 @@ export class HybridMultiThreadRunner {
                     }
                 } else {
                     //Build the state
-                    const { reached_rds } = renderStates([ll.state], states, this.grammar, this.runner, this.rd_functions);
-                    //console.log({ reached_rds });
+                    const { reached_rds } = renderStates([rd.state], states, this.grammar, this.runner, this.rd_functions);
                     for (const production of reached_rds.values()) {
                         if (!reached.has(production)) {
                             pending.push(this.rd_functions[production]);
@@ -336,15 +343,10 @@ export class HybridMultiThreadRunner {
         ) {
             const fn_name = <string>sym.val;
             if (this.grammar.functions.has(fn_name)) {
-                console.log(this.grammar.functions.get(fn_name));
                 const val = this.grammar.functions.get(fn_name);
                 assert_functions.set(fn_name, `function ${fn_name}(l:Lexer):boolean{${val.txt}}`);
             }
-
-            //console.log(0, 2, this.grammar);
         }
-
-
         //Compile Function  
         this.parser = `
 var str: string = "", FAILED:boolean = false, prod:i32 = -1, stack_ptr:u32 = 0;
@@ -361,6 +363,33 @@ var
 
 function error_mark(val:u32):void{
     error_array[error_ptr++] = val;
+}
+
+function completeProductionPlain(len:u32, production:u32):void{
+    stack_ptr -= len;
+    prod = production;
+}
+
+function completeProduction(body:u32, len:u32, production:u32):void{
+    add_reduce(len, body);
+    completeProductionPlain(len, production);
+}
+
+function completeGOTO1(l:Lexer, sp:u32, a:u32, A:u32):void{
+    if (sp <= stack_ptr) prod = a;
+    if (A != a) soft_fail(l); else FAILED = false;
+}
+function completeGOTO2(l:Lexer, sp:u32, a:u32, A:u32, B:u32):void{
+    if (sp <= stack_ptr) prod = a;
+    if (A != a && B != a) soft_fail(l); else FAILED = false;
+}
+function completeGOTO3(l:Lexer, sp:u32, a:u32, A:u32, B:u32, C:u32):void{
+    if (sp <= stack_ptr) prod = a;
+    if (A != a && B != a && C != a) soft_fail(l); else FAILED = false;
+}
+function completeGOTO4(l:Lexer, sp:u32, a:u32, A:u32, B:u32, C:u32, D:u32):void{
+    if (sp <= stack_ptr) prod = a;
+    if (A != a && B != a&& C != a&& D != a) soft_fail(l); else FAILED = false;
 }
 
 @inline
@@ -387,6 +416,7 @@ function add_shift(char_len:u32): void{
     unchecked(action_array[pointer++] = val);
 }
 
+@inline
 function add_reduce(sym_len:u32, body:u32): void{
     const ACTION: u32 = 1;
     const val: u32 = ACTION | ((sym_len & 0x3FFF )<< 2) | (body << 16);
@@ -408,6 +438,10 @@ function lm(lex:Lexer, syms: u32[]): boolean {
 
 function fail(lex:Lexer):void { 
     prod = -1;
+    soft_fail(lex)
+}
+
+function soft_fail(lex:Lexer):void { 
     FAILED = true;
     error_array[error_ptr++] = lex.off;
 }
@@ -628,10 +662,6 @@ export default function jsmain(str) {
         };
 
     }
-}
-
-function updateStateIDLU(rl_states: State[], ids: any[] = []): JSNode[][] {
-    return rl_states.reduce((r, a, i) => (r[i] ? null : (r[i] = []), r), ids);
 }
 
 export default function* (grammar: Grammar, env: ParserEnvironment, INCLUDE_ANNOTATIONS: boolean = false) {

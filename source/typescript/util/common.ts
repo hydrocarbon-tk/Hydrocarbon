@@ -155,7 +155,6 @@ export function filloutGrammar(grammar: Grammar, env) {
                 });
             }
         }
-
     }
 
     const sym_function = (s: Symbol) => {
@@ -172,10 +171,7 @@ export function filloutGrammar(grammar: Grammar, env) {
         }
     };
 
-    console.log(0, 1, syms.setFilter(s => getUniqueSymbolName(s));
     for (const sym of syms.setFilter(s => getUniqueSymbolName(s)) sym_function(sym);
-
-
 
     grammar.meta = Object.assign({}, grammar.meta, { all_symbols: symbols });
 

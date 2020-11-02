@@ -1,4 +1,4 @@
-import { Grammar, Production, SymbolType } from "../types/grammar.js";
+import { Grammar, SymbolType } from "../types/grammar.js";
 import { Item, processClosure } from "../util/common.js";
 import {
     getShiftStates,
@@ -11,10 +11,11 @@ import {
     getRealSymValue,
     getIncludeBooleans,
     getLexerBooleanExpression,
-    createReduceFunction,
+    createLRReduceCompletionWithoutFn,
     createNoCheckShift,
     createEmptyShift,
-    getRDFNName
+    getRDFNName,
+    createLRReduceCompletionWithFn
 } from "./utilities/utilities.js";
 import { State } from "./types/State";
 import { RDProductionFunction } from "./types/RDProductionFunction.js";
@@ -130,14 +131,14 @@ function gotoState(
         statements.push(
             "}",
             "break;",
-            "}",
-            `if(sp <= stack_ptr) prod = a;`,
+            "}"
         );
 
-        if (HYBRID) {
-            statements.push(`if(![${accepting_productions.join(",")}].includes(a))fail(l); else prod = ${state.items[0].getProduction(grammar).id}`);
-        } else
-            statements.push(`if(![${accepting_productions.join(",")}].includes(a))fail(l);`);
+        if (accepting_productions.length < 5)
+            statements.push(`completeGOTO${accepting_productions.length}(l, sp, a, ${accepting_productions.join(",")});`);
+        else
+            statements.push(`if(sp <= stack_ptr) prod = a;`, `if(${accepting_productions.map(s => `${s} != a`).join("&&")}) soft_fail(l); else FAILED = false;`);
+        // statements.push(`if(![${accepting_productions.join(",")}].includes(a))fail(l);`);
     }
 
     return statements;
@@ -168,8 +169,12 @@ function shiftReduce(
     //Sort groups based on the productions they have. State indices mapped to "-" delim strings
 
     const closure: Item[] = state.items.setFilter(s => s.id);
+
     processClosure(closure, grammar, true);
+
     const cc = closure.sort((a, b) => b.body - a.body).slice(0, -1);
+
+    let HAS_SHIFT = false;
 
     const to_process = [
         ...getShiftStates(state).map(([sym, val]) => {
@@ -205,8 +210,6 @@ function shiftReduce(
         .sort((a, b) => a.type - b.type)
         //Group based on transition symbol
         .group(s => s.sym);
-
-    console.log(sym_groups);
 
     sym_groups = sym_groups
         .group(s => {
@@ -265,6 +268,10 @@ function shiftReduce(
 
         for (const shift_groups of shift) {
 
+            if (!HAS_SHIFT) {
+                HAS_SHIFT = true;
+                statements.unshift("prod = -1;");
+            }
 
             const TRY_GROUP = shift_groups.states.length > 1;
 
@@ -435,12 +442,9 @@ function shiftReduce(
             active_gotos.push(production.id);
 
             if (!(item.len == 1 && !body.reduce_function))
-                block.push(createReduceFunction(item, grammar));
-
-            block.push(
-                `stack_ptr -= ${item.len} `,
-                `prod = ${production.id}`
-            );
+                block.push(createLRReduceCompletionWithFn(item, grammar));
+            else
+                block.push(createLRReduceCompletionWithoutFn(item, grammar));
         }
     }
 
@@ -453,12 +457,12 @@ function shiftReduce(
             const
                 id = outputs.filter(e => e.a_syms.some(isSymADefinedToken)),
                 ty = outputs.filter(e => e.a_syms.some(isSymAGenericType)),
-                pa = outputs.filter(e => e.a_syms.some(isSymAnAssertFunction));
+                af = outputs.filter(e => e.a_syms.some(isSymAnAssertFunction));
 
             let ty_name = `tym${state.index}`, id_name = `idm${state.index}`, pa_stmts = [];
 
-            if (pa.length > 0) {
-                for (const output of pa) {
+            if (af.length > 0) {
+                for (const output of af) {
                     const pa_syms = output.a_syms.filter(isSymAnAssertFunction);
                     for (const s of pa_syms)
                         pa_stmts.push(`if(${getLexerBooleanExpression(s, grammar)}){${output.stmts.join("\n")}}`);
@@ -466,10 +470,10 @@ function shiftReduce(
             }
 
             if (id.length > 0) {
+                let i = 0;
                 const
                     id_stmt = [`const ${id_name}: Map<number, (L:Lexer)=>void> = new Map()`],
                     map_hash = [];
-                let i = 0;
                 for (const output of id) {
                     const
                         id_syms = output.a_syms.filter(isSymADefinedToken),
@@ -536,7 +540,7 @@ function shiftReduce(
             statements.push([
                 id.length > 0 ? `if(${id_name}.has(l.id))${id_name}.get(l.id)(l);` : "",
                 ty.length > 0 ? `if(${ty_name}.has(l.ty))${ty_name}.get(l.ty)(l);` : "",
-                pa.length > 0 ? pa_stmts.join(" else ") : ""
+                af.length > 0 ? pa_stmts.join(" else ") : ""
             ].filter(s => s).join((" else ")));
         }
     }
@@ -584,8 +588,6 @@ function compileState(
     if (goto_statements.length > 0) statements.push("const sp: u32 = stack_ptr;");
 
     pre_statements.push(...sr_pre);
-
-    statements.push("prod = -1;");
 
     statements.push(...sr_body);
 

@@ -40,9 +40,6 @@ export async function compileHybrid(grammar: Grammar, env: GrammarParserEnvironm
         console.log(e);
     }
 
-    //Create the temp directory
-    fs.writeFileSync(`./hybrid_${new URL(grammar.uri).filename}.js`, "export default " + mt_runner.parser);
-
-    return () => { }; Function(`return (${mt_runner.parser})()`)();
+    return () => { };
 }
 

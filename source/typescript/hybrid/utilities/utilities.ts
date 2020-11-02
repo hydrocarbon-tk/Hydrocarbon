@@ -63,7 +63,12 @@ export function createNoCheckShift(grammar: Grammar, runner: CompilerRunner): an
 export function createEmptyShift(): string {
     return `add_shift(0);`;
 }
-
+export function createLRReduceCompletionWithoutFn(item: Item, grammar: Grammar): string {
+    return `completeProductionPlain(${item.len},${item.getProduction(grammar).id});`;
+}
+export function createLRReduceCompletionWithFn(item: Item, grammar: Grammar): string {
+    return `completeProduction(${item.body},${item.len},${item.getProduction(grammar).id});`;
+}
 export function createReduceFunction(item: Item, grammar: Grammar): string {
     return `add_reduce(${item.len},${item.body});`;
 }
