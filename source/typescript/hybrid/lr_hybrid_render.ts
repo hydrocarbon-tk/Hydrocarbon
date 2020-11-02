@@ -438,13 +438,13 @@ function shiftReduce(
 
             const
                 production = item.getProduction(grammar),
-                body = item.body_(grammar);
+                body = (<Item>item).body_(grammar);
 
             active_gotos.push(production.id);
 
-            if (!(item.len == 1 && !body.reduce_function))
+            if (body.reduce_id >= -1)
                 block.push(createLRReduceCompletionWithFn(item, grammar));
-            else
+            else if (item.len > 1)
                 block.push(createLRReduceCompletionWithoutFn(item, grammar));
         }
     }

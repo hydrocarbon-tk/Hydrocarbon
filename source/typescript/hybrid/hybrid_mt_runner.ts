@@ -518,6 +518,8 @@ export default function main (input_string:string): Export {
 
     action_array[pointer++] = 0;
 
+    error_mark(0);
+
     return new Export(
             FAILED || !lex.END,
         error_array.subarray(0, error_ptr),
@@ -546,72 +548,56 @@ for (let i = 0; i < jump_table.length; i++)
 
         
 
-const fns = [${this.grammar.bodies.map(b => {
-            if (b.reduce_function)
-                return `\n      //${b.id} :: ${new Item(b.id, b.length, 0, null).renderUnformattedWithProduction(this.grammar)}\n` + b.reduce_function.txt.replace("return", "sym=>(").slice(0, -1) + ")";
-            else
-                return "";
-        }).join("\n,")
+const fns = [sym=>sym[sym.length-1], ${this.grammar.bodies.filter(b => b.reduce_id >= 0).map((b, i) =>
+            `\n      //[${i}]${b.reduce_id} :: ${new Item(b.id, b.length, 0, null).renderUnformattedWithProduction(this.grammar)}\n` + b.reduce_function.txt.replace("return", "sym=>(").slice(0, -1) + ")"
+        ).join("\n,")
             }];
 
 export default function jsmain(str) {
 
-    let strPtr = __retain(__allocString(str));
-    let exportPtr = main(strPtr); // call with pointers
-
-    const exports = Export.wrap(exportPtr);
-
-    const FAILED = exports.getFailed();
-    const aaPtr = exports.getActionList();
-    const erPtr = exports.getErrorOffsets();
-
-    const aa = __getUint32ArrayView(aaPtr);
-    const er = __getUint32ArrayView(erPtr);
-
-    const stack = [];
+    const 
+        strPtr = __retain(__allocString(str)),
+        exportPtr = main(strPtr), // call with pointers
+        exports = Export.wrap(exportPtr),
+        FAILED = exports.getFailed(),
+        aaPtr = exports.getActionList(),
+        erPtr = exports.getErrorOffsets(),
+        aa = __getUint32ArrayView(aaPtr),
+        er = __getUint32ArrayView(erPtr),
+        stack = [];
+    
     let action_length = 0;
 
     if (FAILED) {
-
-        const error_off = er.sort((a, b) => b - a)[0];
-
-        const lexer = new Lexer(str);
-
+        
+        let error_off = 0;
+        
+        for(let i = 0; i < er.length && eh[i]; i++)
+            error_off  = Math.max(error_off, eh[i])
+            er.sort((a, b) => b - a)[0],
+            lexer = new Lexer(str);
+            
+        while (lexer.off < error_off) lexer.next();
+            
         console.log(lexer, error_off, str.length, er);
 
-        while (lexer.off < error_off) lexer.next();
-
-        console.log(lexer.throw(\`Unexpected token[\${ lexer.tx }]\`));
+        lexer.throw(\`Unexpected token[\${ lexer.tx }]\`);
 
     } else if (true) {
-        //Build out the productions
-
+        
         let offset = 0;
 
         o: for (const action of aa) {
             action_length++;
-            if (action == 0) break;
-
             switch (action & 3) {
                 case 0: //ACCEPT
                     return stack[0];
-
                 case 1: //REDUCE;
-                    var body = action >> 16;
-
-                    
-                    var len = ((action & 0xFFFF) >> 2);
-                    
-                    const fn = fns[body];
-                    
-                    
-                    if (fn)
-                        stack[stack.length - len] = fn(stack.slice(-len));
-                    else if (len > 1)
-                        stack[stack.length - len] = stack[stack.length - 1];
-
+                    var 
+                        body = action >> 16,
+                        len = ((action & 0xFFFF) >> 2);
+                    stack[stack.length - len] = fns[body](stack.slice(-len));
                     stack.length = stack.length - len + 1;
-
                     break;
                 case 2: //SHIFT;
                     var len = action >> 2;
@@ -632,7 +618,7 @@ export default function jsmain(str) {
     __release(strPtr);
 
     return { result: stack, FAILED: !!FAILED, action_length };
-}  `;
+}`;
 
         //Clean up workers.
         this.workers.forEach(wk => wk.target.terminate());

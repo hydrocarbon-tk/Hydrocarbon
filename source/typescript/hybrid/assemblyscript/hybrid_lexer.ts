@@ -218,7 +218,5 @@ class Lexer {
 
         return this;
     }
-    get pk() : Lexer { return this.peek(); }
-    get n() : Lexer  { return this.next(); }
     get END() : boolean { return this.off >= str.length; }
 }`;

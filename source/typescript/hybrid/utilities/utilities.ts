@@ -1,6 +1,4 @@
 import { Lexer } from "@candlefw/wind";
-import { stmt, renderWithFormatting, JSNodeType } from "@candlefw/js";
-import { traverse } from "@candlefw/conflagrate";
 import { Grammar, SymbolType, ProductionBody, Production } from "../../types/grammar.js";
 import { Symbol } from "../../types/Symbol";
 import { State } from "../types/State.js";
@@ -67,10 +65,14 @@ export function createLRReduceCompletionWithoutFn(item: Item, grammar: Grammar):
     return `completeProductionPlain(${item.len},${item.getProduction(grammar).id});`;
 }
 export function createLRReduceCompletionWithFn(item: Item, grammar: Grammar): string {
-    return `completeProduction(${item.body},${item.len},${item.getProduction(grammar).id});`;
+    return `completeProduction(${item.body_(grammar).reduce_id + 1},${item.len},${item.getProduction(grammar).id});`;
 }
 export function createReduceFunction(item: Item, grammar: Grammar): string {
-    return `add_reduce(${item.len},${item.body});`;
+    return `add_reduce(${item.len},${item.body_(grammar).reduce_id + 1});`;
+}
+
+export function createDefaultReduceFunction(item: Item): string {
+    return `add_reduce(${item.len},${0});`;
 }
 
 export function getUniqueSymbolName(sym: Symbol) {
@@ -154,10 +156,6 @@ export function translateSymbolValue(sym: Symbol, grammar: Grammar, ANNOTATED: b
 export function getIncludeBooleans(syms: Symbol[], grammar: Grammar, runner: CompilerRunner, lex_name: string = "l") {
     syms = syms.map(s => getRootSym(s, grammar));
 
-
-    for (const sym of syms) {
-        if (!sym) console.log(syms);
-    }
     const
         id = syms.filter(s => s.id != undefined & s.type !== SymbolType.PRODUCTION_ASSERTION_FUNCTION)
             .map(s => s.id + (runner.ANNOTATED ? `/* ${s.val} */` : ""))

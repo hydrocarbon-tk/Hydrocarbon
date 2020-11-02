@@ -11,7 +11,8 @@ import {
     getIncludeBooleans,
     createReduceFunction,
     createEmptyShift,
-    translateSymbolValue
+    translateSymbolValue,
+    createDefaultReduceFunction
 } from "./utilities/utilities.js";
 import { RDProductionFunction } from "./types/RDProductionFunction";
 import { RDItem } from "./types/RDItem";
@@ -76,8 +77,10 @@ function renderItemSym(
     stmts.push(insertFunctions(item, grammar, true));
 
     if (item.atEND) {
-        if (!(item.len == 1 && !body.reduce_function))
+        if (body.reduce_id >= 0)
             stmts.push(createReduceFunction(item, grammar));
+        else if (item.len > 1)
+            stmts.push(createDefaultReduceFunction(item));
 
         if (AUTO_RETURN) stmts.push(`return;`);
     } else {
