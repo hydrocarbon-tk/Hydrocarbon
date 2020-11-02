@@ -128,7 +128,7 @@
 	│ js_data js_data_block											↦return { $sym1 + $sym2 }
 	│ ɛ
 
-<> js_primitive → θid │ θnum │ θws │ θsym │ θkeyword │ θany | sym::terminal_symbol ↦return { $sym1.val }
+<> js_primitive → θid │ θnum │ θws │ θsym │ θkeyword │ θany | (sym::terminal_symbol | sym::EOF_symbol) ↦return { "<--" + $sym1.type + "^^" + $sym1.val + "-->" }
 
 <> js_data_block → { js_data }									↦return { $sym1 + $sym2 + $sym3 }
 

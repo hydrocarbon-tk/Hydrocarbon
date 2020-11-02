@@ -37,9 +37,10 @@
 	│ escaped_symbol
 	│ θany											↦cstr{ this.type = "symbol"; this.val = $sym1; this.pos = pos }
 
-<> terminal_symbol → generated_symbol
+<>  terminal_symbol → generated_symbol
 	│ literal_symbol
 	│ escaped_symbol
+	| assert_function_symbol
 	│ θany 											↦cstr{ this.type = "symbol"; this.val = $sym1; this.pos = pos }
 
 <> symbol → generated_symbol
@@ -62,13 +63,13 @@
 	│ θany											↦cstr{ this.type = "symbol"; this.val = $sym1; this.pos = pos}
 
 <> EOF_symbol → 
-	$eof  											↦cstr{ this.type = "eof"; this.val = "$eof"; this.pos = pos }
+	\$eof  											↦cstr{ this.type = "eof"; this.val = "$eof"; this.pos = pos }
 
 <> empty_symbol → 
 	\ɛ  											↦cstr{ this.type = "empty"; this.pos = pos }
 
 <> assert_function_symbol → 
-	 τaf \:  (ERR θws θnl) identifier 				↦cstr{ this.type = "assert_token_function"; this.val = $sym2; this.pos = pos }
+	 τaf \:  (ERR θws θnl) identifier 				↦cstr{ this.type = "assert_token_function"; this.val = $sym3; this.pos = pos }
 
 <> generated_symbol → 
 	( \θ │ τg \: ) (ERR θws θnl) identifier 		↦cstr{ this.type = "generated"; this.val = $sym2; this.pos = pos }
@@ -77,7 +78,7 @@
 	( \τ │ τt \: ) (ERR θws θnl)  ( identifier │ def::natural ) ↦cstr{ this.type = "literal"; this.val = ""+$sym2; this.pos = pos }
 
 <> escaped_symbol → 
-	\\ (ERR θws θnl)  θany 							↦cstr{ this.type = "escaped"; this.val = $sym2; this.pos = pos }
+	\\ (ERR θws θnl)  θany 							↦cstr{ this.type = "symbol"; this.val = $sym2; this.pos = pos }
 
 <> production_symbol → 
 	identifier 										↦cstr{ this.type = "production"; this.name = $sym1; this.val = -1; this.pos = pos}
