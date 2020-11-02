@@ -175,14 +175,10 @@ export function filloutGrammar(grammar: Grammar, env) {
 
     for (const [name, fn] of grammar.functions) {
         //replace symbols with actual function data. 
-        console.log(fn.txt);
-        const converted_string = (<string>fn.txt).replace(/\<\-\-(\w+)\^\^([^-]+)\-\-\>/g, (a, b, c) => {
-            const sym = <Symbol>{ type: b, val: c };
-            console.log(0, 1, getRootSym(sym, grammar), getLexerBooleanExpression(sym, grammar), grammar.meta.all_symbols);
-            return getLexerBooleanExpression(sym, grammar);
+        fn.txt = (<string>fn.txt).replace(/(\!)?\<\-\-(\w+)\^\^([^-]+)\-\-\>/g, (a, not, type, val) => {
+            const sym = <Symbol>{ type, val };
+            return getLexerBooleanExpression(sym, grammar, "l", not == "!");
         }).replace(/\$next/g, "l.next()");
-
-        console.log({ converted_string });
     }
 
 

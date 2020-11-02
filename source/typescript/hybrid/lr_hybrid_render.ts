@@ -10,7 +10,8 @@ import {
     getRootSym,
     getRealSymValue,
     getSkipArray,
-    getIncludeBooleans
+    getIncludeBooleans,
+    getLexerBooleanExpression
 } from "./utilities/utilities.js";
 import { State } from "./types/State";
 import { RDProductionFunction } from "./types/RDProductionFunction.js";
@@ -438,10 +439,19 @@ function shiftReduce(
         } else {
 
             const
-                id = outputs.filter(e => e.a_syms.some(s => s.id != undefined)),
-                ty = outputs.filter(e => e.a_syms.some(s => s.id == undefined));
+                id = outputs.filter(e => e.a_syms.some(s => s.id != undefined && s.type !== SymbolType.PRODUCTION_ASSERTION_FUNCTION)),
+                ty = outputs.filter(e => e.a_syms.some(s => s.id == undefined && s.type !== SymbolType.PRODUCTION_ASSERTION_FUNCTION)),
+                pa = outputs.filter(e => e.a_syms.some(s => s.type == SymbolType.PRODUCTION_ASSERTION_FUNCTION));
 
-            let ty_name = `tym${state.index}`, id_name = `idm${state.index}`;
+            let ty_name = `tym${state.index}`, id_name = `idm${state.index}`, pa_stmts = [];
+
+            if (pa.length > 0) {
+                for (const output of pa) {
+                    const pa_syms = output.a_syms.filter(s => s.type == SymbolType.PRODUCTION_ASSERTION_FUNCTION);
+                    for (const s of pa_syms)
+                        pa_stmts.push(`if(${getLexerBooleanExpression(s, grammar)}){${output.stmts.join("\n")}}`);
+                }
+            }
 
             if (id.length > 0) {
                 const
@@ -450,10 +460,10 @@ function shiftReduce(
                 let i = 0;
                 for (const output of id) {
                     const
-                        tx_syms = output.a_syms.filter(s => s.id != undefined),
+                        id_syms = output.a_syms.filter(s => s.id != undefined),
                         fn_name = `_${state.index}id` + i++;
                     if (output.IS_PURE_RD) {
-                        for (const s of tx_syms) {
+                        for (const s of id_syms) {
                             const hash = `${s.id + (runner.ANNOTATED ? `/* ${s.val} */` : "")}, ${output.rd_name}`;
                             id_stmt.push(`${id_name}.set(${hash})`);
                             map_hash.push(hash);
@@ -463,7 +473,7 @@ function shiftReduce(
                             fn_body = `(l:Lexer):void => {${output.stmts.join("\n")}}`,
                             name = runner.add_constant(fn_body, fn_name);
 
-                        for (const s of tx_syms) {
+                        for (const s of id_syms) {
                             const hash = `${s.id + (runner.ANNOTATED ? `/* ${s.val} */` : "")}, ${name}`;
                             id_stmt.push(`${id_name}.set(${hash})`);
                             map_hash.push(hash);
@@ -511,11 +521,11 @@ function shiftReduce(
                 ty_name = runner.add_statement(hash_string, ty_name, ty_stmt.join("\n"));
             }
 
-            if (id.length > 0) {
-                statements.push(`if(${id_name}.has(l.id))${id_name}.get(l.id)(l)`);
-                if (ty.length > 0)
-                    statements.push(`else if(${ty_name}.has(l.ty))${ty_name}.get(l.ty)(l)`);
-            } else if (ty.length > 0) statements.push(`if(${ty_name}.has(l.ty))${ty_name}.get(l.ty)(l)`);
+            statements.push([
+                id.length > 0 ? `if(${id_name}.has(l.id))${id_name}.get(l.id)(l)` : "",
+                ty.length > 0 ? `if(${ty_name}.has(l.ty))${ty_name}.get(l.ty)(l)` : "",
+                pa.length > 0 ? pa_stmts.join(" else ") : ""
+            ].filter(s => s).join((" else ")));
         }
     }
     return { body: statements, pre: pre_statements };
@@ -579,7 +589,9 @@ export function renderState(
     const
         fn: string[] = runner.ANNOTATED
             ? [
-                `function ${state.name ? state.name : "State" + state.index}(l:Lexer):void{`,
+                `function ${state.name ? state.name : "State" + state.index
+                } (l: Lexer): void{
+    `,
                 `\`${state.items.setFilter(i => i.id).map(
                     i => i.renderUnformattedWithProduction(grammar) + ((i.sym(grammar)?.type == SymbolType.PRODUCTION)
                         ? (": " + i.getProduction(grammar).id)
@@ -596,7 +608,7 @@ export function renderState(
     fn.push("}");
 
     return [...pre_stmts, ...fn].join("\n");
-}
+};
 
 export function markReachable(states: States, ...root_states: State[]) {
 

@@ -78,22 +78,22 @@ export async function grammarParser(
     meta_imported_productions = new Map,
     global_pending_files = { count: 0 }
 ): Promise<Grammar> {
-
     const
-
         local_pending_files = { count: 0 },
+
+        env = <ParserEnvironment>constructCompilerEnvironment(
+            grammar_file_url,
+            global_pending_files,
+            local_pending_files,
+            unique_grammar_file_id,
+            meta_imported_productions
+        ),
 
         result = parser(
             wind(grammar_string),
             //@ts-ignore
             hcg_parser_data,
-            <ParserEnvironment>constructCompilerEnvironment(
-                grammar_file_url,
-                global_pending_files,
-                local_pending_files,
-                unique_grammar_file_id,
-                meta_imported_productions
-            ),
+            env,
             //(await import("@candlefw/hydrocarbon/source/grammars/hcg/hcg.debug_info.js")).default
         ),
 
@@ -114,6 +114,11 @@ export async function grammarParser(
 
     //Reload all productions that have been identified in all grammar files.
     grammar.LU = new Map(grammar.map(p => [<string>p.name, p]));
+
+    //Pull out function references from env. TODO: move function refs to grammar.
+    const ref_functions = env.refs;
+
+    grammar.functions = ref_functions;
 
 
     //If the production is at the root of the import tree, then complete the processing of production data. 

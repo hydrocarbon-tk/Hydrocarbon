@@ -332,8 +332,15 @@ export class HybridMultiThreadRunner {
 
         const assert_functions = new Map;
         //Identify required assert functions. 
-        for (const sym of [...this.grammar.meta.all_symbols.values()].filter(s => s.type == SymbolType.PRODUCTION_ASSERTION_FUNCTION)) {
-            const fn_name = sym.val;
+        for (const sym of [...this.grammar.meta.all_symbols.values()]
+            .filter(s => s.type == SymbolType.PRODUCTION_ASSERTION_FUNCTION)
+        ) {
+            const fn_name = <string>sym.val;
+            if (this.grammar.functions.has(fn_name)) {
+                console.log(this.grammar.functions.get(fn_name));
+                const val = this.grammar.functions.get(fn_name);
+                assert_functions.set(fn_name, `function ${fn_name}(l:Lexer):boolean{${val.txt}}`);
+            }
 
             //console.log(0, 2, this.grammar);
         }
@@ -446,7 +453,7 @@ function _(lex: Lexer, /* eh, */ skips: u32[], sym: u32 = 0):void {
         error_array[error_ptr++] = lex.off;
     }
 }
-        
+${[...assert_functions.values()].join("\n")}
 ${this.runner.render_constants()}
 ${this.runner.render_statements()}
 ${fns.join("\n    ")}

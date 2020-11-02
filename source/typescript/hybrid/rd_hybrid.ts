@@ -85,11 +85,12 @@ function renderItemSym(
             stmts.push(`$${grammar[sym.val].name}(l)`);
 
         } else {
-
-            if (RENDER_WITH_NO_CHECK)
-                stmts.push(`_no_check(l, /* e.eh, */ ${getSkipArray(grammar, runner)});`);
-            else
-                stmts.push(`_(l, /* e.eh, */ ${getSkipArray(grammar, runner)}, ${translateSymbolValue(sym, grammar, runner.ANNOTATED)});`);
+            if (sym.type != SymbolType.PRODUCTION_ASSERTION_FUNCTION) {
+                if (RENDER_WITH_NO_CHECK)
+                    stmts.push(`_no_check(l, /* e.eh, */ ${getSkipArray(grammar, runner)});`);
+                else
+                    stmts.push(`_(l, /* e.eh, */ ${getSkipArray(grammar, runner)}, ${translateSymbolValue(sym, grammar, runner.ANNOTATED)});`);
+            }
         }
     }
 
@@ -334,7 +335,13 @@ export function buildGroupStatement(
                         .filter(i => !i.atEND && (i.sym(grammar).type == SymbolType.PRODUCTION)),
 
                     term_items = items
-                        .filter(i => !i.atEND && (i.sym(grammar).type != SymbolType.PRODUCTION)),
+                        .filter(i => !i.atEND && (i.sym(grammar).type != SymbolType.PRODUCTION && i.sym(grammar).type !== SymbolType.PRODUCTION_ASSERTION_FUNCTION)),
+
+                    paf_la_items = items
+                        .filter(i => !i.atEND && (i.sym(grammar).type == SymbolType.PRODUCTION_ASSERTION_FUNCTION)),
+
+                    //paf_shift_items = items
+                    //.filter(i => !i.atEND && (i.sym(grammar).type == SymbolType.PRODUCTION_ASSERTION_FUNCTION)),
 
                     new_trs = [].concat(prod_items.map(i => {
 
@@ -351,7 +358,7 @@ export function buildGroupStatement(
                         if (COMPLETED) no_closures.push(i);
 
                         return rd_item;
-                    })).concat(term_items.map(i => ItemToRDItem(i, grammar)));
+                    })).concat(term_items.map(i => ItemToRDItem(i, grammar))).concat(paf_la_items.map(i => ItemToRDItem(i, grammar)));
 
                 if (new_trs.length > 0) {
                     const has_closures = new_trs.filter(f => f.closure.length > 0);

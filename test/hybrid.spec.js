@@ -1,10 +1,9 @@
 import { compileGrammars, lrParse } from "@candlefw/hydrocarbon";
 import URL from "@candlefw/url";
 import { compileHybrid } from "../build/library/hybrid/hybrid_compiler.js";
-import parse_data from "./mock/test_grammar_import_toy_A.js";
 import { Lexer } from "@candlefw/wind";
 
-const url = await URL.resolveRelative("./mock/test_grammar_css.hcg");
+const url = await URL.resolveRelative("./mock/test_grammar_e_fork.hcg");
 const urlB = await URL.resolveRelative("./mock/test_grammar_export_toy_B.hcg");
 
 const file = await url.fetchText();
@@ -47,20 +46,14 @@ assert_group(() => {
         }
     };
 
+
+
     //assert(lrParse(test_string, parse_data, env).value == parserHybrid(new Lexer(test_string)));
     //assert(lrParse(test_string, parse_data).value == parserLL(new Lexer(test_string)));
 
     //harness.markTime();
     //assert(parserLL(new Lexer(test_string)) == "");
     //harness.getTime("hybrid LL");
-
-    const a = new Lexer("ABC");
-    a.addSymbol("SDFS", "SD");
-    a.next().pk.copy().next().END;
-
-    harness.markTime();
-    assert(lrParse(test_string, parse_data, env).value == "");
-    harness.getTime("LALR");
 
     harness.markTime();
     assert(parserHybrid(new Lexer(test_string)) == "");
