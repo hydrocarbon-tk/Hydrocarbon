@@ -548,8 +548,8 @@ for (let i = 0; i < jump_table.length; i++)
 
         
 
-const fns = [sym=>sym[sym.length-1], ${this.grammar.bodies.filter(b => b.reduce_id >= 0).map((b, i) =>
-            `\n      //[${i}]${b.reduce_id} :: ${new Item(b.id, b.length, 0, null).renderUnformattedWithProduction(this.grammar)}\n` + b.reduce_function.txt.replace("return", "sym=>(").slice(0, -1) + ")"
+const fns = [sym=>sym[sym.length-1], ${this.grammar.meta.reduce_functions.map((b, i) =>
+            b.replace("return", "sym=>(").slice(0, -1) + ")"
         ).join("\n,")
             }];
 

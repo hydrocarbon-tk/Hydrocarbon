@@ -97,8 +97,6 @@ function addFunctions(funct, production, env) {
     if (!funct.env) {
         const str = funct.txt.trim();
         let name = env.FLUT.get(str);
-
-
         if (!name) {
             name = funct.type[0] + production.id + (production.func_counter++) + "_" + production.name.replace(/\$/g, "_");
             funct.name = name;
@@ -130,6 +128,7 @@ export function filloutGrammar(grammar: Grammar, env) {
     let terminal_symbol_index = 10;
 
     const bodies = [],
+        reduce_lu: Map<string, number> = new Map,
         symbols = new Map(),
         syms = [...grammar.meta.symbols.values()];
 
@@ -140,9 +139,11 @@ export function filloutGrammar(grammar: Grammar, env) {
             const body = production.bodies[i],
                 HAS_REDUCE = !!body.reduce_function;
 
-            if (HAS_REDUCE)
-                body.reduce_id = reduce_id++;
-            else
+            if (HAS_REDUCE) {
+                if (!reduce_lu.has(body.reduce_function.txt))
+                    reduce_lu.set(body.reduce_function.txt, reduce_lu.size);
+                body.reduce_id = reduce_lu.get(body.reduce_function.txt);
+            } else
                 body.reduce_id = -1;
 
             body.id = j;
@@ -180,7 +181,7 @@ export function filloutGrammar(grammar: Grammar, env) {
 
     for (const sym of syms.setFilter(s => getUniqueSymbolName(s)) sym_function(sym);
 
-    grammar.meta = Object.assign({}, grammar.meta, { all_symbols: symbols });
+    grammar.meta = Object.assign({}, grammar.meta, { all_symbols: symbols, reduce_functions: [...reduce_lu.keys()] });
 
     grammar.bodies = bodies;
 

@@ -136,6 +136,8 @@ export type Grammar = Array<Production> & {
         ignore?: any[],
 
         preambles?: Preamble[];
+
+        reduce_functions?: string[];
     };
 
     imported: boolean;
@@ -155,4 +157,5 @@ export type Grammar = Array<Production> & {
     bodies: Array<ProductionBody>;
 
     functions: Map<string, any>;
+
 };
