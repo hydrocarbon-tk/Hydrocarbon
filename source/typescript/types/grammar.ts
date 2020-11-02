@@ -1,4 +1,5 @@
 import { Lexer } from "@candlefw/wind";
+import { Symbol } from "./Symbol";
 
 export enum SymbolType {
     PRODUCTION = "production",
@@ -13,45 +14,20 @@ export enum SymbolType {
     ESCAPED = "escaped",
     SYMBOL = "symbol",
     EMPTY = "empty",
-    END_OF_FILE = "eof"
+    END_OF_FILE = "eof",
+    PRODUCTION_ASSERTION_FUNCTION = "assert_token_function"
 }
 
 export const EOF_SYM: Symbol = { val: "$eof", precedence: 0, type: SymbolType.GENERATED };
 
-/**
- * Grammar Symbols
-*/
-export interface Symbol {
-    type: SymbolType;
-    val: string | number;
-    subtype?: string;
-    offset?: number;
-    name?: string;
-    sym?: string;
-    precedence?: number,
-    NO_BLANK?: boolean;
-    IS_OPTIONAL?: boolean;
-    IS_CONDITION?: boolean;
-    IMPORTED?: boolean;
-    RESOLVED?: boolean;
-    production?: Production;
-    resolveFunction?: () => void;
-    pos?: Lexer;
-
-    /**
-     * The numerical identifier for this token
-     */
-    id?: number;
-}
-
 export interface ProductionBodyFunction {
     /**
-     * Name of the of the function if it is a numed ParserEnvironment function
+     * Name of the of the function if it is a named ParserEnvironment function
      * Otherwise blank.
      */
     name: string,
     /**
-     * Index position of the terminal symbol proceding the function
+     * Index position of the terminal symbol proceeding the function
      * in production body.
      */
     offset: number,
@@ -63,7 +39,7 @@ export interface ProductionBodyFunction {
 
 export interface ProductionBodyReduceFunction {
     /**
-     * Name of the of the function if it is a numed ParserEnvironment function
+     * Name of the of the function if it is a named ParserEnvironment function
      * Otherwise blank.
      */
     name: string,
@@ -176,4 +152,6 @@ export type Grammar = Array<Production> & {
     graph_id: number;
 
     bodies: Array<ProductionBody>;
+
+    functions: Map<string, any>;
 };

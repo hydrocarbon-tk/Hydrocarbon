@@ -44,9 +44,7 @@ function parser<T>(
     forks = 0,
     history: HistoryStack = null,
 ): ParserResultData<T> | ParserSquashResultData {
-
-    const states_n = [];
-
+    
     //@ts-ignore
     if (!data) return <ParserResultData<T>>{ value: null, error: "Data object is empty" };
 
@@ -424,7 +422,6 @@ function parser<T>(
                 }
             }
             //Update states values
-            states_n.push(<number>state_stack[stack_pointer]);
             state = states[<number>state_stack[stack_pointer]];
             state_length = state.length;
             state_action_lu = (tk < state_length) ? state[tk] : -1;
@@ -457,8 +454,6 @@ function parser<T>(
             efficiency: cycles / total_cycles
         };
     };
-
-    //console.log({ states_n });
 
     return <ParserResultData<T>><any>{
         value: o[0],

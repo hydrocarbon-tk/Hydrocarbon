@@ -5,7 +5,8 @@ import { traverse, make_replaceable, bit_filter, extract } from "@candlefw/confl
 
 import { Lexer } from "@candlefw/wind";
 
-import { Symbol, ProductionBodyFunction, ProductionBodyReduceFunction, ProductionBody } from "../types/grammar.js";
+import { ProductionBodyFunction, ProductionBodyReduceFunction, ProductionBody } from "../types/grammar.js";
+import { Symbol } from "../types/Symbol";
 
 import { GrammarParserEnvironment } from "../types/grammar_compiler_environment.js";
 
@@ -71,8 +72,6 @@ export default class implements ProductionBody {
                         ? `function temp(temp){return ${this.reduce_function.txt}}`
                         : `function temp(temp){ ${this.reduce_function.txt}}`,
                 ast = stmt(str), receiver = { ast: null };
-
-            let alt = renderCompressed(ast);
 
             //*
             for (const { node, meta: { replace } } of traverse(ast, "nodes")

@@ -1,7 +1,8 @@
-import { Grammar, Production, ProductionBody, EOF_SYM, SymbolType, Symbol } from "../types/grammar.js";
+import { Grammar, Production, ProductionBody, EOF_SYM, SymbolType } from "../types/grammar.js";
+import { Symbol } from "../types/Symbol";
 import { processClosure, Item } from "../util/common.js";
 import { GrammarParserEnvironment } from "../types/grammar_compiler_environment";
-import { translateSymbolValue, getLexPeekComparisonStringCached, has_INLINE_FUNCTIONS, getRootSym, getSkipArray, getIncludeBooleans } from "./utilities/utilities.js";
+import { translateSymbolValue, getLexerBooleanExpression, has_INLINE_FUNCTIONS, getRootSym, getSkipArray, getIncludeBooleans } from "./utilities/utilities.js";
 import { RDProductionFunction } from "./types/RDProductionFunction";
 import { RDItem } from "./types/RDItem";
 import { getTerminalSymsFromClosure } from "./utilities/get_terminal_syms_from_closure.js";
@@ -249,12 +250,6 @@ export function renderFunctionBody(
                 const_body.push(`${lx}:Lexer =_pk( ${peek_depth > 1 ? "pk" + (peek_depth - 1) : "l"}.copy(), /* e.eh, */${getSkipArray(grammar, runner)})`);
             }
 
-            // if (token_bit & TOKEN_BIT.ID)
-            //     const_body.push(`id:u32 = ${lx}.id`);
-            //
-            // if (token_bit & TOKEN_BIT.TYPE)
-            //     const_body.push(`ty:u32 = ${lx}.ty`);
-
             const_node.push(const_body.join(","), ";");
 
             if (const_body.length > 0)
@@ -383,7 +378,6 @@ export function buildGroupStatement(
             };
         }
     } else {
-        //IS_SINGLE = false;
         //Just complete the grammar symbols
         const item = RDItemToItem(trs[0]);
         if (runner.ANNOTATED) {

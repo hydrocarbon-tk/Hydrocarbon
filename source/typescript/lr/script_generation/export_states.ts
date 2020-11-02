@@ -1,5 +1,6 @@
 
-import { Grammar, Production, ProductionBody, Symbol } from "../../types/grammar.js";
+import { Grammar, Production, ProductionBody } from "../../types/grammar.js";
+import { Symbol } from "../../types/Symbol";
 import { Item } from "../../util/item.js";
 import { StateActionEnum } from "../../types/state_action_enums.js";
 import { LRState, ParserAction } from "../../types/lr_state.js";

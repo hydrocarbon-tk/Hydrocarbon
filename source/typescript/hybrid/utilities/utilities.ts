@@ -1,8 +1,9 @@
-import { Grammar, SymbolType, Symbol, ProductionBody } from "../../types/grammar.js";
 import { Lexer } from "@candlefw/wind";
-import { stmt, renderWithFormatting, extendAll, JSNodeType } from "@candlefw/js";
-import { State } from "../types/State.js";
+import { stmt, renderWithFormatting, JSNodeType } from "@candlefw/js";
 import { traverse } from "@candlefw/conflagrate";
+import { Grammar, SymbolType, ProductionBody } from "../../types/grammar.js";
+import { Symbol } from "../../types/Symbol";
+import { State } from "../types/State.js";
 import { Item } from "../../util/item.js";
 import { CompilerRunner } from "../types/CompilerRunner.js";
 
@@ -25,6 +26,7 @@ Array.prototype.groupMap = function <T>(this: Array<T>, fn: (T) => (string | num
 
     return groups;
 };
+
 /**
  * Filters all items based on whether a certain value is contained within a set or not
  */

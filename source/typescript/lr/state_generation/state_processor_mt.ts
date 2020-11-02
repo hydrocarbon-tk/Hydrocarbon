@@ -2,12 +2,11 @@
 import { processClosure } from "../../util/common.js";
 import { LRState, ParserAction } from "../../types/lr_state.js";
 import { Item } from "../../util/item.js";
-import { Grammar, SymbolType, Symbol, ProductionBody } from "../../types/grammar.js";
+import { Grammar, SymbolType, ProductionBody } from "../../types/grammar.js";
+import { Symbol } from "../../types/Symbol";
 import { StateActionEnum } from "../../types/state_action_enums.js";
 import { ItemSet } from "../../types/item_set.js";
 import { CompilerErrorStore } from "./compiler_error_store.js";
-
-
 
 export default class StateProcessor {
 

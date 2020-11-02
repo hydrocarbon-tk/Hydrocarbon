@@ -54,7 +54,6 @@ export class HybridMultiThreadRunner {
                     keywords.push([sym.val, i]);
                 } else
                     syms.push([sym.val, i]);
-                sym.id = i++;
             }
         }
 
@@ -331,6 +330,14 @@ export class HybridMultiThreadRunner {
 
         const fns = [...this.rd_functions.filter(l => l.RENDER).map(fn => fn.str), ...states.filter(s => s.REACHABLE).map(s => s.function_string)];
 
+        const assert_functions = new Map;
+        //Identify required assert functions. 
+        for (const sym of [...this.grammar.meta.all_symbols.values()].filter(s => s.type == SymbolType.PRODUCTION_ASSERTION_FUNCTION)) {
+            const fn_name = sym.val;
+
+            //console.log(0, 2, this.grammar);
+        }
+
 
         //Compile Function  
         this.parser = `
@@ -483,7 +490,7 @@ export default function main (input_string:string): Export {
 
     FAILED = false;
 
-    $${ this.grammar[0].name}(lex);
+    $${this.grammar[0].name}(lex);
 
     action_array[pointer++] = 0;
 
@@ -515,13 +522,12 @@ for (let i = 0; i < jump_table.length; i++)
 
         
 
-const fns = [${
-            this.grammar.bodies.map(b => {
-                if (b.reduce_function)
-                    return `\n      //${b.id} :: ${new Item(b.id, b.length, 0, null).renderUnformattedWithProduction(this.grammar)}\n` + b.reduce_function.txt.replace("return", "sym=>(").slice(0, -1) + ")";
-                else
-                    return "";
-            }).join("\n,")
+const fns = [${this.grammar.bodies.map(b => {
+            if (b.reduce_function)
+                return `\n      //${b.id} :: ${new Item(b.id, b.length, 0, null).renderUnformattedWithProduction(this.grammar)}\n` + b.reduce_function.txt.replace("return", "sym=>(").slice(0, -1) + ")";
+            else
+                return "";
+        }).join("\n,")
             }];
 
 export default function jsmain(str) {

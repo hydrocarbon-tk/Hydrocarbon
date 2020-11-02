@@ -1,6 +1,7 @@
 import { Lexer } from "@candlefw/wind";
 
-import { Production, Symbol, ProductionBodyFunction } from "../types/grammar.js";
+import { Production, ProductionBodyFunction } from "../types/grammar.js";
+import { Symbol } from "../types/Symbol";
 import { GrammarParserEnvironment } from "../types/grammar_compiler_environment.js";
 
 const
@@ -86,7 +87,6 @@ export default function (production: Production, env: GrammarParserEnvironment, 
 
             //replace the productions body with the new ones.
             production.bodies = [newBodyA, newBodyB];
-            //prost
         }
         //*/;
 
@@ -101,9 +101,8 @@ export default function (production: Production, env: GrammarParserEnvironment, 
         //First pass splits optionals, expands repeats, and handles lists
         outer:
         for (let j = 0; j < body.sym.length; j++) {
+
             const sym = body.sym[j];
-
-
 
             if (sym.IS_OPTIONAL && (!sym.NO_BLANK || body.sym.length > 1)) {
 
@@ -176,7 +175,7 @@ export default function (production: Production, env: GrammarParserEnvironment, 
                     if (!m.get(j))
                         m.set(j, []);
                     m.get(j).push(new_sym.sym);
-                    //m.push({ v: new_sym.sym.val, p: undefined, type: new_sym.sym.type });
+
                 } else if (map == 1) {
                     if (!m.get(j))
                         m.set(j, []);
@@ -194,33 +193,7 @@ export default function (production: Production, env: GrammarParserEnvironment, 
                 j--;
             }
         }
-        /*
-                body.sym = body.sym
-                    //Remove inline functions
-                    //And action modifiers
-                    .reduce((r, sym) => {
-                        const map = extractable_symbol_lookup[sym.type] || 0,
-                            off = r.length;
-    
-                        sym.offset = off;
-    
-                        if (sym.type == "INLINE")
-                            body.functions.push(Object.assign({}, sym));
-                        else if (map > 0) {
-                            const m = body[(["excludes", "ignore", "error", "reset", "reduce"][map - 1])];
-    
-                            if (!m.get(off))
-                                m.set(off, []);
-                            if (map == 1 || map == 5)
-                                m.get(off).push(sym.sym);
-                            else
-                                m.get(off).push(...sym.sym);
-                        } else
-                            r.push(sym);
-    
-                        return r;
-                    }, []);
-        */
+
         body.length = body.sym.length;
 
         if (body.build) body.build();
