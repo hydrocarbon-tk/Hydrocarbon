@@ -1,4 +1,5 @@
-import { Symbol, ProductionBody, Grammar, SymbolType } from "../types/grammar.js";
+import { ProductionBody, Grammar, SymbolType } from "../types/grammar.js";
+import { Symbol } from "../types/Symbol";
 
 
 function addNonTerminal(

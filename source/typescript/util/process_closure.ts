@@ -1,7 +1,8 @@
 import { Item } from "./item.js";
 
 import { FIRST } from "./first.js";
-import { Grammar, Symbol } from "../types/grammar.js";
+import { Grammar } from "../types/grammar.js";
+import { Symbol } from "../types/Symbol";
 
 export function processClosure(items: Item[], grammar: Grammar, USE_GENERAL_ID = false, excludes: any[] = [], offset = 0, added = new Set(), last_production = -1) {
 

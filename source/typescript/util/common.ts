@@ -7,7 +7,9 @@ import { FIRST } from "./first.js";
 import { FOLLOW } from "./follow.js";
 
 import { processClosure } from "./process_closure.js";
-import { Grammar } from "../types/grammar.js";
+import { Grammar, SymbolType } from "../types/grammar.js";
+import { Symbol } from "../types/Symbol";
+import { getLexerBooleanExpression, getRootSym, getUniqueSymbolName } from "../hybrid/utilities/utilities.js";
 
 export { Item, FOLLOW, FIRST, processClosure };
 
@@ -125,6 +127,8 @@ export function createPrecedence(body, grammar) {
 
 export function filloutGrammar(grammar: Grammar, env) {
 
+    let terminal_symbol_index = 0;
+
     const bodies = [],
         symbols = new Map();
 
@@ -138,16 +142,26 @@ export function filloutGrammar(grammar: Grammar, env) {
             bodies.push(body);
             body.precedence = createPrecedence(body, grammar);
 
-            const sym_function = s => { if (s.type !== "production") symbols.set(s.val + s.type, s); };
-            body.sym.forEach(sym_function);
-            [...body.ignore.values()].forEach(a => a.forEach(sym_function));
-            [...body.excludes.values()].forEach(a => a.forEach(sym_function));
-            [...body.error.values()].forEach(a => a.forEach(sym_function));
+            //Dedupes symbols 
+
+            const sym_function = (s: Symbol) => {
+
+                switch (s.type) {
+                    case SymbolType.PRODUCTION: /*Do nothing */ break;
+                    default:
+                        s.id = terminal_symbol_index++;
+                        symbols.set(getUniqueSymbolName(s), s);
+                }
+            };
+
+            for (const sym of body.sym) sym_function(sym);
+            for (const sym of [...body.ignore.values()].flat()) sym_function(sym);
+            for (const sym of [...body.excludes.values()].flat()) sym_function(sym);
+            for (const sym of [...body.error.values()].flat()) sym_function(sym);
 
             if (env) {
-                if (body.reduce_function) {
+                if (body.reduce_function)
                     addFunctions(body.reduce_function, production, env);
-                }
 
                 body.functions.forEach(f => {
                     addFunctions(f, production, env);
@@ -156,7 +170,21 @@ export function filloutGrammar(grammar: Grammar, env) {
         }
     }
 
+
     grammar.meta = Object.assign({}, grammar.meta, { all_symbols: symbols });
+
+    for (const [name, fn] of grammar.functions) {
+        //replace symbols with actual function data. 
+        console.log(fn.txt);
+        const converted_string = (<string>fn.txt).replace(/\<\-\-(\w+)\^\^([^-]+)\-\-\>/g, (a, b, c) => {
+            const sym = <Symbol>{ type: b, val: c };
+            console.log(0, 1, getRootSym(sym, grammar), getLexerBooleanExpression(sym, grammar), grammar.meta.all_symbols);
+            return getLexerBooleanExpression(sym, grammar);
+        }).replace(/\$next/g, "l.next()");
+
+        console.log({ converted_string });
+    }
+
 
     grammar.bodies = bodies;
 

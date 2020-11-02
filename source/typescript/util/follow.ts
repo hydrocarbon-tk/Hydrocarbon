@@ -1,5 +1,6 @@
 import { FIRST } from "./first.js";
-import { Grammar, Symbol, SymbolType, EOF_SYM } from "../types/grammar.js";
+import { Grammar, SymbolType, EOF_SYM } from "../types/grammar.js";
+import { Symbol } from "../types/Symbol";
 
 //@ts-nocheck
 export const EMPTY_PRODUCTION = "{!--EMPTY_PRODUCTION--!}";
