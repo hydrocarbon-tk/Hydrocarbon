@@ -74,7 +74,7 @@ export function createReduceFunction(item: Item, grammar: Grammar): string {
 }
 
 export function getUniqueSymbolName(sym: Symbol) {
-    return sym.val + sym.type;
+    return sym.val + sym.type + (sym.DOES_SHIFT ? "----" : "");
 }
 
 export function getSkipArray(grammar: Grammar, runner: CompilerRunner) {
@@ -92,6 +92,28 @@ export function getRootSym(sym: Symbol, grammar: Grammar) {
 
     return grammar.meta.all_symbols.get(name) || sym;
 }
+
+export function getLexerBooleanExpression(sym: Symbol, grammar: Grammar, lex_name: string = "l", NOT: boolean = false): string {
+    const equality = NOT ? "!=" : "==", not = NOT ? "!" : "";
+    switch (sym.type) {
+        case SymbolType.PRODUCTION_ASSERTION_FUNCTION:
+            return `(${not}${translateSymbolValue(sym, grammar, false, lex_name)})`;
+        case SymbolType.GENERATED:
+            if (sym.val == "any") { return "true"; }
+            if (sym.val == "eof")
+                return `(${lex_name}.ty ${equality} 0)`;
+            return `(${lex_name}.ty ${equality} ${translateSymbolValue(sym, grammar)})`;
+        case SymbolType.LITERAL:
+        case SymbolType.ESCAPED:
+        case SymbolType.SYMBOL:
+            return `(${lex_name}.id ${equality} ${translateSymbolValue(sym, grammar)})`;
+        case SymbolType.END_OF_FILE:
+            return `(${not}${lex_name}.END)`;
+        case SymbolType.EMPTY:
+            return (!NOT) + "";
+    }
+}
+
 export function translateSymbolValue(sym: Symbol, grammar: Grammar, ANNOTATED: boolean = false, lex_name = "l"): string | number {
     const annotation = ANNOTATED ? `/* ${sym.val} */` : "";
 
@@ -100,10 +122,10 @@ export function translateSymbolValue(sym: Symbol, grammar: Grammar, ANNOTATED: b
 
     switch (sym.type) {
         case SymbolType.PRODUCTION_ASSERTION_FUNCTION:
-            if (sym.CONSUME)
-                return `${sym.val}(${lex_name})`;
+            if (sym.DOES_SHIFT)
+                return `__${sym.val}__(${lex_name})`;
             else
-                return `${sym.val}(${lex_name}.copy())`;
+                return `__${sym.val}__(${lex_name}.copy())`;
         case SymbolType.GENERATED:
             if (sym.val == "any") { return "88"; }
             switch (sym.val) {
@@ -151,10 +173,8 @@ export function getIncludeBooleans(syms: Symbol[], grammar: Grammar, runner: Com
 
     let out_id, out_ty, out_fn;
 
-    if (fn.length > 0) {
-        console.log({ fn });
+    if (fn.length > 0)
         out_fn = (fn.map(s => `${fn}`).join("||"));
-    }
 
     if (id.length > 0) {
         if (id.length < 3) {
@@ -201,28 +221,6 @@ export function getRealSymValue(sym: Symbol) {
 
     return val;
 }
-
-export function getLexerBooleanExpression(sym: Symbol, grammar: Grammar, lex_name: string = "l", NOT: boolean = false): string {
-    const equality = NOT ? "!=" : "==", not = NOT ? "!" : "";
-    switch (sym.type) {
-        case SymbolType.PRODUCTION_ASSERTION_FUNCTION:
-            return `(${not}${sym.val}(${lex_name}.copy()))`;
-        case SymbolType.GENERATED:
-            if (sym.val == "any") { return "true"; }
-            if (sym.val == "eof")
-                return `(${lex_name}.ty ${equality} 0)`;
-            return `(${lex_name}.ty ${equality} ${translateSymbolValue(sym, grammar)})`;
-        case SymbolType.LITERAL:
-        case SymbolType.ESCAPED:
-        case SymbolType.SYMBOL:
-            return `(${lex_name}.id ${equality} ${translateSymbolValue(sym, grammar)})`;
-        case SymbolType.END_OF_FILE:
-            return `(${not}${lex_name}.END)`;
-        case SymbolType.EMPTY:
-            return (!NOT) + "";
-    }
-}
-
 //
 export function integrateState(state: State, existing_refs: Set<number>): string {
 

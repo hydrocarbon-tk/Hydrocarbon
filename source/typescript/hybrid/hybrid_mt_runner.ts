@@ -12,6 +12,7 @@ import { JSNode } from "@candlefw/js";
 import { printLexer } from "./assemblyscript/hybrid_lexer.js";
 import { RDProductionFunction } from "./types/RDProductionFunction.js";
 import { Symbol } from "../types/Symbol.js";
+import { createAssertionFunctionBody } from "../util/common.js";
 
 type WorkerContainer = {
     target: Worker;
@@ -140,11 +141,9 @@ export class HybridMultiThreadRunner {
         }
 
         for (const state of potential_states) {
-            const old_state = named_state || [...this.lr_states.values()][state.os];
-
             state.items = state.items.map(Item.fromArray);
-
-            let merged_state = mergeState(state, this.lr_states, old_state, this.lr_item_set);
+            const old_state = named_state || [...this.lr_states.values()][state.old_state_index];
+            mergeState(state, this.lr_states, old_state, this.lr_item_set);
         }
     }
 
@@ -288,22 +287,6 @@ export class HybridMultiThreadRunner {
             return s;
         });
 
-
-        console.log(states.map(
-            s => (
-                [s.index,
-                (s.items.every(s => s.atEND)),
-                (s.items.setFilter(s => s.id)
-                    .filter(s => s.atEND && !s.body_(this.grammar).reduce_function)
-                    .map(s => s.getProduction(this.grammar).id + "|" + (s.body_(this.grammar).reduce_function ? s.body : ""))
-                    .sort()
-                    .join("|"))
-                + ([...s.maps.entries()]
-                    .filter((s) => typeof s[0] == "number")
-                    .sort()
-                    .map(s => s[0] + ">" + s[1].join(":")).join("|"))]
-            )).filter(s => s[1]).sort((a, b) => a[2] - b[2]).group(s => s[2]).filter(s => s.length > 1));
-
         //trace ll states from root and set productions
         const pending = [this.rd_functions[0], ...this.rd_functions.filter(f => f.RENDER)], reached = new Set([0]);
 
@@ -343,8 +326,10 @@ export class HybridMultiThreadRunner {
         ) {
             const fn_name = <string>sym.val;
             if (this.grammar.functions.has(fn_name)) {
-                const val = this.grammar.functions.get(fn_name);
-                assert_functions.set(fn_name, `function ${fn_name}(l:Lexer):boolean{${val.txt}}`);
+                const val = this.grammar.functions.get(fn_name),
+                    txt = createAssertionFunctionBody(val.txt, this.grammar);
+
+                assert_functions.set(fn_name, `function __${fn_name}__(l:Lexer):boolean{${txt}}`);
             }
         }
         //Compile Function  

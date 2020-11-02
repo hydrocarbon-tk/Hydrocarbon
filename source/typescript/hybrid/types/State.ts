@@ -56,4 +56,6 @@ export interface State {
     reachable?: Set<number>;
 
     function_string?: string;
+
+    old_state_index?: number;
 }

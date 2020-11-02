@@ -10,16 +10,14 @@ import {
     getSkipArray,
     getIncludeBooleans,
     createReduceFunction,
-    createEmptyShift
+    createEmptyShift,
+    translateSymbolValue
 } from "./utilities/utilities.js";
 import { RDProductionFunction } from "./types/RDProductionFunction";
 import { RDItem } from "./types/RDItem";
 import { getTerminalSymsFromClosure } from "./utilities/get_terminal_syms_from_closure.js";
 import { insertFunctions } from "./utilities/insert_body_functions.js";
 import { CompilerRunner } from "./types/CompilerRunner.js";
-
-let TEMP_FLAG = false;
-
 const enum TOKEN_BIT {
     ID = 1,
     TYPE = 2,
@@ -94,8 +92,15 @@ function renderItemSym(
             stmts.push(`$${grammar[sym.val].name}(l)`);
 
         } else {
-            if (sym.type == SymbolType.PRODUCTION_ASSERTION_FUNCTION)
-                stmts.push(createEmptyShift());
+            if (sym.type == SymbolType.PRODUCTION_ASSERTION_FUNCTION) {
+                if (sym.DOES_SHIFT) {
+                    stmts.push(translateSymbolValue(sym, grammar, runner.ANNOTATED));
+                } else {
+                    if (!RENDER_WITH_NO_CHECK)
+                        stmts.push(translateSymbolValue(sym, grammar, runner.ANNOTATED));
+                    stmts.push(createEmptyShift());
+                }
+            }
             else if (RENDER_WITH_NO_CHECK)
                 stmts.push(createNoCheckShift(grammar, runner));
             else
@@ -350,9 +355,6 @@ export function buildGroupStatement(
                     paf_la_items = items
                         .filter(i => !i.atEND && (i.sym(grammar).type == SymbolType.PRODUCTION_ASSERTION_FUNCTION)),
 
-                    //paf_shift_items = items
-                    //.filter(i => !i.atEND && (i.sym(grammar).type == SymbolType.PRODUCTION_ASSERTION_FUNCTION)),
-
                     new_trs = [].concat(prod_items.map(i => {
 
                         const rd_item = ItemToRDItem(i, grammar);
@@ -434,11 +436,6 @@ export function buildIntermediateRD(items: Item[], grammar: Grammar, runner: Com
 export function makeRDHybridFunction(production: Production, grammar: Grammar, runner: CompilerRunner): RDProductionFunction {
 
     const p = production;
-
-    if (p.name == "TYPE_SELECTOR")
-        TEMP_FLAG = true;
-    else
-        TEMP_FLAG = false;
 
     let productions: Set<number> = new Set();
 

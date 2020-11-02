@@ -9,7 +9,10 @@ import { FOLLOW } from "./follow.js";
 import { processClosure } from "./process_closure.js";
 import { Grammar, SymbolType } from "../types/grammar.js";
 import { Symbol } from "../types/Symbol";
-import { getLexerBooleanExpression, getRootSym, getUniqueSymbolName } from "../hybrid/utilities/utilities.js";
+import { getLexerBooleanExpression, getUniqueSymbolName } from "../hybrid/utilities/utilities.js";
+import { exp, parser, stmt, renderWithFormatting, JSNodeClass } from "@candlefw/js";
+import { JSNodeType } from "@candlefw/js";
+import { traverse } from "@candlefw/conflagrate";
 
 export { Item, FOLLOW, FIRST, processClosure };
 
@@ -109,9 +112,6 @@ function addFunctions(funct, production, env) {
 }
 
 export function getPrecedence(term, grammar) {
-    //const prec = grammar.rules.prec;
-    //if (prec && typeof(term) == "string" && typeof(prec[term]) == "number")
-    //    return prec[term];
     return -1;
 }
 
@@ -131,13 +131,20 @@ export function filloutGrammar(grammar: Grammar, env) {
 
     const bodies = [],
         symbols = new Map(),
-        syms = [];
+        syms = [...grammar.meta.symbols.values()];
 
-    for (let i = 0, j = 0; i < grammar.length; i++) {
+    for (let i = 0, j = 0, reduce_id = 0; i < grammar.length; i++) {
         const production = grammar[i];
 
         for (let i = 0; i < production.bodies.length; i++, j++) {
-            const body = production.bodies[i];
+            const body = production.bodies[i],
+                HAS_REDUCE = !!body.reduce_function;
+
+            if (HAS_REDUCE)
+                body.reduce_id = reduce_id++;
+            else
+                body.reduce_id = -1;
+
             body.id = j;
             body.production = production;
             bodies.push(body);
@@ -175,16 +182,80 @@ export function filloutGrammar(grammar: Grammar, env) {
 
     grammar.meta = Object.assign({}, grammar.meta, { all_symbols: symbols });
 
-    for (const [name, fn] of grammar.functions) {
-        //replace symbols with actual function data. 
-        fn.txt = (<string>fn.txt).replace(/(\!)?\<\-\-(\w+)\^\^([^-]+)\-\-\>/g, (a, not, type, val) => {
-            const sym = <Symbol>{ type, val };
-            return getLexerBooleanExpression(sym, grammar, "l", not == "!");
-        }).replace(/\$next/g, "l.next()");
-    }
-
-
     grammar.bodies = bodies;
 
     return grammar;
+}
+
+/**
+ * Take a string from an assertion function pre-compiled 
+ * script and convert into an assertion function body string.
+ * 
+ * - Replaces symbol place holders with equivalent type or token
+ * boolean expression
+ * - Replace `$next` place holder with a call to lexer next
+ * - Replace `$fork` place holder with a call to lexer copy
+ * - Replace `$join` place holder with a call to lexer sync
+ * - Replace `$tk_start` place holder with a mile marker to the start of a token sequence
+ * - Replace `$tk_end` with a shift insertion with length from the start of the previous call to `$tk_start`
+ * 
+ * @param af_body_content 
+ */
+export function createAssertionFunctionBody(af_body_content: string, grammar: Grammar) {
+    // Replace symbol placeholders
+    let txt = (<string>af_body_content).replace(/(\!)?\<\-\-(\w+)\^\^([^-]+)\-\-\>/g, (a, not, type, val) => {
+        const sym = <Symbol>{ type, val };
+        return getLexerBooleanExpression(sym, grammar, "l", not == "!");
+    });
+
+    const receiver = { ast: null }, lexer_name = ["l"];
+
+    let lex_name_ptr = 0, HAS_TK = false;
+
+    for (const { node, meta: { parent, mutate } } of traverse(parser(txt).ast, "nodes")
+        .makeMutable().extract(receiver)) {
+        if (node.type & JSNodeClass.IDENTIFIER && node.value[0] == "$") {
+            switch ((<string>node.value).slice(1)) {
+                case "next":
+                    mutate(exp(`${lexer_name[lex_name_ptr]}.next()`));
+                    break;
+                case "fork":
+                    if (parent.type == JSNodeType.ExpressionStatement) {
+                        const start = lex_name_ptr;
+                        lex_name_ptr = lexer_name.length;
+                        lexer_name[lex_name_ptr] = "pk" + lex_name_ptr;
+                        mutate(stmt(`const ${lexer_name[lex_name_ptr]} = ${lexer_name[start]}.copy();`));
+                    }
+                    break;
+                case "join":
+                    if (parent.type == JSNodeType.ExpressionStatement) {
+                        mutate(exp(`${lexer_name[0]}.join(${lexer_name[lex_name_ptr]})`));
+                        lex_name_ptr = 0;
+                    }
+                    break;
+                case "abort_fork":
+                    lex_name_ptr = Math.max(lex_name_ptr - 1, 0);
+                    break;
+                case "abort_all_forks":
+                    lex_name_ptr = 0;
+                    break;
+                case "tk_start":
+                    HAS_TK = true;
+                    const name = lexer_arg_name[0];
+                    mutate(exp(`start = ${name}.off;`));
+                    break;
+                case "tk_end":
+                    if (HAS_TK) {
+                        const name = lexer_arg_name[0];
+                        mutate(exp(`add_shift(${name}.off - start)`));
+                    }
+                    break;
+            }
+        }
+    }
+
+    if (HAS_TK)
+        receiver.ast.nodes.unshift(stmt(`let start = 0;`));
+
+    return renderWithFormatting(receiver.ast);
 }

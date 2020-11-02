@@ -19,23 +19,14 @@ export async function compileHybrid(grammar: Grammar, env: GrammarParserEnvironm
     const module_file = URL.resolveRelative("./temp/parser.js");
     const jump_table_file = URL.resolveRelative("./temp/jump_table.js");
     try {
+
         //Create the temp directory
         await fsp.mkdir(temp_source + "", { recursive: true });
         fsp.writeFile(rust_file + "", mt_runner.parser);
         fsp.writeFile(module_file + "", mt_runner.js_resolver);
         fsp.writeFile(jump_table_file + "", printJumpTable());
 
-        //run the wasm-pack inside the temp directory
-        /*
-        await new Promise(res{
-            const rust = spawn("wasm-pack", "build", {cwd: temp_dir + "" } (e, stdout, stderr)=>{
-                if(e)
-                    console.log(e);
-                res();
-            })
-        }
-*/
-
+        //run the wasm-pack locally
     } catch (e) {
         console.log(e);
     }

@@ -380,9 +380,10 @@ function shiftReduce(
                     const
                         insert_functions = insertFunctions(item, grammar, false);
 
-                    if (ASSERTION)
-                        block.push(createEmptyShift());
-                    else
+                    if (ASSERTION) {
+                        if (!a_syms[0].HAS_SHIFT)
+                            block.push(createEmptyShift());
+                    } else
                         block.push(createNoCheckShift(grammar, runner));
 
                     block.push("stack_ptr++;");
@@ -605,7 +606,10 @@ export function renderState(
     HYBRID = false,
     reached_rds: Set<number> = new Set
 ): string {
-
+    if (state.name == "$P_HC_listbody4_102") {
+        const c = state.items.slice();
+        processClosure(c, grammar, false);
+    }
 
     let str: string[] = [];
 

@@ -1,5 +1,5 @@
 
-@SYMBOL => ( ) { }
+@SYMBOL => ( ) { } \\
 
 @IGNORE θws θnl
 
@@ -11,14 +11,31 @@
     return false;
  }
 
+↦str {
+    
+    $tk_start;
+
+    while( !\" && !θeof) { if(\\) $next; $next }
+
+    if(!\") return false;
+
+    $tk_end;
+
+    return true;
+}
+
 
 <> S > E
 
 <> E > P
 	| F
 	| I
+    | string
 
-<> P >  ( \( E  \)  ( af:asi | ; ) f:r{$sym2} )(+)   ( af:asi | ; )             ↦r { { o:("parenth"), d:$sym1} }      
+<> string > \" shift:str \"                                                          ↦r { { o:("string"), d:$sym2} }
+
+
+<> P >  ( \( E  \)  ( assert:asi | ; ) f:r{$sym2} )(+)   ( assert:asi | ; )             ↦r { { o:("parenth"), d:$sym1} }      
 
 <> F >   \(  L \)  => { E }       ↦r { { o:"function", u:$sym2, d:$sym6 } }      
 
