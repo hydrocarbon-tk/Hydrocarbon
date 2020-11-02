@@ -1,7 +1,7 @@
 import { Item } from "./item.js";
 
 import { FIRST } from "./first.js";
-import { Grammar } from "../types/grammar.js";
+import { Grammar, SymbolType } from "../types/grammar.js";
 import { Symbol } from "../types/Symbol";
 
 export function processClosure(items: Item[], grammar: Grammar, USE_GENERAL_ID = false, excludes: any[] = [], offset = 0, added = new Set()) {
@@ -31,8 +31,6 @@ export function processClosure(items: Item[], grammar: Grammar, USE_GENERAL_ID =
         if (body.excludes.has(index))
             body.excludes.get(index).forEach(e => step_excludes.push({ body: item.body, symbols: Array.isArray(e) ? e : [e], offset: 0, l: Array.isArray(e) ? e.length : 1, inner_offset: index }));
 
-
-
         for (let u = 0; u < step_excludes.length; u++) {
 
             const ex = step_excludes[u];
@@ -45,7 +43,7 @@ export function processClosure(items: Item[], grammar: Grammar, USE_GENERAL_ID =
                     i_sym = body.sym[j],
                     e_sym = ex.symbols[d];
 
-                if (i_sym && i_sym.type !== "production" && i_sym.val == e_sym.val) {
+                if (i_sym && i_sym.type !== SymbolType.PRODUCTION && i_sym.val == e_sym.val) {
 
                     if (d == ex.l - 1) {
                         exclusion_count++;
@@ -61,7 +59,7 @@ export function processClosure(items: Item[], grammar: Grammar, USE_GENERAL_ID =
         if (item.USED)
             continue;
 
-        if (index < len && B.type == "production") {
+        if (index < len && B.type == SymbolType.PRODUCTION) {
             let first: Symbol[];
 
             if (Be.length > 0)
@@ -111,7 +109,7 @@ export function processClosure(items: Item[], grammar: Grammar, USE_GENERAL_ID =
                             added.add(sig);
                         }
                     })
-                );
+                    );
             }
 
             const

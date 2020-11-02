@@ -77,6 +77,7 @@ export interface ProductionBody {
     precedence?: number;
     uid: string;
     build?: () => void;
+    reduce_id?: number;
     FORK_ON_ENTRY: boolean;
 }
 

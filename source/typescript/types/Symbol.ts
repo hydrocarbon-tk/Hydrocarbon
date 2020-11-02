@@ -20,6 +20,7 @@ export interface Symbol {
     IS_CONDITION?: boolean;
     IMPORTED?: boolean;
     RESOLVED?: boolean;
+    DOES_SHIFT?: boolean;
     production?: Production;
     resolveFunction?: () => void;
     pos?: Lexer;
