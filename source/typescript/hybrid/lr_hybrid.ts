@@ -38,11 +38,11 @@ export function IntegrateState(production: Production, grammar: Grammar, name: s
         bid: "",
         roots: [],
         items: items.slice(),
-        index: 0,
+        index: -1,
         REACHABLE: false,
     };
 
-    const potential_states = CompileHybridLRStates(grammar, { old_state: 0, items });
+    const potential_states = CompileHybridLRStates(grammar, { old_state: -1, items });
 
     return { start_state, potential_states };
 }
@@ -79,7 +79,7 @@ export function CompileHybridLRStates(
         group.items.push(i.increment());
     }
 
-    const potential_states = [];
+    const potential_states: State[] = [];
 
     for (const { sym, items } of groups.values()) {
 
@@ -100,12 +100,13 @@ export function CompileHybridLRStates(
             bid: unique_items.map(i => i.renderUnformattedWithProduction(grammar)).join(" :\n "),
             roots: [],
             items,
-            index: 0,
+            index: -1,
+            old_state_index: old_state,
             REACHABLE: false
         });
     }
 
-    return potential_states.flat().map(s => (s.os = old_state, s));
+    return potential_states.flat();
 }
 
 
@@ -122,18 +123,21 @@ export function mergeState(
 
     if (!states.has(id)) {
         state.index = states.size;
-
         states.set(id, state);
-
         state.state_merge_tracking = new Set;
         state.maps = new Map;
         state.reachable = new Set;
         state.items = [];
-
         active_state = state;
     }
+    if (state.name && !active_state.name) {
+        state.name = active_state.name;
+    }
+
+    //-----------------------------------
 
     if (old_state) {
+
         if (!old_state.maps.has(sym))
             old_state.maps.set(sym, []);
 
@@ -143,11 +147,9 @@ export function mergeState(
             transition_map.push(active_state.index);
     }
 
-    if (state.name && !active_state.name) {
-        state.name = active_state.name;
-    }
 
     const out_items = [];
+
 
     for (const i of items) {
         if (!active_state.state_merge_tracking.has(i.full_id)) {
@@ -158,7 +160,7 @@ export function mergeState(
     }
 
     if (out_items.length > 0)
-        unprocessed_state_items.push({ old_state: state.index, items: out_items });
+        unprocessed_state_items.push({ old_state: active_state.index, items: out_items });
 
     return active_state;
 }
