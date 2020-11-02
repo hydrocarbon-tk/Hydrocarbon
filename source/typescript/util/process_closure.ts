@@ -4,7 +4,7 @@ import { FIRST } from "./first.js";
 import { Grammar } from "../types/grammar.js";
 import { Symbol } from "../types/Symbol";
 
-export function processClosure(items: Item[], grammar: Grammar, USE_GENERAL_ID = false, excludes: any[] = [], offset = 0, added = new Set(), last_production = -1) {
+export function processClosure(items: Item[], grammar: Grammar, USE_GENERAL_ID = false, excludes: any[] = [], offset = 0, added = new Set()) {
 
     let exclusion_count = 0;
 
@@ -92,8 +92,6 @@ export function processClosure(items: Item[], grammar: Grammar, USE_GENERAL_ID =
                         item = new Item(pbody.id, pbody.length, 0, first_mod[i]),
                         sig = (USE_GENERAL_ID) ? item.id : item.full_id;
 
-                    item.last_production = last_production;
-
                     if (!added.has(sig)) {
                         items.push(item);
                         added.add(sig);
@@ -108,20 +106,17 @@ export function processClosure(items: Item[], grammar: Grammar, USE_GENERAL_ID =
                             item = new Item(pbody.id, pbody.length, 0, s),
                             sig = (USE_GENERAL_ID) ? item.id : item.full_id;
 
-                        item.last_production = last_production;
-
                         if (!added.has(sig)) {
                             items.push(item);
                             added.add(sig);
                         }
                     })
-
-                    );
+                );
             }
 
             const
                 added_count = items.length - end,
-                count = processClosure(items, grammar, USE_GENERAL_ID, out_excludes, g, added, last_production >= 0 ? last_production : production.id);
+                count = processClosure(items, grammar, USE_GENERAL_ID, out_excludes, g, added);
 
 
             if (count > 0 && count == added_count) {

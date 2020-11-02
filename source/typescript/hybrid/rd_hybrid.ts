@@ -2,7 +2,16 @@ import { Grammar, Production, ProductionBody, EOF_SYM, SymbolType } from "../typ
 import { Symbol } from "../types/Symbol";
 import { processClosure, Item } from "../util/common.js";
 import { GrammarParserEnvironment } from "../types/grammar_compiler_environment";
-import { translateSymbolValue, getLexerBooleanExpression, has_INLINE_FUNCTIONS, getRootSym, getSkipArray, getIncludeBooleans } from "./utilities/utilities.js";
+import {
+    createNoCheckShift,
+    createAssertionShift,
+    has_INLINE_FUNCTIONS,
+    getRootSym,
+    getSkipArray,
+    getIncludeBooleans,
+    createReduceFunction,
+    createEmptyShift
+} from "./utilities/utilities.js";
 import { RDProductionFunction } from "./types/RDProductionFunction";
 import { RDItem } from "./types/RDItem";
 import { getTerminalSymsFromClosure } from "./utilities/get_terminal_syms_from_closure.js";
@@ -70,7 +79,7 @@ function renderItemSym(
 
     if (item.atEND) {
         if (!(item.len == 1 && !body.reduce_function))
-            stmts.push(`add_reduce(${item.len},${item.body});`);
+            stmts.push(createReduceFunction(item, grammar));
 
         if (AUTO_RETURN) stmts.push(`return;`);
     } else {
@@ -85,17 +94,18 @@ function renderItemSym(
             stmts.push(`$${grammar[sym.val].name}(l)`);
 
         } else {
-            if (sym.type != SymbolType.PRODUCTION_ASSERTION_FUNCTION) {
-                if (RENDER_WITH_NO_CHECK)
-                    stmts.push(`_no_check(l, /* e.eh, */ ${getSkipArray(grammar, runner)});`);
-                else
-                    stmts.push(`_(l, /* e.eh, */ ${getSkipArray(grammar, runner)}, ${translateSymbolValue(sym, grammar, runner.ANNOTATED)});`);
-            }
+            if (sym.type == SymbolType.PRODUCTION_ASSERTION_FUNCTION)
+                stmts.push(createEmptyShift());
+            else if (RENDER_WITH_NO_CHECK)
+                stmts.push(createNoCheckShift(grammar, runner));
+            else
+                stmts.push(createAssertionShift(grammar, runner, sym));
         }
     }
 
     return stmts.join("\n");
 }
+
 
 function renderItem(item: Item, grammar: Grammar, runner: CompilerRunner, AUTO_RETURN: boolean = true, productions: Set<number> = new Set, NO_CHECK = false): string {
     const stmts = [];

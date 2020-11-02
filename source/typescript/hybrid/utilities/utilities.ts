@@ -1,7 +1,7 @@
 import { Lexer } from "@candlefw/wind";
 import { stmt, renderWithFormatting, JSNodeType } from "@candlefw/js";
 import { traverse } from "@candlefw/conflagrate";
-import { Grammar, SymbolType, ProductionBody } from "../../types/grammar.js";
+import { Grammar, SymbolType, ProductionBody, Production } from "../../types/grammar.js";
 import { Symbol } from "../../types/Symbol";
 import { State } from "../types/State.js";
 import { Item } from "../../util/item.js";
@@ -48,13 +48,37 @@ Array.prototype.group = function <T>(this: Array<T>, fn: (T) => (string | number
     return [...this.groupMap(fn).values()];
 };
 
+export function getRDFNName(production: Production) {
+    return `$${production.name}`;
+}
+
+export function createAssertionShift(grammar: Grammar, runner: CompilerRunner, sym: Symbol): any {
+    return `_(l, /* e.eh, */ ${getSkipArray(grammar, runner)}, ${translateSymbolValue(sym, grammar, runner.ANNOTATED)});`;
+}
+
+export function createNoCheckShift(grammar: Grammar, runner: CompilerRunner): any {
+    return `_no_check(l, /* e.eh, */ ${getSkipArray(grammar, runner)});`;
+}
+
+export function createEmptyShift(): string {
+    return `add_shift(0);`;
+}
+
+export function createReduceFunction(item: Item, grammar: Grammar): string {
+    return `add_reduce(${item.len},${item.body});`;
+}
 
 export function getUniqueSymbolName(sym: Symbol) {
     return sym.val + sym.type;
 }
 
 export function getSkipArray(grammar: Grammar, runner: CompilerRunner) {
-    const skip_symbols = grammar.meta.ignore.flatMap(d => d.symbols).map(s => getRootSym(s, grammar)).setFilter(s => s.val).map(s => translateSymbolValue(s, grammar, runner.ANNOTATED));
+
+    const skip_symbols = grammar.meta.ignore.flatMap(d => d.symbols)
+        .map(s => getRootSym(s, grammar))
+        .setFilter(s => s.val)
+        .map(s => translateSymbolValue(s, grammar, runner.ANNOTATED));
+
     return runner.add_constant(`[${skip_symbols.join(",")}]`, undefined, "u32[]");
 }
 
@@ -202,10 +226,6 @@ export function integrateState(state: State, existing_refs: Set<number>): string
 
     return `State${state.index}(l)`;
 }
-
-export function getCompletedItems(state: State): Item[] {
-    return state.items.filter(e => e.atEND).group(i => i.id);
-}
 export function getCompletedItemsNew(state: State): Item[] {
     return state.items.filter(e => e.atEND);
 }
@@ -221,52 +241,4 @@ export function getStatesFromNumericArray(value: number[], states: State[]): Sta
 
 export function has_INLINE_FUNCTIONS(body: ProductionBody): boolean {
     return body.functions.length > 0;
-}
-
-export function getReduceFunctionSymbolIndiceSet(item: Item, grammar: Grammar): Set<number> {
-
-    const reduce_function = item.body_(grammar).reduce_function, sym_set: Set<number> = new Set;
-
-    if (reduce_function) {
-
-        const statement = stmt(reduce_function.txt);
-
-        if (statement.type == JSNodeType.ReturnStatement) {
-            for (const { node } of traverse(statement.nodes[0], "nodes")
-                .filter("type", JSNodeType.MemberExpression)) {
-                if (node.nodes[0].value == "sym" && node.COMPUTED) {
-                    sym_set.add(parseInt(<string>node.nodes[1].value));
-                }
-            }
-        }
-    }
-
-    return sym_set;
-}
-export function createReduceFunction(node_str: string, pre_fix = "", increment: number = 0, post_fix = ""): string {
-
-    const statement = stmt(node_str), hook = { ast: null };
-
-    if (statement.type == JSNodeType.ReturnStatement) {
-        for (const { node, meta: { replace } } of traverse(statement.nodes[0], "nodes")
-            .filter("type", JSNodeType.MemberExpression)
-            .makeReplaceable()
-            .extract(hook)) {
-            if (node.nodes[0].value == "sym" && node.COMPUTED && (pre_fix || post_fix)) {
-                replace({
-                    type: JSNodeType.Identifier,
-                    value: pre_fix + (increment + parseInt(node.nodes[1].value)) + post_fix,
-                    pos: node.pos,
-                    nodes: []
-                });
-            }
-        }
-
-        return `${renderWithFormatting(hook.ast)}`;
-    }
-
-    return `null`;
-}
-export function getAllProductionIds(state: State, grammar: Grammar): number[] {
-    return [...new Set(state.items.map(m => m.getProduction(grammar).id)).values()];
 }

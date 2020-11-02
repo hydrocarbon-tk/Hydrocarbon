@@ -50,8 +50,6 @@ export class Item extends Array {
 
         const new_item = new Item(array[ItemIndex.body_id], array[ItemIndex.length], array[ItemIndex.offset], (<Item>array).follow);
 
-        new_item.last_production = array.last_production;
-
         return new_item;
     }
 
@@ -180,7 +178,6 @@ export class Item extends Array {
         if (this.offset < this.len) {
 
             const item = new Item(this.body, this.len, this.offset + 1, this.follow);
-            item.last_production = this.last_production;
             return item;
         }
         return null;
@@ -213,4 +210,5 @@ export class Item extends Array {
             });
         }
     }
+
 }

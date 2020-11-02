@@ -11,13 +11,42 @@ import { constructCompilerRunner, CompilerRunner } from "./types/CompilerRunner.
 import { JSNode } from "@candlefw/js";
 import { printLexer } from "./assemblyscript/hybrid_lexer.js";
 import { RDProductionFunction } from "./types/RDProductionFunction.js";
-import { makeRDHybridFunction } from "./rd_hybrid.js";
+import { Symbol } from "../types/Symbol.js";
 
 type WorkerContainer = {
     target: Worker;
     id: number;
     READY: boolean;
 };
+
+
+function buildIfs(syms: Symbol[], off = 0, USE_MAX = false) {
+    const stmts: string[] = [];
+
+    for (const sym of syms) {
+        if (sym.val.length <= off) {
+            if (USE_MAX)
+                stmts.unshift(`if(length <= ${off}){this.id =${sym.id}; length = ${off};}`);
+            else
+                stmts.unshift(`this.id =${sym.id}; length = ${off};`);
+        }
+    }
+    let first = true;
+
+    for (const group of syms.filter(s => s.val.length > off).group(s => s.val[off])) {
+        if (first)
+            stmts.push(`const val: u32 = str.charCodeAt(base+${off})`);
+        const v = group[0].val[off];
+        stmts.push(
+            `${first ? "" : "else "}if(val == ${v.charCodeAt(0)} ){`,
+            ...buildIfs(group, off + 1, USE_MAX),
+            "}"
+        );
+        first = false;
+    };
+
+    return stmts;
+}
 
 export class HybridMultiThreadRunner {
     grammar: Grammar;
@@ -42,7 +71,7 @@ export class HybridMultiThreadRunner {
     constructor(grammar: Grammar, env: ParserEnvironment, INCLUDE_ANNOTATIONS: boolean = false) {
         let id = 0, i = 10;
 
-        const syms = [], keywords = [];
+        const syms: Symbol = [], keywords: Symbol = [];
 
         for (const sym of grammar.meta.all_symbols.values()) {
             if (
@@ -51,44 +80,14 @@ export class HybridMultiThreadRunner {
                 || sym.type == SymbolType.LITERAL
             ) {
                 if (sym.type == SymbolType.LITERAL) {
-                    keywords.push([sym.val, i]);
+                    keywords.push(sym);
                 } else
-                    syms.push([sym.val, i]);
+                    syms.push(sym);
             }
         }
 
-        function buildIfs(syms: [string, number][], off = 0, USE_MAX = false) {
-            const stmts: string[] = [];
-
-            for (const sym of syms) {
-                if (sym[0].length == 0) {
-                    if (USE_MAX)
-                        stmts.unshift(`if(length <= ${off}){this.id =${sym[1]}; length = ${off};}`);
-                    else
-                        stmts.unshift(`this.id =${sym[1]}; length = ${off};`);
-                }
-            }
-            let first = true;
-
-            for (const group of syms.filter(s => s[0].length > 0).group(s => s[0][0])) {
-                if (first)
-                    stmts.push(`const val: u32 = str.charCodeAt(base+${off})`);
-                const v = group[0][0][0];
-                stmts.push(
-                    `${first ? "" : "else "}if(val == ${v.charCodeAt(0)} ){`,
-
-
-                    ...buildIfs(group.map(s => [s[0].slice(1), s[1]]), off + 1, USE_MAX),
-                    "}"
-                );
-                first = false;
-            };
-
-            return stmts;
-        }
-
-        this.sym_ifs = buildIfs(syms.sort((a, b) => a[0] - b[0])).join("\n");
-        this.keywords = buildIfs(keywords.sort((a, b) => a[0] - b[0]), 0, true).join("\n");
+        this.sym_ifs = buildIfs(syms.sort((a, b) => a.id - b.id)).join("\n");
+        this.keywords = buildIfs(keywords.sort((a, b) => a.id - b.id), 0, true).join("\n");
 
         this.RUN = true;
 
@@ -383,7 +382,6 @@ function add_skip(char_len:u32): void{
 }
 
 function add_shift(char_len:u32): void{
-    if(char_len < 1) return;
     const ACTION: u32 = 2;
     const val: u32 = ACTION | (char_len << 2);
     unchecked(action_array[pointer++] = val);

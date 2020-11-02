@@ -127,10 +127,11 @@ export function createPrecedence(body, grammar) {
 
 export function filloutGrammar(grammar: Grammar, env) {
 
-    let terminal_symbol_index = 0;
+    let terminal_symbol_index = 10;
 
     const bodies = [],
-        symbols = new Map();
+        symbols = new Map(),
+        syms = [];
 
     for (let i = 0, j = 0; i < grammar.length; i++) {
         const production = grammar[i];
@@ -143,21 +144,7 @@ export function filloutGrammar(grammar: Grammar, env) {
             body.precedence = createPrecedence(body, grammar);
 
             //Dedupes symbols 
-
-            const sym_function = (s: Symbol) => {
-
-                switch (s.type) {
-                    case SymbolType.PRODUCTION: /*Do nothing */ break;
-                    default:
-                        s.id = terminal_symbol_index++;
-                        symbols.set(getUniqueSymbolName(s), s);
-                }
-            };
-
-            for (const sym of body.sym) sym_function(sym);
-            for (const sym of [...body.ignore.values()].flat()) sym_function(sym);
-            for (const sym of [...body.excludes.values()].flat()) sym_function(sym);
-            for (const sym of [...body.error.values()].flat()) sym_function(sym);
+            syms.push(...[...body.error.values(), ...body.excludes.values(), ...body.ignore.values(), body.sym].flat());
 
             if (env) {
                 if (body.reduce_function)
@@ -168,7 +155,26 @@ export function filloutGrammar(grammar: Grammar, env) {
                 });
             }
         }
+
     }
+
+    const sym_function = (s: Symbol) => {
+        switch (s.type) {
+            case SymbolType.PRODUCTION:
+                /*Do nothing */ break;
+            case SymbolType.SYMBOL:
+            case SymbolType.ESCAPED:
+            case SymbolType.LITERAL:
+                s.id = terminal_symbol_index++;
+            case SymbolType.GENERATED:
+            case SymbolType.PRODUCTION_ASSERTION_FUNCTION:
+                symbols.set(getUniqueSymbolName(s), s);
+        }
+    };
+
+    console.log(0, 1, syms.setFilter(s => getUniqueSymbolName(s));
+    for (const sym of syms.setFilter(s => getUniqueSymbolName(s)) sym_function(sym);
+
 
 
     grammar.meta = Object.assign({}, grammar.meta, { all_symbols: symbols });

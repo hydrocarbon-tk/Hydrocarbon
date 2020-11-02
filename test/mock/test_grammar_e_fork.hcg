@@ -3,13 +3,22 @@
 
 @IGNORE θws θnl
 
+↦asi { 
+    while(θws) $next;
+
+    if(θnl || \} || θeof || \( ) return true;
+    
+    return false;
+ }
+
+
 <> S > E
 
 <> E > P
 	| F
 	| I
 
-<> P >  \( E \)                ↦r { { o:("parenth"), d:$sym2} }      
+<> P >  ( \( E  \)  ( af:asi | ; ) f:r{$sym2} )(+)   ( af:asi | ; )             ↦r { { o:("parenth"), d:$sym1} }      
 
 <> F >   \(  L \)  => { E }       ↦r { { o:"function", u:$sym2, d:$sym6 } }      
 
