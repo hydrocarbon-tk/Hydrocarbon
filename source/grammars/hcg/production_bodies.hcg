@@ -28,11 +28,10 @@
 <> production_body → force_fork? entries  							↦r { new env.fn.body([$sym2], env, pos, undefined, !!$$sym1 ) }
 
 
-<> entries → body_entries fn::reduce_function? fn::error_function?	
+<> entries → body_entries fn::reduce_function?
 																	↦cstr{ 
 																		this.body = $sym1; 
 																		this.reduce = $sym2; 
-																		this.err = $sym3;
 																	}								
 
 		│ sym::empty_symbol  											

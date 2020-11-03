@@ -49,12 +49,13 @@
  
 <> production → 
 	
-	\<>  sym::production_id production_start_symbol  pb::production_bodies  			
+	\<>  sym::production_id production_start_symbol  pb::production_bodies ( ( \│ │ \| ) fn::error_function )? 
 																		
 															↦cstr{ 
 																this.name = $sym2; 
 																this.bodies = $sym4; 
 																this.id = -1; 
+																this.recovery_handler = $sym5;
 																env.functions.compileProduction(this, env, pos);
 															}
 
