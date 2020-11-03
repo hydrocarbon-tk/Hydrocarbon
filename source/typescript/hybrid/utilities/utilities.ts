@@ -135,8 +135,9 @@ export function translateSymbolValue(sym: Symbol, grammar: Grammar, ANNOTATED: b
                 case "num": return 2 + annotation;
                 case "id": return 3 + annotation;
                 case "nl": return 4 + annotation;
+                case "tok": return 5 + annotation;
                 default:
-                case "sym": return 5 + annotation;
+                case "sym": return 6 + annotation;
             }
         case SymbolType.LITERAL:
         case SymbolType.ESCAPED:

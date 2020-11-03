@@ -79,9 +79,6 @@ export function constructCompilerRunner(ANNOTATED: boolean = false): CompilerRun
                         dependent_string = dependent_string.replace(RegExp(`${name}`, "g"), int_name);
                         intermediates.push([int_name, const_name]);
                     }
-
-                    if (val == "[4/* nl */,1/* ws */]")
-                        console.log({ const_name, name, val, const_counter });
                 }
             }
             for (const [int_name, real_name] of intermediates) {

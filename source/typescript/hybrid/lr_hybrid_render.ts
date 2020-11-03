@@ -65,8 +65,6 @@ function gotoState(
 
     existing_refs: Set<number>,
 
-    HYBRID: boolean = false,
-
     active_gotos: number[],
 
     gt = getNonTerminalTransitionStates(state)
@@ -569,9 +567,7 @@ function compileState(
     grammar: Grammar,
     runner,
     /** Optional List of LL recursive descent functions */
-    ll_fns: RDProductionFunction[] = null,
-    /** Indicates the state results from a transition from LL to LR*/
-    HYBRID = false,
+    ll_fns: RDProductionFunction[] = null
 
     reached_rds: Set<number> = new Set
 ): { body_stmts: string[], pre_stmts: string[]; } {
@@ -584,7 +580,7 @@ function compileState(
     const item = state.items[0], symbol = item.sym(grammar)?.val;
 
     const { body: sr_body, pre: sr_pre } = shiftReduce(state, states, grammar, runner, ll_fns, active_gotos, reached_rds),
-        goto_statements = gotoState(state, states, grammar, runner, existing_refs, HYBRID, active_gotos);
+        goto_statements = gotoState(state, states, grammar, runner, existing_refs, active_gotos);
 
     if (goto_statements.length > 0) statements.push("const sp: u32 = stack_ptr;");
 
@@ -603,7 +599,6 @@ export function renderState(
     grammar: Grammar,
     runner: CompilerRunner,
     ll_fns: RDProductionFunction[] = null,
-    HYBRID = false,
     reached_rds: Set<number> = new Set
 ): string {
     if (state.name == "$P_HC_listbody4_102") {
@@ -631,7 +626,7 @@ export function renderState(
             : [`function ${state.name ? state.name : "State" + state.index}(l:Lexer):void{`];
 
 
-    const { body_stmts, pre_stmts } = compileState(state, states, grammar, runner, ll_fns, HYBRID, reached_rds);
+    const { body_stmts, pre_stmts } = compileState(state, states, grammar, runner, ll_fns, reached_rds);
 
     fn.push(...body_stmts);
 
@@ -683,7 +678,7 @@ export function renderStates(
 
         if (!state.function_string) {
 
-            state.function_string = renderState(state, states, grammar, runner, ll_fns, false, reached_rds);
+            state.function_string = renderState(state, states, grammar, runner, ll_fns, reached_rds);
 
             reached.add(state.index);
 

@@ -27,9 +27,9 @@ function buildIfs(syms: Symbol[], off = 0, USE_MAX = false) {
     for (const sym of syms) {
         if (sym.val.length <= off) {
             if (USE_MAX)
-                stmts.unshift(`if(length <= ${off}){this.id =${sym.id}; length = ${off};}`);
+                stmts.unshift(`if(length <= ${off}){type = TokenSymbol; this.id =${sym.id}; length = ${off};}`);
             else
-                stmts.unshift(`this.id =${sym.id}; length = ${off};`);
+                stmts.unshift(`type = TokenSymbol; this.id =${sym.id} /* ${sym.val} */; length = ${off};`);
         }
     }
     let first = true;
@@ -347,7 +347,7 @@ var
     error_ptr: u32  = 0;
 
 function error_mark(val:u32):void{
-    error_array[error_ptr++] = val;
+    error_array[(error_ptr++) %  256] = val;
 }
 
 function completeProductionPlain(len:u32, production:u32):void{
@@ -428,7 +428,7 @@ function fail(lex:Lexer):void {
 
 function soft_fail(lex:Lexer):void { 
     FAILED = true;
-    error_array[error_ptr++] = lex.off;
+    error_mark(lex.off);
 }
 
 function setProduction(production: u32):void{
@@ -466,8 +466,7 @@ function _(lex: Lexer, /* eh, */ skips: u32[], sym: u32 = 0):void {
         _no_check(lex, skips);
     } else {
         //TODO error recovery
-        FAILED = true;
-        error_array[error_ptr++] = lex.off;
+        soft_fail(lex);
     }
 }
 ${[...assert_functions.values()].join("\n")}
@@ -522,7 +521,7 @@ export default function main (input_string:string): Export {
 
     return new Export(
             FAILED || !lex.END,
-        error_array.subarray(0, error_ptr),
+        error_array.subarray(0, 512),
         action_array.subarray(0, pointer)
     );    
 }`;
@@ -539,14 +538,12 @@ import Lexer from "@candlefw/wind";
 
 await URL.server();
 
-const wasmModule = loader.instantiateSync(fs.readFileSync(URL.resolveRelative("./build/untouched.wasm") + "")),
+const wasmModule = loader.instantiateSync(fs.readFileSync(URL.resolveRelative("./build/recognizer.wasm") + "")),
     { main, __allocString, __getUint32ArrayView, __getUint16ArrayView, __retain, __release, Export } = wasmModule.exports,
     wasm_jump_table = __getUint16ArrayView(wasmModule.exports.jump_table.value);
 
 for (let i = 0; i < jump_table.length; i++)
     wasm_jump_table[i] = jump_table[i];
-
-        
 
 const fns = [sym=>sym[sym.length-1], ${this.grammar.meta.reduce_functions.map((b, i) =>
             b.replace("return", "sym=>(").slice(0, -1) + ")"
@@ -568,14 +565,14 @@ export default function jsmain(str) {
     
     let action_length = 0;
 
-    if (FAILED) {
+    if (false) {
         
         let error_off = 0;
         
-        for(let i = 0; i < er.length && eh[i]; i++)
-            error_off  = Math.max(error_off, eh[i])
-            er.sort((a, b) => b - a)[0],
-            lexer = new Lexer(str);
+        for(let i = 0; i < er.length && er[i]; i++)
+            error_off  = Math.max(error_off, er[i]);
+        
+        const lexer = new Lexer(str);
             
         while (lexer.off < error_off) lexer.next();
             
@@ -591,7 +588,7 @@ export default function jsmain(str) {
             action_length++;
             switch (action & 3) {
                 case 0: //ACCEPT
-                    return stack[0];
+                    break o;
                 case 1: //REDUCE;
                     var 
                         body = action >> 16,

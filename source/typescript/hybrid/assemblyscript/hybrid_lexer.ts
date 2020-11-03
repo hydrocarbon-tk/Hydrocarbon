@@ -110,7 +110,8 @@ const TokenSpace:i32 = 1,
     TokenNumber:i32 = 2,
     TokenIdentifier:i32 = 3,
     TokenNewLine:i32 = 4,
-    TokenSymbol:i32 = 5;
+    TokenSymbol:i32 = 5,
+    TypeSymbol:i32 = 5;
 
 const jump_table: Uint16Array = new Uint16Array(191488);
 
@@ -157,15 +158,15 @@ class Lexer {
     next() : Lexer{
 
         var l: i32 = str.length,
-            length: i32 = this.tl,
-            off: i32 = this.off + length,
+            length: i32 = 1,
+            off: i32 = this.off + this.tl,
             type: i32 = 0,
             base: i32 = off;
 
         this.ty = 0;
         this.id = 0;
 
-        if (off >= str.length) {
+        if (off >= l) {
             this.off = l;
             this.tl = 0;
             return this;
@@ -176,7 +177,7 @@ class Lexer {
         switch (unchecked(jump_table[code]) & 255) {
             default:
             case 0: //SYMBOL
-                type = TokenSymbol;
+                type = TypeSymbol;
                 break;
             case 1: //IDENTIFIER
                 while (1) {
@@ -186,17 +187,13 @@ class Lexer {
                     break;
                 } break;
             case 2: //SPACE SET
-                ++off;
                 type = TokenSpace;
-                length = off - base;
                 break;
             case 3: //CARRIAGE RETURN
                 length = 2;
             //intentional
             case 4: //LINEFEED
                 type = TokenNewLine;
-                base = off;
-                off += length;
                 break;
             case 5: //NUMBER
                 type = TokenNumber;
@@ -208,7 +205,7 @@ class Lexer {
         if (type == TokenIdentifier) {
             ${keywords}
         }
-        if (type == TokenSymbol) {
+        if (type == TypeSymbol) {
             ${syms}
         }
 
