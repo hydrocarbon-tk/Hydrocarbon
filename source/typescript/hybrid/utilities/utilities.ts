@@ -4,6 +4,7 @@ import { Symbol } from "../../types/Symbol";
 import { State } from "../types/State.js";
 import { Item } from "../../util/item.js";
 import { CompilerRunner } from "../types/CompilerRunner.js";
+import { createAssertionFunctionBody } from "../../util/common.js";
 
 
 
@@ -51,11 +52,11 @@ export function getRDFNName(production: Production) {
 }
 
 export function createAssertionShift(grammar: Grammar, runner: CompilerRunner, sym: Symbol): any {
-    return `_(l, /* e.eh, */ ${getSkipArray(grammar, runner)}, ${translateSymbolValue(sym, grammar, runner.ANNOTATED)});`;
+    return `_(l,  ${getSkipArray(grammar, runner)}, ${translateSymbolValue(sym, grammar, runner.ANNOTATED)});`;
 }
 
 export function createNoCheckShift(grammar: Grammar, runner: CompilerRunner): any {
-    return `_no_check(l, /* e.eh, */ ${getSkipArray(grammar, runner)});`;
+    return `_no_check(l, ${getSkipArray(grammar, runner)});`;
 }
 
 export function createEmptyShift(): string {
@@ -243,4 +244,37 @@ export function getStatesFromNumericArray(value: number[], states: State[]): Sta
 
 export function has_INLINE_FUNCTIONS(body: ProductionBody): boolean {
     return body.functions.length > 0;
+}
+
+export function addRecoveryHandlerToFunctionBodyArray(
+    stmts: any[],
+    production: Production,
+    grammar: Grammar,
+    runner: CompilerRunner,
+    RECURSIVE_DESCENT = false
+) {
+    if (RECURSIVE_DESCENT)
+        stmts.unshift("const sp = stack_ptr;");
+    else
+        stmts.push("if(!FAILED) return;");
+
+    stmts.push(`
+        //ERROR RECOVERY
+        FAILED = false;
+        //failed SYMBOL TOKEN
+        add_shift(l.tl);
+        //Shift to next token;
+        l.next();
+        const start = l.off;
+        ${createAssertionFunctionBody(production.recovery_handler.lexer_text, grammar, runner, production.id)}
+        //Skipped Symbols
+        add_shift(l.off - start);
+
+        //Accepting Recovery Symbol
+      //  add_shift(l.tl);
+        //Advenced to token after this production
+     //   l.next();
+        add_reduce(stack_ptr - sp${RECURSIVE_DESCENT ? "" : ""}, ${1 + production.recovery_handler.reduce_id});
+        setProduction(${production.id});
+        `);
 }

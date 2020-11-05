@@ -1,18 +1,17 @@
 import wind from "@candlefw/wind";
 
 import { Item } from "./item.js";
-
 import { FIRST } from "./first.js";
-
 import { FOLLOW } from "./follow.js";
 
 import { processClosure } from "./process_closure.js";
 import { Grammar, SymbolType } from "../types/grammar.js";
 import { Symbol } from "../types/Symbol";
-import { getLexerBooleanExpression, getUniqueSymbolName } from "../hybrid/utilities/utilities.js";
+import { getIncludeBooleans, getLexerBooleanExpression, getUniqueSymbolName } from "../hybrid/utilities/utilities.js";
 import { exp, parser, stmt, renderWithFormatting, JSNodeClass } from "@candlefw/js";
 import { JSNodeType } from "@candlefw/js";
 import { traverse } from "@candlefw/conflagrate";
+import { CompilerRunner } from "../hybrid/types/CompilerRunner.js";
 
 export { Item, FOLLOW, FIRST, processClosure };
 
@@ -132,8 +131,18 @@ export function filloutGrammar(grammar: Grammar, env) {
         symbols = new Map(),
         syms = [...grammar.meta.symbols.values()];
 
-    for (let i = 0, j = 0, reduce_id = 0; i < grammar.length; i++) {
+    for (let i = 0, j = 0; i < grammar.length; i++) {
         const production = grammar[i];
+
+        if (production.recovery_handler) {
+            const rh = production.recovery_handler;
+            rh.txt = "return " + rh.body_text;
+
+            if (!reduce_lu.has(rh.txt))
+                reduce_lu.set(rh.txt, reduce_lu.size);
+
+            rh.reduce_id = reduce_lu.get(rh.txt);
+        }
 
         for (let i = 0; i < production.bodies.length; i++, j++) {
             const body = production.bodies[i],
@@ -202,7 +211,7 @@ export function filloutGrammar(grammar: Grammar, env) {
  * 
  * @param af_body_content 
  */
-export function createAssertionFunctionBody(af_body_content: string, grammar: Grammar) {
+export function createAssertionFunctionBody(af_body_content: string, grammar: Grammar, runner: CompilerRunner = null, prod_id: number = -1) {
     // Replace symbol placeholders
     let txt = (<string>af_body_content).replace(/(\!)?\<\-\-(\w+)\^\^([^-]+)\-\-\>/g, (a, not, type, val) => {
         const sym = <Symbol>{ type, val };
@@ -249,6 +258,12 @@ export function createAssertionFunctionBody(af_body_content: string, grammar: Gr
                     if (HAS_TK) {
                         const name = lexer_arg_name[0];
                         mutate(exp(`add_shift(${name}.off - start)`));
+                    }
+                case "FOLLOW":
+                    if (prod_id > -1 && runner) {
+                        const symbols = [...FOLLOW(grammar, prod_id).values()];
+                        const str = getIncludeBooleans(symbols, grammar, runner);
+                        mutate(exp(`(${str || "false"})`));
                     }
                     break;
             }

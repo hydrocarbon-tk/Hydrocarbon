@@ -8,6 +8,12 @@ export interface State {
      * Optional name to reference the state function
      */
     name?: string;
+    /**
+     * Set to the index of the production 
+     * if this state a production state
+     */
+    prod_id?: number;
+
     sym: string;
 
     /**

@@ -33,6 +33,7 @@ export function IntegrateState(production: Production, grammar: Grammar, name: s
     const start_state = <State>{
         sym: "",
         name,
+        prod_id: production.id,
         id,
         sid,
         bid: "",

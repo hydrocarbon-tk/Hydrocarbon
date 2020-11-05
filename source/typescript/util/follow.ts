@@ -14,7 +14,7 @@ const merge = (follow, first) => {
     });
 };
 
-export function FOLLOW(grammar: Grammar, production: number) {
+export function FOLLOW(grammar: Grammar, production: number): Map<string, Symbol> {
 
     const
         prod = grammar[production],

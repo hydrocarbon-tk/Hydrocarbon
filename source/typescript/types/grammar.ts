@@ -105,6 +105,14 @@ export interface Production {
     IMPORTED?: boolean;
     resolveFunction?: (arg0: Production) => void;
 
+    recovery_handler?: {
+        type: "ERROR_RECOVERY",
+        lexer_text: string,
+        body_text: string,
+        reduce_id: number;
+
+    };
+
     graph_id?: number;
 }
 

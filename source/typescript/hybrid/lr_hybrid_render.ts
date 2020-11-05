@@ -15,7 +15,8 @@ import {
     createNoCheckShift,
     createEmptyShift,
     getRDFNName,
-    createLRReduceCompletionWithFn
+    createLRReduceCompletionWithFn,
+    addRecoveryHandlerToFunctionBodyArray
 } from "./utilities/utilities.js";
 import { State } from "./types/State";
 import { RDProductionFunction } from "./types/RDProductionFunction.js";
@@ -89,7 +90,7 @@ function gotoState(
         statements.push(
 
             `if(prod >= 0) a = prod; else break;`,
-            `if(sp > stack_ptr) break; else stack_ptr += 1;`,
+            `if(sp > stack_ptr) break; /*else stack_ptr += 1;*/`,
             `prod = -1;`,
             `switch(a) {`
         );
@@ -121,6 +122,20 @@ function gotoState(
 
                     statements.push(integrateState(st, existing_refs));
                 }
+
+                //*
+                if (state.prod_id == key && state.items.some(i => i.sym(grammar).val == key)) {
+                    const completing_production_item = state.items.filter(i => i.sym(grammar).val == key)[0];
+
+                    const body = completing_production_item.body_(grammar);
+                    statements.push("if(prod < 0){");
+                    if (body.reduce_id >= -1)
+                        statements.push(createLRReduceCompletionWithFn(completing_production_item, grammar));
+                    else if (completing_production_item.len > 1)
+                        statements.push(createLRReduceCompletionWithoutFn(completing_production_item, grammar));
+                    statements.push(`prod = ${key};`);
+                    statements.push("break;}");
+                }//*/
             }
 
             statements.push(` continue;`);
@@ -166,11 +181,7 @@ function shiftReduce(
 
     //Sort groups based on the productions they have. State indices mapped to "-" delim strings
 
-    const closure: Item[] = state.items.setFilter(s => s.id);
 
-    processClosure(closure, grammar, true);
-
-    const cc = closure.sort((a, b) => b.body - a.body).slice(0, -1);
 
     let HAS_SHIFT = false;
 
@@ -260,6 +271,8 @@ function shiftReduce(
             stmts: <string[]>[],
         };
 
+
+
         outputs.push(output);
 
         const block = output.stmts;
@@ -287,6 +300,10 @@ function shiftReduce(
                     FIRST_GROUP = i == 0,
                     production = item.getProduction(grammar).id;
 
+                const local_closure = [item];
+
+
+
                 i++;
 
                 if (GROUP_NOT_LAST) {
@@ -304,66 +321,92 @@ function shiftReduce(
 
                 if (ll_fns) {
 
-                    const productions: Map<number, Set<string>> = new Map([[production, new Set()]]);
-                    let cap = shift_state.items.slice(), added = new Set();
-                    let ADDED = true;
+                    if (state.prod_id >= 0) {
+                        const prod = item.getProduction(grammar).id;
 
-                    while (ADDED) {
-                        ADDED = false;
-                        //Get chain of productions that lead from the current one
-                        for (let item of cc) {
+                        const rd = ll_fns[prod], name = getRDFNName(grammar[prod]);
+                        reached_rds.add(prod);
+                        RUN = false;
+                        block.push(`${name}(l);`);
+                        active_gotos.push(prod);
+                        output.rd_name = name;
 
-                            const sym = item.sym(grammar);
+                        if (ll_fns[prod].IS_RD) {
+                            break;
+                        } else {
+                            state.reachable.add(rd.state.index);
+                            break;
+                        }
 
-                            if (sym && sym.type == SymbolType.PRODUCTION) {
+                    } else {
 
-                                if (productions.has(<number>sym.val)) {
 
-                                    if (added.has(item.body)) continue;
+                        const closure: Item[] = [item];
+                        processClosure(closure, grammar, true);
+                        const cc = closure.sort((a, b) => b.body - a.body).slice(0, -1);
+                        const productions: Map<number, Set<string>> = new Map([[production, new Set()]]);
+                        let cap = shift_state.items.slice(), added = new Set();
+                        let ADDED = true;
 
-                                    added.add(item.body);
+                        while (ADDED) {
+                            ADDED = false;
+                            //Get chain of productions that lead from the current one
+                            for (let item of cc) {
 
-                                    ADDED = true;
+                                const sym = item.sym(grammar);
 
-                                    const prod_id = item.getProduction(grammar).id;
 
-                                    const c = [item];
+                                if (sym && sym.type == SymbolType.PRODUCTION) {
 
-                                    processClosure(c, grammar, true);
+                                    if (productions.has(<number>sym.val)) {
 
-                                    if (!productions.has(prod_id))
-                                        productions.set(prod_id, new Set());
+                                        if (added.has(item.body)) continue;
 
-                                    const map = productions.get(prod_id);
+                                        added.add(item.body);
 
-                                    if (prod_id !== sym.val) {
-                                        map.add(sym.val);
+                                        ADDED = true;
+
+                                        const prod_id = item.getProduction(grammar).id;
+
+                                        const c = [item];
+
+                                        processClosure(c, grammar, true);
+
+                                        if (!productions.has(prod_id))
+                                            productions.set(prod_id, new Set());
+
+                                        const map = productions.get(prod_id);
+
+                                        if (prod_id !== sym.val) {
+                                            map.add(sym.val);
+                                        }
+                                        cap.push(item);
                                     }
-                                    cap.push(item);
                                 }
                             }
                         }
-                    }
 
-                    const map = [...productions.entries()].reverse();
+                        const map = [...productions.entries()].reverse();
 
-                    for (const [prod, set] of map.slice(0)) {
-                        if (ll_fns[prod] && ll_fns[prod].IS_RD) {
-                            const rd = ll_fns[prod], name = getRDFNName(grammar[prod]);
-                            reached_rds.add(prod);
-                            RUN = false;
-                            block.push(`${name}(l);`);
-                            active_gotos.push(prod);
-                            output.rd_name = name;
+                        for (const [prod, set] of map.slice(0)) {
+                            if (ll_fns[prod] && (ll_fns[prod]?.state?.name !== state.name)) {
 
-                            if (ll_fns[prod].IS_RD) {
-                                break;
-                            } else {
-                                state.reachable.add(rd.state.index);
-                                break;
+                                const rd = ll_fns[prod], name = getRDFNName(grammar[prod]);
+                                reached_rds.add(prod);
+                                RUN = false;
+                                block.push(`${name}(l);`);
+                                active_gotos.push(prod);
+                                output.rd_name = name;
+
+                                if (ll_fns[prod].IS_RD) {
+                                    break;
+                                } else {
+                                    state.reachable.add(rd.state.index);
+                                    break;
+                                }
                             }
+                            if (set.size > 1) break;
                         }
-                        if (set.size > 1) break;
                     }
                 }
 
@@ -384,7 +427,7 @@ function shiftReduce(
                     } else
                         block.push(createNoCheckShift(grammar, runner));
 
-                    block.push("stack_ptr++;");
+                    //  block.push("stack_ptr++;");
 
                     if (insert_functions.length > 0)
                         block.push(...insert_functions);
@@ -601,38 +644,42 @@ export function renderState(
     ll_fns: RDProductionFunction[] = null,
     reached_rds: Set<number> = new Set
 ): string {
+
     if (state.name == "$P_HC_listbody4_102") {
         const c = state.items.slice();
         processClosure(c, grammar, false);
     }
 
-    let str: string[] = [];
+    let str: string[] = [], stmts = [];
 
     for (const item of state.items)
         str.push(item.renderUnformattedWithProductionAndFollow(grammar).replace(/\"/, "\\\""));
 
     const
-        fn: string[] = runner.ANNOTATED
-            ? [
-                `function ${state.name ? state.name : "State" + state.index
-                } (l: Lexer): void{
-    `,
-                `/*\n${state.items.setFilter(i => i.id).map(
-                    i => i.renderUnformattedWithProduction(grammar) + ((i.sym(grammar)?.type == SymbolType.PRODUCTION)
-                        ? (": " + i.getProduction(grammar).id)
-                        : (""))
-                ).join(";\n")}\n*/`
-            ]
-            : [`function ${state.name ? state.name : "State" + state.index}(l:Lexer):void{`];
+        fn_header: string = runner.ANNOTATED
+            ?
+            `function ${state.name ? state.name : "State" + state.index
+            } (l: Lexer): void{
+                /*\n${state.items.setFilter(i => i.id).map(
+                i => i.renderUnformattedWithProduction(grammar) + ((i.sym(grammar)?.type == SymbolType.PRODUCTION)
+                    ? (": " + i.getProduction(grammar).id)
+                    : (""))
+            ).join(";\n")}\n*/`
+
+            : `function ${state.name ? state.name : "State" + state.index}(l:Lexer):void{`;
 
 
     const { body_stmts, pre_stmts } = compileState(state, states, grammar, runner, ll_fns, reached_rds);
 
-    fn.push(...body_stmts);
+    stmts.push(...body_stmts);
 
-    fn.push("}");
+    if (state.name) {
+        const production = grammar[state.prod_id];
 
-    return [...pre_stmts, ...fn].join("\n");
+        if (production.recovery_handler)
+            addRecoveryHandlerToFunctionBodyArray(stmts, production, grammar, runner);
+    }
+    return [...pre_stmts, fn_header, ...stmts, "}"].join("\n");
 };
 
 export function markReachable(states: States, ...root_states: State[]) {

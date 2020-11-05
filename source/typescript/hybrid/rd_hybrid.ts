@@ -1,6 +1,6 @@
 import { Grammar, Production, ProductionBody, EOF_SYM, SymbolType } from "../types/grammar.js";
 import { Symbol } from "../types/Symbol";
-import { processClosure, Item } from "../util/common.js";
+import { processClosure, Item, createAssertionFunctionBody } from "../util/common.js";
 import { GrammarParserEnvironment } from "../types/grammar_compiler_environment";
 import {
     createNoCheckShift,
@@ -12,7 +12,8 @@ import {
     createReduceFunction,
     createEmptyShift,
     translateSymbolValue,
-    createDefaultReduceFunction
+    createDefaultReduceFunction,
+    addRecoveryHandlerToFunctionBodyArray
 } from "./utilities/utilities.js";
 import { RDProductionFunction } from "./types/RDProductionFunction";
 import { RDItem } from "./types/RDItem";
@@ -65,7 +66,6 @@ function renderItemSym(
     item: Item,
     grammar: Grammar,
     runner: CompilerRunner,
-    AUTO_RETURN = true,
     productions: Set<number> = new Set,
     RENDER_WITH_NO_CHECK = false
 ): string {
@@ -82,15 +82,13 @@ function renderItemSym(
         else if (item.len > 1)
             stmts.push(createDefaultReduceFunction(item));
 
-        if (AUTO_RETURN) stmts.push(`return;`);
+        stmts.push(`return;`);
     } else {
         const sym = getRootSym(item.sym(grammar), grammar);
 
         if (sym.type == "production") {
 
             productions.add(<number>sym.val);
-
-            if (AUTO_RETURN) stmts.push(`if(FAILED) return;`);
 
             stmts.push(`$${grammar[sym.val].name}(l)`);
 
@@ -115,17 +113,22 @@ function renderItemSym(
 }
 
 
-function renderItem(item: Item, grammar: Grammar, runner: CompilerRunner, AUTO_RETURN: boolean = true, productions: Set<number> = new Set, NO_CHECK = false): string {
-    const stmts = [];
+function renderItem(item: Item, grammar: Grammar, runner: CompilerRunner, productions: Set<number> = new Set, DONT_CHECK = false, block_depth = 0): string {
 
-    while (true) {
-        stmts.push(renderItemSym(item, grammar, runner, AUTO_RETURN, productions, NO_CHECK));
-        NO_CHECK = false;
-        if (item.atEND) break;
-        item = item.increment();
-    }
 
-    stmts.splice(stmts.length - 1, 0, `setProduction(${item.getProduction(grammar).id})`);
+    const stmts = (DONT_CHECK && !item.atEND) ? [] : ["if(!FAILED){"];
+
+    stmts.push(renderItemSym(item, grammar, runner, productions, DONT_CHECK && block_depth > 0));
+
+    if (!item.atEND) {
+        const SHOULD_CHECK = DONT_CHECK
+            && item.sym(grammar).type !== SymbolType.PRODUCTION
+            && item.sym(grammar).type !== SymbolType.PRODUCTION_ASSERTION_FUNCTION;
+        stmts.push(renderItem(item.increment(), grammar, runner, productions, SHOULD_CHECK, 1));
+    } else
+        stmts.splice(stmts.length - 1, 0, `setProduction(${item.getProduction(grammar).id})`);
+
+    if (!DONT_CHECK || item.atEND) stmts.push("}");
 
     return stmts.join("\n");
 }
@@ -183,16 +186,16 @@ export function renderFunctionBody(
     llitems: RDItem[],
     grammar: Grammar,
     runner: CompilerRunner,
+    block_depth: number = 0,
     peek_depth: number = 0,
-    ELSE_REDUCE = false,
-    AUTO_RETURN: boolean = true,
     productions: Set<number> = new Set,
+    HAS_ERROR_RECOVERY: boolean = false
 )
     : string {
 
     const stmts = [];
 
-    if (peek_depth > 3)
+    if (peek_depth > 4)
         throw "Can't complete";
 
     /* 
@@ -247,20 +250,143 @@ export function renderFunctionBody(
 
     let token_bit = 0;
 
+    const
+        MULTIPLE_GROUPS = !(group_maps.size == 1),
+        if_else_stmts = [];
+
     //Now create the necessary if statements with peek if depth > 0
-    for (const try_group of group_maps.values())
-        token_bit |= buildGroupStatement(grammar, runner, try_group, peek_depth, stmts, sym_map, group_maps.size == 1 && !ELSE_REDUCE, AUTO_RETURN, productions);
+    for (const group of group_maps.values()) {
 
+        const
+            pk = peek_depth,
+            body = [],
+            trs = group.trs,
+            syms = [...group.syms.values()];
 
-    const MULTIPLE_GROUPS = token_bit & TOKEN_BIT.IS_MULTIPLE;
+        token_bit |= [...syms.map(s => sym_map.get(s))].reduce((r, v) => {
+            let bit = 0;
+
+            switch (v.type) {
+                case SymbolType.GENERATED: bit = TOKEN_BIT.TYPE; break;
+                case SymbolType.LITERAL:
+                case SymbolType.SYMBOL:
+                case SymbolType.ESCAPED:
+                    bit = TOKEN_BIT.ID;
+            }
+
+            return r |= bit;
+        }, 0);
+        let
+            tests = [...syms.map(s => sym_map.get(s))];
+        if (runner.ANNOTATED) {
+            body.push("//considered syms: " + syms);
+        }
+
+        if (trs.length > 1) {
+
+            //Advance through each symbol until there is a difference
+            //When there is a difference create a peek if-else sequence
+            let items: Item[] = trs.filter(_ => !!_).map(RDItemToItem).filter(_ => !!_);
+
+            while (true) {
+                const sym = items.map(i => i).filter(i => !i.atEND)?.shift()?.sym(grammar),
+                    off = items.filter(i => !i.atEND)?.[0]?.offset;
+
+                //If any items at end do something
+                //
+                if (off != undefined && sym && !items.reduce((r, i) => (r || i.atEND || (i.sym(grammar)?.val != sym.val)), false)) {
+                    if (runner.ANNOTATED) {
+                        body.push("\n//Parallel Transition");
+                        body.push("/*\n" + items.filter(_ => !!_).map(i => i.renderUnformattedWithProduction(grammar)).join("\n"), "*/");
+                    }
+                    //All items transition on the same symbol; resolve body disputes. 
+                    body.push(renderItemSym(items[0], grammar, runner, productions));
+                    items = items.map(i => i.increment()).filter(i => i);
+                    peek_depth = -1;
+                    peek_depth = -1;
+
+                } else {
+
+                    const
+                        no_closures = items.filter(i => i.atEND),
+
+                        prod_items = items
+                            .filter(i => !i.atEND && (i.sym(grammar).type == SymbolType.PRODUCTION)),
+
+                        term_items = items
+                            .filter(i => !i.atEND && (i.sym(grammar).type != SymbolType.PRODUCTION && i.sym(grammar).type !== SymbolType.PRODUCTION_ASSERTION_FUNCTION)),
+
+                        paf_la_items = items
+                            .filter(i => !i.atEND && (i.sym(grammar).type == SymbolType.PRODUCTION_ASSERTION_FUNCTION)),
+
+                        new_trs = [].concat(prod_items.map(i => {
+
+                            const rd_item = ItemToRDItem(i, grammar);
+
+                            const { closure, COMPLETED } = getPeekAtDepth(rd_item.item, grammar, peek_depth + 1);
+
+                            rd_item.closure = closure.setFilter(i => i.id);
+
+                            // Variant of production is completed at this peek level.
+                            if (COMPLETED) no_closures.push(i);
+
+                            return rd_item;
+                        }))
+                            .concat(term_items.map(i => ItemToRDItem(i, grammar)))
+                            .concat(paf_la_items.map(i => ItemToRDItem(i, grammar)));
+
+                    if (new_trs.length > 0) {
+                        const has_closures = new_trs.filter(f => f.closure.length > 0);
+
+                        no_closures.push(...new_trs.filter(f => f.closure.length == 0).map(RDItemToItem));
+
+                        if (runner.ANNOTATED) {
+                            body.push("\n//Look Ahead Level " + (peek_depth + 1));
+                            body.push("/*\n" + prod_items.filter(_ => !!_).map(i => i.renderUnformattedWithProduction(grammar)).join("\n"), "*/");
+                        }
+
+                        body.push(renderFunctionBody(has_closures, grammar, runner, block_depth + 1, peek_depth + 1, productions));
+                    }
+
+                    for (const d of no_closures.setFilter(i => i.id).slice(0)) {
+                        if (runner.ANNOTATED) {
+                            body.push("\n//Completed Production");
+                            body.push("/*\n" + [d].filter(_ => !!_).map(i => i.renderUnformattedWithProduction(grammar)).join("\n"), "*/");
+                        }
+                        body.push(renderItem(d, grammar, runner, productions, peek_depth == 0 || !MULTIPLE_GROUPS));
+                    }
+
+                    break;
+                };
+            }
+        } else {
+
+            //Just complete the grammar symbols
+            const item = RDItemToItem(trs[0]);
+            if (runner.ANNOTATED) {
+                body.push("\n//Single Production Completion");
+                body.push("/*\n" + [item].map(i => i.renderUnformattedWithProduction(grammar)).join("\n"), "*/");
+            }
+            body.push(renderItem(item, grammar, runner, productions, peek_depth == 0 || !MULTIPLE_GROUPS, block_depth));
+            //if (item.atEND) IS_SINGLE = true;
+        }
+
+        if (MULTIPLE_GROUPS) {
+            if (peek_depth <= 0)
+                if_else_stmts.push(`if(${getIncludeBooleans(tests, grammar, runner, pk > 0 ? "pk" + (pk) : "l")}){\n ${body.join("\n")}\n}`);
+            else
+                if_else_stmts.push(`if(!FAILED &&  ${getIncludeBooleans(tests, grammar, runner, pk > 0 ? "pk" + (pk) : "l")}){\n ${body.join("\n")}\n}`);
+        } else {
+
+            stmts.push(...body);
+        }
+    }
 
     if (MULTIPLE_GROUPS) {
         //Item annotations if required
 
-
         if (token_bit) {
-            const const_node = ["const"];
-            const const_body = [];
+            const const_node = ["const"], const_body = [];
 
             let lx = "l";
 
@@ -274,146 +400,12 @@ export function renderFunctionBody(
             if (const_body.length > 0)
 
                 stmts.unshift(const_node.join(" "));
+
         }
+        stmts.push(if_else_stmts.join(" else "));
     }
 
     return stmts.join("\n");
-}
-export function buildGroupStatement(
-    grammar: Grammar,
-    runner: CompilerRunner,
-    group: TransitionGroup,
-    peek_depth,
-    stmts,
-    sym_map: Map<string, Symbol>,
-    IS_SINGLE = false,
-    AUTO_RETURN: boolean = true,
-    productions: Set<number> = new Set
-) {
-
-    const pk = peek_depth;
-
-    const
-        body = [],
-        trs = group.trs,
-        syms = [...group.syms.values()];
-
-    let
-        token_bit = [...syms.map(s => sym_map.get(s))].reduce((r, v) => {
-            let bit = 0;
-
-            switch (v.type) {
-                case SymbolType.GENERATED: bit = TOKEN_BIT.TYPE; break;
-                case SymbolType.LITERAL:
-                case SymbolType.SYMBOL:
-                case SymbolType.ESCAPED:
-                    bit = TOKEN_BIT.ID;
-            }
-
-            return r |= bit;
-        }, 0),
-        tests = [...syms.map(s => sym_map.get(s))];
-    if (runner.ANNOTATED) {
-        body.push("//considered syms: " + syms);
-    }
-
-    let offset = 0;
-
-    if (trs.length > 1) {
-
-        //Advance through each symbol until there is a difference
-        //When there is a difference create a peeking switch
-        let items: Item[] = trs.filter(_ => !!_).map(RDItemToItem).filter(_ => !!_);
-
-        while (true) {
-            const sym = items.map(i => i).filter(i => !i.atEND)?.shift()?.sym(grammar),
-                off = items.filter(i => !i.atEND)?.[0]?.offset;
-
-            //If any items at end do something
-            //
-            if (off != undefined && sym && !items.reduce((r, i) => (r || i.atEND || (i.sym(grammar)?.val != sym.val)), false)) {
-                if (runner.ANNOTATED) {
-                    body.push("\n//Parallel Transition");
-                    body.push("/*\n" + items.filter(_ => !!_).map(i => i.renderUnformattedWithProduction(grammar)).join("\n"), "*/");
-                }
-                //All items transition on the same symbol; resolve body disputes. 
-                body.push(renderItemSym(items[0], grammar, runner, AUTO_RETURN, productions));
-                items = items.map(i => i.increment()).filter(i => i);
-                peek_depth = -1;
-                peek_depth = -1;
-
-                offset++;
-
-            } else {
-
-                const
-                    no_closures = items.filter(i => i.atEND),
-
-                    prod_items = items
-                        .filter(i => !i.atEND && (i.sym(grammar).type == SymbolType.PRODUCTION)),
-
-                    term_items = items
-                        .filter(i => !i.atEND && (i.sym(grammar).type != SymbolType.PRODUCTION && i.sym(grammar).type !== SymbolType.PRODUCTION_ASSERTION_FUNCTION)),
-
-                    paf_la_items = items
-                        .filter(i => !i.atEND && (i.sym(grammar).type == SymbolType.PRODUCTION_ASSERTION_FUNCTION)),
-
-                    new_trs = [].concat(prod_items.map(i => {
-
-                        const rd_item = ItemToRDItem(i, grammar);
-
-                        const { closure, COMPLETED } = getPeekAtDepth(rd_item.item, grammar, peek_depth + 1);
-
-                        rd_item.closure = closure.setFilter(i => i.id);
-
-                        // Variant of production is completed at this peek level.
-                        if (COMPLETED) no_closures.push(i);
-
-                        return rd_item;
-                    })).concat(term_items.map(i => ItemToRDItem(i, grammar))).concat(paf_la_items.map(i => ItemToRDItem(i, grammar)));
-
-                if (new_trs.length > 0) {
-                    const has_closures = new_trs.filter(f => f.closure.length > 0);
-
-                    no_closures.push(...new_trs.filter(f => f.closure.length == 0).map(RDItemToItem));
-
-                    if (runner.ANNOTATED) {
-                        body.push("\n//Look Ahead Level " + (peek_depth + 1));
-                        body.push("/*\n" + prod_items.filter(_ => !!_).map(i => i.renderUnformattedWithProduction(grammar)).join("\n"), "*/");
-                    }
-
-                    body.push(renderFunctionBody(has_closures, grammar, runner, peek_depth + 1, true, AUTO_RETURN, productions));
-                }
-
-                for (const d of no_closures.setFilter(i => i.id).slice(0)) {
-                    if (runner.ANNOTATED) {
-                        body.push("\n//Completed Production");
-                        body.push("/*\n" + [d].filter(_ => !!_).map(i => i.renderUnformattedWithProduction(grammar)).join("\n"), "*/");
-                    }
-                    body.push(renderItem(d, grammar, runner, AUTO_RETURN, productions));
-                }
-
-                break;
-            };
-        }
-    } else {
-        //Just complete the grammar symbols
-        const item = RDItemToItem(trs[0]);
-        if (runner.ANNOTATED) {
-            body.push("\n//Single Production Completion");
-            body.push("/*\n" + [item].map(i => i.renderUnformattedWithProduction(grammar)).join("\n"), "*/");
-        }
-        body.push(renderItem(item, grammar, runner, AUTO_RETURN, productions, !IS_SINGLE));
-        if (item.atEND) IS_SINGLE = true;
-    }
-
-    if (!IS_SINGLE) {
-        token_bit |= TOKEN_BIT.IS_MULTIPLE;
-        stmts.push(`if(${getIncludeBooleans(tests, grammar, runner, pk > 0 ? "pk" + (pk) : "l")}){`, ...body, "}");
-    } else {
-        stmts.push(...body);
-    }
-    return token_bit;
 }
 
 export function buildIntermediateRD(items: Item[], grammar: Grammar, runner: CompilerRunner, ll_fns: RDProductionFunction[]): string {
@@ -442,9 +434,9 @@ export function makeRDHybridFunction(production: Production, grammar: Grammar, r
 
     let productions: Set<number> = new Set();
 
-    const stmts = [`function $${p.name}(l:Lexer) :void{`],
+    const stmts = [],
 
-
+        HAS_ERROR_RECOVERY = !!production.error_recovery,
 
         INLINE_FUNCTIONS = p.bodies.some(has_INLINE_FUNCTIONS),
 
@@ -471,10 +463,11 @@ export function makeRDHybridFunction(production: Production, grammar: Grammar, r
             stmts.push("/*\n" + closure.filter(_ => !!_).map(i => i.renderUnformattedWithProduction(grammar)).join("\n"), "*/");
         }
 
-        stmts.push(renderFunctionBody(start_items, grammar, runner, 0, false, true, productions));
+        stmts.push(renderFunctionBody(start_items, grammar, runner, 0, 0, productions, HAS_ERROR_RECOVERY));
 
 
     } catch (e) {
+        console.dir(e);
         return {
             refs: 0,
             id: p.id,
@@ -483,20 +476,17 @@ export function makeRDHybridFunction(production: Production, grammar: Grammar, r
         };
     }
 
-    stmts.push(`fail(l);`);
-
-    stmts.push(`}`);
+    if (production.recovery_handler) {
+        addRecoveryHandlerToFunctionBodyArray(stmts, production, grammar, runner, true);
+    } else {
+        stmts.push(`fail(l);`);
+    }
 
     return {
-
         productions,
         refs: 0,
         id: p.id,
         IS_RD: true,
-        fn: stmts.join("\n")
+        fn: `function $${p.name}(l:Lexer) :void{${stmts.join("\n")}}`
     };
-}
-
-export function GetLLHybridFunctions(grammar: Grammar, env: GrammarParserEnvironment, runner: CompilerRunner): RDProductionFunction[] {
-
 }
