@@ -7,7 +7,7 @@ import { FOLLOW } from "./follow.js";
 import { processClosure } from "./process_closure.js";
 import { Grammar, SymbolType } from "../types/grammar.js";
 import { Symbol } from "../types/Symbol";
-import { getIncludeBooleans, getLexerBooleanExpression, getUniqueSymbolName } from "../hybrid/utilities/utilities.js";
+import { createNoCheckShift, getIncludeBooleans, getLexerBooleanExpression, getUniqueSymbolName } from "../hybrid/utilities/utilities.js";
 import { exp, parser, stmt, renderWithFormatting, JSNodeClass } from "@candlefw/js";
 import { JSNodeType } from "@candlefw/js";
 import { traverse } from "@candlefw/conflagrate";
@@ -227,6 +227,7 @@ export function createAssertionFunctionBody(af_body_content: string, grammar: Gr
         if (node.type & JSNodeClass.IDENTIFIER && node.value[0] == "$") {
             switch ((<string>node.value).slice(1)) {
                 case "next":
+                    //mutate(exp(createNoCheckShift(grammar, runner)));
                     mutate(exp(`${lexer_name[lex_name_ptr]}.next()`));
                     break;
                 case "fork":

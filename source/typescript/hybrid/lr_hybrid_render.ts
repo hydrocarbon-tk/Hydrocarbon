@@ -90,7 +90,7 @@ function gotoState(
         statements.push(
 
             `if(prod >= 0) a = prod; else break;`,
-            `if(sp > stack_ptr) break; /*else stack_ptr += 1;*/`,
+            `if(sp > stack_ptr) break; else stack_ptr += 1;`,
             `prod = -1;`,
             `switch(a) {`
         );
@@ -122,20 +122,6 @@ function gotoState(
 
                     statements.push(integrateState(st, existing_refs));
                 }
-
-                //*
-                if (state.prod_id == key && state.items.some(i => i.sym(grammar).val == key)) {
-                    const completing_production_item = state.items.filter(i => i.sym(grammar).val == key)[0];
-
-                    const body = completing_production_item.body_(grammar);
-                    statements.push("if(prod < 0){");
-                    if (body.reduce_id >= -1)
-                        statements.push(createLRReduceCompletionWithFn(completing_production_item, grammar));
-                    else if (completing_production_item.len > 1)
-                        statements.push(createLRReduceCompletionWithoutFn(completing_production_item, grammar));
-                    statements.push(`prod = ${key};`);
-                    statements.push("break;}");
-                }//*/
             }
 
             statements.push(` continue;`);
@@ -181,6 +167,9 @@ function shiftReduce(
 
     //Sort groups based on the productions they have. State indices mapped to "-" delim strings
 
+    const closure: Item[] = state.items.setFilter(s => s.id);
+    processClosure(closure, grammar, true);
+    const cc = closure.sort((a, b) => b.body - a.body).slice(0, -1);
 
 
     let HAS_SHIFT = false;
@@ -259,23 +248,21 @@ function shiftReduce(
 
         });
 
-    const SINGLE_TRANSITION_BLOCK = sym_groups.length == 1, outputs = [];
+    const outputs = [];
 
     for (const { a_syms, syms, shift, reduce, ASSERTION } of sym_groups) {
 
         const output = {
             a_syms,
             syms,
-            IS_PURE_RD: shift.length == 1 && reduce.length == 0,
+            IS_PURE_RD: true,
             rd_name: "",
             stmts: <string[]>[],
-        };
-
-
+        },
+            block = output.stmts;
 
         outputs.push(output);
 
-        const block = output.stmts;
 
         for (const shift_groups of shift) {
 
@@ -284,133 +271,103 @@ function shiftReduce(
                 statements.unshift("prod = -1;");
             }
 
-            const TRY_GROUP = shift_groups.states.length > 1;
-
             let i = 0;
 
-            for (const shift_state of getStatesFromNumericArray(shift_groups.states, states)) {
+            const shift_stmts = [];
 
-                let lex_name = "l", pending_data_name = "_sym", pdn = pending_data_name;
+            for (const shift_state of getStatesFromNumericArray(shift_groups.states, states)) {
 
                 if (runner.ANNOTATED)
                     block.push(`//${shift_state.items.setFilter(i => i.id).map(i => (<Item>i).renderUnformattedWithProduction(grammar)).join("  :  ")}\n`);
 
-                const item: Item = shift_state.items[0],
-                    GROUP_NOT_LAST = i < shift_groups.states.length - 1,
-                    FIRST_GROUP = i == 0,
-                    production = item.getProduction(grammar).id;
-
-                const local_closure = [item];
-
-
 
                 i++;
 
-                if (GROUP_NOT_LAST) {
-                    if (FIRST_GROUP) {
-                        block.push(`var $mark = mark(), sp = stack_ptr`);
-                        block.push(`var cp = l.copy()`);
-                        lex_name = 'cp';
-                    } else {
-                        block.push("cp = l.copy()");
-                        lex_name = 'cp';
-                    };
-                }
+                const item_groups = shift_state.items.setFilter(i => i.id).group(i => i.getProduction(grammar).id);
 
                 let RUN = true;
+                //Group items based on the production they will yield 
 
-                if (ll_fns) {
+                const direct_prod_calls = [];
 
-                    if (state.prod_id >= 0) {
-                        const prod = item.getProduction(grammar).id;
+                //for each group create a try switch statement
+                for (const items of item_groups) {
+                    const item = items[0];
+                    const prod_id = item.getProduction(grammar).id;
+                    const productions: Map<number, Set<string>> = new Map([[prod_id, new Set()]]);
+                    let cap = items.slice(), added = new Set();
+                    let ADDED = true;
 
-                        const rd = ll_fns[prod], name = getRDFNName(grammar[prod]);
-                        reached_rds.add(prod);
-                        RUN = false;
-                        block.push(`${name}(l);`);
-                        active_gotos.push(prod);
-                        output.rd_name = name;
+                    while (ADDED) {
+                        ADDED = false;
+                        //Get chain of productions that lead from the current one
+                        for (let item of cc) {
 
-                        if (ll_fns[prod].IS_RD) {
-                            break;
-                        } else {
-                            state.reachable.add(rd.state.index);
-                            break;
-                        }
+                            const sym = item.sym(grammar);
 
-                    } else {
+                            if (sym && sym.type == SymbolType.PRODUCTION) {
 
+                                if (productions.has(<number>sym.val)) {
 
-                        const closure: Item[] = [item];
-                        processClosure(closure, grammar, true);
-                        const cc = closure.sort((a, b) => b.body - a.body).slice(0, -1);
-                        const productions: Map<number, Set<string>> = new Map([[production, new Set()]]);
-                        let cap = shift_state.items.slice(), added = new Set();
-                        let ADDED = true;
+                                    if (added.has(item.body)) continue;
 
-                        while (ADDED) {
-                            ADDED = false;
-                            //Get chain of productions that lead from the current one
-                            for (let item of cc) {
+                                    added.add(item.body);
 
-                                const sym = item.sym(grammar);
+                                    ADDED = true;
 
+                                    const prod_id = item.getProduction(grammar).id;
 
-                                if (sym && sym.type == SymbolType.PRODUCTION) {
+                                    const c = [item];
 
-                                    if (productions.has(<number>sym.val)) {
+                                    processClosure(c, grammar, true);
 
-                                        if (added.has(item.body)) continue;
+                                    if (!productions.has(prod_id))
+                                        productions.set(prod_id, new Set());
 
-                                        added.add(item.body);
+                                    const map = productions.get(prod_id);
 
-                                        ADDED = true;
-
-                                        const prod_id = item.getProduction(grammar).id;
-
-                                        const c = [item];
-
-                                        processClosure(c, grammar, true);
-
-                                        if (!productions.has(prod_id))
-                                            productions.set(prod_id, new Set());
-
-                                        const map = productions.get(prod_id);
-
-                                        if (prod_id !== sym.val) {
-                                            map.add(sym.val);
-                                        }
-                                        cap.push(item);
+                                    if (prod_id !== sym.val) {
+                                        map.add(sym.val);
                                     }
+                                    cap.push(item);
                                 }
                             }
-                        }
-
-                        const map = [...productions.entries()].reverse();
-
-                        for (const [prod, set] of map.slice(0)) {
-                            if (ll_fns[prod] && (ll_fns[prod]?.state?.name !== state.name)) {
-
-                                const rd = ll_fns[prod], name = getRDFNName(grammar[prod]);
-                                reached_rds.add(prod);
-                                RUN = false;
-                                block.push(`${name}(l);`);
-                                active_gotos.push(prod);
-                                output.rd_name = name;
-
-                                if (ll_fns[prod].IS_RD) {
-                                    break;
-                                } else {
-                                    state.reachable.add(rd.state.index);
-                                    break;
-                                }
-                            }
-                            if (set.size > 1) break;
                         }
                     }
+
+                    const map = [...productions.entries()].reverse();
+
+                    if (state.name == "$E")
+                        console.log(state.name, item.renderUnformattedWithProduction(grammar), map);
+
+                    for (const [prod, set] of map.slice(0)) {
+                        if (ll_fns[prod].IS_RD && (ll_fns[prod]?.state?.name !== state.name)) {
+                            RUN = false;
+                            direct_prod_calls.push(prod);
+                            break;
+                        }
+                        if (set.size > 1) break;
+                    }
+
+                    if (RUN && ll_fns[prod_id])
+                        direct_prod_calls.push(prod_id);
+
+
                 }
 
-                if (RUN) {
+                if (direct_prod_calls.length > 0) {
+                    shift_stmts.push(...direct_prod_calls.map(prod_id => {
+                        const name = getRDFNName(grammar[prod_id]);
+                        direct_prod_calls.push(prod_id);
+                        reached_rds.add(prod_id);
+                        active_gotos.push(prod_id);
+                        output.rd_name = name;
+                        return `${name}(%%lex_name%%);`;
+                    }));
+                }
+
+                if (direct_prod_calls.length == 0) {
+                    const item: Item = shift_state.items[0];
 
                     output.IS_PURE_RD = false;
 
@@ -427,56 +384,41 @@ function shiftReduce(
                     } else
                         block.push(createNoCheckShift(grammar, runner));
 
-                    //  block.push("stack_ptr++;");
+                    output.rd_name = `State${shift_state.index}`;
 
                     if (insert_functions.length > 0)
                         block.push(...insert_functions);
 
-                    if (!HAS_GOTO)
-                        shift_state_stmt = `State${shift_state.index}(${lex_name});`;
-                    else
-                        shift_state_stmt = `State${shift_state.index}(${lex_name})`;
+                    shift_state_stmt = `State${shift_state.index}(%%lex_name%%)`;
 
-                    block.push(shift_state_stmt);
+                    shift_stmts.push(shift_state_stmt);
 
                     state.reachable.add(shift_state.index);
                 }
+            }
 
-                if (SINGLE_TRANSITION_BLOCK) {
-                    if (TRY_GROUP && GROUP_NOT_LAST) {
-                        block.push(`if(prod !== ${production}){
-                            reset($mark)
-                            FAILED = false;
-                            stack_ptr = sp;
-                        }else{
-                            l.sync(cp);
-                            return;
-                        }`);
-                    }
-                } else {
-
-                    if (TRY_GROUP && GROUP_NOT_LAST) {
-                        block.push(`if(prod !== ${production}){
-                            reset($mark)
-                            FAILED = false;
-                            stack_ptr = sp;
-                        }else{
-                            l.sync(cp);
-                            return;
-                        }`);
-                    }
-                }
+            if (shift_stmts.length > 1) {
+                output.IS_PURE_RD = false;
+                block.push(`var $mark = mark(), sp = stack_ptr, cp = l.copy();`);
+                block.push(shift_stmts.map(str => str.replace(/\%\%lex_name\%\%/g, "cp"))
+                    .join(`if(FAILED){
+                        reset($mark)
+                        FAILED = false;
+                        stack_ptr = sp;
+                    }else{
+                        l.sync(cp);
+                        return;
+                    }`)
+                );
+            } else {
+                block.push(...shift_stmts.map(str => str.replace(/\%\%lex_name\%\%/g, "l")));
             }
         }
-
-        if (shift.length > 0 && reduce.length > 0)
-            block.push(`if(prod >= 0) return; else FAILED = false;`);
 
         if (runner.ANNOTATED)
             block.push(`//${reduce.map(i => (<Item>i.item).renderUnformattedWithProduction(grammar)).join("  :  ")}\n`);
 
         for (const { item } of reduce.slice(0, 1)) {
-
             const
                 production = item.getProduction(grammar),
                 body = (<Item>item).body_(grammar);

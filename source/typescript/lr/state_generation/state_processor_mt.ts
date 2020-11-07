@@ -146,7 +146,7 @@ export default class StateProcessor {
             state = this.createState(items[0], old_state_id, grammar);
 
         try {
-            processClosure(items, grammar, excludes);
+            processClosure(items, grammar, false, excludes);
         } catch (e) {
             console.log(e);
             return { error: "Could not create closure for items " + items.map(e => e.renderWithProduction(grammar)).join(" | "), msg: e };

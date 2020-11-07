@@ -349,17 +349,14 @@ var
 function error_mark(val:u32):void{
     error_array[(error_ptr++) %  256] = val;
 }
-
-function completeProductionPlain(len:u32, production:u32):void{
+function completeProductionPlain(len: u32, production: u32): void {
     stack_ptr -= len;
     prod = production;
 }
-
-function completeProduction(body:u32, len:u32, production:u32):void{
+function completeProduction(body: u32, len: u32, production: u32): void {
     add_reduce(len, body);
-    completeProductionPlain(len, production);
+    prod = production;
 }
-
 function completeGOTO1(l:Lexer, sp:u32, a:u32, A:u32):void{
     if (sp <= stack_ptr) prod = a;
     if (A != a) soft_fail(l); else FAILED = false;
@@ -404,7 +401,7 @@ function add_shift(char_len:u32): void{
 
 @inline
 function add_reduce(sym_len:u32, body:u32): void{
-    stack_ptr -= sym_len - 1;
+    stack_ptr -= sym_len;
     const ACTION: u32 = 1;
     const val: u32 = ACTION | ((sym_len & 0x3FFF )<< 2) | (body << 16);
     unchecked(action_array[pointer++] = val);

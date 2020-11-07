@@ -51,12 +51,12 @@ export function getRDFNName(production: Production) {
     return `$${production.name}`;
 }
 
-export function createAssertionShift(grammar: Grammar, runner: CompilerRunner, sym: Symbol): any {
-    return `_(l,  ${getSkipArray(grammar, runner)}, ${translateSymbolValue(sym, grammar, runner.ANNOTATED)});`;
+export function createAssertionShift(grammar: Grammar, runner: CompilerRunner, sym: Symbol, lexer_name: string = "l"): any {
+    return `_(${lexer_name},  ${getSkipArray(grammar, runner)}, ${translateSymbolValue(sym, grammar, runner.ANNOTATED)});`;
 }
 
-export function createNoCheckShift(grammar: Grammar, runner: CompilerRunner): any {
-    return `_no_check(l, ${getSkipArray(grammar, runner)});`;
+export function createNoCheckShift(grammar: Grammar, runner: CompilerRunner, lexer_name: string = "l"): any {
+    return `_no_check(${lexer_name}, ${getSkipArray(grammar, runner)});`;
 }
 
 export function createEmptyShift(): string {
@@ -269,12 +269,11 @@ export function addRecoveryHandlerToFunctionBodyArray(
         ${createAssertionFunctionBody(production.recovery_handler.lexer_text, grammar, runner, production.id)}
         //Skipped Symbols
         add_shift(l.off - start);
-
-        //Accepting Recovery Symbol
-      //  add_shift(l.tl);
-        //Advenced to token after this production
-     //   l.next();
-        add_reduce(stack_ptr - sp${RECURSIVE_DESCENT ? "" : ""}, ${1 + production.recovery_handler.reduce_id});
+        //Consume the end symbol of the production
+        ${createNoCheckShift(grammar, runner, "l")};
+        
+        add_reduce(stack_ptr - sp${RECURSIVE_DESCENT ? "" : ""} - 1, ${1 + production.recovery_handler.reduce_id});
+        
         setProduction(${production.id});
-        `);
+    `);
 }
