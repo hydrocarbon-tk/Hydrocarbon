@@ -74,8 +74,6 @@ function renderItemSym(
         stmts = [],
         body = item.body_(grammar);
 
-    stmts.push(insertFunctions(item, grammar, true));
-
     if (item.atEND) {
         if (body.reduce_id >= 0)
             stmts.push(createReduceFunction(item, grammar));
@@ -195,7 +193,7 @@ export function renderFunctionBody(
 
     const stmts = [];
 
-    if (peek_depth > 4)
+    if (peek_depth > 3)
         throw "Can't complete";
 
     /* 

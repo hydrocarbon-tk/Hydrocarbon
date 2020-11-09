@@ -19,15 +19,23 @@ export async function compileHybrid(grammar: Grammar, env: GrammarParserEnvironm
 
     console.log("Compiling AssemblyScript code into WASM");
 
-    const { binary, text, stdout, stderr } = asc.compileString(mt_runner.parser, { optimize: 0, maximumMemory: 512 });
+    const { binary, text, stdout, stderr } = asc.compileString(mt_runner.parser, {
+        optimize: 3,
+        maximumMemory: 100,
+        importMemory: true,
+        memoryBase: 4579328,
+        noExportMemory: false
+    });
+
     const messages = stdout.toString();
     const errors = stderr.toString();
-    const completer = URL.resolveRelative("./temp/build/recognizer.wasm");
-    const completer_wat = URL.resolveRelative("./temp/build/recognizer.wat");
-    const temp_source = URL.resolveRelative("./temp/source/");
-    const rust_file = URL.resolveRelative("./temp/source/parser.ts");
-    const module_file = URL.resolveRelative("./temp/parser.js");
-    const jump_table_file = URL.resolveRelative("./temp/jump_table.js");
+    const root_dir = URL.resolveRelative("./temp/");
+    const completer_wat = URL.resolveRelative("./build/recognizer.wat", root_dir);
+    const rust_file = URL.resolveRelative("./source/parser.ts", root_dir);
+    const completer = URL.resolveRelative("./recognizer.wasm", root_dir);
+    const temp_source = URL.resolveRelative("./source/", root_dir);
+    const module_file = URL.resolveRelative("./parser.js", root_dir);
+    const jump_table_file = URL.resolveRelative("./hc_parser_buffers.js", root_dir);
     try {
 
         //Create the temp directory

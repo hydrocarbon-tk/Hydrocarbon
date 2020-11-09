@@ -263,6 +263,8 @@ function shiftReduce(
 
         outputs.push(output);
 
+        let shift_stmts = [];
+        const direct_prod_calls = [];
 
         for (const shift_groups of shift) {
 
@@ -271,32 +273,31 @@ function shiftReduce(
                 statements.unshift("prod = -1;");
             }
 
-            let i = 0;
-
-            const shift_stmts = [];
-
             for (const shift_state of getStatesFromNumericArray(shift_groups.states, states)) {
-
+                let RUN = false;
                 if (runner.ANNOTATED)
                     block.push(`//${shift_state.items.setFilter(i => i.id).map(i => (<Item>i).renderUnformattedWithProduction(grammar)).join("  :  ")}\n`);
 
-
-                i++;
-
                 const item_groups = shift_state.items.setFilter(i => i.id).group(i => i.getProduction(grammar).id);
 
-                let RUN = true;
                 //Group items based on the production they will yield 
-
-                const direct_prod_calls = [];
 
                 //for each group create a try switch statement
                 for (const items of item_groups) {
-                    const item = items[0];
+                    let LOCAL_RUN = true;
+
+
+                    const item: Item = items[0];
                     const prod_id = item.getProduction(grammar).id;
                     const productions: Map<number, Set<string>> = new Map([[prod_id, new Set()]]);
                     let cap = items.slice(), added = new Set();
                     let ADDED = true;
+
+                    if (item.atEND) {
+                        RUN = true;
+                        continue;
+                    };
+
 
                     while (ADDED) {
                         ADDED = false;
@@ -342,31 +343,22 @@ function shiftReduce(
 
                     for (const [prod, set] of map.slice(0)) {
                         if (ll_fns[prod].IS_RD && (ll_fns[prod]?.state?.name !== state.name)) {
-                            RUN = false;
                             direct_prod_calls.push(prod);
+                            LOCAL_RUN = false;
                             break;
-                        }
-                        if (set.size > 1) break;
+                        } if (set.size > 1) break;
                     }
 
-                    if (RUN && ll_fns[prod_id])
+                    if (LOCAL_RUN && ll_fns[prod_id].IS_RD) {
+                        LOCAL_RUN = false;
                         direct_prod_calls.push(prod_id);
+                    }
 
-
+                    if (LOCAL_RUN)
+                        RUN = true;
                 }
 
-                if (direct_prod_calls.length > 0) {
-                    shift_stmts.push(...direct_prod_calls.map(prod_id => {
-                        const name = getRDFNName(grammar[prod_id]);
-                        direct_prod_calls.push(prod_id);
-                        reached_rds.add(prod_id);
-                        active_gotos.push(prod_id);
-                        output.rd_name = name;
-                        return `${name}(%%lex_name%%);`;
-                    }));
-                }
-
-                if (direct_prod_calls.length == 0) {
+                if (RUN) {
                     const item: Item = shift_state.items[0];
 
                     output.IS_PURE_RD = false;
@@ -380,45 +372,69 @@ function shiftReduce(
 
                     if (ASSERTION) {
                         if (!a_syms[0].HAS_SHIFT)
-                            block.push(createEmptyShift());
+                            shift_state_stmt += (createEmptyShift()) + "\n";
                     } else
-                        block.push(createNoCheckShift(grammar, runner));
+                        shift_state_stmt += (createNoCheckShift(grammar, runner)) + "\n";
 
-                    output.rd_name = `State${shift_state.index}`;
+                    //output.rd_name = `State${shift_state.index}`;
 
                     if (insert_functions.length > 0)
                         block.push(...insert_functions);
 
-                    shift_state_stmt = `State${shift_state.index}(%%lex_name%%)`;
+                    shift_state_stmt += `State${shift_state.index}(%%lex_name%%); \n`;
 
                     shift_stmts.push(shift_state_stmt);
 
                     state.reachable.add(shift_state.index);
                 }
             }
-
-            if (shift_stmts.length > 1) {
-                output.IS_PURE_RD = false;
-                block.push(`var $mark = mark(), sp = stack_ptr, cp = l.copy();`);
-                block.push(shift_stmts.map(str => str.replace(/\%\%lex_name\%\%/g, "cp"))
-                    .join(`if(FAILED){
-                        reset($mark)
-                        FAILED = false;
-                        stack_ptr = sp;
-                    }else{
-                        l.sync(cp);
-                        return;
-                    }`)
-                );
-            } else {
-                block.push(...shift_stmts.map(str => str.replace(/\%\%lex_name\%\%/g, "l")));
-            }
         }
+
+        if (direct_prod_calls.length > 0) {
+            if (direct_prod_calls.length > 1)
+                output.IS_PURE_RD = false;
+            shift_stmts.unshift(...direct_prod_calls.map(prod_id => {
+                const name = getRDFNName(grammar[prod_id]);
+                direct_prod_calls.push(prod_id);
+                reached_rds.add(prod_id);
+                active_gotos.push(prod_id);
+                output.rd_name = name;
+                return `${name}(%%lex_name%%);`;
+            }));
+        }
+
+        function createShiftIfElse(shift_stmts, index = 0) {
+            if (index > 0 && shift_stmts.length > index) {
+                return `if(FAILED){
+                    reset($mark); FAILED = false; stack_ptr = sp; cp = l.copy();
+                    ${shift_stmts[index].replace(/\%\%lex_name\%\%/g, "cp")};
+                    ${createShiftIfElse(shift_stmts, index + 1)}
+                }else l.sync(cp);
+                `;
+            } else if (index == 0 && shift_stmts.length > 0) {
+                const SOLO = shift_stmts.length == 1;
+
+                return ` 
+                    ${SOLO ? " " : `var $mark = mark(), sp = stack_ptr, cp = l.copy();`}
+                    ${shift_stmts[index].replace(/\%\%lex_name\%\%/g, SOLO ? "l" : "cp")}
+                    ${createShiftIfElse(shift_stmts, index + 1)} 
+                    `;
+            }
+
+            return "";
+        }
+
+        block.push(createShiftIfElse(shift_stmts));
 
         if (runner.ANNOTATED)
             block.push(`//${reduce.map(i => (<Item>i.item).renderUnformattedWithProduction(grammar)).join("  :  ")}\n`);
 
+        if (shift_stmts.length > 0 && reduce.length > 0)
+            block.push("if(FAILED){ FAILED = false; ");
         for (const { item } of reduce.slice(0, 1)) {
+
+            output.IS_PURE_RD = false;
+
             const
                 production = item.getProduction(grammar),
                 body = (<Item>item).body_(grammar);
@@ -430,6 +446,8 @@ function shiftReduce(
             else if (item.len > 1)
                 block.push(createLRReduceCompletionWithoutFn(item, grammar));
         }
+        if (shift_stmts.length > 0 && reduce.length > 0)
+            block.push("}");
     }
 
     if (outputs.length > 0) {
@@ -464,7 +482,7 @@ function shiftReduce(
                         fn_name = `_${state.index}id` + i++;
                     if (output.IS_PURE_RD) {
                         for (const s of id_syms) {
-                            const hash = `${s.id + (runner.ANNOTATED ? `/* ${s.val} */` : "")}, ${output.rd_name}`;
+                            const hash = `${s.id + (runner.ANNOTATED ? `/* ${s.val} */` : "")},/*111*/ ${output.rd_name}`;
                             id_stmt.push(`${id_name}.set(${hash})`);
                             map_hash.push(hash);
                         }
@@ -473,8 +491,9 @@ function shiftReduce(
                             fn_body = `(l:Lexer):void => {${output.stmts.join("\n")}}`,
                             name = runner.add_constant(fn_body, fn_name);
 
+                        if (!name || !name.trim()) console.log({ output, fn_body, fn_name });
                         for (const s of id_syms) {
-                            const hash = `${s.id + (runner.ANNOTATED ? `/* ${s.val} */` : "")}, ${name}`;
+                            const hash = `${s.id + (runner.ANNOTATED ? `/* ${s.val} */` : "")},${name}`;
                             id_stmt.push(`${id_name}.set(${hash})`);
                             map_hash.push(hash);
                         }
@@ -510,7 +529,7 @@ function shiftReduce(
                             name = runner.add_constant(fn_body, fn_name);
 
                         for (const s of ty_syms) {
-                            const hash = `${translateSymbolValue(s, grammar, runner.ANNOTATED)}, ${name}`;
+                            const hash = `${translateSymbolValue(s, grammar, runner.ANNOTATED)},${name}`;
                             ty_stmt.push(`${ty_name}.set(${hash})`);
                             map_hash.push(hash);
                         }
@@ -670,7 +689,6 @@ export function renderStates(
             state.function_string = renderState(state, states, grammar, runner, ll_fns, reached_rds);
 
             reached.add(state.index);
-
 
             for (const sc of getStatesFromNumericArray([...state.reachable.values()], states)) {
                 sc.REACHABLE = true;

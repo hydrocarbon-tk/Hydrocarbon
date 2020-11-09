@@ -31,7 +31,7 @@ export type AwaitTracker = {
     count: number;
 };
 
-function constructCompilerEnvironment(
+export function constructCompilerEnvironment(
     grammar_file_url: any,
     global_pending_files: { count: number; },
     local_pending_files: { count: number; },

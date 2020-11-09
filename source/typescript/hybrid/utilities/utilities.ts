@@ -87,7 +87,7 @@ export function getSkipArray(grammar: Grammar, runner: CompilerRunner) {
         .setFilter(s => s.val)
         .map(s => translateSymbolValue(s, grammar, runner.ANNOTATED));
 
-    return runner.add_constant(`[${skip_symbols.join(",")}]`, undefined, "u32[]");
+    return runner.add_constant(`StaticArray.fromArray<u32>([${skip_symbols.join(",")}])`, undefined, "");
 }
 
 export function getRootSym(sym: Symbol, grammar: Grammar) {
