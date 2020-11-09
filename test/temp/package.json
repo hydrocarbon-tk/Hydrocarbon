@@ -1,5 +1,5 @@
 {
-  "type":"module",
+  "type": "module",
   "scripts": {
     "asbuild:untouched": "asc source/parser.ts --target debug",
     "asbuild:optimized": "asc source/parser.ts --target release",
@@ -10,7 +10,7 @@
     "@assemblyscript/loader": "^0.16.1"
   },
   "devDependencies": {
-    "assemblyscript": "^0.16.1"
+    "assemblyscript": "^0.17.1"
   },
   "name": "temp",
   "version": "1.0.0",
