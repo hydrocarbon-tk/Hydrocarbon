@@ -16,8 +16,8 @@ export default function (sym, env: GrammarParserEnvironment) {
         url = sym[3],
         id = sym[6];
 
+    //load data from the other file
     const
-        //load data from the other file
         uri = default_map[url] ?? URL.resolveRelative(url, FILE_URL + ""),
 
         key = uri + "";
@@ -33,20 +33,19 @@ export default function (sym, env: GrammarParserEnvironment) {
         meta_imported_productions.set(key, Object.assign([], { SYMBOL_LIST: true, PENDING: true, LU: null }));
 
     env.AWAIT.count++;
+
     env.PENDING_FILES.count++;
 
     uri.fetchText().then(async txt => {
         let prods: Grammar = null;
 
         try {
-            prods = <Grammar>(
-                await env.grammarParser(
-                    txt,
-                    uri,
-                    env.stamp * env.body_count ** AWAIT.count + 1 + (Math.random() * 10000) | 0,
-                    meta_imported_productions,
-                    PENDING_FILES
-                )
+            prods = await env.grammarParser(
+                txt,
+                uri,
+                env.stamp * env.body_count ** AWAIT.count + 1 + (Math.random() * 10000) | 0,
+                meta_imported_productions,
+                PENDING_FILES
             );
         } catch (e) {
             console.warn("Error encountered in " + uri);
@@ -59,7 +58,7 @@ export default function (sym, env: GrammarParserEnvironment) {
         for (let i = 0; i < prods.length; i++) {
             const prod = prods[i];
 
-            if (!prod.IMPORTED) { //Only allow one level of namespacing
+            if (!prod.IMPORTED) { //Only allow one level of name spacing
 
                 prod.name = `${id}$${prod.name}`;
                 prod.IMPORTED = true;
@@ -89,7 +88,6 @@ export default function (sym, env: GrammarParserEnvironment) {
                 p.forEach(sym => {
 
                     try {
-
                         const production = prods.LU.get(sym.name);
                         sym.name = `${id}$${production.name}`;
                         sym.RESOLVED = true;
