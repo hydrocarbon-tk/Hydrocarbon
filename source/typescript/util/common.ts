@@ -129,7 +129,7 @@ export function filloutGrammar(grammar: Grammar, env) {
     const bodies = [],
         reduce_lu: Map<string, number> = new Map,
         symbols = new Map(),
-        syms = [...grammar.meta.symbols.values()];
+        syms = [...grammar?.meta?.symbols?.values() ?? []];
 
     for (let i = 0, j = 0; i < grammar.length; i++) {
         const production = grammar[i];
