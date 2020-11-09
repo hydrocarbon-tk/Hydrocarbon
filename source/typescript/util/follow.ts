@@ -43,11 +43,14 @@ export function FOLLOW(grammar: Grammar, production: number): Map<string, Symbol
 
                 if (isNonTerm(val)) {
 
+                    if (val.val == production.id) continue;
+
                     const follow = table[val.val];
 
                     for (var j = i + 1; j < body.length; j++) {
 
                         const sym = body.sym[j];
+
 
                         if (isNonTerm(sym)) {
 

@@ -342,7 +342,7 @@ const
     TokenIdentifier: i32 = 3,
     TokenNewLine: i32 = 4,
     TokenSymbol: i32 = 5,
-    TypeSymbol: i32 = 5,
+    TypeSymbol: i32 = 6,
     id: u16 = 2, 
     num: u16 = 4;
 
@@ -464,26 +464,42 @@ function _pk(lex: Lexer, /* eh, */ skips: StaticArray<u32>): Lexer {
     return lex;
 }            
 
-function _no_check(lex: Lexer, /* eh, */ skips: StaticArray<u32>):void {
-    add_shift(lex.tl);
-
-    lex.next();
-
+function _skip(lex: Lexer, skips: StaticArray<u32>):void{
     const off: u32 = lex.off;
-
-    if (skips) while (lm(lex, skips)) lex.next();
-
+    while (lm(lex, skips)) lex.next();
     const diff: i32 = lex.off-off;
-
     if(diff > 0) add_skip(diff);
 }
-        
-function _(lex: Lexer, /* eh, */ skips: StaticArray<u32>, sym: u32 = 0):void {
+
+function _no_check_with_skip(lex: Lexer, skips: StaticArray<u32>):void {
+    add_shift(lex.tl);
+    lex.next();
+    _skip(lex, skips);
+}
+
+function _no_check(lex: Lexer):void {
+    add_shift(lex.tl);
+    lex.next();
+}
+
+function _with_skip(lex: Lexer, skips: StaticArray<u32>, sym: u32 = 0):void {
 
     if(FAILED) return;
     
     if (sym == 0 || lex.id == sym || lex.ty == sym) {
-        _no_check(lex, skips);
+        _no_check_with_skip(lex, skips);
+    } else {
+        //TODO error recovery
+        soft_fail(lex);
+    }
+}
+        
+function _(lex: Lexer, sym: u32 = 0):void {
+
+    if(FAILED) return;
+    
+    if (sym == 0 || lex.id == sym || lex.ty == sym) {
+        _no_check(lex);
     } else {
         //TODO error recovery
         soft_fail(lex);
@@ -581,7 +597,7 @@ export default function main (input_string:string): boolean {
                     
                     const lexer = new Lexer(str);
                         
-                    while (lexer.off < error_off) lexer.next();
+                    while (lexer.off < error_off && !lexer.END) lexer.next();
                         
                     console.log(lexer, error_off, str.length, er);
             

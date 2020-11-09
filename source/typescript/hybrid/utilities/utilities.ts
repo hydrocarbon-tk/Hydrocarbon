@@ -51,12 +51,36 @@ export function getRDFNName(production: Production) {
     return `$${production.name}`;
 }
 
+export function addSkipCall(grammar: Grammar, runner: CompilerRunner, symbols: Set<string>) {
+    const skips = getSkipArray(grammar, runner, symbols);
+    if (skips)
+        return `_skip(l, ${skips})`;
+    return "";
+}
+
+export function createAssertionShiftWithSkip(grammar: Grammar, runner: CompilerRunner, sym: Symbol, lexer_name: string = "l"): any {
+    const skip = getSkipArray(grammar, runner, new Set);
+    if (skip)
+        return `_with_skip(${lexer_name}, ${skip}, ${translateSymbolValue(sym, grammar, runner.ANNOTATED)});`;
+    else
+        return createAssertionShift(grammar, runner, sym);
+}
+
+export function createNoCheckShiftWithSkip(grammar: Grammar, runner: CompilerRunner, lexer_name: string = "l"): any {
+    const skip = getSkipArray(grammar, runner, new Set);
+    if (skip)
+        return `_no_check_with_skip(${lexer_name}, ${skip});`;
+    else
+        return createNoCheckShift(grammar, runner, lexer_name);
+
+}
+
 export function createAssertionShift(grammar: Grammar, runner: CompilerRunner, sym: Symbol, lexer_name: string = "l"): any {
-    return `_(${lexer_name},  ${getSkipArray(grammar, runner)}, ${translateSymbolValue(sym, grammar, runner.ANNOTATED)});`;
+    return `_(${lexer_name}, ${translateSymbolValue(sym, grammar, runner.ANNOTATED)});`;
 }
 
 export function createNoCheckShift(grammar: Grammar, runner: CompilerRunner, lexer_name: string = "l"): any {
-    return `_no_check(${lexer_name}, ${getSkipArray(grammar, runner)});`;
+    return `_no_check(${lexer_name});`;
 }
 
 export function createEmptyShift(): string {
@@ -77,15 +101,20 @@ export function createDefaultReduceFunction(item: Item): string {
 }
 
 export function getUniqueSymbolName(sym: Symbol) {
+    if (!sym) return "";
     return sym.val + sym.type + (sym.DOES_SHIFT ? "----" : "");
 }
 
-export function getSkipArray(grammar: Grammar, runner: CompilerRunner) {
+export function getSkipArray(grammar: Grammar, runner: CompilerRunner, exclude_set: Set<string> = new Set) {
 
     const skip_symbols = grammar.meta.ignore.flatMap(d => d.symbols)
         .map(s => getRootSym(s, grammar))
         .setFilter(s => s.val)
+        .filter(s => !exclude_set.has(getUniqueSymbolName(s)))
         .map(s => translateSymbolValue(s, grammar, runner.ANNOTATED));
+
+    if (skip_symbols.length == 0)
+        return "";
 
     return runner.add_constant(`StaticArray.fromArray<u32>([${skip_symbols.join(",")}])`, undefined, "");
 }
@@ -180,7 +209,7 @@ export function getIncludeBooleans(syms: Symbol[], grammar: Grammar, runner: Com
         if (id.length < 3) {
             out_id = (id.map(s => `${lex_name}.id == ${s}`).join("||"));
         } else {
-            out_id = `${runner.add_constant(`[${id.join(",")}]`, undefined, "u32[]")}.includes(${lex_name}.id)`;
+            out_id = `${runner.add_constant(`StaticArray.fromArray<u32>([${id.join(",")}])`, undefined, "")}.includes(${lex_name}.id)`;
         }
     }
 
@@ -188,7 +217,7 @@ export function getIncludeBooleans(syms: Symbol[], grammar: Grammar, runner: Com
         if (ty.length < 3) {
             out_ty = (ty.map(s => `${lex_name}.ty == ${s}`).join("||"));
         } else {
-            out_ty = `${runner.add_constant(`[${ty.join(",")}]`, undefined, "u32[]")}.includes(${lex_name}.ty)`;
+            out_ty = `${runner.add_constant(`StaticArray.fromArray<u32>([${ty.join(",")}])`, undefined, "")}.includes(${lex_name}.ty)`;
         }
     }
 

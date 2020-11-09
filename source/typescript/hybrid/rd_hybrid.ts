@@ -1,7 +1,6 @@
 import { Grammar, Production, ProductionBody, EOF_SYM, SymbolType } from "../types/grammar.js";
 import { Symbol } from "../types/Symbol";
-import { processClosure, Item, createAssertionFunctionBody } from "../util/common.js";
-import { GrammarParserEnvironment } from "../types/grammar_compiler_environment";
+import { processClosure, Item } from "../util/common.js";
 import {
     createNoCheckShift,
     createAssertionShift,
@@ -13,12 +12,14 @@ import {
     createEmptyShift,
     translateSymbolValue,
     createDefaultReduceFunction,
-    addRecoveryHandlerToFunctionBodyArray
+    addRecoveryHandlerToFunctionBodyArray,
+    getUniqueSymbolName,
+    createNoCheckShiftWithSkip,
+    createAssertionShiftWithSkip
 } from "./utilities/utilities.js";
 import { RDProductionFunction } from "./types/RDProductionFunction";
 import { RDItem } from "./types/RDItem";
 import { getTerminalSymsFromClosure } from "./utilities/get_terminal_syms_from_closure.js";
-import { insertFunctions } from "./utilities/insert_body_functions.js";
 import { CompilerRunner } from "./types/CompilerRunner.js";
 const enum TOKEN_BIT {
     ID = 1,
@@ -79,8 +80,6 @@ function renderItemSym(
             stmts.push(createReduceFunction(item, grammar));
         else if (item.len > 1)
             stmts.push(createDefaultReduceFunction(item));
-
-        stmts.push(`return;`);
     } else {
         const sym = getRootSym(item.sym(grammar), grammar);
 
@@ -101,9 +100,9 @@ function renderItemSym(
                 }
             }
             else if (RENDER_WITH_NO_CHECK)
-                stmts.push(createNoCheckShift(grammar, runner));
+                stmts.push(createNoCheckShiftWithSkip(grammar, runner));
             else
-                stmts.push(createAssertionShift(grammar, runner, sym));
+                stmts.push(createAssertionShiftWithSkip(grammar, runner, sym));
         }
     }
 
@@ -113,18 +112,18 @@ function renderItemSym(
 
 function renderItem(item: Item, grammar: Grammar, runner: CompilerRunner, productions: Set<number> = new Set, DONT_CHECK = false, block_depth = 0): string {
 
-
     const stmts = (DONT_CHECK && !item.atEND) ? [] : ["if(!FAILED){"];
 
     stmts.push(renderItemSym(item, grammar, runner, productions, DONT_CHECK && block_depth > 0));
-
     if (!item.atEND) {
         const SHOULD_CHECK = DONT_CHECK
             && item.sym(grammar).type !== SymbolType.PRODUCTION
             && item.sym(grammar).type !== SymbolType.PRODUCTION_ASSERTION_FUNCTION;
         stmts.push(renderItem(item.increment(), grammar, runner, productions, SHOULD_CHECK, 1));
-    } else
+    } else {
         stmts.splice(stmts.length - 1, 0, `setProduction(${item.getProduction(grammar).id})`);
+        stmts.push(`return;`);
+    }
 
     if (!DONT_CHECK || item.atEND) stmts.push("}");
 
@@ -225,7 +224,6 @@ export function renderFunctionBody(
 
         return syms;
     });
-
 
     // Combine transition groups that have the same RDItems. Merge their transition symbols together
     const group_maps: Map<string, TransitionGroup> = new Map();

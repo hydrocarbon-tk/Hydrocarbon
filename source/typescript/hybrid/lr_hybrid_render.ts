@@ -1,5 +1,5 @@
 import { Grammar, SymbolType } from "../types/grammar.js";
-import { Item, processClosure } from "../util/common.js";
+import { FOLLOW, Item, processClosure } from "../util/common.js";
 import {
     getShiftStates,
     getStatesFromNumericArray,
@@ -15,8 +15,11 @@ import {
     createNoCheckShift,
     createEmptyShift,
     getRDFNName,
+    getUniqueSymbolName,
     createLRReduceCompletionWithFn,
-    addRecoveryHandlerToFunctionBodyArray
+    addRecoveryHandlerToFunctionBodyArray,
+    getSkipArray,
+    addSkipCall
 } from "./utilities/utilities.js";
 import { State } from "./types/State";
 import { RDProductionFunction } from "./types/RDProductionFunction.js";
@@ -80,7 +83,9 @@ function gotoState(
 
     if (gt.length > 0) {
 
-        const accepting_productions = state.items.map(i => i.getProduction(grammar).id).setFilter();
+        const accepting_productions: number[] = state.items.map(i => i.getProduction(grammar).id).setFilter();
+
+        const follow = new Map(accepting_productions.map(i => [...FOLLOW(grammar, i).entries()]).flat());
 
         //sort goto in order
         statements.push("var a:i32 = prod;");
@@ -88,9 +93,9 @@ function gotoState(
         statements.push(`while(1){  `);
 
         statements.push(
-
             `if(prod >= 0) a = prod; else break;`,
             `if(sp > stack_ptr) break; else stack_ptr += 1;`,
+            `if(${accepting_productions.map(s => `${s} == a`).join("&&")} && ${getIncludeBooleans([...follow.values()], grammar, runner)}) break;`,
             `prod = -1;`,
             `switch(a) {`
         );
@@ -169,32 +174,53 @@ function shiftReduce(
 
     const closure: Item[] = state.items.setFilter(s => s.id);
     processClosure(closure, grammar, true);
+
     const cc = closure.sort((a, b) => b.body - a.body).slice(0, -1);
+    const symbols: Set<string> = new Set();
 
 
     let HAS_SHIFT = false;
 
-    const to_process = [
-        ...getShiftStates(state).map(([sym, val]) => {
+    interface StateData {
+        type: number;
+        id: string;
+        a_sym: Symbol;
+        sym: string;
+        item?: Item,
+        index?: number;
+        states?: number[];
+    }
 
+    const to_process: StateData[] = [
+        ...getShiftStates(state).map(([sym, val]) => {
+            const symbol = getRootSym(states[val[0]].items[0].decrement().sym(grammar), grammar);
+            symbols.add(getUniqueSymbolName(symbol));
             return ({
                 type: 1,
                 id: "1S" + sym + val.join(":"),
-                a_sym: getRootSym(states[val[0]].items[0].decrement().sym(grammar), grammar),
-                sym: getRealSymValue(states[val[0]].items[0].decrement().sym(grammar)),
+                a_sym: symbol,
+                sym: getRealSymValue(symbol),
                 states: val.sort(),
             });
         }),
-        ...(getCompletedItemsNew(state).map(i => ({
-            type: 2,
-            id: "2R" + i.follow.val,
-            a_sym: getRootSym(i.follow, grammar),
-            sym: getRealSymValue(i.follow),
-            item: i,
-            index: state.index,
-        })))
+        ...(getCompletedItemsNew(state).map(i => {
+            const symbol = getRootSym(i.follow, grammar);
+            symbols.add(getUniqueSymbolName(symbol));
+
+            return ({
+                type: 2,
+                id: "2R" + i.follow.val,
+                a_sym: symbol,
+                sym: getRealSymValue(symbol),
+                item: i,
+                index: state.index
+            });
+        }))
     ];
 
+    //Create skip call
+    const skip = addSkipCall(grammar, runner, symbols);
+    if (skip) statements.push(skip);
 
     if (runner.ANNOTATED) {
         const syms = to_process.map(s => s.a_sym).map(s => s.val).setFilter();
@@ -284,20 +310,21 @@ function shiftReduce(
 
                 //for each group create a try switch statement
                 for (const items of item_groups) {
-                    let LOCAL_RUN = true;
 
+                    let LOCAL_RUN = true;
 
                     const item: Item = items[0];
                     const prod_id = item.getProduction(grammar).id;
-                    const productions: Map<number, Set<string>> = new Map([[prod_id, new Set()]]);
-                    let cap = items.slice(), added = new Set();
-                    let ADDED = true;
 
                     if (item.atEND) {
                         RUN = true;
                         continue;
                     };
 
+
+                    const productions: Map<number, Set<string>> = new Map([[prod_id, new Set()]]);
+                    let cap = items.slice(), added = new Set();
+                    let ADDED = true;
 
                     while (ADDED) {
                         ADDED = false;
@@ -349,7 +376,8 @@ function shiftReduce(
                         } if (set.size > 1) break;
                     }
 
-                    if (LOCAL_RUN && ll_fns[prod_id].IS_RD) {
+
+                    if (LOCAL_RUN && ll_fns[prod_id].IS_RD && item.offset <= 1) {
                         LOCAL_RUN = false;
                         direct_prod_calls.push(prod_id);
                     }
@@ -549,6 +577,8 @@ function shiftReduce(
     }
     return { body: statements, pre: pre_statements };
 }
+
+
 
 function isSymAnAssertFunction(s: Symbol): boolean {
     return s.type == SymbolType.PRODUCTION_ASSERTION_FUNCTION;
