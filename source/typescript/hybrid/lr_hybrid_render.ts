@@ -6,7 +6,7 @@ import {
     translateSymbolValue,
     getNonTerminalTransitionStates,
     integrateState,
-    getCompletedItemsNew,
+    getCompletedItems,
     getRootSym,
     getRealSymValue,
     getIncludeBooleans,
@@ -95,7 +95,7 @@ function gotoState(
         statements.push(
             `if(prod >= 0) a = prod; else break;`,
             `if(sp > stack_ptr) break; else stack_ptr += 1;`,
-            `if(${accepting_productions.map(s => `${s} == a`).join("&&")} && ${getIncludeBooleans([...follow.values()], grammar, runner)}) break;`,
+            `if((${accepting_productions.map(s => `${s} == a`).join("||")}) && (${getIncludeBooleans([...follow.values()], grammar, runner)})) break;`,
             `prod = -1;`,
             `switch(a) {`
         );
@@ -149,6 +149,16 @@ function gotoState(
 }
 
 
+interface StateData {
+    type: number;
+    id: string;
+    a_sym: Symbol;
+    sym: string;
+    item?: Item,
+    index?: number;
+    states?: number[];
+}
+
 function shiftReduce(
     /**  The state to reduce */
     state: State,
@@ -173,6 +183,7 @@ function shiftReduce(
     //Sort groups based on the productions they have. State indices mapped to "-" delim strings
 
     const closure: Item[] = state.items.setFilter(s => s.id);
+
     processClosure(closure, grammar, true);
 
     const cc = closure.sort((a, b) => b.body - a.body).slice(0, -1);
@@ -180,16 +191,6 @@ function shiftReduce(
 
 
     let HAS_SHIFT = false;
-
-    interface StateData {
-        type: number;
-        id: string;
-        a_sym: Symbol;
-        sym: string;
-        item?: Item,
-        index?: number;
-        states?: number[];
-    }
 
     const to_process: StateData[] = [
         ...getShiftStates(state).map(([sym, val]) => {
@@ -203,7 +204,7 @@ function shiftReduce(
                 states: val.sort(),
             });
         }),
-        ...(getCompletedItemsNew(state).map(i => {
+        ...(getCompletedItems(state).map(i => {
             const symbol = getRootSym(i.follow, grammar);
             symbols.add(getUniqueSymbolName(symbol));
 
@@ -220,11 +221,11 @@ function shiftReduce(
 
     //Create skip call
     const skip = addSkipCall(grammar, runner, symbols);
+
     if (skip) statements.push(skip);
 
     if (runner.ANNOTATED) {
         const syms = to_process.map(s => s.a_sym).map(s => s.val).setFilter();
-
         statements.push(`//anticipated token${syms.length > 1 ? "s" : ""}:[ ` + syms.sort().join(" ][ ") + " ]");
     }
 
@@ -304,17 +305,19 @@ function shiftReduce(
                 if (runner.ANNOTATED)
                     block.push(`//${shift_state.items.setFilter(i => i.id).map(i => (<Item>i).renderUnformattedWithProduction(grammar)).join("  :  ")}\n`);
 
-                const item_groups = shift_state.items.setFilter(i => i.id).group(i => i.getProduction(grammar).id);
-
+                const item_groups = shift_state.items.map(i => i.decrement()).setFilter(i => i.id).group(i => i.sym(grammar).val);
+                statements.push(`//groups: ${item_groups.length}`);
                 //Group items based on the production they will yield 
 
                 //for each group create a try switch statement
+
                 for (const items of item_groups) {
 
                     let LOCAL_RUN = true;
 
                     const item: Item = items[0];
                     const prod_id = item.getProduction(grammar).id;
+
 
                     if (item.atEND) {
                         RUN = true;
@@ -365,21 +368,27 @@ function shiftReduce(
 
                     const map = [...productions.entries()].reverse();
 
-                    if (state.name == "$E")
-                        console.log(state.name, item.renderUnformattedWithProduction(grammar), map);
-
                     for (const [prod, set] of map.slice(0)) {
-                        if (ll_fns[prod].IS_RD && (ll_fns[prod]?.state?.name !== state.name)) {
+                        if (ll_fns[prod].IS_RD /*&& (ll_fns[prod]?.state?.name !== state.name)*/) {
                             direct_prod_calls.push(prod);
                             LOCAL_RUN = false;
                             break;
                         } if (set.size > 1) break;
                     }
 
-
                     if (LOCAL_RUN && ll_fns[prod_id].IS_RD && item.offset <= 1) {
                         LOCAL_RUN = false;
                         direct_prod_calls.push(prod_id);
+                    }
+
+                    if (LOCAL_RUN) {
+                        if (item.sym(grammar).type == SymbolType.PRODUCTION) {
+                            const prod_id = item.sym(grammar).val;
+                            if (ll_fns[prod_id].IS_RD && item.offset <= 1) {
+                                LOCAL_RUN = false;
+                                direct_prod_calls.push(prod_id);
+                            }
+                        }
                     }
 
                     if (LOCAL_RUN)
@@ -418,17 +427,21 @@ function shiftReduce(
             }
         }
 
+        statements.push(`//${direct_prod_calls.map(i => grammar[i].name).join("  ")}`);
+
         if (direct_prod_calls.length > 0) {
             if (direct_prod_calls.length > 1)
                 output.IS_PURE_RD = false;
-            shift_stmts.unshift(...direct_prod_calls.map(prod_id => {
-                const name = getRDFNName(grammar[prod_id]);
-                direct_prod_calls.push(prod_id);
-                reached_rds.add(prod_id);
-                active_gotos.push(prod_id);
-                output.rd_name = name;
-                return `${name}(%%lex_name%%);`;
-            }));
+            shift_stmts.unshift(...direct_prod_calls
+                .setFilter()
+                .map(prod_id => {
+                    const name = getRDFNName(grammar[prod_id]);
+                    direct_prod_calls.push(prod_id);
+                    reached_rds.add(prod_id);
+                    active_gotos.push(prod_id);
+                    output.rd_name = name;
+                    return `${name}(%%lex_name%%);`;
+                }));
         }
 
         function createShiftIfElse(shift_stmts, index = 0) {
