@@ -7,7 +7,7 @@
 @IMPORT ./comments.hcg as cm
 
 
-@IGNORE θws θnl θtb
+@IGNORE θws θnl
 
 
 ########################################################################################################################
@@ -32,15 +32,10 @@
 																		this.IS_CONDITION = true;
 																	}
 
-<> error_function → 	
-
-	τerh : { js_data } { js_data }									↦cstr{ 
+<> error_function → τerh : { js_data } { js_data }					↦cstr{ 
 																		this.type = "ERROR_RECOVERY"; 	
 																		this.lexer_text = $sym4; 
-																		this.body_text = $sym7; 
-																		this.name = ""; 
-																		this.env = false;
-																		this.ref = ""; 	
+																		this.body_text = $sym7;
 																	}
 <> reduce_function → 
 
@@ -117,7 +112,7 @@
 	│ js_data js_data_block											↦return { $sym1 + $sym2 }
 	│ ɛ
 
-<> js_primitive → θid │ θnum │ θws │ θsym │ θkeyword │ θany 
+<> js_primitive → θid │ θnum │ θws │ θsym │ θtok │ θkey 
 	| (sym::terminal_symbol | sym::EOF_symbol)  ↦return { "<--" + $sym1.type + "^^" + $sym1.val + "-->" }
 
 <> js_data_block → { js_data }									↦return { $sym1 + $sym2 + $sym3 }

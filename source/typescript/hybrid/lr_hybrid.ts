@@ -1,7 +1,8 @@
 import { Grammar, Production, EOF_SYM, SymbolType } from "../types/grammar.js";
+import { Symbol } from "../types/Symbol.js";
 import { processClosure, Item, FOLLOW } from "../util/common.js";
 import { State } from "./types/State";
-import { Symbol } from "../../../build/types/types/grammar.js";
+import { getUniqueSymbolName } from "./utilities/utilities.js";
 
 export interface States {
     states: State[];
@@ -11,39 +12,44 @@ export interface States {
 //Integrates a LR state into existing set of states
 export function IntegrateState(production: Production, grammar: Grammar, name: string = undefined) {
 
-    const items = [...FOLLOW(grammar, production.id).values(), { type: SymbolType.GENERATED, val: "$eof" }].flatMap(sym => grammar[production.id].bodies.map(
-        b => new Item(
-            b.id,
-            b.length,
-            0,
-            sym
-        )));
+    const
+        items =
+            [
+                //...FOLLOW(grammar, production.id).values(),
+                { type: SymbolType.GENERATED, val: "$eof" }
+            ].flatMap(sym => grammar[production.id].bodies.map(
+                b => new Item(
+                    b.id,
+                    b.length,
+                    0,
+                    sym
+                ))),
 
-    const id = items
-        .map(i => i.id)
-        .setFilter(i => i)
-        .sort((a, b) => a < b ? -1 : 1).join(""),
+        id = items
+            .map(i => i.id)
+            .setFilter(i => i)
+            .sort((a, b) => a < b ? -1 : 1).join(""),
 
         sid = items
             .map(i => i.full_id)
             .filter((e, i, a) => a.indexOf(e) == i)
-            .sort((a, b) => a < b ? -1 : 1).join(":");
+            .sort((a, b) => a < b ? -1 : 1).join(":"),
 
-    //Out pops a new state. 
-    const start_state = <State>{
-        sym: "",
-        name,
-        prod_id: production.id,
-        id,
-        sid,
-        bid: "",
-        roots: [],
-        items: items.slice(),
-        index: -1,
-        REACHABLE: false,
-    };
+        //Out pops a new state. 
+        start_state = <State>{
+            sym: "",
+            name,
+            prod_id: production.id,
+            id,
+            sid,
+            bid: "",
+            roots: [],
+            items: items.slice(),
+            index: -1,
+            REACHABLE: false,
+        },
 
-    const potential_states = CompileHybridLRStates(grammar, { old_state: -1, items });
+        potential_states = CompileHybridLRStates(grammar, { old_state: -1, items });
 
     return { start_state, potential_states };
 }
@@ -61,7 +67,7 @@ export function CompileHybridLRStates(
 
     processClosure(to_process_items, grammar);
 
-    const groups = <Map<string, Map<string | number, { sym: Symbol, items: Item[]; }>>>new Map();
+    const groups = <Map<string, { sym: Symbol, items: Item[]; }>>new Map();
 
     for (const i of to_process_items) {
 
@@ -73,7 +79,7 @@ export function CompileHybridLRStates(
 
         if (sym.type == SymbolType.EMPTY || i.len == 0) continue;
 
-        if (!groups.has(val)) groups.set(val, { sym: sym, items: [] });
+        if (!groups.has(val)) groups.set(val, { sym, items: <Item[]>[] });
 
         const group = groups.get(val);
 
@@ -94,7 +100,7 @@ export function CompileHybridLRStates(
 
         //Out pops a new state. 
         potential_states.push(<State>{
-            sym: sym.val,
+            sym: sym.type == SymbolType.PRODUCTION ? sym.val : getUniqueSymbolName(sym),
             id,
             yields,
             sid,

@@ -5,10 +5,18 @@ import fs from "fs";
 import spark from "@candlefw/spark";
 import URL from "@candlefw/url";
 import { printJumpTable } from "./assemblyscript/hybrid_lexer.js";
-import asc from "assemblyscript/cli/asc.js";
+import asc from "assemblyscript/cli/asc";
 const fsp = fs.promises;
 
+
+interface CompiledHybridOptions {
+    action_array_byte_size: number,
+    error_array_byte_size: number,
+    add_annotations: boolean;
+}
+
 export async function compileHybrid(grammar: Grammar, env: GrammarParserEnvironment) {
+
 
     const mt_runner = new HybridMultiThreadRunner(grammar, env, true);
 

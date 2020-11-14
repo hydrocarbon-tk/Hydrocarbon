@@ -1,4 +1,4 @@
-@IGNORE θws θnl θtb
+@IGNORE θws θnl
 
 <>start → defaultproductions
 
@@ -35,14 +35,12 @@
 <> string > \" ( string_value | θws )(+')  \"         ↦r { $sym2 }
     | \' ( string_value | θws )(+")  \'               ↦r { $sym2 }
 
-<> string_value > (RED θws)  ( \/ | \\ | \- | \_ | θany | θnum | θid | θsym | \\ θany )(+")
-
-
+<> string_value > (RED θws)  ( \/ | \\ | \- | \_ | θany | θob | θcb | θnum | θid | θsym | \\ θany  )(+")
 
 <> js_identifier → (RED θws) js_id_symbols 
 
 <> js_id_symbols →  js_id_symbols θid           ↦r { $sym1 + $sym2 }
-    │ js_id_symbols θkeyword                    ↦r { $sym1 + $sym2 }
+    │ js_id_symbols θkey                        ↦r { $sym1 + $sym2 }
     │ js_id_symbols \_                          ↦r { $sym1 + $sym2 }
     │ js_id_symbols \$                          ↦r { $sym1 + $sym2 }
     │ js_id_symbols θnum                        ↦r { $sym1 + $sym2 }
@@ -52,11 +50,11 @@
     │ \_ 
     │ \$ 
     │ θid
+    │ θkey
 
 <> identifier → (RED θws) identifier_symbols 
 
 <> identifier_symbols →  identifier_symbols θid      ↦r { $sym1 + $sym2 }
-    │ identifier_symbols θkeyword                    ↦r { $sym1 + $sym2 }
     │ identifier_symbols \_                          ↦r { $sym1 + $sym2 }
     │ identifier_symbols \-                          ↦r { $sym1 + $sym2 }
     │ identifier_symbols \$                          ↦r { $sym1 + $sym2 }
@@ -64,7 +62,6 @@
     │ identifier_symbols θhex                        ↦r { $sym1 + $sym2 }
     │ identifier_symbols θbin                        ↦r { $sym1 + $sym2 }
     │ identifier_symbols θoct                        ↦r { $sym1 + $sym2 }
-    | θnum
     │ \_ 
     │ \$ 
     │ θid

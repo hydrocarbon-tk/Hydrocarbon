@@ -21,13 +21,13 @@ type WorkerContainer = {
 };
 
 
-function buildIfs(syms: Symbol[], off = 0, USE_MAX = false) {
+function buildIfs(syms: Symbol[], off = 0, USE_MAX = false, token_val = "TokenSymbol") {
     const stmts: string[] = [];
 
     for (const sym of syms) {
         if (sym.val.length <= off) {
             if (USE_MAX)
-                stmts.unshift(`if(length <= ${off}){type = TokenSymbol; this.id =${sym.id}; length = ${off};}`);
+                stmts.unshift(`if(length <= ${off}){type = ${token_val}; this.id =${sym.id}; length = ${off};}`);
             else
                 stmts.unshift(`type = TokenSymbol; this.id =${sym.id} /* ${sym.val} */; length = ${off};`);
         }
@@ -40,7 +40,7 @@ function buildIfs(syms: Symbol[], off = 0, USE_MAX = false) {
         const v = group[0].val[off];
         stmts.push(
             `${first ? "" : "else "}if(val == ${v.charCodeAt(0)} ){`,
-            ...buildIfs(group, off + 1, USE_MAX),
+            ...buildIfs(group, off + 1, USE_MAX, token_val),
             "}"
         );
         first = false;
@@ -84,7 +84,7 @@ export class HybridMultiThreadRunner {
         }
 
         this.sym_ifs = buildIfs(syms.sort((a, b) => a.id - b.id)).join("\n");
-        this.keywords = buildIfs(keywords.sort((a, b) => a.id - b.id), 0, true).join("\n");
+        this.keywords = buildIfs(keywords.sort((a, b) => a.id - b.id), 0, true, "TokenKeyword").join("\n");
 
         this.RUN = true;
 
@@ -343,6 +343,7 @@ const
     TokenNewLine: i32 = 4,
     TokenSymbol: i32 = 5,
     TypeSymbol: i32 = 6,
+    TokenKeyword: i32 = 7,
     id: u16 = 2, 
     num: u16 = 4;
 
@@ -365,34 +366,38 @@ function set_action(val: u32):void{
     store<u32>(((action_ptr++) << 2) + (action_array_offset), val);
 }
 
-function completeProductionPlain(len: u32, production: u32): void {
-    stack_ptr -= len;
-    prod = production;
-}
-
 function completeProduction(body: u32, len: u32, production: u32): void {
     add_reduce(len, body);
     prod = production;
 }
 
-function completeGOTO1(l:Lexer, sp:u32, a:u32, A:u32):void{
-    if (sp <= stack_ptr) prod = a;
-    if (A != a) soft_fail(l); else FAILED = false;
+function completeGOTO1(l:Lexer, sp:u32, A:u32):void{
+    if (sp <= stack_ptr) {
+        stack_ptr++;
+        if (A != prod) soft_fail(l); else FAILED = false;
+    }
 }
 
-function completeGOTO2(l:Lexer, sp:u32, a:u32, A:u32, B:u32):void{
-    if (sp <= stack_ptr) prod = a;
-    if (A != a && B != a) soft_fail(l); else FAILED = false;
+function completeGOTO2(l:Lexer, sp:u32, A:u32, B:u32):void{
+    if (sp <= stack_ptr){
+        stack_ptr++;
+
+        if (A != prod && B != prod) soft_fail(l); else FAILED = false;
+    }
 }
 
-function completeGOTO3(l:Lexer, sp:u32, a:u32, A:u32, B:u32, C:u32):void{
-    if (sp <= stack_ptr) prod = a;
-    if (A != a && B != a && C != a) soft_fail(l); else FAILED = false;
+function completeGOTO3(l:Lexer, sp:u32, A:u32, B:u32, C:u32):void{
+    if (sp <= stack_ptr) {
+        stack_ptr++;
+        if (A != prod && B != prod && C != prod) soft_fail(l); else FAILED = false;
+    }
 }
 
-function completeGOTO4(l:Lexer, sp:u32, a:u32, A:u32, B:u32, C:u32, D:u32):void{
-    if (sp <= stack_ptr) prod = a;
-    if (A != a && B != a&& C != a&& D != a) soft_fail(l); else FAILED = false;
+function completeGOTO4(l:Lexer, sp:u32, A:u32, B:u32, C:u32, D:u32):void{
+    if (sp <= stack_ptr) {
+        stack_ptr++;
+        if (A != prod && B != prod&& C != prod&& D != prod) soft_fail(l); else FAILED = false;
+    }
 }
 
 @inline
@@ -414,15 +419,19 @@ function add_skip(char_len: u32): void {
 }
 
 function add_shift(char_len: u32): void {
-    stack_ptr++;
+    //stack_ptr++;
     const ACTION: u32 = 2;
     const val: u32 = ACTION | (char_len << 2);
     set_action(val);
 }
 
-@inline
+function completeProductionPlain(len: u32, production: u32): void {
+    //stack_ptr -= len;
+    prod = production;
+}
+
 function add_reduce(sym_len: u32, body: u32): void {
-    stack_ptr -= sym_len;
+    //stack_ptr -= sym_len;
     const ACTION: u32 = 1;
     const val: u32 = ACTION | ((sym_len & 0x3FFF) << 2) | (body << 16);
     set_action(val);
@@ -509,13 +518,15 @@ function _(lex: Lexer, sym: u32 = 0):void {
 var prob_index = 0;
 //For Debugging
 function probe(l: Lexer, id: u32 = 1): void {
-    set_error(prob_index + 1001 + id * 10000);
+    set_error(0xF000000F + (id << 16) + (prob_index << 4));
     set_error(l.ty);
     set_error(l.id);
     set_error(l.tl);
+    set_error(l.off);
     set_error(prod);
+    set_error(stack_ptr);
     set_error(FAILED);
-    set_error(prob_index++ + 2001 + id * 10000);
+    set_error(0xF000000F + (id << 16) + ((prob_index++) << 4));
 }
 
 ${[...assert_functions.values()].join("\n")}
@@ -574,7 +585,7 @@ export default function main (input_string:string): boolean {
 
             await URL.server();
 
-            const wasmModule = await loader.instantiate(await URL.resolveRelative("./recognizer.wasm").fetchBuffer(), { env: { memory: shared_memory } }),
+            const wasmModule = await loader.instantiate(await URL.resolveRelative("./untouched.wasm").fetchBuffer(), { env: { memory: shared_memory } }),
             
             { main, __allocString } = wasmModule.exports;
 
@@ -591,16 +602,56 @@ export default function main (input_string:string): boolean {
                 if (FAILED) {
                     
                     let error_off = 0;
-                    
-                    for(let i = 0; i < er.length && er[i]; i++)
-                        error_off  = Math.max(error_off, er[i]);
-                    
+
+
                     const lexer = new Lexer(str);
-                        
+                    const probes = [];
+                    //Extract any probes
+                    for (let i = 0; i < er.length; i++) {
+                        if (((er[i] & 0xF000000F) >>> 0) == 0xF000000F) {
+                            const num = er[i] & 0xFFFFFF0;
+                            const sequence = (num >> 4) & 0xFFF;
+                            const identifier = (num >> 16) & 0xFFF;
+                            const token_type = [
+                                "TokenEndOfLine",
+                                "TokenSpace",
+                                "TokenNumber",
+                                "TokenIdentifier",
+                                "TokenNewLine",
+                                "TokenSymbol",
+                                "TypeSymbol",
+                                "TokenKeyword",
+                            ][er[i + 1]];
+                            const id = er[i + 2];
+                            const token_length = er[i + 3];
+                            const offset = er[i + 4];
+                            const prod = er[i + 5] << 0;
+                            const stack_ptr = er[i + 6];
+                            const FAILED = !!er[i + 7];
+                            i += 8;
+                            const cp = lexer.copy();
+                            cp.off = offset;
+                            cp.tl = token_length;
+                            probes.push({
+                                identifier,
+                                str: cp.tx,
+                                token_type,
+                                id,
+                                token_length,
+                                offset,
+                                stack_ptr,
+                                prod,
+                                FAILED
+                            });
+                        } else {
+                            error_off = Math.max(error_off, er[i]);
+                        }
+                    }
+        
                     while (lexer.off < error_off && !lexer.END) lexer.next();
-                        
-                    console.log(lexer, error_off, str.length, er);
-            
+                    console.table(probes);
+                    console.log(error_off, str.length);
+        
                     lexer.throw(\`Unexpected token[\${ lexer.tx }]\`);
             
                 } else {

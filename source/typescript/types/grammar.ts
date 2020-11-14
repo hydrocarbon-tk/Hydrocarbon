@@ -15,7 +15,8 @@ export enum SymbolType {
     SYMBOL = "symbol",
     EMPTY = "empty",
     END_OF_FILE = "eof",
-    PRODUCTION_ASSERTION_FUNCTION = "assert_token_function"
+    PRODUCTION_ASSERTION_FUNCTION = "assert_token_function",
+    END_OF_ITEM = "END_OF_ITEM"
 }
 
 export const EOF_SYM: Symbol = { val: "$eof", precedence: 0, type: SymbolType.GENERATED };

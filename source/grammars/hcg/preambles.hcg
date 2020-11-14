@@ -11,7 +11,7 @@
 @IMPORT ./symbols.hcg as sym
 
 
-@IGNORE θws θnl θtb
+@IGNORE θws θnl
 
 
 # Productions can be defined through the [ <> ID → symbol ... ] form as will 
@@ -61,7 +61,6 @@
 <> symbols_preamble → 		@ τSYMBOL  sym::lexer_symbol(+)  θnl 	↦cstr{ 
 																			this.type="symbols"; 
 																			this.symbols = $sym3;
-																			this.symbols.map(sym=>sym.val ? sym.val : sym ).forEach(lex.addSymbol.bind(lex));
 																		 }
 
 # When the parser reaches the end of a production and is ready to reduce,

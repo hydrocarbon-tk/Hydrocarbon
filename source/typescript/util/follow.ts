@@ -14,17 +14,19 @@ const merge = (follow, first) => {
     });
 };
 
-export function FOLLOW(grammar: Grammar, production: number): Map<string, Symbol> {
+export function FOLLOW(grammar: Grammar, production: number, IGNORE_SELF_RECURSION = false): Map<string, Symbol> {
 
     const
         prod = grammar[production],
-        table = [];
+        table: Map<string, Symbol>[] = [],
+        excludes: Map<string, Symbol>[] = [];
 
     if (prod.follow) return grammar[production].follow;
 
     for (let i = 0; i < grammar.length; i++) {
         grammar[i].follow = new Map();
         table.push(grammar[i].follow);
+        excludes.push(new Map);
     }
 
     table[0].set("$eof", EOF_SYM); //End of Line
@@ -39,28 +41,29 @@ export function FOLLOW(grammar: Grammar, production: number): Map<string, Symbol
 
             for (let i = 0; i < body.length; i++) {
 
-                const val = body.sym[i];
+                const sym = body.sym[i];
 
-                if (isNonTerm(val)) {
+                if (isNonTerm(sym)) {
 
-                    if (val.val == production.id) continue;
+                    const ADD_TO_EXCLUDES = (!IGNORE_SELF_RECURSION && sym.val == production.id);
 
-                    const follow = table[val.val];
+                    const follow = table[sym.val];
+                    const exclude = excludes[sym.val];
 
                     for (var j = i + 1; j < body.length; j++) {
 
                         const sym = body.sym[j];
 
-
                         if (isNonTerm(sym)) {
+                            const syms = FIRST(grammar, sym);
 
-                            merge(follow, FIRST(grammar, sym));
+                            merge((ADD_TO_EXCLUDES ? exclude : follow), syms);
 
-                            if (new Set(FIRST(grammar, sym)).has(EMPTY_PRODUCTION))
+                            if (new Set(syms).has(EMPTY_PRODUCTION))
                                 continue;
                         } else {
                             if (sym.type != SymbolType.EMPTY)
-                                follow.set(sym.val, sym);
+                                (ADD_TO_EXCLUDES ? exclude : follow).set(sym.val, sym);
                         }
                         break;
                     }
@@ -69,6 +72,13 @@ export function FOLLOW(grammar: Grammar, production: number): Map<string, Symbol
             }
         }
     }
+
+    //Clear off excluded values.
+    for (let i = 0; i < grammar.length; i++)
+        for (const key of excludes[i].keys())
+            table[i].delete(key);
+
+
 
     for (let production_index = 0; production_index < grammar.length; production_index++) {
 

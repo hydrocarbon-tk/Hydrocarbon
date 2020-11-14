@@ -1,4 +1,4 @@
-@IGNORE θws θnl θtb
+@IGNORE θws θnl
 
 ########################################################################################################################
 ######################################  COMMENTS
@@ -13,4 +13,4 @@
 <> comment_data → comment_primitive 								↦return { $sym1 }
 			 │ comment_data comment_primitive						↦return { $sym1 + $sym2 }
 
-<> comment_primitive → θany │ θws │ \@ │ \( │ \{
+<> comment_primitive → θsym | θtok | θid | θnum | θws | θkeyword

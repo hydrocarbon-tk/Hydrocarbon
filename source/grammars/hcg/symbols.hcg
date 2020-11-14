@@ -8,7 +8,7 @@
 @IMPORT ../misc/default-productions.hcg as def
 
 
-@IGNORE θws θnl θtb
+@IGNORE θws θnl
 
 
 #######################################################################################################################
@@ -57,10 +57,9 @@
 	# A delimiter "terminal_symbol" can be defined to cause the parser to match such productions as { sym , sym , sym ...} 
 	# or { term . term . term ...}. If the "terminal_symbol" is a single or double quotation (\" or \') then the production
 	# values are automatically reduced to a string. 
-
-	│ symbol ( \(+ │ \(* )  terminal_symbol?  \) 	↦cstr ^listProduction
-													
-	│ θany											↦cstr{ this.type = "symbol"; this.val = $sym1; this.pos = pos}
+	│ symbol ( \(+ │ \(* )  terminal_symbol?  \) 	↦cstr ^listProduction											
+	│ θsym											↦cstr{ this.type = "symbol"; this.val = $sym1; this.pos = pos}
+	| θtok
 
 <> EOF_symbol → 
 	\$eof  											↦cstr{ this.type = "eof"; this.val = "$eof"; this.pos = pos }
@@ -79,7 +78,7 @@
 	( \τ │ τt \: ) (ERR θws θnl)  ( identifier │ def::natural ) ↦cstr{ this.type = "literal"; this.val = ""+$sym2; this.pos = pos }
 
 <> escaped_symbol → 
-	\\ (ERR θws θnl)  θany 							↦cstr{ this.type = "symbol"; this.val = $sym2; this.pos = pos }
+	\\ (ERR θws θnl)  ( θid | θtok | θsym ) 							↦cstr{ this.type = "symbol"; this.val = $sym2; this.pos = pos }
 
 <> production_symbol → 
 	identifier 										↦cstr{ this.type = "production"; this.name = $sym1; this.val = -1; this.pos = pos}
@@ -89,6 +88,6 @@
 
 <> production_id → identifier
 
-<> identifier →  def::id
+<> identifier →  def::js_identifier
 
 <> js_identifier →  def::id

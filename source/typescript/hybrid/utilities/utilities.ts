@@ -51,15 +51,15 @@ export function getRDFNName(production: Production) {
     return `$${production.name}`;
 }
 
-export function addSkipCall(grammar: Grammar, runner: CompilerRunner, symbols: Set<string>) {
-    const skips = getSkipArray(grammar, runner, symbols);
-    if (skips)
+export function addSkipCall(grammar: Grammar, runner: CompilerRunner, exclude_set: Array<Symbol> | Set<string>) {
+    const skips = getSkipArray(grammar, runner, exclude_set);
+    if (skips.length > 0)
         return `_skip(l, ${skips})`;
     return "";
 }
 
-export function createAssertionShiftWithSkip(grammar: Grammar, runner: CompilerRunner, sym: Symbol, lexer_name: string = "l"): any {
-    const skip = getSkipArray(grammar, runner, new Set);
+export function createAssertionShiftWithSkip(grammar: Grammar, runner: CompilerRunner, sym: Symbol, lexer_name: string = "l", exclude_set: Symbol[] | Set<string> = new Set): any {
+    const skip = getSkipArray(grammar, runner, exclude_set);
     if (skip)
         return `_with_skip(${lexer_name}, ${skip}, ${translateSymbolValue(sym, grammar, runner.ANNOTATED)});`;
     else
@@ -105,7 +105,11 @@ export function getUniqueSymbolName(sym: Symbol) {
     return sym.val + sym.type + (sym.DOES_SHIFT ? "----" : "");
 }
 
-export function getSkipArray(grammar: Grammar, runner: CompilerRunner, exclude_set: Set<string> = new Set) {
+export function getSkipArray(grammar: Grammar, runner: CompilerRunner, exclude_set: Set<string> | Symbol[] = new Set) {
+
+    if (Array.isArray(exclude_set)) {
+        exclude_set = new Set(exclude_set.map(e => getUniqueSymbolName(e)));
+    }
 
     const skip_symbols = grammar.meta.ignore.flatMap(d => d.symbols)
         .map(s => getRootSym(s, grammar))
@@ -166,6 +170,7 @@ export function translateSymbolValue(sym: Symbol, grammar: Grammar, ANNOTATED: b
                 case "id": return 3 + annotation;
                 case "nl": return 4 + annotation;
                 case "tok": return 5 + annotation;
+                case "key": return 7 + annotation;
                 default:
                 case "sym": return 6 + annotation;
             }
@@ -198,7 +203,8 @@ export function getIncludeBooleans(syms: Symbol[], grammar: Grammar, runner: Com
             .map(s => translateSymbolValue(s, grammar, runner.ANNOTATED))
             .setFilter().sort();
 
-    if (id.length + ty.length == 0) console.log(syms);
+    if (id.length + ty.length == 0)
+        return "";
 
     let out_id, out_ty, out_fn;
 
@@ -206,7 +212,7 @@ export function getIncludeBooleans(syms: Symbol[], grammar: Grammar, runner: Com
         out_fn = (fn.map(s => `${fn}`).join("||"));
 
     if (id.length > 0) {
-        if (id.length < 3) {
+        if (id.length < 8) {
             out_id = (id.map(s => `${lex_name}.id == ${s}`).join("||"));
         } else {
             out_id = `${runner.add_constant(`StaticArray.fromArray<u32>([${id.join(",")}])`, undefined, "")}.includes(${lex_name}.id)`;
@@ -214,7 +220,7 @@ export function getIncludeBooleans(syms: Symbol[], grammar: Grammar, runner: Com
     }
 
     if (ty.length > 0) {
-        if (ty.length < 3) {
+        if (ty.length < 8) {
             out_ty = (ty.map(s => `${lex_name}.ty == ${s}`).join("||"));
         } else {
             out_ty = `${runner.add_constant(`StaticArray.fromArray<u32>([${ty.join(",")}])`, undefined, "")}.includes(${lex_name}.ty)`;
@@ -251,14 +257,14 @@ export function getRealSymValue(sym: Symbol) {
     return val;
 }
 //
-export function integrateState(state: State, existing_refs: Set<number>): string {
+export function integrateState(state: State, existing_refs: Set<number>, lex_name: string = "l"): string {
 
     if (!existing_refs.has(state.index))
         existing_refs.add(state.index);
 
-    return `State${state.index}(l)`;
+    return `State${state.index}(${lex_name})`;
 }
-export function getCompletedItemsNew(state: State): Item[] {
+export function getCompletedItems(state: State): Item[] {
     return state.items.filter(e => e.atEND);
 }
 export function getShiftStates(state: State): [string | number, number[]][] {

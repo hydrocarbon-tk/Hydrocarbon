@@ -170,26 +170,26 @@ class Lexer {
         switch (load<u16>(0 + (code << 1)) & 255) {
             default:
             case 0: //SYMBOL
-                type = TypeSymbol;
+                this.id = type = TypeSymbol;
                 break;
             case 1: //IDENTIFIER
                 while (1) {
                     while (++off < l && (((id | num) & (load<u16>(0 + (str.codePointAt(off) << 1)) >> 8))));
-                    type = TokenIdentifier;
+                    this.id = type = TokenIdentifier;
                     length = off - base;
                     break;
                 } break;
             case 2: //SPACE SET
-                type = TokenSpace;
+                this.id = type = TokenSpace;
                 break;
             case 3: //CARRIAGE RETURN
                 length = 2;
             //intentional
             case 4: //LINEFEED
-                type = TokenNewLine;
+                this.id = type = TokenNewLine;
                 break;
             case 5: //NUMBER
-                type = TokenNumber;
+                this.id = type = TokenNumber;
                 //Check for binary, hexadecimal, and octal representation
                 while (++off < l && (num & (load<u16>(0 + (str.codePointAt(off) << 1)) >> 8)));
                 length = off - base;
@@ -198,7 +198,7 @@ class Lexer {
         if (type == TokenIdentifier) {
             ${keywords}
         }
-        if (type == TypeSymbol) {
+        if (type == TypeSymbol || type == TokenIdentifier) {
             ${syms}
         }
 

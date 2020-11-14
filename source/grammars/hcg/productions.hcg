@@ -1,5 +1,5 @@
 
-@SYMBOL <> +>
+@SYMBOL <> +> ::
 
 
 @IMPORT ./production_bodies.hcg as pb
@@ -14,11 +14,12 @@
 @IMPORT ./comments.hcg as cm
 
 
-@IGNORE θws θnl θtb
+@IGNORE θws θnl
 
 ########################################################################################################################
 ######################################  PRODUCTIONS
 ########################################################################################################################
+<> start > productions
 
 <> productions → production  										
 															↦return {  
@@ -49,7 +50,7 @@
  
 <> production → 
 	
-	\<>  sym::production_id production_start_symbol  pb::production_bodies ( ( \│ │ \| ) fn::error_function )? 
+	\<>  ( sym::production_id ↦r{ env.prod_name = $sym.name, $sym1 } ) production_start_symbol  pb::production_bodies ( ( \│ │ \| ) fn::error_function )? 
 																		
 															↦cstr{ 
 																this.name = $sym2; 
@@ -61,7 +62,7 @@
 
 	# REDEFINED IMPORT production. Allows an imported production to be redefined entirely. 
 
-	│ \<> sym::imported_production_symbol ↦{ env.host_lex = lex.copy(); env.prod_name = sym[sym.length - 1].name; } production_start_symbol pb::production_bodies
+	│ \<> ( sym::imported_production_symbol ↦r{ env.prod_name = $sym.name, $sym1 } ) production_start_symbol pb::production_bodies
 
 															↦cstr{ 
 																this.IMPORT_OVERRIDE = true;
@@ -73,7 +74,7 @@
 
 	# APPENDED IMPORT production. Allows additional bodies to defined for productions imported from other files. 
 
-	│ \+> sym::imported_production_symbol ↦{ env.host_lex = lex.copy(); env.prod_name = sym[sym.length - 1].name;} production_start_symbol  pb::production_bodies
+	│ \+> ( sym::imported_production_symbol ↦r{ env.prod_name = $sym.name, $sym1 } ) production_start_symbol  pb::production_bodies
 
 															↦cstr{ 
 																this.IMPORT_APPEND = true;
@@ -83,5 +84,4 @@
 																env.functions.compileProduction(this, env, pos);
 															}
 	
-<> production_start_symbol → ↦{ env.host_lex = lex.copy(); env.prod_name = sym[sym.length - 1] } \→ 
-	│ ↦{ env.host_lex = lex.copy(); env.prod_name = sym[sym.length - 1] } \>
+<> production_start_symbol → \→ | \>
