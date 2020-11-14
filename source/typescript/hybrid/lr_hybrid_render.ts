@@ -175,10 +175,19 @@ function shiftReduce(
             [
                 ...state.items.filter(i => i.atEND).map(i => getUniqueSymbolName(i.follow)),
                 ...[...state.maps.keys()].filter(d => (typeof d == "string"))
-            ];
+            ],
+        follow_symbols =
+            state.items
+                .map(i => i.getProduction(grammar).id)
+                .setFilter()
+                .map(id => [...FOLLOW(grammar, id, true).values()])
+                .flat()
+                .filter(sym => !state_symbol_names.includes(getUniqueSymbolName(sym))),
+
+        new_outputs: Map<string, Output[]> = new Map;
 
     //Create skip call
-    const skip = addSkipCall(grammar, runner, <any>new Set(state_symbol_names));
+    const skip = addSkipCall(grammar, runner, <any>new Set([...state_symbol_names, ...follow_symbols.map(getUniqueSymbolName)]));
     if (skip) statements.push(skip);
 
     //Group all states transitions / reductions based on symbols. 
@@ -218,15 +227,7 @@ function shiftReduce(
         prod_id?: number;
     };
 
-    const
-        follow_symbols =
-            state.items
-                .map(i => i.getProduction(grammar).id)
-                .setFilter()
-                .map(id => [...FOLLOW(grammar, id, true).values()])
-                .flat()
-                .filter(sym => !state_symbol_names.includes(getUniqueSymbolName(sym))),
-        new_outputs: Map<string, Output[]> = new Map;
+
 
     function getMappedArray<Val>(string: string, map: Map<string, Val[]>): Val[] {
         if (!map.has(string))
