@@ -15,7 +15,7 @@ export function IntegrateState(production: Production, grammar: Grammar, name: s
     const
         items =
             [
-                //...FOLLOW(grammar, production.id).values(),
+                ...FOLLOW(grammar, production.id).values(),
                 { type: SymbolType.GENERATED, val: "$eof" }
             ].flatMap(sym => grammar[production.id].bodies.map(
                 b => new Item(
