@@ -371,35 +371,6 @@ function completeProduction(body: u32, len: u32, production: u32): void {
     prod = production;
 }
 
-function completeGOTO1(l:Lexer, sp:u32, A:u32):void{
-    if (sp <= stack_ptr) {
-        stack_ptr++;
-        if (A != prod) soft_fail(l); else FAILED = false;
-    }
-}
-
-function completeGOTO2(l:Lexer, sp:u32, A:u32, B:u32):void{
-    if (sp <= stack_ptr){
-        stack_ptr++;
-
-        if (A != prod && B != prod) soft_fail(l); else FAILED = false;
-    }
-}
-
-function completeGOTO3(l:Lexer, sp:u32, A:u32, B:u32, C:u32):void{
-    if (sp <= stack_ptr) {
-        stack_ptr++;
-        if (A != prod && B != prod && C != prod) soft_fail(l); else FAILED = false;
-    }
-}
-
-function completeGOTO4(l:Lexer, sp:u32, A:u32, B:u32, C:u32, D:u32):void{
-    if (sp <= stack_ptr) {
-        stack_ptr++;
-        if (A != prod && B != prod&& C != prod&& D != prod) soft_fail(l); else FAILED = false;
-    }
-}
-
 @inline
 function mark (): u32{
     mark_ = action_ptr;

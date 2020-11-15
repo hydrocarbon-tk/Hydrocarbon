@@ -105,6 +105,9 @@ export function getUniqueSymbolName(sym: Symbol) {
     return sym.val + sym.type + (sym.DOES_SHIFT ? "----" : "");
 }
 
+export function getSymbolFromUniqueName(grammar: Grammar, name: string): Symbol {
+    return grammar.meta.all_symbols.get(name);
+}
 export function getSkipArray(grammar: Grammar, runner: CompilerRunner, exclude_set: Set<string> | Symbol[] = new Set) {
 
     if (Array.isArray(exclude_set)) {
@@ -260,25 +263,25 @@ export function getRealSymValue(sym: Symbol) {
 
     return val;
 }
+
+
+function filteredMapOfSet<A, T>(set: Set<A>, fn: (a: A) => T): T[] {
+    const mapped_array: T[] = [];
+
+    for (const a of set.values()) {
+        const v = fn(a);
+        if (v !== undefined)
+            mapped_array.push(v);
+    }
+
+    return mapped_array;
+}
 export function getLRStateSymbolsAndFollow(state: State, grammar: Grammar): { state_symbols: Symbol[]; follow_symbols: Symbol[]; } {
-    if (state.sym_fol)
-        return state.sym_fol;
-
-    const
-        state_symbols: Symbol[] = [
-            ...state.items.filter(i => i.atEND).map(i => getUniqueSymbolName(i.follow)),
-            ...[...state.maps.keys()].filter(d => (typeof d == "string"))
-        ].map(s => grammar.meta.all_symbols.get(<string>s)),
-        follow_symbols: Symbol[] = state.items
-            .map(i => i.getProduction(grammar).id)
-            .setFilter()
-            .map(id => [...FOLLOW(grammar, id, true).values()])
-            .flat()
-            .filter(sym => !state_symbols.some(s => getUniqueSymbolName(s) == getUniqueSymbolName(sym)));
-
-    state.sym_fol = { state_symbols, follow_symbols };
-
-    return getLRStateSymbolsAndFollow(state, grammar);
+    //get the exclusion set from follow
+    return {
+        state_symbols: filteredMapOfSet(state.shift_symbols, name => getSymbolFromUniqueName(grammar, name)),
+        follow_symbols: filteredMapOfSet(state.follow_symbols, name => state.shift_symbols.has(name) ? undefined : getSymbolFromUniqueName(grammar, name)),
+    };
 }
 export function integrateState(state: State, existing_refs: Set<number>, lex_name: string = "l"): string {
 

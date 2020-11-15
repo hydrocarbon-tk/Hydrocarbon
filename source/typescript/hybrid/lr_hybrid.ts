@@ -16,7 +16,7 @@ export function IntegrateState(production: Production, grammar: Grammar, name: s
         items =
             [
                 ...FOLLOW(grammar, production.id).values(),
-                { type: SymbolType.GENERATED, val: "$eof" }
+                grammar.meta.all_symbols.get("$eofgenerated")
             ].flatMap(sym => grammar[production.id].bodies.map(
                 b => new Item(
                     b.id,
@@ -45,6 +45,8 @@ export function IntegrateState(production: Production, grammar: Grammar, name: s
             bid: "",
             roots: [],
             items: items.slice(),
+            follow_symbols: new Set,
+            shift_symbols: new Set,
             index: -1,
             REACHABLE: false,
         },
@@ -107,6 +109,8 @@ export function CompileHybridLRStates(
             bid: unique_items.map(i => i.renderUnformattedWithProduction(grammar)).join(" :\n "),
             roots: [],
             items,
+            follow_symbols: new Set,
+            shift_symbols: new Set,
             index: -1,
             old_state_index: old_state,
             REACHABLE: false
@@ -148,6 +152,9 @@ export function mergeState(
         if (!old_state.maps.has(sym))
             old_state.maps.set(sym, []);
 
+        if (typeof sym == "string")
+            old_state.shift_symbols.add(sym);
+
         const transition_map = old_state.maps.get(sym);
 
         if (transition_map.indexOf(active_state.index) < 0)
@@ -162,6 +169,8 @@ export function mergeState(
         if (!active_state.state_merge_tracking.has(i.full_id)) {
             active_state.state_merge_tracking.add(i.full_id);
             active_state.items.push(i);
+            // if (i.atEND)
+            active_state.follow_symbols.add(getUniqueSymbolName(i.follow));
             out_items.push(i);
         }
     }

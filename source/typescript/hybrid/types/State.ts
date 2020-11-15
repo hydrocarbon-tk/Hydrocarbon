@@ -55,6 +55,15 @@ export interface State {
      */
     maps?: Map<number | string, number[]>;
 
+    /**
+     * All symbols that can be encountered that lead to a shift in this state.
+     */
+    shift_symbols: Set<string>;
+
+    /**
+     * All symbols that follow an item in this state. 
+     */
+    follow_symbols: Set<string>;
 
     /**
      * A set of state indices that are called from this state.
