@@ -4,7 +4,7 @@ import { Symbol } from "../../types/Symbol";
 import { State } from "../types/State.js";
 import { Item } from "../../util/item.js";
 import { CompilerRunner } from "../types/CompilerRunner.js";
-import { createAssertionFunctionBody } from "../../util/common.js";
+import { createAssertionFunctionBody, FOLLOW } from "../../util/common.js";
 
 
 
@@ -189,45 +189,49 @@ export function translateSymbolValue(sym: Symbol, grammar: Grammar, ANNOTATED: b
 }
 
 
-export function getIncludeBooleans(syms: Symbol[], grammar: Grammar, runner: CompilerRunner, lex_name: string = "l") {
-    syms = syms.map(s => getRootSym(s, grammar));
+export function getIncludeBooleans(syms: Symbol[], grammar: Grammar, runner: CompilerRunner, lex_name: string = "l", exclude_symbols: Symbol[] = []) {
 
-    const
-        id = syms.filter(s => s.id != undefined & s.type !== SymbolType.PRODUCTION_ASSERTION_FUNCTION)
-            .map(s => s.id + (runner.ANNOTATED ? `/* ${s.val} */` : ""))
-            .setFilter().sort(),
-        ty = syms.filter(s => s.type == SymbolType.GENERATED)
-            .map(s => translateSymbolValue(s, grammar, runner.ANNOTATED, lex_name))
-            .setFilter().sort(),
-        fn = syms.filter(s => s.type == SymbolType.PRODUCTION_ASSERTION_FUNCTION)
-            .map(s => translateSymbolValue(s, grammar, runner.ANNOTATED))
-            .setFilter().sort();
+    if (syms.some(sym => sym.val == "any")) {
+        return `!(${getIncludeBooleans(exclude_symbols, grammar, runner, lex_name) || "false"} )`;
+    } else {
+        syms = syms.map(s => getRootSym(s, grammar));
 
-    if (id.length + ty.length == 0)
-        return "";
+        const
+            id = syms.filter(s => s.id != undefined & s.type !== SymbolType.PRODUCTION_ASSERTION_FUNCTION)
+                .map(s => s.id + (runner.ANNOTATED ? `/* ${s.val} */` : ""))
+                .setFilter().sort(),
+            ty = syms.filter(s => s.type == SymbolType.GENERATED)
+                .map(s => translateSymbolValue(s, grammar, runner.ANNOTATED, lex_name))
+                .setFilter().sort(),
+            fn = syms.filter(s => s.type == SymbolType.PRODUCTION_ASSERTION_FUNCTION)
+                .map(s => translateSymbolValue(s, grammar, runner.ANNOTATED))
+                .setFilter().sort();
 
-    let out_id, out_ty, out_fn;
+        if (id.length + ty.length == 0)
+            return "";
 
-    if (fn.length > 0)
-        out_fn = (fn.map(s => `${fn}`).join("||"));
+        let out_id, out_ty, out_fn;
 
-    if (id.length > 0) {
-        if (id.length < 8) {
-            out_id = (id.map(s => `${lex_name}.id == ${s}`).join("||"));
-        } else {
-            out_id = `${runner.add_constant(`StaticArray.fromArray<u32>([${id.join(",")}])`, undefined, "")}.includes(${lex_name}.id)`;
+        if (fn.length > 0)
+            out_fn = (fn.map(s => `${fn}`).join("||"));
+
+        if (id.length > 0) {
+            if (id.length < 8) {
+                out_id = (id.map(s => `${lex_name}.id == ${s}`).join("||"));
+            } else {
+                out_id = `${runner.add_constant(`StaticArray.fromArray<u32>([${id.join(",")}])`, undefined, "")}.includes(${lex_name}.id)`;
+            }
         }
-    }
 
-    if (ty.length > 0) {
-        if (ty.length < 8) {
-            out_ty = (ty.map(s => `${lex_name}.ty == ${s}`).join("||"));
-        } else {
-            out_ty = `${runner.add_constant(`StaticArray.fromArray<u32>([${ty.join(",")}])`, undefined, "")}.includes(${lex_name}.ty)`;
+        if (ty.length > 0) {
+            if (ty.length < 8) {
+                out_ty = (ty.map(s => `${lex_name}.ty == ${s}`).join("||"));
+            } else {
+                out_ty = `${runner.add_constant(`StaticArray.fromArray<u32>([${ty.join(",")}])`, undefined, "")}.includes(${lex_name}.ty)`;
+            }
         }
+        return [out_id, out_ty, out_fn].filter(_ => _).join("||");
     }
-
-    return [out_id, out_ty, out_fn].filter(_ => _).join("||");
 }
 
 export function getRealSymValue(sym: Symbol) {
@@ -256,7 +260,26 @@ export function getRealSymValue(sym: Symbol) {
 
     return val;
 }
-//
+export function getLRStateSymbolsAndFollow(state: State, grammar: Grammar): { state_symbols: Symbol[]; follow_symbols: Symbol[]; } {
+    if (state.sym_fol)
+        return state.sym_fol;
+
+    const
+        state_symbols: Symbol[] = [
+            ...state.items.filter(i => i.atEND).map(i => getUniqueSymbolName(i.follow)),
+            ...[...state.maps.keys()].filter(d => (typeof d == "string"))
+        ].map(s => grammar.meta.all_symbols.get(<string>s)),
+        follow_symbols: Symbol[] = state.items
+            .map(i => i.getProduction(grammar).id)
+            .setFilter()
+            .map(id => [...FOLLOW(grammar, id, true).values()])
+            .flat()
+            .filter(sym => !state_symbols.some(s => getUniqueSymbolName(s) == getUniqueSymbolName(sym)));
+
+    state.sym_fol = { state_symbols, follow_symbols };
+
+    return getLRStateSymbolsAndFollow(state, grammar);
+}
 export function integrateState(state: State, existing_refs: Set<number>, lex_name: string = "l"): string {
 
     if (!existing_refs.has(state.index))

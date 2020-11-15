@@ -1,9 +1,8 @@
 import { Grammar, SymbolType } from "../types/grammar.js";
-import { FIRST, FOLLOW, Item, processClosure } from "../util/common.js";
+import { FIRST, Item, processClosure } from "../util/common.js";
 import {
     getStatesFromNumericArray,
     translateSymbolValue,
-    getNonTerminalTransitionStates,
     integrateState,
     getRootSym,
     getIncludeBooleans,
@@ -14,13 +13,13 @@ import {
     getUniqueSymbolName,
     createLRReduceCompletionWithFn,
     addRecoveryHandlerToFunctionBodyArray,
-    addSkipCall
+    addSkipCall,
+    getLRStateSymbolsAndFollow
 } from "./utilities/utilities.js";
 import { State } from "./types/State";
 import { RDProductionFunction } from "./types/RDProductionFunction.js";
 import { CompilerRunner } from "./types/CompilerRunner.js";
 import { Symbol } from "../types/Symbol.js";
-import { stmt } from "@candlefw/js";
 
 
 function filterGotos(state: State, states: State[], grammar: Grammar, ...pending_prods: number[]): Map<number, number[]> {
@@ -108,18 +107,26 @@ function gotoState(
                 } else {
 
                     state.reachable.add(st.index);
+                    if (accepting_productions.includes(key)) {
 
-                    if (state.name && accepting_productions.includes(key)) {
-                        statements.push(`{ const cp = l.copy(), m = mark(), p = prod, s = stack_ptr;
-                            ${integrateState(st, existing_refs, "cp")}
-                            if (FAILED) {
-                                prod = p;
-                                FAILED = false;
-                                stack_ptr = s;
-                                reset(m);
-                                return;
-                            } else l.sync(cp);
-                        }`);
+                        const { state_symbols, follow_symbols } = getLRStateSymbolsAndFollow(st, grammar);
+                        const skip = addSkipCall(grammar, runner, <any>new Set([...state_symbols.map(getUniqueSymbolName), ...follow_symbols.map(getUniqueSymbolName)]));
+                        if (skip) statements.push(skip);
+                        statements.push(`if(${getIncludeBooleans(follow_symbols, grammar, runner)}){ return;}`);
+                        if (state.name) {
+                            statements.push(`{ const cp = l.copy(), m = mark(), p = prod, s = stack_ptr;
+                                ${integrateState(st, existing_refs, "cp")}
+                                if (FAILED) {
+                                    prod = p;
+                                    FAILED = false;
+                                    stack_ptr = s;
+                                    reset(m);
+                                    return;
+                                } else l.sync(cp);
+                            }`);
+                        } else {
+                            statements.push(integrateState(st, existing_refs));
+                        }
                     } else
                         statements.push(integrateState(st, existing_refs));
                 }
@@ -141,265 +148,12 @@ function gotoState(
     return statements;
 }
 
-
-interface StateData {
-    type: number;
-    id: string;
-    a_sym: Symbol;
-    sym: string;
-    item?: Item,
-    index?: number;
-    states?: number[];
-}
-
-function shiftReduce(
-    /**  The state to reduce */
-    state: State,
-    /** List of all states */
-    states: State[],
-    /** The grammar for the states */
-    grammar: Grammar,
-    /** Compiler utility object */
-    runner: CompilerRunner,
-    /** Optional List of LL recursive descent functions */
-    ll_fns: RDProductionFunction[] = null,
-    /** Indicates the state results from a transition from LL to LR*/
-    active_gotos: number[] = [],
-
-    reached_rds: Set<number> = new Set
-): { body: string[], pre: string[]; } {
-
-    const
-        statements: string[] = [],
-        state_symbol_names =
-            [
-                ...state.items.filter(i => i.atEND).map(i => getUniqueSymbolName(i.follow)),
-                ...[...state.maps.keys()].filter(d => (typeof d == "string"))
-            ],
-        follow_symbols =
-            state.items
-                .map(i => i.getProduction(grammar).id)
-                .setFilter()
-                .map(id => [...FOLLOW(grammar, id, true).values()])
-                .flat()
-                .filter(sym => !state_symbol_names.includes(getUniqueSymbolName(sym))),
-
-        new_outputs: Map<string, Output[]> = new Map;
-
-    //Create skip call
-    const skip = addSkipCall(grammar, runner, <any>new Set([...state_symbol_names, ...follow_symbols.map(getUniqueSymbolName)]));
-    if (skip) statements.push(skip);
-
-    //Group all states transitions / reductions based on symbols. 
-
-    //Sort groups based on the productions they have. State indices mapped to "-" delim strings
-
-    // Start with the root items this state processes.
-    const items = state.items.filter(i => i.len == 0 || i.offset !== 0 || i.sym(grammar).val != i.getProduction(grammar).id).slice();
-
-    //group into items that have RD and those that don't
-    const presort: { call: boolean, item: Item; }[] = items.map(i => {
-        if (!i.atEND) {
-            const sym = i.sym(grammar);
-            if (sym.type == SymbolType.PRODUCTION) {
-                const prod_id = i.getProduction(grammar).id;
-                const closure = [i];
-                processClosure(closure, grammar, true);
-                for (const item of closure) {
-                    if (!item.atEND) {
-                        const sym = item.sym(grammar);
-                        if (sym.type == SymbolType.PRODUCTION && sym.id == prod_id) return { call: false, item: i };
-                    }
-                }
-                return { call: true, item: i };
-            }
-        }
-        return { call: false, item: i };
-    });
-    const rd_items = presort.filter(i => i.call).map(i => i.item).setFilter(i => i.id);
-    const the_rest = presort.filter(i => !i.call).map(i => i.item);
-
-    type Output = {
-        sym: Symbol;
-        type: string;
-        length?: number;
-        stmt: string;
-        prod_id?: number;
-    };
-
-
-
-    function getMappedArray<Val>(string: string, map: Map<string, Val[]>): Val[] {
-        if (!map.has(string))
-            map.set(string, []);
-        return map.get(string);
-    }
-
-    function addCatchAllCheck(sym: Symbol, string: string, syms: Symbol[]): { IS_GUARDED: boolean, stmt: string; } {
-        let boolean = "";
-
-        if (sym.type == SymbolType.GENERATED)
-            if (sym.val == "tok" || sym.val == "sym") {
-                const follow = follow_symbols.filter(s => [SymbolType.GENERATED, SymbolType.ESCAPED, SymbolType.SYMBOL].includes(s.type));
-                boolean = getIncludeBooleans(follow, grammar, runner, "__lex_name__");
-            } else if (sym.val == "key" || sym.val == "id")
-                boolean = getIncludeBooleans(
-                    follow_symbols.filter(s => [SymbolType.LITERAL].includes(s.type)),
-                    grammar,
-                    runner,
-                    "__lex_name__"
-                );
-            else if (sym.val == "any")
-                boolean = getIncludeBooleans(follow_symbols, grammar, runner, "__lex_name__");
-
-        return { IS_GUARDED: !!boolean, stmt: boolean ? `if(${boolean}) prod = -1; else {${string}}` : string };
-    }
-
-
-    function addRDShiftOutput(prod_id: any, prod_sym: Symbol, item: any, sym: Symbol): any {
-        const { stmt, IS_GUARDED } = addCatchAllCheck(sym, `${getRDFNName(grammar[prod_id])}(__lex_name__); stack_ptr++;`, follow_symbols);
-        return {
-            sym: sym,
-            type: "shift",
-            prod_id: -1,//IS_GUARDED ? -1 : prod_sym.val,
-            length: item.len,
-            stmt
-        };
-    }
-
-    function addLRShiftOutput(
-        state: State,
-        symbol: Symbol,
-        new_outputs: Map<string, Output[]>
-    ) {
-        for (const st of state.maps.get(getUniqueSymbolName(symbol))) {
-            const { stmt, IS_GUARDED } = addCatchAllCheck(symbol, `${createNoCheckShift(grammar, runner)};stack_ptr++;\nState${st}(__lex_name__);\n`, follow_symbols);
-            state.reachable.add(st);
-            getMappedArray(<string>symbol.val, new_outputs).push({
-                sym: symbol,
-                type: "shift",
-                length: -1,
-                stmt
-            });
-        }
-    }
-
-    function combineActionStatements(stmts, index = 0) {
-        if (index > 0 && stmts.length - 1 == index) {
-            return `if(FAILED){
-                reset($mark); FAILED = false; stack_ptr = sp;
-                ${stmts[index].replace(/__lex_name__/g, "l")};
-            }else l.sync(cp);
-            `;
-        } else if (index > 0 && stmts.length > index) {
-            return `if(FAILED){
-                reset($mark); FAILED = false; stack_ptr = sp; cp = l.copy();
-                ${stmts[index].replace(/__lex_name__/g, "cp")};
-                ${combineActionStatements(stmts, index + 1)}
-            }else l.sync(cp);
-            `;
-        } else if (index == 0 && stmts.length > 0) {
-            const SOLO = stmts.length == 1;
-
-            return ` 
-                ${SOLO ? " " : `let $mark = mark(), sp = stack_ptr, cp = l.copy();`}
-                ${stmts[index].replace(/__lex_name__/g, SOLO ? "l" : "cp")}
-                ${combineActionStatements(stmts, index + 1)} 
-                `;
-        }
-
-        return "";
-    }
-
-    //For each FIRST add rd to list of firsts
-    for (const item of rd_items) {
-        const prod_sym = item.sym(grammar);
-        const prod_id = prod_sym.val;
-        reached_rds.add(prod_id);
-        active_gotos.push(prod_id);
-        for (const sym of FIRST(grammar, prod_sym)) {
-            getMappedArray(<string>sym.val, new_outputs).push(addRDShiftOutput(prod_id, prod_sym, item, sym));
-        }
-    }
-    for (const item of the_rest) {
-        if (item.atEND) {
-            const sym = item.follow;
-            const body = item.body_(grammar);
-            let stmt = "";
-            if (body.reduce_id >= -1)
-                stmt = `${createLRReduceCompletionWithFn(item, grammar)}; stack_ptr-=${item.len};`;
-            else if (item.len > 1)
-                stmt = `${createLRReduceCompletionWithoutFn(item, grammar)}; stack_ptr-=${item.len};`;
-            getMappedArray(<string>sym.val, new_outputs).push({
-                sym: sym,
-                type: "reduce",
-                stmt
-            });
-        } else {
-            const sym = item.sym(grammar);
-            if (sym.type == SymbolType.PRODUCTION) {
-                active_gotos.push(sym.val);
-                for (const first of FIRST(grammar, sym)) {
-                    addLRShiftOutput(state, first, new_outputs);
-                }
-            } else {
-                addLRShiftOutput(state, sym, new_outputs);
-            }
-        }
-    }
-
-    const reduce_outputs = [], shift_outputs = [];
-
-    for (const [, array] of new_outputs.entries()) {
-
-        {
-            const shift_array = array.filter(t => t.type == "shift")
-                .setFilter(a => a.stmt).sort((a, b) => {
-                    return b.length - a.length;
-                });
-            const IS_SOLO = shift_array.length == 1;
-            const IS_PURE_RD = IS_SOLO && shift_array[0].prod_id > 0;
-            if (shift_array.length > 0)
-                shift_outputs.push({
-                    a_syms: [getRootSym(array[0].sym, grammar)],
-                    rd_name: IS_PURE_RD ? getRDFNName(grammar[shift_array[0].prod_id]) : "",
-                    IS_PURE_RD,
-                    stmts: [combineActionStatements(shift_array.map(a => a.stmt))]
-                });
-        } {
-            const reduce_array = array.filter(t => t.type == "reduce").setFilter(a => a.stmt);
-            const IS_SOLO = reduce_array.length == 1;
-            const IS_PURE_RD = IS_SOLO && reduce_array[0].prod_id > 0;
-
-            if (reduce_array.length > 0)
-                reduce_outputs.push({
-                    a_syms: [getRootSym(array[0].sym, grammar)],
-                    rd_name: IS_PURE_RD ? getRDFNName(grammar[reduce_array[0].prod_id]) : "",
-                    IS_PURE_RD,
-                    stmts: [combineActionStatements(reduce_array.map(a => a.stmt))]
-                });
-        }
-    }
-
-
-    statements.push(
-        [...createIfLRBlocks(shift_outputs, grammar, runner, state),
-        ...createIfLRBlocks(reduce_outputs, grammar, runner, state, true)].join(" else "),
-        "else prod = -1;"
-    );
-
-    statements.push();
-
-    return { body: statements, pre: [] };
-}
-
-
-function createIfLRBlocks(outputs: any[], grammar: Grammar, runner: CompilerRunner, state: State, REDUCE_FUNCTIONS: boolean = false) {
+function createIfLRBlocks(outputs: any[], grammar: Grammar, runner: CompilerRunner, state: State, exclude_symbols: Symbol[] = [], REDUCE_FUNCTIONS: boolean = false) {
     const statements: string[] = [];
     if (outputs.length > 0) {
 
         if (outputs.length == 1) {
-            statements.push([`if(${getIncludeBooleans(outputs[0].a_syms, grammar, runner)}){`, ...outputs[0].stmts, REDUCE_FUNCTIONS ? "\nreturn;" : "", "}"].join("\n"));
+            statements.push([`if(${getIncludeBooleans(outputs[0].a_syms, grammar, runner, "l", exclude_symbols)}){`, ...outputs[0].stmts, REDUCE_FUNCTIONS ? "\nreturn;" : "", "}"].join("\n"));
         } else {
 
             const
@@ -495,6 +249,261 @@ function createIfLRBlocks(outputs: any[], grammar: Grammar, runner: CompilerRunn
 
     return statements;
 }
+
+type Output = {
+    sym: Symbol;
+    type: string;
+    length?: number;
+    stmt: string;
+    prod_id?: number;
+};
+
+function getMappedArray<Val>(string: string, map: Map<string, Val[]>): Val[] {
+    if (!map.has(string))
+        map.set(string, []);
+    return map.get(string);
+}
+
+
+function addCatchAllCheck(grammar: Grammar, runner: CompilerRunner, sym: Symbol, string: string, follow_symbols: Symbol[],): { IS_GUARDED: boolean, stmt: string; } {
+    let boolean = "";
+
+    return { IS_GUARDED: false, stmt: string };
+
+    if (sym.type == SymbolType.GENERATED)
+        if (sym.val == "tok" || sym.val == "sym") {
+            const follow = follow_symbols.filter(s => [SymbolType.GENERATED, SymbolType.ESCAPED, SymbolType.SYMBOL].includes(s.type));
+            boolean = getIncludeBooleans(follow, grammar, runner, "__lex_name__");
+        } /*else if (sym.val == "key" || sym.val == "id")
+            boolean = getIncludeBooleans(
+                follow_symbols.filter(s => [SymbolType.LITERAL].includes(s.type)),
+                grammar,
+                runner,
+                "__lex_name__"
+            );*/
+        else if (sym.val == "any")
+            boolean = getIncludeBooleans(follow_symbols, grammar, runner, "__lex_name__");
+
+    return { IS_GUARDED: !!boolean, stmt: boolean ? `if(${boolean}) fail(l); else {${string}}` : string };
+}
+
+function addRDShiftOutput(
+    grammar: Grammar,
+    runner: CompilerRunner,
+    prod_id: any,
+    prod_sym: Symbol,
+    item: any,
+    sym: Symbol,
+    follow_symbols: Symbol[]): any {
+    const { stmt, IS_GUARDED } = addCatchAllCheck(grammar, runner, sym, `${getRDFNName(grammar[prod_id])}(__lex_name__); stack_ptr++;`, follow_symbols);
+
+    return {
+        sym: sym,
+        type: sym.val == "any" ? "any_shift" : "shift",
+        prod_id: -1,//IS_GUARDED ? -1 : prod_sym.val,
+        length: item.len,
+        stmt
+    };
+}
+
+function addLRShiftOutput(
+    grammar: Grammar,
+    runner: CompilerRunner,
+    state: State,
+    symbol: Symbol,
+    new_outputs: Map<string, Output[]>,
+    follow_symbols: Symbol[]
+) {
+    for (const st of state.maps.get(getUniqueSymbolName(symbol))) {
+        const { stmt, IS_GUARDED } = addCatchAllCheck(grammar, runner, symbol, `${createNoCheckShift(grammar, runner)};stack_ptr++;\nState${st}(__lex_name__);\n`, follow_symbols);
+        state.reachable.add(st);
+        getMappedArray(<string>symbol.val, new_outputs).push({
+            sym: symbol,
+            type: "shift",
+            length: -1,
+            stmt
+        });
+    }
+}
+
+
+function combineActionStatements(stmts, index = 0) {
+    if (index > 0 && stmts.length - 1 == index) {
+        return `if(FAILED){
+            reset($mark); FAILED = false; stack_ptr = sp;
+            ${stmts[index].replace(/__lex_name__/g, "l")};
+        }else l.sync(cp);
+        `;
+    } else if (index > 0 && stmts.length > index) {
+        return `if(FAILED){
+            reset($mark); FAILED = false; stack_ptr = sp; cp = l.copy();
+            ${stmts[index].replace(/__lex_name__/g, "cp")};
+            ${combineActionStatements(stmts, index + 1)}
+        }else l.sync(cp);
+        `;
+    } else if (index == 0 && stmts.length > 0) {
+        const SOLO = stmts.length == 1;
+
+        return ` 
+            ${SOLO ? " " : `let $mark = mark(), sp = stack_ptr, cp = l.copy();`}
+            ${stmts[index].replace(/__lex_name__/g, SOLO ? "l" : "cp")}
+            ${combineActionStatements(stmts, index + 1)} 
+            `;
+    }
+
+    return "";
+}
+
+function shiftReduce(
+    /**  The state to reduce */
+    state: State,
+    /** List of all states */
+    states: State[],
+    /** The grammar for the states */
+    grammar: Grammar,
+    /** Compiler utility object */
+    runner: CompilerRunner,
+    /** Optional List of LL recursive descent functions */
+    ll_fns: RDProductionFunction[] = null,
+    /** Indicates the state results from a transition from LL to LR*/
+    active_gotos: number[] = [],
+
+    reached_rds: Set<number> = new Set
+): { body: string[], pre: string[]; } {
+
+    const
+        statements: string[] = [],
+        { state_symbols, follow_symbols } = getLRStateSymbolsAndFollow(state, grammar),
+        new_outputs: Map<string, Output[]> = new Map,
+        skip = addSkipCall(grammar, runner, <any>new Set([...state_symbols.map(getUniqueSymbolName), ...follow_symbols.map(getUniqueSymbolName)]));
+
+    if (skip) statements.push(skip);
+
+    //Group all states transitions / reductions based on symbols. 
+
+    //Sort groups based on the productions they have. State indices mapped to "-" delime strings
+
+    // Start with the root items this state processes.
+    const items = state.items.filter(i => i.len == 0 || i.offset !== 0 || i.sym(grammar).val != i.getProduction(grammar).id).slice();
+    //Group into items that have RD and those that don't
+    const presort: { call: boolean, item: Item; }[] = items.map(i => {
+        if (!i.atEND) {
+            const sym = i.sym(grammar);
+            if (sym.type == SymbolType.PRODUCTION) {
+                const prod_id = i.getProduction(grammar).id;
+                const closure = [i];
+                processClosure(closure, grammar, true);
+                for (const item of closure) {
+                    if (!item.atEND) {
+                        const sym = item.sym(grammar);
+                        if (sym.type == SymbolType.PRODUCTION && sym.id == prod_id) return { call: false, item: i };
+                    }
+                }
+                return { call: true, item: i };
+            }
+        }
+        return { call: false, item: i };
+    }),
+        rd_items = presort.filter(i => i.call).map(i => i.item).setFilter(i => i.id),
+        the_rest = presort.filter(i => !i.call).map(i => i.item);
+
+    //For each FIRST add rd to list of firsts
+    for (const item of rd_items) {
+        const prod_sym = item.sym(grammar);
+        const prod_id = prod_sym.val;
+        reached_rds.add(prod_id);
+        active_gotos.push(prod_id);
+        for (const sym of FIRST(grammar, prod_sym)) {
+            getMappedArray(<string>sym.val, new_outputs).push(addRDShiftOutput(grammar, runner, prod_id, prod_sym, item, sym, follow_symbols));
+        }
+    }
+    for (const item of the_rest) {
+        if (item.atEND) {
+            const sym = item.follow;
+            const body = item.body_(grammar);
+            let stmt = "";
+            if (body.reduce_id >= -1)
+                stmt = `${createLRReduceCompletionWithFn(item, grammar)} stack_ptr-=${item.len};`;
+            else if (item.len > 1)
+                stmt = `${createLRReduceCompletionWithoutFn(item, grammar)} stack_ptr-=${item.len};`;
+            getMappedArray(<string>sym.val, new_outputs).push({
+                sym: sym,
+                type: "reduce",
+                stmt
+            });
+        } else {
+            const sym = item.sym(grammar);
+            if (sym.type == SymbolType.PRODUCTION) {
+                active_gotos.push(sym.val);
+                for (const first of FIRST(grammar, sym)) {
+                    addLRShiftOutput(grammar, runner, state, first, new_outputs, follow_symbols);
+                }
+            } else {
+                addLRShiftOutput(grammar, runner, state, sym, new_outputs, follow_symbols);
+            }
+        }
+    }
+
+    const reduce_outputs = [], shift_outputs = [], any_shift_outputs = [];
+
+    for (const [, array] of new_outputs.entries()) {
+
+        {
+            const arr = array.filter(t => t.type == "shift")
+                .setFilter(a => a.stmt).sort((a, b) => {
+                    return b.length - a.length;
+                });
+            const IS_SOLO = arr.length == 1;
+            const IS_PURE_RD = IS_SOLO && arr[0].prod_id > 0;
+            if (arr.length > 0)
+                shift_outputs.push({
+                    a_syms: [getRootSym(array[0].sym, grammar)],
+                    rd_name: IS_PURE_RD ? getRDFNName(grammar[arr[0].prod_id]) : "",
+                    IS_PURE_RD,
+                    stmts: [combineActionStatements(arr.map(a => a.stmt))]
+                });
+        } {
+            const arr = array.filter(t => t.type == "any_shift").setFilter(a => a.stmt);
+            const IS_SOLO = arr.length == 1;
+            const IS_PURE_RD = IS_SOLO && arr[0].prod_id > 0;
+
+            if (arr.length > 0)
+                any_shift_outputs.push({
+                    a_syms: [getRootSym(array[0].sym, grammar)],
+                    rd_name: IS_PURE_RD ? getRDFNName(grammar[arr[0].prod_id]) : "",
+                    IS_PURE_RD,
+                    stmts: [combineActionStatements(arr.map(a => a.stmt))]
+                });
+        } {
+            const arr = array.filter(t => t.type == "reduce").setFilter(a => a.stmt);
+            const IS_SOLO = arr.length == 1;
+            const IS_PURE_RD = IS_SOLO && arr[0].prod_id > 0;
+
+            if (arr.length > 0)
+                reduce_outputs.push({
+                    a_syms: [getRootSym(array[0].sym, grammar)],
+                    rd_name: IS_PURE_RD ? getRDFNName(grammar[arr[0].prod_id]) : "",
+                    IS_PURE_RD,
+                    stmts: [combineActionStatements(arr.map(a => a.stmt))]
+                });
+        }
+    }
+
+
+    statements.push(
+        [...createIfLRBlocks(shift_outputs, grammar, runner, state),
+        ...createIfLRBlocks(any_shift_outputs, grammar, runner, state, follow_symbols),
+        ...createIfLRBlocks(reduce_outputs, grammar, runner, state, follow_symbols, true)].join(" else "),
+        "else fail(l);"
+    );
+
+    statements.push();
+
+    return { body: statements, pre: [] };
+}
+
+
+
 
 function isSymAnAssertFunction(s: Symbol): boolean {
     return s.type == SymbolType.PRODUCTION_ASSERTION_FUNCTION;
