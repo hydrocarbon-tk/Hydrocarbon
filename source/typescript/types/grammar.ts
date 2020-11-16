@@ -135,7 +135,10 @@ export type Grammar = Array<Production> & {
     LU: Map<string, Production>;
 
     meta: {
-
+        /**
+         * Every symbol encountered in the grammar; keyed
+         * by the unique symbol name. 
+         */
         all_symbols?: Map<string, Symbol>;
 
         symbols?: Map<string, { val: string; }>;
