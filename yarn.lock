@@ -2,70 +2,75 @@
 # yarn lockfile v1
 
 
-"@candlefw/cfw@latest":
+"@assemblyscript/loader@^0.17.2":
+  version "0.17.2"
+  resolved "https://registry.yarnpkg.com/@assemblyscript/loader/-/loader-0.17.2.tgz#d435b77525d525c2ece8e27cd77d170a953645a9"
+  integrity sha512-8pLMRIMqPVxOnlyqjflNRuvoHShYNDCeUI3VXN6dr+c3lD4W5lwQnRdJviku8U4opv7CSDfIDZ99uRTwqcBIIA==
+
+"@candlefw/cfw@*":
   version "1.0.1"
   resolved "https://registry.yarnpkg.com/@candlefw/cfw/-/cfw-1.0.1.tgz#218f5f749b184e3e85f27cb7ef956d5102113c33"
   integrity sha512-QEXevej8BFOQ3CyYM49qccZp1iLJm+Wg0XEt6zyQiOwzD/1ThUFyviJrjMAsklc9mmLB8/uXO0N1NYEPzlK6NA==
 
-"@candlefw/conflagrate@*", "@candlefw/conflagrate@latest":
-  version "0.1.0"
-  resolved "https://registry.yarnpkg.com/@candlefw/conflagrate/-/conflagrate-0.1.0.tgz#c89bf6ddc6ff0dfedc5de470784da895b4163675"
-  integrity sha512-LeBONeZIFnihphir4/0IXv71a7fV/qeJC2QzHyXx70x+NvknCcWHXEqDoimyIYb3D1jRvb6Tppuuec+CdScOtQ==
+"@candlefw/conflagrate@*":
+  version "0.1.1"
+  resolved "https://registry.yarnpkg.com/@candlefw/conflagrate/-/conflagrate-0.1.1.tgz#736ac21a8eb2ca45239ff194fc386318fb1595eb"
+  integrity sha512-rP3xi4x41+Uthfe81uubyZ39yqe6R9JFg+tNsGXeyJHz3C/SkYbhKOIWlQjj+MhrNvFIwsQHTsgNbDOggNVfqw==
   dependencies:
-    "@candlefw/url" ">=0.1.3"
-    "@candlefw/wind" ">=0.4.2"
+    "@candlefw/url" "*"
+    "@candlefw/wind" "*"
 
 "@candlefw/hydrocarbon@*":
-  version "0.3.2"
-  resolved "https://registry.yarnpkg.com/@candlefw/hydrocarbon/-/hydrocarbon-0.3.2.tgz#b41d31c1d49923f4e399b30a8558c89733ff2729"
-  integrity sha512-w98JNCuqzEZjzr3/UmTyzdvIYBgyvttfpDj4MdhorAPqAKr8FCbtDqIBB0Z/q5nwRUXypdA4VOG5BbD/YLryqg==
+  version "0.6.0"
+  resolved "https://registry.yarnpkg.com/@candlefw/hydrocarbon/-/hydrocarbon-0.6.0.tgz#a9f7f68889523be73a356288969ae67751fa46be"
+  integrity sha512-v8U8oMnHZHoSiehwaRuO3l4LCSVYYUOYRbRGi/Bo6Y0+zLoUwwkzBZ4hX+bjVyTXcHleKqe5Fq6CPcQTRMGrQQ==
   dependencies:
-    "@candlefw/conflagrate" latest
-    "@candlefw/js" "0.0.9"
-    "@candlefw/url" latest
-    "@candlefw/whind" latest
+    "@candlefw/conflagrate" "*"
+    "@candlefw/js" "*"
+    "@candlefw/url" "*"
+    "@candlefw/wind" "*"
     commander "^5.0.0"
     terser "^4.6.3"
 
 "@candlefw/js@*":
-  version "0.3.0"
-  resolved "https://registry.yarnpkg.com/@candlefw/js/-/js-0.3.0.tgz#17b20eef4ca954f0b8345155ebd72a7a832c1e37"
-  integrity sha512-sEL+5mMxm4EGwZv8fffe3embb1U/suKzzlML+PE9pDl2zPMsNEIjIOTnBuO6MuGemrz6bcwgrZgE1svoyUg6/w==
+  version "0.3.1"
+  resolved "https://registry.yarnpkg.com/@candlefw/js/-/js-0.3.1.tgz#ac8407db285b68194fa7b371907f9068b5b35fac"
+  integrity sha512-SmHNhqLSvZgBo8rRi75oY+x2Ezq4QazZd6vZCgkcS2VtHUvTINGVHt4UOMxmV9e1FjiZOTuVDJ+9Rk47wPdQBw==
   dependencies:
     "@candlefw/conflagrate" "*"
     "@candlefw/hydrocarbon" "*"
     "@candlefw/url" "*"
     "@candlefw/wind" "*"
 
-"@candlefw/js@0.0.9":
-  version "0.0.9"
-  resolved "https://registry.yarnpkg.com/@candlefw/js/-/js-0.0.9.tgz#3cf39b6ffe34cb901aaa9dabece6e0b6ec4b6a8d"
-  integrity sha512-PWTATcE/3NVhTtLbV03BpWgMEBzrIB5Gt4gutMT4tHf9evvybcSZnrmK56oWtIevGhTTGuD9tVrCUcEAqM954A==
+"@candlefw/url@*":
+  version "0.1.5"
+  resolved "https://registry.yarnpkg.com/@candlefw/url/-/url-0.1.5.tgz#7576b5333727bd163f9059b1eb05d5060d2cfc63"
+  integrity sha512-9clZEfNC0MuVU83Mpns6KUfp+OYKxWDhHTOkZbTIOj3Tl/RzjFhS2jPPwwkpLXtcmJcB/2efxAaqRGdOLJmFbQ==
   dependencies:
-    "@candlefw/url" latest
-    "@candlefw/whind" latest
+    "@candlefw/cfw" "*"
 
-"@candlefw/url@*", "@candlefw/url@>=0.1.3", "@candlefw/url@latest":
-  version "0.1.3"
-  resolved "https://registry.yarnpkg.com/@candlefw/url/-/url-0.1.3.tgz#69cca971bfa09a9f7cf114bee6881a7424f3e157"
-  integrity sha512-jL4yD7Han4YQ2sOFfxGgq8rj+gsrwlQvAr3U11DbnfJGPjCA6CIhwNWiHCnFxjGgSjS5tCJl+tGI4UiyAeoycQ==
-  dependencies:
-    "@candlefw/cfw" latest
-
-"@candlefw/whind@latest":
-  version "0.4.0"
-  resolved "https://registry.yarnpkg.com/@candlefw/whind/-/whind-0.4.0.tgz#5a0de6edfbe2c1d3f0776bd7694acc150cb9bf6b"
-  integrity sha512-IhK2lIHWK037E6P6StRVK0po9YacIKAZ8mGCHZACslFi0Svi3PIMDlGCRA3gQyJFy7ihOy3AaBCcmw1SCgP3Kg==
-
-"@candlefw/wind@*", "@candlefw/wind@>=0.4.2":
-  version "0.4.2"
-  resolved "https://registry.yarnpkg.com/@candlefw/wind/-/wind-0.4.2.tgz#6973d750cea2c5fe1e2fb25a934a16d85a364031"
-  integrity sha512-wm76SR+dgIhpRpL4urVKiGtJcfyvblHcJ236RDxDBToNU+MgwbH8yfW675LPAFauVufuMzGVzjwRIX3OQ0gdrg==
+"@candlefw/wind@*":
+  version "0.4.3"
+  resolved "https://registry.yarnpkg.com/@candlefw/wind/-/wind-0.4.3.tgz#088716663db61e6db1278e25ca01235dea632801"
+  integrity sha512-s8IuwrCMn3Mut+vC1YN9HwNwhyp4qJfrJrhQHhsRZaaHArB1/9X2E4Ho56mS73KaHx7tFSTTWxEIas+9O7MqVQ==
 
 "@types/node@^13.7.6":
-  version "13.13.16"
-  resolved "https://registry.yarnpkg.com/@types/node/-/node-13.13.16.tgz#66f2177047b61131eaac18c47eb25d6f1317070a"
-  integrity sha512-dJ9vXxJ8MEwzNn4GkoAGauejhXoKuJyYKegsA6Af25ZpEDXomeVXt5HUWUNVHk5UN7+U0f6ghC6otwt+7PdSDg==
+  version "13.13.30"
+  resolved "https://registry.yarnpkg.com/@types/node/-/node-13.13.30.tgz#1ed6e01e4ca576d5aec9cc802cc3bcf94c274192"
+  integrity sha512-HmqFpNzp3TSELxU/bUuRK+xzarVOAsR00hzcvM0TXrMlt/+wcSLa5q6YhTb6/cA6wqDCZLDcfd8fSL95x5h7AA==
+
+assemblyscript@^0.17.2:
+  version "0.17.2"
+  resolved "https://registry.yarnpkg.com/assemblyscript/-/assemblyscript-0.17.2.tgz#48438adfb5afd353c6abc5233b5a8e05bfcc5ea9"
+  integrity sha512-QpHROlgiNLdqTrJCnPAwU61uStFCJ7PSW2IDYkiRbWlcHG9lNUaw/SwivCAQCEh+3GjSqZH8Q1mehSmhNDtFtA==
+  dependencies:
+    binaryen "98.0.0-nightly.20201109"
+    long "^4.0.0"
+
+binaryen@98.0.0-nightly.20201109:
+  version "98.0.0-nightly.20201109"
+  resolved "https://registry.yarnpkg.com/binaryen/-/binaryen-98.0.0-nightly.20201109.tgz#512bf6ca15c67bf7402144734a4836e63993aa05"
+  integrity sha512-iRarAqdH5lMWlMBzrDuJgLYJR2g4QXk93iYE2zpr6gEZkb/jCgDpPUXdhuN11Ge1zZ/6By4DwA1mmifcx7FWaw==
 
 buffer-from@^1.0.0:
   version "1.1.1"
@@ -81,6 +86,11 @@ commander@^5.0.0:
   version "5.1.0"
   resolved "https://registry.yarnpkg.com/commander/-/commander-5.1.0.tgz#46abbd1652f8e059bddaef99bbdcb2ad9cf179ae"
   integrity sha512-P0CysNDQ7rtVw4QIQtm+MRxV66vKFSvlsQvGYXZWR3qFU0jlMKHZZZgw8e+8DSah4UDKMqnknRDQz+xuQXQ/Zg==
+
+long@^4.0.0:
+  version "4.0.0"
+  resolved "https://registry.yarnpkg.com/long/-/long-4.0.0.tgz#9a7b71cfb7d361a194ea555241c92f7468d5bf28"
+  integrity sha512-XsP+KhQif4bjX1kbuSiySJFNAehNxgLb6hPRGJ9QsUr8ajHkuXGdrHmFUTUUXhDwVX2R5bY4JNZEwbUiMhV+MA==
 
 source-map-support@~0.5.12:
   version "0.5.19"

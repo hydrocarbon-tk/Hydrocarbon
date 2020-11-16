@@ -33,12 +33,12 @@
   },
   "homepage": "https://github.com/candlefw/hydrocarbon#readme",
   "dependencies": {
-    "@assemblyscript/loader": "^0.16.1",
+    "@assemblyscript/loader": "^0.17.2",
     "@candlefw/conflagrate": "*",
     "@candlefw/js": "*",
     "@candlefw/url": "*",
     "@candlefw/wind": "*",
-    "assemblyscript": "^0.16.1",
+    "assemblyscript": "^0.17.2",
     "commander": "^5.0.0",
     "terser": "^4.6.3"
   },
