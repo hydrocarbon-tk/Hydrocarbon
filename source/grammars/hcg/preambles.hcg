@@ -119,7 +119,7 @@
 																		↦cstr{ this.type="ext"; this.id = $sym3 }
 
 
-<> import_preamble → 		@ τIMPORT θws(*) ( θid │ θany )(+") θws(+) (τAS│τas) sym::identifier θnl 	
+<> import_preamble → 		@ τIMPORT θws(*) ( θid │ θkey │ θsym │ θtok )(+") θws(+) (τAS│τas) sym::identifier θnl 	
 																		
 																		↦return ^importData 
 
