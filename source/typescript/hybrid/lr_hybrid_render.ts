@@ -150,15 +150,11 @@ function gotoState(
     return statements;
 }
 
-function createIfLRBlocks(outputs: FinalOutput[], grammar: Grammar, runner: CompilerRunner, state: State, REDUCE_FUNCTIONS: boolean = false) {
-    const statements: string[] = [];
+function createIfLRBlocks(outputs: FinalOutput[], grammar: Grammar, runner: CompilerRunner, state: State, REDUCE_FUNCTIONS: boolean = false, exclude_symbols: Symbol[] = []) {
+   const statements: string[] = [];
     if (outputs.length > 0) {
-
-        //If the number of symbols are bellow a certain maximum, and they all share the same
-        //action code, combine into a simple if block. 
-        console.log(new Set(outputs.map(o => o.stmts)));
-        if (false && outputs.length < 8 && (new Set(outputs.map(o => o.stmts))).size == 1)
-            statements.push(`if(${getIncludeBooleans(outputs.map(s => s.a_sym).flat(), grammar, runner)}){${outputs[0].stmts}${REDUCE_FUNCTIONS ? ";return" : ""}}`);
+        if (outputs.length < 8 && (new Set(outputs.map(o => o.stmts))).size == 1)
+            statements.push(`if(${getIncludeBooleans(outputs.map(s => s.a_sym), grammar, runner, "l", exclude_symbols)}){${outputs[0].stmts}${REDUCE_FUNCTIONS ? ";return" : ""}}`);
         else {
 
             const
@@ -441,10 +437,11 @@ function shiftReduce(
         getOutput(grammar, array.filter(t => t.type == "reduce").setFilter(a => a.stmt), reduce_outputs);
     }
 
+
     statements.push(
         [...createIfLRBlocks(shift_outputs, grammar, runner, state),
-        ...createIfLRBlocks(any_shift_outputs, grammar, runner, state),
-        ...createIfLRBlocks(reduce_outputs, grammar, runner, state, true)].join(" else "),
+        ...createIfLRBlocks(any_shift_outputs, grammar, runner, state, false, follow_symbols),
+        ...createIfLRBlocks(reduce_outputs, grammar, runner, state, true, follow_symbols)].join(" else "),
         "else fail(l);"
     );
 

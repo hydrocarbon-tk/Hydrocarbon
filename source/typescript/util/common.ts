@@ -128,7 +128,7 @@ export function filloutGrammar(grammar: Grammar, env) {
 
     const bodies = [],
         reduce_lu: Map<string, number> = new Map,
-        symbols = new Map(),
+        symbols: Map<string, Symbol> = new Map([["$eofgenerated", { val: "$eof", type: SymbolType.GENERATED }]]),
         syms = [...grammar?.meta?.symbols?.values() ?? []];
 
     for (let i = 0, j = 0; i < grammar.length; i++) {

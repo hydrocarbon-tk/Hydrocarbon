@@ -8,7 +8,6 @@ import { State } from "./types/State.js";
 import { mergeState } from "./lr_hybrid.js";
 import { renderStates } from "./lr_hybrid_render.js";
 import { constructCompilerRunner, CompilerRunner } from "./types/CompilerRunner.js";
-import { JSNode } from "@candlefw/js";
 import { printLexer } from "./assemblyscript/hybrid_lexer.js";
 import { RDProductionFunction } from "./types/RDProductionFunction.js";
 import { Symbol } from "../types/Symbol.js";
@@ -141,8 +140,11 @@ export class HybridMultiThreadRunner {
         }
 
         for (const state of potential_states) {
+
             state.items = state.items.map(Item.fromArray);
+
             const old_state = named_state || [...this.lr_states.values()][state.old_state_index];
+
             mergeState(state, this.lr_states, old_state, this.lr_item_set);
         }
     }

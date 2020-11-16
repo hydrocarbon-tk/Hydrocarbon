@@ -15,7 +15,7 @@ export function IntegrateState(production: Production, grammar: Grammar, name: s
     const
         items =
             [
-                ...FOLLOW(grammar, production.id).values(),
+                ...FOLLOW(grammar, production.id, true).values(),
                 grammar.meta.all_symbols.get("$eofgenerated")
             ].flatMap(sym => grammar[production.id].bodies.map(
                 b => new Item(
@@ -24,6 +24,7 @@ export function IntegrateState(production: Production, grammar: Grammar, name: s
                     0,
                     sym
                 ))),
+
 
         id = items
             .map(i => i.id)
@@ -35,7 +36,6 @@ export function IntegrateState(production: Production, grammar: Grammar, name: s
             .filter((e, i, a) => a.indexOf(e) == i)
             .sort((a, b) => a < b ? -1 : 1).join(":"),
 
-        //Out pops a new state. 
         start_state = <State>{
             sym: "",
             name,
