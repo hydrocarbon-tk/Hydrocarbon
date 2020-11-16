@@ -3,7 +3,6 @@ import URL from "@candlefw/url";
 import { compileHybrid } from "../build/library/hybrid/hybrid_compiler.js";
 import { Lexer } from "@candlefw/wind";
 
-//const url = await URL.resolveRelative("./mock/test_grammar_e_fork.hcg");
 const url = await URL.resolveRelative("../source/grammars/hcg/hcg.hcg");
 const urlB = await URL.resolveRelative("./mock/test_grammar_export_toy_B.hcg");
 
