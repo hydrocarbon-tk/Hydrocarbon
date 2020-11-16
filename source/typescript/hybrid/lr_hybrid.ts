@@ -1,12 +1,12 @@
 import { Grammar, Production, EOF_SYM, SymbolType } from "../types/grammar.js";
 import { Symbol } from "../types/Symbol.js";
 import { processClosure, Item, FOLLOW } from "../util/common.js";
-import { State } from "./types/State";
+import { LRState } from "./types/State";
 import { getUniqueSymbolName } from "./utilities/utilities.js";
 
 export interface States {
-    states: State[];
-    map: Map<string, State>;
+    states: LRState[];
+    map: Map<string, LRState>;
 }
 
 //Integrates a LR state into existing set of states
@@ -36,7 +36,7 @@ export function IntegrateState(production: Production, grammar: Grammar, name: s
             .filter((e, i, a) => a.indexOf(e) == i)
             .sort((a, b) => a < b ? -1 : 1).join(":"),
 
-        start_state = <State>{
+        start_state = <LRState>{
             sym: "",
             name,
             prod_id: production.id,
@@ -59,7 +59,7 @@ export function IntegrateState(production: Production, grammar: Grammar, name: s
 export function CompileHybridLRStates(
     grammar: Grammar,
     item_set: { old_state: number; items: Item[]; },
-): State[] {
+): LRState[] {
 
     const
         old_state = item_set.old_state,
@@ -88,7 +88,7 @@ export function CompileHybridLRStates(
         group.items.push(i.increment());
     }
 
-    const potential_states: State[] = [];
+    const potential_states: LRState[] = [];
 
     for (const { sym, items } of groups.values()) {
 
@@ -101,7 +101,7 @@ export function CompileHybridLRStates(
             sid = "";
 
         //Out pops a new state. 
-        potential_states.push(<State>{
+        potential_states.push(<LRState>{
             sym: sym.type == SymbolType.PRODUCTION ? sym.val : getUniqueSymbolName(sym),
             id,
             yields,
@@ -122,9 +122,9 @@ export function CompileHybridLRStates(
 
 
 export function mergeState(
-    state: State,
-    states: Map<string, State>,
-    old_state: State,
+    state: LRState,
+    states: Map<string, LRState>,
+    old_state: LRState,
     unprocessed_state_items: { old_state: number; items: Item[]; }[]
 ) {
 

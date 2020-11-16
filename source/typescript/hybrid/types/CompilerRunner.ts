@@ -1,7 +1,7 @@
 import { renderWithFormatting, JSNode, renderCompressed, JSNodeType, stmt } from "@candlefw/js";
 import { traverse } from "@candlefw/conflagrate";
 import { Lexer } from "@candlefw/wind";
-import { State } from "./State.js";
+import { LRState } from "./State.js";
 import { Item } from "../../util/item.js";
 import { Grammar } from "../../types/grammar.js";
 

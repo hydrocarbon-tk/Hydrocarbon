@@ -16,13 +16,13 @@ import {
     addSkipCall,
     getLRStateSymbolsAndFollow
 } from "./utilities/utilities.js";
-import { State } from "./types/State";
+import { LRState } from "./types/State";
 import { RDProductionFunction } from "./types/RDProductionFunction.js";
 import { CompilerRunner } from "./types/CompilerRunner.js";
 import { Symbol } from "../types/Symbol.js";
 
 
-function filterGotos(state: State, states: State[], grammar: Grammar, ...pending_prods: number[]): Map<number, number[]> {
+function filterGotos(state: LRState, states: LRState[], grammar: Grammar, ...pending_prods: number[]): Map<number, number[]> {
 
     const active_gotos = new Set(pending_prods);
 
@@ -52,9 +52,9 @@ function filterGotos(state: State, states: State[], grammar: Grammar, ...pending
 
 function gotoState(
     /**  The state to reduce */
-    state: State,
+    state: LRState,
     /** List of all states */
-    states: State[],
+    states: LRState[],
     /** The grammar for the states */
     grammar: Grammar,
     /** Compiler utility object */
@@ -150,7 +150,7 @@ function gotoState(
     return statements;
 }
 
-function createIfLRBlocks(outputs: FinalOutput[], grammar: Grammar, runner: CompilerRunner, state: State, REDUCE_FUNCTIONS: boolean = false, exclude_symbols: Symbol[] = []) {
+function createIfLRBlocks(outputs: FinalOutput[], grammar: Grammar, runner: CompilerRunner, state: LRState, REDUCE_FUNCTIONS: boolean = false, exclude_symbols: Symbol[] = []) {
    const statements: string[] = [];
     if (outputs.length > 0) {
         if (outputs.length < 8 && (new Set(outputs.map(o => o.stmts))).size == 1)
@@ -280,7 +280,7 @@ function addRDShiftOutput(
 function addLRShiftOutput(
     grammar: Grammar,
     runner: CompilerRunner,
-    state: State,
+    state: LRState,
     symbol: Symbol,
     new_outputs: Map<string, Output[]>
 ) {
@@ -339,9 +339,9 @@ function getOutput(grammar: Grammar, input_array: Output[], output_array: FinalO
 
 function shiftReduce(
     /**  The state to reduce */
-    state: State,
+    state: LRState,
     /** List of all states */
-    states: State[],
+    states: LRState[],
     /** The grammar for the states */
     grammar: Grammar,
     /** Compiler utility object */
@@ -461,9 +461,9 @@ function isSymADefinedToken(s: Symbol): boolean {
 
 function compileState(
     /**  The state to reduce */
-    state: State,
+    state: LRState,
     /** List of all states */
-    states: State[],
+    states: LRState[],
     /** The grammar for the states */
     grammar: Grammar,
     runner,
@@ -492,8 +492,8 @@ function compileState(
 }
 
 export function renderState(
-    state: State,
-    states: State[],
+    state: LRState,
+    states: LRState[],
     grammar: Grammar,
     runner: CompilerRunner,
     ll_fns: RDProductionFunction[] = null,
@@ -531,8 +531,8 @@ export function renderState(
 };
 
 export function renderStates(
-    root_states: State[],
-    states: State[],
+    root_states: LRState[],
+    states: LRState[],
     grammar: Grammar,
     runner,
     ll_fns: RDProductionFunction[] = null

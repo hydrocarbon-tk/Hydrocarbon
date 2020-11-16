@@ -1,7 +1,7 @@
 import { Lexer } from "@candlefw/wind";
 import { Grammar, SymbolType, ProductionBody, Production } from "../../types/grammar.js";
 import { Symbol } from "../../types/Symbol";
-import { State } from "../types/State.js";
+import { LRState } from "../types/State.js";
 import { Item } from "../../util/item.js";
 import { CompilerRunner } from "../types/CompilerRunner.js";
 import { createAssertionFunctionBody, FOLLOW } from "../../util/common.js";
@@ -276,30 +276,30 @@ function filteredMapOfSet<A, T>(set: Set<A>, fn: (a: A) => T): T[] {
 
     return mapped_array;
 }
-export function getLRStateSymbolsAndFollow(state: State, grammar: Grammar): { state_symbols: Symbol[]; follow_symbols: Symbol[]; } {
+export function getLRStateSymbolsAndFollow(state: LRState, grammar: Grammar): { state_symbols: Symbol[]; follow_symbols: Symbol[]; } {
     //get the exclusion set from follow
     return {
         state_symbols: filteredMapOfSet(state.shift_symbols, name => getSymbolFromUniqueName(grammar, name)),
         follow_symbols: filteredMapOfSet(state.follow_symbols, name => state.shift_symbols.has(name) ? undefined : getSymbolFromUniqueName(grammar, name)),
     };
 }
-export function integrateState(state: State, existing_refs: Set<number>, lex_name: string = "l"): string {
+export function integrateState(state: LRState, existing_refs: Set<number>, lex_name: string = "l"): string {
 
     if (!existing_refs.has(state.index))
         existing_refs.add(state.index);
 
     return `State${state.index}(${lex_name})`;
 }
-export function getCompletedItems(state: State): Item[] {
+export function getCompletedItems(state: LRState): Item[] {
     return state.items.filter(e => e.atEND);
 }
-export function getShiftStates(state: State): [string | number, number[]][] {
+export function getShiftStates(state: LRState): [string | number, number[]][] {
     return [...state.maps.entries()].filter(([k, v]) => typeof k == "string"); //.map(([k, v]) => v);
 }
-export function getNonTerminalTransitionStates(state: State): [string | number, number[]][] {
+export function getNonTerminalTransitionStates(state: LRState): [string | number, number[]][] {
     return [...state.maps.entries()].filter(([k, v]) => typeof k == "number"); //.map(([k, v]) => v);;
 }
-export function getStatesFromNumericArray(value: number[], states: State[]): State[] {
+export function getStatesFromNumericArray(value: number[], states: LRState[]): LRState[] {
     return value.map(i => states[i]);
 }
 
