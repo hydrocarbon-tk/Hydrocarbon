@@ -1,5 +1,5 @@
 
-@SYMBOL <> +> ::
+@SYMBOL \<> \+> \::
 
 
 @IMPORT ./production_bodies.hcg as pb
@@ -21,67 +21,67 @@
 ########################################################################################################################
 <> start > productions
 
-<> productions → production  										
-															↦return {  
-																(!($sym1.IMPORT_OVERRIDE || $sym1.IMPORT_APPEND)) ? 
-																env.productions.push($sym1) : 0 
-															}
-	│ fn::referenced_function									
-															↦return {  
-																env.refs.set($sym1.id,$sym1), null 
-															}
-	│ productions production 	 							
-															↦return {  
-																$sym2.id = env.productions.length, 
-																(!($sym2.IMPORT_OVERRIDE || $sym2.IMPORT_APPEND)) ? 
-																env.productions.push($sym2) : 0, 
-																env.productions 
-															}
-	│ productions cm::comment 	 							    
-															↦return {  
-																env.productions 
-															}
-	│ productions fn::referenced_function						
-															↦return {  
-																env.refs.set($sym2.id, $sym2), 
-																$sym1 
-															}
-	│ ɛ 	
+<> productions → production                                          
+                                                            ↦return {  
+                                                                (!($sym1.IMPORT_OVERRIDE || $sym1.IMPORT_APPEND)) ? 
+                                                                env.productions.push($sym1) : 0 
+                                                            }
+    │ fn::referenced_function                                    
+                                                            ↦return {  
+                                                                env.refs.set($sym1.id,$sym1), null 
+                                                            }
+    │ productions production                                  
+                                                            ↦return {  
+                                                                $sym2.id = env.productions.length, 
+                                                                (!($sym2.IMPORT_OVERRIDE || $sym2.IMPORT_APPEND)) ? 
+                                                                env.productions.push($sym2) : 0, 
+                                                                env.productions 
+                                                            }
+    │ productions cm::comment                                      
+                                                            ↦return {  
+                                                                env.productions 
+                                                            }
+    │ productions fn::referenced_function                        
+                                                            ↦return {  
+                                                                env.refs.set($sym2.id, $sym2), 
+                                                                $sym1 
+                                                            }
+    │ ɛ     
  
 <> production → 
-	
-	\<>  ( sym::production_id ↦r{ env.prod_name = $sym.name, $sym1 } ) production_start_symbol  pb::production_bodies ( ( \│ │ \| ) fn::error_function )? 
-																		
-															↦cstr{ 
-																this.name = $sym2; 
-																this.bodies = $sym4; 
-																this.id = -1; 
-																this.recovery_handler = $sym5;
-																env.functions.compileProduction(this, env, pos);
-															}
+    
+    \<>  ( sym::production_id ↦r{ env.prod_name = $sym1, $sym1 } ) production_start_symbol  pb::production_bodies ( ( \│ │ \| ) fn::error_function )? 
+                                                                        
+                                                            ↦cstr{ 
+                                                                this.name = $sym2; 
+                                                                this.bodies = $sym4; 
+                                                                this.id = -1; 
+                                                                this.recovery_handler = $sym5;
+                                                                env.functions.compileProduction(this, env, pos);
+                                                            }
 
-	# REDEFINED IMPORT production. Allows an imported production to be redefined entirely. 
+    # REDEFINED IMPORT production. Allows an imported production to be redefined entirely. 
 
-	│ \<> ( sym::imported_production_symbol ↦r{ env.prod_name = $sym.name, $sym1 } ) production_start_symbol pb::production_bodies
+    │ \<> ( sym::imported_production_symbol ↦r{ env.prod_name = $sym1.val, $sym1 } ) production_start_symbol pb::production_bodies
 
-															↦cstr{ 
-																this.IMPORT_OVERRIDE = true;
-																this.name = $sym2; 
-																this.bodies = $sym4; 
-																this.id = -1; 
-																env.functions.compileProduction(this, env, pos);
-															}
+                                                            ↦cstr{ 
+                                                                this.IMPORT_OVERRIDE = true;
+                                                                this.name = $sym2; 
+                                                                this.bodies = $sym4; 
+                                                                this.id = -1; 
+                                                                env.functions.compileProduction(this, env, pos);
+                                                            }
 
-	# APPENDED IMPORT production. Allows additional bodies to defined for productions imported from other files. 
+    # APPENDED IMPORT production. Allows additional bodies to defined for productions imported from other files. 
 
-	│ \+> ( sym::imported_production_symbol ↦r{ env.prod_name = $sym.name, $sym1 } ) production_start_symbol  pb::production_bodies
+    │ \+> ( sym::imported_production_symbol ↦r{ env.prod_name = $sym1.val, $sym1 } ) production_start_symbol  pb::production_bodies
 
-															↦cstr{ 
-																this.IMPORT_APPEND = true;
-																this.name = $sym2; 
-																this.bodies = $sym4; 
-																this.id = -1; 
-																env.functions.compileProduction(this, env, pos);
-															}
-	
+                                                            ↦cstr{ 
+                                                                this.IMPORT_APPEND = true;
+                                                                this.name = $sym2; 
+                                                                this.bodies = $sym4; 
+                                                                this.id = -1; 
+                                                                env.functions.compileProduction(this, env, pos);
+                                                            }
+    
 <> production_start_symbol → \→ | \>

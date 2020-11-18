@@ -1,5 +1,5 @@
 
-@SYMBOL :: $eof
+@SYMBOL \::
 
 
 @IMPORT ./production_bodies.hcg as pb
@@ -15,76 +15,76 @@
 ######################################  SYMBOLS
 ########################################################################################################################
 
-	
+    
 
 <> condition_symbol_list → terminal_symbol(+)
 
-<> lexer_symbols → lexer_symbol(+) 									
+<> lexer_symbols → lexer_symbol(+)                                     
 
-<> ignore_symbols → ignore_symbol(+)  									
+<> ignore_symbols → ignore_symbol(+)                                      
 
 <> lexer_symbol → generated_symbol
-	│ literal_symbol
-	│ escaped_symbol
-	│ grouped_symbol grouped_delimiter				↦cstr{ this.type = "symbol"; this.val = $sym1; this.pos = pos }	
+    │ literal_symbol
+    │ escaped_symbol
+    │ grouped_symbol grouped_delimiter                  ↦cstr{ this.type = "symbol"; this.val = $sym1; this.pos = pos }    
 
-<> grouped_delimiter →  θnl │ θws									
+<> grouped_delimiter →  θnl │ θws                                    
 
-<> grouped_symbol →  ( θsym │ θid │ θany )(+") 		 ↦cstr{ this.type = "symbol"; this.val = $sym1; this.pos = pos}													
+<> grouped_symbol →  ( θsym │ θid │ θany )(+\")          ↦cstr{ this.type = "symbol"; this.val = $sym1; this.pos = pos}                                                    
 
 <> ignore_symbol → generated_symbol
-	│ literal_symbol
-	│ escaped_symbol
-	│ θany											↦cstr{ this.type = "symbol"; this.val = $sym1; this.pos = pos }
+    │ literal_symbol
+    │ escaped_symbol
+    │ θany                                              ↦cstr{ this.type = "symbol"; this.val = $sym1; this.pos = pos }
 
 <>  terminal_symbol → generated_symbol
-	│ literal_symbol
-	│ escaped_symbol
-	| assert_function_symbol
-	│ θany 											↦cstr{ this.type = "symbol"; this.val = $sym1; this.pos = pos }
+    │ literal_symbol
+    │ escaped_symbol
+    | assert_function_symbol
+    │ θany                                             ↦cstr{ this.type = "symbol"; this.val = $sym1; this.pos = pos }
 
 <> symbol → generated_symbol
-	│ production_symbol
-	│ imported_production_symbol
-	│ literal_symbol
-	│ escaped_symbol
-	│ assert_function_symbol
-	│ \( pb::production_bodies \) 									
-													↦cstr ^groupProduction	
-	│ symbol \? 									↦return{ $sym1.IS_OPTIONAL = true, $sym1 }	
-	
-	# This defines a list of virtual productions that reduces to an array of productions. 
-	# A delimiter "terminal_symbol" can be defined to cause the parser to match such productions as { sym , sym , sym ...} 
-	# or { term . term . term ...}. If the "terminal_symbol" is a single or double quotation (\" or \') then the production
-	# values are automatically reduced to a string. 
-	│ symbol ( \(+ │ \(* )  terminal_symbol?  \) 	↦cstr ^listProduction											
-	│ θsym											↦cstr{ this.type = "symbol"; this.val = $sym1; this.pos = pos}
-	| θtok
+    │ production_symbol
+    │ imported_production_symbol
+    │ literal_symbol
+    │ escaped_symbol
+    │ assert_function_symbol
+    │ \( pb::production_bodies \)                                     
+                                                    ↦cstr ^groupProduction    
+    │ symbol \?                                     ↦return{ $sym1.IS_OPTIONAL = true, $sym1 }    
+    
+    # This defines a list of virtual productions that reduces to an array of productions. 
+    # A delimiter "terminal_symbol" can be defined to cause the parser to match such productions as { sym , sym , sym ...} 
+    # or { term . term . term ...}. If the "terminal_symbol" is a single or double quotation (\" or \') then the production
+    # values are automatically reduced to a string. 
+    │ symbol ( \(+ │ \(* )  terminal_symbol?  \)         ↦cstr ^listProduction                                            
+    │ θsym                                               ↦cstr{ this.type = "symbol"; this.val = $sym1; this.pos = pos}
+    | θtok                                               ↦cstr{ this.type = "symbol"; this.val = $sym1; this.pos = pos}
 
 <> EOF_symbol → 
-	\$eof  											↦cstr{ this.type = "eof"; this.val = "$eof"; this.pos = pos }
+    \$eof                                              ↦cstr{ this.type = "eof"; this.val = "$eof"; this.pos = pos }
 
 <> empty_symbol → 
-	\ɛ  											↦cstr{ this.type = "empty"; this.pos = pos }
+    \ɛ                                              ↦cstr{ this.type = "empty"; this.pos = pos }
 
 <> assert_function_symbol → 
-	 τassert \:  (ERR θws θnl) identifier 			↦cstr{ this.type = "assert_token_function"; this.val = $sym3; this.pos = pos; this.DOES_SHIFT = false }
-	| τshift \:  (ERR θws θnl) identifier 			↦cstr{ this.type = "assert_token_function"; this.val = $sym3; this.pos = pos; this.DOES_SHIFT = true }
+     τassert \:  (ERR θws θnl) identifier             ↦cstr{ this.type = "assert_token_function"; this.val = $sym3; this.pos = pos; this.DOES_SHIFT = false }
+    | τshift \:  (ERR θws θnl) identifier             ↦cstr{ this.type = "assert_token_function"; this.val = $sym3; this.pos = pos; this.DOES_SHIFT = true }
 
 <> generated_symbol → 
-	( \θ │ τg \: ) (ERR θws θnl) identifier 		↦cstr{ this.type = "generated"; this.val = $sym2; this.pos = pos }
+    ( \θ │ τg \: ) (ERR θws θnl) identifier         ↦cstr{ this.type = "generated"; this.val = $sym2; this.pos = pos }
 
 <> literal_symbol → 
-	( \τ │ τt \: ) (ERR θws θnl)  ( identifier │ def::natural ) ↦cstr{ this.type = "literal"; this.val = ""+$sym2; this.pos = pos }
+    ( \τ │ τt \: ) (ERR θws θnl)  ( identifier │ def::natural ) ↦cstr{ this.type = "literal"; this.val = ""+$sym2; this.pos = pos }
 
 <> escaped_symbol → 
-	\\ (ERR θws θnl)  ( θid | θtok | θsym ) 							↦cstr{ this.type = "symbol"; this.val = $sym2; this.pos = pos }
+    \\ (ERR θws θnl)  ( θid | θtok | θsym )                             ↦cstr{ this.type = "symbol"; this.val = $sym2; this.pos = pos }
 
 <> production_symbol → 
-	identifier 										↦cstr{ this.type = "production"; this.name = $sym1; this.val = -1; this.pos = pos}
+    identifier                                         ↦cstr{ this.type = "production"; this.name = $sym1; this.val = -1; this.pos = pos}
 
 <> imported_production_symbol → 
-	production_id \:: identifier					↦c ^importProduction
+    production_id \:: identifier                    ↦c ^importProduction
 
 <> production_id → identifier
 

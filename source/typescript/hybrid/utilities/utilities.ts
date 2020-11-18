@@ -100,6 +100,19 @@ export function createDefaultReduceFunction(item: Item): string {
     return `add_reduce(${item.len},${0});`;
 }
 
+export function getMaxProductionBodyLength(grammar: Grammar, prod_id: number): number {
+    const production: Production = grammar[prod_id];
+
+    if (!production) return -1;
+
+    let max = -1;
+
+    for (const body of production.bodies)
+        max = Math.max(body.length, max);
+
+    return max;
+}
+
 export function getUniqueSymbolName(sym: Symbol) {
     if (!sym) return "";
     return sym.val + sym.type + (sym.DOES_SHIFT ? "----" : "");

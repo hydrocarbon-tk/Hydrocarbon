@@ -98,13 +98,13 @@ function addFunctions(funct, production, env) {
         let name = env.FLUT.get(str);
         if (!name) {
             name = funct.type[0] + production.id + (production.func_counter++) + "_" + production.name.replace(/\$/g, "_");
-            funct.name = name;
+            //funct.name = name;
             env.functions[name] = setFunction(null, funct, [production_stack_arg_name, environment_arg_name, lexer_arg_name, "pos", "output", "len"], {});
             env.functions[name].INTEGRATE = true;
             env.FLUT.set(str, name);
         }
 
-        funct.name = name;
+        //funct.name = name;
     }
 }
 
@@ -145,13 +145,26 @@ export function filloutGrammar(grammar: Grammar, env) {
         }
 
         for (let i = 0; i < production.bodies.length; i++, j++) {
-            const body = production.bodies[i],
-                HAS_REDUCE = !!body.reduce_function;
 
-            if (HAS_REDUCE) {
-                if (!reduce_lu.has(body.reduce_function.txt))
-                    reduce_lu.set(body.reduce_function.txt, reduce_lu.size);
-                body.reduce_id = reduce_lu.get(body.reduce_function.txt);
+
+
+            const body = production.bodies[i];
+
+            if (body.functions.length > 0)
+                console.log(body.functions);
+
+            if (!!body.reduce_function) {
+
+                if (body.reduce_function.name && body.reduce_function.txt)
+                    console.log(body.reduce_function);
+
+                const txt = body.reduce_function.name
+                    ? `${body.reduce_function.type == "CLASS" ? "return new" : "return"} env.functions.${body.reduce_function.name}(sym, env, pos);`
+                    : body.reduce_function.txt;
+
+                if (!reduce_lu.has(txt))
+                    reduce_lu.set(txt, reduce_lu.size);
+                body.reduce_id = reduce_lu.get(txt);
             } else
                 body.reduce_id = -1;
 

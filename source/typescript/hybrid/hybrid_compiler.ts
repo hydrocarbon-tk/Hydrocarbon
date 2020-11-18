@@ -7,26 +7,27 @@ import URL from "@candlefw/url";
 import asc from "assemblyscript/cli/asc";
 import { renderAssemblyScriptRecognizer } from "./script_generating/hybrid_assemblyscript_recognizer_template.js";
 import { renderParserScript } from "./script_generating/hybrid_js_parser_template.js";
+import { CompiledHybridOptions } from "./CompiledHybridOptions";
 const fsp = fs.promises;
 
 
-interface CompiledHybridOptions {
-    action_array_byte_size: number,
-    error_array_byte_size: number,
-    add_annotations: boolean;
-    output_dir: string;
+const default_options: CompiledHybridOptions = {
+    add_annotations: false,
+    action_array_byte_size: 1024,
+    error_array_byte_size: 512,
+    memory_loader_url: "@candlefw/hydrocarbon",
+    alternate_parse_entries: [],
+    ts_output_dir: "./parser",
+    wasm_output_dir: "./wasm"
+};
 
-    /**
-     * Allows alternate parse of sub-productions
-     */
-    alternate_parse_entries: boolean;
-}
+export async function compileHybrid(grammar: Grammar, env: GrammarParserEnvironment, options: CompiledHybridOptions) {
 
-export async function compileHybrid(grammar: Grammar, env: GrammarParserEnvironment) {
+    const used_options: CompiledHybridOptions = Object.assign({}, default_options, options);
 
     await asc.ready;
 
-    const mt_runner = new HybridMultiThreadRunner(grammar, env, true);
+    const mt_runner = new HybridMultiThreadRunner(grammar, env, used_options.add_annotations);
 
     for (const updates of mt_runner.run())
         await spark.sleep(1);
@@ -41,31 +42,34 @@ export async function compileHybrid(grammar: Grammar, env: GrammarParserEnvironm
     const { binary, text, stdout, stderr } = asc.compileString(recognizer_script, {
         runtime: "full",
         optimize: true,
+        converge: true,
         optimizeLevel: 3,
         noExportMemory: false,
         sharedMemory: false,
         maximumMemory: 100,
         importMemory: true,
         memoryBase: 4579328
-    });
+    }),
 
-    const errors = stderr.toString();
-    const messages = stdout.toString();
+        errors = stderr.toString(),
+        messages = stdout.toString(),
 
-    if (errors.length > 0) {
+        wasm_dir = URL.resolveRelative(options.wasm_output_dir),
+        ts_dir = URL.resolveRelative(options.ts_output_dir),
+        recognizer_wat_file = URL.resolveRelative("./recognizer.wat", wasm_dir),
+        recognizer_binary_file = URL.resolveRelative("./recognizer.wasm", wasm_dir),
+        recognizer_ts_file = URL.resolveRelative("./recognizer.ts", ts_dir),
+        parser_file = URL.resolveRelative("./parser.js", ts_dir);
+
+    if (errors.length > 0)
         throw new EvalError(errors);
-    }
-    if (messages.length > 0) {
-        console.log(messages);
-    }
 
-    const root_dir = URL.resolveRelative("./temp/");
-    const recognizer_wat_file = URL.resolveRelative("./recognizer.wat", root_dir);
-    const recognizer_binary_file = URL.resolveRelative("./recognizer.wasm", root_dir);
-    const recognizer_ts_file = URL.resolveRelative("./recognizer.ts", root_dir);
-    const parser_file = URL.resolveRelative("./parser.js", root_dir);
+    if (messages.length > 0)
+        console.log(messages);
 
     try {
+        await fsp.mkdir(wasm_dir + "", { recursive: true });
+        await fsp.mkdir(ts_dir + "", { recursive: true });
 
         //Create the temp directory
         await fsp.writeFile(recognizer_ts_file + "", recognizer_script);
@@ -76,9 +80,7 @@ export async function compileHybrid(grammar: Grammar, env: GrammarParserEnvironm
         //run the wasm-pack locally
         console.log("Completed WASM Compilation");
     } catch (e) {
-        console.log(e);
+        throw e;
     }
-
-    return () => { };
 }
 

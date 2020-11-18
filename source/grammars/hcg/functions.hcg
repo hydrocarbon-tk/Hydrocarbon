@@ -1,4 +1,4 @@
-@SYMBOL =>
+@SYMBOL \=>
 
 
 @IMPORT ./symbols.hcg as sym
@@ -14,109 +14,109 @@
 ######################################  FUNCTIONS
 ########################################################################################################################
 
-<> referenced_function → js_function_start_symbol  sym::identifier  ^ (ERR θws ) sym::js_identifier  		
-																	↦cstr{ 	
-																		this.id = $sym2; 	
-																		this.name = $sym4;
-																		this.txt = ""; 
-																		this.env = true;	
-																		this.IS_CONDITION = true;
-																	}
+<> referenced_function → js_function_start_symbol  sym::identifier  ^ (ERR θws ) sym::js_identifier          
+                                                                    ↦cstr{     
+                                                                        this.id = $sym2;     
+                                                                        this.name = $sym4;
+                                                                        this.txt = ""; 
+                                                                        this.env = true;    
+                                                                        this.IS_CONDITION = true;
+                                                                    }
 
-	│ js_function_start_symbol  sym::identifier  { js_data }  		
-																	↦cstr{ 		
-																		this.id = $sym2; 	
-																		this.txt = $sym4; 
-																		this.env = false;	
-																		this.name = "";
-																		this.IS_CONDITION = true;
-																	}
+    │ js_function_start_symbol  sym::identifier  { js_data }          
+                                                                    ↦cstr{         
+                                                                        this.id = $sym2;     
+                                                                        this.txt = $sym4; 
+                                                                        this.env = false;    
+                                                                        this.name = "";
+                                                                        this.IS_CONDITION = true;
+                                                                    }
 
-<> error_function → τerh : { js_data } { js_data }					↦cstr{ 
-																		this.type = "ERROR_RECOVERY"; 	
-																		this.lexer_text = $sym4; 
-																		this.body_text = $sym7;
-																	}
+<> error_function → τerh : { js_data } { js_data }                    ↦cstr{ 
+                                                                        this.type = "ERROR_RECOVERY";     
+                                                                        this.lexer_text = $sym4; 
+                                                                        this.body_text = $sym7;
+                                                                    }
 <> reduce_function → 
 
-	js_function_start_symbol ( τcstr │ τc │ τreturn │ τr ) { js_data } 								
-																	↦cstr{ 
-																		this.type = ($sym2[0] == "c" ) ?"CLASS" :"RETURNED"; 	
-																		this.txt = $sym4; 
-																		this.name = ""; 
-																		this.env = false;
-																		this.ref = ""; 	
-																		this.IS_CONDITION = true;
-																	}
+    js_function_start_symbol ( τcstr │ τc │ τreturn │ τr ) { js_data }                                 
+                                                                    ↦cstr{ 
+                                                                        this.type = ($sym2[0] == "c" ) ?"CLASS" :"RETURNED";     
+                                                                        this.txt = $sym4; 
+                                                                        this.name = ""; 
+                                                                        this.env = false;
+                                                                        this.ref = "";     
+                                                                        this.IS_CONDITION = true;
+                                                                    }
 
- 	│ js_function_start_symbol ( τcstr │ τc │ τreturn │ τr ) ^ (ERR θws θnl ) sym::js_identifier 	
+     │ js_function_start_symbol ( τcstr │ τc │ τreturn │ τr ) ^ (ERR θws θnl ) sym::js_identifier     
 
- 																	↦cstr{ 
-																		this.type = ($sym2[0] == "c" ) ?"CLASS" :"RETURNED"; 			
-																		this.txt = ""; 
-																		this.name = $sym4; 
-																		this.env = true;
-																		this.ref = ""; 	 
-																		this.IS_CONDITION = true;  
-																	}
-	│ js_function_start_symbol ( τcstr │ τc │ τreturn │ τr ) \=>  sym::js_identifier	
-																	↦cstr{ 
-																		this.type = ($sym2[0] == "c" ) ?"CLASS" :"RETURNED"; 			
-																		this.ref = $sym4;
-																		this.txt = ""; 	   
-																		this.name = ""; 
-																		this.env = true;
-																		this.IS_CONDITION = true;
+                                                                     ↦cstr{ 
+                                                                        this.type = ($sym2[0] == "c" ) ?"CLASS" :"RETURNED";             
+                                                                        this.txt = ""; 
+                                                                        this.name = $sym4; 
+                                                                        this.env = true;
+                                                                        this.ref = "";      
+                                                                        this.IS_CONDITION = true;  
+                                                                    }
+    │ js_function_start_symbol ( τcstr │ τc │ τreturn │ τr ) \=>  sym::js_identifier    
+                                                                    ↦cstr{ 
+                                                                        this.type = ($sym2[0] == "c" ) ?"CLASS" :"RETURNED";             
+                                                                        this.ref = $sym4;
+                                                                        this.txt = "";        
+                                                                        this.name = ""; 
+                                                                        this.env = true;
+                                                                        this.IS_CONDITION = true;
 
-																		const ref = env.refs.get(this.ref);
+                                                                        const ref = env.refs.get(this.ref);
 
-																		if(ref){
-																			if(Array.isArray(ref)){
-																				ref.push(this);
-																			}
-																			else{
-																				let ref = env.refs.get(this.ref);
-																				this.env = ref.env;
-																				this.name = ref.name;
-																				this.txt = ref.txt;
-																			}
-																		}else{
-																			env.refs.set(this.ref, [this]);
-																		}
-																		
-																	}
+                                                                        if(ref){
+                                                                            if(Array.isArray(ref)){
+                                                                                ref.push(this);
+                                                                            }
+                                                                            else{
+                                                                                let ref = env.refs.get(this.ref);
+                                                                                this.env = ref.env;
+                                                                                this.name = ref.name;
+                                                                                this.txt = ref.txt;
+                                                                            }
+                                                                        }else{
+                                                                            env.refs.set(this.ref, [this]);
+                                                                        }
+                                                                        
+                                                                    }
 
 <> function_clause → 
-	
-	js_function_start_symbol { js_data } 								
-																	↦cstr{
-																		this.type = "INLINE"; 	
-																		this.txt = $sym3; 
-																		this.name = ""; 	
-																		this.env = false;
-																		this.IS_CONDITION = true;
-																	}
+    
+    js_function_start_symbol { js_data }                                 
+                                                                    ↦cstr{
+                                                                        this.type = "INLINE";     
+                                                                        this.txt = $sym3; 
+                                                                        this.name = "";     
+                                                                        this.env = false;
+                                                                        this.IS_CONDITION = true;
+                                                                    }
 
-	│ js_function_start_symbol ^ (ERR θws θnl ) sym::js_identifier 							
-																	↦cstr{
-																		this.type = "INLINE"; 	
-																		this.txt = ""; 
-																		this.name = $sym3; 	
-																		this.env = true;
-																		this.IS_CONDITION = true;
-																	}
+    │ js_function_start_symbol ^ (ERR θws θnl ) sym::js_identifier                             
+                                                                    ↦cstr{
+                                                                        this.type = "INLINE";     
+                                                                        this.txt = ""; 
+                                                                        this.name = $sym3;     
+                                                                        this.env = true;
+                                                                        this.IS_CONDITION = true;
+                                                                    }
 
 <> js_data → js_primitive
-	│ js_data_block
-	│ js_data js_primitive											↦return { $sym1 + $sym2 }
-	│ js_data js_data_block											↦return { $sym1 + $sym2 }
-	│ ɛ
+    │ js_data_block
+    │ js_data js_primitive                                            ↦return { $sym1 + $sym2 }
+    │ js_data js_data_block                                            ↦return { $sym1 + $sym2 }
+    │ ɛ
 
 <> js_primitive → θid │ θnum │ θws │ θsym │ θtok │ θkey 
-	| (sym::terminal_symbol | sym::EOF_symbol)  ↦return { "<--" + $sym1.type + "^^" + $sym1.val + "-->" }
+    | (sym::terminal_symbol | sym::EOF_symbol)  ↦return { "<--" + $sym1.type + "^^" + $sym1.val + "-->" }
 
-<> js_data_block → { js_data }									↦return { $sym1 + $sym2 + $sym3 }
+<> js_data_block → { js_data }                                    ↦return { $sym1 + $sym2 + $sym3 }
 
 <> js_function_start_symbol → \↦ 
-	│ τf \: 
-	
+    │ τf \: 
+    

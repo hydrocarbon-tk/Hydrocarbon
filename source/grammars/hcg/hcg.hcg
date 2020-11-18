@@ -23,19 +23,18 @@
 # tokenize symbols that are comprised of multiple characters. Symbols are defined per file and only apply to productions
 # defined within that file. 
 
-@SYMBOL (( )) <> +> => (* (+ :: \τ \θ \ɛ
+@SYMBOL \(( \)) \<> \+> \=> \(* \(+ \:: \τ \θ \ɛ
 
 # The @IGNORE preamble defines tokens that should be ignored when parsing terminals in a production. This can be overridden per 
 # production body with the ((IGN symbol)) clause or by explicitly declaring the ignored symbol within the grammar.
 
-@IGNORE θws θnl
 
 # The @IMPORT preamble allows productions to be defined in external files and incorporated into the host file,
-# accessible by the identifier defined after the `as` keyword. 
-
- @IMPORT ./preambles.hcg as pre 
+# accessible by the identifier defined after the as keyword. 
 
  @IMPORT ./productions.hcg as prd
+
+ @IMPORT ./preambles.hcg as pre
 
  # Additional preambles definitions can be found in ./preambles.hcg
 
@@ -45,13 +44,10 @@
 
 # The goal production is the first production defined in the grammar.
 
-<> hydrocarbon → head 									↦return { env.productions }
+<> hydrocarbon → head                                     ↦return { env.productions }
 
 # Production from imported files can be accessed by using the syntax {grammar_file id}::{production name}
 
-<> head → pre::preamble? prd::productions 				↦return { env.productions.meta = {preambles : $sym1, pos} }
+<> head → pre::preamble? prd::productions                 ↦return { env.productions.meta = {preambles : $sym1, pos} }
 
 # This annotated grammar definition is continued in ./preambles.hcg
-
-
-

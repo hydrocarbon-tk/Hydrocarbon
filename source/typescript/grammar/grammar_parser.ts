@@ -1,7 +1,11 @@
 import wind from "@candlefw/wind";
-
+/*
 import hcg_parser_data from "./hcg.js";
 import { lrParse as parser } from "../lr/runtime/lr_parser.js";
+/*/
+import parserLoader from "./parser.js";
+const parser = await parserLoader();
+//*/
 
 import convertProductionNamesToIndexes from "./convert_production_names.js";
 import compileProduction from "./compile_production.js";
@@ -14,7 +18,6 @@ import body from "./production_body_constructor.js";
 import { Grammar } from "../types/grammar.js";
 import { GrammarParserEnvironment } from "../types/grammar_compiler_environment.js";
 import { ParserEnvironment } from "../types/parser_environment.js";
-
 
 async function sleep(data: AwaitTracker): Promise<void> {
     return new Promise(res => {
@@ -87,8 +90,9 @@ export async function grammarParser(
             local_pending_files,
             unique_grammar_file_id,
             meta_imported_productions
-        ),
-
+        )
+        /*/
+        ,
         result = parser(
             wind(grammar_string),
             //@ts-ignore
@@ -96,9 +100,13 @@ export async function grammarParser(
             env,
             //(await import("@candlefw/hydrocarbon/source/grammars/hcg/hcg.debug_info.js")).default
         ),
-
         grammar = <Grammar>result.value;
-
+    /*/
+        ;
+    env.fn = env.functions;
+    const { result } = parser(grammar_string, env),
+        grammar = result[0];
+    //*/
 
     if (result.error) { throw result.error; }
 

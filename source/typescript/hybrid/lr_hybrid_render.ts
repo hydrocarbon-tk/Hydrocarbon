@@ -14,12 +14,30 @@ import {
     createLRReduceCompletionWithFn,
     addRecoveryHandlerToFunctionBodyArray,
     addSkipCall,
-    getLRStateSymbolsAndFollow
+    getLRStateSymbolsAndFollow,
+    getMaxProductionBodyLength
 } from "./utilities/utilities.js";
 import { LRState } from "./types/State";
 import { RDProductionFunction } from "./types/RDProductionFunction.js";
 import { CompilerRunner } from "./types/CompilerRunner.js";
 import { Symbol } from "../types/Symbol.js";
+
+
+
+type Output = {
+    sym: Symbol;
+    type: string;
+    length?: number;
+    stmt: string;
+    prod_id?: number;
+};
+
+type FinalOutput = {
+    a_sym: Symbol,
+    rd_name: string,
+    IS_PURE_RD: boolean,
+    stmts: string;
+};
 
 
 function filterGotos(state: LRState, states: LRState[], grammar: Grammar, ...pending_prods: number[]): Map<number, number[]> {
@@ -151,7 +169,7 @@ function gotoState(
 }
 
 function createIfLRBlocks(outputs: FinalOutput[], grammar: Grammar, runner: CompilerRunner, state: LRState, REDUCE_FUNCTIONS: boolean = false, exclude_symbols: Symbol[] = []) {
-   const statements: string[] = [];
+    const statements: string[] = [];
     if (outputs.length > 0) {
         if (outputs.length < 8 && (new Set(outputs.map(o => o.stmts))).size == 1)
             statements.push(`if(${getIncludeBooleans(outputs.map(s => s.a_sym), grammar, runner, "l", exclude_symbols)}){${outputs[0].stmts}${REDUCE_FUNCTIONS ? ";return" : ""}}`);
@@ -238,23 +256,6 @@ function createIfLRBlocks(outputs: FinalOutput[], grammar: Grammar, runner: Comp
     return statements;
 }
 
-type Output = {
-    sym: Symbol;
-    type: string;
-    length?: number;
-    stmt: string;
-    prod_id?: number;
-};
-
-type FinalOutput = {
-    a_sym: Symbol,
-    rd_name: string,
-    IS_PURE_RD: boolean,
-    stmts: string;
-};
-
-
-
 function getMappedArray<Val>(string: string, map: Map<string, Val[]>): Val[] {
     if (!map.has(string))
         map.set(string, []);
@@ -272,7 +273,7 @@ function addRDShiftOutput(
         sym: sym,
         type: sym.val == "any" ? "any_shift" : "shift",
         prod_id: -1,
-        length: item.len,
+        length: getMaxProductionBodyLength(grammar, prod_id),
         stmt: `${getRDFNName(grammar[prod_id])}(__lex_name__); stack_ptr++;`
     };
 }
@@ -408,10 +409,10 @@ function shiftReduce(
             const sym = item.follow;
             const body = item.body_(grammar);
             let stmt = "";
-            if (body.reduce_id >= -1)
+            if (body.reduce_id >= 0)
                 stmt = `${createLRReduceCompletionWithFn(item, grammar)} stack_ptr-=${item.len};`;
-            else if (item.len > 1)
-                stmt = `${createLRReduceCompletionWithoutFn(item, grammar)} stack_ptr-=${item.len};`;
+            else stmt = `${createLRReduceCompletionWithoutFn(item, grammar)} stack_ptr-=${item.len};`;
+
             getMappedArray(<string>sym.val, new_outputs).push({
                 sym: sym,
                 type: "reduce",

@@ -33,13 +33,13 @@
 
 
 <> preamble_clause →  ignore_preamble
-	│ symbols_preamble
-	│ precedence_preamble
-	│ name_preamble
-	│ ext_preamble
-	│ error_preamble
-	│ import_preamble
-	│ cm::comment
+    │ symbols_preamble
+    │ precedence_preamble
+    │ name_preamble
+    │ ext_preamble
+    │ error_preamble
+    │ import_preamble
+    │ cm::comment
 
 
 
@@ -58,10 +58,10 @@
 # are matched against tokens whose string value is the same as the text following 
 # the τ character.
 
-<> symbols_preamble → 		@ τSYMBOL  sym::lexer_symbol(+)  θnl 	↦cstr{ 
-																			this.type="symbols"; 
-																			this.symbols = $sym3;
-																		 }
+<> symbols_preamble →         @ τSYMBOL  sym::lexer_symbol(+)  θnl     ↦cstr{ 
+                                                                            this.type="symbols"; 
+                                                                            this.symbols = $sym3;
+                                                                         }
 
 # When the parser reaches the end of a production and is ready to reduce,
 # it runs a reduction function that deals with the terminal symbols encountered in 
@@ -72,15 +72,15 @@
 #
 # The other form is the constructor reduce function, which uses the "new" operator to create
 # new JavaScript object, which is then return to as the value of the production.
-																		
-																		
+                                                                        
+                                                                        
 
-<> precedence_preamble → 	@ τPREC sym::terminal_symbol θnum θnl ↦cstr{ 	
-																			this.grammar_stamp = env.stamp; 
-																			this.type="precedence"; 
-																	   		this.terminal = $sym3; 
-																	   		this.val = parseInt($sym4)
-																		}	
+<> precedence_preamble →     @ τPREC sym::terminal_symbol θnum θnl ↦cstr{     
+                                                                            this.grammar_stamp = env.stamp; 
+                                                                            this.type="precedence"; 
+                                                                               this.terminal = $sym3; 
+                                                                               this.val = parseInt($sym4)
+                                                                        }    
 
 # In either the Constructor Reduce function or the Return Expression Reduce function
 # the symbols of the production can be addressed using the $sym operator, which resolves
@@ -88,39 +88,39 @@
 # production body. In the following case, the $sym3 resolves to the third symbol in the proceeding
 # precedence_preamble body, sym::terminal_symbol ( keep in mind [(ERR θws)] is a meta object 
 # and is not an actual symbol of the production body). $sym4 resolves to the θnum symbol.
-																		
-																		
+                                                                        
+                                                                        
 
-<> ignore_preamble → 		@ τIGNORE sym::ignore_symbols θnl				
-																		
-																		↦cstr{ 	
-																			this.grammar_stamp = env.stamp; 
-																			this.type="ignore"; 
-																			this.symbols = $sym3;
-																		}
+<> ignore_preamble →         @ τIGNORE sym::ignore_symbols θnl                
+                                                                        
+                                                                        ↦cstr{     
+                                                                            this.grammar_stamp = env.stamp; 
+                                                                            this.type="ignore"; 
+                                                                            this.symbols = $sym3;
+                                                                        }
  
 
-<> error_preamble → 		@ τERROR sym::ignore_symbols θnl				
-																		
-																		↦cstr{ 	
-																			this.grammar_stamp = env.stamp; 
-																			this.type="error"; 
-																			this.symbols = $sym3;
-																		}
+<> error_preamble →         @ τERROR sym::ignore_symbols θnl                
+                                                                        
+                                                                        ↦cstr{     
+                                                                            this.grammar_stamp = env.stamp; 
+                                                                            this.type="error"; 
+                                                                            this.symbols = $sym3;
+                                                                        }
 
 
-<> name_preamble → 			@ τNAME sym::identifier θnl 					
-																		
-																		↦cstr{ this.type="name"; this.id = $sym3 }
+<> name_preamble →             @ τNAME sym::identifier θnl                     
+                                                                        
+                                                                        ↦cstr{ this.type="name"; this.id = $sym3 }
 
 
-<> ext_preamble → 			@ τEXT sym::identifier θnl 					
-																		
-																		↦cstr{ this.type="ext"; this.id = $sym3 }
+<> ext_preamble →             @ τEXT sym::identifier θnl                     
+                                                                        
+                                                                        ↦cstr{ this.type="ext"; this.id = $sym3 }
 
 
-<> import_preamble → 		@ τIMPORT θws(*) ( θid │ θkey │ θsym │ θtok )(+") θws(+) (τAS│τas) sym::identifier θnl 	
-																		
-																		↦return ^importData 
+<> import_preamble →         @ τIMPORT θws(*) ( θid │ θkey │ θsym │ θtok )(+\") θws(+) (τAS│τas) sym::identifier θnl     
+                                                                        
+                                                                        ↦return ^importData 
 
 

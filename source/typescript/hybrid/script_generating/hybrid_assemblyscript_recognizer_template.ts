@@ -71,6 +71,10 @@ function completeProduction(body: u32, len: u32, production: u32): void {
     prod = production;
 }
 
+function completeProductionPlain(len: u32, production: u32): void {
+    prod = production;
+}
+
 @inline
 function mark (): u32{
     mark_ = action_ptr;
@@ -90,19 +94,12 @@ function add_skip(char_len: u32): void {
 }
 
 function add_shift(char_len: u32): void {
-    //stack_ptr++;
     const ACTION: u32 = 2;
     const val: u32 = ACTION | (char_len << 2);
     set_action(val);
 }
 
-function completeProductionPlain(len: u32, production: u32): void {
-    //stack_ptr -= len;
-    prod = production;
-}
-
 function add_reduce(sym_len: u32, body: u32): void {
-    //stack_ptr -= sym_len;
     const ACTION: u32 = 1;
     const val: u32 = ACTION | ((sym_len & 0x3FFF) << 2) | (body << 16);
     set_action(val);

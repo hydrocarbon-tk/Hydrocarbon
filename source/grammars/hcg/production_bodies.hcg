@@ -16,67 +16,67 @@
 
 <> start → production_bodies
 
-<> production_bodies > production_body 					 			↦return { env.body_count++, [$sym1]  }
-			
-		│ production_bodies  ( \│ │ \| )  production_body 					
-																	
-																	↦return { env.body_count++, $sym1.push($sym3), $sym1 }
+<> production_bodies > production_body                                  ↦return { env.body_count++, [$sym1]  }
+            
+        │ production_bodies  ( \│ │ \| )  production_body                     
+                                                                    
+                                                                    ↦return { env.body_count++, $sym1.push($sym3), $sym1 }
 
-		│ production_bodies cm::comment					
-																	
-																	↦return { $sym1 }
+        │ production_bodies cm::comment                    
+                                                                    
+                                                                    ↦return { $sym1 }
 
 
-<> production_body → force_fork? entries  							↦r { new env.fn.body([$sym2], env, pos, undefined, !!$$sym1 ) }
+<> production_body → force_fork? entries                              ↦r { new env.fn.body([$sym2], env, pos, undefined, !!$$sym1 ) }
 
 
 <> entries → body_entries fn::reduce_function?
-																	↦cstr{ 
-																		this.body = $sym1; 
-																		this.reduce = $sym2; 
-																	}								
+                                                                    ↦cstr{ 
+                                                                        this.body = $sym1; 
+                                                                        this.reduce = $sym2; 
+                                                                    }                                
 
-		│ sym::empty_symbol  											
-																	↦cstr{ 
-																	   	this.body = []; 
-																	   	this.reduce = null; 
-																	}
+        │ sym::empty_symbol                                              
+                                                                    ↦cstr{ 
+                                                                           this.body = []; 
+                                                                           this.reduce = null; 
+                                                                    }
 
-		│ sym::EOF_symbol  												
-																	↦cstr{ 
-																	   	this.reduce = null;  
-																	   	this.body = [$sym1]; 
-																	}
-
-
-<> body_entries → sym::symbol 										
-																	↦return{ env.body_offset = 0, [$sym1] }
-
-  		│ condition_clause 									
-  			 														↦return{ env.body_offset = 0, [$sym1] }
-
-  		│ fn::function_clause	 								
-  			 														↦return{ env.body_offset = 0, [$sym1] }
-
-		│ body_entries fn::function_clause 					
-			 														↦return { env.body_offset = $sym1.length, $sym1.push($sym2), $sym1 }
-
-		│ body_entries condition_clause 						
-			 														↦return { env.body_offset = $sym1.length, $sym1.push($sym2), $sym1 }
-
-		│ body_entries sym::symbol 								
-			 														↦return { env.body_offset = $sym1.length,  $sym1.push($sym2), $sym1 }
-
-		│ \[ body_entries \]										
-			 														↦return { $sym2.map(e => (e.NO_BLANK = true, e) ) }
+        │ sym::EOF_symbol                                                  
+                                                                    ↦cstr{ 
+                                                                           this.reduce = null;  
+                                                                           this.body = [$sym1]; 
+                                                                    }
 
 
-<> force_fork >	 \( τFORK \) 										↦r{ true }
+<> body_entries → sym::symbol                                         
+                                                                    ↦return{ env.body_offset = 0, [$sym1] }
+
+          │ condition_clause                                     
+                                                                       ↦return{ env.body_offset = 0, [$sym1] }
+
+          │ fn::function_clause                                     
+                                                                       ↦return{ env.body_offset = 0, [$sym1] }
+
+        │ body_entries fn::function_clause                     
+                                                                     ↦return { env.body_offset = $sym1.length, $sym1.push($sym2), $sym1 }
+
+        │ body_entries condition_clause                         
+                                                                     ↦return { env.body_offset = $sym1.length, $sym1.push($sym2), $sym1 }
+
+        │ body_entries sym::symbol                                 
+                                                                     ↦return { env.body_offset = $sym1.length,  $sym1.push($sym2), $sym1 }
+
+        │ \[ body_entries \]                                        
+                                                                     ↦return { $sym2.map(e => (e.NO_BLANK = true, e) ) }
+
+
+<> force_fork >     \( τFORK \)                                         ↦r{ true }
 
 <> condition_clause → 
-		  \( τEXC sym::condition_symbol_list \) 					↦c{ this.IS_CONDITION = true; this.type = "exc"; this.sym = $sym3; this.offset = -1; }
-		│ \( τERR sym::condition_symbol_list \) 					↦c{ this.IS_CONDITION = true; this.type = "err"; this.sym = $sym3; this.offset = -1; }
-		│ \( τIGN sym::condition_symbol_list \) 					↦c{ this.IS_CONDITION = true; this.type = "ign"; this.sym = $sym3; this.offset = -1; }
-		│ \( τRST sym::condition_symbol_list \) 					↦c{ this.IS_CONDITION = true; this.type = "rst"; this.sym = $sym3; this.offset = -1; }
-		│ \( τRED sym::symbol \) 									↦c{ this.IS_CONDITION = true; this.type = "red"; this.sym = $sym3; this.offset = -1; }
+          \( τEXC sym::condition_symbol_list \)                     ↦c{ this.IS_CONDITION = true; this.type = "exc"; this.sym = $sym3; this.offset = -1; }
+        │ \( τERR sym::condition_symbol_list \)                     ↦c{ this.IS_CONDITION = true; this.type = "err"; this.sym = $sym3; this.offset = -1; }
+        │ \( τIGN sym::condition_symbol_list \)                     ↦c{ this.IS_CONDITION = true; this.type = "ign"; this.sym = $sym3; this.offset = -1; }
+        │ \( τRST sym::condition_symbol_list \)                     ↦c{ this.IS_CONDITION = true; this.type = "rst"; this.sym = $sym3; this.offset = -1; }
+        │ \( τRED sym::symbol \)                                     ↦c{ this.IS_CONDITION = true; this.type = "red"; this.sym = $sym3; this.offset = -1; }
 

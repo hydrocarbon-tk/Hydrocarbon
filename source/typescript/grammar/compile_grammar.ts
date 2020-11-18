@@ -15,8 +15,6 @@ export async function createGrammar(grammar_string: string, grammar_string_path:
     return grammar;
 }
 
-
-
 function createGrammarHash(grammar: Grammar, crypto): string {
 
     let str = "", to_process_productions = [new Item(0, grammar.bodies[0].length, 0, null)], processed: Set<number> = new Set([0]);

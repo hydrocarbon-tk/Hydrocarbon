@@ -54,6 +54,7 @@ export default function (production: Production, env: GrammarParserEnvironment, 
         return;
     }
 
+
     const bodies = production.bodies;
 
     if (bodies.length == 1) {
@@ -193,6 +194,7 @@ export default function (production: Production, env: GrammarParserEnvironment, 
                 j--;
             }
         }
+
 
         body.length = body.sym.length;
 

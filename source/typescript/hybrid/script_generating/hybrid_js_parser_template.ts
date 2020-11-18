@@ -5,18 +5,17 @@ export const renderParserScript = (grammar: Grammar) => {
     return `
 import loader from "@assemblyscript/loader";
 
-import { buildParserMemoryBuffer } from "@candlefw/hydrocarbon";        
+import buildParserMemoryBuffer from "../hybrid/parser_memory.js";              
 import URL from "@candlefw/url";
 import Lexer from "@candlefw/wind";
 
 const 
     { shared_memory, action_array, error_array } = buildParserMemoryBuffer(),
-    fns = [(e,sym)=>sym[sym.length-1], ${grammar.meta.reduce_functions.map((b, i) => {
+    fns = [(e,sym)=>sym[sym.length-1], \n${grammar.meta.reduce_functions.map((b, i) => {
         if (b.includes("return")) {
-
-            return b.replace("return", "(env, sym, pos)=>(").slice(0, -1) + ")";
+            return b.replace("return", "(env, sym, pos)=>(").slice(0, -1) + ")" + `/*${i}*/`;
         } else {
-            return `(env, sym)=>new (class{constructor(env, sym, pos){${b}}})(env, sym)`;
+            return `(env, sym)=>new (class{constructor(env, sym, pos){${b}}})(env, sym)` + `/*${i}*/`;
         }
     }).join("\n,")
         }];
@@ -25,9 +24,9 @@ export default async function loadParser(){
 
     await URL.server();
 
-    const wasmModule = await loader.instantiate(await URL.resolveRelative("./recognizer.wasm").fetchBuffer(), { env: { memory: shared_memory } }),
+    const wasmModule = await loader.instantiate(await URL.resolveRelative("@candlefw/hydrocarbon/build/wasm/recognizer.wasm").fetchBuffer(), { env: { memory: shared_memory } }),
     
-    { main, __newString, __release } = wasmModule.exports;
+    { main, __newString } = wasmModule.exports;
 
     return function (str, env = {}) {
 
@@ -37,8 +36,6 @@ export default async function loadParser(){
             aa = action_array,
             er = error_array,
             stack = [];
-
-        __release(str_ptr);
         
         let action_length = 0;
     
