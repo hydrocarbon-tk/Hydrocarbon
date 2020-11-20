@@ -271,8 +271,14 @@ export class HybridMultiThreadRunner {
                 }
             }
         } catch (e) {
-            console.dir(e);
-            process.exit();
+            return yield {
+                jobs: 0,
+                errors: [e],
+                num_of_states: 0,
+                total_items: 0,
+                items_left: 0,
+                COMPLETED: true
+            };
         }
 
         //Clean up workers.

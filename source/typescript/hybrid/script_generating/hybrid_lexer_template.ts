@@ -111,6 +111,7 @@ class Lexer {
     id:i32;
     tl:i32;
     off:i32;
+    prev_off: i32;
 
 
     constructor() {
@@ -118,6 +119,7 @@ class Lexer {
         this.id = 0;
         this.tl = 0;
         this.off = 0;
+        this.prev_off = 0;
     }
 
     copy(destination: Lexer = new Lexer()) : Lexer {
@@ -125,6 +127,7 @@ class Lexer {
         destination.id = this.id;
         destination.ty = this.ty;
         destination.tl = this.tl;
+        destination.prev_off = this.prev_off;
         return destination;
     }
 
@@ -139,6 +142,18 @@ class Lexer {
         peeking_marker.next();
 
         return peeking_marker;
+    }
+
+    getOffsetRegionDelta(): u32 {
+        return this.off - this.prev_off;
+    }
+
+    advanceOffsetRegion(): void {
+        this.prev_off = this.off + this.tl;
+    }
+
+    syncOffsetRegion(): void {
+        this.prev_off = this.off ;
     }
     
     next() : Lexer{

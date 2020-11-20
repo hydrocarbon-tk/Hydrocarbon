@@ -49,10 +49,7 @@
                                                                     }
 
 
-<> body_entries → sym::symbol                                         
-                                                                    ↦return{ env.body_offset = 0, [$sym1] }
-
-          │ condition_clause                                     
+<> body_entries → condition_clause                                     
                                                                        ↦return{ env.body_offset = 0, [$sym1] }
 
           │ fn::function_clause                                     
@@ -70,6 +67,8 @@
         │ \[ body_entries \]                                        
                                                                      ↦return { $sym2.map(e => (e.NO_BLANK = true, e) ) }
 
+        |  sym::symbol                                        ↦return{ env.body_offset = 0, [$sym1] }                                                               
+
 
 <> force_fork >     \( τFORK \)                                         ↦r{ true }
 
@@ -78,5 +77,5 @@
         │ \( τERR sym::condition_symbol_list \)                     ↦c{ this.IS_CONDITION = true; this.type = "err"; this.sym = $sym3; this.offset = -1; }
         │ \( τIGN sym::condition_symbol_list \)                     ↦c{ this.IS_CONDITION = true; this.type = "ign"; this.sym = $sym3; this.offset = -1; }
         │ \( τRST sym::condition_symbol_list \)                     ↦c{ this.IS_CONDITION = true; this.type = "rst"; this.sym = $sym3; this.offset = -1; }
-        │ \( τRED sym::symbol \)                                     ↦c{ this.IS_CONDITION = true; this.type = "red"; this.sym = $sym3; this.offset = -1; }
+        │ \( τRED sym::symbol \)                                    ↦c{ this.IS_CONDITION = true; this.type = "red"; this.sym = $sym3; this.offset = -1; }
 

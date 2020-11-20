@@ -148,8 +148,11 @@ export type Grammar = Array<Production> & {
         ignore?: any[],
 
         preambles?: Preamble[];
-
-        reduce_functions?: string[];
+        /**
+         * A lut to map JavaScript function contents
+         * to numerical index values.
+         */
+        reduce_functions?: Map<string, number>;
     };
 
     imported: boolean;
@@ -168,6 +171,21 @@ export type Grammar = Array<Production> & {
 
     bodies: Array<ProductionBody>;
 
-    functions: Map<string, any>;
+    functions: Map<string, GrammarFunction>;
 
 };
+
+interface GrammarFunction {
+    type: "CLASS" | "RETURNED" | "INLINE";
+
+    name: string;
+    /**
+     * 
+     * The function should be looked up in the parser environment
+     * `functions` property
+     */
+    env: boolean;
+    ref: string;
+    txt: string;
+    IS_CONDITION: boolean;
+}

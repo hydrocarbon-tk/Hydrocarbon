@@ -13,7 +13,9 @@ import {
     createDefaultReduceFunction,
     addRecoveryHandlerToFunctionBodyArray,
     createAssertionShiftWithSkip,
-    addSkipCall
+    addSkipCall,
+    isSymADefinedToken,
+    isSymAnAssertFunction
 } from "./utilities/utilities.js";
 import { RDProductionFunction } from "./types/RDProductionFunction";
 import { RDItem } from "./types/RDItem";
@@ -123,8 +125,10 @@ function renderItemSym(
 
 
 function renderItem(item: Item, grammar: Grammar, runner: CompilerRunner, productions: Set<number> = new Set, DONT_CHECK = false, block_depth = 0): string {
-    const DONT_CREATE_BLOCK = ((DONT_CHECK || block_depth == 0) && !item.atEND);
-    const stmts = DONT_CREATE_BLOCK ? [] : ["if(!FAILED){"];
+
+    const
+        DONT_CREATE_BLOCK = ((DONT_CHECK || block_depth == 0) && !item.atEND),
+        stmts = DONT_CREATE_BLOCK ? [] : ["if(!FAILED){"];
 
 
     stmts.push(renderItemSym(item, grammar, runner, productions, DONT_CHECK));
@@ -188,6 +192,7 @@ type TransitionGroup = {
     id: string;
     syms: Set<string>;
     trs: RDItem[];
+    priority: number;
 };
 export function renderFunctionBody(
     llitems: RDItem[],
@@ -202,7 +207,7 @@ export function renderFunctionBody(
 
     const stmts = [];
 
-    if (peek_depth > 3)
+    if (peek_depth > 2)
         throw "Can't complete";
 
     /* 
@@ -245,9 +250,15 @@ export function renderFunctionBody(
         const id = trs.map(i => RDItemToItem(i).id).setFilter(i => i).sort().join("");
 
         if (!group_maps.has(id))
-            group_maps.set(id, { id, syms: new Set(), trs });
+            group_maps.set(id, { id, syms: new Set(), trs, priority: 0 });
 
-        group_maps.get(id).syms.add(symbol_val);
+        const group = group_maps.get(id), sym = sym_map.get(symbol_val);
+
+        group.syms.add(symbol_val);
+        group.priority |=
+            isSymADefinedToken(sym)
+                ? 8 : isSymAnAssertFunction(sym)
+                    ? 16 : 4;
     }
 
     let token_bit = 0;
@@ -259,7 +270,7 @@ export function renderFunctionBody(
     if (MULTIPLE_GROUPS) block_depth++;
 
     //Now create the necessary if statements with peek if depth > 0
-    for (const group of group_maps.values()) {
+    for (const group of [...group_maps.values()].sort((a, b) => b.priority - a.priority)) {
 
         const
             pk = peek_depth,
@@ -351,14 +362,6 @@ export function renderFunctionBody(
                         body.push(renderFunctionBody(has_closures, grammar, runner, block_depth + 1, peek_depth + 1, productions));
                     }
 
-                    // for (const d of no_closures.setFilter(i => i.id).slice(0)) {
-                    //     if (runner.ANNOTATED) {
-                    //         body.push("\n//Completed Production");
-                    //         body.push("/*\n" + [d].filter(_ => !!_).map(i => i.renderUnformattedWithProduction(grammar)).join("\n"), "*/");
-                    //     }
-                    //     body.push(renderItem(d, grammar, runner, productions, peek_depth >= 0 || !MULTIPLE_GROUPS), block_depth);
-                    // }
-
                     break;
                 };
             }
@@ -393,8 +396,6 @@ export function renderFunctionBody(
 
     if (MULTIPLE_GROUPS) {
         //Item annotations if required
-
-
 
         if (token_bit) {
             const const_node = ["const"], const_body = [];

@@ -4,6 +4,7 @@ import { Grammar, ProductionBody, Production } from "./grammar";
 
 import { AwaitTracker } from "../grammar/grammar_parser.js";
 import { ParserEnvironment } from "./parser_environment";
+import { Symbol } from "./Symbol";
 export type ImportedProductionList = Array<Production> & {
     SYMBOL_LIST: boolean;
     LU: Map<string, Production>;
@@ -29,6 +30,8 @@ export interface GrammarParserEnvironment extends ParserEnvironment {
     refs: Map<string, string>;
     body_count: number;
     stamp: number;
+
+    symbols: Symbol[];
 
     counter: number;
 

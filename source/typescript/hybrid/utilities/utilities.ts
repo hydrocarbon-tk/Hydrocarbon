@@ -47,6 +47,17 @@ Array.prototype.group = function <T>(this: Array<T>, fn: (T) => (string | number
     return [...this.groupMap(fn).values()];
 };
 
+export function isSymAnAssertFunction(s: Symbol): boolean {
+    return s.type == SymbolType.PRODUCTION_ASSERTION_FUNCTION;
+}
+
+export function isSymAGenericType(s: Symbol): boolean {
+    return s.type == SymbolType.GENERATED;
+}
+
+export function isSymADefinedToken(s: Symbol): boolean {
+    return s.type != SymbolType.PRODUCTION && s.type != SymbolType.GENERATED && s.type != SymbolType.PRODUCTION_ASSERTION_FUNCTION;
+}
 export function getRDFNName(production: Production) {
     return `$${production.name}`;
 }
@@ -60,6 +71,7 @@ export function addSkipCall(grammar: Grammar, runner: CompilerRunner, exclude_se
 
 export function createAssertionShiftWithSkip(grammar: Grammar, runner: CompilerRunner, sym: Symbol, lexer_name: string = "l", exclude_set: Symbol[] | Set<string> = new Set): any {
     const skip = getSkipArray(grammar, runner, exclude_set);
+
     if (skip)
         return `_with_skip(${lexer_name}, ${skip}, ${translateSymbolValue(sym, grammar, runner.ANNOTATED)});`;
     else
@@ -167,7 +179,7 @@ export function getLexerBooleanExpression(sym: Symbol, grammar: Grammar, lex_nam
 }
 
 export function translateSymbolValue(sym: Symbol, grammar: Grammar, ANNOTATED: boolean = false, lex_name = "l"): string | number {
-    const annotation = ANNOTATED ? `/* ${sym.val} */` : "";
+    const annotation = ANNOTATED ? `/* \\${sym.val} */` : "";
 
     if (sym.val == "$eof")
         return `0` + (ANNOTATED ? "/* EOF */" : "");
@@ -214,7 +226,7 @@ export function getIncludeBooleans(syms: Symbol[], grammar: Grammar, runner: Com
 
         const
             id = syms.filter(s => s.id != undefined & s.type !== SymbolType.PRODUCTION_ASSERTION_FUNCTION)
-                .map(s => s.id + (runner.ANNOTATED ? `/* ${s.val} */` : ""))
+                .map(s => s.id + (runner.ANNOTATED ? `/* \\${s.val} */` : ""))
                 .setFilter().sort(),
             ty = syms.filter(s => s.type == SymbolType.GENERATED)
                 .map(s => translateSymbolValue(s, grammar, runner.ANNOTATED, lex_name))
@@ -290,9 +302,19 @@ function filteredMapOfSet<A, T>(set: Set<A>, fn: (a: A) => T): T[] {
     return mapped_array;
 }
 export function getLRStateSymbolsAndFollow(state: LRState, grammar: Grammar): { state_symbols: Symbol[]; follow_symbols: Symbol[]; } {
+    const follow_symbols = new Set(state.follow_symbols.values());
+    //Any item with bodies with reduce should also show up here
+    for (const item of state.items)
+        for (const follow_map of item.body_(grammar).reduce.values())
+            for (const sym of follow_map)
+                follow_symbols.add(getUniqueSymbolName(sym));
+
+
+
+
     //get the exclusion set from follow
     return {
-        state_symbols: filteredMapOfSet(state.shift_symbols, name => getSymbolFromUniqueName(grammar, name)),
+        state_symbols: filteredMapOfSet(follow_symbols, name => getSymbolFromUniqueName(grammar, name)),
         follow_symbols: filteredMapOfSet(state.follow_symbols, name => state.shift_symbols.has(name) ? undefined : getSymbolFromUniqueName(grammar, name)),
     };
 }

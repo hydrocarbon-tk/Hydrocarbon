@@ -15,7 +15,10 @@ import {
     addRecoveryHandlerToFunctionBodyArray,
     addSkipCall,
     getLRStateSymbolsAndFollow,
-    getMaxProductionBodyLength
+    getMaxProductionBodyLength,
+    isSymADefinedToken,
+    isSymAGenericType,
+    isSymAnAssertFunction
 } from "./utilities/utilities.js";
 import { LRState } from "./types/State";
 import { RDProductionFunction } from "./types/RDProductionFunction.js";
@@ -409,6 +412,8 @@ function shiftReduce(
             const sym = item.follow;
             const body = item.body_(grammar);
             let stmt = "";
+
+            active_gotos.push(body.production.id);
             if (body.reduce_id >= 0)
                 stmt = `${createLRReduceCompletionWithFn(item, grammar)} stack_ptr-=${item.len};`;
             else stmt = `${createLRReduceCompletionWithoutFn(item, grammar)} stack_ptr-=${item.len};`;
@@ -424,8 +429,10 @@ function shiftReduce(
                 active_gotos.push(sym.val);
                 for (const first of FIRST(grammar, sym))
                     addLRShiftOutput(grammar, runner, state, first, new_outputs);
-            } else
+            } else {
+                active_gotos.push(item.getProduction(grammar).id);
                 addLRShiftOutput(grammar, runner, state, sym, new_outputs);
+            }
         }
     }
 
@@ -447,17 +454,6 @@ function shiftReduce(
     );
 
     return statements;
-}
-function isSymAnAssertFunction(s: Symbol): boolean {
-    return s.type == SymbolType.PRODUCTION_ASSERTION_FUNCTION;
-}
-
-function isSymAGenericType(s: Symbol): boolean {
-    return s.type == SymbolType.GENERATED;
-}
-
-function isSymADefinedToken(s: Symbol): boolean {
-    return s.type != SymbolType.PRODUCTION && s.type != SymbolType.GENERATED && s.type != SymbolType.PRODUCTION_ASSERTION_FUNCTION;
 }
 
 function compileState(

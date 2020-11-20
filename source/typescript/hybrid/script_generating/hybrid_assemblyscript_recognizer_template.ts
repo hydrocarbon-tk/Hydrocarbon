@@ -13,6 +13,7 @@ export const renderAssemblyScriptRecognizer = (
     lr_states: LRState[]
 ) => {
 
+
     const fns = [
         ...rd_functions.filter(l => l.RENDER).map(fn => fn.str),
         ...lr_states.filter(s => s.REACHABLE).map(s => s.function_string)
@@ -86,36 +87,31 @@ function reset(mark:u32): void{
     action_ptr = mark;
 }
 
-@inline
-function add_skip(char_len: u32): void {
-    const ACTION: u32 = 3;
-    const val: u32 = ACTION | (char_len << 2);
-    set_action(val);
-}
-
-function add_shift(char_len: u32): void {
-    const ACTION: u32 = 2;
-    const val: u32 = ACTION | (char_len << 2);
-    set_action(val);
-}
-
-function add_reduce(sym_len: u32, body: u32): void {
-    const ACTION: u32 = 1;
-    const val: u32 = ACTION | ((sym_len & 0x3FFF) << 2) | (body << 16);
-    set_action(val);
-}
-
-@inline
-function lm(lex:Lexer, syms: StaticArray<u32>): boolean { 
-
-    const l = syms.length;
-
-    for(let i = 0; i < l; i++){
-        const sym = syms[i];
-        if(lex.id == sym || lex.ty == sym) return true;
+function add_shift(l:Lexer, char_len: u32): void {
+    const skip_delta = l.getOffsetRegionDelta();
+    
+    let has_skip: u32 = +(skip_delta > 0),
+        has_len: u32 =  +(char_len > 0),
+        val:u32 = 1;
+    
+    val |= skip_delta << 3;
+    
+    if(has_skip && (skip_delta > 0x8FFF || char_len > 0x8FFF)){
+        add_shift(l, 0);
+        has_skip = 0;
+        val = 1;
     }
 
-    return false;
+    val |= (has_skip<<2) | (has_len<<1) | char_len << (3 + 15 * has_skip);
+    
+    set_action(val);
+    
+    l.advanceOffsetRegion();
+}
+
+function add_reduce(sym_len: u32, body: u32, DO_NOT_PUSH_TO_STACK:boolean = false): void {
+    const val: u32 = ((0<<0) | ((DO_NOT_PUSH_TO_STACK ? 1 : 0) << 1 ) | ((sym_len & 0x3FFF) << 2) | (body << 16));
+    set_action(val);
 }
 
 function fail(lex:Lexer):void { 
@@ -132,30 +128,47 @@ function setProduction(production: u32):void{
     prod = (-FAILED) +  (-FAILED+1) * production;
 }   
 
-function _pk(lex: Lexer, /* eh, */ skips: StaticArray<u32>): Lexer {
+function _pk(l: Lexer, /* eh, */ skips: StaticArray<u32>): Lexer {
 
-    lex.next();
+    while(1){
+        
+        ${grammar?.functions.has("custom_skip") ? (() => {
+            let str = grammar.functions.get("custom_skip").txt;
+            return createAssertionFunctionBody(str, grammar, runner, -1);
+        })() : ""}
 
-    if (skips) while (lm(lex, skips)) lex.next();
+        if (l.END || (!skips.includes(l.ty) && !skips.includes(l.rd)))
+            break;
+
+        l.next();
+    }
 
     return lex;
 }            
 
-function _skip(lex: Lexer, skips: StaticArray<u32>):void{
-    const off: u32 = lex.off;
-    while (lm(lex, skips)) lex.next();
-    const diff: i32 = lex.off-off;
-    if(diff > 0) add_skip(diff);
+function _skip(l: Lexer, skips: StaticArray<u32>):void{
+    while(1){
+
+        ${grammar?.functions.has("custom_skip") ? (() => {
+            let str = grammar.functions.get("custom_skip").txt;
+            return createAssertionFunctionBody(str, grammar, runner, -1);
+        })() : ""}
+
+        if (l.END || (!skips.includes(l.ty) && !skips.includes(l.id)))
+            break;
+
+        l.next();
+    }
 }
 
 function _no_check_with_skip(lex: Lexer, skips: StaticArray<u32>):void {
-    add_shift(lex.tl);
+    add_shift(lex, lex.tl);
     lex.next();
     _skip(lex, skips);
 }
 
 function _no_check(lex: Lexer):void {
-    add_shift(lex.tl);
+    add_shift(lex, lex.tl);
     lex.next();
 }
 

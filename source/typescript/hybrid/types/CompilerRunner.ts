@@ -21,7 +21,11 @@ export interface CompilerRunner {
     ANNOTATED: boolean;
     constant_map: Map<ConstantValue, { name: ConstantName, type: string; }>;
     statements: Map<string, { name: string, val: string; }>;
-    add_statement: (hash: string, name: string, val: string) => string;
+    add_statement: (
+        /**
+         * 
+         */
+        hash: string, name: string, val: string) => string;
     /**
      * Facilitates dedup of constant values.
      * 

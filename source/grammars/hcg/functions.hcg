@@ -113,9 +113,16 @@
     │ ɛ
 
 <> js_primitive → θid │ θnum │ θws │ θsym │ θtok │ θkey 
-    | (sym::terminal_symbol | sym::EOF_symbol)  ↦return { "<--" + $sym1.type + "^^" + $sym1.val + "-->" }
+    | (
+        sym::generated_symbol 
+        | sym::literal_symbol
+        | sym::escaped_symbol
+        | sym::EOF_symbol
+    )  
+    
+    ↦return { "<--" + $sym1.type + "^^" + $sym1.val + "-->" }
 
-<> js_data_block → { js_data }                                    ↦return { $sym1 + $sym2 + $sym3 }
+<> js_data_block → \{ js_data \}                                    ↦return { $sym1 + $sym2 + $sym3 }
 
 <> js_function_start_symbol → \↦ 
     │ τf \: 

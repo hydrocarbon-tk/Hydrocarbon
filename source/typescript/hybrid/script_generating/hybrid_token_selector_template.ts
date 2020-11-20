@@ -9,7 +9,7 @@ function buildIfs(syms: Symbol[], off = 0, USE_MAX = false, token_val = "TokenSy
             if (USE_MAX)
                 stmts.unshift(`if(length <= ${off}){type = ${token_val}; this.id =${sym.id}; length = ${off};}`);
             else
-                stmts.unshift(`type = TokenSymbol; this.id =${sym.id} /* ${sym.val} */; length = ${off};`);
+                stmts.unshift(`type = TokenSymbol; this.id =${sym.id} /* ${sym.val.replace(/\*/g, "astrix")} */; length = ${off};`);
         }
     }
     let first = true;

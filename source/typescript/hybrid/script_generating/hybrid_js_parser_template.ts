@@ -1,17 +1,28 @@
 import { Grammar } from "../../types/grammar.js";
+import { HybridCompilerOptions } from "../CompiledHybridOptions.js";
 
-export const renderParserScript = (grammar: Grammar) => {
+export const renderParserScript = (grammar: Grammar, options: HybridCompilerOptions, wasm_data?: Uint8Array, BUILD_LOCAL: boolean = false) => {
+
+    const loader = (options.combine_wasm_with_js || BUILD_LOCAL)
+        ? `await loader.instantiate(data, { env: { memory: shared_memory } })`
+        : `await loader.instantiate(await URL.resolveRelative("${options.wasm_output_dir + "recognizer.wasm"}").fetchBuffer(), { env: { memory: shared_memory } })`,
+
+        data = (BUILD_LOCAL || options.combine_wasm_with_js) ? `const data = new Uint8Array([${wasm_data.toString()}]);` : "";
 
     return `
-import loader from "@assemblyscript/loader";
 
-import buildParserMemoryBuffer from "../hybrid/parser_memory.js";              
-import URL from "@candlefw/url";
-import Lexer from "@candlefw/wind";
+${BUILD_LOCAL ? "" : `
+    import loader from "@assemblyscript/loader";
+    import {buildParserMemoryBuffer} from "${options.memory_loader_url}";              
+    import URL from "@candlefw/url";
+    import Lexer from "@candlefw/wind";
+`}
+
+${data}
 
 const 
     { shared_memory, action_array, error_array } = buildParserMemoryBuffer(),
-    fns = [(e,sym)=>sym[sym.length-1], \n${grammar.meta.reduce_functions.map((b, i) => {
+    fns = [(e,sym)=>sym[sym.length-1], \n${[...grammar.meta.reduce_functions.keys()].map((b, i) => {
         if (b.includes("return")) {
             return b.replace("return", "(env, sym, pos)=>(").slice(0, -1) + ")" + `/*${i}*/`;
         } else {
@@ -20,11 +31,11 @@ const
     }).join("\n,")
         }];
 
-export default async function loadParser(){
+${BUILD_LOCAL ? "" : "export default async function loadParser(){"} 
 
     await URL.server();
 
-    const wasmModule = await loader.instantiate(await URL.resolveRelative("@candlefw/hydrocarbon/build/wasm/recognizer.wasm").fetchBuffer(), { env: { memory: shared_memory } }),
+    const wasmModule = ${loader},
     
     { main, __newString } = wasmModule.exports;
 
@@ -99,31 +110,44 @@ export default async function loadParser(){
             let offset = 0;
     
             o: for (const action of aa) {
+                
                 action_length++;
-                switch (action & 3) {
-                    case 0: //ACCEPT
-                        break o;
-                    case 1: //REDUCE;
-                        var 
-                            body = action >> 16,
-                            len = ((action & 0xFFFF) >> 2);
-                        stack[stack.length - len] = fns[body](env, stack.slice(-len), {});
-                        stack.length = stack.length - len + 1;
-                        break;
-                    case 2: //SHIFT;
-                        var len = action >> 2;
-                        stack.push(str.slice(offset, offset + len));
-                        offset += len;
-                        break;
-                    case 3: //SKIP;
-                        var len = action >> 2;
-                        offset += len;
-                        break;
+
+                switch (action & 1) {
+                    case 0: //REDUCE;
+                        if(action == 0) break o; else{
+                            const  
+                                DO_NOT_PUSH_TO_STACK = (action >> 1) & 1,
+                                body = action >> 16,
+                                len = ((action >> 2) & 0x3FFF);
+
+                            stack[stack.length - len] = fns[body](env, stack.slice(-len), {});
+                            
+                            if(!DO_NOT_PUSH_TO_STACK){
+                                stack.length = stack.length - len + 1;
+                            }else{
+                                stack.length = stack.length - len;
+                            }
+
+                        }  break;
+
+                    case 1: { //SHIFT;
+                        const 
+                            has_len  = (action >>> 1) & 1,
+                            has_skip = (action >>> 2) & 1,
+                            len = action >>> ( 3 + (has_skip * 15)),
+                            skip = has_skip * ((action >>> 3) & (~(has_len * 0xFFFF8000)));                            
+                            offset += skip;
+                        if(has_len){
+                            stack.push(str.slice(offset, offset + len));
+                            offset += len;
+                        }
+                    } break;
                 }
             }
         }
     
         return { result: stack, FAILED: !!FAILED, action_length };
     }
-}`;
+    ${BUILD_LOCAL ? "" : "}"} `;
 };

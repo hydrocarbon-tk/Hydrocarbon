@@ -2,7 +2,7 @@
 ############################################## Hydrocarbon Grammar #####################################################
 ########################################################################################################################
 
-
+# version 2.0
 
 # This is the Hydrocarbon Grammar Definition and parser file. It contains information to build the Hydrocarbon 
 # Grammar parser.

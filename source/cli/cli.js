@@ -23,6 +23,7 @@ import * as terser from "terser";
 import path from "path";
 import fs from "fs";
 import readline from "readline";
+import { compileHybrid } from "../../build/library/hybrid/hybrid_compiler.js";
 
 //Regex to match Protocol and/or Drive letter from module url
 const
@@ -475,7 +476,6 @@ async function start() {
                 output_directory = cmd.output ? path.resolve(cmd.output) : process.cwd(),
                 unattended = !!cmd.unattended,
                 parser = cmd.parser || "lalr1",
-                CPP = !!cmd.cpp,
                 COMPRESS = !!cmd.compress;
             let
                 type = cmd.type ? cmd.type : "js";
@@ -512,6 +512,12 @@ async function start() {
                 filloutGrammar(grammar, env);
 
                 switch (parser) {
+                    case "hybrid":
+                        const compiler_options = {
+
+                        };
+                        compileHybrid(grammar, env, compiler_options);
+                        break;
                     case "lr":
                     case "lalr":
                     default:

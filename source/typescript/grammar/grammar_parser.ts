@@ -18,6 +18,7 @@ import body from "./production_body_constructor.js";
 import { Grammar } from "../types/grammar.js";
 import { GrammarParserEnvironment } from "../types/grammar_compiler_environment.js";
 import { ParserEnvironment } from "../types/parser_environment.js";
+import { getUniqueSymbolName } from "../hybrid/utilities/utilities.js";
 
 async function sleep(data: AwaitTracker): Promise<void> {
     return new Promise(res => {
@@ -58,6 +59,7 @@ export function constructCompilerEnvironment(
         body_offset: 0,
         prod_name: '',
         counter: 100,
+        symbols: [],
         functions: {
             importProduction,
             importData: importGrammarFile,
@@ -84,7 +86,7 @@ export async function grammarParser(
     const
         local_pending_files = { count: 0 },
 
-        env = <ParserEnvironment>constructCompilerEnvironment(
+        env = <GrammarParserEnvironment>constructCompilerEnvironment(
             grammar_file_url,
             global_pending_files,
             local_pending_files,
@@ -140,6 +142,7 @@ export async function grammarParser(
         grammar.symbols = null;
         grammar.meta = grammar.meta || {};
         grammar.reserved = new Set();
+        grammar.meta.symbols = new Map(env.symbols.map(s => [getUniqueSymbolName(s), s]));
 
         convertProductionNamesToIndexes(grammar, grammar.LU);
 
@@ -165,7 +168,6 @@ export async function grammarParser(
                         if (!grammar.meta.symbols)
                             grammar.meta.symbols = new Map(pre.symbols.map(e => !e.type ? [e, { val: e }] : [e.val, e]));
                         else {
-
                             pre.symbols.forEach(e => !e.type
                                 ? grammar.meta.symbols.set(e, { val: e })
                                 : grammar.meta.symbols.set(e.val, e)
