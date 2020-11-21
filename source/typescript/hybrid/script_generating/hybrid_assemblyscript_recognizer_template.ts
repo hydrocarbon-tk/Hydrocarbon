@@ -127,7 +127,7 @@ function soft_fail(lex:Lexer):void {
 function setProduction(production: u32):void{
     prod = (-FAILED) +  (-FAILED+1) * production;
 }   
-function _pk(l: Lexer, /* eh, */ skips: StaticArray<u32>): Lexer {
+function _pk(l: Lexer, /* eh, */ skips: StaticArray<u32> = []): Lexer {
     l.next();
     _skip(l, skips);
     return l;
@@ -143,7 +143,7 @@ function _skip(l: Lexer, skips: StaticArray<u32>):void{
         
         if ((!skips.includes(l.ty) && !skips.includes(l.id)))
             break;
-            
+
         l.next();
     }
 }

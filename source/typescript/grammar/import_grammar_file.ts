@@ -104,6 +104,7 @@ export default function (sym, env: GrammarParserEnvironment) {
         }
 
         if (!EXISTING) {
+            env.symbols.push(...prods.meta.symbols.values());
             env.productions.push(...prods);
             env.productions.meta.preambles.push(...prods.meta.preambles);
             meta_imported_productions.set(key, prods);

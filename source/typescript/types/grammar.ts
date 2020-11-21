@@ -141,7 +141,7 @@ export type Grammar = Array<Production> & {
          */
         all_symbols?: Map<string, Symbol>;
 
-        symbols?: Map<string, { val: string; }>;
+        symbols?: Map<string, Symbol>;
 
         error?: any[],
 

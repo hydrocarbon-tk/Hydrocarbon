@@ -480,7 +480,7 @@ export function makeRDHybridFunction(production: Production, grammar: Grammar, r
 
 
     } catch (e) {
-        console.dir(e);
+
         return {
             refs: 0,
             id: p.id,

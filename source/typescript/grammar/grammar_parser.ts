@@ -107,7 +107,7 @@ export async function grammarParser(
         ;
     env.fn = env.functions;
     const { result } = parser(grammar_string, env),
-        grammar = result[0];
+        grammar: Grammar = result[0];
     //*/
 
     if (result.error) { throw result.error; }
@@ -129,6 +129,8 @@ export async function grammarParser(
     const ref_functions = env.refs;
 
     grammar.functions = ref_functions;
+    grammar.meta = grammar.meta || {};
+    grammar.meta.symbols = new Map(env.symbols.map(s => [getUniqueSymbolName(s), s]));
 
 
     //If the production is at the root of the import tree, then complete the processing of production data. 
@@ -140,9 +142,7 @@ export async function grammarParser(
         //Setup the productions object
         grammar.forEach((p, i) => (p.id = i));
         grammar.symbols = null;
-        grammar.meta = grammar.meta || {};
         grammar.reserved = new Set();
-        grammar.meta.symbols = new Map(env.symbols.map(s => [getUniqueSymbolName(s), s]));
 
         convertProductionNamesToIndexes(grammar, grammar.LU);
 
@@ -175,8 +175,6 @@ export async function grammarParser(
                         } break;
                 }
         }
-
-        //  throw 1;
     }
 
     if (grammar.length == 0)

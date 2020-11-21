@@ -1,14 +1,14 @@
-import { ProductionBody } from "../types/grammar.js";
+import { Grammar, ProductionBody, SymbolType } from "../types/grammar.js";
 import { Symbol } from "../types/Symbol";
 
-export default function convertProductionNamesToIndexes(productions, LU) {
+export default function convertProductionNamesToIndexes(grammar: Grammar, LU) {
     let sym: Symbol,
         body: ProductionBody;
     try {
-        for (let i = 0; i < productions.length; i++) {
+        for (let i = 0; i < grammar.length; i++) {
 
             const
-                production = productions[i],
+                production = grammar[i],
                 bodies = production.bodies;
 
             production.graph_id = -1;
@@ -25,18 +25,18 @@ export default function convertProductionNamesToIndexes(productions, LU) {
 
                     sym = body.sym[i];
 
-                    if (sym.type == "production") {
+                    if (sym.type == SymbolType.PRODUCTION) {
                         if (sym.production || (sym.IMPORTED && sym.RESOLVED)) {
                             sym.val = sym.production.id;
                         } else try {
                             sym.production = LU.get(sym.name);
                             sym.val = LU.get(sym.name).id;
                         } catch (e) {
-                            sym.pos.throw(`Missing Production for symbol [${sym.name}] in body of production ${production.name}`);
+                            throw new Error(`Missing Production for symbol [${sym.name}] in body of production ${production.name}`);
                         }
                         sym.resolveFunction = null; // For DataClone 
-                    } else if (sym.type == "literal")
-                        productions.reserved.add(sym.val);
+                    } else if (sym.type == SymbolType.LITERAL)
+                        grammar.reserved.add(sym.val);
                 }
             }
         }
