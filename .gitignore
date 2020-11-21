@@ -55,6 +55,9 @@ jspm_packages/
 build/
 !build/wasm/*
 
+# Temporary test files
+test/temp/
+
 #sublime  workspace
 *.sublime-workspace
 
