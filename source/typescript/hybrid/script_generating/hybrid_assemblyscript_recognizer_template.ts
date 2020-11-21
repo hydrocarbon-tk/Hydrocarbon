@@ -127,23 +127,10 @@ function soft_fail(lex:Lexer):void {
 function setProduction(production: u32):void{
     prod = (-FAILED) +  (-FAILED+1) * production;
 }   
-
 function _pk(l: Lexer, /* eh, */ skips: StaticArray<u32>): Lexer {
-
-    while(1){
-        
-        ${grammar?.functions.has("custom_skip") ? (() => {
-            let str = grammar.functions.get("custom_skip").txt;
-            return createAssertionFunctionBody(str, grammar, runner, -1);
-        })() : ""}
-
-        if (l.END || (!skips.includes(l.ty) && !skips.includes(l.rd)))
-            break;
-
-        l.next();
-    }
-
-    return lex;
+    l.next();
+    _skip(l, skips);
+    return l;
 }            
 
 function _skip(l: Lexer, skips: StaticArray<u32>):void{
@@ -153,10 +140,10 @@ function _skip(l: Lexer, skips: StaticArray<u32>):void{
             let str = grammar.functions.get("custom_skip").txt;
             return createAssertionFunctionBody(str, grammar, runner, -1);
         })() : ""}
-
-        if (l.END || (!skips.includes(l.ty) && !skips.includes(l.id)))
+        
+        if ((!skips.includes(l.ty) && !skips.includes(l.id)))
             break;
-
+            
         l.next();
     }
 }
