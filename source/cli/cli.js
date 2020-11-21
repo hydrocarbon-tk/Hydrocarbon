@@ -7,7 +7,6 @@
 //CandleFW stuffs
 import wind from "@candlefw/wind";
 import URL from "@candlefw/url";
-import spark from "@candlefw/spark";
 import * as hc from "../../build/library/hydrocarbon.js";
 import { filloutGrammar } from "../../build/library/util/common.js";
 import { lrParse as parser } from "../../build/library/lr/runtime/lr_parser.js";
@@ -441,7 +440,41 @@ async function start() {
         });
 
     program
-        .command("compile <hydrocarbon_grammar_file>")
+        .command("compile-hybrid <hydrocarbon_grammar_file>")
+        .description("Compiles a hybrid JavaScript and WASM parser from a HydroCarbon grammar file, an optional HCGStates file, and an optional ENV.js file")
+        .option("--wasm_dir <wasm_dir>", "Folder path to place wasm and wat files. Defaults to `./wasm/`")
+        .option("--ts_dir <ts_dir>", "Folder path to place TypeScript files. Defaults to `./ts/`")
+        .option("--loader_path <loader_path>", "Import path for the recognizer memory loader.")
+        .option("-o, --optimize", "Optimize output file.")
+        .option("-a, --annotations", "Add annotated comments to recognizer.ts.")
+        .action(async (hc_grammar, cmd) => {
+            const
+                grammar_path = path.resolve(hc_grammar),
+                wasm_output_dir = cmd.wasm_dir,
+                ts_output_dir = cmd.ts_dir,
+                loader_path = cmd.loader_path,
+                optimize = !!cmd.optimize,
+                compiler_options = {
+                    wasm_output_dir: wasm_output_dir || "./wasm",
+                    ts_output_dir: ts_output_dir || "./ts",
+                    memory_loader_url: loader_path || "@candlefw/hydrocarbon",
+                    optimize
+                },
+
+                { grammar_string, env } = await loadFiles(grammar_path, "", "", true),
+
+                grammar_url = new URL(grammar_path),
+
+                grammar = await parseGrammar(grammar_string, grammar_url);
+
+            console.log(grammar.meta);
+
+            //console.log({ grammar_url, grammar: grammar.meta });
+            compileHybrid(grammar, env, compiler_options);
+        });
+
+    program
+        .command("compile-classic <hydrocarbon_grammar_file>")
         .description("Compiles a JavaScript parser from a HydroCarbon grammar file, an optional HCGStates file, and an optional ENV.js file")
         .option("-o, --output <path>", "Optional output location. Defaults to CWD.")
         .option("--statesout", "Output a *.hcs file.")
@@ -512,12 +545,6 @@ async function start() {
                 filloutGrammar(grammar, env);
 
                 switch (parser) {
-                    case "hybrid":
-                        const compiler_options = {
-
-                        };
-                        compileHybrid(grammar, env, compiler_options);
-                        break;
                     case "lr":
                     case "lalr":
                     default:

@@ -13,6 +13,8 @@
 
 @IGNORE θws θnl
 
+@SYMBOL \@
+
 
 # Productions can be defined through the [ <> ID → symbol ... ] form as will 
 # as using parenthesis ( ) to define a production group. The production group is 
@@ -58,7 +60,7 @@
 # are matched against tokens whose string value is the same as the text following 
 # the τ character.
 
-<> symbols_preamble →         @ τSYMBOL  sym::lexer_symbol(+)  θnl     ↦cstr{ 
+<> symbols_preamble > @ t:SYMBOL sym::lexer_symbol(+)  θnl     ↦cstr{ 
                                                                             this.type="symbols"; 
                                                                             this.symbols = $sym3;
                                                                          }
@@ -91,7 +93,7 @@
                                                                         
                                                                         
 
-<> ignore_preamble →         @ τIGNORE sym::ignore_symbols θnl                
+<> ignore_preamble →         \@ τIGNORE sym::ignore_symbols θnl                
                                                                         
                                                                         ↦cstr{     
                                                                             this.grammar_stamp = env.stamp; 
@@ -100,7 +102,7 @@
                                                                         }
  
 
-<> error_preamble →         @ τERROR sym::ignore_symbols θnl                
+<> error_preamble →        \@ τERROR sym::ignore_symbols θnl                
                                                                         
                                                                         ↦cstr{     
                                                                             this.grammar_stamp = env.stamp; 
@@ -109,18 +111,16 @@
                                                                         }
 
 
-<> name_preamble →             @ τNAME sym::identifier θnl                     
+<> name_preamble →             \@ τNAME sym::identifier θnl                     
                                                                         
                                                                         ↦cstr{ this.type="name"; this.id = $sym3 }
 
 
-<> ext_preamble →             @ τEXT sym::identifier θnl                     
+<> ext_preamble →             \@ τEXT sym::identifier θnl                     
                                                                         
                                                                         ↦cstr{ this.type="ext"; this.id = $sym3 }
 
 
-<> import_preamble →         @ τIMPORT θws(*) ( θid │ θkey │ θsym │ θtok )(+\") θws(+) (τAS│τas) sym::identifier θnl     
-                                                                        
-                                                                        ↦return ^importData 
+<> import_preamble →         \@ τIMPORT θws(*) ( θid │ θkey │ θsym │ θtok )(+\" ) θws(+) ( τAS │ τas ) sym::identifier θnl  ↦return ^importData 
 
 

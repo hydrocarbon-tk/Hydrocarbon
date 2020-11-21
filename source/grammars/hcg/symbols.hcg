@@ -1,5 +1,4 @@
 
-@SYMBOL \::
 
 
 @IMPORT ./production_bodies.hcg as pb
@@ -9,6 +8,8 @@
 
 
 @IGNORE θws θnl
+
+@SYMBOL \(+ \(* \::
 
 
 #######################################################################################################################
@@ -26,11 +27,11 @@
 <> lexer_symbol → generated_symbol
     │ literal_symbol
     │ escaped_symbol
-    │ grouped_symbol grouped_delimiter                          ↦cstr{ this.type = "symbol"; this.val = $sym1; this.pos = pos; env.symbols.push(this) }    
+    │ grouped_symbol grouped_delimiter                                 ↦cstr{ this.type = "symbol"; this.val = $sym1; this.pos = pos; env.symbols.push(this) }    
 
 <> grouped_delimiter →  θnl │ θws                                    
 
-<> grouped_symbol →  ( θsym │ θid │ θtok | θkey )(+\")          ↦cstr{ this.type = "symbol"; this.val = $sym1; this.pos = pos; env.symbols.push(this)}                                                    
+<> grouped_symbol →  ( θsym │ θid │ θtok | θkey )(+\")  sym_delimter?   ↦cstr{ this.type = "symbol"; this.val = $sym1; this.pos = pos; env.symbols.push(this)}                                                    
 
 <> ignore_symbol → generated_symbol
     │ literal_symbol
@@ -70,22 +71,25 @@
     | τshift \:  (ERR θws θnl) identifier             ↦cstr{ this.type = "assert_token_function"; this.val = $sym3; this.pos = pos; this.DOES_SHIFT = true }
 
 <> generated_symbol → 
-    ( \θ │ τg \: ) (ERR θws θnl) identifier             ↦cstr{ this.type = "generated"; this.val = $sym2; this.pos = pos; env.symbols.push(this) }
+    ( \θ │ τg \: ) (ERR θws θnl) identifier    ↦cstr{ this.type = "generated"; this.val = $sym2; this.pos = pos; env.symbols.push(this) }
 
 <> literal_symbol → 
-    ( \τ │ τt \: ) (ERR θws θnl)  ( identifier │ def::natural ) ↦cstr{ this.type = "literal"; this.val = ""+$sym2; this.pos = pos; env.symbols.push(this) }
+    ( \τ │ τt \: ) (ERR θws θnl)  ( identifier │ def::natural ) sym_delimter? 
+                                                                        ↦cstr{ this.type = "literal"; this.val = ""+$sym2; this.pos = pos; env.symbols.push(this) }
 
 <> escaped_symbol → 
-    \\ (RED g:ws)  ( θid | θtok | θsym | θkey ) escaped_symbol?  ↦cstr{ this.type = "symbol"; this.val = $sym2 + $sym3.val; this.pos = pos; env.symbols.push(this) }
+    \\ ( θid | θtok | θsym | θkey )(+\") sym_delimter?                     ↦cstr{ this.type = "symbol"; this.val = $sym2; this.pos = pos; env.symbols.push(this) }
 
 <> production_symbol → 
-    identifier                                         ↦cstr{ this.type = "production"; this.name = $sym1; this.val = -1; this.pos = pos;}
+    identifier                                                          ↦cstr{ this.type = "production"; this.name = $sym1; this.val = -1; this.pos = pos;}
 
 <> imported_production_symbol → 
-    production_id \:: identifier                    ↦c ^importProduction
+    production_id \:: identifier                         ↦c ^importProduction
 
 <> production_id → identifier
 
 <> identifier →  def::js_identifier
 
 <> js_identifier →  def::id
+
+<> sym_delimter >  g:ws | g:nl | $eof 
