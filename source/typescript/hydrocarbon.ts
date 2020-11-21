@@ -10,7 +10,7 @@ import compileLRStatesMT from "./lr/state_generation/lr_mt.js";
 import compileGLRStatesMT from "./lr/state_generation/glr_mt.js";
 
 //Hybrid
-import buildParserMemoryBuffer from "./hybrid/parser_memory.js";
+import { buildParserMemoryBuffer } from "./hybrid/parser_memory.js";
 
 //Runtime
 import { lrParse } from "./lr/runtime/lr_parser.js";

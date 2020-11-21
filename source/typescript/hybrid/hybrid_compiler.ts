@@ -10,7 +10,7 @@ import { renderParserScript } from "./script_generating/hybrid_js_parser_templat
 import { HybridCompilerOptions } from "./CompiledHybridOptions";
 const fsp = fs.promises;
 import loader from "@assemblyscript/loader";
-import buildParserMemoryBuffer from "./parser_memory.js";
+import { buildParserMemoryBuffer } from "./parser_memory.js";
 import Lexer from "@candlefw/wind";
 import { ParserEnvironment } from "../../../build/types/hydrocarbon.js";
 

@@ -39,7 +39,7 @@ function air(t, v, i_r) {
         aii(t, v, a);
     }
 }
-export default function () {
+export function buildParserMemoryBuffer() {
     ///*
     const shared_memory = new WebAssembly.Memory({ initial: 80, maximum: 100 });
     const buffer = shared_memory.buffer;
