@@ -1,20 +1,19 @@
-import { compileGrammars, lrParse } from "@candlefw/hydrocarbon";
+import { compileGrammars } from "@candlefw/hydrocarbon";
 import URL from "@candlefw/url";
 import { compileHybrid } from "../build/library/hybrid/hybrid_compiler.js";
-import { Lexer } from "@candlefw/wind";
+import { assert } from "console";
 
-const url = await URL.resolveRelative("../source/grammars/hcg/hcg.hcg");
-const urlB = await URL.resolveRelative("./mock/test_grammar_export_toy_B.hcg");
+//const url = await URL.resolveRelative("../source/grammars/hcg/hcg.hcg");
+const url = await URL.resolveRelative("./mock/test_grammar_e_fork.hcg");
 
 const file = await url.fetchText();
-const fileB = await urlB.fetchText();
 
-const test_string = `for(const T; r*B + d * t; A) i + A + a * t;`;
-//const test_string = `( A,  A  ,  A  ) => { ( A,  (d) , A ) => { ( A, A , A  ) => { ( A, A , A ) => { ( A,  A , A ) => { D } } } } }`;
+const test_string = `( (test);(test);, mango ) => { trucks }`;
 
 assert_group(() => {
 
     const grammar = await compileGrammars(file, url + "");
+
     //const grammarB = await compileGrammars(fileB, urlB + "");
     /*
         Go through each item ----
@@ -23,7 +22,11 @@ assert_group(() => {
         to a new state;
     */
     //const B = await compileHybrid(grammarB);
-    const parserHybrid = await compileHybrid(grammar);
+    const parserHybrid = await compileHybrid(grammar, {}, {
+        ts_output_dir: "./temp/",
+        wasm_output_dir: "./temp/",
+        combine_wasm_with_js: true
+    });
 
     //const parserLL = renderLLFN(grammar);
     const env = {
@@ -47,16 +50,7 @@ assert_group(() => {
     };
 
 
+    assert(parserHybrid(test_string, {}));
 
-    //assert(lrParse(test_string, parse_data, env).value == parserHybrid(new Lexer(test_string)));
-    //assert(lrParse(test_string, parse_data).value == parserLL(new Lexer(test_string)));
-
-    //harness.markTime();
-    //assert(parserLL(new Lexer(test_string)) == "");
-    //harness.getTime("hybrid LL");
-
-    harness.markTime();
-    assert(parserHybrid(new Lexer(test_string)) == "");
-    harness.getTime("hybrid");
 
 }, sequence);
