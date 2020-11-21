@@ -53,6 +53,7 @@ jspm_packages/
 
 #Build directory
 build/
+!build/wasm/*
 
 #sublime  workspace
 *.sublime-workspace
