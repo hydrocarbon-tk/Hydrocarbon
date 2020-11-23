@@ -362,7 +362,7 @@ async function mount(name, input, env, test_data = "", nul, debug_info = "") {
 /* ************* PROGRAM ************************/
 async function start() {
 
-    await URL.polyfill();
+    await URL.server();
 
     const program = commander.default;
 
@@ -409,7 +409,6 @@ async function start() {
 
                 console.log(hc.renderTable(states, grammar));
 
-                //console.log(`Use ${ADD_COLOR(" ctrl ", COLOR_KEYBOARD)}+${ADD_COLOR(" c ", COLOR_KEYBOARD)} to return to console,`)
                 process.exit(0);
 
             } catch (err) {
@@ -454,11 +453,13 @@ async function start() {
                 ts_output_dir = cmd.ts_dir,
                 loader_path = cmd.loader_path,
                 optimize = !!cmd.optimize,
+                add_annotations = !!cmd.annotations,
                 compiler_options = {
                     wasm_output_dir: wasm_output_dir || "./wasm",
                     ts_output_dir: ts_output_dir || "./ts",
                     memory_loader_url: loader_path || "@candlefw/hydrocarbon",
-                    optimize
+                    optimize,
+                    add_annotations
                 },
 
                 { grammar_string, env } = await loadFiles(grammar_path, "", "", true),
@@ -495,7 +496,7 @@ async function start() {
             for use with NodeJS and other consumers of CommonJS.
             "iife" - ( * .js)[Default] A regular JavaScript file that can be embedded in HTML.The parser will be available as a global value.The name of the global object will be same as the output file name.
             `)
-        .option("--parser <parser>", "The type of compiler that hydrocarbon will create. Select from `lalr1` and `earling`")
+        .option("--parser <parser>", "The type of compiler that hydrocarbon will create. Select from `lalr1` and `earley`")
         .action(async (hc_grammar, cmd) => {
 
             //await spark.sleep(1000);
