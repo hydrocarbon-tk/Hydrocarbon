@@ -7,18 +7,27 @@ export const EMPTY_PRODUCTION = "{!--EMPTY_PRODUCTION--!}";
 
 export const isNonTerm = (f: Symbol) => f.type == "production";
 
-const merge = (follow, first) => {
-    first.forEach((v) => {
-        if (v !== EMPTY_PRODUCTION)
-            follow.set(v.val, v);
+const merge = (to: Map<string, Symbol>, from: (Map<string, Symbol> | Symbol[])) => {
+    from.forEach((v, k) => {
+        if (v.type !== SymbolType.EMPTY)
+            to.set(v.val, v);
     });
 };
-
-export function FOLLOW(grammar: Grammar, production: number, IGNORE_SELF_RECURSION = false): Map<string, Symbol> {
+/**
+ * A Memoized function that collects all terminal symbols following the productions in a grammar
+ * and sets the production's follow property to a map of these Symbols keyed by the symbol's
+ * value.
+ * @param grammar A grammar
+ * @param production Index of a production within the grammar. 
+ * 
+ * Returns the follow map for the given production. 
+ */
+export function FOLLOW(grammar: Grammar, production: number): Map<string, Symbol> {
 
     const
         prod = grammar[production],
         table: Map<string, Symbol>[] = [],
+        follow_combinations: number[][] = grammar.map(_ => []),
         excludes: Map<string, Symbol>[] = [];
 
     if (prod.follow) return grammar[production].follow;
@@ -31,9 +40,9 @@ export function FOLLOW(grammar: Grammar, production: number, IGNORE_SELF_RECURSI
 
     table[0].set("$eof", EOF_SYM); //End of Line
 
-    for (let i = 0; i < grammar.length; i++) {
+    for (let production_index = 0; production_index < grammar.length; production_index++) {
 
-        const production = grammar[i];
+        const production = grammar[production_index];
 
         for (let i = 0; i < production.bodies.length; i++) {
 
@@ -45,10 +54,10 @@ export function FOLLOW(grammar: Grammar, production: number, IGNORE_SELF_RECURSI
 
                 if (isNonTerm(sym)) {
 
-                    const ADD_TO_EXCLUDES = (!IGNORE_SELF_RECURSION && sym.val == production.id);
-
-                    const follow = table[sym.val];
-                    const exclude = excludes[sym.val];
+                    const ADD_TO_EXCLUDES = (false && !IGNORE_SELF_RECURSION && sym.val == production.id);
+                    const child_production_index = sym.val;
+                    const child_follow = table[child_production_index];
+                    const child_exclude = excludes[child_production_index];
 
                     for (var j = i + 1; j < body.length; j++) {
 
@@ -57,13 +66,13 @@ export function FOLLOW(grammar: Grammar, production: number, IGNORE_SELF_RECURSI
                         if (isNonTerm(sym)) {
                             const syms = FIRST(grammar, sym);
 
-                            merge((ADD_TO_EXCLUDES ? exclude : follow), syms);
+                            merge((ADD_TO_EXCLUDES ? child_exclude : child_follow), syms);
 
-                            if (new Set(syms).has(EMPTY_PRODUCTION))
+                            if (syms.some(s => s.type == SymbolType.EMPTY))
                                 continue;
                         } else {
                             if (sym.type != SymbolType.EMPTY)
-                                (ADD_TO_EXCLUDES ? exclude : follow).set(sym.val, sym);
+                                (ADD_TO_EXCLUDES ? child_exclude : child_follow).set(sym.val, sym);
                         }
                         break;
                     }
@@ -73,12 +82,10 @@ export function FOLLOW(grammar: Grammar, production: number, IGNORE_SELF_RECURSI
         }
     }
 
-    //Clear off excluded values.
-    for (let i = 0; i < grammar.length; i++)
-        for (const key of excludes[i].keys())
-            table[i].delete(key);
-
-
+    // //Clear off excluded values.
+    // for (let i = 0; i < grammar.length; i++)
+    //     for (const key of excludes[i].keys())
+    //         table[i].delete(key);
 
     for (let production_index = 0; production_index < grammar.length; production_index++) {
 
@@ -88,21 +95,31 @@ export function FOLLOW(grammar: Grammar, production: number, IGNORE_SELF_RECURSI
 
             const body = production.bodies[i];
 
-            for (let i = body.length; i > 0; i--) {
+            for (let i = body.length - 1; i >= 0; i--) {
 
-                const sym = body.sym[i - 1];
+                const sym = body.sym[i];
 
                 if (isNonTerm(sym)) {
 
-                    if (sym.val !== production_index)
-                        merge(table[sym.val], table[production_index]);
+                    const child_production_index: number = <number>sym.val;
 
-                    if (new Set(FIRST(grammar, sym)).has(EMPTY_PRODUCTION))
+                    if (child_production_index !== production_index) {
+                        follow_combinations[production_index].push(child_production_index, ...follow_combinations[child_production_index]);
+                        //merge(table[child_production_index], table[production_index]);
+                    }
+
+                    if (FIRST(grammar, sym).some(s => s.type == SymbolType.EMPTY))
                         continue;
                 }
 
                 break;
             }
+        }
+    }
+
+    for (let i = 0; i < grammar.length; i++) {
+        for (const child_production_index of new Set(follow_combinations[i])) {
+            merge(table[child_production_index], table[i]);
         }
     }
 
