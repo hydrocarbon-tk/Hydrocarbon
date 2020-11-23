@@ -32,10 +32,10 @@
 
 <> id → θid
 
-<> string > \" ( string_value | θws )(+\')  \"         ↦r { $sym2 }
-    | \' ( string_value | θws )(+\")  \'               ↦r { $sym2 }
+<> string > \" ( string_value | θws )(+\' )  \"         ↦r { $sym2 }
+    | \' ( string_value | θws )(+\" )  \'               ↦r { $sym2 }
 
-<> string_value >  ( \/ | \\ | \- | \_ | θany | θob | θcb | θnum | θid | θsym | \\ θany  )(+\")
+<> string_value >  ( \/ | \\ | \- | \_ | θany | θob | θcb | θnum | θid | θsym | \\ θany  )(+\" )
 
 <> js_identifier → js_id_symbols 
 
