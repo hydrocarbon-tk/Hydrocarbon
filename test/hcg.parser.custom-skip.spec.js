@@ -15,14 +15,14 @@ const test_string = `
 # rules associated with assertion blocks apply to this code as well. 
 
 ↦custom_skip {
-    if( \\/\\* ){
+    if( \\/* ){
         $tk_start;
-        while(! \\*\\/ && !$eof) $next;
-        if(\\*\\/) {
+        while(! \\*/ && !$eof ) $next;
+        if( \\*/ ) {
             $next;
             $produce_block_comment;
         }else $join;
-    } else if ( \\/\\/ ) {
+    } else if ( \\// ) {
         $tk_start;
         while(!g:nl && !$eof) $next;
         $produce_line_comment;
