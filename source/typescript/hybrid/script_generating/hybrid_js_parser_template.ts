@@ -106,40 +106,53 @@ ${BUILD_LOCAL ? "" : "export default async function loadParser(){"}
             lexer.throw(\`Unexpected token[\${ lexer.tx }]\`);
     
         } else {
-            
-            let offset = 0;
-    
-            o: for (const action of aa) {
-                
+
+            let offset = 0, pos = [{ off: 0, tl: 0 }];
+
+            for (const action of aa) {
+
                 action_length++;
+                let prev_off = 0;
+
+                if (action == 0) break;
 
                 switch (action & 1) {
                     case 0: //REDUCE;
-                        if(action == 0) break o; else{
-                            const  
+                        {
+                            const
                                 DO_NOT_PUSH_TO_STACK = (action >> 1) & 1,
                                 body = action >> 16,
                                 len = ((action >> 2) & 0x3FFF);
 
-                            stack[stack.length - len] = fns[body](env, stack.slice(-len), {});
-                            
-                            if(!DO_NOT_PUSH_TO_STACK){
-                                stack.length = stack.length - len + 1;
-                            }else{
-                                stack.length = stack.length - len;
-                            }
+                            const pos_a = pos[pos.length - len - 1];
+                            const pos_b = pos[pos.length - 1];
+                            pos[stack.length - len] = { off: pos_a.off, tl: 0 };
 
-                        }  break;
+                            stack[stack.length - len] = fns[body](env, stack.slice(-len), { off: pos_a.off, tl: pos_b.off - pos_a.off + pos_b.tl });
+
+                            //  console.log(stack[stack.length - len], pos);
+
+                            if (!DO_NOT_PUSH_TO_STACK) {
+                                stack.length = stack.length - len + 1;
+                                pos.length = pos.length - len + 1;
+                            } else {
+                                stack.length = stack.length - len;
+                                pos.length = pos.length - len;
+                            }
+                            // console.log(pos);
+
+                        } break;
 
                     case 1: { //SHIFT;
-                        const 
-                            has_len  = (action >>> 1) & 1,
+                        const
+                            has_len = (action >>> 1) & 1,
                             has_skip = (action >>> 2) & 1,
-                            len = action >>> ( 3 + (has_skip * 15)),
-                            skip = has_skip * ((action >>> 3) & (~(has_len * 0xFFFF8000)));                            
-                            offset += skip;
-                        if(has_len){
+                            len = action >>> (3 + (has_skip * 15)),
+                            skip = has_skip * ((action >>> 3) & (~(has_len * 0xFFFF8000)));
+                        offset += skip;
+                        if (has_len) {
                             stack.push(str.slice(offset, offset + len));
+                            pos.push({ off: offset, tl: len });
                             offset += len;
                         }
                     } break;
