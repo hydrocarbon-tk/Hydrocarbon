@@ -1,16 +1,8 @@
-
-
-
 @IMPORT ./production_bodies.hcg as pb
-
 
 @IMPORT ../misc/default-productions.hcg as def
 
-
 @IGNORE θws θnl
-
-@SYMBOL \(+ \(* \::
-
 
 #######################################################################################################################
 ######################################  SYMBOLS

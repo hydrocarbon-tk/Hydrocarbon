@@ -22,7 +22,7 @@
 # The @IGNORE preamble defines tokens that should be ignored when parsing terminals in a production. This can be overridden per 
 # production body with the ((IGN symbol)) clause or by explicitly declaring the ignored symbol within the grammar.
 
-@IGNORE g:ws g:nl
+@IGNORE θws θnl
 
 # The @IMPORT preamble allows productions to be defined in external files and incorporated into the host file,
 # accessible by the identifier defined after the as keyword. 
@@ -43,6 +43,6 @@
 
 # Production from imported files can be accessed by using the syntax {grammar_file id}::{production name}
 
-<> head → pre::preamble? ( prd::productions )                 ↦return { env.productions.meta = {preambles : $sym1, pos} }
+<> head → pre::preamble?  prd::productions                   ↦return { env.productions.meta = {preambles : $sym1, pos} }
 
 # This annotated grammar definition is continued in ./preambles.hcg

@@ -56,7 +56,7 @@
                                                                         this.ref = "";      
                                                                         this.IS_CONDITION = true;  
                                                                     }
-    │ js_function_start_symbol ( τcstr │ τc │ τreturn │ τr ) \=\>  sym::js_identifier    
+    │ js_function_start_symbol ( τcstr │ τc │ τreturn │ τr ) \=>  sym::js_identifier    
                                                                     ↦cstr{ 
                                                                         this.type = ($sym2[0] == "c" ) ?"CLASS" :"RETURNED";             
                                                                         this.ref = $sym4;
