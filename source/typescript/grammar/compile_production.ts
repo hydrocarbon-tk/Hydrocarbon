@@ -105,8 +105,8 @@ export default function (production: Production, env: GrammarParserEnvironment, 
 
             const sym = body.sym[j];
 
-            if (sym.IS_OPTIONAL && (!sym.NO_BLANK || body.sym.length > 1)) {
 
+            if (sym.IS_OPTIONAL && (!sym.NO_BLANK || body.sym.filter(s => s.NO_BLANK == sym.NO_BLANK).length > 1)) {
 
                 const new_sym = body.sym.slice();
                 const sym_map = body.sym_map.slice();

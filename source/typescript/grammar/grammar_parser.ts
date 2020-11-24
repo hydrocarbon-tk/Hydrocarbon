@@ -42,7 +42,7 @@ export function constructCompilerEnvironment(
     unique_grammar_file_id: number,
     meta_imported_productions: Map<any, any>
 ): GrammarParserEnvironment {
-    const out = {
+    const out = <GrammarParserEnvironment>{
         options: { integrate: true },
         SLEEP: sleep,
         bodies: new Map(),
@@ -57,6 +57,7 @@ export function constructCompilerEnvironment(
         imported_grammar_name_resolution_map: new Map(),
         meta_imported_productions,
         body_offset: 0,
+        no_blank_index: 0,
         prod_name: '',
         counter: 100,
         symbols: [],

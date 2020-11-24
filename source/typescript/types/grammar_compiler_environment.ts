@@ -29,6 +29,8 @@ export interface GrammarParserEnvironment extends ParserEnvironment {
     productions: Grammar;
     refs: Map<string, string>;
     body_count: number;
+
+    no_blank_index: number;
     stamp: number;
 
     symbols: Symbol[];
