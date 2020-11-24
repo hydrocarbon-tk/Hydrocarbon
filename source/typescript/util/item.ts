@@ -1,4 +1,4 @@
-import { getRealSymValue, getRootSym } from "../hybrid/utilities/utilities.js";
+import { getRootSym } from "../hybrid/utilities/utilities.js";
 import { ProductionBody, Grammar, SymbolType, Production } from "../types/grammar.js";
 import { Symbol } from "../types/Symbol";
 
@@ -38,7 +38,7 @@ export function SymbolToStringUnformatted(sym: { type?: SymbolType, val: string;
         case SymbolType.EMPTY:
             return `ɛ`;
         case SymbolType.END_OF_FILE:
-            return `$eof`;
+            return `END_OF_FILE`;
         default:
             return sym.val;
     }

@@ -5,7 +5,7 @@ import { FIRST } from "./first.js";
 import { FOLLOW } from "./follow.js";
 
 import { processClosure } from "./process_closure.js";
-import { Grammar, SymbolType } from "../types/grammar.js";
+import { EOF_SYM, Grammar, SymbolType } from "../types/grammar.js";
 import { Symbol } from "../types/Symbol";
 import { createNoCheckShift, getIncludeBooleans, getLexerBooleanExpression, getUniqueSymbolName } from "../hybrid/utilities/utilities.js";
 import { exp, parser, stmt, renderWithFormatting, JSNodeClass } from "@candlefw/js";
@@ -128,7 +128,7 @@ export function filloutGrammar(grammar: Grammar, env) {
 
     const bodies = [],
         reduce_lu: Map<string, number> = new Map,
-        symbols: Map<string, Symbol> = new Map([["$eofgenerated", { val: "$eof", type: SymbolType.GENERATED }]]),
+        symbols: Map<string, Symbol> = new Map([[getUniqueSymbolName(EOF_SYM), EOF_SYM]]),
         syms = [...grammar?.meta?.symbols?.values() ?? []];
 
     for (let i = 0, j = 0; i < grammar.length; i++) {

@@ -3,7 +3,7 @@ import { Symbol } from "./Symbol";
 
 export enum SymbolType {
     PRODUCTION = "production",
-    ESCLUDE = "exc",
+    EXCLUDE = "exc",
     IGNORE = "ign",
     ERROR = "err",
     RESET = "rst",
@@ -19,7 +19,7 @@ export enum SymbolType {
     END_OF_ITEM = "END_OF_ITEM"
 }
 
-export const EOF_SYM: Symbol = { val: "$eof", precedence: 0, type: SymbolType.GENERATED };
+export const EOF_SYM: Symbol = { val: "END_OF_FILE", precedence: 0, type: SymbolType.END_OF_FILE };
 
 export interface ProductionBodyFunction {
     /**
@@ -115,6 +115,8 @@ export interface Production {
     };
 
     graph_id?: number;
+
+    follow?: Map<string, Symbol>;
 }
 
 export interface Preamble {

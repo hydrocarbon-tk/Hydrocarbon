@@ -52,11 +52,11 @@ export function isSymAnAssertFunction(s: Symbol): boolean {
 }
 
 export function isSymAGenericType(s: Symbol): boolean {
-    return s.type == SymbolType.GENERATED;
+    return s.type == SymbolType.GENERATED || s.type == SymbolType.END_OF_FILE;
 }
 
 export function isSymADefinedToken(s: Symbol): boolean {
-    return s.type != SymbolType.PRODUCTION && s.type != SymbolType.GENERATED && s.type != SymbolType.PRODUCTION_ASSERTION_FUNCTION;
+    return s.type != SymbolType.PRODUCTION && s.type != SymbolType.GENERATED && s.type != SymbolType.PRODUCTION_ASSERTION_FUNCTION && s.id != undefined;
 }
 export function getRDFNName(production: Production) {
     return `$${production.name}`;
@@ -152,6 +152,9 @@ export function getSkipArray(grammar: Grammar, runner: CompilerRunner, exclude_s
 }
 
 export function getRootSym(sym: Symbol, grammar: Grammar) {
+    if (sym.type == SymbolType.END_OF_FILE)
+        return sym;
+
     const name = getUniqueSymbolName(sym);
 
     return grammar.meta.all_symbols.get(name) || sym;
@@ -164,15 +167,13 @@ export function getLexerBooleanExpression(sym: Symbol, grammar: Grammar, lex_nam
             return `(${not}${translateSymbolValue(sym, grammar, false, lex_name)})`;
         case SymbolType.GENERATED:
             if (sym.val == "any") { return "true"; }
-            if (sym.val == "eof")
-                return `(${lex_name}.ty ${equality} 0)`;
             return `(${lex_name}.ty ${equality} ${translateSymbolValue(sym, grammar)})`;
         case SymbolType.LITERAL:
         case SymbolType.ESCAPED:
         case SymbolType.SYMBOL:
             return `(${lex_name}.id ${equality} ${translateSymbolValue(sym, grammar)})`;
         case SymbolType.END_OF_FILE:
-            return `(${not}${lex_name}.END)`;
+            return `(${lex_name}.ty ${equality} ${translateSymbolValue(sym, grammar)})`;
         case SymbolType.EMPTY:
             return (!NOT) + "";
     }
@@ -181,8 +182,8 @@ export function getLexerBooleanExpression(sym: Symbol, grammar: Grammar, lex_nam
 export function translateSymbolValue(sym: Symbol, grammar: Grammar, ANNOTATED: boolean = false, lex_name = "l"): string | number {
     const annotation = ANNOTATED ? `/* \\${sym.val} */` : "";
 
-    if (sym.val == "$eof")
-        return `0` + (ANNOTATED ? "/* EOF */" : "");
+    if (sym.type == SymbolType.END_OF_FILE || sym.val == "END_OF_FILE")
+        return `0 /*--*/` + (ANNOTATED ? "/* EOF */" : "");
 
     switch (sym.type) {
         case SymbolType.PRODUCTION_ASSERTION_FUNCTION:
@@ -209,11 +210,11 @@ export function translateSymbolValue(sym: Symbol, grammar: Grammar, ANNOTATED: b
                 sym = getRootSym(sym, grammar);
             if (!sym.id) console.log({ sym });
             return (sym.id ?? 888) + annotation;
-        case SymbolType.END_OF_FILE:
-            return 0;
         case SymbolType.EMPTY:
             return "";
     }
+
+    return 0;
 }
 
 
@@ -225,14 +226,14 @@ export function getIncludeBooleans(syms: Symbol[], grammar: Grammar, runner: Com
         syms = syms.map(s => getRootSym(s, grammar));
 
         const
-            id = syms.filter(s => s.id != undefined & s.type !== SymbolType.PRODUCTION_ASSERTION_FUNCTION)
+            id = syms.filter(isSymADefinedToken)
                 .map(s => s.id + (runner.ANNOTATED ? `/* \\${s.val} */` : ""))
                 .setFilter().sort(),
-            ty = syms.filter(s => s.type == SymbolType.GENERATED)
+            ty = syms.filter(isSymAGenericType)
                 .map(s => translateSymbolValue(s, grammar, runner.ANNOTATED, lex_name))
                 .setFilter().sort(),
-            fn = syms.filter(s => s.type == SymbolType.PRODUCTION_ASSERTION_FUNCTION)
-                .map(s => translateSymbolValue(s, grammar, runner.ANNOTATED))
+            fn = syms.filter(isSymAnAssertFunction)
+                .map(s => translateSymbolValue(s, grammar, runner.ANNOTATED, lex_name))
                 .setFilter().sort();
 
         if (id.length + ty.length == 0)
@@ -260,33 +261,6 @@ export function getIncludeBooleans(syms: Symbol[], grammar: Grammar, runner: Com
         }
         return [out_id, out_ty, out_fn].filter(_ => _).join("||");
     }
-}
-
-export function getRealSymValue(sym: Symbol) {
-
-    let val;
-    switch (sym.type) {
-        case SymbolType.PRODUCTION_ASSERTION_FUNCTION:
-            return `${sym.val}(l.copy())`;
-        case SymbolType.GENERATED:
-            if (sym.val == "keyword") { val = "keyword"; break; }
-            if (sym.val == "any") { val = "true"; break; }
-            if (sym.val == "$eof") { val = 0xFF; break; }
-            { val = Lexer.types[sym.val]; break; }
-        case SymbolType.LITERAL:
-        case SymbolType.ESCAPED:
-        case SymbolType.SYMBOL:
-            if (sym.val == "\\") { val = `'\\'`; break; }
-            if (sym.val == "\"") { val = `\\"`; break; }
-            { val = sym.val; break; }
-        case SymbolType.END_OF_FILE:
-            { val = 0xFF; break; }
-        case SymbolType.EMPTY:
-            { val = "emptry"; break; }
-
-    }
-
-    return val;
 }
 
 
@@ -337,15 +311,7 @@ export function integrateState(state: LRState, existing_refs: Set<number>, lex_n
 
     return `State${state.index}(${lex_name})`;
 }
-export function getCompletedItems(state: LRState): Item[] {
-    return state.items.filter(e => e.atEND);
-}
-export function getShiftStates(state: LRState): [string | number, number[]][] {
-    return [...state.maps.entries()].filter(([k, v]) => typeof k == "string"); //.map(([k, v]) => v);
-}
-export function getNonTerminalTransitionStates(state: LRState): [string | number, number[]][] {
-    return [...state.maps.entries()].filter(([k, v]) => typeof k == "number"); //.map(([k, v]) => v);;
-}
+
 export function getStatesFromNumericArray(value: number[], states: LRState[]): LRState[] {
     return value.map(i => states[i]);
 }

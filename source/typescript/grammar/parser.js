@@ -69,7 +69,7 @@ const
 ,(env, sym, pos)=>( new env.functions.groupProduction(sym, env, pos))/*54*/
 ,(env, sym, pos)=>( sym[0].IS_OPTIONAL=true,sym[0])/*55*/
 ,(env, sym, pos)=>( new env.functions.listProduction(sym, env, pos))/*56*/
-,(env, sym)=>new (class{constructor(env, sym, pos){this.type="eof";this.val="<--eof^^<--eof^^<--eof^^<--eof^^<--eof^^<--eof^^<--eof^^<--eof^^<--eof^^$eof-->-->-->-->-->-->-->-->-->";this.pos=pos;env.symbols.push(this);}})(env, sym)/*57*/
+,(env, sym)=>new (class{constructor(env, sym, pos){this.type="eof";this.val="END_OF_FILE";this.pos=pos;env.symbols.push(this);}})(env, sym)/*57*/
 ,(env, sym)=>new (class{constructor(env, sym, pos){this.type="empty";this.pos=pos;env.symbols.push(this);}})(env, sym)/*58*/
 ,(env, sym)=>new (class{constructor(env, sym, pos){this.type="assert_token_function";this.val=sym[2];this.pos=pos;this.DOES_SHIFT=false;}})(env, sym)/*59*/
 ,(env, sym)=>new (class{constructor(env, sym, pos){this.type="assert_token_function";this.val=sym[2];this.pos=pos;this.DOES_SHIFT=true;}})(env, sym)/*60*/

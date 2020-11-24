@@ -16,7 +16,7 @@ export function IntegrateState(production: Production, grammar: Grammar, name: s
         items =
             [
                 ...FOLLOW(grammar, production.id, true).values(),
-                grammar.meta.all_symbols.get("$eofgenerated")
+                EOF_SYM
             ].flatMap(sym => grammar[production.id].bodies.map(
                 b => new Item(
                     b.id,

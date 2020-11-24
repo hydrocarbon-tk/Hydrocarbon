@@ -61,7 +61,7 @@
     | θtok                                               ↦cstr{ this.type = "symbol"; this.val = $sym1; this.pos = pos; env.symbols.push(this)}
 
 <> EOF_symbol → 
-    \$eof                                              ↦cstr{ this.type = "eof"; this.val = "$eof"; this.pos = pos; env.symbols.push(this) }
+    \$eof                                              ↦cstr{ this.type = "eof"; this.val = "END_OF_FILE"; this.pos = pos; env.symbols.push(this) }
 
 <> empty_symbol → 
     \ɛ                                              ↦cstr{ this.type = "empty"; this.pos = pos; env.symbols.push(this) }
