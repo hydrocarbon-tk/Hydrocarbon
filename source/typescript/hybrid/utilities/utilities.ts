@@ -301,6 +301,18 @@ function filteredMapOfSet<A, T>(set: Set<A>, fn: (a: A) => T): T[] {
 
     return mapped_array;
 }
+
+export function getResetSymbols(items: Item[], grammar: Grammar) {
+    const syms: Map<string, Symbol> = new Map();
+
+    for (const item of items) {
+        for (const symbol of item.body_(grammar).reset.get(item.offset) || []) {
+            syms.set(getUniqueSymbolName(symbol), symbol);
+        }
+    }
+
+    return [...syms.values()];
+}
 export function getLRStateSymbolsAndFollow(state: LRState, grammar: Grammar): { state_symbols: Symbol[]; follow_symbols: Symbol[]; } {
     const follow_symbols = new Set(state.follow_symbols.values());
     //Any item with bodies with reduce should also show up here
