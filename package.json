@@ -12,7 +12,7 @@
     "build": "tsc",
     "prepublishOnly": "tsc -p ./tsconfig.json",
     "test": "echo \"Error: no test specified\" && exit 1",
-    "compile.grammar": "./source/cli/cli.js compile-hybrid --ts_dir ./source/typescript/grammar/ --wasm_dir @candlefw/hydrocarbon/build/wasm/ --loader_path ../hybrid/parser_memory.js -o ./source/grammars/hcg/hcg.hcg",
+    "compile.grammar": "./source/cli/cli.js compile-hybrid --ts_dir ./source/typescript/grammar/ --wasm_dir @candlefw/hydrocarbon/build/wasm/ --loader_path ../hybrid/parser_memory.js -a -o ./source/grammars/hcg/hcg.hcg",
     "compile.grammar.test": "./source/cli/cli.js compile --unattended -d --parser glalr -t mjs -o ./source/typescript/grammar ./source/grammars/hcg/hcg.hcg",
     "compile.test": "./source/cli/cli.js compile --parser glalr -d -m --unattended ./source/grammars/misc/test3.hcg",
     "compile.test.table": "./source/cli/cli.js compile --parser glalr -d -m --unattended ./source/grammars/misc/test.hcg",
