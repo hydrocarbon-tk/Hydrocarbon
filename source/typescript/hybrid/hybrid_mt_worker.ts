@@ -14,9 +14,11 @@ export class HybridMultiThreadProcessWorker {
     id: number;
     runner: CompilerRunner;
 
-    constructor() {
+    pp: typeof parentPort;
 
-        const { grammar, env_path, id, ANNOTATED } = workerData;
+    constructor(wd = workerData, pp = parentPort) {
+
+        const { grammar, env_path, id, ANNOTATED } = wd;
 
         this.grammar = grammar;
 
@@ -25,6 +27,8 @@ export class HybridMultiThreadProcessWorker {
         this.id = id;
 
         this.runner = constructCompilerRunner(ANNOTATED);
+
+        this.pp = pp;
 
         this.start();
     }
@@ -36,7 +40,7 @@ export class HybridMultiThreadProcessWorker {
 
         grammar.graph_id = 0;
 
-        parentPort.on("message", (job: HybridDispatch) => {
+        this.pp.on("message", (job: HybridDispatch) => {
 
             let Response: HybridDispatchResponse = {
                 job_type: job.job_type
@@ -79,4 +83,5 @@ export class HybridMultiThreadProcessWorker {
     }
 }
 
-new HybridMultiThreadProcessWorker();
+if (workerData && parentPort)
+    new HybridMultiThreadProcessWorker();

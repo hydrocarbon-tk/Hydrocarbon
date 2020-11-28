@@ -15,7 +15,11 @@ import {
     createAssertionShiftWithSkip,
     addSkipCall,
     isSymADefinedToken,
-    isSymAnAssertFunction
+    isSymAnAssertFunction,
+    getUniqueSymbolName,
+    getResetSymbols,
+    createNoCheckShiftWithSkip,
+    createAssertionShift
 } from "./utilities/utilities.js";
 import { RDProductionFunction } from "./types/RDProductionFunction";
 import { RDItem } from "./types/RDItem";
@@ -28,9 +32,11 @@ const enum TOKEN_BIT {
     IS_MULTIPLE = 4
 }
 
-function checkForLeftRecursion(p: Production, start_items: RDItem[], grammar: Grammar) {
+function checkForLeftRecursion(p: Production, item: RDItem, grammar: Grammar) {
 
-    const closure_items = start_items.map(g => g.item);
+    const closure_items = [RDItemToItem(item)];
+
+    //console.log(closure_items.map);
 
     processClosure(closure_items, grammar, true);
 
@@ -76,13 +82,10 @@ function renderItemSym(
         body = item.body_(grammar);
 
     if (item.atEND) {
-        if (body.reduce_id >= 0) {
-            //stmts.push(`stack_ptr+=${item.len + 1};`);
+        if (body.reduce_id >= 0)
             stmts.push(createReduceFunction(item, grammar));
-        } else if (item.len > 1) {
-            //stmts.push(`stack_ptr+=${item.len + 1};`);
+        else if (item.len > 1)
             stmts.push(createDefaultReduceFunction(item));
-        }
     } else {
         const sym = getRootSym(item.sym(grammar), grammar);
 
@@ -112,10 +115,17 @@ function renderItemSym(
                     stmts.push(createEmptyShift());
                 }
             }
-            else if (RENDER_WITH_NO_CHECK)
-                stmts.push(createNoCheckShift(grammar, runner));
+            else if (RENDER_WITH_NO_CHECK) {
+                if (item.offset == item.len - 1)
+                    stmts.push(createNoCheckShift(grammar, runner, "l"));
+                else
+                    stmts.push(createNoCheckShiftWithSkip(grammar, runner, "l", syms));
+            }
             else {
-                stmts.push(createAssertionShiftWithSkip(grammar, runner, sym, "l", syms));
+                if (item.offset == item.len - 1)
+                    stmts.push(createAssertionShift(grammar, runner, sym, "l"));
+                else
+                    stmts.push(createAssertionShiftWithSkip(grammar, runner, sym, "l", syms));
             }
         }
     }
@@ -123,8 +133,22 @@ function renderItemSym(
     return stmts.join("\n");
 }
 
+enum ReturnType {
+    ACCEPT = 0,
+    RETURN = 1,
+    NONE = 2
 
-function renderItem(item: Item, grammar: Grammar, runner: CompilerRunner, productions: Set<number> = new Set, DONT_CHECK = false, block_depth = 0): string {
+}
+
+function renderItem(
+    item: Item,
+    grammar: Grammar,
+    runner: CompilerRunner,
+    productions: Set<number> = new Set,
+    DONT_CHECK = false,
+    block_depth = 0,
+    RETURN_TYPE: ReturnType = ReturnType.RETURN
+): string {
 
     const
         DONT_CREATE_BLOCK = ((DONT_CHECK || block_depth == 0) && !item.atEND),
@@ -133,10 +157,19 @@ function renderItem(item: Item, grammar: Grammar, runner: CompilerRunner, produc
 
     stmts.push(renderItemSym(item, grammar, runner, productions, DONT_CHECK));
     if (!item.atEND) {
-        stmts.push(renderItem(item.increment(), grammar, runner, productions, false, block_depth + 1));
+        stmts.push(renderItem(item.increment(), grammar, runner, productions, false, block_depth + 1, RETURN_TYPE));
     } else {
         stmts.splice(stmts.length - 1, 0, `setProduction(${item.getProduction(grammar).id})`);
-        stmts.push(`return;`);
+
+        switch (RETURN_TYPE) {
+            case ReturnType.ACCEPT:
+                stmts.push(`ACCEPT = true;`);
+                break;
+            case ReturnType.RETURN:
+                stmts.push(`return;`);
+                break;
+            case ReturnType.NONE: break;
+        }
     }
 
     if (!DONT_CREATE_BLOCK) stmts.push("}");
@@ -195,13 +228,14 @@ type TransitionGroup = {
     priority: number;
 };
 export function renderFunctionBody(
-    llitems: RDItem[],
+    rd_items: RDItem[],
     grammar: Grammar,
     runner: CompilerRunner,
     block_depth: number = 0,
     peek_depth: number = 0,
     productions: Set<number> = new Set,
-    HAS_ERROR_RECOVERY: boolean = false
+    RETURN_TYPE: ReturnType = ReturnType.RETURN,
+    HAS_ERROR_RECOVERY: boolean = false,
 )
     : string {
 
@@ -225,7 +259,7 @@ export function renderFunctionBody(
     const sym_map: Map<string, Symbol> = new Map();
 
     // sort into transition groups - groups gathered based on a single transition symbol
-    const transition_groups: Map<string, RDItem[]> = llitems.groupMap((i: RDItem) => {
+    const transition_groups: Map<string, RDItem[]> = rd_items.groupMap((i: RDItem) => {
 
         if (runner.ANNOTATED && peek_depth > 0)
             stmts.push(`/*${new Item(i.body_index, grammar.bodies[i.body_index].length, 0, {})
@@ -271,7 +305,7 @@ export function renderFunctionBody(
 
     //Now create the necessary if statements with peek if depth > 0
     for (const group of [...group_maps.values()].sort((a, b) => b.priority - a.priority)) {
-
+        let _peek_depth = peek_depth;
         const
             pk = peek_depth,
             body = [],
@@ -315,9 +349,9 @@ export function renderFunctionBody(
                         body.push("/*\n" + items.filter(_ => !!_).map(i => i.renderUnformattedWithProduction(grammar)).join("\n"), "*/");
                     }
                     //All items transition on the same symbol; resolve body disputes. 
-                    body.push(renderItemSym(items[0], grammar, runner, productions, peek_depth >= 0));
+                    body.push(renderItemSym(items[0], grammar, runner, productions, _peek_depth >= 0));
                     items = items.map(i => i.increment()).filter(i => i);
-                    peek_depth = -1;
+                    _peek_depth = -1;
                 } else {
 
                     const
@@ -336,7 +370,7 @@ export function renderFunctionBody(
 
                             const rd_item = ItemToRDItem(i, grammar);
 
-                            const { closure, COMPLETED } = getPeekAtDepth(rd_item.item, grammar, peek_depth + 1);
+                            const { closure, COMPLETED } = getPeekAtDepth(rd_item.item, grammar, _peek_depth + 1);
 
                             rd_item.closure = closure.setFilter(i => i.id);
 
@@ -355,11 +389,11 @@ export function renderFunctionBody(
                         items_at_end.push(...new_trs.filter(f => f.closure.length == 0).map(RDItemToItem));
 
                         if (runner.ANNOTATED) {
-                            body.push("\n//Look Ahead Level " + (peek_depth + 1));
+                            body.push("\n//Look Ahead Level " + (_peek_depth + 1));
                             body.push("/*\n" + prod_items.filter(_ => !!_).map(i => i.renderUnformattedWithProduction(grammar)).join("\n"), "*/");
                         }
 
-                        body.push(renderFunctionBody(has_closures, grammar, runner, block_depth + 1, peek_depth + 1, productions));
+                        body.push(renderFunctionBody(has_closures, grammar, runner, block_depth + 1, _peek_depth + 1, productions, RETURN_TYPE));
                     }
 
                     break;
@@ -370,20 +404,20 @@ export function renderFunctionBody(
             //Just complete the grammar symbols
             const item = RDItemToItem(trs[0]);
             if (runner.ANNOTATED) {
-                body.push("\n//Single Production Completion");
-                body.push(`\n//peek ${peek_depth}`);
-                body.push(`\n//block ${block_depth}`);
-                body.push(`\n//groups ${MULTIPLE_GROUPS}`);
+                // body.push("\n//Single Production Completion");
+                // body.push(`\n//peek ${peek_depth}`);
+                // body.push(`\n//block ${block_depth}`);
+                // body.push(`\n//groups ${MULTIPLE_GROUPS}`);
                 body.push("/*\n" + [item].map(i => i.renderUnformattedWithProduction(grammar)).join("\n"), "*/");
             }
-            body.push(renderItem(item, grammar, runner, productions, peek_depth >= 0 && block_depth > 0));
+            body.push(renderItem(item, grammar, runner, productions, _peek_depth >= 0 && block_depth > 0, 0, RETURN_TYPE));
             //if (item.atEND) IS_SINGLE = true;
         }
 
         if (MULTIPLE_GROUPS) {
             if (AT_END)
                 if_else_stmts.push(`{\n ${body.join("\n")}\n}`);
-            else if (peek_depth <= 0)
+            else if (_peek_depth <= 0)
                 if_else_stmts.push(`if(${getIncludeBooleans(tests, grammar, runner, pk > 0 ? "pk" + (pk) : "l")}){\n ${body.join("\n")}\n}`);
             else
                 if_else_stmts.push(`if(!FAILED &&  ${getIncludeBooleans(tests, grammar, runner, pk > 0 ? "pk" + (pk) : "l")}){\n ${body.join("\n")}\n}`);
@@ -393,6 +427,9 @@ export function renderFunctionBody(
     }
 
     if_else_stmts.sort((a, b) => +(b.slice(0, 2) == "if") - +(a.slice(0, 2) == "if"));
+
+    const unskip = getResetSymbols(rd_items.map(RDItemToItem), grammar);
+    const unskippable_symbols = [...sym_map.values(), ...unskip];
 
     if (MULTIPLE_GROUPS) {
         //Item annotations if required
@@ -404,19 +441,19 @@ export function renderFunctionBody(
 
             if (peek_depth > 0) {
                 lx = `pk${peek_depth}`;
-                const_body.push(`${lx}:Lexer =_pk( ${peek_depth > 1 ? "pk" + (peek_depth - 1) : "l"}.copy(), /* e.eh, */${getSkipArray(grammar, runner, [...sym_map.values()])})`);
+                const_body.push(`${lx}:Lexer =_pk( ${peek_depth > 1 ? "pk" + (peek_depth - 1) : "l"}.copy(), /* e.eh, */${getSkipArray(grammar, runner, unskippable_symbols)})`);
             } else
-                stmts.unshift(addSkipCall(grammar, runner, [...sym_map.values()]));
+                stmts.unshift(addSkipCall(grammar, runner, unskippable_symbols));
 
             const_node.push(const_body.join(","), ";");
 
             if (const_body.length > 0)
                 stmts.unshift(const_node.join(" "));
         } else
-            stmts.unshift(addSkipCall(grammar, runner, [...sym_map.values()]));
+            stmts.unshift(addSkipCall(grammar, runner, unskippable_symbols));
         stmts.push(if_else_stmts.join(" else "));
     } else
-        stmts.unshift(addSkipCall(grammar, runner, [...sym_map.values()]));
+        stmts.unshift(addSkipCall(grammar, runner, unskippable_symbols));
 
     return stmts.join("\n");
 }
@@ -453,46 +490,105 @@ export function makeRDHybridFunction(production: Production, grammar: Grammar, r
 
         INLINE_FUNCTIONS = p.bodies.some(has_INLINE_FUNCTIONS),
 
+        { left: left_recursion_items = [], non: non_left_recursion_items = [] }
+            = <{ left: RDItem[], non: RDItem[]; }>Object.fromEntries(p.bodies
+                .map(b => BodyToRDItem(b, grammar))
+                .groupMap(i => checkForLeftRecursion(p, i, grammar) ? "left" : "non")),
+
         start_items: RDItem[] = p.bodies.map(b => BodyToRDItem(b, grammar)),
 
         closure = start_items.map(RDItemToItem);
+
+    if (runner.ANNOTATED) {
+        stmts.push("//Production Start");
+        stmts.push("/*\n" + closure.filter(_ => !!_).map(i => i.renderUnformattedWithProduction(grammar)).join("\n"), "*/");
+    }
 
     processClosure(closure, grammar, true);
 
     if (INLINE_FUNCTIONS)
         stmts.push("const s = []");
 
-    if (checkForLeftRecursion(p, start_items, grammar)) {
-        return {
-            refs: 0,
-            id: p.id,
-            IS_RD: false,
-            fn: `/* Could Not Parse in Recursive Descent Mode */`
-        };
-    }
+    stmts.push("\n\n/* left:", ...left_recursion_items.map(RDItemToItem).map(i => i.renderUnformattedWithProduction(grammar)),
+        "right", ...non_left_recursion_items.map(RDItemToItem).map(i => i.renderUnformattedWithProduction(grammar)), "*/");
+
+    //build non left recursive items first
     try {
-        if (runner.ANNOTATED) {
-            stmts.push("//Production Start");
-            stmts.push("/*\n" + closure.filter(_ => !!_).map(i => i.renderUnformattedWithProduction(grammar)).join("\n"), "*/");
+
+        // get production states for the givin item 
+        // each state is a mini LR item that will be used to yield the goal production on completion. 
+        const prod_stmts = [];
+        // for (const item of left_recursion_items) {
+        const closure = [left_recursion_items.map(RDItemToItem)].flat();
+        processClosure(closure, grammar, true);
+        const
+            lr_items = closure
+                .filter(c => c.sym(grammar).type == SymbolType.PRODUCTION)
+                .setFilter(i => i.id)
+                .groupMap(i => i.sym(grammar).val);
+        const rd_items = closure
+            .filter(c => c.sym(grammar).type != SymbolType.PRODUCTION)
+            .setFilter(i => i.id)
+            .map(i => ItemToRDItem(i, grammar));
+
+        if (non_left_recursion_items.length > 0) {
+            stmts.push(renderFunctionBody(
+                non_left_recursion_items,
+                grammar,
+                runner, 0, 0,
+                productions,
+                left_recursion_items.length == 0 ? ReturnType.RETURN : ReturnType.NONE,
+                HAS_ERROR_RECOVERY
+            ));
+        } else {
+            //Use the RD semi production;
+            stmts.push(renderFunctionBody(
+                rd_items,
+                grammar,
+                runner, 0, 0,
+                productions,
+                ReturnType.NONE,
+                HAS_ERROR_RECOVERY)
+            );
         }
 
-        stmts.push(renderFunctionBody(start_items, grammar, runner, 0, 0, productions, HAS_ERROR_RECOVERY));
 
 
+        if (left_recursion_items.length > 0) {
+            stmts.push("//FORK");
+            stmts.push("while(true){ let ACCEPT = false;");
+
+            for (const [key, val] of lr_items.entries()) {
+                prod_stmts.push(
+                    [
+                        `if(prod == ${key}){`,
+                        renderFunctionBody(val.map(k => ItemToRDItem(k.increment(), grammar)), grammar, runner, 0, 0, productions, ReturnType.ACCEPT, HAS_ERROR_RECOVERY),
+                        `}`
+                    ].join("\n")
+                );
+            }
+
+            stmts.push(prod_stmts.join(" else "), ` if(!ACCEPT) break; }`);
+            //group into sets 
+            //strip any item in the closure that is a terminal
+            //this cannot possibly yield the root production
+            // }
+        }
+
+        if (production.recovery_handler) {
+            addRecoveryHandlerToFunctionBodyArray(stmts, production, grammar, runner, true);
+        } else {
+            stmts.push(`if(prod != ${production.id}) fail(l);`);
+        }
     } catch (e) {
 
+        console.dir(e);
         return {
             refs: 0,
             id: p.id,
             IS_RD: false,
             fn: `/* Could Not Parse in Recursive Descent Mode */`
         };
-    }
-
-    if (production.recovery_handler) {
-        addRecoveryHandlerToFunctionBodyArray(stmts, production, grammar, runner, true);
-    } else {
-        stmts.push(`fail(l);`);
     }
 
     return {

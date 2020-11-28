@@ -1,6 +1,6 @@
 import { Worker } from "worker_threads";
 
-import { Grammar, SymbolType } from "../types/grammar.js";
+import { Grammar } from "../types/grammar.js";
 import { ParserEnvironment } from "../types/parser_environment";
 import { Item } from "../util/item.js";
 import { HybridDispatchResponse, HybridJobType, HybridDispatch } from "./types/hybrid_mt_msg_types.js";
@@ -8,10 +8,7 @@ import { LRState } from "./types/State.js";
 import { mergeState } from "./lr_hybrid.js";
 import { renderStates } from "./lr_hybrid_render.js";
 import { constructCompilerRunner, CompilerRunner } from "./types/CompilerRunner.js";
-import { printLexer } from "./script_generating/hybrid_lexer_template.js";
 import { RDProductionFunction } from "./types/RDProductionFunction.js";
-import { Symbol } from "../types/Symbol.js";
-import { createAssertionFunctionBody } from "../util/common.js";
 
 type WorkerContainer = {
     target: Worker;
@@ -29,7 +26,7 @@ export class HybridMultiThreadRunner {
     lr_states: Map<string, LRState>;
 
     completed_lr_states: LRState[];
-    lr_item_set: { old_state: number; items: Item[]; }[];
+    rd_item_set: { old_state: number; items: Item[]; }[];
     total_items: number;
     errors: any;
     to_process_rd_fn: number[];
@@ -45,12 +42,12 @@ export class HybridMultiThreadRunner {
         this.grammar = grammar;
         this.env = env;
         this.total_items = 0;
-        this.number_of_workers = 10;
+        this.number_of_workers = 1;
         this.lr_states = new Map;
         this.to_process_rd_fn = this.grammar.map((a, i) => i + 1);
         this.IN_FLIGHT_JOBS = 0;
         this.rd_functions = [];
-        this.lr_item_set = [];
+        this.rd_item_set = [];
         this.runner = constructCompilerRunner(INCLUDE_ANNOTATIONS);
 
         this.module_url = ((process.platform == "win32") ?
@@ -83,7 +80,7 @@ export class HybridMultiThreadRunner {
 
         if (named_state) {
             named_state.items = named_state.items.map(Item.fromArray);
-            named_state = mergeState(named_state, this.lr_states, null, this.lr_item_set);
+            named_state = mergeState(named_state, this.lr_states, null, this.rd_item_set);
             named_state.production = id;
             this.rd_functions[id] = {
                 id: 0,
@@ -99,7 +96,7 @@ export class HybridMultiThreadRunner {
 
             const old_state = named_state || [...this.lr_states.values()][state.old_state_index];
 
-            mergeState(state, this.lr_states, old_state, this.lr_item_set);
+            mergeState(state, this.lr_states, old_state, this.rd_item_set);
         }
     }
 
@@ -184,8 +181,8 @@ export class HybridMultiThreadRunner {
                         }
 
                         // Dispatch the remaining LR items
-                        if (this.lr_item_set.length > 0) {
-                            const item_set = this.lr_item_set.shift();
+                        if (this.rd_item_set.length > 0) {
+                            const item_set = this.rd_item_set.shift();
                             JOB.job_type = HybridJobType.CONSTRUCT_LR_STATE;
                             JOB.item_set = item_set;
                             this.IN_FLIGHT_JOBS++;
@@ -219,7 +216,7 @@ export class HybridMultiThreadRunner {
                     errors: this.errors,
                     num_of_states: this.lr_states.size,
                     total_items: this.total_items,
-                    items_left: this.lr_item_set.length,
+                    items_left: this.rd_item_set.length,
                     COMPLETE: false
                 };
                 //No more jobs means we are done!
@@ -234,7 +231,7 @@ export class HybridMultiThreadRunner {
                 errors: this.errors,
                 num_of_states: this.lr_states.size,
                 total_items: this.total_items,
-                items_left: this.lr_item_set.length,
+                items_left: this.rd_item_set.length,
                 COMPLETE: false
             };
         }
@@ -289,7 +286,7 @@ export class HybridMultiThreadRunner {
             errors: this.errors,
             num_of_states: this.lr_states.size,
             total_items: this.total_items,
-            items_left: this.lr_item_set.length,
+            items_left: this.rd_item_set.length,
             COMPLETE: true
         };
     }

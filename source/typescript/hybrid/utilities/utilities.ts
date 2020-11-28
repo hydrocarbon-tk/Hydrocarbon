@@ -78,8 +78,8 @@ export function createAssertionShiftWithSkip(grammar: Grammar, runner: CompilerR
         return createAssertionShift(grammar, runner, sym);
 }
 
-export function createNoCheckShiftWithSkip(grammar: Grammar, runner: CompilerRunner, lexer_name: string = "l"): any {
-    const skip = getSkipArray(grammar, runner, new Set);
+export function createNoCheckShiftWithSkip(grammar: Grammar, runner: CompilerRunner, lexer_name: string = "l", exclude_set: Symbol[] | Set<string> = new Set): any {
+    const skip = getSkipArray(grammar, runner, exclude_set);
     if (skip)
         return `_no_check_with_skip(${lexer_name}, ${skip});`;
     else
