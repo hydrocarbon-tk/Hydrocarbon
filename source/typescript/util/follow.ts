@@ -54,10 +54,9 @@ export function FOLLOW(grammar: Grammar, production: number): Map<string, Symbol
 
                 if (isNonTerm(sym)) {
 
-                    const ADD_TO_EXCLUDES = (false && !IGNORE_SELF_RECURSION && sym.val == production.id);
+
                     const child_production_index = sym.val;
                     const child_follow = table[child_production_index];
-                    const child_exclude = excludes[child_production_index];
 
                     for (var j = i + 1; j < body.length; j++) {
 
@@ -65,14 +64,13 @@ export function FOLLOW(grammar: Grammar, production: number): Map<string, Symbol
 
                         if (isNonTerm(sym)) {
                             const syms = FIRST(grammar, sym);
-
-                            merge((ADD_TO_EXCLUDES ? child_exclude : child_follow), syms);
+                            merge(child_follow, syms);
 
                             if (syms.some(s => s.type == SymbolType.EMPTY))
                                 continue;
                         } else {
                             if (sym.type != SymbolType.EMPTY)
-                                (ADD_TO_EXCLUDES ? child_exclude : child_follow).set(sym.val, sym);
+                                child_follow.set(sym.val, sym);
                         }
                         break;
                     }
