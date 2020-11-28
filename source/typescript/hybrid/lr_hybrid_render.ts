@@ -18,7 +18,8 @@ import {
     getMaxProductionBodyLength,
     isSymADefinedToken,
     isSymAGenericType,
-    isSymAnAssertFunction
+    isSymAnAssertFunction,
+    getResetSymbols
 } from "./utilities/utilities.js";
 import { LRState } from "./types/State";
 import { RDProductionFunction } from "./types/RDProductionFunction.js";
@@ -133,8 +134,10 @@ function gotoState(
                     if (accepting_productions.includes(key)) {
 
                         const { state_symbols, follow_symbols } = getLRStateSymbolsAndFollow(st, grammar);
+
                         const skip = addSkipCall(grammar, runner, <any>new Set([...state_symbols.map(getUniqueSymbolName), ...follow_symbols.map(getUniqueSymbolName)]));
-                        if (skip) statements.push(skip);
+
+                        // if (skip) statements.push(skip);
                         statements.push(`if(${getIncludeBooleans(follow_symbols, grammar, runner)}){ return;}`);
                         if (state.name) {
                             statements.push(`{ const cp = l.copy(), m = mark(), p = prod, s = stack_ptr;
@@ -443,13 +446,26 @@ function shiftReduce(
             }), shift_outputs);
         getOutput(grammar, array.filter(t => t.type == "any_shift").setFilter(a => a.stmt), any_shift_outputs);
         getOutput(grammar, array.filter(t => t.type == "reduce").setFilter(a => a.stmt), reduce_outputs);
+
+
     }
 
+    const shift_outputs_id = shift_outputs.filter(o => isSymADefinedToken(o.a_sym));
+    const any_shift_outputs_id = any_shift_outputs.filter(o => isSymADefinedToken(o.a_sym));
+    const reduce_outputs_id = reduce_outputs.filter(o => isSymADefinedToken(o.a_sym));
+    const shift_outputs_ty = shift_outputs.filter(o => isSymAGenericType(o.a_sym));
+    const any_shift_outputs_ty = any_shift_outputs.filter(o => isSymAGenericType(o.a_sym));
+    const reduce_outputs_ty = reduce_outputs.filter(o => isSymAGenericType(o.a_sym));
 
     statements.push(
-        [...createIfLRBlocks(shift_outputs, grammar, runner, state),
-        ...createIfLRBlocks(any_shift_outputs, grammar, runner, state, false, follow_symbols),
-        ...createIfLRBlocks(reduce_outputs, grammar, runner, state, true, follow_symbols)].join(" else "),
+        [
+            ...createIfLRBlocks(shift_outputs_id, grammar, runner, state),
+            ...createIfLRBlocks(any_shift_outputs_id, grammar, runner, state, false, follow_symbols),
+            ...createIfLRBlocks(reduce_outputs_id, grammar, runner, state, true, follow_symbols),
+            ...createIfLRBlocks(shift_outputs_ty, grammar, runner, state),
+            ...createIfLRBlocks(any_shift_outputs_ty, grammar, runner, state, false, follow_symbols),
+            ...createIfLRBlocks(reduce_outputs_ty, grammar, runner, state, true, follow_symbols)
+        ].join(" else "),
         "else fail(l);"
     );
 
@@ -504,7 +520,7 @@ export function renderState(
             `function ${state.name ? state.name : "State" + state.index
             } (l: Lexer): void{
                 /*\n${state.items
-                .setFilter(i => i.id)
+                .setFilter(i => i.full_id)
                 .map(
                     i => i.renderUnformattedWithProductionAndFollow(grammar) + ((i.sym(grammar)?.type == SymbolType.PRODUCTION)
                         ? (": " + i.getProduction(grammar).id)
