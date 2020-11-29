@@ -16,7 +16,6 @@ import {
     addSkipCall,
     isSymADefinedToken,
     isSymAnAssertFunction,
-    getUniqueSymbolName,
     getResetSymbols,
     createNoCheckShiftWithSkip,
     createAssertionShift
@@ -236,13 +235,18 @@ export function renderFunctionBody(
     productions: Set<number> = new Set,
     RETURN_TYPE: ReturnType = ReturnType.RETURN,
     HAS_ERROR_RECOVERY: boolean = false,
-)
-    : string {
+): ({ stmts: string; sym_map: Map<string, Symbol>; }) {
 
     const stmts = [];
 
-    if (peek_depth > 2)
+    if (peek_depth > 3) {
+        //If two or more items can't be resolved by a peek sequence
+        //proceed with the parsing the longest item, and should that fail
+        //attempt to parse with subsequent items, ordered by their maximum 
+        //parse lengths
+        console.dir(rd_items.map(RDItemToItem).map(i => i.renderUnformattedWithProduction(grammar)));
         throw "Can't complete";
+    }
 
     /* 
         Each item has a closure which yields transition symbols. 
@@ -289,10 +293,10 @@ export function renderFunctionBody(
         const group = group_maps.get(id), sym = sym_map.get(symbol_val);
 
         group.syms.add(symbol_val);
-        group.priority |=
+        group.priority +=
             isSymADefinedToken(sym)
-                ? 8 : isSymAnAssertFunction(sym)
-                    ? 16 : 4;
+                ? 512 : isSymAnAssertFunction(sym)
+                    ? 64 : -1024;
     }
 
     let token_bit = 0;
@@ -393,7 +397,7 @@ export function renderFunctionBody(
                             body.push("/*\n" + prod_items.filter(_ => !!_).map(i => i.renderUnformattedWithProduction(grammar)).join("\n"), "*/");
                         }
 
-                        body.push(renderFunctionBody(has_closures, grammar, runner, block_depth + 1, _peek_depth + 1, productions, RETURN_TYPE));
+                        body.push(renderFunctionBody(has_closures, grammar, runner, block_depth + 1, _peek_depth + 1, productions, RETURN_TYPE).stmts);
                     }
 
                     break;
@@ -455,7 +459,7 @@ export function renderFunctionBody(
     } else
         stmts.unshift(addSkipCall(grammar, runner, unskippable_symbols));
 
-    return stmts.join("\n");
+    return { stmts: stmts.join("\n"), sym_map };
 }
 
 export function buildIntermediateRD(items: Item[], grammar: Grammar, runner: CompilerRunner, ll_fns: RDProductionFunction[]): string {
@@ -508,10 +512,6 @@ export function makeRDHybridFunction(production: Production, grammar: Grammar, r
 
     if (INLINE_FUNCTIONS)
         stmts.push("const s = []");
-
-    stmts.push("\n\n/* left:", ...left_recursion_items.map(RDItemToItem).map(i => i.renderUnformattedWithProduction(grammar)),
-        "right", ...non_left_recursion_items.map(RDItemToItem).map(i => i.renderUnformattedWithProduction(grammar)), "*/");
-
     //build non left recursive items first
     try {
 
@@ -539,7 +539,7 @@ export function makeRDHybridFunction(production: Production, grammar: Grammar, r
                 productions,
                 left_recursion_items.length == 0 ? ReturnType.RETURN : ReturnType.NONE,
                 HAS_ERROR_RECOVERY
-            ));
+            ).stmts);
         } else {
             //Use the RD semi production;
             stmts.push(renderFunctionBody(
@@ -548,7 +548,7 @@ export function makeRDHybridFunction(production: Production, grammar: Grammar, r
                 runner, 0, 0,
                 productions,
                 ReturnType.NONE,
-                HAS_ERROR_RECOVERY)
+                HAS_ERROR_RECOVERY).stmts
             );
         }
 
@@ -556,19 +556,30 @@ export function makeRDHybridFunction(production: Production, grammar: Grammar, r
 
         if (left_recursion_items.length > 0) {
             stmts.push("//FORK");
-            stmts.push("while(true){ let ACCEPT = false;");
+            stmts.push(`while(true){ let ACCEPT = false; switch(prod){`);
 
             for (const [key, val] of lr_items.entries()) {
-                prod_stmts.push(
-                    [
-                        `if(prod == ${key}){`,
-                        renderFunctionBody(val.map(k => ItemToRDItem(k.increment(), grammar)), grammar, runner, 0, 0, productions, ReturnType.ACCEPT, HAS_ERROR_RECOVERY),
-                        `}`
-                    ].join("\n")
+                const stmts = [`case ${key}:{`];
+
+                if (runner.ANNOTATED)
+                    stmts.push(`/*\n${val.map(i => i.renderUnformattedWithProduction(grammar) + "\n")}\n*/`);
+
+                const follow_symbols = [...FOLLOW(grammar, production.id).values()];
+                const { stmts: s, sym_map } = renderFunctionBody(val.map(k => ItemToRDItem(k.increment(), grammar)), grammar, runner, 0, 0, productions, ReturnType.ACCEPT, HAS_ERROR_RECOVERY);
+
+                if (key == production.id) {
+                    stmts.push(`if(${getIncludeBooleans(follow_symbols, grammar, runner, "l", [...sym_map.values()])}){ break;}`);
+                }
+
+                stmts.push(
+                    s,
+                    `}break;`
                 );
+
+                prod_stmts.push(stmts.join("\n"));
             }
 
-            stmts.push(prod_stmts.join(" else "), ` if(!ACCEPT) break; }`);
+            stmts.push(...prod_stmts, `} if(!ACCEPT) break; }`);
             //group into sets 
             //strip any item in the closure that is a terminal
             //this cannot possibly yield the root production
@@ -582,7 +593,7 @@ export function makeRDHybridFunction(production: Production, grammar: Grammar, r
         }
     } catch (e) {
 
-        console.dir(e);
+        console.dir({ name: production.name, error: e });
         return {
             refs: 0,
             id: p.id,
