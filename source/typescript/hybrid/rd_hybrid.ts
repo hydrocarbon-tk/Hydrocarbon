@@ -18,7 +18,8 @@ import {
     isSymAnAssertFunction,
     getResetSymbols,
     createNoCheckShiftWithSkip,
-    createAssertionShift
+    createAssertionShift,
+    getMappedArray
 } from "./utilities/utilities.js";
 import { RDProductionFunction } from "./types/RDProductionFunction";
 import { RDItem } from "./types/RDItem";
@@ -34,8 +35,6 @@ const enum TOKEN_BIT {
 function checkForLeftRecursion(p: Production, item: RDItem, grammar: Grammar) {
 
     const closure_items = [RDItemToItem(item)];
-
-    //console.log(closure_items.map);
 
     processClosure(closure_items, grammar, true);
 
@@ -545,27 +544,47 @@ export function makeRDHybridFunction(production: Production, grammar: Grammar, r
             );
         }
 
-
-
         if (left_recursion_items.length > 0) {
-            stmts.push("//FORK");
-            stmts.push(`while(true){ let ACCEPT = false; switch(prod){`);
+            //Optimization: Productions with identical outcomes are joined into same switch groups
+            const outcome_groups = new Map();
 
             for (const [key, val] of lr_items.entries()) {
-                const stmts = [`case ${key}:{`];
+                const hash = val
+                    .map((i) => (i.increment().atEND || i.len + " " + i.body) + " " + i.getProduction(grammar).id + " " + (<Item>i).body_(grammar)?.reduce_function?.txt).join("");
+                getMappedArray(hash, outcome_groups).push([key, val]);
+            }
 
-                if (runner.ANNOTATED)
-                    stmts.push(`/*\n${val.map(i => i.renderUnformattedWithProduction(grammar) + "\n")}\n*/`);
+            stmts.push(`while(true){ let ACCEPT = false; switch(prod){`);
 
-                const follow_symbols = [...FOLLOW(grammar, production.id).values()];
-                const { stmts: s, sym_map } = renderFunctionBody(val.map(k => ItemToRDItem(k.increment(), grammar)), grammar, runner, 0, 0, productions, ReturnType.ACCEPT, HAS_ERROR_RECOVERY);
+            for (const [hash, sw_group] of outcome_groups.entries()) {
 
-                if (key == production.id) {
-                    stmts.push(`if(${getIncludeBooleans(follow_symbols, grammar, runner, "l", [...sym_map.values()])}){ break;}`);
+                const stmts = [`/* ${hash} */`];
+
+                for (let i = 0; i < sw_group.length; i++) {
+
+                    const key = sw_group[i][0],
+                        items = sw_group[i][1];
+
+                    stmts.push(`case ${key}:`);
+
+                    if (runner.ANNOTATED)
+                        stmts.push(`/*\n${items.map(i => i.renderUnformattedWithProduction(grammar) + "\n")}\n*/`);
+
+                    if (i == (sw_group.length - 1)) {
+                        stmts.push("{");
+                        const
+                            follow_symbols = [...FOLLOW(grammar, production.id).values()],
+                            { stmts: s, sym_map } = renderFunctionBody(items.map(k => ItemToRDItem(k.increment(), grammar)), grammar, runner, 0, 0, productions, ReturnType.ACCEPT, HAS_ERROR_RECOVERY);
+
+                        if (key == production.id)
+                            stmts.push(`if(${getIncludeBooleans(follow_symbols, grammar, runner, "l", [...sym_map.values()])}) break;`);
+
+                        stmts.push(s);
+                    }
+
                 }
 
                 stmts.push(
-                    s,
                     `}break;`
                 );
 
