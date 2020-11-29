@@ -9,7 +9,6 @@
     │ binary
     │ octal
     │ scientific
-    | js_identifier
     | identifier
 
 <> hex_digit →  θint │ τa │ τb │ τc │ τd │ τe │ τf │ τA │ τB │ τC │ τD │ τE │ τF
