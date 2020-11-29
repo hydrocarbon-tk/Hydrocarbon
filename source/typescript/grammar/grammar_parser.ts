@@ -156,7 +156,7 @@ export async function grammarParser(
         if (!grammar.meta.ignore)
             grammar.meta.ignore = [];
 
-        for (const pre of grammar.meta.preambles) {
+        for (const pre of grammar?.meta?.preambles ?? []) {
             if (pre)
                 switch (pre.type) {
                     case "error":
