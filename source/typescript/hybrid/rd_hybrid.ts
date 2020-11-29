@@ -361,28 +361,31 @@ export function renderFunctionBody(
                     const
                         items_at_end = items.filter(i => i.atEND),
 
-                        prod_items = items
-                            .filter(i => !i.atEND && (i.sym(grammar).type == SymbolType.PRODUCTION)),
+                        items_not_at_end = items.filter(i => !i.atEND),
 
-                        term_items = items
-                            .filter(i => !i.atEND && (i.sym(grammar).type != SymbolType.PRODUCTION && i.sym(grammar).type !== SymbolType.PRODUCTION_ASSERTION_FUNCTION)),
+                        prod_items = items_not_at_end
+                            .filter(i => i.sym(grammar).type == SymbolType.PRODUCTION),
 
-                        paf_la_items = items
-                            .filter(i => !i.atEND && (i.sym(grammar).type == SymbolType.PRODUCTION_ASSERTION_FUNCTION)),
+                        term_items = items_not_at_end
+                            .filter(i => i.sym(grammar).type != SymbolType.PRODUCTION && i.sym(grammar).type !== SymbolType.PRODUCTION_ASSERTION_FUNCTION),
 
-                        new_trs = [].concat(prod_items.map(i => {
+                        paf_la_items = items_not_at_end
+                            .filter(i => i.sym(grammar).type == SymbolType.PRODUCTION_ASSERTION_FUNCTION),
 
-                            const rd_item = ItemToRDItem(i, grammar);
+                        new_trs = []
+                            .concat(prod_items.map(i => {
 
-                            const { closure, COMPLETED } = getPeekAtDepth(rd_item.item, grammar, _peek_depth + 1);
+                                const rd_item = ItemToRDItem(i, grammar);
 
-                            rd_item.closure = closure.setFilter(i => i.id);
+                                const { closure, COMPLETED } = getPeekAtDepth(rd_item.item, grammar, _peek_depth + 1);
 
-                            // Variant of production is completed at this peek level.
-                            if (COMPLETED) items_at_end.push(i);
+                                rd_item.closure = closure.setFilter(i => i.id);
 
-                            return rd_item;
-                        }))
+                                // Variant of production is completed at this peek level.
+                                if (COMPLETED) items_at_end.push(i);
+
+                                return rd_item;
+                            }))
                             .concat(term_items.map(i => ItemToRDItem(i, grammar)))
                             .concat(paf_la_items.map(i => ItemToRDItem(i, grammar)))
                             .concat(items_at_end.map(i => ItemToRDItem(i, grammar)));
