@@ -223,7 +223,8 @@ export function getIncludeBooleans(syms: Symbol[], grammar: Grammar, runner: Com
     if (syms.some(sym => sym.val == "any")) {
         return `!(${getIncludeBooleans(exclude_symbols, grammar, runner, lex_name) || "false"} )`;
     } else {
-        syms = syms.map(s => getRootSym(s, grammar));
+        const exclusion_list = new Set(exclude_symbols.map(getUniqueSymbolName));
+        syms = syms.filter(sym => !exclusion_list.has(getUniqueSymbolName(sym))).map(s => getRootSym(s, grammar));
 
         const
             id = syms.filter(isSymADefinedToken)
