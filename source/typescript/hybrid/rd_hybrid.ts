@@ -462,26 +462,6 @@ export function renderFunctionBody(
     return { stmts: stmts.join("\n"), sym_map };
 }
 
-export function buildIntermediateRD(items: Item[], grammar: Grammar, runner: CompilerRunner, ll_fns: RDProductionFunction[]): string {
-
-    const start_items: RDItem[] = items.map(i => ItemToRDItem(i, grammar));
-
-    let productions: Set<number> = new Set();
-
-    const val = renderFunctionBody(start_items, grammar, runner, 0, false, false, productions);
-
-    for (const production of productions.values()) {
-        const ll = ll_fns[production];
-
-        if (ll) {
-            if (!ll.IS_RD) ll.state.REACHABLE = true;
-            else ll.RENDER = true;
-        }
-    }
-
-    return val;
-}
-
 export function makeRDHybridFunction(production: Production, grammar: Grammar, runner: CompilerRunner): RDProductionFunction {
 
     const p = production;
