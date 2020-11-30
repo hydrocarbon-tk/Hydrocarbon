@@ -1,12 +1,13 @@
+import { traverse } from "@candlefw/conflagrate";
 import { exp, JSNodeClass, JSNodeType, parser, renderWithFormatting, stmt } from "@candlefw/js";
 
-import { Grammar, SymbolType, ProductionBody, Production } from "../../types/grammar.js";
-import { CharacterSymbol, TokenSymbol, Symbol } from "../../types/Symbol";
-import { LRState } from "../types/State.js";
+import { Grammar, Production, ProductionBody, SymbolType } from "../../types/grammar.js";
+import { Symbol, TokenSymbol } from "../../types/Symbol";
+import { FOLLOW } from "../../util/common.js";
 import { Item } from "../../util/item.js";
 import { CompilerRunner } from "../types/CompilerRunner.js";
-import { FOLLOW } from "../../util/common.js";
-import { traverse } from "@candlefw/conflagrate";
+import { LRState } from "../types/State.js";
+
 
 declare global {
     interface Array<T> {
@@ -100,25 +101,25 @@ export function isSymAnAssertFunction(s: Symbol): boolean {
 }
 
 export function isSymAGenericType(s: Symbol): boolean {
-    return !isSymAProduction(s) && s.type == SymbolType.GENERATED || s.type == SymbolType.END_OF_FILE;
+    return !isSymAProduction(s) && (s.type == SymbolType.GENERATED || s.type == SymbolType.END_OF_FILE);
 }
 
 export function isSymADefinedToken(s: Symbol): boolean {
-    return !isSymAProduction(s) && !isSymAGenericType(s) && !isSymAnAssertFunction(s) && s.id != undefined;
+    return !isSymAProduction(s) && !isSymAGenericType(s) && !isSymAnAssertFunction(s);
 }
 export function getRDFNName(production: Production) {
     return `$${production.name}`;
 }
 
-export function addSkipCall(grammar: Grammar, runner: CompilerRunner, exclude_set: TokenSymbol[] | Set<string>) {
-    const skips = getSkipArray(grammar, runner, exclude_set);
+export function addSkipCall(grammar: Grammar, runner: CompilerRunner, exclude_set: TokenSymbol[] | Set<string> = new Set, lex_name: string = "l") {
+    const skips = getSkipFunction(grammar, runner, exclude_set);
     if (skips.length > 0)
-        return `_skip(l, ${skips})`;
+        return `_skip(${lex_name}, ${skips})`;
     return "";
 }
 
 export function createAssertionShiftWithSkip(grammar: Grammar, runner: CompilerRunner, sym: TokenSymbol, lexer_name: string = "l", exclude_set: TokenSymbol[] | Set<string> = new Set): any {
-    const skip = getSkipArray(grammar, runner, exclude_set);
+    const skip = getSkipFunction(grammar, runner, exclude_set);
 
     if (skip)
         return `_with_skip(${lexer_name}, ${skip}, ${getIncludeBooleans([sym], grammar, runner)});`;
@@ -127,7 +128,7 @@ export function createAssertionShiftWithSkip(grammar: Grammar, runner: CompilerR
 }
 
 export function createNoCheckShiftWithSkip(grammar: Grammar, runner: CompilerRunner, lexer_name: string = "l", exclude_set: TokenSymbol[] | Set<string> = new Set): any {
-    const skip = getSkipArray(grammar, runner, exclude_set);
+    const skip = getSkipFunction(grammar, runner, exclude_set);
     if (skip)
         return `_no_check_with_skip(${lexer_name}, ${skip});`;
     else
@@ -181,7 +182,7 @@ export function getUniqueSymbolName(sym: Symbol) {
 export function getSymbolFromUniqueName(grammar: Grammar, name: string): Symbol {
     return grammar.meta.all_symbols.get(name);
 }
-export function getSkipArray(grammar: Grammar, runner: CompilerRunner, exclude: Set<string> | TokenSymbol[] = new Set) {
+export function getSkipFunction(grammar: Grammar, runner: CompilerRunner, exclude: Set<string> | TokenSymbol[] = new Set) {
     const exclude_set: Set<string> = Array.isArray(exclude) ? new Set(exclude.map(e => getUniqueSymbolName(e))) : exclude;
     const skip_symbols: TokenSymbol[] = grammar.meta.ignore.flatMap(d => d.symbols)
         .map(s => getRootSym(s, grammar))
@@ -229,7 +230,7 @@ export function translateSymbolValue(sym: TokenSymbol, grammar: Grammar, ANNOTAT
         annotation = ANNOTATED ? `/* \\${sym.val} */` : "";
 
     if (sym.type == SymbolType.END_OF_FILE || sym.val == "END_OF_FILE")
-        return `0 /*--*/` + (ANNOTATED ? "/* EOF */" : "");
+        return `l.END /*--*/` + (ANNOTATED ? "/* EOF */" : "");
 
     switch (sym.type) {
         case SymbolType.PRODUCTION_ASSERTION_FUNCTION:
@@ -239,7 +240,6 @@ export function translateSymbolValue(sym: TokenSymbol, grammar: Grammar, ANNOTAT
                 return `__${sym.val}__(${lex_name}.copy())`;
 
         case SymbolType.GENERATED:
-            if (sym.val == "any") { return "88"; }
             switch (sym.val) {
                 case "ws": return `${lex_name}.isSP()` + annotation;
                 case "num": return `${lex_name}.isNUM()` + annotation;
@@ -264,7 +264,13 @@ export function translateSymbolValue(sym: TokenSymbol, grammar: Grammar, ANNOTAT
             return "";
     }
 
-    return 0;
+    return `false /* unknown_symbol ${sanitizeSymbolValForComment(getUniqueSymbolName(sym))} */`;
+}
+
+function sanitizeSymbolValForComment(sym: string | TokenSymbol): string {
+    if (typeof sym == "string")
+        return sym.replace(/\*/g, "asterisk");
+    return sym.val.replace(/\*/g, "asterisk");
 }
 
 export function buildIfs(syms: TokenSymbol[], lex_name = "l", off = 0, USE_MAX = false, token_val = "TokenSymbol"): string[] {
@@ -280,7 +286,7 @@ export function buildIfs(syms: TokenSymbol[], lex_name = "l", off = 0, USE_MAX =
             if (USE_MAX)
                 stmts.unshift(`if(length <= ${off}){l.ty = ${token_val}; l.tl = ${off}; ACCEPT = true;}`);
             else
-                stmts.unshift(`l.ty = TokenSymbol; /* ${sym.val.replace(/\*/g, "asterisk")} */; l.tl = ${off}; ACCEPT = true;`);
+                stmts.unshift(`l.ty = TokenSymbol; /* ${sanitizeSymbolValForComment(sym)} */; l.tl = ${off}; ACCEPT = true;`);
         }
     }
     let first = true;
@@ -288,7 +294,7 @@ export function buildIfs(syms: TokenSymbol[], lex_name = "l", off = 0, USE_MAX =
     if (syms.length == 1 && syms[0].val.length > off) {
         const str = syms[0].val, l = str.length - off;
         stmts.push(
-            `if(${str.slice(off).split("").reverse().map((v, i) => `${lex_name}.getUTF(${off + l - i - 1}) == /* ${v.replace(/\*/g, "asterisk")} */${v.codePointAt(0)}`).join("&&")}){`,
+            `if(${str.slice(off).split("").reverse().map((v, i) => `${lex_name}.getUTF(${off + l - i - 1}) == /* ${sanitizeSymbolValForComment(v)} */ ${v.codePointAt(0)}`).join("&&")}){`,
             ...buildIfs(syms, lex_name, off + l, USE_MAX, token_val),
             "}"
         );
@@ -352,7 +358,7 @@ export function getIncludeBooleans(syms: TokenSymbol[], grammar: Grammar, runner
                         ${buildIfs(group).join("\n")}
                     }`, fn_name, "(l:Lexer) => boolean");
 
-                    booleans.push(`${name}(${lex_name})/* ${group.map(s => s.val).join("; ")} */`);
+                    booleans.push(`${name}(${lex_name})/* ${group.map(s => sanitizeSymbolValForComment(s)).join("; ")} */`);
                 } else {
                     booleans.push(...group.map(s => `${lex_name}.getUTF() == ${translateSymbolValue(s, grammar, runner.ANNOTATED, lex_name)}`));
                 }
@@ -478,10 +484,11 @@ export function addRecoveryHandlerToFunctionBodyArray(
  */
 export function createAssertionFunctionBody(af_body_content: string, grammar: Grammar, runner: CompilerRunner = null, prod_id: number = -1) {
     // Replace symbol placeholders
-    let txt = (<string>af_body_content).replace(/(\!)?\<\-\-(\w+)\^\^([^-]+)\-\-\>/g, (a, not, type, val) => {
-        const sym = <TokenSymbol>{ type, val };
-        return getLexerBooleanExpression(sym, grammar, "__lex__", not == "!");
-    });
+    let txt = (<string>af_body_content).replace(/(\!)?\<\-\-(\w+)\^\^([^-]+)\-\-\>/g,
+        (a, not, type, val) => {
+            const sym = <TokenSymbol>{ type, val };
+            return (not ? "!" : "") + getIncludeBooleans([sym], grammar, runner, "__lex__");
+        });
 
     const receiver = { ast: null }, lexer_name = ["l"];
 
@@ -496,7 +503,6 @@ export function createAssertionFunctionBody(af_body_content: string, grammar: Gr
                 switch ((<string>node.value).slice(1)) {
 
                     case "next":
-                        //mutate(exp(createNoCheckShift(grammar, runner)));
                         mutate(exp(`${lexer_name[lex_name_ptr]}.next()`));
                         break;
                     case "fork":
@@ -542,6 +548,7 @@ export function createAssertionFunctionBody(af_body_content: string, grammar: Gr
                         }
                         break;
                     default:
+
                         if (node.value.includes("produce")) {
 
                             const

@@ -5,7 +5,7 @@ import {
     createNoCheckShift,
     has_INLINE_FUNCTIONS,
     getRootSym,
-    getSkipArray,
+    getSkipFunction,
     getIncludeBooleans,
     createReduceFunction,
     createEmptyShift,
@@ -458,7 +458,7 @@ export function renderFunctionBody(
 
                 if (peek_depth > 0) {
                     lx = `pk${peek_depth}`;
-                    const_body.push(`${lx}:Lexer =_pk( ${peek_depth > 1 ? "pk" + (peek_depth - 1) : "l"}.copy(), /* e.eh, */${getSkipArray(grammar, runner, unskippable_symbols)})`);
+                    const_body.push(`${lx}:Lexer =_pk( ${peek_depth > 1 ? "pk" + (peek_depth - 1) : "l"}.copy(), /* e.eh, */${getSkipFunction(grammar, runner, unskippable_symbols)})`);
                 } else
                     stmts.unshift(addSkipCall(grammar, runner, unskippable_symbols));
 

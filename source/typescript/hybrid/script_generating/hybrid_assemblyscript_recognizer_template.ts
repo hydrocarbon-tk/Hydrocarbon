@@ -1,8 +1,8 @@
 import { Grammar, SymbolType } from "../../types/grammar.js";
-import { createAssertionFunctionBody } from "../../util/common.js";
 import { CompilerRunner } from "../types/CompilerRunner";
 import { RDProductionFunction } from "../types/RDProductionFunction";
 import { LRState } from "../types/State";
+import { addSkipCall, createAssertionFunctionBody } from "../utilities/utilities.js";
 import { printLexer } from "./hybrid_lexer_template.js";
 import { getTokenSelectorStatements } from "./hybrid_token_selector_template.js";
 
@@ -227,6 +227,10 @@ export default function main (input_string:string): boolean {
     reset_counters_and_pointers();
 
     $${grammar[0].name}(lex);
+
+    //consume any remaining skippable tokens
+
+    ${addSkipCall(grammar, runner, undefined, "lex")}
 
     set_action(0);
 
