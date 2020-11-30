@@ -149,13 +149,13 @@ function renderItem(
 ): string {
 
     const
-        DONT_CREATE_BLOCK = ((DONT_CHECK || block_depth == 0) && !item.atEND),
-        stmts = DONT_CREATE_BLOCK ? [] : ["if(!FAILED){"];
+        DONT_CREATE_BLOCK = ((DONT_CHECK || block_depth == 0) /*&& !item.atEND*/),
+        stmts = DONT_CREATE_BLOCK ? [] : ["if(!FAILED){" + `/*${item.renderUnformattedWithProduction(grammar)} ${DONT_CHECK}*/`];
 
 
     stmts.push(renderItemSym(item, grammar, runner, productions, DONT_CHECK));
     if (!item.atEND) {
-        stmts.push(renderItem(item.increment(), grammar, runner, productions, false, block_depth + 1, RETURN_TYPE));
+        stmts.push(renderItem(item.increment(), grammar, runner, productions, (item.increment().atEND && DONT_CHECK), block_depth + 1, RETURN_TYPE));
     } else {
         stmts.splice(stmts.length - 1, 0, `setProduction(${item.getProduction(grammar).id})`);
 
@@ -466,8 +466,9 @@ export function renderFunctionBody(
                     stmts.unshift(const_node.join(" "));
             } else
                 stmts.unshift(addSkipCall(grammar, runner, unskippable_symbols));
+
             stmts.push(if_else_stmts.join(" else "));
-        } else
+        } else if (rd_items.map(RDItemToItem).some(i => !i.atEND))
             stmts.unshift(addSkipCall(grammar, runner, unskippable_symbols));
     }
 
