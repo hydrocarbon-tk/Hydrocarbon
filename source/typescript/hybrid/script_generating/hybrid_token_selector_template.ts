@@ -1,36 +1,13 @@
 import { Grammar, SymbolType } from "../../types/grammar.js";
 import { Symbol } from "../../types/Symbol";
-
-function buildIfs(syms: Symbol[], off = 0, USE_MAX = false, token_val = "TokenSymbol"): string[] {
-    const stmts: string[] = [];
-
-    for (const sym of syms) {
-        if ((<string>sym.val).length <= off) {
-            if (USE_MAX)
-                stmts.unshift(`if(length <= ${off}){type = ${token_val}; this.id =${sym.id}; length = ${off};}`);
-            else
-                stmts.unshift(`type = TokenSymbol; this.id =${sym.id} /* ${sym.val.replace(/\*/g, "astrix")} */; length = ${off};`);
-        }
-    }
-    let first = true;
-
-    for (const group of syms.filter(s => (<string>s.val).length > off).group(s => s.val[off])) {
-        if (first)
-            stmts.push(`const val: u32 = str.charCodeAt(base+${off})`);
-        const v = group[0].val[off];
-        stmts.push(
-            `${first ? "" : "else "}if(val == ${v.charCodeAt(0)} ){`,
-            ...buildIfs(group, off + 1, USE_MAX, token_val),
-            "}"
-        );
-        first = false;
-    };
-
-    return stmts;
-}
+import { buildIfs } from "../utilities/utilities.js";
 
 
 export const getTokenSelectorStatements = (grammar: Grammar): { symbols: string, keywords: string; } => {
+    return {
+        keywords: "",
+        symbols: ""
+    };
     const syms: Symbol[] = [], keywords: Symbol[] = [];
 
     for (const sym of grammar.meta.all_symbols.values()) {

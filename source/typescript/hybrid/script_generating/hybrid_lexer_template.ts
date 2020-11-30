@@ -133,6 +133,28 @@ class Lexer {
 
     sync(marker: Lexer) : void { marker.copy(this); }
 
+    isSYM():boolean { return (this.ty == TypeSymbol) }
+
+    isNL():boolean { return (this.ty == TokenNewLine) }
+    
+    isSP():boolean { return (this.ty == TokenSpace) }
+
+    isNUM():boolean {
+        if(this.ty == TokenNumber){
+            this.consumeNumeric();
+            return true;
+        }
+        return false;
+    }
+
+    isID():boolean{
+        if(this.ty == TokenIdentifier){
+            this.consumeIdentifier();
+            return true;
+        }
+        return false;
+    }
+
     peek() : Lexer {
 
         var peeking_marker: Lexer = new Lexer();
@@ -142,6 +164,28 @@ class Lexer {
         peeking_marker.next();
 
         return peeking_marker;
+    }
+
+    consumeNumeric():void{
+        const l: i32 = str.length;
+        let off = this.off;
+        this.tl = 1;
+        while (++off < l && (num & (load<u16>(0 + (str.codePointAt(off) << 1)) >> 8))){
+            this.tl++;
+        };
+    }
+
+    consumeIdentifier():void{
+        const l: i32 = str.length;
+        let off = this.off;
+        this.tl = 1;
+        while (++off < l && (((id | num) & (load<u16>(0 + (str.codePointAt(off) << 1)) >> 8)))){
+            this.tl++;
+        };
+    }
+
+    getUTF(delta:u32 = 0):u32{
+        return str.codePointAt(this.off + delta);
     }
 
     getOffsetRegionDelta(): u32 {
@@ -158,61 +202,39 @@ class Lexer {
     
     next() : Lexer{
 
-        var l: i32 = str.length,
-            length: i32 = 1,
-            off: i32 = this.off + this.tl,
-            type: i32 = 0,
-            base: i32 = off;
-
+        this.off = this.off + this.tl;
         this.ty = 0;
-        this.id = 0;
+        this.tl = 1;
 
-        if (off >= l) {
-            this.off = l;
+        if (this.off >= str.length) {
+            this.off = str.length;
             this.tl = 0;
             return this;
         }
 
-        const code:i32 = str.codePointAt(off);
+        const code:i32 = str.codePointAt(this.off);
 
         switch (load<u16>(0 + (code << 1)) & 255) {
             default:
             case 0: //SYMBOL
-                this.id = type = TypeSymbol;
+                this.ty = TypeSymbol;
                 break;
             case 1: //IDENTIFIER
-                while (1) {
-                    while (++off < l && (((id | num) & (load<u16>(0 + (str.codePointAt(off) << 1)) >> 8))));
-                    this.id = type = TokenIdentifier;
-                    length = off - base;
-                    break;
-                } break;
+                this.ty = TokenIdentifier;
+                break;
             case 2: //SPACE SET
-                this.id = type = TokenSpace;
+                this.ty = TokenSpace;
                 break;
             case 3: //CARRIAGE RETURN
-                length = 2;
+                this.tl = 2;
             //intentional
             case 4: //LINEFEED
-                this.id = type = TokenNewLine;
+                this.ty = TokenNewLine;
                 break;
             case 5: //NUMBER
-                this.id = type = TokenNumber;
-                //Check for binary, hexadecimal, and octal representation
-                while (++off < l && (num & (load<u16>(0 + (str.codePointAt(off) << 1)) >> 8)));
-                length = off - base;
+                this.ty = TokenNumber;
                 break;
         }
-        if (type == TokenIdentifier) {
-            ${keywords}
-        }
-        if (type == TypeSymbol || type == TokenIdentifier) {
-            ${syms}
-        }
-
-        this.ty = type;
-        this.off = base;
-        this.tl = length;
 
         return this;
     }

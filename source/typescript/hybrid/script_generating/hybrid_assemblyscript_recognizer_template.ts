@@ -57,6 +57,8 @@ var
     FAILED: boolean = false, 
     prod: i32 = -1;
 
+type BooleanTokenCheck = (l:Lexer)=>boolean;
+
 ${printLexer(symbols, keywords)}
 
 function set_error(val: u32): void {
@@ -127,13 +129,13 @@ function soft_fail(lex:Lexer):void {
 function setProduction(production: u32):void{
     prod = (-FAILED) +  (-FAILED+1) * production;
 }   
-function _pk(l: Lexer, /* eh, */ skips: StaticArray<u32> = []): Lexer {
+function _pk(l: Lexer, /* eh, */ skip: BooleanTokenCheck): Lexer {
     l.next();
-    _skip(l, skips);
+    _skip(l, skip);
     return l;
 }            
 
-function _skip(l: Lexer, skips: StaticArray<u32>):void{
+function _skip(l: Lexer, skip: BooleanTokenCheck):void{
     while(1){
 
         ${grammar?.functions.has("custom_skip") ? (() => {
@@ -141,17 +143,17 @@ function _skip(l: Lexer, skips: StaticArray<u32>):void{
             return createAssertionFunctionBody(str, grammar, runner, -1);
         })() : ""}
         
-        if ((!skips.includes(l.ty) && !skips.includes(l.id)))
+        if (!skip(l))
             break;
 
         l.next();
     }
 }
 
-function _no_check_with_skip(lex: Lexer, skips: StaticArray<u32>):void {
+function _no_check_with_skip(lex: Lexer, skip: BooleanTokenCheck):void {
     add_shift(lex, lex.tl);
     lex.next();
-    _skip(lex, skips);
+    _skip(lex, skip);
 }
 
 function _no_check(lex: Lexer):void {
@@ -159,23 +161,23 @@ function _no_check(lex: Lexer):void {
     lex.next();
 }
 
-function _with_skip(lex: Lexer, skips: StaticArray<u32>, sym: u32 = 0):void {
+function _with_skip(lex: Lexer, skip: BooleanTokenCheck, accept:boolean):void {
 
     if(FAILED) return;
     
-    if (sym == 0 || lex.id == sym || lex.ty == sym) {
-        _no_check_with_skip(lex, skips);
+    if (accept) {
+        _no_check_with_skip(lex, skip);
     } else {
         //TODO error recovery
         soft_fail(lex);
     }
 }
         
-function _(lex: Lexer, sym: u32 = 0):void {
+function _(lex: Lexer, accept:boolean):void {
 
     if(FAILED) return;
     
-    if (sym == 0 || lex.id == sym || lex.ty == sym) {
+    if (accept) {
         _no_check(lex);
     } else {
         //TODO error recovery

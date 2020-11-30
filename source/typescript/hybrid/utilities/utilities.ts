@@ -5,6 +5,7 @@ import { LRState } from "../types/State.js";
 import { Item } from "../../util/item.js";
 import { CompilerRunner } from "../types/CompilerRunner.js";
 import { createAssertionFunctionBody, FOLLOW } from "../../util/common.js";
+import { stmt } from "@candlefw/js";
 
 
 
@@ -73,7 +74,7 @@ export function createAssertionShiftWithSkip(grammar: Grammar, runner: CompilerR
     const skip = getSkipArray(grammar, runner, exclude_set);
 
     if (skip)
-        return `_with_skip(${lexer_name}, ${skip}, ${translateSymbolValue(sym, grammar, runner.ANNOTATED)});`;
+        return `_with_skip(${lexer_name}, ${skip}, ${getIncludeBooleans([sym], grammar, runner)});`;
     else
         return createAssertionShift(grammar, runner, sym);
 }
@@ -88,7 +89,7 @@ export function createNoCheckShiftWithSkip(grammar: Grammar, runner: CompilerRun
 }
 
 export function createAssertionShift(grammar: Grammar, runner: CompilerRunner, sym: Symbol, lexer_name: string = "l"): any {
-    return `_(${lexer_name}, ${translateSymbolValue(sym, grammar, runner.ANNOTATED)});`;
+    return `_(${lexer_name}, ${getIncludeBooleans([sym], grammar, runner)});`;
 }
 
 export function createNoCheckShift(grammar: Grammar, runner: CompilerRunner, lexer_name: string = "l"): any {
@@ -139,16 +140,15 @@ export function getSkipArray(grammar: Grammar, runner: CompilerRunner, exclude_s
         exclude_set = new Set(exclude_set.map(e => getUniqueSymbolName(e)));
     }
 
-    const skip_symbols = grammar.meta.ignore.flatMap(d => d.symbols)
+    const skip_symbols: Symbol[] = grammar.meta.ignore.flatMap(d => d.symbols)
         .map(s => getRootSym(s, grammar))
         .setFilter(s => s.val)
-        .filter(s => !exclude_set.has(getUniqueSymbolName(s)))
-        .map(s => translateSymbolValue(s, grammar, runner.ANNOTATED));
+        .filter(s => !exclude_set.has(getUniqueSymbolName(s)));
 
     if (skip_symbols.length == 0)
         return "";
 
-    return runner.add_constant(`StaticArray.fromArray<u32>([${skip_symbols.join(",")}])`, undefined, "");
+    return runner.add_constant(`(l:Lexer)=>(${getIncludeBooleans(skip_symbols, grammar, runner)})`, "skip_fn", "(l:Lexer)=>boolean");
 }
 
 export function getRootSym(sym: Symbol, grammar: Grammar) {
@@ -180,6 +180,9 @@ export function getLexerBooleanExpression(sym: Symbol, grammar: Grammar, lex_nam
 }
 
 export function translateSymbolValue(sym: Symbol, grammar: Grammar, ANNOTATED: boolean = false, lex_name = "l"): string | number {
+    const char_len = sym.val.length;
+
+
     const annotation = ANNOTATED ? `/* \\${sym.val} */` : "";
 
     if (sym.type == SymbolType.END_OF_FILE || sym.val == "END_OF_FILE")
@@ -191,25 +194,30 @@ export function translateSymbolValue(sym: Symbol, grammar: Grammar, ANNOTATED: b
                 return `__${sym.val}__(${lex_name})`;
             else
                 return `__${sym.val}__(${lex_name}.copy())`;
+
         case SymbolType.GENERATED:
             if (sym.val == "any") { return "88"; }
             switch (sym.val) {
-                case "ws": return 1 + annotation;
-                case "num": return 2 + annotation;
-                case "id": return 3 + annotation;
-                case "nl": return 4 + annotation;
-                case "tok": return 5 + annotation;
-                case "key": return 7 + annotation;
-                default:
-                case "sym": return 6 + annotation;
+                case "ws": return `${lex_name}.isSP()` + annotation;
+                case "num": return `${lex_name}.isNUM()` + annotation;
+                case "id": return `${lex_name}.isID()` + annotation;
+                case "nl": return `${lex_name}.isNL()` + annotation;
+                case "tok": return ` false /*__deprecated tok__*/` + annotation;
+                case "key": return ` false /*__deprecated key__*/` + annotation;
+                case "sym": return `${lex_name}.isSYM()` + annotation;
+                default: return `false` + annotation;
             }
         case SymbolType.LITERAL:
         case SymbolType.ESCAPED:
         case SymbolType.SYMBOL:
-            if (!sym.id)
-                sym = getRootSym(sym, grammar);
-            if (!sym.id) console.log({ sym });
-            return (sym.id ?? 888) + annotation;
+            if (char_len == 1) {
+                return sym.val.codePointAt(0) + `/*${sym.val + ":" + sym.val.codePointAt(0)}*/`;
+            } else {
+                if (!sym.id)
+                    sym = getRootSym(sym, grammar);
+                if (!sym.id) console.log({ sym });
+                return (sym.id ?? 888) + annotation;
+            }
         case SymbolType.EMPTY:
             return "";
     }
@@ -217,8 +225,58 @@ export function translateSymbolValue(sym: Symbol, grammar: Grammar, ANNOTATED: b
     return 0;
 }
 
+export function buildIfs(syms: Symbol[], lex_name = "l", off = 0, USE_MAX = false, token_val = "TokenSymbol"): string[] {
+
+    const stmts: string[] = [];
+
+
+    if (off == 0) stmts.push("let ACCEPT = false, val = 0;");
+
+
+    for (const sym of syms) {
+        if ((<string>sym.val).length <= off) {
+            if (USE_MAX)
+                stmts.unshift(`if(length <= ${off}){l.ty = ${token_val}; l.tl = ${off}; ACCEPT = true;}`);
+            else
+                stmts.unshift(`l.ty = TokenSymbol; /* ${sym.val.replace(/\*/g, "asterisk")} */; l.tl = ${off}; ACCEPT = true;`);
+        }
+    }
+    let first = true;
+
+    if (syms.length == 1 && syms[0].val.length > off) {
+        const str = syms[0].val, l = str.length - off;
+        stmts.push(
+            `if(${str.slice(off).split("").reverse().map((v, i) => `${lex_name}.getUTF(${off + l - i - 1}) == /* ${v.replace(/\*/g, "asterisk")} */${v.codePointAt(0)}`).join("&&")}){`,
+            ...buildIfs(syms, lex_name, off + l, USE_MAX, token_val),
+            "}"
+        );
+    } else {
+
+        const groups = syms.filter(s => (<string>s.val).length > off).group(s => s.val[off]);
+
+        for (const group of groups) {
+            if (first && groups.length > 1) stmts.push(`val= l.getUTF(${off})`);
+            const v = group[0].val[off];
+            console.log(group, v, off);
+            stmts.push(
+                `${first ? "" : "else "} if(${groups.length == 1 ? `l.getUTF(${off})` : "val"} == ${v.codePointAt(0)} ){`,
+                ...buildIfs(group, lex_name, off + 1, USE_MAX, token_val),
+                "}"
+            );
+            first = false;
+        };
+
+    }
+
+    if (off == 0) stmts.push("return ACCEPT");
+
+    return stmts;
+}
+
 
 export function getIncludeBooleans(syms: Symbol[], grammar: Grammar, runner: CompilerRunner, lex_name: string = "l", exclude_symbols: Symbol[] = []) {
+
+    syms = syms.setFilter(s => getUniqueSymbolName(s));
 
     if (syms.some(sym => sym.val == "any")) {
         return `!(${getIncludeBooleans(exclude_symbols, grammar, runner, lex_name) || "false"} )`;
@@ -227,15 +285,10 @@ export function getIncludeBooleans(syms: Symbol[], grammar: Grammar, runner: Com
         syms = syms.filter(sym => !exclusion_list.has(getUniqueSymbolName(sym))).map(s => getRootSym(s, grammar));
 
         const
-            id = syms.filter(isSymADefinedToken)
-                .map(s => s.id + (runner.ANNOTATED ? `/* \\${s.val} */` : ""))
-                .setFilter().sort(),
-            ty = syms.filter(isSymAGenericType)
-                .map(s => translateSymbolValue(s, grammar, runner.ANNOTATED, lex_name))
-                .setFilter().sort(),
+            id = syms.filter(isSymADefinedToken),
+            ty = syms.filter(isSymAGenericType),
             fn = syms.filter(isSymAnAssertFunction)
-                .map(s => translateSymbolValue(s, grammar, runner.ANNOTATED, lex_name))
-                .setFilter().sort();
+                .map(s => translateSymbolValue(s, grammar, runner.ANNOTATED, lex_name)).sort();
 
         if (id.length + ty.length == 0)
             return "";
@@ -246,24 +299,37 @@ export function getIncludeBooleans(syms: Symbol[], grammar: Grammar, runner: Com
             out_fn = (fn.map(s => `${fn}`).join("||"));
 
         if (id.length > 0) {
-            if (id.length < 8) {
-                out_id = (id.map(s => `${lex_name}.id == ${s}`).join("||"));
-            } else {
-                out_id = `${runner.add_constant(`StaticArray.fromArray<u32>([${id.join(",")}])`, undefined, "")}.includes(${lex_name}.id)`;
+            const booleans = [];
+            //sort each id by its length
+            const char_groups = id.groupMap(sym => sym.val[0]);
+
+            for (const group of char_groups.values()) {
+                if (group.some(sym => sym.val.length > 1)) {
+                    const fn_name = `compound_token_check`;
+                    const name = runner.add_constant(`(l:Lexer)=>{
+                        ${buildIfs(group).join("\n")}
+                    }`, fn_name, "(l:Lexer) => boolean");
+
+                    booleans.push(`${name}(${lex_name})/* ${group.map(s => s.val).join("; ")} */`);
+                } else {
+                    booleans.push(...group.map(s => `${lex_name}.getUTF() == ${translateSymbolValue(s, grammar, runner.ANNOTATED, lex_name)}`));
+                }
             }
+
+            out_id = booleans.join("||");
         }
 
         if (ty.length > 0) {
-            if (ty.length < 8) {
-                out_ty = (ty.map(s => `${lex_name}.ty == ${s}`).join("||"));
-            } else {
-                out_ty = `${runner.add_constant(`StaticArray.fromArray<u32>([${ty.join(",")}])`, undefined, "")}.includes(${lex_name}.ty)`;
-            }
+            out_ty = (ty.map(s => translateSymbolValue(s, grammar, runner.ANNOTATED, lex_name)).join("||"));
         }
         return [out_id, out_ty, out_fn].filter(_ => _).join("||");
     }
 }
-
+export function getMappedArray<Val>(string: string, map: Map<string, Val[]>): Val[] {
+    if (!map.has(string))
+        map.set(string, []);
+    return map.get(string);
+}
 
 function filteredMapOfSet<A, T>(set: Set<A>, fn: (a: A) => T): T[] {
     const mapped_array: T[] = [];

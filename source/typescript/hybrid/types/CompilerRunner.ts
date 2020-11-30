@@ -50,20 +50,23 @@ export function constructCompilerRunner(ANNOTATED: boolean = false): CompilerRun
 
             const id = const_value;
 
+            let actual_name = const_name;
+
             if (!runner.constant_map.has(id)) {
 
-                while (unique_const_set.has(const_name))
-                    const_name = "const_" + (const_counter++) + "_";
 
-                unique_const_set.add(const_name);
+                while (unique_const_set.has(actual_name))
+                    actual_name = const_name + (const_counter++) + "_";
 
-                runner.constant_map.set(id, { name: const_name, type: type_annotation });
+                unique_const_set.add(actual_name);
+
+                runner.constant_map.set(id, { name: actual_name, type: type_annotation });
 
             } else {
-                const_name = runner.constant_map.get(id).name;
+                actual_name = runner.constant_map.get(id).name;
             }
 
-            return const_name;
+            return actual_name;
         },
         join_constant_map(const_map: Map<ConstantValue, { name: ConstantName, type: string; }>, dependent_string: string): string {
             const intermediates = []; let intermediate_counter = 0;
