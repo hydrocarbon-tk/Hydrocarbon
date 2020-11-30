@@ -1,5 +1,5 @@
 import { ProductionBody, Grammar, SymbolType } from "../types/grammar.js";
-import { Symbol } from "../types/Symbol";
+import { Symbol, TokenSymbol } from "../types/Symbol";
 
 
 function addNonTerminal(
@@ -51,16 +51,16 @@ function addNonTerminal(
     return HAS_EMPTY_PRODUCTION;
 }
 
-export function FIRST(grammar: Grammar, ...symbols: Symbol[]): Array<Symbol> {
+export function FIRST(grammar: Grammar, ...symbols: Symbol[]): TokenSymbol[] {
 
     if (!symbols[0]) return [];
 
-    const map: Map<string | number, Symbol> = new Map();
+    const map: Map<string | number, TokenSymbol> = new Map();
 
     for (let i = 0; i < symbols.length; i++) {
 
         const SYMBOL = symbols[i],
-            submap: Map<string | number, Symbol> = new Map();
+            submap: Map<string | number, TokenSymbol> = new Map();
 
         if (SYMBOL.type == SymbolType.PRODUCTION) {
 

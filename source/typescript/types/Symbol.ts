@@ -7,7 +7,7 @@ import { SymbolType, Production } from "./grammar";
  * Grammar Symbols
 */
 
-export interface Symbol {
+export interface SymbolBase {
     type: SymbolType;
     val: string | number;
     subtype?: string;
@@ -30,3 +30,42 @@ export interface Symbol {
      */
     id?: number;
 }
+
+export interface CharacterSymbol extends SymbolBase {
+    type: SymbolType.ESCAPED | SymbolType.LITERAL | SymbolType.SYMBOL;
+    val: string;
+}
+
+
+export interface GeneratedSymbol extends SymbolBase {
+    type: SymbolType.GENERATED;
+    val: string;
+}
+
+export interface EOFSymbol extends SymbolBase {
+    type: SymbolType.END_OF_FILE;
+    val: string;
+}
+
+export interface EmptySymbol extends SymbolBase {
+    type: SymbolType.EMPTY;
+    val: "";
+}
+
+export interface ProductionSymbol extends SymbolBase {
+    type: SymbolType.PRODUCTION;
+    val: number;
+}
+
+export interface AssertionFunctionSymbol extends SymbolBase {
+    type: SymbolType.PRODUCTION_ASSERTION_FUNCTION;
+    val: string;
+}
+
+export type TokenSymbol =
+    CharacterSymbol
+    | GeneratedSymbol
+    | EOFSymbol
+    | EmptySymbol
+    | AssertionFunctionSymbol;
+export type Symbol = TokenSymbol | ProductionSymbol; 

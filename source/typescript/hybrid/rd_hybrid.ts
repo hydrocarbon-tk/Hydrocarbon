@@ -1,5 +1,5 @@
 import { Grammar, Production, ProductionBody, EOF_SYM, SymbolType } from "../types/grammar.js";
-import { Symbol } from "../types/Symbol";
+import { Symbol, TokenSymbol } from "../types/Symbol";
 import { processClosure, Item, FOLLOW, FIRST } from "../util/common.js";
 import {
     createNoCheckShift,
@@ -19,7 +19,8 @@ import {
     getResetSymbols,
     createNoCheckShiftWithSkip,
     createAssertionShift,
-    getMappedArray
+    getMappedArray,
+    isSymAProduction
 } from "./utilities/utilities.js";
 import { RDProductionFunction } from "./types/RDProductionFunction";
 import { RDItem } from "./types/RDItem";
@@ -95,13 +96,14 @@ function renderItemSym(
 
         } else {
             const
-                inc_item = item.increment(),
-                syms =
+                inc_item = item.increment(), inc_sym = inc_item.sym(grammar),
+                syms: TokenSymbol[] = (
                     inc_item.atEND
-                        ? [...FOLLOW(grammar, item.getProduction(grammar).id, true).values()]
-                        : inc_item.sym(grammar).type == SymbolType.PRODUCTION
-                            ? FIRST(grammar, inc_item.sym(grammar))
-                            : [inc_item.sym(grammar)];
+                        ? [...FOLLOW(grammar, item.getProduction(grammar).id).values()]
+                        : isSymAProduction(inc_sym)
+                            ? FIRST(grammar, inc_sym)
+                            : <TokenSymbol[]>[inc_sym]
+                );
 
 
             if (sym.type == SymbolType.PRODUCTION_ASSERTION_FUNCTION) {
@@ -234,9 +236,9 @@ export function renderFunctionBody(
     productions: Set<number> = new Set,
     RETURN_TYPE: ReturnType = ReturnType.RETURN,
     HAS_ERROR_RECOVERY: boolean = false,
-): ({ stmts: string; sym_map: Map<string, Symbol>; }) {
+): ({ stmts: string; sym_map: Map<string, TokenSymbol>; }) {
 
-    const stmts = [], sym_map: Map<string, Symbol> = new Map();
+    const stmts = [], sym_map: Map<string, TokenSymbol> = new Map();
 
     if (peek_depth > 4) {
         //If two or more items can't be resolved by a peek sequence
@@ -274,11 +276,11 @@ export function renderFunctionBody(
         const transition_groups: Map<string, RDItem[]> = rd_items.groupMap((i: RDItem) => {
 
             if (runner.ANNOTATED && peek_depth > 0)
-                stmts.push(`/*${new Item(i.body_index, grammar.bodies[i.body_index].length, 0, {})
+                stmts.push(`/*${new Item(i.body_index, grammar.bodies[i.body_index].length, 0, EOF_SYM)
                     .renderUnformattedWithProduction(grammar)} peek ${peek_depth} state: \n${i
                         .closure.map(i => i.renderUnformattedWithProduction(grammar)).join("\n")}*/\n`);
 
-            const syms = [];
+            const syms: string[] = [];
 
             for (const sym of getTerminalSymsFromClosure(i.closure, grammar)) {
                 syms.push(sym.val);
@@ -483,7 +485,7 @@ export function makeRDHybridFunction(production: Production, grammar: Grammar, r
 
     const stmts = [],
 
-        HAS_ERROR_RECOVERY = !!production.error_recovery,
+        HAS_ERROR_RECOVERY = !!production.recovery_handler,
 
         INLINE_FUNCTIONS = p.bodies.some(has_INLINE_FUNCTIONS),
 
@@ -608,7 +610,7 @@ export function makeRDHybridFunction(production: Production, grammar: Grammar, r
 
         console.dir({ name: production.name, error: e });
         return {
-            refs: 0,
+            productions,
             id: p.id,
             IS_RD: false,
             fn: `/* Could Not Parse in Recursive Descent Mode */`
@@ -617,7 +619,6 @@ export function makeRDHybridFunction(production: Production, grammar: Grammar, r
 
     return {
         productions,
-        refs: 0,
         id: p.id,
         IS_RD: true,
         fn: `function $${p.name}(l:Lexer) :void{${stmts.join("\n")}}`

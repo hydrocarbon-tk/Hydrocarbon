@@ -262,11 +262,7 @@ function createIfLRBlocks(outputs: FinalOutput[], grammar: Grammar, runner: Comp
     return statements;
 }
 
-function getMappedArray<Val>(string: string, map: Map<string, Val[]>): Val[] {
-    if (!map.has(string))
-        map.set(string, []);
-    return map.get(string);
-}
+
 
 function addRDShiftOutput(
     grammar: Grammar,

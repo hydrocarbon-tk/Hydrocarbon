@@ -1,5 +1,5 @@
 import { Lexer } from "@candlefw/wind";
-import { Symbol } from "./Symbol";
+import { Symbol, TokenSymbol } from "./Symbol";
 
 export enum SymbolType {
     PRODUCTION = "production",
@@ -68,11 +68,11 @@ export interface ProductionBody {
     reduce_function: ProductionBodyReduceFunction;
     grammar_stamp: number;
     form: number;
-    excludes: Map<number, Symbol[]>;
-    ignore: Map<number, Symbol[]>;
-    error: Map<number, Symbol[]>;
-    reset: Map<number, Symbol[]>;
-    reduce: Map<number, Symbol[]>;
+    excludes: Map<number, TokenSymbol[]>;
+    ignore: Map<number, TokenSymbol[]>;
+    error: Map<number, TokenSymbol[]>;
+    reset: Map<number, TokenSymbol[]>;
+    reduce: Map<number, TokenSymbol[]>;
     BUILT: boolean;
     production?: Production;
     precedence?: number;
@@ -94,11 +94,12 @@ export interface Production {
 
     bodies?: Array<ProductionBody>;
 
-    excludes?: Map<number, Symbol>;
-    ignore?: Map<number, Symbol>;
-    error?: Map<number, Symbol>;
-    reset?: Map<number, Symbol>;
-    reduce?: Map<number, Symbol>;
+    excludes?: Map<number, TokenSymbol>;
+    ignore?: Map<number, TokenSymbol>;
+    error?: Map<number, TokenSymbol>;
+    reset?: Map<number, TokenSymbol>;
+    reduce?: Map<number, TokenSymbol>;
+    follow?: Map<string, TokenSymbol>;
 
     IMPORT_APPEND?: boolean;
     IMPORT_OVERRIDE?: boolean;
@@ -115,8 +116,6 @@ export interface Production {
     };
 
     graph_id?: number;
-
-    follow?: Map<string, Symbol>;
 }
 
 export interface Preamble {

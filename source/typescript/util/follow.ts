@@ -1,6 +1,6 @@
 import { FIRST } from "./first.js";
 import { Grammar, SymbolType, EOF_SYM } from "../types/grammar.js";
-import { Symbol } from "../types/Symbol";
+import { Symbol, TokenSymbol } from "../types/Symbol";
 
 //@ts-nocheck
 export const EMPTY_PRODUCTION = "{!--EMPTY_PRODUCTION--!}";
@@ -22,7 +22,7 @@ const merge = (to: Map<string, Symbol>, from: (Map<string, Symbol> | Symbol[])) 
  * 
  * Returns the follow map for the given production. 
  */
-export function FOLLOW(grammar: Grammar, production: number): Map<string, Symbol> {
+export function FOLLOW(grammar: Grammar, production: number): Map<string, TokenSymbol> {
 
     const
         prod = grammar[production],

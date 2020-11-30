@@ -1,23 +1,65 @@
-import { Lexer } from "@candlefw/wind";
+import { exp, JSNodeClass, JSNodeType, parser, renderWithFormatting, stmt } from "@candlefw/js";
+
 import { Grammar, SymbolType, ProductionBody, Production } from "../../types/grammar.js";
-import { Symbol } from "../../types/Symbol";
+import { CharacterSymbol, TokenSymbol, Symbol } from "../../types/Symbol";
 import { LRState } from "../types/State.js";
 import { Item } from "../../util/item.js";
 import { CompilerRunner } from "../types/CompilerRunner.js";
-import { createAssertionFunctionBody, FOLLOW } from "../../util/common.js";
-import { stmt } from "@candlefw/js";
+import { FOLLOW } from "../../util/common.js";
+import { traverse } from "@candlefw/conflagrate";
 
+declare global {
+    interface Array<T> {
+        /**
+        * Map groups of items based on a common identifier and return a new Map of these groups with
+        * the key being the identifier and the value being an array of matching objects.
+        */
+        groupMap: <KeyType>(this: Array<T>,
+            /**
+             * A function that returns a string or number, or an array of strings and/or numbers, 
+             * that is used to determine which group(s) the object belongs to. Defaults to a function
+             * that returns the string value of the object.
+             */
+            fn: (T) => (KeyType | KeyType[])) => Map<KeyType, T[]>;
 
+        /**
+         * Filters out all-but-one items with matching set identifiers.
+         */
+        setFilter: (this: Array<T>,
+            /**
+             * A function that returns a string or number that is used to 
+             * determine which set the object belongs to. Defaults to a function
+             * that returns the string value of the object.
+             */
+            fn?: (T) => (string | number)
+        ) => T[];
 
-Array.prototype.groupMap = function <T>(this: Array<T>, fn: (T) => (string | number)[]): Map<(string | number), T[]> {
+        /**
+         * Group items into sub-arrays based on an identifier.
+         */
+        group: <KeyType>(this: Array<T>,
+            /**
+             * A function that returns a string or number, or an array of strings and/or numbers, 
+             * that is used to determine which group(s) the object belongs to. Defaults to a function
+             * that returns the string value of the object.
+             */
+            fn: (T) => (KeyType | KeyType[])
+        ) => T[][];
+    }
+}
 
-    const groups: Map<number | string, T[]> = new Map;
+Array.prototype.groupMap = function <T, KeyType>(
+    this: Array<T>,
+    fn: (T) => (KeyType | KeyType[])
+): Map<KeyType, T[]> {
+
+    const groups: Map<KeyType, T[]> = new Map;
 
     this.forEach(e => {
 
         const id = fn(e);
 
-        for (const ident of Array.isArray(id) && id || [id]) {
+        for (const ident of Array.isArray(id) ? id : [id]) {
             if (!groups.has(ident))
                 groups.set(ident, []);
             groups.get(ident).push(e);
@@ -27,10 +69,11 @@ Array.prototype.groupMap = function <T>(this: Array<T>, fn: (T) => (string | num
     return groups;
 };
 
-/**
- * Filters all items based on whether a certain value is contained within a set or not
- */
-Array.prototype.setFilter = function <T>(this: Array<T>, fn: (T) => (string | number)[] = _ => _ ? _.toString() : ""): T[] {
+
+Array.prototype.setFilter = function <T>(
+    this: Array<T>,
+    fn: (T) => (string | number) = _ => _ ? _.toString() : ""
+): T[] {
 
     const set = new Set;
 
@@ -43,34 +86,38 @@ Array.prototype.setFilter = function <T>(this: Array<T>, fn: (T) => (string | nu
     });
 };
 
-//@ts-ignore
-Array.prototype.group = function <T>(this: Array<T>, fn: (T) => (string | number)[]): T[][] {
+
+Array.prototype.group = function <T, KeyType>(this: Array<T>, fn: (T) => (KeyType | KeyType[])): T[][] {
     return [...this.groupMap(fn).values()];
 };
 
+export function isSymAProduction(s: Symbol): boolean {
+    return s.type == SymbolType.PRODUCTION;
+}
+
 export function isSymAnAssertFunction(s: Symbol): boolean {
-    return s.type == SymbolType.PRODUCTION_ASSERTION_FUNCTION;
+    return !isSymAProduction(s) && s.type == SymbolType.PRODUCTION_ASSERTION_FUNCTION;
 }
 
 export function isSymAGenericType(s: Symbol): boolean {
-    return s.type == SymbolType.GENERATED || s.type == SymbolType.END_OF_FILE;
+    return !isSymAProduction(s) && s.type == SymbolType.GENERATED || s.type == SymbolType.END_OF_FILE;
 }
 
 export function isSymADefinedToken(s: Symbol): boolean {
-    return s.type != SymbolType.PRODUCTION && s.type != SymbolType.GENERATED && s.type != SymbolType.PRODUCTION_ASSERTION_FUNCTION && s.id != undefined;
+    return !isSymAProduction(s) && !isSymAGenericType(s) && !isSymAnAssertFunction(s) && s.id != undefined;
 }
 export function getRDFNName(production: Production) {
     return `$${production.name}`;
 }
 
-export function addSkipCall(grammar: Grammar, runner: CompilerRunner, exclude_set: Array<Symbol> | Set<string>) {
+export function addSkipCall(grammar: Grammar, runner: CompilerRunner, exclude_set: TokenSymbol[] | Set<string>) {
     const skips = getSkipArray(grammar, runner, exclude_set);
     if (skips.length > 0)
         return `_skip(l, ${skips})`;
     return "";
 }
 
-export function createAssertionShiftWithSkip(grammar: Grammar, runner: CompilerRunner, sym: Symbol, lexer_name: string = "l", exclude_set: Symbol[] | Set<string> = new Set): any {
+export function createAssertionShiftWithSkip(grammar: Grammar, runner: CompilerRunner, sym: TokenSymbol, lexer_name: string = "l", exclude_set: TokenSymbol[] | Set<string> = new Set): any {
     const skip = getSkipArray(grammar, runner, exclude_set);
 
     if (skip)
@@ -79,7 +126,7 @@ export function createAssertionShiftWithSkip(grammar: Grammar, runner: CompilerR
         return createAssertionShift(grammar, runner, sym);
 }
 
-export function createNoCheckShiftWithSkip(grammar: Grammar, runner: CompilerRunner, lexer_name: string = "l", exclude_set: Symbol[] | Set<string> = new Set): any {
+export function createNoCheckShiftWithSkip(grammar: Grammar, runner: CompilerRunner, lexer_name: string = "l", exclude_set: TokenSymbol[] | Set<string> = new Set): any {
     const skip = getSkipArray(grammar, runner, exclude_set);
     if (skip)
         return `_no_check_with_skip(${lexer_name}, ${skip});`;
@@ -88,7 +135,7 @@ export function createNoCheckShiftWithSkip(grammar: Grammar, runner: CompilerRun
 
 }
 
-export function createAssertionShift(grammar: Grammar, runner: CompilerRunner, sym: Symbol, lexer_name: string = "l"): any {
+export function createAssertionShift(grammar: Grammar, runner: CompilerRunner, sym: TokenSymbol, lexer_name: string = "l"): any {
     return `_(${lexer_name}, ${getIncludeBooleans([sym], grammar, runner)});`;
 }
 
@@ -134,13 +181,9 @@ export function getUniqueSymbolName(sym: Symbol) {
 export function getSymbolFromUniqueName(grammar: Grammar, name: string): Symbol {
     return grammar.meta.all_symbols.get(name);
 }
-export function getSkipArray(grammar: Grammar, runner: CompilerRunner, exclude_set: Set<string> | Symbol[] = new Set) {
-
-    if (Array.isArray(exclude_set)) {
-        exclude_set = new Set(exclude_set.map(e => getUniqueSymbolName(e)));
-    }
-
-    const skip_symbols: Symbol[] = grammar.meta.ignore.flatMap(d => d.symbols)
+export function getSkipArray(grammar: Grammar, runner: CompilerRunner, exclude: Set<string> | TokenSymbol[] = new Set) {
+    const exclude_set: Set<string> = Array.isArray(exclude) ? new Set(exclude.map(e => getUniqueSymbolName(e))) : exclude;
+    const skip_symbols: TokenSymbol[] = grammar.meta.ignore.flatMap(d => d.symbols)
         .map(s => getRootSym(s, grammar))
         .setFilter(s => s.val)
         .filter(s => !exclude_set.has(getUniqueSymbolName(s)));
@@ -151,16 +194,16 @@ export function getSkipArray(grammar: Grammar, runner: CompilerRunner, exclude_s
     return runner.add_constant(`(l:Lexer)=>(${getIncludeBooleans(skip_symbols, grammar, runner)})`, "skip_fn", "(l:Lexer)=>boolean");
 }
 
-export function getRootSym(sym: Symbol, grammar: Grammar) {
-    if (sym.type == SymbolType.END_OF_FILE)
+export function getRootSym<T = Symbol>(sym: T, grammar: Grammar): T {
+    if ((<Symbol><any>sym).type == SymbolType.END_OF_FILE)
         return sym;
 
-    const name = getUniqueSymbolName(sym);
+    const name = getUniqueSymbolName(<Symbol><any>sym);
 
-    return grammar.meta.all_symbols.get(name) || sym;
+    return <T><any>grammar.meta.all_symbols.get(name) || sym;
 }
 
-export function getLexerBooleanExpression(sym: Symbol, grammar: Grammar, lex_name: string = "l", NOT: boolean = false): string {
+export function getLexerBooleanExpression(sym: TokenSymbol, grammar: Grammar, lex_name: string = "l", NOT: boolean = false): string {
     const equality = NOT ? "!=" : "==", not = NOT ? "!" : "";
     switch (sym.type) {
         case SymbolType.PRODUCTION_ASSERTION_FUNCTION:
@@ -179,11 +222,11 @@ export function getLexerBooleanExpression(sym: Symbol, grammar: Grammar, lex_nam
     }
 }
 
-export function translateSymbolValue(sym: Symbol, grammar: Grammar, ANNOTATED: boolean = false, lex_name = "l"): string | number {
-    const char_len = sym.val.length;
+export function translateSymbolValue(sym: TokenSymbol, grammar: Grammar, ANNOTATED: boolean = false, lex_name = "l"): string | number {
 
-
-    const annotation = ANNOTATED ? `/* \\${sym.val} */` : "";
+    const
+        char_len = sym.val.length,
+        annotation = ANNOTATED ? `/* \\${sym.val} */` : "";
 
     if (sym.type == SymbolType.END_OF_FILE || sym.val == "END_OF_FILE")
         return `0 /*--*/` + (ANNOTATED ? "/* EOF */" : "");
@@ -213,8 +256,7 @@ export function translateSymbolValue(sym: Symbol, grammar: Grammar, ANNOTATED: b
             if (char_len == 1) {
                 return sym.val.codePointAt(0) + `/*${sym.val + ":" + sym.val.codePointAt(0)}*/`;
             } else {
-                if (!sym.id)
-                    sym = getRootSym(sym, grammar);
+                if (!sym.id) sym = getRootSym(sym, grammar);
                 if (!sym.id) console.log({ sym });
                 return (sym.id ?? 888) + annotation;
             }
@@ -225,7 +267,7 @@ export function translateSymbolValue(sym: Symbol, grammar: Grammar, ANNOTATED: b
     return 0;
 }
 
-export function buildIfs(syms: Symbol[], lex_name = "l", off = 0, USE_MAX = false, token_val = "TokenSymbol"): string[] {
+export function buildIfs(syms: TokenSymbol[], lex_name = "l", off = 0, USE_MAX = false, token_val = "TokenSymbol"): string[] {
 
     const stmts: string[] = [];
 
@@ -274,7 +316,7 @@ export function buildIfs(syms: Symbol[], lex_name = "l", off = 0, USE_MAX = fals
 }
 
 
-export function getIncludeBooleans(syms: Symbol[], grammar: Grammar, runner: CompilerRunner, lex_name: string = "l", exclude_symbols: Symbol[] = []) {
+export function getIncludeBooleans(syms: TokenSymbol[], grammar: Grammar, runner: CompilerRunner, lex_name: string = "l", exclude_symbols: TokenSymbol[] = []) {
 
     syms = syms.setFilter(s => getUniqueSymbolName(s));
 
@@ -344,7 +386,7 @@ function filteredMapOfSet<A, T>(set: Set<A>, fn: (a: A) => T): T[] {
 }
 
 export function getResetSymbols(items: Item[], grammar: Grammar) {
-    const syms: Map<string, Symbol> = new Map();
+    const syms: Map<string, TokenSymbol> = new Map();
 
     for (const item of items) {
         for (const symbol of item.body_(grammar).reset.get(item.offset) || []) {
@@ -417,4 +459,108 @@ export function addRecoveryHandlerToFunctionBodyArray(
         
         setProduction(${production.id});
     `);
+}
+
+
+/**
+ * Take a string from an assertion function pre-compiled 
+ * script and convert into an assertion function body string.
+ * 
+ * - Replaces symbol place holders with equivalent type or token
+ * boolean expression
+ * - Replace `$next` place holder with a call to lexer next
+ * - Replace `$fork` place holder with a call to lexer copy
+ * - Replace `$join` place holder with a call to lexer sync
+ * - Replace `$tk_start` place holder with a mile marker to the start of a token sequence
+ * - Replace `$tk_end` with a shift insertion with length from the start of the previous call to `$tk_start`
+ * 
+ * @param af_body_content 
+ */
+export function createAssertionFunctionBody(af_body_content: string, grammar: Grammar, runner: CompilerRunner = null, prod_id: number = -1) {
+    // Replace symbol placeholders
+    let txt = (<string>af_body_content).replace(/(\!)?\<\-\-(\w+)\^\^([^-]+)\-\-\>/g, (a, not, type, val) => {
+        const sym = <TokenSymbol>{ type, val };
+        return getLexerBooleanExpression(sym, grammar, "__lex__", not == "!");
+    });
+
+    const receiver = { ast: null }, lexer_name = ["l"];
+
+    let lex_name_ptr = 0, HAS_TK = false;
+
+    for (const { node, meta: { parent, mutate } } of traverse(parser(txt).ast, "nodes")
+        .makeMutable().extract(receiver)) {
+        if (node.type & JSNodeClass.IDENTIFIER) {
+            if (node.value == "__lex__") {
+                node.value = lexer_name[lex_name_ptr];
+            } else if (node.value[0] == "$")
+                switch ((<string>node.value).slice(1)) {
+
+                    case "next":
+                        //mutate(exp(createNoCheckShift(grammar, runner)));
+                        mutate(exp(`${lexer_name[lex_name_ptr]}.next()`));
+                        break;
+                    case "fork":
+                        if (parent.type == JSNodeType.ExpressionStatement) {
+                            const start = lex_name_ptr;
+                            lex_name_ptr = lexer_name.length;
+                            lexer_name[lex_name_ptr] = "pk" + lex_name_ptr;
+                            mutate(stmt(`const ${lexer_name[lex_name_ptr]} = ${lexer_name[start]}.copy();`));
+                        }
+                        break;
+                    case "join":
+                        if (parent.type == JSNodeType.ExpressionStatement) {
+                            mutate(exp(`${lexer_name[lex_name_ptr]}.sync(${lexer_name[lex_name_ptr + 1]})`));
+                            lex_name_ptr = 0;
+                        }
+                        break;
+                    case "abort_fork":
+                        lex_name_ptr = Math.max(lex_name_ptr - 1, 0);
+                        break;
+                    case "abort_all_forks":
+                        lex_name_ptr = 0;
+                        break;
+                    case "tk_start":
+                        HAS_TK = true;
+                        {
+                            const start = lex_name_ptr;
+                            lexer_name[++lex_name_ptr] = "pk" + lex_name_ptr;
+                            mutate(stmt(`const ${lexer_name[lex_name_ptr]} = ${lexer_name[start]}.copy();`));
+                        }
+                        break;
+                    case "tk_end":
+                        if (HAS_TK) {
+                            const prev = lexer_name[lex_name_ptr - 1],
+                                curr = lexer_name[lex_name_ptr];
+                            mutate(exp(`add_shift(${prev}, ${curr}.off - ${prev}.off), ${prev}.sync(${curr}),${prev}.syncOffsetRegion()`));
+                            lex_name_ptr--;
+                        }
+                    case "FOLLOW":
+                        if (prod_id > -1 && runner) {
+                            const symbols = [...FOLLOW(grammar, prod_id).values()];
+                            const str = getIncludeBooleans(symbols, grammar, runner);
+                            mutate(exp(`(${str || "false"})`));
+                        }
+                        break;
+                    default:
+                        if (node.value.includes("produce")) {
+
+                            const
+                                fn_name = node.value.split("_").slice(1).join("_"),
+                                txt = grammar.functions.get(fn_name).txt;
+
+                            if (!grammar.meta.reduce_functions.has(txt))
+                                grammar.meta.reduce_functions.set(txt, grammar.meta.reduce_functions.size);
+
+                            const id = grammar.meta.reduce_functions.get(txt);
+
+                            const prev = lexer_name[lex_name_ptr - 1],
+                                curr = lexer_name[lex_name_ptr];
+                            mutate(exp(`add_shift(${prev}, ${curr}.off - ${prev}.off), ${prev}.sync(${curr}),${prev}.syncOffsetRegion(), add_reduce(1, ${id + 1}, true)`));
+                            lex_name_ptr--;
+                        }
+                }
+        }
+    }
+
+    return renderWithFormatting(receiver.ast);
 }
