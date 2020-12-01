@@ -176,8 +176,8 @@ export type Grammar = Array<Production> & {
 
 };
 
-interface GrammarFunction {
-    type: "CLASS" | "RETURNED" | "INLINE";
+export interface GrammarFunction {
+    type: "CLASS" | "RETURNED" | "INLINE" | "AssemblyScript";
 
     name: string;
     /**
@@ -189,4 +189,14 @@ interface GrammarFunction {
     ref: string;
     txt: string;
     IS_CONDITION: boolean;
+
+    /**
+     * For Assertion Functions. Compiled AssemblyScript text
+     */
+    assemblyscript_txt?: string;
+
+    /**
+     * For Assertion Functions. List of first symbols
+     */
+    first?: TokenSymbol[];
 }

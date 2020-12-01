@@ -1,6 +1,7 @@
 import { FIRST } from "./first.js";
 import { Grammar, SymbolType, EOF_SYM } from "../types/grammar.js";
-import { Symbol, TokenSymbol } from "../types/Symbol";
+import { AssertionFunctionSymbol, Symbol, TokenSymbol } from "../types/Symbol";
+import { getAssertionSymbolFirst, isSymAnAssertFunction } from "../hybrid/utilities/utilities.js";
 
 //@ts-nocheck
 export const EMPTY_PRODUCTION = "{!--EMPTY_PRODUCTION--!}";
@@ -70,7 +71,11 @@ export function FOLLOW(grammar: Grammar, production: number): Map<string, TokenS
                                 continue;
                         } else {
                             if (sym.type != SymbolType.EMPTY)
-                                child_follow.set(sym.val, sym);
+                                if (isSymAnAssertFunction(sym)) {
+                                    for (const s of getAssertionSymbolFirst(<AssertionFunctionSymbol>sym, grammar))
+                                        child_follow.set(s.val, s);
+                                } else
+                                    child_follow.set(sym.val, sym);
                         }
                         break;
                     }

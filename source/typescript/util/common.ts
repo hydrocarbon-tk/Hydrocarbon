@@ -1,8 +1,8 @@
 import wind from "@candlefw/wind";
 
-import { getUniqueSymbolName } from "../hybrid/utilities/utilities.js";
+import { getAssertionSymbolFirst, getUniqueSymbolName, isSymAnAssertFunction } from "../hybrid/utilities/utilities.js";
 import { EOF_SYM, Grammar, SymbolType } from "../types/grammar.js";
-import { Symbol } from "../types/Symbol";
+import { AssertionFunctionSymbol, Symbol } from "../types/Symbol";
 import { FIRST } from "./first.js";
 import { FOLLOW } from "./follow.js";
 import { Item } from "./item.js";
@@ -121,8 +121,6 @@ export function createPrecedence(body, grammar) {
 
 export function filloutGrammar(grammar: Grammar, env) {
 
-    let terminal_symbol_index = 10;
-
     const bodies = [],
         reduce_lu: Map<string, number> = new Map,
         symbols: Map<string, Symbol> = new Map([[getUniqueSymbolName(EOF_SYM), EOF_SYM]]),
@@ -180,21 +178,22 @@ export function filloutGrammar(grammar: Grammar, env) {
         switch (s.type) {
             case SymbolType.PRODUCTION:
                 /*Do nothing */ break;
+            case SymbolType.PRODUCTION_ASSERTION_FUNCTION:
+            case SymbolType.GENERATED:
             case SymbolType.SYMBOL:
             case SymbolType.ESCAPED:
             case SymbolType.LITERAL:
-                s.id = terminal_symbol_index++;
-            case SymbolType.GENERATED:
-            case SymbolType.PRODUCTION_ASSERTION_FUNCTION:
+            default:
                 symbols.set(getUniqueSymbolName(s), s);
         }
     };
 
-    for (const sym of syms.setFilter(s => getUniqueSymbolName(s)) sym_function(sym);
+    for (const sym of syms.setFilter(s => getUniqueSymbolName(s))) sym_function(sym);
 
     grammar.meta = Object.assign({}, grammar.meta, { all_symbols: symbols, reduce_functions: reduce_lu });
-
     grammar.bodies = bodies;
+
+    for (const sym of syms.filter(isSymAnAssertFunction)) getAssertionSymbolFirst(<AssertionFunctionSymbol>sym, grammar);
 
     return grammar;
 }

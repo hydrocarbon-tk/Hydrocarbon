@@ -1,5 +1,5 @@
 import { Grammar, Production, ProductionBody, EOF_SYM, SymbolType } from "../types/grammar.js";
-import { Symbol, TokenSymbol } from "../types/Symbol";
+import { AssertionFunctionSymbol, Symbol, TokenSymbol } from "../types/Symbol";
 import { processClosure, Item, FOLLOW, FIRST } from "../util/common.js";
 import {
     createNoCheckShift,
@@ -20,7 +20,9 @@ import {
     createNoCheckShiftWithSkip,
     createAssertionShift,
     getMappedArray,
-    isSymAProduction
+    isSymAProduction,
+    getAssertionSymbolFirst,
+    getUniqueSymbolName
 } from "./utilities/utilities.js";
 import { RDProductionFunction } from "./types/RDProductionFunction";
 import { RDItem } from "./types/RDItem";
@@ -106,7 +108,8 @@ function renderItemSym(
                 );
 
 
-            if (sym.type == SymbolType.PRODUCTION_ASSERTION_FUNCTION) {
+            if (false && sym.type == SymbolType.PRODUCTION_ASSERTION_FUNCTION) {
+
                 if (sym.DOES_SHIFT) {
                     stmts.push(translateSymbolValue(sym, grammar, runner.ANNOTATED));
                 } else {
@@ -114,14 +117,14 @@ function renderItemSym(
                         stmts.push(translateSymbolValue(sym, grammar, runner.ANNOTATED));
                     stmts.push(createEmptyShift());
                 }
-            }
-            else if (RENDER_WITH_NO_CHECK) {
+            } else if (RENDER_WITH_NO_CHECK) {
+
                 if (item.offset == item.len - 1)
                     stmts.push(createNoCheckShift(grammar, runner, "l"));
                 else
                     stmts.push(createNoCheckShiftWithSkip(grammar, runner, "l", syms));
-            }
-            else {
+            } else {
+
                 if (item.offset == item.len - 1)
                     stmts.push(createAssertionShift(grammar, runner, sym, "l"));
                 else
@@ -152,7 +155,7 @@ function renderItem(
 
     const
         DONT_CREATE_BLOCK = ((DONT_CHECK || block_depth == 0) /*&& !item.atEND*/),
-        stmts = DONT_CREATE_BLOCK ? [] : ["if(!FAILED){" + `/*${item.renderUnformattedWithProduction(grammar)} ${DONT_CHECK}*/`];
+        stmts = DONT_CREATE_BLOCK ? [] : ["if(!FAILED){"];
 
 
     stmts.push(renderItemSym(item, grammar, runner, productions, DONT_CHECK));
@@ -240,7 +243,7 @@ export function renderFunctionBody(
 
     const stmts = [], sym_map: Map<string, TokenSymbol> = new Map();
 
-    if (peek_depth > 4) {
+    if (peek_depth > 3) {
         //If two or more items can't be resolved by a peek sequence
         //proceed with the parsing the longest item, and should that fail
         //attempt to parse with subsequent items, ordered by their maximum 
@@ -283,8 +286,8 @@ export function renderFunctionBody(
             const syms: string[] = [];
 
             for (const sym of getTerminalSymsFromClosure(i.closure, grammar)) {
-                syms.push(sym.val);
-                sym_map.set(sym.val, sym);
+                syms.push(getUniqueSymbolName(sym));
+                sym_map.set(getUniqueSymbolName(sym), sym);
             }
 
             return syms;
@@ -302,7 +305,15 @@ export function renderFunctionBody(
 
             const group = group_maps.get(id), sym = sym_map.get(symbol_val);
 
-            group.syms.add(symbol_val);
+            if (isSymAnAssertFunction(sym) && isSymAProduction(trs[0].item.sym(grammar))) {
+                for (const s of getAssertionSymbolFirst(<AssertionFunctionSymbol>sym, grammar)) {
+                    group.syms.add(getUniqueSymbolName(s));
+                    sym_map.set(getUniqueSymbolName(s), s);
+                }
+            } else {
+                group.syms.add(symbol_val);
+            }
+
             group.priority +=
                 isSymADefinedToken(sym)
                     ? 512 : isSymAnAssertFunction(sym)
@@ -445,8 +456,9 @@ export function renderFunctionBody(
 
         if_else_stmts.sort((a, b) => +(b.slice(0, 2) == "if") - +(a.slice(0, 2) == "if"));
 
-        const unskip = getResetSymbols(rd_items.map(RDItemToItem), grammar);
-        const unskippable_symbols = [...sym_map.values(), ...unskip];
+        const
+            unskip = getResetSymbols(rd_items.map(RDItemToItem), grammar),
+            unskippable_symbols = [...sym_map.values(), ...unskip];
 
         if (MULTIPLE_GROUPS) {
             //Item annotations if required
@@ -561,7 +573,7 @@ export function makeRDHybridFunction(production: Production, grammar: Grammar, r
 
             for (const [hash, sw_group] of outcome_groups.entries()) {
 
-                const stmts = [`/* ${hash} */`];
+                const stmts = [];
 
                 for (let i = 0; i < sw_group.length; i++) {
 
@@ -571,7 +583,7 @@ export function makeRDHybridFunction(production: Production, grammar: Grammar, r
                     stmts.push(`case ${key}:`);
 
                     if (runner.ANNOTATED)
-                        stmts.push(`/*\n${items.map(i => i.renderUnformattedWithProduction(grammar) + "\n")}\n*/`);
+                        stmts.push(`/*\n${items.map(i => i.increment().renderUnformattedWithProduction(grammar)).join("\n")}\n*/`);
 
                     if (i == (sw_group.length - 1)) {
                         stmts.push("{");

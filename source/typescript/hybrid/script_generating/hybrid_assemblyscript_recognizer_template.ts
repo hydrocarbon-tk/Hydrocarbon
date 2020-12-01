@@ -22,16 +22,10 @@ export const renderAssemblyScriptRecognizer = (
         assert_functions = new Map;
 
     //Identify required assert functions. 
-    for (const sym of [...grammar.meta.all_symbols.values()]
-        .filter(s => s.type == SymbolType.PRODUCTION_ASSERTION_FUNCTION)
-    ) {
-        const fn_name = <string>sym.val;
-        if (grammar.functions.has(fn_name)) {
-            const val = grammar.functions.get(fn_name),
-                txt = createAssertionFunctionBody(val.txt, grammar);
 
-            assert_functions.set(fn_name, `function __${fn_name}__(l:Lexer):boolean{${txt}}`);
-        }
+    for (const fn of [...grammar.functions.values()].filter(v => v.assemblyscript_txt)) {
+        const fn_name = <string>fn.id;
+        assert_functions.set(fn_name, `function __${fn_name}__(l:Lexer):boolean{${fn.assemblyscript_txt}}`);
     }
 
     return `
@@ -140,7 +134,7 @@ function _skip(l: Lexer, skip: BooleanTokenCheck):void{
 
         ${grammar?.functions.has("custom_skip") ? (() => {
             let str = grammar.functions.get("custom_skip").txt;
-            return createAssertionFunctionBody(str, grammar, runner, -1);
+            return createAssertionFunctionBody(str, grammar, runner).txt;
         })() : ""}
         
         if (!skip(l))

@@ -1,8 +1,8 @@
 import { traverse } from "@candlefw/conflagrate";
-import { exp, JSNodeClass, JSNodeType, parser, renderWithFormatting, stmt } from "@candlefw/js";
+import { exp, JSNode, JSNodeClass, JSNodeType, JSNodeTypeLU, parser, renderWithFormatting, stmt } from "@candlefw/js";
 
-import { Grammar, Production, ProductionBody, SymbolType } from "../../types/grammar.js";
-import { Symbol, TokenSymbol } from "../../types/Symbol";
+import { Grammar, GrammarFunction, Production, ProductionBody, SymbolType } from "../../types/grammar.js";
+import { AssertionFunctionSymbol, Symbol, TokenSymbol } from "../../types/Symbol";
 import { FOLLOW } from "../../util/common.js";
 import { Item } from "../../util/item.js";
 import { CompilerRunner } from "../types/CompilerRunner.js";
@@ -12,7 +12,7 @@ import { LRState } from "../types/State.js";
 declare global {
     interface Array<T> {
         /**
-        * Map groups of items based on a common identifier and return a new Map of these groups with
+        * Map groups of items based on a common identifier. Returns a new map object of these groups with
         * the key being the identifier and the value being an array of matching objects.
         */
         groupMap: <KeyType>(this: Array<T>,
@@ -24,7 +24,7 @@ declare global {
             fn: (T) => (KeyType | KeyType[])) => Map<KeyType, T[]>;
 
         /**
-         * Filters out all-but-one items with matching set identifiers.
+         * Reduces items that share the same identifier to the first matching item.
          */
         setFilter: (this: Array<T>,
             /**
@@ -97,11 +97,11 @@ export function isSymAProduction(s: Symbol): boolean {
 }
 
 export function isSymAnAssertFunction(s: Symbol): boolean {
-    return !isSymAProduction(s) && s.type == SymbolType.PRODUCTION_ASSERTION_FUNCTION;
+    return s.type == SymbolType.PRODUCTION_ASSERTION_FUNCTION;
 }
 
 export function isSymAGenericType(s: Symbol): boolean {
-    return !isSymAProduction(s) && (s.type == SymbolType.GENERATED || s.type == SymbolType.END_OF_FILE);
+    return (s.type == SymbolType.GENERATED || s.type == SymbolType.END_OF_FILE);
 }
 
 export function isSymADefinedToken(s: Symbol): boolean {
@@ -230,7 +230,7 @@ export function translateSymbolValue(sym: TokenSymbol, grammar: Grammar, ANNOTAT
         annotation = ANNOTATED ? `/* \\${sym.val} */` : "";
 
     if (sym.type == SymbolType.END_OF_FILE || sym.val == "END_OF_FILE")
-        return `l.END /*--*/` + (ANNOTATED ? "/* EOF */" : "");
+        return `${lex_name}.END` + (ANNOTATED ? "/* EOF */" : "");
 
     switch (sym.type) {
         case SymbolType.PRODUCTION_ASSERTION_FUNCTION:
@@ -254,7 +254,7 @@ export function translateSymbolValue(sym: TokenSymbol, grammar: Grammar, ANNOTAT
         case SymbolType.ESCAPED:
         case SymbolType.SYMBOL:
             if (char_len == 1) {
-                return sym.val.codePointAt(0) + `/*${sym.val + ":" + sym.val.codePointAt(0)}*/`;
+                return sym.val.codePointAt(0) + (ANNOTATED ? `/*${sym.val + ":" + sym.val.codePointAt(0)}*/` : "");
             } else {
                 if (!sym.id) sym = getRootSym(sym, grammar);
                 if (!sym.id) console.log({ sym });
@@ -294,7 +294,7 @@ export function buildIfs(syms: TokenSymbol[], lex_name = "l", off = 0, USE_MAX =
     if (syms.length == 1 && syms[0].val.length > off) {
         const str = syms[0].val, l = str.length - off;
         stmts.push(
-            `if(${str.slice(off).split("").reverse().map((v, i) => `${lex_name}.getUTF(${off + l - i - 1}) == /* ${sanitizeSymbolValForComment(v)} */ ${v.codePointAt(0)}`).join("&&")}){`,
+            `if(${str.slice(off).split("").reverse().map((v, i) => `${lex_name}.getUTF(${off + l - i - 1}) ==  ${v.codePointAt(0)}`).join("&&")}){`,
             ...buildIfs(syms, lex_name, off + l, USE_MAX, token_val),
             "}"
         );
@@ -305,7 +305,6 @@ export function buildIfs(syms: TokenSymbol[], lex_name = "l", off = 0, USE_MAX =
         for (const group of groups) {
             if (first && groups.length > 1) stmts.push(`val= l.getUTF(${off})`);
             const v = group[0].val[off];
-            console.log(group, v, off);
             stmts.push(
                 `${first ? "" : "else "} if(${groups.length == 1 ? `l.getUTF(${off})` : "val"} == ${v.codePointAt(0)} ){`,
                 ...buildIfs(group, lex_name, off + 1, USE_MAX, token_val),
@@ -338,7 +337,7 @@ export function getIncludeBooleans(syms: TokenSymbol[], grammar: Grammar, runner
             fn = syms.filter(isSymAnAssertFunction)
                 .map(s => translateSymbolValue(s, grammar, runner.ANNOTATED, lex_name)).sort();
 
-        if (id.length + ty.length == 0)
+        if (id.length + ty.length + fn.length == 0)
             return "";
 
         let out_id, out_ty, out_fn;
@@ -467,6 +466,24 @@ export function addRecoveryHandlerToFunctionBodyArray(
     `);
 }
 
+export function generateCompiledAssertionFunction(sym: AssertionFunctionSymbol, grammar: Grammar, runner: CompilerRunner):
+    GrammarFunction {
+    const fn_name = sym.val;
+    const fn = grammar.functions.get(fn_name);
+    if (fn && !fn.assemblyscript_txt) {
+        const { txt, first } = createAssertionFunctionBody(fn.txt, grammar, runner);
+        fn.assemblyscript_txt = txt;
+        fn.first = first;
+    }
+    return fn;
+}
+
+export function getAssertionSymbolFirst(sym: AssertionFunctionSymbol, grammar: Grammar): TokenSymbol[] {
+    const fn = generateCompiledAssertionFunction(sym, grammar, <CompilerRunner>{ ANNOTATED: false });
+    if (fn)
+        return fn.first;
+    else return [];
+};
 
 /**
  * Take a string from an assertion function pre-compiled 
@@ -482,29 +499,119 @@ export function addRecoveryHandlerToFunctionBodyArray(
  * 
  * @param af_body_content 
  */
-export function createAssertionFunctionBody(af_body_content: string, grammar: Grammar, runner: CompilerRunner = null, prod_id: number = -1) {
-    // Replace symbol placeholders
-    let txt = (<string>af_body_content).replace(/(\!)?\<\-\-(\w+)\^\^([^-]+)\-\-\>/g,
-        (a, not, type, val) => {
-            const sym = <TokenSymbol>{ type, val };
-            return (not ? "!" : "") + getIncludeBooleans([sym], grammar, runner, "__lex__");
-        });
+export function createAssertionFunctionBody(af_body_content: string, grammar: Grammar, runner: CompilerRunner)
+    : { txt: string, first: TokenSymbol[]; } {
+    const
+        syms: Map<string, { id: number, sym: TokenSymbol; }> = new Map(),
+        first = [],
+        // Replace symbol placeholders
+        txt = (<string>af_body_content).replace(/(\!)?\<\-\-(\w+)\^\^([^-]+)\-\-\>/g,
+            (a, not, type, val) => {
 
-    const receiver = { ast: null }, lexer_name = ["l"];
+                const sym = <TokenSymbol>{ type, val };
 
-    let lex_name_ptr = 0, HAS_TK = false;
+                if (!syms.has(getUniqueSymbolName(sym)))
+                    syms.set(getUniqueSymbolName(sym), { id: syms.size, sym });
 
-    for (const { node, meta: { parent, mutate } } of traverse(parser(txt).ast, "nodes")
+                const id = syms.get(getUniqueSymbolName(sym)).id;
+
+                return (not ? "!" : "") + `(${getIncludeBooleans([sym], grammar, runner, "__lex__z" + id)})`;
+            }),
+        sym_lu: TokenSymbol[] = [...syms.values()].map(_ => _.sym),
+        receiver = { ast: null };
+
+    for (const { node } of traverse(parser(txt).ast, "nodes", 1)
         .makeMutable().extract(receiver)) {
+        processFunctionNodes(node, grammar, runner, sym_lu, first);
+    }
+
+    return { txt: renderWithFormatting(receiver.ast), first };
+}
+
+function processFunctionNodes(
+    ast: JSNode,
+    grammar: Grammar,
+    runner: CompilerRunner,
+    sym_lu: TokenSymbol[],
+    first: TokenSymbol[] = [],
+    lex_name_ptr = 0,
+    lexer_name = ["l"],
+    ALLOW_FIRST = true,
+    HAS_TK = false
+): { node: JSNode, HAS_TK: boolean; } {
+
+    const receiver = { ast: null };
+
+    for (const { node, meta: { parent, mutate, skip } } of traverse(ast, "nodes")
+        .skipRoot()
+        .makeMutable()
+        .makeSkippable()
+        .extract(receiver)) {
+
+        switch (node.type) {
+            case JSNodeType.IfStatement:
+                if (node.nodes[2]) {
+                    const _else_ = node.nodes[2];
+                    node.nodes[2] = null;
+                    HAS_TK = processFunctionNodes(
+                        node,
+                        grammar,
+                        runner,
+                        sym_lu,
+                        first,
+                        lex_name_ptr,
+                        lexer_name,
+                        ALLOW_FIRST,
+                        HAS_TK
+                    ).HAS_TK;
+                    const { HAS_TK: tk, node: new_else_ } = processFunctionNodes(
+                        _else_,
+                        grammar,
+                        runner,
+                        sym_lu,
+                        first,
+                        lex_name_ptr,
+                        lexer_name,
+                        ALLOW_FIRST,
+                        HAS_TK
+                    );
+                    HAS_TK = tk;
+                    node.nodes[2] = new_else_;
+                }
+            case JSNodeType.WhileStatement:
+            case JSNodeType.DoStatement:
+            case JSNodeType.ForStatement:
+                HAS_TK = processFunctionNodes(
+                    node,
+                    grammar,
+                    runner,
+                    sym_lu,
+                    first,
+                    lex_name_ptr,
+                    lexer_name,
+                    ALLOW_FIRST,
+                    HAS_TK
+                ).HAS_TK;
+                skip();
+                continue;
+        }
+
         if (node.type & JSNodeClass.IDENTIFIER) {
-            if (node.value == "__lex__") {
+            if ((<string>node.value).includes("__lex__z")) {
+                if (ALLOW_FIRST) {
+                    const id = +((<string>node.value).split("z")[1]);
+                    first.push(sym_lu[id]);
+                }
                 node.value = lexer_name[lex_name_ptr];
+
             } else if (node.value[0] == "$")
                 switch ((<string>node.value).slice(1)) {
 
                     case "next":
+                        ALLOW_FIRST = false;
                         mutate(exp(`${lexer_name[lex_name_ptr]}.next()`));
                         break;
+
                     case "fork":
                         if (parent.type == JSNodeType.ExpressionStatement) {
                             const start = lex_name_ptr;
@@ -515,7 +622,7 @@ export function createAssertionFunctionBody(af_body_content: string, grammar: Gr
                         break;
                     case "join":
                         if (parent.type == JSNodeType.ExpressionStatement) {
-                            mutate(exp(`${lexer_name[lex_name_ptr]}.sync(${lexer_name[lex_name_ptr + 1]})`));
+                            mutate(exp(`${lexer_name[lex_name_ptr - 1]}.sync(${lexer_name[lex_name_ptr]})`));
                             lex_name_ptr = 0;
                         }
                         break;
@@ -537,16 +644,16 @@ export function createAssertionFunctionBody(af_body_content: string, grammar: Gr
                         if (HAS_TK) {
                             const prev = lexer_name[lex_name_ptr - 1],
                                 curr = lexer_name[lex_name_ptr];
-                            mutate(exp(`add_shift(${prev}, ${curr}.off - ${prev}.off), ${prev}.sync(${curr}),${prev}.syncOffsetRegion()`));
+                            mutate(exp(`${prev}.tl = ${curr}.off - ${prev}.off`));
                             lex_name_ptr--;
                         }
-                    case "FOLLOW":
-                        if (prod_id > -1 && runner) {
-                            const symbols = [...FOLLOW(grammar, prod_id).values()];
-                            const str = getIncludeBooleans(symbols, grammar, runner);
-                            mutate(exp(`(${str || "false"})`));
-                        }
-                        break;
+                    // case "FOLLOW":
+                    //     if (prod_id > -1 && runner) {
+                    //         const symbols = [...FOLLOW(grammar, prod_id).values()];
+                    //         const str = getIncludeBooleans(symbols, grammar, runner);
+                    //         mutate(exp(`(${str || "false"})`));
+                    //     }
+                    //     break;
                     default:
 
                         if (node.value.includes("produce")) {
@@ -568,6 +675,5 @@ export function createAssertionFunctionBody(af_body_content: string, grammar: Gr
                 }
         }
     }
-
-    return renderWithFormatting(receiver.ast);
-}
+    return { node: receiver.ast, HAS_TK };
+};

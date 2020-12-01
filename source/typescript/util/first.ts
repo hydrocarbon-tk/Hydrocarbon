@@ -1,5 +1,6 @@
+import { getAssertionSymbolFirst, isSymAnAssertFunction, isSymAProduction } from "../hybrid/utilities/utilities.js";
 import { ProductionBody, Grammar, SymbolType } from "../types/grammar.js";
-import { Symbol, TokenSymbol } from "../types/Symbol";
+import { AssertionFunctionSymbol, Symbol, TokenSymbol } from "../types/Symbol";
 
 
 function addNonTerminal(
@@ -15,16 +16,11 @@ function addNonTerminal(
 
     const first = body.sym[index];
 
-    let terminal: string = "",
-        HAS_EMPTY_PRODUCTION = false;
-
-    if (first.type == SymbolType.LITERAL) {
-        terminal = <string>first.val;
-    } else if (first.type == SymbolType.EMPTY) {
+    if (first.type == SymbolType.EMPTY) {
         return true;
-    } else if (first.type !== SymbolType.PRODUCTION) {
-        terminal = <string>first.val;
-    } else {
+    } else if (isSymAProduction(first)) {
+
+        let HAS_EMPTY_PRODUCTION = false;
 
         if (!encountered.has(first.val)) {
 
@@ -44,11 +40,16 @@ function addNonTerminal(
         }
 
         return HAS_EMPTY_PRODUCTION;
+    } else {
+
+        if (isSymAnAssertFunction(first)) {
+            for (const sym of getAssertionSymbolFirst(<AssertionFunctionSymbol>first, grammar))
+                table.set(sym.val, sym);
+        } else
+            table.set(first.val, first);
     }
 
-    table.set(first.val, first);
-
-    return HAS_EMPTY_PRODUCTION;
+    return false;
 }
 
 export function FIRST(grammar: Grammar, ...symbols: Symbol[]): TokenSymbol[] {
