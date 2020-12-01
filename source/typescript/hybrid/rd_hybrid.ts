@@ -33,9 +33,63 @@ const enum TOKEN_BIT {
     TYPE = 2,
 
     IS_MULTIPLE = 4
+
 }
 
+
+
+function getPeekAtDepth(item: Item, grammar: Grammar, depth = 0, visited = new Set()): { closure: Item[], COMPLETED: boolean; } {
+    if (!item || item.atEND) return { closure: [], COMPLETED: true };
+
+    const closure = [item];
+
+    let COMPLETED = false;
+
+    processClosure(closure, grammar, true);
+
+    const out = [];
+
+    // if (depth <= 0) {
+    //     return { closure: closure.filter(i => !i.atEND && i.sym(grammar).type != SymbolType.PRODUCTION), COMPLETED, LEFT_RECURSION };
+    // } else {
+    for (const item of closure) {
+
+        if (item.atEND) { if (depth > 0) COMPLETED = true; continue; }
+
+        const sym = item.sym(grammar);
+
+        if (isSymAProduction(sym)) {
+            //If closure contains an item with the production as the current symbol then left recursion has occurred
+            if (!visited.has(sym.val) && depth > 0) {
+                visited.add(sym.val);
+                const { closure: c, COMPLETED: C } = getPeekAtDepth(item, grammar, depth, visited);
+                COMPLETED = C || COMPLETED;
+                out.push(...c);
+            }
+            if (depth <= 0)
+                out.push(item);
+        } else {
+            if (depth > 0) {
+                const { closure: c, COMPLETED: C } = getPeekAtDepth(item.increment(), grammar, depth - 1);
+                COMPLETED = C || COMPLETED;
+                out.push(...c);
+            } else {
+                out.push(item);
+            }
+        }
+    }
+    // }
+
+    if (COMPLETED) {
+        const data = getPeekAtDepth(item.increment(), grammar, depth - 1);
+        data.closure.unshift(...out);
+        return data;
+    }
+
+    return { closure: out, COMPLETED };
+}
 function checkForLeftRecursion(p: Production, item: RDItem, grammar: Grammar) {
+    // return p.IS_LEFT_RECURSIVE;
 
     const closure_items = [RDItemToItem(item)];
 
@@ -181,65 +235,41 @@ function renderItem(
 }
 
 
-function getPeekAtDepth(item: Item, grammar: Grammar, depth = 0, visited = new Set()): { closure: Item[], COMPLETED: boolean; } {
-
-    if (!item || item.atEND) return { closure: [], COMPLETED: true };
-
-    const closure = [item];
-
-    let COMPLETED = false;
-
-    processClosure(closure, grammar, true);
-
-    const out = [];
-
-    if (depth <= 0) {
-        return { closure: closure.filter(i => !i.atEND && i.sym(grammar).type != SymbolType.PRODUCTION), COMPLETED };
-    } else {
-        for (const item of closure) {
-            if (item.atEND) {
-                COMPLETED = true;
-            } else if (item.sym(grammar).type == SymbolType.PRODUCTION) {
-                if (!visited.has(item.sym(grammar).val)) {
-                    visited.add(item.sym(grammar).val);
-                    const { closure: c, COMPLETED: C } = getPeekAtDepth(item, grammar, depth, visited);
-                    out.push(...c);
-                    COMPLETED = C || COMPLETED;
-                }
-            } else {
-                const { closure: c, COMPLETED: C } = getPeekAtDepth(item.increment(), grammar, depth - 1);
-                out.push(...c);
-                COMPLETED = C || COMPLETED;
-            }
-        }
-    }
-
-    if (COMPLETED) {
-        const data = getPeekAtDepth(item.increment(), grammar, depth - 1);
-        data.closure.unshift(...out);
-        return data;
-    }
-
-    return { closure: out, COMPLETED };
-}
-
-
 type TransitionGroup = {
     id: string;
     syms: Set<string>;
     trs: RDItem[];
     priority: number;
 };
+
+function renderAnnotatedRDItem(rd_item: RDItem, grammar: Grammar) {
+    return `${rd_item.HAS_LR} :: ${rd_item.item.renderUnformattedWithProduction(grammar)}`;// \n ${rd_item.closure.map(i => i.renderUnformattedWithProduction(grammar)).join("\n")}`;
+}
+
+
+interface RenderBodyOptions {
+    block_depth: number;
+    peek_depth: number;
+    RETURN_TYPE: ReturnType;
+
+}
+
+function generateRBOptions(RT: ReturnType = ReturnType.RETURN, pd: number = 0, bd: number = 0): RenderBodyOptions {
+    return {
+        peek_depth: pd,
+        block_depth: bd,
+        RETURN_TYPE: RT
+    };
+}
 export function renderFunctionBody(
     rd_items: RDItem[],
     grammar: Grammar,
     runner: CompilerRunner,
-    block_depth: number = 0,
-    peek_depth: number = 0,
     productions: Set<number> = new Set,
-    RETURN_TYPE: ReturnType = ReturnType.RETURN,
-    HAS_ERROR_RECOVERY: boolean = false,
+    options: RenderBodyOptions = generateRBOptions()
 ): ({ stmts: string; sym_map: Map<string, TokenSymbol>; }) {
+
+    let { block_depth, peek_depth, RETURN_TYPE } = options;
 
     const stmts = [], sym_map: Map<string, TokenSymbol> = new Map();
 
