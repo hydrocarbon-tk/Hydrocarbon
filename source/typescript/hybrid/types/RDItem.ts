@@ -13,4 +13,6 @@ export interface RDItem {
     item: Item;
 
     closure: Item[];
+
+    HAS_LR: boolean;
 }

@@ -1,6 +1,6 @@
 import { Grammar } from "../types/grammar";
 import { ParserEnvironment } from "../types/parser_environment.js";
-import { filloutGrammar, Item } from "../util/common.js";
+import { filloutGrammar, Item, preCalcLeftRecursion } from "../util/common.js";
 import { workerData, parentPort } from "worker_threads";
 import { HybridDispatch, HybridJobType, HybridDispatchResponse } from "./types/hybrid_mt_msg_types.js";
 import { CompilerRunner, constructCompilerRunner } from "./types/CompilerRunner.js";
@@ -37,6 +37,7 @@ export class HybridMultiThreadProcessWorker {
         const grammar = this.grammar;
 
         filloutGrammar(this.grammar, this.env);
+        preCalcLeftRecursion(this.grammar);
 
         grammar.graph_id = 0;
 

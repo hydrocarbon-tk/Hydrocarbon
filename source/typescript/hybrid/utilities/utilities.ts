@@ -1,8 +1,9 @@
 import { traverse } from "@candlefw/conflagrate";
 import { exp, JSNode, JSNodeClass, JSNodeType, JSNodeTypeLU, parser, renderWithFormatting, stmt } from "@candlefw/js";
+import { Lexer } from "@candlefw/wind";
 
 import { Grammar, GrammarFunction, Production, ProductionBody, SymbolType } from "../../types/grammar.js";
-import { AssertionFunctionSymbol, Symbol, TokenSymbol } from "../../types/Symbol";
+import { AssertionFunctionSymbol, GeneratedSymbol, Symbol, TokenSymbol } from "../../types/Symbol";
 import { FOLLOW } from "../../util/common.js";
 import { Item } from "../../util/item.js";
 import { CompilerRunner } from "../types/CompilerRunner.js";
@@ -21,7 +22,7 @@ declare global {
              * that is used to determine which group(s) the object belongs to. Defaults to a function
              * that returns the string value of the object.
              */
-            fn: (T) => (KeyType | KeyType[])) => Map<KeyType, T[]>;
+            fn: (item: T) => (KeyType | KeyType[])) => Map<KeyType, T[]>;
 
         /**
          * Reduces items that share the same identifier to the first matching item.
@@ -32,7 +33,7 @@ declare global {
              * determine which set the object belongs to. Defaults to a function
              * that returns the string value of the object.
              */
-            fn?: (T) => (string | number)
+            fn?: (item: T) => (string | number)
         ) => T[];
 
         /**
@@ -44,7 +45,7 @@ declare global {
              * that is used to determine which group(s) the object belongs to. Defaults to a function
              * that returns the string value of the object.
              */
-            fn: (T) => (KeyType | KeyType[])
+            fn: (item: T) => (KeyType | KeyType[])
         ) => T[][];
     }
 }
@@ -267,7 +268,7 @@ export function translateSymbolValue(sym: TokenSymbol, grammar: Grammar, ANNOTAT
     return `false /* unknown_symbol ${sanitizeSymbolValForComment(getUniqueSymbolName(sym))} */`;
 }
 
-function sanitizeSymbolValForComment(sym: string | TokenSymbol): string {
+export function sanitizeSymbolValForComment(sym: string | TokenSymbol): string {
     if (typeof sym == "string")
         return sym.replace(/\*/g, "asterisk");
     return sym.val.replace(/\*/g, "asterisk");
@@ -319,9 +320,43 @@ export function buildIfs(syms: TokenSymbol[], lex_name = "l", off = 0, USE_MAX =
 
     return stmts;
 }
+function isNumericSymbol(sym: TokenSymbol) {
+    const lex = new Lexer(sym.val);
+    return lex.ty == lex.types.num && lex.pk.END;
+}
+function isNotNumericSymbol(sym: TokenSymbol): boolean {
+    return !isNumericSymbol(sym);
+}
+function isIdentifierSymbol(sym: TokenSymbol) {
+    const lex = new Lexer(sym.val);
+    return lex.ty == lex.types.id && lex.pk.END;
+}
+function isNotIdentifierSymbol(sym: TokenSymbol): boolean {
+    return !isIdentifierSymbol(sym);
+}
+function isSingleDefinedSymbol(sym: TokenSymbol) {
+    if (sym.val.length > 1) return false;
+    const lex = new Lexer(sym.val);
+    //  console.log({ lex: lex.str, bool: !(lex.ty == lex.types.id || lex.ty == lex.types.num) });
+    return !(lex.ty == lex.types.id || lex.ty == lex.types.num);
+}
 
+function isNotSingleDefinedSymbol(sym: TokenSymbol): boolean {
+    return !isSingleDefinedSymbol(sym);
+}
 
-export function getIncludeBooleans(syms: TokenSymbol[], grammar: Grammar, runner: CompilerRunner, lex_name: string = "l", exclude_symbols: TokenSymbol[] = []) {
+function isGeneratedIdentifierSymbol(sym: GeneratedSymbol) {
+    return sym.val == "id";
+}
+function isGeneratedSymbolSymbol(sym: GeneratedSymbol) {
+    return sym.val == "sym";
+}
+
+function isGeneratedNumericSymbol(sym: GeneratedSymbol) {
+    return sym.val == "num";
+}
+
+export function getIncludeBooleans(syms: TokenSymbol[], grammar: Grammar, runner: CompilerRunner, lex_name: string = "l", exclude_symbols: TokenSymbol[] = [], optimize = true) {
 
     syms = syms.setFilter(s => getUniqueSymbolName(s));
 
@@ -331,14 +366,24 @@ export function getIncludeBooleans(syms: TokenSymbol[], grammar: Grammar, runner
         const exclusion_list = new Set(exclude_symbols.map(getUniqueSymbolName));
         syms = syms.filter(sym => !exclusion_list.has(getUniqueSymbolName(sym))).map(s => getRootSym(s, grammar));
 
-        const
+        let
             id = syms.filter(isSymADefinedToken),
             ty = syms.filter(isSymAGenericType),
             fn = syms.filter(isSymAnAssertFunction)
                 .map(s => translateSymbolValue(s, grammar, runner.ANNOTATED, lex_name)).sort();
 
-        if (id.length + ty.length + fn.length == 0)
-            return "";
+
+        if (ty.some(isGeneratedIdentifierSymbol))
+            id = id.filter(isNotIdentifierSymbol);
+
+        //Filter out any symbol that is a single non-numeric or id symbol
+        if (optimize) {
+            if (ty.some(isGeneratedSymbolSymbol))
+                id = id.filter(isNotSingleDefinedSymbol);
+
+            if (id.length + ty.length + fn.length == 0)
+                return "";
+        }
 
         let out_id, out_ty, out_fn;
 

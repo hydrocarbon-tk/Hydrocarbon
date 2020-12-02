@@ -115,6 +115,10 @@ export interface Production {
 
     };
 
+    /**
+     * Production has one or more bodies that has left recursion
+     */
+    IS_LEFT_RECURSIVE: boolean;
     graph_id?: number;
 }
 

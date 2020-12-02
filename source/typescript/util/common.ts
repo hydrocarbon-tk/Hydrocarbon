@@ -1,6 +1,6 @@
 import wind from "@candlefw/wind";
 
-import { getAssertionSymbolFirst, getUniqueSymbolName, isSymAnAssertFunction } from "../hybrid/utilities/utilities.js";
+import { getAssertionSymbolFirst, getUniqueSymbolName, isSymAnAssertFunction, isSymAProduction } from "../hybrid/utilities/utilities.js";
 import { EOF_SYM, Grammar, SymbolType } from "../types/grammar.js";
 import { AssertionFunctionSymbol, Symbol } from "../types/Symbol";
 import { FIRST } from "./first.js";
@@ -197,3 +197,35 @@ export function filloutGrammar(grammar: Grammar, env) {
 
     return grammar;
 }
+export function preCalcLeftRecursion(grammar: Grammar) {
+    o: for (const production of grammar) {
+        production.IS_LEFT_RECURSIVE = false;
+        const closure = production.bodies.map(b => new Item(b.id, b.length, 0, EOF_SYM));
+        processClosure(closure, grammar, true);
+        for (const i of closure) {
+            const sym = i.sym(grammar);
+            if (sym && isSymAProduction(sym)) {
+                if (grammar[sym.val] == production) {
+                    production.IS_LEFT_RECURSIVE = true;
+                    continue o;
+                }
+            }
+        }
+    }
+    let change = true;
+    while (change) {
+        change = false;
+        o: for (const production of grammar) {
+            if (!production.IS_LEFT_RECURSIVE) {
+                for (const body of production.bodies) {
+                    if (body.sym[0] && isSymAProduction(body.sym[0]) && grammar[body.sym[0].val].IS_LEFT_RECURSIVE) {
+                        production.IS_LEFT_RECURSIVE = true;
+                        change = true;
+                        continue o;
+                    }
+                }
+            }
+        }
+    }
+}
+

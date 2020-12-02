@@ -121,7 +121,7 @@ export class Item extends Array {
     renderUnformatted(grammar: Grammar): string {
 
         const a = this.body_(grammar).sym
-            .map(sym => sym.type == SymbolType.PRODUCTION ? Object.assign({}, sym, { val: grammar[sym.val].name }) : sym)
+            .map(sym => sym.type == SymbolType.PRODUCTION ? Object.assign({}, sym, { val: grammar[sym.val].name + "::" + grammar[sym.val].IS_LEFT_RECURSIVE }) : sym)
             .map(sym => getRootSym(sym, grammar))
             //@ts-ignore
             .flatMap((sym, i) => (i == this.offset) ? ["•", SymbolToStringUnformatted(sym)] : SymbolToStringUnformatted(sym));

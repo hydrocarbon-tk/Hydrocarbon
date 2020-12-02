@@ -184,11 +184,10 @@ var prob_index = 0;
 function probe(l: Lexer, id: u32 = 1): void {
     set_error(0xF000000F + (id << 16) + (prob_index << 4));
     set_error(l.ty);
-    set_error(l.id);
     set_error(l.tl);
     set_error(l.off);
     set_error(prod);
-    set_error(stack_ptr);
+    set_error(action_ptr);
     set_error(FAILED);
     set_error(0xF000000F + (id << 16) + ((prob_index++) << 4));
 }
