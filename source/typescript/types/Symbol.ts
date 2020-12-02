@@ -31,7 +31,17 @@ export interface SymbolBase {
     id?: number;
 }
 
-export interface CharacterSymbol extends SymbolBase {
+export interface SpecifiedNumericSymbol extends SymbolBase {
+    type: SymbolType.ESCAPED | SymbolType.LITERAL | SymbolType.SYMBOL;
+    val: string;
+}
+
+export interface SpecifiedIdentifierSymbol extends SymbolBase {
+    type: SymbolType.ESCAPED | SymbolType.LITERAL | SymbolType.SYMBOL;
+    val: string;
+}
+
+export interface SpecifiedCharacterSymbol extends SymbolBase {
     type: SymbolType.ESCAPED | SymbolType.LITERAL | SymbolType.SYMBOL;
     val: string;
 }
@@ -62,10 +72,16 @@ export interface AssertionFunctionSymbol extends SymbolBase {
     val: string;
 }
 
+export type SpecifiedSymbol =
+    SpecifiedIdentifierSymbol
+    | SpecifiedCharacterSymbol
+    | SpecifiedNumericSymbol;
 export type TokenSymbol =
-    CharacterSymbol
+    SpecifiedCharacterSymbol
     | GeneratedSymbol
     | EOFSymbol
     | EmptySymbol
-    | AssertionFunctionSymbol;
+    | AssertionFunctionSymbol
+    | SpecifiedSymbol;
+
 export type Symbol = TokenSymbol | ProductionSymbol; 

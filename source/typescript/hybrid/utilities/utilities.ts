@@ -3,8 +3,7 @@ import { exp, JSNode, JSNodeClass, JSNodeType, JSNodeTypeLU, parser, renderWithF
 import { Lexer } from "@candlefw/wind";
 
 import { Grammar, GrammarFunction, Production, ProductionBody, SymbolType } from "../../types/grammar.js";
-import { AssertionFunctionSymbol, GeneratedSymbol, Symbol, TokenSymbol } from "../../types/Symbol";
-import { FOLLOW } from "../../util/common.js";
+import { AssertionFunctionSymbol, EOFSymbol, GeneratedSymbol, ProductionSymbol, SpecifiedCharacterSymbol, SpecifiedIdentifierSymbol, SpecifiedNumericSymbol, SpecifiedSymbol, Symbol, TokenSymbol } from "../../types/Symbol";
 import { Item } from "../../util/item.js";
 import { CompilerRunner } from "../types/CompilerRunner.js";
 import { LRState } from "../types/State.js";
@@ -93,20 +92,76 @@ Array.prototype.group = function <T, KeyType>(this: Array<T>, fn: (T) => (KeyTyp
     return [...this.groupMap(fn).values()];
 };
 
-export function isSymAProduction(s: Symbol): boolean {
+export function isSymAProduction(s: Symbol): s is ProductionSymbol {
     return s.type == SymbolType.PRODUCTION;
 }
 
-export function isSymAnAssertFunction(s: Symbol): boolean {
+export function isSymAnAssertFunction(s: Symbol): s is AssertionFunctionSymbol {
     return s.type == SymbolType.PRODUCTION_ASSERTION_FUNCTION;
 }
 
-export function isSymAGenericType(s: Symbol): boolean {
+export function isSymAGenericType(s: Symbol): s is (GeneratedSymbol | EOFSymbol) {
     return (s.type == SymbolType.GENERATED || s.type == SymbolType.END_OF_FILE);
 }
 
-export function isSymADefinedToken(s: Symbol): boolean {
+/**
+ * Any symbol that is not Generated, an AssertFunction, or a Production
+ * @param s 
+ */
+export function isSymSpecified(s: Symbol): s is SpecifiedSymbol {
     return !isSymAProduction(s) && !isSymAGenericType(s) && !isSymAnAssertFunction(s);
+}
+/**
+ * A SpecifiedSymbol that is not a SpecifiedIdentifierSymbol nor a SpecifiedNumericSymbol
+ * @param s 
+ */
+export function isSymSpecifiedSymbol(s: Symbol): s is SpecifiedCharacterSymbol {
+    return isSymSpecified(s) && !isSymIdentifier(s) && !isSymNumeric(s);
+}
+export function isSymSpecifiedIdentifier(s: Symbol): s is SpecifiedIdentifierSymbol {
+    return isSymSpecified(s) && isSymIdentifier(s);
+}
+export function isSymSpecifiedNumeric(s: Symbol): s is SpecifiedNumericSymbol {
+    return isSymSpecified(s) && isSymNumeric(s);
+}
+export function isSymNumeric(sym: TokenSymbol): sym is SpecifiedNumericSymbol {
+    const lex = new Lexer(sym.val);
+    return lex.ty == lex.types.num && lex.pk.END;
+}
+export function isSymNotNumeric(sym: TokenSymbol): boolean {
+    return !isSymNumeric(sym);
+}
+export function isSymIdentifier(sym: TokenSymbol): sym is SpecifiedIdentifierSymbol {
+    const lex = new Lexer(sym.val);
+    return lex.ty == lex.types.id && lex.pk.END;
+}
+export function isSymNotIdentifier(sym: TokenSymbol): boolean {
+    return !isSymIdentifier(sym);
+}
+export function isSymLengthOneDefined(sym: TokenSymbol) {
+    if (sym.val.length > 1) return false;
+    const lex = new Lexer(sym.val);
+    //  console.log({ lex: lex.str, bool: !(lex.ty == lex.types.id || lex.ty == lex.types.num) });
+    return !(lex.ty == lex.types.id || lex.ty == lex.types.num);
+}
+export function isSymNotLengthOneDefined(sym: TokenSymbol): boolean {
+    return !isSymLengthOneDefined(sym);
+}
+export function isSymGeneratedNL(sym: TokenSymbol) {
+    return sym.val == "nl";
+}
+export function isSymGeneratedId(sym: TokenSymbol) {
+    return sym.val == "id";
+}
+export function isSymGeneratedSym(sym: TokenSymbol) {
+    return sym.val == "sym";
+}
+
+export function isSymGeneratedNum(sym: TokenSymbol) {
+    return sym.val == "num";
+}
+export function isSymGeneratedWS(sym: TokenSymbol): boolean {
+    return sym.val == "ws";
 }
 export function getRDFNName(production: Production) {
     return `$${production.name}`;
@@ -320,41 +375,6 @@ export function buildIfs(syms: TokenSymbol[], lex_name = "l", off = 0, USE_MAX =
 
     return stmts;
 }
-function isNumericSymbol(sym: TokenSymbol) {
-    const lex = new Lexer(sym.val);
-    return lex.ty == lex.types.num && lex.pk.END;
-}
-function isNotNumericSymbol(sym: TokenSymbol): boolean {
-    return !isNumericSymbol(sym);
-}
-function isIdentifierSymbol(sym: TokenSymbol) {
-    const lex = new Lexer(sym.val);
-    return lex.ty == lex.types.id && lex.pk.END;
-}
-function isNotIdentifierSymbol(sym: TokenSymbol): boolean {
-    return !isIdentifierSymbol(sym);
-}
-function isSingleDefinedSymbol(sym: TokenSymbol) {
-    if (sym.val.length > 1) return false;
-    const lex = new Lexer(sym.val);
-    //  console.log({ lex: lex.str, bool: !(lex.ty == lex.types.id || lex.ty == lex.types.num) });
-    return !(lex.ty == lex.types.id || lex.ty == lex.types.num);
-}
-
-function isNotSingleDefinedSymbol(sym: TokenSymbol): boolean {
-    return !isSingleDefinedSymbol(sym);
-}
-
-function isGeneratedIdentifierSymbol(sym: GeneratedSymbol) {
-    return sym.val == "id";
-}
-function isGeneratedSymbolSymbol(sym: GeneratedSymbol) {
-    return sym.val == "sym";
-}
-
-function isGeneratedNumericSymbol(sym: GeneratedSymbol) {
-    return sym.val == "num";
-}
 
 export function getIncludeBooleans(syms: TokenSymbol[], grammar: Grammar, runner: CompilerRunner, lex_name: string = "l", exclude_symbols: TokenSymbol[] = [], optimize = true) {
 
@@ -367,19 +387,19 @@ export function getIncludeBooleans(syms: TokenSymbol[], grammar: Grammar, runner
         syms = syms.filter(sym => !exclusion_list.has(getUniqueSymbolName(sym))).map(s => getRootSym(s, grammar));
 
         let
-            id = syms.filter(isSymADefinedToken),
+            id = syms.filter(isSymSpecified),
             ty = syms.filter(isSymAGenericType),
             fn = syms.filter(isSymAnAssertFunction)
                 .map(s => translateSymbolValue(s, grammar, runner.ANNOTATED, lex_name)).sort();
 
 
-        if (ty.some(isGeneratedIdentifierSymbol))
-            id = id.filter(isNotIdentifierSymbol);
+        if (ty.some(isSymGeneratedId))
+            id = id.filter(isSymNotIdentifier);
 
         //Filter out any symbol that is a single non-numeric or id symbol
         if (optimize) {
-            if (ty.some(isGeneratedSymbolSymbol))
-                id = id.filter(isNotSingleDefinedSymbol);
+            if (ty.some(isSymGeneratedSym))
+                id = id.filter(isSymNotLengthOneDefined);
 
             if (id.length + ty.length + fn.length == 0)
                 return "";
