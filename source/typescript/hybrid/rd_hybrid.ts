@@ -1,5 +1,5 @@
 import { Grammar, Production, ProductionBody, EOF_SYM, SymbolType } from "../types/grammar.js";
-import { AssertionFunctionSymbol, Symbol, TokenSymbol } from "../types/Symbol";
+import { AssertionFunctionSymbol, TokenSymbol } from "../types/Symbol";
 import { processClosure, Item, FOLLOW, FIRST } from "../util/common.js";
 import {
     createNoCheckShift,
@@ -8,16 +8,12 @@ import {
     getSkipFunction,
     getIncludeBooleans,
     createReduceFunction,
-    createEmptyShift,
-    translateSymbolValue,
     createDefaultReduceFunction,
     addRecoveryHandlerToFunctionBodyArray,
-    createAssertionShiftWithSkip,
     addSkipCall,
     isSymSpecified,
     isSymAnAssertFunction,
     getResetSymbols,
-    createNoCheckShiftWithSkip,
     createAssertionShift,
     getMappedArray,
     isSymAProduction,
@@ -26,7 +22,6 @@ import {
     sanitizeSymbolValForComment,
     isSymAGenericType,
     isSymGeneratedSym,
-    isSymIdentifier,
     isSymSpecifiedSymbol,
     isSymGeneratedId,
     isSymSpecifiedIdentifier,
@@ -39,7 +34,6 @@ import { RDProductionFunction } from "./types/RDProductionFunction";
 import { RDItem } from "./types/RDItem";
 import { getTerminalSymsFromClosure } from "./utilities/get_terminal_syms_from_closure.js";
 import { CompilerRunner } from "./types/CompilerRunner.js";
-import { i } from "@candlefw/wind/build/types/ascii_code_points";
 const enum TOKEN_BIT {
     ID = 1,
     TYPE = 2,
