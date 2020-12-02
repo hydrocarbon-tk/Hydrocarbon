@@ -14,7 +14,7 @@ import {
     addRecoveryHandlerToFunctionBodyArray,
     createAssertionShiftWithSkip,
     addSkipCall,
-    isSymADefinedToken,
+    isSymSpecified,
     isSymAnAssertFunction,
     getResetSymbols,
     createNoCheckShiftWithSkip,
@@ -24,7 +24,16 @@ import {
     getAssertionSymbolFirst,
     getUniqueSymbolName,
     sanitizeSymbolValForComment,
-    isSymAGenericType
+    isSymAGenericType,
+    isSymGeneratedSym,
+    isSymIdentifier,
+    isSymSpecifiedSymbol,
+    isSymGeneratedId,
+    isSymSpecifiedIdentifier,
+    isSymGeneratedNum,
+    isSymSpecifiedNumeric,
+    isSymGeneratedWS,
+    isSymGeneratedNL
 } from "./utilities/utilities.js";
 import { RDProductionFunction } from "./types/RDProductionFunction";
 import { RDItem } from "./types/RDItem";
@@ -358,7 +367,7 @@ export function renderFunctionBody(
             }
 
             group.priority +=
-                isSymADefinedToken(sym)
+                isSymSpecified(sym)
                     ? 1 : isSymAnAssertFunction(sym)
                         ? 64
                         : 1024;
@@ -436,7 +445,7 @@ export function renderFunctionBody(
                                 .filter(i => isSymAProduction(i.sym(grammar))),
 
                             term_items = items_not_at_end
-                                .filter(i => isSymADefinedToken(i.sym(grammar)) || isSymAGenericType(i.sym(grammar))),
+                                .filter(i => isSymSpecified(i.sym(grammar)) || isSymAGenericType(i.sym(grammar))),
 
                             paf_la_items = items_not_at_end
                                 .filter(i => isSymAnAssertFunction(i.sym(grammar))),
@@ -743,10 +752,36 @@ export function makeRDHybridFunction(production: Production, grammar: Grammar, r
                             );
 
                         if (key == production.id) {
-                            const exclude_syms = [...sym_map.values()];
-                            stmts.push(`//FOLLOW SYMS: ${follow_symbols.map(i => `[${i.val}]`).join(" ")}`);
-                            stmts.push(`//EXCLUDE SYMS: ${exclude_syms.map(i => `[${i.val}]`).join(" ")}`);
-                            stmts.push(`if(${getIncludeBooleans(follow_symbols.filter(s => !isSymAGenericType(s) || s.val !== "sym"), grammar, runner, "l", exclude_syms, false)}) break;`);
+                            /*   
+                                Early exit should only occur if there is an occluding generic ( such as g:sym, g:id ) 
+                                that could capture a symbol that would otherwise cause a reduce.  FOLLOW Symbols that 
+                                would otherwise be matched match by the generic type should be selected for the early 
+                                exit check. If there are no such generics in the excluded  items, then there is no 
+                                need to do this check. 
+                            */
+                            const
+                                lookahead_syms = [...follow_symbols.filter(s => isSymGeneratedWS(s) || isSymGeneratedNL(s))],
+                                exclude_syms = [...sym_map.values()];
+
+                            if (exclude_syms.some(isSymGeneratedSym))
+                                lookahead_syms.push(...follow_symbols.filter(isSymSpecifiedSymbol));
+
+                            if (exclude_syms.some(isSymGeneratedId))
+                                lookahead_syms.push(...follow_symbols.filter(isSymSpecifiedIdentifier));
+
+                            if (exclude_syms.some(isSymGeneratedNum))
+                                lookahead_syms.push(...follow_symbols.filter(isSymSpecifiedNumeric));
+
+                            if (lookahead_syms.length > 0) {
+                                if (runner.ANNOTATED) {
+                                    stmts.push(`//FOLLOW SYMS: ${follow_symbols.map(i => `[${i.val}]`).join(" ")}`);
+                                    stmts.push(`//EXCLUDE SYMS: ${exclude_syms.map(i => `[${i.val}]`).join(" ")}`);
+                                }
+                                const booleans = getIncludeBooleans(lookahead_syms, grammar, runner, "l", exclude_syms, false);
+
+                                if (booleans) stmts.push(`if(${booleans}) break;`);
+                            }
+
                             stmts.push("{");
                             addCheckpointStart(stmts, "l", lex_name);
                             stmts.push(s);
