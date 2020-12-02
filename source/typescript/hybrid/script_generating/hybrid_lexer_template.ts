@@ -105,10 +105,30 @@ export default function(){
     }
 };`;
 export const printLexer = (syms, keywords) => `
+
+
+function getTypeAt(code_point:u32):u32{
+    switch (load<u16>(0 + (code_point << 1)) & 255) {
+        default:
+        case 0: //SYMBOL
+            return TypeSymbol;
+        case 1: //IDENTIFIER
+            return TokenIdentifier;
+        case 2: //SPACE SET
+            return TokenSpace;
+        case 3: //CARRIAGE RETURN
+        //intentional
+        case 4: //LINEFEED
+            return TokenNewLine;
+        case 5: //NUMBER
+            return TokenNumber;
+    }
+    return 0;
+}
+
 class Lexer {
 
     ty:i32;
-    id:i32;
     tl:i32;
     off:i32;
     prev_off: i32;
@@ -116,7 +136,6 @@ class Lexer {
 
     constructor() {
         this.ty = 0; //Default "non-value" for types is 1<<18;
-        this.id = 0;
         this.tl = 0;
         this.off = 0;
         this.prev_off = 0;
@@ -124,7 +143,6 @@ class Lexer {
 
     copy(destination: Lexer = new Lexer()) : Lexer {
         destination.off = this.off;
-        destination.id = this.id;
         destination.ty = this.ty;
         destination.tl = this.tl;
         destination.prev_off = this.prev_off;
@@ -199,44 +217,28 @@ class Lexer {
     syncOffsetRegion(): void {
         this.prev_off = this.off ;
     }
+
+    typeAt(offset:i32 = 0):u32{
+        offset = this.off + offset;
+        if(offset >= str.length) return 0;
+        return getTypeAt(str.codePointAt(offset));
+    }
     
     next() : Lexer{
 
         this.off = this.off + this.tl;
-        this.ty = 0;
         this.tl = 1;
 
         if (this.off >= str.length) {
-            this.off = str.length;
+            this.ty = 0;
             this.tl = 0;
-            return this;
-        }
-
-        const code:i32 = str.codePointAt(this.off);
-
-        switch (load<u16>(0 + (code << 1)) & 255) {
-            default:
-            case 0: //SYMBOL
-                this.ty = TypeSymbol;
-                break;
-            case 1: //IDENTIFIER
-                this.ty = TokenIdentifier;
-                break;
-            case 2: //SPACE SET
-                this.ty = TokenSpace;
-                break;
-            case 3: //CARRIAGE RETURN
-                this.tl = 2;
-            //intentional
-            case 4: //LINEFEED
-                this.ty = TokenNewLine;
-                break;
-            case 5: //NUMBER
-                this.ty = TokenNumber;
-                break;
-        }
+            this.off = str.length;
+        }else
+            this.ty = getTypeAt(str.codePointAt(this.off));
 
         return this;
     }
+
     get END() : boolean { return this.off >= str.length; }
-}`;
+}
+`;

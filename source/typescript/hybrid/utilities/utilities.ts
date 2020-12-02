@@ -348,9 +348,14 @@ export function buildIfs(syms: TokenSymbol[], lex_name = "l", off = 0, USE_MAX =
     let first = true;
 
     if (syms.length == 1 && syms[0].val.length > off) {
-        const str = syms[0].val, l = str.length - off;
+        const
+            str = syms[0].val, l = str.length - off,
+            booleans = str.slice(off).split("").reverse().map((v, i) => `${lex_name}.getUTF(${off + l - i - 1}) ==  ${v.codePointAt(0)}`).join("&&"),
+            initial_check = isSymSpecifiedIdentifier(syms[0])
+                ? `${lex_name}.typeAt(${off + l}) &&`
+                : "";
         stmts.push(
-            `if(${str.slice(off).split("").reverse().map((v, i) => `${lex_name}.getUTF(${off + l - i - 1}) ==  ${v.codePointAt(0)}`).join("&&")}){`,
+            `if(${initial_check}${booleans}){`,
             ...buildIfs(syms, lex_name, off + l, USE_MAX, token_val),
             "}"
         );
@@ -411,21 +416,21 @@ export function getIncludeBooleans(syms: TokenSymbol[], grammar: Grammar, runner
             out_fn = (fn.map(s => `${fn}`).join("||"));
 
         if (id.length > 0) {
-            const booleans = [];
-            //sort each id by its length
-            const char_groups = id.groupMap(sym => sym.val[0]);
+
+            const booleans = [], char_groups = id.groupMap(sym => sym.val[0]);
 
             for (const group of char_groups.values()) {
                 if (group.some(sym => sym.val.length > 1)) {
-                    const fn_name = `compound_token_check`;
-                    const name = runner.add_constant(`(l:Lexer)=>{
+                    const
+                        fn_name = `compound_token_check`,
+                        annotation = runner.ANNOTATED ? `/* ${group.map(s => sanitizeSymbolValForComment(s)).join("; ")} */` : "",
+                        name = runner.add_constant(`(l:Lexer)=>{
                         ${buildIfs(group).join("\n")}
                     }`, fn_name, "(l:Lexer) => boolean");
 
-                    booleans.push(`${name}(${lex_name})/* ${group.map(s => sanitizeSymbolValForComment(s)).join("; ")} */`);
-                } else {
+                    booleans.push(`${name}(${lex_name})${annotation}`);
+                } else
                     booleans.push(...group.map(s => `${lex_name}.getUTF() == ${translateSymbolValue(s, grammar, runner.ANNOTATED, lex_name)}`));
-                }
             }
 
             out_id = booleans.join("||");
