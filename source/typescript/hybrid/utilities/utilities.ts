@@ -278,7 +278,9 @@ export function getLexerBooleanExpression(sym: TokenSymbol, grammar: Grammar, le
             return (!NOT) + "";
     }
 }
-
+export function getAssertionFunctionName(name: string) {
+    return `__${name}__`;
+}
 export function translateSymbolValue(sym: TokenSymbol, grammar: Grammar, ANNOTATED: boolean = false, lex_name = "l"): string | number {
 
     const
@@ -291,9 +293,9 @@ export function translateSymbolValue(sym: TokenSymbol, grammar: Grammar, ANNOTAT
     switch (sym.type) {
         case SymbolType.PRODUCTION_ASSERTION_FUNCTION:
             if (sym.DOES_SHIFT)
-                return `__${sym.val}__(${lex_name})`;
+                return `${getAssertionFunctionName(sym.val)}(${lex_name})`;
             else
-                return `__${sym.val}__(${lex_name}.copy())`;
+                return `${getAssertionFunctionName(sym.val)}(${lex_name}.copy())`;
 
         case SymbolType.GENERATED:
             switch (sym.val) {

@@ -2,7 +2,7 @@ import { Grammar, SymbolType } from "../../types/grammar.js";
 import { CompilerRunner } from "../types/CompilerRunner";
 import { RDProductionFunction } from "../types/RDProductionFunction";
 import { LRState } from "../types/State";
-import { addSkipCall, createAssertionFunctionBody } from "../utilities/utilities.js";
+import { addSkipCall, createAssertionFunctionBody, getAssertionFunctionName } from "../utilities/utilities.js";
 import { printLexer } from "./hybrid_lexer_template.js";
 import { getTokenSelectorStatements } from "./hybrid_token_selector_template.js";
 
@@ -23,10 +23,8 @@ export const renderAssemblyScriptRecognizer = (
 
     //Identify required assert functions. 
 
-    for (const fn of [...grammar.functions.values()].filter(v => v.assemblyscript_txt)) {
-        const fn_name = <string>fn.id;
-        assert_functions.set(fn_name, `function __${fn_name}__(l:Lexer):boolean{${fn.assemblyscript_txt}}`);
-    }
+    for (const fn of [...grammar.functions.values()].filter(v => v.assemblyscript_txt))
+        assert_functions.set(fn.id, `function ${getAssertionFunctionName(fn.id)}(l:Lexer):boolean{${fn.assemblyscript_txt}}`);
 
     return `
 const 
