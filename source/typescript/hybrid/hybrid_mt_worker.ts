@@ -4,8 +4,7 @@ import { filloutGrammar, preCalcLeftRecursion } from "../util/common.js";
 import { workerData, parentPort } from "worker_threads";
 import { HybridDispatch, HybridDispatchResponse } from "./types/hybrid_mt_msg_types.js";
 import { CompilerRunner, constructCompilerRunner } from "./types/CompilerRunner.js";
-import { makeRDHybridFunction } from "./rd_hybrid.js";
-//import { IntegrateState, CompileHybridLRStates } from "./lr_hybrid.js";
+import { constructHybridFunction } from "./hybrid_function_constructor.js";
 
 export class HybridMultiThreadProcessWorker {
 
@@ -46,35 +45,13 @@ export class HybridMultiThreadProcessWorker {
             let Response: HybridDispatchResponse = {
                 job_type: job.job_type
             };
-            const production = this.grammar[job.production_id];
 
-            /* switch (job.job_type) {
-
-                case HybridJobType.CONSTRUCT_LR_STATE:
-                    Response.potential_states = CompileHybridLRStates(grammar, { old_state: job.item_set.old_state, items: job.item_set.items.map(Item.fromArray) });
-                    break;
-
-                case HybridJobType.CONSTRUCT_LR_STATE_FUNCTION:
-                    break;
-
-                case HybridJobType.CONSTRUCT_RD_TO_LR_FUNCTION:
-                    const { start_state, potential_states } = IntegrateState(production, this.grammar, "$" + production.name);
-                    Response.state = start_state;
-                    Response.production_id = job.production_id;
-                    Response.potential_states = potential_states;
-                    break;
-
-                case HybridJobType.CONSTRUCT_RD_FUNCTION: */
-            const { /*IS_RD,*/ fn, productions } = makeRDHybridFunction(this.grammar[job.production_id], this.grammar, this.runner);
+            const { fn, productions } = constructHybridFunction(this.grammar[job.production_id], this.grammar, this.runner);
             Response.fn = fn;
             Response.productions = productions;
             Response.production_id = job.production_id;
-          //  Response.CONVERT_RD_TO_LR = !IS_RD;
 
-            /*if (IS_RD)*/ Response.const_map = this.runner.constant_map;
-            /* 
-            break;
-            } */
+            Response.const_map = this.runner.constant_map;
 
             parentPort.postMessage(Response);
             this.runner.constant_map.clear();

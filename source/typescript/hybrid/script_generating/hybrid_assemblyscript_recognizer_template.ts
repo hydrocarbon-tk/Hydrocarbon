@@ -8,14 +8,12 @@ import { getTokenSelectorStatements } from "./hybrid_token_selector_template.js"
 export const renderAssemblyScriptRecognizer = (
     grammar: Grammar,
     runner: CompilerRunner,
-    rd_functions: RDProductionFunction[],
-    //lr_states: LRState[]
+    rd_functions: RDProductionFunction[]
 ) => {
 
 
     const fns = [
         ...rd_functions.filter(l => l.RENDER).map(fn => fn.str),
-        //   ...lr_states.filter(s => s.REACHABLE).map(s => s.function_string)
     ],
         { keywords, symbols } = getTokenSelectorStatements(grammar),
         assert_functions = new Map;

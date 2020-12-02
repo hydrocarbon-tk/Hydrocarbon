@@ -52,7 +52,7 @@ export async function compileHybrid(grammar: Grammar, env: GrammarParserEnvironm
         recognizer_ts_file = URL.resolveRelative("./recognizer.ts", ts_dir),
         parser_file = URL.resolveRelative("./parser.js", ts_dir);
 
-    const recognizer_script = renderAssemblyScriptRecognizer(grammar, mt_runner.runner, mt_runner.functions/*, mt_runner.completed_lr_states*/);
+    const recognizer_script = renderAssemblyScriptRecognizer(grammar, mt_runner.runner, mt_runner.functions);
     if (!used_options.no_file_output) try {
 
         //Create the temp directory
