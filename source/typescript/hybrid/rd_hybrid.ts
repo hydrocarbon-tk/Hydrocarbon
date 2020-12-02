@@ -178,6 +178,8 @@ function renderItemSym(
 
             stmts.push(`$${grammar[sym.val].name}(${lexer_name})`);
 
+            RENDER_WITH_NO_CHECK = false;
+
         } else {
             const inc_item = item.increment(), inc_sym = inc_item.sym(grammar);
 
@@ -185,9 +187,8 @@ function renderItemSym(
             if (RENDER_WITH_NO_CHECK) {
                 stmts.push(createNoCheckShift(grammar, runner, lexer_name));
 
-                RENDER_WITH_NO_CHECK = false;
+                //RENDER_WITH_NO_CHECK = false;
             } else {
-                RENDER_WITH_NO_CHECK = false;
 
                 if (true && !isSymAProduction(item.sym(grammar))) {
                     const syms: TokenSymbol[] = (
@@ -201,6 +202,8 @@ function renderItemSym(
                 }
 
                 stmts.push(createAssertionShift(grammar, runner, sym, lexer_name));
+
+                RENDER_WITH_NO_CHECK = false;
             }
         }
     }
@@ -228,13 +231,13 @@ function renderItem(
     const stmts = [];
 
     if (!item.atEND) {
+
         const { stmts: st, DONT_CHECK: DC } = renderItemSym(item, grammar, runner, productions, DONT_CHECK, lexer_name);
-        stmts.push(st);
-        if (!DONT_CHECK && !item.increment().atEND) stmts.push("if(!FAILED){");
+        if (!DC && !item.increment().atEND) stmts.push("if(!FAILED){");
         stmts.push(renderItem(item.increment(), grammar, runner, productions, DC, RETURN_TYPE, lexer_name));
-        if (!DONT_CHECK && !item.increment().atEND) stmts.push("}");
+        if (!DC && !item.increment().atEND) stmts.push("}");
     } else {
-        stmts.push("if(!FAILED){");
+        if (!DONT_CHECK) stmts.push("if(!FAILED){");
         stmts.push(`setProduction(${item.getProduction(grammar).id})`);
         stmts.push(renderItemSym(item, grammar, runner, productions, DONT_CHECK, lexer_name).stmts);
         switch (RETURN_TYPE) {
@@ -246,7 +249,7 @@ function renderItem(
                 break;
             case ReturnType.NONE: break;
         }
-        stmts.push(`}else probe(${lexer_name})`);
+        if (!DONT_CHECK) stmts.push(`}/*else probe(${lexer_name})*/`);
     }
 
 
