@@ -233,6 +233,7 @@ function renderItem(
     if (!item.atEND) {
 
         const { stmts: st, DONT_CHECK: DC } = renderItemSym(item, grammar, runner, productions, DONT_CHECK, lexer_name);
+        stmts.push(st);
         if (!DC && !item.increment().atEND) stmts.push("if(!FAILED){");
         stmts.push(renderItem(item.increment(), grammar, runner, productions, DC, RETURN_TYPE, lexer_name));
         if (!DC && !item.increment().atEND) stmts.push("}");
