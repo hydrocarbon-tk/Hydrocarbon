@@ -3,7 +3,7 @@ import { Worker } from "worker_threads";
 import { Grammar } from "../types/grammar.js";
 import { ParserEnvironment } from "../types/parser_environment";
 import { HybridDispatchResponse, HybridJobType, HybridDispatch } from "./types/hybrid_mt_msg_types.js";
-import { constructCompilerRunner, CompilerRunner } from "./types/CompilerRunner.js";
+import { CompilerRunner } from "./types/CompilerRunner.js";
 import { RDProductionFunction } from "./types/RDProductionFunction.js";
 
 type WorkerContainer = {
@@ -24,29 +24,34 @@ export class HybridMultiThreadRunner {
     runner: CompilerRunner;
     IN_FLIGHT_JOBS: number;
 
-    constructor(grammar: Grammar, env: ParserEnvironment, INCLUDE_ANNOTATIONS: boolean = false) {
+    constructor(
+        grammar: Grammar,
+        env: ParserEnvironment,
+        runner: CompilerRunner,
+        number_of_workers = 2
+    ) {
         let id = 0;
 
-        this.RUN = true;
         this.grammar = grammar;
+        this.runner = runner;
         this.env = env;
-        this.number_of_workers = 1;
         this.to_process_rd_fn = this.grammar.map((a, i) => i + 1);
         this.IN_FLIGHT_JOBS = 0;
         this.functions = [];
-        this.runner = constructCompilerRunner(INCLUDE_ANNOTATIONS);
+        this.RUN = true;
 
         this.module_url = ((process.platform == "win32") ?
             import.meta.url.replace(/file\:\/\/\//g, "")
             : (new URL(import.meta.url)).pathname)
             .replace("hybrid_mt_runner", "hybrid_mt_worker");
 
+        this.number_of_workers = number_of_workers;
         this.workers = (new Array(this.number_of_workers))
             .fill(0)
             .map(() => ({
                 id,
                 READY: true,
-                target: new Worker(this.module_url, { workerData: { id: id++, grammar, ANNOTATED: INCLUDE_ANNOTATIONS } })
+                target: new Worker(this.module_url, { workerData: { id: id++, grammar, ANNOTATED: runner.ANNOTATED } })
             }));
 
         this.workers.forEach(

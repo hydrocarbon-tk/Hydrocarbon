@@ -1,6 +1,11 @@
 
 
 export interface HybridCompilerOptions {
+    /**
+     * Number of worker threads to use when generating parser
+     * recognizer code.
+     */
+    number_of_workers?: number;
 
     /**
      * Set the byte size of the action array buffer.

@@ -13,9 +13,11 @@ import { HybridMultiThreadRunner } from "./hybrid_mt_runner.js";
 import { buildParserMemoryBuffer } from "./parser_memory.js";
 import { renderAssemblyScriptRecognizer } from "./script_generating/hybrid_assemblyscript_recognizer_template.js";
 import { renderParserScript } from "./script_generating/hybrid_js_parser_template.js";
+import { CompilerRunner, constructCompilerRunner } from "./types/CompilerRunner.js";
 const fsp = fs.promises;
 
 const default_options: HybridCompilerOptions = {
+    number_of_workers: 2,
     add_annotations: false,
     action_array_byte_size: 1024,
     error_array_byte_size: 512,
@@ -33,16 +35,17 @@ const AsyncFunction: FunctionConstructor = <any>(async function () { }).construc
 
 export async function compileHybrid(grammar: Grammar, env: GrammarParserEnvironment, options: HybridCompilerOptions):
     Promise<void | ((str: string, env: ParserEnvironment) => any)> {
+
     await asc.ready;
 
-    const used_options: HybridCompilerOptions = Object.assign({}, default_options, options);
+    const
+        used_options: HybridCompilerOptions = Object.assign({}, default_options, options),
+        runner: CompilerRunner = constructCompilerRunner(used_options.add_annotations),
+        mt_code_compiler = new HybridMultiThreadRunner(grammar, env, runner, used_options.number_of_workers);
 
     used_options.combine_wasm_with_js = Boolean(used_options.no_file_output || used_options.combine_wasm_with_js);
 
-    const mt_runner = new HybridMultiThreadRunner(grammar, env, used_options.add_annotations);
-
-    for (const updates of mt_runner.run())
-        await spark.sleep(1);
+    for (const updates of mt_code_compiler.run()) await spark.sleep(1);
 
     const
         wasm_dir = URL.resolveRelative(options.wasm_output_dir),
@@ -50,12 +53,17 @@ export async function compileHybrid(grammar: Grammar, env: GrammarParserEnvironm
         recognizer_wat_file = URL.resolveRelative("./recognizer.wat", wasm_dir),
         recognizer_binary_file = URL.resolveRelative("./recognizer.wasm", wasm_dir),
         recognizer_ts_file = URL.resolveRelative("./recognizer.ts", ts_dir),
-        parser_file = URL.resolveRelative("./parser.js", ts_dir);
+        parser_file = URL.resolveRelative("./parser.js", ts_dir),
+        recognizer_script = renderAssemblyScriptRecognizer(grammar, runner, mt_code_compiler.functions);
 
-    const recognizer_script = renderAssemblyScriptRecognizer(grammar, mt_runner.runner, mt_runner.functions);
     if (!used_options.no_file_output) try {
+        //Insure output directories exist
 
-        //Create the temp directory
+        await fsp.mkdir(wasm_dir + "", { recursive: true });
+        await fsp.mkdir(ts_dir + "", { recursive: true });
+
+        // Output recognizer file for review before attempting to compile
+        // to binary
         await fsp.writeFile(recognizer_ts_file + "", recognizer_script);
     } catch (e) {
         throw e;
@@ -73,29 +81,17 @@ export async function compileHybrid(grammar: Grammar, env: GrammarParserEnvironm
             maximumMemory: 100,
             importMemory: true,
             memoryBase: 4579328
-        });
-
-
-
-    const
+        }),
         errors = stderr.toString(),
         messages = stdout.toString();
-    //Build scripts 
 
-    if (errors.length > 0)
-        throw new EvalError(errors);
-
-
-    if (messages.length > 0)
-        console.log(messages);
+    if (errors.length > 0) throw new EvalError(errors);
+    if (messages.length > 0) console.log(messages);
 
     const parser_script = renderParserScript(grammar, used_options, binary);
 
     if (!used_options.no_file_output)
         try {
-            await fsp.mkdir(wasm_dir + "", { recursive: true });
-            await fsp.mkdir(ts_dir + "", { recursive: true });
-
             if (!used_options.combine_wasm_with_js) {
                 await fsp.writeFile(recognizer_binary_file + "", binary);
                 await fsp.writeFile(recognizer_wat_file + "", text);
@@ -103,7 +99,6 @@ export async function compileHybrid(grammar: Grammar, env: GrammarParserEnvironm
 
             await fsp.writeFile(parser_file + "", parser_script);
 
-            //run the wasm-pack locally
         } catch (e) {
             throw e;
         }
