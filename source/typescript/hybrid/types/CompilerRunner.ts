@@ -1,10 +1,3 @@
-import { renderWithFormatting, JSNode, renderCompressed, JSNodeType, stmt } from "@candlefw/js";
-import { traverse } from "@candlefw/conflagrate";
-import { Lexer } from "@candlefw/wind";
-import { LRState } from "./State.js";
-import { Item } from "../../util/item.js";
-import { Grammar } from "../../types/grammar.js";
-
 export type ConstantValue = string;
 export type ConstantName = string;
 export interface CompilerRunner {
@@ -12,12 +5,12 @@ export interface CompilerRunner {
      * Names must match the name following the `as` terminal in an `IMPORT` statement.
      * Any grammars with names not present in this set will be referenced as 
      * an external variable.
-    */
-    INTEGRATE: Set<string>;
-    /**
-     * If true item and state annotations
-     * will be generated in the output.
+     INTEGRATE: Set<string>;
      */
+    /**
+    * If true item and state annotations
+    * will be generated in the output.
+    */
     ANNOTATED: boolean;
     constant_map: Map<ConstantValue, { name: ConstantName, type: string; }>;
     statements: Map<string, { name: string, val: string; }>;
@@ -49,14 +42,15 @@ export function constructCompilerRunner(ANNOTATED: boolean = false): CompilerRun
         add_constant: (const_value: string, const_name: string = "const__", type_annotation: string = ""): string => {
 
             const id = const_value;
-
-            let actual_name = const_name;
+            const prefix = `_${const_name}`, suffix = "_";
+            let actual_name = prefix;
 
             if (!runner.constant_map.has(id)) {
 
+                while (unique_const_set.has(actual_name + suffix))
+                    actual_name = prefix + (const_counter++);
 
-                while (unique_const_set.has(actual_name))
-                    actual_name = const_name + (const_counter++) + "_";
+                actual_name += suffix;
 
                 unique_const_set.add(actual_name);
 
@@ -72,14 +66,11 @@ export function constructCompilerRunner(ANNOTATED: boolean = false): CompilerRun
             const intermediates = []; let intermediate_counter = 0;
 
             for (const [val, { name, type }] of const_map.entries()) {
-                const int_name = `__${intermediate_counter++}__i`;
+                const int_name = `__${intermediate_counter++}__intermediate`;
 
-                if (runner.constant_map.has(val) && false) {
+                if (runner.constant_map.has(val)) {
                     dependent_string = dependent_string.replace(RegExp(`${name}`, "g"), int_name);
                     intermediates.push([int_name, runner.constant_map.get(val).name]);
-
-                    if (val == "[4/* nl */,1/* ws */]")
-                        console.log({ actual_name: runner.constant_map.get(val).name, name, val, const_counter });
                 } else {
                     let const_name = runner.add_constant(val, name, type);
                     if (name !== const_name) {
