@@ -670,7 +670,7 @@ export function makeRDHybridFunction(production: Production, grammar: Grammar, r
     }
 
     processClosure(closure, grammar, true);
-    stmts.push(`let g = prod; prod = ${production.id}; probe(l); prod = g;`);
+    //stmts.push(`let g = prod; prod = ${production.id}; probe(l); prod = g;`);
     if (INLINE_FUNCTIONS) stmts.push("const s = []");
     if (HAVE_LR) stmts.push("let ACCEPT = false;");
 
@@ -789,7 +789,7 @@ export function makeRDHybridFunction(production: Production, grammar: Grammar, r
                             stmts.push(s);
                             addCheckpointContinue(stmts, "l", lex_name, "", false);
                             addCheckpointElseComplete(stmts, "l", lex_name);
-                            stmts.push("probe(l)");
+                            //stmts.push("probe(l)");
                             stmts.push("}");
                         } else
                             stmts.push(s);
@@ -813,7 +813,8 @@ export function makeRDHybridFunction(production: Production, grammar: Grammar, r
         if (production.recovery_handler) {
             addRecoveryHandlerToFunctionBodyArray(stmts, production, grammar, runner, true);
         } else {
-            stmts.push(` if(prod != ${production.id}) {FAILED = true;probe(l);}`);
+            stmts.push(` if(prod != ${production.id}) fail(l);`);
+            //stmts.push(` if(prod != ${production.id}) {FAILED = true;probe(l);}`);
         }
     } catch (e) {
 
