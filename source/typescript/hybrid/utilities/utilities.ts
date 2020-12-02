@@ -352,7 +352,7 @@ export function buildIfs(syms: TokenSymbol[], lex_name = "l", off = 0, USE_MAX =
             str = syms[0].val, l = str.length - off,
             booleans = str.slice(off).split("").reverse().map((v, i) => `${lex_name}.getUTF(${off + l - i - 1}) ==  ${v.codePointAt(0)}`).join("&&"),
             initial_check = isSymSpecifiedIdentifier(syms[0])
-                ? `${lex_name}.typeAt(${off + l}) &&`
+                ? `${lex_name}.typeAt(${off + l}) != id &&`
                 : "";
         stmts.push(
             `if(${initial_check}${booleans}){`,
