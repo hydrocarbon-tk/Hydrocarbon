@@ -234,7 +234,7 @@ function renderItem(
         stmts.push(renderItem(item.increment(), grammar, runner, productions, DC, RETURN_TYPE, lexer_name));
         if (!DONT_CHECK && !item.increment().atEND) stmts.push("}");
     } else {
-        stmts.push("if(!FAILED/*66*/){");
+        stmts.push("if(!FAILED){");
         stmts.push(`setProduction(${item.getProduction(grammar).id})`);
         stmts.push(renderItemSym(item, grammar, runner, productions, DONT_CHECK, lexer_name).stmts);
         switch (RETURN_TYPE) {
@@ -390,7 +390,7 @@ export function renderFunctionBody(
             let _peek_depth = peek_depth;
             const
                 pk = peek_depth,
-                body = [`/* PRIORITY: ${group.priority} */`],
+                body = [],
                 trs = group.trs,
                 syms = [...group.syms.values()],
                 AT_END = syms.length == 1 && syms[0] == getUniqueSymbolName(EOF_SYM);
@@ -702,7 +702,6 @@ export function makeRDHybridFunction(production: Production, grammar: Grammar, r
                     generateRBOptions(return_type)
                 ).stmts);
         } else {
-            //Use the RD semi production;
             stmts.push(renderFunctionBody(
                 rd_items,
                 grammar,
@@ -714,7 +713,7 @@ export function makeRDHybridFunction(production: Production, grammar: Grammar, r
         }
 
         if (HAVE_LR) {
-            //Optimization: Productions with identical outcomes are joined into same switch groups
+            //Optimization: Productions with identical outcomes are joined to the same switch clause
             const outcome_groups = new Map();
 
             for (const [key, val] of lr_items.entries()) {
@@ -796,7 +795,6 @@ export function makeRDHybridFunction(production: Production, grammar: Grammar, r
                             stmts.push(`/*\n${items.map(i => i.increment().renderUnformattedWithProduction(grammar)).join("\n")}\n*/`);
 
                     }
-
                 }
 
                 stmts.push(
@@ -807,10 +805,6 @@ export function makeRDHybridFunction(production: Production, grammar: Grammar, r
             }
 
             stmts.push(...prod_stmts, `}}`);
-            //group into sets 
-            //strip any item in the closure that is a terminal
-            //this cannot possibly yield the root production
-            // }
         }
 
         if (production.recovery_handler) {

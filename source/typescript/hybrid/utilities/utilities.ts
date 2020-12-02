@@ -1,5 +1,5 @@
 import { traverse } from "@candlefw/conflagrate";
-import { exp, JSNode, JSNodeClass, JSNodeType, JSNodeTypeLU, parser, renderWithFormatting, stmt } from "@candlefw/js";
+import { exp, JSNode, JSNodeClass, JSNodeType, parser, renderWithFormatting, stmt } from "@candlefw/js";
 import { Lexer } from "@candlefw/wind";
 
 import { Grammar, GrammarFunction, Production, ProductionBody, SymbolType } from "../../types/grammar.js";
@@ -321,8 +321,6 @@ export function translateSymbolValue(sym: TokenSymbol, grammar: Grammar, ANNOTAT
         case SymbolType.EMPTY:
             return "";
     }
-
-    return `false /* unknown_symbol ${sanitizeSymbolValForComment(getUniqueSymbolName(sym))} */`;
 }
 
 export function sanitizeSymbolValForComment(sym: string | TokenSymbol): string {
@@ -526,7 +524,7 @@ export function addRecoveryHandlerToFunctionBodyArray(
         //Shift to next token;
         l.next();
         const start = l.off;
-        ${createAssertionFunctionBody(production.recovery_handler.lexer_text, grammar, runner, production.id)}
+        ${createAssertionFunctionBody(production.recovery_handler.lexer_text, grammar, runner)}
         //Skipped Symbols
         add_shift(l.off - start);
         //Consume the end symbol of the production
