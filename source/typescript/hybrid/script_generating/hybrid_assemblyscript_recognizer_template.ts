@@ -1,7 +1,6 @@
-import { Grammar, SymbolType } from "../../types/grammar.js";
+import { Grammar } from "../../types/grammar.js";
 import { CompilerRunner } from "../types/CompilerRunner";
 import { RDProductionFunction } from "../types/RDProductionFunction";
-import { LRState } from "../types/State";
 import { addSkipCall, createAssertionFunctionBody, getAssertionFunctionName } from "../utilities/utilities.js";
 import { printLexer } from "./hybrid_lexer_template.js";
 import { getTokenSelectorStatements } from "./hybrid_token_selector_template.js";
@@ -10,13 +9,13 @@ export const renderAssemblyScriptRecognizer = (
     grammar: Grammar,
     runner: CompilerRunner,
     rd_functions: RDProductionFunction[],
-    lr_states: LRState[]
+    //lr_states: LRState[]
 ) => {
 
 
     const fns = [
         ...rd_functions.filter(l => l.RENDER).map(fn => fn.str),
-        ...lr_states.filter(s => s.REACHABLE).map(s => s.function_string)
+        //   ...lr_states.filter(s => s.REACHABLE).map(s => s.function_string)
     ],
         { keywords, symbols } = getTokenSelectorStatements(grammar),
         assert_functions = new Map;

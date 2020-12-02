@@ -1,18 +1,19 @@
-import { Grammar } from "../types/grammar.js";
-import { GrammarParserEnvironment } from "../types/grammar_compiler_environment";
-import { HybridMultiThreadRunner } from "./hybrid_mt_runner.js";
-import fs from "fs";
+import loader from "@assemblyscript/loader";
 import spark from "@candlefw/spark";
 import URL from "@candlefw/url";
+import Lexer from "@candlefw/wind";
 import asc from "assemblyscript/cli/asc";
+import fs from "fs";
+
+import { ParserEnvironment } from "../../../build/types/hydrocarbon.js";
+import { Grammar } from "../types/grammar.js";
+import { GrammarParserEnvironment } from "../types/grammar_compiler_environment";
+import { HybridCompilerOptions } from "./CompiledHybridOptions";
+import { HybridMultiThreadRunner } from "./hybrid_mt_runner.js";
+import { buildParserMemoryBuffer } from "./parser_memory.js";
 import { renderAssemblyScriptRecognizer } from "./script_generating/hybrid_assemblyscript_recognizer_template.js";
 import { renderParserScript } from "./script_generating/hybrid_js_parser_template.js";
-import { HybridCompilerOptions } from "./CompiledHybridOptions";
 const fsp = fs.promises;
-import loader from "@assemblyscript/loader";
-import { buildParserMemoryBuffer } from "./parser_memory.js";
-import Lexer from "@candlefw/wind";
-import { ParserEnvironment } from "../../../build/types/hydrocarbon.js";
 
 const default_options: HybridCompilerOptions = {
     add_annotations: false,
@@ -43,7 +44,24 @@ export async function compileHybrid(grammar: Grammar, env: GrammarParserEnvironm
     for (const updates of mt_runner.run())
         await spark.sleep(1);
 
-    const recognizer_script = renderAssemblyScriptRecognizer(grammar, mt_runner.runner, mt_runner.rd_functions, mt_runner.completed_lr_states),
+    const
+        wasm_dir = URL.resolveRelative(options.wasm_output_dir),
+        ts_dir = URL.resolveRelative(options.ts_output_dir),
+        recognizer_wat_file = URL.resolveRelative("./recognizer.wat", wasm_dir),
+        recognizer_binary_file = URL.resolveRelative("./recognizer.wasm", wasm_dir),
+        recognizer_ts_file = URL.resolveRelative("./recognizer.ts", ts_dir),
+        parser_file = URL.resolveRelative("./parser.js", ts_dir);
+
+    const recognizer_script = renderAssemblyScriptRecognizer(grammar, mt_runner.runner, mt_runner.functions/*, mt_runner.completed_lr_states*/);
+    if (!used_options.no_file_output) try {
+
+        //Create the temp directory
+        await fsp.writeFile(recognizer_ts_file + "", recognizer_script);
+    } catch (e) {
+        throw e;
+    }
+
+    const
 
         { binary, text, stdout, stderr } = asc.compileString(recognizer_script, {
             runtime: "full",
@@ -58,6 +76,7 @@ export async function compileHybrid(grammar: Grammar, env: GrammarParserEnvironm
         });
 
 
+
     const
         errors = stderr.toString(),
         messages = stdout.toString();
@@ -66,26 +85,16 @@ export async function compileHybrid(grammar: Grammar, env: GrammarParserEnvironm
     if (errors.length > 0)
         throw new EvalError(errors);
 
-    const
-        parser_script = renderParserScript(grammar, used_options, binary),
-        wasm_dir = URL.resolveRelative(options.wasm_output_dir),
-        ts_dir = URL.resolveRelative(options.ts_output_dir),
-        recognizer_wat_file = URL.resolveRelative("./recognizer.wat", wasm_dir),
-        recognizer_binary_file = URL.resolveRelative("./recognizer.wasm", wasm_dir),
-        recognizer_ts_file = URL.resolveRelative("./recognizer.ts", ts_dir),
-        parser_file = URL.resolveRelative("./parser.js", ts_dir);
-
 
     if (messages.length > 0)
         console.log(messages);
+
+    const parser_script = renderParserScript(grammar, used_options, binary);
 
     if (!used_options.no_file_output)
         try {
             await fsp.mkdir(wasm_dir + "", { recursive: true });
             await fsp.mkdir(ts_dir + "", { recursive: true });
-
-            //Create the temp directory
-            await fsp.writeFile(recognizer_ts_file + "", recognizer_script);
 
             if (!used_options.combine_wasm_with_js) {
                 await fsp.writeFile(recognizer_binary_file + "", binary);

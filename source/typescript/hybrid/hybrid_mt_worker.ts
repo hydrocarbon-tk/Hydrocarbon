@@ -1,11 +1,11 @@
 import { Grammar } from "../types/grammar";
 import { ParserEnvironment } from "../types/parser_environment.js";
-import { filloutGrammar, Item, preCalcLeftRecursion } from "../util/common.js";
+import { filloutGrammar, preCalcLeftRecursion } from "../util/common.js";
 import { workerData, parentPort } from "worker_threads";
-import { HybridDispatch, HybridJobType, HybridDispatchResponse } from "./types/hybrid_mt_msg_types.js";
+import { HybridDispatch, HybridDispatchResponse } from "./types/hybrid_mt_msg_types.js";
 import { CompilerRunner, constructCompilerRunner } from "./types/CompilerRunner.js";
 import { makeRDHybridFunction } from "./rd_hybrid.js";
-import { IntegrateState, CompileHybridLRStates } from "./lr_hybrid.js";
+//import { IntegrateState, CompileHybridLRStates } from "./lr_hybrid.js";
 
 export class HybridMultiThreadProcessWorker {
 
@@ -48,7 +48,7 @@ export class HybridMultiThreadProcessWorker {
             };
             const production = this.grammar[job.production_id];
 
-            switch (job.job_type) {
+            /* switch (job.job_type) {
 
                 case HybridJobType.CONSTRUCT_LR_STATE:
                     Response.potential_states = CompileHybridLRStates(grammar, { old_state: job.item_set.old_state, items: job.item_set.items.map(Item.fromArray) });
@@ -64,19 +64,17 @@ export class HybridMultiThreadProcessWorker {
                     Response.potential_states = potential_states;
                     break;
 
-                case HybridJobType.CONSTRUCT_RD_FUNCTION:
-                    const { IS_RD, fn, productions } = makeRDHybridFunction(this.grammar[job.production_id], this.grammar, this.runner);
-                    Response.fn = fn;
-                    Response.productions = productions;
-                    Response.production_id = job.production_id;
-                    Response.CONVERT_RD_TO_LR = !IS_RD;
+                case HybridJobType.CONSTRUCT_RD_FUNCTION: */
+            const { /*IS_RD,*/ fn, productions } = makeRDHybridFunction(this.grammar[job.production_id], this.grammar, this.runner);
+            Response.fn = fn;
+            Response.productions = productions;
+            Response.production_id = job.production_id;
+          //  Response.CONVERT_RD_TO_LR = !IS_RD;
 
-                    if (IS_RD)
-                        Response.const_map = this.runner.constant_map;
-
-
-                    break;
-            }
+            /*if (IS_RD)*/ Response.const_map = this.runner.constant_map;
+            /* 
+            break;
+            } */
 
             parentPort.postMessage(Response);
             this.runner.constant_map.clear();

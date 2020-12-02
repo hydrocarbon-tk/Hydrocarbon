@@ -170,7 +170,7 @@ function renderItemSym(
 
             productions.add(<number>sym.val);
 
-            stmts.push(`$${grammar[sym.val].name}(${lexer_name})`);
+            stmts.push(`$${grammar[sym.val].name}(${lexer_name}) /*nc: ${RENDER_WITH_NO_CHECK} */`);
 
             RENDER_WITH_NO_CHECK = false;
 
@@ -195,7 +195,7 @@ function renderItemSym(
                     stmts.push(addSkipCall(grammar, runner, syms));
                 }
 
-                stmts.push(createAssertionShift(grammar, runner, sym, lexer_name));
+                stmts.push(createAssertionShift(grammar, runner, sym, lexer_name) + `/*nc: ${RENDER_WITH_NO_CHECK} */`);
 
                 RENDER_WITH_NO_CHECK = false;
             }
@@ -817,7 +817,7 @@ export function makeRDHybridFunction(production: Production, grammar: Grammar, r
         return {
             productions,
             id: p.id,
-            IS_RD: false,
+            IS_RD: true,
             fn: `/* Could Not Parse in Recursive Descent Mode */`
         };
     }
