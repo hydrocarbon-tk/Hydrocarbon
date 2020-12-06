@@ -3,7 +3,7 @@ import { CompilerRunner } from "../types/CompilerRunner";
 import { RDProductionFunction } from "../types/RDProductionFunction";
 import { RDState } from "../types/State";
 import { SC } from "../utilities/skribble.js";
-import { createAssertionFunctionBody } from "../utilities/utilities.js";
+import { convertAssertionFunctionBodyToSkribble } from "../utilities/utilities.js";
 import { printLexer } from "./hybrid_lexer_template.js";
 import { getTokenSelectorStatements } from "./hybrid_token_selector_template.js";
 
@@ -50,7 +50,7 @@ export const renderTypeScriptRecognizer = (
         const fn_name = <string>sym.val;
         if (grammar.functions.has(fn_name)) {
             const val = grammar.functions.get(fn_name),
-                txt = createAssertionFunctionBody(val.txt, grammar, runner);
+                txt = convertAssertionFunctionBodyToSkribble(val.txt, grammar, runner);
 
             assert_functions.set(fn_name, `function __${fn_name}__(l:Lexer):boolean{${txt}}`);
         }
@@ -145,7 +145,7 @@ function _skip(l: Lexer, skips: () => boolean):void{
 
         ${grammar?.functions.has("custom_skip") ? (() => {
             let str = grammar.functions.get("custom_skip").txt;
-            return createAssertionFunctionBody(str, grammar, runner, -1);
+            return convertAssertionFunctionBodyToSkribble(str, grammar, runner, -1);
         })() : ""}
         
         if (!skips()) break;

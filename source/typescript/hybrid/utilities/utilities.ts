@@ -7,7 +7,7 @@ import { AssertionFunctionSymbol, EOFSymbol, GeneratedSymbol, ProductionSymbol, 
 import { Item } from "../../util/item.js";
 import { CompilerRunner } from "../types/CompilerRunner.js";
 import { RDState } from "../types/State.js";
-import { ConstSC, ExprSC, SC, StmtSC, VarSC } from "./skribble.js";
+import { AS, ConstSC, CPP, ExprSC, RS, SC, StmtSC, VarSC } from "./skribble.js";
 
 
 export const TokenSpaceIdentifier = 1,
@@ -481,7 +481,7 @@ export function addRecoveryHandlerToFunctionBodyArray(
         //Shift to next token;
         l.next();
         const start = l.off;
-        ${createAssertionFunctionBody(production.recovery_handler.lexer_text, grammar, runner)}
+        ${convertAssertionFunctionBodyToSkribble(production.recovery_handler.lexer_text, grammar, runner)}
         //Skipped Symbols
         add_shift(l.off - start);
         //Consume the end symbol of the production
@@ -498,7 +498,7 @@ export function generateCompiledAssertionFunction(sym: AssertionFunctionSymbol, 
     const fn_name = sym.val;
     const fn = grammar.functions.get(fn_name);
     if (fn && !fn.assemblyscript_txt) {
-        const { txt, first } = createAssertionFunctionBody(fn.txt, grammar, runner);
+        const { sc: txt, first } = convertAssertionFunctionBodyToSkribble(fn.txt, grammar, runner);
         fn.assemblyscript_txt = txt;
         fn.first = first;
     }
@@ -526,9 +526,10 @@ export function getAssertionSymbolFirst(sym: AssertionFunctionSymbol, grammar: G
  * 
  * @param af_body_content 
  */
-export function createAssertionFunctionBody(af_body_content: string, grammar: Grammar, runner: CompilerRunner)
-    : { txt: string, first: TokenSymbol[]; } {
+export function convertAssertionFunctionBodyToSkribble(af_body_content: string, grammar: Grammar, runner: CompilerRunner)
+    : { sc: SC, first: TokenSymbol[]; } {
     const
+        rev_lu = [],
         syms: Map<string, { id: number, sym: TokenSymbol; }> = new Map(),
         first = [],
         // Replace symbol placeholders
@@ -537,22 +538,137 @@ export function createAssertionFunctionBody(af_body_content: string, grammar: Gr
 
                 const sym = <TokenSymbol>{ type, val };
 
-                if (!syms.has(getUniqueSymbolName(sym)))
-                    syms.set(getUniqueSymbolName(sym), { id: syms.size, sym });
+                if (!syms.has(getUniqueSymbolName(sym))) {
+                    const obj = { id: syms.size, sym };
+                    syms.set(getUniqueSymbolName(sym), obj);
+                    rev_lu.push(obj);
+                }
 
                 const id = syms.get(getUniqueSymbolName(sym)).id;
 
-                return (not ? "!" : "") + `(${getIncludeBooleans([sym], grammar, runner, "__lex__z" + id)})`;
+                return (not ? "!" : "") + `(${"__sym__z" + id})`;
             }),
         sym_lu: TokenSymbol[] = [...syms.values()].map(_ => _.sym),
         receiver = { ast: null };
+
 
     for (const { node } of traverse(parser(txt).ast, "nodes", 1)
         .makeMutable().extract(receiver)) {
         processFunctionNodes(node, grammar, runner, sym_lu, first);
     }
 
-    return { txt: renderWithFormatting(receiver.ast), first };
+    const sc = convertToSkribble(receiver.ast);
+
+    sc.modifyIdentifiers(i => {
+        const str = i.value;
+
+        if (str.slice(0, 2) == "pk") {
+            return SC.Variable(str + ":Lexer");
+        }
+
+        if (str.includes("__sym__z")) {
+            const [sym_id, lex_name] = str.replace("__sym__z", "").split("_");
+            const { sym } = rev_lu[+sym_id];
+            return getIncludeBooleans([sym], grammar, runner, SC.Variable(lex_name + ":Lexer"));
+        }
+
+    });
+
+    console.log(Object.assign(new AS, sc).renderCode());
+
+
+
+    return { sc: sc, first };
+}
+
+function convertToSkribble(node: JSNode, i = 0, v = [], USE_CONSTANT = false): SC<any> {
+    if (node) {
+        const { nodes } = node;
+        const [n1, n2, n3] = nodes ?? [];
+        switch (node.type) {
+            case JSNodeType.NumericLiteral:
+            case JSNodeType.NullLiteral:
+            case JSNodeType.BooleanLiteral:
+            case JSNodeType.StringLiteral:
+                return SC.Value(node.value + "");
+            case JSNodeType.MemberExpression:
+                return SC.Member(convertToSkribble(n1), convertToSkribble(n2));
+            case JSNodeType.ThisLiteral:
+                return SC.Value("this");
+            case JSNodeType.BindingExpression:
+            case JSNodeType.AssignmentExpression:
+                return SC.Assignment(convertToSkribble(n1), convertToSkribble(n2));
+            case JSNodeType.LexicalDeclaration:
+                if (node.symbol == "const")
+                    return SC.Declare(...nodes.map(n => convertToSkribble(n, null, null, true)));
+            case JSNodeType.VariableStatement:
+            case JSNodeType.VariableDeclaration:
+
+                return SC.Declare(...nodes.map(convertToSkribble));
+            case JSNodeType.Identifier:
+            case JSNodeType.IdentifierBinding:
+            case JSNodeType.IdentifierDefault:
+            case JSNodeType.IdentifierLabel:
+            case JSNodeType.IdentifierModule:
+            case JSNodeType.IdentifierName:
+            case JSNodeType.IdentifierReference:
+            case JSNodeType.IdentifierProperty:
+                return SC[USE_CONSTANT ? "Constant" : "Variable"]((node.value + "").trim());
+            case JSNodeType.Parenthesized:
+                return SC.Group("(", ...nodes.filter(_ => !!_).map(convertToSkribble));
+            case JSNodeType.CallExpression:
+                return SC.Call(convertToSkribble(n1), ...n2.nodes.map(convertToSkribble));
+            case JSNodeType.BreakStatement:
+                return SC.Break;
+            case JSNodeType.ReturnStatement:
+                if (n1)
+                    return SC.UnaryPre(SC.Return, convertToSkribble(n1));
+                return SC.Return;
+            case JSNodeType.SwitchStatement:
+                return SC.Switch(convertToSkribble(n1))
+                    .addStatement(
+                        ...nodes.slice(1)
+                            .map(n1 => convertToSkribble(
+                                Object.assign(n1, { type: JSNodeType.IfStatement }))
+                            )
+                    );
+            case JSNodeType.BlockStatement:
+                return SC.If()
+                    .addStatement(...nodes.map(convertToSkribble), SC.Empty());
+            case JSNodeType.WhileStatement:
+                return SC.While(convertToSkribble(n1))
+                    .addStatement(...nodes.slice(1).map(convertToSkribble));
+            case JSNodeType.IfStatement:
+                return SC.If(convertToSkribble(n1))
+                    .addStatement(
+                        ...(n2.type == JSNodeType.BlockStatement ? n2.nodes.map(convertToSkribble) : [convertToSkribble(n2)]),
+                        n3 ? n3?.type == JSNodeType.IfStatement ? convertToSkribble(n3) : SC.If().addStatement(convertToSkribble(n3)) : SC.Empty(),
+                    );
+            case JSNodeType.PostExpression:
+                SC.UnaryPost(convertToSkribble(n1), node.symbol);
+            case JSNodeType.PreExpression:
+            case JSNodeType.UnaryExpression:
+                return SC.UnaryPre(node.symbol, convertToSkribble(n1));
+            case JSNodeType.LogicalExpression:
+            case JSNodeType.BitwiseExpression:
+            case JSNodeType.MultiplicativeExpression:
+            case JSNodeType.AdditiveExpression:
+            case JSNodeType.EqualityExpression:
+                return SC.Binary(convertToSkribble(n1), node.symbol, convertToSkribble(n2));
+            case JSNodeType.FunctionDeclaration:
+            case JSNodeType.FunctionExpression:
+            case JSNodeType.Method:
+                return SC.Function(convertToSkribble(n1), ...(n2.nodes || []).map(convertToSkribble))
+                    .addStatement(...(n3.nodes || []).map(convertToSkribble));
+            case JSNodeType.ExpressionStatement:
+                return SC.Expressions(...nodes.map(convertToSkribble));
+            case JSNodeType.Script:
+            case JSNodeType.Module:
+                return (new SC).addStatement(...nodes.map(convertToSkribble));
+        }
+    }
+
+    return null;
 }
 
 function processFunctionNodes(
@@ -566,6 +682,8 @@ function processFunctionNodes(
     ALLOW_FIRST = true,
     HAS_TK = false
 ): { node: JSNode, HAS_TK: boolean; } {
+    //Convert JS to Skribble
+    //If + else + while +
 
     const receiver = { ast: null };
 
@@ -624,12 +742,12 @@ function processFunctionNodes(
         }
 
         if (node.type & JSNodeClass.IDENTIFIER) {
-            if ((<string>node.value).includes("__lex__z")) {
+            if ((<string>node.value).includes("__sym__z")) {
                 if (ALLOW_FIRST) {
                     const id = +((<string>node.value).split("z")[1]);
                     first.push(sym_lu[id]);
                 }
-                node.value = lexer_name[lex_name_ptr];
+                node.value += "_" + lexer_name[lex_name_ptr];
 
             } else if (node.value[0] == "$")
                 switch ((<string>node.value).slice(1)) {

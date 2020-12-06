@@ -1,10 +1,10 @@
-import { Grammar } from "../../types/grammar.js";
+import { Grammar, SymbolType } from "../../types/grammar.js";
 import { CompilerRunner } from "../types/CompilerRunner";
 import { RDProductionFunction } from "../types/RDProductionFunction";
 import { SC } from "../utilities/skribble.js";
 import {
     addSkipCall,
-    createAssertionFunctionBody,
+    convertAssertionFunctionBodyToSkribble,
     getAssertionFunctionName,
     TokenSpaceIdentifier,
     TokenNumberIdentifier,
@@ -21,7 +21,26 @@ export const renderAssemblyScriptRecognizer = (
     rd_functions: RDProductionFunction[]
 ): SC => {
     //Constant Values
+    const assert_functions = new Map;
+
+    //Identify required assert functions. 
+    for (const sym of [...grammar.meta.all_symbols.values()]
+        .filter(s => s.type == SymbolType.PRODUCTION_ASSERTION_FUNCTION)
+    ) {
+        const fn_name = <string>sym.val;
+        if (grammar.functions.has(fn_name)) {
+            const val = grammar.functions.get(fn_name),
+                sc = convertAssertionFunctionBodyToSkribble(val.txt, grammar, runner).sc;
+
+            assert_functions.set(fn_name, SC.Function(SC.Variable(`__${fn_name}__:bool`), SC.Variable("l:Lexer")).addStatement(sc));
+        }
+    }
+
     const
+        custom_skip = (grammar?.functions.has("custom_skip") ? (() => {
+            let str = grammar.functions.get("custom_skip").txt;
+            return [convertAssertionFunctionBodyToSkribble(str, grammar, runner).sc];
+        })() : []),
         { const: constants, fn: const_functions } = runner.render_constants(),
         code_node = new SC,
         action_array_offset = SC.Constant("action_array_offset:unsigned int"),
@@ -64,14 +83,14 @@ export const renderAssemblyScriptRecognizer = (
         ),
         ...constants,
         printLexer(),
-        ...const_functions
+        ...const_functions,
+        ...assert_functions.values()
     );
 
     const fns = [
         ...rd_functions.filter(l => l.RENDER).map(fn => fn.str),
     ],
-        { keywords, symbols } = getTokenSelectorStatements(grammar),
-        assert_functions = new Map;
+        { keywords, symbols } = getTokenSelectorStatements(grammar);
 
     //for (const fn of [...grammar.functions.values()].filter(v => v.assemblyscript_txt))
     //    assert_functions.set(fn.id, `function ${getAssertionFunctionName(fn.id)}(l:Lexer&):boolean{${fn.assemblyscript_txt}}`);
@@ -293,7 +312,7 @@ export const renderAssemblyScriptRecognizer = (
     
             ${grammar?.functions.has("custom_skip") ? (() => {
             let str = grammar.functions.get("custom_skip").txt;
-            return createAssertionFunctionBody(str, grammar, runner).txt;
+            return convertAssertionFunctionBodyToSkribble(str, grammar, runner).sc;
         })() : ""}
             
             if (!skip(l))
@@ -309,6 +328,7 @@ export const renderAssemblyScriptRecognizer = (
             "skip: BooleanTokenCheck"
         ).addStatement(
             SC.While(SC.Value(1)).addStatement(
+                ...custom_skip,
                 SC.If(SC.UnaryPre("!", SC.Call("skip", "l")))
                     .addStatement(SC.Break),
                 SC.Call(SC.Member("l", "next"))

@@ -1,3 +1,5 @@
+import { Lexer } from "@candlefw/wind";
+import { ThisExpression } from "assemblyscript";
 import crypto from "crypto";
 
 interface ScriptNode {
@@ -131,8 +133,8 @@ function TAB(count: number) {
  */
 export class SC<T = Node> {
     type: T;
-    statements: SC<Statement>[];
     expressions: SC<Expression>[];
+    statements: SC<Statement>[];
     type_data: string;
 
     static Bind<T>(data: SC<T>): SC<T> {
@@ -141,11 +143,11 @@ export class SC<T = Node> {
 
         const new_obj: SC<T> = Object.assign(Object.create(new SC), data);
 
-        if (new_obj.statements)
-            new_obj.statements = new_obj.statements.map(s => SC.Bind(s));
-
         if (new_obj.expressions)
             new_obj.expressions = new_obj.expressions.map(s => SC.Bind(s));
+
+        if (new_obj.statements)
+            new_obj.statements = new_obj.statements.map(s => SC.Bind(s));
 
         return new_obj;
     }
@@ -185,7 +187,7 @@ export class SC<T = Node> {
             isSTATEMENT: true,
             expressions: true
         });
-        node.expressions.push(...expressions);
+        node.expressions.push(...expressions.filter(_ => !!_));
         return node;
     }
     static Function(name: SC<Constant | Variable> | string, ...args: (SC<Assignment | Constant | Variable> | string)[]): SC<Function> {
@@ -326,7 +328,7 @@ export class SC<T = Node> {
             value: sentinel,
             expressions: true
         });
-        node.expressions.push(...expressions);
+        node.expressions.push(...expressions.filter(_ => !!_));
         return node;
     };
     static UnaryPre(operator: SC<Value> | number | string, expression: SC<Expression>): SC<UnaryPre> {
@@ -411,7 +413,7 @@ export class SC<T = Node> {
 
 
     addStatement(this: SC<T>, ...stmts: SC<Node>[]): SC<T> {
-        for (const stmt of stmts) {
+        for (const stmt of stmts.filter(_ => !!_)) {
             if (acceptsStatements(this.type)) {
                 if (isSwitch(this.type)) {
                     if (isIf(stmt.type)) {
@@ -520,6 +522,19 @@ export class SC<T = Node> {
             for (const node of this.statements ?? [])
                 node.replaceVariableValue(original_val, new_val);
         }
+    }
+
+    modifyIdentifiers(this: SC<Node>, fn): SC<any> {
+
+        if (this.type.type == "constant" || this.type.type == "variable") {
+            return fn(this) || this;
+        } else {
+            if (this.expressions)
+                this.expressions = this.expressions.map(s => s.modifyIdentifiers(fn));
+            if (this.statements)
+                this.statements = this.statements.map(s => s.modifyIdentifiers(fn));
+        }
+        return this;
     }
 }
 
@@ -753,10 +768,16 @@ export class JS extends SC {
         ].join("")];
     };
     renderUnaryPre(this: SC<UnaryPre>, use_type_info: boolean, proto: SC, tab: number = 0): string[] {
-        return [this.expressions[0].render(false, proto, 0).join("") + " " + this.expressions[1].render(false, proto, 0).join("")];
+        const pre = this.expressions[0].render(false, proto, 0).join("");
+        const space = (!((new Lexer(pre)).ty & (Lexer.types.id | Lexer.types.num))) ? "" : " ";
+
+        return [pre + space + this.expressions[1].render(false, proto, 0).join("")];
     };
     renderUnaryPost(this: SC<UnaryPost>, use_type_info: boolean, proto: SC, tab: number = 0): string[] {
-        return [this.expressions[0].render(false, proto, 0).join("") + " " + this.expressions[1].render(false, proto, 0).join("")];
+        const post = this.expressions[1].render(false, proto, 0).join("").trim();
+        const space = (!((new Lexer(post)).ty & (Lexer.types.id | Lexer.types.num))) ? "" : " ";
+
+        return [this.expressions[0].render(false, proto, 0).join("") + space + post];
     };
 }
 /**
