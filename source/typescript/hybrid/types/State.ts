@@ -2,7 +2,7 @@ import { Item } from "../../util/common.js";
 
 
 
-export interface LRState {
+export interface RDState {
 
     /**
      * Optional name to reference the state function

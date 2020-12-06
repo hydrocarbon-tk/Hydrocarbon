@@ -5,6 +5,7 @@ import { ParserEnvironment } from "../types/parser_environment";
 import { HybridDispatchResponse, HybridJobType, HybridDispatch } from "./types/hybrid_mt_msg_types.js";
 import { CompilerRunner } from "./types/CompilerRunner.js";
 import { RDProductionFunction } from "./types/RDProductionFunction.js";
+import { SC } from "./utilities/skribble.js";
 
 type WorkerContainer = {
     target: Worker;
@@ -73,11 +74,15 @@ export class HybridMultiThreadRunner {
 
         const { const_map, fn, productions, production_id } = response;
 
+        const fn_data = SC.Bind(fn);
+
+        this.runner.join_constant_map(const_map, fn_data);
+
         this.functions[production_id] = {
             id: 0,
-            fn: "",
+            fn: fn_data,
             productions: productions,
-            str: this.runner.join_constant_map(const_map, fn)
+            str: fn_data.renderCode()
         };
 
         worker.READY = true;

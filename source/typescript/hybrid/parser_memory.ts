@@ -39,13 +39,29 @@ function air(t, v, i_r) {
         aii(t, v, a);
     }
 }
-export function buildParserMemoryBuffer() {
-    ///*
-    const shared_memory = new WebAssembly.Memory({ initial: 80, maximum: 100 });
-    const buffer = shared_memory.buffer;
-    const jump_table = new Uint16Array(buffer, 0, 191488);
-    const action_array = new Uint32Array(buffer, 191488 * 2, 1048576);
-    const error_array = new Uint32Array(buffer, 191488 * 2 + 1048576 * 4, 512);
+/**
+ * Allocates and initializes a pool of memory large enough to contain the lexer jump table, action array buffer, and error array buffer.
+ * @param USE_ARRAY_BUFFER Use ArrayBuffer storage, otherwise use a WebAssembly.Memory buffer.
+ * @param action_array_byte_size 
+ * @param error_array_byte_size 
+ */
+export function buildParserMemoryBuffer(USE_ARRAY_BUFFER: boolean = false, action_array_byte_size = 1048576, error_array_byte_size = 512) {
+    const
+        min = 80, max = 100, page_byte_size = 65536, jump_table_byte_size = 191488,
+
+        shared_memory = USE_ARRAY_BUFFER
+            ? new ArrayBuffer(max * page_byte_size)
+            : new WebAssembly.Memory({ initial: min, maximum: max }),
+
+        buffer = shared_memory instanceof ArrayBuffer
+            ? shared_memory
+            : shared_memory.buffer,
+
+        jump_table = new Uint16Array(buffer, 0, jump_table_byte_size),
+
+        action_array = new Uint32Array(buffer, jump_table_byte_size * 2, action_array_byte_size),
+
+        error_array = new Uint32Array(buffer, jump_table_byte_size * 2 + action_array_byte_size * 4, error_array_byte_size);
 
     //7. Symbol
     // Default Value

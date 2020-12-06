@@ -1,5 +1,8 @@
-export type ConstantValue = string;
+import { ConstSC, ExprSC, SC, VarSC } from "../utilities/skribble.js";
+
+export type ConstantHash = string;
 export type ConstantName = string;
+export type ConstantObj = { original_name: VarSC | ConstSC, name: VarSC | ConstSC, code_node: SC; };
 export interface CompilerRunner {
     /** List of external grammar names to integrate into the parser.
      * Names must match the name following the `as` terminal in an `IMPORT` statement.
@@ -12,25 +15,17 @@ export interface CompilerRunner {
     * will be generated in the output.
     */
     ANNOTATED: boolean;
-    constant_map: Map<ConstantValue, { name: ConstantName, type: string; }>;
-    statements: Map<string, { name: string, val: string; }>;
-    add_statement: (
-        /**
-         * 
-         */
-        hash: string, name: string, val: string) => string;
+    constant_map: Map<ConstantHash, ConstantObj>;
+
     /**
      * Facilitates dedup of constant values.
      * 
      * Add a global constant to the parser environment. 
      * Returns name to the constant. 
      */
-    add_constant: (const_value: string, const_name?: string, type_annotation?: string) => string;
-    render_constants: () => string;
-
-    render_statements: () => string;
-
-    join_constant_map: (const_map: Map<ConstantValue, { name: ConstantName, type: string; }>, dependent_string: string) => string;
+    add_constant: (const_name: VarSC | ConstSC, const_value: SC) => VarSC | ConstSC;
+    render_constants: () => { const: SC[], fn: SC[]; };
+    join_constant_map: (const_map: Map<ConstantHash, ConstantObj>, dependent_string: SC) => void;
 }
 export function constructCompilerRunner(ANNOTATED: boolean = false): CompilerRunner {
     let const_counter = 0, unique_const_set = new Set();
@@ -38,76 +33,70 @@ export function constructCompilerRunner(ANNOTATED: boolean = false): CompilerRun
         INTEGRATE: new Set(),
         ANNOTATED,
         constant_map: new Map,
-        statements: new Map,
-        add_constant: (const_value: string, const_name: string = "const__", type_annotation: string = ""): string => {
+        add_constant: (const_name: VarSC | ConstSC, const_value: SC): VarSC | ConstSC => {
+            const hash = SC.Bind(<ExprSC>const_value).hash();
+            let test_name = const_name.type.value;
+            let actual_name: VarSC | ConstSC = null;
+            const prefix = `${test_name}`;
+            let value = const_name.type.val_type;
 
-            const id = const_value;
-            const prefix = `_${const_name}`, suffix = "_";
-            let actual_name = prefix;
+            if (!runner.constant_map.has(hash)) {
 
-            if (!runner.constant_map.has(id)) {
+                while (unique_const_set.has(test_name)) {
+                    test_name = prefix + ("0000" + (const_counter++)).slice(-3);
+                }
 
-                while (unique_const_set.has(actual_name + suffix))
-                    actual_name = prefix + (const_counter++);
+                unique_const_set.add(test_name);
 
-                actual_name += suffix;
+                actual_name = SC[const_name.type.type == "constant" ? "Constant" : "Variable"](`${test_name}:${value}`);
 
-                unique_const_set.add(actual_name);
-
-                runner.constant_map.set(id, { name: actual_name, type: type_annotation });
+                runner.constant_map.set(hash, { original_name: const_name, name: actual_name, code_node: const_value, });
 
             } else {
-                actual_name = runner.constant_map.get(id).name;
+                actual_name = runner.constant_map.get(hash).name;
             }
 
             return actual_name;
         },
-        join_constant_map(const_map: Map<ConstantValue, { name: ConstantName, type: string; }>, dependent_string: string): string {
-            const intermediates = []; let intermediate_counter = 0;
+        join_constant_map(const_map: Map<ConstantHash, ConstantObj>, dependent_data: SC) {
 
-            for (const [val, { name, type }] of const_map.entries()) {
-                const int_name = `__${intermediate_counter++}__intermediate`;
-
-                if (runner.constant_map.has(val)) {
-                    dependent_string = dependent_string.replace(RegExp(`${name}`, "g"), int_name);
-                    intermediates.push([int_name, runner.constant_map.get(val).name]);
+            let intermediate_names = [];
+            for (const [hash, { original_name, name, code_node }] of const_map.entries()) {
+                if (runner.constant_map.has(hash)) {
+                    let int_name = "____intermediate___" + intermediate_names.length;
+                    intermediate_names.push([int_name, runner.constant_map.get(hash).name.value]);
+                    dependent_data.replaceVariableValue(name.type.value, int_name);
                 } else {
-                    let const_name = runner.add_constant(val, name, type);
-                    if (name !== const_name) {
-                        dependent_string = dependent_string.replace(RegExp(`${name}`, "g"), int_name);
-                        intermediates.push([int_name, const_name]);
+                    let const_name = runner.add_constant(original_name, code_node);
+
+                    if (name.type.value !== const_name.type.value) {
+                        let int_name = "____intermediate___" + intermediate_names.length;
+                        intermediate_names.push([int_name, const_name.type.value]);
+                        dependent_data.replaceVariableValue(name.type.value, int_name);
                     }
                 }
             }
-            for (const [int_name, real_name] of intermediates) {
-                dependent_string = dependent_string.replace(RegExp(`${int_name}`, "g"), real_name);
+
+            for (const [old_name, new_name] of intermediate_names)
+                dependent_data.replaceVariableValue(old_name, new_name);
+        },
+        render_constants: (): { const: SC[], fn: SC[]; } => {
+
+            const code_fn_node = [], const_ty_node = [];
+
+            for (const { name, code_node: node } of [...runner.constant_map.values()].sort((a, b) => {
+                return a.name.value < b.name.value ? -1 : b.name.value < a.name.value ? 1 : 0;
+            })) {
+                const bound_node = SC.Bind(node);
+                if (bound_node.type.type == "function") {
+                    bound_node.expressions[0] = name;
+                    code_fn_node.push(bound_node);
+                } else {
+                    const_ty_node.push(SC.Declare(SC.Assignment(name, <ExprSC>bound_node)));
+                }
             }
 
-            return dependent_string;
-        },
-        add_statement: (hash, name, val) => {
-            if (runner.statements.has(hash)) {
-                return runner.statements.get(hash).name;
-            } else {
-                runner.statements.set(hash, { name, val });
-            }
-            return name;
-        },
-        render_constants: () => {
-            const constants = [...runner.constant_map.entries()]
-                .map(([val, { name, type }], i) => `${name}${type ? ":" + type : ""} = ${val}`);
-
-            if (constants.length > 0)
-                return `const ${constants.join(",\n")};`;
-            return "";
-        },
-        render_statements: () => {
-            const statements = [...runner.statements.values()]
-                .map(({ name, val }, i) => `${val}`);
-
-            if (statements.length > 0)
-                return `${statements.join(";\n")};`;
-            return "";
+            return { const: const_ty_node, fn: code_fn_node };
         },
     };
 

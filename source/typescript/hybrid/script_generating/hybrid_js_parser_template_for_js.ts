@@ -7,13 +7,7 @@ import {
     TokenNewLineIdentifier,
     TokenSymbolIdentifier
 } from "../utilities/utilities.js";
-export const renderParserScript = (grammar: Grammar, options: HybridCompilerOptions, wasm_data?: Uint8Array, BUILD_LOCAL: boolean = false) => {
-
-    const loader = (options.combine_wasm_with_js || BUILD_LOCAL)
-        ? `await loader.instantiate(data, { env: { memory: shared_memory } })`
-        : `await loader.instantiate(await URL.resolveRelative("${options.wasm_output_dir + "recognizer.wasm"}").fetchBuffer(), { env: { memory: shared_memory } })`,
-
-        data = (BUILD_LOCAL || options.combine_wasm_with_js) ? `const data = new Uint8Array([${wasm_data.toString()}]);` : "";
+export const renderParserScript = (grammar: Grammar, options: HybridCompilerOptions, js_data?: string, BUILD_LOCAL: boolean = false) => {
 
     return `
 
@@ -22,12 +16,11 @@ ${BUILD_LOCAL ? "" : `
     import {buildParserMemoryBuffer} from "${options.memory_loader_url}";              
     import URL from "@candlefw/url";
     import Lexer from "@candlefw/wind";
-`}
-
-${data}
+`} 
 
 const 
-    { shared_memory, action_array, error_array } = buildParserMemoryBuffer(),
+    { shared_memory, action_array, error_array } = buildParserMemoryBuffer(true),
+    recognizer = ${js_data}(shared_memory),
     fns = [(e,sym)=>sym[sym.length-1], \n${[...grammar.meta.reduce_functions.keys()].map((b, i) => {
         if (b.includes("return")) {
             return b.replace("return", "(env, sym, pos)=>(").slice(0, -1) + ")" + `/*${i}*/`;
@@ -38,18 +31,11 @@ const
         }];
 
 ${BUILD_LOCAL ? "" : "export default async function loadParser(){"} 
-
-    await URL.server();
-
-    const wasmModule = ${loader},
     
-    { main, __newString } = wasmModule.exports;
-
     return function (str, env = {}) {
         
         const 
-            str_ptr = __newString(str),
-            FAILED = main(str_ptr), // call with pointers
+            FAILED = recognizer(str), // call with pointers
             aa = action_array,
             er = error_array,
             stack = [];
@@ -160,10 +146,10 @@ ${BUILD_LOCAL ? "" : "export default async function loadParser(){"}
                             pos.push({ off: offset, tl: len });
                             offset += len;
                         }
-                      //  console.log(stack)
                     } break;
                 }
             }
+            //console.log(stack,aa,er)
         //}
     
         return { result: stack, FAILED: !!FAILED, action_length };

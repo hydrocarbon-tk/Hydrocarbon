@@ -1,6 +1,8 @@
 import { Item } from "../../util/common";
-import { LRState } from "./State";
+import { RDState } from "./State";
 import { ItemSet } from "../../types/item_set";
+import { ConstantHash, ConstantObj } from "./CompilerRunner";
+import { SC } from "../utilities/skribble";
 
 export enum HybridJobType {
     UNDEFINED,
@@ -14,7 +16,7 @@ export interface HybridDispatch {
     job_type: HybridJobType;
     items?: ItemSet;
     production_id?: number;
-    state?: LRState;
+    state?: RDState;
     item_set?: { old_state: number; items: Item[]; };
 }
 
@@ -22,10 +24,10 @@ export interface HybridDispatchResponse {
     job_type: HybridJobType;
     items?: Item[];
     production_id?: number;
-    state?: LRState;
+    state?: RDState;
     productions?: Set<number>;
-    potential_states?: LRState[];
+    potential_states?: RDState[];
     CONVERT_RD_TO_LR?: boolean;
-    const_map?: Map<string, { name: string, type: string; }>;
-    fn?: string;
+    const_map?: Map<ConstantHash, ConstantObj>;
+    fn?: SC;
 }
