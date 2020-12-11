@@ -43,16 +43,32 @@ export function SymbolToStringUnformatted(sym: { type?: SymbolType, val: string;
             return sym.val;
     }
 }
+export class ItemGraphNode {
+    subitems: ItemGraphNode[];
+    supitems: ItemGraphNode[];
+    item: Item;
 
+    id?: number;
+    name?: string;
+
+    /**
+     * Higher score represents a greater depth from the root nodes. 
+     */
+    score?: number;
+}
 export class Item extends Array {
 
-    static fromArray(array: Item): Item {
+    static fromArray(array: Array<any>): Item {
         if (array instanceof Item) return array;
 
         const new_item = new Item(array[ItemIndex.body_id], array[ItemIndex.length], array[ItemIndex.offset], (<Item>array).follow);
 
+        new_item.IS_LR = array.IS_LR;
+
         return new_item;
     }
+
+    IS_LR: Boolean;
 
     USED: boolean;
     follow: Symbol;
@@ -64,6 +80,8 @@ export class Item extends Array {
         this.follow = follow;
 
         this.USED = false;
+
+        this.IS_LR = false;
     }
 
     get atEND(): boolean {
@@ -121,12 +139,13 @@ export class Item extends Array {
     renderUnformatted(grammar: Grammar): string {
 
         const a = this.body_(grammar).sym
-            .map(sym => sym.type == SymbolType.PRODUCTION ? Object.assign({}, sym, { val: grammar[sym.val].name + "::" + grammar[sym.val].IS_LEFT_RECURSIVE }) : sym)
+            .map(sym => sym.type == SymbolType.PRODUCTION ? Object.assign({}, sym, { val: grammar[sym.val].name }) : sym)
             .map(sym => getRootSym(sym, grammar))
             //@ts-ignore
             .flatMap((sym, i) => (i == this.offset) ? ["•", SymbolToStringUnformatted(sym)] : SymbolToStringUnformatted(sym));
         if (a.length == this.offset)
             a.push("•");
+        a.push(this.IS_LR ? "  ::LR" : "");
         return a.join(" ");
     }
 
@@ -180,14 +199,18 @@ export class Item extends Array {
         if (this.offset < this.len) {
 
             const item = new Item(this.body, this.len, this.offset + 1, this.follow);
+            item.IS_LR = this.IS_LR;
             return item;
         }
         return null;
     }
 
     decrement(): Item | null {
-        if (this.offset > 0)
-            return new Item(this.body, this.len, this.offset - 1, this.follow);
+        if (this.offset > 0) {
+            const item = new Item(this.body, this.len, this.offset - 1, this.follow);
+            item.IS_LR = this.IS_LR;
+            return item;
+        }
         return this;
     }
 
