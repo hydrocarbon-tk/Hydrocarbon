@@ -1,13 +1,12 @@
 import { traverse } from "@candlefw/conflagrate";
-import { exp, JSNode, JSNodeClass, JSNodeType, parser, renderWithFormatting, stmt } from "@candlefw/js";
+import { exp, JSNode, JSNodeClass, JSNodeType, parser, stmt } from "@candlefw/js";
 import { Lexer } from "@candlefw/wind";
 
 import { Grammar, GrammarFunction, Production, ProductionBody, SymbolType } from "../../types/grammar.js";
 import { AssertionFunctionSymbol, EOFSymbol, GeneratedSymbol, ProductionSymbol, SpecifiedCharacterSymbol, SpecifiedIdentifierSymbol, SpecifiedNumericSymbol, SpecifiedSymbol, Symbol, TokenSymbol } from "../../types/Symbol";
 import { Item } from "../../util/item.js";
 import { CompilerRunner } from "../types/CompilerRunner.js";
-import { RDState } from "../types/State.js";
-import { AS, ConstSC, CPP, ExprSC, RS, SC, StmtSC, VarSC } from "./skribble.js";
+import { AS, ConstSC, ExprSC, SC, StmtSC, VarSC } from "./skribble.js";
 
 
 export const TokenSpaceIdentifier = 1,
@@ -506,7 +505,7 @@ export function generateCompiledAssertionFunction(sym: AssertionFunctionSymbol, 
 }
 
 export function getAssertionSymbolFirst(sym: AssertionFunctionSymbol, grammar: Grammar): TokenSymbol[] {
-    const fn = generateCompiledAssertionFunction(sym, grammar, <CompilerRunner>{ ANNOTATED: false });
+    const fn = generateCompiledAssertionFunction(sym, grammar, <CompilerRunner>{ ANNOTATED: false, add_constant: (name) => { return name; } });
     if (fn)
         return fn.first;
     else return [];
@@ -573,10 +572,6 @@ export function convertAssertionFunctionBodyToSkribble(af_body_content: string, 
         }
 
     });
-
-    console.log(Object.assign(new AS, sc).renderCode());
-
-
 
     return { sc: sc, first };
 }
