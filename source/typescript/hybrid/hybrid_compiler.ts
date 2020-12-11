@@ -10,7 +10,7 @@ import { Grammar } from "../types/grammar.js";
 import { GrammarParserEnvironment } from "../types/grammar_compiler_environment";
 import { HybridCompilerOptions } from "./CompiledHybridOptions";
 import { HybridMultiThreadRunner } from "./hybrid_mt_runner.js";
-import { buildParserMemoryBuffer } from "./parser_memory.js";
+import { action32bit_array_byte_size_default, buildParserMemoryBuffer, jump16bit_table_byte_size } from "./parser_memory.js";
 import { renderAssemblyScriptRecognizer } from "./script_generating/hybrid_assemblyscript_recognizer_template.js";
 import { renderParserScript } from "./script_generating/hybrid_js_parser_template.js";
 import { renderParserScript as renderJSScript } from "./script_generating/hybrid_js_parser_template_for_js.js";
@@ -43,16 +43,16 @@ export async function compileHybrid(grammar: Grammar, env: GrammarParserEnvironm
     const
         used_options: HybridCompilerOptions = Object.assign({}, default_options, options),
         runner: CompilerRunner = constructCompilerRunner(used_options.add_annotations),
-        mt_code_compiler = new HybridMultiThreadRunner(grammar, env, runner, used_options.number_of_workers);
+        mt_code_compiler = new HybridMultiThreadRunner(grammar, env, runner, used_options.number_of_workers),
+        action32bit_array_byte_size = action32bit_array_byte_size_default,
+        error8bit_array_byte_size = 10 * 4098 * 4; //  error8bit_array_byte_size_default;
 
     used_options.combine_wasm_with_js = Boolean(used_options.no_file_output || used_options.combine_wasm_with_js);
 
     for (const updates of mt_code_compiler.run()) await spark.sleep(1);
 
-    const rc = renderAssemblyScriptRecognizer(grammar, runner, mt_code_compiler.functions);
+    const rc = renderAssemblyScriptRecognizer(grammar, runner, mt_code_compiler.functions, action32bit_array_byte_size, error8bit_array_byte_size),
 
-
-    const
         wasm_dir = URL.resolveRelative(options.wasm_output_dir),
         ts_dir = URL.resolveRelative(options.ts_output_dir),
         recognizer_wat_file = URL.resolveRelative("./recognizer.wat", wasm_dir),
@@ -60,6 +60,8 @@ export async function compileHybrid(grammar: Grammar, env: GrammarParserEnvironm
         recognizer_ts_file = URL.resolveRelative("./recognizer.ts", ts_dir),
         recognizer_js_file = URL.resolveRelative("./recognizer.js", ts_dir),
         recognizer_cpp_file = URL.resolveRelative("./recognizer.h", ts_dir),
+        recognizer_rust_file = URL.resolveRelative("./recognizer.rs", ts_dir),
+        recognizer_go_file = URL.resolveRelative("./recognizer.rs", ts_dir),
         parser_file = URL.resolveRelative("./parser.js", ts_dir),
         recognizer_script_ts = `
         type BooleanTokenCheck = (l:Lexer)=>boolean;
@@ -98,7 +100,6 @@ export async function compileHybrid(grammar: Grammar, env: GrammarParserEnvironm
         throw e;
     }
 
-
     if (!used_options.no_file_output) {
         const
             { binary, text, stdout, stderr } = asc.compileString(recognizer_script_ts, {
@@ -110,7 +111,7 @@ export async function compileHybrid(grammar: Grammar, env: GrammarParserEnvironm
                 sharedMemory: false,
                 maximumMemory: 100,
                 importMemory: true,
-                memoryBase: 4579328
+                memoryBase: action32bit_array_byte_size + error8bit_array_byte_size + jump16bit_table_byte_size
             }),
             errors = stderr.toString(),
             messages = stdout.toString();
@@ -152,9 +153,10 @@ export async function compileHybrid(grammar: Grammar, env: GrammarParserEnvironm
         return;
 
     }
-    
+
     if (used_options.no_file_output || used_options.create_function) {
-        const script = `${renderJSScript(grammar, used_options, recognizer_script_js, true)}`;
+        const script = `${renderJSScript(grammar, used_options, recognizer_script_js, true, action32bit_array_byte_size,
+            error8bit_array_byte_size)}`;
         await fsp.writeFile(recognizer_ts_file + "", recognizer_script_ts);
         //    / return script;
         return await (new AsyncFunction(

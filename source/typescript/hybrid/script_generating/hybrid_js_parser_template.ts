@@ -1,5 +1,6 @@
 import { Grammar } from "../../types/grammar.js";
 import { HybridCompilerOptions } from "../CompiledHybridOptions.js";
+import { action32bit_array_byte_size_default, error8bit_array_byte_size_default } from "../parser_memory.js";
 import {
     TokenSpaceIdentifier,
     TokenNumberIdentifier,
@@ -7,7 +8,15 @@ import {
     TokenNewLineIdentifier,
     TokenSymbolIdentifier
 } from "../utilities/utilities.js";
-export const renderParserScript = (grammar: Grammar, options: HybridCompilerOptions, wasm_data?: Uint8Array, BUILD_LOCAL: boolean = false) => {
+export const renderParserScript = (
+    grammar: Grammar,
+    options: HybridCompilerOptions,
+    wasm_data?: Uint8Array,
+    BUILD_LOCAL: boolean = false,
+    action32bit_array_byte_size = action32bit_array_byte_size_default,
+    error8bit_array_byte_size = error8bit_array_byte_size_default
+
+) => {
 
     const loader = (options.combine_wasm_with_js || BUILD_LOCAL)
         ? `await loader.instantiate(data, { env: { memory: shared_memory } })`
@@ -27,7 +36,7 @@ ${BUILD_LOCAL ? "" : `
 ${data}
 
 const 
-    { shared_memory, action_array, error_array } = buildParserMemoryBuffer(),
+    { shared_memory, action_array, error_array } = buildParserMemoryBuffer(false, ${action32bit_array_byte_size}, ${error8bit_array_byte_size}),
     fns = [(e,sym)=>sym[sym.length-1], \n${[...grammar.meta.reduce_functions.keys()].map((b, i) => {
         if (b.includes("return")) {
             return b.replace("return", "(env, sym, pos)=>(").slice(0, -1) + ")" + `/*${i}*/`;

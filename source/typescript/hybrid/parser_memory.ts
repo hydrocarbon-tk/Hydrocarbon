@@ -39,15 +39,23 @@ function air(t, v, i_r) {
         aii(t, v, a);
     }
 }
+
+export const jump16bit_table_byte_size = 382976;
+export const action32bit_array_byte_size_default = 4194304;
+export const error8bit_array_byte_size_default = 512;
 /**
  * Allocates and initializes a pool of memory large enough to contain the lexer jump table, action array buffer, and error array buffer.
  * @param USE_ARRAY_BUFFER Use ArrayBuffer storage, otherwise use a WebAssembly.Memory buffer.
- * @param action_array_byte_size 
- * @param error_array_byte_size 
+ * @param action32bit_array_byte_size 
+ * @param error8bit_array_byte_size 
  */
-export function buildParserMemoryBuffer(USE_ARRAY_BUFFER: boolean = false, action_array_byte_size = 1048576, error_array_byte_size = 512) {
+export function buildParserMemoryBuffer(
+    USE_ARRAY_BUFFER: boolean = false,
+    action32bit_array_byte_size = action32bit_array_byte_size_default,
+    error8bit_array_byte_size = error8bit_array_byte_size_default
+) {
     const
-        min = 80, max = 100, page_byte_size = 65536, jump_table_byte_size = 191488,
+        min = 80, max = 100, page_byte_size = 65536,
 
         shared_memory = USE_ARRAY_BUFFER
             ? new ArrayBuffer(max * page_byte_size)
@@ -57,11 +65,11 @@ export function buildParserMemoryBuffer(USE_ARRAY_BUFFER: boolean = false, actio
             ? shared_memory
             : shared_memory.buffer,
 
-        jump_table = new Uint16Array(buffer, 0, jump_table_byte_size),
+        jump_table = new Uint16Array(buffer, 0, jump16bit_table_byte_size >> 1),
 
-        action_array = new Uint32Array(buffer, jump_table_byte_size * 2, action_array_byte_size),
+        action_array = new Uint32Array(buffer, jump16bit_table_byte_size, action32bit_array_byte_size >> 2),
 
-        error_array = new Uint32Array(buffer, jump_table_byte_size * 2 + action_array_byte_size * 4, error_array_byte_size);
+        error_array = new Uint32Array(buffer, jump16bit_table_byte_size + action32bit_array_byte_size, error8bit_array_byte_size);
 
     //7. Symbol
     // Default Value

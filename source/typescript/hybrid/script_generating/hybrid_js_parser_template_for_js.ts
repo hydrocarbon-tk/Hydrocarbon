@@ -1,5 +1,6 @@
 import { Grammar } from "../../types/grammar.js";
 import { HybridCompilerOptions } from "../CompiledHybridOptions.js";
+import { action32bit_array_byte_size_default, error8bit_array_byte_size_default } from "../parser_memory.js";
 import {
     TokenSpaceIdentifier,
     TokenNumberIdentifier,
@@ -7,7 +8,14 @@ import {
     TokenNewLineIdentifier,
     TokenSymbolIdentifier
 } from "../utilities/utilities.js";
-export const renderParserScript = (grammar: Grammar, options: HybridCompilerOptions, js_data?: string, BUILD_LOCAL: boolean = false) => {
+export const renderParserScript = (
+    grammar: Grammar,
+    options: HybridCompilerOptions,
+    js_data?: string,
+    BUILD_LOCAL: boolean = false,
+    action32bit_array_byte_size = action32bit_array_byte_size_default,
+    error8bit_array_byte_size = error8bit_array_byte_size_default
+) => {
 
     return `
 
@@ -19,7 +27,7 @@ ${BUILD_LOCAL ? "" : `
 `} 
 
 const 
-    { shared_memory, action_array, error_array } = buildParserMemoryBuffer(true),
+    { shared_memory, action_array, error_array } = buildParserMemoryBuffer(true, ${action32bit_array_byte_size}, ${error8bit_array_byte_size}),
     recognizer = ${js_data}(shared_memory),
     fns = [(e,sym)=>sym[sym.length-1], \n${[...grammar.meta.reduce_functions.keys()].map((b, i) => {
         if (b.includes("return")) {
@@ -41,6 +49,8 @@ ${BUILD_LOCAL ? "" : "export default async function loadParser(){"}
             stack = [];
     
         let action_length = 0;
+
+        console.log({FAILED})
     
         if (FAILED) {
             
@@ -51,6 +61,8 @@ ${BUILD_LOCAL ? "" : "export default async function loadParser(){"}
             const lexer = new Lexer(str);
             const probes = [];
             //Extract any probes
+
+            console.log("ERROR_LENGTH", er)
             for (let i = 0; i < er.length; i++) {
                 if (((er[i] & 0xF000000F) >>> 0) == 0xF000000F) {
                     const num = er[i] & 0xFFFFFF0;
@@ -88,14 +100,20 @@ ${BUILD_LOCAL ? "" : "export default async function loadParser(){"}
                 }
             }
 
+            if(error_off == 10000000000000)
+            error_off = 0;
+
             while (lexer.off < error_off && !lexer.END) lexer.next();
-            console.table(probes);
-            console.log(error_off, str.length);
+            if(probes.length >0)
+                console.table(probes);
+            console.log("", error_off, str.length);
             console.log(lexer.errorMessage(\`Unexpected token[\${ lexer.tx }]\`));
     
         } /*else {*/
 
             let offset = 0, pos = [{ off: 0, tl: 0 }];
+
+            console.log(aa)
 
             for (const action of aa) {
 

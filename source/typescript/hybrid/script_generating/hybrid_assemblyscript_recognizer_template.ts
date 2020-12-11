@@ -1,4 +1,5 @@
 import { Grammar, SymbolType } from "../../types/grammar.js";
+import { action32bit_array_byte_size_default, error8bit_array_byte_size_default, jump16bit_table_byte_size } from "../parser_memory.js";
 import { CompilerRunner } from "../types/CompilerRunner";
 import { RDProductionFunction } from "../types/RDProductionFunction";
 import { SC } from "../utilities/skribble.js";
@@ -18,7 +19,9 @@ import { getTokenSelectorStatements } from "./hybrid_token_selector_template.js"
 export const renderAssemblyScriptRecognizer = (
     grammar: Grammar,
     runner: CompilerRunner,
-    rd_functions: RDProductionFunction[]
+    rd_functions: RDProductionFunction[],
+    action32bit_array_byte_size = action32bit_array_byte_size_default,
+    error8bit_array_byte_size = error8bit_array_byte_size_default
 ): SC => {
     //Constant Values
     const assert_functions = new Map;
@@ -63,8 +66,8 @@ export const renderAssemblyScriptRecognizer = (
 
     code_node.addStatement(
         SC.Declare(
-            SC.Assignment(action_array_offset, SC.Value(191488 << 1)),
-            SC.Assignment(error_array_offset, SC.Value((191488 << 1) + (1048576 << 2))),
+            SC.Assignment(action_array_offset, SC.Value(jump16bit_table_byte_size)),
+            SC.Assignment(error_array_offset, SC.Value((jump16bit_table_byte_size) + (action32bit_array_byte_size))),
             SC.Assignment(TokenSpace, SC.Value(TokenSpaceIdentifier)),
             SC.Assignment(TokenNumber, SC.Value(TokenNumberIdentifier)),
             SC.Assignment(TokenIdentifier, SC.Value(TokenIdentifierIdentifier)),
@@ -101,10 +104,10 @@ export const renderAssemblyScriptRecognizer = (
     }
     */
     code_node.addStatement(SC.Function("set_error:void", "val:unsigned int").addStatement(
-        SC.If(SC.Binary(error_ptr, ">=", 128)).addStatement(SC.Return),
+        SC.If(SC.Binary(error_ptr, ">=", error8bit_array_byte_size / 4)).addStatement(SC.Return),
         SC.Call(
             SC.Constant("store:void", ":unsigned int"),
-            SC.Binary(SC.Binary(SC.Binary(SC.UnaryPost(error_ptr, "++"), "&", 0xFF), "<<", 2), "+", error_array_offset), "val:unsigned int")
+            SC.Binary(SC.Binary(SC.UnaryPost(error_ptr, "++"), "<<", 2), "+", error_array_offset), "val:unsigned int")
     ));
     /*            
     function set_action(val: u32):void{
