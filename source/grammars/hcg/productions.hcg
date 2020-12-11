@@ -48,7 +48,7 @@
  
 <> production → 
     
-    \<>  ( sym::production_id ↦r{ env.prod_name = $sym1, $sym1 } ) production_start_symbol  pb::production_bodies ( ( \│ │ \| ) fn::error_function )? 
+   \<>  ( sym::production_id ↦r{ env.prod_name = $sym1 } ) production_start_symbol  pb::production_bodies ( ( \│ │ \| ) fn::error_function )? 
                                                                         
                                                             ↦cstr{ 
                                                                 this.name = $sym2; 
@@ -60,7 +60,7 @@
 
     # REDEFINED IMPORT production. Allows an imported production to be redefined entirely. 
 
-    │ \<> ( sym::imported_production_symbol ↦r{ env.prod_name = $sym1.val, $sym1 } ) production_start_symbol pb::production_bodies
+    │ \<>  ( sym::imported_production_symbol ↦r{ env.prod_name = $sym1.val, $sym1 } ) production_start_symbol pb::production_bodies
 
                                                             ↦cstr{ 
                                                                 this.IMPORT_OVERRIDE = true;
@@ -83,3 +83,5 @@
                                                             }
     
 <> production_start_symbol → \→ | \>
+
+

@@ -23,7 +23,7 @@
 
 <> grouped_delimiter →  θnl │ θws                                    
 
-<> grouped_symbol →  ( θsym │ θid │ θtok | θkey )(+\" )  sym_delimter?   ↦cstr{ this.type = "symbol"; this.val = $sym1; this.pos = pos; env.symbols.push(this)}                                                    
+<> grouped_symbol →  ( θsym │ θid )(+\" )  sym_delimter?   ↦cstr{ this.type = "symbol"; this.val = $sym1; this.pos = pos; env.symbols.push(this)}                                                    
 
 <> ignore_symbol → generated_symbol
     │ literal_symbol
@@ -50,7 +50,6 @@
     # values are automatically reduced to a string. 
     │ symbol ( \(+ │ \(* )  terminal_symbol?  \)         ↦cstr ^listProduction                                            
     │ θsym                                               ↦cstr{ this.type = "symbol"; this.val = $sym1; this.pos = pos; env.symbols.push(this)}
-    | θtok                                               ↦cstr{ this.type = "symbol"; this.val = $sym1; this.pos = pos; env.symbols.push(this)}
 
 <> EOF_symbol → 
     \$eof                                              ↦cstr{ this.type = "eof"; this.val = "END_OF_FILE"; this.pos = pos; env.symbols.push(this) }
@@ -70,17 +69,17 @@
                                                                         ↦cstr{ this.type = "literal"; this.val = ""+$sym2; this.pos = pos; env.symbols.push(this) }
 
 <> escaped_symbol → 
-    \\ ( θid | θtok | θsym | θkey   )(+\" ) sym_delimter                     ↦cstr{ this.type = "symbol"; this.val = $sym2; this.pos = pos; env.symbols.push(this) }
+    \\ ( θid | θsym )(+\" ) sym_delimter                     ↦cstr{ this.type = "symbol"; this.val = $sym2; this.pos = pos; env.symbols.push(this) }
 
 <> production_symbol → 
     identifier                                                          ↦cstr{ this.type = "production"; this.name = $sym1; this.val = -1; this.pos = pos;}
 
 <> imported_production_symbol → 
-    production_id \:: identifier                         ↦c ^importProduction
+    identifier \:: identifier                         ↦c ^importProduction
 
 <> production_id → identifier
 
-<> identifier →  def::js_identifier
+<> identifier →  def::js_identifier 
 
 <> js_identifier →  def::id
 

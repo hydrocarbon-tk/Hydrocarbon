@@ -13,4 +13,4 @@
 <> comment_data → comment_primitive                                 ↦return { $sym1 }
              │ comment_data comment_primitive                        ↦return { $sym1 + $sym2 }
 
-<> comment_primitive → θsym | θtok | θid | θnum | θws | θkey
+<> comment_primitive → θsym | θid | θnum | θws
