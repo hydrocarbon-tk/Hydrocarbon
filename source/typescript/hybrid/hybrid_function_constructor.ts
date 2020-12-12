@@ -3,9 +3,7 @@ import { AssertionFunctionSymbol, Symbol, TokenSymbol } from "../types/Symbol";
 import { processClosure, Item, FOLLOW, FIRST } from "../util/common.js";
 import {
     createNoCheckShift,
-    has_INLINE_FUNCTIONS,
     getRootSym,
-    getSkipFunction,
     getIncludeBooleans,
     createReduceFunction,
     createDefaultReduceFunction,
@@ -25,7 +23,9 @@ import {
     isSymGeneratedNL,
     isSymAnAssertFunction,
     getAssertionSymbolFirst,
-    isSymSpecified
+    isSymSpecified,
+    getSkipFunction,
+    createSkipCall
 } from "./utilities/utilities.js";
 import { RDProductionFunction } from "./types/RDProductionFunction";
 import { RDItem } from "./types/RDItem";
@@ -322,6 +322,14 @@ function getGroups(symboled_items: Map<TokenSymbol, Item[]>, grammar: Grammar) {
     return group_maps;
 }
 
+function getStrictAccompanyingItems(grammar: Grammar, prod_items: Item[], items: Item[], out: Item[] = [], all = false) {
+    const accompanying = getAccompanyingItems(grammar, prod_items, items);
+    const prod_id = new Set((accompanying).map(i => i.getProductionAtSymbol(grammar).id));
+    if (!prod_items.every(i => prod_id.has(i.getProduction(grammar).id)))
+        return [];
+    return accompanying;
+}
+
 function getAccompanyingItems(grammar: Grammar, prod_items: Item[], items: Item[], out: Item[] = [], all = false) {
     const prod_id = new Set((prod_items).map(i => i.getProduction(grammar).id));
 
@@ -348,6 +356,73 @@ function renderItems(rd_items: Item[], grammar: Grammar): string[] {
     return rd_items.map(i => i.renderUnformattedWithProduction(grammar));
 }
 
+
+
+export function getMinDisambiguatedDepth(items: Item[], grammar: Grammar, depth: number = 0, limit: number = 10): { depth: number, UNAMBIGUOUS: boolean; } {
+
+    const closure = items.slice();
+
+
+    processClosure(closure, grammar, true);
+
+    const
+        active_items = closure
+            .filter(i => !i.atEND && !!i),
+
+        completed_items = closure
+            .filter(i => i.atEND && !!i),
+
+        symboled_items: Map<TokenSymbol, Item[]> = active_items
+            .filter(i => i.sym(grammar).type != SymbolType.PRODUCTION)
+            .groupMap(i => <TokenSymbol>getRootSym(i.sym(grammar), grammar));
+
+    let COMPLETELY_UNAMBIGUOUS = symboled_items.size > 0 && !(completed_items.length > 0);
+
+    if (completed_items.length > 0)
+        depth++;
+
+    if (COMPLETELY_UNAMBIGUOUS)
+        for (const [sym, items] of symboled_items.entries()) {
+            const [first] = items;
+            let new_depth = -1;
+            if (items.length == 1) {
+                //complete item and get all items that transition on the item's production
+                if (depth < 10) {
+                    let offset = first.len - first.offset;
+                    //let accompanying = getAccompanyingItems(grammar, [first], active_items);
+                    new_depth = depth;
+                }
+            } else {
+
+                let { depth: d, UNAMBIGUOUS: D } = getMinDisambiguatedDepth(items.map(i => i.increment()), grammar, depth + 1);
+                new_depth = d;
+                if (new_depth != Infinity && new_depth < limit && !D) {
+                    let accompanying = getStrictAccompanyingItems(grammar, items, active_items);
+
+                    if (accompanying.length == 0) COMPLETELY_UNAMBIGUOUS = false;
+
+                    while (accompanying.length > 0 && new_depth < limit && !D) {
+                        const items = accompanying.map(i => i.increment());
+                        let { depth: d, UNAMBIGUOUS: DD } = getMinDisambiguatedDepth(items, grammar, new_depth, limit);
+                        D = DD;
+                        new_depth = d;
+
+                        accompanying = getStrictAccompanyingItems(grammar, items, active_items);
+                    }
+                }
+
+                if (!D || new_depth >= 10) COMPLETELY_UNAMBIGUOUS = false;
+            }
+
+            depth = Math.max(new_depth, depth);
+        }
+
+
+    console.log({ i: items.map(i => i.renderUnformattedWithProduction(grammar)), COMPLETE_DISAMBIGUITY: COMPLETELY_UNAMBIGUOUS, depth });
+
+    return { depth, UNAMBIGUOUS: COMPLETELY_UNAMBIGUOUS };
+}
+
 export function renderFunctionBody(
     rd_items: Item[],
     grammar: Grammar,
@@ -360,16 +435,21 @@ export function renderFunctionBody(
     offset = 0,
 ): ({ sym_map: Map<TokenSymbol, any>, sc: SC, IS_PRODUCTION: boolean; }) {
 
-    const lr_items_global = [];
-    const code_node = new SC;
-    const active_items = rd_items
-        .filter(i => !i.atEND && !!i);
-    const completed_items = rd_items
-        .filter(i => i.atEND && !!i);
-    const symboled_items: Map<TokenSymbol, Item[]> = active_items
-        .filter(i => i.sym(grammar).type != SymbolType.PRODUCTION)
-        .groupMap(i => <TokenSymbol>getRootSym(i.sym(grammar), grammar));
-    const group_maps: Map<string, { syms: Set<TokenSymbol>, items: Item[]; priority: number; }> = getGroups(symboled_items, grammar);
+    const lr_items_global = [],
+
+        code_node = new SC,
+
+        active_items = rd_items
+            .filter(i => !i.atEND && !!i),
+
+        completed_items = rd_items
+            .filter(i => i.atEND && !!i),
+
+        symboled_items: Map<TokenSymbol, Item[]> = active_items
+            .filter(i => i.sym(grammar).type != SymbolType.PRODUCTION)
+            .groupMap(i => <TokenSymbol>getRootSym(i.sym(grammar), grammar)),
+
+        group_maps: Map<string, { syms: Set<TokenSymbol>, items: Item[]; priority: number; }> = getGroups(symboled_items, grammar);
 
     let leaf: SC = null, root: SC = leaf;
 
@@ -383,28 +463,89 @@ export function renderFunctionBody(
 
         if (items.length > 1) {
 
-
+            // Get minimum number of steps need to resolve multiple transitions. If it exceeds some 
+            // predetermined limit, then use alternative such as speculative parsing.
             const d = items.map(i => i.increment());
 
             _if.addStatement(SC.Comment(`Multiple items on [ ${syms.map(s => s.val).join(" ")} ] \n    ` + renderItems(d, grammar).join("\n    ") + "\n"));
 
             processClosure(d, grammar, true);
-            const sc = renderFunctionBody(
-                d,
-                grammar, runner, production, productions,
-                options, lr_items_global, [...production_items, d.setFilter(s => s.id)], offset + 1
-            ).sc;
-            const sc1 = renderItemSym(_if, first, grammar, runner, productions, true).code_node;
 
-            sc1.addStatement(sc);
+            let sc = new SC;
+            try {
 
-            if (leaf) {
-                leaf.addStatement(_if);
-                leaf = _if;
-            } else {
-                leaf = _if;
-                root = leaf;
+                sc = renderFunctionBody(
+                    d,
+                    grammar, runner, production, productions,
+                    options, lr_items_global,
+                    [
+                        ...production_items,
+                        d.setFilter(s => s.id)
+                            .filter(d => !d.atEND)
+                            .filter(d => d.sym(grammar).type == SymbolType.PRODUCTION)
+                    ],
+                    offset + 1
+                ).sc;
+
+                const sc1 = renderItemSym(_if, first, grammar, runner, productions, true).code_node;
+
+                sc1.addStatement(sc);
+
+                if (leaf) {
+                    leaf.addStatement(_if);
+                    leaf = _if;
+                } else {
+                    leaf = _if;
+                    root = leaf;
+                }
+
+            } catch (e) {
+                if (items.every(i => i.offset == 0) && e instanceof AmbiguousParse) {
+                    console.log({
+                        r: "AmbiguousParse Intercept",
+                        o: items.map(i => i.renderUnformattedWithProduction(grammar)),
+                        a: d.map(i => i.renderUnformattedWithProduction(grammar)),
+                        b: production_items.map(s => s.map(s => s.renderUnformattedWithProduction(grammar)))
+                    });
+
+                    const root2 = new SC;
+                    let _if;
+                    const cp = SC.Variable("cp");
+                    root2.addStatement(SC.Declare(SC.Variable("cp:Lexer")));
+
+                    for (const item of items) {
+                        const production = item.getProduction(grammar);
+                        const follow = [...FOLLOW(grammar, production.id).values()];
+                        const skip = createSkipCall(grammar, runner, cp, follow);
+                        const bools = getIncludeBooleans(follow, grammar, runner, skip, []);
+                        const temp = SC.If(
+                            SC.Binary(
+                                SC.Call(
+                                    "$" + production.name,
+                                    SC.Assignment(cp, SC.Call(SC.Member(global_lexer_name, "copy")))), "&&",
+                                bools)
+                        ).addStatement(
+                            SC.Call(SC.Member(global_lexer_name, "sync"), cp)
+                        );
+                        temp.addStatement(SC.Empty());
+                        if (_if) temp.addStatement(_if);
+                        _if = temp;
+                    }
+
+                    root2.addStatement(_if);
+
+                    if (leaf) {
+                        leaf.addStatement(root2);
+                        leaf = root2;
+                    } else {
+                        leaf = root2;
+                        root = leaf;
+                    }
+                } else {
+                    throw e;
+                }
             }
+
         } else {
 
             const AT_END = first.increment();
@@ -432,26 +573,24 @@ export function renderFunctionBody(
 
             _if.addStatement(SC.Empty());
         }
+        console.log({ left_recursion_items: lr_items_global.map(i => i.renderUnformattedWithProduction(grammar)) });
 
         while (offset >= 0) {
 
-
             accompanying_items = getAccompanyingItems(grammar, accompanying_items, production_items[offset]);
-
-
-            //_if.addStatement(SC.Comment(`Items that are expecting production [ ${first.getProduction(grammar).name} ]  \n    ` + renderItems(accompanying_items.map(i => i.increment()), grammar).join("\n    ") + "\n"));
 
             if (accompanying_items.some(i => i.IS_LR)) {
                 lr_items_global.push(...accompanying_items);
                 break;
-            }
-
-            if (accompanying_items.length == 0) {
+            } else if (accompanying_items.length == 0) {
                 break;
             } else if (accompanying_items.length > 1) {
+                const visited_prods = new Set();
                 while (accompanying_items.length > 0) {
-                    lr_items_global.push(...accompanying_items);
-                    accompanying_items = getAccompanyingItems(grammar, accompanying_items, production_items[offset]);
+                    const new_items = accompanying_items.filter(i => !visited_prods.has(i.id));
+                    new_items.forEach(i => visited_prods.add(i.id));
+                    lr_items_global.push(...new_items);
+                    accompanying_items = getAccompanyingItems(grammar, new_items, production_items[offset]);
                 }
                 break;
                 const closureA = accompanying_items.map(i => i);
@@ -474,22 +613,30 @@ export function renderFunctionBody(
                 _if = sc;
                 //  break;
             } else {
-                first = accompanying_items[0].increment();
+                const first = accompanying_items[0].increment();
+
                 _if = renderItem(_if, first, grammar, runner, productions, true);
                 //render item
                 const p = first.getProduction(grammar);
-
-                accompanying_items = accompanying_items.map(i => i.increment());
 
                 if (p.id == production.id) {
                     addReturnType(options.RETURN_TYPE, _if);
                     break;
                 };
+                accompanying_items = [first];
             }
         }
-        //Need to disambiguate
     }
-    //This is where the while 
+    // If there are any completed items that do not transition from a production
+    // then throw. This results from multiple productions resulting in an ambiguous parse 
+    if (completed_items.some(i => i.decrement().sym(grammar).type != SymbolType.PRODUCTION)) {
+        throw new AmbiguousParse("Unresolved items: \n" +
+            completed_items
+                .filter(i => i.decrement().sym(grammar).type != SymbolType.PRODUCTION)
+                .map(i => i.renderUnformattedWithProduction(grammar))
+                .join("\n")
+        );
+    }
 
     lr_items_global.push(...completed_items.map(i => i.decrement()));
 
@@ -503,6 +650,8 @@ export function renderFunctionBody(
 
     return ({ sc: code_node, _if, sym_map: symboled_items });
 }
+class AmbiguousParse extends SyntaxError { };
+
 function renderLRLoop(
     left_recursion_items: Item[],
     grammar: Grammar,
@@ -514,10 +663,13 @@ function renderLRLoop(
 ) {
     if (left_recursion_items.length > 0) {
 
+
+
         const lr_items = left_recursion_items
             .setFilter(i => i.id)
             .groupMap(i => i.sym(grammar).val),
             production_io_map = left_recursion_items.reduce((r, i) => {
+                console.log(i.renderUnformattedWithProduction(grammar));
                 const trans_production = i.getProductionAtSymbol(grammar).id;
                 if (!r.has(trans_production))
                     r.set(trans_production, []);
@@ -698,7 +850,7 @@ export function constructHybridFunction(production: Production, grammar: Grammar
 
         const
             left_recursion_items: Item[] = [],
-            production_items = items.filter(i => i.sym(grammar).type == SymbolType.PRODUCTION),
+            production_items = items.filter(i => isSymAProduction(i.sym(grammar))),
             sc =
                 renderFunctionBody(
                     items,
