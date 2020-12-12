@@ -187,6 +187,14 @@ export function createNoCheckShiftWithSkip(grammar: Grammar, runner: CompilerRun
         return SC.Expressions(SC.Call(SC.Constant("_no_check_with_skip"), lex_name, skip));
     else
         return createNoCheckShift(grammar, runner, lex_name);
+}
+
+export function createSkipCall(grammar: Grammar, runner: CompilerRunner, lex_name: ConstSC | VarSC = SC.Variable("l:Lexer"), exclude_set: TokenSymbol[] | Set<string> = new Set): SC {
+    const skip = getSkipFunction(grammar, runner, exclude_set);
+    if (skip)
+        return SC.Call(SC.Constant("_skip"), lex_name, skip);
+    else
+        return lex_name;
 
 }
 
