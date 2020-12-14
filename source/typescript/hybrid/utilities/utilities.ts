@@ -9,6 +9,18 @@ import { CompilerRunner } from "../types/CompilerRunner.js";
 import { AS, ConstSC, ExprSC, SC, StmtSC, VarSC } from "./skribble.js";
 
 
+/**
+ * Function names
+ */
+export const consume_call = SC.Variable("consume:void");
+export const consume_skip_call = SC.Variable("consume_skip:void");
+/**
+ * Consume With Assert and skip call signature
+ */
+export const consume_assert_skip_call = SC.Variable("consume_assert_skip:void");
+
+export const consume_assert_call = SC.Variable("consume_assert:void");
+
 export const TokenSpaceIdentifier = 1,
     TokenNumberIdentifier = 2,
     TokenIdentifierIdentifier = 4,
@@ -176,7 +188,7 @@ export function createAssertionShiftWithSkip(grammar: Grammar,
     const skip = getSkipFunction(grammar, runner, exclude_set);
 
     if (skip)
-        SC.Expressions(SC.Call(SC.Constant("_no_check_with_skip"), lex_name, getIncludeBooleans([sym], grammar, runner)));
+        SC.Expressions(SC.Call(consume_skip_call, lex_name, getIncludeBooleans([sym], grammar, runner)));
     else
         return createAssertionShift(grammar, runner, sym, lex_name);
 }
@@ -184,7 +196,7 @@ export function createAssertionShiftWithSkip(grammar: Grammar,
 export function createNoCheckShiftWithSkip(grammar: Grammar, runner: CompilerRunner, lex_name: ConstSC | VarSC = SC.Variable("l:Lexer"), exclude_set: TokenSymbol[] | Set<string> = new Set): StmtSC {
     const skip = getSkipFunction(grammar, runner, exclude_set);
     if (skip)
-        return SC.Expressions(SC.Call(SC.Constant("_no_check_with_skip"), lex_name, skip));
+        return SC.Expressions(SC.Call(consume_skip_call, lex_name, skip));
     else
         return createNoCheckShift(grammar, runner, lex_name);
 }
@@ -199,11 +211,11 @@ export function createSkipCall(grammar: Grammar, runner: CompilerRunner, lex_nam
 }
 
 export function createAssertionShift(grammar: Grammar, runner: CompilerRunner, sym: TokenSymbol, lex_name: ConstSC | VarSC = SC.Variable("l:Lexer")): StmtSC {
-    return SC.Expressions(SC.Call(SC.Constant("_"), lex_name, getIncludeBooleans([sym], grammar, runner, lex_name)));
+    return SC.Expressions(SC.Call(consume_assert_call, lex_name, getIncludeBooleans([sym], grammar, runner, lex_name)));
 }
 
 export function createNoCheckShift(grammar: Grammar, runner: CompilerRunner, lex_name: ConstSC | VarSC,): StmtSC {
-    return SC.Expressions(SC.Call(SC.Constant("_no_check"), lex_name));
+    return SC.Expressions(SC.Call(consume_call, lex_name));
 }
 
 export function createReduceFunction(item: Item, grammar: Grammar): StmtSC {

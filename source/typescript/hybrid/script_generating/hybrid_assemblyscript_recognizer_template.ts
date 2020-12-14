@@ -11,7 +11,11 @@ import {
     TokenNumberIdentifier,
     TokenIdentifierIdentifier,
     TokenNewLineIdentifier,
-    TokenSymbolIdentifier
+    TokenSymbolIdentifier,
+    consume_call,
+    consume_skip_call,
+    consume_assert_skip_call,
+    consume_assert_call
 } from "../utilities/utilities.js";
 import { printLexer } from "./hybrid_lexer_template.js";
 import { getTokenSelectorStatements } from "./hybrid_token_selector_template.js";
@@ -284,7 +288,6 @@ export const renderAssemblyScriptRecognizer = (
         prod = (-FAILED) +  (-FAILED+1) * production;
     }  
    */
-    const ANTI_FAILED = SC.UnaryPre("-", FAILED);
     code_node.addStatement(
         SC.Function(
             "setProduction:void",
@@ -310,7 +313,7 @@ export const renderAssemblyScriptRecognizer = (
             SC.UnaryPre("return", SC.Variable("l"))
         ));
     ////////////////////////////////////////////////////////////
-    `function _skip(l: Lexer, skip: BooleanTokenCheck):void{
+    `function _skip(l: Lexer, skip: BooleanTokenCheck):Lexer{
         while(1){
     
             ${grammar?.functions.has("custom_skip") ? (() => {
@@ -326,7 +329,7 @@ export const renderAssemblyScriptRecognizer = (
     }`;
     code_node.addStatement(
         SC.Function(
-            "_skip:void",
+            "_skip:Lexer",
             "l:Lexer&",
             "skip: BooleanTokenCheck"
         ).addStatement(
@@ -334,7 +337,8 @@ export const renderAssemblyScriptRecognizer = (
                 ...custom_skip,
                 SC.If(SC.UnaryPre("!", SC.Call("skip", "l")))
                     .addStatement(SC.Break),
-                SC.Call(SC.Member("l", "next"))
+                SC.Call(SC.Member("l", "next")),
+                SC.UnaryPre(SC.Return, SC.Value("l"))
             ),
         ));
     /*            
@@ -346,7 +350,7 @@ export const renderAssemblyScriptRecognizer = (
    */
     code_node.addStatement(
         SC.Function(
-            "_no_check_with_skip:void",
+            consume_skip_call,
             "l:Lexer&",
             "skip: BooleanTokenCheck"
         ).addStatement(
@@ -360,9 +364,10 @@ export const renderAssemblyScriptRecognizer = (
         lex.next();
     }
    */
+
     code_node.addStatement(
         SC.Function(
-            "_no_check:void",
+            consume_call,
             "l:Lexer&",
         ).addStatement(
             SC.Call("add_shift", "l", SC.Member("l:Lexer&", "tl")),
@@ -382,7 +387,7 @@ export const renderAssemblyScriptRecognizer = (
    */
     code_node.addStatement(
         SC.Function(
-            "_with_skip:void",
+            consume_assert_skip_call,
             "l:Lexer&",
             "skip: BooleanTokenCheck",
             "accept:bool"
@@ -422,7 +427,7 @@ export const renderAssemblyScriptRecognizer = (
    */
     code_node.addStatement(
         SC.Function(
-            "_:void",
+            consume_assert_call,
             "l:Lexer&",
             "accept:bool"
         ).addStatement(
