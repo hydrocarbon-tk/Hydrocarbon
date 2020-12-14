@@ -32,60 +32,24 @@ import { RDItem } from "./types/RDItem";
 import { CompilerRunner } from "./types/CompilerRunner.js";
 import { AS, BlockSC, ConstSC, CPP, IfSC, RS, SC, VarSC } from "./utilities/skribble.js";
 import { TypeKind } from "assemblyscript";
+import { ClosureGraph } from "../util/process_closure.js";
 
-
-
-function incrementLexerName(sc: VarSC) {
-    const name = sc.value;
-    return SC.Variable(name + 1 + ":Lexer");
-
-}
 const
     failed_global_var = SC.Variable("FAILED:boolean"),
     global_lexer_name = SC.Variable("l:Lexer"),
     accept_loop_flag = SC.Variable("ACCEPT:boolean"),
     production_global = SC.Variable("prod:unsigned int");
 
-function addCheckpointComplete(block: BlockSC, old_lexer_name: VarSC, new_lexer_name: VarSC) {
-    block.addStatement(SC.If(SC.UnaryPre(SC.Value("!"), failed_global_var)).addStatement(
-        SC.Call(SC.Member(old_lexer_name, SC.Constant("sync")), new_lexer_name)),
-        SC.Empty()
 
-    );
-}
 
-function addCheckpointElseComplete(block: BlockSC, old_lexer_name: VarSC, new_lexer_name: VarSC) {
-    block.addStatement(SC.If().addStatement(
-        SC.Call(SC.Member(old_lexer_name, SC.Constant("sync")), new_lexer_name)),
-    );
-}
+interface RenderBodyOptions {
+    pk_name: VarSC,
+    block_depth: number;
+    peek_depth: number;
+    RETURN_TYPE: ReturnType;
 
-function addCheckpointContinue(block: BlockSC, old_lexer_name: VarSC, new_lexer_name: VarSC, statements: SC = null, RESET_LEXER: boolean = true): SC {
-    const _if = SC.If(failed_global_var)
-        .addStatement(SC.Assignment(production_global, SC.Constant("p")));
-    if (RESET_LEXER) _if.addStatement(SC.Assignment(new_lexer_name, SC.Call(SC.Member(old_lexer_name, SC.Constant("copy")))));
-    _if.addStatement(SC.Assignment(failed_global_var, SC.False));
-    _if.addStatement(SC.Call(SC.Constant("reset"), SC.Constant("m")));
-    if (statements) _if.addStatement(statements);
-    block.addStatement(_if);
-    return _if;
-}
+    NO_CHECK: boolean;
 
-function addCheckpointStart(block: BlockSC, old_lexer_name: VarSC): VarSC {
-    const lr_lexer_name = incrementLexerName(old_lexer_name);
-    block.addStatement(
-        SC.Declare(
-            SC.Assignment(lr_lexer_name, SC.Call(SC.Member(old_lexer_name, "copy"))),
-            SC.Assignment(SC.Constant("m:unsigned int"), SC.Call("mark")),
-            SC.Assignment(SC.Constant("p:unsigned int"), production_global)
-        )
-    );
-    return lr_lexer_name;
-}
-
-function addUnskippableAnnotation(runner: CompilerRunner, stmts: string[], unskippable_symbols: TokenSymbol[]) {
-    if (runner.ANNOTATED)
-        stmts.push(`/* UNSKIPPABLE SYMBOLS: ${unskippable_symbols.map(s => `[${sanitizeSymbolValForComment(s)}]`).join(" ")} */`);
 }
 function checkForLeftRecursion(p: Production, item: Item, grammar: Grammar, encountered_productions = new Set([p.id])) {
     // return p.IS_LEFT_RECURSIVE;
@@ -110,33 +74,6 @@ function checkForLeftRecursion(p: Production, item: Item, grammar: Grammar, enco
 
     return false;
 }
-function doesClosureHaveLR(closure: Item[], grammar: Grammar) {
-    for (const item of closure) {
-
-        if (item.atEND) continue;
-
-        const sym = item.sym(grammar);
-
-        if (isSymAProduction(sym) && item.getProductionAtSymbol(grammar).IS_LEFT_RECURSIVE)
-            return true;
-    }
-
-    return false;
-}
-
-function ItemToRDItem(i: Item, grammar: Grammar, body_offset = 0): RDItem {
-    const c = [i];
-    processClosure(c, grammar, true);
-    const HAS_LR = doesClosureHaveLR(c, grammar);
-    return <RDItem>{ body_index: i.body, body_offset, off: i.offset, len: i.len, item: i, closure: c, HAS_LR };
-}
-
-function BodyToRDItem(b: ProductionBody, grammar: Grammar): RDItem {
-    return ItemToRDItem(new Item(b.id, b.length, 0, EOF_SYM), grammar);
-}
-
-
-
 function renderItemProduction(
     code_node: SC,
     item: Item,
@@ -146,8 +83,7 @@ function renderItemProduction(
     RENDER_WITH_NO_CHECK = false,
     lexer_name: VarSC = global_lexer_name,
     RETURN_TYPE: ReturnType
-): { code_node: SC, IS_PRODUCTION: boolean; } {
-    let IS_PRODUCTION = false;
+): { code_node: SC; } {
 
 
     const production = item.getProduction(grammar);
@@ -160,7 +96,7 @@ function renderItemProduction(
 
     code_node.addStatement(SC.Empty());
 
-    return { code_node: _if, IS_PRODUCTION };
+    return { code_node: _if };
 }
 function renderItemSym(
     code_node: SC,
@@ -170,8 +106,8 @@ function renderItemSym(
     productions: Set<number> = new Set,
     RENDER_WITH_NO_CHECK = false,
     lexer_name: VarSC = global_lexer_name
-): { code_node: SC, IS_PRODUCTION: boolean; } {
-    let IS_PRODUCTION = false;
+): { code_node: SC; } {
+
     const
         body = item.body_(grammar);
 
@@ -190,8 +126,6 @@ function renderItemSym(
             code_node.addStatement(SC.Call(SC.Constant("$" + grammar[sym.val].name), lexer_name));
 
             RENDER_WITH_NO_CHECK = false;
-
-            IS_PRODUCTION = true;
 
         } else {
             if (RENDER_WITH_NO_CHECK) {
@@ -214,10 +148,10 @@ function renderItemSym(
         const _if = SC.If(SC.UnaryPre(SC.Value("!"), failed_global_var));
         code_node.addStatement(_if);
         code_node.addStatement(SC.Empty());
-        return { code_node: _if, IS_PRODUCTION };
+        return { code_node: _if };
     }
 
-    return { code_node, IS_PRODUCTION };
+    return { code_node };
 }
 
 enum ReturnType {
@@ -239,7 +173,7 @@ function renderItem(
 
 
     if (!item.atEND) {
-        const { code_node: leaf, IS_PRODUCTION: IP } = renderItemSym(code_node, item, grammar, runner, productions, DONT_CHECK, lexer_name);
+        const { code_node: leaf } = renderItemSym(code_node, item, grammar, runner, productions, DONT_CHECK, lexer_name);
         const new_item = item.increment();
 
         if (!new_item.atEND) {
@@ -256,16 +190,6 @@ function renderItem(
     return code_node;
 }
 
-interface RenderBodyOptions {
-    pk_name: VarSC,
-    block_depth: number;
-    peek_depth: number;
-    RETURN_TYPE: ReturnType;
-
-    NO_CHECK: boolean;
-
-}
-
 function addReturnType(RETURN_TYPE: ReturnType, code_node: SC) {
     switch (RETURN_TYPE) {
         case ReturnType.ACCEPT:
@@ -278,7 +202,7 @@ function addReturnType(RETURN_TYPE: ReturnType, code_node: SC) {
     }
 }
 
-function generateRBOptions(RT: ReturnType = ReturnType.RETURN, pd: number = 0, bd: number = 0, NC: boolean = false, peek_name = SC.Variable("pk:Lexer")): RenderBodyOptions {
+function generateRDOptions(RT: ReturnType = ReturnType.RETURN, pd: number = 0, bd: number = 0, NC: boolean = false, peek_name = SC.Variable("pk:Lexer")): RenderBodyOptions {
     return {
         pk_name: peek_name,
         peek_depth: pd,
@@ -291,7 +215,9 @@ function getGroups(symboled_items: Map<TokenSymbol, Item[]>, grammar: Grammar) {
     const group_maps: Map<string, { syms: Set<TokenSymbol>; items: Item[]; priority: number; }> = new Map;
     for (const [sym, items] of symboled_items) {
 
-        const id = items.setFilter(i => i.id).map(i => {
+        const group_items = items.setFilter(i => i.id);
+
+        const id = group_items.map(i => {
             const PROD_ID = i.getProduction(grammar).id;
             const BODY = i.body;
             const HAS_REDUCE_FUNCTION = !!i.body_(grammar).reduce_function;
@@ -303,7 +229,7 @@ function getGroups(symboled_items: Map<TokenSymbol, Item[]>, grammar: Grammar) {
             return i.id;
         }).sort().join("");
         if (!group_maps.has(id))
-            group_maps.set(id, { syms: new Set, items, priority: 0 });
+            group_maps.set(id, { syms: new Set, items: group_items, priority: 0 });
         const group = group_maps.get(id);
         if (isSymAnAssertFunction(sym) && isSymAProduction(sym)) {
             for (const s of getAssertionSymbolFirst(<AssertionFunctionSymbol>sym, grammar))
@@ -359,9 +285,10 @@ function renderItems(rd_items: Item[], grammar: Grammar): string[] {
 
 
 export function getMinDisambiguatedDepth(items: Item[], grammar: Grammar, depth: number = 0, limit: number = 10): { depth: number, UNAMBIGUOUS: boolean; } {
+    if (items.length == 0) return { depth: depth, UNAMBIGUOUS: true };
+    if (depth >= limit) return { depth: Infinity, UNAMBIGUOUS: false };
 
     const closure = items.slice();
-
 
     processClosure(closure, grammar, true);
 
@@ -417,75 +344,172 @@ export function getMinDisambiguatedDepth(items: Item[], grammar: Grammar, depth:
             depth = Math.max(new_depth, depth);
         }
 
-
-    console.log({ i: items.map(i => i.renderUnformattedWithProduction(grammar)), COMPLETE_DISAMBIGUITY: COMPLETELY_UNAMBIGUOUS, depth });
-
     return { depth, UNAMBIGUOUS: COMPLETELY_UNAMBIGUOUS };
 }
 
+function processProductionChain(
+    code_node: SC,
+    grammar: Grammar,
+    runner: CompilerRunner,
+    production: Production,
+    productions: Set<number>,
+    options: RenderBodyOptions = generateRDOptions(),
+    production_items: Item[][],
+    accompanying_items: Item[],
+    nonterm_shift_items: Item[],
+    visited_prods: Set<string> = new Set,
+    offset: number = 0,
+    filter_production: number = 0,
+): SC {
+    while (1) {
+
+        accompanying_items = getAccompanyingItems(
+            grammar, accompanying_items, (production_items[offset])
+                .filter(i => i.getProduction(grammar).id != filter_production)
+        );
+
+        filter_production = -1;
+
+        if (accompanying_items.length == 0) {
+            break;
+        } else if (accompanying_items.length > 1 || accompanying_items.some(i => i.IS_LR)) {
+            while (accompanying_items.length > 0) {
+                const new_items = accompanying_items.filter(i => !visited_prods.has(i.id));
+                new_items.forEach(i => visited_prods.add(i.id));
+                nonterm_shift_items.push(...new_items);
+                accompanying_items = getAccompanyingItems(grammar, new_items, production_items[offset]);
+            }
+            break;
+        } else {
+            const first = accompanying_items[0].increment();
+
+            code_node = renderItem(code_node, first, grammar, runner, productions, true);
+            //render item
+            const p = first.getProduction(grammar);
+
+            if (p.id == production.id) {
+                addReturnType(options.RETURN_TYPE, code_node);
+                break;
+            };
+            accompanying_items = [first];
+            break;
+        }
+    }
+    return code_node;
+}
 export function renderFunctionBody(
     rd_items: Item[],
+    graph: ClosureGraph,
     grammar: Grammar,
     runner: CompilerRunner,
     production: Production,
     productions: Set<number> = new Set,
-    options: RenderBodyOptions = generateRBOptions(),
-    lr_items_globald: Item[] = [],
+    options: RenderBodyOptions = generateRDOptions(),
     production_items: Item[][] = null,
     offset = 0,
-): ({ sym_map: Map<TokenSymbol, any>, sc: SC, IS_PRODUCTION: boolean; }) {
+    peek_offset = 0
+): ({ sym_map: Map<TokenSymbol, any>, sc: SC; }) {
 
-    const lr_items_global = [],
+    const WAS_PEEKING = peek_offset !== offset;
+
+    if (offset > 1) {
+        //console.log(getMinDisambiguatedDepth(rd_items, grammar));
+        //console.log("overflow", rd_items.map(i => i.renderUnformattedWithProduction(grammar)));
+        return { sc: new SC, sym_map: new Map };
+    }
+
+    const nonterm_shift_items = [],
 
         code_node = new SC,
 
-        active_items = rd_items
-            .filter(i => !i.atEND && !!i),
+        true_items = rd_items.filter(_ => _),
 
-        completed_items = rd_items
-            .filter(i => i.atEND && !!i),
+        active_items = true_items.filter(i => !i.atEND),
 
-        symboled_items: Map<TokenSymbol, Item[]> = active_items
-            .filter(i => i.sym(grammar).type != SymbolType.PRODUCTION)
+        completed_items = true_items.filter(i => i.atEND),
+
+        production_completed_items = completed_items
+            .filter(i => i?.decrement()?.sym(grammar)?.type == SymbolType.PRODUCTION),
+
+        terminal_completed_items = completed_items
+            .filter(i => i?.decrement()?.sym(grammar)?.type != SymbolType.PRODUCTION),
+
+        symboled_items = active_items
+            .filter(i => i.sym(grammar).type != SymbolType.PRODUCTION),
+
+        symboled_items_map: Map<TokenSymbol, Item[]> = symboled_items
             .groupMap(i => <TokenSymbol>getRootSym(i.sym(grammar), grammar)),
 
-        group_maps: Map<string, { syms: Set<TokenSymbol>, items: Item[]; priority: number; }> = getGroups(symboled_items, grammar);
+        group_maps: Map<string, { syms: Set<TokenSymbol>, items: Item[]; priority: number; }> = getGroups(symboled_items_map, grammar),
+
+        visited_prods: Set<string> = new Set();
 
     let leaf: SC = null, root: SC = leaf;
 
-    for (const { syms: s, items } of group_maps.values()) {
-
+    for (let { syms: s, items } of group_maps.values()) {
         const syms = [...s.values()];
 
-        let [first] = items;
+        let peek = 0;
         let _if: SC = SC.If(getIncludeBooleans(syms, grammar, runner));
         let accompanying_items = items;
+        let filter_production = -1;
+        const { UNAMBIGUOUS, depth: ambiguous_depth } = getMinDisambiguatedDepth(items, grammar);
+
+        _if.addStatement(SC.Comment(`${UNAMBIGUOUS ? `Unambiguous` : `Ambiguous`} Depth ${ambiguous_depth}`));
+
+        if (!UNAMBIGUOUS) {
+            peek = peek_offset;
+            _if.addStatement(SC.Comment(`Peeking at depth: ${(offset) - peek} was_peeking:${WAS_PEEKING}`));
+        } else peek = offset + 1;
+
+        if (items.length > 1)
+            _if.addStatement(SC.Comment(`Multiple items on [ ${syms.map(s => s.val).join(" ")} ] \n    ` + renderItems(items, grammar).join("\n    ") + "\n"));
+
+        if (graph && items.length > 1) {
+
+            const root = graph.getCommonRoot(...items);
+
+            if (root.roots.length > 0) {
+                const closest_root = root.roots[0].item;
+                //    / if (closest_root.getProduction(grammar).id !== production.id)
+                const common_root = closest_root;
+
+                _if.addStatement(SC.Comment("Common Root:\n" + closest_root.renderUnformattedWithProduction(grammar)));
+                //  items = [common_root];
+            }
+
+        }
+
+        let [first] = items;
 
         if (items.length > 1) {
+            _if.addStatement(SC.Comment(`Multiple items on [ ${syms.map(s => s.val).join(" ")} ] \n    ` + renderItems(items, grammar).join("\n    ") + "\n"));
+
+            const SAME_PRODUCTION = items.setFilter(i => i.getProduction(grammar).id).length == 1;
+            if (SAME_PRODUCTION)
+                _if.addStatement(SC.Comment(`All are from the same production`));
 
             // Get minimum number of steps need to resolve multiple transitions. If it exceeds some 
             // predetermined limit, then use alternative such as speculative parsing.
-            const d = items.map(i => i.increment());
-
-            _if.addStatement(SC.Comment(`Multiple items on [ ${syms.map(s => s.val).join(" ")} ] \n    ` + renderItems(d, grammar).join("\n    ") + "\n"));
-
-            processClosure(d, grammar, true);
-
+            const { graph, closure } = processClosure(items.map(i => i.increment()), grammar, true);
             let sc = new SC;
             try {
 
                 sc = renderFunctionBody(
-                    d,
+                    closure, graph,
                     grammar, runner, production, productions,
-                    options, lr_items_global,
+                    options,
                     [
                         ...production_items,
-                        d.setFilter(s => s.id)
-                            .filter(d => !d.atEND)
-                            .filter(d => d.sym(grammar).type == SymbolType.PRODUCTION)
+                        closure.setFilter(s => s.id)
+                            .filter(closure => !closure.atEND)
+                            .filter(closure => closure.sym(grammar).type == SymbolType.PRODUCTION)
                     ],
-                    offset + 1
+                    offset + 1,
+                    peek
                 ).sc;
+
+
 
                 const sc1 = renderItemSym(_if, first, grammar, runner, productions, true).code_node;
 
@@ -500,20 +524,14 @@ export function renderFunctionBody(
                 }
 
             } catch (e) {
-                if (items.every(i => i.offset == 0) && e instanceof AmbiguousParse) {
-                    console.log({
-                        r: "AmbiguousParse Intercept",
-                        o: items.map(i => i.renderUnformattedWithProduction(grammar)),
-                        a: d.map(i => i.renderUnformattedWithProduction(grammar)),
-                        b: production_items.map(s => s.map(s => s.renderUnformattedWithProduction(grammar)))
-                    });
-
+                if (offset == 0 || items.every(i => i.offset == 0)/* && e instanceof AmbiguousParse*/) {
+                    //*
                     const root2 = new SC;
                     let _if;
                     const cp = SC.Variable("cp");
                     root2.addStatement(SC.Declare(SC.Variable("cp:Lexer")));
-
-                    for (const item of items) {
+                    root2.addStatement(SC.Comment(`Collision found on symbol [ ${syms.map(s => s.val).join(" ")} ] \n ${renderItems(items, grammar).join("\n    ")} \n  Using backtracking \n error:\n${e.message + e.stack}`));
+                    for (const item of items.setFilter(i => i.getProduction(grammar).id)) {
                         const production = item.getProduction(grammar);
                         const follow = [...FOLLOW(grammar, production.id).values()];
                         const skip = createSkipCall(grammar, runner, cp, follow);
@@ -527,10 +545,12 @@ export function renderFunctionBody(
                         ).addStatement(
                             SC.Call(SC.Member(global_lexer_name, "sync"), cp)
                         );
+                        temp.addStatement(SC.Comment(`Trying ${production.name}`));
                         temp.addStatement(SC.Empty());
                         if (_if) temp.addStatement(_if);
                         _if = temp;
                     }
+
 
                     root2.addStatement(_if);
 
@@ -540,7 +560,7 @@ export function renderFunctionBody(
                     } else {
                         leaf = root2;
                         root = leaf;
-                    }
+                    }//*/
                 } else {
                     throw e;
                 }
@@ -548,7 +568,7 @@ export function renderFunctionBody(
 
         } else {
 
-            const AT_END = first.increment();
+            const AT_END = first.increment().atEND;
 
             //Need to pull in all items that transition on this production
             if (leaf) {
@@ -565,95 +585,86 @@ export function renderFunctionBody(
 
             if (first.offset == 0 && first.getProduction(grammar).id != production.id) {
                 _if = renderItemProduction(_if, first, grammar, runner, productions, true, global_lexer_name, options.RETURN_TYPE).code_node;
-                const new_if = SC.If();
             } else {
                 //render out the item
                 _if = renderItem(_if, first, grammar, runner, productions, true);
+                addReturnType(options.RETURN_TYPE, _if);
             }
+
+            filter_production = (first.getProduction(grammar).id != production.id) ? first.getProduction(grammar).id : -1;
 
             _if.addStatement(SC.Empty());
         }
-        console.log({ left_recursion_items: lr_items_global.map(i => i.renderUnformattedWithProduction(grammar)) });
+        _if = processProductionChain(
+            _if, grammar, runner,
+            production, productions,
+            options, production_items,
+            accompanying_items,
+            nonterm_shift_items, visited_prods,
+            offset, filter_production
+        );
+    }
+    code_node.addStatement(SC.Comment("Terminal Completed Items:\n" + terminal_completed_items.map(i => i.renderUnformattedWithProduction(grammar)).join("\n")));
+    /**
+     * At this point, items that have reached their end are processed. 
+     * Any item that transitioned to the end on a terminal will simply
+     * be included in a else statement that serves as the fall back action
+     * in the case the current token doesn't match any items that would
+     * cause a shift. 
+     */
+    for (const item of terminal_completed_items) {
+        let _if: SC = SC.If();
 
-        while (offset >= 0) {
+        _if = renderItem(_if, item, grammar, runner, productions, true);
+        addReturnType(options.RETURN_TYPE, _if);
 
-            accompanying_items = getAccompanyingItems(grammar, accompanying_items, production_items[offset]);
+        _if = processProductionChain(
+            _if, grammar, runner,
+            production, productions,
+            options, production_items,
+            [item],
+            nonterm_shift_items, visited_prods,
+            offset
+        );
 
-            if (accompanying_items.some(i => i.IS_LR)) {
-                lr_items_global.push(...accompanying_items);
-                break;
-            } else if (accompanying_items.length == 0) {
-                break;
-            } else if (accompanying_items.length > 1) {
-                const visited_prods = new Set();
-                while (accompanying_items.length > 0) {
-                    const new_items = accompanying_items.filter(i => !visited_prods.has(i.id));
-                    new_items.forEach(i => visited_prods.add(i.id));
-                    lr_items_global.push(...new_items);
-                    accompanying_items = getAccompanyingItems(grammar, new_items, production_items[offset]);
-                }
-                break;
-                const closureA = accompanying_items.map(i => i);
-                processClosure(closureA, grammar, true);
-                const closure = accompanying_items.map(i => i.increment());
-                processClosure(closure, grammar, true);
-                console.log(closure.map(i => i.renderUnformattedWithProduction(grammar)));
-                const globs = [];
-                const results = [];
-                const sc = renderFunctionBody(
-                    closure,
-                    grammar, runner, production, productions,
-                    options, globs, [...production_items, accompanying_items.map(i => i.increment()).filter(i => i && !i.atEND)],
-                    offset + 1
-                ).sc;
-
-                accompanying_items = accompanying_items.map(i => i.increment()).filter(i => !i.atEND);
-                _if.addStatement(sc);
-                //    _if.addStatement(SC.Comment(`Items that are ready for completion [ ${offset} ]  \n    ` + renderItems(accompanying_items, grammar).join("\n    ") + "\n"));
-                _if = sc;
-                //  break;
-            } else {
-                const first = accompanying_items[0].increment();
-
-                _if = renderItem(_if, first, grammar, runner, productions, true);
-                //render item
-                const p = first.getProduction(grammar);
-
-                if (p.id == production.id) {
-                    addReturnType(options.RETURN_TYPE, _if);
-                    break;
-                };
-                accompanying_items = [first];
-            }
+        if (leaf) {
+            leaf.addStatement(_if);
+            leaf = _if;
+        } else {
+            leaf = _if;
+            root = leaf;
         }
     }
-    // If there are any completed items that do not transition from a production
+
+    /* If there are any completed items that do not transition from a production
     // then throw. This results from multiple productions resulting in an ambiguous parse 
-    if (completed_items.some(i => i.decrement().sym(grammar).type != SymbolType.PRODUCTION)) {
+    if (production_completed_items.some(i => i?.decrement()?.sym(grammar)?.type != SymbolType.PRODUCTION)) {
+
+        code_node.addStatement(SC.Comment("FAILED_COMPLETE:\n" + production_completed_items.map(i => i.renderUnformattedWithProduction(grammar)).join("\n")));
+        //return ({ sc: code_node, _if: null, sym_map: symboled_items });
         throw new AmbiguousParse("Unresolved items: \n" +
-            completed_items
-                .filter(i => i.decrement().sym(grammar).type != SymbolType.PRODUCTION)
+            production_completed_items
+                .filter(i => i?.decrement()?.sym(grammar)?.type != SymbolType.PRODUCTION)
                 .map(i => i.renderUnformattedWithProduction(grammar))
                 .join("\n")
         );
-    }
+    }*/
 
-    lr_items_global.push(...completed_items.map(i => i.decrement()));
+    nonterm_shift_items.push(...production_completed_items.map(i => i.decrement()));
 
     code_node.addStatement(root);
 
-    let _if = renderLRLoop(lr_items_global, grammar, runner, production, productions, code_node, production_items[offset]);
+    let _if = renderProductionShifts(nonterm_shift_items, grammar, runner, production, productions, code_node, production_items[offset]);
 
     if (code_node == _if) {
         _if = leaf || code_node;
     }
 
-    return ({ sc: code_node, _if, sym_map: symboled_items });
+    return ({ sc: code_node, _if, sym_map: symboled_items_map });
 }
-class AmbiguousParse extends SyntaxError { };
 
-function renderLRLoop(
-    left_recursion_items: Item[],
+function renderProductionShifts(
+    nonterm_shift_items: Item[],
     grammar: Grammar,
     runner: CompilerRunner,
     production: Production,
@@ -661,15 +672,15 @@ function renderLRLoop(
     code_node: SC,
     production_items: Item[]
 ) {
-    if (left_recursion_items.length > 0) {
+    if (nonterm_shift_items.length > 0) {
 
 
 
-        const lr_items = left_recursion_items
+        const lr_items = nonterm_shift_items
             .setFilter(i => i.id)
             .groupMap(i => i.sym(grammar).val),
-            production_io_map = left_recursion_items.reduce((r, i) => {
-                console.log(i.renderUnformattedWithProduction(grammar));
+            production_io_map = nonterm_shift_items.reduce((r, i) => {
+
                 const trans_production = i.getProductionAtSymbol(grammar).id;
                 if (!r.has(trans_production))
                     r.set(trans_production, []);
@@ -685,6 +696,7 @@ function renderLRLoop(
             if (HAS_PRODUCTION_RECURSION) break;
         }
 
+
         const RETURN_TYPE = HAS_PRODUCTION_RECURSION ? ReturnType.ACCEPT : ReturnType.NONE;
 
         //Optimization: Productions with identical outcomes are joined to the same switch clause
@@ -696,6 +708,8 @@ function renderLRLoop(
         }
 
         const switch_node = SC.Switch(production_global);
+
+        code_node.addStatement(SC.Comment("Production Items:\n" + production_items.map(i => i.renderUnformattedWithProduction(grammar)).join("\n")));
 
 
         for (const [, sw_group] of outcome_groups.entries()) {
@@ -716,6 +730,7 @@ function renderLRLoop(
                         end_items = sw_group[i][1].map(i => i.increment()).filter(i => i.atEND),
                         lex_name = global_lexer_name,
                         follow_symbols = [...FOLLOW(grammar, production.id).values()];
+
                     let
                         active_node = if_node;
 
@@ -731,14 +746,14 @@ function renderLRLoop(
                         if (key != production.id)
                             processClosure(d, grammar, true);
                         const { sym_map, sc, _if: __if } = renderFunctionBody(
-                            shift_items,
+                            d,
+                            null,
                             grammar,
                             runner,
                             production,
                             productions,
-                            generateRBOptions(RETURN_TYPE, 0, 1),
-                            [],
-                            [production_items]
+                            generateRDOptions(RETURN_TYPE, 0, 1),
+                            [/*production_items*/[]]
                         );
 
                         active_node = __if;
@@ -754,7 +769,7 @@ function renderLRLoop(
                                 need to do this check.
                             */
                             const block_node = SC.If(SC.Empty()),
-                                l_lex_name = addCheckpointStart(block_node, lex_name),
+                                // l_lex_name = addCheckpointStart(block_node, lex_name),
                                 lookahead_syms = [...follow_symbols.filter(s => isSymGeneratedWS(s) || isSymGeneratedNL(s))],
                                 exclude_syms = [...sym_map.values()];
 
@@ -774,10 +789,10 @@ function renderLRLoop(
                                     if_node.addStatement(SC.If(booleans).addStatement(SC.Break));
                             }
                             block_node.addStatement(sc);
-                            const _if = addCheckpointContinue(block_node, lex_name, l_lex_name, null, false);
+                            // const _if = addCheckpointContinue(block_node, lex_name, l_lex_name, null, false);
 
                             block_node.addStatement(SC.Empty());
-                            addCheckpointElseComplete(_if, global_lexer_name, l_lex_name);
+                            // addCheckpointElseComplete(_if, global_lexer_name, l_lex_name);
                             if_node.addStatement(block_node);
                         } else {
                             if_node.addStatement(sc);
@@ -831,11 +846,11 @@ export function constructHybridFunction(production: Production, grammar: Grammar
 
     let items: Item[] = p.bodies.map(b => new Item(b.id, b.length, 0, EOF_SYM));
 
-    processClosure(items, grammar, true);
+    const { graph } = processClosure(items, grammar, true);
 
     items.forEach(i => (i.IS_LR = checkForLeftRecursion(i.getProduction(grammar), i, grammar), i));
 
-
+    /*
     code_node.addStatement(
         SC.If(SC.Value("true")).addStatement(
             SC.Declare(SC.Assignment("p:unsigned int", "prod")),
@@ -845,21 +860,21 @@ export function constructHybridFunction(production: Production, grammar: Grammar
 
         )
     );
+    //*/
 
     try {
 
         const
-            left_recursion_items: Item[] = [],
-            production_items = items.filter(i => isSymAProduction(i.sym(grammar))),
+            production_items = items.filter(i => i.sym(grammar) && isSymAProduction(i.sym(grammar))),
             sc =
                 renderFunctionBody(
                     items,
+                    graph,
                     grammar,
                     runner,
                     production,
                     productions,
-                    generateRBOptions(ReturnType.ACCEPT),
-                    left_recursion_items,
+                    generateRDOptions(ReturnType.NONE),
                     [production_items]
                 ).sc;
 
@@ -879,8 +894,7 @@ export function constructHybridFunction(production: Production, grammar: Grammar
                 )
             );
 
-
-
+        /*
         code_node.addStatement(
             SC.If(SC.Value("true")).addStatement(
                 SC.Declare(SC.Assignment("p:unsigned int", "prod")),
@@ -890,6 +904,7 @@ export function constructHybridFunction(production: Production, grammar: Grammar
 
             )
         );
+        //*/
         code_node.addStatement(SC.UnaryPre(SC.Return, SC.Value("SUCCESS")));
 
     } catch (e) {
