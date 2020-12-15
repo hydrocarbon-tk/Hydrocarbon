@@ -173,10 +173,11 @@ export const renderAssemblyScriptRecognizer = (
     */
     code_node.addStatement(
         SC.Function(
-            "reset:void",
+            "reset:boolean",
             "mark:unsigned int",
         ).addStatement(
-            SC.Assignment(action_ptr, "mark:unsigned int")
+            SC.Assignment(action_ptr, "mark:unsigned int"),
+            SC.UnaryPre(SC.Return, SC.True)
         ));
 
     /*            
@@ -396,7 +397,7 @@ export const renderAssemblyScriptRecognizer = (
                 .addStatement(SC.Return,
                     SC.If(SC.Variable("accept:bool"))
                         .addStatement(
-                            SC.Call("_no_check_with_skip", "l", "skip"),
+                            SC.Call(consume_skip_call, "l", "skip"),
                             SC.If()
                                 .addStatement(
                                     SC.Call("soft_fail", "l"),
@@ -437,7 +438,7 @@ export const renderAssemblyScriptRecognizer = (
                 SC.Return
             ),
             SC.If(SC.Variable("accept")).addStatement(
-                SC.Call("_no_check", "l"),
+                SC.Call(consume_call, "l"),
                 SC.If().addStatement(
                     // SC.Assignment(prod, 1221),
                     // SC.Call("probe", "l"),

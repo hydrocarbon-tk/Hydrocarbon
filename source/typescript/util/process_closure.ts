@@ -3,7 +3,20 @@ import { Item, ItemGraphNode } from "./item.js";
 import { FIRST } from "./first.js";
 import { Grammar, SymbolType } from "../types/grammar.js";
 import { Symbol } from "../types/Symbol";
-import { t } from "@candlefw/wind/build/types/ascii_code_points";
+
+
+export function getClosure(items: Item[], grammar: Grammar): Item[] {
+    let closure = [];
+
+    for (const item of items) {
+        closure.push(...grammar.item_map.get(item.id).closure);
+    }
+
+    if (items.length > 1)
+        closure = closure.setFilter(i => i);
+
+    return closure.map(i => grammar.item_map.get(i).item);
+}
 
 export function processClosure(
     items: Item[],
@@ -203,8 +216,10 @@ export class ClosureGraph {
 
             visited.add(graph_node.id);
 
-            for (const supitem of graph_node.supitems)
+            for (const supitem of graph_node.supitems) {
+                if (supitem && visited.has(supitem.id)) continue;
                 root_nodes.push(...getSimpleRoot(supitem, local_roots, visited));
+            }
 
             return root_nodes.setFilter(r => r.item.id).sort((a, b) => b.id - a.id);
         }

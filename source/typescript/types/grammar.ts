@@ -1,4 +1,5 @@
 import { Lexer } from "@candlefw/wind";
+import { Item } from "../util/item";
 import { Symbol, TokenSymbol } from "./Symbol";
 
 export enum SymbolType {
@@ -177,6 +178,23 @@ export type Grammar = Array<Production> & {
     bodies: Array<ProductionBody>;
 
     functions: Map<string, GrammarFunction>;
+
+    /**
+     * A mapping of the closure for all grammar items, 
+     * keyed by an item's id.
+     */
+    item_map: Map<string, {
+        item: Item;
+        closure: string[];
+        /**
+         * Does the item contain left recursion
+         */
+        LR: boolean;
+        /**
+         * List of unique symbol names that shift into a right recursion
+         */
+        RR: string[];
+    }>;
 
 };
 

@@ -2,7 +2,7 @@ import wind from "@candlefw/wind";
 
 import { getAssertionSymbolFirst, getUniqueSymbolName, isSymAnAssertFunction, isSymAProduction } from "../hybrid/utilities/utilities.js";
 import { EOF_SYM, Grammar, SymbolType } from "../types/grammar.js";
-import { AssertionFunctionSymbol, Symbol } from "../types/Symbol";
+import { AssertionFunctionSymbol, Symbol, TokenSymbol } from "../types/Symbol";
 import { FIRST } from "./first.js";
 import { FOLLOW } from "./follow.js";
 import { Item } from "./item.js";
@@ -195,7 +195,44 @@ export function filloutGrammar(grammar: Grammar, env) {
 
     for (const sym of syms.filter(isSymAnAssertFunction)) getAssertionSymbolFirst(<AssertionFunctionSymbol>sym, grammar);
 
+    buildItemMap(grammar);
+
     return grammar;
+}
+
+export function buildItemMap(grammar: Grammar) {
+    grammar.item_map = new Map(grammar.map(p => p.bodies.map(b => new Item(b.id, b.length, 0, EOF_SYM))).flatMap(i => {
+        const out = [];
+
+        for (let item of i) {
+            while (item) {
+                const { closure } = processClosure([item], grammar, true);
+                //Check for left and right recursion
+
+                // Left recursion occurs when the production symbol shows up on the
+                // leftmost side of an item. This is only relevant when the originating
+                // item is at the initial state
+                const production_id = item.getProduction(grammar).id;
+
+                const LR = item.offset == 0 &&
+                    closure.filter(i => i?.sym(grammar)?.type == SymbolType.PRODUCTION).some(i => i.getProductionAtSymbol(grammar).id == production_id);
+
+                //Right recursion occurs when the origin item shows up in a shifted item's list. 
+                const RR = item.offset > 0
+                    ? closure.slice(1).filter(i => i?.sym(grammar)?.type != SymbolType.PRODUCTION)
+                        .filter(i => i.body == item.body)
+                        .map(i => getUniqueSymbolName(i.sym(grammar)))
+                    : [];
+
+
+                out.push([item.id, { item: item, closure: closure.map(i => i.id), LR, RR }]);
+                item = item.increment();
+            }
+        }
+
+        return out;
+    }));
+
 }
 export function preCalcLeftRecursion(grammar: Grammar) {
     o: for (const production of grammar) {
@@ -229,3 +266,11 @@ export function preCalcLeftRecursion(grammar: Grammar) {
     }
 }
 
+export function doesItemHaveLeftRecursion(item: Item, grammar: Grammar): boolean {
+    return grammar.item_map.get(item.id).LR;
+};
+
+export function doesSymbolLeadToRightRecursion(sym: TokenSymbol, item: Item, grammar: Grammar): boolean {
+    if (!item) return false;
+    return grammar.item_map.get(item.id).RR.includes(getUniqueSymbolName(sym));
+}
