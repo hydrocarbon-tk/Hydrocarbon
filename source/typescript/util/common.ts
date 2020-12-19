@@ -1,12 +1,12 @@
 import wind from "@candlefw/wind";
 
 import { getAssertionSymbolFirst, getUniqueSymbolName, isSymAnAssertFunction, isSymAProduction } from "../hybrid/utilities/utilities.js";
-import { EOF_SYM, Grammar, SymbolType } from "../types/grammar.js";
+import { EOF_SYM, Grammar, ItemMapEntry, Production, SymbolType } from "../types/grammar.js";
 import { AssertionFunctionSymbol, Symbol, TokenSymbol } from "../types/Symbol";
 import { FIRST } from "./first.js";
 import { FOLLOW } from "./follow.js";
 import { Item } from "./item.js";
-import { processClosure } from "./process_closure.js";
+import { getClosure, processClosure } from "./process_closure.js";
 
 
 
@@ -192,48 +192,110 @@ export function filloutGrammar(grammar: Grammar, env) {
 
     grammar.meta = Object.assign({}, grammar.meta, { all_symbols: symbols, reduce_functions: reduce_lu });
     grammar.bodies = bodies;
+    grammar.item_map = null;
 
     for (const sym of syms.filter(isSymAnAssertFunction)) getAssertionSymbolFirst(<AssertionFunctionSymbol>sym, grammar);
 
     buildItemMap(grammar);
 
+
     return grammar;
 }
 
-export function buildItemMap(grammar: Grammar) {
-    grammar.item_map = new Map(grammar.map(p => p.bodies.map(b => new Item(b.id, b.length, 0, EOF_SYM))).flatMap(i => {
-        const out = [];
+export function getItemMapEntry(grammar: Grammar, item_id: string): ItemMapEntry {
+    if (!grammar.item_map.has(item_id)) {
+        grammar.item_map.set(item_id, <ItemMapEntry>{
+            item: null,
+            closure: null,
+            LR: false,
+            RR: null,
+            index: -1,
+            containing_items: new Set,
+            depth: Infinity
+        });
+    }
 
-        for (let item of i) {
-            while (item) {
-                const { closure } = processClosure([item], grammar, true);
-                //Check for left and right recursion
-
-                // Left recursion occurs when the production symbol shows up on the
-                // leftmost side of an item. This is only relevant when the originating
-                // item is at the initial state
-                const production_id = item.getProduction(grammar).id;
-
-                const LR = item.offset == 0 &&
-                    closure.filter(i => i?.sym(grammar)?.type == SymbolType.PRODUCTION).some(i => i.getProductionAtSymbol(grammar).id == production_id);
-
-                //Right recursion occurs when the origin item shows up in a shifted item's list. 
-                const RR = item.offset > 0
-                    ? closure.slice(1).filter(i => i?.sym(grammar)?.type != SymbolType.PRODUCTION)
-                        .filter(i => i.body == item.body)
-                        .map(i => getUniqueSymbolName(i.sym(grammar)))
-                    : [];
-
-
-                out.push([item.id, { item: item, closure: closure.map(i => i.id), LR, RR }]);
-                item = item.increment();
-            }
-        }
-
-        return out;
-    }));
+    return grammar.item_map.get(item_id);
 
 }
+
+export function buildItemMapProduction(prod: Production, grammar: Grammar, item_map = new Map(), depth: number = 0, visited: Set<number> = new Set, index = 0) {
+
+    if (!grammar.item_map) grammar.item_map = item_map;
+
+    if (visited.has(prod.id)) return index;
+
+    visited.add(prod.id);
+
+    const to_process = [];
+
+    for (const body of prod.bodies) {
+
+        let item = new Item(body.id, body.length, 0, EOF_SYM);
+        let offset = 0;
+
+        while (item) {
+
+            const item_id = item.id;
+
+            const { closure } = processClosure([item], grammar, true);
+            //Check for left and right recursion
+
+            // Left recursion occurs when the production symbol shows up on the
+            // leftmost side of an item. This is only relevant when the originating
+            // item is at the initial state
+            const production_id = item.getProduction(grammar).id;
+
+            const LR = item.offset == 0 &&
+                closure.filter(i => i?.sym(grammar)?.type == SymbolType.PRODUCTION).some(i => i.getProductionAtSymbol(grammar).id == production_id);
+
+            //Right recursion occurs when the origin item shows up in a shifted item's list. 
+            const RR = item.offset > 0
+                ? closure.slice(1).filter(i => i?.sym(grammar)?.type != SymbolType.PRODUCTION)
+                    .filter(i => i.body == item.body)
+                    .map(i => getUniqueSymbolName(i.sym(grammar)))
+                : [];
+
+            const final_closure = closure.map(i => i.id);
+
+
+            const item_entry = getItemMapEntry(grammar, item_id);
+            item_entry.item = item;
+            item_entry.closure = final_closure;
+            item_entry.LR = LR;
+            item_entry.RR = RR;
+            item_entry.index = index;
+            item_entry.depth = depth + offset;
+
+
+            for (const sub_item_id of final_closure)
+                if (item_id !== sub_item_id) getItemMapEntry(grammar, sub_item_id).containing_items.add(item_id);
+
+            if (!item.atEND)
+                if (isSymAProduction(item.sym(grammar)))
+                    to_process.push({ prod: item.getProductionAtSymbol(grammar).id, offset: offset + 1 });
+
+            item = item.increment();
+            index++;
+            offset++;
+        }
+    }
+
+    for (const { prod, offset } of to_process)
+        index = buildItemMapProduction(grammar[prod], grammar, item_map, depth + offset, visited, index);
+
+    return index;
+}
+
+export function buildItemMap(grammar: Grammar) {
+
+    const item_map = new Map;
+
+    buildItemMapProduction(grammar[0], grammar, item_map);
+
+    grammar.item_map = item_map;
+}
+
 export function preCalcLeftRecursion(grammar: Grammar) {
     o: for (const production of grammar) {
         production.IS_LEFT_RECURSIVE = false;
@@ -274,3 +336,169 @@ export function doesSymbolLeadToRightRecursion(sym: TokenSymbol, item: Item, gra
     if (!item) return false;
     return grammar.item_map.get(item.id).RR.includes(getUniqueSymbolName(sym));
 }
+
+export function getCommonAncestors(grammar: Grammar, items: Item[]): Item[] {
+    //Get all closures that contain this item
+
+    const contains =
+        items.flatMap(
+
+            i => {
+                const ids = [];
+                if (i.offset == 0) {
+                    ids.push(i.id);
+                } else if (!i.atEND && i.sym(grammar).type == SymbolType.PRODUCTION) {
+                    for (const body of i.getProductionAtSymbol(grammar).bodies)
+                        ids.push(new Item(body.id, body.length, 0, EOF_SYM).id);
+                }
+
+                return [...ids.flatMap(i => [...grammar.item_map.get(i).containing_items.values()])]
+                    .map(id => grammar.item_map.get(id))
+                    .sort((a, b) => a.depth - b.depth)
+                    .map(i => i.item)
+                    .filter(i => i.offset == 0);
+            }
+        )
+            .group(i => i.id)
+            .filter(i => i.length == items.length)
+            .map(i => i[0]);
+
+    return contains;//.map(i => i.getProductionAtSymbol(grammar).name + " \n          " + i.renderUnformattedWithProduction(grammar));
+}
+
+export interface PeekNode {
+    depth: number;
+    sym: string;
+    roots: Item[];
+    next: PeekNode[];
+}
+export interface closure_group {
+    sym: Symbol;
+    index: number;
+    closure: Item[];
+}
+
+/**
+ * Givin a set of root items, return a tree of nodes where each node represents a
+ * transition on a symbol and a the collection of root items that still exist at 
+ * that node.  Depth limited to some givin value to prevent infinite recursion.
+ * 
+ * Default depth is 1.
+ */
+export function getTransitionTree(
+    grammar: Grammar,
+    root_items: Item[],
+    max_tree_depth = 1,
+    max_no_progress = 3,
+    depth: number = -1,
+    closures: closure_group[] = null,
+    len = 0,
+    last_progress = 0
+): { tree_nodes: PeekNode[], clear: boolean, AMBIGUOUS: boolean; max_depth: number; } {
+
+    if (!closures) {
+        closures = root_items.map((i, index) => ({ sym: null, index, closure: getClosure([i], grammar) }));
+        const { AMBIGUOUS, clear, max_depth, tree_nodes } = getTransitionTree(grammar, root_items, max_tree_depth, max_no_progress, 0, closures);
+        return {
+            AMBIGUOUS,
+            clear,
+            max_depth,
+            tree_nodes: [
+                {
+                    depth: -1,
+                    next: tree_nodes,
+                    roots: root_items,
+                    sym: null
+                }
+            ]
+        };
+    }
+
+    if (root_items.length == 1)
+        return { tree_nodes: [], clear: true, AMBIGUOUS: false, max_depth: depth };
+
+    if (depth > max_tree_depth)
+        return { tree_nodes: [], clear: true, AMBIGUOUS: true, max_depth: depth };
+
+    const
+        groups = closures.flatMap(cg => getClosureGroups(grammar, cg)).group(cg => getUniqueSymbolName(cg.sym)),
+        tree_nodes = [];
+
+    let
+        GLOBAL_PROGRESS = false,
+        CLEAR_REQUESTED = false,
+        AMBIGUOUS = false,
+        max_depth = depth;
+
+    for (const group of groups) {
+
+        let next = [];
+
+        const
+            sym = group[0].sym,
+            new_roots = group.map(cg => cg.index).setFilter().map(i => root_items[i]),
+            progress = new_roots.length != len,
+            quit = !progress && (depth - last_progress) >= Math.max(max_tree_depth - depth, max_no_progress),
+            curr_progress = progress ? depth : last_progress;
+
+        if (progress) GLOBAL_PROGRESS = true;
+
+        if (quit) CLEAR_REQUESTED = true;
+
+        if (!quit && new_roots.length > 1) {
+
+            const { tree_nodes, clear, AMBIGUOUS: A, max_depth: md } = getTransitionTree(grammar, root_items, max_tree_depth, max_no_progress, depth + 1, group, new_roots.length, curr_progress);
+
+            AMBIGUOUS = AMBIGUOUS || A;
+
+            if (clear) CLEAR_REQUESTED = true; else {
+                max_depth = Math.max(md, max_depth + 1);
+                next = tree_nodes;
+            }
+        }
+
+        tree_nodes.push({
+            last_progress: depth - last_progress,
+            progress,
+            sym: getUniqueSymbolName(sym),
+            depth,
+            roots: new_roots,
+            next
+        });
+    }
+
+    if (CLEAR_REQUESTED && !GLOBAL_PROGRESS)
+        return { tree_nodes: [], clear: true, AMBIGUOUS: true, max_depth: max_depth };
+
+    return { tree_nodes, clear: false, AMBIGUOUS, max_depth: max_depth };
+}
+
+function getClosureGroups(grammar: Grammar, { index, closure }: closure_group): closure_group[] {
+
+    const group = [];
+    let i = 0;
+    for (const item of closure) {
+        const sym = item.sym?.(grammar);
+        if (item.atEND) {
+            const prod = item.getProduction(grammar);
+            let new_closure = closure.slice()
+                .filter((item, i) => (!item.atEND && isSymAProduction(item.sym(grammar))))
+                .flatMap(i => incrementWithClosure(grammar, i, prod)).setFilter(i => i.id);
+            group.push(...getClosureGroups(grammar, { sym: grammar.meta.symbols.get("production" + prod.id), index: index, closure: new_closure }));
+        } else if (!isSymAProduction(item.sym(grammar))) {
+            const new_closure = closure.slice().filter((item, i) => !item.atEND && isSymAProduction(item.sym(grammar)));
+            new_closure.push(...incrementWithClosure(grammar, item, null, true));
+            group.push({ sym, index: index, closure: new_closure.setFilter(i => i.id) });
+        }
+        i++;
+    }
+    return group;
+}
+function incrementWithClosure(grammar: Grammar, item: Item, prod: Production, AUTO_INCREMENT: boolean = false): Item[] {
+    //if (grammar.item_map.get(item.id).LR || grammar.item_map.get(item.id).RR.length > 0)
+    //    return [];
+    if (AUTO_INCREMENT || item.getProductionAtSymbol(grammar).id == prod.id)
+        return getClosure([item.increment()], grammar);
+    return [item];
+}
+

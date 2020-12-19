@@ -132,6 +132,22 @@ export interface Preamble {
     val?: number;
 }
 
+export interface ItemMapEntry {
+    item: Item;
+    closure: string[];
+    /**
+     * Does the item contain left recursion
+     */
+    LR: boolean;
+    /**
+     * List of unique symbol names that shift into a right recursion
+     */
+    RR: string[];
+    index: number;
+    containing_items: Set<string>;
+    depth: number;
+}
+
 export type Grammar = Array<Production> & {
     /**
      * Hash of all productions strings and bodies order out starting with the goal production
@@ -183,18 +199,7 @@ export type Grammar = Array<Production> & {
      * A mapping of the closure for all grammar items, 
      * keyed by an item's id.
      */
-    item_map: Map<string, {
-        item: Item;
-        closure: string[];
-        /**
-         * Does the item contain left recursion
-         */
-        LR: boolean;
-        /**
-         * List of unique symbol names that shift into a right recursion
-         */
-        RR: string[];
-    }>;
+    item_map: Map<string, ItemMapEntry>;
 
 };
 

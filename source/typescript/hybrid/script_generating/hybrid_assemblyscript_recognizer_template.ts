@@ -339,8 +339,8 @@ export const renderAssemblyScriptRecognizer = (
                 SC.If(SC.UnaryPre("!", SC.Call("skip", "l")))
                     .addStatement(SC.Break),
                 SC.Call(SC.Member("l", "next")),
-                SC.UnaryPre(SC.Return, SC.Value("l"))
             ),
+            SC.UnaryPre(SC.Return, SC.Value("l"))
         ));
     /*            
     function _no_check_with_skip(lex: Lexer, skip: BooleanTokenCheck):void {
