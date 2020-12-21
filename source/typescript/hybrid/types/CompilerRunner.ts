@@ -59,26 +59,26 @@ export function constructCompilerRunner(ANNOTATED: boolean = false): CompilerRun
             return actual_name;
         },
         join_constant_map(const_map: Map<ConstantHash, ConstantObj>, dependent_data: SC) {
-
+            const dependent_datas = [dependent_data, ...[...const_map.values()].map(d => SC.Bind(d.code_node))];
             let intermediate_names = [];
             for (const [hash, { original_name, name, code_node }] of const_map.entries()) {
                 if (runner.constant_map.has(hash)) {
                     let int_name = "____intermediate___" + intermediate_names.length;
                     intermediate_names.push([int_name, runner.constant_map.get(hash).name.value]);
-                    dependent_data.replaceVariableValue(name.type.value, int_name);
+                    dependent_datas.map(d => d.replaceVariableValue(name.type.value, int_name));
                 } else {
                     let const_name = runner.add_constant(original_name, code_node);
 
                     if (name.type.value !== const_name.type.value) {
                         let int_name = "____intermediate___" + intermediate_names.length;
                         intermediate_names.push([int_name, const_name.type.value]);
-                        dependent_data.replaceVariableValue(name.type.value, int_name);
+                        dependent_datas.map(d => d.replaceVariableValue(name.type.value, int_name));
                     }
                 }
             }
 
             for (const [old_name, new_name] of intermediate_names)
-                dependent_data.replaceVariableValue(old_name, new_name);
+                dependent_datas.map(d => d.replaceVariableValue(old_name, new_name));
         },
         render_constants: (): { const: SC[], fn: SC[]; } => {
 

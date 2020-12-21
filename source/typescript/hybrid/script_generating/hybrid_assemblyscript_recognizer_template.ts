@@ -435,14 +435,16 @@ export const renderAssemblyScriptRecognizer = (
             SC.If(FAILED).addStatement(
                 //SC.Assignment(prod, 1001),
                 //SC.Call("probe", "l"),
-                SC.Return
+                SC.UnaryPre(SC.Return, SC.Value("false"))
             ),
             SC.If(SC.Variable("accept")).addStatement(
                 SC.Call(consume_call, "l"),
+                SC.UnaryPre(SC.Return, SC.Value("true")),
                 SC.If().addStatement(
                     // SC.Assignment(prod, 1221),
                     // SC.Call("probe", "l"),
-                    SC.Call("soft_fail", "l")
+                    SC.Call("soft_fail", "l"),
+                    SC.UnaryPre(SC.Return, SC.Value("false"))
                 )
             ),
         ));

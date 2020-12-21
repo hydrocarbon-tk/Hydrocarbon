@@ -361,7 +361,11 @@ export function getCommonAncestors(grammar: Grammar, items: Item[]): Item[] {
         )
             .group(i => i.id)
             .filter(i => i.length == items.length)
-            .map(i => i[0]);
+            .map(i => i[0])
+            .sort((a, b) =>
+                grammar.item_map.get(b.id).depth -
+                grammar.item_map.get(a.id).depth
+            );
 
     return contains;//.map(i => i.getProductionAtSymbol(grammar).name + " \n          " + i.renderUnformattedWithProduction(grammar));
 }
@@ -463,7 +467,7 @@ export function getTransitionTree(
             sym: getUniqueSymbolName(sym),
             depth,
             roots: new_roots,
-            next
+            next: progress ? next : []
         });
     }
 

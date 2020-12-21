@@ -19,9 +19,10 @@ export const consume_skip_call = SC.Variable("consume_skip:void");
 /**
  * Consume With Assert and skip call signature
  */
-export const consume_assert_skip_call = SC.Variable("consume_assert_skip:void");
+export const consume_assert_skip_call = SC.Variable("assert_consume_skip:void");
 
-export const consume_assert_call = SC.Variable("consume_assert:void");
+export const
+    consume_assert_call = SC.Variable("assert_consume:bool");
 
 export const TokenSpaceIdentifier = 1,
     TokenNumberIdentifier = 2,
@@ -197,24 +198,35 @@ export function addSkipCall(grammar: Grammar, runner: CompilerRunner, exclude_se
         return SC.Expressions(SC.Call(SC.Constant("_skip"), lex_name, skips));//`_skip(${lex_name}, ${skips})`;
     return SC.Expressions(SC.Empty());
 }
-export function getFollowCheckFunction(grammar: Grammar, runner: CompilerRunner, production: Production):
+export function getFollowCheckFunction(grammar: Grammar, runner: CompilerRunner, production: Production, USE_SKIP = true):
     VarSC {
     const
+        FC_name = SC.Constant("follow_check_fn:bool"),
         lex_name = g_lexer_name,
-        follow = [...FOLLOW(grammar, production.id).values()],
-        skip = createSkipCall(grammar, runner, lex_name, follow),
-        boolA = getIncludeBooleans(follow.slice(0, 1), grammar, runner, skip, []),
-        boolB = getIncludeBooleans(follow.slice(1), grammar, runner, lex_name, []);
+        follow = [...FOLLOW(grammar, production.id).values()];
+    let FN = null;
 
-    const FC_name = SC.Constant("follow_check_fn:bool");
 
-    const FN = SC.Function(":bool", lex_name).addStatement(SC.UnaryPre(SC.Return, SC.Binary(boolA, " || ", boolB)));
+    if (USE_SKIP) {
+        const
+            skip = createSkipCall(grammar, runner, lex_name, follow,),
+            boolA = getIncludeBooleans(follow.slice(0, 1), grammar, runner, skip, []),
+            boolB = getIncludeBooleans(follow.slice(1), grammar, runner, lex_name, []);
+        FN =
+            follow.slice(1).length > 0 ?
+                SC.Function(":bool", lex_name).addStatement(SC.UnaryPre(SC.Return, SC.Binary(boolA, " || ", boolB))) :
+                SC.Function(":bool", lex_name).addStatement(SC.UnaryPre(SC.Return, boolA));
+    } else {
+        const
+            bool = getIncludeBooleans(follow, grammar, runner, lex_name, []);
+        FN = SC.Function(":bool", lex_name).addStatement(SC.UnaryPre(SC.Return, bool));
+    }
 
     return <VarSC>runner.add_constant(FC_name, FN);
 }
 
-export function addFollowCheckCall(grammar: Grammar, runner: CompilerRunner, production: Production, lex_name: ConstSC | VarSC = SC.Variable("l", "Lexer")): ExprSC {
-    const call = getFollowCheckFunction(grammar, runner, production);
+export function addFollowCheckCall(grammar: Grammar, runner: CompilerRunner, production: Production, lex_name: ConstSC | VarSC = SC.Variable("l", "Lexer"), USE_SKIP = true): ExprSC {
+    const call = getFollowCheckFunction(grammar, runner, production, USE_SKIP);
     if (call)
         return SC.Call(call, lex_name);
     return SC.Value("true");
