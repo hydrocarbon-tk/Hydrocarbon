@@ -1,4 +1,5 @@
 import wind from "@candlefw/wind";
+import { performance } from "perf_hooks";
 
 import { getAssertionSymbolFirst, getUniqueSymbolName, isSymAnAssertFunction, isSymAProduction } from "../hybrid/utilities/utilities.js";
 import { EOF_SYM, Grammar, ItemMapEntry, Production, SymbolType } from "../types/grammar.js";
@@ -7,8 +8,6 @@ import { FIRST } from "./first.js";
 import { FOLLOW } from "./follow.js";
 import { Item } from "./item.js";
 import { getClosure, processClosure } from "./process_closure.js";
-
-
 
 export { Item, FOLLOW, FIRST, processClosure };
 
@@ -198,7 +197,6 @@ export function filloutGrammar(grammar: Grammar, env) {
 
     buildItemMap(grammar);
 
-
     return grammar;
 }
 
@@ -209,14 +207,149 @@ export function getItemMapEntry(grammar: Grammar, item_id: string): ItemMapEntry
             closure: null,
             LR: false,
             RR: null,
-            index: -1,
+            //index: -1,
             containing_items: new Set,
             depth: Infinity
         });
     }
 
     return grammar.item_map.get(item_id);
+}
 
+export function buildItemClosures(grammar: Grammar) {
+    const production_ready = grammar.map(i => ({ count: 0, items: null }));
+    const items_sets = grammar.flatMap(p => {
+
+        const items = p.bodies.map(b => {
+            const out_syms = [];
+            let item = new Item(b.id, b.length, 0, EOF_SYM);
+            let depth = b.id + p.id * grammar.length;
+            do {
+                out_syms.push({
+                    item,
+                    closure: [],
+                    excludes: b.excludes.get(item.offset) ?? [],
+                    rank: item.offset,
+                    depth: depth,
+                    hash: "",
+                    containing_items: new Set
+                });
+                depth++;
+            } while (item = item.increment());
+
+            return out_syms;
+        });
+        production_ready[p.id].all_items = items;
+        production_ready[p.id].items = items.map(i => i[0]);
+
+        return items.flat();
+    });
+    const sorted = new Set();
+    const completed: typeof items_sets = [];
+    const prods = [];
+
+    function setItem(i: any, rank = 1, depth = Infinity) {
+        const { item } = <{ item: Item; }>i;
+        i.depth = Math.min(i.depth, depth);
+        if (!sorted.has(item.id)) {
+            sorted.add(item.id);
+            if (item.atEND) completed.push(i);
+            else {
+                const sym = item.sym(grammar);
+                if (sym.type == SymbolType.PRODUCTION) {
+                    const prod_id = sym.val;
+                    prods.push(i);
+                    for (const items of production_ready[prod_id].all_items) {
+                        let j = 0;
+                        for (const a of items) {
+                            a.rank = rank;
+                            setItem(a, a.rank + 1, i.depth + 1 + j++);
+                        }
+                    }
+                } else {
+                    completed.push(i);
+                }
+            }
+        }
+    }
+
+    for (const i of items_sets)
+        setItem(i);
+
+    prods.sort((a, b) => b.rank - a.rank);
+    let CHANGE = true, pending = completed.concat(prods);
+    while (CHANGE || pending.length > 0) {
+
+        CHANGE = false;
+        let temp_pending = pending.slice();
+        pending.length = 0;
+        for (const obj of temp_pending) {
+            const { closure, item, excludes, hash } = obj;
+            let temp = [];
+            temp.push(item);
+            if (item.atEND) {
+                obj.closure = temp;
+                continue;
+            };
+            const sym = item.sym(grammar);
+            if (sym.type == SymbolType.PRODUCTION) {
+                const prod_id = sym.val;
+                temp.push(...production_ready[prod_id].items.flatMap(i => i.closure));
+            }
+            temp = temp.setFilter(i => i.id);
+            let new_hash = temp.map(i => i.id).sort().join("");
+            for (const exclude of excludes) {
+                outer:
+                for (let i = 0; i < closure.length; i++) {
+                    let item = Item.fromArray(<Item>closure[i]);
+                    if (item.length < exclude.length) continue;
+                    item[2] = exclude.length - 1;
+
+                    for (let i = exclude.length - 1; i >= 0; i--) {
+                        const sym = item.sym(grammar);
+                        if (getUniqueSymbolName(sym) != getUniqueSymbolName(exclude[i])) continue outer;
+                        item = item.decrement();
+                    }
+                    closure.splice(i--, 1);
+                }
+            }
+            if (obj.hash != new_hash) {
+                pending.push(obj);
+            } else {
+                CHANGE = true;
+            }
+            obj.closure = temp;
+            obj.hash = new_hash;
+        }
+    }
+
+    grammar.item_map = new Map(items_sets.map(i => [i.item.id, i]));
+
+    for (const obj of items_sets) {
+        const { item, closure } = obj,
+            item_id = item.id,
+            production_id = item.getProduction(grammar);
+        const LR = item.offset == 0 &&
+            closure.filter(i => i?.sym(grammar)?.type == SymbolType.PRODUCTION).some(i => i.getProductionAtSymbol(grammar).id == production_id);
+
+        //Right recursion occurs when the origin item shows up in a shifted item's list. 
+        const RR = item.offset > 0
+            ? closure.slice(1).filter(i => i?.sym(grammar)?.type != SymbolType.PRODUCTION)
+                .filter(i => i.body == item.body)
+                .map(i => getUniqueSymbolName(i.sym(grammar)))
+            : [];
+
+        obj.closure = obj.closure.map(i => i.id);
+
+        for (const sub_item_id of obj.closure)
+            if (item_id !== sub_item_id) getItemMapEntry(grammar, sub_item_id).containing_items.add(item_id);
+
+        obj.LR = LR;
+        obj.RR = RR;
+    }
+
+
+    return items_sets;
 }
 
 export function buildItemMapProduction(prod: Production, grammar: Grammar, item_map = new Map(), depth: number = 0, visited: Set<number> = new Set, index = 0) {
@@ -238,7 +371,7 @@ export function buildItemMapProduction(prod: Production, grammar: Grammar, item_
 
             const item_id = item.id;
 
-            const { closure } = processClosure([item], grammar, true);
+            const { closure } = processClosure([item], grammar, true, body.excludes.get(offset));
             //Check for left and right recursion
 
             // Left recursion occurs when the production symbol shows up on the
@@ -261,10 +394,9 @@ export function buildItemMapProduction(prod: Production, grammar: Grammar, item_
 
             const item_entry = getItemMapEntry(grammar, item_id);
             item_entry.item = item;
-            item_entry.closure = final_closure;
+            item_entry.closure = final_closure.setFilter();
             item_entry.LR = LR;
             item_entry.RR = RR;
-            item_entry.index = index;
             item_entry.depth = depth + offset;
 
 
@@ -290,42 +422,36 @@ export function buildItemMapProduction(prod: Production, grammar: Grammar, item_
 export function buildItemMap(grammar: Grammar) {
 
     const item_map = new Map;
-
+    harness.markTime();
+    const A = buildItemClosures(grammar);
+    harness.getTime("NEW");
+    /*
+    harness.markTime();
     buildItemMapProduction(grammar[0], grammar, item_map);
+    harness.getTime("OLD");
 
-    grammar.item_map = item_map;
-}
-
-export function preCalcLeftRecursion(grammar: Grammar) {
-    o: for (const production of grammar) {
-        production.IS_LEFT_RECURSIVE = false;
-        const closure = production.bodies.map(b => new Item(b.id, b.length, 0, EOF_SYM));
-        processClosure(closure, grammar, true);
-        for (const i of closure) {
-            const sym = i.sym(grammar);
-            if (sym && isSymAProduction(sym)) {
-                if (grammar[sym.val] == production) {
-                    production.IS_LEFT_RECURSIVE = true;
-                    continue o;
-                }
+    //*
+    let c = [];
+    for (let i = 0; i < A.length; i++) {
+        const objA = A[i];
+        const objB = grammar.item_map.get(objA.item.id);
+        if (objB) {
+            if (objB.closure.length !== objA.closure.length) {
+                c.push({
+                    reason: "DIFF CLOSURE",
+                    new: Object.assign({}, objA, {
+                        closure: objA.closure.map(i => i.id), item: objA.item.renderUnformattedWithProduction(grammar)
+                    }),
+                    old: Object.assign({}, objB, { item: objB.item.renderUnformattedWithProduction(grammar) })
+                });
             }
         }
     }
-    let change = true;
-    while (change) {
-        change = false;
-        o: for (const production of grammar) {
-            if (!production.IS_LEFT_RECURSIVE) {
-                for (const body of production.bodies) {
-                    if (body.sym[0] && isSymAProduction(body.sym[0]) && grammar[body.sym[0].val].IS_LEFT_RECURSIVE) {
-                        production.IS_LEFT_RECURSIVE = true;
-                        change = true;
-                        continue o;
-                    }
-                }
-            }
-        }
-    }
+
+    console.log(0, 1, c.slice());
+    //*/
+
+    //grammar.item_map = item_map;
 }
 
 export function doesItemHaveLeftRecursion(item: Item, grammar: Grammar): boolean {
