@@ -392,7 +392,7 @@ function* buildPeekTree(peek_nodes: PeekNode[], grammar: Grammar, runner: Compil
     };
 }
 
-function renderClauseSuccessCheck(code_node: SC, production: Production, grammar: Grammar, runner: CompilerRunner) {
+function addClauseSuccessCheck(code_node: SC, production: Production, grammar: Grammar, runner: CompilerRunner) {
     code_node.addStatement(SC.Declare(SC.Assignment("SUCCESS:bool", SC.Binary(production_global, SC.Value("=="), SC.Value(production.id)))));
     code_node.addStatement(SC.If(
         SC.Binary(SC.UnaryPre("!", SC.Value("SUCCESS")), "&&", SC.UnaryPre("!", SC.Value("FAILED"))))
@@ -435,7 +435,7 @@ function createBacktrackingSequence(
             //Render this out normally
             const closure = getClosure([item.increment()], grammar);
 
-            const { sc } = renderFunctionBody(
+            const { sc } = getFunctionBody(
                 closure,
                 grammar,
                 runner,
@@ -566,7 +566,7 @@ function createMultiItemSequence(
 
         try {
             if (items.length > 0) {
-                shiftAndComplete(items, _if, grammar, runner, production, productions, options, -1);
+                addShiftAndComplete(items, _if, grammar, runner, production, productions, options, -1);
                 out_items.push(...items);
                 return { items: out_items, _if, filter_productions };
             }
@@ -771,7 +771,7 @@ export function renderFunctionBody(
          */
 
         if (terminal_completed_items.length > 0) {
-            const end = renderEndItemSequence(terminal_completed_items, grammar, runner, productions, options, !!leaf);
+            const end = addEndItemSequence(terminal_completed_items, grammar, runner, productions, options, !!leaf);
 
             if (leaf) {
                 leaf.addStatement(end);
@@ -795,7 +795,7 @@ export function renderFunctionBody(
 
         code_node.addStatement(root);
 
-        _if = renderProductionShifts(nonterm_shift_items, grammar, runner, production, productions, code_node, offset, options);
+        _if = addProductionShifts(nonterm_shift_items, grammar, runner, production, productions, code_node, offset, options);
 
         if (code_node == _if) _if = leaf || code_node;
     }
@@ -803,11 +803,7 @@ export function renderFunctionBody(
     return ({ sc: code_node, _if, sym_map: symboled_items_map });
 }
 
-function logItems(items: Item[], grammar: Grammar) {
-    console.log(items.map(i => i.renderUnformattedWithProduction(grammar)));
-}
-
-function renderProductionShifts(
+function addProductionShifts(
     nonterm_shift_items: Item[],
     grammar: Grammar,
     runner: CompilerRunner,
@@ -818,6 +814,8 @@ function renderProductionShifts(
     options: RenderBodyOptions
 ) {
     if (nonterm_shift_items.length > 0) {
+
+
 
         const lr_items = nonterm_shift_items
             .setFilter(i => i.id)
@@ -864,7 +862,7 @@ function renderProductionShifts(
                 if (i == (sw_group.length - 1)) {
                     const block = SC.If();
                     const options = generateRDOptions(RETURN_TYPE, production.id);
-                    shiftAndComplete(sw_group[i][1].map(i => i.increment()), block, grammar, runner, production, productions, options, key);
+                    addShiftAndComplete(sw_group[i][1].map(i => i.increment()), block, grammar, runner, production, productions, options, key);
                     if_node.addStatement(block.addStatement(SC.Empty()), SC.Break);
                 }
             }
@@ -888,6 +886,8 @@ function renderProductionShifts(
             _if.addStatement(switch_node);
         }
 
+
+
         return _if;
     }
 
@@ -895,7 +895,8 @@ function renderProductionShifts(
     return code_node;
 }
 
-function shiftAndComplete(items: Item[], if_node: SC, grammar: Grammar, runner: CompilerRunner, production: Production, productions: Set<number>, options: RenderBodyOptions, key: any) {
+function addShiftAndComplete(items: Item[], if_node: SC, grammar: Grammar, runner: CompilerRunner, production: Production, productions: Set<number>, options: RenderBodyOptions, key: any) {
+
     const
         shift_items = items.filter(i => !i.atEND),
         end_items = items.filter(i => i.atEND),
@@ -977,7 +978,7 @@ function shiftAndComplete(items: Item[], if_node: SC, grammar: Grammar, runner: 
     }
 
     if (end_items.length > 0) {
-        const end = renderEndItemSequence(end_items, grammar, runner, productions, options, shift_items.length > 0);
+        const end = addEndItemSequence(end_items, grammar, runner, productions, options, shift_items.length > 0);
 
 
         if (!active_node) {
@@ -986,9 +987,11 @@ function shiftAndComplete(items: Item[], if_node: SC, grammar: Grammar, runner: 
             active_node.addStatement(end);
         }
     }
+
+
 }
 
-function renderEndItemSequence(
+function addEndItemSequence(
     end_items: Item[],
     grammar: Grammar,
     runner: CompilerRunner,
@@ -1042,16 +1045,13 @@ export function constructHybridFunction(production: Production, grammar: Grammar
 
     try {
 
-
-
         items = getClosure(items, grammar);
 
-        items.forEach(i => (i.IS_LR = checkForLeftRecursion(i.getProduction(grammar), i, grammar), i));
-
+        //*
         const
             production_items = items.filter(i => i.sym(grammar) && isSymAProduction(i.sym(grammar))),
             sc =
-                renderFunctionBody(
+                getFunctionBody(
                     items,
                     grammar,
                     runner,
@@ -1065,8 +1065,9 @@ export function constructHybridFunction(production: Production, grammar: Grammar
                 ).sc;
 
         code_node.addStatement(sc);
+        //*/
 
-        renderClauseSuccessCheck(code_node, production, grammar, runner);
+        addClauseSuccessCheck(code_node, production, grammar, runner);
 
         return {
             productions,
