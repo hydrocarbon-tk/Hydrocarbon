@@ -116,7 +116,19 @@ export function createPrecedence(body, grammar) {
     }
     return (l >= 0) ? prec : Math.min(l, prec);
 }
-
+/**
+ * Fillout Worker Grammar
+ * 
+ * Takes an existing filled out grammar that has been transferred to 
+ * a worker and re-implements missing methods for custom types.
+ * 
+ * Returns nothing
+ */
+export function filloutWorkerGrammar(grammar: Grammar) {
+    for (const [key, val] of grammar.item_map.entries()) {
+        val.item = Item.fromArray(val.item);
+    }
+}
 
 export function filloutGrammar(grammar: Grammar, env) {
 
@@ -496,16 +508,21 @@ export function getCommonAncestors(grammar: Grammar, items: Item[]): Item[] {
     return contains;//.map(i => i.getProductionAtSymbol(grammar).name + " \n          " + i.renderUnformattedWithProduction(grammar));
 }
 
-export interface PeekNode {
+export interface TransitionTreeNode {
+    last_progress?: number,
+    progress?: boolean,
     depth: number;
     sym: string;
     roots: Item[];
-    next: PeekNode[];
+    next: TransitionTreeNode[];
+    final_count: number;
 }
 export interface closure_group {
     sym: Symbol;
     index: number;
     closure: Item[];
+
+    final: number;
 }
 
 /**
@@ -536,7 +553,7 @@ export function getTransitionTree(
 
     if (!closures) {
         closures = root_items.map((i, index) => ({ sym: null, index, closure: getClosure([i], grammar) }));
-        const { AMBIGUOUS, clear, max_depth, tree_nodes } = getTransitionTree(grammar, root_items, max_tree_depth, max_no_progress, 0, closures);
+        const { AMBIGUOUS, clear, max_depth, tree_nodes } = getTransitionTree(grammar, root_items, max_tree_depth, max_no_progress, max_time_limit, 0, closures);
         return {
             AMBIGUOUS,
             clear,
@@ -546,7 +563,8 @@ export function getTransitionTree(
                     depth: -1,
                     next: tree_nodes,
                     roots: root_items,
-                    sym: null
+                    sym: null,
+                    final_count: 0
                 }
             ]
         };
@@ -563,7 +581,7 @@ export function getTransitionTree(
 
     const
         groups = closures.flatMap(cg => getClosureGroups(grammar, cg)).group(cg => getUniqueSymbolName(cg.sym)),
-        tree_nodes = [];
+        tree_nodes: TransitionTreeNode[] = [];
 
     let
         GLOBAL_PROGRESS = false,
@@ -588,7 +606,8 @@ export function getTransitionTree(
 
         if (!quit && new_roots.length > 1) {
 
-            const { tree_nodes, clear, AMBIGUOUS: A, max_depth: md } = getTransitionTree(grammar, root_items, max_tree_depth, max_no_progress, depth + 1, group, new_roots.length, curr_progress);
+            const { tree_nodes, clear, AMBIGUOUS: A, max_depth: md } =
+                getTransitionTree(grammar, root_items, max_tree_depth, max_no_progress, max_time_limit, depth + 1, group, new_roots.length, curr_progress, root_time);
 
             AMBIGUOUS = AMBIGUOUS || A;
 
@@ -604,7 +623,8 @@ export function getTransitionTree(
             sym: getUniqueSymbolName(sym),
             depth,
             roots: new_roots,
-            next: progress ? next : []
+            next: progress ? next : [],
+            final_count: group.reduce((r, c) => c.final + r, 0)
         });
     }
 
@@ -614,7 +634,10 @@ export function getTransitionTree(
     return { tree_nodes, clear: false, AMBIGUOUS, max_depth: max_depth };
 }
 
-function getClosureGroups(grammar: Grammar, { index, closure }: closure_group): closure_group[] {
+function getClosureGroups(grammar: Grammar, { index, closure, final }: closure_group): closure_group[] {
+
+    if (final)
+        return [];
 
     const group = [];
     let i = 0;
@@ -625,11 +648,26 @@ function getClosureGroups(grammar: Grammar, { index, closure }: closure_group): 
             let new_closure = closure.slice()
                 .filter((item, i) => (!item.atEND && isSymAProduction(item.sym(grammar))))
                 .flatMap(i => incrementWithClosure(grammar, i, prod)).setFilter(i => i.id);
-            group.push(...getClosureGroups(grammar, { sym: grammar.meta.symbols.get("production" + prod.id), index: index, closure: new_closure }));
+            /*
+                At end of root production closure[0]
+            */
+            if (new_closure.length == 0) {
+                const production_id = closure[0].getProduction(grammar).id;
+                const follow = FOLLOW(grammar, production_id);
+
+                for (const sym of follow.values()) {
+
+                    group.push({ sym, index, closure: closure.slice(0, 1), final: 1 });
+                }
+
+
+                console.log(closure[0].renderUnformattedWithProduction(grammar), follow);
+            } else
+                group.push(...getClosureGroups(grammar, { sym: grammar.meta.symbols.get("production" + prod.id), index: index, closure: new_closure }));
         } else if (!isSymAProduction(item.sym(grammar))) {
             const new_closure = closure.slice().filter((item, i) => !item.atEND && isSymAProduction(item.sym(grammar)));
             new_closure.push(...incrementWithClosure(grammar, item, null, true));
-            group.push({ sym, index: index, closure: new_closure.setFilter(i => i.id) });
+            group.push({ sym, index: index, closure: new_closure.setFilter(i => i.id), final: 0 });
         }
         i++;
     }
