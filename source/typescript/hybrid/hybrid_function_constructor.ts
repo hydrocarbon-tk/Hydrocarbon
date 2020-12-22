@@ -1,6 +1,6 @@
 import { Grammar, Production, EOF_SYM, SymbolType, ItemMapEntry } from "../types/grammar.js";
 import { AssertionFunctionSymbol, TokenSymbol } from "../types/Symbol";
-import { Item, FOLLOW, FIRST, doesItemHaveLeftRecursion, doesSymbolLeadToRightRecursion, getCommonAncestors, getTransitionTree, PeekNode }
+import { Item, FOLLOW, FIRST, doesItemHaveLeftRecursion, doesSymbolLeadToRightRecursion, getCommonAncestors, getTransitionTree, TransitionTreeNode }
     from "../util/common.js";
 import {
     createNoCheckShift,
@@ -54,10 +54,6 @@ enum ReturnType {
     RETURN = 1,
     NONE = 2
 
-}
-
-function checkForLeftRecursion(p: Production, item: Item, grammar: Grammar, encountered_productions = new Set([p.id])) {
-    return !!(grammar.item_map.get(item.id).LR);
 }
 
 function renderProduction(
@@ -329,44 +325,53 @@ function processProductionChain(
     return code_node;
 }
 
-
-function getItemData(item_id: string, grammar: Grammar): ItemMapEntry {
-    return grammar.item_map.get(item_id);
-}
-
-function getMaxDistance(
-    grammar: Grammar,
-    production: Production,
-    items: Item[]
-): number {
-    const prod_bodies = production.bodies.map(b => new Item(b.id, b.length, 0, EOF_SYM).id);
-    const prod_depth = Math.max(...prod_bodies.map(i => getItemData(i, grammar)).map(n => n.depth));
-    const item_depth = Math.max(...items.map(i => getItemData(i.id, grammar)).map(n => Math.abs(n.depth - prod_depth)));
-    return item_depth;
-}
-
-function getNoSkipSymbolsFromPeekNode(peek_nodes: PeekNode, grammar: Grammar): TokenSymbol[] {
+function getNoSkipSymbolsFromPeekNode(peek_nodes: TransitionTreeNode, grammar: Grammar, current_production_id: number = -1): TokenSymbol[] {
     return peek_nodes.next.map(i => <TokenSymbol>grammar.meta.all_symbols.get(i.sym));
 }
 
-function* buildPeekTree(peek_nodes: PeekNode[], grammar: Grammar, runner: CompilerRunner, lex_name: VarSC): Iterator<{ _if: SC, items: Item[]; }, { _if: SC, items: Item[]; }> {
+function* buildPeekTree(peek_nodes: TransitionTreeNode[], grammar: Grammar, runner: CompilerRunner, lex_name: VarSC, current_production_id: number = -1): Iterator<{ _if: SC, items: Item[]; }, { _if: SC, items: Item[]; }> {
     let _if = null, leaf = null, root = null;
-    for (const nodes of peek_nodes.group(i => {
+    const grouped_nodes = peek_nodes.group(i => {
         return "_" + i.roots.map(i => i.id).sort().join("__") + "_";
-    })) {
+    }).sort((a, b) => {
+        const count = a[0].final_count - b[0].final_count;
+        if (count == 0) {
+            return a.length - b.length;
+        }
+        return count;
+    });
+    let i = 0;
+    for (const nodes of grouped_nodes) {
+
+
+        i++;
 
         // Each peek node represents one symbol and a set of next values.
         // combine next values and filter out duplicates based on symbol
         const syms = nodes.map(i => <TokenSymbol>grammar.meta.all_symbols.get(i.sym));
         const next = nodes.flatMap(i => i.next).setFilter(i => i.sym);
         const roots = nodes[0].roots;
+        const prod_id = roots[0].getProduction(grammar).id;
+        /**
+         * IF all current root items of the same production and they are
+         * all at the initial state, then use this as an
+         * to exit the peek and allow that production to be called. 
+         * Check to make sure the current production function is not the one 
+         * being called to prevent a live lock to prevent infinite recursion.
+         */
+        const SAME_ROOTS = current_production_id != prod_id
+            && roots.every(r => r.getProduction(grammar).id == prod_id)
+            && roots.every(r => r.offset == 0);
 
-        _if = SC.If(getIncludeBooleans(syms, grammar, runner, lex_name));
+
+        _if = i == grouped_nodes.length ? SC.If() : SC.If(getIncludeBooleans(syms, grammar, runner, lex_name));
+        addItemListComment(_if, roots, grammar);
+        _if.addStatement(SC.Comment(nodes[0].final_count + ""));
         if (leaf) leaf.addStatement(_if);
         if (!root) root = _if;
         leaf = _if;
 
-        if (next.length == 0) {
+        if (next.length == 0 || SAME_ROOTS) {
             yield ({
                 _if,
                 items: roots
@@ -375,7 +380,7 @@ function* buildPeekTree(peek_nodes: PeekNode[], grammar: Grammar, runner: Compil
             _if.addStatement(SC.Empty());
         } else {
             _if.addStatement(addSkipCall(grammar, runner, syms, <any>SC.Call(SC.Member(lex_name, "next"))));
-            const gen = buildPeekTree(next, grammar, runner, lex_name);
+            const gen = buildPeekTree(next, grammar, runner, lex_name, current_production_id);
             let val = gen.next();
             while (!val.done) {
                 yield val.value;
@@ -390,6 +395,10 @@ function* buildPeekTree(peek_nodes: PeekNode[], grammar: Grammar, runner: Compil
     return {
         _if: root || new SC, leaf, items: []
     };
+}
+
+function addItemListComment(sc: SC, items: Item[], grammar: Grammar) {
+    sc.addStatement(SC.Comment(items.map(i => i.renderUnformattedWithProduction(grammar)).join("\n")));
 }
 
 function addClauseSuccessCheck(code_node: SC, production: Production, grammar: Grammar, runner: CompilerRunner) {
@@ -580,22 +589,24 @@ function createMultiItemSequence(
     /**
      * Get the maximum depth necessary to disambiguate
      */
+
     const { tree_nodes } = getTransitionTree(grammar, items, 5, 3);
+
 
     const peek_name = SC.Variable("pk:Lexer");
     const no_skip = getNoSkipSymbolsFromPeekNode(tree_nodes[0], grammar);
-    _if.addStatement(SC.Declare(SC.Assignment(peek_name, SC.Call(SC.Member(lex_name, "copy")))));
-    _if.addStatement(addSkipCall(grammar, runner, no_skip, peek_name/* SC.Call(SC.Member(peek_name, "next")) */));
-    const next = INITIAL ? tree_nodes[0].next : tree_nodes[0].next;
-    const gen = buildPeekTree(next, grammar, runner, peek_name);
+    const next = INITIAL ? tree_nodes[0].next[0].next : tree_nodes[0].next;
+    const gen = buildPeekTree(next, grammar, runner, peek_name, production.id);
 
-    let val = gen.next();
+    let val = gen.next(), block_count = 0;
 
     while (!val.done) {
+        block_count++;
         const { _if: __if, items } = val.value, [first] = items,
             SAME_PRODUCTION = items.setFilter(i => i.getProduction(grammar).id).length == 1;
 
         if (offset == 0 && SAME_PRODUCTION && INITIAL) {
+            __if.addStatement(SC.Comment("A"));
             const prod = first.getProduction(grammar);
             filter_productions.push((first.getProduction(grammar).id != production.id) ? items[0].getProduction(grammar).id : -1);
             renderProduction(__if, prod, grammar, runner, productions, lex_name, false);
@@ -603,14 +614,20 @@ function createMultiItemSequence(
         } else if (items.length > 1) {
             const SAME_SYMBOL = doItemsHaveSameSymbol(items, grammar);
             //_if.addStatement(SC.Comment(`BB ${SAME_SYMBOL} ${SAME_PRODUCTION}-----------\n${items.map(i => i.renderUnformattedWithProduction(grammar)).join("\n")}\n --------`));
-            if (INITIAL && SAME_PRODUCTION)
+            if (INITIAL && SAME_PRODUCTION) {
+                __if.addStatement(SC.Comment("B"));
                 filter_productions.push(...createMultiItemSequence(items, production_lr_items, __if, grammar, runner, production, productions, options, production_items, lex_name, 0, true).filter_productions);
-            else if (SAME_SYMBOL)
+            }
+            else if (SAME_SYMBOL) {
+                __if.addStatement(SC.Comment("C"));
                 filter_productions.push(...createMultiItemSequence(items, production_lr_items, __if, grammar, runner, production, productions, options, production_items, lex_name, offset + 1).filter_productions);
-            else
+            } else {
+                __if.addStatement(SC.Comment("D"));
                 filter_productions.push(...createBacktrackingSequence(items, __if, grammar, runner, production, productions, options, lex_name, offset).filter_productions);
+            }
             out_items.push(...items);
         } else {
+            __if.addStatement(SC.Comment("E"));
             filter_productions.push((first.getProduction(grammar).id != production.id) ? first.getProduction(grammar).id : -1);
             /**
              * If the item is at the start of the offset, then we can simply call into the items production
@@ -625,12 +642,26 @@ function createMultiItemSequence(
         val = gen.next();
 
     }
-    const __if = val.value.leaf;
-    __if.addStatement(SC.Empty());
-    _if.addStatement(val.value._if);
-    _if.addStatement(SC.Empty());
-    _if = __if;
+    if (block_count > 1) {
 
+        if (INITIAL) {
+            _if.addStatement(SC.Declare(SC.Assignment(peek_name, SC.Call(SC.Member(lex_name, "copy")))));
+            _if.addStatement(addSkipCall(grammar, runner, no_skip, SC.Call(SC.Member(peek_name, "next"))));
+        } else {
+            _if.addStatement(SC.Declare(SC.Assignment(peek_name, SC.Call(SC.Member(lex_name, "copy")))));
+            //_if.addStatement(addSkipCall(grammar, runner, no_skip, peek_name/* SC.Call(SC.Member(peek_name, "next")) */));
+        }
+
+
+        const __if = val.value.leaf;
+        __if.addStatement(SC.Empty());
+        _if.addStatement(val.value._if);
+        _if.addStatement(SC.Empty());
+        _if = __if;
+    } else {
+        _if.addStatement(...val.value._if.statements);
+        _if.addStatement(SC.Empty());
+    }
     return { items: out_items, _if, filter_productions };
 }
 
@@ -675,7 +706,7 @@ function createSingleItemSequence(
     return { items: out_items, _if, filter_productions };
 }
 
-export function renderFunctionBody(
+export function getFunctionBody(
     rd_items: Item[],
     grammar: Grammar,
     runner: CompilerRunner,
@@ -740,10 +771,12 @@ export function renderFunctionBody(
         } else
             root = leaf = _if;
 
-        if (RIGHT_RECURSION_PRESENT)
-            ({ items, _if, filter_productions } = createBacktrackingSequence(items, _if, grammar, runner, production, productions, options, lex_name, offset));
-        else if (items.length > 1)
+        if (items.length > 1) {
+            //if (RIGHT_RECURSION_PRESENT)
+            //    ({ items, _if, filter_productions } = createBacktrackingSequence(items, _if, grammar, runner, production, productions, options, lex_name, offset));
+            //else 
             ({ items, _if, filter_productions } = createMultiItemSequence(items, production_shift_items, _if, grammar, runner, production, productions, options, production_items, lex_name, offset, INITIAL));
+        }
         else
             ({ items, _if, filter_productions } = createSingleItemSequence(items, production_shift_items, _if, grammar, runner, production, productions, options, lex_name, offset));
 
