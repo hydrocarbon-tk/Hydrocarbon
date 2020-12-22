@@ -511,7 +511,7 @@ export interface closure_group {
 /**
  * Givin a set of root items, return a tree of nodes where each node represents a
  * transition on a symbol and a the collection of root items that still exist at 
- * that node.  Depth limited to some givin value to prevent infinite recursion.
+ * that node. Depth limited to some givin value to prevent infinite recursion.
  * 
  * Default depth is 1.
  */
@@ -520,11 +520,19 @@ export function getTransitionTree(
     root_items: Item[],
     max_tree_depth = 1,
     max_no_progress = 3,
+    /**
+     * Max amount of time the search process may take,
+     * measured in milliseconds. 
+     * 
+     * Default is 2000 milliseconds
+     */
+    max_time_limit = 500,
     depth: number = -1,
     closures: closure_group[] = null,
     len = 0,
-    last_progress = 0
-): { tree_nodes: PeekNode[], clear: boolean, AMBIGUOUS: boolean; max_depth: number; } {
+    last_progress = 0,
+    root_time = performance.now()
+): { tree_nodes: TransitionTreeNode[], clear: boolean, AMBIGUOUS: boolean; max_depth: number; } {
 
     if (!closures) {
         closures = root_items.map((i, index) => ({ sym: null, index, closure: getClosure([i], grammar) }));
@@ -543,6 +551,9 @@ export function getTransitionTree(
             ]
         };
     }
+
+    if (performance.now() - root_time > max_time_limit)
+        return { tree_nodes: [], clear: true, AMBIGUOUS: true, max_depth: depth };
 
     if (root_items.length == 1)
         return { tree_nodes: [], clear: true, AMBIGUOUS: false, max_depth: depth };
