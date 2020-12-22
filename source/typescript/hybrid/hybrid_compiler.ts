@@ -8,10 +8,10 @@ import fs from "fs";
 import { ParserEnvironment } from "../../../build/types/hydrocarbon.js";
 import { Grammar } from "../types/grammar.js";
 import { GrammarParserEnvironment } from "../types/grammar_compiler_environment";
-import { HybridCompilerOptions } from "./CompiledHybridOptions";
+import { HybridCompilerOptions } from "./types/CompiledHybridOptions";
 import { HybridMultiThreadRunner } from "./hybrid_mt_runner.js";
 import { action32bit_array_byte_size_default, buildParserMemoryBuffer, jump16bit_table_byte_size } from "./parser_memory.js";
-import { renderAssemblyScriptRecognizer } from "./script_generating/hybrid_assemblyscript_recognizer_template.js";
+import { renderAssemblyScriptRecognizer } from "./script_generating/hybrid_recognizer_template.js";
 import { renderParserScript } from "./script_generating/hybrid_js_parser_template.js";
 import { renderParserScript as renderJSScript } from "./script_generating/hybrid_js_parser_template_for_js.js";
 import { CompilerRunner, constructCompilerRunner } from "./types/CompilerRunner.js";
@@ -49,7 +49,10 @@ export async function compileHybrid(grammar: Grammar, env: GrammarParserEnvironm
 
     used_options.combine_wasm_with_js = Boolean(used_options.no_file_output || used_options.combine_wasm_with_js);
 
-    for (const updates of mt_code_compiler.run()) await spark.sleep(1);
+    for (const updates of mt_code_compiler.run()) {
+        console.dir({ updates });
+        await spark.sleep(1);
+    }
 
     const rc = renderAssemblyScriptRecognizer(grammar, runner, mt_code_compiler.functions, action32bit_array_byte_size, error8bit_array_byte_size),
 

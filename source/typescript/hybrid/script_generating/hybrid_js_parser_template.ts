@@ -1,5 +1,5 @@
 import { Grammar } from "../../types/grammar.js";
-import { HybridCompilerOptions } from "../CompiledHybridOptions.js";
+import { HybridCompilerOptions } from "../types/CompiledHybridOptions.js";
 import { action32bit_array_byte_size_default, error8bit_array_byte_size_default } from "../parser_memory.js";
 import {
     TokenSpaceIdentifier,
