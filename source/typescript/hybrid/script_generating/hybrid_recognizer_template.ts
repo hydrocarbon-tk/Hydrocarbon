@@ -168,6 +168,7 @@ export const renderAssemblyScriptRecognizer = (
 
     /*            
     function reset(mark:u32): void{
+        FAILED = false;
         action_ptr = mark;
     }
     */
@@ -177,6 +178,7 @@ export const renderAssemblyScriptRecognizer = (
             "mark:unsigned int",
         ).addStatement(
             SC.Assignment(action_ptr, "mark:unsigned int"),
+            SC.Assignment(FAILED, SC.False),
             SC.UnaryPre(SC.Return, SC.True)
         ));
 
@@ -256,19 +258,26 @@ export const renderAssemblyScriptRecognizer = (
             )
         ));
     /*            
-   function fail(lex:Lexer&):void { 
-        prod = -1;
-        soft_fail(lex)
+   function fail(lex:Lexer&):boolean { 
+        if(!FAILED){
+            prod = -1;
+            soft_fail(lex)
+        }
+        return false;
     }
 
     */
     code_node.addStatement(
         SC.Function(
-            "fail:void",
+            "fail:bool",
             "l:Lexer&"
         ).addStatement(
-            SC.Assignment(prod, -1),
-            SC.Call("soft_fail", "l")
+            SC.If(SC.UnaryPre("!", FAILED))
+                .addStatement(
+                    SC.Assignment(prod, -1),
+                    SC.Call("soft_fail", "l")
+                ),
+            SC.UnaryPre(SC.Return, SC.False)
         ));
     /*            
    function soft_fail(lex:Lexer&):void { 
@@ -281,7 +290,7 @@ export const renderAssemblyScriptRecognizer = (
             "soft_fail:void",
             "l:Lexer&"
         ).addStatement(
-            SC.Assignment("FAILED", "true"),
+            SC.Assignment(FAILED, "true"),
             SC.Call("set_error", SC.Member("l", "off"))
         ));
     /*            
@@ -358,6 +367,22 @@ export const renderAssemblyScriptRecognizer = (
             SC.Call("add_shift", "l", SC.Member("l:Lexer&", "tl")),
             SC.Call(SC.Member("l:Lexer&", "next")),
             SC.Call("_skip", "l", "skip"),
+        ));
+    /*            
+   function isSUCCESS(lex: Lexer, condition:bool):void {
+       if(FAILED || !condition) return fail(lex);
+       return true;
+   }
+  */
+    code_node.addStatement(
+        SC.Function(
+            "assertSuccess:bool",
+            "l:Lexer&",
+            "condition:bool",
+        ).addStatement(
+            SC.If(SC.Binary(SC.UnaryPre("!", SC.Value("condition")), "||", FAILED))
+                .addStatement(SC.UnaryPre(SC.Return, SC.Call("fail", "l"))),
+            SC.UnaryPre(SC.Return, SC.True)
         ));
     /*            
     function _no_check(lex: Lexer):void {
@@ -541,14 +566,7 @@ export const renderAssemblyScriptRecognizer = (
             addSkipCall(grammar, runner, undefined, SC.Constant("l")),
             SC.Call("set_action", 0),
             SC.Call("set_error", 0),
-            SC.UnaryPre(SC.Return, SC.Binary("FAILED", "||", SC.UnaryPre("!", SC.Call(SC.Member("l", "END")))))
+            SC.UnaryPre(SC.Return, SC.Binary(FAILED, "||", SC.UnaryPre("!", SC.Call(SC.Member("l", "END")))))
         ));
     return code_node;
-    `
-    type BooleanTokenCheck = (l:Lexer&)=>boolean;
-
-    ${printLexer(symbols, keywords)}
-    ${[...assert_functions.values()].join("\n")}
-    ${runner.render_constants()}
-    ${fns.join("\n    ")}`;
 };

@@ -402,15 +402,17 @@ function addItemListComment(sc: SC, items: Item[], grammar: Grammar) {
 }
 
 function addClauseSuccessCheck(code_node: SC, production: Production, grammar: Grammar, runner: CompilerRunner) {
-    code_node.addStatement(SC.Declare(SC.Assignment("SUCCESS:bool", SC.Binary(production_global, SC.Value("=="), SC.Value(production.id)))));
+    const condition = SC.Binary(production_global, SC.Value("!="), SC.Value(production.id));
+    code_node.addStatement(SC.UnaryPre(SC.Return, SC.Call("assertSuccess", g_lexer_name, condition)));
+    return;
     code_node.addStatement(SC.If(
-        SC.Binary(SC.UnaryPre("!", SC.Value("SUCCESS")), "&&", SC.UnaryPre("!", SC.Value("FAILED"))))
+        condition)
         .addStatement(
-            SC.Call(SC.Constant("fail"), g_lexer_name),
+            SC.UnaryPre(SC.Return, SC.Call(SC.Constant("fail"), g_lexer_name)),
             SC.Empty()
         )
     );
-    code_node.addStatement(SC.UnaryPre(SC.Return, SC.Value("SUCCESS")));
+    code_node.addStatement(SC.UnaryPre(SC.Return, SC.True));
 }
 
 function createBacktrackingSequence(
