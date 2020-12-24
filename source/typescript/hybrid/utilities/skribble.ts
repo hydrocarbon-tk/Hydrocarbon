@@ -411,6 +411,12 @@ export class SC<T = Node> {
         return (<SC<Node>>this).type.value;
     }
 
+    /**
+     * Copies statements from source into the calling node's statements list. 
+     */
+    mergeStatement(this: SC<T>, source: SC<Node>) {
+        this.statements.push(...source.statements);
+    };
 
     addStatement(this: SC<T>, ...stmts: SC<Node>[]): SC<T> {
         for (const stmt of stmts.filter(_ => !!_)) {
@@ -646,6 +652,7 @@ export class JS extends SC {
         const v = this.type.value.split("\n");
         v[0] = "/*" + v[0];
         v[v.length - 1] += "*/";
+        //return []; 
         return [TAB(tab) + (v.join("\n" + TAB(tab)))];
     };
     renderFunction(this: SC<Function>, use_type_info: boolean, proto: SC, tab: number = 0): string[] {
