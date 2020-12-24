@@ -69,7 +69,7 @@ export interface ProductionBody {
     reduce_function: ProductionBodyReduceFunction;
     grammar_stamp: number;
     form: number;
-    excludes: Map<number, TokenSymbol[]>;
+    excludes: Map<number, TokenSymbol[][]>;
     ignore: Map<number, TokenSymbol[]>;
     error: Map<number, TokenSymbol[]>;
     reset: Map<number, TokenSymbol[]>;
@@ -115,11 +115,6 @@ export interface Production {
         reduce_id: number;
 
     };
-
-    /**
-     * Production has one or more bodies that has left recursion
-     */
-    IS_LEFT_RECURSIVE: boolean;
     graph_id?: number;
 }
 
@@ -143,7 +138,6 @@ export interface ItemMapEntry {
      * List of unique symbol names that shift into a right recursion
      */
     RR: string[];
-    index: number;
     containing_items: Set<string>;
     depth: number;
 }

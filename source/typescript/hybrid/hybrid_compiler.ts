@@ -50,7 +50,7 @@ export async function compileHybrid(grammar: Grammar, env: GrammarParserEnvironm
     used_options.combine_wasm_with_js = Boolean(used_options.no_file_output || used_options.combine_wasm_with_js);
 
     for (const updates of mt_code_compiler.run()) {
-        console.dir({ updates });
+        // console.dir({ updates });
         await spark.sleep(1);
     }
 

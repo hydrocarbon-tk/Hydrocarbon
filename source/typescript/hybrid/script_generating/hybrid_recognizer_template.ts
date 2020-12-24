@@ -6,7 +6,6 @@ import { SC } from "../utilities/skribble.js";
 import {
     addSkipCall,
     convertAssertionFunctionBodyToSkribble,
-    getAssertionFunctionName,
     TokenSpaceIdentifier,
     TokenNumberIdentifier,
     TokenIdentifierIdentifier,
