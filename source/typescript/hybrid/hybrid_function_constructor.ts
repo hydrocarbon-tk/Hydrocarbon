@@ -1,6 +1,6 @@
-import { Grammar, Production, EOF_SYM, SymbolType, ItemMapEntry } from "../types/grammar.js";
+import { Grammar, Production, EOF_SYM, SymbolType } from "../types/grammar.js";
 import { AssertionFunctionSymbol, TokenSymbol } from "../types/Symbol";
-import { Item, FOLLOW, FIRST, doesItemHaveLeftRecursion, doesSymbolLeadToRightRecursion, getCommonAncestors, getTransitionTree, TransitionTreeNode }
+import { Item, FOLLOW, FIRST, doesItemHaveLeftRecursion, getCommonAncestors, getTransitionTree, TransitionTreeNode, getUnskippableSymbolsFromClosure }
     from "../util/common.js";
 import {
     createNoCheckShift,
@@ -30,7 +30,6 @@ import { RDProductionFunction } from "./types/RDProductionFunction";
 import { CompilerRunner } from "./types/CompilerRunner.js";
 import { ConstSC, SC, VarSC } from "./utilities/skribble.js";
 import { getClosure } from "../util/process_closure.js";
-import { P } from "@candlefw/wind/build/types/ascii_code_points";
 
 const
     accept_loop_flag = SC.Variable("ACCEPT:boolean"),
@@ -39,10 +38,21 @@ const
 
 
 interface RenderBodyOptions {
-
+    /**
+     * Source grammar for the language
+     */
     grammar?: Grammar;
+    /**
+     * Active Compiler Runner
+     */
     runner?: CompilerRunner,
+    /**
+     * Production currently being processed
+     */
     production?: Production,
+    /**
+     * List of all production ids referenced
+     */
     productions?: Set<number>;
     pk_name: VarSC,
     block_depth: number;
@@ -169,14 +179,15 @@ function renderItem(
         const { code_node: leaf } = renderItemSym(code_node, item, grammar, runner, productions, DONT_CHECK, lexer_name);
         const new_item = item.increment();
 
-        if (!new_item.atEND)
-            leaf.addStatement(addSkipCall(grammar, runner, FIRST(grammar, new_item.sym(grammar)), lexer_name));
+        if (!new_item.atEND) {
+            const { reset_sym } = grammar.item_map.get(item.id);
+            const no_skip = [...FIRST(grammar, new_item.sym(grammar)), ...reset_sym.map(i => grammar.meta.all_symbols.get(i))];
+
+            leaf.addStatement(addSkipCall(grammar, runner, no_skip, lexer_name));
+        }
 
         code_node = renderItem(leaf, item.increment(), grammar, runner, productions, false, lexer_name);
     } else {
-
-        //  code_node.addStatement(SC.Assignment(SC.Constant("prod"), SC.Value(item.getProduction(grammar).id)));
-
         return renderItemSym(code_node, item, grammar, runner, productions, true, lexer_name).code_node;
     }
 
@@ -221,8 +232,6 @@ function getGroups(symboled_items: Map<TokenSymbol, Item[]>, grammar: Grammar) {
             if (HAS_REDUCE_FUNCTION)
                 str.push("b" + BODY);
             return str.join("_") + "_";
-
-            return i.id;
         }).sort().join("");
         if (!group_maps.has(id))
             group_maps.set(id, { syms: new Set, items: group_items, priority: 0 });
@@ -244,9 +253,9 @@ function getGroups(symboled_items: Map<TokenSymbol, Item[]>, grammar: Grammar) {
     return group_maps;
 }
 
-function getAccompanyingItems(grammar: Grammar, prod_items: Item[], items: Item[], out: Item[] = [], all = false) {
+function getAccompanyingItems(grammar: Grammar, active_productions: number[], items: Item[], out: Item[] = [], all = false) {
 
-    const prod_id = new Set((prod_items).map(i => i.getProduction(grammar).id));
+    const prod_id = new Set(active_productions);
 
     const to_process = [];
     for (const item of items.reverse()) {
@@ -295,14 +304,17 @@ function* buildPeekTree(
         }
         return count;
     });
+
+    ALLOW_FALL_THROUGH = ALLOW_FALL_THROUGH && grouped_nodes.length > 1;
+
     let i = 0;
     for (const nodes of grouped_nodes) {
-
 
         i++;
 
         // Each peek node represents one symbol and a set of next values.
         // combine next values and filter out duplicates based on symbol
+        const unskippable = nodes.flatMap(n => n.unskippable);
         const syms = nodes.map(i => <TokenSymbol>grammar.meta.all_symbols.get(i.sym));
         const next = nodes.flatMap(i => i.next).setFilter(i => i.sym);
         const roots = nodes[0].roots;
@@ -378,7 +390,7 @@ function getCommonAncestorAmongstSets(descendants: Item[], set_b: Item[], gramma
 
 function* createBacktrackingSequence(
     items: Item[],
-    _if: SC,
+    root: SC,
     grammar: Grammar,
     runner: CompilerRunner,
     production: Production,
@@ -386,49 +398,42 @@ function* createBacktrackingSequence(
     options: RenderBodyOptions,
     lex_name: VarSC,
     offset: number
-): Generator<{ items: Item[], _if: SC, filter_productions: number[]; }, SC> {
+): Generator<{ prods: number[], _if: SC, filter_productions: number[]; }, SC> {
 
-    let filter_productions = [];
-    let leaf = new SC;
+    let filter_productions = [], i = 0;
 
     const cp = incrementLexerName(lex_name || g_lexer_name);
     const mark = SC.Variable("mk:unsigned int");
 
-    _if.addStatement(SC.Declare(cp));
-    _if.addStatement(SC.Declare(SC.Assignment(mark, SC.Call("mark"))));
-    _if.addStatement(leaf);
-
+    root.addStatement(SC.Declare(cp));
+    root.addStatement(SC.Declare(SC.Assignment(mark, SC.Call("mark"))));
     for (const item of items) {
 
         const prod = item.offset == 0 ? item.getProduction(grammar) : item.getProductionAtSymbol(grammar) ?? item.getProduction(grammar);
 
-        let temp;
-        temp = SC.If(
-            SC.Binary(
-                SC.Call("reset", mark), "&&",
-                SC.Binary(
+        let temp,
+            a = SC.Call("reset", mark),
+            b = SC.Binary(
+                SC.Call(
+                    "$" + prod.name,
+                    SC.Assignment(cp, SC.Call(SC.Member(lex_name, "copy")))), "&&",
+                addFollowCheckCall(grammar, runner, prod, cp)
+            ),
+            c = SC.Binary(
+                a, "&&",
+                b
+            );
 
-                    SC.Call(
-                        "$" + prod.name,
-                        SC.Assignment(cp, SC.Call(SC.Member(lex_name, "copy")))), "&&",
-                    addFollowCheckCall(grammar, runner, prod, cp)
-                )
-            )
-        ).addStatement(
-            SC.Call(SC.Member(lex_name, "sync"), cp),
-        );
-        const _if = renderItem(temp, item.increment(), grammar, runner, productions);
-        addReturnType(options.RETURN_TYPE, temp);
+        temp = SC.If(i++ == 0 ? b : c);
+        const _if = renderItem(temp, item.increment(), grammar, runner, productions, false, cp);
         temp.addStatement(SC.Empty());
         productions.add(prod.id);
-
-        leaf.addStatement(temp);
-        leaf = temp;
-
-        yield { items: [item], _if, filter_productions };
+        root.addStatement(temp, SC.Empty());
+        _if.addStatement(SC.Call(SC.Member(lex_name, "sync"), cp));
+        yield ({ prods: [item.getProduction(grammar).id], _if, filter_productions });
     }
 
-    return _if;
+    return root;
 }
 function* createMultiItemSequence(
     items: Item[],
@@ -439,16 +444,16 @@ function* createMultiItemSequence(
     production: Production,
     productions: Set<number>,
     options: RenderBodyOptions,
-    production_items: Item[][],
+    production_items: Item[],
     lex_name: VarSC,
-    offset: number,
+    offset: number = 0,
     INITIAL: boolean = false,
     ALLOW_FALL_THROUGH: boolean = true
-): Generator<{ items: Item[], _if: SC, filter_productions: number[]; }, SC> {
+): Generator<{ prods: number[], _if: SC, filter_productions: number[]; }, SC> {
+
 
     let
         filter_productions = [],
-        out_items = [],
         root: SC = null;
 
     const
@@ -466,11 +471,9 @@ function* createMultiItemSequence(
     * to get to this offset.
     */
     if (SAME_PRODUCTION && !ROOT_PRODUCTION && (max_item_offset == 0)) {
-
         const first = items[0];
         items = [new Item(first.body, first.len, 0, first.follow)];
-
-        yield* createSingleItemSequence(items, production_lr_items, code_node, grammar, runner, production, productions, options, lex_name, offset);
+        yield* createSingleItemSequence(items, production_lr_items, code_node, grammar, runner, production, productions, options, lex_name);
 
         return code_node;
     }
@@ -478,12 +481,13 @@ function* createMultiItemSequence(
     const matching_productions = getCommonAncestorAmongstSets(items, production_lr_items, grammar);
 
     if (matching_productions.length > 0 && !INITIAL) {
-
-        code_node.addStatement(SC.Comment("AA"));
+        code_node.addStatement(SC.Comment(items.map(i => i.renderUnformattedWithProduction(grammar)).join("\n")));
         const prod = matching_productions[0];
         filter_productions.push((items[0].getProduction(grammar).id != production.id) ? items[0].getProduction(grammar).id : -1);
         code_node = renderProduction(code_node, prod, grammar, runner, productions, lex_name, false).code_node;
-        yield { _if: code_node, items, filter_productions };
+
+
+        yield { _if: code_node, prods: [prod.id], filter_productions };
         return code_node;
     }
 
@@ -500,25 +504,24 @@ function* createMultiItemSequence(
 
         try {
             if (items.length > 0) {
-                const { node: sc } = createShiftAndComplete(items, grammar, runner, production, productions, production_items, options, -1);
+                const { node: sc, production_id } = createShiftAndComplete(items, grammar, runner, production, productions, production_items, options, -1);
                 code_node.mergeStatement(sc);
-                out_items.push(...items);
                 code_node.addStatement(SC.Empty());
-                // yield { items: out_items, _if: code_node, filter_productions };
+                yield { _if: null, filter_productions: [], prods: [...production_id.values()] };
             }
         } catch (e) {
             code_node.addStatement(SC.Empty());
-            yield { _if: code_node, filter_productions, items: [] };
+            yield { _if: code_node, filter_productions, prods: [] };
         }
 
         return root;
     }
 
     const
-        { tree_nodes } = getTransitionTree(grammar, items, 5, 3),
+        { tree_nodes } = getTransitionTree(grammar, items, 10, 8),
         peek_name = SC.Variable("pk:Lexer"),
         no_skip = getNoSkipSymbolsFromPeekNode(tree_nodes[0], grammar),
-        next = INITIAL ? tree_nodes[0].next[0].next : tree_nodes[0].next,
+        next = tree_nodes[0].next,
         gen = buildPeekTree(next, grammar, runner, peek_name, production.id, ALLOW_FALL_THROUGH);
 
     let val = gen.next(), block_count = 0;
@@ -532,29 +535,25 @@ function* createMultiItemSequence(
         if (offset == 0 && SAME_PRODUCTION && INITIAL && prod.id !== prod.id) {
             filter_productions.push((first.getProduction(grammar).id != production.id) ? items[0].getProduction(grammar).id : -1);
             renderProduction(__if, prod, grammar, runner, productions, lex_name, false);
-            out_items.push(...production_lr_items.filter(i => i.getProductionAtSymbol(grammar).id == prod.id));
         } else if (items.length > 1) {
             const SAME_SYMBOL = doItemsHaveSameSymbol(items, grammar);
             if ((INITIAL && SAME_PRODUCTION)) {
                 yield* createMultiItemSequence(items, production_lr_items, __if, grammar, runner, production, productions, options, production_items, lex_name, 0, true);
-            }
-            else if (SAME_SYMBOL) {
+            } else if (SAME_SYMBOL) {
                 yield* createMultiItemSequence(items, production_lr_items, __if, grammar, runner, production, productions, options, production_items, lex_name, offset + 1);
             } else {
-
+                __if.addStatement(SC.Comment("AAAA"));
                 yield* createBacktrackingSequence(items, __if, grammar, runner, production, productions, options, lex_name, offset);
             }
-            out_items.push(...items);
         } else {
-            filter_productions.push((first.getProduction(grammar).id != production.id) ? first.getProduction(grammar).id : -1);
+            const prod_id = prod.id;
+            filter_productions.push((prod_id != production.id) ? prod_id : -1);
             /**
              * If the item is at the start of the offset, then we can simply call into the items production
              * to reduce the amount of processing done in the calling function
              */
             const _if = renderItem(__if, first, grammar, runner, productions, true);
-            addReturnType(options.RETURN_TYPE, _if);
-            out_items.push(first);
-            yield { _if, filter_productions, items: out_items };
+            yield { _if, filter_productions, prods: [prod_id] };
         }
 
         val = gen.next();
@@ -595,19 +594,18 @@ function* addEndItemSequence(
     productions: Set<number>,
     options: RenderBodyOptions,
     USE_IF: boolean
-): Generator<{ items: Item[], _if: SC; }, SC> {
+): Generator<{ prods: number[], _if: SC; }, SC> {
     USE_IF = USE_IF || end_items.length > 1;
     let node = null, root = null;
     for (let i = 0; i < end_items.length; i++) {
         const item = end_items[i];
         if (USE_IF) {
             const _if = SC.If(
-                i == end_items.length - 1 ? undefined :
+                (i == end_items.length - 1 && end_items.length > 1) ? undefined :
                     addFollowCheckCall(grammar, runner, item.getProduction(grammar), <any>SC.Call(SC.Member(g_lexer_name, "copy")))
             );
             const sc = renderItem(_if, item, grammar, runner, productions, true);
-            addReturnType(options.RETURN_TYPE, sc);
-            yield { items: [item], _if };
+            yield { prods: itemsToProductions([item], grammar), _if };
             if (!node) {
                 node = _if;
                 root = _if;
@@ -618,8 +616,7 @@ function* addEndItemSequence(
         } else {
             root = new SC;
             const _if = renderItem(root, item, grammar, runner, productions, true);
-            addReturnType(options.RETURN_TYPE, root);
-            yield { items: [item], _if };
+            yield { prods: itemsToProductions([item], grammar), _if };
         }
     }
 
@@ -636,13 +633,12 @@ function* createSingleItemSequence(
     productions: Set<number>,
     options: RenderBodyOptions,
     lex_name: VarSC,
-    offset: number
-): Generator<{ items: Item[], _if: SC, filter_productions: number[]; }, SC> {
+    offset: number = 0
+): Generator<{ prods: number[], _if: SC, filter_productions: number[]; }, SC> {
 
-    let [first] = items;
-
-    const
-        out_items = [],
+    let
+        [first] = items,
+        prods = itemsToProductions(items, grammar),
         filter_productions = [],
         matching_productions = getCommonAncestorAmongstSets(items, production_lr_items, grammar);
 
@@ -650,21 +646,18 @@ function* createSingleItemSequence(
         const prod = matching_productions[0];
         filter_productions.push((items[0].getProduction(grammar).id != production.id) ? items[0].getProduction(grammar).id : -1);
         renderProduction(_if, prod, grammar, runner, productions, lex_name, false);
-        out_items.push(...production_lr_items.filter(i => i.getProductionAtSymbol(grammar).id == prod.id));
+        prods = [prod.id];
     } else if (first.offset == 0 && first.getProduction(grammar).id != production.id) {
         _if = renderItemProduction(_if, first, grammar, runner, productions, lex_name, true).code_node;
-        out_items.push(...items);
     } else {
         _if = renderItem(_if, first, grammar, runner, productions, true, lex_name);
-        addReturnType(options.RETURN_TYPE, _if);
-        out_items.push(...items);
     }
 
     filter_productions.push((first.getProduction(grammar).id != production.id) ? first.getProduction(grammar).id : -1);
 
     _if.addStatement(SC.Empty());
 
-    yield { items: out_items, _if, filter_productions };
+    yield { prods, _if, filter_productions };
 
     return _if;
 }
@@ -676,15 +669,10 @@ export function createFunctionBody(
     production: Production,
     productions: Set<number> = new Set,
     options: RenderBodyOptions = generateRDOptions(),
-    production_items: Item[][] = [],
-    lex_name: VarSC = g_lexer_name,
-    offset = 0,
-    INITIAL = false
+    lex_name: VarSC = g_lexer_name
 
 ): ({ sym_map: Map<TokenSymbol, any>, sc: SC; _if: SC; }) {
     let CAN_DISAMBIGUATE = true;
-
-    if (offset > 10) return { sc: new SC, sym_map: new Map, _if: new SC };
 
     const nonterm_shift_items = [],
 
@@ -711,16 +699,14 @@ export function createFunctionBody(
         symboled_items_map: Map<TokenSymbol, Item[]> = symboled_items
             .groupMap(i => <TokenSymbol>getRootSym(i.sym(grammar), grammar)),
 
-        group_maps: Map<string, { syms: Set<TokenSymbol>, items: Item[]; priority: number; }> = getGroups(symboled_items_map, grammar),
-
-        visited_prods: Set<string> = new Set();
+        group_maps: Map<string, { syms: Set<TokenSymbol>, items: Item[]; priority: number; }> = getGroups(symboled_items_map, grammar);
 
     let leaf: SC = null, root: SC = leaf;
 
     const cd = [];
-    let _if = new SC;
+    let _if = new SC, leaf_count = 0;
 
-    let cc = 0;
+    let prod_ids: Set<number> = new Set;
 
     for (let { syms: s, items } of group_maps.values()) {
 
@@ -735,81 +721,76 @@ export function createFunctionBody(
             root = leaf = _if;
 
         const gen = (items.length > 1)
-            ? createMultiItemSequence(items, production_shift_items, _if, grammar, runner, production, productions, options, production_items, lex_name, offset, INITIAL)
-            : createSingleItemSequence(items, production_shift_items, _if, grammar, runner, production, productions, options, lex_name, offset);
+            ? createMultiItemSequence(items, production_shift_items, _if, grammar, runner, production, productions, options, production_shift_items, lex_name, 0, true)
+            : createSingleItemSequence(items, production_shift_items, _if, grammar, runner, production, productions, options, lex_name, 0);
 
-        for (const { items, _if: __if, filter_productions } of gen) {
-            processProductionChain(
-                __if, grammar, runner,
-                production, productions,
-                options, production_items,
-                items, nonterm_shift_items,
-                0, filter_productions
-            );
+        for (const { prods, _if: __if, filter_productions } of gen) {
+            if (__if) {
 
-            _if = __if;
-        }
-    }
+                leaf_count++;
 
-    if (cd.length == group_maps.size) CAN_DISAMBIGUATE = false;
+                for (const id of processProductionChain(
+                    __if, grammar, runner,
+                    production, productions,
+                    options, production_shift_items,
+                    prods, filter_productions, false
+                )) prod_ids.add(id);
 
-    if (CAN_DISAMBIGUATE) {
-
-        /**
-         * At this point, items that have reached their end are processed. 
-         * Any item that transitioned to the end on a terminal will simply
-         * be included in a else statement that serves as the fall back action
-         * in the case the current token doesn't match any items that would
-         * cause a shift. 
-         */
-
-        if (terminal_completed_items.length > 0) {
-            let val;
-            const gen = addEndItemSequence(terminal_completed_items, grammar, runner, productions, options, !!leaf);
-            while (!(val = gen.next()).done) {
-                const { _if, items, filter_productions } = val.value,
-                    prods = processProductionChain(
-                        _if, grammar, runner,
-                        production, productions,
-                        options, production_items,
-                        items, [], 0, [], true
-                    );
-            };
-            const end = val.value;
-
-            if (leaf) {
-                leaf.addStatement(end);
-                leaf = end;
+                _if = __if;
             } else {
-                leaf = end;
-                root = leaf;
+                for (const id of prods)
+                    prod_ids.add(id);
             }
-
-            processProductionChain(
-                leaf, grammar, runner,
-                production, productions,
-                options, production_items,
-                terminal_completed_items,
-                nonterm_shift_items,
-                0
-            );
         }
-
-        nonterm_shift_items.push(...production_completed_items.map(i => i.decrement()));
-
-        code_node.addStatement(root);
-
-        const SMASH = false && nonterm_shift_items.length == 1;
-
-        const lr_shifts = addProductionShifts(nonterm_shift_items, grammar, runner, production, productions, production_items, offset, options);
-
-        if (SMASH)
-            _if.addStatement(lr_shifts, SC.Empty());
-        else
-            code_node.addStatement(lr_shifts);
-
-        if (code_node == _if) _if = leaf || code_node;
     }
+
+
+    /**
+     * At this point, items that have reached their end are processed. 
+     * Any item that transitioned to the end on a terminal will simply
+     * be included in a else statement that serves as the fall back action
+     * in the case the current token doesn't match any items that would
+     * cause a shift. 
+     */
+
+    if (terminal_completed_items.length > 0) {
+        let val;
+        const gen = addEndItemSequence(terminal_completed_items, grammar, runner, productions, options, !!leaf);
+        while (!(val = gen.next()).done) {
+            const { _if, prods } = val.value;
+            for (const id of processProductionChain(
+                _if, grammar, runner,
+                production, productions,
+                options, production_shift_items,
+                prods, [], true
+            )) prod_ids.add(id);
+        };
+        const end = val.value;
+
+        if (leaf) {
+            leaf.addStatement(end);
+            leaf = end;
+        } else {
+            leaf = end;
+            root = leaf;
+        }
+    }
+
+    nonterm_shift_items.push(...production_completed_items.map(i => i.decrement()));
+
+    code_node.addStatement(root);
+
+    code_node.addStatement(SC.Comment("PRODS: " + [...prod_ids.values()].join(" ")));
+
+    const lr_shifts = addProductionShifts(production_shift_items, grammar, runner, production, productions, production_shift_items, options, prod_ids);
+
+    if (leaf_count == 1)
+        _if.addStatement(lr_shifts, SC.Empty());
+    else
+        code_node.addStatement(lr_shifts);
+
+    if (code_node == _if) _if = leaf || code_node;
+
 
     return ({ sc: code_node, _if, sym_map: symboled_items_map });
 }
@@ -821,67 +802,63 @@ function processProductionChain(
     production: Production,
     productions: Set<number>,
     options: RenderBodyOptions = generateRDOptions(),
-    production_items: Item[][],
-    accompanying_items: Item[],
-    nonterm_shift_items: Item[],
-    offset: number = 0,
+    production_items: Item[],
+    active_productions: number[],
     filter_productions: number[] = [],
-    ONLY_FEW = false
+    SINGLE_REDUCE_ONLY = false
 ): number[] {
-    let prod = accompanying_items.map(i => i.getProduction(grammar).id), visited_prods: Set<string> = new Set;
-    //while (1) {
+    let active_items: Item[] = [];
 
-    const items = (production_items[offset]).filter(i => !filter_productions.includes(i.getProduction(grammar).id));
+    let prod = active_productions, visited_prods: Set<string> = new Set;
 
-    accompanying_items = getAccompanyingItems(grammar, accompanying_items, items);
+    const items = (production_items).filter(i => !filter_productions.includes(i.getProduction(grammar).id));
 
-    filter_productions.length = 0;
+    active_items = getAccompanyingItems(grammar, active_productions, items);
 
-    if (accompanying_items.length == 0) {
+    if (active_items.length == 0) {
         code_node.addStatement(SC.Assignment(production_global, prod[0]));
         return prod;
     }
 
-    if (accompanying_items.length == 1 && accompanying_items.every(i => i.len == 1)) {
+    if (active_items.length == 1 && active_items.every(i => i.len == 1)) {
+
         prod.length = 1;
-        while (accompanying_items.length == 1 && accompanying_items.every(i => i.len == 1)) {
-            prod[0] = accompanying_items[0].getProduction(grammar).id;
-            renderItemReduction(code_node, accompanying_items[0], grammar);
-            accompanying_items = getAccompanyingItems(grammar, accompanying_items, production_items[offset]);
+        while (active_items.length == 1 && active_items.every(i => i.len == 1)) {
+            prod[0] = active_items[0].getProduction(grammar).id;
+            renderItemReduction(code_node, active_items[0], grammar);
+            active_items = getAccompanyingItems(grammar, itemsToProductions(active_items, grammar), production_items);
         }
-        code_node.addStatement(SC.Assignment(production_global, prod[0]));
-    } else {
-        code_node.addStatement(SC.Assignment(production_global, prod[0]));
     }
 
-    if (accompanying_items.length > 0 && !ONLY_FEW) {
+    code_node.addStatement(SC.Assignment(production_global, prod[0]));
 
-        prod = accompanying_items.map(i => i.getProduction(grammar).id);
+    if (active_items.length > 0) {
 
-        if (accompanying_items.some(i => doesItemHaveLeftRecursion(i, grammar))) {
-            while (accompanying_items.length > 0) {
-                const new_items = accompanying_items.filter(i => !visited_prods.has(i.id));
+        if (active_items.some(i => doesItemHaveLeftRecursion(i, grammar)) || SINGLE_REDUCE_ONLY) {
+            while (active_items.length > 0) {
+                const new_items = active_items.filter(i => !visited_prods.has(i.id));
                 new_items.forEach(i => visited_prods.add(i.id));
-                nonterm_shift_items.push(...new_items);
-                accompanying_items = getAccompanyingItems(grammar, new_items, production_items[offset]);
+                active_items = getAccompanyingItems(grammar, itemsToProductions(new_items, grammar), production_items);
             }
-        } else {
-            const { node: sc } = createShiftAndComplete(accompanying_items.map(i => i.increment()), grammar, runner, production, productions, production_items, options, -1);
+        } else if (!SINGLE_REDUCE_ONLY) {
+            const { node: sc, production_id } = createShiftAndComplete(active_items.map(i => i.increment()), grammar, runner, production, productions, production_items, options, -1);
             code_node.addStatement(sc);
-            accompanying_items = getAccompanyingItems(grammar, accompanying_items, production_items[offset]);
+            active_items = getAccompanyingItems(grammar, itemsToProductions(active_items, grammar), production_items);
 
-            prod = accompanying_items.map(i => i.getProduction(grammar).id);
+            prod = [...production_id.values()];
 
-            while (accompanying_items.length > 0) {
-                const new_items = accompanying_items.filter(i => !visited_prods.has(i.id));
+            while (active_items.length > 0) {
+                const new_items = active_items.filter(i => !visited_prods.has(i.id));
                 new_items.forEach(i => visited_prods.add(i.id));
-                nonterm_shift_items.push(...new_items);
-                accompanying_items = getAccompanyingItems(grammar, new_items, production_items[offset]);
+                active_items = getAccompanyingItems(grammar, itemsToProductions(new_items, grammar), production_items);
             }
         }
     }
-    //}
     return prod;
+}
+
+function itemsToProductions(items: Item[], grammar: Grammar): number[] {
+    return items.map(i => i.getProduction(grammar).id);
 }
 
 function addProductionShifts(
@@ -890,10 +867,11 @@ function addProductionShifts(
     runner: CompilerRunner,
     production: Production,
     productions: Set<number>,
-    production_items: Item[][],
-    offset: number,
-    options: RenderBodyOptions
+    production_items: Item[],
+    options: RenderBodyOptions,
+    production_id: Set<number> = new Set,
 ): SC {
+
 
 
     let code_node: SC = new SC;
@@ -911,7 +889,7 @@ function addProductionShifts(
                 r.get(trans_production).push(i.getProduction(grammar).id);
                 return r;
             }, new Map),
-            outcome_groups = new Map();
+            outcome_groups: Map<string, [number, Item[]][]> = new Map();
 
         let HAS_PRODUCTION_RECURSION = false;
 
@@ -927,56 +905,97 @@ function addProductionShifts(
         for (const [key, val] of lr_items.entries()) {
             const hash = val
                 .map((i) => (i.increment().atEND || i.len + " " + i.body) + " " + i.getProduction(grammar).id + " " + (<Item>i).body_(grammar)?.reduce_function?.txt).join("");
-            getMappedArray(hash, outcome_groups).push([key, val]);
+            getMappedArray(hash, outcome_groups).push([<number>key, val]);
         }
 
-        const switch_node = SC.Switch(production_global), case_clauses = [];
 
-        let production_id: Set<number> = new Set;
+        const
+            case_clauses = new Map,
+            case_array = [];
+
+        let ACTIVE_KEY,
+            pending_productions = [...production_id.values()],
+            active_productions = new Set;
+
 
         for (const [, sw_group] of outcome_groups.entries()) {
 
             for (let i = 0; i < sw_group.length; i++) {
 
-                const
-                    key = sw_group[i][0],
-                    if_node: SC = SC.If(SC.Value(key));
+                const key = sw_group[i][0];
+
                 if (i == (sw_group.length - 1)) {
-                    const block = SC.If();
-                    const options = generateRDOptions(RETURN_TYPE, production.id);
-                    const { node, production_id: sub_ids, PURE_COMPLETE } = createShiftAndComplete(sw_group[i][1].map(i => i.increment()), grammar, runner, production, productions, production_items, options, key);
+                    const keys = sw_group.map(sw => sw[0]),
+                        block = SC.If(),
+                        options = generateRDOptions(RETURN_TYPE, production.id),
+                        { node, production_id: sub_ids, PURE_COMPLETE } = createShiftAndComplete(sw_group[i][1].map(i => i.increment()), grammar, runner, production, productions, production_items, options, key);
                     for (const id of sub_ids.values()) production_id.add(id);
                     block.addStatement(node, SC.Empty());
-                    if_node.addStatement(block.addStatement(SC.Empty()), SC.Break);
-                    case_clauses.push({ node: if_node, PURE_COMPLETE, key });
+                    for (const key of keys)
+                        case_clauses.set(key, { code_node: block, PURE_COMPLETE, keys, sub_ids });
                 }
             }
         }
 
-        for (const { node, PURE_COMPLETE, key } of case_clauses.sort((a, b) => b.key - a.key)) {
-            if (!PURE_COMPLETE || production_id.has(key))
-                switch_node.addStatement(node);
+        for (let i = 0; i < pending_productions.length; i++) {
+            const prod = pending_productions[i];
+            active_productions.add(prod);
+            if (case_clauses.has(prod)) {
+
+                const { code_node, PURE_COMPLETE, sub_ids, keys } = case_clauses.get(prod);
+
+                if (!PURE_COMPLETE || keys.some(key => production_id.has(key))) {
+                    case_array.push([keys, code_node]);
+
+                    for (const key of keys)
+                        active_productions.add(key);
+
+                    for (const prod of sub_ids)
+                        if (!active_productions.has(prod))
+                            pending_productions.push(prod);
+                }
+
+            }
         }
 
+        code_node.addStatement(SC.Comment("FULL PRODS: " + [...case_clauses.keys()].join(" ")));
 
+        if (case_array.length > 0) {
+            const NOT_USING_SWITCH = case_array.length == 1,
+                switch_node = NOT_USING_SWITCH
+                    ? new SC
+                    : SC.Switch(production_global),
+                ACTIVE_KEY = case_array[0][0][0];
 
+            switch_node.addStatement(
+                ...case_array.sort((a, b) => a[0][0] - b[0][0]).flatMap(a => NOT_USING_SWITCH
+                    ? a[1].statements
+                    : [
+                        ...a[0].slice(0, -1).map(i => SC.If(SC.Value(i + ""))),
+                        SC.If(SC.Value(a[0].slice(-1)[0] + "")).addStatement(a[1], SC.Break)
+                    ]
+                )
+            );
 
-        code_node.addStatement(SC.Comment(`ACTIVE PRODUCTIONS ${[...production_id.values()].join(" ")}`));
+            if (HAS_PRODUCTION_RECURSION) {
 
-        if (offset >= 0 && options.RETURN_TYPE == ReturnType.ACCEPT)
-            code_node.addStatement(SC.Assignment("ACCEPT", "true"));
+                const
+                    while_node = NOT_USING_SWITCH
+                        ? SC.While(SC.Binary("prod", "==", ACTIVE_KEY))
+                        : SC.While(SC.Value("1"));
 
-        if (HAS_PRODUCTION_RECURSION) {
-            const
-                while_node = SC.While(SC.Value("1"));
-            while_node.addStatement(SC.Value(`console.log("PRODUCTION LR", {prod, tx:str.slice(l.off, l.off + l.tl), FAILED, offset:l.off, name:"${production.name}"})`));
-            while_node.addStatement(SC.Declare(SC.Assignment(accept_loop_flag, SC.False)));
-            while_node.addStatement(switch_node);
-            while_node.addStatement(SC.If(SC.UnaryPre(SC.Value("!"), accept_loop_flag)).addStatement(SC.Break));
-            code_node.addStatement(while_node);
-        } else {
-            code_node.addStatement(SC.Value(`console.log("PRODUCTION SHIFTS", {prod, tx:str.slice(l.off, l.off + l.tl), FAILED, offset:l.off, name:"${production.name}"})`));
-            code_node.addStatement(switch_node);
+                if (runner.ANNOTATED)
+                    while_node.addStatement(SC.Value(`console.log("PRODUCTION LR", {prod, tx:str.slice(l.off, l.off + l.tl), FAILED, offset:l.off, name:"${production.name}"})`));
+
+                while_node.addStatement(SC.Declare(SC.Assignment(accept_loop_flag, SC.False)));
+                while_node.addStatement(switch_node);
+                while_node.addStatement(SC.If(SC.UnaryPre(SC.Value("!"), accept_loop_flag)).addStatement(SC.Break));
+                code_node.addStatement(while_node);
+            } else {
+                if (runner.ANNOTATED)
+                    code_node.addStatement(SC.Value(`console.log("PRODUCTION SHIFTS", {prod, tx:str.slice(l.off, l.off + l.tl), FAILED, offset:l.off, name:"${production.name}"})`));
+                code_node.addStatement(switch_node);
+            }
         }
     }
     return code_node;
@@ -988,7 +1007,7 @@ function createShiftAndComplete(
     runner: CompilerRunner,
     production: Production,
     productions: Set<number>,
-    production_items: Item[][],
+    production_items: Item[],
     options: RenderBodyOptions,
     key: any
 ): { production_id: Set<number>, node: SC, PURE_COMPLETE: boolean; } {
@@ -1006,42 +1025,45 @@ function createShiftAndComplete(
     if (shift_items.length > 0) {
 
         //process the shift item to completion. 
-        const closure = getClosure(shift_items.slice(), grammar);
-        const syms = closure.filter(i => !i.atEND && !isSymAProduction(i.sym(grammar))).map(i => <TokenSymbol>i.sym(grammar));
+        const
+            closure = getClosure(shift_items.slice(), grammar),
+            syms = [...closure.filter(i => !i.atEND && !isSymAProduction(i.sym(grammar))).map(i => <TokenSymbol>i.sym(grammar))],
+            unskippable = [...syms, ...getUnskippableSymbolsFromClosure(closure, grammar)];
 
         if (shift_items.length == 1) {
             //Simply confirm the current token is within the shift items first set then 
 
             let _if: SC = SC.If(getIncludeBooleans(syms, grammar, runner, lex_name, []));
             const inner_if = renderItem(_if, shift_items[0], grammar, runner, productions, true);
-            addReturnType(options.RETURN_TYPE, inner_if);
             active_node = _if;
-            if_node.addStatement(addSkipCall(grammar, runner, syms, lex_name));
+            if_node.addStatement(addSkipCall(grammar, runner, unskippable, lex_name));
             if_node.addStatement(_if);
-            const prods = processProductionChain(
+            for (const prod of processProductionChain(
                 inner_if, grammar, runner,
                 production, productions,
                 options, production_items,
-                shift_items, [], 0, [], true
-            );
+                itemsToProductions(shift_items, grammar), [], true
+            )) production_id.add(prod);
+            addReturnType(options.RETURN_TYPE, inner_if);
 
-            for (const prod of prods) production_id.add(prod);
         } else {
-            let d: Item[] = shift_items.slice();
 
-            let node = new SC, val = null;
+            let d: Item[] = shift_items.slice(),
+                node = new SC, val = null;
 
             const gen = createMultiItemSequence(d, [], node, grammar, runner, production, productions, options, production_items, lex_name, 0, false, ALLOW_FALL_THROUGH);
-            let i = 0;
+
             while (!(val = gen.next()).done) {
-                const { _if, items, filter_productions } = val.value,
-                    prods = processProductionChain(
+                const { _if, prods, filter_productions } = val.value;
+                if (_if) {
+                    for (const prod of processProductionChain(
                         _if, grammar, runner,
                         production, productions,
                         options, production_items,
-                        items, [], 0, [], true
-                    );
-                for (const prod of prods) production_id.add(prod);
+                        prods, [], true
+                    )) production_id.add(prod);
+                    addReturnType(options.RETURN_TYPE, _if);
+                }
             };
             active_node = val.value;
 
@@ -1055,7 +1077,7 @@ function createShiftAndComplete(
                 */
                 const
                     lookahead_syms = [...follow_symbols.filter(s => isSymGeneratedWS(s) || isSymGeneratedNL(s))],
-                    exclude_syms = syms;
+                    exclude_syms = unskippable;
 
                 if (exclude_syms.some(isSymGeneratedSym))
                     lookahead_syms.push(...follow_symbols.filter(isSymSpecifiedSymbol));
@@ -1074,12 +1096,11 @@ function createShiftAndComplete(
                     if (booleans)
                         if_node.addStatement(SC.If(booleans).addStatement(SC.Break));
                 }
-
                 if_node.addStatement(node);
                 if_node.addStatement(SC.Empty());
 
             } else {
-                if_node.addStatement(addSkipCall(grammar, runner, syms, lex_name));
+                if_node.addStatement(addSkipCall(grammar, runner, unskippable, lex_name));
                 if_node.addStatement(node);
             }
         }
@@ -1089,14 +1110,14 @@ function createShiftAndComplete(
         let val;
         const gen = addEndItemSequence(end_items, grammar, runner, productions, options, shift_items.length > 0);
         while (!(val = gen.next()).done) {
-            const { _if, items, filter_productions } = val.value,
-                prods = processProductionChain(
-                    _if, grammar, runner,
-                    production, productions,
-                    options, production_items,
-                    items, [], 0, [], true
-                );
-            for (const prod of prods) production_id.add(prod);
+            const { _if, prods, filter_productions } = val.value;
+            for (const prod of processProductionChain(
+                _if, grammar, runner,
+                production, productions,
+                options, production_items,
+                prods, [], true
+            )) production_id.add(prod);
+            addReturnType(options.RETURN_TYPE, _if);
         };
         const end = val.value;
 
@@ -1132,7 +1153,6 @@ export function constructHybridFunction(production: Production, grammar: Grammar
 
         //*
         const
-            production_items = items.filter(i => i.sym(grammar) && isSymAProduction(i.sym(grammar))),
             sc =
                 createFunctionBody(
                     items,
@@ -1141,16 +1161,15 @@ export function constructHybridFunction(production: Production, grammar: Grammar
                     production,
                     productions,
                     generateRDOptions(ReturnType.NONE),
-                    [production_items],
-                    g_lexer_name,
-                    0,
-                    true
+                    g_lexer_name
                 ).sc;
-        code_node.addStatement(SC.Value(`console.log("PRODUCTION START", {prod, tx:str.slice(l.off, l.off + l.tl), FAILED, offset:l.off, name:"${production.name}"})`));
+        if (runner.ANNOTATED)
+            code_node.addStatement(SC.Value(`console.log("PRODUCTION START", {prod, tx:str.slice(l.off, l.off + l.tl), ty:l.ty, tl:l.tl, utf:l.getUTF(), FAILED, offset:l.off, name:"${production.name}"})`));
 
         code_node.addStatement(sc);
 
-        code_node.addStatement(SC.Value(`console.log("PRODUCTION END", {prod, FAILED, offset:l.off, name:"${production.name}"})`));
+        if (runner.ANNOTATED)
+            code_node.addStatement(SC.Value(`console.log("PRODUCTION END", {prod, tx:str.slice(l.off, l.off + l.tl), FAILED, offset:l.off, name:"${production.name}"})`));
         //*/
 
         addClauseSuccessCheck(code_node, production, grammar, runner);

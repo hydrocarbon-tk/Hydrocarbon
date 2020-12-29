@@ -1,4 +1,5 @@
 import wind from "@candlefw/wind";
+import { Token } from "assemblyscript";
 import { performance } from "perf_hooks";
 
 import { getAssertionSymbolFirst, getUniqueSymbolName, isSymAnAssertFunction, isSymAProduction } from "../hybrid/utilities/utilities.js";
@@ -129,7 +130,14 @@ export function filloutWorkerGrammar(grammar: Grammar) {
         val.item = Item.fromArray(val.item);
     }
 }
-
+/**
+ * Adds additional properties to the grammar and its sub objects:
+ * 
+ * Productions functions
+ * Meta symbol list
+ * Follow items for each production
+ * Item set
+ */
 export function filloutGrammar(grammar: Grammar, env) {
 
     const bodies = [],
@@ -139,6 +147,7 @@ export function filloutGrammar(grammar: Grammar, env) {
 
     for (let i = 0, j = 0; i < grammar.length; i++) {
         const production = grammar[i];
+        production.follow_ref = [];
 
         if (production.recovery_handler) {
             const rh = production.recovery_handler;
@@ -232,15 +241,27 @@ export function buildItemClosures(grammar: Grammar) {
     const
         production_ready = grammar.map(i => ({ count: 0, items: null })),
         items_sets = grammar.flatMap(p => {
+            // If there are any reduces on p add to the 
+
             const items = p.bodies.map(b => {
                 const out_syms = [];
                 let item = new Item(b.id, b.length, 0, EOF_SYM);
                 let depth = b.id + p.id * grammar.length;
                 do {
+                    if (!item.atEND && item.sym(grammar).type == SymbolType.PRODUCTION) {
+                        const other_prod = item.getProductionAtSymbol(grammar);
+                        if (item.len - item.offset == 1) {
+                            other_prod.follow_ref.push(p.id);
+                        }
+                    }
+
+                    const reset_sym = item.offset > 0 ? (b.reset.get(item.offset) ?? []).map(getUniqueSymbolName) : [];
+
                     out_syms.push({
                         item,
                         closure: [],
-                        excludes: b.excludes.get(item.offset) ?? [],
+                        reset_sym,
+                        excludes: reset_sym,
                         rank: item.offset,
                         depth: depth,
                         hash: "",
@@ -363,6 +384,7 @@ export function buildItemClosures(grammar: Grammar) {
         obj.RR = RR;
     }
 
+    //console.log({ items_sets });
 
     return items_sets;
 }
@@ -485,6 +507,7 @@ export interface TransitionTreeNode {
     progress?: boolean,
     depth: number;
     sym: string;
+    unskippable: TokenSymbol[];
     roots: Item[];
     next: TransitionTreeNode[];
     final_count: number;
@@ -493,7 +516,7 @@ export interface closure_group {
     sym: Symbol;
     index: number;
     closure: Item[];
-
+    unskippable: TokenSymbol[];
     final: number;
 }
 
@@ -525,13 +548,16 @@ export function getTransitionTree(
 
     if (!closures) {
         closures = root_items.map((i, index) => ({ sym: null, index, closure: getClosure([i], grammar) }));
-        const { AMBIGUOUS, clear, max_depth, tree_nodes } = getTransitionTree(grammar, root_items, max_tree_depth, max_no_progress, max_time_limit, 0, closures);
+        const { AMBIGUOUS, clear, max_depth, tree_nodes } =
+            getTransitionTree(grammar, root_items, max_tree_depth, max_no_progress, max_time_limit, 0, closures);
+
         return {
             AMBIGUOUS,
             clear,
             max_depth,
             tree_nodes: [
                 {
+                    unskippable: [],
                     depth: -1,
                     next: tree_nodes,
                     roots: root_items,
@@ -566,6 +592,7 @@ export function getTransitionTree(
         let next = [];
 
         const
+            unskippable = group.flatMap(g => g.unskippable),
             sym = group[0].sym,
             new_roots = group.map(cg => cg.index).setFilter().map(i => root_items[i]),
             progress = new_roots.length != len,
@@ -593,6 +620,7 @@ export function getTransitionTree(
             last_progress: depth - last_progress,
             progress,
             sym: getUniqueSymbolName(sym),
+            unskippable,
             depth,
             roots: new_roots,
             next: progress ? next : [],
@@ -613,6 +641,9 @@ function getClosureGroups(grammar: Grammar, { index, closure, final }: closure_g
 
     const group = [];
     let i = 0;
+
+    const unskippable: TokenSymbol[] = <any>getUnskippableSymbolsFromClosure(closure, grammar);
+
     for (const item of closure) {
         const sym = item.sym?.(grammar);
         if (item.atEND) {
@@ -628,14 +659,14 @@ function getClosureGroups(grammar: Grammar, { index, closure, final }: closure_g
                 const follow = FOLLOW(grammar, production_id);
 
                 for (const sym of follow.values())
-                    group.push({ sym, index, closure: closure.slice(0, 1), final: 1 });
+                    group.push({ sym, index, unskippable, closure: closure.slice(0, 1), final: 1 });
 
             } else
-                group.push(...getClosureGroups(grammar, { sym: grammar.meta.symbols.get("production" + prod.id), index: index, closure: new_closure, final: 0 }));
+                group.push(...getClosureGroups(grammar, { sym: grammar.meta.symbols.get("production" + prod.id), unskippable, index: index, closure: new_closure, final: 0 }));
         } else if (!isSymAProduction(item.sym(grammar))) {
             const new_closure = closure.slice().filter((item, i) => !item.atEND && isSymAProduction(item.sym(grammar)));
             new_closure.push(...incrementWithClosure(grammar, item, null, true));
-            group.push({ sym, index: index, closure: new_closure.setFilter(i => i.id), final: 0 });
+            group.push({ sym, index: index, unskippable, closure: new_closure.setFilter(i => i.id), final: 0 });
         }
         i++;
     }
@@ -647,5 +678,8 @@ function incrementWithClosure(grammar: Grammar, item: Item, prod: Production, AU
     if (AUTO_INCREMENT || item.getProductionAtSymbol(grammar).id == prod.id)
         return getClosure([item.increment()], grammar);
     return [item];
+}
+export function getUnskippableSymbolsFromClosure(closure: Item[], grammar: Grammar): any {
+    return [...new Set(closure.flatMap(i => grammar.item_map.get(i.id).reset_sym)).values()].map(sym => grammar.meta.all_symbols.get(sym));
 }
 

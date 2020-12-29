@@ -41,13 +41,14 @@ export function FOLLOW(grammar: Grammar, production: number): Map<string, TokenS
 
     table[0].set("$eof", EOF_SYM); //End of Line
 
-    for (let production_index = 0; production_index < grammar.length; production_index++) {
+    for (const production of grammar) {
 
-        const production = grammar[production_index];
+        for (const sym of production?.reduce?.values() ?? []) {
+            console.log({ sym });
+            production.follow.set(sym.val, sym);
+        }
 
-        for (let i = 0; i < production.bodies.length; i++) {
-
-            const body = production.bodies[i];
+        for (const body of production.bodies) {
 
             for (let i = 0; i < body.length; i++) {
 
@@ -55,8 +56,8 @@ export function FOLLOW(grammar: Grammar, production: number): Map<string, TokenS
 
                 if (isNonTerm(sym)) {
 
-
                     const child_production_index = sym.val;
+
                     const child_follow = table[child_production_index];
 
                     for (var j = i + 1; j < body.length; j++) {
@@ -84,11 +85,6 @@ export function FOLLOW(grammar: Grammar, production: number): Map<string, TokenS
             }
         }
     }
-
-    // //Clear off excluded values.
-    // for (let i = 0; i < grammar.length; i++)
-    //     for (const key of excludes[i].keys())
-    //         table[i].delete(key);
 
     for (let production_index = 0; production_index < grammar.length; production_index++) {
 

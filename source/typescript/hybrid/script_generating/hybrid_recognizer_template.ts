@@ -166,9 +166,11 @@ export const renderAssemblyScriptRecognizer = (
         ));
 
     /*            
-    function reset(mark:u32): void{
+    function reset(mark:u32): boolean{
+        if(!FAILED) return false;
         FAILED = false;
         action_ptr = mark;
+        return true
     }
     */
     code_node.addStatement(
@@ -176,6 +178,7 @@ export const renderAssemblyScriptRecognizer = (
             "reset:boolean",
             "mark:unsigned int",
         ).addStatement(
+            SC.If(SC.UnaryPre("!", FAILED)).addStatement(SC.UnaryPre(SC.Return, SC.False)),
             SC.Assignment(action_ptr, "mark:unsigned int"),
             SC.Assignment(FAILED, SC.False),
             SC.UnaryPre(SC.Return, SC.True)

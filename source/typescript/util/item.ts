@@ -59,7 +59,7 @@ export class ItemGraphNode {
 export class Item extends Array {
 
     static fromArray(array: Array<any>): Item {
-        if (array instanceof Item) return array;
+        if (array instanceof Item) return new Item(array.body, array.len, array.offset, array.follow);
 
         const new_item = new Item(array[ItemIndex.body_id], array[ItemIndex.length], array[ItemIndex.offset], (<Item>array).follow);
 
@@ -154,7 +154,7 @@ export class Item extends Array {
     }
 
     renderUnformattedWithProduction(grammar: Grammar): string {
-        return this.body_(grammar).production.name + "=>" + this.renderUnformatted(grammar);
+        return this.body + " " + this.body_(grammar).production.name + "=>" + this.renderUnformatted(grammar);
     }
 
     renderWithProduction(grammar: Grammar): string {

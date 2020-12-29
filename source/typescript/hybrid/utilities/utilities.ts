@@ -178,6 +178,7 @@ export function getRDFNName(production: Production) { return `$${production.name
 export function getSkipFunction(grammar: Grammar, runner: CompilerRunner, exclude: Set<string> | TokenSymbol[] = new Set):
     VarSC {
     const exclude_set: Set<string> = Array.isArray(exclude) ? new Set(exclude.map(e => getUniqueSymbolName(e))) : exclude;
+
     const skip_symbols: TokenSymbol[] = grammar.meta.ignore.flatMap(d => d.symbols)
         .map(s => getRootSym(s, grammar))
         .setFilter(s => s.val)
@@ -209,7 +210,7 @@ export function getFollowCheckFunction(grammar: Grammar, runner: CompilerRunner,
 
     if (USE_SKIP) {
         const
-            skip = createSkipCall(grammar, runner, lex_name, follow,),
+            skip = createSkipCall(grammar, runner, lex_name, follow),
             boolA = getIncludeBooleans(follow.slice(0, 1), grammar, runner, skip, []),
             boolB = getIncludeBooleans(follow.slice(1), grammar, runner, lex_name, []);
         FN =
@@ -221,6 +222,10 @@ export function getFollowCheckFunction(grammar: Grammar, runner: CompilerRunner,
             bool = getIncludeBooleans(follow, grammar, runner, lex_name, []);
         FN = SC.Function(":bool", lex_name).addStatement(SC.UnaryPre(SC.Return, bool));
     }
+
+    FN.addStatement(
+        SC.Comment(follow.map(sym => sym.val).join(" "))
+    );
 
     return <VarSC>runner.add_constant(FC_name, FN);
 }
@@ -418,9 +423,13 @@ export function getIncludeBooleans(syms: TokenSymbol[],
     syms = syms.setFilter(s => getUniqueSymbolName(s));
 
     if (syms.some(sym => sym.val == "any")) {
-        return SC.UnaryPre(SC.Value("!"), SC.Group("(", getIncludeBooleans(exclude_symbols, grammar, runner, lex_name) || SC.Value("false")));
+        if (exclude_symbols.length > 0)
+            return SC.UnaryPre(SC.Value("!"), SC.Group("(", getIncludeBooleans(exclude_symbols, grammar, runner, lex_name) || SC.Value("false")));
+        else
+            return SC.UnaryPre("!", SC.Call(SC.Member(lex_name, "END")));
     } else {
         const exclusion_list = new Set(exclude_symbols.map(getUniqueSymbolName));
+
         syms = syms.filter(sym => !exclusion_list.has(getUniqueSymbolName(sym))).map(s => getRootSym(s, grammar));
 
         let

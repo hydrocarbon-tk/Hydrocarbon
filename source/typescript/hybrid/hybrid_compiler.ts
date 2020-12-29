@@ -128,6 +128,7 @@ export async function compileHybrid(grammar: Grammar, env: GrammarParserEnvironm
             if (!used_options.combine_wasm_with_js) {
                 await fsp.writeFile(recognizer_binary_file + "", binary);
                 await fsp.writeFile(recognizer_wat_file + "", text);
+
             }
 
             await fsp.writeFile(parser_file + "", parser_script);
@@ -137,7 +138,6 @@ export async function compileHybrid(grammar: Grammar, env: GrammarParserEnvironm
         }
 
         if (used_options.no_file_output || used_options.create_function)
-
 
 
             return await (new AsyncFunction(
@@ -160,6 +160,8 @@ export async function compileHybrid(grammar: Grammar, env: GrammarParserEnvironm
     if (used_options.no_file_output || used_options.create_function) {
         const script = `${renderJSScript(grammar, used_options, recognizer_script_js, true, action32bit_array_byte_size,
             error8bit_array_byte_size)}`;
+
+        await fsp.writeFile(recognizer_js_file + "", script);
         await fsp.writeFile(recognizer_ts_file + "", recognizer_script_ts);
         //    / return script;
         return await (new AsyncFunction(
