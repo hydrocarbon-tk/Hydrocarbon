@@ -31,6 +31,7 @@ export const printLexer = (): SC => {
                 SC.Variable("ty:int"),
                 SC.Variable("tl:int"),
                 SC.Variable("off:int"),
+                SC.Variable("utf:int"),
                 SC.Variable("prev_off:int")
             ),
             SC.Function(
@@ -39,12 +40,14 @@ export const printLexer = (): SC => {
                 SC.Assignment(SC.Member(SC.This(), "ty"), 0),
                 SC.Assignment(SC.Member(SC.This(), "tl"), 0),
                 SC.Assignment(SC.Member(SC.This(), "off"), 0),
+                SC.Assignment(SC.Member(SC.This(), "utf"), 0),
                 SC.Assignment(SC.Member(SC.This(), "prev_off"), 0)
             ),
             SC.Function(
                 "copy:Lexer&",
                 SC.Assignment("destination:Lexer&", SC.UnaryPre("new", SC.Call("Lexer")))
             ).addStatement(
+                SC.Assignment(SC.Member("destination", "utf"), SC.Member(SC.This(), "utf")),
                 SC.Assignment(SC.Member("destination", "ty"), SC.Member(SC.This(), "ty")),
                 SC.Assignment(SC.Member("destination", "tl"), SC.Member(SC.This(), "tl")),
                 SC.Assignment(SC.Member("destination", "off"), SC.Member(SC.This(), "off")),
@@ -190,9 +193,11 @@ export const printLexer = (): SC => {
                 ).addStatement(
                     SC.Assignment(SC.Member(SC.This(), "ty"), 0),
                     SC.Assignment(SC.Member(SC.This(), "tl"), 0),
+                    SC.Assignment(SC.Member(SC.This(), "utf"), -1),
                     SC.Assignment(SC.Member(SC.This(), "off"), SC.Member("str", "length")),
                     SC.If().addStatement(
-                        SC.Assignment(SC.Member(SC.This(), "ty"), SC.Call("getTypeAt", SC.Call(strCodePointAt, SC.Member(SC.This(), "off"))))
+                        SC.Assignment(SC.Member(SC.This(), "utf"), SC.Call(strCodePointAt, SC.Member(SC.This(), "off"))),
+                        SC.Assignment(SC.Member(SC.This(), "ty"), SC.Call("getTypeAt", SC.Member(SC.This(), "utf")))
                     )
                 ),
                 SC.UnaryPre(SC.Return, SC.This())

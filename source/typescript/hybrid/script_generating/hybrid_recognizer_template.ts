@@ -14,7 +14,8 @@ import {
     consume_call,
     consume_skip_call,
     consume_assert_skip_call,
-    consume_assert_call
+    consume_assert_call,
+    g_lexer_name
 } from "../utilities/utilities.js";
 import { printLexer } from "./hybrid_lexer_template.js";
 import { getTokenSelectorStatements } from "./hybrid_token_selector_template.js";
@@ -164,6 +165,48 @@ export const renderAssemblyScriptRecognizer = (
             SC.Assignment(mark_, action_ptr),
             SC.UnaryPre("return", mark_)
         ));
+    /*
+    function table(l:Lexer, a,b,c,d): bool{
+        const utf = 1 << l.utf;
+        if(utf < 32)
+            return a & (1 << utf);
+        else if (utf < 64)
+            return b & (1 << (utf - 32));
+        else if (utf < 96)
+            return c & (1 << (utf - 64));
+        else if (utf < 128)
+            return d & (1 << (utf - 96));
+        return false
+    }
+     */
+    code_node.addStatement(
+        SC.Function(
+            "assert_table:boolean",
+            g_lexer_name,
+            "a:unsigned int",
+            "b:unsigned int",
+            "c:unsigned int",
+            "d:unsigned int",
+        ).addStatement(
+            SC.Declare(SC.Assignment(SC.Constant("utf:int"), SC.Member(g_lexer_name, "utf"))),
+            SC.If(SC.Binary("utf", "<", "32"))
+                .addStatement(
+                    SC.UnaryPre(SC.Return, SC.Binary(SC.Binary("a", "&", SC.Binary("1", "<<", "utf")), "!=", "0")),
+                    SC.If(SC.Binary("utf", "<", "64"))
+                        .addStatement(
+                            SC.UnaryPre(SC.Return, SC.Binary(SC.Binary("b", "&", SC.Binary("1", "<<", SC.Binary("utf", "-", "32"))), "!=", "0")),
+                            SC.If(SC.Binary("utf", "<", "96"))
+                                .addStatement(
+                                    SC.UnaryPre(SC.Return, SC.Binary(SC.Binary("c", "&", SC.Binary("1", "<<", SC.Binary("utf", "-", "64"))), "!=", "0")),
+                                    SC.If(SC.Binary("utf", "<", "128"))
+                                        .addStatement(
+                                            SC.UnaryPre(SC.Return, SC.Binary(SC.Binary("d", "&", SC.Binary("1", "<<", SC.Binary("utf", "-", "96"))), "!=", "0"))
+                                        )
+                                )
+                        ),
+                ),
+            SC.UnaryPre(SC.Return, SC.False),
+        ));
 
     /*            
     function reset(mark:u32): boolean{
@@ -177,8 +220,13 @@ export const renderAssemblyScriptRecognizer = (
         SC.Function(
             "reset:boolean",
             "mark:unsigned int",
+            "pass:boolean",
         ).addStatement(
-            SC.If(SC.UnaryPre("!", FAILED)).addStatement(SC.UnaryPre(SC.Return, SC.False)),
+            SC.If(
+                SC.Binary(
+                    SC.UnaryPre("!", FAILED), "&&",
+                    "pass")
+            ).addStatement(SC.UnaryPre(SC.Return, SC.False)),
             SC.Assignment(action_ptr, "mark:unsigned int"),
             SC.Assignment(FAILED, SC.False),
             SC.UnaryPre(SC.Return, SC.True)

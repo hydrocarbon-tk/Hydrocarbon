@@ -2,10 +2,11 @@ import { traverse } from "@candlefw/conflagrate";
 import { exp, JSNode, JSNodeClass, JSNodeType, parser, stmt } from "@candlefw/js";
 import { Lexer } from "@candlefw/wind";
 
-import { Grammar, GrammarFunction, Production, ProductionBody, SymbolType } from "../../types/grammar.js";
+import { EOF_SYM, Grammar, GrammarFunction, Production, ProductionBody, SymbolType } from "../../types/grammar.js";
 import { AssertionFunctionSymbol, EOFSymbol, GeneratedSymbol, ProductionSymbol, SpecifiedCharacterSymbol, SpecifiedIdentifierSymbol, SpecifiedNumericSymbol, SpecifiedSymbol, Symbol, TokenSymbol } from "../../types/Symbol";
 import { FOLLOW } from "../../util/follow.js";
 import { Item } from "../../util/item.js";
+import { getClosure } from "../../util/process_closure.js";
 import { CompilerRunner } from "../types/CompilerRunner.js";
 import { AS, ConstSC, ExprSC, SC, StmtSC, VarSC } from "./skribble.js";
 
@@ -65,7 +66,7 @@ declare global {
              * that is used to determine which group(s) the object belongs to. Defaults to a function
              * that returns the string value of the object.
              */
-            fn: (item: T) => (KeyType | KeyType[])
+            fn?: (item: T) => (KeyType | KeyType[])
         ) => T[][];
     }
 }
@@ -109,7 +110,7 @@ Array.prototype.setFilter = function <T>(
 };
 
 
-Array.prototype.group = function <T, KeyType>(this: Array<T>, fn: (T) => (KeyType | KeyType[])): T[][] {
+Array.prototype.group = function <T, KeyType>(this: Array<T>, fn: (T) => (KeyType | KeyType[]) = _ => _ ? _.toString() : ""): T[][] {
     return [...this.groupMap(fn).values()];
 };
 
@@ -192,6 +193,26 @@ export function getSkipFunction(grammar: Grammar, runner: CompilerRunner, exclud
     const FN = SC.Function(":bool", "l:Lexer").addStatement(SC.UnaryPre(SC.Return, SC.Group("(", getIncludeBooleans(skip_symbols, grammar, runner))));
 
     return <VarSC>runner.add_constant(SF_name, FN);
+}
+
+export function getSkipFunctionNew(skip_symbols: TokenSymbol[], grammar: Grammar, runner: CompilerRunner):
+    VarSC {
+
+    if (skip_symbols.length == 0)
+        return null;
+
+    const SF_name = SC.Constant("skip_fn:bool");
+
+    const FN = SC.Function(":bool", "l:Lexer").addStatement(SC.UnaryPre(SC.Return, SC.Group("(", getIncludeBooleans(skip_symbols, grammar, runner))));
+
+    return <VarSC>runner.add_constant(SF_name, FN);
+}
+
+export function addSkipCallNew(symbols: TokenSymbol[], grammar: Grammar, runner: CompilerRunner, lex_name: ConstSC | VarSC = SC.Variable("l", "Lexer")): StmtSC {
+    const skips = getSkipFunctionNew(symbols, grammar, runner);
+    if (skips)
+        return SC.Expressions(SC.Call(SC.Constant("_skip"), lex_name, SC.UnaryPost(skips, SC.Comment(symbols.map(s => `[ ${s.val} ]`).join("")))));//`_skip(${lex_name}, ${skips})`;
+    return SC.Expressions(SC.Empty());
 }
 export function addSkipCall(grammar: Grammar, runner: CompilerRunner, exclude_set: TokenSymbol[] | Set<string> = new Set, lex_name: ConstSC | VarSC = SC.Variable("l", "Lexer")): StmtSC {
     const skips = getSkipFunction(grammar, runner, exclude_set);
@@ -306,7 +327,7 @@ export function getAssertionFunctionName(name: string) {
     return `__${name}__`;
 }
 
-export function translateSymbolValue(sym: TokenSymbol, grammar: Grammar, ANNOTATED: boolean = false, lex_name: ConstSC | VarSC = SC.Variable("l:Lexer")): ExprSC {
+export function translateSymbolValue(sym: TokenSymbol, grammar: Grammar, lex_name: ConstSC | VarSC = SC.Variable("l:Lexer")): ExprSC {
 
     const
         char_len = sym.val.length,
@@ -436,7 +457,7 @@ export function getIncludeBooleans(syms: TokenSymbol[],
             id = syms.filter(isSymSpecified),
             ty = syms.filter(isSymAGenericType),
             fn = syms.filter(isSymAnAssertFunction)
-                .map(s => translateSymbolValue(s, grammar, runner.ANNOTATED, lex_name)).sort();
+                .map(s => translateSymbolValue(s, grammar, lex_name)).sort();
 
 
         if (ty.some(isSymGeneratedId))
@@ -460,6 +481,8 @@ export function getIncludeBooleans(syms: TokenSymbol[],
 
             const booleans = [], char_groups = id.groupMap(sym => sym.val[0]);
 
+            let table = 0n, tbl_ids = [];
+
             for (const group of char_groups.values()) {
                 if (group.some(sym => sym.val.length > 1 || isSymIdentifier(sym))) {
 
@@ -469,21 +492,40 @@ export function getIncludeBooleans(syms: TokenSymbol[],
                         fn_name = runner.add_constant(node_name, fn);
 
                     booleans.push(SC.UnaryPost(SC.Call(fn_name, lex_name), SC.Comment(group.map(sym => `[${sanitizeSymbolValForComment(sym)}]`).join(" "))));
-                } else
-                    booleans.push(...group.map(s =>
-                        SC.Binary(
-                            SC.Call(SC.Member(lex_name, SC.Constant("getUTF"))),
-                            SC.Value("=="),
-                            translateSymbolValue(s, grammar, runner.ANNOTATED, lex_name)
-                        )
-                    ));
+                } else {
+                    for (const sym of group) {
+                        const code = sym.val.codePointAt(0);
+                        if ((code < 128) && char_groups.size > 1) {
+                            tbl_ids.push(sym.val);
+                            table |= 1n << BigInt(code);
+                        } else {
+                            booleans.push(SC.Binary(
+                                SC.Member(lex_name, "utf"),
+                                SC.Value("=="),
+                                translateSymbolValue(sym, grammar, lex_name)
+                            ));
+                        }
+                    }
+                }
+            }
+
+            if (table > 0n) {
+                booleans.push(
+                    SC.UnaryPost(SC.Call("assert_table", lex_name,
+                        "0x" + ((table >> 0n) & 0xFFFFFFFFn).toString(16),
+                        "0x" + ((table >> 32n) & 0xFFFFFFFFn).toString(16),
+                        "0x" + ((table >> 64n) & 0xFFFFFFFFn).toString(16),
+                        "0x" + ((table >> 96n) & 0xFFFFFFFFn).toString(16),
+                    ), SC.Comment("tbl:" + tbl_ids.map(d => `[ ${d} ]`).join(" "))
+                    )
+                );
             }
 
             out_id = booleans;
         }
 
         if (ty.length > 0)
-            out_ty = ty.map(s => translateSymbolValue(s, grammar, runner.ANNOTATED, lex_name));
+            out_ty = ty.map(s => translateSymbolValue(s, grammar, lex_name));
 
         return ([...out_id, ...out_ty, ...out_fn].filter(_ => _).reduce((r, s) => {
             if (!r) return s;
@@ -576,24 +618,38 @@ export function getAssertionSymbolFirst(sym: AssertionFunctionSymbol, grammar: G
     else return [];
 };
 
-/**
- * Take a string from an assertion function pre-compiled 
- * script and convert into an assertion function body string.
- * 
- * - Replaces symbol place holders with equivalent type or token
- * boolean expression
- * - Replace `$next` place holder with a call to lexer next
- * - Replace `$fork` place holder with a call to lexer copy
- * - Replace `$join` place holder with a call to lexer sync
- * - Replace `$tk_start` place holder with a mile marker to the start of a token sequence
- * - Replace `$tk_end` with a shift insertion with length from the start of the previous call to `$tk_start`
- * 
- * @param af_body_content 
- */
-export function convertAssertionFunctionBodyToSkribble(af_body_content: string, grammar: Grammar, runner: CompilerRunner)
-    : { sc: SC, first: TokenSymbol[]; } {
+export function getProductionClosure(production_id: number, grammar: Grammar) {
+    const prod = grammar[production_id];
+    return getClosure(prod.bodies.map(b => new Item(b.id, b.length, 0, EOF_SYM)), grammar);
+}
+
+export function getProductionFirst(production_id: number, grammar: Grammar) {
+    const closure = getProductionClosure(production_id, grammar);
+    const syms = closure.filter(i => !i.atEND && !isSymAProduction(i.sym(grammar)))
+        .flatMap(i => getTrueSymbolValue(<TokenSymbol>i.sym(grammar), grammar))
+        .setFilter(getUniqueSymbolName);
+
+    return syms;
+}
+
+
+export function getTrueSymbolValue(sym: TokenSymbol, grammar: Grammar): TokenSymbol[] {
+    if (isSymAnAssertFunction(sym)) {
+        const val = grammar.functions.get(sym.val);
+        const { first } = getAssertionFunctionData(val.txt, grammar);
+        return first;
+    }
+    return [<TokenSymbol>sym];
+}
+
+export function doesProductionHaveEmpty(production_id: number, grammar: Grammar) {
+    return getProductionClosure(production_id, grammar).some(i => i.len == 0 || (i.len == 1 && i.offset == 0 && i.sym(grammar).type == SymbolType.EMPTY));
+}
+
+
+export function getAssertionFunctionData(af_body_content: string, grammar: Grammar): { first: TokenSymbol[]; ast: JSNode; rev_lu: { id: number, sym: TokenSymbol; }[]; } {
     const
-        rev_lu = [],
+        rev_lu: { id: number, sym: TokenSymbol; }[] = [],
         syms: Map<string, { id: number, sym: TokenSymbol; }> = new Map(),
         first = [],
         // Replace symbol placeholders
@@ -618,10 +674,31 @@ export function convertAssertionFunctionBodyToSkribble(af_body_content: string, 
 
     for (const { node } of traverse(parser(txt).ast, "nodes", 1)
         .makeMutable().extract(receiver)) {
-        processFunctionNodes(node, grammar, runner, sym_lu, first);
+        processFunctionNodes(node, grammar, sym_lu, first);
     }
 
-    const sc = convertToSkribble(receiver.ast);
+    return { first, ast: receiver.ast, rev_lu };
+}
+
+/**
+ * Take a string from an assertion function pre-compiled 
+ * script and convert into an assertion function body string.
+ * 
+ * - Replaces symbol place holders with equivalent type or token
+ * boolean expression
+ * - Replace `$next` place holder with a call to lexer next
+ * - Replace `$fork` place holder with a call to lexer copy
+ * - Replace `$join` place holder with a call to lexer sync
+ * - Replace `$tk_start` place holder with a mile marker to the start of a token sequence
+ * - Replace `$tk_end` with a shift insertion with length from the start of the previous call to `$tk_start`
+ * 
+ * @param af_body_content 
+ */
+export function convertAssertionFunctionBodyToSkribble(af_body_content: string, grammar: Grammar, runner: CompilerRunner)
+    : { sc: SC, first: TokenSymbol[]; } {
+
+    const { ast, first, rev_lu } = getAssertionFunctionData(af_body_content, grammar);
+    const sc = convertToSkribble(ast);
 
     sc.modifyIdentifiers(i => {
         const str = i.value;
@@ -640,6 +717,7 @@ export function convertAssertionFunctionBodyToSkribble(af_body_content: string, 
 
     return { sc: sc, first };
 }
+
 
 function convertToSkribble(node: JSNode, i = 0, v = [], USE_CONSTANT = false): SC<any> {
     if (node) {
@@ -734,7 +812,6 @@ function convertToSkribble(node: JSNode, i = 0, v = [], USE_CONSTANT = false): S
 function processFunctionNodes(
     ast: JSNode,
     grammar: Grammar,
-    runner: CompilerRunner,
     sym_lu: TokenSymbol[],
     first: TokenSymbol[] = [],
     lex_name_ptr = 0,
@@ -761,7 +838,6 @@ function processFunctionNodes(
                     HAS_TK = processFunctionNodes(
                         node,
                         grammar,
-                        runner,
                         sym_lu,
                         first,
                         lex_name_ptr,
@@ -772,7 +848,6 @@ function processFunctionNodes(
                     const { HAS_TK: tk, node: new_else_ } = processFunctionNodes(
                         _else_,
                         grammar,
-                        runner,
                         sym_lu,
                         first,
                         lex_name_ptr,
@@ -789,7 +864,6 @@ function processFunctionNodes(
                 HAS_TK = processFunctionNodes(
                     node,
                     grammar,
-                    runner,
                     sym_lu,
                     first,
                     lex_name_ptr,
@@ -852,13 +926,6 @@ function processFunctionNodes(
                             mutate(exp(`${prev}.tl = ${curr}.off - ${prev}.off`));
                             lex_name_ptr--;
                         }
-                    // case "FOLLOW":
-                    //     if (prod_id > -1 && runner) {
-                    //         const symbols = [...FOLLOW(grammar, prod_id).values()];
-                    //         const str = getIncludeBooleans(symbols, grammar, runner);
-                    //         mutate(exp(`(${str || "false"})`));
-                    //     }
-                    //     break;
                     default:
 
                         if (node.value.includes("produce")) {

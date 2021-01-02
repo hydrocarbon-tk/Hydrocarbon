@@ -83,6 +83,12 @@ export class Item extends Array {
 
         this.IS_LR = false;
     }
+    /**
+     * Get copy of this item with offset set to 0
+     */
+    get root(): Item {
+        return new Item(this.body, this.len, 0, this.follow);
+    }
 
     get atEND(): boolean {
         return this.offset >= this.len;
@@ -97,7 +103,7 @@ export class Item extends Array {
     }
 
     get id(): string {
-        return "" + this.body + "" + this.len + "" + this.offset + "|";
+        return "" + this.body + ":" + this.len + ":" + this.offset + "|-";
     }
 
     get full_id(): string {

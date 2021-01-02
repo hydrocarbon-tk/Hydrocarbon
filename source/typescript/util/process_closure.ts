@@ -1,8 +1,8 @@
 import { Item, ItemGraphNode } from "./item.js";
 
 import { FIRST } from "./first.js";
-import { Grammar, SymbolType } from "../types/grammar.js";
-import { Symbol } from "../types/Symbol";
+import { EOF_SYM, Grammar, SymbolType } from "../types/grammar.js";
+import { Symbol, TokenSymbol } from "../types/Symbol";
 
 
 export function getClosure(items: Item[], grammar: Grammar): Item[] {
@@ -17,6 +17,19 @@ export function getClosure(items: Item[], grammar: Grammar): Item[] {
 
     return closure.map(i => grammar.item_map.get(i).item);
 }
+
+
+
+export function getFollow(production_id: number, grammar: Grammar): TokenSymbol[] {
+    const prod = grammar[production_id];
+
+    return prod.bodies
+        .map(b => new Item(b.id, b.length, b.length, EOF_SYM))
+        .flatMap(i => [...grammar.item_map.get(i.id).follow.values()])
+        .setFilter()
+        .map(sym => <TokenSymbol>grammar.meta.all_symbols.get(sym));
+}
+
 
 export function processClosure(
     items: Item[],

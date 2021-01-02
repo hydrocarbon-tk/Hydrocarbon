@@ -129,7 +129,13 @@ export interface Preamble {
 
 export interface ItemMapEntry {
     item: Item;
+    reset_sym: string[];
+
+    /**
+     * List of all items that can be derived from this item
+     */
     closure: string[];
+
     /**
      * Does the item contain left recursion
      */
@@ -139,7 +145,22 @@ export interface ItemMapEntry {
      */
     RR: string[];
     containing_items: Set<string>;
+
+    /**
+     * Measure of the number of steps need to reach
+     * this item from the root production
+     */
     depth: number;
+
+    /**
+     * Symbols that can be skipped over at this item
+     */
+    skippable: Set<string>;
+
+    /**
+     * Set of all symbols that follow an item that has reached its last position.
+     */
+    follow: Set<string>;
 }
 
 export type Grammar = Array<Production> & {
