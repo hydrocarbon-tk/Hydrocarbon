@@ -11,10 +11,14 @@ export interface CompilerRunner {
      INTEGRATE: Set<string>;
      */
     /**
-    * If true item and state annotations
-    * will be generated in the output.
+    * Item and state annotation comments will be added to the output.
     */
     ANNOTATED: boolean;
+
+    /**
+     * Add debug tracing code to output.
+     */
+    DEBUG: boolean;
     constant_map: Map<ConstantHash, ConstantObj>;
 
     /**
@@ -27,11 +31,12 @@ export interface CompilerRunner {
     render_constants: () => { const: SC[], fn: SC[]; };
     join_constant_map: (const_map: Map<ConstantHash, ConstantObj>, dependent_string: SC) => void;
 }
-export function constructCompilerRunner(ANNOTATED: boolean = false): CompilerRunner {
+export function constructCompilerRunner(ANNOTATED: boolean = false, DEBUG: boolean = false): CompilerRunner {
     let const_counter = 0, unique_const_set = new Set();
     const runner = <CompilerRunner>{
         INTEGRATE: new Set(),
         ANNOTATED,
+        DEBUG,
         constant_map: new Map,
         add_constant: (const_name: VarSC | ConstSC, const_value: SC): VarSC | ConstSC => {
             const hash = SC.Bind(<ExprSC>const_value).hash();

@@ -18,6 +18,11 @@ export interface HybridCompilerOptions {
     error_array_byte_size?: number;
 
     /**
+     * Add debugging statements to output
+     */
+    debug?: boolean;
+
+    /**
      * Include comment notations in typescript recognizer file.
      */
     add_annotations?: boolean;

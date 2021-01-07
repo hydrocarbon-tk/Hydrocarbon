@@ -1233,8 +1233,8 @@ export function constructHybridFunction(production: Production, grammar: Grammar
 
 
     try {
-        code_node.addStatement(SC.Value(`console.log("${production.name} START", { prod, tx:str.slice(l.off, l.off + l.tl), ty:l.ty, tl:l.tl, utf:l.getUTF(), FAILED, offset:l.off})`));
-
+        if (runner.DEBUG)
+            code_node.addStatement(SC.Value(`console.log("${production.name} START", { prod, tx:str.slice(l.off, l.off + l.tl), ty:l.ty, tl:l.tl, utf:l.getUTF(), FAILED, offset:l.off})`));
 
         let val;
 
@@ -1285,7 +1285,8 @@ export function constructHybridFunction(production: Production, grammar: Grammar
         const lr_shifts = addProductionShifts(production_shift_items, grammar, runner, production, productions, production_shift_items, options, production_id);
 
         code_node.addStatement(lr_shifts);
-        code_node.addStatement(SC.Value(`console.log("${production.name} END", {prod, tx:str.slice(l.off, l.off + l.tl), FAILED, offset:l.off})`));
+        if (runner.DEBUG)
+            code_node.addStatement(SC.Value(`console.log("${production.name} END", {prod, tx:str.slice(l.off, l.off + l.tl), FAILED, offset:l.off})`));
         addClauseSuccessCheck(code_node, production, grammar, runner);
 
         return {

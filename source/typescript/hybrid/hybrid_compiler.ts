@@ -19,6 +19,7 @@ import { AS, CPP, JS } from "./utilities/skribble.js";
 const fsp = fs.promises;
 
 const default_options: HybridCompilerOptions = {
+    type: "js",
     number_of_workers: 2,
     add_annotations: false,
     action_array_byte_size: 1024,
@@ -30,7 +31,8 @@ const default_options: HybridCompilerOptions = {
     combine_wasm_with_js: false,
     no_file_output: false,
     optimize: true,
-    create_function: false
+    create_function: false,
+    debug: false,
 };
 
 const AsyncFunction: FunctionConstructor = <any>(async function () { }).constructor;
@@ -42,7 +44,7 @@ export async function compileHybrid(grammar: Grammar, env: GrammarParserEnvironm
 
     const
         used_options: HybridCompilerOptions = Object.assign({}, default_options, options),
-        runner: CompilerRunner = constructCompilerRunner(used_options.add_annotations),
+        runner: CompilerRunner = constructCompilerRunner(used_options.add_annotations, used_options.debug),
         mt_code_compiler = new HybridMultiThreadRunner(grammar, env, runner, used_options.number_of_workers),
         action32bit_array_byte_size = action32bit_array_byte_size_default,
         error8bit_array_byte_size = 10 * 4098 * 4; //  error8bit_array_byte_size_default;
