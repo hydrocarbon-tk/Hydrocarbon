@@ -1,4 +1,4 @@
-import { ConstSC, ExprSC, SC, VarSC } from "../utilities/skribble.js";
+import { ConstSC, ExprSC, JS, SC, VarSC } from "../utilities/skribble.js";
 
 export type ConstantHash = string;
 export type ConstantName = string;
@@ -63,27 +63,44 @@ export function constructCompilerRunner(ANNOTATED: boolean = false, DEBUG: boole
 
             return actual_name;
         },
-        join_constant_map(const_map: Map<ConstantHash, ConstantObj>, dependent_data: SC) {
-            const dependent_datas = [dependent_data, ...[...const_map.values()].map(d => SC.Bind(d.code_node))];
+        join_constant_map(const_map: Map<ConstantHash, ConstantObj>, dependent_code: SC) {
+            const dependent_data = [dependent_code, ...[...const_map.values()].map(d => d.code_node = SC.Bind(d.code_node))];
             let intermediate_names = [];
+
+            //replace all existing hashes 
             for (const [hash, { original_name, name, code_node }] of const_map.entries()) {
                 if (runner.constant_map.has(hash)) {
                     let int_name = "____intermediate___" + intermediate_names.length;
                     intermediate_names.push([int_name, runner.constant_map.get(hash).name.value]);
-                    dependent_datas.map(d => d.replaceVariableValue(name.type.value, int_name));
+                    dependent_data.map(d => d.replaceVariableValue(name.type.value, int_name));
+                }
+            }
+
+            for (const [old_name, new_name] of intermediate_names)
+                dependent_data.map(d => d.replaceVariableValue(old_name, new_name));
+
+            intermediate_names.length = 0;
+
+            for (const [, { original_name, name, code_node }] of const_map.entries()) {
+                const hash = SC.Bind(code_node).hash();
+
+                if (runner.constant_map.has(hash)) {
+                    let int_name = "____intermediate___" + intermediate_names.length;
+                    intermediate_names.push([int_name, runner.constant_map.get(hash).name.value]);
+                    dependent_data.slice(0, 1).map(d => d.replaceVariableValue(name.type.value, int_name));
                 } else {
                     let const_name = runner.add_constant(original_name, code_node);
 
                     if (name.type.value !== const_name.type.value) {
                         let int_name = "____intermediate___" + intermediate_names.length;
                         intermediate_names.push([int_name, const_name.type.value]);
-                        dependent_datas.map(d => d.replaceVariableValue(name.type.value, int_name));
+                        dependent_data.map(d => d.replaceVariableValue(name.type.value, int_name));
                     }
                 }
             }
 
             for (const [old_name, new_name] of intermediate_names)
-                dependent_datas.map(d => d.replaceVariableValue(old_name, new_name));
+                dependent_data.map(d => d.replaceVariableValue(old_name, new_name));
         },
         render_constants: (): { const: SC[], fn: SC[]; } => {
 
@@ -106,4 +123,4 @@ export function constructCompilerRunner(ANNOTATED: boolean = false, DEBUG: boole
     };
 
     return runner;
-}
+};
