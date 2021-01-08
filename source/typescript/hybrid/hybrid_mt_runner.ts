@@ -52,7 +52,7 @@ export class HybridMultiThreadRunner {
             .map(() => ({
                 id,
                 READY: true,
-                target: new Worker(this.module_url, { workerData: { id: id++, grammar, ANNOTATED: runner.ANNOTATED } })
+                target: new Worker(this.module_url, { workerData: { id: id++, grammar, ANNOTATED: runner.ANNOTATED, DEBUG: runner.DEBUG } })
             }));
 
         this.workers.forEach(
