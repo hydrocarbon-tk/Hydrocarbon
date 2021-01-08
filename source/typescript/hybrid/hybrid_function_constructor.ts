@@ -31,42 +31,12 @@ import { RDProductionFunction } from "./types/RDProductionFunction";
 import { CompilerRunner } from "./types/CompilerRunner.js";
 import { ConstSC, SC, VarSC } from "./utilities/skribble.js";
 import { getClosure, getFollow } from "../util/process_closure.js";
+import { ReturnType, RenderBodyOptions } from "./types/RenderBodyOptions";
 
 const
     accept_loop_flag = SC.Variable("ACCEPT:boolean"),
     production_global = SC.Variable("prod:unsigned int");
 
-
-
-interface RenderBodyOptions {
-    /**
-     * Source grammar for the language
-     */
-    grammar?: Grammar;
-    /**
-     * Active Compiler Runner
-     */
-    runner?: CompilerRunner,
-    /**
-     * Production currently being processed
-     */
-    production?: Production,
-    /**
-     * List of all production ids referenced
-     */
-    productions?: Set<number>;
-    pk_name: VarSC,
-    block_depth: number;
-    peek_depth: number;
-    RETURN_TYPE: ReturnType;
-    NO_CHECK: boolean;
-}
-enum ReturnType {
-    ACCEPT = 0,
-    RETURN = 1,
-    NONE = 2
-
-}
 
 function renderProduction(
     code_node: SC,
