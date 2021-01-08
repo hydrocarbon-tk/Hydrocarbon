@@ -2,6 +2,10 @@
 
 export interface HybridCompilerOptions {
     /**
+     * Type of compiler to create
+     */
+    type: "wasm" | "js";
+    /**
      * Number of worker threads to use when generating parser
      * recognizer code.
      */
