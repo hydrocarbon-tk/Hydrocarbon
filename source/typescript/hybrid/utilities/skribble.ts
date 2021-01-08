@@ -500,9 +500,9 @@ export class SC<T = Node> {
      * Return MD5 hash of the AST 
      * @param this 
      */
-    hash(this: SC<Node>): string {
-        const extended_exp_hash = (this.expressions ?? []).map(s => s.hash()).join("");
-        const extended_stmt_hash = (this.statements ?? []).map(s => s.hash()).join("");
+    hash(this: SC<Node>, root = true): string {
+        const extended_exp_hash = (this.expressions ?? []).map(s => s.hash(false)).join("");
+        const extended_stmt_hash = (this.statements ?? []).map(s => s.hash(false)).join("");
 
         const own_hash_data = [
             this.type?.type ?? "",
@@ -510,11 +510,19 @@ export class SC<T = Node> {
             this.type?.val_type ?? "",
         ];
 
-        return crypto.createHash('md5').update([
-            own_hash_data,
-            extended_exp_hash,
-            extended_stmt_hash
-        ].join("")).digest("hex");
+        if (root) {
+            return crypto.createHash('md5').update([
+                own_hash_data.join(""),
+                extended_exp_hash,
+                extended_stmt_hash
+            ].join("")).digest("hex");
+        } else {
+            return [
+                own_hash_data.join(""),
+                extended_exp_hash,
+                extended_stmt_hash
+            ].join("");
+        }
     }
 
     replaceVariableValue(this: SC<Node>, original_val: string, new_val: string) {
