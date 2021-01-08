@@ -16,11 +16,6 @@ export const g_lexer_name = SC.Variable("l:Lexer");
  * Function names
  */
 export const consume_call = SC.Variable("consume:void");
-export const consume_skip_call = SC.Variable("consume_skip:void");
-/**
- * Consume With Assert and skip call signature
- */
-export const consume_assert_skip_call = SC.Variable("assert_consume_skip:void");
 
 export const
     consume_assert_call = SC.Variable("assert_consume:bool");
@@ -258,28 +253,6 @@ export function addFollowCheckCall(grammar: Grammar, runner: CompilerRunner, pro
     return SC.Value("true");
 }
 
-export function createAssertionShiftWithSkip(grammar: Grammar,
-    runner: CompilerRunner,
-    sym: TokenSymbol,
-    lex_name: ConstSC | VarSC = SC.Variable("l:Lexer"),
-    exclude_set: TokenSymbol[] | Set<string> = new Set
-): StmtSC {
-    const skip = getSkipFunction(grammar, runner, exclude_set);
-
-    if (skip)
-        SC.Expressions(SC.Call(consume_skip_call, lex_name, getIncludeBooleans([sym], grammar, runner)));
-    else
-        return createAssertionShift(grammar, runner, sym, lex_name);
-}
-
-export function createNoCheckShiftWithSkip(grammar: Grammar, runner: CompilerRunner, lex_name: ConstSC | VarSC = SC.Variable("l:Lexer"), exclude_set: TokenSymbol[] | Set<string> = new Set): StmtSC {
-    const skip = getSkipFunction(grammar, runner, exclude_set);
-    if (skip)
-        return SC.Expressions(SC.Call(consume_skip_call, lex_name, skip));
-    else
-        return createNoCheckShift(grammar, runner, lex_name);
-}
-
 export function createSkipCall(grammar: Grammar, runner: CompilerRunner, lex_name: ConstSC | VarSC = SC.Variable("l:Lexer"), exclude_set: TokenSymbol[] | Set<string> = new Set): SC {
     const skip = getSkipFunction(grammar, runner, exclude_set);
     if (skip)
@@ -358,8 +331,6 @@ export function translateSymbolValue(sym: TokenSymbol, grammar: Grammar, lex_nam
             if (char_len == 1) {
                 return SC.UnaryPost(SC.Value(sym.val.codePointAt(0) + ""), annotation);//sym.val.codePointAt(0) + (ANNOTATED ? `/*${sym.val + ":" + sym.val.codePointAt(0)}*/` : "");
             } else {
-                if (!sym.id) sym = getRootSym(sym, grammar);
-                if (!sym.id) console.log({ sym });
                 return SC.UnaryPost(SC.Value(sym.id + ""), annotation);// + annotation;
             }
         case SymbolType.EMPTY:
