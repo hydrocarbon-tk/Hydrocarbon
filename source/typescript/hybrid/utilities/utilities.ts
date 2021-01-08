@@ -3,13 +3,23 @@ import { exp, JSNode, JSNodeClass, JSNodeType, parser, stmt } from "@candlefw/js
 import { Lexer } from "@candlefw/wind";
 
 import { EOF_SYM, Grammar, GrammarFunction, Production, ProductionBody, SymbolType } from "../../types/grammar.js";
-import { AssertionFunctionSymbol, EOFSymbol, GeneratedSymbol, ProductionSymbol, SpecifiedCharacterSymbol, SpecifiedIdentifierSymbol, SpecifiedNumericSymbol, SpecifiedSymbol, Symbol, TokenSymbol } from "../../types/Symbol";
+import {
+    AssertionFunctionSymbol,
+    EOFSymbol,
+    GeneratedSymbol,
+    ProductionSymbol,
+    SpecifiedCharacterSymbol,
+    SpecifiedIdentifierSymbol,
+    SpecifiedNumericSymbol,
+    SpecifiedSymbol,
+    Symbol,
+    TokenSymbol
+} from "../../types/Symbol";
 import { FOLLOW } from "../../util/follow.js";
 import { Item } from "../../util/item.js";
 import { getClosure } from "../../util/process_closure.js";
 import { CompilerRunner } from "../types/CompilerRunner.js";
 import { AS, ConstSC, ExprSC, SC, StmtSC, VarSC } from "./skribble.js";
-
 
 export const g_lexer_name = SC.Variable("l:Lexer");
 /**
@@ -57,7 +67,7 @@ declare global {
          */
         group: <KeyType>(this: Array<T>,
             /**
-             * A function that returns a string or number, or an array of strings and/or numbers, 
+             * A function that should return a string or number, or an array of strings and/or numbers, 
              * that is used to determine which group(s) the object belongs to. Defaults to a function
              * that returns the string value of the object.
              */
@@ -190,24 +200,74 @@ export function getSkipFunction(grammar: Grammar, runner: CompilerRunner, exclud
     return <VarSC>runner.add_constant(SF_name, FN);
 }
 
-export function getSkipFunctionNew(skip_symbols: TokenSymbol[], grammar: Grammar, runner: CompilerRunner):
+export function getSkipFunctionNew(skip_symbols: TokenSymbol[], grammar: Grammar, runner: CompilerRunner, custom_skip_code: SC = null):
     VarSC {
 
     if (skip_symbols.length == 0)
         return null;
 
-    const SF_name = SC.Constant("skip_fn:bool");
+    const boolean = getIncludeBooleans(skip_symbols, grammar, runner);
 
-    const FN = SC.Function(":bool", "l:Lexer").addStatement(SC.UnaryPre(SC.Return, SC.Group("(", getIncludeBooleans(skip_symbols, grammar, runner))));
+    if (grammar.functions.has("custom_skip")) {
+        let str = grammar.functions.get("custom_skip").txt;
+        const sc = convertAssertionFunctionBodyToSkribble(str, grammar, runner).sc;
+        custom_skip_code = new SC().addStatement(...sc.statements);
+    }
 
-    return <VarSC>runner.add_constant(SF_name, FN);
+    const skip_function =
+        SC.Function(
+            ":Lexer",
+            "l:Lexer&"
+        ).addStatement(
+            SC.While(SC.Value(1)).addStatement(
+                custom_skip_code ? custom_skip_code : SC.Empty(),
+                SC.If(SC.UnaryPre("!", SC.Group("(", boolean)))
+                    .addStatement(SC.Break),
+                SC.Call(SC.Member("l", "next")),
+            ),
+            SC.UnaryPre(SC.Return, SC.Value("l"))
+        );
+
+    const hash = skip_function.hash();
+
+    const SF_name = SC.Constant(`skip_fn_:Lexer`);
+
+    const FN = SC.Function(":bool", "l:Lexer").addStatement(SC.UnaryPre(SC.Return, SC.Group("(", boolean)));
+
+    return <VarSC>runner.add_constant(SF_name, skip_function);
+}
+
+
+export function getFollowSymbolsFromItems(items: Item[], grammar: Grammar): TokenSymbol[] {
+    return items.filter(i => i.atEND)
+        .flatMap(i => [...grammar.item_map.get(i.id).follow.values()])
+        .setFilter()
+        .map(sym => <TokenSymbol>grammar.meta.all_symbols.get(sym));
+}
+
+export function getSkippableSymbolsFromItems(items: Item[], grammar: Grammar): TokenSymbol[] {
+    return items.flatMap(i => [...grammar.item_map.get(i.id).skippable.values()])
+        .group()
+        .filter(grp => grp.length == items.length)
+        .map(grp => grp[0])
+        .map(sym => <TokenSymbol>grammar.meta.all_symbols.get(sym));
 }
 
 export function addSkipCallNew(symbols: TokenSymbol[], grammar: Grammar, runner: CompilerRunner, lex_name: ConstSC | VarSC = SC.Variable("l", "Lexer")): StmtSC {
     const skips = getSkipFunctionNew(symbols, grammar, runner);
     if (skips)
-        return SC.Expressions(SC.Call(SC.Constant("_skip"), lex_name, SC.UnaryPost(skips, SC.Comment(symbols.map(s => `[ ${s.val} ]`).join("")))));//`_skip(${lex_name}, ${skips})`;
+        return SC.Expressions(SC.Call(skips, SC.UnaryPost(lex_name, SC.Comment(symbols.map(s => `[ ${s.val} ]`).join("")))));//`_skip(${lex_name}, ${skips})`;
+    //return SC.Expressions(SC.Call(SC.Constant("_skip"), lex_name, SC.UnaryPost(skips, SC.Comment(symbols.map(s => `[ ${s.val} ]`).join("")))));//`_skip(${lex_name}, ${skips})`;
     return SC.Expressions(SC.Empty());
+}
+
+export function createSkipCallNew(skippable: TokenSymbol[], grammar: Grammar, runner: CompilerRunner, lex_name: ConstSC | VarSC = SC.Variable("l:Lexer")): SC {
+    const skip = getSkipFunctionNew(skippable, grammar, runner, lex_name);
+    if (skip)
+        return SC.Call(skip, lex_name);
+    else
+        return lex_name;
+
 }
 export function addSkipCall(grammar: Grammar, runner: CompilerRunner, exclude_set: TokenSymbol[] | Set<string> = new Set, lex_name: ConstSC | VarSC = SC.Variable("l", "Lexer")): StmtSC {
     const skips = getSkipFunction(grammar, runner, exclude_set);
@@ -220,13 +280,13 @@ export function getFollowCheckFunction(grammar: Grammar, runner: CompilerRunner,
     const
         FC_name = SC.Constant("follow_check_fn:bool"),
         lex_name = g_lexer_name,
+        skippable = getSkippableSymbolsFromItems(getProductionClosure(production.id, grammar), grammar),
         follow = [...FOLLOW(grammar, production.id).values()];
     let FN = null;
 
-
     if (USE_SKIP) {
         const
-            skip = createSkipCall(grammar, runner, lex_name, follow),
+            skip = createSkipCallNew(skippable, grammar, runner, lex_name),
             boolA = getIncludeBooleans(follow.slice(0, 1), grammar, runner, skip, []),
             boolB = getIncludeBooleans(follow.slice(1), grammar, runner, lex_name, []);
         FN =
@@ -314,7 +374,7 @@ export function translateSymbolValue(sym: TokenSymbol, grammar: Grammar, lex_nam
             if (sym.DOES_SHIFT)
                 return SC.Call(SC.Value(getAssertionFunctionName(sym.val)), lex_name);// `${getAssertionFunctionName(sym.val)}(${lex_name})`;
             else
-                return SC.Call(SC.Member(lex_name, SC.Constant("isSP")));// `${getAssertionFunctionName(sym.val)}(${lex_name}.copy())`;
+                return SC.Call(SC.Value(getAssertionFunctionName(sym.val)), lex_name);// `${getAssertionFunctionName(sym.val)}(${lex_name})`;
 
         case SymbolType.GENERATED:
             switch (sym.val) {
@@ -438,7 +498,6 @@ export function getIncludeBooleans(syms: TokenSymbol[],
             fn = syms.filter(isSymAnAssertFunction)
                 .map(s => translateSymbolValue(s, grammar, lex_name)).sort();
 
-
         if (ty.some(isSymGeneratedId))
             id = id.filter(isSymNotIdentifier);
 
@@ -448,7 +507,7 @@ export function getIncludeBooleans(syms: TokenSymbol[],
                 id = id.filter(isSymNotLengthOneDefined);
 
             if (id.length + ty.length + fn.length == 0)
-                return SC.Empty();
+                return null;
         }
 
         let out_id: ExprSC[] = [], out_ty: ExprSC[] = [], out_fn: ExprSC[] = [];
@@ -466,8 +525,8 @@ export function getIncludeBooleans(syms: TokenSymbol[],
                 if (group.some(sym => sym.val.length > 1 || isSymIdentifier(sym))) {
 
                     const
-                        node_name = SC.Constant("CPT:bool"),
                         fn = SC.Function(":boolean", "l:Lexer").addStatement(buildIfs(group)),
+                        node_name = SC.Constant(`cp${fn.hash().slice(0, 8)}_:bool`),
                         fn_name = runner.add_constant(node_name, fn);
 
                     booleans.push(SC.UnaryPost(SC.Call(fn_name, lex_name), SC.Comment(group.map(sym => `[${sanitizeSymbolValForComment(sym)}]`).join(" "))));
@@ -505,6 +564,8 @@ export function getIncludeBooleans(syms: TokenSymbol[],
 
         if (ty.length > 0)
             out_ty = ty.map(s => translateSymbolValue(s, grammar, lex_name));
+
+
 
         return ([...out_id, ...out_ty, ...out_fn].filter(_ => _).reduce((r, s) => {
             if (!r) return s;
