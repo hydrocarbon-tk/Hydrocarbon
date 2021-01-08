@@ -1,5 +1,5 @@
 import { getRootSym } from "../hybrid/utilities/utilities.js";
-import { ProductionBody, Grammar, SymbolType, Production } from "../types/grammar.js";
+import { ProductionBody, Grammar, SymbolType, Production, EOF_SYM } from "../types/grammar.js";
 import { Symbol } from "../types/Symbol";
 
 export function SymbolToString(sym: { type?: SymbolType, val: string; }) {
@@ -73,7 +73,7 @@ export class Item extends Array {
     USED: boolean;
     follow: Symbol;
 
-    constructor(body_id: number, length: number, offset: number, follow: Symbol) {
+    constructor(body_id: number, length: number, offset: number, follow: Symbol = EOF_SYM) {
         //@ts-ignore
         super(body_id, length, offset);
 
