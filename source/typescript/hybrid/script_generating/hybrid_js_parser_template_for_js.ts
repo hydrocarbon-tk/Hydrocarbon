@@ -111,9 +111,7 @@ ${BUILD_LOCAL ? "" : "export default async function loadParser(){"}
     
         } /*else {*/
 
-            let offset = 0, pos = [{ off: 0, tl: 0 }];
-
-            console.log(aa)
+            let offset = 0, pos = [];
 
             for (const action of aa) {
 
@@ -130,13 +128,13 @@ ${BUILD_LOCAL ? "" : "export default async function loadParser(){"}
                                 body = action >> 16,
                                 len = ((action >> 2) & 0x3FFF);
 
-                            const pos_a = pos[pos.length - len - 1];
-                            const pos_b = pos[pos.length - 1];
-                            pos[stack.length - len] = { off: pos_a.off, tl: 0 };
+                            const pos_a = pos[pos.length - len] || {off:0,tl:0};
+                            const pos_b = pos[pos.length - 1 ] || {off:0,tl:0};
+                            pos[stack.length - len] = { off: pos_a.off, tl: pos_b.off - pos_a.off  + pos_b.tl };
 
                           //  console.log(stack)
 
-                            stack[stack.length - len] = fns[body](env, stack.slice(-len), { off: pos_a.off, tl: pos_b.off - pos_a.off + pos_b.tl });
+                            stack[stack.length - len] = fns[body](env, stack.slice(-len), { off: pos_a.off, tl: pos_b.off - pos_a.off  + pos_b.tl });
 
 
                             //  console.log(stack[stack.length - len], pos);
@@ -163,6 +161,9 @@ ${BUILD_LOCAL ? "" : "export default async function loadParser(){"}
                             stack.push(str.slice(offset, offset + len));
                             pos.push({ off: offset, tl: len });
                             offset += len;
+                        }else {
+                            stack.push("");
+                            pos.push({ off: offset, tl: 0 });
                         }
                     } break;
                 }
