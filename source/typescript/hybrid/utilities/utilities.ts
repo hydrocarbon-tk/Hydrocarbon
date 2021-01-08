@@ -346,12 +346,16 @@ export function sanitizeSymbolValForComment(sym: string | TokenSymbol): string {
 
 export function buildIfs(syms: TokenSymbol[], lex_name: ConstSC | VarSC = SC.Variable("l:Lexer"), off = 0, USE_MAX = false, token_val = "TokenSymbol"): SC {
 
+    let HAS_VAL = false;
     const code_node = new SC;
     const lex_get_utf = SC.Member(lex_name, "getUTF");
-
+    const declaration = SC.Declare(
+        SC.Assignment("ACCEPT:bool", "false"),
+    );
 
     if (off == 0)
-        code_node.addStatement(SC.Declare(SC.Assignment("ACCEPT:bool", "false"), SC.Assignment("val:unsigned int", 0)));
+        code_node.addStatement(declaration)
+            ;
 
     for (const sym of syms) {
         if ((<string>sym.val).length <= off) {
@@ -384,6 +388,10 @@ export function buildIfs(syms: TokenSymbol[], lex_name: ConstSC | VarSC = SC.Var
         let first = true;
         const groups = syms.filter(s => (<string>s.val).length > off).group(s => s.val[off]);
         let leaf = code_node;
+
+        if (!HAS_VAL)
+            declaration.expressions.push(SC.Assignment("val:unsigned int", 0));
+
         for (const group of groups) {
             if (first && groups.length > 1) code_node.addStatement(SC.Assignment("val", SC.Call(lex_get_utf, off)));
             first = false;
