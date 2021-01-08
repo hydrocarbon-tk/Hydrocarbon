@@ -589,28 +589,6 @@ export function getCommonAncestors(grammar: Grammar, items: Item[]): Item[] {
     return contains;//.map(i => i.getProductionAtSymbol(grammar).name + " \n          " + i.renderUnformattedWithProduction(grammar));
 }
 
-export interface TransitionTreeNode {
-    last_progress?: number,
-    progress?: boolean,
-    depth: number;
-
-    item_ids: string[],
-    sym: string;
-    unskippable: TokenSymbol[];
-    roots: Item[];
-    next: TransitionTreeNode[];
-    closure: Item[];
-    final_count: number;
-}
-export interface closure_group {
-    sym: Symbol;
-    item_id: string;
-    index: number;
-    closure: Item[];
-    unskippable: TokenSymbol[];
-    final: number;
-}
-
 /**
  * Givin a set of root items, return a tree of nodes where each node represents a
  * transition on a symbol and a the collection of root items that still exist at 
