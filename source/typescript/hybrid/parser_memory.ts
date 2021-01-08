@@ -106,7 +106,7 @@ export function buildParserMemoryBuffer(
     const id = 2, num = 4, hex = 16, oct = 32, bin = 64;
 
     /**
-    * LExer Number and Identifier jump table reference
+    * Lexer Number and Identifier jump table reference
     * Number are masked by [ 4 ] and Identifiers are masked by 6 [ 2 | 4 ] 
     */
 
