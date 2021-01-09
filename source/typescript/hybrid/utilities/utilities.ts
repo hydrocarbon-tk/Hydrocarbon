@@ -989,3 +989,29 @@ function processFunctionNodes(
     }
     return { node: receiver.ast, HAS_TK };
 };
+
+
+export function getAccompanyingItems(grammar: Grammar, active_productions: number[], items: Item[], out: Item[] = [], all = false) {
+
+    const prod_id = new Set(active_productions);
+
+    const to_process = [];
+
+    for (const item of items.reverse()) {
+        if (!item || item.atEND) continue;
+
+        const sym = item.sym(grammar);
+        if (isSymAProduction(sym) && prod_id.has(<number>sym.val)) {
+
+            out.push(item);
+            if (item.increment().atEND) {
+                to_process.push(item);
+            }
+        }
+    }
+    if (all)
+        for (const item of to_process) {
+            getAccompanyingItems(grammar, item.getProduction(grammar).id, items, out, all);
+        }
+    return out;
+}

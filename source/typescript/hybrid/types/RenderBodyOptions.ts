@@ -21,11 +21,6 @@ export interface RenderBodyOptions {
      */
     productions?: Set<number>;
     lr_productions: Item[];
-    pk_name: VarSC;
-    block_depth: number;
-    peek_depth: number;
-    RETURN_TYPE: ReturnType;
-    NO_CHECK: boolean;
 }
 export const enum ReturnType {
     ACCEPT = 0,

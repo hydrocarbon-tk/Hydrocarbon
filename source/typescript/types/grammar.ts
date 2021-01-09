@@ -20,7 +20,7 @@ export enum SymbolType {
     END_OF_ITEM = "END_OF_ITEM"
 }
 
-export const EOF_SYM: Symbol = { val: "END_OF_FILE", precedence: 0, type: SymbolType.END_OF_FILE };
+export const EOF_SYM: TokenSymbol = { val: "END_OF_FILE", precedence: 0, type: SymbolType.END_OF_FILE };
 
 export interface ProductionBodyFunction {
     /**

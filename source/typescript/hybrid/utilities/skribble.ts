@@ -657,7 +657,7 @@ export class JS extends SC {
     };
 
     renderComment(this: SC<Comment>, use_type_info: boolean, proto: SC, tab: number = 0): string[] {
-        const v = this.type.value.split("\n");
+        const v = (this.type.value + "").split("\n");
         v[0] = "/*" + v[0];
         v[v.length - 1] += "*/";
         //return []; 

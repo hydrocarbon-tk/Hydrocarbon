@@ -2,12 +2,14 @@ import { Item, getTransitionTree, getSymbolsFromClosure, getFollowClosure } from
 import {
     getIncludeBooleans,
     g_lexer_name,
-    addFollowCheckCall
+    addFollowCheckCall,
+    getAccompanyingItems
 } from "./utilities/utilities.js";
 import { SC } from "./utilities/skribble.js";
 import { getClosure } from "../util/process_closure.js";
 import { RenderBodyOptions } from "./types/RenderBodyOptions";
-import { itemsToProductions, processProductionChain, getAccompanyingItems, renderItem } from "./hybrid_function_constructor.js";
+import { itemsToProductions, processProductionChain } from "./hybrid_function_constructor.js";
+import { renderItem } from "./item_render_functions.js";
 import { buildPeekSequence } from "./build_peek_sequence.js";
 
 

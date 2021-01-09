@@ -1,10 +1,16 @@
 import wind from "@candlefw/wind";
-import { EOF } from "dns";
 import { performance } from "perf_hooks";
-import { off } from "process";
-import { getAccompanyingItems, itemsToProductions } from "../hybrid/hybrid_function_constructor.js";
-
-import { doesProductionHaveEmpty, getAssertionSymbolFirst, getProductionFirst, getTrueSymbolValue, getUniqueSymbolName, isSymAnAssertFunction, isSymAProduction } from "../hybrid/utilities/utilities.js";
+import { itemsToProductions } from "../hybrid/hybrid_function_constructor.js";
+import {
+    doesProductionHaveEmpty,
+    getAccompanyingItems,
+    getAssertionSymbolFirst,
+    getProductionFirst,
+    getTrueSymbolValue,
+    getUniqueSymbolName,
+    isSymAnAssertFunction,
+    isSymAProduction
+} from "../hybrid/utilities/utilities.js";
 import { EOF_SYM, Grammar, ItemMapEntry, Production, SymbolType } from "../types/grammar.js";
 import { AssertionFunctionSymbol, Symbol, TokenSymbol } from "../types/Symbol";
 import { FIRST } from "./first.js";

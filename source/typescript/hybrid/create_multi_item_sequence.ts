@@ -1,58 +1,27 @@
-import { TokenSymbol } from "../types/Symbol";
 import { Item, getTransitionTree } from "../util/common.js";
-import {
-    getIncludeBooleans,
-    isSymAProduction
-} from "./utilities/utilities.js";
 import { SC, VarSC } from "./utilities/skribble.js";
-import { getClosure } from "../util/process_closure.js";
 import { RenderBodyOptions } from "./types/RenderBodyOptions";
-import { addEndItemSequence } from "./add_end_item_sequence.js";
 import { buildPeekSequence } from "./build_peek_sequence.js";
-import { addItemListComment } from "./add_item_list_comment.js";
 import {
-    createSkipCallFromItems,
     doItemsHaveSameSymbol,
-    createSingleItemSequence,
-    renderItemSym,
-    renderProduction,
-    createClosureSequence,
-    cleanLeaves,
-    createBacktrackingSequence,
-    renderItem
+    cleanLeaves
 } from "./hybrid_function_constructor.js";
+import { EOF_SYM } from "../types/grammar.js";
+import { createClosureSequence } from "./create_closure_sequence.js";
+import { getClosure } from "../util/process_closure.js";
+import { NewType } from "./types/RecognizerState.js";
 
 export function* createMultiItemSequence(
     items: Item[],
-    code_node: SC,
     options: RenderBodyOptions,
     lex_name: VarSC,
     offset: number = 0,
-    RD_SECTION_START: boolean = false,
-    ALLOW_FALL_THROUGH: boolean = true,
-    LR_SECTION_START = false): Generator<{ prods: number[]; _if: SC; filter_productions: number[]; }, SC> {
+    RD_SECTION_START: boolean = false
+): Generator<NewType[], SC> {
 
-    const {
-        grammar,
-        runner,
-        production,
-        productions,
-        lr_productions
-    } = options;
+    const { grammar, runner, production, lr_productions } = options;
 
-    if (runner.ANNOTATED)
-        addItemListComment(code_node, items, grammar, "MULTI-ITEM initial:" + RD_SECTION_START);
-    let
-        filter_productions = [],
-        root_if_statement: SC = null,
-        last_if_statement: SC = code_node;
-
-    const end_items = items.filter(i => i.atEND);
-    let act_items = items.filter(i => !i.atEND);
-
-
-    if (!RD_SECTION_START && !LR_SECTION_START)
-        code_node.addStatement(createSkipCallFromItems(act_items, grammar, runner, lex_name));
+    let act_items = items;
 
     const
         SAME_PRODUCTION = act_items.setFilter(i => i.getProduction(grammar).id).length == 1,
@@ -68,165 +37,183 @@ export function* createMultiItemSequence(
     * This should only occur if all items are at the initial shift state or peek was used
     * to get to this offset.
     */
-    if (SAME_PRODUCTION && !ROOT_PRODUCTION && (max_item_offset == 0)) {
-
+    if (act_items.length == 1) {
+        const obj = <NewType[]>[{
+            code: new SC,
+            hash: "not-defined-single-item",
+            state: { items: act_items, leaf: true, peeking: false, level: offset, sym: EOF_SYM }
+        }];
+        yield obj;
+        return obj[0].code;
+    } if (SAME_PRODUCTION && !ROOT_PRODUCTION && (max_item_offset == 0)) {
         const first = act_items[0];
-
-
         act_items = [new Item(first.body, first.len, 0, first.follow)];
 
-        if (end_items.length > 0) {
-            const closure_syms = getClosure(act_items, grammar).filter(i => !i.atEND && !isSymAProduction(i.sym(grammar))).map(i => <TokenSymbol>i.sym(grammar));
-            const expr = getIncludeBooleans(closure_syms, grammar, runner, lex_name, []);
-            const _if = SC.If(expr);
-            code_node.addStatement(_if);
-            code_node = _if;
-        }
-
-        const gen = createSingleItemSequence(act_items, code_node, options, lex_name);
-        //@ts-ignore
-        yield gen.next().value;
-
-        //@ts-ignore
-        root_if_statement = last_if_statement = gen.next().value;
+        const obj = <NewType[]>[{
+            code: new SC,
+            hash: "not-defined-production-call",
+            state: { items: act_items, leaf: true, peeking: false, level: offset, sym: EOF_SYM }
+        }];
+        yield obj;
+        return obj[0].code;
 
     } else if (SAME_SYMBOL && (offset > 0 || ROOT_PRODUCTION || SAME_PRODUCTION)) {
-
-        let NO_CHECK = !RD_SECTION_START && !LR_SECTION_START || false, FIRST = true;
-
-        if (end_items.length > 0) {
-            const closure = getClosure(act_items, grammar).filter(i => !i.atEND && !isSymAProduction(i.sym(grammar)));
-            const closure_syms = closure.map(i => <TokenSymbol>i.sym(grammar));
-            const expr = getIncludeBooleans(closure_syms, grammar, runner, lex_name, []);
-            const _if = SC.If(expr);
-
-            code_node.addStatement(_if);
-            code_node = _if;
-            root_if_statement = _if;
-        }
+        const sequence: NewType[] = [];
 
         while (act_items.every(i => !i.atEND && i.sym(grammar).val == act_items[0].sym(grammar).val)) {
 
-            if (!FIRST)
-                code_node.addStatement(createSkipCallFromItems(act_items, grammar, runner, lex_name));
+            const sym = act_items[0].sym(grammar);
 
-            code_node = renderItemSym(code_node, act_items[0], grammar, runner, productions, NO_CHECK, lex_name).code_node;
-
-            if (!root_if_statement)
-                root_if_statement = code_node;
+            sequence.push({
+                code: new SC,
+                hash: "not-defined-same-symbol-chain",
+                state: { items: act_items, leaf: false, peeking: false, level: offset++, sym }
+            });
 
             act_items = act_items.map(i => i.increment());
-            FIRST = false;
-            NO_CHECK = false;
         }
 
         try {
+            let code = null;
             if (act_items.length > 0) {
-                if (act_items.length == 1)
-                    yield* createSingleItemSequence(act_items, code_node, options, lex_name);
+                if (act_items.length == 1) {
+                    const obj = <NewType>{
+                        code: new SC,
+                        hash: "not-defined-same-symbol",
+                        state: { items, leaf: true, peeking: false, level: offset, sym: EOF_SYM }
+                    };
+                    yield [obj];
+                    code = obj.code;
+                    obj.hash = code.hash();
 
-                else
-                    yield* createMultiItemSequence(act_items, code_node, options, lex_name, offset);
+                } else {
+                    const gen = createMultiItemSequence(act_items, options, lex_name, offset);
+                    let val = gen.next();
+                    while (!val.done) {
+                        yield <NewType[]>val.value;
+                        val = gen.next();
+                    }
+                    code = val.value;
+                }
+
+                for (const state of sequence.reverse()) {
+                    state.code = code;
+                    state.hash = code.hash();
+                    yield [state];
+                    code = state.code;
+                }
+
+                return code;
             }
         } catch (e) {
-            code_node.addStatement(SC.Comment(e.stack), SC.Empty());
-            yield { _if: code_node, filter_productions, prods: [] };
+            return SC.Comment(e.stack);
         }
     } else {
+        const
+            { tree_nodes } = getTransitionTree(grammar, act_items, lr_productions);
 
         const
-            { tree_nodes } = getTransitionTree(grammar, act_items, lr_productions),
-            gen = buildPeekSequence(tree_nodes[0].next, grammar, runner, lex_name, production.id, ALLOW_FALL_THROUGH && end_items.length < 1);
+            gen = buildPeekSequence(tree_nodes[0].next, grammar, runner, lex_name, production.id, false);
 
-        let val = gen.next(), block_count = 0;
+        let val = gen.next();
 
         while (!val.done) {
+            const group: NewType[] = <NewType[]>val.value;
 
-            block_count++;
+            group.forEach(g => g.state.level += offset);
+            //create sequences here
 
-            //@ts-ignore
-            const { _if: __if, items, closure, depth, starts } = val.value, [first] = items,
+            //decide how the group should be combined
+            const groups = group.group(g => { return g.state.items.map(i => i.id).sort() + "-" + g.state.leaf; });
 
-                max_item_offset = act_items.reduce((r, i) => Math.max(i.offset, r), 0),
-                SAME_PRODUCTION = items.setFilter(i => i.getProduction(grammar).id).length == 1;
+            for (const a of group) {
+                const g = [a];
+                const IS_LEAF = g.some(g => g.state.leaf);
+                const items = g[0].state.items;
+                if (IS_LEAF) {
 
+                    //Set leaf state to false as this will be replaced
+                    //with the resolution states. 
+                    g.forEach(g => g.state.leaf = false);
 
-            addItemListComment(__if, items, grammar, `ACTUAL_ITEMS offset:${items.length} SAME_PRODUCTION:${SAME_PRODUCTION}`);
+                    //decide what to do with the sub elements
+                    let code = new SC;
+                    const [first] = items;
+                    const max_item_offset = items.reduce((r, i) => Math.max(i.offset, r), 0);
+                    const SAME_PRODUCTION = items.setFilter(i => i.getProduction(grammar).id).length == 1;
+                    const prod = first.getProduction(grammar);
+                    let gen: Generator<NewType[], SC> = null;
 
-            const prod = first.getProduction(grammar);
+                    if (offset == 0 && SAME_PRODUCTION && RD_SECTION_START && prod.id !== prod.id) {
+                        // if_stmt.addStatement(SC.Comment("A"));
+                        // filter_productions.push((first.getProduction(grammar).id != production.id) ? items[0].getProduction(grammar).id : -1);
+                        // renderProduction(if_stmt, prod, productions, lex_name, false);
+                    } else if (items.length > 1) {
 
-            if (offset == 0 && SAME_PRODUCTION && RD_SECTION_START && prod.id !== prod.id) {
-                __if.addStatement(SC.Comment("A"));
-                filter_productions.push((first.getProduction(grammar).id != production.id) ? items[0].getProduction(grammar).id : -1);
-                renderProduction(__if, prod, productions, lex_name, false);
-            } else if (items.length > 1) {
-                const SAME_SYMBOL = doItemsHaveSameSymbol(items, grammar);
+                        const SAME_SYMBOL = doItemsHaveSameSymbol(items, grammar);
 
-                if (SAME_SYMBOL) {
-                    __if.addStatement(SC.Comment("B"));
-                    yield* createMultiItemSequence(items, __if, options, lex_name, offset);
-                } else {
-
-                    if (max_item_offset == 0) {
-                        __if.addStatement(SC.Comment("C"));
-                        yield* createClosureSequence(starts, __if, options, lex_name, offset);
-                    } else {
-                        const tree = getTransitionTree(grammar, items, lr_productions, 10, 8);
-                        if (cleanLeaves(tree.tree_nodes[0])) {
-                            __if.addStatement(SC.Comment("D"));
-                            yield* createMultiItemSequence(items, __if, options, lex_name, offset);
+                        if (SAME_SYMBOL) {
+                            gen = createMultiItemSequence(items.map(i => i.increment()), options, lex_name, offset + 1);
                         } else {
-                            __if.addStatement(SC.Comment("E"));
-                            yield* createBacktrackingSequence(items, __if, options, lex_name);
+
+                            if (items.every(i => i.atEND)) {
+                                code = SC.Comment(items.map(i => i.renderUnformattedWithProduction(grammar)).join("\n"));
+                            } else if (max_item_offset == 0) {
+                                gen = createClosureSequence(getClosure(items, grammar), options, lex_name, offset + 1);
+
+                            } else {
+                                const tree = getTransitionTree(grammar, items, lr_productions, 10, 8);
+                                if (cleanLeaves(tree.tree_nodes[0])) {
+                                    gen = createMultiItemSequence(items.map(i => i.increment()), options, lex_name, offset + 1);
+                                } else {
+                                    const obj = <NewType[]>[{
+                                        code: new SC,
+                                        hash: "not-defined-collision",
+                                        state: { items, leaf: true, peeking: false, level: offset + 1, sym: EOF_SYM }
+                                    }];
+                                    yield obj;
+                                    code = obj[0].code;
+                                    obj[0].hash = code.hash();
+                                }
+                            }
                         }
+
+                    } else {
+                        /**
+                         * If the item is at the start of the offset, then we can simply call into the items production
+                         * to reduce the amount of processing done in the calling function
+                         */
+                        const obj = <NewType[]>[{
+                            code: new SC,
+                            hash: "not-defined-single-item",
+                            state: { items, leaf: true, peeking: false, level: offset + 1, sym: EOF_SYM }
+                        }];
+                        yield obj;
+                        code = obj[0].code;
+                        obj[0].hash = code.hash();
+                    }//*/
+
+                    if (gen) {
+                        let val = gen.next();
+                        while (!val.done) {
+                            yield <NewType[]>val.value;
+                            val = gen.next();
+                        }
+                        code = val.value;
                     }
-
+                    const hash = code.hash();
+                    g.forEach(
+                        g => {
+                            g.code = code;
+                            g.hash = hash;
+                        }
+                    );
                 }
-            } else {
-                //__if.addStatement(SC.Comment("F"));
-                const prod_id = prod.id;
-                filter_productions.push((prod_id != production.id) ? prod_id : -1);
-                /**
-                 * If the item is at the start of the offset, then we can simply call into the items production
-                 * to reduce the amount of processing done in the calling function
-                 */
-                const _if = renderItem(__if, first, grammar, runner, productions, depth < 1, lex_name);
-                yield { _if, filter_productions, prods: [prod_id] };
             }
-
+            yield group;
             val = gen.next();
         }
 
-        if (block_count > 1 || LR_SECTION_START) {
-            const __if = val.value.leaf;
-            code_node.addStatement(val.value._if);
-            code_node.addStatement(SC.Empty());
-            code_node = last_if_statement = __if;
-        } else {
-            code_node.addStatement(...val.value._if.statements);
-            const __if = val.value.leaf;
-            last_if_statement = code_node = __if;
-        }
-
-        code_node.addStatement(SC.Empty());
-
-        root_if_statement = last_if_statement = val.value.leaf;
+        return val.value;
     }
-
-
-    last_if_statement.addStatement(SC.Empty());
-    //*
-    if (end_items.length > 0) {
-
-        // Any items at end can be checked by seeing if follow items are present
-        const end_gen = addEndItemSequence(end_items, options, true);
-        let end_val = null;
-        while (!(end_val = end_gen.next()).done) {
-            yield end_val.value;
-        }
-
-        root_if_statement.addStatement(end_val.value);
-    }
-    //*/
-    return root_if_statement;
 }
