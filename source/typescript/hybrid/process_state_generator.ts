@@ -7,63 +7,13 @@ import {
     isSymAProduction,
     itemsToProductions
 } from "./utilities/utilities.js";
-import { AS, ExprSC, JS, SC, VarSC } from "./utilities/skribble.js";
+import { ExprSC, SC } from "./utilities/skribble.js";
 import { RenderBodyOptions } from "./types/RenderBodyOptions";
 import { processProductionChain } from "./process_production_chain.js";
-import { renderItem, renderItemProduction, renderItemSym, renderProduction } from "./item_render_functions.js";
+import { renderItem } from "./item_render_functions.js";
 import { Item } from "../util/item.js";
-import { getCommonAncestors } from "../util/common.js";
-import { Grammar, Production } from "../types/grammar.js";
 import { Symbol, TokenSymbol } from "../types/Symbol.js";
 import { RecognizerState } from "./types/RecognizerState.js";
-
-
-function getCommonAncestorAmongstSets(descendants: Item[], grammar: Grammar): Production[] {
-    const ancestors = getCommonAncestors(grammar, descendants);
-    const matching_productions = ([
-        ...ancestors.map(i => i.getProductionAtSymbol(grammar).id).setFilter()
-    ]).group(i => i).filter(i => i.length > 1).map(i => grammar[i[0]]);
-
-    return matching_productions;
-}
-export function* createSingleItemSequence(
-    items: Item[],
-    _if: SC,
-    options: RenderBodyOptions,
-    lex_name: VarSC,
-    offset: number = 0
-): Generator<{ prods: number[], _if: SC, filter_productions: number[]; }, SC> {
-    const {
-        grammar,
-        runner,
-        production,
-        called_productions: productions
-    } = options;
-    let
-        [first] = items,
-        prods = itemsToProductions(items, grammar),
-        filter_productions = [],
-        matching_productions = getCommonAncestorAmongstSets(items, grammar);
-
-    if (offset > 0 && matching_productions.length > 0) {
-        const prod = matching_productions[0];
-        filter_productions.push((items[0].getProduction(grammar).id != production.id) ? items[0].getProduction(grammar).id : -1);
-        renderProduction(_if, prod, productions, lex_name, false);
-        prods = [prod.id];
-    } else if (first.offset == 0 && first.getProduction(grammar).id != production.id) {
-        _if = renderItemProduction(_if, first, grammar, runner, productions, lex_name, true).code_node;
-    } else {
-        _if = renderItem(_if, first, grammar, runner, productions, true, lex_name);
-    }
-
-    filter_productions.push((first.getProduction(grammar).id != production.id) ? first.getProduction(grammar).id : -1);
-
-    _if.addStatement(SC.Empty());
-
-    yield { prods, _if, filter_productions };
-
-    return _if;
-}
 
 function* traverseInteriorNodes(
     group: RecognizerState[],

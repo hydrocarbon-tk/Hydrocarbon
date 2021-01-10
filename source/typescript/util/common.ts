@@ -1,6 +1,5 @@
 import wind from "@candlefw/wind";
 import { performance } from "perf_hooks";
-import { itemsToProductions } from "../hybrid/hybrid_function_constructor.js";
 import {
     doesProductionHaveEmpty,
     getAccompanyingItems,
@@ -9,7 +8,8 @@ import {
     getTrueSymbolValue,
     getUniqueSymbolName,
     isSymAnAssertFunction,
-    isSymAProduction
+    isSymAProduction,
+    itemsToProductions
 } from "../hybrid/utilities/utilities.js";
 import { EOF_SYM, Grammar, ItemMapEntry, Production, SymbolType } from "../types/grammar.js";
 import { AssertionFunctionSymbol, Symbol, TokenSymbol } from "../types/Symbol";
