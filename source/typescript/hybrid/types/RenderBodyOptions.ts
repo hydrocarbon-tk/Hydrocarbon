@@ -17,9 +17,13 @@ export interface RenderBodyOptions {
      */
     production?: Production;
     /**
-     * List of all production ids referenced
+     * List of all production ids whose production function is called
      */
-    productions?: Set<number>;
+    called_productions?: Set<number>;
+    /**
+     * List of all productions that are produced from leaf states
+     */
+    leaf_productions: Set<number>;
     lr_productions: Item[];
 }
 export const enum ReturnType {

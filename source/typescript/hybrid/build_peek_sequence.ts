@@ -1,18 +1,12 @@
 import { Grammar } from "../types/grammar.js";
 import { TokenSymbol } from "../types/Symbol";
-import { Item } from "../util/common.js";
 import { TransitionTreeNode } from "../util/TransitionTreeNode";
 import {
-    getIncludeBooleans,
-    addSkipCallNew,
-    getSkippableSymbolsFromItems,
     getSymbolFromUniqueName,
-    isSymIdentifier
 } from "./utilities/utilities.js";
 import { CompilerRunner } from "./types/CompilerRunner.js";
 import { SC, VarSC } from "./utilities/skribble.js";
-import { addItemListComment } from "./add_item_list_comment.js";
-import { NewType, RecognizerState } from "./types/RecognizerState.js";
+import { RecognizerState } from "./types/RecognizerState.js";
 
 
 
@@ -32,13 +26,15 @@ export function* buildPeekSequence(
     current_production_id: number = -1,
     ALLOW_FALL_THROUGH: boolean = true,
     depth: number = 0
-): Generator<NewType[], SC> {
+): Generator<RecognizerState[], SC> {
 
-    const group: NewType[] = [];
+    const group: RecognizerState[] = [];
 
     for (let i = peek_nodes.length - 1; i >= 0; i--) {
+
         const node = peek_nodes[i];
-        let code = new SC;
+
+        let code = new SC, prods = [null];
         //Depth first
         if (node.next.length > 0) {
 
@@ -46,7 +42,9 @@ export function* buildPeekSequence(
             let val = gen.next();
 
             while (!val.done) {
-                yield <NewType[]>val.value;
+                const obj = <RecognizerState[]>val.value;
+                yield obj;
+                prods = obj[0].prods;
                 val = gen.next();
             }
 
@@ -56,19 +54,18 @@ export function* buildPeekSequence(
         group.push({
             code,
             hash: code.hash(),
-            state: {
-                peeking: true,
-                items: node.roots,
-                level: depth,
-                leaf: node.next.length == 0,
-                sym: <TokenSymbol>getSymbolFromUniqueName(grammar, node.sym)
-            }
+            items: node.roots,
+            yielder: "peek-internal",
+            offset: -1,
+            peek_level: depth,
+            leaf: node.next.length == 0,
+            closure: node.starts,
+            sym: <TokenSymbol>getSymbolFromUniqueName(grammar, node.sym),
+            prods
         });
     }
 
     yield group;
 
-    const obj = group[0].code;
-
-    return obj;
+    return group[0].code;
 }

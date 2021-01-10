@@ -253,7 +253,7 @@ export function getSkippableSymbolsFromItems(items: Item[], grammar: Grammar): T
         .map(sym => <TokenSymbol>grammar.meta.all_symbols.get(sym));
 }
 
-export function addSkipCallNew(symbols: TokenSymbol[], grammar: Grammar, runner: CompilerRunner, lex_name: ConstSC | VarSC = SC.Variable("l", "Lexer")): StmtSC {
+export function addSkipCallNew(symbols: TokenSymbol[], grammar: Grammar, runner: CompilerRunner, lex_name: ExprSC = SC.Variable("l", "Lexer")): StmtSC {
     const skips = getSkipFunctionNew(symbols, grammar, runner);
     if (skips)
         return SC.Expressions(SC.Call(skips, SC.UnaryPost(lex_name, SC.Comment(symbols.map(s => `[ ${s.val} ]`).join("")))));//`_skip(${lex_name}, ${skips})`;
@@ -1014,4 +1014,13 @@ export function getAccompanyingItems(grammar: Grammar, active_productions: numbe
             getAccompanyingItems(grammar, item.getProduction(grammar).id, items, out, all);
         }
     return out;
+}
+
+
+export function doItemsHaveSameSymbol(items: Item[], grammar: Grammar) {
+    return items.every(i => !i.atEND && i.sym(grammar).val == items[0].sym(grammar).val);
+}
+
+export function itemsToProductions(items: Item[], grammar: Grammar): number[] {
+    return items.map(i => i.getProduction(grammar).id);
 }

@@ -16,7 +16,6 @@ export interface HybridDispatch {
     job_type: HybridJobType;
     items?: ItemSet;
     production_id?: number;
-    state?: RDState;
     item_set?: { old_state: number; items: Item[]; };
 }
 
@@ -24,7 +23,6 @@ export interface HybridDispatchResponse {
     job_type: HybridJobType;
     items?: Item[];
     production_id?: number;
-    state?: RDState;
     productions?: Set<number>;
     potential_states?: RDState[];
     CONVERT_RD_TO_LR?: boolean;

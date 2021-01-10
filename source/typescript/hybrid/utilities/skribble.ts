@@ -293,7 +293,7 @@ export class SC<T = Node> {
         return node;
     };
 
-    static Comment(value: string): SC<Value> {
+    static Comment(value: any): SC<Value> {
         const node = new SC<Value>({
             isEXPRESSION: true,
             //@ts-ignore

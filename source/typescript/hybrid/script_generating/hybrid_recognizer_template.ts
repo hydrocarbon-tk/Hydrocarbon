@@ -223,6 +223,8 @@ export const renderAssemblyScriptRecognizer = (
         SC.Function(
             "reset:boolean",
             "mark:unsigned int",
+            "origin:Lexer",
+            "advanced:Lexer",
             "pass:boolean",
         ).addStatement(
             SC.If(
@@ -231,6 +233,7 @@ export const renderAssemblyScriptRecognizer = (
                     "pass")
             ).addStatement(SC.UnaryPre(SC.Return, SC.False)),
             SC.Assignment(action_ptr, "mark:unsigned int"),
+            SC.Call(SC.Member("advance", "sync"), "origin"),
             SC.Assignment(FAILED, SC.False),
             SC.UnaryPre(SC.Return, SC.True)
         ));

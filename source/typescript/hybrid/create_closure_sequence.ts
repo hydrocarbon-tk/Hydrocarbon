@@ -11,8 +11,9 @@ import {
 } from "./utilities/utilities.js";
 import { SC, VarSC } from "./utilities/skribble.js";
 import { RenderBodyOptions } from "./types/RenderBodyOptions";
-import { createMultiItemSequence } from "./create_multi_item_sequence.js";
-import { NewType } from "./types/RecognizerState.js";
+import { createStandardRDSequence } from "./create_rd_sequence.js";
+import { RecognizerState } from "./types/RecognizerState.js";
+import { addEndItemSequence } from "./add_end_item_sequence.js";
 
 export function getGroups(symboled_items: Map<TokenSymbol, Item[]>, grammar: Grammar) {
     const group_maps: Map<string, { syms: Set<TokenSymbol>; items: Item[]; priority: number; }> = new Map;
@@ -54,11 +55,9 @@ export function* createClosureSequence(
     options: RenderBodyOptions,
     lex_name: VarSC,
     offset: number
-): Generator<NewType[], SC> {
+): Generator<RecognizerState[], SC> {
 
-    const {
-        grammar,
-    } = options,
+    const { grammar } = options,
 
         true_items = items.filter(_ => _),
 
@@ -72,57 +71,71 @@ export function* createClosureSequence(
 
         group_maps: Map<string, { syms: Set<TokenSymbol>; items: Item[]; priority: number; }> = getGroups(symboled_items_map, grammar);
 
-    const group: NewType[] = [];
+    const group: RecognizerState[] = [];
+    /*
+    if (end_items.length > 0) {
+        const gen = addEndItemSequence(end_items, options, offset);
+        let val = gen.next(), prods = null, last = null;
+        while (!val.done) {
+            yield <RecognizerState[]>val.value;
+            val = gen.next();
+        }
+        group.push(...val.value);
+    }
+    */
 
     for (let { syms: s, items } of group_maps.values()) {
 
         const syms = [...s.values()];
 
-        let code = new SC;
+        let code = new SC, prods = null;
 
         if (items.length > 1) {
-            const gen = createMultiItemSequence(items.map(i => i.increment()), options, lex_name, offset + 1, false);
+            const gen = createStandardRDSequence(items.map(i => i.increment()), options, lex_name, offset + 1, false);
             let val = gen.next();
             while (!val.done) {
-                yield <NewType[]>val.value;
+                const obj = <RecognizerState[]>val.value;
+                yield obj;
+                prods = obj[0].prods;
                 val = gen.next();
             }
             code = val.value;
         } else {
-            const obj = <NewType[]>[{
+            const obj: RecognizerState = {
                 code: new SC,
                 hash: "not-defined-closure",
-                state: {
-                    items,
-                    leaf: true,
-                    peeking: false,
-                    level: offset + 1,
-                    sym: EOF_SYM
-                }
-            }];
-            yield obj;
-            code = obj[0].code;
-            obj[0].hash = obj[0].code.hash();
+                items,
+                yielder: "closure-single-2",
+                leaf: true,
+                peek_level: -1,
+                offset: offset + 1,
+                sym: EOF_SYM
+
+            };
+            yield [obj];
+            prods = obj.prods;
+            code = obj.code;
+            obj.hash = obj.code.hash();
         }
 
         for (const sym of syms) {
             group.push({
                 code: code,
                 hash: code.hash(),
-                state: {
-                    peeking: false,
-                    items,
-                    level: offset,
-                    leaf: false,
-                    sym: sym
-                }
+                items,
+                peek_level: -1,
+                yielder: "closure-2",
+                offset,
+                leaf: false,
+                sym: sym,
+                prods
             });
         }
     }
 
-    yield group;
-
-    const obj = group[0].code;
-
-    return obj;
+    if (group.length > 0) {
+        yield group;
+        return group[0].code;
+    }
+    return new SC;
 }
