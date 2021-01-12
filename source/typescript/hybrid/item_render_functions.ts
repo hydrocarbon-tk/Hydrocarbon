@@ -14,17 +14,21 @@ import {
 } from "./utilities/utilities.js";
 import { CompilerRunner } from "./types/CompilerRunner.js";
 import { SC, VarSC } from "./utilities/skribble.js";
+import { RenderBodyOptions } from "./types/RenderBodyOptions.js";
+import { option } from "commander";
 
 
 export function renderProduction(
     code_node: SC,
     production: Production,
-    productions: Set<number> = new Set,
+    options: RenderBodyOptions,
     lexer_name: VarSC = g_lexer_name,
     USE_IF: boolean = true
 ): { code_node: SC; } {
 
-    productions.add(<number>production.id);
+    const { called_productions } = options;
+
+    called_productions.add(<number>production.id);
 
     if (USE_IF) {
         const _if = SC.If(SC.Call(SC.Constant("$" + production.name), lexer_name));
@@ -39,15 +43,14 @@ export function renderProduction(
 export function renderItemProduction(
     code_node: SC,
     item: Item,
-    grammar: Grammar,
-    runner: CompilerRunner,
-    productions: Set<number> = new Set,
+    options: RenderBodyOptions,
     lexer_name: VarSC = g_lexer_name,
     USE_IF: boolean = true
 ): { code_node: SC; } {
+    const { grammar } = options;
     const production = item.offset == 0 ? item.getProduction(grammar)
         : item.getProductionAtSymbol(grammar) ?? item.getProduction(grammar);
-    return renderProduction(code_node, production, productions, lexer_name, USE_IF);
+    return renderProduction(code_node, production, options, lexer_name, USE_IF);
 }
 export function renderItemReduction(
     code_node: SC,
@@ -91,12 +94,12 @@ function isProductionPassthrough(production_id: number, grammar: Grammar): {
 export function renderItemSym(
     code_node: SC,
     item: Item,
-    grammar: Grammar,
-    runner: CompilerRunner,
-    productions: Set<number> = new Set,
+    options: RenderBodyOptions,
     RENDER_WITH_NO_CHECK = false,
     lexer_name: VarSC = g_lexer_name
 ): { code_node: SC; } {
+
+    const { grammar, runner, called_productions } = options;
 
     let bool_expression = null;
     let IS_PASSTHROUGH = false, passthrough_chain = null, first_non_passthrough = 0;
@@ -111,7 +114,7 @@ export function renderItemSym(
 
             bool_expression = SC.Call(SC.Constant("$" + grammar[first_non_passthrough].name), lexer_name);
 
-            productions.add(first_non_passthrough);
+            called_productions.add(first_non_passthrough);
 
             RENDER_WITH_NO_CHECK = false;
 
@@ -149,16 +152,14 @@ export function renderItemSym(
 export function renderItem(
     code_node: SC,
     item: Item,
-    grammar: Grammar,
-    runner: CompilerRunner,
-    productions: Set<number> = new Set,
+    options: RenderBodyOptions,
     DONT_CHECK = false,
     lexer_name: VarSC = g_lexer_name
 ): SC {
-
+    const { grammar, runner } = options;
 
     if (!item.atEND) {
-        const { code_node: leaf } = renderItemSym(code_node, item, grammar, runner, productions, DONT_CHECK, lexer_name);
+        const { code_node: leaf } = renderItemSym(code_node, item, options, DONT_CHECK, lexer_name);
         const new_item = item.increment();
 
         if (!new_item.atEND) {
@@ -167,9 +168,9 @@ export function renderItem(
             leaf.addStatement(addSkipCallNew(skippable, grammar, runner, lexer_name));
         }
 
-        code_node = renderItem(leaf, item.increment(), grammar, runner, productions, false, lexer_name);
+        code_node = renderItem(leaf, item.increment(), options, false, lexer_name);
     } else {
-        return renderItemSym(code_node, item, grammar, runner, productions, true, lexer_name).code_node;
+        return renderItemSym(code_node, item, options, true, lexer_name).code_node;
     }
 
     return code_node;

@@ -14,12 +14,7 @@ import { renderItem } from "./item_render_functions.js";
 import { Item } from "../util/item.js";
 import { Symbol, TokenSymbol } from "../types/Symbol.js";
 import { RecognizerState } from "./types/RecognizerState.js";
-
-function* traverseInteriorNodes(
-    group: RecognizerState[],
-    options: RenderBodyOptions,
-    grouping_fn: (node: RecognizerState, level: number, peeking: boolean) => string
-): Generator<{
+export type SelectionClauseGenerator = Generator<{
     syms: Symbol[],
     code: SC,
     items: Item[];
@@ -27,25 +22,23 @@ function* traverseInteriorNodes(
     FIRST: boolean,
     LAST: boolean;
     prods: number[];
-}> {
-    const groups = group.group(g => grouping_fn(g, g.peek_level, g.peeking));
+}>;
+function* traverseInteriorNodes(
+    group: RecognizerState[],
+    options: RenderBodyOptions,
+    grouping_fn: (node: RecognizerState, level: number, peeking: boolean) => string
+): SelectionClauseGenerator {
+    const groups = group.group(g => grouping_fn(g, g.peek_level, g.peek_level >= 0));
     let i = 0;
     for (const group of groups) {
         const syms = group.map(s => s.sym);
         const code = group[0].code;
         const hash = group[0].hash;
         const items = group.flatMap(g => g.items).setFilter(i => i.id);
-        yield { syms, code, items, hash, FIRST: i == 0, LAST: ++i == groups.length, prods: group.flatMap(g => (g.prods)) };
+        yield { syms, code, items, hash, FIRST: i == 0, LAST: ++i == groups.length, prods: group.flatMap(g => (g.prods)).setFilter() };
     }
 }
-export type SelectionClauseGenerator = Generator<{
-    syms: Symbol[];
-    code: SC;
-    items: Item[];
-    hash: string;
-    LAST: boolean;
-    FIRST: boolean;
-}>;
+
 
 export function defaultSelectionClause(
     gen: SelectionClauseGenerator,
@@ -54,27 +47,18 @@ export function defaultSelectionClause(
     level: number,
     options: RenderBodyOptions
 ): SC {
-    const { grammar, runner } = options;
-    const groups = [...gen];
-    let root = new SC, leaf = null, mid = root, lex_name = g_lexer_name;
+    const
+        { grammar, runner } = options,
+        groups = [...gen];
 
-    root.addStatement(
-        SC.Comment(`Prdos: ${state.prods.join(" ")}`)
-        // SC.Comment(items.map(i => i.renderUnformattedWithProduction(grammar)))
-        // SC.Comment(`CLAUSE: ${state.yielder}`),
-        // SC.Comment("off:" + state.offset + " pk:" + state.peek_level)
-    );
+    let root = new SC, leaf = null, mid = root, lex_name = g_lexer_name;
 
     if (state.peek_level >= 0) {
         let peek_name = SC.Variable("pk:Lexer");
-        if (state.peek_level == 1) {
 
-            root.addStatement(
-                //SC.Call(consume_call, lex_name),
-                SC.Declare(SC.Assignment(peek_name, SC.Call(SC.Member(lex_name, "copy")))),
-                //SC.Comment(items.map(i => i.renderUnformattedWithProduction(grammar)))
-            );
-        }
+        if (state.peek_level == 1)
+            root.addStatement(SC.Declare(SC.Assignment(peek_name, SC.Call(SC.Member(lex_name, "copy")))));
+
         if (state.offset > 0 && state.peek_level == 0) {
             const skippable = getSkippableSymbolsFromItems(items, grammar);
             root.addStatement(addSkipCallNew(skippable, grammar, runner, lex_name));
@@ -102,8 +86,6 @@ export function defaultSelectionClause(
             );
 
         if_stmt.addStatement(
-            SC.Comment(prods.join(" ")),
-            SC.Comment(hash),
             code,
             SC.Empty()
         );
@@ -128,7 +110,7 @@ export type MultiItemReturnObject = {
 };
 
 export function defaultMultiItemLeaf(items: Item[], groups: RecognizerState[], options: RenderBodyOptions): MultiItemReturnObject {
-    const { grammar, runner, called_productions: productions } = options;
+    const { grammar, runner } = options;
     const root = new SC;
     const prods: number[] = [];
 
@@ -193,7 +175,7 @@ export function defaultSingleItemLeaf(item: Item, state: RecognizerState, option
     let sc = code, prods = [];
 
     if (item) {
-        sc = renderItem(code, item, grammar, runner, options.called_productions, state.offset > 0);
+        sc = renderItem(code, item, options, state.offset > 0);
         prods = processProductionChain(sc, options, itemsToProductions([item], grammar));
         for (const prod of prods)
             leaf_productions.add(prod);

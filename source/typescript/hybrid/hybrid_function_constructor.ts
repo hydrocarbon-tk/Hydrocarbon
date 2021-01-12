@@ -187,7 +187,6 @@ export function constructHybridFunction(production: Production, grammar: Grammar
                                 items = group.flatMap(g => g.items).setFilter(i => i.id).map(i => i.increment()),
                                 shift_items = items.filter(i => !i.atEND),
                                 end_items = items.filter(i => i.atEND),
-                                prods = group.flatMap(g => g.prods).setFilter(),
                                 skippable = getSkippableSymbolsFromItems(items, grammar).filter(sym =>
                                     !getFollow(keys[0], grammar).includes(sym)
                                 );
@@ -235,7 +234,6 @@ export function constructHybridFunction(production: Production, grammar: Grammar
                                 ...keys.slice(0, -1).map(k => SC.If(SC.Value(k + ""))),
                                 SC.If(SC.Value(keys.pop() + ""))
                                     .addStatement(
-                                        SC.Comment(prods.join(" ")),
                                         shift_items.length > 0 || end_items.length > 1
                                             ? addSkipCallNew(skippable, grammar, runner)
                                             : undefined,
