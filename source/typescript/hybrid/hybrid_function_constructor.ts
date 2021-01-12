@@ -92,6 +92,7 @@ export function constructHybridFunction(production: Production, grammar: Grammar
 
         const
             lr_productions = getClosure(items, grammar).filter(i => !i.atEND && i.sym(grammar).type == SymbolType.PRODUCTION),
+            lr_prods: number[] = [],
             optionsA = generateRDOptions(
                 grammar, runner,
                 production,
@@ -118,7 +119,13 @@ export function constructHybridFunction(production: Production, grammar: Grammar
             runner.DEBUG
                 ? SC.Value(`console.log("${production.name} START", { prod, tx:str.slice(l.off, l.off + l.tl), ty:l.ty, tl:l.tl, utf:l.getUTF(), FAILED, offset:l.off})`)
                 : undefined,
-            processStateGenerator(optionsA, genA),
+            processStateGenerator(optionsA, genA, (gen, state, items, level, options) => {
+                if (state.offset == 0) {
+                    lr_prods.push(...state.prods);
+                    console.log({ prods: state.prods });
+                }
+                return defaultSelectionClause(gen, state, items, level, options);
+            }),
             processStateGenerator(optionsB, genB,
                 (gen, state, items, level, options) => {
 
@@ -127,13 +134,15 @@ export function constructHybridFunction(production: Production, grammar: Grammar
                         let switch_stmt: SC = SC.Switch(SC.Value("prod"));
 
                         const
-                            pending_productions = [...optionsA.leaf_productions.values()],
+                            pending_productions = [...lr_prods.setFilter()],
                             active_productions = new Set,
                             case_clauses = [...gen].map(({ code, items, syms }) => {
 
                                 const
                                     key = <number>items[0].decrement().sym(grammar).val,
                                     prods = itemsToProductions(items, grammar);
+
+                                console.log({ key });
 
                                 return { key, code, syms, hash: code.hash(), prods, items };
                             })
@@ -176,11 +185,10 @@ export function constructHybridFunction(production: Production, grammar: Grammar
                                 items = group.flatMap(g => g.items).setFilter(i => i.id).map(i => i.increment()),
                                 shift_items = items.filter(i => !i.atEND),
                                 end_items = items.filter(i => i.atEND),
-                                prods = group.flatMap(g => g.prods).setFilter();
-
-                            const skippable = getSkippableSymbolsFromItems(items, grammar).filter(sym =>
-                                !getFollow(keys[0], grammar).includes(sym)
-                            );
+                                prods = group.flatMap(g => g.prods).setFilter(),
+                                skippable = getSkippableSymbolsFromItems(items, grammar).filter(sym =>
+                                    !getFollow(keys[0], grammar).includes(sym)
+                                );
 
                             let interrupt_statement = null;
 
@@ -244,7 +252,7 @@ export function constructHybridFunction(production: Production, grammar: Grammar
                         const while_stmts = SC.While(
                             active_groups.length > 1
                                 ? SC.Value("true")
-                                : SC.Binary(production_global, "==", production.id)
+                                : SC.Binary(production_global, "==", active_groups[0][0].key)
                         )
                             .addStatement(
                                 SC.Declare(SC.Assignment(accept_loop_flag, SC.False)),

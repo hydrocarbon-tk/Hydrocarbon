@@ -27,7 +27,7 @@ function* traverseInteriorNodes(
         const code = group[0].code;
         const hash = group[0].hash;
         const items = group.flatMap(g => g.items).setFilter(i => i.id);
-        yield { syms, code, items, hash, FIRST: i == 0, LAST: ++i == groups.length };
+        yield { syms, code, items, hash, FIRST: i == 0, LAST: ++i == groups.length, prods: group.flatMap(g => g.prods).setFilter() };
     }
 }
 export type SelectionClauseGenerator = Generator<{
@@ -47,8 +47,12 @@ export function defaultSelectionClause(
     options: RenderBodyOptions
 ): SC {
     const { grammar, runner } = options;
+    const groups = [...gen];
     let root = new SC, leaf = null, mid = root, lex_name = g_lexer_name;
+
     root.addStatement(
+        SC.Comment(`Prdos: ${state.prods.join(" ")}`)
+        //SC.Comment(items.map(i => i.renderUnformattedWithProduction(grammar)))
         //   SC.Comment(`CLAUSE: ${state.yielder}`),
         // SC.Comment("off:" + state.offset + " pk:" + state.peek_level)
     );
@@ -77,7 +81,7 @@ export function defaultSelectionClause(
         root.addStatement(addSkipCallNew(skippable, grammar, runner));
     }
 
-    for (const { syms, items, code, hash, LAST, FIRST } of gen) {
+    for (const { syms, items, code, hash, LAST, FIRST, prods } of groups) {
         const boolean = syms.length == 1 && isSymAProduction(syms[0])
             ? SC.Call("$" + grammar[syms[0].val].name, lex_name)
             : getIncludeBooleans(<TokenSymbol[]>syms, grammar, runner, lex_name);
@@ -89,6 +93,7 @@ export function defaultSelectionClause(
         );
 
         if_stmt.addStatement(
+            SC.Comment(prods.join(" ")),
             SC.Comment(hash),
             code,
             SC.Empty()
@@ -103,14 +108,21 @@ export function defaultSelectionClause(
     }
     root.addStatement(SC.Empty());
     mid.addStatement(SC.Empty());
-    if (leaf)
-        leaf.addStatement(SC.Empty());
+    if (leaf) leaf.addStatement(SC.Empty());
     return root;
 }
 
-export function defaultMultiItemLeaf(items: Item[], groups: RecognizerState[], options: RenderBodyOptions): { root: SC, leaves: SC[]; } {
+export type MultiItemReturnObject = {
+    root: SC;
+    leaves: SC[];
+    prods: number[];
+};
+
+export function defaultMultiItemLeaf(items: Item[], groups: RecognizerState[], options: RenderBodyOptions): MultiItemReturnObject {
     const { grammar, runner, called_productions: productions } = options;
     const root = new SC;
+    const prods: number[] = [];
+
     root.addStatement(
         SC.Declare(
             SC.Assignment("mk:int", SC.Call("mark")),
@@ -120,7 +132,11 @@ export function defaultMultiItemLeaf(items: Item[], groups: RecognizerState[], o
 
     root.addStatement(
         groups.reduce((r, g, i, a) => {
+
+            prods.push(...g.prods);
+
             const sym = g.sym;
+
             let boolean: ExprSC = isSymAProduction(sym)
                 ? SC.Call("$" + grammar[sym.val].name, g_lexer_name)
                 : SC.Call(consume_assert_call, getIncludeBooleans(<TokenSymbol[]>[sym], grammar, runner));
@@ -128,6 +144,7 @@ export function defaultMultiItemLeaf(items: Item[], groups: RecognizerState[], o
                 SC.Comment(g.hash),
                 g.code
             );
+
             if (!r.root) {
                 r.root = new SC().addStatement(stmt);
                 r.leaf = r.root;
@@ -150,20 +167,32 @@ export function defaultMultiItemLeaf(items: Item[], groups: RecognizerState[], o
             return r;
         }, { root: null, leaf: null }).root
     );
-    return { root, leaves: [] };
+
+    return { root, leaves: [], prods };
 }
 
-export function defaultSingleItemLeaf(item: Item, state: RecognizerState, options: RenderBodyOptions): { root: SC, leaf: SC; prods: number[]; } {
+export type SingleItemReturnObject = {
+    root: SC;
+    leaf: SC;
+    prods: number[];
+};
+
+export function defaultSingleItemLeaf(item: Item, state: RecognizerState, options: RenderBodyOptions): SingleItemReturnObject {
     const { grammar, runner, leaf_productions } = options;
-    const code = new SC;
+    const code = state.code || new SC;
     code.addStatement(
         //SC.Comment(item.renderUnformattedWithProduction(grammar)),
         //    SC.Comment(`SINGLE: ${state.yielder}`)
     );
-    const sc = renderItem(code, item, grammar, runner, options.called_productions, state.offset > 0);
-    const prods = processProductionChain(sc, options, itemsToProductions([item], grammar));
-    for (const prod of prods)
-        leaf_productions.add(prod);
+    let sc = code, prods = [];
+
+    if (item) {
+        sc = renderItem(code, item, grammar, runner, options.called_productions, state.offset > 0);
+        prods = processProductionChain(sc, options, itemsToProductions([item], grammar));
+        for (const prod of prods)
+            leaf_productions.add(prod);
+    }
+
     return { root: code, leaf: sc, prods };
 }
 
@@ -177,19 +206,20 @@ export function processStateGenerator(
         (gen: SelectionClauseGenerator, state: RecognizerState, items: Item[], level: number, options: RenderBodyOptions) => SC =
         defaultSelectionClause,
     multi_item_leaf_fn:
-        (items: Item[], groups: RecognizerState[], options: RenderBodyOptions) => { root: SC, leaves: SC[]; } =
+        (items: Item[], groups: RecognizerState[], options: RenderBodyOptions) => MultiItemReturnObject =
         defaultMultiItemLeaf,
     single_item_leaf_fn:
-        (item: Item, group: RecognizerState, options: RenderBodyOptions) => { root: SC, leaf: SC; prods: number[]; } =
+        (item: Item, group: RecognizerState, options: RenderBodyOptions) => SingleItemReturnObject =
         defaultSingleItemLeaf,
     grouping_fn: (node: RecognizerState, level: number, peeking: boolean) => string = defaultGrouping
 ): SC {
     let val = gen.next();
+
     while (!val.done) {
 
-        const group: RecognizerState[] = <RecognizerState[]>val.value;
-
-        const items = group[0].items;
+        const
+            group: RecognizerState[] = <RecognizerState[]>val.value,
+            items = group[0].items;
 
         if (group.every(g => g.leaf)) {
             if (group.length == 1) {
@@ -198,26 +228,33 @@ export function processStateGenerator(
                 group[0].hash = root.hash();
                 group[0].prods = prods;
             } else {
-                const { root } = multi_item_leaf_fn(items, group, options);
+                const { root, prods } = multi_item_leaf_fn(items, group, options);
                 group[0].code = root;
                 group[0].hash = root.hash();
+                group[0].prods = prods;
             }
         } else {
-            //Multi-group transitions on symbol
-            //May be peeking
-            //decide how the group should be combined
-
-
-            const prods = group.flatMap(g => g.prods).setFilter();
-            const items = group.flatMap(g => g.items).setFilter(i => i.id);
-
-            const root = selection_clause_fn(
-                traverseInteriorNodes(group, options, grouping_fn),
-                group[0],
-                items,
-                group[0].peek_level,
-                options
-            );
+            const
+                prods = group.flatMap(g => g.prods).setFilter(),
+                items = group.flatMap(g => g.items).setFilter(i => i.id),
+                virtual_group: RecognizerState = {
+                    sym: null,
+                    code: group[0].code,
+                    hash: group[0].hash,
+                    prods,
+                    items,
+                    leaf: false,
+                    peek_level: group[0].peek_level,
+                    offset: group[0].offset,
+                    yielder: "virtual-switch",
+                },
+                root = selection_clause_fn(
+                    traverseInteriorNodes(group, options, grouping_fn),
+                    virtual_group,
+                    items,
+                    group[0].peek_level,
+                    options
+                );
 
             group.forEach(g => {
                 g.prods = prods;
