@@ -17,6 +17,7 @@ import {
     addSkipCallNew,
     getSkippableSymbolsFromItems,
     itemsToProductions,
+    getUniqueSymbolName,
 } from "./utilities/utilities.js";
 import { RDProductionFunction } from "./types/RDProductionFunction";
 import { CompilerRunner } from "./types/CompilerRunner.js";
@@ -196,10 +197,10 @@ export function constructHybridFunction(production: Production, grammar: Grammar
                             if (shift_items.length > 0) {
                                 const
                                     closure = getClosure(shift_items.slice(), grammar),
-                                    anticipated_gyms = [...closure.filter(i => !i.atEND && !isSymAProduction(i.sym(grammar))).map(i => <TokenSymbol>i.sym(grammar))];
+                                    anticipated_syms = [...closure.filter(i => !i.atEND && !isSymAProduction(i.sym(grammar))).map(i => <TokenSymbol>i.sym(grammar))];
 
                                 if (keys.some(k => k == production.id)) {
-                                    const follow_symbols = keys.flatMap(k => getFollow(k, grammar)).setFilter();
+                                    const follow_symbols = keys.flatMap(k => getFollow(k, grammar)).setFilter(sym => getUniqueSymbolName(sym));
                                     /*
                                         Early exit should only occur if there is an occluding generic ( such as g:sym, g:id )
                                         that could capture a symbol that would otherwise cause a reduce.  FOLLOW Symbols that
@@ -210,18 +211,18 @@ export function constructHybridFunction(production: Production, grammar: Grammar
                                     const
                                         lookahead_syms = [...follow_symbols.filter(s => isSymGeneratedWS(s) || isSymGeneratedNL(s))];
 
-                                    if (anticipated_gyms.some(isSymGeneratedSym))
+                                    if (anticipated_syms.some(isSymGeneratedSym))
                                         lookahead_syms.push(...follow_symbols.filter(isSymSpecifiedSymbol));
 
-                                    if (anticipated_gyms.some(isSymGeneratedId))
+                                    if (anticipated_syms.some(isSymGeneratedId))
                                         lookahead_syms.push(...follow_symbols.filter(isSymSpecifiedIdentifier));
 
-                                    if (anticipated_gyms.some(isSymGeneratedNum))
+                                    if (anticipated_syms.some(isSymGeneratedNum))
                                         lookahead_syms.push(...follow_symbols.filter(isSymSpecifiedNumeric));
 
                                     if (lookahead_syms.length > 0) {
 
-                                        const booleans = getIncludeBooleans(lookahead_syms, grammar, runner, g_lexer_name, anticipated_gyms);
+                                        const booleans = getIncludeBooleans(lookahead_syms, grammar, runner, g_lexer_name, anticipated_syms);
 
                                         if (booleans)
                                             interrupt_statement = SC.If(booleans).addStatement(SC.Break);
