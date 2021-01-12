@@ -119,13 +119,20 @@ export function constructHybridFunction(production: Production, grammar: Grammar
             runner.DEBUG
                 ? SC.Value(`console.log("${production.name} START", { prod, tx:str.slice(l.off, l.off + l.tl), ty:l.ty, tl:l.tl, utf:l.getUTF(), FAILED, offset:l.off})`)
                 : undefined,
-            processStateGenerator(optionsA, genA, (gen, state, items, level, options) => {
-                if (state.offset == 0) {
-                    lr_prods.push(...state.prods);
-                    console.log({ prods: state.prods });
-                }
-                return defaultSelectionClause(gen, state, items, level, options);
-            }),
+            processStateGenerator(
+                optionsA, genA, defaultSelectionClause,
+                (item, state, options) => {
+                    const { leaves, prods, root } = defaultMultiItemLeaf(item, state, options);
+                    lr_prods.push(...prods);
+                    return { leaves, prods, root };
+
+                },
+                (item, state, options) => {
+                    const { leaf, prods, root } = defaultSingleItemLeaf(item, state, options);
+                    lr_prods.push(...prods);
+                    return { leaf, prods, root };
+
+                }),
             processStateGenerator(optionsB, genB,
                 (gen, state, items, level, options) => {
 
@@ -136,15 +143,10 @@ export function constructHybridFunction(production: Production, grammar: Grammar
                         const
                             pending_productions = [...lr_prods.setFilter()],
                             active_productions = new Set,
-                            case_clauses = [...gen].map(({ code, items, syms }) => {
+                            case_clauses = [...gen].map(({ code, items, syms, prods }) => {
+                                const key = <number>items[0].decrement().sym(grammar).val;
 
-                                const
-                                    key = <number>items[0].decrement().sym(grammar).val,
-                                    prods = itemsToProductions(items, grammar);
-
-                                console.log({ key });
-
-                                return { key, code, syms, hash: code.hash(), prods, items };
+                                return { key, code, syms, hash: code.hash(), prods: prods.slice(), items };
                             })
                                 .group(({ hash }) => hash)
                                 .groupMap(group => {
@@ -173,7 +175,7 @@ export function constructHybridFunction(production: Production, grammar: Grammar
                                 active_groups.push(group);
                             }
                         }
-
+                        console.log({ active_productions, pending_productions });
                         if (active_groups.length == 0)
                             return new SC;
 

@@ -19,7 +19,15 @@ function* traverseInteriorNodes(
     group: RecognizerState[],
     options: RenderBodyOptions,
     grouping_fn: (node: RecognizerState, level: number, peeking: boolean) => string
-): Generator<{ syms: Symbol[], code: SC, items: Item[]; hash: string; FIRST: boolean, LAST: boolean; }> {
+): Generator<{
+    syms: Symbol[],
+    code: SC,
+    items: Item[];
+    hash: string;
+    FIRST: boolean,
+    LAST: boolean;
+    prods: number[];
+}> {
     const groups = group.group(g => grouping_fn(g, g.peek_level, g.peeking));
     let i = 0;
     for (const group of groups) {
@@ -27,7 +35,7 @@ function* traverseInteriorNodes(
         const code = group[0].code;
         const hash = group[0].hash;
         const items = group.flatMap(g => g.items).setFilter(i => i.id);
-        yield { syms, code, items, hash, FIRST: i == 0, LAST: ++i == groups.length, prods: group.flatMap(g => g.prods).setFilter() };
+        yield { syms, code, items, hash, FIRST: i == 0, LAST: ++i == groups.length, prods: group.flatMap(g => (g.prods)) };
     }
 }
 export type SelectionClauseGenerator = Generator<{
@@ -52,8 +60,8 @@ export function defaultSelectionClause(
 
     root.addStatement(
         SC.Comment(`Prdos: ${state.prods.join(" ")}`)
-        //SC.Comment(items.map(i => i.renderUnformattedWithProduction(grammar)))
-        //   SC.Comment(`CLAUSE: ${state.yielder}`),
+        // SC.Comment(items.map(i => i.renderUnformattedWithProduction(grammar)))
+        // SC.Comment(`CLAUSE: ${state.yielder}`),
         // SC.Comment("off:" + state.offset + " pk:" + state.peek_level)
     );
 
@@ -82,15 +90,16 @@ export function defaultSelectionClause(
     }
 
     for (const { syms, items, code, hash, LAST, FIRST, prods } of groups) {
-        const boolean = syms.length == 1 && isSymAProduction(syms[0])
-            ? SC.Call("$" + grammar[syms[0].val].name, lex_name)
-            : getIncludeBooleans(<TokenSymbol[]>syms, grammar, runner, lex_name);
-        const if_stmt = SC.If(
-            (false && LAST && !FIRST) ? undefined :
-                state.peek_level >= 0 || (syms.length == 1 && isSymAProduction(syms[0]))
-                    ? boolean
-                    : SC.Call(consume_assert_call, boolean)
-        );
+        const
+            boolean = syms.length == 1 && isSymAProduction(syms[0])
+                ? SC.Call("$" + grammar[syms[0].val].name, lex_name)
+                : getIncludeBooleans(<TokenSymbol[]>syms, grammar, runner, lex_name),
+            if_stmt = SC.If(
+                (false && LAST && !FIRST) ? undefined :
+                    state.peek_level >= 0 || (syms.length == 1 && isSymAProduction(syms[0]))
+                        ? boolean
+                        : SC.Call(consume_assert_call, boolean)
+            );
 
         if_stmt.addStatement(
             SC.Comment(prods.join(" ")),
@@ -168,7 +177,7 @@ export function defaultMultiItemLeaf(items: Item[], groups: RecognizerState[], o
         }, { root: null, leaf: null }).root
     );
 
-    return { root, leaves: [], prods };
+    return { root, leaves: [], prods: prods.setFilter() };
 }
 
 export type SingleItemReturnObject = {
@@ -180,10 +189,7 @@ export type SingleItemReturnObject = {
 export function defaultSingleItemLeaf(item: Item, state: RecognizerState, options: RenderBodyOptions): SingleItemReturnObject {
     const { grammar, runner, leaf_productions } = options;
     const code = state.code || new SC;
-    code.addStatement(
-        //SC.Comment(item.renderUnformattedWithProduction(grammar)),
-        //    SC.Comment(`SINGLE: ${state.yielder}`)
-    );
+
     let sc = code, prods = [];
 
     if (item) {
@@ -231,7 +237,7 @@ export function processStateGenerator(
                 const { root, prods } = multi_item_leaf_fn(items, group, options);
                 group[0].code = root;
                 group[0].hash = root.hash();
-                group[0].prods = prods;
+                group.map(g => g.prods = prods);
             }
         } else {
             const

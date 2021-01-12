@@ -55,6 +55,7 @@ export function* createStandardRDSequence(
                 };
 
             yield [obj];
+
             let prods = obj.prods;
 
             if (LR_SECTION_START) {
@@ -193,9 +194,6 @@ export function* createStandardRDSequence(
 
                     if (offset == 0 && SAME_PRODUCTION && prod.id !== prod.id) {
                         throw new Error("SAME_PRODUCTION HELP!");
-                        // if_stmt.addStatement(SC.Comment("A"));
-                        // filter_productions.push((first.getProduction(grammar).id != production.id) ? items[0].getProduction(grammar).id : -1);
-                        // renderProduction(if_stmt, prod, productions, lex_name, false);
                     } else if (items.length > 1) {
 
                         const SAME_SYMBOL = doItemsHaveSameSymbol(items, grammar);
@@ -218,12 +216,12 @@ export function* createStandardRDSequence(
                                         sym = items[0].sym(grammar),
                                         gen = createStandardRDSequence(items.map(i => i.increment()), options, lex_name, offset + 1);
 
-                                    let val = gen.next(), prods;
+                                    let val = gen.next(), prods = [];
 
                                     while (!val.done) {
                                         const obj = <RecognizerState[]>val.value;
                                         yield obj;
-                                        prods = obj[0].prods;
+                                        prods.push(...obj[0].prods);
                                         val = gen.next();
                                     }
 
@@ -240,7 +238,7 @@ export function* createStandardRDSequence(
                                         offset,
                                         peek_level: -1,
                                         yielder: "conflict",
-                                        prods,
+                                        prods: prods.setFilter(),
                                     });
                                 }
                                 yield group;
@@ -274,11 +272,11 @@ export function* createStandardRDSequence(
                         code = val.value;
                     }
                     const hash = code.hash();
-                    a.prods = prods;
+                    a.prods = prods.setFilter();
                     a.code = code;
                     a.hash = hash;
 
-                    state_look_up.set(state_hash, { prods, code, hash });
+                    state_look_up.set(state_hash, { prods: prods.setFilter(), code, hash });
                 }
                 yield group;
                 val = gen.next();

@@ -31,10 +31,12 @@ export function* create_production_shift_sequence(options: RenderBodyOptions): G
                 true
             );
 
-            let val = gen.next();
+            let val = gen.next(), prods = [];
 
             while (!val.done) {
-                yield <RecognizerState[]>val.value;
+                const obj = <RecognizerState[]>val.value;
+                yield obj;
+                prods.push(...obj[0].prods);
                 val = gen.next();
             }
 
@@ -46,7 +48,8 @@ export function* create_production_shift_sequence(options: RenderBodyOptions): G
                 items: group,
                 leaf: false,
                 offset: 0,
-                peek_level: -1
+                peek_level: -1,
+                prods: prods.setFilter()
             });
         }
 

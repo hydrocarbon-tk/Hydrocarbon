@@ -34,7 +34,7 @@ export function* buildPeekSequence(
 
         const node = peek_nodes[i];
 
-        let code = new SC, prods = [null];
+        let code = new SC, prods = [];
         //Depth first
         if (node.next.length > 0) {
 
@@ -44,7 +44,7 @@ export function* buildPeekSequence(
             while (!val.done) {
                 const obj = <RecognizerState[]>val.value;
                 yield obj;
-                prods = obj[0].prods;
+                prods.push(...obj[0].prods);
                 val = gen.next();
             }
 
@@ -61,7 +61,7 @@ export function* buildPeekSequence(
             leaf: node.next.length == 0,
             closure: node.starts,
             sym: <TokenSymbol>getSymbolFromUniqueName(grammar, node.sym),
-            prods
+            prods: prods.setFilter()
         });
     }
 
