@@ -174,10 +174,10 @@ export function isSymLengthOneDefined(sym: TokenSymbol) {
 export function isSymNotLengthOneDefined(sym: TokenSymbol): boolean {
     return !isSymLengthOneDefined(sym);
 }
-export function isSymGeneratedNL(sym: TokenSymbol) { return sym.val == "nl"; }
-export function isSymGeneratedId(sym: TokenSymbol) { return sym.val == "id"; }
-export function isSymGeneratedSym(sym: TokenSymbol) { return sym.val == "sym"; }
-export function isSymGeneratedNum(sym: TokenSymbol) { return sym.val == "num"; }
+export function isSymGeneratedNL(sym: TokenSymbol) { return sym.val == "nl" && sym.type == SymbolType.GENERATED; }
+export function isSymGeneratedId(sym: TokenSymbol) { return sym.val == "id" && sym.type == SymbolType.GENERATED; }
+export function isSymGeneratedSym(sym: TokenSymbol) { return sym.val == "sym" && sym.type == SymbolType.GENERATED; }
+export function isSymGeneratedNum(sym: TokenSymbol) { return sym.val == "num" && sym.type == SymbolType.GENERATED; }
 export function isSymGeneratedWS(sym: TokenSymbol): boolean { return sym.val == "ws"; }
 export function getRDFNName(production: Production) { return `$${production.name}`; }
 

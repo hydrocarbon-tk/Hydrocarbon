@@ -18,6 +18,8 @@ export function cleanLeaves(node: TransitionTreeNode) {
     return node.roots.length == 1;
 }
 
+const cache: Map<string, SC> = new Map();
+
 export function* yieldStates(
     in_items: Item[],
     options: RenderBodyOptions,
@@ -25,12 +27,16 @@ export function* yieldStates(
     offset: number = 0,
 ): Generator<RecognizerState[], SC> {
     const
-        { grammar, runner, production, lr_productions } = options;
+        { grammar, runner, production, lr_productions } = options,
+        state_id = in_items.map(i => i.id).sort().join("-") + "$";
     let
         end_items = in_items.filter(i => i.atEND),
         active_items = in_items.filter(i => !i.atEND);
 
     const main_groups: RecognizerState[] = [];
+
+    //if (cache.has(state_id))
+    //    return cache.get(state_id).addStatement(SC.Comment(state_id));
 
 
     try {
@@ -55,16 +61,14 @@ export function* yieldStates(
 
                 if (anticipated_syms.length > 0) {
 
-                    main_groups.length = 0;
-
-                    const transition_type: TRANSITION_TYPE =
-                        isSymAProduction(active_items[0].sym(grammar))
-                            ? TRANSITION_TYPE.ASSERT
+                    const
+                        IS_SYM_PRODUCTION = isSymAProduction(active_items[0].sym(grammar)),
+                        transition_type: TRANSITION_TYPE = IS_SYM_PRODUCTION
+                            ? TRANSITION_TYPE.ASSERT_PRODUCTION_SYMBOLS
                             : TRANSITION_TYPE.CONSUME;
 
-                    if (anticipated_syms.length == 1) {
+                    if (!IS_SYM_PRODUCTION)
                         active_items = active_items.map(a => a.increment());
-                    }
 
                     const objs = anticipated_syms.map(sym => (<RecognizerState>{
                         code: new SC,
@@ -112,7 +116,7 @@ export function* yieldStates(
                         transition_type: isSymAProduction(sym)
                             ? TRANSITION_TYPE.ASSERT
                             : TRANSITION_TYPE.CONSUME,
-                        items: active_items,
+                        items: active_items.slice(),
                         completing: false,
                         offset: offset++,
                         peek_level: -1,
@@ -131,10 +135,9 @@ export function* yieldStates(
                         let val = gen.next();
                         while (!val.done) {
                             yield <RecognizerState[]>val.value;
-                            prods = val.value[0].prods;
-                            code = val.value[0].code;
                             val = gen.next();
                         }
+                        code = val.value;
                     }
 
                     for (const state of sequence.slice().reverse().slice(0, -1)) {
@@ -144,10 +147,11 @@ export function* yieldStates(
                         yield [state];
                         code = state.code;
                     }
-
                     sequence[0].code = code;
                     sequence[0].hash = code.hash();
                     sequence[0].prods = prods;
+
+                    //sequence[0].transition_type = TRANSITION_TYPE.IGNORE;
 
                     main_groups.push(sequence[0]);
                 }
@@ -169,12 +173,12 @@ export function* yieldStates(
                     const group: RecognizerState[] = <RecognizerState[]>val.value;
                     group.forEach(g => g.offset = offset);
                     //create sequences here
-                    yield* processRecognizerState(group, options, state_look_up, offset, lex_name);
+                    yield* processPeekStates(group, options, state_look_up, offset, lex_name);
                     yield group;
                     val = gen.next();
                 }
 
-                yield* processRecognizerState(val.value, options, state_look_up, offset, lex_name);
+                yield* processPeekStates(val.value, options, state_look_up, offset, lex_name);
 
                 main_groups.push(...val.value);
             }
@@ -192,6 +196,8 @@ export function* yieldStates(
 
         yield main_groups;
 
+        cache.set(state_id, main_groups[0].code);
+
         return main_groups[0].code;
 
     } catch (e) {
@@ -199,7 +205,7 @@ export function* yieldStates(
     }
 }
 
-function* processRecognizerState(
+function* processPeekStates(
     group: RecognizerState[],
     options: RenderBodyOptions,
     state_look_up: Map<string, { code: SC, hash: string, prods: number[]; }>,
@@ -241,6 +247,7 @@ function* processRecognizerState(
             continue;
         }
 
+
         if (items.length > 0) {
             const SAME_SYMBOL = doItemsHaveSameSymbol(items, grammar);
 
@@ -249,12 +256,16 @@ function* processRecognizerState(
             } else if (items.length > 1) {
 
                 if (SAME_SYMBOL) {
-                    gen = yieldStates(items.map(i => i), options, lex_name, offset + 1);
+                    if (isSymAProduction(a.items[0].sym(grammar)))
+                        a.transition_type = TRANSITION_TYPE.PEEK_PRODUCTION_SYMBOLS;
+                    gen = yieldStates(items, options, lex_name, offset + 1);
                 } else if (max_item_offset == 0) {
+
                     if (closure.every(i => i.offset == 0) && closure.map(i => i.getProduction(grammar).id).setFilter().length == 1) {
                         a.items = a.closure.slice(0, 1);
                         a.completing = true;
                         a.offset = offset;
+                        a.transition_type = TRANSITION_TYPE.ASSERT_PRODUCTION_SYMBOLS;
                     } else {
                         gen = yieldStates(getClosure(closure, grammar).map(i => i), options, lex_name, offset + 1);
                     }
@@ -262,8 +273,10 @@ function* processRecognizerState(
 
                     const tree = getTransitionTree(grammar, items, lr_productions, 10, 8);
                     if (cleanLeaves(tree.tree_nodes[0])) {
+
                         gen = yieldStates(items, options, lex_name, offset + 1);
                     } else {
+
                         a.completing = true;
                         a.offset = offset + 1;
                     }
@@ -283,7 +296,19 @@ function* processRecognizerState(
                 a.prods = prods.setFilter();
                 a.code = code;
                 a.hash = hash;
+
             } else {
+                const sym = items[0].sym(grammar);
+                if (a.peek_level == 0) {
+                    a.transition_type = isSymAProduction(sym)
+                        ? TRANSITION_TYPE.ASSERT_PRODUCTION_SYMBOLS
+                        : TRANSITION_TYPE.CONSUME;
+
+                    if (!isSymAProduction(sym)) {
+                        items[0] = items[0].increment();
+                        a.transition_type = TRANSITION_TYPE.CONSUME;
+                    }
+                }
                 a.completing = true;
                 a.offset = offset;
             }

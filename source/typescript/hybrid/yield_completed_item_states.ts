@@ -49,9 +49,7 @@ export function* yieldCompletedItemStates(end_items: Item[], options: RenderBody
                 items: [item],
                 peek_level: -1,
                 offset,
-                transition_type: isSymAProduction(sym)
-                    ? TRANSITION_TYPE.CONSUME
-                    : TRANSITION_TYPE.ASSERT,
+                transition_type: TRANSITION_TYPE.ASSERT_END,
                 prods: []
             })));
 
@@ -106,6 +104,7 @@ export function* yieldCompletedItemStates(end_items: Item[], options: RenderBody
                 if (a.completing) {
                     const { items } = a;
                     const selected = items.sort((a, b) => a.body - b.body);
+                    a.transition_type = TRANSITION_TYPE.ASSERT_END;
                     a.items = selected.slice(0, 1);
 
                 }
@@ -133,9 +132,7 @@ export function* yieldCompletedItemStates(end_items: Item[], options: RenderBody
                 hash: "",
                 offset: offset + 1,
                 peek_level: 0,
-                transition_type: isSymAProduction(sym)
-                    ? TRANSITION_TYPE.CONSUME
-                    : TRANSITION_TYPE.ASSERT,
+                transition_type: TRANSITION_TYPE.ASSERT_END,
                 prods: []
             };
             main_groups.push(obj);

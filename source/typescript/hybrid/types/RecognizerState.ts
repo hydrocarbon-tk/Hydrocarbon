@@ -8,6 +8,10 @@ import { SC } from "../utilities/skribble.js";
  */
 export const enum TRANSITION_TYPE {
     /**
+     * Do not do anything with the token(s) before entering the next state(s)
+     */
+    IGNORE,
+    /**
      * Indicates the token(s) of this state need to 
      * be consumed before progressing to the next state(s). 
      */
@@ -17,16 +21,27 @@ export const enum TRANSITION_TYPE {
      * asserted before progressing to the next state(s)
      */
     ASSERT,
+
+
+    /**
+     * Like ASSERT, except state is generated from a completed item.
+     */
+    ASSERT_END,
+    /**
+     * Like ASSERT, except state will call a production function.
+     */
+    ASSERT_PRODUCTION_SYMBOLS,
     /**
      * Like CHECK except the assertion should be made on the peeking lexer instead of
      * the main lexer.
      */
     PEEK,
-    /**
-     * Do not do anything with the token(s) before entering the next state(s)
-     */
-    IGNORE
 
+    /**
+     * Like ASSERT_PRODUCTION_SYMBOLS, except the assertion should be made on the peeking lexer instead of
+     * the main lexer.
+     */
+    PEEK_PRODUCTION_SYMBOLS
 };
 
 /**
