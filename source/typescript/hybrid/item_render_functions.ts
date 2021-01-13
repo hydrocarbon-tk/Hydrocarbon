@@ -12,45 +12,22 @@ import {
     addSkipCallNew,
     getSkippableSymbolsFromItems
 } from "./utilities/utilities.js";
-import { CompilerRunner } from "./types/CompilerRunner.js";
-import { SC, VarSC } from "./utilities/skribble.js";
+import { ExprSC, SC, VarSC } from "./utilities/skribble.js";
 import { RenderBodyOptions } from "./types/RenderBodyOptions.js";
-import { option } from "commander";
 
 
-export function renderProduction(
-    code_node: SC,
+export function renderProductionCall(
     production: Production,
     options: RenderBodyOptions,
-    lexer_name: VarSC = g_lexer_name,
-    USE_IF: boolean = true
-): { code_node: SC; } {
+    lexer_name: VarSC = g_lexer_name
+): ExprSC {
 
     const { called_productions } = options;
 
     called_productions.add(<number>production.id);
 
-    if (USE_IF) {
-        const _if = SC.If(SC.Call(SC.Constant("$" + production.name), lexer_name));
-        code_node.addStatement(_if);
-        code_node.addStatement(SC.Empty());
-        return { code_node: _if };
-    } else {
-        code_node.addStatement(SC.Call(SC.Constant("$" + production.name), lexer_name));
-        return { code_node };
-    }
-}
-export function renderItemProduction(
-    code_node: SC,
-    item: Item,
-    options: RenderBodyOptions,
-    lexer_name: VarSC = g_lexer_name,
-    USE_IF: boolean = true
-): { code_node: SC; } {
-    const { grammar } = options;
-    const production = item.offset == 0 ? item.getProduction(grammar)
-        : item.getProductionAtSymbol(grammar) ?? item.getProduction(grammar);
-    return renderProduction(code_node, production, options, lexer_name, USE_IF);
+
+    return SC.Call(SC.Constant("$" + production.name), lexer_name);
 }
 export function renderItemReduction(
     code_node: SC,
@@ -63,6 +40,7 @@ export function renderItemReduction(
     else if (item.len > 1)
         code_node.addStatement(createDefaultReduceFunction(item));
 }
+
 function isProductionPassthrough(production_id: number, grammar: Grammar): {
     IS_PASSTHROUGH: boolean; first_non_passthrough: number; passthrough_chain: number[];
 } {

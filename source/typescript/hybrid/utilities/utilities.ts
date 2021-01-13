@@ -245,6 +245,13 @@ export function getFollowSymbolsFromItems(items: Item[], grammar: Grammar): Toke
         .map(sym => <TokenSymbol>grammar.meta.all_symbols.get(sym));
 }
 
+export function getTokenSymbolsFromItems(items: Item[], grammar: Grammar): TokenSymbol[] {
+    return items.filter(i => !i.atEND)
+        .flatMap(i => getTrueSymbolValue(<TokenSymbol>i.sym(grammar), grammar))
+        .setFilter(getUniqueSymbolName)
+        .filter(sym => !isSymAProduction(sym));
+}
+
 export function getSkippableSymbolsFromItems(items: Item[], grammar: Grammar): TokenSymbol[] {
     return items.flatMap(i => [...grammar.item_map.get(i.id).skippable.values()])
         .group()

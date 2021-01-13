@@ -6,7 +6,7 @@ import {
 } from "./utilities/utilities.js";
 import { CompilerRunner } from "./types/CompilerRunner.js";
 import { SC, VarSC } from "./utilities/skribble.js";
-import { RecognizerState } from "./types/RecognizerState.js";
+import { RecognizerState, TRANSITION_TYPE } from "./types/RecognizerState.js";
 
 
 
@@ -26,7 +26,7 @@ export function* buildPeekSequence(
     current_production_id: number = -1,
     ALLOW_FALL_THROUGH: boolean = true,
     depth: number = 0
-): Generator<RecognizerState[], SC> {
+): Generator<RecognizerState[], RecognizerState[]> {
 
     const group: RecognizerState[] = [];
 
@@ -44,28 +44,27 @@ export function* buildPeekSequence(
             while (!val.done) {
                 const obj = <RecognizerState[]>val.value;
                 yield obj;
+                code = obj[0].code;
                 prods.push(...obj[0].prods);
                 val = gen.next();
             }
-
-            code = val.value;
         }
 
-        group.push({
+        group.push(<RecognizerState>{
             code,
             hash: code.hash(),
             items: node.roots,
-            yielder: "peek-internal",
+            transition_type: TRANSITION_TYPE.PEEK,
             offset: -1,
             peek_level: depth,
-            leaf: node.next.length == 0,
+            completing: node.next.length == 0,
             closure: node.starts,
-            sym: <TokenSymbol>getSymbolFromUniqueName(grammar, node.sym),
+            symbol: <TokenSymbol>getSymbolFromUniqueName(grammar, node.sym),
             prods: prods.setFilter()
         });
     }
 
+    if (depth == 0)
+        return group;
     yield group;
-
-    return group[0].code;
 }

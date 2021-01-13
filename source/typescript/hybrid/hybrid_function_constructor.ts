@@ -24,9 +24,9 @@ import { CompilerRunner } from "./types/CompilerRunner.js";
 import { SC } from "./utilities/skribble.js";
 import { getClosure, getFollow } from "../util/process_closure.js";
 import { ReturnType, RenderBodyOptions } from "./types/RenderBodyOptions";
-import { createStandardRDSequence } from "./create_rd_sequence.js";
-import { defaultMultiItemLeaf, defaultSelectionClause, defaultSingleItemLeaf, processStateGenerator } from "./process_state_generator.js";
-import { create_production_shift_sequence } from "./create_production_shift_sequence.js";
+import { yieldStates } from "./yield_states.js";
+import { defaultMultiItemLeaf, defaultSelectionClause, defaultSingleItemLeaf, processRecognizerStates } from "./process_recognizer_states.js";
+import { yieldNontermStates } from "./yield_nonterm_states.js";
 
 export const
     accept_loop_flag = SC.Variable("ACCEPT:boolean"),
@@ -104,7 +104,7 @@ export function constructHybridFunction(production: Production, grammar: Grammar
                 production,
                 lr_productions
             ),
-            genA = createStandardRDSequence(
+            genA = yieldStates(
                 //Filter out items that are left recursive for the given production
                 items.filter(i => {
                     const sym = i.sym(grammar);
@@ -113,14 +113,14 @@ export function constructHybridFunction(production: Production, grammar: Grammar
                     return true;
                 }), optionsA, g_lexer_name
             ),
-            genB = create_production_shift_sequence(optionsB);
+            genB = yieldNontermStates(optionsB);
 
 
         code_node.addStatement(
             runner.DEBUG
                 ? SC.Value(`console.log("${production.name} START", { prod, tx:str.slice(l.off, l.off + l.tl), ty:l.ty, tl:l.tl, utf:l.getUTF(), FAILED, offset:l.off})`)
                 : undefined,
-            processStateGenerator(
+            processRecognizerStates(
                 optionsA, genA, defaultSelectionClause,
                 (item, state, options) => {
                     const { leaves, prods, root } = defaultMultiItemLeaf(item, state, options);
@@ -134,7 +134,7 @@ export function constructHybridFunction(production: Production, grammar: Grammar
                     return { leaf, prods, root };
 
                 }),
-            processStateGenerator(optionsB, genB,
+            processRecognizerStates(optionsB, genB,
                 (gen, state, items, level, options) => {
 
                     if (state.offset == 0) {
@@ -176,11 +176,10 @@ export function constructHybridFunction(production: Production, grammar: Grammar
                                 active_groups.push(group);
                             }
                         }
-                        console.log({ active_productions, pending_productions });
-                        if (active_groups.length == 0)
-                            return new SC;
 
-                        for (const group of active_groups) {
+                        if (active_groups.length == 0) return new SC;
+
+                        for (const group of active_groups.sort((([{ key: keyA }], [{ key: keyB }]) => keyA - keyB))) {
 
                             const
                                 keys = group.map(g => g.key).setFilter(),
@@ -250,7 +249,7 @@ export function constructHybridFunction(production: Production, grammar: Grammar
                             }
                         }
 
-                        const while_stmts = SC.While(
+                        const out_stmt = SC.While(
                             active_groups.length > 1
                                 ? SC.Value("true")
                                 : SC.Binary(production_global, "==", active_groups[0][0].key)
@@ -263,10 +262,10 @@ export function constructHybridFunction(production: Production, grammar: Grammar
 
 
 
-                        return (new SC).addStatement(SC.Comment(`Level: ${state.offset}`), while_stmts);
+                        return out_stmt;
                     }
                     state.offset--;
-                    return defaultSelectionClause(gen, state, items, level, options);
+                    return defaultSelectionClause(gen, state, items, level, options, state.offset == 0);
                 },
                 defaultMultiItemLeaf,
                 (item, group, options) => {
@@ -285,6 +284,7 @@ export function constructHybridFunction(production: Production, grammar: Grammar
             productions: new Set([...optionsA.called_productions.values(), ...optionsB.called_productions.values()]),
             id: p.id,
             fn: (new SC).addStatement(
+                //SC.Comment([...new Set([...optionsA.called_productions.values(), ...optionsB.called_productions.values()]).values()].map(i => grammar[i].name).join(" ")),
                 (runner.ANNOTATED) ? annotation : undefined,
                 code_node
             )
