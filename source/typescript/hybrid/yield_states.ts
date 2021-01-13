@@ -18,7 +18,6 @@ export function cleanLeaves(node: TransitionTreeNode) {
     return node.roots.length == 1;
 }
 
-const cache: Map<string, SC> = new Map();
 
 export function* yieldStates(
     in_items: Item[],
@@ -27,7 +26,7 @@ export function* yieldStates(
     offset: number = 0,
 ): Generator<RecognizerState[], SC> {
     const
-        { grammar, runner, production, lr_productions } = options,
+        { grammar, runner, production, lr_productions, cache } = options,
         state_id = in_items.map(i => i.id).sort().join("-") + "$";
     let
         end_items = in_items.filter(i => i.atEND),
@@ -35,8 +34,10 @@ export function* yieldStates(
 
     const main_groups: RecognizerState[] = [];
 
-    //if (cache.has(state_id))
+    if (cache.has(state_id)) {
     //    return cache.get(state_id).addStatement(SC.Comment(state_id));
+        return cache.get(state_id);//.addStatement(SC.Comment(state_id));
+    }
 
 
     try {
@@ -126,6 +127,7 @@ export function* yieldStates(
                     active_items = active_items.map(i => i.increment());
                 }
                 let code = new SC, prods;
+
                 if (active_items.length > 0) {
                     if (active_items.length == 1) {
                         const leaf = sequence.slice().reverse()[0];
@@ -219,11 +221,9 @@ function* processPeekStates(
         //Set leaf state to false as this will be replaced
         //with resolution states. 
         a.completing = false;
-
         const
             closure = a.closure,
             items = a.items,
-            syms = a.symbol,
             [first] = a.items,
             max_item_offset = a.items.reduce((r, i) => Math.max(i.offset, r), 0),
             SAME_PRODUCTION = a.items.setFilter(i => i.getProduction(grammar).id).length == 1,
@@ -233,20 +233,6 @@ function* processPeekStates(
             code = new SC,
             prods = [],
             gen: Generator<RecognizerState[], SC> = null;
-        /**
-         * Reduce redundant RecognizerState's by creating a hash from the states  items and follow symbols 
-         * and using that to cache code, hash, and prods that would otherwise be repeatedly generated.
-         */
-        const state_hash = items.map(i => i.id).sort().join("") + closure.map(i => i).filter(i => !i.atEND).map(i => i.sym(grammar).val).setFilter().sort().join();
-
-        if (state_look_up.has(state_hash)) {
-            const { prods, code, hash } = state_look_up.get(state_hash);
-            a.prods = prods;
-            a.code = code;
-            a.hash = hash;
-            continue;
-        }
-
 
         if (items.length > 0) {
             const SAME_SYMBOL = doItemsHaveSameSymbol(items, grammar);
@@ -260,7 +246,6 @@ function* processPeekStates(
                         a.transition_type = TRANSITION_TYPE.PEEK_PRODUCTION_SYMBOLS;
                     gen = yieldStates(items, options, lex_name, offset + 1);
                 } else if (max_item_offset == 0) {
-
                     if (closure.every(i => i.offset == 0) && closure.map(i => i.getProduction(grammar).id).setFilter().length == 1) {
                         a.items = a.closure.slice(0, 1);
                         a.completing = true;
@@ -270,13 +255,10 @@ function* processPeekStates(
                         gen = yieldStates(getClosure(closure, grammar).map(i => i), options, lex_name, offset + 1);
                     }
                 } else {
-
                     const tree = getTransitionTree(grammar, items, lr_productions, 10, 8);
                     if (cleanLeaves(tree.tree_nodes[0])) {
-
                         gen = yieldStates(items, options, lex_name, offset + 1);
                     } else {
-
                         a.completing = true;
                         a.offset = offset + 1;
                     }
@@ -296,8 +278,8 @@ function* processPeekStates(
                 a.prods = prods.setFilter();
                 a.code = code;
                 a.hash = hash;
-
             } else {
+
                 const sym = items[0].sym(grammar);
                 if (a.peek_level == 0) {
                     a.transition_type = isSymAProduction(sym)
@@ -307,6 +289,10 @@ function* processPeekStates(
                     if (!isSymAProduction(sym)) {
                         items[0] = items[0].increment();
                         a.transition_type = TRANSITION_TYPE.CONSUME;
+                    }
+                } else {
+                    if (isSymAProduction(sym)) {
+                        a.transition_type = TRANSITION_TYPE.PEEK_PRODUCTION_SYMBOLS;
                     }
                 }
                 a.completing = true;

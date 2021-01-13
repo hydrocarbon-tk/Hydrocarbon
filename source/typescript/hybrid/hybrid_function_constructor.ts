@@ -27,6 +27,7 @@ import { ReturnType, RenderBodyOptions } from "./types/RenderBodyOptions";
 import { yieldStates } from "./yield_states.js";
 import { defaultMultiItemLeaf, defaultSelectionClause, defaultSingleItemLeaf, processRecognizerStates } from "./process_recognizer_states.js";
 import { yieldNontermStates } from "./yield_nonterm_states.js";
+import { performance } from "perf_hooks";
 
 export const
     accept_loop_flag = SC.Variable("ACCEPT:boolean"),
@@ -64,7 +65,8 @@ function generateRDOptions(
         production,
         lr_productions,
         called_productions: new Set(),
-        leaf_productions: new Set()
+        leaf_productions: new Set(),
+        cache: <Map<string, SC>>new Map()
     };
 }
 
@@ -75,7 +77,7 @@ function addClauseSuccessCheck(options: RenderBodyOptions): SC {
 }
 
 export function constructHybridFunction(production: Production, grammar: Grammar, runner: CompilerRunner): RDProductionFunction {
-
+    const start = performance.now();
     const
         p = production,
         code_node = SC.Function(SC.Constant("$" + production.name + ":bool"), g_lexer_name);
@@ -279,13 +281,15 @@ export function constructHybridFunction(production: Production, grammar: Grammar
                 : undefined,
             addClauseSuccessCheck(optionsA),
         );
-
+        const hash = code_node.hash();
+        const end = performance.now();
         return {
             productions: new Set([...optionsA.called_productions.values(), ...optionsB.called_productions.values()]),
             id: p.id,
             fn: (new SC).addStatement(
-                //SC.Comment([...new Set([...optionsA.called_productions.values(), ...optionsB.called_productions.values()]).values()].map(i => grammar[i].name).join(" ")),
-                (runner.ANNOTATED) ? annotation : undefined,
+                // SC.Comment("Compile Time:" + ((((end - start) * 1000) | 0) / 1000) + "ms hash:" + hash),
+                // //SC.Comment([...new Set([...optionsA.called_productions.values(), ...optionsB.called_productions.values()]).values()].map(i => grammar[i].name).join(" ")),
+                // (runner.ANNOTATED) ? annotation : undefined,
                 code_node
             )
         };

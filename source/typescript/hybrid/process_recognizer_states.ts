@@ -215,14 +215,14 @@ export function defaultSelectionClause(
             root.addStatement(addSkipCallNew(skippable, grammar, runner, lex_name));
         } else if (state.peek_level >= 1) {
             peek_name = SC.Variable("pk:Lexer");
-            root.addStatement(addSkipCallNew(skippable, grammar, runner, SC.Call(SC.Member(lex_name, "next"))));
+            root.addStatement(addSkipCallNew(skippable, grammar, runner, SC.Call(SC.Member(peek_name, "next"))));
         }
     } else if (state.offset > 0) {
         //Consume
         root.addStatement(addSkipCallNew(skippable, grammar, runner));
     }
 
-    for (const { syms, items, code, LAST, FIRST, transition_types, score } of groups) {
+    for (const { syms, items, code, LAST, FIRST, transition_types } of groups) {
 
         let gate_block: SC = SC.Empty();
 
