@@ -142,7 +142,7 @@ export function defaultSingleItemLeaf(item: Item, state: RecognizerState, option
             code.addStatement(sc);
             prods = processProductionChain(sc, options, itemsToProductions([item], grammar));
         } else {
-            sc = renderItem(code, item, options, state.offset > 0 || state.peek_level >= 0);
+            sc = renderItem(code, item, options, false);
             prods = processProductionChain(sc, options, itemsToProductions([item], grammar));
         }
         for (const prod of prods)
