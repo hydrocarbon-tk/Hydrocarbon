@@ -64,37 +64,7 @@ ${BUILD_LOCAL ? "" : "export default async function loadParser(){"}
 
             console.log("ERROR_LENGTH", er)
             for (let i = 0; i < er.length; i++) {
-                if (((er[i] & 0xF000000F) >>> 0) == 0xF000000F) {
-                    const num = er[i] & 0xFFFFFF0;
-                    const sequence = (num >> 4) & 0xFFF;
-                    const identifier = (num >> 16) & 0xFFF;
-                    const token_type = {
-                        [${TokenSpaceIdentifier}]:"TokenSpace",
-                        [${TokenNumberIdentifier}]:"TokenNumber",
-                        [${TokenIdentifierIdentifier}]:"TokenIdentifier",
-                        [${TokenNewLineIdentifier}]:"TokenNewLine",
-                        [${TokenSymbolIdentifier}]:"TokenSymbol",
-                    }[er[i + 1]];
-                    const token_length = er[i + 2];
-                    const offset = er[i + 3];
-                    const prod = er[i + 4] << 0;
-                    const stack_ptr = er[i + 5];
-                    const FAILED = !!er[i + 6];
-                    i += 7;
-                    const cp = lexer.copy();
-                    cp.off = offset;
-                    cp.tl = token_length;
-                    probes.push({
-                        identifier,
-                        str: cp.tx,
-                        token_type,
-                        token_length,
-                        offset,
-                        stack_ptr,
-                        prod,
-                        FAILED
-                    });
-                } else if(er[i]>0 && !error_set){
+                if(er[i]>0 && !error_set){
                     error_set = true;
                     error_off = Math.min(error_off, er[i]);
                 }
@@ -132,12 +102,7 @@ ${BUILD_LOCAL ? "" : "export default async function loadParser(){"}
                             const pos_b = pos[pos.length - 1 ] || {off:0,tl:0};
                             pos[stack.length - len] = { off: pos_a.off, tl: pos_b.off - pos_a.off  + pos_b.tl };
 
-                          //  console.log(stack)
-
                             stack[stack.length - len] = fns[body](env, stack.slice(-len), { off: pos_a.off, tl: pos_b.off - pos_a.off  + pos_b.tl });
-
-
-                            //  console.log(stack[stack.length - len], pos);
 
                             if (!DO_NOT_PUSH_TO_STACK) {
                                 stack.length = stack.length - len + 1;

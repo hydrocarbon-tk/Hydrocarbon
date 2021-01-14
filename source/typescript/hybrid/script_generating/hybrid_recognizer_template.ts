@@ -447,6 +447,16 @@ export const renderAssemblyScriptRecognizer = (
             SC.Call("add_shift", "l", SC.Member("l:Lexer&", "tl")),
             SC.Call(SC.Member("l:Lexer&", "next"))
         ));
+
+    const empty_consume_call = SC.Constant("consume_empty:void");
+
+    code_node.addStatement(
+        SC.Function(
+            empty_consume_call,
+            "l:Lexer&",
+        ).addStatement(
+            SC.Call("add_shift", "l", SC.Value(0))
+        ));
     /*            
     function _with_skip(lex: Lexer, skip: BooleanTokenCheck, accept:boolean):void {
         if(FAILED) return;
@@ -459,47 +469,19 @@ export const renderAssemblyScriptRecognizer = (
         }
     }
    */
-    /*
-      code_node.addStatement(
-          SC.Function(
-              consume_assert_skip_call,
-              "l:Lexer&",
-              "skip: BooleanTokenCheck",
-              "accept:bool"
-          ).addStatement(
-              SC.If(FAILED)
-                  .addStatement(SC.Return,
-                      SC.If(SC.Variable("accept:bool"))
-                          .addStatement(
-                              SC.Call(consume_skip_call, "l", "skip"),
-                              SC.If()
-                                  .addStatement(
-                                      SC.Call("soft_fail", "l"),
-                                  )
-                          )
-                  )
-          ));
-      /*            
-      function _(lex: Lexer, accept:boolean):void {
-  
-          if(FAILED) {
-  
-          prod = 1001;
-          probe(lex);
-              return
-          };
-          
-          if (accept) {
-              _no_check(lex);
-          } else {
-  
-          prod = 1221;
-          probe(lex);
-              //TODO error recovery
-              soft_fail(lex);
-          }
-      }
-     */
+    /*            
+    function consume_assert(lex: Lexer, accept:boolean):void {
+ 
+        if(FAILED) 
+            return false
+        
+        if (accept) {
+            consume(lex);
+        } else {
+          return false;
+        }
+    }
+   */
     code_node.addStatement(
         SC.Function(
             consume_assert_call,
@@ -507,46 +489,15 @@ export const renderAssemblyScriptRecognizer = (
             "accept:bool"
         ).addStatement(
             SC.If(FAILED).addStatement(
-                //SC.Assignment(prod, 1001),
-                //SC.Call("probe", "l"),
                 SC.UnaryPre(SC.Return, SC.Value("false"))
             ),
             SC.If(SC.Variable("accept")).addStatement(
                 SC.Call(consume_call, "l"),
                 SC.UnaryPre(SC.Return, SC.Value("true")),
                 SC.If().addStatement(
-                    // SC.Assignment(prod, 1221),
-                    // SC.Call("probe", "l"),
-                    //SC.Call("soft_fail", "l"),
                     SC.UnaryPre(SC.Return, SC.Value("false"))
                 )
             ),
-        ));
-    /*            
-    function probe(l: Lexer, id: u32 = 1): void {
-        set_error(0xF000000F + (id << 16) + (prob_index << 4));
-        set_error(l.ty);
-        set_error(l.tl);
-        set_error(l.off);
-        set_error(prod);
-        set_error(action_ptr);
-        set_error(FAILED);
-        set_error(0xF000000F + (id << 16) + ((prob_index++) << 4));
-    }
-   */
-    code_node.addStatement(
-        SC.Function(
-            "probe:void",
-            "l:Lexer&",
-        ).addStatement(
-            SC.Call("set_error", SC.Binary("0xF000000F", "+", SC.Binary(SC.Binary("id", "<<", 16), "+", SC.Binary(probe_index, "<<", 4)))),
-            SC.Call("set_error", SC.Member("l", "ty")),
-            SC.Call("set_error", SC.Member("l", "tl")),
-            SC.Call("set_error", SC.Member("l", "off")),
-            SC.Call("set_error", prod),
-            SC.Call("set_error", action_ptr),
-            SC.Call("set_error", FAILED),
-            SC.Call("set_error", SC.Binary("0xF000000F", "+", SC.Binary(SC.Binary("id", "<<", 16), "+", SC.Binary(SC.UnaryPost(probe_index, "++"), "<<", 4)))),
         ));
     /*            
     function reset_counters_and_pointers(): void{

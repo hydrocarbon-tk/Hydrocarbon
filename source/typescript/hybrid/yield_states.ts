@@ -35,7 +35,6 @@ export function* yieldStates(
     const main_groups: RecognizerState[] = [];
 
     if (cache.has(state_id)) {
-    //    return cache.get(state_id).addStatement(SC.Comment(state_id));
         return cache.get(state_id);//.addStatement(SC.Comment(state_id));
     }
 
