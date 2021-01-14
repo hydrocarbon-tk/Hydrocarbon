@@ -302,7 +302,7 @@ export function defaultSelectionClause(
 
 export function processRecognizerStates(
     options: RenderBodyOptions,
-    gen: Generator<RecognizerState[], SC>,
+    gen: Generator<RecognizerState[], { code: SC, prods: number[]; }>,
     selection_clause_fn:
         (gen: SelectionClauseGenerator, state: RecognizerState, items: Item[], level: number, options: RenderBodyOptions) => SC =
         defaultSelectionClause,
@@ -375,7 +375,5 @@ export function processRecognizerStates(
         val = gen.next();
     }
 
-    const code = val.value;
-
-    return code;
+    return val.value.code;
 }

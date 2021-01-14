@@ -66,7 +66,7 @@ function generateRDOptions(
         lr_productions,
         called_productions: new Set(),
         leaf_productions: new Set(),
-        cache: <Map<string, SC>>new Map()
+        cache: <Map<string, { code: SC, prods: number[]; }>>new Map()
     };
 }
 

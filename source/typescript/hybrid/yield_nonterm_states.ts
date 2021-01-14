@@ -5,7 +5,7 @@ import { RenderBodyOptions } from "./types/RenderBodyOptions";
 import { yieldStates } from "./yield_states.js";
 import { RecognizerState, TRANSITION_TYPE } from "./types/RecognizerState.js";
 
-export function* yieldNontermStates(options: RenderBodyOptions): Generator<RecognizerState[], SC> {
+export function* yieldNontermStates(options: RenderBodyOptions): Generator<RecognizerState[], { code: SC, prods: number[]; }> {
 
     const { grammar, lr_productions } = options,
         nonterm_shift_items: Item[] = lr_productions;
@@ -36,21 +36,21 @@ export function* yieldNontermStates(options: RenderBodyOptions): Generator<Recog
             }
 
             groups.push(<RecognizerState>{
-                code: val.value,
-                hash: val.value.hash(),
+                code: val.value.code,
+                hash: val.value.code.hash(),
                 transition_type: TRANSITION_TYPE.ASSERT,
                 symbol: sym,
                 items: group,
                 completing: false,
                 offset: 0,
                 peek_level: -1,
-                prods: prods.setFilter()
+                prods: val.value.prods//prods.setFilter()
             });
         }
 
         yield groups;
 
-        return groups[0].code;
+        return { code: groups[0].code, prods: [] };
     }
 
     return SC.Empty();

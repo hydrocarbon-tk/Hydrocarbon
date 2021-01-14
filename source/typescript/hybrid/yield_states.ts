@@ -24,7 +24,7 @@ export function* yieldStates(
     options: RenderBodyOptions,
     lex_name: VarSC,
     offset: number = 0,
-): Generator<RecognizerState[], SC> {
+): Generator<RecognizerState[], { code: SC, prods: number[]; }> {
     const
         { grammar, runner, production, lr_productions, cache } = options,
         state_id = in_items.map(i => i.id).sort().join("-") + "$";
@@ -138,7 +138,7 @@ export function* yieldStates(
                             yield <RecognizerState[]>val.value;
                             val = gen.next();
                         }
-                        code = val.value;
+                        ({ code } = val.value);
                     }
 
                     for (const state of sequence.slice().reverse().slice(0, -1)) {
@@ -197,12 +197,12 @@ export function* yieldStates(
 
         yield main_groups;
 
-        cache.set(state_id, main_groups[0].code);
+        cache.set(state_id, { code: main_groups[0].code, prods: main_groups[0].prods });
 
-        return main_groups[0].code;
+        return { code: main_groups[0].code, prods: main_groups[0].prods };
 
     } catch (e) {
-        return SC.Comment(e.stack);
+        return { code: SC.Comment(e.stack), prods: [] };
     }
 }
 
@@ -231,7 +231,7 @@ function* processPeekStates(
         let
             code = new SC,
             prods = [],
-            gen: Generator<RecognizerState[], SC> = null;
+            gen: Generator<RecognizerState[], { code: SC, prods: number[]; }> = null;
 
         if (items.length > 0) {
             const SAME_SYMBOL = doItemsHaveSameSymbol(items, grammar);
@@ -271,8 +271,9 @@ function* processPeekStates(
                         prods = obj[0].prods;
                         val = gen.next();
                     }
-                    code = val.value;
+                    ({ code } = val.value);
                 }
+                
                 const hash = code.hash();
                 a.prods = prods.setFilter();
                 a.code = code;
