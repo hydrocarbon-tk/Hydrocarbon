@@ -245,20 +245,49 @@ function* processPeekStates(
                         a.transition_type = TRANSITION_TYPE.PEEK_PRODUCTION_SYMBOLS;
                     gen = yieldStates(items, options, lex_name, offset + 1);
                 } else if (max_item_offset == 0) {
+
                     if (closure.every(i => i.offset == 0) && closure.map(i => i.getProduction(grammar).id).setFilter().length == 1) {
+
                         a.items = a.closure.slice(0, 1);
                         a.completing = true;
                         a.offset = offset;
                         a.transition_type = TRANSITION_TYPE.ASSERT_PRODUCTION_SYMBOLS;
-                    } else {
+                    } else
                         gen = yieldStates(getClosure(closure, grammar).map(i => i), options, lex_name, offset + 1);
-                    }
+
                 } else {
+
                     const tree = getTransitionTree(grammar, items, lr_productions, 10, 8);
-                    if (cleanLeaves(tree.tree_nodes[0])) {
+
+                    if (cleanLeaves(tree.tree_nodes[0]))
                         gen = yieldStates(items, options, lex_name, offset + 1);
-                    } else {
-                        a.completing = true;
+
+                    else {
+                        //Multi Item resolution
+                        const states: RecognizerState[] = [];
+
+                        for (const group of items.group(i => i.sym(grammar))) {
+                            const gen = yieldStates(group, options, lex_name);
+                            let val = gen.next();
+                            while (!val.done) {
+                                yield <RecognizerState[]>val.value;
+                                console.log(val.value[0].prods);
+                                val = gen.next();
+                            }
+                            states.push(<RecognizerState>{
+                                symbol: null,
+                                code: val.value.code,
+                                prods: val.value.prods,
+                                hash: code.hash(),
+                                completing: false,
+                                items,
+                                offset,
+                                peek_level: -1,
+                                transition_type: TRANSITION_TYPE.ASSERT,
+                            });
+                        }
+                        yield states;
+                        code = states[0].code;
                         a.offset = offset + 1;
                     }
                 }

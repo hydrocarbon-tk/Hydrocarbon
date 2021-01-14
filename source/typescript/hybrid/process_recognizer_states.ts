@@ -77,50 +77,45 @@ export type MultiItemReturnObject = {
     prods: number[];
 };
 
-export function defaultMultiItemLeaf(items: Item[], state: RecognizerState, options: RenderBodyOptions): MultiItemReturnObject {
-    const { grammar } = options;
-    const root = new SC;
-    const prods: number[] = [];
 
-    root.addStatement(
+export function defaultMultiItemLeaf(state: RecognizerState, states: RecognizerState[], options: RenderBodyOptions): MultiItemReturnObject {
+    const { grammar } = options;
+    const root = (new SC).addStatement(
         SC.Declare(
             SC.Assignment("mk:int", SC.Call("mark")),
             SC.Assignment("anchor:Lexer", SC.Call(SC.Member(g_lexer_name, "copy")))
         )
     );
-    //*
+    const prods: number[] = [];
+    let leaf = root;
+    let FIRST = true;
+    for (const { code, items, prods } of states) {
 
-    root.addStatement(
-        items.reduce((r, item, i, a) => {
+        if (FIRST) {
+            leaf.addStatement(
+                SC.Comment(prods),
+                code
+            );
+        } else {
+            const reset = SC.If(SC.Call(
+                "reset:bool",
+                "mk",
+                "anchor:Lexer",
+                g_lexer_name,
+                prods.reduce((r, n) => {
+                    if (!r) return SC.Binary("prod", "==", n);
+                    return SC.Binary(r, "||", SC.Binary("prod", "==", n));
+                }, null)
+            )).addStatement(SC.Assignment("prod", "-1"), code);
+            leaf.addStatement(reset);
+            leaf = reset;
 
-            let code = new SC;
+        }
 
-            let leaf = renderItem(code, item, options, false);
-            const new_prods = processProductionChain(leaf, options, itemsToProductions([item], grammar));
+        FIRST = false;
+    }
 
-            if (!r.root) {
-                r.root = (new SC).addStatement(code);
-                r.leaf = r.root;
-                r.prods = new_prods;
-            } else {
-                const reset = SC.If(SC.Call(
-                    "reset:bool",
-                    "mk",
-                    "anchor:Lexer",
-                    g_lexer_name,
-                    r.prods.reduce((r, n) => {
-                        if (!r) return SC.Binary("prod", "==", n);
-                        return SC.Binary(r, "||", SC.Binary("prod", "==", n));
-                    }, null)
-                )).addStatement(code);
-                r.leaf.addStatement(reset, SC.Empty());
-                r.leaf = reset;
-                r.prods = new_prods;
-            }
 
-            return r;
-        }, { root: null, leaf: null, prods: [] }).root
-    );
     //*/
     return { root, leaves: [], prods: prods.setFilter() };
 }
@@ -307,7 +302,7 @@ export function processRecognizerStates(
         (gen: SelectionClauseGenerator, state: RecognizerState, items: Item[], level: number, options: RenderBodyOptions) => SC =
         defaultSelectionClause,
     multi_item_leaf_fn:
-        (items: Item[], groups: RecognizerState, options: RenderBodyOptions) => MultiItemReturnObject =
+        (state: RecognizerState, states: RecognizerState[], options: RenderBodyOptions) => MultiItemReturnObject =
         defaultMultiItemLeaf,
     single_item_leaf_fn:
         (item: Item, group: RecognizerState, options: RenderBodyOptions) => SingleItemReturnObject =
@@ -331,12 +326,8 @@ export function processRecognizerStates(
                         member.code = root;
                         member.hash = root.hash();
                         member.prods = prods;
-                    } else {
-                        const { root, prods } = multi_item_leaf_fn(member.items, member, options);
-                        member.code = root;
-                        member.hash = root.hash();
-                        member.prods = prods;
-                    }
+                    } else
+                        throw new Error("Flow should not enter this block: Multi-item moved to group section");
                 }
             }
 
@@ -355,7 +346,12 @@ export function processRecognizerStates(
                     peek_level: group[0].peek_level,
                     offset: group[0].offset,
                     transition_type: group[0].transition_type,
-                },
+                };
+            let root: SC = new SC;
+
+            if (group.some(g => g.symbol == null)) {
+                ({ root } = defaultMultiItemLeaf(virtual_group, group, options));
+            } else {
                 root = selection_clause_fn(
                     traverseInteriorNodes(group, options, grouping_fn),
                     virtual_group,
@@ -363,6 +359,7 @@ export function processRecognizerStates(
                     group[0].peek_level,
                     options
                 );
+            }
 
             group.forEach(g => {
                 g.prods = prods;
