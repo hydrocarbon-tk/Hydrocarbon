@@ -1,6 +1,6 @@
 import { Grammar, Production } from "../../types/grammar.js";
 import { CompilerRunner } from "./CompilerRunner.js";
-import { VarSC } from "../utilities/skribble.js";
+import { SC, VarSC } from "../utilities/skribble.js";
 import { Item } from "../../util/item.js";
 
 export interface RenderBodyOptions {
@@ -25,6 +25,8 @@ export interface RenderBodyOptions {
      */
     leaf_productions: Set<number>;
     lr_productions: Item[];
+
+    cache: Map<string, { code: SC, prods: number[]; }>;
 }
 export const enum ReturnType {
     ACCEPT = 0,
