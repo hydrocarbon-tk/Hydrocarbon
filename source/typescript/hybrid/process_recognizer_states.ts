@@ -224,7 +224,7 @@ export function defaultSelectionClause(
 
     for (const { syms, items, code, LAST, FIRST, transition_types } of groups) {
 
-        let gate_block: SC = SC.Empty();
+        let gate_block: SC = SC.Empty(), ADD_SKIP_STATEMENT = false;
 
         const transition_type: TRANSITION_TYPE = transition_types[0];
 
@@ -240,6 +240,7 @@ export function defaultSelectionClause(
                 gate_block = (isSymAProduction(syms[0]))
                     ? SC.Call(consume_assert_call, g_lexer_name, renderProductionCall(grammar[syms[0].val], options))
                     : SC.Call(consume_assert_call, g_lexer_name, getIncludeBooleans(<TokenSymbol[]>syms, grammar, runner, lex_name));
+                ADD_SKIP_STATEMENT = true;
                 break;
             case TRANSITION_TYPE.IGNORE:
                 gate_block = SC.Empty();
@@ -258,15 +259,29 @@ export function defaultSelectionClause(
             && (
                 transition_type == TRANSITION_TYPE.ASSERT_PRODUCTION_SYMBOLS
                 || transition_type == TRANSITION_TYPE.PEEK_PRODUCTION_SYMBOLS
+                //|| transition_type == TRANSITION_TYPE.PEEK
                 || transition_type == TRANSITION_TYPE.ASSERT_END
-            );
-        //*
+            ),
+
+            PEEKING_TRANSITION = transition_type == TRANSITION_TYPE.PEEK_PRODUCTION_SYMBOLS
+                || transition_type == TRANSITION_TYPE.PEEK;
+
+
         if (SKIP_BOOL_EXPRESSION) if_stmt = SC.If();
-        //*/
+
+        let skip;
+        if (ADD_SKIP_STATEMENT) {
+            const skippable = getSkippableSymbolsFromItems(items, grammar).filter(i => !all_syms.some(j => getUniqueSymbolName(i) == getUniqueSymbolName(j)));
+            skip = addSkipCallNew(skippable, grammar, runner, g_lexer_name);
+        }
 
         if_stmt.addStatement(
-            SC.Comment(transition_types.map(ttt)),
-            SC.Comment("\n   " + items.map(i => (i.atEND ? i : i.increment()).renderUnformattedWithProduction(grammar)).join("\n   ") + "\n"),
+            runner.ANNOTATED ?
+                SC.Comment(transition_types.map(ttt)) : undefined,
+            runner.ANNOTATED ?
+                SC.Comment("\n   " + items.map(i => ((i.atEND || PEEKING_TRANSITION) ? i : i.increment()).renderUnformattedWithProduction(grammar)).join("\n   ") + "\n")
+                : undefined,
+            skip,
             code,
             SC.Empty()
         );
