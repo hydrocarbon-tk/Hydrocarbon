@@ -253,11 +253,13 @@ export function getTokenSymbolsFromItems(items: Item[], grammar: Grammar): Token
 }
 
 export function getSkippableSymbolsFromItems(items: Item[], grammar: Grammar): TokenSymbol[] {
+
     return items.flatMap(i => [...grammar.item_map.get(i.id).skippable.values()])
         .group()
         .filter(grp => grp.length == items.length)
         .map(grp => grp[0])
-        .map(sym => <TokenSymbol>grammar.meta.all_symbols.get(sym));
+        .map(sym => <TokenSymbol>grammar.meta.all_symbols.get(sym))
+        .flatMap(sym => <TokenSymbol[]>getTrueSymbolValue(sym, grammar));
 }
 
 export function addSkipCallNew(symbols: TokenSymbol[], grammar: Grammar, runner: CompilerRunner, lex_name: ExprSC = SC.Variable("l", "Lexer")): StmtSC {
