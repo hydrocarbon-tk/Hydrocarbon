@@ -166,9 +166,11 @@ export function isSymNotIdentifier(sym: TokenSymbol): boolean {
     return !isSymIdentifier(sym);
 }
 export function isSymLengthOneDefined(sym: TokenSymbol) {
+
     if (sym.val.length > 1) return false;
+
     const lex = new Lexer(sym.val);
-    //  console.log({ lex: lex.str, bool: !(lex.ty == lex.types.id || lex.ty == lex.types.num) });
+
     return !(lex.ty == lex.types.id || lex.ty == lex.types.num);
 }
 export function isSymNotLengthOneDefined(sym: TokenSymbol): boolean {
@@ -265,8 +267,7 @@ export function getSkippableSymbolsFromItems(items: Item[], grammar: Grammar): T
 export function addSkipCallNew(symbols: TokenSymbol[], grammar: Grammar, runner: CompilerRunner, lex_name: ExprSC = SC.Variable("l", "Lexer")): StmtSC {
     const skips = getSkipFunctionNew(symbols, grammar, runner);
     if (skips)
-        return SC.Expressions(SC.Call(skips, SC.UnaryPost(lex_name, SC.Comment(symbols.map(s => `[ ${s.val} ]`).join("")))));//`_skip(${lex_name}, ${skips})`;
-    //return SC.Expressions(SC.Call(SC.Constant("_skip"), lex_name, SC.UnaryPost(skips, SC.Comment(symbols.map(s => `[ ${s.val} ]`).join("")))));//`_skip(${lex_name}, ${skips})`;
+        return SC.Expressions(SC.Call(skips, SC.UnaryPost(lex_name, SC.Comment(symbols.map(s => `[ ${s.val} ]`).join("")))));
     return SC.Expressions(SC.Empty());
 }
 

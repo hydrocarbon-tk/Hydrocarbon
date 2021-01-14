@@ -597,6 +597,44 @@ export function getCommonAncestors(grammar: Grammar, items: Item[]): Item[] {
     return contains;//.map(i => i.getProductionAtSymbol(grammar).name + " \n          " + i.renderUnformattedWithProduction(grammar));
 }
 
+
+/**
+ * Get closure that includes items that transition from completed item productions
+ * @param closure 
+ * @param lr_transition_items 
+ * @param grammar 
+ * @param productions 
+ */
+export function getFollowClosure(closure: Item[], lr_transition_items: Item[], grammar: Grammar, productions: Set<number> = new Set) {
+    const new_closure = closure.slice();
+    if (closure.some(i => i.atEND)) {
+        const prods = itemsToProductions(closure.filter(i => i.atEND), grammar);
+        for (let prod of prods) {
+            if (productions.has(prod))
+                continue;
+            productions.add(prod);
+            const items = getAccompanyingItems(grammar, [prod], lr_transition_items).map(i => i.increment());
+            const c = getClosure(items, grammar);
+            new_closure.push(...getFollowClosure(c, lr_transition_items, grammar, productions));
+
+        }
+    }
+    return new_closure.setFilter(i => i.id).filter(i => !i.atEND);
+}
+
+export function getSymbolsFromClosure(closure: Item[], grammar: Grammar): any {
+    return [
+        ...new Set(
+            closure
+                .filter(i => !i.atEND)
+                .filter(i => !isSymAProduction(i.sym(grammar)))
+                .flatMap(i => getTrueSymbolValue(<TokenSymbol>i.sym(grammar), grammar))
+        ).values()
+    ];
+}
+
+
+
 /**
  * Givin a set of root items, return a tree of nodes where each node represents a
  * transition on a symbol and a the collection of root items that still exist at 
@@ -614,9 +652,9 @@ export function getTransitionTree(
      * Max amount of time the search process may take,
      * measured in milliseconds. 
      * 
-     * Default is 2000 milliseconds
+     * Default is 150 milliseconds
      */
-    max_time_limit = 500,
+    max_time_limit = 150,
     depth: number = -1,
     closures: closure_group[] = null,
     len = 0,
@@ -721,30 +759,6 @@ export function getTransitionTree(
     return { tree_nodes, clear: false, AMBIGUOUS, max_depth: max_depth };
 }
 
-/**
- * Get closure that includes items that transition from completed item productions
- * @param closure 
- * @param lr_transition_items 
- * @param grammar 
- * @param productions 
- */
-export function getFollowClosure(closure: Item[], lr_transition_items: Item[], grammar: Grammar, productions: Set<number> = new Set) {
-    const new_closure = closure.slice();
-    if (closure.some(i => i.atEND)) {
-        const prods = itemsToProductions(closure.filter(i => i.atEND), grammar);
-        for (let prod of prods) {
-            if (productions.has(prod))
-                continue;
-            productions.add(prod);
-            const items = getAccompanyingItems(grammar, [prod], lr_transition_items).map(i => i.increment());
-            const c = getClosure(items, grammar);
-            new_closure.push(...getFollowClosure(c, lr_transition_items, grammar, productions));
-
-        }
-    }
-    return new_closure.setFilter(i => i.id).filter(i => !i.atEND);
-}
-
 function getClosureGroups(
     grammar: Grammar,
     { index, closure, final, starts }: closure_group,
@@ -797,15 +811,3 @@ function incrementWithClosure(grammar: Grammar, item: Item, prod: Production, AU
 export function getUnskippableSymbolsFromClosure(closure: Item[], grammar: Grammar): any {
     return [...new Set(closure.flatMap(i => grammar.item_map.get(i.id).reset_sym)).values()].map(sym => grammar.meta.all_symbols.get(sym));
 }
-
-export function getSymbolsFromClosure(closure: Item[], grammar: Grammar): any {
-    return [
-        ...new Set(
-            closure
-                .filter(i => !i.atEND)
-                .filter(i => !isSymAProduction(i.sym(grammar)))
-                .flatMap(i => getTrueSymbolValue(<TokenSymbol>i.sym(grammar), grammar))
-        ).values()
-    ];
-}
-

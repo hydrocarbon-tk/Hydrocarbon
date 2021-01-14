@@ -152,8 +152,6 @@ export function* yieldStates(
                     sequence[0].hash = code.hash();
                     sequence[0].prods = prods;
 
-                    //sequence[0].transition_type = TRANSITION_TYPE.IGNORE;
-
                     main_groups.push(sequence[0]);
                 }
 
