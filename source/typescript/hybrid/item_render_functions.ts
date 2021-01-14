@@ -137,12 +137,13 @@ export function renderItem(
     const { grammar, runner } = options;
 
     if (!item.atEND) {
-        const { code_node: leaf } = renderItemSym(code_node, item, options, DONT_CHECK, lexer_name);
-        const new_item = item.increment();
+
+        const
+            { code_node: leaf } = renderItemSym(code_node, item, options, DONT_CHECK, lexer_name),
+            new_item = item.increment();
 
         if (!new_item.atEND) {
-            const { reset_sym } = grammar.item_map.get(item.id),
-                skippable = getSkippableSymbolsFromItems([item], grammar);
+            const skippable = getSkippableSymbolsFromItems([new_item], grammar);
             leaf.addStatement(addSkipCallNew(skippable, grammar, runner, lexer_name));
         }
 
