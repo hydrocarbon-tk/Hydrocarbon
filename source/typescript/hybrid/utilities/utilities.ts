@@ -932,12 +932,16 @@ function processFunctionNodes(
 
             } else if (node.value[0] == "$")
                 switch ((<string>node.value).slice(1)) {
-
+                    /**
+                     * Advance the active lexer to the next token
+                     */
                     case "next":
                         ALLOW_FIRST = false;
                         mutate(exp(`${lexer_name[lex_name_ptr]}.next()`));
                         break;
-
+                    /**
+                     * Create copy the active lexer and set the copy as the active lexer
+                     */
                     case "fork":
                         if (parent.type == JSNodeType.ExpressionStatement) {
                             const start = lex_name_ptr;
@@ -946,18 +950,34 @@ function processFunctionNodes(
                             mutate(stmt(`const ${lexer_name[lex_name_ptr]} = ${lexer_name[start]}.copy();`));
                         }
                         break;
+                    /**
+                     * Merge the currently forked lexer with its originating lexer. The originating lexer
+                     * then becomes the active lexer.
+                     */
                     case "join":
                         if (parent.type == JSNodeType.ExpressionStatement) {
                             mutate(exp(`${lexer_name[lex_name_ptr - 1]}.sync(${lexer_name[lex_name_ptr]})`));
                             lex_name_ptr = 0;
                         }
                         break;
-                    case "abort_fork":
+                    /**
+                     * Reset the active lexer to the originating lexer, discarding any progress made
+                     * with the forked lexer
+                     */
+                    case "discard":
                         lex_name_ptr = Math.max(lex_name_ptr - 1, 0);
                         break;
-                    case "abort_all_forks":
+                    /**
+                     * Reset the active lexer to the first originating lexer, discarding any progress made
+                     * with all forked lexers
+                     */
+                    case "discard_all":
                         lex_name_ptr = 0;
                         break;
+
+                    /**
+                     * Set the current offset position as the beginning of a token
+                     */
                     case "tk_start":
                         HAS_TK = true;
                         {
@@ -966,6 +986,10 @@ function processFunctionNodes(
                             mutate(stmt(`const ${lexer_name[lex_name_ptr]} = ${lexer_name[start]}.copy();`));
                         }
                         break;
+
+                    /**
+                     * Set the token length of the active token to offset - tk_start_offset
+                     */
                     case "tk_end":
                         if (HAS_TK) {
                             const prev = lexer_name[lex_name_ptr - 1],
@@ -973,10 +997,42 @@ function processFunctionNodes(
                             mutate(exp(`${prev}.tl = ${curr}.off - ${prev}.off`));
                             lex_name_ptr--;
                         }
+                    /**
+                     * Consume any characters that have been skipped and also and the current token 
+                     */
+                    case "consume":
+                        mutate(exp(`consume(${lexer_name[lex_name_ptr]})`));
+                        break;
+                    /**
+                     * Consume any characters that have been skipped and also a zero length token
+                     * The current lexer state remains unchanged
+                     */
+                    case "empty_consume":
+                        mutate(exp(`consume_empty(${lexer_name[lex_name_ptr]})`));
+                        break;
+                    /**
+                     * Accept the current token and return true
+                     */
+                    case "true":
+                        mutate(stmt("return true;"));
+                        break;
+                    /**
+                     * Accept the current token and return true
+                     */
+                    case "false":
+                        mutate(stmt("return false;"));
+                        break;
+
+                    /**
+                     * Zero out the length of the current token
+                     */
+                    case "zero":
+                        mutate(exp(`${lexer_name[lex_name_ptr]}.tl = 0`));
+                        break;
+
                     default:
 
                         if (node.value.includes("produce")) {
-
                             const
                                 fn_name = node.value.split("_").slice(1).join("_"),
                                 txt = grammar.functions.get(fn_name).txt;
