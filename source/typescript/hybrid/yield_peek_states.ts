@@ -66,5 +66,6 @@ export function* buildPeekSequence(
 
     if (depth == 0)
         return group;
+
     yield group;
 }

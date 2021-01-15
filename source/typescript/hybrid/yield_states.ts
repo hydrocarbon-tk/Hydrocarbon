@@ -35,7 +35,7 @@ export function* yieldStates(
     const main_groups: RecognizerState[] = [];
 
     if (cache.has(state_id)) {
-        return cache.get(state_id);//.addStatement(SC.Comment(state_id));
+        return cache.get(state_id);
     }
 
 
@@ -49,12 +49,14 @@ export function* yieldStates(
         */
 
         if (active_items.length > 0) {
+
             const
                 SAME_PRODUCTION = active_items.setFilter(i => i.getProduction(grammar).id).length == 1,
                 SAME_SYMBOL = doItemsHaveSameSymbol(active_items, grammar),
                 max_item_offset = active_items.reduce((r, i) => Math.max(i.offset, r), 0),
                 first_production = (active_items[0]).getProduction(grammar),
                 ROOT_PRODUCTION = SAME_PRODUCTION && first_production.id == production.id;
+
             if (active_items.length == 1) {
                 const closure = getClosure(active_items.slice(), grammar),
                     anticipated_syms = [...closure.filter(i => !i.atEND && !isSymAProduction(i.sym(grammar))).map(i => <TokenSymbol>i.sym(grammar))];
@@ -66,9 +68,6 @@ export function* yieldStates(
                         transition_type: TRANSITION_TYPE = IS_SYM_PRODUCTION
                             ? TRANSITION_TYPE.ASSERT_PRODUCTION_SYMBOLS
                             : TRANSITION_TYPE.CONSUME;
-
-                    if (!IS_SYM_PRODUCTION)
-                        active_items = active_items.map(a => a.increment());
 
                     const objs = anticipated_syms.map(sym => (<RecognizerState>{
                         code: new SC,
@@ -82,27 +81,25 @@ export function* yieldStates(
                     }));
 
                     main_groups.push(...objs);
-
                 }
             } else if (SAME_PRODUCTION && !ROOT_PRODUCTION && (max_item_offset == 0)) {
 
-                // Call the root production 
-
-                const first = active_items[0];
-                const items = [new Item(first.body, first.len, 0, first.follow)];
-                const obj: RecognizerState = {
-                    code: new SC,
-                    hash: "not-defined-production-call",
-                    transition_type: TRANSITION_TYPE.IGNORE,
-                    items,
-                    completing: true,
-                    offset,
-                    peek_level: -1,
-                    symbol: EOF_SYM
-                };
+                const first = active_items[0],
+                    items = [new Item(first.body, first.len, 0, first.follow)],
+                    obj: RecognizerState = {
+                        code: new SC,
+                        hash: "not-defined-production-call",
+                        transition_type: TRANSITION_TYPE.IGNORE,
+                        items,
+                        completing: true,
+                        offset,
+                        peek_level: -1,
+                        symbol: EOF_SYM
+                    };
                 main_groups.push(obj);
 
             } else if (SAME_SYMBOL && (offset > 0 || ROOT_PRODUCTION || SAME_PRODUCTION)) {
+
 
                 const sequence: RecognizerState[] = [];
 
@@ -169,11 +166,15 @@ export function* yieldStates(
                 const state_look_up: Map<string, { code: SC, hash: string, prods: number[]; }> = new Map;
 
                 while (!val.done) {
+
                     const group: RecognizerState[] = <RecognizerState[]>val.value;
+
                     group.forEach(g => g.offset = offset);
-                    //create sequences here
+
                     yield* processPeekStates(group, options, state_look_up, offset, lex_name);
+
                     yield group;
+
                     val = gen.next();
                 }
 
@@ -215,9 +216,11 @@ function* processPeekStates(
 
     for (const a of group.filter(a => a.completing)) {
 
-        //Set leaf state to false as this will be replaced
+        //Set leaf state to false as this will likely be replaced
         //with resolution states. 
+
         a.completing = false;
+
         const
             closure = a.closure,
             items = a.items,
@@ -232,6 +235,7 @@ function* processPeekStates(
             gen: Generator<RecognizerState[], { code: SC, prods: number[]; }> = null;
 
         if (items.length > 0) {
+
             const SAME_SYMBOL = doItemsHaveSameSymbol(items, grammar);
 
             if (offset == 0 && SAME_PRODUCTION && prod.id !== production.id) {
@@ -245,7 +249,6 @@ function* processPeekStates(
                 } else if (max_item_offset == 0) {
 
                     if (closure.every(i => i.offset == 0) && closure.map(i => i.getProduction(grammar).id).setFilter().length == 1) {
-
                         a.items = a.closure.slice(0, 1);
                         a.completing = true;
                         a.offset = offset;
@@ -268,8 +271,8 @@ function* processPeekStates(
                             const gen = yieldStates(group, options, lex_name);
                             let val = gen.next();
                             while (!val.done) {
+
                                 yield <RecognizerState[]>val.value;
-                                console.log(val.value[0].prods);
                                 val = gen.next();
                             }
                             states.push(<RecognizerState>{
@@ -300,11 +303,12 @@ function* processPeekStates(
                     }
                     ({ code } = val.value);
                 }
-                
+
                 const hash = code.hash();
                 a.prods = prods.setFilter();
                 a.code = code;
                 a.hash = hash;
+
             } else {
 
                 const sym = items[0].sym(grammar);
@@ -316,7 +320,7 @@ function* processPeekStates(
                     if (!isSymAProduction(sym)) {
                         items[0] = items[0].increment();
                         a.transition_type = TRANSITION_TYPE.CONSUME;
-                    }
+
                 } else {
                     if (isSymAProduction(sym)) {
                         a.transition_type = TRANSITION_TYPE.PEEK_PRODUCTION_SYMBOLS;

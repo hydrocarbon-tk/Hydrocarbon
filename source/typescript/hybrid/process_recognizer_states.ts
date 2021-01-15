@@ -58,7 +58,7 @@ function* traverseInteriorNodes(
         const hash = group[0].hash;
         const items = group.flatMap(g => g.items).setFilter(i => i.id);
         const yielders = group.map(i => i.transition_type).setFilter();
-        return { transition_types: yielders, syms, code, items, hash, LAST: false, FIRST: false, prods: group.flatMap(g => (g.prods)).setFilter() };
+        return { transition_types: yielders, syms, code, items, hash, LAST: false, FIRST: false, prods: group.flatMap(g => g.prods).setFilter() };
     });
     let i = 0;
     for (const group of sel_group.sort((a, b) => {
@@ -97,6 +97,7 @@ export function defaultMultiItemLeaf(state: RecognizerState, states: RecognizerS
                 code
             );
         } else {
+
             const reset = SC.If(SC.Call(
                 "reset:bool",
                 "mk",
@@ -195,11 +196,14 @@ export function defaultSelectionClause(
         && (groups[0].transition_types.includes(TRANSITION_TYPE.ASSERT_PRODUCTION_SYMBOLS))
     ) return groups[0].code;
 
-    let root = new SC, leaf = null, mid = root, lex_name = g_lexer_name;
+    let
+        root = new SC,
+        leaf = null,
+        mid = root,
+        lex_name = g_lexer_name,
+        peek_name = g_lexer_name;
 
     const skippable = getSkippableSymbolsFromItems(items, grammar).filter(i => !all_syms.some(j => getUniqueSymbolName(i) == getUniqueSymbolName(j)));
-
-    let peek_name = g_lexer_name;
 
     if (state.peek_level >= 0) {
         if (state.peek_level == 1) {
@@ -208,8 +212,10 @@ export function defaultSelectionClause(
         }
 
         if (state.offset > 0 && state.peek_level == 0) {
+
             root.addStatement(addSkipCallNew(skippable, grammar, runner, lex_name));
         } else if (state.peek_level >= 1) {
+
             peek_name = SC.Variable("pk:Lexer");
             root.addStatement(addSkipCallNew(skippable, grammar, runner, SC.Call(SC.Member(peek_name, "next"))));
         }
