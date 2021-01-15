@@ -86,10 +86,12 @@ export function defaultMultiItemLeaf(state: RecognizerState, states: RecognizerS
             SC.Assignment("anchor:Lexer", SC.Call(SC.Member(g_lexer_name, "copy")))
         )
     );
-    const prods: number[] = [];
+    const out_prods: number[] = [];
     let leaf = root;
     let FIRST = true;
     for (const { code, items, prods } of states) {
+
+        out_prods.push(...prods);
 
         if (FIRST) {
             leaf.addStatement(
@@ -118,7 +120,7 @@ export function defaultMultiItemLeaf(state: RecognizerState, states: RecognizerS
 
 
     //*/
-    return { root, leaves: [], prods: prods.setFilter() };
+    return { root, leaves: [], prods: out_prods.setFilter() };
 }
 
 export type SingleItemReturnObject = {
@@ -224,7 +226,7 @@ export function defaultSelectionClause(
         root.addStatement(addSkipCallNew(skippable, grammar, runner));
     }
 
-    for (const { syms, items, code, LAST, FIRST, transition_types } of groups) {
+    for (const { syms, items, code, LAST, FIRST, transition_types, prods } of groups) {
 
         let gate_block: SC = SC.Empty(), ADD_SKIP_STATEMENT = false;
 
@@ -336,10 +338,8 @@ export function processRecognizerStates(
                     } else
                         throw new Error("Flow should not enter this block: Multi-item moved to group section");
                 }
+
             }
-
-            group.map(g => g.prods = g.prods || []);
-
             const
                 prods = group.flatMap(g => g.prods).setFilter(),
                 items = group.flatMap(g => g.items).setFilter(i => i.id),

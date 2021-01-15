@@ -122,7 +122,7 @@ export function* yieldStates(
 
                     active_items = active_items.map(i => i.increment());
                 }
-                let code = new SC, prods;
+                let code = new SC, prods = [];
 
                 if (active_items.length > 0) {
                     if (active_items.length == 1) {
@@ -135,7 +135,7 @@ export function* yieldStates(
                             yield <RecognizerState[]>val.value;
                             val = gen.next();
                         }
-                        ({ code } = val.value);
+                        ({ code, prods } = val.value);
                     }
 
                     for (const state of sequence.slice().reverse().slice(0, -1)) {
@@ -143,11 +143,12 @@ export function* yieldStates(
                         state.hash = code.hash();
                         state.prods = prods;
                         yield [state];
+                        prods.push(...state.prods);
                         code = state.code;
                     }
                     sequence[0].code = code;
                     sequence[0].hash = code.hash();
-                    sequence[0].prods = prods;
+                    sequence[0].prods = prods.setFilter();
 
                     main_groups.push(sequence[0]);
                 }
@@ -269,7 +270,7 @@ function* processPeekStates(
 
                         for (const group of items.group(i => i.sym(grammar))) {
                             const gen = yieldStates(group, options, lex_name);
-                            let val = gen.next();
+                            let val = gen.next(), i = 0;
                             while (!val.done) {
 
                                 yield <RecognizerState[]>val.value;
@@ -283,12 +284,13 @@ function* processPeekStates(
                                 completing: false,
                                 items,
                                 offset,
-                                peek_level: -1,
+                                peek_level: a.peek_level,
                                 transition_type: TRANSITION_TYPE.ASSERT,
                             });
                         }
                         yield states;
                         code = states[0].code;
+                        prods = states[0].prods;
                         a.offset = offset + 1;
                     }
                 }
@@ -298,10 +300,9 @@ function* processPeekStates(
                     while (!val.done) {
                         const obj = <RecognizerState[]>val.value;
                         yield obj;
-                        prods = obj[0].prods;
                         val = gen.next();
                     }
-                    ({ code } = val.value);
+                    ({ code, prods } = val.value);
                 }
 
                 const hash = code.hash();
@@ -317,8 +318,7 @@ function* processPeekStates(
                         ? TRANSITION_TYPE.ASSERT_PRODUCTION_SYMBOLS
                         : TRANSITION_TYPE.CONSUME;
 
-                    if (!isSymAProduction(sym)) {
-                        items[0] = items[0].increment();
+                    if (!isSymAProduction(sym))
                         a.transition_type = TRANSITION_TYPE.CONSUME;
 
                 } else {
