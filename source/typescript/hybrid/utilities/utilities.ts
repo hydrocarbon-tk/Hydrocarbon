@@ -48,7 +48,7 @@ declare global {
              * that is used to determine which group(s) the object belongs to. Defaults to a function
              * that returns the string value of the object.
              */
-            fn: (item: T) => (KeyType | KeyType[])) => Map<KeyType, T[]>;
+            fn: (item: T, array: T[]) => (KeyType | KeyType[])) => Map<KeyType, T[]>;
 
         /**
          * Reduces items that share the same identifier to the first matching item.
@@ -71,21 +71,21 @@ declare global {
              * that is used to determine which group(s) the object belongs to. Defaults to a function
              * that returns the string value of the object.
              */
-            fn?: (item: T) => (KeyType | KeyType[])
+            fn?: (item: T, array: T[]) => (KeyType | KeyType[])
         ) => T[][];
     }
 }
 
 Array.prototype.groupMap = function <T, KeyType>(
     this: Array<T>,
-    fn: (T) => (KeyType | KeyType[])
+    fn: (T, G: T[]) => (KeyType | KeyType[])
 ): Map<KeyType, T[]> {
 
     const groups: Map<KeyType, T[]> = new Map;
 
     this.forEach(e => {
 
-        const id = fn(e);
+        const id = fn(e, this);
 
         for (const ident of Array.isArray(id) ? id : [id]) {
             if (!groups.has(ident))
@@ -115,7 +115,7 @@ Array.prototype.setFilter = function <T>(
 };
 
 
-Array.prototype.group = function <T, KeyType>(this: Array<T>, fn: (T) => (KeyType | KeyType[]) = _ => _ ? _.toString() : ""): T[][] {
+Array.prototype.group = function <T, KeyType>(this: Array<T>, fn: (T, G: T[]) => (KeyType | KeyType[]) = _ => _ ? _.toString() : ""): T[][] {
     return [...this.groupMap(fn).values()];
 };
 
