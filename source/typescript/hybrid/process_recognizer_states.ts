@@ -135,6 +135,9 @@ export function defaultSingleItemLeaf(item: Item, state: RecognizerState, option
 
     let sc = code, prods = [];
 
+    if (state.transition_type == TRANSITION_TYPE.CONSUME && !item.atEND)
+        item = item.increment();
+
     if (item) {
         if (item.len > 0 && item.offset == 0 && (item.getProduction(grammar).id != production.id || state.offset > 0)) {
 
