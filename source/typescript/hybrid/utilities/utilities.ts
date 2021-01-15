@@ -240,6 +240,32 @@ export function getSkipFunctionNew(skip_symbols: TokenSymbol[], grammar: Grammar
 }
 
 
+export function doSymbolsOcclude(symA: Symbol, symB: Symbol): boolean {
+
+    if (
+        isSymAProduction(symA)
+        || isSymAProduction(symB)
+        || isSymGeneratedId(symA)
+        || isSymGeneratedId(symB)
+    ) return false;
+
+    if (symA.val == symB.val) return false;
+
+    let
+        short = symA.val,
+        long = symB.val;
+
+    if (short.length > long.length) {
+        short = long;
+        long = symA.val;
+    }
+
+    for (let i = 0; i < short.length; i++)
+        if (short[i] !== long[i]) return false;
+
+    return true;
+}
+
 export function getFollowSymbolsFromItems(items: Item[], grammar: Grammar): TokenSymbol[] {
     return items.filter(i => i.atEND)
         .flatMap(i => [...grammar.item_map.get(i.id).follow.values()])
