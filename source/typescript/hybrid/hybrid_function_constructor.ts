@@ -124,8 +124,8 @@ export function constructHybridFunction(production: Production, grammar: Grammar
                 : undefined,
             processRecognizerStates(
                 optionsA, genA, defaultSelectionClause,
-                (item, state, options) => {
-                    const { leaves, prods, root } = defaultMultiItemLeaf(item, state, options);
+                (state, states, options) => {
+                    const { leaves, prods, root } = defaultMultiItemLeaf(state, states, options);
                     lr_prods.push(...prods);
                     return { leaves, prods, root };
 
@@ -272,7 +272,7 @@ export function constructHybridFunction(production: Production, grammar: Grammar
                         return out_stmt;
                     }
                     state.offset--;
-                    return defaultSelectionClause(gen, state, items, level, options, state.offset == 0);
+                    return defaultSelectionClause(gen, state, items, level, options, state.offset <= 1);
                 },
                 defaultMultiItemLeaf,
                 (item, group, options) => {
