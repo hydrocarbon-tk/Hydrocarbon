@@ -286,9 +286,10 @@ export function defaultSelectionClause(
 
         if_stmt.addStatement(
             runner.ANNOTATED ?
-                SC.Comment(transition_types.map(ttt)) : undefined,
+                SC.Comment(transition_types.map(ttt))
+                : undefined,
             runner.ANNOTATED ?
-                SC.Comment("\n   " + items.map(i => ((i.atEND || PEEKING_TRANSITION) ? i : i.increment()).renderUnformattedWithProduction(grammar)).join("\n   ") + "\n")
+                SC.Comment("\n   " + items.map(i => ((transition_type == TRANSITION_TYPE.CONSUME && !i.atEND) ? i.increment() : i).renderUnformattedWithProduction(grammar)).join("\n   ") + "\n")
                 : undefined,
             skip,
             code,
