@@ -146,10 +146,15 @@ export function constructHybridFunction(production: Production, grammar: Grammar
                         const
                             pending_productions = [...lr_prods.setFilter()],
                             active_productions = new Set,
-                            case_clauses = [...gen].map(({ code, items, syms, prods }) => {
-                                const key = <number>items[0].decrement().sym(grammar).val;
+                            case_clauses = [...gen].flatMap(({ code, items, syms, prods }) => {
+                                const
+                                    keys = <number[]>items.map(i => i.sym(grammar).val),
+                                    output = [];
 
-                                return { key, code, syms, hash: code.hash(), prods: prods.slice(), items };
+                                for (const key of keys.setFilter())
+                                    output.push({ key, code, syms, hash: code.hash(), prods: prods.slice(), items });
+
+                                return output;
                             })
                                 .group(({ hash }) => hash)
                                 .groupMap(group => {
