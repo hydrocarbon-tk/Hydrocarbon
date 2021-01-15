@@ -202,13 +202,20 @@ export function getSkipFunction(grammar: Grammar, runner: CompilerRunner, exclud
     return <VarSC>runner.add_constant(SF_name, FN);
 }
 
-export function getSkipFunctionNew(skip_symbols: TokenSymbol[], grammar: Grammar, runner: CompilerRunner, custom_skip_code: SC = null):
+export function getSkipFunctionNew(
+    skip_symbols: TokenSymbol[],
+    grammar: Grammar,
+    runner: CompilerRunner,
+    custom_skip_code: SC = null,
+    lex_name: ExprSC = SC.Variable("l", "Lexer"),
+    exclude: TokenSymbol[] = []
+):
     VarSC {
 
     if (skip_symbols.length == 0)
         return null;
 
-    const boolean = getIncludeBooleans(skip_symbols, grammar, runner);
+    const boolean = getIncludeBooleans(skip_symbols, grammar, runner, g_lexer_name, exclude);
 
     if (grammar.functions.has("custom_skip")) {
         let str = grammar.functions.get("custom_skip").txt;
@@ -290,8 +297,14 @@ export function getSkippableSymbolsFromItems(items: Item[], grammar: Grammar): T
         .flatMap(sym => <TokenSymbol[]>getTrueSymbolValue(sym, grammar));
 }
 
-export function addSkipCallNew(symbols: TokenSymbol[], grammar: Grammar, runner: CompilerRunner, lex_name: ExprSC = SC.Variable("l", "Lexer")): StmtSC {
-    const skips = getSkipFunctionNew(symbols, grammar, runner);
+export function addSkipCallNew(
+    symbols: TokenSymbol[],
+    grammar: Grammar,
+    runner: CompilerRunner,
+    lex_name: ExprSC = SC.Variable("l", "Lexer"),
+    exclude: TokenSymbol[] = []
+): StmtSC {
+    const skips = getSkipFunctionNew(symbols, grammar, runner, undefined, lex_name, exclude);
     if (skips)
         return SC.Expressions(SC.Call(skips, SC.UnaryPost(lex_name, SC.Comment(symbols.map(s => `[ ${s.val} ]`).join("")))));
     return SC.Expressions(SC.Empty());
