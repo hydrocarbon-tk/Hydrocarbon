@@ -140,15 +140,21 @@ export function defaultSingleItemLeaf(item: Item, state: RecognizerState, option
 
             const bool = renderProductionCall(item.getProduction(grammar), options, g_lexer_name);
             sc = SC.If(bool);
-            // Unnecessary comment
-            //sc.addStatement(SC.Comment(item.renderUnformattedWithProduction(grammar)));
-            //
             code.addStatement(sc);
             prods = processProductionChain(sc, options, itemsToProductions([item], grammar));
         } else {
+
+            const skippable = getSkippableSymbolsFromItems([item], grammar);
+            const skip =
+                state.transition_type == TRANSITION_TYPE.CONSUME && !item.atEND
+                    ? addSkipCallNew(skippable, grammar, runner, g_lexer_name)
+                    : undefined;
+
+            code.addStatement(skip);
             sc = renderItem(code, item, options, false);
             prods = processProductionChain(sc, options, itemsToProductions([item], grammar));
         }
+
         for (const prod of prods)
             leaf_productions.add(prod);
     }
@@ -238,7 +244,7 @@ export function defaultSelectionClause(
             case TRANSITION_TYPE.ASSERT_END:
                 gate_block = (isSymAProduction(syms[0]))
                     ? renderProductionCall(grammar[syms[0].val], options)
-                    : getIncludeBooleans(<TokenSymbol[]>syms, grammar, runner, lex_name);
+                    : getIncludeBooleans(<TokenSymbol[]>syms, grammar, runner, peek_name);
                 break;
             case TRANSITION_TYPE.CONSUME:
                 gate_block = (isSymAProduction(syms[0]))
@@ -259,11 +265,12 @@ export function defaultSelectionClause(
 
         let if_stmt = SC.If(<ExprSC>gate_block);
 
-        const SKIP_BOOL_EXPRESSION = (LAST && !FIRST)
+        const SKIP_BOOL_EXPRESSION =
+            (!FORCE_ASSERTIONS || transition_type == TRANSITION_TYPE.ASSERT_END)
+            && (LAST && !FIRST)
             && (
                 transition_type == TRANSITION_TYPE.ASSERT_PRODUCTION_SYMBOLS
                 || transition_type == TRANSITION_TYPE.PEEK_PRODUCTION_SYMBOLS
-                //|| transition_type == TRANSITION_TYPE.PEEK
                 || transition_type == TRANSITION_TYPE.ASSERT_END
             ),
 
@@ -275,8 +282,6 @@ export function defaultSelectionClause(
 
         let skip;
         if (ADD_SKIP_STATEMENT) {
-            const skippable = getSkippableSymbolsFromItems(items, grammar).filter(i => !all_syms.some(j => getUniqueSymbolName(i) == getUniqueSymbolName(j)));
-            skip = addSkipCallNew(skippable, grammar, runner, g_lexer_name);
         }
 
         if_stmt.addStatement(
