@@ -177,9 +177,9 @@ function getGroupScore(a: SelectionGroup) {
 
     const a_end = transition_penalty;
     const a_syms = a.syms.length * (a_end);
-    const a_id = (+a.syms.some(isSymGeneratedId)) * (a_end);;
-    const a_num = (+a.syms.some(isSymGeneratedNum)) * 50000 * (a_end);
-    const a_sym = (+a.syms.some(isSymGeneratedSym)) * 5000 * (a_end);
+    const a_id = (+a.syms.some(isSymGeneratedId)) * 50 * (a_end);
+    const a_num = (+a.syms.some(isSymGeneratedNum)) * (a_end);
+    const a_sym = (+a.syms.some(isSymGeneratedSym)) * 5 * (a_end);
 
     return a_syms + a_id + a_num + a_sym + a_end;
 }
