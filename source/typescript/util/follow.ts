@@ -44,7 +44,6 @@ export function FOLLOW(grammar: Grammar, production: number): Map<string, TokenS
     for (const production of grammar) {
 
         for (const sym of production?.reduce?.values() ?? []) {
-            console.log({ sym });
             production.follow.set(sym.val, sym);
         }
 
