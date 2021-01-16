@@ -163,8 +163,8 @@ export async function compileHybrid(grammar: Grammar, env: GrammarParserEnvironm
         const script = `${renderJSScript(grammar, used_options, recognizer_script_js, true, action32bit_array_byte_size,
             error8bit_array_byte_size)}`;
 
-        await fsp.writeFile(recognizer_js_file + "", script);
-        await fsp.writeFile(recognizer_ts_file + "", recognizer_script_ts);
+        //await fsp.writeFile(recognizer_js_file + "", script);
+        //await fsp.writeFile(recognizer_ts_file + "", recognizer_script_ts);
         //    / return script;
         return await (new AsyncFunction(
             "loader",
