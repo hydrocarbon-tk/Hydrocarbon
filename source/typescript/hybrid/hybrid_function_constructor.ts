@@ -1,6 +1,6 @@
 import { Grammar, Production, EOF_SYM, SymbolType } from "../types/grammar.js";
 import { TokenSymbol } from "../types/Symbol";
-import { Item }
+import { getSymbolsFromClosure, Item }
     from "../util/common.js";
 import {
     getIncludeBooleans,
@@ -18,6 +18,7 @@ import {
     getSkippableSymbolsFromItems,
     itemsToProductions,
     getUniqueSymbolName,
+    getExcludeSymbolSet,
 } from "./utilities/utilities.js";
 import { RDProductionFunction } from "./types/RDProductionFunction";
 import { CompilerRunner } from "./types/CompilerRunner.js";
@@ -28,6 +29,7 @@ import { yieldStates } from "./yield_states.js";
 import { defaultMultiItemLeaf, defaultSelectionClause, defaultSingleItemLeaf, processRecognizerStates } from "./process_recognizer_states.js";
 import { yieldNontermStates } from "./yield_nonterm_states.js";
 import { performance } from "perf_hooks";
+import { TRANSITION_TYPE } from "./types/RecognizerState.js";
 
 export const
     accept_loop_flag = SC.Variable("ACCEPT:boolean"),
@@ -144,24 +146,36 @@ export function constructHybridFunction(production: Production, grammar: Grammar
 
                         let switch_stmt: SC = SC.Switch(SC.Value("prod"));
 
+                        type case_clause_data = {
+                            key: number;
+                            code: SC;
+                            syms: TokenSymbol[];
+                            hash: string;
+                            prods: number[];
+                            items: Item[];
+                        };
+
                         const
+                            { extended_production_shift_items } = options,
                             pending_productions = [...lr_prods.setFilter()],
-                            active_productions = new Set,
-                            case_clauses = [...gen].flatMap(({ code, items, syms, prods }) => {
-                                const
-                                    keys = <number[]>items.map(i => i.sym(grammar).val),
-                                    output = [];
+                            active_productions: Set<number> = new Set,
+                            active_groups: case_clause_data[][] = [],
+                            case_clauses: Map<number, case_clause_data[][]>
+                                = [...gen].flatMap(({ code, items, syms, prods }) => {
+                                    const
+                                        keys = <number[]>items.map(i => i.sym(grammar).val),
+                                        output = [];
 
-                                for (const key of keys.setFilter())
-                                    output.push({ key, code, syms, hash: code.hash(), prods: prods.slice(), items });
+                                    for (const key of keys.setFilter())
+                                        output.push({ key, code, syms, hash: code.hash(), prods: prods.slice(), items });
 
-                                return output;
-                            })
-                                .group(({ hash }) => hash)
-                                .groupMap(group => {
-                                    return group.map(g => g.key).setFilter();
-                                }),
-                            active_groups = [];
+                                    return output;
+                                })
+                                    .group(({ hash }) => hash)
+                                    .groupMap(group => {
+                                        return group.map(g => g.key).setFilter();
+                                    });
+
 
                         for (let i = 0; i < pending_productions.length; i++) {
 
@@ -185,15 +199,16 @@ export function constructHybridFunction(production: Production, grammar: Grammar
                             }
                         }
 
-                        if (active_groups.length == 0) return new SC;
+                        if (active_groups.length == 0) return (new SC).addStatement(SC.Comment("value"));
 
-                        for (const group of active_groups.sort((([{ key: keyA }], [{ key: keyB }]) => keyA - keyB))) {
+                        for (const clauses of active_groups.sort((([{ key: keyA }], [{ key: keyB }]) => keyA - keyB))) {
+                            let anticipated_syms;
 
                             const
-                                keys = group.map(g => g.key).setFilter(),
-                                code = group[0].code,
-                                items = group.flatMap(g => g.items).setFilter(i => i.id).map(i => i.increment()),
-                                shift_items = items.filter(i => !i.atEND),
+                                keys = clauses.map(g => g.key).setFilter(),
+                                code = clauses[0].code,
+                                items = clauses.flatMap(g => g.items).setFilter(i => i.id).filter(i => !extended_production_shift_items.some(s => s.body == i.body)).map(i => i.increment()),
+                                active_items = items.filter(i => !i.atEND),
                                 end_items = items.filter(i => i.atEND),
                                 skippable = getSkippableSymbolsFromItems(items, grammar).filter(sym =>
                                     !getFollow(keys[0], grammar).includes(sym)
@@ -201,10 +216,10 @@ export function constructHybridFunction(production: Production, grammar: Grammar
 
                             let interrupt_statement = null;
 
-                            if (shift_items.length > 0) {
+                            if (active_items.length > 0) {
                                 const
-                                    closure = getClosure(shift_items.slice(), grammar),
-                                    anticipated_syms = [...closure.filter(i => !i.atEND && !isSymAProduction(i.sym(grammar))).map(i => <TokenSymbol>i.sym(grammar))];
+                                    closure = getClosure(active_items.slice(), grammar);
+                                anticipated_syms = getSymbolsFromClosure(closure, grammar);
 
                                 if (keys.some(k => k == production.id)) {
                                     const follow_symbols = keys.flatMap(k => getFollow(k, grammar)).setFilter(sym => getUniqueSymbolName(sym));
@@ -229,7 +244,9 @@ export function constructHybridFunction(production: Production, grammar: Grammar
 
                                     if (lookahead_syms.length > 0) {
 
-                                        const booleans = getIncludeBooleans(lookahead_syms, grammar, runner, g_lexer_name, anticipated_syms);
+                                        const
+                                            syms = getExcludeSymbolSet(lookahead_syms, anticipated_syms),
+                                            booleans = getIncludeBooleans(syms, grammar, runner, g_lexer_name);
 
                                         if (booleans)
                                             interrupt_statement = SC.If(booleans).addStatement(SC.Break);
@@ -242,7 +259,7 @@ export function constructHybridFunction(production: Production, grammar: Grammar
                                 ...keys.slice(0, -1).map(k => SC.If(SC.Value(k + ""))),
                                 SC.If(SC.Value(keys.pop() + ""))
                                     .addStatement(
-                                        shift_items.length > 0 || end_items.length > 1
+                                        active_items.length > 0 || end_items.length > 1
                                             ? addSkipCallNew(skippable, grammar, runner)
                                             : undefined,
                                         interrupt_statement,
@@ -268,17 +285,20 @@ export function constructHybridFunction(production: Production, grammar: Grammar
                                 SC.If(SC.UnaryPre(SC.Value("!"), accept_loop_flag)).addStatement(SC.Break)
                             );
 
-
-
                         return out_stmt;
                     }
+
                     state.offset--;
+
                     return defaultSelectionClause(gen, state, items, level, options, state.offset <= 1);
                 },
                 defaultMultiItemLeaf,
-                (item, group, options) => {
-                    const { root, leaf, prods } = defaultSingleItemLeaf(item, group, options);
-                    addReturnType(ReturnType.ACCEPT, leaf);
+                (item, state, options) => {
+                    const { root, leaf, prods } = defaultSingleItemLeaf(item, state, options);
+
+                    if (state.transition_type !== TRANSITION_TYPE.IGNORE)
+                        addReturnType(ReturnType.ACCEPT, leaf);
+
                     return { root, leaf, prods };
                 }
             ),

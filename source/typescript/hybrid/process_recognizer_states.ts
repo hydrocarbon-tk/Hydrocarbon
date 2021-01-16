@@ -53,11 +53,14 @@ function* traverseInteriorNodes(
     const groups = group.group(g => grouping_fn(g, g.peek_level, g.peek_level >= 0));
 
     const sel_group: SelectionGroup[] = groups.map((group) => {
-        const syms = group.map(s => s.symbol);
-        const code = group[0].code;
-        const hash = group[0].hash;
-        const items = group.flatMap(g => g.items).setFilter(i => i.id);
-        const yielders = group.map(i => i.transition_type).setFilter();
+
+        const
+            syms = group.map(s => s.symbol),
+            code = group[0].code,
+            hash = group[0].hash,
+            items = group.flatMap(g => g.items).setFilter(i => i.id),
+            yielders = group.map(i => i.transition_type).setFilter();
+
         return { transition_types: yielders, syms, code, items, hash, LAST: false, FIRST: false, prods: group.flatMap(g => g.prods).setFilter() };
     });
     let i = 0;
@@ -79,19 +82,26 @@ export type MultiItemReturnObject = {
 
 
 export function defaultMultiItemLeaf(state: RecognizerState, states: RecognizerState[], options: RenderBodyOptions): MultiItemReturnObject {
-    const { grammar } = options;
-    const root = (new SC).addStatement(
-        SC.Declare(
-            SC.Assignment("mk:int", SC.Call("mark")),
-            SC.Assignment("anchor:Lexer", SC.Call(SC.Member(g_lexer_name, "copy")))
-        )
-    );
-    const out_prods: number[] = [];
-    let leaf = root;
-    let FIRST = true;
-    for (const { code, items, prods } of states) {
+    const
+        { production } = options,
+        root = (new SC).addStatement(
+            SC.Declare(
+                SC.Assignment("mk:int", SC.Call("mark")),
+                SC.Assignment("anchor:Lexer", SC.Call(SC.Member(g_lexer_name, "copy")))
+            )
+        ),
+        IS_LEFT_RECURSIVE_WITH_FOREIGN_PRODUCTION_ITEMS
+            = states.some(i => i.transition_type == TRANSITION_TYPE.IGNORE),
+        out_prods: number[] = [];
+
+    let leaf = root, FIRST = true, prev_prods = [];
+
+    for (const { code, items, prods } of states.filter(i => i.transition_type !== TRANSITION_TYPE.IGNORE)
+    ) {
 
         out_prods.push(...prods);
+
+        leaf.addStatement(SC.Comment(items));
 
         if (FIRST) {
             leaf.addStatement(
@@ -105,17 +115,34 @@ export function defaultMultiItemLeaf(state: RecognizerState, states: RecognizerS
                 "mk",
                 "anchor:Lexer",
                 g_lexer_name,
-                prods.reduce((r, n) => {
+                prev_prods.reduce((r, n) => {
                     if (!r) return SC.Binary("prod", "==", n);
                     return SC.Binary(r, "||", SC.Binary("prod", "==", n));
                 }, null)
-            )).addStatement(SC.Assignment("prod", "-1"), code);
-            leaf.addStatement(reset);
+            )).addStatement(SC.Assignment("prod", IS_LEFT_RECURSIVE_WITH_FOREIGN_PRODUCTION_ITEMS ? production.id : "-1"), code);
+            leaf.addStatement(reset, SC.Empty());
             leaf = reset;
 
         }
+        prev_prods = prods;
 
         FIRST = false;
+    }
+
+    if (IS_LEFT_RECURSIVE_WITH_FOREIGN_PRODUCTION_ITEMS) {
+        //ADD a fall back 
+        const reset = SC.If(SC.Call(
+            "reset:bool",
+            "mk",
+            "anchor:Lexer",
+            g_lexer_name,
+            prev_prods.reduce((r, n) => {
+                if (!r) return SC.Binary("prod", "==", n);
+                return SC.Binary(r, "||", SC.Binary("prod", "==", n));
+            }, null)
+        )).addStatement(SC.Assignment("prod", production.id));
+        leaf.addStatement(reset, SC.Empty());
+        leaf = reset;
     }
 
 
@@ -130,10 +157,19 @@ export type SingleItemReturnObject = {
 };
 
 export function defaultSingleItemLeaf(item: Item, state: RecognizerState, options: RenderBodyOptions): SingleItemReturnObject {
-    const { grammar, runner, leaf_productions, production } = options;
-    const code = state.code || new SC;
+
+    const
+        { grammar, runner, leaf_productions, production, extended_production_shift_items } = options,
+        code = state.code || new SC,
+        SHOULD_IGNORE = extended_production_shift_items.some(i => i.body == item.body);
 
     let sc = code, prods = [];
+
+    if (SHOULD_IGNORE) {
+        sc.addStatement(SC.Comment("SHOULD IGNORE"));
+        state.transition_type = TRANSITION_TYPE.IGNORE;
+        return { root: sc, leaf: sc, prods: [] };
+    }
 
     if (state.transition_type == TRANSITION_TYPE.CONSUME && !item.atEND)
         item = item.increment();
@@ -147,11 +183,12 @@ export function defaultSingleItemLeaf(item: Item, state: RecognizerState, option
             prods = processProductionChain(sc, options, itemsToProductions([item], grammar));
         } else {
 
-            const skippable = getSkippableSymbolsFromItems([item], grammar);
-            const skip =
-                state.transition_type == TRANSITION_TYPE.CONSUME && !item.atEND
-                    ? addSkipCallNew(skippable, grammar, runner, g_lexer_name)
-                    : undefined;
+            const
+                skippable = getSkippableSymbolsFromItems([item], grammar),
+                skip =
+                    state.transition_type == TRANSITION_TYPE.CONSUME && !item.atEND
+                        ? addSkipCallNew(skippable, grammar, runner, g_lexer_name)
+                        : undefined;
 
             code.addStatement(skip);
             sc = renderItem(code, item, options, false);
@@ -178,11 +215,12 @@ function getGroupScore(a: SelectionGroup) {
             break;
     }
 
-    const a_end = transition_penalty;
-    const a_syms = a.syms.length * (a_end);
-    const a_id = (+a.syms.some(isSymGeneratedId)) * 50 * (a_end);
-    const a_num = (+a.syms.some(isSymGeneratedNum)) * (a_end);
-    const a_sym = (+a.syms.some(isSymGeneratedSym)) * 5 * (a_end);
+    const
+        a_end = transition_penalty,
+        a_syms = a.syms.length * (a_end),
+        a_id = (+a.syms.some(isSymGeneratedId)) * 50 * (a_end),
+        a_num = (+a.syms.some(isSymGeneratedNum)) * (a_end),
+        a_sym = (+a.syms.some(isSymGeneratedSym)) * 5 * (a_end);
 
     return a_syms + a_id + a_num + a_sym + a_end;
 }
@@ -247,12 +285,12 @@ export function defaultSelectionClause(
             case TRANSITION_TYPE.ASSERT_END:
                 gate_block = (isSymAProduction(syms[0]))
                     ? renderProductionCall(grammar[syms[0].val], options)
-                    : getIncludeBooleans(<TokenSymbol[]>syms, grammar, runner, peek_name);
+                    : getIncludeBooleans(<TokenSymbol[]>syms, grammar, runner, peek_name, <TokenSymbol[]>all_syms);
                 break;
             case TRANSITION_TYPE.CONSUME:
                 gate_block = (isSymAProduction(syms[0]))
                     ? SC.Call(consume_assert_call, g_lexer_name, renderProductionCall(grammar[syms[0].val], options))
-                    : SC.Call(consume_assert_call, g_lexer_name, getIncludeBooleans(<TokenSymbol[]>syms, grammar, runner, lex_name));
+                    : SC.Call(consume_assert_call, g_lexer_name, getIncludeBooleans(<TokenSymbol[]>syms, grammar, runner, lex_name, <TokenSymbol[]>all_syms));
                 ADD_SKIP_STATEMENT = true;
                 break;
             case TRANSITION_TYPE.IGNORE:
@@ -262,7 +300,7 @@ export function defaultSelectionClause(
             case TRANSITION_TYPE.PEEK_PRODUCTION_SYMBOLS:
                 gate_block = (isSymAProduction(syms[0]))
                     ? renderProductionCall(grammar[syms[0].val], options, peek_name)
-                    : getIncludeBooleans(<TokenSymbol[]>syms, grammar, runner, peek_name);
+                    : getIncludeBooleans(<TokenSymbol[]>syms, grammar, runner, peek_name, <TokenSymbol[]>all_syms);
                 break;
         }
 
@@ -292,7 +330,9 @@ export function defaultSelectionClause(
                 SC.Comment(transition_types.map(ttt))
                 : undefined,
             runner.ANNOTATED ?
-                SC.Comment("\n   " + items.map(i => ((transition_type == TRANSITION_TYPE.CONSUME && !i.atEND) ? i.increment() : i).renderUnformattedWithProduction(grammar)).join("\n   ") + "\n")
+                SC.Comment("\n   " + items.map(i =>
+                    ((transition_type == TRANSITION_TYPE.CONSUME && !i.atEND) ? i.increment() : i)
+                        .renderUnformattedWithProduction(grammar)).join("\n   ") + "\n")
                 : undefined,
             skip,
             code,
@@ -306,16 +346,20 @@ export function defaultSelectionClause(
         }
         leaf = if_stmt;
     }
+
     root.addStatement(SC.Empty());
+
     mid.addStatement(SC.Empty());
+
     if (leaf) leaf.addStatement(SC.Empty());
+
     return root;
 }
 
 
 export function processRecognizerStates(
     options: RenderBodyOptions,
-    gen: Generator<RecognizerState[], { code: SC, prods: number[]; }>,
+    gen: Generator<RecognizerState[], { hash: string, code: SC, prods: number[]; }>,
     selection_clause_fn:
         (gen: SelectionClauseGenerator, state: RecognizerState, items: Item[], level: number, options: RenderBodyOptions) => SC =
         defaultSelectionClause,
@@ -331,13 +375,14 @@ export function processRecognizerStates(
 
     while (!val.done) {
 
-        const group: RecognizerState[] = <RecognizerState[]>val.value;
+        const states: RecognizerState[] = <RecognizerState[]>val.value;
 
-        if (group.length > 0) {
+        if (states.length > 0) {
 
-            if (group.some(i => !i)) throw new Error("UNDEFINED");
 
-            for (const member of group) {
+            if (states.some(i => !i)) throw new Error("UNDEFINED");
+
+            for (const member of states) {
                 if (member.completing) {
                     if (member.items.length == 1) {
                         const { root, prods } = single_item_leaf_fn(member.items[0], member, options);
@@ -347,42 +392,55 @@ export function processRecognizerStates(
                     } else
                         throw new Error("Flow should not enter this block: Multi-item moved to group section");
                 }
-
             }
+
             const
-                prods = group.flatMap(g => g.prods).setFilter(),
-                items = group.flatMap(g => g.items).setFilter(i => i.id),
-                virtual_group: RecognizerState = {
+                prods = states.flatMap(g => g.prods).setFilter(),
+                items = states.flatMap(g => g.items).setFilter(i => i.id),
+                filtered_states = states.filter(s => s.transition_type !== TRANSITION_TYPE.IGNORE && !!s.code);
+
+            //Set the transition type of any state with a null code property to IGNORE
+            states.forEach(g => { if (!g.code) g.transition_type = TRANSITION_TYPE.IGNORE; });
+
+            let
+                root: SC = null, hash = "ignore";
+
+            if (filtered_states.length > 0) {
+
+                const virtual_state: RecognizerState = {
                     symbol: null,
-                    code: group[0].code,
-                    hash: group[0].hash,
+                    code: filtered_states[0].code,
+                    hash: filtered_states[0].hash,
                     prods,
                     items,
                     completing: false,
-                    peek_level: group[0].peek_level,
-                    offset: group[0].offset,
-                    transition_type: group[0].transition_type,
+                    peek_level: filtered_states[0].peek_level,
+                    offset: filtered_states[0].offset,
+                    transition_type: filtered_states[0].transition_type,
                 };
-            let root: SC = new SC;
 
-            if (group.some(g => g.symbol == null)) {
-                ({ root } = defaultMultiItemLeaf(virtual_group, group, options));
+                if (states.some(g => g.symbol == null)) {
+                    ({ root } = defaultMultiItemLeaf(virtual_state, states, options));
+                } else {
+                    root = selection_clause_fn(
+                        traverseInteriorNodes(filtered_states, options, grouping_fn),
+                        virtual_state,
+                        items,
+                        states[0].peek_level,
+                        options
+                    );
+                }
+                hash = root.hash();
             } else {
-                root = selection_clause_fn(
-                    traverseInteriorNodes(group, options, grouping_fn),
-                    virtual_group,
-                    items,
-                    group[0].peek_level,
-                    options
-                );
+                root = null;
+
             }
 
-            group.forEach(g => {
+            states.forEach(g => {
                 g.prods = prods;
                 g.code = root;
-                g.hash = root.hash();
+                g.hash = hash;
             });
-
         }
 
         val = gen.next();

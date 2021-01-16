@@ -34,7 +34,7 @@ export function* buildPeekSequence(
 
         const node = peek_nodes[i];
 
-        let code = new SC, prods = [];
+        let code = null, prods = [], hash = "undefined";
         //Depth first
         if (node.next.length > 0) {
 
@@ -45,6 +45,7 @@ export function* buildPeekSequence(
                 const obj = <RecognizerState[]>val.value;
                 yield obj;
                 code = obj[0].code;
+                hash = obj[0].hash;
                 prods.push(...obj[0].prods);
                 val = gen.next();
             }
@@ -52,7 +53,7 @@ export function* buildPeekSequence(
 
         group.push(<RecognizerState>{
             code,
-            hash: code.hash(),
+            hash,
             items: node.roots,
             transition_type: TRANSITION_TYPE.PEEK,
             offset: -1,

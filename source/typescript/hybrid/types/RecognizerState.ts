@@ -8,10 +8,6 @@ import { SC } from "../utilities/skribble.js";
  */
 export const enum TRANSITION_TYPE {
     /**
-     * Do not do anything with the token(s) before entering the next state(s)
-     */
-    IGNORE,
-    /**
      * Indicates the token(s) of this state need to 
      * be consumed before progressing to the next state(s). 
      */
@@ -41,7 +37,12 @@ export const enum TRANSITION_TYPE {
      * Like ASSERT_PRODUCTION_SYMBOLS, except the assertion should be made on the peeking lexer instead of
      * the main lexer.
      */
-    PEEK_PRODUCTION_SYMBOLS
+    PEEK_PRODUCTION_SYMBOLS,
+
+    /**
+     * This state should be ignored. Used for look-ahead sequences that should not actual produce code that could manipulate the lexer
+     */
+    IGNORE
 };
 
 /**
