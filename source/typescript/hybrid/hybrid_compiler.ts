@@ -74,7 +74,7 @@ export async function compileHybrid(grammar: Grammar, env: GrammarParserEnvironm
         ${Object.assign(new AS, rc).renderCode()}
         export {main};`,
         recognizer_script_js = `
-        ((store_data)=>{
+        ((store_data, debug_stack)=>{
             const data_view = new DataView(store_data);
             function load(offset){
                 return data_view.getUint16(offset, true);

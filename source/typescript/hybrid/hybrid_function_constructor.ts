@@ -120,7 +120,7 @@ export function constructHybridFunction(production: Production, grammar: Grammar
 
         code_node.addStatement(
             runner.DEBUG
-                ? SC.Value(`console.log("${production.name} START", { prod, tx:str.slice(l.off, l.off + l.tl), ty:l.ty, tl:l.tl, utf:l.getUTF(), FAILED, offset:l.off})`)
+                ? SC.Value(`debug_stack.push("${production.name} START", { prod, tx:str.slice(l.off, l.off + l.tl), ty:l.ty, tl:l.tl, utf:l.getUTF(), FAILED, offset:l.off})`)
                 : undefined,
             processRecognizerStates(
                 optionsA, genA, defaultSelectionClause,
@@ -282,7 +282,7 @@ export function constructHybridFunction(production: Production, grammar: Grammar
                 }
             ),
             runner.DEBUG
-                ? SC.Value(`console.log("${production.name} END", {prod, tx:str.slice(l.off, l.off + l.tl), FAILED, offset:l.off})`)
+                ? SC.Value(`debug_stack.push("${production.name} END", {prod, tx:str.slice(l.off, l.off + l.tl), FAILED, offset:l.off})`)
                 : undefined,
             addClauseSuccessCheck(optionsA),
         );
