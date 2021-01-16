@@ -7,8 +7,8 @@ import { RecognizerState, TRANSITION_TYPE } from "./types/RecognizerState.js";
 
 export function* yieldNontermStates(options: RenderBodyOptions): Generator<RecognizerState[], { code: SC, prods: number[]; }> {
 
-    const { grammar, lr_productions } = options,
-        nonterm_shift_items: Item[] = lr_productions;
+    const { grammar, production_shift_items, production, extended_production_shift_items } = options;
+    let nonterm_shift_items: Item[] = production_shift_items;
 
     if (nonterm_shift_items.length > 0) {
         /**

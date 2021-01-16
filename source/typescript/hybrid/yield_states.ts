@@ -26,7 +26,7 @@ export function* yieldStates(
     offset: number = 0,
 ): Generator<RecognizerState[], { code: SC, prods: number[]; }> {
     const
-        { grammar, runner, production, lr_productions, cache } = options,
+        { grammar, runner, production, production_shift_items, cache } = options,
         state_id = in_items.map(i => i.id).sort().join("-") + "$";
     let
         end_items = in_items.filter(i => i.atEND),
@@ -158,7 +158,7 @@ export function* yieldStates(
                     { tree_nodes } = getTransitionTree(
                         grammar,
                         active_items,
-                        lr_productions
+                        production_shift_items
                     ),
                     gen = buildPeekSequence(tree_nodes[0].next, grammar, runner, lex_name, production.id, false);
 
@@ -213,7 +213,7 @@ function* processPeekStates(
     offset: number = 0,
     lex_name: VarSC,
 ): Generator<RecognizerState[]> {
-    const { grammar, lr_productions, production } = options;
+    const { grammar, production_shift_items, extended_production_shift_items, production } = options;
 
     for (const a of group.filter(a => a.completing)) {
 
@@ -259,7 +259,7 @@ function* processPeekStates(
 
                 } else {
 
-                    const tree = getTransitionTree(grammar, items, lr_productions, 10, 8);
+                    const tree = getTransitionTree(grammar, items, production_shift_items, 10, 8);
 
                     if (cleanLeaves(tree.tree_nodes[0]))
                         gen = yieldStates(items, options, lex_name, offset + 1);

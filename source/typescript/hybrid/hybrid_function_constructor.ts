@@ -63,7 +63,8 @@ function generateRDOptions(
         grammar,
         runner,
         production,
-        lr_productions,
+        production_shift_items: lr_productions,
+        extended_production_shift_items: [],
         called_productions: new Set(),
         leaf_productions: new Set(),
         cache: <Map<string, { code: SC, prods: number[]; }>>new Map()

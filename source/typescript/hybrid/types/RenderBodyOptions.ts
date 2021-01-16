@@ -24,9 +24,16 @@ export interface RenderBodyOptions {
      * List of all productions that are produced from leaf states
      */
     leaf_productions: Set<number>;
-    lr_productions: Item[];
 
-    cache: Map<string, { code: SC, prods: number[]; }>;
+    production_shift_items: Item[];
+
+    /**
+     * Items that shift on the production but are 
+     * not part of the productions initial closure.
+     */
+    extended_production_shift_items: Item[];
+
+    cache: Map<string, { code: SC, prods: number[]; hash: string, }>;
 }
 export const enum ReturnType {
     ACCEPT = 0,

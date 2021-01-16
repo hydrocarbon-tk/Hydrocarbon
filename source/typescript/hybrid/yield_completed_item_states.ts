@@ -19,19 +19,19 @@ export function* yieldCompletedItemStates(end_items: Item[], options: RenderBody
 
     const
         main_groups: RecognizerState[] = [],
-        { grammar, runner, lr_productions } = options;
+        { grammar, runner, production_shift_items } = options;
 
     let
         default_end_items: Item[] = [],
         roots = [],
         closures = [];
 
-    if (lr_productions.length > 0 && end_items.length > 1) {
+    if (production_shift_items.length > 0 && end_items.length > 1) {
 
         const
             original_prods = itemsToProductions(end_items, grammar),
             prods = end_items.map(i => processProductionChain(new SC, options, itemsToProductions([i], grammar))[0]),
-            active_items = getAccompanyingItems(grammar, prods, lr_productions).map(i => i.increment());
+            active_items = getAccompanyingItems(grammar, prods, production_shift_items).map(i => i.increment());
 
         if (active_items.length == 1) {
 
@@ -59,11 +59,11 @@ export function* yieldCompletedItemStates(end_items: Item[], options: RenderBody
 
         } else {
 
-            let { tree_nodes } = getTransitionTree(grammar, end_items, lr_productions, 10, 8, 100, 0, lr_productions.filter(i => original_prods.includes(i.sym(grammar).val)).map(i => {
+            let { tree_nodes } = getTransitionTree(grammar, end_items, production_shift_items, 10, 8, 100, 0, production_shift_items.filter(i => original_prods.includes(i.sym(grammar).val)).map(i => {
 
                 let
                     item = i.increment(),
-                    closure = getFollowClosure(getClosure([item], grammar), lr_productions, grammar);
+                    closure = getFollowClosure(getClosure([item], grammar), production_shift_items, grammar);
 
                 const
                     index = original_prods.indexOf(i.getProductionAtSymbol(grammar).id),
