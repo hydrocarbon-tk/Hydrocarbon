@@ -1,12 +1,17 @@
-
-@SYMBOL => ( ) { } \\
-
 @IGNORE θws θnl
 
 ↦asi { 
     while(θws) $next;
 
-    if(θnl || \} || θeof || \( ) return true;
+    if( \; ){ 
+
+        return true;
+    }
+
+    if( θnl || \} ) { 
+        l.tl = 0;
+        return true;
+    }
     
     return false;
  }
@@ -15,30 +20,14 @@
     
     $tk_start;
 
-    while( !\" && !θeof) { if(\\) $next; $next }
+    while( ! \" && !θeof) { if( \\ ) $next; $next }
 
-    if(!\") return false;
+    if(! \" ) return false;
 
     $tk_end;
 
     return true;
 }
-
-↦shift_eh {
-    const start = $off;
-    
-    if( \/* ) {
-        $next;
-        while(!\*/ && !$end) $next;
-        $no_check;
-    } else if( \// ) {
-        while( !g:nl && !$end) $next;
-        $no_check;
-    } else $false;
-
-    $true;
-}
-
 
 <> S > E
 
@@ -47,18 +36,17 @@
 	| I
     | string
 
-<> string > \" shift:str \"   ↦r { { o:("string"), d:$sym2} }
+<> string > \" shift:str \"             ↦r { { o:"string", d:$sym2 } }
 
-<> P > ( K(+) )              ↦r { { o:("parenth"), d:$sym1} }    
+<> P > ( K(+) )                         ↦r { { o:"parenth", d:$sym1 } }    
     
-<> K > \( E  \)  ( ; ) ↦r { { o:"bobbu", u:$sym2 } }
+<> K > (RST g:ws) \( E \) (RST g:ws) ( \; )                   ↦r { { o:"bobbu", u:$sym2 } }
 
 
+<> F > \( L \)  => { E shift:asi }      ↦r { { o:"function", u:$sym2, d:$sym6 } }      
 
-<> F > \(  L \)  => { E }       ↦r { { o:"function", u:$sym2, d:$sym6 } }      
-
-<> L >  E				↦r { [$sym1] }	
-|  L , E   	↦r { [...$sym1, $sym3] }	
+<> L >  (RST g:ws)  E 		↦r { [$sym1] }	
+|  L (RST g:ws)   \, E  	    ↦r { [...$sym1, $sym3] }	
 
 
 <> I > θid 

@@ -19,8 +19,13 @@
 ↦Spread{ { type:"Spread", nodes: [$sym2],  pos  } }
 
 ↦asi{ 
-    while(l.ty == θws) l.next();
-    if(l.ty == θnl || l.ty == "}" || l.ty == 0 ) return true;
+    
+    while( g:ws ) $next;
+    
+    if( \\; ) { $next; return true; } 
+    
+    if( g:nl || $FOLLOW || $eof ) return true;
+    
     return false;
  }
 
@@ -127,7 +132,7 @@
 # https://www.ecma-international.org/ecma-262/10.0/index.html#sec-iteration-statements
 ###############################################################################################################
 
-    <> iteration_statement → τdo statement τwhile \( expression \) ;                                            ↦r { { type: "DoStatement", nodes:[$$sym2, $$sym5], pos } }
+    <> iteration_statement → τdo statement τwhile \( expression \) shift:asi                                            ↦r { { type: "DoStatement", nodes:[$$sym2, $$sym5], pos } }
 
         │ τwhile \( expression \) statement                                                                     ↦r { { type: "WhileStatement", nodes:[$$sym3, $$sym5], pos } }
         
@@ -137,32 +142,32 @@
             )? ; expression? ; expression? \) statement                                                 
                                                                                                                 ↦r { { type: "ForStatement", nodes:[$$sym3, $$sym5, $$sym7, $$sym9], LEX:false, pos } }
 
-        │ τfor \( lexical_declaration expression? ; expression? \) statement                 ↦r { { type: "ForStatement", nodes:[$$sym3, $$sym4, $$sym6, $$sym8], LEX:true, pos } } 
+        │ τfor \( lexical_declaration expression? ; expression? \) statement                                    ↦r { { type: "ForStatement", nodes:[$$sym3, $$sym4, $$sym6, $$sym8], LEX:true, pos } } 
 
 ###############################################################################################################
 # https://www.ecma-international.org/ecma-262/10.0/index.html#sec-continue-statement
 ###############################################################################################################
 
-    <> continue_statement → τcontinue (RED θnl) label_identifier? ;                                             ↦r { { type: "ContinueStatement", nodes:$$sym2 ? [$$sym2] : [], pos } }  
+    <> continue_statement → τcontinue (RED θnl) label_identifier? shift:asi                                             ↦r { { type: "ContinueStatement", nodes:$$sym2 ? [$$sym2] : [], pos } }  
 
 ###############################################################################################################
 # https://www.ecma-international.org/ecma-262/10.0/index.html#sec-break-statement
 ###############################################################################################################
 
-    <> break_statement → τbreak label_identifier? ;                                                             ↦r { { type: "BreakStatement", nodes:[$$sym2], pos } }
+    <> break_statement → τbreak label_identifier? shift:asi                                                             ↦r { { type: "BreakStatement", nodes:[$$sym2], pos } }
 
 
 ###############################################################################################################
 # https://www.ecma-international.org/ecma-262/10.0/index.html#sec-return-statement
 ###############################################################################################################
 
-    <> return_statement → τreturn expression? ;                                                                 ↦r { { type:"ReturnStatement", nodes:[$sym2], pos } }
+    <> return_statement → τreturn expression? shift:asi                                                                 ↦r { { type:"ReturnStatement", nodes:[$sym2], pos } }
 
 ###############################################################################################################
 # https://www.ecma-international.org/ecma-262/10.0/index.html#sec-throw-statement
 ###############################################################################################################
 
-    <> throw_statement → τthrow expression ;                                                                    ↦r { { type:"ThrowStatement", nodes:[$$sym2], pos } }
+    <> throw_statement → τthrow expression shift:asi                                                                    ↦r { { type:"ThrowStatement", nodes:[$$sym2], pos } }
 
 ###############################################################################################################
 # https://www.ecma-international.org/ecma-262/10.0/index.html#sec-switch-statement
@@ -217,7 +222,7 @@
 # https://www.ecma-international.org/ecma-262/10.0/index.html#sec-variable-statement
 ###############################################################################################################
 
-    <> variable_statement → τvar variable_declaration_list ;                                                    ↦r { { type:"VariableStatement", nodes:$sym2, pos } }
+    <> variable_statement → τvar variable_declaration_list shift:asi                                                    ↦r { { type:"VariableStatement", nodes:$sym2, pos } }
 
     <> variable_declaration_list → variable_declaration(+,)                                                         
 
@@ -229,7 +234,7 @@
 # https://www.ecma-international.org/ecma-262/10.0/index.html#sec-let-and-const-declarations
 ###############################################################################################################
 
-        <> lexical_declaration → let_or_const binding_list ( fa:asi | ; )                                          ↦r { { type:"LexicalDeclaration", symbol:$sym1, nodes:$sym2, pos } }
+        <> lexical_declaration → let_or_const binding_list shift:asi                                          ↦r { { type:"LexicalDeclaration", symbol:$sym1, nodes:$sym2, pos } }
 
         <> let_or_const → τlet                                                                                  ↦r { "let" }
             │ τconst                                                                                            ↦r { "const" }

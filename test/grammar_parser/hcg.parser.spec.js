@@ -2,11 +2,11 @@ import { compileGrammars } from "@candlefw/hydrocarbon";
 import URL from "@candlefw/url";
 import { compileHybrid } from "../build/library/hybrid/hybrid_compiler.js";
 import { assert } from "console";
-import { constructCompilerEnvironment } from "../build/library/grammar/grammar_parser.js";
+import { constructCompilerEnvironment } from "../../build/library/grammar/grammar_parser.js";
 
 const url = await URL.resolveRelative("../source/grammars/hcg/hcg.hcg");
 const file = await url.fetchText();
-const test_string = (await URL.resolveRelative("../source/grammars/hcg/functions.hcg").fetchText());
+const test_string = (await URL.resolveRelative("../../js/source/grammar/javascript.hcg").fetchText());
 
 assert_group(() => {
 
