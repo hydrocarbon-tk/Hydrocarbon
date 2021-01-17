@@ -1,23 +1,17 @@
 @IMPORT ./production_bodies.hcg as pb
 
-
 @IMPORT ./functions.hcg as fn
-
 
 @IMPORT ./symbols.hcg as sym
 
-
 @IMPORT ./comments.hcg as cm
 
-
 @IGNORE θws θnl
-
-@SYMBOL \<> \+>
 
 ########################################################################################################################
 ######################################  PRODUCTIONS
 ########################################################################################################################
-<> start > productions
+<> hcg_productions > productions
 
 <> productions → production                                          
                                                             ↦return {  
@@ -48,7 +42,7 @@
  
 <> production → 
     
-   \<>  ( sym::production_id ↦r{ env.prod_name = $sym1 } ) production_start_symbol  pb::production_bodies ( ( \│ │ \| ) fn::error_function )? 
+    \<>  ( sym::production_id ↦r{ env.prod_name = $sym1 } ) production_start_symbol  pb::production_bodies ( ( \│ │ \| ) fn::error_function )? 
                                                                         
                                                             ↦cstr{ 
                                                                 this.name = $sym2; 
@@ -81,6 +75,7 @@
                                                                 this.id = -1; 
                                                                 env.functions.compileProduction(this, env, pos);
                                                             }
+
     
 <> production_start_symbol → \→ | \>
 

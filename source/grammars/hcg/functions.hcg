@@ -11,6 +11,11 @@
 ######################################  FUNCTIONS
 ########################################################################################################################
 
+<> hcg_functions > referenced_function
+    | error_function
+    | reduce_function
+    | function_clause
+
 <> referenced_function → (js_function_start_symbol ↦return { $sym1+"GG" })  sym::identifier  ^ (ERR θws ) sym::js_identifier          
                                                                     ↦cstr{     
                                                                         this.id = $sym2;     

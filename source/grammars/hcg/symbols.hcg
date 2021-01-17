@@ -8,7 +8,7 @@
 ######################################  SYMBOLS
 ########################################################################################################################
 
-    
+<> hcg_symbols > condition_symbol_list
 
 <> condition_symbol_list → terminal_symbol(+)
 
@@ -58,8 +58,8 @@
     \ɛ                                              ↦cstr{ this.type = "empty"; this.pos = pos; env.symbols.push(this) }
 
 <> assert_function_symbol → 
-     τassert \:  (ERR θws θnl) identifier             ↦cstr{ this.type = "assert_token_function"; this.val = $sym3; this.pos = pos; this.DOES_SHIFT = false }
-    | τshift \:  (ERR θws θnl) identifier             ↦cstr{ this.type = "assert_token_function"; this.val = $sym3; this.pos = pos; this.DOES_SHIFT = true }
+     \assert:  (ERR θws θnl) identifier             ↦cstr{ this.type = "assert_token_function"; this.val = $sym3; this.pos = pos; this.DOES_SHIFT = false }
+    | \shift:  (ERR θws θnl) identifier             ↦cstr{ this.type = "assert_token_function"; this.val = $sym3; this.pos = pos; this.DOES_SHIFT = true }
 
 <> generated_symbol → 
     ( \θ │ τg \: ) (ERR θws θnl) identifier    ↦cstr{ this.type = "generated"; this.val = $sym2; this.pos = pos; env.symbols.push(this) }

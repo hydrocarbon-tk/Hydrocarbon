@@ -7,14 +7,13 @@
 
 @IMPORT ./comments.hcg as cm
 
-
 @IMPORT ./symbols.hcg as sym
-
 
 @IGNORE θws θnl
 
-@SYMBOL \@
+# ----------- Used for testing ---------------
 
+<> hcg_preamble > preamble
 
 # Productions can be defined through the [ <> ID → symbol ... ] form as will 
 # as using parenthesis ( ) to define a production group. The production group is 
