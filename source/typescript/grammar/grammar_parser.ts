@@ -1,8 +1,3 @@
-import wind from "@candlefw/wind";
-/*
-import hcg_parser_data from "./hcg.js";
-import { lrParse as parser } from "../lr/runtime/lr_parser.js";
-/*/
 import parserLoader from "./parser.js";
 const parser = await parserLoader();
 //*/

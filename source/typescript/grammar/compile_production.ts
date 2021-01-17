@@ -6,20 +6,6 @@ import { Symbol } from "../types/symbol";
 import { GrammarParserEnvironment } from "../types/grammar_compiler_environment.js";
 import { ProductionBody } from "../../../build/types/types/grammar.js";
 
-const
-    EXCLUDE_MAP = 1,
-    IGNORE_MAP = 2,
-    ERROR_MAP = 3,
-    RESET_MAP = 4,
-    REDUCE_MAP = 5,
-    extractable_symbol_lookup = {
-        exc: EXCLUDE_MAP,
-        ign: IGNORE_MAP,
-        err: ERROR_MAP,
-        rst: RESET_MAP,
-        red: REDUCE_MAP
-    };
-
 export default function (production: Production, env: GrammarParserEnvironment, lex: Lexer) {
 
     const grammar_file_url = env.FILE_URL;
