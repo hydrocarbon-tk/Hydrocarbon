@@ -11,7 +11,8 @@ import {
     isSymGeneratedSym,
     itemsToProductions,
     createAssertionShiftManual,
-    rec_state_prod
+    rec_state_prod,
+    rec_state
 } from "./utilities/utilities.js";
 import { AS, ExprSC, SC } from "./utilities/skribble.js";
 import { RenderBodyOptions } from "./types/RenderBodyOptions";
@@ -117,6 +118,7 @@ export function defaultMultiItemLeaf(state: RecognizerState, states: RecognizerS
                 "mk",
                 "anchor:Lexer",
                 rec_glob_lex_name,
+                rec_state,
                 prev_prods.reduce((r, n) => {
                     if (!r) return SC.Binary(rec_state_prod, "==", n);
                     return SC.Binary(r, "||", SC.Binary(rec_state_prod, "==", n));
@@ -138,6 +140,7 @@ export function defaultMultiItemLeaf(state: RecognizerState, states: RecognizerS
             "mk",
             "anchor:Lexer",
             rec_glob_lex_name,
+            rec_state,
             prev_prods.reduce((r, n) => {
                 if (!r) return SC.Binary(rec_state_prod, "==", n);
                 return SC.Binary(r, "||", SC.Binary(rec_state_prod, "==", n));
