@@ -1,5 +1,6 @@
 import { Lexer } from "@candlefw/wind";
-import { SymbolType, Production } from "./grammar";
+import { SymbolType } from "./grammar";
+import { Production } from "./Production";
 
 
 

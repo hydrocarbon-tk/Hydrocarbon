@@ -1,6 +1,7 @@
 import URL from "@candlefw/url";
 
-import { Grammar, ProductionBody, Production } from "./grammar";
+import { Grammar, ProductionBody } from "./grammar";
+import { Production } from "./Production";
 
 import { AwaitTracker } from "../grammar/grammar_parser.js";
 import { ParserEnvironment } from "./parser_environment";

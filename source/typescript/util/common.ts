@@ -2,6 +2,7 @@ import wind from "@candlefw/wind";
 import { performance } from "perf_hooks";
 import {
     doesProductionHaveEmpty,
+    doSymbolsOcclude,
     getAccompanyingItems,
     getAssertionSymbolFirst,
     getProductionFirst,
@@ -11,7 +12,8 @@ import {
     isSymAProduction,
     itemsToProductions
 } from "../hybrid/utilities/utilities.js";
-import { EOF_SYM, Grammar, ItemMapEntry, Production, SymbolType } from "../types/grammar.js";
+import { EOF_SYM, Grammar, ItemMapEntry, SymbolType } from "../types/grammar.js";
+import { Production } from "../types/Production";
 import { AssertionFunctionSymbol, Symbol, TokenSymbol } from "../types/Symbol";
 import { FIRST } from "./first.js";
 import { FOLLOW } from "./follow.js";
@@ -697,15 +699,28 @@ export function getTransitionTree(
     if (depth > max_tree_depth)
         return { tree_nodes: [], clear: true, AMBIGUOUS: true, max_depth: depth };
 
-    const
-        groups = closures.flatMap(cg => getClosureGroups(grammar, cg, lr_transition_items)).group(cg => getUniqueSymbolName(cg.sym)),
-        tree_nodes: TransitionTreeNode[] = [];
-
     let
         GLOBAL_PROGRESS = false,
         CLEAR_REQUESTED = false,
         AMBIGUOUS = false,
         max_depth = depth;
+
+    const
+        occluders = new Map,
+        groups = closures.flatMap(cg => getClosureGroups(grammar, cg, lr_transition_items)).group(
+            (cg, cgs) => {
+                for (const { sym } of cgs)
+                    //if (doSymbolsOcclude(cg.sym, sym)) {
+                    //    const char = cg.sym.val[0];
+                    //    if (!occluders.has(char))
+                    //        occluders.set(char, "!---occluders" + occluders.size);
+                    //    return occluders.get(char);
+                    //}
+
+                    return getUniqueSymbolName(cg.sym);
+            }
+        ),
+        tree_nodes: TransitionTreeNode[] = [];
 
     for (const group of groups) {
 

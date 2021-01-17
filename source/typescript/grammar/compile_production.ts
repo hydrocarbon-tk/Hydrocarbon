@@ -1,8 +1,11 @@
 import { Lexer } from "@candlefw/wind";
 
-import { Production, ProductionBodyFunction } from "../types/grammar.js";
+import { ProductionBodyFunction } from "../types/grammar.js";
+import { Production } from "../types/Production";
 import { Symbol } from "../types/Symbol";
 import { GrammarParserEnvironment } from "../types/grammar_compiler_environment.js";
+import { ProductionBody } from "../../../build/types/types/grammar.js";
+import { isSymAProduction } from "../hybrid/utilities/utilities.js";
 
 const
     EXCLUDE_MAP = 1,

@@ -1,4 +1,5 @@
-import { Grammar, Production } from "../types/grammar.js";
+import { Grammar } from "../types/grammar.js";
+import { Production } from "../types/Production";
 import { ProductionSymbol } from "../types/Symbol";
 import { Item } from "../util/common.js";
 import {

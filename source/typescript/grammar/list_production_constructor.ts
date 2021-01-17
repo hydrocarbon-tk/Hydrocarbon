@@ -1,5 +1,6 @@
 import { Lexer } from "@candlefw/wind";
-import { Production, ProductionBodyReduceFunction } from "../types/grammar.js";
+import { ProductionBodyReduceFunction } from "../types/grammar.js";
+import { Production } from "../types/Production";
 import { GrammarParserEnvironment } from "../types/grammar_compiler_environment.js";
 
 export default class implements Production {

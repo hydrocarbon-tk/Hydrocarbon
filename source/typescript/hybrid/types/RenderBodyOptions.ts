@@ -1,4 +1,5 @@
-import { Grammar, Production } from "../../types/grammar.js";
+import { Grammar } from "../../types/grammar.js";
+import { Production } from "../../types/Production";
 import { CompilerRunner } from "./CompilerRunner.js";
 import { SC, VarSC } from "../utilities/skribble.js";
 import { Item } from "../../util/item.js";

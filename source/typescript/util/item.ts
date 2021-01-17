@@ -1,5 +1,6 @@
 import { getRootSym } from "../hybrid/utilities/utilities.js";
-import { ProductionBody, Grammar, SymbolType, Production, EOF_SYM } from "../types/grammar.js";
+import { ProductionBody, Grammar, SymbolType, EOF_SYM } from "../types/grammar.js";
+import { Production } from "../types/Production";
 import { Symbol } from "../types/Symbol";
 
 export function SymbolToString(sym: { type?: SymbolType, val: string; }) {

@@ -1,4 +1,4 @@
-import { Production } from "../types/grammar.js";
+import { Production } from "../types/Production";
 import { Symbol } from "../types/Symbol";
 import { GrammarParserEnvironment, ImportedProductionList } from "../types/grammar_compiler_environment.js";
 

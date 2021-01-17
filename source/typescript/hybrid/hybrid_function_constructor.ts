@@ -1,4 +1,5 @@
-import { Grammar, Production, EOF_SYM, SymbolType } from "../types/grammar.js";
+import { Grammar, EOF_SYM, SymbolType } from "../types/grammar.js";
+import { Production } from "../types/Production";
 import { TokenSymbol } from "../types/Symbol";
 import { getSymbolsFromClosure, Item }
     from "../util/common.js";

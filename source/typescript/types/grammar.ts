@@ -1,5 +1,6 @@
 import { Lexer } from "@candlefw/wind";
 import { Item } from "../util/item";
+import { Production } from "./Production";
 import { Symbol, TokenSymbol } from "./Symbol";
 
 export enum SymbolType {
@@ -81,41 +82,6 @@ export interface ProductionBody {
     build?: () => void;
     reduce_id?: number;
     FORK_ON_ENTRY: boolean;
-}
-
-export interface Production {
-    id: number;
-    name: string;
-    val?: number;
-    type: "production";
-    subtype?: string;
-
-    url?: string;
-    grammar_stamp?: string;
-
-    bodies?: Array<ProductionBody>;
-
-    excludes?: Map<number, TokenSymbol>;
-    ignore?: Map<number, TokenSymbol>;
-    error?: Map<number, TokenSymbol>;
-    reset?: Map<number, TokenSymbol>;
-    reduce?: Map<number, TokenSymbol>;
-    follow?: Map<string, TokenSymbol>;
-
-    IMPORT_APPEND?: boolean;
-    IMPORT_OVERRIDE?: boolean;
-    RESOLVED?: boolean;
-    IMPORTED?: boolean;
-    resolveFunction?: (arg0: Production) => void;
-
-    recovery_handler?: {
-        type: "ERROR_RECOVERY",
-        lexer_text: string,
-        body_text: string,
-        reduce_id: number;
-
-    };
-    graph_id?: number;
 }
 
 export interface Preamble {
