@@ -36,7 +36,7 @@
   "dependencies": {
     "@assemblyscript/loader": "^0.17.2",
     "@candlefw/conflagrate": "*",
-    "@candlefw/js": "^0.3.1",
+    "@candlefw/js": "*",
     "@candlefw/url": "*",
     "@candlefw/wind": "*",
     "assemblyscript": "^0.17.2",
