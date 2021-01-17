@@ -26,9 +26,9 @@ const default_options: HybridCompilerOptions = {
     error_array_byte_size: 512,
     memory_loader_url: "@candlefw/hydrocarbon",
     alternate_parse_entries: [],
-    ts_output_dir: "./parser",
-    wasm_output_dir: "./wasm",
-    combine_wasm_with_js: false,
+    completer_output_dir: "./parser",
+    recognizer_output_dir: "./wasm",
+    combine_recognizer_and_completer: false,
     no_file_output: false,
     optimize: true,
     create_function: false,
@@ -43,13 +43,13 @@ export async function compileHybrid(grammar: Grammar, env: GrammarParserEnvironm
     await asc.ready;
 
     const
-        used_options: HybridCompilerOptions = Object.assign({}, default_options, options),
-        runner: CompilerRunner = constructCompilerRunner(used_options.add_annotations, used_options.debug),
-        mt_code_compiler = new HybridMultiThreadRunner(grammar, env, runner, used_options.number_of_workers),
+        active_options: HybridCompilerOptions = Object.assign({}, default_options, options),
+        runner: CompilerRunner = constructCompilerRunner(active_options.add_annotations, active_options.debug),
+        mt_code_compiler = new HybridMultiThreadRunner(grammar, env, runner, active_options.number_of_workers),
         action32bit_array_byte_size = action32bit_array_byte_size_default,
         error8bit_array_byte_size = 10 * 4098 * 4; //  error8bit_array_byte_size_default;
 
-    used_options.combine_wasm_with_js = Boolean(used_options.no_file_output || used_options.combine_wasm_with_js);
+    active_options.combine_recognizer_and_completer = Boolean(active_options.no_file_output || active_options.combine_recognizer_and_completer);
 
     for (const updates of mt_code_compiler.run()) {
         // console.dir({ updates });
@@ -58,16 +58,16 @@ export async function compileHybrid(grammar: Grammar, env: GrammarParserEnvironm
 
     const rc = renderAssemblyScriptRecognizer(grammar, runner, mt_code_compiler.functions, action32bit_array_byte_size, error8bit_array_byte_size),
 
-        wasm_dir = URL.resolveRelative(options.wasm_output_dir),
-        ts_dir = URL.resolveRelative(options.ts_output_dir),
-        recognizer_wat_file = URL.resolveRelative("./recognizer.wat", wasm_dir),
-        recognizer_binary_file = URL.resolveRelative("./recognizer.wasm", wasm_dir),
-        recognizer_ts_file = URL.resolveRelative("./recognizer.ts", ts_dir),
-        recognizer_js_file = URL.resolveRelative("./recognizer.js", ts_dir),
-        recognizer_cpp_file = URL.resolveRelative("./recognizer.h", ts_dir),
-        recognizer_rust_file = URL.resolveRelative("./recognizer.rs", ts_dir),
-        recognizer_go_file = URL.resolveRelative("./recognizer.rs", ts_dir),
-        parser_file = URL.resolveRelative("./parser.js", ts_dir),
+        recognizer_dir = URL.resolveRelative(options.recognizer_output_dir),
+        completer_dir = URL.resolveRelative(options.completer_output_dir),
+        recognizer_wat_file = URL.resolveRelative("./recognizer.wat", recognizer_dir),
+        recognizer_binary_file = URL.resolveRelative("./recognizer.wasm", recognizer_dir),
+        recognizer_ts_file = URL.resolveRelative("./recognizer.ts", completer_dir),
+        recognizer_js_file = URL.resolveRelative("./recognizer.js", completer_dir),
+        recognizer_cpp_file = URL.resolveRelative("./recognizer.h", completer_dir),
+        recognizer_rust_file = URL.resolveRelative("./recognizer.rs", completer_dir),
+        recognizer_go_file = URL.resolveRelative("./recognizer.rs", completer_dir),
+        parser_file = URL.resolveRelative("./parser.js", completer_dir),
         recognizer_script_ts = `
         type BooleanTokenCheck = (l:Lexer)=>boolean;
         type TokenCheck = (l:Lexer)=>boolean;
@@ -90,95 +90,113 @@ export async function compileHybrid(grammar: Grammar, env: GrammarParserEnvironm
         ${Object.assign(new CPP, rc).renderCode()}
         `;
 
-    if (!used_options.no_file_output) try {
+    if (!active_options.no_file_output) try {
         //Insure output directories exist
-
-        await fsp.mkdir(wasm_dir + "", { recursive: true });
-        await fsp.mkdir(ts_dir + "", { recursive: true });
-
-        // Output recognizer file for review before attempting to compile
-        // to binary
-        await fsp.writeFile(recognizer_ts_file + "", recognizer_script_ts);
-        await fsp.writeFile(recognizer_js_file + "", recognizer_script_js);
-        await fsp.writeFile(recognizer_cpp_file + "", recognizer_script_cpp);
+        await fsp.mkdir(recognizer_dir + "", { recursive: true });
+        await fsp.mkdir(completer_dir + "", { recursive: true });
     } catch (e) {
         throw e;
     }
 
-    if (!used_options.no_file_output) {
-        const
-            { binary, text, stdout, stderr } = asc.compileString(recognizer_script_ts, {
-                runtime: "full",
-                optimize: used_options.optimize,
-                converge: false,
-                optimizeLevel: 3,
-                noExportMemory: false,
-                sharedMemory: false,
-                maximumMemory: 100,
-                importMemory: true,
-                memoryBase: action32bit_array_byte_size + error8bit_array_byte_size + jump16bit_table_byte_size
-            }),
-            errors = stderr.toString(),
-            messages = stdout.toString();
+    switch ((active_options.type + "" || "").toLowerCase()) {
 
-        if (errors.length > 0) throw new EvalError(errors);
-        if (messages.length > 0) console.log(messages);
+        case "wasm":
+        case "webassembly":
 
-        const parser_script = renderParserScript(grammar, used_options, binary);
+            const
+                { binary, text, stdout, stderr } = asc.compileString(recognizer_script_ts, {
+                    runtime: "full",
+                    optimize: active_options.optimize,
+                    converge: false,
+                    optimizeLevel: 3,
+                    noExportMemory: false,
+                    sharedMemory: false,
+                    maximumMemory: 100,
+                    importMemory: true,
+                    memoryBase: action32bit_array_byte_size + error8bit_array_byte_size + jump16bit_table_byte_size
+                }),
+                errors = stderr.toString(),
+                messages = stdout.toString();
 
-        try {
-            if (!used_options.combine_wasm_with_js) {
-                await fsp.writeFile(recognizer_binary_file + "", binary);
-                await fsp.writeFile(recognizer_wat_file + "", text);
+            if (errors.length > 0) throw new EvalError(errors);
+            if (messages.length > 0) console.log(messages);
 
+            const parser_script = renderParserScript(grammar, active_options, binary);
+
+            if (!active_options.no_file_output) {
+                try {
+                    if (!active_options.combine_recognizer_and_completer) {
+                        await fsp.writeFile(recognizer_binary_file + "", binary);
+                        await fsp.writeFile(recognizer_wat_file + "", text);
+                    }
+
+                    await fsp.writeFile(parser_file + "", parser_script);
+
+                } catch (e) {
+                    throw e;
+                }
             }
 
-            await fsp.writeFile(parser_file + "", parser_script);
+            if (active_options.no_file_output || active_options.create_function)
 
-        } catch (e) {
-            throw e;
+                return await (new AsyncFunction(
+                    "loader",
+                    "buildParserMemoryBuffer",
+                    "URL",
+                    "Lexer",
+                    `${renderParserScript(grammar, active_options, binary, true)}`
+                ))(
+                    loader,
+                    buildParserMemoryBuffer,
+                    URL,
+                    Lexer
+                );
+            return;
+        case "js":
+        case "javascript":
+        default: {
+            const parser_script =
+                renderJSScript(
+                    grammar,
+                    active_options,
+                    recognizer_script_js,
+                    true,
+                    action32bit_array_byte_size,
+                    error8bit_array_byte_size
+                );
+
+            if (!active_options.no_file_output) {
+                try {
+
+                    const recognizer_file = URL.resolveRelative("./recognizer.js", recognizer_dir);
+
+                    if (!active_options.combine_recognizer_and_completer) {
+                        await fsp.writeFile(recognizer_file + "", recognizer_script_js);
+                    }
+
+                    await fsp.writeFile(parser_file + "", parser_script);
+
+                } catch (e) {
+                    throw e;
+                }
+            }
+            if (active_options.no_file_output || active_options.create_function)
+                return await (new AsyncFunction(
+                    "loader",
+                    "buildParserMemoryBuffer",
+                    "URL",
+                    "Lexer",
+                    parser_script
+                ))(
+                    loader,
+                    buildParserMemoryBuffer,
+                    URL,
+                    Lexer
+                );
+            return;
         }
-
-        if (used_options.no_file_output || used_options.create_function)
-
-
-            return await (new AsyncFunction(
-                "loader",
-                "buildParserMemoryBuffer",
-                "URL",
-                "Lexer",
-                `${renderParserScript(grammar, used_options, binary, true)}`
-            ))(
-                loader,
-                buildParserMemoryBuffer,
-                URL,
-                Lexer
-            );
-
-        return;
-
     }
 
-    if (used_options.no_file_output || used_options.create_function) {
-        const script = `${renderJSScript(grammar, used_options, recognizer_script_js, true, action32bit_array_byte_size,
-            error8bit_array_byte_size)}`;
-
-        //await fsp.writeFile(recognizer_js_file + "", script);
-        //await fsp.writeFile(recognizer_ts_file + "", recognizer_script_ts);
-        //    / return script;
-        return await (new AsyncFunction(
-            "loader",
-            "buildParserMemoryBuffer",
-            "URL",
-            "Lexer",
-            script
-        ))(
-            loader,
-            buildParserMemoryBuffer,
-            URL,
-            Lexer
-        );
-    }
     return;
 }
 

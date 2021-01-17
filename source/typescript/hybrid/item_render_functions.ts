@@ -8,26 +8,31 @@ import {
     createDefaultReduceFunction,
     createAssertionShift,
     isSymAProduction,
-    g_lexer_name,
+    rec_glob_lex_name,
     addSkipCallNew,
-    getSkippableSymbolsFromItems
+    getSkippableSymbolsFromItems,
+    rec_state
 } from "./utilities/utilities.js";
 import { ExprSC, SC, VarSC } from "./utilities/skribble.js";
 import { RenderBodyOptions } from "./types/RenderBodyOptions.js";
 
 
+export function getProductionFunctionName(production: Production, grammar: Grammar): string {
+    return "$" + production.name;
+}
+
 export function renderProductionCall(
     production: Production,
     options: RenderBodyOptions,
-    lexer_name: VarSC = g_lexer_name
+    lexer_name: VarSC = rec_glob_lex_name
 ): ExprSC {
 
-    const { called_productions } = options;
+    const { called_productions, grammar } = options;
 
     called_productions.add(<number>production.id);
 
 
-    return SC.Call(SC.Constant("$" + production.name), lexer_name);
+    return SC.Call(SC.Constant(getProductionFunctionName(production, grammar) + ":unsigned int"), lexer_name, rec_state);
 }
 export function renderItemReduction(
     code_node: SC,
@@ -74,7 +79,7 @@ export function renderItemSym(
     item: Item,
     options: RenderBodyOptions,
     RENDER_WITH_NO_CHECK = false,
-    lexer_name: VarSC = g_lexer_name
+    lexer_name: VarSC = rec_glob_lex_name
 ): { code_node: SC; } {
 
     const { grammar, runner, called_productions } = options;
@@ -90,9 +95,7 @@ export function renderItemSym(
 
             ({ IS_PASSTHROUGH, first_non_passthrough, passthrough_chain } = isProductionPassthrough(sym.val, grammar));
 
-            bool_expression = SC.Call(SC.Constant("$" + grammar[first_non_passthrough].name), lexer_name);
-
-            called_productions.add(first_non_passthrough);
+            bool_expression = renderProductionCall(grammar[first_non_passthrough], options, lexer_name);
 
             RENDER_WITH_NO_CHECK = false;
 
@@ -100,7 +103,7 @@ export function renderItemSym(
             if (RENDER_WITH_NO_CHECK) {
                 code_node.addStatement(createNoCheckShift(grammar, runner, lexer_name));
             } else {
-                bool_expression = createAssertionShift(grammar, runner, sym, lexer_name).expressions[0];
+                bool_expression = createAssertionShift(grammar, runner, sym, lexer_name);
 
                 RENDER_WITH_NO_CHECK = false;
             }
@@ -132,7 +135,7 @@ export function renderItem(
     item: Item,
     options: RenderBodyOptions,
     DONT_CHECK = false,
-    lexer_name: VarSC = g_lexer_name
+    lexer_name: VarSC = rec_glob_lex_name
 ): SC {
     const { grammar, runner } = options;
 

@@ -1,12 +1,12 @@
 import { Item } from "../util/common.js";
 import {
     getAccompanyingItems,
-    itemsToProductions
+    itemsToProductions,
+    rec_state_prod
 } from "./utilities/utilities.js";
 import { SC } from "./utilities/skribble.js";
 import { RenderBodyOptions } from "./types/RenderBodyOptions";
 import { renderItemReduction } from "./item_render_functions.js";
-import { production_global } from "./hybrid_function_constructor.js";
 
 
 export function processProductionChain(
@@ -27,7 +27,7 @@ export function processProductionChain(
     active_items = getAccompanyingItems(grammar, active_productions, items);
 
     if (active_items.length == 0) {
-        code_node.addStatement(SC.Assignment(production_global, prod[0]));
+        code_node.addStatement(SC.Assignment(rec_state_prod, prod[0]));
         return prod;
     }
 
@@ -40,7 +40,7 @@ export function processProductionChain(
         }
     }
 
-    code_node.addStatement(SC.Assignment(production_global, prod[0]));
+    code_node.addStatement(SC.Assignment(rec_state_prod, prod[0]));
 
     if (active_items.length > 0) {
         while (active_items.length > 0) {

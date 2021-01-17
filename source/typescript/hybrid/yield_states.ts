@@ -33,8 +33,8 @@ export function* yieldStates(
         end_items = in_items.filter(i => i.atEND),
         active_items = in_items.filter(i => !i.atEND);
 
-    //if (cache.has(state_id))
-    //    return cache.get(state_id);
+    if (cache.has(state_id))
+        return cache.get(state_id);
 
     try {
         /**

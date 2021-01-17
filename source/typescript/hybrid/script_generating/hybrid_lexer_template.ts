@@ -1,6 +1,6 @@
 import { SC } from "../utilities/skribble.js";
 
-export const printLexer = (): SC => {
+export const createLexerCode = (): SC => {
     const strCodePointAt = SC.Member("str", "codePointAt");
     return (new SC).addStatement(
         SC.Function(

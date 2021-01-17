@@ -2,9 +2,9 @@
 
 export interface HybridCompilerOptions {
     /**
-     * Type of compiler to create
+     * Type of recognizer to create
      */
-    type: "wasm" | "js";
+    type: "wasm" | "js" | "JavaScript" | "javascript" | "WebAssembly" | "WASM" | "webassemby";
     /**
      * Number of worker threads to use when generating parser
      * recognizer code.
@@ -32,21 +32,21 @@ export interface HybridCompilerOptions {
     add_annotations?: boolean;
 
     /**
-     * Set the output directory for the recognizer.ts and parser.ts files.
+     * Set the output directory for the completer/parser files.
      */
 
-    ts_output_dir?: string;
-
-    /**
-     * Set the output directory for the recognizer.wasm and recognizer.wat files.
-     */
-    wasm_output_dir?: string;
+    completer_output_dir?: string;
 
     /**
-     * Instead of a separate recognizer.wasm file, include the WASM data as a
-     * Uint8Buffer array within the parser.ts file.
+     * Set the output directory for the recognizer files.
      */
-    combine_wasm_with_js?: boolean;
+    recognizer_output_dir?: string;
+
+    /**
+     * Instead of a separate recognizer file, include the recognizer within the 
+     * completer file. 
+     */
+    combine_recognizer_and_completer?: boolean;
 
     /**
      * Do not write any files to disk

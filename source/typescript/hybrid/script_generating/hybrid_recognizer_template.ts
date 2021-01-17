@@ -1,24 +1,23 @@
 import { Grammar, SymbolType } from "../../types/grammar.js";
+import { getProductionFunctionName } from "../item_render_functions.js";
 import { action32bit_array_byte_size_default, error8bit_array_byte_size_default, jump16bit_table_byte_size } from "../parser_memory.js";
 import { CompilerRunner } from "../types/CompilerRunner";
 import { RDProductionFunction } from "../types/RDProductionFunction";
 import { SC } from "../utilities/skribble.js";
 import {
-    addSkipCall,
     convertAssertionFunctionBodyToSkribble,
     TokenSpaceIdentifier,
     TokenNumberIdentifier,
     TokenIdentifierIdentifier,
     TokenNewLineIdentifier,
     TokenSymbolIdentifier,
-    consume_call,
-    consume_assert_call,
-    g_lexer_name,
-    addSkipCallNew,
-    getSkippableSymbolsFromItems,
-    getProductionClosure
+    rec_consume_call,
+    rec_consume_assert_call,
+    rec_glob_lex_name,
+    rec_state
 } from "../utilities/utilities.js";
-import { printLexer } from "./hybrid_lexer_template.js";
+import { createLexerCode } from "./hybrid_lexer_template.js";
+import { createStateCode } from "./hybrid_state_template.js";
 import { getTokenSelectorStatements } from "./hybrid_token_selector_template.js";
 
 export const renderAssemblyScriptRecognizer = (
@@ -45,10 +44,6 @@ export const renderAssemblyScriptRecognizer = (
     }
 
     const
-        custom_skip = (grammar?.functions.has("custom_skip") ? (() => {
-            let str = grammar.functions.get("custom_skip").txt;
-            return [convertAssertionFunctionBodyToSkribble(str, grammar, runner).sc];
-        })() : []),
         { const: constants, fn: const_functions } = runner.render_constants(),
         code_node = new SC,
         action_array_offset = SC.Constant("action_array_offset:unsigned int"),
@@ -60,14 +55,11 @@ export const renderAssemblyScriptRecognizer = (
         TokenSymbol = SC.Constant("TokenSymbol:unsigned int"),
         id = SC.Constant("id:unsigned short"),
         num = SC.Constant("num:unsigned short"),
-        mark_ = SC.Variable("mark_:unsigned int"),
         action_ptr = SC.Variable("action_ptr:unsigned int"),
         error_ptr = SC.Variable("error_ptr:unsigned int"),
-        stack_ptr = SC.Variable("stack_ptr:unsigned int"),
         str = SC.Variable("str:string"),
         FAILED = SC.Variable("FAILED:bool"),
-        prod = SC.Variable("prod:int"),
-        probe_index = SC.Variable("probe_index:unsigned int");
+        prod = SC.Variable("prod:int");
 
     code_node.addStatement(
         SC.Declare(
@@ -80,25 +72,16 @@ export const renderAssemblyScriptRecognizer = (
             SC.Assignment(TokenSymbol, SC.Value(TokenSymbolIdentifier)),
             SC.Assignment(id, SC.Value(2)),
             SC.Assignment(num, SC.Value(4)),
-            SC.Assignment(mark_, SC.Value(0)),
             SC.Assignment(action_ptr, SC.Value(0)),
             SC.Assignment(error_ptr, SC.Value(0)),
-            SC.Assignment(stack_ptr, SC.Value(0)),
-            SC.Assignment(FAILED, SC.Value("false")),
-            SC.Assignment(prod, SC.Value("-1")),
-            SC.Assignment(probe_index, SC.Value("1")),
             str,
         ),
         ...constants,
-        printLexer(),
+        createStateCode(),
+        createLexerCode(),
         ...const_functions,
         ...assert_functions.values()
     );
-
-    const fns = [
-        ...rd_functions.filter(l => l.RENDER).map(fn => fn.str),
-    ],
-        { keywords, symbols } = getTokenSelectorStatements(grammar);
 
     //for (const fn of [...grammar.functions.values()].filter(v => v.assemblyscript_txt))
     //    assert_functions.set(fn.id, `function ${getAssertionFunctionName(fn.id)}(l:Lexer&):boolean{${fn.assemblyscript_txt}}`);
@@ -126,47 +109,17 @@ export const renderAssemblyScriptRecognizer = (
                 SC.Constant("store:void", ":unsigned int"),
                 SC.Binary(SC.Binary(SC.UnaryPost(action_ptr, "++"), "<<", 2), "+", action_array_offset), "val:unsigned int"))
     );
+
     /*            
-    function completeProduction(body: u32, len: u32, production: u32): void {
-        add_reduce(len, body);
-        prod = production;
+    function mark (): u32{
+        mark_ = action_ptr;
+        return mark_;
     }
     */
-    /*
-     code_node.addStatement(SC.Function(
-         "completeProduction:void",
-         "body:unsigned int",
-         "len:unsigned int",
-         "production:unsigned int"
-     ).addStatement(
-         SC.Call(SC.Constant("add_reduce:unsigned int"), SC.Constant("body:unsigned int"), SC.Constant("len:unsigned int")),
-         SC.Assignment(prod, SC.Constant("production:unsigned int"))
-     ));
-     /*            
-     function completeProductionPlain(len: u32, production: u32): void {
-         prod = production;
-     }
-     */
-    /*
-     code_node.addStatement(SC.Function(
-         "completeProductionPlain:void",
-         "len:unsigned int",
-         "production:unsigned int"
-     ).addStatement(
-         SC.Assignment(prod, SC.Constant("production:unsigned int"))
-     ));
- 
-     /*            
-     function mark (): u32{
-         mark_ = action_ptr;
-         return mark_;
-     }
-     */
     code_node.addStatement(SC.Function(
         "mark:unsigned int")
         .addStatement(
-            SC.Assignment(mark_, action_ptr),
-            SC.UnaryPre("return", mark_)
+            SC.UnaryPre("return", action_ptr)
         ));
     /*
     function table(l:Lexer, a,b,c,d): bool{
@@ -185,13 +138,13 @@ export const renderAssemblyScriptRecognizer = (
     code_node.addStatement(
         SC.Function(
             "assert_table:boolean",
-            g_lexer_name,
+            rec_glob_lex_name,
             "a:unsigned int",
             "b:unsigned int",
             "c:unsigned int",
             "d:unsigned int",
         ).addStatement(
-            SC.Declare(SC.Assignment(SC.Constant("utf:int"), SC.Member(g_lexer_name, "utf"))),
+            SC.Declare(SC.Assignment(SC.Constant("utf:int"), SC.Member(rec_glob_lex_name, "utf"))),
             SC.If(SC.Binary("utf", "<", "32"))
                 .addStatement(
                     SC.UnaryPre(SC.Return, SC.Binary(SC.Binary("a", "&", SC.Binary("1", "<<", "utf")), "!=", "0")),
@@ -225,16 +178,17 @@ export const renderAssemblyScriptRecognizer = (
             "mark:unsigned int",
             "origin:Lexer",
             "advanced:Lexer",
+            rec_state,
             "pass:boolean",
         ).addStatement(
             SC.If(
                 SC.Binary(
-                    SC.UnaryPre("!", FAILED), "&&",
+                    SC.UnaryPre("!", SC.Call(SC.Member(rec_state, "getFAILED"))), "&&",
                     "pass")
             ).addStatement(SC.UnaryPre(SC.Return, SC.False)),
             SC.Assignment(action_ptr, "mark:unsigned int"),
             SC.Call(SC.Member("advanced", "sync"), "origin"),
-            SC.Assignment(FAILED, SC.False),
+            SC.Call(SC.Member(rec_state, "setFAILED"), SC.False),
             SC.UnaryPre(SC.Return, SC.True)
         ));
 
@@ -303,15 +257,19 @@ export const renderAssemblyScriptRecognizer = (
     code_node.addStatement(
         SC.Function(
             "add_reduce:void",
+            rec_state,
             "sym_len:unsigned int",
             "body:unsigned int",
             SC.Assignment("DNP:bool", "false")
         ).addStatement(
-            SC.Call("set_action",
-                SC.Binary(
-                    SC.Binary(SC.Binary("DNP", "<<", 1), "|", SC.Binary(SC.Binary("sym_len", "&", 0x3FFF), "<<", 2)),
-                    "|", SC.Binary("body", "<<", 16))
-            )
+            SC.If(SC.Call(SC.Member(rec_state, "getENABLE_STACK_OUTPUT")))
+                .addStatement(
+                    SC.Call("set_action",
+                        SC.Binary(
+                            SC.Binary(SC.Binary("DNP", "<<", 1), "|", SC.Binary(SC.Binary("sym_len", "&", 0x3FFF), "<<", 2)),
+                            "|", SC.Binary("body", "<<", 16))
+                    )
+                )
         ));
     /*            
    function fail(lex:Lexer&):boolean { 
@@ -320,21 +278,23 @@ export const renderAssemblyScriptRecognizer = (
             soft_fail(lex)
         }
         return false;
-    }
-
-    */
+    }  */
     code_node.addStatement(
         SC.Function(
             "fail:bool",
-            "l:Lexer&"
+            "l:Lexer&",
+            rec_state
         ).addStatement(
-            SC.If(SC.UnaryPre("!", FAILED))
+            SC.If(
+                SC.Binary(SC.UnaryPre("!", SC.Call(SC.Member(rec_state, "getFAILED"))),
+                    "&&",
+                    SC.Call(SC.Member(rec_state, "getENABLE_STACK_OUTPUT"))))
                 .addStatement(
-                    SC.Assignment(prod, -1),
-                    SC.Call("soft_fail", "l")
+                    SC.Call("soft_fail", "l", rec_state)
                 ),
             SC.UnaryPre(SC.Return, SC.False)
         ));
+
     /*            
    function soft_fail(lex:Lexer&):void { 
         FAILED = true;
@@ -344,92 +304,29 @@ export const renderAssemblyScriptRecognizer = (
     code_node.addStatement(
         SC.Function(
             "soft_fail:void",
-            "l:Lexer&"
+            "l:Lexer&",
+            rec_state,
         ).addStatement(
-            SC.Assignment(FAILED, "true"),
+            SC.Call(SC.Member(rec_state, "setFAILED"), "true"),
             SC.Call("set_error", SC.Member("l", "off"))
         ));
 
+
     /*            
-    function _pk(l: Lexer, skip: BooleanTokenCheck): Lexer {
-        l.next();
-        _skip(l, skip);
-        return l;
-    }  
-   */
-    /*
-      code_node.addStatement(
-          SC.Function(
-              "_pk:Lexer&",
-              "l:Lexer&",
-              "skip: BooleanTokenCheck"
-          ).addStatement(
-              SC.Call(SC.Member("l:Lexer&", "next")),
-              SC.Call("_skip", "l", "skip"),
-              SC.UnaryPre("return", SC.Variable("l"))
-          ));
-      ////////////////////////////////////////////////////////////
-      `function _skip(l: Lexer, skip: BooleanTokenCheck):Lexer{
-          while(1){
-      
-              ${grammar?.functions.has("custom_skip") ? (() => {
-              let str = grammar.functions.get("custom_skip").txt;
-              return convertAssertionFunctionBodyToSkribble(str, grammar, runner).sc;
-          })() : ""}
-              
-              if (!skip(l))
-                  break;
-      
-              l.next();
-          }
-      }`;
-      /*
-      code_node.addStatement(
-          SC.Function(
-              "_skip:Lexer",
-              "l:Lexer&",
-              "skip: BooleanTokenCheck"
-          ).addStatement(
-              SC.While(SC.Value(1)).addStatement(
-                  ...custom_skip,
-                  SC.If(SC.UnaryPre("!", SC.Call("skip", "l")))
-                      .addStatement(SC.Break),
-                  SC.Call(SC.Member("l", "next")),
-              ),
-              SC.UnaryPre(SC.Return, SC.Value("l"))
-          ));
-      /*            
-      function _no_check_with_skip(lex: Lexer, skip: BooleanTokenCheck):void {
-          add_shift(lex, lex.tl);
-          lex.next();
-          _skip(lex, skip);
-      }
-     */
-    /*
-      code_node.addStatement(
-          SC.Function(
-              consume_skip_call,
-              "l:Lexer&",
-              "skip: BooleanTokenCheck"
-          ).addStatement(
-              SC.Call("add_shift", "l", SC.Member("l:Lexer&", "tl")),
-              SC.Call(SC.Member("l:Lexer&", "next")),
-              SC.Call("_skip", "l", "skip"),
-          ));
-      /*            
-     function isSUCCESS(lex: Lexer, condition:bool):void {
-         if(FAILED || !condition) return fail(lex);
-         return true;
-     }
-    */
+   function isSUCCESS(lex: Lexer, condition:bool):void {
+       if(FAILED || !condition) return fail(lex);
+       return true;
+   }
+  */
     code_node.addStatement(
         SC.Function(
             "assertSuccess:bool",
             "l:Lexer&",
+            rec_state,
             "condition:bool",
         ).addStatement(
-            SC.If(SC.Binary(SC.UnaryPre("!", SC.Value("condition")), "||", FAILED))
-                .addStatement(SC.UnaryPre(SC.Return, SC.Call("fail", "l"))),
+            SC.If(SC.Binary(SC.UnaryPre("!", SC.Value("condition")), "||", SC.Call(SC.Member(rec_state, "getFAILED"))))
+                .addStatement(SC.UnaryPre(SC.Return, SC.Call("fail", "l", rec_state))),
             SC.UnaryPre(SC.Return, SC.True)
         ));
     /*            
@@ -441,10 +338,13 @@ export const renderAssemblyScriptRecognizer = (
 
     code_node.addStatement(
         SC.Function(
-            consume_call,
+            rec_consume_call,
             "l:Lexer&",
+            rec_state,
         ).addStatement(
-            SC.Call("add_shift", "l", SC.Member("l:Lexer&", "tl")),
+            SC.If(SC.Call(SC.Member(rec_state, "getENABLE_STACK_OUTPUT"))).addStatement(
+                SC.Call("add_shift", "l", SC.Member("l:Lexer&", "tl"))
+            ),
             SC.Call(SC.Member("l:Lexer&", "next"))
         ));
 
@@ -457,18 +357,7 @@ export const renderAssemblyScriptRecognizer = (
         ).addStatement(
             SC.Call("add_shift", "l", SC.Value(0))
         ));
-    /*            
-    function _with_skip(lex: Lexer, skip: BooleanTokenCheck, accept:boolean):void {
-        if(FAILED) return;
-        
-        if (accept) {
-            _no_check_with_skip(lex, skip);
-        } else {
-            //TODO error recovery
-            soft_fail(lex);
-        }
-    }
-   */
+
     /*            
     function consume_assert(lex: Lexer, accept:boolean):void {
  
@@ -484,15 +373,16 @@ export const renderAssemblyScriptRecognizer = (
    */
     code_node.addStatement(
         SC.Function(
-            consume_assert_call,
+            rec_consume_assert_call,
             "l:Lexer&",
+            rec_state,
             "accept:bool"
         ).addStatement(
-            SC.If(FAILED).addStatement(
+            SC.If(SC.Call(SC.Member(rec_state, "getFAILED"))).addStatement(
                 SC.UnaryPre(SC.Return, SC.Value("false"))
             ),
             SC.If(SC.Variable("accept")).addStatement(
-                SC.Call(consume_call, "l"),
+                SC.Call(rec_consume_call, "l", rec_state),
                 SC.UnaryPre(SC.Return, SC.Value("true")),
                 SC.If().addStatement(
                     SC.UnaryPre(SC.Return, SC.Value("false"))
@@ -515,11 +405,8 @@ export const renderAssemblyScriptRecognizer = (
         SC.Function(
             "reset_counters_and_pointers:void"
         ).addStatement(
-            SC.Assignment(prod, -1),
-            SC.Assignment(stack_ptr, 0),
             SC.Assignment(error_ptr, 0),
-            SC.Assignment(action_ptr, 0),
-            SC.Assignment(FAILED, "false")
+            SC.Assignment(action_ptr, 0)
         ));
 
     //#######################################################################
@@ -559,14 +446,23 @@ export const renderAssemblyScriptRecognizer = (
             "input_string:string"
         ).addStatement(
             SC.Assignment(str, "input_string"),
-            SC.Declare(SC.Assignment(SC.Constant("l:Lexer&"), SC.UnaryPre("new", SC.Call("Lexer:Lexer&")))),
+
+            SC.Declare(
+                SC.Assignment(SC.Constant("l:Lexer&"), SC.UnaryPre("new", SC.Call("Lexer:Lexer&"))),
+                SC.Assignment(SC.Constant("state:State&"), SC.UnaryPre("new", SC.Call("State:State&")))
+            ),
+
             SC.Call(SC.Member("l", "next")),
             SC.Call("reset_counters_and_pointers"),
-            SC.Call("$" + grammar[0].name, "l"),
+
+            SC.Call(getProductionFunctionName(grammar[0], grammar), "l", "state:State&"),
             //addSkipCallNew(getSkippableSymbolsFromItems(getProductionClosure(0, grammar), grammar), grammar, runner),
             SC.Call("set_action", 0),
             SC.Call("set_error", 0),
-            SC.UnaryPre(SC.Return, SC.Binary(FAILED, "||", SC.UnaryPre("!", SC.Call(SC.Member("l", "END")))))
+            SC.UnaryPre(SC.Return, SC.Binary(
+                SC.Call(SC.Member("state", SC.Variable("getFAILED:bool"))),
+                "||",
+                SC.UnaryPre("!", SC.Call(SC.Member("l", "END")))))
         ));
     return code_node;
 };

@@ -1,6 +1,6 @@
 import { Item, getTransitionTree, getSymbolsFromClosure, getFollowClosure } from "../util/common.js";
 import {
-    g_lexer_name,
+    rec_glob_lex_name,
     getAccompanyingItems,
     itemsToProductions,
     isSymAProduction
@@ -77,7 +77,7 @@ export function* yieldCompletedItemStates(end_items: Item[], options: RenderBody
 
                 return { final: 0, sym: null, index, closure: closure };
             }));
-            const gen = buildPeekSequence(tree_nodes, grammar, runner, g_lexer_name, -1, true);
+            const gen = buildPeekSequence(tree_nodes, grammar, runner, rec_glob_lex_name, -1, true);
             let val = gen.next();
 
             while (!val.done) {

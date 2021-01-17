@@ -1,11 +1,11 @@
 import { Item } from "../util/common.js";
-import { g_lexer_name, isSymAProduction } from "./utilities/utilities.js";
+import { rec_glob_lex_name, isSymAProduction } from "./utilities/utilities.js";
 import { SC } from "./utilities/skribble.js";
 import { RenderBodyOptions } from "./types/RenderBodyOptions";
 import { yieldStates } from "./yield_states.js";
 import { RecognizerState, TRANSITION_TYPE } from "./types/RecognizerState.js";
 
-export function* yieldNontermStates(options: RenderBodyOptions): Generator<RecognizerState[], { code: SC, prods: number[]; }> {
+export function* yieldNontermStates(options: RenderBodyOptions): Generator<RecognizerState[], { code: SC, prods: number[]; hash: string; }> {
 
     const { grammar, production_shift_items, production, extended_production_shift_items } = options;
     let nonterm_shift_items: Item[] = production_shift_items;
@@ -50,7 +50,7 @@ export function* yieldNontermStates(options: RenderBodyOptions): Generator<Recog
             const
                 shifted_items = group.map(i => i.increment()),
                 sym = group[0].sym(grammar),
-                gen = yieldStates(shifted_items, options, g_lexer_name, 1);
+                gen = yieldStates(shifted_items, options, rec_glob_lex_name, 1);
 
             let val = gen.next(), prods = [];
 
@@ -80,8 +80,8 @@ export function* yieldNontermStates(options: RenderBodyOptions): Generator<Recog
 
         yield groups;
 
-        return { code: groups[0].code, prods: [] };
+        return { code: groups[0].code, prods: [], hash: groups[0].hash };
     }
 
-    else return { code: new SC, prods: [] };
+    else return { code: new SC, prods: [], hash: "" };
 }

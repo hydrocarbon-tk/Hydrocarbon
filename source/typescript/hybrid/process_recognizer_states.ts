@@ -1,15 +1,17 @@
 import {
     addSkipCallNew,
-    consume_assert_call,
+    rec_consume_assert_call,
     getIncludeBooleans,
     getSkippableSymbolsFromItems,
     getUniqueSymbolName,
-    g_lexer_name,
+    rec_glob_lex_name,
     isSymAProduction,
     isSymGeneratedId,
     isSymGeneratedNum,
     isSymGeneratedSym,
-    itemsToProductions
+    itemsToProductions,
+    createAssertionShiftManual,
+    rec_state_prod
 } from "./utilities/utilities.js";
 import { AS, ExprSC, SC } from "./utilities/skribble.js";
 import { RenderBodyOptions } from "./types/RenderBodyOptions";
@@ -87,7 +89,7 @@ export function defaultMultiItemLeaf(state: RecognizerState, states: RecognizerS
         root = (new SC).addStatement(
             SC.Declare(
                 SC.Assignment("mk:int", SC.Call("mark")),
-                SC.Assignment("anchor:Lexer", SC.Call(SC.Member(g_lexer_name, "copy")))
+                SC.Assignment("anchor:Lexer", SC.Call(SC.Member(rec_glob_lex_name, "copy")))
             )
         ),
         IS_LEFT_RECURSIVE_WITH_FOREIGN_PRODUCTION_ITEMS
@@ -114,12 +116,12 @@ export function defaultMultiItemLeaf(state: RecognizerState, states: RecognizerS
                 "reset:bool",
                 "mk",
                 "anchor:Lexer",
-                g_lexer_name,
+                rec_glob_lex_name,
                 prev_prods.reduce((r, n) => {
-                    if (!r) return SC.Binary("prod", "==", n);
-                    return SC.Binary(r, "||", SC.Binary("prod", "==", n));
+                    if (!r) return SC.Binary(rec_state_prod, "==", n);
+                    return SC.Binary(r, "||", SC.Binary(rec_state_prod, "==", n));
                 }, null)
-            )).addStatement(SC.Assignment("prod", IS_LEFT_RECURSIVE_WITH_FOREIGN_PRODUCTION_ITEMS ? production.id : "-1"), code);
+            )).addStatement(SC.Assignment(rec_state_prod, IS_LEFT_RECURSIVE_WITH_FOREIGN_PRODUCTION_ITEMS ? production.id : "-1"), code);
             leaf.addStatement(reset, SC.Empty());
             leaf = reset;
 
@@ -135,12 +137,12 @@ export function defaultMultiItemLeaf(state: RecognizerState, states: RecognizerS
             "reset:bool",
             "mk",
             "anchor:Lexer",
-            g_lexer_name,
+            rec_glob_lex_name,
             prev_prods.reduce((r, n) => {
-                if (!r) return SC.Binary("prod", "==", n);
-                return SC.Binary(r, "||", SC.Binary("prod", "==", n));
+                if (!r) return SC.Binary(rec_state_prod, "==", n);
+                return SC.Binary(r, "||", SC.Binary(rec_state_prod, "==", n));
             }, null)
-        )).addStatement(SC.Assignment("prod", production.id));
+        )).addStatement(SC.Assignment(rec_state_prod, production.id));
         leaf.addStatement(reset, SC.Empty());
         leaf = reset;
     }
@@ -177,7 +179,7 @@ export function defaultSingleItemLeaf(item: Item, state: RecognizerState, option
     if (item) {
         if (item.len > 0 && item.offset == 0 && (item.getProduction(grammar).id != production.id || state.offset > 0)) {
 
-            const bool = renderProductionCall(item.getProduction(grammar), options, g_lexer_name);
+            const bool = renderProductionCall(item.getProduction(grammar), options, rec_glob_lex_name);
             sc = SC.If(bool);
             code.addStatement(sc);
             prods = processProductionChain(sc, options, itemsToProductions([item], grammar));
@@ -187,7 +189,7 @@ export function defaultSingleItemLeaf(item: Item, state: RecognizerState, option
                 skippable = getSkippableSymbolsFromItems([item], grammar),
                 skip =
                     state.transition_type == TRANSITION_TYPE.CONSUME && !item.atEND
-                        ? addSkipCallNew(skippable, grammar, runner, g_lexer_name)
+                        ? addSkipCallNew(skippable, grammar, runner, rec_glob_lex_name)
                         : undefined;
 
             code.addStatement(skip);
@@ -249,8 +251,8 @@ export function defaultSelectionClause(
         root = new SC,
         leaf = null,
         mid = root,
-        lex_name = g_lexer_name,
-        peek_name = g_lexer_name;
+        lex_name = rec_glob_lex_name,
+        peek_name = rec_glob_lex_name;
 
     const skippable = getSkippableSymbolsFromItems(items, grammar).filter(i => !all_syms.some(j => getUniqueSymbolName(i) == getUniqueSymbolName(j)));
 
@@ -273,13 +275,19 @@ export function defaultSelectionClause(
         root.addStatement(addSkipCallNew(skippable, grammar, runner));
     }
 
-    for (const { syms, items, code, LAST, FIRST, transition_types, prods } of groups) {
+    for (const { syms, items, code, LAST, FIRST, transition_types } of groups) {
 
-        let gate_block: SC = SC.Empty(), ADD_SKIP_STATEMENT = false;
+        let gate_block: SC = SC.Empty();
 
         const transition_type: TRANSITION_TYPE = transition_types[0];
 
         switch (transition_type) {
+            case TRANSITION_TYPE.PEEK:
+            case TRANSITION_TYPE.PEEK_PRODUCTION_SYMBOLS:
+                gate_block = (isSymAProduction(syms[0]))
+                    ? renderProductionCall(grammar[syms[0].val], options, peek_name)
+                    : getIncludeBooleans(<TokenSymbol[]>syms, grammar, runner, peek_name, <TokenSymbol[]>all_syms);
+                break;
             case TRANSITION_TYPE.ASSERT:
             case TRANSITION_TYPE.ASSERT_PRODUCTION_SYMBOLS:
             case TRANSITION_TYPE.ASSERT_END:
@@ -289,18 +297,11 @@ export function defaultSelectionClause(
                 break;
             case TRANSITION_TYPE.CONSUME:
                 gate_block = (isSymAProduction(syms[0]))
-                    ? SC.Call(consume_assert_call, g_lexer_name, renderProductionCall(grammar[syms[0].val], options))
-                    : SC.Call(consume_assert_call, g_lexer_name, getIncludeBooleans(<TokenSymbol[]>syms, grammar, runner, lex_name, <TokenSymbol[]>all_syms));
-                ADD_SKIP_STATEMENT = true;
+                    ? createAssertionShiftManual(rec_glob_lex_name, renderProductionCall(grammar[syms[0].val], options))
+                    : createAssertionShiftManual(rec_glob_lex_name, getIncludeBooleans(<TokenSymbol[]>syms, grammar, runner, lex_name, <TokenSymbol[]>all_syms));
                 break;
             case TRANSITION_TYPE.IGNORE:
                 gate_block = SC.Empty();
-                break;
-            case TRANSITION_TYPE.PEEK:
-            case TRANSITION_TYPE.PEEK_PRODUCTION_SYMBOLS:
-                gate_block = (isSymAProduction(syms[0]))
-                    ? renderProductionCall(grammar[syms[0].val], options, peek_name)
-                    : getIncludeBooleans(<TokenSymbol[]>syms, grammar, runner, peek_name, <TokenSymbol[]>all_syms);
                 break;
         }
 
@@ -313,17 +314,9 @@ export function defaultSelectionClause(
                 transition_type == TRANSITION_TYPE.ASSERT_PRODUCTION_SYMBOLS
                 || transition_type == TRANSITION_TYPE.PEEK_PRODUCTION_SYMBOLS
                 || transition_type == TRANSITION_TYPE.ASSERT_END
-            ),
-
-            PEEKING_TRANSITION = transition_type == TRANSITION_TYPE.PEEK_PRODUCTION_SYMBOLS
-                || transition_type == TRANSITION_TYPE.PEEK;
-
+            );
 
         if (SKIP_BOOL_EXPRESSION) if_stmt = SC.If();
-
-        let skip;
-        if (ADD_SKIP_STATEMENT) {
-        }
 
         if_stmt.addStatement(
             runner.ANNOTATED ?
@@ -334,7 +327,6 @@ export function defaultSelectionClause(
                     ((transition_type == TRANSITION_TYPE.CONSUME && !i.atEND) ? i.increment() : i)
                         .renderUnformattedWithProduction(grammar)).join("\n   ") + "\n")
                 : undefined,
-            skip,
             code,
             SC.Empty()
         );

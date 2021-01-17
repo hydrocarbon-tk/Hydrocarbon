@@ -21,14 +21,17 @@ import { getClosure } from "../../util/process_closure.js";
 import { CompilerRunner } from "../types/CompilerRunner.js";
 import { AS, ConstSC, ExprSC, SC, StmtSC, VarSC } from "./skribble.js";
 
-export const g_lexer_name = SC.Variable("l:Lexer");
+export const rec_glob_lex_name = SC.Variable("l:Lexer");
 /**
- * Function names
+ * Recognizer function names
  */
-export const consume_call = SC.Variable("consume:void");
+export const rec_consume_call = SC.Variable("consume:void");
 
-export const
-    consume_assert_call = SC.Variable("assert_consume:bool");
+export const rec_consume_assert_call = SC.Variable("assert_consume:bool");
+
+export const rec_state = SC.Variable("state:State");
+
+export const rec_state_prod = SC.Member(rec_state, "prod:unsigned int");
 
 export const TokenSpaceIdentifier = 1,
     TokenNumberIdentifier = 2,
@@ -215,7 +218,7 @@ export function getSkipFunctionNew(
     if (skip_symbols.length == 0)
         return null;
 
-    const boolean = getIncludeBooleans(skip_symbols, grammar, runner, g_lexer_name, exclude);
+    const boolean = getIncludeBooleans(skip_symbols, grammar, runner, rec_glob_lex_name, exclude);
 
     if (grammar.functions.has("custom_skip")) {
         let str = grammar.functions.get("custom_skip").txt;
@@ -333,7 +336,7 @@ export function getFollowCheckFunction(grammar: Grammar, runner: CompilerRunner,
     VarSC {
     const
         FC_name = SC.Constant("follow_check_fn:bool"),
-        lex_name = g_lexer_name,
+        lex_name = rec_glob_lex_name,
         skippable = getSkippableSymbolsFromItems(getProductionClosure(production.id, grammar), grammar),
         follow = [...FOLLOW(grammar, production.id).values()];
     let FN = null;
@@ -375,21 +378,23 @@ export function createSkipCall(grammar: Grammar, runner: CompilerRunner, lex_nam
         return lex_name;
 
 }
+export function createAssertionShift(grammar: Grammar, runner: CompilerRunner, sym: TokenSymbol, lex_name: ConstSC | VarSC = SC.Variable("l:Lexer")): ExprSC {
+    return createAssertionShiftManual(lex_name, getIncludeBooleans([sym], grammar, runner, lex_name));
 
-export function createAssertionShift(grammar: Grammar, runner: CompilerRunner, sym: TokenSymbol, lex_name: ConstSC | VarSC = SC.Variable("l:Lexer")): StmtSC {
-    return SC.Expressions(SC.Call(consume_assert_call, lex_name, getIncludeBooleans([sym], grammar, runner, lex_name)));
 }
-
+export function createAssertionShiftManual(lex_name: ConstSC | VarSC = SC.Variable("l:Lexer"), boolean: ExprSC): ExprSC {
+    return SC.Call(rec_consume_assert_call, lex_name, rec_state, boolean);
+}
 export function createNoCheckShift(grammar: Grammar, runner: CompilerRunner, lex_name: ConstSC | VarSC,): StmtSC {
-    return SC.Expressions(SC.Call(consume_call, lex_name));
+    return SC.Expressions(SC.Call(rec_consume_call, lex_name));
 }
 
 export function createReduceFunction(item: Item, grammar: Grammar): StmtSC {
-    return SC.Expressions(SC.Call(SC.Constant("add_reduce"), SC.Value(item.len + ""), SC.Value((item.body_(grammar).reduce_id + 1) + "")));
+    return SC.Expressions(SC.Call(SC.Constant("add_reduce"), rec_state, SC.Value(item.len + ""), SC.Value((item.body_(grammar).reduce_id + 1) + "")));
 }
 
 export function createDefaultReduceFunction(item: Item): StmtSC {
-    return SC.Expressions(SC.Call(SC.Constant("add_reduce"), SC.Value(item.len + ""), SC.Value("0")));
+    return SC.Expressions(SC.Call(SC.Constant("add_reduce"), rec_state, SC.Value(item.len + ""), SC.Value("0")));
 }
 
 export function getUniqueSymbolName(sym: Symbol) {

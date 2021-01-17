@@ -33,7 +33,7 @@ export interface RenderBodyOptions {
      */
     extended_production_shift_items: Item[];
 
-    cache: Map<string, { code: SC, prods: number[]; hash: string, }>;
+    cache: Map<string, { code: SC, prods: number[]; hash: string; }>;
 }
 export const enum ReturnType {
     ACCEPT = 0,

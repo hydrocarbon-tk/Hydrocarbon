@@ -21,11 +21,11 @@ export const renderParserScript = (
     if (wasm_data)
         compressed_data = [...wasm_data].map(i => ("00" + i.toString(16)).slice(-2)).join("");
 
-    const loader = (options.combine_wasm_with_js || BUILD_LOCAL)
+    const loader = (options.combine_recognizer_and_completer || BUILD_LOCAL)
         ? `await loader.instantiate(data, { env: { memory: shared_memory } })`
         : `await loader.instantiate(await URL.resolveRelative("${options.wasm_outputr + "recognizer.wasm"}").fetchBuffer(), { env: { memory: shared_memory } })`,
 
-        data = (BUILD_LOCAL || options.combine_wasm_with_js) ? `const data = (str=>{const out = new Uint8Array(str.length>>1); for(let i = 0; i < str.length; i+=2) {out[i>>1] = parseInt(str.slice(i, i+2),16);} return out; })("${compressed_data}");` : "";
+        data = (BUILD_LOCAL || options.combine_recognizer_and_completer) ? `const data = (str=>{const out = new Uint8Array(str.length>>1); for(let i = 0; i < str.length; i+=2) {out[i>>1] = parseInt(str.slice(i, i+2),16);} return out; })("${compressed_data}");` : "";
 
     return `
 
