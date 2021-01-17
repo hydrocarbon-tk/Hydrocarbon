@@ -3,7 +3,7 @@ import { ConstSC, ExprSC, JS, SC, VarSC } from "../util/skribble.js";
 export type ConstantHash = string;
 export type ConstantName = string;
 export type ConstantObj = { original_name: VarSC | ConstSC, name: VarSC | ConstSC, code_node: SC; };
-export interface CompilerRunner {
+export interface Helper {
     /** List of external grammar names to integrate into the parser.
      * Names must match the name following the `as` terminal in an `IMPORT` statement.
      * Any grammars with names not present in this set will be referenced as 
@@ -31,9 +31,9 @@ export interface CompilerRunner {
     render_constants: () => { const: SC[], fn: SC[]; };
     join_constant_map: (const_map: Map<ConstantHash, ConstantObj>, dependent_string: SC) => void;
 }
-export function constructCompilerRunner(ANNOTATED: boolean = false, DEBUG: boolean = false): CompilerRunner {
+export function constructCompilerRunner(ANNOTATED: boolean = false, DEBUG: boolean = false): Helper {
     let const_counter = 0, unique_const_set = new Set();
-    const runner = <CompilerRunner>{
+    const runner = <Helper>{
         INTEGRATE: new Set(),
         ANNOTATED,
         DEBUG,

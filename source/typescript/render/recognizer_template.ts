@@ -1,7 +1,7 @@
 import { Grammar, SymbolType } from "../types/grammar.js";
-import { getProductionFunctionName } from "../compiler/item_render_functions.js";
+import { getProductionFunctionName } from "../util/item_render_functions.js";
 import { action32bit_array_byte_size_default, error8bit_array_byte_size_default, jump16bit_table_byte_size } from "../runtime/parser_memory.js";
-import { CompilerRunner } from "../compiler/hybrid_compiler_runner";
+import { CompilerRunner } from "../compiler/compiler_runner";
 import { RDProductionFunction } from "../types/rd_production_function";
 import { SC } from "../util/skribble.js";
 import {
@@ -16,8 +16,8 @@ import {
     rec_glob_lex_name,
     rec_state
 } from "../util/utilities.js";
-import { createLexerCode } from "./hybrid_lexer_template.js";
-import { createStateCode } from "./hybrid_state_template.js";
+import { createLexerCode } from "./lexer_template.js";
+import { createStateCode } from "./state_template.js";
 
 export const renderAssemblyScriptRecognizer = (
     grammar: Grammar,

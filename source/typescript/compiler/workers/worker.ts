@@ -1,17 +1,17 @@
-import { Grammar } from "../types/grammar";
-import { ParserEnvironment } from "../types/parser_environment.js";
-import { filloutWorkerGrammar } from "../util/common.js";
+import { Grammar } from "../../types/grammar";
+import { ParserEnvironment } from "../../types/parser_environment.js";
+import { filloutWorkerGrammar } from "../../util/common.js";
 import { workerData, parentPort } from "worker_threads";
-import { HybridDispatch, HybridDispatchResponse } from "../types/hybrid_mt_msg_types.js";
-import { CompilerRunner, constructCompilerRunner } from "./hybrid_compiler_runner.js";
-import { constructHybridFunction } from "./hybrid_function_constructor.js";
+import { HybridDispatch, HybridDispatchResponse } from "../../types/hybrid_mt_msg_types.js";
+import { Helper, constructCompilerRunner } from "../helper.js";
+import { constructHybridFunction } from "../function_constructor.js";
 
-export class HybridMultiThreadProcessWorker {
+export class Worker {
 
     grammar: Grammar;
     env: ParserEnvironment;
     id: number;
-    runner: CompilerRunner;
+    runner: Helper;
 
     pp: typeof parentPort;
 
@@ -59,4 +59,4 @@ export class HybridMultiThreadProcessWorker {
 }
 
 if (workerData && parentPort)
-    new HybridMultiThreadProcessWorker();
+    new Worker();

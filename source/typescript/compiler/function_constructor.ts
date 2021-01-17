@@ -23,16 +23,16 @@ import {
     rec_state_prod,
 } from "../util/utilities.js";
 import { RDProductionFunction } from "../types/rd_production_function";
-import { CompilerRunner } from "./hybrid_compiler_runner.js";
+import { Helper } from "./helper.js";
 import { SC } from "../util/skribble.js";
 import { getClosure, getFollow } from "../util/get_closure.js";
 import { ReturnType, RenderBodyOptions } from "../types/render_body_options";
-import { yieldStates } from "./yield_states.js";
-import { defaultMultiItemLeaf, defaultSelectionClause, defaultSingleItemLeaf, processRecognizerStates } from "./process_recognizer_states.js";
-import { yieldNontermStates } from "./yield_nonterm_states.js";
+import { yieldStates } from "./states/yield_states.js";
+import { defaultMultiItemLeaf, defaultSelectionClause, defaultSingleItemLeaf, processRecognizerStates } from "./states/process_recognizer_states.js";
+import { yieldNontermStates } from "./states/yield_nonterm_states.js";
 import { performance } from "perf_hooks";
 import { TRANSITION_TYPE } from "../types/recognizer_state.js";
-import { getProductionFunctionName } from "./item_render_functions.js";
+import { getProductionFunctionName } from "../util/item_render_functions.js";
 import { Item } from "../util/item.js";
 
 export const
@@ -54,7 +54,7 @@ function addReturnType(RETURN_TYPE: ReturnType, code_node: SC = new SC) {
 
 function generateRDOptions(
     grammar: Grammar,
-    runner: CompilerRunner,
+    runner: Helper,
     /**
      * The production currently being processed.
      */
@@ -82,7 +82,7 @@ function addClauseSuccessCheck(options: RenderBodyOptions): SC {
     return SC.UnaryPre(SC.Return, SC.Call("assertSuccess", rec_glob_lex_name, rec_state, condition));
 }
 
-export function constructHybridFunction(production: Production, grammar: Grammar, runner: CompilerRunner): RDProductionFunction {
+export function constructHybridFunction(production: Production, grammar: Grammar, runner: Helper): RDProductionFunction {
     const
         start = performance.now(),
         p = production,

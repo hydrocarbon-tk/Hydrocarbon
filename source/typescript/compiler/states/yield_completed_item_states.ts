@@ -1,17 +1,17 @@
-import { getTransitionTree, getSymbolsFromClosure, getFollowClosure } from "../util/common.js";
+import { getTransitionTree, getSymbolsFromClosure, getFollowClosure } from "../../util/common.js";
 import {
     rec_glob_lex_name,
     getAccompanyingItems,
     itemsToProductions
-} from "../util/utilities.js";
-import { SC } from "../util/skribble.js";
-import { getClosure, getFollow } from "../util/get_closure.js";
-import { RenderBodyOptions } from "../types/render_body_options";
+} from "../../util/utilities.js";
+import { SC } from "../../util/skribble.js";
+import { getClosure, getFollow } from "../../util/get_closure.js";
+import { RenderBodyOptions } from "../../types/render_body_options";
 import { buildPeekSequence } from "./yield_peek_states.js";
-import { RecognizerState, TRANSITION_TYPE } from "../types/recognizer_state.js";
+import { RecognizerState, TRANSITION_TYPE } from "../../types/recognizer_state.js";
 import { processProductionChain } from "./process_production_chain.js";
-import { EOF_SYM } from "../types/grammar.js";
-import { Item } from "../util/item.js";
+import { EOF_SYM } from "../../types/grammar.js";
+import { Item } from "../../util/item.js";
 
 export function* yieldCompletedItemStates(end_items: Item[], options: RenderBodyOptions, offset: number): Generator<RecognizerState[], RecognizerState[]> {
 

@@ -1,12 +1,12 @@
-import { Grammar } from "../types/grammar.js";
-import { TokenSymbol } from "../types/symbol";
-import { TransitionTreeNode } from "../types/transition_tree_nodes";
+import { Grammar } from "../../types/grammar.js";
+import { TokenSymbol } from "../../types/symbol";
+import { TransitionTreeNode } from "../../types/transition_tree_nodes";
 import {
     getSymbolFromUniqueName,
-} from "../util/utilities.js";
-import { CompilerRunner } from "./hybrid_compiler_runner.js";
-import { SC, VarSC } from "../util/skribble.js";
-import { RecognizerState, TRANSITION_TYPE } from "../types/recognizer_state.js";
+} from "../../util/utilities.js";
+import { Helper } from "../helper.js";
+import { SC, VarSC } from "../../util/skribble.js";
+import { RecognizerState, TRANSITION_TYPE } from "../../types/recognizer_state.js";
 
 
 
@@ -21,7 +21,7 @@ export function convertTreeNodeToRenderable(node: TransitionTreeNode, grammar: G
 export function* buildPeekSequence(
     peek_nodes: TransitionTreeNode[],
     grammar: Grammar,
-    runner: CompilerRunner,
+    runner: Helper,
     lex_name: VarSC,
     current_production_id: number = -1,
     ALLOW_FALL_THROUGH: boolean = true,

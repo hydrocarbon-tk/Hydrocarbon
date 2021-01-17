@@ -1,4 +1,4 @@
-import { ConstantHash, ConstantObj } from "../compiler/hybrid_compiler_runner";
+import { ConstantHash, ConstantObj } from "../compiler/helper";
 import { SC } from "../util/skribble";
 
 export enum HybridJobType {

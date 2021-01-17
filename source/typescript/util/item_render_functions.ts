@@ -12,10 +12,10 @@ import {
     addSkipCallNew,
     getSkippableSymbolsFromItems,
     rec_state
-} from "../util/utilities.js";
-import { ExprSC, SC, VarSC } from "../util/skribble.js";
+} from "./utilities.js";
+import { ExprSC, SC, VarSC } from "./skribble.js";
 import { RenderBodyOptions } from "../types/render_body_options.js";
-import { Item } from "../util/item.js";
+import { Item } from "./item.js";
 
 export function getProductionFunctionName(production: Production, grammar: Grammar): string {
     return "$" + production.name;

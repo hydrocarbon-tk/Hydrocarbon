@@ -1,18 +1,18 @@
 import { Worker } from "worker_threads";
 
-import { Grammar } from "../types/grammar.js";
-import { ParserEnvironment } from "../types/parser_environment";
-import { HybridDispatchResponse, HybridJobType, HybridDispatch } from "../types/hybrid_mt_msg_types.js";
-import { CompilerRunner } from "./hybrid_compiler_runner.js";
-import { RDProductionFunction } from "../types/rd_production_function.js";
-import { SC } from "../util/skribble.js";
+import { Grammar } from "../../types/grammar.js";
+import { ParserEnvironment } from "../../types/parser_environment";
+import { HybridDispatchResponse, HybridJobType, HybridDispatch } from "../../types/hybrid_mt_msg_types.js";
+import { Helper } from "../helper.js";
+import { RDProductionFunction } from "../../types/rd_production_function.js";
+import { SC } from "../../util/skribble.js";
 
 type WorkerContainer = {
     target: Worker;
     id: number;
     READY: boolean;
 };
-export class HybridMultiThreadRunner {
+export class WorkerRunner {
     grammar: Grammar;
     RUN: boolean;
     env: ParserEnvironment;
@@ -22,13 +22,13 @@ export class HybridMultiThreadRunner {
     functions: Array<RDProductionFunction>;
     errors: any;
     to_process_rd_fn: number[];
-    runner: CompilerRunner;
+    runner: Helper;
     IN_FLIGHT_JOBS: number;
 
     constructor(
         grammar: Grammar,
         env: ParserEnvironment,
-        runner: CompilerRunner,
+        runner: Helper,
         number_of_workers = 2
     ) {
         let id = 0;
@@ -185,7 +185,7 @@ export class HybridMultiThreadRunner {
 export default function* (grammar: Grammar, env: ParserEnvironment, INCLUDE_ANNOTATIONS: boolean = false) {
 
     try {
-        const runner = new HybridMultiThreadRunner(grammar, env, INCLUDE_ANNOTATIONS);
+        const runner = new WorkerRunner(grammar, env, INCLUDE_ANNOTATIONS);
         return yield* runner.run();
     } catch (e) {
         return yield {

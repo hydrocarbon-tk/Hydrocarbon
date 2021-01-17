@@ -19,7 +19,7 @@ import {
 import { FOLLOW } from "./follow.js";
 import { Item } from "./item.js";
 import { getClosure } from "./get_closure.js";
-import { CompilerRunner } from "../compiler/hybrid_compiler_runner.js";
+import { Helper } from "../compiler/helper.js";
 import { AS, ConstSC, ExprSC, SC, StmtSC, VarSC } from "./skribble.js";
 
 export const rec_glob_lex_name = SC.Variable("l:Lexer");
@@ -189,7 +189,7 @@ export function isSymGeneratedWS(sym: TokenSymbol): boolean { return sym.val == 
 export function getSkipFunctionNew(
     skip_symbols: TokenSymbol[],
     grammar: Grammar,
-    runner: CompilerRunner,
+    runner: Helper,
     custom_skip_code: SC = null,
     lex_name: ExprSC = SC.Variable("l", "Lexer"),
     exclude: TokenSymbol[] = []
@@ -289,7 +289,7 @@ export function getExcludeSymbolSet(setA: TokenSymbol[], setB: TokenSymbol[]): T
 export function addSkipCallNew(
     symbols: TokenSymbol[],
     grammar: Grammar,
-    runner: CompilerRunner,
+    runner: Helper,
     lex_name: ExprSC = SC.Variable("l", "Lexer"),
     exclude: TokenSymbol[] = []
 ): StmtSC {
@@ -298,14 +298,14 @@ export function addSkipCallNew(
         return SC.Expressions(SC.Call(skips, SC.UnaryPost(lex_name, SC.Comment(symbols.map(s => `[ ${s.val} ]`).join("")))));
     return SC.Expressions(SC.Empty());
 }
-export function createAssertionShift(grammar: Grammar, runner: CompilerRunner, sym: TokenSymbol, lex_name: ConstSC | VarSC = SC.Variable("l:Lexer")): ExprSC {
+export function createAssertionShift(grammar: Grammar, runner: Helper, sym: TokenSymbol, lex_name: ConstSC | VarSC = SC.Variable("l:Lexer")): ExprSC {
     return createAssertionShiftManual(lex_name, getIncludeBooleans([sym], grammar, runner, lex_name));
 
 }
 export function createAssertionShiftManual(lex_name: ConstSC | VarSC = SC.Variable("l:Lexer"), boolean: ExprSC): ExprSC {
     return SC.Call(rec_consume_assert_call, lex_name, rec_state, boolean);
 }
-export function createNoCheckShift(grammar: Grammar, runner: CompilerRunner, lex_name: ConstSC | VarSC,): StmtSC {
+export function createNoCheckShift(grammar: Grammar, runner: Helper, lex_name: ConstSC | VarSC,): StmtSC {
     return SC.Expressions(SC.Call(rec_consume_call, lex_name));
 }
 
@@ -474,7 +474,7 @@ export function buildIfs(
 export function getIncludeBooleans(
     syms: TokenSymbol[],
     grammar: Grammar,
-    runner: CompilerRunner,
+    runner: Helper,
     lex_name: ConstSC | VarSC = SC.Variable("l:Lexer"),
     /* List of all symbols that can be encountered*/
     symbol_pool: TokenSymbol[] = [],
@@ -603,7 +603,7 @@ export function addRecoveryHandlerToFunctionBodyArray(
     stmts: any[],
     production: Production,
     grammar: Grammar,
-    runner: CompilerRunner,
+    runner: Helper,
     RECURSIVE_DESCENT = false
 ) {
     if (RECURSIVE_DESCENT)
@@ -631,7 +631,7 @@ export function addRecoveryHandlerToFunctionBodyArray(
     `);
 }
 
-export function generateCompiledAssertionFunction(sym: AssertionFunctionSymbol, grammar: Grammar, runner: CompilerRunner):
+export function generateCompiledAssertionFunction(sym: AssertionFunctionSymbol, grammar: Grammar, runner: Helper):
     GrammarFunction {
     const fn_name = sym.val;
     const fn = grammar.functions.get(fn_name);
@@ -644,7 +644,7 @@ export function generateCompiledAssertionFunction(sym: AssertionFunctionSymbol, 
 }
 
 export function getAssertionSymbolFirst(sym: AssertionFunctionSymbol, grammar: Grammar): TokenSymbol[] {
-    const fn = generateCompiledAssertionFunction(sym, grammar, <CompilerRunner>{ ANNOTATED: false, add_constant: (name) => { return name; } });
+    const fn = generateCompiledAssertionFunction(sym, grammar, <Helper>{ ANNOTATED: false, add_constant: (name) => { return name; } });
     if (fn)
         return fn.first;
     else return [];
@@ -726,7 +726,7 @@ export function getAssertionFunctionData(af_body_content: string, grammar: Gramm
  * 
  * @param af_body_content 
  */
-export function convertAssertionFunctionBodyToSkribble(af_body_content: string, grammar: Grammar, runner: CompilerRunner)
+export function convertAssertionFunctionBodyToSkribble(af_body_content: string, grammar: Grammar, runner: Helper)
     : { sc: SC, first: TokenSymbol[]; } {
 
     const { ast, first, rev_lu } = getAssertionFunctionData(af_body_content, grammar);

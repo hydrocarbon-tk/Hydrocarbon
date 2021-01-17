@@ -2,11 +2,11 @@ import {
     getAccompanyingItems,
     itemsToProductions,
     rec_state_prod
-} from "../util/utilities.js";
-import { SC } from "../util/skribble.js";
-import { RenderBodyOptions } from "../types/render_body_options";
-import { renderItemReduction } from "./item_render_functions.js";
-import { Item } from "../util/item.js";
+} from "../../util/utilities.js";
+import { SC } from "../../util/skribble.js";
+import { RenderBodyOptions } from "../../types/render_body_options";
+import { renderItemReduction } from "../../util/item_render_functions.js";
+import { Item } from "../../util/item.js";
 
 export function processProductionChain(
     code_node: SC,

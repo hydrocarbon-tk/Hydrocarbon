@@ -1,7 +1,7 @@
 import URL from "@candlefw/url";
 
 import { compileGrammars } from "@candlefw/hydrocarbon";
-import { compileHybrid } from "../../build/library/hybrid/hybrid_compiler.js";
+import { compileHybrid } from "../../build/library/compiler/hybrid_compiler.js";
 import { constructCompilerEnvironment } from "../../build/library/grammar/grammar_parser.js";
 
 const hcg_dir = URL.resolveRelative("../../source/grammars/hcg/");

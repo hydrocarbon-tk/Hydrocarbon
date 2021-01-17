@@ -1,6 +1,6 @@
 import { Grammar } from "./grammar.js";
 import { Production } from "./production";
-import { CompilerRunner } from "../compiler/hybrid_compiler_runner.js";
+import { Helper } from "../compiler/helper.js";
 import { SC, VarSC } from "../util/skribble.js";
 import { Item } from "../util/item.js";
 
@@ -12,7 +12,7 @@ export interface RenderBodyOptions {
     /**
      * Active Compiler Runner
      */
-    runner?: CompilerRunner;
+    runner?: Helper;
     /**
      * Production currently being processed
      */

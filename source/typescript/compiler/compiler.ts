@@ -9,12 +9,12 @@ import { ParserEnvironment } from "../../../build/types/hydrocarbon.js";
 import { Grammar } from "../types/grammar.js";
 import { GrammarParserEnvironment } from "../types/grammar_compiler_environment";
 import { HybridCompilerOptions } from "../types/hybrid_compiler_options";
-import { HybridMultiThreadRunner } from "./hybrid_mt_runner.js";
+import { WorkerRunner } from "./workers/worker_runner.js";
 import { action32bit_array_byte_size_default, buildParserMemoryBuffer, jump16bit_table_byte_size } from "../runtime/parser_memory.js";
-import { renderAssemblyScriptRecognizer } from "../render/hybrid_recognizer_template.js";
-import { renderParserScript } from "../render/hybrid_js_parser_template.js";
-import { renderParserScript as renderJSScript } from "../render/hybrid_js_parser_template_for_js.js";
-import { CompilerRunner, constructCompilerRunner } from "./hybrid_compiler_runner.js";
+import { renderAssemblyScriptRecognizer } from "../render/recognizer_template.js";
+import { renderParserScript } from "../render/js_parser_template.js";
+import { renderParserScript as renderJSScript } from "../render/js_parser_template_for_js.js";
+import { Helper, constructCompilerRunner } from "./helper.js";
 import { AS, CPP, JS } from "../util/skribble.js";
 const fsp = fs.promises;
 
@@ -37,15 +37,15 @@ const default_options: HybridCompilerOptions = {
 
 const AsyncFunction: FunctionConstructor = <any>(async function () { }).constructor;
 
-export async function compileHybrid(grammar: Grammar, env: GrammarParserEnvironment, options: HybridCompilerOptions):
+export async function compile(grammar: Grammar, env: GrammarParserEnvironment, options: HybridCompilerOptions):
     Promise<void | ((str: string, env: ParserEnvironment) => any)> {
 
     await asc.ready;
 
     const
         active_options: HybridCompilerOptions = Object.assign({}, default_options, options),
-        runner: CompilerRunner = constructCompilerRunner(active_options.add_annotations, active_options.debug),
-        mt_code_compiler = new HybridMultiThreadRunner(grammar, env, runner, active_options.number_of_workers),
+        runner: Helper = constructCompilerRunner(active_options.add_annotations, active_options.debug),
+        mt_code_compiler = new WorkerRunner(grammar, env, runner, active_options.number_of_workers),
         action32bit_array_byte_size = action32bit_array_byte_size_default,
         error8bit_array_byte_size = 10 * 4098 * 4; //  error8bit_array_byte_size_default;
 
