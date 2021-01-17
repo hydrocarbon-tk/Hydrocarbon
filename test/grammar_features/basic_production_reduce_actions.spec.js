@@ -25,6 +25,6 @@ assert(parserB("simple simple simple").result[0] == { data: ["simple", "simple",
 
 assert(parserC("50 + 20").result[0] == { result: 70 });
 
-assert(solo, parserD("-150 + 120 * 3 + 6!").result[0] == { result: 930 });
+assert(parserD("-150 + 120 * 3 + 6!").result[0] == { result: 930 });
 
 
