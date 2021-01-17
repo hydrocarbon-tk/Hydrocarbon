@@ -1,7 +1,8 @@
 import { grammarParser } from "./grammar_parser.js";
-import { filloutGrammar, Item } from "../util/common.js";
+import { filloutGrammar } from "../util/common.js";
 import { Grammar, SymbolType } from "../types/grammar.js";
-import { Production } from "../types/Production";
+import { Production } from "../types/production";
+import { Item } from "../util/item.js";
 
 export async function createGrammar(grammar_string: string, grammar_string_path: string): Promise<Grammar> {
 

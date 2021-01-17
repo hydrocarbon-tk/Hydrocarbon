@@ -17,8 +17,7 @@ import body from "./production_body_constructor.js";
 
 import { Grammar } from "../types/grammar.js";
 import { GrammarParserEnvironment } from "../types/grammar_compiler_environment.js";
-import { ParserEnvironment } from "../types/parser_environment.js";
-import { getUniqueSymbolName } from "../hybrid/utilities/utilities.js";
+import { getUniqueSymbolName } from "../util/utilities.js";
 
 async function sleep(data: AwaitTracker): Promise<void> {
     return new Promise(res => {

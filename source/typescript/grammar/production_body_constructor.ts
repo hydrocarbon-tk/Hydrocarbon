@@ -6,7 +6,7 @@ import { traverse, make_replaceable, bit_filter, extract } from "@candlefw/confl
 import { Lexer } from "@candlefw/wind";
 
 import { ProductionBodyFunction, ProductionBodyReduceFunction, ProductionBody } from "../types/grammar.js";
-import { Symbol } from "../types/Symbol";
+import { Symbol } from "../types/symbol";
 
 import { GrammarParserEnvironment } from "../types/grammar_compiler_environment.js";
 

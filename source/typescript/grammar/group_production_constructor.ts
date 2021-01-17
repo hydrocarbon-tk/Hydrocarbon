@@ -1,4 +1,4 @@
-import { Production } from "../types/Production";
+import { Production } from "../types/production";
 
 export default class implements Production {
 

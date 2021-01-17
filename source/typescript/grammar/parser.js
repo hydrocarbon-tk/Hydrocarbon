@@ -2,7 +2,7 @@
 
 
     import loader from "@assemblyscript/loader";
-    import {buildParserMemoryBuffer} from "../hybrid/parser_memory.js";              
+    import {buildParserMemoryBuffer} from "../runtime/parser_memory.js";              
     import URL from "@candlefw/url";
     import Lexer from "@candlefw/wind";
 

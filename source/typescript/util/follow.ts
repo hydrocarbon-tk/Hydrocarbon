@@ -1,7 +1,7 @@
 import { FIRST } from "./first.js";
 import { Grammar, SymbolType, EOF_SYM } from "../types/grammar.js";
-import { AssertionFunctionSymbol, Symbol, TokenSymbol } from "../types/Symbol";
-import { getAssertionSymbolFirst, isSymAnAssertFunction } from "../hybrid/utilities/utilities.js";
+import { AssertionFunctionSymbol, Symbol, TokenSymbol } from "../types/symbol";
+import { getAssertionSymbolFirst, isSymAnAssertFunction } from "./utilities.js";
 
 //@ts-nocheck
 export const EMPTY_PRODUCTION = "{!--EMPTY_PRODUCTION--!}";

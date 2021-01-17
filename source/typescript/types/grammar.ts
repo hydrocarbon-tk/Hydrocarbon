@@ -1,7 +1,7 @@
 import { Lexer } from "@candlefw/wind";
 import { Item } from "../util/item";
-import { Production } from "./Production";
-import { Symbol, TokenSymbol } from "./Symbol";
+import { Production } from "./production";
+import { Symbol, TokenSymbol } from "./symbol";
 
 export enum SymbolType {
     PRODUCTION = "production",

@@ -1,11 +1,10 @@
 import { Lexer } from "@candlefw/wind";
 
 import { ProductionBodyFunction } from "../types/grammar.js";
-import { Production } from "../types/Production";
-import { Symbol } from "../types/Symbol";
+import { Production } from "../types/production";
+import { Symbol } from "../types/symbol";
 import { GrammarParserEnvironment } from "../types/grammar_compiler_environment.js";
 import { ProductionBody } from "../../../build/types/types/grammar.js";
-import { isSymAProduction } from "../hybrid/utilities/utilities.js";
 
 const
     EXCLUDE_MAP = 1,
@@ -108,16 +107,20 @@ export default function (production: Production, env: GrammarParserEnvironment, 
 
             const sym = body.sym[j];
 
-
-            if (sym.IS_OPTIONAL && (!sym.NO_BLANK || body.sym.filter(s => s.NO_BLANK == sym.NO_BLANK).length > 1)) {
+            if (sym.IS_OPTIONAL && (!sym.NO_BLANK || body.sym.filter(s => s.NO_BLANK == sym.NO_BLANK && !s.IS_CONDITION).length > 1)) {
 
                 const new_sym = body.sym.slice();
                 const sym_map = body.sym_map.slice();
 
+                let u = j + 1;
+
+                for (; u < body.sym.length; u++)
+                    if (!body.sym[u].IS_CONDITION) break;
+
                 new_sym.splice(j, 1);
                 const s = sym_map.splice(j, 1)[0];
 
-                const new_body = new env.functions.body([{ body: new_sym, reduce: body.reduce_function }], env, lex, form ^ (1 << s));
+                const new_body: ProductionBody = new env.functions.body([{ body: new_sym, reduce: body.reduce_function }], env, lex, form ^ (1 << s));
 
                 new_body.lex = lex;
                 new_body.sym_map = sym_map;
