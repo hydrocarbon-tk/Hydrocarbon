@@ -34,7 +34,7 @@
 
 
 <> preamble_clause →  ignore_preamble
-    │ symbols_preamble
+    # │ symbols_preamble
     │ precedence_preamble
     │ name_preamble
     │ ext_preamble
@@ -59,10 +59,10 @@
 # are matched against tokens whose string value is the same as the text following 
 # the τ character.
 
-<> symbols_preamble > @ t:SYMBOL sym::lexer_symbol(+)  θnl     ↦cstr{ 
-                                                                            this.type="symbols"; 
-                                                                            this.symbols = $sym3;
-                                                                         }
+# <> symbols_preamble > @ t:SYMBOL sym::lexer_symbol(+)  θnl     ↦cstr{ 
+#                                                                             this.type="symbols"; 
+#                                                                             this.symbols = $sym3;
+#                                                                          }
 
 # When the parser reaches the end of a production and is ready to reduce,
 # it runs a reduction function that deals with the terminal symbols encountered in 
