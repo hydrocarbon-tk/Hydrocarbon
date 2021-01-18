@@ -30,6 +30,10 @@ export interface Helper {
     add_constant: (const_name: VarSC | ConstSC, const_value: SC) => VarSC | ConstSC;
     render_constants: () => { const: SC[], fn: SC[]; };
     join_constant_map: (const_map: Map<ConstantHash, ConstantObj>, dependent_string: SC) => void;
+    /**
+     * The ids of all production functions that are called.
+     */
+    referenced_production_ids: Set<number>;
 }
 export function constructCompilerRunner(ANNOTATED: boolean = false, DEBUG: boolean = false): Helper {
     let const_counter = 0, unique_const_set = new Set();
@@ -38,6 +42,7 @@ export function constructCompilerRunner(ANNOTATED: boolean = false, DEBUG: boole
         ANNOTATED,
         DEBUG,
         constant_map: new Map,
+        referenced_production_ids: new Set,
         add_constant: (const_name: VarSC | ConstSC, const_value: SC): VarSC | ConstSC => {
             const hash = SC.Bind(<ExprSC>const_value).hash();
             let test_name = const_name.type.value;

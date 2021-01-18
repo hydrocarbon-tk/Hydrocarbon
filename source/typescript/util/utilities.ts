@@ -10,6 +10,7 @@ import {
     EOFSymbol,
     GeneratedSymbol,
     ProductionSymbol,
+    ProductionTokenSymbol,
     SpecifiedCharacterSymbol,
     SpecifiedIdentifierSymbol,
     SpecifiedNumericSymbol,
@@ -136,12 +137,16 @@ export function isSymAGenericType(s: Symbol): s is (GeneratedSymbol | EOFSymbol)
     return (s.type == SymbolType.GENERATED || s.type == SymbolType.END_OF_FILE);
 }
 
+export function isSymAProductionToken(s: Symbol): s is (ProductionTokenSymbol) {
+    return (s.type == SymbolType.PRODUCTION_TOKEN_SYMBOL);
+}
+
 /**
  * Any symbol that is not Generated, an AssertFunction, or a Production
  * @param s 
  */
 export function isSymSpecified(s: Symbol): s is SpecifiedSymbol {
-    return !isSymAProduction(s) && !isSymAGenericType(s) && !isSymAnAssertFunction(s);
+    return !isSymAProduction(s) && !isSymAGenericType(s) && !isSymAnAssertFunction(s) && !isSymAProductionToken(s);
 }
 /**
  * A SpecifiedSymbol that is not a SpecifiedIdentifierSymbol nor a SpecifiedNumericSymbol
@@ -490,6 +495,7 @@ export function getIncludeBooleans(
     let
         id = syms.filter(isSymSpecified),
         ty = syms.filter(isSymAGenericType),
+        tk = syms.filter(isSymAProductionToken),
         fn = syms.filter(isSymAnAssertFunction)
             .map(s => translateSymbolValue(s, grammar, lex_name)).sort();
 
@@ -504,7 +510,7 @@ export function getIncludeBooleans(
     if (id.length + ty.length + fn.length == 0)
         return null;
 
-    let out_id: ExprSC[] = [], out_ty: ExprSC[] = [], out_fn: ExprSC[] = [];
+    let out_id: ExprSC[] = [], out_ty: ExprSC[] = [], out_fn: ExprSC[] = [], out_tk: ExprSC[] = [];
 
     if (fn.length > 0)
         out_fn = fn;
@@ -561,10 +567,46 @@ export function getIncludeBooleans(
     if (ty.length > 0)
         out_ty = ty.map(s => translateSymbolValue(s, grammar, lex_name));
 
-    return ([...out_id, ...out_ty, ...out_fn].filter(_ => _).reduce((r, s) => {
+    if (tk.length > 0) {
+        for (const tok of tk) {
+
+            const
+                fn_name = createProductionTokenFunction(tok, grammar, runner),
+                fn = SC.Call(fn_name, lex_name);
+
+            out_tk.push(fn);
+        }
+    }
+
+    return ([...out_tk, ...out_id, ...out_ty, ...out_fn].filter(_ => _).reduce((r, s) => {
         if (!r) return s;
         return SC.Binary(r, SC.Value("||"), s);
     }, null));
+}
+
+export function createProductionTokenFunction(tok: ProductionTokenSymbol, grammar: Grammar, runner: Helper): VarSC {
+    const production = grammar[getProductionID(tok, grammar)];
+
+    runner.referenced_production_ids.add(production.id);
+
+    const token_function =
+        SC.Function(
+            ":bool",
+            "l:Lexer&"
+        ).addStatement(
+            SC.Declare(SC.Assignment("c:Lexer", SC.Call(SC.Member("l", "copy")))),
+            SC.Declare(SC.Assignment("s:State", SC.UnaryPre("new", SC.Call(SC.Constant("State:State"))))),
+            SC.Call(SC.Member("s", "setENABLE_STACK_OUTPUT"), SC.Value(0)),
+            SC.If(SC.Call(getProductionFunctionName(production, grammar), "c:Lexer", "s:State"))
+                .addStatement(SC.Assignment(SC.Member("l", "tl"),
+                    SC.Binary(SC.Member("c", "off"), "-", SC.Member("l", "off"))),
+                    SC.UnaryPre(SC.Return, SC.True)),
+            SC.UnaryPre(SC.Return, SC.False)
+        );
+
+    const SF_name = SC.Constant(`tok_fn_:bool`);
+
+    return <VarSC>runner.add_constant(SF_name, token_function);
 }
 export function getMappedArray<Val>(string: string, map: Map<string, Val[]>): Val[] {
     if (!map.has(string))
@@ -665,6 +707,14 @@ export function getProductionFirst(production_id: number, grammar: Grammar) {
     return syms;
 }
 
+/**
+ * Retrieve the numerical production id from either a ProductionTokenSymbol or a ProductionSymbol
+ * @param symbol 
+ * @param grammar 
+ */
+export function getProductionID(symbol: ProductionTokenSymbol | ProductionSymbol, grammar: Grammar): number {
+    return symbol.val;
+}
 
 export function getTrueSymbolValue(sym: TokenSymbol, grammar: Grammar): TokenSymbol[] {
     if (isSymAnAssertFunction(sym)) {

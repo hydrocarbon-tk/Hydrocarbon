@@ -36,6 +36,7 @@
 
 <> symbol → generated_symbol
     │ production_symbol
+    | production_token_symbol
     │ imported_production_symbol
     │ literal_symbol
     │ escaped_symbol
@@ -69,7 +70,9 @@
                                                                         ↦cstr{ this.type = "literal"; this.val = ""+$sym2; this.pos = pos; env.symbols.push(this) }
 
 <> escaped_symbol → 
-    \\ ( θid | θsym )(+\" ) sym_delimter                     ↦cstr{ this.type = "symbol"; this.val = $sym2; this.pos = pos; env.symbols.push(this) }
+    \\ ( θid | θsym )(+\" ) sym_delimter                        ↦cstr{ this.type = "symbol"; this.val = $sym2; this.pos = pos; env.symbols.push(this) }
+
+<> production_token_symbol > \tk: identifier                   ↦cstr{ this.type = "production_token"; this.name = $sym2; this.val = -1; this.pos = pos; }
 
 <> production_symbol → 
     identifier                                                          ↦cstr{ this.type = "production"; this.name = $sym1; this.val = -1; this.pos = pos;}

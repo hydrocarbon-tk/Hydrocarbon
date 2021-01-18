@@ -65,12 +65,22 @@ export interface EmptySymbol extends SymbolBase {
 
 export interface ProductionSymbol extends SymbolBase {
     type: SymbolType.PRODUCTION;
+    name: string;
     val: number;
+    production: Production;
 }
 
 export interface AssertionFunctionSymbol extends SymbolBase {
     type: SymbolType.PRODUCTION_ASSERTION_FUNCTION;
     val: string;
+
+}
+
+export interface ProductionTokenSymbol extends SymbolBase {
+    type: SymbolType.PRODUCTION_TOKEN_SYMBOL;
+    name: string;
+    val: number;
+    production: Production;
 }
 
 export type SpecifiedSymbol =
@@ -83,6 +93,7 @@ export type TokenSymbol =
     | EOFSymbol
     | EmptySymbol
     | AssertionFunctionSymbol
-    | SpecifiedSymbol;
+    | SpecifiedSymbol
+    | ProductionTokenSymbol;
 
 export type Symbol = TokenSymbol | ProductionSymbol; 

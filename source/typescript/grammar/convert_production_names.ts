@@ -27,7 +27,7 @@ export default function convertProductionNamesToIndexes(grammar: Grammar, LU) {
 
                     sym = body.sym[i];
 
-                    if (sym.type == SymbolType.PRODUCTION) {
+                    if (isSymAProduction(sym) || isSymAProductionToken(sym)) {
                         if (sym.production || (sym.IMPORTED && sym.RESOLVED)) {
                             sym.val = sym.production.id;
                         } else try {

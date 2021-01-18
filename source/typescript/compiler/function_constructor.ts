@@ -257,7 +257,6 @@ export function constructHybridFunction(production: Production, grammar: Grammar
                                         if (booleans)
                                             interrupt_statement = SC.If(booleans).addStatement(SC.Break);
                                     }
-
                                 }
                             }
 
@@ -316,7 +315,7 @@ export function constructHybridFunction(production: Production, grammar: Grammar
         //const hash = code_node.hash();
         //const end = performance.now();
         return {
-            productions: new Set([...optionsA.called_productions.values(), ...optionsB.called_productions.values()]),
+            productions: new Set([...optionsA.called_productions.values(), ...optionsB.called_productions.values(), ...runner.referenced_production_ids.values()]),
             id: p.id,
             fn: (new SC).addStatement(
                 // SC.Comment("Compile Time:" + ((((end - start) * 1000) | 0) / 1000) + "ms hash:" + hash),
