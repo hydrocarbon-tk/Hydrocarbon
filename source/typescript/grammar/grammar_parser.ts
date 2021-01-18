@@ -1,7 +1,3 @@
-import parserLoader from "./parser.js";
-const parser = await parserLoader();
-//*/
-
 import convertProductionNamesToIndexes from "./convert_production_names.js";
 import compileProduction from "./compile_production.js";
 import importGrammarFile from "./import_grammar_file.js";
@@ -13,6 +9,7 @@ import body from "./production_body_constructor.js";
 import { Grammar } from "../types/grammar.js";
 import { GrammarParserEnvironment } from "../types/grammar_compiler_environment.js";
 import { getUniqueSymbolName } from "../util/utilities.js";
+import { HCGParser } from "../types/parser";
 
 async function sleep(data: AwaitTracker): Promise<void> {
     return new Promise(res => {
@@ -34,13 +31,14 @@ export function constructCompilerEnvironment(
     global_pending_files: { count: number; },
     local_pending_files: { count: number; },
     unique_grammar_file_id: number,
-    meta_imported_productions: Map<any, any>
+    meta_imported_productions: Map<any, any>,
+    parser,
 ): GrammarParserEnvironment {
     const out = <GrammarParserEnvironment>{
         options: { integrate: true },
         SLEEP: sleep,
         bodies: new Map(),
-        grammarParser,
+        grammarParser: ((...d) => grammarParser(...d, parser)),
         FILE_URL: grammar_file_url,
         PENDING_FILES: global_pending_files,
         AWAIT: local_pending_files,
@@ -73,10 +71,12 @@ export function constructCompilerEnvironment(
 }
 
 export async function grammarParser(
-    grammar_string, grammar_file_url,
+    grammar_string,
+    grammar_file_url,
     unique_grammar_file_id = 112,
     meta_imported_productions = new Map,
-    global_pending_files = { count: 0 }
+    global_pending_files = { count: 0 },
+    parser: HCGParser<Grammar>,
 ): Promise<Grammar> {
     const
         local_pending_files = { count: 0 },
@@ -86,7 +86,8 @@ export async function grammarParser(
             global_pending_files,
             local_pending_files,
             unique_grammar_file_id,
-            meta_imported_productions
+            meta_imported_productions,
+            parser
         )
         /*/
         ,
@@ -101,80 +102,86 @@ export async function grammarParser(
     /*/
         ;
     env.fn = env.functions;
-    const { result } = parser(grammar_string, env),
-        grammar: Grammar = result[0];
-    //*/
 
-    if (result.error) { throw result.error; }
+    const { result, FAILED } = parser(grammar_string, env);
 
-    grammar.uri = grammar_file_url;
+    const grammar: Grammar = result[0];
 
-    //load in productions from the current grammar file into Lookup
-    grammar.LU = new Map(grammar.map(p => [<string>p.name, p]));
+    if (typeof grammar == "object" && !FAILED) {
 
+        if (result.error) { throw result.error; }
 
-    //Pause here to allow impoted productions to process.
-    await sleep(local_pending_files);
+        grammar.uri = grammar_file_url;
 
-
-    //Reload all productions that have been identified in all grammar files.
-    grammar.LU = new Map(grammar.map(p => [<string>p.name, p]));
-
-    //Pull out function references from env. TODO: move function refs to grammar.
-    const ref_functions = env.refs;
-
-    grammar.functions = ref_functions;
-    grammar.meta = grammar.meta || {};
-    grammar.meta.symbols = new Map(env.symbols.map(s => [getUniqueSymbolName(s), s]));
+        //load in productions from the current grammar file into Lookup
+        grammar.LU = new Map(grammar.map(p => [<string>p.name, p]));
 
 
-    //If the production is at the root of the import tree, then complete the processing of production data. 
-    if (unique_grammar_file_id == 112) {
+        //Pause here to allow impoted productions to process.
+        await sleep(local_pending_files);
 
-        await sleep(global_pending_files);
-        //Convenient lookup map for production non-terminal names. 
 
-        //Setup the productions object
-        grammar.forEach((p, i) => (p.id = i));
-        grammar.symbols = null;
-        grammar.reserved = new Set();
+        //Reload all productions that have been identified in all grammar files.
+        grammar.LU = new Map(grammar.map(p => [<string>p.name, p]));
 
-        convertProductionNamesToIndexes(grammar, grammar.LU);
+        //Pull out function references from env. TODO: move function refs to grammar.
+        const ref_functions = env.refs;
 
-        //Insure meta error and ignore arrays are present to prevent errors in grammar compiling,
-        //since no checks are done before their properties are accessed.
+        grammar.functions = ref_functions;
+        grammar.meta = grammar.meta || {};
+        //grammar.meta.symbols = new Map(env.symbols.map(s => [getUniqueSymbolName(s), s]));
 
-        if (!grammar.meta.error)
-            grammar.meta.error = [];
 
-        if (!grammar.meta.ignore)
-            grammar.meta.ignore = [];
+        //If the production is at the root of the import tree, then complete the processing of production data. 
+        if (unique_grammar_file_id == 112) {
 
-        for (const pre of grammar?.meta?.preambles ?? []) {
-            if (pre)
-                switch (pre.type) {
-                    case "error":
-                        grammar.meta.error.push(pre);
-                        break;
-                    case "ignore":
-                        grammar.meta.ignore.push(pre);
-                        break;
-                    case "symbols":
-                        if (!grammar.meta.symbols)
-                            grammar.meta.symbols = new Map(pre.symbols.map(e => !e.type ? [e, { val: e }] : [e.val, e]));
-                        else {
-                            pre.symbols.forEach(e => !e.type
-                                ? grammar.meta.symbols.set(e, { val: e })
-                                : grammar.meta.symbols.set(e.val, e)
-                            );
-                        } break;
-                }
+            await sleep(global_pending_files);
+            //Convenient lookup map for production non-terminal names. 
+
+            //Setup the productions object
+            grammar.forEach((p, i) => (p.id = i));
+            grammar.symbols = null;
+            grammar.reserved = new Set();
+
+            convertProductionNamesToIndexes(grammar, grammar.LU);
+
+            //Insure meta error and ignore arrays are present to prevent errors in grammar compiling,
+            //since no checks are done before their properties are accessed.
+
+            if (!grammar.meta.error)
+                grammar.meta.error = [];
+
+            if (!grammar.meta.ignore)
+                grammar.meta.ignore = [];
+
+            for (const pre of grammar?.meta?.preambles ?? []) {
+                if (pre)
+                    switch (pre.type) {
+                        case "error":
+                            grammar.meta.error.push(pre);
+                            break;
+                        case "ignore":
+                            grammar.meta.ignore.push(pre);
+                            break;
+                        // case "symbols":
+                        //     if (!grammar.meta.symbols)
+                        //         grammar.meta.symbols = new Map(pre.symbols.map(e => !e.type ? [e, { val: e }] : [e.val, e]));
+                        //     else {
+                        //         pre.symbols.forEach(e => !e.type
+                        //             ? grammar.meta.symbols.set(e, { val: e })
+                        //             : grammar.meta.symbols.set(e.val, e)
+                        //         );
+                        //     } break;
+                    }
+            }
+        } else {
+            //throw console.log(error_message);
         }
-    }
 
-    if (grammar.length == 0)
-        throw ("This grammar does not define any productions.");
+        if (grammar.length == 0)
+            throw ("This grammar does not define any productions.");
 
-    return grammar;
+        return grammar;
+    } else throw new Error("Could not parse grammar");
 }
 
