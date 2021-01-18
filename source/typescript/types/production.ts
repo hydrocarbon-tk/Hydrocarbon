@@ -7,7 +7,17 @@ export interface Production {
     name: string;
     val?: number;
     type: "production";
-    subtype?: "string";
+
+    /**
+     * Productions sub types:
+     * - [ not defined ](default): All user defined productions default to this
+     * - **"list"**: A production that's auto generated through the use of the (*)/(+) grammar symbols
+     * - **"group"**: A production that's auto generated from symbols surrounded by parenthesize 
+     */
+    subtype?:
+     "list"
+    | "group";
+
 
     url?: string;
     grammar_stamp?: string;
