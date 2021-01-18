@@ -1,12 +1,11 @@
 import URL from "@candlefw/url";
 
 import { compileGrammars } from "@candlefw/hydrocarbon";
-import { compileHybrid } from "../../build/library/compiler/hybrid_compiler.js";
+import { compile } from "../../build/library/compiler/compiler.js";
 import { constructCompilerEnvironment } from "../../build/library/grammar/grammar_parser.js";
 
 const hcg_dir = URL.resolveRelative("../../source/grammars/hcg/");
-assert_group(sequence, () => {
-
+assert_group(sequence, 10000, () => {
 
     function getEnv() {
         let env = constructCompilerEnvironment("", { count: 0 }, { count: 0 }, 112, new Map);
@@ -21,13 +20,13 @@ assert_group(sequence, () => {
         grammar =
             await compileGrammars(HCG_source, HCG_source_url + ""),
         HCGparser =
-            await compileHybrid(grammar, {}, {
+            await compile(grammar, {}, {
                 type: "javascript",
                 completer_output_dir: "./temp/",
                 recognizer_output_dir: "./temp/",
                 create_function: true,
                 no_file_output: false,
-                number_of_workers: 10,
+                number_of_workers: 2,
                 add_annotations: false,
                 debug: false
             });
