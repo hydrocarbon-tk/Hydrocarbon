@@ -5,7 +5,7 @@ import { ParserEnvironment } from "../../types/parser_environment";
 import { RDProductionFunction } from "../../types/rd_production_function.js";
 import { WorkerContainer } from "../../types/worker_container";
 
-import { SC } from "../../util/skribble.js";
+import { SC } from "../../utilities/skribble.js";
 import { Helper } from "../helper.js";
 
 

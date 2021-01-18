@@ -1,11 +1,11 @@
 import { RecognizerState, TRANSITION_TYPE } from "../../types/recognizer_state.js";
 import { RenderBodyOptions } from "../../types/render_body_options";
 import { Symbol, TokenSymbol } from "../../types/symbol.js";
-import { addSkipCallNew, getIncludeBooleans } from "../../util/code_generating.js";
+import { addSkipCallNew, getIncludeBooleans } from "../../utilities/code_generating.js";
 
-import { Item, itemsToProductions } from "../../util/item.js";
-import { renderItem, renderProductionCall } from "../../util/render_item.js";
-import { ExprSC, SC } from "../../util/skribble.js";
+import { Item, itemsToProductions } from "../../utilities/item.js";
+import { renderItem, renderProductionCall } from "../../utilities/render_item.js";
+import { ExprSC, SC } from "../../utilities/skribble.js";
 import {
     createAssertionShiftManual, getSkippableSymbolsFromItems,
     getUniqueSymbolName,
@@ -13,12 +13,12 @@ import {
     isSymGeneratedId,
     isSymGeneratedNum,
     isSymGeneratedSym
-} from "../../util/symbol.js";
+} from "../../utilities/symbol.js";
 import {
     rec_glob_lex_name,
 
     rec_state, rec_state_prod
-} from "../../util/global_names.js";
+} from "../../utilities/global_names.js";
 import { processProductionChain } from "./process_production_chain.js";
 
 

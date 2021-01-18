@@ -4,11 +4,11 @@ import { RenderBodyOptions } from "../../types/render_body_options";
 import { TokenSymbol } from "../../types/symbol.js";
 import { TransitionTreeNode } from "../../types/transition_tree_nodes.js";
 
-import { getClosure } from "../../util/closure.js";
-import { doItemsHaveSameSymbol, Item } from "../../util/item.js";
-import { SC, VarSC } from "../../util/skribble.js";
-import { isSymAProduction } from "../../util/symbol.js";
-import { getTransitionTree } from "../../util/transition_tree.js";
+import { getClosure } from "../../utilities/closure.js";
+import { doItemsHaveSameSymbol, Item } from "../../utilities/item.js";
+import { SC, VarSC } from "../../utilities/skribble.js";
+import { isSymAProduction } from "../../utilities/symbol.js";
+import { getTransitionTree } from "../../utilities/transition_tree.js";
 import { yieldCompletedItemStates } from "./yield_completed_item_states.js";
 import { buildPeekSequence } from "./yield_peek_states.js";
 

@@ -1,8 +1,8 @@
 import { Grammar } from "./grammar.js";
 import { Production } from "./production";
 import { Helper } from "../compiler/helper.js";
-import { SC } from "../util/skribble.js";
-import { Item } from "../util/item.js";
+import { SC } from "../utilities/skribble.js";
+import { Item } from "../utilities/item.js";
 
 export interface RenderBodyOptions {
     /**

@@ -1,4 +1,4 @@
-import { SC } from "../util/skribble.js";
+import { SC } from "../utilities/skribble.js";
 
 const this_flags = SC.Member(SC.This(), "flags:unsigned int");
 

@@ -2,14 +2,14 @@ import { EOF_SYM } from "../../types/grammar.js";
 import { RecognizerState, TRANSITION_TYPE } from "../../types/recognizer_state.js";
 import { RenderBodyOptions } from "../../types/render_body_options";
 
-import { getClosure, getFollow, getFollowClosure } from "../../util/closure.js";
-import { getAccompanyingItems, Item, itemsToProductions } from "../../util/item.js";
-import { SC } from "../../util/skribble.js";
-import { getSymbolsFromClosure } from "../../util/symbol.js";
-import { getTransitionTree } from "../../util/transition_tree.js";
+import { getClosure, getFollow, getFollowClosure } from "../../utilities/closure.js";
+import { getAccompanyingItems, Item, itemsToProductions } from "../../utilities/item.js";
+import { SC } from "../../utilities/skribble.js";
+import { getSymbolsFromClosure } from "../../utilities/symbol.js";
+import { getTransitionTree } from "../../utilities/transition_tree.js";
 import {
     rec_glob_lex_name
-} from "../../util/global_names.js";
+} from "../../utilities/global_names.js";
 import { processProductionChain } from "./process_production_chain.js";
 import { buildPeekSequence } from "./yield_peek_states.js";
 

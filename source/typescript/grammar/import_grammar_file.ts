@@ -1,7 +1,7 @@
 import URL from "@candlefw/url";
 import { Grammar } from "../types/grammar";
 import { GrammarParserEnvironment } from "../types/grammar_compiler_environment";
-import { default_map } from "../util/default_map.js";
+import { default_map } from "../utilities/default_map.js";
 
 export default function (sym, env: GrammarParserEnvironment) {
 

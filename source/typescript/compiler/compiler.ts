@@ -16,7 +16,7 @@ import { Grammar } from "../types/grammar.js";
 import { GrammarParserEnvironment } from "../types/grammar_compiler_environment";
 import { ParserEnvironment } from "../types/parser_environment.js";
 
-import { AS, CPP, JS } from "../util/skribble.js";
+import { AS, CPP, JS } from "../utilities/skribble.js";
 import { constructCompilerRunner, Helper } from "./helper.js";
 import { WorkerRunner } from "./workers/worker_runner.js";
 

@@ -3,8 +3,8 @@ import { RecognizerState, TRANSITION_TYPE } from "../../types/recognizer_state.j
 import { TokenSymbol } from "../../types/symbol";
 import { TransitionTreeNode } from "../../types/transition_tree_nodes";
 
-import { VarSC } from "../../util/skribble.js";
-import { getSymbolFromUniqueName } from "../../util/symbol.js";
+import { VarSC } from "../../utilities/skribble.js";
+import { getSymbolFromUniqueName } from "../../utilities/symbol.js";
 import { Helper } from "../helper.js";
 
 

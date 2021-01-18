@@ -8,7 +8,7 @@ import body from "./production_body_constructor.js";
 
 import { Grammar } from "../types/grammar.js";
 import { GrammarParserEnvironment } from "../types/grammar_compiler_environment.js";
-import { getUniqueSymbolName } from "../util/symbol.js";
+import { getUniqueSymbolName } from "../utilities/symbol.js";
 import { HCGParser } from "../types/parser";
 
 async function sleep(data: AwaitTracker): Promise<void> {
@@ -94,8 +94,6 @@ export async function grammarParser(
 
     const { result, FAILED, error_message } = parser(grammar_string, env);
 
-    console.log(error_message);
-
     const grammar: Grammar = result[0];
 
     if (typeof grammar == "object" && !FAILED) {
@@ -166,7 +164,7 @@ export async function grammarParser(
                     }
             }
         } else {
-            //throw console.log(error_message);
+            //console.log(error_message);
         }
 
         if (grammar.length == 0)

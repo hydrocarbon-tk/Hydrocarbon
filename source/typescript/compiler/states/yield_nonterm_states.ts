@@ -2,10 +2,10 @@
 import { RecognizerState, TRANSITION_TYPE } from "../../types/recognizer_state.js";
 import { RenderBodyOptions } from "../../types/render_body_options";
 
-import { Item } from "../../util/item.js";
-import { SC } from "../../util/skribble.js";
-import { isSymAProduction } from "../../util/symbol.js";
-import { rec_glob_lex_name } from "../../util/global_names.js";
+import { Item } from "../../utilities/item.js";
+import { SC } from "../../utilities/skribble.js";
+import { isSymAProduction } from "../../utilities/symbol.js";
+import { rec_glob_lex_name } from "../../utilities/global_names.js";
 import { yieldStates } from "./yield_states.js";
 
 export function* yieldNontermStates(options: RenderBodyOptions): Generator<RecognizerState[], { code: SC, prods: number[]; hash: string; }> {

@@ -1,4 +1,4 @@
-import { ConstSC, ExprSC, JS, SC, VarSC } from "../util/skribble.js";
+import { ConstSC, ExprSC, JS, SC, VarSC } from "../utilities/skribble.js";
 
 export type ConstantHash = string;
 export type ConstantName = string;

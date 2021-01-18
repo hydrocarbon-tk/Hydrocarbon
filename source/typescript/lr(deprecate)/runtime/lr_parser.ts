@@ -6,7 +6,7 @@ import { ParserEnvironment } from "../../types/parser_environment.js";
 import { ParserResultData } from "./parser_result_data.js";
 import { ParserSquashResultData } from "./parser_squash_result_data.js";
 import { HistoryStack, StateStack } from "./state_stack.js";
-import { Item } from "../../util/item.js";
+import { Item } from "../../utilities/item.js";
 
 
 import { errorReport } from "./error_report.js";

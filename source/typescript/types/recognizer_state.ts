@@ -1,6 +1,6 @@
 import { Symbol } from "./symbol";
-import { Item } from "../util/item.js";
-import { SC } from "../util/skribble.js";
+import { Item } from "../utilities/item.js";
+import { SC } from "../utilities/skribble.js";
 
 /**
  * Attribute that indicates the type of tree that

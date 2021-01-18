@@ -1,6 +1,4 @@
 
-import "./__global.js";
-
 declare global {
     interface Array<T> {
         /**

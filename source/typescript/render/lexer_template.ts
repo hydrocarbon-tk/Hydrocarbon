@@ -1,4 +1,4 @@
-import { SC } from "../util/skribble.js";
+import { SC } from "../utilities/skribble.js";
 
 export const createLexerCode = (): SC => {
     const strCodePointAt = SC.Member("str", "codePointAt");

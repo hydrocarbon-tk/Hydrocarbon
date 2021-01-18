@@ -6,11 +6,11 @@ import { TRANSITION_TYPE } from "../types/recognizer_state.js";
 import { RenderBodyOptions, ReturnType } from "../types/render_body_options";
 import { TokenSymbol } from "../types/symbol";
 import { SymbolType } from "../types/symbol_type";
-import { getClosure, getFollow } from "../util/closure.js";
-import { addSkipCallNew, getIncludeBooleans } from "../util/code_generating.js";
-import { Item } from "../util/item.js";
-import { getProductionFunctionName } from "../util/render_item.js";
-import { SC } from "../util/skribble.js";
+import { getClosure, getFollow } from "../utilities/closure.js";
+import { addSkipCallNew, getIncludeBooleans } from "../utilities/code_generating.js";
+import { Item } from "../utilities/item.js";
+import { getProductionFunctionName } from "../utilities/render_item.js";
+import { SC } from "../utilities/skribble.js";
 import {
     getExcludeSymbolSet, getSkippableSymbolsFromItems,
     getSymbolsFromClosure,
@@ -19,12 +19,12 @@ import {
     isSymGeneratedNum, isSymGeneratedSym,
     isSymGeneratedWS, isSymSpecifiedIdentifier,
     isSymSpecifiedNumeric, isSymSpecifiedSymbol
-} from "../util/symbol.js";
+} from "../utilities/symbol.js";
 import {
     rec_glob_lex_name,
     rec_state,
     rec_state_prod
-} from "../util/global_names.js";
+} from "../utilities/global_names.js";
 import { Helper } from "./helper.js";
 import { defaultMultiItemLeaf, defaultSelectionClause, defaultSingleItemLeaf, processRecognizerStates } from "./states/process_recognizer_states.js";
 import { yieldNontermStates } from "./states/yield_nonterm_states.js";

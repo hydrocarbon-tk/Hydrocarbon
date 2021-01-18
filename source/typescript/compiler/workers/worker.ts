@@ -3,7 +3,7 @@ import { Grammar } from "../../types/grammar";
 import { HybridDispatch, HybridDispatchResponse } from "../../types/worker_messaging.js";
 import { ParserEnvironment } from "../../types/parser_environment.js";
 
-import { filloutWorkerGrammar } from "../../util/grammar.js";
+import { filloutWorkerGrammar } from "../../utilities/grammar.js";
 import { constructHybridFunction } from "../function_constructor.js";
 import { constructCompilerRunner, Helper } from "../helper.js";
 
