@@ -201,14 +201,87 @@ export function getItemMapEntry(grammar: Grammar, item_id: string): ItemMapEntry
     return grammar.item_map.get(item_id);
 }
 
+function addFollowInformation(item: Item, grammar: Grammar, check_set: Set<string>[], follow_sym: TokenSymbol = EOF_SYM, item_map) {
+
+    if (item.atEND) {
+        grammar.item_map.get(item.id).follow.add(getUniqueSymbolName(follow_sym));
+        return;
+    }
+
+    item_map.push(item.renderUnformattedWithProduction(grammar));
+    let sym: Symbol =
+        !item.increment().atEND
+            ? item.increment().sym(grammar)
+            : null,
+        item_sym = item.sym(grammar),
+        follow: TokenSymbol[] = [follow_sym];
+
+    if (sym)
+        if (isSymAProduction(sym)) {
+
+            //follow = follow.concat(getProductionFirst(sym.val, grammar));
+
+            let look_ahead = item.increment(),
+                sym = look_ahead.sym(grammar);
+
+            do {
+
+                if (!look_ahead.atEND) {
+
+                    if (isSymAProduction(sym) || isSymAProductionToken(sym)) {
+                        follow = follow.concat(getProductionFirst(getProductionID(sym, grammar), grammar)).setFilter(getUniqueSymbolName);
+                    } else {
+                        follow = follow.concat(sym).setFilter(getUniqueSymbolName);
+                        break;
+                    }
+
+                } else {
+                    follow.push(follow_sym);
+                    break;
+                }
+
+                look_ahead = look_ahead.increment();
+
+            } while (doesProductionHaveEmpty(getProductionID(sym, grammar), grammar));
+
+        } else follow = getTrueSymbolValue(sym, grammar);
+
+    if (isSymAProduction(item_sym) || isSymAProductionToken(item_sym)) {
+
+        const
+            prod_id = getProductionID(item_sym, grammar),
+            prod: Production = grammar[prod_id];
+
+        item_map.push(grammar[prod_id].name);
+        for (const body of prod.bodies) {
+
+            for (const follow_sym of follow) {
+
+                const
+                    new_item = new Item(body.id, body.length, 0, follow_sym),
+                    id = new_item.full_id;
+
+                if (!check_set[prod_id].has(id)) {
+                    check_set[prod_id].add(id);
+                    addFollowInformation(new_item, grammar, check_set, follow_sym, item_map);
+                } else {
+                    new_item[ItemIndex.offset] = new_item[ItemIndex.length];
+                    grammar.item_map.get(new_item.id).follow.add(getUniqueSymbolName(follow_sym));
+                }
+            }
+        }
+    }
+
+    addFollowInformation(item.increment(), grammar, check_set, follow_sym, item_map);
+}
 export function buildItemClosures(grammar: Grammar) {
     const
         production_ready = grammar.map(i => ({ count: 0, items: null })),
-        items_sets = grammar.flatMap(p => {
+        items_sets: ItemMapEntry[] = grammar.flatMap(p => {
             // If there are any reduces on p add to the 
 
             const items = p.bodies.map(b => {
-                const out_syms = [];
+                const out_syms: ItemMapEntry[] = [];
                 let item = new Item(b.id, b.length, 0, EOF_SYM);
                 let depth = b.id + p.id * grammar.length;
                 do {
@@ -232,10 +305,12 @@ export function buildItemClosures(grammar: Grammar) {
 
                     const reset_sym = item.offset >= 0 ? (b.reset.get(item.offset) ?? []).map(getUniqueSymbolName) : [];
 
-                    out_syms.push({
+                    out_syms.push(<ItemMapEntry>{
                         item,
                         closure: [],
                         reset_sym,
+                        LR: false,
+                        RR: [],
                         excludes: b.excludes.get(item.offset) ?? [],
                         rank: item.offset,
                         depth: depth,
@@ -258,8 +333,9 @@ export function buildItemClosures(grammar: Grammar) {
         completed: typeof items_sets = [],
         prods = [];
 
-    function setItem(i: any, rank = 1, depth = Infinity) {
-        const { item } = <{ item: Item; }>i;
+    // Sort items and set item rank data
+    function setItemRankAndDepth(i: ItemMapEntry, rank = 1, depth = Infinity) {
+        const { item } = i;
         i.depth = Math.min(i.depth, depth);
         if (!sorted.has(item.id)) {
             sorted.add(item.id);
@@ -273,7 +349,7 @@ export function buildItemClosures(grammar: Grammar) {
                         let j = 0;
                         for (const a of items) {
                             a.rank = rank;
-                            setItem(a, a.rank + 1, i.depth + 1 + j++);
+                            setItemRankAndDepth(a, a.rank + 1, i.depth + 1 + j++);
                         }
                     }
                 } else {
@@ -283,31 +359,45 @@ export function buildItemClosures(grammar: Grammar) {
         }
     }
 
-    for (const i of items_sets)
-        setItem(i);
+    //for (const i of items_sets) setItemRankAndDepth(i);
 
-    prods.sort((a, b) => b.rank - a.rank);
-    let CHANGE = true, pending = completed.concat(prods);
+    /////////////////////////////////////////////////////////////
+    // Compile closure information
+
+    let CHANGE = true, pending: ItemMapEntry[] = items_sets.slice();//.concat(prods);
+
     while (CHANGE || pending.length > 0) {
 
         CHANGE = false;
+
         let temp_pending = pending.slice();
+
         pending.length = 0;
+
         for (const obj of temp_pending) {
+
             const { closure, item, excludes, hash } = obj;
+
             let temp = [];
+
             temp.push(item);
+
             if (item.atEND) {
                 obj.closure = temp;
                 continue;
             };
+
             const sym = item.sym(grammar);
+
             if (sym.type == SymbolType.PRODUCTION) {
                 const prod_id = sym.val;
                 temp.push(...production_ready[prod_id].items.flatMap(i => i.closure));
             }
+
             temp = temp.setFilter(i => i.id);
+
             let new_hash = temp.map(i => i.id).sort().join("");
+
             for (const exclude of excludes) {
 
                 outer:
@@ -324,19 +414,26 @@ export function buildItemClosures(grammar: Grammar) {
                     temp.splice(i--, 1);
                 }
             }
-            if (obj.hash != new_hash) {
+
+            if (obj.hash != new_hash)
                 pending.push(obj);
-            } else {
+            else
                 CHANGE = true;
-            }
+
             obj.closure = temp;
             obj.hash = new_hash;
         }
     }
 
+    // Assign item map to grammar
+
     grammar.item_map = new Map(items_sets.map(i => [i.item.id, i]));
 
+    /////////////////////////////////////////////////////////////
+    // Add recursion information
+
     for (const obj of items_sets) {
+
         const { item, closure } = obj,
             item_id = item.id,
             production_id = item.getProduction(grammar).id;
@@ -361,61 +458,22 @@ export function buildItemClosures(grammar: Grammar) {
         obj.RR = RR;
     }
 
-    grammar.forEach(p => { p.check_set = new Set(); });
+    /////////////////////////////////////////////////////////////
+    //Add Follow Information
 
+    const check_set: Set<string>[] = grammar.map(() => new Set());
+    const item_map = [];
+    for (const b of grammar[0].bodies)
+        addFollowInformation(new Item(b.id, b.length, 0, EOF_SYM), grammar, check_set, EOF_SYM, item_map);
 
-    function walkItem(item: Item, grammar: Grammar) {
+    /////////////////////////////////////////////////////////////
+    //Add ignored symbols information
 
-        if (item.atEND) {
-            grammar.item_map.get(item.id).follow.add(getUniqueSymbolName(item.follow));
-            return;
-        }
-
-        let sym: Symbol = !item.increment().atEND ? item.increment().sym(grammar) : null, follow = [item.follow];
-
-        if (sym)
-            if (isSymAProduction(sym)) {
-                follow = getProductionFirst(sym.val, grammar);
-                let g = item;
-                while (doesProductionHaveEmpty(sym.val, grammar)) {
-                    g = g.increment();
-                    if (!g.atEND) {
-                        sym = g.sym(grammar);
-                        if (isSymAProduction(sym)) {
-                            follow = follow.concat(getProductionFirst(sym.val, grammar)).setFilter(getUniqueSymbolName);
-                        } else {
-                            follow = follow.concat(sym).setFilter(getUniqueSymbolName);
-                            break;
-                        }
-                    } else {
-                        follow.push(g.follow);
-                        break;
-                    }
-                }
-            } else follow = getTrueSymbolValue(sym, grammar);
-
-        if (isSymAProduction(item.sym(grammar))) {
-            const prod: Production = grammar[item.sym(grammar).val];
-            for (const body of prod.bodies) {
-                for (const follow_sym of follow) {
-                    const new_item = new Item(body.id, body.length, 0, follow_sym);
-                    const id = new_item.full_id;
-                    if (!prod.check_set.has(id)) {
-                        prod.check_set.add(id);
-                        walkItem(new_item, grammar);
-                    }
-                }
-            }
-        } else {
-
-        }
-
-        walkItem(item.increment(), grammar);
-    }
-
-    grammar[0].bodies.map(b => walkItem(new Item(b.id, b.length, 0, EOF_SYM), grammar));
     const standard_skips = [];
-    grammar.meta.ignore.forEach(i => standard_skips.push(...i.symbols));
+
+    for (const i of grammar.meta.ignore)
+        standard_skips.push(...i.symbols);
+
     for (const obj of items_sets) {
 
         const first = obj.item.atEND
@@ -432,27 +490,12 @@ export function buildItemClosures(grammar: Grammar) {
         );
     }
 
-
-    //console.log(grammar.item_map.get(new Item(171, 2, 1).id));
-
-    //console.log({ items_sets: items_sets.map(i => Object.assign({}, i, { item: i.item.renderUnformattedWithProduction(grammar) })) });
-
     return items_sets;
 }
 
 export function buildItemMap(grammar: Grammar) {
     buildItemClosures(grammar);
 }
-
-export function doesItemHaveLeftRecursion(item: Item, grammar: Grammar): boolean {
-    return grammar.item_map.get(item.id).LR;
-};
-
-export function doesSymbolLeadToRightRecursion(sym: TokenSymbol, item: Item, grammar: Grammar): boolean {
-    if (!item) return false;
-    return grammar.item_map.get(item.id).RR.includes(getUniqueSymbolName(sym));
-}
-
 
 /**
  * Get closure that includes items that transition from completed item productions
@@ -677,6 +720,7 @@ function incrementWithClosure(grammar: Grammar, item: Item, prod: Production, AU
         return getClosure([item.increment()], grammar);
     return [item];
 }
+
 export function getUnskippableSymbolsFromClosure(closure: Item[], grammar: Grammar): any {
     return [...new Set(closure.flatMap(i => grammar.item_map.get(i.id).reset_sym)).values()].map(sym => grammar.meta.all_symbols.get(sym));
 }
