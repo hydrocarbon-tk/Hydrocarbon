@@ -1,4 +1,3 @@
-
 declare global {
     interface Array<T> {
         /**

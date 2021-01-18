@@ -1,4 +1,3 @@
-
 import { createGrammar } from "./grammar/compile_grammar.js";
 
 
@@ -14,8 +13,6 @@ import { lrParse } from "./lr(deprecate)/runtime/lr_parser.js";
 //Diagnostics
 import { ParserEnvironment } from "./types/parser_environment.js";
 import { ErrorHandler, ParserData } from "./lr(deprecate)/runtime/parser_data.js";
-
-
 
 export {
     ErrorHandler,

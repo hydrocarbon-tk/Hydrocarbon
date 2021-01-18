@@ -8,6 +8,7 @@ import {
     TokenSymbol
 } from "../types/symbol";
 import { SymbolType } from "../types/symbol_type";
+import { rec_glob_lex_name } from "./global_names.js";
 import { getProductionID } from "./production.js";
 import { getProductionFunctionName } from "./render_item.js";
 import { ConstSC, ExprSC, SC, StmtSC, VarSC } from "./skribble.js";

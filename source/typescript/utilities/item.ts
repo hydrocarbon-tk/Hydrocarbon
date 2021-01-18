@@ -49,12 +49,6 @@ export class Item extends Array {
 
         this.IS_LR = false;
     }
-    /**
-     * Get copy of this item with offset set to 0
-     */
-    get root(): Item {
-        return new Item(this.body, this.len, 0, this.follow);
-    }
 
     get atEND(): boolean {
         return this.offset >= this.len;
@@ -62,10 +56,6 @@ export class Item extends Array {
 
     get v(): string | number {
         return getUniqueSymbolName(this.follow);
-    }
-
-    get p(): number {
-        return this.follow.precedence;
     }
 
     get id(): string {
@@ -117,7 +107,7 @@ export class Item extends Array {
             .flatMap((sym, i) => (i == this.offset) ? ["•", SymbolToStringUnformatted(sym)] : SymbolToStringUnformatted(sym));
         if (a.length == this.offset)
             a.push("•");
-        a.push(this.IS_LR ? "  ::LR" : "");
+
         return a.join(" ");
     }
 
@@ -126,7 +116,7 @@ export class Item extends Array {
     }
 
     renderUnformattedWithProduction(grammar: Grammar): string {
-        return this.body + " " + this.body_(grammar).production.name + "=>" + this.renderUnformatted(grammar);
+        return (this.getProduction(grammar).id + ":" + this.body) + " " + this.body_(grammar).production.name + "=>" + this.renderUnformatted(grammar);
     }
 
     renderWithProduction(grammar: Grammar): string {
