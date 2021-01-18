@@ -1,4 +1,5 @@
-import { doesProductionHaveEmpty, getProductionFirst, getProductionID } from "./production.js";
+import { doesProductionHaveEmpty, getProductionID } from "./production.js";
+import { getFirst } from "./first.js";
 import { getTrueSymbolValue } from "./code_generating.js";
 import {
     getUniqueSymbolName,
@@ -15,12 +16,15 @@ import { Production } from "../types/production.js";
 
 function addFollowInformation(item: Item, grammar: Grammar, check_set: Set<string>[], follow_sym: TokenSymbol = EOF_SYM, item_map) {
 
+
+
     if (item.atEND) {
         grammar.item_map.get(item.id).follow.add(getUniqueSymbolName(follow_sym));
         return;
     }
 
     item_map.push(item.renderUnformattedWithProduction(grammar));
+
     let sym: Symbol =
         !item.increment().atEND
             ? item.increment().sym(grammar)
@@ -30,6 +34,8 @@ function addFollowInformation(item: Item, grammar: Grammar, check_set: Set<strin
 
     if (sym)
         if (isSymAProduction(sym)) {
+
+            follow = [];
 
             //follow = follow.concat(getProductionFirst(sym.val, grammar));
 
@@ -41,7 +47,7 @@ function addFollowInformation(item: Item, grammar: Grammar, check_set: Set<strin
                 if (!look_ahead.atEND) {
 
                     if (isSymAProduction(sym) || isSymAProductionToken(sym)) {
-                        follow = follow.concat(getProductionFirst(getProductionID(sym, grammar), grammar)).setFilter(getUniqueSymbolName);
+                        follow = follow.concat(getFirst(getProductionID(sym, grammar), grammar)).setFilter(getUniqueSymbolName);
                     } else {
                         follow = follow.concat(sym).setFilter(getUniqueSymbolName);
                         break;
@@ -54,7 +60,7 @@ function addFollowInformation(item: Item, grammar: Grammar, check_set: Set<strin
 
                 look_ahead = look_ahead.increment();
 
-            } while (doesProductionHaveEmpty(getProductionID(sym, grammar), grammar));
+            } while (false && doesProductionHaveEmpty(getProductionID(sym, grammar), grammar));
 
         } else follow = getTrueSymbolValue(sym, grammar);
 
@@ -64,7 +70,6 @@ function addFollowInformation(item: Item, grammar: Grammar, check_set: Set<strin
             prod_id = getProductionID(item_sym, grammar),
             prod: Production = grammar[prod_id];
 
-        item_map.push(grammar[prod_id].name);
         for (const body of prod.bodies) {
 
             for (const follow_sym of follow) {
@@ -72,12 +77,11 @@ function addFollowInformation(item: Item, grammar: Grammar, check_set: Set<strin
                 const
                     new_item = new Item(body.id, body.length, 0, follow_sym),
                     id = new_item.full_id;
-
                 if (!check_set[prod_id].has(id)) {
                     check_set[prod_id].add(id);
                     addFollowInformation(new_item, grammar, check_set, follow_sym, item_map);
                 } else {
-                    new_item[ItemIndex.offset] = new_item[ItemIndex.length];
+                    const new_item = new Item(body.id, body.length, body.length, follow_sym);
                     grammar.item_map.get(new_item.id).follow.add(getUniqueSymbolName(follow_sym));
                 }
             }
@@ -276,7 +280,7 @@ export function buildItemClosures(grammar: Grammar) {
         const first = obj.item.atEND
             ? obj.follow
             : isSymAProduction(obj.item.sym(grammar))
-                ? new Set(getProductionFirst(obj.item.sym(grammar).val, grammar).map(getUniqueSymbolName))
+                ? new Set(getFirst(obj.item.sym(grammar).val, grammar).map(getUniqueSymbolName))
                 : new Set((getTrueSymbolValue(obj.item.sym(grammar), grammar)).map(getUniqueSymbolName));
 
         obj.skippable = new Set(

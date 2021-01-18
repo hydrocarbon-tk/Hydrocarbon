@@ -6,8 +6,14 @@ import { TRANSITION_TYPE } from "../types/recognizer_state.js";
 import { RenderBodyOptions, ReturnType } from "../types/render_body_options";
 import { TokenSymbol } from "../types/symbol";
 import { SymbolType } from "../types/symbol_type";
-import { getClosure, getFollow } from "../utilities/closure.js";
+import { getClosure } from "../utilities/closure.js";
 import { addSkipCallNew, getIncludeBooleans } from "../utilities/code_generating.js";
+import { getFollow } from "../utilities/follow.js";
+import {
+    rec_glob_lex_name,
+    rec_state,
+    rec_state_prod
+} from "../utilities/global_names.js";
 import { Item } from "../utilities/item.js";
 import { getProductionFunctionName } from "../utilities/render_item.js";
 import { SC } from "../utilities/skribble.js";
@@ -20,11 +26,6 @@ import {
     isSymGeneratedWS, isSymSpecifiedIdentifier,
     isSymSpecifiedNumeric, isSymSpecifiedSymbol
 } from "../utilities/symbol.js";
-import {
-    rec_glob_lex_name,
-    rec_state,
-    rec_state_prod
-} from "../utilities/global_names.js";
 import { Helper } from "./helper.js";
 import { defaultMultiItemLeaf, defaultSelectionClause, defaultSingleItemLeaf, processRecognizerStates } from "./states/process_recognizer_states.js";
 import { yieldNontermStates } from "./states/yield_nonterm_states.js";
@@ -211,7 +212,7 @@ export function constructHybridFunction(production: Production, grammar: Grammar
                                 active_items = items.filter(i => !i.atEND),
                                 end_items = items.filter(i => i.atEND),
                                 skippable = getSkippableSymbolsFromItems(items, grammar).filter(sym =>
-                                    !getFollow(keys[0], grammar).includes(sym)
+                                    !getFollow(keys[0], grammar).some(s => getUniqueSymbolName(s) == getUniqueSymbolName(sym))
                                 );
 
                             let interrupt_statement = null;

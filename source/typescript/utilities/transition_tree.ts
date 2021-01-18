@@ -3,8 +3,8 @@ import { Grammar } from "../types/grammar.js";
 import { Production } from "../types/production";
 import { TokenSymbol } from "../types/symbol";
 import { closure_group, TransitionTreeNode } from "../types/transition_tree_nodes";
-import { getClosure } from "./closure.js";
-import { FOLLOW } from "./follow.js";
+import { getClosure, getFollowClosure } from "./closure.js";
+import { getFollow } from "./follow.js";
 import { Item } from "./item.js";
 import {
     getUniqueSymbolName,
@@ -167,10 +167,10 @@ function getClosureGroups(
             const new_closure = getFollowClosure([item], lr_transition_items, grammar);
 
             if (new_closure.length == 0) {
-                const production_id = closure[0].getProduction(grammar).id;
-                const follow = FOLLOW(grammar, production_id);
 
-                for (const sym of follow.values())
+                const production_id = closure[0].getProduction(grammar).id;
+
+                for (const sym of getFollow(production_id, grammar))
                     group.push({ sym, index, item_id: item.decrement().id, unskippable, closure: closure.slice(0, 1), final: final + 2 });
 
             } else {
