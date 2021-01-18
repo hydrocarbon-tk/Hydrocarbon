@@ -43,14 +43,10 @@ ${BUILD_LOCAL ? "" : "export default async function loadParser(){"}
             er = error_array,
             stack = [];
     
-        let action_length = 0;
-
-        //console.log({FAILED})
+        let action_length = 0,
+            error_message =""
     
         if (FAILED) {
-
-            //console.log({ds:debug_stack.length})
-
             const review_stack = [];
 
             for(let i = debug_stack.length-1, j=0; i >= 0; i--){
@@ -59,17 +55,14 @@ ${BUILD_LOCAL ? "" : "export default async function loadParser(){"}
                 review_stack.push(debug_stack[i]);
             }
 
-            //console.log({review_stack:review_stack.reverse()})
+            console.log({review_stack:review_stack.reverse()})
             
             let error_off = 10000000000000;
             let error_set = false;
 
 
             const lexer = new Lexer(str);
-            const probes = [];
-            //Extract any probes
 
-            //console.log("ERROR_LENGTH", er)
             for (let i = 0; i < er.length; i++) {
                 if(er[i]>0 && !error_set){
                     error_set = true;
@@ -77,16 +70,17 @@ ${BUILD_LOCAL ? "" : "export default async function loadParser(){"}
                 }
             }
 
-            if(error_off == 10000000000000)
-            error_off = 0;
+            if(error_off == 10000000000000) 
+                error_off = 0;
 
             while (lexer.off < error_off && !lexer.END) lexer.next();
+            
             if(probes.length >0)
                 console.table(probes);
-            //console.log("", error_off, str.length);
-            console.log(lexer.errorMessage(\`Unexpected token[\${ lexer.tx }]\`));
+
+            error_message = lexer.errorMessage(\`Unexpected token[\${ lexer.tx }]\`);
     
-        } /*else {*/
+        } else {
 
             let offset = 0, pos = [];
 
@@ -140,10 +134,9 @@ ${BUILD_LOCAL ? "" : "export default async function loadParser(){"}
                     } break;
                 }
             }
-            //console.log({aa,er})
-        //}
+        }
     
-        return { result: stack, FAILED: !!FAILED, action_length };
+        return { result: stack, FAILED: !!FAILED, action_length, error_message };
     }
     ${BUILD_LOCAL ? "" : "}"} `;
 };
