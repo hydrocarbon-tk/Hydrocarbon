@@ -1,5 +1,5 @@
 import { ConstantHash, ConstantObj } from "../compiler/helper";
-import { SC } from "../util/skribble";
+import { SC } from "../util/skribble.js";
 
 export enum HybridJobType {
     UNDEFINED,

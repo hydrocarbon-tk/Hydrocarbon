@@ -1,5 +1,3 @@
-
-
 export interface HybridCompilerOptions {
     /**
      * Type of recognizer to create

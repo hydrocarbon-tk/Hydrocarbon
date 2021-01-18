@@ -1,7 +1,7 @@
 import { Grammar } from "./grammar.js";
 import { Production } from "./production";
 import { Helper } from "../compiler/helper.js";
-import { SC, VarSC } from "../util/skribble.js";
+import { SC } from "../util/skribble.js";
 import { Item } from "../util/item.js";
 
 export interface RenderBodyOptions {

@@ -1,49 +1,13 @@
-import { getRootSym, getUniqueSymbolName } from "./utilities.js";
-import { ProductionBody, Grammar, EOF_SYM } from "../types/grammar.js";
-import { SymbolType } from "../types/symbol_type";
+import { EOF_SYM, Grammar, ProductionBody } from "../types/grammar.js";
 import { Production } from "../types/production";
 import { Symbol } from "../types/symbol";
-
-export function SymbolToString(sym: { type?: SymbolType, val: string; }) {
-    switch (sym.type) {
-        case SymbolType.ESCAPED:
-        case SymbolType.SYMBOL:
-            return `\x1b[38;5;208m${sym.val}`;
-        case SymbolType.GENERATED:
-            return `\x1b[38;5;208mθ${sym.val}`;
-        case SymbolType.LITERAL:
-            return `\x1b[38;5;229mτ${sym.val}`;
-        case SymbolType.EMPTY:
-            return `\x1b[38;5;208mɛ`;
-        case SymbolType.END_OF_FILE:
-            return `\x1b[38;5;208m$eof`;
-        default:
-            return `\x1b[38;5;68m${sym.val}`;
-    }
-}
+import { SymbolType } from "../types/symbol_type";
+import { getRootSym, getUniqueSymbolName, isSymAProduction, SymbolToStringUnformatted } from "./symbol.js";
 
 export const enum ItemIndex {
     body_id = 0,
     length = 1,
     offset = 2
-}
-
-export function SymbolToStringUnformatted(sym: { type?: SymbolType, val: string; }) {
-    switch (sym.type) {
-        case SymbolType.ESCAPED:
-        case SymbolType.SYMBOL:
-            return `${sym.val}`;
-        case SymbolType.GENERATED:
-            return `θ${sym.val}`;
-        case SymbolType.LITERAL:
-            return `τ${sym.val}`;
-        case SymbolType.EMPTY:
-            return `ɛ`;
-        case SymbolType.END_OF_FILE:
-            return `END_OF_FILE`;
-        default:
-            return sym.val;
-    }
 }
 export class ItemGraphNode {
     subitems: ItemGraphNode[];
@@ -244,4 +208,37 @@ export class Item extends Array {
         }
     }
 
+}
+export function getAccompanyingItems(grammar: Grammar, active_productions: number[], items: Item[], out: Item[] = [], all = false) {
+
+    const prod_id = new Set(active_productions);
+
+    const to_process = [];
+
+    for (const item of items.reverse()) {
+        if (!item || item.atEND) continue;
+
+        const sym = item.sym(grammar);
+        if (isSymAProduction(sym) && prod_id.has(<number>sym.val)) {
+
+            out.push(item);
+            if (item.increment().atEND) {
+                to_process.push(item);
+            }
+        }
+    }
+    if (all)
+        for (const item of to_process) {
+            getAccompanyingItems(grammar, item.getProduction(grammar).id, items, out, all);
+        }
+    return out;
+}
+
+export function itemsToProductions(items: Item[], grammar: Grammar): number[] {
+    return items.map(i => i.getProduction(grammar).id);
+}
+
+
+export function doItemsHaveSameSymbol(items: Item[], grammar: Grammar) {
+    return items.every(i => !i.atEND && i.sym(grammar).val == items[0].sym(grammar).val);
 }

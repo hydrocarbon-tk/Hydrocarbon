@@ -1,8 +1,9 @@
-import { FIRST } from "./first.js";
-import { Grammar, EOF_SYM } from "../types/grammar.js";
-import { SymbolType } from "../types/symbol_type";
+import { EOF_SYM, Grammar } from "../types/grammar.js";
 import { AssertionFunctionSymbol, Symbol, TokenSymbol } from "../types/symbol";
-import { getAssertionSymbolFirst, isSymAnAssertFunction } from "./utilities.js";
+import { SymbolType } from "../types/symbol_type";
+import { getAssertionSymbolFirst } from "./code_generating.js";
+import { FIRST } from "./first.js";
+import { isSymAnAssertFunction } from "./symbol.js";
 
 //@ts-nocheck
 export const EMPTY_PRODUCTION = "{!--EMPTY_PRODUCTION--!}";

@@ -1,11 +1,11 @@
 import URL from "@candlefw/url";
-
-import { Grammar, ProductionBody } from "./grammar";
-import { Production } from "./production";
-
 import { AwaitTracker } from "../grammar/grammar_parser.js";
+import { Grammar, ProductionBody } from "./grammar";
 import { ParserEnvironment } from "./parser_environment";
+import { Production } from "./production";
 import { Symbol } from "./symbol";
+
+
 export type ImportedProductionList = Array<Production> & {
     SYMBOL_LIST: boolean;
     LU: Map<string, Production>;

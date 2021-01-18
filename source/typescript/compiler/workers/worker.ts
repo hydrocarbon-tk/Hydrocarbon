@@ -1,10 +1,11 @@
+import { parentPort, workerData } from "worker_threads";
 import { Grammar } from "../../types/grammar";
+import { HybridDispatch, HybridDispatchResponse } from "../../types/worker_messaging.js";
 import { ParserEnvironment } from "../../types/parser_environment.js";
-import { filloutWorkerGrammar } from "../../util/common.js";
-import { workerData, parentPort } from "worker_threads";
-import { HybridDispatch, HybridDispatchResponse } from "../../types/mt_msg_types.js";
-import { Helper, constructCompilerRunner } from "../helper.js";
+
+import { filloutWorkerGrammar } from "../../util/grammar.js";
 import { constructHybridFunction } from "../function_constructor.js";
+import { constructCompilerRunner, Helper } from "../helper.js";
 
 export class Worker {
 
@@ -41,9 +42,7 @@ export class Worker {
 
         this.pp.on("message", (job: HybridDispatch) => {
 
-            let Response: HybridDispatchResponse = {
-                job_type: job.job_type
-            };
+            let Response: HybridDispatchResponse = {};
 
             const { fn, productions } = constructHybridFunction(this.grammar[job.production_id], this.grammar, this.runner);
 

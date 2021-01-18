@@ -1,21 +1,19 @@
-import { Grammar } from "../types/grammar.js";
+import { Grammar } from "../types/grammar";
 import { Production } from "../types/production";
+import { RenderBodyOptions } from "../types/render_body_options";
 import { ProductionSymbol } from "../types/symbol";
-import {
-    createNoCheckShift,
-    getRootSym,
-    createReduceFunction,
-    createDefaultReduceFunction,
-    createAssertionShift,
-    isSymAProduction,
-    rec_glob_lex_name,
-    addSkipCallNew,
-    getSkippableSymbolsFromItems,
-    rec_state
-} from "./utilities.js";
-import { ExprSC, SC, VarSC } from "./skribble.js";
-import { RenderBodyOptions } from "../types/render_body_options.js";
+import { addSkipCallNew, createAssertionShift } from "./code_generating.js";
+import { rec_glob_lex_name, rec_state } from "./global_names.js";
 import { Item } from "./item.js";
+import { ExprSC, SC, VarSC } from "./skribble.js";
+import {
+    createDefaultReduceFunction,
+    createNoCheckShift,
+    createReduceFunction,
+    getRootSym,
+    getSkippableSymbolsFromItems,
+    isSymAProduction
+} from "./symbol.js";
 
 export function getProductionFunctionName(production: Production, grammar: Grammar): string {
     return "$" + production.name;

@@ -1,5 +1,5 @@
 import { Lexer } from "@candlefw/wind";
-import { Item } from "../util/item";
+import { Item } from "../util/item.js";
 import { Production } from "./production";
 import { Symbol, TokenSymbol } from "./symbol";
 import { SymbolType } from "./symbol_type";

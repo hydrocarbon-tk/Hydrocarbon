@@ -1,15 +1,16 @@
-import { getTransitionTree } from "../../util/common.js";
-import { SC, VarSC } from "../../util/skribble.js";
-import { RenderBodyOptions } from "../../types/render_body_options";
-import { buildPeekSequence } from "./yield_peek_states.js";
 import { EOF_SYM } from "../../types/grammar.js";
-import { getClosure } from "../../util/get_closure.js";
 import { RecognizerState, TRANSITION_TYPE } from "../../types/recognizer_state.js";
-import { doItemsHaveSameSymbol, isSymAProduction } from "../../util/utilities.js";
+import { RenderBodyOptions } from "../../types/render_body_options";
 import { TokenSymbol } from "../../types/symbol.js";
 import { TransitionTreeNode } from "../../types/transition_tree_nodes.js";
+
+import { getClosure } from "../../util/closure.js";
+import { doItemsHaveSameSymbol, Item } from "../../util/item.js";
+import { SC, VarSC } from "../../util/skribble.js";
+import { isSymAProduction } from "../../util/symbol.js";
+import { getTransitionTree } from "../../util/transition_tree.js";
 import { yieldCompletedItemStates } from "./yield_completed_item_states.js";
-import { Item } from "../../util/item.js";
+import { buildPeekSequence } from "./yield_peek_states.js";
 
 export function cleanLeaves(node: TransitionTreeNode) {
     if (node.next.length > 0)
@@ -242,7 +243,7 @@ function* processPeekStates(
             code = null,
             hash = "undefined",
             prods = [],
-            gen: Generator<RecognizerState[], { code: SC, prods: number[]; }> = null;
+            gen: Generator<RecognizerState[], { code: SC, prods: number[]; hash: string; }> = null;
 
         if (items.length > 0) {
 

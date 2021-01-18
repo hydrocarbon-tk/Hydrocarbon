@@ -1,7 +1,8 @@
-import { getAssertionSymbolFirst, isSymAnAssertFunction, isSymAProduction } from "./utilities.js";
-import { ProductionBody, Grammar } from "../types/grammar.js";
-import { SymbolType } from "../types/symbol_type";
+import { Grammar, ProductionBody } from "../types/grammar.js";
 import { AssertionFunctionSymbol, Symbol, TokenSymbol } from "../types/symbol";
+import { SymbolType } from "../types/symbol_type";
+import { getAssertionSymbolFirst } from "./code_generating.js";
+import { isSymAnAssertFunction, isSymAProduction } from "./symbol.js";
 
 
 function addNonTerminal(

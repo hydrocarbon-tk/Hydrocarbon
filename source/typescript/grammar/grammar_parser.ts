@@ -8,7 +8,7 @@ import body from "./production_body_constructor.js";
 
 import { Grammar } from "../types/grammar.js";
 import { GrammarParserEnvironment } from "../types/grammar_compiler_environment.js";
-import { getUniqueSymbolName } from "../util/utilities.js";
+import { getUniqueSymbolName } from "../util/symbol.js";
 import { HCGParser } from "../types/parser";
 
 async function sleep(data: AwaitTracker): Promise<void> {
@@ -88,22 +88,13 @@ export async function grammarParser(
             unique_grammar_file_id,
             meta_imported_productions,
             parser
-        )
-        /*/
-        ,
-        result = parser(
-            wind(grammar_string),
-            //@ts-ignore
-            hcg_parser_data,
-            env,
-            //(await import("@candlefw/hydrocarbon/source/grammars/hcg/hcg.debug_info.js")).default
-        ),
-        grammar = <Grammar>result.value;
-    /*/
-        ;
+        );
+
     env.fn = env.functions;
 
-    const { result, FAILED } = parser(grammar_string, env);
+    const { result, FAILED, error_message } = parser(grammar_string, env);
+
+    console.log(error_message);
 
     const grammar: Grammar = result[0];
 

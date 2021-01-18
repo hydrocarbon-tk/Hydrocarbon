@@ -1,10 +1,11 @@
-import { Grammar } from "../types/grammar.js";
-import { SymbolType } from "../types/symbol_type";
+import { Grammar, SymbolType } from "../types/grammar.js";
 import { getProductionFunctionName } from "../util/render_item.js";
 import { action32bit_array_byte_size_default, error8bit_array_byte_size_default, jump16bit_table_byte_size } from "../runtime/parser_memory.js";
+import { CompilerHelper } from "../compiler/helper";
 import { RDProductionFunction } from "../types/rd_production_function";
 import { SC } from "../util/skribble.js";
 import {
+    convertAssertionFunctionBodyToSkribble,
     TokenSpaceIdentifier,
     TokenNumberIdentifier,
     TokenIdentifierIdentifier,
@@ -15,14 +16,12 @@ import {
     rec_glob_lex_name,
     rec_state
 } from "../util/global_names.js";
-import { convertAssertionFunctionBodyToSkribble } from "../util/code_generating.js";
-import { createLexerCode } from "./lexer_template.js";
-import { createStateCode } from "./state_template.js";
-import { Helper } from "../compiler/helper.js";
+import { createLexerCode } from "./hybrid_lexer_template.js";
+import { createStateCode } from "./hybrid_state_template.js";
 
 export const renderAssemblyScriptRecognizer = (
     grammar: Grammar,
-    runner: Helper,
+    runner: CompilerHelper,
     rd_functions: RDProductionFunction[],
     action32bit_array_byte_size = action32bit_array_byte_size_default,
     error8bit_array_byte_size = error8bit_array_byte_size_default

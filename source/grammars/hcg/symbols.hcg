@@ -28,11 +28,13 @@
 <> ignore_symbol → generated_symbol
     │ literal_symbol
     │ escaped_symbol
+    | production_token_symbol
 
 <>  terminal_symbol → generated_symbol
     │ literal_symbol
     │ escaped_symbol
     | assert_function_symbol
+    
 
 <> symbol → generated_symbol
     │ production_symbol

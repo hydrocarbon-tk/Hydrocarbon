@@ -1,5 +1,5 @@
 import { Symbol } from "./symbol";
-import { Item } from "../util/item";
+import { Item } from "../util/item.js";
 import { SC } from "../util/skribble.js";
 
 /**

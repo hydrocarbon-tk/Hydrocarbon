@@ -1,12 +1,13 @@
-import parserLoader from "./parser.js";
-const defaultParser = await parserLoader();
-
-import { grammarParser } from "./grammar_parser.js";
-import { filloutGrammar } from "../util/common.js";
 import { Grammar } from "../types/grammar.js";
-import { SymbolType } from "../types/symbol_type";
 import { Production } from "../types/production";
+import { SymbolType } from "../types/symbol_type";
+import { filloutGrammar } from "../util/grammar.js";
 import { Item } from "../util/item.js";
+import { grammarParser } from "./grammar_parser.js";
+
+import parserLoader from "./parser.js";
+
+const defaultParser = await parserLoader();
 
 export async function createGrammar(grammar_string: string, grammar_string_path: string, parser = defaultParser): Promise<Grammar> {
 

@@ -1,42 +1,38 @@
-import { Grammar, EOF_SYM } from "../types/grammar.js";
-import { SymbolType } from "../types/symbol_type";
+import { performance } from "perf_hooks";
+import { EOF_SYM, Grammar } from "../types/grammar.js";
 import { Production } from "../types/production";
-import { TokenSymbol } from "../types/symbol";
-import { getSymbolsFromClosure }
-    from "../util/common.js";
-import {
-    getIncludeBooleans,
-    isSymAProduction,
-    isSymGeneratedSym,
-    isSymSpecifiedSymbol,
-    isSymGeneratedId,
-    isSymSpecifiedIdentifier,
-    isSymGeneratedNum,
-    isSymSpecifiedNumeric,
-    isSymGeneratedWS,
-    isSymGeneratedNL,
-    rec_glob_lex_name,
-    addSkipCallNew,
-    getSkippableSymbolsFromItems,
-    getUniqueSymbolName,
-    getExcludeSymbolSet,
-    rec_state,
-    rec_state_prod,
-} from "../util/utilities.js";
 import { RDProductionFunction } from "../types/rd_production_function";
-import { Helper } from "./helper.js";
+import { TRANSITION_TYPE } from "../types/recognizer_state.js";
+import { RenderBodyOptions, ReturnType } from "../types/render_body_options";
+import { TokenSymbol } from "../types/symbol";
+import { SymbolType } from "../types/symbol_type";
+import { getClosure, getFollow } from "../util/closure.js";
+import { addSkipCallNew, getIncludeBooleans } from "../util/code_generating.js";
+import { Item } from "../util/item.js";
+import { getProductionFunctionName } from "../util/render_item.js";
 import { SC } from "../util/skribble.js";
-import { getClosure, getFollow } from "../util/get_closure.js";
-import { ReturnType, RenderBodyOptions } from "../types/render_body_options";
-import { yieldStates } from "./states/yield_states.js";
+import {
+    getExcludeSymbolSet, getSkippableSymbolsFromItems,
+    getSymbolsFromClosure,
+    getUniqueSymbolName, isSymAProduction,
+    isSymGeneratedId, isSymGeneratedNL,
+    isSymGeneratedNum, isSymGeneratedSym,
+    isSymGeneratedWS, isSymSpecifiedIdentifier,
+    isSymSpecifiedNumeric, isSymSpecifiedSymbol
+} from "../util/symbol.js";
+import {
+    rec_glob_lex_name,
+    rec_state,
+    rec_state_prod
+} from "../util/global_names.js";
+import { Helper } from "./helper.js";
 import { defaultMultiItemLeaf, defaultSelectionClause, defaultSingleItemLeaf, processRecognizerStates } from "./states/process_recognizer_states.js";
 import { yieldNontermStates } from "./states/yield_nonterm_states.js";
-import { performance } from "perf_hooks";
-import { TRANSITION_TYPE } from "../types/recognizer_state.js";
-import { getProductionFunctionName } from "../util/item_render_functions.js";
-import { Item } from "../util/item.js";
+import { yieldStates } from "./states/yield_states.js";
+
 
 export const
+
     accept_loop_flag = SC.Variable("ACCEPT:boolean");
 
 function addReturnType(RETURN_TYPE: ReturnType, code_node: SC = new SC) {

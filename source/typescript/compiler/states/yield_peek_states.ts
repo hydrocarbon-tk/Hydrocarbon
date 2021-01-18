@@ -1,12 +1,11 @@
 import { Grammar } from "../../types/grammar.js";
+import { RecognizerState, TRANSITION_TYPE } from "../../types/recognizer_state.js";
 import { TokenSymbol } from "../../types/symbol";
 import { TransitionTreeNode } from "../../types/transition_tree_nodes";
-import {
-    getSymbolFromUniqueName,
-} from "../../util/utilities.js";
+
+import { VarSC } from "../../util/skribble.js";
+import { getSymbolFromUniqueName } from "../../util/symbol.js";
 import { Helper } from "../helper.js";
-import { SC, VarSC } from "../../util/skribble.js";
-import { RecognizerState, TRANSITION_TYPE } from "../../types/recognizer_state.js";
 
 
 

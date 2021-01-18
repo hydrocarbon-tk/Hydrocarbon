@@ -5,17 +5,22 @@ import Lexer from "@candlefw/wind";
 import asc from "assemblyscript/cli/asc";
 import fs from "fs";
 
-import { ParserEnvironment } from "../../../build/types/hydrocarbon.js";
-import { Grammar } from "../types/grammar.js";
-import { GrammarParserEnvironment } from "../types/grammar_compiler_environment";
-import { HybridCompilerOptions } from "../types/compiler_options";
-import { WorkerRunner } from "./workers/worker_runner.js";
-import { action32bit_array_byte_size_default, buildParserMemoryBuffer, jump16bit_table_byte_size } from "../runtime/parser_memory.js";
-import { renderAssemblyScriptRecognizer } from "../render/recognizer_template.js";
 import { renderParserScript } from "../render/js_parser_template.js";
 import { renderParserScript as renderJSScript } from "../render/js_parser_template_for_js.js";
-import { Helper, constructCompilerRunner } from "./helper.js";
+import { renderAssemblyScriptRecognizer } from "../render/recognizer_template.js";
+
+import { action32bit_array_byte_size_default, buildParserMemoryBuffer, jump16bit_table_byte_size } from "../runtime/parser_memory.js";
+
+import { HybridCompilerOptions } from "../types/compiler_options";
+import { Grammar } from "../types/grammar.js";
+import { GrammarParserEnvironment } from "../types/grammar_compiler_environment";
+import { ParserEnvironment } from "../types/parser_environment.js";
+
 import { AS, CPP, JS } from "../util/skribble.js";
+import { constructCompilerRunner, Helper } from "./helper.js";
+import { WorkerRunner } from "./workers/worker_runner.js";
+
+
 const fsp = fs.promises;
 
 const default_options: HybridCompilerOptions = {

@@ -9,7 +9,7 @@ export default class implements Production {
     type: "production";
     name: string;
     val: number;
-    subtype: string;
+    subtype?: Production["subtype"];
     IS_OPTIONAL: boolean;
 
     constructor(sym: Array<any>, env: GrammarParserEnvironment, lex: Lexer) {

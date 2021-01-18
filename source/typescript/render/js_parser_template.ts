@@ -7,7 +7,7 @@ import {
     TokenIdentifierIdentifier,
     TokenNewLineIdentifier,
     TokenSymbolIdentifier
-} from "../util/utilities.js";
+} from "../util/global_names.js";
 export const renderParserScript = (
     grammar: Grammar,
     options: HybridCompilerOptions,

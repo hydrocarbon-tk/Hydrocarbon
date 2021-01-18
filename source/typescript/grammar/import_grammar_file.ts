@@ -1,12 +1,10 @@
 import URL from "@candlefw/url";
-import { GrammarParserEnvironment } from "../types/grammar_compiler_environment";
 import { Grammar } from "../types/grammar";
-
-const default_map = {
-    "default-productions": URL.resolveRelative("../../../../source/grammars/misc/default-productions.hcg", URL.getEXEURL(import.meta))
-};
+import { GrammarParserEnvironment } from "../types/grammar_compiler_environment";
+import { default_map } from "../util/default_map.js";
 
 export default function (sym, env: GrammarParserEnvironment) {
+
 
     const
         FILE_URL = env.FILE_URL,
@@ -84,7 +82,7 @@ export default function (sym, env: GrammarParserEnvironment) {
 
         if ((p = meta_imported_productions.get(key))) {
             if (p.SYMBOL_LIST) {
-                
+
                 p.forEach(sym => {
 
                     try {

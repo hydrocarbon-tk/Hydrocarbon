@@ -74,9 +74,6 @@ ${BUILD_LOCAL ? "" : "export default async function loadParser(){"}
                 error_off = 0;
 
             while (lexer.off < error_off && !lexer.END) lexer.next();
-            
-            if(probes.length >0)
-                console.table(probes);
 
             error_message = lexer.errorMessage(\`Unexpected token[\${ lexer.tx }]\`);
     

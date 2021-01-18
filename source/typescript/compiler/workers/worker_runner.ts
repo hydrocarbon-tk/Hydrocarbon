@@ -1,17 +1,15 @@
 import { Worker } from "worker_threads";
-
 import { Grammar } from "../../types/grammar.js";
+import { HybridDispatch, HybridDispatchResponse, HybridJobType } from "../../types/worker_messaging.js";
 import { ParserEnvironment } from "../../types/parser_environment";
-import { HybridDispatchResponse, HybridJobType, HybridDispatch } from "../../types/mt_msg_types.js";
-import { Helper } from "../helper.js";
 import { RDProductionFunction } from "../../types/rd_production_function.js";
-import { SC } from "../../util/skribble.js";
+import { WorkerContainer } from "../../types/worker_container";
 
-type WorkerContainer = {
-    target: Worker;
-    id: number;
-    READY: boolean;
-};
+import { SC } from "../../util/skribble.js";
+import { Helper } from "../helper.js";
+
+
+
 export class WorkerRunner {
     grammar: Grammar;
     RUN: boolean;
@@ -82,7 +80,6 @@ export class WorkerRunner {
             id: 0,
             fn: fn_data,
             productions: productions,
-            str: fn_data.renderCode()
         };
 
         worker.READY = true;
@@ -181,17 +178,3 @@ export class WorkerRunner {
         };
     }
 }
-
-export default function* (grammar: Grammar, env: ParserEnvironment, INCLUDE_ANNOTATIONS: boolean = false) {
-
-    try {
-        const runner = new WorkerRunner(grammar, env, INCLUDE_ANNOTATIONS);
-        return yield* runner.run();
-    } catch (e) {
-        return yield {
-            errors: { strings: [e] },
-            states: { COMPILED: false },
-            COMPLETE: true
-        };
-    }
-};

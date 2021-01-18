@@ -1,7 +1,7 @@
 import { Grammar, ProductionBody } from "../types/grammar.js";
 import { SymbolType } from "../types/symbol_type";
 import { Symbol } from "../types/symbol";
-import { isSymAProduction, isSymAProductionToken } from "../util/utilities.js";
+import { isSymAProduction, isSymAProductionToken } from "../util/symbol.js";
 
 export default function convertProductionNamesToIndexes(grammar: Grammar, LU) {
     let sym: Symbol,
@@ -14,6 +14,8 @@ export default function convertProductionNamesToIndexes(grammar: Grammar, LU) {
                 bodies = production.bodies;
 
             production.graph_id = -1;
+
+            //Update production body names
 
             for (let i = 0; i < bodies.length; i++) {
                 body = bodies[i];
