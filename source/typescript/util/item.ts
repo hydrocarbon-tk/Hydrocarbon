@@ -1,5 +1,6 @@
-import { getRootSym } from "./utilities.js";
-import { ProductionBody, Grammar, SymbolType, EOF_SYM } from "../types/grammar.js";
+import { getRootSym, getUniqueSymbolName } from "./utilities.js";
+import { ProductionBody, Grammar, EOF_SYM } from "../types/grammar.js";
+import { SymbolType } from "../types/symbol_type";
 import { Production } from "../types/production";
 import { Symbol } from "../types/symbol";
 
@@ -96,7 +97,7 @@ export class Item extends Array {
     }
 
     get v(): string | number {
-        return this.follow.val;
+        return getUniqueSymbolName(this.follow);
     }
 
     get p(): number {

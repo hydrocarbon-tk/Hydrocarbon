@@ -1,4 +1,5 @@
-import { Grammar, SymbolType } from "../types/grammar.js";
+import { Grammar } from "../types/grammar.js";
+import { SymbolType } from "../types/symbol_type";
 import { getProductionFunctionName } from "../util/item_render_functions.js";
 import { action32bit_array_byte_size_default, error8bit_array_byte_size_default, jump16bit_table_byte_size } from "../runtime/parser_memory.js";
 import { CompilerRunner } from "../compiler/compiler_runner";

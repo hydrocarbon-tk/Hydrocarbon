@@ -14,7 +14,7 @@ export default function (production: Production, env: GrammarParserEnvironment, 
 
     if (production.IMPORT_APPEND || production.IMPORT_OVERRIDE) {
 
-        const imported = <Production><unknown>production.name;
+        const imported = <Production><any>production.name;
 
         imported.resolveFunction = (p) => {
             if (production.IMPORT_APPEND)
@@ -33,11 +33,11 @@ export default function (production: Production, env: GrammarParserEnvironment, 
 
             production.name = p.name;
 
-            delete (<Symbol>production.name).resolveFunction;
+            delete (<Symbol><any>production.name).resolveFunction;
         };
 
         if (imported.RESOLVED)
-            imported.resolveFunction((<Symbol>production.name).production);
+            imported.resolveFunction((<Symbol><any>production.name).production);
 
         return;
     }

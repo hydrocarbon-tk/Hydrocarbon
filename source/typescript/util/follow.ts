@@ -1,5 +1,6 @@
 import { FIRST } from "./first.js";
-import { Grammar, SymbolType, EOF_SYM } from "../types/grammar.js";
+import { Grammar, EOF_SYM } from "../types/grammar.js";
+import { SymbolType } from "../types/symbol_type";
 import { AssertionFunctionSymbol, Symbol, TokenSymbol } from "../types/symbol";
 import { getAssertionSymbolFirst, isSymAnAssertFunction } from "./utilities.js";
 

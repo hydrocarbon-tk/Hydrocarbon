@@ -2,7 +2,8 @@ import { traverse } from "@candlefw/conflagrate";
 import { exp, JSNode, JSNodeClass, JSNodeType, parser, stmt } from "@candlefw/js";
 import { Lexer } from "@candlefw/wind";
 
-import { EOF_SYM, Grammar, GrammarFunction, ProductionBody, SymbolType } from "../types/grammar.js";
+import { EOF_SYM, Grammar, GrammarFunction, ProductionBody } from "../types/grammar.js";
+import { SymbolType } from "../types/symbol_type";
 import { Production } from "../types/production";
 import {
     AssertionFunctionSymbol,

@@ -2,7 +2,7 @@ import { ConstantHash, ConstantObj } from "../compiler/helper";
 import { SC } from "../util/skribble";
 
 export enum HybridJobType {
-    UNDEFINE,
+    UNDEFINED,
     CONSTRUCT_RD_FUNCTION
 }
 

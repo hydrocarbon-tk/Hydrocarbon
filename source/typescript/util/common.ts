@@ -1,73 +1,32 @@
-import wind from "@candlefw/wind";
 import { performance } from "perf_hooks";
 import {
     doesProductionHaveEmpty,
     getAccompanyingItems,
     getAssertionSymbolFirst,
     getProductionFirst,
+    getProductionID,
     getTrueSymbolValue,
     getUniqueSymbolName,
     isSymAnAssertFunction,
     isSymAProduction,
+    isSymAProductionToken,
     itemsToProductions
 } from "./utilities.js";
-import { EOF_SYM, Grammar, ItemMapEntry, SymbolType } from "../types/grammar.js";
+import { EOF_SYM, Grammar, ItemMapEntry } from "../types/grammar.js";
+import { SymbolType } from "../types/symbol_type";
 import { Production } from "../types/production";
-import { AssertionFunctionSymbol, Symbol, TokenSymbol } from "../types/symbol";
+import { AssertionFunctionSymbol, ProductionSymbol, ProductionTokenSymbol, Symbol, TokenSymbol } from "../types/symbol";
 import { FOLLOW } from "./follow.js";
 import { Item } from "./item.js";
 import { getClosure } from "./get_closure.js";
 import { closure_group, TransitionTreeNode } from "../types/transition_tree_nodes";
-
-export const types = wind.types;
+import { ItemIndex } from "../../../build/types/util/item.js";
+import { Token } from "assemblyscript";
 
 const
     production_stack_arg_name = "sym",
     environment_arg_name = "env",
     lexer_arg_name = "lex";
-
-export function getToken(l, SYM_LU, IGNORE_GRAMMAR_SYMBOLS: boolean = false) {
-    if (l.END) return 0;
-
-    if (!IGNORE_GRAMMAR_SYMBOLS)
-        if (SYM_LU.has(l.tx) || SYM_LU.has(l.ty)) return SYM_LU.get(l.tx) || SYM_LU.get(l.ty);
-
-    if ((l.ty & types.num)) {
-
-        switch (l.ty) {
-            case types.sci:
-                return "sci";
-            case types.hex:
-                return "hex";
-            case types.oct:
-                return "oct";
-            case types.bin:
-                return "bin";
-            case types.flt:
-                return "flt";
-            case types.int:
-                return "int";
-            default:
-            case types.num:
-                return "num";
-        }
-    }
-
-    switch (l.ty) {
-        case types.id:
-            return "id";
-        case types.string:
-            return "str";
-        case types.new_line:
-            return "nl";
-        case types.ws:
-            return "ws";
-        case types.tab:
-            return "tb";
-    }
-
-    return "any";
-}
 
 /************ Grammar Production Functions *****************************/
 
@@ -107,8 +66,6 @@ function addFunctions(funct, production, env) {
             env.functions[name].INTEGRATE = true;
             env.FLUT.set(str, name);
         }
-
-        //funct.name = name;
     }
 }
 
@@ -150,7 +107,7 @@ export function filloutGrammar(grammar: Grammar, env) {
     const bodies = [],
         reduce_lu: Map<string, number> = new Map,
         symbols: Map<string, Symbol> = new Map([[getUniqueSymbolName(EOF_SYM), EOF_SYM]]),
-        syms = [...grammar?.meta?.symbols?.values() ?? []];
+        syms = [];
 
     for (let i = 0, j = 0; i < grammar.length; i++) {
         const production = grammar[i];

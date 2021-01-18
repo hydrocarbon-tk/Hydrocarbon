@@ -1,5 +1,5 @@
 import { Grammar } from "../types/grammar.js";
-import { HybridCompilerOptions } from "../types/hybrid_compiler_options.js";
+import { HybridCompilerOptions } from "../types/compiler_options.js";
 import { action32bit_array_byte_size_default, error8bit_array_byte_size_default } from "../runtime/parser_memory.js";
 
 export const renderParserScript = (

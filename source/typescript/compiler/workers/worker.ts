@@ -2,7 +2,7 @@ import { Grammar } from "../../types/grammar";
 import { ParserEnvironment } from "../../types/parser_environment.js";
 import { filloutWorkerGrammar } from "../../util/common.js";
 import { workerData, parentPort } from "worker_threads";
-import { HybridDispatch, HybridDispatchResponse } from "../../types/hybrid_mt_msg_types.js";
+import { HybridDispatch, HybridDispatchResponse } from "../../types/mt_msg_types.js";
 import { Helper, constructCompilerRunner } from "../helper.js";
 import { constructHybridFunction } from "../function_constructor.js";
 

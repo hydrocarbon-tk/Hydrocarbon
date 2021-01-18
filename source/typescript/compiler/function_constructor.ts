@@ -1,4 +1,5 @@
-import { Grammar, EOF_SYM, SymbolType } from "../types/grammar.js";
+import { Grammar, EOF_SYM } from "../types/grammar.js";
+import { SymbolType } from "../types/symbol_type";
 import { Production } from "../types/production";
 import { TokenSymbol } from "../types/symbol";
 import { getSymbolsFromClosure }
@@ -226,6 +227,8 @@ export function constructHybridFunction(production: Production, grammar: Grammar
 
                                 if (keys.some(k => k == production.id)) {
                                     const follow_symbols = keys.flatMap(k => getFollow(k, grammar)).setFilter(sym => getUniqueSymbolName(sym));
+
+
                                     /*
                                         Early exit should only occur if there is an occluding generic ( such as g:sym, g:id )
                                         that could capture a symbol that would otherwise cause a reduce.  FOLLOW Symbols that

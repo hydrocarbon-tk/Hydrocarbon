@@ -1,5 +1,6 @@
 import { getAssertionSymbolFirst, isSymAnAssertFunction, isSymAProduction } from "./utilities.js";
-import { ProductionBody, Grammar, SymbolType } from "../types/grammar.js";
+import { ProductionBody, Grammar } from "../types/grammar.js";
+import { SymbolType } from "../types/symbol_type";
 import { AssertionFunctionSymbol, Symbol, TokenSymbol } from "../types/symbol";
 
 

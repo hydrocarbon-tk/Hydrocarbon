@@ -8,7 +8,7 @@ import fs from "fs";
 import { ParserEnvironment } from "../../../build/types/hydrocarbon.js";
 import { Grammar } from "../types/grammar.js";
 import { GrammarParserEnvironment } from "../types/grammar_compiler_environment";
-import { HybridCompilerOptions } from "../types/hybrid_compiler_options";
+import { HybridCompilerOptions } from "../types/compiler_options";
 import { WorkerRunner } from "./workers/worker_runner.js";
 import { action32bit_array_byte_size_default, buildParserMemoryBuffer, jump16bit_table_byte_size } from "../runtime/parser_memory.js";
 import { renderAssemblyScriptRecognizer } from "../render/recognizer_template.js";

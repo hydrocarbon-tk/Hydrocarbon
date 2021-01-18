@@ -2,24 +2,7 @@ import { Lexer } from "@candlefw/wind";
 import { Item } from "../util/item";
 import { Production } from "./production";
 import { Symbol, TokenSymbol } from "./symbol";
-
-export enum SymbolType {
-    PRODUCTION = "production",
-    EXCLUDE = "exc",
-    IGNORE = "ign",
-    ERROR = "err",
-    RESET = "rst",
-    REDUCE = "red",
-    LITERAL = "literal",
-    GENERATED = "generated",
-    INLINE = "INLINE",
-    ESCAPED = "escaped",
-    SYMBOL = "symbol",
-    EMPTY = "empty",
-    END_OF_FILE = "eof",
-    PRODUCTION_ASSERTION_FUNCTION = "assert_token_function",
-    END_OF_ITEM = "END_OF_ITEM"
-}
+import { SymbolType } from "./symbol_type";
 
 export const EOF_SYM: TokenSymbol = { val: "END_OF_FILE", precedence: 0, type: SymbolType.END_OF_FILE };
 
@@ -96,11 +79,12 @@ export interface Preamble {
 export interface ItemMapEntry {
     item: Item;
     reset_sym: string[];
-
     /**
      * List of all items that can be derived from this item
      */
     closure: string[];
+
+    hash: string,
 
     /**
      * Does the item contain left recursion
@@ -111,6 +95,8 @@ export interface ItemMapEntry {
      */
     RR: string[];
     containing_items: Set<string>;
+
+    excludes: TokenSymbol[][],
 
     /**
      * Measure of the number of steps need to reach

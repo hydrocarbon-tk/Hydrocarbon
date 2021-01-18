@@ -2,7 +2,7 @@ import { Worker } from "worker_threads";
 
 import { Grammar } from "../../types/grammar.js";
 import { ParserEnvironment } from "../../types/parser_environment";
-import { HybridDispatchResponse, HybridJobType, HybridDispatch } from "../../types/hybrid_mt_msg_types.js";
+import { HybridDispatchResponse, HybridJobType, HybridDispatch } from "../../types/mt_msg_types.js";
 import { Helper } from "../helper.js";
 import { RDProductionFunction } from "../../types/rd_production_function.js";
 import { SC } from "../../util/skribble.js";
@@ -44,7 +44,7 @@ export class WorkerRunner {
         this.module_url = ((process.platform == "win32") ?
             import.meta.url.replace(/file\:\/\/\//g, "")
             : (new URL(import.meta.url)).pathname)
-            .replace("hybrid_mt_runner", "hybrid_mt_worker");
+            .replace("worker_runner", "worker");
 
         this.number_of_workers = number_of_workers;
         this.workers = (new Array(this.number_of_workers))

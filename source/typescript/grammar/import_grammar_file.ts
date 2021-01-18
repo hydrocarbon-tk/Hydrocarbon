@@ -84,7 +84,7 @@ export default function (sym, env: GrammarParserEnvironment) {
 
         if ((p = meta_imported_productions.get(key))) {
             if (p.SYMBOL_LIST) {
-                //meta_imported_productions.set(key, prods);
+                
                 p.forEach(sym => {
 
                     try {
@@ -104,7 +104,6 @@ export default function (sym, env: GrammarParserEnvironment) {
         }
 
         if (!EXISTING) {
-            env.symbols.push(...prods.meta.symbols.values());
             env.productions.push(...prods);
             env.productions.meta.preambles.push(...prods.meta.preambles);
             meta_imported_productions.set(key, prods);
