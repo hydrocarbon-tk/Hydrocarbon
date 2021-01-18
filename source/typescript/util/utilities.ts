@@ -23,6 +23,7 @@ import { Item } from "./item.js";
 import { getClosure } from "./get_closure.js";
 import { Helper } from "../compiler/helper.js";
 import { AS, ConstSC, ExprSC, SC, StmtSC, VarSC } from "./skribble.js";
+import { getProductionFunctionName } from "./item_render_functions.js";
 
 export const rec_glob_lex_name = SC.Variable("l:Lexer");
 /**
@@ -162,14 +163,14 @@ export function isSymSpecifiedNumeric(s: Symbol): s is SpecifiedNumericSymbol {
     return isSymSpecified(s) && isSymNumeric(s);
 }
 export function isSymNumeric(sym: TokenSymbol): sym is SpecifiedNumericSymbol {
-    const lex = new Lexer(sym.val);
+    const lex = new Lexer(sym.val + "");
     return lex.ty == lex.types.num && lex.pk.END;
 }
 export function isSymNotNumeric(sym: TokenSymbol): boolean {
     return !isSymNumeric(sym);
 }
 export function isSymIdentifier(sym: TokenSymbol): sym is SpecifiedIdentifierSymbol {
-    const lex = new Lexer(sym.val);
+    const lex = new Lexer(sym.val + "");
     return lex.ty == lex.types.id && lex.pk.END;
 }
 export function isSymNotIdentifier(sym: TokenSymbol): boolean {
@@ -177,9 +178,9 @@ export function isSymNotIdentifier(sym: TokenSymbol): boolean {
 }
 export function isSymLengthOneDefined(sym: TokenSymbol) {
 
-    if (sym.val.length > 1) return false;
+    if ((sym.val + "").length > 1) return false;
 
-    const lex = new Lexer(sym.val);
+    const lex = new Lexer(sym.val + "");
 
     return !(lex.ty == lex.types.id || lex.ty == lex.types.num);
 }
@@ -666,7 +667,7 @@ export function addRecoveryHandlerToFunctionBodyArray(
         //Skipped Symbols
         add_shift(l.off - start);
         //Consume the end symbol of the production
-        ${createNoCheckShift(grammar, runner, "l")};
+        ${createNoCheckShift(grammar, runner, rec_glob_lex_name)};
         
         add_reduce(stack_ptr - sp${RECURSIVE_DESCENT ? "" : ""} - 1, ${1 + production.recovery_handler.reduce_id});
         
