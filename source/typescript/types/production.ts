@@ -24,6 +24,8 @@ export interface Production {
     IMPORT_OVERRIDE?: boolean;
     RESOLVED?: boolean;
     IMPORTED?: boolean;
+    HAS_EMPTY?:boolean;
+    CHECKED_FOR_EMPTY?: boolean;
     resolveFunction?: (arg0: Production) => void;
     recovery_handler?: {
         type: "ERROR_RECOVERY";
@@ -33,4 +35,6 @@ export interface Production {
 
     };
     graph_id?: number;
+
+
 }

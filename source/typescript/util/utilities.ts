@@ -726,7 +726,17 @@ export function getTrueSymbolValue(sym: TokenSymbol, grammar: Grammar): TokenSym
 }
 
 export function doesProductionHaveEmpty(production_id: number, grammar: Grammar) {
-    return getProductionClosure(production_id, grammar).some(i => i.len == 0 || (i.len == 1 && i.offset == 0 && i.sym(grammar).type == SymbolType.EMPTY));
+    const production = grammar[production_id];
+
+    if (production.CHECKED_FOR_EMPTY)
+        return production.HAS_EMPTY;
+
+    const HAS_EMPTY = getProductionClosure(production_id, grammar).some(i => i.len == 0 || (i.len == 1 && i.offset == 0 && i.sym(grammar).type == SymbolType.EMPTY));
+
+    production.CHECKED_FOR_EMPTY = true;
+    production.HAS_EMPTY = HAS_EMPTY;
+
+    return HAS_EMPTY;
 }
 
 
