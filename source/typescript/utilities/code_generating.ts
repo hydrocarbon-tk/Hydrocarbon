@@ -258,8 +258,6 @@ export function getIncludeBooleans(
 
     syms = syms.setFilter(s => getUniqueSymbolName(s));
 
-    //const exclusion_list = new Set(exclude_symbols.map(getUniqueSymbolName));
-    //syms = syms.filter(sym => !exclusion_list.has(getUniqueSymbolName(sym))).map(s => getRootSym(s, grammar));
     let
         non_consume = syms.filter(isSymNonConsume),
         consume = syms.filter(isSymNotNonConsume),
@@ -380,6 +378,28 @@ export function createProductionTokenFunction(tok: ProductionTokenSymbol, gramma
         SC.UnaryPre(SC.Return, SC.False)
     );
 
+    const SF_name = SC.Constant(`tok_fn_:bool`);
+
+    return <VarSC>runner.add_constant(SF_name, token_function);
+}
+
+
+export function createNonCaptureProductionTokenFunction(tok: ProductionTokenSymbol, grammar: Grammar, runner: Helper): VarSC {
+    const production = grammar[getProductionID(tok, grammar)];
+
+    runner.referenced_production_ids.add(production.id);
+
+    const token_function = SC.Function(
+        ":bool",
+        "l:Lexer&"
+    ).addStatement(
+        SC.Declare(SC.Assignment("c:Lexer", SC.Call(SC.Member("l", "copy")))),
+        SC.Declare(SC.Assignment("s:State", SC.UnaryPre("new", SC.Call(SC.Constant("State:State"))))),
+        SC.Call(SC.Member("s", "setENABLE_STACK_OUTPUT"), SC.Value(0)),
+        SC.If(SC.Call(getProductionFunctionName(production, grammar), "c:Lexer", "s:State"))
+            .addStatement(SC.UnaryPre(SC.Return, SC.True)),
+        SC.UnaryPre(SC.Return, SC.False)
+    );
     const SF_name = SC.Constant(`tok_fn_:bool`);
 
     return <VarSC>runner.add_constant(SF_name, token_function);
