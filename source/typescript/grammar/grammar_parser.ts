@@ -129,11 +129,11 @@ export async function grammarParser(
 
             //Setup the productions object
             grammar.forEach((p, i) => (p.id = i));
-            grammar.symbols = null;
             grammar.reserved = new Set();
 
-            convertProductionNamesToIndexes(grammar, grammar.LU);
+            convertProductionNamesToIndexes(grammar, grammar.LU, env);
 
+            grammar.symbols = null;
             //Insure meta error and ignore arrays are present to prevent errors in grammar compiling,
             //since no checks are done before their properties are accessed.
 
