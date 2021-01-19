@@ -7,6 +7,8 @@ import { WorkerContainer } from "../../types/worker_container";
 
 import { SC } from "../../utilities/skribble.js";
 import { Helper } from "../helper.js";
+import { LocalWorker } from "./local_worker.js";
+import { worker } from "cluster";
 
 
 
@@ -47,10 +49,15 @@ export class WorkerRunner {
         this.number_of_workers = number_of_workers;
         this.workers = (new Array(this.number_of_workers))
             .fill(0)
-            .map(() => ({
+            .map((obj) => (obj = <WorkerContainer>{
                 id,
                 READY: true,
-                target: new Worker(this.module_url, { workerData: { id: id++, grammar, ANNOTATED: runner.ANNOTATED, DEBUG: runner.DEBUG } })
+                target: this.number_of_workers == 1 ?
+                    new LocalWorker(
+                        { workerData: { id: id++, grammar, ANNOTATED: runner.ANNOTATED, DEBUG: runner.DEBUG } },
+                        (data: HybridDispatchResponse) => this.mergeWorkerData(<WorkerContainer>obj, data)
+                    )
+                    : new Worker(this.module_url, { workerData: { id: id++, grammar, ANNOTATED: runner.ANNOTATED, DEBUG: runner.DEBUG } })
             }));
 
         this.workers.forEach(
@@ -68,8 +75,6 @@ export class WorkerRunner {
 
     mergeWorkerData(worker: WorkerContainer, response: HybridDispatchResponse) {
 
-        this.IN_FLIGHT_JOBS--;
-
         const { const_map, fn, productions, production_id } = response;
 
         const fn_data = SC.Bind(fn);
@@ -81,6 +86,8 @@ export class WorkerRunner {
             fn: fn_data,
             productions: productions,
         };
+
+        this.IN_FLIGHT_JOBS--;
 
         worker.READY = true;
     }
@@ -113,9 +120,7 @@ export class WorkerRunner {
                     }
 
                     if (JOB.job_type != HybridJobType.UNDEFINED) {
-
                         worker.READY = false;
-
                         worker.target.postMessage(JOB);
                     } else {
                         break;
@@ -123,7 +128,11 @@ export class WorkerRunner {
                 }
             }
 
-            if (this.IN_FLIGHT_JOBS < 1) {
+            if (
+                this.IN_FLIGHT_JOBS < 1
+                && this.workers.every(wk => wk.READY)
+                && this.to_process_rd_fn.every(i => i == 0)
+            ) {
 
                 yield {
                     wk: this.workers.some(w => w.READY),
