@@ -2,6 +2,7 @@ import { doesProductionHaveEmpty, getProductionID } from "./production.js";
 import { getFirst } from "./first.js";
 import { getTrueSymbolValue } from "./code_generating.js";
 import {
+    getSymbolName,
     getUniqueSymbolName,
     isSymAProduction,
     isSymAProductionToken
@@ -280,12 +281,12 @@ export function buildItemClosures(grammar: Grammar) {
         const first = obj.item.atEND
             ? obj.follow
             : isSymAProduction(obj.item.sym(grammar))
-                ? new Set(getFirst(obj.item.sym(grammar).val, grammar).map(getUniqueSymbolName))
-                : new Set((getTrueSymbolValue(obj.item.sym(grammar), grammar)).map(getUniqueSymbolName));
+                ? new Set(getFirst(obj.item.sym(grammar).val, grammar).map(getSymbolName))
+                : new Set((getTrueSymbolValue(obj.item.sym(grammar), grammar)).map(getSymbolName));
 
         obj.skippable = new Set(
             standard_skips
-                .map(getUniqueSymbolName)
+                .map(getSymbolName)
                 .filter(i => !obj.reset_sym.includes(i))
                 .filter(i => !first.has(i))
         );
