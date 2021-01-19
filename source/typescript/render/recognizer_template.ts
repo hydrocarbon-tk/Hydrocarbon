@@ -57,9 +57,7 @@ export const renderAssemblyScriptRecognizer = (
         num = SC.Constant("num:unsigned short"),
         action_ptr = SC.Variable("action_ptr:unsigned int"),
         error_ptr = SC.Variable("error_ptr:unsigned int"),
-        str = SC.Variable("str:string"),
-        FAILED = SC.Variable("FAILED:bool"),
-        prod = SC.Variable("prod:int");
+        str = SC.Variable("str:string");
 
     code_node.addStatement(
         SC.Declare(
