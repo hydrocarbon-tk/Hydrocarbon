@@ -53,12 +53,27 @@ export function SymbolToString(sym: { type?: SymbolType, val: string; }) {
             return `\x1b[38;5;68m${sym.val}`;
     }
 }
+
+export function getSymbolName(sym: Symbol) {
+    if (!sym)
+        return "";
+
+    return sym.val
+        + sym.type;
+}
 export function getUniqueSymbolName(sym: Symbol) {
     if (!sym)
         return "";
-    return sym.val + sym.type + (sym.DOES_SHIFT ? "----" : "");
+    return getSymbolName(sym)
+        + (sym.DOES_SHIFT ? "----" : "")
+        + (sym.IS_NON_CAPTURE ? "-->" : "");
 }
-
+export function isSymNonConsume(s: Symbol): boolean {
+    return !!s.IS_NON_CAPTURE;
+}
+export function isSymNotNonConsume(s: Symbol): boolean {
+    return !isSymNonConsume(s);
+}
 export function isSymAProduction(s: Symbol): s is ProductionSymbol {
     return s.type == SymbolType.PRODUCTION;
 }

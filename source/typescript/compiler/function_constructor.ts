@@ -19,6 +19,7 @@ import { getProductionFunctionName } from "../utilities/render_item.js";
 import { SC } from "../utilities/skribble.js";
 import {
     getExcludeSymbolSet, getSkippableSymbolsFromItems,
+    getSymbolName,
     getSymbolsFromClosure,
     getUniqueSymbolName, isSymAProduction,
     isSymGeneratedId, isSymGeneratedNL,
@@ -212,7 +213,7 @@ export function constructHybridFunction(production: Production, grammar: Grammar
                                 active_items = items.filter(i => !i.atEND),
                                 end_items = items.filter(i => i.atEND),
                                 skippable = getSkippableSymbolsFromItems(items, grammar).filter(sym =>
-                                    !getFollow(keys[0], grammar).some(s => getUniqueSymbolName(s) == getUniqueSymbolName(sym))
+                                    !getFollow(keys[0], grammar).some(s => getSymbolName(s) == getSymbolName(sym))
                                 );
 
                             let interrupt_statement = null;

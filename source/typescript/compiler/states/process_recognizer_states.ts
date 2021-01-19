@@ -8,6 +8,7 @@ import { renderItem, renderProductionCall } from "../../utilities/render_item.js
 import { ExprSC, SC } from "../../utilities/skribble.js";
 import {
     createAssertionShiftManual, getSkippableSymbolsFromItems,
+    getSymbolName,
     getUniqueSymbolName,
     isSymAProduction,
     isSymGeneratedId,
@@ -256,7 +257,7 @@ export function defaultSelectionClause(
         lex_name = rec_glob_lex_name,
         peek_name = rec_glob_lex_name;
 
-    const skippable = getSkippableSymbolsFromItems(items, grammar).filter(i => !all_syms.some(j => getUniqueSymbolName(i) == getUniqueSymbolName(j)));
+    const skippable = getSkippableSymbolsFromItems(items, grammar).filter(i => !all_syms.some(j => getSymbolName(i) == getSymbolName(j)));
 
     if (state.peek_level >= 0) {
         if (state.peek_level == 1) {

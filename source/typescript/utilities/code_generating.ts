@@ -21,8 +21,10 @@ import {
     isSymGeneratedId,
     isSymGeneratedSym,
     isSymIdentifier,
+    isSymNonConsume,
     isSymNotIdentifier,
     isSymNotLengthOneDefined,
+    isSymNotNonConsume,
     isSymSpecified,
     isSymSpecifiedIdentifier
 } from "./symbol.js";
@@ -214,6 +216,27 @@ export function buildIfs(
 
     return code_node;
 }
+
+
+export function createNonCaptureBooleanCheck(symbols: TokenSymbol[], grammar: Grammar, runner: Helper): VarSC {
+    const boolean = getIncludeBooleans(symbols.map(sym => Object.assign({}, sym, { IS_NON_CONSUME_ASSERT: false })), grammar, runner);
+    const token_function = SC.Function(
+        ":bool",
+        "l:Lexer&"
+    ).addStatement(
+
+        SC.If(boolean)
+            .addStatement(
+                SC.Assignment(SC.Member("l", "tl"), 0),
+                SC.UnaryPre(SC.Return, SC.True)
+            ),
+        SC.UnaryPre(SC.Return, SC.False)
+    );
+
+    const SF_name = SC.Constant(`non_capture_:bool`);
+
+    return <VarSC>runner.add_constant(SF_name, token_function);
+}
 /**
  * Build a boolean code sequence that compares the current lexer state with
  * expected tokens that will resolve to true if at least one token can be matched to
@@ -238,10 +261,12 @@ export function getIncludeBooleans(
     //const exclusion_list = new Set(exclude_symbols.map(getUniqueSymbolName));
     //syms = syms.filter(sym => !exclusion_list.has(getUniqueSymbolName(sym))).map(s => getRootSym(s, grammar));
     let
-        id = syms.filter(isSymSpecified),
-        ty = syms.filter(isSymAGenericType),
-        tk = syms.filter(isSymAProductionToken),
-        fn = syms.filter(isSymAnAssertFunction)
+        non_consume = syms.filter(isSymNonConsume),
+        consume = syms.filter(isSymNotNonConsume),
+        id = consume.filter(isSymSpecified),
+        ty = consume.filter(isSymAGenericType),
+        tk = consume.filter(isSymAProductionToken),
+        fn = consume.filter(isSymAnAssertFunction)
             .map(s => translateSymbolValue(s, grammar, lex_name)).sort();
 
     const HAS_GEN_ID = ty.some(isSymGeneratedId);
@@ -252,10 +277,15 @@ export function getIncludeBooleans(
     if (ty.some(isSymGeneratedSym))
         id = id.filter(isSymNotLengthOneDefined);
 
-    if (id.length + ty.length + fn.length + tk.length == 0)
+    if (id.length + ty.length + fn.length + tk.length + non_consume.length == 0)
         return null;
 
-    let out_id: ExprSC[] = [], out_ty: ExprSC[] = [], out_fn: ExprSC[] = [], out_tk: ExprSC[] = [];
+    let out_id: ExprSC[] = [], out_ty: ExprSC[] = [], out_fn: ExprSC[] = [], out_tk: ExprSC[] = [], out_non_consume: ExprSC[] = [];
+
+    if (non_consume.length > 0) {
+        const fn_name = createNonCaptureBooleanCheck(non_consume, grammar, runner);
+        out_non_consume.push(SC.UnaryPost(SC.Call(fn_name, lex_name), SC.Comment(non_consume.map(sym => `[${sanitizeSymbolValForComment(sym)}]`).join(" "))));
+    }
 
     if (fn.length > 0)
         out_fn = fn;
@@ -323,7 +353,7 @@ export function getIncludeBooleans(
         }
     }
 
-    return ([...out_tk, ...out_id, ...out_ty, ...out_fn].filter(_ => _).reduce((r, s) => {
+    return ([...out_non_consume, ...out_tk, ...out_id, ...out_ty, ...out_fn].filter(_ => _).reduce((r, s) => {
         if (!r)
             return s;
         return SC.Binary(r, SC.Value("||"), s);
@@ -331,6 +361,7 @@ export function getIncludeBooleans(
 }
 
 export function createProductionTokenFunction(tok: ProductionTokenSymbol, grammar: Grammar, runner: Helper): VarSC {
+
     const production = grammar[getProductionID(tok, grammar)];
 
     runner.referenced_production_ids.add(production.id);
@@ -373,15 +404,18 @@ export function getAssertionSymbolFirst(sym: AssertionFunctionSymbol, grammar: G
 }
 ;
 export function getTrueSymbolValue(sym: TokenSymbol, grammar: Grammar): TokenSymbol[] {
+
     if (isSymAnAssertFunction(sym)) {
         const val = grammar.functions.get(sym.val);
         const { first } = getAssertionFunctionData(val.txt, grammar);
         return first;
     }
+
     return [<TokenSymbol>sym];
 }
 
 export function getAssertionFunctionData(af_body_content: string, grammar: Grammar): { first: TokenSymbol[]; ast: JSNode; rev_lu: { id: number; sym: TokenSymbol; }[]; } {
+
     const
         rev_lu: { id: number; sym: TokenSymbol; }[] = [],
         syms: Map<string, { id: number; sym: TokenSymbol; }> = new Map(),

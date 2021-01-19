@@ -7,7 +7,6 @@ import { Production } from "./production";
 /**
  * Grammar Symbols
 */
-
 export interface SymbolBase {
     type: SymbolType;
     val: string | number;
@@ -19,6 +18,7 @@ export interface SymbolBase {
     NO_BLANK?: boolean;
     IS_OPTIONAL?: boolean;
     IS_CONDITION?: boolean;
+    IS_NON_CAPTURE?: boolean;
     IMPORTED?: boolean;
     RESOLVED?: boolean;
     DOES_SHIFT?: boolean;
