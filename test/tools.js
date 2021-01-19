@@ -29,7 +29,7 @@ export async function compileHCGParser(USE_CACHED = false, DEBUG = false) {
 
     await URL.server();
 
-    const url = await URL.resolveRelative("./source/grammars/hcg/hcg.hcg");
+    const url = await URL.resolveRelative("../source/grammars/hcg/hcg.hcg", import.meta.url);
 
     const grammar_string = await url.fetchText();
 
@@ -42,7 +42,7 @@ export async function compileHCGParser(USE_CACHED = false, DEBUG = false) {
         combine_recognizer_and_completer: true,
         create_function: true,
         no_file_output: !DEBUG,
-        number_of_workers: 2,
+        number_of_workers: 1,
         add_annotations: DEBUG,
         debug: DEBUG
     });
@@ -57,11 +57,35 @@ export async function compileHCGParser(USE_CACHED = false, DEBUG = false) {
 
     return output;
 }
-/**
- * Compile a grammar from a file path or an input string
- */
-export async function compileGrammarSource(string_or_url, USE_WEB_ASSEMBLY) {
 
+export async function compileBasicHCGParser(USE_CACHED = false, DEBUG = false) {
+
+    if (USE_CACHED && HC_parser) return HC_parser;
+
+    await URL.server();
+
+    const url = await URL.resolveRelative("../source/grammars/hcg/hcg.hcg", import.meta.url);
+
+    const grammar_string = await url.fetchText();
+
+    const grammar = await compileGrammars(grammar_string, url + "");
+
+    const parser = await compile(grammar, {}, {
+        type: "js",
+        recognizer_output_dir: URL.resolveRelative("./test/temp/"),
+        completer_output_dir: URL.resolveRelative("./test/temp/"),
+        combine_recognizer_and_completer: true,
+        create_function: true,
+        no_file_output: !DEBUG,
+        number_of_workers: 1,
+        add_annotations: DEBUG,
+        debug: DEBUG
+    });
+
+    return parser;
+}
+
+export async function getGrammar(string_or_url) {
     await URL.server();
 
     const url = new URL(string_or_url);
@@ -71,19 +95,42 @@ export async function compileGrammarSource(string_or_url, USE_WEB_ASSEMBLY) {
     if (await url.DOES_THIS_EXIST())
         string = await url.fetchText();
 
+
+
+    return await compileGrammars(string, url + "");
+}
+
+/**
+ * Compile a grammar from a file path or an input string
+ */
+export async function compileGrammarSource(string_or_url, DEBUG = false) {
+
+    await URL.server();
+
+    const url = URL.resolveRelative(string_or_url);
+
+    let string = string_or_url;
+
+    if (await url.DOES_THIS_EXIST())
+        try {
+
+            string = await url.fetchText();
+        } catch (e) { }
+
     const
-        grammar = await compileGrammars(string, url + ""),
+        grammar = await compileGrammars(string, url + "");
+
+    const
         parser = await compile(grammar, {}, {
             type: "javascript",
-            recognizer_output_dir: URL.resolveRelative("./test/temp/"),
-            completer_output_dir: URL.resolveRelative("./test/temp/"),
+            recognizer_output_dir: URL.resolveRelative("./temp/source/"),
+            completer_output_dir: URL.resolveRelative("./temp/source/"),
             combine_recognizer_and_completer: true,
             create_function: true,
-            optimize: true,
-            no_file_output: true,
-            number_of_workers: 2,
-            add_annotations: false,
-            debug: true
+            no_file_output: !DEBUG,
+            number_of_workers: 1,
+            add_annotations: DEBUG,
+            debug: DEBUG
         });
 
     return function (string, env = {}) {
@@ -103,8 +150,8 @@ export async function compileGrammar(grammar, DEBUG = false) {
             completer_output_dir: URL.resolveRelative("./test/temp2/"),
             combine_recognizer_and_completer: true,
             create_function: true,
-            no_file_output: false,
-            number_of_workers: 2,
+            no_file_output: !DEBUG,
+            number_of_workers: 1,
             add_annotations: DEBUG,
             debug: DEBUG
         });
