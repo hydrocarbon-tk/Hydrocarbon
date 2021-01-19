@@ -64,8 +64,11 @@ ${BUILD_LOCAL ? "" : "export default async function loadParser(){"}
             const lexer = new Lexer(str);
 
             for (let i = 0; i < er.length; i++) {
-                if(er[i]>0 && !error_set){
-                    error_set = true;
+                if(er[i]>0 ){
+                    if(!error_set){
+                        error_set = true;
+                        error_off = 0;
+                    }
                     error_off = Math.max(error_off, er[i]);
                 }
             }
