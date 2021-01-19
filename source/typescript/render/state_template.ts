@@ -9,13 +9,16 @@ export const createStateCode = (): SC => {
         SC.Declare(
             SC.Variable("flags:unsigned int"),
             SC.Variable("prod:int"),
+
         ),
 
         SC.Function(
-            "constructor"
+            "constructor",
+            SC.Assignment(SC.Variable("ENABLE_STACK_OUTPUT:unsigned int"), SC.Value("1"))
         ).addStatement(
             SC.Assignment(SC.Member(SC.This(), "flags"), 2),
             SC.Assignment(SC.Member(SC.This(), "prod"), -1),
+            SC.Call(SC.Member(SC.This(), "setENABLE_STACK_OUTPUT"), "ENABLE_STACK_OUTPUT")
         ),
 
         SC.Function(
@@ -73,7 +76,7 @@ export const createStateCode = (): SC => {
 
         SC.Function("setENABLE_STACK_OUTPUT:void", "enabled:unsigned int")
             .addStatement(
-                SC.Assignment(this_flags, SC.Binary(SC.Binary(this_flags, "&", "0xFFFFFFFD"), "|", "enabled"))
+                SC.Assignment(this_flags, SC.Binary(SC.Binary(this_flags, "&", "0xFFFFFFFD"), "|", SC.Binary("enabled", "<<", "1")))
             ),
 
         /*
