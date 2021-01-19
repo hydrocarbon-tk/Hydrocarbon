@@ -219,7 +219,7 @@ export function buildIfs(
 
 
 export function createNonCaptureBooleanCheck(symbols: TokenSymbol[], grammar: Grammar, runner: Helper): VarSC {
-    const boolean = getIncludeBooleans(symbols.map(sym => Object.assign({}, sym, { IS_NON_CONSUME_ASSERT: false })), grammar, runner);
+    const boolean = getIncludeBooleans(symbols.map(sym => Object.assign({}, sym, { IS_NON_CAPTURE: false })), grammar, runner);
     const token_function = SC.Function(
         ":bool",
         "l:Lexer&"

@@ -37,7 +37,7 @@
     
 
 <> symbol → symbol \?                                            ↦return{ $sym1.IS_OPTIONAL = true, $sym1 }
-    | \?= symbol                                                 ↦return{ $sym2.IS_NON_CONSUME_ASSERT = true, $sym2 }
+    | \?= symbol                                                 ↦return{ $sym2.IS_NON_CAPTURE = true, $sym2 }
     | generated_symbol 
     │ production_symbol
     | production_token_symbol
