@@ -90,7 +90,11 @@ export function filloutGrammar(grammar: Grammar, env) {
     const bodies = [],
         reduce_lu: Map<string, number> = new Map,
         symbols: Map<string, Symbol> = new Map([[getUniqueSymbolName(EOF_SYM), EOF_SYM]]),
-        syms = [];
+        processing_symbols = [];
+
+    for (const { symbols } of grammar.meta.ignore) {
+        processing_symbols.push(...symbols);
+    }
 
     for (let i = 0, j = 0; i < grammar.length; i++) {
         const production = grammar[i];
@@ -128,7 +132,7 @@ export function filloutGrammar(grammar: Grammar, env) {
             body.precedence = createPrecedence(body, grammar);
 
             //Dedupes symbols 
-            syms.push(...[...body.error.values(), ...body.excludes.values(), ...body.ignore.values(), body.sym].flat());
+            processing_symbols.push(...[...body.error.values(), ...body.excludes.values(), ...body.ignore.values(), body.sym].flat());
 
             if (env) {
                 if (body.reduce_function)
@@ -155,13 +159,13 @@ export function filloutGrammar(grammar: Grammar, env) {
         }
     };
 
-    for (const sym of syms.setFilter(s => getUniqueSymbolName(s))) sym_function(sym);
+    for (const sym of processing_symbols.setFilter(s => getUniqueSymbolName(s))) sym_function(sym);
 
     grammar.meta = Object.assign({}, grammar.meta, { all_symbols: symbols, reduce_functions: reduce_lu });
     grammar.bodies = bodies;
     grammar.item_map = null;
 
-    for (const sym of syms.filter(isSymAnAssertFunction)) getAssertionSymbolFirst(<AssertionFunctionSymbol>sym, grammar);
+    for (const sym of processing_symbols.filter(isSymAnAssertFunction)) getAssertionSymbolFirst(<AssertionFunctionSymbol>sym, grammar);
 
     buildItemMap(grammar);
 
