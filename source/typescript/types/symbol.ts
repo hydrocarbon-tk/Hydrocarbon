@@ -55,7 +55,7 @@ export interface GeneratedSymbol extends SymbolBase {
 
 export interface EOFSymbol extends SymbolBase {
     type: SymbolType.END_OF_FILE;
-    val: string;
+    val: "END_OF_FILE";
 }
 
 export interface EmptySymbol extends SymbolBase {
