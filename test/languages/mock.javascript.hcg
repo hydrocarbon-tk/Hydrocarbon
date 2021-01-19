@@ -1,4 +1,6 @@
-@IGNORE g:ws g:nl
+# Mock version of JavaScript with comments and automatic semicolon "insertion"
+
+@IGNORE g:ws g:nl tk:comments
 
 
 <> javascript > statements                                                          f:r{ { ty:"js", stmts:$sym1 } }
@@ -11,7 +13,9 @@
     | block_statement
     | expression_statement
     | return_statement
+    | empty_statement
 
+<> empty_statement > \;
 
 <> for_statement > t:for \( expression \; expression \; expression \) statement
 
@@ -64,3 +68,6 @@
 
 
 <> asi > ( \; | ?={ | ?=g:nl | ?=$eof )
+
+<> comments > \/* ( g:ws | g:nl | g:id | g:num | g:sym )(*) \*/
+    | \// ( g:ws | g:id | g:num | g:sym )(*) g:nl
