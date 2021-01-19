@@ -137,3 +137,64 @@ export function buildParserMemoryBuffer(
         shared_memory
     };
 };
+
+/**
+Simple WASM loader
+
+Some code is taken from @assemblyscript/loader
+*/
+export function loadWASM(source: BufferSource, memory: WebAssembly.Memory) {
+
+    try {
+        const imports = {
+            env: {
+                memory,
+                seed: Date.now(),
+                trace() { },
+                abort() { }
+            },
+            Math,
+            Date,
+        };
+
+        const STRING_ID = 1;
+
+        const module = new WebAssembly.Module(source);
+        //@ts-ignore
+        const instance: WebAssembly.Instance = new WebAssembly.Instance(module, imports);
+
+        const exports = instance.exports;
+
+        function loadString(str: string) {
+            //From  @assemblyscript/loader
+
+            const length = str.length;
+
+            //@ts-ignore
+            const ptr = exports.__new(length << 1, STRING_ID);
+
+            const U16 = new Uint16Array(memory.buffer);
+
+            for (var i = 0, p = ptr >>> 1; i < length; ++i)
+                U16[p + i] = str.charCodeAt(i);
+
+            return ptr;
+        };
+
+        return {
+
+            run(str: string): boolean {
+                const ptr = loadString(str);
+                //@ts-ignore
+                const FAILED = exports.main(ptr);
+                //@ts-ignore
+                // exports.__release(ptr);
+
+                return FAILED;
+            }
+        };
+
+    } catch (e) {
+        console.log(e);
+    }
+}

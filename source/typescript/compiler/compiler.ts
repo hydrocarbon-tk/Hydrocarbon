@@ -1,4 +1,3 @@
-import loader from "@assemblyscript/loader";
 import spark from "@candlefw/spark";
 import URL from "@candlefw/url";
 import Lexer from "@candlefw/wind";
@@ -9,7 +8,7 @@ import { renderParserScript } from "../render/js_parser_template.js";
 import { renderParserScript as renderJSScript } from "../render/js_parser_template_for_js.js";
 import { renderAssemblyScriptRecognizer } from "../render/recognizer_template.js";
 
-import { action32bit_array_byte_size_default, buildParserMemoryBuffer, jump16bit_table_byte_size } from "../runtime/parser_memory.js";
+import { action32bit_array_byte_size_default, buildParserMemoryBuffer, jump16bit_table_byte_size, loadWASM } from "../runtime/parser_memory.js";
 
 import { HybridCompilerOptions } from "../types/compiler_options";
 import { Grammar } from "../types/grammar.js";
@@ -144,17 +143,15 @@ export async function compile(grammar: Grammar, env: GrammarParserEnvironment, o
 
             if (active_options.no_file_output || active_options.create_function)
 
-                return await (new AsyncFunction(
-                    "loader",
+                return (new Function(
                     "buildParserMemoryBuffer",
-                    "URL",
                     "Lexer",
+                    "loadWASM",
                     `${renderParserScript(grammar, active_options, binary, true)}`
                 ))(
-                    loader,
                     buildParserMemoryBuffer,
-                    URL,
-                    Lexer
+                    Lexer,
+                    loadWASM
                 );
             return;
         case "js":
@@ -187,13 +184,11 @@ export async function compile(grammar: Grammar, env: GrammarParserEnvironment, o
             }
             if (active_options.no_file_output || active_options.create_function)
                 return await (new AsyncFunction(
-                    "loader",
                     "buildParserMemoryBuffer",
                     "URL",
                     "Lexer",
                     parser_script
                 ))(
-                    loader,
                     buildParserMemoryBuffer,
                     URL,
                     Lexer

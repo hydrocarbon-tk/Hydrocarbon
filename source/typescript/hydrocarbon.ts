@@ -3,7 +3,8 @@ import { createGrammar } from "./grammar/compile_grammar.js";
 
 //Hybrid
 import {
-    buildParserMemoryBuffer
+    buildParserMemoryBuffer,
+    loadWASM
 } from "./runtime/parser_memory.js";
 
 //Runtime - Deprecate
@@ -15,6 +16,7 @@ import { ParserEnvironment } from "./types/parser_environment.js";
 import { ErrorHandler, ParserData } from "./lr(deprecate)/runtime/parser_data.js";
 
 export {
+    loadWASM,
     ErrorHandler,
     ParserData,
     LexerError,
