@@ -252,7 +252,7 @@ export function getIncludeBooleans(
     if (ty.some(isSymGeneratedSym))
         id = id.filter(isSymNotLengthOneDefined);
 
-    if (id.length + ty.length + fn.length == 0)
+    if (id.length + ty.length + fn.length + tk.length == 0)
         return null;
 
     let out_id: ExprSC[] = [], out_ty: ExprSC[] = [], out_fn: ExprSC[] = [], out_tk: ExprSC[] = [];
