@@ -265,7 +265,7 @@ export function buildItemClosures(grammar: Grammar) {
     //Add Follow Information
     const check_set: Set<string>[] = grammar.map(() => new Set());
     const item_map = [];
-    for (const b of grammar[0].bodies)
+    for (const b of grammar.flatMap(d => d.bodies))
         addFollowInformation(new Item(b.id, b.length, 0, EOF_SYM), grammar, check_set, EOF_SYM, item_map);
 
     /////////////////////////////////////////////////////////////
