@@ -3,7 +3,7 @@ import { compileHCGParser, compileGrammar } from "../tools.js";
 assert_group(sequence, 10000, () => {
 
     //Construct A HCG parser
-    const HCGparser = await compileHCGParser();
+    const HCGparser = await compileHCGParser(true);
 
     assert("Construct HCG Parser", HCGparser != undefined);
 
@@ -21,7 +21,7 @@ assert_group(sequence, 10000, () => {
 
     assert("Construct test grammar", test_grammar != undefined);
 
-    const test_parser = await compileGrammar(test_grammar, true);
+    const test_parser = await compileGrammar(test_grammar);
 
     assert("Construct test parser", test_parser != undefined);
 
