@@ -254,15 +254,26 @@ function* processPeekStates(
             } else if (items.length > 1) {
 
                 if (SAME_SYMBOL) {
+                    
                     if (isSymAProduction(a.items[0].sym(grammar)))
                         a.transition_type = TRANSITION_TYPE.PEEK_PRODUCTION_SYMBOLS;
-                    gen = yieldStates(items, options, lex_name, offset + 1);
-                } else if (max_item_offset == 0 && items.every(i => !extended_production_shift_items.some(s => s.body == i.body))) {
 
+                    gen = yieldStates(items, options, lex_name, offset + 1);
+                } else if (
+                    max_item_offset == 0
+                    &&
+                    items.every(i => !extended_production_shift_items.some(s => s.body == i.body))
+                ) {
                     if (closure.every(i => i.offset == 0) && closure.map(i => i.getProduction(grammar).id).setFilter().length == 1) {
+
+                        //Just begun parsing production and can simply make a direct call of another production function
+
                         a.items = a.closure.slice(0, 1);
+
                         a.completing = true;
+
                         a.offset = offset;
+
                         a.transition_type = TRANSITION_TYPE.ASSERT_PRODUCTION_SYMBOLS;
                     } else
                         gen = yieldStates(getClosure(closure, grammar).map(i => i), options, lex_name, offset + 1);

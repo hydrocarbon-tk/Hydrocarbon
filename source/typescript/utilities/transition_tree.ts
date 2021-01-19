@@ -117,7 +117,20 @@ export function getTransitionTree(
 
         if (!quit && new_roots.length > 1) {
 
-            const { tree_nodes, clear, AMBIGUOUS: A, max_depth: md } = getTransitionTree(grammar, root_items, lr_transition_items, max_tree_depth, max_no_progress, max_time_limit, depth + 1, group, new_roots.length, curr_progress, root_time);
+            const { tree_nodes, clear, AMBIGUOUS: A, max_depth: md }
+                = getTransitionTree(
+                    grammar,
+                    root_items,
+                    lr_transition_items,
+                    max_tree_depth,
+                    max_no_progress,
+                    max_time_limit,
+                    depth + 1,
+                    group,
+                    new_roots.length,
+                    curr_progress,
+                    root_time
+                );
 
             AMBIGUOUS = AMBIGUOUS || A;
 
