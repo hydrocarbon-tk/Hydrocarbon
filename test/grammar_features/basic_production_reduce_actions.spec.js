@@ -1,13 +1,15 @@
-import { compileGrammar } from "../tools.js";
+import { compileGrammarSource } from "../tools.js";
 
-const parserA = await compileGrammar(`<> start > t:simple f:r {"complex"}`);
-const parserB = await compileGrammar(`@IGNORE g:ws \n <> start > d <> d > ( t:simple(*) ) f:r { { data:$sym1 } } `);
-const parserC = await compileGrammar(`@IGNORE g:ws \n 
+const parserA = await compileGrammarSource(`<> start > t:simple f:r {"complex"}`);
+const parserB = await compileGrammarSource(
+       `@IGNORE g:ws \n <> start > d <> d > ( t:simple(*) ) f:r { { data:$sym1 } } `
+);
+const parserC = await compileGrammarSource(`@IGNORE g:ws \n 
     <> start > sum          f:r {  { result : $sym1 }  } 
     <> sum > num + num      f:r {  $sym1 + $sym3  } 
     <> num > g:num          f:r {  parseInt($sym1)  } 
 `);
-const parserD = await compileGrammar(`@IGNORE g:ws \n 
+const parserD = await compileGrammarSource(`@IGNORE g:ws \n 
     <> start > sum                  f:r {  { result : $sym1 }  } 
     <> sum > mul + sum              f:r {  $sym1 + $sym3  } 
            | mul

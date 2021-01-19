@@ -1,6 +1,6 @@
-import { compileGrammar } from "../tools.js";
+import { compileGrammarSource } from "../tools.js";
 
-const parser = await compileGrammar(
+const parser = await compileGrammarSource(
     `@IGNORE g:ws
 
     #<custom_skip> \\/*  ( g:ws | g:sym | g:nl | g:id )(*)  \\*/
@@ -12,5 +12,5 @@ const parser = await compileGrammar(
     `
 );
 
-assert(parser("simple/* test */simple").result[0] == ["simple", "simple"]);
+assert(parser("simple simple").result[0] == ["simple", "simple"]);
 

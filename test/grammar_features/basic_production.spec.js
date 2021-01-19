@@ -1,6 +1,6 @@
-import { compileGrammar } from "../tools.js";
+import { compileGrammarSource } from "../tools.js";
 
-const parser = await compileGrammar(`<> start > t:simple`);
+const parser = await compileGrammarSource(`<> start > t:simple`);
 
 assert(parser("simple").result[0] == "simple");
 
@@ -8,7 +8,7 @@ assert(parser("simpled").FAILED == true);
 
 assert(parser("simpl").FAILED == true);
 
-const scientific = await compileGrammar(
+const scientific = await compileGrammarSource(
     `<> sci > d
 <> d >  g:num ( \\. g:num )? ( \\e g:num )? 
     f:r { {integer:parseInt($sym1), fractional:parseInt($sym2), exponent:parseInt($sym3)}  } `
@@ -16,7 +16,7 @@ const scientific = await compileGrammar(
 
 assert(scientific("2.3e3").result[0] == { integer: 2, fractional: 3, exponent: 3 });
 
-const complex = await compileGrammar(
+const complex = await compileGrammarSource(
     `<> complex > d
  
 <> d >  real ( \\i real )? 

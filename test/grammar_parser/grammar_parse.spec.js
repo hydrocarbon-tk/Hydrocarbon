@@ -1,11 +1,9 @@
 import URL from "@candlefw/url";
-
-import { compileGrammars } from "@candlefw/hydrocarbon";
-import { compile } from "../../build/library/compiler/compiler.js";
 import { constructCompilerEnvironment } from "../../build/library/grammar/grammar_parser.js";
+import { compileBasicHCGParser } from "../tools.js";
 
 const hcg_dir = URL.resolveRelative("../../source/grammars/hcg/");
-assert_group(sequence, 10000, () => {
+assert_group(sequence, 20000, () => {
 
     function getEnv() {
         let env = constructCompilerEnvironment("", { count: 0 }, { count: 0 }, 112, new Map);
@@ -14,22 +12,7 @@ assert_group(sequence, 10000, () => {
     };
 
     //Construct A HCG parser
-    const HCG_source_url = await URL.resolveRelative("../../source/grammars/hcg/hcg.hcg");
-    const HCG_source = await HCG_source_url.fetchText();
-    const
-        grammar =
-            await compileGrammars(HCG_source, HCG_source_url + ""),
-        HCGparser =
-            await compile(grammar, {}, {
-                type: "javascript",
-                completer_output_dir: "./temp/",
-                recognizer_output_dir: "./temp/",
-                create_function: true,
-                no_file_output: false,
-                number_of_workers: 2,
-                add_annotations: false,
-                debug: false
-            });
+    const HCGparser = await compileBasicHCGParser(false, true);
 
     assert("Construct HCG Parser", HCGparser != undefined);
 
@@ -56,7 +39,7 @@ assert_group(sequence, 10000, () => {
         const result = HCGparser(string, getEnv());
         assert("Parse Has Not Failed", result.FAILED != true);
         const root_productions = result.result[0].filter(p => !p.subtype);
-        assert("Number Of Root Productions Match File Declarations", root_productions.length == 10);
+        assert("Number Of Root Productions Match File Declarations", root_productions.length == 9);
         assert("First Production Name Is Correct", root_productions[0].name === "hcg_preamble");
     });
 
@@ -90,7 +73,7 @@ assert_group(sequence, 10000, () => {
         assert("First Production Name Is Correct", root_productions[0].name === "hcg_production_bodies");
     });
 
-    assert_group(solo, "functions.hcg", sequence, () => {
+    assert_group("functions.hcg", sequence, () => {
         //Trivial grammar
         const string = await URL.resolveRelative("./functions.hcg", hcg_dir).fetchText();
         const result = HCGparser(string, getEnv());
@@ -101,13 +84,13 @@ assert_group(sequence, 10000, () => {
     });
 
 
-    assert_group(solo, "symbols.hcg", sequence, () => {
+    assert_group("symbols.hcg", sequence, () => {
         //Trivial grammar
         const string = await URL.resolveRelative("./symbols.hcg", hcg_dir).fetchText();
         const result = HCGparser(string, getEnv());
         assert("Parse Has Not Failed", result.FAILED != true);
         const root_productions = result.result[0].filter(p => !p.subtype);
-        assert("Number Of Root Productions Match File Declarations", root_productions.length == 22);
+        assert("Number Of Root Productions Match File Declarations", root_productions.length == 23);
         assert("First Production Name Is Correct", root_productions[0].name === "hcg_symbols");
     });
 
