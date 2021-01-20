@@ -1,4 +1,5 @@
-# Mock version of JavaScript with comments and automatic semicolon "insertion"
+# Mock version of JavaScript with comments and automatic semicolon "insertion". 
+# This is NOT a complete example of the JavaScript specification
 
 @IGNORE g:ws g:nl tk:comments
 

@@ -1,4 +1,5 @@
 import URL from "@candlefw/url";
+
 import { compileHCGParser, compileGrammar } from "../tools.js";
 
 assert_group(sequence, 10000, () => {

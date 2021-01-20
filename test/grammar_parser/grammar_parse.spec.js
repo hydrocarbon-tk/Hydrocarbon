@@ -12,7 +12,9 @@ assert_group(sequence, 20000, () => {
     };
 
     //Construct A HCG parser
-    const HCGparser = await compileBasicHCGParser(false, true);
+    const HCGparser = await compileBasicHCGParser(false, false);
+
+
 
     assert("Construct HCG Parser", HCGparser != undefined);
 

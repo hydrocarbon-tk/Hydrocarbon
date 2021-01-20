@@ -1,0 +1,23 @@
+# Mock version of a JSON grammar. May not be, and is not intended to be complete
+
+@IGNORE g:ws g:nl
+
+<> JSON > object                                   
+
+<> value > object
+    | array
+    | t:true                                        f:r{ true }
+    | t:false                                       f:r{ false }
+    | t:null                                        f:r{ null }
+    | tk:number                                     f:r{ parseFloat($sym1) }
+    | tk:string                                     f:r{ $sym1.slice(1,-1) }
+
+<> object > \{  element(*\, )  \}                   f:r{ Object.fromEntries($$sym2 || [])  }
+
+<> element > tk:string \: value                     f:r{ [$sym1.slice(1,-1), $sym3] }
+
+<> array > \[ value(*\, ) \]                        f:r{ $$sym2 || [] }
+
+<> number > g:num ( \. g:num )? ( \e g:num )? ( ?=g:ws )?
+
+<> string > \" (RST g:nl) ( g:id | g:num | g:sym )(*) \"
