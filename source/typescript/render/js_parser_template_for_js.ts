@@ -54,6 +54,8 @@ ${BUILD_LOCAL ? "" : "export default async function loadParser(){"}
                     break;
                 review_stack.push(debug_stack[i]);
             }
+
+            review_stack.reverse();
             
             let error_off = 10000000000000;
             let error_set = false;
