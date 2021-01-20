@@ -39,7 +39,7 @@ assert_group(sequence, 10000, () => {
     };
 
     //Construct A HCG parser
-    const HCGparser = await compileHCGParser(true, true);
+    const HCGparser = await compileHCGParser(true);
 
     assert("Construct HCG Parser", HCGparser != undefined);
 
@@ -53,6 +53,6 @@ assert_group(sequence, 10000, () => {
 
     assert("Construct test parser", mock_js_parser != undefined);
 
-    assert("Parsed Input Produces Expected Value", mock_js_parser("var test = 3 \n { test + 2 * 1; }").result[0] == parse_test_1_result);
+    assert("Parsed Input Produces Expected Value", mock_js_parser("var //Test \n test = 3 /* Test */ \n { test + 2 /* Test */ * 1; }").result[0] == parse_test_1_result);
 
 });
