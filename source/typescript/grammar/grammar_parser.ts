@@ -163,14 +163,17 @@ export async function grammarParser(
                         //     } break;
                     }
             }
-        } else {
-            //console.log(error_message);
         }
 
         if (grammar.length == 0)
             throw ("This grammar does not define any productions.");
 
         return grammar;
-    } else throw new Error("Could not parse grammar");
+    } else {
+
+        if (error_message) console.log(error_message);
+
+        throw new Error("Could not parse grammar");
+    }
 }
 
