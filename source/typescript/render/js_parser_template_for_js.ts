@@ -44,18 +44,16 @@ ${BUILD_LOCAL ? "" : "export default async function loadParser(){"}
             stack = [];
     
         let action_length = 0,
-            error_message =""
+            error_message ="",
+            review_stack = [];
     
         if (FAILED) {
-            const review_stack = [];
 
             for(let i = debug_stack.length-1, j=0; i >= 0; i--){
                 if(!debug_stack[i].FAILED && j++ > 80)
                     break;
                 review_stack.push(debug_stack[i]);
             }
-
-            console.log({review_stack:review_stack.reverse()})
             
             let error_off = 10000000000000;
             let error_set = false;
@@ -79,6 +77,7 @@ ${BUILD_LOCAL ? "" : "export default async function loadParser(){"}
             while (lexer.off < error_off && !lexer.END) lexer.next();
 
             error_message = lexer.errorMessage(\`Unexpected token[\${ lexer.tx }]\`);
+
     
         } else {
 
@@ -112,7 +111,6 @@ ${BUILD_LOCAL ? "" : "export default async function loadParser(){"}
                                 stack.length = stack.length - len;
                                 pos.length = pos.length - len;
                             }
-                            // console.log(pos);
 
                         } break;
 
@@ -136,7 +134,7 @@ ${BUILD_LOCAL ? "" : "export default async function loadParser(){"}
             }
         }
     
-        return { result: stack, FAILED: !!FAILED, action_length, error_message };
+        return { result: stack, FAILED: !!FAILED, action_length, error_message, review_stack };
     }
     ${BUILD_LOCAL ? "" : "}"} `;
 };
