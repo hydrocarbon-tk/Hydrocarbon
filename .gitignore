@@ -56,7 +56,7 @@ build/
 !build/wasm/*
 
 # Temporary test files
-test/**/temp/*
+test/**/*temp*/*
 
 #sublime  workspace
 *.sublime-workspace
