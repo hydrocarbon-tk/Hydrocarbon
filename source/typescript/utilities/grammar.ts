@@ -97,8 +97,8 @@ export function filloutGrammar(grammar: Grammar, env) {
     }
 
     for (let i = 0, j = 0; i < grammar.length; i++) {
+
         const production = grammar[i];
-        production.follow_ref = [];
 
         if (production.recovery_handler) {
             const rh = production.recovery_handler;

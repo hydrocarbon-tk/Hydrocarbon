@@ -11,26 +11,21 @@ export const renderParserScript = (
     error8bit_array_byte_size = error8bit_array_byte_size_default
 ) => {
 
-    return `
-
-${BUILD_LOCAL ? "" : `
-    import loader from "@assemblyscript/loader";
-    import {buildParserMemoryBuffer} from "${options.memory_loader_url}";              
-    import URL from "@candlefw/url";
-    import Lexer from "@candlefw/wind";
-`} 
+    return `${BUILD_LOCAL ? "" :
+        `import {buildParserMemoryBuffer} from "${options.memory_loader_url}";        
+import Lexer from "@candlefw/wind";`} 
 
 const 
     { shared_memory, action_array, error_array } = buildParserMemoryBuffer(true, ${action32bit_array_byte_size}, ${error8bit_array_byte_size}),
     debug_stack = [],
     recognizer = ${js_data}(shared_memory, debug_stack),
     fns = [(e,sym)=>sym[sym.length-1], \n${[...grammar.meta.reduce_functions.keys()].map((b, i) => {
-        if (b.includes("return")) {
-            return b.replace("return", "(env, sym, pos)=>(").slice(0, -1) + ")" + `/*${i}*/`;
-        } else {
-            return `(env, sym)=>new (class{constructor(env, sym, pos){${b}}})(env, sym)` + `/*${i}*/`;
-        }
-    }).join("\n,")
+            if (b.includes("return")) {
+                return b.replace("return", "(env, sym, pos)=>(").slice(0, -1) + ")" + `/*${i}*/`;
+            } else {
+                return `(env, sym)=>new (class{constructor(env, sym, pos){${b}}})(env, sym)` + `/*${i}*/`;
+            }
+        }).join("\n,")
         }];
 
 ${BUILD_LOCAL ? "" : "export default async function loadParser(){"} 
