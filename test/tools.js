@@ -71,9 +71,9 @@ export async function compileBasicHCGParser(USE_CACHED = false, DEBUG = false) {
     const grammar = await compileGrammars(grammar_string, url + "");
 
     const parser = await compile(grammar, {}, {
-        type: "js",
-        recognizer_output_dir: URL.resolveRelative("./test/temp/"),
-        completer_output_dir: URL.resolveRelative("./test/temp/"),
+        recognizer_type: "js",
+        completer_type: "js",
+        output_dir: URL.resolveRelative("./test/temp/"),
         combine_recognizer_and_completer: true,
         create_function: true,
         no_file_output: !DEBUG,
@@ -122,9 +122,9 @@ export async function compileGrammarSource(string_or_url, DEBUG = false) {
 
     const
         parser = await compile(grammar, {}, {
-            type: "javascript",
-            recognizer_output_dir: URL.resolveRelative("./temp/source/"),
-            completer_output_dir: URL.resolveRelative("./temp/source/"),
+            recognizer_type: "js",
+            completer_type: "js",
+            output_dir: URL.resolveRelative("./temp/source/"),
             combine_recognizer_and_completer: true,
             create_function: true,
             no_file_output: !DEBUG,
@@ -145,9 +145,9 @@ export async function compileGrammar(grammar, DEBUG = false) {
 
     const
         parser = await compile(grammar, {}, {
-            type: "javascript",
-            recognizer_output_dir: URL.resolveRelative("./test/temp2/"),
-            completer_output_dir: URL.resolveRelative("./test/temp2/"),
+            recognizer_type: "js",
+            completer_type: "js",
+            output_dir: URL.resolveRelative("./test/temp2/"),
             combine_recognizer_and_completer: true,
             create_function: true,
             no_file_output: !DEBUG,

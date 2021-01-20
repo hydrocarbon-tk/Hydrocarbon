@@ -1,5 +1,9 @@
 export interface HybridCompilerOptions {
     /**
+     * Name to append to output
+     */
+    name: string;
+    /**
      * Output language for the recognizer
      */
     recognizer_type: "wasm" | "js" | "JavaScript" | "javascript" | "JS" | "WebAssembly" | "WASM" | "webassembly" | "ts" | "typescript" | "TS" | "TypeScript";
@@ -7,10 +11,6 @@ export interface HybridCompilerOptions {
      * Output language for the completer
      */
     completer_type: "js" | "JavaScript" | "javascript" | "JS" | "ts" | "typescript" | "TS" | "TypeScript";
-    /**
-     * Type of recognizer to create
-     */
-    type: "wasm" | "js" | "JavaScript" | "javascript" | "WebAssembly" | "WASM" | "webassembly";
     /**
      * Number of worker threads to use when generating parser
      * recognizer code.
@@ -38,15 +38,10 @@ export interface HybridCompilerOptions {
     add_annotations?: boolean;
 
     /**
-     * Set the output directory for the completer/parser files.
+     * Set the output directory for compiled files
      */
 
-    completer_output_dir?: string;
-
-    /**
-     * Set the output directory for the recognizer files.
-     */
-    recognizer_output_dir?: string;
+    output_dir?: string;
 
     /**
      * Instead of a separate recognizer file, include the recognizer within the 

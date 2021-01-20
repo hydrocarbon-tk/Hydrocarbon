@@ -5,37 +5,63 @@ import { action32bit_array_byte_size_default, error8bit_array_byte_size_default 
 export const renderParserScript = (
     grammar: Grammar,
     options: HybridCompilerOptions,
+    wasm_data?: Uint8Array,
     js_data?: string,
     BUILD_LOCAL: boolean = false,
     action32bit_array_byte_size = action32bit_array_byte_size_default,
     error8bit_array_byte_size = error8bit_array_byte_size_default
 ) => {
 
+    let data_block = "";
+
+    if (wasm_data) {
+
+        let compressed_data = null;
+
+        const line_length = 200;
+        const data_lines = [];
+
+        compressed_data = [...wasm_data].map(i => ("00" + i.toString(16)).slice(-2)).join("");
+
+        for (let i = 0; i < compressed_data.length; i += line_length) {
+            const max_line = Math.min(compressed_data.length - i, line_length);
+            data_lines.push(compressed_data.slice(i, i + max_line));
+        }
+
+        const data = (BUILD_LOCAL || options.combine_recognizer_and_completer)
+            ? `data = (str=>{const out = new Uint8Array(str.length>>1); for(let i = 0; i < str.length; i+=2) {out[i>>1] = parseInt(str.slice(i, i+2),16);} return out; })(\n${data_lines.map(d => `"${d}"`).join("\n+")})`
+            : "";
+
+        data_block = `const ${data},
+{ recognizer } = loadWASM(data, shared_memory);`;
+
+
+    } else {
+        data_block = `const  recognizer = ${js_data}(shared_memory, debug_stack);`;
+    }
+
     return `${BUILD_LOCAL ? "" :
-        `import {buildParserMemoryBuffer} from "${options.memory_loader_url}";        
+        `import {buildParserMemoryBuffer, loadWASM }  from "${options.memory_loader_url}";        
 import Lexer from "@candlefw/wind";`} 
 
-const 
-    { shared_memory, action_array, error_array } = buildParserMemoryBuffer(true, ${action32bit_array_byte_size}, ${error8bit_array_byte_size}),
-    debug_stack = [],
-    recognizer = ${js_data}(shared_memory, debug_stack),
-    fns = [(e,sym)=>sym[sym.length-1], \n${[...grammar.meta.reduce_functions.keys()].map((b, i) => {
+const debug_stack = [];
+const { shared_memory, action_array, error_array } = buildParserMemoryBuffer(${wasm_data ? "false" : "true"}, ${action32bit_array_byte_size}, ${error8bit_array_byte_size});
+
+${data_block}
+
+const fns = [(e,sym)=>sym[sym.length-1], \n${[...grammar.meta.reduce_functions.keys()].map((b, i) => {
             if (b.includes("return")) {
                 return b.replace("return", "(env, sym, pos)=>(").slice(0, -1) + ")" + `/*${i}*/`;
             } else {
                 return `(env, sym)=>new (class{constructor(env, sym, pos){${b}}})(env, sym)` + `/*${i}*/`;
             }
         }).join("\n,")
-        }];
+        }]; 
 
-${BUILD_LOCAL ? "" : "export default async function loadParser(){"} 
-    
-    return function (str, env = {}) {
+${BUILD_LOCAL ? "return" : "export default"} function (str, env = {}) {
         
         const 
             FAILED = recognizer(str), // call with pointers
-            aa = action_array,
-            er = error_array,
             stack = [];
     
         let action_length = 0,
@@ -58,13 +84,13 @@ ${BUILD_LOCAL ? "" : "export default async function loadParser(){"}
 
             const lexer = new Lexer(str);
 
-            for (let i = 0; i < er.length; i++) {
-                if(er[i]>0 ){
+            for (let i = 0; i < error_array.length; i++) {
+                if(error_array[i]>0 ){
                     if(!error_set){
                         error_set = true;
                         error_off = 0;
                     }
-                    error_off = Math.max(error_off, er[i]);
+                    error_off = Math.max(error_off, error_array[i]);
                 }
             }
 
@@ -80,11 +106,10 @@ ${BUILD_LOCAL ? "" : "export default async function loadParser(){"}
 
             let offset = 0, pos = [];
 
-            for (const action of aa) {
+            for (const action of action_array) {
 
                 action_length++;
-                let prev_off = 0;
-
+                
                 if (action == 0) break;
 
                 switch (action & 1) {
@@ -132,6 +157,5 @@ ${BUILD_LOCAL ? "" : "export default async function loadParser(){"}
         }
     
         return { result: stack, FAILED: !!FAILED, action_length, error_message, review_stack };
-    }
-    ${BUILD_LOCAL ? "" : "}"} `;
+    }`;
 };

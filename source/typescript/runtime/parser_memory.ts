@@ -183,7 +183,7 @@ export function loadWASM(source: BufferSource, memory: WebAssembly.Memory) {
 
         return {
 
-            run(str: string): boolean {
+            recognizer(str: string): boolean {
                 const ptr = loadString(str);
                 //@ts-ignore
                 const FAILED = exports.main(ptr);
