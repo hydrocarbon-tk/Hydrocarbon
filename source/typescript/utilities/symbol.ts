@@ -58,8 +58,7 @@ export function getSymbolName(sym: Symbol) {
     if (!sym)
         return "";
 
-    return sym.val
-        + sym.type;
+    return "[" + sym.val + "]" + sym.type;
 }
 export function getUniqueSymbolName(sym: Symbol) {
     if (!sym)
@@ -200,25 +199,32 @@ export function getRootSym<T = Symbol>(sym: T, grammar: Grammar): T {
     return <T><any>grammar.meta.all_symbols.get(name) || sym;
 }
 
-export function doSymbolsOcclude(symA: Symbol, symB: Symbol): boolean {
+export function doSymbolsOcclude(target: Symbol, potential_occluder: Symbol): boolean {
+
+    if (getUniqueSymbolName(target) == getUniqueSymbolName(potential_occluder)) return false;
 
     if (
-        isSymAProduction(symA)
-        || isSymAProduction(symB)
-        || isSymGeneratedId(symA)
-        || isSymGeneratedId(symB)
+        isSymAProduction(target)
+        || isSymAProduction(potential_occluder)
     ) return false;
 
-    if (symA.val == symB.val) return false;
+    if ((isSymGeneratedId(target) && isSymSpecifiedIdentifier(potential_occluder))
+        ||
+        (isSymGeneratedId(potential_occluder) && isSymSpecifiedIdentifier(target))
+    ) return true;
+
+    if ((isSymGeneratedNum(target) && isSymSpecifiedNumeric(potential_occluder))
+        ||
+        (isSymGeneratedNum(potential_occluder) && isSymSpecifiedNumeric(target))
+    ) return true;
+
+    if (target.val == potential_occluder.val) return false;
 
     let
-        short = symA.val,
-        long = symB.val;
+        short = target.val.toString(),
+        long = potential_occluder.val.toString();
 
-    if (short.length > long.length) {
-        short = long;
-        long = symA.val;
-    }
+    if (short.length > long.length) return false;
 
     for (let i = 0; i < short.length; i++)
         if (short[i] !== long[i]) return false;
