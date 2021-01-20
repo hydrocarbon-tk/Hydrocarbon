@@ -88,7 +88,7 @@ export function constructHybridFunction(production: Production, grammar: Grammar
                 }), optionsA, rec_glob_lex_name
             ),
 
-            { code: initial_pass, hash: initial_pass_hash, prods: yielded_productions }
+            { code: initial_pass, prods: yielded_productions }
                 = processRecognizerStates(optionsA, genA, defaultSelectionClause),
 
             optionsB = generateRDOptions(
@@ -106,7 +106,6 @@ export function constructHybridFunction(production: Production, grammar: Grammar
             runner.DEBUG
                 ? SC.Value(`debug_stack.push("${production.name} START", { prod:state.prod, tx:str.slice(l.off, l.off + l.tl), ty:l.ty, tl:l.tl, utf:l.getUTF(), FAILED:state.getFAILED(),offset:l.off})`)
                 : undefined,
-            SC.Comment(initial_pass_hash),
             initial_pass,
             production_shift_pass,
 
