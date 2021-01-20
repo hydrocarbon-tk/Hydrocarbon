@@ -9,8 +9,6 @@ import wind from "@candlefw/wind";
 import URL from "@candlefw/url";
 import * as hc from "../../build/library/hydrocarbon.js";
 
-import runner from "./compiler_runner.js";
-
 //Third Party stuff
 import * as commander from "commander";
 
@@ -18,13 +16,12 @@ import * as commander from "commander";
 import path from "path";
 import fs from "fs";
 import readline from "readline";
-import { compileHybrid } from "../../build/library/hybrid/hybrid_compiler.js";
+import { compile } from "../../build/library/compiler/compiler.js";
 
 //Regex to match Protocol and/or Drive letter from module url
 const
     fn_regex = /(file\:\/\/)(\/)*([A-Z]\:)*/g,
     fsp = fs.promises,
-
 
     /* ** BASH COLORS ****/
     COLOR_ERROR = `\x1b[41m`,
@@ -72,73 +69,6 @@ async function loadFiles(grammar_path, env_path = "", states_path = "", quiet = 
     return { grammar_string, env, states_string };
 }
 
-async function writeFile(name, ext, data = "", dir = process.env.PWD, type) {
-
-    try {
-        if (!fs.existsSync(dir))
-            fs.mkdirSync(dir);
-
-        //Save existing file as a backup file if it exists
-        try {
-            const data = await fsp.readFile(path.join(dir, name));
-            let increment = 0;
-
-            while (1) {
-                try {
-                    try {
-                        while (await fsp.readFile(path.join(dir, name + ".hcgb_" + increment))) { increment++; }
-                    } catch (e) { }
-
-                    let a = await fsp.writeFile(path.join(dir, name + ".hcgb_" + increment), data, { encoding: "utf8", flags: "wx" });
-
-                    break;
-                } catch (e) {
-                    console.error(e);
-                    increment++;
-                }
-            }
-
-        } catch (e) { }
-
-        let file = "";
-
-        if (type == "cpp") {
-            //Split C++ string into header and definition
-
-            const [header, definition] = data.split("/--Split--/");
-
-            await fsp.writeFile(path.join(dir, name + ".h"), header, { encoding: "utf8", flags: "w+" });
-            await fsp.writeFile(path.join(dir, name + ".cpp"), `#include "./${name}.h" \n ${definition}`, { encoding: "utf8", flags: "w+" });
-
-            //Copy C++ files into same directory
-            const tokenizer = await fsp.readFile(path.join("/",
-                import.meta.url.replace(fn_regex, ""), "../cpp/tokenizer.h"), "utf8");
-            const parser = await fsp.readFile(path.join("/",
-                import.meta.url.replace(fn_regex, ""), "../cpp/parser.h"), "utf8");
-            const parser_cpp = await fsp.readFile(path.join("/",
-                import.meta.url.replace(fn_regex, ""), "../cpp/parser.cpp"), "utf8");
-            const parse_buffer = await fsp.readFile(path.join("/",
-                import.meta.url.replace(fn_regex, ""), "../cpp/parse_buffer.h"), "utf8");
-            const node_utils = await fsp.readFile(path.join("/",
-                import.meta.url.replace(fn_regex, ""), "../cpp/node_utils.h"), "utf8");
-            const error_codes = await fsp.readFile(path.join("/",
-                import.meta.url.replace(fn_regex, ""), "../cpp/parse_error_codes.h"), "utf8");
-            await fsp.writeFile(path.join(dir, "tokenizer.h"), tokenizer, { encoding: "utf8", flags: "w+" });
-            await fsp.writeFile(path.join(dir, "parse_buffer.h"), parse_buffer, { encoding: "utf8", flags: "w+" });
-            await fsp.writeFile(path.join(dir, "parser.cpp"), parser_cpp, { encoding: "utf8", flags: "w+" });
-            await fsp.writeFile(path.join(dir, "parser.h"), parser, { encoding: "utf8", flags: "w+" });
-            await fsp.writeFile(path.join(dir, "node_utils.h"), node_utils, { encoding: "utf8", flags: "w+" });
-            await fsp.writeFile(path.join(dir, "parse_error_codes.h"), error_codes, { encoding: "utf8", flags: "w+" });
-        } else {
-            file = await fsp.writeFile(path.join(dir, name + ext), data, { encoding: "utf8", flags: "w+" });
-        }
-
-        console.log(ADD_COLOR(`The file ${name} has been successfully written to ${dir}.`, COLOR_SUCCESS), "\n");
-    } catch (err) {
-        console.log(ADD_COLOR(`Filed to write ${name} to {${dir}}`, COLOR_ERROR), "\n");
-        console.error(err);
-    }
-}
 
 /* *************** HCG GRAMMAR DATA *********************/
 
@@ -287,26 +217,26 @@ async function start() {
     program
         .command("compile-hybrid <hydrocarbon_grammar_file>")
         .description("Compiles a hybrid JavaScript and WASM parser from a HydroCarbon grammar file, an optional HCGStates file, and an optional ENV.js file")
-        .option("--wasm_dir <wasm_dir>", "Folder path to place wasm and wat files. Defaults to `./wasm/`")
-        .option("--ts_dir <ts_dir>", "Folder path to place TypeScript files. Defaults to `./ts/`")
+        .option("--completer_dir <completer_dir>", "Folder path to place wasm and wat files. Defaults to `./wasm/`")
+        .option("--recognizer_dir <recognizer_dir>", "Folder path to place TypeScript files. Defaults to `./ts/`")
         .option("--loader_path <loader_path>", "Import path for the recognizer memory loader.")
         .option("-o, --optimize", "Optimize output file.")
         .option("-a, --annotations", "Add annotated comments to recognizer.ts.")
         .action(async (hc_grammar, cmd) => {
             const
                 grammar_path = path.resolve(hc_grammar),
-                wasm_output_dir = cmd.wasm_dir,
-                ts_output_dir = cmd.ts_dir,
+                wasm_output_dir = cmd.completer_dir,
+                ts_output_dir = cmd.recognizer_dir || cmd.completer_dir,
                 loader_path = cmd.loader_path,
                 optimize = !!cmd.optimize,
                 add_annotations = !!cmd.annotations,
                 compiler_options = {
-                    wasm_output_dir: wasm_output_dir || "./wasm",
-                    ts_output_dir: ts_output_dir || "./ts",
+                    type: "wasm",
+                    recognizer_output_dir: wasm_output_dir || "./recognizer",
+                    completer_output_dir: ts_output_dir || "./completer",
                     memory_loader_url: loader_path || "@candlefw/hydrocarbon",
                     optimize,
-                    combine_wasm_with_js: true,
-                    create_function: true,
+                    combine_recognizer_and_completer: true,
                     add_annotations,
                     number_of_workers: 10
                 },
@@ -317,10 +247,7 @@ async function start() {
 
                 grammar = await parseGrammar(grammar_string, grammar_url);
 
-            console.log(grammar.meta);
-
-            //console.log({ grammar_url, grammar: grammar.meta });
-            compileHybrid(grammar, env, compiler_options);
+            compile(grammar, env, compiler_options);
         });
 
     program.parse(process.argv);
