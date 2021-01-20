@@ -113,6 +113,11 @@ export interface ItemMapEntry {
      * Set of all symbols that follow an item that has reached its last position.
      */
     follow: Set<string>;
+
+    /**
+     * Set of all productions that can reach this item
+     */
+    breadcrumbs: Set<number>;
 }
 
 export type Grammar = Array<Production> & {
