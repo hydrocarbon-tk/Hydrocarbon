@@ -1,8 +1,16 @@
 export interface HybridCompilerOptions {
     /**
+     * Output language for the recognizer
+     */
+    recognizer_type: "wasm" | "js" | "JavaScript" | "javascript" | "JS" | "WebAssembly" | "WASM" | "webassembly" | "ts" | "typescript" | "TS" | "TypeScript";
+    /**
+     * Output language for the completer
+     */
+    completer_type: "js" | "JavaScript" | "javascript" | "JS" | "ts" | "typescript" | "TS" | "TypeScript";
+    /**
      * Type of recognizer to create
      */
-    type: "wasm" | "js" | "JavaScript" | "javascript" | "WebAssembly" | "WASM" | "webassemby";
+    type: "wasm" | "js" | "JavaScript" | "javascript" | "WebAssembly" | "WASM" | "webassembly";
     /**
      * Number of worker threads to use when generating parser
      * recognizer code.
