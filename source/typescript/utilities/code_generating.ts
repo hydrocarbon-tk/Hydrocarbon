@@ -140,6 +140,28 @@ export function addSkipCallNew(
     return SC.Expressions(SC.Empty());
 }
 
+
+export function createNonCaptureBooleanCheck(symbols: TokenSymbol[], grammar: Grammar, runner: Helper, ambient_symbols: TokenSymbol[]): VarSC {
+    const boolean = getIncludeBooleans(symbols.map(sym => Object.assign({}, sym, { IS_NON_CAPTURE: false })), grammar, runner, rec_glob_lex_name, ambient_symbols);
+    const token_function = SC.Function(
+        ":bool",
+        "l:Lexer&"
+    ).addStatement(
+
+        SC.If(boolean)
+            .addStatement(
+                SC.Assignment(SC.Member("l", "tl"), 0),
+                SC.UnaryPre(SC.Return, SC.True)
+            ),
+        SC.UnaryPre(SC.Return, SC.False)
+    );
+
+    const SF_name = SC.Constant(`non_capture_:bool`);
+
+    return <VarSC>runner.add_constant(SF_name, token_function);
+}
+
+
 export function buildIfs(
     syms: TokenSymbol[],
     lex_name: ConstSC | VarSC = SC.Variable("l:Lexer"),
@@ -244,26 +266,6 @@ export function buildIfs(
     return code_node;
 }
 
-
-export function createNonCaptureBooleanCheck(symbols: TokenSymbol[], grammar: Grammar, runner: Helper): VarSC {
-    const boolean = getIncludeBooleans(symbols.map(sym => Object.assign({}, sym, { IS_NON_CAPTURE: false })), grammar, runner);
-    const token_function = SC.Function(
-        ":bool",
-        "l:Lexer&"
-    ).addStatement(
-
-        SC.If(boolean)
-            .addStatement(
-                SC.Assignment(SC.Member("l", "tl"), 0),
-                SC.UnaryPre(SC.Return, SC.True)
-            ),
-        SC.UnaryPre(SC.Return, SC.False)
-    );
-
-    const SF_name = SC.Constant(`non_capture_:bool`);
-
-    return <VarSC>runner.add_constant(SF_name, token_function);
-}
 /**
  * Build a boolean code sequence that compares the current lexer state with
  * expected tokens that will resolve to true if at least one token can be matched to
