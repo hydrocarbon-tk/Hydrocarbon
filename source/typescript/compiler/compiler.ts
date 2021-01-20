@@ -51,7 +51,7 @@ export async function compile(grammar: Grammar, env: GrammarParserEnvironment, o
         runner: Helper = constructCompilerRunner(active_options.add_annotations, active_options.debug),
         mt_code_compiler = new WorkerRunner(grammar, env, runner, active_options.number_of_workers),
         action32bit_array_byte_size = action32bit_array_byte_size_default,
-        error8bit_array_byte_size = 10 * 4098 * 4; //  error8bit_array_byte_size_default;
+        error8bit_array_byte_size = 10 * 4098 * 4;
 
     active_options.combine_recognizer_and_completer = Boolean(active_options.no_file_output || active_options.combine_recognizer_and_completer);
 
@@ -70,29 +70,9 @@ export async function compile(grammar: Grammar, env: GrammarParserEnvironment, o
         recognizer_js_file = URL.resolveRelative("./recognizer.js", completer_dir),
         recognizer_cpp_file = URL.resolveRelative("./recognizer.h", completer_dir),
         recognizer_rust_file = URL.resolveRelative("./recognizer.rs", completer_dir),
-        recognizer_go_file = URL.resolveRelative("./recognizer.rs", completer_dir),
-        parser_file = URL.resolveRelative("./parser.js", completer_dir),
-        recognizer_script_ts = `
-        type BooleanTokenCheck = (l:Lexer)=>boolean;
-        type TokenCheck = (l:Lexer)=>boolean;
-        ${Object.assign(new AS, rc).renderCode()}
-        export {main};`,
-        recognizer_script_js = `
-        ((store_data, debug_stack)=>{
-            const data_view = new DataView(store_data);
-            function load(offset){
-                return data_view.getUint16(offset, true);
-            };
-            function store(offset, val){
-                data_view.setUint32(offset, val, true);
-            };
-            ${Object.assign(new JS, rc).renderCode()}
-            return main;
-        })
-        `,
-        recognizer_script_cpp = `
-        ${Object.assign(new CPP, rc).renderCode()}
-        `;
+        recognizer_go_file = URL.resolveRelative("./recognizer.go", completer_dir),
+        parser_file = URL.resolveRelative("./parser.js", completer_dir);
+
 
     if (!active_options.no_file_output) try {
         //Insure output directories exist
@@ -108,6 +88,11 @@ export async function compile(grammar: Grammar, env: GrammarParserEnvironment, o
         case "webassembly":
 
             const
+                recognizer_script_ts = `
+        type BooleanTokenCheck = (l:Lexer)=>boolean;
+        type TokenCheck = (l:Lexer)=>boolean;
+        ${Object.assign(new AS, rc).renderCode()}
+        export {main};`,
                 { binary, text, stdout, stderr } = asc.compileString(recognizer_script_ts, {
                     runtime: "full",
                     optimize: active_options.optimize,
@@ -117,7 +102,10 @@ export async function compile(grammar: Grammar, env: GrammarParserEnvironment, o
                     sharedMemory: false,
                     maximumMemory: 100,
                     importMemory: true,
-                    memoryBase: action32bit_array_byte_size + error8bit_array_byte_size + jump16bit_table_byte_size
+                    memoryBase:
+                        action32bit_array_byte_size
+                        + error8bit_array_byte_size
+                        + jump16bit_table_byte_size
                 }),
                 errors = stderr.toString(),
                 messages = stdout.toString();
@@ -157,17 +145,31 @@ export async function compile(grammar: Grammar, env: GrammarParserEnvironment, o
         case "js":
         case "javascript":
         default: {
-            const parser_script =
-                renderJSScript(
-                    grammar,
-                    active_options,
-                    recognizer_script_js,
-                    true,
-                    action32bit_array_byte_size,
-                    error8bit_array_byte_size
-                );
+
+            const recognizer_script_js = `
+    ((store_data, debug_stack)=>{
+        const data_view = new DataView(store_data);
+        function load(offset){
+            return data_view.getUint16(offset, true);
+        };
+        function store(offset, val){
+            data_view.setUint32(offset, val, true);
+        };
+        ${Object.assign(new JS, rc).renderCode()}
+        return main;
+    }) `;
+
 
             if (!active_options.no_file_output) {
+                const parser_script =
+                    renderJSScript(
+                        grammar,
+                        active_options,
+                        recognizer_script_js,
+                        false,
+                        action32bit_array_byte_size,
+                        error8bit_array_byte_size
+                    );
                 try {
 
                     const recognizer_file = URL.resolveRelative("./recognizer.js", recognizer_dir);
@@ -182,7 +184,16 @@ export async function compile(grammar: Grammar, env: GrammarParserEnvironment, o
                     throw e;
                 }
             }
-            if (active_options.no_file_output || active_options.create_function)
+            if (active_options.no_file_output || active_options.create_function) {
+                const parser_script =
+                    renderJSScript(
+                        grammar,
+                        active_options,
+                        recognizer_script_js,
+                        true,
+                        action32bit_array_byte_size,
+                        error8bit_array_byte_size
+                    );
                 return await (new AsyncFunction(
                     "buildParserMemoryBuffer",
                     "URL",
@@ -193,6 +204,7 @@ export async function compile(grammar: Grammar, env: GrammarParserEnvironment, o
                     URL,
                     Lexer
                 );
+            }
             return;
         }
     }
