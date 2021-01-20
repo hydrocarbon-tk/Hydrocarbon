@@ -2,7 +2,7 @@
 
 @IMPORT ../misc/default-productions.hcg as def
 
-@IGNORE θws θnl
+@IGNORE g:ws g:nl
 
 #######################################################################################################################
 ######################################  SYMBOLS
@@ -21,9 +21,9 @@
     │ escaped_symbol
     │ grouped_symbol grouped_delimiter                                 ↦cstr{ this.type = "symbol"; this.val = $sym1; this.pos = pos; env.symbols.push(this) }    
 
-<> grouped_delimiter →  θnl │ θws                                    
+<> grouped_delimiter →  g:nl │ g:ws                                    
 
-<> grouped_symbol →  ( θsym │ θid )(+\" )  sym_delimiter?   ↦cstr{ this.type = "symbol"; this.val = $sym1; this.pos = pos; env.symbols.push(this)}                                                    
+<> grouped_symbol →  ( g:sym │ g:id )(+\" )  sym_delimiter?   ↦cstr{ this.type = "symbol"; this.val = $sym1; this.pos = pos; env.symbols.push(this)}                                                    
 
 <> ignore_symbol → generated_symbol
     │ literal_symbol
@@ -54,27 +54,27 @@
     # or { term . term . term ...}. If the "terminal_symbol" is a single or double quotation (\" or \') then the production
     # values are automatically reduced to a string. 
     │ symbol ( \(+ │ \(* )  terminal_symbol?  \)                ↦cstr ^listProduction                                            
-    │ θsym                                                      ↦cstr{ this.type = "symbol"; this.val = $sym1; this.pos = pos; env.symbols.push(this)}
+    │ g:sym                                                      ↦cstr{ this.type = "symbol"; this.val = $sym1; this.pos = pos; env.symbols.push(this)}
 
 <> EOF_symbol → 
-    \$eof                                                       ↦cstr{ this.type = "eof"; this.val = "END_OF_FILE"; this.pos = pos; env.symbols.push(this) }
+    \$eof                                                           ↦cstr{ this.type = "eof"; this.val = "END_OF_FILE"; this.pos = pos; env.symbols.push(this) }
 
 <> empty_symbol → 
-    \ɛ                                                          ↦cstr{ this.type = "empty"; this.pos = pos; env.symbols.push(this) }
+    \ɛ                                                              ↦cstr{ this.type = "empty"; this.pos = pos; env.symbols.push(this) }
 
 <> assert_function_symbol → 
-     \assert:  (ERR θws θnl) identifier                         ↦cstr{ this.type = "assert_token_function"; this.val = $sym3; this.pos = pos; this.DOES_SHIFT = false }
-    | \shift:  (ERR θws θnl) identifier                         ↦cstr{ this.type = "assert_token_function"; this.val = $sym3; this.pos = pos; this.DOES_SHIFT = true }
+     \assert:  (ERR g:ws g:nl) identifier                          ↦cstr{ this.type = "assert_token_function"; this.val = $sym3; this.pos = pos; this.DOES_SHIFT = false }
+    | \shift:  (ERR g:ws g:nl) identifier                         ↦cstr{ this.type = "assert_token_function"; this.val = $sym3; this.pos = pos; this.DOES_SHIFT = true }
 
 <> generated_symbol → 
     ( \θ │ \g: ) (ERR θws θnl) identifier                     ↦cstr{ this.type = "generated"; this.val = $sym2; this.pos = pos; env.symbols.push(this) }
 
 <> literal_symbol → 
-    ( \τ │ \t: ) (ERR θws θnl)  ( identifier │ def::natural ) sym_delimiter? 
+    ( \τ │ \t: ) (ERR g:ws g:nl)  ( identifier │ def::natural ) sym_delimiter? 
                                                                 ↦cstr{ this.type = "literal"; this.val = ""+$sym2; this.pos = pos; env.symbols.push(this) }
 
 <> escaped_symbol → 
-    \\ ( θid | θsym )(+\" ) sym_delimiter                        ↦cstr{ this.type = "symbol"; this.val = $sym2; this.pos = pos; env.symbols.push(this) }
+    \\ ( g:id | g:sym )(+\" ) sym_delimiter                        ↦cstr{ this.type = "symbol"; this.val = $sym2; this.pos = pos; env.symbols.push(this) }
 
 <> production_token_symbol > \tk: identifier                    ↦cstr{ this.type = "production_token"; this.name = $sym2; this.val = -1; this.pos = pos; env.symbols.push(this) }
 

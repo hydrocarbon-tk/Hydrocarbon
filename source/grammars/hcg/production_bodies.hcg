@@ -69,7 +69,7 @@
         |  sym::symbol                                                ↦return{ env.body_offset = 0, [$sym1] }                                                               
 
 
-<> force_fork >     \( τFORK \)                                       ↦r{ true }
+<> force_fork >     \( t:FORK \)                                       ↦r{ true }
 
 <> condition_clause → 
           \( \EXC sym::condition_symbol_list \)                     ↦c{ this.IS_CONDITION = true; this.type = "exc"; this.sym = $sym3; this.offset = -1; }

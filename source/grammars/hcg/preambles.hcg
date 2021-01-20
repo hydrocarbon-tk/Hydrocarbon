@@ -9,7 +9,7 @@
 
 @IMPORT ./symbols.hcg as sym
 
-@IGNORE θws θnl
+@IGNORE g:ws g:nl
 
 # ----------- Used for testing ---------------
 
@@ -47,21 +47,21 @@
 
 
 # Production bodies can contain a mixture of non-terminal production names,
-# terminal symbols, meta statements such as "(ERR θws)", and inline production 
+# terminal symbols, meta statements such as "(ERR g:ws)", and inline production 
 # functions. 
 #
-# Symbols leading with the [ θ ] character are special wild card symbols that
+# Symbols with a the [ g: ] preceding it character are special wild card symbols that
 # certain types of character combinations. If a cfw.Whind Lexer is used as the
 # tokenizer, then these symbols match the names of the Lexer token types.
-# In the production below, the symbol θws matches the type 
-# Lexer.types.whitespace | Lexer.types.ws and the symbol θnl matches the types
+# In the production below, the symbol g:ws matches the type 
+# Lexer.types.whitespace | Lexer.types.ws and the symbol g:nl matches the types
 # Lexer.types.newline | Lexer.types.nl
 # 
 # Symbols leading with the [ τ ] character are Literal Terminal symbols that
 # are matched against tokens whose string value is the same as the text following 
 # the τ character.
 
-# <> symbols_preamble > @ t:SYMBOL sym::lexer_symbol(+)  θnl     ↦cstr{ 
+# <> symbols_preamble > @ t:SYMBOL sym::lexer_symbol(+)  g:nl     ↦cstr{ 
 #                                                                             this.type="symbols"; 
 #                                                                             this.symbols = $sym3;
 #                                                                          }
@@ -78,7 +78,7 @@
                                                                         
                                                                         
 
-<> precedence_preamble →     @ τPREC sym::terminal_symbol θnum θnl ↦cstr{     
+<> precedence_preamble >     \@ t:PREC sym::terminal_symbol g:num g:nl ↦cstr{     
                                                                             this.grammar_stamp = env.stamp; 
                                                                             this.type="precedence"; 
                                                                                this.terminal = $sym3; 
@@ -89,12 +89,12 @@
 # the symbols of the production can be addressed using the $sym operator, which resolves
 # to the index location of the terminal symbol or non-terminal production within the 
 # production body. In the following case, the $sym3 resolves to the third symbol in the proceeding
-# precedence_preamble body, sym::terminal_symbol ( keep in mind [(ERR θws)] is a meta object 
-# and is not an actual symbol of the production body). $sym4 resolves to the θnum symbol.
+# precedence_preamble body, sym::terminal_symbol ( keep in mind [(ERR g:ws)] is a meta object 
+# and is not an actual symbol of the production body). $sym4 resolves to the g:num symbol.
                                                                         
                                                                         
 
-<> ignore_preamble →         \@ τIGNORE sym::ignore_symbols θnl                
+<> ignore_preamble →         \@ t:IGNORE sym::ignore_symbols g:nl                
                                                                         
                                                                         ↦cstr{     
                                                                             this.grammar_stamp = env.stamp; 
@@ -103,7 +103,7 @@
                                                                         }
  
 
-<> error_preamble →        \@ τERROR sym::ignore_symbols θnl                
+<> error_preamble →        \@ t:ERROR sym::ignore_symbols g:nl                
                                                                         
                                                                         ↦cstr{     
                                                                             this.grammar_stamp = env.stamp; 
@@ -112,16 +112,16 @@
                                                                         }
 
 
-<> name_preamble →             \@ τNAME sym::identifier θnl                     
+<> name_preamble →             \@ t:NAME sym::identifier g:nl                     
                                                                         
                                                                         ↦cstr{ this.type="name"; this.id = $sym3 }
 
 
-<> ext_preamble →             \@ τEXT sym::identifier θnl                     
+<> ext_preamble →             \@ t:EXT sym::identifier g:nl                     
                                                                         
                                                                         ↦cstr{ this.type="ext"; this.id = $sym3 }
 
 
-<> import_preamble →         \@ τIMPORT θws(*) ( θid │ θsym  )(+\" ) θws(+) ( τAS │ τas ) sym::identifier θnl  ↦return ^importData 
+<> import_preamble →         \@ t:IMPORT g:ws(*) ( g:id │ g:sym  )(+\" ) g:ws(+) ( t:AS │ t:as ) sym::identifier g:nl  ↦return ^importData 
 
 

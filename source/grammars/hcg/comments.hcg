@@ -1,4 +1,4 @@
-@IGNORE θws θnl
+@IGNORE g:ws g:nl
 
 ########################################################################################################################
 ######################################  COMMENTS
@@ -10,9 +10,9 @@
 
 <>cm →  \# comment_data comment_delimiter                    ↦cstr{ this.val = $sym2 }
 
-<> comment_delimiter → θnl 
+<> comment_delimiter → g:nl 
 
 <> comment_data → comment_primitive                                 ↦return { $sym1 }
              │ comment_data comment_primitive                        ↦return { $sym1 + $sym2 }
 
-<> comment_primitive → θsym | θid | θnum | θws
+<> comment_primitive → g:sym | g:id | g:num | g:ws

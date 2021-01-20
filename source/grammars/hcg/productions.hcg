@@ -6,7 +6,7 @@
 
 @IMPORT ./comments.hcg as cm
 
-@IGNORE θws θnl
+@IGNORE g:ws g:nl
 
 ########################################################################################################################
 ######################################  PRODUCTIONS
@@ -16,7 +16,7 @@
 <> productions → production                                          
                                                             ↦return {  
                                                                 (!($sym1.IMPORT_OVERRIDE || $sym1.IMPORT_APPEND)) ? 
-                                                                env.productions.push($sym1) : 0 
+                                                                env.productions.push($sym1) : null
                                                             }
     │ fn::referenced_function                                    
                                                             ↦return {  
@@ -26,8 +26,7 @@
                                                             ↦return {  
                                                                 $sym2.id = env.productions.length, 
                                                                 (!($sym2.IMPORT_OVERRIDE || $sym2.IMPORT_APPEND)) ? 
-                                                                env.productions.push($sym2) : 0, 
-                                                                env.productions 
+                                                                env.productions.push($sym2) : env.productions 
                                                             }
     │ productions cm::comment                                      
                                                             ↦return {  
@@ -38,7 +37,7 @@
                                                                 env.refs.set($sym2.id, $sym2), 
                                                                 $sym1 
                                                             }
-    │ ɛ     
+
  
 <> production → 
     
@@ -77,6 +76,4 @@
                                                             }
 
     
-<> production_start_symbol → \→ | \>
-
-
+<> production_start_symbol > \→ | \>
