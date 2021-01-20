@@ -1,4 +1,4 @@
-declare global {
+export declare global {
     interface Array<T> {
         /**
         * Map groups of items based on a common identifier. Returns a new map object of these groups with
@@ -25,7 +25,8 @@ declare global {
         ) => T[];
 
         /**
-         * Group items into sub-arrays based on an identifier.
+         * Group items into sub-arrays based on an identifier defined by a function or
+         * by the string value of the object
          */
         group: <KeyType>(this: Array<T>,
             /**
