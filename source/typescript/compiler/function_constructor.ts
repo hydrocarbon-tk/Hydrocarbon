@@ -70,8 +70,6 @@ export function constructHybridFunction(production: Production, grammar: Grammar
 
             lr_productions = getClosure(items, grammar).filter(i => !i.atEND && i.sym(grammar).type == SymbolType.PRODUCTION),
 
-            lr_prods: number[] = [],
-
             optionsA = generateRDOptions(
                 grammar, runner,
                 production,

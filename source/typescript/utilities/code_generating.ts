@@ -323,7 +323,6 @@ export function getIncludeBooleans(
 
         const
             booleans = [],
-            table_count = 0,
             char_tuples: [TokenSymbol, TokenSymbol[]][] = [];
 
         let table = 0n, table_syms = [];
