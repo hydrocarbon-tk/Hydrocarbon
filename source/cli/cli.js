@@ -82,6 +82,7 @@ async function start() {
         .option("--recognizer_type <recognizer>", "Type of recognizer to create may either be 'wasm' or 'js'. Default to 'js'")
         .option("--workers <workers>", "Number of worker threads used to compiler parser. Defaults to 1")
         .option("--annotations", "Add annotated comments to recognizer. Only applicable when the recognizer is a `js` type.")
+        .option("--debug", "Add debugging code to parser. Only applicable when the recognizer is a `js` type.")
         .option("--loader_path <loader_path>", "[INTERNAL USE ONLY]")
         .action(async (hc_grammar, cmd) => {
 
@@ -95,7 +96,8 @@ async function start() {
                 output_dir = cmd.output_dir || "./",
                 recognizer = { js: "js", wasm: "wasm" }[cmd.recognizer_type] || "js",
                 completer = { js: "js", ts: "ts" }[cmd.completer] || "js",
-                add_annotations = !!cmd.annotations,
+                add_annotations = recognizer == "js" && !!cmd.annotations,
+                debug = recognizer == "js" && !!cmd.debug,
                 compiler_options = {
                     name,
                     recognizer_type: recognizer,
@@ -105,6 +107,7 @@ async function start() {
                     optimize: true,
                     combine_recognizer_and_completer: true,
                     add_annotations,
+                    debug,
                     number_of_workers: workers || 1
                 };
 
