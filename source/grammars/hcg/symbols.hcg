@@ -90,4 +90,4 @@
 
 <> js_identifier →  def::id
 
-<> sym_delimiter >  g:ws | g:nl | $eof 
+<> sym_delimiter >  g:ws | $eof  | g:nl 

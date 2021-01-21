@@ -41,12 +41,6 @@
                                                                            this.reduce = null; 
                                                                     }
 
-        │ $eof                                                  
-                                                                    ↦cstr{ 
-                                                                           this.reduce = null;  
-                                                                           this.body = [$sym1]; 
-                                                                    }
-
 
 <> body_entries → condition_clause                                     
                                                                        ↦return{ env.body_offset = 0, [$sym1] }
