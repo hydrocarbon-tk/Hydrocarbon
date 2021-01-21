@@ -1,7 +1,7 @@
-import { TRANSITION_TYPE } from "./recognizer_state.js";
-import { Symbol } from "./symbol.js";
-import { Item } from "../utilities/item.js";
-import { SC } from "../utilities/skribble.js";
+import { TRANSITION_TYPE } from "./recognizer_state";
+import { Symbol } from "./symbol";
+import { Item } from "../utilities/item";
+import { SC } from "../utilities/skribble";
 
 
 export type SelectionGroup = {

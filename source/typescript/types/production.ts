@@ -15,7 +15,7 @@ export interface Production {
      * - **"group"**: A production that's auto generated from symbols surrounded by parenthesize 
      */
     subtype?:
-     "list"
+    "list"
     | "group";
 
 
@@ -34,7 +34,7 @@ export interface Production {
     IMPORT_OVERRIDE?: boolean;
     RESOLVED?: boolean;
     IMPORTED?: boolean;
-    HAS_EMPTY?:boolean;
+    HAS_EMPTY?: boolean;
     CHECKED_FOR_EMPTY?: boolean;
     resolveFunction?: (arg0: Production) => void;
     recovery_handler?: {
@@ -42,6 +42,7 @@ export interface Production {
         lexer_text: string;
         body_text: string;
         reduce_id: number;
+        txt: string;
 
     };
     graph_id?: number;

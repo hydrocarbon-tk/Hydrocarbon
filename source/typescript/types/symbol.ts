@@ -3,7 +3,6 @@ import { SymbolType } from "./symbol_type";
 import { Production } from "./production";
 
 
-
 /**
  * Grammar Symbols
 */

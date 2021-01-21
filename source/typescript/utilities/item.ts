@@ -13,7 +13,6 @@ export class ItemGraphNode {
     subitems: ItemGraphNode[];
     supitems: ItemGraphNode[];
     item: Item;
-
     id?: number;
     name?: string;
 
@@ -28,8 +27,6 @@ export class Item extends Array {
         if (array instanceof Item) return new Item(array.body, array.len, array.offset, array.follow);
 
         const new_item = new Item(array[ItemIndex.body_id], array[ItemIndex.length], array[ItemIndex.offset], (<Item>array).follow);
-
-        new_item.IS_LR = array.IS_LR;
 
         return new_item;
     }

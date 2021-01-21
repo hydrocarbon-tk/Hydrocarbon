@@ -1,5 +1,4 @@
 import { Lexer } from "@candlefw/wind";
-import { SymbolType } from "../../../../build/types/types/grammar.js";
 import { Grammar } from "../../types/grammar.js";
 import { ErrorHandler, OutputStack, ParserData } from "./parser_data.js";
 import { ParserEnvironment } from "../../types/parser_environment.js";
@@ -11,6 +10,7 @@ import { Item } from "../../utilities/item.js";
 
 import { errorReport } from "./error_report.js";
 import { LexerError } from "./lexer_error.js";
+import { SymbolType } from "../../types/symbol_type.js";
 export interface ParserAction {
     name: StateActionEnum;
     state: number,

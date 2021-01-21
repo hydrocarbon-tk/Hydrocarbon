@@ -361,15 +361,15 @@ export class SC<T = Node> {
 
     addStatement(this: SC<T>, ...stmts: SC<Node>[]): SC<T> {
         for (const stmt of stmts.filter(_ => !!_)) {
-            if (acceptsStatements(this.type)) {
-                if (isSwitch(this.type)) {
+            if (acceptsStatements(<any>this.type)) {
+                if (isSwitch(<any>this.type)) {
                     if (isIf(stmt.type)) {
-                        this.statements.push(stmt);
+                        this.statements.push(<SC<If>>stmt);
                     } else
                         throw new Error("Only if statements with a value or const expression can be added to switch blocks");
                 } else {
                     if (isStatement(stmt.type))
-                        this.statements.push(stmt);
+                        this.statements.push(<SC<Statement>>stmt);
                     else if (isExpression(stmt.type))
                         this.statements.push(SC.Expressions(<SC<Expression>>stmt));
                 }
@@ -545,7 +545,7 @@ function getVar(node: SC<Member | Constant | Assignment | Variable>): SC<Constan
             return getVar(<any>node.expressions[0]);;
         case "constant":
         case "variable":
-            return node;
+            return <SC<Variable | Constant>>node;
     }
 
     return null;

@@ -8,7 +8,6 @@ import body from "./production_body_constructor.js";
 
 import { Grammar } from "../types/grammar.js";
 import { GrammarParserEnvironment } from "../types/grammar_compiler_environment.js";
-import { getUniqueSymbolName } from "../utilities/symbol.js";
 import { HCGParser } from "../types/parser";
 
 async function sleep(data: AwaitTracker): Promise<void> {
@@ -38,6 +37,7 @@ export function constructCompilerEnvironment(
         options: { integrate: true },
         SLEEP: sleep,
         bodies: new Map(),
+        //@ts-ignore
         grammarParser: ((...d) => grammarParser(...d, parser)),
         FILE_URL: grammar_file_url,
         PENDING_FILES: global_pending_files,
@@ -97,7 +97,7 @@ export async function grammarParser(
     const grammar: Grammar = result[0];
 
     if (typeof grammar == "object" && !FAILED) {
-
+        //@ts-ignore
         if (result.error) { throw result.error; }
 
         grammar.uri = grammar_file_url;
@@ -116,7 +116,9 @@ export async function grammarParser(
         //Pull out function references from env. TODO: move function refs to grammar.
         const ref_functions = env.refs;
 
+        //@ts-ignore
         grammar.functions = ref_functions;
+
         grammar.meta = grammar.meta || {};
         //grammar.meta.symbols = new Map(env.symbols.map(s => [getUniqueSymbolName(s), s]));
 

@@ -1,11 +1,10 @@
+import "./utilities/array_globals.js";
+
 import { createGrammar } from "./grammar/compile_grammar.js";
 
-
 //Hybrid
-import {
-    buildParserMemoryBuffer,
-    loadWASM
-} from "./runtime/parser_memory.js";
+import { buildParserMemoryBuffer, loadWASM } from "./runtime/parser_memory.js";
+import { compile } from "./compiler/compiler.js";
 
 //Runtime - Deprecate
 import { LexerError } from "./lr(deprecate)/runtime/lexer_error.js";
@@ -23,5 +22,6 @@ export {
     ParserEnvironment,
     createGrammar as compileGrammars,
     buildParserMemoryBuffer,
-    lrParse
+    lrParse,
+    compile
 };

@@ -5,7 +5,6 @@ import { Grammar, GrammarFunction } from "../types/grammar.js";
 import {
     AssertionFunctionSymbol,
     ProductionTokenSymbol,
-    SpecifiedSymbol,
     TokenSymbol
 } from "../types/symbol";
 import { SymbolType } from "../types/symbol_type";
@@ -23,20 +22,18 @@ import {
     isSymGeneratedId,
     isSymGeneratedNum,
     isSymGeneratedSym,
-    isSymIdentifier,
     isSymNonConsume,
     isSymNotIdentifier,
     isSymNotLengthOneDefined,
     isSymNotNonConsume,
     isSymSpecified,
-    isSymSpecifiedIdentifier
 } from "./symbol.js";
 
 
 export function sanitizeSymbolValForComment(sym: string | TokenSymbol): string {
     if (typeof sym == "string")
         return sym.replace(/\*/g, "asterisk");
-    return sym.val.replace(/\*/g, "asterisk");
+    return sym.val.toString().replace(/\*/g, "asterisk");
 }
 
 export function getAssertionFunctionName(name: string) {
@@ -49,36 +46,36 @@ export function createAssertionShift(grammar: Grammar, runner: Helper, sym: Toke
 export function translateSymbolValue(sym: TokenSymbol, grammar: Grammar, lex_name: ConstSC | VarSC = SC.Variable("l:Lexer")): ExprSC {
 
     const
-        char_len = sym.val.length,
+        char_len = sym.val.toString().length,
         annotation = SC.Comment(`[${sanitizeSymbolValForComment(sym)}]`);
 
     if (sym.type == SymbolType.END_OF_FILE || sym.val == "END_OF_FILE")
-        return SC.Call(SC.Member(lex_name, "END")); //`${lex_name}.END` + (ANNOTATED ? "/* EOF */" : "");
+        return SC.Call(SC.Member(lex_name, "END"));
 
     switch (sym.type) {
         case SymbolType.PRODUCTION_ASSERTION_FUNCTION:
             if (sym.DOES_SHIFT)
-                return SC.Call(SC.Value(getAssertionFunctionName(sym.val)), lex_name); // `${getAssertionFunctionName(sym.val)}(${lex_name})`;
+                return SC.Call(SC.Value(getAssertionFunctionName(sym.val)), lex_name);
 
             else
-                return SC.Call(SC.Value(getAssertionFunctionName(sym.val)), lex_name); // `${getAssertionFunctionName(sym.val)}(${lex_name})`;
+                return SC.Call(SC.Value(getAssertionFunctionName(sym.val)), lex_name);
 
         case SymbolType.GENERATED:
             switch (sym.val) {
-                case "ws": return SC.UnaryPost(SC.Call(SC.Member(lex_name, SC.Constant("isSP"))), annotation); //`${lex_name}.isSP()` + annotation;
-                case "num": return SC.UnaryPost(SC.Call(SC.Member(lex_name, SC.Constant("isNum"))), annotation); // `${lex_name}.isNUM()` + annotation;
-                case "id": return SC.UnaryPost(SC.Call(SC.Member(lex_name, SC.Constant("isID"))), annotation); // `${lex_name}.isID()` + annotation;
-                case "nl": return SC.UnaryPost(SC.Call(SC.Member(lex_name, SC.Constant("isNL"))), annotation); // `${lex_name}.isNL()` + annotation;
-                case "sym": return SC.UnaryPost(SC.Call(SC.Member(lex_name, SC.Constant("isSym"))), annotation); // `${lex_name}.isSYM()` + annotation;
+                case "ws": return SC.UnaryPost(SC.Call(SC.Member(lex_name, SC.Constant("isSP"))), annotation);
+                case "num": return SC.UnaryPost(SC.Call(SC.Member(lex_name, SC.Constant("isNum"))), annotation);
+                case "id": return SC.UnaryPost(SC.Call(SC.Member(lex_name, SC.Constant("isID"))), annotation);
+                case "nl": return SC.UnaryPost(SC.Call(SC.Member(lex_name, SC.Constant("isNL"))), annotation);
+                case "sym": return SC.UnaryPost(SC.Call(SC.Member(lex_name, SC.Constant("isSym"))), annotation);
                 default: return SC.False; // + annotation;
             }
         case SymbolType.LITERAL:
         case SymbolType.ESCAPED:
         case SymbolType.SYMBOL:
             if (char_len == 1) {
-                return SC.UnaryPost(SC.Value(sym.val.codePointAt(0) + ""), annotation); //sym.val.codePointAt(0) + (ANNOTATED ? `/*${sym.val + ":" + sym.val.codePointAt(0)}*/` : "");
+                return SC.UnaryPost(SC.Value(sym.val.codePointAt(0) + ""), annotation);
             } else {
-                return SC.UnaryPost(SC.Value(sym.id + ""), annotation); // + annotation;
+                return SC.UnaryPost(SC.Value(sym.id + ""), annotation);
             }
         case SymbolType.EMPTY:
             return SC.Empty();
@@ -476,13 +473,14 @@ export function generateCompiledAssertionFunction(sym: AssertionFunctionSymbol, 
     const fn = grammar.functions.get(fn_name);
     if (fn && !fn.assemblyscript_txt) {
         const { sc: txt, first } = convertAssertionFunctionBodyToSkribble(fn.txt, grammar, runner);
+        //@ts-ignore
         fn.assemblyscript_txt = txt;
         fn.first = first;
     }
     return fn;
 }
 export function getAssertionSymbolFirst(sym: AssertionFunctionSymbol, grammar: Grammar): TokenSymbol[] {
-    const fn = generateCompiledAssertionFunction(sym, grammar, <Helper>{ ANNOTATED: false, add_constant: (name) => { return name; } });
+    const fn = generateCompiledAssertionFunction(sym, grammar, <Helper><any>{ ANNOTATED: false, add_constant: (name) => { return name; } });
     if (fn)
         return fn.first;
     else
@@ -834,9 +832,9 @@ function processFunctionNodes(
 
                     default:
 
-                        if (node.value.includes("produce")) {
+                        if (node.value.toString().includes("produce")) {
                             const
-                                fn_name = node.value.split("_").slice(1).join("_"),
+                                fn_name = node.value.toString().split("_").slice(1).join("_"),
                                 txt = grammar.functions.get(fn_name).txt;
 
                             if (!grammar.meta.reduce_functions.has(txt))

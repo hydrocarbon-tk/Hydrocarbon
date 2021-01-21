@@ -10,7 +10,7 @@ import {
 import { EOF_SYM, Grammar, ItemMapEntry } from "../types/grammar.js";
 import { SymbolType } from "../types/symbol_type";
 import { Item, ItemIndex } from "./item.js";
-import { Symbol, TokenSymbol } from "../types/symbol";
+import { ProductionSymbol, Symbol, TokenSymbol } from "../types/symbol";
 import { Production } from "../types/production.js";
 
 function addFollowInformation(item: Item, grammar: Grammar, check_set: Set<string>[], follow_sym: TokenSymbol = EOF_SYM, breadcrumbs = [], item_map) {
@@ -58,7 +58,7 @@ function addFollowInformation(item: Item, grammar: Grammar, check_set: Set<strin
 
                 look_ahead = look_ahead.increment();
 
-            } while (false && doesProductionHaveEmpty(getProductionID(sym, grammar), grammar));
+            } while (false && doesProductionHaveEmpty(getProductionID(<ProductionSymbol>sym, grammar), grammar));
 
         } else follow = getTrueSymbolValue(sym, grammar);
 
@@ -161,7 +161,7 @@ export function buildItemMap(grammar: Grammar) {
 
     /////////////////////////////////////////////////////////////
     // Compile closure information
-    let CHANGE = true, pending: ItemMapEntry[] = items_sets.slice(); 
+    let CHANGE = true, pending: ItemMapEntry[] = items_sets.slice();
 
     while (CHANGE || pending.length > 0) {
 
@@ -231,7 +231,7 @@ export function buildItemMap(grammar: Grammar) {
     // Add recursion information
     for (const obj of items_sets) {
 
-        const { item } = obj,  item_id = item.id;
+        const { item } = obj, item_id = item.id;
 
         //Convert items to their string identifier to be more data friendly when transferring to workers. 
         obj.closure = (<Item[]><any>obj.closure).map(i => i.id);

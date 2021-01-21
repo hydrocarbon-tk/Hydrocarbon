@@ -1,4 +1,3 @@
-import "./array_globals.js";
 import { SC } from "./skribble.js";
 
 export const rec_glob_lex_name = SC.Variable("l:Lexer");

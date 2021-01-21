@@ -1,4 +1,4 @@
-import { ErrorHandler } from "../lr(deprecate)/runtime/parser_data.js";
+import { ErrorHandler } from "../lr(deprecate)/runtime/parser_data";
 
 /**
  * Defines custom function handlers and options for lrParser

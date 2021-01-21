@@ -1,7 +1,6 @@
-//@ts-ignore
 import { JSNodeClass, exp, ext, stmt, JSNodeType, renderCompressed } from "@candlefw/js";
 
-import { traverse, make_replaceable, bit_filter, extract } from "@candlefw/conflagrate";
+import { traverse } from "@candlefw/conflagrate";
 
 import { Lexer } from "@candlefw/wind";
 
@@ -22,11 +21,11 @@ export default class implements ProductionBody {
     reduce_function: ProductionBodyReduceFunction;
     grammar_stamp: number;
     form: number;
-    excludes: Map<number, Symbol[]>;
-    ignore: Map<number, Symbol[]>;
-    error: Map<number, Symbol[]>;
-    reset: Map<number, Symbol[]>;
-    reduce: Map<number, Symbol>;
+    excludes: ProductionBody["excludes"];
+    ignore: ProductionBody["ignore"];
+    error: ProductionBody["error"];
+    reset: ProductionBody["reset"];
+    reduce: ProductionBody["reduce"];
     BUILT: boolean;
     uid: string;
     precedence: number;
@@ -39,7 +38,6 @@ export default class implements ProductionBody {
 
         let bc = 0;
 
-        this.lex = lex;
         this.sym = s.body || [];
         this.sym_map = this.sym.map(e => (e.IS_CONDITION ? -1 : bc++));
         this.length = 0;

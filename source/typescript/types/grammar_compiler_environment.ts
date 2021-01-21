@@ -1,5 +1,5 @@
 import URL from "@candlefw/url";
-import { AwaitTracker } from "../grammar/grammar_parser.js";
+import { AwaitTracker } from "../grammar/grammar_parser";
 import { Grammar, ProductionBody } from "./grammar";
 import { ParserEnvironment } from "./parser_environment";
 import { Production } from "./production";

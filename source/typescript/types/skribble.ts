@@ -1,4 +1,3 @@
-
 export interface ScriptNode {
     type: string;
     expressions?: boolean;

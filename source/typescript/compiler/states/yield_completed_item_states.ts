@@ -60,24 +60,29 @@ export function* yieldCompletedItemStates(end_items: Item[], options: RenderBody
 
         } else {
 
-            let { tree_nodes } = getTransitionTree(grammar, end_items, production_shift_items, 10, 8, 100, 0, production_shift_items.filter(i => original_prods.includes(i.sym(grammar).val)).map(i => {
+            let { tree_nodes } = getTransitionTree(
+                grammar,
+                end_items,
+                production_shift_items,
+                10, 8, 100, 0,
+                production_shift_items.filter(i => original_prods.includes(+(i.sym(grammar).val))).map(i => {
 
-                let
-                    item = i.increment(),
-                    closure = getFollowClosure(getClosure([item], grammar), production_shift_items, grammar);
+                    let
+                        item = i.increment(),
+                        closure = getFollowClosure(getClosure([item], grammar), production_shift_items, grammar);
 
-                const
-                    index = original_prods.indexOf(i.getProductionAtSymbol(grammar).id),
-                    c = closure.slice();
+                    const
+                        index = original_prods.indexOf(i.getProductionAtSymbol(grammar).id),
+                        c = closure.slice();
 
-                roots.push(index);
+                    roots.push(index);
 
-                c.unshift(end_items[index]);
+                    c.unshift(end_items[index]);
 
-                closures.push(c);
+                    closures.push(c);
 
-                return { final: 0, sym: null, index, closure: closure };
-            }));
+                    return { final: 0, sym: null, index, closure: closure };
+                }));
             const gen = buildPeekSequence(tree_nodes, grammar, runner, rec_glob_lex_name, -1, true);
             let val = gen.next();
 

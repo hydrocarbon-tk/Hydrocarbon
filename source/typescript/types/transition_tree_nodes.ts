@@ -1,5 +1,5 @@
 import { Symbol, TokenSymbol } from "./symbol";
-import { Item } from "../utilities/item.js";
+import { Item } from "../utilities/item";
 
 
 export interface TransitionTreeNode {

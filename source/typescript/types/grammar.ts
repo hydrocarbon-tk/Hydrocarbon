@@ -1,5 +1,4 @@
-import { Lexer } from "@candlefw/wind";
-import { Item } from "../utilities/item.js";
+import { Item } from "../utilities/item";
 import { Production } from "./production";
 import { Symbol, TokenSymbol } from "./symbol";
 import { SymbolType } from "./symbol_type";
@@ -21,6 +20,8 @@ export interface ProductionBodyFunction {
      * If true the function is defined within the ParserEnvironment object.
      */
     env: boolean;
+
+    type?: string;
 }
 
 export interface ProductionBodyReduceFunction {
@@ -46,7 +47,6 @@ export interface ProductionBody {
     id?: number;
     name: string;
     sym: Array<Symbol>;
-    lex: Lexer;
     sym_map: Array<number>;
     length: number;
     functions: Array<ProductionBodyFunction>;

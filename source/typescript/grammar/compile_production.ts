@@ -1,10 +1,9 @@
 import { Lexer } from "@candlefw/wind";
 
-import { ProductionBodyFunction } from "../types/grammar.js";
+import { ProductionBody, ProductionBodyFunction } from "../types/grammar.js";
 import { Production } from "../types/production";
 import { Symbol } from "../types/symbol";
 import { GrammarParserEnvironment } from "../types/grammar_compiler_environment.js";
-import { ProductionBody } from "../../../build/types/types/grammar.js";
 
 export default function (production: Production, env: GrammarParserEnvironment, lex: Lexer) {
 
@@ -84,7 +83,6 @@ export default function (production: Production, env: GrammarParserEnvironment, 
     for (let i = 0; i < bodies.length; i++) {
 
         const body = bodies[i];
-        const lex = body.lex;
         var form = body.form;
 
         //First pass splits optionals, expands repeats, and handles lists
@@ -108,7 +106,7 @@ export default function (production: Production, env: GrammarParserEnvironment, 
 
                 const new_body: ProductionBody = new env.functions.body([{ body: new_sym, reduce: body.reduce_function }], env, lex, form ^ (1 << s));
 
-                new_body.lex = lex;
+                //new_body.lex = lex;
                 new_body.sym_map = sym_map;
 
                 //Check to see if we have already derived this body form. 
@@ -133,7 +131,7 @@ export default function (production: Production, env: GrammarParserEnvironment, 
 
             new_sym.offset = j;
 
-            switch (new_sym.type) {
+            switch (<string>new_sym.type) {
                 case "INLINE":
                     body.functions.push(<ProductionBodyFunction><unknown>new_sym);
                     extract = true;

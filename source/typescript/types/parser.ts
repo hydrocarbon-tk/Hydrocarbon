@@ -1,4 +1,4 @@
-import { GrammarParserEnvironment } from "./grammar_compiler_environment.js";
+import { GrammarParserEnvironment } from "./grammar_compiler_environment";
 
 export type HCGParser<T = any> = (input: string, env: GrammarParserEnvironment) => {
     FAILED: boolean;
