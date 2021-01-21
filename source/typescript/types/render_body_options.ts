@@ -35,6 +35,11 @@ export interface RenderBodyOptions {
     extended_production_shift_items: Item[];
 
     cache: Map<string, { code: SC, prods: number[]; hash: string; }>;
+
+    /**
+     * Used to track active production shift production ids
+     */
+    active_keys: number[];
 }
 export const enum ReturnType {
     ACCEPT = 0,

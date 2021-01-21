@@ -51,6 +51,9 @@ export function* yieldNontermStates(options: RenderBodyOptions): Generator<Recog
         for (const group of lr_items) {
 
             const
+                keys = group.map(i => i.getProductionAtSymbol(grammar).id);
+                options.active_keys = keys;
+            const
                 shifted_items = group.map(i => i.increment()),
                 sym = group[0].sym(grammar),
                 gen = yieldStates(shifted_items, options, rec_glob_lex_name, 1);
