@@ -92,7 +92,7 @@ assert_group(sequence, 20000, () => {
         const result = HCGparser(string, getEnv());
         assert("Parse Has Not Failed", result.FAILED != true);
         const root_productions = result.result[0].filter(p => !p.subtype);
-        assert("Number Of Root Productions Match File Declarations", root_productions.length == 23);
+        assert("Number Of Root Productions Match File Declarations", root_productions.length == 22);
         assert("First Production Name Is Correct", root_productions[0].name === "hcg_symbols");
     });
 
