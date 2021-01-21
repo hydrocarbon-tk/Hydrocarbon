@@ -139,7 +139,9 @@ export function addSkipCallNew(
 
 
 export function createNonCaptureBooleanCheck(symbols: TokenSymbol[], grammar: Grammar, runner: Helper, ambient_symbols: TokenSymbol[]): VarSC {
+
     const boolean = getIncludeBooleans(symbols.map(sym => Object.assign({}, sym, { IS_NON_CAPTURE: false })), grammar, runner, rec_glob_lex_name, ambient_symbols);
+
     const token_function = SC.Function(
         ":bool",
         "l:Lexer&"
@@ -368,9 +370,12 @@ export function getIncludeBooleans(
         }
 
         if (table > 0n) {
+
             if (table_syms.length < 3) {
+
                 for (const sym of table_syms)
                     booleans.push(lexerUTFBoolean(lex_name, sym.val.charCodeAt(0)));
+
             } else {
 
                 booleans.push(
