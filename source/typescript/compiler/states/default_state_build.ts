@@ -439,7 +439,17 @@ export function processProductionShiftStates(yielded_productions: number[])
 export function completerSingleItemLeaf(item: Item, state: RecognizerState, options: RenderBodyOptions): { root: SC; leaf: SC; prods: number[]; } {
     const { root, leaf, prods } = defaultSingleItemLeaf(item, state, options);
 
-    if (state.transition_type !== TRANSITION_TYPE.IGNORE)
+    if (state.transition_type !== TRANSITION_TYPE.IGNORE
+        &&
+        //
+        // If the key id is the same as the function production id
+        // and the reduce production id, do not allow the while loop to 
+        // continue as this would cause an infinite loop
+        //
+        state.transition_type !== TRANSITION_TYPE.ASSERT_END
+        ||
+        !(prods[0] == options.production.id && options.active_keys.includes(prods[0]))
+    )
         leaf.addStatement(SC.Assignment(accept_loop_flag, SC.True));
 
     return { root, leaf, prods };
