@@ -1,6 +1,6 @@
 {
   "name": "@candlefw/hydrocarbon",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "description": "Parser Compiler",
   "main": "./build/library/hydrocarbon.js",
   "types": "./build/types/hydrocarbon.d.ts",
@@ -13,7 +13,7 @@
     "prepublishOnly": "tsc -p ./tsconfig.json",
     "test": "cfw.test --threads 2 ./test/",
     "test.hcg_grammar_parser": "cfw.test ./test/grammar_parser/grammar_parse.spec.js",
-    "compile.grammar": "yarn test.hcg_grammar_parser && ./source/cli/cli.js compile --workers 5 --recognizer wasm --output_dir ./source/typescript/grammar/ --loader_path ALTERNATE ./source/grammars/hcg/hcg.hcg",
+    "compile.grammar": "yarn test.hcg_grammar_parser && ./source/cli/cli.js compile --workers 5 --recognizer_type wasm --output_dir ./source/typescript/grammar/ --loader_path ALTERNATE ./source/grammars/hcg/hcg.hcg",
     "compile.grammar.test": "./source/cli/cli.js compile --unattended -d --parser glalr -t mjs -o ./source/typescript/grammar ./source/grammars/hcg/hcg.hcg",
     "compile.test": "./source/cli/cli.js compile --parser glalr -d -m --unattended ./source/grammars/misc/test3.hcg",
     "compile.test.table": "./source/cli/cli.js compile --parser glalr -d -m --unattended ./source/grammars/misc/test.hcg",

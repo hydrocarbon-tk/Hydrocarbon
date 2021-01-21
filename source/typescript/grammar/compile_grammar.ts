@@ -5,10 +5,7 @@ import { SymbolType } from "../types/symbol_type";
 import { filloutGrammar } from "../utilities/grammar.js";
 import { Item } from "../utilities/item.js";
 import { grammarParser } from "./grammar_parser.js";
-
-import parserLoader from "./parser.js";
-
-const defaultParser = <HCGParser<Grammar>>await parserLoader();
+import defaultParser from "./parser.js";
 
 export async function createGrammar(grammar_string: string, grammar_string_path: string, parser: HCGParser<Grammar> = defaultParser): Promise<Grammar> {
 
