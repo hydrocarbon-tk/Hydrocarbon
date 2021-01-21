@@ -2,13 +2,13 @@ import { compileGrammarSource } from "../tools.js";
 
 assert_group(sequence, 10000, () => {
 
-    const grammar = `@IGNORE g:ws \n <> A > A g:id f:r{ $sym1 + " " + $sym2} \n | g:id`;
+    const grammar = `@IGNORE g:ws g:nl \n <> A > A g:id f:r{ $sym1 + " " + $sym2} \n | g:id`;
 
     const parser = await compileGrammarSource(grammar);
 
     assert("Construct test parser", parser != undefined);
 
-    const input = `   TEST TEST TEST TEST`;
+    const input = `   \nTEST TEST TEST TEST`;
 
     assert("Parse of input is successful", parser(input).FAILED == false);
 
