@@ -417,7 +417,10 @@ function lexerUTFBoolean(lex_name: VarSC | ConstSC, char_code: number, operator:
     return SC.Binary(
         SC.Member(lex_name, "utf"),
         operator,
-        SC.Value(char_code)
+        SC.UnaryPost(
+            SC.Value(char_code),
+            SC.Comment(`[${String.fromCharCode(char_code)}]`)
+        )
     );
 }
 
