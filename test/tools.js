@@ -36,9 +36,9 @@ export async function compileHCGParser(USE_CACHED = false, DEBUG = false) {
     const grammar = await compileGrammars(grammar_string, url + "");
 
     const parser = await compile(grammar, {}, {
-        type: "js",
-        recognizer_output_dir: URL.resolveRelative("./test/temp/"),
-        completer_output_dir: URL.resolveRelative("./test/temp/"),
+        recognizer_type: "js",
+        completer_type: "js",
+        output_dir: URL.resolveRelative("./test/temp/"),
         combine_recognizer_and_completer: true,
         create_function: true,
         no_file_output: !DEBUG,
