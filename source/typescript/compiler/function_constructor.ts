@@ -44,7 +44,8 @@ function generateRDOptions(
         extended_production_shift_items: [],
         called_productions: new Set(),
         leaf_productions: new Set(),
-        cache: new Map()
+        cache: new Map(),
+        active_keys: []
     };
 }
 
