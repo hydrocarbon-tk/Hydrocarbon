@@ -13,7 +13,7 @@
     "prepublishOnly": "tsc -p ./tsconfig.json",
     "test": "cfw.test --threads 2 ./test/",
     "test.hcg_grammar_parser": "cfw.test ./test/grammar_parser/grammar_parse.spec.js",
-    "compile.grammar": "yarn test.hcg_grammar_parser && ./source/cli/cli.js compile-hybrid --completer_dir ./source/typescript/grammar/ --loader_path ../runtime/parser_memory.js -a -o ./source/grammars/hcg/hcg.hcg",
+    "compile.grammar": "yarn test.hcg_grammar_parser && ./source/cli/cli.js compile --workers 5 --recognizer wasm --output_dir ./source/typescript/grammar/ --loader_path ALTERNATE ./source/grammars/hcg/hcg.hcg",
     "compile.grammar.test": "./source/cli/cli.js compile --unattended -d --parser glalr -t mjs -o ./source/typescript/grammar ./source/grammars/hcg/hcg.hcg",
     "compile.test": "./source/cli/cli.js compile --parser glalr -d -m --unattended ./source/grammars/misc/test3.hcg",
     "compile.test.table": "./source/cli/cli.js compile --parser glalr -d -m --unattended ./source/grammars/misc/test.hcg",
