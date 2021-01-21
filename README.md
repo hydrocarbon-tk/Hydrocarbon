@@ -4,7 +4,7 @@
 
 <h3 align=center>Recursive Descent Parser Compiler</h3>
 
-<p align=center> <sub><b>v0.6.0</b></sub> </p>
+<p align=center> <sub><b>v0.7.1</b></sub> </p>
 
 
 Reads custom **.hcg** grammar files and builds recursive descent parsers. Currently supports parser targets for Javascript, Typescript, and WebAssembly
