@@ -1,5 +1,4 @@
-import { Production } from "../types/grammar.js";
-import { Symbol } from "../types/Symbol";
+import { Production } from "../types/production";
 import { GrammarParserEnvironment, ImportedProductionList } from "../types/grammar_compiler_environment.js";
 
 export default class implements Production {

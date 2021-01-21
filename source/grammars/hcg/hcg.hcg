@@ -22,7 +22,7 @@
 # The @IGNORE preamble defines tokens that should be ignored when parsing terminals in a production. This can be overridden per 
 # production body with the ((IGN symbol)) clause or by explicitly declaring the ignored symbol within the grammar.
 
-@IGNORE θws θnl
+@IGNORE g:ws g:nl
 
 # The @IMPORT preamble allows productions to be defined in external files and incorporated into the host file,
 # accessible by the identifier defined after the as keyword. 

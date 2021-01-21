@@ -1,10 +1,31 @@
-import { Grammar, ProductionBody, SymbolType } from "../types/grammar.js";
-import { Symbol } from "../types/Symbol";
+import { Grammar, ProductionBody } from "../types/grammar.js";
+import { SymbolType } from "../types/symbol_type";
+import { Symbol } from "../types/symbol";
+import { isSymAProduction, isSymAProductionToken } from "../utilities/symbol.js";
+import { GrammarParserEnvironment } from "../types/grammar_compiler_environment.js";
 
-export default function convertProductionNamesToIndexes(grammar: Grammar, LU) {
+export default function convertProductionNamesToIndexes(grammar: Grammar, LU,
+    env: GrammarParserEnvironment) {
     let sym: Symbol,
         body: ProductionBody;
     try {
+
+        for (const sym of env.symbols) {
+
+            if (isSymAProduction(sym) || isSymAProductionToken(sym)) {
+                if (sym.production || (sym.IMPORTED && sym.RESOLVED)) {
+                    sym.val = sym.production.id;
+                } else try {
+                    sym.production = LU.get(sym.name);
+                    sym.val = LU.get(sym.name).id;
+                } catch (e) {
+                    throw new Error(`Missing Production for symbol [${sym.name}]`);
+                }
+                sym.resolveFunction = null; // For DataClone 
+            } else if (sym.type == SymbolType.LITERAL)
+                grammar.reserved.add(sym.val);
+        }
+
         for (let i = 0; i < grammar.length; i++) {
 
             const
@@ -12,6 +33,8 @@ export default function convertProductionNamesToIndexes(grammar: Grammar, LU) {
                 bodies = production.bodies;
 
             production.graph_id = -1;
+
+            //Update production body names
 
             for (let i = 0; i < bodies.length; i++) {
                 body = bodies[i];
@@ -25,7 +48,7 @@ export default function convertProductionNamesToIndexes(grammar: Grammar, LU) {
 
                     sym = body.sym[i];
 
-                    if (sym.type == SymbolType.PRODUCTION) {
+                    if (isSymAProduction(sym) || isSymAProductionToken(sym)) {
                         if (sym.production || (sym.IMPORTED && sym.RESOLVED)) {
                             sym.val = sym.production.id;
                         } else try {

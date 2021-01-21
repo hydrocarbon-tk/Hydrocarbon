@@ -1,28 +1,22 @@
 @IMPORT ./production_bodies.hcg as pb
 
-
 @IMPORT ./functions.hcg as fn
-
 
 @IMPORT ./symbols.hcg as sym
 
-
 @IMPORT ./comments.hcg as cm
 
-
-@IGNORE θws θnl
-
-@SYMBOL \<> \+>
+@IGNORE g:ws g:nl
 
 ########################################################################################################################
 ######################################  PRODUCTIONS
 ########################################################################################################################
-<> start > productions
+<> hcg_productions > productions
 
 <> productions → production                                          
                                                             ↦return {  
                                                                 (!($sym1.IMPORT_OVERRIDE || $sym1.IMPORT_APPEND)) ? 
-                                                                env.productions.push($sym1) : 0 
+                                                                env.productions.push($sym1) : null
                                                             }
     │ fn::referenced_function                                    
                                                             ↦return {  
@@ -32,8 +26,7 @@
                                                             ↦return {  
                                                                 $sym2.id = env.productions.length, 
                                                                 (!($sym2.IMPORT_OVERRIDE || $sym2.IMPORT_APPEND)) ? 
-                                                                env.productions.push($sym2) : 0, 
-                                                                env.productions 
+                                                                env.productions.push($sym2) : env.productions 
                                                             }
     │ productions cm::comment                                      
                                                             ↦return {  
@@ -44,11 +37,11 @@
                                                                 env.refs.set($sym2.id, $sym2), 
                                                                 $sym1 
                                                             }
-    │ ɛ     
+
  
 <> production → 
     
-    \<>  ( sym::production_id ↦r{ env.prod_name = $sym1, $sym1 } ) production_start_symbol  pb::production_bodies ( ( \│ │ \| ) fn::error_function )? 
+    \<>  ( sym::production_id ↦r{ env.prod_name = $sym1 } ) production_start_symbol  pb::production_bodies ( ( \│ │ \| ) fn::error_function )? 
                                                                         
                                                             ↦cstr{ 
                                                                 this.name = $sym2; 
@@ -60,7 +53,7 @@
 
     # REDEFINED IMPORT production. Allows an imported production to be redefined entirely. 
 
-    │ \<> ( sym::imported_production_symbol ↦r{ env.prod_name = $sym1.val, $sym1 } ) production_start_symbol pb::production_bodies
+    │ \<>  ( sym::imported_production_symbol ↦r{ env.prod_name = $sym1.val, $sym1 } ) production_start_symbol pb::production_bodies
 
                                                             ↦cstr{ 
                                                                 this.IMPORT_OVERRIDE = true;
@@ -81,5 +74,6 @@
                                                                 this.id = -1; 
                                                                 env.functions.compileProduction(this, env, pos);
                                                             }
+
     
-<> production_start_symbol → \→ | \>
+<> production_start_symbol > \→ | \>

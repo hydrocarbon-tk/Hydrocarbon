@@ -1,4 +1,3 @@
-
 @IMPORT ./symbols.hcg as sym
 
 
@@ -14,7 +13,7 @@
 ######################################  PRODUCTION BODIES
 ########################################################################################################################
 
-<> start → production_bodies
+<> hcg_production_bodies → production_bodies
 
 <> production_bodies > production_body                                  ↦return { env.body_count++, [$sym1]  }
             
@@ -30,7 +29,7 @@
 <> production_body → force_fork? entries                              ↦r { new env.fn.body([$sym2], env, pos, undefined, !!$$sym1 ) }
 
 
-<> entries → body_entries fn::reduce_function?
+<> entries → [ body_entries? fn::reduce_function? fn::error_function? ]
                                                                     ↦cstr{ 
                                                                         this.body = $sym1; 
                                                                         this.reduce = $sym2; 
@@ -40,12 +39,6 @@
                                                                     ↦cstr{ 
                                                                            this.body = []; 
                                                                            this.reduce = null; 
-                                                                    }
-
-        │ sym::EOF_symbol                                                  
-                                                                    ↦cstr{ 
-                                                                           this.reduce = null;  
-                                                                           this.body = [$sym1]; 
                                                                     }
 
 
@@ -70,12 +63,12 @@
         |  sym::symbol                                                ↦return{ env.body_offset = 0, [$sym1] }                                                               
 
 
-<> force_fork >     \( τFORK \)                                       ↦r{ true }
+<> force_fork >     \( t:FORK \)                                       ↦r{ true }
 
 <> condition_clause → 
-          \( τEXC sym::condition_symbol_list \)                     ↦c{ this.IS_CONDITION = true; this.type = "exc"; this.sym = $sym3; this.offset = -1; }
-       │ \( τERR sym::condition_symbol_list \)                     ↦c{ this.IS_CONDITION = true; this.type = "err"; this.sym = $sym3; this.offset = -1; }
-       │ \( τIGN sym::condition_symbol_list \)                     ↦c{ this.IS_CONDITION = true; this.type = "ign"; this.sym = $sym3; this.offset = -1; }
-       │ \( τRST sym::condition_symbol_list \)                     ↦c{ this.IS_CONDITION = true; this.type = "rst"; this.sym = $sym3; this.offset = -1; }
-       │ \( τRED sym::symbol \)                                    ↦c{ this.IS_CONDITION = true; this.type = "red"; this.sym = $sym3; this.offset = -1; }
+          \( \EXC sym::condition_symbol_list \)                     ↦c{ this.IS_CONDITION = true; this.type = "exc"; this.sym = $sym3; this.offset = -1; }
+       │ \( \ERR sym::condition_symbol_list \)                     ↦c{ this.IS_CONDITION = true; this.type = "err"; this.sym = $sym3; this.offset = -1; }
+       │ \( \IGN sym::condition_symbol_list \)                     ↦c{ this.IS_CONDITION = true; this.type = "ign"; this.sym = $sym3; this.offset = -1; }
+       │ \( \RST sym::condition_symbol_list \)                     ↦c{ this.IS_CONDITION = true; this.type = "rst"; this.sym = $sym3; this.offset = -1; }
+       │ \( \RED sym::symbol \)                                    ↦c{ this.IS_CONDITION = true; this.type = "red"; this.sym = $sym3; this.offset = -1; }
 

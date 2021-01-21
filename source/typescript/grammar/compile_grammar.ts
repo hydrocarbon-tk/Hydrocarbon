@@ -1,10 +1,15 @@
+import { Grammar } from "../types/grammar.js";
+import { HCGParser } from "../types/parser.js";
+import { Production } from "../types/production";
+import { SymbolType } from "../types/symbol_type";
+import { filloutGrammar } from "../utilities/grammar.js";
+import { Item } from "../utilities/item.js";
 import { grammarParser } from "./grammar_parser.js";
-import { filloutGrammar, Item } from "../util/common.js";
-import { Grammar, SymbolType, Production } from "../types/grammar.js";
+import defaultParser from "./parser.js";
 
-export async function createGrammar(grammar_string: string, grammar_string_path: string): Promise<Grammar> {
+export async function createGrammar(grammar_string: string, grammar_string_path: string, parser: HCGParser<Grammar> = defaultParser): Promise<Grammar> {
 
-    const grammar = await grammarParser(grammar_string, grammar_string_path);
+    const grammar = await grammarParser(grammar_string, grammar_string_path, undefined, undefined, undefined, parser);
 
     filloutGrammar(grammar, null);
 

@@ -4,14 +4,19 @@
 @IMPORT ./comments.hcg as cm
 
 
-@IGNORE θws θnl
+@IGNORE g:ws g:nl
 
 
 ########################################################################################################################
 ######################################  FUNCTIONS
 ########################################################################################################################
 
-<> referenced_function → js_function_start_symbol  sym::identifier  ^ (ERR θws ) sym::js_identifier          
+<> hcg_functions > referenced_function
+    | error_function
+    | reduce_function
+    | function_clause
+
+<> referenced_function → (js_function_start_symbol ↦return { $sym1+"GG" })  sym::identifier  ^ (ERR g:ws ) sym::js_identifier          
                                                                     ↦cstr{     
                                                                         this.id = $sym2;     
                                                                         this.name = $sym4;
@@ -20,7 +25,7 @@
                                                                         this.IS_CONDITION = true;
                                                                     }
 
-    │ js_function_start_symbol  sym::identifier  { js_data }          
+    │ (js_function_start_symbol ↦return { $sym1+"GG" })  sym::identifier  { js_data }          
                                                                     ↦cstr{         
                                                                         this.id = $sym2;     
                                                                         this.txt = $sym4; 
@@ -29,14 +34,14 @@
                                                                         this.IS_CONDITION = true;
                                                                     }
 
-<> error_function → τerh : { js_data } { js_data }                    ↦cstr{ 
+<> error_function → js_function_start_symbol t:erh { js_data } { js_data }                    ↦cstr{ 
                                                                         this.type = "ERROR_RECOVERY";     
                                                                         this.lexer_text = $sym4; 
                                                                         this.body_text = $sym7;
                                                                     }
 <> reduce_function → 
 
-    js_function_start_symbol ( τcstr │ τc │ τreturn │ τr ) { js_data }                                 
+    js_function_start_symbol ( t:cstr │ t:c │ t:return │ t:r ) { js_data }                                 
                                                                     ↦cstr{ 
                                                                         this.type = ($sym2[0] == "c" ) ?"CLASS" :"RETURNED";     
                                                                         this.txt = $sym4; 
@@ -46,7 +51,7 @@
                                                                         this.IS_CONDITION = true;
                                                                     }
 
-     │ js_function_start_symbol ( τcstr │ τc │ τreturn │ τr ) ^ (ERR θws θnl ) sym::js_identifier     
+     │ js_function_start_symbol ( t:cstr │ t:c │ t:return │ t:r ) ^ (ERR g:ws g:nl ) sym::js_identifier     
 
                                                                      ↦cstr{ 
                                                                         this.type = ($sym2[0] == "c" ) ?"CLASS" :"RETURNED";             
@@ -56,7 +61,7 @@
                                                                         this.ref = "";      
                                                                         this.IS_CONDITION = true;  
                                                                     }
-    │ js_function_start_symbol ( τcstr │ τc │ τreturn │ τr ) \=>  sym::js_identifier    
+    │ js_function_start_symbol ( t:cstr │ t:c │ t:return │ t:r ) \=>  sym::js_identifier    
                                                                     ↦cstr{ 
                                                                         this.type = ($sym2[0] == "c" ) ?"CLASS" :"RETURNED";             
                                                                         this.ref = $sym4;
@@ -85,7 +90,7 @@
 
 <> function_clause → 
     
-    js_function_start_symbol { js_data }                                 
+    (js_function_start_symbol ↦return { $sym1+"DD" }) { js_data }                                 
                                                                     ↦cstr{
                                                                         this.type = "INLINE";     
                                                                         this.txt = $sym3; 
@@ -94,7 +99,7 @@
                                                                         this.IS_CONDITION = true;
                                                                     }
 
-    │ js_function_start_symbol ^ (ERR θws θnl ) sym::js_identifier                             
+    │ (js_function_start_symbol ↦return { $sym1+"DD" }) ^ (ERR g:ws g:nl ) sym::js_identifier                             
                                                                     ↦cstr{
                                                                         this.type = "INLINE";     
                                                                         this.txt = ""; 
@@ -109,7 +114,7 @@
     │ js_data js_data_block                                            ↦return { $sym1 + $sym2 }
     │ ɛ
 
-<> js_primitive → θid │ θnum │ θws │ θsym │ θtok │ θkey 
+<> js_primitive → g:id │ g:num │ g:ws │ g:sym 
     | (
         sym::generated_symbol 
         | sym::literal_symbol
@@ -121,6 +126,6 @@
 
 <> js_data_block → \{ js_data \}                                    ↦return { $sym1 + $sym2 + $sym3 }
 
-<> js_function_start_symbol → \↦ 
-    │ τf \: 
+<> js_function_start_symbol → \↦                                    ↦return { "FN->" }
+    │ t:f \:                                                         ↦return { "FN:F" }
     

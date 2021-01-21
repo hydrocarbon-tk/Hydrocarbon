@@ -1,5 +1,6 @@
 import { Lexer } from "@candlefw/wind";
-import { Production, ProductionBodyReduceFunction } from "../types/grammar.js";
+import { ProductionBodyReduceFunction } from "../types/grammar.js";
+import { Production } from "../types/production";
 import { GrammarParserEnvironment } from "../types/grammar_compiler_environment.js";
 
 export default class implements Production {
@@ -8,7 +9,7 @@ export default class implements Production {
     type: "production";
     name: string;
     val: number;
-    subtype: string;
+    subtype?: Production["subtype"];
     IS_OPTIONAL: boolean;
 
     constructor(sym: Array<any>, env: GrammarParserEnvironment, lex: Lexer) {

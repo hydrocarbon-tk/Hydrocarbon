@@ -1,22 +1,10 @@
 import { Lexer } from "@candlefw/wind";
 
-import { Production, ProductionBodyFunction } from "../types/grammar.js";
-import { Symbol } from "../types/Symbol";
+import { ProductionBodyFunction } from "../types/grammar.js";
+import { Production } from "../types/production";
+import { Symbol } from "../types/symbol";
 import { GrammarParserEnvironment } from "../types/grammar_compiler_environment.js";
-
-const
-    EXCLUDE_MAP = 1,
-    IGNORE_MAP = 2,
-    ERROR_MAP = 3,
-    RESET_MAP = 4,
-    REDUCE_MAP = 5,
-    extractable_symbol_lookup = {
-        exc: EXCLUDE_MAP,
-        ign: IGNORE_MAP,
-        err: ERROR_MAP,
-        rst: RESET_MAP,
-        red: REDUCE_MAP
-    };
+import { ProductionBody } from "../../../build/types/types/grammar.js";
 
 export default function (production: Production, env: GrammarParserEnvironment, lex: Lexer) {
 
@@ -26,7 +14,7 @@ export default function (production: Production, env: GrammarParserEnvironment, 
 
     if (production.IMPORT_APPEND || production.IMPORT_OVERRIDE) {
 
-        const imported = <Production><unknown>production.name;
+        const imported = <Production><any>production.name;
 
         imported.resolveFunction = (p) => {
             if (production.IMPORT_APPEND)
@@ -45,11 +33,11 @@ export default function (production: Production, env: GrammarParserEnvironment, 
 
             production.name = p.name;
 
-            delete (<Symbol>production.name).resolveFunction;
+            delete (<Symbol><any>production.name).resolveFunction;
         };
 
         if (imported.RESOLVED)
-            imported.resolveFunction((<Symbol>production.name).production);
+            imported.resolveFunction((<Symbol><any>production.name).production);
 
         return;
     }
@@ -105,16 +93,20 @@ export default function (production: Production, env: GrammarParserEnvironment, 
 
             const sym = body.sym[j];
 
-
-            if (sym.IS_OPTIONAL && (!sym.NO_BLANK || body.sym.filter(s => s.NO_BLANK == sym.NO_BLANK).length > 1)) {
+            if (sym.IS_OPTIONAL && (!sym.NO_BLANK || body.sym.filter(s => s.NO_BLANK == sym.NO_BLANK && !s.IS_CONDITION).length > 1)) {
 
                 const new_sym = body.sym.slice();
                 const sym_map = body.sym_map.slice();
 
+                let u = j + 1;
+
+                for (; u < body.sym.length; u++)
+                    if (!body.sym[u].IS_CONDITION) break;
+
                 new_sym.splice(j, 1);
                 const s = sym_map.splice(j, 1)[0];
 
-                const new_body = new env.functions.body([{ body: new_sym, reduce: body.reduce_function }], env, lex, form ^ (1 << s));
+                const new_body: ProductionBody = new env.functions.body([{ body: new_sym, reduce: body.reduce_function }], env, lex, form ^ (1 << s));
 
                 new_body.lex = lex;
                 new_body.sym_map = sym_map;

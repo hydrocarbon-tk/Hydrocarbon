@@ -1,5 +1,4 @@
-import { Lexer } from "@candlefw/wind";
-import { ErrorHandler } from "./parser_data.js";
+import { ErrorHandler } from "../lr(deprecate)/runtime/parser_data.js";
 
 /**
  * Defines custom function handlers and options for lrParser
