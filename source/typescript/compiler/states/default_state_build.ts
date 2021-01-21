@@ -356,39 +356,55 @@ export function processProductionShiftStates(yielded_productions: number[])
 
                 let interrupt_statement = null;
 
+
                 if (active_items.length > 0) {
                     const
                         closure = getClosure(active_items.slice(), grammar);
                     anticipated_syms = getSymbolsFromClosure(closure, grammar);
 
+                    /**
+                     * Create look ahead for preemptive reduce on keys that match the production id
+                     */
                     if (keys.some(k => k == production.id)) {
-                        const follow_symbols = keys.flatMap(k => getFollow(k, grammar)).setFilter(sym => getUniqueSymbolName(sym));
 
+                        const follow_symbols = keys.flatMap(k => getFollow(k, grammar)).setFilter(sym => getUniqueSymbolName(sym));
 
                         /*
                             Early exit should only occur if there is an occluding generic ( such as g:sym, g:id )
-                            that could capture a symbol that would otherwise cause a reduce.  FOLLOW Symbols that
+                            that could capture a symbol that would otherwise cause a reduce. FOLLOW Symbols that
                             would otherwise be matched match by the generic type should be selected for the early
                             exit check. If there are no such generics in the excluded  items, then there is no
                             need to do this check.
                         */
-                        const
-                            lookahead_syms = [...follow_symbols.filter(s => isSymGeneratedWS(s) || isSymGeneratedNL(s))];
+                        const lookahead_syms = [...follow_symbols.filter(s => isSymGeneratedWS(s) || isSymGeneratedNL(s))];
 
                         if (anticipated_syms.some(isSymGeneratedSym))
                             lookahead_syms.push(...follow_symbols.filter(isSymSpecifiedSymbol));
 
-                        if (anticipated_syms.some(isSymGeneratedId))
+                        /**
+                         * Include specified character sequences if anticipated symbols contain an occluding generic symbol.
+                         * If the generics ws or nl are in the follow symbols, or are not in the skippable symbols, do not 
+                         * include specified symbols, since this would likely cause identifier sequences such as 
+                         * [ randomId__specifiedID  ] to be counterintuitively broken up into [ randomID__   specifiedID ]
+                         * ====================================================== */
+
+                        const
+                            CONTAINS_WS = follow_symbols.some(isSymGeneratedWS) || !skippable.some(isSymGeneratedWS),
+                            CONTAINS_NL = follow_symbols.some(isSymGeneratedNL) || !skippable.some(isSymGeneratedNL);
+
+                        if (!(CONTAINS_WS || CONTAINS_NL) && anticipated_syms.some(isSymGeneratedId))
                             lookahead_syms.push(...follow_symbols.filter(isSymSpecifiedIdentifier));
 
-                        if (anticipated_syms.some(isSymGeneratedNum))
+                        if (!(CONTAINS_WS || CONTAINS_NL) && anticipated_syms.some(isSymGeneratedNum))
                             lookahead_syms.push(...follow_symbols.filter(isSymSpecifiedNumeric));
+
+                        /* ====================================================== */
 
                         if (lookahead_syms.length > 0) {
 
                             const
                                 syms = getExcludeSymbolSet(lookahead_syms, anticipated_syms),
-                                booleans = getIncludeBooleans(syms, grammar, runner, rec_glob_lex_name);
+                                booleans = getIncludeBooleans(syms, grammar, runner, rec_glob_lex_name, anticipated_syms);
 
                             if (booleans)
                                 interrupt_statement = SC.If(booleans).addStatement(SC.Break);
