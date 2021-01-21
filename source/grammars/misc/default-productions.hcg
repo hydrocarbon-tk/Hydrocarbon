@@ -34,7 +34,7 @@
 <> string > \" ( string_value | g:ws )(+\' )  \"         ↦r { $sym2 }
     | \' ( string_value | g:ws )(+\" )  \'               ↦r { $sym2 }
 
-<> string_value >  ( \/ | \\ | \- | \_ | g:any | g:num | g:id | g:sym | \\ g:any  )(+\" )
+<> string_value >  ( g:num | g:id | g:sym | \\ ( g:num | g:id | g:sym )  )(+\" )
 
 <> js_identifier → js_id_symbols 
 
