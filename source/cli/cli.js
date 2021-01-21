@@ -93,7 +93,7 @@ async function start() {
                 workers = parseInt(cmd.workers),
                 grammar_path = path.resolve(hc_grammar),
                 output_dir = cmd.output_dir || "./",
-                recognizer = { js: "js", wasm: "wasm" }[cmd.recognizer] || "js",
+                recognizer = { js: "js", wasm: "wasm" }[cmd.recognizer_type] || "js",
                 completer = { js: "js", ts: "ts" }[cmd.completer] || "js",
                 add_annotations = !!cmd.annotations,
                 compiler_options = {

@@ -4,7 +4,7 @@ import Lexer from "@candlefw/wind";
 import asc, { CompilerOptions } from "assemblyscript/cli/asc";
 import fs from "fs";
 
-import { renderParserScript } from "../render/js_parser_template_for_js.js";
+import { renderParserScript } from "../render/parser_template.js";
 import { renderAssemblyScriptRecognizer } from "../render/recognizer_template.js";
 
 import { action32bit_array_byte_size_default, buildParserMemoryBuffer, jump16bit_table_byte_size, loadWASM } from "../runtime/parser_memory.js";
@@ -111,11 +111,18 @@ export async function compile(grammar: Grammar, env: GrammarParserEnvironment, o
         await spark.sleep(1);
     }
 
-    const recognizer_code = renderAssemblyScriptRecognizer(grammar, runner, mt_code_compiler.functions, action32bit_array_byte_size, error8bit_array_byte_size),
+    const
+        recognizer_code = renderAssemblyScriptRecognizer(
+            grammar,
+            runner,
+            mt_code_compiler.functions,
+            action32bit_array_byte_size,
+            error8bit_array_byte_size
+        ),
         output_dir = URL.resolveRelative(options.output_dir);
 
     if (!active_options.no_file_output) try {
-        //Insure output directories exist
+        //Ensure output directories exist
         await fsp.mkdir(output_dir + "", { recursive: true });
     } catch (e) {
         throw e;
@@ -137,6 +144,7 @@ export async function compile(grammar: Grammar, env: GrammarParserEnvironment, o
         case "typescript":
         case "ts":
 
+
             if (!active_options.no_file_output) {
                 const parser_script =
                     renderParserScript(
@@ -148,12 +156,14 @@ export async function compile(grammar: Grammar, env: GrammarParserEnvironment, o
                         action32bit_array_byte_size,
                         error8bit_array_byte_size
                     );
+
                 try {
                     await fsp.writeFile(URL.resolveRelative(`./${options.name || "parser"}.js`, output_dir) + "", parser_script);
                 } catch (e) {
                     throw e;
                 }
             }
+
 
             if (active_options.no_file_output || active_options.create_function) {
                 const parser_script =
