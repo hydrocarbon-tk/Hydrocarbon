@@ -15,10 +15,12 @@ import {
     rec_glob_lex_name,
     rec_state
 } from "../utilities/global_names.js";
-import { convertAssertionFunctionBodyToSkribble } from "../utilities/code_generating.js";
+import { addSkipCallNew, convertAssertionFunctionBodyToSkribble } from "../utilities/code_generating.js";
 import { createLexerCode } from "./lexer_template.js";
 import { createStateCode } from "./state_template.js";
 import { Helper } from "../compiler/helper.js";
+import { getProductionClosure } from "../utilities/production.js";
+import { getSkippableSymbolsFromItems, getUnskippableSymbolsFromClosure } from "../utilities/symbol.js";
 
 export const renderAssemblyScriptRecognizer = (
     grammar: Grammar,
@@ -29,6 +31,7 @@ export const renderAssemblyScriptRecognizer = (
 ): SC => {
     //Constant Values
     const assert_functions = new Map;
+
 
     //Identify required assert functions. 
     for (const sym of [...grammar.meta.all_symbols.values()]
@@ -44,7 +47,6 @@ export const renderAssemblyScriptRecognizer = (
     }
 
     const
-        { const: constants, fn: const_functions } = runner.render_constants(),
         code_node = new SC,
         action_array_offset = SC.Constant("action_array_offset:unsigned int"),
         error_array_offset = SC.Constant("error_array_offset:unsigned int"),
@@ -58,6 +60,65 @@ export const renderAssemblyScriptRecognizer = (
         action_ptr = SC.Variable("action_ptr:unsigned int"),
         error_ptr = SC.Variable("error_ptr:unsigned int"),
         str = SC.Variable("str:string");
+
+
+    /** 
+     * Construct main function before processing runner constants to
+     * allow a skip function to be added right before call to goal
+     * production function
+    
+    export default function main (input_string:string): boolean {
+
+        str = input_string;
+
+        const lex = new Lexer();
+
+        lex.next();
+
+        reset_counters_and_pointers();
+
+        $${grammar[0].name}(lex);
+
+        //consume any remaining skippable tokens
+
+        ${addSkipCall(grammar, runner, undefined, "lex")}
+
+        set_action(0);
+
+        set_error(0);
+
+        return FAILED || !lex.END;    
+    }
+    */
+    const closure = getProductionClosure(0, grammar);
+    const skippable = getSkippableSymbolsFromItems(closure, grammar);
+    const unskippable = getUnskippableSymbolsFromClosure(closure, grammar);
+    const skip = addSkipCallNew(skippable, grammar, runner, rec_glob_lex_name, unskippable);
+    const main = SC.Function(
+        "main: bool",
+        "input_string:string"
+    ).addStatement(
+        SC.Assignment(str, "input_string"),
+
+        SC.Declare(
+            SC.Assignment(SC.Constant("l:Lexer&"), SC.UnaryPre("new", SC.Call("Lexer:Lexer&"))),
+            SC.Assignment(SC.Constant("state:State&"), SC.UnaryPre("new", SC.Call("State:State&")))
+        ),
+
+        SC.Call(SC.Member("l", "next")),
+        SC.Call("reset_counters_and_pointers"),
+        skip,
+        SC.Call(getProductionFunctionName(grammar[0], grammar), "l", "state:State&"),
+
+        SC.Call("set_action", 0),
+        SC.Call("set_error", 0),
+        SC.UnaryPre(SC.Return, SC.Binary(
+            SC.Call(SC.Member("state", SC.Variable("getFAILED:bool"))),
+            "||",
+            SC.UnaryPre("!", SC.Call(SC.Member("l", "END")))))
+    );
+
+    const { const: constants, fn: const_functions } = runner.render_constants();
 
     code_node.addStatement(
         SC.Declare(
@@ -415,52 +476,7 @@ export const renderAssemblyScriptRecognizer = (
 
     //#######################################################################
 
-    /*            
-    export default function main (input_string:string): boolean {
+    code_node.addStatement(main);
 
-        str = input_string;
-
-        const lex = new Lexer();
-
-        lex.next();
-
-        reset_counters_and_pointers();
-
-        $${grammar[0].name}(lex);
-
-        //consume any remaining skippable tokens
-
-        ${addSkipCall(grammar, runner, undefined, "lex")}
-
-        set_action(0);
-
-        set_error(0);
-
-        return FAILED || !lex.END;    
-    }*/
-    code_node.addStatement(
-        SC.Function(
-            "main: bool",
-            "input_string:string"
-        ).addStatement(
-            SC.Assignment(str, "input_string"),
-
-            SC.Declare(
-                SC.Assignment(SC.Constant("l:Lexer&"), SC.UnaryPre("new", SC.Call("Lexer:Lexer&"))),
-                SC.Assignment(SC.Constant("state:State&"), SC.UnaryPre("new", SC.Call("State:State&")))
-            ),
-
-            SC.Call(SC.Member("l", "next")),
-            SC.Call("reset_counters_and_pointers"),
-
-            SC.Call(getProductionFunctionName(grammar[0], grammar), "l", "state:State&"),
-            //addSkipCallNew(getSkippableSymbolsFromItems(getProductionClosure(0, grammar), grammar), grammar, runner),
-            SC.Call("set_action", 0),
-            SC.Call("set_error", 0),
-            SC.UnaryPre(SC.Return, SC.Binary(
-                SC.Call(SC.Member("state", SC.Variable("getFAILED:bool"))),
-                "||",
-                SC.UnaryPre("!", SC.Call(SC.Member("l", "END")))))
-        ));
     return code_node;
 };
