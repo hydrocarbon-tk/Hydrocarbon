@@ -2,7 +2,7 @@
     <img src="./flavor/cfw-flame-w-lib.svg" type="text/svg" rel="svg" height=80>
 </h1>
 
-<h3 align=center>Parser Compiler</h3>
+<h3 align=center>Recursive Descent Parser Compiler</h3>
 
 <p align=center> <sub><b>v0.6.0</b></sub> </p>
 
