@@ -10,7 +10,7 @@
   "type": "module",
   "scripts": {
     "build": "tsc",
-    "prepublishOnly": "tsc -p ./tsconfig.json",
+    "prepublishOnly": "tsc -p ./tsconfig.json && yarn test",
     "test": "cfw.test --threads 2 ./test/",
     "test.hcg_grammar_parser": "cfw.test ./test/grammar_parser/grammar_parse.spec.js",
     "compile.grammar": "yarn test.hcg_grammar_parser && ./source/cli/cli.js compile --workers 5 --recognizer_type wasm --output_dir ./source/typescript/grammar/ --loader_path ALTERNATE ./source/grammars/hcg/hcg.hcg",
