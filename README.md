@@ -90,8 +90,8 @@ Compiles a parser from a Hydrocarbon grammar file
 | `--workers` |  `<number>`| Number of worker threads used to compiler parser. <br> Defaults to 1|
 | `--output_dir` |  `<file path>`| Output directory for parser.<br> Defaults to the CWD|
 | `--name` |  `<string>`| Name to give the parser file.<br> Defaults to 'parser'|
-| `--recognizer_type` |  `<js | wasm>`| Type of recognizer to create may either be `wasm` or `js`.<br> Defaults to `js`|
-| `--completer_type` |  `<ts | js>`| Type of recognizer to create may either be `ts` or `js`.<br> Defaults to `js`|
+| `--recognizer_type` |  `<js \| wasm>`| Type of recognizer to create may either be `wasm` or `js`.<br> Defaults to `js`|
+| `--completer_type` |  `<ts \| js>`| Type of recognizer to create may either be `ts` or `js`.<br> Defaults to `js`|
 | `--annotations` | none | Add annotated comments to recognizer.<br> Only applicable when the recognizer is a `js` type.|
 
 # Contribution
