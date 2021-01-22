@@ -20,6 +20,7 @@ export default function convertProductionNamesToIndexes(grammar: Grammar, LU,
                     sym.val = LU.get(sym.name).id;
                 } catch (e) {
                     throw new Error(`Missing Production for symbol [${sym.name}]`);
+                    throw new Error(`Missing production for token production symbol tk:${sym.name}`);
                 }
                 sym.resolveFunction = null; // For DataClone 
             } else if (sym.type == SymbolType.LITERAL)
