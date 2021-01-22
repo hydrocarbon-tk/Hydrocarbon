@@ -98,7 +98,7 @@ Compiles a parser from a Hydrocarbon grammar file
 
 If you have any problems using hydrocarbon, or would like to suggest a new feature, please open an [issue](https://github.com/CandleFW/hydrocarbon/issues).
 
-If you would like to contribute to the development of hydrocarbon, fork the repository, create and develope on a new branch, and create a pull request from your forked repo.
+If you would like to contribute to the development of hydrocarbon, fork the repository, create and develop on a new branch, and create a pull request from your forked repo.
 
 # License
 
