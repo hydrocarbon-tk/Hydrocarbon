@@ -16,10 +16,9 @@ import { isSymAProduction } from "../utilities/symbol.js";
 
 import { Helper } from "./helper.js";
 import { processRecognizerStates } from "./states/process_recognizer_states.js";
-import { completeFunctionProduction, defaultSelectionClause, processProductionShiftStates } from "./states/default_state_build.js";
+import { completeFunctionProduction, createDebugCall, defaultSelectionClause, processProductionShiftStates } from "./states/default_state_build.js";
 import { yieldProductionStates } from "./states/yield_production_states.js";
 import { yieldStates } from "./states/yield_states.js";
-
 
 export const accept_loop_flag = SC.Variable("ACCEPT:boolean");
 
@@ -95,16 +94,10 @@ export function constructHybridFunction(production: Production, grammar: Grammar
                 = processRecognizerStates(LROptions, genB, processProductionShiftStates(yielded_productions));
 
         code_node.addStatement(
-            runner.DEBUG
-                ? SC.Value(`debug_stack.push("${production.name} START", { prod:state.prod, tx:str.slice(l.off, l.off + l.tl), ty:l.ty, tl:l.tl, utf:l.getUTF(), FAILED:state.getFAILED(),offset:l.off})`)
-                : undefined,
+            createDebugCall(RDOptions),
             initial_pass,
             production_shift_pass,
-
-            runner.DEBUG
-                ? SC.Value(`debug_stack.push("${production.name} END", {prod:state.prod, tx:str.slice(l.off, l.off + l.tl), FAILED:state.getFAILED(), offset:l.off})`)
-                : undefined,
-            addClauseSuccessCheck(optionsA),
+            createDebugCall(RDOptions)
         );
 
         completeFunctionProduction(code_node, RDOptions, LROptions);
