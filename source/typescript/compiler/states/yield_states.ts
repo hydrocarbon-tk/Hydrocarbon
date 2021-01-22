@@ -58,7 +58,6 @@ export function* yieldStates(
 
             if (active_items.length == 1) {
 
-
                 const
                     closure = getClosure(active_items.slice(), grammar),
                     anticipated_syms = [...closure.filter(i => !i.atEND && !isSymAProduction(i.sym(grammar))).map(i => <TokenSymbol>i.sym(grammar))];
@@ -110,7 +109,6 @@ export function* yieldStates(
                 while (active_items.every(i => !i.atEND && i.sym(grammar).val == active_items[0].sym(grammar).val)) {
 
                     const sym = active_items[0].sym(grammar);
-
                     sequence.push(<RecognizerState>{
                         code: new SC,
                         hash: "not-defined-same-symbol-chain",
@@ -174,6 +172,7 @@ export function* yieldStates(
 
                     const group: RecognizerState[] = <RecognizerState[]>val.value;
 
+
                     group.forEach(g => g.offset = offset);
 
                     yield* processPeekStates(group, options, state_look_up, offset, lex_name);
@@ -183,9 +182,13 @@ export function* yieldStates(
                     val = gen.next();
                 }
 
-                yield* processPeekStates(val.value, options, state_look_up, offset, lex_name);
+                const last_group: RecognizerState[] = val.value;
 
-                main_groups.push(...val.value);
+                last_group.forEach(g => g.offset = offset);
+
+                yield* processPeekStates(last_group, options, state_look_up, offset, lex_name);
+
+                main_groups.push(...last_group);
             }
         }
 
@@ -254,7 +257,7 @@ function* processPeekStates(
             } else if (items.length > 1) {
 
                 if (SAME_SYMBOL) {
-                    
+
                     if (isSymAProduction(a.items[0].sym(grammar)))
                         a.transition_type = TRANSITION_TYPE.PEEK_PRODUCTION_SYMBOLS;
 
