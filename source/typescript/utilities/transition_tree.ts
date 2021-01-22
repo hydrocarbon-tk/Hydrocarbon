@@ -41,7 +41,7 @@ export function getTransitionTree(
 
     if (!closures) {
 
-        closures = root_items.map((i, index) => ({ final: 0, sym: null, index, closure: getClosure([i], grammar) }));
+        closures = root_items.map((i, index) => ({ final: 0, sym: null, index, closure: getClosure([i], grammar, true) }));
 
         const { AMBIGUOUS, clear, max_depth, tree_nodes } = getTransitionTree(grammar, root_items, lr_transition_items, max_tree_depth, max_no_progress, max_time_limit, 0, closures);
 
@@ -195,17 +195,20 @@ function getClosureGroups(
                 group.push(...new_group);
             }
         } else if (!isSymAProduction(sym)) {
-            const new_closure = []; //closure.slice().filter((item, i) => !item.atEND && isSymAProduction(sym));
+
+            const new_closure = [];
+
             new_closure.push(...incrementWithClosure(grammar, item, null, true));
+
             group.push({ sym, index: index, item_id: item.id, unskippable, closure: new_closure.setFilter(i => i.id), final: final, starts: starts ? starts : [item] });
         }
     }
     return group;
 }
 function incrementWithClosure(grammar: Grammar, item: Item, prod: Production, AUTO_INCREMENT: boolean = false): Item[] {
-    //if (grammar.item_map.get(item.id).LR || grammar.item_map.get(item.id).RR.length > 0)
-    //    return [];
+
     if (AUTO_INCREMENT || item.getProductionAtSymbol(grammar).id == prod.id)
-        return getClosure([item.increment()], grammar);
+        return getClosure([item.increment()], grammar, true);
+
     return [item];
 }
