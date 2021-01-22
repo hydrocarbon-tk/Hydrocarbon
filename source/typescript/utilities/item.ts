@@ -21,6 +21,14 @@ export class ItemGraphNode {
      */
     score?: number;
 }
+/**
+ * Represents a state within a production body, with an offset
+ * indicating the current considered symbol of the body. If offset
+ * is the same as the number symbols that make up the body, then 
+ * the Item is at the END state of the body. An item that is
+ * at the END state indicates a successful parse of the production 
+ * body. 
+ */
 export class Item extends Array {
 
     static fromArray(array: Array<any>): Item {
