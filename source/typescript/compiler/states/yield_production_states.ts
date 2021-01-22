@@ -8,16 +8,18 @@ import { isSymAProduction } from "../../utilities/symbol.js";
 import { rec_glob_lex_name } from "../../utilities/global_names.js";
 import { yieldStates } from "./yield_states.js";
 
-export function* yieldNontermStates(options: RenderBodyOptions): Generator<RecognizerState[], { code: SC, prods: number[]; hash: string; }> {
+export function* yieldProductionStates(options: RenderBodyOptions): Generator<RecognizerState[], { code: SC, prods: number[]; hash: string; }> {
 
     const { grammar, production_shift_items, production, extended_production_shift_items } = options;
     let nonterm_shift_items: Item[] = production_shift_items;
     const LEFT_RECURSION = nonterm_shift_items.some(i => i.getProduction(grammar).id == production.id && i.getProductionAtSymbol(grammar).id == production.id);
 
-    // If left recursive, gather ALL items that transition on the production to ensure the 
-    // processor is aware of shift/reduce ambiguities. Completed items that are added
-    // from the LR check should not be used for actual parsing, and instead their code paths 
-    // should be discarded. 
+    /** 
+     * If left recursive, gather ALL items that transition on the production to ensure the 
+     * processor is aware of shift/reduce ambiguities. Completed items that are added
+     * from the LR check should not be used for actual parsing, and instead their code paths 
+     * should be discarded.
+     */
 
     if (LEFT_RECURSION) {
         //gather all items that transition on the production
@@ -51,12 +53,13 @@ export function* yieldNontermStates(options: RenderBodyOptions): Generator<Recog
         for (const group of lr_items) {
 
             const
-                keys = group.map(i => i.getProductionAtSymbol(grammar).id);
-                options.active_keys = keys;
-            const
+                keys = group.map(i => i.getProductionAtSymbol(grammar).id),
                 shifted_items = group.map(i => i.increment()),
-                sym = group[0].sym(grammar),
-                gen = yieldStates(shifted_items, options, rec_glob_lex_name, 1);
+                sym = group[0].sym(grammar);
+
+            options.active_keys = keys;
+
+            const gen = yieldStates(shifted_items, options, rec_glob_lex_name, 1);
 
             let val = gen.next(), prods = [];
 

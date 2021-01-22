@@ -17,7 +17,7 @@ import { isSymAProduction } from "../utilities/symbol.js";
 import { Helper } from "./helper.js";
 import { processRecognizerStates } from "./states/process_recognizer_states.js";
 import { completeFunctionProduction, defaultSelectionClause, processProductionShiftStates } from "./states/default_state_build.js";
-import { yieldNontermStates } from "./states/yield_nonterm_states.js";
+import { yieldProductionStates } from "./states/yield_production_states.js";
 import { yieldStates } from "./states/yield_states.js";
 
 
@@ -89,7 +89,7 @@ export function constructHybridFunction(production: Production, grammar: Grammar
                 lr_productions
             ),
 
-            genB = yieldNontermStates(LROptions),
+            genB = yieldProductionStates(LROptions),
 
             { code: production_shift_pass }
                 = processRecognizerStates(LROptions, genB, processProductionShiftStates(yielded_productions));
