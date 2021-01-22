@@ -10,7 +10,7 @@ export const rec_consume_assert_call = SC.Variable("assert_consume:bool");
 
 export const rec_state = SC.Variable("state:State");
 
-export const rec_state_prod = SC.Member(rec_state, "prod:unsigned int");
+export const rec_state_prod = SC.Variable("prod:unsigned int");
 
 export const TokenSpaceIdentifier = 1,
     TokenNumberIdentifier = 2,

@@ -23,7 +23,7 @@ export function processProductionChain(
     active_items = getAccompanyingItems(grammar, active_productions, items);
 
     if (active_items.length == 0) {
-        code_node.addStatement(SC.Assignment(rec_state_prod, prod[0]));
+
         return prod;
     }
 
@@ -35,8 +35,6 @@ export function processProductionChain(
             active_items = getAccompanyingItems(grammar, itemsToProductions(active_items, grammar), production_shift_items);
         }
     }
-
-    code_node.addStatement(SC.Assignment(rec_state_prod, prod[0]));
 
     if (active_items.length > 0) {
         while (active_items.length > 0) {

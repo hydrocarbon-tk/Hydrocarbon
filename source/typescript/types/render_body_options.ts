@@ -3,6 +3,7 @@ import { Production } from "./production";
 import { Helper } from "../compiler/helper.js";
 import { SC } from "../utilities/skribble.js";
 import { Item } from "../utilities/item.js";
+import { TRANSITION_TYPE } from "./recognizer_state.js";
 
 export interface RenderBodyOptions {
     /**
@@ -40,6 +41,17 @@ export interface RenderBodyOptions {
      * Used to track active production shift production ids
      */
     active_keys: number[];
+
+    /**
+     * Information from all single item leaf states.
+     */
+    leaves: { root: SC, leaf: SC, completed_production: number, transition_type: TRANSITION_TYPE; prods: number[]; }[];
+    
+    /**
+     * Set to true if there are no production transitions (LR sequence)
+     */
+    NO_PRODUCTION_SHIFTS: boolean;
+
 }
 export const enum ReturnType {
     ACCEPT = 0,

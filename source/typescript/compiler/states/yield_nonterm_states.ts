@@ -87,7 +87,8 @@ export function* yieldNontermStates(options: RenderBodyOptions): Generator<Recog
         yield groups;
 
         return { code: groups[0].code, prods: [], hash: groups[0].hash };
+    } else {
+        options.NO_PRODUCTION_SHIFTS = true;
+        return { code: new SC, prods: [], hash: "" };
     }
-
-    else return { code: new SC, prods: [], hash: "" };
 }

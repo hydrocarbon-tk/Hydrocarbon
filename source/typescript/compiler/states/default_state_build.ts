@@ -44,7 +44,7 @@ function ttt(type: TRANSITION_TYPE): string {
 export function defaultSingleItemLeaf(item: Item, state: RecognizerState, options: RenderBodyOptions): SingleItemReturnObject {
 
     const
-        { grammar, runner, leaf_productions, production, extended_production_shift_items } = options,
+        { grammar, runner, leaf_productions, production, extended_production_shift_items, leaves } = options,
         code = state.code || new SC,
         SHOULD_IGNORE = extended_production_shift_items.some(i => i.body == item.body);
 
@@ -58,6 +58,8 @@ export function defaultSingleItemLeaf(item: Item, state: RecognizerState, option
 
     if (state.transition_type == TRANSITION_TYPE.CONSUME && !item.atEND)
         item = item.increment();
+
+
 
     if (item) {
         if (item.len > 0 && item.offset == 0 && (item.getProduction(grammar).id != production.id || state.offset > 0)) {
@@ -83,12 +85,20 @@ export function defaultSingleItemLeaf(item: Item, state: RecognizerState, option
             leaf_productions.add(prod);
     }
 
+    leaves.push({
+        completed_production: item.getProduction(grammar).id,
+        leaf: sc,
+        root: code,
+        transition_type: state.transition_type,
+        prods
+    });
+
     return { root: code, leaf: sc, prods };
 }
 
 export function defaultMultiItemLeaf(state: RecognizerState, states: RecognizerState[], options: RenderBodyOptions): MultiItemReturnObject {
     const
-        { production } = options,
+        { production, leaves } = options,
         root = (new SC).addStatement(
             SC.Declare(
                 SC.Assignment("mk:int", SC.Call("mark")),
@@ -165,6 +175,7 @@ export function defaultSelectionClause(
     options: RenderBodyOptions,
     FORCE_ASSERTIONS: boolean = false
 ): SC {
+
     const
         { grammar, runner } = options,
         groups = [...gen],
@@ -295,6 +306,7 @@ export function processProductionShiftStates(yielded_productions: number[])
                 prods: number[];
                 items: Item[];
             };
+
             const
                 { extended_production_shift_items } = options,
                 pending_productions = [...yielded_productions.setFilter()],
@@ -339,8 +351,10 @@ export function processProductionShiftStates(yielded_productions: number[])
                 }
             }
 
-            if (active_groups.length == 0)
+            if (active_groups.length == 0) {
+                options.NO_PRODUCTION_SHIFTS = true;
                 return (new SC).addStatement(SC.Comment("value"));
+            }
 
             for (const clauses of active_groups.sort((([{ key: keyA }], [{ key: keyB }]) => keyA - keyB))) {
                 let anticipated_syms;
@@ -431,7 +445,7 @@ export function processProductionShiftStates(yielded_productions: number[])
                 }
             }
 
-            const out_stmt = SC.While(
+            return SC.While(
                 active_groups.length > 1
                     ? SC.Value("true")
                     : SC.Binary(rec_state_prod, "==", active_groups[0][0].key)
@@ -441,8 +455,6 @@ export function processProductionShiftStates(yielded_productions: number[])
                     switch_stmt,
                     SC.If(SC.UnaryPre(SC.Value("!"), accept_loop_flag)).addStatement(SC.Break)
                 );
-
-            return out_stmt;
         }
 
         state.offset--;
@@ -450,23 +462,76 @@ export function processProductionShiftStates(yielded_productions: number[])
         return defaultSelectionClause(gen, state, items, level, options, state.offset <= 1);
     };
 }
+/**
+ * Adds code to end states
+ * 
+ * If a production shift section is present, then leaf states in RD 
+ * section are appended  with a prod assignment. Additionally, a
+ * local prod variable is declared at the head of the production 
+ * function, and a call to assertSuccess is appended to the tail. 
+ * 
+ * If the production shift section is absent then leaf states simply 
+ * return `true`. A `return false` statement is appended to the end
+ * of the production function;
+ * 
+ * *leaf state* - Any sequence of transitions yields a
+ * single item
+ * 
+ * @param production_function_root - The root skribble node for the production function
+ * @param RDOptions - Options from the RD yielder
+ * @param LROptions - Options from the LR yielder
+ */
+export function completeFunctionProduction(production_function_root: SC,
+    RDOptions: RenderBodyOptions,
+    LROptions: RenderBodyOptions) {
+    const
+        { leaves: rd_leaves, production } = RDOptions,
+        { leaves: lr_leaves, NO_PRODUCTION_SHIFTS, active_keys } = LROptions;
+
+    for (const { leaf, prods } of rd_leaves) {
+        leaf.addStatement(SC.Comment("RD LEAF " + NO_PRODUCTION_SHIFTS));
+        if (NO_PRODUCTION_SHIFTS) {
+            leaf.addStatement(SC.UnaryPre(SC.Return, SC.True));
+        } else
+            leaf.addStatement(SC.Assignment(rec_state_prod, prods[0]));
+    }
+
+    if (!NO_PRODUCTION_SHIFTS)
+        for (const { leaf, prods, transition_type } of lr_leaves) {
+
+            if (transition_type !== TRANSITION_TYPE.IGNORE
+                &&
+                //
+                // If the key id is the same as the function production id
+                // and the reduce production id, do not allow the while loop to 
+                // continue as this would cause an infinite loop
+                //
+                transition_type !== TRANSITION_TYPE.ASSERT_END
+                ||
+                !(prods[0] == production.id && active_keys.includes(prods[0]))
+            ) {
+                leaf.addStatement(SC.Assignment(rec_state_prod, prods[0]));
+                leaf.addStatement(SC.Assignment(accept_loop_flag, SC.True));
+                leaf.addStatement(SC.Comment("LR LEAF " + prods));
+            } else {
+                leaf.addStatement(SC.UnaryPre(SC.Return, SC.True));
+            }
+        }
 
 
-export function completerSingleItemLeaf(item: Item, state: RecognizerState, options: RenderBodyOptions): { root: SC; leaf: SC; prods: number[]; } {
-    const { root, leaf, prods } = defaultSingleItemLeaf(item, state, options);
 
-    if (state.transition_type !== TRANSITION_TYPE.IGNORE
-        &&
-        //
-        // If the key id is the same as the function production id
-        // and the reduce production id, do not allow the while loop to 
-        // continue as this would cause an infinite loop
-        //
-        state.transition_type !== TRANSITION_TYPE.ASSERT_END
-        ||
-        !(prods[0] == options.production.id && options.active_keys.includes(prods[0]))
-    )
-        leaf.addStatement(SC.Assignment(accept_loop_flag, SC.True));
+    if (NO_PRODUCTION_SHIFTS) {
+        production_function_root.addStatement(SC.UnaryPre(SC.Return, SC.Value("0")));
+    } else {
+        production_function_root.shiftStatement(SC.Declare(SC.Assignment(SC.Variable("prod:int"), "-1")));
+        production_function_root.addStatement(addClauseSuccessCheck(RDOptions));
+    }
+}
 
-    return { root, leaf, prods };
-};
+function addClauseSuccessCheck(options: RenderBodyOptions): SC {
+    const { production } = options;
+    const condition = SC.Binary(rec_state_prod, "==", SC.Value(production.id));
+    return SC.UnaryPre(SC.Return, SC.Call("assertSuccess", rec_glob_lex_name, rec_state, condition));
+}
+
+

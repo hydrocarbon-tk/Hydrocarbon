@@ -358,6 +358,28 @@ export class SC<T = Node> {
     mergeStatement(this: SC<T>, source: SC<Node>) {
         this.statements.push(...source.statements);
     };
+    /**
+     * Add statements to the beginning of the statement list
+     */
+    shiftStatement(this: SC<T>, ...stmts: SC<Node>[]): SC<T> {
+        for (const stmt of stmts.filter(_ => !!_).reverse()) {
+            if (acceptsStatements(<any>this.type)) {
+                if (isSwitch(<any>this.type)) {
+                    if (isIf(stmt.type)) {
+                        this.statements.unshift(<SC<If>>stmt);
+                    } else
+                        throw new Error("Only if statements with a value or const expression can be added to switch blocks");
+                } else {
+                    if (isStatement(stmt.type))
+                        this.statements.unshift(<SC<Statement>>stmt);
+                    else if (isExpression(stmt.type))
+                        this.statements.unshift(SC.Expressions(<SC<Expression>>stmt));
+                }
+            } else
+                throw new Error("Unable to add statement to non block-like");
+        }
+        return this;
+    }
 
     addStatement(this: SC<T>, ...stmts: SC<Node>[]): SC<T> {
         for (const stmt of stmts.filter(_ => !!_)) {

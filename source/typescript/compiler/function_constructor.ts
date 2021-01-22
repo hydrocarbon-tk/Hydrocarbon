@@ -7,8 +7,7 @@ import { SymbolType } from "../types/symbol_type";
 import { getClosure } from "../utilities/closure.js";
 import {
     rec_glob_lex_name,
-    rec_state,
-    rec_state_prod
+    rec_state
 } from "../utilities/global_names.js";
 import { Item } from "../utilities/item.js";
 import { getProductionFunctionName } from "../utilities/render_item.js";
@@ -17,14 +16,14 @@ import { isSymAProduction } from "../utilities/symbol.js";
 
 import { Helper } from "./helper.js";
 import { processRecognizerStates } from "./states/process_recognizer_states.js";
-import { completerSingleItemLeaf, defaultMultiItemLeaf, defaultSelectionClause, processProductionShiftStates } from "./states/default_state_build.js";
+import { completeFunctionProduction, defaultSelectionClause, processProductionShiftStates } from "./states/default_state_build.js";
 import { yieldNontermStates } from "./states/yield_nonterm_states.js";
 import { yieldStates } from "./states/yield_states.js";
 
 
 export const accept_loop_flag = SC.Variable("ACCEPT:boolean");
 
-function generateRDOptions(
+function generateOptions(
     grammar: Grammar,
     runner: Helper,
     /**
@@ -45,25 +44,19 @@ function generateRDOptions(
         called_productions: new Set(),
         leaf_productions: new Set(),
         cache: new Map(),
-        active_keys: []
+        active_keys: [],
+        leaves: [],
+        NO_PRODUCTION_SHIFTS: false
     };
 }
-
-function addClauseSuccessCheck(options: RenderBodyOptions): SC {
-    const { production } = options;
-    const condition = SC.Binary(rec_state_prod, "==", SC.Value(production.id));
-    return SC.UnaryPre(SC.Return, SC.Call("assertSuccess", rec_glob_lex_name, rec_state, condition));
-}
-
 export function constructHybridFunction(production: Production, grammar: Grammar, runner: Helper): RDProductionFunction {
 
     const
         start = performance.now(),
         p = production,
-        code_node = SC.Function(SC.Constant(getProductionFunctionName(production, grammar) + ":bool"), rec_glob_lex_name, rec_state);
+        code_node = SC.Function(SC.Constant(getProductionFunctionName(production, grammar) + ":unsigned int"), rec_glob_lex_name, rec_state);
 
     let items: Item[] = p.bodies.map(b => new Item(b.id, b.length, 0, EOF_SYM));
-
 
     try {
 
@@ -71,7 +64,7 @@ export function constructHybridFunction(production: Production, grammar: Grammar
 
             lr_productions = getClosure(items, grammar).filter(i => !i.atEND && i.sym(grammar).type == SymbolType.PRODUCTION),
 
-            optionsA = generateRDOptions(
+            RDOptions = generateOptions(
                 grammar, runner,
                 production,
                 lr_productions
@@ -84,22 +77,22 @@ export function constructHybridFunction(production: Production, grammar: Grammar
                     if (sym && isSymAProduction(sym) && sym.val == production.id)
                         return false;
                     return true;
-                }), optionsA, rec_glob_lex_name
+                }), RDOptions, rec_glob_lex_name
             ),
 
             { code: initial_pass, prods: yielded_productions }
-                = processRecognizerStates(optionsA, genA, defaultSelectionClause),
+                = processRecognizerStates(RDOptions, genA, defaultSelectionClause),
 
-            optionsB = generateRDOptions(
+            LROptions = generateOptions(
                 grammar, runner,
                 production,
                 lr_productions
             ),
 
-            genB = yieldNontermStates(optionsB),
+            genB = yieldNontermStates(LROptions),
 
             { code: production_shift_pass }
-                = processRecognizerStates(optionsB, genB, processProductionShiftStates(yielded_productions), defaultMultiItemLeaf, completerSingleItemLeaf);
+                = processRecognizerStates(LROptions, genB, processProductionShiftStates(yielded_productions));
 
         code_node.addStatement(
             runner.DEBUG
@@ -113,8 +106,10 @@ export function constructHybridFunction(production: Production, grammar: Grammar
                 : undefined,
             addClauseSuccessCheck(optionsA),
         );
-        const end = performance.now();
 
+        completeFunctionProduction(code_node, RDOptions, LROptions);
+
+        const end = performance.now();
 
         const annotation = SC.Expressions(SC.Comment(
             `
@@ -123,7 +118,7 @@ export function constructHybridFunction(production: Production, grammar: Grammar
     bodies:\n\t${items.map(i => i.renderUnformattedWithProduction(grammar) + " - " + grammar.item_map.get(i.id).reset_sym.join(",")).join("\n\t\t")}
     compile time: ${((((end - start) * 1000) | 0) / 1000)}ms`));
         return {
-            productions: new Set([...optionsA.called_productions.values(), ...optionsB.called_productions.values(), ...runner.referenced_production_ids.values()]),
+            productions: new Set([...RDOptions.called_productions.values(), ...LROptions.called_productions.values(), ...runner.referenced_production_ids.values()]),
             id: p.id,
             fn: (new SC).addStatement(
                 (runner.ANNOTATED) ? annotation : undefined,
