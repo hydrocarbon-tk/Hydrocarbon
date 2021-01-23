@@ -1,11 +1,10 @@
 import { Grammar } from "../types/grammar";
-import { Production } from "../types/production";
 import { RenderBodyOptions } from "../types/render_body_options";
 import { ProductionSymbol } from "../types/symbol";
-import { addSkipCallNew, createAssertionShift } from "./code_generating.js";
+import { addSkipCallNew, createAssertionShift, renderProductionCall } from "./code_generating.js";
 import { rec_glob_lex_name, rec_state } from "./global_names.js";
 import { Item } from "./item.js";
-import { ExprSC, SC, VarSC } from "./skribble.js";
+import { SC, VarSC } from "./skribble.js";
 import {
     createDefaultReduceFunction,
     createNoCheckShift,
@@ -15,23 +14,6 @@ import {
     isSymAProduction
 } from "./symbol.js";
 
-export function getProductionFunctionName(production: Production, grammar: Grammar): string {
-    return "$" + production.name;
-}
-
-export function renderProductionCall(
-    production: Production,
-    options: RenderBodyOptions,
-    lexer_name: VarSC = rec_glob_lex_name
-): ExprSC {
-
-    const { called_productions, grammar } = options;
-
-    called_productions.add(<number>production.id);
-
-
-    return SC.Call(SC.Constant(getProductionFunctionName(production, grammar) + ":unsigned int"), lexer_name, rec_state);
-}
 export function renderItemReduction(
     code_node: SC,
     item: Item,

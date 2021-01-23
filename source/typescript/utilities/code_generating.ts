@@ -9,7 +9,6 @@ import {
 import { SymbolType } from "../types/symbol_type";
 import { rec_glob_lex_name } from "./global_names.js";
 import { getProductionID } from "./production.js";
-import { getProductionFunctionName } from "./render_item.js";
 import { ConstSC, ExprSC, SC, StmtSC, VarSC } from "./skribble.js";
 import {
     doSymbolsOcclude,
@@ -27,6 +26,65 @@ import {
     isSymSpecified,
 } from "./symbol.js";
 
+
+export function getProductionFunctionName(production: Production, grammar: Grammar): string {
+    return "$" + production.name;
+}
+
+export function createAssertionShiftManual(lex_name: ConstSC | VarSC = SC.Variable("l:Lexer"), boolean: ExprSC): ExprSC {
+    return SC.Call(rec_consume_assert_call, lex_name, rec_state, boolean);
+}
+export function createAssertionShift(grammar: Grammar, runner: Helper, sym: TokenSymbol, lex_name: ConstSC | VarSC = SC.Variable("l:Lexer")): ExprSC {
+    return createAssertionShiftManual(lex_name, getIncludeBooleans([sym], grammar, runner, lex_name));
+}
+
+export function renderProductionCall(
+    production: Production,
+    options: RenderBodyOptions,
+    lexer_name: VarSC = rec_glob_lex_name
+): ExprSC {
+
+    const { called_productions, grammar } = options;
+
+    called_productions.add(<number>production.id);
+
+
+    return SC.Binary(rec_state, "=", SC.Call(SC.Constant(getProductionFunctionName(production, grammar) + ":unsigned int"), lexer_name, rec_state));
+}
+
+export function createProductionTokenFunction(tok: ProductionTokenSymbol, grammar: Grammar, runner: Helper): VarSC {
+
+    const production = grammar[getProductionID(tok, grammar)];
+
+    runner.referenced_production_ids.add(production.id);
+
+    const
+
+        anticipated_syms = getTokenSymbolsFromItems(getProductionClosure(production.id, grammar, true), grammar),
+
+        boolean = getIncludeBooleans(anticipated_syms, grammar, runner),
+
+        prod_name = production.name,
+
+        token_function = SC.Function(
+            ":bool",
+            "l:Lexer&"
+        ).addStatement(
+            SC.If(boolean).addStatement(
+                SC.Declare(SC.Assignment("c:Lexer", SC.Call(SC.Member("l", "copy")))),
+                SC.If(SC.Call(getProductionFunctionName(production, grammar), "c:Lexer", SC.Call("createState", 0)))
+                    .addStatement(SC.Assignment(SC.Member("l", "tl"),
+                        SC.Binary(SC.Member("c", "off"), "-", SC.Member("l", "off"))),
+                        SC.UnaryPre(SC.Return, SC.True)),
+                SC.Empty()
+            ),
+            SC.UnaryPre(SC.Return, SC.False)
+        ),
+
+        SF_name = generateGUIDConstName(token_function, `${prod_name}_tok`, "bool");
+
+    return <VarSC>runner.add_constant(SF_name, token_function);
+}
 
 export function sanitizeSymbolValForComment(sym: string | TokenSymbol): string {
     if (typeof sym == "string")

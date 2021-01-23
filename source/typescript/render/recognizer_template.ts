@@ -1,6 +1,5 @@
 import { Grammar } from "../types/grammar.js";
 import { SymbolType } from "../types/symbol_type";
-import { getProductionFunctionName } from "../utilities/render_item.js";
 import { action32bit_array_byte_size_default, error8bit_array_byte_size_default, jump16bit_table_byte_size } from "../runtime/parser_memory.js";
 import { RDProductionFunction } from "../types/rd_production_function";
 import { SC } from "../utilities/skribble.js";
@@ -15,7 +14,7 @@ import {
     rec_glob_lex_name,
     rec_state
 } from "../utilities/global_names.js";
-import { addSkipCallNew, convertAssertionFunctionBodyToSkribble } from "../utilities/code_generating.js";
+import { addSkipCallNew, convertAssertionFunctionBodyToSkribble, getProductionFunctionName } from "../utilities/code_generating.js";
 import { createLexerCode } from "./lexer_template.js";
 import { createStateCode } from "./state_template.js";
 import { Helper } from "../compiler/helper.js";

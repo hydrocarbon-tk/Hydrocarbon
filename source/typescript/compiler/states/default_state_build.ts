@@ -3,14 +3,14 @@ import { RenderBodyOptions } from "../../types/render_body_options";
 import { MultiItemReturnObject, SelectionClauseGenerator, SingleItemReturnObject } from "../../types/state_generating";
 import { TokenSymbol } from "../../types/symbol.js";
 import { getClosure } from "../../utilities/closure.js";
-import { addSkipCallNew, getIncludeBooleans } from "../../utilities/code_generating.js";
+import { addSkipCallNew, createAssertionShiftManual, getIncludeBooleans, renderProductionCall } from "../../utilities/code_generating.js";
 import { getFollow } from "../../utilities/follow.js";
 import { rec_glob_lex_name, rec_state, rec_state_prod } from "../../utilities/global_names.js";
 import { Item, itemsToProductions } from "../../utilities/item.js";
-import { renderItem, renderProductionCall } from "../../utilities/render_item.js";
+import { renderItem } from "../../utilities/render_item.js";
 import { ExprSC, SC } from "../../utilities/skribble.js";
 import {
-    createAssertionShiftManual, getExcludeSymbolSet, getSkippableSymbolsFromItems,
+    getExcludeSymbolSet, getSkippableSymbolsFromItems,
     getSymbolName,
     getSymbolsFromClosure,
     getUniqueSymbolName,

@@ -10,7 +10,6 @@ import {
     rec_state
 } from "../utilities/global_names.js";
 import { Item } from "../utilities/item.js";
-import { getProductionFunctionName } from "../utilities/render_item.js";
 import { SC } from "../utilities/skribble.js";
 import { isSymAProduction } from "../utilities/symbol.js";
 
@@ -19,6 +18,7 @@ import { processRecognizerStates } from "./states/process_recognizer_states.js";
 import { completeFunctionProduction, createDebugCall, defaultSelectionClause, processProductionShiftStates } from "./states/default_state_build.js";
 import { yieldProductionStates } from "./states/yield_production_states.js";
 import { yieldStates } from "./states/yield_states.js";
+import { getProductionFunctionName } from "../utilities/code_generating.js";
 
 export const accept_loop_flag = SC.Variable("ACCEPT:boolean");
 
