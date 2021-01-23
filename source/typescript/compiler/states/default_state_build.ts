@@ -533,22 +533,15 @@ export function completeFunctionProduction(
             //@ts-ignore
             goto_leaf.SET = true;
 
-            if (transition_type !== TRANSITION_TYPE.IGNORE
-                &&
-                //
-                // If the key id is the same as the function production id
-                // and the reduce production id, do not allow the while loop to 
-                // continue as this would cause an infinite loop
-                //
-                transition_type !== TRANSITION_TYPE.ASSERT_END
-                ||
-                !(prods[0] == production.id && active_keys.includes(prods[0]))
+            if (
+                transition_type == TRANSITION_TYPE.ASSERT_END
+                && prods[0] == production.id
             ) {
-                leaf.addStatement(SC.Assignment(rec_state_prod, prods[0]));
-                leaf.addStatement(SC.Value("continue"));
-            } else {
                 leaf.addStatement(createDebugCall(GOTO_Options, "Inter return"));
                 leaf.addStatement(SC.UnaryPre(SC.Return, rec_state));
+            } else if (transition_type !== TRANSITION_TYPE.IGNORE) {
+                leaf.addStatement(SC.Assignment(rec_state_prod, prods[0]));
+                leaf.addStatement(SC.Value("continue"));
             }
         }
 

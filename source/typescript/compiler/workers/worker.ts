@@ -1,3 +1,5 @@
+import "../../utilities/array_globals.js";
+
 import { parentPort, workerData } from "worker_threads";
 import { Grammar } from "../../types/grammar";
 import { HybridDispatch, HybridDispatchResponse } from "../../types/worker_messaging.js";

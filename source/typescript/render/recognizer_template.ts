@@ -14,7 +14,7 @@ import {
     rec_glob_lex_name,
     rec_state
 } from "../utilities/global_names.js";
-import { addSkipCallNew, convertAssertionFunctionBodyToSkribble, getProductionFunctionName } from "../utilities/code_generating.js";
+import { addSkipCallNew, getProductionFunctionName } from "../utilities/code_generating.js";
 import { createLexerCode } from "./lexer_template.js";
 import { createStateCode } from "./state_template.js";
 import { Helper } from "../compiler/helper.js";
@@ -204,16 +204,16 @@ export const renderAssemblyScriptRecognizer = (
         ));
 
     /*            
-    function reset(mark:u32, ): unsigned int{
+    function reset(mark:u32, state): unsigned int{
         if(!FAILED) return false;
         FAILED = false;
         action_ptr = mark;
-        return true
+        return state
     }
     */
     code_node.addStatement(
         SC.Function(
-            "reset:boolean",
+            "reset:unsigned",
             "mark:unsigned int",
             "origin:Lexer",
             "advanced:Lexer",
