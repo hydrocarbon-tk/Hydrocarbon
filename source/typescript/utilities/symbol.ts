@@ -188,10 +188,6 @@ export function createDefaultReduceFunction(item: Item): StmtSC {
 export function getSymbolFromUniqueName(grammar: Grammar, name: string): Symbol {
     return grammar.meta.all_symbols.get(name);
 }
-export function createAssertionShiftManual(lex_name: ConstSC | VarSC = SC.Variable("l:Lexer"), boolean: ExprSC): ExprSC {
-    return SC.Call(rec_consume_assert_call, lex_name, rec_state, boolean);
-}
-
 export function getRootSym<T = Symbol>(sym: T, grammar: Grammar): T {
     if ((<Symbol><any>sym).type == SymbolType.END_OF_FILE)
         return sym;

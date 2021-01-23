@@ -1,10 +1,9 @@
 import { EOF_SYM, Grammar } from "../types/grammar.js";
-import { AssertionFunctionSymbol, Symbol } from "../types/symbol";
+import { Symbol } from "../types/symbol";
 import { SymbolType } from "../types/symbol_type";
-import { getAssertionSymbolFirst } from "./code_generating.js";
 import { Item } from "./item.js";
 import { buildItemMap } from "./item_map.js";
-import { getUniqueSymbolName, isSymAnAssertFunction } from "./symbol.js";
+import { getUniqueSymbolName } from "./symbol.js";
 
 const
     production_stack_arg_name = "sym",
@@ -164,8 +163,6 @@ export function filloutGrammar(grammar: Grammar, env) {
     grammar.meta = Object.assign({}, grammar.meta, { all_symbols: symbols, reduce_functions: reduce_lu });
     grammar.bodies = bodies;
     grammar.item_map = null;
-
-    for (const sym of processing_symbols.filter(isSymAnAssertFunction)) getAssertionSymbolFirst(<AssertionFunctionSymbol>sym, grammar);
 
     buildItemMap(grammar);
 

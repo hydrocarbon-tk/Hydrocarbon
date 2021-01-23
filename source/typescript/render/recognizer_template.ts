@@ -29,22 +29,10 @@ export const renderAssemblyScriptRecognizer = (
     action32bit_array_byte_size = action32bit_array_byte_size_default,
     error8bit_array_byte_size = error8bit_array_byte_size_default
 ): SC => {
+
     //Constant Values
-    const assert_functions = new Map;
-
-
-    //Identify required assert functions. 
-    for (const sym of [...grammar.meta.all_symbols.values()]
-        .filter(s => s.type == SymbolType.PRODUCTION_ASSERTION_FUNCTION)
-    ) {
-        const fn_name = <string>sym.val;
-        if (grammar.functions.has(fn_name)) {
-            const val = grammar.functions.get(fn_name),
-                sc = convertAssertionFunctionBodyToSkribble(val.txt, grammar, runner).sc;
-
-            assert_functions.set(fn_name, SC.Function(SC.Variable(`__${fn_name}__:bool`), SC.Variable("l:Lexer")).addStatement(sc));
-        }
-    }
+        const hasStateFailed = SC.Call("hasStateFailed", rec_state);
+    const isOutputEnabled = SC.Call("isOutputEnabled", rec_state);
 
     const
         code_node = new SC,
@@ -139,12 +127,8 @@ export const renderAssemblyScriptRecognizer = (
         createStateCode(),
         createLexerCode(),
         ...const_functions,
-        ...assert_functions.values()
     );
 
-    //for (const fn of [...grammar.functions.values()].filter(v => v.assemblyscript_txt))
-    //    assert_functions.set(fn.id, `function ${getAssertionFunctionName(fn.id)}(l:Lexer&):boolean{${fn.assemblyscript_txt}}`);
-    /*
     function set_error(val: u32): void {
         if(error_ptr >= 128) return;
         store<u32>(((error_ptr++ & 0xFF) << 2) + error_array_offset, val);
