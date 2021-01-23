@@ -64,7 +64,7 @@
     ( \θ │ \g: ) (ERR θws θnl) identifier                       ↦cstr{ this.type = "generated"; this.val = $sym2; this.pos = pos; env.symbols.push(this) }
 
 <> literal_symbol → 
-    ( \τ │ \t: ) (ERR g:ws g:nl)  ( identifier │ def::natural ) sym_delimiter? 
+    ( \τ │ \t: ) (ERR g:ws g:nl)  ( identifier │ g:num ) sym_delimiter? 
                                                                 ↦cstr{ this.type = "literal"; this.val = ""+$sym2; this.pos = pos; env.symbols.push(this) }
 
 <> escaped_symbol → 
@@ -82,6 +82,6 @@
 
 <> identifier →  def::js_identifier 
 
-<> js_identifier →  def::id
+<> js_identifier →  def::js_identifier
 
 <> sym_delimiter >  g:ws | $eof  | g:nl 

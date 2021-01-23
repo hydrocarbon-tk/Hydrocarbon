@@ -2,41 +2,43 @@
 
 <>start → defaultproductions
 
-<> defaultproductions → defaultproduction(+)
+<> defaultproductions → defaultproduction(+g:ws)
 
-<> defaultproduction → id
+<> defaultproduction → number
     │ hex
     │ binary
     │ octal
-    │ scientific
     | identifier
+    | string
 
 <> hex_digit →  g:num │ t:a │ t:b │ t:c │ t:d │ t:e │ t:f │ t:A │ t:B │ t:C │ t:D │ t:E │ t:F
 
-<> hex →  g:hex                                  ↦r { {val:parseFloat($sym1), type: "hex", original_val:$sym1} }
+<> hex →  tk:hex_token                           
  
-<> binary →  g:bin                               ↦r { {val:parseFloat($sym1), type: "bin", original_val:$sym1} }
+<> binary →  tk:binary_token                               
 
-<> octal →  g:oct                                ↦r { {val:parseFloat($sym1), type: "oct", original_val:$sym1} }
+<> octal →  tk:octal_token
 
-<> scientific → g:sci                            ↦r { {val:parseFloat($sym1), type: "sci", original_val:$sym1} }
-    │ float 
+<> number →  tk:scientific_token
 
-<> float → g:flt                                 ↦r { {val:parseFloat($sym1), type: "flt", original_val:$sym1} }
-    │ integer                                   
+<> scientific_token → float_token ( (\e | \E ) \- ? g:num )?
 
-<> integer → natural                            ↦r { {val:parseFloat($sym1), type: "int", original_val:$sym1} }
+<> float_token → g:num (RST g:ws g:nl) ( \. g:num )?
 
-<> natural →  g:num                              
+<> hex_token > \0x (RST g:ws) ( g:num | \a │ \b │ \c │ \d │ \e │ \f │ \A │ \B │ \C │ \D │ \E │ \F )(+)
 
-<> id → g:id
+<> binary_token > \0b (RST g:ws) ( \0 | \1 )(+)
 
-<> string > \" ( string_value | g:ws )(+\' )  \"         ↦r { $sym2 }
-    | \' ( string_value | g:ws )(+\" )  \'               ↦r { $sym2 }
+<> octal_token > ( \0o | \0O ) (RST g:ws) ( \0 | \1 | \2 | \3 | \4 | \5 | \6 | \7 )(+)
 
-<> string_value >  ( g:num | g:id | g:sym | \\ ( g:num | g:id | g:sym )  )(+\" )
+<> string > \" string_token  \"         ↦r { $sym2 }
+    | \' string_token   \'               ↦r { $sym2 }
 
-<> js_identifier → js_id_symbols 
+<> string_token > string_value(+)
+
+<> string_value >  ( g:num | g:id | g:sym | g:ws |  \\ ( g:num | g:id | g:sym | g:ws | g:nl )  )(+\" )
+
+<> js_identifier → tk:js_id_symbols 
 
 <> js_id_symbols →  js_id_symbols (RST g:ws) g:id           ↦r { $sym1 + $sym2 }
     │ js_id_symbols (RST g:ws) \_                          ↦r { $sym1 + $sym2 }
@@ -46,7 +48,7 @@
     │ \$ 
     │ g:id
 
-<> identifier → identifier_symbols 
+<> identifier → tk:identifier_symbols 
 
 <> identifier_symbols →  identifier_symbols (RST g:ws) g:id      ↦r { $sym1 + $sym2 }
     │ identifier_symbols (RST g:ws) \_                          ↦r { $sym1 + $sym2 }
