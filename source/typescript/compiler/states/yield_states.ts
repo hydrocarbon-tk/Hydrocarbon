@@ -346,6 +346,9 @@ function* processPeekStates(
                     if (!isSymAProduction(sym))
                         a.transition_type = TRANSITION_TYPE.CONSUME;
 
+                    if (isSymAProductionToken(sym))
+                        a.symbol = sym;
+
                 } else {
                     if (isSymAProduction(sym)) {
                         a.transition_type = TRANSITION_TYPE.PEEK_PRODUCTION_SYMBOLS;

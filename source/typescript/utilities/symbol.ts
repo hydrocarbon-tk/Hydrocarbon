@@ -32,6 +32,8 @@ export function SymbolToStringUnformatted(sym: { type?: SymbolType, val: string;
             return `ɛ`;
         case SymbolType.END_OF_FILE:
             return `END_OF_FILE`;
+        case SymbolType.PRODUCTION_TOKEN_SYMBOL:
+            return `tk:${sym.name}`;
         default:
             return sym.val;
     }

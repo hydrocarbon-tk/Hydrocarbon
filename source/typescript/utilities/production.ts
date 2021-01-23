@@ -5,9 +5,9 @@ import { getClosure } from "./closure.js";
 import { Item } from "./item.js";
 
 
-export function getProductionClosure(production_id: number, grammar: Grammar) {
+export function getProductionClosure(production_id: number, grammar: Grammar, ENTER_TOKEN_PRODUCTIONS: boolean = false) {
     const prod = grammar[production_id];
-    return getClosure(prod.bodies.map(b => new Item(b.id, b.length, 0, EOF_SYM)), grammar);
+    return getClosure(prod.bodies.map(b => new Item(b.id, b.length, 0, EOF_SYM)), grammar, ENTER_TOKEN_PRODUCTIONS);
 }
 
 export function doesProductionHaveEmpty(production_id: number, grammar: Grammar) {

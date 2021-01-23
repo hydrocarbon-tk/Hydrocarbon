@@ -6,10 +6,14 @@ import { closure_group, TransitionTreeNode } from "../types/transition_tree_node
 import { getClosure, getFollowClosure } from "./closure.js";
 import { getFollow } from "./follow.js";
 import { Item } from "./item.js";
+import { getProductionClosure } from "./production.js";
 import {
+    getSymbolsFromClosure,
     getUniqueSymbolName,
     getUnskippableSymbolsFromClosure,
-    isSymAProduction
+    isSymAnAssertFunction,
+    isSymAProduction,
+    isSymAProductionToken
 } from "./symbol.js";
 
 /**
@@ -41,7 +45,7 @@ export function getTransitionTree(
 
     if (!closures) {
 
-        closures = root_items.map((i, index) => ({ final: 0, sym: null, index, closure: getClosure([i], grammar, true) }));
+        closures = root_items.map((i, index) => ({ final: 0, sym: null, index, closure: getClosure([i], grammar) }));
 
         const { AMBIGUOUS, clear, max_depth, tree_nodes } = getTransitionTree(grammar, root_items, lr_transition_items, max_tree_depth, max_no_progress, max_time_limit, 0, closures);
 
@@ -174,8 +178,10 @@ function getClosureGroups(
         group = [],
         unskippable: TokenSymbol[] = <any>getUnskippableSymbolsFromClosure(closure, grammar);
 
-    for (const item of closure) {
+    for (const item of getClosure(closure, grammar)) {
+
         const sym = item.sym?.(grammar);
+
         if (item.atEND) {
             const new_closure = getFollowClosure([item], lr_transition_items, grammar);
 
@@ -196,11 +202,20 @@ function getClosureGroups(
             }
         } else if (!isSymAProduction(sym)) {
 
-            const new_closure = [];
+            let syms = [sym];
 
-            new_closure.push(...incrementWithClosure(grammar, item, null, true));
+            if (isSymAProductionToken(sym)) {
+                syms = <TokenSymbol[]>getSymbolsFromClosure(getClosure([item], grammar, true), grammar).filter(s => !isSymAProductionToken(s));
+            }
 
-            group.push({ sym, index: index, item_id: item.id, unskippable, closure: new_closure.setFilter(i => i.id), final: final, starts: starts ? starts : [item] });
+            for (const sym of syms) {
+
+                const new_closure = [];
+
+                new_closure.push(...incrementWithClosure(grammar, item, null, true));
+
+                group.push({ sym, index: index, item_id: item.id, unskippable, closure: new_closure.setFilter(i => i.id), final: final, starts: starts ? starts : [item] });
+            }
         }
     }
     return group;
@@ -208,7 +223,7 @@ function getClosureGroups(
 function incrementWithClosure(grammar: Grammar, item: Item, prod: Production, AUTO_INCREMENT: boolean = false): Item[] {
 
     if (AUTO_INCREMENT || item.getProductionAtSymbol(grammar).id == prod.id)
-        return getClosure([item.increment()], grammar, true);
+        return getClosure([item.increment()], grammar);
 
     return [item];
 }
