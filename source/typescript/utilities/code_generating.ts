@@ -26,6 +26,14 @@ import {
     isSymSpecified,
 } from "./symbol.js";
 
+/**
+ * Length of code hash string appended to GUID constant names. 
+ */
+const hash_length = 16;
+
+function generateGUIDConstName(fn_data: SC, prefix: string = "id", type: string = "void") {
+    return SC.Constant(`${prefix}_${fn_data.hash().slice(-hash_length)}:${type}`);
+}
 
 export function getProductionFunctionName(production: Production, grammar: Grammar): string {
     return "$" + production.name;
@@ -187,7 +195,7 @@ export function getSkipFunctionNew(
 
     const hash = skip_function.hash();
 
-    const SF_name = SC.Constant(`skip_fn_:Lexer`);
+        SF_name = generateGUIDConstName(skip_function, "sk", "Lexer");
 
     const FN = SC.Function(":bool", "l:Lexer").addStatement(SC.UnaryPre(SC.Return, SC.Group("(", boolean)));
 
@@ -212,7 +220,7 @@ export function createNonCaptureBooleanCheck(symbols: TokenSymbol[], grammar: Gr
         SC.UnaryPre(SC.Return, SC.False)
     );
 
-    const SF_name = SC.Constant(`non_capture_:bool`);
+        SF_name = generateGUIDConstName(token_function, "non_capture", "bool");
 
     return <VarSC>runner.add_constant(SF_name, token_function);
 }
@@ -420,7 +428,7 @@ export function getIncludeBooleans(
             const
                 fn_lex_name = SC.Constant("l:Lexer"),
                 fn = SC.Function(":boolean", fn_lex_name).addStatement(buildIfs(syms, fn_lex_name, occluders)),
-                node_name = SC.Constant(`cp${fn.hash().slice(0, 8)}_:bool`),
+                node_name = generateGUIDConstName(fn, `defined_token`, "bool"),
                 fn_name = runner.add_constant(node_name, fn);
 
             booleans.push(SC.UnaryPost(SC.Call(fn_name, lex_name), SC.Comment(syms.map(sym => `[${sanitizeSymbolValForComment(sym)}]`).join(" "))));
