@@ -13,8 +13,14 @@
 - Implement parse forests <sub>low priority</sub>
 - Make C++ and/or Rust targets for recognizer
 - Implement action streaming for concurrent recognizing/completing
+
 - Implement arbitrary parse entry
     > Allow parser to start anywhere within an input string with any production set as the goal.
+
+### Recognizer
+- Turn State into a boolean flag to switch off buffer writing
+- Add boolean check of FIRST symbols to production token functions
+- Turn type into flag that store the built in types in 4bit section
 
 ### Grammar
 - Improve toggling of ignored symbols

@@ -144,8 +144,8 @@ export async function compile(grammar: Grammar, env: GrammarParserEnvironment, o
         case "typescript":
         case "ts":
 
-
             if (!active_options.no_file_output) {
+
                 const parser_script =
                     renderParserScript(
                         grammar,
@@ -163,7 +163,6 @@ export async function compile(grammar: Grammar, env: GrammarParserEnvironment, o
                     throw e;
                 }
             }
-
 
             if (active_options.no_file_output || active_options.create_function) {
                 const parser_script =

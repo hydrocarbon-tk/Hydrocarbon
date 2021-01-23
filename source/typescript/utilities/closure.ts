@@ -68,7 +68,7 @@ export function getClosure(items: Item[], grammar: Grammar, ENTER_TOKEN_PRODUCTI
 
         closure = modified_closure;
     }
-    
+
     closure = closure.setFilter(i => i);
 
     return closure.map(i => grammar.item_map.get(i).item);

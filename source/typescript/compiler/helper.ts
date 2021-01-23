@@ -38,23 +38,32 @@ export interface Helper {
 export function constructCompilerRunner(ANNOTATED: boolean = false, DEBUG: boolean = false): Helper {
     let const_counter = 0, unique_const_set = new Set();
     const runner = <Helper>{
+
         INTEGRATE: new Set(),
+
         ANNOTATED,
+
         DEBUG,
+
         constant_map: new Map,
+
         referenced_production_ids: new Set,
+
         add_constant: (const_name: VarSC | ConstSC, const_value: SC): VarSC | ConstSC => {
+
             const hash = SC.Bind(<ExprSC>const_value).hash();
             let test_name = const_name.type.value;
+
             let actual_name: VarSC | ConstSC = null;
+
             const prefix = `${test_name}`;
+
             let value = const_name.type.val_type;
 
             if (!runner.constant_map.has(hash)) {
 
-                while (unique_const_set.has(test_name)) {
+                while (unique_const_set.has(test_name))
                     test_name = prefix + ("0000" + (const_counter++)).slice(-3);
-                }
 
                 unique_const_set.add(test_name);
 
@@ -68,15 +77,22 @@ export function constructCompilerRunner(ANNOTATED: boolean = false, DEBUG: boole
 
             return actual_name;
         },
+
         join_constant_map(const_map: Map<ConstantHash, ConstantObj>, dependent_code: SC) {
+
             const dependent_data = [dependent_code, ...[...const_map.values()].map(d => d.code_node = SC.Bind(d.code_node))];
+
             let intermediate_names = [];
 
             //replace all existing hashes 
             for (const [hash, { original_name, name, code_node }] of const_map.entries()) {
+
                 if (runner.constant_map.has(hash)) {
+
                     let int_name = "____intermediate___" + intermediate_names.length;
+
                     intermediate_names.push([int_name, runner.constant_map.get(hash).name.value]);
+
                     dependent_data.map(d => d.replaceVariableValue(name.type.value, int_name));
                 }
             }
@@ -90,10 +106,14 @@ export function constructCompilerRunner(ANNOTATED: boolean = false, DEBUG: boole
                 const hash = SC.Bind(code_node).hash();
 
                 if (runner.constant_map.has(hash)) {
+
                     let int_name = "____intermediate___" + intermediate_names.length;
+
                     intermediate_names.push([int_name, runner.constant_map.get(hash).name.value]);
+
                     dependent_data.slice(0, 1).map(d => d.replaceVariableValue(name.type.value, int_name));
                 } else {
+
                     let const_name = runner.add_constant(original_name, code_node);
 
                     if (name.type.value !== const_name.type.value) {
@@ -114,11 +134,16 @@ export function constructCompilerRunner(ANNOTATED: boolean = false, DEBUG: boole
             for (const { name, code_node: node } of [...runner.constant_map.values()].sort((a, b) => {
                 return a.name.value < b.name.value ? -1 : b.name.value < a.name.value ? 1 : 0;
             })) {
+
                 const bound_node = SC.Bind(node);
+
                 if (bound_node.type.type == "function") {
+
                     bound_node.expressions[0] = name;
+
                     code_fn_node.push(bound_node);
                 } else {
+
                     const_ty_node.push(SC.Declare(SC.Assignment(name, <ExprSC>bound_node)));
                 }
             }

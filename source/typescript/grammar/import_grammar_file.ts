@@ -23,7 +23,6 @@ export default function (sym, env: GrammarParserEnvironment) {
 
     env.imported_grammar_name_resolution_map.set(id, key);
 
-
     if (meta_imported_productions.has(key)) {
         const p = meta_imported_productions.get(key);
         if (!p.SYMBOL_LIST || p.PENDING)
@@ -36,6 +35,7 @@ export default function (sym, env: GrammarParserEnvironment) {
     env.PENDING_FILES.count++;
 
     uri.fetchText().then(async txt => {
+
         let prods: Grammar = null;
 
         try {
@@ -80,6 +80,7 @@ export default function (sym, env: GrammarParserEnvironment) {
         //Make sure only one instance of any URL resource is used in grammar.
 
         if ((p = meta_imported_productions.get(key))) {
+
             if (p.SYMBOL_LIST) {
 
                 p.forEach(sym => {

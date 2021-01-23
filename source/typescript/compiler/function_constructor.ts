@@ -82,15 +82,18 @@ export function constructHybridFunction(production: Production, grammar: Grammar
             RDOptions = generateOptions(
                 grammar, runner,
                 production,
-                lr_productions
+                goto_productions
             ),
 
             genA = yieldStates(
                 //Filter out items that are left recursive for the given production
                 items.filter(i => {
+
                     const sym = i.sym(grammar);
+
                     if (sym && isSymAProduction(sym) && sym.val == production.id)
                         return false;
+
                     return true;
                 }), RDOptions, rec_glob_lex_name
             ),
@@ -135,8 +138,7 @@ export function constructHybridFunction(production: Production, grammar: Grammar
         const end = performance.now();
 
         const annotation = SC.Expressions(SC.Comment(
-            `
-    production name: ${production.name}
+            `production name: ${production.name}
     grammar index: ${production.id}
     bodies:\n\t${items.map(i => i.renderUnformattedWithProduction(grammar) + " - " + grammar.item_map.get(i.id).reset_sym.join(",")).join("\n\t\t")}
     compile time: ${((((end - start) * 1000) | 0) / 1000)}ms`));
