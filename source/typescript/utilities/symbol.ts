@@ -234,7 +234,7 @@ export function getUnskippableSymbolsFromClosure(closure: Item[], grammar: Gramm
 }
 
 
-export function getSymbolsFromClosure(closure: Item[], grammar: Grammar): any {
+export function getSymbolsFromClosure(closure: Item[], grammar: Grammar): Symbol[] {
     return [
         ...new Set(
             closure
