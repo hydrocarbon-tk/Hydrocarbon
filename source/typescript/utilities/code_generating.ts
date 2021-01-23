@@ -135,6 +135,22 @@ export function translateSymbolValue(sym: TokenSymbol, grammar: Grammar, lex_nam
     }
 }
 
+export function addSkipCallNew(
+    symbols: TokenSymbol[],
+    grammar: Grammar,
+    runner: Helper,
+    lex_name: ExprSC = SC.Variable("l", "Lexer"),
+    exclude: TokenSymbol[] = []
+): StmtSC {
+
+    const skips = getSkipFunctionNew(symbols, grammar, runner, undefined, lex_name, exclude);
+
+    if (skips)
+        return SC.Expressions(SC.Call(skips, SC.UnaryPost(lex_name, SC.Comment(symbols.map(s => `[ ${s.val} ]`).join("")))));
+
+    return SC.Expressions(SC.Empty());
+}
+
 export function getSkipFunctionNew(
     skip_symbols: TokenSymbol[],
     grammar: Grammar,
@@ -176,18 +192,6 @@ export function getSkipFunctionNew(
     const FN = SC.Function(":bool", "l:Lexer").addStatement(SC.UnaryPre(SC.Return, SC.Group("(", boolean)));
 
     return <VarSC>runner.add_constant(SF_name, skip_function);
-}
-export function addSkipCallNew(
-    symbols: TokenSymbol[],
-    grammar: Grammar,
-    runner: Helper,
-    lex_name: ExprSC = SC.Variable("l", "Lexer"),
-    exclude: TokenSymbol[] = []
-): StmtSC {
-    const skips = getSkipFunctionNew(symbols, grammar, runner, undefined, lex_name, exclude);
-    if (skips)
-        return SC.Expressions(SC.Call(skips, SC.UnaryPost(lex_name, SC.Comment(symbols.map(s => `[ ${s.val} ]`).join("")))));
-    return SC.Expressions(SC.Empty());
 }
 
 
