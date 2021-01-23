@@ -521,6 +521,7 @@ const CPP_PrimitiveToAssemblyScript = {
     "int": "i32",
     "short": 'i16',
     "char": "i8",
+    "unsigned": "u32",
     "unsigned long": "u32",
     "unsigned int": "u32",
     "unsigned short": 'u16',
