@@ -113,10 +113,6 @@ export interface ItemMapEntry {
 }
 
 export type Grammar = Array<Production> & {
-    /**
-     * Hash of all productions strings and bodies order out starting with the goal production
-     */
-    hash: string;
 
     LU: Map<string, Production>;
 

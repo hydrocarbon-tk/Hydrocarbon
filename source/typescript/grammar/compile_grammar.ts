@@ -12,11 +12,7 @@ export async function createGrammar(grammar_string: string, grammar_string_path:
     const grammar = await grammarParser(grammar_string, grammar_string_path, undefined, undefined, undefined, parser);
 
     filloutGrammar(grammar, null);
-
-    const crypto = (await import("crypto"))?.default;
-
-    grammar.hash = createGrammarHash(grammar, crypto);
-
+    
     return grammar;
 }
 
