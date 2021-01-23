@@ -25,50 +25,30 @@ export class ItemGraphNode {
  * Represents a state within a production body, with an offset
  * indicating the current considered symbol of the body. If offset
  * is the same as the number symbols that make up the body, then 
- * the Item is at the END state of the body. An item that is
+ * the Item is at the END state of the body. An item item that is
  * at the END state indicates a successful parse of the production 
  * body. 
  */
 export class Item extends Array {
 
     static fromArray(array: Array<any>): Item {
-        if (array instanceof Item) return new Item(array.body, array.len, array.offset, array.follow);
 
-        const new_item = new Item(array[ItemIndex.body_id], array[ItemIndex.length], array[ItemIndex.offset], (<Item>array).follow);
+        if (array instanceof Item) return new Item(array.body, array.len, array.offset);
 
-        return new_item;
+        return new Item(array[ItemIndex.body_id], array[ItemIndex.length], array[ItemIndex.offset]);
     }
 
-    IS_LR: Boolean;
-
-    USED: boolean;
-    follow: Symbol;
-
-    constructor(body_id: number, length: number, offset: number, follow: Symbol = EOF_SYM) {
+    constructor(body_id: number, length: number, offset: number) {
         //@ts-ignore
         super(body_id, length, offset);
-
-        this.follow = follow;
-
-        this.USED = false;
-
-        this.IS_LR = false;
     }
 
     get atEND(): boolean {
         return this.offset >= this.len;
     }
 
-    get v(): string | number {
-        return getUniqueSymbolName(this.follow);
-    }
-
     get id(): string {
         return "" + this.body + ":" + this.len + ":" + this.offset + "|-";
-    }
-
-    get full_id(): string {
-        return this.id + this.v;
     }
 
     get body(): number {
@@ -116,21 +96,12 @@ export class Item extends Array {
         return a.join(" ");
     }
 
-    renderUnformattedWithProductionAndFollow(grammar: Grammar): string {
-        return this.renderUnformattedWithProduction(grammar) + "|" + this.follow.val;
-    }
-
     renderUnformattedWithProduction(grammar: Grammar): string {
         return (this.getProduction(grammar).id + ":" + this.body) + " " + this.body_(grammar).production.name + "=>" + this.renderUnformatted(grammar);
     }
 
     renderWithProduction(grammar: Grammar): string {
         return `\x1b[48;5;233m\x1b[38;5;226m[ ${this.renderProductionName(grammar)} \x1b[38;5;226m⇒ ${this.render(grammar)} \x1b[38;5;226m]\x1b[0m`;
-    }
-
-    renderWithProductionAndFollow(grammar: Grammar): string {
-        //@ts-ignore
-        return `\x1b[48;5;233m\x1b[38;5;226m[ ${this.renderProductionName(grammar)} \x1b[38;5;226m⇒ ${this.render(grammar)}, ${this.v} \x1b[38;5;226m]\x1b[0m`;;
     }
 
     getProduction(grammar: Grammar): Production {
@@ -165,8 +136,8 @@ export class Item extends Array {
     increment(): Item | null {
         if (this.offset < this.len) {
 
-            const item = new Item(this.body, this.len, this.offset + 1, this.follow);
-            item.IS_LR = this.IS_LR;
+            const item = new Item(this.body, this.len, this.offset + 1);
+
             return item;
         }
         return null;
@@ -174,8 +145,8 @@ export class Item extends Array {
 
     decrement(): Item | null {
         if (this.offset > 0) {
-            const item = new Item(this.body, this.len, this.offset - 1, this.follow);
-            item.IS_LR = this.IS_LR;
+            const item = new Item(this.body, this.len, this.offset - 1);
+
             return item;
         }
         return this;

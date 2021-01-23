@@ -67,6 +67,8 @@ ${BUILD_LOCAL ? "return" : "export default"} function (str, env = {}) {
         let action_length = 0,
             error_message ="",
             review_stack = [];
+
+        debug_stack.length = 0;
     
         if (FAILED) {
 
@@ -77,6 +79,9 @@ ${BUILD_LOCAL ? "return" : "export default"} function (str, env = {}) {
             }
 
             review_stack.reverse();
+
+            if(review_stack.length > 0)
+                console.log({review_stack})
             
             let error_off = 10000000000000;
             let error_set = false;

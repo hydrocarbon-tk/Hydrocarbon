@@ -6,9 +6,9 @@ export const rec_glob_lex_name = SC.Variable("l:Lexer");
  */
 export const rec_consume_call = SC.Variable("consume:void");
 
-export const rec_consume_assert_call = SC.Variable("assert_consume:bool");
+export const rec_consume_assert_call = SC.Variable("assert_consume:unsigned");
 
-export const rec_state = SC.Variable("state:State");
+export const rec_state = SC.Variable("state:unsigned");
 
 export const rec_state_prod = SC.Variable("prod:unsigned int");
 

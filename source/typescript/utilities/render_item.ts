@@ -62,7 +62,7 @@ export function renderItemSym(
     lexer_name: VarSC = rec_glob_lex_name
 ): { code_node: SC; } {
 
-    const { grammar, runner, called_productions } = options;
+    const { grammar, helper: runner, called_productions } = options;
 
     let bool_expression = null;
     let IS_PASSTHROUGH = false, passthrough_chain = null, first_non_passthrough = 0;
@@ -117,7 +117,7 @@ export function renderItem(
     DONT_CHECK = false,
     lexer_name: VarSC = rec_glob_lex_name
 ): SC {
-    const { grammar, runner } = options;
+    const { grammar, helper: runner } = options;
 
     if (!item.atEND) {
 

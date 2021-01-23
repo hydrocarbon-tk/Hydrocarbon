@@ -86,14 +86,6 @@ export interface ItemMapEntry {
 
     hash: string,
 
-    /**
-     * Does the item contain left recursion
-     */
-    LR: boolean;
-    /**
-     * List of unique symbol names that shift into a right recursion
-     */
-    RR: string[];
     containing_items: Set<string>;
 
     excludes: TokenSymbol[][],

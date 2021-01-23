@@ -1,5 +1,5 @@
 import { EOF_SYM } from "../../types/grammar.js";
-import { RecognizerState, TRANSITION_TYPE } from "../../types/recognizer_state.js";
+import { GeneratorStateReturn, Leaf, RecognizerState, TRANSITION_TYPE } from "../../types/recognizer_state.js";
 import { RenderBodyOptions } from "../../types/render_body_options";
 import { TokenSymbol } from "../../types/symbol.js";
 import { TransitionTreeNode } from "../../types/transition_tree_nodes.js";
@@ -7,7 +7,7 @@ import { TransitionTreeNode } from "../../types/transition_tree_nodes.js";
 import { getClosure } from "../../utilities/closure.js";
 import { doItemsHaveSameSymbol, Item } from "../../utilities/item.js";
 import { SC, VarSC } from "../../utilities/skribble.js";
-import { isSymAProduction } from "../../utilities/symbol.js";
+import { isSymAProduction, isSymAProductionToken } from "../../utilities/symbol.js";
 import { getTransitionTree } from "../../utilities/transition_tree.js";
 import { yieldCompletedItemStates } from "./yield_completed_item_states.js";
 import { buildPeekSequence } from "./yield_peek_states.js";
@@ -24,10 +24,10 @@ export function* yieldStates(
     options: RenderBodyOptions,
     lex_name: VarSC,
     offset: number = 0,
-): Generator<RecognizerState[], { code: SC, prods: number[]; hash: string; }> {
+): Generator<RecognizerState[], GeneratorStateReturn> {
 
     const
-        { grammar, runner, production, production_shift_items, cache } = options,
+        { grammar, helper: runner, production, goto_items: production_shift_items, cache } = options,
         state_id = in_items.map(i => i.id).sort().join("-") + "$",
         main_groups: RecognizerState[] = [];
 
@@ -39,6 +39,7 @@ export function* yieldStates(
         return cache.get(state_id);
 
     try {
+
         /**
         * If all items are from the same production and the current production function is NOT processing
         * that production, simply do a call to that production function.
@@ -46,7 +47,6 @@ export function* yieldStates(
         * This should only occur if all items are at the initial shift state or peek was used
         * to get to this offset.
         */
-
         if (active_items.length > 0) {
 
             const
@@ -79,15 +79,13 @@ export function* yieldStates(
                             symbol: sym
                         }));
 
-
-
                     main_groups.push(...objs);
                 }
             } else if (SAME_PRODUCTION && !ROOT_PRODUCTION && (max_item_offset == 0)) {
 
                 const
                     first = active_items[0],
-                    items = [new Item(first.body, first.len, 0, first.follow)],
+                    items = [new Item(first.body, first.len, 0)],
                     obj: RecognizerState = {
                         code: new SC,
                         hash: "not-defined-production-call",
@@ -124,7 +122,8 @@ export function* yieldStates(
 
                     active_items = active_items.map(i => i.increment());
                 }
-                let code = new SC, hash = "", prods = [];
+
+                let code = new SC, hash = "", prods = [], leaves: Leaf[] = [];
 
                 if (active_items.length > 0) {
                     if (active_items.length == 1) {
@@ -137,25 +136,30 @@ export function* yieldStates(
                             yield <RecognizerState[]>val.value;
                             val = gen.next();
                         }
-                        ({ code, prods, hash } = val.value);
+                        ({ code, prods, leaves, hash } = val.value);
                     }
 
                     for (const state of sequence.slice().reverse().slice(0, -1)) {
                         state.code = code;
                         state.hash = hash;
                         state.prods = prods;
+                        state.leaves = leaves;
                         yield [state];
+                        leaves.push(...state.leaves);
                         prods.push(...state.prods);
                         ({ code, hash } = state);
                     }
+
                     sequence[0].code = code;
                     sequence[0].hash = hash;
                     sequence[0].prods = prods.setFilter();
+                    sequence[0].leaves = leaves;//.setFilter(s => s.hash);
 
                     main_groups.push(sequence[0]);
                 }
 
             } else {
+
                 const
                     { tree_nodes } = getTransitionTree(
                         grammar,
@@ -206,15 +210,15 @@ export function* yieldStates(
 
             yield main_groups;
 
-            cache.set(state_id, { code: main_groups[0].code, prods: main_groups[0].prods, hash: main_groups[0].hash });
+            cache.set(state_id, { code: main_groups[0].code, hash: main_groups[0].hash, prods: main_groups[0].prods, leaves: main_groups[0].leaves });
 
-            return { code: main_groups[0].code, hash: main_groups[0].hash, prods: main_groups[0].prods };
+            return { code: main_groups[0].code, hash: main_groups[0].hash, prods: main_groups[0].prods, leaves: main_groups[0].leaves };
         } else {
-            return { code: null, hash: "undefined", prods: [] };
+            return { code: null, hash: "undefined", prods: [], leaves: [] };
         }
 
     } catch (e) {
-        return { code: SC.Comment(e.stack), hash: "error", prods: [] };
+        return { code: SC.Comment(e.stack), hash: "error", prods: [], leaves: [] };
     }
 }
 
@@ -225,7 +229,7 @@ function* processPeekStates(
     offset: number = 0,
     lex_name: VarSC,
 ): Generator<RecognizerState[]> {
-    const { grammar, production_shift_items, extended_production_shift_items, production } = options;
+    const { grammar, goto_items: production_shift_items, extended_goto_items: extended_production_shift_items, production } = options;
 
     for (const a of group.filter(a => a.completing)) {
 
@@ -246,7 +250,8 @@ function* processPeekStates(
             code = null,
             hash = "undefined",
             prods = [],
-            gen: Generator<RecognizerState[], { code: SC, prods: number[]; hash: string; }> = null;
+            leaves = [],
+            gen: Generator<RecognizerState[], GeneratorStateReturn> = null;
 
         if (items.length > 0) {
 
@@ -288,6 +293,7 @@ function* processPeekStates(
                     if (cleanLeaves(tree.tree_nodes[0])) {
 
                         gen = yieldStates(items, options, lex_name, offset + 1);
+
                     } else {
                         //Multi Item resolution
                         const states: RecognizerState[] = [];
@@ -306,6 +312,7 @@ function* processPeekStates(
                                 symbol: null,
                                 code: val.value.code,
                                 prods: val.value.prods,
+                                leaves: val.value.leaves,
                                 hash: val.value.hash,
                                 completing: false,
                                 items,
@@ -315,22 +322,27 @@ function* processPeekStates(
                             });
                         }
                         yield states;
+
                         code = states[0].code;
                         prods = states[0].prods;
+                        leaves = states[0].leaves;
+
                         a.offset = offset + 1;
                     }
                 }
 
                 if (gen) {
                     let val = gen.next();
+
                     while (!val.done) {
                         const obj = <RecognizerState[]>val.value;
                         yield obj;
                         val = gen.next();
                     }
-                    ({ code, prods, hash } = val.value);
-                }
 
+                    ({ code, prods, leaves, hash } = val.value);
+                }
+                a.leaves = leaves;//.setFilter(s => s.hash);
                 a.prods = prods.setFilter();
                 a.code = code;
                 a.hash = hash;
@@ -338,6 +350,7 @@ function* processPeekStates(
             } else {
 
                 const sym = items[0].sym(grammar);
+
                 if (a.peek_level == 0) {
                     a.transition_type = isSymAProduction(sym)
                         ? TRANSITION_TYPE.ASSERT_PRODUCTION_SYMBOLS
@@ -354,7 +367,9 @@ function* processPeekStates(
                         a.transition_type = TRANSITION_TYPE.PEEK_PRODUCTION_SYMBOLS;
                     }
                 }
+
                 a.completing = true;
+
                 a.offset = offset;
             }
         }

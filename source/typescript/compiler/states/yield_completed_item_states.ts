@@ -20,7 +20,7 @@ export function* yieldCompletedItemStates(end_items: Item[], options: RenderBody
 
     const
         main_groups: RecognizerState[] = [],
-        { grammar, runner, production_shift_items } = options;
+        { grammar, helper: runner, goto_items: production_shift_items } = options;
 
     let
         default_end_items: Item[] = [],
@@ -51,7 +51,8 @@ export function* yieldCompletedItemStates(end_items: Item[], options: RenderBody
                 peek_level: -1,
                 offset,
                 transition_type: TRANSITION_TYPE.ASSERT_END,
-                prods: []
+                prods: [],
+                leaves: []
             })));
 
             end_items.splice(item_index, 1);
@@ -83,7 +84,9 @@ export function* yieldCompletedItemStates(end_items: Item[], options: RenderBody
 
                     return { final: 0, sym: null, index, closure: closure };
                 }));
+
             const gen = buildPeekSequence(tree_nodes, grammar, runner, rec_glob_lex_name, -1, true);
+
             let val = gen.next();
 
             while (!val.done) {
@@ -139,7 +142,8 @@ export function* yieldCompletedItemStates(end_items: Item[], options: RenderBody
                 offset: offset + 1,
                 peek_level: 0,
                 transition_type: TRANSITION_TYPE.ASSERT_END,
-                prods: []
+                prods: [],
+                leaves: []
             };
             main_groups.push(obj);
         }

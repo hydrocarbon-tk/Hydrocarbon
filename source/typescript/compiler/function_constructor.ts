@@ -15,8 +15,8 @@ import { isSymAProduction } from "../utilities/symbol.js";
 
 import { Helper } from "./helper.js";
 import { processRecognizerStates } from "./states/process_recognizer_states.js";
-import { completeFunctionProduction, createDebugCall, defaultSelectionClause, processProductionShiftStates } from "./states/default_state_build.js";
-import { yieldProductionStates } from "./states/yield_production_states.js";
+import { completeFunctionProduction, createDebugCall, defaultSelectionClause, processGoTOStates } from "./states/default_state_build.js";
+import { yieldGotoStates } from "./states/yield_goto_states.js";
 import { yieldStates } from "./states/yield_states.js";
 import { getProductionFunctionName } from "../utilities/code_generating.js";
 
@@ -32,36 +32,52 @@ function generateOptions(
     /**
      * Set of all production ids that are referenced within the function
      */
-    lr_productions: Item[]
+    goto_productions: Item[]
 ): RenderBodyOptions {
     return {
         grammar,
-        runner,
+        helper: runner,
         production,
-        production_shift_items: lr_productions,
-        extended_production_shift_items: [],
+        goto_items: goto_productions,
+        extended_goto_items: [],
         called_productions: new Set(),
         leaf_productions: new Set(),
         cache: new Map(),
         active_keys: [],
         leaves: [],
-        NO_PRODUCTION_SHIFTS: false
+        NO_GOTOS: false
     };
 }
 export function constructHybridFunction(production: Production, grammar: Grammar, runner: Helper): RDProductionFunction {
 
     const
-        start = performance.now(),
-        p = production,
-        code_node = SC.Function(SC.Constant(getProductionFunctionName(production, grammar) + ":unsigned int"), rec_glob_lex_name, rec_state);
+        rd_fn_name = SC.Constant(getProductionFunctionName(production, grammar) + ":unsigned int"),
 
-    let items: Item[] = p.bodies.map(b => new Item(b.id, b.length, 0, EOF_SYM));
+        goto_fn_name = SC.Constant(getProductionFunctionName(production, grammar) + "_goto:unsigned int"),
+
+        start = performance.now(),
+
+        p = production,
+
+        code_node_rd = SC.Function(
+            rd_fn_name,
+            rec_glob_lex_name,
+            rec_state),
+
+        code_node_goto = SC.Function(
+            goto_fn_name,
+            rec_glob_lex_name,
+            rec_state,
+            SC.Variable("prod:int")
+        );
+
+    let items: Item[] = p.bodies.map(b => new Item(b.id, b.length, 0));
 
     try {
 
         const
 
-            lr_productions = getClosure(items, grammar).filter(i => !i.atEND && i.sym(grammar).type == SymbolType.PRODUCTION),
+            goto_productions = getClosure(items, grammar).filter(i => !i.atEND && i.sym(grammar).type == SymbolType.PRODUCTION),
 
             RDOptions = generateOptions(
                 grammar, runner,
@@ -79,28 +95,42 @@ export function constructHybridFunction(production: Production, grammar: Grammar
                 }), RDOptions, rec_glob_lex_name
             ),
 
-            { code: initial_pass, prods: yielded_productions }
+            { code: initial_pass, prods: yielded_productions, leaves: rd_leaves }
                 = processRecognizerStates(RDOptions, genA, defaultSelectionClause),
 
-            LROptions = generateOptions(
+            GOTO_Options = generateOptions(
                 grammar, runner,
                 production,
-                lr_productions
+                goto_productions.slice()
             ),
 
-            genB = yieldProductionStates(LROptions),
+            genB = yieldGotoStates(GOTO_Options),
 
-            { code: production_shift_pass }
-                = processRecognizerStates(LROptions, genB, processProductionShiftStates(yielded_productions));
+            { code: production_shift_pass, leaves: goto_leaves }
+                = processRecognizerStates(GOTO_Options, genB, processGoTOStates(yielded_productions));
 
-        code_node.addStatement(
-            createDebugCall(RDOptions),
+        RDOptions.leaves = rd_leaves;
+        GOTO_Options.leaves = goto_leaves;
+
+        code_node_rd.addStatement(
+            createDebugCall(RDOptions, "RD START"),
             initial_pass,
-            production_shift_pass,
-            createDebugCall(RDOptions)
+            createDebugCall(RDOptions, "RD FAILED")
         );
 
-        completeFunctionProduction(code_node, RDOptions, LROptions);
+        code_node_goto.addStatement(
+            createDebugCall(RDOptions, "GOTO START"),
+            production_shift_pass,
+            createDebugCall(RDOptions, "GOTO END"),
+        );
+
+        completeFunctionProduction(
+            code_node_rd,
+            code_node_goto,
+            rd_fn_name,
+            goto_fn_name,
+            RDOptions,
+            GOTO_Options);
 
         const end = performance.now();
 
@@ -111,11 +141,12 @@ export function constructHybridFunction(production: Production, grammar: Grammar
     bodies:\n\t${items.map(i => i.renderUnformattedWithProduction(grammar) + " - " + grammar.item_map.get(i.id).reset_sym.join(",")).join("\n\t\t")}
     compile time: ${((((end - start) * 1000) | 0) / 1000)}ms`));
         return {
-            productions: new Set([...RDOptions.called_productions.values(), ...LROptions.called_productions.values(), ...runner.referenced_production_ids.values()]),
+            productions: new Set([...RDOptions.called_productions.values(), ...GOTO_Options.called_productions.values(), ...runner.referenced_production_ids.values()]),
             id: p.id,
             fn: (new SC).addStatement(
                 (runner.ANNOTATED) ? annotation : undefined,
-                code_node
+                code_node_rd,
+                GOTO_Options.NO_GOTOS ? undefined : code_node_goto
             )
         };
     } catch (e) {
@@ -128,7 +159,7 @@ bodies:\n\t${items.map(i => i.renderUnformattedWithProduction(grammar) + " - " +
         return {
             productions: new Set,
             id: p.id,
-            fn: code_node.addStatement(annotation, SC.Expressions(SC.Comment(`Could Not Parse [${production.name}] in Recursive Descent Mode \n${e.message + e.stack + ""}\n`)))
+            fn: code_node_rd.addStatement(annotation, SC.Expressions(SC.Comment(`Could Not Parse [${production.name}] in Recursive Descent Mode \n${e.message + e.stack + ""}\n`)))
         };
     }
 

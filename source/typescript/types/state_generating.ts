@@ -1,4 +1,4 @@
-import { TRANSITION_TYPE } from "./recognizer_state";
+import { Leaf, TRANSITION_TYPE } from "./recognizer_state";
 import { Symbol } from "./symbol";
 import { Item } from "../utilities/item";
 import { SC } from "../utilities/skribble";
@@ -17,12 +17,10 @@ export type SelectionGroup = {
 export type SelectionClauseGenerator = Generator<SelectionGroup>;
 export type MultiItemReturnObject = {
     root: SC;
-    leaves: SC[];
+    leaves: Leaf[];
     prods: number[];
 };
 
 export type SingleItemReturnObject = {
-    root: SC;
-    leaf: SC;
-    prods: number[];
+    leaf: Leaf;
 };

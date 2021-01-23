@@ -1,4 +1,4 @@
-import { RecognizerState, TRANSITION_TYPE } from "../../types/recognizer_state.js";
+import { GeneratorStateReturn, Leaf, RecognizerState, TRANSITION_TYPE } from "../../types/recognizer_state.js";
 import { RenderBodyOptions } from "../../types/render_body_options";
 
 import { Item } from "../../utilities/item.js";
@@ -35,7 +35,7 @@ function getGroupScore(a: SelectionGroup) {
 }
 export function processRecognizerStates(
     options: RenderBodyOptions,
-    gen: Generator<RecognizerState[], { hash: string, code: SC, prods: number[]; }>,
+    gen: Generator<RecognizerState[], GeneratorStateReturn>,
     selection_clause_fn:
         (gen: SelectionClauseGenerator, state: RecognizerState, items: Item[], level: number, options: RenderBodyOptions) => SC =
         defaultSelectionClause,
@@ -46,7 +46,7 @@ export function processRecognizerStates(
         (item: Item, group: RecognizerState, options: RenderBodyOptions) => SingleItemReturnObject =
         defaultSingleItemLeaf,
     grouping_fn: (node: RecognizerState, level: number, peeking: boolean) => string = defaultGrouping
-): { hash: string, code: SC, prods: number[]; } {
+): GeneratorStateReturn {
     let val = gen.next();
 
     while (!val.done) {
@@ -61,16 +61,18 @@ export function processRecognizerStates(
             for (const member of states) {
                 if (member.completing) {
                     if (member.items.length == 1) {
-                        const { root, prods } = single_item_leaf_fn(member.items[0], member, options);
-                        member.code = root;
-                        member.hash = root.hash();
-                        member.prods = prods;
+                        const { leaf } = single_item_leaf_fn(member.items[0], member, options);
+                        member.code = leaf.root;
+                        member.hash = leaf.hash;
+                        member.prods = leaf.prods;
+                        member.leaves = [leaf];
                     } else
                         throw new Error("Flow should not enter this block: Multi-item moved to group section");
                 }
             }
 
             const
+                leaves = states.flatMap(g => g.leaves),
                 prods = states.flatMap(g => g.prods).setFilter(),
                 items = states.flatMap(g => g.items).setFilter(i => i.id),
                 filtered_states = states.filter(s => s.transition_type !== TRANSITION_TYPE.IGNORE && !!s.code);
@@ -93,6 +95,7 @@ export function processRecognizerStates(
                     peek_level: filtered_states[0].peek_level,
                     offset: filtered_states[0].offset,
                     transition_type: filtered_states[0].transition_type,
+                    leaves
                 };
 
                 if (states.some(g => g.symbol == null)) {
@@ -109,10 +112,10 @@ export function processRecognizerStates(
                 hash = root.hash();
             } else {
                 root = null;
-
             }
 
             states.forEach(g => {
+                g.leaves = leaves;
                 g.prods = prods;
                 g.code = root;
                 g.hash = hash;
@@ -122,7 +125,7 @@ export function processRecognizerStates(
         val = gen.next();
     }
 
-    return { code: val.value.code, prods: val.value.prods, hash: val.value.hash };
+    return { code: val.value.code, prods: val.value.prods, hash: val.value.hash, leaves: val.value.leaves };
 }
 
 function* traverseInteriorNodes(

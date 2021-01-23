@@ -1,17 +1,18 @@
-import { traverse } from "@candlefw/conflagrate";
-import { exp, JSNode, JSNodeClass, JSNodeType, parser, stmt } from "@candlefw/js";
 import { Helper } from "../compiler/helper.js";
-import { Grammar, GrammarFunction } from "../types/grammar.js";
+import { Grammar } from "../types/grammar.js";
+import { Production } from "../types/production.js";
+import { RenderBodyOptions } from "../types/render_body_options.js";
 import {
     ProductionTokenSymbol,
     TokenSymbol
 } from "../types/symbol";
 import { SymbolType } from "../types/symbol_type";
-import { rec_glob_lex_name } from "./global_names.js";
-import { getProductionID } from "./production.js";
+import { rec_consume_assert_call, rec_glob_lex_name, rec_state } from "./global_names.js";
+import { getProductionClosure, getProductionID } from "./production.js";
 import { ConstSC, ExprSC, SC, StmtSC, VarSC } from "./skribble.js";
 import {
     doSymbolsOcclude,
+    getTokenSymbolsFromItems,
     getUniqueSymbolName,
     isSymAGenericType,
     isSymAnAssertFunction,
@@ -171,33 +172,24 @@ export function getSkipFunctionNew(
     if (skip_symbols.length == 0)
         return null;
 
-    const boolean = getIncludeBooleans(skip_symbols, grammar, runner, rec_glob_lex_name, exclude);
+    const
+        boolean = getIncludeBooleans(skip_symbols, grammar, runner, rec_glob_lex_name, exclude),
 
-    if (grammar.functions.has("custom_skip")) {
-        let str = grammar.functions.get("custom_skip").txt;
-        const sc = convertAssertionFunctionBodyToSkribble(str, grammar, runner).sc;
-        custom_skip_code = new SC().addStatement(...sc.statements);
-    }
-
-    const skip_function =
-        SC.Function(
-            ":Lexer",
-            "l:Lexer&"
-        ).addStatement(
-            SC.While(SC.Value(1)).addStatement(
-                custom_skip_code ? custom_skip_code : SC.Empty(),
-                SC.If(SC.UnaryPre("!", SC.Group("(", boolean)))
-                    .addStatement(SC.Break),
-                SC.Call(SC.Member("l", "next")),
+        skip_function =
+            SC.Function(
+                ":Lexer",
+                "l:Lexer&"
+            ).addStatement(
+                SC.While(SC.Value(1)).addStatement(
+                    custom_skip_code ? custom_skip_code : SC.Empty(),
+                    SC.If(SC.UnaryPre("!", SC.Group("(", boolean)))
+                        .addStatement(SC.Break),
+                    SC.Call(SC.Member("l", "next")),
+                ),
+                SC.UnaryPre(SC.Return, SC.Value("l"))
             ),
-            SC.UnaryPre(SC.Return, SC.Value("l"))
-        );
-
-    const hash = skip_function.hash();
 
         SF_name = generateGUIDConstName(skip_function, "sk", "Lexer");
-
-    const FN = SC.Function(":bool", "l:Lexer").addStatement(SC.UnaryPre(SC.Return, SC.Group("(", boolean)));
 
     return <VarSC>runner.add_constant(SF_name, skip_function);
 }
@@ -205,26 +197,27 @@ export function getSkipFunctionNew(
 
 export function createNonCaptureBooleanCheck(symbols: TokenSymbol[], grammar: Grammar, runner: Helper, ambient_symbols: TokenSymbol[]): VarSC {
 
-    const boolean = getIncludeBooleans(symbols.map(sym => Object.assign({}, sym, { IS_NON_CAPTURE: false })), grammar, runner, rec_glob_lex_name, ambient_symbols);
+    const
+        boolean =
+            getIncludeBooleans(symbols.map(sym => Object.assign({}, sym, { IS_NON_CAPTURE: false })), grammar, runner, rec_glob_lex_name, ambient_symbols),
 
-    const token_function = SC.Function(
-        ":bool",
-        "l:Lexer&"
-    ).addStatement(
+        token_function = SC.Function(
+            ":bool",
+            "l:Lexer&"
+        ).addStatement(
 
-        SC.If(boolean)
-            .addStatement(
-                SC.Assignment(SC.Member("l", "tl"), 0),
-                SC.UnaryPre(SC.Return, SC.True)
-            ),
-        SC.UnaryPre(SC.Return, SC.False)
-    );
+            SC.If(boolean)
+                .addStatement(
+                    SC.Assignment(SC.Member("l", "tl"), 0),
+                    SC.UnaryPre(SC.Return, SC.True)
+                ),
+            SC.UnaryPre(SC.Return, SC.False)
+        ),
 
         SF_name = generateGUIDConstName(token_function, "non_capture", "bool");
 
     return <VarSC>runner.add_constant(SF_name, token_function);
 }
-
 
 export function buildIfs(
     syms: TokenSymbol[],
@@ -459,7 +452,7 @@ export function getIncludeBooleans(
     }
 
     if (ty.length > 0)
-        out_ty = ty.map(s => translateSymbolValue(s, grammar, lex_name));
+        out_ty = ty.sort((a, b) => a.val < b.val ? -1 : 1).map(s => translateSymbolValue(s, grammar, lex_name));
 
     if (tk.length > 0) {
         for (const tok of tk) {

@@ -33,7 +33,11 @@ export function* buildPeekSequence(
 
         const node = peek_nodes[i];
 
-        let code = null, prods = [], hash = "undefined";
+        let
+            code = null,
+            prods = [],
+            leaves = [],
+            hash = "undefined";
         //Depth first
         if (node.next.length > 0) {
 
@@ -46,6 +50,7 @@ export function* buildPeekSequence(
                 code = obj[0].code;
                 hash = obj[0].hash;
                 prods.push(...obj[0].prods);
+                leaves.push(...obj[0].leaves);
                 val = gen.next();
             }
         }
@@ -60,7 +65,8 @@ export function* buildPeekSequence(
             completing: node.next.length == 0,
             closure: node.starts,
             symbol: <TokenSymbol>getSymbolFromUniqueName(grammar, node.sym),
-            prods: prods.setFilter()
+            prods: prods.setFilter(),
+            leaves: leaves
         });
     }
 

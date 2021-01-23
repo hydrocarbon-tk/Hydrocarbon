@@ -75,7 +75,7 @@ function addFollowInformation(item: Item, grammar: Grammar, check_set: Set<strin
 
                 const
                     new_item = new Item(body.id, body.length, 0, follow_sym),
-                    id = new_item.full_id;
+                    id = new_item.id + getUniqueSymbolName(follow_sym);
                 if (!check_set[prod_id].has(id)) {
                     check_set[prod_id].add(id);
                     addFollowInformation(new_item, grammar, check_set, follow_sym, breadcrumbs.concat([parent_prod_id]), item_map);
@@ -137,8 +137,6 @@ export function buildItemMap(grammar: Grammar) {
                         item,
                         closure: [],
                         reset_sym,
-                        LR: false,
-                        RR: [],
                         excludes: b.excludes.get(item.offset) ?? [],
                         rank: item.offset,
                         depth: depth,

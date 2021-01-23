@@ -102,4 +102,21 @@ export interface RecognizerState {
      * production_ids that can be generated from this sequence
      */
     prods?: number[];
+
+    leaves?: Leaf[];
+}
+
+export interface Leaf {
+    hash: string;
+    root: SC;
+    leaf: SC;
+    prods?: number[];
+    transition_type: TRANSITION_TYPE;
+}
+
+export interface GeneratorStateReturn {
+    hash: string,
+    code: SC,
+    prods: number[];
+    leaves: Leaf[];
 }

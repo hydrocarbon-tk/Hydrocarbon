@@ -1,4 +1,4 @@
-import { RecognizerState, TRANSITION_TYPE } from "../../types/recognizer_state.js";
+import { Leaf, RecognizerState, TRANSITION_TYPE } from "../../types/recognizer_state.js";
 import { RenderBodyOptions } from "../../types/render_body_options";
 import { MultiItemReturnObject, SelectionClauseGenerator, SingleItemReturnObject } from "../../types/state_generating";
 import { TokenSymbol } from "../../types/symbol.js";
@@ -8,7 +8,7 @@ import { getFollow } from "../../utilities/follow.js";
 import { rec_glob_lex_name, rec_state, rec_state_prod } from "../../utilities/global_names.js";
 import { Item, itemsToProductions } from "../../utilities/item.js";
 import { renderItem } from "../../utilities/render_item.js";
-import { ExprSC, SC } from "../../utilities/skribble.js";
+import { ConstSC, ExprSC, SC, VarSC } from "../../utilities/skribble.js";
 import {
     getExcludeSymbolSet, getSkippableSymbolsFromItems,
     getSymbolName,
@@ -24,7 +24,6 @@ import {
     isSymSpecifiedNumeric,
     isSymSpecifiedSymbol
 } from "../../utilities/symbol.js";
-import { accept_loop_flag } from "../function_constructor.js";
 import { processProductionChain } from "./process_production_chain.js";
 
 
@@ -44,30 +43,40 @@ function ttt(type: TRANSITION_TYPE): string {
 export function defaultSingleItemLeaf(item: Item, state: RecognizerState, options: RenderBodyOptions): SingleItemReturnObject {
 
     const
-        { grammar, runner, leaf_productions, production, extended_production_shift_items, leaves } = options,
+        { grammar, helper: runner, leaf_productions, production, extended_goto_items: extended_production_shift_items, leaves } = options,
         code = state.code || new SC,
         SHOULD_IGNORE = extended_production_shift_items.some(i => i.body == item.body);
 
-    let sc = code, prods = [];
+    let leaf_code = code, prods = [];
 
     if (SHOULD_IGNORE) {
-        sc.addStatement(SC.Comment("SHOULD IGNORE"));
+        leaf_code.addStatement(SC.Comment("SHOULD IGNORE"));
         state.transition_type = TRANSITION_TYPE.IGNORE;
-        return { root: sc, leaf: sc, prods: [] };
+        return {
+            leaf: {
+                root: leaf_code,
+                leaf: leaf_code,
+                prods,
+                hash: leaf_code.hash(),
+                transition_type: state.transition_type
+            }
+        };
     }
 
     if (state.transition_type == TRANSITION_TYPE.CONSUME && !item.atEND)
         item = item.increment();
 
-
-
     if (item) {
         if (item.len > 0 && item.offset == 0 && (item.getProduction(grammar).id != production.id || state.offset > 0)) {
 
             const bool = renderProductionCall(item.getProduction(grammar), options, rec_glob_lex_name);
-            sc = SC.If(bool);
-            code.addStatement(sc);
-            prods = processProductionChain(sc, options, itemsToProductions([item], grammar));
+
+            leaf_code = SC.If(bool);
+
+            code.addStatement(leaf_code);
+
+            prods = processProductionChain(leaf_code, options, itemsToProductions([item], grammar));
+
         } else {
 
             const
@@ -77,66 +86,76 @@ export function defaultSingleItemLeaf(item: Item, state: RecognizerState, option
                     : undefined;
 
             code.addStatement(skip);
-            sc = renderItem(code, item, options, false);
-            prods = processProductionChain(sc, options, itemsToProductions([item], grammar));
+
+            leaf_code = renderItem(code, item, options, false);
+
+            prods = processProductionChain(leaf_code, options, itemsToProductions([item], grammar));
         }
 
         for (const prod of prods)
             leaf_productions.add(prod);
     }
 
-    leaves.push({
-        completed_production: item.getProduction(grammar).id,
-        leaf: sc,
-        root: code,
-        transition_type: state.transition_type,
-        prods
-    });
+    leaf_code.shiftStatement(SC.Comment("--unique-id--" + prods.setFilter().sort().join("-") + "--DO-NOT-REPLACE"));
 
-    return { root: code, leaf: sc, prods };
+    return {
+        leaf: {
+            root: code,
+            leaf: leaf_code,
+            prods,
+            hash: code.hash(),
+            transition_type: state.transition_type
+        }
+    };
 }
 
 export function defaultMultiItemLeaf(state: RecognizerState, states: RecognizerState[], options: RenderBodyOptions): MultiItemReturnObject {
+
     const
-        { production, leaves } = options,
-        root = (new SC).addStatement(
+
+        anchor_state = SC.Variable("anchor_state:unsigned"),
+
+        root: SC = (new SC).addStatement(
             SC.Declare(
                 SC.Assignment("mk:int", SC.Call("mark")),
-                SC.Assignment("anchor:Lexer", SC.Call(SC.Member(rec_glob_lex_name, "copy")))
+                SC.Assignment("anchor:Lexer", SC.Call(SC.Member(rec_glob_lex_name, "copy"))),
+                SC.Assignment(anchor_state, rec_state)
             )
         ),
+
         IS_LEFT_RECURSIVE_WITH_FOREIGN_PRODUCTION_ITEMS = states.some(i => i.transition_type == TRANSITION_TYPE.IGNORE),
-        out_prods: number[] = [];
+
+        out_prods: number[] = [],
+        out_leaves: Leaf[] = [];
 
     let leaf = root, FIRST = true, prev_prods = [];
 
-    for (const { code, items, prods } of states.filter(i => i.transition_type !== TRANSITION_TYPE.IGNORE)) {
+    for (const { code, items, prods, leaves } of states.filter(i => i.transition_type !== TRANSITION_TYPE.IGNORE)) {
 
         out_prods.push(...prods);
+        out_leaves.push(...leaves);
 
         leaf.addStatement(SC.Comment(items));
 
         if (FIRST) {
+
             leaf.addStatement(
                 SC.Comment(prods),
                 code
             );
-        } else {
 
-            const reset = SC.If(SC.Call(
-                "reset:bool",
-                "mk",
-                "anchor:Lexer",
-                rec_glob_lex_name,
-                rec_state,
-                prev_prods.reduce((r, n) => {
-                    if (!r)
-                        return SC.Binary(rec_state_prod, "==", n);
-                    return SC.Binary(r, "||", SC.Binary(rec_state_prod, "==", n));
-                }, null)
-            )).addStatement(SC.Assignment(rec_state_prod, IS_LEFT_RECURSIVE_WITH_FOREIGN_PRODUCTION_ITEMS ? production.id : "-1"), code);
-            leaf.addStatement(reset, SC.Empty());
-            leaf = reset;
+        } else {
+            leaf.addStatement(
+                SC.Assignment(rec_state, SC.Call(
+                    "reset:bool",
+                    "mk",
+                    "anchor:Lexer",
+                    rec_glob_lex_name,
+                    rec_state
+                )),
+                code,
+                SC.Empty()
+            );
 
         }
         prev_prods = prods;
@@ -145,26 +164,20 @@ export function defaultMultiItemLeaf(state: RecognizerState, states: RecognizerS
     }
 
     if (IS_LEFT_RECURSIVE_WITH_FOREIGN_PRODUCTION_ITEMS) {
-        //ADD a fall back 
-        const reset = SC.If(SC.Call(
-            "reset:bool",
-            "mk",
-            "anchor:Lexer",
-            rec_glob_lex_name,
-            rec_state,
-            prev_prods.reduce((r, n) => {
-                if (!r)
-                    return SC.Binary(rec_state_prod, "==", n);
-                return SC.Binary(r, "||", SC.Binary(rec_state_prod, "==", n));
-            }, null)
-        )).addStatement(SC.Assignment(rec_state_prod, production.id));
-        leaf.addStatement(reset, SC.Empty());
-        leaf = reset;
+        leaf.addStatement(
+            SC.Assignment(rec_state, SC.Call(
+                "reset:bool",
+                "mk",
+                "anchor:Lexer",
+                rec_glob_lex_name,
+                rec_state
+            )),
+            SC.Assignment(rec_state, "anchor_state:unsigned"),
+            SC.Empty()
+        );
     }
 
-
-    //*/
-    return { root, leaves: [], prods: out_prods.setFilter() };
+    return { root, leaves: out_leaves, prods: out_prods.setFilter() };
 }
 
 export function defaultSelectionClause(
@@ -177,7 +190,7 @@ export function defaultSelectionClause(
 ): SC {
 
     const
-        { grammar, runner } = options,
+        { grammar, helper: runner } = options,
         groups = [...gen],
         all_syms = groups.flatMap(({ syms }) => syms).setFilter(getUniqueSymbolName);
 
@@ -288,11 +301,11 @@ export function defaultSelectionClause(
 }
 
 
-export function processProductionShiftStates(yielded_productions: number[])
+export function processGoTOStates(yielded_productions: number[])
     : (gen: SelectionClauseGenerator, state: RecognizerState, items: Item[], level: number, options: RenderBodyOptions) => SC {
     return (gen, state, items, level, options) => {
 
-        const { grammar, production, runner } = options;
+        const { grammar, production, helper: runner } = options;
 
         if (state.offset == 0) {
 
@@ -308,20 +321,21 @@ export function processProductionShiftStates(yielded_productions: number[])
             };
 
             const
-                { extended_production_shift_items } = options,
+                { extended_goto_items: extended_production_shift_items } = options,
                 pending_productions = [...yielded_productions.setFilter()],
                 active_productions: Set<number> = new Set,
                 active_groups: case_clause_data[][] = [],
-                case_clauses: Map<number, case_clause_data[][]> = [...gen].flatMap(({ code, items, syms, prods }) => {
-                    const
-                        keys = <number[]>items.map(i => i.sym(grammar).val),
-                        output = [];
+                case_clauses: Map<number, case_clause_data[][]> = [...gen].flatMap(
+                    ({ code, items, syms, prods }) => {
+                        const
+                            keys = <number[]>items.map(i => i.sym(grammar).val),
+                            output = [];
 
-                    for (const key of keys.setFilter())
-                        output.push({ key, code, syms, hash: code.hash(), prods: prods.slice(), items });
+                        for (const key of keys.setFilter())
+                            output.push({ key, code, syms, hash: code.hash(), prods: prods.slice(), items });
 
-                    return output;
-                })
+                        return output;
+                    })
                     .group(({ hash }) => hash)
                     .groupMap(group => {
                         return group.map(g => g.key).setFilter();
@@ -352,7 +366,7 @@ export function processProductionShiftStates(yielded_productions: number[])
             }
 
             if (active_groups.length == 0) {
-                options.NO_PRODUCTION_SHIFTS = true;
+                options.NO_GOTOS = true;
                 return (new SC).addStatement(SC.Comment("value"));
             }
 
@@ -420,8 +434,9 @@ export function processProductionShiftStates(yielded_productions: number[])
                                 syms = getExcludeSymbolSet(lookahead_syms, anticipated_syms),
                                 booleans = getIncludeBooleans(syms, grammar, runner, rec_glob_lex_name, anticipated_syms);
 
-                            if (booleans)
-                                interrupt_statement = SC.If(booleans).addStatement(SC.Break);
+                            if (booleans) {
+                                interrupt_statement = SC.If(booleans).addStatement(SC.UnaryPre(SC.Return, rec_state));
+                            }
                         }
                     }
                 }
@@ -446,14 +461,11 @@ export function processProductionShiftStates(yielded_productions: number[])
             }
 
             return SC.While(
-                active_groups.length > 1
-                    ? SC.Value("true")
-                    : SC.Binary(rec_state_prod, "==", active_groups[0][0].key)
+                SC.Value(1)
             )
                 .addStatement(
-                    SC.Declare(SC.Assignment(accept_loop_flag, SC.False)),
                     switch_stmt,
-                    SC.If(SC.UnaryPre(SC.Value("!"), accept_loop_flag)).addStatement(SC.Break)
+                    SC.Break
                 );
         }
 
@@ -477,27 +489,49 @@ export function processProductionShiftStates(yielded_productions: number[])
  * *leaf state* - Any sequence of transitions yields a
  * single item
  * 
- * @param production_function_root - The root skribble node for the production function
+ * @param production_function_root_rd - The root skribble node for the production function
  * @param RDOptions - Options from the RD yielder
- * @param LROptions - Options from the LR yielder
+ * @param GOTO_Options - Options from the GOTO yielder
  */
-export function completeFunctionProduction(production_function_root: SC,
+export function completeFunctionProduction(
+    production_function_root_rd: SC,
+    production_function_root_goto: SC,
+    rd_fn_name: VarSC | ConstSC,
+    goto_fn_name: VarSC | ConstSC,
     RDOptions: RenderBodyOptions,
-    LROptions: RenderBodyOptions) {
+    GOTO_Options: RenderBodyOptions) {
     const
         { leaves: rd_leaves, production } = RDOptions,
-        { leaves: lr_leaves, NO_PRODUCTION_SHIFTS, active_keys } = LROptions;
+        { leaves: goto_leaves, NO_GOTOS: NO_PRODUCTION_SHIFTS, active_keys } = GOTO_Options;
 
-    for (const { leaf, prods } of rd_leaves) {
-        leaf.addStatement(SC.Comment("RD LEAF " + NO_PRODUCTION_SHIFTS));
+    for (const rd_leaf of rd_leaves) {
+        const { leaf, prods } = rd_leaf;
+
+        //@ts-ignore
+        if (rd_leaf.SET) continue;
+
+        //@ts-ignore
+        rd_leaf.SET = true;
+
+        //leaf.addStatement(SC.Comment("RD LEAF " + NO_PRODUCTION_SHIFTS));
         if (NO_PRODUCTION_SHIFTS) {
-            leaf.addStatement(SC.UnaryPre(SC.Return, SC.True));
-        } else
-            leaf.addStatement(SC.Assignment(rec_state_prod, prods[0]));
+            leaf.addStatement(createDebugCall(GOTO_Options, "RD return"));
+            leaf.addStatement(SC.UnaryPre(SC.Return, rec_state));
+        } else {
+            leaf.addStatement(SC.UnaryPre(SC.Return, SC.Call(goto_fn_name, rec_glob_lex_name, rec_state, prods[0])));
+        }
     }
 
     if (!NO_PRODUCTION_SHIFTS)
-        for (const { leaf, prods, transition_type } of lr_leaves) {
+        for (const goto_leaf of goto_leaves) {
+
+            const { leaf, prods, transition_type } = goto_leaf;
+
+            //@ts-ignore
+            if (goto_leaf.SET) continue;
+
+            //@ts-ignore
+            goto_leaf.SET = true;
 
             if (transition_type !== TRANSITION_TYPE.IGNORE
                 &&
@@ -511,21 +545,18 @@ export function completeFunctionProduction(production_function_root: SC,
                 !(prods[0] == production.id && active_keys.includes(prods[0]))
             ) {
                 leaf.addStatement(SC.Assignment(rec_state_prod, prods[0]));
-                leaf.addStatement(SC.Assignment(accept_loop_flag, SC.True));
-                leaf.addStatement(SC.Comment("LR LEAF " + prods));
+                leaf.addStatement(SC.Value("continue"));
             } else {
-                leaf.addStatement(SC.UnaryPre(SC.Return, SC.True));
+                leaf.addStatement(createDebugCall(GOTO_Options, "Inter return"));
+                leaf.addStatement(SC.UnaryPre(SC.Return, rec_state));
             }
         }
 
 
+    production_function_root_rd.addStatement(SC.UnaryPre(SC.Return, SC.Value("0")));
 
-    if (NO_PRODUCTION_SHIFTS) {
-        production_function_root.addStatement(SC.UnaryPre(SC.Return, SC.Value("0")));
-    } else {
-        production_function_root.shiftStatement(SC.Declare(SC.Assignment(SC.Variable("prod:int"), "-1")));
-        production_function_root.addStatement(addClauseSuccessCheck(RDOptions));
-    }
+    if (!NO_PRODUCTION_SHIFTS)
+        production_function_root_goto.addStatement(addClauseSuccessCheck(RDOptions));
 }
 
 function addClauseSuccessCheck(options: RenderBodyOptions): SC {
@@ -534,12 +565,12 @@ function addClauseSuccessCheck(options: RenderBodyOptions): SC {
     return SC.UnaryPre(SC.Return, SC.Call("assertSuccess", rec_glob_lex_name, rec_state, condition));
 }
 
-export function createDebugCall(options: RenderBodyOptions, active_item: Item[] = []) {
+export function createDebugCall(options: RenderBodyOptions, action_name, active_item: Item[] = []) {
 
-    const { production, runner } = options;
+    const { production, helper: runner } = options;
 
     if (runner.DEBUG)
-        return SC.Value(`debug_stack.push("${production.name} START", { prod:state.prod, tx:str.slice(l.off, l.off + l.tl), ty:l.ty, tl:l.tl, utf:l.getUTF(), FAILED:state.getFAILED(),offset:l.off})`);
+        return SC.Value(`debug_stack.push({ name:"${production.name} ${action_name}", state, tx:str.slice(l.off, l.off + l.tl), ty:l.ty, tl:l.tl, utf:l.getUTF(), FAILED:state==0,offset:l.off})`);
     else
         return SC.Empty();
 }

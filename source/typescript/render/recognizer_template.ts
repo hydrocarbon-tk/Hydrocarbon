@@ -30,7 +30,7 @@ export const renderAssemblyScriptRecognizer = (
 ): SC => {
 
     //Constant Values
-        const hasStateFailed = SC.Call("hasStateFailed", rec_state);
+    const hasStateFailed = SC.Call("hasStateFailed", rec_state);
     const isOutputEnabled = SC.Call("isOutputEnabled", rec_state);
 
     const
@@ -88,19 +88,16 @@ export const renderAssemblyScriptRecognizer = (
         SC.Assignment(str, "input_string"),
 
         SC.Declare(
-            SC.Assignment(SC.Constant("l:Lexer&"), SC.UnaryPre("new", SC.Call("Lexer:Lexer&"))),
-            SC.Assignment(SC.Constant("state:State&"), SC.UnaryPre("new", SC.Call("State:State&")))
+            SC.Assignment(SC.Constant("l:Lexer&"), SC.UnaryPre("new", SC.Call("Lexer:Lexer&")))
         ),
-
         SC.Call(SC.Member("l", "next")),
         SC.Call("reset_counters_and_pointers"),
         skip,
-        SC.Call(getProductionFunctionName(grammar[0], grammar), "l", "state:State&"),
-
+        SC.Declare(SC.Assignment(rec_state, SC.Call(getProductionFunctionName(grammar[0], grammar), "l", SC.Call("createState", "1")))),
         SC.Call("set_action", 0),
         SC.Call("set_error", 0),
         SC.UnaryPre(SC.Return, SC.Binary(
-            SC.Call(SC.Member("state", SC.Variable("getFAILED:bool"))),
+            hasStateFailed,
             "||",
             SC.UnaryPre("!", SC.Call(SC.Member("l", "END")))))
     );
@@ -127,7 +124,7 @@ export const renderAssemblyScriptRecognizer = (
         createLexerCode(),
         ...const_functions,
     );
-
+    /*
     function set_error(val: u32): void {
         if(error_ptr >= 128) return;
         store<u32>(((error_ptr++ & 0xFF) << 2) + error_array_offset, val);
@@ -207,7 +204,7 @@ export const renderAssemblyScriptRecognizer = (
         ));
 
     /*            
-    function reset(mark:u32): boolean{
+    function reset(mark:u32, ): unsigned int{
         if(!FAILED) return false;
         FAILED = false;
         action_ptr = mark;
@@ -221,17 +218,10 @@ export const renderAssemblyScriptRecognizer = (
             "origin:Lexer",
             "advanced:Lexer",
             rec_state,
-            "pass:boolean",
         ).addStatement(
-            SC.If(
-                SC.Binary(
-                    SC.UnaryPre("!", SC.Call(SC.Member(rec_state, "getFAILED"))), "&&",
-                    "pass")
-            ).addStatement(SC.UnaryPre(SC.Return, SC.False)),
             SC.Assignment(action_ptr, "mark:unsigned int"),
             SC.Call(SC.Member("advanced", "sync"), "origin"),
-            SC.Call(SC.Member(rec_state, "setFAILED"), SC.False),
-            SC.UnaryPre(SC.Return, SC.True)
+            SC.UnaryPre(SC.Return, rec_state)
         ));
 
     /*            
@@ -291,10 +281,11 @@ export const renderAssemblyScriptRecognizer = (
         ));
 
     /*            
-    function add_reduce(sym_len: u32, body: u32, DO_NOT_PUSH_TO_STACK:boolean = false): void {
-        const val: u32 = ((0<<0) | ((DO_NOT_PUSH_TO_STACK ? 1 : 0) << 1 ) | ((sym_len & 0x3FFF) << 2) | (body << 16));
-        set_action(val);
+    function add_reduce(state,sym_len,body,DNP = false){
+    if(state.getENABLE_STACK_OUTPUT()){
+        set_action(((DNP<<1)|((sym_len&16383)<<2))|(body<<16));
     }
+}
     */
     code_node.addStatement(
         SC.Function(
@@ -304,7 +295,7 @@ export const renderAssemblyScriptRecognizer = (
             "body:unsigned int",
             SC.Assignment("DNP:bool", "false")
         ).addStatement(
-            SC.If(SC.Call(SC.Member(rec_state, "getENABLE_STACK_OUTPUT")))
+            SC.If(isOutputEnabled)
                 .addStatement(
                     SC.Call("set_action",
                         SC.Binary(
@@ -323,18 +314,19 @@ export const renderAssemblyScriptRecognizer = (
     }  */
     code_node.addStatement(
         SC.Function(
-            "fail:bool",
+            "fail:unsigned",
             "l:Lexer&",
             rec_state
         ).addStatement(
             SC.If(
-                SC.Binary(SC.UnaryPre("!", SC.Call(SC.Member(rec_state, "getFAILED"))),
+                SC.Binary(
+                    SC.UnaryPre("!", hasStateFailed),
                     "&&",
-                    SC.Call(SC.Member(rec_state, "getENABLE_STACK_OUTPUT"))))
+                    isOutputEnabled))
                 .addStatement(
                     SC.Call("soft_fail", "l", rec_state)
                 ),
-            SC.UnaryPre(SC.Return, SC.False)
+            SC.UnaryPre(SC.Return, SC.Value("0"))
         ));
 
     /*            
@@ -349,7 +341,6 @@ export const renderAssemblyScriptRecognizer = (
             "l:Lexer&",
             rec_state,
         ).addStatement(
-            SC.Call(SC.Member(rec_state, "setFAILED"), "true"),
             SC.Call("set_error", SC.Member("l", "off"))
         ));
 
@@ -362,14 +353,14 @@ export const renderAssemblyScriptRecognizer = (
   */
     code_node.addStatement(
         SC.Function(
-            "assertSuccess:bool",
+            "assertSuccess:unsigned",
             "l:Lexer&",
             rec_state,
             "condition:bool",
         ).addStatement(
-            SC.If(SC.Binary(SC.UnaryPre("!", SC.Value("condition")), "||", SC.Call(SC.Member(rec_state, "getFAILED"))))
+            SC.If(SC.Binary(SC.UnaryPre("!", SC.Value("condition")), "||", hasStateFailed))
                 .addStatement(SC.UnaryPre(SC.Return, SC.Call("fail", "l", rec_state))),
-            SC.UnaryPre(SC.Return, SC.True)
+            SC.UnaryPre(SC.Return, rec_state)
         ));
     /*            
     function _no_check(lex: Lexer):void {
@@ -384,7 +375,7 @@ export const renderAssemblyScriptRecognizer = (
             "l:Lexer&",
             rec_state,
         ).addStatement(
-            SC.If(SC.Call(SC.Member(rec_state, "getENABLE_STACK_OUTPUT"))).addStatement(
+            SC.If(isOutputEnabled).addStatement(
                 SC.Call("add_shift", "l", SC.Member("l:Lexer&", "tl"))
             ),
             SC.Call(SC.Member("l:Lexer&", "next"))
@@ -420,16 +411,18 @@ export const renderAssemblyScriptRecognizer = (
             rec_state,
             "accept:bool"
         ).addStatement(
-            SC.If(SC.Call(SC.Member(rec_state, "getFAILED"))).addStatement(
-                SC.UnaryPre(SC.Return, SC.Value("false"))
-            ),
+            SC.If(hasStateFailed)
+                .addStatement(
+                    SC.UnaryPre(SC.Return, SC.Value("0"))
+                ),
             SC.If(SC.Variable("accept")).addStatement(
                 SC.Call(rec_consume_call, "l", rec_state),
-                SC.UnaryPre(SC.Return, SC.Value("true")),
+                SC.UnaryPre(SC.Return, SC.Value("state")),
                 SC.If().addStatement(
-                    SC.UnaryPre(SC.Return, SC.Value("false"))
+                    SC.UnaryPre(SC.Return, SC.Value("0"))
                 )
             ),
+
         ));
     /*            
     function reset_counters_and_pointers(): void{

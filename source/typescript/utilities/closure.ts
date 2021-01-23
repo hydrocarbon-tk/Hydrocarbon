@@ -77,11 +77,11 @@ export function getClosure(items: Item[], grammar: Grammar, ENTER_TOKEN_PRODUCTI
 /**
  * Get a closure that includes items that transition from completed item productions
  * @param closure 
- * @param lr_transition_items 
+ * @param goto_transition_items 
  * @param grammar 
  * @param productions 
  */
-export function getFollowClosure(closure: Item[], lr_transition_items: Item[], grammar: Grammar, productions: Set<number> = new Set) {
+export function getFollowClosure(closure: Item[], goto_transition_items: Item[], grammar: Grammar, productions: Set<number> = new Set) {
 
     const new_closure = closure.slice();
 
@@ -96,11 +96,11 @@ export function getFollowClosure(closure: Item[], lr_transition_items: Item[], g
 
             productions.add(prod);
 
-            const items = getAccompanyingItems(grammar, [prod], lr_transition_items).map(i => i.increment());
+            const items = getAccompanyingItems(grammar, [prod], goto_transition_items).map(i => i.increment());
 
             const c = getClosure(items, grammar);
 
-            new_closure.push(...getFollowClosure(c, lr_transition_items, grammar, productions));
+            new_closure.push(...getFollowClosure(c, goto_transition_items, grammar, productions));
         }
     }
     return new_closure.setFilter(i => i.id).filter(i => !i.atEND);

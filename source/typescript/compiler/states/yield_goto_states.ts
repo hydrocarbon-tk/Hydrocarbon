@@ -1,5 +1,5 @@
 
-import { RecognizerState, TRANSITION_TYPE } from "../../types/recognizer_state.js";
+import { Leaf, RecognizerState, TRANSITION_TYPE } from "../../types/recognizer_state.js";
 import { RenderBodyOptions } from "../../types/render_body_options";
 
 import { Item } from "../../utilities/item.js";
@@ -8,16 +8,16 @@ import { isSymAProduction } from "../../utilities/symbol.js";
 import { rec_glob_lex_name } from "../../utilities/global_names.js";
 import { yieldStates } from "./yield_states.js";
 
-export function* yieldProductionStates(options: RenderBodyOptions): Generator<RecognizerState[], { code: SC, prods: number[]; hash: string; }> {
+export function* yieldGotoStates(options: RenderBodyOptions): Generator<RecognizerState[], { code: SC, prods: number[]; leaves: Leaf[], hash: string; }> {
 
-    const { grammar, production_shift_items, production, extended_production_shift_items } = options;
+    const { grammar, goto_items: production_shift_items, production, extended_goto_items: extended_production_shift_items } = options;
     let nonterm_shift_items: Item[] = production_shift_items;
     const LEFT_RECURSION = nonterm_shift_items.some(i => i.getProduction(grammar).id == production.id && i.getProductionAtSymbol(grammar).id == production.id);
 
     /** 
      * If left recursive, gather ALL items that transition on the production to ensure the 
      * processor is aware of shift/reduce ambiguities. Completed items that are added
-     * from the LR check should not be used for actual parsing, and instead their code paths 
+     * from the GOTO check should not be used for actual parsing, and instead their code paths 
      * should be discarded.
      */
 
@@ -45,12 +45,12 @@ export function* yieldProductionStates(options: RenderBodyOptions): Generator<Re
          * Generate transition sequences for all productions shift items
          */
         const
-            lr_items = nonterm_shift_items
+            goto_items = nonterm_shift_items
                 .setFilter(i => i.id)
                 .group(i => i.sym(grammar).val),
             groups: RecognizerState[] = [];
 
-        for (const group of lr_items) {
+        for (const group of goto_items) {
 
             const
                 keys = group.map(i => i.getProductionAtSymbol(grammar).id),
@@ -61,15 +61,13 @@ export function* yieldProductionStates(options: RenderBodyOptions): Generator<Re
 
             const gen = yieldStates(shifted_items, options, rec_glob_lex_name, 1);
 
-            let val = gen.next(), prods = [];
+            let val = gen.next();
 
 
             while (!val.done) {
                 const obj = <RecognizerState[]>val.value;
 
                 yield obj;
-                if (obj.length > 0)
-                    prods.push(...obj[0].prods);
 
                 val = gen.next();
             }
@@ -83,15 +81,16 @@ export function* yieldProductionStates(options: RenderBodyOptions): Generator<Re
                 completing: false,
                 offset: 0,
                 peek_level: -1,
-                prods: val.value.prods
+                prods: val.value.prods,
+                leaves: val.value.leaves
             });
         }
 
         yield groups;
 
-        return { code: groups[0].code, prods: [], hash: groups[0].hash };
+        return { code: groups[0].code, prods: groups[0].prods, leaves: groups[0].leaves, hash: groups[0].hash };
     } else {
-        options.NO_PRODUCTION_SHIFTS = true;
-        return { code: new SC, prods: [], hash: "" };
+        options.NO_GOTOS = true;
+        return { code: new SC, prods: [], leaves: [], hash: "" };
     }
 }
