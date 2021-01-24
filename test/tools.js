@@ -73,7 +73,7 @@ export async function compileBasicHCGParser(USE_CACHED = false, DEBUG = false) {
     const parser = await compile(grammar, {}, {
         recognizer_type: "js",
         completer_type: "js",
-        output_dir: URL.resolveRelative("./test/temp/"),
+        output_dir: URL.resolveRelative("./temp/hcg_parser/", import.meta.url),
         combine_recognizer_and_completer: true,
         create_function: true,
         no_file_output: !DEBUG,
@@ -85,7 +85,7 @@ export async function compileBasicHCGParser(USE_CACHED = false, DEBUG = false) {
     return parser;
 }
 
-export async function getGrammar(string_or_url) {
+export async function getGrammar(string_or_url, parser) {
     await URL.server();
 
     const url = new URL(string_or_url);
@@ -96,8 +96,7 @@ export async function getGrammar(string_or_url) {
         string = await url.fetchText();
 
 
-
-    return await compileGrammars(string, url + "");
+    return await compileGrammars(string, url + "", parser);
 }
 
 /**
@@ -113,7 +112,6 @@ export async function compileGrammarSource(string_or_url, DEBUG = false) {
 
     if (await url.DOES_THIS_EXIST())
         try {
-
             string = await url.fetchText();
         } catch (e) { }
 
@@ -124,7 +122,7 @@ export async function compileGrammarSource(string_or_url, DEBUG = false) {
         parser = await compile(grammar, {}, {
             recognizer_type: "js",
             completer_type: "js",
-            output_dir: URL.resolveRelative("./temp/source/"),
+            output_dir: URL.resolveRelative("./temp/parser_from_source/", import.meta.url),
             combine_recognizer_and_completer: true,
             create_function: true,
             no_file_output: !DEBUG,
@@ -147,7 +145,7 @@ export async function compileGrammar(grammar, DEBUG = false) {
         parser = await compile(grammar, {}, {
             recognizer_type: "js",
             completer_type: "js",
-            output_dir: URL.resolveRelative("./test/temp2/"),
+            output_dir: URL.resolveRelative("./temp/parser_from_grammar_obj/", import.meta.url),
             combine_recognizer_and_completer: true,
             create_function: true,
             no_file_output: !DEBUG,
