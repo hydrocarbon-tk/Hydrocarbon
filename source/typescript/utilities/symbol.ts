@@ -69,8 +69,15 @@ export function getUniqueSymbolName(sym: Symbol) {
         + (sym.DOES_SHIFT ? "----" : "")
         + (sym.IS_NON_CAPTURE ? "-->" : "");
 }
+
+export function isSymCompoundSymbol(s: Symbol): s is SpecifiedCharacterSymbol {
+    return isSymSpecifiedSymbol(s) && s.val.length > 1;
+}
 export function isSymNonConsume(s: Symbol): boolean {
     return !!s.IS_NON_CAPTURE;
+}
+export function isSymEndOfFile(s: Symbol): s is EOFSymbol {
+    return s.type == SymbolType.END_OF_FILE;
 }
 export function isSymNotNonConsume(s: Symbol): boolean {
     return !isSymNonConsume(s);
@@ -96,7 +103,7 @@ export function isSymAProductionToken(s: Symbol): s is (ProductionTokenSymbol) {
  */
 
 export function isSymSpecified(s: Symbol): s is SpecifiedSymbol {
-    return !isSymAProduction(s) && !isSymAGenericType(s) && !isSymAnAssertFunction(s) && !isSymAProductionToken(s);
+    return !isSymAProduction(s) && !isSymAGenericType(s) && !isSymAProductionToken(s);
 }
 /**
  * A SpecifiedSymbol that is not a SpecifiedIdentifierSymbol nor a SpecifiedNumericSymbol
@@ -166,7 +173,13 @@ export function getSkippableSymbolsFromItems(items: Item[], grammar: Grammar): T
         .map(sym => <TokenSymbol>grammar.meta.all_symbols.get(sym))
         .flatMap(sym => <TokenSymbol[]>getTrueSymbolValue(sym, grammar));
 }
-export function getExcludeSymbolSet(setA: TokenSymbol[], setB: TokenSymbol[]): TokenSymbol[] {
+
+/**
+ * ret = setA \ setB
+ * @param setA 
+ * @param setB 
+ */
+export function getComplementOfSymbolSets(setA: TokenSymbol[], setB: TokenSymbol[]): TokenSymbol[] {
     return setA.filter(a => {
         const unique_name = getUniqueSymbolName(a);
         return !setB.some(b => getUniqueSymbolName(b) == unique_name);
@@ -197,27 +210,14 @@ export function getRootSym<T = Symbol>(sym: T, grammar: Grammar): T {
     return <T><any>grammar.meta.all_symbols.get(name) || sym;
 }
 
-export function doSymbolsOcclude(target: Symbol, potential_occluder: Symbol): boolean {
+export function doDefinedSymbolsOcclude(target: TokenSymbol, potential_occluder: TokenSymbol): boolean {
 
     if (getUniqueSymbolName(target) == getUniqueSymbolName(potential_occluder)) return false;
-
-    if (
-        isSymAProduction(target)
-        || isSymAProduction(potential_occluder)
-    ) return false;
-
-    if ((isSymGeneratedId(target) && isSymSpecifiedIdentifier(potential_occluder))
-        ||
-        (isSymGeneratedId(potential_occluder) && isSymSpecifiedIdentifier(target))
-    ) return true;
-
-    if ((isSymGeneratedNum(target) && isSymSpecifiedNumeric(potential_occluder))
-        ||
-        (isSymGeneratedNum(potential_occluder) && isSymSpecifiedNumeric(target))
-    ) return true;
-
+    if (isSymAProduction(target) || isSymAProduction(potential_occluder)) return false;
+    if (isSymGeneratedSym(target) && isSymSpecifiedSymbol(potential_occluder)) return true;
+    if (isSymGeneratedId(target) && isSymSpecifiedIdentifier(potential_occluder)) return true;
+    if (isSymGeneratedNum(target) && isSymSpecifiedNumeric(potential_occluder)) return true;
     if (target.val == potential_occluder.val) return false;
-
     let
         short = target.val.toString(),
         long = potential_occluder.val.toString();

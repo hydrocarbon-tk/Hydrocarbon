@@ -10,10 +10,13 @@ import { Item, itemsToProductions } from "../../utilities/item.js";
 import { renderItem } from "../../utilities/render_item.js";
 import { ConstSC, ExprSC, SC, VarSC } from "../../utilities/skribble.js";
 import {
-    getExcludeSymbolSet, getSkippableSymbolsFromItems,
+    doDefinedSymbolsOcclude,
+    getComplementOfSymbolSets,
+    getSkippableSymbolsFromItems,
     getSymbolName,
     getSymbolsFromClosure,
     getUniqueSymbolName,
+    isSymAGenericType,
     isSymAProduction,
     isSymGeneratedId,
     isSymGeneratedNL,
@@ -391,52 +394,89 @@ export function processGoTOStates(yielded_productions: number[])
                     anticipated_syms = getSymbolsFromClosure(closure, grammar);
 
                     /**
-                     * Create look ahead for preemptive reduce on keys that match the production id
+                     * Create look ahead for a preemptive reduce on keys that match the production id
                      */
                     if (keys.some(k => k == production.id)) {
 
-                        const follow_symbols = keys.flatMap(k => getFollow(k, grammar)).setFilter(sym => getUniqueSymbolName(sym));
-
-                        /*
-                            Early exit should only occur if there is an occluding generic ( such as g:sym, g:id )
-                            that could capture a symbol that would otherwise cause a reduce. FOLLOW Symbols that
-                            would otherwise be matched match by the generic type should be selected for the early
-                            exit check. If there are no such generics in the excluded  items, then there is no
-                            need to do this check.
-                        */
-                        const lookahead_syms = [...follow_symbols.filter(s => isSymGeneratedWS(s) || isSymGeneratedNL(s))];
-
-                        if (anticipated_syms.some(isSymGeneratedSym))
-                            lookahead_syms.push(...follow_symbols.filter(isSymSpecifiedSymbol));
-
                         /**
-                         * Include specified character sequences if anticipated symbols contain an occluding generic symbol.
-                         * If the generics ws or nl are in the follow symbols, or are not in the skippable symbols, do not 
-                         * include specified symbols, since this would likely cause identifier sequences such as 
-                         * [ randomId__specifiedID  ] to be counterintuitively broken up into [ randomID__   specifiedID ]
-                         * ====================================================== */
+                        *   Criteria for checked symbols 
+                        *
+                        *   fs = follow_symbols
+                        *   as = anticipated_symbols
+                        *   cs = symbols that should be check
+                        *   
+                        *   cs = occluded((fs \ as), as) 
+                        * 
+                        *   where occluded(syms , oc) is
+                        *       
+                        *       syms = checked symbols
+                        *       oc = potential occluders = (fs ∪ as)
+                        *       SY = type declared symbol
+                        *       ID = type declared identifier
+                        *       NU = type declared number
+                        *       
+                        *       for s in syms
+                        *           
+                        *           s is (g:ws | g:nl) : yield
+                        *
+                        *           s is (g:*) : discard
+                        * 
+                        *           s is SY 
+                        *              & ( g:sym ∈ oc | ( a is DS & a ∈ oc & n exists where a[0,n] == s[0,n] where n > 1 and n >= a.length) ) : yield
+                        * 
+                        *           s is ID 
+                        *              & ( g:id ∈ oc | g:ws ∉ syms | g:nl ∉ syms
+                        *                  |  ( a is ID & a ∈ oc & n exists where a[0...n] == s[0...n] where n > 1 and n = a.length)  )
+                        *              ) : yield
+                        *               
+                        *           s is NU 
+                        *              & ( g:id ∈ oc | g:ws ∉ syms | g:nl ∉ syms
+                        *                  |  ( a is NU & a ∈ oc & n exists where a[0...n] == s[0...n] where n > 1 and n = a.length)  ) 
+                        *              ) : yield
+                        * 
+                        * 
+                        */
+                        const unique_candidates = getComplementOfSymbolSets(
+                            keys.flatMap(k => getFollow(k, grammar)).setFilter(sym => getUniqueSymbolName(sym)),
+                            anticipated_syms
+                        ),
+                            checked_symbols = [],
 
-                        const
-                            CONTAINS_WS = follow_symbols.some(isSymGeneratedWS) || !skippable.some(isSymGeneratedWS),
-                            CONTAINS_NL = follow_symbols.some(isSymGeneratedNL) || !skippable.some(isSymGeneratedNL);
+                            GEN_SYM = anticipated_syms.some(isSymGeneratedSym),
+                            GEN_ID = anticipated_syms.some(isSymGeneratedId),
+                            GEN_NUM = anticipated_syms.some(isSymGeneratedNum),
+                            CONTAINS_WS = unique_candidates.some(isSymGeneratedWS) || !skippable.some(isSymGeneratedWS),
+                            CONTAINS_NL = unique_candidates.some(isSymGeneratedNL) || !skippable.some(isSymGeneratedNL),
+                            GEN_NL_WS = CONTAINS_NL || CONTAINS_WS;
 
-                        if (!(CONTAINS_WS || CONTAINS_NL) && anticipated_syms.some(isSymGeneratedId))
-                            lookahead_syms.push(...follow_symbols.filter(isSymSpecifiedIdentifier));
 
-                        if (!(CONTAINS_WS || CONTAINS_NL) && anticipated_syms.some(isSymGeneratedNum))
-                            lookahead_syms.push(...follow_symbols.filter(isSymSpecifiedNumeric));
+                        for (const s of unique_candidates) {
 
-                        /* ====================================================== */
+                            if (isSymGeneratedNL(s) || isSymGeneratedWS(s))
+                                checked_symbols.push(s);
+                            else if (isSymAGenericType(s))
+                                continue;
+                            else if (isSymSpecifiedSymbol(s)) {
+                                if (GEN_SYM || anticipated_syms.some(a => doDefinedSymbolsOcclude(a, s))) checked_symbols.push(s);
+                            } else if (isSymSpecifiedIdentifier(s) && !GEN_NL_WS) {
+                                if (GEN_ID || anticipated_syms.some(a => doDefinedSymbolsOcclude(a, s))) checked_symbols.push(s);
+                            } else if (isSymSpecifiedNumeric(s) && !GEN_NL_WS) {
+                                if (GEN_NUM || anticipated_syms.some(a => doDefinedSymbolsOcclude(a, s))) checked_symbols.push(s);
+                            }
+                        }
 
-                        if (lookahead_syms.length > 0) {
+                        if (checked_symbols.length > 0) {
 
                             const
-                                syms = getExcludeSymbolSet(lookahead_syms, anticipated_syms),
-                                booleans = getIncludeBooleans(syms, grammar, runner, rec_glob_lex_name, anticipated_syms);
+                                booleans = getIncludeBooleans(checked_symbols, grammar, runner, rec_glob_lex_name, anticipated_syms);
 
                             if (booleans) {
-                                interrupt_statement = SC.If(booleans).addStatement(SC.UnaryPre(SC.Return, rec_state));
+                                interrupt_statement = SC.If(booleans).addStatement(
+                                    SC.UnaryPre(SC.Return, rec_state)
+                                );
                             }
+                        } else {
+                            interrupt_statement = SC.Comment(unique_candidates.map(s => `${isSymSpecifiedSymbol(s)}-${getSymbolName(s)}`).join(" ") + "\n" + anticipated_syms.map(getSymbolName).join(" "));
                         }
                     }
                 }

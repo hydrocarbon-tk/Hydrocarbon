@@ -11,7 +11,7 @@ import { rec_consume_assert_call, rec_glob_lex_name, rec_state } from "./global_
 import { getProductionClosure, getProductionID } from "./production.js";
 import { ConstSC, ExprSC, SC, StmtSC, VarSC } from "./skribble.js";
 import {
-    doSymbolsOcclude,
+    doDefinedSymbolsOcclude,
     getTokenSymbolsFromItems,
     getUniqueSymbolName,
     isSymAGenericType,
@@ -391,7 +391,7 @@ export function getIncludeBooleans(
 
             const
                 char_code = sym.val.charCodeAt(0),
-                occluders = ambient_symbols.filter(a_sym => doSymbolsOcclude(a_sym, sym));
+                occluders = ambient_symbols.filter(a_sym => doDefinedSymbolsOcclude(a_sym, sym));
 
             if (occluders.length > 0 || sym.val.length > 1) {
 
