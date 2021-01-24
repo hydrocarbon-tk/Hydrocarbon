@@ -42,9 +42,6 @@ export function getClosure(items: Item[], grammar: Grammar, ENTER_TOKEN_PRODUCTI
 
         for (const item_id of closure) {
 
-            if (!grammar.item_map.get(item_id))
-                console.log(item_id);
-
             const item = grammar.item_map.get(item_id)?.item;
 
             if (!item.atEND) {
