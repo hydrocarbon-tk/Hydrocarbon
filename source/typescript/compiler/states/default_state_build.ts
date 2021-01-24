@@ -154,7 +154,7 @@ export function defaultMultiItemLeaf(state: RecognizerState, states: RecognizerS
                     "mk",
                     "anchor:Lexer",
                     rec_glob_lex_name,
-                    rec_state
+                    anchor_state
                 )),
                 code,
                 SC.Empty()
@@ -173,9 +173,8 @@ export function defaultMultiItemLeaf(state: RecognizerState, states: RecognizerS
                 "mk",
                 "anchor:Lexer",
                 rec_glob_lex_name,
-                rec_state
+                anchor_state
             )),
-            SC.Assignment(rec_state, "anchor_state:unsigned"),
             SC.Empty()
         );
     }
