@@ -236,24 +236,31 @@ export function defaultSelectionClause(
         const transition_type: TRANSITION_TYPE = transition_types[0];
 
         switch (transition_type) {
+
             case TRANSITION_TYPE.PEEK:
             case TRANSITION_TYPE.PEEK_PRODUCTION_SYMBOLS:
+
                 gate_block = (isSymAProduction(syms[0]))
                     ? renderProductionCall(grammar[syms[0].val], options, peek_name)
                     : getIncludeBooleans(<TokenSymbol[]>syms, grammar, runner, peek_name, <TokenSymbol[]>all_syms);
                 break;
+
             case TRANSITION_TYPE.ASSERT:
             case TRANSITION_TYPE.ASSERT_PRODUCTION_SYMBOLS:
             case TRANSITION_TYPE.ASSERT_END:
+
                 gate_block = (isSymAProduction(syms[0]))
                     ? renderProductionCall(grammar[syms[0].val], options)
                     : getIncludeBooleans(<TokenSymbol[]>syms, grammar, runner, peek_name, <TokenSymbol[]>all_syms);
                 break;
+
             case TRANSITION_TYPE.CONSUME:
+
                 gate_block = (isSymAProduction(syms[0]))
                     ? createAssertionShiftManual(rec_glob_lex_name, renderProductionCall(grammar[syms[0].val], options))
                     : createAssertionShiftManual(rec_glob_lex_name, getIncludeBooleans(<TokenSymbol[]>syms, grammar, runner, lex_name, <TokenSymbol[]>all_syms));
                 break;
+
             case TRANSITION_TYPE.IGNORE:
                 gate_block = SC.Empty();
                 break;

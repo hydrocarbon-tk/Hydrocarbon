@@ -1,8 +1,8 @@
 import { performance } from "perf_hooks";
-import { EOF_SYM, Grammar } from "../types/grammar.js";
+import { Grammar } from "../types/grammar.js";
 import { Production } from "../types/production";
 import { RDProductionFunction } from "../types/rd_production_function";
-import { RenderBodyOptions, ReturnType } from "../types/render_body_options";
+import { RenderBodyOptions } from "../types/render_body_options";
 import { SymbolType } from "../types/symbol_type";
 import { getClosure } from "../utilities/closure.js";
 import {
@@ -19,7 +19,6 @@ import { completeFunctionProduction, createDebugCall, defaultSelectionClause, pr
 import { yieldGotoStates } from "./states/yield_goto_states.js";
 import { yieldStates } from "./states/yield_states.js";
 import { getProductionFunctionName } from "../utilities/code_generating.js";
-
 export const accept_loop_flag = SC.Variable("ACCEPT:boolean");
 
 function generateOptions(
@@ -72,6 +71,7 @@ export function constructHybridFunction(production: Production, grammar: Grammar
         );
 
     let items: Item[] = p.bodies.map(b => new Item(b.id, b.length, 0));
+
 
     try {
 

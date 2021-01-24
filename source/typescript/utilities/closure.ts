@@ -36,6 +36,7 @@ export function getClosure(items: Item[], grammar: Grammar, ENTER_TOKEN_PRODUCTI
         closure.push(...grammar.item_map.get(item_id).closure);
     }
 
+
     if (ENTER_TOKEN_PRODUCTIONS) {
 
         const modified_closure = [];
