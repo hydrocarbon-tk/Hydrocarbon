@@ -1,13 +1,13 @@
 import { Grammar } from "../../types/grammar.js";
 import { RecognizerState, TRANSITION_TYPE } from "../../types/recognizer_state.js";
-import { TokenSymbol } from "../../types/symbol";
+import { RenderBodyOptions } from "../../types/render_body_options.js";
 import { TransitionTreeNode } from "../../types/transition_tree_nodes";
-
 import { VarSC } from "../../utilities/skribble.js";
 import { getSymbolFromUniqueName } from "../../utilities/symbol.js";
-import { Helper } from "../helper.js";
+import { processPeekStateLeaf } from "./process_peek_state_leaf.js";
 
 
+export type leafHandler = (state: RecognizerState, options: RenderBodyOptions, offset: number, lex_name: VarSC) => void;
 
 export function convertTreeNodeToRenderable(node: TransitionTreeNode, grammar: Grammar) {
     return Object.assign({}, node, {
@@ -17,61 +17,57 @@ export function convertTreeNodeToRenderable(node: TransitionTreeNode, grammar: G
     });
 }
 
-export function* buildPeekSequence(
+export function buildPeekSequence(
     peek_nodes: TransitionTreeNode[],
-    grammar: Grammar,
-    runner: Helper,
+    options: RenderBodyOptions,
     lex_name: VarSC,
-    current_production_id: number = -1,
-    ALLOW_FALL_THROUGH: boolean = true,
-    depth: number = 0
-): Generator<RecognizerState[], RecognizerState[]> {
+    offset: number,
+    depth: number = 0,
+    leafHandler: leafHandler = processPeekStateLeaf
+): RecognizerState[] {
 
-    const group: RecognizerState[] = [];
+    const output_states: RecognizerState[] = [];
 
-    for (let i = peek_nodes.length - 1; i >= 0; i--) {
+    const peek_groups = peek_nodes.group(n => {
+        const item_id = n.roots.map(i => i.id).sort().join("-");
+        const next = n.next.length > 0;
+        return item_id + "" + next;
+    });
 
-        const node = peek_nodes[i];
+    for (const group of peek_groups) {
 
-        let
-            code = null,
-            prods = [],
-            leaves = [],
-            hash = "undefined";
+        const
+            symbols = group
+                .map(g => g.sym)
+                .map(s => getSymbolFromUniqueName(options.grammar, s)),
+            closure = group.flatMap(g => g.starts).setFilter(s => s.id);
+
+        const state = <RecognizerState>{
+            code: null,
+            hash: "undefined",
+            items: group[0].roots,
+            transition_type: TRANSITION_TYPE.PEEK,
+            offset,
+            peek_level: depth,
+            completing: group[0].next.length == 0,
+            closure,
+            prods: [],
+            leaves: [],
+            states: [],
+            symbols
+        };
+
         //Depth first
-        if (node.next.length > 0) {
-
-            let gen = buildPeekSequence(node.next, grammar, runner, lex_name, current_production_id, ALLOW_FALL_THROUGH, depth + 1);
-            let val = gen.next();
-
-            while (!val.done) {
-                const obj = <RecognizerState[]>val.value;
-                yield obj;
-                code = obj[0].code;
-                hash = obj[0].hash;
-                prods.push(...obj[0].prods);
-                leaves.push(...obj[0].leaves);
-                val = gen.next();
-            }
+        if (group[0].next.length > 0) {
+            state.states.push(...buildPeekSequence(group[0].next, options, lex_name, offset, depth + 1, leafHandler));
+        } else {
+            leafHandler(state, options, offset, lex_name);
         }
 
-        group.push(<RecognizerState>{
-            code,
-            hash,
-            items: node.roots,
-            transition_type: TRANSITION_TYPE.PEEK,
-            offset: -1,
-            peek_level: depth,
-            completing: node.next.length == 0,
-            closure: node.starts,
-            symbol: <TokenSymbol>getSymbolFromUniqueName(grammar, node.sym),
-            prods: prods.setFilter(),
-            leaves: leaves
-        });
+        output_states.push(state);
     }
 
-    if (depth == 0)
-        return group;
-
-    yield group;
+    return output_states;
 }
+
+

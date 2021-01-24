@@ -40,7 +40,7 @@ export interface RenderBodyOptions {
      */
     extended_goto_items: Item[];
 
-    cache: Map<string, { code: SC, prods: number[]; leaves: Leaf[], hash: string; }>;
+    //cache: Map<string, { code: SC, prods: number[]; leaves: Leaf[], hash: string; }>;
 
     /**
      * Used to track active production shift production ids

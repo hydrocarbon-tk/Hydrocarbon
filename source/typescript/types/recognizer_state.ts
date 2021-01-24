@@ -10,37 +10,51 @@ export const enum TRANSITION_TYPE {
     /**
      * Indicates the token(s) of this state need to 
      * be consumed before progressing to the next state(s). 
+     * 
+     * Friendly name:  `consume`
      */
     CONSUME,
     /**
      * Indicates that the token(s) at this state only need to be 
      * asserted before progressing to the next state(s)
+     * 
+     * Friendly name:  `assert`
      */
     ASSERT,
 
 
     /**
      * Like ASSERT, except state is generated from a completed item.
+     * 
+     * Friendly name:  `assert-end`
      */
     ASSERT_END,
     /**
      * Like ASSERT, except state will call a production function.
+     * 
+     * Friendly name:  `assert-production-closure`
      */
     ASSERT_PRODUCTION_SYMBOLS,
     /**
      * Like CHECK except the assertion should be made on the peeking lexer instead of
      * the main lexer.
+     * 
+     * Friendly name:  `peek`
      */
     PEEK,
 
     /**
      * Like ASSERT_PRODUCTION_SYMBOLS, except the assertion should be made on the peeking lexer instead of
      * the main lexer.
+     * 
+     * Friendly name:  `peek-production-closure`
      */
     PEEK_PRODUCTION_SYMBOLS,
 
     /**
      * This state should be ignored. Used for look-ahead sequences that should not actual produce code that could manipulate the lexer
+     * 
+     * Friendly name:  `ignore`
      */
     IGNORE
 };
@@ -64,7 +78,9 @@ export interface RecognizerState {
     /**
      * The Terminal or Non-Terminal Symbol that leads to the transition to this state.
      */
-    symbol: Symbol;
+    symbol?: Symbol;
+
+    symbols?: Symbol[];
 
     /**
      * The depth of the peeking state relative to the initiation of the peek.
@@ -104,6 +120,8 @@ export interface RecognizerState {
     prods?: number[];
 
     leaves?: Leaf[];
+
+    states: RecognizerState[];
 }
 
 export interface Leaf {

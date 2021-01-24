@@ -178,7 +178,7 @@ function getClosureGroups(
         group = [],
         unskippable: TokenSymbol[] = <any>getUnskippableSymbolsFromClosure(closure, grammar);
 
-    for (const item of getClosure(closure, grammar)) {
+    for (const item of closure) {
 
         const sym = item.sym?.(grammar);
 

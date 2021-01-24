@@ -102,8 +102,8 @@ export function constructCompilerRunner(ANNOTATED: boolean = false, DEBUG: boole
 
             intermediate_names.length = 0;
 
-            for (const [, { original_name, name, code_node }] of const_map.entries()) {
-                const hash = SC.Bind(code_node).hash();
+            for (const [hash, { original_name, name, code_node }] of const_map.entries()) {
+                //const hash = SC.Bind(code_node).hash();
 
                 if (runner.constant_map.has(hash)) {
 

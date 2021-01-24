@@ -310,219 +310,162 @@ export function defaultSelectionClause(
 }
 
 
-export function processGoTOStates(yielded_productions: number[])
-    : (gen: SelectionClauseGenerator, state: RecognizerState, items: Item[], level: number, options: RenderBodyOptions) => SC {
-    return (gen, state, items, level, options) => {
+export function processGoTOStates(gen: SelectionClauseGenerator, state: RecognizerState, items: Item[], level: number, options: RenderBodyOptions): SC {
 
-        const { grammar, production, helper: runner } = options;
+    if (state.offset == 0) {
 
-        if (state.offset == 0) {
+        const
+            { grammar, production, helper: runner } = options,
+            goto_groups = [...gen];
 
-            let switch_stmt: SC = SC.Switch(rec_state_prod);
+        let switch_stmt: SC = SC.Switch(rec_state_prod);
 
-            type case_clause_data = {
-                key: number;
-                code: SC;
-                syms: TokenSymbol[];
-                hash: string;
-                prods: number[];
-                items: Item[];
-            };
+        for (const { syms, items, code, hash, leaves } of goto_groups.sort((a, b) => a.syms[0] - b.syms[0])) {
+
+            let anticipated_syms;
 
             const
-                { extended_goto_items: extended_production_shift_items } = options,
-                pending_productions = [...yielded_productions.setFilter()],
-                active_productions: Set<number> = new Set,
-                active_groups: case_clause_data[][] = [],
-                case_clauses: Map<number, case_clause_data[][]> = [...gen].flatMap(
-                    (a) => {
+                keys = (<number[]><any>syms).setFilter(),
+                active_items = items.filter(i => !i.atEND),
+                end_items = items.filter(i => i.atEND),
+                skippable = getSkippableSymbolsFromItems(items, grammar)
+                    .filter(sym => !getFollow(keys[0], grammar).some(s => getSymbolName(s) == getSymbolName(sym)));
 
-                        const
-                            { code, items, syms, prods } = a,
-                            keys = <number[]>items.map(i => i.sym(grammar).val).setFilter(),
-                            output = [];
+            leaves.map(l => l.keys = keys);
 
-                        a.leaves.forEach(l => l.keys = keys);
-
-                        for (const key of keys)
-                            output.push({ key, code, syms, hash: code.hash(), prods: prods.slice(), items });
-
-                        return output;
-                    })
-                    .group(({ hash }) => hash)
-                    .groupMap(group => {
-                        return group.map(g => g.key).setFilter();
-                    });
+            let interrupt_statement = null;
 
 
-            for (let i = 0; i < pending_productions.length; i++) {
-
-                const prod = pending_productions[i];
-
-                if (active_productions.has(prod))
-                    continue;
-
-                active_productions.add(prod);
-
-                if (case_clauses.has(prod)) {
-
-                    const
-                        group = case_clauses.get(prod)[0],
-                        prods = group.flatMap(g => g.prods).setFilter();
-
-                    for (const key of group.map(g => g.key).setFilter())
-                        active_productions.add(key);
-
-                    pending_productions.push(...prods);
-                    active_groups.push(group);
-                }
-            }
-
-            if (active_groups.length == 0) {
-                options.NO_GOTOS = true;
-                return (new SC).addStatement(SC.Comment("value"));
-            }
-
-            for (const clauses of active_groups.sort((([{ key: keyA }], [{ key: keyB }]) => keyA - keyB))) {
-                let anticipated_syms;
-
+            if (active_items.length > 0) {
                 const
-                    keys = clauses.map(g => g.key).setFilter(),
-                    code = clauses[0].code,
-                    items = clauses.flatMap(g => g.items).setFilter(i => i.id).filter(i => !extended_production_shift_items.some(s => s.body == i.body)).map(i => i.increment()),
-                    active_items = items.filter(i => !i.atEND),
-                    end_items = items.filter(i => i.atEND),
-                    skippable = getSkippableSymbolsFromItems(items, grammar).filter(sym => !getFollow(keys[0], grammar).some(s => getSymbolName(s) == getSymbolName(sym))
-                    );
+                    closure = getClosure(active_items.slice(), grammar);
+                anticipated_syms = getSymbolsFromClosure(closure, grammar);
 
-                let interrupt_statement = null;
-
-
-                if (active_items.length > 0) {
-                    const
-                        closure = getClosure(active_items.slice(), grammar);
-                    anticipated_syms = getSymbolsFromClosure(closure, grammar);
+                /**
+                 * Create look ahead for a preemptive reduce on keys that match the production id
+                 */
+                if (keys.some(k => k == production.id)) {
 
                     /**
-                     * Create look ahead for a preemptive reduce on keys that match the production id
-                     */
-                    if (keys.some(k => k == production.id)) {
+                    *   Criteria for checked symbols 
+                    *
+                    *   fs = follow_symbols
+                    *   as = anticipated_symbols
+                    *   cs = symbols that should be check
+                    *   
+                    *   cs = occluded((fs \ as), as) 
+                    * 
+                    *   where occluded(syms , oc) is
+                    *       
+                    *       syms = checked symbols
+                    *       oc = potential occluders = (fs ∪ as)
+                    *       SY = type declared symbol
+                    *       ID = type declared identifier
+                    *       NU = type declared number
+                    *       
+                    *       for s in syms
+                    *           
+                    *           s is (g:ws | g:nl) : yield
+                    *
+                    *           s is (g:*) : discard
+                    * 
+                    *           s is SY 
+                    *              & ( g:sym ∈ oc | ( a is DS & a ∈ oc & n exists where a[0,n] == s[0,n] where n > 1 and n >= a.length) ) : yield
+                    * 
+                    *           s is ID 
+                    *              & ( g:id ∈ oc | g:ws ∉ syms | g:nl ∉ syms
+                    *                  |  ( a is ID & a ∈ oc & n exists where a[0...n] == s[0...n] where n > 1 and n = a.length)  )
+                    *              ) : yield
+                    *               
+                    *           s is NU 
+                    *              & ( g:id ∈ oc | g:ws ∉ syms | g:nl ∉ syms
+                    *                  |  ( a is NU & a ∈ oc & n exists where a[0...n] == s[0...n] where n > 1 and n = a.length)  ) 
+                    *              ) : yield
+                    * 
+                    * 
+                    */
+                    const unique_candidates = getComplementOfSymbolSets(
+                        keys.flatMap(k => getFollow(k, grammar)).setFilter(sym => getUniqueSymbolName(sym)),
+                        anticipated_syms
+                    ),
+                        checked_symbols = [],
 
-                        /**
-                        *   Criteria for checked symbols 
-                        *
-                        *   fs = follow_symbols
-                        *   as = anticipated_symbols
-                        *   cs = symbols that should be check
-                        *   
-                        *   cs = occluded((fs \ as), as) 
-                        * 
-                        *   where occluded(syms , oc) is
-                        *       
-                        *       syms = checked symbols
-                        *       oc = potential occluders = (fs ∪ as)
-                        *       SY = type declared symbol
-                        *       ID = type declared identifier
-                        *       NU = type declared number
-                        *       
-                        *       for s in syms
-                        *           
-                        *           s is (g:ws | g:nl) : yield
-                        *
-                        *           s is (g:*) : discard
-                        * 
-                        *           s is SY 
-                        *              & ( g:sym ∈ oc | ( a is DS & a ∈ oc & n exists where a[0,n] == s[0,n] where n > 1 and n >= a.length) ) : yield
-                        * 
-                        *           s is ID 
-                        *              & ( g:id ∈ oc | g:ws ∉ syms | g:nl ∉ syms
-                        *                  |  ( a is ID & a ∈ oc & n exists where a[0...n] == s[0...n] where n > 1 and n = a.length)  )
-                        *              ) : yield
-                        *               
-                        *           s is NU 
-                        *              & ( g:id ∈ oc | g:ws ∉ syms | g:nl ∉ syms
-                        *                  |  ( a is NU & a ∈ oc & n exists where a[0...n] == s[0...n] where n > 1 and n = a.length)  ) 
-                        *              ) : yield
-                        * 
-                        * 
-                        */
-                        const unique_candidates = getComplementOfSymbolSets(
-                            keys.flatMap(k => getFollow(k, grammar)).setFilter(sym => getUniqueSymbolName(sym)),
-                            anticipated_syms
-                        ),
-                            checked_symbols = [],
-
-                            GEN_SYM = anticipated_syms.some(isSymGeneratedSym),
-                            GEN_ID = anticipated_syms.some(isSymGeneratedId),
-                            GEN_NUM = anticipated_syms.some(isSymGeneratedNum),
-                            CONTAINS_WS = unique_candidates.some(isSymGeneratedWS) || !skippable.some(isSymGeneratedWS),
-                            CONTAINS_NL = unique_candidates.some(isSymGeneratedNL) || !skippable.some(isSymGeneratedNL),
-                            GEN_NL_WS = CONTAINS_NL || CONTAINS_WS;
+                        GEN_SYM = anticipated_syms.some(isSymGeneratedSym),
+                        GEN_ID = anticipated_syms.some(isSymGeneratedId),
+                        GEN_NUM = anticipated_syms.some(isSymGeneratedNum),
+                        CONTAINS_WS = unique_candidates.some(isSymGeneratedWS) || !skippable.some(isSymGeneratedWS),
+                        CONTAINS_NL = unique_candidates.some(isSymGeneratedNL) || !skippable.some(isSymGeneratedNL),
+                        GEN_NL_WS = CONTAINS_NL || CONTAINS_WS;
 
 
-                        for (const s of unique_candidates) {
+                    for (const s of unique_candidates) {
 
-                            if (isSymGeneratedNL(s) || isSymGeneratedWS(s))
-                                checked_symbols.push(s);
-                            else if (isSymAGenericType(s))
-                                continue;
-                            else if (isSymSpecifiedSymbol(s)) {
-                                if (GEN_SYM || anticipated_syms.some(a => doDefinedSymbolsOcclude(a, s))) checked_symbols.push(s);
-                            } else if (isSymSpecifiedIdentifier(s) && !GEN_NL_WS) {
-                                if (GEN_ID || anticipated_syms.some(a => doDefinedSymbolsOcclude(a, s))) checked_symbols.push(s);
-                            } else if (isSymSpecifiedNumeric(s) && !GEN_NL_WS) {
-                                if (GEN_NUM || anticipated_syms.some(a => doDefinedSymbolsOcclude(a, s))) checked_symbols.push(s);
-                            }
+                        if (isSymGeneratedNL(s) || isSymGeneratedWS(s))
+                            checked_symbols.push(s);
+                        else if (isSymAGenericType(s))
+                            continue;
+                        else if (isSymSpecifiedSymbol(s)) {
+                            if (GEN_SYM || anticipated_syms.some(a => doDefinedSymbolsOcclude(a, s))) checked_symbols.push(s);
+                        } else if (isSymSpecifiedIdentifier(s) && !GEN_NL_WS) {
+                            if (GEN_ID || anticipated_syms.some(a => doDefinedSymbolsOcclude(a, s))) checked_symbols.push(s);
+                        } else if (isSymSpecifiedNumeric(s) && !GEN_NL_WS) {
+                            if (GEN_NUM || anticipated_syms.some(a => doDefinedSymbolsOcclude(a, s))) checked_symbols.push(s);
                         }
+                    }
 
-                        if (checked_symbols.length > 0) {
+                    //TODO: Remove this
+                    interrupt_statement = (new SC).addStatement(
+                        items.map(i => i.renderUnformattedWithProduction(grammar)).join("\n"),
+                        "check:" + checked_symbols.map(i => `[${i.val}]`).join(" "),
+                        "anticipated" + anticipated_syms.map(i => `[${i.val}]`).join(" ")
+                    );
+                    //ODOT
 
-                            const
-                                booleans = getIncludeBooleans(checked_symbols, grammar, runner, rec_glob_lex_name, anticipated_syms);
+                    if (checked_symbols.length > 0) {
 
-                            if (booleans) {
-                                interrupt_statement = SC.If(booleans).addStatement(
-                                    SC.UnaryPre(SC.Return, rec_state)
-                                );
-                            }
-                        } else {
-                            interrupt_statement = SC.Comment(unique_candidates.map(s => `${isSymSpecifiedSymbol(s)}-${getSymbolName(s)}`).join(" ") + "\n" + anticipated_syms.map(getSymbolName).join(" "));
+                        const
+                            booleans = getIncludeBooleans(checked_symbols, grammar, runner, rec_glob_lex_name, anticipated_syms);
+
+                        if (booleans) {
+                            interrupt_statement = SC.If(booleans).addStatement(
+                                SC.UnaryPre(SC.Return, rec_state)
+                            );
                         }
                     }
                 }
-
-                switch_stmt.addStatement(
-                    ...keys.slice(0, -1).map(k => SC.If(SC.Value(k + ""))),
-                    SC.If(SC.Value(keys.pop() + ""))
-                        .addStatement(
-                            active_items.length > 0 || end_items.length > 1
-                                ? addSkipCallNew(skippable, grammar, runner)
-                                : undefined,
-                            interrupt_statement,
-                            code
-                        )
-                );
-
-                if (active_groups.length == 1) {
-                    switch_stmt = new SC().addStatement(...switch_stmt.statements[0].statements);
-                } else {
-                    switch_stmt.statements[switch_stmt.statements.length - 1].addStatement(SC.Break);
-                }
             }
 
-            return SC.While(
-                SC.Value(1)
-            )
-                .addStatement(
-                    switch_stmt,
-                    SC.Break
-                );
+            switch_stmt.addStatement(
+                ...keys.slice(0, -1).map(k => SC.If(SC.Value(k + ""))),
+                SC.If(SC.Value(keys.pop() + ""))
+                    .addStatement(
+                        active_items.length > 0 || end_items.length > 1
+                            ? addSkipCallNew(skippable, grammar, runner)
+                            : undefined,
+                        interrupt_statement,
+                        code
+                    )
+            );
+
+            if (goto_groups.length == 1) {
+                switch_stmt = new SC().addStatement(...switch_stmt.statements[0].statements);
+            } else {
+                switch_stmt.statements[switch_stmt.statements.length - 1].addStatement(SC.Break);
+            }
         }
 
-        state.offset--;
+        return SC.While(
+            SC.Value(1)
+        )
+            .addStatement(
+                switch_stmt,
+                SC.Break
+            );
+    }
 
-        return defaultSelectionClause(gen, state, items, level, options, state.offset <= 1);
-    };
+    state.offset--;
+
+    return defaultSelectionClause(gen, state, items, level, options, state.offset <= 1);
 }
 /**
  * Adds code to end states
@@ -563,7 +506,6 @@ export function completeFunctionProduction(
         //@ts-ignore
         rd_leaf.SET = true;
 
-        //leaf.addStatement(SC.Comment("RD LEAF " + NO_PRODUCTION_SHIFTS));
         if (NO_PRODUCTION_SHIFTS) {
             leaf.addStatement(createDebugCall(GOTO_Options, "RD return"));
             leaf.addStatement(SC.UnaryPre(SC.Return, rec_state));
@@ -573,6 +515,7 @@ export function completeFunctionProduction(
     }
 
     if (!NO_PRODUCTION_SHIFTS)
+
         for (const goto_leaf of goto_leaves) {
 
             const { leaf, prods, transition_type } = goto_leaf;

@@ -41,7 +41,7 @@ function generateOptions(
         extended_goto_items: [],
         called_productions: new Set(),
         leaf_productions: new Set(),
-        cache: new Map(),
+        //cache: new Map(),
         active_keys: [],
         leaves: [],
         NO_GOTOS: false
@@ -85,7 +85,7 @@ export function constructHybridFunction(production: Production, grammar: Grammar
                 goto_productions
             ),
 
-            genA = yieldStates(
+            rd_states = yieldStates(
                 //Filter out items that are left recursive for the given production
                 items.filter(i => {
 
@@ -98,8 +98,8 @@ export function constructHybridFunction(production: Production, grammar: Grammar
                 }), RDOptions, rec_glob_lex_name
             ),
 
-            { code: initial_pass, prods: yielded_productions, leaves: rd_leaves }
-                = processRecognizerStates(RDOptions, genA, defaultSelectionClause),
+            { code: initial_pass, prods: completed_productions, leaves: rd_leaves }
+                = processRecognizerStates(RDOptions, rd_states, defaultSelectionClause),
 
             GOTO_Options = generateOptions(
                 grammar, runner,
@@ -107,10 +107,12 @@ export function constructHybridFunction(production: Production, grammar: Grammar
                 goto_productions.slice()
             ),
 
-            genB = yieldGotoStates(GOTO_Options),
-
             { code: production_shift_pass, leaves: goto_leaves }
-                = processRecognizerStates(GOTO_Options, genB, processGoTOStates(yielded_productions));
+                = processRecognizerStates(
+                    GOTO_Options,
+                    yieldGotoStates(GOTO_Options, completed_productions),
+                    processGoTOStates
+                );
 
         RDOptions.leaves = rd_leaves;
         GOTO_Options.leaves = goto_leaves;
@@ -139,9 +141,10 @@ export function constructHybridFunction(production: Production, grammar: Grammar
 
         const annotation = SC.Expressions(SC.Comment(
             `production name: ${production.name}
-    grammar index: ${production.id}
-    bodies:\n\t${items.map(i => i.renderUnformattedWithProduction(grammar) + " - " + grammar.item_map.get(i.id).reset_sym.join(",")).join("\n\t\t")}
-    compile time: ${((((end - start) * 1000) | 0) / 1000)}ms`));
+            grammar index: ${production.id}
+            bodies:\n\t${items.map(i => i.renderUnformattedWithProduction(grammar) + " - " + grammar.item_map.get(i.id).reset_sym.join(",")).join("\n\t\t")}
+            compile time: ${((((end - start) * 1000) | 0) / 1000)}ms`));
+
         return {
             productions: new Set([...RDOptions.called_productions.values(), ...GOTO_Options.called_productions.values(), ...runner.referenced_production_ids.values()]),
             id: p.id,
