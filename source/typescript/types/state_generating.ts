@@ -12,6 +12,7 @@ export type SelectionGroup = {
     FIRST: boolean;
     LAST: boolean;
     prods: number[];
+    leaves: Leaf[];
     transition_types: TRANSITION_TYPE[];
 };
 export type SelectionClauseGenerator = Generator<SelectionGroup>;

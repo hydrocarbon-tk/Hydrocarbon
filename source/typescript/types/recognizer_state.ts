@@ -112,6 +112,11 @@ export interface Leaf {
     leaf: SC;
     prods?: number[];
     transition_type: TRANSITION_TYPE;
+    /**
+     * Present if the leaf is part of a GOTO 
+     * sequence. 
+     */
+    keys?: number[];
 }
 
 export interface GeneratorStateReturn {

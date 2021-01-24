@@ -328,12 +328,16 @@ export function processGoTOStates(yielded_productions: number[])
                 active_productions: Set<number> = new Set,
                 active_groups: case_clause_data[][] = [],
                 case_clauses: Map<number, case_clause_data[][]> = [...gen].flatMap(
-                    ({ code, items, syms, prods }) => {
+                    (a) => {
+
                         const
-                            keys = <number[]>items.map(i => i.sym(grammar).val),
+                            { code, items, syms, prods } = a,
+                            keys = <number[]>items.map(i => i.sym(grammar).val).setFilter(),
                             output = [];
 
-                        for (const key of keys.setFilter())
+                        a.leaves.forEach(l => l.keys = keys);
+
+                        for (const key of keys)
                             output.push({ key, code, syms, hash: code.hash(), prods: prods.slice(), items });
 
                         return output;
@@ -574,7 +578,10 @@ export function completeFunctionProduction(
 
             if (
                 transition_type == TRANSITION_TYPE.ASSERT_END
-                && prods[0] == production.id
+                &&
+                prods[0] == production.id
+                &&
+                goto_leaf.keys.includes(production.id)
             ) {
                 leaf.addStatement(createDebugCall(GOTO_Options, "Inter return"));
                 leaf.addStatement(SC.UnaryPre(SC.Return, rec_state));

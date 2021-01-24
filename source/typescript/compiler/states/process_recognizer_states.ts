@@ -142,9 +142,10 @@ function* traverseInteriorNodes(
             code = group[0].code,
             hash = group[0].hash,
             items = group.flatMap(g => g.items).setFilter(i => i.id),
+            leaves = group.flatMap(g => g.leaves).setFilter(),
             yielders = group.map(i => i.transition_type).setFilter();
 
-        return { transition_types: yielders, syms, code, items, hash, LAST: false, FIRST: false, prods: group.flatMap(g => g.prods).setFilter() };
+        return { leaves, transition_types: yielders, syms, code, items, hash, LAST: false, FIRST: false, prods: group.flatMap(g => g.prods).setFilter() };
     });
     let i = 0;
     for (const group of sel_group.sort((a, b) => {
