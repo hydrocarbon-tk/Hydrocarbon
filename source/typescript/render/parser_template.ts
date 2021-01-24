@@ -59,7 +59,8 @@ const fns = [(e,sym)=>sym[sym.length-1], \n${[...grammar.meta.reduce_functions.k
         }]; 
 
 ${BUILD_LOCAL ? "return" : "export default"} function (str, env = {}) {
-        
+    
+    debug_stack.length = 0;
         const 
             FAILED = recognizer(str), // call with pointers
             stack = [];
@@ -68,7 +69,6 @@ ${BUILD_LOCAL ? "return" : "export default"} function (str, env = {}) {
             error_message ="",
             review_stack = [];
 
-        debug_stack.length = 0;
     
         if (FAILED) {
 
