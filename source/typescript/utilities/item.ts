@@ -2,7 +2,7 @@ import { EOF_SYM, Grammar, ProductionBody } from "../types/grammar.js";
 import { Production } from "../types/production";
 import { Symbol } from "../types/symbol";
 import { SymbolType } from "../types/symbol_type";
-import { getRootSym, getUniqueSymbolName, symIsAProduction, SymbolToStringUnformatted } from "./symbol.js";
+import { getRootSym, getUniqueSymbolName, Sym_Is_A_Production, convertSymbolToString } from "./symbol.js";
 
 export const enum ItemIndex {
     body_id = 0,
@@ -89,7 +89,7 @@ export class Item extends Array {
             .map(sym => sym.type == SymbolType.PRODUCTION ? Object.assign({}, sym, { val: grammar[sym.val].name }) : sym)
             .map(sym => getRootSym(sym, grammar))
             //@ts-ignore
-            .flatMap((sym, i) => (i == this.offset) ? ["•", SymbolToStringUnformatted(sym)] : SymbolToStringUnformatted(sym));
+            .flatMap((sym, i) => (i == this.offset) ? ["•", convertSymbolToString(sym)] : convertSymbolToString(sym));
         if (a.length == this.offset)
             a.push("•");
 
@@ -177,15 +177,15 @@ export class Item extends Array {
 }
 export function getGotoItems(grammar: Grammar, active_productions: number[], items: Item[], out: Item[] = [], all = false) {
 
-    const prod_id = new Set(active_productions);
-
-    const to_process = [];
+    const
+        prod_id = new Set(active_productions),
+        to_process = [];
 
     for (const item of items.reverse()) {
         if (!item || item.atEND) continue;
 
         const sym = item.sym(grammar);
-        if (symIsAProduction(sym) && prod_id.has(<number>sym.val)) {
+        if (Sym_Is_A_Production(sym) && prod_id.has(<number>sym.val)) {
 
             out.push(item);
             if (item.increment().atEND) {
@@ -193,17 +193,18 @@ export function getGotoItems(grammar: Grammar, active_productions: number[], ite
             }
         }
     }
+
     if (all)
         for (const item of to_process) {
             getGotoItems(grammar, item.getProduction(grammar).id, items, out, all);
         }
+
     return out;
 }
 
 export function itemsToProductions(items: Item[], grammar: Grammar): number[] {
     return items.map(i => i.getProduction(grammar).id);
 }
-
 
 export function Items_Have_The_Same_Active_Symbol(items: Item[], grammar: Grammar) {
     return items.every(i => !i.atEND && i.sym(grammar).val == items[0].sym(grammar).val);

@@ -1,6 +1,6 @@
 import { getGotoItems, Item, itemsToProductions } from "./item.js";
 import { Grammar } from "../types/grammar.js";
-import { getSymbolsFromClosure, symIsAProductionToken } from "./symbol.js";
+import { getSymbolsFromClosure, Sym_Is_A_Production_Token } from "./symbol.js";
 import { getProductionClosure, getProductionID } from "./production.js";
 
 /**
@@ -48,7 +48,7 @@ export function getClosure(items: Item[], grammar: Grammar, ENTER_TOKEN_PRODUCTI
 
                 const sym = item.sym(grammar);
 
-                if (symIsAProductionToken(sym)) {
+                if (Sym_Is_A_Production_Token(sym)) {
 
                     const prod = grammar[getProductionID(sym, grammar)];
 

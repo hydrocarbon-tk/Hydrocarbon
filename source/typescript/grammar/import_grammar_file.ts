@@ -2,7 +2,7 @@ import URL from "@candlefw/url";
 import { Grammar } from "../types/grammar";
 import { GrammarParserEnvironment } from "../types/grammar_compiler_environment";
 import { default_map } from "../utilities/default_map.js";
-import { symIsAProduction, symIsAProductionToken } from "../utilities/symbol.js";
+import { Sym_Is_A_Production, Sym_Is_A_Production_Token } from "../utilities/symbol.js";
 
 export default function (sym, env: GrammarParserEnvironment) {
 
@@ -66,7 +66,7 @@ export default function (sym, env: GrammarParserEnvironment) {
                 if (prod.bodies) {
                     for (const body of prod.bodies) {
                         for (const sym of body.sym) {
-                            if ((symIsAProduction(sym) || symIsAProductionToken(sym)) && !sym.IMPORTED && sym.val !== -55) {
+                            if ((Sym_Is_A_Production(sym) || Sym_Is_A_Production_Token(sym)) && !sym.IMPORTED && sym.val !== -55) {
                                 sym.val = -55;
                                 sym.name = `${id}$${sym.name}`;
                             }

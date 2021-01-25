@@ -6,11 +6,11 @@ import { MultiItemReturnObject, SelectionClauseGenerator, SelectionGroup, Single
 import { Item } from "../../utilities/item.js";
 import { SC } from "../../utilities/skribble.js";
 import {
-    symIsGeneratedId,
-    symIsGeneratedNum,
-    symIsGeneratedSym
+    Sym_Is_An_Identifier_Generic,
+    Sym_Is_A_Numeric_Generic,
+    Sym_Is_A_Character_Generic
 } from "../../utilities/symbol.js";
-import { defaultMultiItemLeaf, defaultSelectionClause, defaultSingleItemLeaf } from "./default_state_build.js";
+import { default_getMultiItemLeaf, default_getSelectionClause, default_getSingleItemLeaf } from "./default_state_build.js";
 
 
 export function defaultGrouping(g) {
@@ -29,9 +29,9 @@ function getGroupScore(a: SelectionGroup) {
     const
         a_end = transition_penalty,
         a_syms = a.syms.length * (a_end),
-        a_id = (+a.syms.some(symIsGeneratedId)) * 50 * (a_end),
-        a_num = (+a.syms.some(symIsGeneratedNum)) * 25 * (a_end),
-        a_sym = (+a.syms.some(symIsGeneratedSym)) * 5 * (a_end);
+        a_id = (+a.syms.some(Sym_Is_An_Identifier_Generic)) * 50 * (a_end),
+        a_num = (+a.syms.some(Sym_Is_A_Numeric_Generic)) * 25 * (a_end),
+        a_sym = (+a.syms.some(Sym_Is_A_Character_Generic)) * 5 * (a_end);
 
     return a_syms + a_id + a_num + a_sym + a_end;
 }
@@ -40,13 +40,13 @@ export function processRecognizerStates(
     states: RecognizerState[],
     selection_clause_fn:
         (gen: SelectionClauseGenerator, state: RecognizerState, items: Item[], level: number, options: RenderBodyOptions) => SC =
-        defaultSelectionClause,
+        default_getSelectionClause,
     multi_item_leaf_fn:
         (state: RecognizerState, states: RecognizerState[], options: RenderBodyOptions) => MultiItemReturnObject =
-        defaultMultiItemLeaf,
+        default_getMultiItemLeaf,
     single_item_leaf_fn:
         (item: Item, group: RecognizerState, options: RenderBodyOptions) => SingleItemReturnObject =
-        defaultSingleItemLeaf,
+        default_getSingleItemLeaf,
     grouping_fn: (node: RecognizerState, level: number, peeking: boolean) => string = defaultGrouping
 ): GeneratorStateReturn {
 

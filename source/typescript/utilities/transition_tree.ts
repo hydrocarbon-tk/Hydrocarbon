@@ -6,14 +6,12 @@ import { closure_group, TransitionTreeNode } from "../types/transition_tree_node
 import { getClosure, getFollowClosure } from "./closure.js";
 import { getFollow } from "./follow.js";
 import { Item } from "./item.js";
-import { getProductionClosure } from "./production.js";
 import {
     getSymbolsFromClosure,
     getUniqueSymbolName,
     getUnskippableSymbolsFromClosure,
-    symIsAnAssertFunction,
-    symIsAProduction,
-    symIsAProductionToken
+    Sym_Is_A_Production,
+    Sym_Is_A_Production_Token
 } from "./symbol.js";
 
 /**
@@ -200,12 +198,12 @@ function getClosureGroups(
                 );
                 group.push(...new_group);
             }
-        } else if (!symIsAProduction(sym)) {
+        } else if (!Sym_Is_A_Production(sym)) {
 
             let syms = [sym];
 
-            if (symIsAProductionToken(sym)) {
-                syms = <TokenSymbol[]>getSymbolsFromClosure(getClosure([item], grammar, true), grammar).filter(s => !symIsAProductionToken(s));
+            if (Sym_Is_A_Production_Token(sym)) {
+                syms = <TokenSymbol[]>getSymbolsFromClosure(getClosure([item], grammar, true), grammar).filter(s => !Sym_Is_A_Production_Token(s));
             }
 
             for (const sym of syms) {

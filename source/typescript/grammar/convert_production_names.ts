@@ -1,7 +1,7 @@
 import { Grammar, ProductionBody } from "../types/grammar.js";
 import { SymbolType } from "../types/symbol_type";
 import { Symbol } from "../types/symbol";
-import { symIsAProduction, symIsAProductionToken } from "../utilities/symbol.js";
+import { Sym_Is_A_Production, Sym_Is_A_Production_Token } from "../utilities/symbol.js";
 import { GrammarParserEnvironment } from "../types/grammar_compiler_environment.js";
 
 export default function convertProductionNamesToIndexes(grammar: Grammar, LU,
@@ -12,7 +12,7 @@ export default function convertProductionNamesToIndexes(grammar: Grammar, LU,
 
         for (const sym of env.symbols) {
 
-            if (symIsAProduction(sym) || symIsAProductionToken(sym)) {
+            if (Sym_Is_A_Production(sym) || Sym_Is_A_Production_Token(sym)) {
                 if (sym.production || (sym.IMPORTED && sym.RESOLVED)) {
                     sym.val = sym.production.id;
                 } else try {
@@ -20,7 +20,6 @@ export default function convertProductionNamesToIndexes(grammar: Grammar, LU,
                     sym.val = LU.get(sym.name).id;
                 } catch (e) {
                     throw new Error(`Missing Production for symbol [${sym.name}]`);
-                    throw new Error(`Missing production for token production symbol tk:${sym.name}`);
                 }
                 sym.resolveFunction = null; // For DataClone 
             } else if (sym.type == SymbolType.LITERAL)
@@ -49,7 +48,7 @@ export default function convertProductionNamesToIndexes(grammar: Grammar, LU,
 
                     sym = body.sym[i];
 
-                    if (symIsAProduction(sym) || symIsAProductionToken(sym)) {
+                    if (Sym_Is_A_Production(sym) || Sym_Is_A_Production_Token(sym)) {
                         if (sym.production || (sym.IMPORTED && sym.RESOLVED)) {
                             sym.val = sym.production.id;
                         } else try {

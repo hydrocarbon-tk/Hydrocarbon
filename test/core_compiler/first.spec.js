@@ -1,5 +1,5 @@
 import { compileGrammars } from "../../build/library/hydrocarbon.js";
-import { getFirst } from "../../build/library/utilities/first.js";
+import { getFirstTerminalSymbols } from "../../build/library/utilities/first.js";
 import { getUniqueSymbolName } from "../../build/library/utilities/symbol.js";
 import { compileGrammarSource } from "../tools.js";
 
@@ -19,7 +19,7 @@ assert_group(10000, sequence, () => {
     }
 
     function getProdFollow(prod, grammar) {
-        return getFirst(prod, grammar).map(getUniqueSymbolName).sort();
+        return getFirstTerminalSymbols(prod, grammar).map(getUniqueSymbolName).sort();
     }
 
     const grammar = await compileGrammars(

@@ -1,10 +1,9 @@
 import { Grammar } from "../../types/grammar.js";
-import { Production } from "../../types/production.js";
 import { RecognizerState, TRANSITION_TYPE } from "../../types/recognizer_state.js";
 import { RenderBodyOptions } from "../../types/render_body_options.js";
 import { getClosure } from "../../utilities/closure.js";
 import { Items_Have_The_Same_Active_Symbol, Item } from "../../utilities/item.js";
-import { symIsAProduction, symIsAProductionToken } from "../../utilities/symbol.js";
+import { Sym_Is_A_Production, Sym_Is_A_Production_Token } from "../../utilities/symbol.js";
 import { getTransitionTree } from "../../utilities/transition_tree.js";
 import { createRecognizerState } from "./create_recognizer_state.js";
 import { getMaxOffsetOfItems, Items_Are_From_Same_Production, Leaves_Of_Transition_Contain_One_Root_Item as Every_Leaf_Of_TransitionTree_Contain_One_Root_Item, yieldStates } from "./yield_states.js";
@@ -69,7 +68,7 @@ function addSameActiveSymbolStates(state: RecognizerState, options: RenderBodyOp
 }
 
 function Active_Symbol_Of_First_Item_Is_A_Production(state: RecognizerState, grammar: Grammar) {
-    return symIsAProduction(state.items[0].sym(grammar));
+    return Sym_Is_A_Production(state.items[0].sym(grammar));
 }
 
 function State_Closure_Allows_Production_Call({ closure }: RecognizerState, { grammar }: RenderBodyOptions) {
@@ -101,18 +100,18 @@ function convertPeekStateToSingleItemState(state: RecognizerState, { grammar }: 
     const sym = items[0].sym(grammar);
 
     if (state.peek_level == 0) {
-        state.transition_type = symIsAProduction(sym)
+        state.transition_type = Sym_Is_A_Production(sym)
             ? TRANSITION_TYPE.ASSERT_PRODUCTION_SYMBOLS
             : TRANSITION_TYPE.CONSUME;
 
-        if (!symIsAProduction(sym))
+        if (!Sym_Is_A_Production(sym))
             state.transition_type = TRANSITION_TYPE.CONSUME;
 
-        if (symIsAProductionToken(sym))
+        if (Sym_Is_A_Production_Token(sym))
             state.symbols = [sym];
 
     } else {
-        if (symIsAProduction(sym)) {
+        if (Sym_Is_A_Production(sym)) {
             state.transition_type = TRANSITION_TYPE.PEEK_PRODUCTION_SYMBOLS;
         }
     }

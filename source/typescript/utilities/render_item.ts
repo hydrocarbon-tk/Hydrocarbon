@@ -11,7 +11,7 @@ import {
     createReduceFunction,
     getRootSym,
     getSkippableSymbolsFromItems,
-    symIsAProduction
+    Sym_Is_A_Production
 } from "./symbol.js";
 
 export function renderItemReduction(
@@ -26,21 +26,21 @@ export function renderItemReduction(
         code_node.addStatement(createDefaultReduceFunction(item));
 }
 
-function isProductionPassthrough(production_id: number, grammar: Grammar): {
+function getProductionPassthroughInformation(production_id: number, grammar: Grammar): {
     IS_PASSTHROUGH: boolean; first_non_passthrough: number; passthrough_chain: number[];
 } {
     const production = grammar[production_id];
 
     const IS_PASSTHROUGH = production.bodies.length == 1
         && production.bodies[0].sym.length == 1
-        && symIsAProduction(production.bodies[0].sym[0]);
+        && Sym_Is_A_Production(production.bodies[0].sym[0]);
 
     let first_non_passthrough = -1, passthrough_chain = [];
 
     if (IS_PASSTHROUGH) {
         const sym = <ProductionSymbol>production.bodies[0].sym[0];
 
-        const { first_non_passthrough: fnp, passthrough_chain: pc } = isProductionPassthrough(sym.val, grammar);
+        const { first_non_passthrough: fnp, passthrough_chain: pc } = getProductionPassthroughInformation(sym.val, grammar);
         passthrough_chain = passthrough_chain.concat(production_id, pc);
         first_non_passthrough = fnp;
     } else {
@@ -54,7 +54,7 @@ function isProductionPassthrough(production_id: number, grammar: Grammar): {
         passthrough_chain
     };
 }
-export function renderItemSym(
+export function renderItemSymbol(
     code_node: SC,
     item: Item,
     options: RenderBodyOptions,
@@ -73,7 +73,7 @@ export function renderItemSym(
 
         if (sym.type == "production") {
 
-            ({ IS_PASSTHROUGH, first_non_passthrough, passthrough_chain } = isProductionPassthrough(sym.val, grammar));
+            ({ IS_PASSTHROUGH, first_non_passthrough, passthrough_chain } = getProductionPassthroughInformation(sym.val, grammar));
 
             bool_expression = renderProductionCall(grammar[first_non_passthrough], options, lexer_name);
 
@@ -122,7 +122,7 @@ export function renderItem(
     if (!item.atEND) {
 
         const
-            { code_node: leaf } = renderItemSym(code_node, item, options, DONT_CHECK, lexer_name),
+            { code_node: leaf } = renderItemSymbol(code_node, item, options, DONT_CHECK, lexer_name),
             new_item = item.increment();
 
         if (!new_item.atEND) {
@@ -132,7 +132,7 @@ export function renderItem(
 
         code_node = renderItem(leaf, item.increment(), options, false, lexer_name);
     } else {
-        return renderItemSym(code_node, item, options, true, lexer_name).code_node;
+        return renderItemSymbol(code_node, item, options, true, lexer_name).code_node;
     }
 
     return code_node;

@@ -9,11 +9,10 @@ import {
 } from "../utilities/global_names.js";
 import { Item } from "../utilities/item.js";
 import { SC } from "../utilities/skribble.js";
-import { symIsAProduction } from "../utilities/symbol.js";
-
+import { Sym_Is_A_Production } from "../utilities/symbol.js";
 import { Helper } from "./helper.js";
 import { processRecognizerStates } from "./states/process_recognizer_states.js";
-import { completeFunctionProduction, createDebugCall, defaultSelectionClause, processGoTOStates } from "./states/default_state_build.js";
+import { completeFunctionProduction, createDebugCall, default_getSelectionClause, processGoTOStates } from "./states/default_state_build.js";
 import { yieldGotoStates } from "./states/yield_goto_states.js";
 import { yieldStates } from "./states/yield_states.js";
 import { getProductionFunctionName } from "../utilities/code_generating.js";
@@ -43,7 +42,7 @@ export function generateOptions(
 }
 
 export function getGotoItemsFromProductionClosure(production: Production, grammar: Grammar): Item[] {
-    return getProductionClosure(production.id, grammar).filter(i => !i.atEND && symIsAProduction(i.sym(grammar)));
+    return getProductionClosure(production.id, grammar).filter(i => !i.atEND && Sym_Is_A_Production(i.sym(grammar)));
 }
 
 export function getItemsFromProduction(production: Production): Item[] {
@@ -55,7 +54,7 @@ export function getProductionItemsThatAreNotRightRecursive(p: Production, gramma
 
         const sym = i.sym(grammar);
 
-        if (sym && symIsAProduction(sym) && sym.val == p.id)
+        if (sym && Sym_Is_A_Production(sym) && sym.val == p.id)
             return false;
 
         return true;
@@ -96,7 +95,7 @@ export function constructHybridFunction(production: Production, grammar: Grammar
         ),
 
         { code: initial_pass, prods: completed_productions, leaves: rd_leaves }
-            = processRecognizerStates(RDOptions, rd_states, defaultSelectionClause),
+            = processRecognizerStates(RDOptions, rd_states, default_getSelectionClause),
 
         GOTO_Options = generateOptions(
             grammar, runner,

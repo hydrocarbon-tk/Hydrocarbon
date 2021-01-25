@@ -11,20 +11,20 @@ import { rec_consume_assert_call, rec_glob_lex_name, rec_state } from "./global_
 import { getProductionClosure, getProductionID } from "./production.js";
 import { ConstSC, ExprSC, SC, StmtSC, VarSC } from "./skribble.js";
 import {
-    doDefinedSymbolsOcclude,
+    Defined_Symbols_Occlude,
     getTokenSymbolsFromItems,
     getUniqueSymbolName,
-    symIsAGenericType,
-    symIsAnAssertFunction,
-    symIsAProductionToken,
-    symIsGeneratedId,
-    symIsGeneratedNum,
-    symIsGeneratedSym,
-    symIsNonConsume,
-    symIsNotIdentifier,
-    symIsNotLengthOneDefined,
-    symIsNotNonConsume,
-    symIsSpecified,
+    Sym_Is_A_Generic_Type,
+    Sym_Is_An_Assert_Function,
+    Sym_Is_A_Production_Token,
+    Sym_Is_An_Identifier_Generic,
+    Sym_Is_A_Numeric_Generic,
+    Sym_Is_A_Character_Generic,
+    Sym_Is_Not_Consumed,
+    Sym_Is_Not_An_Identifier,
+    Sym_Has_Multiple_Characters,
+    Sym_Is_Consumed,
+    Sym_Is_Specified,
 } from "./symbol.js";
 
 /**
@@ -266,9 +266,9 @@ export function buildIfs(
             occlusion_checks = [];
 
         for (const sym of occluders) {
-            if (symIsGeneratedId(sym)) {
+            if (Sym_Is_An_Identifier_Generic(sym)) {
                 occlusion_checks.push(SC.Binary(SC.Call(SC.Member(lex_name, "typeAt"), off + l), "!=", "TokenIdentifier"));
-            } else if (symIsGeneratedNum(sym)) {
+            } else if (Sym_Is_A_Numeric_Generic(sym)) {
                 occlusion_checks.push(SC.Binary(SC.Call(SC.Member(lex_name, "typeAt"), off + l), "!=", "TokenNumber"));
             } else {
                 const char_code = sym.val.toString().charCodeAt(val.length);
@@ -277,7 +277,7 @@ export function buildIfs(
         }
 
         const check_sequence = occlusion_checks.length > 0
-            ? SC.Binary(expressionArrayToBoolean(occlusion_checks, "&&"), "&&", booleans)
+            ? SC.Binary(convertExpressionArrayToBoolean(occlusion_checks, "&&"), "&&", booleans)
             : booleans;
 
         code_node.addStatement(
@@ -288,8 +288,8 @@ export function buildIfs(
         let first = true;
         const
             incremented_syms = syms.filter(s => (<string>s.val).length > off).groupMap(s => s.val[off]),
-            incremented_occluders = occluders.filter(symIsSpecified).filter(s => (<string>s.val).length > off).groupMap(s => s.val[off]),
-            generated_occluders = occluders.filter(symIsAGenericType);
+            incremented_occluders = occluders.filter(Sym_Is_Specified).filter(s => (<string>s.val).length > off).groupMap(s => s.val[off]),
+            generated_occluders = occluders.filter(Sym_Is_A_Generic_Type);
 
         let leaf = code_node;
 
@@ -347,21 +347,21 @@ export function getIncludeBooleans(
     ambient_symbols = ambient_symbols.concat(syms).setFilter(getUniqueSymbolName);
 
     let
-        non_consume = syms.filter(symIsNonConsume),
-        consume = syms.filter(symIsNotNonConsume),
-        id = consume.filter(symIsSpecified),
-        ty = consume.filter(symIsAGenericType),
-        tk = consume.filter(symIsAProductionToken),
-        fn = consume.filter(symIsAnAssertFunction)
+        non_consume = syms.filter(Sym_Is_Not_Consumed),
+        consume = syms.filter(Sym_Is_Consumed),
+        id = consume.filter(Sym_Is_Specified),
+        ty = consume.filter(Sym_Is_A_Generic_Type),
+        tk = consume.filter(Sym_Is_A_Production_Token),
+        fn = consume.filter(Sym_Is_An_Assert_Function)
             .map(s => translateSymbolValue(s, grammar, lex_name)).sort();
 
-    const HAS_GEN_ID = ty.some(symIsGeneratedId);
+    const HAS_GEN_ID = ty.some(Sym_Is_An_Identifier_Generic);
 
     if (HAS_GEN_ID)
-        id = id.filter(symIsNotIdentifier);
+        id = id.filter(Sym_Is_Not_An_Identifier);
 
-    if (ty.some(symIsGeneratedSym))
-        id = id.filter(symIsNotLengthOneDefined);
+    if (ty.some(Sym_Is_A_Character_Generic))
+        id = id.filter(Sym_Has_Multiple_Characters);
 
     if (id.length + ty.length + fn.length + tk.length + non_consume.length == 0)
         return null;
@@ -391,7 +391,7 @@ export function getIncludeBooleans(
 
             const
                 char_code = sym.val.charCodeAt(0),
-                occluders = ambient_symbols.filter(a_sym => doDefinedSymbolsOcclude(a_sym, sym));
+                occluders = ambient_symbols.filter(a_sym => Defined_Symbols_Occlude(a_sym, sym));
 
             if (occluders.length > 0 || sym.val.length > 1) {
 
@@ -404,7 +404,7 @@ export function getIncludeBooleans(
                 table |= 1n << BigInt(char_code);
 
             } else {
-                booleans.push(lexerUTFBoolean(lex_name, char_code));
+                booleans.push(getLexerUTFBoolean(lex_name, char_code));
             }
         }
 
@@ -432,7 +432,7 @@ export function getIncludeBooleans(
             if (table_syms.length < 3) {
 
                 for (const sym of table_syms)
-                    booleans.push(lexerUTFBoolean(lex_name, sym.val.charCodeAt(0)));
+                    booleans.push(getLexerUTFBoolean(lex_name, sym.val.charCodeAt(0)));
 
             } else {
 
@@ -465,17 +465,17 @@ export function getIncludeBooleans(
         }
     }
 
-    return expressionArrayToBoolean([...out_non_consume, ...out_tk, ...out_id, ...out_ty, ...out_fn]);
+    return convertExpressionArrayToBoolean([...out_non_consume, ...out_tk, ...out_id, ...out_ty, ...out_fn]);
 }
 
-function expressionArrayToBoolean(array: ExprSC[], delimiter: string = "||"): ExprSC {
+function convertExpressionArrayToBoolean(array: ExprSC[], delimiter: string = "||"): ExprSC {
     return (array.filter(_ => _).reduce((r, s) => {
         if (!r) return s;
         return SC.Binary(r, delimiter, s);
     }, null));
 }
 
-function lexerUTFBoolean(lex_name: VarSC | ConstSC, char_code: number, operator: string = "=="): any {
+function getLexerUTFBoolean(lex_name: VarSC | ConstSC, char_code: number, operator: string = "=="): any {
     return SC.Binary(
         SC.Member(lex_name, "utf"),
         operator,

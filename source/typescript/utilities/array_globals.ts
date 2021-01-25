@@ -20,7 +20,7 @@ Array.prototype.groupMap = function <T, KeyType>(
 };
 Array.prototype.setFilter = function <T>(
     this: Array<T>,
-    fn: (T) => (string | number) = _ => _ ? _ : ""
+    fn: (T) => (string | number) = _ => _ ? _.toString() : ""
 ): T[] {
 
     const set = new Set;

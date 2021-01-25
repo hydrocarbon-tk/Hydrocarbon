@@ -3,9 +3,8 @@ import { RecognizerState, TRANSITION_TYPE } from "../../types/recognizer_state.j
 import { RenderBodyOptions } from "../../types/render_body_options";
 
 import { Item } from "../../utilities/item.js";
-import { symIsAProduction } from "../../utilities/symbol.js";
+import { Sym_Is_A_Production } from "../../utilities/symbol.js";
 import { yieldStates } from "./yield_states.js";
-import { TokenSymbol } from "../../types/symbol.js";
 import { processRecognizerStates } from "./process_recognizer_states.js";
 import { createRecognizerState } from "./create_recognizer_state.js";
 
@@ -38,7 +37,7 @@ export function yieldGotoStates(options: RenderBodyOptions, completed_production
         for (const { item } of grammar.item_map.values()) {
             if (
                 !item.atEND
-                && symIsAProduction(item.sym(grammar))
+                && Sym_Is_A_Production(item.sym(grammar))
                 && item.getProductionAtSymbol(grammar).id == prod_id
                 && item.getProduction(grammar).id != prod_id
                 && !nonterm_shift_items.some(i => i.id == item.id)

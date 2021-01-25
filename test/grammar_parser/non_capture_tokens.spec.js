@@ -3,7 +3,7 @@ import { compileHCGParser, compileGrammar } from "../tools.js";
 assert_group(sequence, 10000, () => {
 
     //Construct A HCG parser
-    const HCGparser = await compileHCGParser(true);
+    const HCGparser = await compileHCGParser(false, true);
 
     const test_grammar_string =
         `@IGNORE g:ws g:nl

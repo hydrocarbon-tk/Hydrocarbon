@@ -4,7 +4,7 @@ import { RenderBodyOptions } from "../../types/render_body_options";
 import { TransitionTreeNode } from "../../types/transition_tree_nodes.js";
 import { getClosure } from "../../utilities/closure.js";
 import { Items_Have_The_Same_Active_Symbol, Item } from "../../utilities/item.js";
-import { getTokenSymbolsFromItems, symIsAProduction } from "../../utilities/symbol.js";
+import { getTokenSymbolsFromItems, Sym_Is_A_Production } from "../../utilities/symbol.js";
 import { getTransitionTree } from "../../utilities/transition_tree.js";
 import { createRecognizerState } from "./create_recognizer_state.js";
 import { yieldCompletedItemStates } from "./yield_completed_item_states.js";
@@ -113,7 +113,7 @@ function yieldStatesOfItemsWithSameSymbol(active_items: Item[], options: RenderB
             state = createRecognizerState(
                 active_items.slice(),
                 [sym],
-                symIsAProduction(sym)
+                Sym_Is_A_Production(sym)
                     ? TRANSITION_TYPE.ASSERT
                     : TRANSITION_TYPE.CONSUME, offset++
             );
@@ -145,32 +145,33 @@ function yieldStatesOfItemsWithSameSymbol(active_items: Item[], options: RenderB
 function yieldProductionCallState(active_items: Item[], offset: number): RecognizerState[] {
 
     const
+
         first = active_items[0],
+
         items = [new Item(first.body, first.len, 0)];
 
     return [createRecognizerState(items, [EOF_SYM], TRANSITION_TYPE.IGNORE, offset)];
 }
 
-function yieldSingleItemState(active_items: Item[], options: RenderBodyOptions, offset: number): RecognizerState[] {
+function yieldSingleItemState(items: Item[], { grammar }: RenderBodyOptions, offset: number): RecognizerState[] {
 
     const
-        { grammar } = options,
-        anticipated_syms = getTokenSymbolsFromItems(
-            getClosure(active_items.slice(), grammar),
+        symbols = getTokenSymbolsFromItems(
+            getClosure(items.slice(), grammar),
             grammar
         );
 
-    if (anticipated_syms.length > 0) {
+    if (symbols.length > 0) {
 
         const
 
-            IS_SYM_PRODUCTION = symIsAProduction(active_items[0].sym(grammar)),
+            IS_SYM_PRODUCTION = Sym_Is_A_Production(items[0].sym(grammar)),
 
             transition_type: TRANSITION_TYPE = IS_SYM_PRODUCTION
                 ? TRANSITION_TYPE.ASSERT_PRODUCTION_SYMBOLS
                 : TRANSITION_TYPE.CONSUME;
 
-        return [createRecognizerState(active_items, anticipated_syms, transition_type, offset)];
+        return [createRecognizerState(items, symbols, transition_type, offset)];
     }
 
     return [];

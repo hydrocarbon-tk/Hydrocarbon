@@ -10,22 +10,22 @@ import { Item, itemsToProductions } from "../../utilities/item.js";
 import { renderItem } from "../../utilities/render_item.js";
 import { ConstSC, ExprSC, SC, VarSC } from "../../utilities/skribble.js";
 import {
-    doDefinedSymbolsOcclude,
     getComplementOfSymbolSets,
     getSkippableSymbolsFromItems,
     getSymbolName,
     getSymbolsFromClosure,
     getUniqueSymbolName,
-    symIsAGenericType,
-    symIsAProduction,
-    symIsGeneratedId,
-    symIsGeneratedNL,
-    symIsGeneratedNum,
-    symIsGeneratedSym,
-    symIsGeneratedWS,
-    symIsSpecifiedIdentifier,
-    symIsSpecifiedNumeric,
-    symIsSpecifiedSymbol
+    Defined_Symbols_Occlude,
+    Sym_Is_A_Generic_Type,
+    Sym_Is_A_Production,
+    Sym_Is_An_Identifier_Generic,
+    Sym_Is_A_Newline_Generic,
+    Sym_Is_A_Numeric_Generic,
+    Sym_Is_A_Character_Generic,
+    Sym_Is_A_Space_Generic,
+    Sym_Is_Specified_Identifier,
+    Sym_Is_Specified_Natural_Number,
+    Sym_Is_Specified_Characters
 } from "../../utilities/symbol.js";
 import { processProductionChain } from "./process_production_chain.js";
 
@@ -43,7 +43,7 @@ function ttt(type: TRANSITION_TYPE): string {
         default: return "unknown";
     }
 }
-export function defaultSingleItemLeaf(item: Item, state: RecognizerState, options: RenderBodyOptions): SingleItemReturnObject {
+export function default_getSingleItemLeaf(item: Item, state: RecognizerState, options: RenderBodyOptions): SingleItemReturnObject {
 
     const
         { grammar, helper: runner, leaf_productions, production, extended_goto_items: extended_production_shift_items, leaves } = options,
@@ -112,7 +112,7 @@ export function defaultSingleItemLeaf(item: Item, state: RecognizerState, option
     };
 }
 
-export function defaultMultiItemLeaf(state: RecognizerState, states: RecognizerState[], options: RenderBodyOptions): MultiItemReturnObject {
+export function default_getMultiItemLeaf(state: RecognizerState, states: RecognizerState[], options: RenderBodyOptions): MultiItemReturnObject {
 
     const
 
@@ -182,7 +182,7 @@ export function defaultMultiItemLeaf(state: RecognizerState, states: RecognizerS
     return { root, leaves: out_leaves, prods: out_prods.setFilter() };
 }
 
-export function defaultSelectionClause(
+export function default_getSelectionClause(
     gen: SelectionClauseGenerator,
     state: RecognizerState,
     items: Item[],
@@ -240,7 +240,7 @@ export function defaultSelectionClause(
             case TRANSITION_TYPE.PEEK:
             case TRANSITION_TYPE.PEEK_PRODUCTION_SYMBOLS:
 
-                gate_block = (symIsAProduction(syms[0]))
+                gate_block = (Sym_Is_A_Production(syms[0]))
                     ? renderProductionCall(grammar[syms[0].val], options, peek_name)
                     : getIncludeBooleans(<TokenSymbol[]>syms, grammar, runner, peek_name, <TokenSymbol[]>all_syms);
                 break;
@@ -249,14 +249,14 @@ export function defaultSelectionClause(
             case TRANSITION_TYPE.ASSERT_PRODUCTION_SYMBOLS:
             case TRANSITION_TYPE.ASSERT_END:
 
-                gate_block = (symIsAProduction(syms[0]))
+                gate_block = (Sym_Is_A_Production(syms[0]))
                     ? renderProductionCall(grammar[syms[0].val], options)
                     : getIncludeBooleans(<TokenSymbol[]>syms, grammar, runner, peek_name, <TokenSymbol[]>all_syms);
                 break;
 
             case TRANSITION_TYPE.CONSUME:
 
-                gate_block = (symIsAProduction(syms[0]))
+                gate_block = (Sym_Is_A_Production(syms[0]))
                     ? createAssertionShiftManual(rec_glob_lex_name, renderProductionCall(grammar[syms[0].val], options))
                     : createAssertionShiftManual(rec_glob_lex_name, getIncludeBooleans(<TokenSymbol[]>syms, grammar, runner, lex_name, <TokenSymbol[]>all_syms));
                 break;
@@ -390,36 +390,28 @@ export function processGoTOStates(gen: SelectionClauseGenerator, state: Recogniz
                     ),
                         checked_symbols = [],
 
-                        GEN_SYM = anticipated_syms.some(symIsGeneratedSym),
-                        GEN_ID = anticipated_syms.some(symIsGeneratedId),
-                        GEN_NUM = anticipated_syms.some(symIsGeneratedNum),
-                        CONTAINS_WS = unique_candidates.some(symIsGeneratedWS) || !skippable.some(symIsGeneratedWS),
-                        CONTAINS_NL = unique_candidates.some(symIsGeneratedNL) || !skippable.some(symIsGeneratedNL),
+                        GEN_SYM = anticipated_syms.some(Sym_Is_A_Character_Generic),
+                        GEN_ID = anticipated_syms.some(Sym_Is_An_Identifier_Generic),
+                        GEN_NUM = anticipated_syms.some(Sym_Is_A_Numeric_Generic),
+                        CONTAINS_WS = unique_candidates.some(Sym_Is_A_Space_Generic) || !skippable.some(Sym_Is_A_Space_Generic),
+                        CONTAINS_NL = unique_candidates.some(Sym_Is_A_Newline_Generic) || !skippable.some(Sym_Is_A_Newline_Generic),
                         GEN_NL_WS = CONTAINS_NL || CONTAINS_WS;
 
 
                     for (const s of unique_candidates) {
 
-                        if (symIsGeneratedNL(s) || symIsGeneratedWS(s))
+                        if (Sym_Is_A_Newline_Generic(s) || Sym_Is_A_Space_Generic(s))
                             checked_symbols.push(s);
-                        else if (symIsAGenericType(s))
+                        else if (Sym_Is_A_Generic_Type(s))
                             continue;
-                        else if (symIsSpecifiedSymbol(s)) {
-                            if (GEN_SYM || anticipated_syms.some(a => doDefinedSymbolsOcclude(a, s))) checked_symbols.push(s);
-                        } else if (symIsSpecifiedIdentifier(s) && !GEN_NL_WS) {
-                            if (GEN_ID || anticipated_syms.some(a => doDefinedSymbolsOcclude(a, s))) checked_symbols.push(s);
-                        } else if (symIsSpecifiedNumeric(s) && !GEN_NL_WS) {
-                            if (GEN_NUM || anticipated_syms.some(a => doDefinedSymbolsOcclude(a, s))) checked_symbols.push(s);
+                        else if (Sym_Is_Specified_Characters(s)) {
+                            if (GEN_SYM || anticipated_syms.some(a => Defined_Symbols_Occlude(a, s))) checked_symbols.push(s);
+                        } else if (Sym_Is_Specified_Identifier(s) && !GEN_NL_WS) {
+                            if (GEN_ID || anticipated_syms.some(a => Defined_Symbols_Occlude(a, s))) checked_symbols.push(s);
+                        } else if (Sym_Is_Specified_Natural_Number(s) && !GEN_NL_WS) {
+                            if (GEN_NUM || anticipated_syms.some(a => Defined_Symbols_Occlude(a, s))) checked_symbols.push(s);
                         }
                     }
-
-                    //TODO: Remove this
-                    interrupt_statement = (new SC).addStatement(
-                        items.map(i => i.renderUnformattedWithProduction(grammar)).join("\n"),
-                        "check:" + checked_symbols.map(i => `[${i.val}]`).join(" "),
-                        "anticipated" + anticipated_syms.map(i => `[${i.val}]`).join(" ")
-                    );
-                    //ODOT
 
                     if (checked_symbols.length > 0) {
 
@@ -465,7 +457,7 @@ export function processGoTOStates(gen: SelectionClauseGenerator, state: Recogniz
 
     state.offset--;
 
-    return defaultSelectionClause(gen, state, items, level, options, state.offset <= 1);
+    return default_getSelectionClause(gen, state, items, level, options, state.offset <= 1);
 }
 /**
  * Adds code to end states
@@ -540,7 +532,6 @@ export function completeFunctionProduction(
                 leaf.addStatement(SC.Value("continue"));
             }
         }
-
 
     production_function_root_rd.addStatement(SC.UnaryPre(SC.Return, SC.Value("0")));
 

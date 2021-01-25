@@ -75,11 +75,6 @@ export interface RecognizerState {
      */
     hash: string;
 
-    /**
-     * The Terminal or Non-Terminal Symbol that leads to the transition to this state.
-     */
-    symbol?: Symbol;
-
     symbols?: Symbol[];
 
     /**
@@ -108,11 +103,6 @@ export interface RecognizerState {
      * Current closure at this state. 
      */
     closure?: Item[];
-
-    /**
-     * The containing code does not require a boolean check
-     */
-    CAN_SKIP_BOOL_CHECK?: boolean;
 
     /**
      * production_ids that can be generated from this sequence

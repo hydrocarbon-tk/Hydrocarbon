@@ -1,15 +1,15 @@
 import { doesProductionHaveEmpty, getProductionID } from "./production.js";
-import { getFirst } from "./first.js";
+import { getFirstTerminalSymbols } from "./first.js";
 import { getTrueSymbolValue } from "./code_generating.js";
 import {
     getSymbolName,
     getUniqueSymbolName,
-    symIsAProduction,
-    symIsAProductionToken
+    Sym_Is_A_Production,
+    Sym_Is_A_Production_Token
 } from "./symbol.js";
 import { EOF_SYM, Grammar, ItemMapEntry } from "../types/grammar.js";
 import { SymbolType } from "../types/symbol_type";
-import { Item, ItemIndex } from "./item.js";
+import { Item } from "./item.js";
 import { ProductionSymbol, Symbol, TokenSymbol } from "../types/symbol";
 import { Production } from "../types/production.js";
 
@@ -33,7 +33,7 @@ function addFollowInformation(item: Item, grammar: Grammar, check_set: Set<strin
         follow: TokenSymbol[] = [follow_sym];
 
     if (sym)
-        if (symIsAProduction(sym)) {
+        if (Sym_Is_A_Production(sym)) {
 
             follow = [];
 
@@ -44,8 +44,8 @@ function addFollowInformation(item: Item, grammar: Grammar, check_set: Set<strin
 
                 if (!look_ahead.atEND) {
 
-                    if (symIsAProduction(sym) || symIsAProductionToken(sym)) {
-                        follow = follow.concat(getFirst(getProductionID(sym, grammar), grammar)).setFilter(getUniqueSymbolName);
+                    if (Sym_Is_A_Production(sym) || Sym_Is_A_Production_Token(sym)) {
+                        follow = follow.concat(getFirstTerminalSymbols(getProductionID(sym, grammar), grammar)).setFilter(getUniqueSymbolName);
                     } else {
                         follow = follow.concat(sym).setFilter(getUniqueSymbolName);
                         break;
@@ -62,7 +62,7 @@ function addFollowInformation(item: Item, grammar: Grammar, check_set: Set<strin
 
         } else follow = getTrueSymbolValue(sym, grammar);
 
-    if (symIsAProduction(item_sym) || symIsAProductionToken(item_sym)) {
+    if (Sym_Is_A_Production(item_sym) || Sym_Is_A_Production_Token(item_sym)) {
 
         const
             parent_prod_id = item.getProduction(grammar).id,
@@ -122,7 +122,7 @@ export function buildItemMap(grammar: Grammar) {
 
                     if (!item.atEND) {
                         const sym = item.sym(grammar);
-                        if (symIsAProduction(sym) && sym.subtype) {
+                        if (Sym_Is_A_Production(sym) && sym.subtype) {
                             const sub_production = grammar[sym.val];
 
                             for (const body of sub_production.bodies) {
@@ -257,14 +257,14 @@ export function buildItemMap(grammar: Grammar) {
 
         const first = obj.item.atEND
             ? obj.follow
-            : symIsAProduction(obj.item.sym(grammar))
-                ? new Set(getFirst(+obj.item.sym(grammar).val, grammar).map(getSymbolName))
+            : Sym_Is_A_Production(obj.item.sym(grammar))
+                ? new Set(getFirstTerminalSymbols(+obj.item.sym(grammar).val, grammar).map(getSymbolName))
                 : new Set((getTrueSymbolValue(<TokenSymbol>obj.item.sym(grammar), grammar)).map(getSymbolName));
 
         obj.skippable = new Set(
             standard_skips
                 .filter(i => {
-                    if (symIsAProductionToken(i) && (obj.breadcrumbs.has(getProductionID(i, grammar)))) {
+                    if (Sym_Is_A_Production_Token(i) && (obj.breadcrumbs.has(getProductionID(i, grammar)))) {
                         return false;
                     }
                     return true;
