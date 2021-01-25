@@ -38,7 +38,7 @@ export async function compileHCGParser(USE_CACHED = false, DEBUG = false) {
     const parser = await compile(grammar, {}, {
         recognizer_type: "js",
         completer_type: "js",
-        output_dir: URL.resolveRelative("./test/temp/"),
+        output_dir: URL.resolveRelative("./temp/hcg_parser/", import.meta.url),
         combine_recognizer_and_completer: true,
         create_function: true,
         no_file_output: !DEBUG,
