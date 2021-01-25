@@ -4,7 +4,7 @@ import { RenderBodyOptions } from "../../types/render_body_options";
 
 import { Item } from "../../utilities/item.js";
 import { SC } from "../../utilities/skribble.js";
-import { isSymAProduction } from "../../utilities/symbol.js";
+import { symIsAProduction } from "../../utilities/symbol.js";
 import { rec_glob_lex_name } from "../../utilities/global_names.js";
 import { yieldStates } from "./yield_states.js";
 import { TokenSymbol } from "../../types/symbol.js";
@@ -38,7 +38,7 @@ export function yieldGotoStates(options: RenderBodyOptions, completed_production
         for (const { item } of grammar.item_map.values()) {
             if (
                 !item.atEND
-                && isSymAProduction(item.sym(grammar))
+                && symIsAProduction(item.sym(grammar))
                 && item.getProductionAtSymbol(grammar).id == prod_id
                 && item.getProduction(grammar).id != prod_id
                 && !nonterm_shift_items.some(i => i.id == item.id)

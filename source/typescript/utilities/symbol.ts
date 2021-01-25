@@ -70,31 +70,31 @@ export function getUniqueSymbolName(sym: Symbol) {
         + (sym.IS_NON_CAPTURE ? "-->" : "");
 }
 
-export function isSymCompoundSymbol(s: Symbol): s is SpecifiedCharacterSymbol {
-    return isSymSpecifiedSymbol(s) && s.val.length > 1;
+export function symIsACompoundSymbol(s: Symbol): s is SpecifiedCharacterSymbol {
+    return symIsSpecifiedSymbol(s) && s.val.length > 1;
 }
-export function isSymNonConsume(s: Symbol): boolean {
+export function symIsNonConsume(s: Symbol): boolean {
     return !!s.IS_NON_CAPTURE;
 }
-export function isSymEndOfFile(s: Symbol): s is EOFSymbol {
+export function symIsEndOfFile(s: Symbol): s is EOFSymbol {
     return s.type == SymbolType.END_OF_FILE;
 }
-export function isSymNotNonConsume(s: Symbol): boolean {
-    return !isSymNonConsume(s);
+export function symIsNotNonConsume(s: Symbol): boolean {
+    return !symIsNonConsume(s);
 }
-export function isSymAProduction(s: Symbol): s is ProductionSymbol {
+export function symIsAProduction(s: Symbol): s is ProductionSymbol {
     return s.type == SymbolType.PRODUCTION;
 }
 
-export function isSymAnAssertFunction(s: Symbol): s is AssertionFunctionSymbol {
+export function symIsAnAssertFunction(s: Symbol): s is AssertionFunctionSymbol {
     return s.type == SymbolType.PRODUCTION_ASSERTION_FUNCTION;
 }
 
-export function isSymAGenericType(s: Symbol): s is (GeneratedSymbol | EOFSymbol) {
+export function symIsAGenericType(s: Symbol): s is (GeneratedSymbol | EOFSymbol) {
     return (s.type == SymbolType.GENERATED || s.type == SymbolType.END_OF_FILE);
 }
 
-export function isSymAProductionToken(s: Symbol): s is (ProductionTokenSymbol) {
+export function symIsAProductionToken(s: Symbol): s is (ProductionTokenSymbol) {
     return (s.type == SymbolType.PRODUCTION_TOKEN_SYMBOL);
 }
 /**
@@ -102,37 +102,37 @@ export function isSymAProductionToken(s: Symbol): s is (ProductionTokenSymbol) {
  * @param s
  */
 
-export function isSymSpecified(s: Symbol): s is SpecifiedSymbol {
-    return !isSymAProduction(s) && !isSymAGenericType(s) && !isSymAProductionToken(s);
+export function symIsSpecified(s: Symbol): s is SpecifiedSymbol {
+    return !symIsAProduction(s) && !symIsAGenericType(s) && !symIsAProductionToken(s);
 }
 /**
  * A SpecifiedSymbol that is not a SpecifiedIdentifierSymbol nor a SpecifiedNumericSymbol
  * @param s
  */
-export function isSymSpecifiedSymbol(s: Symbol): s is SpecifiedCharacterSymbol {
-    return isSymSpecified(s) && !isSymIdentifier(s) && !isSymNumeric(s);
+export function symIsSpecifiedSymbol(s: Symbol): s is SpecifiedCharacterSymbol {
+    return symIsSpecified(s) && !symIsIdentifier(s) && !symIsNumeric(s);
 }
-export function isSymSpecifiedIdentifier(s: Symbol): s is SpecifiedIdentifierSymbol {
-    return isSymSpecified(s) && isSymIdentifier(s);
+export function symIsSpecifiedIdentifier(s: Symbol): s is SpecifiedIdentifierSymbol {
+    return symIsSpecified(s) && symIsIdentifier(s);
 }
-export function isSymSpecifiedNumeric(s: Symbol): s is SpecifiedNumericSymbol {
-    return isSymSpecified(s) && isSymNumeric(s);
+export function symIsSpecifiedNumeric(s: Symbol): s is SpecifiedNumericSymbol {
+    return symIsSpecified(s) && symIsNumeric(s);
 }
-export function isSymNumeric(sym: TokenSymbol): sym is SpecifiedNumericSymbol {
+export function symIsNumeric(sym: TokenSymbol): sym is SpecifiedNumericSymbol {
     const lex = new Lexer(sym.val + "");
     return lex.ty == lex.types.num && lex.pk.END;
 }
-export function isSymNotNumeric(sym: TokenSymbol): boolean {
-    return !isSymNumeric(sym);
+export function symIsNotNumeric(sym: TokenSymbol): boolean {
+    return !symIsNumeric(sym);
 }
-export function isSymIdentifier(sym: TokenSymbol): sym is SpecifiedIdentifierSymbol {
+export function symIsIdentifier(sym: TokenSymbol): sym is SpecifiedIdentifierSymbol {
     const lex = new Lexer(sym.val + "");
     return lex.ty == lex.types.id && lex.pk.END;
 }
-export function isSymNotIdentifier(sym: TokenSymbol): boolean {
-    return !isSymIdentifier(sym);
+export function symIsNotIdentifier(sym: TokenSymbol): boolean {
+    return !symIsIdentifier(sym);
 }
-export function isSymLengthOneDefined(sym: TokenSymbol) {
+export function symIsLengthOneDefined(sym: TokenSymbol) {
 
     if ((sym.val + "").length > 1)
         return false;
@@ -141,14 +141,14 @@ export function isSymLengthOneDefined(sym: TokenSymbol) {
 
     return !(lex.ty == lex.types.id || lex.ty == lex.types.num);
 }
-export function isSymNotLengthOneDefined(sym: TokenSymbol): boolean {
-    return !isSymLengthOneDefined(sym);
+export function symIsNotLengthOneDefined(sym: TokenSymbol): boolean {
+    return !symIsLengthOneDefined(sym);
 }
-export function isSymGeneratedNL(sym: TokenSymbol) { return sym.val == "nl" && sym.type == SymbolType.GENERATED; }
-export function isSymGeneratedId(sym: TokenSymbol) { return sym.val == "id" && sym.type == SymbolType.GENERATED; }
-export function isSymGeneratedSym(sym: TokenSymbol) { return sym.val == "sym" && sym.type == SymbolType.GENERATED; }
-export function isSymGeneratedNum(sym: TokenSymbol) { return sym.val == "num" && sym.type == SymbolType.GENERATED; }
-export function isSymGeneratedWS(sym: TokenSymbol): boolean { return sym.val == "ws"; }
+export function symIsGeneratedNL(sym: TokenSymbol) { return sym.val == "nl" && sym.type == SymbolType.GENERATED; }
+export function symIsGeneratedId(sym: TokenSymbol) { return sym.val == "id" && sym.type == SymbolType.GENERATED; }
+export function symIsGeneratedSym(sym: TokenSymbol) { return sym.val == "sym" && sym.type == SymbolType.GENERATED; }
+export function symIsGeneratedNum(sym: TokenSymbol) { return sym.val == "num" && sym.type == SymbolType.GENERATED; }
+export function symIsGeneratedWS(sym: TokenSymbol): boolean { return sym.val == "ws"; }
 
 export function getFollowSymbolsFromItems(items: Item[], grammar: Grammar): TokenSymbol[] {
     return items.filter(i => i.atEND)
@@ -161,7 +161,7 @@ export function getTokenSymbolsFromItems(items: Item[], grammar: Grammar): Token
     return items.filter(i => !i.atEND)
         .flatMap(i => getTrueSymbolValue(<TokenSymbol>i.sym(grammar), grammar))
         .setFilter(getUniqueSymbolName)
-        .filter(sym => !isSymAProduction(sym));
+        .filter(sym => !symIsAProduction(sym));
 }
 
 export function getSkippableSymbolsFromItems(items: Item[], grammar: Grammar): TokenSymbol[] {
@@ -213,10 +213,10 @@ export function getRootSym<T = Symbol>(sym: T, grammar: Grammar): T {
 export function doDefinedSymbolsOcclude(target: TokenSymbol, potential_occluder: TokenSymbol): boolean {
 
     if (getUniqueSymbolName(target) == getUniqueSymbolName(potential_occluder)) return false;
-    if (isSymAProduction(target) || isSymAProduction(potential_occluder)) return false;
-    if (isSymGeneratedSym(target) && isSymSpecifiedSymbol(potential_occluder)) return true;
-    if (isSymGeneratedId(target) && isSymSpecifiedIdentifier(potential_occluder)) return true;
-    if (isSymGeneratedNum(target) && isSymSpecifiedNumeric(potential_occluder)) return true;
+    if (symIsAProduction(target) || symIsAProduction(potential_occluder)) return false;
+    if (symIsGeneratedSym(target) && symIsSpecifiedSymbol(potential_occluder)) return true;
+    if (symIsGeneratedId(target) && symIsSpecifiedIdentifier(potential_occluder)) return true;
+    if (symIsGeneratedNum(target) && symIsSpecifiedNumeric(potential_occluder)) return true;
     if (target.val == potential_occluder.val) return false;
     let
         short = target.val.toString(),
@@ -239,7 +239,7 @@ export function getSymbolsFromClosure(closure: Item[], grammar: Grammar): Symbol
         ...new Set(
             closure
                 .filter(i => !i.atEND)
-                .filter(i => !isSymAProduction(i.sym(grammar)))
+                .filter(i => !symIsAProduction(i.sym(grammar)))
                 .flatMap(i => getTrueSymbolValue(<TokenSymbol>i.sym(grammar), grammar))
         ).values()
     ];

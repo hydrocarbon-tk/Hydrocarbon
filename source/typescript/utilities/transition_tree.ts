@@ -11,9 +11,9 @@ import {
     getSymbolsFromClosure,
     getUniqueSymbolName,
     getUnskippableSymbolsFromClosure,
-    isSymAnAssertFunction,
-    isSymAProduction,
-    isSymAProductionToken
+    symIsAnAssertFunction,
+    symIsAProduction,
+    symIsAProductionToken
 } from "./symbol.js";
 
 /**
@@ -200,12 +200,12 @@ function getClosureGroups(
                 );
                 group.push(...new_group);
             }
-        } else if (!isSymAProduction(sym)) {
+        } else if (!symIsAProduction(sym)) {
 
             let syms = [sym];
 
-            if (isSymAProductionToken(sym)) {
-                syms = <TokenSymbol[]>getSymbolsFromClosure(getClosure([item], grammar, true), grammar).filter(s => !isSymAProductionToken(s));
+            if (symIsAProductionToken(sym)) {
+                syms = <TokenSymbol[]>getSymbolsFromClosure(getClosure([item], grammar, true), grammar).filter(s => !symIsAProductionToken(s));
             }
 
             for (const sym of syms) {

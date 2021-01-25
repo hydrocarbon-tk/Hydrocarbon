@@ -7,7 +7,7 @@ import { TransitionTreeNode } from "../../types/transition_tree_nodes.js";
 import { getClosure } from "../../utilities/closure.js";
 import { doItemsHaveSameSymbol, Item } from "../../utilities/item.js";
 import { SC, VarSC } from "../../utilities/skribble.js";
-import { isSymAProduction } from "../../utilities/symbol.js";
+import { symIsAProduction } from "../../utilities/symbol.js";
 import { getTransitionTree } from "../../utilities/transition_tree.js";
 import { yieldCompletedItemStates } from "./yield_completed_item_states.js";
 import { buildPeekSequence } from "./yield_peek_states.js";
@@ -55,13 +55,13 @@ export function yieldStates(
 
                 const
                     closure = getClosure(active_items.slice(), grammar),
-                    anticipated_syms = [...closure.filter(i => !i.atEND && !isSymAProduction(i.sym(grammar))).map(i => <TokenSymbol>i.sym(grammar))];
+                    anticipated_syms = [...closure.filter(i => !i.atEND && !symIsAProduction(i.sym(grammar))).map(i => <TokenSymbol>i.sym(grammar))];
 
 
                 if (anticipated_syms.length > 0) {
 
                     const
-                        IS_SYM_PRODUCTION = isSymAProduction(active_items[0].sym(grammar)),
+                        IS_SYM_PRODUCTION = symIsAProduction(active_items[0].sym(grammar)),
                         transition_type: TRANSITION_TYPE = IS_SYM_PRODUCTION
                             ? TRANSITION_TYPE.ASSERT_PRODUCTION_SYMBOLS
                             : TRANSITION_TYPE.CONSUME;
@@ -110,7 +110,7 @@ export function yieldStates(
                         state = <RecognizerState>{
                             code: new SC,
                             hash: "not-defined-same-symbol-chain",
-                            transition_type: isSymAProduction(sym)
+                            transition_type: symIsAProduction(sym)
                                 ? TRANSITION_TYPE.ASSERT
                                 : TRANSITION_TYPE.CONSUME,
                             items: active_items.slice(),

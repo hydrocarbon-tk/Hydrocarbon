@@ -4,8 +4,8 @@ import { getTrueSymbolValue } from "./code_generating.js";
 import {
     getSymbolName,
     getUniqueSymbolName,
-    isSymAProduction,
-    isSymAProductionToken
+    symIsAProduction,
+    symIsAProductionToken
 } from "./symbol.js";
 import { EOF_SYM, Grammar, ItemMapEntry } from "../types/grammar.js";
 import { SymbolType } from "../types/symbol_type";
@@ -33,7 +33,7 @@ function addFollowInformation(item: Item, grammar: Grammar, check_set: Set<strin
         follow: TokenSymbol[] = [follow_sym];
 
     if (sym)
-        if (isSymAProduction(sym)) {
+        if (symIsAProduction(sym)) {
 
             follow = [];
 
@@ -44,7 +44,7 @@ function addFollowInformation(item: Item, grammar: Grammar, check_set: Set<strin
 
                 if (!look_ahead.atEND) {
 
-                    if (isSymAProduction(sym) || isSymAProductionToken(sym)) {
+                    if (symIsAProduction(sym) || symIsAProductionToken(sym)) {
                         follow = follow.concat(getFirst(getProductionID(sym, grammar), grammar)).setFilter(getUniqueSymbolName);
                     } else {
                         follow = follow.concat(sym).setFilter(getUniqueSymbolName);
@@ -62,7 +62,7 @@ function addFollowInformation(item: Item, grammar: Grammar, check_set: Set<strin
 
         } else follow = getTrueSymbolValue(sym, grammar);
 
-    if (isSymAProduction(item_sym) || isSymAProductionToken(item_sym)) {
+    if (symIsAProduction(item_sym) || symIsAProductionToken(item_sym)) {
 
         const
             parent_prod_id = item.getProduction(grammar).id,
@@ -122,7 +122,7 @@ export function buildItemMap(grammar: Grammar) {
 
                     if (!item.atEND) {
                         const sym = item.sym(grammar);
-                        if (isSymAProduction(sym) && sym.subtype) {
+                        if (symIsAProduction(sym) && sym.subtype) {
                             const sub_production = grammar[sym.val];
 
                             for (const body of sub_production.bodies) {
@@ -257,14 +257,14 @@ export function buildItemMap(grammar: Grammar) {
 
         const first = obj.item.atEND
             ? obj.follow
-            : isSymAProduction(obj.item.sym(grammar))
+            : symIsAProduction(obj.item.sym(grammar))
                 ? new Set(getFirst(+obj.item.sym(grammar).val, grammar).map(getSymbolName))
                 : new Set((getTrueSymbolValue(<TokenSymbol>obj.item.sym(grammar), grammar)).map(getSymbolName));
 
         obj.skippable = new Set(
             standard_skips
                 .filter(i => {
-                    if (isSymAProductionToken(i) && (obj.breadcrumbs.has(getProductionID(i, grammar)))) {
+                    if (symIsAProductionToken(i) && (obj.breadcrumbs.has(getProductionID(i, grammar)))) {
                         return false;
                     }
                     return true;

@@ -11,7 +11,7 @@ import {
     createReduceFunction,
     getRootSym,
     getSkippableSymbolsFromItems,
-    isSymAProduction
+    symIsAProduction
 } from "./symbol.js";
 
 export function renderItemReduction(
@@ -33,7 +33,7 @@ function isProductionPassthrough(production_id: number, grammar: Grammar): {
 
     const IS_PASSTHROUGH = production.bodies.length == 1
         && production.bodies[0].sym.length == 1
-        && isSymAProduction(production.bodies[0].sym[0]);
+        && symIsAProduction(production.bodies[0].sym[0]);
 
     let first_non_passthrough = -1, passthrough_chain = [];
 

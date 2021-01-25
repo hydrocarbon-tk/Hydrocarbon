@@ -14,17 +14,17 @@ import {
     doDefinedSymbolsOcclude,
     getTokenSymbolsFromItems,
     getUniqueSymbolName,
-    isSymAGenericType,
-    isSymAnAssertFunction,
-    isSymAProductionToken,
-    isSymGeneratedId,
-    isSymGeneratedNum,
-    isSymGeneratedSym,
-    isSymNonConsume,
-    isSymNotIdentifier,
-    isSymNotLengthOneDefined,
-    isSymNotNonConsume,
-    isSymSpecified,
+    symIsAGenericType,
+    symIsAnAssertFunction,
+    symIsAProductionToken,
+    symIsGeneratedId,
+    symIsGeneratedNum,
+    symIsGeneratedSym,
+    symIsNonConsume,
+    symIsNotIdentifier,
+    symIsNotLengthOneDefined,
+    symIsNotNonConsume,
+    symIsSpecified,
 } from "./symbol.js";
 
 /**
@@ -266,9 +266,9 @@ export function buildIfs(
             occlusion_checks = [];
 
         for (const sym of occluders) {
-            if (isSymGeneratedId(sym)) {
+            if (symIsGeneratedId(sym)) {
                 occlusion_checks.push(SC.Binary(SC.Call(SC.Member(lex_name, "typeAt"), off + l), "!=", "TokenIdentifier"));
-            } else if (isSymGeneratedNum(sym)) {
+            } else if (symIsGeneratedNum(sym)) {
                 occlusion_checks.push(SC.Binary(SC.Call(SC.Member(lex_name, "typeAt"), off + l), "!=", "TokenNumber"));
             } else {
                 const char_code = sym.val.toString().charCodeAt(val.length);
@@ -288,8 +288,8 @@ export function buildIfs(
         let first = true;
         const
             incremented_syms = syms.filter(s => (<string>s.val).length > off).groupMap(s => s.val[off]),
-            incremented_occluders = occluders.filter(isSymSpecified).filter(s => (<string>s.val).length > off).groupMap(s => s.val[off]),
-            generated_occluders = occluders.filter(isSymAGenericType);
+            incremented_occluders = occluders.filter(symIsSpecified).filter(s => (<string>s.val).length > off).groupMap(s => s.val[off]),
+            generated_occluders = occluders.filter(symIsAGenericType);
 
         let leaf = code_node;
 
@@ -347,21 +347,21 @@ export function getIncludeBooleans(
     ambient_symbols = ambient_symbols.concat(syms).setFilter(getUniqueSymbolName);
 
     let
-        non_consume = syms.filter(isSymNonConsume),
-        consume = syms.filter(isSymNotNonConsume),
-        id = consume.filter(isSymSpecified),
-        ty = consume.filter(isSymAGenericType),
-        tk = consume.filter(isSymAProductionToken),
-        fn = consume.filter(isSymAnAssertFunction)
+        non_consume = syms.filter(symIsNonConsume),
+        consume = syms.filter(symIsNotNonConsume),
+        id = consume.filter(symIsSpecified),
+        ty = consume.filter(symIsAGenericType),
+        tk = consume.filter(symIsAProductionToken),
+        fn = consume.filter(symIsAnAssertFunction)
             .map(s => translateSymbolValue(s, grammar, lex_name)).sort();
 
-    const HAS_GEN_ID = ty.some(isSymGeneratedId);
+    const HAS_GEN_ID = ty.some(symIsGeneratedId);
 
     if (HAS_GEN_ID)
-        id = id.filter(isSymNotIdentifier);
+        id = id.filter(symIsNotIdentifier);
 
-    if (ty.some(isSymGeneratedSym))
-        id = id.filter(isSymNotLengthOneDefined);
+    if (ty.some(symIsGeneratedSym))
+        id = id.filter(symIsNotLengthOneDefined);
 
     if (id.length + ty.length + fn.length + tk.length + non_consume.length == 0)
         return null;

@@ -2,7 +2,7 @@ import { EOF_SYM, Grammar, ProductionBody } from "../types/grammar.js";
 import { Production } from "../types/production";
 import { Symbol } from "../types/symbol";
 import { SymbolType } from "../types/symbol_type";
-import { getRootSym, getUniqueSymbolName, isSymAProduction, SymbolToStringUnformatted } from "./symbol.js";
+import { getRootSym, getUniqueSymbolName, symIsAProduction, SymbolToStringUnformatted } from "./symbol.js";
 
 export const enum ItemIndex {
     body_id = 0,
@@ -185,7 +185,7 @@ export function getAccompanyingItems(grammar: Grammar, active_productions: numbe
         if (!item || item.atEND) continue;
 
         const sym = item.sym(grammar);
-        if (isSymAProduction(sym) && prod_id.has(<number>sym.val)) {
+        if (symIsAProduction(sym) && prod_id.has(<number>sym.val)) {
 
             out.push(item);
             if (item.increment().atEND) {

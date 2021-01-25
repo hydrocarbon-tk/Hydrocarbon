@@ -16,16 +16,16 @@ import {
     getSymbolName,
     getSymbolsFromClosure,
     getUniqueSymbolName,
-    isSymAGenericType,
-    isSymAProduction,
-    isSymGeneratedId,
-    isSymGeneratedNL,
-    isSymGeneratedNum,
-    isSymGeneratedSym,
-    isSymGeneratedWS,
-    isSymSpecifiedIdentifier,
-    isSymSpecifiedNumeric,
-    isSymSpecifiedSymbol
+    symIsAGenericType,
+    symIsAProduction,
+    symIsGeneratedId,
+    symIsGeneratedNL,
+    symIsGeneratedNum,
+    symIsGeneratedSym,
+    symIsGeneratedWS,
+    symIsSpecifiedIdentifier,
+    symIsSpecifiedNumeric,
+    symIsSpecifiedSymbol
 } from "../../utilities/symbol.js";
 import { processProductionChain } from "./process_production_chain.js";
 
@@ -240,7 +240,7 @@ export function defaultSelectionClause(
             case TRANSITION_TYPE.PEEK:
             case TRANSITION_TYPE.PEEK_PRODUCTION_SYMBOLS:
 
-                gate_block = (isSymAProduction(syms[0]))
+                gate_block = (symIsAProduction(syms[0]))
                     ? renderProductionCall(grammar[syms[0].val], options, peek_name)
                     : getIncludeBooleans(<TokenSymbol[]>syms, grammar, runner, peek_name, <TokenSymbol[]>all_syms);
                 break;
@@ -249,14 +249,14 @@ export function defaultSelectionClause(
             case TRANSITION_TYPE.ASSERT_PRODUCTION_SYMBOLS:
             case TRANSITION_TYPE.ASSERT_END:
 
-                gate_block = (isSymAProduction(syms[0]))
+                gate_block = (symIsAProduction(syms[0]))
                     ? renderProductionCall(grammar[syms[0].val], options)
                     : getIncludeBooleans(<TokenSymbol[]>syms, grammar, runner, peek_name, <TokenSymbol[]>all_syms);
                 break;
 
             case TRANSITION_TYPE.CONSUME:
 
-                gate_block = (isSymAProduction(syms[0]))
+                gate_block = (symIsAProduction(syms[0]))
                     ? createAssertionShiftManual(rec_glob_lex_name, renderProductionCall(grammar[syms[0].val], options))
                     : createAssertionShiftManual(rec_glob_lex_name, getIncludeBooleans(<TokenSymbol[]>syms, grammar, runner, lex_name, <TokenSymbol[]>all_syms));
                 break;
@@ -390,25 +390,25 @@ export function processGoTOStates(gen: SelectionClauseGenerator, state: Recogniz
                     ),
                         checked_symbols = [],
 
-                        GEN_SYM = anticipated_syms.some(isSymGeneratedSym),
-                        GEN_ID = anticipated_syms.some(isSymGeneratedId),
-                        GEN_NUM = anticipated_syms.some(isSymGeneratedNum),
-                        CONTAINS_WS = unique_candidates.some(isSymGeneratedWS) || !skippable.some(isSymGeneratedWS),
-                        CONTAINS_NL = unique_candidates.some(isSymGeneratedNL) || !skippable.some(isSymGeneratedNL),
+                        GEN_SYM = anticipated_syms.some(symIsGeneratedSym),
+                        GEN_ID = anticipated_syms.some(symIsGeneratedId),
+                        GEN_NUM = anticipated_syms.some(symIsGeneratedNum),
+                        CONTAINS_WS = unique_candidates.some(symIsGeneratedWS) || !skippable.some(symIsGeneratedWS),
+                        CONTAINS_NL = unique_candidates.some(symIsGeneratedNL) || !skippable.some(symIsGeneratedNL),
                         GEN_NL_WS = CONTAINS_NL || CONTAINS_WS;
 
 
                     for (const s of unique_candidates) {
 
-                        if (isSymGeneratedNL(s) || isSymGeneratedWS(s))
+                        if (symIsGeneratedNL(s) || symIsGeneratedWS(s))
                             checked_symbols.push(s);
-                        else if (isSymAGenericType(s))
+                        else if (symIsAGenericType(s))
                             continue;
-                        else if (isSymSpecifiedSymbol(s)) {
+                        else if (symIsSpecifiedSymbol(s)) {
                             if (GEN_SYM || anticipated_syms.some(a => doDefinedSymbolsOcclude(a, s))) checked_symbols.push(s);
-                        } else if (isSymSpecifiedIdentifier(s) && !GEN_NL_WS) {
+                        } else if (symIsSpecifiedIdentifier(s) && !GEN_NL_WS) {
                             if (GEN_ID || anticipated_syms.some(a => doDefinedSymbolsOcclude(a, s))) checked_symbols.push(s);
-                        } else if (isSymSpecifiedNumeric(s) && !GEN_NL_WS) {
+                        } else if (symIsSpecifiedNumeric(s) && !GEN_NL_WS) {
                             if (GEN_NUM || anticipated_syms.some(a => doDefinedSymbolsOcclude(a, s))) checked_symbols.push(s);
                         }
                     }

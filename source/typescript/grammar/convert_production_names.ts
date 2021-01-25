@@ -1,7 +1,7 @@
 import { Grammar, ProductionBody } from "../types/grammar.js";
 import { SymbolType } from "../types/symbol_type";
 import { Symbol } from "../types/symbol";
-import { isSymAProduction, isSymAProductionToken } from "../utilities/symbol.js";
+import { symIsAProduction, symIsAProductionToken } from "../utilities/symbol.js";
 import { GrammarParserEnvironment } from "../types/grammar_compiler_environment.js";
 
 export default function convertProductionNamesToIndexes(grammar: Grammar, LU,
@@ -12,7 +12,7 @@ export default function convertProductionNamesToIndexes(grammar: Grammar, LU,
 
         for (const sym of env.symbols) {
 
-            if (isSymAProduction(sym) || isSymAProductionToken(sym)) {
+            if (symIsAProduction(sym) || symIsAProductionToken(sym)) {
                 if (sym.production || (sym.IMPORTED && sym.RESOLVED)) {
                     sym.val = sym.production.id;
                 } else try {
@@ -49,7 +49,7 @@ export default function convertProductionNamesToIndexes(grammar: Grammar, LU,
 
                     sym = body.sym[i];
 
-                    if (isSymAProduction(sym) || isSymAProductionToken(sym)) {
+                    if (symIsAProduction(sym) || symIsAProductionToken(sym)) {
                         if (sym.production || (sym.IMPORTED && sym.RESOLVED)) {
                             sym.val = sym.production.id;
                         } else try {

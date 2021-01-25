@@ -3,7 +3,7 @@ import { RenderBodyOptions } from "../../types/render_body_options.js";
 import { getClosure } from "../../utilities/closure.js";
 import { doItemsHaveSameSymbol } from "../../utilities/item.js";
 import { VarSC } from "../../utilities/skribble.js";
-import { isSymAProduction, isSymAProductionToken } from "../../utilities/symbol.js";
+import { symIsAProduction, symIsAProductionToken } from "../../utilities/symbol.js";
 import { getTransitionTree } from "../../utilities/transition_tree.js";
 import { cleanLeaves, yieldStates } from "./yield_states.js";
 
@@ -41,7 +41,7 @@ export function processPeekStateLeaf(
 
             if (SAME_SYMBOL) {
 
-                if (isSymAProduction(state.items[0].sym(grammar)))
+                if (symIsAProduction(state.items[0].sym(grammar)))
                     state.transition_type = TRANSITION_TYPE.PEEK_PRODUCTION_SYMBOLS;
 
                 state.states.push(...yieldStates(items, options, lex_name, offset + 1));
@@ -95,18 +95,18 @@ export function processPeekStateLeaf(
                 const sym = items[0].sym(grammar);
 
                 if (state.peek_level == 0) {
-                    state.transition_type = isSymAProduction(sym)
+                    state.transition_type = symIsAProduction(sym)
                         ? TRANSITION_TYPE.ASSERT_PRODUCTION_SYMBOLS
                         : TRANSITION_TYPE.CONSUME;
 
-                    if (!isSymAProduction(sym))
+                    if (!symIsAProduction(sym))
                         state.transition_type = TRANSITION_TYPE.CONSUME;
 
-                    if (isSymAProductionToken(sym))
+                    if (symIsAProductionToken(sym))
                         state.symbols = [sym];
 
                 } else {
-                    if (isSymAProduction(sym)) {
+                    if (symIsAProduction(sym)) {
                         state.transition_type = TRANSITION_TYPE.PEEK_PRODUCTION_SYMBOLS;
                     }
                 }

@@ -11,7 +11,7 @@ import {
 } from "../utilities/global_names.js";
 import { Item } from "../utilities/item.js";
 import { SC } from "../utilities/skribble.js";
-import { isSymAProduction } from "../utilities/symbol.js";
+import { symIsAProduction } from "../utilities/symbol.js";
 
 import { Helper } from "./helper.js";
 import { processRecognizerStates } from "./states/process_recognizer_states.js";
@@ -91,7 +91,7 @@ export function constructHybridFunction(production: Production, grammar: Grammar
 
                     const sym = i.sym(grammar);
 
-                    if (sym && isSymAProduction(sym) && sym.val == production.id)
+                    if (sym && symIsAProduction(sym) && sym.val == production.id)
                         return false;
 
                     return true;

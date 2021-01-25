@@ -6,9 +6,9 @@ import { MultiItemReturnObject, SelectionClauseGenerator, SelectionGroup, Single
 import { Item } from "../../utilities/item.js";
 import { SC } from "../../utilities/skribble.js";
 import {
-    isSymGeneratedId,
-    isSymGeneratedNum,
-    isSymGeneratedSym
+    symIsGeneratedId,
+    symIsGeneratedNum,
+    symIsGeneratedSym
 } from "../../utilities/symbol.js";
 import { defaultMultiItemLeaf, defaultSelectionClause, defaultSingleItemLeaf } from "./default_state_build.js";
 
@@ -29,9 +29,9 @@ function getGroupScore(a: SelectionGroup) {
     const
         a_end = transition_penalty,
         a_syms = a.syms.length * (a_end),
-        a_id = (+a.syms.some(isSymGeneratedId)) * 50 * (a_end),
-        a_num = (+a.syms.some(isSymGeneratedNum)) * 25 * (a_end),
-        a_sym = (+a.syms.some(isSymGeneratedSym)) * 5 * (a_end);
+        a_id = (+a.syms.some(symIsGeneratedId)) * 50 * (a_end),
+        a_num = (+a.syms.some(symIsGeneratedNum)) * 25 * (a_end),
+        a_sym = (+a.syms.some(symIsGeneratedSym)) * 5 * (a_end);
 
     return a_syms + a_id + a_num + a_sym + a_end;
 }
