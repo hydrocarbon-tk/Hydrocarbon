@@ -361,8 +361,10 @@ export class SC<T = Node> {
     /**
      * Add statements to the beginning of the statement list
      */
-    shiftStatement(this: SC<T>, ...stmts: SC<Node>[]): SC<T> {
-        for (const stmt of stmts.filter(_ => !!_).reverse()) {
+    shiftStatement(this: SC<T>, ...stmts: (string | SC<Node>)[]): SC<T> {
+        for (const stmt of stmts.filter(_ => !!_).map(
+            (s): SC => { return typeof s == "string" ? SC.Comment(s) : s; }
+        ).reverse()) {
             if (acceptsStatements(<any>this.type)) {
                 if (isSwitch(<any>this.type)) {
                     if (isIf(stmt.type)) {
@@ -381,8 +383,11 @@ export class SC<T = Node> {
         return this;
     }
 
-    addStatement(this: SC<T>, ...stmts: SC<Node>[]): SC<T> {
-        for (const stmt of stmts.filter(_ => !!_)) {
+    addStatement(this: SC<T>, ...stmts: (string | SC<Node>)[]): SC<T> {
+        for (const stmt of stmts.filter(_ => !!_).map(
+            (s): SC => { return typeof s == "string" ? SC.Comment(s) : s; }
+        )) {
+
             if (acceptsStatements(<any>this.type)) {
                 if (isSwitch(<any>this.type)) {
                     if (isIf(stmt.type)) {
