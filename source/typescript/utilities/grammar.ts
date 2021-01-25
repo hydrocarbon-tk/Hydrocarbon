@@ -1,9 +1,10 @@
-import { EOF_SYM, Grammar } from "../types/grammar.js";
+import { EOF_SYM, Grammar, ProductionBody } from "../types/grammar.js";
+import { Production } from "../types/production.js";
 import { Symbol } from "../types/symbol";
 import { SymbolType } from "../types/symbol_type";
 import { Item } from "./item.js";
 import { buildItemMap } from "./item_map.js";
-import { getUniqueSymbolName } from "./symbol.js";
+import { getUniqueSymbolName, Sym_Is_A_Production } from "./symbol.js";
 
 const
     production_stack_arg_name = "sym",
@@ -99,6 +100,8 @@ export function filloutGrammar(grammar: Grammar, env) {
 
         const production = grammar[i];
 
+        removeDirectRecursiveBodies(production);
+
         if (production.recovery_handler) {
             const rh = production.recovery_handler;
             rh.txt = "return " + rh.body_text;
@@ -170,5 +173,24 @@ export function filloutGrammar(grammar: Grammar, env) {
 }
 
 
+function removeDirectRecursiveBodies(production: Production, bodies: ProductionBody[] = production.bodies) {
+
+    for (let i = 0; i < bodies.length; i++) {
+        const
+            body = bodies[i],
+            [sym] = body.sym;
+
+        if (
+            body.sym.length == 1
+            &&
+            Sym_Is_A_Production(sym)
+            &&
+            sym.val == production.id
+        ) {
+            bodies.splice(i, 1);
+            i--;
+        }
+    }
+}
 
 
