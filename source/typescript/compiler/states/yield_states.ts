@@ -30,6 +30,7 @@ export function yieldStates(
         end_items = in_items.filter(i => i.atEND),
         active_items = in_items.filter(i => !i.atEND);
 
+
     /**
     * If all items are from the same production and the current production function is NOT processing
     * that production, simply do a call to that production function.
@@ -41,26 +42,29 @@ export function yieldStates(
 
         const
 
-            SAME_PRODUCTION = Items_Are_From_Same_Production(active_items, grammar),
-
-            SAME_SYMBOL = Items_Have_The_Same_Active_Symbol(active_items, grammar),
-
             max_item_offset = getMaxOffsetOfItems(active_items),
 
             first_production = (active_items[0]).getProduction(grammar),
+            NUMBER_OF_ACTIVE_ITEMS_IS_ONE = active_items.length == 1,
+            ITEMS_HAVE_A_MAX_OFFSET_OF_ZERO = max_item_offset == 0,
+            ALL_ITEMS_ARE_FROM_SAME_PRODUCTION = Items_Are_From_Same_Production(active_items, grammar),
+            ALL_ITEMS_HAVE_SAME_SYMBOL = Items_Have_The_Same_Active_Symbol(active_items, grammar),
+            ALL_ITEMS_ARE_FROM_ROOT_PRODUCTION = ALL_ITEMS_ARE_FROM_SAME_PRODUCTION && first_production.id == production.id,
+            ITEMS_SHOULD_CREATE_SHIFT_STATES = (offset > 0 || ALL_ITEMS_ARE_FROM_ROOT_PRODUCTION || ALL_ITEMS_ARE_FROM_SAME_PRODUCTION);
 
-            ROOT_PRODUCTION = SAME_PRODUCTION && first_production.id == production.id;
 
-
-        if (active_items.length == 1)
+        if (NUMBER_OF_ACTIVE_ITEMS_IS_ONE)
 
             output_states.push(...yieldSingleItemState(active_items, options, offset));
 
-        else if (SAME_PRODUCTION && !ROOT_PRODUCTION && (max_item_offset == 0))
+        else if (ALL_ITEMS_ARE_FROM_SAME_PRODUCTION
+            && !ALL_ITEMS_ARE_FROM_ROOT_PRODUCTION
+            && ITEMS_HAVE_A_MAX_OFFSET_OF_ZERO
+        )
 
             output_states.push(...yieldProductionCallState(active_items, offset));
 
-        else if (SAME_SYMBOL && (offset > 0 || ROOT_PRODUCTION || SAME_PRODUCTION))
+        else if (ALL_ITEMS_HAVE_SAME_SYMBOL && ITEMS_SHOULD_CREATE_SHIFT_STATES)
 
             output_states.push(...yieldStatesOfItemsWithSameSymbol(active_items, options, offset));
 
