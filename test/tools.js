@@ -100,9 +100,9 @@ export async function getGrammar(string_or_url, parser) {
 }
 
 /**
- * Compile a grammar from a file path or an input string
+ * Compile a parser from a file path or an input string
  */
-export async function compileGrammarSource(string_or_url, DEBUG = false) {
+export async function compileGrammarSource(string_or_url, DEBUG = false, recognizer_type = "js") {
 
     await URL.server();
 
@@ -120,7 +120,7 @@ export async function compileGrammarSource(string_or_url, DEBUG = false) {
 
     const
         parser = await compile(grammar, {}, {
-            recognizer_type: "js",
+            recognizer_type,
             completer_type: "js",
             output_dir: URL.resolveRelative("./temp/parser_from_source/", import.meta.url),
             combine_recognizer_and_completer: true,
@@ -139,11 +139,11 @@ export async function compileGrammarSource(string_or_url, DEBUG = false) {
 /**
  * Compile a parser from a grammar object
  */
-export async function compileGrammar(grammar, DEBUG = false) {
+export async function compileGrammar(grammar, DEBUG = false, recognizer_type = "js") {
 
     const
         parser = await compile(grammar, {}, {
-            recognizer_type: "js",
+            recognizer_type,
             completer_type: "js",
             output_dir: URL.resolveRelative("./temp/parser_from_grammar_obj/", import.meta.url),
             combine_recognizer_and_completer: true,
