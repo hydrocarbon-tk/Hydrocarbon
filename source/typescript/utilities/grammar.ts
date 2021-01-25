@@ -85,7 +85,7 @@ export function filloutWorkerGrammar(grammar: Grammar) {
  * Follow items for each production
  * Item set
  */
-export function filloutGrammar(grammar: Grammar, env) {
+export function completeGrammar(grammar: Grammar, env) {
 
     const bodies = [],
         reduce_lu: Map<string, number> = new Map,
