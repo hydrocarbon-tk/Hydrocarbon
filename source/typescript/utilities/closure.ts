@@ -1,4 +1,4 @@
-import { getAccompanyingItems, Item, itemsToProductions } from "./item.js";
+import { getGotoItems, Item, itemsToProductions } from "./item.js";
 import { Grammar } from "../types/grammar.js";
 import { getSymbolsFromClosure, symIsAProductionToken } from "./symbol.js";
 import { getProductionClosure, getProductionID } from "./production.js";
@@ -35,7 +35,6 @@ export function getClosure(items: Item[], grammar: Grammar, ENTER_TOKEN_PRODUCTI
 
         closure.push(...grammar.item_map.get(item_id).closure);
     }
-
 
     if (ENTER_TOKEN_PRODUCTIONS) {
 
@@ -94,7 +93,7 @@ export function getFollowClosure(closure: Item[], goto_transition_items: Item[],
 
             productions.add(prod);
 
-            const items = getAccompanyingItems(grammar, [prod], goto_transition_items).map(i => i.increment());
+            const items = getGotoItems(grammar, [prod], goto_transition_items).map(i => i.increment());
 
             const c = getClosure(items, grammar);
 

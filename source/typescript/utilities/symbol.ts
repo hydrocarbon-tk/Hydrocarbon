@@ -233,7 +233,6 @@ export function getUnskippableSymbolsFromClosure(closure: Item[], grammar: Gramm
     return [...new Set(closure.flatMap(i => grammar.item_map.get(i.id).reset_sym)).values()].map(sym => grammar.meta.all_symbols.get(sym));
 }
 
-
 export function getSymbolsFromClosure(closure: Item[], grammar: Grammar): Symbol[] {
     return [
         ...new Set(

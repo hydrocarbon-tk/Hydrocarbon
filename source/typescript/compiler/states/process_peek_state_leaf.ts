@@ -2,7 +2,6 @@ import { RecognizerState, TRANSITION_TYPE } from "../../types/recognizer_state.j
 import { RenderBodyOptions } from "../../types/render_body_options.js";
 import { getClosure } from "../../utilities/closure.js";
 import { doItemsHaveSameSymbol } from "../../utilities/item.js";
-import { VarSC } from "../../utilities/skribble.js";
 import { symIsAProduction, symIsAProductionToken } from "../../utilities/symbol.js";
 import { getTransitionTree } from "../../utilities/transition_tree.js";
 import { cleanLeaves, yieldStates } from "./yield_states.js";
@@ -45,9 +44,11 @@ export function processPeekStateLeaf(
 
                 state.states.push(...yieldStates(items, options, offset + 1));
 
-            } else if (max_item_offset == 0
+            } else if (
+                max_item_offset == 0
                 &&
-                items.every(i => !extended_production_shift_items.some(s => s.body == i.body))) {
+                items.every(i => !extended_production_shift_items.some(s => s.body == i.body))
+            ) {
                 if (closure.every(i => i.offset == 0) && closure.map(i => i.getProduction(grammar).id).setFilter().length == 1) {
 
                     //Just begun parsing production and can simply make a direct call of another production function
@@ -89,30 +90,23 @@ export function processPeekStateLeaf(
             }
         } else {
 
-            try {
+            const sym = items[0].sym(grammar);
 
-                const sym = items[0].sym(grammar);
+            if (state.peek_level == 0) {
+                state.transition_type = symIsAProduction(sym)
+                    ? TRANSITION_TYPE.ASSERT_PRODUCTION_SYMBOLS
+                    : TRANSITION_TYPE.CONSUME;
 
-                if (state.peek_level == 0) {
-                    state.transition_type = symIsAProduction(sym)
-                        ? TRANSITION_TYPE.ASSERT_PRODUCTION_SYMBOLS
-                        : TRANSITION_TYPE.CONSUME;
+                if (!symIsAProduction(sym))
+                    state.transition_type = TRANSITION_TYPE.CONSUME;
 
-                    if (!symIsAProduction(sym))
-                        state.transition_type = TRANSITION_TYPE.CONSUME;
+                if (symIsAProductionToken(sym))
+                    state.symbols = [sym];
 
-                    if (symIsAProductionToken(sym))
-                        state.symbols = [sym];
-
-                } else {
-                    if (symIsAProduction(sym)) {
-                        state.transition_type = TRANSITION_TYPE.PEEK_PRODUCTION_SYMBOLS;
-                    }
+            } else {
+                if (symIsAProduction(sym)) {
+                    state.transition_type = TRANSITION_TYPE.PEEK_PRODUCTION_SYMBOLS;
                 }
-            } catch (e) {
-                console.log(items[0].renderUnformattedWithProduction(grammar));
-                console.log({ e, state });
-                throw e;
             }
 
             state.completing = true;

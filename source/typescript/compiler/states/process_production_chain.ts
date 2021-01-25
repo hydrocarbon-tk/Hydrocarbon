@@ -1,6 +1,6 @@
 import { RenderBodyOptions } from "../../types/render_body_options";
 
-import { getAccompanyingItems, Item, itemsToProductions } from "../../utilities/item.js";
+import { getGotoItems, Item, itemsToProductions } from "../../utilities/item.js";
 import { renderItemReduction } from "../../utilities/render_item.js";
 import { SC } from "../../utilities/skribble.js";
 
@@ -19,7 +19,7 @@ export function processProductionChain(
 
     const items = (goto_items);
 
-    active_items = getAccompanyingItems(grammar, active_productions, items);
+    active_items = getGotoItems(grammar, active_productions, items);
 
     if (active_items.length == 0) {
 
@@ -32,7 +32,7 @@ export function processProductionChain(
         while (active_items.length == 1 && active_items.every(i => i.len == 1)) {
             prod[0] = active_items[0].getProduction(grammar).id;
             renderItemReduction(code_node, active_items[0], grammar);
-            active_items = getAccompanyingItems(grammar, itemsToProductions(active_items, grammar), goto_items);
+            active_items = getGotoItems(grammar, itemsToProductions(active_items, grammar), goto_items);
         }
     }
 
@@ -40,7 +40,7 @@ export function processProductionChain(
         while (active_items.length > 0) {
             const new_items = active_items.filter(i => !visited_prods.has(i.id));
             new_items.forEach(i => visited_prods.add(i.id));
-            active_items = getAccompanyingItems(grammar, itemsToProductions(new_items, grammar), goto_items);
+            active_items = getGotoItems(grammar, itemsToProductions(new_items, grammar), goto_items);
         }
     }
     return prod;

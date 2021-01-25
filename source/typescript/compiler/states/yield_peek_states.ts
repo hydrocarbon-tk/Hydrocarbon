@@ -24,17 +24,18 @@ export function buildPeekSequence(
     leafHandler: leafHandler = processPeekStateLeaf
 ): RecognizerState[] {
 
-    const output_states: RecognizerState[] = [];
-
-    const peek_groups = peek_nodes.group(n => {
-        const item_id = n.roots.map(i => i.id).sort().join("-");
-        const next = n.next.length > 0;
-        return item_id + "" + next;
-    });
+    const
+        output_states: RecognizerState[] = [],
+        peek_groups = peek_nodes.group(n => {
+            const item_id = n.roots.map(i => i.id).sort().join("-");
+            const next = n.next.length > 0;
+            return item_id + "" + next;
+        });
 
     for (const group of peek_groups) {
 
         const
+
             symbols = group
                 .map(g => g.sym)
                 .map(s => getSymbolFromUniqueName(options.grammar, s)),
@@ -54,12 +55,10 @@ export function buildPeekSequence(
                 symbols
             };
 
-        //Depth first
-        if (group[0].next.length > 0) {
+        if (group[0].next.length > 0)
             state.states.push(...buildPeekSequence(group[0].next, options, offset, depth + 1, leafHandler));
-        } else {
+        else
             leafHandler(state, options, offset);
-        }
 
         output_states.push(state);
     }

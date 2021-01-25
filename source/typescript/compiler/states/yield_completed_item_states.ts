@@ -3,7 +3,7 @@ import { RecognizerState, TRANSITION_TYPE } from "../../types/recognizer_state.j
 import { RenderBodyOptions } from "../../types/render_body_options";
 import { getClosure, getFollowClosure } from "../../utilities/closure.js";
 import { getFollow } from "../../utilities/follow.js";
-import { getAccompanyingItems, Item, itemsToProductions } from "../../utilities/item.js";
+import { getGotoItems, Item, itemsToProductions } from "../../utilities/item.js";
 import { SC } from "../../utilities/skribble.js";
 import { getSymbolsFromClosure } from "../../utilities/symbol.js";
 import { getTransitionTree } from "../../utilities/transition_tree.js";
@@ -29,7 +29,7 @@ export function yieldCompletedItemStates(end_items: Item[], options: RenderBodyO
         const
             original_prods = itemsToProductions(end_items, grammar),
             prods = end_items.map(i => processProductionChain(new SC, options, itemsToProductions([i], grammar))[0]),
-            active_items = getAccompanyingItems(grammar, prods, goto_items).map(i => i.increment());
+            active_items = getGotoItems(grammar, prods, goto_items).map(i => i.increment());
 
         if (active_items.length == 1) {
 

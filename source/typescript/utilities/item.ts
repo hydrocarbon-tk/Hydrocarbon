@@ -175,7 +175,7 @@ export class Item extends Array {
     }
 
 }
-export function getAccompanyingItems(grammar: Grammar, active_productions: number[], items: Item[], out: Item[] = [], all = false) {
+export function getGotoItems(grammar: Grammar, active_productions: number[], items: Item[], out: Item[] = [], all = false) {
 
     const prod_id = new Set(active_productions);
 
@@ -195,7 +195,7 @@ export function getAccompanyingItems(grammar: Grammar, active_productions: numbe
     }
     if (all)
         for (const item of to_process) {
-            getAccompanyingItems(grammar, item.getProduction(grammar).id, items, out, all);
+            getGotoItems(grammar, item.getProduction(grammar).id, items, out, all);
         }
     return out;
 }

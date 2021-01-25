@@ -20,7 +20,8 @@ export function yieldGotoStates(options: RenderBodyOptions, completed_production
                 i =>
                     i.getProduction(grammar).id == production.id
                     && i.getProductionAtSymbol(grammar).id == production.id
-            );
+            ),
+        PRODUCTION_IS_NOT_LEFT_RECURSIVE = !PRODUCTION_IS_LEFT_RECURSIVE;
 
     /** 
      * If left recursive, gather ALL items that transition on the production to ensure the 
@@ -48,7 +49,7 @@ export function yieldGotoStates(options: RenderBodyOptions, completed_production
     }
 
     if (
-        !PRODUCTION_IS_LEFT_RECURSIVE
+        PRODUCTION_IS_NOT_LEFT_RECURSIVE
 
         //There is no left recursion for this production and the only completed production from 
         // the RD section is the production itself.

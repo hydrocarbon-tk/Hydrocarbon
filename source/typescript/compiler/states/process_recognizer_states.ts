@@ -155,20 +155,22 @@ function* traverseInteriorNodes(
     options: RenderBodyOptions,
     grouping_fn: (node: RecognizerState, level: number, peeking: boolean) => string
 ): SelectionClauseGenerator {
-    const groups = group.group(g => grouping_fn(g, g.peek_level, g.peek_level >= 0));
 
-    const sel_group: SelectionGroup[] = groups.map((group) => {
+    const
+        groups = group.group(g => grouping_fn(g, g.peek_level, g.peek_level >= 0)),
 
-        const
-            syms = group.flatMap(s => s.symbols),
-            code = group[0].code,
-            hash = group[0].hash,
-            items = group.flatMap(g => g.items).setFilter(i => i.id),
-            leaves = group.flatMap(g => g.leaves),
-            yielders = group.map(i => i.transition_type).setFilter();
+        sel_group: SelectionGroup[] = groups.map((group) => {
 
-        return { leaves, transition_types: yielders, syms, code, items, hash, LAST: false, FIRST: false, prods: group.flatMap(g => g.prods).setFilter() };
-    });
+            const
+                syms = group.flatMap(s => s.symbols),
+                code = group[0].code,
+                hash = group[0].hash,
+                items = group.flatMap(g => g.items).setFilter(i => i.id),
+                leaves = group.flatMap(g => g.leaves),
+                yielders = group.map(i => i.transition_type).setFilter();
+
+            return { leaves, transition_types: yielders, syms, code, items, hash, LAST: false, FIRST: false, prods: group.flatMap(g => g.prods).setFilter() };
+        });
     let i = 0;
     for (const group of sel_group.sort((a, b) => {
         return getGroupScore(a) - getGroupScore(b);
