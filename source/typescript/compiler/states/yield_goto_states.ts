@@ -1,11 +1,9 @@
 
-import { Leaf, RecognizerState, TRANSITION_TYPE } from "../../types/recognizer_state.js";
+import { RecognizerState, TRANSITION_TYPE } from "../../types/recognizer_state.js";
 import { RenderBodyOptions } from "../../types/render_body_options";
 
 import { Item } from "../../utilities/item.js";
-import { SC } from "../../utilities/skribble.js";
 import { symIsAProduction } from "../../utilities/symbol.js";
-import { rec_glob_lex_name } from "../../utilities/global_names.js";
 import { yieldStates } from "./yield_states.js";
 import { TokenSymbol } from "../../types/symbol.js";
 import { processRecognizerStates } from "./process_recognizer_states.js";
@@ -85,7 +83,7 @@ export function yieldGotoStates(options: RenderBodyOptions, completed_production
 
                 const
                     items_to_process = goto_groups.get(production_id).map(i => i.increment()),
-                    states = yieldStates(items_to_process, options, rec_glob_lex_name, 1),
+                    states = yieldStates(items_to_process, options, 1),
                     { code, hash, leaves, prods } = processRecognizerStates(options, states);
 
                 pending_productions.push(...prods.setFilter());

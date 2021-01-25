@@ -93,8 +93,7 @@ export function constructHybridFunction(production: Production, grammar: Grammar
         rd_states = yieldStates(
             //Filter out items that are left recursive for the given production
             getProductionItemsThatAreNotRightRecursive(production, grammar),
-            RDOptions,
-            rec_glob_lex_name
+            RDOptions
         ),
 
         { code: initial_pass, prods: completed_productions, leaves: rd_leaves }

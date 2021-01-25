@@ -3,9 +3,6 @@ import { RecognizerState, TRANSITION_TYPE } from "../../types/recognizer_state.j
 import { RenderBodyOptions } from "../../types/render_body_options";
 import { getClosure, getFollowClosure } from "../../utilities/closure.js";
 import { getFollow } from "../../utilities/follow.js";
-import {
-    rec_glob_lex_name
-} from "../../utilities/global_names.js";
 import { getAccompanyingItems, Item, itemsToProductions } from "../../utilities/item.js";
 import { SC } from "../../utilities/skribble.js";
 import { getSymbolsFromClosure } from "../../utilities/symbol.js";
@@ -90,10 +87,9 @@ export function yieldCompletedItemStates(end_items: Item[], options: RenderBodyO
                 output_states.push(...buildPeekSequence(
                     tree_nodes,
                     options,
-                    rec_glob_lex_name,
                     offset,
                     -1,
-                    (state, options, offset, lex_name) => {
+                    (state, options, offset) => {
                         const { items } = state;
                         const selected = items.sort((a, b) => a.body - b.body);
                         state.transition_type = TRANSITION_TYPE.ASSERT_END;

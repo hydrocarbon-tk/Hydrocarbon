@@ -12,7 +12,6 @@ export function processPeekStateLeaf(
     state: RecognizerState,
     options: RenderBodyOptions,
     offset: number = 0,
-    lex_name: VarSC
 ): void {
 
     const { grammar, goto_items: production_shift_items, extended_goto_items: extended_production_shift_items, production } = options;
@@ -44,7 +43,7 @@ export function processPeekStateLeaf(
                 if (symIsAProduction(state.items[0].sym(grammar)))
                     state.transition_type = TRANSITION_TYPE.PEEK_PRODUCTION_SYMBOLS;
 
-                state.states.push(...yieldStates(items, options, lex_name, offset + 1));
+                state.states.push(...yieldStates(items, options, offset + 1));
 
             } else if (max_item_offset == 0
                 &&
@@ -61,7 +60,7 @@ export function processPeekStateLeaf(
                     state.transition_type = TRANSITION_TYPE.ASSERT_PRODUCTION_SYMBOLS;
                 }
                 else
-                    state.states.push(...yieldStates(getClosure(closure, grammar).map(i => i), options, lex_name, offset + 1));
+                    state.states.push(...yieldStates(getClosure(closure, grammar).map(i => i), options, offset + 1));
 
             } else {
 
@@ -69,14 +68,14 @@ export function processPeekStateLeaf(
 
                 if (cleanLeaves(tree.tree_nodes[0])) {
 
-                    state.states.push(...yieldStates(items, options, lex_name, offset + 1));
+                    state.states.push(...yieldStates(items, options, offset + 1));
 
                 } else {
                     //Multi Item resolution
                     for (const group of items.group(i => i.sym(grammar))) {
                         state.states.push({
                             symbols: null,
-                            states: yieldStates(group, options, lex_name, offset),
+                            states: yieldStates(group, options, offset),
                             code: null,
                             completing: false,
                             hash: "",

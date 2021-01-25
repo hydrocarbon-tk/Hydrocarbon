@@ -22,7 +22,6 @@ export function cleanLeaves(node: TransitionTreeNode) {
 export function yieldStates(
     in_items: Item[],
     options: RenderBodyOptions,
-    lex_name: VarSC,
     offset: number = 0,
 ): RecognizerState[] {
     const
@@ -131,7 +130,7 @@ export function yieldStates(
                 active_items = active_items.map(i => i.increment());
             }
 
-            const states = yieldStates(active_items, options, lex_name, offset);
+            const states = yieldStates(active_items, options, offset);
 
             if (states.length == 0) {
                 throw new Error(
@@ -149,7 +148,7 @@ export function yieldStates(
                     production_shift_items
                 );
 
-            output_states.push(...buildPeekSequence(tree_nodes[0].next, options, lex_name, offset));
+            output_states.push(...buildPeekSequence(tree_nodes[0].next, options, offset));
         }
     }
 

@@ -2,12 +2,11 @@ import { Grammar } from "../../types/grammar.js";
 import { RecognizerState, TRANSITION_TYPE } from "../../types/recognizer_state.js";
 import { RenderBodyOptions } from "../../types/render_body_options.js";
 import { TransitionTreeNode } from "../../types/transition_tree_nodes";
-import { VarSC } from "../../utilities/skribble.js";
 import { getSymbolFromUniqueName } from "../../utilities/symbol.js";
 import { processPeekStateLeaf } from "./process_peek_state_leaf.js";
 
 
-export type leafHandler = (state: RecognizerState, options: RenderBodyOptions, offset: number, lex_name: VarSC) => void;
+export type leafHandler = (state: RecognizerState, options: RenderBodyOptions, offset: number) => void;
 
 export function convertTreeNodeToRenderable(node: TransitionTreeNode, grammar: Grammar) {
     return Object.assign({}, node, {
@@ -20,7 +19,6 @@ export function convertTreeNodeToRenderable(node: TransitionTreeNode, grammar: G
 export function buildPeekSequence(
     peek_nodes: TransitionTreeNode[],
     options: RenderBodyOptions,
-    lex_name: VarSC,
     offset: number,
     depth: number = 0,
     leafHandler: leafHandler = processPeekStateLeaf
@@ -58,9 +56,9 @@ export function buildPeekSequence(
 
         //Depth first
         if (group[0].next.length > 0) {
-            state.states.push(...buildPeekSequence(group[0].next, options, lex_name, offset, depth + 1, leafHandler));
+            state.states.push(...buildPeekSequence(group[0].next, options, offset, depth + 1, leafHandler));
         } else {
-            leafHandler(state, options, offset, lex_name);
+            leafHandler(state, options, offset);
         }
 
         output_states.push(state);
