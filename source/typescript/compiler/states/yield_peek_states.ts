@@ -40,22 +40,21 @@ export function buildPeekSequence(
             symbols = group
                 .map(g => g.sym)
                 .map(s => getSymbolFromUniqueName(options.grammar, s)),
-            closure = group.flatMap(g => g.starts).setFilter(s => s.id);
-
-        const state = <RecognizerState>{
-            code: null,
-            hash: "undefined",
-            items: group[0].roots,
-            transition_type: TRANSITION_TYPE.PEEK,
-            offset,
-            peek_level: depth,
-            completing: group[0].next.length == 0,
-            closure,
-            prods: [],
-            leaves: [],
-            states: [],
-            symbols
-        };
+            closure = group.flatMap(g => g.starts).setFilter(s => s.id),
+            state = <RecognizerState>{
+                code: null,
+                hash: "undefined",
+                items: group[0].roots,
+                transition_type: TRANSITION_TYPE.PEEK,
+                offset,
+                peek_level: depth,
+                completing: group[0].next.length == 0,
+                closure,
+                prods: [],
+                leaves: [],
+                states: [],
+                symbols
+            };
 
         //Depth first
         if (group[0].next.length > 0) {
