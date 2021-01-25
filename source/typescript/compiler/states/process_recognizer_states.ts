@@ -124,21 +124,17 @@ export function processRecognizerStates(
 
             case TraverseState.LEAF:
 
-                if (state.completing) {
+                if (state.items.length > 1)
+                    throw new Error("Flow should not enter this block: Multi-item moved to group section");
 
-                    if (state.items.length > 1)
-                        throw new Error("Flow should not enter this block: Multi-item moved to group section");
+                if (state.items.length == 0)
+                    throw new Error("Flow should not enter this block: Multi-item moved to group section");
 
-                    const { leaf } = single_item_leaf_fn(state.items[0], state, options);
-                    state.code = leaf.root;
-                    state.hash = leaf.hash;
-                    state.prods = leaf.prods;
-                    state.leaves = [leaf];
-                } else {
-                    console.log({ state });
-
-                    throw new Error("Invalid Leaf State");
-                }
+                const { leaf } = single_item_leaf_fn(state.items[0], state, options);
+                state.code = leaf.root;
+                state.hash = leaf.hash;
+                state.prods = leaf.prods;
+                state.leaves = [leaf];
 
                 break;
 

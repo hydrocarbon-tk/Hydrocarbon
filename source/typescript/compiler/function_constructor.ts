@@ -36,7 +36,6 @@ export function generateOptions(
         extended_goto_items: [],
         called_productions: new Set(),
         leaf_productions: new Set(),
-        //cache: new Map(),
         active_keys: [],
         leaves: [],
         NO_GOTOS: false

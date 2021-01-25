@@ -1,10 +1,13 @@
+import { Grammar } from "../../types/grammar.js";
+import { Production } from "../../types/production.js";
 import { RecognizerState, TRANSITION_TYPE } from "../../types/recognizer_state.js";
 import { RenderBodyOptions } from "../../types/render_body_options.js";
 import { getClosure } from "../../utilities/closure.js";
-import { doItemsHaveSameSymbol } from "../../utilities/item.js";
+import { Items_Have_The_Same_Active_Symbol, Item } from "../../utilities/item.js";
 import { symIsAProduction, symIsAProductionToken } from "../../utilities/symbol.js";
 import { getTransitionTree } from "../../utilities/transition_tree.js";
-import { cleanLeaves, yieldStates } from "./yield_states.js";
+import { createRecognizerState } from "./create_recognizer_state.js";
+import { getMaxOffsetOfItems, Items_Are_From_Same_Production, Leaves_Of_Transition_Contain_One_Root_Item as Every_Leaf_Of_TransitionTree_Contain_One_Root_Item, yieldStates } from "./yield_states.js";
 
 
 export function processPeekStateLeaf(
@@ -13,105 +16,136 @@ export function processPeekStateLeaf(
     offset: number = 0,
 ): void {
 
-    const { grammar, goto_items: production_shift_items, extended_goto_items: extended_production_shift_items, production } = options;
+    const { grammar } = options;
 
-    //Set leaf state to false as this will likely be replaced
-    //with resolution states. 
-    state.completing = false;
+    if (state.items.length > 0) {
 
-    const
-        closure = state.closure,
-        items = state.items,
-        [first] = state.items,
-        max_item_offset = state.items.reduce((r, i) => Math.max(i.offset, r), 0),
-        SAME_PRODUCTION = state.items.setFilter(i => i.getProduction(grammar).id).length == 1,
-        prod = first.getProduction(grammar);
+        if (Items_From_Same_Production_Allow_Production_Call(state, options, offset))
 
-    if (items.length > 0) {
+            throw new Error("This case should have been handled in yieldStates");
 
-        const SAME_SYMBOL = doItemsHaveSameSymbol(items, grammar);
+        if (state.items.length > 1)
 
-        if (offset == 0 && SAME_PRODUCTION && prod.id !== production.id) {
+            if (Items_Have_The_Same_Active_Symbol(state.items, grammar))
 
-            throw new Error("SAME_PRODUCTION HELP!");
+                addSameActiveSymbolStates(state, options, offset);
 
-        } else if (items.length > 1) {
+            else if (No_Matching_Goto_In_Root_Production_Closure(state, options))
 
-            if (SAME_SYMBOL) {
+                if (State_Closure_Allows_Production_Call(state, options))
 
-                if (symIsAProduction(state.items[0].sym(grammar)))
-                    state.transition_type = TRANSITION_TYPE.PEEK_PRODUCTION_SYMBOLS;
+                    convertStateToProductionCall(state, offset);
 
-                state.states.push(...yieldStates(items, options, offset + 1));
-
-            } else if (
-                max_item_offset == 0
-                &&
-                items.every(i => !extended_production_shift_items.some(s => s.body == i.body))
-            ) {
-                if (closure.every(i => i.offset == 0) && closure.map(i => i.getProduction(grammar).id).setFilter().length == 1) {
-
-                    //Just begun parsing production and can simply make a direct call of another production function
-                    state.items = state.closure.slice(0, 1);
-
-                    state.completing = true;
-
-                    state.offset = offset;
-
-                    state.transition_type = TRANSITION_TYPE.ASSERT_PRODUCTION_SYMBOLS;
-                }
                 else
-                    state.states.push(...yieldStates(getClosure(closure, grammar).map(i => i), options, offset + 1));
+                    addRegularYieldStates(state, getClosure(state.closure, grammar), options, offset + 1);
 
-            } else {
+            else
 
-                const tree = getTransitionTree(grammar, items, production_shift_items, 10, 8);
+                if (
+                    Every_Leaf_Of_TransitionTree_Contain_One_Root_Item(
+                        getTransitionTree(grammar, state.items, options.goto_items, 10, 8).tree_nodes[0]
+                    )
+                )
 
-                if (cleanLeaves(tree.tree_nodes[0])) {
+                    addRegularYieldStates(state, state.items, options, offset);
 
-                    state.states.push(...yieldStates(items, options, offset + 1));
+                else
 
-                } else {
-                    //Multi Item resolution
-                    for (const group of items.group(i => i.sym(grammar))) {
-                        state.states.push({
-                            symbols: null,
-                            states: yieldStates(group, options, offset),
-                            code: null,
-                            completing: false,
-                            hash: "",
-                            offset,
-                            peek_level: state.peek_level,
-                            items,
-                            transition_type: TRANSITION_TYPE.ASSERT
-                        });
-                    }
-                }
-            }
-        } else {
+                    addBackTrackingStates(state, options, offset);
 
-            const sym = items[0].sym(grammar);
+        else
 
-            if (state.peek_level == 0) {
-                state.transition_type = symIsAProduction(sym)
-                    ? TRANSITION_TYPE.ASSERT_PRODUCTION_SYMBOLS
-                    : TRANSITION_TYPE.CONSUME;
+            convertPeekStateToSingleItemState(state, options, offset);
 
-                if (!symIsAProduction(sym))
-                    state.transition_type = TRANSITION_TYPE.CONSUME;
-
-                if (symIsAProductionToken(sym))
-                    state.symbols = [sym];
-
-            } else {
-                if (symIsAProduction(sym)) {
-                    state.transition_type = TRANSITION_TYPE.PEEK_PRODUCTION_SYMBOLS;
-                }
-            }
-
-            state.completing = true;
-
-            state.offset = offset;
-        }
     }
 }
+
+function addSameActiveSymbolStates(state: RecognizerState, options: RenderBodyOptions, offset: number) {
+
+    if (Active_Symbol_Of_First_Item_Is_A_Production(state, options.grammar))
+        state.transition_type = TRANSITION_TYPE.PEEK_PRODUCTION_SYMBOLS;
+
+    addRegularYieldStates(state, state.items, options, offset + 1);
+}
+
+function Active_Symbol_Of_First_Item_Is_A_Production(state: RecognizerState, grammar: Grammar) {
+    return symIsAProduction(state.items[0].sym(grammar));
+}
+
+function State_Closure_Allows_Production_Call({ closure }: RecognizerState, { grammar }: RenderBodyOptions) {
+    return closure.every(i => i.offset == 0) && closure.map(i => i.getProduction(grammar).id).setFilter().length == 1;
+}
+
+function No_Matching_Goto_In_Root_Production_Closure(state: RecognizerState, options: RenderBodyOptions) {
+
+    const { extended_goto_items } = options;
+
+    return getMaxOffsetOfItems(state.items) == 0
+        &&
+        state.items.every(i => !extended_goto_items.some(s => s.body == i.body));
+}
+
+function Items_From_Same_Production_Allow_Production_Call(state: RecognizerState, options: RenderBodyOptions, offset: number) {
+    const
+        { production, grammar } = options,
+        ITEMS_ARE_FROM_SAME_PRODUCTION = Items_Are_From_Same_Production(state.items, grammar),
+        [first] = state.items,
+        prod = first.getProduction(grammar);
+
+    return offset == 0 && ITEMS_ARE_FROM_SAME_PRODUCTION && prod.id !== production.id;
+}
+
+function convertPeekStateToSingleItemState(state: RecognizerState, { grammar }: RenderBodyOptions, offset: number) {
+    const { items } = state;
+
+    const sym = items[0].sym(grammar);
+
+    if (state.peek_level == 0) {
+        state.transition_type = symIsAProduction(sym)
+            ? TRANSITION_TYPE.ASSERT_PRODUCTION_SYMBOLS
+            : TRANSITION_TYPE.CONSUME;
+
+        if (!symIsAProduction(sym))
+            state.transition_type = TRANSITION_TYPE.CONSUME;
+
+        if (symIsAProductionToken(sym))
+            state.symbols = [sym];
+
+    } else {
+        if (symIsAProduction(sym)) {
+            state.transition_type = TRANSITION_TYPE.PEEK_PRODUCTION_SYMBOLS;
+        }
+    }
+
+    state.offset = offset;
+}
+
+function convertStateToProductionCall(state: RecognizerState, offset: number) {
+
+    state.items = state.closure.slice(0, 1);
+
+    state.offset = offset;
+
+    state.transition_type = TRANSITION_TYPE.ASSERT_PRODUCTION_SYMBOLS;
+}
+
+function addRegularYieldStates(state: RecognizerState, items: Item[], options: RenderBodyOptions, offset: number) {
+
+    state.states.push(...yieldStates(items, options, offset + 1));
+
+}
+
+function addBackTrackingStates(state: RecognizerState, options: RenderBodyOptions, offset: number,) {
+
+    const { items } = state;
+
+    for (const items_with_same_symbol of items.group(i => i.sym(options.grammar))) {
+
+        const backtracking_state = createRecognizerState(items, null, TRANSITION_TYPE.ASSERT, offset, state.peek_level);
+
+        backtracking_state.states = yieldStates(items_with_same_symbol, options, offset);
+
+        state.states.push(backtracking_state);
+    }
+}
+

@@ -3,17 +3,17 @@ import { RecognizerState, TRANSITION_TYPE } from "../../types/recognizer_state.j
 import { RenderBodyOptions } from "../../types/render_body_options";
 import { TransitionTreeNode } from "../../types/transition_tree_nodes.js";
 import { getClosure } from "../../utilities/closure.js";
-import { doItemsHaveSameSymbol, Item } from "../../utilities/item.js";
-import { SC } from "../../utilities/skribble.js";
+import { Items_Have_The_Same_Active_Symbol, Item } from "../../utilities/item.js";
 import { getTokenSymbolsFromItems, symIsAProduction } from "../../utilities/symbol.js";
 import { getTransitionTree } from "../../utilities/transition_tree.js";
+import { createRecognizerState } from "./create_recognizer_state.js";
 import { yieldCompletedItemStates } from "./yield_completed_item_states.js";
 import { buildPeekSequence } from "./yield_peek_states.js";
 
-export function cleanLeaves(node: TransitionTreeNode) {
+export function Leaves_Of_Transition_Contain_One_Root_Item(node: TransitionTreeNode) {
 
     if (node.next.length > 0)
-        return node.next.every(cleanLeaves);
+        return node.next.every(Leaves_Of_Transition_Contain_One_Root_Item);
 
     return node.roots.length == 1;
 }
@@ -41,9 +41,9 @@ export function yieldStates(
 
         const
 
-            SAME_PRODUCTION = areItemsFromSameProduction(active_items, grammar),
+            SAME_PRODUCTION = Items_Are_From_Same_Production(active_items, grammar),
 
-            SAME_SYMBOL = doItemsHaveSameSymbol(active_items, grammar),
+            SAME_SYMBOL = Items_Have_The_Same_Active_Symbol(active_items, grammar),
 
             max_item_offset = getMaxOffsetOfItems(active_items),
 
@@ -79,11 +79,11 @@ export function yieldStates(
 }
 
 
-function getMaxOffsetOfItems(active_items: Item[]) {
+export function getMaxOffsetOfItems(active_items: Item[]) {
     return active_items.reduce((r, i) => Math.max(i.offset, r), 0);
 }
 
-function areItemsFromSameProduction(active_items: Item[], grammar: Grammar) {
+export function Items_Are_From_Same_Production(active_items: Item[], grammar: Grammar) {
     return active_items.setFilter(i => i.getProduction(grammar).id).length == 1;
 }
 
@@ -110,20 +110,13 @@ function yieldStatesOfItemsWithSameSymbol(active_items: Item[], options: RenderB
 
         const
             sym = active_items[0].sym(grammar),
-
-            state = <RecognizerState>{
-                code: new SC,
-                hash: "not-defined-same-symbol-chain",
-                transition_type: symIsAProduction(sym)
+            state = createRecognizerState(
+                active_items.slice(),
+                [sym],
+                symIsAProduction(sym)
                     ? TRANSITION_TYPE.ASSERT
-                    : TRANSITION_TYPE.CONSUME,
-                items: active_items.slice(),
-                completing: false,
-                offset: offset++,
-                peek_level: -1,
-                symbols: [sym],
-                states: []
-            };
+                    : TRANSITION_TYPE.CONSUME, offset++
+            );
 
         if (leaf_state) {
             leaf_state.states.push(state);
@@ -155,17 +148,7 @@ function yieldProductionCallState(active_items: Item[], offset: number): Recogni
         first = active_items[0],
         items = [new Item(first.body, first.len, 0)];
 
-    return [<RecognizerState>{
-        code: new SC,
-        hash: "not-defined-production-call",
-        transition_type: TRANSITION_TYPE.IGNORE,
-        items,
-        completing: true,
-        offset,
-        peek_level: -1,
-        symbols: [EOF_SYM],
-        states: []
-    }];
+    return [createRecognizerState(items, [EOF_SYM], TRANSITION_TYPE.IGNORE, offset)];
 }
 
 function yieldSingleItemState(active_items: Item[], options: RenderBodyOptions, offset: number): RecognizerState[] {
@@ -187,19 +170,10 @@ function yieldSingleItemState(active_items: Item[], options: RenderBodyOptions, 
                 ? TRANSITION_TYPE.ASSERT_PRODUCTION_SYMBOLS
                 : TRANSITION_TYPE.CONSUME;
 
-        return [<RecognizerState>{
-            code: new SC,
-            hash: "",
-            symbols: anticipated_syms,
-            transition_type,
-            items: active_items,
-            completing: true,
-            offset,
-            peek_level: -1,
-            states: []
-        }];
+        return [createRecognizerState(active_items, anticipated_syms, transition_type, offset)];
     }
 
     return [];
 }
+
 

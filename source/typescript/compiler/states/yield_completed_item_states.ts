@@ -7,6 +7,7 @@ import { getGotoItems, Item, itemsToProductions } from "../../utilities/item.js"
 import { SC } from "../../utilities/skribble.js";
 import { getSymbolsFromClosure } from "../../utilities/symbol.js";
 import { getTransitionTree } from "../../utilities/transition_tree.js";
+import { createRecognizerState } from "./create_recognizer_state.js";
 import { processProductionChain } from "./process_production_chain.js";
 import { buildPeekSequence } from "./yield_peek_states.js";
 
@@ -16,7 +17,9 @@ export function yieldCompletedItemStates(end_items: Item[], options: RenderBodyO
     if (end_items.length == 0) return [];
 
     const
+
         output_states: RecognizerState[] = [],
+
         { grammar, goto_items } = options;
 
     let
@@ -37,21 +40,9 @@ export function yieldCompletedItemStates(end_items: Item[], options: RenderBodyO
                 prod = active_items[0].decrement().getProductionAtSymbol(grammar).id,
                 item_index = prods.indexOf(prod),
                 item = end_items[item_index],
-                syms = getSymbolsFromClosure(getClosure(active_items, grammar), grammar);
+                symbols = getSymbolsFromClosure(getClosure(active_items, grammar), grammar);
 
-
-            output_states.push(<RecognizerState>{
-                code: null,
-                hash: "",
-                symbols: syms,
-                completing: true,
-                items: [item],
-                peek_level: -1,
-                offset,
-                transition_type: TRANSITION_TYPE.ASSERT_END,
-                prods: [],
-                leaves: []
-            });
+            output_states.push(createRecognizerState([item], symbols, TRANSITION_TYPE.ASSERT_END, offset));
 
             end_items.splice(item_index, 1);
 
@@ -108,23 +99,11 @@ export function yieldCompletedItemStates(end_items: Item[], options: RenderBodyO
 
     for (const item of default_end_items) {
 
-        const syms = getFollow(item.getProduction(grammar).id, grammar);
+        const symbols = getFollow(item.getProduction(grammar).id, grammar);
 
-        if (syms.length == 0) syms.push(EOF_SYM);
+        if (symbols.length == 0) symbols.push(EOF_SYM);
 
-        output_states.push({
-            symbols: syms,
-            items: [item],
-            code: new SC,
-            completing: true,
-            hash: "",
-            offset: offset + 1,
-            peek_level: 0,
-            transition_type: TRANSITION_TYPE.ASSERT_END,
-            prods: [],
-            leaves: [],
-            states: []
-        });
+        output_states.push(createRecognizerState([item], symbols, TRANSITION_TYPE.ASSERT_END, offset + 1, 0));
     }
 
     return output_states;

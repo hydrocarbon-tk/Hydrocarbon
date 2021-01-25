@@ -3,6 +3,7 @@ import { RecognizerState, TRANSITION_TYPE } from "../../types/recognizer_state.j
 import { RenderBodyOptions } from "../../types/render_body_options.js";
 import { TransitionTreeNode } from "../../types/transition_tree_nodes";
 import { getSymbolFromUniqueName } from "../../utilities/symbol.js";
+import { createRecognizerState } from "./create_recognizer_state.js";
 import { processPeekStateLeaf } from "./process_peek_state_leaf.js";
 
 
@@ -26,11 +27,7 @@ export function buildPeekSequence(
 
     const
         output_states: RecognizerState[] = [],
-        peek_groups = peek_nodes.group(n => {
-            const item_id = n.roots.map(i => i.id).sort().join("-");
-            const next = n.next.length > 0;
-            return item_id + "" + next;
-        });
+        peek_groups = peek_nodes.group(getPeekGroupIdentifier);
 
     for (const group of peek_groups) {
 
@@ -39,21 +36,10 @@ export function buildPeekSequence(
             symbols = group
                 .map(g => g.sym)
                 .map(s => getSymbolFromUniqueName(options.grammar, s)),
-            closure = group.flatMap(g => g.starts).setFilter(s => s.id),
-            state = <RecognizerState>{
-                code: null,
-                hash: "undefined",
-                items: group[0].roots,
-                transition_type: TRANSITION_TYPE.PEEK,
-                offset,
-                peek_level: depth,
-                completing: group[0].next.length == 0,
-                closure,
-                prods: [],
-                leaves: [],
-                states: [],
-                symbols
-            };
+
+            state = createRecognizerState(group[0].roots, symbols, TRANSITION_TYPE.PEEK, offset, depth);
+
+        state.closure = group.flatMap(g => g.starts).setFilter(s => s.id);
 
         if (group[0].next.length > 0)
             state.states.push(...buildPeekSequence(group[0].next, options, offset, depth + 1, leafHandler));
@@ -66,4 +52,10 @@ export function buildPeekSequence(
     return output_states;
 }
 
+
+function getPeekGroupIdentifier(item: TransitionTreeNode): string {
+    const item_id = item.roots.map(i => i.id).sort().join("-");
+    const next = item.next.length > 0;
+    return item_id + "" + next;
+}
 

@@ -205,6 +205,6 @@ export function itemsToProductions(items: Item[], grammar: Grammar): number[] {
 }
 
 
-export function doItemsHaveSameSymbol(items: Item[], grammar: Grammar) {
+export function Items_Have_The_Same_Active_Symbol(items: Item[], grammar: Grammar) {
     return items.every(i => !i.atEND && i.sym(grammar).val == items[0].sym(grammar).val);
 }

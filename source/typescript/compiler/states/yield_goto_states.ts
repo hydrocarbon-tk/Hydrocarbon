@@ -7,6 +7,7 @@ import { symIsAProduction } from "../../utilities/symbol.js";
 import { yieldStates } from "./yield_states.js";
 import { TokenSymbol } from "../../types/symbol.js";
 import { processRecognizerStates } from "./process_recognizer_states.js";
+import { createRecognizerState } from "./create_recognizer_state.js";
 
 export function yieldGotoStates(options: RenderBodyOptions, completed_productions: number[]): RecognizerState[] {
 
@@ -84,25 +85,27 @@ export function yieldGotoStates(options: RenderBodyOptions, completed_production
 
                 const
                     items_to_process = goto_groups.get(production_id).map(i => i.increment()),
+
                     states = yieldStates(items_to_process, options, 1),
-                    { code, hash, leaves, prods } = processRecognizerStates(options, states);
+
+                    { code, hash, leaves, prods } = processRecognizerStates(options, states),
+
+                    state = createRecognizerState(
+                        items_to_process.filter(i => i.offset == 1),
+                        [<any>production_id],
+                        TRANSITION_TYPE.ASSERT,
+                        0
+                    );
+
+                state.code = code;
+                state.hash = hash;
+                state.prods = prods;
+                state.leaves = leaves;
+                state.states = states;
+
+                output_states.push(state);
 
                 pending_productions.push(...prods.setFilter());
-
-                output_states.push(<RecognizerState>{
-                    code,
-                    hash,
-                    transition_type: TRANSITION_TYPE.ASSERT,
-                    symbols: [<TokenSymbol><any>production_id],
-                    items: items_to_process.filter(i => i.offset == 1),
-                    completing: false,
-                    offset: 0,
-                    peek_level: -1,
-                    prods,
-                    leaves,
-                    states: states
-                });
-
 
             } else if (production_id !== production.id) {
                 throw new Error("Missing goto group for " + grammar[production_id].name);

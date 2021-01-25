@@ -35,7 +35,7 @@ export interface RenderBodyOptions {
     goto_items: Item[];
 
     /**
-     * Items that shift on the production but are 
+     * Items that shift on a production but are 
      * not part of the productions initial closure.
      */
     extended_goto_items: Item[];
