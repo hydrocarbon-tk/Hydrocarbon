@@ -37,7 +37,7 @@ export default class implements Production {
                                 type: "RETURNED",
                                 txt: STRING
                                     ? `$sym1 + $sym2`
-                                    : `([...$sym1, $sym${!!delimiter ? 3 : 2}])`,
+                                    : `($sym1.push($sym${!!delimiter ? 3 : 2}), $sym1)`,
                                 name: "",
                                 env: false,
                                 IS_CONDITION: true

@@ -13,14 +13,16 @@ const hcg_parsers = [];
 for (const file of files_names.filter(d => d.includes(".js")).map(f => URL.resolveRelative("./versioned_optimized/" + f)))
     hcg_parsers.push((await harness._import(file + "")).default);
 
-const latest_parser = await compileGrammarSource("../../source/grammars/misc/optimized.hcg", true);
+const latest_parser = await compileGrammarSource("../../source/grammars/misc/optimized.hcg", false);
 
-assert_group(sequence, 4000, () => {
+assert_group(sequence, 40000, () => {
 
     harness.markTime();
     assert(hcg_parsers[0](data).FAILED == false);
     harness.getTime("Parser X");
+});
 
+assert_group(sequence, 40000, () => {
     harness.markTime();
     assert(latest_parser(data).FAILED == false);
     harness.getTime("Current Parser");
