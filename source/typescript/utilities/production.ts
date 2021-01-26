@@ -25,9 +25,12 @@ export function doesProductionHaveEmpty(production_id: number, grammar: Grammar)
 }
 /**
  * Retrieve the numerical production id from either a ProductionTokenSymbol or a ProductionSymbol
- * @param symbol
+ * @param object
  * @param grammar
  */
-export function getProductionID(symbol: ProductionTokenSymbol | ProductionSymbol, grammar: Grammar): number {
-    return symbol.val;
+export function getProductionID(object: ProductionTokenSymbol | ProductionSymbol | Item, grammar: Grammar): number {
+    if (object instanceof Item)
+        return object.getProduction(grammar).id;
+    else
+        return object.val;
 }

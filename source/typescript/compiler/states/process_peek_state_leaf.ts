@@ -3,6 +3,7 @@ import { RecognizerState, TRANSITION_TYPE } from "../../types/recognizer_state.j
 import { RenderBodyOptions } from "../../types/render_body_options.js";
 import { getClosure } from "../../utilities/closure.js";
 import { Items_Have_The_Same_Active_Symbol, Item } from "../../utilities/item.js";
+import { getProductionID } from "../../utilities/production.js";
 import { Sym_Is_A_Production, Sym_Is_A_Production_Token } from "../../utilities/symbol.js";
 import { getTransitionTree } from "../../utilities/transition_tree.js";
 import { createRecognizerState } from "./create_recognizer_state.js";
@@ -23,17 +24,22 @@ export function processPeekStateLeaf(
 
             throw new Error("This case should have been handled in yieldStates");
 
+
         if (state.items.length > 1)
 
-            if (Items_Have_The_Same_Active_Symbol(state.items, grammar))
+            if (WE_Can_Call_Single_Production_From_Items(state, options))
+
+                convertStateProductionCall(state, offset);
+
+            else if (Items_Have_The_Same_Active_Symbol(state.items, grammar))
 
                 addSameActiveSymbolStates(state, options, offset);
 
-            else if (No_Matching_Goto_In_Root_Production_Closure(state, options))
+            else if (No_Matching_Extended_Goto_Item_In_State_Closure(state, options))
 
                 if (State_Closure_Allows_Production_Call(state, options))
 
-                    convertStateToProductionCall(state, offset);
+                    convertStateToClosureProductionCall(state, offset);
 
                 else
                     addRegularYieldStates(state, getClosure(state.closure, grammar), options, offset + 1);
@@ -71,11 +77,17 @@ function Active_Symbol_Of_First_Item_Is_A_Production(state: RecognizerState, gra
     return Sym_Is_A_Production(state.items[0].sym(grammar));
 }
 
-function State_Closure_Allows_Production_Call({ closure }: RecognizerState, { grammar }: RenderBodyOptions) {
-    return closure.every(i => i.offset == 0) && closure.map(i => i.getProduction(grammar).id).setFilter().length == 1;
+function WE_Can_Call_Single_Production_From_Items({ items }: RecognizerState, { grammar, production }: RenderBodyOptions) {
+    return getMaxOffsetOfItems(items) == 0
+        && Items_Are_From_Same_Production(items, grammar)
+        && getProductionID(items[0], grammar) != production.id;
 }
 
-function No_Matching_Goto_In_Root_Production_Closure(state: RecognizerState, options: RenderBodyOptions) {
+function State_Closure_Allows_Production_Call({ closure }: RecognizerState, { grammar }: RenderBodyOptions) {
+    return getMaxOffsetOfItems(closure) == 0 && Items_Are_From_Same_Production(closure, grammar);
+}
+
+function No_Matching_Extended_Goto_Item_In_State_Closure(state: RecognizerState, options: RenderBodyOptions) {
 
     const { extended_goto_items } = options;
 
@@ -110,16 +122,17 @@ function convertPeekStateToSingleItemState(state: RecognizerState, { grammar }: 
         if (Sym_Is_A_Production_Token(sym))
             state.symbols = [sym];
 
-    } else {
-        if (Sym_Is_A_Production(sym)) {
-            state.transition_type = TRANSITION_TYPE.PEEK_PRODUCTION_SYMBOLS;
-        }
+    } else if (getMaxOffsetOfItems(items) == 0) {
+        state.transition_type = TRANSITION_TYPE.PEEK_PRODUCTION_SYMBOLS;
+    } if (Sym_Is_A_Production(sym)) {
+        state.transition_type = TRANSITION_TYPE.PEEK_PRODUCTION_SYMBOLS;
     }
+
 
     state.offset = offset;
 }
 
-function convertStateToProductionCall(state: RecognizerState, offset: number) {
+function convertStateToClosureProductionCall(state: RecognizerState, offset: number) {
 
     state.items = state.closure.slice(0, 1);
 
@@ -127,6 +140,16 @@ function convertStateToProductionCall(state: RecognizerState, offset: number) {
 
     state.transition_type = TRANSITION_TYPE.ASSERT_PRODUCTION_SYMBOLS;
 }
+
+function convertStateProductionCall(state: RecognizerState, offset: number) {
+
+    state.items = [state.items[0]];
+
+    state.offset = offset;
+
+    state.transition_type = TRANSITION_TYPE.ASSERT_PRODUCTION_SYMBOLS;
+}
+
 
 function addRegularYieldStates(state: RecognizerState, items: Item[], options: RenderBodyOptions, offset: number) {
 

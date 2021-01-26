@@ -7,10 +7,11 @@ import { Sym_Is_A_Production } from "../../utilities/symbol.js";
 import { yieldStates } from "./yield_states.js";
 import { processRecognizerStates } from "./process_recognizer_states.js";
 import { createRecognizerState } from "./create_recognizer_state.js";
+import { getProductionID } from "../../utilities/production.js";
 
 export function yieldGotoStates(options: RenderBodyOptions, completed_productions: number[]): RecognizerState[] {
 
-    const { grammar, goto_items: production_shift_items, production, extended_goto_items: extended_production_shift_items } = options;
+    const { grammar, goto_items: production_shift_items, production, extended_goto_items } = options;
 
     let nonterm_shift_items: Item[] = production_shift_items;
 
@@ -25,13 +26,12 @@ export function yieldGotoStates(options: RenderBodyOptions, completed_production
 
     /** 
      * If left recursive, gather ALL items that transition on the production to ensure the 
-     * processor is aware of shift/reduce ambiguities. Completed items that are added
-     * from the GOTO check should not be used for actual parsing, and instead their code paths 
+     * compiler is aware of shift/reduce ambiguities. Completed items that are added
+     * from the GOTO check should not be used for actual parsing, and their code paths 
      * should be discarded.
      */
-
     if (PRODUCTION_IS_LEFT_RECURSIVE) {
-        //gather all items that transition on the production
+
         const prod_id = production.id;
 
         for (const { item } of grammar.item_map.values()) {
@@ -39,13 +39,13 @@ export function yieldGotoStates(options: RenderBodyOptions, completed_production
                 !item.atEND
                 && Sym_Is_A_Production(item.sym(grammar))
                 && item.getProductionAtSymbol(grammar).id == prod_id
-                && item.getProduction(grammar).id != prod_id
+                && getProductionID(item, grammar) != prod_id
                 && !nonterm_shift_items.some(i => i.id == item.id)
             )
-                extended_production_shift_items.push(item);
+                extended_goto_items.push(item);
         }
 
-        nonterm_shift_items = nonterm_shift_items.concat(extended_production_shift_items).setFilter(i => i.id);
+        nonterm_shift_items = nonterm_shift_items.concat(extended_goto_items).setFilter(i => i.id);
     }
 
     if (
