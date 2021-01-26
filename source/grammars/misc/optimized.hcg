@@ -1,0 +1,51 @@
+@IGNORE θws θnum tk:comment
+
+@IMPORT ./default-productions.hcg as def
+
+<> start > blocks
+    
+<> blocks > (\[ expressions? \] )(+\& )
+
+<> expressions > expression(+\, )
+
+<> expression > id_sequence
+              | math_expression 
+
+<> id_sequence > identifier(+g:ws )
+
+<> math_expression > additive 
+
+<> additive > multiplicative \+ additive
+            | multiplicative
+
+<> multiplicative > unary \+ additive
+            | unary
+
+<> unary > \++ closure
+         | \-- closure
+         | closure \-- 
+         | closure \++ 
+         | closure
+
+<> closure > \( expressions \)
+            | \[ expression \]
+            | literal
+            | blocks
+            | fnA
+            | fnB
+
+<> fnA > identifier \=> identifier reserved_word g:void blocks
+
+<> fnB > identifier ( \=> | \>= ) identifier reserved_word g:active blocks
+
+<> literal > identifier
+           | def::number
+           | def::binary
+           | def::octal
+           | def::hex
+           
+<> reserved_word > \if | \then | \else | \maybe | \private | \or
+
+<> identifier > (def::js_identifier)
+
+<> comment > \/* ( g:num | g:id | g:sym | g:ws | g:nl)(*) \*/ 
