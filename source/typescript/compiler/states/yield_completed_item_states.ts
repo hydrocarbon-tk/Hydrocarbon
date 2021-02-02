@@ -53,7 +53,7 @@ export function yieldCompletedItemStates(end_items: Item[], options: RenderBodyO
             let { tree_nodes } = getTransitionTree(
                 grammar,
                 end_items,
-                goto_items,
+                options.global_production_items/*goto_items*/,
                 10, 8, 200, 0,
                 goto_items.filter(i => original_prods.includes(+(i.sym(grammar).val))).map(i => {
 

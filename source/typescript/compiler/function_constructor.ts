@@ -37,7 +37,8 @@ export function generateOptions(
         leaf_productions: new Set(),
         active_keys: [],
         leaves: [],
-        NO_GOTOS: false
+        NO_GOTOS: false,
+        global_production_items: [...grammar.item_map.values()].map(i => i.item).filter(i => !i.atEND && Sym_Is_A_Production(i.sym(grammar)))
     };
 }
 

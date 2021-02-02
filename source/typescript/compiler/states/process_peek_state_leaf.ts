@@ -48,7 +48,7 @@ export function processPeekStateLeaf(
 
                 if (
                     Every_Leaf_Of_TransitionTree_Contain_One_Root_Item(
-                        getTransitionTree(grammar, state.items, options.goto_items, 10, 8).tree_nodes[0]
+                        getTransitionTree(grammar, state.items, options.global_production_items/*options.goto_items*/, 10, 8).tree_nodes[0]
                     )
                 )
 

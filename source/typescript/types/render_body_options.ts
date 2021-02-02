@@ -56,6 +56,10 @@ export interface RenderBodyOptions {
      * Set to true if there are no production transitions
      */
     NO_GOTOS: boolean;
+    /**
+     * All items in the grammar that are `S => a . A` for some production `A`
+     */
+    global_production_items: Item[];
 
 }
 export const enum ReturnType {
