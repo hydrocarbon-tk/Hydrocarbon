@@ -98,7 +98,10 @@ function yieldPeekedStates(active_items: Item[], options: RenderBodyOptions, off
         { tree_nodes } = getTransitionTree(
             grammar,
             active_items,
-            options.global_production_items/*production_shift_items*/
+            options.global_production_items/*production_shift_items*/,
+            5,
+            3,
+            200
         );
 
     return buildPeekSequence(tree_nodes[0].next, options, offset);
