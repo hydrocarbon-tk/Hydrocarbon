@@ -545,12 +545,13 @@ function addClauseSuccessCheck(options: RenderBodyOptions): SC {
     return SC.UnaryPre(SC.Return, SC.Call("assertSuccess", rec_glob_lex_name, rec_state, condition));
 }
 
-export function createDebugCall(options: RenderBodyOptions, action_name, active_item: Item[] = []) {
+export function createDebugCall(options: RenderBodyOptions, action_name, debug_items: Item[] = []) {
 
     const { production, helper: runner } = options;
-
+    return SC.Empty();
     if (runner.DEBUG)
-        return SC.Value(`debug_stack.push({ name:"${production.name} ${action_name}", state, tx:str.slice(l.off, l.off + l.tl), ty:l.ty, tl:l.tl, utf:l.getUTF(), FAILED:state==0,offset:l.off})`);
+        return SC.Value(`debug_add_header(0,l.getOffsetRegionDelta(),0,0,0,0)`);
+
     else
         return SC.Empty();
 }

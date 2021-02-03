@@ -43,6 +43,7 @@ function air(t, v, i_r) {
 export const jump16bit_table_byte_size = 382976;
 export const action32bit_array_byte_size_default = 4194304;
 export const error8bit_array_byte_size_default = 512;
+export const debug8bit_array_byte_size_default = 0;
 /**
  * Allocates and initializes a pool of memory large enough to contain the lexer jump table, action array buffer, and error array buffer.
  * @param USE_ARRAY_BUFFER Use ArrayBuffer storage, otherwise use a WebAssembly.Memory buffer.
@@ -52,7 +53,8 @@ export const error8bit_array_byte_size_default = 512;
 export function buildParserMemoryBuffer(
     USE_ARRAY_BUFFER: boolean = false,
     action32bit_array_byte_size = action32bit_array_byte_size_default,
-    error8bit_array_byte_size = error8bit_array_byte_size_default
+    error8bit_array_byte_size = error8bit_array_byte_size_default,
+    debug8bit_array_byte_size = debug8bit_array_byte_size_default
 ) {
     const
         min = 80, max = 100, page_byte_size = 65536,
@@ -69,7 +71,9 @@ export function buildParserMemoryBuffer(
 
         action_array = new Uint32Array(buffer, jump16bit_table_byte_size, action32bit_array_byte_size >> 2),
 
-        error_array = new Uint32Array(buffer, jump16bit_table_byte_size + action32bit_array_byte_size, error8bit_array_byte_size);
+        error_array = new Uint32Array(buffer, jump16bit_table_byte_size + action32bit_array_byte_size, error8bit_array_byte_size),
+
+        debug_array = new Uint16Array(buffer, jump16bit_table_byte_size + action32bit_array_byte_size + error8bit_array_byte_size, debug8bit_array_byte_size >> 1);
 
     //7. Symbol
     // Default Value
@@ -134,7 +138,8 @@ export function buildParserMemoryBuffer(
         jump_table,
         action_array,
         error_array,
-        shared_memory
+        shared_memory,
+        debug_array
     };
 };
 

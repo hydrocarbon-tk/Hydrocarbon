@@ -89,7 +89,7 @@ function createJSRecognizer(code: SC, options: CompilerOptions): string {
             data_view.setUint32(offset, val, true);
         };
         ${Object.assign(new JS, code).renderCode()}
-        return main;
+        return [main];
     }) `;
 }
 

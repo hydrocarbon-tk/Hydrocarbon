@@ -1,25 +1,20 @@
-import { Grammar } from "../types/grammar.js";
-import { SymbolType } from "../types/symbol_type";
+import { Helper } from "../compiler/helper.js";
 import { action32bit_array_byte_size_default, error8bit_array_byte_size_default, jump16bit_table_byte_size } from "../runtime/parser_memory.js";
+import { Grammar } from "../types/grammar.js";
 import { RDProductionFunction } from "../types/rd_production_function";
-import { SC } from "../utilities/skribble.js";
-import {
-    TokenSpaceIdentifier,
-    TokenNumberIdentifier,
-    TokenIdentifierIdentifier,
-    TokenNewLineIdentifier,
-    TokenSymbolIdentifier,
-    rec_consume_call,
-    rec_consume_assert_call,
-    rec_glob_lex_name,
-    rec_state
-} from "../utilities/global_names.js";
 import { addSkipCallNew, getProductionFunctionName } from "../utilities/code_generating.js";
+import {
+    rec_consume_assert_call, rec_consume_call,
+    rec_glob_lex_name,
+    rec_state, TokenIdentifierIdentifier,
+    TokenNewLineIdentifier, TokenNumberIdentifier, TokenSpaceIdentifier,
+    TokenSymbolIdentifier
+} from "../utilities/global_names.js";
+import { getProductionClosure } from "../utilities/production.js";
+import { SC, VarSC } from "../utilities/skribble.js";
+import { getSkippableSymbolsFromItems, getUnskippableSymbolsFromClosure } from "../utilities/symbol.js";
 import { createLexerCode } from "./lexer_template.js";
 import { createStateCode } from "./state_template.js";
-import { Helper } from "../compiler/helper.js";
-import { getProductionClosure } from "../utilities/production.js";
-import { getSkippableSymbolsFromItems, getUnskippableSymbolsFromClosure } from "../utilities/symbol.js";
 
 export const renderAssemblyScriptRecognizer = (
     grammar: Grammar,
@@ -44,6 +39,7 @@ export const renderAssemblyScriptRecognizer = (
         TokenSymbol = SC.Constant("TokenSymbol:unsigned int"),
         id = SC.Constant("id:unsigned short"),
         num = SC.Constant("num:unsigned short"),
+        debug_ptr = SC.Variable("debug_ptr:unsigned int"),
         action_ptr = SC.Variable("action_ptr:unsigned int"),
         error_ptr = SC.Variable("error_ptr:unsigned int"),
         str = SC.Variable("str:string");
@@ -115,6 +111,7 @@ export const renderAssemblyScriptRecognizer = (
             SC.Assignment(TokenSymbol, SC.Value(TokenSymbolIdentifier)),
             SC.Assignment(id, SC.Value(2)),
             SC.Assignment(num, SC.Value(4)),
+            SC.Assignment(debug_ptr, SC.Value(0)),
             SC.Assignment(action_ptr, SC.Value(0)),
             SC.Assignment(error_ptr, SC.Value(0)),
             str,
@@ -282,11 +279,10 @@ export const renderAssemblyScriptRecognizer = (
 
     /*            
     function add_reduce(state,sym_len,body,DNP = false){
-    if(state.getENABLE_STACK_OUTPUT()){
-        set_action(((DNP<<1)|((sym_len&16383)<<2))|(body<<16));
-    }
-}
-    */
+        if(state.getENABLE_STACK_OUTPUT()){
+            set_action(((DNP<<1)|((sym_len&16383)<<2))|(body<<16));
+        }
+    } */
     code_node.addStatement(
         SC.Function(
             "add_reduce:void",
@@ -424,16 +420,85 @@ export const renderAssemblyScriptRecognizer = (
             ),
 
         ));
+
+    /**
+     * function debug_add_header(number_of_items, delta_char_offset, peek_start, peek_end, fork_start, fork_end) {
+     *      
+     *      const local_pointer = debug_pointer;
+     *      
+     *      if(delta_char_offset > 62){
+     * 
+                store(local_pointer+1,delta_char_offset);
+     * 
+     *          delta_char_offset = 63;
+     * 
+     *          debug_pointer++;
+     *      }
+     *          store(local_pointer, (number_of_items && 0x3F) 
+     *              | ( delta_char_offset << 6) 
+     *              | ((peek_start & 0x1) << 12) 
+     *              | ((peek_end & 0x1) << 13)
+     *              | ((fork_start & 0x1) << 14) 
+     *              | ((fork_end & 0x1) << 15));
+     * 
+     *          debug_pointer++;
+     * }
+     */
+    const noi = SC.Variable("number_of_items:uint32");
+    const dco = SC.Variable("delta_char_offset:uint32");
+    const pks = SC.Variable("peek_start:bool");
+    const pke = SC.Variable("peek_end:bool");
+    const fks = SC.Variable("fork_start:bool");
+    const fke = SC.Variable("fork_end:bool");
+    const lptr = SC.Variable("local_pointer:uint3");
+    code_node.addStatement(
+        SC.Function(
+            "debug_add_header:void",
+            noi, dco, pks, pke, fks, fke
+        ).addStatement(
+            SC.Declare(SC.Assignment(lptr, debug_ptr)),
+            SC.If(SC.Binary(dco, ">", "62"))
+                .addStatement(
+                    SC.Call("store", SC.Binary(lptr, "+", 1), dco),
+                    SC.Assignment(dco, 63),
+                    SC.UnaryPost(debug_ptr, "++"),
+                ),
+            SC.Call("store", lptr,
+                SC.Binary(SC.Binary(noi, "&", 0x3F), "|",
+                    SC.Binary(SC.Binary(dco, "<<", 6), "|",
+                        SC.Binary(SC.Binary(SC.Binary(pks, "&", 1), "<<", 12), "|",
+                            SC.Binary(SC.Binary(SC.Binary(pke, "&", 1), "<<", 13), "|",
+                                SC.Binary(SC.Binary(SC.Binary(fks, "&", 1), "<<", 14), "|",
+                                    SC.Binary(SC.Binary(fke, "&", 1), "<<", 15))))))
+
+            ),
+            SC.UnaryPost(debug_ptr, "++"),
+        )
+    );
+
+    /**
+    * function debug_add_item(item_index) { 
+    *       debug_array[debug_pointer++] = item_index;
+    * }
+    */
+    code_node.addStatement(SC.Function(
+        "debug_add_item:void",
+        "item_index:uint16"
+    ).addStatement(
+        SC.Call("store", debug_ptr, "item_index"),
+        SC.UnaryPost(debug_ptr, "++")
+    ));
+
     /*            
     function reset_counters_and_pointers(): void{
         prod = -1; 
-
+ 
         stack_ptr = 0;
-
+ 
         error_ptr = 0;
-
+ 
         action_ptr = 0;
-
+ 
         FAILED = false;
     }*/
     code_node.addStatement(
