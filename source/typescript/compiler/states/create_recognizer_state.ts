@@ -7,8 +7,10 @@ export function createRecognizerState(
     symbols: Symbol[],
     transition_type: TRANSITION_TYPE,
     offset: number = -1,
-    peek_level: number = -1): RecognizerState {
+    peek_level: number = -1
+): RecognizerState {
     return <RecognizerState>{
+        PROCESSED: false,
         code: null,
         hash: "",
         symbols,

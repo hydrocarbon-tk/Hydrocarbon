@@ -87,7 +87,9 @@ export function processRecognizerStates(
                 if (filtered_states.length > 0) {
 
                     const virtual_state: RecognizerState = {
-                        symbol: null,
+                        PROCESSED: false,
+                        states: [],
+                        symbols: [],
                         code: filtered_states[0].code,
                         hash: filtered_states[0].hash,
                         prods,

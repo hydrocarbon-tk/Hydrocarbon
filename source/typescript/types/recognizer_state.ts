@@ -112,6 +112,10 @@ export interface RecognizerState {
     leaves?: Leaf[];
 
     states: RecognizerState[];
+    /**
+     * Flag to prevent repeat processing of the same state
+     */
+    PROCESSED: boolean;
 }
 
 export interface Leaf {
