@@ -8,9 +8,6 @@ import { WorkerContainer } from "../../types/worker_container";
 import { SC } from "../../utilities/skribble.js";
 import { Helper } from "../helper.js";
 import { LocalWorker } from "./local_worker.js";
-import { worker } from "cluster";
-
-
 
 export class WorkerRunner {
     grammar: Grammar;

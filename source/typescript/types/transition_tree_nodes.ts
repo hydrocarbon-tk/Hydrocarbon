@@ -23,5 +23,8 @@ export interface closure_group {
     closure: Item[];
     unskippable?: TokenSymbol[];
     final: number;
+    /**
+     * Items that transition on the sym
+     */
     starts?: Item[];
 }

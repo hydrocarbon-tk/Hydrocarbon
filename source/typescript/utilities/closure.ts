@@ -82,23 +82,22 @@ export function getFollowClosure(closure: Item[], goto_transition_items: Item[],
 
     const new_closure = closure.slice();
 
-    if (closure.some(i => i.atEND)) {
 
-        const prods = itemsToProductions(closure.filter(i => i.atEND), grammar);
+    const prods = itemsToProductions(closure.filter(i => i.atEND), grammar);
 
-        for (let prod of prods) {
+    for (let prod of prods) {
 
-            if (productions.has(prod))
-                continue;
+        if (productions.has(prod))
+            continue;
 
-            productions.add(prod);
+        productions.add(prod);
 
-            const items = getGotoItems(grammar, [prod], goto_transition_items).map(i => i.increment());
+        const items = getGotoItems(grammar, [prod], goto_transition_items).map(i => i.increment());
 
-            const c = getClosure(items, grammar);
+        const c = getClosure(items, grammar);
 
-            new_closure.push(...getFollowClosure(c, goto_transition_items, grammar, productions));
-        }
+        new_closure.push(...getFollowClosure(c, goto_transition_items, grammar, productions));
     }
+
     return new_closure.setFilter(i => i.id).filter(i => !i.atEND);
 }

@@ -10,22 +10,18 @@ import { Item, itemsToProductions } from "../../utilities/item.js";
 import { renderItem } from "../../utilities/render_item.js";
 import { ConstSC, ExprSC, SC, VarSC } from "../../utilities/skribble.js";
 import {
-    getComplementOfSymbolSets,
+    Defined_Symbols_Occlude, getComplementOfSymbolSets,
     getSkippableSymbolsFromItems,
     getSymbolName,
     getSymbolsFromClosure,
     getUniqueSymbolName,
-    Defined_Symbols_Occlude,
-    Sym_Is_A_Generic_Type,
-    Sym_Is_A_Production,
     Sym_Is_An_Identifier_Generic,
+    Sym_Is_A_Character_Generic, Sym_Is_A_Generic_Type,
     Sym_Is_A_Newline_Generic,
-    Sym_Is_A_Numeric_Generic,
-    Sym_Is_A_Character_Generic,
+    Sym_Is_A_Numeric_Generic, Sym_Is_A_Production,
     Sym_Is_A_Space_Generic,
-    Sym_Is_Specified_Identifier,
-    Sym_Is_Specified_Natural_Number,
-    Sym_Is_Specified_Characters
+    Sym_Is_Specified_Characters, Sym_Is_Specified_Identifier,
+    Sym_Is_Specified_Natural_Number
 } from "../../utilities/symbol.js";
 import { processProductionChain } from "./process_production_chain.js";
 
@@ -280,6 +276,7 @@ export function default_getSelectionClause(
             if_stmt = SC.If();
 
         if_stmt.addStatement(
+
             runner.ANNOTATED ?
                 SC.Comment(transition_types.map(ttt))
                 : undefined,
@@ -487,7 +484,7 @@ export function completeFunctionProduction(
     GOTO_Options: RenderBodyOptions) {
     const
         { leaves: rd_leaves, production } = RDOptions,
-        { leaves: goto_leaves, NO_GOTOS: NO_PRODUCTION_SHIFTS, active_keys } = GOTO_Options;
+        { leaves: goto_leaves, NO_GOTOS: NO_PRODUCTION_SHIFTS } = GOTO_Options;
 
     for (const rd_leaf of rd_leaves) {
         const { leaf, prods } = rd_leaf;
