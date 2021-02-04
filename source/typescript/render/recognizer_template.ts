@@ -200,6 +200,50 @@ export const renderAssemblyScriptRecognizer = (
             SC.UnaryPre(SC.Return, SC.False),
         ));
 
+    code_node.addStatement(SC.Value(`
+    
+    function utf8_1(l, index) {
+        return load(data_ptr + l.off) == index;
+    }
+
+    function utf8_2(l, index) {
+        const
+            a = load(data_ptr + l.off),
+            b = load(data_ptr + l.off + 1);
+        if (((a & 0b11100000) == 0b11000000)
+            && index == (a & 0b00111111 << 6) | (b & 0b00111111)) {
+            l.bl += 2;
+            l.tl += 1;
+            return true;
+        }
+        return false;
+    }
+
+    function utf8_3(l, index) {
+
+        const
+            a = load(data_ptr + l.off),
+            b = load(data_ptr + l.off + 1),
+            c = load(data_ptr + l.off + 2);
+
+        return ((a & 0b11110000) == 0b11100000)
+            && index == (a & 0b00001111 << 12) | ((b & 0b00111111) << 6) | (b & 0b00111111);
+    }
+
+    function utf8_4(l, index) {
+
+        const
+            a = load(data_ptr + l.off),
+            b = load(data_ptr + l.off + 1),
+            c = load(data_ptr + l.off + 2),
+            c = load(data_ptr + l.off + 3);
+
+        return ((a & 0b11111000) == 0b11110000)
+            && index == ((a & 0b00000111) << 18) | ((b & 0b00111111) << 6) | ((b & 0b00111111) << 6) | (b & 0b00111111);
+    }
+    
+    `));
+
     /*            
     function reset(mark:u32, state): unsigned int{
         if(!FAILED) return false;

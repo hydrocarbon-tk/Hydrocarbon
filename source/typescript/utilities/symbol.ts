@@ -20,6 +20,24 @@ import { Item } from "./item.js";
 import { ConstSC, SC, StmtSC, VarSC } from "./skribble.js";
 import { rec_consume_call, rec_state } from "./global_names.js";
 
+
+export function characterToUTF8(char: string) {
+
+    const code_point = char.codePointAt(0);
+
+    if ((code_point & 0x7F) == code_point) {
+        return `utf8_1(l,${code_point})`;
+    } else if ((code_point & 0x7FF) == code_point) {
+        return `utf8_2(l,${code_point})`;
+    } else if ((code_point & 0xFFFF) == code_point) {
+        return `utf8_3(l,${code_point})`;
+    } else {
+        return `utf8_4(l,${code_point})`;
+    }
+
+
+
+}
 export function convertSymbolToString(sym: { type?: SymbolType, val: string; }) {
     switch (sym.type) {
         case SymbolType.ESCAPED:
