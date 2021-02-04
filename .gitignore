@@ -65,3 +65,6 @@ test/**/*temp*/*
 *.hcgb*
 
 .vscode
+
+# Rust files
+rust/
