@@ -16,12 +16,11 @@ import {
     getSymbolsFromClosure,
     getUniqueSymbolName,
     Sym_Is_An_Identifier_Generic,
-    Sym_Is_A_Character_Generic, Sym_Is_A_Generic_Type,
+    Sym_Is_A_Symbol_Character, Sym_Is_A_Generic_Type,
     Sym_Is_A_Newline_Generic,
-    Sym_Is_A_Numeric_Generic, Sym_Is_A_Production,
-    Sym_Is_A_Space_Generic,
-    Sym_Is_Specified_Characters, Sym_Is_Specified_Identifier,
-    Sym_Is_Specified_Natural_Number
+    Sym_Is_A_Numeric_Generic, Sym_Is_A_Space_Generic,
+    Sym_Is_Defined_Characters, Sym_Is_Defined_Identifier,
+    Sym_Is_Defined_Natural_Number
 } from "../../utilities/symbol.js";
 import { processProductionChain } from "./process_production_chain.js";
 

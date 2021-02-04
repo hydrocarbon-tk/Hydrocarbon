@@ -7,10 +7,10 @@ import {
     GeneratedSymbol,
     ProductionSymbol,
     ProductionTokenSymbol,
-    SpecifiedCharacterSymbol,
-    SpecifiedIdentifierSymbol,
-    SpecifiedNumericSymbol,
-    SpecifiedSymbol,
+    DefinedCharacterSymbol,
+    DefinedIdentifierSymbol,
+    DefinedNumericSymbol,
+    DefinedSymbol,
     Symbol,
     TokenSymbol
 } from "../types/symbol";
@@ -71,8 +71,8 @@ export function getUniqueSymbolName(sym: Symbol) {
         + (sym.IS_NON_CAPTURE ? "-->" : "");
 }
 
-export function Sym_Is_Compound(s: Symbol): s is SpecifiedCharacterSymbol {
-    return Sym_Is_Specified_Characters(s) && s.val.length > 1;
+export function Sym_Is_Compound(s: Symbol): s is DefinedCharacterSymbol {
+    return Sym_Is_Defined_Characters(s) && s.val.length > 1;
 }
 export function Sym_Is_Not_Consumed(s: Symbol): boolean {
     return !!s.IS_NON_CAPTURE;
@@ -103,32 +103,32 @@ export function Sym_Is_A_Production_Token(s: Symbol): s is (ProductionTokenSymbo
  * @param s
  */
 
-export function Sym_Is_Specified(s: Symbol): s is SpecifiedSymbol {
+export function Sym_Is_Defined(s: Symbol): s is DefinedSymbol {
     return !Sym_Is_A_Production(s) && !Sym_Is_A_Generic_Type(s) && !Sym_Is_A_Production_Token(s);
 }
 /**
  * A SpecifiedSymbol that is not a SpecifiedIdentifierSymbol nor a SpecifiedNumericSymbol
  * @param s
  */
-export function Sym_Is_Specified_Characters(s: Symbol): s is SpecifiedCharacterSymbol {
-    return Sym_Is_Specified(s) && !Sym_Is_An_Identifier(s) && !Sym_Is_Numeric(s);
+export function Sym_Is_Defined_Characters(s: Symbol): s is DefinedCharacterSymbol {
+    return Sym_Is_Defined(s) && !Sym_Is_An_Identifier(s) && !Sym_Is_Numeric(s);
 }
-export function Sym_Is_Specified_Identifier(s: Symbol): s is SpecifiedIdentifierSymbol {
-    return Sym_Is_Specified(s) && Sym_Is_An_Identifier(s);
+export function Sym_Is_Defined_Identifier(s: Symbol): s is DefinedIdentifierSymbol {
+    return Sym_Is_Defined(s) && Sym_Is_An_Identifier(s);
 }
-export function Sym_Is_Specified_Natural_Number(s: Symbol): s is SpecifiedNumericSymbol {
-    return Sym_Is_Specified(s) && Sym_Is_Numeric(s);
+export function Sym_Is_Defined_Natural_Number(s: Symbol): s is DefinedNumericSymbol {
+    return Sym_Is_Defined(s) && Sym_Is_Numeric(s);
 }
-export function Sym_Is_Numeric(sym: TokenSymbol): sym is SpecifiedNumericSymbol {
+export function Sym_Is_Numeric(sym: TokenSymbol): sym is DefinedNumericSymbol {
     const lex = new Lexer(sym.val + "");
     return lex.ty == lex.types.num && lex.pk.END;
 }
 export function Sym_Is_Not_Numeric(sym: TokenSymbol): boolean {
     return !Sym_Is_Numeric(sym);
 }
-export function Sym_Is_An_Identifier(sym: TokenSymbol): sym is SpecifiedIdentifierSymbol {
+export function Sym_Is_An_Identifier(sym: TokenSymbol): sym is DefinedIdentifierSymbol {
     const lex = new Lexer(sym.val + "");
-    return lex.ty == lex.types.id && lex.pk.END;
+    return lex.ty == lex.types.id && lex.n.END;
 }
 export function Sym_Is_Not_An_Identifier(sym: TokenSymbol): boolean {
     return !Sym_Is_An_Identifier(sym);
@@ -147,7 +147,7 @@ export function Sym_Has_Multiple_Characters(sym: TokenSymbol): boolean {
 }
 export function Sym_Is_A_Newline_Generic(sym: TokenSymbol) { return sym.val == "nl" && sym.type == SymbolType.GENERATED; }
 export function Sym_Is_An_Identifier_Generic(sym: TokenSymbol) { return sym.val == "id" && sym.type == SymbolType.GENERATED; }
-export function Sym_Is_A_Character_Generic(sym: TokenSymbol) { return sym.val == "sym" && sym.type == SymbolType.GENERATED; }
+export function Sym_Is_A_Symbol_Character(sym: TokenSymbol) { return sym.val == "sym" && sym.type == SymbolType.GENERATED; }
 export function Sym_Is_A_Numeric_Generic(sym: TokenSymbol) { return sym.val == "num" && sym.type == SymbolType.GENERATED; }
 export function Sym_Is_A_Space_Generic(sym: TokenSymbol): boolean { return sym.val == "ws"; }
 
@@ -210,15 +210,16 @@ export function getRootSym<T = Symbol>(sym: T, grammar: Grammar): T {
 
     return <T><any>grammar.meta.all_symbols.get(name) || sym;
 }
-
 export function Defined_Symbols_Occlude(target: TokenSymbol, potential_occluder: TokenSymbol): boolean {
 
-    if (getUniqueSymbolName(target) == getUniqueSymbolName(potential_occluder)) return false;
     if (Sym_Is_A_Production(target) || Sym_Is_A_Production(potential_occluder)) return false;
-    if (Sym_Is_A_Character_Generic(target) && Sym_Is_Specified_Characters(potential_occluder)) return true;
-    if (Sym_Is_An_Identifier_Generic(target) && Sym_Is_Specified_Identifier(potential_occluder)) return true;
-    if (Sym_Is_A_Numeric_Generic(target) && Sym_Is_Specified_Natural_Number(potential_occluder)) return true;
+    if (Symbols_Are_The_Same(target, potential_occluder)) return false;
     if (target.val == potential_occluder.val) return false;
+
+    if (Sym_Is_A_Symbol_Character(potential_occluder) && Sym_Is_Defined_Characters(target)) return true;
+    if (Sym_Is_An_Identifier_Generic(potential_occluder) && Sym_Is_Defined_Identifier(target)) return true;
+    if (Sym_Is_A_Numeric_Generic(potential_occluder) && Sym_Is_Defined_Natural_Number(target)) return true;
+
     let
         short = target.val.toString(),
         long = potential_occluder.val.toString();

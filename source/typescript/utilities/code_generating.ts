@@ -14,17 +14,25 @@ import {
     Defined_Symbols_Occlude,
     getTokenSymbolsFromItems,
     getUniqueSymbolName,
-    Sym_Is_A_Generic_Type,
+
     Sym_Is_An_Assert_Function,
-    Sym_Is_A_Production_Token,
-    Sym_Is_An_Identifier_Generic,
-    Sym_Is_A_Numeric_Generic,
-    Sym_Is_A_Character_Generic,
-    Sym_Is_Not_Consumed,
-    Sym_Is_Not_An_Identifier,
-    Sym_Has_Multiple_Characters,
-    Sym_Is_Consumed,
-    Sym_Is_Specified,
+
+    Sym_Is_An_Identifier_Generic, Sym_Is_A_Generic_Type,
+
+
+
+    Sym_Is_A_Numeric_Generic, Sym_Is_A_Production_Token,
+
+
+
+
+
+
+    Sym_Is_Consumed, Sym_Is_Not_An_Identifier, Sym_Is_Not_Consumed,
+
+
+
+    Sym_Is_Defined
 } from "./symbol.js";
 
 /**
@@ -32,7 +40,7 @@ import {
  */
 const hash_length = 16;
 
-function generateGUIDConstName(fn_data: SC, prefix: string = "id", type: string = "void") {
+export function generateGUIDConstName(fn_data: SC, prefix: string = "id", type: string = "void") {
     return SC.Constant(`${prefix}_${fn_data.hash().slice(-hash_length)}:${type}`);
 }
 
@@ -288,7 +296,7 @@ export function buildIfs(
         let first = true;
         const
             incremented_syms = syms.filter(s => (<string>s.val).length > off).groupMap(s => s.val[off]),
-            incremented_occluders = occluders.filter(Sym_Is_Specified).filter(s => (<string>s.val).length > off).groupMap(s => s.val[off]),
+            incremented_occluders = occluders.filter(Sym_Is_Defined).filter(s => (<string>s.val).length > off).groupMap(s => s.val[off]),
             generated_occluders = occluders.filter(Sym_Is_A_Generic_Type);
 
         let leaf = code_node;
@@ -349,7 +357,7 @@ export function getIncludeBooleans(
     let
         non_consume = syms.filter(Sym_Is_Not_Consumed),
         consume = syms.filter(Sym_Is_Consumed),
-        id = consume.filter(Sym_Is_Specified),
+        id = consume.filter(Sym_Is_Defined),
         ty = consume.filter(Sym_Is_A_Generic_Type),
         tk = consume.filter(Sym_Is_A_Production_Token),
         fn = consume.filter(Sym_Is_An_Assert_Function)

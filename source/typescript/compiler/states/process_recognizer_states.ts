@@ -1,16 +1,18 @@
 import { bidirectionalTraverse, TraverseState } from "@candlefw/conflagrate";
-
 import { GeneratorStateReturn, RecognizerState, TRANSITION_TYPE } from "../../types/recognizer_state.js";
 import { RenderBodyOptions } from "../../types/render_body_options";
 import { MultiItemReturnObject, SelectionClauseGenerator, SelectionGroup, SingleItemReturnObject } from "../../types/state_generating";
+import { TokenSymbol } from "../../types/symbol.js";
 import { Item } from "../../utilities/item.js";
 import { SC } from "../../utilities/skribble.js";
 import {
-    Sym_Is_An_Identifier_Generic,
+    Defined_Symbols_Occlude, Sym_Is_An_Identifier_Generic,
     Sym_Is_A_Numeric_Generic,
-    Sym_Is_A_Character_Generic
+    Sym_Is_A_Symbol_Character
 } from "../../utilities/symbol.js";
-import { default_getMultiItemLeaf, default_getSelectionClause, default_getSingleItemLeaf } from "./default_state_build.js";
+import { default_getSelectionClause } from "./default_getSelectionClause.js";
+import { default_getMultiItemLeaf, default_getSingleItemLeaf } from "./default_state_build.js";
+
 
 
 export function defaultGrouping(g) {
@@ -31,7 +33,7 @@ function getGroupScore(a: SelectionGroup) {
         a_syms = a.syms.length * (a_end),
         a_id = (+a.syms.some(Sym_Is_An_Identifier_Generic)) * 50 * (a_end),
         a_num = (+a.syms.some(Sym_Is_A_Numeric_Generic)) * 25 * (a_end),
-        a_sym = (+a.syms.some(Sym_Is_A_Character_Generic)) * 5 * (a_end);
+        a_sym = (+a.syms.some(Sym_Is_A_Symbol_Character)) * 5 * (a_end);
 
     return a_syms + a_id + a_num + a_sym + a_end;
 }

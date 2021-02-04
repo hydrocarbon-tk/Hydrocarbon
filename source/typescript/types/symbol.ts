@@ -31,17 +31,30 @@ export interface SymbolBase {
     id?: number;
 }
 
-export interface SpecifiedNumericSymbol extends SymbolBase {
+export interface DefinedSymbolBase extends SymbolBase {
+    /**
+     * Size of the character sequence in UTF8 encoding
+     */
+    byte_length: number;
+
+    /**
+     * If the byte_length is more than, then this is the offset of the 
+     * character sequence within the character lookup table.
+     */
+    lookup_offset: number;
+}
+
+export interface DefinedNumericSymbol extends DefinedSymbolBase {
     type: SymbolType.ESCAPED | SymbolType.LITERAL | SymbolType.SYMBOL;
     val: string;
 }
 
-export interface SpecifiedIdentifierSymbol extends SymbolBase {
+export interface DefinedIdentifierSymbol extends DefinedSymbolBase {
     type: SymbolType.ESCAPED | SymbolType.LITERAL | SymbolType.SYMBOL;
     val: string;
 }
 
-export interface SpecifiedCharacterSymbol extends SymbolBase {
+export interface DefinedCharacterSymbol extends DefinedSymbolBase {
     type: SymbolType.ESCAPED | SymbolType.LITERAL | SymbolType.SYMBOL;
     val: string;
 }
@@ -80,19 +93,24 @@ export interface ProductionTokenSymbol extends SymbolBase {
     name: string;
     val: number;
     production: Production;
-}
 
-export type SpecifiedSymbol =
-    SpecifiedIdentifierSymbol
-    | SpecifiedCharacterSymbol
-    | SpecifiedNumericSymbol;
+}
+/**
+ * Any symbol that is not a ProductionSymbol, ProductionTokenSymbol, AssertionFunctionSymbol, or GeneratedSymbol.
+ * 
+ * Specifically, any symbol that is comprised of a discrete sequence of characters
+ * defined by the grammar author.
+ */
+export type DefinedSymbol =
+    | DefinedCharacterSymbol
+    | DefinedIdentifierSymbol
+    | DefinedNumericSymbol;
 export type TokenSymbol =
-    SpecifiedCharacterSymbol
+    | DefinedSymbol
     | GeneratedSymbol
     | EOFSymbol
     | EmptySymbol
     | AssertionFunctionSymbol
-    | SpecifiedSymbol
     | ProductionTokenSymbol;
 
 export type Symbol = TokenSymbol | ProductionSymbol; 
