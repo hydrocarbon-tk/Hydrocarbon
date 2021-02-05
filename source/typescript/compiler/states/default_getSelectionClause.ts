@@ -14,21 +14,7 @@ import {
     Symbols_Are_The_Same, Sym_Is_A_Generic_Type, Sym_Is_A_Production,
     Sym_Is_Defined
 } from "../../utilities/symbol.js";
-
-/** Translate Transition Type */
-function ttt(type: TRANSITION_TYPE): string {
-    switch (type) {
-        case TRANSITION_TYPE.ASSERT: return "assert";
-        case TRANSITION_TYPE.IGNORE: return "ignore";
-        case TRANSITION_TYPE.CONSUME: return "consume";
-        case TRANSITION_TYPE.PEEK: return "peek";
-        case TRANSITION_TYPE.ASSERT_END: return "assert-end";
-        case TRANSITION_TYPE.ASSERT_PRODUCTION_SYMBOLS: return "assert-production-closure";
-        case TRANSITION_TYPE.PEEK_PRODUCTION_SYMBOLS: return "peek-production-closure";
-        default: return "unknown";
-    }
-}
-
+import { ttt } from "./ttt.js";
 /**
  * Handles intermediate state transitions. 
  */
