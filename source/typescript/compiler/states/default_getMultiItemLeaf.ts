@@ -3,13 +3,14 @@ import { Production } from "../../types/production.js";
 import { Leaf, RecognizerState, TRANSITION_TYPE } from "../../types/recognizer_state.js";
 import { RenderBodyOptions } from "../../types/render_body_options";
 import { MultiItemReturnObject } from "../../types/state_generating";
-import { getClosure } from "../../utilities/closure.js";
 import { rec_glob_lex_name, rec_state } from "../../utilities/global_names.js";
-import { Item } from "../../utilities/item.js";
+import { Item, ItemIndex } from "../../utilities/item.js";
 import { buildItemMaps } from "../../utilities/item_map.js";
+import { renderItem } from "../../utilities/render_item.js";
 import { SC } from "../../utilities/skribble.js";
-import { getSymbolsFromClosure, getUniqueSymbolName } from "../../utilities/symbol.js";
-import { compileProductionFunctions, getStartItemsFromProduction } from "../function_constructor.js";
+import { getUniqueSymbolName } from "../../utilities/symbol.js";
+import { compileProductionFunctions } from "../function_constructor.js";
+import { addIntermediateLeafStatements, addLeafStatements } from "./add_leaf_statements.js";
 export function default_getMultiItemLeaf(state: RecognizerState, states: RecognizerState[], options: RenderBodyOptions): MultiItemReturnObject {
 
     const
@@ -23,11 +24,7 @@ export function default_getMultiItemLeaf(state: RecognizerState, states: Recogni
         root: SC = (new SC).addStatement(
             items.map(p => p.id).join(">   <"),
             expected_symbols.map(getUniqueSymbolName).join(" "),
-            SC.Declare(
-                SC.Assignment("mk:int", SC.Call("mark")),
-                SC.Assignment("anchor:Lexer", SC.Call(SC.Member(rec_glob_lex_name, "copy"))),
-                SC.Assignment(anchor_state, rec_state)
-            )
+
         ),
 
         IS_LEFT_RECURSIVE_WITH_FOREIGN_PRODUCTION_ITEMS = states.some(i => i.transition_type == TRANSITION_TYPE.IGNORE),
@@ -42,16 +39,59 @@ export function default_getMultiItemLeaf(state: RecognizerState, states: Recogni
             productions: Production[] = createVirtualProductions(items, grammar);
 
 
+
+
         const { RDOptions, GOTO_Options, RD_fn_contents, GOTO_fn_contents }
             = compileProductionFunctions(options.grammar, options.helper, productions, expected_symbols);
 
-        
+        addIntermediateLeafStatements(
+            RD_fn_contents,
+            GOTO_fn_contents,
+            SC.Variable("testA"),
+            RDOptions,
+            GOTO_Options
+        );
 
-        root.addStatement(RD_fn_contents, GOTO_fn_contents);
+        root.addStatement(RD_fn_contents, GOTO_Options.NO_GOTOS ? undefined : GOTO_fn_contents);
+
+        let leaf = root;// prev_prods;
+
+        for (let i = 0; i < items.length; i++) {
+            const item = items[i].increment();
+            const v_prod = productions[i];
+            const prod = item.getProduction(grammar).id;
+
+            item[ItemIndex.offset] = item[ItemIndex.length];
+
+            out_prods.push(prod);
+
+            leaf.addStatement(item.renderUnformattedWithProduction(grammar));
+
+            const _if = SC.If(SC.Binary("prod", "==", v_prod.id));
+            const _if_leaf = new SC;
+            _if.addStatement(_if_leaf);
+            renderItem(_if_leaf, item, options);
+
+            leaf.addStatement(_if);
+            leaf = _if;
+
+            out_leaves.push({
+                prods: [prod],
+                root: _if,
+                leaf: _if_leaf,
+                hash: "----------------",
+                transition_type: TRANSITION_TYPE.ASSERT_END,
+            });
+        }
 
     } catch (e) {
 
-        root.addStatement(e.stack);
+        root.addStatement(e.stack,
+            SC.Declare(
+                SC.Assignment("mk:int", SC.Call("mark")),
+                SC.Assignment("anchor:Lexer", SC.Call(SC.Member(rec_glob_lex_name, "copy"))),
+                SC.Assignment(anchor_state, rec_state)
+            ));
 
         let leaf = root, FIRST = true;// prev_prods;
 

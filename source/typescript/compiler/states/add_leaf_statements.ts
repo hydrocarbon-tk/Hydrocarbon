@@ -34,6 +34,8 @@ export function addLeafStatements(
         { leaves: rd_leaves, production_ids } = RDOptions,
         { leaves: goto_leaves, NO_GOTOS } = GOTO_Options;
 
+    let GOTOS_FOLDED = false;
+
     for (const rd_leaf of rd_leaves) {
         const { leaf, prods } = rd_leaf;
 
@@ -44,9 +46,19 @@ export function addLeafStatements(
         //@ts-ignore
         rd_leaf.SET = true;
 
+
+
         if (NO_GOTOS) {
+
             leaf.addStatement(createDebugCall(GOTO_Options, "RD return"));
             leaf.addStatement(SC.UnaryPre(SC.Return, rec_state));
+
+        } else if (rd_leaves.length == 1) {
+            RD_fn_contents.shiftStatement(SC.Declare(SC.Assignment(rec_state_prod, -1)));
+            leaf.addStatement(SC.Assignment(rec_state_prod, prods[0]));
+            leaf.addStatement(GOTO_fn_contents);
+            GOTO_Options.NO_GOTOS = true;
+            GOTOS_FOLDED = true;
         } else {
             leaf.addStatement(SC.UnaryPre(SC.Return, SC.Call(goto_fn_name, rec_glob_lex_name, rec_glob_data_name, rec_state, prods[0])));
         }
@@ -77,10 +89,10 @@ export function addLeafStatements(
             }
         }
 
-    RD_fn_contents.addStatement(SC.UnaryPre(SC.Return, SC.Value("0")));
-
-    if (!NO_GOTOS)
-        GOTO_fn_contents.addStatement(addClauseSuccessCheck(RDOptions));
+    if (GOTOS_FOLDED)
+        RD_fn_contents.addStatement(addClauseSuccessCheck(RDOptions));
+    else
+        RD_fn_contents.addStatement(SC.UnaryPre(SC.Return, SC.Value("0")));
 }
 
 /**
@@ -111,11 +123,11 @@ export function addIntermediateLeafStatements(
         //@ts-ignore
         rd_leaf.SET = true;
 
-        if (NO_GOTOS) {
-            leaf.addStatement(createDebugCall(GOTO_Options, "RD return"));
-            leaf.addStatement(SC.UnaryPre(SC.Return, rec_state));
-        } else {
-            leaf.addStatement(SC.UnaryPre(SC.Return, SC.Call(goto_fn_name, rec_glob_lex_name, rec_glob_data_name, rec_state, prods[0])));
+        leaf.addStatement(SC.Assignment(rec_state_prod, prods[0]));
+
+        if (rd_leaves.length == 1) {
+            leaf.addStatement(GOTO_fn_contents);
+            GOTO_Options.NO_GOTOS = true;
         }
     }
 
@@ -137,16 +149,11 @@ export function addIntermediateLeafStatements(
                 &&
                 production_ids.some(p_id => goto_leaf.keys.includes(p_id))) {
                 leaf.addStatement(createDebugCall(GOTO_Options, "Inter return"));
-                leaf.addStatement(SC.UnaryPre(SC.Return, rec_state));
+                leaf.addStatement(SC.Break);
             } else if (transition_type !== TRANSITION_TYPE.IGNORE) {
                 leaf.addStatement(SC.Assignment(rec_state_prod, prods[0]));
                 leaf.addStatement(SC.Value("continue"));
             }
         }
-
-    RD_fn_contents.addStatement(SC.UnaryPre(SC.Return, SC.Value("0")));
-
-    if (!NO_GOTOS)
-        GOTO_fn_contents.addStatement(addClauseSuccessCheck(RDOptions));
 }
 

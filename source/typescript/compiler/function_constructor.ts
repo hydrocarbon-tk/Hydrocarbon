@@ -14,7 +14,7 @@ import { Helper } from "./helper.js";
 import { addLeafStatements } from "./states/add_leaf_statements.js";
 import { const_EMPTY_ARRAY } from "./states/const_EMPTY_ARRAY.js";
 import { default_getSelectionClause } from "./states/default_getSelectionClause.js";
-import { processGoTOStates } from "./states/default_state_build.js";
+import { addClauseSuccessCheck, processGoTOStates } from "./states/default_state_build.js";
 import { processRecognizerStates } from "./states/process_recognizer_states.js";
 import { yieldGotoStates } from "./states/yield_goto_states.js";
 import { yieldStates } from "./states/yield_states.js";
@@ -52,6 +52,11 @@ export function constructHybridFunction(production: Production, grammar: Grammar
         goto_fn_name,
         RDOptions,
         GOTO_Options);
+
+
+
+    if (!GOTO_Options.NO_GOTOS)
+        GOTO_function.addStatement(addClauseSuccessCheck(RDOptions));
 
 
     const annotation = SC.Expressions(SC.Comment(
