@@ -12,7 +12,7 @@ import {
 } from "../../utilities/symbol.js";
 import { default_getSelectionClause } from "./default_getSelectionClause.js";
 import { default_getSingleItemLeaf } from "./default_state_build.js";
-import { default_getMultiItemLeaf } from "./default_getMultiItemLeaf.js";
+import { default_resolveUnresolvedLeaves } from "./default_unresolved_leaves_resolution.js";
 
 
 
@@ -46,7 +46,7 @@ export function processRecognizerStates(
         default_getSelectionClause,
     multi_item_leaf_fn:
         (state: RecognizerState, states: RecognizerState[], options: RenderBodyOptions) => MultiItemReturnObject =
-        default_getMultiItemLeaf,
+        default_resolveUnresolvedLeaves,
     single_item_leaf_fn:
         (item: Item, group: RecognizerState, options: RenderBodyOptions) => SingleItemReturnObject =
         default_getSingleItemLeaf,

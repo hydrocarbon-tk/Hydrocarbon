@@ -10,8 +10,8 @@ import { renderItem } from "../../utilities/render_item.js";
 import { SC } from "../../utilities/skribble.js";
 import { getUniqueSymbolName } from "../../utilities/symbol.js";
 import { compileProductionFunctions } from "../function_constructor.js";
-import { addIntermediateLeafStatements, addLeafStatements } from "./add_leaf_statements.js";
-export function default_getMultiItemLeaf(state: RecognizerState, states: RecognizerState[], options: RenderBodyOptions): MultiItemReturnObject {
+import { addIntermediateLeafStatements } from "./add_leaf_statements.js";
+export function default_resolveUnresolvedLeaves(state: RecognizerState, states: RecognizerState[], options: RenderBodyOptions): MultiItemReturnObject {
 
     const
 
@@ -21,11 +21,7 @@ export function default_getMultiItemLeaf(state: RecognizerState, states: Recogni
 
         anchor_state = SC.Variable("anchor_state:unsigned"),
 
-        root: SC = (new SC).addStatement(
-            items.map(p => p.id).join(">   <"),
-            expected_symbols.map(getUniqueSymbolName).join(" "),
-
-        ),
+        root: SC = (new SC),
 
         IS_LEFT_RECURSIVE_WITH_FOREIGN_PRODUCTION_ITEMS = states.some(i => i.transition_type == TRANSITION_TYPE.IGNORE),
 
