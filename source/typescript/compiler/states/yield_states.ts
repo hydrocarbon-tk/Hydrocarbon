@@ -1,11 +1,13 @@
 import { EOF_SYM, Grammar } from "../../types/grammar.js";
 import { RecognizerState, TRANSITION_TYPE } from "../../types/recognizer_state.js";
 import { RenderBodyOptions } from "../../types/render_body_options";
+import { Symbol } from "../../types/symbol.js";
 import { TransitionTreeNode } from "../../types/transition_tree_nodes.js";
 import { getClosure } from "../../utilities/closure.js";
 import { Items_Have_The_Same_Active_Symbol, Item } from "../../utilities/item.js";
-import { getTokenSymbolsFromItems, Sym_Is_A_Production } from "../../utilities/symbol.js";
+import { getTokenSymbolsFromItems, Symbols_Are_The_Same, Sym_Is_A_Production } from "../../utilities/symbol.js";
 import { getTransitionTree } from "../../utilities/transition_tree.js";
+import { const_EMPTY_ARRAY } from "./const_EMPTY_ARRAY.js";
 import { createRecognizerState } from "./create_recognizer_state.js";
 import { yieldCompletedItemStates } from "./yield_completed_item_states.js";
 import { buildPeekSequence } from "./yield_peek_states.js";
@@ -18,17 +20,29 @@ export function Leaves_Of_Transition_Contain_One_Root_Item(node: TransitionTreeN
     return node.roots.length == 1;
 }
 
+
 export function yieldStates(
+
     in_items: Item[],
+
     options: RenderBodyOptions,
+
     offset: number = 0,
+
+    filter_symbols: Symbol[] = const_EMPTY_ARRAY
+
 ): RecognizerState[] {
 
     const
         { grammar, production_ids } = options,
         output_states: RecognizerState[] = [],
         end_items = in_items.filter(i => i.atEND),
-        active_items = in_items.filter(i => !i.atEND);
+        active_items = in_items.filter(i => !i.atEND).filter(item => {
+            const sym = item.sym(grammar);
+            return Sym_Is_A_Production(sym)
+                || filter_symbols.length == 0
+                || filter_symbols.some(f => Symbols_Are_The_Same(f, sym));
+        });
 
 
     /**
@@ -70,7 +84,7 @@ export function yieldStates(
 
         else
 
-            output_states.push(...yieldPeekedStates(active_items, options, offset));
+            output_states.push(...yieldPeekedStates(active_items, options, offset, filter_symbols));
 
     }
 
@@ -91,7 +105,7 @@ export function Items_Are_From_Same_Production(active_items: Item[], grammar: Gr
     return active_items.setFilter(i => i.getProduction(grammar).id).length == 1;
 }
 
-function yieldPeekedStates(active_items: Item[], options: RenderBodyOptions, offset: number): RecognizerState[] {
+function yieldPeekedStates(active_items: Item[], options: RenderBodyOptions, offset: number, filter_symbols: Symbol[] = const_EMPTY_ARRAY): RecognizerState[] {
 
     const
         { grammar, goto_items: production_shift_items } = options,
@@ -104,7 +118,7 @@ function yieldPeekedStates(active_items: Item[], options: RenderBodyOptions, off
             200
         );
 
-    return buildPeekSequence(tree_nodes[0].next, options, offset);
+    return buildPeekSequence(tree_nodes[0].next, options, offset, undefined, filter_symbols);
 }
 
 function yieldStatesOfItemsWithSameSymbol(active_items: Item[], options: RenderBodyOptions, offset: number): RecognizerState[] {

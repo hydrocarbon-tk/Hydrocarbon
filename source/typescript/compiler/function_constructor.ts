@@ -12,6 +12,7 @@ import { SC } from "../utilities/skribble.js";
 import { Sym_Is_A_Production } from "../utilities/symbol.js";
 import { Helper } from "./helper.js";
 import { addLeafStatements } from "./states/add_leaf_statements.js";
+import { const_EMPTY_ARRAY } from "./states/const_EMPTY_ARRAY.js";
 import { default_getSelectionClause } from "./states/default_getSelectionClause.js";
 import { processGoTOStates } from "./states/default_state_build.js";
 import { processRecognizerStates } from "./states/process_recognizer_states.js";
@@ -79,9 +80,13 @@ export function compileProductionFunctions(
      * with the matching symbols. Only applies
      * to the first transition encountered.
      */
-    filter_symbols: Symbol[] = []
+    filter_symbols: Symbol[] = const_EMPTY_ARRAY
 ) {
     const
+
+        initial_items = getProductionItemsThatAreNotRightRecursive(productions, grammar),
+
+
 
         RDOptions = generateOptions(
             grammar, runner,
@@ -90,8 +95,10 @@ export function compileProductionFunctions(
 
         rd_states = yieldStates(
             //Filter out items that are left recursive for the given production
-            getProductionItemsThatAreNotRightRecursive(productions, grammar),
-            RDOptions
+            initial_items,
+            RDOptions,
+            0,
+            filter_symbols
         ),
 
         { code: RD_fn_contents, prods: completed_productions, leaves: rd_leaves } = processRecognizerStates(RDOptions, rd_states, default_getSelectionClause),

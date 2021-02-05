@@ -7,6 +7,7 @@ import { getGotoItems, Item, itemsToProductions } from "../../utilities/item.js"
 import { SC } from "../../utilities/skribble.js";
 import { getSymbolsFromClosure } from "../../utilities/symbol.js";
 import { getTransitionTree } from "../../utilities/transition_tree.js";
+import { const_EMPTY_ARRAY } from "./const_EMPTY_ARRAY.js";
 import { createRecognizerState } from "./create_recognizer_state.js";
 import { processProductionChain } from "./process_production_chain.js";
 import { buildPeekSequence } from "./yield_peek_states.js";
@@ -79,14 +80,15 @@ export function yieldCompletedItemStates(end_items: Item[], options: RenderBodyO
                     tree_nodes,
                     options,
                     offset,
-                    -1,
                     (state, options, offset) => {
                         const { items } = state;
                         const selected = items.sort((a, b) => a.body - b.body);
                         state.transition_type = TRANSITION_TYPE.ASSERT_END;
                         state.items = selected.slice(0, 1);
                         state.completing = true;
-                    }));
+                    },
+                    const_EMPTY_ARRAY,
+                    -1));
             } else {
                 default_end_items = end_items;
             }

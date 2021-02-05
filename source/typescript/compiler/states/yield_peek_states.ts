@@ -1,8 +1,10 @@
 import { Grammar } from "../../types/grammar.js";
 import { RecognizerState, TRANSITION_TYPE } from "../../types/recognizer_state.js";
 import { RenderBodyOptions } from "../../types/render_body_options.js";
+import { Symbol } from "../../types/symbol.js";
 import { TransitionTreeNode } from "../../types/transition_tree_nodes";
-import { getSymbolFromUniqueName } from "../../utilities/symbol.js";
+import { getSymbolFromUniqueName, getUniqueSymbolName } from "../../utilities/symbol.js";
+import { const_EMPTY_ARRAY } from "./const_EMPTY_ARRAY.js";
 import { createRecognizerState } from "./create_recognizer_state.js";
 import { processPeekStateLeaf } from "./process_peek_state_leaf.js";
 
@@ -21,13 +23,21 @@ export function buildPeekSequence(
     peek_nodes: TransitionTreeNode[],
     options: RenderBodyOptions,
     offset: number,
+    leafHandler: leafHandler = processPeekStateLeaf,
+    filter_symbols: Symbol[] = const_EMPTY_ARRAY,
     depth: number = 0,
-    leafHandler: leafHandler = processPeekStateLeaf
 ): RecognizerState[] {
 
     const
         output_states: RecognizerState[] = [],
-        peek_groups = peek_nodes.group(getPeekGroupIdentifier);
+        peek_groups = peek_nodes.filter(({ sym }) => {
+            if (filter_symbols.length > 0) {
+                for (const f_sym of filter_symbols)
+                    if (getUniqueSymbolName(f_sym) == sym)
+                        return true;
+            } else return true;
+            return false;
+        }).group(getPeekGroupIdentifier);
 
     for (const group of peek_groups) {
 
@@ -42,7 +52,7 @@ export function buildPeekSequence(
         state.closure = group.flatMap(g => g.starts).setFilter(s => s.id);
 
         if (group[0].next.length > 0)
-            state.states.push(...buildPeekSequence(group[0].next, options, offset, depth + 1, leafHandler));
+            state.states.push(...buildPeekSequence(group[0].next, options, offset, leafHandler, const_EMPTY_ARRAY, depth + 1));
         else
             leafHandler(state, options, offset);
 

@@ -116,6 +116,11 @@ export interface RecognizerState {
      * Flag to prevent repeat processing of the same state
      */
     PROCESSED: boolean;
+
+    /**
+     * Leaf state encountered with sibling leaf states. 
+     */
+    UNRESOLVED_LEAF: boolean;
 }
 
 export interface Leaf {

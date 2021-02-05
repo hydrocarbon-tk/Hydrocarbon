@@ -16,13 +16,13 @@ export function default_getMultiItemLeaf(state: RecognizerState, states: Recogni
 
         items = states.flatMap(s => s.items).setFilter(i => i.id),
 
-        expected_syms = states.flatMap(s => s.symbols).setFilter(getUniqueSymbolName),
+        expected_symbols = states.flatMap(s => s.symbols).setFilter(getUniqueSymbolName),
 
         anchor_state = SC.Variable("anchor_state:unsigned"),
 
         root: SC = (new SC).addStatement(
             items.map(p => p.id).join(">   <"),
-            expected_syms.map(getUniqueSymbolName).join(" "),
+            expected_symbols.map(getUniqueSymbolName).join(" "),
             SC.Declare(
                 SC.Assignment("mk:int", SC.Call("mark")),
                 SC.Assignment("anchor:Lexer", SC.Call(SC.Member(rec_glob_lex_name, "copy"))),
@@ -39,13 +39,13 @@ export function default_getMultiItemLeaf(state: RecognizerState, states: Recogni
     try {
         const
             { grammar } = options,
-            productions: Production[] = createVirtualProductions(items, grammar),
-            its = productions.flatMap(p => getStartItemsFromProduction(p)),
-            closure = getClosure(its, grammar), ;
+            productions: Production[] = createVirtualProductions(items, grammar);
 
 
         const { RDOptions, GOTO_Options, RD_fn_contents, GOTO_fn_contents }
-            = compileProductionFunctions(options.grammar, options.helper, productions);
+            = compileProductionFunctions(options.grammar, options.helper, productions, expected_symbols);
+
+        
 
         root.addStatement(RD_fn_contents, GOTO_fn_contents);
 
