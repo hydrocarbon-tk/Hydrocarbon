@@ -41,7 +41,7 @@ export interface DefinedSymbolBase extends SymbolBase {
      * If the byte_length is more than, then this is the offset of the 
      * character sequence within the character lookup table.
      */
-    lookup_offset: number;
+    byte_offset: number;
 }
 
 export interface DefinedNumericSymbol extends DefinedSymbolBase {

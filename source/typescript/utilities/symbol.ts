@@ -3,22 +3,29 @@ import { Helper } from "../compiler/helper.js";
 import { Grammar } from "../types/grammar.js";
 import {
     AssertionFunctionSymbol,
-    EOFSymbol,
-    GeneratedSymbol,
-    ProductionSymbol,
-    ProductionTokenSymbol,
+
+
+
+
     DefinedCharacterSymbol,
     DefinedIdentifierSymbol,
     DefinedNumericSymbol,
-    DefinedSymbol,
+    DefinedSymbol, EOFSymbol,
+    GeneratedSymbol,
+    ProductionSymbol,
+    ProductionTokenSymbol,
+
+
+
+
     Symbol,
     TokenSymbol
 } from "../types/symbol";
 import { SymbolType } from "../types/symbol_type.js";
 import { getTrueSymbolValue } from "./code_generating.js";
+import { rec_consume_call } from "./global_names.js";
 import { Item } from "./item.js";
 import { ConstSC, SC, StmtSC, VarSC } from "./skribble.js";
-import { rec_consume_call, rec_state } from "./global_names.js";
 
 
 export function characterToUTF8(char: string) {
@@ -191,14 +198,6 @@ export function createNoCheckShift(grammar: Grammar, runner: Helper, lex_name: C
     return SC.Expressions(SC.Call(rec_consume_call, lex_name));
 }
 
-export function createReduceFunction(item: Item, grammar: Grammar): StmtSC {
-    return SC.Expressions(SC.Call(SC.Constant("add_reduce"), rec_state, SC.Value(item.len + ""), SC.Value((item.body_(grammar).reduce_id + 1) + "")));
-}
-
-export function createDefaultReduceFunction(item: Item): StmtSC {
-    return SC.Expressions(SC.Call(SC.Constant("add_reduce"), rec_state, SC.Value(item.len + ""), SC.Value("0")));
-}
-
 export function getSymbolFromUniqueName(grammar: Grammar, name: string): Symbol {
     return grammar.meta.all_symbols.get(name);
 }
@@ -231,6 +230,10 @@ export function Defined_Symbols_Occlude(target: TokenSymbol, potential_occluder:
 
     return true;
 }
+export function Symbols_Are_The_Same(a: Symbol, b: Symbol) {
+    return getUniqueSymbolName(a) == getUniqueSymbolName(b);
+}
+
 export function getUnskippableSymbolsFromClosure(closure: Item[], grammar: Grammar): any {
     return [...new Set(closure.flatMap(i => grammar.item_map.get(i.id).reset_sym)).values()].map(sym => grammar.meta.all_symbols.get(sym));
 }

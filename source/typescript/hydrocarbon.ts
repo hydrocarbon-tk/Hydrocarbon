@@ -5,7 +5,9 @@ import { createGrammar } from "./grammar/compile_grammar.js";
 import { compile } from "./compiler/compiler.js";
 
 //Runtime - Hybrid
-import { buildParserMemoryBuffer, loadWASM } from "./runtime/parser_memory.js";
+import { initializeUTFLookupTable } from "./runtime/parser_memory_new.js";
+import { loadWASM, buildParserMemoryBuffer } from "./runtime/parser_memory_old.js";
+//import { loadWASM } from "./runtime/wasm_loader.js";
 import { ParserFactory } from "./runtime/parser_loader.js";
 
 //Runtime - Deprecate
@@ -17,14 +19,16 @@ import { ParserEnvironment } from "./types/parser_environment.js";
 import { ErrorHandler, ParserData } from "./lr(deprecate)/runtime/parser_data.js";
 
 export {
-    ParserFactory,
     loadWASM,
+    buildParserMemoryBuffer,
+    ParserFactory,
+    //loadWASM,
     ErrorHandler,
     ParserData,
     LexerError,
     ParserEnvironment,
     createGrammar as compileGrammars,
-    buildParserMemoryBuffer,
+    initializeUTFLookupTable,
     lrParse,
     compile
 };

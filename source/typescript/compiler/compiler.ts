@@ -1,13 +1,13 @@
 import spark from "@candlefw/spark";
 import URL from "@candlefw/url";
 import Lexer from "@candlefw/wind";
-import asc, { CompilerOptions } from "assemblyscript/cli/asc";
+import asc from "@assemblyscript/loader";
 import fs from "fs";
 
 import { renderParserScript } from "../render/parser_template.js";
 import { renderAssemblyScriptRecognizer } from "../render/recognizer_template.js";
 
-import { action32bit_array_byte_size_default, buildParserMemoryBuffer, jump16bit_table_byte_size, loadWASM } from "../runtime/parser_memory.js";
+import { initializeUTFLookupTable, } from "../runtime/parser_memory_new.js";
 
 import { HybridCompilerOptions } from "../types/compiler_options";
 import { Grammar } from "../types/grammar.js";
@@ -38,14 +38,14 @@ const
         create_function: false,
         debug: false,
     },
-    action32bit_array_byte_size = action32bit_array_byte_size_default,
+    action32bit_array_byte_size = 0,
     error8bit_array_byte_size = 10 * 4098 * 4,
     AsyncFunction: FunctionConstructor = <any>(async function () { }).constructor;
 
-async function createWebAssemblyRecognizer(code: SC, options: CompilerOptions): Promise<Uint8Array> {
-
+async function createWebAssemblyRecognizer(code: SC, options: HybridCompilerOptions): Promise<Uint8Array> {
+    /*
     await asc.ready;
-
+    
     const
         AssemblyScript = `
     type BooleanTokenCheck = (l:Lexer)=>boolean;
@@ -76,25 +76,27 @@ async function createWebAssemblyRecognizer(code: SC, options: CompilerOptions): 
     if (messages.length > 0) console.log(messages);
 
     return binary;
+    */
 }
 
-function createJSRecognizer(code: SC, options: CompilerOptions): string {
-    return `
-    ((store_data, debug_stack)=>{
-        const data_view = new DataView(store_data);
-        function load(offset){
-            return data_view.getUint16(offset, true);
-        };
-        function store(offset, val){
-            data_view.setUint32(offset, val, true);
-        };
+async function createRustRecognizer() {
+
+}
+
+function createJSRecognizer(code: SC): string {
+    return `(()=>{
         ${Object.assign(new JS, code).renderCode()}
-        return [main];
-    }) `;
+        return { recognizer, init_data, init_table, delete_data };
+    })`;
 }
 
-function createTSRecognizer() {
+function createTSRecognizer(code: SC): string {
+    return `(()=>{
 
+        ${Object.assign(new AS, code).renderCode()}
+
+        return <ParserData>{ recognizer, init_data, init_table, delete_data };
+    })`;
 }
 
 export async function compile(grammar: Grammar, env: GrammarParserEnvironment, options: HybridCompilerOptions):
@@ -181,7 +183,7 @@ export async function compile(grammar: Grammar, env: GrammarParserEnvironment, o
                     "loadWASM",
                     parser_script
                 ))(
-                    buildParserMemoryBuffer,
+                    initializeUTFLookupTable,
                     Lexer,
                     loadWASM
                 );

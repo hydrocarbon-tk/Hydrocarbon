@@ -160,6 +160,12 @@ export type Grammar = Array<Production> & {
      * keyed by an item's id.
      */
     item_map: Map<string, ItemMapEntry>;
+    /**
+     * An byte buffer of all defined characters sequences that can show up in the grammar. 
+     * These are mapped back to DefinedSymbols with the offset indicating where that particular
+     * symbols sequence begins and a the length in bytes of the symbols sequence.
+     */
+    sequence_string: string;
 
 };
 

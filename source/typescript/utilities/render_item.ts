@@ -1,14 +1,15 @@
 import { Grammar } from "../types/grammar";
 import { RenderBodyOptions } from "../types/render_body_options";
 import { ProductionSymbol } from "../types/symbol";
-import { addSkipCallNew, createAssertionShift, renderProductionCall } from "./code_generating.js";
-import { rec_glob_lex_name, rec_state } from "./global_names.js";
+import {
+    createAssertionShift, createDefaultReduceFunction,
+    createReduceFunction, createSkipCall, renderProductionCall
+} from "./code_generating.js";
+import { rec_glob_lex_name } from "./global_names.js";
 import { Item } from "./item.js";
 import { SC, VarSC } from "./skribble.js";
 import {
-    createDefaultReduceFunction,
     createNoCheckShift,
-    createReduceFunction,
     getRootSym,
     getSkippableSymbolsFromItems,
     Sym_Is_A_Production
@@ -127,7 +128,7 @@ export function renderItem(
 
         if (!new_item.atEND) {
             const skippable = getSkippableSymbolsFromItems([new_item], grammar);
-            leaf.addStatement(addSkipCallNew(skippable, grammar, runner, lexer_name));
+            leaf.addStatement(createSkipCall(skippable, grammar, runner, lexer_name));
         }
 
         code_node = renderItem(leaf, item.increment(), options, false, lexer_name);

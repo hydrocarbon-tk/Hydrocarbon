@@ -1,8 +1,8 @@
-
+import { loadWASM } from "./wasm_loader.js";
 import { ParserEnvironment } from "../runtime";
 import { HCGProductionFunction } from "../types/parser";
-import { buildParserMemoryBuffer, loadWASM } from "./parser_memory.js";
-import { Lexer } from "@candlefw/wind";
+import { RecognizeInitializer } from "../types/parser_data";
+import { initializeUTFLookupTable } from "./parser_memory_new.js";
 
 export function ParserFactory<T>(
 
@@ -10,31 +10,10 @@ export function ParserFactory<T>(
 
     wasm_binary_string?: string,
 
-    js_recognizer_loader?: (
-        shared_memory: ArrayBuffer,
-        debug_array: Uint16Array,
-    ) => ((str: string) => boolean),
-
-    memory?: {
-        shared_memory: ArrayBuffer | WebAssembly.Memory;
-        jump_table: Uint16Array;
-        action_array: Uint32Array;
-        error_array: Uint32Array;
-        debug_array: Uint16Array;
-    },
+    js_recognizer_loader?: () => RecognizeInitializer,
 ) {
 
-    let recognizer = (str: string) => false;
-
-    //Load default memory if the calling process has not passed in a memory object;
-    if (!memory) memory = buildParserMemoryBuffer(!wasm_binary_string, 4194304, 163920, 0);
-
-    const { shared_memory, jump_table, action_array, error_array, debug_array } = memory;
-
-    console.log(memory);
-
-    if (!shared_memory || !jump_table || !action_array || !error_array || !debug_array)
-        throw new Error("Invalid memory object");
+    let { recognizer, init_data, init_table, delete_data }: RecognizeInitializer = <any>{};
 
     if (wasm_binary_string) {
         //decompress into buffer
@@ -43,18 +22,27 @@ export function ParserFactory<T>(
         for (let i = 0; i < wasm_binary_string.length; i += 2)
             out[i >> 1] = parseInt(wasm_binary_string.slice(i, i + 2), 16);
 
-        recognizer = loadWASM(out, <WebAssembly.Memory>shared_memory).recognizer;
+        ({ recognizer, init_data, init_table, delete_data } = loadWASM(out));
 
     } else {
         //load javascript data;
-        recognizer = js_recognizer_loader(<ArrayBuffer>shared_memory, debug_array)[0];
+        ({ recognizer, init_data, init_table, delete_data } = js_recognizer_loader());
     }
 
+    initializeUTFLookupTable(init_table());
+
     const parser = function (str: string, env: ParserEnvironment = {}) {
+        const
+            str_len = str.length,
+            str_buffer = str_len + 8,
+            data = init_data(str_len + 8, str_len * 32, 512, 0),
+            { input, rules, debug, error } = data;
+
+        fillByteBufferWithUTF8FromString(str, input, str_buffer);
 
         const
             fns = functions,
-            FAILED = recognizer(str), // call with pointers
+            FAILED = recognizer(data,), // call with pointers
             stack = [];
 
         let action_length = 0,
@@ -103,19 +91,20 @@ export function ParserFactory<T>(
 
             let offset = 0, pos = [];
 
-            for (const action of action_array) {
+            for (const rule of rules) {
+
 
                 action_length++;
 
-                if (action == 0) break;
+                if (rule == 0) break;
 
-                switch (action & 1) {
+                switch (rule & 1) {
                     case 0: //REDUCE;
                         {
                             const
-                                DO_NOT_PUSH_TO_STACK = (action >> 1) & 1,
-                                body = action >> 16,
-                                len = ((action >> 2) & 0x3FFF);
+                                DO_NOT_PUSH_TO_STACK = (rule >> 1) & 1,
+                                body = rule >> 16,
+                                len = ((rule >> 2) & 0x3FFF);
 
                             const pos_a = pos[pos.length - len] || { off: 0, tl: 0 };
                             const pos_b = pos[pos.length - 1] || { off: 0, tl: 0 };
@@ -135,10 +124,10 @@ export function ParserFactory<T>(
 
                     case 1: { //SHIFT;
                         const
-                            has_len = (action >>> 1) & 1,
-                            has_skip = (action >>> 2) & 1,
-                            len = action >>> (3 + (has_skip * 15)),
-                            skip = has_skip * ((action >>> 3) & (~(has_len * 0xFFFF8000)));
+                            has_len = (rule >>> 1) & 1,
+                            has_skip = (rule >>> 2) & 1,
+                            len = rule >>> (3 + (has_skip * 15)),
+                            skip = has_skip * ((rule >>> 3) & (~(has_len * 0xFFFF8000)));
                         offset += skip;
                         if (has_len) {
                             stack.push(str.slice(offset, offset + len));
@@ -153,11 +142,44 @@ export function ParserFactory<T>(
             }
         }
 
-        return { result: stack, FAILED: !!FAILED, action_length, error_message, debug_array };
+        delete_data(data);
+
+        return { result: stack, FAILED: !!FAILED, action_length, error_message };
     };
 
     return {
-        memory,
         parser
     };
 };
+
+
+
+function fillByteBufferWithUTF8FromString(string, buffer: Uint8Array, max_length) {
+
+    let i = 0, j = 0;
+
+    for (; i < string.length && j < max_length - 4; i++) {
+
+        const code_point = string.codePointAt(i);
+
+        if ((code_point & 0x7F) == code_point) {
+            buffer[j++] = (code_point & 0x7F);
+        } else if ((code_point & 0x7FF) == code_point) {
+            buffer[j++] = 0xC0 | ((code_point >> 6) & 0x1F);
+            buffer[j++] = 0x80 | ((code_point & 0x3F));
+        } else if ((code_point & 0xFFFF) == code_point) {
+            buffer[j++] = 0xE0 | ((code_point >> 12) & 0xF);
+            buffer[j++] = 0x80 | ((code_point >> 6) & 0x3F);
+            buffer[j++] = 0x80 | ((code_point & 0x3F));
+            i++;
+        } else {
+            buffer[j++] = 0xF0 | ((code_point >> 18) & 0x7);
+            buffer[j++] = 0x80 | ((code_point >> 12) & 0x3F);
+            buffer[j++] = 0x80 | ((code_point >> 6) & 0x3F);
+            buffer[j++] = 0x80 | ((code_point & 0x3F));
+            i++;
+        }
+    }
+
+    return max_length - j;
+}

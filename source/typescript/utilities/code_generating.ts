@@ -3,36 +3,24 @@ import { Grammar } from "../types/grammar.js";
 import { Production } from "../types/production.js";
 import { RenderBodyOptions } from "../types/render_body_options.js";
 import {
+    DefinedSymbol,
     ProductionTokenSymbol,
     TokenSymbol
 } from "../types/symbol";
 import { SymbolType } from "../types/symbol_type";
-import { rec_consume_assert_call, rec_glob_lex_name, rec_state } from "./global_names.js";
+import { rec_consume_call, rec_glob_data_name, rec_glob_lex_name, rec_state } from "./global_names.js";
+import { Item } from "./item.js";
 import { getProductionClosure, getProductionID } from "./production.js";
 import { ConstSC, ExprSC, SC, StmtSC, VarSC } from "./skribble.js";
 import {
     Defined_Symbols_Occlude,
     getTokenSymbolsFromItems,
     getUniqueSymbolName,
-
     Sym_Is_An_Assert_Function,
-
     Sym_Is_An_Identifier_Generic, Sym_Is_A_Generic_Type,
-
-
-
-    Sym_Is_A_Numeric_Generic, Sym_Is_A_Production_Token,
-
-
-
-
-
-
-    Sym_Is_Consumed, Sym_Is_Not_An_Identifier, Sym_Is_Not_Consumed,
-
-
-
-    Sym_Is_Defined
+    Sym_Is_A_Production_Token,
+    Sym_Is_Consumed,
+    Sym_Is_Defined, Sym_Is_Not_An_Identifier, Sym_Is_Not_Consumed
 } from "./symbol.js";
 
 /**
@@ -40,6 +28,13 @@ import {
  */
 const hash_length = 16;
 
+export function createReduceFunction(item: Item, grammar: Grammar): StmtSC {
+    return SC.Expressions(SC.Call(SC.Constant("add_reduce"), rec_state, rec_glob_data_name, SC.Value(item.len + ""), SC.Value((item.body_(grammar).reduce_id + 1) + "")));
+}
+
+export function createDefaultReduceFunction(item: Item): StmtSC {
+    return SC.Expressions(SC.Call(SC.Constant("add_reduce"), rec_state, rec_glob_data_name, SC.Value(item.len + ""), SC.Value("0")));
+}
 export function generateGUIDConstName(fn_data: SC, prefix: string = "id", type: string = "void") {
     return SC.Constant(`${prefix}_${fn_data.hash().slice(-hash_length)}:${type}`);
 }
@@ -49,7 +44,7 @@ export function getProductionFunctionName(production: Production, grammar: Gramm
 }
 
 export function createAssertionShiftManual(lex_name: ConstSC | VarSC = SC.Variable("l:Lexer"), boolean: ExprSC): ExprSC {
-    return SC.Call(rec_consume_assert_call, lex_name, rec_state, boolean);
+    return SC.Binary(boolean, "&&", SC.Call(rec_consume_call, lex_name, rec_glob_data_name, rec_state));
 }
 export function createAssertionShift(grammar: Grammar, runner: Helper, sym: TokenSymbol, lex_name: ConstSC | VarSC = SC.Variable("l:Lexer")): ExprSC {
     return createAssertionShiftManual(lex_name, getIncludeBooleans([sym], grammar, runner, lex_name));
@@ -66,7 +61,7 @@ export function renderProductionCall(
     called_productions.add(<number>production.id);
 
 
-    return SC.Binary(rec_state, "=", SC.Call(SC.Constant(getProductionFunctionName(production, grammar) + ":unsigned int"), lexer_name, rec_state));
+    return SC.Binary(rec_state, "=", SC.Call(SC.Constant(getProductionFunctionName(production, grammar) + ":unsigned int"), lexer_name, rec_glob_data_name, rec_state));
 }
 
 export function createProductionTokenFunction(tok: ProductionTokenSymbol, grammar: Grammar, runner: Helper): VarSC {
@@ -85,13 +80,15 @@ export function createProductionTokenFunction(tok: ProductionTokenSymbol, gramma
 
         token_function = SC.Function(
             ":bool",
-            "l:Lexer&"
+            rec_glob_lex_name,
+            rec_glob_data_name
         ).addStatement(
             SC.If(boolean).addStatement(
                 SC.Declare(SC.Assignment("c:Lexer", SC.Call(SC.Member("l", "copy")))),
-                SC.If(SC.Call(getProductionFunctionName(production, grammar), "c:Lexer", SC.Call("createState", 0)))
-                    .addStatement(SC.Assignment(SC.Member("l", "tl"),
-                        SC.Binary(SC.Member("c", "off"), "-", SC.Member("l", "off"))),
+                SC.If(SC.Call(getProductionFunctionName(production, grammar), "c:Lexer", rec_glob_data_name, SC.Call("createState", 0)))
+                    .addStatement(
+                        SC.Assignment(SC.Member("l", "token_length"), SC.Binary(SC.Member("c", "token_offset"), "-", SC.Member("l", "token_offset"))),
+                        SC.Assignment(SC.Member("l", "byte_length"), SC.Binary(SC.Member("c", "byte_offset"), "-", SC.Member("l", "byte_offset"))),
                         SC.UnaryPre(SC.Return, SC.True)),
                 SC.Empty()
             ),
@@ -120,8 +117,8 @@ export function translateSymbolValue(sym: TokenSymbol, grammar: Grammar, lex_nam
         annotation = SC.Comment(`[${sanitizeSymbolValForComment(sym)}]`);
 
     if (sym.type == SymbolType.END_OF_FILE || sym.val == "END_OF_FILE")
-        return SC.Call(SC.Member(lex_name, "END"));
-
+        return SC.Call(SC.Member(lex_name, "END"), rec_glob_data_name);
+    const USE_UNICODE = "true";
     switch (sym.type) {
         case SymbolType.PRODUCTION_ASSERTION_FUNCTION:
             if (sym.DOES_SHIFT)
@@ -132,11 +129,11 @@ export function translateSymbolValue(sym: TokenSymbol, grammar: Grammar, lex_nam
 
         case SymbolType.GENERATED:
             switch (sym.val) {
-                case "ws": return SC.UnaryPost(SC.Call(SC.Member(lex_name, SC.Constant("isSP"))), annotation);
-                case "num": return SC.UnaryPost(SC.Call(SC.Member(lex_name, SC.Constant("isNum"))), annotation);
-                case "id": return SC.UnaryPost(SC.Call(SC.Member(lex_name, SC.Constant("isID"))), annotation);
-                case "nl": return SC.UnaryPost(SC.Call(SC.Member(lex_name, SC.Constant("isNL"))), annotation);
-                case "sym": return SC.UnaryPost(SC.Call(SC.Member(lex_name, SC.Constant("isSym"))), annotation);
+                case "ws": return SC.Call(SC.Member(lex_name, SC.Constant("isSP")), USE_UNICODE, rec_glob_data_name);
+                case "num": return SC.Call(SC.Member(lex_name, SC.Constant("isNum")), rec_glob_data_name);
+                case "id": return SC.Call(SC.Member(lex_name, SC.Constant("isUniID")), rec_glob_data_name);
+                case "nl": return SC.Call(SC.Member(lex_name, SC.Constant("isNL")));
+                case "sym": return SC.Call(SC.Member(lex_name, SC.Constant("isSym")), USE_UNICODE, rec_glob_data_name);
                 default: return SC.False; // + annotation;
             }
         case SymbolType.LITERAL:
@@ -152,7 +149,7 @@ export function translateSymbolValue(sym: TokenSymbol, grammar: Grammar, lex_nam
     }
 }
 
-export function addSkipCallNew(
+export function createSkipCall(
     symbols: TokenSymbol[],
     grammar: Grammar,
     runner: Helper,
@@ -163,7 +160,7 @@ export function addSkipCallNew(
     const skips = getSkipFunctionNew(symbols, grammar, runner, undefined, lex_name, exclude);
 
     if (skips)
-        return SC.Expressions(SC.Call(skips, SC.UnaryPost(lex_name, SC.Comment(symbols.map(s => `[ ${s.val} ]`).join("")))));
+        return SC.Expressions(SC.Call(skips, SC.UnaryPost(lex_name, SC.Comment(symbols.map(s => `[ ${s.val} ]`).join(""))), rec_glob_data_name));
 
     return SC.Expressions(SC.Empty());
 }
@@ -186,13 +183,14 @@ export function getSkipFunctionNew(
         skip_function =
             SC.Function(
                 ":Lexer",
-                "l:Lexer&"
+                "l:Lexer&",
+                rec_glob_data_name
             ).addStatement(
                 SC.While(SC.Value(1)).addStatement(
                     custom_skip_code ? custom_skip_code : SC.Empty(),
                     SC.If(SC.UnaryPre("!", SC.Group("(", boolean)))
                         .addStatement(SC.Break),
-                    SC.Call(SC.Member("l", "next")),
+                    SC.Call(SC.Member("l", "next"), rec_glob_data_name),
                 ),
                 SC.UnaryPre(SC.Return, SC.Value("l"))
             ),
@@ -216,7 +214,8 @@ export function createNonCaptureBooleanCheck(symbols: TokenSymbol[], grammar: Gr
 
             SC.If(boolean)
                 .addStatement(
-                    SC.Assignment(SC.Member("l", "tl"), 0),
+                    SC.Assignment(SC.Member("l", "token_length"), 0),
+                    SC.Assignment(SC.Member("l", "byte_length"), 0),
                     SC.UnaryPre(SC.Return, SC.True)
                 ),
             SC.UnaryPre(SC.Return, SC.False)
@@ -226,107 +225,83 @@ export function createNonCaptureBooleanCheck(symbols: TokenSymbol[], grammar: Gr
 
     return <VarSC>runner.add_constant(SF_name, token_function);
 }
-
-export function buildIfs(
-    syms: TokenSymbol[],
+export function* buildSwitchIfs(
+    grammar: Grammar,
+    syms: DefinedSymbol[],
     lex_name: ConstSC | VarSC = SC.Variable("l:Lexer"),
     occluders: TokenSymbol[] = [],
-    off = 0,
-    USE_MAX = false,
-    token_val = "TokenSymbol"
-): SC {
-
-    let HAS_VAL = false;
-    const code_node = new SC;
-    const lex_get_utf = SC.Member(lex_name, "getUTF");
-    const declaration = SC.Declare(
-        SC.Assignment("ACCEPT:bool", "false")
-    );
+    off = 0
+): Generator<{ sym: DefinedSymbol, code_node: SC; }, SC> {
+    const code_node = (new SC);
 
     if (off == 0)
-        code_node.addStatement(declaration);
+        code_node.addStatement(SC.Declare(SC.Assignment("start:unsigned", "l.byte_offset")));
+
+    //Group symbols based on their 
+    let pending_syms = syms
+        .filter(s => typeof s.byte_offset == "number")
+        .filter(s => (s.byte_length - off) > 0)
+        .group(s => s.byte_offset);
+    let leaf = code_node;
+    for (const syms of pending_syms) {
+
+
+        //Construct a compare on the longest string
+        const shortest = syms.sort((a, b) => a.byte_length - b.byte_length)[0];
+        const length = shortest.byte_length - off;
+        const offset = shortest.byte_offset + off;
+
+        const gen = buildSwitchIfs(grammar, syms, lex_name, occluders, off + length);
+
+        let yielded = gen.next();
+        while (!yielded.done) {
+            yield yielded.value;
+            yielded = gen.next();
+        }
+
+        //  console.log({ pending_syms, syms, off, length, g });
+        const _if = SC.If(SC.Binary(length, "==", SC.Call("compare", "data", "start", offset, length)))
+            .addStatement(yielded.value);
+
+        leaf.addStatement(_if);
+        leaf = _if;
+    }
+
+    leaf.addStatement(SC.Empty());
+
 
     for (const sym of syms) {
-        if ((<string>sym.val).length <= off) {
-            code_node.addStatement(
-                SC.Assignment(SC.Member(lex_name, "ty"), "TokenSymbol"),
-                SC.Assignment(SC.Member(lex_name, "tl"), off),
-                SC.Assignment("ACCEPT", "true")
-            );
-        }
+        if (sym.byte_length <= off)
+            yield { sym, code_node };
     }
 
-    const val: string = syms[0].val.toString();
+    return code_node;
+}
+export function buildIfs(
+    grammar: Grammar,
+    syms: DefinedSymbol[],
+    lex_name: ConstSC | VarSC = SC.Variable("l:Lexer"),
+    occluders: TokenSymbol[] = []
+): SC {
 
-    if (syms.length == 1 && val.length > off) {
 
-        const l = val.length - off,
+    const gen = buildSwitchIfs(grammar, syms, lex_name, occluders);
+    let yielded = gen.next();
 
-            booleans = val
-                .slice(off)
-                .split("")
-                .reverse()
-                .map((v, i) => SC.Binary(SC.Call(lex_get_utf, off + l - i - 1), "==", v.codePointAt(0)))
-                .reduce((r, a) => {
-                    if (!r)
-                        return a; return SC.Binary(r, "&&", a);
-                }, null),
-            occlusion_checks = [];
-
-        for (const sym of occluders) {
-            if (Sym_Is_An_Identifier_Generic(sym)) {
-                occlusion_checks.push(SC.Binary(SC.Call(SC.Member(lex_name, "typeAt"), off + l), "!=", "TokenIdentifier"));
-            } else if (Sym_Is_A_Numeric_Generic(sym)) {
-                occlusion_checks.push(SC.Binary(SC.Call(SC.Member(lex_name, "typeAt"), off + l), "!=", "TokenNumber"));
-            } else {
-                const char_code = sym.val.toString().charCodeAt(val.length);
-                occlusion_checks.push(SC.Binary(SC.Call(lex_get_utf, off + l), "!=", char_code));
-            }
-        }
-
-        const check_sequence = occlusion_checks.length > 0
-            ? SC.Binary(convertExpressionArrayToBoolean(occlusion_checks, "&&"), "&&", booleans)
-            : booleans;
-
+    while (!yielded.done) {
+        const { code_node, sym } = yielded.value;
         code_node.addStatement(
-            SC.If(check_sequence)
-                .addStatement(buildIfs(syms, lex_name, occluders, off + l, USE_MAX, token_val), SC.Empty())
+            SC.Assignment(SC.Member(lex_name, "type"), "TokenSymbol"),
+            SC.Assignment(SC.Member(lex_name, "byte_length"), sym.byte_length),
+            SC.Assignment(SC.Member(lex_name, "token_length"), sym.val.length),
+            SC.UnaryPre(SC.Return, SC.True),
         );
-    } else {
-        let first = true;
-        const
-            incremented_syms = syms.filter(s => (<string>s.val).length > off).groupMap(s => s.val[off]),
-            incremented_occluders = occluders.filter(Sym_Is_Defined).filter(s => (<string>s.val).length > off).groupMap(s => s.val[off]),
-            generated_occluders = occluders.filter(Sym_Is_A_Generic_Type);
-
-        let leaf = code_node;
-
-        if (!HAS_VAL)
-            declaration.expressions.push(SC.Assignment("val:unsigned int", 0));
-
-        for (const [key, syms] of incremented_syms.entries()) {
-
-            const occluders = [].concat(incremented_occluders.get(key) || [], generated_occluders);
-
-            if (first && incremented_syms.size > 1)
-                code_node.addStatement(SC.Assignment("val", SC.Call(lex_get_utf, off)));
-
-            first = false;
-
-            const
-                v = syms[0].val[off],
-                _if = SC.If(SC.Binary(incremented_syms.size == 1 ? SC.Call(lex_get_utf, off) : "val", "==", v.codePointAt(0)))
-                    .addStatement(buildIfs(syms, lex_name, occluders, off + 1, USE_MAX, token_val));
-
-            leaf.addStatement(_if);
-            leaf = _if;
-        }
-
-        leaf.addStatement(SC.Empty());
+        yielded = gen.next();
     }
 
-    if (off == 0)
-        code_node.addStatement(SC.UnaryPre(SC.Return, SC.Variable("ACCEPT")));
+    const code_node = yielded.value;
+
+    code_node.addStatement(SC.UnaryPre(SC.Return, SC.True));
 
     return code_node;
 }
@@ -368,8 +343,8 @@ export function getIncludeBooleans(
     if (HAS_GEN_ID)
         id = id.filter(Sym_Is_Not_An_Identifier);
 
-    if (ty.some(Sym_Is_A_Character_Generic))
-        id = id.filter(Sym_Has_Multiple_Characters);
+    // if (ty.some(Sym_Is_A_Symbol_Character))
+    //     id = id.filter(Sym_Has_Multiple_Characters);
 
     if (id.length + ty.length + fn.length + tk.length + non_consume.length == 0)
         return null;
@@ -391,7 +366,7 @@ export function getIncludeBooleans(
 
         const
             booleans = [],
-            char_tuples: [TokenSymbol, TokenSymbol[]][] = [];
+            char_tuples: [DefinedSymbol, TokenSymbol[]][] = [];
 
         let table = 0n, table_syms = [];
 
@@ -403,7 +378,7 @@ export function getIncludeBooleans(
 
             if (occluders.length > 0 || sym.val.length > 1) {
 
-                char_tuples.push(<[TokenSymbol, TokenSymbol[]]>[sym, occluders]);
+                char_tuples.push(<[DefinedSymbol, TokenSymbol[]]>[sym, occluders]);
 
             } else if (char_code < 128) {
 
@@ -412,7 +387,7 @@ export function getIncludeBooleans(
                 table |= 1n << BigInt(char_code);
 
             } else {
-                booleans.push(getLexerUTFBoolean(lex_name, char_code));
+                booleans.push(getLexerByteBoolean(lex_name, char_code));
             }
         }
 
@@ -426,13 +401,29 @@ export function getIncludeBooleans(
 
         for (const { syms, occluders } of char_groups) {
 
-            const
-                fn_lex_name = SC.Constant("l:Lexer"),
-                fn = SC.Function(":boolean", fn_lex_name).addStatement(buildIfs(syms, fn_lex_name, occluders)),
-                node_name = generateGUIDConstName(fn, `defined_token`, "bool"),
-                fn_name = runner.add_constant(node_name, fn);
+            if (syms.length == 1) {
+                const [sym] = syms;
+                if (sym.byte_length == 1) {
+                    const
+                        char_code = sym.val.charCodeAt(0);
+                    booleans.push(getLexerByteBoolean(lex_name, char_code));
+                } else {
+                    booleans.push(SC.UnaryPost(
+                        SC.Call("cmpr_set", lex_name, rec_glob_data_name, sym.byte_offset, sym.byte_length, sym.val.length),
+                        SC.Comment((syms.map(sym => `[${sanitizeSymbolValForComment(sym)}]`).join(" "))))
+                    );
+                }
+            } else {
 
-            booleans.push(SC.UnaryPost(SC.Call(fn_name, lex_name), SC.Comment(syms.map(sym => `[${sanitizeSymbolValForComment(sym)}]`).join(" "))));
+
+                const
+                    fn_lex_name = SC.Constant("l:Lexer"),
+                    fn = SC.Function(":boolean", fn_lex_name, rec_glob_data_name).addStatement(buildIfs(grammar, syms, fn_lex_name, occluders)),
+                    node_name = generateGUIDConstName(fn, `defined_token`, "bool"),
+                    fn_name = runner.add_constant(node_name, fn);
+
+                booleans.push(SC.UnaryPost(SC.Call(fn_name, lex_name, rec_glob_data_name), SC.Comment(syms.map(sym => `[${sanitizeSymbolValForComment(sym)}]`).join(" "))));
+            }
         }
 
         if (table > 0n) {
@@ -440,12 +431,12 @@ export function getIncludeBooleans(
             if (table_syms.length < 3) {
 
                 for (const sym of table_syms)
-                    booleans.push(getLexerUTFBoolean(lex_name, sym.val.charCodeAt(0)));
+                    booleans.push(getLexerByteBoolean(lex_name, sym.val.charCodeAt(0)));
 
             } else {
 
                 booleans.push(
-                    SC.UnaryPost(SC.Call("assert_table", lex_name,
+                    SC.UnaryPost(SC.Call("assert_ascii", lex_name,
                         "0x" + ((table >> 0n) & 0xffffffffn).toString(16),
                         "0x" + ((table >> 32n) & 0xffffffffn).toString(16),
                         "0x" + ((table >> 64n) & 0xffffffffn).toString(16),
@@ -467,7 +458,7 @@ export function getIncludeBooleans(
 
             const
                 fn_name = createProductionTokenFunction(tok, grammar, runner),
-                fn = SC.Call(fn_name, lex_name);
+                fn = SC.Call(fn_name, lex_name, rec_glob_data_name);
 
             out_tk.push(fn);
         }
@@ -483,9 +474,9 @@ function convertExpressionArrayToBoolean(array: ExprSC[], delimiter: string = "|
     }, null));
 }
 
-function getLexerUTFBoolean(lex_name: VarSC | ConstSC, char_code: number, operator: string = "=="): any {
+function getLexerByteBoolean(lex_name: VarSC | ConstSC, char_code: number, operator: string = "=="): any {
     return SC.Binary(
-        SC.Member(lex_name, "utf"),
+        SC.Member(lex_name, "current_byte"),
         operator,
         SC.UnaryPost(
             SC.Value(char_code),

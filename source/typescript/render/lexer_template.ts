@@ -1,8 +1,15 @@
 import { SC } from "../utilities/skribble.js";
 
 export const createLexerCode = (): SC => {
+
+    
     const strCodePointAt = SC.Member("str", "codePointAt");
     return (new SC).addStatement(
+        SC.Value(`
+            
+
+        `),
+        /*
         SC.Function(
             "getTypeAt:unsigned int",
             "code_point:unsigned int"
@@ -207,6 +214,6 @@ export const createLexerCode = (): SC => {
             ).addStatement(
                 SC.UnaryPre(SC.Return, SC.Binary(SC.Member(SC.This(), "off"), ">=", SC.Member("str", "length")))
             ),
-        )
+        )*/
     );
 };

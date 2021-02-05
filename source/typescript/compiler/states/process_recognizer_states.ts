@@ -173,6 +173,13 @@ function* traverseInteriorNodes(
         });
     let i = 0;
     for (const group of sel_group.sort((a, b) => {
+
+        for (const sym_a of a.syms)
+            for (const sym_b of b.syms)
+                if (Defined_Symbols_Occlude(<TokenSymbol>sym_a, <TokenSymbol>sym_b))
+                    return -1;
+
+
         return getGroupScore(a) - getGroupScore(b);
     })) {
         group.FIRST = i++ == 0;

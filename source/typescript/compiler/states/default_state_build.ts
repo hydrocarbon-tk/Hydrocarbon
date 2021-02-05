@@ -1,14 +1,13 @@
 import { Leaf, RecognizerState, TRANSITION_TYPE } from "../../types/recognizer_state.js";
 import { RenderBodyOptions } from "../../types/render_body_options";
 import { MultiItemReturnObject, SelectionClauseGenerator, SingleItemReturnObject } from "../../types/state_generating";
-import { TokenSymbol } from "../../types/symbol.js";
 import { getClosure } from "../../utilities/closure.js";
-import { addSkipCallNew, createAssertionShiftManual, getIncludeBooleans, renderProductionCall } from "../../utilities/code_generating.js";
+import { createSkipCall, getIncludeBooleans, renderProductionCall } from "../../utilities/code_generating.js";
 import { getFollow } from "../../utilities/follow.js";
-import { rec_glob_lex_name, rec_state, rec_state_prod } from "../../utilities/global_names.js";
+import { rec_glob_data_name, rec_glob_lex_name, rec_state, rec_state_prod } from "../../utilities/global_names.js";
 import { Item, itemsToProductions } from "../../utilities/item.js";
 import { renderItem } from "../../utilities/render_item.js";
-import { ConstSC, ExprSC, SC, VarSC } from "../../utilities/skribble.js";
+import { ConstSC, SC, VarSC } from "../../utilities/skribble.js";
 import {
     Defined_Symbols_Occlude, getComplementOfSymbolSets,
     getSkippableSymbolsFromItems,
@@ -22,22 +21,10 @@ import {
     Sym_Is_Defined_Characters, Sym_Is_Defined_Identifier,
     Sym_Is_Defined_Natural_Number
 } from "../../utilities/symbol.js";
+import { default_getSelectionClause } from "./default_getSelectionClause.js";
 import { processProductionChain } from "./process_production_chain.js";
 
 
-// Translate Transition Type
-function ttt(type: TRANSITION_TYPE): string {
-    switch (type) {
-        case TRANSITION_TYPE.ASSERT: return "assert";
-        case TRANSITION_TYPE.IGNORE: return "ignore";
-        case TRANSITION_TYPE.CONSUME: return "consume";
-        case TRANSITION_TYPE.PEEK: return "peek";
-        case TRANSITION_TYPE.ASSERT_END: return "assert-end";
-        case TRANSITION_TYPE.ASSERT_PRODUCTION_SYMBOLS: return "assert-production-closure";
-        case TRANSITION_TYPE.PEEK_PRODUCTION_SYMBOLS: return "peek-production-closure";
-        default: return "unknown";
-    }
-}
 export function default_getSingleItemLeaf(item: Item, state: RecognizerState, options: RenderBodyOptions): SingleItemReturnObject {
 
     const
@@ -46,6 +33,8 @@ export function default_getSingleItemLeaf(item: Item, state: RecognizerState, op
         SHOULD_IGNORE = extended_production_shift_items.some(i => i.body == item.body);
 
     let leaf_code = code, prods = [];
+
+    code.addStatement(`peek_level:${state.peek_level} offset:${state.offset}`);
 
     if (SHOULD_IGNORE) {
         leaf_code.addStatement(SC.Comment("SHOULD IGNORE"));
@@ -80,7 +69,7 @@ export function default_getSingleItemLeaf(item: Item, state: RecognizerState, op
             const
                 skippable = getSkippableSymbolsFromItems([item], grammar),
                 skip = state.transition_type == TRANSITION_TYPE.CONSUME && !item.atEND
-                    ? addSkipCallNew(skippable, grammar, runner, rec_glob_lex_name)
+                    ? createSkipCall(skippable, grammar, runner, rec_glob_lex_name)
                     : undefined;
 
             code.addStatement(skip);
@@ -177,135 +166,6 @@ export function default_getMultiItemLeaf(state: RecognizerState, states: Recogni
     return { root, leaves: out_leaves, prods: out_prods.setFilter() };
 }
 
-export function default_getSelectionClause(
-    gen: SelectionClauseGenerator,
-    state: RecognizerState,
-    items: Item[],
-    level: number,
-    options: RenderBodyOptions,
-    FORCE_ASSERTIONS: boolean = false
-): SC {
-
-    const
-        { grammar, helper: runner } = options,
-        groups = [...gen],
-        all_syms = groups.flatMap(({ syms }) => syms).setFilter(getUniqueSymbolName);
-
-    if (groups.length == 1
-        && !FORCE_ASSERTIONS
-        && (groups[0].transition_types.includes(TRANSITION_TYPE.ASSERT_PRODUCTION_SYMBOLS)))
-        return groups[0].code;
-
-    let
-        root = new SC,
-        leaf = null,
-        mid = root,
-        lex_name = rec_glob_lex_name,
-        peek_name = rec_glob_lex_name;
-
-    const skippable = getSkippableSymbolsFromItems(items, grammar).filter(i => !all_syms.some(j => getSymbolName(i) == getSymbolName(j)));
-
-    if (state.peek_level >= 0) {
-        if (state.peek_level == 1) {
-            peek_name = SC.Variable("pk:Lexer");
-            root.addStatement(SC.Declare(SC.Assignment(peek_name, SC.Call(SC.Member(lex_name, "copy")))));
-        }
-
-        if (state.offset > 0 && state.peek_level == 0) {
-
-            root.addStatement(addSkipCallNew(skippable, grammar, runner, lex_name));
-        } else if (state.peek_level >= 1) {
-
-            peek_name = SC.Variable("pk:Lexer");
-            root.addStatement(addSkipCallNew(skippable, grammar, runner, SC.Call(SC.Member(peek_name, "next"))));
-        }
-    } else if (state.offset > 0) {
-        //Consume
-        root.addStatement(addSkipCallNew(skippable, grammar, runner));
-    }
-
-    for (const { syms, items, code, LAST, FIRST, transition_types } of groups) {
-
-        let gate_block: SC = SC.Empty();
-
-        const transition_type: TRANSITION_TYPE = transition_types[0];
-
-        switch (transition_type) {
-
-            case TRANSITION_TYPE.PEEK:
-            case TRANSITION_TYPE.PEEK_PRODUCTION_SYMBOLS:
-
-                gate_block = (Sym_Is_A_Production(syms[0]))
-                    ? renderProductionCall(grammar[syms[0].val], options, peek_name)
-                    : getIncludeBooleans(<TokenSymbol[]>syms, grammar, runner, peek_name, <TokenSymbol[]>all_syms);
-                break;
-
-            case TRANSITION_TYPE.ASSERT:
-            case TRANSITION_TYPE.ASSERT_PRODUCTION_SYMBOLS:
-            case TRANSITION_TYPE.ASSERT_END:
-
-                gate_block = (Sym_Is_A_Production(syms[0]))
-                    ? renderProductionCall(grammar[syms[0].val], options)
-                    : getIncludeBooleans(<TokenSymbol[]>syms, grammar, runner, peek_name, <TokenSymbol[]>all_syms);
-                break;
-
-            case TRANSITION_TYPE.CONSUME:
-
-                gate_block = (Sym_Is_A_Production(syms[0]))
-                    ? createAssertionShiftManual(rec_glob_lex_name, renderProductionCall(grammar[syms[0].val], options))
-                    : createAssertionShiftManual(rec_glob_lex_name, getIncludeBooleans(<TokenSymbol[]>syms, grammar, runner, lex_name, <TokenSymbol[]>all_syms));
-                break;
-
-            case TRANSITION_TYPE.IGNORE:
-                gate_block = SC.Empty();
-                break;
-        }
-
-        let if_stmt = SC.If(<ExprSC>gate_block);
-
-        const SKIP_BOOL_EXPRESSION = (!FORCE_ASSERTIONS || transition_type == TRANSITION_TYPE.ASSERT_END)
-            && (LAST && !FIRST)
-            && (
-                transition_type == TRANSITION_TYPE.ASSERT_PRODUCTION_SYMBOLS
-                || transition_type == TRANSITION_TYPE.PEEK_PRODUCTION_SYMBOLS
-                || transition_type == TRANSITION_TYPE.ASSERT_END
-            );
-
-        if (SKIP_BOOL_EXPRESSION)
-            if_stmt = SC.If();
-
-        if_stmt.addStatement(
-
-            runner.ANNOTATED ?
-                SC.Comment(transition_types.map(ttt))
-                : undefined,
-            runner.ANNOTATED ?
-                SC.Comment("\n   " + items.map(i => ((transition_type == TRANSITION_TYPE.CONSUME && !i.atEND) ? i.increment() : i)
-                    .renderUnformattedWithProduction(grammar)).join("\n   ") + "\n")
-                : undefined,
-            code,
-            SC.Empty()
-        );
-
-        if (leaf) {
-            leaf.addStatement(if_stmt);
-        } else {
-            mid.addStatement(if_stmt);
-        }
-        leaf = if_stmt;
-    }
-
-    root.addStatement(SC.Empty());
-
-    mid.addStatement(SC.Empty());
-
-    if (leaf)
-        leaf.addStatement(SC.Empty());
-
-    return root;
-}
-
-
 export function processGoTOStates(gen: SelectionClauseGenerator, state: RecognizerState, items: Item[], level: number, options: RenderBodyOptions): SC {
 
     if (state.offset == 0) {
@@ -386,7 +246,7 @@ export function processGoTOStates(gen: SelectionClauseGenerator, state: Recogniz
                     ),
                         checked_symbols = [],
 
-                        GEN_SYM = anticipated_syms.some(Sym_Is_A_Character_Generic),
+                        GEN_SYM = anticipated_syms.some(Sym_Is_A_Symbol_Character),
                         GEN_ID = anticipated_syms.some(Sym_Is_An_Identifier_Generic),
                         GEN_NUM = anticipated_syms.some(Sym_Is_A_Numeric_Generic),
                         CONTAINS_WS = unique_candidates.some(Sym_Is_A_Space_Generic) || !skippable.some(Sym_Is_A_Space_Generic),
@@ -400,12 +260,12 @@ export function processGoTOStates(gen: SelectionClauseGenerator, state: Recogniz
                             checked_symbols.push(s);
                         else if (Sym_Is_A_Generic_Type(s))
                             continue;
-                        else if (Sym_Is_Specified_Characters(s)) {
-                            if (GEN_SYM || anticipated_syms.some(a => Defined_Symbols_Occlude(a, s))) checked_symbols.push(s);
-                        } else if (Sym_Is_Specified_Identifier(s) && !GEN_NL_WS) {
-                            if (GEN_ID || anticipated_syms.some(a => Defined_Symbols_Occlude(a, s))) checked_symbols.push(s);
-                        } else if (Sym_Is_Specified_Natural_Number(s) && !GEN_NL_WS) {
-                            if (GEN_NUM || anticipated_syms.some(a => Defined_Symbols_Occlude(a, s))) checked_symbols.push(s);
+                        else if (Sym_Is_Defined_Characters(s)) {
+                            if (GEN_SYM || anticipated_syms.some(a => Defined_Symbols_Occlude(s, a))) checked_symbols.push(s);
+                        } else if (Sym_Is_Defined_Identifier(s) && !GEN_NL_WS) {
+                            if (GEN_ID || anticipated_syms.some(a => Defined_Symbols_Occlude(s, a))) checked_symbols.push(s);
+                        } else if (Sym_Is_Defined_Natural_Number(s) && !GEN_NL_WS) {
+                            if (GEN_NUM || anticipated_syms.some(a => Defined_Symbols_Occlude(s, a))) checked_symbols.push(s);
                         }
                     }
 
@@ -428,7 +288,7 @@ export function processGoTOStates(gen: SelectionClauseGenerator, state: Recogniz
                 SC.If(SC.Value(keys.pop() + ""))
                     .addStatement(
                         active_items.length > 0 || end_items.length > 1
-                            ? addSkipCallNew(skippable, grammar, runner)
+                            ? createSkipCall(skippable, grammar, runner)
                             : undefined,
                         interrupt_statement,
                         code
@@ -498,7 +358,7 @@ export function completeFunctionProduction(
             leaf.addStatement(createDebugCall(GOTO_Options, "RD return"));
             leaf.addStatement(SC.UnaryPre(SC.Return, rec_state));
         } else {
-            leaf.addStatement(SC.UnaryPre(SC.Return, SC.Call(goto_fn_name, rec_glob_lex_name, rec_state, prods[0])));
+            leaf.addStatement(SC.UnaryPre(SC.Return, SC.Call(goto_fn_name, rec_glob_lex_name, rec_glob_data_name, rec_state, prods[0])));
         }
     }
 

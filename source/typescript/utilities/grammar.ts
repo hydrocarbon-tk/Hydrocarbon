@@ -1,10 +1,10 @@
 import { EOF_SYM, Grammar, ProductionBody } from "../types/grammar.js";
 import { Production } from "../types/production.js";
-import { Symbol } from "../types/symbol";
+import { DefinedSymbol, Symbol } from "../types/symbol";
 import { SymbolType } from "../types/symbol_type";
 import { Item } from "./item.js";
 import { buildItemMap } from "./item_map.js";
-import { getUniqueSymbolName, Sym_Is_A_Production } from "./symbol.js";
+import { getUniqueSymbolName, Sym_Is_A_Production, Sym_Is_A_Symbol_Character, Sym_Is_Defined, Sym_Is_Defined_Characters } from "./symbol.js";
 
 const
     production_stack_arg_name = "sym",
@@ -50,6 +50,68 @@ function addFunctions(funct, production, env) {
             env.FLUT.set(str, name);
         }
     }
+}
+/**
+ * Niave implementation ATM
+ * @param grammar 
+ */
+function createSequenceData(grammar: Grammar, rounds = 2): string {
+
+    const symbols = [...grammar.meta.all_symbols.values()].filter(Sym_Is_Defined);
+
+    let sequence = "";
+
+    let left_overs = [...symbols];
+
+    while (rounds-- > 0) {
+
+        const groups = left_overs
+            .sort((a, b) => (20 * +Sym_Is_Defined_Characters(b)) - (20 * +Sym_Is_Defined_Characters(a)))
+            .group(s => s.val[0]);
+
+        left_overs.length = 0;
+
+        for (const syms of groups) {
+
+            const longest = syms.sort((a, b) => b.val.length - a.val.length)[0];
+
+            sequence = packSymbol(sequence, longest);
+
+            let offset = longest.byte_offset;
+
+            for (const sym of syms) {
+                if (longest == sym) continue;
+                let index = 0;
+                if ((index = longest.val.indexOf(sym.val)) >= 0) {
+                    sym.byte_length = sym.val.length;
+                    sym.byte_offset = offset + index;
+                } else {
+                    left_overs.push(sym);
+                }
+            }
+        }
+    }
+
+    for (const sym of left_overs)
+        sequence = packSymbol(sequence, sym);
+
+    return sequence;
+}
+
+function packSymbol(sequence: string, sym: DefinedSymbol) {
+    let index = 0;
+    if ((index = sequence.indexOf(sym.val)) >= 0) {
+        sym.byte_offset = index;
+        sym.byte_length = sym.val.length;
+    } else if (sequence[sequence.length - 1] == sym.val[0]) {
+        sym.byte_offset = sequence.length - 1;
+        sequence += sym.val.slice(1);
+    } else {
+        sym.byte_offset = sequence.length;
+        sym.byte_length = sym.val.length;
+        sequence += sym.val;
+    }
+    return sequence;
 }
 
 export function getPrecedence(term, grammar) {
@@ -166,9 +228,9 @@ export function completeGrammar(grammar: Grammar, env) {
     grammar.meta = Object.assign({}, grammar.meta, { all_symbols: symbols, reduce_functions: reduce_lu });
     grammar.bodies = bodies;
     grammar.item_map = null;
-
+    grammar.sequence_string = createSequenceData(grammar);
+    console.log(grammar.sequence_string);
     buildItemMap(grammar);
-
     return grammar;
 }
 

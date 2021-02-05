@@ -3,20 +3,22 @@ import { Grammar } from "../types/grammar.js";
 import { Production } from "../types/production";
 import { RDProductionFunction } from "../types/rd_production_function";
 import { RenderBodyOptions } from "../types/render_body_options";
+import { getProductionFunctionName } from "../utilities/code_generating.js";
 import {
+    rec_glob_data_name,
     rec_glob_lex_name,
     rec_state
 } from "../utilities/global_names.js";
 import { Item } from "../utilities/item.js";
+import { getProductionClosure } from "../utilities/production.js";
 import { SC } from "../utilities/skribble.js";
 import { Sym_Is_A_Production } from "../utilities/symbol.js";
 import { Helper } from "./helper.js";
+import { default_getSelectionClause } from "./states/default_getSelectionClause.js";
+import { completeFunctionProduction, createDebugCall, processGoTOStates } from "./states/default_state_build.js";
 import { processRecognizerStates } from "./states/process_recognizer_states.js";
-import { completeFunctionProduction, createDebugCall, default_getSelectionClause, processGoTOStates } from "./states/default_state_build.js";
 import { yieldGotoStates } from "./states/yield_goto_states.js";
 import { yieldStates } from "./states/yield_states.js";
-import { getProductionFunctionName } from "../utilities/code_generating.js";
-import { getProductionClosure } from "../utilities/production.js";
 export const accept_loop_flag = SC.Variable("ACCEPT:boolean");
 
 export function generateOptions(
@@ -65,6 +67,7 @@ export function getProductionItemsThatAreNotRightRecursive(p: Production, gramma
 export function constructHybridFunction(production: Production, grammar: Grammar, runner: Helper): RDProductionFunction {
 
     const
+        data_name = rec_glob_data_name,
 
         rd_fn_name = SC.Constant(getProductionFunctionName(production, grammar) + ":unsigned int"),
 
@@ -75,11 +78,13 @@ export function constructHybridFunction(production: Production, grammar: Grammar
         code_node_rd = SC.Function(
             rd_fn_name,
             rec_glob_lex_name,
+            data_name,
             rec_state),
 
         code_node_goto = SC.Function(
             goto_fn_name,
             rec_glob_lex_name,
+            data_name,
             rec_state,
             SC.Variable("prod:int")
         ),
