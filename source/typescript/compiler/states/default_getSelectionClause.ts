@@ -2,7 +2,7 @@ import { RecognizerState, TRANSITION_TYPE } from "../../types/recognizer_state.j
 import { RenderBodyOptions } from "../../types/render_body_options";
 import { SelectionClauseGenerator, SelectionGroup } from "../../types/state_generating";
 import { DefinedSymbol, Symbol, TokenSymbol } from "../../types/symbol.js";
-import { createSkipCall, buildIfs, createAssertionShiftManual, getIncludeBooleans, renderProductionCall, generateGUIDConstName, buildSwitchIfs } from "../../utilities/code_generating.js";
+import { buildSwitchIfs, createAssertionShiftManual, createSkipCall, generateGUIDConstName, getIncludeBooleans, renderProductionCall } from "../../utilities/code_generating.js";
 import { rec_glob_data_name, rec_glob_lex_name } from "../../utilities/global_names.js";
 import { Item } from "../../utilities/item.js";
 import { ExprSC, SC, VarSC } from "../../utilities/skribble.js";

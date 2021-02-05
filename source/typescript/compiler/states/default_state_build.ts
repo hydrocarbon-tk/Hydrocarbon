@@ -1,13 +1,13 @@
-import { Leaf, RecognizerState, TRANSITION_TYPE } from "../../types/recognizer_state.js";
+import { RecognizerState, TRANSITION_TYPE } from "../../types/recognizer_state.js";
 import { RenderBodyOptions } from "../../types/render_body_options";
-import { MultiItemReturnObject, SelectionClauseGenerator, SingleItemReturnObject } from "../../types/state_generating";
+import { SelectionClauseGenerator, SingleItemReturnObject } from "../../types/state_generating";
 import { getClosure } from "../../utilities/closure.js";
 import { createSkipCall, getIncludeBooleans, renderProductionCall } from "../../utilities/code_generating.js";
 import { getFollow } from "../../utilities/follow.js";
-import { rec_glob_data_name, rec_glob_lex_name, rec_state, rec_state_prod } from "../../utilities/global_names.js";
+import { rec_glob_lex_name, rec_state, rec_state_prod } from "../../utilities/global_names.js";
 import { Item, itemsToProductions } from "../../utilities/item.js";
 import { renderItem } from "../../utilities/render_item.js";
-import { ConstSC, ExprSC, SC, VarSC } from "../../utilities/skribble.js";
+import { SC } from "../../utilities/skribble.js";
 import {
     Defined_Symbols_Occlude, getComplementOfSymbolSets,
     getSkippableSymbolsFromItems,
@@ -15,9 +15,11 @@ import {
     getSymbolsFromClosure,
     getUniqueSymbolName,
     Sym_Is_An_Identifier_Generic,
-    Sym_Is_A_Symbol_Character, Sym_Is_A_Generic_Type,
+    Sym_Is_A_Generic_Type,
     Sym_Is_A_Newline_Generic,
-    Sym_Is_A_Numeric_Generic, Sym_Is_A_Space_Generic,
+    Sym_Is_A_Numeric_Generic, Sym_Is_A_Space_Generic, Sym_Is_A_Symbol_Character,
+
+
     Sym_Is_Defined_Characters, Sym_Is_Defined_Identifier,
     Sym_Is_Defined_Natural_Number
 } from "../../utilities/symbol.js";
@@ -94,76 +96,6 @@ export function default_getSingleItemLeaf(item: Item, state: RecognizerState, op
             transition_type: state.transition_type
         }
     };
-}
-
-export function default_getMultiItemLeaf(state: RecognizerState, states: RecognizerState[], options: RenderBodyOptions): MultiItemReturnObject {
-
-    const
-
-        anchor_state = SC.Variable("anchor_state:unsigned"),
-
-        root: SC = (new SC).addStatement(
-            SC.Declare(
-                SC.Assignment("mk:int", SC.Call("mark")),
-                SC.Assignment("anchor:Lexer", SC.Call(SC.Member(rec_glob_lex_name, "copy"))),
-                SC.Assignment(anchor_state, rec_state)
-            )
-        ),
-
-        IS_LEFT_RECURSIVE_WITH_FOREIGN_PRODUCTION_ITEMS = states.some(i => i.transition_type == TRANSITION_TYPE.IGNORE),
-
-        out_prods: number[] = [],
-        out_leaves: Leaf[] = [];
-
-    let leaf = root, FIRST = true, prev_prods = [];
-
-    for (const { code, items, prods, leaves } of states.filter(i => i.transition_type !== TRANSITION_TYPE.IGNORE)) {
-
-        out_prods.push(...prods);
-        out_leaves.push(...leaves);
-
-        leaf.addStatement(SC.Comment(items));
-
-        if (FIRST) {
-
-            leaf.addStatement(
-                SC.Comment(prods),
-                code
-            );
-
-        } else {
-            leaf.addStatement(
-                SC.Assignment(rec_state, SC.Call(
-                    "reset:bool",
-                    "mk",
-                    "anchor:Lexer",
-                    rec_glob_lex_name,
-                    anchor_state
-                )),
-                code,
-                SC.Empty()
-            );
-
-        }
-        prev_prods = prods;
-
-        FIRST = false;
-    }
-
-    if (IS_LEFT_RECURSIVE_WITH_FOREIGN_PRODUCTION_ITEMS) {
-        leaf.addStatement(
-            SC.Assignment(rec_state, SC.Call(
-                "reset:bool",
-                "mk",
-                "anchor:Lexer",
-                rec_glob_lex_name,
-                anchor_state
-            )),
-            SC.Empty()
-        );
-    }
-
-    return { root, leaves: out_leaves, prods: out_prods.setFilter() };
 }
 
 export function processGoTOStates(gen: SelectionClauseGenerator, state: RecognizerState, items: Item[], level: number, options: RenderBodyOptions): SC {
@@ -325,87 +257,7 @@ function compareStringsForSort(strA: any, strB: any): number {
             : 0;
 }
 
-/**
- * Adds code to end states
- * 
- * If a production shift section is present, then leaf states in RD 
- * section are appended  with a prod assignment. Additionally, a
- * local prod variable is declared at the head of the production 
- * function, and a call to assertSuccess is appended to the tail. 
- * 
- * If the production shift section is absent then leaf states simply 
- * return `true`. A `return false` statement is appended to the end
- * of the production function;
- * 
- * *leaf state* - Any sequence of transitions yields a
- * single item
- * 
- * @param production_function_root_rd - The root skribble node for the production function
- * @param RDOptions - Options from the RD yielder
- * @param GOTO_Options - Options from the GOTO yielder
- */
-export function completeFunctionProduction(
-    production_function_root_rd: SC,
-    production_function_root_goto: SC,
-    rd_fn_name: VarSC | ConstSC,
-    goto_fn_name: VarSC | ConstSC,
-    RDOptions: RenderBodyOptions,
-    GOTO_Options: RenderBodyOptions) {
-    const
-        { leaves: rd_leaves, production_ids } = RDOptions,
-        { leaves: goto_leaves, NO_GOTOS } = GOTO_Options;
-
-    for (const rd_leaf of rd_leaves) {
-        const { leaf, prods } = rd_leaf;
-
-        //@ts-ignore
-        if (rd_leaf.SET) continue;
-
-        //@ts-ignore
-        rd_leaf.SET = true;
-
-        if (NO_GOTOS) {
-            leaf.addStatement(createDebugCall(GOTO_Options, "RD return"));
-            leaf.addStatement(SC.UnaryPre(SC.Return, rec_state));
-        } else {
-            leaf.addStatement(SC.UnaryPre(SC.Return, SC.Call(goto_fn_name, rec_glob_lex_name, rec_glob_data_name, rec_state, prods[0])));
-        }
-    }
-
-    if (!NO_GOTOS)
-
-        for (const goto_leaf of goto_leaves) {
-
-            const { leaf, prods, transition_type } = goto_leaf;
-
-            //@ts-ignore
-            if (goto_leaf.SET) continue;
-
-            //@ts-ignore
-            goto_leaf.SET = true;
-
-            if (
-                transition_type == TRANSITION_TYPE.ASSERT_END
-                &&
-                production_ids.includes(prods[0])
-                &&
-                production_ids.some(p_id => goto_leaf.keys.includes(p_id))
-            ) {
-                leaf.addStatement(createDebugCall(GOTO_Options, "Inter return"));
-                leaf.addStatement(SC.UnaryPre(SC.Return, rec_state));
-            } else if (transition_type !== TRANSITION_TYPE.IGNORE) {
-                leaf.addStatement(SC.Assignment(rec_state_prod, prods[0]));
-                leaf.addStatement(SC.Value("continue"));
-            }
-        }
-
-    production_function_root_rd.addStatement(SC.UnaryPre(SC.Return, SC.Value("0")));
-
-    if (!NO_GOTOS)
-        production_function_root_goto.addStatement(addClauseSuccessCheck(RDOptions));
-}
-
-function addClauseSuccessCheck(options: RenderBodyOptions): SC {
+export function addClauseSuccessCheck(options: RenderBodyOptions): SC {
     const { productions } = options;
     const condition = productions.map(p => (SC.Binary(rec_state_prod, "==", SC.Value(p.id)))).reduce(reduceOR);
     return SC.UnaryPre(SC.Return, SC.Call("assertSuccess", rec_glob_lex_name, rec_state, condition));
