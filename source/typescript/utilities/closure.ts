@@ -2,6 +2,7 @@ import { getGotoItems, Item, itemsToProductions } from "./item.js";
 import { Grammar } from "../types/grammar.js";
 import { getSymbolsFromClosure, Sym_Is_A_Production_Token } from "./symbol.js";
 import { getProductionClosure, getProductionID } from "./production.js";
+import { getStartItemsFromProduction } from "../compiler/function_constructor.js";
 
 /**
  * Get set of all items that can be derived from the parameter items.
@@ -52,7 +53,7 @@ export function getClosure(items: Item[], grammar: Grammar, ENTER_TOKEN_PRODUCTI
 
                     const prod = grammar[getProductionID(sym, grammar)];
 
-                    const tk_closure = getClosure(prod.bodies.map(b => new Item(b.id, b.length, 0)), grammar, true, internal$item_track);
+                    const tk_closure = getClosure(getStartItemsFromProduction(prod), grammar, true, internal$item_track);
 
                     modified_closure.push(...tk_closure.map(i => i.id));
 

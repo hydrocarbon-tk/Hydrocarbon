@@ -21,7 +21,7 @@ export function constructHybridFunction(production: Production, grammar: Grammar
 
     const
 
-        rd_fn_name = SC.Constant(getProductionFunctionName(production, grammar) + ":unsigned int") /* skrb_id `${name}:unsigned`  */ ,
+        rd_fn_name = SC.Constant(getProductionFunctionName(production, grammar) + ":unsigned int") /* skrb_id `${name}:unsigned`  */,
 
         goto_fn_name = SC.Constant(getProductionFunctionName(production, grammar) + "_goto:unsigned int"),
 
@@ -55,7 +55,7 @@ export function constructHybridFunction(production: Production, grammar: Grammar
     const annotation = SC.Expressions(SC.Comment(
         `production name: ${production.name}
             grammar index: ${production.id}
-            bodies:\n\t${getItemsFromProduction(production).map(i => i.renderUnformattedWithProduction(grammar) + " - " + grammar.item_map.get(i.id).reset_sym.join(",")).join("\n\t\t")}
+            bodies:\n\t${getStartItemsFromProduction(production).map(i => i.renderUnformattedWithProduction(grammar) + " - " + grammar.item_map.get(i.id).reset_sym.join(",")).join("\n\t\t")}
             compile time: ${((((performance.now() - start) * 1000) | 0) / 1000)}ms`));
 
     return {
@@ -140,12 +140,12 @@ export function getGotoItemsFromProductionClosure(production: Production, gramma
     return getProductionClosure(production.id, grammar).filter(i => !i.atEND && Sym_Is_A_Production(i.sym(grammar)));
 }
 
-export function getItemsFromProduction(production: Production): Item[] {
+export function getStartItemsFromProduction(production: Production): Item[] {
     return production.bodies.map(b => new Item(b.id, b.length, 0));
 }
 
 export function getProductionItemsThatAreNotRightRecursive(productions: Production[], grammar: Grammar): Item[] {
-    return productions.flatMap(p => getItemsFromProduction(p).filter(i => {
+    return productions.flatMap(p => getStartItemsFromProduction(p).filter(i => {
 
         const sym = i.sym(grammar);
 

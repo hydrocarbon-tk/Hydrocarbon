@@ -1,3 +1,4 @@
+import { getStartItemsFromProduction } from "../compiler/function_constructor.js";
 import { EOF_SYM, Grammar } from "../types/grammar.js";
 import { ProductionSymbol, ProductionTokenSymbol } from "../types/symbol";
 import { SymbolType } from "../types/symbol_type";
@@ -7,7 +8,7 @@ import { Item } from "./item.js";
 
 export function getProductionClosure(production_id: number, grammar: Grammar, ENTER_TOKEN_PRODUCTIONS: boolean = false) {
     const prod = grammar[production_id];
-    return getClosure(prod.bodies.map(b => new Item(b.id, b.length, 0, EOF_SYM)), grammar, ENTER_TOKEN_PRODUCTIONS);
+    return getClosure(getStartItemsFromProduction(prod), grammar, ENTER_TOKEN_PRODUCTIONS);
 }
 
 export function doesProductionHaveEmpty(production_id: number, grammar: Grammar) {

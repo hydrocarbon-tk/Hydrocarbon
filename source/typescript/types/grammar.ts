@@ -77,8 +77,8 @@ export interface Preamble {
 }
 
 export interface ItemMapEntry {
-    item: Item;
-    reset_sym: string[];
+item: Item;
+reset_sym: string[];
     /**
      * List of all items that can be derived from this item
      */
@@ -94,7 +94,7 @@ export interface ItemMapEntry {
      * Measure of the number of steps need to reach
      * this item from the root production
      */
-    depth: number;
+    depth?: number;
 
     /**
      * Symbols that can be skipped over at this item

@@ -3,7 +3,7 @@ import { Production } from "../types/production.js";
 import { DefinedSymbol, Symbol } from "../types/symbol";
 import { SymbolType } from "../types/symbol_type";
 import { Item } from "./item.js";
-import { buildItemMap } from "./item_map.js";
+import { buildItemMaps } from "./item_map.js";
 import { getUniqueSymbolName, Sym_Is_A_Production, Sym_Is_A_Symbol_Character, Sym_Is_Defined, Sym_Is_Defined_Characters } from "./symbol.js";
 
 const
@@ -230,7 +230,7 @@ export function completeGrammar(grammar: Grammar, env) {
     grammar.item_map = null;
     grammar.sequence_string = createSequenceData(grammar);
     console.log(grammar.sequence_string);
-    buildItemMap(grammar);
+    buildItemMaps(grammar);
     return grammar;
 }
 
