@@ -20,7 +20,12 @@ export interface RenderBodyOptions {
     /**
      * Production currently being processed
      */
-    production?: Production;
+    productions?: Production[];
+
+    /**
+     * Ids of all productions
+     */
+    production_ids: number[],
 
     /**
      * List of all production ids whose production function is called

@@ -25,7 +25,7 @@ export function yieldStates(
 ): RecognizerState[] {
 
     const
-        { grammar, production } = options,
+        { grammar, production_ids } = options,
         output_states: RecognizerState[] = [],
         end_items = in_items.filter(i => i.atEND),
         active_items = in_items.filter(i => !i.atEND);
@@ -49,7 +49,7 @@ export function yieldStates(
             ITEMS_HAVE_A_MAX_OFFSET_OF_ZERO = max_item_offset == 0,
             ALL_ITEMS_ARE_FROM_SAME_PRODUCTION = Items_Are_From_Same_Production(active_items, grammar),
             ALL_ITEMS_HAVE_SAME_SYMBOL = Items_Have_The_Same_Active_Symbol(active_items, grammar),
-            ALL_ITEMS_ARE_FROM_ROOT_PRODUCTION = ALL_ITEMS_ARE_FROM_SAME_PRODUCTION && first_production.id == production.id,
+            ALL_ITEMS_ARE_FROM_ROOT_PRODUCTION = ALL_ITEMS_ARE_FROM_SAME_PRODUCTION && production_ids.includes(first_production.id),
             ITEMS_SHOULD_CREATE_SHIFT_STATES = (offset > 0 || ALL_ITEMS_ARE_FROM_ROOT_PRODUCTION || ALL_ITEMS_ARE_FROM_SAME_PRODUCTION);
 
 

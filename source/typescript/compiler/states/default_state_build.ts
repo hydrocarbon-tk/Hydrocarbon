@@ -7,7 +7,7 @@ import { getFollow } from "../../utilities/follow.js";
 import { rec_glob_data_name, rec_glob_lex_name, rec_state, rec_state_prod } from "../../utilities/global_names.js";
 import { Item, itemsToProductions } from "../../utilities/item.js";
 import { renderItem } from "../../utilities/render_item.js";
-import { ConstSC, SC, VarSC } from "../../utilities/skribble.js";
+import { ConstSC, ExprSC, SC, VarSC } from "../../utilities/skribble.js";
 import {
     Defined_Symbols_Occlude, getComplementOfSymbolSets,
     getSkippableSymbolsFromItems,
@@ -28,7 +28,7 @@ import { processProductionChain } from "./process_production_chain.js";
 export function default_getSingleItemLeaf(item: Item, state: RecognizerState, options: RenderBodyOptions): SingleItemReturnObject {
 
     const
-        { grammar, helper: runner, leaf_productions, production, extended_goto_items: extended_production_shift_items, leaves } = options,
+        { grammar, helper: runner, leaf_productions, productions: production, production_ids, extended_goto_items: extended_production_shift_items, leaves } = options,
         code = state.code || new SC,
         SHOULD_IGNORE = extended_production_shift_items.some(i => i.body == item.body);
 
@@ -54,7 +54,7 @@ export function default_getSingleItemLeaf(item: Item, state: RecognizerState, op
         item = item.increment();
 
     if (item) {
-        if (item.len > 0 && item.offset == 0 && (item.getProduction(grammar).id != production.id || state.offset > 0)) {
+        if (item.len > 0 && item.offset == 0 && (!production_ids.includes(item.getProduction(grammar).id) || state.offset > 0)) {
 
             const bool = renderProductionCall(item.getProduction(grammar), options, rec_glob_lex_name);
 
@@ -171,12 +171,14 @@ export function processGoTOStates(gen: SelectionClauseGenerator, state: Recogniz
     if (state.offset == 0) {
 
         const
-            { grammar, production, helper: runner } = options,
+            { grammar, helper: runner, production_ids } = options,
             goto_groups = [...gen];
 
         let switch_stmt: SC = SC.Switch(rec_state_prod);
 
-        for (const { syms, items, code, hash, leaves } of goto_groups.sort((a, b) => a.syms[0] - b.syms[0])) {
+        for (const { syms, items, code, hash, leaves } of goto_groups.sort(
+            (a, b) => compareStringsForSort(<any>a.syms[0].val, <any>b.syms[0].val))
+        ) {
 
             let anticipated_syms;
 
@@ -200,7 +202,7 @@ export function processGoTOStates(gen: SelectionClauseGenerator, state: Recogniz
                 /**
                  * Create look ahead for a preemptive reduce on keys that match the production id
                  */
-                if (keys.some(k => k == production.id)) {
+                if (keys.some(k => production_ids.includes(k))) {
 
                     /**
                     *   Criteria for checked symbols 
@@ -315,6 +317,14 @@ export function processGoTOStates(gen: SelectionClauseGenerator, state: Recogniz
 
     return default_getSelectionClause(gen, state, items, level, options, state.offset <= 1);
 }
+function compareStringsForSort(strA: any, strB: any): number {
+    return (strA > strB)
+        ? 1
+        : (strA < strB)
+            ? -1
+            : 0;
+}
+
 /**
  * Adds code to end states
  * 
@@ -342,8 +352,8 @@ export function completeFunctionProduction(
     RDOptions: RenderBodyOptions,
     GOTO_Options: RenderBodyOptions) {
     const
-        { leaves: rd_leaves, production } = RDOptions,
-        { leaves: goto_leaves, NO_GOTOS: NO_PRODUCTION_SHIFTS } = GOTO_Options;
+        { leaves: rd_leaves, production_ids } = RDOptions,
+        { leaves: goto_leaves, NO_GOTOS } = GOTO_Options;
 
     for (const rd_leaf of rd_leaves) {
         const { leaf, prods } = rd_leaf;
@@ -354,7 +364,7 @@ export function completeFunctionProduction(
         //@ts-ignore
         rd_leaf.SET = true;
 
-        if (NO_PRODUCTION_SHIFTS) {
+        if (NO_GOTOS) {
             leaf.addStatement(createDebugCall(GOTO_Options, "RD return"));
             leaf.addStatement(SC.UnaryPre(SC.Return, rec_state));
         } else {
@@ -362,7 +372,7 @@ export function completeFunctionProduction(
         }
     }
 
-    if (!NO_PRODUCTION_SHIFTS)
+    if (!NO_GOTOS)
 
         for (const goto_leaf of goto_leaves) {
 
@@ -377,9 +387,9 @@ export function completeFunctionProduction(
             if (
                 transition_type == TRANSITION_TYPE.ASSERT_END
                 &&
-                prods[0] == production.id
+                production_ids.includes(prods[0])
                 &&
-                goto_leaf.keys.includes(production.id)
+                production_ids.some(p_id => goto_leaf.keys.includes(p_id))
             ) {
                 leaf.addStatement(createDebugCall(GOTO_Options, "Inter return"));
                 leaf.addStatement(SC.UnaryPre(SC.Return, rec_state));
@@ -391,19 +401,24 @@ export function completeFunctionProduction(
 
     production_function_root_rd.addStatement(SC.UnaryPre(SC.Return, SC.Value("0")));
 
-    if (!NO_PRODUCTION_SHIFTS)
+    if (!NO_GOTOS)
         production_function_root_goto.addStatement(addClauseSuccessCheck(RDOptions));
 }
 
 function addClauseSuccessCheck(options: RenderBodyOptions): SC {
-    const { production } = options;
-    const condition = SC.Binary(rec_state_prod, "==", SC.Value(production.id));
+    const { productions } = options;
+    const condition = productions.map(p => (SC.Binary(rec_state_prod, "==", SC.Value(p.id)))).reduce(reduceOR);
     return SC.UnaryPre(SC.Return, SC.Call("assertSuccess", rec_glob_lex_name, rec_state, condition));
+}
+
+function reduceOR<T>(red: T, exp: T, i: number): T {
+    if (!red) return exp;
+    return <T><any>SC.Binary(<any>red, "||", <any>exp);
 }
 
 export function createDebugCall(options: RenderBodyOptions, action_name, debug_items: Item[] = []) {
 
-    const { production, helper: runner } = options;
+    const { productions: production, helper: runner } = options;
     return SC.Empty();
     if (runner.DEBUG)
         return SC.Value(`debug_add_header(0,l.getOffsetRegionDelta(),0,0,0,0)`);

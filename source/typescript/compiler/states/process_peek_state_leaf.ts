@@ -148,10 +148,10 @@ function Active_Symbol_Of_First_Item_Is_A_Production(state: RecognizerState, gra
     return Sym_Is_A_Production(state.items[0].sym(grammar));
 }
 
-function We_Can_Call_Single_Production_From_Items({ items }: RecognizerState, { grammar, production }: RenderBodyOptions) {
+function We_Can_Call_Single_Production_From_Items({ items }: RecognizerState, { grammar, production_ids }: RenderBodyOptions) {
     return getMaxOffsetOfItems(items) == 0
         && Items_Are_From_Same_Production(items, grammar)
-        && getProductionID(items[0], grammar) != production.id;
+        && !production_ids.includes(getProductionID(items[0], grammar));
 }
 
 function State_Closure_Allows_Production_Call({ closure }: RecognizerState, { grammar }: RenderBodyOptions) {
@@ -169,10 +169,10 @@ function No_Matching_Extended_Goto_Item_In_State_Closure(state: RecognizerState,
 
 function Items_From_Same_Production_Allow_Production_Call(state: RecognizerState, options: RenderBodyOptions, offset: number) {
     const
-        { production, grammar } = options,
+        { production_ids, grammar } = options,
         ITEMS_ARE_FROM_SAME_PRODUCTION = Items_Are_From_Same_Production(state.items, grammar),
         [first] = state.items,
         prod = first.getProduction(grammar);
 
-    return offset == 0 && ITEMS_ARE_FROM_SAME_PRODUCTION && prod.id !== production.id;
+    return offset == 0 && ITEMS_ARE_FROM_SAME_PRODUCTION && !production_ids.includes(prod.id);
 }

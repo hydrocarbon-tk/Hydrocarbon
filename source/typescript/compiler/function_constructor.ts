@@ -11,11 +11,11 @@ import {
 } from "../utilities/global_names.js";
 import { Item } from "../utilities/item.js";
 import { getProductionClosure } from "../utilities/production.js";
-import { SC } from "../utilities/skribble.js";
+import { ConstSC, SC, VarSC } from "../utilities/skribble.js";
 import { Sym_Is_A_Production } from "../utilities/symbol.js";
 import { Helper } from "./helper.js";
 import { default_getSelectionClause } from "./states/default_getSelectionClause.js";
-import { completeFunctionProduction, createDebugCall, processGoTOStates } from "./states/default_state_build.js";
+import { completeFunctionProduction, processGoTOStates } from "./states/default_state_build.js";
 import { processRecognizerStates } from "./states/process_recognizer_states.js";
 import { yieldGotoStates } from "./states/yield_goto_states.js";
 import { yieldStates } from "./states/yield_states.js";
@@ -27,13 +27,14 @@ export function generateOptions(
     /**
      * The production currently being processed.
      */
-    production: Production
+    productions: Production[]
 ): RenderBodyOptions {
     return {
         grammar,
         helper: runner,
-        production,
-        goto_items: getGotoItemsFromProductionClosure(production, grammar),
+        productions: productions,
+        production_ids: productions.map(p => p.id),
+        goto_items: productions.flatMap(p => getGotoItemsFromProductionClosure(p, grammar)).setFilter(i => i.id),
         extended_goto_items: [],
         called_productions: new Set(),
         leaf_productions: new Set(),
@@ -52,8 +53,8 @@ export function getItemsFromProduction(production: Production): Item[] {
     return production.bodies.map(b => new Item(b.id, b.length, 0));
 }
 
-export function getProductionItemsThatAreNotRightRecursive(p: Production, grammar: Grammar): Item[] {
-    return getItemsFromProduction(p).filter(i => {
+export function getProductionItemsThatAreNotRightRecursive(productions: Production[], grammar: Grammar): Item[] {
+    return productions.flatMap(p => getItemsFromProduction(p).filter(i => {
 
         const sym = i.sym(grammar);
 
@@ -61,13 +62,12 @@ export function getProductionItemsThatAreNotRightRecursive(p: Production, gramma
             return false;
 
         return true;
-    });
+    })).setFilter(i => i.id);
 }
 
 export function constructHybridFunction(production: Production, grammar: Grammar, runner: Helper): RDProductionFunction {
 
     const
-        data_name = rec_glob_data_name,
 
         rd_fn_name = SC.Constant(getProductionFunctionName(production, grammar) + ":unsigned int"),
 
@@ -75,85 +75,89 @@ export function constructHybridFunction(production: Production, grammar: Grammar
 
         start = performance.now(),
 
-        code_node_rd = SC.Function(
+        { RDOptions, GOTO_Options, RD_fn_contents, GOTO_fn_contents }
+            = compileProductionFunctions(grammar, runner, [production]),
+
+        rd_function = SC.Function(
             rd_fn_name,
             rec_glob_lex_name,
-            data_name,
-            rec_state),
+            rec_glob_data_name,
+            rec_state).addStatement(RD_fn_contents),
 
-        code_node_goto = SC.Function(
+        goto_function = SC.Function(
             goto_fn_name,
             rec_glob_lex_name,
-            data_name,
+            rec_glob_data_name,
             rec_state,
             SC.Variable("prod:int")
-        ),
-
-        RDOptions = generateOptions(
-            grammar, runner,
-            production
-        ),
-
-        rd_states = yieldStates(
-            //Filter out items that are left recursive for the given production
-            getProductionItemsThatAreNotRightRecursive(production, grammar),
-            RDOptions
-        ),
-
-        { code: initial_pass, prods: completed_productions, leaves: rd_leaves }
-            = processRecognizerStates(RDOptions, rd_states, default_getSelectionClause),
-
-        GOTO_Options = generateOptions(
-            grammar, runner,
-            production
-        ),
-
-        { code: production_shift_pass, leaves: goto_leaves }
-            = processRecognizerStates(
-                GOTO_Options,
-                yieldGotoStates(GOTO_Options, completed_productions),
-                processGoTOStates
-            );
-
-    RDOptions.leaves = rd_leaves;
-    GOTO_Options.leaves = goto_leaves;
-
-    code_node_rd.addStatement(
-        createDebugCall(RDOptions, "RD START"),
-        initial_pass,
-        createDebugCall(RDOptions, "RD FAILED")
-    );
-
-    code_node_goto.addStatement(
-        createDebugCall(RDOptions, "GOTO START"),
-        production_shift_pass,
-        createDebugCall(RDOptions, "GOTO END"),
-    );
+        ).addStatement(GOTO_fn_contents);
 
     completeFunctionProduction(
-        code_node_rd,
-        code_node_goto,
+        RD_fn_contents,
+        GOTO_fn_contents,
         rd_fn_name,
         goto_fn_name,
         RDOptions,
         GOTO_Options);
 
-    const end = performance.now();
 
     const annotation = SC.Expressions(SC.Comment(
         `production name: ${production.name}
             grammar index: ${production.id}
             bodies:\n\t${getItemsFromProduction(production).map(i => i.renderUnformattedWithProduction(grammar) + " - " + grammar.item_map.get(i.id).reset_sym.join(",")).join("\n\t\t")}
-            compile time: ${((((end - start) * 1000) | 0) / 1000)}ms`));
+            compile time: ${((((performance.now() - start) * 1000) | 0) / 1000)}ms`));
 
     return {
         productions: new Set([...RDOptions.called_productions.values(), ...GOTO_Options.called_productions.values(), ...runner.referenced_production_ids.values()]),
         id: production.id,
         fn: (new SC).addStatement(
             (runner.ANNOTATED) ? annotation : undefined,
-            code_node_rd,
-            GOTO_Options.NO_GOTOS ? undefined : code_node_goto
+            rd_function,
+            GOTO_Options.NO_GOTOS ? undefined : goto_function
         )
     };
+}
+
+export function compileProductionFunctions(
+    grammar: Grammar,
+    runner: Helper,
+    productions: Production[],
+    /** 
+     * Only include transitions with the
+     * with the matching symbols. Only applies
+     * to the first transition encountered.
+     */
+    filter_symbols: Symbol[] = []
+) {
+    const
+
+        RDOptions = generateOptions(
+            grammar, runner,
+            productions
+        ),
+
+        rd_states = yieldStates(
+            //Filter out items that are left recursive for the given production
+            getProductionItemsThatAreNotRightRecursive(productions, grammar),
+            RDOptions
+        ),
+
+        { code: RD_fn_contents, prods: completed_productions, leaves: rd_leaves } = processRecognizerStates(RDOptions, rd_states, default_getSelectionClause),
+
+        GOTO_Options = generateOptions(
+            grammar, runner,
+            productions
+        ),
+
+        { code: GOTO_fn_contents, leaves: goto_leaves } = processRecognizerStates(
+            GOTO_Options,
+            yieldGotoStates(GOTO_Options, completed_productions),
+            processGoTOStates
+        );
+
+    RDOptions.leaves = rd_leaves;
+    GOTO_Options.leaves = goto_leaves;
+
+    return { RDOptions, GOTO_Options, RD_fn_contents, GOTO_fn_contents };
 }
 

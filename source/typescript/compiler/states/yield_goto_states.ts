@@ -11,16 +11,18 @@ import { getProductionID } from "../../utilities/production.js";
 
 export function yieldGotoStates(options: RenderBodyOptions, completed_productions: number[]): RecognizerState[] {
 
-    const { grammar, goto_items: production_shift_items, production, extended_goto_items } = options;
+    const { grammar, goto_items, production_ids, extended_goto_items } = options;
 
-    let nonterm_shift_items: Item[] = production_shift_items;
+    let nonterm_shift_items: Item[] = goto_items;
 
     const
         PRODUCTION_IS_LEFT_RECURSIVE =
             nonterm_shift_items.some(
-                i =>
-                    i.getProduction(grammar).id == production.id
-                    && i.getProductionAtSymbol(grammar).id == production.id
+                i => {
+                    let item_id = i.getProduction(grammar).id;
+                    let sym_id = i.getProductionAtSymbol(grammar).id;
+                    return production_ids.some(p => p == sym_id && p == item_id);
+                }
             ),
         PRODUCTION_IS_NOT_LEFT_RECURSIVE = !PRODUCTION_IS_LEFT_RECURSIVE;
 
@@ -30,16 +32,16 @@ export function yieldGotoStates(options: RenderBodyOptions, completed_production
      * from the GOTO check should not be used for actual parsing, and their code paths 
      * should be discarded.
      */
+
     if (PRODUCTION_IS_LEFT_RECURSIVE) {
 
-        const prod_id = production.id;
 
         for (const { item } of grammar.item_map.values()) {
             if (
                 !item.atEND
                 && Sym_Is_A_Production(item.sym(grammar))
-                && item.getProductionAtSymbol(grammar).id == prod_id
-                && getProductionID(item, grammar) != prod_id
+                && production_ids.includes(item.getProductionAtSymbol(grammar).id)
+                && !production_ids.includes(getProductionID(item, grammar))
                 && !nonterm_shift_items.some(i => i.id == item.id)
             )
                 extended_goto_items.push(item);
@@ -55,7 +57,7 @@ export function yieldGotoStates(options: RenderBodyOptions, completed_production
         // the RD section is the production itself.
 
         && completed_productions.setFilter().length == 1
-        && completed_productions.setFilter()[0] == production.id
+        && production_ids.includes(completed_productions.setFilter()[0])
     ) {
         /* pass through */
     } else if (nonterm_shift_items.length > 0) {
@@ -106,7 +108,7 @@ export function yieldGotoStates(options: RenderBodyOptions, completed_production
 
                 pending_productions.push(...prods.setFilter());
 
-            } else if (production_id !== production.id) {
+            } else if (!production_ids.includes(production_id)) {
                 throw new Error("Missing goto group for " + grammar[production_id].name);
             }
         }
