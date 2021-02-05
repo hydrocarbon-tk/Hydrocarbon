@@ -79,7 +79,8 @@ export function processRecognizerStates(
                     leaves = states.flatMap(g => g.leaves),
                     prods = states.flatMap(g => g.prods).setFilter(),
                     items = states.flatMap(g => g.items).setFilter(i => i.id),
-                    filtered_states = states.filter(s => s.transition_type !== TRANSITION_TYPE.IGNORE && !!s.code);
+                    filtered_states = states.filter(s => s.transition_type !== TRANSITION_TYPE.IGNORE && !!s.code),
+                    WE_HAVE_UNRESOLVED_LEAVES = states.some(s => s.UNRESOLVED_LEAF);
 
                 //Set the transition type of any state with a null code property to IGNORE
                 states.forEach(g => { if (!g.code) g.transition_type = TRANSITION_TYPE.IGNORE; });
@@ -90,6 +91,7 @@ export function processRecognizerStates(
                 if (filtered_states.length > 0) {
 
                     const virtual_state: RecognizerState = {
+                        UNRESOLVED_LEAF: WE_HAVE_UNRESOLVED_LEAVES,
                         PROCESSED: false,
                         states: [],
                         symbols: [],
@@ -104,7 +106,7 @@ export function processRecognizerStates(
                         leaves
                     };
 
-                    if (states.some(g => g.symbols == null)) {
+                    if (WE_HAVE_UNRESOLVED_LEAVES) {
                         ({ root } = multi_item_leaf_fn(virtual_state, states, options));
                     } else {
                         root = selection_clause_fn(

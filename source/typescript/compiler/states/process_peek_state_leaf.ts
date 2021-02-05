@@ -54,7 +54,7 @@ export function processPeekStateLeaf(
 
                 else
 
-                    addBackTrackingStates(state, options, offset);
+                    addUnresolvedStates(state, options, offset);
 
         else
 
@@ -128,13 +128,13 @@ function addRegularYieldStates(state: RecognizerState, items: Item[], options: R
 
 }
 
-function addBackTrackingStates(state: RecognizerState, options: RenderBodyOptions, offset: number,) {
+function addUnresolvedStates(state: RecognizerState, options: RenderBodyOptions, offset: number,) {
 
     const { items } = state;
 
     for (const items_with_same_symbol of items.group(i => i.sym(options.grammar))) {
 
-        const backtracking_state = createRecognizerState(items, null, TRANSITION_TYPE.ASSERT, offset, state.peek_level);
+        const backtracking_state = createRecognizerState(items, state.symbols, TRANSITION_TYPE.ASSERT, offset, state.peek_level, true);
 
         backtracking_state.states = yieldStates(items_with_same_symbol, options, offset);
 

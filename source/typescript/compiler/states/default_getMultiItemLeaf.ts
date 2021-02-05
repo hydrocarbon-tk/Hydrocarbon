@@ -10,19 +10,19 @@ import { buildItemMaps } from "../../utilities/item_map.js";
 import { SC } from "../../utilities/skribble.js";
 import { getSymbolsFromClosure, getUniqueSymbolName } from "../../utilities/symbol.js";
 import { compileProductionFunctions, getStartItemsFromProduction } from "../function_constructor.js";
-
-
-
 export function default_getMultiItemLeaf(state: RecognizerState, states: RecognizerState[], options: RenderBodyOptions): MultiItemReturnObject {
 
     const
 
         items = states.flatMap(s => s.items).setFilter(i => i.id),
 
+        expected_syms = states.flatMap(s => s.symbols).setFilter(getUniqueSymbolName),
+
         anchor_state = SC.Variable("anchor_state:unsigned"),
 
         root: SC = (new SC).addStatement(
             items.map(p => p.id).join(">   <"),
+            expected_syms.map(getUniqueSymbolName).join(" "),
             SC.Declare(
                 SC.Assignment("mk:int", SC.Call("mark")),
                 SC.Assignment("anchor:Lexer", SC.Call(SC.Member(rec_glob_lex_name, "copy"))),
@@ -41,8 +41,8 @@ export function default_getMultiItemLeaf(state: RecognizerState, states: Recogni
             { grammar } = options,
             productions: Production[] = createVirtualProductions(items, grammar),
             its = productions.flatMap(p => getStartItemsFromProduction(p)),
-            closure = getClosure(its, grammar),
-            syms = getSymbolsFromClosure(closure, grammar);
+            closure = getClosure(its, grammar), ;
+
 
         const { RDOptions, GOTO_Options, RD_fn_contents, GOTO_fn_contents }
             = compileProductionFunctions(options.grammar, options.helper, productions);
