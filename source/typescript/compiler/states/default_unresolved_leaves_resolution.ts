@@ -21,7 +21,11 @@ export function default_resolveUnresolvedLeaves(state: RecognizerState, states: 
 
         anchor_state = SC.Variable("anchor_state:unsigned"),
 
-        root: SC = (new SC),
+        root: SC = (new SC).addStatement(
+            items.map(p => p.id).join(">   <"),
+            expected_symbols.map(getUniqueSymbolName).join(" "),
+
+        ),
 
         IS_LEFT_RECURSIVE_WITH_FOREIGN_PRODUCTION_ITEMS = states.some(i => i.transition_type == TRANSITION_TYPE.IGNORE),
 

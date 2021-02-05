@@ -10,8 +10,8 @@ import {
     Sym_Is_A_Numeric_Generic,
     Sym_Is_A_Symbol_Character
 } from "../../utilities/symbol.js";
-import { default_getSelectionClause } from "./default_getSelectionClause.js";
-import { default_getSingleItemLeaf } from "./default_state_build.js";
+import { default_resolveBranches } from "./default_branch_resolution.js";
+import { default_resolveResolvedLeaf } from "./default_resolved_leaf_resolution.js";
 import { default_resolveUnresolvedLeaves } from "./default_unresolved_leaves_resolution.js";
 
 
@@ -43,13 +43,13 @@ export function processRecognizerStates(
     states: RecognizerState[],
     selection_clause_fn:
         (gen: SelectionClauseGenerator, state: RecognizerState, items: Item[], level: number, options: RenderBodyOptions) => SC =
-        default_getSelectionClause,
+        default_resolveBranches,
     multi_item_leaf_fn:
         (state: RecognizerState, states: RecognizerState[], options: RenderBodyOptions) => MultiItemReturnObject =
         default_resolveUnresolvedLeaves,
     single_item_leaf_fn:
         (item: Item, group: RecognizerState, options: RenderBodyOptions) => SingleItemReturnObject =
-        default_getSingleItemLeaf,
+        default_resolveResolvedLeaf,
     grouping_fn: (node: RecognizerState, level: number, peeking: boolean) => string = defaultGrouping
 ): GeneratorStateReturn {
 

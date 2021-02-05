@@ -13,7 +13,7 @@ import { Sym_Is_A_Production } from "../utilities/symbol.js";
 import { Helper } from "./helper.js";
 import { addLeafStatements } from "./states/add_leaf_statements.js";
 import { const_EMPTY_ARRAY } from "./states/const_EMPTY_ARRAY.js";
-import { default_getSelectionClause } from "./states/default_getSelectionClause.js";
+import { default_resolveBranches } from "./states/default_branch_resolution.js";
 import { addClauseSuccessCheck, processGoTOStates } from "./states/default_state_build.js";
 import { processRecognizerStates } from "./states/process_recognizer_states.js";
 import { yieldGotoStates } from "./states/yield_goto_states.js";
@@ -106,7 +106,7 @@ export function compileProductionFunctions(
             filter_symbols
         ),
 
-        { code: RD_fn_contents, prods: completed_productions, leaves: rd_leaves } = processRecognizerStates(RDOptions, rd_states, default_getSelectionClause),
+        { code: RD_fn_contents, prods: completed_productions, leaves: rd_leaves } = processRecognizerStates(RDOptions, rd_states, default_resolveBranches),
 
         GOTO_Options = generateOptions(
             grammar, runner,

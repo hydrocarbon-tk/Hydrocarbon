@@ -2,7 +2,7 @@ import { RecognizerState, TRANSITION_TYPE } from "../../types/recognizer_state.j
 import { RenderBodyOptions } from "../../types/render_body_options";
 import { SelectionClauseGenerator, SelectionGroup } from "../../types/state_generating";
 import { DefinedSymbol, Symbol, TokenSymbol } from "../../types/symbol.js";
-import { buildSwitchIfs, createAssertionShiftManual, createSkipCall, generateGUIDConstName, getIncludeBooleans, renderProductionCall } from "../../utilities/code_generating.js";
+import { buildSwitchIfsAlternate, createAssertionShiftManual, createSkipCall, generateGUIDConstName, getIncludeBooleans, renderProductionCall } from "../../utilities/code_generating.js";
 import { rec_glob_data_name, rec_glob_lex_name } from "../../utilities/global_names.js";
 import { Item } from "../../utilities/item.js";
 import { ExprSC, SC, VarSC } from "../../utilities/skribble.js";
@@ -18,7 +18,7 @@ import { ttt } from "./ttt.js";
 /**
  * Handles intermediate state transitions. 
  */
-export function default_getSelectionClause(
+export function default_resolveBranches(
     gen: SelectionClauseGenerator,
     state: RecognizerState,
     items: Item[],
@@ -39,7 +39,6 @@ export function default_getSelectionClause(
 
     let
         root = new SC,
-        mid = root,
         lex_name = rec_glob_lex_name,
         peek_name = rec_glob_lex_name;
 
@@ -53,69 +52,78 @@ export function default_getSelectionClause(
         getSkippableSymbolsFromItems(items, grammar).filter(i => !all_syms.some(j => getSymbolName(i) == getSymbolName(j)))
     );
 
-    if (groups.length > 4) {
-        root.addStatement("SPECIFIED___________________________");
+    if (groups.length > 4)
 
-        const defined_symbols: [DefinedSymbol, number][] = <any>groups.flatMap((g, i) => g.syms.filter(Sym_Is_Defined).map(s => [s, i]));
-        const defined_symbols_lu = new Map(defined_symbols);
-        //Only need to look for generic type; Groups do not transition on productions
-        const other_symbols = groups.flatMap((g, i) => g.syms.filter(Sym_Is_A_Generic_Type).map(s => [i, s]), 1);
+        createSwitchBlock(options, groups, lex_name, all_syms, root);
 
-        let if_root = null, leaf = null;
-        for (const [id, sym] of other_symbols) {
-            const sc = SC.If(getIncludeBooleans([sym], grammar, runner, lex_name, all_syms))
-                .addStatement(SC.UnaryPre(SC.Return, SC.Value(id)));
-            if (!if_root) {
-                if_root = sc;
-                leaf = sc;
-            } else {
-                leaf.addStatement(sc);
-                leaf = sc;
-            }
-        }
+    else
 
-        const fn_lex_name = SC.Constant("l:Lexer");
-        const gen = buildSwitchIfs(grammar, defined_symbols.map(([s]) => s), fn_lex_name);
-
-        let yielded = gen.next();
-
-        while (!yielded.done) {
-            const { code_node, sym } = yielded.value;
-            code_node.addStatement(
-                getUniqueSymbolName(sym),
-                SC.Assignment(SC.Member(lex_name, "type"), "TokenSymbol"),
-                SC.Assignment(SC.Member(lex_name, "byte_length"), sym.byte_length),
-                SC.Assignment(SC.Member(lex_name, "token_length"), sym.val.length),
-                SC.UnaryPre(SC.Return, SC.Value(defined_symbols_lu.get(sym))),
-            );
-            yielded = gen.next();
-        }
-
-        const
-            code_node = yielded.value,
-            fn = SC.Function(":boolean", fn_lex_name, rec_glob_data_name).addStatement(code_node, if_root),
-            node_name = generateGUIDConstName(fn, `defined_token`, "bool"),
-            fn_name = runner.add_constant(node_name, fn),
-            sw = SC.Switch(SC.Call(fn_name, lex_name, rec_glob_data_name));
-
-
-        for (let i = 0; i < groups.length; i++) {
-            let { syms, items, code, LAST, FIRST, transition_types } = groups[i];
-            sw.addStatement(SC.If(SC.Value(i)).addStatement(code, SC.Break));
-        }
-
-        root.addStatement(sw);
-
-    } else {
-
-        createIfElseBlock(options, groups, mid, lex_name, peek_name, all_syms, FORCE_ASSERTIONS);
-    }
+        createIfElseBlock(options, groups, root, lex_name, peek_name, all_syms, FORCE_ASSERTIONS);
 
     root.addStatement(SC.Empty());
-    mid.addStatement(SC.Empty());
 
     return root;
 }
+
+function createSwitchBlock(
+    options: RenderBodyOptions,
+    groups: SelectionGroup[],
+    lex_name: VarSC,
+    all_syms: Symbol[],
+    root: SC
+) {
+    const { grammar, helper: runner } = options;
+    const defined_symbols: [DefinedSymbol, number][] = <any>groups.flatMap((g, i) => g.syms.filter(Sym_Is_Defined).map(s => [s, i]));
+    const defined_symbols_lu = new Map(defined_symbols);
+    //Only need to look for generic type; Groups do not transition on productions
+    const other_symbols = groups.flatMap((g, i) => g.syms.filter(Sym_Is_A_Generic_Type).map(s => [i, s]), 1);
+
+    let if_root = null, leaf = null;
+    for (const [id, sym] of other_symbols) {
+        const sc = SC.If(getIncludeBooleans([sym], grammar, runner, lex_name, all_syms))
+            .addStatement(SC.UnaryPre(SC.Return, SC.Value(id)));
+        if (!if_root) {
+            if_root = sc;
+            leaf = sc;
+        } else {
+            leaf.addStatement(sc);
+            leaf = sc;
+        }
+    }
+
+    const fn_lex_name = SC.Constant("l:Lexer");
+    const gen = buildSwitchIfsAlternate(grammar, defined_symbols.map(([s]) => s), fn_lex_name);
+
+    let yielded = gen.next();
+
+    while (!yielded.done) {
+        const { code_node, sym } = yielded.value;
+        code_node.addStatement(
+            getUniqueSymbolName(sym),
+            SC.Assignment(SC.Member(lex_name, "type"), "TokenSymbol"),
+            SC.Assignment(SC.Member(lex_name, "byte_length"), sym.byte_length),
+            SC.Assignment(SC.Member(lex_name, "token_length"), sym.val.length),
+            SC.UnaryPre(SC.Return, SC.Value(defined_symbols_lu.get(sym)))
+        );
+        yielded = gen.next();
+    }
+
+    const
+        code_node = yielded.value,
+        fn = SC.Function(":boolean", fn_lex_name, rec_glob_data_name).addStatement(code_node, if_root),
+        node_name = generateGUIDConstName(fn, `defined_token`, "bool"),
+        fn_name = runner.add_constant(node_name, fn),
+        sw = SC.Switch(SC.Call(fn_name, lex_name, rec_glob_data_name));
+
+
+    for (let i = 0; i < groups.length; i++) {
+        let { syms, items, code, LAST, FIRST, transition_types } = groups[i];
+        sw.addStatement(SC.If(SC.Value(i)).addStatement(code, SC.Break));
+    }
+
+    root.addStatement(sw);
+}
+
 function createPeekStatements(
     options: RenderBodyOptions,
     state: RecognizerState,
@@ -267,4 +275,7 @@ function createIfElseBlock(
 
     if (leaf) leaf.addStatement(SC.Empty());
 }
+
+
+
 
