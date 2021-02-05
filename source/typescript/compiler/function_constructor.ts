@@ -3,6 +3,7 @@ import { Grammar } from "../types/grammar.js";
 import { Production } from "../types/production";
 import { RDProductionFunction } from "../types/rd_production_function";
 import { RenderBodyOptions } from "../types/render_body_options";
+import { Symbol } from "../types/symbol.js";
 import { getProductionFunctionName } from "../utilities/code_generating.js";
 import { rec_glob_data_name, rec_glob_lex_name, rec_state } from "../utilities/global_names.js";
 import { Item } from "../utilities/item.js";
