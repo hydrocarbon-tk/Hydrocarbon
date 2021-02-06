@@ -20,8 +20,6 @@ export function default_resolveResolvedLeaf(item: Item, state: RecognizerState, 
 
     let leaf_code = code, prods = [];
 
-    code.addStatement(`peek_level:${state.peek_level} offset:${state.offset}`);
-
     if (SHOULD_IGNORE) {
         leaf_code.addStatement(SC.Comment("SHOULD IGNORE"));
         state.transition_type = TRANSITION_TYPE.IGNORE;
