@@ -23,24 +23,27 @@ import {
 import { default_resolveBranches } from "./default_branch_resolution.js";
 
 
-export function processGoTOStates(gen: SelectionClauseGenerator, state: RecognizerState, items: Item[], level: number, options: RenderBodyOptions): SC {
+export function resolveGOTOBranches(gen: SelectionClauseGenerator, state: RecognizerState, items_global: Item[], level: number, options: RenderBodyOptions): SC {
 
     if (state.offset == 0) {
 
         const
             { grammar, helper: runner, production_ids } = options,
-            goto_groups = [...gen];
+            goto_groups = [...gen],
+            WE_HAVE_JUST_ONE_GOTO_GROUP = goto_groups.length == 1;
+        let
+            first_goto_group_keys: number[] = null;
 
         let switch_stmt: SC = SC.Switch(rec_state_prod);
 
-        for (const { syms, items, code, hash, leaves } of goto_groups.sort(
-            (a, b) => compareStringsForSort(<any>a.syms[0].val, <any>b.syms[0].val))
+        for (const { syms, items, code, hash, leaves, prods } of goto_groups.sort(
+            (a, b) => <number><any>a.syms[0] - <number><any>b.syms[0])
         ) {
 
             let anticipated_syms;
 
             const
-                keys = (<number[]><any>syms).setFilter(),
+                keys = (<number[]><any>syms).setFilter(s => s + ""),
                 active_items = items.filter(i => !i.atEND),
                 end_items = items.filter(i => i.atEND),
                 skippable = getSkippableSymbolsFromItems(items, grammar)
@@ -145,7 +148,7 @@ export function processGoTOStates(gen: SelectionClauseGenerator, state: Recogniz
 
             switch_stmt.addStatement(
                 ...keys.slice(0, -1).map(k => SC.If(SC.Value(k + ""))),
-                SC.If(SC.Value(keys.pop() + ""))
+                SC.If(SC.Value(keys.slice(-1)[0] + ""))
                     .addStatement(
                         active_items.length > 0 || end_items.length > 1
                             ? createSkipCall(skippable, grammar, runner)
@@ -155,7 +158,8 @@ export function processGoTOStates(gen: SelectionClauseGenerator, state: Recogniz
                     )
             );
 
-            if (goto_groups.length == 1) {
+            if (WE_HAVE_JUST_ONE_GOTO_GROUP) {
+                first_goto_group_keys = keys;
                 switch_stmt = new SC().addStatement(...switch_stmt.statements[0].statements);
             } else {
                 switch_stmt.statements[switch_stmt.statements.length - 1].addStatement(SC.Break);
@@ -163,7 +167,9 @@ export function processGoTOStates(gen: SelectionClauseGenerator, state: Recogniz
         }
 
         return SC.While(
-            SC.Value(1)
+            WE_HAVE_JUST_ONE_GOTO_GROUP && first_goto_group_keys.length > 0
+                ? first_goto_group_keys.map(i => SC.Binary(rec_state_prod, "==", i)).reduce(reduceOR)
+                : SC.Value(1)
         )
             .addStatement(
                 switch_stmt,
@@ -173,7 +179,7 @@ export function processGoTOStates(gen: SelectionClauseGenerator, state: Recogniz
 
     state.offset--;
 
-    return default_resolveBranches(gen, state, items, level, options, state.offset <= 1);
+    return default_resolveBranches(gen, state, items_global, level, options, state.offset <= 1);
 }
 function compareStringsForSort(strA: any, strB: any): number {
     return (strA > strB)
