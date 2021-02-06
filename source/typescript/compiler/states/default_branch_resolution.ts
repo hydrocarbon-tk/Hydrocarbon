@@ -243,7 +243,7 @@ function createIfElseBlock(
             && (LAST && !FIRST)
             && (
                 transition_type == TRANSITION_TYPE.ASSERT_PRODUCTION_SYMBOLS
-                || transition_type == TRANSITION_TYPE.ASSERT
+                //|| transition_type == TRANSITION_TYPE.ASSERT
                 || transition_type == TRANSITION_TYPE.PEEK_PRODUCTION_SYMBOLS
                 || transition_type == TRANSITION_TYPE.ASSERT_END
             );
