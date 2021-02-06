@@ -68,9 +68,9 @@ export function default_resolveUnresolvedLeaves(state: RecognizerState, states: 
             leaf.addStatement(item.renderUnformattedWithProduction(grammar));
 
             const _if = SC.If(SC.Binary("prod", "==", v_prod.id));
-            const _if_leaf = new SC;
+            let _if_leaf = new SC;
             _if.addStatement(_if_leaf);
-            renderItem(_if_leaf, item, options);
+            _if_leaf = renderItem(_if_leaf, item, options);
 
             leaf.addStatement(_if);
             leaf = _if;
