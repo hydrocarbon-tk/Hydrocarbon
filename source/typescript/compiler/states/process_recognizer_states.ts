@@ -22,12 +22,13 @@ export function defaultGrouping(g) {
 function getGroupScore(a: SelectionGroup) {
     const tt = a.transition_types[0];
     let transition_penalty = 1;
-
+    /*
     switch (tt) {
         case TRANSITION_TYPE.ASSERT_END:
-            transition_penalty = 10000;
+            //      transition_penalty = 10000;
             break;
     }
+    */
 
     const
         a_end = transition_penalty,

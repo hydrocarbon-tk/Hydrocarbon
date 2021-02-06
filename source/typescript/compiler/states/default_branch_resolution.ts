@@ -43,8 +43,6 @@ export function default_resolveBranches(
         lex_name = rec_glob_lex_name,
         peek_name = rec_glob_lex_name;
 
-    root.addStatement(`peek_level:${state.peek_level} offset:${state.offset} -- clause`);
-
     peek_name = createPeekStatements(options,
         state,
         root,
@@ -77,7 +75,8 @@ function createSwitchBlock(
     const defined_symbols: [DefinedSymbol, number][] = <any>groups.flatMap((g, i) => g.syms.filter(Sym_Is_Defined).map(s => [s, i]));
     const defined_symbols_lu = new Map(defined_symbols);
     //Only need to look for generic type; Groups do not transition on productions
-    const other_symbols = groups.flatMap((g, i) => g.syms.filter(Sym_Is_A_Generic_Type).map(s => [i, s]), 1);
+    const other_symbols = groups.flatMap((g, i) => g.syms.filter(Sym_Is_A_Generic_Type).map(s => [i, s]));
+
 
     let if_root = null, leaf = null;
     for (const [id, sym] of other_symbols) {
@@ -119,6 +118,8 @@ function createSwitchBlock(
 
     for (let i = 0; i < groups.length; i++) {
         let { syms, items, code, LAST, FIRST, transition_types } = groups[i];
+        if (items.some(i => i.atEND))
+            sw.addStatement(SC.If(SC.Value("default")));
         sw.addStatement(SC.If(SC.Value(i)).addStatement(code, SC.Break));
     }
 
@@ -190,17 +191,19 @@ function createIfElseBlock(
             case TRANSITION_TYPE.ASSERT_END:
 
                 const other_transition_syms = groups.filter((l, j) => j != i).flatMap(g => g.syms).setFilter(getUniqueSymbolName);
+
+                let pending_syms = syms;
                 // Remove symbols that should lead to a shift
                 // This overcomes shift-reduce ambiguities
                 if (other_transition_syms.length > 0)
-                    syms = syms
+                    pending_syms = pending_syms
                         .filter(s => !other_transition_syms.some(o => Symbols_Are_The_Same(s, o)));
 
                 // The number of follow symbols may appear here quite can be quite
                 // high. An alternative to making an assertion of these symbol may be to make
                 // a negated assertion of the symbols that are anticipated by other transitions
-                if (other_transition_syms.length < syms.length) {
-                    const primary_symbols = syms.filter(a => other_transition_syms.some(o => Defined_Symbols_Occlude(a, o)));
+                if (other_transition_syms.length < pending_syms.length) {
+                    const primary_symbols = syms.filter(a => other_transition_syms.some(o => Sym_Is_EOF(a) || Defined_Symbols_Occlude(a, o)));
                     const negate_symbols = other_transition_syms;
                     const remaining_symbols = getIncludeBooleans(<TokenSymbol[]>primary_symbols, grammar, runner, peek_name);
                     const negated_expression = getIncludeBooleans(<TokenSymbol[]>negate_symbols, grammar, runner, peek_name);
@@ -212,7 +215,7 @@ function createIfElseBlock(
                     else
                         gate_block = SC.UnaryPre("!", negated_expression);
                 } else {
-                    gate_block = getIncludeBooleans(<TokenSymbol[]>syms, grammar, runner, peek_name, <TokenSymbol[]>all_syms);
+                    gate_block = getIncludeBooleans(<TokenSymbol[]>pending_syms, grammar, runner, peek_name, <TokenSymbol[]>all_syms);
                 }
 
                 break;
@@ -253,7 +256,6 @@ function createIfElseBlock(
 
 
         if_stmt.addStatement(
-            ttt(transition_type),
             runner.ANNOTATED ?
                 SC.Comment(transition_types.map(ttt))
                 : undefined,
