@@ -225,6 +225,64 @@ export function createNonCaptureBooleanCheck(symbols: TokenSymbol[], grammar: Gr
 
     return <VarSC>runner.add_constant(SF_name, token_function);
 }
+
+function getUTF8ByteAt(s: DefinedSymbol, off: number): number {
+    return s.val[off].charCodeAt(0);
+}
+export function* buildSwitchIfsAlternate(
+    grammar: Grammar,
+    syms: DefinedSymbol[],
+    lex_name: ConstSC | VarSC = SC.Variable("l:Lexer"),
+    occluders: TokenSymbol[] = [],
+    off = 0
+): Generator<{ sym: DefinedSymbol, code_node: SC; }, SC> {
+
+    const code_node = (new SC);
+
+    //Group symbols based on their 
+    let pending_syms = syms
+        .filter(s => (s.byte_length - off) > 0)
+        .group(s => getUTF8ByteAt(s, off));
+
+    let leaf = code_node;
+
+    for (const syms of pending_syms) {
+
+        //Construct a compare on the longest string
+        const shortest = syms.sort((a, b) => a.byte_length - b.byte_length)[0];
+        let gen;
+        if (syms.length == 1) {
+            gen = buildSwitchIfs(grammar, syms, lex_name, occluders, off + 1);
+        } else {
+            gen = buildSwitchIfsAlternate(grammar, syms, lex_name, occluders, off + 1);
+        }
+
+        let yielded = gen.next();
+
+        while (!yielded.done) {
+            yield yielded.value;
+            yielded = gen.next();
+        }
+
+        //  console.log({ pending_syms, syms, off, length, g });
+        const _if = SC.If(SC.Value(`data.input[l.byte_offset + ${off}] == ${getUTF8ByteAt(shortest, off)}`))
+            .addStatement(yielded.value);
+
+        leaf.addStatement(_if);
+        leaf = _if;
+    }
+
+    leaf.addStatement(SC.Empty());
+
+
+    for (const sym of syms) {
+        if (sym.byte_length <= off)
+            yield { sym, code_node };
+    }
+
+    return code_node;
+}
+
 export function* buildSwitchIfs(
     grammar: Grammar,
     syms: DefinedSymbol[],
@@ -234,8 +292,6 @@ export function* buildSwitchIfs(
 ): Generator<{ sym: DefinedSymbol, code_node: SC; }, SC> {
     const code_node = (new SC);
 
-    if (off == 0)
-        code_node.addStatement(SC.Declare(SC.Assignment("start:unsigned", "l.byte_offset")));
 
     //Group symbols based on their 
     let pending_syms = syms
@@ -243,9 +299,8 @@ export function* buildSwitchIfs(
         .filter(s => (s.byte_length - off) > 0)
         .group(s => s.byte_offset);
     let leaf = code_node;
+
     for (const syms of pending_syms) {
-
-
         //Construct a compare on the longest string
         const shortest = syms.sort((a, b) => a.byte_length - b.byte_length)[0];
         const length = shortest.byte_length - off;
@@ -258,10 +313,14 @@ export function* buildSwitchIfs(
             yield yielded.value;
             yielded = gen.next();
         }
+        let _if = length == 1
 
-        //  console.log({ pending_syms, syms, off, length, g });
-        const _if = SC.If(SC.Binary(length, "==", SC.Call("compare", "data", "start", offset, length)))
-            .addStatement(yielded.value);
+            ? SC.If(SC.Value(`data.input[l.byte_offset + ${off}] == ${getUTF8ByteAt(shortest, off)}`))
+                .addStatement(yielded.value)
+
+            : SC.If(SC.Binary(length, "==", SC.Call("compare", "data", "l.byte_offset +" + off, offset, length)))
+                .addStatement(yielded.value);
+
 
         leaf.addStatement(_if);
         leaf = _if;
