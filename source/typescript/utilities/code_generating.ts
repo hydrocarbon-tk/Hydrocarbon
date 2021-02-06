@@ -402,7 +402,11 @@ export function getIncludeBooleans(
         for (const { syms, occluders } of char_groups) {
 
             if (syms.length == 1) {
-                const [sym] = syms;
+                let [sym] = syms;
+
+                //Make sure we are working with the "true" symbol
+                sym = getCardinalSymbol(grammar, sym);
+
                 if (sym.byte_length == 1) {
                     const
                         char_code = sym.val.charCodeAt(0);
@@ -465,6 +469,10 @@ export function getIncludeBooleans(
     }
 
     return convertExpressionArrayToBoolean([...out_non_consume, ...out_tk, ...out_id, ...out_ty, ...out_fn]);
+}
+
+function getCardinalSymbol(grammar: Grammar, sym: DefinedSymbol): DefinedSymbol {
+    return <any>grammar.meta.all_symbols.get(getUniqueSymbolName(sym));
 }
 
 function convertExpressionArrayToBoolean(array: ExprSC[], delimiter: string = "||"): ExprSC {
