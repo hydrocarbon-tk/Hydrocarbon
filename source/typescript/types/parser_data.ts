@@ -11,10 +11,10 @@ export interface ParserData {
     input: Uint8Array;
     rules: Uint32Array;
     error: Uint8Array;
-    debug: Uint8Array;
+    debug: Uint16Array;
 }
 export interface RecognizeInitializer {
-    recognizer: (data: ParserData, production?: number) => boolean,
+    recognizer: (data: ParserData, input_byte_length?: number, production?: number) => boolean,
     init_data: (
         input_len: number,
         rules_len: number,
