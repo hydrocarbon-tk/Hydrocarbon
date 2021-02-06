@@ -25,26 +25,6 @@ import { default_resolveUnresolvedLeaves } from "./default_unresolved_leaves_res
 export function defaultGrouping(g) {
     return g.hash;
 }
-function getGroupScore(a: SelectionGroup) {
-    const tt = a.transition_types[0];
-    let transition_penalty = 1;
-    /*
-    switch (tt) {
-        case TRANSITION_TYPE.ASSERT_END:
-            //      transition_penalty = 10000;
-            break;
-    }
-    */
-
-    const
-        a_end = transition_penalty,
-        a_syms = a.syms.length * (a_end),
-        a_id = (+a.syms.some(Sym_Is_A_Generic_Identifier)) * 50 * (a_end),
-        a_num = (+a.syms.some(Sym_Is_A_Generic_Number)) * 25 * (a_end),
-        a_sym = (+a.syms.some(Sym_Is_A_Generic_Symbol)) * 5 * (a_end);
-
-    return a_syms + a_id + a_num + a_sym + a_end;
-}
 export function processRecognizerStates(
     options: RenderBodyOptions,
     states: RecognizerState[],
@@ -198,4 +178,30 @@ function* traverseInteriorNodes(
         group.LAST = i == groups.length;
         yield group;
     }
+}
+
+
+function getGroupScore(a: SelectionGroup) {
+    /** 
+     * Classes: 
+     * EOF                          :     Lowest Score Period?
+     * 
+     * DefinedSymbol DefinedNumeric :     0x00000001
+     * 
+     * DefinedIdentifier            :     0x00010000
+     * 
+     * Generic(Symbol | NL 
+     *          | WS | NUM )        :     0x00100000
+     * 
+     * GenericIdentifier            :     0x01000000
+     */
+
+    let has_eof = -+a.syms.some(Sym_Is_EOF);
+
+    let _0x000000001 = a.syms.filter(s => Sym_Is_Defined_Characters(s) || Sym_Is_Defined_Natural_Number(s)).length;
+    let _0x000010000 = a.syms.filter(s => Sym_Is_Defined_Identifier(s)).length << 16;
+    let _0x001000000 = a.syms.filter(s => Sym_Is_A_Generic_Type(s) && !Sym_Is_A_Generic_Identifier(s)).length << 24;
+    let _0x010000000 = a.syms.filter(s => Sym_Is_Defined_Identifier(s)).length << 28;
+
+    return (_0x000000001 | _0x000010000 | _0x001000000 | _0x010000000) * has_eof;
 }
