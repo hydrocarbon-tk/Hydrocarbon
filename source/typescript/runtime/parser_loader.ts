@@ -181,5 +181,5 @@ function fillByteBufferWithUTF8FromString(string, buffer: Uint8Array, max_length
         }
     }
 
-    return max_length - j;
+    return j;
 }
