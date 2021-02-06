@@ -32,17 +32,17 @@ export function ParserFactory<T>(
     initializeUTFLookupTable(init_table());
 
     const parser = function (str: string, env: ParserEnvironment = {}) {
+
         const
             str_len = str.length,
             str_buffer = str_len + 8,
             data = init_data(str_len + 8, str_len * 32, 512, 0),
-            { input, rules, debug, error } = data;
-
-        fillByteBufferWithUTF8FromString(str, input, str_buffer);
+            { input, rules, debug, error } = data,
+            byte_length = fillByteBufferWithUTF8FromString(str, input, str_buffer);
 
         const
             fns = functions,
-            FAILED = recognizer(data,), // call with pointers
+            FAILED = recognizer(data, byte_length), // call with pointers
             stack = [];
 
         let action_length = 0,
