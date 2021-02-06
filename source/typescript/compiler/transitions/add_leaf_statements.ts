@@ -1,4 +1,4 @@
-import { TRANSITION_TYPE } from "../../types/recognizer_state.js";
+import { TRANSITION_TYPE } from "../../types/transition_node.js";
 import { RenderBodyOptions } from "../../types/render_body_options";
 import { rec_glob_data_name, rec_glob_lex_name, rec_state, rec_state_prod } from "../../utilities/global_names.js";
 import { ConstSC, SC, VarSC } from "../../utilities/skribble.js";

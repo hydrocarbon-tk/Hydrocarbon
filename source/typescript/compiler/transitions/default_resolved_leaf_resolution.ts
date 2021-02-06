@@ -1,17 +1,18 @@
-import { RecognizerState, TRANSITION_TYPE } from "../../types/recognizer_state.js";
+import { TransitionNode, TRANSITION_TYPE } from "../../types/transition_node.js";
 import { RenderBodyOptions } from "../../types/render_body_options";
 import { SingleItemReturnObject } from "../../types/state_generating";
-import { createSkipCall, renderProductionCall } from "../../utilities/code_generating.js";
+import { createSkipCall, createProductionCall } from "../../utilities/code_generating.js";
 import { rec_glob_lex_name } from "../../utilities/global_names.js";
 import { Item, itemsToProductions } from "../../utilities/item.js";
 import { renderItem } from "../../utilities/render_item.js";
 import { SC } from "../../utilities/skribble.js";
-import { getSkippableSymbolsFromItems } from "../../utilities/symbol.js";
-import { processProductionChain } from "./process_production_chain.js";
+import { getSkippableSymbolsFromItems, getUniqueSymbolName } from "../../utilities/symbol.js";
+import { createTransitionTypeAnnotation } from "../../utilities/create_transition_type_annotation.js";
+import { processProductionChain } from "./process_production_reduction_sequences.js";
 
 
 
-export function default_resolveResolvedLeaf(item: Item, state: RecognizerState, options: RenderBodyOptions): SingleItemReturnObject {
+export function default_resolveResolvedLeaf(item: Item, state: TransitionNode, options: RenderBodyOptions): SingleItemReturnObject {
 
     const
         { grammar, helper: runner, leaf_productions, productions: production, production_ids, extended_goto_items: extended_production_shift_items, leaves } = options,
@@ -19,6 +20,8 @@ export function default_resolveResolvedLeaf(item: Item, state: RecognizerState, 
         SHOULD_IGNORE = extended_production_shift_items.some(i => i.body == item.body);
 
     let leaf_code = code, prods = [];
+
+    code.addStatement(createTransitionTypeAnnotation(options, [state.transition_type]));
 
     if (SHOULD_IGNORE) {
         leaf_code.addStatement(SC.Comment("SHOULD IGNORE"));
@@ -34,13 +37,15 @@ export function default_resolveResolvedLeaf(item: Item, state: RecognizerState, 
         };
     }
 
-    if (state.transition_type == TRANSITION_TYPE.CONSUME && !item.atEND)
+    code.addStatement(state.symbols.map(getUniqueSymbolName).join("  "));
+
+    if (state.transition_type == TRANSITION_TYPE.ASSERT_CONSUME && !item.atEND)
         item = item.increment();
 
     if (item) {
         if (item.len > 0 && item.offset == 0 && (!production_ids.includes(item.getProduction(grammar).id) || state.offset > 0)) {
 
-            const bool = renderProductionCall(item.getProduction(grammar), options, rec_glob_lex_name);
+            const bool = createProductionCall(item.getProduction(grammar), options, rec_glob_lex_name);
 
             leaf_code = SC.If(bool);
 
@@ -52,7 +57,7 @@ export function default_resolveResolvedLeaf(item: Item, state: RecognizerState, 
 
             const
                 skippable = getSkippableSymbolsFromItems([item], grammar),
-                skip = state.transition_type == TRANSITION_TYPE.CONSUME
+                skip = state.transition_type == TRANSITION_TYPE.ASSERT_CONSUME
                     && !item.atEND
                     ? createSkipCall(skippable, grammar, runner, rec_glob_lex_name)
                     : undefined;

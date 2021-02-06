@@ -1,5 +1,5 @@
 import { EOF_SYM, Grammar } from "../../types/grammar.js";
-import { RecognizerState, TRANSITION_TYPE } from "../../types/recognizer_state.js";
+import { TransitionNode, TRANSITION_TYPE } from "../../types/transition_node.js";
 import { RenderBodyOptions } from "../../types/render_body_options";
 import { Symbol } from "../../types/symbol.js";
 import { TransitionTreeNode } from "../../types/transition_tree_nodes.js";
@@ -7,10 +7,10 @@ import { getClosure } from "../../utilities/closure.js";
 import { Items_Have_The_Same_Active_Symbol, Item } from "../../utilities/item.js";
 import { getTokenSymbolsFromItems, Symbols_Are_The_Same, Sym_Is_A_Production } from "../../utilities/symbol.js";
 import { getTransitionTree } from "../../utilities/transition_tree.js";
-import { const_EMPTY_ARRAY } from "./const_EMPTY_ARRAY.js";
-import { createRecognizerState } from "./create_recognizer_state.js";
-import { yieldCompletedItemStates } from "./yield_completed_item_states.js";
-import { buildPeekSequence } from "./yield_peek_states.js";
+import { const_EMPTY_ARRAY } from "../../utilities/const_EMPTY_ARRAY.js";
+import { createTransitionNode } from "./create_transition_node.js";
+import { yieldEndItemTransitions } from "./yield_end_item_transitions.js";
+import { buildPeekTransitions } from "./yield_peek_transitions.js";
 
 export function Leaves_Of_Transition_Contain_One_Root_Item(node: TransitionTreeNode) {
 
@@ -21,7 +21,7 @@ export function Leaves_Of_Transition_Contain_One_Root_Item(node: TransitionTreeN
 }
 
 
-export function yieldStates(
+export function yieldTransitions(
 
     in_items: Item[],
 
@@ -29,13 +29,15 @@ export function yieldStates(
 
     offset: number = 0,
 
-    filter_symbols: Symbol[] = const_EMPTY_ARRAY
+    filter_symbols: Symbol[] = const_EMPTY_ARRAY,
 
-): RecognizerState[] {
+    FROM_PEEKED_TRANSITION: boolean = false
+
+): TransitionNode[] {
 
     const
         { grammar, production_ids } = options,
-        output_states: RecognizerState[] = [],
+        output_states: TransitionNode[] = [],
         end_items = [],//in_items.filter(i => i.atEND),
         active_items = in_items.filter(item => {
             const sym = item.sym(grammar) || EOF_SYM;
@@ -59,8 +61,8 @@ export function yieldStates(
             max_item_offset = getMaxOffsetOfItems(active_items),
 
             first_production = (active_items[0]).getProduction(grammar),
-            HAVE_END_ITEMS = active_items.some(i => i.atEND),
-            NUMBER_OF_ACTIVE_ITEMS_IS_ONE = active_items.length == 1,
+            NO_END_ITEMS_PRESENT = !active_items.some(i => i.atEND),
+            THERE_IS_ONLY_ONE_ACTIVE_ITEM = active_items.length == 1,
             ITEMS_HAVE_A_MAX_OFFSET_OF_ZERO = max_item_offset == 0,
             ALL_ITEMS_ARE_FROM_SAME_PRODUCTION = Items_Are_From_Same_Production(active_items, grammar),
             ALL_ITEMS_HAVE_SAME_SYMBOL = Items_Have_The_Same_Active_Symbol(active_items, grammar),
@@ -68,22 +70,24 @@ export function yieldStates(
             ITEMS_SHOULD_CREATE_SHIFT_STATES = (offset > 0 || ALL_ITEMS_ARE_FROM_ROOT_PRODUCTION || ALL_ITEMS_ARE_FROM_SAME_PRODUCTION);
 
 
-        if (NUMBER_OF_ACTIVE_ITEMS_IS_ONE && !HAVE_END_ITEMS)
+        if (THERE_IS_ONLY_ONE_ACTIVE_ITEM && NO_END_ITEMS_PRESENT)
 
-            output_states.push(...yieldSingleItemState(active_items, options, offset));
+            output_states.push(...yieldSingleItemState(active_items, options, offset, FROM_PEEKED_TRANSITION));
 
         else if (ALL_ITEMS_ARE_FROM_SAME_PRODUCTION
             && !ALL_ITEMS_ARE_FROM_ROOT_PRODUCTION
-            && !HAVE_END_ITEMS
+            && NO_END_ITEMS_PRESENT
             && ITEMS_HAVE_A_MAX_OFFSET_OF_ZERO
         )
 
-            output_states.push(...yieldProductionCallState(active_items, offset));
+            output_states.push(...yieldProductionCallState(active_items, offset, FROM_PEEKED_TRANSITION));
 
-        else if (ALL_ITEMS_HAVE_SAME_SYMBOL && ITEMS_SHOULD_CREATE_SHIFT_STATES && !HAVE_END_ITEMS)
+        else if (ALL_ITEMS_HAVE_SAME_SYMBOL && ITEMS_SHOULD_CREATE_SHIFT_STATES && NO_END_ITEMS_PRESENT)
 
-            output_states.push(...yieldStatesOfItemsWithSameSymbol(active_items, options, offset));
+            output_states.push(...yieldStatesOfItemsWithSameSymbol(active_items, options, offset, FROM_PEEKED_TRANSITION));
 
+        else if (FROM_PEEKED_TRANSITION)
+            throw new Error("Reentering peek transitions from peeked transitions!");
         else
 
             output_states.push(...yieldPeekedStates(active_items.concat(end_items), options, offset, filter_symbols));
@@ -92,7 +96,7 @@ export function yieldStates(
 
     if (end_items.length > 0)
 
-        output_states.push(...yieldCompletedItemStates(end_items, options, offset));
+        output_states.push(...yieldEndItemTransitions(end_items, options, offset));
 
 
     return output_states;
@@ -107,7 +111,7 @@ export function Items_Are_From_Same_Production(active_items: Item[], grammar: Gr
     return active_items.setFilter(i => i.getProduction(grammar).id).length == 1;
 }
 
-function yieldPeekedStates(active_items: Item[], options: RenderBodyOptions, offset: number, filter_symbols: Symbol[] = const_EMPTY_ARRAY): RecognizerState[] {
+function yieldPeekedStates(active_items: Item[], options: RenderBodyOptions, offset: number, filter_symbols: Symbol[] = const_EMPTY_ARRAY): TransitionNode[] {
 
     const
         { grammar, goto_items: production_shift_items } = options,
@@ -120,12 +124,12 @@ function yieldPeekedStates(active_items: Item[], options: RenderBodyOptions, off
             200
         );
 
-    return buildPeekSequence(tree_nodes[0].next, options, offset, undefined, filter_symbols);
+    return buildPeekTransitions(tree_nodes[0].next, options, offset, undefined, filter_symbols);
 }
 
-function yieldStatesOfItemsWithSameSymbol(active_items: Item[], options: RenderBodyOptions, offset: number): RecognizerState[] {
+function yieldStatesOfItemsWithSameSymbol(active_items: Item[], options: RenderBodyOptions, offset: number, FROM_PEEKED_TRANSITION: boolean): TransitionNode[] {
 
-    let leaf_state: RecognizerState = null, root = null;
+    let leaf_state: TransitionNode = null, root = null;
 
     const { grammar } = options, output_states = [];
 
@@ -133,12 +137,15 @@ function yieldStatesOfItemsWithSameSymbol(active_items: Item[], options: RenderB
 
         const
             sym = active_items[0].sym(grammar),
-            state = createRecognizerState(
+            state = createTransitionNode(
                 active_items.slice(),
                 [sym],
                 Sym_Is_A_Production(sym)
-                    ? TRANSITION_TYPE.ASSERT
-                    : TRANSITION_TYPE.CONSUME, offset++
+                    ? TRANSITION_TYPE.ASSERT_PRODUCTION_CALL
+                    : (FROM_PEEKED_TRANSITION)
+                        ? TRANSITION_TYPE.POST_PEEK_CONSUME
+                        : TRANSITION_TYPE.ASSERT_CONSUME,
+                offset++
             );
 
         if (leaf_state) {
@@ -151,9 +158,11 @@ function yieldStatesOfItemsWithSameSymbol(active_items: Item[], options: RenderB
         }
 
         active_items = active_items.map(i => i.increment());
+
+        FROM_PEEKED_TRANSITION = false;
     }
 
-    const states = yieldStates(active_items, options, offset);
+    const states = yieldTransitions(active_items, options, offset);
 
     if (states.length == 0) {
         throw new Error(
@@ -165,7 +174,7 @@ function yieldStatesOfItemsWithSameSymbol(active_items: Item[], options: RenderB
     return output_states;
 }
 
-function yieldProductionCallState(active_items: Item[], offset: number): RecognizerState[] {
+function yieldProductionCallState(active_items: Item[], offset: number, FROM_PEEKED_TRANSITION: boolean): TransitionNode[] {
 
     const
 
@@ -173,10 +182,10 @@ function yieldProductionCallState(active_items: Item[], offset: number): Recogni
 
         items = [new Item(first.body, first.len, 0)];
 
-    return [createRecognizerState(items, [EOF_SYM], TRANSITION_TYPE.IGNORE, offset)];
+    return [createTransitionNode(items, [EOF_SYM], TRANSITION_TYPE.IGNORE, offset)];
 }
 
-function yieldSingleItemState(items: Item[], { grammar }: RenderBodyOptions, offset: number): RecognizerState[] {
+function yieldSingleItemState(items: Item[], { grammar }: RenderBodyOptions, offset: number, FROM_PEEKED_TRANSITION: boolean): TransitionNode[] {
 
     const
         symbols = getTokenSymbolsFromItems(
@@ -192,9 +201,9 @@ function yieldSingleItemState(items: Item[], { grammar }: RenderBodyOptions, off
 
             transition_type: TRANSITION_TYPE = IS_SYM_PRODUCTION
                 ? TRANSITION_TYPE.ASSERT_PRODUCTION_SYMBOLS
-                : TRANSITION_TYPE.CONSUME;
+                : TRANSITION_TYPE.ASSERT_CONSUME;
 
-        return [createRecognizerState(items, symbols, transition_type, offset)];
+        return [createTransitionNode(items, symbols, transition_type, offset)];
     }
 
     return [];

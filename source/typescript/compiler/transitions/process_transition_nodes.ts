@@ -1,5 +1,5 @@
 import { bidirectionalTraverse, TraverseState } from "@candlefw/conflagrate";
-import { GeneratorStateReturn, RecognizerState, TRANSITION_TYPE } from "../../types/recognizer_state.js";
+import { GeneratorStateReturn, TransitionNode, TRANSITION_TYPE } from "../../types/transition_node.js";
 import { RenderBodyOptions } from "../../types/render_body_options";
 import { MultiItemReturnObject, SelectionClauseGenerator, SelectionGroup, SingleItemReturnObject } from "../../types/state_generating";
 import { TokenSymbol } from "../../types/symbol.js";
@@ -8,8 +8,6 @@ import { SC } from "../../utilities/skribble.js";
 import {
     Defined_Symbols_Occlude,
     Sym_Is_A_Generic_Identifier,
-    Sym_Is_A_Generic_Number,
-    Sym_Is_A_Generic_Symbol,
     Sym_Is_A_Generic_Type,
     Sym_Is_Defined_Characters,
     Sym_Is_Defined_Identifier,
@@ -25,27 +23,27 @@ import { default_resolveUnresolvedLeaves } from "./default_unresolved_leaves_res
 export function defaultGrouping(g) {
     return g.hash;
 }
-export function processRecognizerStates(
+export function processTransitionNodes(
     options: RenderBodyOptions,
-    states: RecognizerState[],
+    states: TransitionNode[],
     branch_resolve_function:
-        (gen: SelectionClauseGenerator, state: RecognizerState, items: Item[], level: number, options: RenderBodyOptions) => SC =
+        (gen: SelectionClauseGenerator, state: TransitionNode, items: Item[], level: number, options: RenderBodyOptions) => SC =
         default_resolveBranches,
     conflicting_leaf_resolve_function:
-        (state: RecognizerState, states: RecognizerState[], options: RenderBodyOptions) => MultiItemReturnObject =
+        (state: TransitionNode, states: TransitionNode[], options: RenderBodyOptions) => MultiItemReturnObject =
         default_resolveUnresolvedLeaves,
     leaf_resolve_function:
-        (item: Item, group: RecognizerState, options: RenderBodyOptions) => SingleItemReturnObject =
+        (item: Item, group: TransitionNode, options: RenderBodyOptions) => SingleItemReturnObject =
         default_resolveResolvedLeaf,
-    grouping_fn: (node: RecognizerState, level: number, peeking: boolean) => string = defaultGrouping
+    grouping_fn: (node: TransitionNode, level: number, peeking: boolean) => string = defaultGrouping
 ): GeneratorStateReturn {
 
     if (states.length == 0)
         return { code: new SC, prods: [], leaves: [], hash: "" };
 
-    const finale_state = { ast: <RecognizerState>null };
+    const finale_state = { ast: <TransitionNode>null };
 
-    for (const { node: state, meta: { traverse_state, skip } } of bidirectionalTraverse<RecognizerState, "states">(<RecognizerState>{ states }, "states", true)
+    for (const { node: state, meta: { traverse_state, skip } } of bidirectionalTraverse<TransitionNode, "states">(<TransitionNode>{ states }, "states", true)
         .extract(finale_state)
         .makeSkippable()
     ) {
@@ -79,7 +77,7 @@ export function processRecognizerStates(
 
                 if (filtered_states.length > 0) {
 
-                    const virtual_state: RecognizerState = {
+                    const virtual_state: TransitionNode = {
                         UNRESOLVED_LEAF: WE_HAVE_UNRESOLVED_LEAVES,
                         PROCESSED: false,
                         states: [],
@@ -97,6 +95,11 @@ export function processRecognizerStates(
 
                     if (WE_HAVE_UNRESOLVED_LEAVES) {
                         ({ root, leaves } = conflicting_leaf_resolve_function(virtual_state, states, options));
+                        if (options.helper.ANNOTATED)
+                            if (root)
+                                root.shiftStatement("--UNRESOLVED-BRANCH--");
+                            else
+                                console.log("--UNRESOLVED-BRANCH--");
                     } else {
                         root = branch_resolve_function(
                             traverseInteriorNodes(filtered_states, options, grouping_fn),
@@ -115,13 +118,33 @@ export function processRecognizerStates(
                 state.prods = prods;
                 state.code = root;
                 state.hash = hash;
+                if (options.helper.ANNOTATED)
+                    if (root)
+                        root.shiftStatement("--BRANCH--");
+                    else
+                        console.log("--BRANCH--");
 
                 break;
 
             case TraverseState.LEAF:
 
-                if (state.items.length > 1)
+                if (state.items.length > 1) {
+                    const { root, leaves, prods } = conflicting_leaf_resolve_function(state, [state], options);
+                    state.code = root;
+                    root.shiftStatement("__TESTING__HOW_WE_GOT_HERE__");
+                    console.log("Flow should not enter this block: Multi-item moved to group section");
+
+                    state.hash = root.hash();
+                    state.prods = prods;
+                    state.leaves = leaves;
+                    if (options.helper.ANNOTATED)
+                        if (root)
+                            root.shiftStatement("--UNRESOLVED-LEAF--");
+                        else
+                            console.log("--UNRESOLVED-LEAF--");
+                    break;
                     throw new Error("Flow should not enter this block: Multi-item moved to group section");
+                }
 
                 if (state.items.length == 0)
                     throw new Error("Flow should not enter this block: Multi-item moved to group section");
@@ -131,7 +154,11 @@ export function processRecognizerStates(
                 state.hash = leaf.hash;
                 state.prods = leaf.prods;
                 state.leaves = [leaf];
-
+                if (options.helper.ANNOTATED)
+                    if (leaf.root)
+                        leaf.root.shiftStatement("--LEAF--");
+                    else
+                        console.log("--LEAF--");
                 break;
 
         }
@@ -143,9 +170,9 @@ export function processRecognizerStates(
 }
 
 function* traverseInteriorNodes(
-    group: RecognizerState[],
+    group: TransitionNode[],
     options: RenderBodyOptions,
-    grouping_fn: (node: RecognizerState, level: number, peeking: boolean) => string
+    grouping_fn: (node: TransitionNode, level: number, peeking: boolean) => string
 ): SelectionClauseGenerator {
 
     const

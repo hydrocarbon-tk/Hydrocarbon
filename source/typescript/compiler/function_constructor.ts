@@ -11,13 +11,13 @@ import { getProductionClosure } from "../utilities/production.js";
 import { SC } from "../utilities/skribble.js";
 import { Sym_Is_A_Production } from "../utilities/symbol.js";
 import { Helper } from "./helper.js";
-import { addLeafStatements } from "./states/add_leaf_statements.js";
-import { const_EMPTY_ARRAY } from "./states/const_EMPTY_ARRAY.js";
-import { default_resolveBranches } from "./states/default_branch_resolution.js";
-import { addClauseSuccessCheck, resolveGOTOBranches } from "./states/default_state_build.js";
-import { processRecognizerStates } from "./states/process_recognizer_states.js";
-import { yieldGotoStates } from "./states/yield_goto_states.js";
-import { yieldStates } from "./states/yield_states.js";
+import { addLeafStatements } from "./transitions/add_leaf_statements.js";
+import { const_EMPTY_ARRAY } from "../utilities/const_EMPTY_ARRAY.js";
+import { default_resolveBranches } from "./transitions/default_branch_resolution.js";
+import { addClauseSuccessCheck, resolveGOTOBranches } from "./transitions/default_state_build.js";
+import { processTransitionNodes } from "./transitions/process_transition_nodes.js";
+import { yieldGOTOTransitions } from "./transitions/yield_goto_transitions.js";
+import { yieldTransitions } from "./transitions/yield_transitions.js";
 
 export function constructHybridFunction(production: Production, grammar: Grammar, runner: Helper): RDProductionFunction {
 
@@ -98,7 +98,7 @@ export function compileProductionFunctions(
             productions
         ),
 
-        rd_states = yieldStates(
+        rd_states = yieldTransitions(
             //Filter out items that are left recursive for the given production
             initial_items,
             RDOptions,
@@ -106,16 +106,16 @@ export function compileProductionFunctions(
             filter_symbols
         ),
 
-        { code: RD_fn_contents, prods: completed_productions, leaves: rd_leaves } = processRecognizerStates(RDOptions, rd_states, default_resolveBranches),
+        { code: RD_fn_contents, prods: completed_productions, leaves: rd_leaves } = processTransitionNodes(RDOptions, rd_states, default_resolveBranches),
 
         GOTO_Options = generateOptions(
             grammar, runner,
             productions
         ),
 
-        { code: GOTO_fn_contents, leaves: goto_leaves } = processRecognizerStates(
+        { code: GOTO_fn_contents, leaves: goto_leaves } = processTransitionNodes(
             GOTO_Options,
-            yieldGotoStates(GOTO_Options, completed_productions),
+            yieldGOTOTransitions(GOTO_Options, completed_productions),
             resolveGOTOBranches
         );
 

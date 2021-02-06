@@ -11,9 +11,17 @@ export const enum TRANSITION_TYPE {
      * Indicates the token(s) of this state need to 
      * be consumed before progressing to the next state(s). 
      * 
-     * Friendly name:  `consume`
+     * Friendly name:  `assert-consume`
      */
-    CONSUME,
+    ASSERT_CONSUME,
+    /**
+     * A consume that immediately follows a peek. This consume
+     * can proceed without an assertion
+     * 
+     * Friendly name:  `post-peek-consume`
+     */
+    POST_PEEK_CONSUME,
+
     /**
      * Indicates that the token(s) at this state only need to be 
      * asserted before progressing to the next state(s)
@@ -29,30 +37,43 @@ export const enum TRANSITION_TYPE {
      * Friendly name:  `assert-end`
      */
     ASSERT_END,
+
+    /**
+     * Assert a call to a production function
+     * 
+     * Friendly name:  `assert-production-call`
+     */
+    ASSERT_PRODUCTION_CALL,
+
     /**
      * Like ASSERT, except state will call a production function.
      * 
-     * Friendly name:  `assert-production-closure`
+     * Assertion of symbols may be skipped, as they will be reasserted
+     * within the production call,
+     * 
+     * Friendly name:  `assert-production-symbols`
      */
     ASSERT_PRODUCTION_SYMBOLS,
-    /**
-     * Like CHECK except the assertion should be made on the peeking lexer instead of
-     * the main lexer.
-     * 
-     * Friendly name:  `peek`
-     */
-    PEEK,
 
     /**
-     * Like ASSERT_PRODUCTION_SYMBOLS, except the assertion should be made on the peeking lexer instead of
-     * the main lexer.
+     * Like ASSERT except the assertion should be made on the peeking 
+     * lexer instead of the main lexer.
      * 
-     * Friendly name:  `peek-production-closure`
+     * Friendly name:  `assert-peek`
+     */
+    ASSERT_PEEK,
+
+    /**
+     * Like ASSERT_PRODUCTION_SYMBOLS, except the assertion should be
+     *  made on the peeking lexer instead of the main lexer.
+     * 
+     * Friendly name:  `peek-production-symbols`
      */
     PEEK_PRODUCTION_SYMBOLS,
 
     /**
-     * This state should be ignored. Used for look-ahead sequences that should not actual produce code that could manipulate the lexer
+     * This state should be ignored. Used for look-ahead sequences that 
+     * should not actual produce code that could manipulate the lexer
      * 
      * Friendly name:  `ignore`
      */
@@ -63,7 +84,7 @@ export const enum TRANSITION_TYPE {
  * A parse state that has been transitioned to from either the start 
  * of the production function or from a proceeding state.
  */
-export interface RecognizerState {
+export interface TransitionNode {
     /**
      * Code that should be added to the proceeding state's execution scope. May 
      * need to be gated by this state's symbol
@@ -111,7 +132,7 @@ export interface RecognizerState {
 
     leaves?: Leaf[];
 
-    states: RecognizerState[];
+    states: TransitionNode[];
     /**
      * Flag to prevent repeat processing of the same state
      */

@@ -1,5 +1,5 @@
 import { EOF_SYM } from "../../types/grammar.js";
-import { RecognizerState, TRANSITION_TYPE } from "../../types/recognizer_state.js";
+import { TransitionNode, TRANSITION_TYPE } from "../../types/transition_node.js";
 import { RenderBodyOptions } from "../../types/render_body_options";
 import { getClosure, getFollowClosure } from "../../utilities/closure.js";
 import { getFollow } from "../../utilities/follow.js";
@@ -7,19 +7,19 @@ import { getGotoItems, Item, itemsToProductions } from "../../utilities/item.js"
 import { SC } from "../../utilities/skribble.js";
 import { getSymbolsFromClosure } from "../../utilities/symbol.js";
 import { getTransitionTree } from "../../utilities/transition_tree.js";
-import { const_EMPTY_ARRAY } from "./const_EMPTY_ARRAY.js";
-import { createRecognizerState } from "./create_recognizer_state.js";
-import { processProductionChain } from "./process_production_chain.js";
-import { buildPeekSequence } from "./yield_peek_states.js";
+import { const_EMPTY_ARRAY } from "../../utilities/const_EMPTY_ARRAY.js";
+import { createTransitionNode } from "./create_transition_node.js";
+import { processProductionChain } from "./process_production_reduction_sequences.js";
+import { buildPeekTransitions } from "./yield_peek_transitions.js";
 
 
-export function yieldCompletedItemStates(end_items: Item[], options: RenderBodyOptions, offset: number): RecognizerState[] {
+export function yieldEndItemTransitions(end_items: Item[], options: RenderBodyOptions, offset: number): TransitionNode[] {
 
     if (end_items.length == 0) return [];
 
     const
 
-        output_states: RecognizerState[] = [],
+        output_states: TransitionNode[] = [],
 
         { grammar, goto_items } = options;
 
@@ -43,7 +43,7 @@ export function yieldCompletedItemStates(end_items: Item[], options: RenderBodyO
                 item = end_items[item_index],
                 symbols = getSymbolsFromClosure(getClosure(active_items, grammar), grammar);
 
-            output_states.push(createRecognizerState([item], symbols, TRANSITION_TYPE.ASSERT_END, offset));
+            output_states.push(createTransitionNode([item], symbols, TRANSITION_TYPE.ASSERT_END, offset));
 
             end_items.splice(item_index, 1);
 
@@ -76,7 +76,7 @@ export function yieldCompletedItemStates(end_items: Item[], options: RenderBodyO
                 }));
 
             if (tree_nodes.length > 0) {
-                output_states.push(...buildPeekSequence(
+                output_states.push(...buildPeekTransitions(
                     tree_nodes,
                     options,
                     offset,
@@ -105,7 +105,7 @@ export function yieldCompletedItemStates(end_items: Item[], options: RenderBodyO
 
         if (symbols.length == 0) symbols.push(EOF_SYM);
 
-        output_states.push(createRecognizerState([item], symbols, TRANSITION_TYPE.ASSERT_END, offset + 1, 0));
+        output_states.push(createTransitionNode([item], symbols, TRANSITION_TYPE.ASSERT_END, offset + 1, 0));
     }
 
     return output_states;

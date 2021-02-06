@@ -1,15 +1,15 @@
 
-import { RecognizerState, TRANSITION_TYPE } from "../../types/recognizer_state.js";
+import { TransitionNode, TRANSITION_TYPE } from "../../types/transition_node.js";
 import { RenderBodyOptions } from "../../types/render_body_options";
 
 import { Item } from "../../utilities/item.js";
 import { Sym_Is_A_Production } from "../../utilities/symbol.js";
-import { yieldStates } from "./yield_states.js";
-import { processRecognizerStates } from "./process_recognizer_states.js";
-import { createRecognizerState } from "./create_recognizer_state.js";
+import { yieldTransitions } from "./yield_transitions.js";
+import { processTransitionNodes } from "./process_transition_nodes.js";
+import { createTransitionNode } from "./create_transition_node.js";
 import { getProductionID } from "../../utilities/production.js";
 
-export function yieldGotoStates(options: RenderBodyOptions, completed_productions: number[]): RecognizerState[] {
+export function yieldGOTOTransitions(options: RenderBodyOptions, completed_productions: number[]): TransitionNode[] {
 
     const { grammar, goto_items, production_ids, extended_goto_items } = options;
 
@@ -87,11 +87,11 @@ export function yieldGotoStates(options: RenderBodyOptions, completed_production
                 const
                     items_to_process = goto_groups.get(production_id).map(i => i.increment()),
 
-                    states = yieldStates(items_to_process, options, 1),
+                    states = yieldTransitions(items_to_process, options, 1),
 
-                    { code, hash, leaves, prods } = processRecognizerStates(options, states),
+                    { code, hash, leaves, prods } = processTransitionNodes(options, states),
 
-                    state = createRecognizerState(
+                    state = createTransitionNode(
                         items_to_process.filter(i => i.offset == 1),
                         [<any>production_id],
                         TRANSITION_TYPE.ASSERT,

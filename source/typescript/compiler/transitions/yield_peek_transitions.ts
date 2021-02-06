@@ -1,35 +1,35 @@
 import { Grammar } from "../../types/grammar.js";
-import { RecognizerState, TRANSITION_TYPE } from "../../types/recognizer_state.js";
+import { TransitionNode, TRANSITION_TYPE } from "../../types/transition_node.js";
 import { RenderBodyOptions } from "../../types/render_body_options.js";
 import { Symbol } from "../../types/symbol.js";
 import { TransitionTreeNode } from "../../types/transition_tree_nodes";
 import { getSymbolFromUniqueName, getUniqueSymbolName } from "../../utilities/symbol.js";
-import { const_EMPTY_ARRAY } from "./const_EMPTY_ARRAY.js";
-import { createRecognizerState } from "./create_recognizer_state.js";
-import { processPeekStateLeaf } from "./process_peek_state_leaf.js";
+import { const_EMPTY_ARRAY } from "../../utilities/const_EMPTY_ARRAY.js";
+import { createTransitionNode } from "./create_transition_node.js";
+import { processPeekTransitionLeaves } from "./process_peek_transition_leaves.js";
 
 
-export type leafHandler = (state: RecognizerState, options: RenderBodyOptions, offset: number) => void;
+export type leafHandler = (state: TransitionNode, options: RenderBodyOptions, offset: number) => void;
 
-export function convertTreeNodeToRenderable(node: TransitionTreeNode, grammar: Grammar) {
+export function convertTransitionTreeNodeToRenderable(node: TransitionTreeNode, grammar: Grammar) {
     return Object.assign({}, node, {
         roots: node.roots.map(r => r.renderUnformattedWithProduction(grammar)),
-        next: node.next.map(n => convertTreeNodeToRenderable(n, grammar)),
+        next: node.next.map(n => convertTransitionTreeNodeToRenderable(n, grammar)),
         closure: node.closure.map(r => r.renderUnformattedWithProduction(grammar))
     });
 }
 
-export function buildPeekSequence(
+export function buildPeekTransitions(
     peek_nodes: TransitionTreeNode[],
     options: RenderBodyOptions,
     offset: number,
-    leafHandler: leafHandler = processPeekStateLeaf,
+    leafHandler: leafHandler = processPeekTransitionLeaves,
     filter_symbols: Symbol[] = const_EMPTY_ARRAY,
     depth: number = 0,
-): RecognizerState[] {
+): TransitionNode[] {
 
     const
-        output_states: RecognizerState[] = [],
+        output_states: TransitionNode[] = [],
         peek_groups = peek_nodes.filter(({ sym }) => {
             if (filter_symbols.length > 0) {
                 for (const f_sym of filter_symbols)
@@ -47,12 +47,12 @@ export function buildPeekSequence(
                 .map(g => g.sym)
                 .map(s => getSymbolFromUniqueName(options.grammar, s)),
 
-            state = createRecognizerState(group[0].roots, symbols, TRANSITION_TYPE.PEEK, offset, depth);
+            state = createTransitionNode(group[0].roots, symbols, TRANSITION_TYPE.ASSERT_PEEK, offset, depth);
 
         state.closure = group.flatMap(g => g.starts).setFilter(s => s.id);
 
         if (group[0].next.length > 0)
-            state.states.push(...buildPeekSequence(group[0].next, options, offset, leafHandler, const_EMPTY_ARRAY, depth + 1));
+            state.states.push(...buildPeekTransitions(group[0].next, options, offset, leafHandler, const_EMPTY_ARRAY, depth + 1));
         else
             leafHandler(state, options, offset);
 

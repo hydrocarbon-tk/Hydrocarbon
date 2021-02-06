@@ -1,4 +1,4 @@
-import { RecognizerState } from "../../types/recognizer_state.js";
+import { TransitionNode } from "../../types/transition_node.js";
 import { RenderBodyOptions } from "../../types/render_body_options";
 import { SelectionClauseGenerator } from "../../types/state_generating";
 import { getClosure } from "../../utilities/closure.js";
@@ -23,7 +23,7 @@ import {
 import { default_resolveBranches } from "./default_branch_resolution.js";
 
 
-export function resolveGOTOBranches(gen: SelectionClauseGenerator, state: RecognizerState, items_global: Item[], level: number, options: RenderBodyOptions): SC {
+export function resolveGOTOBranches(gen: SelectionClauseGenerator, state: TransitionNode, items_global: Item[], level: number, options: RenderBodyOptions): SC {
 
     if (state.offset == 0) {
 

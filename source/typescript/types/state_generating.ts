@@ -1,4 +1,4 @@
-import { Leaf, TRANSITION_TYPE } from "./recognizer_state";
+import { Leaf, TRANSITION_TYPE } from "./transition_node";
 import { Symbol } from "./symbol";
 import { Item } from "../utilities/item";
 import { SC } from "../utilities/skribble";

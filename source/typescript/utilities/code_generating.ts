@@ -42,15 +42,17 @@ export function generateGUIDConstName(fn_data: SC, prefix: string = "id", type: 
 export function getProductionFunctionName(production: Production, grammar: Grammar): string {
     return "$" + production.name;
 }
-
-export function createAssertionShiftManual(lex_name: ConstSC | VarSC = SC.Variable("l:Lexer"), boolean: ExprSC): ExprSC {
-    return SC.Binary(boolean, "&&", SC.Call(rec_consume_call, lex_name, rec_glob_data_name, rec_state));
+export function createConsume(lex_name: ConstSC | VarSC): ExprSC {
+    return SC.Call(rec_consume_call, lex_name, rec_glob_data_name, rec_state);
+}
+export function createAssertConsume(lex_name: ConstSC | VarSC = SC.Variable("l:Lexer"), boolean: ExprSC): ExprSC {
+    return SC.Binary(boolean, "&&", createConsume(lex_name));
 }
 export function createAssertionShift(grammar: Grammar, runner: Helper, sym: TokenSymbol, lex_name: ConstSC | VarSC = SC.Variable("l:Lexer")): ExprSC {
-    return createAssertionShiftManual(lex_name, getIncludeBooleans([sym], grammar, runner, lex_name));
+    return createAssertConsume(lex_name, getIncludeBooleans([sym], grammar, runner, lex_name));
 }
 
-export function renderProductionCall(
+export function createProductionCall(
     production: Production,
     options: RenderBodyOptions,
     lexer_name: VarSC = rec_glob_lex_name

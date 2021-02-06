@@ -1,6 +1,6 @@
 import { Grammar, ProductionBody } from "../../types/grammar.js";
 import { Production } from "../../types/production.js";
-import { Leaf, RecognizerState, TRANSITION_TYPE } from "../../types/recognizer_state.js";
+import { Leaf, TransitionNode, TRANSITION_TYPE } from "../../types/transition_node.js";
 import { RenderBodyOptions } from "../../types/render_body_options";
 import { MultiItemReturnObject } from "../../types/state_generating";
 import { rec_glob_lex_name, rec_state } from "../../utilities/global_names.js";
@@ -11,7 +11,7 @@ import { SC } from "../../utilities/skribble.js";
 import { getUniqueSymbolName } from "../../utilities/symbol.js";
 import { compileProductionFunctions } from "../function_constructor.js";
 import { addIntermediateLeafStatements } from "./add_leaf_statements.js";
-export function default_resolveUnresolvedLeaves(state: RecognizerState, states: RecognizerState[], options: RenderBodyOptions): MultiItemReturnObject {
+export function default_resolveUnresolvedLeaves(state: TransitionNode, states: TransitionNode[], options: RenderBodyOptions): MultiItemReturnObject {
 
     const
 

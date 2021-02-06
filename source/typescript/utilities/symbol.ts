@@ -196,9 +196,6 @@ export function getComplementOfSymbolSets(setA: TokenSymbol[], setB: TokenSymbol
     });
 }
 ;
-export function createNoCheckShift(grammar: Grammar, runner: Helper, lex_name: ConstSC | VarSC): StmtSC {
-    return SC.Expressions(SC.Call(rec_consume_call, lex_name, rec_glob_data_name, rec_state));
-}
 
 export function getSymbolFromUniqueName(grammar: Grammar, name: string): Symbol {
     return grammar.meta.all_symbols.get(name);

@@ -1,9 +1,8 @@
+import { Helper } from "../compiler/helper.js";
+import { Item } from "../utilities/item.js";
 import { Grammar } from "./grammar.js";
 import { Production } from "./production";
-import { Helper } from "../compiler/helper.js";
-import { SC } from "../utilities/skribble.js";
-import { Item } from "../utilities/item.js";
-import { Leaf, TRANSITION_TYPE } from "./recognizer_state.js";
+import { Leaf } from "./transition_node.js";
 
 export interface RenderBodyOptions {
 

@@ -1,16 +1,17 @@
 import { Grammar } from "../../types/grammar.js";
-import { RecognizerState, TRANSITION_TYPE } from "../../types/recognizer_state.js";
+import { TransitionNode, TRANSITION_TYPE } from "../../types/transition_node.js";
 import { RenderBodyOptions } from "../../types/render_body_options.js";
 import { getClosure } from "../../utilities/closure.js";
 import { Items_Have_The_Same_Active_Symbol, Item } from "../../utilities/item.js";
 import { getProductionID } from "../../utilities/production.js";
 import { Sym_Is_A_Production, Sym_Is_A_Production_Token } from "../../utilities/symbol.js";
 import { getTransitionTree } from "../../utilities/transition_tree.js";
-import { createRecognizerState } from "./create_recognizer_state.js";
-import { yieldCompletedItemStates } from "./yield_completed_item_states.js";
-import { getMaxOffsetOfItems, Items_Are_From_Same_Production, Leaves_Of_Transition_Contain_One_Root_Item as Every_Leaf_Of_TransitionTree_Contain_One_Root_Item, yieldStates } from "./yield_states.js";
-export function processPeekStateLeaf(
-    state: RecognizerState,
+import { const_EMPTY_ARRAY } from "../../utilities/const_EMPTY_ARRAY.js";
+import { createTransitionNode } from "./create_transition_node.js";
+import { yieldEndItemTransitions } from "./yield_end_item_transitions.js";
+import { getMaxOffsetOfItems, Items_Are_From_Same_Production, Leaves_Of_Transition_Contain_One_Root_Item as Every_Leaf_Of_TransitionTree_Contain_One_Root_Item, yieldTransitions } from "./yield_transitions.js";
+export function processPeekTransitionLeaves(
+    state: TransitionNode,
     options: RenderBodyOptions,
     offset: number = 0,
 ): void {
@@ -67,14 +68,14 @@ export function processPeekStateLeaf(
     }
 }
 
-function addSameActiveSymbolStates(state: RecognizerState, options: RenderBodyOptions, offset: number) {
+function addSameActiveSymbolStates(state: TransitionNode, options: RenderBodyOptions, offset: number) {
 
     if (Active_Symbol_Of_First_Item_Is_A_Production(state, options.grammar))
         state.transition_type = TRANSITION_TYPE.PEEK_PRODUCTION_SYMBOLS;
 
     addRegularYieldStates(state, state.items, options, offset + 1);
 }
-function convertPeekStateToSingleItemState(state: RecognizerState, { grammar }: RenderBodyOptions, offset: number) {
+function convertPeekStateToSingleItemState(state: TransitionNode, { grammar }: RenderBodyOptions, offset: number) {
 
     const { items } = state;
 
@@ -91,7 +92,7 @@ function convertPeekStateToSingleItemState(state: RecognizerState, { grammar }: 
                 state.symbols = [sym];
             }
 
-            state.transition_type = TRANSITION_TYPE.CONSUME;
+            state.transition_type = TRANSITION_TYPE.ASSERT_CONSUME;
 
             state.peek_level = -1;
         }
@@ -109,7 +110,7 @@ function convertPeekStateToSingleItemState(state: RecognizerState, { grammar }: 
     state.offset = offset;
 }
 
-function convertStateToClosureProductionCall(state: RecognizerState, offset: number) {
+function convertStateToClosureProductionCall(state: TransitionNode, offset: number) {
 
     state.items = state.closure.slice(0, 1);
 
@@ -118,7 +119,7 @@ function convertStateToClosureProductionCall(state: RecognizerState, offset: num
     state.transition_type = TRANSITION_TYPE.ASSERT_PRODUCTION_SYMBOLS;
 }
 
-function convertStateToProductionCall(state: RecognizerState, offset: number) {
+function convertStateToProductionCall(state: TransitionNode, offset: number) {
 
     state.items = [state.items[0]];
 
@@ -128,19 +129,19 @@ function convertStateToProductionCall(state: RecognizerState, offset: number) {
 }
 
 
-function addRegularYieldStates(state: RecognizerState, items: Item[], options: RenderBodyOptions, offset: number) {
+function addRegularYieldStates(state: TransitionNode, items: Item[], options: RenderBodyOptions, offset: number) {
 
-    state.states.push(...yieldStates(items, options, offset + 1));
+    state.states.push(...yieldTransitions(items, options, offset + 1, const_EMPTY_ARRAY, true));
 
 }
 
-function addUnresolvedStates(state: RecognizerState, options: RenderBodyOptions, offset: number) {
+function addUnresolvedStates(state: TransitionNode, options: RenderBodyOptions, offset: number) {
 
     const { items } = state;
 
     if (items.every(i => i.atEND)) {
         state.transition_type == TRANSITION_TYPE.ASSERT_END;
-        state.states.push(...yieldCompletedItemStates(items, options, offset));
+        state.states.push(...yieldEndItemTransitions(items, options, offset));
     } else {
 
         //filter out shift/reduce ambiguities
@@ -159,9 +160,9 @@ function addUnresolvedStates(state: RecognizerState, options: RenderBodyOptions,
         } else {
             for (const items_with_same_symbol of items.group(i => i.sym(options.grammar))) {
 
-                const backtracking_state = createRecognizerState(items, state.symbols, TRANSITION_TYPE.ASSERT, offset, state.peek_level, true);
+                const backtracking_state = createTransitionNode(items, state.symbols, TRANSITION_TYPE.ASSERT, offset, state.peek_level, true);
 
-                backtracking_state.states = yieldStates(items_with_same_symbol, options, offset);
+                backtracking_state.states = yieldTransitions(items_with_same_symbol, options, offset, const_EMPTY_ARRAY, false);
 
                 state.states.push(backtracking_state);
             }
@@ -172,22 +173,22 @@ function addUnresolvedStates(state: RecognizerState, options: RenderBodyOptions,
 
 
 
-function Active_Symbol_Of_First_Item_Is_A_Production(state: RecognizerState, grammar: Grammar) {
+function Active_Symbol_Of_First_Item_Is_A_Production(state: TransitionNode, grammar: Grammar) {
     return Sym_Is_A_Production(state.items[0].sym(grammar));
 }
 
-function We_Can_Call_Single_Production_From_Items({ items }: RecognizerState, { grammar, production_ids }: RenderBodyOptions) {
+function We_Can_Call_Single_Production_From_Items({ items }: TransitionNode, { grammar, production_ids }: RenderBodyOptions) {
     return getMaxOffsetOfItems(items) == 0
         && Items_Are_From_Same_Production(items, grammar)
         && items.every(i => !i.atEND)
         && !production_ids.includes(getProductionID(items[0], grammar));
 }
 
-function State_Closure_Allows_Production_Call({ closure }: RecognizerState, { grammar }: RenderBodyOptions) {
+function State_Closure_Allows_Production_Call({ closure }: TransitionNode, { grammar }: RenderBodyOptions) {
     return getMaxOffsetOfItems(closure) == 0 && Items_Are_From_Same_Production(closure, grammar);
 }
 
-function No_Matching_Extended_Goto_Item_In_State_Closure(state: RecognizerState, options: RenderBodyOptions) {
+function No_Matching_Extended_Goto_Item_In_State_Closure(state: TransitionNode, options: RenderBodyOptions) {
 
     const { extended_goto_items } = options;
 
@@ -198,7 +199,7 @@ function No_Matching_Extended_Goto_Item_In_State_Closure(state: RecognizerState,
         state.items.every(i => !i.atEND);
 }
 
-function Items_From_Same_Production_Allow_Production_Call(state: RecognizerState, options: RenderBodyOptions, offset: number) {
+function Items_From_Same_Production_Allow_Production_Call(state: TransitionNode, options: RenderBodyOptions, offset: number) {
     const
         { production_ids, grammar } = options,
         ITEMS_ARE_FROM_SAME_PRODUCTION = Items_Are_From_Same_Production(state.items, grammar),

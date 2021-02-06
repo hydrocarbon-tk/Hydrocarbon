@@ -2,14 +2,17 @@ import { Grammar } from "../types/grammar";
 import { RenderBodyOptions } from "../types/render_body_options";
 import { ProductionSymbol } from "../types/symbol";
 import {
-    createAssertionShift, createDefaultReduceFunction,
-    createReduceFunction, createSkipCall, renderProductionCall
+    createConsume,
+    createAssertionShift,
+    createDefaultReduceFunction,
+    createReduceFunction,
+    createSkipCall,
+    createProductionCall
 } from "./code_generating.js";
 import { rec_glob_lex_name } from "./global_names.js";
 import { Item } from "./item.js";
 import { SC, VarSC } from "./skribble.js";
 import {
-    createNoCheckShift,
     getRootSym,
     getSkippableSymbolsFromItems,
     Sym_Is_A_Production
@@ -80,12 +83,12 @@ export function renderItemSymbol(
 
             ({ IS_PASSTHROUGH, first_non_passthrough, passthrough_chain } = getProductionPassthroughInformation(sym.val, grammar));
 
-            bool_expression = renderProductionCall(grammar[first_non_passthrough], options, lexer_name);
+            bool_expression = createProductionCall(grammar[first_non_passthrough], options, lexer_name);
 
             RENDER_WITH_NO_CHECK = false;
 
         } else if (RENDER_WITH_NO_CHECK) {
-            code_node.addStatement(createNoCheckShift(grammar, runner, lexer_name));
+            code_node.addStatement(createConsume(lexer_name));
             //bool_expression = SC.Empty();
             //RENDER_WITH_NO_CHECK = false;
         } else {

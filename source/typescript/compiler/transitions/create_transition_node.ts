@@ -1,16 +1,16 @@
-import { RecognizerState, TRANSITION_TYPE } from "../../types/recognizer_state.js";
+import { TransitionNode, TRANSITION_TYPE } from "../../types/transition_node.js";
 import { Symbol } from "../../types/symbol.js";
 import { Item } from "../../utilities/item.js";
 
-export function createRecognizerState(
+export function createTransitionNode(
     items: Item[],
     symbols: Symbol[],
     transition_type: TRANSITION_TYPE,
     offset: number = -1,
     peek_level: number = -1,
     UNRESOLVED_LEAF: boolean = false
-): RecognizerState {
-    return <RecognizerState>{
+): TransitionNode {
+    return <TransitionNode>{
         UNRESOLVED_LEAF: UNRESOLVED_LEAF,
         PROCESSED: false,
         code: null,
