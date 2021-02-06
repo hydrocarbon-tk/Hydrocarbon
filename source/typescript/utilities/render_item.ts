@@ -67,8 +67,12 @@ export function renderItemSymbol(
 
     let bool_expression = null;
     let IS_PASSTHROUGH = false, passthrough_chain = null, first_non_passthrough = 0;
+
     if (item.atEND) {
+
         renderItemReduction(code_node, item, grammar);
+
+        return { code_node };
     } else {
         const sym = getRootSym(item.sym(grammar), grammar);
 
@@ -80,15 +84,16 @@ export function renderItemSymbol(
 
             RENDER_WITH_NO_CHECK = false;
 
+        } else if (RENDER_WITH_NO_CHECK) {
+            code_node.addStatement(createNoCheckShift(grammar, runner, lexer_name));
+            //bool_expression = SC.Empty();
+            //RENDER_WITH_NO_CHECK = false;
         } else {
-            if (RENDER_WITH_NO_CHECK) {
-                code_node.addStatement(createNoCheckShift(grammar, runner, lexer_name));
-            } else {
-                bool_expression = createAssertionShift(grammar, runner, sym, lexer_name);
+            bool_expression = createAssertionShift(grammar, runner, sym, lexer_name);
 
-                RENDER_WITH_NO_CHECK = false;
-            }
+            RENDER_WITH_NO_CHECK = false;
         }
+
     }
 
     if (!RENDER_WITH_NO_CHECK) {
@@ -96,8 +101,7 @@ export function renderItemSymbol(
         code_node.addStatement(_if);
         code_node.addStatement(SC.Empty());
         code_node = _if;
-    } else if (bool_expression) {
-        code_node.addStatement(bool_expression);
+    } else {
     }
 
     if (IS_PASSTHROUGH) {
@@ -121,7 +125,6 @@ export function renderItem(
     const { grammar, helper: runner } = options;
 
     if (!item.atEND) {
-
         const
             { code_node: leaf } = renderItemSymbol(code_node, item, options, DONT_CHECK, lexer_name),
             new_item = item.increment();

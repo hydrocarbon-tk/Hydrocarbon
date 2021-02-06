@@ -54,13 +54,18 @@ export function default_resolveResolvedLeaf(item: Item, state: RecognizerState, 
 
             const
                 skippable = getSkippableSymbolsFromItems([item], grammar),
-                skip = state.transition_type == TRANSITION_TYPE.CONSUME && !item.atEND
+                skip = state.transition_type == TRANSITION_TYPE.CONSUME
+                    && !item.atEND
                     ? createSkipCall(skippable, grammar, runner, rec_glob_lex_name)
                     : undefined;
 
             code.addStatement(skip);
 
-            leaf_code = renderItem(code, item, options, false);
+            const sc = new SC;
+
+            code.addStatement(sc);
+
+            leaf_code = renderItem(sc, item, options, state.transition_type == TRANSITION_TYPE.ASSERT);
 
             prods = processProductionChain(leaf_code, options, itemsToProductions([item], grammar));
         }
@@ -69,7 +74,7 @@ export function default_resolveResolvedLeaf(item: Item, state: RecognizerState, 
             leaf_productions.add(prod);
     }
 
-    leaf_code.shiftStatement(SC.Comment("--unique-id--" + prods.setFilter().sort().join("-") + "--DO-NOT-REPLACE"));
+    leaf_code.shiftStatement(SC.Comment("--unique-id--" + prods.setFilter().sort().join("-") + item.id + "--DO-NOT-REPLACE"));
 
     return {
         leaf: {
