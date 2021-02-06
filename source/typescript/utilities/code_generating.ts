@@ -301,7 +301,7 @@ export function buildIfs(
 
     const code_node = yielded.value;
 
-    code_node.addStatement(SC.UnaryPre(SC.Return, SC.True));
+    code_node.addStatement(SC.UnaryPre(SC.Return, SC.False));
 
     return code_node;
 }
