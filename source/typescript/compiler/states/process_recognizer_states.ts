@@ -42,13 +42,13 @@ function getGroupScore(a: SelectionGroup) {
 export function processRecognizerStates(
     options: RenderBodyOptions,
     states: RecognizerState[],
-    selection_clause_fn:
+    branch_resolve_function:
         (gen: SelectionClauseGenerator, state: RecognizerState, items: Item[], level: number, options: RenderBodyOptions) => SC =
         default_resolveBranches,
-    multi_item_leaf_fn:
+    conflicting_leaf_resolve_function:
         (state: RecognizerState, states: RecognizerState[], options: RenderBodyOptions) => MultiItemReturnObject =
         default_resolveUnresolvedLeaves,
-    single_item_leaf_fn:
+    leaf_resolve_function:
         (item: Item, group: RecognizerState, options: RenderBodyOptions) => SingleItemReturnObject =
         default_resolveResolvedLeaf,
     grouping_fn: (node: RecognizerState, level: number, peeking: boolean) => string = defaultGrouping
@@ -110,9 +110,9 @@ export function processRecognizerStates(
                     };
 
                     if (WE_HAVE_UNRESOLVED_LEAVES) {
-                        ({ root, leaves } = multi_item_leaf_fn(virtual_state, states, options));
+                        ({ root, leaves } = conflicting_leaf_resolve_function(virtual_state, states, options));
                     } else {
-                        root = selection_clause_fn(
+                        root = branch_resolve_function(
                             traverseInteriorNodes(filtered_states, options, grouping_fn),
                             virtual_state,
                             items,
@@ -140,7 +140,7 @@ export function processRecognizerStates(
                 if (state.items.length == 0)
                     throw new Error("Flow should not enter this block: Multi-item moved to group section");
 
-                const { leaf } = single_item_leaf_fn(state.items[0], state, options);
+                const { leaf } = leaf_resolve_function(state.items[0], state, options);
                 state.code = leaf.root;
                 state.hash = leaf.hash;
                 state.prods = leaf.prods;
