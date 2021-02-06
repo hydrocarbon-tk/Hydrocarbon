@@ -3,7 +3,7 @@ import { Production } from "../../types/production.js";
 import { Leaf, TransitionNode, TRANSITION_TYPE } from "../../types/transition_node.js";
 import { RenderBodyOptions } from "../../types/render_body_options";
 import { MultiItemReturnObject } from "../../types/state_generating";
-import { rec_glob_lex_name, rec_state } from "../../utilities/global_names.js";
+import { rec_glob_lex_name, rec_state, rec_state_prod } from "../../utilities/global_names.js";
 import { Item, ItemIndex } from "../../utilities/item.js";
 import { buildItemMaps } from "../../utilities/item_map.js";
 import { renderItem } from "../../utilities/render_item.js";
@@ -11,13 +11,13 @@ import { SC } from "../../utilities/skribble.js";
 import { getUniqueSymbolName } from "../../utilities/symbol.js";
 import { compileProductionFunctions } from "../function_constructor.js";
 import { addIntermediateLeafStatements } from "./add_leaf_statements.js";
-export function default_resolveUnresolvedLeaves(state: TransitionNode, states: TransitionNode[], options: RenderBodyOptions): MultiItemReturnObject {
+export function default_resolveUnresolvedLeaves(node: TransitionNode, nodes: TransitionNode[], options: RenderBodyOptions): MultiItemReturnObject {
 
     const
 
-        items = states.flatMap(s => s.items).setFilter(i => i.id),
+        items = nodes.flatMap(s => s.items).setFilter(i => i.id),
 
-        expected_symbols = states.flatMap(s => s.symbols).setFilter(getUniqueSymbolName),
+        expected_symbols = nodes.flatMap(s => s.symbols).setFilter(getUniqueSymbolName),
 
         anchor_state = SC.Variable("anchor_state:unsigned"),
 
@@ -27,66 +27,77 @@ export function default_resolveUnresolvedLeaves(state: TransitionNode, states: T
 
         ),
 
-        IS_LEFT_RECURSIVE_WITH_FOREIGN_PRODUCTION_ITEMS = states.some(i => i.transition_type == TRANSITION_TYPE.IGNORE),
+        IS_LEFT_RECURSIVE_WITH_FOREIGN_PRODUCTION_ITEMS = nodes.some(i => i.transition_type == TRANSITION_TYPE.IGNORE),
 
         out_prods: number[] = [],
 
         out_leaves: Leaf[] = [];
 
-    try {
-        const
-            { grammar } = options,
-            productions: Production[] = createVirtualProductions(items, grammar);
+    let FALLBACK_REQUIRED = items.every(i => i.atEND);
+
+    if (!FALLBACK_REQUIRED)
+        try {
+            const
+                { grammar } = options,
+                productions: Production[] = createVirtualProductions(items, grammar);
 
 
+            const { RDOptions, GOTO_Options, RD_fn_contents, GOTO_fn_contents }
+                = compileProductionFunctions(options.grammar, options.helper, productions, expected_symbols);
+
+            addIntermediateLeafStatements(
+                RD_fn_contents,
+                GOTO_fn_contents,
+                SC.Variable("testA"),
+                RDOptions,
+                GOTO_Options
+            );
+
+            root.addStatement(RD_fn_contents, GOTO_Options.NO_GOTOS ? undefined : GOTO_fn_contents);
 
 
-        const { RDOptions, GOTO_Options, RD_fn_contents, GOTO_fn_contents }
-            = compileProductionFunctions(options.grammar, options.helper, productions, expected_symbols);
+            let leaf = root;// prev_prods;
 
-        addIntermediateLeafStatements(
-            RD_fn_contents,
-            GOTO_fn_contents,
-            SC.Variable("testA"),
-            RDOptions,
-            GOTO_Options
-        );
+            for (let i = 0; i < items.length; i++) {
 
-        root.addStatement(RD_fn_contents, GOTO_Options.NO_GOTOS ? undefined : GOTO_fn_contents);
+                const item = items[i];
 
-        let leaf = root;// prev_prods;
-
-        for (let i = 0; i < items.length; i++) {
-            const item = items[i];
-            item[ItemIndex.offset] = item[ItemIndex.length];
-            const v_prod = productions[i];
-            const prod = item.getProduction(grammar).id;
+                item[ItemIndex.offset] = item[ItemIndex.length];
+                const v_prod = productions[i];
+                const prod = item.getProduction(grammar).id;
 
 
-            out_prods.push(prod);
+                out_prods.push(prod);
 
-            leaf.addStatement(item.renderUnformattedWithProduction(grammar));
+                leaf.addStatement(item.renderUnformattedWithProduction(grammar));
 
-            const _if = SC.If(SC.Binary("prod", "==", v_prod.id));
-            let _if_leaf = new SC;
-            _if.addStatement(_if_leaf);
-            _if_leaf = renderItem(_if_leaf, item, options);
+                const _if = SC.If(SC.Binary("prod", "==", v_prod.id));
+                let _if_leaf = new SC;
+                _if.addStatement(_if_leaf);
+                _if_leaf = renderItem(_if_leaf, item, options);
 
-            leaf.addStatement(_if);
-            leaf = _if;
+                leaf.addStatement(_if);
+                leaf = _if;
 
-            out_leaves.push({
-                prods: [prod],
-                root: _if,
-                leaf: _if_leaf,
-                hash: "----------------",
-                transition_type: TRANSITION_TYPE.ASSERT_END,
-            });
+                out_leaves.push({
+                    prods: [prod],
+                    root: _if,
+                    leaf: _if_leaf,
+                    hash: "----------------",
+                    transition_type: TRANSITION_TYPE.ASSERT_END,
+                });
+            }
+
+        } catch (e) {
+            root.statements.length = 0;
+            root.addStatement(e.stack);
+            FALLBACK_REQUIRED = true;
         }
 
-    } catch (e) {
+    if (FALLBACK_REQUIRED) {
 
-        root.addStatement(e.stack,
+
+        root.addStatement(
             SC.Declare(
                 SC.Assignment("mk:int", SC.Call("mark")),
                 SC.Assignment("anchor:Lexer", SC.Call(SC.Member(rec_glob_lex_name, "copy"))),
@@ -95,7 +106,8 @@ export function default_resolveUnresolvedLeaves(state: TransitionNode, states: T
 
         let leaf = root, FIRST = true;// prev_prods;
 
-        for (const { code, items, prods, leaves } of states.filter(i => i.transition_type !== TRANSITION_TYPE.IGNORE)) {
+        for (const { code, items, prods, leaves } of nodes.filter(i => i.transition_type !== TRANSITION_TYPE.IGNORE)) {
+
 
             out_prods.push(...prods);
             out_leaves.push(...leaves);
@@ -141,7 +153,6 @@ export function default_resolveUnresolvedLeaves(state: TransitionNode, states: T
                 SC.Empty()
             );
         }
-
     }
 
     return { root, leaves: out_leaves, prods: out_prods.setFilter() };
