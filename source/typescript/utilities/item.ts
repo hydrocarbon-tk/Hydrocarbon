@@ -69,7 +69,7 @@ export class Item extends Array {
     }
 
     sym(grammar: Grammar): Symbol {
-        return this.body_(grammar).sym[this.offset];
+        return this.body_(grammar).sym[this.offset] || EOF_SYM;
     }
 
     render(grammar: Grammar): string {

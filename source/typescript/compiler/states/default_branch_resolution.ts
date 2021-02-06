@@ -51,7 +51,7 @@ export function default_resolveBranches(
         getSkippableSymbolsFromItems(items, grammar).filter(i => !all_syms.some(j => getSymbolName(i) == getSymbolName(j)))
     );
 
-    if (groups.length > 4)
+    if (groups.length > 4 && items.filter(i => i.atEND).setFilter(i => i.id).length <= 1)
 
         createSwitchBlock(options, groups, lex_name, all_syms, root);
 
@@ -207,13 +207,13 @@ function createIfElseBlock(
                     const negate_symbols = other_transition_syms;
                     const remaining_symbols = getIncludeBooleans(<TokenSymbol[]>primary_symbols, grammar, runner, peek_name);
                     const negated_expression = getIncludeBooleans(<TokenSymbol[]>negate_symbols, grammar, runner, peek_name);
+                    if (negated_expression) {
 
-                    if (primary_symbols.length > 0)
-                        gate_block = SC.Binary(SC.UnaryPre("!", negated_expression), "||", remaining_symbols);
-
-
-                    else
-                        gate_block = SC.UnaryPre("!", negated_expression);
+                        if (primary_symbols.length > 0)
+                            gate_block = SC.Binary(SC.UnaryPre("!", negated_expression), "||", remaining_symbols);
+                        else
+                            gate_block = SC.UnaryPre("!", negated_expression);
+                    } else gate_block = SC.Empty();
                 } else {
                     gate_block = getIncludeBooleans(<TokenSymbol[]>pending_syms, grammar, runner, peek_name, <TokenSymbol[]>all_syms);
                 }

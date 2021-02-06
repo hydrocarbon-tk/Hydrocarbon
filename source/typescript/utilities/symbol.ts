@@ -91,6 +91,7 @@ export function Sym_Is_Consumed(s: Symbol): boolean {
     return !Sym_Is_Not_Consumed(s);
 }
 export function Sym_Is_A_Production(s: Symbol): s is ProductionSymbol {
+    if (!s) return false;
     return s.type == SymbolType.PRODUCTION;
 }
 
@@ -103,6 +104,7 @@ export function Sym_Is_A_Generic_Type(s: Symbol): s is (GeneratedSymbol | EOFSym
 }
 
 export function Sym_Is_A_Production_Token(s: Symbol): s is (ProductionTokenSymbol) {
+    if (!s) return false;
     return (s.type == SymbolType.PRODUCTION_TOKEN_SYMBOL);
 }
 /**

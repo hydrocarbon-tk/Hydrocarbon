@@ -36,9 +36,9 @@ export function yieldStates(
     const
         { grammar, production_ids } = options,
         output_states: RecognizerState[] = [],
-        end_items = in_items.filter(i => i.atEND),
-        active_items = in_items.filter(i => !i.atEND).filter(item => {
-            const sym = item.sym(grammar);
+        end_items = [],//in_items.filter(i => i.atEND),
+        active_items = in_items.filter(item => {
+            const sym = item.sym(grammar) || EOF_SYM;
             return Sym_Is_A_Production(sym)
                 || filter_symbols.length == 0
                 || filter_symbols.some(f => Symbols_Are_The_Same(f, sym));
@@ -59,6 +59,7 @@ export function yieldStates(
             max_item_offset = getMaxOffsetOfItems(active_items),
 
             first_production = (active_items[0]).getProduction(grammar),
+            HAVE_END_ITEMS = active_items.some(i => i.atEND),
             NUMBER_OF_ACTIVE_ITEMS_IS_ONE = active_items.length == 1,
             ITEMS_HAVE_A_MAX_OFFSET_OF_ZERO = max_item_offset == 0,
             ALL_ITEMS_ARE_FROM_SAME_PRODUCTION = Items_Are_From_Same_Production(active_items, grammar),
@@ -67,24 +68,25 @@ export function yieldStates(
             ITEMS_SHOULD_CREATE_SHIFT_STATES = (offset > 0 || ALL_ITEMS_ARE_FROM_ROOT_PRODUCTION || ALL_ITEMS_ARE_FROM_SAME_PRODUCTION);
 
 
-        if (NUMBER_OF_ACTIVE_ITEMS_IS_ONE)
+        if (NUMBER_OF_ACTIVE_ITEMS_IS_ONE && !HAVE_END_ITEMS)
 
             output_states.push(...yieldSingleItemState(active_items, options, offset));
 
         else if (ALL_ITEMS_ARE_FROM_SAME_PRODUCTION
             && !ALL_ITEMS_ARE_FROM_ROOT_PRODUCTION
+            && !HAVE_END_ITEMS
             && ITEMS_HAVE_A_MAX_OFFSET_OF_ZERO
         )
 
             output_states.push(...yieldProductionCallState(active_items, offset));
 
-        else if (ALL_ITEMS_HAVE_SAME_SYMBOL && ITEMS_SHOULD_CREATE_SHIFT_STATES)
+        else if (ALL_ITEMS_HAVE_SAME_SYMBOL && ITEMS_SHOULD_CREATE_SHIFT_STATES && !HAVE_END_ITEMS)
 
             output_states.push(...yieldStatesOfItemsWithSameSymbol(active_items, options, offset));
 
         else
 
-            output_states.push(...yieldPeekedStates(active_items, options, offset, filter_symbols));
+            output_states.push(...yieldPeekedStates(active_items.concat(end_items), options, offset, filter_symbols));
 
     }
 

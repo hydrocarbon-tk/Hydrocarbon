@@ -6,9 +6,15 @@ import { TokenSymbol } from "../../types/symbol.js";
 import { Item } from "../../utilities/item.js";
 import { SC } from "../../utilities/skribble.js";
 import {
-    Defined_Symbols_Occlude, Sym_Is_A_Generic_Identifier,
+    Defined_Symbols_Occlude,
+    Sym_Is_A_Generic_Identifier,
     Sym_Is_A_Generic_Number,
-    Sym_Is_A_Generic_Symbol
+    Sym_Is_A_Generic_Symbol,
+    Sym_Is_A_Generic_Type,
+    Sym_Is_Defined_Characters,
+    Sym_Is_Defined_Identifier,
+    Sym_Is_Defined_Natural_Number,
+    Sym_Is_EOF
 } from "../../utilities/symbol.js";
 import { default_resolveBranches } from "./default_branch_resolution.js";
 import { default_resolveResolvedLeaf } from "./default_resolved_leaf_resolution.js";

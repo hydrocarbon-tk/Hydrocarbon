@@ -57,11 +57,11 @@ export function default_resolveUnresolvedLeaves(state: RecognizerState, states: 
         let leaf = root;// prev_prods;
 
         for (let i = 0; i < items.length; i++) {
-            const item = items[i].increment();
+            const item = items[i];
+            item[ItemIndex.offset] = item[ItemIndex.length];
             const v_prod = productions[i];
             const prod = item.getProduction(grammar).id;
 
-            item[ItemIndex.offset] = item[ItemIndex.length];
 
             out_prods.push(prod);
 
