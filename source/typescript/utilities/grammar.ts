@@ -105,6 +105,7 @@ function packSymbol(sequence: string, sym: DefinedSymbol) {
         sym.byte_length = sym.val.length;
     } else if (sequence[sequence.length - 1] == sym.val[0]) {
         sym.byte_offset = sequence.length - 1;
+        sym.byte_length = sym.val.length;
         sequence += sym.val.slice(1);
     } else {
         sym.byte_offset = sequence.length;
