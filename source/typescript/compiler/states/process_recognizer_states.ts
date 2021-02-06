@@ -6,9 +6,9 @@ import { TokenSymbol } from "../../types/symbol.js";
 import { Item } from "../../utilities/item.js";
 import { SC } from "../../utilities/skribble.js";
 import {
-    Defined_Symbols_Occlude, Sym_Is_An_Identifier_Generic,
-    Sym_Is_A_Numeric_Generic,
-    Sym_Is_A_Symbol_Character
+    Defined_Symbols_Occlude, Sym_Is_A_Generic_Identifier,
+    Sym_Is_A_Generic_Number,
+    Sym_Is_A_Generic_Symbol
 } from "../../utilities/symbol.js";
 import { default_resolveBranches } from "./default_branch_resolution.js";
 import { default_resolveResolvedLeaf } from "./default_resolved_leaf_resolution.js";
@@ -32,9 +32,9 @@ function getGroupScore(a: SelectionGroup) {
     const
         a_end = transition_penalty,
         a_syms = a.syms.length * (a_end),
-        a_id = (+a.syms.some(Sym_Is_An_Identifier_Generic)) * 50 * (a_end),
-        a_num = (+a.syms.some(Sym_Is_A_Numeric_Generic)) * 25 * (a_end),
-        a_sym = (+a.syms.some(Sym_Is_A_Symbol_Character)) * 5 * (a_end);
+        a_id = (+a.syms.some(Sym_Is_A_Generic_Identifier)) * 50 * (a_end),
+        a_num = (+a.syms.some(Sym_Is_A_Generic_Number)) * 25 * (a_end),
+        a_sym = (+a.syms.some(Sym_Is_A_Generic_Symbol)) * 5 * (a_end);
 
     return a_syms + a_id + a_num + a_sym + a_end;
 }

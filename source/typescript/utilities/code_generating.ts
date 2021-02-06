@@ -17,10 +17,10 @@ import {
     getTokenSymbolsFromItems,
     getUniqueSymbolName,
     Sym_Is_An_Assert_Function,
-    Sym_Is_An_Identifier_Generic, Sym_Is_A_Generic_Type,
+    Sym_Is_A_Generic_Identifier, Sym_Is_A_Generic_Type,
     Sym_Is_A_Production_Token,
     Sym_Is_Consumed,
-    Sym_Is_Defined, Sym_Is_Not_An_Identifier, Sym_Is_Not_Consumed
+    Sym_Is_Defined, Sym_Is_EOF, Sym_Is_Not_An_Identifier, Sym_Is_Not_Consumed
 } from "./symbol.js";
 
 /**
@@ -116,7 +116,7 @@ export function translateSymbolValue(sym: TokenSymbol, grammar: Grammar, lex_nam
         char_len = sym.val.toString().length,
         annotation = SC.Comment(`[${sanitizeSymbolValForComment(sym)}]`);
 
-    if (sym.type == SymbolType.END_OF_FILE || sym.val == "END_OF_FILE")
+    if (Sym_Is_EOF(sym))
         return SC.Call(SC.Member(lex_name, "END"), rec_glob_data_name);
     const USE_UNICODE = "true";
     switch (sym.type) {
@@ -338,7 +338,7 @@ export function getIncludeBooleans(
         fn = consume.filter(Sym_Is_An_Assert_Function)
             .map(s => translateSymbolValue(s, grammar, lex_name)).sort();
 
-    const HAS_GEN_ID = ty.some(Sym_Is_An_Identifier_Generic);
+    const HAS_GEN_ID = ty.some(Sym_Is_A_Generic_Identifier);
 
     if (HAS_GEN_ID)
         id = id.filter(Sym_Is_Not_An_Identifier);

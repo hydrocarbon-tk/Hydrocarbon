@@ -4,7 +4,7 @@ import { DefinedSymbol, Symbol } from "../types/symbol";
 import { SymbolType } from "../types/symbol_type";
 import { Item } from "./item.js";
 import { buildItemMaps } from "./item_map.js";
-import { getUniqueSymbolName, Sym_Is_A_Production, Sym_Is_A_Symbol_Character, Sym_Is_Defined, Sym_Is_Defined_Characters } from "./symbol.js";
+import { getUniqueSymbolName, Sym_Is_A_Production, Sym_Is_Defined, Sym_Is_Defined_Characters } from "./symbol.js";
 
 const
     production_stack_arg_name = "sym",

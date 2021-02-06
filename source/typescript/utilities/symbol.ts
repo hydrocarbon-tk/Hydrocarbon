@@ -23,7 +23,7 @@ import {
 } from "../types/symbol";
 import { SymbolType } from "../types/symbol_type.js";
 import { getTrueSymbolValue } from "./code_generating.js";
-import { rec_consume_call } from "./global_names.js";
+import { rec_consume_call, rec_glob_data_name, rec_state } from "./global_names.js";
 import { Item } from "./item.js";
 import { ConstSC, SC, StmtSC, VarSC } from "./skribble.js";
 
@@ -85,7 +85,7 @@ export function Sym_Is_Not_Consumed(s: Symbol): boolean {
     return !!s.IS_NON_CAPTURE;
 }
 export function Sym_Is_EOF(s: Symbol): s is EOFSymbol {
-    return s.type == SymbolType.END_OF_FILE;
+    return s.type == SymbolType.END_OF_FILE || s.val == "END_OF_FILE";
 }
 export function Sym_Is_Consumed(s: Symbol): boolean {
     return !Sym_Is_Not_Consumed(s);
@@ -99,7 +99,7 @@ export function Sym_Is_An_Assert_Function(s: Symbol): s is AssertionFunctionSymb
 }
 
 export function Sym_Is_A_Generic_Type(s: Symbol): s is (GeneratedSymbol | EOFSymbol) {
-    return (s.type == SymbolType.GENERATED || s.type == SymbolType.END_OF_FILE);
+    return (s.type == SymbolType.GENERATED || Sym_Is_EOF(s));
 }
 
 export function Sym_Is_A_Production_Token(s: Symbol): s is (ProductionTokenSymbol) {
@@ -152,10 +152,10 @@ export function Sym_Has_Just_One_Character(sym: TokenSymbol) {
 export function Sym_Has_Multiple_Characters(sym: TokenSymbol): boolean {
     return !Sym_Has_Just_One_Character(sym);
 }
-export function Sym_Is_A_Newline_Generic(sym: TokenSymbol) { return sym.val == "nl" && sym.type == SymbolType.GENERATED; }
-export function Sym_Is_An_Identifier_Generic(sym: TokenSymbol) { return sym.val == "id" && sym.type == SymbolType.GENERATED; }
-export function Sym_Is_A_Symbol_Character(sym: TokenSymbol) { return sym.val == "sym" && sym.type == SymbolType.GENERATED; }
-export function Sym_Is_A_Numeric_Generic(sym: TokenSymbol) { return sym.val == "num" && sym.type == SymbolType.GENERATED; }
+export function Sym_Is_A_Generic_Newline(sym: TokenSymbol) { return sym.val == "nl" && sym.type == SymbolType.GENERATED; }
+export function Sym_Is_A_Generic_Identifier(sym: TokenSymbol) { return sym.val == "id" && sym.type == SymbolType.GENERATED; }
+export function Sym_Is_A_Generic_Symbol(sym: TokenSymbol) { return sym.val == "sym" && sym.type == SymbolType.GENERATED; }
+export function Sym_Is_A_Generic_Number(sym: TokenSymbol) { return sym.val == "num" && sym.type == SymbolType.GENERATED; }
 export function Sym_Is_A_Space_Generic(sym: TokenSymbol): boolean { return sym.val == "ws"; }
 
 export function getFollowSymbolsFromItems(items: Item[], grammar: Grammar): TokenSymbol[] {
@@ -211,13 +211,15 @@ export function getRootSym<T = Symbol>(sym: T, grammar: Grammar): T {
 }
 export function Defined_Symbols_Occlude(target: TokenSymbol, potential_occluder: TokenSymbol): boolean {
 
+    // if (Sym_Is_EOF(target)) return true;
+
     if (Sym_Is_A_Production(target) || Sym_Is_A_Production(potential_occluder)) return false;
     if (Symbols_Are_The_Same(target, potential_occluder)) return false;
     if (target.val == potential_occluder.val) return false;
 
-    if (Sym_Is_A_Symbol_Character(potential_occluder) && Sym_Is_Defined_Characters(target)) return true;
-    if (Sym_Is_An_Identifier_Generic(potential_occluder) && Sym_Is_Defined_Identifier(target)) return true;
-    if (Sym_Is_A_Numeric_Generic(potential_occluder) && Sym_Is_Defined_Natural_Number(target)) return true;
+    if (Sym_Is_A_Generic_Symbol(potential_occluder) && Sym_Is_Defined_Characters(target)) return true;
+    if (Sym_Is_A_Generic_Identifier(potential_occluder) && Sym_Is_Defined_Identifier(target)) return true;
+    if (Sym_Is_A_Generic_Number(potential_occluder) && Sym_Is_Defined_Natural_Number(target)) return true;
 
     let
         short = target.val.toString(),

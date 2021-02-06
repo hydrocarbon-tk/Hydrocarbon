@@ -12,7 +12,8 @@ import {
     getSymbolName,
     getUniqueSymbolName,
     Symbols_Are_The_Same, Sym_Is_A_Generic_Type, Sym_Is_A_Production,
-    Sym_Is_Defined
+    Sym_Is_Defined,
+    Sym_Is_EOF
 } from "../../utilities/symbol.js";
 import { ttt } from "./ttt.js";
 /**

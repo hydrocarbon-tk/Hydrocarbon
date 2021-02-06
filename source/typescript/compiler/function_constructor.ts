@@ -14,7 +14,7 @@ import { Helper } from "./helper.js";
 import { addLeafStatements } from "./states/add_leaf_statements.js";
 import { const_EMPTY_ARRAY } from "./states/const_EMPTY_ARRAY.js";
 import { default_resolveBranches } from "./states/default_branch_resolution.js";
-import { addClauseSuccessCheck, processGoTOStates } from "./states/default_state_build.js";
+import { addClauseSuccessCheck, resolveGOTOBranches } from "./states/default_state_build.js";
 import { processRecognizerStates } from "./states/process_recognizer_states.js";
 import { yieldGotoStates } from "./states/yield_goto_states.js";
 import { yieldStates } from "./states/yield_states.js";
@@ -116,7 +116,7 @@ export function compileProductionFunctions(
         { code: GOTO_fn_contents, leaves: goto_leaves } = processRecognizerStates(
             GOTO_Options,
             yieldGotoStates(GOTO_Options, completed_productions),
-            processGoTOStates
+            resolveGOTOBranches
         );
 
     RDOptions.leaves = rd_leaves;

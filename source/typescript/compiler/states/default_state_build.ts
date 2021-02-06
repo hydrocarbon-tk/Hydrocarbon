@@ -13,10 +13,10 @@ import {
     getSymbolName,
     getSymbolsFromClosure,
     getUniqueSymbolName,
-    Sym_Is_An_Identifier_Generic,
+    Sym_Is_A_Generic_Identifier,
     Sym_Is_A_Generic_Type,
-    Sym_Is_A_Newline_Generic,
-    Sym_Is_A_Numeric_Generic, Sym_Is_A_Space_Generic, Sym_Is_A_Symbol_Character,
+    Sym_Is_A_Generic_Newline,
+    Sym_Is_A_Generic_Number, Sym_Is_A_Space_Generic, Sym_Is_A_Generic_Symbol,
     Sym_Is_Defined_Characters, Sym_Is_Defined_Identifier,
     Sym_Is_Defined_Natural_Number
 } from "../../utilities/symbol.js";
@@ -105,17 +105,17 @@ export function processGoTOStates(gen: SelectionClauseGenerator, state: Recogniz
                     ),
                         checked_symbols = [],
 
-                        GEN_SYM = anticipated_syms.some(Sym_Is_A_Symbol_Character),
-                        GEN_ID = anticipated_syms.some(Sym_Is_An_Identifier_Generic),
-                        GEN_NUM = anticipated_syms.some(Sym_Is_A_Numeric_Generic),
+                        GEN_SYM = anticipated_syms.some(Sym_Is_A_Generic_Symbol),
+                        GEN_ID = anticipated_syms.some(Sym_Is_A_Generic_Identifier),
+                        GEN_NUM = anticipated_syms.some(Sym_Is_A_Generic_Number),
                         CONTAINS_WS = unique_candidates.some(Sym_Is_A_Space_Generic) || !skippable.some(Sym_Is_A_Space_Generic),
-                        CONTAINS_NL = unique_candidates.some(Sym_Is_A_Newline_Generic) || !skippable.some(Sym_Is_A_Newline_Generic),
+                        CONTAINS_NL = unique_candidates.some(Sym_Is_A_Generic_Newline) || !skippable.some(Sym_Is_A_Generic_Newline),
                         GEN_NL_WS = CONTAINS_NL || CONTAINS_WS;
 
 
                     for (const s of unique_candidates) {
 
-                        if (Sym_Is_A_Newline_Generic(s) || Sym_Is_A_Space_Generic(s))
+                        if (Sym_Is_A_Generic_Newline(s) || Sym_Is_A_Space_Generic(s))
                             checked_symbols.push(s);
                         else if (Sym_Is_A_Generic_Type(s))
                             continue;
@@ -129,6 +129,7 @@ export function processGoTOStates(gen: SelectionClauseGenerator, state: Recogniz
                     }
 
                     if (checked_symbols.length > 0) {
+
 
                         const
                             booleans = getIncludeBooleans(checked_symbols, grammar, runner, rec_glob_lex_name, anticipated_syms);
