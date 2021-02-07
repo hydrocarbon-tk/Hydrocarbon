@@ -137,14 +137,16 @@ function addRegularYieldStates(state: TransitionNode, items: Item[], options: Re
 
 function addUnresolvedStates(state: TransitionNode, options: RenderBodyOptions, offset: number) {
 
-    const { items } = state;
+    const items = state.items.setFilter(i => i.id);
+
+
 
     if (items.every(i => i.atEND)) {
         state.transition_type == TRANSITION_TYPE.ASSERT_END;
         state.states.push(...yieldEndItemTransitions(items, options, offset));
     } else {
 
-        //filter out shift/reduce ambiguities
+        //filter out shift/reduce conflicts
         let filtered_items = items.filter(i => {
             const sym = i.decrement().sym(options.grammar);
 
@@ -158,15 +160,18 @@ function addUnresolvedStates(state: TransitionNode, options: RenderBodyOptions, 
             state.items = filtered_items;
             return convertPeekStateToSingleItemState(state, options, offset);
         } else {
+
+
             for (const items_with_same_symbol of items.group(i => i.sym(options.grammar))) {
 
-                const backtracking_state = createTransitionNode(items, state.symbols, TRANSITION_TYPE.ASSERT, offset, state.peek_level, true);
+                const unresolved_leaf_node = createTransitionNode(items_with_same_symbol, state.symbols, TRANSITION_TYPE.ASSERT, offset, state.peek_level, true);
 
-                backtracking_state.states = yieldTransitions(items_with_same_symbol, options, offset, const_EMPTY_ARRAY, false);
+                unresolved_leaf_node.states.push(...yieldTransitions(items_with_same_symbol, options, offset, const_EMPTY_ARRAY, false));
 
-                state.states.push(backtracking_state);
+                state.states.push(unresolved_leaf_node);
             }
         }
+
     }
 
 }
