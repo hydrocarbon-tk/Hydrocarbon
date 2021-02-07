@@ -12,6 +12,7 @@ import {
     getSymbolName,
     getUniqueSymbolName,
     Symbols_Are_The_Same, Sym_Is_A_Generic_Type, Sym_Is_A_Production,
+    Sym_Is_A_Production_Token,
     Sym_Is_Defined,
     Sym_Is_EOF
 } from "../../utilities/symbol.js";
@@ -76,7 +77,7 @@ function createSwitchBlock(
     const defined_symbols: [DefinedSymbol, number][] = <any>groups.flatMap((g, i) => g.syms.filter(Sym_Is_Defined).map(s => [s, i]));
     const defined_symbols_lu = new Map(defined_symbols);
     //Only need to look for generic type; Groups do not transition on productions
-    const other_symbols = groups.flatMap((g, i) => g.syms.filter(Sym_Is_A_Generic_Type).map(s => [i, s]));
+    const other_symbols = groups.flatMap((g, i) => g.syms.filter(s => Sym_Is_A_Generic_Type(s) || Sym_Is_A_Production_Token(s)).map(s => [i, s]));
 
 
     let if_root = null, leaf = null;
