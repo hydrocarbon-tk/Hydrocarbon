@@ -153,11 +153,14 @@ function addUnresolvedNode(node: TransitionNode, options: RenderBodyOptions, off
 
         //filter out shift/reduce conflicts
         let filtered_items = items.filter(i => {
+            if(i.atEND) {
+                if (items.some(j => j != i && j.getProduction(options.grammar).id == i.getProduction(options.grammar).id)) return false
+
             const sym = i.decrement().sym(options.grammar);
 
             if (Sym_Is_A_Production(sym))
                 if (items.some(j => j != i && j.getProduction(options.grammar).id == sym.val)) return false;
-
+}
             return true;
         });
 
@@ -172,7 +175,7 @@ function addUnresolvedNode(node: TransitionNode, options: RenderBodyOptions, off
         } else {
 
 
-            for (const items_with_same_symbol of items.group(i => i.sym(options.grammar))) {
+            for (const items_with_same_symbol of filtered_items.group(i => i.sym(options.grammar))) {
 
                 const unresolved_leaf_node = createTransitionNode(items_with_same_symbol, node.symbols, TRANSITION_TYPE.ASSERT, offset, node.peek_level, true);
 
