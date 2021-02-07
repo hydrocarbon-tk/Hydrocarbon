@@ -227,7 +227,7 @@ function createIfElseBlock(
                     if (negated_expression) {
 
                         if (primary_symbols.length > 0)
-                            gate_block = SC.Binary(SC.UnaryPre("!", negated_expression), "||", remaining_symbols);
+                            gate_block = SC.Binary(SC.UnaryPre("!", SC.Group("(", negated_expression)), "||", remaining_symbols);
                         else
                             gate_block = SC.UnaryPre("!", negated_expression);
                     } else gate_block = SC.Empty();
