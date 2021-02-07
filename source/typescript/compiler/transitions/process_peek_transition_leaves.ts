@@ -136,7 +136,7 @@ function convertStateToProductionCall(node: TransitionNode, offset: number) {
 
 function addRegularYieldNode(node: TransitionNode, items: Item[], options: RenderBodyOptions, offset: number) {
 
-    node.nodes.push(...yieldTransitions(items, options, offset + 1, const_EMPTY_ARRAY, false));
+    node.nodes.push(...yieldTransitions(items, options, offset + 1, const_EMPTY_ARRAY, true));
 
 }
 

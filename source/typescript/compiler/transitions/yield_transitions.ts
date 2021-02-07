@@ -86,8 +86,6 @@ export function yieldTransitions(
 
             output_nodes.push(...yieldNodesOfItemsWithSameSymbol(active_items, options, offset, FROM_PEEKED_TRANSITION));
 
-        else if (FROM_PEEKED_TRANSITION)
-            throw new Error("Reentering peek transitions from peeked transitions!");
         else
 
             output_nodes.push(...yieldPeekedNodes(active_items.concat(end_items), options, offset, filter_symbols));
