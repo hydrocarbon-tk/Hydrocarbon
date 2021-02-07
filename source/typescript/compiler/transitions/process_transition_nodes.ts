@@ -9,7 +9,7 @@ import {
     Defined_Symbols_Occlude,
     Sym_Is_A_Generic_Identifier,
     Sym_Is_A_Generic_Type,
-    Sym_Is_Defined_Characters,
+    Sym_Is_Defined_Symbols,
     Sym_Is_Defined_Identifier,
     Sym_Is_Defined_Natural_Number,
     Sym_Is_EOF
@@ -186,9 +186,11 @@ function* traverseInteriorNodes(
 
         for (const sym_a of a.syms)
             for (const sym_b of b.syms)
-                if (Defined_Symbols_Occlude(<TokenSymbol>sym_a, <TokenSymbol>sym_b))
-                    return -1;
-
+                if (Defined_Symbols_Occlude(<TokenSymbol>sym_b, <TokenSymbol>sym_a))
+                    return 1;
+                else
+                    if (Defined_Symbols_Occlude(<TokenSymbol>sym_a, <TokenSymbol>sym_b))
+                        return -1;
 
         return getGroupScore(a) - getGroupScore(b);
     })) {
@@ -216,10 +218,10 @@ function getGroupScore(a: SelectionGroup) {
 
     let has_eof = +a.syms.some(Sym_Is_EOF);
 
-    let _0x000000001 = a.syms.filter(s => Sym_Is_Defined_Characters(s) || Sym_Is_Defined_Natural_Number(s)).length;
+    let _0x000000001 = a.syms.filter(s => Sym_Is_Defined_Symbols(s) || Sym_Is_Defined_Natural_Number(s)).length;
     let _0x000010000 = a.syms.filter(s => Sym_Is_Defined_Identifier(s)).length << 16;
-    let _0x001000000 = a.syms.filter(s => Sym_Is_A_Generic_Type(s) && !Sym_Is_A_Generic_Identifier(s)).length << 24;
-    let _0x010000000 = a.syms.filter(s => Sym_Is_Defined_Identifier(s)).length << 28;
+    let _0x001000000 = +a.syms.filter(s => Sym_Is_A_Generic_Type(s) && !Sym_Is_A_Generic_Identifier(s)) << 28;
+    let _0x010000000 = +a.syms.filter(s => Sym_Is_A_Generic_Identifier(s)) << 24;
 
     return (_0x000000001 | _0x000010000 | _0x001000000 | _0x010000000) * has_eof;
 }

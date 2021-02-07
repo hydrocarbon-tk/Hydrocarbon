@@ -17,7 +17,7 @@ import {
     Sym_Is_A_Generic_Type,
     Sym_Is_A_Generic_Newline,
     Sym_Is_A_Generic_Number, Sym_Is_A_Space_Generic, Sym_Is_A_Generic_Symbol,
-    Sym_Is_Defined_Characters, Sym_Is_Defined_Identifier,
+    Sym_Is_Defined_Symbols, Sym_Is_Defined_Identifier,
     Sym_Is_Defined_Natural_Number
 } from "../../utilities/symbol.js";
 import { default_resolveBranches } from "./default_branch_resolution.js";
@@ -122,7 +122,7 @@ export function resolveGOTOBranches(gen: SelectionClauseGenerator, state: Transi
                             checked_symbols.push(s);
                         else if (Sym_Is_A_Generic_Type(s))
                             continue;
-                        else if (Sym_Is_Defined_Characters(s)) {
+                        else if (Sym_Is_Defined_Symbols(s)) {
                             if (GEN_SYM || anticipated_syms.some(a => Defined_Symbols_Occlude(s, a))) checked_symbols.push(s);
                         } else if (Sym_Is_Defined_Identifier(s) && !GEN_NL_WS) {
                             if (GEN_ID || anticipated_syms.some(a => Defined_Symbols_Occlude(s, a))) checked_symbols.push(s);

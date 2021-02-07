@@ -4,7 +4,7 @@ import { DefinedSymbol, Symbol } from "../types/symbol";
 import { SymbolType } from "../types/symbol_type";
 import { Item } from "./item.js";
 import { buildItemMaps } from "./item_map.js";
-import { getUniqueSymbolName, Sym_Is_A_Production, Sym_Is_Defined, Sym_Is_Defined_Characters } from "./symbol.js";
+import { getUniqueSymbolName, Sym_Is_A_Production, Sym_Is_Defined, Sym_Is_Defined_Symbols } from "./symbol.js";
 
 const
     production_stack_arg_name = "sym",
@@ -66,7 +66,7 @@ function createSequenceData(grammar: Grammar, rounds = 2): string {
     while (rounds-- > 0) {
 
         const groups = left_overs
-            .sort((a, b) => (20 * +Sym_Is_Defined_Characters(b)) - (20 * +Sym_Is_Defined_Characters(a)))
+            .sort((a, b) => (20 * +Sym_Is_Defined_Symbols(b)) - (20 * +Sym_Is_Defined_Symbols(a)))
             .group(s => s.val[0]);
 
         left_overs.length = 0;
