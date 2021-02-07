@@ -1,149 +1,154 @@
 import { Grammar } from "../../types/grammar.js";
-import { TransitionNode, TRANSITION_TYPE } from "../../types/transition_node.js";
 import { RenderBodyOptions } from "../../types/render_body_options.js";
+import { TransitionNode, TRANSITION_TYPE } from "../../types/transition_node.js";
 import { getClosure } from "../../utilities/closure.js";
-import { Items_Have_The_Same_Active_Symbol, Item } from "../../utilities/item.js";
+import { const_EMPTY_ARRAY } from "../../utilities/const_EMPTY_ARRAY.js";
+import { Item, Items_Have_The_Same_Active_Symbol } from "../../utilities/item.js";
 import { getProductionID } from "../../utilities/production.js";
 import { Sym_Is_A_Production, Sym_Is_A_Production_Token } from "../../utilities/symbol.js";
 import { getTransitionTree } from "../../utilities/transition_tree.js";
-import { const_EMPTY_ARRAY } from "../../utilities/const_EMPTY_ARRAY.js";
 import { createTransitionNode } from "./create_transition_node.js";
 import { yieldEndItemTransitions } from "./yield_end_item_transitions.js";
-import { getMaxOffsetOfItems, Items_Are_From_Same_Production, Leaves_Of_Transition_Contain_One_Root_Item as Every_Leaf_Of_TransitionTree_Contain_One_Root_Item, yieldTransitions } from "./yield_transitions.js";
+import {
+    Every_Leaf_Of_TransitionTree_Contain_One_Root_Item, getMaxOffsetOfItems, Items_Are_From_Same_Production,
+    yieldTransitions
+} from "./yield_transitions.js";
+
+
 export function processPeekTransitionLeaves(
-    state: TransitionNode,
+    node: TransitionNode,
     options: RenderBodyOptions,
     offset: number = 0,
 ): void {
 
     const { grammar } = options;
 
-    if (state.items.length > 0) {
+    if (node.items.length > 0) {
 
-        if (Items_From_Same_Production_Allow_Production_Call(state, options, offset))
+        if (Items_From_Same_Production_Allow_Production_Call(node, options, offset))
 
-            throw new Error("This case should have been handled in yieldStates");
+            throw new Error("This case should have been handled in yieldNodes");
 
 
-        if (state.items.length > 1) {
+        if (node.items.length > 1) {
 
-            if (state.items.some(i => i.atEND)) {
-                addUnresolvedStates(state, options, offset);
-            } else if (We_Can_Call_Single_Production_From_Items(state, options))
+            if (node.items.some(i => i.atEND)) {
+                addUnresolvedNode(node, options, offset);
+            } else if (We_Can_Call_Single_Production_From_Items(node, options))
 
-                convertStateToProductionCall(state, offset);
+                convertStateToProductionCall(node, offset);
 
-            else if (Items_Have_The_Same_Active_Symbol(state.items, grammar))
+            else if (Items_Have_The_Same_Active_Symbol(node.items, grammar))
 
-                addSameActiveSymbolStates(state, options, offset);
+                addSameActiveSymbolNode(node, options, offset);
 
-            else if (No_Matching_Extended_Goto_Item_In_State_Closure(state, options))
+            else if (No_Matching_Extended_Goto_Item_In_State_Closure(node, options))
 
-                if (State_Closure_Allows_Production_Call(state, options))
+                if (State_Closure_Allows_Production_Call(node, options))
 
-                    convertStateToClosureProductionCall(state, offset);
+                    convertStateToClosureProductionCall(node, offset);
 
                 else
-                    addRegularYieldStates(state, getClosure(state.closure, grammar), options, offset + 1);
+                    addRegularYieldNode(node, getClosure(node.closure, grammar), options, offset + 1);
 
             else
 
                 if (
                     Every_Leaf_Of_TransitionTree_Contain_One_Root_Item(
-                        getTransitionTree(grammar, state.items, options.global_production_items/*options.goto_items*/, 10, 8).tree_nodes[0]
+                        getTransitionTree(grammar, node.items, options.global_production_items/*options.goto_items*/, 10, 8).tree_nodes[0]
                     )
                 )
 
-                    addRegularYieldStates(state, state.items, options, offset);
+                    addRegularYieldNode(node, node.items, options, offset);
 
                 else
 
-                    addUnresolvedStates(state, options, offset);
+                    addUnresolvedNode(node, options, offset);
 
         }
         else
 
-            convertPeekStateToSingleItemState(state, options, offset);
+            convertPeekStateToSingleItemNode(node, options, offset);
 
     }
 }
 
-function addSameActiveSymbolStates(state: TransitionNode, options: RenderBodyOptions, offset: number) {
+function addSameActiveSymbolNode(node: TransitionNode, options: RenderBodyOptions, offset: number) {
 
-    if (Active_Symbol_Of_First_Item_Is_A_Production(state, options.grammar))
-        state.transition_type = TRANSITION_TYPE.PEEK_PRODUCTION_SYMBOLS;
+    if (Active_Symbol_Of_First_Item_Is_A_Production(node, options.grammar))
+        node.transition_type = TRANSITION_TYPE.PEEK_PRODUCTION_SYMBOLS;
 
-    addRegularYieldStates(state, state.items, options, offset + 1);
+    addRegularYieldNode(node, node.items, options, offset + 1);
 }
-function convertPeekStateToSingleItemState(state: TransitionNode, { grammar }: RenderBodyOptions, offset: number) {
+function convertPeekStateToSingleItemNode(node: TransitionNode, { grammar }: RenderBodyOptions, offset: number) {
 
-    const { items } = state;
+    const { items } = node;
 
     const sym = items[0].sym(grammar);
 
-    if (state.peek_level == 0) {
+    if (node.peek_level == 0) {
         if (Sym_Is_A_Production(sym)) {
 
-            state.transition_type = TRANSITION_TYPE.ASSERT_PRODUCTION_SYMBOLS;
+            node.transition_type = TRANSITION_TYPE.ASSERT_PRODUCTION_SYMBOLS;
 
         } else {
 
             if (Sym_Is_A_Production_Token(sym)) {
-                state.symbols = [sym];
+                node.symbols = [sym];
             }
 
-            state.transition_type = TRANSITION_TYPE.ASSERT_CONSUME;
+            node.transition_type = TRANSITION_TYPE.ASSERT_CONSUME;
 
-            state.peek_level = -1;
+            node.peek_level = -1;
         }
     } else if (getMaxOffsetOfItems(items) == 0) {
-        state.transition_type = TRANSITION_TYPE.PEEK_PRODUCTION_SYMBOLS;
+        node.transition_type = TRANSITION_TYPE.PEEK_PRODUCTION_SYMBOLS;
     } if (Sym_Is_A_Production(sym)) {
-        state.transition_type = TRANSITION_TYPE.PEEK_PRODUCTION_SYMBOLS;
+        node.transition_type = TRANSITION_TYPE.PEEK_PRODUCTION_SYMBOLS;
     } else if (items[0].atEND) {
-        state.transition_type = TRANSITION_TYPE.ASSERT_END;
+        node.transition_type = TRANSITION_TYPE.ASSERT_END;
     } else {
-        state.transition_type = TRANSITION_TYPE.ASSERT;
+        node.transition_type = TRANSITION_TYPE.ASSERT;
     }
 
 
-    state.offset = offset;
+    node.offset = offset;
 }
 
-function convertStateToClosureProductionCall(state: TransitionNode, offset: number) {
+function convertStateToClosureProductionCall(node: TransitionNode, offset: number) {
 
-    state.items = state.closure.slice(0, 1);
+    node.items = node.closure.slice(0, 1);
 
-    state.offset = offset;
+    node.offset = offset;
 
-    state.transition_type = TRANSITION_TYPE.ASSERT_PRODUCTION_SYMBOLS;
+    node.transition_type = TRANSITION_TYPE.ASSERT_PRODUCTION_SYMBOLS;
 }
 
-function convertStateToProductionCall(state: TransitionNode, offset: number) {
+function convertStateToProductionCall(node: TransitionNode, offset: number) {
 
-    state.items = [state.items[0]];
+    node.items = [node.items[0]];
 
-    state.offset = offset;
+    node.offset = offset;
 
-    state.transition_type = TRANSITION_TYPE.ASSERT_PRODUCTION_SYMBOLS;
+    node.transition_type = TRANSITION_TYPE.ASSERT_PRODUCTION_SYMBOLS;
 }
 
 
-function addRegularYieldStates(state: TransitionNode, items: Item[], options: RenderBodyOptions, offset: number) {
+function addRegularYieldNode(node: TransitionNode, items: Item[], options: RenderBodyOptions, offset: number) {
 
-    state.states.push(...yieldTransitions(items, options, offset + 1, const_EMPTY_ARRAY, true));
+    node.nodes.push(...yieldTransitions(items, options, offset + 1, const_EMPTY_ARRAY, false));
 
 }
 
-function addUnresolvedStates(state: TransitionNode, options: RenderBodyOptions, offset: number) {
+function addUnresolvedNode(node: TransitionNode, options: RenderBodyOptions, offset: number) {
 
-    const items = state.items.setFilter(i => i.id);
+    const items = node.items.setFilter(i => i.id);
 
 
 
     if (items.every(i => i.atEND)) {
-        state.transition_type == TRANSITION_TYPE.ASSERT_END;
-        state.states.push(...yieldEndItemTransitions(items, options, offset));
+        node.transition_type == TRANSITION_TYPE.ASSERT_END;
+        node.nodes.push(...yieldEndItemTransitions(items, options, offset));
     } else {
 
         //filter out shift/reduce conflicts
@@ -157,18 +162,23 @@ function addUnresolvedStates(state: TransitionNode, options: RenderBodyOptions, 
         });
 
         if (filtered_items.length == 1) {
-            state.items = filtered_items;
-            return convertPeekStateToSingleItemState(state, options, offset);
+
+            node.items = filtered_items;
+
+            node.nodes.length = 0;
+
+            convertPeekStateToSingleItemNode(node, options, offset);
+
         } else {
 
 
             for (const items_with_same_symbol of items.group(i => i.sym(options.grammar))) {
 
-                const unresolved_leaf_node = createTransitionNode(items_with_same_symbol, state.symbols, TRANSITION_TYPE.ASSERT, offset, state.peek_level, true);
+                const unresolved_leaf_node = createTransitionNode(items_with_same_symbol, node.symbols, TRANSITION_TYPE.ASSERT, offset, node.peek_level, true);
 
-                unresolved_leaf_node.states.push(...yieldTransitions(items_with_same_symbol, options, offset, const_EMPTY_ARRAY, false));
+                unresolved_leaf_node.nodes.push(...yieldTransitions(items_with_same_symbol, options, offset, const_EMPTY_ARRAY, false));
 
-                state.states.push(unresolved_leaf_node);
+                node.nodes.push(unresolved_leaf_node);
             }
         }
 
@@ -178,8 +188,8 @@ function addUnresolvedStates(state: TransitionNode, options: RenderBodyOptions, 
 
 
 
-function Active_Symbol_Of_First_Item_Is_A_Production(state: TransitionNode, grammar: Grammar) {
-    return Sym_Is_A_Production(state.items[0].sym(grammar));
+function Active_Symbol_Of_First_Item_Is_A_Production(node: TransitionNode, grammar: Grammar) {
+    return Sym_Is_A_Production(node.items[0].sym(grammar));
 }
 
 function We_Can_Call_Single_Production_From_Items({ items }: TransitionNode, { grammar, production_ids }: RenderBodyOptions) {
@@ -193,22 +203,22 @@ function State_Closure_Allows_Production_Call({ closure }: TransitionNode, { gra
     return getMaxOffsetOfItems(closure) == 0 && Items_Are_From_Same_Production(closure, grammar);
 }
 
-function No_Matching_Extended_Goto_Item_In_State_Closure(state: TransitionNode, options: RenderBodyOptions) {
+function No_Matching_Extended_Goto_Item_In_State_Closure(node: TransitionNode, options: RenderBodyOptions) {
 
     const { extended_goto_items } = options;
 
-    return getMaxOffsetOfItems(state.items) == 0
+    return getMaxOffsetOfItems(node.items) == 0
         &&
-        state.items.every(i => !extended_goto_items.some(s => s.body == i.body))
+        node.items.every(i => !extended_goto_items.some(s => s.body == i.body))
         &&
-        state.items.every(i => !i.atEND);
+        node.items.every(i => !i.atEND);
 }
 
-function Items_From_Same_Production_Allow_Production_Call(state: TransitionNode, options: RenderBodyOptions, offset: number) {
+function Items_From_Same_Production_Allow_Production_Call(node: TransitionNode, options: RenderBodyOptions, offset: number) {
     const
         { production_ids, grammar } = options,
-        ITEMS_ARE_FROM_SAME_PRODUCTION = Items_Are_From_Same_Production(state.items, grammar),
-        [first] = state.items,
+        ITEMS_ARE_FROM_SAME_PRODUCTION = Items_Are_From_Same_Production(node.items, grammar),
+        [first] = node.items,
         prod = first.getProduction(grammar);
 
     return offset == 0 && ITEMS_ARE_FROM_SAME_PRODUCTION && !production_ids.includes(prod.id);

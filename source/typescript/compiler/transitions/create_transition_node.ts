@@ -20,6 +20,6 @@ export function createTransitionNode(
         items,
         offset,
         peek_level,
-        states: []
+        nodes: []
     };
 }

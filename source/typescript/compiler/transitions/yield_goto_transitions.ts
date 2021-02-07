@@ -62,11 +62,11 @@ export function yieldGOTOTransitions(options: RenderBodyOptions, completed_produ
         /* pass through */
     } else if (nonterm_shift_items.length > 0) {
 
-        const output_states = [];
+        const output_nodes = [];
 
-        // Select all states that transition on item 
-        // Record all states gathered from id.
-        // Process those states
+        // Select all nodes that transition on item 
+        // Record all nodes gathered from id.
+        // Process those nodes
         // Get all completed productions
         // Repeat
         const active_productions: Set<number> = new Set;
@@ -87,24 +87,24 @@ export function yieldGOTOTransitions(options: RenderBodyOptions, completed_produ
                 const
                     items_to_process = goto_groups.get(production_id).map(i => i.increment()),
 
-                    states = yieldTransitions(items_to_process, options, 1),
+                    nodes = yieldTransitions(items_to_process, options, 1),
 
-                    { code, hash, leaves, prods } = processTransitionNodes(options, states),
+                    { code, hash, leaves, prods } = processTransitionNodes(options, nodes),
 
-                    state = createTransitionNode(
+                    node = createTransitionNode(
                         items_to_process.filter(i => i.offset == 1),
                         [<any>production_id],
                         TRANSITION_TYPE.ASSERT,
                         0
                     );
 
-                state.code = code;
-                state.hash = hash;
-                state.prods = prods;
-                state.leaves = leaves;
-                state.states = states;
+                node.code = code;
+                node.hash = hash;
+                node.prods = prods;
+                node.leaves = leaves;
+                node.nodes = nodes;
 
-                output_states.push(state);
+                output_nodes.push(node);
 
                 pending_productions.push(...prods.setFilter());
 
@@ -113,7 +113,7 @@ export function yieldGOTOTransitions(options: RenderBodyOptions, completed_produ
             }
         }
 
-        return output_states;
+        return output_nodes;
     }
 
     options.NO_GOTOS = true;

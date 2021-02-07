@@ -5,14 +5,14 @@ import { ConstSC, SC, VarSC } from "../../utilities/skribble.js";
 import { addClauseSuccessCheck, createDebugCall } from "./default_state_build.js";
 
 /**
- * Adds code to end states
+ * Adds code to end nodes
  *
- * If a production shift section is present, then leaf states in RD
+ * If a production shift section is present, then leaf nodes in RD
  * section are appended  with a prod assignment. Additionally, a
  * local prod variable is declared at the head of the production
  * function, and a call to assertSuccess is appended to the tail.
  *
- * If the production shift section is absent then leaf states simply
+ * If the production shift section is absent then leaf nodes simply
  * return `true`. A `return false` statement is appended to the end
  * of the production function;
  *

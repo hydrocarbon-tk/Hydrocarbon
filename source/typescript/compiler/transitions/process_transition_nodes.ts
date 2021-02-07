@@ -1,8 +1,8 @@
 import { bidirectionalTraverse, TraverseState } from "@candlefw/conflagrate";
-import { GeneratorStateReturn, TransitionNode, TRANSITION_TYPE } from "../../types/transition_node.js";
 import { RenderBodyOptions } from "../../types/render_body_options";
 import { MultiItemReturnObject, SelectionClauseGenerator, SelectionGroup, SingleItemReturnObject } from "../../types/state_generating";
-import { TokenSymbol } from "../../types/symbol.js";
+import { TokenSymbol } from "../../types/symbol";
+import { GeneratorStateReturn, TransitionNode, TRANSITION_TYPE } from "../../types/transition_node.js";
 import { Item } from "../../utilities/item.js";
 import { SC } from "../../utilities/skribble.js";
 import {
@@ -19,89 +19,87 @@ import { default_resolveResolvedLeaf } from "./default_resolved_leaf_resolution.
 import { default_resolveUnresolvedLeaves } from "./default_unresolved_leaves_resolution.js";
 
 export function defaultGrouping(g) { return g.hash; }
-type UnresolvedLeavesResolver = (state: TransitionNode, states: TransitionNode[], options: RenderBodyOptions) => MultiItemReturnObject;
+type UnresolvedLeavesResolver = (node: TransitionNode, nodes: TransitionNode[], options: RenderBodyOptions) => MultiItemReturnObject;
 
-type InteriorNodesResolver = (gen: SelectionClauseGenerator, state: TransitionNode, items: Item[], level: number, options: RenderBodyOptions) => SC;
+type InteriorNodesResolver = (gen: SelectionClauseGenerator, node: TransitionNode, items: Item[], level: number, options: RenderBodyOptions) => SC;
 
 type LeafNodeResolver = (item: Item, group: TransitionNode, options: RenderBodyOptions) => SingleItemReturnObject;
 
 export function processTransitionNodes(
     options: RenderBodyOptions,
-    states: TransitionNode[],
+    nodes: TransitionNode[],
     branch_resolve_function: InteriorNodesResolver = default_resolveBranches,
     conflicting_leaf_resolve_function: UnresolvedLeavesResolver = default_resolveUnresolvedLeaves,
     leaf_resolve_function: LeafNodeResolver = default_resolveResolvedLeaf,
     grouping_fn: (node: TransitionNode, level: number, peeking: boolean) => string = defaultGrouping
 ): GeneratorStateReturn {
 
-    if (states.length == 0)
+    if (nodes.length == 0)
         return { code: new SC, prods: [], leaves: [], hash: "" };
 
-    const finale_state = { ast: <TransitionNode>null };
+    const finale_node = { ast: <TransitionNode>null };
 
-    for (const { node: state, meta: { traverse_state, skip } } of bidirectionalTraverse<TransitionNode, "states">(<TransitionNode>{ states }, "states", true)
-        .extract(finale_state)
+    for (const { node: node, meta: { traverse_state, skip } } of bidirectionalTraverse<TransitionNode, "nodes">(<TransitionNode>{ nodes: nodes }, "nodes", true)
+        .extract(finale_node)
         .makeSkippable()
     ) {
 
-        if (state.PROCESSED) {
+        if (node.PROCESSED) {
             skip();
             continue;
         }
 
-        state.PROCESSED = true;
+        node.PROCESSED = true;
 
         switch (traverse_state) {
 
             case TraverseState.EXIT:
 
                 const
-                    states = state.states,
-                    prods = states.flatMap(g => g.prods).setFilter(),
-                    items = states.flatMap(g => g.items).setFilter(i => i.id),
-                    filtered_states = states.filter(s => s.transition_type !== TRANSITION_TYPE.IGNORE && !!s.code),
-                    WE_HAVE_UNRESOLVED_LEAVES = states.some(s => s.UNRESOLVED_LEAF);
+                    nodes = node.nodes,
+                    prods = nodes.flatMap(g => g.prods).setFilter(),
+                    items = nodes.flatMap(g => g.items).setFilter(i => i.id),
+                    filtered_nodes = nodes.filter(s => s.transition_type !== TRANSITION_TYPE.IGNORE && !!s.code),
+                    WE_HAVE_UNRESOLVED_LEAVES = nodes.some(s => s.UNRESOLVED_LEAF);
 
                 let
-                    leaves = states.flatMap(g => g.leaves);
+                    leaves = nodes.flatMap(g => g.leaves);
 
                 //Set the transition type of any state with a null code property to IGNORE
-                states.forEach(g => { if (!g.code) g.transition_type = TRANSITION_TYPE.IGNORE; });
+                nodes.forEach(g => { if (!g.code) g.transition_type = TRANSITION_TYPE.IGNORE; });
 
                 let
                     root: SC = null, hash = "ignore";
 
-                if (filtered_states.length > 0) {
+                if (filtered_nodes.length > 0) {
 
                     const virtual_state: TransitionNode = {
                         UNRESOLVED_LEAF: WE_HAVE_UNRESOLVED_LEAVES,
                         PROCESSED: false,
-                        states: [],
+                        nodes: [],
                         symbols: [],
-                        code: filtered_states[0].code,
-                        hash: filtered_states[0].hash,
+                        code: filtered_nodes[0].code,
+                        hash: filtered_nodes[0].hash,
                         prods,
                         items,
                         completing: false,
-                        peek_level: filtered_states[0].peek_level,
-                        offset: filtered_states[0].offset,
-                        transition_type: filtered_states[0].transition_type,
+                        peek_level: filtered_nodes[0].peek_level,
+                        offset: filtered_nodes[0].offset,
+                        transition_type: filtered_nodes[0].transition_type,
                         leaves
                     };
 
                     if (WE_HAVE_UNRESOLVED_LEAVES) {
-                        ({ root, leaves } = conflicting_leaf_resolve_function(virtual_state, states, options));
+                        ({ root, leaves } = conflicting_leaf_resolve_function(virtual_state, nodes, options));
                         if (options.helper.ANNOTATED)
                             if (root)
                                 root.shiftStatement("--UNRESOLVED-BRANCH--");
-                            else
-                                console.log("--UNRESOLVED-BRANCH--");
                     } else {
                         root = branch_resolve_function(
-                            traverseInteriorNodes(filtered_states, options, grouping_fn),
+                            traverseInteriorNodes(filtered_nodes, options, grouping_fn),
                             virtual_state,
                             items,
-                            states[0].peek_level,
+                            nodes[0].peek_level,
                             options
                         );
                     }
@@ -110,57 +108,54 @@ export function processTransitionNodes(
                     root = null;
                 }
 
-                state.leaves = leaves;
-                state.prods = prods;
-                state.code = root;
-                state.hash = hash;
+                node.leaves = leaves;
+                node.prods = prods;
+                node.code = root;
+                node.hash = hash;
+
                 if (options.helper.ANNOTATED)
                     if (root)
                         root.shiftStatement("--BRANCH--");
-                    else
-                        console.log("--BRANCH--");
 
                 break;
 
             case TraverseState.LEAF:
 
-                if (state.items.length > 1) {
-                    const { root, leaves, prods } = conflicting_leaf_resolve_function(state, [state], options);
-                    state.code = root;
+                if (node.items.length > 1) {
+                    const { root, leaves, prods } = conflicting_leaf_resolve_function(node, [node], options);
+                    node.code = root;
                     root.shiftStatement("__TESTING__HOW_WE_GOT_HERE__");
                     console.log("Flow should not enter this block: Multi-item moved to group section");
 
-                    state.hash = root.hash();
-                    state.prods = prods;
-                    state.leaves = leaves;
+                    node.hash = root.hash();
+                    node.prods = prods;
+                    node.leaves = leaves;
                     if (options.helper.ANNOTATED)
                         if (root)
                             root.shiftStatement("--UNRESOLVED-LEAF--");
-                        else
-                            console.log("--UNRESOLVED-LEAF--");
                     break;
                     throw new Error("Flow should not enter this block: Multi-item moved to group section");
                 }
 
-                if (state.items.length == 0)
+                if (node.items.length == 0)
                     throw new Error("Flow should not enter this block: Multi-item moved to group section");
 
-                const { leaf } = leaf_resolve_function(state.items[0], state, options);
-                state.code = leaf.root;
-                state.hash = leaf.hash;
-                state.prods = leaf.prods;
-                state.leaves = [leaf];
+                const { leaf } = leaf_resolve_function(node.items[0], node, options);
+
+                node.code = leaf.root;
+                node.hash = leaf.hash;
+                node.prods = leaf.prods;
+                node.leaves = [leaf];
+
                 if (options.helper.ANNOTATED)
                     if (leaf.root)
                         leaf.root.shiftStatement("--LEAF--");
-                    else
-                        console.log("--LEAF--");
                 break;
 
         }
     }
 
-    const { code, prods, hash, leaves } = finale_state.ast;
+    const { code, prods, hash, leaves } = finale_node.ast;
 
     return { code, prods, hash, leaves };
 }
@@ -219,7 +214,7 @@ function getGroupScore(a: SelectionGroup) {
      * GenericIdentifier            :     0x01000000
      */
 
-    let has_eof = -+a.syms.some(Sym_Is_EOF);
+    let has_eof = +a.syms.some(Sym_Is_EOF);
 
     let _0x000000001 = a.syms.filter(s => Sym_Is_Defined_Characters(s) || Sym_Is_Defined_Natural_Number(s)).length;
     let _0x000010000 = a.syms.filter(s => Sym_Is_Defined_Identifier(s)).length << 16;

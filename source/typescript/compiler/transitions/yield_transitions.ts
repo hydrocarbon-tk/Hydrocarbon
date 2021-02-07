@@ -12,10 +12,10 @@ import { createTransitionNode } from "./create_transition_node.js";
 import { yieldEndItemTransitions } from "./yield_end_item_transitions.js";
 import { buildPeekTransitions } from "./yield_peek_transitions.js";
 
-export function Leaves_Of_Transition_Contain_One_Root_Item(node: TransitionTreeNode) {
+export function Every_Leaf_Of_TransitionTree_Contain_One_Root_Item(node: TransitionTreeNode) {
 
     if (node.next.length > 0)
-        return node.next.every(Leaves_Of_Transition_Contain_One_Root_Item);
+        return node.next.every(Every_Leaf_Of_TransitionTree_Contain_One_Root_Item);
 
     return node.roots.length == 1;
 }
@@ -37,7 +37,7 @@ export function yieldTransitions(
 
     const
         { grammar, production_ids } = options,
-        output_states: TransitionNode[] = [],
+        output_nodes: TransitionNode[] = [],
         end_items = [],//in_items.filter(i => i.atEND),
         active_items = in_items.filter(item => {
             const sym = item.sym(grammar) || EOF_SYM;
@@ -51,7 +51,7 @@ export function yieldTransitions(
     * If all items are from the same production and the current production function is NOT processing
     * that production, simply do a call to that production function.
     *
-    * This should only occur if all items are at the initial shift state or peek was used
+    * This should only occur if all items are at the initial shift node or peek was used
     * to get to this offset.
     */
     if (active_items.length > 0) {
@@ -67,12 +67,12 @@ export function yieldTransitions(
             ALL_ITEMS_ARE_FROM_SAME_PRODUCTION = Items_Are_From_Same_Production(active_items, grammar),
             ALL_ITEMS_HAVE_SAME_SYMBOL = Items_Have_The_Same_Active_Symbol(active_items, grammar),
             ALL_ITEMS_ARE_FROM_ROOT_PRODUCTION = ALL_ITEMS_ARE_FROM_SAME_PRODUCTION && production_ids.includes(first_production.id),
-            ITEMS_SHOULD_CREATE_SHIFT_STATES = (offset > 0 || ALL_ITEMS_ARE_FROM_ROOT_PRODUCTION || ALL_ITEMS_ARE_FROM_SAME_PRODUCTION);
+            ITEMS_SHOULD_CREATE_SHIFT_NODES = (offset > 0 || ALL_ITEMS_ARE_FROM_ROOT_PRODUCTION || ALL_ITEMS_ARE_FROM_SAME_PRODUCTION);
 
 
         if (THERE_IS_ONLY_ONE_ACTIVE_ITEM && NO_END_ITEMS_PRESENT)
 
-            output_states.push(...yieldSingleItemState(active_items, options, offset, FROM_PEEKED_TRANSITION));
+            output_nodes.push(...yieldSingleItemNode(active_items, options, offset, FROM_PEEKED_TRANSITION));
 
         else if (ALL_ITEMS_ARE_FROM_SAME_PRODUCTION
             && !ALL_ITEMS_ARE_FROM_ROOT_PRODUCTION
@@ -80,26 +80,26 @@ export function yieldTransitions(
             && ITEMS_HAVE_A_MAX_OFFSET_OF_ZERO
         )
 
-            output_states.push(...yieldProductionCallState(active_items, offset, FROM_PEEKED_TRANSITION));
+            output_nodes.push(...yieldProductionCallNode(active_items, offset, FROM_PEEKED_TRANSITION));
 
-        else if (ALL_ITEMS_HAVE_SAME_SYMBOL && ITEMS_SHOULD_CREATE_SHIFT_STATES && NO_END_ITEMS_PRESENT)
+        else if (ALL_ITEMS_HAVE_SAME_SYMBOL && ITEMS_SHOULD_CREATE_SHIFT_NODES && NO_END_ITEMS_PRESENT)
 
-            output_states.push(...yieldStatesOfItemsWithSameSymbol(active_items, options, offset, FROM_PEEKED_TRANSITION));
+            output_nodes.push(...yieldNodesOfItemsWithSameSymbol(active_items, options, offset, FROM_PEEKED_TRANSITION));
 
         else if (FROM_PEEKED_TRANSITION)
             throw new Error("Reentering peek transitions from peeked transitions!");
         else
 
-            output_states.push(...yieldPeekedStates(active_items.concat(end_items), options, offset, filter_symbols));
+            output_nodes.push(...yieldPeekedNodes(active_items.concat(end_items), options, offset, filter_symbols));
 
     }
 
     if (end_items.length > 0)
 
-        output_states.push(...yieldEndItemTransitions(end_items, options, offset));
+        output_nodes.push(...yieldEndItemTransitions(end_items, options, offset));
 
 
-    return output_states;
+    return output_nodes;
 }
 
 
@@ -111,7 +111,7 @@ export function Items_Are_From_Same_Production(active_items: Item[], grammar: Gr
     return active_items.setFilter(i => i.getProduction(grammar).id).length == 1;
 }
 
-function yieldPeekedStates(active_items: Item[], options: RenderBodyOptions, offset: number, filter_symbols: Symbol[] = const_EMPTY_ARRAY): TransitionNode[] {
+function yieldPeekedNodes(active_items: Item[], options: RenderBodyOptions, offset: number, filter_symbols: Symbol[] = const_EMPTY_ARRAY): TransitionNode[] {
 
     const
         { grammar, goto_items: production_shift_items } = options,
@@ -127,17 +127,17 @@ function yieldPeekedStates(active_items: Item[], options: RenderBodyOptions, off
     return buildPeekTransitions(tree_nodes[0].next, options, offset, undefined, filter_symbols);
 }
 
-function yieldStatesOfItemsWithSameSymbol(active_items: Item[], options: RenderBodyOptions, offset: number, FROM_PEEKED_TRANSITION: boolean): TransitionNode[] {
+function yieldNodesOfItemsWithSameSymbol(active_items: Item[], options: RenderBodyOptions, offset: number, FROM_PEEKED_TRANSITION: boolean): TransitionNode[] {
 
-    let leaf_state: TransitionNode = null, root = null;
+    let leaf_node: TransitionNode = null, root = null;
 
-    const { grammar } = options, output_states = [];
+    const { grammar } = options, output_nodes = [];
 
     while (active_items.every(i => !i.atEND && i.sym(grammar).val == active_items[0].sym(grammar).val)) {
 
         const
             sym = active_items[0].sym(grammar),
-            state = createTransitionNode(
+            node = createTransitionNode(
                 active_items.slice(),
                 [sym],
                 Sym_Is_A_Production(sym)
@@ -148,13 +148,13 @@ function yieldStatesOfItemsWithSameSymbol(active_items: Item[], options: RenderB
                 offset++
             );
 
-        if (leaf_state) {
-            leaf_state.states.push(state);
-            leaf_state = state;
+        if (leaf_node) {
+            leaf_node.nodes.push(node);
+            leaf_node = node;
         } else {
-            leaf_state = state;
-            root = state;
-            output_states.push(state);
+            leaf_node = node;
+            root = node;
+            output_nodes.push(node);
         }
 
         active_items = active_items.map(i => i.increment());
@@ -162,19 +162,19 @@ function yieldStatesOfItemsWithSameSymbol(active_items: Item[], options: RenderB
         FROM_PEEKED_TRANSITION = false;
     }
 
-    const states = yieldTransitions(active_items, options, offset);
+    const nodes = yieldTransitions(active_items, options, offset);
 
-    if (states.length == 0) {
+    if (nodes.length == 0) {
         throw new Error(
-            `Unexpected end of states\n${root.items.map(i => i.renderUnformattedWithProduction(grammar)).join("\n")}`);
+            `Unexpected end of nodes\n${root.items.map(i => i.renderUnformattedWithProduction(grammar)).join("\n")}`);
     }
 
-    leaf_state.states.push(...states);
+    leaf_node.nodes.push(...nodes);
 
-    return output_states;
+    return output_nodes;
 }
 
-function yieldProductionCallState(active_items: Item[], offset: number, FROM_PEEKED_TRANSITION: boolean): TransitionNode[] {
+function yieldProductionCallNode(active_items: Item[], offset: number, FROM_PEEKED_TRANSITION: boolean): TransitionNode[] {
 
     const
 
@@ -185,7 +185,7 @@ function yieldProductionCallState(active_items: Item[], offset: number, FROM_PEE
     return [createTransitionNode(items, [EOF_SYM], TRANSITION_TYPE.IGNORE, offset)];
 }
 
-function yieldSingleItemState(items: Item[], { grammar }: RenderBodyOptions, offset: number, FROM_PEEKED_TRANSITION: boolean): TransitionNode[] {
+function yieldSingleItemNode(items: Item[], { grammar }: RenderBodyOptions, offset: number, FROM_PEEKED_TRANSITION: boolean): TransitionNode[] {
 
     const
         symbols = getTokenSymbolsFromItems(

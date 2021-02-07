@@ -34,7 +34,7 @@ export interface RenderBodyOptions {
     called_productions?: Set<number>;
 
     /**
-     * List of all productions that are produced from leaf production states
+     * List of all productions that are produced from leaf production nodes
      */
     leaf_productions: Set<number>;
 
@@ -54,7 +54,7 @@ export interface RenderBodyOptions {
     active_keys: number[];
 
     /**
-     * Information from all single item leaf states.
+     * Information from all single item leaf nodes.
      */
     leaves: Leaf[];
 

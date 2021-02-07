@@ -98,7 +98,7 @@ export function compileProductionFunctions(
             productions
         ),
 
-        rd_states = yieldTransitions(
+        rd_nodes = yieldTransitions(
             //Filter out items that are left recursive for the given production
             initial_items,
             RDOptions,
@@ -106,7 +106,7 @@ export function compileProductionFunctions(
             filter_symbols
         ),
 
-        { code: RD_fn_contents, prods: completed_productions, leaves: rd_leaves } = processTransitionNodes(RDOptions, rd_states, default_resolveBranches),
+        { code: RD_fn_contents, prods: completed_productions, leaves: rd_leaves } = processTransitionNodes(RDOptions, rd_nodes, default_resolveBranches),
 
         GOTO_Options = generateOptions(
             grammar, runner,

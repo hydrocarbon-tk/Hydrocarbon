@@ -8,8 +8,8 @@ import { SC } from "../utilities/skribble.js";
  */
 export const enum TRANSITION_TYPE {
     /**
-     * Indicates the token(s) of this state need to 
-     * be consumed before progressing to the next state(s). 
+     * Indicates the token(s) of this node need to 
+     * be consumed before progressing to the next node(s). 
      * 
      * Friendly name:  `assert-consume`
      */
@@ -23,8 +23,8 @@ export const enum TRANSITION_TYPE {
     POST_PEEK_CONSUME,
 
     /**
-     * Indicates that the token(s) at this state only need to be 
-     * asserted before progressing to the next state(s)
+     * Indicates that the token(s) at this node only need to be 
+     * asserted before progressing to the next node(s)
      * 
      * Friendly name:  `assert`
      */
@@ -32,7 +32,7 @@ export const enum TRANSITION_TYPE {
 
 
     /**
-     * Like ASSERT, except state is generated from a completed item.
+     * Like ASSERT, except node is generated from a completed item.
      * 
      * Friendly name:  `assert-end`
      */
@@ -46,7 +46,7 @@ export const enum TRANSITION_TYPE {
     ASSERT_PRODUCTION_CALL,
 
     /**
-     * Like ASSERT, except state will call a production function.
+     * Like ASSERT, except node will call a production function.
      * 
      * Assertion of symbols may be skipped, as they will be reasserted
      * within the production call,
@@ -72,7 +72,7 @@ export const enum TRANSITION_TYPE {
     PEEK_PRODUCTION_SYMBOLS,
 
     /**
-     * This state should be ignored. Used for look-ahead sequences that 
+     * This node should be ignored. Used for look-ahead sequences that 
      * should not actual produce code that could manipulate the lexer
      * 
      * Friendly name:  `ignore`
@@ -81,13 +81,13 @@ export const enum TRANSITION_TYPE {
 };
 
 /**
- * A parse state that has been transitioned to from either the start 
- * of the production function or from a proceeding state.
+ * A parse node that has been transitioned to from either the start 
+ * of the production function or from a proceeding node.
  */
 export interface TransitionNode {
     /**
-     * Code that should be added to the proceeding state's execution scope. May 
-     * need to be gated by this state's symbol
+     * Code that should be added to the proceeding node's execution scope. May 
+     * need to be gated by this node's symbol
      */
     code: SC;
 
@@ -99,29 +99,29 @@ export interface TransitionNode {
     symbols?: Symbol[];
 
     /**
-     * The depth of the peeking state relative to the initiation of the peek.
+     * The depth of the peeking node relative to the initiation of the peek.
      */
     peek_level: number;
 
     /**
-     * The depth of the state relative to the start of the production function.
+     * The depth of the node relative to the start of the production function.
      */
     offset: number;
 
     /**
-     * Indicates the state is a will complete a production.
+     * Indicates the node is a will complete a production.
      */
     completing: boolean;
 
     /**
-     * Active items at this state.
+     * Active items at this node.
      */
     items: Item[];
 
     transition_type: TRANSITION_TYPE;
 
     /**
-     * Current closure at this state. 
+     * Current closure at this Z. 
      */
     closure?: Item[];
 
@@ -132,18 +132,22 @@ export interface TransitionNode {
 
     leaves?: Leaf[];
 
-    states: TransitionNode[];
+    nodes: TransitionNode[];
     /**
-     * Flag to prevent repeat processing of the same state
+     * Flag to prevent repeat processing of the same node
      */
     PROCESSED: boolean;
 
     /**
-     * Leaf state encountered with sibling leaf states. 
+     * Leaf node encountered with sibling leaf nodes. 
      */
     UNRESOLVED_LEAF: boolean;
 }
 
+/**
+ * Collection of processed data returned
+ * from transition resolvers
+ */
 export interface Leaf {
     hash: string;
     root: SC;

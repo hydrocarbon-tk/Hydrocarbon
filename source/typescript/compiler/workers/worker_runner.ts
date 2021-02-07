@@ -152,7 +152,7 @@ export class WorkerRunner {
             };
         }
 
-        //trace ll states from root and set productions
+
         const pending = [this.functions[0], ...this.functions.filter(f => f.RENDER)], reached = new Set([0]);
 
         try {

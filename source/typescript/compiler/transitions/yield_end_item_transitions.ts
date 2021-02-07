@@ -19,7 +19,7 @@ export function yieldEndItemTransitions(end_items: Item[], options: RenderBodyOp
 
     const
 
-        output_states: TransitionNode[] = [],
+        output_nodes: TransitionNode[] = [],
 
         { grammar, goto_items } = options;
 
@@ -43,7 +43,7 @@ export function yieldEndItemTransitions(end_items: Item[], options: RenderBodyOp
                 item = end_items[item_index],
                 symbols = getSymbolsFromClosure(getClosure(active_items, grammar), grammar);
 
-            output_states.push(createTransitionNode([item], symbols, TRANSITION_TYPE.ASSERT_END, offset));
+            output_nodes.push(createTransitionNode([item], symbols, TRANSITION_TYPE.ASSERT_END, offset));
 
             end_items.splice(item_index, 1);
 
@@ -76,7 +76,7 @@ export function yieldEndItemTransitions(end_items: Item[], options: RenderBodyOp
                 }));
 
             if (tree_nodes.length > 0) {
-                output_states.push(...buildPeekTransitions(
+                output_nodes.push(...buildPeekTransitions(
                     tree_nodes,
                     options,
                     offset,
@@ -105,8 +105,8 @@ export function yieldEndItemTransitions(end_items: Item[], options: RenderBodyOp
 
         if (symbols.length == 0) symbols.push(EOF_SYM);
 
-        output_states.push(createTransitionNode([item], symbols, TRANSITION_TYPE.ASSERT_END, offset + 1, 0));
+        output_nodes.push(createTransitionNode([item], symbols, TRANSITION_TYPE.ASSERT_END, offset + 1, 0));
     }
 
-    return output_states;
+    return output_nodes;
 }
