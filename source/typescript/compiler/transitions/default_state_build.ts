@@ -21,6 +21,7 @@ import {
     Sym_Is_Defined_Natural_Number
 } from "../../utilities/symbol.js";
 import { default_resolveBranches } from "./default_branch_resolution.js";
+import { reduceOR } from "./reduceOR.js";
 
 
 export function resolveGOTOBranches(gen: SelectionClauseGenerator, state: TransitionNode, items_global: Item[], level: number, options: RenderBodyOptions): SC {
@@ -193,11 +194,6 @@ export function addClauseSuccessCheck(options: RenderBodyOptions): SC {
     const { productions } = options;
     const condition = productions.map(p => (SC.Binary(rec_state_prod, "==", SC.Value(p.id)))).reduce(reduceOR);
     return SC.UnaryPre(SC.Return, SC.Call("assertSuccess", rec_glob_lex_name, rec_state, condition));
-}
-
-function reduceOR<T>(red: T, exp: T, i: number): T {
-    if (!red) return exp;
-    return <T><any>SC.Binary(<any>red, "||", <any>exp);
 }
 
 export function createDebugCall(options: RenderBodyOptions, action_name, debug_items: Item[] = []) {
