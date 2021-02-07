@@ -18,23 +18,19 @@ import { default_resolveBranches } from "./default_branch_resolution.js";
 import { default_resolveResolvedLeaf } from "./default_resolved_leaf_resolution.js";
 import { default_resolveUnresolvedLeaves } from "./default_unresolved_leaves_resolution.js";
 
+export function defaultGrouping(g) { return g.hash; }
+type UnresolvedLeavesResolver = (state: TransitionNode, states: TransitionNode[], options: RenderBodyOptions) => MultiItemReturnObject;
 
+type InteriorNodesResolver = (gen: SelectionClauseGenerator, state: TransitionNode, items: Item[], level: number, options: RenderBodyOptions) => SC;
 
-export function defaultGrouping(g) {
-    return g.hash;
-}
+type LeafNodeResolver = (item: Item, group: TransitionNode, options: RenderBodyOptions) => SingleItemReturnObject;
+
 export function processTransitionNodes(
     options: RenderBodyOptions,
     states: TransitionNode[],
-    branch_resolve_function:
-        (gen: SelectionClauseGenerator, state: TransitionNode, items: Item[], level: number, options: RenderBodyOptions) => SC =
-        default_resolveBranches,
-    conflicting_leaf_resolve_function:
-        (state: TransitionNode, states: TransitionNode[], options: RenderBodyOptions) => MultiItemReturnObject =
-        default_resolveUnresolvedLeaves,
-    leaf_resolve_function:
-        (item: Item, group: TransitionNode, options: RenderBodyOptions) => SingleItemReturnObject =
-        default_resolveResolvedLeaf,
+    branch_resolve_function: InteriorNodesResolver = default_resolveBranches,
+    conflicting_leaf_resolve_function: UnresolvedLeavesResolver = default_resolveUnresolvedLeaves,
+    leaf_resolve_function: LeafNodeResolver = default_resolveResolvedLeaf,
     grouping_fn: (node: TransitionNode, level: number, peeking: boolean) => string = defaultGrouping
 ): GeneratorStateReturn {
 
