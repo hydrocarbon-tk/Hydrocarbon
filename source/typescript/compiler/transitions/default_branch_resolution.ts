@@ -1,8 +1,9 @@
-import { TransitionNode, TRANSITION_TYPE } from "../../types/transition_node.js";
 import { RenderBodyOptions } from "../../types/render_body_options";
 import { SelectionClauseGenerator, SelectionGroup } from "../../types/state_generating";
 import { DefinedSymbol, Symbol, TokenSymbol } from "../../types/symbol.js";
-import { buildSwitchIfsAlternate, createAssertConsume, createConsume, createProductionCall, createSkipCall, generateGUIDConstName, getIncludeBooleans } from "../../utilities/code_generating.js";
+import { TransitionNode, TRANSITION_TYPE } from "../../types/transition_node.js";
+import { buildSwitchIfsAlternate, createConsume, createProductionCall, createSkipCall, generateGUIDConstName, getIncludeBooleans } from "../../utilities/code_generating.js";
+import { createTransitionTypeAnnotation } from "../../utilities/create_transition_type_annotation.js";
 import { rec_glob_data_name, rec_glob_lex_name } from "../../utilities/global_names.js";
 import { Item } from "../../utilities/item.js";
 import { ExprSC, SC, VarSC } from "../../utilities/skribble.js";
@@ -11,12 +12,15 @@ import {
     getSkippableSymbolsFromItems,
     getSymbolName,
     getUniqueSymbolName,
-    Symbols_Are_The_Same, Sym_Is_A_Generic_Type, Sym_Is_A_Production,
+    Symbols_Are_The_Same, Sym_Is_A_Generic_Identifier, Sym_Is_A_Generic_Number, Sym_Is_A_Generic_Symbol, Sym_Is_A_Generic_Type, Sym_Is_A_Production,
     Sym_Is_A_Production_Token,
     Sym_Is_Defined,
+    Sym_Is_Defined_Identifier,
+    Sym_Is_Defined_Natural_Number,
+    Sym_Is_Defined_Symbols,
     Sym_Is_EOF
 } from "../../utilities/symbol.js";
-import { createTransitionTypeAnnotation } from "../../utilities/create_transition_type_annotation.js";
+import { reduceOR } from "./reduceOR.js";
 /**
  * Handles intermediate state transitions. 
  */
@@ -101,12 +105,18 @@ function createSwitchBlock(
     while (!yielded.done) {
         const { code_node, sym } = yielded.value;
         code_node.addStatement(
-            getUniqueSymbolName(sym),
             SC.Assignment(SC.Member(lex_name, "type"), "TokenSymbol"),
             SC.Assignment(SC.Member(lex_name, "byte_length"), sym.byte_length),
             SC.Assignment(SC.Member(lex_name, "token_length"), sym.val.length),
-            SC.UnaryPre(SC.Return, SC.Value(defined_symbols_lu.get(sym)))
         );
+        if (Sym_Is_Defined_Identifier(sym) && all_syms.some(Sym_Is_A_Generic_Identifier))
+            code_node.addStatement(SC.If(SC.Value("!l.isDiscrete(data, TokenIdentifier)")).addStatement(SC.UnaryPre(SC.Return, SC.Value("0xFFFFFF"))));
+
+        if (Sym_Is_Defined_Natural_Number(sym) && all_syms.some(Sym_Is_A_Generic_Number))
+            code_node.addStatement(SC.If(SC.Value("!l.isDiscrete(data, TokenNumber)")).addStatement(SC.UnaryPre(SC.Return, SC.Value("0xFFFFFF"))));
+
+        code_node.addStatement(
+            SC.UnaryPre(SC.Return, SC.Value(defined_symbols_lu.get(sym))));
         yielded = gen.next();
     }
 
@@ -150,7 +160,6 @@ function createPeekStatements(
         }
 
         if (state.offset > 0 && state.peek_level == 0) {
-
             root.addStatement(createSkipCall(skippable, grammar, runner, lex_name));
         } else if (state.peek_level >= 1) {
 

@@ -17,10 +17,10 @@ import {
     getTokenSymbolsFromItems,
     getUniqueSymbolName,
     Sym_Is_An_Assert_Function,
-    Sym_Is_A_Generic_Identifier, Sym_Is_A_Generic_Type,
+    Sym_Is_A_Generic_Identifier, Sym_Is_A_Generic_Number, Sym_Is_A_Generic_Type,
     Sym_Is_A_Production_Token,
     Sym_Is_Consumed,
-    Sym_Is_Defined, Sym_Is_EOF, Sym_Is_Not_An_Identifier, Sym_Is_Not_Consumed
+    Sym_Is_Defined, Sym_Is_Defined_Identifier, Sym_Is_Defined_Natural_Number, Sym_Is_EOF, Sym_Is_Not_An_Identifier, Sym_Is_Not_Consumed
 } from "./symbol.js";
 
 /**
@@ -351,10 +351,21 @@ export function buildIfs(
 
     while (!yielded.done) {
         const { code_node, sym } = yielded.value;
+
+
         code_node.addStatement(
             SC.Assignment(SC.Member(lex_name, "type"), "TokenSymbol"),
             SC.Assignment(SC.Member(lex_name, "byte_length"), sym.byte_length),
             SC.Assignment(SC.Member(lex_name, "token_length"), sym.val.length),
+        );
+
+        if (Sym_Is_Defined_Identifier(sym) && occluders.some(Sym_Is_A_Generic_Identifier))
+            code_node.addStatement(SC.If(SC.Value("!l.isDiscrete(data, TokenIdentifier)")).addStatement(SC.UnaryPre(SC.Return, SC.False)));
+
+        if (Sym_Is_Defined_Natural_Number(sym) && occluders.some(Sym_Is_A_Generic_Number))
+            code_node.addStatement(SC.If(SC.Value("!l.isDiscrete(data, TokenNumber)")).addStatement(SC.UnaryPre(SC.Return, SC.False)));
+
+        code_node.addStatement(
             SC.UnaryPre(SC.Return, SC.True),
         );
         yielded = gen.next();

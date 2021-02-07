@@ -25,15 +25,19 @@ export const renderAssemblyScriptRecognizer = (
     return (new SC).addStatement(SC.Value(`
     const lookup_table = new Uint8Array(${jump8bit_table_byte_size});
     const sequence_lookup = [${grammar.sequence_string.split("").map(s => s.charCodeAt(0)).join(",")}];
-    const TokenSpace = 2;
-    const TokenNumber = 5;
-    const TokenIdentifier = 1;
-    const TokenIdentifierUnicode = 6;
-    const TokenNewLine = 4;
-    const TokenSymbol = 3;
-    const TokenFullNumber = 7;
+    const TokenSpace = 1;
+    const TokenNewLine = 2;
+    const TokenSymbol = 4;
+    const TokenNumber = 8;
+    const TokenIdentifier = 16;
+    const TokenIdentifierUnicode = (1 << 8 )| TokenIdentifier;
+    const TokenFullNumber = (2 << 8) | TokenNumber;
     const UNICODE_ID_START = 16;
     const UNICODE_ID_CONTINUE = 32;
+    //[javascript_only]
+    function print(l,s){
+        return [...s.input.slice(l.byte_offset, l.byte_offset+5)].map(i=>String.fromCharCode(i)).join("")
+    }
 
     function compare(data, data_offset, sequence_offset, length) {
         let i = data_offset;
@@ -55,11 +59,26 @@ export const renderAssemblyScriptRecognizer = (
         return false;
     }
 
-    function utf8ToCodePoint(l, data) {
+    function getUTF8ByteLengthFromCodePoint(code_point){
+
+        if(code_point == 0) {
+            return 1;
+       } else  if ((code_point & 0x7F) == code_point) {
+            return 1;
+        } else if ((code_point & 0x7FF) == code_point) {
+            return 2;
+        } else if ((code_point & 0xFFFF) == code_point) {
+            return 3;
+        } else {
+            return 4;
+        }
+    }
+
+    function utf8ToCodePoint(offset, data) {
 
         let buffer = data.input;
 
-        let index = l.byte_offset + l.byte_length;
+        let index = offset;
 
         const a = buffer[index];
     
@@ -78,17 +97,14 @@ export const renderAssemblyScriptRecognizer = (
                 const c = buffer[index+2];
     
                 if (flag == 0xF0){
-                    l.byte_length += 3;
                     return ((a & 0x7) << 18) | ((b & 0x3F) << 12) | ((c & 0x3F) << 6) | (buffer[index+3] & 0x3F);
                 }
     
                 else if (flag == 0xE0){
-                    l.byte_length += 2;
                     return ((a & 0xF) << 12) | ((b & 0x3F) << 6) | (c & 0x3F);
                 }
     
             } else if (flag == 0xC) {
-                l.byte_length += 1;
                 return ((a & 0x1F) << 6) | b & 0x3F;
             }
     
@@ -127,14 +143,40 @@ export const renderAssemblyScriptRecognizer = (
             this.type = 0;             //16
             this.current_byte = 0;     //16
         }
+        
+        // Returns false if the symbol following
+        // the byte length is of the passed in type
+        isDiscrete(data, assert_class, USE_UNICODE) {
 
-        getType(USE_UNICODE, data){
-            if(this.type == 0){
-                if( !USE_UNICODE || this.current_byte < 128){
+            let type = 0;
+
+            let offset = this.byte_offset + this.byte_length;
+
+            if(offset >= data.input_len) return true;
+
+            let current_byte = data.input[offset];
+
+            if (!USE_UNICODE || current_byte < 128) {
+                type = getTypeAt(current_byte);
+            } else {
+                type = getTypeAt(utf8ToCodePoint(offset, data));
+            }
+            
+            return (type & assert_class) == 0;
+        }
+
+
+        getType(USE_UNICODE, data) {
+
+            if (this.END(data)) return 0;
+
+            if (this.type == 0) {
+                if (!USE_UNICODE || this.current_byte < 128) {
                     this.type = getTypeAt(this.current_byte);
                 } else {
-                    let index = this.byte_offset;
-                    this.type = getTypeAt(utf8ToCodePoint(this, data));
+                    const code_point = utf8ToCodePoint(this.byte_offset, data);
+                    this.byte_length += getUTF8ByteLengthFromCodePoint(code_point) - 1;
+                    this.type = getTypeAt(code_point);
                 }
             }
             return this.type;
@@ -142,7 +184,7 @@ export const renderAssemblyScriptRecognizer = (
 
         
         isSym(USE_UNICODE, data) {
-            return this.getType(USE_UNICODE, data) == TokenSymbol;
+            return !this.END(data) && this.getType(USE_UNICODE, data) == TokenSymbol;
         }
         
         isNL() {
@@ -176,17 +218,20 @@ export const renderAssemblyScriptRecognizer = (
             if (this.type == 0 || this.type == TokenIdentifier) {
                 if (this.getType(true, data) == TokenIdentifier) {
                     const l = data.input_len;
-                    let off = this.byte_offset;
-                    let prev_byte_len = this.byte_length;
-                    while (((off + this.byte_length) < l) && ((UNICODE_ID_START | UNICODE_ID_CONTINUE) & lookup_table[utf8ToCodePoint(this, data)]) > 0) {
-                        this.byte_length++;
-                        prev_byte_len = this.byte_length;
+                    let off = this.byte_offset + this.byte_length;
+                    let code_point = utf8ToCodePoint(off, data);
+                    while (
+                        (off < l)
+                        && ((UNICODE_ID_START | UNICODE_ID_CONTINUE) & lookup_table[code_point]) > 0
+                    ) {
+                        off += getUTF8ByteLengthFromCodePoint(code_point);
+                        code_point = utf8ToCodePoint(off, data);
                         this.token_length++;
                     }
-                    this.byte_length = prev_byte_len;
+                    this.byte_length = off - this.byte_offset;
                     this.type = TokenIdentifierUnicode;
                     return true;
-                }  else
+                } else
                     return false;
             } else return this.type == TokenIdentifierUnicode;
         }
