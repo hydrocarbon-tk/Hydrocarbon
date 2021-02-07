@@ -1,15 +1,14 @@
 import { EOF_SYM, Grammar } from "../../types/grammar.js";
-import { TransitionNode, TRANSITION_TYPE } from "../../types/transition_node.js";
 import { RenderBodyOptions } from "../../types/render_body_options";
 import { Symbol } from "../../types/symbol.js";
+import { TransitionNode, TRANSITION_TYPE } from "../../types/transition_node.js";
 import { TransitionTreeNode } from "../../types/transition_tree_nodes.js";
 import { getClosure } from "../../utilities/closure.js";
-import { Items_Have_The_Same_Active_Symbol, Item } from "../../utilities/item.js";
-import { getTokenSymbolsFromItems, Symbols_Are_The_Same, Sym_Is_A_Production } from "../../utilities/symbol.js";
-import { getTransitionTree } from "../../utilities/transition_tree.js";
 import { const_EMPTY_ARRAY } from "../../utilities/const_EMPTY_ARRAY.js";
+import { Item, Items_Have_The_Same_Active_Symbol } from "../../utilities/item.js";
+import { getTokenSymbolsFromItems, Symbols_Are_The_Same, Sym_Is_A_Production, Sym_Is_A_Production_Token } from "../../utilities/symbol.js";
+import { getTransitionTree } from "../../utilities/transition_tree.js";
 import { createTransitionNode } from "./create_transition_node.js";
-import { yieldEndItemTransitions } from "./yield_end_item_transitions.js";
 import { buildPeekTransitions } from "./yield_peek_transitions.js";
 
 export function Every_Leaf_Of_TransitionTree_Contain_One_Root_Item(node: TransitionTreeNode) {
@@ -91,11 +90,6 @@ export function yieldTransitions(
             output_nodes.push(...yieldPeekedNodes(active_items.concat(end_items), options, offset, filter_symbols));
 
     }
-
-    if (end_items.length > 0)
-
-        output_nodes.push(...yieldEndItemTransitions(end_items, options, offset));
-
 
     return output_nodes;
 }
