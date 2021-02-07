@@ -5,8 +5,9 @@ import { ProductionBody } from "./grammar";
 export interface Production {
     id: number;
     name: string;
+    
     val?: number;
-    type: "production";
+    type: "production" | "virtual-production";
 
     /**
      * Productions sub types:
