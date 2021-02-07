@@ -230,7 +230,7 @@ export function completeGrammar(grammar: Grammar, env) {
     grammar.bodies = bodies;
     grammar.item_map = null;
     grammar.sequence_string = createSequenceData(grammar);
-    console.log(grammar.sequence_string);
+
     buildItemMaps(grammar);
     return grammar;
 }
