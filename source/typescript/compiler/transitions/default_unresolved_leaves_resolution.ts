@@ -55,6 +55,8 @@ export function default_resolveUnresolvedLeaves(node: TransitionNode, nodes: Tra
 
             root.addStatement(RD_fn_contents, GOTO_Options.NO_GOTOS ? undefined : GOTO_fn_contents);
 
+            if (options.scope == "RD")
+                root.addStatement(SC.Declare(SC.Assignment(rec_state_prod, "0xFFFFFFFF")));
 
             let leaf = root;// prev_prods;
 

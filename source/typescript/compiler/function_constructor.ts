@@ -110,7 +110,8 @@ export function compileProductionFunctions(
 
         GOTO_Options = generateOptions(
             grammar, runner,
-            productions
+            productions,
+            "GOTO"
         ),
 
         { code: GOTO_fn_contents, leaves: goto_leaves } = processTransitionNodes(
@@ -131,9 +132,11 @@ export function generateOptions(
     /**
      * The production currently being processed.
      */
-    productions: Production[]
+    productions: Production[],
+    scope: "RD" | "GOTO" = "RD"
 ): RenderBodyOptions {
     return {
+        scope,
         grammar,
         helper: runner,
         productions: productions,

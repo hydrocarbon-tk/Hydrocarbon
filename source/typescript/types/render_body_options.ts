@@ -6,6 +6,8 @@ import { Leaf } from "./transition_node.js";
 
 export interface RenderBodyOptions {
 
+    scope: "RD" | "GOTO",
+
     /**
      * Source grammar for the language
      */
