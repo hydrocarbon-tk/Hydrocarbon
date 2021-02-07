@@ -37,8 +37,6 @@ export function default_resolveResolvedLeaf(item: Item, state: TransitionNode, o
         };
     }
 
-    code.addStatement(state.symbols.map(getUniqueSymbolName).join("  "));
-
     if (state.transition_type == TRANSITION_TYPE.ASSERT_CONSUME && !item.atEND)
         item = item.increment();
 

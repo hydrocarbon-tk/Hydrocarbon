@@ -21,11 +21,7 @@ export function default_resolveUnresolvedLeaves(node: TransitionNode, nodes: Tra
 
         anchor_state = SC.Variable("anchor_state:unsigned"),
 
-        root: SC = (new SC).addStatement(
-            items.map(p => p.id).join(">   <"),
-            expected_symbols.map(getUniqueSymbolName).join(" "),
-
-        ),
+        root: SC = (new SC),
 
         IS_LEFT_RECURSIVE_WITH_FOREIGN_PRODUCTION_ITEMS = nodes.some(i => i.transition_type == TRANSITION_TYPE.IGNORE),
 
@@ -71,7 +67,6 @@ export function default_resolveUnresolvedLeaves(node: TransitionNode, nodes: Tra
 
                 out_prods.push(prod);
 
-                leaf.addStatement(item.renderUnformattedWithProduction(grammar));
 
                 const _if = SC.If(SC.Binary("prod", "==", v_prod.id));
                 let _if_leaf = new SC;
