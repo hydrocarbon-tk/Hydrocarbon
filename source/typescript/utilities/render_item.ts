@@ -22,7 +22,14 @@ export function renderItemReduction(
     code_node: SC,
     item: Item,
     grammar: Grammar) {
+        //Virtual productions do not reduce
+        if(item.getProduction(grammar).type == "virtual-production"){
+            code_node.addStatement("---------Virtual Productions Do Not Reduce-----------")
+            return;
+        }
+
     const body = item.body_(grammar);
+
 
     if (body.reduce_id >= 0)
         code_node.addStatement(createReduceFunction(item, grammar));
