@@ -49,16 +49,25 @@ export function default_resolveUnresolvedLeaves(node: TransitionNode, nodes: Tra
                 GOTO_Options
             );
 
-            root.addStatement(RD_fn_contents, GOTO_Options.NO_GOTOS ? undefined : GOTO_fn_contents);
-
             if (options.scope == "RD")
                 root.addStatement(SC.Declare(SC.Assignment(rec_state_prod, "0xFFFFFFFF")));
+            root.addStatement(SC.Declare(SC.Assignment("preserved_state", "state")));
+
+            root.addStatement(RD_fn_contents, GOTO_Options.NO_GOTOS ? undefined : GOTO_fn_contents);
+
 
             let leaf = root;// prev_prods;
+
+            items.sort((a, b) => +a.atEND - +b.atEND);
+
 
             for (let i = 0; i < items.length; i++) {
 
                 const item = items[i];
+
+                const ITEM_AT_END = item.atEND;
+
+                leaf.addStatement(item.renderUnformattedWithProduction(grammar));
 
                 item[ItemIndex.offset] = item[ItemIndex.length];
                 const v_prod = productions[i];
@@ -68,11 +77,11 @@ export function default_resolveUnresolvedLeaves(node: TransitionNode, nodes: Tra
                 out_prods.push(prod);
 
 
-                const _if = SC.If(SC.Binary("prod", "==", v_prod.id));
+                const _if = SC.If(ITEM_AT_END ? SC.Empty() : SC.Binary("prod", "==", v_prod.id));
                 let _if_leaf = new SC;
+                _if.addStatement(SC.Assignment("state", "preserved_state"));
                 _if.addStatement(_if_leaf);
                 _if_leaf = renderItem(_if_leaf, item, options);
-
                 leaf.addStatement(_if);
                 leaf = _if;
 
