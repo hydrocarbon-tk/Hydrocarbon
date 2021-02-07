@@ -193,8 +193,8 @@ function createIfElseBlock(
         const transition_type: TRANSITION_TYPE = transition_types[0];
 
         switch (transition_type) {
-
             case TRANSITION_TYPE.ASSERT_PEEK:
+            case TRANSITION_TYPE.PEEK_UNRESOLVED:
             case TRANSITION_TYPE.PEEK_PRODUCTION_SYMBOLS:
 
                 gate_block = (Sym_Is_A_Production(syms[0]))
@@ -301,6 +301,7 @@ function addIfStatementTransition(
             transition_type == TRANSITION_TYPE.ASSERT_PRODUCTION_SYMBOLS
             //|| transition_type == TRANSITION_TYPE.ASSERT
             || transition_type == TRANSITION_TYPE.PEEK_PRODUCTION_SYMBOLS
+            || transition_type == TRANSITION_TYPE.PEEK_UNRESOLVED
             || transition_type == TRANSITION_TYPE.ASSERT_END
         );
 

@@ -77,7 +77,9 @@ export const enum TRANSITION_TYPE {
      * 
      * Friendly name:  `ignore`
      */
-    IGNORE
+    IGNORE,
+
+    PEEK_UNRESOLVED
 };
 
 /**

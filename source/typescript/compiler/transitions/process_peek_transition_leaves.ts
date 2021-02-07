@@ -180,6 +180,8 @@ function addUnresolvedNode(node: TransitionNode, options: RenderBodyOptions, off
 
                 node.nodes.push(unresolved_leaf_node);
             }
+
+            node.transition_type = TRANSITION_TYPE.PEEK_UNRESOLVED;
         }
 
     }
