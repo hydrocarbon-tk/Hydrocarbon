@@ -469,8 +469,8 @@ export class SC<T = Node> {
      * @param this 
      */
     hash(this: SC<Node>, root = true): string {
-        const extended_exp_hash = (this.expressions ?? []).map(s => s.hash(false)).join("");
-        const extended_stmt_hash = (this.statements ?? []).map(s => s.hash(false)).join("");
+        const extended_exp_hash = (this.expressions ?? []).map(s => s?.hash(false) ?? "").join("");
+        const extended_stmt_hash = (this.statements ?? []).map(s => s?.hash(false) ?? "").join("");
 
         const own_hash_data = [
             this.type?.type ?? "",
