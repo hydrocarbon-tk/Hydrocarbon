@@ -46,7 +46,8 @@ export const enum TRANSITION_TYPE {
     ASSERT_PRODUCTION_CALL,
 
     /**
-     * Like ASSERT, except node will call a production function.
+     * Like ASSERT, except the assertion can be made from through a 
+     * production call.
      * 
      * Assertion of symbols may be skipped, as they will be reasserted
      * within the production call,
@@ -79,6 +80,15 @@ export const enum TRANSITION_TYPE {
      */
     IGNORE,
 
+    /**
+     * This transition is created when multiple items cannot be unambiguously
+     * parsed. It leads to a special resolver that can use different 
+     * strategies to clear up the ambiguity. If part of a transition branch,
+     * the assertion of its symbols can be bypassed if this the last branch
+     * case.
+     * 
+     * Friendly name: `peek-unresolved`
+     */
     PEEK_UNRESOLVED
 };
 

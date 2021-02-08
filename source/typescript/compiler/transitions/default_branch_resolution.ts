@@ -1,26 +1,29 @@
 import { RenderBodyOptions } from "../../types/render_body_options";
 import { SelectionClauseGenerator, SelectionGroup } from "../../types/state_generating";
 import { DefinedSymbol, Symbol, TokenSymbol } from "../../types/symbol.js";
-import { TransitionNode, TRANSITION_TYPE } from "../../types/transition_node.js";
+import { Leaf, TransitionNode, TRANSITION_TYPE } from "../../types/transition_node.js";
+import { getClosure } from "../../utilities/closure.js";
 import { buildSwitchIfsAlternate, createConsume, createProductionCall, createSkipCall, generateGUIDConstName, getIncludeBooleans } from "../../utilities/code_generating.js";
 import { createTransitionTypeAnnotation } from "../../utilities/create_transition_type_annotation.js";
 import { rec_glob_data_name, rec_glob_lex_name } from "../../utilities/global_names.js";
 import { Item } from "../../utilities/item.js";
+import { getProductionClosure, Production_Is_Trivial } from "../../utilities/production.js";
 import { ExprSC, SC, VarSC } from "../../utilities/skribble.js";
 import {
     Defined_Symbols_Occlude,
     getSkippableSymbolsFromItems,
     getSymbolName,
+    getTokenSymbolsFromItems,
     getUniqueSymbolName,
-    Symbols_Are_The_Same, Sym_Is_A_Generic_Identifier, Sym_Is_A_Generic_Number, Sym_Is_A_Generic_Symbol, Sym_Is_A_Generic_Type, Sym_Is_A_Production,
+    Symbols_Are_The_Same, Sym_Is_A_Generic_Identifier, Sym_Is_A_Generic_Number, Sym_Is_A_Generic_Type, Sym_Is_A_Production,
     Sym_Is_A_Production_Token,
     Sym_Is_Defined,
     Sym_Is_Defined_Identifier,
     Sym_Is_Defined_Natural_Number,
-    Sym_Is_Defined_Symbols,
+
     Sym_Is_EOF
 } from "../../utilities/symbol.js";
-import { reduceOR } from "./reduceOR.js";
+import { createVirtualProductionSequence2 } from "./default_unresolved_leaves_resolution.js";
 /**
  * Handles intermediate state transitions. 
  */
@@ -63,7 +66,7 @@ export function default_resolveBranches(
 
     else
 
-        createIfElseBlock(options, groups, root, lex_name, peek_name, all_syms, FORCE_ASSERTIONS);
+        createIfElseBlock(options, state, groups, root, lex_name, peek_name, all_syms, FORCE_ASSERTIONS);
 
     root.addStatement(SC.Empty());
 
@@ -146,6 +149,7 @@ function createPeekStatements(
     peek_name: VarSC,
     skippable: TokenSymbol[],
     groups: SelectionGroup[],
+
 ) {
     if (Every_Transition_Does_Not_A_Skip(groups))
         return lex_name;
@@ -179,6 +183,8 @@ function Every_Transition_Does_Not_A_Skip(groups: SelectionGroup[]) {
 
 function createIfElseBlock(
     options: RenderBodyOptions,
+
+    state: TransitionNode,
     groups: SelectionGroup[],
     root: SC,
     lex_name: VarSC,
@@ -189,102 +195,114 @@ function createIfElseBlock(
 
     let leaf = root;
 
+    let previous_transition: TRANSITION_TYPE;
+
     const { grammar, helper: runner } = options;
 
     for (let i = 0; i < groups.length; i++) {
 
         const
             group = groups[i],
-            { syms, transition_types, code } = group;
+            { syms, transition_types, code } = group,
+            complement_symbols = groups.filter((l, j) => j > i).flatMap(g => g.syms).setFilter(getUniqueSymbolName);
 
-        let gate_block: SC = SC.Empty();
+        let assertion_boolean: SC = SC.Empty();
 
         const transition_type: TRANSITION_TYPE = transition_types[0];
 
+        const FIRST_SYMBOL_IS_A_PRODUCTION = Sym_Is_A_Production(syms[0]);
+
         switch (transition_type) {
-            case TRANSITION_TYPE.ASSERT_PEEK:
-            case TRANSITION_TYPE.PEEK_UNRESOLVED:
-            case TRANSITION_TYPE.PEEK_PRODUCTION_SYMBOLS:
 
-                gate_block = (Sym_Is_A_Production(syms[0]))
-                    ? createProductionCall(grammar[syms[0].val], options, peek_name)
-                    : getIncludeBooleans(<TokenSymbol[]>syms, grammar, runner, peek_name, <TokenSymbol[]>all_syms);
+            case TRANSITION_TYPE.POST_PEEK_CONSUME:
 
-                leaf = addIfStatementTransition(options, group, gate_block, FORCE_ASSERTIONS, leaf);
+                const sc = new SC;
+
+                sc.addStatement(createTransitionTypeAnnotation(options, transition_types), createConsume(lex_name), code);
+                leaf.addStatement(sc);
+                leaf = sc;
 
                 break;
 
             case TRANSITION_TYPE.ASSERT_END:
 
-                const other_transition_syms = groups.filter((l, j) => j != i).flatMap(g => g.syms).setFilter(getUniqueSymbolName);
-
                 let pending_syms = syms.slice();
                 // Remove symbols that should lead to a shift
                 // This overcomes shift-reduce ambiguities
-                if (other_transition_syms.length > 0)
+                if (complement_symbols.length > 0)
                     pending_syms = pending_syms
-                        .filter(s => !other_transition_syms.some(o => Symbols_Are_The_Same(s, o)));
+                        .filter(s => !complement_symbols.some(o => Symbols_Are_The_Same(s, o)));
 
-                // The number of follow symbols may appear here quite can be quite
-                // high. An alternative to making an assertion of these symbol may be to make
-                // a negated assertion of the symbols that are anticipated by other transitions
-                if (other_transition_syms.length < pending_syms.length) {
-                    const primary_symbols = syms.filter(a => other_transition_syms.some(o => Sym_Is_EOF(a) || Defined_Symbols_Occlude(a, o)));
-                    const negate_symbols = other_transition_syms;
-                    const remaining_symbols = getIncludeBooleans(<TokenSymbol[]>primary_symbols, grammar, runner, peek_name);
-                    const negated_expression = getIncludeBooleans(<TokenSymbol[]>negate_symbols, grammar, runner, peek_name);
-                    if (negated_expression) {
+                // Negative assertion helps prevent occlusions of subsequent group's symbols
+                // from an end items follow set
 
-                        if (primary_symbols.length > 0)
-                            gate_block = SC.Binary(SC.UnaryPre("!", SC.Group("(", negated_expression)), "||", remaining_symbols);
-                        else
-                            gate_block = SC.UnaryPre("!", negated_expression);
-                    } else gate_block = SC.Empty();
-                } else {
-                    gate_block = getIncludeBooleans(<TokenSymbol[]>pending_syms, grammar, runner, peek_name, <TokenSymbol[]>all_syms);
-                }
-                leaf = addIfStatementTransition(options, group, gate_block, FORCE_ASSERTIONS, leaf);
-                break;
+                const primary_symbols = syms.filter(a => complement_symbols.some(o => Sym_Is_EOF(a) || Defined_Symbols_Occlude(a, o)));
+                const negate_symbols = complement_symbols;
+                const remaining_symbols = getIncludeBooleans(<TokenSymbol[]>primary_symbols, grammar, runner, peek_name);
+                const negated_expression = getIncludeBooleans(<TokenSymbol[]>negate_symbols, grammar, runner, peek_name);
+                if (negated_expression) {
 
-            case TRANSITION_TYPE.POST_PEEK_CONSUME:
-                const sc = new SC;
+                    if (primary_symbols.length > 0)
+                        assertion_boolean = SC.Binary(SC.UnaryPre("!", SC.Group("(", negated_expression)), "||", remaining_symbols);
+                    else
+                        assertion_boolean = SC.UnaryPre("!", negated_expression);
+                } else assertion_boolean = SC.Empty();
 
-                sc.addStatement(
-                    createTransitionTypeAnnotation(options, transition_types),
-                    createConsume(lex_name),
-                    code
-                );
+                leaf = addIfStatementTransition(options, group, code, assertion_boolean, FORCE_ASSERTIONS, leaf, state.leaves);
 
-                leaf.addStatement(sc);
-                leaf = sc;
                 break;
 
             case TRANSITION_TYPE.ASSERT_PRODUCTION_CALL:
-                gate_block = createProductionCall(grammar[syms[0].val], options);
-                leaf = addIfStatementTransition(options, group, gate_block, FORCE_ASSERTIONS, leaf);
+
+                const production = grammar[group.items[0].sym(grammar).val];
+
+                if (Production_Is_Trivial(production)) {
+                    //console.log(syms[0], production);
+
+                    const syms = getTokenSymbolsFromItems(getClosure(getProductionClosure(production.id, grammar), grammar), grammar);
+
+                    assertion_boolean = getIncludeBooleans(<TokenSymbol[]>syms, grammar, runner, peek_name, <TokenSymbol[]>complement_symbols);
+
+                    leaf = addIfStatementTransition(options, group, code, assertion_boolean, FORCE_ASSERTIONS, leaf, state.leaves);
+
+                    leaf.shiftStatement(createConsume(lex_name));
+                } else {
+
+                    assertion_boolean = createProductionCall(production, options);
+
+                    leaf = addIfStatementTransition(options, group, code, assertion_boolean, FORCE_ASSERTIONS, leaf, state.leaves);
+                }
+
                 break;
 
             case TRANSITION_TYPE.ASSERT:
+            case TRANSITION_TYPE.ASSERT_PEEK:
+            case TRANSITION_TYPE.PEEK_UNRESOLVED:
+            case TRANSITION_TYPE.PEEK_PRODUCTION_SYMBOLS:
             case TRANSITION_TYPE.ASSERT_PRODUCTION_SYMBOLS:
 
-                gate_block = (Sym_Is_A_Production(syms[0]))
-                    ? createProductionCall(grammar[syms[0].val], options)
-                    : getIncludeBooleans(<TokenSymbol[]>syms, grammar, runner, peek_name, <TokenSymbol[]>all_syms);
+                assertion_boolean = getIncludeBooleans(<TokenSymbol[]>syms, grammar, runner, peek_name, <TokenSymbol[]>complement_symbols);
 
-                leaf = addIfStatementTransition(options, group, gate_block, FORCE_ASSERTIONS, leaf);
+                leaf = addIfStatementTransition(options, group, code, assertion_boolean, FORCE_ASSERTIONS, leaf, state.leaves);
+
                 break;
 
             case TRANSITION_TYPE.ASSERT_CONSUME:
 
-                gate_block = (Sym_Is_A_Production(syms[0]))
-                    ? createAssertConsume(rec_glob_lex_name, createProductionCall(grammar[syms[0].val], options))
-                    : createAssertConsume(rec_glob_lex_name, getIncludeBooleans(<TokenSymbol[]>syms, grammar, runner, lex_name, <TokenSymbol[]>all_syms));
 
-                leaf = addIfStatementTransition(options, group, gate_block, FORCE_ASSERTIONS, leaf);
+                assertion_boolean = FIRST_SYMBOL_IS_A_PRODUCTION
+                    ? createProductionCall(grammar[syms[0].val], options)
+                    : getIncludeBooleans(<TokenSymbol[]>syms, grammar, runner, lex_name, <TokenSymbol[]>complement_symbols);
+
+                leaf = addIfStatementTransition(options, group, code, assertion_boolean, FORCE_ASSERTIONS, leaf, state.leaves);
+
+                code.shiftStatement(createConsume(rec_glob_lex_name));
                 break;
 
             case TRANSITION_TYPE.IGNORE: break;
         }
+
+        previous_transition = transition_type;
     }
 }
 
@@ -294,15 +312,29 @@ function createIfElseBlock(
 function addIfStatementTransition(
     options: RenderBodyOptions,
     group: SelectionGroup,
-    gate_block: SC,
+    modified_code: SC,
+    boolean_assertion: SC,
     FORCE_ASSERTIONS: boolean,
-    leaf: any
+    leaf: any,
+    leaves: Leaf[]
 ) {
-    const { grammar, helper: runner } = options;
-    let { syms, items, code, LAST, FIRST, transition_types } = group;
-    const transition_type: TRANSITION_TYPE = transition_types[0];
 
-    let if_stmt = SC.If(<ExprSC>gate_block);
+    const { grammar, helper: runner } = options;
+    let { syms, items, LAST, FIRST, transition_types } = group;
+    const transition_type: TRANSITION_TYPE = transition_types[0];
+    const breadcrumb_items = items.map(i => (((
+        transition_type == TRANSITION_TYPE.ASSERT_CONSUME
+        || transition_type == TRANSITION_TYPE.ASSERT_PRODUCTION_CALL
+    ) && !i.atEND) ? i.increment() : i));
+
+    const traffic = breadcrumb_items.filter(i => i.offset == 1)
+        .map(i => (new Item(i.body, i.len, 0)).id)
+        .flatMap(id => [...grammar.item_map.get(id).breadcrumbs.values()])
+        .setFilter()
+        .sort();
+
+
+    let if_stmt = SC.If(<ExprSC>boolean_assertion);
 
     const SKIP_BOOL_EXPRESSION = (!FORCE_ASSERTIONS || transition_type == TRANSITION_TYPE.ASSERT_END)
         && (LAST && !FIRST)
@@ -317,21 +349,59 @@ function addIfStatementTransition(
     if (SKIP_BOOL_EXPRESSION)
         if_stmt = SC.If();
 
-    if_stmt.addStatement(
-        runner.ANNOTATED ?
-            SC.Comment("\n   " + items.map(i => ((transition_type == TRANSITION_TYPE.ASSERT_CONSUME && !i.atEND) ? i.increment() : i)
-                .renderUnformattedWithProduction(grammar)).join("\n   ") + "\n")
-            : undefined,
-        code,
-        SC.Empty()
-    );
+
+
+    if (
+        true
+        && traffic.length >= 8
+        && !options.IS_VIRTUAL
+        && breadcrumb_items.every(i => !i.atEND)
+        && Math.min(...breadcrumb_items.map(i => i.len)) > 2
+    ) {
+        //build and implement a virtual production sequence
+        const sc = new SC;
+
+        if_stmt.addStatement(sc);
+
+        if (transition_type == TRANSITION_TYPE.ASSERT_CONSUME)
+            sc.addStatement(createConsume(rec_glob_lex_name));
+        if (
+            transition_type == TRANSITION_TYPE.ASSERT_CONSUME
+            || transition_type == TRANSITION_TYPE.ASSERT_PRODUCTION_CALL
+        ) {
+            const skippable = getSkippableSymbolsFromItems(breadcrumb_items, grammar);
+            sc.addStatement(createSkipCall(skippable, grammar, runner, rec_glob_lex_name));
+            //Add peek
+        }
+
+        createVirtualProductionSequence2(options, breadcrumb_items, [], sc, leaves);
+
+    } else {
+
+
+        if_stmt.addStatement(
+            //`traffic: ${traffic.length} productions => ${traffic.join(" ")}`,
+            //`symbols: ${group.syms.map(getUniqueSymbolName).join("  ")}`,
+            runner.ANNOTATED ?
+                SC.Comment("\n   " + items.map(i => (((
+                    transition_type == TRANSITION_TYPE.ASSERT_CONSUME
+                    || transition_type == TRANSITION_TYPE.ASSERT_PRODUCTION_CALL
+                ) && !i.atEND) ? i.increment() : i)
+                    .renderUnformattedWithProduction(grammar)).join("\n   ") + "\n")
+                : undefined,
+            modified_code,
+            SC.Empty()
+        );
+
+        if_stmt.addStatement(SC.Empty());
+    }
+
+
 
     leaf.addStatement(
         createTransitionTypeAnnotation(options, transition_types),
         if_stmt
     );
-
-    if_stmt.addStatement(SC.Empty());
 
     return if_stmt;
 }

@@ -85,7 +85,8 @@ export function compileProductionFunctions(
      * with the matching symbols. Only applies
      * to the first transition encountered.
      */
-    filter_symbols: Symbol[] = const_EMPTY_ARRAY
+    filter_symbols: Symbol[] = const_EMPTY_ARRAY,
+    IS_VIRTUAL = false
 ) {
     const
 
@@ -95,7 +96,8 @@ export function compileProductionFunctions(
 
         RDOptions = generateOptions(
             grammar, runner,
-            productions
+            productions,
+            IS_VIRTUAL
         ),
 
         rd_nodes = yieldTransitions(
@@ -111,6 +113,7 @@ export function compileProductionFunctions(
         GOTO_Options = generateOptions(
             grammar, runner,
             productions,
+            IS_VIRTUAL,
             "GOTO"
         ),
 
@@ -133,6 +136,7 @@ export function generateOptions(
      * The production currently being processed.
      */
     productions: Production[],
+    IS_VIRTUAL: boolean,
     scope: "RD" | "GOTO" = "RD"
 ): RenderBodyOptions {
     return {
@@ -147,6 +151,7 @@ export function generateOptions(
         leaf_productions: new Set(),
         active_keys: [],
         leaves: [],
+        IS_VIRTUAL,
         NO_GOTOS: false,
         global_production_items: [...grammar.item_map.values()].map(i => i.item).filter(i => !i.atEND && Sym_Is_A_Production(i.sym(grammar)))
     };

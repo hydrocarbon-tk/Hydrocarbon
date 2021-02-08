@@ -1,9 +1,11 @@
 import { getStartItemsFromProduction } from "../compiler/function_constructor.js";
 import { EOF_SYM, Grammar } from "../types/grammar.js";
+import { Production, TrivialProduction } from "../types/production.js";
 import { ProductionSymbol, ProductionTokenSymbol } from "../types/symbol";
 import { SymbolType } from "../types/symbol_type";
 import { getClosure } from "./closure.js";
 import { Item } from "./item.js";
+import { Sym_Is_A_Production } from "./symbol.js";
 
 
 export function getProductionClosure(production_id: number, grammar: Grammar, ENTER_TOKEN_PRODUCTIONS: boolean = false) {
@@ -34,4 +36,15 @@ export function getProductionID(object: ProductionTokenSymbol | ProductionSymbol
         return object.getProduction(grammar).id;
     else
         return object.val;
+}
+
+export function Production_Is_Trivial(production: Production): production is TrivialProduction {
+
+    if (production.bodies.every(b => b.sym.length == 1 && !Sym_Is_A_Production(b.sym[0]) && b.functions.length == 0 && !b.reduce_function)) {
+        (<TrivialProduction>production).IS_TRIVIAL == true;
+        return true;
+    }
+
+    return false;
+
 }

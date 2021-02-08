@@ -5,7 +5,7 @@ import { ProductionBody } from "./grammar";
 export interface Production {
     id: number;
     name: string;
-    
+
     val?: number;
     type: "production" | "virtual-production";
 
@@ -47,6 +47,14 @@ export interface Production {
 
     };
     graph_id?: number;
+}
 
 
+/**
+ * All production bodies must be length one
+ * comprised of a terminal symbol and no actions
+ * of any kind.
+ */
+export interface TrivialProduction extends Production {
+    IS_TRIVIAL: true;
 }

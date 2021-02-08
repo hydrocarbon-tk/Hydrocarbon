@@ -210,13 +210,13 @@ function getGroupScore(a: SelectionGroup) {
      * 
      * DefinedIdentifier            :     0x00010000
      * 
-     * Generic(Symbol | NL 
-     *          | WS | NUM )        :     0x00100000
+     * Generic(Symbol | NL  | WS | NUM )        
+     *                              :     0x00100000
      * 
      * GenericIdentifier            :     0x01000000
      */
 
-    let has_eof = +a.syms.some(Sym_Is_EOF);
+    let has_eof = 1 - (+a.syms.some(Sym_Is_EOF));
 
     let _0x000000001 = a.syms.filter(s => Sym_Is_Defined_Symbols(s) || Sym_Is_Defined_Natural_Number(s)).length;
     let _0x000010000 = a.syms.filter(s => Sym_Is_Defined_Identifier(s)).length << 16;

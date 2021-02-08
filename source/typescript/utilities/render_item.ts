@@ -1,20 +1,26 @@
 import { Grammar } from "../types/grammar";
 import { RenderBodyOptions } from "../types/render_body_options";
-import { ProductionSymbol } from "../types/symbol";
+import { ProductionSymbol, TokenSymbol } from "../types/symbol";
+import { getClosure } from "./closure.js";
 import {
-    createConsume,
-    createAssertionShift,
+    createAssertionShift, createConsume,
+
     createDefaultReduceFunction,
-    createReduceFunction,
+
+
+    createProductionCall, createReduceFunction,
     createSkipCall,
-    createProductionCall
+
+    getIncludeBooleans
 } from "./code_generating.js";
 import { rec_glob_lex_name } from "./global_names.js";
 import { Item } from "./item.js";
+import { getProductionClosure, Production_Is_Trivial } from "./production.js";
 import { SC, VarSC } from "./skribble.js";
 import {
     getRootSym,
     getSkippableSymbolsFromItems,
+    getTokenSymbolsFromItems,
     Sym_Is_A_Production
 } from "./symbol.js";
 
@@ -22,11 +28,11 @@ export function renderItemReduction(
     code_node: SC,
     item: Item,
     grammar: Grammar) {
-        //Virtual productions do not reduce
-        if(item.getProduction(grammar).type == "virtual-production"){
-            code_node.addStatement("---------Virtual Productions Do Not Reduce-----------")
-            return;
-        }
+    //Virtual productions do not reduce
+    if (item.getProduction(grammar).type == "virtual-production") {
+        // code_node.addStatement("---------Virtual Productions Do Not Reduce-----------");
+        return;
+    }
 
     const body = item.body_(grammar);
 
@@ -87,12 +93,35 @@ export function renderItemSymbol(
         const sym = getRootSym(item.sym(grammar), grammar);
 
         if (sym.type == "production") {
+            const production = grammar[sym.val];
 
-            ({ IS_PASSTHROUGH, first_non_passthrough, passthrough_chain } = getProductionPassthroughInformation(sym.val, grammar));
+            if (Production_Is_Trivial(production)) {
+                //console.log(syms[0], production);
 
-            bool_expression = createProductionCall(grammar[first_non_passthrough], options, lexer_name);
+                const syms = getTokenSymbolsFromItems(getClosure(getProductionClosure(production.id, grammar), grammar), grammar);
 
-            RENDER_WITH_NO_CHECK = false;
+                bool_expression = getIncludeBooleans(<TokenSymbol[]>syms, grammar, runner, lexer_name);
+
+                if (options.helper.ANNOTATED)
+                    code_node.addStatement(`------------- folded ::${production.name} -------------`);
+
+                const _if = SC.If(bool_expression).addStatement(createConsume(lexer_name));
+                code_node.addStatement(_if);
+                code_node.addStatement(SC.Empty());
+                code_node = _if;
+
+                RENDER_WITH_NO_CHECK = true;
+
+            } else {
+
+
+                ({ IS_PASSTHROUGH, first_non_passthrough, passthrough_chain } = getProductionPassthroughInformation(sym.val, grammar));
+
+                bool_expression = createProductionCall(grammar[first_non_passthrough], options, lexer_name);
+
+                RENDER_WITH_NO_CHECK = false;
+            }
+
 
         } else if (RENDER_WITH_NO_CHECK) {
             code_node.addStatement(createConsume(lexer_name));
