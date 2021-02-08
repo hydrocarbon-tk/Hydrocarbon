@@ -77,6 +77,11 @@ function utf8ToCodePoint(buffer) {
 }
 
 assert_group("UTF8 to String", () => {
+    assert(utf8ToCodePoint([0xFF, 0xFF]) == 0);
+    assert(utf8ToCodePoint([128, 0xFF]) == 0);
+    assert(utf8ToCodePoint([127, 0xFF]) == 127);
+    assert(utf8ToCodePoint([129, 0xFF]) == 0);
+    assert(utf8ToCodePoint([210, 0xFF]) == 0);
     assert(String.fromCodePoint(utf8ToCodePoint(string_to_utf("🙂"))) == "🙂");
     assert(String.fromCodePoint(utf8ToCodePoint(string_to_utf("➃"))) == "➃");
     assert(String.fromCodePoint(utf8ToCodePoint(string_to_utf("✍"))) == "✍");
