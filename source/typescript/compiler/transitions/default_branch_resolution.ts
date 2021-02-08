@@ -1,5 +1,5 @@
 import { RenderBodyOptions } from "../../types/render_body_options";
-import { SelectionClauseGenerator, SelectionGroup } from "../../types/state_generating";
+import { TransitionClauseGenerator, TransitionGroup } from "../../types/transition_generating";
 import { Symbol, TokenSymbol } from "../../types/symbol.js";
 import { Leaf, TransitionNode, TRANSITION_TYPE } from "../../types/transition_node.js";
 import { getClosure } from "../../utilities/closure.js";
@@ -19,11 +19,12 @@ import {
     Sym_Is_EOF
 } from "../../utilities/symbol.js";
 import { createVirtualProductionSequence } from "./default_unresolved_leaves_resolution.js";
+
 /**
  * Handles intermediate state transitions. 
  */
 export function default_resolveBranches(
-    gen: SelectionClauseGenerator,
+    gen: TransitionClauseGenerator,
     state: TransitionNode,
     items: Item[],
     level: number,
@@ -34,34 +35,30 @@ export function default_resolveBranches(
     const
         { grammar, helper: runner } = options,
         groups = [...gen],
-        all_syms = groups.flatMap(({ syms }) => syms).setFilter(getUniqueSymbolName);
+        all_syms = groups.flatMap(({ syms }) => syms).setFilter(getUniqueSymbolName),
+        root = new SC;
 
     if (groups.length == 1
         && !FORCE_ASSERTIONS
         && (groups[0].transition_types.includes(TRANSITION_TYPE.ASSERT_PRODUCTION_SYMBOLS)))
         return groups[0].code;
 
-    let
-        root = new SC,
-        lex_name = rec_glob_lex_name,
-        peek_name = rec_glob_lex_name;
-
-    peek_name = createPeekStatements(options,
+    const peek_name = createPeekStatements(options,
         state,
         root,
-        lex_name,
-        peek_name,
+        rec_glob_lex_name,
+        rec_glob_lex_name,
         getSkippableSymbolsFromItems(items, grammar).filter(i => !all_syms.some(j => getSymbolName(i) == getSymbolName(j))),
         groups
     );
 
     if (groups.length > 4 && items.filter(i => i.atEND).setFilter(i => i.id).length <= 1)
 
-        createSwitchBlock(options, groups, lex_name, root);
+        createSwitchBlock(options, groups, rec_glob_lex_name, root);
 
     else
 
-        createIfElseBlock(options, state, groups, root, lex_name, peek_name, all_syms, FORCE_ASSERTIONS);
+        createIfElseBlock(options, state, groups, root, rec_glob_lex_name, peek_name, all_syms, FORCE_ASSERTIONS);
 
     root.addStatement(SC.Empty());
 
@@ -70,7 +67,7 @@ export function default_resolveBranches(
 
 function createSwitchBlock(
     options: RenderBodyOptions,
-    groups: SelectionGroup[],
+    groups: TransitionGroup[],
     lex_name: VarSC,
     root: SC
 ) {
@@ -105,10 +102,10 @@ function createPeekStatements(
     lex_name: VarSC,
     peek_name: VarSC,
     skippable: TokenSymbol[],
-    groups: SelectionGroup[],
+    groups: TransitionGroup[],
 
 ) {
-    if (Every_Transition_Does_Not_A_Skip(groups))
+    if (Every_Transition_Does_Not_Require_A_Skip(groups))
         return lex_name;
 
     const
@@ -133,7 +130,7 @@ function createPeekStatements(
     return peek_name;
 }
 
-function Every_Transition_Does_Not_A_Skip(groups: SelectionGroup[]) {
+function Every_Transition_Does_Not_Require_A_Skip(groups: TransitionGroup[]) {
     return groups.every(g => g.transition_types.every(t => t == TRANSITION_TYPE.POST_PEEK_CONSUME || t == TRANSITION_TYPE.ASSERT_END));
 }
 
@@ -141,7 +138,7 @@ function createIfElseBlock(
     options: RenderBodyOptions,
 
     state: TransitionNode,
-    groups: SelectionGroup[],
+    groups: TransitionGroup[],
     root: SC,
     lex_name: VarSC,
     peek_name: VarSC,
@@ -164,9 +161,9 @@ function createIfElseBlock(
 
         let assertion_boolean: SC = SC.Empty();
 
-        const transition_type: TRANSITION_TYPE = transition_types[0];
-
-        const FIRST_SYMBOL_IS_A_PRODUCTION = Sym_Is_A_Production(syms[0]);
+        const
+            transition_type: TRANSITION_TYPE = transition_types[0],
+            FIRST_SYMBOL_IS_A_PRODUCTION = Sym_Is_A_Production(syms[0]);
 
         switch (transition_type) {
 
@@ -192,10 +189,12 @@ function createIfElseBlock(
                 // Negative assertion helps prevent occlusions of subsequent group's symbols
                 // from an end items follow set
 
-                const primary_symbols = syms.filter(a => complement_symbols.some(o => Sym_Is_EOF(a) || Defined_Symbols_Occlude(<any>a, o)));
-                const negate_symbols = complement_symbols;
-                const remaining_symbols = getIncludeBooleans(<TokenSymbol[]>primary_symbols, grammar, runner, peek_name);
-                const negated_expression = getIncludeBooleans(<TokenSymbol[]>negate_symbols, grammar, runner, peek_name);
+                const
+                    primary_symbols = syms.filter(a => complement_symbols.some(o => Sym_Is_EOF(a) || Defined_Symbols_Occlude(<any>a, o))),
+                    negate_symbols = complement_symbols,
+                    remaining_symbols = getIncludeBooleans(<TokenSymbol[]>primary_symbols, grammar, runner, peek_name),
+                    negated_expression = getIncludeBooleans(<TokenSymbol[]>negate_symbols, grammar, runner, peek_name);
+
                 if (negated_expression) {
 
                     if (primary_symbols.length > 0)
@@ -213,7 +212,6 @@ function createIfElseBlock(
                 const production = grammar[group.items[0].sym(grammar).val];
 
                 if (Production_Is_Trivial(production)) {
-                    //console.log(syms[0], production);
 
                     const syms = getTokenSymbolsFromItems(getClosure(getProductionClosure(production.id, grammar), grammar), grammar);
 
@@ -245,7 +243,6 @@ function createIfElseBlock(
 
             case TRANSITION_TYPE.ASSERT_CONSUME:
 
-
                 assertion_boolean = FIRST_SYMBOL_IS_A_PRODUCTION
                     ? createProductionCall(grammar[syms[0].val], options)
                     : getIncludeBooleans(<TokenSymbol[]>syms, grammar, runner, lex_name, <TokenSymbol[]>complement_symbols);
@@ -267,7 +264,7 @@ function createIfElseBlock(
 
 function addIfStatementTransition(
     options: RenderBodyOptions,
-    group: SelectionGroup,
+    group: TransitionGroup,
     modified_code: SC,
     boolean_assertion: SC,
     FORCE_ASSERTIONS: boolean,

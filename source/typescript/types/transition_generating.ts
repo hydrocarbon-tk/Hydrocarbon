@@ -4,7 +4,7 @@ import { Item } from "../utilities/item";
 import { SC } from "../utilities/skribble";
 
 
-export type SelectionGroup = {
+export type TransitionGroup = {
     syms: Symbol[];
     code: SC;
     items: Item[];
@@ -15,7 +15,7 @@ export type SelectionGroup = {
     leaves: Leaf[];
     transition_types: TRANSITION_TYPE[];
 };
-export type SelectionClauseGenerator = Generator<SelectionGroup>;
+export type TransitionClauseGenerator = Generator<TransitionGroup>;
 export type MultiItemReturnObject = {
     root: SC;
     leaves: Leaf[];

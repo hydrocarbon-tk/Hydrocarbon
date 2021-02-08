@@ -1,6 +1,6 @@
 import { bidirectionalTraverse, TraverseState } from "@candlefw/conflagrate";
 import { RenderBodyOptions } from "../../types/render_body_options";
-import { MultiItemReturnObject, SelectionClauseGenerator, SelectionGroup, SingleItemReturnObject } from "../../types/state_generating";
+import { MultiItemReturnObject, TransitionClauseGenerator, TransitionGroup, SingleItemReturnObject } from "../../types/transition_generating";
 import { TokenSymbol } from "../../types/symbol";
 import { GeneratorStateReturn, TransitionNode, TRANSITION_TYPE } from "../../types/transition_node.js";
 import { Item } from "../../utilities/item.js";
@@ -21,7 +21,7 @@ import { default_resolveUnresolvedLeaves } from "./default_unresolved_leaves_res
 export function defaultGrouping(g) { return g.hash; }
 type UnresolvedLeavesResolver = (node: TransitionNode, nodes: TransitionNode[], options: RenderBodyOptions) => MultiItemReturnObject;
 
-type InteriorNodesResolver = (gen: SelectionClauseGenerator, node: TransitionNode, items: Item[], level: number, options: RenderBodyOptions) => SC;
+type InteriorNodesResolver = (gen: TransitionClauseGenerator, node: TransitionNode, items: Item[], level: number, options: RenderBodyOptions) => SC;
 
 type LeafNodeResolver = (item: Item, group: TransitionNode, options: RenderBodyOptions) => SingleItemReturnObject;
 
@@ -164,12 +164,12 @@ function* traverseInteriorNodes(
     group: TransitionNode[],
     options: RenderBodyOptions,
     grouping_fn: (node: TransitionNode, level: number, peeking: boolean) => string
-): SelectionClauseGenerator {
+): TransitionClauseGenerator {
 
     const
         groups = group.group(g => grouping_fn(g, g.peek_level, g.peek_level >= 0)),
 
-        sel_group: SelectionGroup[] = groups.map((group) => {
+        sel_group: TransitionGroup[] = groups.map((group) => {
 
             const
                 syms = group.flatMap(s => s.symbols),
@@ -201,7 +201,7 @@ function* traverseInteriorNodes(
 }
 
 
-function getGroupScore(a: SelectionGroup) {
+function getGroupScore(a: TransitionGroup) {
     /** 
      * Classes: 
      * EOF                          :     Lowest Score Period?

@@ -1,6 +1,6 @@
 import { TransitionNode } from "../../types/transition_node.js";
 import { RenderBodyOptions } from "../../types/render_body_options";
-import { SelectionClauseGenerator } from "../../types/state_generating";
+import { TransitionClauseGenerator } from "../../types/transition_generating";
 import { getClosure } from "../../utilities/closure.js";
 import { createSkipCall, getIncludeBooleans } from "../../utilities/code_generating.js";
 import { getFollow } from "../../utilities/follow.js";
@@ -24,7 +24,7 @@ import { default_resolveBranches } from "./default_branch_resolution.js";
 import { reduceOR } from "../../utilities/reduceOR.js";
 
 
-export function resolveGOTOBranches(gen: SelectionClauseGenerator, state: TransitionNode, items_global: Item[], level: number, options: RenderBodyOptions): SC {
+export function resolveGOTOBranches(gen: TransitionClauseGenerator, state: TransitionNode, items_global: Item[], level: number, options: RenderBodyOptions): SC {
 
     if (state.offset == 0) {
 

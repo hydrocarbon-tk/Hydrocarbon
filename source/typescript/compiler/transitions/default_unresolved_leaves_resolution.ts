@@ -1,5 +1,5 @@
 import { RenderBodyOptions } from "../../types/render_body_options";
-import { MultiItemReturnObject } from "../../types/state_generating";
+import { MultiItemReturnObject } from "../../types/transition_generating";
 import { Symbol } from "../../types/symbol.js";
 import { Leaf, TransitionNode, TRANSITION_TYPE } from "../../types/transition_node.js";
 import { packGlobalFunction } from "../../utilities/code_generating.js";
