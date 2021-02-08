@@ -1,4 +1,4 @@
-import { ConstantHash, ConstantObj } from "../compiler/helper";
+import { GlobalName, ConstantObj } from "../compiler/helper";
 import { SC } from "../utilities/skribble.js";
 
 export enum HybridJobType {
@@ -14,6 +14,6 @@ export interface HybridDispatch {
 export interface HybridDispatchResponse {
     production_id?: number;
     productions?: Set<number>;
-    const_map?: Map<ConstantHash, ConstantObj>;
+    const_map?: Map<GlobalName, ConstantObj>;
     fn?: SC;
 }

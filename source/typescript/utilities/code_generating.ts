@@ -146,88 +146,107 @@ export function getSkipFunctionNew(
     if (skip_symbols.length == 0)
         return null;
 
-    const
-        boolean = getIncludeBooleans(skip_symbols, grammar, runner, rec_glob_lex_name, exclude),
+    let fn_ref = getGlobalObject("skip", skip_symbols, runner);
 
-        skip_function =
-            SC.Function(
-                ":Lexer",
-                "l:Lexer&",
-                rec_glob_data_name
-            ).addStatement(
-                SC.While(SC.Value(1)).addStatement(
-                    custom_skip_code ? custom_skip_code : SC.Empty(),
-                    SC.If(SC.UnaryPre("!", SC.Group("(", boolean)))
-                        .addStatement(SC.Break),
-                    SC.Call(SC.Member("l", "next"), rec_glob_data_name),
-                ),
-                SC.UnaryPre(SC.Return, SC.Value("l"))
-            );
+    if (!fn_ref) {
 
-    //SF_name = generateGUIDConstName(skip_function, "sk", "Lexer");
 
-    return <VarSC>packGlobalFunction("skip", "Lexer", skip_symbols, skip_function, runner);
+        const
+            boolean = getIncludeBooleans(skip_symbols, grammar, runner, rec_glob_lex_name, exclude),
 
-    //return <VarSC>runner.add_constant(SF_name, skip_function);
+            skip_function =
+                SC.Function(
+                    ":Lexer",
+                    "l:Lexer&",
+                    rec_glob_data_name
+                ).addStatement(
+                    SC.While(SC.Value(1)).addStatement(
+                        custom_skip_code ? custom_skip_code : SC.Empty(),
+                        SC.If(SC.UnaryPre("!", SC.Group("(", boolean)))
+                            .addStatement(SC.Break),
+                        SC.Call(SC.Member("l", "next"), rec_glob_data_name),
+                    ),
+                    SC.UnaryPre(SC.Return, SC.Value("l"))
+                );
+
+        fn_ref = packGlobalFunction("skip", "Lexer", skip_symbols, skip_function, runner);
+    }
+
+    if (!fn_ref)
+        console.log("-------------------AHHHHHHHHHHHHHHHHHHHH-----------------------");
+
+    return <VarSC>fn_ref;
 }
 export function createProductionTokenFunction(tok: ProductionTokenSymbol, grammar: Grammar, runner: Helper): VarSC {
 
-    const production = grammar[getProductionID(tok, grammar)];
+    const prod_id = getProductionID(tok, grammar);
+    const closure = getProductionClosure(prod_id, grammar, true);
 
-    runner.referenced_production_ids.add(production.id);
+    let fn_ref = getGlobalObject("tk", closure, runner);
 
-    const
+    if (!fn_ref) {
 
-        anticipated_syms = getTokenSymbolsFromItems(getProductionClosure(production.id, grammar, true), grammar),
+        const production = grammar[prod_id];
 
-        boolean = getIncludeBooleans(anticipated_syms, grammar, runner),
+        runner.referenced_production_ids.add(production.id);
 
-        prod_name = production.name,
+        const
 
-        token_function = SC.Function(
-            ":bool",
-            rec_glob_lex_name,
-            rec_glob_data_name
-        ).addStatement(
-            SC.If(boolean).addStatement(
-                SC.Declare(SC.Assignment("c:Lexer", SC.Call(SC.Member("l", "copy")))),
-                SC.If(SC.Call(getProductionFunctionName(production, grammar), "c:Lexer", rec_glob_data_name, SC.Call("createState", 0)))
-                    .addStatement(
-                        SC.Assignment(SC.Member("l", "token_length"), SC.Binary(SC.Member("c", "token_offset"), "-", SC.Member("l", "token_offset"))),
-                        SC.Assignment(SC.Member("l", "byte_length"), SC.Binary(SC.Member("c", "byte_offset"), "-", SC.Member("l", "byte_offset"))),
-                        SC.UnaryPre(SC.Return, SC.True)),
-                SC.Empty()
-            ),
-            SC.UnaryPre(SC.Return, SC.False)
-        );
+            anticipated_syms = getTokenSymbolsFromItems(closure, grammar),
 
-    //SF_name = generateGUIDConstName(token_function, `${prod_name}_tok`, "bool");
+            boolean = getIncludeBooleans(anticipated_syms, grammar, runner),
 
-    return <VarSC>packGlobalFunction("tk", "bool", getProductionClosure(tok.val, grammar, true), token_function, runner);
-    //return <VarSC>runner.add_constant(SF_name, token_function);
+            token_function = SC.Function(
+                ":bool",
+                rec_glob_lex_name,
+                rec_glob_data_name
+            ).addStatement(
+                SC.If(boolean).addStatement(
+                    SC.Declare(SC.Assignment("c:Lexer", SC.Call(SC.Member("l", "copy")))),
+                    SC.If(SC.Call(getProductionFunctionName(production, grammar), "c:Lexer", rec_glob_data_name, SC.Call("createState", 0)))
+                        .addStatement(
+                            SC.Assignment(SC.Member("l", "token_length"), SC.Binary(SC.Member("c", "token_offset"), "-", SC.Member("l", "token_offset"))),
+                            SC.Assignment(SC.Member("l", "byte_length"), SC.Binary(SC.Member("c", "byte_offset"), "-", SC.Member("l", "byte_offset"))),
+                            SC.UnaryPre(SC.Return, SC.True)),
+                    SC.Empty()
+                ),
+                SC.UnaryPre(SC.Return, SC.False)
+            );
+
+        fn_ref = <VarSC>packGlobalFunction("tk", "bool", closure, token_function, runner);
+    }
+
+    return <VarSC>fn_ref;
 }
 
 export function createNonCaptureBooleanCheck(symbols: TokenSymbol[], grammar: Grammar, runner: Helper, ambient_symbols: TokenSymbol[]): VarSC {
 
-    const
-        boolean =
-            getIncludeBooleans(symbols.map(sym => Object.assign({}, sym, { IS_NON_CAPTURE: false })), grammar, runner, rec_glob_lex_name, ambient_symbols),
+    let fn_ref = getGlobalObject("nocap", symbols, runner);
 
-        token_function = SC.Function(
-            ":bool",
-            "l:Lexer&"
-        ).addStatement(
 
-            SC.If(boolean)
-                .addStatement(
-                    SC.Assignment(SC.Member("l", "token_length"), 0),
-                    SC.Assignment(SC.Member("l", "byte_length"), 0),
-                    SC.UnaryPre(SC.Return, SC.True)
-                ),
-            SC.UnaryPre(SC.Return, SC.False)
-        );
+    if (!fn_ref) {
+        const
+            boolean =
+                getIncludeBooleans(symbols.map(sym => Object.assign({}, sym, { IS_NON_CAPTURE: false })), grammar, runner, rec_glob_lex_name, ambient_symbols),
 
-    return <VarSC>packGlobalFunction("nocap", "bool", symbols, token_function, runner);
+            token_function = SC.Function(
+                ":bool",
+                "l:Lexer&"
+            ).addStatement(
+
+                SC.If(boolean)
+                    .addStatement(
+                        SC.Assignment(SC.Member("l", "token_length"), 0),
+                        SC.Assignment(SC.Member("l", "byte_length"), 0),
+                        SC.UnaryPre(SC.Return, SC.True)
+                    ),
+                SC.UnaryPre(SC.Return, SC.False)
+            );
+
+        fn_ref = packGlobalFunction("nocap", "bool", symbols, token_function, runner);
+    }
+
+    return <VarSC>fn_ref;
 }
 
 
@@ -242,78 +261,88 @@ export function createNonCaptureBooleanCheck(symbols: TokenSymbol[], grammar: Gr
 export function createSymbolMappingFunction(
     options: RenderBodyOptions,
     lex_name: VarSC,
-    symbol_mappings: [number, Symbol][]
+    symbol_mappings: [number, Symbol][],
+    items: Item[]
 ): VarSC | ConstSC {
-    const
-        { grammar, helper: runner } = options,
+    const symbols = symbol_mappings.map(([, s]) => s);
 
-        defined_symbol_mappings: [number, DefinedSymbol][]
-            = <[number, DefinedSymbol][]>symbol_mappings.filter(([, sym]) => Sym_Is_Defined(sym)),
+    let fn_ref = getGlobalObject("sym_map", symbols, options.helper);
 
-        generic_symbol_mappings: [number, TokenSymbol][]
-            = <[number, TokenSymbol][]>symbol_mappings.filter(([, sym]) => Sym_Is_A_Generic_Type(sym) || Sym_Is_A_Production_Token(sym)),
+    if (!fn_ref) {
 
-        defined_symbols_reversed_map = new Map(defined_symbol_mappings.map((([i, s]) => [s, i]))),
+        const
+            { grammar, helper: runner } = options,
 
-        all_syms: Symbol[] = generic_symbol_mappings.map(([, sym]) => sym),
+            defined_symbol_mappings: [number, DefinedSymbol][]
+                = <[number, DefinedSymbol][]>symbol_mappings.filter(([, sym]) => Sym_Is_Defined(sym)),
 
-        fn_lex_name = SC.Constant("l:Lexer"),
+            generic_symbol_mappings: [number, TokenSymbol][]
+                = <[number, TokenSymbol][]>symbol_mappings.filter(([, sym]) => Sym_Is_A_Generic_Type(sym) || Sym_Is_A_Production_Token(sym)),
 
-        gen = buildSwitchIfsAlternate(grammar, defined_symbol_mappings.map(([, s]) => s), fn_lex_name);
+            defined_symbols_reversed_map = new Map(defined_symbol_mappings.map((([i, s]) => [s, i]))),
 
-    //Defined Symbols
-    let yielded = gen.next();
+            all_syms: Symbol[] = generic_symbol_mappings.map(([, sym]) => sym),
 
-    while (yielded.done == false) {
-        const { code_node, sym } = yielded.value;
+            fn_lex_name = SC.Constant("l:Lexer"),
 
-        code_node.addStatement(
-            SC.Assignment(SC.Member(lex_name, "type"), "TokenSymbol"),
-            SC.Assignment(SC.Member(lex_name, "byte_length"), sym.byte_length),
-            SC.Assignment(SC.Member(lex_name, "token_length"), sym.val.length)
-        );
+            gen = buildSwitchIfsAlternate(grammar, defined_symbol_mappings.map(([, s]) => s), fn_lex_name);
 
-        if (Sym_Is_Defined_Identifier(sym) && all_syms.some(Sym_Is_A_Generic_Identifier))
-            code_node.addStatement(SC.If(SC.Value("!l.isDiscrete(data, TokenIdentifier)")).addStatement(SC.UnaryPre(SC.Return, SC.Value("0xFFFFFF"))));
+        //Defined Symbols
+        let yielded = gen.next();
 
-        if (Sym_Is_Defined_Natural_Number(sym) && all_syms.some(Sym_Is_A_Generic_Number))
-            code_node.addStatement(SC.If(SC.Value("!l.isDiscrete(data, TokenNumber)")).addStatement(SC.UnaryPre(SC.Return, SC.Value("0xFFFFFF"))));
+        while (yielded.done == false) {
+            const { code_node, sym } = yielded.value;
 
-        code_node.addStatement(
-            SC.UnaryPre(SC.Return, SC.Value(defined_symbols_reversed_map.get(sym))));
-        yielded = gen.next();
-    }
+            code_node.addStatement(
+                SC.Assignment(SC.Member(lex_name, "type"), "TokenSymbol"),
+                SC.Assignment(SC.Member(lex_name, "byte_length"), sym.byte_length),
+                SC.Assignment(SC.Member(lex_name, "token_length"), sym.val.length)
+            );
 
-    //Generic Symbols
+            if (Sym_Is_Defined_Identifier(sym) && all_syms.some(Sym_Is_A_Generic_Identifier))
+                code_node.addStatement(SC.If(SC.Value("!l.isDiscrete(data, TokenIdentifier)")).addStatement(SC.UnaryPre(SC.Return, SC.Value("0xFFFFFF"))));
 
-    let if_root = null, leaf = null;
+            if (Sym_Is_Defined_Natural_Number(sym) && all_syms.some(Sym_Is_A_Generic_Number))
+                code_node.addStatement(SC.If(SC.Value("!l.isDiscrete(data, TokenNumber)")).addStatement(SC.UnaryPre(SC.Return, SC.Value("0xFFFFFF"))));
 
-    for (const [id, sym] of generic_symbol_mappings) {
-        const sc = SC.If(
-            getIncludeBooleans(
-                [sym],
-                grammar,
-                runner,
-                lex_name,
-                symbol_mappings.map(([, s]) => s)
-                    .filter(Sym_Is_A_Terminal)
-            ))
-            .addStatement(SC.UnaryPre(SC.Return, SC.Value(id)))
-            ;
-        if (!if_root) {
-            if_root = sc;
-            leaf = sc;
-        } else {
-            leaf.addStatement(sc);
-            leaf = sc;
+            code_node.addStatement(
+                SC.UnaryPre(SC.Return, SC.Value(defined_symbols_reversed_map.get(sym))));
+            yielded = gen.next();
         }
+
+        //Generic Symbols
+
+        let if_root = null, leaf = null;
+
+        for (const [id, sym] of generic_symbol_mappings) {
+            const sc = SC.If(
+                getIncludeBooleans(
+                    [sym],
+                    grammar,
+                    runner,
+                    lex_name,
+                    symbol_mappings.map(([, s]) => s)
+                        .filter(Sym_Is_A_Terminal)
+                ))
+                .addStatement(SC.UnaryPre(SC.Return, SC.Value(id)))
+                ;
+            if (!if_root) {
+                if_root = sc;
+                leaf = sc;
+            } else {
+                leaf.addStatement(sc);
+                leaf = sc;
+            }
+        }
+
+        const
+            code_node = yielded.value,
+            fn = SC.Function(":boolean", fn_lex_name, rec_glob_data_name).addStatement(code_node, if_root);
+
+        fn_ref = packGlobalFunction("sym_map", "bool", symbols, fn, options.helper);
     }
 
-    const
-        code_node = yielded.value,
-        fn = SC.Function(":boolean", fn_lex_name, rec_glob_data_name).addStatement(code_node, if_root);
-
-    return packGlobalFunction("sym_map", "bool", all_syms, fn, options.helper);
+    return fn_ref;
 }
 function getUTF8ByteAt(s: DefinedSymbol, off: number): number {
     return s.val[off].charCodeAt(0);
@@ -328,6 +357,9 @@ export function* buildSwitchIfsAlternate(
 
     const code_node = (new SC);
 
+    if(off == 0)
+        syms = ensureSymbolsAreGlobal(syms, grammar)
+
     //Group symbols based on their 
     let pending_syms = syms
         .filter(s => (s.byte_length - off) > 0)
@@ -339,7 +371,9 @@ export function* buildSwitchIfsAlternate(
 
         //Construct a compare on the longest string
         const shortest = syms.sort((a, b) => a.byte_length - b.byte_length)[0];
+
         let gen: Generator<IfNode, SC, void>;
+
         if (syms.length == 1) {
             gen = buildSwitchIfs(grammar, syms, lex_name, occluders, off + 1);
         } else {
@@ -383,8 +417,11 @@ export function* buildSwitchIfs(
     occluders: TokenSymbol[] = [],
     off = 0
 ): Generator<IfNode, SC, void> {
-    const code_node = (new SC);
 
+    if(off == 0)
+        syms = ensureSymbolsAreGlobal(syms, grammar)
+
+    const code_node = (new SC);
 
     //Group symbols based on their 
     let pending_syms = syms
@@ -435,11 +472,15 @@ export function buildIfs(
     lex_name: ConstSC | VarSC = SC.Variable("l:Lexer"),
     occluders: TokenSymbol[] = []
 ): SC {
+
     const gen = buildSwitchIfs(grammar, syms, lex_name, occluders);
 
     let yielded = gen.next();
 
+    let i = 0;
+
     while (yielded.done == false) {
+        i++;
 
         const { code_node, sym } = yielded.value;
 
@@ -467,7 +508,6 @@ export function buildIfs(
 
     return code_node;
 }
-
 /**
  * Build a boolean code sequence that compares the current lexer state with
  * expected tokens that will resolve to true if at least one token can be matched to
@@ -504,9 +544,6 @@ export function getIncludeBooleans(
 
     if (HAS_GEN_ID)
         id = id.filter(Sym_Is_Not_An_Identifier);
-
-    // if (ty.some(Sym_Is_A_Symbol_Character))
-    //     id = id.filter(Sym_Has_Multiple_Characters);
 
     if (id.length + ty.length + fn.length + tk.length + non_consume.length == 0)
         return null;
@@ -567,7 +604,7 @@ export function getIncludeBooleans(
                 let [sym] = syms;
 
                 //Make sure we are working with the "true" symbol
-                sym = getCardinalSymbol(grammar, sym);
+                sym = <DefinedSymbol>getCardinalSymbol(grammar, sym);
 
                 if (sym.byte_length == 1) {
                     const
@@ -580,16 +617,18 @@ export function getIncludeBooleans(
                     );
                 }
             } else {
+                let fn_ref = getGlobalObject("dt", [...syms, ...occluders], runner);
 
+                if (!fn_ref) {
 
-                const
-                    fn_lex_name = SC.Constant("l:Lexer"),
-                    fn = SC.Function(":boolean", fn_lex_name, rec_glob_data_name).addStatement(buildIfs(grammar, syms, fn_lex_name, occluders));
+                    const
+                        fn_lex_name = SC.Constant("l:Lexer"),
+                        fn = SC.Function(":boolean", fn_lex_name, rec_glob_data_name).addStatement(buildIfs(grammar, syms, fn_lex_name, occluders));
 
-                fn.shiftStatement([...syms, ...occluders].map(getUniqueSymbolName).join(" "));
-                const fn_name = packGlobalFunction("dt", "bool", [...syms, ...occluders], fn, runner);
+                    fn_ref = packGlobalFunction("dt", "bool", [...syms, ...occluders], fn, runner);
+                }
 
-                booleans.push(SC.UnaryPost(SC.Call(fn_name, lex_name, rec_glob_data_name), SC.Comment(syms.map(sym => `[${sanitizeSymbolValForComment(sym)}]`).join(" "))));
+                booleans.push(SC.UnaryPost(SC.Call(fn_ref, lex_name, rec_glob_data_name), SC.Comment(syms.map(sym => `[${sanitizeSymbolValForComment(sym)}]`).join(" "))));
             }
         }
 
@@ -634,7 +673,12 @@ export function getIncludeBooleans(
     return convertExpressionArrayToBoolean([...out_non_consume, ...out_tk, ...out_id, ...out_ty, ...out_fn]);
 }
 
-function getCardinalSymbol(grammar: Grammar, sym: DefinedSymbol): DefinedSymbol {
+
+function ensureSymbolsAreGlobal<T = Symbol>(syms: T[], grammar: Grammar): T[] {
+    return <T[]><any>(<Symbol[]><any>syms).map(s=>getCardinalSymbol(grammar,s));
+}
+
+function getCardinalSymbol(grammar: Grammar, sym: Symbol): Symbol {
     return <any>grammar.meta.all_symbols.get(getUniqueSymbolName(sym));
 }
 
@@ -664,17 +708,23 @@ export function getTrueSymbolValue(sym: TokenSymbol, grammar: Grammar): TokenSym
  * 
  */
 export function packGlobalFunction(fn_class: string, fn_type: string, unique_objects: (Symbol | Item)[], fn: SC, helper: Helper) {
-    const string_name = globallyConsistentName(fn_class, unique_objects);
+    const string_name = getGloballyConsistentName(fn_class, unique_objects);
     const function_name = SC.Variable(string_name + ":" + fn_type);
-    fn.shiftStatement(fn.hash());
     return helper.add_constant(function_name, fn);
 }
 
+function getGlobalObject(fn_class: string, unique_objects: (Symbol | Item)[], runner: Helper) {
+    const name = getGloballyConsistentName(fn_class, unique_objects);
+    
+    return runner.constant_map.has(name)
+        ? runner.constant_map.get(name).name
+        : null;
+}
 /**
  * Generate a function name that is consistent amongst
  * all workers. 
  */
-export function globallyConsistentName(prepend_js_identifier: string, unique_objects: (Symbol | Item)[]): string {
+export function getGloballyConsistentName(prepend_js_identifier: string, unique_objects: (Symbol | Item)[]): string {
 
     let string_to_hash = "";
     if (This_Is_An_Item_Array(unique_objects)) {

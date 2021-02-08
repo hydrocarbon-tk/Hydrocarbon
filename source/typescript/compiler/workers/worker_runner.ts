@@ -76,7 +76,7 @@ export class WorkerRunner {
 
         const fn_data = SC.Bind(fn);
 
-        this.runner.join_constant_map(const_map, fn_data);
+        this.runner.join_constant_map(const_map);
 
         this.functions[production_id] = {
             id: 0,

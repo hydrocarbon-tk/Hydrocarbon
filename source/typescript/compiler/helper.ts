@@ -1,17 +1,17 @@
 import { ConstSC, ExprSC, JS, SC, VarSC } from "../utilities/skribble.js";
 
-export type ConstantHash = string;
+/**
+ * A generated name that is unique to a specific sequence of code
+ * and that is consistently and independently derived in any given 
+ * worker thread.
+ */
+export type GlobalName = string;
 export type ConstantName = string;
 export type ConstantObj = { original_name: VarSC | ConstSC, name: VarSC | ConstSC, code_node: SC; };
 export class Helper {
-    /** List of external grammar names to integrate into the parser.
-     * Names must match the name following the `as` terminal in an `IMPORT` statement.
-     * Any grammars with names not present in this set will be referenced as 
-     * an external variable.
-     INTEGRATE: Set<string>;
-     */
+
     /**
-    * Item and state annotation comments will be added to the output.
+    * Item and state comments will be added to the output.
     */
     ANNOTATED: boolean;
 
@@ -19,7 +19,7 @@ export class Helper {
      * Add debug tracing code to output.
      */
     DEBUG: boolean;
-    constant_map: Map<ConstantHash, ConstantObj>;
+    constant_map: Map<GlobalName, ConstantObj>;
 
 
     /**
@@ -28,6 +28,7 @@ export class Helper {
     referenced_production_ids: Set<number>;
 
     const_counter: number;
+    
     unique_const_set: Set<string>;
 
     constructor(ANNOTATED: boolean = false, DEBUG: boolean = false) {
@@ -39,89 +40,36 @@ export class Helper {
         this.unique_const_set = new Set();
     }
 
-    /**
-      * Facilitates dedup of constant values.
-      * 
-      * Add a global constant to the parser environment. 
-      * Returns name to the constant. 
-      */
     add_constant(const_name: VarSC | ConstSC, const_value: SC): VarSC | ConstSC {
 
-        const hash = SC.Bind(<ExprSC>const_value).hash();
-        let test_name = const_name.type.value;
+        let global_name = const_name.type.value;
 
         let actual_name: VarSC | ConstSC = null;
 
-        const prefix = `${test_name}`;
-
         let value = const_name.type.val_type;
 
-        if (!this.constant_map.has(hash)) {
+        if (!this.constant_map.has(global_name)) {
 
-            while (this.unique_const_set.has(test_name))
-                test_name = prefix + ("0000" + (this.const_counter++)).slice(-3);
+            this.unique_const_set.add(global_name);
 
-            this.unique_const_set.add(test_name);
+            actual_name = SC[const_name.type.type == "constant" ? "Constant" : "Variable"](`${global_name}:${value}`);
 
-            actual_name = SC[const_name.type.type == "constant" ? "Constant" : "Variable"](`${test_name}:${value}`);
-
-            this.constant_map.set(hash, { original_name: const_name, name: actual_name, code_node: const_value, });
+            this.constant_map.set(global_name, { original_name: const_name, name: const_name, code_node: const_value, });
 
         } else {
-            actual_name = this.constant_map.get(hash).name;
+            actual_name = this.constant_map.get(global_name).name;
         }
 
         return actual_name;
     }
 
-    join_constant_map(const_map: Map<ConstantHash, ConstantObj>, dependent_code: SC) {
+    join_constant_map(const_map: Map<GlobalName, ConstantObj>) {
 
-        const dependent_data = [dependent_code, ...[...const_map.values()].map(d => d.code_node = SC.Bind(d.code_node))];
-
-        let intermediate_names = [];
-
-        //replace all existing hashes 
-        for (const [hash, { original_name, name, code_node }] of const_map.entries()) {
-
-            if (this.constant_map.has(hash)) {
-
-                let int_name = "____intermediate___" + intermediate_names.length;
-
-                intermediate_names.push([int_name, this.constant_map.get(hash).name.value]);
-
-                dependent_data.map(d => d.replaceVariableValue(name.type.value, int_name));
+        for (const [global_name, { original_name, name, code_node }] of const_map.entries()) {
+            if (!this.constant_map.has(global_name)) {
+                this.add_constant(<any>SC.Bind(<any>original_name), SC.Bind(code_node));
             }
         }
-
-        for (const [old_name, new_name] of intermediate_names)
-            dependent_data.map(d => d.replaceVariableValue(old_name, new_name));
-
-        intermediate_names.length = 0;
-
-        for (const [hash, { original_name, name, code_node }] of const_map.entries()) {
-            //const hash = SC.Bind(code_node).hash();
-
-            if (this.constant_map.has(hash)) {
-
-                let int_name = "____intermediate___" + intermediate_names.length;
-
-                intermediate_names.push([int_name, this.constant_map.get(hash).name.value]);
-
-                dependent_data.slice(0, 1).map(d => d.replaceVariableValue(name.type.value, int_name));
-            } else {
-
-                let const_name = this.add_constant(original_name, code_node);
-
-                if (name.type.value !== const_name.type.value) {
-                    let int_name = "____intermediate___" + intermediate_names.length;
-                    intermediate_names.push([int_name, const_name.type.value]);
-                    dependent_data.map(d => d.replaceVariableValue(name.type.value, int_name));
-                }
-            }
-        }
-
-        for (const [old_name, new_name] of intermediate_names)
-            dependent_data.map(d => d.replaceVariableValue(old_name, new_name));
     }
     render_constants(): { const: SC[], fn: SC[]; } {
 
