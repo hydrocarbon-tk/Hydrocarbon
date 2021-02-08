@@ -1,0 +1,205 @@
+@IGNORE g:ws g:nl tk:comment
+
+<> skribble > statements(*)
+
+<> statements > import 
+    | class 
+    | primitive_declaration
+    | struct
+    | function
+    | namespace 
+
+<> import > \import tk:string
+
+<> namespace >  \ns identifier \{ statements(*) \}                                                                    
+
+f:r {  { type:"name_space", name:$sym2, statements:$sym4 }  }
+
+<> class >  modifier_list? \cls identifier ( \is g:id )? \{  ( struct | primitive_declaration | function )(*)  \}
+
+f:r {  
+    { 
+        type:"class", 
+        name:$sym3, 
+        inherits:$$sym4,
+        members: $sym6 || [],
+    }  
+}
+
+<> struct > modifier_list? \str identifier  \{ arguments? \}                                                          
+
+f:r {  
+    { 
+        type:"data_structure", 
+        name:$sym3, 
+        modifiers: $sym1 || [],
+        properties: $sym5 || [],
+    }  
+}
+
+<> function >  modifier_list? \fn identifier \: type \( arguments? \) \{  expression_statements?  \}
+f:r {  
+    { 
+        type:"function", 
+        return_type: $sym5,
+        name:$sym3, 
+        modifiers: $sym1 || [],
+        arguments: $sym7 || [],
+        expressions: $sym10 || [],
+    }  
+}
+
+
+<> function_expression > modifier_list? \fn \: type \( arguments? \) \{  expression_statements?  \}
+f:r {  
+    { 
+        type:"lambda", 
+        return_type: $sym4,
+        modifiers: $sym1 || [],
+        arguments: $sym6 || [],
+        expressions: $sym9 || [],
+    }  
+}
+
+<> arguments > primitive_declaration(+\, ) 
+
+<> primitive_declaration > modifier_list? identifier \: type ( \= expression )?
+f:r {  
+    { 
+        type:"variable",
+        name:( $sym2), 
+        primitive_type:$sym4, 
+        modifiers: $sym1 || [],
+        initialization : $sym5
+    }  
+}
+
+<> modifier_list >\[ modifier(+) \] 
+f:r { $sym2 }
+
+<> expression_statements > expression_statements ( \; (+) expression? f:r { $$sym2 }  )?
+f:r {  $$sym2 ?  ($sym1.push($sym2),$sym1)  : $sym1  }
+    | expression  
+f:r { [ $sym1 ] }                                                          
+
+<> expression > assignment_expression
+    | if_expression
+    | match_expression
+    | binary_expression
+    | break_expression
+    | return_expression
+    | continue_expression
+    | loop_expression
+    | \{ expression_statements? \}
+    f:r { { type:"block", expression:$sym2 || [] } }  
+
+<> assignment_expression > member_expression \= expression
+f:r {  
+    { 
+        type:"assignment",
+        target:($sym1), 
+        expression:$sym3
+    }  
+}
+
+
+    | primitive_declaration
+
+<> if_expression > \if expression \: expression ( \else expression  )?
+f:r { { type:"if", assertion: $$sym2, expression: $$sym4, else: $$sym5  } }
+
+<> binary_expression > binary_expression sym expression
+f:r {  
+    $sym1.list
+    ? ($sym1.list.push($sym2, $sym3), $sym1)
+    : { type:"binary_exp", list:[$sym1, $sym2, ...($sym3.type == "binary_exp" ? $sym3.list : [$sym3]) ] }
+    
+}
+    | member_expression
+    | call_expression
+    | member_expression
+    | function_expression
+    | \( expression \)
+    f:r { { type:"paren", expression:$sym2 } }  
+    | value
+
+<> loop_expression > 
+    \loop ( \( expression \) f:r { $sym2 } )? expression
+    f:r { { type:"loop", assertion: $$sym2, expression: $$sym3  } }
+
+    | \loop \( arguments? ; expression? ; expression(*\, ) \) expression
+    f:r { { type:"for_loop", initializers:$sym3, assertion: $$sym5, post_expressions: $$sym7, expression: $$sym9  } }
+
+    | \loop \( primitive_declaration \in expression \) expression
+    f:r { { type:"in_loop", initializer:$sym3, target: $$sym5, expression: $sym7  } }
+
+<> match_expression > \match expression \: match_clause(*\, ) 
+f:r { { type:"match", expression: $$sym1, matches: $$sym4  } }
+
+<> match_clause > expression \: expression
+f:r { { type:"match_target", matches: $$sym1, expression: $$sym3  } }
+
+<> call_expression > member_expression \(  expression(*\, )  \)
+f:r { { type:"call", target: $$sym1, expressions: $$sym3  } }
+
+<> member_expression > member_expression \. identifier
+f:r { { type:"identifier_access", target: $$sym1, identifier: $$sym3  } }
+
+    | member_expression \[ expression \]
+f:r { { type:"expression_access", target: $$sym1, expression: $$sym3  } }
+
+    | identifier
+f:r { ($sym1.type = "reference", $sym1) }
+
+<> break_expression > \break (\: expression )?
+f:r { { type:"break", expression: $$sym2  } }
+
+<> return_expression > \return (\: expression )?
+f:r { { type:"return", expression: $$sym2  } }
+
+<> continue_expression > \continue
+f:r { { type:"continue"  } }
+
+<> sym > g:sym g:sym(*\' ) ( ?=g:ws | ?=g:nl )?
+f:r { { type:"symbol", val: $sym1 + $sym2  } }
+
+|  \= g:sym(+\' ) ( ?=g:ws | ?=g:nl )?
+f:r { { type:"symbol", val: $sym1 + $sym2  } }
+
+<> type > identifier 
+    f:r { ($sym1.type = "type-reference", $sym1) }
+    | ( \unn | \inn | \uint | \int  ) ( \8 | \16 | \32 | \64 | \128  ) ( ?=g:ws )
+    f:r{ $sym1 + $sym2 }
+    | (   \f | \flt  ) ( \32 | \64 | \128  ) ( ?=g:ws )
+    f:r{ $sym1 + $sym2 }
+    | \string
+    | \str 
+
+<> value > g:num 
+f:r { { type:"number", value: $$sym1  } }
+
+| tk:string 
+f:r { { type:"string", value: $$sym1  } }
+
+| \true 
+f:r { { type:"true"  } }
+
+| \false 
+f:r { { type:"false"  } }
+
+| \null
+f:r { { type:"null"  } }
+
+<> modifier > \pub | \priv | \export | \mut | \imut | g:id
+
+<> string > \" ( g:ws | g:nl | g:id | g:sym | \\" )(*\' ) \"
+
+<> identifier > tk:identifier_token
+f:r { { type:"identifier", value: $$sym1  } }
+
+<> identifier_token > ( g:id | \_ | \$ ) ( g:id | \_ | \$ )(*) ( ?=g:ws | ?=g:nl )?
+
+<> comment > \/* ( g:id | g:sym | g:num )(*) \*/
+    | \// ( g:id | g:sym | g:num )(*) ( ?=g:nl )
+
+<> meta_template_replacement > \<< ( g:id | g:sym | g:num )(*) \>>
