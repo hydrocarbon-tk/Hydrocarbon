@@ -36,7 +36,7 @@ export const renderAssemblyScriptRecognizer = (
     const UNICODE_ID_CONTINUE = 32;
     //[javascript_only]
     function print(l,s){
-        return [...s.input.slice(l.byte_offset, l.byte_offset+5)].map(i=>String.fromCharCode(i)).join("")
+        console.log([...s.input.slice(l.byte_offset, l.byte_offset+5)].map(i=>String.fromCharCode(i)).join(""))
     }
 
     function compare(data, data_offset, sequence_offset, length) {
@@ -143,7 +143,7 @@ export const renderAssemblyScriptRecognizer = (
             this.type = 0;             //16
             this.current_byte = 0;     //16
         }
-        
+
         // Returns false if the symbol following
         // the byte length is of the passed in type
         isDiscrete(data, assert_class, USE_UNICODE) {
