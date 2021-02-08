@@ -1,9 +1,9 @@
 import { RenderBodyOptions } from "../../types/render_body_options";
 import { SelectionClauseGenerator, SelectionGroup } from "../../types/state_generating";
-import { DefinedSymbol, Symbol, TokenSymbol } from "../../types/symbol.js";
+import { Symbol, TokenSymbol } from "../../types/symbol.js";
 import { Leaf, TransitionNode, TRANSITION_TYPE } from "../../types/transition_node.js";
 import { getClosure } from "../../utilities/closure.js";
-import { buildSwitchIfsAlternate, createConsume, createProductionCall, createSkipCall, generateGUIDConstName, getIncludeBooleans } from "../../utilities/code_generating.js";
+import { createConsume, createProductionCall, createSkipCall, createSymbolMappingFunction, getIncludeBooleans } from "../../utilities/code_generating.js";
 import { createTransitionTypeAnnotation } from "../../utilities/create_transition_type_annotation.js";
 import { rec_glob_data_name, rec_glob_lex_name } from "../../utilities/global_names.js";
 import { Item } from "../../utilities/item.js";
@@ -15,15 +15,10 @@ import {
     getSymbolName,
     getTokenSymbolsFromItems,
     getUniqueSymbolName,
-    Symbols_Are_The_Same, Sym_Is_A_Generic_Identifier, Sym_Is_A_Generic_Number, Sym_Is_A_Generic_Type, Sym_Is_A_Production,
-    Sym_Is_A_Production_Token,
-    Sym_Is_Defined,
-    Sym_Is_Defined_Identifier,
-    Sym_Is_Defined_Natural_Number,
-
+    Symbols_Are_The_Same, Sym_Is_A_Production,
     Sym_Is_EOF
 } from "../../utilities/symbol.js";
-import { createVirtualProductionSequence2 } from "./default_unresolved_leaves_resolution.js";
+import { createVirtualProductionSequence } from "./default_unresolved_leaves_resolution.js";
 /**
  * Handles intermediate state transitions. 
  */
@@ -62,7 +57,7 @@ export function default_resolveBranches(
 
     if (groups.length > 4 && items.filter(i => i.atEND).setFilter(i => i.id).length <= 1)
 
-        createSwitchBlock(options, groups, lex_name, all_syms, root);
+        createSwitchBlock(options, groups, lex_name, root);
 
     else
 
@@ -77,64 +72,26 @@ function createSwitchBlock(
     options: RenderBodyOptions,
     groups: SelectionGroup[],
     lex_name: VarSC,
-    all_syms: Symbol[],
     root: SC
 ) {
-    const { grammar, helper: runner } = options;
-    const defined_symbols: [DefinedSymbol, number][] = <any>groups.flatMap((g, i) => g.syms.filter(Sym_Is_Defined).map(s => [s, i]));
-    const defined_symbols_lu = new Map(defined_symbols);
-    //Only need to look for generic type; Groups do not transition on productions
-    const other_symbols = groups.flatMap((g, i) => g.syms.filter(s => Sym_Is_A_Generic_Type(s) || Sym_Is_A_Production_Token(s)).map(s => [i, s]));
+    const symbol_mappings: [number, Symbol][]
+        = <any>groups.flatMap((g, i) => g.syms.map(s => [i, s])),
 
+        fn_name = createSymbolMappingFunction(
+            options,
+            lex_name,
+            symbol_mappings
+        ),
 
-    let if_root = null, leaf = null;
-    for (const [id, sym] of other_symbols) {
-        const sc = SC.If(getIncludeBooleans([sym], grammar, runner, lex_name, all_syms))
-            .addStatement(SC.UnaryPre(SC.Return, SC.Value(id)));
-        if (!if_root) {
-            if_root = sc;
-            leaf = sc;
-        } else {
-            leaf.addStatement(sc);
-            leaf = sc;
-        }
-    }
-
-    const fn_lex_name = SC.Constant("l:Lexer");
-    const gen = buildSwitchIfsAlternate(grammar, defined_symbols.map(([s]) => s), fn_lex_name);
-
-    let yielded = gen.next();
-
-    while (!yielded.done) {
-        const { code_node, sym } = yielded.value;
-        code_node.addStatement(
-            SC.Assignment(SC.Member(lex_name, "type"), "TokenSymbol"),
-            SC.Assignment(SC.Member(lex_name, "byte_length"), sym.byte_length),
-            SC.Assignment(SC.Member(lex_name, "token_length"), sym.val.length),
-        );
-        if (Sym_Is_Defined_Identifier(sym) && all_syms.some(Sym_Is_A_Generic_Identifier))
-            code_node.addStatement(SC.If(SC.Value("!l.isDiscrete(data, TokenIdentifier)")).addStatement(SC.UnaryPre(SC.Return, SC.Value("0xFFFFFF"))));
-
-        if (Sym_Is_Defined_Natural_Number(sym) && all_syms.some(Sym_Is_A_Generic_Number))
-            code_node.addStatement(SC.If(SC.Value("!l.isDiscrete(data, TokenNumber)")).addStatement(SC.UnaryPre(SC.Return, SC.Value("0xFFFFFF"))));
-
-        code_node.addStatement(
-            SC.UnaryPre(SC.Return, SC.Value(defined_symbols_lu.get(sym))));
-        yielded = gen.next();
-    }
-
-    const
-        code_node = yielded.value,
-        fn = SC.Function(":boolean", fn_lex_name, rec_glob_data_name).addStatement(code_node, if_root),
-        node_name = generateGUIDConstName(fn, `defined_token`, "bool"),
-        fn_name = runner.add_constant(node_name, fn),
         sw = SC.Switch(SC.Call(fn_name, lex_name, rec_glob_data_name));
 
-
     for (let i = 0; i < groups.length; i++) {
-        let { syms, items, code, LAST, FIRST, transition_types } = groups[i];
+
+        let { items, code } = groups[i];
+
         if (items.some(i => i.atEND))
             sw.addStatement(SC.If(SC.Value("default")));
+
         sw.addStatement(SC.If(SC.Value(i)).addStatement(code, SC.Break));
     }
 
@@ -171,7 +128,6 @@ function createPeekStatements(
             root.addStatement(createSkipCall(skippable, grammar, runner, SC.Call(SC.Member(peek_name, "next"), rec_glob_data_name)));
         }
     } else if (state.offset > 0) {
-        //Consume
         root.addStatement(createSkipCall(skippable, grammar, runner));
     }
     return peek_name;
@@ -236,7 +192,7 @@ function createIfElseBlock(
                 // Negative assertion helps prevent occlusions of subsequent group's symbols
                 // from an end items follow set
 
-                const primary_symbols = syms.filter(a => complement_symbols.some(o => Sym_Is_EOF(a) || Defined_Symbols_Occlude(a, o)));
+                const primary_symbols = syms.filter(a => complement_symbols.some(o => Sym_Is_EOF(a) || Defined_Symbols_Occlude(<any>a, o)));
                 const negate_symbols = complement_symbols;
                 const remaining_symbols = getIncludeBooleans(<TokenSymbol[]>primary_symbols, grammar, runner, peek_name);
                 const negated_expression = getIncludeBooleans(<TokenSymbol[]>negate_symbols, grammar, runner, peek_name);
@@ -374,7 +330,7 @@ function addIfStatementTransition(
             //Add peek
         }
 
-        createVirtualProductionSequence2(options, breadcrumb_items, [], sc, leaves);
+        createVirtualProductionSequence(options, breadcrumb_items, [], sc, leaves, [], true, TRANSITION_TYPE.ASSERT);
 
     } else {
 

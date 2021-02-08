@@ -3,6 +3,7 @@ import { RenderBodyOptions } from "../../types/render_body_options";
 import { rec_glob_data_name, rec_glob_lex_name, rec_state, rec_state_prod } from "../../utilities/global_names.js";
 import { ConstSC, SC, VarSC } from "../../utilities/skribble.js";
 import { addClauseSuccessCheck, createDebugCall } from "./default_state_build.js";
+import { VirtualProductionLinks } from "../../utilities/virtual_productions.js";
 
 /**
  * Adds code to end nodes
@@ -103,15 +104,18 @@ export function addLeafStatements(
  * @param GOTO_Options - Options from the GOTO yielder
  */
 
-export function addIntermediateLeafStatements(
+export function addVirtualProductionLeafStatements(
     RD_fn_contents: SC,
     GOTO_fn_contents: SC,
-    goto_fn_name: VarSC | ConstSC,
     RDOptions: RenderBodyOptions,
-    GOTO_Options: RenderBodyOptions) {
+    GOTO_Options: RenderBodyOptions,
+    v_map: VirtualProductionLinks
+) {
     const
         { leaves: rd_leaves, production_ids } = RDOptions,
-        { leaves: goto_leaves, NO_GOTOS } = GOTO_Options;
+        { leaves: goto_leaves, NO_GOTOS } = GOTO_Options,
+        p_map = new Map([...v_map.values()].map(({ p, i }) => [p.id, i]));
+
 
     for (const rd_leaf of rd_leaves) {
         const { leaf, prods } = rd_leaf;
@@ -123,7 +127,9 @@ export function addIntermediateLeafStatements(
         //@ts-ignore
         rd_leaf.SET = true;
 
-        leaf.addStatement(SC.Assignment(rec_state_prod, prods[0]));
+        let true_id = getTrueProductionIdInVirtualProductionSpace(p_map, prods);
+
+        leaf.addStatement(SC.Assignment(rec_state_prod, true_id));
 
         if (rd_leaves.length == 1) {
             leaf.addStatement(GOTO_fn_contents);
@@ -147,13 +153,25 @@ export function addIntermediateLeafStatements(
                 &&
                 production_ids.includes(prods[0])
                 &&
-                production_ids.some(p_id => goto_leaf.keys.includes(p_id))) {
+                production_ids.some(p_id => goto_leaf.keys.includes(p_id))
+            ) {
+
                 leaf.addStatement(createDebugCall(GOTO_Options, "Inter return"));
                 leaf.addStatement(SC.Break);
             } else if (transition_type !== TRANSITION_TYPE.IGNORE) {
-                leaf.addStatement(SC.Assignment(rec_state_prod, prods[0]));
+
+                let true_id = getTrueProductionIdInVirtualProductionSpace(p_map, prods);
+
+                leaf.addStatement(SC.Assignment(rec_state_prod, true_id));
+
                 leaf.addStatement(SC.Value("continue"));
             }
         }
+}
+
+function getTrueProductionIdInVirtualProductionSpace(p_map: Map<number, number>, prods: number[]) {
+    return p_map.has(prods[0])
+        ? p_map.get(prods[0])
+        : prods[0];
 }
 

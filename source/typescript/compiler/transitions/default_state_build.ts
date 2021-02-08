@@ -21,7 +21,7 @@ import {
     Sym_Is_Defined_Natural_Number
 } from "../../utilities/symbol.js";
 import { default_resolveBranches } from "./default_branch_resolution.js";
-import { reduceOR } from "./reduceOR.js";
+import { reduceOR } from "../../utilities/reduceOR.js";
 
 
 export function resolveGOTOBranches(gen: SelectionClauseGenerator, state: TransitionNode, items_global: Item[], level: number, options: RenderBodyOptions): SC {

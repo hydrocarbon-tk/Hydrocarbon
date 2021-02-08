@@ -45,7 +45,7 @@ export function characterToUTF8(char: string) {
 
 
 }
-export function convertSymbolToString(sym: { type?: SymbolType, val: string; }) {
+export function convertSymbolToString(sym: Symbol) {
     switch (sym.type) {
         case SymbolType.ESCAPED:
         case SymbolType.SYMBOL:
@@ -94,6 +94,15 @@ export function Sym_Is_A_Production(s: Symbol): s is ProductionSymbol {
     if (!s) return false;
     return s.type == SymbolType.PRODUCTION;
 }
+
+export function Sym_Is_A_Terminal(s: Symbol): s is TokenSymbol {
+    return false == Sym_Is_A_Production(s);
+}
+
+export function Sym_Is_A_Token(s: Symbol): s is TokenSymbol {
+    return Sym_Is_A_Terminal(s);
+}
+
 
 export function Sym_Is_An_Assert_Function(s: Symbol): s is AssertionFunctionSymbol {
     return s.type == SymbolType.PRODUCTION_ASSERTION_FUNCTION;
@@ -208,21 +217,21 @@ export function getRootSym<T = Symbol>(sym: T, grammar: Grammar): T {
 
     return <T><any>grammar.meta.all_symbols.get(name) || sym;
 }
-export function Defined_Symbols_Occlude(target: TokenSymbol, potential_occluder: TokenSymbol): boolean {
+export function Defined_Symbols_Occlude(target: TokenSymbol, potentially_occludes: Symbol): boolean {
 
     // if (Sym_Is_EOF(target)) return true;
 
-    if (Sym_Is_A_Production(target) || Sym_Is_A_Production(potential_occluder)) return false;
-    if (Symbols_Are_The_Same(target, potential_occluder)) return false;
-    if (target.val == potential_occluder.val) return false;
+    if (Sym_Is_A_Production(target) || Sym_Is_A_Production(potentially_occludes)) return false;
+    if (Symbols_Are_The_Same(target, potentially_occludes)) return false;
+    if (target.val == potentially_occludes.val) return false;
 
-    if (Sym_Is_A_Generic_Symbol(potential_occluder) && Sym_Is_Defined_Symbols(target)) return true;
-    if (Sym_Is_A_Generic_Identifier(potential_occluder) && Sym_Is_Defined_Identifier(target)) return true;
-    if (Sym_Is_A_Generic_Number(potential_occluder) && Sym_Is_Defined_Natural_Number(target)) return true;
+    if (Sym_Is_A_Generic_Symbol(potentially_occludes) && Sym_Is_Defined_Symbols(target)) return true;
+    if (Sym_Is_A_Generic_Identifier(potentially_occludes) && Sym_Is_Defined_Identifier(target)) return true;
+    if (Sym_Is_A_Generic_Number(potentially_occludes) && Sym_Is_Defined_Natural_Number(target)) return true;
 
     let
         short = target.val.toString(),
-        long = potential_occluder.val.toString();
+        long = potentially_occludes.val.toString();
 
     if (short.length > long.length) return false;
 

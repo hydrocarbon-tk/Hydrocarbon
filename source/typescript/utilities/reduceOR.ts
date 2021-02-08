@@ -1,4 +1,4 @@
-import { SC } from "../../utilities/skribble.js";
+import { SC } from "./skribble.js";
 
 
 export function reduceOR<T>(red: T, exp: T, i: number): T {

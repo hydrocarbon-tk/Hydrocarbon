@@ -62,6 +62,11 @@ export interface RenderBodyOptions {
      * Set to true if there are no production transitions
      */
     NO_GOTOS: boolean;
+
+    /**
+     * If then create a functions sequence for a virtual production
+     */
+    IS_VIRTUAL: boolean;
     /**
      * All items in the grammar that are `S => a . A` for some production `A`
      */
