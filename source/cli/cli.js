@@ -76,7 +76,7 @@ async function start() {
     program
         .command("compile <hydrocarbon_grammar_file>")
         .description("Compiles a parser from a HydroCarbon grammar file")
-        .option("--name <__name>", "Name to give the parser file. Defaults to 'parser'")
+        .option("--nom <nom>", "Name to give the parser file. Defaults to 'parser'")
         .option("--output_dir <output_dir>", "Output directory for parser. Defaults to the CWD")
         .option("--completer_type <completer>", "Type of recognizer to create may either be 'ts' or 'js'. Default to 'js'")
         .option("--recognizer_type <recognizer>", "Type of recognizer to create may either be 'wasm' or 'js'. Default to 'js'")
@@ -87,7 +87,7 @@ async function start() {
         .action(async (hc_grammar, cmd) => {
 
             const
-                name = cmd.__name || "parser",
+                name = cmd.nom || "parser",
                 loader_path = ["ALTERNATE"].includes(cmd.loader_path)
                     ? "../runtime/parser_memory.js"
                     : "@candlefw/hydrocarbon",
