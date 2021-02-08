@@ -1,6 +1,5 @@
 {
-  "name": "@candlefw/hydrocarbon",
-  "version": "0.7.2",
+  "name": "@candlelib/hydrocarbon",
   "description": "Parser Compiler",
   "main": "./build/library/hydrocarbon.js",
   "types": "./build/types/hydrocarbon.d.ts",
@@ -13,6 +12,7 @@
     "prepublishOnly": "rm -rf ./build/ && tsc -p ./tsconfig.json && yarn test",
     "test": "cfw.test --threads 2 ./test/",
     "test.hcg_grammar_parser": "cfw.test ./test/grammar_parser/grammar_parse.spec.js",
+    "compile.skribble.debug": "./source/cli/cli.js compile --workers 8 --recognizer_type js --annotations --output_dir ./source/typescript/parsers/ ./source/grammars/misc/skribble.hcg",
     "compile.grammar": "yarn test.hcg_grammar_parser && ./source/cli/cli.js compile --workers 5 --recognizer_type wasm --output_dir ./source/typescript/grammar/ --loader_path ALTERNATE ./source/grammars/hcg/hcg.hcg",
     "compile.grammar.test": "./source/cli/cli.js compile --unattended -d --parser glalr -t mjs -o ./source/typescript/grammar ./source/grammars/hcg/hcg.hcg",
     "compile.test": "./source/cli/cli.js compile --parser glalr -d -m --unattended ./source/grammars/misc/test3.hcg",
@@ -21,7 +21,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/candlefw/hydrocarbon.git"
+    "url": "git+https://github.com/CandleLibrary/Hydrocarbon.git"
   },
   "keywords": [
     "Compiler",
@@ -30,9 +30,9 @@
   "author": "Anthony Weathersby",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/candlefw/hydrocarbon/issues"
+    "url": "https://github.com/CandleLibrary/Hydrocarbon/issues"
   },
-  "homepage": "https://github.com/candlefw/hydrocarbon#readme",
+  "homepage": "https://github.com/CandleLibrary/Hydrocarbon#readme",
   "dependencies": {
     "@assemblyscript/loader": "^0.17.2",
     "@candlefw/conflagrate": "*",
