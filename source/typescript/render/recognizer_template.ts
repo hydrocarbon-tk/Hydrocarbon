@@ -408,6 +408,21 @@ export const renderAssemblyScriptRecognizer = (
     function debug_add_item(data, item_index) { 
         data.debug[data.debug_ptr++] = item_index;
     }
+    
+    `), ...constants_a,
+        ...const_functions_a,
+        ...rd_functions.filter(f => f.RENDER).map(r => r.fn),
+        SC.Function("recognizer:void", "data:ParserData", "input_byte_length:uint32", "production:uint32")
+            .addStatement(
+                SC.Value("data.input_len = input_byte_length"),
+                SC.Declare(SC.Assignment("l:Lexer", SC.UnaryPre("new", SC.Call("Lexer")))),
+                SC.Call(SC.Member("l", "next"), rec_glob_data_name),
+                skip,
+                SC.Call("dispatch", "l", "data", SC.Call("createState", "1"), "0")
+            ),
+        SC.Value(`
+
+
 
     function init_table(){ return lookup_table;  }
     
@@ -434,19 +449,17 @@ export const renderAssemblyScriptRecognizer = (
             debug: debug
         }
     }
-    
-    `), ...constants_a,
-        ...const_functions_a,
-        ...rd_functions.filter(f => f.RENDER).map(r => r.fn),
-        SC.Function("recognizer:void", "data:ParserData", "input_byte_length:uint32", "production:uint32")
-            .addStatement(
-                SC.Value("data.input_len = input_byte_length"),
-                SC.Declare(SC.Assignment("l:Lexer", SC.UnaryPre("new", SC.Call("Lexer")))),
-                SC.Call(SC.Member("l", "next"), rec_glob_data_name),
-                skip,
-                SC.Call(getProductionFunctionName(grammar[0], grammar), "l", "data", SC.Call("createState", "1"))
-            ),
-        SC.Value(`
+
+    function dispatch(l, data, state, production_index){
+        switch (production_index) {
+            ${grammar
+                .filter(p => p)
+                .map((p, i) => {
+                    const name = getProductionFunctionName(p, grammar);
+                    return `case ${i}: return ${name}(l, data, state);`;
+                }).join("            \n")}
+        }
+    }
 
     function delete_data(){};
     `)
