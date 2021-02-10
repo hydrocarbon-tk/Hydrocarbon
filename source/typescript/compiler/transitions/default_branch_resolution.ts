@@ -25,7 +25,7 @@ import { createVirtualProductionSequence } from "./default_unresolved_leaves_res
  */
 export function default_resolveBranches(
     gen: TransitionClauseGenerator,
-    state: TransitionNode,
+    node: TransitionNode,
     items: Item[],
     level: number,
     options: RenderBodyOptions,
@@ -44,7 +44,7 @@ export function default_resolveBranches(
         return groups[0].code;
 
     const peek_name = createPeekStatements(options,
-        state,
+        node,
         root,
         rec_glob_lex_name,
         rec_glob_lex_name,
@@ -58,7 +58,7 @@ export function default_resolveBranches(
 
     else
 
-        createIfElseBlock(options, state, groups, root, rec_glob_lex_name, peek_name, all_syms, FORCE_ASSERTIONS);
+        createIfElseBlock(options, node, groups, root, rec_glob_lex_name, peek_name, all_syms, FORCE_ASSERTIONS);
 
     root.addStatement(SC.Empty());
 

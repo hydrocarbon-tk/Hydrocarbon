@@ -1,13 +1,13 @@
-import { TransitionNode, TRANSITION_TYPE } from "../../types/transition_node.js";
 import { RenderBodyOptions } from "../../types/render_body_options";
 import { SingleItemReturnObject } from "../../types/transition_generating";
-import { createSkipCall, createProductionCall } from "../../utilities/code_generating.js";
+import { TransitionNode, TRANSITION_TYPE } from "../../types/transition_node.js";
+import { createProductionCall, createSkipCall } from "../../utilities/code_generating.js";
+import { createTransitionTypeAnnotation } from "../../utilities/create_transition_type_annotation.js";
 import { rec_glob_lex_name } from "../../utilities/global_names.js";
 import { Item, itemsToProductions } from "../../utilities/item.js";
 import { renderItem } from "../../utilities/render_item.js";
 import { SC } from "../../utilities/skribble.js";
-import { getSkippableSymbolsFromItems, getUniqueSymbolName } from "../../utilities/symbol.js";
-import { createTransitionTypeAnnotation } from "../../utilities/create_transition_type_annotation.js";
+import { getSkippableSymbolsFromItems } from "../../utilities/symbol.js";
 import { processProductionChain } from "./process_production_reduction_sequences.js";
 
 

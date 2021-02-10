@@ -144,8 +144,6 @@ function addUnresolvedNode(node: TransitionNode, options: RenderBodyOptions, off
 
     const items = node.items.setFilter(i => i.id);
 
-
-
     if (items.every(i => i.atEND)) {
         node.transition_type == TRANSITION_TYPE.ASSERT_END;
         node.nodes.push(...yieldEndItemTransitions(items, options, offset));
@@ -153,14 +151,14 @@ function addUnresolvedNode(node: TransitionNode, options: RenderBodyOptions, off
 
         //filter out shift/reduce conflicts
         let filtered_items = items.filter(i => {
-            if(i.atEND) {
-                if (items.some(j => j != i && j.getProduction(options.grammar).id == i.getProduction(options.grammar).id)) return false
+            if (i.atEND) {
+                if (items.some(j => j != i && j.getProduction(options.grammar).id == i.getProduction(options.grammar).id)) return false;
 
-            const sym = i.decrement().sym(options.grammar);
+                const sym = i.decrement().sym(options.grammar);
 
-            if (Sym_Is_A_Production(sym))
-                if (items.some(j => j != i && j.getProduction(options.grammar).id == sym.val)) return false;
-}
+                if (Sym_Is_A_Production(sym))
+                    if (items.some(j => j != i && j.getProduction(options.grammar).id == sym.val)) return false;
+            }
             return true;
         });
 

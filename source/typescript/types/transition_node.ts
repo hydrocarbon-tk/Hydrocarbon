@@ -121,7 +121,7 @@ export interface TransitionNode {
     offset: number;
 
     /**
-     * Indicates the node is a will complete a production.
+     * Indicates the node will complete a production.
      */
     completing: boolean;
 

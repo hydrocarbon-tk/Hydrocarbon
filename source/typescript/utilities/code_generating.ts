@@ -357,8 +357,8 @@ export function* buildSwitchIfsAlternate(
 
     const code_node = (new SC);
 
-    if(off == 0)
-        syms = ensureSymbolsAreGlobal(syms, grammar)
+    if (off == 0)
+        syms = ensureSymbolsAreGlobal(syms, grammar);
 
     //Group symbols based on their 
     let pending_syms = syms
@@ -418,8 +418,8 @@ export function* buildSwitchIfs(
     off = 0
 ): Generator<IfNode, SC, void> {
 
-    if(off == 0)
-        syms = ensureSymbolsAreGlobal(syms, grammar)
+    if (off == 0)
+        syms = ensureSymbolsAreGlobal(syms, grammar);
 
     const code_node = (new SC);
 
@@ -611,9 +611,8 @@ export function getIncludeBooleans(
                         char_code = sym.val.charCodeAt(0);
                     booleans.push(getLexerByteBoolean(lex_name, char_code));
                 } else {
-                    booleans.push(SC.UnaryPost(
-                        SC.Call("cmpr_set", lex_name, rec_glob_data_name, sym.byte_offset, sym.byte_length, sym.val.length),
-                        SC.Comment((syms.map(sym => `[${sanitizeSymbolValForComment(sym)}]`).join(" "))))
+                    booleans.push(
+                        SC.Call("cmpr_set", lex_name, rec_glob_data_name, sym.byte_offset, sym.byte_length, sym.val.length)
                     );
                 }
             } else {
@@ -628,7 +627,7 @@ export function getIncludeBooleans(
                     fn_ref = packGlobalFunction("dt", "bool", [...syms, ...occluders], fn, runner);
                 }
 
-                booleans.push(SC.UnaryPost(SC.Call(fn_ref, lex_name, rec_glob_data_name), SC.Comment(syms.map(sym => `[${sanitizeSymbolValForComment(sym)}]`).join(" "))));
+                booleans.push(SC.Call(fn_ref, lex_name, rec_glob_data_name));
             }
         }
 
@@ -641,14 +640,11 @@ export function getIncludeBooleans(
 
             } else {
 
-                booleans.push(
-                    SC.UnaryPost(SC.Call("assert_ascii", lex_name,
-                        "0x" + ((table >> 0n) & 0xffffffffn).toString(16),
-                        "0x" + ((table >> 32n) & 0xffffffffn).toString(16),
-                        "0x" + ((table >> 64n) & 0xffffffffn).toString(16),
-                        "0x" + ((table >> 96n) & 0xffffffffn).toString(16)
-                    ), SC.Comment("tbl:" + table_syms.map(d => `[ ${d.val} ]`).join(" "))
-                    )
+                booleans.push(SC.Call("assert_ascii", lex_name,
+                    "0x" + ((table >> 0n) & 0xffffffffn).toString(16),
+                    "0x" + ((table >> 32n) & 0xffffffffn).toString(16),
+                    "0x" + ((table >> 64n) & 0xffffffffn).toString(16),
+                    "0x" + ((table >> 96n) & 0xffffffffn).toString(16))
                 );
             }
         }
@@ -675,7 +671,7 @@ export function getIncludeBooleans(
 
 
 function ensureSymbolsAreGlobal<T = Symbol>(syms: T[], grammar: Grammar): T[] {
-    return <T[]><any>(<Symbol[]><any>syms).map(s=>getCardinalSymbol(grammar,s));
+    return <T[]><any>(<Symbol[]><any>syms).map(s => getCardinalSymbol(grammar, s));
 }
 
 function getCardinalSymbol(grammar: Grammar, sym: Symbol): Symbol {
@@ -715,7 +711,7 @@ export function packGlobalFunction(fn_class: string, fn_type: string, unique_obj
 
 function getGlobalObject(fn_class: string, unique_objects: (Symbol | Item)[], runner: Helper) {
     const name = getGloballyConsistentName(fn_class, unique_objects);
-    
+
     return runner.constant_map.has(name)
         ? runner.constant_map.get(name).name
         : null;
