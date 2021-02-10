@@ -75,6 +75,8 @@ export function yieldEndItemTransitions(end_items: Item[], options: RenderBodyOp
                     return { final: 0, sym: null, index, closure: closure };
                 }));
 
+            let used_items = [];
+
             if (tree_nodes.length > 0) {
                 output_nodes.push(...buildPeekTransitions(
                     tree_nodes,
@@ -85,13 +87,14 @@ export function yieldEndItemTransitions(end_items: Item[], options: RenderBodyOp
                         const selected = items.sort((a, b) => a.body - b.body);
                         state.transition_type = TRANSITION_TYPE.ASSERT_END;
                         state.items = selected.slice(0, 1);
+                        used_items.push(...state.items);
                         state.completing = true;
                     },
                     const_EMPTY_ARRAY,
                     -1));
-            } else {
-                default_end_items = end_items;
             }
+
+            default_end_items = end_items.filter(i => !used_items.some(s => s.id == i.id));
         }
     } else {
         default_end_items = end_items;

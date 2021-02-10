@@ -9,6 +9,7 @@ import { Item, Items_Have_The_Same_Active_Symbol } from "../../utilities/item.js
 import { getTokenSymbolsFromItems, Symbols_Are_The_Same, Sym_Is_A_Production, Sym_Is_A_Production_Token } from "../../utilities/symbol.js";
 import { getTransitionTree } from "../../utilities/transition_tree.js";
 import { createTransitionNode } from "./create_transition_node.js";
+import { yieldEndItemTransitions } from "./yield_end_item_transitions.js";
 import { buildPeekTransitions } from "./yield_peek_transitions.js";
 
 export function Every_Leaf_Of_TransitionTree_Contain_One_Root_Item(node: TransitionTreeNode) {
@@ -37,7 +38,6 @@ export function yieldTransitions(
     const
         { grammar, production_ids } = options,
         output_nodes: TransitionNode[] = [],
-        end_items = [],//in_items.filter(i => i.atEND),
         active_items = in_items.filter(item => {
             const sym = item.sym(grammar) || EOF_SYM;
             return Sym_Is_A_Production(sym)
@@ -68,10 +68,12 @@ export function yieldTransitions(
             ALL_ITEMS_ARE_FROM_SAME_PRODUCTION = Items_Are_From_Same_Production(active_items, grammar),
             ALL_ITEMS_HAVE_SAME_SYMBOL = Items_Have_The_Same_Active_Symbol(active_items, grammar),
             ALL_ITEMS_ARE_FROM_ROOT_PRODUCTION = ALL_ITEMS_ARE_FROM_SAME_PRODUCTION && production_ids.includes(first_production.id),
+            ALL_ITEMS_ARE_END_ITEMS = active_items.every(i => i.atEND),
             ITEMS_SHOULD_CREATE_SHIFT_NODES = (offset > 0 || ALL_ITEMS_ARE_FROM_ROOT_PRODUCTION || ALL_ITEMS_ARE_FROM_SAME_PRODUCTION);
 
-
-        if (THERE_IS_ONLY_ONE_ACTIVE_ITEM && NO_END_ITEMS_PRESENT)
+        if (ALL_ITEMS_ARE_END_ITEMS) {
+            output_nodes.push(...yieldEndItemTransitions(active_items, options, offset));
+        } else if (THERE_IS_ONLY_ONE_ACTIVE_ITEM && NO_END_ITEMS_PRESENT)
 
             output_nodes.push(...yieldSingleItemNode(active_items, options, offset, FROM_PEEKED_TRANSITION));
 
@@ -89,7 +91,7 @@ export function yieldTransitions(
 
         else
 
-            output_nodes.push(...yieldPeekedNodes(active_items.concat(end_items), options, offset, filter_symbols));
+            output_nodes.push(...yieldPeekedNodes(active_items, options, offset, filter_symbols));
 
     }
 
