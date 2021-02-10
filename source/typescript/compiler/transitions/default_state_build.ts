@@ -140,7 +140,7 @@ export function resolveGOTOBranches(gen: TransitionClauseGenerator, state: Trans
 
                         if (booleans) {
                             interrupt_statement = SC.If(booleans).addStatement(
-                                SC.UnaryPre(SC.Return, rec_state)
+                                SC.UnaryPre(SC.Return, SC.Value(0))
                             );
                         }
                     }
@@ -163,10 +163,11 @@ export function resolveGOTOBranches(gen: TransitionClauseGenerator, state: Trans
                 first_goto_group_keys = keys;
                 switch_stmt = new SC().addStatement(...switch_stmt.statements[0].statements);
             } else {
-                switch_stmt.statements[switch_stmt.statements.length - 1].addStatement(SC.Break);
+                //switch_stmt.statements[switch_stmt.statements.length - 1].addStatement(SC.Break);
+                switch_stmt.addStatement(SC.If(SC.Value("default")).addStatement(SC.Break));
             }
         }
-
+        return switch_stmt;
         return SC.While(
             WE_HAVE_JUST_ONE_GOTO_GROUP && first_goto_group_keys.length > 0
                 ? first_goto_group_keys.map(i => SC.Binary(rec_state_prod, "==", i)).reduce(reduceOR)
@@ -182,18 +183,14 @@ export function resolveGOTOBranches(gen: TransitionClauseGenerator, state: Trans
 
     return default_resolveBranches(gen, state, items_global, level, options, state.offset <= 1);
 }
-function compareStringsForSort(strA: any, strB: any): number {
-    return (strA > strB)
-        ? 1
-        : (strA < strB)
-            ? -1
-            : 0;
-}
 
 export function addClauseSuccessCheck(options: RenderBodyOptions): SC {
     const { productions } = options;
+    // 0 - { _:i32 = boolean }
+    // js: 0 - +boolean
     const condition = productions.map(p => (SC.Binary(rec_state_prod, "==", SC.Value(p.id)))).reduce(reduceOR);
-    return SC.UnaryPre(SC.Return, SC.Call("assertSuccess", rec_glob_lex_name, rec_state, condition));
+    //return SC.UnaryPre(SC.Return, SC.Call("assertSuccess", rec_glob_lex_name, rec_state, condition));
+    return SC.UnaryPre(SC.Return, SC.Binary(SC.Group("(", SC.UnaryPre("+", SC.Group("(", condition))), "-", "1"));
 }
 
 export function createDebugCall(options: RenderBodyOptions, action_name, debug_items: Item[] = []) {

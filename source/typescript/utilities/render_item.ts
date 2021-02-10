@@ -3,7 +3,7 @@ import { RenderBodyOptions } from "../types/render_body_options";
 import { ProductionSymbol, TokenSymbol } from "../types/symbol";
 import { getClosure } from "./closure.js";
 import {
-    createAssertionShift, createConsume,
+    createAssertionShift, createBranchFunction, createConsume,
 
     createDefaultReduceFunction,
 
@@ -11,7 +11,8 @@ import {
     createProductionCall, createReduceFunction,
     createSkipCall,
 
-    getIncludeBooleans
+    getIncludeBooleans,
+    getProductionFunctionName
 } from "./code_generating.js";
 import { rec_glob_lex_name } from "./global_names.js";
 import { Item } from "./item.js";
@@ -71,6 +72,7 @@ function getProductionPassthroughInformation(production_id: number, grammar: Gra
         passthrough_chain
     };
 }
+//*
 export function renderItemSymbol(
     code_node: SC,
     item: Item,
@@ -152,8 +154,85 @@ export function renderItemSymbol(
     }
 
     return { code_node };
+}//*/
+
+export function renderItem(
+    leaf_node: SC,
+    item: Item,
+    options: RenderBodyOptions,
+    RENDER_WITH_NO_CHECK = false,
+    lexer_name: VarSC = rec_glob_lex_name,
+    FROM_UPPER = false
+): SC {
+    const { grammar, helper: runner, called_productions } = options;
+
+    if (!item.atEND) {
+
+        if (FROM_UPPER) {
+            const skippable = getSkippableSymbolsFromItems([item], grammar);
+            leaf_node.addStatement(createSkipCall(skippable, grammar, runner, lexer_name));
+        }
+
+        let bool_expression = null;
+
+        const sym = getRootSym(item.sym(grammar), grammar);
+
+        if (sym.type == "production") {
+
+            const production = grammar[sym.val];
+
+            called_productions.add(<number>production.id);
+
+            const { first_non_passthrough, passthrough_chain, IS_PASSTHROUGH } = getProductionPassthroughInformation(production.id, grammar);
+
+            let call_body = new SC;
+
+            if (IS_PASSTHROUGH) {
+                for (let prod_id of passthrough_chain.reverse()) {
+                    const body = grammar[prod_id].bodies[0];
+                    const body_item = new Item(body.id, body.length, body.length);
+                    renderItemReduction(call_body, body_item, grammar);
+                }
+            }
+
+            const code = renderItem(call_body, item.increment(), options, false, lexer_name, true);
+
+            const call_name = createBranchFunction([item.increment()], call_body, grammar, runner);
+
+            const rc = new SC;
+
+            rc.addStatement(SC.Call("pushFN", "data", call_name));
+            rc.addStatement(SC.Call("pushFN", "data", getProductionFunctionName(grammar[first_non_passthrough], grammar)));
+            rc.addStatement(SC.UnaryPre(SC.Return, SC.Value("0")));
+
+            leaf_node.addStatement(rc);
+
+            return code;
+
+        } else if (RENDER_WITH_NO_CHECK) {
+            leaf_node.addStatement(createConsume(lexer_name));
+        } else {
+            bool_expression = createAssertionShift(grammar, runner, sym, lexer_name);
+            RENDER_WITH_NO_CHECK = false;
+        }
+
+        if (!RENDER_WITH_NO_CHECK) {
+            const _if = SC.If(bool_expression);
+            leaf_node.addStatement(_if);
+            leaf_node.addStatement(SC.Empty());
+            return renderItem(_if, item.increment(), options, false, lexer_name, true);
+        } else {
+            return renderItem(leaf_node, item.increment(), options, false, lexer_name, true);
+        }
+
+    } else
+
+        renderItemReduction(leaf_node, item, grammar);
+
+    return leaf_node;
 }
 
+/*
 export function renderItem(
     code_node: SC,
     item: Item,
@@ -180,3 +259,4 @@ export function renderItem(
 
     return code_node;
 }
+*/

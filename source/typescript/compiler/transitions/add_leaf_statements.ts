@@ -52,16 +52,17 @@ export function addLeafStatements(
         if (NO_GOTOS) {
 
             leaf.addStatement(createDebugCall(GOTO_Options, "RD return"));
-            leaf.addStatement(SC.UnaryPre(SC.Return, rec_state));
+            leaf.addStatement(SC.UnaryPre(SC.Return, SC.Value(0)));
 
-        } else if (rd_leaves.length == 1) {
+        } else if (false && rd_leaves.length == 1) {
             RD_fn_contents.shiftStatement(SC.Declare(SC.Assignment(rec_state_prod, -1)));
             leaf.addStatement(SC.Assignment(rec_state_prod, prods[0]));
             leaf.addStatement(GOTO_fn_contents);
             GOTO_Options.NO_GOTOS = true;
             GOTOS_FOLDED = true;
         } else {
-            leaf.addStatement(SC.UnaryPre(SC.Return, SC.Call(goto_fn_name, rec_glob_lex_name, rec_glob_data_name, rec_state, prods[0])));
+            leaf.addStatement(SC.Call("pushFN", "data", goto_fn_name));
+            leaf.addStatement(SC.UnaryPre(SC.Return, SC.Value(prods[0])));
         }
     }
 
@@ -85,15 +86,15 @@ export function addLeafStatements(
                 leaf.addStatement(createDebugCall(GOTO_Options, "Inter return"));
                 leaf.addStatement(SC.UnaryPre(SC.Return, rec_state));
             } else if (transition_type !== TRANSITION_TYPE.IGNORE) {
-                leaf.addStatement(SC.Assignment(rec_state_prod, prods[0]));
-                leaf.addStatement(SC.Value("continue"));
+                // /leaf.addStatement(SC.Assignment(rec_state_prod, prods[0]));
+                leaf.addStatement(SC.UnaryPre("return", SC.Value(prods[0])));
             }
         }
 
     if (GOTOS_FOLDED)
         RD_fn_contents.addStatement(addClauseSuccessCheck(RDOptions));
     else
-        RD_fn_contents.addStatement(SC.UnaryPre(SC.Return, SC.Value("0")));
+        RD_fn_contents.addStatement(SC.UnaryPre(SC.Return, SC.Value("-1")));
 }
 
 /**
@@ -157,7 +158,7 @@ export function addVirtualProductionLeafStatements(
             ) {
 
                 leaf.addStatement(createDebugCall(GOTO_Options, "Inter return"));
-                leaf.addStatement(SC.Break);
+                //  leaf.addStatement(SC.Break);
             } else if (transition_type !== TRANSITION_TYPE.IGNORE) {
 
                 let true_id = getTrueProductionIdInVirtualProductionSpace(p_map, prods);

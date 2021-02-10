@@ -172,8 +172,32 @@ export function getSkipFunctionNew(
         fn_ref = packGlobalFunction("skip", "Lexer", skip_symbols, skip_function, runner);
     }
 
-    if (!fn_ref)
-        console.log("-------------------AHHHHHHHHHHHHHHHHHHHH-----------------------");
+    return <VarSC>fn_ref;
+}
+
+export function createBranchFunction(items: Item[], branch_code: SC, grammar: Grammar, runner: Helper): VarSC {
+
+    let fn_ref = getGlobalObject("branch", items, runner);
+
+    if (!fn_ref) {
+
+        const
+
+            token_function = SC.Function(
+                ":u32",
+                rec_glob_lex_name,
+                rec_glob_data_name,
+                "state:u32",
+                "prod:u32"
+            ).addStatement(
+                (runner.ANNOTATED)
+                    ? items.map(i => i.renderUnformattedWithProduction(grammar)).join("\n")
+                    : undefined,
+                branch_code
+            );
+
+        fn_ref = <VarSC>packGlobalFunction("branch", "bool", items, token_function, runner);
+    }
 
     return <VarSC>fn_ref;
 }

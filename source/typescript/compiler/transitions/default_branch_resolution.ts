@@ -3,7 +3,7 @@ import { TransitionClauseGenerator, TransitionGroup } from "../../types/transiti
 import { Symbol, TokenSymbol } from "../../types/symbol.js";
 import { Leaf, TransitionNode, TRANSITION_TYPE } from "../../types/transition_node.js";
 import { getClosure } from "../../utilities/closure.js";
-import { createConsume, createProductionCall, createSkipCall, createSymbolMappingFunction, getIncludeBooleans } from "../../utilities/code_generating.js";
+import { createBranchFunction, createConsume, createProductionCall, createSkipCall, createSymbolMappingFunction, getIncludeBooleans, getProductionFunctionName } from "../../utilities/code_generating.js";
 import { createTransitionTypeAnnotation } from "../../utilities/create_transition_type_annotation.js";
 import { rec_glob_data_name, rec_glob_lex_name } from "../../utilities/global_names.js";
 import { Item } from "../../utilities/item.js";
@@ -82,15 +82,21 @@ function createSwitchBlock(
 
         sw = SC.Switch(SC.Call(fn_name, lex_name, rec_glob_data_name));
 
+    let DEFAULT_NOT_ADDED = true;
+
     for (let i = 0; i < groups.length; i++) {
 
         let { items, code } = groups[i];
 
-        if (items.some(i => i.atEND))
+        if (items.some(i => i.atEND)) {
+            DEFAULT_NOT_ADDED = false;
             sw.addStatement(SC.If(SC.Value("default")));
+        }
 
-        sw.addStatement(SC.If(SC.Value(i)).addStatement(code, SC.Break));
+        sw.addStatement(SC.If(SC.Value(i)).addStatement(code/*, SC.Break*/));
     }
+    if (DEFAULT_NOT_ADDED)
+        sw.addStatement(SC.If(SC.Value("default")).addStatement(SC.Break));
 
     root.addStatement(sw);
 }
@@ -156,7 +162,7 @@ function createIfElseBlock(
 
         const
             group = groups[i],
-            { syms, transition_types, code } = group,
+            { syms, transition_types, code, items } = group,
             complement_symbols = groups.filter((l, j) => j > i).flatMap(g => g.syms).setFilter(getUniqueSymbolName);
 
         let assertion_boolean: SC = SC.Empty();
@@ -211,6 +217,25 @@ function createIfElseBlock(
 
                 const production = grammar[group.items[0].sym(grammar).val];
 
+                options.called_productions.add(<number>production.id);
+
+                const call_name = createBranchFunction(items.map(i => i.increment()), code, grammar, runner);
+
+                const rc = new SC;
+
+                rc.addStatement(SC.Call("pushFN", "data", call_name));
+                rc.addStatement(SC.Call("pushFN", "data", getProductionFunctionName(production, grammar)));
+                rc.addStatement(SC.UnaryPre(SC.Return, SC.Value("0")));
+                leaf.addStatement(rc);
+                leaf = rc;
+
+                break;
+
+
+                //Wrap code into a call statement and then push the function pointer to the stack
+
+                /*
+
                 if (Production_Is_Trivial(production)) {
 
                     const syms = getTokenSymbolsFromItems(getClosure(getProductionClosure(production.id, grammar), grammar), grammar);
@@ -226,6 +251,7 @@ function createIfElseBlock(
 
                     leaf = addIfStatementTransition(options, group, code, assertion_boolean, FORCE_ASSERTIONS, leaf, state.leaves);
                 }
+                */
 
                 break;
 
@@ -235,6 +261,8 @@ function createIfElseBlock(
             case TRANSITION_TYPE.PEEK_PRODUCTION_SYMBOLS:
             case TRANSITION_TYPE.ASSERT_PRODUCTION_SYMBOLS:
 
+                if (FIRST_SYMBOL_IS_A_PRODUCTION) throw new Error("WTF");
+
                 assertion_boolean = getIncludeBooleans(<TokenSymbol[]>syms, grammar, runner, peek_name, <TokenSymbol[]>complement_symbols);
 
                 leaf = addIfStatementTransition(options, group, code, assertion_boolean, FORCE_ASSERTIONS, leaf, state.leaves);
@@ -243,9 +271,8 @@ function createIfElseBlock(
 
             case TRANSITION_TYPE.ASSERT_CONSUME:
 
-                assertion_boolean = FIRST_SYMBOL_IS_A_PRODUCTION
-                    ? createProductionCall(grammar[syms[0].val], options)
-                    : getIncludeBooleans(<TokenSymbol[]>syms, grammar, runner, lex_name, <TokenSymbol[]>complement_symbols);
+
+                assertion_boolean = getIncludeBooleans(<TokenSymbol[]>syms, grammar, runner, lex_name, <TokenSymbol[]>complement_symbols);
 
                 leaf = addIfStatementTransition(options, group, code, assertion_boolean, FORCE_ASSERTIONS, leaf, state.leaves);
 

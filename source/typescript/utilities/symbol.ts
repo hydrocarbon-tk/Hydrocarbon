@@ -3,10 +3,6 @@ import { Helper } from "../compiler/helper.js";
 import { Grammar } from "../types/grammar.js";
 import {
     AssertionFunctionSymbol,
-
-
-
-
     DefinedCharacterSymbol,
     DefinedIdentifierSymbol,
     DefinedNumericSymbol,
@@ -14,10 +10,6 @@ import {
     GeneratedSymbol,
     ProductionSymbol,
     ProductionTokenSymbol,
-
-
-
-
     Symbol,
     TokenSymbol
 } from "../types/symbol";

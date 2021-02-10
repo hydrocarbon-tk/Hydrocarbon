@@ -21,7 +21,7 @@ export const renderAssemblyScriptRecognizer = (
     const closure = getProductionClosure(0, grammar);
     const skippable = getSkippableSymbolsFromItems(closure, grammar);
     const unskippable = getUnskippableSymbolsFromClosure(closure, grammar);
-    const skip = createSkipCall(skippable, grammar, runner, rec_glob_lex_name, unskippable);
+    const skip = createSkipCall(skippable, grammar, runner, SC.Variable("data.lexer"), unskippable);
     return (new SC).addStatement(SC.Value(`
     const lookup_table = new Uint8Array(${jump8bit_table_byte_size});
     const sequence_lookup = [${grammar.sequence_string.split("").map(s => s.charCodeAt(0)).join(",")}];
@@ -405,9 +405,7 @@ export const renderAssemblyScriptRecognizer = (
         data.debug_ptr++;
     }
 
-    function debug_add_item(data, item_index) { 
-        data.debug[data.debug_ptr++] = item_index;
-    }
+    function debug_add_item(data, item_index) { data.debug[data.debug_ptr++] = item_index; }
     
     `), ...constants_a,
         ...const_functions_a,
@@ -415,14 +413,40 @@ export const renderAssemblyScriptRecognizer = (
         SC.Function("recognizer:void", "data:ParserData", "input_byte_length:uint32", "production:uint32")
             .addStatement(
                 SC.Value("data.input_len = input_byte_length"),
-                SC.Declare(SC.Assignment("l:Lexer", SC.UnaryPre("new", SC.Call("Lexer")))),
-                SC.Call(SC.Member("l", "next"), rec_glob_data_name),
+                //SC.Declare(SC.Assignment("l:Lexer", SC.UnaryPre("new", SC.Call("Lexer")))),
+                SC.Call(SC.Member("data.lexer", "next"), rec_glob_data_name),
                 skip,
-                SC.Call("dispatch", "l", "data", SC.Call("createState", "1"), "0")
+                SC.Call("dispatch", "data", "0"),
+                SC.Call("run", "data")
             ),
         SC.Value(`
 
+    function run(data){
+        let ACTIVE = true;
+        while(ACTIVE){ ACTIVE = stepKernel(data); }
+    }
 
+    function stepKernel(data){
+        
+        let ptr = data.stack_ptr;
+        
+        const fn = data.stack[ptr];
+
+        data.stack_ptr--;
+
+        const result = fn(data.lexer, data, data.state, data.prod);
+        
+        if(result <= 0){
+            if(data.stack_ptr < 0) return false;
+            data.prod = 0xFFFFFFFF;
+        }else{
+            data.prod = result;
+        }
+
+        return true;
+    }
+
+    function pushFN(data, fn_ref){ data.stack[++data.stack_ptr] = fn_ref; }
 
     function init_table(){ return lookup_table;  }
     
@@ -432,9 +456,14 @@ export const renderAssemblyScriptRecognizer = (
             input = new Uint8Array(input_len),
             rules = new Uint32Array(rules_len),
             error = new Uint8Array(error_len),
-            debug = new Uint16Array(debug_len)
+            debug = new Uint16Array(debug_len),
+            stack = [];
 
         return {
+            lexer: new Lexer,
+            state: 0,
+            prop: 0,
+            stack_ptr: -1,
             input_ptr: 0,
             rules_ptr: 0,
             error_ptr: 0,
@@ -446,17 +475,19 @@ export const renderAssemblyScriptRecognizer = (
             input: input,
             rules: rules,
             error: error,
-            debug: debug
+            debug: debug,
+            stack: stack,
+            origin_fork:0,
+            origin: null
         }
     }
 
-    function dispatch(l, data, state, production_index){
+    function dispatch(data, production_index){
         switch (production_index) {
-            ${grammar
-                .filter(p => p)
-                .map((p, i) => {
-                    const name = getProductionFunctionName(p, grammar);
-                    return `case ${i}: return ${name}(l, data, state);`;
+            ${rd_functions.filter(f => f.RENDER)
+                .map((fn, i) => {
+                    const name = getProductionFunctionName(grammar[fn.id], grammar);
+                    return `case ${i}: pushFN(data, ${name}); return;`;
                 }).join("            \n")}
         }
     }

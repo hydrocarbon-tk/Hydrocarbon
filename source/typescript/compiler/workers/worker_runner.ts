@@ -79,7 +79,7 @@ export class WorkerRunner {
         this.runner.join_constant_map(const_map);
 
         this.functions[production_id] = {
-            id: 0,
+            id: production_id,
             fn: fn_data,
             productions: productions,
         };
