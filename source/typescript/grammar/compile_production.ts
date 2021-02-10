@@ -4,6 +4,7 @@ import { ProductionBody, ProductionBodyFunction } from "../types/grammar.js";
 import { Production } from "../types/production";
 import { Symbol } from "../types/symbol";
 import { GrammarParserEnvironment } from "../types/grammar_compiler_environment.js";
+import { Sym_Is_A_Production } from "../utilities/symbol.js";
 
 export default function (production: Production, env: GrammarParserEnvironment, lex: Lexer) {
 
@@ -23,7 +24,7 @@ export default function (production: Production, env: GrammarParserEnvironment, 
 
             //Set production entries for all production symbols in the bodies that are defined in this production.
             production.bodies.forEach(body => body.sym.forEach((sym) => {
-                if (sym.type == "production" && !sym.IMPORTED) {
+                if (Sym_Is_A_Production(sym) && !sym.IMPORTED) {
                     sym.production = env.productions.LU.get(sym.name);
                 }
             }));

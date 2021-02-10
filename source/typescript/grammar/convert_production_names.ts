@@ -12,7 +12,7 @@ export default function convertProductionNamesToIndexes(grammar: Grammar, LU,
 
         for (const sym of env.symbols) {
 
-            if (Sym_Is_A_Production(sym) || Sym_Is_A_Production_Token(sym)) {
+            if (Sym_Is_A_Production(sym)) {
                 if (sym.production || (sym.IMPORTED && sym.RESOLVED)) {
                     sym.val = sym.production.id;
                 } else try {
@@ -48,7 +48,7 @@ export default function convertProductionNamesToIndexes(grammar: Grammar, LU,
 
                     sym = body.sym[i];
 
-                    if (Sym_Is_A_Production(sym) || Sym_Is_A_Production_Token(sym)) {
+                    if (Sym_Is_A_Production(sym)) {
                         if (sym.production || (sym.IMPORTED && sym.RESOLVED)) {
                             sym.val = sym.production.id;
                         } else try {

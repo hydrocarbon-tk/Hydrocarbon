@@ -93,10 +93,6 @@ function convertPeekStateToSingleItemNode(node: TransitionNode, { grammar }: Ren
 
         } else {
 
-            if (Sym_Is_A_Production_Token(sym)) {
-                node.symbols = [sym];
-            }
-
             node.transition_type = TRANSITION_TYPE.ASSERT_CONSUME;
 
             node.peek_level = -1;

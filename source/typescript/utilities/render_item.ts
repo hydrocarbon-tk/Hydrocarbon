@@ -1,27 +1,22 @@
 import { Grammar } from "../types/grammar";
 import { RenderBodyOptions } from "../types/render_body_options";
-import { ProductionSymbol, TokenSymbol } from "../types/symbol";
-import { getClosure } from "./closure.js";
+import { ProductionSymbol } from "../types/symbol";
 import {
-    createAssertionShift, createBranchFunction, createConsume,
-
+    createAssertionShift,
+    createBranchFunction,
+    createConsume,
     createDefaultReduceFunction,
-
-
-    createProductionCall, createReduceFunction,
+    createReduceFunction,
     createSkipCall,
-
-    getIncludeBooleans,
     getProductionFunctionName
 } from "./code_generating.js";
 import { rec_glob_lex_name } from "./global_names.js";
 import { Item } from "./item.js";
-import { getProductionClosure, Production_Is_Trivial } from "./production.js";
 import { SC, VarSC } from "./skribble.js";
 import {
     getRootSym,
     getSkippableSymbolsFromItems,
-    getTokenSymbolsFromItems,
+
     Sym_Is_A_Production
 } from "./symbol.js";
 
@@ -177,7 +172,7 @@ export function renderItem(
 
         const sym = getRootSym(item.sym(grammar), grammar);
 
-        if (sym.type == "production") {
+        if (Sym_Is_A_Production(sym)) {
 
             const production = grammar[sym.val];
 

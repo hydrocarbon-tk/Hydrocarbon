@@ -301,7 +301,7 @@ export function createSymbolMappingFunction(
                 = <[number, DefinedSymbol][]>symbol_mappings.filter(([, sym]) => Sym_Is_Defined(sym)),
 
             generic_symbol_mappings: [number, TokenSymbol][]
-                = <[number, TokenSymbol][]>symbol_mappings.filter(([, sym]) => Sym_Is_A_Generic_Type(sym) || Sym_Is_A_Production_Token(sym)),
+                = <[number, TokenSymbol][]>symbol_mappings.filter(([, sym]) => Sym_Is_A_Generic_Type(sym)),
 
             defined_symbols_reversed_map = new Map(defined_symbol_mappings.map((([i, s]) => [s, i]))),
 
@@ -560,7 +560,6 @@ export function getIncludeBooleans(
         consume = syms.filter(Sym_Is_Consumed),
         id = consume.filter(Sym_Is_Defined),
         ty = consume.filter(Sym_Is_A_Generic_Type),
-        tk = consume.filter(Sym_Is_A_Production_Token),
         fn = consume.filter(Sym_Is_An_Assert_Function)
             .map(s => translateSymbolValue(s, grammar, lex_name)).sort();
 
@@ -569,7 +568,7 @@ export function getIncludeBooleans(
     if (HAS_GEN_ID)
         id = id.filter(Sym_Is_Not_An_Identifier);
 
-    if (id.length + ty.length + fn.length + tk.length + non_consume.length == 0)
+    if (id.length + ty.length + fn.length + non_consume.length == 0)
         return null;
 
     let out_id: ExprSC[] = [], out_ty: ExprSC[] = [], out_fn: ExprSC[] = [], out_tk: ExprSC[] = [], out_non_consume: ExprSC[] = [];
@@ -678,17 +677,6 @@ export function getIncludeBooleans(
 
     if (ty.length > 0)
         out_ty = ty.sort((a, b) => a.val < b.val ? -1 : 1).map(s => translateSymbolValue(s, grammar, lex_name));
-
-    if (tk.length > 0) {
-        for (const tok of tk) {
-
-            const
-                fn_name = createProductionTokenFunction(tok, grammar, runner),
-                fn = SC.Call(fn_name, lex_name, rec_glob_data_name);
-
-            out_tk.push(fn);
-        }
-    }
 
     return convertExpressionArrayToBoolean([...out_non_consume, ...out_tk, ...out_id, ...out_ty, ...out_fn]);
 }

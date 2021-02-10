@@ -8,6 +8,7 @@ import { ProductionBodyFunction, ProductionBodyReduceFunction, ProductionBody } 
 import { Symbol } from "../types/symbol";
 
 import { GrammarParserEnvironment } from "../types/grammar_compiler_environment.js";
+import { Sym_Is_A_Production } from "../utilities/symbol.js";
 
 export default class implements ProductionBody {
 
@@ -55,7 +56,7 @@ export default class implements ProductionBody {
         this.FORK_ON_ENTRY = force_fork;
 
         //Used to identify the unique form of the body.
-        this.uid = this.sym.map(e => e.type == "production" ? e.name : e.val).join(":");
+        this.uid = this.sym.map(e => Sym_Is_A_Production(e) ? e.name : e.val).join(":");
     }
 
     build() {

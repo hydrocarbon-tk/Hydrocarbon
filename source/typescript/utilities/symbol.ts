@@ -1,5 +1,4 @@
 import { Lexer } from "@candlefw/wind";
-import { Helper } from "../compiler/helper.js";
 import { Grammar } from "../types/grammar.js";
 import {
     AssertionFunctionSymbol,
@@ -15,9 +14,7 @@ import {
 } from "../types/symbol";
 import { SymbolType } from "../types/symbol_type.js";
 import { getTrueSymbolValue } from "./code_generating.js";
-import { rec_consume_call, rec_glob_data_name, rec_state } from "./global_names.js";
 import { Item } from "./item.js";
-import { ConstSC, SC, StmtSC, VarSC } from "./skribble.js";
 
 
 export function characterToUTF8(char: string) {
@@ -33,9 +30,6 @@ export function characterToUTF8(char: string) {
     } else {
         return `utf8_4(l,${code_point})`;
     }
-
-
-
 }
 export function convertSymbolToString(sym: Symbol) {
     switch (sym.type) {
@@ -84,7 +78,12 @@ export function Sym_Is_Consumed(s: Symbol): boolean {
 }
 export function Sym_Is_A_Production(s: Symbol): s is ProductionSymbol {
     if (!s) return false;
-    return s.type == SymbolType.PRODUCTION;
+    return s.type == SymbolType.PRODUCTION || Sym_Is_A_Production_Token(s);
+}
+
+export function Sym_Is_A_Production_Token(s: Symbol): s is (ProductionTokenSymbol) {
+    if (!s) return false;
+    return (s.type == SymbolType.PRODUCTION_TOKEN_SYMBOL);
 }
 
 export function Sym_Is_A_Terminal(s: Symbol): s is TokenSymbol {
@@ -103,18 +102,13 @@ export function Sym_Is_An_Assert_Function(s: Symbol): s is AssertionFunctionSymb
 export function Sym_Is_A_Generic_Type(s: Symbol): s is (GeneratedSymbol | EOFSymbol) {
     return (s.type == SymbolType.GENERATED || Sym_Is_EOF(s));
 }
-
-export function Sym_Is_A_Production_Token(s: Symbol): s is (ProductionTokenSymbol) {
-    if (!s) return false;
-    return (s.type == SymbolType.PRODUCTION_TOKEN_SYMBOL);
-}
 /**
  * Any symbol that is not Generated, an AssertFunction, or a Production
  * @param s
  */
 
 export function Sym_Is_Defined(s: Symbol): s is DefinedSymbol {
-    return !Sym_Is_A_Production(s) && !Sym_Is_A_Generic_Type(s) && !Sym_Is_A_Production_Token(s);
+    return !Sym_Is_A_Production(s) && !Sym_Is_A_Generic_Type(s);
 }
 /**
  * A SpecifiedSymbol that is not a SpecifiedIdentifierSymbol nor a SpecifiedNumericSymbol

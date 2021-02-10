@@ -201,11 +201,7 @@ function getClosureGroups(
         } else if (!Sym_Is_A_Production(sym)) {
 
             let syms = [sym];
-
-            if (Sym_Is_A_Production_Token(sym)) {
-                syms = <TokenSymbol[]>getSymbolsFromClosure(getClosure([item], grammar, true), grammar).filter(s => !Sym_Is_A_Production_Token(s));
-            }
-
+            
             for (const sym of syms) {
 
                 const new_closure = [];

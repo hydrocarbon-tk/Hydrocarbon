@@ -41,7 +41,6 @@ export function yieldTransitions(
         active_items = in_items.filter(item => {
             const sym = item.sym(grammar) || EOF_SYM;
             return Sym_Is_A_Production(sym)
-                || Sym_Is_A_Production_Token(sym)
                 || item.atEND
                 || filter_symbols.length == 0
                 || filter_symbols.some(f => Symbols_Are_The_Same(f, sym));

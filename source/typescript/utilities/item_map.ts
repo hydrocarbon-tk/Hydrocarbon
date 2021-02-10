@@ -151,7 +151,7 @@ function addFollowInformation(item: Item, grammar: Grammar, check_set: Set<strin
 
                 if (!look_ahead.atEND) {
 
-                    if (Sym_Is_A_Production(sym) || Sym_Is_A_Production_Token(sym)) {
+                    if (Sym_Is_A_Production(sym)) {
                         follow = follow.concat(getFirstTerminalSymbols(getProductionID(sym, grammar), grammar)).setFilter(getUniqueSymbolName);
                     } else {
                         follow = follow.concat(sym).setFilter(getUniqueSymbolName);
@@ -169,7 +169,7 @@ function addFollowInformation(item: Item, grammar: Grammar, check_set: Set<strin
 
         } else follow = getTrueSymbolValue(sym, grammar);
 
-    if (Sym_Is_A_Production(item_sym) || Sym_Is_A_Production_Token(item_sym)) {
+    if (Sym_Is_A_Production(item_sym)) {
 
         const
             parent_prod_id = item.getProduction(grammar).id,
@@ -247,7 +247,7 @@ function processClosures(
 
             const sym = item.sym(grammar);
 
-            if (sym.type == SymbolType.PRODUCTION) {
+            if (Sym_Is_A_Production(sym)) {
                 const prod_id = sym.val;
                 temp.push(...extant_production_item_maps[prod_id].item_maps.flatMap(i => i.closure));
             }
@@ -328,9 +328,9 @@ function processSkippedSymbols(grammar: Grammar, item_maps_in_process: ItemMapEn
         item_map.skippable = new Set(
             standard_skips
                 .filter(i => {
-                    if (Sym_Is_A_Production_Token(i) && (item_map.breadcrumbs.has(getProductionID(i, grammar)))) {
-                        return false;
-                    }
+                    //if (Sym_Is_A_Production_Token(i) && (item_map.breadcrumbs.has(getProductionID(i, grammar)))) {
+                    //    return false;
+                    //}
                     return true;
                 })
                 .map(getSymbolName)

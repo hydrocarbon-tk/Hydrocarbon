@@ -66,7 +66,7 @@ export default function (sym, env: GrammarParserEnvironment) {
                 if (prod.bodies) {
                     for (const body of prod.bodies) {
                         for (const sym of body.sym) {
-                            if ((Sym_Is_A_Production(sym) || Sym_Is_A_Production_Token(sym)) && !sym.IMPORTED && sym.val !== -55) {
+                            if (Sym_Is_A_Production(sym) && !sym.IMPORTED && sym.val !== -55) {
                                 sym.val = -55;
                                 sym.name = `${id}$${sym.name}`;
                             }
