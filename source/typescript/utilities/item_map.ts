@@ -294,7 +294,7 @@ function convertItemMapClosureItemsToStrings(item_maps_in_process: ItemMapEntry[
         const { item } = item_map, item_id = item.id;
 
         //Convert items to their string identifier to be more data friendly when transferring to workers. 
-        item_map.closure = (<Item[]><any>item_map.closure).map(i => i.id);
+        item_map.closure = (<Item[]><any>item_map.closure).map(i => i.id).setFilter();
 
         //for (const sub_item_id of item_map.closure)
         //    if (item_id !== sub_item_id)
