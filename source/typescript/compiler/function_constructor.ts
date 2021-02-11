@@ -86,7 +86,7 @@ export function compileProductionFunctions(
      * to the first transition encountered.
      */
     filter_symbols: Symbol[] = const_EMPTY_ARRAY,
-    IS_VIRTUAL = false
+    IS_VIRTUAL: number = 0
 ) {
     const
 
@@ -136,7 +136,7 @@ export function generateOptions(
      * The production currently being processed.
      */
     productions: Production[],
-    IS_VIRTUAL: boolean,
+    IS_VIRTUAL: number,
     scope: "RD" | "GOTO" = "RD"
 ): RenderBodyOptions {
     return {
@@ -151,7 +151,7 @@ export function generateOptions(
         leaf_productions: new Set(),
         active_keys: [],
         leaves: [],
-        IS_VIRTUAL,
+        VIRTUAL_LEVEL: IS_VIRTUAL,
         NO_GOTOS: false,
         global_production_items: [...grammar.item_map.values()].map(i => i.item).filter(i => !i.atEND && Sym_Is_A_Production(i.sym(grammar)))
     };

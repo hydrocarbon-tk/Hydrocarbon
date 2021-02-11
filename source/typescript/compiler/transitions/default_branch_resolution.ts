@@ -303,11 +303,10 @@ function addIfStatementTransition(
         if_stmt = SC.If();
 
 
-
     if (
         true
         && traffic.length >= 8
-        && !options.IS_VIRTUAL
+        && options.VIRTUAL_LEVEL <= 0
         && breadcrumb_items.every(i => !i.atEND)
         && Math.min(...breadcrumb_items.map(i => i.len)) > 2
     ) {

@@ -10,52 +10,65 @@ function remapBodyModifiers<B>(map: Map<number, B>, item: Item): Map<number, B> 
         .map(([number, value]) => [number - item.offset, value]));
 }
 export type VirtualProductionLinks = Map<string, { p: Production; i: number; }>;
-export function createVirtualProductions(items: Item[], grammar: Grammar): VirtualProductionLinks {
+export function createVirtualProductions(items: Item[], grammar: Grammar): {
+    V_PRODS_ALREADY_EXIST: boolean;
+    links: VirtualProductionLinks;
+} {
     const output: VirtualProductionLinks = new Map;
 
+    let V_PRODS_ALREADY_EXIST = false;
     let i = 0;
 
-    //Create virtual productions for this state. 
-    for (const item of items) {
+    //Check to so if these virtual productions already exist
+    if (items.every(i => i.getProduction(grammar).type == "virtual-production")) {
 
+        for (const item of items)
+            output.set(item.id, { p: item.getProduction(grammar), i: i++ });
 
+        V_PRODS_ALREADY_EXIST = true;
 
-        const
-            body = item.body_(grammar),
-            sym = body.sym.slice(item.offset),
-            virtual_body = <ProductionBody>{
-                id: grammar.bodies.length,
-                name: `virtual-body-${item.id}`,
-                BUILT: true,
-                FORK_ON_ENTRY: false,
-                error: null,
-                sym: sym,
-                excludes: remapBodyModifiers(body.excludes, item),
-                reset: remapBodyModifiers(body.reset, item),
-                ignore: remapBodyModifiers(body.ignore, item),
-                length: sym.length,
-                uid: sym.map(getUniqueSymbolName).join(":"),
-                production: null,
-            },
+    } else {
 
-            production = <Production>{
-                id: grammar.length,
-                name: `virtual-${item.id}`,
-                type: "virtual-production",
-                HAS_EMPTY: false,
-                CHECKED_FOR_EMPTY: false,
-                IMPORTED: false,
-                bodies: [virtual_body],
-            };
+        //Create virtual productions for this item. 
 
-        virtual_body.production = production;
+        for (const item of items) {
+            const
+                body = item.body_(grammar),
+                sym = body.sym.slice(item.offset),
+                virtual_body = <ProductionBody>{
+                    id: grammar.bodies.length,
+                    name: `virtual-body-${item.id}`,
+                    BUILT: true,
+                    FORK_ON_ENTRY: false,
+                    error: null,
+                    sym: sym,
+                    excludes: remapBodyModifiers(body.excludes, item),
+                    reset: remapBodyModifiers(body.reset, item),
+                    ignore: remapBodyModifiers(body.ignore, item),
+                    length: sym.length,
+                    uid: sym.map(getUniqueSymbolName).join(":"),
+                    production: null,
+                },
 
-        grammar.bodies.push(virtual_body);
-        grammar.push(production);
-        output.set(item.id, { p: production, i: i++ });
+                production = <Production>{
+                    id: grammar.length,
+                    name: `virtual-${item.id}`,
+                    type: "virtual-production",
+                    HAS_EMPTY: false,
+                    CHECKED_FOR_EMPTY: false,
+                    IMPORTED: false,
+                    bodies: [virtual_body],
+                };
+
+            virtual_body.production = production;
+
+            grammar.bodies.push(virtual_body);
+            grammar.push(production);
+            output.set(item.id, { p: production, i: i++ });
+        }
+
+        buildItemMaps(grammar, Array.from(output.values()).map(({ p }) => p));
     }
 
-    buildItemMaps(grammar, Array.from(output.values()).map(({ p }) => p));
-
-    return output;
+    return { links: output, V_PRODS_ALREADY_EXIST };
 }

@@ -12,6 +12,7 @@ import { compileProductionFunctions } from "../function_constructor.js";
 import { addVirtualProductionLeafStatements } from "./add_leaf_statements.js";
 import { processProductionChain } from "./process_production_reduction_sequences.js";
 import { createVirtualProductions, VirtualProductionLinks } from "../../utilities/virtual_productions.js";
+import { option } from "commander";
 
 export function default_resolveUnresolvedLeaves(node: TransitionNode, nodes: TransitionNode[], options: RenderBodyOptions): MultiItemReturnObject {
 
@@ -133,12 +134,15 @@ export function createVirtualProductionSequence(
      * 
      */
     ALLOCATE_FUNCTION: boolean = false,
-    transition_type: TRANSITION_TYPE = TRANSITION_TYPE.ASSERT_END
+    transition_type: TRANSITION_TYPE = TRANSITION_TYPE.ASSERT_END,
 ) {
     const
         { grammar } = options,
-        virtual_links: VirtualProductionLinks = createVirtualProductions(items, grammar);
+        { links: virtual_links, V_PRODS_ALREADY_EXIST } = createVirtualProductions(items, grammar);
 
+
+    if (V_PRODS_ALREADY_EXIST)
+        throw new Error("Virtual productions already exists, interminable loop detected");
 
     const { RDOptions, GOTO_Options, RD_fn_contents, GOTO_fn_contents }
         = compileProductionFunctions(
@@ -146,7 +150,7 @@ export function createVirtualProductionSequence(
             options.helper,
             Array.from(virtual_links.values()).map(({ p }) => p),
             expected_symbols,
-            true
+            options.VIRTUAL_LEVEL + 1
         );
 
     addVirtualProductionLeafStatements(
