@@ -9,7 +9,7 @@ import { getSymbolsFromClosure } from "../../utilities/symbol.js";
 import { getTransitionTree } from "../../utilities/transition_tree.js";
 import { const_EMPTY_ARRAY } from "../../utilities/const_EMPTY_ARRAY.js";
 import { createTransitionNode } from "./create_transition_node.js";
-import { processProductionChain } from "./process_production_reduction_sequences.js";
+import { processProductionChain } from "../../utilities/process_production_reduction_sequences.js";
 import { buildPeekTransitions } from "./yield_peek_transitions.js";
 
 

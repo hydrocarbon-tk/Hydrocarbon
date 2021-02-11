@@ -1,8 +1,8 @@
-import { RenderBodyOptions } from "../../types/render_body_options";
+import { RenderBodyOptions } from "../types/render_body_options";
 
-import { getGotoItems, Item, itemsToProductions } from "../../utilities/item.js";
-import { renderItemReduction } from "../../utilities/render_item.js";
-import { SC } from "../../utilities/skribble.js";
+import { getGotoItems, Item, itemsToProductions } from "./item.js";
+import { renderItemReduction } from "./render_item.js";
+import { SC } from "./skribble.js";
 
 export function processProductionChain(
     code_node: SC,
@@ -15,7 +15,7 @@ export function processProductionChain(
 ): number[] {
     let active_items: Item[] = [], { grammar, goto_items } = options;
 
-    let prod = active_productions, visited_prods: Set<string> = new Set;
+    let prod = active_productions || [], visited_prods: Set<string> = new Set;
 
     const items = (goto_items);
 

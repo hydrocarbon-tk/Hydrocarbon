@@ -8,7 +8,7 @@ import { Item, itemsToProductions } from "../../utilities/item.js";
 import { renderItem } from "../../utilities/render_item.js";
 import { SC } from "../../utilities/skribble.js";
 import { getSkippableSymbolsFromItems } from "../../utilities/symbol.js";
-import { processProductionChain } from "./process_production_reduction_sequences.js";
+import { processProductionChain } from "../../utilities/process_production_reduction_sequences.js";
 
 
 
