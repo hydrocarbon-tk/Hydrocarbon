@@ -1,5 +1,7 @@
 @IGNORE g:ws g:nl tk:comment
 
+@IMPORT default-productions as def
+
 <> skribble > statements(*)
 
 <> statements > import 
@@ -7,7 +9,8 @@
     | primitive_declaration
     | struct
     | function
-    | namespace 
+    | namespace
+    | template
 
 <> import > \import tk:string
 
@@ -77,10 +80,13 @@ f:r {
 <> modifier_list >\[ modifier(+) \] 
 f:r { $sym2 }
 
-<> expression_statements > expression_statements ( \; (+) expression? f:r { $$sym2 }  )?
+<> expression_statements > expression_statements ( \; (+) (expression | primitive_declaration)? f:r { $$sym2 }  )?
 f:r {  $$sym2 ?  ($sym1.push($sym2),$sym1)  : $sym1  }
-    | expression  
-f:r { [ $sym1 ] }                                                          
+# This > ( expression | primitive_declaration ) < will not work. Why?
+    | expression 
+f:r { [ $sym1 ] }
+    |primitive_declaration 
+f:r { [ $sym1 ] }                                          
 
 <> expression > assignment_expression
     | if_expression
@@ -92,6 +98,7 @@ f:r { [ $sym1 ] }
     | loop_expression
     | \{ expression_statements? \}
     f:r { { type:"block", expression:$sym2 || [] } }  
+    | template
 
 <> assignment_expression > member_expression \= expression
 f:r {  
@@ -101,9 +108,6 @@ f:r {
         expression:$sym3
     }  
 }
-
-
-    | primitive_declaration
 
 <> if_expression > \if expression \: expression ( \else expression  )?
 f:r { { type:"if", assertion: $$sym2, expression: $$sym4, else: $$sym5  } }
@@ -119,7 +123,7 @@ f:r {
     | call_expression
     | member_expression
     | function_expression
-    | \( expression \)
+    | \( expression | primitive_declaration \)
     f:r { { type:"paren", expression:$sym2 } }  
     | value
 
@@ -175,7 +179,7 @@ f:r { { type:"symbol", val: $sym1 + $sym2  } }
     | \string
     | \str 
 
-<> value > g:num 
+<> value > num
 f:r { { type:"number", value: $$sym1  } }
 
 | tk:string 
@@ -190,6 +194,8 @@ f:r { { type:"false"  } }
 | \null
 f:r { { type:"null"  } }
 
+| template
+
 <> modifier > \pub | \priv | \export | \mut | \imut | g:id
 
 <> string > \" ( g:ws | g:nl | g:id | g:sym | \\" )(*\' ) \"
@@ -203,3 +209,13 @@ f:r { { type:"identifier", value: $$sym1  } }
     | \// ( g:id | g:sym | g:num )(*) ( ?=g:nl )
 
 <> meta_template_replacement > \<< ( g:id | g:sym | g:num )(*) \>>
+
+<> num > num_tok
+
+<> num_tok > def::number
+    | def::hex
+    | def::binary
+    | def::octal
+
+<> template > \<<-- g:num? \-->> 
+f:r { env.grabTemplateNode() }
