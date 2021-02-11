@@ -103,8 +103,10 @@ export function createVirtualProductionSequence(
 ) {
     const
         { grammar } = options,
-        virtual_links: VirtualProductionLinks = createVirtualProductions(items, grammar);
+        { links: virtual_links, V_PRODS_ALREADY_EXIST } = createVirtualProductions(items, grammar);
 
+    if (V_PRODS_ALREADY_EXIST)
+        throw new Error("Virtual productions already exists, interminable loop detected");
 
     const { RDOptions, GOTO_Options, RD_fn_contents, GOTO_fn_contents }
         = compileProductionFunctions(
@@ -112,7 +114,7 @@ export function createVirtualProductionSequence(
             options.helper,
             Array.from(virtual_links.values()).map(({ p }) => p),
             expected_symbols,
-            (CLEAN ? 1 : options.IS_VIRTUAL + 1)
+            (CLEAN ? 1 : options.VIRTUAL_LEVEL + 1)
         );
 
     addVirtualProductionLeafStatements(
@@ -204,7 +206,7 @@ export function compileProductionFunctions(
      * to the first transition encountered.
      */
     filter_symbols: Symbol[] = const_EMPTY_ARRAY,
-    IS_VIRTUAL = 0
+    IS_VIRTUAL: number = 0
 ) {
     //if (IS_VIRTUAL > 32) throw new Error("Virtual production depth is too high");
 
@@ -271,7 +273,7 @@ export function generateOptions(
         active_keys: [],
         leaves: [],
         branches: [],
-        IS_VIRTUAL,
+        VIRTUAL_LEVEL: IS_VIRTUAL,
         NO_GOTOS: false,
         global_production_items: [...grammar.item_map.values()].map(i => i.item).filter(i => !i.atEND && Sym_Is_A_Production(i.sym(grammar)))
     };

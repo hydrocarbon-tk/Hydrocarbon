@@ -5,7 +5,7 @@ import { getClosure } from "../../utilities/closure.js";
 import { const_EMPTY_ARRAY } from "../../utilities/const_EMPTY_ARRAY.js";
 import { Item, Items_Have_The_Same_Active_Symbol } from "../../utilities/item.js";
 import { getProductionID } from "../../utilities/production.js";
-import { Sym_Is_A_Production, Sym_Is_A_Production_Token } from "../../utilities/symbol.js";
+import { getUniqueSymbolName, Sym_Is_A_Production, Sym_Is_A_Production_Token } from "../../utilities/symbol.js";
 import { getTransitionTree } from "../../utilities/transition_tree.js";
 import { createTransitionNode } from "./create_transition_node.js";
 import { yieldEndItemTransitions } from "./yield_end_item_transitions.js";
@@ -167,7 +167,6 @@ function addUnresolvedNode(node: TransitionNode, options: RenderBodyOptions, off
             convertPeekStateToSingleItemNode(node, options, offset);
 
         } else {
-
 
             for (const items_with_same_symbol of filtered_items.group(i => i.sym(options.grammar))) {
 
