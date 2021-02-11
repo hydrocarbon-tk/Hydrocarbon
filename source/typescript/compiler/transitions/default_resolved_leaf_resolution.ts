@@ -15,23 +15,23 @@ import { processProductionChain } from "../../utilities/process_production_reduc
 export function default_resolveResolvedLeaf(item: Item, state: TransitionNode, options: RenderBodyOptions): SingleItemReturnObject {
 
     const
-        { grammar, helper: runner, leaf_productions, productions: production, production_ids, extended_goto_items: extended_production_shift_items, leaves } = options,
+        { grammar, helper: runner, leaf_productions,  production_ids, extended_goto_items: extended_production_shift_items, leaves } = options,
         code = state.code || new SC,
         SHOULD_IGNORE = extended_production_shift_items.some(i => i.body == item.body);
 
-    let leaf_code = code, prods = [];
+    let leaf_node = code, prods = [];
 
     code.addStatement(createTransitionTypeAnnotation(options, [state.transition_type]));
 
     if (SHOULD_IGNORE) {
-        leaf_code.addStatement(SC.Comment("SHOULD IGNORE"));
+        leaf_node.addStatement(SC.Comment("SHOULD IGNORE"));
         state.transition_type = TRANSITION_TYPE.IGNORE;
         return {
             leaf: {
-                root: leaf_code,
-                leaf: leaf_code,
+                root: leaf_node,
+                leaf: leaf_node,
                 prods,
-                hash: leaf_code.hash(),
+                hash: leaf_node.hash(),
                 transition_type: state.transition_type
             }
         };
@@ -45,11 +45,11 @@ export function default_resolveResolvedLeaf(item: Item, state: TransitionNode, o
 
             const bool = createProductionCall(item.getProduction(grammar), options, rec_glob_lex_name);
 
-            leaf_code = SC.If(bool);
+            leaf_node = SC.If(bool);
 
-            code.addStatement(leaf_code);
+            code.addStatement(leaf_node);
 
-            prods = processProductionChain(leaf_code, options, itemsToProductions([item], grammar));
+            prods = processProductionChain(leaf_node, options, itemsToProductions([item], grammar));
 
         } else {
 
@@ -66,21 +66,19 @@ export function default_resolveResolvedLeaf(item: Item, state: TransitionNode, o
 
             code.addStatement(sc);
 
-            leaf_code = renderItem(sc, item, options, state.transition_type == TRANSITION_TYPE.ASSERT);
-
-            prods = processProductionChain(leaf_code, options, itemsToProductions([item], grammar));
+            ({ leaf_node, prods } = renderItem(sc, item, options, state.transition_type == TRANSITION_TYPE.ASSERT));
         }
 
         for (const prod of prods)
             leaf_productions.add(prod);
     }
-
-    leaf_code.shiftStatement(SC.Comment("--unique-id--" + prods.setFilter().sort().join("-") + item.id + "--DO-NOT-REPLACE"));
+    //leaf_node.shiftStatement(SC.Comment("--unique-id--" + prods.setFilter().sort().join("-") + item.id + "--DO-NOT-REPLACE"));
+    //leaf_code.shiftStatement(SC.Comment("--unique-id--" + prods.setFilter().sort().join("-") + item.id + "--DO-NOT-REPLACE"));
 
     return {
         leaf: {
             root: code,
-            leaf: leaf_code,
+            leaf: leaf_node,
             prods,
             hash: code.hash(),
             transition_type: state.transition_type

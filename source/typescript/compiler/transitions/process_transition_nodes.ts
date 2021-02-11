@@ -91,9 +91,9 @@ export function processTransitionNodes(
 
                     if (WE_HAVE_UNRESOLVED_LEAVES) {
                         ({ root, leaves } = conflicting_leaf_resolve_function(virtual_state, nodes, options));
-                        if (options.helper.ANNOTATED)
-                            if (root)
-                                root.shiftStatement("--UNRESOLVED-BRANCH--");
+                        //if (options.helper.ANNOTATED)
+                        //    if (root)
+                        //        root.shiftStatement("--UNRESOLVED-BRANCH--");
                     } else {
                         root = branch_resolve_function(
                             traverseInteriorNodes(filtered_nodes, options, grouping_fn),
@@ -113,9 +113,9 @@ export function processTransitionNodes(
                 node.code = root;
                 node.hash = hash;
 
-                if (options.helper.ANNOTATED)
-                    if (root)
-                        root.shiftStatement("--BRANCH--");
+                //if (options.helper.ANNOTATED)
+                //    if (root)
+                //        root.shiftStatement("--BRANCH--");
 
                 break;
 

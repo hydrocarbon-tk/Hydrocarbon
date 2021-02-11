@@ -1,24 +1,22 @@
 import { RenderBodyOptions } from "../../types/render_body_options";
-import { TransitionClauseGenerator, TransitionGroup } from "../../types/transition_generating";
 import { Symbol, TokenSymbol } from "../../types/symbol.js";
+import { TransitionClauseGenerator, TransitionGroup } from "../../types/transition_generating";
 import { Leaf, TransitionNode, TRANSITION_TYPE } from "../../types/transition_node.js";
-import { getClosure } from "../../utilities/closure.js";
-import { createBranchFunction, createConsume, createProductionCall, createSkipCall, createSymbolMappingFunction, getIncludeBooleans, getProductionFunctionName } from "../../utilities/code_generating.js";
+import { createBranchFunction, createConsume, createSkipCall, createSymbolMappingFunction, getIncludeBooleans, getProductionFunctionName } from "../../utilities/code_generating.js";
 import { createTransitionTypeAnnotation } from "../../utilities/create_transition_type_annotation.js";
 import { rec_glob_data_name, rec_glob_lex_name } from "../../utilities/global_names.js";
 import { Item } from "../../utilities/item.js";
-import { getProductionClosure, Production_Is_Trivial } from "../../utilities/production.js";
 import { ExprSC, SC, VarSC } from "../../utilities/skribble.js";
 import {
     Defined_Symbols_Occlude,
     getSkippableSymbolsFromItems,
     getSymbolName,
-    getTokenSymbolsFromItems,
+
     getUniqueSymbolName,
     Symbols_Are_The_Same, Sym_Is_A_Production,
     Sym_Is_EOF
 } from "../../utilities/symbol.js";
-import { createVirtualProductionSequence } from "./default_unresolved_leaves_resolution.js";
+import { createVirtualProductionSequence } from "../function_constructor.js";
 
 /**
  * Handles intermediate state transitions. 
@@ -219,10 +217,8 @@ function createIfElseBlock(
 
                 options.called_productions.add(<number>production.id);
 
-                const call_name = createBranchFunction(items.map(i => i.increment()), code, grammar, runner);
-
+                const call_name = createBranchFunction(code, code, options);
                 const rc = new SC;
-
                 rc.addStatement(SC.Call("pushFN", "data", call_name));
                 rc.addStatement(SC.Call("pushFN", "data", getProductionFunctionName(production, grammar)));
                 rc.addStatement(SC.UnaryPre(SC.Return, SC.Value("0")));
@@ -334,7 +330,7 @@ function addIfStatementTransition(
     if (
         true
         && traffic.length >= 8
-        && !options.IS_VIRTUAL
+        && options.IS_VIRTUAL == 0
         && breadcrumb_items.every(i => !i.atEND)
         && Math.min(...breadcrumb_items.map(i => i.len)) > 2
     ) {
@@ -354,7 +350,7 @@ function addIfStatementTransition(
             //Add peek
         }
 
-        createVirtualProductionSequence(options, breadcrumb_items, [], sc, leaves, [], true, TRANSITION_TYPE.ASSERT);
+        createVirtualProductionSequence(options, breadcrumb_items, [], sc, leaves, [], true, TRANSITION_TYPE.ASSERT, true);
 
     } else {
 

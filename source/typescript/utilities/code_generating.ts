@@ -1,3 +1,4 @@
+import crypto from "crypto";
 import { Helper } from "../compiler/helper.js";
 import { Grammar } from "../types/grammar.js";
 import { Production } from "../types/production.js";
@@ -18,14 +19,13 @@ import {
     getTokenSymbolsFromItems,
     getUniqueSymbolName,
     Sym_Is_An_Assert_Function,
-    Sym_Is_A_Generic_Identifier, Sym_Is_A_Generic_Number, Sym_Is_A_Generic_Type,
-    Sym_Is_A_Production,
-    Sym_Is_A_Production_Token,
+    Sym_Is_A_Generic_Identifier,
+    Sym_Is_A_Generic_Number,
+    Sym_Is_A_Generic_Type,
     Sym_Is_A_Terminal,
     Sym_Is_Consumed,
     Sym_Is_Defined, Sym_Is_Defined_Identifier, Sym_Is_Defined_Natural_Number, Sym_Is_EOF, Sym_Is_Not_An_Identifier, Sym_Is_Not_Consumed
 } from "./symbol.js";
-import crypto from "crypto";
 /**
  * Length of code hash string appended to GUID constant names. 
  */
@@ -175,11 +175,16 @@ export function getSkipFunctionNew(
     return <VarSC>fn_ref;
 }
 
-export function createBranchFunction(items: Item[], branch_code: SC, grammar: Grammar, runner: Helper): VarSC {
+export function collapseBranchNames(options: RenderBodyOptions) {
+    const { branches, helper: runner } = options;
 
-    let fn_ref = getGlobalObject("branch", items, runner);
+    for (const { name, body } of branches) {
+        let fn_ref;
+        //  fn_ref = getGlobalObject("branch", body, runner);
 
-    if (!fn_ref) {
+        const hash = body.hash();
+
+        //    if (!fn_ref) {
 
         const
 
@@ -189,15 +194,36 @@ export function createBranchFunction(items: Item[], branch_code: SC, grammar: Gr
                 rec_glob_data_name,
                 "state:u32",
                 "prod:u32"
-            ).addStatement(
-                (runner.ANNOTATED)
-                    ? items.map(i => i.renderUnformattedWithProduction(grammar)).join("\n")
-                    : undefined,
-                branch_code
+            ).addStatement(body,
+                hash,
             );
 
-        fn_ref = <VarSC>packGlobalFunction("branch", "bool", items, token_function, runner);
+        fn_ref = <VarSC>packGlobalFunction("branch", "bool", body, token_function, runner);
+        // }
+
+
+
+        name.type = (<VarSC>fn_ref).type;
     }
+}
+/**
+ * It is important that the actual assignment of the branch names is differed 
+ * until the complete processing of all leaf items, as further code can be
+ * add from now until then, which should be reflected in the name of the branch
+ * function.
+ * 
+ * @param items 
+ * @param branch_code 
+ * @param options 
+ */
+export function createBranchFunction(items: SC, branch_code: SC, options: RenderBodyOptions): VarSC {
+
+    let fn_ref = SC.Variable("temporary_name:void");
+
+    options.branches.push({
+        name: fn_ref,
+        body: branch_code
+    });
 
     return <VarSC>fn_ref;
 }
@@ -678,6 +704,19 @@ export function getIncludeBooleans(
     if (ty.length > 0)
         out_ty = ty.sort((a, b) => a.val < b.val ? -1 : 1).map(s => translateSymbolValue(s, grammar, lex_name));
 
+    /*
+    if (tk.length > 0) {
+        for (const tok of tk) {
+
+            const
+                fn_name = createProductionTokenFunction(tok, grammar, runner),
+                fn = SC.Call(fn_name, lex_name, rec_glob_data_name);
+
+            out_tk.push(fn);
+        }
+    }
+    */
+
     return convertExpressionArrayToBoolean([...out_non_consume, ...out_tk, ...out_id, ...out_ty, ...out_fn]);
 }
 
@@ -715,13 +754,13 @@ export function getTrueSymbolValue(sym: TokenSymbol, grammar: Grammar): TokenSym
 /**
  * 
  */
-export function packGlobalFunction(fn_class: string, fn_type: string, unique_objects: (Symbol | Item)[], fn: SC, helper: Helper) {
+export function packGlobalFunction(fn_class: string, fn_type: string, unique_objects: ((Symbol | Item)[] | SC), fn: SC, helper: Helper) {
     const string_name = getGloballyConsistentName(fn_class, unique_objects);
     const function_name = SC.Variable(string_name + ":" + fn_type);
     return helper.add_constant(function_name, fn);
 }
 
-function getGlobalObject(fn_class: string, unique_objects: (Symbol | Item)[], runner: Helper) {
+function getGlobalObject(fn_class: string, unique_objects: ((Symbol | Item)[] | SC), runner: Helper) {
     const name = getGloballyConsistentName(fn_class, unique_objects);
 
     return runner.constant_map.has(name)
@@ -732,17 +771,23 @@ function getGlobalObject(fn_class: string, unique_objects: (Symbol | Item)[], ru
  * Generate a function name that is consistent amongst
  * all workers. 
  */
-export function getGloballyConsistentName(prepend_js_identifier: string, unique_objects: (Symbol | Item)[]): string {
+export function getGloballyConsistentName(prepend_js_identifier: string, unique_objects: ((Symbol | Item)[] | SC)): string {
 
     let string_to_hash = "";
-    if (This_Is_An_Item_Array(unique_objects)) {
-        string_to_hash = unique_objects.map(i => i.id).setFilter().sort().join("");
+    if ((unique_objects instanceof SC)) {
+        string_to_hash = unique_objects.hash();
     } else {
-        string_to_hash = (<Symbol[]>unique_objects).map(getUniqueSymbolName).setFilter().sort().join("");
+        if (This_Is_An_Item_Array(unique_objects)) {
+            string_to_hash = unique_objects.map(i => i.id).setFilter().sort().join("");
+        } else {
+            string_to_hash = (<Symbol[]>unique_objects).map(getUniqueSymbolName).setFilter().sort().join("");
+        }
+
+        string_to_hash = crypto.createHash('md5').update(string_to_hash).digest("hex");
     }
 
 
-    return `${prepend_js_identifier}_${crypto.createHash('md5').update(string_to_hash).digest("hex").slice(0, 16)}`;
+    return `${prepend_js_identifier}_${string_to_hash.slice(0, 16)}`;
 }
 
 function This_Is_An_Item_Array(input: any[]): input is Item[] {

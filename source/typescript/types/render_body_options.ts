@@ -1,5 +1,6 @@
 import { Helper } from "../compiler/helper.js";
 import { Item } from "../utilities/item.js";
+import { SC, VarSC } from "../utilities/skribble.js";
 import { Grammar } from "./grammar.js";
 import { Production } from "./production";
 import { Leaf } from "./transition_node.js";
@@ -64,13 +65,15 @@ export interface RenderBodyOptions {
     NO_GOTOS: boolean;
 
     /**
-     * If then create a functions sequence for a virtual production
+     * If this number is more than zero, then the we are processing a virtual production
      */
-    IS_VIRTUAL: boolean;
+    IS_VIRTUAL: number;
     /**
      * All items in the grammar that are `S => a . A` for some production `A`
      */
     global_production_items: Item[];
+
+    branches: { name: VarSC, body: SC; }[];
 
 }
 export const enum ReturnType {

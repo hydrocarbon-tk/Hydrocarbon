@@ -195,7 +195,7 @@ export function addClauseSuccessCheck(options: RenderBodyOptions): SC {
 
 export function createDebugCall(options: RenderBodyOptions, action_name, debug_items: Item[] = []) {
 
-    const { productions: production, helper: runner } = options;
+    const {helper: runner } = options;
     return SC.Empty();
     if (runner.DEBUG)
         return SC.Value(`debug_add_header(0,l.getOffsetRegionDelta(),0,0,0,0)`);

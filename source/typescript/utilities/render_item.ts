@@ -11,7 +11,7 @@ import {
     getProductionFunctionName
 } from "./code_generating.js";
 import { rec_glob_lex_name } from "./global_names.js";
-import { Item } from "./item.js";
+import { Item, itemsToProductions } from "./item.js";
 import { SC, VarSC } from "./skribble.js";
 import {
     getRootSym,
@@ -19,6 +19,7 @@ import {
 
     Sym_Is_A_Production
 } from "./symbol.js";
+import { processProductionChain } from "./process_production_reduction_sequences.js";
 
 export function renderItemReduction(
     code_node: SC,
@@ -74,9 +75,12 @@ export function renderItem(
     options: RenderBodyOptions,
     RENDER_WITH_NO_CHECK = false,
     lexer_name: VarSC = rec_glob_lex_name,
-    FROM_UPPER = false
-): SC {
+    FROM_UPPER = false,
+    items = [],
+): { leaf_node: SC, prods: number[]; } {
     const { grammar, helper: runner, called_productions } = options;
+
+    let prods = [];
 
     if (!item.atEND) {
 
@@ -99,17 +103,27 @@ export function renderItem(
 
             let call_body = new SC;
 
+            let items = [item.toEND()];
+
             if (IS_PASSTHROUGH) {
                 for (let prod_id of passthrough_chain.reverse()) {
                     const body = grammar[prod_id].bodies[0];
                     const body_item = new Item(body.id, body.length, body.length);
+                    items.push(body_item);
                     renderItemReduction(call_body, body_item, grammar);
                 }
             }
 
-            const code = renderItem(call_body, item.increment(), options, false, lexer_name, true);
+            let code;
 
-            const call_name = createBranchFunction([item.increment()], call_body, grammar, runner);
+            ({ leaf_node: code, prods } = renderItem(call_body, item.increment(), options, false, lexer_name, true, items));
+
+            //call_body.addStatement(options.goto_items.map(i => i.renderUnformattedWithProduction(options.grammar)).join("\n"));
+            // call_body.addStatement(prods.join("\n"));
+
+            const call_name = createBranchFunction(call_body, call_body, options);
+
+            //call_body.addStatement(call_body.hash());
 
             const rc = new SC;
 
@@ -119,7 +133,7 @@ export function renderItem(
 
             leaf_node.addStatement(rc);
 
-            return code;
+            return { leaf_node: code, prods };
 
         } else if (RENDER_WITH_NO_CHECK) {
             leaf_node.addStatement(createConsume(lexer_name));
@@ -137,9 +151,13 @@ export function renderItem(
             return renderItem(leaf_node, item.increment(), options, false, lexer_name, true);
         }
 
-    } else
+    } else {
 
         renderItemReduction(leaf_node, item, grammar);
 
-    return leaf_node;
+        prods = processProductionChain(leaf_node, options, itemsToProductions([item], grammar));
+    }
+
+
+    return { leaf_node, prods };
 }

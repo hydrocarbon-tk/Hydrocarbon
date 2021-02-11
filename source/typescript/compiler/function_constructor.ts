@@ -4,20 +4,23 @@ import { Production } from "../types/production";
 import { RDProductionFunction } from "../types/rd_production_function";
 import { RenderBodyOptions } from "../types/render_body_options";
 import { Symbol } from "../types/symbol.js";
-import { getProductionFunctionName } from "../utilities/code_generating.js";
-import { rec_glob_data_name, rec_glob_lex_name, rec_state } from "../utilities/global_names.js";
-import { Item } from "../utilities/item.js";
+import { collapseBranchNames, getProductionFunctionName, packGlobalFunction } from "../utilities/code_generating.js";
+import { rec_glob_data_name, rec_glob_lex_name, rec_state, rec_state_prod } from "../utilities/global_names.js";
+import { Item, ItemIndex } from "../utilities/item.js";
 import { getProductionClosure } from "../utilities/production.js";
 import { SC } from "../utilities/skribble.js";
 import { Sym_Is_A_Production } from "../utilities/symbol.js";
 import { Helper } from "./helper.js";
-import { addLeafStatements } from "./transitions/add_leaf_statements.js";
+import { addLeafStatements, addVirtualProductionLeafStatements } from "./transitions/add_leaf_statements.js";
 import { const_EMPTY_ARRAY } from "../utilities/const_EMPTY_ARRAY.js";
 import { default_resolveBranches } from "./transitions/default_branch_resolution.js";
 import { addClauseSuccessCheck, resolveGOTOBranches } from "./transitions/default_state_build.js";
 import { processTransitionNodes } from "./transitions/process_transition_nodes.js";
 import { yieldGOTOTransitions } from "./transitions/yield_goto_transitions.js";
 import { yieldTransitions } from "./transitions/yield_transitions.js";
+import { Leaf, TRANSITION_TYPE } from "../types/transition_node.js";
+import { createVirtualProductions, VirtualProductionLinks } from "../utilities/virtual_productions.js";
+import { renderItem } from "../utilities/render_item.js";
 
 export function constructHybridFunction(production: Production, grammar: Grammar, runner: Helper): RDProductionFunction {
 
@@ -53,7 +56,8 @@ export function constructHybridFunction(production: Production, grammar: Grammar
         RDOptions,
         GOTO_Options);
 
-
+    collapseBranchNames(RDOptions);
+    collapseBranchNames(GOTO_Options);
 
     if (!GOTO_Options.NO_GOTOS)
         GOTO_function.addStatement(addClauseSuccessCheck(RDOptions));
@@ -76,6 +80,120 @@ export function constructHybridFunction(production: Production, grammar: Grammar
     };
 }
 
+
+export function createVirtualProductionSequence(
+    options: RenderBodyOptions,
+    items: Item[],
+    expected_symbols: Symbol[] = [],
+    root: SC,
+    out_leaves: Leaf[],
+    out_prods: number[] = [],
+    /**
+     * If true, creates a new, globally consistent function
+     * and creates a call to this function in the current
+     * context of the output code. 
+     * 
+     * Otherwise, the virtual production code will be directly 
+     * inserted into the current code context.
+     * 
+     */
+    ALLOCATE_FUNCTION: boolean = false,
+    transition_type: TRANSITION_TYPE = TRANSITION_TYPE.ASSERT_END,
+    CLEAN = false
+) {
+    const
+        { grammar } = options,
+        virtual_links: VirtualProductionLinks = createVirtualProductions(items, grammar);
+
+
+    const { RDOptions, GOTO_Options, RD_fn_contents, GOTO_fn_contents }
+        = compileProductionFunctions(
+            options.grammar,
+            options.helper,
+            Array.from(virtual_links.values()).map(({ p }) => p),
+            expected_symbols,
+            (CLEAN ? 1 : options.IS_VIRTUAL + 1)
+        );
+
+    addVirtualProductionLeafStatements(
+        RD_fn_contents,
+        GOTO_fn_contents,
+        RDOptions,
+        GOTO_Options,
+        virtual_links
+    );
+
+
+    collapseBranchNames(RDOptions);
+    collapseBranchNames(GOTO_Options);
+
+    let prod_ref = rec_state_prod;
+
+    if (ALLOCATE_FUNCTION) {
+
+        const vp_fn = SC.Function("", "l", "data", "state")
+            .addStatement(
+                SC.Declare(SC.Assignment(rec_state_prod, "0xFFFFFFFF")),
+                RD_fn_contents,
+                GOTO_Options.NO_GOTOS ? undefined : GOTO_fn_contents,
+                SC.UnaryPre(SC.Return, SC.Value("prod"))
+            );
+
+        const call = packGlobalFunction("vp", "u32", items, vp_fn, options.helper);
+
+        root.addStatement(SC.Declare(SC.Assignment("v_prod", SC.Call(call, "l", "data", "state"))));
+
+        prod_ref = SC.Variable("v_prod:uint32");
+
+    } else {
+
+        if (options.scope == "RD")
+            root.addStatement(SC.Declare(SC.Assignment(rec_state_prod, "0xFFFFFFFF")));
+
+        root.addStatement(SC.Declare(SC.Assignment("preserved_state", "state")));
+
+        root.addStatement(RD_fn_contents, GOTO_Options.NO_GOTOS ? undefined : GOTO_fn_contents);
+
+    }
+
+    let leaf = root;
+
+    items.sort((a, b) => +a.atEND - +b.atEND);
+
+    for (let i = 0; i < items.length; i++) {
+
+        const item = Item.fromArray(items[i]);
+        const v_prod = virtual_links.get(item.id);
+        const ITEM_AT_END = item.atEND;
+
+        item[ItemIndex.offset] = item[ItemIndex.length];
+
+        const _if = SC.If(ITEM_AT_END ? SC.Empty() : SC.Binary(prod_ref, "==", v_prod.i));
+        let _if_leaf = new SC;
+
+        if (!ALLOCATE_FUNCTION) _if.addStatement(SC.Assignment("state", "preserved_state"));
+
+        _if.addStatement(_if_leaf);
+
+        const { prods, leaf_node } = renderItem(_if_leaf, item, options);
+
+        _if_leaf = leaf_node;
+
+        out_prods.push(...prods);
+
+        leaf.addStatement(_if);
+        leaf = _if;
+
+        out_leaves.push({
+            prods: prods,
+            root: _if,
+            leaf: _if_leaf,
+            hash: "----------------",
+            transition_type
+        });
+    }
+}
+
 export function compileProductionFunctions(
     grammar: Grammar,
     runner: Helper,
@@ -86,8 +204,10 @@ export function compileProductionFunctions(
      * to the first transition encountered.
      */
     filter_symbols: Symbol[] = const_EMPTY_ARRAY,
-    IS_VIRTUAL = false
+    IS_VIRTUAL = 0
 ) {
+    //if (IS_VIRTUAL > 32) throw new Error("Virtual production depth is too high");
+
     const
 
         initial_items = getProductionItemsThatAreNotRightRecursive(productions, grammar),
@@ -124,7 +244,6 @@ export function compileProductionFunctions(
         );
 
     RDOptions.leaves = rd_leaves;
-
     GOTO_Options.leaves = goto_leaves;
 
     return { RDOptions, GOTO_Options, RD_fn_contents, GOTO_fn_contents };
@@ -136,7 +255,7 @@ export function generateOptions(
      * The production currently being processed.
      */
     productions: Production[],
-    IS_VIRTUAL: boolean,
+    IS_VIRTUAL: number = 0,
     scope: "RD" | "GOTO" = "RD"
 ): RenderBodyOptions {
     return {
@@ -151,6 +270,7 @@ export function generateOptions(
         leaf_productions: new Set(),
         active_keys: [],
         leaves: [],
+        branches: [],
         IS_VIRTUAL,
         NO_GOTOS: false,
         global_production_items: [...grammar.item_map.values()].map(i => i.item).filter(i => !i.atEND && Sym_Is_A_Production(i.sym(grammar)))

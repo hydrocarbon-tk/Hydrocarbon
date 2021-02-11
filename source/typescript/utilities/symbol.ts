@@ -58,7 +58,7 @@ export function getSymbolName(sym: Symbol) {
 }
 export function getUniqueSymbolName(sym: Symbol) {
     if (!sym)
-        return "";
+        return "not-a-symbol";
     return getSymbolName(sym)
         + (sym.DOES_SHIFT ? "----" : "")
         + (sym.IS_NON_CAPTURE ? "-->" : "");

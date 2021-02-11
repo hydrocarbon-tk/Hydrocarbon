@@ -379,6 +379,45 @@ export const renderAssemblyScriptRecognizer = (
         return state;
     }
 
+    function fork(data) {
+
+        let
+            rules = new Uint32Array(data.rules_len),
+            error = new Uint8Array(data.error_len - data.error_ptr),
+            debug = new Uint16Array(data.debug_len - data.debug_ptr);
+
+        const fork = {
+            lexer: data.lexer.copy(),
+            state: data.state,
+            prop: data.prop,
+            stack_ptr: data.stack_ptr,
+            input_ptr: data.input_ptr,
+            rules_ptr: 0,
+            error_ptr: 0,
+            debug_ptr: 0,
+            input_len: data.input_len,
+            rules_len: data.rules_len,
+            error_len: data.error_len,
+            debug_len: data.debug_len,
+            input: data.input,
+            rules: rules,
+            error: error,
+            debug: debug,
+            stack: data.stack.slice(),
+            origin_fork: data.rules_ptr,
+            origin: data,
+            alternate: null
+        };
+
+        while (data.alternate) {
+            data = data.alternate;
+        }
+
+        data.alternate = fork;
+
+        return fork;
+    }
+
     function debug_add_header(data, number_of_items, delta_char_offset, peek_start, peek_end, fork_start, fork_end) {
         
         if(data.debug_ptr + 1 >= data.debug_len) 
@@ -420,10 +459,15 @@ export const renderAssemblyScriptRecognizer = (
                 SC.Call("run", "data")
             ),
         SC.Value(`
-
-    function run(data){
+    const data_stack = [];
+    function run(data) {
+        data_stack.push(data);
         let ACTIVE = true;
-        while(ACTIVE){ ACTIVE = stepKernel(data); }
+        while (ACTIVE) {
+            for (const data of data_stack)
+                ACTIVE = stepKernel(data);
+        }
+        data_stack.length = 0;
     }
 
     function stepKernel(data){
@@ -461,7 +505,7 @@ export const renderAssemblyScriptRecognizer = (
 
         return {
             lexer: new Lexer,
-            state: 0,
+            state: createState(true),
             prop: 0,
             stack_ptr: -1,
             input_ptr: 0,
@@ -478,7 +522,8 @@ export const renderAssemblyScriptRecognizer = (
             debug: debug,
             stack: stack,
             origin_fork:0,
-            origin: null
+            origin: null,
+            alternate: null
         }
     }
 
