@@ -7,7 +7,7 @@ import { Symbol } from "../types/symbol.js";
 import { collapseBranchNames, createBranchFunction, getProductionFunctionName, packGlobalFunction } from "../utilities/code_generating.js";
 import { rec_glob_data_name, rec_glob_lex_name, rec_state, rec_state_prod } from "../utilities/global_names.js";
 import { Item, ItemIndex } from "../utilities/item.js";
-import { getProductionClosure } from "../utilities/production.js";
+import { getProductionClosure, getProductionID } from "../utilities/production.js";
 import { SC } from "../utilities/skribble.js";
 import { Sym_Is_A_Production } from "../utilities/symbol.js";
 import { Helper } from "./helper.js";
@@ -121,121 +121,52 @@ export function createVirtualProductionSequence(
             (CLEAN ? 1 : options.VIRTUAL_LEVEL + 1)
         );
 
+    const rd_virtual_name = createBranchFunction(RD_fn_contents, RD_fn_contents, RDOptions);
+
+    const goto_virtual_name = createBranchFunction(RD_fn_contents, GOTO_fn_contents, GOTO_Options);
+
     const gen = addVirtualProductionLeafStatements(
         RD_fn_contents,
         GOTO_fn_contents,
+        rd_virtual_name,
+        goto_virtual_name,
         RDOptions,
         GOTO_Options,
         virtual_links
     );
 
-    let prod_ref = rec_state_prod;
+    for (let { item_id, leaf, prods } of gen) {
 
-    for (const { item_id, leaf } of gen) {
         const item = grammar.item_map.get(item_id).item;
-        //const v_prod = virtual_links.get(item.id);
-        // const ITEM_AT_END = item.atEND;
 
-        item[ItemIndex.offset] = item[ItemIndex.length];
+        let leaf_node = leaf;
 
-        // const _if = SC.If(ITEM_AT_END ? SC.Empty() : SC.Binary(prod_ref, "==", v_prod.i));
+        prods = [item.getProduction(grammar).id];
 
-        //let _if_leaf = new SC;
+        if (options.VIRTUAL_LEVEL == 0) {
 
-        //if (!ALLOCATE_FUNCTION) _if.addStatement(SC.Assignment("state", "preserved_state"));
+            item[ItemIndex.offset] = item[ItemIndex.length];
 
-        //_if.addStatement(_if_leaf);
+            ({ prods, leaf_node } = renderItem(leaf, item, options));
 
-        const sc = new SC();
-
-        const { prods, leaf_node } = renderItem(sc, item, options);
-        const call_name = createBranchFunction(sc, sc, options);
-
-        leaf.addStatement(SC.Call("pushFN", "data", call_name));
-        leaf.addStatement(SC.UnaryPre(SC.Return, SC.Value("0")));
-
-        //_if_leaf = leaf_node;
+            leaf_node.addStatement(item.renderUnformattedWithProduction(grammar));
+        }
 
         out_prods.push(...prods);
 
-        //leaf.addStatement(_if);
-        //leaf = _if;
-
         out_leaves.push({
             prods: prods,
-            root: root,
+            root: leaf,
             leaf: leaf_node,
             hash: "----------------",
-            transition_type
-        });
-
-    }
-
-    if (ALLOCATE_FUNCTION) {
-
-        const vp_fn = SC.Function("", "l", "data", "state")
-            .addStatement(
-                SC.Declare(SC.Assignment(rec_state_prod, "0xFFFFFFFF")),
-                RD_fn_contents,
-                GOTO_Options.NO_GOTOS ? undefined : GOTO_fn_contents,
-                SC.UnaryPre(SC.Return, SC.Value("prod"))
-            );
-
-        const call = packGlobalFunction("vp", "u32", items, vp_fn, options.helper);
-
-        root.addStatement(SC.Declare(SC.Assignment("v_prod", SC.Call(call, "l", "data", "state"))));
-
-        prod_ref = SC.Variable("v_prod:uint32");
-
-    } else {
-
-        //if (options.scope == "RD")
-        //    root.addStatement(SC.Declare(SC.Assignment(rec_state_prod, "0xFFFFFFFF")));
-
-        //root.addStatement(SC.Declare(SC.Assignment("preserved_state", "state")))
-
-
-        root.addStatement(RD_fn_contents, GOTO_Options.NO_GOTOS ? undefined : GOTO_fn_contents);
-
-    }
-
-    // let leaf = root;
-
-    //items.sort((a, b) => +a.atEND - +b.atEND);
-    /*
-    for (let i = 0; i < items.length; i++) {
-
-        const item = Item.fromArray(items[i]);
-        const v_prod = virtual_links.get(item.id);
-        const ITEM_AT_END = item.atEND;
-
-        item[ItemIndex.offset] = item[ItemIndex.length];
-
-        const _if = SC.If(ITEM_AT_END ? SC.Empty() : SC.Binary(prod_ref, "==", v_prod.i));
-        let _if_leaf = new SC;
-
-        if (!ALLOCATE_FUNCTION) _if.addStatement(SC.Assignment("state", "preserved_state"));
-
-        _if.addStatement(_if_leaf);
-
-        const { prods, leaf_node } = renderItem(_if_leaf, item, options);
-
-        _if_leaf = leaf_node;
-
-        out_prods.push(...prods);
-
-        leaf.addStatement(_if);
-        leaf = _if;
-
-        out_leaves.push({
-            prods: prods,
-            root: _if,
-            leaf: _if_leaf,
-            hash: "----------------",
-            transition_type
+            transition_type: TRANSITION_TYPE.ASSERT
         });
     }
-    */
+
+    if (options.helper.ANNOTATED)
+        root.addStatement("-------------VPROD-------------------------");
+    root.addStatement(SC.Call("pushFN", "data", rd_virtual_name));
+    root.addStatement(SC.UnaryPre(SC.Return, SC.Value(0)));
 
 
     collapseBranchNames(RDOptions);

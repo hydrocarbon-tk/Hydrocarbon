@@ -181,13 +181,9 @@ export function collapseBranchNames(options: RenderBodyOptions) {
 
     for (const { name, body } of branches) {
         let fn_ref;
-        //  fn_ref = getGlobalObject("branch", body, runner);
-
-        const hash = body.hash();
-
-        //    if (!fn_ref) {
 
         const
+            hash = body.hash(),
 
             token_function = SC.Function(
                 ":u32",
@@ -200,9 +196,6 @@ export function collapseBranchNames(options: RenderBodyOptions) {
             );
 
         fn_ref = <VarSC>packGlobalFunction("branch", "bool", body, token_function, runner);
-        // }
-
-
 
         name.type = (<VarSC>fn_ref).type;
     }
