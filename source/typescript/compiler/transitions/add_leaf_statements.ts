@@ -64,6 +64,7 @@ export function addLeafStatements(
             GOTO_Options.NO_GOTOS = true;
             GOTOS_FOLDED = true;
         } else {
+
             leaf.addStatement(SC.Call("pushFN", "data", goto_fn_name));
             leaf.addStatement(SC.UnaryPre(SC.Return, SC.Value(prods[0])));
         }
@@ -89,8 +90,13 @@ export function addLeafStatements(
                 leaf.addStatement(createDebugCall(GOTO_Options, "Inter return"));
                 leaf.addStatement(SC.UnaryPre("return", SC.Value(prods[0])));
             } else if (transition_type !== TRANSITION_TYPE.IGNORE) {
-                leaf.addStatement(SC.Call("pushFN", "data", goto_fn_name));
-                leaf.addStatement(SC.UnaryPre("return", SC.Value(prods[0])));
+                if (transition_type == TRANSITION_TYPE.ASSERT_END) {
+                    leaf.addStatement(SC.Assignment("prod", SC.Value(prods[0])));
+                    //leaf.addStatement(SC.Value("break;"));
+                } else {
+                    leaf.addStatement(SC.Call("pushFN", "data", goto_fn_name));
+                    leaf.addStatement(SC.UnaryPre("return", SC.Value(prods[0])));
+                }
             }
         }
 

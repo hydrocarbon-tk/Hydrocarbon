@@ -33,6 +33,7 @@ export function resolveGOTOBranches(gen: TransitionClauseGenerator, state: Trans
             goto_groups = [...gen],
             WE_HAVE_JUST_ONE_GOTO_GROUP = goto_groups.length == 1;
         let
+            CONTAINS_END_LEAF_THAT_SHOULD_LOOP = false,
             first_goto_group_keys: number[] = null;
 
         let switch_stmt: SC = SC.Switch(rec_state_prod);
@@ -53,6 +54,10 @@ export function resolveGOTOBranches(gen: TransitionClauseGenerator, state: Trans
             leaves.map(l => l.keys = keys);
 
             let interrupt_statement = null;
+
+
+            if (end_items.length > 0)
+                CONTAINS_END_LEAF_THAT_SHOULD_LOOP = true;
 
 
             if (active_items.length > 0) {
@@ -147,6 +152,8 @@ export function resolveGOTOBranches(gen: TransitionClauseGenerator, state: Trans
                 }
             }
 
+
+
             switch_stmt.addStatement(
                 ...keys.slice(0, -1).map(k => SC.If(SC.Value(k + ""))),
                 SC.If(SC.Value(keys.slice(-1)[0] + ""))
@@ -155,7 +162,8 @@ export function resolveGOTOBranches(gen: TransitionClauseGenerator, state: Trans
                             ? createSkipCall(skippable, grammar, runner)
                             : undefined,
                         interrupt_statement,
-                        code
+                        code,
+                        WE_HAVE_JUST_ONE_GOTO_GROUP ? undefined : SC.Break
                     )
             );
 
@@ -165,20 +173,19 @@ export function resolveGOTOBranches(gen: TransitionClauseGenerator, state: Trans
             }
         }
 
-        if (!WE_HAVE_JUST_ONE_GOTO_GROUP)
+        if (CONTAINS_END_LEAF_THAT_SHOULD_LOOP) {
+            return SC.While(SC.Value(1))
+                .addStatement(
+                    switch_stmt,
+                    SC.Break
+                );
+        } else if (!WE_HAVE_JUST_ONE_GOTO_GROUP)
             switch_stmt.addStatement(SC.If(SC.Value("default")).addStatement(SC.Break));
+
 
         return switch_stmt;
 
-        return SC.While(
-            WE_HAVE_JUST_ONE_GOTO_GROUP && first_goto_group_keys.length > 0
-                ? first_goto_group_keys.map(i => SC.Binary(rec_state_prod, "==", i)).reduce(reduceOR)
-                : SC.Value(1)
-        )
-            .addStatement(
-                switch_stmt,
-                SC.Break
-            );
+
     }
 
     state.offset--;
