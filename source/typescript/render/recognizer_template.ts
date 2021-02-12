@@ -473,12 +473,12 @@ export const renderAssemblyScriptRecognizer = (
         let ACTIVE = true;
         while (ACTIVE) {
             for (const data of data_stack)
-                ACTIVE = stepKernel(data);
+                ACTIVE = stepKernel(data,0);
         }
         data_stack.length = 0;
     }
 
-    function stepKernel(data) {
+    function stepKernel(data, stack_base) {
 
         let ptr = data.stack_ptr;
 
@@ -490,7 +490,7 @@ export const renderAssemblyScriptRecognizer = (
 
         data.prod = result;
 
-        if (result < 0 || data.stack_ptr < 0) 
+        if (result < 0 || data.stack_ptr < stack_base) 
             return false;
         
         return true;
