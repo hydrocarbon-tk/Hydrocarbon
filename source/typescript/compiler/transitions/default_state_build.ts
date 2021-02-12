@@ -1,11 +1,12 @@
-import { TransitionNode } from "../../types/transition_node.js";
 import { RenderBodyOptions } from "../../types/render_body_options";
 import { TransitionClauseGenerator } from "../../types/transition_generating";
+import { TransitionNode } from "../../types/transition_node.js";
 import { getClosure } from "../../utilities/closure.js";
 import { createSkipCall, getIncludeBooleans } from "../../utilities/code_generating.js";
 import { getFollow } from "../../utilities/follow.js";
-import { rec_glob_lex_name, rec_state, rec_state_prod } from "../../utilities/global_names.js";
+import { rec_glob_lex_name, rec_state_prod } from "../../utilities/global_names.js";
 import { Item } from "../../utilities/item.js";
+import { reduceOR } from "../../utilities/reduceOR.js";
 import { SC } from "../../utilities/skribble.js";
 import {
     Defined_Symbols_Occlude, getComplementOfSymbolSets,
@@ -14,14 +15,13 @@ import {
     getSymbolsFromClosure,
     getUniqueSymbolName,
     Sym_Is_A_Generic_Identifier,
-    Sym_Is_A_Generic_Type,
     Sym_Is_A_Generic_Newline,
-    Sym_Is_A_Generic_Number, Sym_Is_A_Space_Generic, Sym_Is_A_Generic_Symbol,
-    Sym_Is_Defined_Symbols, Sym_Is_Defined_Identifier,
-    Sym_Is_Defined_Natural_Number
+    Sym_Is_A_Generic_Number, Sym_Is_A_Generic_Symbol, Sym_Is_A_Generic_Type,
+    Sym_Is_A_Space_Generic,
+    Sym_Is_Defined_Identifier,
+    Sym_Is_Defined_Natural_Number, Sym_Is_Defined_Symbols
 } from "../../utilities/symbol.js";
 import { default_resolveBranches } from "./default_branch_resolution.js";
-import { reduceOR } from "../../utilities/reduceOR.js";
 
 
 export function resolveGOTOBranches(gen: TransitionClauseGenerator, state: TransitionNode, items_global: Item[], level: number, options: RenderBodyOptions): SC {
@@ -197,7 +197,7 @@ export function addClauseSuccessCheck(options: RenderBodyOptions): SC {
 
 export function createDebugCall(options: RenderBodyOptions, action_name, debug_items: Item[] = []) {
 
-    const {helper: runner } = options;
+    const { helper: runner } = options;
     return SC.Empty();
     if (runner.DEBUG)
         return SC.Value(`debug_add_header(0,l.getOffsetRegionDelta(),0,0,0,0)`);
