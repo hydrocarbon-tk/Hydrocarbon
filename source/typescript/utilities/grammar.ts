@@ -213,9 +213,9 @@ export function completeGrammar(grammar: Grammar, env) {
     const sym_function = (s: Symbol) => {
         switch (s.type) {
             case SymbolType.PRODUCTION:
-            case SymbolType.PRODUCTION_TOKEN_SYMBOL:
                 /*Do nothing */ break;
             case SymbolType.PRODUCTION_ASSERTION_FUNCTION:
+            case SymbolType.PRODUCTION_TOKEN_SYMBOL:
             case SymbolType.GENERATED:
             case SymbolType.SYMBOL:
             case SymbolType.ESCAPED:

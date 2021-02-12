@@ -250,6 +250,14 @@ export const renderAssemblyScriptRecognizer = (
             return destination;
         }
 
+        slice(source) {
+            this.byte_length = this.byte_offset - source.byte_offset;
+            this.token_length = this.token_offset - source.token_offset;
+            this.byte_offset = source.byte_offset;
+            this.token_offset = source.token_offset;
+            return this;
+        }
+
         sync(source){
             this.byte_offset = source.byte_offset;
             this.byte_length = source.byte_length;

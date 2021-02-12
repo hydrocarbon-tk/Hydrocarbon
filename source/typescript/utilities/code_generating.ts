@@ -22,6 +22,7 @@ import {
     Sym_Is_A_Generic_Identifier,
     Sym_Is_A_Generic_Number,
     Sym_Is_A_Generic_Type,
+    Sym_Is_A_Production_Token,
     Sym_Is_A_Terminal,
     Sym_Is_Consumed,
     Sym_Is_Defined, Sym_Is_Defined_Identifier, Sym_Is_Defined_Natural_Number, Sym_Is_EOF, Sym_Is_Not_An_Identifier, Sym_Is_Not_Consumed
@@ -251,15 +252,38 @@ export function createProductionTokenFunction(tok: ProductionTokenSymbol, gramma
                 rec_glob_lex_name,
                 rec_glob_data_name
             ).addStatement(
-                SC.If(boolean).addStatement(
-                    SC.Declare(SC.Assignment("c:Lexer", SC.Call(SC.Member("l", "copy")))),
-                    SC.If(SC.Call(getProductionFunctionName(production, grammar), "c:Lexer", rec_glob_data_name, SC.Call("createState", 0)))
-                        .addStatement(
-                            SC.Assignment(SC.Member("l", "token_length"), SC.Binary(SC.Member("c", "token_offset"), "-", SC.Member("l", "token_offset"))),
-                            SC.Assignment(SC.Member("l", "byte_length"), SC.Binary(SC.Member("c", "byte_offset"), "-", SC.Member("l", "byte_offset"))),
-                            SC.UnaryPre(SC.Return, SC.True)),
-                    SC.Empty()
-                ),
+                SC.If(boolean).addStatement(SC.Value(`                
+        //This assumes the token production does not fork
+
+        // preserve the current state of the data
+        const stack_ptr = data.stack_ptr;
+        const input_ptr = data.input_ptr;
+        const state = data.state;
+        const copy = l.copy();
+
+        pushFN(data, ${getProductionFunctionName(production, grammar)});
+        data.state = 0;
+
+        let ACTIVE = true;
+
+        while (ACTIVE) {
+            ACTIVE = false;
+            ACTIVE = stepKernel(data, stack_ptr + 1);
+        }
+        
+        data.state = state;
+
+        if (data.prod == ${production.id}) {
+            data.stack_ptr = stack_ptr;
+            data.input_ptr = input_ptr;
+            l.slice(copy);
+            return true;
+        } else {
+            l.sync(copy);
+            data.stack_ptr = stack_ptr;
+            data.input_ptr = input_ptr;
+            return false;
+        }`), SC.Empty()),
                 SC.UnaryPre(SC.Return, SC.False)
             );
 
@@ -586,6 +610,7 @@ export function getIncludeBooleans(
         consume = syms.filter(Sym_Is_Consumed),
         id = consume.filter(Sym_Is_Defined),
         ty = consume.filter(Sym_Is_A_Generic_Type),
+        tk = consume.filter(Sym_Is_A_Production_Token),
         fn = consume.filter(Sym_Is_An_Assert_Function)
             .map(s => translateSymbolValue(s, grammar, lex_name)).sort();
 
@@ -594,7 +619,7 @@ export function getIncludeBooleans(
     if (HAS_GEN_ID)
         id = id.filter(Sym_Is_Not_An_Identifier);
 
-    if (id.length + ty.length + fn.length + non_consume.length == 0)
+    if (id.length + ty.length + fn.length + tk.length + non_consume.length == 0)
         return null;
 
     let out_id: ExprSC[] = [], out_ty: ExprSC[] = [], out_fn: ExprSC[] = [], out_tk: ExprSC[] = [], out_non_consume: ExprSC[] = [];
@@ -704,7 +729,7 @@ export function getIncludeBooleans(
     if (ty.length > 0)
         out_ty = ty.sort((a, b) => a.val < b.val ? -1 : 1).map(s => translateSymbolValue(s, grammar, lex_name));
 
-    /*
+    //*
     if (tk.length > 0) {
         for (const tok of tk) {
 
@@ -715,7 +740,7 @@ export function getIncludeBooleans(
             out_tk.push(fn);
         }
     }
-    */
+    //*/
 
     return convertExpressionArrayToBoolean([...out_non_consume, ...out_tk, ...out_id, ...out_ty, ...out_fn]);
 }
