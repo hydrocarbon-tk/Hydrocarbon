@@ -4,7 +4,7 @@ import { Production } from "../types/production";
 import { RDProductionFunction } from "../types/rd_production_function";
 import { RenderBodyOptions } from "../types/render_body_options";
 import { Symbol } from "../types/symbol.js";
-import { collapseBranchNames, getProductionFunctionName, packGlobalFunction } from "../utilities/code_generating.js";
+import { collapseBranchNames, createBranchFunction, getProductionFunctionName, packGlobalFunction } from "../utilities/code_generating.js";
 import { rec_glob_data_name, rec_glob_lex_name, rec_state, rec_state_prod } from "../utilities/global_names.js";
 import { Item, ItemIndex } from "../utilities/item.js";
 import { getProductionClosure } from "../utilities/production.js";
@@ -52,6 +52,7 @@ export function constructHybridFunction(production: Production, grammar: Grammar
     addLeafStatements(
         RD_fn_contents,
         GOTO_fn_contents,
+        rd_fn_name,
         goto_fn_name,
         RDOptions,
         GOTO_Options);
@@ -108,6 +109,9 @@ export function createVirtualProductionSequence(
     if (V_PRODS_ALREADY_EXIST)
         throw new Error("Virtual productions already exists, interminable loop detected");
 
+    if (options.VIRTUAL_LEVEL > 8)
+        throw new Error("Virtual production level too high");
+
     const { RDOptions, GOTO_Options, RD_fn_contents, GOTO_fn_contents }
         = compileProductionFunctions(
             options.grammar,
@@ -117,7 +121,7 @@ export function createVirtualProductionSequence(
             (CLEAN ? 1 : options.VIRTUAL_LEVEL + 1)
         );
 
-    addVirtualProductionLeafStatements(
+    const gen = addVirtualProductionLeafStatements(
         RD_fn_contents,
         GOTO_fn_contents,
         RDOptions,
@@ -125,11 +129,47 @@ export function createVirtualProductionSequence(
         virtual_links
     );
 
-
-    collapseBranchNames(RDOptions);
-    collapseBranchNames(GOTO_Options);
-
     let prod_ref = rec_state_prod;
+
+    for (const { item_id, leaf } of gen) {
+        const item = grammar.item_map.get(item_id).item;
+        //const v_prod = virtual_links.get(item.id);
+        // const ITEM_AT_END = item.atEND;
+
+        item[ItemIndex.offset] = item[ItemIndex.length];
+
+        // const _if = SC.If(ITEM_AT_END ? SC.Empty() : SC.Binary(prod_ref, "==", v_prod.i));
+
+        //let _if_leaf = new SC;
+
+        //if (!ALLOCATE_FUNCTION) _if.addStatement(SC.Assignment("state", "preserved_state"));
+
+        //_if.addStatement(_if_leaf);
+
+        const sc = new SC();
+
+        const { prods, leaf_node } = renderItem(sc, item, options);
+        const call_name = createBranchFunction(sc, sc, options);
+
+        leaf.addStatement(SC.Call("pushFN", "data", call_name));
+        leaf.addStatement(SC.UnaryPre(SC.Return, SC.Value("0")));
+
+        //_if_leaf = leaf_node;
+
+        out_prods.push(...prods);
+
+        //leaf.addStatement(_if);
+        //leaf = _if;
+
+        out_leaves.push({
+            prods: prods,
+            root: root,
+            leaf: leaf_node,
+            hash: "----------------",
+            transition_type
+        });
+
+    }
 
     if (ALLOCATE_FUNCTION) {
 
@@ -149,19 +189,20 @@ export function createVirtualProductionSequence(
 
     } else {
 
-        if (options.scope == "RD")
-            root.addStatement(SC.Declare(SC.Assignment(rec_state_prod, "0xFFFFFFFF")));
+        //if (options.scope == "RD")
+        //    root.addStatement(SC.Declare(SC.Assignment(rec_state_prod, "0xFFFFFFFF")));
 
-        root.addStatement(SC.Declare(SC.Assignment("preserved_state", "state")));
+        //root.addStatement(SC.Declare(SC.Assignment("preserved_state", "state")))
+
 
         root.addStatement(RD_fn_contents, GOTO_Options.NO_GOTOS ? undefined : GOTO_fn_contents);
 
     }
 
-    let leaf = root;
+    // let leaf = root;
 
-    items.sort((a, b) => +a.atEND - +b.atEND);
-
+    //items.sort((a, b) => +a.atEND - +b.atEND);
+    /*
     for (let i = 0; i < items.length; i++) {
 
         const item = Item.fromArray(items[i]);
@@ -194,6 +235,11 @@ export function createVirtualProductionSequence(
             transition_type
         });
     }
+    */
+
+
+    collapseBranchNames(RDOptions);
+    collapseBranchNames(GOTO_Options);
 }
 
 export function compileProductionFunctions(
@@ -214,8 +260,6 @@ export function compileProductionFunctions(
 
         initial_items = getProductionItemsThatAreNotRightRecursive(productions, grammar),
 
-
-
         RDOptions = generateOptions(
             grammar, runner,
             productions,
@@ -230,7 +274,8 @@ export function compileProductionFunctions(
             filter_symbols
         ),
 
-        { code: RD_fn_contents, prods: completed_productions, leaves: rd_leaves } = processTransitionNodes(RDOptions, rd_nodes, default_resolveBranches),
+        { code: RD_fn_contents, prods: completed_productions, leaves: rd_leaves }
+            = processTransitionNodes(RDOptions, rd_nodes, default_resolveBranches),
 
         GOTO_Options = generateOptions(
             grammar, runner,
@@ -266,7 +311,9 @@ export function generateOptions(
         helper: runner,
         productions: productions,
         production_ids: productions.map(p => p.id),
-        goto_items: productions.flatMap(p => getGotoItemsFromProductionClosure(p, grammar)).setFilter(i => i.id),
+        goto_items: productions.flatMap(
+            p => getGotoItemsFromProductionClosure(p, grammar)
+        ).setFilter(i => i.id),
         extended_goto_items: [],
         called_productions: new Set(),
         leaf_productions: new Set(),

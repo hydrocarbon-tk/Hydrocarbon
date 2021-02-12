@@ -327,7 +327,7 @@ function addIfStatementTransition(
 
 
     if (
-        true
+        false
         && traffic.length >= 8
         && options.VIRTUAL_LEVEL <= 0
         && breadcrumb_items.every(i => !i.atEND)
