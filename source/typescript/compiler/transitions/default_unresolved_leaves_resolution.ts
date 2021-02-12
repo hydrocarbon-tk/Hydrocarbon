@@ -26,9 +26,7 @@ export function default_resolveUnresolvedLeaves(node: TransitionNode, nodes: Tra
 
         anchor_state = SC.Variable("anchor_state:unsigned"),
 
-        root: SC = (new SC).addStatement(
-            nodes.flatMap(n => n.symbols).map(s => getUniqueSymbolName(s)).join(" ")
-        ),
+        root: SC = (new SC),
 
         IS_LEFT_RECURSIVE_WITH_FOREIGN_PRODUCTION_ITEMS = nodes.some(i => i.transition_type == TRANSITION_TYPE.IGNORE),
 
