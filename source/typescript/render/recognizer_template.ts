@@ -478,23 +478,21 @@ export const renderAssemblyScriptRecognizer = (
         data_stack.length = 0;
     }
 
-    function stepKernel(data){
-        
+    function stepKernel(data) {
+
         let ptr = data.stack_ptr;
-        
+
         const fn = data.stack[ptr];
 
         data.stack_ptr--;
 
         const result = fn(data.lexer, data, data.state, data.prod);
-        
-        if(result <= 0){
-            if(data.stack_ptr < 0) return false;
-            data.prod = 0xFFFFFFFF;
-        }else{
-            data.prod = result;
-        }
 
+        data.prod = result;
+
+        if (result < 0 || data.stack_ptr < 0) 
+            return false;
+        
         return true;
     }
 
