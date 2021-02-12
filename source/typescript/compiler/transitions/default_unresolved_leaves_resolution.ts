@@ -96,7 +96,7 @@ function createBackTrackingSequence(
     out_leaves: Leaf[],
     IS_LEFT_RECURSIVE_WITH_FOREIGN_PRODUCTION_ITEMS: boolean
 ) {
-    let i = 0;
+    let I = 0;
 
     root.addStatement(
         SC.Declare(
