@@ -58,6 +58,27 @@ typeof result[0] // => "object"
 
 ```
 
+# Version 1 Feature set
+
+- [*] Grammer for creating parsers 
+- Compile parser for use TypeScript/Javascript with Web Assembly Recognizer
+- Production Selection to parse individual productions instead of the goal production
+- TypeScript Definitions for parser, recognizer & environment
+- Documentation for the above features.
+
+# Version 2 Feature set
+- Streaming Parsing & Restartable recognition 
+- Parallel Parsing - Allow blocks to be parsed concurrently
+- Automatic AST generating 
+- Online Demonstration 
+- Syntax Highlighting Plugin
+- Revisions to Grammer
+- Support for other grammar files.
+
+# Version 3 Feature set
+- Rewrite parser compiler in a compiled language
+- Make parser front end for other languages
+
 # Motivation
 
 The primary reason this exists is to provide a flexible, easy to use parser compiler to handle the parsing demands of CandleFW libraries such as Wick, JS, TS, Wax, and CSS. It provides a way of rapidly define new language syntax and is able combine grammars of different languages into one meta-parser. 
