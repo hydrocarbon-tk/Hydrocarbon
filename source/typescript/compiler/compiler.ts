@@ -86,7 +86,14 @@ async function createRustRecognizer() {
 function createJSRecognizer(code: SC): string {
     return `(()=>{
         ${Object.assign(new JS, code).renderCode()}
-        return { recognizer, init_data, init_table, delete_data };
+        return {
+            recognizer,
+            init_data,
+            init_table,
+            delete_data,
+            get_fork_information,
+            get_next_command_block
+        };
     })`;
 }
 
@@ -95,7 +102,14 @@ function createTSRecognizer(code: SC): string {
 
         ${Object.assign(new AS, code).renderCode()}
 
-        return <ParserData>{ recognizer, init_data, init_table, delete_data };
+        return {
+            recognizer,
+            init_data,
+            init_table,
+            delete_data,
+            get_fork_information,
+            get_next_command_block
+        };
     })`;
 }
 

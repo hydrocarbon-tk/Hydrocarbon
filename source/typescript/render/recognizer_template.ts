@@ -310,27 +310,194 @@ export const renderAssemblyScriptRecognizer = (
         return false;
     }
 
-    function add_shift(l, data, tok_len) {
-        
-        const skip_delta = l.token_offset - l.prev_token_offset;
 
-        let has_skip = skip_delta > 0, 
-            has_len = tok_len > 0, 
-            val = 1;
-        
-        val |= (skip_delta << 3);
-        
-        if (has_skip && ((skip_delta > 36863) || (tok_len > 36863))) {
-            add_shift(l, data, 0);
-            has_skip = 0;
-            val = 1;
+
+    function fork(data) {
+
+        let
+            rules = new Uint32Array(data.rules_len),
+            error = new Uint8Array(data.error_len - data.error_ptr),
+            debug = new Uint16Array(data.debug_len - data.debug_ptr);
+
+        const fork = {
+            lexer: data.lexer.copy(),
+            state: data.state,
+            prop: data.prop,
+            stack_ptr: data.stack_ptr,
+            input_ptr: data.input_ptr,
+            rules_ptr: 0,
+            error_ptr: 0,
+            debug_ptr: 0,
+            input_len: data.input_len,
+            rules_len: data.rules_len,
+            error_len: data.error_len,
+            debug_len: data.debug_len,
+            input: data.input,
+            rules: rules,
+            error: error,
+            debug: debug,
+            stack: data.stack.slice(),
+            origin_fork: data.rules_ptr + data.origin_fork,
+            origin: data,
+            alternate: null
+        };
+
+        while (data.alternate) {
+            data = data.alternate;
         }
-        
-        val |= (((has_skip << 2) | (has_len << 1)) | (tok_len << (3 + (15 * has_skip))));
-        
-        set_action(val, data);
 
-        l.prev_token_offset = l.token_offset + l.token_length;
+        data.alternate = fork;
+
+        return fork;
+    }
+
+    function init_data(input_len, rules_len, error_len, debug_len){
+
+        let 
+            input = new Uint8Array(input_len),
+            rules = new Uint16Array(rules_len),
+            error = new Uint8Array(error_len),
+            debug = new Uint16Array(debug_len),
+            stack = [];
+
+        return {
+            valid:false,
+            lexer: new Lexer,
+            state: createState(true),
+            prop: 0,
+            stack_ptr: -1,
+            input_ptr: 0,
+            rules_ptr: 0,
+            error_ptr: 0,
+            debug_ptr: 0,
+            input_len: input_len,
+            rules_len: rules_len,
+            error_len: error_len,
+            debug_len: debug_len,
+            input: input,
+            rules: rules,
+            error: error,
+            debug: debug,
+            stack: stack,
+            origin_fork:0,
+            origin: null,
+            alternate: null
+        }
+    }
+
+
+    function block64Consume(data, block, offset, block_offset, limit) {
+        //Find offset block
+
+        let containing_data = data,
+            end = containing_data.origin_fork + data.rules_ptr;
+
+        //Find closest root
+        while (containing_data.origin_fork > offset) {
+            end = containing_data.origin_fork;
+            containing_data = containing_data.origin;
+        }
+
+        let start = containing_data.origin_fork;
+
+        offset -= start;
+        end -= start;
+
+        //Fill block with new data
+        let ptr = offset;
+
+        if (ptr >= end) return limit - block_offset;
+
+        while (block_offset < limit) {
+            block[block_offset++] = containing_data.rules[ptr++];
+            if (ptr >= end)
+                return block64Consume(data, block, ptr + start, block_offset, limit);
+        }
+        return 0;
+    }
+
+    /**
+     *  Rules payload
+     * 
+     *  Assuming Little Endian
+     * 
+     *  Reduce
+     *  0 . . . | . . . 7 . . . | . . . 16
+     *  ||__||_||________________________|   
+     *   |    |____________       \\___________________ 
+     *   |                 \\                         \\
+     *   Byte Identifier:   Overflow Bit:               Payload: 
+     *   0 Reduce           If set then body id is set    No Overflow: 5 bits for reduce size and 8 bits for body index
+     *                      on next 16 byte segment       Overflow: 13 bits for reduce size and next 16bits for body index
+     * 
+     *  Shift
+     *  0 . . . | . . . 7 . . . | . . . 16
+     *  ||__||_||________________________|   
+     *   |    |____________       \\___________________ 
+     *   |                 \\                         \\
+     *   Byte Identifier:   Overflow Bit:               Payload: 
+     *   1 Shift            If set then add payload     No Overflow: shift length = 13 bits
+     *                      to next 16 bits             Overflow: shift length = < 13bits> << 16 | <next 16 bits>
+     * 
+     * 
+     *  Skip
+     *  0 . . . | . . . 7 . . . | . . . 16
+     *  ||__||_||________________________|   
+     *   |    |____________       \\___________________ 
+     *   |                 \\                         \\
+     *   Byte Identifier:   Overflow Bit:               Payload: 
+     *   2 Skip             If set then add payload     No Overflow: skip length = 13 bits
+     *                      to next 16 bits             Overflow: skip length = < 13bits> << 16 | <next 16 bits>
+     * 
+     */
+
+    function add_reduce(state, data,sym_len, body, DNP = false) {
+        if (isOutputEnabled(state)) {
+
+            let total = body + sym_len;
+
+            if(total == 0) return;
+        
+            if(body > 0xFF || sym_len > 0x1F){
+                const low = (1 << 2) | (body & 0xFFF8);
+                const high = sym_len;
+                set_action(low, data);
+                set_action(high, data);
+            }else {
+                const low = ((sym_len & 0x1F) << 3) | ( (body & 0xFF) << 8);
+                set_action(low, data);
+            }
+        }
+    }
+
+    function add_shift(l, data, tok_len) {
+
+        if(tok_len < 1) return;
+        
+        if(tok_len > 0x1FFF){
+            const low = 1 | (1 << 2) | ((tok_len >> 13) & 0xFFF8);
+            const high = (tok_len & 0xFFFF);
+            set_action(low, data);
+            set_action(high, data);
+        }else {
+            const low = 1 | ((tok_len << 3) & 0xFFF8);
+            set_action(low, data);
+        }
+    }
+
+    function add_skip(l, data, skip_delta){
+
+        if(skip_delta < 1) return;
+        
+        if(skip_delta > 0x1FFF){
+            const low = 2 | (1 << 2) | ((skip_delta >> 13) & 0xFFF8);
+            const high = (skip_delta & 0xFFFF);
+            set_action(low, data);
+            set_action(high, data);
+        }else {
+            const low = 2 | ((skip_delta << 3) & 0xFFF8);
+            set_action(low, data);
+        }
     }
 
     function set_error(val, data) {
@@ -345,13 +512,6 @@ export const renderAssemblyScriptRecognizer = (
     function set_action(val, data) {
         if (data.rules_ptr > data.rules_len) return;
         data.rules[data.rules_ptr++] = val;
-    }
-
-
-    function add_reduce(state, data,sym_len, body, DNP = false) {
-        if (isOutputEnabled(state)) {
-            set_action(((DNP << 1) | ((sym_len & 16383) << 2)) | (body << 16),data);
-        }
     }
     
     function createState(ENABLE_STACK_OUTPUT) {
@@ -385,45 +545,6 @@ export const renderAssemblyScriptRecognizer = (
         if (!condition || hasStateFailed(state)) 
             return fail(l, state);
         return state;
-    }
-
-    function fork(data) {
-
-        let
-            rules = new Uint32Array(data.rules_len),
-            error = new Uint8Array(data.error_len - data.error_ptr),
-            debug = new Uint16Array(data.debug_len - data.debug_ptr);
-
-        const fork = {
-            lexer: data.lexer.copy(),
-            state: data.state,
-            prop: data.prop,
-            stack_ptr: data.stack_ptr,
-            input_ptr: data.input_ptr,
-            rules_ptr: 0,
-            error_ptr: 0,
-            debug_ptr: 0,
-            input_len: data.input_len,
-            rules_len: data.rules_len,
-            error_len: data.error_len,
-            debug_len: data.debug_len,
-            input: data.input,
-            rules: rules,
-            error: error,
-            debug: debug,
-            stack: data.stack.slice(),
-            origin_fork: data.rules_ptr,
-            origin: data,
-            alternate: null
-        };
-
-        while (data.alternate) {
-            data = data.alternate;
-        }
-
-        data.alternate = fork;
-
-        return fork;
     }
 
     function debug_add_header(data, number_of_items, delta_char_offset, peek_start, peek_end, fork_start, fork_end) {
@@ -469,13 +590,13 @@ export const renderAssemblyScriptRecognizer = (
         SC.Value(`
     const data_stack = [];
     function run(data) {
+        data_stack.length = 0;
         data_stack.push(data);
         let ACTIVE = true;
         while (ACTIVE) {
             for (const data of data_stack)
                 ACTIVE = stepKernel(data,0);
         }
-        data_stack.length = 0;
     }
 
     function stepKernel(data, stack_base) {
@@ -496,43 +617,38 @@ export const renderAssemblyScriptRecognizer = (
         return true;
     }
 
+    function get_fork_information() {
+        let i = 0;
+        const fork_data = [];
+        for (const fork of data_stack) {
+            fork_data.push({
+                ptr: i++,
+                valid: fork.valid || true,
+                depth: fork.origin_fork + fork.rules_ptr,
+                command_offset: 0,
+                command_block: new Uint16Array(64),
+            });
+        }
+        return fork_data;
+    }
+
+    function get_next_command_block(fork) {
+
+        const remainder = block64Consume(data_stack[fork.ptr], fork.command_block, fork.command_offset, 0, 64);
+
+        fork.command_offset += 64 - remainder;
+
+        if (remainder > 0)
+            fork.command_block[64 - remainder] = 0;
+
+        return fork.command_block;
+    }
+
     function pushFN(data, fn_ref){ data.stack[++data.stack_ptr] = fn_ref; }
 
     function init_table(){ return lookup_table;  }
     
-    function init_data(input_len, rules_len, error_len, debug_len){
-
-        let 
-            input = new Uint8Array(input_len),
-            rules = new Uint32Array(rules_len),
-            error = new Uint8Array(error_len),
-            debug = new Uint16Array(debug_len),
-            stack = [];
-
-        return {
-            lexer: new Lexer,
-            state: createState(true),
-            prop: 0,
-            stack_ptr: -1,
-            input_ptr: 0,
-            rules_ptr: 0,
-            error_ptr: 0,
-            debug_ptr: 0,
-            input_len: input_len,
-            rules_len: rules_len,
-            error_len: error_len,
-            debug_len: debug_len,
-            input: input,
-            rules: rules,
-            error: error,
-            debug: debug,
-            stack: stack,
-            origin_fork:0,
-            origin: null,
-            alternate: null
-        }
-    }
-
+  
     function dispatch(data, production_index){
         switch (production_index) {
             ${rd_functions.filter(f => f.RENDER)
@@ -542,6 +658,8 @@ export const renderAssemblyScriptRecognizer = (
                 }).join("            \n")}
         }
     }
+
+    
 
     function delete_data(){};
     `)

@@ -13,7 +13,7 @@ export function ParserFactory<T>(
     js_recognizer_loader?: () => RecognizeInitializer,
 ) {
 
-    let { recognizer, init_data, init_table, delete_data }: RecognizeInitializer = <any>{};
+    let { recognizer, init_data, init_table, delete_data, get_fork_information, get_next_command_block }: RecognizeInitializer = <any>{};
 
     if (wasm_binary_string) {
         //decompress into buffer
@@ -22,11 +22,11 @@ export function ParserFactory<T>(
         for (let i = 0; i < wasm_binary_string.length; i += 2)
             out[i >> 1] = parseInt(wasm_binary_string.slice(i, i + 2), 16);
 
-        ({ recognizer, init_data, init_table, delete_data } = loadWASM(out));
+        ({ recognizer, init_data, init_table, delete_data, get_fork_information, get_next_command_block } = loadWASM(out));
 
     } else {
         //load javascript data;
-        ({ recognizer, init_data, init_table, delete_data } = js_recognizer_loader());
+        ({ recognizer, init_data, init_table, delete_data, get_fork_information, get_next_command_block } = js_recognizer_loader());
     }
 
     initializeUTFLookupTable(init_table());
@@ -49,95 +49,95 @@ export function ParserFactory<T>(
             error_message = "";
 
 
-        if (FAILED) {
-            /*
+        const forks = get_fork_information();
 
-            for (let i = debug_stack.length - 1, j = 0; i >= 0; i--) {
-                if (!debug_stack[i].FAILED && j++ > 80)
-                    break;
-                review_stack.push(debug_stack[i]);
+        if (forks.length == 1) {
+            //Normal parse
+            const fork = forks[0];
+            let limit = 1000000;
+            let block = get_next_command_block(fork);
+            let short_offset = 0;
+            let token_offset = 0;
+            let pos = [];
+            let high = block[short_offset++];
+
+            if (short_offset > 63) {
+                get_next_command_block(fork);
+                short_offset = 0;
             }
 
-            review_stack.reverse();
+            while (limit-- > 0) {
 
-            if (review_stack.length > 0)
-                console.log({ review_stack });
+                let low = high;
 
-            let error_off = 10000000000000;
-            let error_set = false;
+                if (low == 0) break;
 
+                high = block[short_offset++];
 
-            const lexer = new Lexer(str);
+                const rule = low & 3;
 
-            for (let i = 0; i < error_array.length; i++) {
-                if (error_array[i] > 0) {
-                    if (!error_set) {
-                        error_set = true;
-                        error_off = 0;
-                    }
-                    error_off = Math.max(error_off, error_array[i]);
-                }
-            }
-
-            if (error_off == 10000000000000)
-                error_off = 0;
-
-            while (lexer.off < error_off && !lexer.END) lexer.next();
-
-            error_message = lexer.errorMessage(`Unexpected token[${lexer.tx}]`);
-            */
-
-        } else {
-
-            let offset = 0, pos = [];
-
-            for (const rule of rules) {
-
-
-                action_length++;
-
-                if (rule == 0) break;
-
-                switch (rule & 1) {
+                switch (rule) {
                     case 0: //REDUCE;
                         {
-                            const
-                                DO_NOT_PUSH_TO_STACK = (rule >> 1) & 1,
-                                body = rule >> 16,
-                                len = ((rule >> 2) & 0x3FFF);
+                            let
+                                body = (low >> 8) & 0xFF,
+                                len = ((low >> 3) & 0x1F);
+
+                            if (low & 4) {
+                                body = (body << 8) | len;
+                                len = high;
+                                short_offset++;
+                            }
+
+                            console.log({ t: "reduce", body, len }, stack);
 
                             const pos_a = pos[pos.length - len] || { off: 0, tl: 0 };
                             const pos_b = pos[pos.length - 1] || { off: 0, tl: 0 };
-                            pos[stack.length - len] = { off: pos_a.off, tl: pos_b.off - pos_a.off + pos_b.tl };
                             const e = stack.slice(-len);
+
+                            pos[stack.length - len] = { off: pos_a.off, tl: pos_b.off - pos_a.off + pos_b.tl };
                             stack[stack.length - len] = fns[body](env, e, { off: pos_a.off, tl: pos_b.off - pos_a.off + pos_b.tl });
 
-                            if (!DO_NOT_PUSH_TO_STACK) {
-                                stack.length = stack.length - len + 1;
-                                pos.length = pos.length - len + 1;
-                            } else {
-                                stack.length = stack.length - len;
-                                pos.length = pos.length - len;
-                            }
+                            stack.length = stack.length - len + 1;
+                            pos.length = pos.length - len + 1;
+
 
                         } break;
 
                     case 1: { //SHIFT;
-                        const
-                            has_len = (rule >>> 1) & 1,
-                            has_skip = (rule >>> 2) & 1,
-                            len = rule >>> (3 + (has_skip * 15)),
-                            skip = has_skip * ((rule >>> 3) & (~(has_len * 0xFFFF8000)));
-                        offset += skip;
-                        if (has_len) {
-                            stack.push(str.slice(offset, offset + len));
-                            pos.push({ off: offset, tl: len });
-                            offset += len;
-                        } else {
-                            stack.push("");
-                            pos.push({ off: offset, tl: 0 });
+                        let length = (low >>> 3) & 0x1FFF;
+
+                        if (low & 4) {
+                            length = ((length << 16) | high);
+                            short_offset++;
                         }
+
+                        console.log({ t: "shift", length });
+
+                        stack.push(str.slice(token_offset, token_offset + length));
+                        pos.push({ off: token_offset, tl: length });
+                        token_offset += length;
                     } break;
+
+                    case 2: { //SKIP
+
+                        let length = (low >>> 3) & 0x1FFF;
+
+                        if (low & 4) {
+                            length = ((length << 16) | high);
+                            short_offset++;
+                        }
+
+                        console.log({ t: "skip", length });
+
+                        token_offset += length;
+                    }
+                }
+
+
+                if (short_offset > 63) {
+                    get_next_command_block(fork);
+                    short_offset = 0;
                 }
             }
         }

@@ -161,13 +161,14 @@ export function getSkipFunctionNew(
                     "l:Lexer&",
                     rec_glob_data_name
                 ).addStatement(
+                    SC.Value("const off = l.token_offset"),
                     SC.While(SC.Value(1)).addStatement(
                         custom_skip_code ? custom_skip_code : SC.Empty(),
                         SC.If(SC.UnaryPre("!", SC.Group("(", boolean)))
                             .addStatement(SC.Break),
                         SC.Call(SC.Member("l", "next"), rec_glob_data_name),
                     ),
-                    SC.UnaryPre(SC.Return, SC.Value("l"))
+                    SC.Call("add_skip", "l", "data", SC.Value("l.token_offset - off"))
                 );
 
         fn_ref = packGlobalFunction("skip", "Lexer", skip_symbols, skip_function, runner);
@@ -212,7 +213,7 @@ export function collapseBranchNames(options: RenderBodyOptions) {
  */
 export function createBranchFunction(items: SC, branch_code: SC, options: RenderBodyOptions): VarSC {
 
-    let fn_ref = SC.Variable("temporary_name:void");
+    let fn_ref = SC.Variable(branch_code.hash() + "temporary_name:void");
 
     options.branches.push({
         name: fn_ref,
