@@ -162,12 +162,14 @@ export function resolveGOTOBranches(gen: TransitionClauseGenerator, state: Trans
             if (WE_HAVE_JUST_ONE_GOTO_GROUP) {
                 first_goto_group_keys = keys;
                 switch_stmt = new SC().addStatement(...switch_stmt.statements[0].statements);
-            } else {
-                //switch_stmt.statements[switch_stmt.statements.length - 1].addStatement(SC.Break);
-                switch_stmt.addStatement(SC.If(SC.Value("default")).addStatement(SC.Break));
             }
         }
+
+        if (!WE_HAVE_JUST_ONE_GOTO_GROUP)
+            switch_stmt.addStatement(SC.If(SC.Value("default")).addStatement(SC.Break));
+
         return switch_stmt;
+
         return SC.While(
             WE_HAVE_JUST_ONE_GOTO_GROUP && first_goto_group_keys.length > 0
                 ? first_goto_group_keys.map(i => SC.Binary(rec_state_prod, "==", i)).reduce(reduceOR)
