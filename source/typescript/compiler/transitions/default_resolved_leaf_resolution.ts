@@ -15,7 +15,7 @@ import { processProductionChain } from "../../utilities/process_production_reduc
 export function default_resolveResolvedLeaf(item: Item, state: TransitionNode, options: RenderBodyOptions): SingleItemReturnObject {
 
     const
-        { grammar, helper: runner, leaf_productions,  production_ids, extended_goto_items: extended_production_shift_items, leaves } = options,
+        { grammar, helper: runner, leaf_productions, production_ids, extended_goto_items: extended_production_shift_items, leaves } = options,
         code = state.code || new SC,
         SHOULD_IGNORE = extended_production_shift_items.some(i => i.body == item.body);
 
@@ -41,34 +41,23 @@ export function default_resolveResolvedLeaf(item: Item, state: TransitionNode, o
         item = item.increment();
 
     if (item) {
-        if (item.len > 0 && item.offset == 0 && (!production_ids.includes(item.getProduction(grammar).id) || state.offset > 0)) {
+        
+        const
+            sc = new SC,
 
-            const bool = createProductionCall(item.getProduction(grammar), options, rec_glob_lex_name);
+            skippable = getSkippableSymbolsFromItems([item], grammar),
 
-            leaf_node = SC.If(bool);
+            skip = state.transition_type == TRANSITION_TYPE.ASSERT_CONSUME
+                && !item.atEND
+                ? createSkipCall(skippable, grammar, runner, rec_glob_lex_name)
+                : undefined;
 
-            code.addStatement(leaf_node);
+        code.addStatement(skip);
 
-            prods = processProductionChain(leaf_node, options, itemsToProductions([item], grammar));
+        code.addStatement(sc);
 
-        } else {
-
-            const
-                skippable = getSkippableSymbolsFromItems([item], grammar),
-                skip = state.transition_type == TRANSITION_TYPE.ASSERT_CONSUME
-                    && !item.atEND
-                    ? createSkipCall(skippable, grammar, runner, rec_glob_lex_name)
-                    : undefined;
-
-            code.addStatement(skip);
-
-            const sc = new SC;
-
-            code.addStatement(sc);
-
-            ({ leaf_node, prods } = renderItem(sc, item, options, state.transition_type == TRANSITION_TYPE.ASSERT));
-        }
-
+        ({ leaf_node, prods } = renderItem(sc, item, options, state.transition_type == TRANSITION_TYPE.ASSERT));
+        
         for (const prod of prods)
             leaf_productions.add(prod);
     }
