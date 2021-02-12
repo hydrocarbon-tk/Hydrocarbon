@@ -6,6 +6,7 @@ import {
     createBranchFunction,
     createConsume,
     createDefaultReduceFunction,
+    createProductionTokenFunction,
     createReduceFunction,
     createSkipCall,
     getProductionFunctionName
@@ -17,7 +18,8 @@ import {
     getRootSym,
     getSkippableSymbolsFromItems,
 
-    Sym_Is_A_Production
+    Sym_Is_A_Production,
+    Sym_Is_A_Production_Token
 } from "./symbol.js";
 import { processProductionChain } from "./process_production_reduction_sequences.js";
 
@@ -47,7 +49,8 @@ function getProductionPassthroughInformation(production_id: number, grammar: Gra
 
     const IS_PASSTHROUGH = production.bodies.length == 1
         && production.bodies[0].sym.length == 1
-        && Sym_Is_A_Production(production.bodies[0].sym[0]);
+        && Sym_Is_A_Production(production.bodies[0].sym[0])
+        && !Sym_Is_A_Production_Token(production.bodies[0].sym[0]);
 
     let first_non_passthrough = -1, passthrough_chain = [];
 
@@ -92,8 +95,7 @@ export function renderItem(
         let bool_expression = null;
 
         const sym = getRootSym(item.sym(grammar), grammar);
-
-        if (Sym_Is_A_Production(sym)) {
+        if (Sym_Is_A_Production(sym) && !Sym_Is_A_Production_Token(sym)) {
 
             const production = grammar[sym.val];
 
