@@ -1,25 +1,10 @@
 ---
-modified: 2021-02-13T09:48:39-07:00
+modified: 2021-02-13T10:04:06-07:00
 ---
 
 # CANDLELIB::HYDROCARBON
 
 ## A Recursive Descent Parser Compiler
-
-## Features
-
-### Recusrive Descent
-
-Creates parsers that are easy to understan?.
-
-### Forking
-
-streaming 
-
-forking
-Left-recursion
-modular
-
 
 ### State of the Library
 
