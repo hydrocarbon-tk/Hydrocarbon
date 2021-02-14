@@ -80,10 +80,10 @@ export function renderItem(
     lexer_name: VarSC = rec_glob_lex_name,
     FROM_UPPER = false,
     items = [],
-): { leaf_node: SC, prods: number[]; } {
+): { leaf_node: SC, prods: number[]; INDIRECT: boolean; } {
     const { grammar, helper: runner, called_productions } = options;
 
-    let prods = [];
+    let prods = [], INDIRECT = false;
 
     if (!item.atEND) {
 
@@ -96,6 +96,8 @@ export function renderItem(
 
         const sym = getRootSym(item.sym(grammar), grammar);
         if (Sym_Is_A_Production(sym) && !Sym_Is_A_Production_Token(sym)) {
+            
+            INDIRECT = true;
 
             const production = grammar[sym.val];
 
@@ -120,13 +122,7 @@ export function renderItem(
 
             ({ leaf_node: code, prods } = renderItem(call_body, item.increment(), options, false, lexer_name, true, items));
 
-            //call_body.addStatement(options.goto_items.map(i => i.renderUnformattedWithProduction(options.grammar)).join("\n"));
-            // call_body.addStatement(prods.join("\n"));
-
             const call_name = createBranchFunction(call_body, call_body, options);
-
-            //call_body.addStatement(call_body.hash());
-
             const rc = new SC;
 
             rc.addStatement(SC.Call("pushFN", "data", call_name));
@@ -135,7 +131,7 @@ export function renderItem(
 
             leaf_node.addStatement(rc);
 
-            return { leaf_node: code, prods };
+            return { leaf_node: code, prods, INDIRECT };
 
         } else if (RENDER_WITH_NO_CHECK) {
             leaf_node.addStatement(createConsume(lexer_name));
@@ -161,5 +157,5 @@ export function renderItem(
     }
 
 
-    return { leaf_node, prods };
+    return { leaf_node, prods, INDIRECT };
 }

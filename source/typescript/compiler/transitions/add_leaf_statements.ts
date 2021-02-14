@@ -70,14 +70,17 @@ export function addLeafStatements(
     if (!NO_GOTOS)
         for (const goto_leaf of goto_leaves) {
 
-            const { leaf, prods, transition_type } = goto_leaf;
+            const { leaf, prods, transition_type, INDIRECT } = goto_leaf;
 
             //@ts-ignore
-            if (goto_leaf.SET)
+            if (goto_leaf.SET || transition_type == TRANSITION_TYPE.IGNORE)
                 continue;
 
             //@ts-ignore
             goto_leaf.SET = true;
+
+            if (goto_leaf.INDIRECT)
+                leaf.addStatement("-------------INDIRECT-------------------");
 
             if (transition_type == TRANSITION_TYPE.ASSERT_END
                 &&
@@ -86,14 +89,12 @@ export function addLeafStatements(
                 production_ids.some(p_id => goto_leaf.keys.includes(p_id))) {
                 leaf.addStatement(createDebugCall(GOTO_Options, "Inter return"));
                 leaf.addStatement(SC.UnaryPre("return", SC.Value(prods[0])));
-            } else if (transition_type !== TRANSITION_TYPE.IGNORE) {
-                if (transition_type == TRANSITION_TYPE.ASSERT_END) {
-                    leaf.addStatement(SC.Assignment("prod", SC.Value(prods[0])));
-                    //leaf.addStatement(SC.Value("break;"));
-                } else {
-                    leaf.addStatement(SC.Call("pushFN", "data", goto_fn_name));
-                    leaf.addStatement(SC.UnaryPre("return", SC.Value(prods[0])));
-                }
+            } else if (transition_type == TRANSITION_TYPE.ASSERT_END && !INDIRECT) {
+                leaf.addStatement(SC.Assignment("prod", SC.Value(prods[0])));
+                leaf.addStatement(SC.Value("continue;"));
+            } else {
+                leaf.addStatement(SC.Call("pushFN", "data", goto_fn_name));
+                leaf.addStatement(SC.UnaryPre("return", SC.Value(prods[0])));
             }
         }
 

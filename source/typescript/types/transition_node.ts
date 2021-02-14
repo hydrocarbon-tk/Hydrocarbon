@@ -166,11 +166,19 @@ export interface Leaf {
     leaf: SC;
     prods?: number[];
     transition_type: TRANSITION_TYPE;
+
     /**
      * Present if the leaf is part of a GOTO 
      * sequence. 
      */
     keys?: number[];
+
+    /**
+     * Indicates this leaf resides in a branch
+     * function; it is not directly reachable 
+     * from the production RD or GOTO functions
+     */
+    INDIRECT?: boolean;
 }
 
 export interface GeneratorStateReturn {

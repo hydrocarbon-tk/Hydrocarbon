@@ -34,6 +34,10 @@ export function default_resolveUnresolvedLeaves(node: TransitionNode, nodes: Tra
 
         out_leaves: Leaf[] = [];
 
+    for (const node of nodes)
+        for (const leaf of node.leaves)
+            leaf.INDIRECT = true;
+
     let FALLBACK_REQUIRED = items.every(i => i.atEND);
     let v_depth = options.VIRTUAL_LEVEL;
 
