@@ -83,13 +83,13 @@ export function addLeafStatements(
                 leaf.addStatement("-------------INDIRECT-------------------");
 
             if (transition_type == TRANSITION_TYPE.ASSERT_END
-                &&
-                production_ids.includes(prods[0])
-                &&
-                production_ids.some(p_id => goto_leaf.keys.includes(p_id))) {
+                && production_ids.includes(prods[0])
+            ) {
                 leaf.addStatement(createDebugCall(GOTO_Options, "Inter return"));
                 leaf.addStatement(SC.UnaryPre("return", SC.Value(prods[0])));
-            } else if (transition_type == TRANSITION_TYPE.ASSERT_END && !INDIRECT) {
+            } else if (transition_type == TRANSITION_TYPE.ASSERT_END
+                && !INDIRECT
+            ) {
                 leaf.addStatement(SC.Assignment("prod", SC.Value(prods[0])));
                 leaf.addStatement(SC.Value("continue;"));
             } else {
