@@ -16,8 +16,9 @@ import { getStartItemsFromProduction } from "../compiler/function_constructor.js
  * 
  * @param items 
  * @param grammar 
+ * @param ENTER_TOKEN_PRODUCTIONS 
  */
-export function getClosure(items: Item[], grammar: Grammar, internal$item_track: Set<string> = new Set): Item[] {
+export function getClosure(items: Item[], grammar: Grammar, ENTER_TOKEN_PRODUCTIONS: boolean = false, internal$item_track: Set<string> = new Set): Item[] {
 
     let closure = [];
 
@@ -25,9 +26,47 @@ export function getClosure(items: Item[], grammar: Grammar, internal$item_track:
 
         const item_id = item.id;
 
+        if (ENTER_TOKEN_PRODUCTIONS) {
+
+            if (internal$item_track.has(item_id))
+                continue;
+
+            internal$item_track.add(item_id);
+        }
+
         closure.push(...grammar.item_map.get(item_id).closure);
     }
-    
+
+    if (ENTER_TOKEN_PRODUCTIONS) {
+
+        const modified_closure = [];
+
+        for (const item_id of closure) {
+
+            const item = grammar.item_map.get(item_id)?.item;
+
+            if (!item.atEND) {
+
+                const sym = item.sym(grammar);
+
+                if (Sym_Is_A_Production_Token(sym)) {
+
+                    const prod = grammar[getProductionID(sym, grammar)];
+
+                    const tk_closure = getClosure(getStartItemsFromProduction(prod), grammar, true, internal$item_track);
+
+                    modified_closure.push(...tk_closure.map(i => i.id));
+
+                } else {
+                    modified_closure.push(item_id);
+                }
+
+            } else modified_closure.push(item_id);
+        }
+
+        closure = modified_closure;
+    }
+
     closure = closure.setFilter(i => i);
 
     return closure.map(i => grammar.item_map.get(i).item);

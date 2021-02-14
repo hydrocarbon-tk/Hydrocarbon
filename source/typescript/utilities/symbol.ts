@@ -166,7 +166,7 @@ export function getTokenSymbolsFromItems(items: Item[], grammar: Grammar): Token
     return items.filter(i => !i.atEND)
         .flatMap(i => getTrueSymbolValue(<TokenSymbol>i.sym(grammar), grammar))
         .setFilter(getUniqueSymbolName)
-        .filter(sym => !Sym_Is_A_Production(sym));
+        .filter(sym => !Sym_Is_A_Production(sym) || Sym_Is_A_Production_Token(sym));
 }
 
 export function getSkippableSymbolsFromItems(items: Item[], grammar: Grammar): TokenSymbol[] {
@@ -239,7 +239,7 @@ export function getSymbolsFromClosure(closure: Item[], grammar: Grammar): Symbol
         ...new Set(
             closure
                 .filter(i => !i.atEND)
-                .filter(i => !Sym_Is_A_Production(i.sym(grammar)))
+                .filter(i => !Sym_Is_A_Production(i.sym(grammar)) || Sym_Is_A_Production_Token(i.sym(grammar)))
                 .flatMap(i => getTrueSymbolValue(<TokenSymbol>i.sym(grammar), grammar))
         ).values()
     ];

@@ -42,7 +42,7 @@ export function default_resolveResolvedLeaf(item: Item, state: TransitionNode, o
 
     if (item) {
 
-        if (false && item.offset == 0 && !options.productions.some(g => g.id == item.getProduction(grammar).id)) {
+        if (item.offset == 0 && !options.productions.some(g => g.id == item.getProduction(grammar).id)) {
 
             const production = item.getProduction(grammar);
 

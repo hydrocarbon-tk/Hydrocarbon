@@ -14,6 +14,7 @@ import {
 
     getUniqueSymbolName,
     Symbols_Are_The_Same, Sym_Is_A_Production,
+    Sym_Is_A_Production_Token,
     Sym_Is_EOF
 } from "../../utilities/symbol.js";
 import { createVirtualProductionSequence } from "../function_constructor.js";
@@ -50,7 +51,7 @@ export function default_resolveBranches(
         groups
     );
 
-    if (groups.length > 4 && items.filter(i => i.atEND).setFilter(i => i.id).length <= 1)
+    if (false && groups.length > 4 && items.filter(i => i.atEND).setFilter(i => i.id).length <= 1)
 
         createSwitchBlock(options, groups, rec_glob_lex_name, root);
 
@@ -140,7 +141,6 @@ function Every_Transition_Does_Not_Require_A_Skip(groups: TransitionGroup[]) {
 
 function createIfElseBlock(
     options: RenderBodyOptions,
-
     state: TransitionNode,
     groups: TransitionGroup[],
     root: SC,
@@ -160,14 +160,15 @@ function createIfElseBlock(
 
         const
             group = groups[i],
-            { syms, transition_types, code, items } = group,
+            { syms, transition_types, code, items, leaves } = group,
             complement_symbols = groups.filter((l, j) => j > i).flatMap(g => g.syms).setFilter(getUniqueSymbolName);
 
         let assertion_boolean: SC = SC.Empty();
 
         const
             transition_type: TRANSITION_TYPE = transition_types[0],
-            FIRST_SYMBOL_IS_A_PRODUCTION = Sym_Is_A_Production(syms[0]);
+            FIRST_SYMBOL_IS_A_PRODUCTION = Sym_Is_A_Production(syms[0]),
+            FIRST_SYMBOL_IS_A_PRODUCTION_TOKEN = Sym_Is_A_Production_Token(syms[0]);
 
         switch (transition_type) {
 
@@ -224,6 +225,7 @@ function createIfElseBlock(
                 rc.addStatement(SC.UnaryPre(SC.Return, SC.Value("0")));
                 leaf.addStatement(rc);
                 leaf = rc;
+                leaves.forEach(leaf => leaf.INDIRECT = true);
 
                 break;
 
@@ -257,7 +259,7 @@ function createIfElseBlock(
             case TRANSITION_TYPE.PEEK_PRODUCTION_SYMBOLS:
             case TRANSITION_TYPE.ASSERT_PRODUCTION_SYMBOLS:
 
-                if (FIRST_SYMBOL_IS_A_PRODUCTION) throw new Error("WTF");
+                if (FIRST_SYMBOL_IS_A_PRODUCTION && !FIRST_SYMBOL_IS_A_PRODUCTION_TOKEN) throw new Error("WTF");
 
                 assertion_boolean = getIncludeBooleans(<TokenSymbol[]>syms, grammar, runner, peek_name, <TokenSymbol[]>complement_symbols);
 
@@ -319,6 +321,7 @@ function addIfStatementTransition(
             //|| transition_type == TRANSITION_TYPE.ASSERT
             || transition_type == TRANSITION_TYPE.PEEK_PRODUCTION_SYMBOLS
             || transition_type == TRANSITION_TYPE.PEEK_UNRESOLVED
+            || transition_type == TRANSITION_TYPE.ASSERT_PEEK
             || transition_type == TRANSITION_TYPE.ASSERT_END
         );
 

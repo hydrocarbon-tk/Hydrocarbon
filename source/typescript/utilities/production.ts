@@ -8,7 +8,7 @@ import { Item } from "./item.js";
 
 export function getProductionClosure(production_id: number, grammar: Grammar, ENTER_TOKEN_PRODUCTIONS: boolean = false) {
     const prod = grammar[production_id];
-    return getClosure(getStartItemsFromProduction(prod), grammar/*, ENTER_TOKEN_PRODUCTIONS*/);
+    return getClosure(getStartItemsFromProduction(prod), grammar, ENTER_TOKEN_PRODUCTIONS);
 }
 
 export function doesProductionHaveEmpty(production_id: number, grammar: Grammar) {
@@ -25,7 +25,8 @@ export function doesProductionHaveEmpty(production_id: number, grammar: Grammar)
     return HAS_EMPTY;
 }
 /**
- * Retrieve the numerical production id from either a ProductionTokenSymbol or a ProductionSymbol
+ * Retrieve the numerical production id from either a ProductionTokenSymbol, a ProductionSymbol,
+ * or an Item
  * @param object
  * @param grammar
  */

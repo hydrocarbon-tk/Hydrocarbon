@@ -62,13 +62,21 @@ export function yieldTransitions(
             max_item_offset = getMaxOffsetOfItems(active_items),
 
             first_production = (active_items[0]).getProduction(grammar),
+
             NO_END_ITEMS_PRESENT = !active_items.some(i => i.atEND),
+
             THERE_IS_ONLY_ONE_ACTIVE_ITEM = active_items.length == 1,
+
             ITEMS_HAVE_A_MAX_OFFSET_OF_ZERO = max_item_offset == 0,
+
             ALL_ITEMS_ARE_FROM_SAME_PRODUCTION = Items_Are_From_Same_Production(active_items, grammar),
+
             ALL_ITEMS_HAVE_SAME_SYMBOL = Items_Have_The_Same_Active_Symbol(active_items, grammar),
+
             ALL_ITEMS_ARE_FROM_ROOT_PRODUCTION = ALL_ITEMS_ARE_FROM_SAME_PRODUCTION && production_ids.includes(first_production.id),
+
             ALL_ITEMS_ARE_END_ITEMS = active_items.every(i => i.atEND),
+
             ITEMS_SHOULD_CREATE_SHIFT_NODES = (offset > 0 || ALL_ITEMS_ARE_FROM_ROOT_PRODUCTION || ALL_ITEMS_ARE_FROM_SAME_PRODUCTION);
 
         if (ALL_ITEMS_ARE_END_ITEMS) {
@@ -193,7 +201,7 @@ function yieldSingleItemNode(items: Item[], { grammar }: RenderBodyOptions, offs
 
         const
 
-            IS_SYM_PRODUCTION = Sym_Is_A_Production(items[0].sym(grammar)),
+            IS_SYM_PRODUCTION = Sym_Is_A_Production(items[0].sym(grammar)) && !Sym_Is_A_Production_Token(items[0].sym(grammar)),
 
             transition_type: TRANSITION_TYPE = IS_SYM_PRODUCTION
                 ? TRANSITION_TYPE.ASSERT_PRODUCTION_SYMBOLS

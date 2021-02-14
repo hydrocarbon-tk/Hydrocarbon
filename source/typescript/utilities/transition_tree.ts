@@ -6,6 +6,7 @@ import { closure_group, TransitionTreeNode } from "../types/transition_tree_node
 import { getClosure, getFollowClosure } from "./closure.js";
 import { getFollow } from "./follow.js";
 import { Item } from "./item.js";
+import { getProductionClosure } from "./production.js";
 import {
     getSymbolsFromClosure,
     getUniqueSymbolName,
@@ -198,10 +199,14 @@ function getClosureGroups(
                 );
                 group.push(...new_group);
             }
-        } else if (!Sym_Is_A_Production(sym)) {
+        } else if (!Sym_Is_A_Production(sym) || Sym_Is_A_Production_Token(sym)) {
 
             let syms = [sym];
-            
+
+            if (Sym_Is_A_Production_Token(sym))
+                syms = <TokenSymbol[]>getSymbolsFromClosure(getProductionClosure(sym.val, grammar, true), grammar);
+
+
             for (const sym of syms) {
 
                 const new_closure = [];

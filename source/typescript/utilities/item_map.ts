@@ -247,7 +247,7 @@ function processClosures(
 
             const sym = item.sym(grammar);
 
-            if (Sym_Is_A_Production(sym)) {
+            if (Sym_Is_A_Production(sym) && !Sym_Is_A_Production_Token(sym)) {
                 const prod_id = sym.val;
                 temp.push(...extant_production_item_maps[prod_id].item_maps.flatMap(i => i.closure));
             }
