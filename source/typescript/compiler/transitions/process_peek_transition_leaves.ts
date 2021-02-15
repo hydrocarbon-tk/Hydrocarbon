@@ -103,6 +103,8 @@ function convertPeekStateToSingleItemNode(node: TransitionNode, { grammar }: Ren
         node.transition_type = TRANSITION_TYPE.PEEK_PRODUCTION_SYMBOLS;
     } else if (items[0].atEND) {
         node.transition_type = TRANSITION_TYPE.ASSERT_END;
+    } else if (node.peek_level > 0) {
+        node.transition_type = TRANSITION_TYPE.ASSERT_PEEK;
     } else {
         node.transition_type = TRANSITION_TYPE.ASSERT;
     }
