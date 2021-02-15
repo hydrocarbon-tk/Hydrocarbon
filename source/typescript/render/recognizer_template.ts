@@ -21,7 +21,7 @@ export const renderAssemblyScriptRecognizer = (
     const closure = getProductionClosure(0, grammar);
     const skippable = getSkippableSymbolsFromItems(closure, grammar);
     const unskippable = getUnskippableSymbolsFromClosure(closure, grammar);
-    const skip = createSkipCall(skippable, grammar, runner, SC.Variable("data.lexer"), unskippable);
+    const skip = createSkipCall(skippable, grammar, runner, SC.Variable("data.lexer"), false, unskippable);
     return (new SC).addStatement(SC.Value(`
     const lookup_table = new Uint8Array(${jump8bit_table_byte_size});
     const sequence_lookup = [${grammar.sequence_string.split("").map(s => s.charCodeAt(0)).join(",")}];

@@ -123,14 +123,14 @@ function createPeekStatements(
         }
 
         if (state.offset > 0 && state.peek_level == 0) {
-            root.addStatement(createSkipCall(skippable, grammar, runner, lex_name));
+            root.addStatement(createSkipCall(skippable, grammar, runner, lex_name, false));
         } else if (state.peek_level >= 1) {
 
             peek_name = SC.Variable("pk:Lexer");
-            root.addStatement(createSkipCall(skippable, grammar, runner, SC.Call(SC.Member(peek_name, "next"), rec_glob_data_name)));
+            root.addStatement(createSkipCall(skippable, grammar, runner, SC.Call(SC.Member(peek_name, "next"), rec_glob_data_name), true));
         }
     } else if (state.offset > 0) {
-        root.addStatement(createSkipCall(skippable, grammar, runner));
+        root.addStatement(createSkipCall(skippable, grammar, runner, rec_glob_lex_name, false));
     }
     return peek_name;
 }
@@ -348,7 +348,7 @@ function addIfStatementTransition(
             || transition_type == TRANSITION_TYPE.ASSERT_PRODUCTION_CALL
         ) {
             const skippable = getSkippableSymbolsFromItems(breadcrumb_items, grammar);
-            sc.addStatement(createSkipCall(skippable, grammar, runner, rec_glob_lex_name));
+            sc.addStatement(createSkipCall(skippable, grammar, runner, rec_glob_lex_name, false));
             //Add peek
         }
 

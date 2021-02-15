@@ -159,7 +159,7 @@ export function resolveGOTOBranches(gen: TransitionClauseGenerator, state: Trans
                 SC.If(SC.Value(keys.slice(-1)[0] + ""))
                     .addStatement(
                         active_items.length > 0 || end_items.length > 1
-                            ? createSkipCall(skippable, grammar, runner)
+                            ? createSkipCall(skippable, grammar, runner, rec_glob_lex_name, false)
                             : undefined,
                         interrupt_statement,
                         code,

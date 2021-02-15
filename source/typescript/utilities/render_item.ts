@@ -89,14 +89,14 @@ export function renderItem(
 
         if (FROM_UPPER) {
             const skippable = getSkippableSymbolsFromItems([item], grammar);
-            leaf_node.addStatement(createSkipCall(skippable, grammar, runner, lexer_name));
+            leaf_node.addStatement(createSkipCall(skippable, grammar, runner, lexer_name, false));
         }
 
         let bool_expression = null;
 
         const sym = getRootSym(item.sym(grammar), grammar);
         if (Sym_Is_A_Production(sym) && !Sym_Is_A_Production_Token(sym)) {
-            
+
             INDIRECT = true;
 
             const production = grammar[sym.val];
