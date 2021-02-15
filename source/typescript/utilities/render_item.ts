@@ -6,13 +6,13 @@ import {
     createBranchFunction,
     createConsume,
     createDefaultReduceFunction,
-    createProductionTokenFunction,
     createReduceFunction,
     createSkipCall,
     getProductionFunctionName
 } from "./code_generating.js";
 import { rec_glob_lex_name } from "./global_names.js";
 import { Item, itemsToProductions } from "./item.js";
+import { processProductionChain } from "./process_production_reduction_sequences.js";
 import { SC, VarSC } from "./skribble.js";
 import {
     getRootSym,
@@ -21,7 +21,6 @@ import {
     Sym_Is_A_Production,
     Sym_Is_A_Production_Token
 } from "./symbol.js";
-import { processProductionChain } from "./process_production_reduction_sequences.js";
 
 export function renderItemReduction(
     code_node: SC,

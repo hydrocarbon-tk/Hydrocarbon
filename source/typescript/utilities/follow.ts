@@ -8,7 +8,7 @@ export function getFollow(production_id: number, grammar: Grammar): TokenSymbol[
 
 
     return prod.bodies
-        .map(b => new Item(b.id, b.length, b.length, EOF_SYM))
+        .map(b => new Item(b.id, b.length, b.length))
         .flatMap(i => [...grammar.item_map.get(i.id).follow.values()])
         .setFilter()
         .map(sym => <TokenSymbol>grammar.meta.all_symbols.get(sym));

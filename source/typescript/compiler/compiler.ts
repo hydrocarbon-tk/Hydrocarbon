@@ -131,9 +131,7 @@ export async function compile(grammar: Grammar, env: GrammarParserEnvironment, o
         recognizer_code = renderAssemblyScriptRecognizer(
             grammar,
             runner,
-            mt_code_compiler.functions,
-            action32bit_array_byte_size,
-            error8bit_array_byte_size
+            mt_code_compiler.functions
         ),
         output_dir = URL.resolveRelative(options.output_dir);
 

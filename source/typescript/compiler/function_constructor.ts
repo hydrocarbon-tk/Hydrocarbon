@@ -4,23 +4,23 @@ import { Production } from "../types/production";
 import { RDProductionFunction } from "../types/rd_production_function";
 import { RenderBodyOptions } from "../types/render_body_options";
 import { Symbol } from "../types/symbol.js";
-import { collapseBranchNames, createBranchFunction, getProductionFunctionName, packGlobalFunction } from "../utilities/code_generating.js";
-import { rec_glob_data_name, rec_glob_lex_name, rec_state, rec_state_prod } from "../utilities/global_names.js";
+import { Leaf, TRANSITION_TYPE } from "../types/transition_node.js";
+import { collapseBranchNames, createBranchFunction, getProductionFunctionName } from "../utilities/code_generating.js";
+import { const_EMPTY_ARRAY } from "../utilities/const_EMPTY_ARRAY.js";
+import { rec_glob_data_name, rec_glob_lex_name, rec_state } from "../utilities/global_names.js";
 import { Item, ItemIndex } from "../utilities/item.js";
-import { getProductionClosure, getProductionID } from "../utilities/production.js";
+import { getProductionClosure } from "../utilities/production.js";
+import { renderItem } from "../utilities/render_item.js";
 import { SC } from "../utilities/skribble.js";
 import { Sym_Is_A_Production } from "../utilities/symbol.js";
+import { createVirtualProductions } from "../utilities/virtual_productions.js";
 import { Helper } from "./helper.js";
 import { addLeafStatements, addVirtualProductionLeafStatements } from "./transitions/add_leaf_statements.js";
-import { const_EMPTY_ARRAY } from "../utilities/const_EMPTY_ARRAY.js";
 import { default_resolveBranches } from "./transitions/default_branch_resolution.js";
 import { addClauseSuccessCheck, resolveGOTOBranches } from "./transitions/default_state_build.js";
 import { processTransitionNodes } from "./transitions/process_transition_nodes.js";
 import { yieldGOTOTransitions } from "./transitions/yield_goto_transitions.js";
 import { yieldTransitions } from "./transitions/yield_transitions.js";
-import { Leaf, TRANSITION_TYPE } from "../types/transition_node.js";
-import { createVirtualProductions, VirtualProductionLinks } from "../utilities/virtual_productions.js";
-import { renderItem } from "../utilities/render_item.js";
 
 export function constructHybridFunction(production: Production, grammar: Grammar, runner: Helper): RDProductionFunction {
 

@@ -89,11 +89,10 @@ export function ParserFactory<T>(
                                 short_offset++;
                             }
 
-                            console.log({ t: "reduce", body, len }, stack);
-
                             const pos_a = pos[pos.length - len] || { off: 0, tl: 0 };
                             const pos_b = pos[pos.length - 1] || { off: 0, tl: 0 };
                             const e = stack.slice(-len);
+
 
                             pos[stack.length - len] = { off: pos_a.off, tl: pos_b.off - pos_a.off + pos_b.tl };
                             stack[stack.length - len] = fns[body](env, e, { off: pos_a.off, tl: pos_b.off - pos_a.off + pos_b.tl });
@@ -112,8 +111,6 @@ export function ParserFactory<T>(
                             short_offset++;
                         }
 
-                        console.log({ t: "shift", length });
-
                         stack.push(str.slice(token_offset, token_offset + length));
                         pos.push({ off: token_offset, tl: length });
                         token_offset += length;
@@ -128,9 +125,11 @@ export function ParserFactory<T>(
                             short_offset++;
                         }
 
-                        console.log({ t: "skip", length });
-
                         token_offset += length;
+                    }
+
+                    case 3: {
+                        //Error
                     }
                 }
 
