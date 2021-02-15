@@ -62,7 +62,7 @@ export function resolveGOTOBranches(gen: TransitionClauseGenerator, state: Trans
 
             if (active_items.length > 0) {
                 const
-                    closure = getClosure(active_items.slice(), grammar);
+                    closure = getClosure(active_items.slice(), grammar, true);
                 anticipated_syms = getSymbolsFromClosure(closure, grammar);
 
                 /**
