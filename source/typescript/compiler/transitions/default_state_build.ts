@@ -145,7 +145,7 @@ export function resolveGOTOBranches(gen: TransitionClauseGenerator, state: Trans
 
                         if (booleans) {
                             interrupt_statement = SC.If(booleans).addStatement(
-                                SC.UnaryPre(SC.Return, SC.Value(0))
+                                SC.UnaryPre(SC.Return, SC.Value(keys[0]))
                             );
                         }
                     }
@@ -199,7 +199,7 @@ export function addClauseSuccessCheck(options: RenderBodyOptions): SC {
     // js: 0 - +boolean
     const condition = productions.map(p => (SC.Binary(rec_state_prod, "==", SC.Value(p.id)))).reduce(reduceOR);
     //return SC.UnaryPre(SC.Return, SC.Call("assertSuccess", rec_glob_lex_name, rec_state, condition));
-    return SC.UnaryPre(SC.Return, SC.Binary(SC.Group("(", SC.UnaryPre("+", SC.Group("(", condition))), "-", "1"));
+    return SC.Value(`return prod == ${productions[0].id} ? prod : -1`);
 }
 
 export function createDebugCall(options: RenderBodyOptions, action_name, debug_items: Item[] = []) {
