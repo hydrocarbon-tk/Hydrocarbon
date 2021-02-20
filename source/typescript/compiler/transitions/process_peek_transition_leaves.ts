@@ -32,9 +32,11 @@ export function processPeekTransitionLeaves(
 
         if (node.items.length > 1) {
 
-            if (node.items.some(i => i.atEND)) {
+            if (node.items.some(i => i.atEND))
+
                 addUnresolvedNode(node, options, offset);
-            } else if (We_Can_Call_Single_Production_From_Items(node, options))
+
+            else if (We_Can_Call_Single_Production_From_Items(node, options))
 
                 convertStateToProductionCall(node, offset);
 
