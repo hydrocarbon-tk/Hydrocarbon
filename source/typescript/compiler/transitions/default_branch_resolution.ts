@@ -47,7 +47,8 @@ export function default_resolveBranches(
         { grammar, helper: runner } = options,
         groups = [...gen],
         all_syms = groups.flatMap(({ syms }) => syms).setFilter(getUniqueSymbolName),
-        root = new SC;
+        root = new SC,
+        GROUPS_CONTAIN_SYMBOL_AMBIGUITY = Groups_Contain_Symbol_Ambiguity(groups);
 
     if (groups.length == 1
         && !FORCE_ASSERTIONS
@@ -66,9 +67,9 @@ export function default_resolveBranches(
         groups
     );
 
-    if (false && groups.length > 4 && items.filter(i => i.atEND).setFilter(i => i.id).length <= 1)
+    if ((groups.length >= 8 || GROUPS_CONTAIN_SYMBOL_AMBIGUITY) && items.filter(i => i.atEND).setFilter(i => i.id).length <= 1)
 
-        createSwitchBlock(options, groups, rec_glob_lex_name, root);
+        createSwitchBlock(options, groups, peek_name, rec_glob_lex_name, root);
 
     else
 
@@ -78,14 +79,53 @@ export function default_resolveBranches(
 
     return root;
 }
+/**
+ * Checks for groups that have mutually occluding symbols
+ */
+function Groups_Contain_Symbol_Ambiguity(groups: TransitionGroup[]) {
 
+    const masks: [number, number][] = groups.map(
+        g => [
+            ((+g.syms.some(Sym_Is_A_Generic_Identifier)) << 0)
+            | ((+g.syms.some(Sym_Is_A_Generic_Number)) << 1)
+            | ((+g.syms.some(Sym_Is_A_Generic_Symbol)) << 2),
+            ((+g.syms.some(Sym_Is_Defined_Identifier)) << 0)
+            | ((+g.syms.some(Sym_Is_Defined_Natural_Number)) << 1)
+            | ((+g.syms.some(Sym_Is_Defined_Symbols)) << 2)
+        ]
+    );
+
+    for (let i = 0; i < masks.length; i++) {
+        for (let j = 0; j < masks.length; j++) {
+
+            if (i == j) continue;
+
+            const [genA, defA] = masks[i];
+            const [genB, defB] = masks[j];
+
+            if (
+                ((genA & defB) && (genB & defA))
+                || (genB & genA)
+            ) return true;
+        }
+    }
+}
+/**
+ * Used in cases of large number of symbols + transitions or occlusion conflicts
+ * @param options 
+ * @param groups 
+ * @param lex_name 
+ * @param root 
+ */
 function createSwitchBlock(
     options: RenderBodyOptions,
     groups: TransitionGroup[],
+    peek_name: VarSC,
     lex_name: VarSC,
     root: SC
 ) {
     const symbol_mappings: [number, Symbol][]
+
         = <any>groups.flatMap((g, i) => g.syms.map(s => [i, s])),
 
         fn_name = createSymbolMappingFunction(
@@ -94,7 +134,7 @@ function createSwitchBlock(
             symbol_mappings
         ),
 
-        sw = SC.Switch(SC.Call(fn_name, lex_name, rec_glob_data_name));
+        sw = SC.Switch(SC.Call(fn_name, peek_name, rec_glob_data_name));
 
     let DEFAULT_NOT_ADDED = true;
 
@@ -102,13 +142,14 @@ function createSwitchBlock(
 
         let { items, code } = groups[i];
 
-        if (items.some(i => i.atEND)) {
+        if (items.some(i => i.atEND) && DEFAULT_NOT_ADDED) {
             DEFAULT_NOT_ADDED = false;
             sw.addStatement(SC.If(SC.Value("default")));
         }
 
         sw.addStatement(SC.If(SC.Value(i)).addStatement(code/*, SC.Break*/));
     }
+
     if (DEFAULT_NOT_ADDED)
         sw.addStatement(SC.If(SC.Value("default")).addStatement(SC.Break));
 
