@@ -148,8 +148,6 @@ export function createVirtualProductionSequence(
             item[ItemIndex.offset] = item[ItemIndex.length];
 
             ({ prods, leaf_node } = renderItem(leaf, item, options));
-
-            leaf_node.addStatement(item.renderUnformattedWithProduction(grammar));
         }
 
         out_prods.push(...prods);
