@@ -54,7 +54,7 @@ export function createVirtualProductions(items: Item[], options: RenderBodyOptio
 
                 production = <VirtualProduction>{
                     id: grammar.length,
-                    name: `virtual-${item.id}`,
+                    name: `virtual-${item.id}-lvl:${options.VIRTUAL_LEVEL}`,
                     type: "virtual-production",
                     HAS_EMPTY: false,
                     CHECKED_FOR_EMPTY: false,
