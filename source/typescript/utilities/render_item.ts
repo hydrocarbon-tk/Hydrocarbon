@@ -93,7 +93,7 @@ export function renderItem(
 
         if (FROM_UPPER) {
             const skippable = getSkippableSymbolsFromItems([item], grammar);
-            leaf_node.addStatement(createSkipCall(skippable, grammar, runner, lexer_name, false));
+            leaf_node.addStatement(createSkipCall(skippable, options, lexer_name, false));
         }
 
         let bool_expression = null;
@@ -140,7 +140,7 @@ export function renderItem(
         } else if (RENDER_WITH_NO_CHECK) {
             leaf_node.addStatement(createConsume(lexer_name));
         } else {
-            bool_expression = createAssertionShift(grammar, runner, sym, lexer_name);
+            bool_expression = createAssertionShift(options, sym, lexer_name);
             RENDER_WITH_NO_CHECK = false;
         }
 

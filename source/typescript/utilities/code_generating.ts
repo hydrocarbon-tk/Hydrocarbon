@@ -7,7 +7,7 @@ import crypto from "crypto";
 import { Helper } from "../compiler/helper.js";
 import { Grammar } from "../types/grammar.js";
 import { Production } from "../types/production.js";
-import { RenderBodyOptions } from "../types/render_body_options.js";
+import { BaseOptions, RenderBodyOptions } from "../types/render_body_options.js";
 import {
     DefinedSymbol,
     ProductionTokenSymbol,
@@ -30,11 +30,11 @@ import {
     Sym_Is_A_Production_Token,
     Sym_Is_A_Terminal,
     Sym_Is_Consumed,
-    Sym_Is_Defined, 
-    Sym_Is_Defined_Identifier, 
-    Sym_Is_Defined_Natural_Number, 
-    Sym_Is_EOF, 
-    Sym_Is_Not_A_Defined_Identifier, 
+    Sym_Is_Defined,
+    Sym_Is_Defined_Identifier,
+    Sym_Is_Defined_Natural_Number,
+    Sym_Is_EOF,
+    Sym_Is_Not_A_Defined_Identifier,
     Sym_Is_Not_Consumed
 } from "./symbol.js";
 /**
@@ -62,8 +62,8 @@ export function createConsume(lex_name: ConstSC | VarSC): ExprSC {
 export function createAssertConsume(lex_name: ConstSC | VarSC = SC.Variable("l:Lexer"), boolean: ExprSC): ExprSC {
     return SC.Binary(boolean, "&&", createConsume(lex_name));
 }
-export function createAssertionShift(grammar: Grammar, runner: Helper, sym: TokenSymbol, lex_name: ConstSC | VarSC = SC.Variable("l:Lexer")): ExprSC {
-    return createAssertConsume(lex_name, getIncludeBooleans([sym], grammar, runner, lex_name));
+export function createAssertionShift(options: BaseOptions, sym: TokenSymbol, lex_name: ConstSC | VarSC = SC.Variable("l:Lexer")): ExprSC {
+    return createAssertConsume(lex_name, getIncludeBooleans([sym], options, lex_name));
 }
 
 export function createProductionCall(
@@ -131,14 +131,15 @@ export function translateSymbolValue(sym: TokenSymbol, grammar: Grammar, lex_nam
 
 export function createSkipCall(
     symbols: TokenSymbol[],
-    grammar: Grammar,
-    runner: Helper,
+    options: BaseOptions,
     lex_name: ExprSC = SC.Variable("l", "Lexer"),
     peek: boolean,
     exclude: TokenSymbol[] = []
 ): StmtSC {
 
-    const skips = getSkipFunctionNew(symbols, grammar, runner, undefined, lex_name, exclude);
+    const { helper: runner } = options;
+
+    const skips = getSkipFunctionNew(symbols, options, undefined, lex_name, exclude);
 
     if (skips)
         return SC.Expressions(SC.Call(skips, SC.UnaryPost(lex_name, SC.Comment(symbols.map(s => `[ ${s.val} ]`).join(""))), rec_glob_data_name, SC.Value((!peek) + "")));
@@ -148,12 +149,13 @@ export function createSkipCall(
 
 export function getSkipFunctionNew(
     skip_symbols: TokenSymbol[],
-    grammar: Grammar,
-    runner: Helper,
+    options: BaseOptions,
     custom_skip_code: SC = null,
     lex_name: ExprSC = SC.Variable("l", "Lexer"),
     exclude: TokenSymbol[] = []
 ): VarSC {
+
+    const { helper: runner } = options;
 
     if (skip_symbols.length == 0)
         return null;
@@ -164,7 +166,7 @@ export function getSkipFunctionNew(
 
 
         const
-            boolean = getIncludeBooleans(skip_symbols, grammar, runner, rec_glob_lex_name, exclude),
+            boolean = getIncludeBooleans(skip_symbols, options, rec_glob_lex_name, exclude),
 
             skip_function =
                 SC.Function(
@@ -234,8 +236,8 @@ export function createBranchFunction(items: SC, branch_code: SC, options: Render
 
     return <VarSC>fn_ref;
 }
-export function createProductionTokenFunction(tok: ProductionTokenSymbol, grammar: Grammar, runner: Helper): VarSC {
-
+export function createProductionTokenFunction(tok: ProductionTokenSymbol, options: BaseOptions): VarSC {
+    const { grammar, helper: runner } = options;
     const prod_id = getProductionID(tok, grammar);
     const closure = getProductionClosure(prod_id, grammar, true);
 
@@ -251,7 +253,7 @@ export function createProductionTokenFunction(tok: ProductionTokenSymbol, gramma
 
             anticipated_syms = getTokenSymbolsFromItems(closure, grammar),
 
-            boolean = getIncludeBooleans(anticipated_syms, grammar, runner),
+            boolean = getIncludeBooleans(anticipated_syms, options),
 
             token_function = SC.Function(
                 ":bool",
@@ -299,7 +301,9 @@ export function createProductionTokenFunction(tok: ProductionTokenSymbol, gramma
     return <VarSC>fn_ref;
 }
 
-export function createNonCaptureBooleanCheck(symbols: TokenSymbol[], grammar: Grammar, runner: Helper, ambient_symbols: TokenSymbol[]): VarSC {
+export function createNonCaptureBooleanCheck(symbols: TokenSymbol[], options: BaseOptions, ambient_symbols: TokenSymbol[]): VarSC {
+
+    const { helper: runner } = options;
 
     let fn_ref = getGlobalObject("nocap", symbols, runner);
 
@@ -307,7 +311,7 @@ export function createNonCaptureBooleanCheck(symbols: TokenSymbol[], grammar: Gr
     if (!fn_ref) {
         const
             boolean =
-                getIncludeBooleans(symbols.map(sym => Object.assign({}, sym, { IS_NON_CAPTURE: false })), grammar, runner, rec_glob_lex_name, ambient_symbols),
+                getIncludeBooleans(symbols.map(sym => Object.assign({}, sym, { IS_NON_CAPTURE: false })), options, rec_glob_lex_name, ambient_symbols),
 
             token_function = SC.Function(
                 ":bool",
@@ -404,8 +408,7 @@ export function createSymbolMappingFunction(
             const sc = SC.If(
                 getIncludeBooleans(
                     [sym],
-                    grammar,
-                    runner,
+                    options,
                     lex_name,
                     symbol_mappings.map(([, s]) => s)
                         .filter(Sym_Is_A_Terminal)
@@ -558,11 +561,13 @@ export function* buildSwitchIfs(
     return code_node;
 }
 export function buildIfs(
-    grammar: Grammar,
+    options: BaseOptions,
     syms: DefinedSymbol[],
     lex_name: ConstSC | VarSC = SC.Variable("l:Lexer"),
     occluders: TokenSymbol[] = []
 ): SC {
+
+    const { grammar } = options;
 
     const gen = buildSwitchIfs(grammar, syms, lex_name, occluders);
 
@@ -576,6 +581,7 @@ export function buildIfs(
         const { code_node, sym } = yielded.value;
 
         code_node.addStatement(
+            (options.helper.ANNOTATED) ? sym.val : undefined,
             SC.Assignment(SC.Member(lex_name, "type"), "TokenSymbol"),
             SC.Assignment(SC.Member(lex_name, "byte_length"), sym.byte_length),
             SC.Assignment(SC.Member(lex_name, "token_length"), sym.val.length),
@@ -611,12 +617,13 @@ export function buildIfs(
  */
 export function getIncludeBooleans(
     syms: TokenSymbol[],
-    grammar: Grammar,
-    runner: Helper,
+    options: BaseOptions,
     lex_name: ConstSC | VarSC = SC.Variable("l:Lexer"),
     /* List of all symbols that can be encountered*/
     ambient_symbols: TokenSymbol[] = []
 ): ExprSC {
+
+    const { grammar, helper: runner } = options;
 
     syms = syms.setFilter(s => getUniqueSymbolName(s));
 
@@ -644,7 +651,7 @@ export function getIncludeBooleans(
     if (non_consume.length > 0) {
 
         const
-            fn_name = createNonCaptureBooleanCheck(non_consume, grammar, runner, ambient_symbols);
+            fn_name = createNonCaptureBooleanCheck(non_consume, options, ambient_symbols);
 
         out_non_consume.push(SC.UnaryPost(SC.Call(fn_name, lex_name), SC.Comment(non_consume.map(sym => `[${sanitizeSymbolValForComment(sym)}]`).join(" "))));
     }
@@ -713,7 +720,7 @@ export function getIncludeBooleans(
 
                     const
                         fn_lex_name = SC.Constant("l:Lexer"),
-                        fn = SC.Function(":boolean", fn_lex_name, rec_glob_data_name).addStatement(buildIfs(grammar, syms, fn_lex_name, occluders));
+                        fn = SC.Function(":boolean", fn_lex_name, rec_glob_data_name).addStatement(buildIfs(options, syms, fn_lex_name, occluders));
 
                     fn_ref = packGlobalFunction("dt", "bool", [...syms, ...occluders], fn, runner);
                 }
@@ -751,7 +758,7 @@ export function getIncludeBooleans(
         for (const tok of tk) {
 
             const
-                fn_name = createProductionTokenFunction(tok, grammar, runner),
+                fn_name = createProductionTokenFunction(tok, options),
                 fn = SC.Call(fn_name, lex_name, rec_glob_data_name);
 
             out_tk.push(fn);

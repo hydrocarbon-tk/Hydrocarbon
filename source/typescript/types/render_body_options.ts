@@ -10,10 +10,7 @@ import { Grammar } from "./grammar.js";
 import { Production } from "./production";
 import { Leaf } from "./transition_node.js";
 
-export interface RenderBodyOptions {
-
-    scope: "RD" | "GOTO",
-
+export interface BaseOptions {
     /**
      * Source grammar for the language
      */
@@ -23,6 +20,11 @@ export interface RenderBodyOptions {
      * Active Compiler Runner
      */
     helper?: Helper;
+}
+
+export interface RenderBodyOptions extends BaseOptions {
+
+    scope: "RD" | "GOTO",
 
     /**
      * Production currently being processed

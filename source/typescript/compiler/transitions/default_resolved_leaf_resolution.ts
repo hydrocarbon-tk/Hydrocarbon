@@ -78,7 +78,7 @@ export function default_resolveResolvedLeaf(item: Item, state: TransitionNode, o
 
                 skip = state.transition_type == TRANSITION_TYPE.ASSERT_CONSUME
                     && !item.atEND
-                    ? createSkipCall(skippable, grammar, runner, rec_glob_lex_name, false)
+                    ? createSkipCall(skippable, options, rec_glob_lex_name, false)
                     : undefined;
 
             code.addStatement(skip);

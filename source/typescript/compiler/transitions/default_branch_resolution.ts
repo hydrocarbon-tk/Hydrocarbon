@@ -179,14 +179,14 @@ function createPeekStatements(
         }
 
         if (state.offset > 0 && state.peek_level == 0) {
-            root.addStatement(createSkipCall(skippable, grammar, runner, lex_name, false));
+            root.addStatement(createSkipCall(skippable, options, lex_name, false));
         } else if (state.peek_level >= 1) {
 
             peek_name = SC.Variable("pk:Lexer");
-            root.addStatement(createSkipCall(skippable, grammar, runner, SC.Call(SC.Member(peek_name, "next"), rec_glob_data_name), true));
+            root.addStatement(createSkipCall(skippable, options, SC.Call(SC.Member(peek_name, "next"), rec_glob_data_name), true));
         }
     } else if (state.offset > 0) {
-        root.addStatement(createSkipCall(skippable, grammar, runner, rec_glob_lex_name, false));
+        root.addStatement(createSkipCall(skippable, options, rec_glob_lex_name, false));
     }
     return peek_name;
 }
@@ -253,8 +253,8 @@ function createIfElseBlock(
                 const
                     primary_symbols = syms.filter(a => complement_symbols.some(o => Sym_Is_EOF(a) || Defined_Symbols_Occlude(<any>a, o))),
                     negate_symbols = complement_symbols,
-                    remaining_symbols = getIncludeBooleans(<TokenSymbol[]>primary_symbols, grammar, runner, peek_name),
-                    negated_expression = getIncludeBooleans(<TokenSymbol[]>negate_symbols, grammar, runner, peek_name);
+                    remaining_symbols = getIncludeBooleans(<TokenSymbol[]>primary_symbols, options, peek_name),
+                    negated_expression = getIncludeBooleans(<TokenSymbol[]>negate_symbols, options, peek_name);
 
                 if (negated_expression) {
 
@@ -318,7 +318,7 @@ function createIfElseBlock(
 
                 if (FIRST_SYMBOL_IS_A_PRODUCTION && !FIRST_SYMBOL_IS_A_PRODUCTION_TOKEN) throw new Error("WTF");
 
-                assertion_boolean = getIncludeBooleans(<TokenSymbol[]>syms, grammar, runner, peek_name, <TokenSymbol[]>complement_symbols);
+                assertion_boolean = getIncludeBooleans(<TokenSymbol[]>syms, options, peek_name, <TokenSymbol[]>complement_symbols);
 
                 leaf = addIfStatementTransition(options, group, code, assertion_boolean, FORCE_ASSERTIONS, leaf, state.leaves);
 
@@ -327,7 +327,7 @@ function createIfElseBlock(
             case TRANSITION_TYPE.ASSERT_CONSUME:
 
 
-                assertion_boolean = getIncludeBooleans(<TokenSymbol[]>syms, grammar, runner, lex_name, <TokenSymbol[]>complement_symbols);
+                assertion_boolean = getIncludeBooleans(<TokenSymbol[]>syms, options, lex_name, <TokenSymbol[]>complement_symbols);
 
                 leaf = addIfStatementTransition(options, group, code, assertion_boolean, FORCE_ASSERTIONS, leaf, state.leaves);
 
@@ -406,7 +406,7 @@ function addIfStatementTransition(
             || transition_type == TRANSITION_TYPE.ASSERT_PRODUCTION_CALL
         ) {
             const skippable = getSkippableSymbolsFromItems(breadcrumb_items, grammar);
-            sc.addStatement(createSkipCall(skippable, grammar, runner, rec_glob_lex_name, false));
+            sc.addStatement(createSkipCall(skippable, options, rec_glob_lex_name, false));
             //Add peek
         }
 

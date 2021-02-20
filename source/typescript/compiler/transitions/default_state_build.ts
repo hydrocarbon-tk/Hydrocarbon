@@ -146,7 +146,7 @@ export function resolveGOTOBranches(gen: TransitionClauseGenerator, state: Trans
 
 
                         const
-                            booleans = getIncludeBooleans(checked_symbols, grammar, runner, rec_glob_lex_name, anticipated_syms);
+                            booleans = getIncludeBooleans(checked_symbols, options, rec_glob_lex_name, anticipated_syms);
 
                         if (booleans) {
                             interrupt_statement = SC.If(booleans).addStatement(
@@ -164,7 +164,7 @@ export function resolveGOTOBranches(gen: TransitionClauseGenerator, state: Trans
                 SC.If(SC.Value(keys.slice(-1)[0] + ""))
                     .addStatement(
                         active_items.length > 0 || end_items.length > 1
-                            ? createSkipCall(skippable, grammar, runner, rec_glob_lex_name, false)
+                            ? createSkipCall(skippable, options, rec_glob_lex_name, false)
                             : undefined,
                         interrupt_statement,
                         code,
