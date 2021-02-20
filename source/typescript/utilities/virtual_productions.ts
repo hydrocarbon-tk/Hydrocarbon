@@ -1,5 +1,5 @@
 import { Grammar, ProductionBody } from "../types/grammar.js";
-import { Production } from "../types/production.js";
+import { Production, VirtualProduction } from "../types/production.js";
 import { Item } from "./item.js";
 import { buildItemMaps } from "./item_map.js";
 import { getUniqueSymbolName } from "./symbol.js";
@@ -50,7 +50,7 @@ export function createVirtualProductions(items: Item[], grammar: Grammar): {
                     production: null,
                 },
 
-                production = <Production>{
+                production = <VirtualProduction>{
                     id: grammar.length,
                     name: `virtual-${item.id}`,
                     type: "virtual-production",
@@ -58,6 +58,7 @@ export function createVirtualProductions(items: Item[], grammar: Grammar): {
                     CHECKED_FOR_EMPTY: false,
                     IMPORTED: false,
                     bodies: [virtual_body],
+                    original_item: item
                 };
 
             virtual_body.production = production;

@@ -1,5 +1,6 @@
 import { TokenSymbol } from "./symbol";
 import { ProductionBody } from "./grammar";
+import { Item } from "../utilities/item";
 
 
 export interface Production {
@@ -47,6 +48,12 @@ export interface Production {
 
     };
     graph_id?: number;
+}
+
+export interface VirtualProduction extends Production {
+    type: "virtual-production";
+
+    original_item: Item;
 }
 
 
