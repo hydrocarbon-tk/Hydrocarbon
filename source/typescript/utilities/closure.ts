@@ -73,7 +73,7 @@ export function getClosure(items: Item[], grammar: Grammar, ENTER_TOKEN_PRODUCTI
 }
 
 /**
- * Get a closure that includes items that transition from completed item productions
+ * Get a closure that includes items that transition from productions of completed items
  * @param closure 
  * @param goto_transition_items 
  * @param grammar 
