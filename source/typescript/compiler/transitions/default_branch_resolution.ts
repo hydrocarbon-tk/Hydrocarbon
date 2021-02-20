@@ -67,7 +67,7 @@ export function default_resolveBranches(
         groups
     );
 
-    if ((groups.length >= 8 || GROUPS_CONTAIN_SYMBOL_AMBIGUITY) && items.filter(i => i.atEND).setFilter(i => i.id).length <= 1)
+    if ((groups.length >= 32 || GROUPS_CONTAIN_SYMBOL_AMBIGUITY) && items.filter(i => i.atEND).setFilter(i => i.id).length <= 1)
 
         createSwitchBlock(options, groups, peek_name, rec_glob_lex_name, root);
 
