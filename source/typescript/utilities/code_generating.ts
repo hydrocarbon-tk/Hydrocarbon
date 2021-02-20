@@ -630,11 +630,6 @@ export function getIncludeBooleans(
         fn = consume.filter(Sym_Is_An_Assert_Function)
             .map(s => translateSymbolValue(s, grammar, lex_name)).sort();
 
-    const HAS_GEN_ID = ty.some(Sym_Is_A_Generic_Identifier);
-
-    if (HAS_GEN_ID)
-        id = id.filter(Sym_Is_Not_A_Defined_Identifier);
-
     if (id.length + ty.length + fn.length + tk.length + non_consume.length == 0)
         return null;
 
