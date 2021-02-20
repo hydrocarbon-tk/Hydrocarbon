@@ -18,8 +18,15 @@ import {
     getSymbolName,
 
     getUniqueSymbolName,
-    Symbols_Are_The_Same, Sym_Is_A_Production,
+    Symbols_Are_The_Same,
+    Sym_Is_A_Generic_Identifier,
+    Sym_Is_A_Generic_Number,
+    Sym_Is_A_Generic_Symbol,
+    Sym_Is_A_Production,
     Sym_Is_A_Production_Token,
+    Sym_Is_Defined_Identifier,
+    Sym_Is_Defined_Natural_Number,
+    Sym_Is_Defined_Symbols,
     Sym_Is_EOF
 } from "../../utilities/symbol.js";
 import { createVirtualProductionSequence } from "../function_constructor.js";

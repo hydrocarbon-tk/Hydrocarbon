@@ -30,7 +30,12 @@ import {
     Sym_Is_A_Production_Token,
     Sym_Is_A_Terminal,
     Sym_Is_Consumed,
-    Sym_Is_Defined, Sym_Is_Defined_Identifier, Sym_Is_Defined_Natural_Number, Sym_Is_EOF, Sym_Is_Not_An_Identifier, Sym_Is_Not_Consumed
+    Sym_Is_Defined, 
+    Sym_Is_Defined_Identifier, 
+    Sym_Is_Defined_Natural_Number, 
+    Sym_Is_EOF, 
+    Sym_Is_Not_A_Defined_Identifier, 
+    Sym_Is_Not_Consumed
 } from "./symbol.js";
 /**
  * Length of code hash string appended to GUID constant names. 
@@ -619,7 +624,7 @@ export function getIncludeBooleans(
     const HAS_GEN_ID = ty.some(Sym_Is_A_Generic_Identifier);
 
     if (HAS_GEN_ID)
-        id = id.filter(Sym_Is_Not_An_Identifier);
+        id = id.filter(Sym_Is_Not_A_Defined_Identifier);
 
     if (id.length + ty.length + fn.length + tk.length + non_consume.length == 0)
         return null;

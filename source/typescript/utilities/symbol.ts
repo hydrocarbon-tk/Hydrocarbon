@@ -120,10 +120,10 @@ export function Sym_Is_Defined(s: Symbol): s is DefinedSymbol {
  * @param s
  */
 export function Sym_Is_Defined_Symbols(s: Symbol): s is DefinedCharacterSymbol {
-    return Sym_Is_Defined(s) && !Sym_Is_An_Identifier(s) && !Sym_Is_Numeric(s);
+    return Sym_Is_Defined(s) && !Defined_Sym_Is_An_Identifier(s) && !Sym_Is_Numeric(s);
 }
 export function Sym_Is_Defined_Identifier(s: Symbol): s is DefinedIdentifierSymbol {
-    return Sym_Is_Defined(s) && Sym_Is_An_Identifier(s);
+    return Sym_Is_Defined(s) && Defined_Sym_Is_An_Identifier(s);
 }
 export function Sym_Is_Defined_Natural_Number(s: Symbol): s is DefinedNumericSymbol {
     return Sym_Is_Defined(s) && Sym_Is_Numeric(s);
@@ -135,12 +135,19 @@ export function Sym_Is_Numeric(sym: Symbol): sym is DefinedNumericSymbol {
 export function Sym_Is_Not_Numeric(sym: Symbol): boolean {
     return !Sym_Is_Numeric(sym);
 }
-export function Sym_Is_An_Identifier(sym: Symbol): sym is DefinedIdentifierSymbol {
+/**
+ * Any defined symbol whose character sequence begins with a character from
+ * the Unicode *ID_Start* class.
+ * 
+ * see: https://unicode.org/reports/tr31/
+ * @param sym 
+ */
+export function Defined_Sym_Is_An_Identifier(sym: Symbol): sym is DefinedIdentifierSymbol {
     const lex = new Lexer(sym.val + "");
-    return lex.ty == lex.types.id && lex.n.END;
+    return lex.ty == lex.types.id;
 }
-export function Sym_Is_Not_An_Identifier(sym: Symbol): boolean {
-    return !Sym_Is_An_Identifier(sym);
+export function Sym_Is_Not_A_Defined_Identifier(sym: Symbol): boolean {
+    return !Sym_Is_Defined_Identifier(sym);
 }
 export function Sym_Has_Just_One_Character(sym: Symbol) {
 
