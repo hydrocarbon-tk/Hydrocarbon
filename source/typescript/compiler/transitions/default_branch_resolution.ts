@@ -416,15 +416,6 @@ function addIfStatementTransition(
 
 
         if_stmt.addStatement(
-            //`traffic: ${traffic.length} productions => ${traffic.join(" ")}`,
-            //`symbols: ${group.syms.map(getUniqueSymbolName).join("  ")}`,
-            runner.ANNOTATED ?
-                SC.Comment("\n   " + items.map(i => (((
-                    transition_type == TRANSITION_TYPE.ASSERT_CONSUME
-                    || transition_type == TRANSITION_TYPE.ASSERT_PRODUCTION_CALL
-                ) && !i.atEND) ? i.increment() : i)
-                    .renderUnformattedWithProduction(grammar)).join("\n   ") + "\n")
-                : undefined,
             modified_code,
             SC.Empty()
         );
