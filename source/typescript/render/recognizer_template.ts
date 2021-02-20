@@ -79,6 +79,8 @@ export const renderAssemblyScriptRecognizer = (
         }
     }
 
+
+
     function utf8ToCodePoint(offset, data) {
 
         let buffer = data.input;
@@ -150,12 +152,12 @@ export const renderAssemblyScriptRecognizer = (
         }
 
         // Returns false if the symbol following
-        // the byte length is of the passed in type
-        isDiscrete(data, assert_class, USE_UNICODE) {
+        // the byte length is assert_class type
+        isDiscrete(data, assert_class, offset = 0, USE_UNICODE = false) {
 
             let type = 0;
 
-            let offset = this.byte_offset + this.byte_length;
+            offset += this.byte_offset;
 
             if(offset >= data.input_len) return true;
 
@@ -170,6 +172,11 @@ export const renderAssemblyScriptRecognizer = (
             return (type & assert_class) == 0;
         }
 
+        setToken(type, byte_length, token_length){
+            this.type = type;
+            this.byte_length = byte_length;
+            this.token_length = token_length;
+        }
 
         getType(USE_UNICODE, data) {
 

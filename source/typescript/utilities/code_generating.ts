@@ -380,16 +380,14 @@ export function createSymbolMappingFunction(
             const { code_node, sym } = yielded.value;
 
             let discretion = (Sym_Is_Defined_Identifier(sym) && all_syms.some(Sym_Is_A_Generic_Identifier))
-                ? code_node.convert(SC.If(SC.Value("l.isDiscrete(data, TokenIdentifier)")))
+                ? code_node.convert(SC.If(SC.Value(`l.isDiscrete(data, TokenIdentifier,${sym.byte_length})`)))
                 : (Sym_Is_Defined_Natural_Number(sym) && all_syms.some(Sym_Is_A_Generic_Number))
-                    ? code_node.convert(SC.If(SC.Value("l.isDiscrete(data, TokenNumber)")))
+                    ? code_node.convert(SC.If(SC.Value(`l.isDiscrete(data, TokenNumber,${sym.byte_length})`)))
                     : code_node;
 
             discretion.addStatement(
                 (options.helper.ANNOTATED) ? sym.val : undefined,
-                SC.Assignment(SC.Member(lex_name, "type"), "TokenSymbol"),
-                SC.Assignment(SC.Member(lex_name, "byte_length"), sym.byte_length),
-                SC.Assignment(SC.Member(lex_name, "token_length"), sym.val.length),
+                SC.Value(`${lex_name.value}.setToken(${"TokenSymbol"}, ${sym.byte_length}, ${sym.val.length})`),
                 SC.UnaryPre(SC.Return, SC.Value(defined_symbols_reversed_map.get(sym)))
             );
 
@@ -567,35 +565,29 @@ export function buildIfs(
     occluders: TokenSymbol[] = []
 ): SC {
 
-    const { grammar } = options;
-
-    const gen = buildSwitchIfs(grammar, syms, lex_name, occluders);
+    const
+        { grammar } = options,
+        gen = buildSwitchIfs(grammar, syms, lex_name, occluders);
 
     let yielded = gen.next();
 
-    let i = 0;
-
     while (yielded.done == false) {
-        i++;
 
         const { code_node, sym } = yielded.value;
 
         code_node.addStatement(
             (options.helper.ANNOTATED) ? sym.val : undefined,
-            SC.Assignment(SC.Member(lex_name, "type"), "TokenSymbol"),
-            SC.Assignment(SC.Member(lex_name, "byte_length"), sym.byte_length),
-            SC.Assignment(SC.Member(lex_name, "token_length"), sym.val.length),
+            SC.Value(`${lex_name.value}.setToken(${"TokenSymbol"}, ${sym.byte_length}, ${sym.val.length})`)
         );
 
         if (Sym_Is_Defined_Identifier(sym) && occluders.some(Sym_Is_A_Generic_Identifier))
-            code_node.addStatement(SC.If(SC.Value("!l.isDiscrete(data, TokenIdentifier)")).addStatement(SC.UnaryPre(SC.Return, SC.False)));
+            code_node.addStatement(SC.If(SC.Value(`!l.isDiscrete(data, TokenIdentifier,${sym.byte_length})`)).addStatement(SC.UnaryPre(SC.Return, SC.False)));
 
         if (Sym_Is_Defined_Natural_Number(sym) && occluders.some(Sym_Is_A_Generic_Number))
-            code_node.addStatement(SC.If(SC.Value("!l.isDiscrete(data, TokenNumber)")).addStatement(SC.UnaryPre(SC.Return, SC.False)));
+            code_node.addStatement(SC.If(SC.Value(`!l.isDiscrete(data, TokenNumber,${sym.byte_length})`)).addStatement(SC.UnaryPre(SC.Return, SC.False)));
 
-        code_node.addStatement(
-            SC.UnaryPre(SC.Return, SC.True),
-        );
+        code_node.addStatement(SC.UnaryPre(SC.Return, SC.True));
+
         yielded = gen.next();
     }
 
