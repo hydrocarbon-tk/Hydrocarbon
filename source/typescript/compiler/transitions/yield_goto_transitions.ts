@@ -1,3 +1,8 @@
+/* 
+ * Copyright (C) 2021 Anthony Weathersby - The Hydrocarbon Parser Compiler
+ * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
+ * disclaimer notice.
+ */
 
 import { TransitionNode, TRANSITION_TYPE } from "../../types/transition_node.js";
 import { RenderBodyOptions } from "../../types/render_body_options";

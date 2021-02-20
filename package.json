@@ -28,7 +28,7 @@
     "Parser"
   ],
   "author": "Anthony Weathersby",
-  "license": "MIT",
+  "license": "GPL-3.0+",
   "bugs": {
     "url": "https://github.com/CandleLibrary/Hydrocarbon/issues"
   },

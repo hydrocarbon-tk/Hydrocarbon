@@ -1,3 +1,8 @@
+/* 
+ * Copyright (C) 2021 Anthony Weathersby - The Hydrocarbon Parser Compiler
+ * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
+ * disclaimer notice.
+ */
 import { EOF_SYM, Grammar } from "../../types/grammar.js";
 import { RenderBodyOptions } from "../../types/render_body_options";
 import { Symbol } from "../../types/symbol.js";

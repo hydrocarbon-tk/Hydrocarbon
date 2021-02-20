@@ -1,3 +1,8 @@
+/* 
+ * Copyright (C) 2021 Anthony Weathersby - The Hydrocarbon Parser Compiler
+ * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
+ * disclaimer notice.
+ */
 import { bidirectionalTraverse, TraverseState } from "@candlefw/conflagrate";
 import { RenderBodyOptions } from "../../types/render_body_options";
 import { MultiItemReturnObject, TransitionClauseGenerator, TransitionGroup, SingleItemReturnObject } from "../../types/transition_generating";

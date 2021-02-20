@@ -1,3 +1,8 @@
+/* 
+ * Copyright (C) 2021 Anthony Weathersby - The Hydrocarbon Parser Compiler
+ * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
+ * disclaimer notice.
+ */
 import convertProductionNamesToIndexes from "./convert_production_names.js";
 import compileProduction from "./compile_production.js";
 import importGrammarFile from "./import_grammar_file.js";

@@ -1,3 +1,8 @@
+/* 
+ * Copyright (C) 2021 Anthony Weathersby - The Hydrocarbon Parser Compiler
+ * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
+ * disclaimer notice.
+ */
 import { Grammar } from "../../types/grammar";
 import { HybridDispatch, HybridDispatchResponse } from "../../types/worker_messaging.js";
 import { ParserEnvironment } from "../../types/parser_environment.js";

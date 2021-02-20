@@ -123,5 +123,6 @@ If you would like to contribute to the development of hydrocarbon, fork the repo
 
 # License
 
-[MIT](./LICENSE)
+Licensed under the GNU General Public License version 3
 
+[GNU GPL v3](./LICENSE)

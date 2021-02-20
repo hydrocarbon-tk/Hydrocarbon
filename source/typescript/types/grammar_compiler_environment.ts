@@ -1,3 +1,8 @@
+/* 
+ * Copyright (C) 2021 Anthony Weathersby - The Hydrocarbon Parser Compiler
+ * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
+ * disclaimer notice.
+ */
 import URL from "@candlefw/url";
 import { AwaitTracker } from "../grammar/grammar_parser";
 import { Grammar, ProductionBody } from "./grammar";

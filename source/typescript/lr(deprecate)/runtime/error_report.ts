@@ -1,3 +1,8 @@
+/* 
+ * Copyright (C) 2021 Anthony Weathersby - The Hydrocarbon Parser Compiler
+ * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
+ * disclaimer notice.
+ */
 import { Lexer } from "@candlefw/wind";
 import { ParserResultData } from "./parser_result_data.js";
 import { LexerError } from "./lexer_error.js";

@@ -1,3 +1,8 @@
+/* 
+ * Copyright (C) 2021 Anthony Weathersby - The Hydrocarbon Parser Compiler
+ * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
+ * disclaimer notice.
+ */
 import { Helper } from "../compiler/helper.js";
 import { Item } from "../utilities/item.js";
 import { SC, VarSC } from "../utilities/skribble.js";

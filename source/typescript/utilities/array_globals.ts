@@ -1,3 +1,8 @@
+/* 
+ * Copyright (C) 2021 Anthony Weathersby - The Hydrocarbon Parser Compiler
+ * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
+ * disclaimer notice.
+ */
 Array.prototype.groupMap = function <T, KeyType>(
     this: Array<T>,
     fn: (T, G: T[]) => (KeyType | KeyType[])
