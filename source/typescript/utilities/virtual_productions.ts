@@ -1,8 +1,9 @@
 import { Grammar, ProductionBody } from "../types/grammar.js";
 import { Production, VirtualProduction } from "../types/production.js";
+import { RenderBodyOptions } from "../types/render_body_options.js";
 import { Item } from "./item.js";
-import { buildItemMaps } from "./item_map.js";
-import { getUniqueSymbolName } from "./symbol.js";
+import { buildItemMaps, getItemMapEntry } from "./item_map.js";
+import { getFollowSymbolsFromItems, getSymbolsFromClosure, getUniqueSymbolName, Sym_Is_A_Terminal } from "./symbol.js";
 
 function remapBodyModifiers<B>(map: Map<number, B>, item: Item): Map<number, B> {
     return new Map([...map.entries()]
@@ -70,6 +71,23 @@ export function createVirtualProductions(items: Item[], options: RenderBodyOptio
         }
 
         buildItemMaps(grammar, Array.from(output.values()).map(({ p }) => p));
+
+        for (const [item_id, { p: production }] of output.entries()) {
+            const item_map = getItemMapEntry(grammar, getItemMapEntry(grammar, item_id).item.toEND().id);
+            const body = production.bodies[0];
+            const v_item = new Item(body.id, body.length, body.length);
+            const v_item_map = getItemMapEntry(grammar, v_item.id);
+
+            if (item_map.item.atEND) {
+                for (const value of item_map.follow.values())
+                    v_item_map.follow.add(value);
+            } else {
+                let next_item_map = getItemMapEntry(grammar, item_map.item.increment().id);
+                const closure = next_item_map.closure.map(i => getItemMapEntry(grammar, i).item);
+                for (const sym of getSymbolsFromClosure(closure, grammar).filter(Sym_Is_A_Terminal).map(getUniqueSymbolName))
+                    v_item_map.follow.add(sym);
+            }
+        }
     }
 
     return { links: output, V_PRODS_ALREADY_EXIST };
