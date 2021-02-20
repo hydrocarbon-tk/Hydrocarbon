@@ -10,11 +10,12 @@ function remapBodyModifiers<B>(map: Map<number, B>, item: Item): Map<number, B> 
         .map(([number, value]) => [number - item.offset, value]));
 }
 export type VirtualProductionLinks = Map<string, { p: Production; i: number; }>;
-export function createVirtualProductions(items: Item[], grammar: Grammar): {
+export function createVirtualProductions(items: Item[], options: RenderBodyOptions): {
     V_PRODS_ALREADY_EXIST: boolean;
     links: VirtualProductionLinks;
 } {
     const output: VirtualProductionLinks = new Map;
+    const { grammar } = options;
 
     let V_PRODS_ALREADY_EXIST = false;
     let i = 0;

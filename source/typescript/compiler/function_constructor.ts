@@ -104,7 +104,7 @@ export function createVirtualProductionSequence(
 ) {
     const
         { grammar } = options,
-        { links: virtual_links, V_PRODS_ALREADY_EXIST } = createVirtualProductions(items, grammar);
+        { links: virtual_links, V_PRODS_ALREADY_EXIST } = createVirtualProductions(items, options);
 
     if (V_PRODS_ALREADY_EXIST)
         throw new Error("Virtual productions already exists, interminable loop detected");
