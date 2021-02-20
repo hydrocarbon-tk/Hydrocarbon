@@ -258,6 +258,7 @@ function createIfElseBlock(
 
             case TRANSITION_TYPE.ASSERT:
             case TRANSITION_TYPE.ASSERT_PEEK:
+            case TRANSITION_TYPE.ASSERT_PEEK_VP:
             case TRANSITION_TYPE.PEEK_UNRESOLVED:
             case TRANSITION_TYPE.PEEK_PRODUCTION_SYMBOLS:
             case TRANSITION_TYPE.ASSERT_PRODUCTION_SYMBOLS:
@@ -325,6 +326,7 @@ function addIfStatementTransition(
             || transition_type == TRANSITION_TYPE.PEEK_PRODUCTION_SYMBOLS
             || transition_type == TRANSITION_TYPE.PEEK_UNRESOLVED
             || transition_type == TRANSITION_TYPE.ASSERT_PEEK
+            || transition_type == TRANSITION_TYPE.ASSERT_PEEK_VP
             || transition_type == TRANSITION_TYPE.ASSERT_END
         );
 
