@@ -168,6 +168,7 @@ function addUnresolvedNode(node: TransitionNode, options: RenderBodyOptions, off
 
             convertPeekStateToSingleItemNode(node, options, offset);
 
+            node.transition_type = TRANSITION_TYPE.ASSERT_PEEK_VP;
         } else {
 
             for (const items_with_same_symbol of filtered_items.group(i => i.sym(options.grammar))) {

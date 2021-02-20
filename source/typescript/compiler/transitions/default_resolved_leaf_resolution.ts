@@ -78,7 +78,8 @@ export function default_resolveResolvedLeaf(item: Item, state: TransitionNode, o
 
             ({ leaf_node, prods, INDIRECT } = renderItem(sc, item, options,
                 state.transition_type == TRANSITION_TYPE.ASSERT
-                || state.transition_type == TRANSITION_TYPE.ASSERT_PEEK));
+                || state.transition_type == TRANSITION_TYPE.ASSERT_PEEK
+                || state.transition_type == TRANSITION_TYPE.ASSERT_PEEK_VP));
         }
 
         for (const prod of prods)

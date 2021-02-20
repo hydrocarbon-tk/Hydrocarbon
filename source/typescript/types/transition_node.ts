@@ -63,6 +63,7 @@ export const enum TRANSITION_TYPE {
      * Friendly name:  `assert-peek`
      */
     ASSERT_PEEK,
+    ASSERT_PEEK_VP,
 
     /**
      * Like ASSERT_PRODUCTION_SYMBOLS, except the assertion should be

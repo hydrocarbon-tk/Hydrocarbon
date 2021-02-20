@@ -5,6 +5,7 @@ export function ttt(type: TRANSITION_TYPE): string {
     switch (type) {
         case TRANSITION_TYPE.ASSERT: return "assert";
         case TRANSITION_TYPE.ASSERT_PEEK: return "assert-peek";
+        case TRANSITION_TYPE.ASSERT_PEEK_VP: return "assert-peek-vp";
         case TRANSITION_TYPE.ASSERT_CONSUME: return "assert-consume";
         case TRANSITION_TYPE.POST_PEEK_CONSUME: return "post-peek-consume";
         case TRANSITION_TYPE.ASSERT_END: return "assert-end";
