@@ -42,6 +42,9 @@ export function default_resolveBranches(
         && (groups[0].transition_types.includes(TRANSITION_TYPE.ASSERT_PRODUCTION_SYMBOLS)))
         return groups[0].code;
 
+    if (options.helper.ANNOTATED)
+        root.addStatement(items.map(i => i.renderUnformattedWithProduction(grammar)).join("\n"));
+
     const peek_name = createPeekStatements(options,
         node,
         root,

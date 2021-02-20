@@ -163,8 +163,14 @@ export function createVirtualProductionSequence(
         });
     }
 
-    if (options.helper.ANNOTATED)
-        root.addStatement("-------------VPROD-------------------------");
+    if (options.helper.ANNOTATED) {
+
+        root.addStatement(
+            "-------------VPROD-------------------------",
+            items.map(i => i.renderUnformattedWithProduction(grammar)).join("\n")
+        );
+
+    }
     root.addStatement(SC.Call("pushFN", "data", rd_virtual_name));
     root.addStatement(SC.UnaryPre(SC.Return, SC.Value(0)));
 

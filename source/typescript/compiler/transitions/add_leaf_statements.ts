@@ -167,6 +167,11 @@ export function* addVirtualProductionLeafStatements(
 
             //@ts-ignore
             goto_leaf.SET = true;
+
+            if (goto_leaf.INDIRECT && RDOptions.helper.ANNOTATED)
+                leaf.addStatement("-------------INDIRECT-------------------");
+
+
             if (p_map.has(prods[0])) {
                 yield { item_id: p_map.get(prods[0]), leaf, prods };
             } else if (

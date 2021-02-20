@@ -364,6 +364,7 @@ export function createSymbolMappingFunction(
             const { code_node, sym } = yielded.value;
 
             code_node.addStatement(
+                (options.helper.ANNOTATED) ? sym.val : undefined,
                 SC.Assignment(SC.Member(lex_name, "type"), "TokenSymbol"),
                 SC.Assignment(SC.Member(lex_name, "byte_length"), sym.byte_length),
                 SC.Assignment(SC.Member(lex_name, "token_length"), sym.val.length)

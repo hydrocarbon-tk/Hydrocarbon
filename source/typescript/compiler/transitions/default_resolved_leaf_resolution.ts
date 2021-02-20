@@ -20,8 +20,9 @@ export function default_resolveResolvedLeaf(item: Item, state: TransitionNode, o
         SHOULD_IGNORE = extended_production_shift_items.some(i => i.body == item.body);
 
     let leaf_node = code, prods = [], INDIRECT = false;
-
-    code.addStatement(createTransitionTypeAnnotation(options, [state.transition_type]));
+    
+    if (options.helper.ANNOTATED)
+        code.addStatement(createTransitionTypeAnnotation(options, [state.transition_type]));
 
     if (SHOULD_IGNORE) {
         leaf_node.addStatement(SC.Comment("SHOULD IGNORE"));
@@ -41,6 +42,9 @@ export function default_resolveResolvedLeaf(item: Item, state: TransitionNode, o
         item = item.increment();
 
     if (item) {
+
+        if (options.helper.ANNOTATED)
+            code.addStatement(item.renderUnformattedWithProduction(grammar));
 
         if (item.offset == 0 && !options.productions.some(g => g.id == item.getProduction(grammar).id)) {
 
