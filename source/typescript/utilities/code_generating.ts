@@ -341,12 +341,11 @@ export function createNonCaptureBooleanCheck(symbols: TokenSymbol[], grammar: Gr
 export function createSymbolMappingFunction(
     options: RenderBodyOptions,
     lex_name: VarSC,
-    symbol_mappings: [number, Symbol][],
-    items: Item[]
+    symbol_mappings: [number, Symbol][]
 ): VarSC | ConstSC {
     const symbols = symbol_mappings.map(([, s]) => s);
 
-    let fn_ref = getGlobalObject("sym_map", symbols, options.helper);
+    let fn_ref;// = getGlobalObject("sym_map", symbols, options.helper);
 
     if (!fn_ref) {
 
@@ -358,6 +357,9 @@ export function createSymbolMappingFunction(
 
             generic_symbol_mappings: [number, TokenSymbol][]
                 = <[number, TokenSymbol][]>symbol_mappings.filter(([, sym]) => Sym_Is_A_Generic_Type(sym)),
+
+            production_token_symbol: [number, TokenSymbol][]
+                = <[number, TokenSymbol][]>symbol_mappings.filter(([, sym]) => Sym_Is_A_Production_Token(sym)),
 
             defined_symbols_reversed_map = new Map(defined_symbol_mappings.map((([i, s]) => [s, i]))),
 
@@ -373,21 +375,21 @@ export function createSymbolMappingFunction(
         while (yielded.done == false) {
             const { code_node, sym } = yielded.value;
 
-            code_node.addStatement(
+            let discretion = (Sym_Is_Defined_Identifier(sym) && all_syms.some(Sym_Is_A_Generic_Identifier))
+                ? code_node.convert(SC.If(SC.Value("l.isDiscrete(data, TokenIdentifier)")))
+                : (Sym_Is_Defined_Natural_Number(sym) && all_syms.some(Sym_Is_A_Generic_Number))
+                    ? code_node.convert(SC.If(SC.Value("l.isDiscrete(data, TokenNumber)")))
+                    : code_node;
+
+            discretion.addStatement(
                 (options.helper.ANNOTATED) ? sym.val : undefined,
                 SC.Assignment(SC.Member(lex_name, "type"), "TokenSymbol"),
                 SC.Assignment(SC.Member(lex_name, "byte_length"), sym.byte_length),
-                SC.Assignment(SC.Member(lex_name, "token_length"), sym.val.length)
+                SC.Assignment(SC.Member(lex_name, "token_length"), sym.val.length),
+                SC.UnaryPre(SC.Return, SC.Value(defined_symbols_reversed_map.get(sym)))
             );
 
-            if (Sym_Is_Defined_Identifier(sym) && all_syms.some(Sym_Is_A_Generic_Identifier))
-                code_node.addStatement(SC.If(SC.Value("!l.isDiscrete(data, TokenIdentifier)")).addStatement(SC.UnaryPre(SC.Return, SC.Value("0xFFFFFF"))));
 
-            if (Sym_Is_Defined_Natural_Number(sym) && all_syms.some(Sym_Is_A_Generic_Number))
-                code_node.addStatement(SC.If(SC.Value("!l.isDiscrete(data, TokenNumber)")).addStatement(SC.UnaryPre(SC.Return, SC.Value("0xFFFFFF"))));
-
-            code_node.addStatement(
-                SC.UnaryPre(SC.Return, SC.Value(defined_symbols_reversed_map.get(sym))));
             yielded = gen.next();
         }
 
@@ -395,7 +397,10 @@ export function createSymbolMappingFunction(
 
         let if_root = null, leaf = null;
 
-        for (const [id, sym] of generic_symbol_mappings) {
+        for (const [id, sym] of [
+            ...production_token_symbol,
+            ...generic_symbol_mappings
+        ]) {
             const sc = SC.If(
                 getIncludeBooleans(
                     [sym],
@@ -418,9 +423,14 @@ export function createSymbolMappingFunction(
 
         const
             code_node = yielded.value,
-            fn = SC.Function(":boolean", fn_lex_name, rec_glob_data_name).addStatement(code_node, if_root);
+            fn = SC.Function(":boolean", fn_lex_name, rec_glob_data_name)
+                .addStatement(
+                    symbols.map(s => s.val).join(" "),
+                    code_node,
+                    if_root
+                );
 
-        fn_ref = packGlobalFunction("sym_map", "bool", symbols, fn, options.helper);
+        fn_ref = packGlobalFunction("sym_map", "int", fn, fn, options.helper);
     }
 
     return fn_ref;

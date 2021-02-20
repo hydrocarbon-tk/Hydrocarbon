@@ -114,6 +114,17 @@ export class SC<T = Node> {
         if (u.expressions)
             this.expressions = [];
     }
+    /**
+     * Convert this node to the given node. 
+     *
+     */
+    convert<R>(arg: SC<R>): SC<R> {
+        //@ts-ignore
+        this.type = Object.assign(<ScriptNode>{}, arg.type);
+        this.statements = [...(this.statements || []), ...arg.statements];
+        this.expressions = [...(this.expressions || []), ...arg.expressions];
+        return <SC<R>><any>this;
+    }
 
 
     static While(boolean_expression?: SC<Expression>): SC<While> {
