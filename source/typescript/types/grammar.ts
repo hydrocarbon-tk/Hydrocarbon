@@ -82,8 +82,8 @@ export interface Preamble {
 }
 
 export interface ItemMapEntry {
-item: Item;
-reset_sym: string[];
+    item: Item;
+    reset_sym: string[];
     /**
      * List of all items that can be derived from this item
      */
@@ -115,7 +115,13 @@ reset_sym: string[];
      * Set of all productions that can reach this item
      */
     breadcrumbs: Set<number>;
+
+    /**
+     * An positionally unique identifier for the symbol
+     */
+    sym_uid: number;
 }
+
 
 export type Grammar = Array<Production> & {
 

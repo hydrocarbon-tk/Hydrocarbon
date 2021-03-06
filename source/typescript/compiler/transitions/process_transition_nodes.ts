@@ -22,6 +22,7 @@ import {
 import { default_resolveBranches } from "./default_branch_resolution.js";
 import { default_resolveResolvedLeaf } from "./default_resolved_leaf_resolution.js";
 import { default_resolveUnresolvedLeaves } from "./default_unresolved_leaves_resolution.js";
+import { Items_Are_From_Same_Production } from "./yield_transitions.js";
 
 export function defaultGrouping(g) { return g.hash; }
 type UnresolvedLeavesResolver = (node: TransitionNode, nodes: TransitionNode[], options: RenderBodyOptions) => MultiItemReturnObject;
@@ -44,19 +45,33 @@ export function processTransitionNodes(
 
     const finale_node = { ast: <TransitionNode>null };
 
-    for (const { node: node, meta: { traverse_state, skip } } of bidirectionalTraverse<TransitionNode, "nodes">(<TransitionNode>{ nodes: nodes }, "nodes", true)
+    for (const { node: node, meta: { traverse_state, skip, depth, parent } } of bidirectionalTraverse<TransitionNode, "nodes">(<TransitionNode>{ nodes: nodes }, "nodes", false)
         .extract(finale_node)
         .makeSkippable()
     ) {
+        if (traverse_state == TraverseState.EXIT || traverse_state == TraverseState.LEAF) {
+            if (node.PROCESSED) {
+                skip();
+                continue;
+            }
 
-        if (node.PROCESSED) {
-            skip();
-            continue;
+            node.PROCESSED = true;
         }
 
-        node.PROCESSED = true;
+        if (traverse_state == TraverseState.ENTER || traverse_state == TraverseState.LEAF) {
+
+            //Determine if state is PUIDABLE
+            if (depth == 1) {
+                //  console.log({ node });
+                node.PUIDABLE = Items_Are_From_Same_Production(node.items, options.grammar);
+            } else {
+                node.PUIDABLE = parent?.PUIDABLE;
+            }
+        }
 
         switch (traverse_state) {
+
+
 
             case TraverseState.EXIT:
 
@@ -80,6 +95,7 @@ export function processTransitionNodes(
 
                     const virtual_state: TransitionNode = {
                         UNRESOLVED_LEAF: WE_HAVE_UNRESOLVED_LEAVES,
+                        PUIDABLE: false,
                         PROCESSED: false,
                         nodes: [],
                         symbols: [],
@@ -179,23 +195,26 @@ function* traverseInteriorNodes(
             const
                 syms = group.flatMap(s => s.symbols),
                 code = group[0].code,
+                PUIDABLE = group.every(g => g.PUIDABLE),
                 hash = group[0].hash,
                 items = group.flatMap(g => g.items).setFilter(i => i.id),
                 leaves = group.flatMap(g => g.leaves),
                 yielders = group.map(i => i.transition_type).setFilter();
 
-            return { leaves, transition_types: yielders, syms, code, items, hash, LAST: false, FIRST: false, prods: group.flatMap(g => g.prods).setFilter() };
+            return { PUIDABLE, leaves, transition_types: yielders, syms, code, items, hash, LAST: false, FIRST: false, prods: group.flatMap(g => g.prods).setFilter() };
         });
     let i = 0;
     for (const group of sel_group.sort((a, b) => {
+        
+        const groupAEnd = +(a.transition_types[0] == TRANSITION_TYPE.ASSERT_END);
+        const groupBEnd = +(b.transition_types[0] == TRANSITION_TYPE.ASSERT_END);
 
         for (const sym_a of a.syms)
             for (const sym_b of b.syms)
                 if (Defined_Symbols_Occlude(<TokenSymbol>sym_b, <TokenSymbol>sym_a))
-                    return 1;
-                else
-                    if (Defined_Symbols_Occlude(<TokenSymbol>sym_a, <TokenSymbol>sym_b))
-                        return -1;
+                    return groupBEnd - groupAEnd
+                else if (Defined_Symbols_Occlude(<TokenSymbol>sym_a, <TokenSymbol>sym_b))
+                    return groupAEnd - groupBEnd;
 
         return getGroupScore(a) - getGroupScore(b);
     })) {

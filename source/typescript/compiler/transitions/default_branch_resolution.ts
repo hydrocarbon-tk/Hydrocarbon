@@ -231,7 +231,7 @@ function createIfElseBlock(
             case TRANSITION_TYPE.POST_PEEK_CONSUME:
 
                 const sc = new SC;
-
+                code.shiftStatement(SC.Value("puid |=" + grammar.item_map.get(items[0].id).sym_uid));
                 sc.addStatement(createTransitionTypeAnnotation(options, transition_types), createConsume(lex_name), code);
                 leaf.addStatement(sc);
                 leaf = sc;
@@ -239,6 +239,24 @@ function createIfElseBlock(
                 break;
 
             case TRANSITION_TYPE.ASSERT_END:
+                /**
+                 * Completed Items are tricky. They don't represent actual consumption of 
+                 * tokens, but rather must assert that a set of tokens FOLLOW the completed
+                 * item. This set can easily occlude other symbols and lead to incorrect 
+                 * recognition. 
+                 * 
+                 * There are several ways to remedy this. One is to make completed 
+                 * items the last item evaluated within an if-else expression block. 
+                 * Since completed items are reducible by default no matter the state
+                 * of the token stream, this allows the last block to be simply and else
+                 * statement. 
+                 * 
+                 * This is not an option if there are multiple completed items, as there will be
+                 * at least one completed item whose set of follow tokens must be evaluated
+                 * to remove ambiguity.
+                 * 
+                 * 
+                 */
 
                 let pending_syms = syms.slice();
                 // Remove symbols that should lead to a shift
@@ -259,7 +277,7 @@ function createIfElseBlock(
                 if (negated_expression) {
 
                     if (primary_symbols.length > 0)
-                        assertion_boolean = SC.Binary(SC.UnaryPre("!", SC.Group("(", negated_expression)), "||", remaining_symbols);
+                        assertion_boolean = SC.Binary(SC.Group("(",remaining_symbols),  "&&", SC.UnaryPre("!", SC.Group("(", negated_expression)) );
                     else
                         assertion_boolean = SC.UnaryPre("!", negated_expression);
                 } else assertion_boolean = SC.Empty();
@@ -274,38 +292,17 @@ function createIfElseBlock(
 
                 options.called_productions.add(<number>production.id);
 
+                code.addStatement(SC.Value("return -1"));
+
                 const call_name = createBranchFunction(code, code, options);
                 const rc = new SC;
                 rc.addStatement(SC.Call("pushFN", "data", call_name));
                 rc.addStatement(SC.Call("pushFN", "data", getProductionFunctionName(production, grammar)));
-                rc.addStatement(SC.UnaryPre(SC.Return, SC.Value("0")));
+                rc.addStatement(SC.Value("puid |=" + grammar.item_map.get(items[0].id).sym_uid));
+                rc.addStatement(SC.UnaryPre(SC.Return, SC.Value("puid")));
                 leaf.addStatement(rc);
                 leaf = rc;
                 leaves.forEach(leaf => leaf.INDIRECT = true);
-
-                break;
-
-
-                //Wrap code into a call statement and then push the function pointer to the stack
-
-                /*
-
-                if (Production_Is_Trivial(production)) {
-
-                    const syms = getTokenSymbolsFromItems(getClosure(getProductionClosure(production.id, grammar), grammar), grammar);
-
-                    assertion_boolean = getIncludeBooleans(<TokenSymbol[]>syms, grammar, runner, peek_name, <TokenSymbol[]>complement_symbols);
-
-                    leaf = addIfStatementTransition(options, group, code, assertion_boolean, FORCE_ASSERTIONS, leaf, state.leaves);
-
-                    leaf.shiftStatement(createConsume(lex_name));
-                } else {
-
-                    assertion_boolean = createProductionCall(production, options);
-
-                    leaf = addIfStatementTransition(options, group, code, assertion_boolean, FORCE_ASSERTIONS, leaf, state.leaves);
-                }
-                */
 
                 break;
 
@@ -320,7 +317,35 @@ function createIfElseBlock(
 
                 assertion_boolean = getIncludeBooleans(<TokenSymbol[]>syms, options, peek_name, <TokenSymbol[]>complement_symbols);
 
-                leaf = addIfStatementTransition(options, group, code, assertion_boolean, FORCE_ASSERTIONS, leaf, state.leaves);
+                let scr = code;
+
+                if (state.PUIDABLE) {
+
+                } else if (items.length == 1) {
+                    scr = new SC;
+                    //build puid and pass to finishing function
+                    const nc = new SC;
+
+                    code.addStatement(SC.Value("return -1"));
+
+                    const continue_name = createBranchFunction(nc, nc, options);
+                    const call_name = createBranchFunction(code, code, options);
+
+
+                    scr.addStatement(SC.Call("pushFN", "data", continue_name));
+                    scr.addStatement(SC.UnaryPre(SC.Return, SC.Call(call_name, "l", "data", "state", "prod", "" + grammar.item_map.get(items[0].decrement().id).sym_uid)));
+
+                    leaves[0].leaf.addStatement(SC.Value("return prod"));
+
+                    leaves.forEach(l => l.transition_type == TRANSITION_TYPE.IGNORE);
+                    leaves[0].leaf = nc;
+                    leaves[0].INDIRECT = true;
+                    leaves[0].transition_type = TRANSITION_TYPE.ASSERT;
+                }
+
+                leaf = addIfStatementTransition(options, group, scr, assertion_boolean, FORCE_ASSERTIONS, leaf, state.leaves);
+
+
 
                 break;
 
@@ -331,6 +356,7 @@ function createIfElseBlock(
 
                 leaf = addIfStatementTransition(options, group, code, assertion_boolean, FORCE_ASSERTIONS, leaf, state.leaves);
 
+                code.shiftStatement(SC.Value("puid |=" + grammar.item_map.get(items[0].id).sym_uid));
                 code.shiftStatement(createConsume(rec_glob_lex_name));
                 break;
 
@@ -386,44 +412,10 @@ function addIfStatementTransition(
     if (SKIP_BOOL_EXPRESSION)
         if_stmt = SC.If();
 
-
-    if (
-        false
-        && traffic.length >= 8
-        && options.VIRTUAL_LEVEL <= 0
-        && breadcrumb_items.every(i => !i.atEND)
-        && Math.min(...breadcrumb_items.map(i => i.len)) > 2
-    ) {
-        //build and implement a virtual production sequence
-        const sc = new SC;
-
-        if_stmt.addStatement(sc);
-
-        if (transition_type == TRANSITION_TYPE.ASSERT_CONSUME)
-            sc.addStatement(createConsume(rec_glob_lex_name));
-        if (
-            transition_type == TRANSITION_TYPE.ASSERT_CONSUME
-            || transition_type == TRANSITION_TYPE.ASSERT_PRODUCTION_CALL
-        ) {
-            const skippable = getSkippableSymbolsFromItems(breadcrumb_items, grammar);
-            sc.addStatement(createSkipCall(skippable, options, rec_glob_lex_name, false));
-            //Add peek
-        }
-
-        createVirtualProductionSequence(options, breadcrumb_items, [], sc, leaves, [], true, TRANSITION_TYPE.ASSERT, true);
-
-    } else {
-
-
-        if_stmt.addStatement(
-            modified_code,
-            SC.Empty()
-        );
-
-        if_stmt.addStatement(SC.Empty());
-    }
-
-
+    if_stmt.addStatement(
+        modified_code,
+        SC.Empty()
+    );
 
     leaf.addStatement(
         createTransitionTypeAnnotation(options, transition_types),

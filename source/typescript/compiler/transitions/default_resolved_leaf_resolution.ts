@@ -24,8 +24,8 @@ export function default_resolveResolvedLeaf(item: Item, state: TransitionNode, o
         code = state.code || new SC,
         SHOULD_IGNORE = extended_production_shift_items.some(i => i.body == item.body);
 
-    let leaf_node = code, prods = [], INDIRECT = false;
-    
+    let leaf_node = code, prods = [], original_prods = [], INDIRECT = false;
+
     if (options.helper.ANNOTATED)
         code.addStatement(createTransitionTypeAnnotation(options, [state.transition_type]));
 
@@ -37,6 +37,7 @@ export function default_resolveResolvedLeaf(item: Item, state: TransitionNode, o
                 root: leaf_node,
                 leaf: leaf_node,
                 prods,
+                original_prods,
                 hash: leaf_node.hash(),
                 transition_type: state.transition_type
             }
@@ -59,15 +60,19 @@ export function default_resolveResolvedLeaf(item: Item, state: TransitionNode, o
 
             const sc = new SC;
 
+
             const call_name = createBranchFunction(sc, sc, options);
 
+            leaf_node.addStatement(SC.Value("puid |=" + grammar.item_map.get(item.id).sym_uid));
             leaf_node.addStatement(SC.Call("pushFN", "data", call_name));
             leaf_node.addStatement(SC.Call("pushFN", "data", getProductionFunctionName(production, grammar)));
-            leaf_node.addStatement(SC.UnaryPre(SC.Return, SC.Value("0")));
+            //leaf_node.addStatement(SC.UnaryPre(SC.Return, SC.Value("0")));
+            leaf_node.addStatement(SC.UnaryPre(SC.Return, SC.Value("puid")));
 
             leaf_node = sc;
 
-            prods = processProductionChain(leaf_node, options, itemsToProductions([item], grammar));
+            prods = processProductionChain(new SC, options, itemsToProductions([item], grammar));
+            original_prods = itemsToProductions([item], grammar);
 
         } else {
 
@@ -85,7 +90,7 @@ export function default_resolveResolvedLeaf(item: Item, state: TransitionNode, o
 
             code.addStatement(sc);
 
-            ({ leaf_node, prods, INDIRECT } = renderItem(sc, item, options,
+            ({ leaf_node, prods, INDIRECT, original_prods } = renderItem(sc, item, options,
                 state.transition_type == TRANSITION_TYPE.ASSERT
                 || state.transition_type == TRANSITION_TYPE.ASSERT_PEEK
                 || state.transition_type == TRANSITION_TYPE.ASSERT_PEEK_VP));
@@ -102,6 +107,7 @@ export function default_resolveResolvedLeaf(item: Item, state: TransitionNode, o
             root: code,
             leaf: leaf_node,
             prods,
+            original_prods,
             hash: code.hash(),
             INDIRECT,
             transition_type: state.transition_type

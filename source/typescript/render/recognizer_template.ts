@@ -348,6 +348,7 @@ export const renderAssemblyScriptRecognizer = (
             rules: rules,
             error: error,
             debug: debug,
+            stash: data.stash.slice(),
             stack: data.stack.slice(),
             origin_fork: data.rules_ptr + data.origin_fork,
             origin: data,
@@ -370,26 +371,22 @@ export const renderAssemblyScriptRecognizer = (
             rules = new Uint16Array(rules_len),
             error = new Uint8Array(error_len),
             debug = new Uint16Array(debug_len),
-            stack = [];
+            stack = [],
+            stash = [];
 
         return {
             valid:false,
             lexer: new Lexer,
             state: createState(true),
             prop: 0,
-            stack_ptr: -1,
+            stack_ptr: 0,
             input_ptr: 0,
             rules_ptr: 0,
-            error_ptr: 0,
-            debug_ptr: 0,
             input_len: input_len,
             rules_len: rules_len,
-            error_len: error_len,
-            debug_len: debug_len,
             input: input,
             rules: rules,
-            error: error,
-            debug: debug,
+            stash: stash,
             stack: stack,
             origin_fork:0,
             origin: null,
@@ -616,11 +613,15 @@ export const renderAssemblyScriptRecognizer = (
         let ptr = data.stack_ptr;
 
         const fn = data.stack[ptr];
-
+        const stash = data.stash[ptr];
         data.stack_ptr--;
 
-        const result = fn(data.lexer, data, data.state, data.prod);
 
+        print(data.lexer, data);
+        console.log({ stack: data.stack, dt_stash: data.stash, fn, ptr, stash });
+
+        const result = fn(data.lexer, data, data.state, data.prod, stash);
+        data.stash[ptr] = result;
         data.prod = result;
 
         if (result < 0 || data.stack_ptr < stack_base) 
@@ -666,7 +667,7 @@ export const renderAssemblyScriptRecognizer = (
             ${rd_functions.filter(f => f.RENDER)
                 .map((fn, i) => {
                     const name = getProductionFunctionName(grammar[fn.id], grammar);
-                    return `case ${i}: pushFN(data, ${name}); return;`;
+                    return `case ${i}: data.stack[0] = ${name}; data.stash[0] = ${0}; return;`;
                 }).join("            \n")}
         }
     }

@@ -160,6 +160,8 @@ export interface TransitionNode {
      * Leaf node encountered with sibling leaf nodes. 
      */
     UNRESOLVED_LEAF: boolean;
+
+    PUIDABLE: boolean;
 }
 
 /**
@@ -171,6 +173,7 @@ export interface Leaf {
     root: SC;
     leaf: SC;
     prods?: number[];
+    original_prods: number[];
     transition_type: TRANSITION_TYPE;
 
     /**

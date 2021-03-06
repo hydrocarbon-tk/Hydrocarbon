@@ -15,7 +15,7 @@ import { const_EMPTY_ARRAY } from "../utilities/const_EMPTY_ARRAY.js";
 import { rec_glob_data_name, rec_glob_lex_name, rec_state } from "../utilities/global_names.js";
 import { Item, ItemIndex } from "../utilities/item.js";
 import { getProductionClosure } from "../utilities/production.js";
-import { renderItem } from "../utilities/render_item.js";
+import { renderItem, renderItemReduction } from "../utilities/render_item.js";
 import { SC } from "../utilities/skribble.js";
 import { Sym_Is_A_Production } from "../utilities/symbol.js";
 import { createVirtualProductions } from "../utilities/virtual_productions.js";
@@ -26,6 +26,10 @@ import { addClauseSuccessCheck, resolveGOTOBranches } from "./transitions/defaul
 import { processTransitionNodes } from "./transitions/process_transition_nodes.js";
 import { yieldGOTOTransitions } from "./transitions/yield_goto_transitions.js";
 import { yieldTransitions } from "./transitions/yield_transitions.js";
+
+
+
+
 
 export function constructHybridFunction(production: Production, grammar: Grammar, runner: Helper): RDProductionFunction {
 
@@ -44,14 +48,18 @@ export function constructHybridFunction(production: Production, grammar: Grammar
             rd_fn_name,
             rec_glob_lex_name,
             rec_glob_data_name,
-            rec_state).addStatement(RD_fn_contents),
+            rec_state,
+            "prod:int",
+            "puid:int",
+        ).addStatement(RD_fn_contents),
 
         GOTO_function = SC.Function(
             goto_fn_name,
             rec_glob_lex_name,
             rec_glob_data_name,
             rec_state,
-            SC.Variable("prod:int")
+            SC.Variable("prod:int"),
+            "puid:int"
         ).addStatement(GOTO_fn_contents);
 
     addLeafStatements(
@@ -69,6 +77,38 @@ export function constructHybridFunction(production: Production, grammar: Grammar
         GOTO_function.addStatement(addClauseSuccessCheck(RDOptions));
 
 
+    function constructReduceFunction(production: Production, options: RenderBodyOptions) {
+        const fn = SC.Function("$" + production.name + "_reducer:unsigned int",
+            "l:Lexer",
+            "data:ParserData",
+            "state:u32",
+            "prod:u32",
+            "puid:u32")
+            ;
+
+        const end_items = getStartItemsFromProduction(production).map(i => i.toEND());
+        let leaf: SC = fn;
+        for (const item of end_items) {
+
+            if (item.len == 1 && !item.body_(grammar).reduce_function) continue;
+            const index = options.grammar.item_map.get(item.id).sym_uid;
+            const _if = SC.If(SC.Value(`${index} == puid`));
+
+            if (options.helper.ANNOTATED)
+                _if.addStatement(item.renderUnformattedWithProduction(grammar));
+            renderItemReduction(_if, item, options, false);
+            leaf.addStatement(_if);
+            leaf = _if;
+        }
+
+        fn.addStatement(SC.Value(`return ${production.id}`));
+
+        return fn;
+    }
+
+    const ReduceFunction = constructReduceFunction(production, RDOptions);
+
+
     const annotation = SC.Expressions(SC.Comment(
         `production name: ${production.name}
             grammar index: ${production.id}
@@ -81,7 +121,8 @@ export function constructHybridFunction(production: Production, grammar: Grammar
         fn: (new SC).addStatement(
             (runner.ANNOTATED) ? annotation : undefined,
             RD_function,
-            GOTO_Options.NO_GOTOS ? undefined : GOTO_function
+            GOTO_Options.NO_GOTOS ? undefined : GOTO_function,
+            ReduceFunction
         )
     };
 }
@@ -148,11 +189,13 @@ export function createVirtualProductionSequence(
 
         prods = [item.getProduction(grammar).id];
 
+        let original_prods = prods;
+
         if (options.VIRTUAL_LEVEL == 0) {
 
             item[ItemIndex.offset] = item[ItemIndex.length];
 
-            ({ prods, leaf_node } = renderItem(leaf, item, options));
+            ({ prods, leaf_node, original_prods } = renderItem(leaf, item, options));
         }
 
         out_prods.push(...prods);
@@ -161,6 +204,7 @@ export function createVirtualProductionSequence(
             prods: prods,
             root: leaf,
             leaf: leaf_node,
+            original_prods,
             hash: "----------------",
             transition_type: TRANSITION_TYPE.ASSERT
         });

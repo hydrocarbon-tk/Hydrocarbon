@@ -30,20 +30,23 @@ import {
 export function renderItemReduction(
     code_node: SC,
     item: Item,
-    grammar: Grammar) {
+    options: RenderBodyOptions,
+    CAN_USE_CLASS_REDUCER = true) {
+    const { grammar } = options;
     //Virtual productions do not reduce
     if (item.getProduction(grammar).type == "virtual-production") {
         // code_node.addStatement("---------Virtual Productions Do Not Reduce-----------");
         return;
     }
-
     const body = item.body_(grammar);
 
-
-    if (body.reduce_id >= 0)
+    if (CAN_USE_CLASS_REDUCER && (body.reduce_id >= 0 || item.len > 1))
+        code_node.addStatement(SC.Value(`prod = $${item.getProduction(grammar).name}_reducer(l,data,state,prod,puid)`));
+    else if (body.reduce_id >= 0)
         code_node.addStatement(createReduceFunction(item, grammar));
     else if (item.len > 1)
         code_node.addStatement(createDefaultReduceFunction(item));
+
 }
 
 function getProductionPassthroughInformation(production_id: number, grammar: Grammar): {
@@ -84,10 +87,10 @@ export function renderItem(
     lexer_name: VarSC = rec_glob_lex_name,
     FROM_UPPER = false,
     items = [],
-): { leaf_node: SC, prods: number[]; INDIRECT: boolean; } {
+): { leaf_node: SC, original_prods: number[], prods: number[]; INDIRECT: boolean; } {
     const { grammar, helper: runner, called_productions } = options;
 
-    let prods = [], INDIRECT = false;
+    let prods = [], original_prods = [], INDIRECT = true;
 
     if (!item.atEND) {
 
@@ -99,6 +102,7 @@ export function renderItem(
         let bool_expression = null;
 
         const sym = getRootSym(item.sym(grammar), grammar);
+        leaf_node.addStatement(SC.Value("puid |=" + grammar.item_map.get(item.id).sym_uid));
         if (Sym_Is_A_Production(sym) && !Sym_Is_A_Production_Token(sym)) {
 
             INDIRECT = true;
@@ -118,24 +122,27 @@ export function renderItem(
                     const body = grammar[prod_id].bodies[0];
                     const body_item = new Item(body.id, body.length, body.length);
                     items.push(body_item);
-                    renderItemReduction(call_body, body_item, grammar);
+                    renderItemReduction(call_body, body_item, options);
                 }
             }
 
             let code;
 
-            ({ leaf_node: code, prods } = renderItem(call_body, item.increment(), options, false, lexer_name, true, items));
+            ({ leaf_node: code, prods, original_prods } = renderItem(call_body, item.increment(), options, false, lexer_name, true, items));
 
+            if (!item.increment().atEND)
+                call_body.addStatement(SC.Value("return -1"));
             const call_name = createBranchFunction(call_body, call_body, options);
             const rc = new SC;
 
             rc.addStatement(SC.Call("pushFN", "data", call_name));
             rc.addStatement(SC.Call("pushFN", "data", getProductionFunctionName(grammar[first_non_passthrough], grammar)));
-            rc.addStatement(SC.UnaryPre(SC.Return, SC.Value("0")));
+            rc.addStatement(SC.UnaryPre(SC.Return, SC.Value("puid")));
+            // /rc.addStatement(SC.UnaryPre(SC.Return, SC.Value("0")));
 
             leaf_node.addStatement(rc);
 
-            return { leaf_node: code, prods, INDIRECT };
+            return { leaf_node: code, prods, INDIRECT, original_prods };
 
         } else if (RENDER_WITH_NO_CHECK) {
             leaf_node.addStatement(createConsume(lexer_name));
@@ -154,12 +161,13 @@ export function renderItem(
         }
 
     } else {
+        renderItemReduction(leaf_node, item, options, false);
 
-        renderItemReduction(leaf_node, item, grammar);
+        original_prods = itemsToProductions([item], grammar);
 
-        prods = processProductionChain(leaf_node, options, itemsToProductions([item], grammar));
+        prods = processProductionChain(new SC, options, itemsToProductions([item], grammar));
     }
 
 
-    return { leaf_node, prods, INDIRECT };
+    return { leaf_node, prods, original_prods, INDIRECT };
 }

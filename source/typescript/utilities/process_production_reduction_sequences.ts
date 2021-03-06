@@ -36,7 +36,7 @@ export function processProductionChain(
         prod.length = 1;
         while (active_items.length == 1 && active_items.every(i => i.len == 1)) {
             prod[0] = active_items[0].getProduction(grammar).id;
-            renderItemReduction(code_node, active_items[0], grammar);
+            renderItemReduction(code_node, active_items[0], options, false);
             active_items = getGotoItems(grammar, itemsToProductions(active_items, grammar), goto_items);
         }
     }

@@ -78,8 +78,28 @@ export function createVirtualProductions(items: Item[], options: RenderBodyOptio
         buildItemMaps(grammar, Array.from(output.values()).map(({ p }) => p));
 
         for (const [item_id, { p: production }] of output.entries()) {
+            const item = getItemMapEntry(grammar, item_id).item;
+            const body = production.bodies[0];
+            const v_item = new Item(body.id, body.length, 0);
+
+            for (let j = v_item, i = item; ;) {
+                if (!i) break;
+
+                grammar.item_map.get(j.id).sym_uid
+                    = grammar.item_map.get(i.id).sym_uid;
+
+                console.log(i.renderUnformattedWithProduction(grammar), j.renderUnformattedWithProduction(grammar));
+
+                j = j.increment();
+                i = i.increment();
+            }
+        }
+
+        for (const [item_id, { p: production }] of output.entries()) {
             const item_map = getItemMapEntry(grammar, getItemMapEntry(grammar, item_id).item.toEND().id);
             const body = production.bodies[0];
+
+
             const v_item = new Item(body.id, body.length, body.length);
             const v_item_map = getItemMapEntry(grammar, v_item.id);
 

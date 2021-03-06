@@ -5,12 +5,13 @@
  */
 import { RenderBodyOptions } from "../../types/render_body_options";
 import { TransitionClauseGenerator } from "../../types/transition_generating";
-import { TransitionNode } from "../../types/transition_node.js";
+import { TransitionNode, TRANSITION_TYPE } from "../../types/transition_node.js";
 import { getClosure } from "../../utilities/closure.js";
-import { createSkipCall, getIncludeBooleans } from "../../utilities/code_generating.js";
+import { createBranchFunction, createSkipCall, getIncludeBooleans, getProductionFunctionName } from "../../utilities/code_generating.js";
 import { getFollow } from "../../utilities/follow.js";
 import { rec_glob_lex_name, rec_state_prod } from "../../utilities/global_names.js";
-import { Item } from "../../utilities/item.js";
+import { Item, itemsToProductions } from "../../utilities/item.js";
+import { processProductionChain } from "../../utilities/process_production_reduction_sequences.js";
 import { reduceOR } from "../../utilities/reduceOR.js";
 import { SC } from "../../utilities/skribble.js";
 import {
@@ -43,7 +44,7 @@ export function resolveGOTOBranches(gen: TransitionClauseGenerator, state: Trans
 
         let switch_stmt: SC = SC.Switch(rec_state_prod);
 
-        for (const { syms, items, code, hash, leaves, prods } of goto_groups.sort(
+        for (const { syms, items, code, hash, leaves, prods, PUIDABLE } of goto_groups.sort(
             (a, b) => <number><any>a.syms[0] - <number><any>b.syms[0])
         ) {
 
@@ -60,12 +61,33 @@ export function resolveGOTOBranches(gen: TransitionClauseGenerator, state: Trans
 
             let interrupt_statement = null;
 
+            let sc = new SC;
 
             if (end_items.length > 0)
                 CONTAINS_END_LEAF_THAT_SHOULD_LOOP = true;
 
+            if (PUIDABLE && !WE_HAVE_JUST_ONE_GOTO_GROUP) {
+                //discard all leaves 
+                leaves.forEach(l => l.transition_type == TRANSITION_TYPE.IGNORE);
+                const nc = new SC;
+                const productions = itemsToProductions([items[0]], grammar);
 
-            if (active_items.length > 0) {
+                processProductionChain(nc, options, productions);
+                const continue_name = createBranchFunction(nc, nc, options);
+                const call_name = createBranchFunction(code, code, options);
+
+                code.addStatement(SC.Value("return -1"));
+
+                sc.addStatement(SC.Call("pushFN", "data", continue_name));
+                sc.addStatement(SC.UnaryPre(SC.Return, SC.Call(call_name, "l", "data", "state", "prod", "" + grammar.item_map.get(items[0].decrement().id).sym_uid)));
+
+                leaves[0].leaf = nc;
+                leaves[0].INDIRECT = true;
+                leaves[0].transition_type = TRANSITION_TYPE.ASSERT;
+
+            } else if (active_items.length > 0) {
+
+                sc.addStatement(code);
                 const
                     closure = getClosure(active_items.slice(), grammar, true);
                 anticipated_syms = getSymbolsFromClosure(closure, grammar);
@@ -163,11 +185,8 @@ export function resolveGOTOBranches(gen: TransitionClauseGenerator, state: Trans
                 ...keys.slice(0, -1).map(k => SC.If(SC.Value(k + ""))),
                 SC.If(SC.Value(keys.slice(-1)[0] + ""))
                     .addStatement(
-                        active_items.length > 0 || end_items.length > 1
-                            ? createSkipCall(skippable, options, rec_glob_lex_name, false)
-                            : undefined,
                         interrupt_statement,
-                        code,
+                        sc,
                         WE_HAVE_JUST_ONE_GOTO_GROUP ? undefined : SC.Break
                     )
             );
@@ -193,9 +212,9 @@ export function resolveGOTOBranches(gen: TransitionClauseGenerator, state: Trans
 
     }
 
-    state.offset--;
+    // state.offset--;
 
-    return default_resolveBranches(gen, state, items_global, level, options, state.offset <= 1);
+    return default_resolveBranches(gen, state, items_global, level, options/*, state.offset <= 1*/);
 }
 
 export function addClauseSuccessCheck(options: RenderBodyOptions): SC {

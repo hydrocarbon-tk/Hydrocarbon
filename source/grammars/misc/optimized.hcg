@@ -1,10 +1,10 @@
-@IGNORE θws θnum tk:comment
+@IGNORE θws tk:comment
 
 @IMPORT ./default-productions.hcg as def
 
 <> start > blocks
     
-<> blocks > (\[ expressions? \] )(+\& )
+<> blocks > ( \[ expressions? \] f:r{ $$sym2 } )(+\& )
 
 <> expressions > expression(+\, )
 
@@ -21,14 +21,14 @@
 <> multiplicative > unary \+ additive
             | unary
 
-<> unary > \++ closure
-         | \-- closure
-         | closure \-- 
-         | closure \++ 
+<> unary > \++ closure       f:r{ { type:"inc", val: $$sym2 } }
+         | \-- closure       f:r{ { type:"dec", val: $$sym2 } }
+         | closure \--       f:r{ { type:"post-inc", val: $$sym2 } }
+         | closure \++       f:r{ { type:"post-dec", val: $$sym2 } }
          | closure
 
-<> closure > \( expressions \)
-            | \[ expression \]
+<> closure > \( expressions \)  
+            | \[ expression \]  
             | literal
             | blocks
             | fnA

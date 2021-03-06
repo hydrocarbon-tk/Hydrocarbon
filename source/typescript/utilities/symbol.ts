@@ -92,7 +92,7 @@ export function Sym_Is_A_Production_Token(s: Symbol): s is (ProductionTokenSymbo
 }
 
 export function Sym_Is_A_Terminal(s: Symbol): s is TokenSymbol {
-    return false == Sym_Is_A_Production(s);
+    return false == Sym_Is_A_Production(s) || Sym_Is_A_Production_Token(s);
 }
 
 export function Sym_Is_A_Token(s: Symbol): s is TokenSymbol {

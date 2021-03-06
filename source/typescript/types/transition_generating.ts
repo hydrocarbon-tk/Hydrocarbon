@@ -18,6 +18,7 @@ export type TransitionGroup = {
     LAST: boolean;
     prods: number[];
     leaves: Leaf[];
+    PUIDABLE: boolean,
     transition_types: TRANSITION_TYPE[];
 };
 export type TransitionClauseGenerator = Generator<TransitionGroup>;

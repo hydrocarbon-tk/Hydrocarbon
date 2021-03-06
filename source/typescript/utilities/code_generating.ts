@@ -205,12 +205,13 @@ export function collapseBranchNames(options: RenderBodyOptions) {
                 rec_glob_lex_name,
                 rec_glob_data_name,
                 "state:u32",
-                "prod:u32"
+                "prod:u32",
+                "puid:u32"
             ).addStatement(body,
                 hash,
             );
 
-        fn_ref = <VarSC>packGlobalFunction("branch", "bool", body, token_function, runner);
+        fn_ref = <VarSC>packGlobalFunction("branch", "int", body, token_function, runner);
 
         name.type = (<VarSC>fn_ref).type;
     }
@@ -317,11 +318,12 @@ export function createNonCaptureBooleanCheck(symbols: TokenSymbol[], options: Ba
                 ":bool",
                 "l:Lexer&"
             ).addStatement(
-
+                SC.Declare(SC.Assignment("a", SC.Member("l", "token_length"))),
+                SC.Declare(SC.Assignment("b", SC.Member("l", "byte_length"))),
                 SC.If(boolean)
                     .addStatement(
-                        SC.Assignment(SC.Member("l", "token_length"), 0),
-                        SC.Assignment(SC.Member("l", "byte_length"), 0),
+                        SC.Assignment(SC.Member("l", "token_length"), "a"),
+                        SC.Assignment(SC.Member("l", "byte_length"), "b"),
                         SC.UnaryPre(SC.Return, SC.True)
                     ),
                 SC.UnaryPre(SC.Return, SC.False)
@@ -697,7 +699,7 @@ export function getIncludeBooleans(
                     booleans.push(getLexerByteBoolean(lex_name, char_code));
                 } else {
                     booleans.push(
-                        SC.Call("cmpr_set", lex_name, rec_glob_data_name, sym.byte_offset, sym.byte_length, sym.val.length)
+                        SC.UnaryPre(`/*[${sanitizeSymbolValForComment(sym)}]*/`, SC.Call("cmpr_set", lex_name, rec_glob_data_name, sym.byte_offset, sym.byte_length, sym.val.length))
                     );
                 }
             } else {

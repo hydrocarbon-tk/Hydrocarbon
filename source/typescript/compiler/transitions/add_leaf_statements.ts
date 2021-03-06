@@ -6,6 +6,7 @@
 import { RenderBodyOptions } from "../../types/render_body_options";
 import { TRANSITION_TYPE } from "../../types/transition_node.js";
 import { rec_state_prod } from "../../utilities/global_names.js";
+import { processProductionChain } from "../../utilities/process_production_reduction_sequences.js";
 import { ConstSC, SC, VarSC } from "../../utilities/skribble.js";
 import { VirtualProductionLinks } from "../../utilities/virtual_productions.js";
 import { addClauseSuccessCheck, createDebugCall } from "./default_state_build.js";
@@ -44,7 +45,7 @@ export function addLeafStatements(
     let GOTOS_FOLDED = false;
 
     for (const rd_leaf of rd_leaves) {
-        const { leaf, prods } = rd_leaf;
+        let { leaf, prods, original_prods } = rd_leaf;
 
         //@ts-ignore
         if (rd_leaf.SET)
@@ -54,6 +55,8 @@ export function addLeafStatements(
         rd_leaf.SET = true;
 
         if (NO_GOTOS) {
+
+            prods = processProductionChain(leaf, GOTO_Options, original_prods);
 
             leaf.addStatement(createDebugCall(GOTO_Options, "RD return"));
             leaf.addStatement(SC.UnaryPre(SC.Return, SC.Value(prods[0])));
@@ -75,7 +78,7 @@ export function addLeafStatements(
     if (!NO_GOTOS)
         for (const goto_leaf of goto_leaves) {
 
-            const { leaf, prods, transition_type, INDIRECT } = goto_leaf;
+            let { leaf, prods, transition_type, INDIRECT, original_prods } = goto_leaf;
 
             //@ts-ignore
             if (goto_leaf.SET || transition_type == TRANSITION_TYPE.IGNORE)
@@ -86,6 +89,8 @@ export function addLeafStatements(
 
             if (goto_leaf.INDIRECT)
                 leaf.addStatement("-------------INDIRECT-------------------");
+
+            prods = processProductionChain(leaf, GOTO_Options, original_prods);
 
             if (transition_type == TRANSITION_TYPE.ASSERT_END
                 && production_ids.includes(prods[0])

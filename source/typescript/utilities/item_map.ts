@@ -56,6 +56,9 @@ export function buildItemMaps(grammar: Grammar, productions: Production[] = gram
     /////////////////////////////////////////////////////////////
     processSkippedSymbols(grammar, item_maps_in_process);
 
+    ////////////////////////////////////////////////////////////
+    addPositionalItemIds(grammar, productions);
+
     return item_maps_in_process;
 }
 
@@ -284,6 +287,52 @@ function processClosures(
 
             item_map.closure = temp;
             item_map.hash = new_hash;
+        }
+    }
+}
+
+function addPositionalItemIds(grammar: Grammar, productions: Production[]) {
+    for (const production of productions)
+        if (production.type != "virtual-production")
+            addPositionalSymbolId(grammar, production);
+};
+
+function addPositionalSymbolId(grammar: Grammar, production: Production) {
+
+    const
+        { item_map } = grammar,
+        items = getStartItemsFromProduction(production),
+        sym_map = new Map();
+
+    for (let item of items) {
+        const set = new Set;
+        let cumulative_id = 0;
+
+        while (1) {
+            if (item.atEND) {
+                item_map.get(item.id).sym_uid = cumulative_id;
+                break;
+            } else {
+
+                const sym = getUniqueSymbolName(item.sym(grammar));
+
+                let i = -1;
+
+                while (set.has(sym + ++i));
+
+                set.add(sym + i);
+
+                if (!sym_map.has(sym))
+                    sym_map.set(sym, 1 << sym_map.size);
+
+                let id = sym_map.get(sym);
+
+                item_map.get(item.id).sym_uid = id;
+
+                cumulative_id |= id;
+            }
+
+            item = item.increment();
         }
     }
 }
