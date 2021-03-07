@@ -92,10 +92,11 @@ export function resolveGOTOBranches(gen: TransitionClauseGenerator, state: Trans
                 leaves[0].leaf = nc;
                 leaves[0].INDIRECT = true;
                 leaves[0].transition_type = TRANSITION_TYPE.ASSERT;
-
+                
             } else if (active_items.length > 0) {
 
                 sc.addStatement(code);
+                
                 const
                     closure = getClosure(active_items.slice(), grammar, true);
                 anticipated_syms = getSymbolsFromClosure(closure, grammar);
@@ -104,6 +105,7 @@ export function resolveGOTOBranches(gen: TransitionClauseGenerator, state: Trans
                  * Create look ahead for a preemptive reduce on keys that match the production id
                  */
                 if (keys.some(k => production_ids.includes(k))) {
+
 
                     /**
                     *   Criteria for checked symbols 
@@ -185,6 +187,9 @@ export function resolveGOTOBranches(gen: TransitionClauseGenerator, state: Trans
                         }
                     }
                 }
+            }else {
+
+                sc = code
             }
 
 
@@ -193,6 +198,7 @@ export function resolveGOTOBranches(gen: TransitionClauseGenerator, state: Trans
                 ...keys.slice(0, -1).map(k => SC.If(SC.Value(k + ""))),
                 SC.If(SC.Value(keys.slice(-1)[0] + ""))
                     .addStatement(
+                        items.map(i=>i.renderUnformattedWithProduction(grammar)).join("\n"),
                         interrupt_statement,
                         sc,
                         WE_HAVE_JUST_ONE_GOTO_GROUP ? undefined : SC.Break
