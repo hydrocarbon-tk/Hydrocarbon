@@ -605,9 +605,9 @@ export class JS extends SC {
 
             if (expr)
                 if (type == "constant") {
-                    expressions.push(TAB(tab) + "const " + expr + ";");
+                    expressions.push(TAB(tab) + "var " + expr + ";");
                 } else {
-                    expressions.push(TAB(tab) + "let " + expr + ";");
+                    expressions.push(TAB(tab) + "var " + expr + ";");
                 }
         }
         return expressions;
