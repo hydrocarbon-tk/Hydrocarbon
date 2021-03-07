@@ -66,7 +66,15 @@ export function resolveGOTOBranches(gen: TransitionClauseGenerator, state: Trans
             if (end_items.length > 0)
                 CONTAINS_END_LEAF_THAT_SHOULD_LOOP = true;
 
-            if (PUIDABLE && !WE_HAVE_JUST_ONE_GOTO_GROUP) {
+            if (
+                    PUIDABLE && !WE_HAVE_JUST_ONE_GOTO_GROUP && 
+                    /**
+                     * Ensure code for the root productions is not wrapped in
+                     * a branch function to prevent failed parse paths and 
+                     * infinite recursion
+                     */
+                    !keys.some(k=>production_ids.includes(k))
+                ) {
                 //discard all leaves 
                 leaves.forEach(l => l.transition_type == TRANSITION_TYPE.IGNORE);
                 const nc = new SC;
