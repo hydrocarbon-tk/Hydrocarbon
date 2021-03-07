@@ -212,11 +212,15 @@ function* traverseInteriorNodes(
         for (const sym_a of a.syms)
             for (const sym_b of b.syms)
                 if (Symbols_Occlude(<TokenSymbol>sym_b, <TokenSymbol>sym_a))
-                    return groupBEnd - groupAEnd
+                    return  1;
                 else if (Symbols_Occlude(<TokenSymbol>sym_a, <TokenSymbol>sym_b))
-                    return groupAEnd - groupBEnd;
+                    return -1;
+        
+            if(groupAEnd - groupBEnd != 0)
 
-        return getGroupScore(a) - getGroupScore(b);
+                    return (groupAEnd - groupBEnd)
+        
+            return getGroupScore(a) - getGroupScore(b);
     })) {
         group.FIRST = i++ == 0;
         group.LAST = i == groups.length;
