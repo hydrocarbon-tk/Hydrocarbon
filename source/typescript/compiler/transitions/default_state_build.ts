@@ -15,7 +15,7 @@ import { processProductionChain } from "../../utilities/process_production_reduc
 import { reduceOR } from "../../utilities/reduceOR.js";
 import { SC } from "../../utilities/skribble.js";
 import {
-    Defined_Symbols_Occlude, getComplementOfSymbolSets,
+    Symbols_Occlude, getComplementOfSymbolSets,
     getSkippableSymbolsFromItems,
     getSymbolName,
     getSymbolsFromClosure,
@@ -156,11 +156,11 @@ export function resolveGOTOBranches(gen: TransitionClauseGenerator, state: Trans
                         else if (Sym_Is_A_Generic_Type(s))
                             continue;
                         else if (Sym_Is_Defined_Symbols(s)) {
-                            if (GEN_SYM || anticipated_syms.some(a => Defined_Symbols_Occlude(s, a))) checked_symbols.push(s);
+                            if (GEN_SYM || anticipated_syms.some(a => Symbols_Occlude(s, a))) checked_symbols.push(s);
                         } else if (Sym_Is_Defined_Identifier(s) && !GEN_NL_WS) {
-                            if (GEN_ID || anticipated_syms.some(a => Defined_Symbols_Occlude(s, a))) checked_symbols.push(s);
+                            if (GEN_ID || anticipated_syms.some(a => Symbols_Occlude(s, a))) checked_symbols.push(s);
                         } else if (Sym_Is_Defined_Natural_Number(s) && !GEN_NL_WS) {
-                            if (GEN_NUM || anticipated_syms.some(a => Defined_Symbols_Occlude(s, a))) checked_symbols.push(s);
+                            if (GEN_NUM || anticipated_syms.some(a => Symbols_Occlude(s, a))) checked_symbols.push(s);
                         }
                     }
 

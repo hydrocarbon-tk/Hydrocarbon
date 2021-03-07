@@ -20,7 +20,7 @@ import { Item } from "./item.js";
 import { getProductionClosure, getProductionID } from "./production.js";
 import { ConstSC, ExprSC, SC, StmtSC, VarSC } from "./skribble.js";
 import {
-    Defined_Symbols_Occlude,
+    Symbols_Occlude,
     getTokenSymbolsFromItems,
     getUniqueSymbolName,
     Sym_Is_An_Assert_Function,
@@ -660,7 +660,7 @@ export function getIncludeBooleans(
 
             const
                 char_code = sym.val.charCodeAt(0),
-                occluders = ambient_symbols.filter(a_sym => Defined_Symbols_Occlude(a_sym, sym));
+                occluders = ambient_symbols.filter(a_sym => Symbols_Occlude(a_sym, sym));
 
             if (occluders.length > 0 || sym.val.length > 1) {
 

@@ -11,7 +11,7 @@ import { GeneratorStateReturn, TransitionNode, TRANSITION_TYPE } from "../../typ
 import { Item } from "../../utilities/item.js";
 import { SC } from "../../utilities/skribble.js";
 import {
-    Defined_Symbols_Occlude,
+    Symbols_Occlude,
     Sym_Is_A_Generic_Identifier,
     Sym_Is_A_Generic_Type,
     Sym_Is_Defined_Symbols,
@@ -211,9 +211,9 @@ function* traverseInteriorNodes(
 
         for (const sym_a of a.syms)
             for (const sym_b of b.syms)
-                if (Defined_Symbols_Occlude(<TokenSymbol>sym_b, <TokenSymbol>sym_a))
+                if (Symbols_Occlude(<TokenSymbol>sym_b, <TokenSymbol>sym_a))
                     return groupBEnd - groupAEnd
-                else if (Defined_Symbols_Occlude(<TokenSymbol>sym_a, <TokenSymbol>sym_b))
+                else if (Symbols_Occlude(<TokenSymbol>sym_a, <TokenSymbol>sym_b))
                     return groupAEnd - groupBEnd;
 
         return getGroupScore(a) - getGroupScore(b);

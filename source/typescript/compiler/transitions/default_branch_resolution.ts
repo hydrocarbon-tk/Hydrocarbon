@@ -13,6 +13,7 @@ import { rec_glob_data_name, rec_glob_lex_name } from "../../utilities/global_na
 import { Item } from "../../utilities/item.js";
 import { ExprSC, SC, VarSC } from "../../utilities/skribble.js";
 import {
+    Symbols_Occlude,
     Defined_Symbols_Occlude,
     getSkippableSymbolsFromItems,
     getSymbolName,

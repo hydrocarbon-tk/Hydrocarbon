@@ -215,9 +215,8 @@ export function getRootSym<T = Symbol>(sym: T, grammar: Grammar): T {
 
     return <T><any>grammar.meta.all_symbols.get(name) || sym;
 }
-export function Defined_Symbols_Occlude(target: TokenSymbol, potentially_occludes: Symbol): boolean {
 
-    // if (Sym_Is_EOF(target)) return true;
+export function Symbols_Occlude(target: Symbol, potentially_occludes: Symbol): boolean {
 
     if (Sym_Is_A_Production(target) || Sym_Is_A_Production(potentially_occludes)) return false;
     if (Symbols_Are_The_Same(target, potentially_occludes)) return false;
@@ -227,6 +226,13 @@ export function Defined_Symbols_Occlude(target: TokenSymbol, potentially_occlude
     if (Sym_Is_A_Generic_Identifier(potentially_occludes) && Sym_Is_Defined_Identifier(target)) return true;
     if (Sym_Is_A_Generic_Number(potentially_occludes) && Sym_Is_Defined_Natural_Number(target)) return true;
 
+    return Defined_Symbols_Occlude(target, potentially_occludes);
+}
+
+export function Defined_Symbols_Occlude(target: Symbol, potentially_occludes: Symbol): boolean {
+
+    if(!Sym_Is_Defined(target) || !Sym_Is_Defined(potentially_occludes)) return false
+    
     let
         short = target.val.toString(),
         long = potentially_occludes.val.toString();
