@@ -134,7 +134,8 @@ export function createSkipCall(
     options: BaseOptions,
     lex_name: ExprSC = SC.Variable("l", "Lexer"),
     peek: boolean,
-    exclude: TokenSymbol[] = []
+    exclude: TokenSymbol[] = [],
+    USE_NUMBER = false
 ): StmtSC {
 
     const { helper: runner } = options;
@@ -142,7 +143,7 @@ export function createSkipCall(
     const skips = getSkipFunctionNew(symbols, options, undefined, lex_name, exclude);
 
     if (skips)
-        return SC.Expressions(SC.Call(skips, SC.UnaryPost(lex_name, SC.Comment(symbols.map(s => `[ ${s.val} ]`).join(""))), rec_glob_data_name, SC.Value((!peek) + "")));
+        return SC.Expressions(SC.Call(skips, SC.UnaryPost(lex_name, SC.Comment(symbols.map(s => `[ ${s.val} ]`).join(""))), rec_glob_data_name, !peek ? USE_NUMBER ? 0xFFFFFF : "state" : "0"));
 
     return SC.Expressions(SC.Empty());
 }
@@ -173,7 +174,7 @@ export function getSkipFunctionNew(
                     ":Lexer",
                     "l:Lexer&",
                     rec_glob_data_name,
-                    "APPLY:boolean"
+                    "state:int"
                 ).addStatement(
                     SC.Value("const off = l.token_offset"),
                     SC.While(SC.Value(1)).addStatement(
@@ -182,7 +183,7 @@ export function getSkipFunctionNew(
                             .addStatement(SC.Break),
                         SC.Call(SC.Member("l", "next"), rec_glob_data_name),
                     ),
-                    SC.If(SC.Value("APPLY")).addStatement(SC.Call("add_skip", "l", "data", SC.Value("l.token_offset - off")))
+                    SC.If(SC.Value("isOutputEnabled(state)")).addStatement(SC.Call("add_skip", "l", "data", SC.Value("l.token_offset - off")))
                 );
 
         fn_ref = packGlobalFunction("skip", "Lexer", skip_symbols, skip_function, runner);
