@@ -3,18 +3,21 @@
  * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
  * disclaimer notice.
  */
+import { group } from "console";
 import { RenderBodyOptions } from "../../types/render_body_options";
 import { Symbol, TokenSymbol } from "../../types/symbol.js";
 import { TransitionClauseGenerator, TransitionGroup } from "../../types/transition_generating";
 import { Leaf, TransitionNode, TRANSITION_TYPE } from "../../types/transition_node.js";
 import { createBranchFunction, createConsume, createSkipCall, createSymbolMappingFunction, getIncludeBooleans, getProductionFunctionName } from "../../utilities/code_generating.js";
 import { createTransitionTypeAnnotation } from "../../utilities/create_transition_type_annotation.js";
+import { getFollow } from "../../utilities/follow.js";
 import { rec_glob_data_name, rec_glob_lex_name } from "../../utilities/global_names.js";
 import { Item } from "../../utilities/item.js";
 import { ExprSC, SC, VarSC } from "../../utilities/skribble.js";
 import {
     Symbols_Occlude,
     Defined_Symbols_Occlude,
+    getFollowSymbolsFromItems,
     getSkippableSymbolsFromItems,
     getSymbolName,
 
@@ -288,8 +291,8 @@ function createIfElseBlock(
                 // from an end items follow set
 
                 const
-                    primary_symbols = syms.filter(a => complement_symbols.some(o => Sym_Is_EOF(a) || Defined_Symbols_Occlude(<any>a, o))),
-                    negate_symbols = complement_symbols,
+                    primary_symbols = syms, //syms.filter(a => complement_symbols.some(o => Sym_Is_EOF(a) || Defined_Symbols_Occlude(<any>a, o))),
+                    negate_symbols = complement_symbols.filter(a => primary_symbols.some(o => Symbols_Occlude(<any>a, o))),
                     remaining_symbols = getIncludeBooleans(<TokenSymbol[]>primary_symbols, options, peek_name),
                     negated_expression = getIncludeBooleans(<TokenSymbol[]>negate_symbols, options, peek_name);
 
@@ -298,8 +301,8 @@ function createIfElseBlock(
                     if (primary_symbols.length > 0)
                         assertion_boolean = SC.Binary(SC.Group("(",remaining_symbols),  "&&", SC.UnaryPre("!", SC.Group("(", negated_expression)) );
                     else
-                        assertion_boolean = SC.UnaryPre("!", negated_expression);
-                } else assertion_boolean = SC.Empty();
+                        assertion_boolean = SC.UnaryPre("!", SC.Group("(",negated_expression));
+                } else assertion_boolean = remaining_symbols
 
                 leaf = addIfStatementTransition(options, group, code, assertion_boolean, FORCE_ASSERTIONS, leaf, state.leaves);
 
