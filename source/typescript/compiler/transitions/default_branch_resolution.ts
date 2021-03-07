@@ -13,6 +13,7 @@ import { createTransitionTypeAnnotation } from "../../utilities/create_transitio
 import { getFollow } from "../../utilities/follow.js";
 import { rec_glob_data_name, rec_glob_lex_name } from "../../utilities/global_names.js";
 import { Item } from "../../utilities/item.js";
+import { reduceAnd, reduceOR } from "../../utilities/reduceOR.js";
 import { ExprSC, SC, VarSC } from "../../utilities/skribble.js";
 import {
     Symbols_Occlude,
@@ -261,6 +262,7 @@ function createIfElseBlock(
                 break;
 
             case TRANSITION_TYPE.ASSERT_END:
+                const r_syms = groups.slice(i+1).flatMap(g=>g.syms).setFilter(getUniqueSymbolName);
                 /**
                  * Completed Items are tricky. They don't represent actual consumption of 
                  * tokens, but rather must assert that a set of tokens FOLLOW the completed
@@ -280,19 +282,30 @@ function createIfElseBlock(
                  * 
                  */
 
-                let pending_syms = syms.slice();
-                // Remove symbols that should lead to a shift
-                // This overcomes shift-reduce ambiguities
-                if (complement_symbols.length > 0)
-                    pending_syms = pending_syms
-                        .filter(s => !complement_symbols.some(o => Symbols_Are_The_Same(s, o)));
+                const occluding_symbols = r_syms.filter(r=>syms.some(s=>Symbols_Occlude(s,r)))
 
+                const occlusion_groups = []
+
+                for(const sym of occluding_symbols){
+                    const occluded = syms.filter(s=>Symbols_Occlude(s,sym))
+                    const bool = getIncludeBooleans(<TokenSymbol[]>occluded, options, peek_name);
+                    const negated_expression = getIncludeBooleans(<TokenSymbol[]>[sym], options, peek_name)
+                    const expression =  [SC.UnaryPre("!", SC.Group("(",negated_expression)), bool].reduce(reduceOR)
+                    occlusion_groups.push(expression)
+                }
+
+
+                assertion_boolean = occlusion_groups.length > 0 ? occlusion_groups.reduce(reduceAnd) : assertion_boolean
+
+                reduceAnd
+                
+                /*
                 // Negative assertion helps prevent occlusions of subsequent group's symbols
                 // from an end items follow set
-
+                code.addStatement(syms.map(sanitizeSymbolValForComment).map(s=>`[${s}]`).join(" "))
                 const
                     primary_symbols = syms, //syms.filter(a => complement_symbols.some(o => Sym_Is_EOF(a) || Defined_Symbols_Occlude(<any>a, o))),
-                    negate_symbols = complement_symbols.filter(a => primary_symbols.some(o => Symbols_Occlude(<any>a, o))),
+                    negate_symbols = r_syms.filter(Sym_Is_Defined).filter(s=>primary_symbols.some(p=>Symbols_Occlude(s, p))),
                     remaining_symbols = getIncludeBooleans(<TokenSymbol[]>primary_symbols, options, peek_name),
                     negated_expression = getIncludeBooleans(<TokenSymbol[]>negate_symbols, options, peek_name);
 
@@ -303,6 +316,7 @@ function createIfElseBlock(
                     else
                         assertion_boolean = SC.UnaryPre("!", SC.Group("(",negated_expression));
                 } else assertion_boolean = remaining_symbols
+                */
 
                 leaf = addIfStatementTransition(options, group, code, assertion_boolean, FORCE_ASSERTIONS, leaf, state.leaves);
 
@@ -422,22 +436,17 @@ function addIfStatementTransition(
     const SKIP_BOOL_EXPRESSION = (!FORCE_ASSERTIONS || transition_type == TRANSITION_TYPE.ASSERT_END)
         && (LAST && !FIRST)
         && (
-            transition_type == TRANSITION_TYPE.ASSERT_PRODUCTION_SYMBOLS
+            // transition_type == TRANSITION_TYPE.ASSERT_PRODUCTION_SYMBOLS
             //|| transition_type == TRANSITION_TYPE.ASSERT
-            || transition_type == TRANSITION_TYPE.PEEK_PRODUCTION_SYMBOLS
-            || transition_type == TRANSITION_TYPE.PEEK_UNRESOLVED
-            || transition_type == TRANSITION_TYPE.ASSERT_PEEK
-            || transition_type == TRANSITION_TYPE.ASSERT_PEEK_VP
-            || transition_type == TRANSITION_TYPE.ASSERT_END
+            //|| transition_type == TRANSITION_TYPE.PEEK_PRODUCTION_SYMBOLS
+            //|| transition_type == TRANSITION_TYPE.PEEK_UNRESOLVED
+            //|| transition_type == TRANSITION_TYPE.ASSERT_PEEK
+            //|| transition_type == TRANSITION_TYPE.ASSERT_PEEK_VP
+            //|| 
+            transition_type == TRANSITION_TYPE.ASSERT_END
         );
 
-    if (SKIP_BOOL_EXPRESSION &&
-        /**
-         * Skipping early optimization. It IS the 
-         * root of all evil
-         */
-        false
-        )
+    if (SKIP_BOOL_EXPRESSION  )
         if_stmt = SC.If();
 
     if_stmt.addStatement(
