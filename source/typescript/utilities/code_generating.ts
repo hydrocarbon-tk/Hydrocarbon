@@ -423,14 +423,16 @@ export function createSymbolMappingFunction(
                 leaf = sc;
             }
         }
-
+        
+        
         const
             code_node = yielded.value,
-            fn = SC.Function(":boolean", fn_lex_name, rec_glob_data_name)
+            fn = SC.Function(":int", fn_lex_name, rec_glob_data_name)
                 .addStatement(
                     symbols.map(s => s.val).join(" "),
                     code_node,
-                    if_root
+                    if_root,
+                    SC.UnaryPre(SC.Return, SC.Value("-1"))
                 );
 
         fn_ref = packGlobalFunction("sym_map", "int", fn, fn, options.helper);
