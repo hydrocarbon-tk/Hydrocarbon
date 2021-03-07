@@ -428,7 +428,13 @@ function addIfStatementTransition(
             || transition_type == TRANSITION_TYPE.ASSERT_END
         );
 
-    if (SKIP_BOOL_EXPRESSION)
+    if (SKIP_BOOL_EXPRESSION &&
+        /**
+         * Skipping early optimization. It IS the 
+         * root of all evil
+         */
+        false
+        )
         if_stmt = SC.If();
 
     if_stmt.addStatement(
