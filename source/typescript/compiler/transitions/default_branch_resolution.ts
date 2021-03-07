@@ -110,6 +110,24 @@ function Groups_Contain_Symbol_Ambiguity(groups: TransitionGroup[]) {
             ) return true;
         }
     }
+
+    for(let i = 0; i < groups.length; i++){
+        for(let j = i; j < groups.length; j++){
+            if(j==i) continue
+            const groupA = groups[i]
+            const groupB = groups[j]
+            
+            for(const symA of groupA.syms){
+                for(const symB of groupB.syms){
+                    if(Defined_Symbols_Occlude(symA, symB))
+                        return true
+                }
+            }
+        }
+    }
+
+    return false;
+
 }
 /**
  * Used in cases of large number of symbols + transitions or occlusion conflicts
