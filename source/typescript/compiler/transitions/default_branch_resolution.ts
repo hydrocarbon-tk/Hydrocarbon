@@ -3,27 +3,21 @@
  * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
  * disclaimer notice.
  */
-import { group } from "console";
 import { RenderBodyOptions } from "../../types/render_body_options";
 import { Symbol, TokenSymbol } from "../../types/symbol.js";
 import { TransitionClauseGenerator, TransitionGroup } from "../../types/transition_generating";
 import { Leaf, TransitionNode, TRANSITION_TYPE } from "../../types/transition_node.js";
-import { createBranchFunction, createConsume, createSkipCall, createSymbolMappingFunction, getIncludeBooleans, getProductionFunctionName } from "../../utilities/code_generating.js";
+import { createBranchFunction, createConsume, createSkipCall, createSymbolMappingFunction, getIncludeBooleans, getProductionFunctionName, sanitizeSymbolValForComment } from "../../utilities/code_generating.js";
 import { createTransitionTypeAnnotation } from "../../utilities/create_transition_type_annotation.js";
-import { getFollow } from "../../utilities/follow.js";
 import { rec_glob_data_name, rec_glob_lex_name } from "../../utilities/global_names.js";
 import { Item } from "../../utilities/item.js";
 import { reduceAnd, reduceOR } from "../../utilities/reduceOR.js";
 import { ExprSC, SC, VarSC } from "../../utilities/skribble.js";
 import {
-    Symbols_Occlude,
     Defined_Symbols_Occlude,
-    getFollowSymbolsFromItems,
     getSkippableSymbolsFromItems,
     getSymbolName,
-
-    getUniqueSymbolName,
-    Symbols_Are_The_Same,
+    getUniqueSymbolName, Symbols_Occlude,
     Sym_Is_A_Generic_Identifier,
     Sym_Is_A_Generic_Number,
     Sym_Is_A_Generic_Symbol,
@@ -31,10 +25,8 @@ import {
     Sym_Is_A_Production_Token,
     Sym_Is_Defined_Identifier,
     Sym_Is_Defined_Natural_Number,
-    Sym_Is_Defined_Symbols,
-    Sym_Is_EOF
+    Sym_Is_Defined_Symbols
 } from "../../utilities/symbol.js";
-import { createVirtualProductionSequence } from "../function_constructor.js";
 
 /**
  * Handles intermediate state transitions. 
@@ -51,9 +43,13 @@ export function default_resolveBranches(
     const
         { grammar, helper: runner } = options,
         groups = [...gen],
+        end_groups = groups.filter(group=>group.transition_types[0] == TRANSITION_TYPE.ASSERT_END),
+        number_of_end_groups = end_groups.length,
         all_syms = groups.flatMap(({ syms }) => syms).setFilter(getUniqueSymbolName),
         root = new SC,
         GROUPS_CONTAIN_SYMBOL_AMBIGUITY = Groups_Contain_Symbol_Ambiguity(groups);
+
+    
 
     if (groups.length == 1
         && !FORCE_ASSERTIONS
@@ -72,11 +68,30 @@ export function default_resolveBranches(
         groups
     );
 
-    if ((groups.length >= 32 || GROUPS_CONTAIN_SYMBOL_AMBIGUITY) && items.filter(i => i.atEND).setFilter(i => i.id).length <= 1)
+    if ((groups.length >= 32 || GROUPS_CONTAIN_SYMBOL_AMBIGUITY) && number_of_end_groups <= 1){
+
+        if(number_of_end_groups >= 1 && GROUPS_CONTAIN_SYMBOL_AMBIGUITY){
+
+
+            for(const end_group of end_groups){
+
+                //*
+                
+                //Only include symbols that occlude other groups
+                //end_group.NEGATE = true;
+                
+                //replace the end group symbols with only the set that occlude other 
+                //group
+                const all_syms = groups.filter(g=>g!=end_group).flatMap(({ syms }) => syms).setFilter(getUniqueSymbolName);
+                end_group.syms = end_group.syms.filter(s=>all_syms.some(a=>Symbols_Occlude(s, a)));
+            }
+    
+            //*/
+        }
 
         createSwitchBlock(options, groups, peek_name, rec_glob_lex_name, root);
-
-    else
+        
+    } else
 
         createIfElseBlock(options, node, groups, root, rec_glob_lex_name, peek_name, all_syms, FORCE_ASSERTIONS);
 
@@ -163,9 +178,9 @@ function createSwitchBlock(
 
     for (let i = 0; i < groups.length; i++) {
 
-        let { items, code } = groups[i];
+        let { items, code, transition_types } = groups[i];
 
-        if (items.some(i => i.atEND) && DEFAULT_NOT_ADDED) {
+        if (transition_types[0] == TRANSITION_TYPE.ASSERT_END && DEFAULT_NOT_ADDED) {
             DEFAULT_NOT_ADDED = false;
             sw.addStatement(SC.If(SC.Value("default")));
         }
