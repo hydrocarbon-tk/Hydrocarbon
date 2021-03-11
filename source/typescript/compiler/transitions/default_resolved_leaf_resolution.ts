@@ -49,11 +49,12 @@ export function default_resolveResolvedLeaf(item: Item, state: TransitionNode, o
 
     if (item) {
 
+        
         if (options.helper.ANNOTATED)
             code.addStatement(item.renderUnformattedWithProduction(grammar));
-
+        
         if (item.offset == 0 && !options.productions.some(g => g.id == item.getProduction(grammar).id)) {
-
+     
             const production = item.getProduction(grammar);
 
             options.called_productions.add(production.id);
@@ -99,8 +100,6 @@ export function default_resolveResolvedLeaf(item: Item, state: TransitionNode, o
         for (const prod of prods)
             leaf_productions.add(prod);
     }
-    //leaf_node.shiftStatement(SC.Comment("--unique-id--" + prods.setFilter().sort().join("-") + item.id + "--DO-NOT-REPLACE"));
-    //leaf_code.shiftStatement(SC.Comment("--unique-id--" + prods.setFilter().sort().join("-") + item.id + "--DO-NOT-REPLACE"));
 
     return {
         leaf: {

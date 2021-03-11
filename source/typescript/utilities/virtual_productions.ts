@@ -88,8 +88,6 @@ export function createVirtualProductions(items: Item[], options: RenderBodyOptio
                 grammar.item_map.get(j.id).sym_uid
                     = grammar.item_map.get(i.id).sym_uid;
 
-                console.log(i.renderUnformattedWithProduction(grammar), j.renderUnformattedWithProduction(grammar));
-
                 j = j.increment();
                 i = i.increment();
             }
