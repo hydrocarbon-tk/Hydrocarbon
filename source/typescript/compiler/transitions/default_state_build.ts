@@ -66,7 +66,7 @@ export function resolveGOTOBranches(gen: TransitionClauseGenerator, state: Trans
             if (end_items.length > 0)
                 CONTAINS_END_LEAF_THAT_SHOULD_LOOP = true;
 
-            if (
+            if (    false &&
                     PUIDABLE && !WE_HAVE_JUST_ONE_GOTO_GROUP && 
                     /**
                      * Ensure code for the root productions is not wrapped in
@@ -82,13 +82,14 @@ export function resolveGOTOBranches(gen: TransitionClauseGenerator, state: Trans
 
                 processProductionChain(nc, options, productions);
                 const continue_name = createBranchFunction(nc, nc, options);
+                
                 const call_name = createBranchFunction(code, code, options);
 
                 code.addStatement(SC.Value("return -1"));
 
                 sc.addStatement(SC.Call("pushFN", "data", continue_name));
                 sc.addStatement(SC.UnaryPre(SC.Return, SC.Call(call_name, "l", "data", "state", "prod", "" + grammar.item_map.get(items[0].decrement().id).sym_uid)));
-
+                leaves[0].leaf.addStatement(SC.Value("return 0"))
                 leaves[0].leaf = nc;
                 leaves[0].INDIRECT = true;
                 leaves[0].transition_type = TRANSITION_TYPE.ASSERT;
@@ -176,7 +177,6 @@ export function resolveGOTOBranches(gen: TransitionClauseGenerator, state: Trans
 
                     if (checked_symbols.length > 0) {
 
-
                         const
                             booleans = getIncludeBooleans(checked_symbols, options, rec_glob_lex_name, anticipated_syms);
 
@@ -191,8 +191,6 @@ export function resolveGOTOBranches(gen: TransitionClauseGenerator, state: Trans
 
                 sc = code
             }
-
-
 
             switch_stmt.addStatement(
                 ...keys.slice(0, -1).map(k => SC.If(SC.Value(k + ""))),
