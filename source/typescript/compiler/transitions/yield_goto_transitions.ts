@@ -76,7 +76,7 @@ export function yieldGOTOTransitions(options: RenderBodyOptions, completed_produ
         // Repeat
         const active_productions: Set<number> = new Set;
         const pending_productions: number[] = completed_productions.setFilter();
-        const goto_groups = nonterm_shift_items.groupMap(i => i.getProductionAtSymbol(grammar).id);
+        const goto_groups = nonterm_shift_items.setFilter(i=>i.id).groupMap(i => i.getProductionAtSymbol(grammar).id);
 
         for (let i = 0; i < pending_productions.length; i++) {
 
@@ -89,8 +89,11 @@ export function yieldGOTOTransitions(options: RenderBodyOptions, completed_produ
 
             if (goto_groups.has(production_id)) {
 
+
                 const
-                    items_to_process = goto_groups.get(production_id).map(i => i.increment()),
+                    
+                    items_to_process = goto_groups.get(production_id).map(i => i.increment()).setFilter(i=>i.id);
+                const
 
                     nodes = yieldTransitions(items_to_process, options, 1),
 
@@ -108,6 +111,7 @@ export function yieldGOTOTransitions(options: RenderBodyOptions, completed_produ
                 node.prods = prods;
                 node.leaves = leaves;
                 node.nodes = nodes;
+                node.PROCESSED = true;
 
                 output_nodes.push(node);
 
