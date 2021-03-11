@@ -90,7 +90,7 @@ export function renderItem(
 ): { leaf_node: SC, original_prods: number[], prods: number[]; INDIRECT: boolean; } {
     const { grammar, helper: runner, called_productions } = options;
 
-    let prods = [], original_prods = [], INDIRECT = true;
+    let prods = [], original_prods = [], INDIRECT = false;
 
     if (!item.atEND) {
 
