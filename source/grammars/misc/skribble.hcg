@@ -2,21 +2,29 @@
 
 @IMPORT default-productions as def
 
-<> skribble > statements(*)
+<> skribble > module
+    f:r { { type:"module", statements:$sym1 } }
+
+<> module > (statements)(*)
+    f:r { { type:"module", statements:$sym1 } }
+
+##########################################################################
+########## statements
 
 <> statements > import 
     | class 
-    | primitive_declaration
+    | primitive_declaration \; f:r { $sym1 }
     | struct
     | function
     | namespace
     | template
+    f:r { env.grabTemplateNode("template-statement") }
 
 <> import > \import tk:string
 
 <> namespace >  \ns identifier \{ statements(*) \}                                                                    
 
-f:r {  { type:"name_space", name:$sym2, statements:$sym4 }  }
+f:r {  { type:"namespace", name:$sym2, statements:$sym4 }  }
 
 <> class >  modifier_list? \cls identifier ( \is g:id )? \{  ( struct | primitive_declaration | function )(*)  \}
 
@@ -25,60 +33,50 @@ f:r {
         type:"class", 
         name:$sym3, 
         inherits:$$sym4,
+        modifiers: $sym1 || [],
         members: $sym6 || [],
     }  
 }
 
-<> struct > modifier_list? \str identifier  \{ arguments? \}                                                          
+<> struct > modifier_list? \str identifier  \{ parameters? \}                                                          
 
 f:r {  
     { 
-        type:"data_structure", 
+        type:"structure", 
         name:$sym3, 
         modifiers: $sym1 || [],
         properties: $sym5 || [],
     }  
 }
 
-<> function >  modifier_list? \fn identifier \: type \( arguments? \) \{  expression_statements?  \}
+<> function >  modifier_list? \fn identifier \: type \( parameters? \) \{  expression_statements?  \}
 f:r {  
     { 
         type:"function", 
         return_type: $sym5,
         name:$sym3, 
         modifiers: $sym1 || [],
-        arguments: $sym7 || [],
+        parameters: $sym7 || [],
         expressions: $sym10 || [],
     }  
 }
 
 
-<> function_expression > modifier_list? \fn \: type \( arguments? \) \{  expression_statements?  \}
+<> function_expression > modifier_list? \fn \: type \( parameters? \) \{  expression_statements?  \}
 f:r {  
     { 
         type:"lambda", 
         return_type: $sym4,
         modifiers: $sym1 || [],
-        arguments: $sym6 || [],
+        parameters: $sym6 || [],
         expressions: $sym9 || [],
     }  
 }
 
-<> arguments > primitive_declaration(+\, ) 
+<> parameters > primitive_declaration(+\, ) 
 
-<> primitive_declaration > modifier_list? identifier \: type ( \= expression )?
-f:r {  
-    { 
-        type:"variable",
-        name:( $sym2), 
-        primitive_type:$sym4, 
-        modifiers: $sym1 || [],
-        initialization : $sym5
-    }  
-}
-
-<> modifier_list >\[ modifier(+) \] 
-f:r { $sym2 }
+##########################################################################
+########## Expressions
 
 <> expression_statements > expression_statements ( \; (+) (expression | primitive_declaration)? f:r { $$sym2 }  )?
 f:r {  $$sym2 ?  ($sym1.push($sym2),$sym1)  : $sym1  }
@@ -99,8 +97,9 @@ f:r { [ $sym1 ] }
     | \{ expression_statements? \}
     f:r { { type:"block", expression:$sym2 || [] } }  
     | template
+    f:r { env.grabTemplateNode("template-expression") }
 
-<> assignment_expression > member_expression \= expression
+<> assignment_expression > left_hand_expression \= expression
 f:r {  
     { 
         type:"assignment",
@@ -112,45 +111,53 @@ f:r {
 <> if_expression > \if expression \: expression ( \else expression  )?
 f:r { { type:"if", assertion: $$sym2, expression: $$sym4, else: $$sym5  } }
 
-<> binary_expression > binary_expression sym expression
+<> binary_expression > unary_expression operator
+f:r { { type:"operator-expression", list: [$sym1, $sym2] }  }
+| unary_expression operator expression
 f:r {  
     $sym1.list
     ? ($sym1.list.push($sym2, $sym3), $sym1)
-    : { type:"binary_exp", list:[$sym1, $sym2, ...($sym3.type == "binary_exp" ? $sym3.list : [$sym3]) ] }
-    
+    : { type:"operator-expression", list:[$sym1, $sym2, ...($sym3.type == "operator-expression" ? $sym3.list : [$sym3]) ] }
 }
-    | member_expression
-    | call_expression
-    | member_expression
-    | function_expression
-    | \( expression | primitive_declaration \)
-    f:r { { type:"paren", expression:$sym2 } }  
-    | value
+| unary_expression
 
+<> unary_expression > operator unary_value
+    f:r { { type:"operator-expression", list: [$sym1, $sym2] }  }
+    | unary_value
+
+<> unary_value > left_hand_expression
+    | call_expression
+    | function_expression
+    | value
+    | \( ( expression | primitive_declaration ) \)
+    f:r { { type:"parenthesis", expression:$sym2 } }  
+
+<> left_hand_expression > member_expression
+    
 <> loop_expression > 
-    \loop ( \( expression \) f:r { $sym2 } )? expression
+    \loop ( \( expression? \) f:r { $$sym2 } ) expression
     f:r { { type:"loop", assertion: $$sym2, expression: $$sym3  } }
 
-    | \loop \( arguments? ; expression? ; expression(*\, ) \) expression
-    f:r { { type:"for_loop", initializers:$sym3, assertion: $$sym5, post_expressions: $$sym7, expression: $$sym9  } }
+    | \loop \( parameters? ; expression? ; expression(*\, ) \) expression
+    f:r { { type:"for-loop", initializers:$sym3, assertion: $$sym5, post_iteration: $$sym7, expression: $$sym9  } }
 
     | \loop \( primitive_declaration \in expression \) expression
-    f:r { { type:"in_loop", initializer:$sym3, target: $$sym5, expression: $sym7  } }
+    f:r { { type:"in-loop", initializer:$sym3, target: $$sym5, expression: $sym7  } }
 
 <> match_expression > \match expression \: match_clause(*\, ) 
-f:r { { type:"match", expression: $$sym1, matches: $$sym4  } }
+f:r { { type:"match", match_expression: $$sym1, matches: $$sym4  } }
 
 <> match_clause > expression \: expression
-f:r { { type:"match_target", matches: $$sym1, expression: $$sym3  } }
+f:r { { type:"match-clause", match: $$sym1, expression: $$sym3  } }
 
 <> call_expression > member_expression \(  expression(*\, )  \)
-f:r { { type:"call", target: $$sym1, expressions: $$sym3  } }
+f:r { { type:"call", reference: $$sym1, parameters: $$sym3  } }
 
 <> member_expression > member_expression \. identifier
-f:r { { type:"identifier_access", target: $$sym1, identifier: $$sym3  } }
+f:r { { type:"member-reference", reference: $$sym1, property: $$sym3  } }
 
     | member_expression \[ expression \]
-f:r { { type:"expression_access", target: $$sym1, expression: $$sym3  } }
+f:r { { type:"member-expression", reference: $$sym1, expression: $$sym3  } }
 
     | identifier
 f:r { ($sym1.type = "reference", $sym1) }
@@ -164,20 +171,44 @@ f:r { { type:"return", expression: $$sym2  } }
 <> continue_expression > \continue
 f:r { { type:"continue"  } }
 
-<> sym > g:sym g:sym(*\' ) ( ?=g:ws | ?=g:nl )?
-f:r { { type:"symbol", val: $sym1 + $sym2  } }
+##########################################################################
+########## Identifiers & References
 
-|  \= g:sym(+\' ) ( ?=g:ws | ?=g:nl )?
-f:r { { type:"symbol", val: $sym1 + $sym2  } }
+<> primitive_declaration > modifier_list? identifier \: type ( \= expression )?
+f:r {  
+    { 
+        type:"declaration",
+        name:( $sym2), 
+        primitive_type:$sym4, 
+        modifiers: $sym1 || [],
+        initialization : $sym5
+    }  
+}
+
+<> identifier > tk:identifier_token
+f:r { { type:"identifier", value: $$sym1  } }
+
+<> identifier_token > ( g:id | \_ | \$ ) ( g:id | \_ | \$ )(*)  ( ?=g:ws | ?=g:nl )?
+
+<> modifier_list >\[ modifier(+) \] 
+f:r { $sym2 }
+
+##########################################################################
+########## PRIMITIVE TYPES
 
 <> type > identifier 
     f:r { ($sym1.type = "type-reference", $sym1) }
-    | ( \unn | \inn | \uint | \int  ) ( \8 | \16 | \32 | \64 | \128  ) ( ?=g:ws )
-    f:r{ $sym1 + $sym2 }
-    | (   \f | \flt  ) ( \32 | \64 | \128  ) ( ?=g:ws )
-    f:r{ $sym1 + $sym2 }
+    | ( \u | \i | \uint | \int  ) ( \8 | \16 | \32 | \64 | \128  )
+    f:r{ { type: "type-" + $sym1[0] + $sym2 } }
+    | (   \f | \flt  ) ( \32 | \64 | \128  )
+    f:r{ { type: "type-" + $sym1[0] + $sym2 } }
     | \string
+    f:r { { type:"type-string"  } }
     | \str 
+    f:r { { type:"type-string"  } }
+
+##########################################################################
+########## PRIMITIVE 
 
 <> value > num
 f:r { { type:"number", value: $$sym1  } }
@@ -186,36 +217,44 @@ f:r { { type:"number", value: $$sym1  } }
 f:r { { type:"string", value: $$sym1  } }
 
 | \true 
-f:r { { type:"true"  } }
+f:r { { type:"boolean", value:true  } }
 
 | \false 
-f:r { { type:"false"  } }
+f:r { { type:"boolean", value:false  } }
 
 | \null
 f:r { { type:"null"  } }
 
 | template
-
-<> modifier > \pub | \priv | \export | \mut | \imut | g:id
+f:r { env.grabTemplateNode("template-value") }
 
 <> string > \" ( g:ws | g:nl | g:id | g:sym | \\" )(*\' ) \"
+f:r { { type:"string", value: $$sym2  } }
+| \' ( g:ws | g:nl | g:id | g:sym | \\" )(*\' ) \'
+f:r { { type:"string", value: $$sym2  } }
 
-<> identifier > tk:identifier_token
-f:r { { type:"identifier", value: $$sym1  } }
-
-<> identifier_token > ( g:id | \_ | \$ ) ( g:id | \_ | \$ )(*) ( ?=g:ws | ?=g:nl )?
-
-<> comment > \/* ( g:id | g:sym | g:num )(*) \*/
-    | \// ( g:id | g:sym | g:num )(*) ( ?=g:nl )
-
-<> meta_template_replacement > \<< ( g:id | g:sym | g:num )(*) \>>
-
-<> num > num_tok
+<> num > tk:num_tok
 
 <> num_tok > def::number
     | def::hex
     | def::binary
     | def::octal
 
+<> operator > g:sym g:sym(*\' ) ( ?=g:ws | ?=g:nl )?
+    f:r { { type:"operator", val: $sym1 + $sym2, precedence:0  } }
+
+    |  \== g:sym(*\' ) ( ?=g:ws | ?=g:nl )?
+    f:r { { type:"operator", val: $sym1 + $sym2, precedence:0  } }
+
+<> modifier > \pub | \priv | \export | \mut | \imut | g:id
+
+##########################################################################
+########## COMMENTS
+
+<> comment > \/* ( g:id | g:sym | g:num )(*) \*/
+    | \// ( g:id | g:sym | g:num )(*) ( ?=g:nl )
+
+##########################################################################
+########## TEMPLATES
+
 <> template > \<<-- g:num? \-->> 
-f:r { env.grabTemplateNode() }
