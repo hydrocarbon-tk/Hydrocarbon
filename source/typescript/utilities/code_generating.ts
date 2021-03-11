@@ -348,7 +348,8 @@ export function createNonCaptureBooleanCheck(symbols: TokenSymbol[], options: Ba
 export function createSymbolMappingFunction(
     options: RenderBodyOptions,
     lex_name: VarSC,
-    symbol_mappings: [number, Symbol][]
+    symbol_mappings: [number, Symbol][],
+    default_return_value:ExprSC = SC.Value("-1")
 ): VarSC | ConstSC {
     const symbols = symbol_mappings.map(([, s]) => s);
 
@@ -433,7 +434,7 @@ export function createSymbolMappingFunction(
                     symbols.map(s => s.val).join(" "),
                     code_node,
                     if_root,
-                    SC.UnaryPre(SC.Return, SC.Value("-1"))
+                    SC.UnaryPre(SC.Return, default_return_value)
                 );
 
         fn_ref = packGlobalFunction("sym_map", "int", fn, fn, options.helper);
