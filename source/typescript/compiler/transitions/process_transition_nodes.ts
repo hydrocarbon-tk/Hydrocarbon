@@ -86,7 +86,7 @@ export function processTransitionNodes(
                     leaves = nodes.flatMap(g => g.leaves);
 
                 //Set the transition type of any state with a null code property to IGNORE
-                nodes.forEach(g => { if (!g.code) g.transition_type = TRANSITION_TYPE.IGNORE; });
+                nodes.forEach(g => { if (!g.code) g.transition_type = TRANSITION_TYPE.IGNORE; g.PROCESSED = true });
 
                 let
                     root: SC = null, hash = "ignore";
@@ -133,6 +133,7 @@ export function processTransitionNodes(
                 node.prods = prods;
                 node.code = root;
                 node.hash = hash;
+                node.PROCESSED = true
 
                 //if (options.helper.ANNOTATED)
                 //    if (root)
