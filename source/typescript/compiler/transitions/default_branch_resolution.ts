@@ -12,7 +12,7 @@ import { createTransitionTypeAnnotation } from "../../utilities/create_transitio
 import { rec_glob_data_name, rec_glob_lex_name } from "../../utilities/global_names.js";
 import { Item } from "../../utilities/item.js";
 import { reduceAnd, reduceOR } from "../../utilities/reduceOR.js";
-import { ExprSC, SC, VarSC } from "../../utilities/skribble.js";
+import { AS, ExprSC, SC, VarSC } from "../../utilities/skribble.js";
 import {
     Defined_Symbols_Occlude,
     getSkippableSymbolsFromItems,
@@ -294,13 +294,27 @@ function createIfElseBlock(
                  * at least one completed item whose set of follow tokens must be evaluated
                  * to remove ambiguity.
                  * 
-                 * 
+                 * Shift has priority over Reduce: if there are defined symbols that 
                  */
 
                 const occluding_symbols = r_syms.filter(r=>syms.some(s=>Symbols_Occlude(s,r)))
 
                 const occlusion_groups = []
 
+                const own_syms = syms.filter(s=> !r_syms.some(r=>getUniqueSymbolName(s) == getUniqueSymbolName(r)))
+
+                const mapped_symbols = [].concat(own_syms.map(s=>[1,s]), r_syms.map(r=>[0,r]))
+
+                const bool_fn = createSymbolMappingFunction(
+                    options,
+                    lex_name,
+                    mapped_symbols,
+                    SC.Value("1")
+                );
+        
+                assertion_boolean = SC.Binary(SC.Call(bool_fn, peek_name, rec_glob_data_name), "==", "1");
+
+                /*
                 for(const sym of occluding_symbols){
                     const occluded = syms.filter(s=>Symbols_Occlude(s,sym))
                     const bool = getIncludeBooleans(<TokenSymbol[]>occluded, options, peek_name);
@@ -311,9 +325,10 @@ function createIfElseBlock(
 
 
                 assertion_boolean = occlusion_groups.length > 0 ? occlusion_groups.reduce(reduceAnd) : assertion_boolean
-
-                reduceAnd
-                
+                */
+                /**
+                 * End items 
+                 */
                 /*
                 // Negative assertion helps prevent occlusions of subsequent group's symbols
                 // from an end items follow set
@@ -404,11 +419,12 @@ function createIfElseBlock(
 
 
                 assertion_boolean = getIncludeBooleans(<TokenSymbol[]>syms, options, lex_name, <TokenSymbol[]>complement_symbols);
-
-                leaf = addIfStatementTransition(options, group, code, assertion_boolean, FORCE_ASSERTIONS, leaf, state.leaves);
-
+             
                 code.shiftStatement(SC.Value("puid |=" + grammar.item_map.get(items[0].id).sym_uid));
                 code.shiftStatement(createConsume(rec_glob_lex_name));
+
+                leaf = addIfStatementTransition(options, group, code, assertion_boolean, FORCE_ASSERTIONS, leaf, state.leaves);
+                
                 break;
 
             case TRANSITION_TYPE.IGNORE: break;
