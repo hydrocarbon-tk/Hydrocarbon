@@ -39,8 +39,9 @@ export function addLeafStatements(
     RDOptions: RenderBodyOptions,
     GOTO_Options: RenderBodyOptions) {
     const
-        { leaves: rd_leaves, production_ids } = RDOptions,
-        { leaves: goto_leaves, NO_GOTOS } = GOTO_Options;
+        { leaves: rd_leaves, production_ids, grammar } = RDOptions,
+        { leaves: goto_leaves, NO_GOTOS, extended_goto_items } = GOTO_Options;
+
 
     let GOTOS_FOLDED = false;
 
@@ -53,7 +54,6 @@ export function addLeafStatements(
 
         //@ts-ignore
         rd_leaf.SET = true;
-
         if (NO_GOTOS) {
 
             prods = processProductionChain(leaf, GOTO_Options, original_prods);
@@ -75,10 +75,13 @@ export function addLeafStatements(
         }
     }
 
-    if (!NO_GOTOS)
+    if (!NO_GOTOS){
+
+        const goto_ids = new Set(extended_goto_items.map(i=>i.getProductionAtSymbol(grammar).id))
+
         for (const goto_leaf of goto_leaves) {
 
-            let { leaf, prods, transition_type, INDIRECT, original_prods } = goto_leaf;
+            let { leaf, prods, transition_type, INDIRECT, original_prods} = goto_leaf;
 
             //@ts-ignore
             if (goto_leaf.SET || transition_type == TRANSITION_TYPE.IGNORE)
@@ -100,8 +103,12 @@ export function addLeafStatements(
                 if (production_ids.some(p_id => goto_leaf.keys.includes(p_id))) {
                     leaf.addStatement(SC.Assignment("prod", SC.Value(prods[0])));
                     leaf.addStatement(SC.Value("continue;"));
-                } else
+                } else if (goto_ids.has(prods[0])){
+                    leaf.addStatement(SC.Call("pushFN", "data", goto_fn_name));
                     leaf.addStatement(SC.UnaryPre("return", SC.Value(prods[0])));
+                }else{
+                    leaf.addStatement(SC.UnaryPre("return", SC.Value(prods[0])));
+                }
             } else if (transition_type == TRANSITION_TYPE.ASSERT_END
                 && !INDIRECT
             ) {
@@ -112,6 +119,7 @@ export function addLeafStatements(
                 leaf.addStatement(SC.UnaryPre("return", SC.Value(prods[0])));
             }
         }
+    }
 
     if (GOTOS_FOLDED)
         RD_fn_contents.addStatement(addClauseSuccessCheck(RDOptions));
