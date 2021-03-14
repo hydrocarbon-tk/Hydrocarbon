@@ -10,7 +10,7 @@ import {
     SKBlock, SKReturn, SKContinue, SKNamespace, SKStructure, SKClass, SKModule, SKType,
 } from "./types/node";
 
-export const skribble_mappings = <NodeMappings<SKNode, "type">>{
+export const skribble_mappings : NodeMappings<SKNode, "type"> = <NodeMappings<SKNode, "type">>{
     typename: "type",
     type_lookup: () => 0,
     mappings: [
@@ -48,6 +48,10 @@ export const skribble_mappings = <NodeMappings<SKNode, "type">>{
         },
         <NodeMapping<SKTypeReference>>{
             type: "type-reference",
+            template_pattern: "@value"
+        },
+        <NodeMapping<SKTypeReference>>{
+            type: "type",
             template_pattern: "@value"
         },
         <NodeMapping<SKAssignment>>{

@@ -17289,7 +17289,7 @@ function recognizer(data,input_byte_length,production){
     data.input_len = input_byte_length;
     data.lexer.next(data);
     skip_9184d3c96b70653a(data.lexer/*[ ws ][ nl ][ 71 ]*/,data,16777215);
-    dispatch(data,0);
+    dispatch(data,production);
     run(data);
 }
 

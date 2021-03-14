@@ -3,23 +3,24 @@
  * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
  * disclaimer notice.
  */
+import { sk } from "../../skribble/skribble.js";
+import { SKBlock, SKExpression, SKLoop, SKMatch } from "../../skribble/types/node";
 import { RenderBodyOptions } from "../../types/render_body_options";
 import { TransitionClauseGenerator } from "../../types/transition_generating";
 import { TransitionNode, TRANSITION_TYPE } from "../../types/transition_node.js";
 import { getClosure } from "../../utilities/closure.js";
-import { createBranchFunction, createSkipCall, getIncludeBooleans, getProductionFunctionName } from "../../utilities/code_generating.js";
+import { createBranchFunction, getIncludeBooleansSk } from "../../utilities/code_generating.js";
 import { getFollow } from "../../utilities/follow.js";
-import { rec_glob_lex_name, rec_state_prod } from "../../utilities/global_names.js";
+import { rec_glob_lex_name } from "../../utilities/global_names.js";
 import { Item, itemsToProductions } from "../../utilities/item.js";
 import { processProductionChain } from "../../utilities/process_production_reduction_sequences.js";
-import { reduceOR } from "../../utilities/reduceOR.js";
 import { SC } from "../../utilities/skribble.js";
 import {
-    Symbols_Occlude, getComplementOfSymbolSets,
+    getComplementOfSymbolSets,
     getSkippableSymbolsFromItems,
     getSymbolName,
     getSymbolsFromClosure,
-    getUniqueSymbolName,
+    getUniqueSymbolName, Symbols_Occlude,
     Sym_Is_A_Generic_Identifier,
     Sym_Is_A_Generic_Newline,
     Sym_Is_A_Generic_Number, Sym_Is_A_Generic_Symbol, Sym_Is_A_Generic_Type,
@@ -30,7 +31,12 @@ import {
 import { default_resolveBranches } from "./default_branch_resolution.js";
 
 
-export function resolveGOTOBranches(gen: TransitionClauseGenerator, state: TransitionNode, items_global: Item[], level: number, options: RenderBodyOptions): SC {
+export function resolveGOTOBranches(
+    gen: TransitionClauseGenerator, 
+    state: TransitionNode, 
+    items_global: Item[], 
+    level: number, options: RenderBodyOptions
+): SKExpression[] {
 
     if (state.offset == 0) {
 
@@ -42,7 +48,11 @@ export function resolveGOTOBranches(gen: TransitionClauseGenerator, state: Trans
             CONTAINS_END_LEAF_THAT_SHOULD_LOOP = false,
             first_goto_group_keys: number[] = null;
 
-        let switch_stmt: SC = SC.Switch(rec_state_prod);
+        let match_stmt: SKMatch|SKExpression = <SKMatch> sk`match prod: 1:1`;
+
+        match_stmt.matches.length = 0;
+
+        let out :SKExpression[]  = [match_stmt];
 
         for (const { syms, items, code, hash, leaves, prods, PUIDABLE } of goto_groups.sort(
             (a, b) => <number><any>a.syms[0] - <number><any>b.syms[0])
@@ -61,7 +71,7 @@ export function resolveGOTOBranches(gen: TransitionClauseGenerator, state: Trans
 
             let interrupt_statement = null;
 
-            let sc = new SC;
+            let sc = code;
 
             if (end_items.length > 0)
                 CONTAINS_END_LEAF_THAT_SHOULD_LOOP = true;
@@ -95,8 +105,6 @@ export function resolveGOTOBranches(gen: TransitionClauseGenerator, state: Trans
                 leaves[0].transition_type = TRANSITION_TYPE.ASSERT;
                 
             } else if (active_items.length > 0) {
-
-                sc.addStatement(code);
                 
                 const
                     closure = getClosure(active_items.slice(), grammar, true);
@@ -178,73 +186,49 @@ export function resolveGOTOBranches(gen: TransitionClauseGenerator, state: Trans
                     if (checked_symbols.length > 0) {
 
                         const
-                            booleans = getIncludeBooleans(checked_symbols, options, rec_glob_lex_name, anticipated_syms);
+                            booleans = getIncludeBooleansSk(checked_symbols, options, rec_glob_lex_name, anticipated_syms);
 
                         if (booleans) {
-                            interrupt_statement = SC.If(booleans).addStatement(
-                                SC.UnaryPre(SC.Return, SC.Value(keys[0]))
-                            );
+                            interrupt_statement = sk`if (${booleans}) : return : ${keys[0]}`
                         }
                     }
                 }
-            }else {
-
-                sc = code
             }
 
-            switch_stmt.addStatement(
-                ...keys.slice(0, -1).map(k => SC.If(SC.Value(k + ""))),
-                SC.If(SC.Value(keys.slice(-1)[0] + ""))
-                    .addStatement(
-                        items.map(i=>i.renderUnformattedWithProduction(grammar)).join("\n"),
-                        interrupt_statement,
-                        sc,
-                        WE_HAVE_JUST_ONE_GOTO_GROUP ? undefined : SC.Break
-                    )
-            );
+            const match_clause = (<SKMatch>sk`match 1 : ${keys.join(",")}: 
+                {
+                    ${interrupt_statement}; 
+                    ${sc}; 
+                    ${WE_HAVE_JUST_ONE_GOTO_GROUP ? "" : SC.Break}
+                }`).matches[0];
+
+            (<SKMatch>match_stmt).matches.push(match_clause)
 
             if (WE_HAVE_JUST_ONE_GOTO_GROUP) {
                 first_goto_group_keys = keys;
-                switch_stmt = new SC().addStatement(...switch_stmt.statements[0].statements);
+                out = (<SKBlock>(<SKMatch>match_stmt).matches[0].expression).expressions;
             }
         }
 
         if (CONTAINS_END_LEAF_THAT_SHOULD_LOOP) {
-            return SC.While(SC.Value(1))
-                .addStatement(
-                    switch_stmt,
-                    SC.Break
-                );
-        } else if (!WE_HAVE_JUST_ONE_GOTO_GROUP)
-            switch_stmt.addStatement(SC.If(SC.Value("default")).addStatement(SC.Break));
+            return [<SKLoop>sk`loop (1): {
+                ${match_stmt};
+                break;
+            }`]
+        } else if (!WE_HAVE_JUST_ONE_GOTO_GROUP){
+            const match_clause = (<SKMatch>sk`match 1 : default:break`).matches[0];
+            (<SKMatch>match_stmt).matches.push(match_clause)
+        }
 
 
-        return switch_stmt;
-
-
+        return out;
     }
-
-    // state.offset--;
 
     return default_resolveBranches(gen, state, items_global, level, options/*, state.offset <= 1*/);
 }
 
-export function addClauseSuccessCheck(options: RenderBodyOptions): SC {
+export function addClauseSuccessCheck(options: RenderBodyOptions): SKExpression {
     const { productions } = options;
-    // 0 - { _:i32 = boolean }
-    // js: 0 - +boolean
-    const condition = productions.map(p => (SC.Binary(rec_state_prod, "==", SC.Value(p.id)))).reduce(reduceOR);
-    //return SC.UnaryPre(SC.Return, SC.Call("assertSuccess", rec_glob_lex_name, rec_state, condition));
-    return SC.Value(`return prod == ${productions[0].id} ? prod : -1`);
-}
-
-export function createDebugCall(options: RenderBodyOptions, action_name, debug_items: Item[] = []) {
-
-    const { helper: runner } = options;
-    return SC.Empty();
-    if (runner.DEBUG)
-        return SC.Value(`debug_add_header(0,l.getOffsetRegionDelta(),0,0,0,0)`);
-
-    else
-        return SC.Empty();
+    
+    return <SKExpression>sk`return prod == ${productions[0].id} ? prod : -1`;
 }

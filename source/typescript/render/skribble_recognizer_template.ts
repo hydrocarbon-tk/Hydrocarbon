@@ -16,11 +16,12 @@ import { getProductionClosure } from "../utilities/production.js";
 import { SC } from "../utilities/skribble.js";
 import { getSkippableSymbolsFromItems, getUnskippableSymbolsFromClosure } from "../utilities/symbol.js";
 import { parser, sk } from "../skribble/skribble.js";
+import { SKModule } from "../skribble/types/node.js";
 export const renderSkribbleRecognizer = (
     //grammar: Grammar,
     //runner: Helper,
     //rd_functions: RDProductionFunction[],
-): SC => {
+): SKModule => {
 
     //const { const: constants_a, fn: const_functions_a } = runner.render_constants();
     //const closure = getProductionClosure(0, grammar);
@@ -30,7 +31,7 @@ export const renderSkribbleRecognizer = (
 
     const dataClass = sk``
 
-    return sk`
+    return <SKModule>sk`
 [static] lookup_table : Buffer8 = Buffer8(1256);
 [static] sequence_lookup : Buffer8 = Buffer8(212,212);
 [static] TokenSpace: u32 = 2;

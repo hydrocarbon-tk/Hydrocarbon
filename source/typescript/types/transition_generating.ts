@@ -7,11 +7,12 @@ import { Leaf, TRANSITION_TYPE } from "./transition_node";
 import { Symbol } from "./symbol";
 import { Item } from "../utilities/item";
 import { SC } from "../utilities/skribble";
+import { SKExpression } from "../skribble/types/node";
 
 
 export type TransitionGroup = {
     syms: Symbol[];
-    code: SC;
+    code: SKExpression[];
     items: Item[];
     hash: string;
     FIRST: boolean;
@@ -23,7 +24,7 @@ export type TransitionGroup = {
 };
 export type TransitionClauseGenerator = Generator<TransitionGroup>;
 export type MultiItemReturnObject = {
-    root: SC;
+    root: SKExpression[];
     leaves: Leaf[];
     prods: number[];
 };

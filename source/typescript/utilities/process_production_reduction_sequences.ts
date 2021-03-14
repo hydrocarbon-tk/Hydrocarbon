@@ -3,6 +3,7 @@
  * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
  * disclaimer notice.
  */
+import { SKExpression } from "../skribble/types/node";
 import { RenderBodyOptions } from "../types/render_body_options";
 
 import { getGotoItems, Item, itemsToProductions } from "./item.js";
@@ -10,7 +11,7 @@ import { renderItemReduction } from "./render_item.js";
 import { SC } from "./skribble.js";
 
 export function processProductionChain(
-    code_node: SC,
+    expression_block: SKExpression[],
     options: RenderBodyOptions,
     /**
      * List of production id numbers that have been generated from
@@ -36,7 +37,7 @@ export function processProductionChain(
         prod.length = 1;
         while (active_items.length == 1 && active_items.every(i => i.len == 1)) {
             prod[0] = active_items[0].getProduction(grammar).id;
-            renderItemReduction(code_node, active_items[0], options, false);
+            renderItemReduction(expression_block, active_items[0], options, false);
             active_items = getGotoItems(grammar, itemsToProductions(active_items, grammar), goto_items);
         }
     }

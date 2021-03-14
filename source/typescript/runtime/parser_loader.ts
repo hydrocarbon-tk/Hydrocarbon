@@ -36,18 +36,19 @@ export function ParserFactory<T>(
 
     initializeUTFLookupTable(init_table());
 
-    const parser = function (str: string, env: ParserEnvironment = {}) {
+    const parser = function (str: string, env: ParserEnvironment = {}, production_id = 0) {
 
         const
             str_len = str.length,
-            str_buffer = str_len + 8,
-            data = init_data(str_len + 8, str_len * 32, 512, 0),
+            str_buffer_size = (str_len * 4) + 8,
+            rules_buffer_size = str_len * 8,
+            data = init_data(str_buffer_size, rules_buffer_size, 512, 0),
             { input, rules, debug, error } = data,
-            byte_length = fillByteBufferWithUTF8FromString(str, input, str_buffer);
+            byte_length = fillByteBufferWithUTF8FromString(str, input, str_buffer_size);
 
         const
             fns = functions,
-            FAILED = recognizer(data, byte_length), // call with pointers
+            FAILED = recognizer(data, byte_length, production_id), // call with pointers
             stack = [];
 
         let action_length = 0,
@@ -160,12 +161,12 @@ export function ParserFactory<T>(
 
 function fillByteBufferWithUTF8FromString(string, buffer: Uint8Array, max_length) {
 
-    let i = 0, j = 0;
+    let i = 0, j = 0, l = string.length;
 
-    for (; i < string.length && j < max_length - 4; i++) {
+    for (; i < l && j < max_length - 4; i++) {
 
         const code_point = string.codePointAt(i);
-
+        
         if ((code_point & 0x7F) == code_point) {
             buffer[j++] = (code_point & 0x7F);
         } else if ((code_point & 0x7FF) == code_point) {
@@ -175,8 +176,13 @@ function fillByteBufferWithUTF8FromString(string, buffer: Uint8Array, max_length
             buffer[j++] = 0xE0 | ((code_point >> 12) & 0xF);
             buffer[j++] = 0x80 | ((code_point >> 6) & 0x3F);
             buffer[j++] = 0x80 | ((code_point & 0x3F));
-            i++;
+            if (code_point > 65535){
+                i++;l++;
+            }
         } else {
+            if (code_point > 65535){
+                i++;l++;
+            }
             buffer[j++] = 0xF0 | ((code_point >> 18) & 0x7);
             buffer[j++] = 0x80 | ((code_point >> 12) & 0x3F);
             buffer[j++] = 0x80 | ((code_point >> 6) & 0x3F);

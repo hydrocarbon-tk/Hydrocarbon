@@ -6,6 +6,7 @@
 import { Symbol } from "./symbol";
 import { Item } from "../utilities/item.js";
 import { SC } from "../utilities/skribble.js";
+import { SKBlock, SKExpression, SKNode } from "../skribble/types/node";
 
 /**
  * Attribute that indicates the type of tree that
@@ -107,7 +108,7 @@ export interface TransitionNode {
      * Code that should be added to the proceeding node's execution scope. May 
      * need to be gated by this node's symbol
      */
-    code: SC;
+    code: SKExpression[];
 
     /**
      * MD5 hash string of code
@@ -170,8 +171,8 @@ export interface TransitionNode {
  */
 export interface Leaf {
     hash: string;
-    root: SC;
-    leaf: SC;
+    root: SKExpression[];
+    leaf: SKExpression[];
     prods?: number[];
     original_prods: number[];
     transition_type: TRANSITION_TYPE;

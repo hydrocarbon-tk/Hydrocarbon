@@ -5,8 +5,8 @@
  */
 import { SC } from "./skribble.js";
 
-export const rec_glob_data_name = SC.Variable("data:ParserData");
-export const rec_glob_lex_name = SC.Variable("l:Lexer");
+export const rec_glob_data_name = "data";
+export const rec_glob_lex_name = "l";
 /**
  * Recognizer function names
  */

@@ -3,6 +3,8 @@
  * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
  * disclaimer notice.
  */
+import { sk } from "../skribble/skribble.js";
+import { SKIdentifierBase, SKNode, SKPrimitiveDeclaration, SKReference } from "../skribble/types/node.js";
 import { ConstSC, ExprSC, JS, SC, VarSC } from "../utilities/skribble.js";
 
 /**
@@ -12,7 +14,7 @@ import { ConstSC, ExprSC, JS, SC, VarSC } from "../utilities/skribble.js";
  */
 export type GlobalName = string;
 export type ConstantName = string;
-export type ConstantObj = { original_name: VarSC | ConstSC, name: VarSC | ConstSC, code_node: SC; };
+export type ConstantObj = { original_name: SKPrimitiveDeclaration, name: SKReference, code_node: SKNode; };
 export class Helper {
 
     /**
@@ -45,24 +47,24 @@ export class Helper {
         this.unique_const_set = new Set();
     }
 
-    add_constant(const_name: VarSC | ConstSC, const_value: SC): VarSC | ConstSC {
+    add_constant(const_name: SKPrimitiveDeclaration, const_value: SKNode): SKReference {
 
-        let global_name = const_name.type.value;
+        let global_name = const_name.name;
 
-        let actual_name: VarSC | ConstSC = null;
+        let actual_name: SKReference = null;
 
-        let value = const_name.type.val_type;
+        let value = const_name.primitive_type;
 
-        if (!this.constant_map.has(global_name)) {
+        if (!this.constant_map.has(global_name.value)) {
 
-            this.unique_const_set.add(global_name);
+            this.unique_const_set.add(global_name.value);
 
-            actual_name = SC[const_name.type.type == "constant" ? "Constant" : "Variable"](`${global_name}:${value}`);
+            actual_name = <SKReference>Object.assign({}, global_name, {type: "reference"});
 
-            this.constant_map.set(global_name, { original_name: const_name, name: const_name, code_node: const_value, });
+            this.constant_map.set(global_name.value, { original_name: const_name, name: actual_name, code_node: const_value, });
 
         } else {
-            actual_name = this.constant_map.get(global_name).name;
+            actual_name = this.constant_map.get(global_name.value).name;
         }
 
         return actual_name;

@@ -4,6 +4,7 @@
  * disclaimer notice.
  */
 import { Helper } from "../compiler/helper.js";
+import { SKExpression, SKFunction, SKNode, SKReference } from "../skribble/types/node.js";
 import { Item } from "../utilities/item.js";
 import { SC, VarSC } from "../utilities/skribble.js";
 import { Grammar } from "./grammar.js";
@@ -81,7 +82,7 @@ export interface RenderBodyOptions extends BaseOptions {
      */
     global_production_items: Item[];
 
-    branches: { name: VarSC, body: SC; }[];
+    branches: { name: SKReference, body: SKExpression[]; }[];
 
 }
 export const enum ReturnType {

@@ -17,17 +17,18 @@ export type SKTemplate = SKNakedTemplate | SKTemplateStatement | SKTemplateExpre
 
 ////////////////////////////////////////////////////////////
 // Identifiers & References
-export interface SKIdentifier { type: "identifier"; value: string; }
-export interface SKIdentifierReference { type: "reference"; value: string; }
+export interface SKIdentifierBase { type: string; value: string; }
+export interface SKIdentifier extends SKIdentifierBase { type: "identifier"; }
+export interface SKIdentifierReference extends SKIdentifierBase{ type: "reference";}
 export interface SKMemberReference { type: "member-reference"; reference: SKReference; property: SKReference; }
 export interface SKMemberExpression { type: "member-expression"; reference: SKReference; expression: SKExpression; }
-export interface SKPrimitiveDeclaration { type: "declaration"; modifiers: string[], primitive_type?: SKType, init?: SKExpression; }
+export interface SKPrimitiveDeclaration { type: "declaration"; name:SKIdentifier, modifiers: string[], primitive_type?: SKType, init?: SKExpression; }
 export type SKReference = SKIdentifier | SKMemberReference | SKPrimitiveDeclaration | SKMemberExpression | SKIdentifierReference;
 
 ////////////////////////////////////////////////////////////
 // Types
-export interface SKTypeString { type: "type-string"; }
-export interface SKTypeReference { type: "type-reference"; value: string; }
+export interface SKTypeString  { type: "type-string"; }
+export interface SKTypeReference extends SKIdentifierBase { type: "type-reference"; }
 export type SKType = SKTypeReference | SKTypeString;
 
 ////////////////////////////////////////////////////////////

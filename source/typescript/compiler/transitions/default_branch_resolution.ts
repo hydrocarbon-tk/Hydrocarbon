@@ -3,16 +3,21 @@
  * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
  * disclaimer notice.
  */
+import { sk } from "../../skribble/skribble.js";
+import { SKExpression, SKIf, SKMatch } from "../../skribble/types/node";
 import { RenderBodyOptions } from "../../types/render_body_options";
 import { Symbol, TokenSymbol } from "../../types/symbol.js";
 import { TransitionClauseGenerator, TransitionGroup } from "../../types/transition_generating";
-import { Leaf, TransitionNode, TRANSITION_TYPE } from "../../types/transition_node.js";
-import { createBranchFunction, createConsume, createSkipCall, createSymbolMappingFunction, getIncludeBooleans, getProductionFunctionName, sanitizeSymbolValForComment } from "../../utilities/code_generating.js";
+import { TransitionNode, TRANSITION_TYPE } from "../../types/transition_node.js";
+import {
+    createBranchFunctionSk, createConsumeSk,
+    createSkipCallSk, createSymbolMappingFunctionSk,
+    getIncludeBooleansSk, getProductionFunctionNameSk
+} from "../../utilities/code_generating.js";
 import { createTransitionTypeAnnotation } from "../../utilities/create_transition_type_annotation.js";
 import { rec_glob_data_name, rec_glob_lex_name } from "../../utilities/global_names.js";
 import { Item } from "../../utilities/item.js";
-import { reduceAnd, reduceOR } from "../../utilities/reduceOR.js";
-import { AS, ExprSC, SC, VarSC } from "../../utilities/skribble.js";
+import { SC } from "../../utilities/skribble.js";
 import {
     Defined_Symbols_Occlude,
     getSkippableSymbolsFromItems,
@@ -38,7 +43,7 @@ export function default_resolveBranches(
     level: number,
     options: RenderBodyOptions,
     FORCE_ASSERTIONS: boolean = false
-): SC {
+): SKExpression[] {
 
     const
         { grammar, helper: runner } = options,
@@ -46,7 +51,7 @@ export function default_resolveBranches(
         end_groups = groups.filter(group=>group.transition_types[0] == TRANSITION_TYPE.ASSERT_END),
         number_of_end_groups = end_groups.length,
         all_syms = groups.flatMap(({ syms }) => syms).setFilter(getUniqueSymbolName),
-        root = new SC,
+        root:SKExpression[] = [],
         GROUPS_CONTAIN_SYMBOL_AMBIGUITY = Groups_Contain_Symbol_Ambiguity(groups);
 
     
@@ -57,13 +62,13 @@ export function default_resolveBranches(
         return groups[0].code;
 
     if (options.helper.ANNOTATED)
-        root.addStatement(items.map(i => i.renderUnformattedWithProduction(grammar)).join("\n"));
+        root.push(<SKExpression>sk`"${(items.map(i => i.renderUnformattedWithProduction(grammar)).join("\n"))}"`);
 
     const peek_name = createPeekStatements(options,
         node,
         root,
-        rec_glob_lex_name,
-        rec_glob_lex_name,
+        "l",
+        "l",
         getSkippableSymbolsFromItems(items, grammar).filter(i => !all_syms.some(j => getSymbolName(i) == getSymbolName(j))),
         groups
     );
@@ -93,9 +98,7 @@ export function default_resolveBranches(
         
     } else
 
-        createIfElseBlock(options, node, groups, root, rec_glob_lex_name, peek_name, all_syms, FORCE_ASSERTIONS);
-
-    root.addStatement(SC.Empty());
+        root.push(...createIfElseExpressions(options, node, groups, root, rec_glob_lex_name, peek_name, all_syms, FORCE_ASSERTIONS));
 
     return root;
 }
@@ -158,21 +161,25 @@ function Groups_Contain_Symbol_Ambiguity(groups: TransitionGroup[]) {
 function createSwitchBlock(
     options: RenderBodyOptions,
     groups: TransitionGroup[],
-    peek_name: VarSC,
-    lex_name: VarSC,
-    root: SC
+    peek_name: string,
+    lex_name: string,
+    root: SKExpression[]
 ) {
     const symbol_mappings: [number, Symbol][]
 
         = <any>groups.flatMap((g, i) => g.syms.map(s => [i, s])),
 
-        fn_name = createSymbolMappingFunction(
+        fn_name = createSymbolMappingFunctionSk(
             options,
             lex_name,
             symbol_mappings
         ),
 
-        sw = SC.Switch(SC.Call(fn_name, peek_name, rec_glob_data_name));
+        match = <SKMatch>sk`match ${fn_name}(${peek_name}, data): 1 : 1`,
+
+        matches = match.matches;
+
+    matches.length = 0;
 
     let DEFAULT_NOT_ADDED = true;
 
@@ -182,24 +189,24 @@ function createSwitchBlock(
 
         if (transition_types[0] == TRANSITION_TYPE.ASSERT_END && DEFAULT_NOT_ADDED) {
             DEFAULT_NOT_ADDED = false;
-            sw.addStatement(SC.If(SC.Value("default")));
+            matches.push((<SKMatch>sk`match 1 : default || ${i} : ${code}`).matches[0]);
+        }else {
+            matches.push((<SKMatch>sk`match 1 : ${i} : ${code}`).matches[0]);
         }
-
-        sw.addStatement(SC.If(SC.Value(i)).addStatement(code/*, SC.Break*/));
     }
 
     if (DEFAULT_NOT_ADDED)
-        sw.addStatement(SC.If(SC.Value("default")).addStatement(SC.Break));
+        matches.push((<SKMatch>sk`match 1 : default : break`).matches[0]);
 
-    root.addStatement(sw);
+    root.push(match);
 }
 
 function createPeekStatements(
     options: RenderBodyOptions,
     state: TransitionNode,
-    root: SC,
-    lex_name: VarSC,
-    peek_name: VarSC,
+    root: SKExpression[],
+    lex_name: string,
+    peek_name: string,
     skippable: TokenSymbol[],
     groups: TransitionGroup[],
 
@@ -207,25 +214,20 @@ function createPeekStatements(
     if (Every_Transition_Does_Not_Require_A_Skip(groups))
         return lex_name;
 
-    const
-        { grammar, helper: runner } = options;
-
     if (state.peek_level >= 0) {
         if (state.peek_level == 1) {
-            peek_name = SC.Variable("pk:Lexer");
-            root.addStatement(SC.Declare(SC.Assignment(peek_name, SC.Call(SC.Member(lex_name, "copy")))));
+            root.push(<SKExpression>sk`[mut] pk:Lexer = ${lex_name}.copy()`);
         }
 
         if (state.offset > 0 && state.peek_level == 0) {
-            root.addStatement(createSkipCall(skippable, options, lex_name, false));
+            root.push(createSkipCallSk(skippable, options, lex_name, false));
         } else if (state.peek_level >= 1) {
-
-            peek_name = SC.Variable("pk:Lexer");
-            root.addStatement(createSkipCall(skippable, options, SC.Call(SC.Member(peek_name, "next"), rec_glob_data_name), true));
+            root.push(createSkipCallSk(skippable, options, "pk.next(data)", true));
         }
     } else if (state.offset > 0) {
-        root.addStatement(createSkipCall(skippable, options, rec_glob_lex_name, false));
+        root.push(createSkipCallSk(skippable, options, "l", false));
     }
+
     return peek_name;
 }
 
@@ -233,18 +235,18 @@ function Every_Transition_Does_Not_Require_A_Skip(groups: TransitionGroup[]) {
     return groups.every(g => g.transition_types.every(t => t == TRANSITION_TYPE.POST_PEEK_CONSUME || t == TRANSITION_TYPE.ASSERT_END));
 }
 
-function createIfElseBlock(
+function createIfElseExpressions(
     options: RenderBodyOptions,
     state: TransitionNode,
     groups: TransitionGroup[],
-    root: SC,
-    lex_name: VarSC,
-    peek_name: VarSC,
+    root: SKExpression[],
+    lex_name: string,
+    peek_name: string,
     all_syms: Symbol[],
     FORCE_ASSERTIONS: boolean,
-) {
+):SKExpression[] {
 
-    let leaf = root;
+    let if_statements = [];
 
     let previous_transition: TRANSITION_TYPE;
 
@@ -268,11 +270,11 @@ function createIfElseBlock(
 
             case TRANSITION_TYPE.POST_PEEK_CONSUME:
 
-                const sc = new SC;
-                code.shiftStatement(SC.Value("puid |=" + grammar.item_map.get(items[0].id).sym_uid));
-                sc.addStatement(createTransitionTypeAnnotation(options, transition_types), createConsume(lex_name), code);
-                leaf.addStatement(sc);
-                leaf = sc;
+                code.push(<SKExpression>sk`puid |= ${grammar.item_map.get(items[0].id).sym_uid}`);
+                code.unshift(createTransitionTypeAnnotation(options, transition_types))
+                code.unshift(createConsumeSk(lex_name))
+
+                leaf = code;
 
                 break;
 
@@ -305,7 +307,7 @@ function createIfElseBlock(
 
                 const mapped_symbols = [].concat(own_syms.map(s=>[1,s]), r_syms.map(r=>[0,r]))
 
-                const bool_fn = createSymbolMappingFunction(
+                const bool_fn = createSymbolMappingFunctionSk(
                     options,
                     lex_name,
                     mapped_symbols,
@@ -317,8 +319,8 @@ function createIfElseBlock(
                 /*
                 for(const sym of occluding_symbols){
                     const occluded = syms.filter(s=>Symbols_Occlude(s,sym))
-                    const bool = getIncludeBooleans(<TokenSymbol[]>occluded, options, peek_name);
-                    const negated_expression = getIncludeBooleans(<TokenSymbol[]>[sym], options, peek_name)
+                    const bool = getIncludeBooleansSk(<TokenSymbol[]>occluded, options, peek_name);
+                    const negated_expression = getIncludeBooleansSk(<TokenSymbol[]>[sym], options, peek_name)
                     const expression =  [SC.UnaryPre("!", SC.Group("(",negated_expression)), bool].reduce(reduceOR)
                     occlusion_groups.push(expression)
                 }
@@ -336,8 +338,8 @@ function createIfElseBlock(
                 const
                     primary_symbols = syms, //syms.filter(a => complement_symbols.some(o => Sym_Is_EOF(a) || Defined_Symbols_Occlude(<any>a, o))),
                     negate_symbols = r_syms.filter(Sym_Is_Defined).filter(s=>primary_symbols.some(p=>Symbols_Occlude(s, p))),
-                    remaining_symbols = getIncludeBooleans(<TokenSymbol[]>primary_symbols, options, peek_name),
-                    negated_expression = getIncludeBooleans(<TokenSymbol[]>negate_symbols, options, peek_name);
+                    remaining_symbols = getIncludeBooleansSk(<TokenSymbol[]>primary_symbols, options, peek_name),
+                    negated_expression = getIncludeBooleansSk(<TokenSymbol[]>negate_symbols, options, peek_name);
 
                 if (negated_expression) {
 
@@ -348,7 +350,7 @@ function createIfElseBlock(
                 } else assertion_boolean = remaining_symbols
                 */
 
-                leaf = addIfStatementTransition(options, group, code, assertion_boolean, FORCE_ASSERTIONS, leaf, state.leaves);
+                if_statements.push(createIfStatementTransition(options, group, code, assertion_boolean, FORCE_ASSERTIONS));
 
                 break;
 
@@ -360,10 +362,10 @@ function createIfElseBlock(
 
                 code.addStatement(SC.Value("return -1"));
 
-                const call_name = createBranchFunction(code, code, options);
+                const call_name = createBranchFunctionSk(code, code, options);
                 const rc = new SC;
                 rc.addStatement(SC.Call("pushFN", "data", call_name));
-                rc.addStatement(SC.Call("pushFN", "data", getProductionFunctionName(production, grammar)));
+                rc.addStatement(SC.Call("pushFN", "data", getProductionFunctionNameSk(production, grammar)));
                 rc.addStatement(SC.Value("puid |=" + grammar.item_map.get(items[0].id).sym_uid));
                 rc.addStatement(SC.UnaryPre(SC.Return, SC.Value("puid")));
                 leaf.addStatement(rc);
@@ -381,7 +383,7 @@ function createIfElseBlock(
 
                 if (FIRST_SYMBOL_IS_A_PRODUCTION && !FIRST_SYMBOL_IS_A_PRODUCTION_TOKEN) throw new Error("WTF");
 
-                assertion_boolean = getIncludeBooleans(<TokenSymbol[]>syms, options, peek_name, <TokenSymbol[]>complement_symbols);
+                assertion_boolean = getIncludeBooleansSk(<TokenSymbol[]>syms, options, peek_name, <TokenSymbol[]>complement_symbols);
 
                 let scr = code;
 
@@ -394,8 +396,8 @@ function createIfElseBlock(
 
                     code.addStatement(SC.Value("return -1"));
 
-                    const continue_name = createBranchFunction(nc, nc, options);
-                    const call_name = createBranchFunction(code, code, options);
+                    const continue_name = createBranchFunctionSk(nc, nc, options);
+                    const call_name = createBranchFunctionSk(code, code, options);
 
 
                     scr.addStatement(SC.Call("pushFN", "data", continue_name));
@@ -409,22 +411,19 @@ function createIfElseBlock(
                     leaves[0].transition_type = TRANSITION_TYPE.ASSERT;
                 }
 
-                leaf = addIfStatementTransition(options, group, scr, assertion_boolean, FORCE_ASSERTIONS, leaf, state.leaves);
-
-
+                if_statements.push(createIfStatementTransition(options, group, scr, assertion_boolean, FORCE_ASSERTIONS));
 
                 break;
 
             case TRANSITION_TYPE.ASSERT_CONSUME:
 
 
-                assertion_boolean = getIncludeBooleans(<TokenSymbol[]>syms, options, lex_name, <TokenSymbol[]>complement_symbols);
+                assertion_boolean = getIncludeBooleansSk(<TokenSymbol[]>syms, options, lex_name, <TokenSymbol[]>complement_symbols);
              
                 code.shiftStatement(SC.Value("puid |=" + grammar.item_map.get(items[0].id).sym_uid));
-                code.shiftStatement(createConsume(rec_glob_lex_name));
+                code.shiftStatement(createConsumeSk(rec_glob_lex_name));
 
-                leaf = addIfStatementTransition(options, group, code, assertion_boolean, FORCE_ASSERTIONS, leaf, state.leaves);
-                
+                if_statements.push(createIfStatementTransition(options, group, code, assertion_boolean, FORCE_ASSERTIONS));
                 break;
 
             case TRANSITION_TYPE.IGNORE: break;
@@ -432,20 +431,19 @@ function createIfElseBlock(
 
         previous_transition = transition_type;
     }
+    
 }
 
 
 
 
-function addIfStatementTransition(
+function createIfStatementTransition(
     options: RenderBodyOptions,
     group: TransitionGroup,
     modified_code: SC,
     boolean_assertion: SC,
-    FORCE_ASSERTIONS: boolean,
-    leaf: any,
-    leaves: Leaf[]
-) {
+    FORCE_ASSERTIONS: boolean
+): SKIf {
 
     const { grammar, helper: runner } = options;
     let { syms, items, LAST, FIRST, transition_types } = group;
@@ -462,7 +460,10 @@ function addIfStatementTransition(
         .sort();
 
 
-    let if_stmt = SC.If(<ExprSC>boolean_assertion);
+    let if_stmt = <SKIf>sk`if(${boolean_assertion}): {
+        /*${createTransitionTypeAnnotation(options, transition_types)}*/
+        ${modified_code}
+    }`;
 
     const SKIP_BOOL_EXPRESSION = (!FORCE_ASSERTIONS || transition_type == TRANSITION_TYPE.ASSERT_END)
         && (LAST && !FIRST)
@@ -476,19 +477,6 @@ function addIfStatementTransition(
             //|| 
             transition_type == TRANSITION_TYPE.ASSERT_END
         );
-
-    if (SKIP_BOOL_EXPRESSION  )
-        if_stmt = SC.If();
-
-    if_stmt.addStatement(
-        modified_code,
-        SC.Empty()
-    );
-
-    leaf.addStatement(
-        createTransitionTypeAnnotation(options, transition_types),
-        if_stmt
-    );
 
     return if_stmt;
 }

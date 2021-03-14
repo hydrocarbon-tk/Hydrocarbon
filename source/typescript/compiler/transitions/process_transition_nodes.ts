@@ -23,6 +23,9 @@ import { default_resolveBranches } from "./default_branch_resolution.js";
 import { default_resolveResolvedLeaf } from "./default_resolved_leaf_resolution.js";
 import { default_resolveUnresolvedLeaves } from "./default_unresolved_leaves_resolution.js";
 import { Items_Are_From_Same_Production } from "./yield_transitions.js";
+import { sk } from "../../skribble/skribble.js";
+import { SKExpression } from "../../skribble/types/node";
+import { expressionListHash } from "../../utilities/code_generating.js";
 
 export function defaultGrouping(g) { return g.hash; }
 type UnresolvedLeavesResolver = (node: TransitionNode, nodes: TransitionNode[], options: RenderBodyOptions) => MultiItemReturnObject;
@@ -146,15 +149,15 @@ export function processTransitionNodes(
                 if (node.items.length > 1) {
                     const { root, leaves, prods } = conflicting_leaf_resolve_function(node, [node], options);
                     node.code = root;
-                    root.shiftStatement("__TESTING__HOW_WE_GOT_HERE__");
+                    root.unshift(<SKExpression>sk`"__TESTING__HOW_WE_GOT_HERE__"`);
                     console.log("Flow should not enter this block: Multi-item moved to group section");
 
-                    node.hash = root.hash();
+                    node.hash = expressionListHash(root);
                     node.prods = prods;
                     node.leaves = leaves;
                     if (options.helper.ANNOTATED)
                         if (root)
-                            root.shiftStatement("--UNRESOLVED-LEAF--");
+                            root.unshift(<SKExpression>sk`"--UNRESOLVED-LEAF--"`);
                     break;
                     throw new Error("Flow should not enter this block: Multi-item moved to group section");
                 }
@@ -171,7 +174,7 @@ export function processTransitionNodes(
 
                 if (options.helper.ANNOTATED)
                     if (leaf.root)
-                        leaf.root.shiftStatement("--LEAF--");
+                        leaf.root.unshift(<SKExpression>sk`"--LEAF--"`);
                 break;
 
         }

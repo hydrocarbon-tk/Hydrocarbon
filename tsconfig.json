@@ -22,6 +22,7 @@
         "outDir": "./build/library/",
         "declarationDir": "./build/types/",
         "declaration": true,
-        "moduleResolution": "node"
+        "moduleResolution": "node",
+        "sourceMap": true
     }
 }

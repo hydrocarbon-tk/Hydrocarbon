@@ -12,7 +12,7 @@
     "prepublishOnly": "rm -rf ./build/ && tsc -p ./tsconfig.json && yarn test",
     "test": "cfw.test --threads 2 ./test/",
     "test.hcg_grammar_parser": "cfw.test ./test/grammar_parser/grammar_parse.spec.js",
-    "compile.skribble.debug": "./source/cli/cli.js compile --workers 8 --recognizer_type js --annotations --output_dir ./source/typescript/parsers/ ./source/grammars/misc/skribble.hcg",
+    "compile.skribble.debug": "./source/cli/cli.js compile --workers 10 --annotations --recognizer_type js --output_dir ./source/typescript/parsers/ ./source/grammars/misc/skribble.hcg",
     "compile.grammar": "yarn test.hcg_grammar_parser && ./source/cli/cli.js compile --workers 5 --recognizer_type wasm --output_dir ./source/typescript/grammar/ --loader_path ALTERNATE ./source/grammars/hcg/hcg.hcg",
     "compile.grammar.test": "./source/cli/cli.js compile --unattended -d --parser glalr -t mjs -o ./source/typescript/grammar ./source/grammars/hcg/hcg.hcg",
     "compile.test": "./source/cli/cli.js compile --parser glalr -d -m --unattended ./source/grammars/misc/test3.hcg",

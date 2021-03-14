@@ -4,6 +4,8 @@
  * disclaimer notice.
  */
 import { performance } from "perf_hooks";
+import { sk } from "../skribble/skribble.js";
+import { SKFunction, SKPrimitiveDeclaration } from "../skribble/types/node.js";
 import { Grammar } from "../types/grammar.js";
 import { Production } from "../types/production";
 import { RDProductionFunction } from "../types/rd_production_function";
@@ -35,32 +37,24 @@ export function constructHybridFunction(production: Production, grammar: Grammar
 
     const
 
-        rd_fn_name = SC.Constant(getProductionFunctionName(production, grammar) + ":unsigned int") /* skrb_id `${name}:unsigned`  */,
+        rd_fn_name = <SKPrimitiveDeclaration>sk`[priv] ${getProductionFunctionName(production, grammar)}:u32`, /* skrb_id `${name}:unsigned`  */
 
-        goto_fn_name = SC.Constant(getProductionFunctionName(production, grammar) + "_goto:unsigned int"),
+        goto_fn_name = <SKPrimitiveDeclaration>sk`[priv] ${getProductionFunctionName(production, grammar)}_goto:u32`,
 
         start = performance.now(),
 
         { RDOptions, GOTO_Options, RD_fn_contents, GOTO_fn_contents }
             = compileProductionFunctions(grammar, runner, [production]),
 
-        RD_function = SC.Function(
-            rd_fn_name,
-            rec_glob_lex_name,
-            rec_glob_data_name,
-            rec_state,
-            "prod:int",
-            "puid:int",
-        ).addStatement(RD_fn_contents),
+        RD_function = <SKFunction>sk`
+        fn ${rd_fn_name}(l:Lexer,data:Data, state:u32, prod:u32, puid:i32){
+            ${RD_fn_contents}
+        }`,
 
-        GOTO_function = SC.Function(
-            goto_fn_name,
-            rec_glob_lex_name,
-            rec_glob_data_name,
-            rec_state,
-            SC.Variable("prod:int"),
-            "puid:int"
-        ).addStatement(GOTO_fn_contents);
+        GOTO_function = sk`
+        fn ${goto_fn_name}(l:Lexer,data:Data, state:u32, prod:u32, puid:i32){
+            ${RD_fn_contents}
+        }`;
 
     addLeafStatements(
         RD_fn_contents,
