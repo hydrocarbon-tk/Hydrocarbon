@@ -159,6 +159,9 @@ f:r { { type:"member-reference", reference: $$sym1, property: $$sym3  } }
     | member_expression \[ expression \]
 f:r { { type:"member-expression", reference: $$sym1, expression: $$sym3  } }
 
+    | template
+f:r { env.grabTemplateNode("template-value") }
+
     | identifier
 f:r { ($sym1.type = "reference", $sym1) }
 
