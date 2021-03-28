@@ -8,14 +8,14 @@ import { jump8bit_table_byte_size } from "../runtime/parser_memory_new.js";
 import { Grammar } from "../types/grammar.js";
 import { RDProductionFunction } from "../types/rd_production_function";
 import { BaseOptions } from "../types/render_body_options.js";
-import { createSkipCall, getProductionFunctionName } from "../utilities/code_generating.js";
+import { createSkipCallSk, getProductionFunctionName } from "../utilities/code_generating.js";
 import {
     rec_glob_data_name
 } from "../utilities/global_names.js";
 import { getProductionClosure } from "../utilities/production.js";
-import { SC } from "../utilities/skribble.js";
 import { getSkippableSymbolsFromItems, getUnskippableSymbolsFromClosure } from "../utilities/symbol.js";
 
+const SC = null;
 export const renderAssemblyScriptRecognizer = (
     grammar: Grammar,
     runner: Helper,
@@ -26,7 +26,7 @@ export const renderAssemblyScriptRecognizer = (
     const closure = getProductionClosure(0, grammar);
     const skippable = getSkippableSymbolsFromItems(closure, grammar);
     const unskippable = getUnskippableSymbolsFromClosure(closure, grammar);
-    const skip = createSkipCall(skippable, <BaseOptions>{ grammar, helper: runner }, SC.Variable("data.lexer"), false, unskippable, true);
+    const skip = createSkipCallSk(skippable, <BaseOptions>{ grammar, helper: runner }, SC.Variable("data.lexer"), false, unskippable, true);
     return (new SC).addStatement(SC.Value(`
     const lookup_table = new Uint8Array(${jump8bit_table_byte_size});
     const sequence_lookup = [${grammar.sequence_string.split("").map(s => s.charCodeAt(0)).join(",")}];

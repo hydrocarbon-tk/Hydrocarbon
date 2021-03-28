@@ -5,8 +5,7 @@
  */
 import { Grammar } from "../types/grammar.js";
 import { TokenSymbol } from "../types/symbol";
-import { getTrueSymbolValue } from "./code_generating.js";
-import { getUniqueSymbolName, Sym_Is_A_Production } from "./symbol.js";
+import { getUniqueSymbolName, Sym_Is_A_Production, getTrueSymbolValue } from "./symbol.js";
 import { getProductionClosure } from "./production.js";
 
 

@@ -6,12 +6,13 @@
 import { RenderBodyOptions } from "../../types/render_body_options";
 import { MultiItemReturnObject } from "../../types/transition_generating";
 import { Leaf, TransitionNode, TRANSITION_TYPE } from "../../types/transition_node.js";
-import { createBranchFunction } from "../../utilities/code_generating.js";
+import { createBranchFunctionSk } from "../../utilities/code_generating.js";
 import { rec_glob_lex_name, rec_state } from "../../utilities/global_names.js";
-import { SC, VarSC } from "../../utilities/skribble.js";
 import { getUniqueSymbolName, Sym_Is_A_Production } from "../../utilities/symbol.js";
 import { createVirtualProductionSequence } from "../function_constructor.js";
 
+
+const SC = null;
 export function default_resolveUnresolvedLeaves(node: TransitionNode, nodes: TransitionNode[], options: RenderBodyOptions): MultiItemReturnObject {
 
     const
@@ -173,7 +174,7 @@ function createForkSequence(
         out_leaves.push(...leaves);
 
         // leaf.addStatement(items.map(i => i.renderUnformattedWithProduction(options.grammar)).join("\n"));
-        const call_name = createBranchFunction(code, code, options);
+        const call_name = createBranchFunctionSk(code, code, options);
 
         if (I++ == output_nodes.length - 1) {
 

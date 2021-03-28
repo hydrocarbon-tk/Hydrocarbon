@@ -18,10 +18,11 @@ import {
     TokenSymbol
 } from "../types/symbol";
 import { SymbolType } from "../types/symbol_type.js";
-import { getTrueSymbolValue } from "./code_generating.js";
 import { Item } from "./item.js";
 
-
+export function getTrueSymbolValue(sym: TokenSymbol, grammar: Grammar): TokenSymbol[] {
+    return [<TokenSymbol>sym];
+}
 export function characterToUTF8(char: string) {
 
     const code_point = char.codePointAt(0);
@@ -231,8 +232,8 @@ export function Symbols_Occlude(target: Symbol, potentially_occludes: Symbol): b
 
 export function Defined_Symbols_Occlude(target: Symbol, potentially_occludes: Symbol): boolean {
 
-    if(!Sym_Is_Defined(target) || !Sym_Is_Defined(potentially_occludes)) return false
-    
+    if (!Sym_Is_Defined(target) || !Sym_Is_Defined(potentially_occludes)) return false;
+
     let
         short = target.val.toString(),
         long = potentially_occludes.val.toString();

@@ -3,10 +3,8 @@
  * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
  * disclaimer notice.
  */
-import { sk } from "../skribble/skribble.js";
-import { SKIdentifierBase, SKNode, SKPrimitiveDeclaration, SKReference } from "../skribble/types/node.js";
-import { ConstSC, ExprSC, JS, SC, VarSC } from "../utilities/skribble.js";
-
+import { SKNode, SKPrimitiveDeclaration, SKReference } from "../skribble/types/node.js";
+const SC = null;
 /**
  * A generated name that is unique to a specific sequence of code
  * and that is consistently and independently derived in any given 
@@ -35,7 +33,7 @@ export class Helper {
     referenced_production_ids: Set<number>;
 
     const_counter: number;
-    
+
     unique_const_set: Set<string>;
 
     constructor(ANNOTATED: boolean = false, DEBUG: boolean = false) {
@@ -59,7 +57,7 @@ export class Helper {
 
             this.unique_const_set.add(global_name.value);
 
-            actual_name = <SKReference>Object.assign({}, global_name, {type: "reference"});
+            actual_name = <SKReference>Object.assign({}, global_name, { type: "reference" });
 
             this.constant_map.set(global_name.value, { original_name: const_name, name: actual_name, code_node: const_value, });
 

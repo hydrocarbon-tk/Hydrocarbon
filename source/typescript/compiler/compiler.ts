@@ -6,24 +6,21 @@
 import spark from "@candlefw/spark";
 import URL from "@candlefw/url";
 import Lexer from "@candlefw/wind";
-import asc from "@assemblyscript/loader";
 import fs from "fs";
-
 import { renderParserScript } from "../render/parser_template.js";
 import { renderAssemblyScriptRecognizer } from "../render/recognizer_template.js";
-
-import { initializeUTFLookupTable, } from "../runtime/parser_memory_new.js";
-
+import { initializeUTFLookupTable } from "../runtime/parser_memory_new.js";
 import { HybridCompilerOptions } from "../types/compiler_options";
 import { Grammar } from "../types/grammar.js";
 import { GrammarParserEnvironment } from "../types/grammar_compiler_environment";
 import { ParserEnvironment } from "../types/parser_environment.js";
-
-import { AS, JS, SC } from "../utilities/skribble.js";
 import { constructCompilerRunner, Helper } from "./helper.js";
 import { WorkerRunner } from "./workers/worker_runner.js";
 
 
+
+
+const AS = null, JS = null, SC = null;
 const
     fsp = fs.promises,
     default_options: HybridCompilerOptions = {

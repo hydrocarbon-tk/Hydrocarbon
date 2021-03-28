@@ -4,7 +4,7 @@
  * disclaimer notice.
  */
 import { sk } from "../../skribble/skribble.js";
-import { SKExpression, SKIf, SKMatch } from "../../skribble/types/node";
+import { SKExpression, SKIf, SKMatch, SKReturn } from "../../skribble/types/node";
 import { RenderBodyOptions } from "../../types/render_body_options";
 import { Symbol, TokenSymbol } from "../../types/symbol.js";
 import { TransitionClauseGenerator, TransitionGroup } from "../../types/transition_generating";
@@ -15,9 +15,7 @@ import {
     getIncludeBooleansSk, getProductionFunctionNameSk
 } from "../../utilities/code_generating.js";
 import { createTransitionTypeAnnotation } from "../../utilities/create_transition_type_annotation.js";
-import { rec_glob_data_name, rec_glob_lex_name } from "../../utilities/global_names.js";
 import { Item } from "../../utilities/item.js";
-import { SC } from "../../utilities/skribble.js";
 import {
     Defined_Symbols_Occlude,
     getSkippableSymbolsFromItems,
@@ -48,21 +46,21 @@ export function default_resolveBranches(
     const
         { grammar, helper: runner } = options,
         groups = [...gen],
-        end_groups = groups.filter(group=>group.transition_types[0] == TRANSITION_TYPE.ASSERT_END),
+        end_groups = groups.filter(group => group.transition_types[0] == TRANSITION_TYPE.ASSERT_END),
         number_of_end_groups = end_groups.length,
         all_syms = groups.flatMap(({ syms }) => syms).setFilter(getUniqueSymbolName),
-        root:SKExpression[] = [],
+        root: SKExpression[] = [],
         GROUPS_CONTAIN_SYMBOL_AMBIGUITY = Groups_Contain_Symbol_Ambiguity(groups);
 
-    
+
 
     if (groups.length == 1
         && !FORCE_ASSERTIONS
         && (groups[0].transition_types.includes(TRANSITION_TYPE.ASSERT_PRODUCTION_SYMBOLS)))
         return groups[0].code;
 
-    if (options.helper.ANNOTATED)
-        root.push(<SKExpression>sk`"${(items.map(i => i.renderUnformattedWithProduction(grammar)).join("\n"))}"`);
+    //if (options.helper.ANNOTATED)
+    //    root.push(<SKExpression>sk`"${(items.map(i => i.renderUnformattedWithProduction(grammar)).join("\n"))}"`);
 
     const peek_name = createPeekStatements(options,
         node,
@@ -73,32 +71,32 @@ export function default_resolveBranches(
         groups
     );
 
-    if ((groups.length >= 32 || GROUPS_CONTAIN_SYMBOL_AMBIGUITY) && number_of_end_groups <= 1){
+    if ((groups.length >= 32 || GROUPS_CONTAIN_SYMBOL_AMBIGUITY) && number_of_end_groups <= 1) {
 
-        if(number_of_end_groups >= 1 && GROUPS_CONTAIN_SYMBOL_AMBIGUITY){
+        if (number_of_end_groups >= 1 && GROUPS_CONTAIN_SYMBOL_AMBIGUITY) {
 
 
-            for(const end_group of end_groups){
+            for (const end_group of end_groups) {
 
                 //*
-                
+
                 //Only include symbols that occlude other groups
                 //end_group.NEGATE = true;
-                
+
                 //replace the end group symbols with only the set that occlude other 
                 //group
-                const all_syms = groups.filter(g=>g!=end_group).flatMap(({ syms }) => syms).setFilter(getUniqueSymbolName);
-                end_group.syms = end_group.syms.filter(s=>all_syms.some(a=>Symbols_Occlude(s, a)));
+                const all_syms = groups.filter(g => g != end_group).flatMap(({ syms }) => syms).setFilter(getUniqueSymbolName);
+                end_group.syms = end_group.syms.filter(s => all_syms.some(a => Symbols_Occlude(s, a)));
             }
-    
+
             //*/
         }
 
-        createSwitchBlock(options, groups, peek_name, rec_glob_lex_name, root);
-        
+        createSwitchBlock(options, groups, peek_name, "l", root);
+
     } else
 
-        root.push(...createIfElseExpressions(options, node, groups, root, rec_glob_lex_name, peek_name, all_syms, FORCE_ASSERTIONS));
+        root.push(...createIfElseExpressions(options, node, groups, root, "l", peek_name, all_syms, FORCE_ASSERTIONS));
 
     return root;
 }
@@ -133,16 +131,16 @@ function Groups_Contain_Symbol_Ambiguity(groups: TransitionGroup[]) {
         }
     }
 
-    for(let i = 0; i < groups.length; i++){
-        for(let j = i; j < groups.length; j++){
-            if(j==i) continue
-            const groupA = groups[i]
-            const groupB = groups[j]
-            
-            for(const symA of groupA.syms){
-                for(const symB of groupB.syms){
-                    if(Defined_Symbols_Occlude(symA, symB))
-                        return true
+    for (let i = 0; i < groups.length; i++) {
+        for (let j = i; j < groups.length; j++) {
+            if (j == i) continue;
+            const groupA = groups[i];
+            const groupB = groups[j];
+
+            for (const symA of groupA.syms) {
+                for (const symB of groupB.syms) {
+                    if (Defined_Symbols_Occlude(symA, symB))
+                        return true;
                 }
             }
         }
@@ -189,9 +187,9 @@ function createSwitchBlock(
 
         if (transition_types[0] == TRANSITION_TYPE.ASSERT_END && DEFAULT_NOT_ADDED) {
             DEFAULT_NOT_ADDED = false;
-            matches.push((<SKMatch>sk`match 1 : default || ${i} : ${code}`).matches[0]);
-        }else {
-            matches.push((<SKMatch>sk`match 1 : ${i} : ${code}`).matches[0]);
+            matches.push((<SKMatch>sk`match 1 : default || ${i} : { ${code.flatMap(c => [c, ";"])} }`).matches[0]);
+        } else {
+            matches.push((<SKMatch>sk`match 1 : ${i} : { ${code.flatMap(c => [c, ";"])} }`).matches[0]);
         }
     }
 
@@ -216,7 +214,7 @@ function createPeekStatements(
 
     if (state.peek_level >= 0) {
         if (state.peek_level == 1) {
-            root.push(<SKExpression>sk`[mut] pk:Lexer = ${lex_name}.copy()`);
+            root.push(<SKExpression>sk`[mut] pk:Lexer = ${lex_name}.cop___gy()`);
         }
 
         if (state.offset > 0 && state.peek_level == 0) {
@@ -244,11 +242,22 @@ function createIfElseExpressions(
     peek_name: string,
     all_syms: Symbol[],
     FORCE_ASSERTIONS: boolean,
-):SKExpression[] {
+): SKExpression[] {
 
-    let if_statements = [];
+    let expressions = [], last_if: SKIf = null;
 
     let previous_transition: TRANSITION_TYPE;
+
+    function addIf(_if: SKIf) {
+        if (_if.type !== "if")
+            debugger;
+        if (last_if) {
+            last_if.else = _if;
+        } else {
+            expressions.push(_if);
+        }
+        last_if = _if;
+    }
 
     const { grammar, helper: runner } = options;
 
@@ -259,7 +268,7 @@ function createIfElseExpressions(
             { syms, transition_types, code, items, leaves } = group,
             complement_symbols = groups.filter((l, j) => j > i).flatMap(g => g.syms).setFilter(getUniqueSymbolName);
 
-        let assertion_boolean: SC = SC.Empty();
+        let assertion_boolean: SKExpression = null;
 
         const
             transition_type: TRANSITION_TYPE = transition_types[0],
@@ -270,16 +279,14 @@ function createIfElseExpressions(
 
             case TRANSITION_TYPE.POST_PEEK_CONSUME:
 
-                code.push(<SKExpression>sk`puid |= ${grammar.item_map.get(items[0].id).sym_uid}`);
-                code.unshift(createTransitionTypeAnnotation(options, transition_types))
-                code.unshift(createConsumeSk(lex_name))
-
-                leaf = code;
-
+                expressions.push(createTransitionTypeAnnotation(options, transition_types));
+                expressions.push(<SKExpression>sk`puid |= ${grammar.item_map.get(items[0].id).sym_uid}`);
+                expressions.push(createConsumeSk(lex_name));
+                expressions.push(...code);
                 break;
 
             case TRANSITION_TYPE.ASSERT_END:
-                const r_syms = groups.slice(i+1).flatMap(g=>g.syms).setFilter(getUniqueSymbolName);
+                const r_syms = groups.slice(i + 1).flatMap(g => g.syms).setFilter(getUniqueSymbolName);
                 /**
                  * Completed Items are tricky. They don't represent actual consumption of 
                  * tokens, but rather must assert that a set of tokens FOLLOW the completed
@@ -299,22 +306,22 @@ function createIfElseExpressions(
                  * Shift has priority over Reduce: if there are defined symbols that 
                  */
 
-                const occluding_symbols = r_syms.filter(r=>syms.some(s=>Symbols_Occlude(s,r)))
+                const occluding_symbols = r_syms.filter(r => syms.some(s => Symbols_Occlude(s, r)));
 
-                const occlusion_groups = []
+                const occlusion_groups = [];
 
-                const own_syms = syms.filter(s=> !r_syms.some(r=>getUniqueSymbolName(s) == getUniqueSymbolName(r)))
+                const own_syms = syms.filter(s => !r_syms.some(r => getUniqueSymbolName(s) == getUniqueSymbolName(r)));
 
-                const mapped_symbols = [].concat(own_syms.map(s=>[1,s]), r_syms.map(r=>[0,r]))
+                const mapped_symbols = [].concat(own_syms.map(s => [1, s]), r_syms.map(r => [0, r]));
 
                 const bool_fn = createSymbolMappingFunctionSk(
                     options,
                     lex_name,
                     mapped_symbols,
-                    SC.Value("1")
+                    "1"
                 );
-        
-                assertion_boolean = SC.Binary(SC.Call(bool_fn, peek_name, rec_glob_data_name), "==", "1");
+
+                assertion_boolean = <SKExpression>sk`${bool_fn}(${peek_name}, state) == 1`;
 
                 /*
                 for(const sym of occluding_symbols){
@@ -350,7 +357,7 @@ function createIfElseExpressions(
                 } else assertion_boolean = remaining_symbols
                 */
 
-                if_statements.push(createIfStatementTransition(options, group, code, assertion_boolean, FORCE_ASSERTIONS));
+                addIf(createIfStatementTransition(options, group, code, assertion_boolean, FORCE_ASSERTIONS));
 
                 break;
 
@@ -360,16 +367,13 @@ function createIfElseExpressions(
 
                 options.called_productions.add(<number>production.id);
 
-                code.addStatement(SC.Value("return -1"));
+                code.push(<SKReturn>sk`return:-1`);
 
-                const call_name = createBranchFunctionSk(code, code, options);
-                const rc = new SC;
-                rc.addStatement(SC.Call("pushFN", "data", call_name));
-                rc.addStatement(SC.Call("pushFN", "data", getProductionFunctionNameSk(production, grammar)));
-                rc.addStatement(SC.Value("puid |=" + grammar.item_map.get(items[0].id).sym_uid));
-                rc.addStatement(SC.UnaryPre(SC.Return, SC.Value("puid")));
-                leaf.addStatement(rc);
-                leaf = rc;
+                const call_name = createBranchFunctionSk(code, options);
+                expressions.push(<SKExpression>sk`pushFN(data, ${call_name.value})`);
+                expressions.push(<SKExpression>sk`pushFN(data, ${getProductionFunctionNameSk(production, grammar)})`);
+                expressions.push(<SKExpression>sk`puid |= ${grammar.item_map.get(items[0].id).sym_uid}`);
+                expressions.push(<SKReturn>sk`return:puid`);
                 leaves.forEach(leaf => leaf.INDIRECT = true);
 
                 break;
@@ -390,20 +394,20 @@ function createIfElseExpressions(
                 if (state.PUIDABLE) {
 
                 } else if (items.length == 1) {
-                    scr = new SC;
+                    scr = [];
                     //build puid and pass to finishing function
-                    const nc = new SC;
+                    const nc = [];
 
-                    code.addStatement(SC.Value("return -1"));
+                    code.push(<SKExpression>sk`return:-1`);
 
-                    const continue_name = createBranchFunctionSk(nc, nc, options);
-                    const call_name = createBranchFunctionSk(code, code, options);
+                    const continue_name = createBranchFunctionSk(nc, options);
+                    const call_name = createBranchFunctionSk(code, options);
 
 
-                    scr.addStatement(SC.Call("pushFN", "data", continue_name));
-                    scr.addStatement(SC.UnaryPre(SC.Return, SC.Call(call_name, "l", "data", "state", "prod", "" + grammar.item_map.get(items[0].decrement().id).sym_uid)));
+                    scr.push(<SKExpression>sk`pushFN(data, ${continue_name})`);
+                    scr.push(<SKExpression>sk`return: ${call_name}(l, data, state, prod, ${grammar.item_map.get(items[0].decrement().id).sym_uid})`);
 
-                    leaves[0].leaf.addStatement(SC.Value("return prod"));
+                    leaves[0].leaf.push(<SKReturn>sk`return:puid`);
 
                     leaves.forEach(l => l.transition_type == TRANSITION_TYPE.IGNORE);
                     leaves[0].leaf = nc;
@@ -411,7 +415,7 @@ function createIfElseExpressions(
                     leaves[0].transition_type = TRANSITION_TYPE.ASSERT;
                 }
 
-                if_statements.push(createIfStatementTransition(options, group, scr, assertion_boolean, FORCE_ASSERTIONS));
+                addIf(createIfStatementTransition(options, group, scr, assertion_boolean, FORCE_ASSERTIONS));
 
                 break;
 
@@ -419,11 +423,12 @@ function createIfElseExpressions(
 
 
                 assertion_boolean = getIncludeBooleansSk(<TokenSymbol[]>syms, options, lex_name, <TokenSymbol[]>complement_symbols);
-             
-                code.shiftStatement(SC.Value("puid |=" + grammar.item_map.get(items[0].id).sym_uid));
-                code.shiftStatement(createConsumeSk(rec_glob_lex_name));
 
-                if_statements.push(createIfStatementTransition(options, group, code, assertion_boolean, FORCE_ASSERTIONS));
+                code.push(<SKExpression>sk`puid |= ${grammar.item_map.get(items[0].id).sym_uid}`);
+                code.push(createConsumeSk("l"));
+
+                addIf(createIfStatementTransition(options, group, code, assertion_boolean, FORCE_ASSERTIONS));
+
                 break;
 
             case TRANSITION_TYPE.IGNORE: break;
@@ -431,7 +436,9 @@ function createIfElseExpressions(
 
         previous_transition = transition_type;
     }
-    
+
+    return expressions;
+
 }
 
 
@@ -440,29 +447,18 @@ function createIfElseExpressions(
 function createIfStatementTransition(
     options: RenderBodyOptions,
     group: TransitionGroup,
-    modified_code: SC,
-    boolean_assertion: SC,
+    modified_code: SKExpression[],
+    boolean_assertion: SKExpression,
     FORCE_ASSERTIONS: boolean
 ): SKIf {
 
     const { grammar, helper: runner } = options;
     let { syms, items, LAST, FIRST, transition_types } = group;
+
     const transition_type: TRANSITION_TYPE = transition_types[0];
-    const breadcrumb_items = items.map(i => (((
-        transition_type == TRANSITION_TYPE.ASSERT_CONSUME
-        || transition_type == TRANSITION_TYPE.ASSERT_PRODUCTION_CALL
-    ) && !i.atEND) ? i.increment() : i));
-
-    const traffic = breadcrumb_items.filter(i => i.offset == 1)
-        .map(i => (new Item(i.body, i.len, 0)).id)
-        .flatMap(id => [...grammar.item_map.get(id).breadcrumbs.values()])
-        .setFilter()
-        .sort();
-
 
     let if_stmt = <SKIf>sk`if(${boolean_assertion}): {
-        /*${createTransitionTypeAnnotation(options, transition_types)}*/
-        ${modified_code}
+        ${modified_code.flatMap(m => [m, ";"])}
     }`;
 
     const SKIP_BOOL_EXPRESSION = (!FORCE_ASSERTIONS || transition_type == TRANSITION_TYPE.ASSERT_END)

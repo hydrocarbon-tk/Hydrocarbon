@@ -9,11 +9,9 @@ import { HybridDispatch, HybridDispatchResponse, HybridJobType } from "../../typ
 import { ParserEnvironment } from "../../types/parser_environment";
 import { RDProductionFunction } from "../../types/rd_production_function.js";
 import { WorkerContainer } from "../../types/worker_container";
-
-import { SC } from "../../utilities/skribble.js";
 import { Helper } from "../helper.js";
 import { LocalWorker } from "./local_worker.js";
-
+const SC = null;
 export class WorkerRunner {
     grammar: Grammar;
     RUN: boolean;

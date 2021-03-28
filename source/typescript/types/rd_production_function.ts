@@ -3,11 +3,11 @@
  * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
  * disclaimer notice.
  */
-import { SC } from "../utilities/skribble.js";
+import { SKNode } from "../skribble/types/node.js";
 export interface RDProductionFunction {
 
     id: number,
-    fn?: SC;
+    fn?: SKNode[];
     productions?: Set<number>;
     RENDER?: boolean;
 

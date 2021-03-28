@@ -8,9 +8,11 @@ import { SKExpression, SKReturn } from "../../skribble/types/node";
 import { RenderBodyOptions } from "../../types/render_body_options";
 import { TRANSITION_TYPE } from "../../types/transition_node.js";
 import { processProductionChain } from "../../utilities/process_production_reduction_sequences.js";
-import { SC } from "../../utilities/skribble.js";
 import { VirtualProductionLinks } from "../../utilities/virtual_productions.js";
 import { addClauseSuccessCheck } from "./default_state_build.js";
+
+
+const SC = null;
 
 /**
  * Adds code to end nodes
@@ -58,7 +60,7 @@ export function addLeafStatements(
         if (NO_GOTOS) {
 
             prods = processProductionChain(leaf, GOTO_Options, original_prods);
-            
+
             leaf.push(<SKReturn>sk`return:${prods[0]}`/*<SKExpression>sk`return:${prods[0]}`*/);
 
         } else if (false && rd_leaves.length == 1) {
@@ -77,13 +79,13 @@ export function addLeafStatements(
         }
     }
 
-    if (!NO_GOTOS){
+    if (!NO_GOTOS) {
 
-        const goto_ids = new Set(extended_goto_items.map(i=>i.getProductionAtSymbol(grammar).id))
+        const goto_ids = new Set(extended_goto_items.map(i => i.getProductionAtSymbol(grammar).id));
 
         for (const goto_leaf of goto_leaves) {
 
-            let { leaf, prods, transition_type, INDIRECT, original_prods} = goto_leaf;
+            let { leaf, prods, transition_type, INDIRECT, original_prods } = goto_leaf;
 
             //@ts-ignore
             if (goto_leaf.SET || transition_type == TRANSITION_TYPE.IGNORE)
@@ -103,10 +105,10 @@ export function addLeafStatements(
                 if (production_ids.some(p_id => goto_leaf.keys.includes(p_id))) {
                     leaf.push(<SKExpression>sk`prod=${SC.Value(prods[0])}`);
                     leaf.push(<SKExpression>sk`continue`);
-                } else if (goto_ids.has(prods[0])){
+                } else if (goto_ids.has(prods[0])) {
                     leaf.push(<SKExpression>sk`pushFN(data, ${goto_fn_name})`);
                     leaf.push(<SKExpression>sk`return:${prods[0]}`);
-                }else{
+                } else {
                     leaf.push(<SKExpression>sk`return:${prods[0]}`);
                 }
             } else if (transition_type == TRANSITION_TYPE.ASSERT_END
@@ -124,7 +126,7 @@ export function addLeafStatements(
     if (GOTOS_FOLDED)
         RD_fn_contents.push(addClauseSuccessCheck(RDOptions));
     else
-    RD_fn_contents.push(<SKExpression>sk`return:-1`);
+        RD_fn_contents.push(<SKExpression>sk`return:-1`);
 }
 
 /**

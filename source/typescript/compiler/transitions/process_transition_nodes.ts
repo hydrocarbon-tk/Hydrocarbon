@@ -4,33 +4,32 @@
  * disclaimer notice.
  */
 import { bidirectionalTraverse, TraverseState } from "@candlefw/conflagrate";
+import { sk } from "../../skribble/skribble.js";
+import { SKExpression } from "../../skribble/types/node";
 import { RenderBodyOptions } from "../../types/render_body_options";
-import { MultiItemReturnObject, TransitionClauseGenerator, TransitionGroup, SingleItemReturnObject } from "../../types/transition_generating";
 import { TokenSymbol } from "../../types/symbol";
+import { MultiItemReturnObject, SingleItemReturnObject, TransitionClauseGenerator, TransitionGroup } from "../../types/transition_generating";
 import { GeneratorStateReturn, TransitionNode, TRANSITION_TYPE } from "../../types/transition_node.js";
+import { expressionListHash } from "../../utilities/code_generating.js";
 import { Item } from "../../utilities/item.js";
-import { SC } from "../../utilities/skribble.js";
 import {
     Symbols_Occlude,
     Sym_Is_A_Generic_Identifier,
     Sym_Is_A_Generic_Type,
-    Sym_Is_Defined_Symbols,
     Sym_Is_Defined_Identifier,
-    Sym_Is_Defined_Natural_Number,
+    Sym_Is_Defined_Natural_Number, Sym_Is_Defined_Symbols,
     Sym_Is_EOF
 } from "../../utilities/symbol.js";
 import { default_resolveBranches } from "./default_branch_resolution.js";
 import { default_resolveResolvedLeaf } from "./default_resolved_leaf_resolution.js";
 import { default_resolveUnresolvedLeaves } from "./default_unresolved_leaves_resolution.js";
 import { Items_Are_From_Same_Production } from "./yield_transitions.js";
-import { sk } from "../../skribble/skribble.js";
-import { SKExpression } from "../../skribble/types/node";
-import { expressionListHash } from "../../utilities/code_generating.js";
 
+const SC = null;
 export function defaultGrouping(g) { return g.hash; }
 type UnresolvedLeavesResolver = (node: TransitionNode, nodes: TransitionNode[], options: RenderBodyOptions) => MultiItemReturnObject;
 
-type InteriorNodesResolver = (gen: TransitionClauseGenerator, node: TransitionNode, items: Item[], level: number, options: RenderBodyOptions) => SC;
+type InteriorNodesResolver = (gen: TransitionClauseGenerator, node: TransitionNode, items: Item[], level: number, options: RenderBodyOptions) => SKExpression[];
 
 type LeafNodeResolver = (item: Item, group: TransitionNode, options: RenderBodyOptions) => SingleItemReturnObject;
 
@@ -89,10 +88,10 @@ export function processTransitionNodes(
                     leaves = nodes.flatMap(g => g.leaves);
 
                 //Set the transition type of any state with a null code property to IGNORE
-                nodes.forEach(g => { if (!g.code) g.transition_type = TRANSITION_TYPE.IGNORE; g.PROCESSED = true });
+                nodes.forEach(g => { if (!g.code) g.transition_type = TRANSITION_TYPE.IGNORE; g.PROCESSED = true; });
 
                 let
-                    root: SC = null, hash = "ignore";
+                    root: SKExpression[] = [], hash = "ignore";
 
                 if (filtered_nodes.length > 0) {
 
@@ -127,7 +126,7 @@ export function processTransitionNodes(
                             options
                         );
                     }
-                    hash = root.hash();
+                    hash = expressionListHash(root);
                 } else {
                     root = null;
                 }
@@ -136,7 +135,7 @@ export function processTransitionNodes(
                 node.prods = prods;
                 node.code = root;
                 node.hash = hash;
-                node.PROCESSED = true
+                node.PROCESSED = true;
 
                 //if (options.helper.ANNOTATED)
                 //    if (root)
@@ -209,22 +208,22 @@ function* traverseInteriorNodes(
         });
     let i = 0;
     for (const group of sel_group.sort((a, b) => {
-        
+
         const groupAEnd = +(a.transition_types[0] == TRANSITION_TYPE.ASSERT_END);
         const groupBEnd = +(b.transition_types[0] == TRANSITION_TYPE.ASSERT_END);
 
         for (const sym_a of a.syms)
             for (const sym_b of b.syms)
                 if (Symbols_Occlude(<TokenSymbol>sym_b, <TokenSymbol>sym_a))
-                    return  1;
+                    return 1;
                 else if (Symbols_Occlude(<TokenSymbol>sym_a, <TokenSymbol>sym_b))
                     return -1;
-        
-            if(groupAEnd - groupBEnd != 0)
 
-                    return (groupAEnd - groupBEnd)
-        
-            return getGroupScore(a) - getGroupScore(b);
+        if (groupAEnd - groupBEnd != 0)
+
+            return (groupAEnd - groupBEnd);
+
+        return getGroupScore(a) - getGroupScore(b);
     })) {
         group.FIRST = i++ == 0;
         group.LAST = i == groups.length;

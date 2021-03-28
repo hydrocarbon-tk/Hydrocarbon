@@ -7,14 +7,12 @@ import { getStartItemsFromProduction } from "../compiler/function_constructor.js
 import { EOF_SYM, Grammar, ItemMapEntry } from "../types/grammar.js";
 import { Production } from "../types/production.js";
 import { ProductionSymbol, Symbol, TokenSymbol } from "../types/symbol";
-import { SymbolType } from "../types/symbol_type";
-import { getTrueSymbolValue } from "./code_generating.js";
 import { getFirstTerminalSymbols } from "./first.js";
 import { Item } from "./item.js";
 import { doesProductionHaveEmpty, getProductionID } from "./production.js";
 import {
     getSymbolName,
-    getUniqueSymbolName,
+    getTrueSymbolValue, getUniqueSymbolName,
     Sym_Is_A_Production,
     Sym_Is_A_Production_Token
 } from "./symbol.js";

@@ -22,7 +22,7 @@ export function default_resolveResolvedLeaf(item: Item, state: TransitionNode, o
 
     const
         { grammar, helper: runner, leaf_productions, production_ids, extended_goto_items: extended_production_shift_items, leaves } = options,
-        code:SKExpression[] = state.code || [],
+        code: SKExpression[] = state.code || [],
         SHOULD_IGNORE = extended_production_shift_items.some(i => i.body == item.body);
 
     let leaf_node = code, prods = [], original_prods = [], INDIRECT = false;
@@ -31,7 +31,7 @@ export function default_resolveResolvedLeaf(item: Item, state: TransitionNode, o
         code.push(createTransitionTypeAnnotation(options, [state.transition_type]));
 
     if (SHOULD_IGNORE) {
-        
+
         state.transition_type = TRANSITION_TYPE.IGNORE;
 
         return {
@@ -51,12 +51,12 @@ export function default_resolveResolvedLeaf(item: Item, state: TransitionNode, o
 
     if (item) {
 
-        
+
         //if (options.helper.ANNOTATED)
         //    code.addStatement(item.renderUnformattedWithProduction(grammar));
-        
+
         if (item.offset == 0 && !options.productions.some(g => g.id == item.getProduction(grammar).id)) {
-     
+
             const production = item.getProduction(grammar);
 
             options.called_productions.add(production.id);
@@ -69,6 +69,7 @@ export function default_resolveResolvedLeaf(item: Item, state: TransitionNode, o
             leaf_node.push(<SKExpression>sk`pushFN(data, ${getProductionFunctionName(production, grammar)})`);
             leaf_node.push(<SKExpression>sk`return:puid`);
 
+
             leaf_node = sc;
 
             prods = processProductionChain([], options, itemsToProductions([item], grammar));
@@ -77,7 +78,7 @@ export function default_resolveResolvedLeaf(item: Item, state: TransitionNode, o
         } else {
 
             const
-                sc = code,
+                sc = [],
 
                 skippable = getSkippableSymbolsFromItems([item], grammar),
 

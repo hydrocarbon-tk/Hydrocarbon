@@ -9,12 +9,11 @@ import { RenderBodyOptions } from "../../types/render_body_options";
 import { TransitionClauseGenerator } from "../../types/transition_generating";
 import { TransitionNode, TRANSITION_TYPE } from "../../types/transition_node.js";
 import { getClosure } from "../../utilities/closure.js";
-import { createBranchFunction, getIncludeBooleansSk } from "../../utilities/code_generating.js";
+import { createBranchFunctionSk, getIncludeBooleansSk } from "../../utilities/code_generating.js";
 import { getFollow } from "../../utilities/follow.js";
 import { rec_glob_lex_name } from "../../utilities/global_names.js";
 import { Item, itemsToProductions } from "../../utilities/item.js";
 import { processProductionChain } from "../../utilities/process_production_reduction_sequences.js";
-import { SC } from "../../utilities/skribble.js";
 import {
     getComplementOfSymbolSets,
     getSkippableSymbolsFromItems,
@@ -30,11 +29,12 @@ import {
 } from "../../utilities/symbol.js";
 import { default_resolveBranches } from "./default_branch_resolution.js";
 
+const SC = null;
 
 export function resolveGOTOBranches(
-    gen: TransitionClauseGenerator, 
-    state: TransitionNode, 
-    items_global: Item[], 
+    gen: TransitionClauseGenerator,
+    state: TransitionNode,
+    items_global: Item[],
     level: number, options: RenderBodyOptions
 ): SKExpression[] {
 
@@ -48,11 +48,11 @@ export function resolveGOTOBranches(
             CONTAINS_END_LEAF_THAT_SHOULD_LOOP = false,
             first_goto_group_keys: number[] = null;
 
-        let match_stmt: SKMatch|SKExpression = <SKMatch> sk`match prod: 1:1`;
+        let match_stmt: SKMatch | SKExpression = <SKMatch>sk`match prod: 1:1`;
 
         match_stmt.matches.length = 0;
 
-        let out :SKExpression[]  = [match_stmt];
+        let out: SKExpression[] = [match_stmt];
 
         for (const { syms, items, code, hash, leaves, prods, PUIDABLE } of goto_groups.sort(
             (a, b) => <number><any>a.syms[0] - <number><any>b.syms[0])
@@ -76,36 +76,36 @@ export function resolveGOTOBranches(
             if (end_items.length > 0)
                 CONTAINS_END_LEAF_THAT_SHOULD_LOOP = true;
 
-            if (    false &&
-                    PUIDABLE && !WE_HAVE_JUST_ONE_GOTO_GROUP && 
-                    /**
-                     * Ensure code for the root productions is not wrapped in
-                     * a branch function to prevent failed parse paths and 
-                     * infinite recursion
-                     */
-                    !keys.some(k=>production_ids.includes(k))
-                ) {
+            if (false &&
+                PUIDABLE && !WE_HAVE_JUST_ONE_GOTO_GROUP &&
+                /**
+                 * Ensure code for the root productions is not wrapped in
+                 * a branch function to prevent failed parse paths and 
+                 * infinite recursion
+                 */
+                !keys.some(k => production_ids.includes(k))
+            ) {
                 //discard all leaves 
                 leaves.forEach(l => l.transition_type == TRANSITION_TYPE.IGNORE);
                 const nc = new SC;
                 const productions = itemsToProductions([items[0]], grammar);
 
                 processProductionChain(nc, options, productions);
-                const continue_name = createBranchFunction(nc, nc, options);
-                
-                const call_name = createBranchFunction(code, code, options);
+                const continue_name = createBranchFunctionSk(nc, options);
+
+                const call_name = createBranchFunctionSk(code, options);
 
                 code.addStatement(SC.Value("return -1"));
 
                 sc.addStatement(SC.Call("pushFN", "data", continue_name));
                 sc.addStatement(SC.UnaryPre(SC.Return, SC.Call(call_name, "l", "data", "state", "prod", "" + grammar.item_map.get(items[0].decrement().id).sym_uid)));
-                leaves[0].leaf.addStatement(SC.Value("return 0"))
+                leaves[0].leaf.addStatement(SC.Value("return 0"));
                 leaves[0].leaf = nc;
                 leaves[0].INDIRECT = true;
                 leaves[0].transition_type = TRANSITION_TYPE.ASSERT;
-                
+
             } else if (active_items.length > 0) {
-                
+
                 const
                     closure = getClosure(active_items.slice(), grammar, true);
                 anticipated_syms = getSymbolsFromClosure(closure, grammar);
@@ -189,7 +189,7 @@ export function resolveGOTOBranches(
                             booleans = getIncludeBooleansSk(checked_symbols, options, rec_glob_lex_name, anticipated_syms);
 
                         if (booleans) {
-                            interrupt_statement = sk`if (${booleans}) : return : ${keys[0]}`
+                            interrupt_statement = sk`if (${booleans}) : return : ${keys[0]}`;
                         }
                     }
                 }
@@ -202,7 +202,7 @@ export function resolveGOTOBranches(
                     ${WE_HAVE_JUST_ONE_GOTO_GROUP ? "" : SC.Break}
                 }`).matches[0];
 
-            (<SKMatch>match_stmt).matches.push(match_clause)
+            (<SKMatch>match_stmt).matches.push(match_clause);
 
             if (WE_HAVE_JUST_ONE_GOTO_GROUP) {
                 first_goto_group_keys = keys;
@@ -211,13 +211,13 @@ export function resolveGOTOBranches(
         }
 
         if (CONTAINS_END_LEAF_THAT_SHOULD_LOOP) {
-            return [<SKLoop>sk`loop (1): {
+            return [<SKLoop>sk`loop (1){
                 ${match_stmt};
                 break;
-            }`]
-        } else if (!WE_HAVE_JUST_ONE_GOTO_GROUP){
+            }`];
+        } else if (!WE_HAVE_JUST_ONE_GOTO_GROUP) {
             const match_clause = (<SKMatch>sk`match 1 : default:break`).matches[0];
-            (<SKMatch>match_stmt).matches.push(match_clause)
+            (<SKMatch>match_stmt).matches.push(match_clause);
         }
 
 
@@ -229,6 +229,6 @@ export function resolveGOTOBranches(
 
 export function addClauseSuccessCheck(options: RenderBodyOptions): SKExpression {
     const { productions } = options;
-    
-    return <SKExpression>sk`return prod == ${productions[0].id} ? prod : -1`;
+
+    return <SKExpression>sk`return : (prod ~= ${productions[0].id}) ? prod ? 1`;
 }

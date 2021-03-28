@@ -5,20 +5,18 @@
  */
 import { performance } from "perf_hooks";
 import { sk } from "../skribble/skribble.js";
-import { SKFunction, SKPrimitiveDeclaration } from "../skribble/types/node.js";
+import { SKBlock, SKFunction, SKIf, SKPrimitiveDeclaration } from "../skribble/types/node.js";
 import { Grammar } from "../types/grammar.js";
 import { Production } from "../types/production";
 import { RDProductionFunction } from "../types/rd_production_function";
 import { RenderBodyOptions } from "../types/render_body_options";
 import { Symbol } from "../types/symbol.js";
 import { Leaf, TRANSITION_TYPE } from "../types/transition_node.js";
-import { collapseBranchNames, createBranchFunction, getProductionFunctionName } from "../utilities/code_generating.js";
+import { collapseBranchNamesSk, createBranchFunctionSk, getProductionFunctionName } from "../utilities/code_generating.js";
 import { const_EMPTY_ARRAY } from "../utilities/const_EMPTY_ARRAY.js";
-import { rec_glob_data_name, rec_glob_lex_name, rec_state } from "../utilities/global_names.js";
 import { Item, ItemIndex } from "../utilities/item.js";
 import { getProductionClosure } from "../utilities/production.js";
 import { renderItem, renderItemReduction } from "../utilities/render_item.js";
-import { SC } from "../utilities/skribble.js";
 import { Sym_Is_A_Production } from "../utilities/symbol.js";
 import { createVirtualProductions } from "../utilities/virtual_productions.js";
 import { Helper } from "./helper.js";
@@ -30,7 +28,7 @@ import { yieldGOTOTransitions } from "./transitions/yield_goto_transitions.js";
 import { yieldTransitions } from "./transitions/yield_transitions.js";
 
 
-
+const SC = null;
 
 
 export function constructHybridFunction(production: Production, grammar: Grammar, runner: Helper): RDProductionFunction {
@@ -47,13 +45,13 @@ export function constructHybridFunction(production: Production, grammar: Grammar
             = compileProductionFunctions(grammar, runner, [production]),
 
         RD_function = <SKFunction>sk`
-        fn ${rd_fn_name}(l:Lexer,data:Data, state:u32, prod:u32, puid:i32){
+        fn ${getProductionFunctionName(production, grammar)}:u32(l:Lexer,data:Data, state:u32, prod:u32, puid:i32){
             ${RD_fn_contents}
         }`,
 
         GOTO_function = sk`
-        fn ${goto_fn_name}(l:Lexer,data:Data, state:u32, prod:u32, puid:i32){
-            ${RD_fn_contents}
+        fn ${getProductionFunctionName(production, grammar)}_goto:u32(l:Lexer,data:Data, state:u32, prod:u32, puid:i32){
+            ${GOTO_fn_contents}
         }`;
 
     addLeafStatements(
@@ -64,38 +62,36 @@ export function constructHybridFunction(production: Production, grammar: Grammar
         RDOptions,
         GOTO_Options);
 
-    collapseBranchNames(RDOptions);
-    collapseBranchNames(GOTO_Options);
+    collapseBranchNamesSk(RDOptions);
+    collapseBranchNamesSk(GOTO_Options);
 
     if (!GOTO_Options.NO_GOTOS)
-        GOTO_function.addStatement(addClauseSuccessCheck(RDOptions));
+        GOTO_function.expressions.push(addClauseSuccessCheck(RDOptions));
 
 
     function constructReduceFunction(production: Production, options: RenderBodyOptions) {
-        const fn = SC.Function("$" + production.name + "_reducer:unsigned int",
-            "l:Lexer",
-            "data:ParserData",
-            "state:u32",
-            "prod:u32",
-            "puid:u32")
-            ;
 
         const end_items = getStartItemsFromProduction(production).map(i => i.toEND());
-        let leaf: SC = fn;
+        const ifs = [];
+
         for (const item of end_items) {
 
             if (item.len == 1 && !item.body_(grammar).reduce_function) continue;
-            const index = options.grammar.item_map.get(item.id).sym_uid;
-            const _if = SC.If(SC.Value(`${index} == puid`));
 
-            if (options.helper.ANNOTATED)
-                _if.addStatement(item.renderUnformattedWithProduction(grammar));
-            renderItemReduction(_if, item, options, false);
-            leaf.addStatement(_if);
-            leaf = _if;
+            const index = options.grammar.item_map.get(item.id).sym_uid;
+            const _if = <SKIf>sk`if ${index} == puid : { }`;
+
+            renderItemReduction((<SKBlock>_if.expression).expressions, item, options, false);
+
+            ifs.push(_if);
         }
 
-        fn.addStatement(SC.Value(`return ${production.id}`));
+        ifs.reduce((r, i) => r ? (r.else = i, i) : i, null);
+
+        const fn = sk`fn $${production.name}_reducer:u32 (l:Lexer, data:ParserData, state:u32, prod:u32, puid:u32){
+            ${ifs[0]};
+            return : ${production.id};
+        }`;
 
         return fn;
     }
@@ -112,12 +108,12 @@ export function constructHybridFunction(production: Production, grammar: Grammar
     return {
         productions: new Set([...RDOptions.called_productions.values(), ...GOTO_Options.called_productions.values(), ...runner.referenced_production_ids.values()]),
         id: production.id,
-        fn: (new SC).addStatement(
-            (runner.ANNOTATED) ? annotation : undefined,
+        fn: [
+            //(runner.ANNOTATED) ? annotation : undefined,
             RD_function,
             GOTO_Options.NO_GOTOS ? undefined : GOTO_function,
             ReduceFunction
-        )
+        ]
     };
 }
 
@@ -161,9 +157,9 @@ export function createVirtualProductionSequence(
             (CLEAN ? 1 : options.VIRTUAL_LEVEL + 1)
         );
 
-    const rd_virtual_name = createBranchFunction(RD_fn_contents, RD_fn_contents, RDOptions);
+    const rd_virtual_name = createBranchFunctionSk(RD_fn_contents, RD_fn_contents, RDOptions);
 
-    const goto_virtual_name = createBranchFunction(RD_fn_contents, GOTO_fn_contents, GOTO_Options);
+    const goto_virtual_name = createBranchFunctionSk(RD_fn_contents, GOTO_fn_contents, GOTO_Options);
 
     const gen = addVirtualProductionLeafStatements(
         RD_fn_contents,

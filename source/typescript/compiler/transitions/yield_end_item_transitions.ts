@@ -9,7 +9,6 @@ import { RenderBodyOptions } from "../../types/render_body_options";
 import { getClosure, getFollowClosure } from "../../utilities/closure.js";
 import { getFollow } from "../../utilities/follow.js";
 import { getGotoItems, Item, itemsToProductions } from "../../utilities/item.js";
-import { SC } from "../../utilities/skribble.js";
 import { getSymbolsFromClosure } from "../../utilities/symbol.js";
 import { getTransitionTree } from "../../utilities/transition_tree.js";
 import { const_EMPTY_ARRAY } from "../../utilities/const_EMPTY_ARRAY.js";
@@ -17,7 +16,7 @@ import { createTransitionNode } from "./create_transition_node.js";
 import { processProductionChain } from "../../utilities/process_production_reduction_sequences.js";
 import { buildPeekTransitions } from "./yield_peek_transitions.js";
 
-
+const SC = null;
 export function yieldEndItemTransitions(end_items: Item[], options: RenderBodyOptions, offset: number): TransitionNode[] {
 
     if (end_items.length == 0) return [];

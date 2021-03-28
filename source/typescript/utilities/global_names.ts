@@ -2,21 +2,13 @@
  * Copyright (C) 2021 Anthony Weathersby - The Hydrocarbon Parser Compiler
  * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
  * disclaimer notice.
- */
-import { SC } from "./skribble.js";
-
-export const rec_glob_data_name = "data";
+ */export const rec_glob_data_name = "data";
 export const rec_glob_lex_name = "l";
 /**
  * Recognizer function names
  */
-export const rec_consume_call = SC.Variable("consume:void");
 
-export const rec_consume_assert_call = SC.Variable("assert_consume:unsigned");
-
-export const rec_state = SC.Variable("state:unsigned");
-
-export const rec_state_prod = SC.Variable("prod:unsigned int");
+export const rec_state = null;
 
 export const TokenSpaceIdentifier = 1,
     TokenNumberIdentifier = 2,
