@@ -95,7 +95,7 @@ f:r { [ $sym1 ] }
     | continue_expression
     | loop_expression
     | \{ expression_statements? \}
-    f:r { { type:"block", expression:$sym2 || [] } }  
+    f:r { { type:"block", expressions:$sym2 || [] } }  
     | template
     f:r { env.grabTemplateNode("template-expression") }
 
@@ -231,9 +231,9 @@ f:r { { type:"null"  } }
 | template
 f:r { env.grabTemplateNode("template-value") }
 
-<> string > \" ( g:ws | g:nl | g:id | g:sym | \\" )(*\' ) \"
+<> string > \" ( g:ws | g:nl | g:id | g:sym  | g:num | \\" )(*\' ) \"
 f:r { { type:"string", value: $$sym2  } }
-| \' ( g:ws | g:nl | g:id | g:sym | \\" )(*\' ) \'
+| \' ( g:ws | g:nl | g:id | g:sym | g:num | \\" )(*\' ) \'
 f:r { { type:"string", value: $$sym2  } }
 
 <> num > tk:num_tok
