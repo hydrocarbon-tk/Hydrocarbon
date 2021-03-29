@@ -201,9 +201,10 @@ export function collapseBranchNamesSk(options: RenderBodyOptions) {
             hash = expressionListHash(body),
 
             token_function = <SKFunction>sk`fn temp:u32 (l:Lexer, data:Data, state:u32, prod:u32, puid:u32){
-                ${body.map(s => [s, ";"])};
                 /*${hash}*/
             }`;
+
+        token_function.expressions = body;
 
 
         console.log(skRenderAsSK(token_function));

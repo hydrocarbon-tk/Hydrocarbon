@@ -45,14 +45,14 @@ export function constructHybridFunction(production: Production, grammar: Grammar
             = compileProductionFunctions(grammar, runner, [production]),
 
         RD_function = <SKFunction>sk`
-        fn ${getProductionFunctionName(production, grammar)}:u32(l:Lexer,data:Data, state:u32, prod:u32, puid:i32){
-            ${RD_fn_contents}
-        }`,
+        fn ${getProductionFunctionName(production, grammar)}:u32(l:Lexer,data:Data, state:u32, prod:u32, puid:i32){}`,
 
-        GOTO_function = sk`
-        fn ${getProductionFunctionName(production, grammar)}_goto:u32(l:Lexer,data:Data, state:u32, prod:u32, puid:i32){
-            ${GOTO_fn_contents}
-        }`;
+        GOTO_function = <SKFunction>sk`
+        fn ${getProductionFunctionName(production, grammar)}_goto:u32(l:Lexer,data:Data, state:u32, prod:u32, puid:i32){  }`;
+
+    RD_function.expressions = RD_fn_contents;
+
+    GOTO_function.expressions = GOTO_fn_contents;
 
     addLeafStatements(
         RD_fn_contents,
@@ -99,11 +99,11 @@ export function constructHybridFunction(production: Production, grammar: Grammar
     const ReduceFunction = constructReduceFunction(production, RDOptions);
 
 
-    const annotation = SC.Expressions(SC.Comment(
-        `production name: ${production.name}
-            grammar index: ${production.id}
-            bodies:\n\t${getStartItemsFromProduction(production).map(i => i.renderUnformattedWithProduction(grammar) + " - " + grammar.item_map.get(i.id).reset_sym.join(",")).join("\n\t\t")}
-            compile time: ${((((performance.now() - start) * 1000) | 0) / 1000)}ms`));
+    //const annotation = 
+    //    `production name: ${production.name}
+    //        grammar index: ${production.id}
+    //        bodies:\n\t${getStartItemsFromProduction(production).map(i => i.renderUnformattedWithProduction(grammar) + " - " + grammar.item_map.get(i.id).reset_sym.join(",")).join("\n\t\t")}
+    //        compile time: ${((((performance.now() - start) * 1000) | 0) / 1000)}ms`);
 
     return {
         productions: new Set([...RDOptions.called_productions.values(), ...GOTO_Options.called_productions.values(), ...runner.referenced_production_ids.values()]),

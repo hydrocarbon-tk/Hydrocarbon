@@ -36,7 +36,7 @@ export function yieldEndItemTransitions(end_items: Item[], options: RenderBodyOp
 
         const
             original_prods = itemsToProductions(end_items, grammar),
-            prods = end_items.map(i => processProductionChain(new SC, options, itemsToProductions([i], grammar))[0]),
+            prods = end_items.map(i => processProductionChain([], options, itemsToProductions([i], grammar))[0]),
             active_items = getGotoItems(grammar, prods, goto_items).map(i => i.increment());
 
         if (active_items.length == 1) {

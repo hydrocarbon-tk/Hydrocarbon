@@ -114,7 +114,7 @@ export function addLeafStatements(
             } else if (transition_type == TRANSITION_TYPE.ASSERT_END
                 && !INDIRECT
             ) {
-                leaf.push(<SKExpression>sk`prod=${SC.Value(prods[0])}`);
+                leaf.push(<SKExpression>sk`prod=${prods[0]}`);
                 leaf.push(<SKExpression>sk`continue`);
             } else {
                 leaf.push(<SKExpression>sk`pushFN(data, ${goto_fn_name})`);

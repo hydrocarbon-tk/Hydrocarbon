@@ -4,7 +4,7 @@
  * disclaimer notice.
  */
 import { sk } from "../../skribble/skribble.js";
-import { SKExpression, SKIf, SKMatch, SKReturn } from "../../skribble/types/node";
+import { SKBlock, SKExpression, SKIf, SKMatch, SKReturn } from "../../skribble/types/node";
 import { RenderBodyOptions } from "../../types/render_body_options";
 import { Symbol, TokenSymbol } from "../../types/symbol.js";
 import { TransitionClauseGenerator, TransitionGroup } from "../../types/transition_generating";
@@ -49,9 +49,9 @@ export function default_resolveBranches(
         end_groups = groups.filter(group => group.transition_types[0] == TRANSITION_TYPE.ASSERT_END),
         number_of_end_groups = end_groups.length,
         all_syms = groups.flatMap(({ syms }) => syms).setFilter(getUniqueSymbolName),
-        root: SKExpression[] = [],
         GROUPS_CONTAIN_SYMBOL_AMBIGUITY = Groups_Contain_Symbol_Ambiguity(groups);
 
+    let root: SKExpression[] = [];
 
 
     if (groups.length == 1
@@ -96,7 +96,7 @@ export function default_resolveBranches(
 
     } else
 
-        root.push(...createIfElseExpressions(options, node, groups, root, "l", peek_name, all_syms, FORCE_ASSERTIONS));
+        root = createIfElseExpressions(options, node, groups, root, "l", peek_name, all_syms, FORCE_ASSERTIONS);
 
     return root;
 }
@@ -187,9 +187,17 @@ function createSwitchBlock(
 
         if (transition_types[0] == TRANSITION_TYPE.ASSERT_END && DEFAULT_NOT_ADDED) {
             DEFAULT_NOT_ADDED = false;
-            matches.push((<SKMatch>sk`match 1 : default || ${i} : { ${code.flatMap(c => [c, ";"])} }`).matches[0]);
+            matches.push((<SKMatch>sk`match 1 : default || ${i} : ${(<SKBlock>{
+                type: "block",
+                expressions: code
+            })
+                }`).matches[0]);
         } else {
-            matches.push((<SKMatch>sk`match 1 : ${i} : { ${code.flatMap(c => [c, ";"])} }`).matches[0]);
+            matches.push((<SKMatch>sk`match 1 : ${i} : ${(<SKBlock>{
+                type: "block",
+                expressions: code
+            })
+                }`).matches[0]);
         }
     }
 
@@ -214,12 +222,14 @@ function createPeekStatements(
 
     if (state.peek_level >= 0) {
         if (state.peek_level == 1) {
-            root.push(<SKExpression>sk`[mut] pk:Lexer = ${lex_name}.cop___gy()`);
+            peek_name = "pk";
+            root.push(<SKExpression>sk`[mut] pk:Lexer = ${lex_name}.copy()`);
         }
 
         if (state.offset > 0 && state.peek_level == 0) {
             root.push(createSkipCallSk(skippable, options, lex_name, false));
         } else if (state.peek_level >= 1) {
+            peek_name = "pk";
             root.push(createSkipCallSk(skippable, options, "pk.next(data)", true));
         }
     } else if (state.offset > 0) {
@@ -244,13 +254,12 @@ function createIfElseExpressions(
     FORCE_ASSERTIONS: boolean,
 ): SKExpression[] {
 
-    let expressions = [], last_if: SKIf = null;
+    let expressions = root, last_if: SKIf = null;
 
     let previous_transition: TRANSITION_TYPE;
 
     function addIf(_if: SKIf) {
-        if (_if.type !== "if")
-            debugger;
+
         if (last_if) {
             last_if.else = _if;
         } else {
@@ -278,11 +287,11 @@ function createIfElseExpressions(
         switch (transition_type) {
 
             case TRANSITION_TYPE.POST_PEEK_CONSUME:
-
-                expressions.push(createTransitionTypeAnnotation(options, transition_types));
-                expressions.push(<SKExpression>sk`puid |= ${grammar.item_map.get(items[0].id).sym_uid}`);
-                expressions.push(createConsumeSk(lex_name));
-                expressions.push(...code);
+                code.unshift(...expressions);
+                code.unshift(createTransitionTypeAnnotation(options, transition_types));
+                code.unshift(<SKExpression>sk`puid |= ${grammar.item_map.get(items[0].id).sym_uid}`);
+                code.unshift(createConsumeSk(lex_name));
+                expressions = code;
                 break;
 
             case TRANSITION_TYPE.ASSERT_END:
@@ -457,9 +466,12 @@ function createIfStatementTransition(
 
     const transition_type: TRANSITION_TYPE = transition_types[0];
 
-    let if_stmt = <SKIf>sk`if(${boolean_assertion}): {
-        ${modified_code.flatMap(m => [m, ";"])}
-    }`;
+    let if_stmt = <SKIf>sk`if(${boolean_assertion}): ${(<SKBlock>{
+        type: "block",
+        expressions: modified_code
+    })
+
+        }`;
 
     const SKIP_BOOL_EXPRESSION = (!FORCE_ASSERTIONS || transition_type == TRANSITION_TYPE.ASSERT_END)
         && (LAST && !FIRST)

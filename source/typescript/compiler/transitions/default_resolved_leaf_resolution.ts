@@ -64,11 +64,10 @@ export function default_resolveResolvedLeaf(item: Item, state: TransitionNode, o
             const sc = [],
                 call_name = createBranchFunctionSk(sc, options);
 
-            leaf_node.push(<SKExpression>sk`puid |= ${grammar.item_map.get(item.id).sym_uid}`);
-            leaf_node.push(<SKExpression>sk`pushFN(data, ${call_name})`);
-            leaf_node.push(<SKExpression>sk`pushFN(data, ${getProductionFunctionName(production, grammar)})`);
-            leaf_node.push(<SKExpression>sk`return:puid`);
-
+            code.push(<SKExpression>sk`puid |= ${grammar.item_map.get(item.id).sym_uid}`);
+            code.push(<SKExpression>sk`pushFN(data, ${call_name})`);
+            code.push(<SKExpression>sk`pushFN(data, ${getProductionFunctionName(production, grammar)})`);
+            code.push(<SKExpression>sk`return:puid`);
 
             leaf_node = sc;
 
@@ -78,7 +77,6 @@ export function default_resolveResolvedLeaf(item: Item, state: TransitionNode, o
         } else {
 
             const
-                sc = [],
 
                 skippable = getSkippableSymbolsFromItems([item], grammar),
 
@@ -90,7 +88,7 @@ export function default_resolveResolvedLeaf(item: Item, state: TransitionNode, o
             if (skip)
                 code.push(skip);
 
-            ({ leaf_node, prods, INDIRECT, original_prods } = renderItem(sc, item, options,
+            ({ leaf_node, prods, INDIRECT, original_prods } = renderItem(code, item, options,
                 state.transition_type == TRANSITION_TYPE.ASSERT
                 || state.transition_type == TRANSITION_TYPE.ASSERT_PEEK
                 || state.transition_type == TRANSITION_TYPE.ASSERT_PEEK_VP));

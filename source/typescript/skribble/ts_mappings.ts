@@ -10,7 +10,7 @@ import {
     SKBlock, SKReturn, SKContinue, SKNamespace, SKStructure, SKClass, SKModule, SKType,
 } from "./types/node";
 
-export const skribble_mappings: NodeMappings<SKNode, "type"> = <NodeMappings<SKNode, "type">>{
+export const ts_mappings: NodeMappings<SKNode, "type"> = <NodeMappings<SKNode, "type">>{
     typename: "type",
     type_lookup: () => 0,
     mappings: [
@@ -52,27 +52,27 @@ export const skribble_mappings: NodeMappings<SKNode, "type"> = <NodeMappings<SKN
         },
         <NodeMapping<SKTypeReference>>{
             type: "type-i32",
-            template: "i32"
+            template: "number"
         },
         <NodeMapping<SKTypeReference>>{
             type: "type-u32",
-            template: "u32"
+            template: "number"
         },
         <NodeMapping<SKTypeReference>>{
             type: "type-i64",
-            template: "i64"
+            template: "number"
         },
         <NodeMapping<SKTypeReference>>{
             type: "type-u64",
-            template: "u64"
+            template: "number"
         },
         <NodeMapping<SKTypeReference>>{
             type: "type-i16",
-            template: "i16"
+            template: "number"
         },
         <NodeMapping<SKTypeReference>>{
             type: "type-u16",
-            template: "u16"
+            template: "number"
         },
         <NodeMapping<SKTypeReference>>{
             type: "type",
@@ -80,11 +80,11 @@ export const skribble_mappings: NodeMappings<SKNode, "type"> = <NodeMappings<SKN
         },
         <NodeMapping<SKTypeReference>>{
             type: "type-i8",
-            template: "i8"
+            template: "number"
         },
         <NodeMapping<SKTypeReference>>{
             type: "type-u8",
-            template: "u8"
+            template: "number"
         },
         <NodeMapping<SKAssignment>>{
             type: "assignment",
@@ -94,7 +94,7 @@ export const skribble_mappings: NodeMappings<SKNode, "type"> = <NodeMappings<SKN
         <NodeMapping<SKIf>>{
             type: "if",
             child_keys: ["assertion", "expression", "else"],
-            template: "if m:s @assertion? o:s \\: o:s @expression {else: m:s else m:s @else }"
+            template: "if \\( o:s @assertion o:s \\) @expression {else: m:s else m:s @else }"
         },
         <NodeMapping<SKOperatorExpression>>{
             type: "operator-expression",
@@ -145,7 +145,7 @@ export const skribble_mappings: NodeMappings<SKNode, "type"> = <NodeMappings<SKN
         <NodeMapping<SKLoop>>{
             type: "loop",
             child_keys: ["assertion", "expression"],
-            template: "loop { assertion: \\( o:s @assertion? o:s \\) } i:s m:s @expression i:e"
+            template: "while { assertion: \\( o:s @assertion? o:s \\) } i:s m:s @expression i:e"
         },
         <NodeMapping<SKFor>>{
             type: "for-loop",
@@ -161,12 +161,40 @@ export const skribble_mappings: NodeMappings<SKNode, "type"> = <NodeMappings<SKN
         <NodeMapping<SKMatch>>{
             type: "match",
             child_keys: ["match_expression", "matches"],
-            template: "match m:s @match_expression \\: i:s o:n @matches...[\\, o:n o:n] i:e"
+            template: "switch \\( @match_expression \\) \\{ i:s o:n @matches...[o:n] i:e o:n\\}"
         },
         <NodeMapping<SKMatchTarget>>{
             type: "match-clause",
             child_keys: ["match", "expression"],
-            template: "@match \\: o:s o:n @expression"
+            template: "case @match \\: o:s o:n @expression",
+            custom_render: (state, template_fn) => {
+
+                const { node, indent } = state;
+
+                const cases = [];
+
+                if (node.match.type == "operator-expression") {
+
+                    cases.push(...node.match.list.map(s => {
+                        if (s.type == "operator")
+                            return null;
+                        if (s?.value?.trim() == "default")
+                            return "default:";
+                        return `case ${template_fn(state, s)}:`;
+
+
+                    }).filter(s => s));
+                } else if (node.match?.value == "default") {
+                    cases.push(`default:`);
+                } else {
+                    cases.push(`case ${template_fn(state, node.match)}:`);
+                }
+
+                const offset = " ".repeat(4 * indent);
+
+                return `${cases.join("\n" + offset)} ${"\n" + offset}${template_fn(state, node.expression)}`;
+
+            }
         },
         <NodeMapping<SKCall>>{
             type: "call",
@@ -191,7 +219,7 @@ export const skribble_mappings: NodeMappings<SKNode, "type"> = <NodeMappings<SKN
         <NodeMapping<SKReturn>>{
             type: "return",
             child_keys: ["expression"],
-            template: "return {expression : \\: o:s @expression }"
+            template: "return {expression : m:s @expression }"
         },
         <NodeMapping<SKContinue>>{
             type: "continue",
@@ -205,7 +233,20 @@ export const skribble_mappings: NodeMappings<SKNode, "type"> = <NodeMappings<SKN
         <NodeMapping<SKPrimitiveDeclaration>>{
             type: "declaration",
             child_keys: ["type", "primitive_type", "initialization"],
-            template: "{ modifiers:  \\[ @modifiers...[ m:s ]\\] m:s } @name:@primitive_type{initialization: o:s = o:s @initialization}"
+            template: "@var_type m:s @name:@primitive_type{initialization: o:s = o:s @initialization}",
+            custom_render: (state, template_fn) => {
+                let variable_type = "var";
+
+                const { node } = state;
+
+                if (node.modifiers.includes("imut")) {
+                    variable_type = "const";
+                }
+
+                return template_fn(state, Object.assign({}, node, {
+                    var_type: variable_type
+                }));
+            }
         },
         <NodeMapping<SKStructure>>{
             type: "structure",
@@ -220,7 +261,7 @@ export const skribble_mappings: NodeMappings<SKNode, "type"> = <NodeMappings<SKN
         <NodeMapping<SKFunction>>{
             type: "function",
             child_keys: ["name", "return_type", "parameters", "expressions"],
-            template: "{ modifiers:  \\[ @modifiers...[ m:s ] \\] m:s } fn m:s @name:@return_type (@parameters...[,o:s])\\{ i:s o:n @expressions...[;o:n] i:e o:n \\}"
+            template: "function m:s @name (@parameters...[,o:s]) \\: @return_type \\{ i:s o:n @expressions...[;o:n]\\; i:e o:n \\}"
         },
         <NodeMapping<SKLambda>>{
             type: "lambda",
@@ -234,5 +275,6 @@ export const skribble_mappings: NodeMappings<SKNode, "type"> = <NodeMappings<SKN
     ]
 };
 
-const lu_table = new Map(skribble_mappings.mappings.map((i, j) => [i.type, j]));
-skribble_mappings.type_lookup = (node, name) => lu_table.get(node.type) || -1;
+const lu_table = new Map(ts_mappings.mappings.map((i, j) => [i.type, j]));
+
+ts_mappings.type_lookup = (node, name) => lu_table.get(node.type) || -1;

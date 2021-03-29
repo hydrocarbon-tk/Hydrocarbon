@@ -4,7 +4,7 @@
  * disclaimer notice.
  */
 import { sk } from "../../skribble/skribble.js";
-import { SKBlock, SKExpression, SKLoop, SKMatch } from "../../skribble/types/node";
+import { SKBlock, SKBreak, SKExpression, SKLoop, SKMatch } from "../../skribble/types/node";
 import { RenderBodyOptions } from "../../types/render_body_options";
 import { TransitionClauseGenerator } from "../../types/transition_generating";
 import { TransitionNode, TRANSITION_TYPE } from "../../types/transition_node.js";
@@ -71,8 +71,6 @@ export function resolveGOTOBranches(
 
             let interrupt_statement = null;
 
-            let sc = code;
-
             if (end_items.length > 0)
                 CONTAINS_END_LEAF_THAT_SHOULD_LOOP = true;
 
@@ -97,8 +95,8 @@ export function resolveGOTOBranches(
 
                 code.addStatement(SC.Value("return -1"));
 
-                sc.addStatement(SC.Call("pushFN", "data", continue_name));
-                sc.addStatement(SC.UnaryPre(SC.Return, SC.Call(call_name, "l", "data", "state", "prod", "" + grammar.item_map.get(items[0].decrement().id).sym_uid)));
+                code.addStatement(SC.Call("pushFN", "data", continue_name));
+                code.addStatement(SC.UnaryPre(SC.Return, SC.Call(call_name, "l", "data", "state", "prod", "" + grammar.item_map.get(items[0].decrement().id).sym_uid)));
                 leaves[0].leaf.addStatement(SC.Value("return 0"));
                 leaves[0].leaf = nc;
                 leaves[0].INDIRECT = true;
@@ -195,12 +193,19 @@ export function resolveGOTOBranches(
                 }
             }
 
-            const match_clause = (<SKMatch>sk`match 1 : ${keys.join(",")}: 
-                {
-                    ${interrupt_statement}; 
-                    ${sc}; 
-                    ${WE_HAVE_JUST_ONE_GOTO_GROUP ? "" : SC.Break}
+            if (interrupt_statement)
+                code.unshift(interrupt_statement);
+
+            if (!WE_HAVE_JUST_ONE_GOTO_GROUP)
+                code.push(<SKBreak>sk`break`);
+
+
+            const match_clause = (<SKMatch>sk`match 1 : ${keys.join(",")}: ${(<SKBlock>{
+                type: "block",
+                expressions: code
+            })
                 }`).matches[0];
+
 
             (<SKMatch>match_stmt).matches.push(match_clause);
 

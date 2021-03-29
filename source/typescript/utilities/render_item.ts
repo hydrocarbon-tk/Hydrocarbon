@@ -4,16 +4,16 @@
  * disclaimer notice.
  */
 import { sk } from "../skribble/skribble.js";
-import { SKBlock, SKExpression, SKIf } from "../skribble/types/node";
+import { SKBlock, SKExpression, SKIf, SKString } from "../skribble/types/node";
 import { Grammar } from "../types/grammar";
 import { RenderBodyOptions } from "../types/render_body_options";
 import { ProductionSymbol } from "../types/symbol";
 import {
-    createAssertionShiftSk, 
+    createAssertionShiftSk,
     createBranchFunctionSk,
-    createConsumeSk, 
+    createConsumeSk,
     createDefaultReduceFunctionSk,
-    createReduceFunctionSK, 
+    createReduceFunctionSK,
     createSkipCallSk,
     getProductionFunctionName
 } from "./code_generating.js";
@@ -40,12 +40,19 @@ export function renderItemReduction(
     }
     const body = item.body_(grammar);
 
+    const prod_str = <SKExpression><any>sk`" temp " `;
+
+    prod_str.value = item.getProduction(grammar).id + "";
+
+    code_node.push((prod_str));
+
     if (CAN_USE_CLASS_REDUCER && (body.reduce_id >= 0 || item.len > 1))
         code_node.push(<SKExpression>sk`prod = $${item.getProduction(grammar).name}_reducer(l,data,state,prod,puid)`);
     else if (body.reduce_id >= 0)
         code_node.push(createReduceFunctionSK(item, grammar));
     else if (item.len > 1)
         code_node.push(createDefaultReduceFunctionSk(item));
+
 
 }
 
@@ -126,7 +133,7 @@ export function renderItem(
                 }
             }
 
-            let code:SKExpression[] = null;
+            let code: SKExpression[] = null;
 
             ({ leaf_node: code, prods, original_prods } = renderItem(call_body, item.increment(), options, false, lexer_name, true, items));
 
@@ -135,8 +142,8 @@ export function renderItem(
             const call_name = createBranchFunctionSk(call_body, options);
             const rc = [];
 
-            rc.push(sk`pushFN(data,${ call_name})`);
-            rc.push(sk`pushFN(data,${ getProductionFunctionName(grammar[first_non_passthrough], grammar)})`);
+            rc.push(sk`pushFN(data,${call_name})`);
+            rc.push(sk`pushFN(data,${getProductionFunctionName(grammar[first_non_passthrough], grammar)})`);
             rc.push(sk`return:puid`);
             // /rc.addStatement(SC.UnaryPre(SC.Return, SC.Value("0")));
 
@@ -152,7 +159,7 @@ export function renderItem(
         }
 
         if (!RENDER_WITH_NO_CHECK) {
-            const _if = <SKIf & {expression:SKBlock}>sk`if (${bool_expression}) : {}`;
+            const _if = <SKIf & { expression: SKBlock; }>sk`if (${bool_expression}) : {}`;
             leaf_expressions.push(_if);
             return renderItem(_if.expression.expressions, item.increment(), options, false, lexer_name, true);
         } else {
