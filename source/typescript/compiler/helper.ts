@@ -3,7 +3,8 @@
  * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
  * disclaimer notice.
  */
-import { SKNode, SKPrimitiveDeclaration, SKReference } from "../skribble/types/node.js";
+import { debug } from "console";
+import { SKExpression, SKFunction, SKNode, SKPrimitiveDeclaration, SKReference } from "../skribble/types/node.js";
 const SC = null;
 /**
  * A generated name that is unique to a specific sequence of code
@@ -47,6 +48,9 @@ export class Helper {
 
     add_constant(const_name: SKPrimitiveDeclaration, const_value: SKNode): SKReference {
 
+        if (const_value == "fn")
+            debugger;
+
         let global_name = const_name.name;
 
         let actual_name: SKReference = null;
@@ -72,28 +76,30 @@ export class Helper {
 
         for (const [global_name, { original_name, name, code_node }] of const_map.entries()) {
             if (!this.constant_map.has(global_name)) {
-                this.add_constant(<any>SC.Bind(<any>original_name), SC.Bind(code_node));
+                this.add_constant(original_name, code_node));
             }
         }
     }
-    render_constants(): { const: SC[], fn: SC[]; } {
+    render_constants(): { const: SKPrimitiveDeclaration[], fn: SKFunction[]; } {
 
         const code_fn_node = [], const_ty_node = [];
 
-        for (const { name, code_node: node } of [...this.constant_map.values()].sort((a, b) => {
+        for (const { name, code_node: node, original_name } of [...this.constant_map.values()].sort((a, b) => {
             return a.name.value < b.name.value ? -1 : b.name.value < a.name.value ? 1 : 0;
         })) {
 
-            const bound_node = SC.Bind(node);
+            if (node.type == "function") {
 
-            if (bound_node.type.type == "function") {
+                node.name.value = name;
 
-                bound_node.expressions[0] = name;
-
-                code_fn_node.push(bound_node);
+                code_fn_node.push(node);
             } else {
 
-                const_ty_node.push(SC.Declare(SC.Assignment(name, <ExprSC>bound_node)));
+                const declaration: SKPrimitiveDeclaration = Object.assign({}, original_name);
+
+                declaration.init = <SKExpression>node;
+
+                const_ty_node.push(declaration);
             }
         }
 
