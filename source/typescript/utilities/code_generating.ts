@@ -167,19 +167,19 @@ export function getSkipFunctionNewSk(
 
             skip_function = <SKFunction>sk`
             fn temp:void (l:Lexer, data:Data, state:u32){
-                [const] off = l.token_offset;
-                loop(1):{
+                [const] off:u32 = l.token_offset;
+                loop (1){
                     
                     ${custom_skip_code ? custom_skip_code : ""}
                     
-                    if !(${boolean}) : {
+                    if (${boolean}) : {
                         break;
-                    }
+                    };
 
                     l.next(data);
                     
                     if isOutputEnabled(state) : add_skip(l, data, l.token_offset - off);
-                }
+                };
             }`;
 
         fn_ref = packGlobalFunctionSk("skip", "Lexer", skip_symbols, skip_function, runner);
@@ -256,9 +256,8 @@ export function createProductionTokenFunctionSk(tok: ProductionTokenSymbol, opti
 
             token_function = <SKFunction>sk`
             fn temp:bool(l:Lexer, data:Data){       
-                /*! --- This assumes the token production does not fork --- !*/
 
-                if (${boolean}):{               
+                if ${boolean} :{               
                     // preserve the current state of the data
                     [const] stack_ptr :u32 = data.stack_ptr;
                     [const] input_ptr:u32 = data.input_ptr;
@@ -269,12 +268,11 @@ export function createProductionTokenFunctionSk(tok: ProductionTokenSymbol, opti
 
                     data.state = 0;
 
-                    ACTIVE:bool = true;
+                    [mut]ACTIVE:bool = true;
 
-                    loop ACTIVE: {
-                        ACTIVE = false;
+                    loop ( (ACTIVE) ) {
                         ACTIVE = stepKernel(data, stack_ptr + 1);
-                    }
+                    };
 
                     data.state = state;
 
@@ -289,7 +287,7 @@ export function createProductionTokenFunctionSk(tok: ProductionTokenSymbol, opti
                         data.input_ptr = input_ptr;
                         return: false;
                     }
-                }
+                };
                 
                 return: false;
             }`;
@@ -780,6 +778,7 @@ function getLexerByteBooleanSk(lex_name: string, char_code: number, operator: st
  * 
  */
 export function packGlobalFunctionSk(fn_class: string, fn_type: string, unique_objects: ((Symbol | Item)[] | SKFunction), fn: SKFunction, helper: Helper): SKReference {
+
     const string_name = getGloballyConsistentNameSk(fn_class, unique_objects);
     const function_name = <SKPrimitiveDeclaration>sk`${string_name}:${fn_type}`;
     return helper.add_constant(function_name, fn);
