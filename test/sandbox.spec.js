@@ -16,8 +16,8 @@ const { fn } = constructHybridFunction(prod, grammar, runner);
 //const { const: constants_a, fn: const_functions_a } = runner.render_constants();
 
 //const str = fn.map(sk => sk ? skRenderAsSK(sk) : "").join("\n");
-const str = fn.map(sk => sk ? skRenderAsTypeScript(sk) : "").join("\n");
-
+const { fn: fn_, const: const_ } = runner.render_constants();
+const str = [...fn_, ...const_, ...fn].map(sk => sk ? skRenderAsTypeScript(sk) : "").join("\n");
 //const code = Object.assign(new AS, fn).addStatement(...constants_a, ...const_functions_a).renderCode();
 
 //await fsp.writeFile("./test/temp-function.ts", code);
