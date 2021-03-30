@@ -248,6 +248,11 @@ export const ts_mappings: NodeMappings<SKNode, "type"> = <NodeMappings<SKNode, "
                 }));
             }
         },
+        <NodeMapping<SKPrimitiveDeclaration>>{
+            type: "argument",
+            child_keys: ["type", "primitive_type", "initialization"],
+            template: "@name:@primitive_type{initialization: o:s = o:s @initialization}",
+        },
         <NodeMapping<SKStructure>>{
             type: "structure",
             child_keys: ["name", "properties"],
@@ -261,7 +266,16 @@ export const ts_mappings: NodeMappings<SKNode, "type"> = <NodeMappings<SKNode, "
         <NodeMapping<SKFunction>>{
             type: "function",
             child_keys: ["name", "return_type", "parameters", "expressions"],
-            template: "function m:s @name (@parameters...[,o:s]) \\: @return_type \\{ i:s o:n @expressions...[;o:n]\\; i:e o:n \\}"
+            template: "function m:s @name (@parameters...[,o:s]) \\: @return_type \\{ i:s o:n @expressions...[;o:n]\\; i:e o:n \\}",
+            custom_render: (state, template_fn) => {
+
+                const new_node: SKFunction = Object.assign({}, state.node);
+
+                new_node.parameters = new_node.parameters.map(p => Object.assign({}, p, { type: 'argument' }));
+
+                return template_fn(state, new_node);
+
+            }
         },
         <NodeMapping<SKLambda>>{
             type: "lambda",
