@@ -1,6 +1,6 @@
 {
   "name": "@candlelib/hydrocarbon",
-  "version":"0.8.0-alpha-1",
+  "version": "0.8.0-alpha-2",
   "description": "Parser Compiler",
   "main": "./build/library/hydrocarbon.js",
   "types": "./build/types/hydrocarbon.d.ts",
