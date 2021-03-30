@@ -416,7 +416,7 @@ function createIfElseExpressions(
                     scr.push(<SKExpression>sk`pushFN(data, ${continue_name})`);
                     scr.push(<SKExpression>sk`return: ${call_name}(l, data, state, prod, ${grammar.item_map.get(items[0].decrement().id).sym_uid})`);
 
-                    leaves[0].leaf.push(<SKReturn>sk`return:puid`);
+                    leaves[0].leaf.push(<SKReturn>sk`return:prod`);
 
                     leaves.forEach(l => l.transition_type == TRANSITION_TYPE.IGNORE);
                     leaves[0].leaf = nc;
