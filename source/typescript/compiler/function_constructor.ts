@@ -58,7 +58,7 @@ export function constructHybridFunction(production: Production, grammar: Grammar
         RD_fn_contents,
         GOTO_fn_contents,
         rd_fn_name,
-        goto_fn_name,
+        goto_fn_name.name,
         RDOptions,
         GOTO_Options);
 
