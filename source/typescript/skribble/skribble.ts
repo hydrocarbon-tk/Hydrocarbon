@@ -95,9 +95,11 @@ export function sk(templates: TemplateStringsArray, ...node_stack): SKExpression
 import { experimentalConstructRenderers, experimentalRender } from "@candlefw/conflagrate";
 import { NodeMappings } from "@candlefw/conflagrate/build/types/types/node_mappings";
 import { ts_mappings } from "./ts_mappings.js";
+import { js_mappings } from "./js_mappings.js";
 
 const renderers = experimentalConstructRenderers(<NodeMappings<SKNode, "type">>skribble_mappings);
 const ts_renderers = experimentalConstructRenderers(<NodeMappings<SKNode, "type">>ts_mappings);
+const js_renderers = experimentalConstructRenderers(<NodeMappings<SKNode, "type">>js_mappings);
 
 export function skRenderAsSK(node: SKNode): string {
     return experimentalRender(node, <NodeMappings<SKNode, "type">>skribble_mappings, renderers);
@@ -105,4 +107,8 @@ export function skRenderAsSK(node: SKNode): string {
 
 export function skRenderAsTypeScript(node: SKNode): string {
     return experimentalRender(node, <NodeMappings<SKNode, "type">>ts_mappings, ts_renderers);
+}
+
+export function skRenderAsJavaScript(node: SKNode): string {
+    return experimentalRender(node, <NodeMappings<SKNode, "type">>js_mappings, js_renderers);
 }

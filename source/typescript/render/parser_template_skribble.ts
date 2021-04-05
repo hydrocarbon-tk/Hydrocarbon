@@ -58,8 +58,5 @@ const fns = [(e,sym)=>sym[sym.length-1], \n${[...grammar.meta.reduce_functions.k
 
 const parser_factory = ParserFactory(fns, ${wasm_data ? "data" : "undefined"}, ${wasm_data ? "undefined" : "data"});
 
-${BUILD_LOCAL
-            ? `return parser_factory.parser`
-            : `export { fns as parser_functions, data as parser_data, parser_factory };`
-        } `;
+${BUILD_LOCAL ? `return parser_factory.parser` : `export { fns as parser_functions, data as parser_data, parser_factory };`} `;
 };

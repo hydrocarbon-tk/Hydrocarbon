@@ -7,10 +7,10 @@ import {
     SKFunction, SKTypeString, SKTypeReference, SKAssignment,
     SKIf, SKOperatorExpression, SKLoop, SKFor, SKIn,
     SKMatch, SKMatchTarget, SKCall, SKParenthesis, SKBreak,
-    SKBlock, SKReturn, SKContinue, SKNamespace, SKStructure, SKClass, SKModule, SKType,
+    SKBlock, SKReturn, SKContinue, SKNamespace, SKStructure, SKClass, SKModule, SKType, SKReference,
 } from "./types/node";
 
-export const ts_mappings: NodeMappings<SKNode, "type"> = <NodeMappings<SKNode, "type">>{
+export const js_mappings: NodeMappings<SKNode, "type"> = <NodeMappings<SKNode, "type">>{
     typename: "type",
     type_lookup: () => 0,
     mappings: [
@@ -89,12 +89,22 @@ export const ts_mappings: NodeMappings<SKNode, "type"> = <NodeMappings<SKNode, "
         <NodeMapping<SKAssignment>>{
             type: "assignment",
             child_keys: ["target", "expression"],
-            template: "@target o:s = o:s @expression"
+            template: "@target o:s = {new: new m:s} o:s @expression"
         },
         <NodeMapping<SKIf>>{
             type: "if",
             child_keys: ["assertion", "expression", "else"],
-            template: "if \\( o:s @assertion o:s \\) @expression {else: m:s else m:s @else }"
+            template: "if \\( o:s @assertion o:s \\) @expression {IS_BLOCKLESS: \\;} {else: m:s else m:s @else }",
+            custom_render: (state, template_fn) => {
+                const { node } = state;
+
+                if (node.expression.type !== "block") {
+                    node.IS_BLOCKLESS = true;
+                }
+
+                return template_fn(state);
+            }
+
         },
         <NodeMapping<SKOperatorExpression>>{
             type: "operator-expression",
@@ -159,7 +169,7 @@ export const ts_mappings: NodeMappings<SKNode, "type"> = <NodeMappings<SKNode, "
         <NodeMapping<SKIn>>{
             type: "in-loop",
             child_keys: ["initializer", "target", "expression"],
-            template: "for \\( o:s @initializer m:s in m:s @target o:s \\) o:nl @expression"
+            template: "for \\( o:s @initializer m:s of m:s @target o:s \\) o:n @expression"
         },
         <NodeMapping<SKMatch>>{
             type: "match",
@@ -236,11 +246,11 @@ export const ts_mappings: NodeMappings<SKNode, "type"> = <NodeMappings<SKNode, "
         <NodeMapping<SKPrimitiveDeclaration>>{
             type: "declaration",
             child_keys: ["type", "primitive_type", "initialization"],
-            template: "@var_type m:s @name:@primitive_type{initialization: o:s = o:s {new: new m:s} @initialization}",
+            template: "@var_type m:s @name {initialization: o:s = o:s {new: new m:s} @initialization}",
             custom_render: (state, template_fn) => {
                 let variable_type = "var";
 
-                const { node } = state;
+                let { node } = state;
 
                 if (node.modifiers.includes("new")) {
                     node.new = true;
@@ -248,6 +258,21 @@ export const ts_mappings: NodeMappings<SKNode, "type"> = <NodeMappings<SKNode, "
 
                 if (node.modifiers.includes("imut")) {
                     variable_type = "const";
+                }
+
+                if (node.modifiers.includes("this_")) {
+                    node = Object.assign({}, node, <SKAssignment>{
+                        type: "assignment",
+                        target: <SKMemberReference>{
+                            type: "member-reference",
+                            property: node.name,
+                            reference: <SKReference>{
+                                type: "identifier",
+                                value: "this"
+                            }
+                        },
+                        expression: node.initialization
+                    });
                 }
 
                 return template_fn(state, Object.assign({}, node, {
@@ -258,7 +283,7 @@ export const ts_mappings: NodeMappings<SKNode, "type"> = <NodeMappings<SKNode, "
         <NodeMapping<SKPrimitiveDeclaration>>{
             type: "argument",
             child_keys: ["type", "primitive_type", "initialization"],
-            template: "@name:@primitive_type{initialization: o:s = o:s @initialization}",
+            template: "@name{initialization: o:s = o:s @initialization}",
         },
         <NodeMapping<SKStructure>>{
             type: "structure",
@@ -280,11 +305,11 @@ export const ts_mappings: NodeMappings<SKNode, "type"> = <NodeMappings<SKNode, "
                         }
                         return Object.assign({}, n, { type: "method" });
                     } else if (n.type == "declaration") {
-                        return Object.assign({}, n, { type: "class_declaration" });
+                        return null;
                     }
 
                     return n;
-                });
+                }).filter(i => i);
 
                 return template_fn(state, new_node);
 
@@ -293,7 +318,7 @@ export const ts_mappings: NodeMappings<SKNode, "type"> = <NodeMappings<SKNode, "
         <NodeMapping<SKFunction>>{
             type: "method",
             child_keys: ["name", "return_type", "parameters", "expressions"],
-            template: "@name (@parameters...[,o:s]) {return_type: \\: @return_type} \\{ i:s o:n @expressions...[;o:n] i:e o:n \\}",
+            template: "@name (@parameters...[,o:s]) \\{ i:s o:n @expressions...[;o:n] i:e o:n \\}",
             custom_render: (state, template_fn) => {
 
                 const new_node: SKFunction = Object.assign({}, state.node);
@@ -308,12 +333,12 @@ export const ts_mappings: NodeMappings<SKNode, "type"> = <NodeMappings<SKNode, "
         <NodeMapping<SKFunction>>{
             type: "class_declaration",
             child_keys: ["name", "return_type", "parameters", "expressions"],
-            template: "@name:@primitive_type"
+            template: ""
         },
         <NodeMapping<SKFunction>>{
             type: "function",
             child_keys: ["name", "return_type", "parameters", "expressions"],
-            template: "function m:s @name (@parameters...[,o:s]) {return_type: \\: @return_type} \\{ i:s o:n @expressions...[;o:n] i:e o:n \\}",
+            template: "function m:s @name (@parameters...[,o:s]) \\{ i:s o:n @expressions...[;o:n] i:e o:n \\}",
             custom_render: (state, template_fn) => {
 
                 const new_node: SKFunction = Object.assign({}, state.node);
@@ -336,6 +361,6 @@ export const ts_mappings: NodeMappings<SKNode, "type"> = <NodeMappings<SKNode, "
     ]
 };
 
-const lu_table = new Map(ts_mappings.mappings.map((i, j) => [i.type, j]));
+const lu_table = new Map(js_mappings.mappings.map((i, j) => [i.type, j]));
 
-ts_mappings.type_lookup = (node, name) => lu_table.get(node.type) || -1;
+js_mappings.type_lookup = (node, name) => lu_table.get(node.type) || -1;

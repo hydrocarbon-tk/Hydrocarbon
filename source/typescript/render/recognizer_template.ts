@@ -394,37 +394,6 @@ export const renderAssemblyScriptRecognizer = (
         }
     }
 
-
-    function block64Consume(data, block, offset, block_offset, limit) {
-        //Find offset block
-
-        let containing_data = data,
-            end = containing_data.origin_fork + data.rules_ptr;
-
-        //Find closest root
-        while (containing_data.origin_fork > offset) {
-            end = containing_data.origin_fork;
-            containing_data = containing_data.origin;
-        }
-
-        let start = containing_data.origin_fork;
-
-        offset -= start;
-        end -= start;
-
-        //Fill block with new data
-        let ptr = offset;
-
-        if (ptr >= end) return limit - block_offset;
-
-        while (block_offset < limit) {
-            block[block_offset++] = containing_data.rules[ptr++];
-            if (ptr >= end)
-                return block64Consume(data, block, ptr + start, block_offset, limit);
-        }
-        return 0;
-    }
-
     /**
      *  Rules payload
      * 
@@ -640,6 +609,39 @@ export const renderAssemblyScriptRecognizer = (
             });
         }
         return fork_data;
+    }
+
+
+
+
+    function block64Consume(data, block, offset, block_offset, limit) {
+        //Find offset block
+
+        let containing_data = data,
+            end = containing_data.origin_fork + data.rules_ptr;
+
+        //Find closest root
+        while (containing_data.origin_fork > offset) {
+            end = containing_data.origin_fork;
+            containing_data = containing_data.origin;
+        }
+
+        let start = containing_data.origin_fork;
+
+        offset -= start;
+        end -= start;
+
+        //Fill block with new data
+        let ptr = offset;
+
+        if (ptr >= end) return limit - block_offset;
+
+        while (block_offset < limit) {
+            block[block_offset++] = containing_data.rules[ptr++];
+            if (ptr >= end)
+                return block64Consume(data, block, ptr + start, block_offset, limit);
+        }
+        return 0;
     }
 
     function get_next_command_block(fork) {

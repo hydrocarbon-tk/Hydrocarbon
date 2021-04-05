@@ -172,7 +172,7 @@ export function getSkipFunctionNewSk(
                     
                     ${custom_skip_code ? custom_skip_code : ""}
                     
-                    if (${boolean}) : {
+                    if (!(${boolean})) : {
                         break;
                     };
 
@@ -424,9 +424,8 @@ export function createSymbolMappingFunctionSk(
             code_node = yielded.value,
 
             fn = <SKFunction>sk`fn temp:i32(l:Lexer, data:Data){
-                /*${symbols.map(s => s.val).join(" ")}*/
-                ${code_node};
-                ${ifs[0]};
+                "${symbols.map(s => s.val).join(" ")}";
+                ${[code_node, ";", ifs[0], ";"]}
                 return:${default_return_value};
             }`;
 
@@ -476,7 +475,7 @@ export function* buildSwitchIfsAlternateSk(
             yielded = gen.next();
         }
 
-        const _if = sk`if data.input[l.byte_offset + ${off}] ~= ${getUTF8ByteAtSk(shortest, off)} : { ${yielded.value}; }`;
+        const _if = sk`if data.input[l.byte_offset + ${off}] ~= ${getUTF8ByteAtSk(shortest, off)} : { ${yielded.value.flatMap(v => [v, ";"])}; }`;
 
         ifs.push(_if);
     }

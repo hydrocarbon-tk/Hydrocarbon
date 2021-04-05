@@ -376,10 +376,10 @@ function createIfElseExpressions(
 
                 options.called_productions.add(<number>production.id);
 
-                code.push(<SKReturn>sk`return:-1`);
+                //code.push(<SKReturn>sk`return:-1`);
 
                 const call_name = createBranchFunctionSk(code, options);
-                expressions.push(<SKExpression>sk`pushFN(data, ${call_name.value})`);
+                expressions.push(<SKExpression>sk`pushFN(data, ${call_name})`);
                 expressions.push(<SKExpression>sk`pushFN(data, ${getProductionFunctionNameSk(production, grammar)})`);
                 expressions.push(<SKExpression>sk`puid |= ${grammar.item_map.get(items[0].id).sym_uid}`);
                 expressions.push(<SKReturn>sk`return:puid`);
@@ -407,7 +407,7 @@ function createIfElseExpressions(
                     //build puid and pass to finishing function
                     const nc = [];
 
-                    code.push(<SKExpression>sk`return:-1`);
+                    //code.push(<SKExpression>sk`return:-1`);
 
                     const continue_name = createBranchFunctionSk(nc, options);
                     const call_name = createBranchFunctionSk(code, options);

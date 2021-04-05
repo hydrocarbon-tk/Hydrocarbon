@@ -3,6 +3,7 @@
  * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
  * disclaimer notice.
  */
+import { debug } from "console";
 import { performance } from "perf_hooks";
 import { sk } from "../skribble/skribble.js";
 import { SKBlock, SKFunction, SKIf, SKPrimitiveDeclaration } from "../skribble/types/node.js";
@@ -89,9 +90,12 @@ export function constructHybridFunction(production: Production, grammar: Grammar
         ifs.reduce((r, i) => r ? (r.else = i, i) : i, null);
 
         const fn = sk`fn $${production.name}_reducer:u32 (l:Lexer, data:ParserData, state:u32, prod:u32, puid:u32){
-            ${ifs[0]};
-            return : ${production.id};
+            ${ifs[0] ? [ifs[0], ";"] : ""}
+            return : ${production.id}
         }`;
+
+        if (fn == "fn")
+            debugger;
 
         return fn;
     }

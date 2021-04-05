@@ -75,15 +75,15 @@ export class WorkerRunner {
 
     mergeWorkerData(worker: WorkerContainer, response: HybridDispatchResponse) {
 
-        const { const_map, fn, productions, production_id } = response;
-
-        const fn_data = SC.Bind(fn);
+        const {  const_map, fn, productions, production_id } = response;
 
         this.runner.join_constant_map(const_map);
 
         this.functions[production_id] = {
             id: production_id,
-            fn: fn_data,
+            entry: fn[0],
+            goto: fn[1],
+            reduce: fn[2],
             productions: productions,
         };
 

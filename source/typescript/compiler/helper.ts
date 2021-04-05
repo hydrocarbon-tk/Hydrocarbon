@@ -76,7 +76,7 @@ export class Helper {
 
         for (const [global_name, { original_name, name, code_node }] of const_map.entries()) {
             if (!this.constant_map.has(global_name)) {
-                this.add_constant(original_name, code_node));
+                this.add_constant(original_name, code_node);
             }
         }
     }

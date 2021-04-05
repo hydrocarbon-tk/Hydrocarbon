@@ -125,8 +125,10 @@ export function addLeafStatements(
 
     if (GOTOS_FOLDED)
         RD_fn_contents.push(addClauseSuccessCheck(RDOptions));
-    else
-        RD_fn_contents.push(<SKExpression>sk`return:-1`);
+    else {
+        if (RD_fn_contents[RD_fn_contents.length - 1]?.type !== "return")
+            RD_fn_contents.push(<SKExpression>sk`return:-1`);
+    }
 }
 
 /**

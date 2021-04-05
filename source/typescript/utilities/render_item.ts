@@ -137,8 +137,8 @@ export function renderItem(
 
             ({ leaf_node: code, prods, original_prods } = renderItem(call_body, item.increment(), options, false, lexer_name, true, items));
 
-            if (!item.increment().atEND)
-                call_body.push(<SKExpression>sk`return:-1`);
+            //if (!item.increment().atEND)
+            //    call_body.push(<SKExpression>sk`return:-1`);
             const call_name = createBranchFunctionSk(call_body, options);
             const rc = [];
 

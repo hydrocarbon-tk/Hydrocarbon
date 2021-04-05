@@ -5,11 +5,11 @@
  */
 import spark from "@candlefw/spark";
 import URL from "@candlefw/url";
-import Lexer from "@candlefw/wind";
 import fs from "fs";
-import { renderParserScript } from "../render/parser_template.js";
-import { renderAssemblyScriptRecognizer } from "../render/recognizer_template.js";
+import { renderSkribbleRecognizer } from "../render/skribble_recognizer_template.js";
+import { fillByteBufferWithUTF8FromString } from "../runtime/parser_loader.js";
 import { initializeUTFLookupTable } from "../runtime/parser_memory_new.js";
+import { skRenderAsJavaScript } from "../skribble/skribble.js";
 import { HybridCompilerOptions } from "../types/compiler_options";
 import { Grammar } from "../types/grammar.js";
 import { GrammarParserEnvironment } from "../types/grammar_compiler_environment";
@@ -130,7 +130,7 @@ export async function compile(grammar: Grammar, env: GrammarParserEnvironment, o
     }
 
     const
-        recognizer_code = renderAssemblyScriptRecognizer(
+        recognizer_code = renderSkribbleRecognizer(
             grammar,
             runner,
             mt_code_compiler.functions
@@ -143,65 +143,54 @@ export async function compile(grammar: Grammar, env: GrammarParserEnvironment, o
     } catch (e) {
         throw e;
     }
-
+    /*
     const
 
         wasm_recognizer = ["wasm", "WebAssembly"].includes(active_options.recognizer_type.toLocaleLowerCase())
             ? await createWebAssemblyRecognizer(recognizer_code, active_options)
             : undefined,
-
         javascript_recognizer = ["js", "JavaScript"].includes(active_options.recognizer_type.toLocaleLowerCase())
+
             ? createJSRecognizer(recognizer_code, active_options)
             : undefined;
+    */
 
     switch ((active_options.completer_type + "" || "").toLowerCase()) {
         case "js":
         case "javascript":
         case "typescript":
         case "ts":
+            {
 
-            if (!active_options.no_file_output) {
+                const { const: constants_a, fn: const_functions_a } = runner.render_constants();
 
-                const parser_script =
-                    renderParserScript(
-                        grammar,
-                        active_options,
-                        wasm_recognizer,
-                        javascript_recognizer,
-                        false,
-                        action32bit_array_byte_size,
-                        error8bit_array_byte_size
-                    );
+                recognizer_code.statements.push(...constants_a, ...const_functions_a);
 
-                try {
-                    await fsp.writeFile(URL.resolveRelative(`./${options.name || "parser"}.js`, output_dir) + "", parser_script);
-                } catch (e) {
-                    throw e;
-                }
+                for (const { entry, goto, reduce } of mt_code_compiler.functions)
+                    recognizer_code.statements.push(...[entry, goto, reduce].filter(i => i));
+
+                const str = skRenderAsJavaScript(recognizer_code);
+
+                console.log(str);
+
+                const fn = new Function(str + "\n return {sequence_lookup, lookup_table, run, dispatch, init_data, recognizer}")();
+
+                const { dispatch, lookup_table, run, sequence_lookup, init_data, recognizer } = fn;
+
+                initializeUTFLookupTable(lookup_table);
+
+                const data = init_data(500, 500, 512);
+
+                const { input, rules, debug, error } = data;
+
+                const byte_length = fillByteBufferWithUTF8FromString("test", input, 500);
+
+                const result = recognizer(data, byte_length, 0);
+
+                result;
+
+
+
             }
-
-            if (active_options.no_file_output || active_options.create_function) {
-                const parser_script =
-                    renderParserScript(
-                        grammar,
-                        active_options,
-                        wasm_recognizer,
-                        javascript_recognizer,
-                        true,
-                        action32bit_array_byte_size,
-                        error8bit_array_byte_size
-                    );
-                return await (new AsyncFunction(
-                    "buildParserMemoryBuffer",
-                    "Lexer",
-                    "loadWASM",
-                    parser_script
-                ))(
-                    initializeUTFLookupTable,
-                    Lexer,
-                    loadWASM
-                );
-            }
-            return;
     }
 }

@@ -43,7 +43,7 @@ export function processTransitionNodes(
 ): GeneratorStateReturn {
 
     if (nodes.length == 0)
-        return { code: new SC, prods: [], leaves: [], hash: "" };
+        return { code: [], prods: [], leaves: [], hash: "" };
 
     const finale_node = { ast: <TransitionNode>null };
 
