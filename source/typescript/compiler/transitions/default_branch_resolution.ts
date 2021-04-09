@@ -330,7 +330,7 @@ function createIfElseExpressions(
                     "1"
                 );
 
-                assertion_boolean = <SKExpression>sk`${bool_fn}(${peek_name}, state) == 1`;
+                assertion_boolean = <SKExpression>sk`${bool_fn}(${peek_name}, data) == 1`;
 
                 /*
                 for(const sym of occluding_symbols){
