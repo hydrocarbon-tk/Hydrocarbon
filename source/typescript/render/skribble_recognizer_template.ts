@@ -157,6 +157,31 @@ fn getTypeAt : u32 ( code_point : u32 ) {
         this.current_byte = 0;
     }
 
+    [pub] fn isDiscrete: bool (data:ParserData, assert_class:u32, offset:u32 = 0, USE_UNICODE:bool = false) {
+
+        [mut] type:u32 = 0;
+
+        offset += this.byte_offset;
+
+        if (offset >= data.input_len ): return: true;
+
+        [mut] current_byte:u32 = data.input[offset];
+
+        if (!USE_UNICODE || current_byte < 128) : {
+            type = getTypeAt(current_byte);
+        } else 
+            type = getTypeAt(utf8ToCodePoint(offset, data));
+        
+        
+        return : (type & assert_class) == 0;
+    }
+
+    [pub] fn setToken:void(type:u32, byte_length:u32, token_length:u32){
+        this.type = type;
+        this.byte_length = byte_length;
+        this.token_length = token_length;
+    }
+
     [pub] fn getType : u32 (USE_UNICODE:bool, data: ParserData) { 
         if this.type != 0 :
             if ( !(USE_UNICODE) || this.current_byte < 128) :
