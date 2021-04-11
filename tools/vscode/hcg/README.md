@@ -1,7 +1,7 @@
 # Hydrocarbon Syntax Highlighting
 
-Syntax highlighting of Hydrocarbon grammar files.
+Syntax highlighting definitions for Hydrocarbon grammar files.
 
-[cfw.hydrocarbon](https://github.com/candlefw/hydrocarbon)
+[cfw.hydrocarbon](https://github.com/candlelib/hydrocarbon)
 
 MIT License

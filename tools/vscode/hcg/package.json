@@ -3,9 +3,9 @@
     "displayName": "Hydrocarbon Grammar Syntax Highlighting",
     "description": "Syntax highlighting for Hydrocarbon grammar files [*.hcg]",
     "publisher": "candle-smith",
-    "version": "1.0.0",
+    "version": "1.0.3",
     "engines": {
-        "vscode": "^1.5.0"
+        "vscode": "^1.22.0"
     },
     "scripts": {
         "local.install": "vsce package && code --install-extension ./*.vsix"
@@ -22,7 +22,8 @@
                     "hydrocarbon-grammar"
                 ],
                 "extensions": [
-                    "hcg"
+                    "hcg",
+                    ".hcg"
                 ],
                 "configuration": "./language-configuration.json"
             }

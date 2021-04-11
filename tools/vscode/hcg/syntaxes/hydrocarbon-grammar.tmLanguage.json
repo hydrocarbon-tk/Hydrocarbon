@@ -30,7 +30,7 @@
 					"name": "storage.type"
 				},
 				"4": {
-					"name": "keyword"
+					"name": "variable.other"
 				}
 			}
 		},
@@ -45,13 +45,17 @@
 			]
 		},
 		"functionReference": {
-			"name": "meta.function-call",
-			"match": "(f\\:|↦)\\s*\\w*\\s*\\^\\w+\\s*"
+			"name": "storage.type",
+			"match": "(f\\:)\\s*\\w*\\s*\\^\\w+\\s*"
 		},
 		"function": {
-			"name": "meta.function-call",
-			"begin": "(f\\:|↦)\\s*\\w*\\s*{",
+			"begin": "(f\\:)\\s*\\w*\\s*{",
 			"end": "}",
+			"captures": {
+				"0": {
+					"name": "storage.type"
+				}
+			},
 			"patterns": [
 				{
 					"include": "source.js"
@@ -76,29 +80,33 @@
 			]
 		},
 		"terminal-keyword": {
-			"match": "((τ|t\\:)[a-zA-Z\\_\\-]*|\\θ[a-zA-Z\\_\\-]*|ɛ)|(\\$oef)"
+			"match": "((t\\:)[a-zA-Z\\_\\-]*|\\θ[a-zA-Z\\_\\-]*|ɛ)|(\\$eof)",
+			"name": "keyword.operator"
 		},
 		"terminal-generated": {
-			"match": "((θ|g\\:)[a-zA-Z\\_\\-]*|\\θ[a-zA-Z\\_\\-]*|ɛ)|(\\$oef)"
+			"match": "((g\\:)[a-zA-Z\\_\\-]*|\\θ[a-zA-Z\\_\\-]*|ɛ)|(\\$eof)",
+			"name": "keyword.operator"
 		},
 		"terminal-symbol": {
-			"match": "[^\\θ\\\\\\w\\↦\\│\\[\\]\\#\\?\\→\\s][^\\\\\\(\\↦\\│\\)\\(\\[\\]\\#\\?\\→\\s]*"
+			"match": "[^\\θ\\\\\\w\\↦\\|\\[\\]\\#\\?\\→\\s][^\\\\\\(\\↦\\|\\)\\(\\[\\]\\#\\?\\→\\s]*",
+			"name": "variable.other"
 		},
 		"terminal-escaped-symbol": {
-			"match": "\\\\[^\\s]+"
+			"match": "\\\\[^\\s]+",
+			"name": "variable.other"
 		},
 		"nonterm": {
-			"name": "entity.name.type",
+			"name": "variable.other",
 			"match": "\\w+"
 		},
 		"importTerm": {
 			"match": "(\\w+::)(\\w+)",
 			"captures": {
 				"1": {
-					"name": "operator.production-symbol"
+					"name": "meta.function-call"
 				},
 				"2": {
-					"name": "entity.name.class.production-instance"
+					"name": "variable.other"
 				}
 			}
 		},
@@ -124,10 +132,15 @@
 		},
 		"symbol-modifiers": {
 			"name": "keyword.operator",
-			"match": "\\([\\+\\*].?\\)|\\?"
+			"match": "\\([\\+\\*](.*)\\)|\\?",
+			"captures": {
+				"1": {
+					"name": "variable.other"
+				}
+			}
 		},
 		"groupedBody": {
-			"name": "operator.production-symbol",
+			"name": "meta.function",
 			"begin": "\\(",
 			"end": "\\)",
 			"patterns": [
@@ -139,10 +152,29 @@
 				}
 			]
 		},
+		"production": {
+			"begin": "(<>)?\\s*(\\w+)\\s*(?=>)",
+			"end": "^\\s*(?=<>)",
+			"beginCaptures": {
+				"0": {
+					"name": "meta.definition.function"
+				}
+			},
+			"patterns": [
+				{
+					"include": "#productionBody"
+				}
+			]
+		},
 		"productionBody": {
-			"name": "operator.production-symbol",
-			"begin": "│",
-			"end": "^\\s*(?=(<>|│))",
+			"name": "meta.function",
+			"begin": "\\||\\>",
+			"end": "^\\s*(?=(<>|\\|))",
+			"beginCaptures": {
+				"0": {
+					"name": "meta.definition.function"
+				}
+			},
 			"patterns": [
 				{
 					"include": "#productionBodyContents"
@@ -150,9 +182,14 @@
 			]
 		},
 		"inlineProductionBody": {
-			"name": "operator.production-symbol",
-			"begin": "│",
-			"end": "\\s*(?=\\)|\\│)",
+			"name": "meta.function",
+			"begin": "\\|",
+			"end": "\\s*(?=\\)|\\|)",
+			"beginCaptures": {
+				"0": {
+					"name": "meta.definition.function"
+				}
+			},
 			"patterns": [
 				{
 					"include": "#productionBodyContents"
@@ -196,29 +233,11 @@
 				}
 			]
 		},
-		"production": {
-			"name": "meta.definition.function",
-			"begin": "(<>)?\\s*(\\w+)\\s*(→|>)",
-			"end": "^\\s*(?=<>)",
-			"captures": {
-				"2": {
-					"name": "meta.definition.function"
-				}
-			},
-			"patterns": [
-				{
-					"include": "#productionBodyContents"
-				},
-				{
-					"include": "#productionBody"
-				}
-			]
-		},
 		"comments": {
 			"patterns": [
 				{
 					"name": "comment.block",
-					"match": "\\#.+"
+					"match": "^\\s*\\#.*"
 				}
 			]
 		}
