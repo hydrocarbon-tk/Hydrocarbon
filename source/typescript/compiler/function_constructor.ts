@@ -3,10 +3,9 @@
  * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
  * disclaimer notice.
  */
-import { debug } from "console";
 import { performance } from "perf_hooks";
 import { sk } from "../skribble/skribble.js";
-import { SKBlock, SKFunction, SKIf, SKPrimitiveDeclaration } from "../skribble/types/node.js";
+import { SKBlock, SKExpression, SKFunction, SKIf, SKPrimitiveDeclaration } from "../skribble/types/node.js";
 import { Grammar } from "../types/grammar.js";
 import { Production } from "../types/production";
 import { RDProductionFunction } from "../types/rd_production_function";
@@ -27,29 +26,24 @@ import { addClauseSuccessCheck, resolveGOTOBranches } from "./transitions/defaul
 import { processTransitionNodes } from "./transitions/process_transition_nodes.js";
 import { yieldGOTOTransitions } from "./transitions/yield_goto_transitions.js";
 import { yieldTransitions } from "./transitions/yield_transitions.js";
-
-
-const SC = null;
-
-
 export function constructHybridFunction(production: Production, grammar: Grammar, runner: Helper): RDProductionFunction {
 
     const
 
-        rd_fn_name = <SKPrimitiveDeclaration>sk`[priv] ${getProductionFunctionName(production, grammar)}:u32`, /* skrb_id `${name}:unsigned`  */
+        rd_fn_name = <SKPrimitiveDeclaration>sk`[priv] ${getProductionFunctionName(production, grammar)}:u32`,
 
         goto_fn_name = <SKPrimitiveDeclaration>sk`[priv] ${getProductionFunctionName(production, grammar)}_goto:u32`,
 
         start = performance.now(),
 
-        { RDOptions, GOTO_Options, RD_fn_contents, GOTO_fn_contents }
-            = compileProductionFunctions(grammar, runner, [production]),
-
         RD_function = <SKFunction>sk`
         fn ${getProductionFunctionName(production, grammar)}:u32(l:Lexer,data:Data, state:u32, prod:u32, puid:i32){}`,
 
         GOTO_function = <SKFunction>sk`
-        fn ${getProductionFunctionName(production, grammar)}_goto:u32(l:Lexer,data:Data, state:u32, prod:u32, puid:i32){  }`;
+        fn ${getProductionFunctionName(production, grammar)}_goto:u32(l:Lexer,data:Data, state:u32, prod:u32, puid:i32){  }`,
+
+        { RDOptions, GOTO_Options, RD_fn_contents, GOTO_fn_contents }
+            = compileProductionFunctions(grammar, runner, [production]);
 
     RD_function.expressions = RD_fn_contents;
 
@@ -69,39 +63,7 @@ export function constructHybridFunction(production: Production, grammar: Grammar
     if (!GOTO_Options.NO_GOTOS)
         GOTO_function.expressions.push(addClauseSuccessCheck(RDOptions));
 
-
-    function constructReduceFunction(production: Production, options: RenderBodyOptions) {
-
-        const end_items = getStartItemsFromProduction(production).map(i => i.toEND());
-        const ifs = [];
-
-        for (const item of end_items) {
-
-            if (item.len == 1 && !item.body_(grammar).reduce_function) continue;
-
-            const index = options.grammar.item_map.get(item.id).sym_uid;
-            const _if = <SKIf>sk`if ${index} == puid : { }`;
-
-            renderItemReduction((<SKBlock>_if.expression).expressions, item, options, false);
-
-            ifs.push(_if);
-        }
-
-        ifs.reduce((r, i) => r ? (r.else = i, i) : i, null);
-
-        const fn = sk`fn $${production.name}_reducer:u32 (l:Lexer, data:ParserData, state:u32, prod:u32, puid:u32){
-            ${ifs[0] ? [ifs[0], ";"] : ""}
-            return : ${production.id}
-        }`;
-
-        if (fn == "fn")
-            debugger;
-
-        return fn;
-    }
-
-    const ReduceFunction = constructReduceFunction(production, RDOptions);
-
+    const ReduceFunction = constructReduceFunction(production, RDOptions, grammar);
 
     //const annotation = 
     //    `production name: ${production.name}
@@ -121,12 +83,41 @@ export function constructHybridFunction(production: Production, grammar: Grammar
     };
 }
 
+function constructReduceFunction(production: Production, options: RenderBodyOptions, grammar: Grammar) {
+
+    const end_items = getStartItemsFromProduction(production).map(i => i.toEND());
+    const ifs = [];
+
+    for (const item of end_items) {
+
+        if (item.len == 1 && !item.body_(grammar).reduce_function) continue;
+
+        const index = options.grammar.item_map.get(item.id).sym_uid;
+        const _if = <SKIf>sk`if ${index} == puid : { }`;
+
+        renderItemReduction((<SKBlock>_if.expression).expressions, item, options, false);
+
+        ifs.push(_if);
+    }
+
+    ifs.reduce((r, i) => r ? (r.else = i, i) : i, null);
+
+    const fn = sk`fn $${production.name}_reducer:u32 (l:Lexer, data:ParserData, state:u32, prod:u32, puid:u32){
+        ${ifs[0] ? [ifs[0], ";"] : ""}
+        return : ${production.id}
+    }`;
+
+    if (fn == "fn")
+        debugger;
+
+    return fn;
+}
+
 
 export function createVirtualProductionSequence(
     options: RenderBodyOptions,
     items: Item[],
     expected_symbols: Symbol[] = [],
-    root: SC,
     out_leaves: Leaf[],
     out_prods: number[] = [],
     /**
@@ -141,9 +132,10 @@ export function createVirtualProductionSequence(
     ALLOCATE_FUNCTION: boolean = false,
     transition_type: TRANSITION_TYPE = TRANSITION_TYPE.ASSERT_END,
     CLEAN = false
-) {
+): SKExpression[] {
     const
-        { grammar } = options,
+        out: SKExpression[] = [],
+        { grammar, helper } = options,
         { links: virtual_links, V_PRODS_ALREADY_EXIST } = createVirtualProductions(items, options);
 
     if (V_PRODS_ALREADY_EXIST)
@@ -154,26 +146,26 @@ export function createVirtualProductionSequence(
 
     const { RDOptions, GOTO_Options, RD_fn_contents, GOTO_fn_contents }
         = compileProductionFunctions(
-            options.grammar,
-            options.helper,
+            grammar,
+            helper,
             Array.from(virtual_links.values()).map(({ p }) => p),
             expected_symbols,
             (CLEAN ? 1 : options.VIRTUAL_LEVEL + 1)
+        ),
+
+        rd_virtual_name = createBranchFunctionSk(RD_fn_contents, RDOptions),
+
+        goto_virtual_name = createBranchFunctionSk(GOTO_fn_contents, GOTO_Options),
+
+        gen = addVirtualProductionLeafStatements(
+            RD_fn_contents,
+            GOTO_fn_contents,
+            rd_virtual_name,
+            goto_virtual_name,
+            RDOptions,
+            GOTO_Options,
+            virtual_links
         );
-
-    const rd_virtual_name = createBranchFunctionSk(RD_fn_contents, RD_fn_contents, RDOptions);
-
-    const goto_virtual_name = createBranchFunctionSk(RD_fn_contents, GOTO_fn_contents, GOTO_Options);
-
-    const gen = addVirtualProductionLeafStatements(
-        RD_fn_contents,
-        GOTO_fn_contents,
-        rd_virtual_name,
-        goto_virtual_name,
-        RDOptions,
-        GOTO_Options,
-        virtual_links
-    );
 
     for (let { item_id, leaf, prods } of gen) {
 
@@ -205,19 +197,22 @@ export function createVirtualProductionSequence(
     }
 
     if (options.helper.ANNOTATED) {
-
-        root.addStatement(
-            "-------------VPROD-------------------------",
-            items.map(i => i.renderUnformattedWithProduction(grammar)).join("\n")
+        out.push(
+            <SKExpression>sk`"-------------VPROD-------------------------"`,
+            <SKExpression>sk`"${items.map(i => i.renderUnformattedWithProduction(grammar)).join("\n")}"`,
         );
-
     }
-    root.addStatement(SC.Call("pushFN", "data", rd_virtual_name));
-    root.addStatement(SC.UnaryPre(SC.Return, SC.Value(0)));
 
+    out.push(
+        <SKExpression>sk`pushFN(data, ${rd_virtual_name})`,
+        <SKExpression>sk`return:0`,
+    );
 
-    collapseBranchNames(RDOptions);
-    collapseBranchNames(GOTO_Options);
+    collapseBranchNamesSk(RDOptions);
+
+    collapseBranchNamesSk(GOTO_Options);
+
+    return out;
 }
 
 export function compileProductionFunctions(

@@ -4,7 +4,7 @@
  * disclaimer notice.
  */
 import { sk } from "../../skribble/skribble.js";
-import { SKExpression, SKReturn } from "../../skribble/types/node";
+import { SKExpression, SKReference, SKReturn } from "../../skribble/types/node";
 import { RenderBodyOptions } from "../../types/render_body_options";
 import { TRANSITION_TYPE } from "../../types/transition_node.js";
 import { processProductionChain } from "../../utilities/process_production_reduction_sequences.js";
@@ -37,8 +37,8 @@ const SC = null;
 export function addLeafStatements(
     RD_fn_contents: SKExpression[],
     GOTO_fn_contents: SKExpression[],
-    rd_fn_name: string,
-    goto_fn_name: string,
+    rd_fn_name: SKReference,
+    goto_fn_name: SKReference,
     RDOptions: RenderBodyOptions,
     GOTO_Options: RenderBodyOptions) {
     const
@@ -63,15 +63,6 @@ export function addLeafStatements(
 
             leaf.push(<SKReturn>sk`return:${prods[0]}`/*<SKExpression>sk`return:${prods[0]}`*/);
 
-        } else if (false && rd_leaves.length == 1) {
-            /*
-            RD_fn_contents.shiftStatement(SC.Declare(SC.Assignment(rec_state_prod, -1)));
-            leaf.push(SC.Assignment(rec_state_prod, prods[0]));
-            leaf.push(GOTO_fn_contents);
-
-            GOTO_Options.NO_GOTOS = true;
-            GOTOS_FOLDED = true;
-            */
         } else {
 
             leaf.push(<SKExpression>sk`pushFN(data,${goto_fn_name})`);
@@ -142,8 +133,8 @@ export function addLeafStatements(
 export function* addVirtualProductionLeafStatements(
     RD_fn_contents: SKExpression[],
     GOTO_fn_contents: SKExpression[],
-    rd_fn_name: string,
-    goto_fn_name: string,
+    rd_fn_name: SKReference,
+    goto_fn_name: SKReference,
     RDOptions: RenderBodyOptions,
     GOTO_Options: RenderBodyOptions,
     v_map?: VirtualProductionLinks
@@ -200,17 +191,17 @@ export function* addVirtualProductionLeafStatements(
                 //&& production_ids.some(p_id => goto_leaf.keys.includes(p_id))
             ) {
                 if (production_ids.some(p_id => goto_leaf.keys.includes(p_id))) {
-                    leaf.push(<SKExpression>sk`prod=${SC.Value(prods[0])}`);
+                    leaf.push(<SKExpression>sk`prod=${prods[0]}`);
                     leaf.push(<SKExpression>sk`continue`);
                 } else
                     leaf.push(<SKExpression>sk`return:${prods[0]}`);
             } else if (transition_type == TRANSITION_TYPE.ASSERT_END
                 && !INDIRECT
             ) {
-                leaf.push(<SKExpression>sk`prod=${SC.Value(prods[0])}`);
+                leaf.push(<SKExpression>sk`prod=${prods[0]}`);
                 leaf.push(<SKExpression>sk`continue`);
             } else {
-                leaf.push(<SKExpression>sk`pushFN(data, goto_fn_name)`);
+                leaf.push(<SKExpression>sk`pushFN(data, ${goto_fn_name})`);
                 leaf.push(<SKExpression>sk`return:${prods[0]}`);
             }
 

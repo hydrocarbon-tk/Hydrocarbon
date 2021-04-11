@@ -3,14 +3,14 @@
  * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
  * disclaimer notice.
  */
+import { sk } from "../../skribble/skribble.js";
+import { SKBlock, SKExpression } from "../../skribble/types/node";
 import { RenderBodyOptions } from "../../types/render_body_options";
 import { MultiItemReturnObject } from "../../types/transition_generating";
 import { Leaf, TransitionNode, TRANSITION_TYPE } from "../../types/transition_node.js";
 import { createBranchFunctionSk } from "../../utilities/code_generating.js";
-import { rec_glob_lex_name, rec_state } from "../../utilities/global_names.js";
 import { getUniqueSymbolName, Sym_Is_A_Production } from "../../utilities/symbol.js";
 import { createVirtualProductionSequence } from "../function_constructor.js";
-
 
 const SC = null;
 export function default_resolveUnresolvedLeaves(node: TransitionNode, nodes: TransitionNode[], options: RenderBodyOptions): MultiItemReturnObject {
@@ -30,15 +30,13 @@ export function default_resolveUnresolvedLeaves(node: TransitionNode, nodes: Tra
                     })
                 ),
 
-        anchor_state = SC.Variable("anchor_state:unsigned"),
-
-        root: SC = (new SC),
-
         IS_LEFT_RECURSIVE_WITH_FOREIGN_PRODUCTION_ITEMS = nodes.some(i => i.transition_type == TRANSITION_TYPE.IGNORE),
 
         out_prods: number[] = [],
 
         out_leaves: Leaf[] = [];
+
+    let root: SKExpression[] = [];
 
     for (const node of nodes)
         for (const leaf of node.leaves)
@@ -49,43 +47,49 @@ export function default_resolveUnresolvedLeaves(node: TransitionNode, nodes: Tra
 
     if (!FALLBACK_REQUIRED)
         try {
-            createVirtualProductionSequence(options, items, expected_symbols, root, out_leaves, out_prods);
+            root = createVirtualProductionSequence(options, items, expected_symbols, out_leaves, out_prods);
         } catch (e) {
             //throw e;
+
             if (v_depth > 0) throw e;
-            root.statements.length = 0;
-            root.addStatement(e.stack);
+
+            root.length = 0;
+
+            root.push(<SKExpression>sk`"${e.stack}"`);
+
             FALLBACK_REQUIRED = true;
         }
 
     if (FALLBACK_REQUIRED) {
 
-        const USE_BACKTRACKING = false;
-        const USE_FORKING = true;
+        const
+            USE_BACKTRACKING = false,
+            USE_FORKING = true,
+            output_nodes = nodes.filter(i => i.transition_type !== TRANSITION_TYPE.IGNORE);
 
         let leaf = root;// prev_prods;
 
-        const output_nodes = nodes.filter(i => i.transition_type !== TRANSITION_TYPE.IGNORE);
-
         if (USE_BACKTRACKING) {
 
-            createBackTrackingSequence(
-                leaf,
-                root,
-                anchor_state,
+            const statements = createBackTrackingSequence(
                 output_nodes,
                 out_prods,
                 out_leaves,
                 IS_LEFT_RECURSIVE_WITH_FOREIGN_PRODUCTION_ITEMS
             );
+
+            root.push(...statements);
+
         } else if (USE_FORKING) {
-            createForkSequence(
+
+            const statements = createForkSequence(
                 options,
-                leaf,
                 output_nodes,
                 out_prods,
                 out_leaves,
             );
+
+            root.push(...statements);
         } else
             throw new Error(
                 `Unable to resolve parsing ambiguities \n${items.map(i => i.renderUnformattedWithProduction(options.grammar)).join("\n")} `
@@ -96,22 +100,21 @@ export function default_resolveUnresolvedLeaves(node: TransitionNode, nodes: Tra
 }
 
 function createBackTrackingSequence(
-    leaf: SC,
-    root: SC,
-    anchor_state: VarSC,
     output_nodes: TransitionNode[],
     out_prods: number[],
     out_leaves: Leaf[],
     IS_LEFT_RECURSIVE_WITH_FOREIGN_PRODUCTION_ITEMS: boolean
-) {
+): SKExpression[] {
+
     let I = 0;
 
-    root.addStatement(
-        SC.Declare(
-            SC.Assignment("mk:int", SC.Call("mark")),
-            SC.Assignment("anchor:Lexer", SC.Call(SC.Member(rec_glob_lex_name, "copy"))),
-            SC.Assignment(anchor_state, rec_state)
-        ));
+    const out: SKExpression[] = [];
+
+    out.push(
+        <SKExpression>sk`[mut] mk:i32 = mark();`,
+        <SKExpression>sk`[mut] anchor:Lexer = l.copy();`,
+        <SKExpression>sk`[mut] anchor_state:u32 = state;`
+    );
 
     for (const { code, items, prods, leaves } of output_nodes) {
 
@@ -119,54 +122,49 @@ function createBackTrackingSequence(
 
         out_leaves.push(...leaves);
 
-        leaf.addStatement(SC.Comment(items));
+        out.push(SC.Comment(items));
 
         if (I++ == 0) {
-
-            leaf.addStatement(
-                SC.Comment(prods),
-                code
-            );
+            // Preserve the `code` array to allow additional statements to
+            // be added to it
+            const block = <SKBlock>sk`{}`;
+            block.expressions = code;
+            out.push(block);
 
         } else {
-            leaf.addStatement(
-                SC.Assignment(rec_state, SC.Call(
-                    "reset:bool",
-                    "mk",
-                    "anchor:Lexer",
-                    rec_glob_lex_name,
-                    anchor_state
-                )),
-                code,
-                SC.Empty()
+            // Preserve the `code` array to allow additional statements to
+            // be added to it
+            const block = <SKBlock>sk`{}`;
+            block.expressions = code;
+            out.push(
+                <SKExpression>sk`state = reset(mk, anchor, l, anchor_state)`,
+                block
             );
 
         }
     }
 
     if (IS_LEFT_RECURSIVE_WITH_FOREIGN_PRODUCTION_ITEMS) {
-        leaf.addStatement(
-            SC.Assignment(rec_state, SC.Call(
-                "reset:bool",
-                "mk",
-                "anchor:Lexer",
-                rec_glob_lex_name,
-                anchor_state
-            )),
-            SC.Empty()
+        out.push(
+            <SKExpression>sk`state = reset(mk, anchor, l, anchor_state)`
         );
     }
+
+    return out;
 }
 
 function createForkSequence(
     options: RenderBodyOptions,
-    leaf: SC,
     output_nodes: TransitionNode[],
     out_prods: number[],
     out_leaves: Leaf[],
-) {
+): SKExpression[] {
 
     let I = 0;
+
+
+    const out: SKExpression[] = [];
+
 
     for (const { code, items, prods, leaves } of output_nodes) {
 
@@ -174,23 +172,22 @@ function createForkSequence(
         out_leaves.push(...leaves);
 
         // leaf.addStatement(items.map(i => i.renderUnformattedWithProduction(options.grammar)).join("\n"));
-        const call_name = createBranchFunctionSk(code, code, options);
+        const call_name = createBranchFunctionSk(code, options);
 
         if (I++ == output_nodes.length - 1) {
-
-            leaf.addStatement(
-                SC.Call("pushFN", "data", call_name)
+            out.push(
+                <SKExpression>sk`pushFN(data, ${call_name})`
             );
-
         } else {
-            leaf.addStatement(SC.If().addStatement(
-                SC.Value("const fk = fork(data);"),
-                SC.Call("pushFN", "fk", call_name)
-            ));
+            I++;
+            out.push(
+                <SKExpression>sk`[static] fk${I}:ParserData = fork(data);`,
+                <SKExpression>sk`pushFN(fk${I}, ${call_name})`
+            );
         }
     }
 
-    leaf.addStatement(SC.UnaryPre(SC.Return, SC.Value("0")));
+    out.push(<SKExpression>sk`return:0`);
 
-    return I;
+    return out;
 }

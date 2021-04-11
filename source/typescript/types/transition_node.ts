@@ -193,7 +193,7 @@ export interface Leaf {
 
 export interface GeneratorStateReturn {
     hash: string,
-    code: SKNode,
+    code: SKExpression[],
     prods: number[];
     leaves: Leaf[];
 }

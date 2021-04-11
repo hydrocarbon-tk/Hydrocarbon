@@ -106,6 +106,11 @@ export function yieldTransitions(
 
             output_nodes.push(...yieldPeekedNodes(active_items, options, offset, filter_symbols));
 
+
+        if (output_nodes.length == 0) {
+            debugger;
+        }
+
     }
 
     return output_nodes;
@@ -195,6 +200,7 @@ function yieldProductionCallNode(active_items: Item[], offset: number, FROM_PEEK
 }
 
 function yieldSingleItemNode(items: Item[], { grammar }: RenderBodyOptions, offset: number, FROM_PEEKED_TRANSITION: boolean): TransitionNode[] {
+
 
     const
         symbols = getTokenSymbolsFromItems(
