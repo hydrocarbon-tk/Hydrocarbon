@@ -245,7 +245,7 @@ function processClosures(
 
             const { item, excludes } = item_map;
 
-            let temp = [];
+            let temp: Item[] = [];
 
             temp.push(item);
 
@@ -255,7 +255,16 @@ function processClosures(
 
             if (Sym_Is_A_Production(sym) && !Sym_Is_A_Production_Token(sym)) {
                 const prod_id = sym.val;
-                temp.push(...extant_production_item_maps[prod_id].item_maps.flatMap(i => i.closure));
+                const existing_items = new Set();
+
+                for (const item_map of extant_production_item_maps[prod_id].item_maps) {
+                    for (const item of item_map.closure) {
+                        if (existing_items.has(item.id))
+                            continue;
+                        temp.push(item);
+                        existing_items.add(item.id);
+                    }
+                }
             }
 
             let new_hash = temp.map(i => i.id).setFilter().sort().join("");
