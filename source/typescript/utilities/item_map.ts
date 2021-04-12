@@ -302,6 +302,11 @@ function addPositionalItemIds(grammar: Grammar, productions: Production[]) {
     for (const production of productions)
         if (production.type != "virtual-production")
             addPositionalSymbolId(grammar, production);
+        else for (let item of getStartItemsFromProduction(production))
+            do {
+                grammar.item_map.get(item.id).sym_uid = 0;
+                item = item.increment();
+            } while (!item.atEND);
 };
 
 function addPositionalSymbolId(grammar: Grammar, production: Production) {
