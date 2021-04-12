@@ -144,8 +144,9 @@ export function Sym_Is_Not_Numeric(sym: Symbol): boolean {
  * @param sym 
  */
 export function Defined_Sym_Is_An_Identifier(sym: Symbol): sym is DefinedIdentifierSymbol {
-    const lex = new Lexer(sym.val + "");
-    return lex.ty == lex.types.id;
+    const val = sym.val + "";
+    const lex = new Lexer(val + "");
+    return lex.ty == lex.types.id && lex.tl == val.length;
 }
 export function Sym_Is_Not_A_Defined_Identifier(sym: Symbol): boolean {
     return !Sym_Is_Defined_Identifier(sym);
