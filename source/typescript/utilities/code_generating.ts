@@ -136,10 +136,10 @@ export function createSkipCallSk(
 
     const { helper: runner } = options;
 
-    const skips = getSkipFunctionNewSk(symbols, options, undefined, lex_name, exclude);
+    const skip = getSkipFunctionNewSk(symbols, options, undefined, lex_name, exclude);
 
-    if (skips)
-        return <SKExpression>sk`${skips}(${lex_name}/*${symbols.map(s => `[ ${s.val} ]`).join("")}*/, data, ${!peek ? USE_NUMBER ? 0xFFFFFF : "state" : "0"});\n`;
+    if (skip)
+        return <SKExpression>sk`${skip}(${lex_name}/*${symbols.map(s => `[ ${s.val} ]`).join("")}*/, data, ${!peek ? USE_NUMBER ? 0xFFFFFF : "state" : "0"});\n`;
 
     return null;
 }
@@ -205,9 +205,6 @@ export function collapseBranchNamesSk(options: RenderBodyOptions) {
             }`;
 
         token_function.expressions = body;
-
-
-        console.log(skRenderAsSK(token_function));
 
         var val = packGlobalFunctionSk("branch", "int", token_function, token_function, runner);
 
@@ -424,7 +421,7 @@ export function createSymbolMappingFunctionSk(
             code_node = yielded.value,
 
             fn = <SKFunction>sk`fn temp:i32(l:Lexer, data:Data){
-                "${symbols.map(s => s.val).join(" ")}";
+                //"${symbols.map(s => s.val).join(" ")}";
                 ${[code_node, ";", ifs[0], ";"]}
                 return:${default_return_value};
             }`;
@@ -482,18 +479,14 @@ export function* buildSwitchIfsAlternateSk(
 
     ifs.reduce((r: SKIf, a: SKIf) => ((!r) ? a : (r.else = a, a)), null);
 
-    const root_if = <IfNode["code_node"]>ifs[0] || [];
-
-    let block = Array.isArray(root_if)
-        ? root_if
-        : root_if.expression.expressions;
+    const code_node = ifs.length > 0 ? [ifs[0]] : [];
 
     for (const sym of syms) {
         if (sym.byte_length <= off)
-            yield { sym, code_node: block };
+            yield { sym, code_node };
     }
 
-    return root_if;
+    return code_node;
 }
 
 type IfNode = {

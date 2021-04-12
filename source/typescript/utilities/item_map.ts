@@ -312,6 +312,7 @@ function addPositionalSymbolId(grammar: Grammar, production: Production) {
         sym_map = new Map();
 
     for (let item of items) {
+
         const set = new Set;
         let cumulative_id = 0;
 
@@ -333,6 +334,7 @@ function addPositionalSymbolId(grammar: Grammar, production: Production) {
                     sym_map.set(sym, 1 << sym_map.size);
 
                 let id = sym_map.get(sym);
+
 
                 item_map.get(item.id).sym_uid = id;
 

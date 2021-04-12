@@ -15,8 +15,6 @@ import { const_EMPTY_ARRAY } from "../../utilities/const_EMPTY_ARRAY.js";
 import { createTransitionNode } from "./create_transition_node.js";
 import { processProductionChain } from "../../utilities/process_production_reduction_sequences.js";
 import { buildPeekTransitions } from "./yield_peek_transitions.js";
-
-const SC = null;
 export function yieldEndItemTransitions(end_items: Item[], options: RenderBodyOptions, offset: number): TransitionNode[] {
 
     if (end_items.length == 0) return [];

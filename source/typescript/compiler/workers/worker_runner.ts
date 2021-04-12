@@ -75,7 +75,7 @@ export class WorkerRunner {
 
     mergeWorkerData(worker: WorkerContainer, response: HybridDispatchResponse) {
 
-        const {  const_map, fn, productions, production_id } = response;
+        const { const_map, fn, productions, production_id } = response;
 
         this.runner.join_constant_map(const_map);
 

@@ -55,7 +55,7 @@ export function default_resolveUnresolvedLeaves(node: TransitionNode, nodes: Tra
 
             root.length = 0;
 
-            root.push(<SKExpression>sk`"${e.stack}"`);
+            // root.push(<SKExpression>sk`"${e.stack}"`);
 
             FALLBACK_REQUIRED = true;
         }

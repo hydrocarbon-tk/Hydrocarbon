@@ -8,7 +8,6 @@ import { RenderBodyOptions } from "../types/render_body_options";
 
 import { getGotoItems, Item, itemsToProductions } from "./item.js";
 import { renderItemReduction } from "./render_item.js";
-import { SC } from "./skribble.js";
 
 export function processProductionChain(
     expression_block: SKExpression[],

@@ -11,8 +11,6 @@ export function parser(string) {
         throw new SyntaxError(error_message);
     }
 
-    console.log(result);
-
     return result[0];
 }
 
