@@ -102,14 +102,20 @@ export function renderItem(
     if (!item.atEND) {
 
         if (FROM_UPPER) {
-            const skippable = getSkippableSymbolsFromItems([item], grammar);
-            leaf_expressions.push(createSkipCallSk(skippable, options, lexer_name, false));
+
+            const
+                skippable = getSkippableSymbolsFromItems([item], grammar),
+                skip = createSkipCallSk(skippable, options, lexer_name, false);
+
+            if (skip) leaf_expressions.push(skip);
         }
 
         let bool_expression = null;
 
         const sym = getRootSym(item.sym(grammar), grammar);
+
         leaf_expressions.push(<SKExpression>sk`puid |= ${grammar.item_map.get(item.id).sym_uid}`);
+
         if (Sym_Is_A_Production(sym) && !Sym_Is_A_Production_Token(sym)) {
 
             INDIRECT = true;

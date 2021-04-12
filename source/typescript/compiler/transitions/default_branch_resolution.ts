@@ -227,13 +227,16 @@ function createPeekStatements(
         }
 
         if (state.offset > 0 && state.peek_level == 0) {
-            root.push(createSkipCallSk(skippable, options, lex_name, false));
+            const skip = createSkipCallSk(skippable, options, lex_name, false);
+            if (skip) root.push(skip);
         } else if (state.peek_level >= 1) {
             peek_name = "pk";
-            root.push(createSkipCallSk(skippable, options, "pk.next(data)", true));
+            const skip = createSkipCallSk(skippable, options, "pk.next(data)", true);
+            if (skip) root.push();
         }
     } else if (state.offset > 0) {
-        root.push(createSkipCallSk(skippable, options, "l", false));
+        const skip = createSkipCallSk(skippable, options, "l", false);
+        if (skip) root.push(skip);
     }
 
     return peek_name;
