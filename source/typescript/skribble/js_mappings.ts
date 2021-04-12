@@ -197,7 +197,7 @@ export const js_mappings: NodeMappings<SKNode, "type"> = <NodeMappings<SKNode, "
 
 
                     }).filter(s => s));
-                } else if (node.match?.value == "default") {
+                } else if (node.match?.value.trim() == "default") {
                     cases.push(`default:`);
                 } else {
                     cases.push(`case ${template_fn(state, node.match)}:`);
