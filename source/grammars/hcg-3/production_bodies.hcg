@@ -1,0 +1,47 @@
+# Copyright (C) 2021 Anthony Weathersby - The Hydrocarbon Parser Compiler
+# see /source/typescript/hydrocarbon.ts for full copyright and warranty 
+# disclaimer notice.
+
+# version 3.0
+
+@IMPORT ./symbols.hcg as sym
+
+@IMPORT ./comments.hcg as cm
+
+@IMPORT ./functions.hcg as fn
+
+@IGNORE θws θnl 
+
+########################################################################################################################
+######################################  PRODUCTION BODIES
+########################################################################################################################
+
+<> hcg_production_bodies > production_bodies
+
+<> production_bodies > (  production_body | cm::comment )(+\| )  
+
+<> production_body > ( \( t:FORK \) )? entries fn::reduce_function?                      
+                                                                    f:r { { type:"body", symbols:$sym2, reduce:$$sym3, FORCE_FORK:!!$$sym1, id:-1 } }
+
+<> entries > body_entry(+)                            
+
+        | sym::empty_symbol                                              
+                                                                    f:r { [] }
+
+
+<> body_entry > condition_clause                                     
+
+       | fn::function_clause                                                                
+
+       | sym::symbol        
+
+       | \[ body_entry(+) \]                                        
+                                                                   f:r { $sym2.map(e => (e.NO_BLANK = true, e) ) }
+
+<> condition_clause > 
+         \( \EXC sym::condition_symbol_list \)                     f:r { { type:"condition-exclude", sym : $sym3, offset : -1 } }
+       | \( \ERR sym::condition_symbol_list \)                     f:r { { type:"condition-error",   sym : $sym3, offset : -1 } }
+       | \( \IGN sym::condition_symbol_list \)                     f:r { { type:"condition-ignore",  sym : $sym3, offset : -1 } }
+       | \( \RST sym::condition_symbol_list \)                     f:r { { type:"condition-reset",   sym : $sym3, offset : -1 } }
+       | \( \RED sym::symbol \)                                    f:r { { type:"condition-reduce",  sym : $sym3, offset : -1 } }
+

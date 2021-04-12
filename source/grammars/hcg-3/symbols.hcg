@@ -1,0 +1,104 @@
+# Copyright (C) 2021 Anthony Weathersby - The Hydrocarbon Parser Compiler
+# see /source/typescript/hydrocarbon.ts for full copyright and warranty 
+# disclaimer notice.
+
+# version 3.0
+
+@IMPORT ./production_bodies.hcg as pb
+
+@IMPORT ../misc/default-productions.hcg as def
+
+@IGNORE g:ws g:nl
+
+#######################################################################################################################
+######################################  SYMBOLS
+########################################################################################################################
+
+<> hcg_symbols > symbol(+)
+
+<> condition_symbol_list > terminal_symbol(+)
+
+<> lexer_symbols > lexer_symbol(+)                                     
+
+<> ignore_symbols > ignore_symbol(+)                                      
+
+<> lexer_symbol > generated_symbol
+    | literal_symbol
+    | escaped_symbol
+    | grouped_symbol grouped_delimiter                          f:r { { type:"symbol", val:$sym1, pos:pos } }    
+
+<> grouped_delimiter >  g:nl | g:ws                                    
+
+<> grouped_symbol >  ( g:sym | g:id )(+\" )  sym_delimiter?     f:r { { type:"symbol", val:$sym1, pos:pos }}                                                    
+
+<> ignore_symbol > generated_symbol
+    | literal_symbol
+    | escaped_symbol
+    | production_token_symbol
+
+<>  terminal_symbol > generated_symbol
+    | literal_symbol
+    | escaped_symbol
+    
+
+<> symbol > symbol \?                                            f:r { $sym1.IS_OPTIONAL = true, $sym1 }
+    
+    | \?= symbol                                                 f:r { $sym2.IS_NON_CAPTURE = true, $sym2 }
+    
+    | generated_symbol 
+    
+    | production_symbol
+    
+    | production_token_symbol
+    
+    | imported_production_symbol
+    
+    | literal_symbol
+    
+    | escaped_symbol
+
+    | EOF_symbol
+
+    | \( pb::production_bodies \)                        
+                                                                f:r { { type:"group-production", val:$sym2, pos:pos } }       
+    
+    # This defines a list of virtual productions that reduces to an array of productions. 
+    # A delimiter "terminal_symbol" can be defined to cause the parser to match such productions as { sym , sym , sym ...} 
+    # or { term . term . term ...}. If the "terminal_symbol" is a single or double quotation (\" or \') then the production
+    # values are automatically reduced to a string. 
+
+    | symbol ( \(+ | \(* )  terminal_symbol?  \)                f:r { { type:"list-production", val:$sym1, pos:pos } }
+
+    | g:sym                                                     f:r { { type:"symbol", val:$sym1, pos:pos } }
+
+<> EOF_symbol > 
+    \$eof                                                       f:r { { type:"eof", val:"END_OF_FILE", pos:pos } }
+
+<> empty_symbol > 
+    \ɛ                                                          f:r { { type:"empty", pos:pos } }
+
+<> generated_symbol > 
+    \g: (ERR θws θnl) identifier                                f:r { { type:"generated", val:$sym2, pos:pos } }
+
+<> literal_symbol > 
+    \t: (ERR g:ws g:nl)  ( identifier | g:num ) sym_delimiter? 
+                                                                f:r { { type:"literal", val:""+$sym2, pos:pos } }
+
+<> escaped_symbol > 
+    \\ ( g:id | g:sym | g:num )(+\" ) sym_delimiter             f:r { { type:"symbol", val:$sym2, pos:pos } }
+
+<> production_token_symbol > \tk: identifier                    f:r { { type:"production_token", name:$sym2, val:-1, pos:pos } }
+
+<> production_symbol > 
+    identifier                                                  f:r { { type:"production", name:$sym1, val:-1, pos:pos } }
+
+<> imported_production_symbol > 
+    identifier \:: identifier                                   f:r { { type:"import-production", name:$sym1, val:-1, pos:pos } } 
+
+<> production_id > identifier
+
+<> identifier >  def::js_identifier 
+
+<> js_identifier >  def::js_identifier
+
+<> sym_delimiter >  g:ws | $eof  | g:nl 
