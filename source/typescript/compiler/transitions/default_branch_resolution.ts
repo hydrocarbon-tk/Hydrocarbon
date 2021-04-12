@@ -437,8 +437,8 @@ function createIfElseExpressions(
 
                 assertion_boolean = getIncludeBooleansSk(<TokenSymbol[]>syms, options, lex_name, <TokenSymbol[]>complement_symbols);
 
-                code.push(<SKExpression>sk`puid |= ${grammar.item_map.get(items[0].id).sym_uid}`);
-                code.push(createConsumeSk("l"));
+                code.unshift(<SKExpression>sk`puid |= ${grammar.item_map.get(items[0].id).sym_uid}`);
+                code.unshift(createConsumeSk("l"));
 
                 addIf(createIfStatementTransition(options, group, code, assertion_boolean, FORCE_ASSERTIONS));
 
