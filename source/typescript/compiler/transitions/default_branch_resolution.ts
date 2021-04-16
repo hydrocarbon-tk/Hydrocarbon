@@ -71,7 +71,7 @@ export function default_resolveBranches(
         groups
     );
 
-    if ((groups.length >= 32 || GROUPS_CONTAIN_SYMBOL_AMBIGUITY) && number_of_end_groups <= 1) {
+    if ((groups.length >= 5 || GROUPS_CONTAIN_SYMBOL_AMBIGUITY) && number_of_end_groups <= 1) {
 
         if (number_of_end_groups >= 1 && GROUPS_CONTAIN_SYMBOL_AMBIGUITY) {
 
@@ -222,18 +222,22 @@ function createPeekStatements(
         return lex_name;
 
     if (state.peek_level >= 0) {
-        if (state.peek_level == 1) {
-            peek_name = "pk";
-            root.push(<SKExpression>sk`[mut] pk:Lexer = ${lex_name}.copy()`);
-        }
 
         if (state.offset > 0 && state.peek_level == 0) {
             const skip = createSkipCallSk(skippable, options, lex_name, false);
             if (skip) root.push(skip);
         } else if (state.peek_level >= 1) {
+
             peek_name = "pk";
+
+            if (state.peek_level == 1)
+                root.push(<SKExpression>sk`[mut] pk:Lexer = ${lex_name}.copy()`);
+
+
             const skip = createSkipCallSk(skippable, options, "pk.next(data)", true);
-            if (skip) root.push();
+
+            if (skip) root.push(skip);
+            else root.push(<SKExpression>sk`pk.next(data)`);
         }
     } else if (state.offset > 0) {
         const skip = createSkipCallSk(skippable, options, "l", false);
