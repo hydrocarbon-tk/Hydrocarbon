@@ -14,9 +14,7 @@ import { getSkippableSymbolsFromItems, getUnskippableSymbolsFromClosure } from "
 import { Helper } from "../compiler/helper.js";
 import { BaseOptions } from "vm";
 export const renderSkribbleRecognizer = (
-    grammar: Grammar,
-    runner: Helper,
-    rd_functions: RDProductionFunction[],
+    grammar: Grammar
 ): SKModule => {
 
 
@@ -33,7 +31,7 @@ export const renderSkribbleRecognizer = (
 
     return <SKModule>parser(`
 [static new] lookup_table : Uint8Array = Uint8Array(${jump8bit_table_byte_size});
-[static new] sequence_lookup : Uint8Array = Uint8Array(212);
+[static new] sequence_lookup : Uint8Array = Uint8Array(${grammar.sequence_string.length});
 [static] TokenSpace: u32 = 2;
 [static] TokenNumber: u32 = 5;
 [static] TokenIdentifier: u32 = 1;
@@ -48,27 +46,28 @@ fn compare: u32(
     data: ParserData,
     data_offset: u32,
     sequence_offset:u32,
-    length:setUint32
+    byte_length:setUint32
 ){
     [mut] i:u32 = data_offset;
-    [mut] j:u32 = data_offset;
-    [const] len:u32 = j+length;
+    [mut] j:u32 = sequence_offset;
+    [const] len:u32 = j+byte_length;
 
     loop(;j<len; i++, j++)
         if(data.input[i] != sequence_lookup[j] ) : return : j - sequence_offset;
 
-    return : length;
+    return : byte_length;
 }
 
 fn cmpr_set : u32 (
     l : Lexer,
     data: ParserData,
     sequence_offset:u32,
-    length:setUint32
+    byte_length:u32,
+    token_length:u32
 ){
-    if length != compare(data, l.byte_offset, sequence_offset, tk_len) : {
-        l.byte_length = length;
-        l.token_length = tk_len;
+    if (byte_length) == compare(data, l.byte_offset, sequence_offset, byte_length) : {
+        l.byte_length = byte_length;
+        l.token_length = token_length;
         return : true;
     };
 
@@ -183,7 +182,10 @@ fn getTypeAt : u32 ( code_point : u32 ) {
     }
 
     [pub] fn getType : u32 (USE_UNICODE:bool, data: ParserData) { 
-        if this.type != 0 :
+
+        if this.END(data) : return : 0;
+
+        if (this.type) == 0 :
             if ( !(USE_UNICODE) || this.current_byte < 128) :
                 this.type = getTypeAt(this.current_byte)
             else {
@@ -195,7 +197,7 @@ fn getTypeAt : u32 ( code_point : u32 ) {
     }
 
     [pub] fn isSym : bool (USE_UNICODE:bool, data:ParserData) {
-        return : this.getType(USE_UNICODE, data) == TokenSymbol;
+        return : (!this.END(data)) && this.getType(USE_UNICODE, data) == TokenSymbol;
     }
 
     [pub] fn isNL : bool () {
@@ -209,33 +211,35 @@ fn getTypeAt : u32 ( code_point : u32 ) {
     [pub] fn isNum : bool  (data:ParserData) {
         if (this.type) == 0 || (this.type) == TokenNumber : {
             if this.getType(false, data) == TokenNumber : {
-                [const] l :u32 = data.input_len;
-                off : u32 = this.byte_offset;
 
-                loop ((off.inc < l) && 47 < data.input[off] && data.input[off] < 58)  {
+                [const] l :u32 = data.input_len;
+
+                [mut] off : u32 = this.byte_offset;
+
+                loop ((off++ < l) && 47 < data.input[off] && data.input[off] < 58)  {
                     this.byte_length += 1;  
                     this.token_length += 1;
                 };
 
                 this.type = TokenFullNumber;
                 
-                true
+                return : true
 
             } else 
                 return : false
         } else 
-            return : this.type != TokenFullNumber
+            return : (this.type) == TokenFullNumber
     }
 
     [pub] fn isUniID : bool  (data:ParserData) {
         
-        if (this.type != 0 || this.type != TokenIdentifier) : {
+        if ((this.type) == 0 || (this.type) == TokenIdentifier) : {
 
-            if (this.getType(true, data) != TokenIdentifier) : {
+            if (this.getType(true, data) == TokenIdentifier) : {
 
                 [const] l :u32 = data.input_len;
 
-                off:u32  = this.byte_offset;
+                [mut]  off:u32  = this.byte_offset;
 
                 prev_byte_len:u32  = this.byte_length;
 
@@ -284,6 +288,14 @@ fn getTypeAt : u32 ( code_point : u32 ) {
         return:this
     }
 
+    [pub] fn slice:Lexer(source:Lexer) {
+        this.byte_length = this.byte_offset - source.byte_offset;
+        this.token_length = this.token_offset - source.token_offset;
+        this.byte_offset = source.byte_offset;
+        this.token_offset = source.token_offset;
+        return:this;
+    }
+
     [pub] fn next:void (data: ParserData){
             
         this.byte_offset += this.byte_length;
@@ -305,7 +317,7 @@ fn getTypeAt : u32 ( code_point : u32 ) {
     
 
     [pub] fn END:bool (data:ParserData){
-        this.byte_offset >= data.input_len
+        return : this.byte_offset >= data.input_len
     }
 }
 
@@ -335,15 +347,15 @@ fn getTypeAt : u32 ( code_point : u32 ) {
     [pub]  fn ParserData:ParserData(
         input_len:u32, rules_len:u32, error_len:u32
     ){
-        this.state = createState(true);
+        this.state = createState(1);
         this.prop = 0;
         this.stack_ptr = 0;
         this.input_ptr = 0;
         this.rules_ptr = 0;
         this.error_ptr = 0;
-        this.input_len = 0;
-        this.rules_len = 0;
-        this.error_len = 0;
+        this.input_len = input_len;
+        this.rules_len = rules_len;
+        this.error_len = error_len;
         this.debug_len = 0;
         this.origin_fork = 0;
         [ptr this_] origin:u32 = 0;
@@ -360,24 +372,56 @@ fn getTypeAt : u32 ( code_point : u32 ) {
 
 [pub wasm] cls ForkData{
 
-    [pub] next: ForkData = 0
     [pub] ptr: u32 = 0
     [pub] valid:bool = 0
     [pub] depth:u32 = 0
     [pub] command_offset:u32 = 0
-    [pub] command_block: Uint8Array = 0
+    [pub] command_block: Uint16Array = 0
 
     [pub] fn ForkData:ForkData(
         ptr:u32,
-        next:ForkData,
-        valid:bool
+        valid:bool,
+        depth:u32
     ){
         this.ptr = ptr;
-        this.next = next;
-        this.command_offset = 0;
         this.valid = valid;
-        this.depth = 0;
+        this.depth = depth;
+        this.command_offset = 0;
+        [this_ new] command_block:Uint16Array = Uint16Array(64);
     }
+}
+
+fn fork:ParserData(data:ParserData) {
+
+    [mut new] fork:ParserData = ParserData(
+        data.input_len,
+        data.rules_len,
+        data.error_len - data.error_ptr
+    );
+
+    [mut] i:u32 = 0;
+    
+    loop (; i < data.stack_ptr; i++)  {
+        fork.stash[i] = data.stash[i];
+        fork.stack[i] = data.stack[i];
+    };
+
+    fork.stack_ptr = data.stack_ptr;
+    fork.input_ptr = data.input_ptr;
+    fork.origin_fork = data.rules_ptr + data.origin_fork;
+    fork.origin = data;
+    fork.lexer = data.lexer.copy();
+    fork.state = data.state;
+    fork.prop = data.prop;
+    fork.input = data.input;
+
+    loop ((data.alternate)) {
+        data = data.alternate;
+    };
+
+    data.alternate = fork;
+
+    return :fork; 
 }
 
 
@@ -463,25 +507,25 @@ fn add_skip:void(l:Lexer, data:ParserData, skip_delta:u32){
 
 fn set_error:void (val:u32, data:ParserData) {
     if(data.error_ptr > data.error_len) : return;
-    data.error[data.error_ptr.inc] = val;
+    data.error[data.error_ptr++] = val;
 }
 
 fn set_action:void (val:u32, data:ParserData) {
-    if(data.error_ptr > data.error_len) : return;
-    data.error[data.rules_ptr.inc] = val;
+    if(data.rules_ptr > data.rules_len) : return;
+    data.rules[data.rules_ptr++] = val;
 }
 
-fn createState:u32 (ENABLE_STACK_OUTPUT:bool) {
+fn createState:u32 (ENABLE_STACK_OUTPUT:u32) {
     [const] IS_STATE_VALID:u32 = 1;
     return : IS_STATE_VALID | (ENABLE_STACK_OUTPUT << 1);
 }
 
 fn hasStateFailed:bool(state:u32) {
     [const] IS_STATE_VALID:u32 = 1;
-    return : 0 != (state & IS_STATE_VALID); //==
+    return : 0 == (state & IS_STATE_VALID); //==
 }
 
-[pub] fn mark:u32 (val:u32, data:ParserData) { recaseturn:action_ptr }
+[pub] fn mark:u32 (val:u32, data:ParserData) { return:action_ptr }
 
 fn isOutputEnabled:bool (state:u32) { return:0 < (state & 2) }
 
@@ -578,32 +622,96 @@ fn stepKernel:bool(data:ParserData, stack_base:u32){
 fn get_fork_information:void(){
     [mut] i:u32 = 0;
 
-    [static array] fork_data:array = array();
+    [static array] fork_data:array = Array();
 
-    loop([mut]fork:ParserData in data_stack) {
-        fork_data.push()
+    loop([mut]data:ParserData in data_stack) {
+        [mut new] fork:ForkData = ForkData(
+            (i++),
+            (data.valid || true),
+            (data.origin_fork + data.rules_ptr)
+        );
+        fork_data.push(fork)
     };
 
     return: fork_data;
 }
 
-fn dispatch:u32(data:ParserData, production_index:u32){
-    match production_index :
-        ${rd_functions.filter(f => f.RENDER)
-            .map((fn, i) => {
-                const name = getProductionFunctionNameSk(grammar[fn.id], grammar);
-                return `${i} : { data.stack[0] = ${name}; data.stash[0] = ${0}; return }`;
-            }).join(",")}
-    
+fn block64Consume:i32([ParserData] data:ParserData, block:Uint16Array, offset:u32, block_offset:u32, limit:u32) {
+    //Find offset block
+
+    [mut] containing_data:ParserData = data;
+    [mut] end:i32 = containing_data.origin_fork + data.rules_ptr;
+
+    //Find closest root
+    loop ((containing_data.origin_fork > offset) ){
+        end = containing_data.origin_fork;
+        containing_data = containing_data.origin;
+    };
+
+    [mut] start:i32 = containing_data.origin_fork;
+
+    offset -= start;
+    end -= start;
+
+    //Fill block with new data
+    [mut] ptr:u32 = offset;
+
+    if (ptr >= end) : return : limit - block_offset;
+
+    loop ((block_offset < limit) ){
+        block[block_offset++] = containing_data.rules[ptr++];
+        if (ptr >= end) :
+            return: block64Consume(data, block, ptr + start, block_offset, limit);
+    };
+
+    return: 0;
+}
+
+fn get_next_command_block:Uint16Array(fork:ForkData) {
+
+    [static] remainder:u32 = block64Consume(data_stack[fork.ptr], fork.command_block, fork.command_offset, 0, 64);
+
+    fork.command_offset += 64 - remainder;
+
+    if (remainder > 0) :
+        fork.command_block[64 - remainder] = 0;
+
+    return : fork.command_block;
 }
 
 fn recognizer:bool(data:ParserData, input_byte_length:u32, production:u32){
     data.input_len = input_byte_length;
     data.lexer.next(data);
-    ${skRenderAsSK(createSkipCallSk(skippable, <BaseOptions>{ grammar, helper: runner }, "data.lexer", false, unskippable, true))};
     dispatch(data, production);
     run(data);
 }
-`)
-        ;
+`);
 };
+
+export function createDispatchTemplate(
+    grammar: Grammar,
+    runner: Helper,
+    rd_functions: RDProductionFunction[],
+) {
+    return <SKModule>parser(`
+    fn dispatch:u32(data:ParserData, production_index:u32){
+        match production_index :
+            ${rd_functions.filter(f => f.RENDER)
+            .map((fn, i) => {
+                const name = getProductionFunctionNameSk(grammar[fn.id], grammar);
+                const closure = getProductionClosure(0, grammar);
+                const skippable = getSkippableSymbolsFromItems(closure, grammar);
+                const unskippable = getUnskippableSymbolsFromClosure(closure, grammar);
+                const skip_call = skRenderAsSK(createSkipCallSk(skippable, <BaseOptions>{ grammar, helper: runner }, "data.lexer", false, unskippable, true));
+                return `${i} : { ${skip_call}; data.stack[0] = ${name}; data.stash[0] = ${0}; return }`;
+            }).join(",")}
+        
+    }`);
+}
+
+export function createParserTemplate(
+    grammar,
+    runner,
+) {
+
+}
