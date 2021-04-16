@@ -136,7 +136,7 @@ export function createSkipCallSk(
 
     const { helper: runner } = options;
 
-    const skip = getSkipFunctionNewSk(symbols, options, undefined, lex_name, exclude);
+    const skip = getSkipFunctionNewSk(symbols, options, undefined, exclude);
 
     if (skip)
         return <SKExpression>sk`${skip}(${lex_name}/*${symbols.map(s => `[ ${s.val} ]`).join("")}*/, data, ${!peek ? USE_NUMBER ? 0xFFFFFF : "state" : "0"});\n`;
@@ -148,7 +148,6 @@ export function getSkipFunctionNewSk(
     skip_symbols: TokenSymbol[],
     options: BaseOptions,
     custom_skip_code: SKNode,
-    lex_name: string = "l",
     exclude: TokenSymbol[] = []
 ): SKReference {
 

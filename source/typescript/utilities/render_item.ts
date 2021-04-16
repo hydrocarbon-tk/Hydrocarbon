@@ -177,7 +177,7 @@ export function renderItem(
 
         original_prods = itemsToProductions([item], grammar);
 
-        prods = processProductionChain([], options, itemsToProductions([item], grammar));
+        prods = processProductionChain(leaf_expressions, options, itemsToProductions([item], grammar));
     }
 
 
