@@ -62,7 +62,7 @@ export const getProductionFunctionNameSk = (production: Production, grammar: Gra
 export const createConsumeSk = (lex_name: string): SKCall => <SKCall>sk`consume(${lex_name}, data, state)`;
 
 export const createAssertConsumeSk = (lex_name: string = "l:Lexer", boolean: SKExpression): SKOperatorExpression =>
-    <SKOperatorExpression>sk`${boolean} && ${createConsumeSk(lex_name)}`;
+    <SKOperatorExpression>sk`((${boolean}) && ${createConsumeSk(lex_name)})`;
 export const createAssertionShiftSk = (options: BaseOptions, sym: TokenSymbol, lex_name: string = "l"): SKOperatorExpression =>
     createAssertConsumeSk(lex_name, getIncludeBooleansSk([sym], options, lex_name));
 
