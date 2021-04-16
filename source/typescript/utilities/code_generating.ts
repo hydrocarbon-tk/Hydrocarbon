@@ -177,9 +177,8 @@ export function getSkipFunctionNewSk(
                     };
 
                     l.next(data);
-                    
-                    if isOutputEnabled(state) : add_skip(l, data, l.token_offset - off);
                 };
+                if isOutputEnabled(state) : add_skip(l, data, l.token_offset - off);
             }`;
 
         fn_ref = packGlobalFunctionSk("skip", "Lexer", skip_symbols, skip_function, runner);
