@@ -96,7 +96,7 @@ async function start() {
                 output_dir = cmd.output_dir || "./",
                 recognizer = { js: "js", wasm: "wasm" }[cmd.recognizer_type] || "js",
                 completer = { js: "js", ts: "ts" }[cmd.completer] || "js",
-                add_annotations = recognizer == "js" && !!cmd.annotations,
+                ADD_ANNOTATIONS = recognizer == "js" && !!cmd.annotations,
                 debug = recognizer == "js" && !!cmd.debug,
                 compiler_options = {
                     name,
@@ -106,7 +106,7 @@ async function start() {
                     memory_loader_url: loader_path || "@candlefw/hydrocarbon",
                     optimize: true,
                     combine_recognizer_and_completer: true,
-                    add_annotations,
+                    ADD_ANNOTATIONS,
                     debug,
                     number_of_workers: workers || 1
                 };
