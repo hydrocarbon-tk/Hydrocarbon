@@ -39,7 +39,7 @@
         "@candlefw/conflagrate": "0.1.1",
         "@candlefw/js": "0.4.0",
         "@candlefw/url": "0.1.5",
-        "@candlefw/wind": "0.4.3",
+        "@candlefw/wind": "0.4.4",
         "assemblyscript": "^0.17.2",
         "commander": "^5.0.0",
         "terser": "^4.6.3"
