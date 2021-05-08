@@ -159,7 +159,7 @@ export function ParserFactory<T>(
 
 
 
-export function fillByteBufferWithUTF8FromString(string, buffer: Uint8Array, max_length) {
+export function  fillByteBufferWithUTF8FromString(string, buffer: Uint8Array, max_length) {
 
     let i = 0, j = 0, l = string.length;
 

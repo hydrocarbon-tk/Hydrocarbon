@@ -52,7 +52,6 @@ export function sk(templates: TemplateStringsArray, ...node_stack): SKExpression
     const env = { node_stack: node_stack.reverse(), grabTemplateNode: () => obj_nodes.pop() };
     let result = null, FAILED = false, error_message = "";
 
-
     if (parse_string.match(/^[\s\n\t]*(\[[^\]]+\])?\s*fn ?/)?.length > 0) {
         //Function selection
         ({ result, FAILED, error_message } = skribble_parser(parse_string, env, 12));

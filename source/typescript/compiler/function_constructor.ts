@@ -45,9 +45,9 @@ export function constructHybridFunction(production: Production, grammar: Grammar
         { RDOptions, GOTO_Options, RD_fn_contents, GOTO_fn_contents }
             = compileProductionFunctions(grammar, runner, [production]);
 
-    RD_function.expressions = RD_fn_contents;
+    RD_function.expressions = [...RD_fn_contents, <SKExpression>sk`return:-1`];
 
-    GOTO_function.expressions = GOTO_fn_contents;
+    GOTO_function.expressions = [...GOTO_fn_contents];
 
     addLeafStatements(
         RD_fn_contents,
@@ -65,17 +65,10 @@ export function constructHybridFunction(production: Production, grammar: Grammar
 
     const ReduceFunction = constructReduceFunction(production, RDOptions, grammar);
 
-    //const annotation = 
-    //    `production name: ${production.name}
-    //        grammar index: ${production.id}
-    //        bodies:\n\t${getStartItemsFromProduction(production).map(i => i.renderUnformattedWithProduction(grammar) + " - " + grammar.item_map.get(i.id).reset_sym.join(",")).join("\n\t\t")}
-    //        compile time: ${((((performance.now() - start) * 1000) | 0) / 1000)}ms`);
-
     return {
         productions: new Set([...RDOptions.called_productions.values(), ...GOTO_Options.called_productions.values(), ...runner.referenced_production_ids.values()]),
         id: production.id,
         fn: [
-            //(runner.ANNOTATED) ? annotation : undefined,
             RD_function,
             GOTO_Options.NO_GOTOS ? undefined : GOTO_function,
             ReduceFunction
@@ -106,9 +99,6 @@ function constructReduceFunction(production: Production, options: RenderBodyOpti
         ${ifs[0] ? [ifs[0], ";"] : ""}
         return : ${production.id}
     }`;
-
-    if (fn == "fn")
-        debugger;
 
     return fn;
 }
