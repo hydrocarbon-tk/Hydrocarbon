@@ -192,9 +192,8 @@ export function resolveGOTOBranches(
                     }
                 }
             }
-
             if (interrupt_statement)
-                code.unshift(interrupt_statement);
+                insertInterruptStatement(interrupt_statement, code);
 
             if (!WE_HAVE_JUST_ONE_GOTO_GROUP)
                 code.push(<SKBreak>sk`break`);
@@ -236,4 +235,17 @@ export function addClauseSuccessCheck(options: RenderBodyOptions): SKExpression 
     const { productions } = options;
 
     return <SKExpression>sk`return : (prod ~= ${productions[0].id}) ? prod ? 1`;
+}
+
+function insertInterruptStatement(int_stmt: SKExpression, expression_array: SKExpression[]) {
+    //The interrupt needs to be added after the first skip statement if present
+    for (let i = 0; i < expression_array.length; i++) {
+        const node = expression_array[i];
+        if (node.type == "call" && node.reference.type == "reference" && node.reference.value.slice(0, 4) == "skip") {
+            expression_array.splice(i + 1, 0, int_stmt);
+            return;
+        }
+    }
+
+    expression_array.unshift(int_stmt);
 }
