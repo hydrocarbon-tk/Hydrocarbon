@@ -73,8 +73,6 @@ export function processTransitionNodes(
 
         switch (traverse_state) {
 
-
-
             case TraverseState.EXIT:
 
                 const

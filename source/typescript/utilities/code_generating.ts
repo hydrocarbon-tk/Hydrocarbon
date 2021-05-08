@@ -166,7 +166,11 @@ export function getSkipFunctionNewSk(
 
             skip_function = <SKFunction>sk`
             fn temp:void (l:Lexer, data:Data, state:u32){
+
+                if((state) == 0) : return;
+
                 [const] off:u32 = l.token_offset;
+                
                 loop (1){
                     
                     ${custom_skip_code ? custom_skip_code : ""}
@@ -252,7 +256,9 @@ export function createProductionTokenFunctionSk(tok: ProductionTokenSymbol, opti
             token_function = <SKFunction>sk`
             fn temp:bool(l:Lexer, data:Data){       
 
-                if ${boolean} :{               
+                
+                if ${boolean} :{          
+                    
                     // preserve the current state of the data
                     [const] stack_ptr :u32 = data.stack_ptr;
                     [const] input_ptr:u32 = data.input_ptr;
@@ -833,4 +839,12 @@ function This_Is_An_SKFunction(input: any): input is SKFunction {
         return true;
     }
     return false;
+}
+
+export function addItemAnnotationToExpressionList(items: Item[], grammar: Grammar, root: SKExpression[]) {
+    for (const item_str of items.map(i => i.renderUnformattedWithProduction(grammar)))
+        root.push(<SKExpression><SKString>{
+            type: "string",
+            value: item_str.replace(/\'/g, '"')
+        });
 }

@@ -8,7 +8,7 @@ import { SKExpression } from "../../skribble/types/node.js";
 import { RenderBodyOptions } from "../../types/render_body_options";
 import { SingleItemReturnObject } from "../../types/transition_generating";
 import { TransitionNode, TRANSITION_TYPE } from "../../types/transition_node.js";
-import { createBranchFunctionSk, createSkipCallSk, getProductionFunctionName, hashString } from "../../utilities/code_generating.js";
+import { addItemAnnotationToExpressionList, createBranchFunctionSk, createSkipCallSk, getProductionFunctionName, hashString } from "../../utilities/code_generating.js";
 import { createTransitionTypeAnnotation } from "../../utilities/create_transition_type_annotation.js";
 import { rec_glob_lex_name } from "../../utilities/global_names.js";
 import { Item, itemsToProductions } from "../../utilities/item.js";
@@ -52,8 +52,8 @@ export function default_resolveResolvedLeaf(item: Item, state: TransitionNode, o
     if (item) {
 
 
-        //if (options.helper.ANNOTATED)
-        //    code.addStatement(item.renderUnformattedWithProduction(grammar));
+        if (options.helper.ANNOTATED)
+            addItemAnnotationToExpressionList([item], grammar, code);
 
         if (item.offset == 0 && !options.productions.some(g => g.id == item.getProduction(grammar).id)) {
 

@@ -4,12 +4,14 @@
  * disclaimer notice.
  */
 import { sk } from "../../skribble/skribble.js";
-import { SKBlock, SKExpression, SKIf, SKMatch, SKReturn } from "../../skribble/types/node";
+import { SKBlock, SKExpression, SKIf, SKMatch, SKReturn, SKString } from "../../skribble/types/node";
+import { Grammar } from "../../types/grammar.js";
 import { RenderBodyOptions } from "../../types/render_body_options";
 import { Symbol, TokenSymbol } from "../../types/symbol.js";
 import { TransitionClauseGenerator, TransitionGroup } from "../../types/transition_generating";
 import { TransitionNode, TRANSITION_TYPE } from "../../types/transition_node.js";
 import {
+    addItemAnnotationToExpressionList,
     createBranchFunctionSk, createConsumeSk,
     createSkipCallSk, createSymbolMappingFunctionSk,
     getIncludeBooleansSk, getProductionFunctionNameSk
@@ -59,8 +61,8 @@ export function default_resolveBranches(
         && (groups[0].transition_types.includes(TRANSITION_TYPE.ASSERT_PRODUCTION_SYMBOLS)))
         return groups[0].code;
 
-    //if (options.helper.ANNOTATED)
-    //    root.push(<SKExpression>sk`"${(items.map(i => i.renderUnformattedWithProduction(grammar)).join("\n"))}"`);
+    if (options.helper.ANNOTATED)
+        addItemAnnotationToExpressionList(items, grammar, root);
 
     const peek_name = createPeekStatements(options,
         node,
@@ -78,18 +80,9 @@ export function default_resolveBranches(
 
             for (const end_group of end_groups) {
 
-                //*
-
-                //Only include symbols that occlude other groups
-                //end_group.NEGATE = true;
-
-                //replace the end group symbols with only the set that occlude other 
-                //group
                 const all_syms = groups.filter(g => g != end_group).flatMap(({ syms }) => syms).setFilter(getUniqueSymbolName);
                 end_group.syms = end_group.syms.filter(s => all_syms.some(a => Symbols_Occlude(s, a)));
             }
-
-            //*/
         }
 
         createSwitchBlock(options, groups, peek_name, "l", root);
@@ -101,6 +94,7 @@ export function default_resolveBranches(
 
     return root;
 }
+
 /**
  * Checks for groups that have mutually occluding symbols
  */
