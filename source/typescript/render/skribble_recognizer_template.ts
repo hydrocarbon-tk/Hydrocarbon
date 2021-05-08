@@ -3,44 +3,31 @@
  * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
  * disclaimer notice.
  */
-import { parser, sk, skRenderAsSK } from "../skribble/skribble.js";
-import { SKModule } from "../skribble/types/node.js";
+import { BaseOptions } from "vm";
+import { Helper } from "../compiler/helper.js";
 import { jump8bit_table_byte_size } from "../runtime/parser_memory_new.js";
-import { RDProductionFunction } from "../types/rd_production_function.js";
+import { parser, skRenderAsSK } from "../skribble/skribble.js";
+import { SKModule } from "../skribble/types/node.js";
 import { Grammar } from "../types/grammar.js";
+import { RDProductionFunction } from "../types/rd_production_function.js";
 import { createSkipCallSk, getProductionFunctionNameSk } from "../utilities/code_generating.js";
 import { getProductionClosure } from "../utilities/production.js";
 import { getSkippableSymbolsFromItems, getUnskippableSymbolsFromClosure } from "../utilities/symbol.js";
-import { Helper } from "../compiler/helper.js";
-import { BaseOptions } from "vm";
 export const renderSkribbleRecognizer = (
     grammar: Grammar
 ): SKModule => {
-
-
-    const closure = getProductionClosure(0, grammar);
-    const skippable = getSkippableSymbolsFromItems(closure, grammar);
-    const unskippable = getUnskippableSymbolsFromClosure(closure, grammar);
-    //const { const: constants_a, fn: const_functions_a } = runner.render_constants();
-    //const closure = getProductionClosure(0, grammar);
-    //const skippable = getSkippableSymbolsFromItems(closure, grammar);
-    //const unskippable = getUnskippableSymbolsFromClosure(closure, grammar);
-    //const skip = createSkipCall(skippable, <BaseOptions>{ grammar, helper: runner }, SC.Variable("data.lexer"), false, unskippable, true);
-
-    const dataClass = null;
-
     return <SKModule>parser(`
 [static new] lookup_table : Uint8Array = Uint8Array(${jump8bit_table_byte_size});
 [static new] sequence_lookup : Uint8Array = Uint8Array(${grammar.sequence_string.length});
-[static] TokenSpace: u32 = 2;
-[static] TokenNumber: u32 = 5;
-[static] TokenIdentifier: u32 = 1;
-[static] TokenIdentifierUnicode: u32 = 6;
-[static] TokenNewLine: u32 = 4;
-[static] TokenSymbol: u32 = 3;
-[static] TokenFullNumber: u32 = 7;
-[static] UNICODE_ID_START: u32 = 16;
+[static] TokenSymbol: u32 = 1;
+[static] TokenIdentifier: u32 = 2;
+[static] TokenSpace: u32 = 4;
+[static] TokenNewLine: u32 = 8;
+[static] TokenNumber: u32 = 16;
+[static] TokenIdentifierUnicode: u32 = 32 | TokenIdentifier;
+[static] TokenFullNumber: u32 = 128 | TokenNumber;
 [static] UNICODE_ID_CONTINUE: u32 = 32;
+[static] UNICODE_ID_START: u32 = 64;
 
 fn compare: u32(
     data: ParserData,
@@ -125,6 +112,9 @@ fn  utf8ToCodePoint : u32 (l : Lexer,  data: ParserData){
 
 fn getTypeAt : u32 ( code_point : u32 ) {
 
+    return : (lookup_table[code_point] & 0x1F);
+
+    /*
     match lookup_table[code_point] & 0xF :
         0 : return : TokenSymbol,
         1 : return : TokenIdentifier,
@@ -133,6 +123,7 @@ fn getTypeAt : u32 ( code_point : u32 ) {
         5 : return : TokenNumber;
     
     return : TokenSymbol;
+    */
 }
 
 
