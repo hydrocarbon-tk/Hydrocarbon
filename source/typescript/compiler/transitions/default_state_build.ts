@@ -152,15 +152,20 @@ export function resolveGOTOBranches(
                     * 
                     * 
                     */
-                    const unique_candidates = getComplementOfSymbolSets(
-                        keys.flatMap(k => getFollow(k, grammar)).setFilter(sym => getUniqueSymbolName(sym)),
-                        anticipated_syms
-                    ),
-                        checked_symbols = [],
+                    //Ensure only items that can be reached from the root production are used
+                    const active_item_closure = getClosure(active_items.filter(i => production_ids.includes(i.getProduction(grammar).id)), grammar, true);
 
-                        GEN_SYM = anticipated_syms.some(Sym_Is_A_Generic_Symbol),
-                        GEN_ID = anticipated_syms.some(Sym_Is_A_Generic_Identifier),
-                        GEN_NUM = anticipated_syms.some(Sym_Is_A_Generic_Number),
+                    // All symbols from items that can be shifted from the current closure
+                    const active_symbols = getTokenSymbolsFromItems(active_item_closure, grammar);
+
+                    //All Symbols that follow the current shifted production(s)
+                    const follow = keys.flatMap(k => getFollow(k, grammar)).setFilter(sym => getUniqueSymbolName(sym));
+
+                    const unique_candidates = getComplementOfSymbolSets(follow, active_symbols),
+                        checked_symbols = [],
+                        GEN_SYM = active_symbols.some(Sym_Is_A_Generic_Symbol),
+                        GEN_ID = active_symbols.some(Sym_Is_A_Generic_Identifier),
+                        GEN_NUM = active_symbols.some(Sym_Is_A_Generic_Number),
                         CONTAINS_WS = unique_candidates.some(Sym_Is_A_Space_Generic) || !skippable.some(Sym_Is_A_Space_Generic),
                         CONTAINS_NL = unique_candidates.some(Sym_Is_A_Generic_Newline) || !skippable.some(Sym_Is_A_Generic_Newline),
                         GEN_NL_WS = CONTAINS_NL || CONTAINS_WS;
@@ -173,18 +178,18 @@ export function resolveGOTOBranches(
                         else if (Sym_Is_A_Generic_Type(s))
                             continue;
                         else if (Sym_Is_Defined_Symbols(s)) {
-                            if (GEN_SYM || anticipated_syms.some(a => Symbols_Occlude(s, a))) checked_symbols.push(s);
+                            if (GEN_SYM || active_symbols.some(a => Symbols_Occlude(s, a) && a.val.length < s.val.length)) checked_symbols.push(s);
                         } else if (Sym_Is_Defined_Identifier(s) && !GEN_NL_WS) {
-                            if (GEN_ID || anticipated_syms.some(a => Symbols_Occlude(s, a))) checked_symbols.push(s);
+                            if (GEN_ID || active_symbols.some(a => Symbols_Occlude(s, a))) checked_symbols.push(s);
                         } else if (Sym_Is_Defined_Natural_Number(s) && !GEN_NL_WS) {
-                            if (GEN_NUM || anticipated_syms.some(a => Symbols_Occlude(s, a))) checked_symbols.push(s);
+                            if (GEN_NUM || active_symbols.some(a => Symbols_Occlude(s, a))) checked_symbols.push(s);
                         }
                     }
 
                     if (checked_symbols.length > 0) {
 
                         const
-                            booleans = getIncludeBooleansSk(checked_symbols, options, rec_glob_lex_name, anticipated_syms);
+                            booleans = getIncludeBooleansSk(checked_symbols, options, rec_glob_lex_name, active_symbols);
 
                         if (booleans) {
                             interrupt_statement = sk`if (${booleans}) : return : ${keys[0]}`;
