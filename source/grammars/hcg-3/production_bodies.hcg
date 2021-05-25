@@ -23,15 +23,15 @@
 <> production_body > ( \( t:FORK \) )? entries fn::reduce_function?                      
                                                                     f:r { { type:"body", symbols:$sym2, reduce:$$sym3, FORCE_FORK:!!$$sym1, id:-1 } }
 
-<> entries > body_entry(+)                            
-
+<> entries > entries body_entry 
+                                                                    f:r { $sym1.concat($sym2) }
+        | body_entry                         
+                                                                    f:r { [$sym1] }
         | sym::empty_symbol                                              
                                                                     f:r { [] }
 
 
-<> body_entry > condition_clause                                     
-
-       | fn::function_clause                                                                
+<> body_entry > condition_clause                                                                   
 
        | sym::symbol        
 

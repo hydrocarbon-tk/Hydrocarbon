@@ -19,17 +19,7 @@
     | reduce_function
     | function_clause
 
-<> referenced_function > (js_function_start_symbol f:r { $sym1+"GG" })  sym::identifier  ^ (ERR g:ws ) sym::js_identifier          
-                                                                    f:r { 
-                                                                       { type:"ref-function",
-                                                                        id:$sym2,     
-                                                                        name:$sym4,
-                                                                        txt:"", 
-                                                                        env:true,    
-                                                                        IS_CONDITION:true}
-                                                                    }
-
-    | (js_function_start_symbol f:r { $sym1+"GG" })  sym::identifier  { js_data }          
+<> referenced_function > (js_function_start_symbol f:r { $sym1+"GG" })  sym::identifier  { js_data }          
                                                                     f:r {       
                                                                        { type:"ref-function",  
                                                                         id:$sym2,     

@@ -30,30 +30,17 @@
                                                             f:r {  $sym1.functions.push($sym2), $sym1 }
 
  
-<> production > 
-    
-    \<>  ( sym::production_id ↦r{ env.prod_name = $sym1 } ) production_start_symbol  pb::production_bodies ( ( \| | \| ) fn::error_function )? 
+<> production > \<>  ( sym::production_id ↦r{ env.prod_name = $sym1 } ) production_start_symbol  pb::production_bodies? 
                                                                         
                                                             f:r { {
                                                                 type:"production", name:$sym2, bodies:$sym4, id:-1, recovery_handler:$sym5
                                                             } }
-    # 
-    # REDEFINED IMPORT production. Allows an imported production to be redefined entirely. 
-    # 
-
-    | \<>  ( sym::imported_production_symbol f:r{ env.prod_name = $sym1.val, $sym1 } ) production_start_symbol pb::production_bodies
-
-                                                            f:r { {
-                                                                type:"production-import", name:$sym2, bodies:$bodies, id:-1, recovery_handler:$sym5
-                                                            } }
-    #
-    # APPENDED IMPORT production. Allows additional bodies to be defined for productions imported from other files. 
-    #
-
     | \+> ( sym::imported_production_symbol f:r{ env.prod_name = $sym1.val, $sym1 } ) production_start_symbol  pb::production_bodies
 
                                                             f:r { {
-                                                                type:"production-merged-import", name:$sym2, bodies:$bodies, id:-1, recovery_handler:$sym5
+                                                                type:"production-merged-import", name:$sym2, bodies:$sym4, id:-1, recovery_handler:$sym5
                                                             } }
+    
+    
     
 <> production_start_symbol > \>

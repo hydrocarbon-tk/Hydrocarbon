@@ -62,11 +62,11 @@
 
 <> ignore_preamble >         \@ t:IGNORE sym::ignore_symbols g:nl                
                                                                         
-                                                                        f:r { { type:"ignore-preamble", symbols : $sym3 } }
+                                                                        f:r { { type:"ignore", symbols : $sym3 } }
 
 
 <> import_preamble >         \@ t:IMPORT g:ws(*) ( g:id | g:sym  )(+\" ) g:ws(+) ( t:AS | t:as ) sym::identifier g:nl  
                                                                         
-                                                                        f:r { { type:"import-preamble", uri: $sym4, ref:$sym7 } } 
+                                                                        f:r { { type:"import", uri: $sym4, reference:$sym7 } } 
 
 
