@@ -113,10 +113,10 @@
 		"meta": {
 			"patterns": [
 				{
-					"include": "#symbol-actions"
+					"include": "#symbol-modifiers"
 				},
 				{
-					"include": "#symbol-modifiers"
+					"include": "#symbol-actions"
 				}
 			]
 		},
@@ -132,7 +132,7 @@
 		},
 		"symbol-modifiers": {
 			"name": "keyword.operator",
-			"match": "\\([\\+\\*](.*)\\)|\\?",
+			"match": "\\([\\+\\*]([^\\)]*)\\)|\\?",
 			"captures": {
 				"1": {
 					"name": "variable.other"

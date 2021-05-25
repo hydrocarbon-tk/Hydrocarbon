@@ -1,5 +1,9 @@
 # Change Log
 
+## [v1.0.4]
+
+- Correct syntax highlight error involving repeating patterns `(*)` and `(+)`
+
 ## [v1.0.3]
 
 - Improved syntax highlighting 
