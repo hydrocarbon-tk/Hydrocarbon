@@ -9,6 +9,7 @@ import { Grammar } from "../types/grammar";
 import { RenderBodyOptions } from "../types/render_body_options";
 import { ProductionSymbol } from "../types/symbol";
 import {
+    addSymbolAnnotationsToExpressionList,
     createAssertionShiftSk,
     createBranchFunctionSk,
     createConsumeSk,
@@ -166,6 +167,8 @@ export function renderItem(
 
         if (!RENDER_WITH_NO_CHECK) {
             const _if = <SKIf & { expression: SKBlock; }>sk`if (${bool_expression}) : {}`;
+
+            addSymbolAnnotationsToExpressionList([sym], grammar, _if.expression.expressions, "Single item assertion");
             leaf_expressions.push(_if);
             return renderItem(_if.expression.expressions, item.increment(), options, false, lexer_name, true);
         } else {

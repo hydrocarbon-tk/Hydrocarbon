@@ -8,13 +8,13 @@ import { SKExpression } from "../../skribble/types/node.js";
 import { RenderBodyOptions } from "../../types/render_body_options";
 import { SingleItemReturnObject } from "../../types/transition_generating";
 import { TransitionNode, TRANSITION_TYPE } from "../../types/transition_node.js";
-import { addItemAnnotationToExpressionList, createBranchFunctionSk, createSkipCallSk, getProductionFunctionName, hashString } from "../../utilities/code_generating.js";
+import { addItemAnnotationToExpressionList, addSymbolAnnotationsToExpressionList, createBranchFunctionSk, createSkipCallSk, getProductionFunctionName, hashString } from "../../utilities/code_generating.js";
 import { createTransitionTypeAnnotation } from "../../utilities/create_transition_type_annotation.js";
 import { rec_glob_lex_name } from "../../utilities/global_names.js";
 import { Item, itemsToProductions } from "../../utilities/item.js";
 import { processProductionChain } from "../../utilities/process_production_reduction_sequences.js";
 import { renderItem } from "../../utilities/render_item.js";
-import { getSkippableSymbolsFromItems } from "../../utilities/symbol.js";
+import { getSkippableSymbolsFromItems, getSymbolsFromClosure } from "../../utilities/symbol.js";
 
 
 
@@ -29,6 +29,9 @@ export function default_resolveResolvedLeaf(item: Item, state: TransitionNode, o
 
     if (options.helper.ANNOTATED)
         code.push(createTransitionTypeAnnotation(options, [state.transition_type]));
+
+
+    addSymbolAnnotationsToExpressionList(getSymbolsFromClosure([item], grammar), grammar, leaf_node, "Leaf");
 
     if (SHOULD_IGNORE) {
 

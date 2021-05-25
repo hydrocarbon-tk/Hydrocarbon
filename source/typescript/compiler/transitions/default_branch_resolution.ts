@@ -12,6 +12,7 @@ import { TransitionClauseGenerator, TransitionGroup } from "../../types/transiti
 import { TransitionNode, TRANSITION_TYPE } from "../../types/transition_node.js";
 import {
     addItemAnnotationToExpressionList,
+    addSymbolAnnotationsToExpressionList,
     createBranchFunctionSk, createConsumeSk,
     createSkipCallSk, createSymbolMappingFunctionSk,
     getIncludeBooleansSk, getProductionFunctionNameSk
@@ -61,8 +62,10 @@ export function default_resolveBranches(
         && (groups[0].transition_types.includes(TRANSITION_TYPE.ASSERT_PRODUCTION_SYMBOLS)))
         return groups[0].code;
 
-    if (options.helper.ANNOTATED)
+    if (options.helper.ANNOTATED) {
         addItemAnnotationToExpressionList(items, grammar, root);
+        addSymbolAnnotationsToExpressionList(all_syms, grammar, root, "All symbols");
+    }
 
     const peek_name = createPeekStatements(options,
         node,
@@ -290,6 +293,7 @@ function createIfElseExpressions(
 
             case TRANSITION_TYPE.POST_PEEK_CONSUME:
                 code.unshift(...expressions);
+                addSymbolAnnotationsToExpressionList(syms, grammar, code, "Post Peek");
                 code.unshift(createTransitionTypeAnnotation(options, transition_types));
                 code.unshift(<SKExpression>sk`puid |= ${grammar.item_map.get(items[0].id).sym_uid}`);
                 code.unshift(createConsumeSk(lex_name));
@@ -298,6 +302,7 @@ function createIfElseExpressions(
 
             case TRANSITION_TYPE.ASSERT_END:
                 const r_syms = groups.slice(i + 1).flatMap(g => g.syms).setFilter(getUniqueSymbolName);
+
                 /**
                  * Completed Items are tricky. They don't represent actual consumption of 
                  * tokens, but rather must assert that a set of tokens FOLLOW the completed
@@ -368,7 +373,7 @@ function createIfElseExpressions(
                 } else assertion_boolean = remaining_symbols
                 */
 
-                addIf(createIfStatementTransition(options, group, code, assertion_boolean, FORCE_ASSERTIONS));
+                addIf(createIfStatementTransition(options, group, code, assertion_boolean, FORCE_ASSERTIONS, "Assert End"));
 
                 break;
 
@@ -378,7 +383,7 @@ function createIfElseExpressions(
 
                 options.called_productions.add(<number>production.id);
 
-                //code.push(<SKReturn>sk`return:-1`);
+                addSymbolAnnotationsToExpressionList(syms, grammar, code, "Production Call Symbols");
 
                 const call_name = createBranchFunctionSk(code, options);
                 expressions.push(<SKExpression>sk`pushFN(data, ${call_name})`);
@@ -401,6 +406,8 @@ function createIfElseExpressions(
                 assertion_boolean = getIncludeBooleansSk(<TokenSymbol[]>syms, options, peek_name, <TokenSymbol[]>complement_symbols);
 
                 let scr = code;
+
+
 
                 if (state.PUIDABLE) {
 
@@ -426,7 +433,7 @@ function createIfElseExpressions(
                     leaves[0].transition_type = TRANSITION_TYPE.ASSERT;
                 }
 
-                addIf(createIfStatementTransition(options, group, scr, assertion_boolean, FORCE_ASSERTIONS));
+                addIf(createIfStatementTransition(options, group, scr, assertion_boolean, FORCE_ASSERTIONS, "Assert"));
 
                 break;
 
@@ -438,7 +445,7 @@ function createIfElseExpressions(
                 code.unshift(<SKExpression>sk`puid |= ${grammar.item_map.get(items[0].id).sym_uid}`);
                 code.unshift(createConsumeSk("l"));
 
-                addIf(createIfStatementTransition(options, group, code, assertion_boolean, FORCE_ASSERTIONS));
+                addIf(createIfStatementTransition(options, group, code, assertion_boolean, FORCE_ASSERTIONS, "Assert Consume"));
 
                 break;
 
@@ -460,7 +467,8 @@ function createIfStatementTransition(
     group: TransitionGroup,
     modified_code: SKExpression[],
     boolean_assertion: SKExpression,
-    FORCE_ASSERTIONS: boolean
+    FORCE_ASSERTIONS: boolean,
+    ShiftComment: string = ""
 ): SKIf {
 
     const { grammar, helper: runner } = options;
@@ -474,6 +482,8 @@ function createIfStatementTransition(
     })
 
         }`;
+
+    addSymbolAnnotationsToExpressionList(syms, grammar, modified_code, ShiftComment);
 
     const SKIP_BOOL_EXPRESSION = (!FORCE_ASSERTIONS || transition_type == TRANSITION_TYPE.ASSERT_END)
         && (LAST && !FIRST)

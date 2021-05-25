@@ -848,3 +848,13 @@ export function addItemAnnotationToExpressionList(items: Item[], grammar: Gramma
             value: item_str.replace(/\'/g, '"')
         });
 }
+
+export function addSymbolAnnotationsToExpressionList(syms: Symbol[], grammar: Grammar, expression_list: SKExpression[], comment: string = "") {
+    const symbol_string = syms.map(s => ("" + s.val).replace(/\'/g, '"').replace(/\\/g, "f:s")).join(" ");
+
+    expression_list.unshift(<SKExpression><SKString>{
+        type: "string",
+        value: comment + " [  " + symbol_string + "  ]"
+    });
+
+}
