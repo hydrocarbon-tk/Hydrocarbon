@@ -3,7 +3,7 @@
     "displayName": "Hydrocarbon Grammar Syntax Highlighting",
     "description": "Syntax highlighting for Hydrocarbon grammar files [*.hcg]",
     "publisher": "candle-smith",
-    "version": "1.0.3",
+    "version": "1.0.4",
     "engines": {
         "vscode": "^1.22.0"
     },
