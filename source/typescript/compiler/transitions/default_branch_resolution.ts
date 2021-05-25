@@ -322,10 +322,6 @@ function createIfElseExpressions(
                  * Shift has priority over Reduce: if there are defined symbols that 
                  */
 
-                const occluding_symbols = r_syms.filter(r => syms.some(s => Symbols_Occlude(s, r)));
-
-                const occlusion_groups = [];
-
                 const own_syms = syms.filter(s => !r_syms.some(r => getUniqueSymbolName(s) == getUniqueSymbolName(r)));
 
                 const mapped_symbols = [].concat(own_syms.map(s => [1, s]), r_syms.map(r => [0, r]));

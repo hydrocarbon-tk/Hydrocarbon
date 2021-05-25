@@ -18,8 +18,9 @@ import {
     getComplementOfSymbolSets,
     getSkippableSymbolsFromItems,
     getSymbolName,
-    getSymbolsFromClosure,
-    getUniqueSymbolName, Symbols_Occlude,
+    getTokenSymbolsFromItems,
+    getUniqueSymbolName,
+    Symbols_Occlude,
     Sym_Is_A_Generic_Identifier,
     Sym_Is_A_Generic_Newline,
     Sym_Is_A_Generic_Number, Sym_Is_A_Generic_Symbol, Sym_Is_A_Generic_Type,
@@ -57,8 +58,6 @@ export function resolveGOTOBranches(
         for (const { syms, items, code, hash, leaves, prods, PUIDABLE } of goto_groups.sort(
             (a, b) => <number><any>a.syms[0] - <number><any>b.syms[0])
         ) {
-
-            let anticipated_syms;
 
             const
                 keys = (<number[]><any>syms).setFilter(s => s + ""),
@@ -104,12 +103,8 @@ export function resolveGOTOBranches(
 
             } else if (active_items.length > 0) {
 
-                const
-                    closure = getClosure(active_items.slice(), grammar, true);
-                anticipated_syms = getSymbolsFromClosure(closure, grammar);
-
                 /**
-                 * Create look ahead for a preemptive reduce on keys that match the production id
+                 * Create look ahead for a preemptive reduce on keys that match the production id.
                  */
                 if (keys.some(k => production_ids.includes(k))) {
 

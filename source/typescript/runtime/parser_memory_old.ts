@@ -175,10 +175,6 @@ export function loadWASM(source: BufferSource, memory: WebAssembly.Memory, segme
         };
 
         const STRING_ID = 1;
-        //const module = new WebAssembly.Module(source);
-        //@ts-ignore
-        //const instance: WebAssembly.Instance = new WebAssembly.Instance(module, imports);
-        //const exports = instance.exports;
 
         let instance = null;
         let module = null;

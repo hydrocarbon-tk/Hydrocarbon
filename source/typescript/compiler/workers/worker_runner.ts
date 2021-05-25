@@ -11,7 +11,6 @@ import { RDProductionFunction } from "../../types/rd_production_function.js";
 import { WorkerContainer } from "../../types/worker_container";
 import { Helper } from "../helper.js";
 import { LocalWorker } from "./local_worker.js";
-const SC = null;
 export class WorkerRunner {
     grammar: Grammar;
     RUN: boolean;

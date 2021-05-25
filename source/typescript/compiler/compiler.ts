@@ -18,7 +18,6 @@ import { constructCompilerRunner, Helper } from "./helper.js";
 import { WorkerRunner } from "./workers/worker_runner.js";
 
 const
-    fsp = fs.promises,
     default_options: HybridCompilerOptions = {
         name: "parser",
         recognizer_type: "js",
