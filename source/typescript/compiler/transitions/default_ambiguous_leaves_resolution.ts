@@ -171,7 +171,6 @@ function createForkSequence(
         out_prods.push(...prods);
         out_leaves.push(...leaves);
 
-        // leaf.addStatement(items.map(i => i.renderUnformattedWithProduction(options.grammar)).join("\n"));
         const call_name = createBranchFunctionSk(code, options);
 
         if (I++ == output_nodes.length - 1) {

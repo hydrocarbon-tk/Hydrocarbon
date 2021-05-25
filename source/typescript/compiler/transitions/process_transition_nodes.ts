@@ -22,7 +22,7 @@ import {
 } from "../../utilities/symbol.js";
 import { default_resolveBranches } from "./default_branch_resolution.js";
 import { default_resolveResolvedLeaf } from "./default_resolved_leaf_resolution.js";
-import { default_resolveUnresolvedLeaves } from "./default_unresolved_leaves_resolution.js";
+import { default_resolveUnresolvedLeaves } from "./default_ambiguous_leaves_resolution.js";
 import { Items_Are_From_Same_Production } from "./yield_transitions.js";
 
 const SC = null;
