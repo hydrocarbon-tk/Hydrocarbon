@@ -2,7 +2,7 @@ import URL from "@candlefw/url";
 import { constructCompilerEnvironment } from "../../build/library/grammar/grammar_parser.js";
 import { compileBasicHCGParser } from "../tools.js";
 
-const hcg_dir = URL.resolveRelative("../../source/grammars/hcg/");
+const hcg_dir = URL.resolveRelative("../../source/grammars/hcg3/");
 assert_group(sequence, 20000, () => {
 
     function getEnv() {
