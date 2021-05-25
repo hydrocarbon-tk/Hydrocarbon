@@ -28,6 +28,9 @@ export const renderSkribbleRecognizer = (
 [static] TokenFullNumber: u32 = 128 | TokenNumber;
 [static] UNICODE_ID_CONTINUE: u32 = 32;
 [static] UNICODE_ID_START: u32 = 64;
+[static] NULL_STATE: u32 = 0;
+[static] STATE_ALLOW_SKIP: u32 = 1;
+[static] STATE_ALLOW_OUTPUT: u32 = 2;
 
 fn compare: u32(
     data: ParserData,
@@ -113,17 +116,6 @@ fn  utf8ToCodePoint : u32 (l : Lexer,  data: ParserData){
 fn getTypeAt : u32 ( code_point : u32 ) {
 
     return : (lookup_table[code_point] & 0x1F);
-
-    /*
-    match lookup_table[code_point] & 0xF :
-        0 : return : TokenSymbol,
-        1 : return : TokenIdentifier,
-        2 : return : TokenSpace, 
-        3 || 4 : return : TokenNewLine,
-        5 : return : TokenNumber;
-    
-    return : TokenSymbol;
-    */
 }
 
 
@@ -135,6 +127,7 @@ fn getTypeAt : u32 ( code_point : u32 ) {
     [pub] token_offset:u16 = 0
     [pub] prev_token_offset:u32 = 0
     [pub] type:u16 = 0
+    [pub] type:u32 = 0
     [pub] current_byte:u16 = 0
 
     [pub] fn Lexer : Lexer () { 
@@ -144,6 +137,7 @@ fn getTypeAt : u32 ( code_point : u32 ) {
         this.token_offset = 0;
         this.prev_token_offset = 0;
         this.type = 0;
+        this.line = 0;
         this.current_byte = 0;
     }
 
@@ -301,6 +295,8 @@ fn getTypeAt : u32 ( code_point : u32 ) {
             this.type = 0;
             this.byte_length = 1;
             this.token_length = 1;
+            if (this.current_byte) == 10:
+                this.line += 1;
         };
 
         return :this
@@ -507,8 +503,7 @@ fn set_action:void (val:u32, data:ParserData) {
 }
 
 fn createState:u32 (ENABLE_STACK_OUTPUT:u32) {
-    [const] IS_STATE_VALID:u32 = 1;
-    return : IS_STATE_VALID | (ENABLE_STACK_OUTPUT << 1);
+    return : STATE_ALLOW_SKIP | (ENABLE_STACK_OUTPUT << 1);
 }
 
 fn hasStateFailed:bool(state:u32) {
@@ -518,7 +513,7 @@ fn hasStateFailed:bool(state:u32) {
 
 [pub] fn mark:u32 (val:u32, data:ParserData) { return:action_ptr }
 
-fn isOutputEnabled:bool (state:u32) { return:0 < (state & 2) }
+fn isOutputEnabled:bool (state:u32) { return: NULL_STATE != (state & STATE_ALLOW_OUTPUT) }
 
 fn reset:u32 (mark:u32, origin:Lexer, advanced:Lexer, state:u32) {
     action_ptr = mark;

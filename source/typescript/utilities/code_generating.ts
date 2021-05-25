@@ -139,7 +139,7 @@ export function createSkipCallSk(
     const skip = getSkipFunctionNewSk(symbols, options, undefined, exclude);
 
     if (skip)
-        return <SKExpression>sk`${skip}(${lex_name}/*${symbols.map(s => `[ ${s.val} ]`).join("")}*/, data, ${!peek ? USE_NUMBER ? 0xFFFFFF : "state" : "0"});\n`;
+        return <SKExpression>sk`${skip}(${lex_name}/*${symbols.map(s => `[ ${s.val} ]`).join("")}*/, data, ${!peek ? USE_NUMBER ? 0xFFFFFF : "state" : "STATE_ALLOW_SKIP"});\n`;
 
     return null;
 }
@@ -167,7 +167,7 @@ export function getSkipFunctionNewSk(
             skip_function = <SKFunction>sk`
             fn temp:void (l:Lexer, data:Data, state:u32){
 
-                if((state) == 0) : return;
+                if((state) == NULL_STATE) : return;
 
                 [const] off:u32 = l.token_offset;
                 
@@ -267,7 +267,7 @@ export function createProductionTokenFunctionSk(tok: ProductionTokenSymbol, opti
 
                     pushFN(data, ${getProductionFunctionNameSk(production, grammar)});
 
-                    data.state = 0;
+                    data.state = NULL_STATE;
 
                     [mut]ACTIVE:bool = true;
 
