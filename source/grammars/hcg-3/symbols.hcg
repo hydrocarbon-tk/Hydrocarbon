@@ -67,7 +67,7 @@
     # or { term . term . term ...}. If the "terminal_symbol" is a single or double quotation (\" or \') then the production
     # values are automatically reduced to a string. 
 
-    | symbol ( \(+ | \(* )  terminal_symbol?  \)                f:r { { type:"list-production", value:$sym1, pos:pos } }
+    | symbol ( \(+ | \(* )  terminal_symbol?  \)                f:r { { type:"list-production", terminal_symbol:$$sym3, IS_OPTIONAL:($sym2 == "(*"), value:$sym1, pos:pos } }
 
     | g:sym                                                     f:r { { type:"symbol", value:$sym1, pos:pos } }
 
@@ -75,7 +75,7 @@
     \$eof                                                       f:r { { type:"eof", value:"END_OF_FILE", pos:pos } }
 
 <> empty_symbol > 
-    \ɛ                                                          f:r { { type:"empty", value:"", pos:pos } }
+    \$empty                                                          f:r { { type:"empty", value:"", pos:pos } }
 
 <> generated_symbol > 
     \g: (ERR θws θnl) identifier                                f:r { { type:"generated", value:$sym2, pos:pos } }
@@ -90,10 +90,10 @@
 <> production_token_symbol > \tk: identifier                    f:r { { type:"production-token", value:$sym2, production:null, pos:pos } }
 
 <> production_symbol > 
-    identifier                                                  f:r { { type:"production", value:$sym1, production:null, pos:pos } }
+    identifier                                                  f:r { { type:"sym-production", value:$sym1, production:null, pos:pos } }
 
 <> imported_production_symbol > 
-    identifier \:: identifier                                   f:r { { type:"production-import", module:$sym1, production:$sym3, pos:pos } } 
+    identifier \:: identifier                                   f:r { { type:"sym-production-import", module:$sym1, production:$sym3, pos:pos } } 
 
 <> production_id > identifier
 

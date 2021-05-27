@@ -11,7 +11,10 @@ export interface HCG3GrammarNode {
 
 
 export interface HCG3PreambleNode extends HCG3GrammarNode { }
-export interface HCG3Function extends HCG3GrammarNode { }
+export interface HCG3Function extends HCG3GrammarNode {
+    type: "RETURNED",
+    txt: string,
+}
 export interface HCG3Comment extends HCG3GrammarNode {
     type: "comment", value: string;
 }
@@ -44,16 +47,7 @@ export interface HCG3MergedProduction extends HCG3ProductionNode {
 
 export interface HCGProductionBody extends HCG3GrammarNode {
     type: "body",
-    symbols: (HCG3BasicSymbol |
-        HCG3ListProductionSymbol |
-        HCG3EOFSymbol |
-        HCG3EmptySymbol |
-        HCG3GeneratedSymbol |
-        HCG3LiteralSymbol |
-        HCG3ProductionTokenSymbol |
-        HCG3ProductionSymbol |
-        HCG3ProductionImportSymbol |
-        HCGConditionNode)[];
+    symbols: HCG3Symbol[];
     reduce?: HCG3Function;
     FORCE_FORK: boolean;
     id: number;
@@ -73,17 +67,26 @@ export interface HCG3Grammar extends HCG3GrammarNode {
 ////////////////////////////////////////////////////////////////////
 //// SYMBOLS
 export interface HCG3SymbolNode extends HCG3GrammarNode {
-    value: string;
+    value: any;
     IS_OPTIONAL?: boolean;
     IS_NON_CAPTURE?: boolean;
 }
 
 export interface HCG3BasicSymbol extends HCG3SymbolNode {
     type: "symbol";
+    value: string;
 }
 
 export interface HCG3ListProductionSymbol extends HCG3SymbolNode {
     type: "list-production";
+    value: HCG3SymbolNode;
+    terminal_symbol: HCG3Symbol;
+    OPTIONAL: boolean;
+}
+
+export interface HCG3GroupProduction extends HCG3SymbolNode {
+    type: "group-production";
+    value: HCGProductionBody[];
 }
 
 export interface HCG3EOFSymbol extends HCG3SymbolNode {
@@ -109,9 +112,20 @@ export interface HCG3ProductionTokenSymbol extends HCG3SymbolNode {
 }
 
 export interface HCG3ProductionSymbol extends HCG3SymbolNode {
-    type: "production";
+    type: "sym-production";
 }
 
 export interface HCG3ProductionImportSymbol extends HCG3SymbolNode {
-    type: "production-import";
+    type: "sym-production-import";
 }
+
+export type HCG3Symbol = HCG3BasicSymbol
+    | HCG3ListProductionSymbol
+    | HCG3GroupProduction
+    | HCG3EOFSymbol
+    | HCG3EmptySymbol
+    | HCG3GeneratedSymbol
+    | HCG3LiteralSymbol
+    | HCG3ProductionTokenSymbol
+    | HCG3ProductionSymbol
+    | HCG3ProductionImportSymbol;

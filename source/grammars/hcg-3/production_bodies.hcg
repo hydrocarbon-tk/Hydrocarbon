@@ -26,17 +26,17 @@
 <> entries > entries body_entry 
                                                                     f:r { $sym1.concat($sym2) }
         | body_entry                         
-                                                                    f:r { [$sym1] }
+                                                                    f:r { $sym1 }
         | sym::empty_symbol                                              
                                                                     f:r { [] }
 
 
-<> body_entry > condition_clause                                                                   
+<> body_entry > condition_clause                                   f:r { [$sym1] }                                 
 
-       | sym::symbol        
+       | sym::symbol                                               f:r { [$sym1] }
 
        | \[ body_entry(+) \]                                        
-                                                                   f:r { $sym2.map(e => (e.NO_BLANK = true, e) ) }
+                                                                   f:r { $sym2.flat().map(e => (e.NO_BLANK = true, e) ) }
 
 <> condition_clause > 
          \( \EXC sym::condition_symbol_list \)                     f:r { { type:"condition-exclude", sym : $sym3, offset : -1 } }

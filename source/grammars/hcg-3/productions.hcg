@@ -33,7 +33,7 @@
 <> production > \<>  ( sym::production_id ↦r{ env.prod_name = $sym1 } ) production_start_symbol  pb::production_bodies? 
                                                                         
                                                             f:r { {
-                                                                type:"production", name:$sym2, bodies:$sym4, id:-1, recovery_handler:$sym5
+                                                                type:"production", name:$sym2, bodies:$sym4, id:-1, recovery_handler:$sym5, pos:pos
                                                             } }
     | \+> ( sym::imported_production_symbol f:r{ env.prod_name = $sym1.val, $sym1 } ) production_start_symbol  pb::production_bodies
 
