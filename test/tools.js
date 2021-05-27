@@ -1,6 +1,6 @@
 import { constructCompilerEnvironment } from "../build/library/grammar/grammar_parser.js";
-import { compileGrammars } from "@candlefw/hydrocarbon";
-import URL from "@candlefw/url";
+import { compileGrammars } from "@candlelib/hydrocarbon";
+import URL from "@candlelib/url";
 import { compile } from "../build/library/compiler/compiler.js";
 import { createGrammar } from "../build/library/grammar/compile_grammar.js";
 

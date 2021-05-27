@@ -1,4 +1,4 @@
-import { NodeMappings } from "@candlefw/conflagrate/build/types/types/node_mappings";
+import { NodeMappings } from "@candlelib/conflagrate/build/types/types/node_mappings";
 import { HCG3GrammarNode } from "../types/grammar_nodes";
 
 const hcg3_mappings: NodeMappings<HCG3GrammarNode, "type"> = <NodeMappings<HCG3GrammarNode, "type">>{

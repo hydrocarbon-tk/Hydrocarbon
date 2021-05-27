@@ -3,7 +3,7 @@
  * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
  * disclaimer notice.
  */
-import spark from "@candlefw/spark";
+import spark from "@candlelib/spark";
 import fs from "fs";
 import { createDispatchTemplate, renderSkribbleRecognizer } from "../render/skribble_recognizer_template.js";
 import { fillByteBufferWithUTF8FromString } from "../runtime/parser_loader.js";
@@ -29,7 +29,7 @@ const
         alternate_parse_entries: [],
         output_dir: "./",
         combine_recognizer_and_completer: false,
-        memory_loader_url: "@candlefw/hydrocarbon",
+        memory_loader_url: "@candlelib/hydrocarbon",
         no_file_output: false,
         optimize: true,
         create_function: false,

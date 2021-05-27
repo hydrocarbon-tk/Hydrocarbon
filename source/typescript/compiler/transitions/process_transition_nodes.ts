@@ -3,7 +3,7 @@
  * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
  * disclaimer notice.
  */
-import { bidirectionalTraverse, TraverseState } from "@candlefw/conflagrate";
+import { bidirectionalTraverse, TraverseState } from "@candlelib/conflagrate";
 import { sk } from "../../skribble/skribble.js";
 import { SKExpression } from "../../skribble/types/node";
 import { RenderBodyOptions } from "../../types/render_body_options";

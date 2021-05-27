@@ -1,5 +1,5 @@
-import { buildParserMemoryBuffer, loadWASM } from "@candlefw/hydrocarbon";
-import Lexer from "@candlefw/wind";
+import { buildParserMemoryBuffer, loadWASM } from "@candlelib/hydrocarbon";
+import Lexer from "@candlelib/wind";
 
 const debug_stack = [];
 const { shared_memory, action_array, error_array } = buildParserMemoryBuffer(true, 4194304, 163920);

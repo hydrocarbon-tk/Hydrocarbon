@@ -1,4 +1,4 @@
-import URL from "@candlefw/url";
+import URL from "@candlelib/url";
 
 import { compileHCGParser, compileGrammar } from "../tools.js";
 

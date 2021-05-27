@@ -3,11 +3,11 @@
  * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
  * disclaimer notice.
  */
-import { JSNodeClass, exp, ext, stmt, JSNodeType, renderCompressed } from "@candlefw/js";
+import { JSNodeClass, exp, ext, stmt, JSNodeType, renderCompressed } from "@candlelib/js";
 
-import { traverse } from "@candlefw/conflagrate";
+import { traverse } from "@candlelib/conflagrate";
 
-import { Lexer } from "@candlefw/wind";
+import { Lexer } from "@candlelib/wind";
 
 import { ProductionBodyFunction, ProductionBodyReduceFunction, ProductionBody } from "../types/grammar.js";
 import { Symbol } from "../types/symbol";

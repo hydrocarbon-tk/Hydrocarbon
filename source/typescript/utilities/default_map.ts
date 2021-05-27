@@ -3,7 +3,7 @@
  * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
  * disclaimer notice.
  */
-import URL from "@candlefw/url";
+import URL from "@candlelib/url";
 
 await URL.server();
 

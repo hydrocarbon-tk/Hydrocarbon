@@ -3,7 +3,7 @@
  * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
  * disclaimer notice.
  */
-import URL from "@candlefw/url";
+import URL from "@candlelib/url";
 import { AwaitTracker } from "../grammar/grammar_parser";
 import { Grammar, ProductionBody } from "./grammar";
 import { ParserEnvironment } from "./parser_environment";

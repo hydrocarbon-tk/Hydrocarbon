@@ -4,7 +4,7 @@
  * disclaimer notice.
  */
 import { buildParserMemoryBuffer, loadWASM } from "../runtime/parser_memory_old.js";
-import Lexer from "@candlefw/wind";
+import Lexer from "@candlelib/wind";
 
 const debug_stack = [];
 const { shared_memory, action_array, error_array } = buildParserMemoryBuffer(false, 4194304, 163920);

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 //CandleFW stuffs
-import URL from "@candlefw/url";
+import URL from "@candlelib/url";
 import * as hc from "../../build/library/hydrocarbon.js";
 
 //Third Party stuff
@@ -90,7 +90,7 @@ async function start() {
                 name = cmd.nom || "parser",
                 loader_path = ["ALTERNATE"].includes(cmd.loader_path)
                     ? "../runtime/parser_memory.js"
-                    : "@candlefw/hydrocarbon",
+                    : "@candlelib/hydrocarbon",
                 workers = parseInt(cmd.workers),
                 grammar_path = path.resolve(hc_grammar),
                 output_dir = cmd.output_dir || "./",
@@ -103,7 +103,7 @@ async function start() {
                     recognizer_type: recognizer,
                     completer_type: completer,
                     output_dir: output_dir,
-                    memory_loader_url: loader_path || "@candlefw/hydrocarbon",
+                    memory_loader_url: loader_path || "@candlelib/hydrocarbon",
                     optimize: true,
                     combine_recognizer_and_completer: true,
                     ADD_ANNOTATIONS,

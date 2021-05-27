@@ -3,7 +3,7 @@
  * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
  * disclaimer notice.
  */
-import { Lexer } from "@candlefw/wind";
+import { Lexer } from "@candlelib/wind";
 import { SymbolType } from "./symbol_type";
 import { Production } from "./production";
 

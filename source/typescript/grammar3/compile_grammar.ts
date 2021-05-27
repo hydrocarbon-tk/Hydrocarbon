@@ -1,6 +1,6 @@
 
-import { experimentalConstructRenderers, experimentalRender } from "@candlefw/conflagrate";
-import URI from "@candlefw/url";
+import { copy, experimentalConstructRenderers, experimentalRender, traverse } from "@candlelib/conflagrate";
+import URI from "@candlelib/url";
 import { HCG3Grammar } from "../types/grammar_nodes";
 import { hcg3_mappings } from "./mappings.js";
 

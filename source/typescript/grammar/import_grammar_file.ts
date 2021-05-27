@@ -3,7 +3,7 @@
  * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
  * disclaimer notice.
  */
-import URL from "@candlefw/url";
+import URL from "@candlelib/url";
 import { Grammar } from "../types/grammar";
 import { GrammarParserEnvironment } from "../types/grammar_compiler_environment";
 import { default_map } from "../utilities/default_map.js";

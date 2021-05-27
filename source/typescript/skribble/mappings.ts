@@ -1,4 +1,4 @@
-import { NodeMapping, NodeMappings } from "@candlefw/conflagrate";
+import { NodeMapping, NodeMappings } from "@candlelib/conflagrate";
 import {
     SKNode, SKNumber,
     SKBoolean, SKNull, SKString, SKSOperator, SKNakedTemplate, SKTemplateStatement,

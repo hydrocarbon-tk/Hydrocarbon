@@ -1,4 +1,4 @@
-import URL from "@candlefw/url";
+import URL from "@candlelib/url";
 import fs from "fs";
 import { compile, hadHocParse } from "../build/library/compiler/compiler.js";
 import { getGrammar } from "./tools.js";
@@ -16,7 +16,7 @@ const { grammar_functions, runner } = await compile(grammar, { functions: {} }, 
     recognizer_type: { js: "js", wasm: "wasm" }["js"],
     completer_type: { js: "js", ts: "ts" }["js"],
     output_dir: "./",
-    memory_loader_url: "@candlefw/hydrocarbon",
+    memory_loader_url: "@candlelib/hydrocarbon",
     optimize: false,
     combine_recognizer_and_completer: true,
     add_annotations: true,

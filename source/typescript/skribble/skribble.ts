@@ -89,8 +89,8 @@ export function sk(templates: TemplateStringsArray, ...node_stack): SKExpression
 
 }
 
-import { experimentalConstructRenderers, experimentalRender } from "@candlefw/conflagrate";
-import { NodeMappings } from "@candlefw/conflagrate/build/types/types/node_mappings";
+import { experimentalConstructRenderers, experimentalRender } from "@candlelib/conflagrate";
+import { NodeMappings } from "@candlelib/conflagrate/build/types/types/node_mappings";
 import { ts_mappings } from "./ts_mappings.js";
 import { js_mappings } from "./js_mappings.js";
 

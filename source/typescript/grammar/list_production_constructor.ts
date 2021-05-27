@@ -3,7 +3,7 @@
  * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
  * disclaimer notice.
  */
-import { Lexer } from "@candlefw/wind";
+import { Lexer } from "@candlelib/wind";
 import { ProductionBodyReduceFunction } from "../types/grammar.js";
 import { Production } from "../types/production";
 import { GrammarParserEnvironment } from "../types/grammar_compiler_environment.js";

@@ -1,4 +1,4 @@
-import { ParserFactory } from "@candlefw/hydrocarbon";
+import { ParserFactory } from "@candlelib/hydrocarbon";
 
 const data = (() => {
 

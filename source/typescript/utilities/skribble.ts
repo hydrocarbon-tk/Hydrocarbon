@@ -3,7 +3,7 @@
  * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
  * disclaimer notice.
  */
-import { Lexer } from "@candlefw/wind";
+import { Lexer } from "@candlelib/wind";
 import crypto from "crypto";
 import { Node, Block, Expression, Expressions, UnaryPre, UnaryPost, Value, Switch, Function, Class, Call, If, Statement, ScriptNode, While, Constant, Variable, Assignment, Member, Declare, Binary, Group, Comment, This } from "../types/skribble";
 

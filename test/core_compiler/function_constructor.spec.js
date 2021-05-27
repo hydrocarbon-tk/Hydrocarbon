@@ -1,4 +1,4 @@
-import URL from "@candlefw/url";
+import URL from "@candlelib/url";
 import { constructHybridFunction } from "../../build/library/compiler/function_constructor.js";
 import { constructCompilerRunner } from "../../build/library/compiler/helper.js";
 import { getGrammar } from "../tools.js";
