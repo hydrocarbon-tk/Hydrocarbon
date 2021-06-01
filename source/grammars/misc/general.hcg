@@ -1,0 +1,12 @@
+<> start > A
+
+<> A >  ( A \mangos | B \avocados )(*) \grapes (+\, )
+    | g:id? g:num f:r{ $1 + $2 }
+    
+
+<> B > ( ( \tomatoes | \watermellon )(*\; )  )(*)
+  # | g:id C g:id 
+    
+
+<> C > \a | \b ? | \c | \d | \e | \f | \g
+

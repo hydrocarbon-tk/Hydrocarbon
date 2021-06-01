@@ -1,0 +1,6 @@
+<> start > A
+
+<> A >  [ \A ?  \B ? \C ? ] \D f:r{ $sym1 + $sym2 + $sym3 + $sym4 } 
+
+<> B > \X ?  \Y ? \Z ? f:r{ $sym1 + $sym2 + $sym3 }
+

@@ -1,0 +1,7 @@
+@IGNORE g:ws g:nl tk:comment
+
+<> info > data(*)
+
+<> data > g:id 
+
+<> 

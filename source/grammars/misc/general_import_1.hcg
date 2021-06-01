@@ -1,0 +1,10 @@
+@IMPORT ./general_import_2.hcg as gen_imp
+
+<> start > B
+
+<> A >  gen_imp::A \test | B
+
++> gen_imp::B > \duellus (+)
+    
+<> B > \coal
+
