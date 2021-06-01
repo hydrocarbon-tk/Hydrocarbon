@@ -74,7 +74,7 @@ export function default_resolveResolvedLeaf(item: Item, state: TransitionNode, o
 
             leaf_node = sc;
 
-            prods = processProductionChain([], options, itemsToProductions([item], grammar));
+            prods = processProductionChain(leaf_node, options, itemsToProductions([item], grammar));
             original_prods = itemsToProductions([item], grammar);
 
         } else {
