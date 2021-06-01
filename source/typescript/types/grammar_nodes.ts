@@ -28,7 +28,7 @@ export interface HCG3Import extends HCG3GrammarNode {
 }
 
 export interface HCG3ProductionNode extends HCG3GrammarNode {
-    name: string;
+    name: any;
     bodies: HCGProductionBody[];
     id: number;
     recovery_handler: HCG3Function;
@@ -39,10 +39,15 @@ export interface HCG3Production extends HCG3ProductionNode {
 
 export interface HCG3ImportProduction extends HCG3ProductionNode {
     type: "production-import",
+
+    name: HCG3ProductionImportSymbol;
 }
 
 export interface HCG3MergedProduction extends HCG3ProductionNode {
     type: "production-merged-import",
+
+    name: HCG3ProductionImportSymbol;
+
 }
 
 export interface HCGProductionBody extends HCG3GrammarNode {
@@ -59,7 +64,11 @@ export interface HCGConditionNode extends HCG3GrammarNode {
 export interface HCG3Grammar extends HCG3GrammarNode {
     type: "hc-grammar-3";
     preamble: (HCG3Import | HCG3Ignore)[];
-    productions: HCG3Production[];
+    productions: (
+        HCG3Production |
+        HCG3ImportProduction |
+        HCG3MergedProduction
+    )[];
     function: HCG3Function[];
     imported_grammars: { reference: string, uri: string, grammar: HCG3Grammar; }[];
 }
