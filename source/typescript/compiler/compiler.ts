@@ -99,7 +99,7 @@ function renderJavaScriptReduceFunctionLookup(grammar: Grammar) {
     return `return [(e,sym)=>sym[sym.length-1], ${reduce_functions_str}]`;
 }
 
-export function hadHocParse(
+export function adHocParse(
     grammar: Grammar,
     recognizer_functions: RDProductionFunction[],
     runner: Helper,
