@@ -83,7 +83,7 @@ f:r {  $$sym2 ?  ($sym1.push($sym2),$sym1)  : $sym1  }
 # This > ( expression | primitive_declaration ) < will not work. Why?
     | expression 
 f:r { [ $sym1 ] }
-    |primitive_declaration 
+    | primitive_declaration 
 f:r { [ $sym1 ] }                                          
 
 <> expression > assignment_expression
