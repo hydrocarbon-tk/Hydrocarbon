@@ -45,9 +45,9 @@ export function constructHybridFunction(production: Production, grammar: Grammar
         { RDOptions, GOTO_Options, RD_fn_contents, GOTO_fn_contents }
             = compileProductionFunctions(grammar, runner, [production]);
 
-    RD_function.expressions = [...RD_fn_contents, <SKExpression>sk`return:-1`];
+    RD_function.expressions.push(...RD_fn_contents, <SKExpression>sk`return:-1`);
 
-    GOTO_function.expressions = [...GOTO_fn_contents];
+    GOTO_function.expressions.push(...GOTO_fn_contents);
 
     addLeafStatements(
         RD_fn_contents,
