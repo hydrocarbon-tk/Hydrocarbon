@@ -12,6 +12,7 @@ import { skRenderAsJavaScript } from "../skribble/skribble.js";
 import { HybridCompilerOptions } from "../types/compiler_options";
 import { Grammar } from "../types/grammar.js";
 import { GrammarParserEnvironment } from "../types/grammar_compiler_environment";
+import { HCGTokenPosition } from "../types/parser.js";
 import { ParserEnvironment } from "../types/parser_environment.js";
 import { RDProductionFunction } from "../types/rd_production_function.js";
 import { constructCompilerRunner, Helper } from "./helper.js";
@@ -171,7 +172,7 @@ export function hadHocParse(
         let block = get_next_command_block(fork);
         let short_offset = 0;
         let token_offset = 0;
-        let pos = [];
+        let pos: HCGTokenPosition[] = [];
         let high = block[short_offset++];
 
         if (short_offset > 63) {
@@ -202,12 +203,19 @@ export function hadHocParse(
                             short_offset++;
                         }
 
-                        const pos_a = pos[pos.length - len] || { off: 0, tl: 0 };
-                        const pos_b = pos[pos.length - 1] || { off: 0, tl: 0 };
-                        const e = stack.slice(-len);
+                        const
+                            pos_a = pos[pos.length - len] || { offset: 0, length: 0 },
+                            pos_b = pos[pos.length - 1] || { offset: 0, length: 0 },
+                            e = stack.slice(-len),
+                            token_position: HCGTokenPosition = {
+                                line: 0,
+                                column: 0,
+                                offset: pos_a.offset,
+                                length: pos_b.offset - pos_a.offset + pos_b.length
+                            };
 
-                        pos[stack.length - len] = { off: pos_a.off, tl: pos_b.off - pos_a.off + pos_b.tl };
-                        stack[stack.length - len] = fns[body](env, e, { off: pos_a.off, tl: pos_b.off - pos_a.off + pos_b.tl });
+                        pos[stack.length - len] = token_position;
+                        stack[stack.length - len] = fns[body](env, e, token_position);
 
                         stack.length = stack.length - len + 1;
                         pos.length = pos.length - len + 1;
@@ -224,7 +232,7 @@ export function hadHocParse(
                     }
 
                     stack.push(input_string.slice(token_offset, token_offset + length));
-                    pos.push({ off: token_offset, tl: length });
+                    pos.push({ offset: token_offset, length: length });
                     token_offset += length;
                 } break;
 
