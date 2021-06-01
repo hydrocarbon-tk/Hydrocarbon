@@ -118,4 +118,4 @@ export type TokenSymbol =
     | AssertionFunctionSymbol
     | ProductionTokenSymbol;
 
-export type Symbol = TokenSymbol | ProductionSymbol; 
+export type Symbol = TokenSymbol | ProductionSymbol;
