@@ -4,6 +4,7 @@
  * disclaimer notice.
  */
 import { EOF_SYM, Grammar, ProductionBody } from "../types/grammar.js";
+import { HCG3Grammar, HCG3Production, HCG3Symbol, HCGProductionBody } from "../types/grammar_nodes.js";
 import { Production } from "../types/production";
 import { Symbol } from "../types/symbol";
 import { SymbolType } from "../types/symbol_type";
@@ -69,15 +70,15 @@ export class Item extends Array {
         return this[ItemIndex.offset];
     }
 
-    body_(grammar: Grammar): ProductionBody {
+    body_(grammar: HCG3Grammar): HCGProductionBody {
         return grammar.bodies[this.body];
     }
 
-    sym(grammar: Grammar): Symbol {
+    sym(grammar: HCG3Grammar): HCG3Symbol {
         return this.body_(grammar).sym[this.offset] || EOF_SYM;
     }
 
-    render(grammar: Grammar): string {
+    render(grammar: HCG3Grammar): string {
 
         const a = this.body_(grammar).sym
             .map(sym => Sym_Is_A_Production(sym) ? { val: "\x1b[38;5;8m" + grammar[sym.val].name.replace(/\$/, "::\x1b[38;5;153m") } : sym)
@@ -88,7 +89,7 @@ export class Item extends Array {
         return a.join(" ");
     }
 
-    renderUnformatted(grammar: Grammar): string {
+    renderUnformatted(grammar: HCG3Grammar): string {
 
         const a = this.body_(grammar).sym
             .map(sym => Sym_Is_A_Production(sym) ? Object.assign({}, sym, { val: grammar[sym.val].name }) : sym)
@@ -101,20 +102,20 @@ export class Item extends Array {
         return a.join(" ");
     }
 
-    renderUnformattedWithProduction(grammar: Grammar): string {
+    renderUnformattedWithProduction(grammar: HCG3Grammar): string {
         return (this.getProduction(grammar).id + ":" + this.body) + " " + this.body_(grammar).production.name + "=>" + this.renderUnformatted(grammar);
     }
 
-    renderWithProduction(grammar: Grammar): string {
+    renderWithProduction(grammar: HCG3Grammar): string {
         return `\x1b[48;5;233m\x1b[38;5;226m[ ${this.renderProductionName(grammar)} \x1b[38;5;226m⇒ ${this.render(grammar)} \x1b[38;5;226m]\x1b[0m`;
     }
 
-    getProduction(grammar: Grammar): Production {
+    getProduction(grammar: HCG3Grammar): Production {
         //@ts-ignore
         return this.body_(grammar).production;
     }
 
-    getProductionAtSymbol(grammar: Grammar): Production {
+    getProductionAtSymbol(grammar: HCG3Grammar): HCG3Production {
         //@ts-ignore
         const prod = this.sym(grammar).val;
 
@@ -122,7 +123,7 @@ export class Item extends Array {
     }
 
 
-    renderProductionName(grammar: Grammar): string {
+    renderProductionName(grammar: HCG3Grammar): string {
         //@ts-ignore
         return `\x1b[38;5;8m${this.body_(grammar).production.name.replace(/\$/, "::\x1b[38;5;153m")}`;
     }
@@ -132,7 +133,7 @@ export class Item extends Array {
         return `\x1b[48;5;233m\x1b[38;5;8m ${this.body_(grammar).production.name.replace(/\$/, "::\x1b[38;5;153m")} \x1b[0m`;
     }
 
-    renderSymbol(grammar: Grammar): string {
+    renderSymbol(grammar: HCG3Grammar): string {
         const sym = this.sym(grammar);
         //@ts-ignore
         return `\x1b[48;5;233m ${SymbolToString(sym)} \x1b[0m`;
@@ -170,7 +171,7 @@ export class Item extends Array {
         return this.id;
     }
 
-    getFunctions(grammar: Grammar) {
+    getFunctions(grammar: HCG3Grammar) {
         const body = this.body_(grammar);
 
         if (this.atEND) {

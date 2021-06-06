@@ -5,8 +5,8 @@
  */
 import { Lexer } from "@candlelib/wind";
 import { Grammar } from "../types/grammar.js";
+import { HCG3Grammar, HCG3Symbol } from "../types/grammar_nodes.js";
 import {
-    AssertionFunctionSymbol,
     DefinedCharacterSymbol,
     DefinedIdentifierSymbol,
     DefinedNumericSymbol,
@@ -14,7 +14,6 @@ import {
     GeneratedSymbol,
     ProductionSymbol,
     ProductionTokenSymbol,
-    Symbol,
     TokenSymbol
 } from "../types/symbol";
 import { SymbolType } from "../types/symbol_type.js";
@@ -37,7 +36,7 @@ export function characterToUTF8(char: string) {
         return `utf8_4(l,${code_point})`;
     }
 }
-export function convertSymbolToString(sym: Symbol) {
+export function convertSymbolToString(sym: HCG3Symbol) {
     switch (sym.type) {
         case SymbolType.ESCAPED:
         case SymbolType.SYMBOL:
@@ -56,13 +55,13 @@ export function convertSymbolToString(sym: Symbol) {
             return sym.val;
     }
 }
-export function getSymbolName(sym: Symbol) {
+export function getSymbolName(sym: HCG3Symbol) {
     if (!sym)
         return "";
 
     return "[" + sym.val + "]" + sym.type;
 }
-export function getUniqueSymbolName(sym: Symbol) {
+export function getUniqueSymbolName(sym: HCG3Symbol) {
     if (!sym)
         return "not-a-symbol";
     return getSymbolName(sym)
@@ -70,42 +69,42 @@ export function getUniqueSymbolName(sym: Symbol) {
         + (sym.IS_NON_CAPTURE ? "-->" : "");
 }
 
-export function Sym_Is_Compound(s: Symbol): s is DefinedCharacterSymbol {
+export function Sym_Is_Compound(s: HCG3Symbol): s is DefinedCharacterSymbol {
     return Sym_Is_Defined_Symbols(s) && s.val.length > 1;
 }
-export function Sym_Is_Not_Consumed(s: Symbol): boolean {
+export function Sym_Is_Not_Consumed(s: HCG3Symbol): boolean {
     return !!s.IS_NON_CAPTURE;
 }
-export function Sym_Is_EOF(s: Symbol): s is EOFSymbol {
+export function Sym_Is_EOF(s: HCG3Symbol): s is EOFSymbol {
     return s.type == SymbolType.END_OF_FILE || s.val == "END_OF_FILE";
 }
-export function Sym_Is_Consumed(s: Symbol): boolean {
+export function Sym_Is_Consumed(s: HCG3Symbol): boolean {
     return !Sym_Is_Not_Consumed(s);
 }
-export function Sym_Is_A_Production(s: Symbol): s is ProductionSymbol {
+export function Sym_Is_A_Production(s: HCG3Symbol): s is ProductionSymbol {
     if (!s) return false;
     return s.type == SymbolType.PRODUCTION || Sym_Is_A_Production_Token(s);
 }
 
-export function Sym_Is_A_Production_Token(s: Symbol): s is (ProductionTokenSymbol) {
+export function Sym_Is_A_Production_Token(s: HCG3Symbol): s is (ProductionTokenSymbol) {
     if (!s) return false;
     return (s.type == SymbolType.PRODUCTION_TOKEN_SYMBOL);
 }
 
-export function Sym_Is_A_Terminal(s: Symbol): s is TokenSymbol {
+export function Sym_Is_A_Terminal(s: HCG3Symbol): s is TokenSymbol {
     return false == Sym_Is_A_Production(s) || Sym_Is_A_Production_Token(s);
 }
 
-export function Sym_Is_A_Token(s: Symbol): s is TokenSymbol {
+export function Sym_Is_A_Token(s: HCG3Symbol): s is TokenSymbol {
     return Sym_Is_A_Terminal(s);
 }
 
 
-export function Sym_Is_An_Assert_Function(s: Symbol): s is AssertionFunctionSymbol {
-    return s.type == SymbolType.PRODUCTION_ASSERTION_FUNCTION;
+export function Sym_Is_An_Assert_Function(s: HCG3Symbol): s is any {
+    return false;
 }
 
-export function Sym_Is_A_Generic_Type(s: Symbol): s is (GeneratedSymbol | EOFSymbol) {
+export function Sym_Is_A_Generic_Type(s: HCG3Symbol): s is (GeneratedSymbol | EOFSymbol) {
     return (s.type == SymbolType.GENERATED || Sym_Is_EOF(s));
 }
 /**
@@ -113,27 +112,27 @@ export function Sym_Is_A_Generic_Type(s: Symbol): s is (GeneratedSymbol | EOFSym
  * @param s
  */
 
-export function Sym_Is_Defined(s: Symbol): s is DefinedSymbol {
+export function Sym_Is_Defined(s: HCG3Symbol): s is DefinedSymbol {
     return !Sym_Is_A_Production(s) && !Sym_Is_A_Generic_Type(s);
 }
 /**
  * A SpecifiedSymbol that is not a SpecifiedIdentifierSymbol nor a SpecifiedNumericSymbol
  * @param s
  */
-export function Sym_Is_Defined_Symbols(s: Symbol): s is DefinedCharacterSymbol {
+export function Sym_Is_Defined_Symbols(s: HCG3Symbol): s is DefinedCharacterSymbol {
     return Sym_Is_Defined(s) && !Defined_Sym_Is_An_Identifier(s) && !Sym_Is_Numeric(s);
 }
-export function Sym_Is_Defined_Identifier(s: Symbol): s is DefinedIdentifierSymbol {
+export function Sym_Is_Defined_Identifier(s: HCG3Symbol): s is DefinedIdentifierSymbol {
     return Sym_Is_Defined(s) && Defined_Sym_Is_An_Identifier(s);
 }
-export function Sym_Is_Defined_Natural_Number(s: Symbol): s is DefinedNumericSymbol {
+export function Sym_Is_Defined_Natural_Number(s: HCG3Symbol): s is DefinedNumericSymbol {
     return Sym_Is_Defined(s) && Sym_Is_Numeric(s);
 }
-export function Sym_Is_Numeric(sym: Symbol): sym is DefinedNumericSymbol {
+export function Sym_Is_Numeric(sym: HCG3Symbol): sym is DefinedNumericSymbol {
     const lex = new Lexer(sym.val + "");
     return lex.ty == lex.types.num && lex.pk.END;
 }
-export function Sym_Is_Not_Numeric(sym: Symbol): boolean {
+export function Sym_Is_Not_Numeric(sym: HCG3Symbol): boolean {
     return !Sym_Is_Numeric(sym);
 }
 /**
@@ -143,15 +142,15 @@ export function Sym_Is_Not_Numeric(sym: Symbol): boolean {
  * see: https://unicode.org/reports/tr31/
  * @param sym 
  */
-export function Defined_Sym_Is_An_Identifier(sym: Symbol): sym is DefinedIdentifierSymbol {
+export function Defined_Sym_Is_An_Identifier(sym: HCG3Symbol): sym is DefinedIdentifierSymbol {
     const val = sym.val + "";
     const lex = new Lexer(val + "");
     return lex.ty == lex.types.id && lex.tl == val.length;
 }
-export function Sym_Is_Not_A_Defined_Identifier(sym: Symbol): boolean {
+export function Sym_Is_Not_A_Defined_Identifier(sym: HCG3Symbol): boolean {
     return !Sym_Is_Defined_Identifier(sym);
 }
-export function Sym_Has_Just_One_Character(sym: Symbol) {
+export function Sym_Has_Just_One_Character(sym: HCG3Symbol) {
 
     if ((sym.val + "").length > 1)
         return false;
@@ -160,14 +159,14 @@ export function Sym_Has_Just_One_Character(sym: Symbol) {
 
     return !(lex.ty == lex.types.id || lex.ty == lex.types.num);
 }
-export function Sym_Has_Multiple_Characters(sym: Symbol): boolean {
+export function Sym_Has_Multiple_Characters(sym: HCG3Symbol): boolean {
     return !Sym_Has_Just_One_Character(sym);
 }
-export function Sym_Is_A_Generic_Newline(sym: Symbol): sym is GeneratedSymbol { return sym.val == "nl" && sym.type == SymbolType.GENERATED; }
-export function Sym_Is_A_Generic_Identifier(sym: Symbol): sym is GeneratedSymbol { return sym.val == "id" && sym.type == SymbolType.GENERATED; }
-export function Sym_Is_A_Generic_Symbol(sym: Symbol): sym is GeneratedSymbol { return sym.val == "sym" && sym.type == SymbolType.GENERATED; }
-export function Sym_Is_A_Generic_Number(sym: Symbol): sym is GeneratedSymbol { return sym.val == "num" && sym.type == SymbolType.GENERATED; }
-export function Sym_Is_A_Space_Generic(sym: Symbol): sym is GeneratedSymbol { return sym.val == "ws"; }
+export function Sym_Is_A_Generic_Newline(sym: HCG3Symbol): sym is GeneratedSymbol { return sym.val == "nl" && sym.type == SymbolType.GENERATED; }
+export function Sym_Is_A_Generic_Identifier(sym: HCG3Symbol): sym is GeneratedSymbol { return sym.val == "id" && sym.type == SymbolType.GENERATED; }
+export function Sym_Is_A_Generic_Symbol(sym: HCG3Symbol): sym is GeneratedSymbol { return sym.val == "sym" && sym.type == SymbolType.GENERATED; }
+export function Sym_Is_A_Generic_Number(sym: HCG3Symbol): sym is GeneratedSymbol { return sym.val == "num" && sym.type == SymbolType.GENERATED; }
+export function Sym_Is_A_Space_Generic(sym: HCG3Symbol): sym is GeneratedSymbol { return sym.val == "ws"; }
 
 export function getFollowSymbolsFromItems(items: Item[], grammar: Grammar): TokenSymbol[] {
     return items.filter(i => i.atEND)
@@ -176,7 +175,7 @@ export function getFollowSymbolsFromItems(items: Item[], grammar: Grammar): Toke
         .map(sym => <TokenSymbol>grammar.meta.all_symbols.get(sym));
 }
 
-export function getTokenSymbolsFromItems(items: Item[], grammar: Grammar): TokenSymbol[] {
+export function getTokenSymbolsFromItems(items: Item[], grammar: HCG3Grammar): TokenSymbol[] {
     return items.filter(i => !i.atEND)
         .flatMap(i => getTrueSymbolValue(<TokenSymbol>i.sym(grammar), grammar))
         .setFilter(getUniqueSymbolName)
@@ -206,19 +205,19 @@ export function getComplementOfSymbolSets(setA: TokenSymbol[], setB: TokenSymbol
 }
 ;
 
-export function getSymbolFromUniqueName(grammar: Grammar, name: string): Symbol {
+export function getSymbolFromUniqueName(grammar: Grammar, name: string): HCG3Symbol {
     return grammar.meta.all_symbols.get(name);
 }
-export function getRootSym<T = Symbol>(sym: T, grammar: Grammar): T {
-    if ((<Symbol><any>sym).type == SymbolType.END_OF_FILE)
+export function getRootSym<T = HCG3Symbol>(sym: T, grammar: Grammar): T {
+    if ((<HCG3Symbol><any>sym).type == SymbolType.END_OF_FILE)
         return sym;
 
-    const name = getUniqueSymbolName(<Symbol><any>sym);
+    const name = getUniqueSymbolName(<HCG3Symbol><any>sym);
 
     return <T><any>grammar.meta.all_symbols.get(name) || sym;
 }
 
-export function Symbols_Occlude(target: Symbol, potentially_occludes: Symbol): boolean {
+export function Symbols_Occlude(target: HCG3Symbol, potentially_occludes: HCG3Symbol): boolean {
 
     if (Sym_Is_A_Production(target) || Sym_Is_A_Production(potentially_occludes)) return false;
     if (Symbols_Are_The_Same(target, potentially_occludes)) return false;
@@ -231,7 +230,7 @@ export function Symbols_Occlude(target: Symbol, potentially_occludes: Symbol): b
     return Defined_Symbols_Occlude(target, potentially_occludes);
 }
 
-export function Defined_Symbols_Occlude(target: Symbol, potentially_occludes: Symbol): boolean {
+export function Defined_Symbols_Occlude(target: HCG3Symbol, potentially_occludes: HCG3Symbol): boolean {
 
     if (!Sym_Is_Defined(target) || !Sym_Is_Defined(potentially_occludes)) return false;
 
@@ -246,7 +245,7 @@ export function Defined_Symbols_Occlude(target: Symbol, potentially_occludes: Sy
 
     return true;
 }
-export function Symbols_Are_The_Same(a: Symbol, b: Symbol) {
+export function Symbols_Are_The_Same(a: HCG3Symbol, b: HCG3Symbol) {
     return getUniqueSymbolName(a) == getUniqueSymbolName(b);
 }
 
@@ -254,7 +253,7 @@ export function getUnskippableSymbolsFromClosure(closure: Item[], grammar: Gramm
     return [...new Set(closure.flatMap(i => grammar.item_map.get(i.id).reset_sym)).values()].map(sym => grammar.meta.all_symbols.get(sym));
 }
 
-export function getSymbolsFromClosure(closure: Item[], grammar: Grammar): Symbol[] {
+export function getSymbolsFromClosure(closure: Item[], grammar: Grammar): HCG3Symbol[] {
     return [
         ...new Set(
             closure
