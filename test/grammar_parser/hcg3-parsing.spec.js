@@ -1,5 +1,5 @@
 import { experimentalConstructRenderers, experimentalRender } from "@candlelib/conflagrate";
-import URI from "@candlelib/url";
+import URI from "@candlelib/uri";
 import {
     loadGrammarFromFile,
     convertListProductions,

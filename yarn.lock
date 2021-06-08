@@ -7,51 +7,51 @@
   resolved "https://registry.yarnpkg.com/@assemblyscript/loader/-/loader-0.17.2.tgz#d435b77525d525c2ece8e27cd77d170a953645a9"
   integrity sha512-8pLMRIMqPVxOnlyqjflNRuvoHShYNDCeUI3VXN6dr+c3lD4W5lwQnRdJviku8U4opv7CSDfIDZ99uRTwqcBIIA==
 
-"@candlefw/cfw@*":
+"@candlelib/candle@*":
   version "1.0.1"
-  resolved "https://registry.yarnpkg.com/@candlefw/cfw/-/cfw-1.0.1.tgz#218f5f749b184e3e85f27cb7ef956d5102113c33"
+  resolved "https://registry.yarnpkg.com/@candlelib/candle/-/cfw-1.0.1.tgz#218f5f749b184e3e85f27cb7ef956d5102113c33"
   integrity sha512-QEXevej8BFOQ3CyYM49qccZp1iLJm+Wg0XEt6zyQiOwzD/1ThUFyviJrjMAsklc9mmLB8/uXO0N1NYEPzlK6NA==
 
-"@candlefw/conflagrate@*":
+"@candlelib/conflagrate@*":
   version "0.1.1"
-  resolved "https://registry.yarnpkg.com/@candlefw/conflagrate/-/conflagrate-0.1.1.tgz#736ac21a8eb2ca45239ff194fc386318fb1595eb"
+  resolved "https://registry.yarnpkg.com/@candlelib/conflagrate/-/conflagrate-0.1.1.tgz#736ac21a8eb2ca45239ff194fc386318fb1595eb"
   integrity sha512-rP3xi4x41+Uthfe81uubyZ39yqe6R9JFg+tNsGXeyJHz3C/SkYbhKOIWlQjj+MhrNvFIwsQHTsgNbDOggNVfqw==
   dependencies:
-    "@candlefw/url" "*"
-    "@candlefw/wind" "*"
+    "@candlelib/uri" "*"
+    "@candlelib/wind" "*"
 
-"@candlefw/hydrocarbon@*":
+"@candlelib/hydrocarbon@*":
   version "0.6.0"
-  resolved "https://registry.yarnpkg.com/@candlefw/hydrocarbon/-/hydrocarbon-0.6.0.tgz#a9f7f68889523be73a356288969ae67751fa46be"
+  resolved "https://registry.yarnpkg.com/@candlelib/hydrocarbon/-/hydrocarbon-0.6.0.tgz#a9f7f68889523be73a356288969ae67751fa46be"
   integrity sha512-v8U8oMnHZHoSiehwaRuO3l4LCSVYYUOYRbRGi/Bo6Y0+zLoUwwkzBZ4hX+bjVyTXcHleKqe5Fq6CPcQTRMGrQQ==
   dependencies:
-    "@candlefw/conflagrate" "*"
-    "@candlefw/js" "*"
-    "@candlefw/url" "*"
-    "@candlefw/wind" "*"
+    "@candlelib/conflagrate" "*"
+    "@candlelib/js" "*"
+    "@candlelib/uri" "*"
+    "@candlelib/wind" "*"
     commander "^5.0.0"
     terser "^4.6.3"
 
-"@candlefw/js@*":
+"@candlelib/js@*":
   version "0.3.1"
-  resolved "https://registry.yarnpkg.com/@candlefw/js/-/js-0.3.1.tgz#ac8407db285b68194fa7b371907f9068b5b35fac"
+  resolved "https://registry.yarnpkg.com/@candlelib/js/-/js-0.3.1.tgz#ac8407db285b68194fa7b371907f9068b5b35fac"
   integrity sha512-SmHNhqLSvZgBo8rRi75oY+x2Ezq4QazZd6vZCgkcS2VtHUvTINGVHt4UOMxmV9e1FjiZOTuVDJ+9Rk47wPdQBw==
   dependencies:
-    "@candlefw/conflagrate" "*"
-    "@candlefw/hydrocarbon" "*"
-    "@candlefw/url" "*"
-    "@candlefw/wind" "*"
+    "@candlelib/conflagrate" "*"
+    "@candlelib/hydrocarbon" "*"
+    "@candlelib/uri" "*"
+    "@candlelib/wind" "*"
 
-"@candlefw/url@*":
+"@candlelib/uri@*":
   version "0.1.5"
-  resolved "https://registry.yarnpkg.com/@candlefw/url/-/url-0.1.5.tgz#7576b5333727bd163f9059b1eb05d5060d2cfc63"
+  resolved "https://registry.yarnpkg.com/@candlelib/uri/-/url-0.1.5.tgz#7576b5333727bd163f9059b1eb05d5060d2cfc63"
   integrity sha512-9clZEfNC0MuVU83Mpns6KUfp+OYKxWDhHTOkZbTIOj3Tl/RzjFhS2jPPwwkpLXtcmJcB/2efxAaqRGdOLJmFbQ==
   dependencies:
-    "@candlefw/cfw" "*"
+    "@candlelib/candle" "*"
 
-"@candlefw/wind@*":
+"@candlelib/wind@*":
   version "0.4.3"
-  resolved "https://registry.yarnpkg.com/@candlefw/wind/-/wind-0.4.3.tgz#088716663db61e6db1278e25ca01235dea632801"
+  resolved "https://registry.yarnpkg.com/@candlelib/wind/-/wind-0.4.3.tgz#088716663db61e6db1278e25ca01235dea632801"
   integrity sha512-s8IuwrCMn3Mut+vC1YN9HwNwhyp4qJfrJrhQHhsRZaaHArB1/9X2E4Ho56mS73KaHx7tFSTTWxEIas+9O7MqVQ==
 
 "@types/node@^13.7.6":

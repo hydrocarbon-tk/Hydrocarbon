@@ -1,4 +1,4 @@
-import URL from "@candlelib/url";
+import URL from "@candlelib/uri";
 import fs from "fs";
 import { compile, hadHocParse } from "../build/library/compiler/compiler.js";
 import { getGrammar } from "./tools.js";

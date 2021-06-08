@@ -1,4 +1,4 @@
-import URL from "@candlelib/url";
+import URL from "@candlelib/uri";
 import { constructCompilerEnvironment } from "../../build/library/grammar/grammar_parser.js";
 import { compileBasicHCGParser } from "../tools.js";
 

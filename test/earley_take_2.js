@@ -1,5 +1,5 @@
 import { getGrammar } from "./tools.js";
-import URL from "@candlelib/url";
+import URL from "@candlelib/uri";
 import { constructHybridFunction } from "../build/library/compiler/function_constructor.js";
 import { constructCompilerRunner } from "../build/library/compiler/helper.js";
 import { AS } from "../build/library/utilities/skribble.js";

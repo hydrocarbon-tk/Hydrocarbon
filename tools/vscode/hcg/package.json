@@ -37,6 +37,6 @@
         ]
     },
     "repository": {
-        "url": "github.com/candlefw/hydrocarbon-vscode-syntax-highlighting.git"
+        "url": "github.com/CandleLibrary/hydrocarbon-vscode-syntax-highlighting.git"
     }
 }

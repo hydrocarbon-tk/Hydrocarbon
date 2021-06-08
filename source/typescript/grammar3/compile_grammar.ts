@@ -1,7 +1,8 @@
 
 import { copy, experimentalConstructRenderers, experimentalRender, traverse } from "@candlelib/conflagrate";
-import { exp, ext, JSNodeClass, JSNodeType, renderCompressed } from "@candlelib/js";
-import URI from "@candlelib/url";
+import { EOF_SYM } from "../types/grammar.js";
+import { exp, JSNodeClass, JSNodeType, renderCompressed } from "@candlelib/js";
+import URI from "@candlelib/uri";
 import {
     HCG3EmptySymbol,
     HCG3Function,

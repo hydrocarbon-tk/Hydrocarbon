@@ -1,4 +1,4 @@
-import URL from "@candlelib/url";
+import URL from "@candlelib/uri";
 import { compileGrammarSource } from "../tools.js";
 
 import fs from "fs";

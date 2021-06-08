@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
-//CandleFW stuffs
-import URL from "@candlelib/url";
+//CandleLibrary stuffs
+import URL from "@candlelib/uri";
 import * as hc from "../../build/library/hydrocarbon.js";
 
 //Third Party stuff

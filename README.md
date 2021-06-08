@@ -44,7 +44,7 @@ Reads custom **.hcg** grammar files and builds recursive descent parsers. Curren
 
 ## Install Hydrocarbon & Compile Parser
 ```bash
-:~$ yarn global add @candlefw/hydrocarbon
+:~$ yarn global add @candlelib/hydrocarbon
 
 :~$ hydrocarbon compile --recognizer wasm --completer js \./my_json_like_language.hcg
 ```
@@ -63,7 +63,7 @@ typeof result[0] // => "object"
 
 # Motivation
 
-The primary reason this exists is to provide a flexible, easy to use parser compiler to handle the parsing demands of CandleFW libraries such as Wick, JS, TS, Wax, and CSS. It provides a way of rapidly define new language syntax and is able combine grammars of different languages into one meta-parser. 
+The primary reason this exists is to provide a flexible, easy to use parser compiler to handle the parsing demands of CandleLibrary libraries such as Wick, JS, TS, Wax, and CSS. It provides a way of rapidly define new language syntax and is able combine grammars of different languages into one meta-parser. 
 
 Parsers are not fun to create; there are many edge cases, optimization pitfalls, and design. They are a means to an end that can take up significant part of the *"means"*.
 
@@ -85,7 +85,7 @@ Compiles a parser from a Hydrocarbon grammar file
 
 # Contribution
 
-If you have any problems using hydrocarbon, or would like to suggest a new feature, please open an [issue](https://github.com/CandleFW/hydrocarbon/issues).
+If you have any problems using hydrocarbon, or would like to suggest a new feature, please open an [issue](https://github.com/CandleLibrary/hydrocarbon/issues).
 
 If you would like to contribute to the development of hydrocarbon, fork the repository, create and develop on a new branch, and create a pull request from your forked repo.
 

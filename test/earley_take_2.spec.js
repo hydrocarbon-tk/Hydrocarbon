@@ -1,4 +1,4 @@
-import URL from "@candlelib/url";
+import URL from "@candlelib/uri";
 import { getGrammar } from "./tools.js";
 
 const uri = URL.resolveRelative("./source/grammars/misc/test.hcg");

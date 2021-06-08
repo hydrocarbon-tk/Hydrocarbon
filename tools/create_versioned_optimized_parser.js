@@ -1,5 +1,5 @@
-import { getPackageJsonObject } from "@candlelib/wax";
-import URL from "@candlelib/url";
+import { getPackageJsonObject } from "@candlelib/paraffin";
+import URL from "@candlelib/uri";
 import { compileGrammars, compile } from "@candlelib/hydrocarbon";
 
 await URL.server();
