@@ -3,10 +3,10 @@
  * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
  * disclaimer notice.
  */
-import URL from "@candlelib/uri";
+import URI from "@candlelib/uri";
 
-await URL.server();
+await URI.server();
 
 export const default_map = {
-    "default-productions": URL.resolveRelative("../../../../source/grammars/misc/default-productions.hcg", URL.getEXEURL(import.meta))
+    "default-productions": URI.resolveRelative("../../../../source/grammars/misc/default-productions.hcg", URI.getEXEURL(import.meta))
 };
