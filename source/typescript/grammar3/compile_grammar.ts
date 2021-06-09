@@ -333,7 +333,20 @@ export function convertListProductions(grammar: HCG3Grammar): HCG3Grammar {
         }
 
         expandOptionalBody(production);
+
+        ////Remove bodies that are direct recursion: S=>S
+        production.bodies = production.bodies.filter(b => {
+            if (b.sym.length == 1 && b.sym[0].type == "sym-production" && b.sym[0].name == production.name) {
+                return false;
+
+            }
+
+            return true;
+        });
     }
+
+
+
     return grammar;
 }
 function processGroupSymbol(sym: any, body: HCG3Production, meta: any, production: HCG3Production, grammar: HCG3Grammar) {
