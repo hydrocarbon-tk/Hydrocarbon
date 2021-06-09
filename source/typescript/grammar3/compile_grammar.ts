@@ -164,8 +164,8 @@ export function buildSequenceString(grammar: HCG3Grammar) {
 export function createJSFunctionsFromExpressions(grammar: HCG3Grammar) {
     for (const production of grammar.productions) {
         for (const body of production.bodies) {
-            if (body.reduce) {
-                const expression = exp(`(${body.reduce.txt})`);
+            if (body.reduce_function) {
+                const expression = exp(`(${body.reduce_function.txt})`);
 
                 const receiver = { ast: null };
 
@@ -249,7 +249,15 @@ export function createJSFunctionsFromExpressions(grammar: HCG3Grammar) {
                         }
                     }
                 }
-                body.reduce.js = `()=>${renderCompressed(receiver.ast)}`;
+
+                const js = renderCompressed(receiver.ast);
+
+                if (!js) {
+                    body.reduce_function = null;
+                } else {
+
+                    body.reduce_function.js = `(env, sym, pos)=>${js}`;
+                }
             }
         }
     }
@@ -261,14 +269,14 @@ function expandOptionalBody(production: HCG3Production) {
     let i = 0n;
 
     for (const body of production.bodies)
-        for (const sym of body.symbols)
+        for (const sym of body.sym)
             sym.id = 1n << (i++);
 
 
     for (const body of production.bodies) {
-        for (const { node, meta } of traverse(body, "symbols").makeMutable()) {
+        for (const { node, meta } of traverse(body, "sym").makeMutable()) {
             if (node.IS_OPTIONAL) {
-                const new_id = body.symbols.filter((_, i) => i != meta.index).reduce((r, n) => (n.id | r), 0n);
+                const new_id = body.sym.filter((_, i) => i != meta.index).reduce((r, n) => (n.id | r), 0n);
 
                 if (!processed_set.has(new_id)) {
                     processed_set.add(new_id);
@@ -296,7 +304,7 @@ export function convertGroupProductions(grammar: HCG3Grammar): HCG3Grammar {
     for (const production of grammar.productions) {
         for (const { node: body, meta: b_meta } of traverse(production, "bodies").makeMutable()) {
             let REMOVE_ORIGINAL_BODY = false;
-            for (const { node, meta } of traverse(body, "symbols").makeMutable()) {
+            for (const { node, meta } of traverse(body, "sym").makeMutable()) {
                 const sym: any = node;
 
                 REMOVE_ORIGINAL_BODY = processGroupSymbol(sym, REMOVE_ORIGINAL_BODY, body, meta, production, grammar);
@@ -313,7 +321,7 @@ export function convertListProductions(grammar: HCG3Grammar): HCG3Grammar {
     for (const production of grammar.productions) {
 
         for (const body of production.bodies) {
-            for (const { node, meta } of traverse(body, "symbols").skipRoot().makeMutable()) {
+            for (const { node, meta } of traverse(body, "sym").skipRoot().makeMutable()) {
 
                 const sym: any = node;
 
@@ -344,9 +352,9 @@ function processGroupSymbol(sym: any, body: HCG3Production, meta: any, productio
 
         let i = 0;
 
-        for (const group_body of sym.value) {
+        for (const group_body of sym.val) {
 
-            const new_body = (i == sym.value.length - 1) ? body : copyBody(body);
+            const new_body = (i == sym.val.length - 1) ? body : copyBody(body);
 
             if (Body_Has_Reduce_Action(group_body)) {
 
@@ -375,9 +383,9 @@ function processGroupSymbol(sym: any, body: HCG3Production, meta: any, productio
                 // symbol indexes after this process is completed. 
 
                 if (new_body == body)
-                    meta.mutate(group_body.symbols, true);
+                    meta.mutate(group_body.sym, true);
                 else
-                    replaceBodySymbol(new_body, meta.index, ...group_body.symbols);
+                    replaceBodySymbol(new_body, meta.index, ...group_body.sym);
 
             }
 
@@ -393,12 +401,12 @@ function processGroupSymbol(sym: any, body: HCG3Production, meta: any, productio
 function processListSymbol(sym: any, body: HCGProductionBody, production: HCG3Production, meta: any, grammar: HCG3Grammar) {
     if (Sym_Is_List_Production(sym)) {
 
-        if (body.symbols.length == 1 && !Body_Has_Reduce_Action(body) && production.bodies.length == 1) {
+        if (body.sym.length == 1 && !Body_Has_Reduce_Action(body) && production.bodies.length == 1) {
             // If the body is simple ( P => a(+) ) and contains no reduce actions
             // then unroll the body into two different bodies with synthesized 
             // reduce actions that wrap the parsed tokens into an array
             // ( P => a ) and ( P => P a )
-            const inner_symbol = sym.value,
+            const inner_symbol = sym.val,
                 terminal_symbol = sym.terminal_symbol,
                 /** Contains the normal pattern */
                 new_production_body = createProductionBody(sym),
@@ -638,7 +646,7 @@ function getProductionByNameOrCreate(grammar: HCG3Grammar, name: string): HCG3Pr
 
 function Body_Has_Reduce_Action(body: HCGProductionBody) {
 
-    return body.reduce != null;
+    return body.reduce_function != null;
 
 }
 
@@ -652,7 +660,7 @@ function replaceBodySymbol(body: HCGProductionBody, index: number, ...symbols: H
     const extension_count = symbols.length;
 
     if (extension_count > 1 && Body_Has_Reduce_Action(body)) {
-        body.reduce.txt = body.reduce.txt.replace(/\$(\d+)/g, (m, p1) => {
+        body.reduce_function.txt = body.reduce_function.txt.replace(/\$(\d+)/g, (m, p1) => {
             const val = parseInt(p1);
             if (val > index)
                 return "$" + (val + extension_count);
@@ -660,17 +668,17 @@ function replaceBodySymbol(body: HCGProductionBody, index: number, ...symbols: H
         });
     }
 
-    body.symbols.splice(index, 1, ...symbols);
+    body.sym.splice(index, 1, ...symbols);
 
-    if (body.symbols.length == 0)
-        body.symbols.push(createEmptySymbol());
+    if (body.sym.length == 0)
+        body.sym.push(createEmptySymbol());
 }
 
 function removeBodySymbol(body: HCGProductionBody, index: number) {
     // Extend index values after the first body 
 
     if (Body_Has_Reduce_Action(body)) {
-        body.reduce.txt = body.reduce.txt.replace(/\$(\d+)/g, (m, p1) => {
+        body.reduce_function.txt = body.reduce_function.txt.replace(/\$(\d+)/g, (m, p1) => {
             const val = parseInt(p1);
             if (val > index + 1)
                 return "$" + (val - 1);
@@ -680,10 +688,10 @@ function removeBodySymbol(body: HCGProductionBody, index: number) {
         });
     }
 
-    body.symbols.splice(index, 1);
+    body.sym.splice(index, 1);
 
-    if (body.symbols.length == 0)
-        body.symbols.push(createEmptySymbol());
+    if (body.sym.length == 0)
+        body.sym.push(createEmptySymbol());
 }
 
 
@@ -694,15 +702,15 @@ function setBodyReduceExpressionAction(body: HCGProductionBody, reduce_function_
         txt: reduce_function_string
     };
 
-    body.reduce = function_node;
+    body.reduce_function = function_node;
 }
 
 function replaceAllBodySymbols(body: HCGProductionBody, ...symbols: HCG3Symbol[]) {
-    body.symbols = [...symbols];
+    body.sym = [...symbols];
 }
 
 function addSymbolToBody(new_production_body: HCGProductionBody, sym: HCG3ListProductionSymbol) {
-    new_production_body.symbols.push(sym);
+    new_production_body.sym.push(sym);
 }
 
 function addBodyToProduction(new_production: HCG3Production, new_production_body: HCGProductionBody) {
@@ -724,9 +732,10 @@ function Sym_Is_Group_Production(sym: any): sym is HCG3GroupProduction {
 function createProductionSymbol(name: string, IS_OPTIONAL: boolean = false, mapped_sym: HCG3GrammarNode = null): HCG3ProductionSymbol {
     return {
         type: 'sym-production',
-        value: name,
+        val: -1,
+        name: name,
         IS_NON_CAPTURE: false,
-        IS_OPTIONAL: false,
+        IS_OPTIONAL: IS_OPTIONAL,
         pos: mapped_sym?.pos ?? createZeroedPosition()
     };
 }
@@ -734,7 +743,9 @@ function createProductionSymbol(name: string, IS_OPTIONAL: boolean = false, mapp
 function createEmptySymbol(): HCG3EmptySymbol {
     return {
         type: 'empty',
-        value: "",
+        val: "",
+        byte_length: 0,
+        byte_offset: 0,
         IS_NON_CAPTURE: false,
         IS_OPTIONAL: false,
         pos: createZeroedPosition()
@@ -766,7 +777,7 @@ function createProductionBody(mapped_sym: HCG3GrammarNode = null): HCGProduction
         type: "body",
         FORCE_FORK: false,
         id: -1,
-        symbols: [],
+        sym: [],
         pos: mapped_sym?.pos ?? createZeroedPosition(),
         reduce: null,
     };
