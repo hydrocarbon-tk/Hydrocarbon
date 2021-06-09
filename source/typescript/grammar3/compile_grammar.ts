@@ -374,7 +374,7 @@ function processGroupSymbol(sym: any, body: HCG3Production, meta: any, productio
                 // Complex grouped productions (those with reduce actions) will need to be
                 // turned into new productions
                 const
-                    new_production_name = production.name + ".g[" + meta.index + "," + i + "]";
+                    new_production_name = production.name + "_group_" + meta.index + "_" + i + "_";
 
                 let new_production = createProduction(new_production_name, sym);
 
@@ -481,7 +481,7 @@ export async function integrateImportedGrammars(grammar: HCG3Grammar, imports: M
     // - create a common name for every imported grammar
     let i = 0;
     for (const import_ of grammar.imported_grammars) {
-        import_.grammar.common_import_name = (new URI(import_.uri)).filename;
+        import_.grammar.common_import_name = (new URI(import_.uri)).filename.replace(/-/g, "_");
 
     }
 
@@ -588,7 +588,7 @@ function processForeignSymbol(sym: HCG3Symbol, local_grammar: HCG3Grammar, impor
         for (const body of sym.val)
             processImportedBody(body, root_grammar, local_grammar, imported_productions);
 
-    } else if (sym.type == "sym-production") {
+    } else if (sym.type == "sym-production" || sym.type == "production_token") {
 
         const original_name = sym.name;
 
