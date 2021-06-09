@@ -16,8 +16,11 @@ import {
     HCG3TokenPosition,
     HCGProductionBody
 } from "../types/grammar_nodes";
-import { nodeHash } from "../utilities/code_generating";
+import { createSequenceData } from "../utilities/grammar.js";
+import { buildItemMaps } from "../utilities/item_map.js";
+import { getUniqueSymbolName, Sym_Is_A_Production, Sym_Is_A_Production_Token } from "../utilities/symbol.js";
 import { hcg3_mappings } from "./mappings.js";
+import { default_map } from "../utilities/default_map.js";
 
 const renderers = experimentalConstructRenderers(hcg3_mappings);
 const render = (grammar_node) => experimentalRender(grammar_node, hcg3_mappings, renderers);
@@ -380,7 +383,7 @@ export async function integrateImportedGrammars(grammar: HCG3Grammar, imports: M
 
                 const imported = getImportedGrammarFromReference(grmmr, production.name.module);
 
-                const name = imported.grammar.common_import_name + "::" + production.name.production;
+                const name = imported.grammar.common_import_name + "__" + production.name.production;
 
                 if (imported_productions.has(name)) {
 
@@ -395,7 +398,7 @@ export async function integrateImportedGrammars(grammar: HCG3Grammar, imports: M
 
                 const imported = getImportedGrammarFromReference(grmmr, production.name.module);
 
-                const name = imported.grammar.common_import_name + "::" + production.name.production;
+                const name = imported.grammar.common_import_name + "__" + production.name.production;
 
                 if (imported_productions.has(name)) {
 
@@ -412,66 +415,78 @@ export async function integrateImportedGrammars(grammar: HCG3Grammar, imports: M
 }
 
 function integrateImportedProductions(root_grammar: HCG3Grammar, local_grammar: HCG3Grammar, production: HCG3Production, imported_productions: Map<any, any>) {
+    for (const body of production.bodies)
+        processImportedBody(body, root_grammar, local_grammar, imported_productions);
+}
+
+function processImportedBody(body: HCGProductionBody, root_grammar: HCG3Grammar, local_grammar: HCG3Grammar, imported_productions: Map<any, any>) {
+    for (const { node: sym, meta: { mutate } } of traverse(body, "sym").makeMutable()) {
+
+        if (root_grammar != local_grammar) {
+            processForeignSymbol(sym, local_grammar, imported_productions, root_grammar);
+        }
+
+        if (sym.type == "sym-production-import") {
+            const imported = getImportedGrammarFromReference(local_grammar, sym.module);
+
+            //Convert symbol to a local name
+            //Find the production that is referenced in the grammar
+            const prd = getProductionByName(imported.grammar, sym.production);
+            const name = imported.grammar.common_import_name + "__" + prd.name;
 
 
-    for (const body of production.bodies) {
-        for (const { node: sym, meta: { mutate } } of traverse(body, "symbols").makeMutable()) {
-            if (root_grammar != local_grammar) {
-                if (sym.type == "sym-production") {
+            const prod = createProductionSymbol(name, sym.IS_OPTIONAL || false, sym);
 
-                    const original_name = sym.value;
+            mutate(prod);
 
-                    const name = local_grammar.common_import_name + "::" + original_name;
+            if (imported_productions.has(name)) {
+            } else {
 
-                    sym.value = name;
+                //copy production and convert the copies name to a local name 
+                const cp = copy(prd);
+                cp.name = name;
 
+                imported_productions.set(name, cp);
+                root_grammar.productions.push(cp);
 
-                    if (imported_productions.has(name)) {
-
-                    } else {
-
-                        const prd = getProductionByName(local_grammar, original_name);
-
-                        if (prd) {
-                            const cp = copy(prd);
-                            cp.name = name;
-                            console.log({ name });
-                            imported_productions.set(name, cp);
-                            root_grammar.productions.push(cp);
-                            integrateImportedProductions(root_grammar, local_grammar, cp, imported_productions);
-                        }
-                    }
-                }
+                integrateImportedProductions(root_grammar, imported.grammar, cp, imported_productions);
             }
+        }
+    }
+}
 
-            if (sym.type == "sym-production-import") {
-                const imported = getImportedGrammarFromReference(local_grammar, sym.module);
+function processForeignSymbol(sym: HCG3Symbol, local_grammar: HCG3Grammar, imported_productions: Map<any, any>, root_grammar: HCG3Grammar) {
 
-                //Convert symbol to a local name
-                //Find the production that is referenced in the grammar
-                const prd = getProductionByName(imported.grammar, sym.production);
-                const name = imported.grammar.common_import_name + "::" + prd.name;
+    if (sym.type == "list-production") {
 
-                mutate(<HCG3ProductionSymbol>{
-                    type: "sym-production",
-                    value: name,
-                    IS_NON_CAPTURE: false,
-                    IS_OPTIONAL: sym.IS_OPTIONAL || false,
-                    pos: sym.pos
-                });
+        const list_sym = sym.val;
 
-                if (imported_productions.has(name)) {
-                } else {
+        processForeignSymbol(<any>list_sym, local_grammar, imported_productions, root_grammar);
 
-                    //copy production and convert the copies name to a local name 
-                    const cp = copy(prd);
-                    cp.name = name;
+    } else if (sym.type == "group-production") {
 
-                    imported_productions.set(name, cp);
-                    root_grammar.productions.push(cp);
+        for (const body of sym.val)
+            processImportedBody(body, root_grammar, local_grammar, imported_productions);
 
-                    integrateImportedProductions(root_grammar, imported.grammar, cp, imported_productions);
-                }
+    } else if (sym.type == "sym-production") {
+
+        const original_name = sym.name;
+
+        const name = local_grammar.common_import_name + "__" + original_name;
+
+        sym.name = name;
+
+        if (imported_productions.has(name)) {
+        } else {
+
+            const prd = getProductionByName(local_grammar, original_name);
+
+            if (prd) {
+                const cp = copy(prd);
+                cp.name = name;
+                imported_productions.set(name, cp);
+                root_grammar.productions.push(cp);
+                integrateImportedProductions(root_grammar, local_grammar, cp, imported_productions);
             }
         }
     }
@@ -663,8 +678,8 @@ function createProductionBody(mapped_sym: HCG3GrammarNode = null): HCGProduction
  */
 export async function loadGrammarFromFile(uri: URI, grammar_parser: any, existing_grammars = new Map): HCG3Grammar {
 
-    if (uri.IS_RELATIVE)
-        uri = URI.resolveRelative(uri);
+    //Resolve references to built-in grammars
+    uri = getResolvedURI(uri);
 
     const str = await uri.fetchText();
 
@@ -672,13 +687,14 @@ export async function loadGrammarFromFile(uri: URI, grammar_parser: any, existin
 
     grammar.uri = uri + "";
 
+
     //Load imported grammars
 
     for (const preamble of grammar.preamble) {
 
         if (preamble.type == "import") {
 
-            const location = URI.resolveRelative(preamble.uri, uri);
+            const location = getResolvedURI(new URI(preamble.uri), uri);
 
             preamble.full_uri = location + "";
 
@@ -705,6 +721,14 @@ export async function loadGrammarFromFile(uri: URI, grammar_parser: any, existin
 
     return grammar;
 };
+
+function getResolvedURI(uri: URI, source?: URI) {
+    uri = default_map[uri + ""] ?? uri;
+
+    if (uri.IS_RELATIVE)
+        uri = URI.resolveRelative(uri, source);
+    return uri;
+}
 
 /**
  * Loads grammar file from import nodes
