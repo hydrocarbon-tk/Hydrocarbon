@@ -3,20 +3,20 @@
  * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
  * disclaimer notice.
  */
-import "../../utilities/array_globals.js";
-
+import { HCG3Grammar } from "source/typescript/types/grammar_nodes.js";
 import { parentPort, workerData } from "worker_threads";
-import { Grammar } from "../../types/grammar";
-import { HybridDispatch, HybridDispatchResponse } from "../../types/worker_messaging.js";
 import { ParserEnvironment } from "../../types/parser_environment.js";
-
+import { HybridDispatch, HybridDispatchResponse } from "../../types/worker_messaging.js";
+import "../../utilities/array_globals.js";
 import { filloutWorkerGrammar } from "../../utilities/grammar.js";
 import { constructHybridFunction } from "../function_constructor.js";
 import { constructCompilerRunner, Helper } from "../helper.js";
 
+
+
 export class Worker {
 
-    grammar: Grammar;
+    grammar: HCG3Grammar;
     env: ParserEnvironment;
     id: number;
     runner: Helper;

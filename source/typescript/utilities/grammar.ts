@@ -4,6 +4,7 @@
  * disclaimer notice.
  */
 import { EOF_SYM, Grammar, ProductionBody } from "../types/grammar.js";
+import { HCG3Grammar } from "../types/grammar_nodes.js";
 import { Production } from "../types/production.js";
 import { DefinedSymbol, Symbol } from "../types/symbol";
 import { SymbolType } from "../types/symbol_type";
@@ -60,7 +61,7 @@ function addFunctions(funct, production, env) {
  * Niave implementation ATM
  * @param grammar 
  */
-function createSequenceData(grammar: Grammar, rounds = 2): string {
+export function createSequenceData(grammar: HCG3Grammar, rounds = 2): string {
 
     const symbols = [...grammar.meta.all_symbols.values()].filter(Sym_Is_Defined);
 
@@ -140,7 +141,7 @@ export function createPrecedence(body, grammar) {
  * 
  * Returns nothing
  */
-export function filloutWorkerGrammar(grammar: Grammar) {
+export function filloutWorkerGrammar(grammar: HCG3Grammar) {
     for (const [key, val] of grammar.item_map.entries()) {
         val.item = Item.fromArray(val.item);
     }
@@ -153,7 +154,7 @@ export function filloutWorkerGrammar(grammar: Grammar) {
  * Follow items for each production
  * Item set
  */
-export function completeGrammar(grammar: Grammar, env) {
+export function completeGrammar(grammar: HCG3Grammar, env) {
 
     const bodies = [],
         reduce_lu: Map<string, number> = new Map,

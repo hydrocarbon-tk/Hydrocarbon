@@ -6,8 +6,7 @@
 import { performance } from "perf_hooks";
 import { sk } from "../skribble/skribble.js";
 import { SKBlock, SKExpression, SKFunction, SKIf, SKPrimitiveDeclaration } from "../skribble/types/node.js";
-import { Grammar } from "../types/grammar.js";
-import { Production } from "../types/production";
+import { HCG3Production, HCG3Grammar } from "../types/grammar_nodes.js";
 import { RDProductionFunction } from "../types/rd_production_function";
 import { RenderBodyOptions } from "../types/render_body_options";
 import { Symbol } from "../types/symbol.js";
@@ -26,7 +25,7 @@ import { addClauseSuccessCheck, resolveGOTOBranches } from "./transitions/defaul
 import { processTransitionNodes } from "./transitions/process_transition_nodes.js";
 import { yieldGOTOTransitions } from "./transitions/yield_goto_transitions.js";
 import { yieldTransitions } from "./transitions/yield_transitions.js";
-export function constructHybridFunction(production: Production, grammar: Grammar, runner: Helper): RDProductionFunction {
+export function constructHybridFunction(production: HCG3Production, grammar: HCG3Grammar, runner: Helper): RDProductionFunction {
 
     const
 
@@ -76,7 +75,7 @@ export function constructHybridFunction(production: Production, grammar: Grammar
     };
 }
 
-function constructReduceFunction(production: Production, options: RenderBodyOptions, grammar: Grammar) {
+function constructReduceFunction(production: HCG3Production, options: RenderBodyOptions, grammar: HCG3Grammar) {
 
     const end_items = getStartItemsFromProduction(production).map(i => i.toEND());
     const ifs = [];
@@ -206,9 +205,9 @@ export function createVirtualProductionSequence(
 }
 
 export function compileProductionFunctions(
-    grammar: Grammar,
+    grammar: HCG3Grammar,
     runner: Helper,
-    productions: Production[],
+    productions: HCG3Production[],
     /** 
      * Only include transitions with the
      * with the matching symbols. Only applies
@@ -259,12 +258,12 @@ export function compileProductionFunctions(
     return { RDOptions, GOTO_Options, RD_fn_contents, GOTO_fn_contents };
 }
 export function generateOptions(
-    grammar: Grammar,
+    grammar: HCG3Grammar,
     runner: Helper,
     /**
      * The production currently being processed.
      */
-    productions: Production[],
+    productions: HCG3Production[],
     IS_VIRTUAL: number = 0,
     scope: "RD" | "GOTO" = "RD"
 ): RenderBodyOptions {
@@ -289,15 +288,15 @@ export function generateOptions(
     };
 }
 
-export function getGotoItemsFromProductionClosure(production: Production, grammar: Grammar): Item[] {
+export function getGotoItemsFromProductionClosure(production: HCG3Production, grammar: HCG3Grammar): Item[] {
     return getProductionClosure(production.id, grammar).filter(i => !i.atEND && Sym_Is_A_Production(i.sym(grammar)));
 }
 
-export function getStartItemsFromProduction(production: Production): Item[] {
+export function getStartItemsFromProduction(production: HCG3Production): Item[] {
     return production.bodies.map(b => new Item(b.id, b.length, 0));
 }
 
-export function getProductionItemsThatAreNotRightRecursive(productions: Production[], grammar: Grammar): Item[] {
+export function getProductionItemsThatAreNotRightRecursive(productions: HCG3Production[], grammar: HCG3Grammar): Item[] {
     return productions.flatMap(p => getStartItemsFromProduction(p).filter(i => {
 
         const sym = i.sym(grammar);

@@ -7,8 +7,7 @@ import crypto from "crypto";
 import { Helper } from "../compiler/helper.js";
 import { sk, skRenderAsSK } from "../skribble/skribble.js";
 import { SKAssignment, SKBlock, SKCall, SKExpression, SKFunction, SKIdentifierReference, SKIf, SKNode, SKOperatorExpression, SKPrimitiveDeclaration, SKReference } from "../skribble/types/node.js";
-import { Grammar } from "../types/grammar.js";
-import { Production } from "../types/production.js";
+import { HCG3Production, HCG3Grammar } from "../types/grammar_nodes.js";
 import { BaseOptions, RenderBodyOptions } from "../types/render_body_options.js";
 import {
     DefinedSymbol,
@@ -45,7 +44,7 @@ const hash_length = 16;
 
 
 
-export const createReduceFunctionSK = (item: Item, grammar: Grammar): SKCall =>
+export const createReduceFunctionSK = (item: Item, grammar: HCG3Grammar): SKCall =>
     <SKCall>sk`add_reduce(state, data, ${item.len}, ${item.body_(grammar).reduce_id + 1})`;
 
 
@@ -54,10 +53,10 @@ export const createDefaultReduceFunctionSk =
     (item: Item): SKCall => <SKCall>sk`add_reduce(state, data, ${item.len})`;
 
 
-export function getProductionFunctionName(production: Production, grammar: Grammar): string {
+export function getProductionFunctionName(production: HCG3Production, grammar: HCG3Grammar): string {
     return "$" + production.name;
 }
-export const getProductionFunctionNameSk = (production: Production, grammar: Grammar): string => "$" + production.name;
+export const getProductionFunctionNameSk = (production: HCG3Production, grammar: HCG3Grammar): string => "$" + production.name;
 
 export const createConsumeSk = (lex_name: string): SKCall => <SKCall>sk`consume(${lex_name}, data, state)`;
 
@@ -67,7 +66,7 @@ export const createAssertionShiftSk = (options: BaseOptions, sym: TokenSymbol, l
     createAssertConsumeSk(lex_name, getIncludeBooleansSk([sym], options, lex_name));
 
 export function createProductionCallSk(
-    production: Production,
+    production: HCG3Production,
     options: RenderBodyOptions,
     lexer_name: string = "l"
 ): SKAssignment {
@@ -88,7 +87,7 @@ export function sanitizeSymbolValForCommentSk(sym: string | TokenSymbol): string
 export function getAssertionFunctionNameSk(name: string) {
     return `__${name}__`;
 }
-export function translateSymbolValueSk(sym: TokenSymbol, grammar: Grammar, lex_name: string = "l"): SKExpression {
+export function translateSymbolValueSk(sym: TokenSymbol, grammar: HCG3Grammar, lex_name: string = "l"): SKExpression {
 
     const
         char_len = sym.val.toString().length,
@@ -305,6 +304,7 @@ export function createNonCaptureBooleanCheckSk(symbols: TokenSymbol[], options: 
     let fn_ref = getGlobalObjectSk("nocap", symbols, runner);
 
 
+
     if (!fn_ref) {
         const
             boolean =
@@ -441,7 +441,7 @@ function getUTF8ByteAtSk(s: DefinedSymbol, off: number): number {
 }
 
 export function* buildSwitchIfsAlternateSk(
-    grammar: Grammar,
+    grammar: HCG3Grammar,
     syms: DefinedSymbol[],
     lex_name: string = "l",
     occluders: TokenSymbol[] = [],
@@ -499,7 +499,7 @@ type IfNode = {
 };
 
 export function* buildSwitchIfsSk(
-    grammar: Grammar,
+    grammar: HCG3Grammar,
     syms: DefinedSymbol[],
     lex_name: string = "l",
     occluders: TokenSymbol[] = [],
@@ -752,15 +752,15 @@ export function getIncludeBooleansSk(
     return convertExpressionArrayToBooleanSk([...out_non_consume, ...out_tk, ...out_id, ...out_ty, ...out_fn]);
 }
 
-function ensureSymbolsAreGlobalSk<T = Symbol>(syms: T[], grammar: Grammar): T[] {
+function ensureSymbolsAreGlobalSk<T = Symbol>(syms: T[], grammar: HCG3Grammar): T[] {
     return <T[]><any>(<Symbol[]><any>syms).map(s => getCardinalSymbolSk(grammar, s));
 }
 
-function getCardinalSymbol(grammar: Grammar, sym: Symbol): Symbol {
+function getCardinalSymbol(grammar: HCG3Grammar, sym: Symbol): Symbol {
     return <any>grammar.meta.all_symbols.get(getUniqueSymbolName(sym));
 }
 
-function getCardinalSymbolSk(grammar: Grammar, sym: Symbol): Symbol {
+function getCardinalSymbolSk(grammar: HCG3Grammar, sym: Symbol): Symbol {
     return <any>grammar.meta.all_symbols.get(getUniqueSymbolName(sym));
 }
 function convertExpressionArrayToBooleanSk(array: SKExpression[], delimiter: string = "||"): SKExpression {
@@ -841,15 +841,15 @@ function This_Is_An_SKFunction(input: any): input is SKFunction {
     return false;
 }
 
-export function addItemAnnotationToExpressionList(items: Item[], grammar: Grammar, root: SKExpression[]) {
+export function addItemAnnotationToExpressionList(items: Item[], grammar: HCG3Grammar, root: SKExpression[]) {
     for (const item_str of items.map(i => i.renderUnformattedWithProduction(grammar)))
         root.push(<SKExpression><SKString>{
             type: "string",
-            value: item_str.replace(/\'/g, '"')
+            value: item_str.replace(/\'/g, '"').replace(/\\/g, "f:s")
         });
 }
 
-export function addSymbolAnnotationsToExpressionList(syms: Symbol[], grammar: Grammar, expression_list: SKExpression[], comment: string = "") {
+export function addSymbolAnnotationsToExpressionList(syms: Symbol[], grammar: HCG3Grammar, expression_list: SKExpression[], comment: string = "") {
     const symbol_string = syms.map(s => ("" + s.val).replace(/\'/g, '"').replace(/\\/g, "f:s")).join(" ");
 
     expression_list.unshift(<SKExpression><SKString>{

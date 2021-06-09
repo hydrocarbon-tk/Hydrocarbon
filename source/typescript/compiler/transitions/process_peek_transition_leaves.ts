@@ -111,7 +111,7 @@ function convertPeekStateToSingleItemNode(node: TransitionNode, { grammar }: Ren
     } else if (items[0].atEND) {
         node.symbols = node.symbols.concat(
             getFollowSymbolsFromItems(items, grammar)
-        ).setFilter(getUniqueSymbolName)
+        ).setFilter(getUniqueSymbolName);
         node.transition_type = TRANSITION_TYPE.ASSERT_END;
     } else if (node.peek_level > 0) {
         node.transition_type = TRANSITION_TYPE.ASSERT_PEEK;
@@ -182,6 +182,9 @@ function addUnresolvedNode(node: TransitionNode, options: RenderBodyOptions, off
         } else {
 
             for (const items_with_same_symbol of filtered_items.group(i => i.sym(options.grammar))) {
+
+
+
 
                 const unresolved_leaf_node = createTransitionNode(items_with_same_symbol, node.symbols, TRANSITION_TYPE.ASSERT, offset, node.peek_level, true);
 

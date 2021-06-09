@@ -19,7 +19,7 @@ import {
 import { SymbolType } from "../types/symbol_type.js";
 import { Item } from "./item.js";
 
-export function getTrueSymbolValue(sym: TokenSymbol, grammar: Grammar): TokenSymbol[] {
+export function getTrueSymbolValue(sym: TokenSymbol, grammar: HCG3Grammar): TokenSymbol[] {
     return [<TokenSymbol>sym];
 }
 export function characterToUTF8(char: string) {
@@ -59,7 +59,7 @@ export function getSymbolName(sym: HCG3Symbol) {
     if (!sym)
         return "";
 
-    return "[" + sym.val + "]" + sym.type;
+    return "[" + (sym.val ?? sym.name) + "]" + sym.type;
 }
 export function getUniqueSymbolName(sym: HCG3Symbol) {
     if (!sym)
@@ -83,7 +83,7 @@ export function Sym_Is_Consumed(s: HCG3Symbol): boolean {
 }
 export function Sym_Is_A_Production(s: HCG3Symbol): s is ProductionSymbol {
     if (!s) return false;
-    return s.type == SymbolType.PRODUCTION || Sym_Is_A_Production_Token(s);
+    return s.type == SymbolType.PRODUCTION || s.type == "sym-production" || Sym_Is_A_Production_Token(s);
 }
 
 export function Sym_Is_A_Production_Token(s: HCG3Symbol): s is (ProductionTokenSymbol) {
@@ -205,10 +205,10 @@ export function getComplementOfSymbolSets(setA: TokenSymbol[], setB: TokenSymbol
 }
 ;
 
-export function getSymbolFromUniqueName(grammar: Grammar, name: string): HCG3Symbol {
+export function getSymbolFromUniqueName(grammar: HCG3Grammar, name: string): HCG3Symbol {
     return grammar.meta.all_symbols.get(name);
 }
-export function getRootSym<T = HCG3Symbol>(sym: T, grammar: Grammar): T {
+export function getRootSym<T = HCG3Symbol>(sym: T, grammar: HCG3Grammar): T {
     if ((<HCG3Symbol><any>sym).type == SymbolType.END_OF_FILE)
         return sym;
 
@@ -249,11 +249,11 @@ export function Symbols_Are_The_Same(a: HCG3Symbol, b: HCG3Symbol) {
     return getUniqueSymbolName(a) == getUniqueSymbolName(b);
 }
 
-export function getUnskippableSymbolsFromClosure(closure: Item[], grammar: Grammar): any {
+export function getUnskippableSymbolsFromClosure(closure: Item[], grammar: HCG3Grammar): any {
     return [...new Set(closure.flatMap(i => grammar.item_map.get(i.id).reset_sym)).values()].map(sym => grammar.meta.all_symbols.get(sym));
 }
 
-export function getSymbolsFromClosure(closure: Item[], grammar: Grammar): HCG3Symbol[] {
+export function getSymbolsFromClosure(closure: Item[], grammar: HCG3Grammar): HCG3Symbol[] {
     return [
         ...new Set(
             closure

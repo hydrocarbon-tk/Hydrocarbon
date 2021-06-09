@@ -12,6 +12,7 @@ import { skRenderAsJavaScript } from "../skribble/skribble.js";
 import { HybridCompilerOptions } from "../types/compiler_options";
 import { Grammar } from "../types/grammar.js";
 import { GrammarParserEnvironment } from "../types/grammar_compiler_environment";
+import { HCG3Grammar } from "../types/grammar_nodes.js";
 import { HCGTokenPosition } from "../types/parser.js";
 import { ParserEnvironment } from "../types/parser_environment.js";
 import { RDProductionFunction } from "../types/rd_production_function.js";
@@ -75,7 +76,7 @@ function compileRecognizerSource(runner: Helper, grammar: Grammar, recognizer_fu
 }
 
 export function renderRecognizerAsJavasScript(
-    grammar: Grammar,
+    grammar: HCG3Grammar,
     recognizer_functions: RDProductionFunction[],
     runner: Helper
 ) {
@@ -87,9 +88,9 @@ export function renderRecognizerAsJavasScript(
 
 
 
-function renderJavaScriptReduceFunctionLookup(grammar: Grammar) {
+function renderJavaScriptReduceFunctionLookup(grammar: HCG3Grammar) {
     const reduce_functions_str = [...grammar.meta.reduce_functions.keys()].map((b, i) => {
-        if (b.includes("return")) {
+        if (b.includes("return") || true) {
             return b.replace("return", "(env, sym, pos)=>(").slice(0, -1) + ")" + `/*${i}*/`;
         } else {
             return `(env, sym)=>new (class{constructor(env, sym, pos){${b}}})(env, sym)` + `/*${i}*/`;
@@ -100,12 +101,13 @@ function renderJavaScriptReduceFunctionLookup(grammar: Grammar) {
 }
 
 export function adHocParse(
-    grammar: Grammar,
+    grammar: HCG3Grammar,
     recognizer_functions: RDProductionFunction[],
     runner: Helper,
     input_string: string,
     env: ParserEnvironment = {}
 ) {
+
     const str = renderRecognizerAsJavasScript(
         grammar,
         recognizer_functions,

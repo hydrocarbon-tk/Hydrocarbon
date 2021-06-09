@@ -3,101 +3,24 @@
  * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
  * disclaimer notice.
  */
-import { Lexer } from "@candlelib/wind";
-import { SymbolType } from "./symbol_type";
-import { Production } from "./production";
+import { HCG3EmptySymbol, HCG3EOFSymbol, HCG3GeneratedSymbol, HCG3LiteralSymbol, HCG3ProductionSymbol, HCG3ProductionTokenSymbol } from "./grammar_nodes";
 
 
-/**
- * Grammar Symbols
-*/
-export interface SymbolBase {
-    type: SymbolType;
-    val: string | number;
-    subtype?: string;
-    offset?: number;
-    name?: string;
-    sym?: string;
-    precedence?: number;
-    NO_BLANK?: boolean;
-    IS_OPTIONAL?: boolean;
-    IS_CONDITION?: boolean;
-    IS_NON_CAPTURE?: boolean;
-    IMPORTED?: boolean;
-    RESOLVED?: boolean;
-    DOES_SHIFT?: boolean;
-    production?: Production;
-    resolveFunction?: () => void;
-    pos?: Lexer;
+export interface DefinedNumericSymbol extends HCG3LiteralSymbol { }
 
-    /**
-     * The numerical identifier for this token
-     */
-    id?: number;
-}
+export interface DefinedIdentifierSymbol extends HCG3LiteralSymbol { }
 
-export interface DefinedSymbolBase extends SymbolBase {
-    /**
-     * Size of the character sequence in UTF8 encoding
-     */
-    byte_length: number;
+export interface DefinedCharacterSymbol extends HCG3LiteralSymbol { }
 
-    /**
-     * If the byte_length is more than, then this is the offset of the 
-     * character sequence within the character lookup table.
-     */
-    byte_offset: number;
-}
+export interface GeneratedSymbol extends HCG3GeneratedSymbol { }
 
-export interface DefinedNumericSymbol extends DefinedSymbolBase {
-    type: SymbolType.ESCAPED | SymbolType.LITERAL | SymbolType.SYMBOL;
-    val: string;
-}
+export interface EOFSymbol extends HCG3EOFSymbol { }
 
-export interface DefinedIdentifierSymbol extends DefinedSymbolBase {
-    type: SymbolType.ESCAPED | SymbolType.LITERAL | SymbolType.SYMBOL;
-    val: string;
-}
+export interface ProductionSymbol extends HCG3ProductionSymbol { }
 
-export interface DefinedCharacterSymbol extends DefinedSymbolBase {
-    type: SymbolType.ESCAPED | SymbolType.LITERAL | SymbolType.SYMBOL;
-    val: string;
-}
-
-
-export interface GeneratedSymbol extends SymbolBase {
-    type: SymbolType.GENERATED;
-    val: string;
-}
-
-export interface EOFSymbol extends SymbolBase {
-    type: SymbolType.END_OF_FILE;
-    val: "END_OF_FILE";
-}
-
-export interface EmptySymbol extends SymbolBase {
-    type: SymbolType.EMPTY;
-    val: "";
-}
-
-export interface ProductionSymbol extends SymbolBase {
-    type: SymbolType.PRODUCTION;
+export interface ProductionTokenSymbol extends HCG3ProductionTokenSymbol {
     name: string;
     val: number;
-    production: Production;
-}
-
-export interface AssertionFunctionSymbol extends SymbolBase {
-    type: SymbolType.PRODUCTION_ASSERTION_FUNCTION;
-    val: string;
-
-}
-
-export interface ProductionTokenSymbol extends SymbolBase {
-    type: SymbolType.PRODUCTION_TOKEN_SYMBOL;
-    name: string;
-    val: number;
-    production: Production;
 
 }
 /**
@@ -112,10 +35,10 @@ export type DefinedSymbol =
     | DefinedNumericSymbol;
 export type TokenSymbol =
     | DefinedSymbol
-    | GeneratedSymbol
-    | EOFSymbol
-    | EmptySymbol
-    | AssertionFunctionSymbol
-    | ProductionTokenSymbol;
+    | HCG3GeneratedSymbol
+    | HCG3EOFSymbol
+    | HCG3EmptySymbol
+    //| AssertionFunctionSymbol
+    | HCG3ProductionTokenSymbol;
 
-export type Symbol = TokenSymbol | ProductionSymbol;
+export type Symbol = TokenSymbol | HCG3ProductionSymbol;

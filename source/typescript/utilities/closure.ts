@@ -4,7 +4,7 @@
  * disclaimer notice.
  */
 import { getStartItemsFromProduction } from "../compiler/function_constructor.js";
-import { Grammar } from "../types/grammar.js";
+import { HCG3Grammar } from "../types/grammar_nodes.js";
 import { getGotoItems, Item, itemsToProductions } from "./item.js";
 import { getProductionID } from "./production.js";
 import { Sym_Is_A_Production_Token } from "./symbol.js";
@@ -23,7 +23,7 @@ import { Sym_Is_A_Production_Token } from "./symbol.js";
  * @param grammar 
  * @param ENTER_TOKEN_PRODUCTIONS 
  */
-export function getClosure(items: Item[], grammar: Grammar, ENTER_TOKEN_PRODUCTIONS: boolean = false, internal$item_track: Set<string> = new Set): Item[] {
+export function getClosure(items: Item[], grammar: HCG3Grammar, ENTER_TOKEN_PRODUCTIONS: boolean = false, internal$item_track: Set<string> = new Set): Item[] {
 
     let closure = [];
 
@@ -84,7 +84,7 @@ export function getClosure(items: Item[], grammar: Grammar, ENTER_TOKEN_PRODUCTI
  * @param grammar 
  * @param productions 
  */
-export function getFollowClosure(closure: Item[], goto_transition_items: Item[], grammar: Grammar, productions: Set<number> = new Set) {
+export function getFollowClosure(closure: Item[], goto_transition_items: Item[], grammar: HCG3Grammar, productions: Set<number> = new Set) {
 
     const new_closure = closure.slice();
 

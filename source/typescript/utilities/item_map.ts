@@ -4,7 +4,8 @@
  * disclaimer notice.
  */
 import { getStartItemsFromProduction } from "../compiler/function_constructor.js";
-import { EOF_SYM, Grammar, ItemMapEntry } from "../types/grammar.js";
+import { EOF_SYM, ItemMapEntry } from "../types/grammar.js";
+import { HCG3Grammar, HCG3Production } from "../types/grammar_nodes.js";
 import { Production } from "../types/production.js";
 import { ProductionSymbol, Symbol, TokenSymbol } from "../types/symbol";
 import { getFirstTerminalSymbols } from "./first.js";
@@ -28,7 +29,7 @@ type ItemMapVariables = {
     }[];
 };
 
-export function buildItemMaps(grammar: Grammar, productions: Production[] = grammar) {
+export function buildItemMaps(grammar: HCG3Grammar, productions: HCG3Production[] = grammar.productions ?? grammar) {
 
     /////////////////////////////////////////////////////////////
     ensureGrammarHasItemMap(grammar);
@@ -60,10 +61,10 @@ export function buildItemMaps(grammar: Grammar, productions: Production[] = gram
     return item_maps_in_process;
 }
 
-function getItemMapVariables(grammar: Grammar, productions: Production[]) {
+function getItemMapVariables(grammar: HCG3Grammar, productions: HCG3Production[]) {
     const
-        extant_production_item_maps = grammar.map(p => ({
-            count: 0, item_maps: grammar != productions ? getInterMediateItemMapEntriesFromProduction(p, grammar) : []
+        extant_production_item_maps = (grammar.productions ?? grammar).map(p => ({
+            count: 0, item_maps: (grammar.productions ?? grammar) != productions ? getInterMediateItemMapEntriesFromProduction(p, grammar) : []
         })),
 
         item_maps_in_process: ItemMapEntry[] = productions.flatMap((p) => {
@@ -116,17 +117,17 @@ function getItemMapVariables(grammar: Grammar, productions: Production[]) {
     return { item_maps_in_process, extant_production_item_maps };
 }
 
-function getInterMediateItemMapEntriesFromProduction(p: Production, grammar: Grammar): (ItemMapEntry & { closure: Item[]; })[] {
+function getInterMediateItemMapEntriesFromProduction(p: HCG3Production, grammar: HCG3Grammar): (ItemMapEntry & { closure: Item[]; })[] {
     return getStartItemsFromProduction(p).map(i => getItemMapEntry(grammar, i.id))
         .filter(_ => _)
         .map(i => Object.assign({}, i, { closure: i.closure.map(i => getItemMapEntry(grammar, i).item) }));
 }
 
-function ensureGrammarHasItemMap(grammar: Grammar) {
+function ensureGrammarHasItemMap(grammar: HCG3Grammar) {
     if (!grammar.item_map) grammar.item_map = new Map;
 }
 
-function addFollowInformation(item: Item, grammar: Grammar, check_set: Set<string>[], follow_sym: TokenSymbol = EOF_SYM, breadcrumbs = [], item_map) {
+function addFollowInformation(item: Item, grammar: HCG3Grammar, check_set: Set<string>[], follow_sym: TokenSymbol = EOF_SYM, breadcrumbs = [], item_map) {
 
     for (const crumb of breadcrumbs)
         grammar.item_map.get(item.id).breadcrumbs.add(crumb);
@@ -212,7 +213,7 @@ function addFollowInformation(item: Item, grammar: Grammar, check_set: Set<strin
     addFollowInformation(item.increment(), grammar, check_set, follow_sym, breadcrumbs, item_map);
 }
 
-export function getItemMapEntry(grammar: Grammar, item_id: string): ItemMapEntry {
+export function getItemMapEntry(grammar: HCG3Grammar, item_id: string): ItemMapEntry {
     if (!grammar.item_map.has(item_id)) {
         return null;
         grammar.item_map.set(item_id, <ItemMapEntry>{
@@ -227,7 +228,7 @@ export function getItemMapEntry(grammar: Grammar, item_id: string): ItemMapEntry
 }
 
 function processClosures(
-    grammar: Grammar,
+    grammar: HCG3Grammar,
     item_maps_in_process: ItemMapEntry[],
     extant_production_item_maps: { count: number, item_maps: ItemMapEntry[]; }[]
 ) {
@@ -298,7 +299,7 @@ function processClosures(
     }
 }
 
-function addPositionalItemIds(grammar: Grammar, productions: Production[]) {
+function addPositionalItemIds(grammar: HCG3Grammar, productions: HCG3Production[]) {
     for (const production of productions)
         if (production.type != "virtual-production")
             addPositionalSymbolId(grammar, production);
@@ -309,7 +310,7 @@ function addPositionalItemIds(grammar: Grammar, productions: Production[]) {
             } while (!item.atEND);
 };
 
-function addPositionalSymbolId(grammar: Grammar, production: Production) {
+function addPositionalSymbolId(grammar: HCG3Grammar, production: HCG3Production) {
 
     const
         { item_map } = grammar,
@@ -352,11 +353,11 @@ function addPositionalSymbolId(grammar: Grammar, production: Production) {
 }
 
 
-function addItemMapsToGrammar(item_maps_in_process: ItemMapEntry[], grammar: Grammar) {
+function addItemMapsToGrammar(item_maps_in_process: ItemMapEntry[], grammar: HCG3Grammar) {
     for (const i of item_maps_in_process) grammar.item_map.set(i.item.id, i);
 }
 
-function convertItemMapClosureItemsToStrings(item_maps_in_process: ItemMapEntry[], grammar: Grammar) {
+function convertItemMapClosureItemsToStrings(item_maps_in_process: ItemMapEntry[], grammar: HCG3Grammar) {
     for (const item_map of item_maps_in_process) {
 
         const { item } = item_map, item_id = item.id;
@@ -370,15 +371,15 @@ function convertItemMapClosureItemsToStrings(item_maps_in_process: ItemMapEntry[
     }
 }
 
-function processFollowSymbols(grammar: Grammar, productions: Production[]) {
-    const check_set: Set<string>[] = grammar.map(() => new Set());
+function processFollowSymbols(grammar: HCG3Grammar, productions: HCG3Production[]) {
+    const check_set: Set<string>[] = (grammar.productions ?? grammar).map(() => new Set());
     const item_map = [];
     for (const item of productions.flatMap(getStartItemsFromProduction))
         addFollowInformation(item, grammar, check_set, EOF_SYM, [item.body_(grammar).production.id], item_map);
 }
 
 
-function processSkippedSymbols(grammar: Grammar, item_maps_in_process: ItemMapEntry[]) {
+function processSkippedSymbols(grammar: HCG3Grammar, item_maps_in_process: ItemMapEntry[]) {
 
     const standard_skips = [];
 

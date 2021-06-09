@@ -4,18 +4,16 @@
  * disclaimer notice.
  */
 import { Helper } from "../compiler/helper.js";
-import { SKExpression, SKFunction, SKNode, SKReference } from "../skribble/types/node.js";
+import { SKExpression, SKReference } from "../skribble/types/node.js";
 import { Item } from "../utilities/item.js";
-import { SC, VarSC } from "../utilities/skribble.js";
-import { Grammar } from "./grammar.js";
-import { Production } from "./production";
+import { HCG3Grammar, HCG3Production } from "./grammar_nodes.js";
 import { Leaf } from "./transition_node.js";
 
 export interface BaseOptions {
     /**
      * Source grammar for the language
      */
-    grammar?: Grammar;
+    grammar?: HCG3Grammar;
 
     /**
      * Active Compiler Runner
@@ -30,7 +28,7 @@ export interface RenderBodyOptions extends BaseOptions {
     /**
      * Production currently being processed
      */
-    productions?: Production[];
+    productions?: HCG3Production[];
 
     /**
      * Ids of all productions

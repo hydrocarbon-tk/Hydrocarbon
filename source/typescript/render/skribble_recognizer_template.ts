@@ -9,6 +9,7 @@ import { jump8bit_table_byte_size } from "../runtime/parser_memory_new.js";
 import { parser, skRenderAsSK } from "../skribble/skribble.js";
 import { SKModule } from "../skribble/types/node.js";
 import { Grammar } from "../types/grammar.js";
+import { HCG3Grammar } from "../types/grammar_nodes.js";
 import { RDProductionFunction } from "../types/rd_production_function.js";
 import { createSkipCallSk, getProductionFunctionNameSk } from "../utilities/code_generating.js";
 import { getProductionClosure } from "../utilities/production.js";
@@ -675,7 +676,7 @@ fn recognizer:bool(data:ParserData, input_byte_length:u32, production:u32){
 };
 
 export function createDispatchTemplate(
-    grammar: Grammar,
+    grammar: HCG3Grammar,
     runner: Helper,
     rd_functions: RDProductionFunction[],
 ) {

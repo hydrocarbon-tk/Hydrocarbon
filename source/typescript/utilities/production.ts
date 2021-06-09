@@ -4,19 +4,19 @@
  * disclaimer notice.
  */
 import { getStartItemsFromProduction } from "../compiler/function_constructor.js";
-import { Grammar } from "../types/grammar.js";
+import { HCG3Grammar } from "../types/grammar_nodes.js";
 import { ProductionSymbol, ProductionTokenSymbol } from "../types/symbol";
 import { SymbolType } from "../types/symbol_type";
 import { getClosure } from "./closure.js";
 import { Item } from "./item.js";
 
 
-export function getProductionClosure(production_id: number, grammar: Grammar, ENTER_TOKEN_PRODUCTIONS: boolean = false) {
+export function getProductionClosure(production_id: number, grammar: HCG3Grammar, ENTER_TOKEN_PRODUCTIONS: boolean = false) {
     const prod = grammar[production_id];
     return getClosure(getStartItemsFromProduction(prod), grammar, ENTER_TOKEN_PRODUCTIONS);
 }
 
-export function doesProductionHaveEmpty(production_id: number, grammar: Grammar) {
+export function doesProductionHaveEmpty(production_id: number, grammar: HCG3Grammar) {
     const production = grammar[production_id];
 
     if (production.CHECKED_FOR_EMPTY)
@@ -35,7 +35,7 @@ export function doesProductionHaveEmpty(production_id: number, grammar: Grammar)
  * @param object
  * @param grammar
  */
-export function getProductionID(object: ProductionTokenSymbol | ProductionSymbol | Item, grammar: Grammar): number {
+export function getProductionID(object: ProductionTokenSymbol | ProductionSymbol | Item, grammar: HCG3Grammar): number {
     if (object instanceof Item)
         return object.getProduction(grammar).id;
     else

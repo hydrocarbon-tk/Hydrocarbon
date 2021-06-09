@@ -3,12 +3,10 @@
  * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
  * disclaimer notice.
  */
-import { EOF_SYM, Grammar, ProductionBody } from "../types/grammar.js";
+import { EOF_SYM } from "../types/grammar.js";
 import { HCG3Grammar, HCG3Production, HCG3Symbol, HCGProductionBody } from "../types/grammar_nodes.js";
 import { Production } from "../types/production";
-import { Symbol } from "../types/symbol";
-import { SymbolType } from "../types/symbol_type";
-import { getRootSym, getUniqueSymbolName, Sym_Is_A_Production, convertSymbolToString } from "./symbol.js";
+import { convertSymbolToString, getRootSym, Sym_Is_A_Production } from "./symbol.js";
 
 export const enum ItemIndex {
     body_id = 0,
@@ -106,10 +104,6 @@ export class Item extends Array {
         return (this.getProduction(grammar).id + ":" + this.body) + " " + this.body_(grammar).production.name + "=>" + this.renderUnformatted(grammar);
     }
 
-    renderWithProduction(grammar: HCG3Grammar): string {
-        return `\x1b[48;5;233m\x1b[38;5;226m[ ${this.renderProductionName(grammar)} \x1b[38;5;226m⇒ ${this.render(grammar)} \x1b[38;5;226m]\x1b[0m`;
-    }
-
     getProduction(grammar: HCG3Grammar): Production {
         //@ts-ignore
         return this.body_(grammar).production;
@@ -120,23 +114,6 @@ export class Item extends Array {
         const prod = this.sym(grammar).val;
 
         return grammar[prod];
-    }
-
-
-    renderProductionName(grammar: HCG3Grammar): string {
-        //@ts-ignore
-        return `\x1b[38;5;8m${this.body_(grammar).production.name.replace(/\$/, "::\x1b[38;5;153m")}`;
-    }
-
-    renderProductionNameWithBackground(grammar): string {
-        //@ts-ignore
-        return `\x1b[48;5;233m\x1b[38;5;8m ${this.body_(grammar).production.name.replace(/\$/, "::\x1b[38;5;153m")} \x1b[0m`;
-    }
-
-    renderSymbol(grammar: HCG3Grammar): string {
-        const sym = this.sym(grammar);
-        //@ts-ignore
-        return `\x1b[48;5;233m ${SymbolToString(sym)} \x1b[0m`;
     }
 
     toEND() {
@@ -171,22 +148,8 @@ export class Item extends Array {
         return this.id;
     }
 
-    getFunctions(grammar: HCG3Grammar) {
-        const body = this.body_(grammar);
-
-        if (this.atEND) {
-            return body.functions.filter(fn => {
-                return fn.offset >= this.offset;
-            });
-        } else {
-            return body.functions.filter(fn => {
-                return fn.type == "INLINE" && fn.offset == this.offset;
-            });
-        }
-    }
-
 }
-export function getGotoItems(grammar: Grammar, active_productions: number[], items: Item[], out: Item[] = [], all = false) {
+export function getGotoItems(grammar: HCG3Grammar, active_productions: number[], items: Item[], out: Item[] = [], all = false) {
 
     const
         prod_id = new Set(active_productions),
@@ -213,10 +176,10 @@ export function getGotoItems(grammar: Grammar, active_productions: number[], ite
     return out;
 }
 
-export function itemsToProductions(items: Item[], grammar: Grammar): number[] {
+export function itemsToProductions(items: Item[], grammar: HCG3Grammar): number[] {
     return items.map(i => i.getProduction(grammar).id);
 }
 
-export function Items_Have_The_Same_Active_Symbol(items: Item[], grammar: Grammar) {
+export function Items_Have_The_Same_Active_Symbol(items: Item[], grammar: HCG3Grammar) {
     return items.every(i => !i.atEND && i.sym(grammar).val == items[0].sym(grammar).val);
 }

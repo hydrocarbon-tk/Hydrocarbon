@@ -3,16 +3,16 @@
  * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
  * disclaimer notice.
  */
+import { HCG3Grammar } from "source/typescript/types/grammar_nodes.js";
 import { Worker } from "worker_threads";
-import { Grammar } from "../../types/grammar.js";
-import { HybridDispatch, HybridDispatchResponse, HybridJobType } from "../../types/worker_messaging.js";
 import { ParserEnvironment } from "../../types/parser_environment";
 import { RDProductionFunction } from "../../types/rd_production_function.js";
 import { WorkerContainer } from "../../types/worker_container";
+import { HybridDispatch, HybridDispatchResponse, HybridJobType } from "../../types/worker_messaging.js";
 import { Helper } from "../helper.js";
 import { LocalWorker } from "./local_worker.js";
 export class WorkerRunner {
-    grammar: Grammar;
+    grammar: HCG3Grammar;
     RUN: boolean;
     env: ParserEnvironment;
     module_url: string;
@@ -25,7 +25,7 @@ export class WorkerRunner {
     IN_FLIGHT_JOBS: number;
 
     constructor(
-        grammar: Grammar,
+        grammar: HCG3Grammar,
         env: ParserEnvironment,
         runner: Helper,
         number_of_workers = 2
