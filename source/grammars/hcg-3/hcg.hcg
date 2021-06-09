@@ -42,7 +42,17 @@
 # Production from imported files can be accessed by using the syntax {grammar_file id}::{production name}
 
 <> head > pre::preamble?  prd::productions                             
-                            f:r { { type:"hc-grammar-3", preamble:$$sym1 || [], productions:$sym2.productions, functions:$sym2.functions, imported_grammars: [] } }
+                            f:r { { 
+                                type:"hc-grammar-3", 
+                                preamble:$$sym1 || [], 
+                                productions:$sym2.productions, 
+                                functions:$sym2.functions, 
+                                imported_grammars: [],
+                                meta:null,
+                                ignore:[],
+                                all_symbols:[],
+                                bodies:[]
+                                } }
 
 # This annotated grammar definition is continued in ./preambles.hcg
 

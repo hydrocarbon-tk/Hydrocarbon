@@ -92,7 +92,8 @@
     | js_data js_data_block                                            f:r { $sym1 + $sym2 }
     | ɛ
 
-<> js_primitive > g:id | g:num 
+<> js_primitive > g:id 
+    | g:num 
     | g:ws 
     | g:sym 
     | (

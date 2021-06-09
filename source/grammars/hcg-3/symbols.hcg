@@ -25,11 +25,11 @@
 <> lexer_symbol > generated_symbol
     | literal_symbol
     | escaped_symbol
-    | grouped_symbol grouped_delimiter                          f:r { { type:"symbol", value:$sym1, pos:pos } }    
+    | grouped_symbol grouped_delimiter                          f:r { { type:"symbol", val:$sym1, pos:pos } }    
 
 <> grouped_delimiter >  g:nl | g:ws                                    
 
-<> grouped_symbol >  ( g:sym | g:id )(+\" )  sym_delimiter?     f:r { { type:"symbol", value:$sym1, pos:pos }}                                                    
+<> grouped_symbol >  ( g:sym | g:id )(+\" )  sym_delimiter?     f:r { { type:"symbol", val:$sym1, pos:pos }}                                                    
 
 <> ignore_symbol > generated_symbol
     | literal_symbol
@@ -60,40 +60,40 @@
     | EOF_symbol
 
     | \( pb::production_bodies \)                        
-                                                                f:r { { type:"group-production", value:$sym2, pos:pos } }       
+                                                                f:r { { type:"group-production", val:$sym2, pos:pos } }       
     
     # This defines a list of virtual productions that reduces to an array of productions. 
     # A delimiter "terminal_symbol" can be defined to cause the parser to match such productions as { sym , sym , sym ...} 
     # or { term . term . term ...}. If the "terminal_symbol" is a single or double quotation (\" or \') then the production
     # values are automatically reduced to a string. 
 
-    | symbol ( \(+ | \(* )  terminal_symbol?  \)                f:r { { type:"list-production", terminal_symbol:$$sym3, IS_OPTIONAL:($sym2 == "(*"), value:$sym1, pos:pos } }
+    | symbol ( \(+ | \(* )  terminal_symbol?  \)                f:r { { type:"list-production", terminal_symbol:$$sym3, IS_OPTIONAL:($sym2 == "(*"), val:$sym1, pos:pos } }
 
-    | g:sym                                                     f:r { { type:"symbol", value:$sym1, pos:pos } }
+    | g:sym                                                     f:r { { type:"literal", val:$sym1, pos:pos } }
 
 <> EOF_symbol > 
-    \$eof                                                       f:r { { type:"eof", value:"END_OF_FILE", pos:pos } }
+    \$eof                                                       f:r { { type:"eof", val:"END_OF_FILE", pos:pos } }
 
 <> empty_symbol > 
-    \$empty                                                          f:r { { type:"empty", value:"", pos:pos } }
+    \$empty                                                          f:r { { type:"empty", val:"", pos:pos } }
 
 <> generated_symbol > 
-    \g: (ERR θws θnl) identifier                                f:r { { type:"generated", value:$sym2, pos:pos } }
+    \g: (ERR θws θnl) identifier                                f:r { { type:"generated", val:$sym2, pos:pos } }
 
 <> literal_symbol > 
     \t: (ERR g:ws g:nl)  ( identifier | g:num ) sym_delimiter? 
-                                                                f:r { { type:"literal", value:""+$sym2, pos:pos } }
+                                                                f:r { { type:"literal", val:""+$sym2, pos:pos } }
 
 <> escaped_symbol > 
-    \\ ( g:id | g:sym | g:num )(+\" ) sym_delimiter             f:r { { type:"symbol", value:$sym2, pos:pos } }
+    \\ ( g:id | g:sym | g:num )(+\" ) sym_delimiter             f:r { { type:"literal", val:$sym2, pos:pos } }
 
-<> production_token_symbol > \tk: identifier                    f:r { { type:"production-token", value:$sym2, production:null, pos:pos } }
+<> production_token_symbol > \tk: identifier                    f:r { { type:"production_token", name:$sym2, production:null, val:-1, pos:pos } }
 
 <> production_symbol > 
-    identifier                                                  f:r { { type:"sym-production", value:$sym1, production:null, pos:pos } }
+    identifier                                                  f:r { { type:"sym-production", name:$sym1, production:null, val:-1, pos:pos } }
 
 <> imported_production_symbol > 
-    identifier \:: identifier                                   f:r { { type:"sym-production-import", module:$sym1, production:$sym3, pos:pos } } 
+    identifier \:: identifier                                   f:r { { type:"sym-production-import", module:$sym1, production:$sym3, name:"", pos:pos } } 
 
 <> production_id > identifier
 

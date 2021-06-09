@@ -23,11 +23,11 @@
     | fn::referenced_function                                    
                                                             f:r {  { type:"production-section", functions:[$sym1], productions:[]   } }
     | productions production                                  
-                                                            f:r {  $sym1.productions.push($sym2), $sym1 }
+                                                            f:r {  console.log({r:$sym1,rr:$sym2}), $sym1.productions.push($sym2), $sym1 }
     | productions cm::comment                                      
                                                             f:r { $sym1 }
     | productions fn::referenced_function                        
-                                                            f:r {  $sym1.functions.push($sym2), $sym1 }
+                                                            f:r { console.log({r:$sym1,rr:$sym2}), $sym1.functions.push($sym2), $sym1 }
 
  
 <> production > \<>  ( sym::production_id ↦r{ env.prod_name = $sym1 } ) production_start_symbol  pb::production_bodies? 

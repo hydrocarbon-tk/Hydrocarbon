@@ -21,7 +21,7 @@
 <> production_bodies > (  production_body | cm::comment )(+\| )  
 
 <> production_body > ( \( t:FORK \) )? entries fn::reduce_function?                      
-                                                                    f:r { { type:"body", symbols:$sym2, reduce:$$sym3, FORCE_FORK:!!$$sym1, id:-1 } }
+                                                                    f:r { { type:"body", sym:$sym2, reduce_function:$$sym3, FORCE_FORK:!!$$sym1, id:-1, production:null } }
 
 <> entries > entries body_entry 
                                                                     f:r { $sym1.concat($sym2) }
