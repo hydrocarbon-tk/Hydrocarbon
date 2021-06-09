@@ -3,7 +3,10 @@ import { adHocParse, compile } from "../../build/library/compiler/compiler.js";
 import { getGrammar } from "../tools.js";
 
 let PARSER = null;
-
+/**
+ * Builds a HCG3 Grammar parser from source files
+ * @returns 
+ */
 export async function getHCGParser() {
 
     if (PARSER) return PARSER;
