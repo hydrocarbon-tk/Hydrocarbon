@@ -61,6 +61,105 @@ export function expandOptionals(grammar: HCG3Grammar): HCG3Grammar {
 
     return grammar;
 }
+/**
+ * Finds all unique symbols types amongst production and ignore symbols and
+ * adds them to the grammar's meta.all_symbols Map, keyed by the result 
+ * of c
+ * @param grammar 
+ */
+export function createUniqueSymbolSet(grammar: HCG3Grammar) {
+
+    const unique_map: Map<string, HCG3Symbol> = new Map([[getUniqueSymbolName(EOF_SYM), EOF_SYM]]);
+
+    let s_counter = 0, b_counter = 0, p_counter = 0, bodies = [], reduce_lu: Map<string, number> = new Map();
+
+    const production_lookup = new Map();
+
+    for (const production of grammar.productions) {
+        grammar[p_counter] = production;
+        production.id = p_counter++;
+        production_lookup.set(production.name, production);
+    }
+
+    for (const production of grammar.productions) {
+
+        for (const body of production.bodies) {
+
+            body.production = production;
+
+            bodies.push(body);
+
+            body.id = b_counter++;
+
+            body.length = body.sym.length;
+
+            body.reset = new Map;
+            body.excludes = new Map;
+
+            if (body.reduce_function) {
+                const txt = body.reduce_function.js;
+
+                if (!reduce_lu.has(txt)) {
+                    reduce_lu.set(txt, reduce_lu.size);
+                }
+
+                body.reduce_id = reduce_lu.get(txt);
+            }
+
+            for (const sym of body.sym) {
+
+                if (Sym_Is_A_Production(sym) || Sym_Is_A_Production_Token(sym)) {
+                    sym.val = production_lookup.get(sym.name)?.id;
+                }
+
+                const unique_name = getUniqueSymbolName(sym);
+
+                if (!unique_map.has(unique_name))
+                    unique_map.set(unique_name, copy(sym));
+
+                if (Sym_Is_A_Production(sym) || Sym_Is_A_Production_Token(sym)) {
+                    sym.production = production_lookup.get(sym.name);
+                }
+
+                sym.id = s_counter++;
+            }
+        }
+    }
+
+    grammar.meta = Object.assign({}, grammar.meta ?? {}, {
+        all_symbols: unique_map,
+        ignore: [grammar.preamble.filter(t => t.type == "ignore")[0]].filter(i => !!i),
+        reduce_functions: reduce_lu
+    });
+
+    for (const ignore of grammar.meta.ignore) {
+        for (const sym of ignore.symbols) {
+            const unique_name = getUniqueSymbolName(sym);
+
+            if (!unique_map.has(unique_name))
+                unique_map.set(unique_name, copy(sym));
+        }
+    }
+
+    grammar.reduce_functions = reduce_lu;
+
+    grammar.bodies = bodies;
+
+
+}
+
+export function createItemMaps(grammar: HCG3Grammar) {
+    const processing_symbols = [];
+    buildItemMaps(grammar);
+
+
+}
+
+
+export function buildSequenceString(grammar: HCG3Grammar) {
+    grammar.sequence_string = createSequenceData(grammar);
+}
+
 
 export function createJSFunctionsFromExpressions(grammar: HCG3Grammar) {
     for (const production of grammar.productions) {
