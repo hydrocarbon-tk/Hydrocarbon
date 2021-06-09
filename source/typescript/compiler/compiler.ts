@@ -91,7 +91,7 @@ export function renderRecognizerAsJavasScript(
 function renderJavaScriptReduceFunctionLookup(grammar: HCG3Grammar) {
     const reduce_functions_str = [...grammar.meta.reduce_functions.keys()].map((b, i) => {
         if (b.includes("return") || true) {
-            return b.replace("return", "(env, sym, pos)=>(").slice(0, -1) + ")" + `/*${i}*/`;
+            return b.replace(/^return/, "(env, sym, pos)=>(").slice(0, -1) + ")" + `/*${i}*/`;
         } else {
             return `(env, sym)=>new (class{constructor(env, sym, pos){${b}}})(env, sym)` + `/*${i}*/`;
         }
@@ -113,6 +113,8 @@ export function adHocParse(
         recognizer_functions,
         runner
     );
+
+    fs.writeFileSync("temp.js", str);
 
     const fn = new Function(str + "\n return {get_next_command_block, sequence_lookup, lookup_table, run, dispatch, init_data, recognizer,get_fork_information}")();
 
