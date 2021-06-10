@@ -48,9 +48,6 @@ export class Helper {
 
     add_constant(const_name: SKPrimitiveDeclaration, const_value: SKNode): SKReference {
 
-        if (const_value == "fn")
-            debugger;
-
         let global_name = const_name.name;
 
         let actual_name: SKReference = null;

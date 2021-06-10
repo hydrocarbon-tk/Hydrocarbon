@@ -106,11 +106,6 @@ export function yieldTransitions(
 
             output_nodes.push(...yieldPeekedNodes(active_items, options, offset, filter_symbols));
 
-
-        if (output_nodes.length == 0) {
-            debugger;
-        }
-
     }
 
     return output_nodes;

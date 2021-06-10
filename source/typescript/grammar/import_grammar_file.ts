@@ -7,7 +7,7 @@ import URL from "@candlelib/uri";
 import { Grammar } from "../types/grammar";
 import { GrammarParserEnvironment } from "../types/grammar_compiler_environment";
 import { default_map } from "../utilities/default_map.js";
-import { Sym_Is_A_Production, Sym_Is_A_Production_Token } from "../utilities/symbol.js";
+import { Sym_Is_A_Production } from "../utilities/symbol.js";
 
 export default function (sym, env: GrammarParserEnvironment) {
 

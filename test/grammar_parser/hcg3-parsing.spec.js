@@ -1,6 +1,9 @@
 import { experimentalConstructRenderers, experimentalRender } from "@candlelib/conflagrate";
 import URI from "@candlelib/uri";
 import {
+    createUniqueSymbolSet,
+    createItemMaps,
+    buildSequenceString,
     loadGrammarFromFile,
     convertListProductions,
     convertGroupProductions,
@@ -8,6 +11,7 @@ import {
     integrateImportedGrammars,
     createJSFunctionsFromExpressions
 } from "../../build/library/grammar3/compile_grammar.js";
+import { adHocParse, compile } from "../../build/library/compiler/compiler.js";
 import { hcg3_mappings } from "../../build/library/grammar3/mappings.js";
 import { getHCGParser } from "./hcg3.tools.js";
 
