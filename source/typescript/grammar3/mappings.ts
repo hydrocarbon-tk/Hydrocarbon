@@ -27,24 +27,24 @@ const hcg3_mappings: NodeMappings<HCG3GrammarNode, "type"> = <NodeMappings<HCG3G
             template: "production"
         },
         {
-            type: "body", child_keys: ["symbols"],
-            template: "@symbols... [m:s] {reduce: @reduce}"
+            type: "body", child_keys: ["sym"],
+            template: "@sym... [m:s] {reduce_function: @reduce_function}"
         },
         {
             type: "comment",
             template: "comment"
         },
         {
-            type: "import", child_keys: ["symbols"],
+            type: "import", child_keys: ["sym"],
             template: "import"
         },
         {
-            type: "ignore", child_keys: ["symbols"],
+            type: "ignore", child_keys: ["sym"],
             template: "ignore"
         },
         {
             type: "symbol",
-            template: "\\\\ @value m:s"
+            template: "\\\\ @val m:s"
         },
         {
             type: "eof",
@@ -56,19 +56,19 @@ const hcg3_mappings: NodeMappings<HCG3GrammarNode, "type"> = <NodeMappings<HCG3G
         },
         {
             type: "generated",
-            template: "\\g: @value"
+            template: "\\g: @val"
         },
         {
             type: "literal",
-            template: "\\t: @value"
+            template: "\\t: @val"
         },
         {
             type: "production-token",
-            template: "\\tk: @value"
+            template: "\\tk: @val"
         },
         {
             type: "sym-production",
-            template: "@value"
+            template: "@val"
         },
         {
             type: "sym-production-import",
@@ -76,11 +76,11 @@ const hcg3_mappings: NodeMappings<HCG3GrammarNode, "type"> = <NodeMappings<HCG3G
         },
         {
             type: "group-production",
-            template: "\\( i:s o:n m:s  @value...[ o:n \\| m:s ] i:e o:n \\)"
+            template: "\\( i:s o:n m:s  @val...[ o:n \\| m:s ] i:e o:n \\)"
         },
         {
             type: "list-production",
-            template: "@value... \\(+  { terminal_symbol : @terminal_symbol }   \\)"
+            template: "@val... \\(+  { terminal_symbol : @terminal_symbol }   \\)"
         },
 
         {
