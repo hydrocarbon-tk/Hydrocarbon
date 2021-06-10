@@ -229,9 +229,10 @@ export function createJSFunctionsFromExpressions(grammar: HCG3Grammar) {
                         IS_REPLACE_SYM = value.slice(0, 1) == "$",
                         IS_NULLIFY_SYM = value.slice(0, 2) == "$$";
 
+
                     if (IS_NULLIFY_SYM || IS_REPLACE_SYM) {
 
-                        const index = parseInt(
+                        let index = parseInt(
                             IS_NULLIFY_SYM ?
                                 value.slice(2) :
                                 value.slice(1)
@@ -245,6 +246,8 @@ export function createJSFunctionsFromExpressions(grammar: HCG3Grammar) {
                                 replace(null, true);
 
                         } else {
+                            if (index >= 100)
+                                index = body.sym.length - 1;
                             replace(exp(`sym[${index}]`));
                         }
                     }
@@ -297,6 +300,7 @@ export function getProductionHash(production: HCG3Production) {
 }
 
 export function getBodyHash(body: HCGProductionBody) {
+
     return render(body) || "$EMPTY";
 }
 
@@ -334,13 +338,11 @@ export function convertListProductions(grammar: HCG3Grammar): HCG3Grammar {
 
         expandOptionalBody(production);
 
-        ////Remove bodies that are direct recursion: S=>S
+        //Remove bodies that are direct recursion: S=>S
         production.bodies = production.bodies.filter(b => {
             if (b.sym.length == 1 && b.sym[0].type == "sym-production" && b.sym[0].name == production.name) {
                 return false;
-
             }
-
             return true;
         });
     }
@@ -402,6 +404,7 @@ function processGroupSymbol(sym: any, body: HCG3Production, meta: any, productio
 
             }
 
+
             if (new_body != body)
                 addBodyToProduction(production, new_body);
 
@@ -424,14 +427,24 @@ function processListSymbol(sym: any, body: HCGProductionBody, production: HCG3Pr
                 /** Contains the normal pattern */
                 new_production_body = createProductionBody(sym),
                 /** Contains the left recursive pattern */
-                new_production_symbol = createProductionSymbol(production.name, sym);
+                new_production_symbol = createProductionSymbol(production.name),
 
-            setBodyReduceExpressionAction(body, "[$1]");
+                TERMINAL_SYMBOL_IS_QUOTE = ["\"", "'", "`"].includes(terminal_symbol?.val);
 
-            setBodyReduceExpressionAction(new_production_body, "$1 .concat($2), $1");
+
+            if (TERMINAL_SYMBOL_IS_QUOTE) {
+                setBodyReduceExpressionAction(body, "$101 + \"\"");
+
+                setBodyReduceExpressionAction(new_production_body, "$1 + $101");
+            } else {
+
+                setBodyReduceExpressionAction(body, "[$101]");
+
+                setBodyReduceExpressionAction(new_production_body, "$1 .concat($101), $1");
+            }
 
             //replaceAllBodySymbols(body, inner_symbol);
-            if (terminal_symbol)
+            if (terminal_symbol && !TERMINAL_SYMBOL_IS_QUOTE)
                 replaceAllBodySymbols(new_production_body, new_production_symbol, terminal_symbol, inner_symbol);
 
             else
