@@ -15,7 +15,7 @@ import { createSkipCallSk, getProductionFunctionNameSk } from "../utilities/code
 import { getProductionClosure } from "../utilities/production.js";
 import { getSkippableSymbolsFromItems, getUnskippableSymbolsFromClosure } from "../utilities/symbol.js";
 export const renderSkribbleRecognizer = (
-    grammar: Grammar
+    grammar: HCG3Grammar
 ): SKModule => {
     return <SKModule>parser(`
 [static new] lookup_table : Uint8Array = Uint8Array(${jump8bit_table_byte_size});
@@ -123,12 +123,12 @@ fn getTypeAt : u32 ( code_point : u32 ) {
 [pub wasm] cls Lexer {
 
     [pub] byte_offset:u32 = 0
+    [pub] token_offset:u32= 0
     [pub] byte_length:u16 = 0
     [pub] token_length:u16 = 0
-    [pub] token_offset:u16 = 0
     [pub] prev_token_offset:u32 = 0
-    [pub] type:u16 = 0
     [pub] type:u32 = 0
+    [pub] line:u16 = 0
     [pub] current_byte:u16 = 0
 
     [pub] fn Lexer : Lexer () { 
@@ -244,6 +244,7 @@ fn getTypeAt : u32 ( code_point : u32 ) {
     }
 
     [pub] fn copy: void (){
+        
 
         [const new] destination : Lexer = Lexer();
         
@@ -254,13 +255,15 @@ fn getTypeAt : u32 ( code_point : u32 ) {
         destination.token_offset = this.token_offset;
         destination.prev_token_offset = this.prev_token_offset;
         
-        destination.type = this.type;
+        destination.line = this.line;
+        destination.byte_length = this.byte_length;
         destination.current_byte = this.current_byte;
 
         return :destination
     }
 
     [pub] fn sync:void (source: Lexer){
+        
         this.byte_offset = source.byte_offset;
         this.byte_length = source.byte_length;
         
@@ -268,6 +271,7 @@ fn getTypeAt : u32 ( code_point : u32 ) {
         this.token_offset = source.token_offset;
         this.prev_token_offset = source.prev_token_offset;
         
+        this.line = source.line;
         this.type = source.type;
         this.current_byte = source.current_byte;
 
@@ -279,6 +283,7 @@ fn getTypeAt : u32 ( code_point : u32 ) {
         this.token_length = this.token_offset - source.token_offset;
         this.byte_offset = source.byte_offset;
         this.token_offset = source.token_offset;
+        this.line = source.line;
         return:this;
     }
 
@@ -293,11 +298,11 @@ fn getTypeAt : u32 ( code_point : u32 ) {
             this.token_length = 0;
         }else{
             this.current_byte = data.input[this.byte_offset];
+            if (this.current_byte) == 10:
+                this.line += 1;
             this.type = 0;
             this.byte_length = 1;
             this.token_length = 1;
-            if (this.current_byte) == 10:
-                this.line += 1;
         };
 
         return :this
@@ -331,12 +336,14 @@ fn getTypeAt : u32 ( code_point : u32 ) {
     [pub] stack: Array = Array()
     [pub] origin: ParserData = ParserData()
     [pub] alternate: ParserData = ParserData()
+    [pub] valid: bool = 0 
 
     [pub]  fn ParserData:ParserData(
         input_len:u32, rules_len:u32, error_len:u32
     ){
         this.state = createState(1);
         this.prop = 0;
+        this.valid = false;
         this.stack_ptr = 0;
         this.input_ptr = 0;
         this.rules_ptr = 0;
@@ -363,14 +370,23 @@ fn getTypeAt : u32 ( code_point : u32 ) {
     [pub] ptr: u32 = 0
     [pub] valid:bool = 0
     [pub] depth:u32 = 0
+    [pub] byte_offset:u32 = 0
+    [pub] byte_length:u32 = 0
+    [pub] line:u32 = 0
     [pub] command_offset:u32 = 0
     [pub] command_block: Uint16Array = 0
 
     [pub] fn ForkData:ForkData(
         ptr:u32,
         valid:bool,
-        depth:u32
+        depth:u32,
+        byte_offset: u32,
+        byte_length: u32,
+        line: u32
     ){
+        this.byte_offset = byte_offset;
+        this.byte_length = byte_length;
+        this.line = line;
         this.ptr = ptr;
         this.valid = valid;
         this.depth = depth;
@@ -465,7 +481,7 @@ fn add_reduce:void(state:u32, data:ParserData, sym_len:u32, body:u32, DNP:bool =
 
 fn add_shift:void(l:Lexer, data:ParserData, tok_len:u32) {
 
-    if tok_len < 1 : return;
+    if tok_len < 0 : return;
     
     if tok_len > 0x1FFF : {
         [const] low:u32 = 1 | (1 << 2) | ((tok_len >> 13) & 0xFFF8);
@@ -600,8 +616,10 @@ fn stepKernel:bool(data:ParserData, stack_base:u32){
     data.stash[ptr] = result;
     data.prod = result;
 
-    if(result<0 || data.stack_ptr < stack_base) :
+    if(result<0 || data.stack_ptr < stack_base) : {
+        data.valid = data.lexer.END(data);
         return:false;
+    };
 
     return :true
 }
@@ -614,8 +632,11 @@ fn get_fork_information:void(){
     loop([mut]data:ParserData in data_stack) {
         [mut new] fork:ForkData = ForkData(
             (i++),
-            (data.valid || true),
-            (data.origin_fork + data.rules_ptr)
+            (data.valid),
+            (data.origin_fork + data.rules_ptr),
+            data.lexer.byte_offset,
+            data.lexer.byte_length,
+            data.lexer.line
         );
         fork_data.push(fork)
     };
@@ -689,8 +710,15 @@ export function createDispatchTemplate(
                 const closure = getProductionClosure(0, grammar);
                 const skippable = getSkippableSymbolsFromItems(closure, grammar);
                 const unskippable = getUnskippableSymbolsFromClosure(closure, grammar);
-                const skip_call = skRenderAsSK(createSkipCallSk(skippable, <BaseOptions>{ grammar, helper: runner }, "data.lexer", false, unskippable, true));
-                return `${i} : { ${skip_call}; data.stack[0] = ${name}; data.stash[0] = ${0}; return }`;
+                const skip_fn = createSkipCallSk(skippable, <BaseOptions>{ grammar, helper: runner }, "data.lexer", false, unskippable, true);
+
+                if (skip_fn) {
+                    const skip_call = skRenderAsSK(skip_fn);
+                    return `${i} : { ${skip_call}; data.stack[0] = ${name}; data.stash[0] = ${0}; return }`;
+                }
+
+                return `${i} : { ; data.stack[0] = ${name}; data.stash[0] = ${0}; return }`;
+
             }).join(",")}
         
     }`);

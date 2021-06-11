@@ -1,0 +1,111 @@
+# Copyright (C) 2021 Anthony Weathersby - The Hydrocarbon Parser Compiler
+# see /source/typescript/hydrocarbon.ts for full copyright and warranty 
+# disclaimer notice.
+
+# version 3.0
+
+@IMPORT ./symbols.hcg as sym
+
+@IMPORT ./comments.hcg as cm
+
+@IGNORE g:ws g:nl
+
+########################################################################################################################
+######################################  FUNCTIONS
+########################################################################################################################
+
+<> hcg_functions > referenced_function
+    | error_function
+    | reduce_function
+    | function_clause
+
+<> referenced_function > (js_function_start_symbol f:r { $1+"GG" })  sym::identifier  { js_data }          
+                                                                    f:r {       
+                                                                       { type:"ref-function",  
+                                                                        id:$2,     
+                                                                        txt:$4, 
+                                                                        env:false,    
+                                                                        name:"",
+                                                                        IS_CONDITION:true}
+                                                                    }
+
+<> error_function > js_function_start_symbol t:erh { js_data } { js_data }                    f:r { 
+                                                                       { type:"ERROR_RECOVERY",     
+                                                                        lexer_text:$4, 
+                                                                        body_text:$7}
+                                                                    }
+<> reduce_function > js_function_start_symbol ( t:cstr | t:c | t:return | t:r ) { js_data }                                 
+                                                                    f:r { 
+                                                                       { type:($2[0] == "c" ) ?"CLASS" :"RETURNED",     
+                                                                        txt:$4, 
+                                                                        name:"", 
+                                                                        env:false,
+                                                                        ref:"",     
+                                                                        IS_CONDITION:true}
+                                                                    }
+
+     | js_function_start_symbol ( t:cstr | t:c | t:return | t:r ) \^  sym::js_identifier     
+                                                                     f:r { { 
+                                                                           type:($2[0] == "c" ) ?"CLASS" :"RETURNED",             
+                                                                            txt:"", 
+                                                                            name:$4, 
+                                                                            env:true,
+                                                                            ref:"",      
+                                                                            IS_CONDITION:true
+                                                                        }
+                                                                    }
+    | js_function_start_symbol ( t:cstr | t:c | t:return | t:r ) \=>  sym::js_identifier    
+                                                                    f:r { {
+                                                                            type:($2[0] == "c" ) ?"CLASS" :"RETURNED",             
+                                                                            ref:$4,
+                                                                            txt:"",        
+                                                                            name:"", 
+                                                                            env:true,
+                                                                            IS_CONDITION:true
+                                                                        } 
+                                                                    }
+
+<> function_clause > 
+    
+    (js_function_start_symbol f:r { $1+"DD" }) { js_data }                                 
+                                                                    f:r { { 
+                                                                            type:"function-inline",     
+                                                                            txt:$3, 
+                                                                            name:"",     
+                                                                            env:false,
+                                                                            IS_CONDITION:true
+                                                                        }
+                                                                    }
+
+    | (js_function_start_symbol f:r { $1+"DD" }) \^ sym::js_identifier                             
+                                                                    f:r {
+                                                                        {type:"INLINE",     
+                                                                        txt:"", 
+                                                                        name:$3,     
+                                                                        env:true,
+                                                                        IS_CONDITION:true}
+                                                                    }
+
+<> js_data > js_primitive
+    | js_data_block
+    | js_data js_primitive                                            f:r { $1 + $2 }
+    | js_data js_data_block                                            f:r { $1 + $2 }
+    | $eof
+
+<> js_primitive > g:id 
+    | g:num 
+    | g:ws 
+    | g:sym 
+    | (
+        sym::generated_symbol 
+        | sym::literal_symbol
+        | sym::escaped_symbol
+        | sym::EOF_symbol
+    )  
+    
+                                                                    f:r { "<--" + $1.type + "^^" + $1.val + "-->" }
+
+<> js_data_block > \{ js_data \}                                    f:r { $1 + $2 + $3 }
+
+<> js_function_start_symbol > t:f \:                                                       f:r { "FN:F" }
+    

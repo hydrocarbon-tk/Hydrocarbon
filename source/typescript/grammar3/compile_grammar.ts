@@ -33,7 +33,7 @@ const render = (grammar_node) => experimentalRender(grammar_node, hcg3_mappings,
 export function loadGrammarFromString(str: string, grammar_parser: any): HCG3Grammar {
     const env = {};
 
-    return grammar_parser(str, {})[0];
+    return grammar_parser(str, {}).result[0];
 }
 
 /**
@@ -440,7 +440,9 @@ function processListSymbol(sym: any, body: HCGProductionBody, production: HCG3Pr
 
                 setBodyReduceExpressionAction(body, "[$101]");
 
-                setBodyReduceExpressionAction(new_production_body, "$1 .concat($101), $1");
+
+
+                setBodyReduceExpressionAction(new_production_body, "$1 .concat($101)");
             }
 
             //replaceAllBodySymbols(body, inner_symbol);
@@ -493,10 +495,6 @@ export async function integrateImportedGrammars(grammar: HCG3Grammar, imports: M
     // Unify grammar names
     // - create a common name for every imported grammar
     let i = 0;
-    for (const import_ of grammar.imported_grammars) {
-        import_.grammar.common_import_name = (new URI(import_.uri)).filename.replace(/-/g, "_");
-
-    }
 
     const imported_productions = new Map();
 
@@ -625,8 +623,8 @@ function processForeignSymbol(sym: HCG3Symbol, local_grammar: HCG3Grammar, impor
     }
 }
 
-function getImportedGrammarFromReference(local_grammar: HCG3Grammar, module_: string) {
-    return local_grammar.imported_grammars.filter(g => g.reference == module_)[0];
+function getImportedGrammarFromReference(local_grammar: HCG3Grammar, module_name: string) {
+    return local_grammar.imported_grammars.filter(g => g.reference == module_name)[0];
 }
 
 function registerProduction(grammar: HCG3Grammar, hash_string, production: HCG3Production): HCG3Production {
@@ -812,51 +810,72 @@ function createProductionBody(mapped_sym: HCG3GrammarNode = null): HCGProduction
 /**
  * Entry point to loading a grammar file from a URI 
  */
-export async function loadGrammarFromFile(uri: URI, grammar_parser: any, existing_grammars = new Map): HCG3Grammar {
+export async function loadGrammarFromFile(uri: URI, grammar_parser: any): Promise<HCG3Grammar> {
 
-    //Resolve references to built-in grammars
+    const existing_grammars: Map<string, HCG3Grammar> = new Map;
+
+    const grammar = await loadGrammar(uri, grammar_parser, existing_grammars);
+
+    existing_grammars.set("root", grammar);
+
+    for (const grammar of existing_grammars.values()) {
+
+        grammar.common_import_name = (new URI(grammar.URI)).filename.replace(/-/g, "_");
+
+        for (const imported_grammar of grammar.imported_grammars) {
+            imported_grammar.grammar = existing_grammars.get(imported_grammar.uri);
+        }
+    }
+
+    return grammar;
+};
+
+async function loadGrammar(uri: URI, grammar_parser: any, existing_grammars: Map<string, HCG3Grammar>): Promise<HCG3Grammar> {
     uri = getResolvedURI(uri);
 
     const str = await uri.fetchText();
 
     const grammar = loadGrammarFromString(str, grammar_parser);
 
-    grammar.uri = uri + "";
+    grammar.URI = uri + "";
+
+    const import_locations = [];
 
 
     //Load imported grammars
-
     for (const preamble of grammar.preamble) {
 
         if (preamble.type == "import") {
 
-            const location = getResolvedURI(new URI(preamble.uri), uri);
+            const location = getResolvedURI(new URI(preamble.uri), uri),
+                location_string = location + "";
 
-            preamble.full_uri = location + "";
+            preamble.full_uri = location_string;
 
-            if (existing_grammars.has(location + "")) {
-                grammar.imported_grammars.push({
-                    reference: preamble.reference,
-                    uri: location + "",
-                    grammar: existing_grammars.get(location + "")
-                });
+            grammar.imported_grammars.push({
+                uri: location_string,
+                grammar: null,
+                reference: preamble.reference
+            });
 
-            } else {
-                const import_grammar = await loadGrammarFromFile(location, grammar_parser, existing_grammars);
+            import_locations.push(location_string);
 
-                grammar.imported_grammars.push({
-                    reference: preamble.reference,
-                    uri: location + "",
-                    grammar: import_grammar
-                });
+            if (!existing_grammars.has(location_string)) {
+
+                // temporarily assign empty value until the import 
+                // can be completed
+                existing_grammars.set(location_string, null);
+
+                const import_grammar = await loadGrammar(location, grammar_parser, existing_grammars);
+
+                existing_grammars.set(location_string, import_grammar);
+
             }
         }
     }
 
-    existing_grammars.set(uri + "", grammar);
-
     return grammar;
-};
+}
 
 function getResolvedURI(uri: URI, source?: URI) {
     uri = default_map[uri + ""] ?? uri;
@@ -870,3 +889,14 @@ function getResolvedURI(uri: URI, source?: URI) {
  * Loads grammar file from import nodes
  */
 export function importGrammarFile() { }
+
+export async function compileGrammar(grammar: HCG3Grammar) {
+    await integrateImportedGrammars(grammar);
+    convertListProductions(grammar);
+    createJSFunctionsFromExpressions(grammar);
+    createUniqueSymbolSet(grammar);
+    buildSequenceString(grammar);
+    createItemMaps(grammar);
+
+    return grammar;
+}

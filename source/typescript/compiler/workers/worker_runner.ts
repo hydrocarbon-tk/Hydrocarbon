@@ -14,7 +14,6 @@ import { LocalWorker } from "./local_worker.js";
 export class WorkerRunner {
     grammar: HCG3Grammar;
     RUN: boolean;
-    env: ParserEnvironment;
     module_url: string;
     number_of_workers: number;
     workers: Array<WorkerContainer>;
@@ -26,7 +25,6 @@ export class WorkerRunner {
 
     constructor(
         grammar: HCG3Grammar,
-        env: ParserEnvironment,
         runner: Helper,
         number_of_workers = 2
     ) {
@@ -34,8 +32,7 @@ export class WorkerRunner {
 
         this.grammar = grammar;
         this.runner = runner;
-        this.env = env;
-        this.to_process_rd_fn = this.grammar.map((a, i) => i + 1);
+        this.to_process_rd_fn = (this.grammar.productions ?? this.grammar).map((a, i) => i + 1);
         this.IN_FLIGHT_JOBS = 0;
         this.functions = [];
         this.RUN = true;

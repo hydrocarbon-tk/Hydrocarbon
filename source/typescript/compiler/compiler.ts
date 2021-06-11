@@ -4,39 +4,18 @@
  * disclaimer notice.
  */
 import spark from "@candlelib/spark";
-import fs from "fs";
 import { createDispatchTemplate, renderSkribbleRecognizer } from "../render/skribble_recognizer_template.js";
-import { fillByteBufferWithUTF8FromString } from "../runtime/parser_loader.js";
-import { initializeUTFLookupTableNew } from "../runtime/parser_memory_new.js";
+import { ParserFactory } from "../runtime/parser_loader_alpha.js";
 import { skRenderAsJavaScript } from "../skribble/skribble.js";
 import { HybridCompilerOptions } from "../types/compiler_options";
 import { Grammar } from "../types/grammar.js";
 import { GrammarParserEnvironment } from "../types/grammar_compiler_environment";
 import { HCG3Grammar } from "../types/grammar_nodes.js";
-import { HCGTokenPosition } from "../types/parser.js";
-import { ParserEnvironment } from "../types/parser_environment.js";
 import { RDProductionFunction } from "../types/rd_production_function.js";
 import { constructCompilerRunner, Helper } from "./helper.js";
 import { WorkerRunner } from "./workers/worker_runner.js";
-
-const
-    default_options: HybridCompilerOptions = {
-        name: "parser",
-        recognizer_type: "js",
-        completer_type: "js",
-        number_of_workers: 1,
-        add_annotations: false,
-        action_array_byte_size: 1024,
-        error_array_byte_size: 512,
-        alternate_parse_entries: [],
-        output_dir: "./",
-        combine_recognizer_and_completer: false,
-        memory_loader_url: "@candlelib/hydrocarbon",
-        no_file_output: false,
-        optimize: true,
-        create_function: false,
-        debug: false,
-    };
+import fs from "fs";
+import URI from "@candlelib/uri";
 
 export async function compile(grammar: Grammar, env: GrammarParserEnvironment, options: HybridCompilerOptions):
     Promise<{
@@ -45,9 +24,9 @@ export async function compile(grammar: Grammar, env: GrammarParserEnvironment, o
     }> {
 
     const
-        active_options: HybridCompilerOptions = Object.assign({}, default_options, options),
+        active_options: HybridCompilerOptions = Object.assign({}, {}, options),
         runner: Helper = constructCompilerRunner(active_options.add_annotations, active_options.debug),
-        mt_code_compiler = new WorkerRunner(grammar, env, runner, active_options.number_of_workers);
+        mt_code_compiler = new WorkerRunner(grammar, runner, active_options.number_of_workers);
 
     active_options.combine_recognizer_and_completer = Boolean(active_options.no_file_output || active_options.combine_recognizer_and_completer);
 
@@ -60,7 +39,130 @@ export async function compile(grammar: Grammar, env: GrammarParserEnvironment, o
     };
 }
 
-function compileRecognizerSource(runner: Helper, grammar: Grammar, recognizer_functions: RDProductionFunction[]) {
+export async function compileRecognizer(
+    grammar: HCG3Grammar,
+    number_of_workers: 1,
+    ADD_ANNOTATIONS: boolean = false
+):
+    Promise<{
+        recognizer_functions: RDProductionFunction[],
+        meta: Helper;
+    }> {
+
+    const
+        runner: Helper = constructCompilerRunner(ADD_ANNOTATIONS, false),
+
+        mt_code_compiler = new WorkerRunner(grammar, runner, number_of_workers);
+
+    for (const updates of mt_code_compiler.run())
+        await spark.sleep(1);
+
+    return {
+        recognizer_functions: mt_code_compiler.functions,
+        meta: runner
+    };
+}
+
+
+export function buildJSParserStrings(
+    grammar: HCG3Grammar,
+    recognizer_functions: RDProductionFunction[],
+    meta: Helper
+): {
+    recognizer_script: string,
+    completer_script: string;
+} {
+    const recognizer_code = compileRecognizerSource(meta, grammar, recognizer_functions);
+
+    const recognizer_script = skRenderAsJavaScript(recognizer_code);
+
+    const completer_script = renderJavaScriptReduceFunctionLookupArray(grammar);
+
+    return {
+        recognizer_script, completer_script
+    };
+}
+
+export async function writeJSParserToFile(
+    file_path: string,
+    grammar: HCG3Grammar,
+    recognizer_functions: RDProductionFunction[],
+    meta: Helper
+): Promise<boolean> {
+
+    if (!file_path)
+        return false;
+
+    const { completer_script, recognizer_script } = buildJSParserStrings(
+        grammar, recognizer_functions, meta
+    );
+
+    const fsp = fs.promises;
+
+    const file = `
+    const recognizer_initializer = (()=>{
+        ${recognizer_script};
+        sequence_lookup = [${grammar.sequence_string.split("").map(s => s.charCodeAt(0)).join(",")}];
+
+        return {
+            get_next_command_block, 
+            sequence_lookup, 
+            lookup_table, 
+            run, 
+            dispatch, 
+            init_table,
+            init_data, 
+            delete_data:()=>{},
+            recognizer,
+            get_fork_information
+        };
+    });
+
+    const reduce_functions = ${completer_script};
+
+    return ParserFactory(reduce_functions, undefined, recognizer_initializer);
+    `;
+
+    try {
+        await fsp.writeFile(file_path, file);
+        return true;
+    } catch (e) {
+        console.error(e);
+    }
+    return false;
+}
+
+export function createAddHocParser(grammar: HCG3Grammar, recognizer_script: string, completer_script: string) {
+
+    const parser_string = `
+    const recognizer_initializer = (()=>{
+        ${recognizer_script};
+        sequence_lookup = [${grammar.sequence_string.split("").map(s => s.charCodeAt(0)).join(",")}];
+
+        return {
+            get_next_command_block, 
+            sequence_lookup, 
+            lookup_table, 
+            run, 
+            dispatch, 
+            init_table,
+            init_data, 
+            delete_data:()=>{},
+            recognizer,
+            get_fork_information
+        };
+    });
+
+    const reduce_functions = ${completer_script};
+
+    return ParserFactory(reduce_functions, undefined, recognizer_initializer);
+    `;
+
+
+    return new Function("ParserFactory", parser_string)(ParserFactory);
+}
+
+function compileRecognizerSource(runner: Helper, grammar: HCG3Grammar, recognizer_functions: RDProductionFunction[]) {
     const { const: constants_a, fn: const_functions_a } = runner.render_constants();
 
     const recognizer_code = renderSkribbleRecognizer(grammar);
@@ -88,7 +190,7 @@ export function renderRecognizerAsJavasScript(
 
 
 
-function renderJavaScriptReduceFunctionLookup(grammar: HCG3Grammar) {
+export function renderJavaScriptReduceFunctionLookupArray(grammar: HCG3Grammar): string {
     const reduce_functions_str = [...grammar.meta.reduce_functions.keys()].map((b, i) => {
         if (b.includes("return") || true) {
             return b.replace(/^return/, "(env, sym, pos)=>(").slice(0, -1) + ")" + `/*${i}*/`;
@@ -97,173 +199,6 @@ function renderJavaScriptReduceFunctionLookup(grammar: HCG3Grammar) {
         }
     }).join("\n,");
 
-    return `return [(e,sym)=>sym[sym.length-1], ${reduce_functions_str}]`;
+    return `[(e,sym)=>sym[sym.length-1], ${reduce_functions_str}]`;
 }
 
-export function adHocParse(
-    grammar: HCG3Grammar,
-    recognizer_functions: RDProductionFunction[],
-    runner: Helper,
-    input_string: string,
-    env: ParserEnvironment = {}
-) {
-
-    const str = renderRecognizerAsJavasScript(
-        grammar,
-        recognizer_functions,
-        runner
-    );
-
-    fs.writeFileSync("temp.js", str);
-
-    const fn = new Function(str + "\n return {get_next_command_block, sequence_lookup, lookup_table, run, dispatch, init_data, recognizer,get_fork_information}")();
-
-    const reduce_function_str = renderJavaScriptReduceFunctionLookup(grammar);
-
-    const reduce_functions = new Function(reduce_function_str)();
-
-    const {
-        dispatch,
-        lookup_table,
-        run,
-        sequence_lookup,
-        init_data,
-        recognizer,
-        get_fork_information,
-        get_next_command_block
-    } = fn;
-
-    // Post 
-
-    //----------------------------------------------------------------------------
-    // Static Initialization
-
-    initializeUTFLookupTableNew(lookup_table);
-
-    let i = 0;
-
-    for (const code_point of grammar.sequence_string.split("").map(s => s.charCodeAt(0)))
-        sequence_lookup[i++] = code_point;
-
-    //----------------------------------------------------------------------------
-    // Dynamic Initialization
-
-    const input_size = input_string.length * 4;
-
-    const data = init_data(input_size, input_size, 512);
-
-    const { input, rules, debug, error } = data;
-
-    const byte_length = fillByteBufferWithUTF8FromString(input_string, input, input_size);
-
-    //----------------------------------------------------------------------------
-    // Recognizer Pass
-
-    const result = recognizer(data, byte_length, 0);
-
-    //----------------------------------------------------------------------------
-    // Recognizer Directed Parsing
-
-    const
-        forks = get_fork_information(),
-        fns = reduce_functions,
-        stack = [];
-
-    if (forks.length == 1) {
-        //Normal parse
-        const fork = forks[0];
-        let limit = 1000000;
-        let block = get_next_command_block(fork);
-        let short_offset = 0;
-        let token_offset = 0;
-        let pos: HCGTokenPosition[] = [];
-        let high = block[short_offset++];
-
-        if (short_offset > 63) {
-            get_next_command_block(fork);
-            short_offset = 0;
-        }
-
-        while (limit-- > 0) {
-
-            let low = high;
-
-            if (low == 0) break;
-
-            high = block[short_offset++];
-
-            const rule = low & 3;
-
-            switch (rule) {
-                case 0: //REDUCE;
-                    {
-                        let
-                            body = (low >> 8) & 0xFF,
-                            len = ((low >> 3) & 0x1F);
-
-                        if (low & 4) {
-                            body = (body << 8) | len;
-                            len = high;
-                            short_offset++;
-                        }
-
-                        const
-                            pos_a = pos[pos.length - len] || { offset: 0, length: 0 },
-                            pos_b = pos[pos.length - 1] || { offset: 0, length: 0 },
-                            e = stack.slice(-len),
-                            token_position: HCGTokenPosition = {
-                                line: 0,
-                                column: 0,
-                                offset: pos_a.offset,
-                                length: pos_b.offset - pos_a.offset + pos_b.length
-                            };
-
-                        pos[stack.length - len] = token_position;
-                        stack[stack.length - len] = fns[body](env, e, token_position);
-
-                        stack.length = stack.length - len + 1;
-                        pos.length = pos.length - len + 1;
-
-
-                    } break;
-
-                case 1: { //SHIFT;
-                    let length = (low >>> 3) & 0x1FFF;
-
-                    if (low & 4) {
-                        length = ((length << 16) | high);
-                        short_offset++;
-                    }
-
-                    stack.push(input_string.slice(token_offset, token_offset + length));
-                    pos.push({ offset: token_offset, length: length });
-                    token_offset += length;
-                } break;
-
-                case 2: { //SKIP
-
-                    let length = (low >>> 3) & 0x1FFF;
-
-                    if (low & 4) {
-                        length = ((length << 16) | high);
-                        short_offset++;
-                    }
-
-                    token_offset += length;
-                }
-
-                case 3: {
-                    //Error
-                }
-            }
-
-
-            if (short_offset > 63) {
-                get_next_command_block(fork);
-                short_offset = 0;
-            }
-        }
-    }
-
-    return stack;
-};

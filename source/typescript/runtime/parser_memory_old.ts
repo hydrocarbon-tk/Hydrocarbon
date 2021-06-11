@@ -180,11 +180,18 @@ export function loadWASM(source: BufferSource, memory: WebAssembly.Memory, segme
         let module = null;
         let exports = null;
 
-        WebAssembly.instantiate(source, <any>imports).then(
-            ({ instance: i, module: m }) => {
-                ([instance, module, exports] = [i, m, i.exports]);
-            }
-        );
+        if (typeof window != "undefined") {
+            WebAssembly.instantiate(source, <any>imports).then(
+                ({ instance: i, module: m }) => {
+                    ([instance, module, exports] = [i, m, i.exports]);
+                }
+            );
+        } else {
+            module = new WebAssembly.Module(source);
+            //@ts-ignore
+            instance = new WebAssembly.Instance(module, imports);
+            exports = instance.exports;
+        }
 
         function loadBinary(from_buffer: Buffer | Uint8Array, length: number) {
 

@@ -1,0 +1,72 @@
+# Copyright (C) 2021 Anthony Weathersby - The Hydrocarbon Parser Compiler
+# see /source/typescript/hydrocarbon.ts for full copyright and warranty 
+# disclaimer notice.
+
+# version 3.0
+
+#
+# This annotated grammar definition is continued from hcg.hcg
+#
+# Imported files can have their own imports. Hydrocarbon automatically resolves 
+# dependency loops and prevents duplication of imported productions.
+
+
+@IMPORT ./comments.hcg as cm
+
+@IMPORT ./symbols.hcg as sym
+
+@IGNORE g:ws g:nl
+
+# ----------- Used for testing ---------------
+
+<> hcg_preamble > preamble
+
+# ----------- ---------------- ---------------
+
+# Productions can be defined through the [ <> ID > symbol ... ] form as will 
+# as using parenthesis ( ) to define a production group. The production group is 
+# a virtual production that can have multiple production bodies within it separated by
+# the | symbol ( U+2502 BOX DRAWINGS LIGHT VERTICAL )
+
+
+<> preamble > preamble_clause(*)
+
+# The symbol represents a zero-or-more repeating pattern and is bound to the 
+# preceding symbol. In this case the preamble production is composed of zero-or-more 
+# preamble clauses. Symbols defined this way are reduced to an array containing 
+# the matching productions.
+#
+#
+# Multiple bodies in a single production are be separated by the | symbol 
+# ( U+2502 BOX DRAWINGS LIGHT VERTICAL )
+
+
+<> preamble_clause >  ignore_preamble
+    | import_preamble
+    | cm::comment
+
+
+
+# Production bodies can contain a mixture of non-terminal production names,
+# terminal symbols, meta statements such as "(ERR g:ws)", and inline production 
+# functions. 
+#
+
+# In either the Constructor Reduce function or the Return Expression Reduce function
+# the symbols of the production can be addressed using the $ operator, which resolves
+# to the index location of the terminal symbol or non-terminal production within the 
+# production body. In the following case, $3 resolves to the third symbol in the proceeding
+# precedence_preamble body, sym::terminal_symbol ( keep in mind [(ERR g:ws)] is a meta object 
+# and is not an actual symbol of the production body). $4 resolves to the g:num symbol.
+                                                  
+
+<> ignore_preamble >         \@ t:IGNORE sym::ignore_symbols g:nl                
+                                                                        
+                                                                        f:r { { type:"ignore", symbols : $3 } }
+
+
+<> import_preamble >         \@ t:IMPORT g:ws(*) ( g:id | g:sym  )(+\" ) g:ws(+) ( t:AS | t:as ) sym::identifier g:nl  
+                                                                        
+                                                                        f:r { { type:"import", uri: $4, reference:$7 } } 
+
+

@@ -105,6 +105,10 @@ export interface HCG3Grammar extends HCG3GrammarNode {
      */
     sequence_string: string;
 
+    URI: string;
+
+    common_import_name: string;
+
     bodies?: HCGProductionBody[];
 }
 

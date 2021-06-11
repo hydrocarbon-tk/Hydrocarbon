@@ -22,6 +22,10 @@ export interface ForkData {
     ptr?: number;
     command_length;
     failed: boolean;
+    valid: boolean;
+    byte_offset: number;
+    byte_length: number;
+    line: number;
 }
 
 export interface RecognizeInitializer {
