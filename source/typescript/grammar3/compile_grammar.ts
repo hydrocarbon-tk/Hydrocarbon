@@ -21,6 +21,7 @@ import { buildItemMaps } from "../utilities/item_map.js";
 import { getUniqueSymbolName, Sym_Is_A_Production, Sym_Is_A_Production_Token } from "../utilities/symbol.js";
 import { hcg3_mappings } from "./mappings.js";
 import { default_map } from "../utilities/default_map.js";
+import parser from "./hcg3_parser.staged.js";
 
 const renderers = experimentalConstructRenderers(hcg3_mappings);
 const render = (grammar_node) => experimentalRender(grammar_node, hcg3_mappings, renderers);
@@ -830,7 +831,7 @@ export async function loadGrammarFromFile(uri: URI, grammar_parser: any): Promis
     return grammar;
 };
 
-async function loadGrammar(uri: URI, grammar_parser: any, existing_grammars: Map<string, HCG3Grammar>): Promise<HCG3Grammar> {
+async function loadGrammar(uri: URI, grammar_parser: any = parser, existing_grammars: Map<string, HCG3Grammar>): Promise<HCG3Grammar> {
     uri = getResolvedURI(uri);
 
     const str = await uri.fetchText();
