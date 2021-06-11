@@ -14,7 +14,7 @@
  * Contact: acweathersby.codes@gmail.com
  */
 
-import "./utilities/array_globals.js";
+import "../utilities/array_globals.js";
 
 //Compiling
 import { compile } from "../compiler/compiler.js";
