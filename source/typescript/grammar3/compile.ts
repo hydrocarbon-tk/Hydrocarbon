@@ -14,13 +14,30 @@ import {
 } from "./load.js";
 
 
+class GrammarCompilationReport extends Error {
+    constructor(errors: Error[]) {
+        const messages = errors.map(e => "\n-----\n" + e.stack).join("\n----\n");
+
+        super(messages);
+    }
+}
+
 export async function compileGrammar(grammar: HCG3Grammar) {
-    await integrateImportedGrammars(grammar);
-    convertListProductions(grammar);
-    createJSFunctionsFromExpressions(grammar);
-    createUniqueSymbolSet(grammar);
-    buildSequenceString(grammar);
-    createItemMaps(grammar);
+    const errors: Error[] = [];
+
+    try {
+        await integrateImportedGrammars(grammar, errors);
+        convertListProductions(grammar, errors);
+        createJSFunctionsFromExpressions(grammar, errors);
+        createUniqueSymbolSet(grammar, errors);
+        buildSequenceString(grammar);
+        createItemMaps(grammar);
+    } catch (e) {
+        errors.push(e);
+    }
+
+    if (errors.length > 0)
+        throw new GrammarCompilationReport(errors);
 
     return grammar;
 }

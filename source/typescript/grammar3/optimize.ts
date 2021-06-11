@@ -5,6 +5,8 @@ import { EOF_SYM } from "../types/grammar.js";
 import {
     HCG3Grammar,
     HCG3Production,
+    HCG3ProductionSymbol,
+    HCG3ProductionTokenSymbol,
     HCG3Symbol,
     HCGProductionBody
 } from "../types/grammar_nodes";
@@ -36,7 +38,7 @@ const render = (grammar_node) => experimentalRender(grammar_node, hcg3_mappings,
  * of c
  * @param grammar 
  */
-export function createUniqueSymbolSet(grammar: HCG3Grammar) {
+export function createUniqueSymbolSet(grammar: HCG3Grammar, errors: Error[] = []) {
 
     const unique_map: Map<string, HCG3Symbol> = new Map([[getUniqueSymbolName(EOF_SYM), EOF_SYM]]);
 
@@ -63,7 +65,7 @@ export function createUniqueSymbolSet(grammar: HCG3Grammar) {
             body.length = body.sym.length;
 
             body.reset = new Map;
-            
+
             body.excludes = new Map;
 
             if (body.reduce_function) {
@@ -77,20 +79,7 @@ export function createUniqueSymbolSet(grammar: HCG3Grammar) {
             }
 
             for (const sym of body.sym) {
-
-                if (Sym_Is_A_Production(sym) || Sym_Is_A_Production_Token(sym)) {
-                    sym.val = production_lookup.get(sym.name)?.id;
-                }
-
-                const unique_name = getUniqueSymbolName(sym);
-
-                if (!unique_map.has(unique_name))
-                    unique_map.set(unique_name, copy(sym));
-
-                if (Sym_Is_A_Production(sym) || Sym_Is_A_Production_Token(sym)) {
-                    sym.production = production_lookup.get(sym.name);
-                }
-
+                processSymbol(sym, production_lookup, unique_map, errors);
                 sym.id = s_counter++;
             }
         }
@@ -102,24 +91,47 @@ export function createUniqueSymbolSet(grammar: HCG3Grammar) {
         reduce_functions: reduce_lu
     });
 
-    for (const ignore of grammar.meta.ignore) {
-
-        for (const sym of ignore.symbols) {
-            if (Sym_Is_A_Production(sym) || Sym_Is_A_Production_Token(sym)) {
-                sym.val = production_lookup.get(sym.name)?.id;
-            }
-
-            const unique_name = getUniqueSymbolName(sym);
-
-            if (!unique_map.has(unique_name))
-                unique_map.set(unique_name, copy(sym));
-        }
-    }
+    for (const ignore of grammar.meta.ignore)
+        for (const sym of ignore.symbols)
+            processSymbol(sym, production_lookup, unique_map, errors);
 
     grammar.reduce_functions = reduce_lu;
 
     grammar.bodies = bodies;
+}
 
+class MissingProduction extends Error {
+    constructor(ref_sym: HCG3ProductionSymbol | HCG3ProductionTokenSymbol) {
+        super(`Missing production ${ref_sym.name}`);
+    }
+
+    get stack() { return ""; }
+}
+
+function processSymbol(
+    sym: HCG3Symbol,
+    production_lookup: Map<any, any>,
+    unique_map: Map<string, HCG3Symbol>,
+    errors: Error[]
+) {
+
+    if (Sym_Is_A_Production(sym) || Sym_Is_A_Production_Token(sym)) {
+
+        const prod = production_lookup.get(sym.name);
+
+        if (!prod) {
+            errors.push(new MissingProduction(sym));
+        } else
+            sym.val = production_lookup.get(sym.name)?.id;
+    }
+
+    const unique_name = getUniqueSymbolName(sym);
+
+    if (!unique_map.has(unique_name))
+        unique_map.set(unique_name, copy(sym));
+
+    if (Sym_Is_A_Production(sym) || Sym_Is_A_Production_Token(sym))
+        sym.production = production_lookup.get(sym.name);
 
 }
 
@@ -135,7 +147,7 @@ export function buildSequenceString(grammar: HCG3Grammar) {
 }
 
 
-export function createJSFunctionsFromExpressions(grammar: HCG3Grammar) {
+export function createJSFunctionsFromExpressions(grammar: HCG3Grammar, error) {
     for (const production of grammar.productions) {
         for (const body of production.bodies) {
             if (body.reduce_function) {
@@ -295,7 +307,7 @@ export function convertGroupProductions(grammar: HCG3Grammar): HCG3Grammar {
 }
 
 
-export function convertListProductions(grammar: HCG3Grammar): HCG3Grammar {
+export function convertListProductions(grammar: HCG3Grammar, error: Error[]): HCG3Grammar {
     for (const production of grammar.productions) {
 
         for (const body of production.bodies) {
@@ -407,14 +419,13 @@ function processListSymbol(sym: any, body: HCGProductionBody, production: HCG3Pr
 
 
             if (TERMINAL_SYMBOL_IS_QUOTE) {
+
                 setBodyReduceExpressionAction(body, "$101 + \"\"");
 
                 setBodyReduceExpressionAction(new_production_body, "$1 + $101");
             } else {
 
                 setBodyReduceExpressionAction(body, "[$101]");
-
-
 
                 setBodyReduceExpressionAction(new_production_body, "$1 .concat($101)");
             }

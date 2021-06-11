@@ -12,7 +12,7 @@ import { createProductionSymbol, getProductionByName } from "./common.js";
  * Multiple references to the same module are resolved and import
  * names are unified
  */
-export async function integrateImportedGrammars(grammar: HCG3Grammar, imports: Map<string, HCG3Grammar> = new Map) {
+export async function integrateImportedGrammars(grammar: HCG3Grammar, errors: Error[]) {
     //pull imports from the input grammar metadata
     // Unify grammar names
     // - create a common name for every imported grammar
@@ -40,7 +40,7 @@ export async function integrateImportedGrammars(grammar: HCG3Grammar, imports: M
                 if (imported_productions.has(name)) {
 
                     //Integrate the production 
-                    integrateImportedGrammars(grammar, grmmr, production, imported_productions);
+                    integrateImportedGrammars(grammar, errors);
 
                     //And merge the production body into the target production
                     imported_productions.get(name).bodies = [...production.bodies];
@@ -55,7 +55,7 @@ export async function integrateImportedGrammars(grammar: HCG3Grammar, imports: M
                 if (imported_productions.has(name)) {
 
                     //Integrate the production 
-                    integrateImportedGrammars(grammar, grmmr, production, imported_productions);
+                    integrateImportedGrammars(grammar, errors);
 
                     //And merge the production body into the target production
                     imported_productions.get(name).bodies.push(...production.bodies);
