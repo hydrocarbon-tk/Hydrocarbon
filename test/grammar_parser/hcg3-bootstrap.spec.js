@@ -30,7 +30,6 @@ assert_group(
 
         assert(compiled_grammar.type == "hc-grammar-3");
         assert(compiled_grammar.URI + "" == hcg_grammar_file);
-        assert("Imported all grammar files from folder", compiled_grammar.imported_grammars.length == 6);
 
     });
 
@@ -111,7 +110,6 @@ assert_group(
         assert(bootstrapped_compiled_grammar !== null);
         assert(bootstrapped_compiled_grammar.type == "hc-grammar-3");
         assert(bootstrapped_compiled_grammar.URI + "" == hcg_grammar_file);
-        assert("Imported all grammar files from folder", compiled_grammar.imported_grammars.length == 6);
     });
 
 
