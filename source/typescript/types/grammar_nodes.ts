@@ -106,6 +106,8 @@ export interface HCG3Grammar extends HCG3GrammarNode {
     common_import_name: string;
 
     bodies?: HCGProductionBody[];
+
+    reduce_functions: Map<string, number>;
 }
 
 ////////////////////////////////////////////////////////////////////
@@ -173,6 +175,11 @@ export interface HCG3LiteralSymbol extends HCG3SymbolNode {
 
 export interface HCG3ProductionTokenSymbol extends HCG3SymbolNode {
     type: "production_token";
+    name: string;
+
+    val: string | number;
+
+    production?: HCG3Production;
 }
 
 export interface HCG3ProductionSymbol extends HCG3SymbolNode {
