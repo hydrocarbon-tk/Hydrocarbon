@@ -5,11 +5,11 @@
  */
 
 //Runtime
-import { lrParse } from "./lr(deprecate)/runtime/lr_parser.js";
-import { ParserEnvironment } from "./types/parser_environment.js";
-import { ParserFactory } from "./runtime/parser_loader.js";
-import { ErrorHandler, ParserData } from "./lr(deprecate)/runtime/parser_data.js";
-import { loadWASM, buildParserMemoryBuffer } from "./runtime/parser_memory_old.js";
+import { lrParse } from "../lr(deprecate)/runtime/lr_parser.js";
+import { ParserEnvironment } from "../types/parser_environment.js";
+import { ParserFactory } from "../runtime/parser_loader.js";
+import { ErrorHandler, ParserData } from "../lr(deprecate)/runtime/parser_data.js";
+import { loadWASM, buildParserMemoryBuffer } from "../runtime/parser_memory_old.js";
 
 
 //Definitions
