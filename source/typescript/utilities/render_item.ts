@@ -36,16 +36,10 @@ export function renderItemReduction(
     const { grammar } = options;
     //Virtual productions do not reduce
     if (item.getProduction(grammar).type == "virtual-production") {
-        // code_node.addStatement("---------Virtual Productions Do Not Reduce-----------");
+        // Virtual Productions Do Not Reduce
         return;
     }
     const body = item.body_(grammar);
-
-    const prod_str = <SKExpression><any>sk`" temp " `;
-
-    prod_str.value = item.getProduction(grammar).id + "";
-
-    code_node.push((prod_str));
 
     if (CAN_USE_CLASS_REDUCER && (body.reduce_id >= 0 || item.len > 1))
         code_node.push(<SKExpression>sk`prod = $${item.getProduction(grammar).name}_reducer(l,data,state,prod,puid)`);
@@ -168,7 +162,7 @@ export function renderItem(
         if (!RENDER_WITH_NO_CHECK) {
             const _if = <SKIf & { expression: SKBlock; }>sk`if (${bool_expression}) : {}`;
 
-            addSymbolAnnotationsToExpressionList([sym], grammar, _if.expression.expressions, "Single item assertion");
+            //addSymbolAnnotationsToExpressionList([sym], grammar, _if.expression.expressions, "Single item assertion");
             leaf_expressions.push(_if);
             return renderItem(_if.expression.expressions, item.increment(), options, false, lexer_name, true);
         } else {

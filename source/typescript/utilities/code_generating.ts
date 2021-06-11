@@ -387,7 +387,6 @@ export function createSymbolMappingFunctionSk(
                 block.push(_if);
                 block = (<SKBlock>_if.expression).expressions;
             }
-
             block.push(
                 <SKExpression>sk`${lex_name}.setToken(TokenSymbol, ${sym.byte_length}, ${sym.val.length});`,
                 <SKExpression>sk`return: ${defined_symbols_reversed_map.get(sym)};`
@@ -418,16 +417,16 @@ export function createSymbolMappingFunctionSk(
 
             ifs.push(sc);
         }
-
+        // Merge the separate if statements in to a single if-elseif-else chain
         ifs.reduce((r: SKIf, a: SKIf) => ((!r) ? a : (r.else = a, a)), null);
 
         const
             code_node = yielded.value,
 
             fn = <SKFunction>sk`fn temp:i32(l:Lexer, data:Data){
-                //"${symbols.map(s => s.val).join(" ")}";
+                //'"${symbols.map(s => s.val).join(" ")}"';
                 ${[code_node, ";", ifs[0], ";"]}
-                return:${default_return_value};
+                ${default_return_value};
             }`;
 
         return packGlobalFunctionSk("sym_map", "int", fn, fn, options.helper);

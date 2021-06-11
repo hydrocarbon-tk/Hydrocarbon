@@ -27,11 +27,11 @@ export function default_resolveResolvedLeaf(item: Item, state: TransitionNode, o
 
     let leaf_node = code, prods = [], original_prods = [], INDIRECT = false;
 
-    if (options.helper.ANNOTATED)
+    if (options.helper.ANNOTATED) {
         code.push(createTransitionTypeAnnotation(options, [state.transition_type]));
+        addSymbolAnnotationsToExpressionList(getSymbolsFromClosure([item], grammar), grammar, leaf_node, "Leaf");
+    }
 
-
-    addSymbolAnnotationsToExpressionList(getSymbolsFromClosure([item], grammar), grammar, leaf_node, "Leaf");
 
     if (SHOULD_IGNORE) {
 

@@ -38,6 +38,8 @@ export function ParserFactory<T>(
 
     const parser = function (str: string, env: ParserEnvironment = {}, production_id = 0) {
 
+
+
         const
             str_len = str.length,
             str_buffer_size = (str_len * 4) + 8,
@@ -54,9 +56,8 @@ export function ParserFactory<T>(
         let action_length = 0,
             error_message = "";
 
-
         const forks = get_fork_information();
-
+        
         if (forks.length == 1) {
             //Normal parse
             const fork = forks[0];
@@ -157,9 +158,7 @@ export function ParserFactory<T>(
     };
 };
 
-
-
-export function  fillByteBufferWithUTF8FromString(string, buffer: Uint8Array, max_length) {
+export function fillByteBufferWithUTF8FromString(string, buffer: Uint8Array, max_length) {
 
     let i = 0, j = 0, l = string.length;
 

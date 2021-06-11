@@ -52,6 +52,7 @@ export function default_resolveBranches(
         end_groups = groups.filter(group => group.transition_types[0] == TRANSITION_TYPE.ASSERT_END),
         number_of_end_groups = end_groups.length,
         all_syms = groups.flatMap(({ syms }) => syms).setFilter(getUniqueSymbolName),
+        all_syms_unfiltered = groups.flatMap(({ syms }) => syms),
         GROUPS_CONTAIN_SYMBOL_AMBIGUITY = Groups_Contain_Symbol_Ambiguity(groups);
 
     let root: SKExpression[] = [];
@@ -65,6 +66,7 @@ export function default_resolveBranches(
     if (options.helper.ANNOTATED) {
         addItemAnnotationToExpressionList(items, grammar, root);
         addSymbolAnnotationsToExpressionList(all_syms, grammar, root, "All symbols");
+        addSymbolAnnotationsToExpressionList(all_syms_unfiltered, grammar, root, "All symbols unfiltered " + number_of_end_groups);
     }
 
     const peek_name = createPeekStatements(options,
@@ -293,7 +295,7 @@ function createIfElseExpressions(
 
             case TRANSITION_TYPE.POST_PEEK_CONSUME:
                 code.unshift(...expressions);
-                addSymbolAnnotationsToExpressionList(syms, grammar, code, "Post Peek");
+                //addSymbolAnnotationsToExpressionList(syms, grammar, code, "Post Peek");
                 code.unshift(createTransitionTypeAnnotation(options, transition_types));
                 code.unshift(<SKExpression>sk`puid |= ${grammar.item_map.get(items[0].id).sym_uid}`);
                 code.unshift(createConsumeSk(lex_name));
@@ -379,7 +381,7 @@ function createIfElseExpressions(
 
                 options.called_productions.add(<number>production.id);
 
-                addSymbolAnnotationsToExpressionList(syms, grammar, code, "Production Call Symbols");
+                //addSymbolAnnotationsToExpressionList(syms, grammar, code, "Production Call Symbols");
 
                 const call_name = createBranchFunctionSk(code, options);
                 expressions.push(<SKExpression>sk`pushFN(data, ${call_name})`);
@@ -479,7 +481,7 @@ function createIfStatementTransition(
 
         }`;
 
-    addSymbolAnnotationsToExpressionList(syms, grammar, modified_code, ShiftComment);
+    //addSymbolAnnotationsToExpressionList(syms, grammar, modified_code, ShiftComment);
 
     const SKIP_BOOL_EXPRESSION = (!FORCE_ASSERTIONS || transition_type == TRANSITION_TYPE.ASSERT_END)
         && (LAST && !FIRST)
