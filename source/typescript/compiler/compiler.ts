@@ -10,14 +10,14 @@ import { createDispatchTemplate, renderSkribbleRecognizer } from "../render/skri
 import { ParserFactory } from "../runtime/parser_loader_alpha.js";
 import { skRenderAsJavaScript } from "../skribble/skribble.js";
 import { HybridCompilerOptions } from "../types/compiler_options";
-import { Grammar } from "../types/grammar.js";
 import { GrammarParserEnvironment } from "../types/grammar_compiler_environment";
 import { HCG3Grammar } from "../types/grammar_nodes.js";
 import { RDProductionFunction } from "../types/rd_production_function.js";
 import { constructCompilerRunner, Helper } from "./helper.js";
 import { WorkerRunner } from "./workers/worker_runner.js";
+const fsp = fs.promises;
 
-export async function compile(grammar: Grammar, env: GrammarParserEnvironment, options: HybridCompilerOptions):
+export async function compile(grammar: HCG3Grammar, env: GrammarParserEnvironment, options: HybridCompilerOptions):
     Promise<{
         grammar_functions: RDProductionFunction[],
         runner: Helper;
@@ -77,9 +77,6 @@ export async function writeJSParserToFile(
     const { completer_script, recognizer_script } = buildJSParserStrings(
         grammar, recognizer_functions, meta
     );
-
-    const fsp = fs.promises;
-
     const file = `
     import { ParserFactory } from "${hydrocarbon_import_path}";
 
@@ -110,7 +107,7 @@ export async function writeJSParserToFile(
         await fsp.writeFile(file_path, file);
         return true;
     } catch (e) {
-        console.error(e);
+        throw e;
     }
     return false;
 }

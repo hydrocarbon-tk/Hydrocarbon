@@ -2,10 +2,10 @@
     "name": "@candlelib/hydrocarbon",
     "version": "0.8.1-alpha-2",
     "description": "Parser Compiler",
-    "main": "./build/library/hydrocarbon.js",
-    "types": "./build/types/hydrocarbon.d.ts",
+    "main": "./build/library/entry/hydrocarbon.js",
+    "types": "./build/types/entry/hydrocarbon.d.ts",
     "bin": {
-        "hydrocarbon": "./source/cli/cli.js"
+        "hydrocarbon": "./build/library/entry/cli.js"
     },
     "type": "module",
     "scripts": {
