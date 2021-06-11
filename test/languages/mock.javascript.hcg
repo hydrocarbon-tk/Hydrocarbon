@@ -18,8 +18,8 @@
 
 <> empty_statement > \;
 
-<> for_statement > t:for \( expression \; expression \; expression \) statement
-
+<> for_statement > t:for \( var_expression \; expression \; expression \) statement
+                                                                                  f:r{ { ty:"for", init:$3, compare:$5, iter:$7, stmt:$9 } }
 
 <> return_statement > \return asi
     | \return expression asi
@@ -35,12 +35,15 @@
     | var_declaration                                                             
 
 
-<> function_declaration > \function g:id \( g:id(*\, ) \) { statements? }
+<> function_declaration > \function g:id \( g:id(*\, ) \) { statements? }   
+                                                                                f:r{ { ty:"fn", id:$2, args:$$4, statements:$7 } }
 
 
-<> var_declaration > \var assignment_expression(+\, ) asi                         
+<> var_declaration > var_expression  asi                         
+                                                                                f:r{ { ty:"var", assignments:$1 } }
+
+<> var_expression > \var assignment_expression(+\, )
                                                                                 f:r{ { ty:"var", assignments:$2 } }
-
 
 <> expression_list > expression(+\, )
 
@@ -68,7 +71,7 @@
 <> id > g:id                                                                    f:r{ { ty:"id", val:$1 } }
 
 
-<> asi > ( \; | ?={ | ?=g:nl | ?=$eof )
+<> asi > \; | ?={ | ?=g:nl | ?=$eof
 
 <> comments > \/* ( g:ws | g:nl | g:id | g:num | g:sym )(*) \*/
     | \// ( g:ws | g:id | g:num | g:sym )(*) g:nl
