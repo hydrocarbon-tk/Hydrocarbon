@@ -54,6 +54,11 @@ export function renderItemReduction(
 function getProductionPassthroughInformation(production_id: number, grammar: Grammar): {
     IS_PASSTHROUGH: boolean; first_non_passthrough: number; passthrough_chain: number[];
 } {
+    return {
+        IS_PASSTHROUGH: false,
+        first_non_passthrough: production_id,
+        passthrough_chain: []
+    };
     const production = grammar[production_id];
 
     const IS_PASSTHROUGH = production.bodies.length == 1
