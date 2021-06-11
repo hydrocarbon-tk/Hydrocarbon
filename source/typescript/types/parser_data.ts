@@ -20,12 +20,13 @@ export interface ParserData {
 }
 export interface ForkData {
     ptr?: number;
-    command_length;
+    command_length: number;
     failed: boolean;
     valid: boolean;
     byte_offset: number;
     byte_length: number;
     line: number;
+    last_production: number
 }
 
 export interface RecognizeInitializer {

@@ -5,9 +5,9 @@ import {
     convertListProductions,
     createItemMaps,
     createJSFunctionsFromExpressions,
-    createUniqueSymbolSet,
-    integrateImportedGrammars
+    createUniqueSymbolSet
 } from "./compile_grammar.js";
+import { integrateImportedGrammars } from "./import.js";
 import {
     loadGrammarFromFile,
     loadGrammarFromString

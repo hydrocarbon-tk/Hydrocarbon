@@ -3,6 +3,7 @@
  * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
  * disclaimer notice.
  */
+import { HCGParser } from "@candlelib/hydrocarbon/build/types/types/parser";
 import spark from "@candlelib/spark";
 import fs from "fs";
 import { createDispatchTemplate, renderSkribbleRecognizer } from "../render/skribble_recognizer_template.js";
@@ -40,7 +41,7 @@ export async function compile(grammar: Grammar, env: GrammarParserEnvironment, o
 
 export async function compileRecognizer(
     grammar: HCG3Grammar,
-    number_of_workers: 1,
+    number_of_workers: number = 1,
     ADD_ANNOTATIONS: boolean = false
 ):
     Promise<{
@@ -59,26 +60,6 @@ export async function compileRecognizer(
     return {
         recognizer_functions: mt_code_compiler.functions,
         meta: runner
-    };
-}
-
-
-export function buildJSParserStrings(
-    grammar: HCG3Grammar,
-    recognizer_functions: RDProductionFunction[],
-    meta: Helper
-): {
-    recognizer_script: string,
-    completer_script: string;
-} {
-    const recognizer_code = compileRecognizerSource(meta, grammar, recognizer_functions);
-
-    const recognizer_script = skRenderAsJavaScript(recognizer_code);
-
-    const completer_script = renderJavaScriptReduceFunctionLookupArray(grammar);
-
-    return {
-        recognizer_script, completer_script
     };
 }
 
@@ -134,7 +115,44 @@ export async function writeJSParserToFile(
     return false;
 }
 
-export function createAddHocParser(grammar: HCG3Grammar, recognizer_script: string, completer_script: string) {
+export function buildJSParserStrings(
+    grammar: HCG3Grammar,
+    recognizer_functions: RDProductionFunction[],
+    meta: Helper
+): {
+    recognizer_script: string,
+    completer_script: string;
+} {
+    const recognizer_code = compileRecognizerSource(meta, grammar, recognizer_functions);
+
+    const recognizer_script = skRenderAsJavaScript(recognizer_code);
+
+    const completer_script = renderJavaScriptReduceFunctionLookupArray(grammar);
+
+    return {
+        recognizer_script, completer_script
+    };
+}
+
+/**
+ * Constructs a JavaScript based parser from a grammar, and optionally recognizer and completer strings. 
+ * If the recognizer or completer string is empty, then these strings will be compiled before the parser
+ * function is created.
+ * @param grammar 
+ * @param recognizer_script 
+ * @param completer_script 
+ * @returns 
+ */
+export async function createAddHocParser<T = any>(
+    grammar: HCG3Grammar,
+    recognizer_script: string = "",
+    completer_script: string = ""
+): Promise<HCGParser<T>> {
+
+    if (!recognizer_script || !completer_script) {
+        const { meta, recognizer_functions } = await compileRecognizer(grammar, 2);
+        ({ recognizer_script, completer_script } = buildJSParserStrings(grammar, recognizer_functions, meta));
+    }
 
     const parser_string = `
     const recognizer_initializer = (()=>{
@@ -161,7 +179,7 @@ export function createAddHocParser(grammar: HCG3Grammar, recognizer_script: stri
     `;
 
 
-    return new Function("ParserFactory", parser_string)(ParserFactory);
+    return new Function("ParserFactory", parser_string)(ParserFactory).parser;
 }
 
 function compileRecognizerSource(runner: Helper, grammar: HCG3Grammar, recognizer_functions: RDProductionFunction[]) {

@@ -97,12 +97,12 @@ export function translateSymbolValueSk(sym: TokenSymbol, grammar: HCG3Grammar, l
         return <SKExpression>sk`${lex_name}.END(data)`;
     const USE_UNICODE = "true";
     switch (sym.type) {
-        case SymbolType.PRODUCTION_ASSERTION_FUNCTION:
-            if (sym.DOES_SHIFT)
-                return <SKExpression>sk`${getAssertionFunctionNameSk(sym.val)}(${lex_name})`;
-            else
-                return <SKExpression>sk`${getAssertionFunctionNameSk(sym.val)}(${lex_name})`;
-
+        //case SymbolType.PRODUCTION_ASSERTION_FUNCTION:
+        //    if (sym.DOES_SHIFT)
+        //        return <SKExpression>sk`${getAssertionFunctionNameSk(sym.val)}(${lex_name})`;
+        //    else
+        //        return <SKExpression>sk`${getAssertionFunctionNameSk(sym.val)}(${lex_name})`;
+        //
         case SymbolType.GENERATED:
             switch (sym.val) {
                 case "ws": return <SKExpression>sk`${lex_name}.isSP(${USE_UNICODE}, data)`;
@@ -311,15 +311,18 @@ export function createNonCaptureBooleanCheckSk(symbols: TokenSymbol[], options: 
                 getIncludeBooleansSk(symbols.map(sym => Object.assign({}, sym, { IS_NON_CAPTURE: false })), options, "l", ambient_symbols),
 
             token_function = <SKFunction>sk`
-                fn temp:bool(l:Lexer){
+                fn temp:bool(l:Lexer, data:Data){
                     [const] a:u32 = l.token_length;
                     [const] b:u32 = l.byte_length;
 
                     if (${boolean}): {
-                        l.token_length = a;
-                        l.byte_length = b;
+                        l.token_length = 0;
+                        l.byte_length = 0;
                         return : true;
-                    }
+                    };
+
+                    l.token_length = a;
+                    l.byte_length = b;
 
                     return : false;
                 }
@@ -344,6 +347,12 @@ export function createSymbolMappingFunctionSk(
     default_return_value: string = "-1"
 ): SKReference {
     const symbols = symbol_mappings.map(([, s]) => s);
+    const empty = symbol_mappings.filter(([i, s]) => s.type == "empty")[0];
+
+    if (empty)
+        default_return_value = "l.setToken( TokenSymbol, 0, 0 ); return:" + empty[0];
+    else
+        default_return_value = "return:" + default_return_value;
 
     let fn_ref;// = getGlobalObject("sym_map", symbols, options.helper);
 
@@ -353,7 +362,7 @@ export function createSymbolMappingFunctionSk(
             { grammar, helper: runner } = options,
 
             defined_symbol_mappings: [number, DefinedSymbol][]
-                = <[number, DefinedSymbol][]>symbol_mappings.filter(([, sym]) => Sym_Is_Defined(sym)),
+                = <[number, DefinedSymbol][]>symbol_mappings.filter(([, sym]) => Sym_Is_Defined(sym) && sym.type !== "empty"),
 
             generic_symbol_mappings: [number, TokenSymbol][]
                 = <[number, TokenSymbol][]>symbol_mappings.filter(([, sym]) => Sym_Is_A_Generic_Type(sym)),
@@ -627,7 +636,7 @@ export function getIncludeBooleansSk(
         const
             fn_name = createNonCaptureBooleanCheckSk(non_consume, options, ambient_symbols);
 
-        out_non_consume.push(<SKExpression>sk`${fn_name}(${lex_name}) /*${non_consume.map(sym => `[${sanitizeSymbolValForCommentSk(sym)}]`).join(" ")}*/`);
+        out_non_consume.push(<SKExpression>sk`${fn_name}(${lex_name}, data) /*${non_consume.map(sym => `[${sanitizeSymbolValForCommentSk(sym)}]`).join(" ")}*/`);
     }
 
     if (fn.length > 0)

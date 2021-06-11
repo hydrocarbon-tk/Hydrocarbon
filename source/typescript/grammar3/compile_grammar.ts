@@ -3,22 +3,29 @@ import { copy, experimentalConstructRenderers, experimentalRender, traverse } fr
 import { exp, JSNodeClass, JSNodeType, renderCompressed } from "@candlelib/js";
 import { EOF_SYM } from "../types/grammar.js";
 import {
-    HCG3EmptySymbol,
-    HCG3Function,
     HCG3Grammar,
-    HCG3GrammarNode,
-    HCG3GroupProduction,
-    HCG3ListProductionSymbol,
     HCG3Production,
-    HCG3ProductionSymbol,
     HCG3Symbol,
-    HCG3TokenPosition,
     HCGProductionBody
 } from "../types/grammar_nodes";
 import { createSequenceData } from "../utilities/grammar.js";
 import { buildItemMaps } from "../utilities/item_map.js";
 import { getUniqueSymbolName, Sym_Is_A_Production, Sym_Is_A_Production_Token } from "../utilities/symbol.js";
-import { hcg3_mappings } from "./mappings.js";
+import {
+    addBodyToProduction,
+    addSymbolToBody,
+    Body_Has_Reduce_Action,
+    copyBody,
+    createProduction,
+    createProductionBody,
+    createProductionSymbol,
+    registerProduction,
+    removeBodySymbol,
+    replaceAllBodySymbols,
+    replaceBodySymbol,
+    setBodyReduceExpressionAction, Sym_Is_Group_Production, Sym_Is_List_Production
+} from "./common.js";
+import { hcg3_mappings } from "./conflagrate_mappings.js";
 
 const renderers = experimentalConstructRenderers(hcg3_mappings);
 const render = (grammar_node) => experimentalRender(grammar_node, hcg3_mappings, renderers);
@@ -120,7 +127,6 @@ export function createItemMaps(grammar: HCG3Grammar) {
 
 
 }
-
 
 export function buildSequenceString(grammar: HCG3Grammar) {
     grammar.sequence_string = createSequenceData(grammar);
@@ -449,306 +455,4 @@ function processListSymbol(sym: any, body: HCGProductionBody, production: HCG3Pr
     }
 
     return false;
-}
-/**
- * Responsible discovering and collecting ALL imported modules.
- * Multiple references to the same module are resolved and import 
- * names are unified
- */
-export async function integrateImportedGrammars(grammar: HCG3Grammar, imports: Map<string, HCG3Grammar> = new Map) {
-    //pull imports from the input grammar metadata
-
-    // Unify grammar names
-    // - create a common name for every imported grammar
-    let i = 0;
-
-    const imported_productions = new Map();
-
-    // In primary grammar, find all import symbols. For each import symbol
-    // look in respective grammar file for symbol. Import the production into the 
-    // current grammar. Recurse into that production and import any production that have
-    // not yet been imported. Repeat until all imported production symbols have been handled
-
-    for (const production of grammar.productions)
-        integrateImportedProductions(grammar, grammar, production, imported_productions);
-
-    // Now remove merge productions and insert their bodies into the imported production. 
-    // If the import does not exists, then the merge production is discarded
-    for (const grmmr of [grammar, ...grammar.imported_grammars.map(g => g.grammar)])
-        for (const { node: production, meta: { mutate } } of traverse(grmmr, "productions").makeMutable())
-            if (production.type == "production-import") {
-
-                const imported = getImportedGrammarFromReference(grmmr, production.name.module);
-
-                const name = imported.grammar.common_import_name + "__" + production.name.production;
-
-                if (imported_productions.has(name)) {
-
-                    //Integrate the production 
-                    integrateImportedGrammars(grammar, grmmr, production, imported_productions);
-
-                    //And merge the production body into the target production
-                    imported_productions.get(name).bodies = [...production.bodies];
-                }
-
-            } else if (production.type == "production-merged-import") {
-
-                const imported = getImportedGrammarFromReference(grmmr, production.name.module);
-
-                const name = imported.grammar.common_import_name + "__" + production.name.production;
-
-                if (imported_productions.has(name)) {
-
-                    //Integrate the production 
-                    integrateImportedGrammars(grammar, grmmr, production, imported_productions);
-
-                    //And merge the production body into the target production
-                    imported_productions.get(name).bodies.push(...production.bodies);
-
-                    mutate(null);
-                }
-            }
-
-}
-
-function integrateImportedProductions(root_grammar: HCG3Grammar, local_grammar: HCG3Grammar, production: HCG3Production, imported_productions: Map<any, any>) {
-    for (const body of production.bodies)
-        processImportedBody(body, root_grammar, local_grammar, imported_productions);
-}
-
-function processImportedBody(body: HCGProductionBody, root_grammar: HCG3Grammar, local_grammar: HCG3Grammar, imported_productions: Map<any, any>) {
-    for (const { node: sym, meta: { mutate } } of traverse(body, "sym").makeMutable()) {
-
-        if (root_grammar != local_grammar) {
-            processForeignSymbol(sym, local_grammar, imported_productions, root_grammar);
-        }
-
-        if (sym.type == "sym-production-import") {
-            const imported = getImportedGrammarFromReference(local_grammar, sym.module);
-
-            //Convert symbol to a local name
-            //Find the production that is referenced in the grammar
-            const prd = getProductionByName(imported.grammar, sym.production);
-            const name = imported.grammar.common_import_name + "__" + prd.name;
-
-
-            const prod = createProductionSymbol(name, sym.IS_OPTIONAL || false, sym);
-
-            mutate(prod);
-
-            if (imported_productions.has(name)) {
-            } else {
-
-                //copy production and convert the copies name to a local name 
-                const cp = copy(prd);
-                cp.name = name;
-
-                imported_productions.set(name, cp);
-                root_grammar.productions.push(cp);
-
-                integrateImportedProductions(root_grammar, imported.grammar, cp, imported_productions);
-            }
-        }
-    }
-}
-
-function processForeignSymbol(sym: HCG3Symbol, local_grammar: HCG3Grammar, imported_productions: Map<any, any>, root_grammar: HCG3Grammar) {
-
-    if (sym.type == "list-production") {
-
-        const list_sym = sym.val;
-
-        processForeignSymbol(<any>list_sym, local_grammar, imported_productions, root_grammar);
-
-    } else if (sym.type == "group-production") {
-
-        for (const body of sym.val)
-            processImportedBody(body, root_grammar, local_grammar, imported_productions);
-
-    } else if (sym.type == "sym-production" || sym.type == "production_token") {
-
-        const original_name = sym.name;
-
-        const name = local_grammar.common_import_name + "__" + original_name;
-
-        sym.name = name;
-
-        if (imported_productions.has(name)) {
-        } else {
-
-            const prd = getProductionByName(local_grammar, original_name);
-
-            if (prd) {
-                const cp = copy(prd);
-                cp.name = name;
-                imported_productions.set(name, cp);
-                root_grammar.productions.push(cp);
-                integrateImportedProductions(root_grammar, local_grammar, cp, imported_productions);
-            }
-        }
-    }
-}
-
-function getImportedGrammarFromReference(local_grammar: HCG3Grammar, module_name: string) {
-    return local_grammar.imported_grammars.filter(g => g.reference == module_name)[0];
-}
-
-function registerProduction(grammar: HCG3Grammar, hash_string, production: HCG3Production): HCG3Production {
-
-    if (!grammar.production_hash_lookup)
-        grammar.production_hash_lookup = new Map;
-
-    if (grammar.production_hash_lookup.has(hash_string))
-        return grammar.production_hash_lookup.get(hash_string);
-
-    grammar.production_hash_lookup.set(hash_string, production);
-
-    addProductionToGrammar(grammar, production);
-
-    return production;
-}
-
-function getProductionByName(grammar: HCG3Grammar, name: string): HCG3Production {
-    if (grammar.productions.some(p => p.name == name))
-        return grammar.productions.filter(p => p.name == name)[0];
-
-    return null;
-}
-function Body_Has_Reduce_Action(body: HCGProductionBody) {
-
-    return body.reduce_function != null;
-
-}
-
-
-function copyBody(body: HCGProductionBody) {
-    return copy(body);
-}
-
-function replaceBodySymbol(body: HCGProductionBody, index: number, ...symbols: HCG3Symbol[]) {
-    // Extend index values after the first body 
-    const extension_count = symbols.length;
-
-    if (extension_count > 1 && Body_Has_Reduce_Action(body)) {
-        body.reduce_function.txt = body.reduce_function.txt.replace(/\$(\d+)/g, (m, p1) => {
-            const val = parseInt(p1);
-            if (val > index)
-                return "$" + (val + extension_count);
-            return m;
-        });
-    }
-
-    body.sym.splice(index, 1, ...symbols);
-
-    if (body.sym.length == 0)
-        body.sym.push(createEmptySymbol());
-}
-
-function removeBodySymbol(body: HCGProductionBody, index: number) {
-    // Extend index values after the first body 
-
-    if (Body_Has_Reduce_Action(body)) {
-        body.reduce_function.txt = body.reduce_function.txt.replace(/\$(\d+)/g, (m, p1) => {
-            const val = parseInt(p1);
-            if (val > index + 1)
-                return "$" + (val - 1);
-            if (val == index + 1)
-                return "\$NULL";
-            return m;
-        });
-    }
-
-    body.sym.splice(index, 1);
-
-    if (body.sym.length == 0)
-        body.sym.push(createEmptySymbol());
-}
-
-
-function setBodyReduceExpressionAction(body: HCGProductionBody, reduce_function_string: string) {
-
-    const function_node: HCG3Function = {
-        type: "RETURNED",
-        txt: reduce_function_string
-    };
-
-    body.reduce_function = function_node;
-}
-
-function replaceAllBodySymbols(body: HCGProductionBody, ...symbols: HCG3Symbol[]) {
-    body.sym = [...symbols];
-}
-
-function addSymbolToBody(new_production_body: HCGProductionBody, sym: HCG3ListProductionSymbol) {
-    new_production_body.sym.push(sym);
-}
-
-function addBodyToProduction(new_production: HCG3Production, new_production_body: HCGProductionBody) {
-    new_production.bodies.push(new_production_body);
-}
-
-function addProductionToGrammar(grammar: HCG3Grammar, new_production: HCG3Production) {
-    grammar.productions.push(new_production);
-}
-
-function Sym_Is_List_Production(sym: any): sym is HCG3ListProductionSymbol {
-    return sym.type && (<HCG3ListProductionSymbol>sym).type == "list-production";
-}
-
-function Sym_Is_Group_Production(sym: any): sym is HCG3GroupProduction {
-    return sym.type && (<HCG3GroupProduction>sym).type == "group-production";
-}
-
-function createProductionSymbol(name: string, IS_OPTIONAL: boolean = false, mapped_sym: HCG3GrammarNode = null): HCG3ProductionSymbol {
-    return {
-        type: 'sym-production',
-        val: -1,
-        name: name,
-        IS_NON_CAPTURE: false,
-        IS_OPTIONAL: IS_OPTIONAL,
-        pos: mapped_sym?.pos ?? createZeroedPosition()
-    };
-}
-
-function createEmptySymbol(): HCG3EmptySymbol {
-    return {
-        type: 'empty',
-        val: "",
-        byte_length: 0,
-        byte_offset: 0,
-        IS_NON_CAPTURE: false,
-        IS_OPTIONAL: false,
-        pos: createZeroedPosition()
-    };
-}
-
-function createZeroedPosition(): HCG3TokenPosition {
-    return {
-        column: 0,
-        length: 0,
-        line: 0,
-        offset: 0
-    };
-}
-
-function createProduction(name: string, mapped_sym: HCG3GrammarNode = null): HCG3Production {
-    return {
-        type: "production",
-        name: name,
-        bodies: [],
-        id: -1,
-        recovery_handler: null,
-        pos: mapped_sym?.pos ?? createZeroedPosition(),
-    };
-}
-
-function createProductionBody(mapped_sym: HCG3GrammarNode = null): HCGProductionBody {
-    return {
-        type: "body",
-        FORCE_FORK: false,
-        id: -1,
-        sym: [],
-        pos: mapped_sym?.pos ?? createZeroedPosition(),
-        reduce_function: null,
-    };
 }
