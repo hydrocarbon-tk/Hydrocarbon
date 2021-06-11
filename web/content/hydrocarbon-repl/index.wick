@@ -1,0 +1,8 @@
+import template from "../../index.wick"
+
+var e = "test"
+
+export default <template>
+    test
+    <mango slot="test">My shierrona ${e}</mango>
+</template>

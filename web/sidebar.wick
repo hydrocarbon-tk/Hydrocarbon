@@ -1,0 +1,29 @@
+<sidebar>
+    <style>
+        root {
+            flex-shrink:0;
+            width:150px;
+            padding-top:80px;
+            bottom:0px;
+        }
+    </style>
+    <ul>
+        <h6>Core</h6>
+        <li>Wick</li>
+        <li>Lantern</li>
+        <li>Flame</li>
+        <li>Cure</li>
+        <li>Hydrocarbon</li>
+        <li>Docs</li>
+    </ul>
+
+     <ul>
+        <h6>Other</h6>
+        <li>JS</li>
+        <li>TS</li>
+        <li>CSS</li>
+        <li>Conflagrate</li>
+        <li>Taper</li>
+        <li>Wind</li>
+    </ul>
+</sidebar>

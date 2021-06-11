@@ -1,0 +1,7 @@
+import template from "../index.html"
+
+var e = "mango"
+
+export default <template>
+<span slot="test">Test ${e}<span>
+</template>
