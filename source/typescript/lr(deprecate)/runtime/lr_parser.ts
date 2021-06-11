@@ -89,7 +89,7 @@ const MAX_CYCLES = 50000000,
 
 /**
     Parses an input. Returns an object with parse results and an error flag if parse could not complete.
-    @param l: Lexer - lexer object with an interface defined in candlefw/wind.
+    @param l: Lexer - lexer object with an interface defined in CandleLibrary/wind.
     @param data: parser data that includes the look up tables and built in parse action functions.
     @param enviro: Environment object containing user defined parse action functions.
     ```js
@@ -536,7 +536,7 @@ interface DebugInfo {
 
 /**
     Parses an input. Returns an object with parse results and an error flag if parse could not complete.
-    @param lex: Lexer - lexer object with an interface defined in candlefw/wind.
+    @param lex: Lexer - lexer object with an interface defined in CandleLibrary/wind.
     @param data: parser data that includes the look up tables and built in parse action functions.
     @param environment: Environment object containing user defined parse action functions.
     @param debug_info: Optional State and Grammar data exported alongside parser data
