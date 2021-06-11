@@ -63,6 +63,7 @@ export function createUniqueSymbolSet(grammar: HCG3Grammar) {
             body.length = body.sym.length;
 
             body.reset = new Map;
+            
             body.excludes = new Map;
 
             if (body.reduce_function) {
@@ -102,6 +103,7 @@ export function createUniqueSymbolSet(grammar: HCG3Grammar) {
     });
 
     for (const ignore of grammar.meta.ignore) {
+
         for (const sym of ignore.symbols) {
             if (Sym_Is_A_Production(sym) || Sym_Is_A_Production_Token(sym)) {
                 sym.val = production_lookup.get(sym.name)?.id;

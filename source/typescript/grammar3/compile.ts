@@ -6,7 +6,7 @@ import {
     createItemMaps,
     createJSFunctionsFromExpressions,
     createUniqueSymbolSet
-} from "./compile_grammar.js";
+} from "./optimize.js";
 import { integrateImportedGrammars } from "./import.js";
 import {
     loadGrammarFromFile,
