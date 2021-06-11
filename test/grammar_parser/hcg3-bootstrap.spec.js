@@ -172,7 +172,8 @@ assert_group(
 
         let SUCCESS = await writeJSParserToFile(
             URI.resolveRelative("./source/typescript/grammar3/hcg3_parser.staged.js") + "",
-            bootstrapped_compiled_grammar, bootstrapped_recognizer_functions, bootstrapped_meta
+            bootstrapped_compiled_grammar, bootstrapped_recognizer_functions, bootstrapped_meta,
+            "../runtime/parser_loader.js"
         );
 
         assert(SUCCESS == true);

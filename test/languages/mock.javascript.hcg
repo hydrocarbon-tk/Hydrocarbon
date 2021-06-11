@@ -4,7 +4,7 @@
 @IGNORE g:ws g:nl tk:comments
 
 
-<> javascript > statements                                                          f:r{ { ty:"js", stmts:$sym1 } }
+<> javascript > statements                                                          f:r{ { ty:"js", stmts:$1 } }
 
 
 <> statements > ( statement | declaration )(+)
@@ -25,10 +25,10 @@
     | \return expression asi
 
 
-<> block_statement > { statements }                                               f:r{ { ty:"block", statements:$sym2 } }
+<> block_statement > { statements }                                               f:r{ { ty:"block", statements:$2 } }
 
 
-<> expression_statement > expression_list asi                                     f:r{ { ty:"expression_statement", exprs:$sym1 } }
+<> expression_statement > expression_list asi                                     f:r{ { ty:"expression_statement", exprs:$1 } }
 
 
 <> declaration > function_declaration
@@ -39,7 +39,7 @@
 
 
 <> var_declaration > \var assignment_expression(+\, ) asi                         
-                                                                                f:r{ { ty:"var", assignments:$sym2 } }
+                                                                                f:r{ { ty:"var", assignments:$2 } }
 
 
 <> expression_list > expression(+\, )
@@ -49,23 +49,23 @@
     | assignment_expression
 
 
-<> assignment_expression > id = expression                                        
-                                                                                f:r{ { ty: "assignment", left:$sym1, right:$sym3 } }
+<> assignment_expression > id \= expression                                        
+                                                                                f:r{ { ty: "assignment", left:$1, right:$3 } }
 
 <> additive_expression > multiplicative_expression ( \+ | \- ) additive_expression   
-                                                                                f:r{ { ty: $sym2 == "+" ?  "add" : "sub", left:$sym1, right:$sym3 } }
+                                                                                f:r{ { ty: $2 == "+" ?  "add" : "sub", left:$1, right:$3 } }
     | multiplicative_expression
 
 <> multiplicative_expression > unary_expression ( \* | \/ ) multiplicative_expression
-                                                                                f:r{ { ty: $sym2 == "*" ?  "mul" : "div", left:$sym1, right:$sym3 } }
+                                                                                f:r{ { ty: $2 == "*" ?  "mul" : "div", left:$1, right:$3 } }
     | unary_expression
 
 
-<> unary_expression > g:num                                                     f:r{ { ty:"num", val:$sym1 } }
+<> unary_expression > g:num                                                     f:r{ { ty:"num", val:$1 } }
     | id
-    | \( expression \)                                                          f:r{ { ty:"parenthesized", val:$sym2 } }
+    | \( expression \)                                                          f:r{ { ty:"parenthesized", val:$2 } }
 
-<> id > g:id                                                                    f:r{ { ty:"id", val:$sym1 } }
+<> id > g:id                                                                    f:r{ { ty:"id", val:$1 } }
 
 
 <> asi > ( \; | ?={ | ?=g:nl | ?=$eof )

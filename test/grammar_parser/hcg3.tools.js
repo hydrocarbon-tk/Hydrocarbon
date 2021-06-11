@@ -1,5 +1,6 @@
 import URL from "@candlelib/uri";
-import { adHocParse, compile } from "../../build/library/compiler/compiler.js";
+import { compile } from "../../build/library/compiler/compiler.js";
+import { adHocParse } from "../../build/library/compiler/adHocParse.js";
 import { getGrammar } from "../tools.js";
 
 let PARSER = null;
@@ -8,7 +9,6 @@ let PARSER = null;
  * @returns 
  */
 export async function getHCGParser() {
-
     if (PARSER) return PARSER;
 
     const uri = URL.resolveRelative("./source/grammars/hcg-3/hcg.hcg");
@@ -26,7 +26,7 @@ export async function getHCGParser() {
         combine_recognizer_and_completer: true,
         add_annotations: true,
         debug: false,
-        number_of_workers: 12
+        number_of_workers: 1
     });
 
     return (input_string, env = {}) => adHocParse(grammar, grammar_functions, runner, input_string, env);
