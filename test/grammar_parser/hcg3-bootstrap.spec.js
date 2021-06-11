@@ -9,13 +9,13 @@ import { buildJSParserStrings, compileRecognizer, createAddHocParser, writeJSPar
 import {
     compileGrammarFromURI
 } from "../../build/library/grammar3/compile.js";
-import { getHCGParser } from "./hcg3.tools.js";
+//import { getHCGParser } from "./hcg3.tools.js";
 
 await URI.server();
 
 const
     hcg_grammar_file = URI.resolveRelative("./source/grammars/hcg-3-alpha/hcg.hcg"),
-    default_parser = await getHCGParser();
+    default_parser = undefined; /*await getHCGParser();*/
 
 //################################################################################################
 

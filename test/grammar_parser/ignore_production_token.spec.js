@@ -1,11 +1,10 @@
-import { compileHCGParser, compileGrammar } from "../tools.js";
-
+import {
+    compileGrammarFromString
+} from "../../build/library/grammar3/compile.js";
+import {
+    createAddHocParser
+} from "../../build/library/compiler/compiler.js";
 assert_group(sequence, 10000, () => {
-
-    //Construct A HCG parser
-    const HCGparser = await compileHCGParser(true);
-
-    assert("Construct HCG Parser", HCGparser != undefined);
 
     const test_grammar_string =
         `@IGNORE g:ws tk:comment
@@ -17,11 +16,11 @@ assert_group(sequence, 10000, () => {
         <> comment > \\/* ( g:ws | g:nl | g:id | g:num | g:sym )(*) \\*/
         `;
 
-    const test_grammar = await HCGparser(test_grammar_string);
+    const test_grammar = await compileGrammarFromString(test_grammar_string);
 
     assert("Construct test grammar", test_grammar != undefined);
 
-    const test_parser = await compileGrammar(test_grammar);
+    const test_parser = await createAddHocParser(test_grammar);
 
     assert("Construct test parser", test_parser != undefined);
 

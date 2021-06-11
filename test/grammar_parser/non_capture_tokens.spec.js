@@ -1,27 +1,28 @@
-import { compileHCGParser, compileGrammar } from "../tools.js";
-
+import {
+    compileGrammarFromString
+} from "../../build/library/grammar3/compile.js";
+import {
+    createAddHocParser
+} from "../../build/library/compiler/compiler.js";
 assert_group(sequence, 10000, () => {
-
-    //Construct A HCG parser
-    const HCGparser = await compileHCGParser(false, true);
 
     const test_grammar_string =
         `@IGNORE g:ws g:nl
 
         <> start > datas
         
-        <> datas >  data                        f:r { [$sym1] }
-                 |  datas ( ?=g:nl | ; | ?={ ) data  f:r { $sym1.concat($sym3) }
+        <> datas >  data                        f:r { [$1] }
+                 |  datas ( ?=g:nl | ; | ?={ ) data  f:r { $1.concat($3) }
         
         <> data > g:id
-                | \\{ g:id \\}                  f:r { { type:"brackets", v:$sym2 } }
+                | \\{ g:id \\}                  f:r { { type:"brackets", v:$2 } }
         `;
 
-    const test_grammar = await HCGparser(test_grammar_string);
+    const test_grammar = await compileGrammarFromString(test_grammar_string);
 
     assert("Construct test grammar", test_grammar != undefined);
 
-    const test_parser = await compileGrammar(test_grammar);
+    const test_parser = await createAddHocParser(test_grammar);
 
     assert("Construct test parser", test_parser != undefined);
 
