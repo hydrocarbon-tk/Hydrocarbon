@@ -1,8 +1,7 @@
 
 import { copy, experimentalConstructRenderers, experimentalRender, traverse } from "@candlelib/conflagrate";
-import { EOF_SYM } from "../types/grammar.js";
 import { exp, JSNodeClass, JSNodeType, renderCompressed } from "@candlelib/js";
-import URI from "@candlelib/uri";
+import { EOF_SYM } from "../types/grammar.js";
 import {
     HCG3EmptySymbol,
     HCG3Function,
@@ -20,48 +19,10 @@ import { createSequenceData } from "../utilities/grammar.js";
 import { buildItemMaps } from "../utilities/item_map.js";
 import { getUniqueSymbolName, Sym_Is_A_Production, Sym_Is_A_Production_Token } from "../utilities/symbol.js";
 import { hcg3_mappings } from "./mappings.js";
-import { default_map } from "../utilities/default_map.js";
-import parser from "./hcg3_parser.staged.js";
 
 const renderers = experimentalConstructRenderers(hcg3_mappings);
 const render = (grammar_node) => experimentalRender(grammar_node, hcg3_mappings, renderers);
-/**
- * Entry point to loading a grammar from a string
- * @param str 
- * @param grammar_parser 
- * @returns 
- */
-export function loadGrammarFromString(str: string, grammar_parser: any): HCG3Grammar {
-    const env = {};
 
-    return grammar_parser(str, {}).result[0];
-}
-
-/**
- * Merges imported into a single mono grammar 
- */
-export function getMonoGrammar(grammar: HCG3Grammar): HCG3Grammar {
-
-}
-
-export function convertToFullyQualifiedProductionNames(grammar: HCG3Grammar): HCG3Grammar {
-
-}
-
-export function createProductionLinks(grammar: HCG3Grammar): HCG3Grammar {
-    return grammar;
-}
-
-export function expandOptionals(grammar: HCG3Grammar): HCG3Grammar {
-
-    for (const production of grammar.productions) {
-
-        expandOptionalBody(production);
-    }
-
-
-    return grammar;
-}
 /**
  * Finds all unique symbols types amongst production and ignore symbols and
  * adds them to the grammar's meta.all_symbols Map, keyed by the result 
@@ -135,6 +96,10 @@ export function createUniqueSymbolSet(grammar: HCG3Grammar) {
 
     for (const ignore of grammar.meta.ignore) {
         for (const sym of ignore.symbols) {
+            if (Sym_Is_A_Production(sym) || Sym_Is_A_Production_Token(sym)) {
+                sym.val = production_lookup.get(sym.name)?.id;
+            }
+
             const unique_name = getUniqueSymbolName(sym);
 
             if (!unique_map.has(unique_name))
@@ -321,8 +286,8 @@ export function convertGroupProductions(grammar: HCG3Grammar): HCG3Grammar {
     return grammar;
 }
 
-export function convertListProductions(grammar: HCG3Grammar): HCG3Grammar {
 
+export function convertListProductions(grammar: HCG3Grammar): HCG3Grammar {
     for (const production of grammar.productions) {
 
         for (const body of production.bodies) {
@@ -649,26 +614,6 @@ function getProductionByName(grammar: HCG3Grammar, name: string): HCG3Production
 
     return null;
 }
-
-function getProductionByNameOrCreate(grammar: HCG3Grammar, name: string): HCG3Production {
-
-    const prod = getProductionByName(grammar, name);
-
-    if (prod) {
-
-        return prod;
-
-    } else {
-
-        const
-            new_production = createProduction(name);
-
-        addProductionToGrammar(grammar, new_production);
-
-        return new_production;
-    }
-}
-
 function Body_Has_Reduce_Action(body: HCGProductionBody) {
 
     return body.reduce_function != null;
@@ -804,100 +749,6 @@ function createProductionBody(mapped_sym: HCG3GrammarNode = null): HCGProduction
         id: -1,
         sym: [],
         pos: mapped_sym?.pos ?? createZeroedPosition(),
-        reduce: null,
+        reduce_function: null,
     };
-}
-
-/**
- * Entry point to loading a grammar file from a URI 
- */
-export async function loadGrammarFromFile(uri: URI, grammar_parser: any): Promise<HCG3Grammar> {
-
-    const existing_grammars: Map<string, HCG3Grammar> = new Map;
-
-    const grammar = await loadGrammar(uri, grammar_parser, existing_grammars);
-
-    existing_grammars.set("root", grammar);
-
-    for (const grammar of existing_grammars.values()) {
-
-        grammar.common_import_name = (new URI(grammar.URI)).filename.replace(/-/g, "_");
-
-        for (const imported_grammar of grammar.imported_grammars) {
-            imported_grammar.grammar = existing_grammars.get(imported_grammar.uri);
-        }
-    }
-
-    return grammar;
-};
-
-async function loadGrammar(uri: URI, grammar_parser: any = parser, existing_grammars: Map<string, HCG3Grammar>): Promise<HCG3Grammar> {
-    uri = getResolvedURI(uri);
-
-    const str = await uri.fetchText();
-
-    const grammar = loadGrammarFromString(str, grammar_parser);
-
-    grammar.URI = uri + "";
-
-    const import_locations = [];
-
-
-    //Load imported grammars
-    for (const preamble of grammar.preamble) {
-
-        if (preamble.type == "import") {
-
-            const location = getResolvedURI(new URI(preamble.uri), uri),
-                location_string = location + "";
-
-            preamble.full_uri = location_string;
-
-            grammar.imported_grammars.push({
-                uri: location_string,
-                grammar: null,
-                reference: preamble.reference
-            });
-
-            import_locations.push(location_string);
-
-            if (!existing_grammars.has(location_string)) {
-
-                // temporarily assign empty value until the import 
-                // can be completed
-                existing_grammars.set(location_string, null);
-
-                const import_grammar = await loadGrammar(location, grammar_parser, existing_grammars);
-
-                existing_grammars.set(location_string, import_grammar);
-
-            }
-        }
-    }
-
-    return grammar;
-}
-
-function getResolvedURI(uri: URI, source?: URI) {
-    uri = default_map[uri + ""] ?? uri;
-
-    if (uri.IS_RELATIVE)
-        uri = URI.resolveRelative(uri, source);
-    return uri;
-}
-
-/**
- * Loads grammar file from import nodes
- */
-export function importGrammarFile() { }
-
-export async function compileGrammar(grammar: HCG3Grammar) {
-    await integrateImportedGrammars(grammar);
-    convertListProductions(grammar);
-    createJSFunctionsFromExpressions(grammar);
-    createUniqueSymbolSet(grammar);
-    buildSequenceString(grammar);
-    createItemMaps(grammar);
-
-    return grammar;
 }

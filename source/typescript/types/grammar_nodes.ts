@@ -16,7 +16,6 @@ export interface HCG3PreambleNode extends HCG3GrammarNode { }
 export interface HCG3Function extends HCG3GrammarNode {
     type: "RETURNED",
     txt: string,
-
     js: string;
 }
 export interface HCG3Comment extends HCG3GrammarNode {
@@ -64,11 +63,8 @@ export interface HCGProductionBody extends HCG3GrammarNode {
     type: "body",
     sym: HCG3Symbol[];
     reduce_function?: HCG3Function;
-
-    js: string;
     FORCE_FORK: boolean;
     id: number;
-
     production?: HCG3Production;
 }
 
@@ -150,6 +146,9 @@ export interface HCG3EOFSymbol extends HCG3SymbolNode {
 export interface HCG3EmptySymbol extends HCG3SymbolNode {
     type: "empty";
     val: "";
+    byte_length: 0;
+
+    byte_offset: 0;
 }
 
 export interface HCG3GeneratedSymbol extends HCG3SymbolNode {

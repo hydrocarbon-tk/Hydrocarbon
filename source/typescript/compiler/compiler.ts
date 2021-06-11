@@ -4,6 +4,7 @@
  * disclaimer notice.
  */
 import spark from "@candlelib/spark";
+import fs from "fs";
 import { createDispatchTemplate, renderSkribbleRecognizer } from "../render/skribble_recognizer_template.js";
 import { ParserFactory } from "../runtime/parser_loader_alpha.js";
 import { skRenderAsJavaScript } from "../skribble/skribble.js";
@@ -14,8 +15,6 @@ import { HCG3Grammar } from "../types/grammar_nodes.js";
 import { RDProductionFunction } from "../types/rd_production_function.js";
 import { constructCompilerRunner, Helper } from "./helper.js";
 import { WorkerRunner } from "./workers/worker_runner.js";
-import fs from "fs";
-import URI from "@candlelib/uri";
 
 export async function compile(grammar: Grammar, env: GrammarParserEnvironment, options: HybridCompilerOptions):
     Promise<{
@@ -87,7 +86,8 @@ export async function writeJSParserToFile(
     file_path: string,
     grammar: HCG3Grammar,
     recognizer_functions: RDProductionFunction[],
-    meta: Helper
+    meta: Helper,
+    hydrocarbon_import_path: string = "@candlelib/hydrocarbon"
 ): Promise<boolean> {
 
     if (!file_path)
@@ -100,6 +100,8 @@ export async function writeJSParserToFile(
     const fsp = fs.promises;
 
     const file = `
+    import { ParserFactory } from "${hydrocarbon_import_path}";
+
     const recognizer_initializer = (()=>{
         ${recognizer_script};
         sequence_lookup = [${grammar.sequence_string.split("").map(s => s.charCodeAt(0)).join(",")}];
@@ -120,7 +122,7 @@ export async function writeJSParserToFile(
 
     const reduce_functions = ${completer_script};
 
-    return ParserFactory(reduce_functions, undefined, recognizer_initializer);
+    export default ParserFactory(reduce_functions, undefined, recognizer_initializer);
     `;
 
     try {

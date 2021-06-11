@@ -3,23 +3,12 @@
  * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
  * disclaimer notice.
  */
-import { loadWASM } from "./wasm_loader.js";
+import { Lexer } from "@candlelib/wind";
 import { ParserEnvironment } from "../runtime";
 import { HCGProductionFunction } from "../types/parser";
 import { RecognizeInitializer } from "../types/parser_data";
-import { initializeUTFLookupTable } from "./parser_memory_new.js";
-import { Lexer } from "@candlelib/wind";
-
-export type HCParser<T = any> = (str: string, env?: ParserEnvironment, production_id?: number) => {
-    result: T[];
-    FAILED: boolean;
-    action_length: number;
-    error_message: string;
-};
-
-export type ParserFactoryReturn<T = any> = {
-    parser: HCParser<T>;
-};
+import { initializeUTFLookupTableNew } from "./parser_memory_new.js";
+import { loadWASM } from "./wasm_loader.js";
 
 export function ParserFactory<T>(
 
@@ -28,11 +17,12 @@ export function ParserFactory<T>(
     wasm_binary_string?: string,
 
     js_recognizer_loader?: () => RecognizeInitializer,
-): ParserFactoryReturn<T> {
+) {
 
     let { recognizer, init_data, init_table, delete_data, get_fork_information, get_next_command_block }: RecognizeInitializer = <any>{};
 
     if (wasm_binary_string) {
+
         //decompress into buffer
         const out = new Uint8Array(wasm_binary_string.length >> 1);
 
@@ -46,7 +36,7 @@ export function ParserFactory<T>(
         ({ recognizer, init_data, init_table, delete_data, get_fork_information, get_next_command_block } = js_recognizer_loader());
     }
 
-    initializeUTFLookupTable(init_table());
+    initializeUTFLookupTableNew(init_table());
 
     const parser = function (str: string, env: ParserEnvironment = {}, production_id = 0) {
 
@@ -59,7 +49,8 @@ export function ParserFactory<T>(
             data = init_data(str_buffer_size, rules_buffer_size, 512, 0),
             { input, rules, debug, error } = data,
             byte_length = fillByteBufferWithUTF8FromString(str, input, str_buffer_size);
-
+        1 + 1;
+        2 + 2;
         const
             fns = functions,
             FAILED = recognizer(data, byte_length, production_id), // call with pointers
@@ -80,9 +71,16 @@ export function ParserFactory<T>(
             let pos = [];
             let high = block[short_offset++];
 
+            if (short_offset > 63) {
+                get_next_command_block(fork);
+                short_offset = 0;
+            }
+
             if (fork.valid == false) {
 
                 const lex = new Lexer(str);
+
+                console.log(fork);
 
                 lex.off = fork.byte_offset;
                 lex.tl = fork.byte_length;
@@ -97,11 +95,6 @@ export function ParserFactory<T>(
                 lex.throw(`Unexpected token [${str.slice(lex.off, lex.off + lex.tl)}]`);
 
                 throw Error("Could not parse data");
-            }
-
-            if (short_offset > 63) {
-                get_next_command_block(fork);
-                short_offset = 0;
             }
 
             while (limit-- > 0) {
