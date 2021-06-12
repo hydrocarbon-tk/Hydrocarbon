@@ -1,5 +1,5 @@
 
-    import { ParserFactory } from "../runtime/parser_loader_alpha.js";
+    import { ParserFactoryNew as ParserFactory } from "../runtime/parser_loader_alpha.js";
 
     const recognizer_initializer = (()=>{
         var lookup_table = new Uint8Array( 382976 )
@@ -4057,7 +4057,7 @@ function dispatch(data, production_index){
             dispatch, 
             init_table,
             init_data, 
-            delete_data:()=>{},
+            delete_data:_=>_,
             recognizer,
             get_fork_information
         };
