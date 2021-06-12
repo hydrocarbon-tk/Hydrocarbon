@@ -46,7 +46,7 @@
 <> string > \" string_token  \"             f:r { $2 }
     | \' string_token   \'                  f:r { $2 }
 
-<> string_token > string_value(+)
+<> string_token > string_value(+\" )
 
 <> string_value >  ( g:num | g:id | g:sym | g:ws |  \\ ( g:num | g:id | g:sym | g:ws | g:nl ) ) (+\' )
 
