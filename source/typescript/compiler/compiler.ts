@@ -216,6 +216,6 @@ export function renderJavaScriptReduceFunctionLookupArray(grammar: HCG3Grammar):
         }
     }).join("\n,");
 
-    return `[(e,sym)=>sym[sym.length-1], ${reduce_functions_str}]`;
+    return `[(_,s)=>s[s.length-1], ${reduce_functions_str}]`;
 }
 

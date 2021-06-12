@@ -33,20 +33,25 @@ export function replaceBodySymbol(body: HCGProductionBody, index: number, ...sym
     // Extend index values after the first body 
     const extension_count = symbols.length;
 
-    if (extension_count > 1 && Body_Has_Reduce_Action(body)) {
-        body.reduce_function.txt = body.reduce_function.txt.replace(/\$(\d+)/g, (m, p1) => {
-            const val = parseInt(p1);
-            if (val > index)
-                return "$" + (val + extension_count);
-            return m;
-        });
-    }
+    offsetReduceFunctionSymRefs(body, index, extension_count - 1);
 
     body.sym.splice(index, 1, ...symbols);
 
     if (body.sym.length == 0)
         body.sym.push(createEmptySymbol());
 }
+export function offsetReduceFunctionSymRefs(body: HCGProductionBody, offset_start: number, offset_count: number) {
+
+    if (offset_count > 0 && Body_Has_Reduce_Action(body)) {
+        body.reduce_function.txt = body.reduce_function.txt.replace(/\$(\d+)/g, (m, p1) => {
+            const val = parseInt(p1);
+            if (val > offset_start)
+                return "$" + (val + offset_count);
+            return m;
+        });
+    }
+}
+
 export function removeBodySymbol(body: HCGProductionBody, index: number) {
     // Extend index values after the first body 
     if (Body_Has_Reduce_Action(body)) {

@@ -13,6 +13,7 @@ import { createSequenceData } from "../utilities/grammar.js";
 import { buildItemMaps } from "../utilities/item_map.js";
 import { getUniqueSymbolName, Sym_Is_A_Production, Sym_Is_A_Production_Token } from "../utilities/symbol.js";
 import {
+    offsetReduceFunctionSymRefs,
     addBodyToProduction,
     addSymbolToBody,
     Body_Has_Reduce_Action,
@@ -75,6 +76,8 @@ export function createUniqueSymbolSet(grammar: HCG3Grammar, errors: Error[] = []
                 }
 
                 body.reduce_id = reduce_lu.get(txt);
+            } else {
+                body.reduce_id = -1;
             }
 
             for (const sym of body.sym) {
@@ -233,7 +236,7 @@ export function convertListProductions(grammar: HCG3Grammar, error: Error[]): HC
 
     return grammar;
 }
-function processGroupSymbol(sym: any, body: HCG3Production, meta: any, production: HCG3Production, grammar: HCG3Grammar) {
+function processGroupSymbol(sym: any, body: HCGProductionBody, meta: any, production: HCG3Production, grammar: HCG3Grammar) {
 
 
     if (Sym_Is_Group_Production(sym)) {
@@ -251,7 +254,7 @@ function processGroupSymbol(sym: any, body: HCG3Production, meta: any, productio
 
         for (const group_body of sym.val) {
 
-            const new_body = (i == sym.val.length - 1) ? body : copyBody(body);
+            const new_body: HCGProductionBody = (i == sym.val.length - 1) ? body : copyBody(body);
 
             if (Body_Has_Reduce_Action(group_body)) {
 
@@ -270,9 +273,9 @@ function processGroupSymbol(sym: any, body: HCG3Production, meta: any, productio
                 const new_production_symbol = createProductionSymbol(new_production.name, sym.IS_OPTIONAL, sym);
 
 
-                if (new_body == body)
+                if (new_body == body) {
                     meta.mutate(new_production_symbol, true);
-                else
+                } else
                     replaceBodySymbol(new_body, meta.index, new_production_symbol);
 
             } else {
@@ -280,8 +283,11 @@ function processGroupSymbol(sym: any, body: HCG3Production, meta: any, productio
                 // production as new bodies. Script refs will need to updated to point to the correct
                 // symbol indexes after this process is completed. 
 
-                if (new_body == body)
+                if (new_body == body) {
+
+                    offsetReduceFunctionSymRefs(body, meta.index, group_body.sym.length - 1);
                     meta.mutate(group_body.sym, true);
+                }
                 else
                     replaceBodySymbol(new_body, meta.index, ...group_body.sym);
 
@@ -353,9 +359,6 @@ function processListSymbol(sym: any, body: HCGProductionBody, production: HCG3Pr
             addBodyToProduction(new_production, new_production_body);
 
             new_production = registerProduction(grammar, getProductionSignature(new_production), new_production);
-
-
-            console.log(new_production_name, getProductionSignature(new_production), new_production.name);
 
             const new_production_symbol = createProductionSymbol(new_production.name, sym.IS_OPTIONAL, sym);
 
