@@ -322,7 +322,7 @@ function processListSymbol(sym: any, body: HCGProductionBody, production: HCG3Pr
 
                 setBodyReduceExpressionAction(body, "[$101]");
 
-                setBodyReduceExpressionAction(new_production_body, "$1 .concat($101)");
+                setBodyReduceExpressionAction(new_production_body, "$1.push($101), $1");
             }
 
             //replaceAllBodySymbols(body, inner_symbol);
