@@ -10,6 +10,7 @@ import { default_map } from "../utilities/default_map.js";
  * @param grammar_parser
  * @returns
  */
+await URI.server();
 export function loadGrammarFromString(str: string, grammar_parser: HCGParser = loader.parser): HCG3Grammar {
     const a = grammar_parser(str);
 
@@ -19,11 +20,15 @@ export function loadGrammarFromString(str: string, grammar_parser: HCGParser = l
  * Entry point to loading a grammar file from a URI
  */
 
-export async function loadGrammarFromFile(uri: URI, grammar_parser: HCGParser = loader.parser): Promise<HCG3Grammar> {
+export async function loadGrammarFromFile(uri: URI | string, grammar_parser: HCGParser = loader.parser): Promise<HCG3Grammar> {
+
+    const uri_string = uri + "";
+
+    const internal_uri = new URI(uri_string);
 
     const existing_grammars: Map<string, HCG3Grammar> = new Map;
 
-    const grammar = await loadGrammar(uri, grammar_parser, existing_grammars);
+    const grammar = await loadGrammar(internal_uri, grammar_parser, existing_grammars);
 
     existing_grammars.set("root", grammar);
 
