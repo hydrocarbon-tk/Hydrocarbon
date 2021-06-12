@@ -78,7 +78,7 @@ export async function writeJSParserToFile(
         grammar, recognizer_functions, meta
     );
     const file = `
-    import { ParserFactory } from "${hydrocarbon_import_path}";
+    import { ParserFactoryNew as ParserFactory } from "${hydrocarbon_import_path}";
 
     const recognizer_initializer = (()=>{
         ${recognizer_script};
@@ -92,7 +92,7 @@ export async function writeJSParserToFile(
             dispatch, 
             init_table,
             init_data, 
-            delete_data:()=>{},
+            delete_data:_=>_,
             recognizer,
             get_fork_information
         };
@@ -164,7 +164,7 @@ export async function createAddHocParser<T = any>(
             dispatch, 
             init_table,
             init_data, 
-            delete_data:()=>{},
+            delete_data:_=>_,
             recognizer,
             get_fork_information
         };
