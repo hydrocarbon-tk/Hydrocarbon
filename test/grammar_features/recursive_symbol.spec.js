@@ -11,12 +11,10 @@ const parser = await compileGrammarSource(`
 <> B > g:id
 `);
 
-assert_group(10000, () => {
 
-    assert(parser("test, document").result[0] == ["test", "document"]);
-    assert(parser("test; document").result[0] == ["test", "document"]);
-    assert(parser("test").result[0] == ["test"]);
-    assert(parser("A;B,C").FAILED == true);
-    assert(parser("A;B;C").FAILED == false);
-    assert(parser("A,B,C").FAILED == false);
-});
+assert(parser("test, document").result[0] == ["test", "document"]);
+assert(parser("test; document").result[0] == ["test", "document"]);
+assert(parser("test").result[0] == ["test"]);
+assert(!parser("A;B,C"));
+assert(parser("A;B;C"));
+assert(parser("A,B,C"));
