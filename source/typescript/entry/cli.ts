@@ -1,93 +1,72 @@
+#!/usr/bin/env node
 /* 
  * Copyright (C) 2021 Anthony Weathersby - The Hydrocarbon Parser Compiler
  * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
  * disclaimer notice.
  */
-import spark from "@candlelib/spark";
+import {
+    addCLIConfig, processCLIConfig
+} from "@candlelib/paraffin";
 import URL from "@candlelib/uri";
-import { getProcessArgs, initWickCLI } from "@candlelib/paraffin";
+import { compileRecognizer, writeJSParserToFile } from "../compiler/compiler.js";
+import { compileGrammarFromURI } from "../grammar3/compile.js";
 
 await URL.server();
 
-interface arguments {
-    debug: boolean;
-}
+const out_dir = addCLIConfig("compile", {
+    key: "output_directory",
+    REQUIRES_VALUE: true,
+    help_brief: "Directory to write compiled parser files. Defaults to CWD",
+});
 
-const
-    args = getProcessArgs<arguments>({
-        debug: true
-    });
-const { wick } = await initWickCLI();
+const type = addCLIConfig("compile", {
+    key: "type",
+    REQUIRES_VALUE: true,
+    help_brief:
+        `
+Language in which to render the output parser
+May be one of: 
+    wasm 
+    c++  
+    js | javascript  
+    ts | typescripts 
+    as | assemblyscript`,
+});
 
-await wick.cli("next", `
-import {URL, exit} from "@model"
-var data = null, file_path = "", file_dir = "f";
+const number_of_workers = addCLIConfig("compile", {
+    key: "threads",
+    REQUIRES_VALUE: true,
+    help_brief: `Number of worker threads to use during compilation. Defaults to 1`,
+});
 
-function click (){
-    exit();
-}
+addCLIConfig("compile", {
+    key: "compile",
+    help_brief: `
+    Usage: compile <path_to_source_grammar>`
+}).callback = (async (args) => {
 
-function $test (){
-    file_dir = file_path +"AAAf";
-}
-
-<style>
-    root {  width:100%; background-color:black; color:white; }
-
-    h1 { padding-top:2px; width:100%; }
-
-    #caption{ color:orange }
-
-    #button{ color: red }
-
-</style>;
-
-export default<div>
-
-    <h1> NEXT PAGE <input id="button" type="button" onclick=\${click} placeholder="grammar_file_path"/></h1>
-</div>
-`);
-
-const start_view = await wick.cli("home", `
-
-import {URL, exit, loadView} from "@model"
-
-var data = null, file_path = "", file_dir = "f";
-
-function click (){ loadView("next"); }
-
-function $test (){
-    file_dir = file_path +"AAAf";
-}
-
-<style>
-    root {  width:100%; background-color:black; color:white; }
-
-    h1 { padding-top:2px; width:100%; }
-
-    #caption{ color:orange }
-
-    #button{ color: red }
-
-</style>;
-
-export default<div>
-
-    <h1>Candle Library Hydrocarbon <span id="caption"> Yet Another Parser Compiler </span> </h1>
-
-    <div>\${file_dir}</div>
-    
-    <label>Enter a grammar file path \${URL.resolveRelative(file_path)}</label>
-    
-    <input type="text" value=\${file_path} placeholder="grammar_file_path"/>
-
-    <input id="button" type="button" onclick=\${click} placeholder="grammar_file_path"/>
-</div>
-`);
+    const path = args.trailing_arguments.pop();
+    const file_path = URL.resolveRelative(path);
+    const output = URL.resolveRelative(out_dir.value || "./");
 
 
-start_view.start();
+    if (file_path.ext !== "hcg")
+        throw new Error("Expected source file to be a hydrocarbon grammar file (.hcg)");
 
-await spark.sleep(5000);
+    if (!output.filename)
+        output.path = output.path + "/" + file_path.filename + ".js";
 
-process.exit();
+    const threads = parseInt(number_of_workers.value ?? "1");
+
+    const grammar = await compileGrammarFromURI(file_path);
+
+    const { meta, recognizer_functions } = await compileRecognizer(grammar, threads);
+
+    switch (type.value) {
+        default:
+            await writeJSParserToFile(output + "", grammar, recognizer_functions, meta);
+
+    }
+});
+
+processCLIConfig();
