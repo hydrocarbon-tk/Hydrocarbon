@@ -68,7 +68,7 @@ const hcg3_mappings: NodeMappings<HCG3GrammarNode, "type"> = <NodeMappings<HCG3G
         },
         {
             type: "sym-production",
-            template: "@val"
+            template: "@name"
         },
         {
             type: "sym-production-import",
