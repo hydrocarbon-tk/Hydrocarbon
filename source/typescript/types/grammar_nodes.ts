@@ -92,6 +92,8 @@ export interface HCG3Grammar extends HCG3GrammarNode {
 
         symbol?: Map<string, HCG3Symbol>;
 
+        reduce_functions?: Map<any, string>;
+
     };
 
     /**
