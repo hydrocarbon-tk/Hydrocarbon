@@ -12,6 +12,7 @@ import {
     loadGrammarFromFile,
     loadGrammarFromString
 } from "./load.js";
+import { HCGParser } from "@candlelib/hydrocarbon/build/types/types/parser";
 
 
 class GrammarCompilationReport extends Error {
@@ -44,7 +45,7 @@ export async function compileGrammar(grammar: HCG3Grammar) {
 
 export async function compileGrammarFromString(
     string: string,
-    parser
+    parser?: HCGParser
 ) {
     const grammar = loadGrammarFromString(string, parser);
 
@@ -54,7 +55,7 @@ export async function compileGrammarFromString(
 
 export async function compileGrammarFromURI(
     uri: URI,
-    parser
+    parser?: HCGParser
 ) {
     const grammar = await loadGrammarFromFile(uri, parser);
 
