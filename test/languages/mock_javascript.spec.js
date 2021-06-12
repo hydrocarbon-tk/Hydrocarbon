@@ -1,6 +1,6 @@
 import URL from "@candlelib/uri";
 
-import { compileHCGParser, compileGrammar } from "../tools.js";
+import { compileHCGParser, compileGrammar, compileGrammarSource } from "../tools.js";
 
 assert_group(sequence, 10000, () => {
 
@@ -39,18 +39,9 @@ assert_group(sequence, 10000, () => {
         ]
     };
 
-    //Construct A HCG parser
-    const HCGparser = await compileHCGParser(true);
+    const mock_js_source = await(URL.resolveRelative("./test/languages/mock.javascript.hcg").fetchText());
 
-    assert("Construct HCG Parser", HCGparser != undefined);
-
-    const mock_js_source = await(URL.resolveRelative("./mock.javascript.hcg").fetchText());
-
-    const mock_js_grammar = await HCGparser(mock_js_source);
-
-    assert("Construct test grammar", mock_js_grammar != undefined);
-
-    const mock_js_parser = await compileGrammar(mock_js_grammar, true);
+    const mock_js_parser = await compileGrammarSource(mock_js_source, true);
 
     assert("Construct test parser", mock_js_parser != undefined);
 

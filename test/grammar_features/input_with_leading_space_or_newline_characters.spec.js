@@ -2,7 +2,7 @@ import { compileGrammarSource } from "../tools.js";
 
 assert_group(sequence, 10000, () => {
 
-    const grammar = `@IGNORE g:ws g:nl \n <> A > A g:id f:r{ $sym1 + " " + $sym2} \n | g:id`;
+    const grammar = `@IGNORE g:ws g:nl \n <> A > A g:id f:r{ $1 + " " + $2} \n | g:id`;
 
     const parser = await compileGrammarSource(grammar);
 

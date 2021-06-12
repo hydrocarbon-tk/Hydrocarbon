@@ -1,21 +1,17 @@
 import { assert } from "console";
-import { compileGrammar, compileHCGParser, getGrammar } from "../tools.js";
+import { compileGrammarSource } from "../tools.js";
 
-const HCGparser = await compileHCGParser(true);
 
-const grammar = await HCGparser(`
-    @IGNORE g:ws
 
-    <> A > C
-    <> C > (B)(+\\; )
-        |(B)(+\\, )
+const parser = await compileGrammarSource(`
+@IGNORE g:ws
 
-    <> B > g:id
-`, HCGparser);
+<> A > C
+<> C > (B)(+\\; ) | (B)(+\\, )
+<> B > g:id
+`);
 
-const parser = await compileGrammar(grammar);
-
-assert_group(sequence, 10000, () => {
+assert_group(10000, () => {
 
     assert(parser("test, document").result[0] == ["test", "document"]);
     assert(parser("test; document").result[0] == ["test", "document"]);

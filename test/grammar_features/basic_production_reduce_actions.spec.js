@@ -2,23 +2,23 @@ import { compileGrammarSource } from "../tools.js";
 
 const parserA = await compileGrammarSource(`<> start > t:simple f:r {"complex"}`);
 const parserB = await compileGrammarSource(
-       `@IGNORE g:ws \n <> start > d <> d > ( t:simple(*) ) f:r { { data:$sym1 } } `
+       `@IGNORE g:ws \n <> start > d <> d > ( t:simple(*) ) f:r { { data:$1 } } `
 );
 const parserC = await compileGrammarSource(`@IGNORE g:ws \n 
-    <> start > sum          f:r {  { result : $sym1 }  } 
-    <> sum > num + num      f:r {  $sym1 + $sym3  } 
-    <> num > g:num          f:r {  parseInt($sym1)  } 
+    <> start > sum          f:r {  { result : $1 }  } 
+    <> sum > num + num      f:r {  $1 + $3  } 
+    <> num > g:num          f:r {  parseInt($1)  } 
 `);
 const parserD = await compileGrammarSource(`@IGNORE g:ws \n 
-    <> start > sum                  f:r {  { result : $sym1 }  } 
-    <> sum > mul + sum              f:r {  $sym1 + $sym3  } 
+    <> start > sum                 f:r {  { result : $1 }  } 
+    <> sum > mul + sum             f:r {  $1 + $3  } 
            | mul
-    <> mul > fact * mul              f:r {  $sym1 * $sym3  } 
+    <> mul > fact * mul            f:r {  $1 * $3  } 
            | fact
-    <> fact > g:num (RST g:ws) \!   f:r {  (n=>{  let out = 1; for(let i = 1; i <= n; i++) out *= i; return out; })(parseInt($sym1))  } 
+    <> fact > g:num \!             f:r {  (n=>{  let out = 1; for(let i = 1; i <= n; i++) out *= i; return out; })(parseInt($1))  } 
            | num
-    <> num > \- (RST g:ws) g:num    f:r {  -1 * parseInt($sym2)  } 
-           | g:num                  f:r {  parseInt($sym1)  } 
+    <> num > \-  g:num             f:r {  -1 * parseInt($2)  } 
+           | g:num                 f:r {  parseInt($1)  } 
 `);
 
 assert(parserA("simple").result[0] == "complex");

@@ -40,7 +40,7 @@
 
 
 <> var_declaration > var_expression  asi                         
-                                                                                f:r{ { ty:"var", assignments:$1 } }
+                                                                                f:r{ $1 }
 
 <> var_expression > \var assignment_expression(+\, )
                                                                                 f:r{ { ty:"var", assignments:$2 } }
