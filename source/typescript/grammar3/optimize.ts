@@ -202,17 +202,19 @@ export function convertGroupProductions(grammar: HCG3Grammar): HCG3Grammar {
 
 
 export function convertListProductions(grammar: HCG3Grammar, error: Error[]): HCG3Grammar {
+    let index = 0;
     for (const production of grammar.productions) {
-
         for (const body of production.bodies) {
             for (const { node, meta } of traverse(body, "sym").skipRoot().makeMutable()) {
 
                 const sym: any = node;
 
-                if (!processListSymbol(sym, body, production, meta, grammar)) {
+                if (!processListSymbol(sym, body, production, meta, grammar, index)) {
 
                     processGroupSymbol(sym, body, meta, production, grammar);
                 }
+
+                index++;
             }
         }
 
@@ -295,7 +297,7 @@ function processGroupSymbol(sym: any, body: HCG3Production, meta: any, productio
     }
 }
 
-function processListSymbol(sym: any, body: HCGProductionBody, production: HCG3Production, meta: any, grammar: HCG3Grammar) {
+function processListSymbol(sym: any, body: HCGProductionBody, production: HCG3Production, meta: any, grammar: HCG3Grammar, index) {
     if (Sym_Is_List_Production(sym)) {
 
         if (body.sym.length == 1 && !Body_Has_Reduce_Action(body) && production.bodies.length == 1) {
@@ -342,7 +344,7 @@ function processListSymbol(sym: any, body: HCGProductionBody, production: HCG3Pr
             // a reference symbol to the new production. The new production will 
             // subsequently be converted.
             let
-                new_production_name = production.name + "_list_" + meta.index,
+                new_production_name = production.name + "_list_" + index,
                 new_production = createProduction(new_production_name, sym),
                 new_production_body = createProductionBody(sym);
 
