@@ -1,6 +1,5 @@
 
 import { copy, experimentalConstructRenderers, experimentalRender, traverse } from "@candlelib/conflagrate";
-import { exp, JSNodeClass, JSNodeType, renderCompressed } from "@candlelib/js";
 import { EOF_SYM } from "../types/grammar.js";
 import {
     HCG3Grammar,
@@ -147,111 +146,6 @@ export function buildSequenceString(grammar: HCG3Grammar) {
 }
 
 
-export function createJSFunctionsFromExpressions(grammar: HCG3Grammar, error) {
-    for (const production of grammar.productions) {
-        for (const body of production.bodies) {
-            if (body.reduce_function) {
-                const expression = exp(`(${body.reduce_function.txt.replace(/(\${1,2}\d+)/g, "$1_")})`);
-
-                const receiver = { ast: null };
-
-                for (const { node, meta: { replace } } of traverse(expression, "nodes")
-                    .bitFilter("type", JSNodeClass.IDENTIFIER)
-                    .makeReplaceable((
-                        parent,
-                        child,
-                        child_index,
-                        children,
-                        replaceParent
-                    ) => {
-                        if (child == null) {
-                            if (
-                                (parent.type &
-                                    (
-                                        JSNodeClass.UNARY_EXPRESSION
-                                        | JSNodeClass.TERNARY_EXPRESSION
-                                    )
-                                )
-                                || parent.type == JSNodeType.AssignmentExpression
-                                || parent.type == JSNodeType.PropertyBinding
-                                || parent.type == JSNodeType.VariableStatement
-                                || parent.type == JSNodeType.BindingExpression
-                                || parent.type == JSNodeType.MemberExpression
-                                || parent.type == JSNodeType.SpreadExpression
-                                || parent.type == JSNodeType.Parenthesized
-                                || parent.type == JSNodeType.ExpressionStatement
-                            )
-                                return null;
-
-                            if (parent.type == JSNodeType.Arguments && children.length <= 1) {
-                                replaceParent();
-                                return null;
-                            }
-
-                            if (parent.type == JSNodeType.CallExpression) {
-                                return null;
-                            }
-
-                            if (parent.type == JSNodeType.ExpressionList
-                                && child_index == 0
-                                && children.length <= 1) {
-                                return null;
-                            }
-
-                            if (parent.type & JSNodeClass.BINARY_EXPRESSION) {
-                                replaceParent();
-                                return children[1 - child_index];
-                            }
-                        }
-
-                        return parent ? Object.assign({}, parent) : null;
-                    })
-                    .extract(receiver)
-                ) {
-
-
-                    const
-                        value = <string>node.value,
-                        IS_REPLACE_SYM = value.slice(0, 1) == "$",
-                        IS_NULLIFY_SYM = value.slice(0, 2) == "$$";
-
-
-                    if (IS_NULLIFY_SYM || IS_REPLACE_SYM) {
-
-                        let index = parseInt(
-                            IS_NULLIFY_SYM ?
-                                value.slice(2) :
-                                value.slice(1)
-                        ) - 1;
-
-                        if (value == "$NULL" || value == "$$NULL") {
-
-                            if (IS_NULLIFY_SYM)
-                                replace(exp("null"));
-                            else
-                                replace(null, true);
-
-                        } else {
-                            if (index >= 100)
-                                index = body.sym.length - 1;
-                            replace(exp(`sym[${index}]`));
-                        }
-                    }
-                }
-
-                const js = renderCompressed(receiver.ast);
-
-                if (!js) {
-                    body.reduce_function = null;
-                } else {
-
-                    body.reduce_function.js = `(env, sym, pos)=>${js}`;
-                }
-            }
-        }
-    }
-}
-
 function expandOptionalBody(production: HCG3Production) {
     const processed_set = new Set();
 
@@ -278,14 +172,14 @@ function expandOptionalBody(production: HCG3Production) {
     }
 }
 
-export function getProductionHash(production: HCG3Production) {
+export function getProductionSignature(production: HCG3Production) {
 
-    const body_strings = production.bodies.map(getBodyHash).sort();
+    const body_strings = production.bodies.map(getBodySignature).sort();
 
     return body_strings.join("\n | ");
 }
 
-export function getBodyHash(body: HCGProductionBody) {
+export function getBodySignature(body: HCGProductionBody) {
 
     return render(body) || "$EMPTY";
 }
@@ -364,11 +258,12 @@ function processGroupSymbol(sym: any, body: HCG3Production, meta: any, productio
                 const
                     new_production_name = production.name + "_group_" + meta.index + "_" + i + "_";
 
+
                 let new_production = createProduction(new_production_name, sym);
 
                 addBodyToProduction(new_production, group_body);
 
-                new_production = registerProduction(grammar, getProductionHash(new_production), new_production);
+                new_production = registerProduction(grammar, getProductionSignature(new_production), new_production);
 
                 const new_production_symbol = createProductionSymbol(new_production.name, sym.IS_OPTIONAL, sym);
 
@@ -455,7 +350,10 @@ function processListSymbol(sym: any, body: HCGProductionBody, production: HCG3Pr
 
             addBodyToProduction(new_production, new_production_body);
 
-            new_production = registerProduction(grammar, getProductionHash(new_production), new_production);
+            new_production = registerProduction(grammar, getProductionSignature(new_production), new_production);
+
+
+            console.log(new_production_name, getProductionSignature(new_production), new_production.name);
 
             const new_production_symbol = createProductionSymbol(new_production.name, sym.IS_OPTIONAL, sym);
 
