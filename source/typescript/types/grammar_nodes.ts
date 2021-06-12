@@ -66,6 +66,12 @@ export interface HCGProductionBody extends HCG3GrammarNode {
     FORCE_FORK: boolean;
     id: number;
     production?: HCG3Production;
+
+    length?: number;
+    reset?: any;
+    excludes?: any;
+
+    reduce_id?: number;
 }
 
 export interface HCGConditionNode extends HCG3GrammarNode {
@@ -108,6 +114,8 @@ export interface HCG3Grammar extends HCG3GrammarNode {
     bodies?: HCGProductionBody[];
 
     reduce_functions: Map<string, number>;
+
+    production_hash_lookup?: any;
 }
 
 ////////////////////////////////////////////////////////////////////

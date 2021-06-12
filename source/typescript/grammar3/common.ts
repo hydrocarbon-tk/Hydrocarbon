@@ -10,7 +10,8 @@ import {
     HCG3ProductionSymbol,
     HCG3Symbol,
     HCG3TokenPosition,
-    HCGProductionBody
+    HCGProductionBody,
+    HCG3SymbolNode
 } from "../types/grammar_nodes";
 
 
@@ -67,6 +68,7 @@ export function removeBodySymbol(body: HCGProductionBody, index: number) {
 export function setBodyReduceExpressionAction(body: HCGProductionBody, reduce_function_string: string) {
 
     const function_node: HCG3Function = {
+        js: null,
         type: "RETURNED",
         txt: reduce_function_string
     };
