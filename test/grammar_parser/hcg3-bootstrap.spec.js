@@ -9,13 +9,9 @@ import { buildJSParserStrings, compileRecognizer, createAddHocParser, writeJSPar
 import {
     compileGrammarFromURI
 } from "../../build/library/grammar3/compile.js";
-//import { getHCGParser } from "./hcg3.tools.js";
-
-await URI.server();
 
 const
-    hcg_grammar_file = URI.resolveRelative("./source/grammars/hcg-3-alpha/hcg.hcg"),
-    default_parser = undefined; /*await getHCGParser();*/
+    hcg_grammar_file = URI.resolveRelative("./source/grammars/hcg-3-alpha/hcg.hcg");
 
 //################################################################################################
 
@@ -23,10 +19,10 @@ const
 //Compile existing HCG grammar object
 assert_group(
     "Should parse HCG3 grammar file and return grammar object",
-    20000, sequence, () => {
+    10000, sequence, () => {
 
         const
-            compiled_grammar = await compileGrammarFromURI(hcg_grammar_file, default_parser);
+            compiled_grammar = await compileGrammarFromURI(hcg_grammar_file);
 
         assert(compiled_grammar.type == "hc-grammar-3");
         assert(compiled_grammar.URI + "" == hcg_grammar_file);
@@ -36,9 +32,9 @@ assert_group(
 //Take grammar object and build grammar parser 
 assert_group(
     "Should compile HCG3 grammar into a parser",
-    20000, sequence, () => {
+    10000, sequence, () => {
         const
-            compiled_grammar = await compileGrammarFromURI(hcg_grammar_file, default_parser),
+            compiled_grammar = await compileGrammarFromURI(hcg_grammar_file),
             {
                 recognizer_functions,
                 meta,
@@ -54,8 +50,8 @@ assert_group(
 //Take parser and do a sanity parse of a simple grammar
 assert_group(
     "Should be able to use bootstrapped parser to compile mock grammar",
-    20000, sequence, () => {
-        const compiled_grammar = await compileGrammarFromURI(hcg_grammar_file, default_parser);
+    10000, sequence, () => {
+        const compiled_grammar = await compileGrammarFromURI(hcg_grammar_file);
         const {
             recognizer_functions,
             meta,
@@ -74,8 +70,8 @@ assert_group(
 //Take parser and parse HCG grammar
 assert_group(
     "Should be able to use bootstrapped parser to compile HCG Parser file hcg.hcg",
-    20000, sequence, () => {
-        const compiled_grammar = await compileGrammarFromURI(hcg_grammar_file, default_parser);
+    10000, sequence, () => {
+        const compiled_grammar = await compileGrammarFromURI(hcg_grammar_file);
         const {
             recognizer_functions,
             meta,
@@ -94,8 +90,8 @@ assert_group(
 //Take HCG grammar and build parser 
 assert_group(
     "Should be able to use bootstrapped parser to compile HCG3 grammar",
-    20000, sequence, () => {
-        const compiled_grammar = await compileGrammarFromURI(hcg_grammar_file, default_parser);
+    10000, sequence, () => {
+        const compiled_grammar = await compileGrammarFromURI(hcg_grammar_file);
         const {
             recognizer_functions,
             meta,
@@ -115,8 +111,8 @@ assert_group(
 
 assert_group(
     "Should be able to use bootstrapped parser to compile another bootstrapped parser",
-    20000, sequence, () => {
-        const compiled_grammar = await compileGrammarFromURI(hcg_grammar_file, default_parser);
+    10000, sequence, () => {
+        const compiled_grammar = await compileGrammarFromURI(hcg_grammar_file);
         const {
             recognizer_functions,
             meta,
@@ -144,8 +140,8 @@ assert_group(
 
 assert_group(
     "Should be able to write bootstrapped parser to staging file",
-    20000, sequence, () => {
-        const compiled_grammar = await compileGrammarFromURI(hcg_grammar_file, default_parser);
+    10000, sequence, () => {
+        const compiled_grammar = await compileGrammarFromURI(hcg_grammar_file);
         const {
             recognizer_functions,
             meta,
@@ -166,6 +162,3 @@ assert_group(
 
         assert(SUCCESS == true);
     });
-
-
-//Take parser and compile to JSON File
