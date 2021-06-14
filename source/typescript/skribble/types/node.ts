@@ -19,15 +19,16 @@ export type SKTemplate = SKNakedTemplate | SKTemplateStatement | SKTemplateExpre
 // Identifiers & References
 export interface SKIdentifierBase { type: string; value: string; }
 export interface SKIdentifier extends SKIdentifierBase { type: "identifier"; }
-export interface SKIdentifierReference extends SKIdentifierBase{ type: "reference";}
+export interface SKIdentifierReference extends SKIdentifierBase { type: "reference"; }
 export interface SKMemberReference { type: "member-reference"; reference: SKReference; property: SKReference; }
 export interface SKMemberExpression { type: "member-expression"; reference: SKReference; expression: SKExpression; }
-export interface SKPrimitiveDeclaration { type: "declaration"; name:SKIdentifier, modifiers: string[], primitive_type?: SKType, init?: SKExpression; }
+export interface SKPrimitiveDeclaration { type: "declaration"; name: SKIdentifier, modifiers: string[], primitive_type?: SKType, init?: SKExpression; initialization?: SKExpression; }
+export interface SKPrimitiveArgument { type: "argument"; name: SKIdentifier, modifiers: string[], primitive_type?: SKType, init?: SKExpression; initialization?: SKExpression; }
 export type SKReference = SKIdentifier | SKMemberReference | SKPrimitiveDeclaration | SKMemberExpression | SKIdentifierReference;
 
 ////////////////////////////////////////////////////////////
 // Types
-export interface SKTypeString  { type: "type-string"; }
+export interface SKTypeString { type: "type-string"; }
 export interface SKTypeReference extends SKIdentifierBase { type: "type-reference"; }
 export type SKType = SKTypeReference | SKTypeString;
 
@@ -40,8 +41,8 @@ export interface SKLoop { type: "loop"; assertion: SKPrimitiveDeclaration[]; exp
 export interface SKFor { type: "for-loop"; initializers: SKPrimitiveDeclaration[]; assertion: SKExpression; post_iteration: SKExpression[]; expression: SKExpression; }
 export interface SKIn { type: "in-loop"; initializer: SKPrimitiveDeclaration; target: SKExpression; expression: SKExpression; }
 export interface SKMatch { type: "match"; match_expression: SKExpression; matches: SKMatchTarget[]; }
-export interface SKMatchTarget { type: "match-target", match: SKExpression; expression: SKExpression; }
-export interface SKCall { type: "call", reference: SKReference; arguments: SKExpression[]; }
+export interface SKMatchTarget { type: "match-clause", match: SKExpression; expression: SKExpression; }
+export interface SKCall { type: "call", reference: SKReference; parameters: (SKExpression)[]; }
 export interface SKParenthesis { type: "parenthesis", expression?: SKExpression; }
 export interface SKBreak { type: "break", expression?: SKExpression; }
 export interface SKBlock { type: "block", expressions: SKExpression[]; }
@@ -50,7 +51,7 @@ export interface SKContinue { type: "continue"; }
 export type SKExpression = SKReference | SKAssignment | SKTemplateExpression | SKAssignment
     | SKIf | SKOperatorExpression | SKLoop | SKFor | SKIn | SKMatch | SKMatchTarget
     | SKCall | SKParenthesis | SKBreak | SKBlock | SKReturn | SKContinue
-    | SKLambda;
+    | SKLambda | SKNumber | SKNull;
 
 ////////////////////////////////////////////////////////////
 // Statements
@@ -83,6 +84,15 @@ export interface SKFunction {
     expressions: (SKExpression | SKPrimitiveDeclaration)[];
 }
 
+export interface SKMethod {
+    type: "method";
+    name: SKIdentifier;
+    return_type: SKType;
+    modifiers: string[];
+    parameters: SKPrimitiveDeclaration[];
+    expressions: (SKExpression | SKPrimitiveDeclaration)[];
+}
+
 export interface SKLambda {
     type: "lambda";
     return_type: SKType;
@@ -98,6 +108,7 @@ export interface SKModule {
 export type SKStatement = SKNamespace
     | SKStructure
     | SKClass
-    | SKFunction;
+    | SKFunction
+    | SKPrimitiveDeclaration;
 
 export type SKNode = SKStatement | SKType | SKExpression | SKTemplate | SKPrimitive | SKModule;

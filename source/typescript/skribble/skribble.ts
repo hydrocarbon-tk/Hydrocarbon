@@ -93,10 +93,12 @@ import { experimentalConstructRenderers, experimentalRender } from "@candlelib/c
 import { NodeMappings } from "@candlelib/conflagrate/build/types/types/node_mappings";
 import { ts_mappings } from "./ts_mappings.js";
 import { js_mappings } from "./js_mappings.js";
+import { cpp_mappings } from "./cpp_mappings.js";
 
 const renderers = experimentalConstructRenderers(<NodeMappings<SKNode, "type">>skribble_mappings);
 const ts_renderers = experimentalConstructRenderers(<NodeMappings<SKNode, "type">>ts_mappings);
 const js_renderers = experimentalConstructRenderers(<NodeMappings<SKNode, "type">>js_mappings);
+const cpp_renderers = experimentalConstructRenderers(<NodeMappings<SKNode, "type">>cpp_mappings);
 
 export function skRenderAsSK(node: SKNode): string {
     return experimentalRender(node, <NodeMappings<SKNode, "type">>skribble_mappings, renderers);
@@ -108,4 +110,8 @@ export function skRenderAsTypeScript(node: SKNode): string {
 
 export function skRenderAsJavaScript(node: SKNode): string {
     return experimentalRender(node, <NodeMappings<SKNode, "type">>js_mappings, js_renderers);
+}
+
+export function skRenderAsCPP(node: SKNode): string {
+    return experimentalRender(node, <NodeMappings<SKNode, "type">>cpp_mappings, cpp_renderers);
 }

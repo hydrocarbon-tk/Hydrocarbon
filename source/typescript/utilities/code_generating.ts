@@ -164,7 +164,7 @@ export function getSkipFunctionNewSk(
             boolean = getIncludeBooleansSk(skip_symbols, options, "l", exclude),
 
             skip_function = <SKFunction>sk`
-            fn temp:void (l:Lexer, data:Data, state:u32){
+            fn temp:void (l:__Lexer$ref,data:__ParserData$ref, state:u32){
 
                 if((state) == NULL_STATE) : return;
 
@@ -201,7 +201,7 @@ export function collapseBranchNamesSk(options: RenderBodyOptions) {
         const
             hash = expressionListHash(body),
 
-            token_function = <SKFunction>sk`fn temp:u32 (l:Lexer, data:Data, state:u32, prod:u32, puid:u32){
+            token_function = <SKFunction>sk`fn temp:i32 (l:__Lexer$ref, data:__ParserData$ref, state:u32, prod:u32, puid:i32){
                 /*${hash}*/
             }`;
 
@@ -253,7 +253,7 @@ export function createProductionTokenFunctionSk(tok: ProductionTokenSymbol, opti
             boolean = getIncludeBooleansSk(anticipated_syms, options),
 
             token_function = <SKFunction>sk`
-            fn temp:bool(l:Lexer, data:Data){       
+            fn temp:bool(l:__Lexer$ref,data:__ParserData$ref){       
 
                 
                 if ${boolean} :{          
@@ -264,7 +264,7 @@ export function createProductionTokenFunctionSk(tok: ProductionTokenSymbol, opti
                     [const] state:u32 = data.state;
                     [const] copy:Lexer = l.copy();
 
-                    pushFN(data, ${getProductionFunctionNameSk(production, grammar)});
+                    pushFN(data, &> ${getProductionFunctionNameSk(production, grammar)});
 
                     data.state = NULL_STATE;
 
@@ -311,7 +311,7 @@ export function createNonCaptureBooleanCheckSk(symbols: TokenSymbol[], options: 
                 getIncludeBooleansSk(symbols.map(sym => Object.assign({}, sym, { IS_NON_CAPTURE: false })), options, "l", ambient_symbols),
 
             token_function = <SKFunction>sk`
-                fn temp:bool(l:Lexer, data:Data){
+                fn temp:bool(l:__Lexer$ref, data:__ParserData$ref){
                     [const] a:u32 = l.token_length;
                     [const] b:u32 = l.byte_length;
 
@@ -432,7 +432,7 @@ export function createSymbolMappingFunctionSk(
         const
             code_node = yielded.value,
 
-            fn = <SKFunction>sk`fn temp:i32(l:Lexer, data:Data){
+            fn = <SKFunction>sk`fn temp:i32(l:__Lexer$ref, data:__ParserData$ref){
                 //'"${symbols.map(s => s.val).join(" ")}"';
                 ${[code_node, ";", ifs[0], ";"]}
                 ${default_return_value};
@@ -704,7 +704,7 @@ export function getIncludeBooleansSk(
 
                     const
                         nodes = buildIfsSk(options, syms, "l", occluders),
-                        fn = <SKFunction>sk`fn temp:bool(l:Lexer, data:Data){
+                        fn = <SKFunction>sk`fn temp:bool(l:__Lexer$ref, [ref] [ref]data:Data){
                             ${nodes.flatMap((m => [m, ";"]))}
                         }`;
                     fn_ref = packGlobalFunctionSk("dt", "bool", [...syms, ...occluders], fn, runner);

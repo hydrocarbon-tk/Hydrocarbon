@@ -384,8 +384,8 @@ function createIfElseExpressions(
                 //addSymbolAnnotationsToExpressionList(syms, grammar, code, "Production Call Symbols");
 
                 const call_name = createBranchFunctionSk(code, options);
-                expressions.push(<SKExpression>sk`pushFN(data, ${call_name})`);
-                expressions.push(<SKExpression>sk`pushFN(data, ${getProductionFunctionNameSk(production, grammar)})`);
+                expressions.push(<SKExpression>sk`pushFN(data, &> ${call_name})`);
+                expressions.push(<SKExpression>sk`pushFN(data, &>  ${getProductionFunctionNameSk(production, grammar)})`);
                 expressions.push(<SKExpression>sk`puid |= ${grammar.item_map.get(items[0].id).sym_uid}`);
                 expressions.push(<SKReturn>sk`return:puid`);
                 leaves.forEach(leaf => leaf.INDIRECT = true);
@@ -420,7 +420,7 @@ function createIfElseExpressions(
                     const call_name = createBranchFunctionSk(code, options);
 
 
-                    scr.push(<SKExpression>sk`pushFN(data, ${continue_name})`);
+                    scr.push(<SKExpression>sk`pushFN(data, &> ${continue_name})`);
                     scr.push(<SKExpression>sk`return: ${call_name}(l, data, state, prod, ${grammar.item_map.get(items[0].decrement().id).sym_uid})`);
 
                     leaves[0].leaf.push(<SKReturn>sk`return:prod`);

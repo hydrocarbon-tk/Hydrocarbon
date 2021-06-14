@@ -3,7 +3,6 @@
  * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
  * disclaimer notice.
  */
-import { BaseOptions } from "vm";
 import { Helper } from "../compiler/helper.js";
 import { jump8bit_table_byte_size } from "../runtime/parser_memory_new.js";
 import { parser, skRenderAsSK } from "../skribble/skribble.js";
@@ -17,9 +16,10 @@ export const renderSkribbleRecognizer = (
     grammar: HCG3Grammar
 ): SKModule => {
     return <SKModule>parser(`
-[static new] lookup_table : Uint8Array = Uint8Array(${jump8bit_table_byte_size});
-[static new] sequence_lookup : Uint8Array = Uint8Array(${grammar.sequence_string.length});
+[static new] lookup_table : __u8$ptr;
+[static new] sequence_lookup : array_u8 = a(${grammar.sequence_string.split("").map(s => s.charCodeAt(0)).join(",")});
 [static] TokenSymbol: u32 = 1;
+[static] action_ptr: u32 = 0;
 [static] TokenIdentifier: u32 = 2;
 [static] TokenSpace: u32 = 4;
 [static] TokenNewLine: u32 = 8;
@@ -32,43 +32,11 @@ export const renderSkribbleRecognizer = (
 [static] STATE_ALLOW_SKIP: u32 = 1;
 [static] STATE_ALLOW_OUTPUT: u32 = 2;
 
-fn compare: u32(
-    data: ParserData,
-    data_offset: u32,
-    sequence_offset:u32,
-    byte_length:setUint32
-){
-    [mut] i:u32 = data_offset;
-    [mut] j:u32 = sequence_offset;
-    [const] len:u32 = j+byte_length;
-
-    loop(;j<len; i++, j++)
-        if(data.input[i] != sequence_lookup[j] ) : return : j - sequence_offset;
-
-    return : byte_length;
-}
-
-fn cmpr_set : u32 (
-    l : Lexer,
-    data: ParserData,
-    sequence_offset:u32,
-    byte_length:u32,
-    token_length:u32
-){
-    if (byte_length) == compare(data, l.byte_offset, sequence_offset, byte_length) : {
-        l.byte_length = byte_length;
-        l.token_length = token_length;
-        return : true;
-    };
-
-    return : false;
-}
-
 fn getUTF8ByteLengthFromCodePoint : u32(code_point : u32){
 
-    if (code_point) == 0:
-        return: 1
-    else if (code_point & 0x7F) == code_point : {
+    if (code_point) == 0:{
+        return: 1;
+   } else if (code_point & 0x7F) == code_point : {
         return: 1;
     } else if (code_point & 0x7FF) == code_point : {
         return: 2;
@@ -79,9 +47,7 @@ fn getUTF8ByteLengthFromCodePoint : u32(code_point : u32){
     }
 }
 
-fn  utf8ToCodePoint : u32 (l : Lexer,  data: ParserData){
-    [const] buffer: Buffer8 = data.input;
-    [mut] index : u32 = l.byte_offset + l.byte_length;
+fn  utf8ToCodePoint : u32 (index:u32, buffer: array_u8){
     [mut] a: u8 = buffer[index];
     [mut] flag: u8 = 14;
 
@@ -118,6 +84,92 @@ fn getTypeAt : u32 ( code_point : u32 ) {
     return : (lookup_table[code_point] & 0x1F);
 }
 
+fn createState:u32 (ENABLE_STACK_OUTPUT:u32) {
+    return : STATE_ALLOW_SKIP | (ENABLE_STACK_OUTPUT << 1);
+}
+
+[pub wasm]  cls ParserData{
+    [pub ptr] lexer: __Lexer$ptr
+    [pub] state: u32
+    [pub] prod: u32 = 0 
+    [pub] stack_ptr: i32 = 0
+    [pub] input_ptr: u32 = 0
+    [pub] rules_ptr: u32 = 0
+    [pub] error_ptr: u32 = 0
+    [pub] debug_ptr: u32 = 0
+    [pub] input_len: u32 = 0
+    [pub] rules_len: u32 = 0
+    [pub] error_len: u32 = 0
+    [pub] origin_fork: u32 = 0
+    [pub ptr] input: array_u8
+    [pub ptr] rules: array_u16
+    [pub ptr] error: array_u8
+    [pub] stack: function_pointer = 
+        fn : i32 (l:__Lexer$ref,data:__ParserData$ref, state:u32, prod:u32, puid:i32){64}
+    [pub] stash: array_u32 = call(64)
+    [pub] origin: __ParserData$ptr
+    [pub] alternate: __ParserData$ptr
+    [pub] valid: bool = 0 
+
+    [pub]  fn ParserData:ParserData(
+        input_len:u32, rules_len:u32, error_len:u32, lexer_in: __Lexer$ptr
+    ){
+        this.lexer = lexer_in;
+        this.state = createState(1);
+        this.prod = 0;
+        this.valid = false;
+        this.stack_ptr = 0;
+        this.input_ptr = 0;
+        this.rules_ptr = 0;
+        this.error_ptr = 0;
+        this.input_len = input_len;
+        this.rules_len = rules_len;
+        this.error_len = error_len;
+        this.origin_fork = 0;
+        [this_] origin:u32 = 0;
+        [this_] alternate:u32 = 0;
+        [new this_] input:array_u8 = array_u8(input_len);
+        [new this_] rules:array_u16 = array_u16(rules_len);
+        [new this_] error:array_u8 = array_u8(error_len);
+        [new this_ cpp_ignore] stash:array_u32 = array_u32(256);
+        [new this_ cpp_ignore] stack:array_any = array_any();
+    }
+}
+
+[pub wasm] cls ForkData{
+
+    [pub] ptr: u32 = 0
+    [pub] valid:bool = 0
+    [pub] depth:u32 = 0
+    [pub] byte_offset:u32 = 0
+    [pub] byte_length:u32 = 0
+    [pub] line:u32 = 0
+    [pub] command_offset:u32 = 0
+    [pub] command_block: array_u16 = array_u16(64)
+
+    [pub] fn ForkData:ForkData(
+        ptr:u32,
+        valid:bool,
+        depth:u32,
+        byte_offset: u32,
+        byte_length: u32,
+        line: u32
+    ){
+        this.byte_offset = byte_offset;
+        this.byte_length = byte_length;
+        this.line = line;
+        this.ptr = ptr;
+        this.valid = valid;
+        this.depth = depth;
+        this.command_offset = 0;
+        [this_ new cpp_ignore] command_block:Uint16Array = Uint16Array(64);
+    }
+}
+
+
+[pub static new] data_stack : array___ParserData$ptr = Array(64);
+[pub static new] fork_stack : array___ForkData$ptr = Array(64);
+[pub] data_stack_len :u32 = 0;
 
 [pub wasm] cls Lexer {
 
@@ -141,7 +193,7 @@ fn getTypeAt : u32 ( code_point : u32 ) {
         this.current_byte = 0;
     }
 
-    [pub] fn isDiscrete: bool (data:ParserData, assert_class:u32, offset:u32 = 0, USE_UNICODE:bool = false) {
+    [pub] fn isDiscrete: bool (data:__ParserData$ref, assert_class:u32, offset:u32 = 0, USE_UNICODE:bool = false) {
 
         [mut] type:u32 = 0;
 
@@ -154,7 +206,7 @@ fn getTypeAt : u32 ( code_point : u32 ) {
         if (!USE_UNICODE || current_byte < 128) : {
             type = getTypeAt(current_byte);
         } else 
-            type = getTypeAt(utf8ToCodePoint(offset, data));
+            type = getTypeAt(utf8ToCodePoint(offset,  data.input));
         
         
         return : (type & assert_class) == 0;
@@ -166,22 +218,23 @@ fn getTypeAt : u32 ( code_point : u32 ) {
         this.token_length = token_length;
     }
 
-    [pub] fn getType : u32 (USE_UNICODE:bool, data: ParserData) { 
+    [pub] fn getType : u32 (USE_UNICODE:bool, data: __ParserData$ref) { 
 
         if this.END(data) : return : 0;
 
-        if (this.type) == 0 :
-            if ( !(USE_UNICODE) || this.current_byte < 128) :
+        if (this.type) == 0 :{
+            if ( !(USE_UNICODE) || this.current_byte < 128) :{
                 this.type = getTypeAt(this.current_byte)
-            else {
+           } else {
                 index:u32 = this.byte_offset;
-                this.type = getTypeAt(utf8ToCodePoint(this, data));
-            };
+                this.type = getTypeAt(utf8ToCodePoint(byte_offset + byte_length, data.input));
+            }
+        };
 
         return : this.type;
     }
 
-    [pub] fn isSym : bool (USE_UNICODE:bool, data:ParserData) {
+    [pub] fn isSym : bool (USE_UNICODE:bool, data:__ParserData$ref) {
         return : (!this.END(data)) && this.getType(USE_UNICODE, data) == TokenSymbol;
     }
 
@@ -189,11 +242,11 @@ fn getTypeAt : u32 ( code_point : u32 ) {
         return : (this.current_byte) == 10 || (this.current_byte) == 13
     }
 
-    [pub] fn isSP : bool  (USE_UNICODE:bool, data:ParserData) {
+    [pub] fn isSP : bool  (USE_UNICODE:bool, data:__ParserData$ref) {
         return : (this.current_byte) == 32 || USE_UNICODE && (TokenSpace) == this.getType(USE_UNICODE, data)
     }
 
-    [pub] fn isNum : bool  (data:ParserData) {
+    [pub] fn isNum : bool  (data:__ParserData$ref) {
         if (this.type) == 0 || (this.type) == TokenNumber : {
             if this.getType(false, data) == TokenNumber : {
 
@@ -216,7 +269,7 @@ fn getTypeAt : u32 ( code_point : u32 ) {
             return : (this.type) == TokenFullNumber
     }
 
-    [pub] fn isUniID : bool  (data:ParserData) {
+    [pub] fn isUniID : bool  (data:__ParserData$ref) {
         
         if ((this.type) == 0 || (this.type) == TokenIdentifier) : {
 
@@ -228,7 +281,10 @@ fn getTypeAt : u32 ( code_point : u32 ) {
 
                 prev_byte_len:u32  = this.byte_length;
 
-                loop ( ((off + this.byte_length) < l) && ((UNICODE_ID_START | UNICODE_ID_CONTINUE) & lookup_table[utf8ToCodePoint(this, data)]) > 0) {
+                loop ( ((off + this.byte_length) < l) 
+                    && ((UNICODE_ID_START | UNICODE_ID_CONTINUE) & lookup_table[
+                        utf8ToCodePoint(this.byte_offset + this.byte_length, data.input)
+                    ]) > 0) {
                     this.byte_length += 1;
                     prev_byte_len = this.byte_length;
                     this.token_length += 1;
@@ -242,26 +298,27 @@ fn getTypeAt : u32 ( code_point : u32 ) {
             return: (this.type) == TokenIdentifierUnicode;
     }
 
-    [pub] fn copy: void (){
-        
+    [pub] fn copy: __Lexer$ptr (){
 
-        [const new] destination : Lexer = Lexer();
+        [const new] destination : __Lexer$ptr = Lexer();
+
+        [const] destination_ref : __Lexer$ref = *> destination;
         
-        destination.byte_offset = this.byte_offset;
-        destination.byte_length = this.byte_length;
+        destination_ref.byte_offset = this.byte_offset;
+        destination_ref.byte_length = this.byte_length;
         
-        destination.token_length = this.token_length;
-        destination.token_offset = this.token_offset;
-        destination.prev_token_offset = this.prev_token_offset;
+        destination_ref.token_length = this.token_length;
+        destination_ref.token_offset = this.token_offset;
+        destination_ref.prev_token_offset = this.prev_token_offset;
         
-        destination.line = this.line;
-        destination.byte_length = this.byte_length;
-        destination.current_byte = this.current_byte;
+        destination_ref.line = this.line;
+        destination_ref.byte_length = this.byte_length;
+        destination_ref.current_byte = this.current_byte;
 
         return :destination
     }
 
-    [pub] fn sync:void (source: Lexer){
+    [pub] fn sync:__Lexer$ref (source: __Lexer$ref){
         
         this.byte_offset = source.byte_offset;
         this.byte_length = source.byte_length;
@@ -274,19 +331,19 @@ fn getTypeAt : u32 ( code_point : u32 ) {
         this.type = source.type;
         this.current_byte = source.current_byte;
 
-        return:this
+        return:*> this;
     }
 
-    [pub] fn slice:Lexer(source:Lexer) {
+    [pub] fn slice:__Lexer$ref(source:__Lexer$ref) {
         this.byte_length = this.byte_offset - source.byte_offset;
         this.token_length = this.token_offset - source.token_offset;
         this.byte_offset = source.byte_offset;
         this.token_offset = source.token_offset;
         this.line = source.line;
-        return:this;
+        return:*>this;
     }
 
-    [pub] fn next:void (data: ParserData){
+    [pub] fn next:__Lexer$ref (data: __ParserData$ref){
             
         this.byte_offset += this.byte_length;
         this.token_offset += this.token_length;
@@ -304,122 +361,87 @@ fn getTypeAt : u32 ( code_point : u32 ) {
             this.token_length = 1;
         };
 
-        return :this
+        return :*> this;
     }
     
 
-    [pub] fn END:bool (data:ParserData){
+    [pub] fn END:bool (data:__ParserData$ref){
         return : this.byte_offset >= data.input_len
     }
 }
 
 
+fn compare: u32(
+    data: __ParserData$ref,
+    data_offset: u32,
+    sequence_offset:u32,
+    byte_length: u32
+){
+    [mut] i:u32 = data_offset;
+    [mut] j:u32 = sequence_offset;
+    [const] len:u32 = j+byte_length;
 
-[pub wasm]  cls ParserData{
-    [pub] lexer: Lexer = Lexer()
-    [pub] state: u32 = 0 
-    [pub] prop: u32 = 0 
-    [pub] stack_ptr: u32 = 0
-    [pub] input_ptr: u32 = 0
-    [pub] rules_ptr: u32 = 0
-    [pub] error_ptr: u32 = 0
-    [pub] debug_ptr: u32 = 0
-    [pub] input_len: u32 = 0
-    [pub] rules_len: u32 = 0
-    [pub] error_len: u32 = 0
-    [pub] origin_fork: u32 = 0
-    [pub] input: Uint8Array  = Array()
-    [pub] rules: Uint16Array = Array()
-    [pub] error: Uint8Array = Array()
-    [pub] stash: Uint32Array = Array()
-    [pub] stack: Array = Array()
-    [pub] origin: ParserData = ParserData()
-    [pub] alternate: ParserData = ParserData()
-    [pub] valid: bool = 0 
+    loop(;j<len; i++, j++)
+        if(data.input[i] != sequence_lookup[j] ) : return : j - sequence_offset;
 
-    [pub]  fn ParserData:ParserData(
-        input_len:u32, rules_len:u32, error_len:u32
-    ){
-        this.state = createState(1);
-        this.prop = 0;
-        this.valid = false;
-        this.stack_ptr = 0;
-        this.input_ptr = 0;
-        this.rules_ptr = 0;
-        this.error_ptr = 0;
-        this.input_len = input_len;
-        this.rules_len = rules_len;
-        this.error_len = error_len;
-        this.debug_len = 0;
-        this.origin_fork = 0;
-        [ptr this_] origin:u32 = 0;
-        [ptr this_] alternate:u32 = 0;
-        [new this_] lexer:Lexer = Lexer();
-        [new this_] input:Uint8Array = Uint8Array(input_len);
-        [new this_] rules:Uint16Array = Uint16Array(rules_len);
-        [new this_] error:Uint8Array = Uint8Array(error_len);
-        [new this_] stash:Uint32Array = Uint32Array(256);
-        [new this_] stack:Array = Array();
-    }
+    return : byte_length;
 }
 
 
-[pub wasm] cls ForkData{
+fn cmpr_set : u32 (
+    l : __Lexer$ref,
+    data: __ParserData$ref,
+    sequence_offset:u32,
+    byte_length:u32,
+    token_length:u32
+){
+    if (byte_length) == compare(data, l.byte_offset, sequence_offset, byte_length) : {
+        l.byte_length = byte_length;
+        l.token_length = token_length;
+        return : true;
+    };
 
-    [pub] ptr: u32 = 0
-    [pub] valid:bool = 0
-    [pub] depth:u32 = 0
-    [pub] byte_offset:u32 = 0
-    [pub] byte_length:u32 = 0
-    [pub] line:u32 = 0
-    [pub] command_offset:u32 = 0
-    [pub] command_block: Uint16Array = 0
-
-    [pub] fn ForkData:ForkData(
-        ptr:u32,
-        valid:bool,
-        depth:u32,
-        byte_offset: u32,
-        byte_length: u32,
-        line: u32
-    ){
-        this.byte_offset = byte_offset;
-        this.byte_length = byte_length;
-        this.line = line;
-        this.ptr = ptr;
-        this.valid = valid;
-        this.depth = depth;
-        this.command_offset = 0;
-        [this_ new] command_block:Uint16Array = Uint16Array(64);
-    }
+    return : false;
 }
 
-fn fork:ParserData(data:ParserData) {
+fn create_parser_data_object:__ParserData$ptr(
+    input_len:u32, rules_len:u32, error_len:u32
+){
+    [mut new] lexer: __Lexer$ptr = Lexer();
 
-    [mut new] fork:ParserData = ParserData(
+    [static new]parser_data:__ParserData$ptr = ParserData(input_len, rules_len, error_len, lexer);
+
+    return : parser_data
+}
+
+[ptr] fn fork:__ParserData$ptr(data:__ParserData$ref) {
+
+    [mut] fork:__ParserData$ptr = create_parser_data_object(
         data.input_len,
         data.rules_len,
         data.error_len - data.error_ptr
     );
 
+    fork_ref:__ParserData$ref = *>fork;
+
     [mut] i:u32 = 0;
     
     loop (; i < data.stack_ptr; i++)  {
-        fork.stash[i] = data.stash[i];
-        fork.stack[i] = data.stack[i];
+        fork_ref.stash[i] = data.stash[i];
+        fork_ref.stack[i] = data.stack[i];
     };
 
-    fork.stack_ptr = data.stack_ptr;
-    fork.input_ptr = data.input_ptr;
-    fork.origin_fork = data.rules_ptr + data.origin_fork;
-    fork.origin = data;
-    fork.lexer = data.lexer.copy();
-    fork.state = data.state;
-    fork.prop = data.prop;
-    fork.input = data.input;
+    fork_ref.stack_ptr = data.stack_ptr;
+    fork_ref.input_ptr = data.input_ptr;
+    fork_ref.origin_fork = data.rules_ptr + data.origin_fork;
+    fork_ref.origin = &>data;
+    fork_ref.lexer = (*>data.lexer).copy();
+    fork_ref.state = data.state;
+    fork_ref.prod = data.prod;
+    fork_ref.input = data.input;
 
     loop ((data.alternate)) {
-        data = data.alternate;
+        data = *>data.alternate;
     };
 
     data.alternate = fork;
@@ -428,16 +450,7 @@ fn fork:ParserData(data:ParserData) {
 }
 
 
-
-fn init_data:ParserData(
-    input_len:u32, rules_len:u32, error_len:u32
-){
-    [static new]parser_data:ParserData = ParserData(input_len, rules_len, error_len);
-
-    return : parser_data
-}
-
-[pub] fn assert_ascii:bool(l:Lexer, a:u32, b:u32, c:u32, d:u32) {
+[pub] fn assert_ascii:bool(l:__Lexer$ref, a:u32, b:u32, c:u32, d:u32) {
     
     [const] ascii : u32 = l.current_byte;
 
@@ -452,7 +465,14 @@ fn init_data:ParserData(
     return:false
 }
 
-fn add_reduce:void(state:u32, data:ParserData, sym_len:u32, body:u32, DNP:bool = false) {
+fn isOutputEnabled:bool (state:u32) { return: NULL_STATE != (state & STATE_ALLOW_OUTPUT) }
+
+fn set_action:void (val:u32, data:__ParserData$ref) {
+    if(data.rules_ptr > data.rules_len) : return;
+    data.rules[data.rules_ptr++] = val;
+}
+
+fn add_reduce:void(state:u32, data:__ParserData$ref, sym_len:u32, body:u32 = 0, DNP:bool = false) {
     if isOutputEnabled(state) : {
 
         [mut] total:u32 = body + sym_len;
@@ -478,7 +498,7 @@ fn add_reduce:void(state:u32, data:ParserData, sym_len:u32, body:u32, DNP:bool =
     }
 }
 
-fn add_shift:void(l:Lexer, data:ParserData, tok_len:u32) {
+fn add_shift:void(l:__Lexer$ref,data:__ParserData$ref, tok_len:u32) {
 
     if tok_len < 0 : return;
     
@@ -493,7 +513,7 @@ fn add_shift:void(l:Lexer, data:ParserData, tok_len:u32) {
     }
 }
 
-fn add_skip:void(l:Lexer, data:ParserData, skip_delta:u32){
+fn add_skip:void(l:__Lexer$ref, data:__ParserData$ref, skip_delta:u32){
 
     if skip_delta < 1: return;
     
@@ -508,151 +528,62 @@ fn add_skip:void(l:Lexer, data:ParserData, skip_delta:u32){
     }
 }
 
-fn set_error:void (val:u32, data:ParserData) {
-    if(data.error_ptr > data.error_len) : return;
-    data.error[data.error_ptr++] = val;
-}
 
-fn set_action:void (val:u32, data:ParserData) {
-    if(data.rules_ptr > data.rules_len) : return;
-    data.rules[data.rules_ptr++] = val;
-}
+[pub] fn mark:u32 (val:u32, data:__ParserData$ref) { return:action_ptr }
 
-fn createState:u32 (ENABLE_STACK_OUTPUT:u32) {
-    return : STATE_ALLOW_SKIP | (ENABLE_STACK_OUTPUT << 1);
-}
 
-fn hasStateFailed:bool(state:u32) {
-    [const] IS_STATE_VALID:u32 = 1;
-    return : 0 == (state & IS_STATE_VALID); //==
-}
-
-[pub] fn mark:u32 (val:u32, data:ParserData) { return:action_ptr }
-
-fn isOutputEnabled:bool (state:u32) { return: NULL_STATE != (state & STATE_ALLOW_OUTPUT) }
-
-fn reset:u32 (mark:u32, origin:Lexer, advanced:Lexer, state:u32) {
+fn reset:u32 (mark:u32, origin:__Lexer$ref, advanced:__Lexer$ref, state:u32) {
     action_ptr = mark;
     advanced.sync(origin);
     return:state
 }
 
-fn consume: bool (l:Lexer, data:ParserData, state:u32) {
+fn consume: bool (l:__Lexer$ref, data:__ParserData$ref, state:u32) {
     if isOutputEnabled(state) : add_shift(l, data, l.token_length);
     l.next(data);
     return:true
 }
 
-fn assertSuccess: bool (l:Lexer, data:ParserData, condition:bool) {
-    if ( /*!*/condition || hasStateFailed(state)) : return:fail(l, state)
-    else return:state
+fn pushFN:void(
+    data:__ParserData$ref, 
+    [pub] _fn_ref: function_pointer = 
+        fn : i32 (l:__Lexer$ref,data:__ParserData$ref, state:u32, prod:u32, puid:i32){}
+){ 
+    data.stack[++data.stack_ptr] = _fn_ref; 
 }
 
-fn debug_add_header: void(
-    data:ParserData, 
-    number_of_items:u32, 
-    delta_char_offset:u32, 
-    peek_start:u32, 
-    peek_end:u32, 
-    fork_start:u32, 
-    fork_end:u32
-) {
-        
-    if(data.debug_ptr + 1 >= data.debug_len) : return;
+fn stepKernel:bool(data:__ParserData$ref, stack_base:i32){
+    [mut] ptr:i32 = data.stack_ptr;
 
-    [const] local_pointer:u32 = data.debug_ptr;
-    
-    if (delta_char_offset > 62):{
-
-        data.debug[local_pointer+1] = delta_char_offset;
-
-        delta_char_offset = 63;
-
-        data.debug_ptr++;
-    };
-
-    data.debug[local_pointer] = ((number_of_items && /*0x3F*/2) 
-        | ( delta_char_offset << 6) 
-        | ((peek_start & 1) << 12) 
-        | ((peek_end & 1) << 13)
-        | ((fork_start & 1) << 14) 
-        | ((fork_end & 1) << 15));
-
-    data.debug_ptr++;
-}
-
-
-fn pushFN:void(data:ParserData, [re_function Lexer ParserData u32 u32 u32]_fn_ref:u32){ data.stack[++data.stack_ptr] = _fn_ref; }
-
-fn init_table:int_array(){ return: lookup_table;  }
-
-[pub static new] data_stack : Array = Array();
-
-fn run:void(data:ParserData){
-    data_stack.length = 0;
-    data_stack.push(data);
-
-    [mut] ACTIVE:bool = true;
-
-    loop ((ACTIVE)) {
-        loop([mut] data:ParserData in data_stack){
-            ACTIVE = stepKernel(data, 0)
-        }
-    }
-}
-
-
-fn stepKernel:bool(data:ParserData, stack_base:u32){
-    [mut] ptr:u32 = data.stack_ptr;
-
-    [static function Lexer ParserData u32 u32 u32] _fn:u32 = data.stack[ptr];
+    [static] _fn:function_pointer = 
+    fn : i32 (l:__Lexer$ref,data:__ParserData$ref, state:u32, prod:u32, puid:i32){data.stack[ptr]};
     [static] stash:u32 = data.stash[ptr];
 
     data.stack_ptr--;
 
-    [static] result:u32 = _fn(data.lexer, data, data.state, data.prod, stash);
+    [static] result:u32 = _fn(*> data.lexer, data, data.state, data.prod, stash);
 
     data.stash[ptr] = result;
     data.prod = result;
 
     if(result<0 || data.stack_ptr < stack_base) : {
-        data.valid = data.lexer.END(data);
+        data.valid = (*>data.lexer).END(data);
         return:false;
     };
 
     return :true
 }
 
-fn get_fork_information:void(){
-    [mut] i:u32 = 0;
-
-    [static array] fork_data:array = Array();
-
-    loop([mut]data:ParserData in data_stack) {
-        [mut new] fork:ForkData = ForkData(
-            (i++),
-            (data.valid),
-            (data.origin_fork + data.rules_ptr),
-            data.lexer.byte_offset,
-            data.lexer.byte_length,
-            data.lexer.line
-        );
-        fork_data.push(fork)
-    };
-
-    return: fork_data;
-}
-
-fn block64Consume:i32([ParserData] data:ParserData, block:Uint16Array, offset:u32, block_offset:u32, limit:u32) {
+fn block64Consume:i32(data:__ParserData$ref, block:array_u16, offset:u32, block_offset:u32, limit:u32) {
     //Find offset block
 
-    [mut] containing_data:ParserData = data;
+    [mut] containing_data:__ParserData$ref = data;
     [mut] end:i32 = containing_data.origin_fork + data.rules_ptr;
 
     //Find closest root
     loop ((containing_data.origin_fork > offset) ){
         end = containing_data.origin_fork;
-        containing_data = containing_data.origin;
+        containing_data = *>containing_data.origin;
     };
 
     [mut] start:i32 = containing_data.origin_fork;
@@ -674,34 +605,29 @@ fn block64Consume:i32([ParserData] data:ParserData, block:Uint16Array, offset:u3
     return: 0;
 }
 
-fn get_next_command_block:Uint16Array(fork:ForkData) {
+fn run:void(){
+    
+    [mut] ACTIVE:bool = true;
 
-    [static] remainder:u32 = block64Consume(data_stack[fork.ptr], fork.command_block, fork.command_offset, 0, 64);
-
-    fork.command_offset += 64 - remainder;
-
-    if (remainder > 0) :
-        fork.command_block[64 - remainder] = 0;
-
-    return : fork.command_block;
+    loop ((ACTIVE)) {
+        [const]i:u32 =0;
+        loop( ; i < data_stack_len; i++){
+            ACTIVE = stepKernel(*> data_stack[i], 0);
+        };
+    }
 }
 
-fn recognizer:bool(data:ParserData, input_byte_length:u32, production:u32){
-    data.input_len = input_byte_length;
-    data.lexer.next(data);
-    dispatch(data, production);
-    run(data);
-}
+
 `);
 };
 
-export function createDispatchTemplate(
+export function createExternFunctions(
     grammar: HCG3Grammar,
     runner: Helper,
     rd_functions: RDProductionFunction[],
 ) {
     return <SKModule>parser(`
-    fn dispatch:u32(data:ParserData, production_index:u32){
+    fn dispatch:void(data:__ParserData$ref, production_index:u32){
         match production_index :
             ${rd_functions.filter(f => f.RENDER)
             .map((fn, i) => {
@@ -716,10 +642,85 @@ export function createDispatchTemplate(
                     return `${i} : { ${skip_call}; data.stack[0] = ${name}; data.stash[0] = ${0}; return }`;
                 }
 
-                return `${i} : { ; data.stack[0] = ${name}; data.stash[0] = ${0}; return }`;
+                return `${i} : { data.stack[0] = &> ${name}; data.stash[0] = ${0}; return }`;
 
             }).join(",")}
+    }
+
+
+    [extern]fn init_data:__u8$ptr(
+        input_len:u32 , 
+        rules_len:u32 ,
+        error_len:u32 
+    ){ 
+
+        [mut] data:__ParserData$ptr = create_parser_data_object(
+            input_len,
+            rules_len,
+            error_len
+        );
+
+        data_stack_len = 1;
+
+        data_stack[0] = data;
+
+        return: (*>data).input;
+    }
+
+
+    [extern] fn init_table:__u8$ptr(){ 
+        [new] table: array_u8 = array_u8(${jump8bit_table_byte_size});
+
+        lookup_table = table;
+
+        return: lookup_table;  
+    }
+
+    [extern]fn get_fork_information:__ForkData$ptr$ptr(){
         
+        [mut] i:u32 = 0;
+
+        loop( ; i < data_stack_len; i++){
+            [const] data:__ParserData$ref = *> data_stack[i];
+
+            [mut new] fork:__ForkData$ptr = ForkData(
+                (i),
+                (data.valid),
+                (data.origin_fork + data.rules_ptr),
+                (*>data.lexer).byte_offset,
+                (*>data.lexer).byte_length,
+                (*>data.lexer).line
+            );
+            fork_stack[i] = fork;
+        };
+
+        return: fork_stack;
+    }
+
+    [extern] fn get_next_command_block:__u16$ptr(fork:__ForkData$ptr) {
+
+        [const] fork_ref:__ForkData$ref = *>fork;
+
+        [static] remainder:u32 = block64Consume(
+            *>data_stack[fork_ref.ptr], 
+            fork_ref.command_block, 
+            fork_ref.command_offset, 
+            0, 64);
+
+        fork_ref.command_offset += 64 - remainder;
+
+        if (remainder > 0) :
+            fork_ref.command_block[64 - remainder] = 0;
+
+        return : fork_ref.command_block;
+    }
+    
+    [extern] fn recognizer:void(input_byte_length:u32, production:u32){
+        [pub] data_ref:__ParserData$ref = *> data_stack[0];
+        data_ref.input_len = input_byte_length;
+        (*>data_ref.lexer).next(data_ref);
+        dispatch(data_ref, production);
+        run();
     }`);
 }
 

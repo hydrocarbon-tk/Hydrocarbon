@@ -6,13 +6,14 @@
 import { HCGParser } from "@candlelib/hydrocarbon/build/types/types/parser";
 import spark from "@candlelib/spark";
 import fs from "fs";
-import { createDispatchTemplate, renderSkribbleRecognizer } from "../render/skribble_recognizer_template.js";
+import { createExternFunctions, renderSkribbleRecognizer } from "../render/skribble_recognizer_template.js";
 import { ParserFactory } from "../runtime/parser_loader_alpha.js";
-import { skRenderAsJavaScript } from "../skribble/skribble.js";
+import { skRenderAsJavaScript, skRenderAsCPP } from "../skribble/skribble.js";
 import { HybridCompilerOptions } from "../types/compiler_options";
 import { GrammarParserEnvironment } from "../types/grammar_compiler_environment";
 import { HCG3Grammar } from "../types/grammar_nodes.js";
 import { RDProductionFunction } from "../types/rd_production_function.js";
+import { getProductionFunctionNameSk } from "../utilities/code_generating.js";
 import { constructCompilerRunner, Helper } from "./helper.js";
 import { WorkerRunner } from "./workers/worker_runner.js";
 const fsp = fs.promises;
@@ -131,6 +132,43 @@ export function buildJSParserStrings(
     };
 }
 
+export function buildCPPRecognizerSourceString(
+    grammar: HCG3Grammar,
+    recognizer_functions: RDProductionFunction[],
+    meta: Helper
+): {
+    recognizer_source: string;
+} {
+    const recognizer_code = compileRecognizerSource(meta, grammar, recognizer_functions);
+
+    let recognizer_source = skRenderAsCPP(recognizer_code);
+
+    //Adding forward declaration to get things to cooperate
+    const { fn: const_functions_a } = meta.render_constants();
+    recognizer_source =
+        `/*Begin Forward Declarations*/\n
+class Lexer;
+class ParserData;\n
+${const_functions_a.map(fn => {
+            const name = skRenderAsCPP(fn.name);
+            const type = skRenderAsCPP(fn.return_type);
+            const args = fn.parameters.map(p => skRenderAsCPP(p.primitive_type));
+            return `${type} ${name}(${args});`;
+        }).join("\n")}
+
+${recognizer_functions.filter(f => f.RENDER).map(fn => {
+            const name = getProductionFunctionNameSk(grammar[fn.id], grammar);
+            return `int ${name}(Lexer&, ParserData&, unsigned int, unsigned int, int);`;
+        }).join("\n")}
+${""}
+/*End Forward Declarations*/\n\n` + recognizer_source;
+
+    return {
+        recognizer_source
+    };
+}
+
+
 /**
  * Constructs a JavaScript based parser from a grammar, and optionally recognizer and completer strings. 
  * If the recognizer or completer string is empty, then these strings will be compiled before the parser
@@ -189,7 +227,7 @@ function compileRecognizerSource(runner: Helper, grammar: HCG3Grammar, recognize
     for (const { entry, goto, reduce } of recognizer_functions)
         recognizer_code.statements.push(...[entry, goto, reduce].filter(i => i));
 
-    recognizer_code.statements.push(...createDispatchTemplate(grammar, runner, recognizer_functions).statements);
+    recognizer_code.statements.push(...createExternFunctions(grammar, runner, recognizer_functions).statements);
 
     return recognizer_code;
 }

@@ -148,8 +148,8 @@ export function renderItem(
             const call_name = createBranchFunctionSk(call_body, options);
             const rc = [];
 
-            rc.push(sk`pushFN(data,${call_name})`);
-            rc.push(sk`pushFN(data,${getProductionFunctionName(grammar[first_non_passthrough], grammar)})`);
+            rc.push(sk`pushFN(data, &> ${call_name})`);
+            rc.push(sk`pushFN(data, &> ${getProductionFunctionName(grammar[first_non_passthrough], grammar)})`);
             rc.push(sk`return:puid`);
             // /rc.addStatement(SC.UnaryPre(SC.Return, SC.Value("0")));
 

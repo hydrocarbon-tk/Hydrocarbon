@@ -173,13 +173,13 @@ function createForkSequence(
 
         if (I++ == output_nodes.length - 1) {
             out.push(
-                <SKExpression>sk`pushFN(data, ${call_name})`
+                <SKExpression>sk`pushFN(data, &> ${call_name})`
             );
         } else {
             I++;
             out.push(
                 <SKExpression>sk`[static] fk${I}:ParserData = fork(data);`,
-                <SKExpression>sk`pushFN(fk${I}, ${call_name})`
+                <SKExpression>sk`pushFN(fk${I}, &> ${call_name})`
             );
         }
     }
