@@ -704,7 +704,7 @@ export function getIncludeBooleansSk(
 
                     const
                         nodes = buildIfsSk(options, syms, "l", occluders),
-                        fn = <SKFunction>sk`fn temp:bool(l:__Lexer$ref, [ref] [ref]data:Data){
+                        fn = <SKFunction>sk`fn temp:bool(l:__Lexer$ref, data:__ParserData$ref){
                             ${nodes.flatMap((m => [m, ";"]))}
                         }`;
                     fn_ref = packGlobalFunctionSk("dt", "bool", [...syms, ...occluders], fn, runner);
