@@ -151,10 +151,6 @@ export async function generateJSParser(
         grammar, recognizer_functions, meta
     );
 
-    const fs = (await import("fs")).default;
-
-    await fs.promises.writeFile("./temp.ts", recognizer_script);
-
     return `
     ${hydrocarbon_import_path ? `import { ParserFactoryNext as ParserFactory } from "${hydrocarbon_import_path}"` : ""};
     const recognizer_initializer = (()=>{
