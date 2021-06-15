@@ -116,7 +116,12 @@ assert_group(
             recognizer_functions: bootstrapped_recognizer_functions,
             meta: bootstrapped_meta,
         } = await buildRecognizer(bootstrapped_compiled_grammar, 10);
-        const parser = await createAddHocParser(bootstrapped_compiled_grammar, bootstrapped_recognizer_functions, bootstrapped_meta, generateWebAssemblyParser);
+        const parser = await createAddHocParser(
+            bootstrapped_compiled_grammar,
+            bootstrapped_recognizer_functions,
+            bootstrapped_meta,
+            generateWebAssemblyParser
+        );
 
         const { result } = parser("\n <> test > t:r ( \\hello_world (+) ) ");
 
