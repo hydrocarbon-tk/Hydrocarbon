@@ -11,6 +11,7 @@ import { filloutWorkerGrammar } from "../../utilities/grammar.js";
 import { constructHybridFunction } from "../function_constructor.js";
 import { constructCompilerRunner, Helper } from "../helper.js";
 
+
 export class LocalWorker {
 
     grammar: Grammar;

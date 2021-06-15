@@ -52,8 +52,7 @@ jspm_packages/
 .serverless
 
 #Build directory
-build/
-!build/wasm/*
+/build/
 
 # Temporary test files
 test/**/*temp*/*
@@ -68,3 +67,6 @@ test/**/*temp*/*
 
 # Rust files
 rust/
+
+# temp folder
+./temp

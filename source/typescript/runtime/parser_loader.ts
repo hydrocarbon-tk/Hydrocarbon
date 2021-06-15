@@ -8,7 +8,7 @@ import { HCGProductionFunction } from "../types/parser";
 import { RecognizeInitializer } from "../types/parser_data";
 import { initializeUTFLookupTable } from "./parser_memory_new.js";
 import { Lexer } from "@candlelib/wind";
-import { fillByteBufferWithUTF8FromString } from "./fillByteBufferWithUTF8FromString.js";
+import { fillByteBufferWithUTF8FromString } from "./utf8.js";
 import { ParserEnvironment } from "../types/parser_environment.js";
 
 export type HCParser<T = any> = (str: string, env?: ParserEnvironment, production_id?: number) => {

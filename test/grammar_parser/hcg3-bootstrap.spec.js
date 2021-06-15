@@ -4,11 +4,9 @@
  * a new HCG parser
  */
 import URI from "@candlelib/uri";
-import { assert } from "console";
-import { buildJSParserStrings, compileRecognizer, createAddHocParser, writeJSParserToFile } from "../../build/library/compiler/compiler.js";
-import {
-    compileGrammarFromURI
-} from "../../build/library/grammar3/compile.js";
+import { buildRecognizer } from "../../build/library/build/build.js";
+import { compileGrammarFromURI } from "../../build/library/grammar/compile.js";
+import { createAddHocParser } from "../../build/library/render/create_add_hoc_parser.js";
 
 const
     hcg_grammar_file = URI.resolveRelative("./source/grammars/hcg-3-alpha/hcg.hcg");
@@ -38,9 +36,8 @@ assert_group(
             {
                 recognizer_functions,
                 meta,
-            } = await compileRecognizer(compiled_grammar, 1),
-            { recognizer_script, completer_script } = buildJSParserStrings(compiled_grammar, recognizer_functions, meta),
-            parser = await createAddHocParser(compiled_grammar, recognizer_script, completer_script);
+            } = await buildRecognizer(compiled_grammar, 1),
+            parser = await createAddHocParser(compiled_grammar, recognizer_functions, meta);
 
         assert(parser !== null);
         assert(typeof parser == "function");
@@ -55,10 +52,9 @@ assert_group(
         const {
             recognizer_functions,
             meta,
-        } = await compileRecognizer(compiled_grammar, 1);
+        } = await buildRecognizer(compiled_grammar, 1);
 
-        const { recognizer_script, completer_script } = buildJSParserStrings(compiled_grammar, recognizer_functions, meta);
-        const parser = await createAddHocParser(compiled_grammar, recognizer_script, completer_script);
+        const parser = await createAddHocParser(compiled_grammar, recognizer_functions, meta);
 
         const { result } = parser("\n <> test > t:r ( \\hello_world (+) ) ");
 
@@ -75,10 +71,9 @@ assert_group(
         const {
             recognizer_functions,
             meta,
-        } = await compileRecognizer(compiled_grammar, 1);
+        } = await buildRecognizer(compiled_grammar, 1);
 
-        const { recognizer_script, completer_script } = buildJSParserStrings(compiled_grammar, recognizer_functions, meta);
-        const parser = await createAddHocParser(compiled_grammar, recognizer_script, completer_script);
+        const parser = await createAddHocParser(compiled_grammar, recognizer_functions, meta);
 
         const { result } = parser(await hcg_grammar_file.fetchText());
 
@@ -95,10 +90,9 @@ assert_group(
         const {
             recognizer_functions,
             meta,
-        } = await compileRecognizer(compiled_grammar, 1);
+        } = await buildRecognizer(compiled_grammar, 1);
 
-        const { recognizer_script, completer_script } = buildJSParserStrings(compiled_grammar, recognizer_functions, meta);
-        const bootstrapped_parser = await createAddHocParser(compiled_grammar, recognizer_script, completer_script);
+        const parser = await createAddHocParser(compiled_grammar, recognizer_functions, meta);
         const bootstrapped_compiled_grammar = await compileGrammarFromURI(hcg_grammar_file, bootstrapped_parser);
 
 
@@ -116,21 +110,14 @@ assert_group(
         const {
             recognizer_functions,
             meta,
-        } = await compileRecognizer(compiled_grammar, 1);
-        const { recognizer_script, completer_script } = buildJSParserStrings(compiled_grammar, recognizer_functions, meta);
-        const bootstrapped_parser = await createAddHocParser(compiled_grammar, recognizer_script, completer_script);
+        } = await buildRecognizer(compiled_grammar, 1);
+        const parser = await createAddHocParser(compiled_grammar, recognizer_functions, meta);
         const bootstrapped_compiled_grammar = await compileGrammarFromURI(hcg_grammar_file, bootstrapped_parser);
         const {
             recognizer_functions: bootstrapped_recognizer_functions,
             meta: bootstrapped_meta,
-        } = await compileRecognizer(bootstrapped_compiled_grammar, 1);
-
-        const { recognizer_script: bs_recognizer_script, completer_script: bs_completer_script } = buildJSParserStrings(
-            bootstrapped_compiled_grammar, bootstrapped_recognizer_functions, bootstrapped_meta
-        );
-        const parser = await createAddHocParser(
-            bootstrapped_compiled_grammar, bs_recognizer_script, bs_completer_script
-        );
+        } = await buildRecognizer(bootstrapped_compiled_grammar, 1);
+        const parser = await createAddHocParser(bootstrapped_compiled_grammar, bootstrapped_recognizer_functions, bootstrapped_meta);
 
         const { result } = parser("\n <> test > t:r ( \\hello_world (+) ) ");
 
@@ -145,16 +132,15 @@ assert_group(
         const {
             recognizer_functions,
             meta,
-        } = await compileRecognizer(compiled_grammar, 1);
-        const { recognizer_script, completer_script } = buildJSParserStrings(compiled_grammar, recognizer_functions, meta);
-        const bootstrapped_parser = await createAddHocParser(compiled_grammar, recognizer_script, completer_script);
+        } = await buildRecognizer(compiled_grammar, 1);
+        const bootstrapped_parser = await createAddHocParser(compiled_grammar, recognizer_functions, meta);
         const bootstrapped_compiled_grammar = await compileGrammarFromURI(hcg_grammar_file, bootstrapped_parser);
         const {
             recognizer_functions: bootstrapped_recognizer_functions,
             meta: bootstrapped_meta,
-        } = await compileRecognizer(bootstrapped_compiled_grammar, 1);
+        } = await buildRecognizer(bootstrapped_compiled_grammar, 1);
 
-        let SUCCESS = await writeJSParserToFile(
+        let SUCCESS = await writeParserScriptFile(
             URI.resolveRelative("./source/typescript/grammar3/hcg3_parser.staged.js") + "",
             bootstrapped_compiled_grammar, bootstrapped_recognizer_functions, bootstrapped_meta,
             "../runtime/parser_loader_alpha.js"

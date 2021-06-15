@@ -1,22 +1,25 @@
-import { compileGrammarSource } from "../tools.js";
+import { compileJSParserFromGrammar } from "../tools.js";
 
-const parser = await compileGrammarSource(`<> start > t:simple`);
+const parser = await compileJSParserFromGrammar(`<> start > t:simple`);
 
-assert(parser("simple").result[0] == "simple");
+assert("Should ba able to create parser from trivial grammar", parser("simple").result[0] == "simple");
 
-assert(!parser("simpled"));
+assert("Parsing of trivial grammar should fail with input that does not belong to grammar. A", !parser("simpled"));
 
-assert(!parser("simpl"));
+assert("Parsing of trivial grammar should fail with input that does not belong to grammar. B", !parser("simpl"));
 
-const scientific = await compileGrammarSource(
+const scientific = await compileJSParserFromGrammar(
     `<> sci > d
 <> d >  g:num ( \\. g:num )? ( \\e g:num f:r{$2} )? 
     f:r { {integer:parseInt($1), fractional:parseInt($2), exponent:parseInt($3)}  } `
 );
 
-assert(scientific("2.3e3").result[0] == { integer: 2, fractional: 3, exponent: 3 });
+assert(
+    "Should ba able to create parser from grammar that uses numerical characters",
+    scientific("2.3e3").result[0] == { integer: 2, fractional: 3, exponent: 3 }
+);
 
-const complex = await compileGrammarSource(
+const complex = await compileJSParserFromGrammar(
     `<> complex > d
  
 <> d >  real ( \\i real )? 

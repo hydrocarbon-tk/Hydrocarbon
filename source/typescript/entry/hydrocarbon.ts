@@ -16,8 +16,6 @@
 
 import "../utilities/array_globals.js";
 
-//Compiling
-import { compile } from "../compiler/compiler.js";
 
 //Runtime - Hybrid
 import { initializeUTFLookupTable } from "../runtime/parser_memory_new.js";
@@ -34,7 +32,7 @@ import { lrParse } from "../lr(deprecate)/runtime/lr_parser.js";
 //Diagnostics
 import { ParserEnvironment } from "../types/parser_environment.js";
 import { ErrorHandler, ParserData } from "../lr(deprecate)/runtime/parser_data.js";
-import { compileGrammarFromString, compileGrammarFromURI } from "../grammar3/compile.js";
+import { compileGrammarFromString, compileGrammarFromURI } from "../grammar/compile.js";
 
 export {
     loadWASM,
@@ -50,6 +48,6 @@ export {
     initializeUTFLookupTable,
     lrParse,
     compileGrammarFromString,
-    compileGrammarFromURI,
-    compile
+    compileGrammarFromURI
 };
+

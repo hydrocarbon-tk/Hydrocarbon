@@ -6,7 +6,7 @@
 import { performance } from "perf_hooks";
 import { sk } from "../skribble/skribble.js";
 import { SKBlock, SKExpression, SKFunction, SKIf, SKPrimitiveDeclaration } from "../skribble/types/node.js";
-import { HCG3Production, HCG3Grammar } from "../types/grammar_nodes.js";
+import { HCG3Grammar, HCG3Production } from "../types/grammar_nodes.js";
 import { RDProductionFunction } from "../types/rd_production_function";
 import { RenderBodyOptions } from "../types/render_body_options";
 import { Symbol } from "../types/symbol.js";

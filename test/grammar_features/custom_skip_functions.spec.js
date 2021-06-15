@@ -1,6 +1,6 @@
-import { compileGrammarSource } from "../tools.js";
+import { compileJSParserFromGrammar } from "../tools.js";
 
-const parser = await compileGrammarSource(
+const parser = await compileJSParserFromGrammar(
     `@IGNORE g:ws
 
     #<custom_skip> \\/*  ( g:ws | g:sym | g:nl | g:id )(*)  \\*/

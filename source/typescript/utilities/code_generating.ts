@@ -4,7 +4,7 @@
  * disclaimer notice.
  */
 import crypto from "crypto";
-import { Helper } from "../compiler/helper.js";
+import { Helper } from "../build/helper.js";
 import { sk, skRenderAsSK } from "../skribble/skribble.js";
 import { SKAssignment, SKBlock, SKCall, SKExpression, SKFunction, SKIdentifierReference, SKIf, SKNode, SKOperatorExpression, SKPrimitiveDeclaration, SKReference } from "../skribble/types/node.js";
 import { HCG3Production, HCG3Grammar } from "../types/grammar_nodes.js";

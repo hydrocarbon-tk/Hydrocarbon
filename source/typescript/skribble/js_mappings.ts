@@ -302,6 +302,9 @@ export const js_mappings: NodeMappings<SKNode, "type"> = <NodeMappings<SKNode, "
 
                 const name = template_fn(state, node.name, false);
 
+                if (node.modifiers.includes("js_ignore"))
+                    return "";
+
                 if (node.modifiers.includes("new")) {
                     //@ts-ignore
                     node.new = true;
@@ -442,6 +445,8 @@ export const js_mappings: NodeMappings<SKNode, "type"> = <NodeMappings<SKNode, "
 
                 if (new_node.parameters)
                     new_node.parameters = new_node.parameters.map(p => Object.assign({}, p, { type: 'argument' }));
+                //@ts-ignore
+                new_node.expressions = new_node.expressions.map(exp => template_fn(state, exp, false)).filter(e => !!e);
 
                 return template_fn(state, new_node);
 
@@ -456,6 +461,8 @@ export const js_mappings: NodeMappings<SKNode, "type"> = <NodeMappings<SKNode, "
                 const new_node: SKFunction = Object.assign({}, state.node);
 
                 new_node.parameters = new_node.parameters.map(p => Object.assign({}, p, { type: 'argument' }));
+                //@ts-ignore
+                new_node.expressions = new_node.expressions.map(exp => template_fn(state, exp, false)).filter(e => !!e);
 
                 return template_fn(state, new_node);
 

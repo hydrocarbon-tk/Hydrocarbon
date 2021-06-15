@@ -1,6 +1,6 @@
 import { parser_factory } from "./parser/parser.js";
 import { SKExpression, SKNode, SKStatement } from "./types/node.js";
-import { skribble_mappings } from "./mappings.js";
+import { skribble_mappings } from "./skribble_mappings.js";
 
 const { parser: skribble_parser } = parser_factory;
 export function parser(string) {

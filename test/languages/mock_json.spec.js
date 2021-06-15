@@ -1,5 +1,5 @@
 import URL from "@candlelib/uri";
-import { compileGrammarSource } from "../tools.js";
+import { compileJSParserFromGrammar } from "../tools.js";
 
 await URL.server();
 
@@ -8,7 +8,7 @@ const parse_test_1_result = { array: [1, 2, { taco: 'pub' }], number: 25.25 };
 //Construct A HCG parser
 const mock_js_source = await (URL.resolveRelative("./test/languages/mock.json.hcg").fetchText());
 
-const mock_js_parser = await compileGrammarSource(mock_js_source);
+const mock_js_parser = await compileJSParserFromGrammar(mock_js_source);
 
 const data_string =
     `{ 

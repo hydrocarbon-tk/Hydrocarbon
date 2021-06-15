@@ -3,7 +3,7 @@
  * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
  * disclaimer notice.
  */
-import { GlobalName, ConstantObj } from "../compiler/helper";
+import { GlobalName, ConstantObj } from "../build/helper";
 import { SC } from "../utilities/skribble.js";
 
 export enum HybridJobType {

@@ -4,7 +4,7 @@
  * disclaimer notice.
  */
 import { Lexer } from "@candlelib/wind";
-import { fillByteBufferWithUTF8FromString } from "./fillByteBufferWithUTF8FromString.js";
+import { fillByteBufferWithUTF8FromString } from "./utf8.js";
 import { HCGProductionFunction } from "../types/parser";
 import { ForkData, RecognizeInitializer } from "../types/parser_data";
 import { initializeUTFLookupTableNew } from "./parser_memory_new.js";

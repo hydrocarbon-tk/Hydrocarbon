@@ -4,11 +4,8 @@
  * a new HCG parser
  */
 import URI from "@candlelib/uri";
-import { assert } from "console";
-import { buildJSParserStrings, compileRecognizer, createAddHocParser } from "../../build/library/compiler/compiler.js";
-import {
-    compileGrammarFromURI
-} from "../../build/library/grammar3/compile.js";
+import { compileGrammarFromURI } from "../../build/library/grammar/compile.js";
+import { createAddHocParser } from "../../build/library/render/create_add_hoc_parser.js";
 
 await URI.server();
 
@@ -24,9 +21,7 @@ assert_group(
             compiled_grammar = await compileGrammarFromURI(grammar_file),
             { recognizer_functions, meta, }
                 = await compileRecognizer(compiled_grammar, 1),
-            { recognizer_script, completer_script }
-                = buildJSParserStrings(compiled_grammar, recognizer_functions, meta),
-            parser = await createAddHocParser(compiled_grammar, recognizer_script, completer_script);
+            parser = await createAddHocParser(compiled_grammar, recognizer_functions, meta);
 
 
 

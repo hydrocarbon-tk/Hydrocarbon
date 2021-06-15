@@ -3,7 +3,7 @@
  * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
  * disclaimer notice.
  */
-import { getStartItemsFromProduction } from "../compiler/function_constructor.js";
+import { getStartItemsFromProduction } from "../build/function_constructor.js";
 import { HCG3Grammar } from "../types/grammar_nodes.js";
 import { getGotoItems, Item, itemsToProductions } from "./item.js";
 import { getProductionID } from "./production.js";

@@ -39,7 +39,8 @@
         "@candlelib/conflagrate": "0.3.0",
         "@candlelib/js": "0.5.0",
         "@candlelib/uri": "0.2.0",
-        "@candlelib/wind": "0.5.0"
+        "@candlelib/wind": "0.5.0",
+        "@candlelib/paraffin": "*"
     },
     "devDependencies": {
         "@types/node": "^13.7.6"

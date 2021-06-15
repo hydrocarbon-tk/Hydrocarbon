@@ -8,8 +8,8 @@ import {
     addCLIConfig, processCLIConfig
 } from "@candlelib/paraffin";
 import URL from "@candlelib/uri";
-import { compileRecognizer, writeJSParserToFile } from "../compiler/compiler.js";
-import { compileGrammarFromURI } from "../grammar3/compile.js";
+import { compileRecognizer, writeParserScriptFile } from "../build/compiler.js";
+import { compileGrammarFromURI } from "../grammar/compile.js";
 
 await URL.server();
 
@@ -64,7 +64,7 @@ addCLIConfig("compile", {
 
     switch (type.value) {
         default:
-            await writeJSParserToFile(output + "", grammar, recognizer_functions, meta);
+            await writeParserScriptFile(output + "", grammar, recognizer_functions, meta);
 
     }
 });

@@ -3,7 +3,7 @@
  * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
  * disclaimer notice.
  */
-import { Helper } from "../compiler/helper.js";
+import { Helper } from "../build/helper.js";
 import { SKExpression, SKReference } from "../skribble/types/node.js";
 import { Item } from "../utilities/item.js";
 import { HCG3Grammar, HCG3Production } from "./grammar_nodes.js";

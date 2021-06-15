@@ -3,7 +3,7 @@
  * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
  * disclaimer notice.
  */
-import { Helper } from "../compiler/helper.js";
+import { Helper } from "../build/helper.js";
 import { jump8bit_table_byte_size } from "../runtime/parser_memory_new.js";
 import { parser, skRenderAsSK } from "../skribble/skribble.js";
 import { SKModule } from "../skribble/types/node.js";
@@ -566,8 +566,11 @@ fn pushFN:void(
 fn stepKernel:bool(data:__ParserData$ref, stack_base:i32){
     [mut] ptr:i32 = data.stack_ptr;
 
-    [static] _fn:function_pointer = 
+    [static js_ignore] _fn:function_pointer = 
     fn : i32 (l:__Lexer$ref,data:__ParserData$ref, state:u32, prod:u32, puid:i32){data.stack[ptr]};
+
+    [static cpp_ignore] _fn: any = data.stack[ptr];
+    
     [static] stash:u32 = data.stash[ptr];
 
     data.stack_ptr--;

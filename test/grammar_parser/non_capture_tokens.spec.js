@@ -1,9 +1,4 @@
-import {
-    compileGrammarFromString
-} from "../../build/library/grammar3/compile.js";
-import {
-    createAddHocParser
-} from "../../build/library/compiler/compiler.js";
+import { compileJSParserFromGrammar } from "../tools.js";
 assert_group(sequence, 10000, () => {
 
     const test_grammar_string =
@@ -18,11 +13,7 @@ assert_group(sequence, 10000, () => {
                 | \\{ g:id \\}                  f:r { { type:"brackets", v:$2 } }
         `;
 
-    const test_grammar = await compileGrammarFromString(test_grammar_string);
-
-    assert("Construct test grammar", test_grammar != undefined);
-
-    const test_parser = await createAddHocParser(test_grammar);
+    const test_parser = await compileJSParserFromGrammar(test_grammar_string);
 
     assert("Construct test parser", test_parser != undefined);
 

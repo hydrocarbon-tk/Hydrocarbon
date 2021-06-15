@@ -3,9 +3,8 @@
  * which then should be able to compile
  * a new HCG parser
  */
-import {
-    compileGrammarFromString
-} from "../../build/library/grammar3/compile.js";
+
+import { compileGrammarFromString } from "../../build/library/grammar/compile";
 
 //################################################################################################
 
@@ -18,7 +17,7 @@ assert_group("Should throw error when grammar has missing production", 20000, se
     
     <> B > D
     `;
-    
+
     assert(!await compileGrammarFromString(grammar));
 });
 

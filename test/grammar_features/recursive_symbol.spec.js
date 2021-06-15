@@ -1,9 +1,9 @@
 import { assert } from "console";
-import { compileGrammarSource } from "../tools.js";
+import { compileJSParserFromGrammar } from "../tools.js";
 
 
 
-const parser = await compileGrammarSource(`
+const parser = await compileJSParserFromGrammar(`
 @IGNORE g:ws
 
 <> A > C

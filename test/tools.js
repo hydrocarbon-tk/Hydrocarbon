@@ -1,13 +1,11 @@
 import URL from "@candlelib/uri";
-import { buildJSParserStrings, compileRecognizer, createAddHocParser } from "../build/library/compiler/compiler.js";
-import {
-    compileGrammarFromString
-} from "../build/library/grammar3/compile.js";
+import { compileGrammarFromString } from "../build/library/grammar/compile.js";
+import { createAddHocParser } from "../build/library/render/create_add_hoc_parser.js";
 
 /**
  * Compile a parser from a file path or an input string
  */
-export async function compileGrammarSource(string_or_url, DEBUG = false, recognizer_type = "js") {
+export async function compileJSParserFromGrammar(string_or_url, DEBUG = false, recognizer_type = "js") {
 
     await URL.server();
 
@@ -22,10 +20,7 @@ export async function compileGrammarSource(string_or_url, DEBUG = false, recogni
 
     const
         compiled_grammar = await compileGrammarFromString(string),
-        { recognizer_functions, meta, }
-            = await compileRecognizer(compiled_grammar, 1, true),
-        { recognizer_script, completer_script }
-            = buildJSParserStrings(compiled_grammar, recognizer_functions, meta);
+        { recognizer_functions, meta, };
 
-    return await createAddHocParser(compiled_grammar, recognizer_script, completer_script);
+    return await createAddHocParser(compiled_grammar, recognizer_functions, meta);
 }
