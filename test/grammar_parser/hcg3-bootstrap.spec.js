@@ -7,6 +7,7 @@ import URI from "@candlelib/uri";
 import { buildRecognizer } from "../../build/library/build/build.js";
 import { compileGrammarFromURI } from "../../build/library/grammar/compile.js";
 import { createAddHocParser } from "../../build/library/render/create_add_hoc_parser.js";
+import { writeParserScriptFile } from "../../build/library/render/render.js";
 
 const
     hcg_grammar_file = URI.resolveRelative("./source/grammars/hcg-3-alpha/hcg.hcg");
@@ -92,10 +93,8 @@ assert_group(
             meta,
         } = await buildRecognizer(compiled_grammar, 1);
 
-        const parser = await createAddHocParser(compiled_grammar, recognizer_functions, meta);
+        const bootstrapped_parser = await createAddHocParser(compiled_grammar, recognizer_functions, meta);
         const bootstrapped_compiled_grammar = await compileGrammarFromURI(hcg_grammar_file, bootstrapped_parser);
-
-
 
         assert(bootstrapped_compiled_grammar !== null);
         assert(bootstrapped_compiled_grammar.type == "hc-grammar-3");
@@ -111,7 +110,7 @@ assert_group(
             recognizer_functions,
             meta,
         } = await buildRecognizer(compiled_grammar, 1);
-        const parser = await createAddHocParser(compiled_grammar, recognizer_functions, meta);
+        const bootstrapped_parser = await createAddHocParser(compiled_grammar, recognizer_functions, meta);
         const bootstrapped_compiled_grammar = await compileGrammarFromURI(hcg_grammar_file, bootstrapped_parser);
         const {
             recognizer_functions: bootstrapped_recognizer_functions,
@@ -126,7 +125,7 @@ assert_group(
     });
 
 assert_group(
-    "Should be able to write bootstrapped parser to staging file",
+    "Should be able to write bootstrapped parser to staging file", i,
     10000, sequence, () => {
         const compiled_grammar = await compileGrammarFromURI(hcg_grammar_file);
         const {
@@ -141,9 +140,9 @@ assert_group(
         } = await buildRecognizer(bootstrapped_compiled_grammar, 1);
 
         let SUCCESS = await writeParserScriptFile(
-            URI.resolveRelative("./source/typescript/grammar3/hcg3_parser.staged.js") + "",
+            URI.resolveRelative("./build/staged/hcg3_parser.staged.ts") + "",
             bootstrapped_compiled_grammar, bootstrapped_recognizer_functions, bootstrapped_meta,
-            "../runtime/parser_loader_alpha.js"
+            "../runtime/parser_loader_next.js"
         );
 
         assert(SUCCESS == true);
