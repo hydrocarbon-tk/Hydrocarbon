@@ -1,4 +1,5 @@
 import { NodeMapping, NodeMappings } from "@candlelib/conflagrate";
+import { sk } from "./skribble.js";
 import {
     SKNode, SKNumber,
     SKBoolean, SKNull, SKString, SKSOperator, SKNakedTemplate, SKTemplateStatement,
@@ -7,16 +8,13 @@ import {
     SKFunction, SKTypeString, SKTypeReference, SKAssignment,
     SKIf, SKOperatorExpression, SKLoop, SKFor, SKIn,
     SKMatch, SKMatchTarget, SKCall, SKParenthesis, SKBreak,
-    SKBlock, SKReturn, SKContinue, SKNamespace, SKStructure, SKClass, SKModule, SKType, SKReference,
+    SKBlock, SKReturn, SKContinue, SKNamespace, SKStructure, SKClass, SKModule, SKType, SKReference, SKMethod, SKPrimitiveArgument,
 } from "./types/node";
 
 export const js_mappings: NodeMappings<SKNode, "type"> = <NodeMappings<SKNode, "type">>{
     typename: "type",
     type_lookup: () => 0,
     mappings: [
-        <NodeMapping<SKType>>{ type: "type-u32", template: "u32" },
-        <NodeMapping<SKType>>{ type: "type-u32", template: "u32" },
-        <NodeMapping<SKType>>{ type: "type-u64", template: "u64" },
         <NodeMapping<SKNumber>>{ type: "number", child_keys: [], template: "@value" },
         <NodeMapping<SKBoolean>>{ type: "boolean", child_keys: [], template: "@value" },
         <NodeMapping<SKNull>>{ type: "null", template: "null" },
@@ -46,9 +44,44 @@ export const js_mappings: NodeMappings<SKNode, "type"> = <NodeMappings<SKNode, "
             type: "type-string",
             template: "String"
         },
+
         <NodeMapping<SKTypeReference>>{
             type: "type-reference",
-            template: "@value"
+            template: "@value",
+            custom_render: (state, template_fn) => {
+                const node: SKTypeReference = state.node;
+
+                if (node.value.slice(0, 6) == "array_") {
+                    const val = node.value.slice(6).split("$")[0].trim();
+                    switch (val) {
+                        case "u32": return "Uint32Array";
+                        case "u16": return "Uint16Array";
+                        case "u8": return "Uint8Array";
+                        case "i32": return "Int32Array";
+                        case "i16": return "Int16Array";
+                        case "i8": return "Int8Array";
+                        default:
+                            return "Array";
+                    }
+
+                }
+
+                if (node.value.slice(0, 2) == "__") {
+                    const parts = node.value.trim().slice(2).split("$");
+
+                    const type_name = parts[0];
+
+                    const name = template_fn(state, (sk`[c]a:${type_name}`).primitive_type, true);
+
+                    if (parts.includes("ref")) {
+                        return name + "&";
+                    } else if (parts.includes("ptr")) {
+                        return name + "*".repeat(parts.filter(d => d == "ptr").length);
+                    }
+                }
+
+                return template_fn(state);
+            }
         },
         <NodeMapping<SKTypeReference>>{
             type: "type-i32",
@@ -99,6 +132,7 @@ export const js_mappings: NodeMappings<SKNode, "type"> = <NodeMappings<SKNode, "
                 const { node } = state;
 
                 if (node.expression.type !== "block") {
+                    //@ts-ignore
                     node.IS_BLOCKLESS = true;
                 }
 
@@ -126,7 +160,20 @@ export const js_mappings: NodeMappings<SKNode, "type"> = <NodeMappings<SKNode, "
                     const C = node.list[i + 2];
 
                     if (A && B) {
-                        if (A.type == "operator" && A.val == "?" && C?.type == "operator") {
+
+                        if (A.type == "operator" && A.val == "****") {
+                            //Skip delete operator
+                            return "";
+                        } else if (A.type == "operator" && A.val == "%%%%") {
+                            //Skip array_delete operator
+                            return "";
+                        } else if (A.type == "operator" && A.val == "&>") {
+                            //Skip memory operator
+                            continue;
+                        } else if (A.type == "operator" && A.val == "*>") {
+                            //Skip dereference operator
+                            continue;
+                        } else if (A.type == "operator" && A.val == "?" && C?.type == "operator") {
                             i += 2;
                             list.push(A, B, Object.assign({}, C, { val: ":" }));
                             continue;
@@ -248,11 +295,15 @@ export const js_mappings: NodeMappings<SKNode, "type"> = <NodeMappings<SKNode, "
             child_keys: ["type", "primitive_type", "initialization"],
             template: "@var_type m:s @name {initialization: o:s = o:s {new: new m:s} @initialization}",
             custom_render: (state, template_fn) => {
+
                 let variable_type = "var";
 
                 let { node } = state;
 
+                const name = template_fn(state, node.name, false);
+
                 if (node.modifiers.includes("new")) {
+                    //@ts-ignore
                     node.new = true;
                 }
 
@@ -275,15 +326,79 @@ export const js_mappings: NodeMappings<SKNode, "type"> = <NodeMappings<SKNode, "
                     });
                 }
 
+                if (node.primitive_type.type == "type-reference") {
+
+                    const primitive_type: SKTypeReference = node.primitive_type;
+
+                    if (primitive_type.value.trim() == "function_pointer" && node.initialization?.type == "lambda") {
+
+                        node.initialization = null;
+                        /*
+                        const args = lambda.parameters.map(m => template_fn(state, m.primitive_type, false));
+                        const body = lambda.expressions;
+                        const return_type = template_fn(state, lambda.return_type, false);
+
+                        if (body.length == 1 && body[0].type == "number") {
+                            //Array
+                            return `${return_type} (*${name}[${body[0].value}])( ${args}) `;
+                        } else if (body.length == 1) {
+                            return `${return_type} (*${name})( ${args})`;
+                        } else if (body.length == 0) {
+                            return `${return_type} (*${name})( ${args})`;
+                        }
+                        */
+                        //Other possible choices: References other functions 
+                        //Single reference to function. 
+
+
+                    } else if (primitive_type.value.trim().slice(0, 6) == "array_") {
+
+                        /*  Convert assignments to array initializers
+                        */
+
+                        const type = template_fn(state, primitive_type, false);
+
+                        const prefix = node.modifiers.includes("this_") ? "this." : "var ";
+
+                        if (node.initialization && node.initialization.type == "call") {
+                            const call = node.initialization;
+
+                            if (call.parameters) {
+
+                                if (call.parameters.length == 1 && call.parameters[0].type == "number") {
+                                    return prefix + name.trim() + ` = new ${type}(${template_fn(state, call.parameters[0], false)})`;
+                                } else if (call.parameters.length > 0 && call.parameters.every(e => e.type == "number")) {
+                                    return prefix + name.trim() + ` = new ${type}([${call.parameters.map(p => p.value)}])`;
+                                } else if (call.parameters.length == 1) {
+                                    return prefix + name.trim() + ` = new ${type}(${template_fn(state, call.parameters[0], false)})`;
+                                }
+                            } else
+                                return prefix + name.trim() + ` = []`;
+                        } else {
+                            //Array will be a pointer
+
+                            return type + "* " + name.trim();
+                        }
+
+                    }
+                }
+
                 return template_fn(state, Object.assign({}, node, {
                     var_type: variable_type
                 }));
             }
         },
-        <NodeMapping<SKPrimitiveDeclaration>>{
+        <NodeMapping<SKPrimitiveArgument>>{
             type: "argument",
             child_keys: ["type", "primitive_type", "initialization"],
             template: "@name{initialization: o:s = o:s @initialization}",
+            custom_render: (state, render_fn) => {
+                const node = state.node;
+                if (node.primitive_type.type == "type-reference")
+                    if (node.primitive_type.value.trim() == "function_pointer" && node.initialization?.type == "lambda")
+                        state.node.initialization = null;
+                return render_fn(state);
+            }
         },
         <NodeMapping<SKStructure>>{
             type: "structure",
@@ -300,6 +415,8 @@ export const js_mappings: NodeMappings<SKNode, "type"> = <NodeMappings<SKNode, "
 
                 new_node.members = new_node.members.map(n => {
                     if (n.type == "function") {
+                        if (n.return_type.value == "destructor")
+                            return null;
                         if (n.name.value == state.node.name.value) {
                             return Object.assign({}, n, { type: "method", return_type: null, name: Object.assign({}, n.name, { value: "constructor" }) });
                         }
@@ -315,13 +432,13 @@ export const js_mappings: NodeMappings<SKNode, "type"> = <NodeMappings<SKNode, "
 
             }
         },
-        <NodeMapping<SKFunction>>{
+        <NodeMapping<SKMethod>>{
             type: "method",
             child_keys: ["name", "return_type", "parameters", "expressions"],
             template: "@name (@parameters...[,o:s]) \\{ i:s o:n @expressions...[;o:n] i:e o:n \\}",
             custom_render: (state, template_fn) => {
 
-                const new_node: SKFunction = Object.assign({}, state.node);
+                const new_node: SKMethod = Object.assign({}, state.node);
 
                 if (new_node.parameters)
                     new_node.parameters = new_node.parameters.map(p => Object.assign({}, p, { type: 'argument' }));
@@ -329,11 +446,6 @@ export const js_mappings: NodeMappings<SKNode, "type"> = <NodeMappings<SKNode, "
                 return template_fn(state, new_node);
 
             }
-        },
-        <NodeMapping<SKFunction>>{
-            type: "class_declaration",
-            child_keys: ["name", "return_type", "parameters", "expressions"],
-            template: ""
         },
         <NodeMapping<SKFunction>>{
             type: "function",

@@ -9,6 +9,7 @@
     },
     "type": "module",
     "scripts": {
+        "install": "./scripts/install.sh",
         "build": "tsc",
         "prepublishOnly": "rm -rf ./build/ && tsc -p ./tsconfig.json && yarn test",
         "test": "candle.cure --threads 2 ./test/",
@@ -35,14 +36,10 @@
     },
     "homepage": "https://github.com/CandleLibrary/Hydrocarbon#readme",
     "dependencies": {
-        "@assemblyscript/loader": "^0.17.2",
         "@candlelib/conflagrate": "0.3.0",
         "@candlelib/js": "0.5.0",
         "@candlelib/uri": "0.2.0",
-        "@candlelib/wind": "0.5.0",
-        "assemblyscript": "^0.17.2",
-        "commander": "^5.0.0",
-        "terser": "^4.6.3"
+        "@candlelib/wind": "0.5.0"
     },
     "devDependencies": {
         "@types/node": "^13.7.6"

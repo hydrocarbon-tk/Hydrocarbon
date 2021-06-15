@@ -4,12 +4,11 @@
  * disclaimer notice.
  */
 import { loadWASM } from "./wasm_loader.js";
+import { ParserEnvironment } from "../runtime";
 import { HCGProductionFunction } from "../types/parser";
 import { RecognizeInitializer } from "../types/parser_data";
 import { initializeUTFLookupTable } from "./parser_memory_new.js";
 import { Lexer } from "@candlelib/wind";
-import { fillByteBufferWithUTF8FromString } from "./fillByteBufferWithUTF8FromString.js";
-import { ParserEnvironment } from "../types/parser_environment.js";
 
 export type HCParser<T = any> = (str: string, env?: ParserEnvironment, production_id?: number) => {
     result: T[];
@@ -38,7 +37,7 @@ export function ParserFactory<T>(
         const out = new Uint8Array(wasm_binary_string.length >> 1);
 
         for (let i = 0; i < wasm_binary_string.length; i += 2)
-            out[i >> 1] = parseInt(wace(i, i + 2), 16);
+            out[i >> 1] = parseInt(wasm_binary_string.slice(i, i + 2), 16);
 
         ({ recognizer, init_data, init_table, delete_data, get_fork_information, get_next_command_block } = loadWASM(out));
 
@@ -190,3 +189,37 @@ export function ParserFactory<T>(
     };
 };
 
+export function fillByteBufferWithUTF8FromString(string, buffer: Uint8Array, max_length) {
+
+    let i = 0, j = 0, l = string.length;
+
+    for (; i < l && j < max_length - 4; i++) {
+
+        const code_point = string.codePointAt(i);
+
+        if ((code_point & 0x7F) == code_point) {
+            buffer[j++] = (code_point & 0x7F);
+        } else if ((code_point & 0x7FF) == code_point) {
+            buffer[j++] = 0xC0 | ((code_point >> 6) & 0x1F);
+            buffer[j++] = 0x80 | ((code_point & 0x3F));
+        } else if ((code_point & 0xFFFF) == code_point) {
+            buffer[j++] = 0xE0 | ((code_point >> 12) & 0xF);
+            buffer[j++] = 0x80 | ((code_point >> 6) & 0x3F);
+            buffer[j++] = 0x80 | ((code_point & 0x3F));
+            if (code_point > 65535) {
+                i++; l++;
+            }
+        } else {
+            if (code_point > 65535) {
+                i++; l++;
+            }
+            buffer[j++] = 0xF0 | ((code_point >> 18) & 0x7);
+            buffer[j++] = 0x80 | ((code_point >> 12) & 0x3F);
+            buffer[j++] = 0x80 | ((code_point >> 6) & 0x3F);
+            buffer[j++] = 0x80 | ((code_point & 0x3F));
+            i++;
+        }
+    }
+
+    return j;
+}

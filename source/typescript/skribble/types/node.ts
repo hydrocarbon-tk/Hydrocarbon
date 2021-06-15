@@ -4,7 +4,7 @@ export interface SKNumber { type: "number"; value: string; }
 export interface SKBoolean { type: "boolean", value: string; }
 export interface SKNull { type: "null"; }
 export interface SKString { type: "string"; value: string; }
-export interface SKSOperator { type: "operator"; value: string; precedence: number; }
+export interface SKSOperator { type: "operator"; val: string; precedence: number; }
 export type SKPrimitive = SKNumber | SKBoolean | SKNull | SKString;
 
 ////////////////////////////////////////////////////////////
@@ -20,7 +20,7 @@ export type SKTemplate = SKNakedTemplate | SKTemplateStatement | SKTemplateExpre
 export interface SKIdentifierBase { type: string; value: string; }
 export interface SKIdentifier extends SKIdentifierBase { type: "identifier"; }
 export interface SKIdentifierReference extends SKIdentifierBase { type: "reference"; }
-export interface SKMemberReference { type: "member-reference"; reference: SKReference; property: SKReference; }
+export interface SKMemberReference { type: "member-reference"; reference: SKReference; property: SKReference; value: string; }
 export interface SKMemberExpression { type: "member-expression"; reference: SKReference; expression: SKExpression; }
 export interface SKPrimitiveDeclaration { type: "declaration"; name: SKIdentifier, modifiers: string[], primitive_type?: SKType, init?: SKExpression; initialization?: SKExpression; }
 export interface SKPrimitiveArgument { type: "argument"; name: SKIdentifier, modifiers: string[], primitive_type?: SKType, init?: SKExpression; initialization?: SKExpression; }

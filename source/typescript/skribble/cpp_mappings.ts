@@ -24,9 +24,6 @@ export const cpp_mappings: NodeMappings<SKNode, "type"> = <NodeMappings<SKNode, 
     typename: "type",
     type_lookup: () => 0,
     mappings: [
-        <NodeMapping<SKType>>{ type: "type-u32", template: "u32" },
-        <NodeMapping<SKType>>{ type: "type-u32", template: "u32" },
-        <NodeMapping<SKType>>{ type: "type-u64", template: "u64" },
         <NodeMapping<SKNumber>>{ type: "number", child_keys: [], template: "@value" },
         <NodeMapping<SKBoolean>>{ type: "boolean", child_keys: [], template: "@value" },
         <NodeMapping<SKNull>>{ type: "null", template: "null" },
@@ -163,7 +160,15 @@ export const cpp_mappings: NodeMappings<SKNode, "type"> = <NodeMappings<SKNode, 
                     const C = node.list[i + 2];
 
                     if (A && B) {
-                        if (A.type == "operator" && A.val == "&>") {
+                        if (A.type == "operator" && A.val == "****") {
+                            list.push(Object.assign({}, A, { val: "delete " }), B);
+                            i += 2;
+                            continue;
+                        } else if (A.type == "operator" && A.val == "%%%%") {
+                            list.push(Object.assign({}, A, { val: "delete[] " }), B);
+                            i += 2;
+                            continue;
+                        } else if (A.type == "operator" && A.val == "&>") {
                             list.push(Object.assign({}, A, { val: "&" }), B);
                             i += 2;
                             continue;
@@ -366,6 +371,7 @@ export const cpp_mappings: NodeMappings<SKNode, "type"> = <NodeMappings<SKNode, 
                 }
 
                 if (node.modifiers.includes("new") && node.initialization) {
+                    //@ts-ignore
                     node.new = true;
                 }
                 if (node.modifiers.includes("this_")) {
@@ -405,14 +411,22 @@ export const cpp_mappings: NodeMappings<SKNode, "type"> = <NodeMappings<SKNode, 
                         return template_fn(state, m, false) + ";";
                     } else if (m.type == "function") {
 
-                        if (m.name.value == new_node.name.value) {
+                        if (m.return_type.value == "destructor") {
+
+                            m.name.value = "~" + new_node.name.value;
+
+                            m.return_type.value = "";
+
+                        } else if (m.name.value == new_node.name.value) {
+
                             m.name.value = "";
                         }
+
                         return template_fn(state, m, false);
                     }
                 }).join("\n" + " ".repeat(state.indent * 4));
                 state.indent--;
-
+                //@ts-ignore
                 new_node.mem_str = str;
 
                 return template_fn(state, new_node);
@@ -428,6 +442,7 @@ export const cpp_mappings: NodeMappings<SKNode, "type"> = <NodeMappings<SKNode, 
                 let new_node: SKMethod = Object.assign({}, state.node);
 
                 if (new_node.modifiers.includes("pub")) {
+                    //@ts-ignore
                     new_node.pub = true;
                 }
 

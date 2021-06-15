@@ -109,37 +109,44 @@ fn createState:u32 (ENABLE_STACK_OUTPUT:u32) {
     [pub] stash: array_u32 = call(64)
     [pub] origin: __ParserData$ptr
     [pub] alternate: __ParserData$ptr
-    [pub] valid: bool = 0 
+    [pub] VALID: bool = 0 
 
     [pub]  fn ParserData:ParserData(
-        input_len:u32, rules_len:u32, error_len:u32, lexer_in: __Lexer$ptr
+        input_len_in:u32, rules_len_in:u32, error_len_in:u32, lexer_in: __Lexer$ptr
     ){
         this.lexer = lexer_in;
         this.state = createState(1);
         this.prod = 0;
-        this.valid = false;
+        this.VALID = false;
         this.stack_ptr = 0;
         this.input_ptr = 0;
         this.rules_ptr = 0;
         this.error_ptr = 0;
-        this.input_len = input_len;
-        this.rules_len = rules_len;
-        this.error_len = error_len;
+        this.input_len = input_len_in;
+        this.rules_len = rules_len_in;
+        this.error_len = error_len_in;
         this.origin_fork = 0;
         [this_] origin:u32 = 0;
         [this_] alternate:u32 = 0;
-        [new this_] input:array_u8 = array_u8(input_len);
-        [new this_] rules:array_u16 = array_u16(rules_len);
-        [new this_] error:array_u8 = array_u8(error_len);
+
+        if(input_len_in > 0): { [new this_] input:array_u8 = array_u8(input_len_in);};
+        [new this_] rules:array_u16 = array_u16(rules_len_in);
+        [new this_] error:array_u8 = array_u8(error_len_in);
         [new this_ cpp_ignore] stash:array_u32 = array_u32(256);
         [new this_ cpp_ignore] stack:array_any = array_any();
+    }
+
+    [pub]  fn ParserData:destructor(){
+        %%%% input;
+        %%%% rules;
+        %%%% error;
     }
 }
 
 [pub wasm] cls ForkData{
 
-    [pub] ptr: u32 = 0
-    [pub] valid:bool = 0
+    [pub] ptr: __ParserData$ptr = 0
+    [pub] VALID:bool = 0
     [pub] depth:u32 = 0
     [pub] byte_offset:u32 = 0
     [pub] byte_length:u32 = 0
@@ -148,19 +155,19 @@ fn createState:u32 (ENABLE_STACK_OUTPUT:u32) {
     [pub] command_block: array_u16 = array_u16(64)
 
     [pub] fn ForkData:ForkData(
-        ptr:u32,
-        valid:bool,
-        depth:u32,
-        byte_offset: u32,
-        byte_length: u32,
-        line: u32
+        ptr_in:__ParserData$ptr,
+        VALID_in:bool,
+        depth_in:u32,
+        byte_offset_in: u32,
+        byte_length_in: u32,
+        line_in: u32
     ){
-        this.byte_offset = byte_offset;
-        this.byte_length = byte_length;
-        this.line = line;
-        this.ptr = ptr;
-        this.valid = valid;
-        this.depth = depth;
+        this.byte_offset = byte_offset_in;
+        this.byte_length = byte_length_in;
+        this.line = line_in;
+        this.ptr = ptr_in;
+        this.VALID = VALID_in;
+        this.depth = depth_in;
         this.command_offset = 0;
         [this_ new cpp_ignore] command_block:Uint16Array = Uint16Array(64);
     }
@@ -417,8 +424,8 @@ fn create_parser_data_object:__ParserData$ptr(
 [ptr] fn fork:__ParserData$ptr(data:__ParserData$ref) {
 
     [mut] fork:__ParserData$ptr = create_parser_data_object(
-        data.input_len,
-        data.rules_len,
+        0,
+        data.rules_len - data.rules_ptr,
         data.error_len - data.error_ptr
     );
 
@@ -445,6 +452,10 @@ fn create_parser_data_object:__ParserData$ptr(
     };
 
     data.alternate = fork;
+
+    data_stack[data_stack_len] = fork;
+
+    data_stack_len++;
 
     return :fork; 
 }
@@ -567,7 +578,7 @@ fn stepKernel:bool(data:__ParserData$ref, stack_base:i32){
     data.prod = result;
 
     if(result<0 || data.stack_ptr < stack_base) : {
-        data.valid = (*>data.lexer).END(data);
+        data.VALID = (*>data.lexer).END(data);
         return:false;
     };
 
@@ -635,7 +646,7 @@ export function createExternFunctions(
                 const closure = getProductionClosure(0, grammar);
                 const skippable = getSkippableSymbolsFromItems(closure, grammar);
                 const unskippable = getUnskippableSymbolsFromClosure(closure, grammar);
-                const skip_fn = createSkipCallSk(skippable, <BaseOptions>{ grammar, helper: runner }, "data.lexer", false, unskippable, true);
+                const skip_fn = createSkipCallSk(skippable, <BaseOptions>{ grammar, helper: runner }, "(*>data.lexer)", false, unskippable, true);
 
                 if (skip_fn) {
                     const skip_call = skRenderAsSK(skip_fn);
@@ -654,13 +665,23 @@ export function createExternFunctions(
         error_len:u32 
     ){ 
 
+        //Free existing data
+        [const]i:u32 =0;
+        loop( ; i < data_stack_len; i++){
+            **** data_stack[i];
+        };
+        i = 0;
+        loop( ; i < data_stack_len; i++){
+            **** fork_stack[i];
+        };
+
+        data_stack_len = 1;
+
         [mut] data:__ParserData$ptr = create_parser_data_object(
             input_len,
             rules_len,
             error_len
         );
-
-        data_stack_len = 1;
 
         data_stack[0] = data;
 
@@ -676,7 +697,7 @@ export function createExternFunctions(
         return: lookup_table;  
     }
 
-    [extern]fn get_fork_information:__ForkData$ptr$ptr(){
+    [extern]fn get_fork_pointers:__ForkData$ptr$ptr(){
         
         [mut] i:u32 = 0;
 
@@ -684,8 +705,8 @@ export function createExternFunctions(
             [const] data:__ParserData$ref = *> data_stack[i];
 
             [mut new] fork:__ForkData$ptr = ForkData(
-                (i),
-                (data.valid),
+                data_stack[i],
+                (data.VALID),
                 (data.origin_fork + data.rules_ptr),
                 (*>data.lexer).byte_offset,
                 (*>data.lexer).byte_length,
@@ -702,7 +723,7 @@ export function createExternFunctions(
         [const] fork_ref:__ForkData$ref = *>fork;
 
         [static] remainder:u32 = block64Consume(
-            *>data_stack[fork_ref.ptr], 
+            *>fork_ref.ptr, 
             fork_ref.command_block, 
             fork_ref.command_offset, 
             0, 64);
@@ -715,12 +736,19 @@ export function createExternFunctions(
         return : fork_ref.command_block;
     }
     
-    [extern] fn recognizer:void(input_byte_length:u32, production:u32){
+    [extern] fn recognize:u32(input_byte_length:u32, production:u32){
+        
         [pub] data_ref:__ParserData$ref = *> data_stack[0];
+        
         data_ref.input_len = input_byte_length;
+        
         (*>data_ref.lexer).next(data_ref);
+        
         dispatch(data_ref, production);
+        
         run();
+        
+        return: data_stack_len;
     }`);
 }
 

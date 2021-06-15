@@ -1,6 +1,6 @@
 import { Lexer } from "@candlelib/wind";
 import fs from "fs";
-import { fillByteBufferWithUTF8FromString } from "../runtime/parser_loader.js";
+import { fillByteBufferWithUTF8FromString } from "../runtime/fillByteBufferWithUTF8FromString.js";
 import { initializeUTFLookupTableNew } from "../runtime/parser_memory_new.js";
 import { HCG3Grammar } from "../types/grammar_nodes.js";
 import { HCGTokenPosition } from "../types/parser.js";

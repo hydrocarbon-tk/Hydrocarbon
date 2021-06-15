@@ -25,6 +25,7 @@ import { loadWASM, buildParserMemoryBuffer } from "../runtime/parser_memory_old.
 //import { loadWASM } from "../runtime/wasm_loader.js";
 import { ParserFactory } from "../runtime/parser_loader.js";
 import { ParserFactory as ParserFactoryNew } from "../runtime/parser_loader_alpha.js";
+import { ParserFactory as ParserFactoryNext } from "../runtime/parser_loader_next.js";
 
 //Runtime - Deprecate
 import { LexerError } from "../lr(deprecate)/runtime/lexer_error.js";
@@ -40,6 +41,7 @@ export {
     buildParserMemoryBuffer,
     ParserFactory,
     ParserFactoryNew,
+    ParserFactoryNext,
     //loadWASM,
     ErrorHandler,
     ParserData,
