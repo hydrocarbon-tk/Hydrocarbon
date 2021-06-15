@@ -305,7 +305,7 @@ export const js_mappings: NodeMappings<SKNode, "type"> = <NodeMappings<SKNode, "
                 if (node.modifiers.includes("js_ignore"))
                     return "";
 
-                if (node.modifiers.includes("new")) {
+                if (node.modifiers.includes("new") || node.modifiers.includes("local_new")) {
                     //@ts-ignore
                     node.new = true;
                 }

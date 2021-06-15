@@ -262,7 +262,7 @@ export function createProductionTokenFunctionSk(tok: ProductionTokenSymbol, opti
                     [const] stack_ptr :u32 = data.stack_ptr;
                     [const] input_ptr:u32 = data.input_ptr;
                     [const] state:u32 = data.state;
-                    [const] copy:Lexer = l.copy();
+                    [const] copy:Lexer = l.copyInPlace();
 
                     pushFN(data, &> ${getProductionFunctionNameSk(production, grammar)});
 
@@ -286,7 +286,7 @@ export function createProductionTokenFunctionSk(tok: ProductionTokenSymbol, opti
                         data.stack_ptr = stack_ptr;
                         data.input_ptr = input_ptr;
                         return: false;
-                    }
+                    };
                 };
                 
                 return: false;

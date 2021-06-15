@@ -325,6 +325,24 @@ fn createState:u32 (ENABLE_STACK_OUTPUT:u32) {
         return :destination
     }
 
+    [pub] fn copyInPlace: Lexer (){
+
+        [const local_new] destination : Lexer = Lexer();
+        
+        destination.byte_offset = this.byte_offset;
+        destination.byte_length = this.byte_length;
+        
+        destination.token_length = this.token_length;
+        destination.token_offset = this.token_offset;
+        destination.prev_token_offset = this.prev_token_offset;
+        
+        destination.line = this.line;
+        destination.byte_length = this.byte_length;
+        destination.current_byte = this.current_byte;
+
+        return :destination
+    }
+
     [pub] fn sync:__Lexer$ref (source: __Lexer$ref){
         
         this.byte_offset = source.byte_offset;
@@ -570,7 +588,7 @@ fn stepKernel:bool(data:__ParserData$ref, stack_base:i32){
     fn : i32 (l:__Lexer$ref,data:__ParserData$ref, state:u32, prod:u32, puid:i32){data.stack[ptr]};
 
     [static cpp_ignore] _fn: any = data.stack[ptr];
-    
+
     [static] stash:u32 = data.stash[ptr];
 
     data.stack_ptr--;

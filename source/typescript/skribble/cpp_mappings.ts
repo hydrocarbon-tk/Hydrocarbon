@@ -255,7 +255,7 @@ export const cpp_mappings: NodeMappings<SKNode, "type"> = <NodeMappings<SKNode, 
 
                 const offset = " ".repeat(4 * indent);
 
-                return `${cases.join("\n" + offset)} ${"\n" + offset}${template_fn(state, node.expression)}`;
+                return `${cases.join("\n" + offset)} ${"\n" + offset}${template_fn(state, node.expression)};`;
 
             }
         },
@@ -351,7 +351,6 @@ export const cpp_mappings: NodeMappings<SKNode, "type"> = <NodeMappings<SKNode, 
 
 
                             } else if (call.parameters.length > 0 && call.parameters.every(e => e.type == "number")) {
-                                console.log(node);
                                 return type + " " + name.trim() + `[${call.parameters.length}] = {${call.parameters.map(p => p.value)}}`;
                             } else if (call.parameters.length == 1) {
 

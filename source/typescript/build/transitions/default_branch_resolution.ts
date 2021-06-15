@@ -230,7 +230,7 @@ function createPeekStatements(
             peek_name = "pk";
 
             if (state.peek_level == 1)
-                root.push(<SKExpression>sk`[mut] pk:Lexer = ${lex_name}.copy()`);
+                root.push(<SKExpression>sk`[mut] pk:Lexer = ${lex_name}.copyInPlace()`);
 
 
             const skip = createSkipCallSk(skippable, options, "pk.next(data)", true);
