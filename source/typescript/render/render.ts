@@ -57,7 +57,12 @@ ${const_functions_a.map(fn => {
 
 ${recognizer_functions.filter(f => f.RENDER).map(fn => {
         const name = getProductionFunctionNameSk(grammar[fn.id], grammar);
-        return `int ${name}(Lexer&, ParserData&, unsigned int, unsigned int, int);`;
+        const declarations = [`int ${name}(Lexer&, ParserData&, unsigned int, unsigned int, int);`];
+        if (fn.goto)
+            declarations.push(`int ${name}_goto(Lexer&, ParserData&, unsigned int, unsigned int, int);`);
+        if (fn.reduce)
+            declarations.push(`int ${name}_reduce(Lexer&, ParserData&, unsigned int, unsigned int, int);`);
+        return declarations.join("\n");
     }).join("\n")}
 ${""}
 /*End Forward Declarations*/
@@ -172,21 +177,34 @@ export async function generateJSParser(
     `;
 }
 
-
+/**
+ * 
+ * @param file_path - Fully resolved file path for completed parser file.
+ * @param grammar - The parser grammar object
+ * @param recognizer_functions  - The built recognizer production function artifacts
+ * @param meta  - The built recognizer common artifacts
+ * @param hydrocarbon_import_path - [Optional] the import path to the hydrocarbon runtime script
+ * @param fn_parser_generator - [Optional] A ParserGenerator function
+ * @returns 
+ */
 export async function writeParserScriptFile(
     file_path: string,
     grammar: HCG3Grammar,
     recognizer_functions: RDProductionFunction[],
     meta: Helper,
     hydrocarbon_import_path: string = "@candlelib/hydrocarbon",
-    script_builder: ParserGenerator = generateJSParser
+    fn_parser_generator: ParserGenerator = generateJSParser
 ): Promise<boolean> {
 
-    const fs = await import("fs").default;
+    const fs = (await import("fs")).default;
 
     const fsp = fs.promises;
 
-    const parser_string = await script_builder(grammar, recognizer_functions, meta, hydrocarbon_import_path);
+    const file_dir = (new URI(file_path)).dir;
+
+    await fsp.mkdir(file_dir, { recursive: true });
+
+    const parser_string = await fn_parser_generator(grammar, recognizer_functions, meta, hydrocarbon_import_path);
 
     try {
         await fsp.writeFile(file_path, parser_string);
