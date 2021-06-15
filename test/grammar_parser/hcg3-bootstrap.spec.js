@@ -7,7 +7,7 @@ import URI from "@candlelib/uri";
 import { buildRecognizer } from "../../build/library/build/build.js";
 import { compileGrammarFromURI } from "../../build/library/grammar/compile.js";
 import { createAddHocParser } from "../../build/library/render/create_add_hoc_parser.js";
-import { writeParserScriptFile } from "../../build/library/render/render.js";
+import { generateWebAssemblyParser, writeParserScriptFile } from "../../build/library/render/render.js";
 
 const
     hcg_grammar_file = URI.resolveRelative("./source/grammars/hcg-3-alpha/hcg.hcg");
@@ -115,8 +115,8 @@ assert_group(
         const {
             recognizer_functions: bootstrapped_recognizer_functions,
             meta: bootstrapped_meta,
-        } = await buildRecognizer(bootstrapped_compiled_grammar, 1);
-        const parser = await createAddHocParser(bootstrapped_compiled_grammar, bootstrapped_recognizer_functions, bootstrapped_meta);
+        } = await buildRecognizer(bootstrapped_compiled_grammar, 10);
+        const parser = await createAddHocParser(bootstrapped_compiled_grammar, bootstrapped_recognizer_functions, bootstrapped_meta, generateWebAssemblyParser);
 
         const { result } = parser("\n <> test > t:r ( \\hello_world (+) ) ");
 
@@ -125,7 +125,7 @@ assert_group(
     });
 
 assert_group(
-    "Should be able to write bootstrapped parser to staging file", i,
+    "Should be able to write bootstrapped parser to staging file",
     10000, sequence, () => {
         const compiled_grammar = await compileGrammarFromURI(hcg_grammar_file);
         const {
@@ -142,7 +142,8 @@ assert_group(
         let SUCCESS = await writeParserScriptFile(
             URI.resolveRelative("./build/staged/hcg3_parser.staged.ts") + "",
             bootstrapped_compiled_grammar, bootstrapped_recognizer_functions, bootstrapped_meta,
-            "../runtime/parser_loader_next.js"
+            "../runtime/parser_loader_next.js",
+            generateWebAssemblyParser
         );
 
         assert(SUCCESS == true);
