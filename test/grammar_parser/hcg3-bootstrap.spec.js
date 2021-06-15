@@ -132,6 +132,8 @@ assert_group(
 assert_group(
     "Should be able to write bootstrapped parser to staging file",
     10000, sequence, () => {
+
+
         const compiled_grammar = await compileGrammarFromURI(hcg_grammar_file);
         const {
             recognizer_functions,

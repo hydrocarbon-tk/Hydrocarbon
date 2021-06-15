@@ -11,7 +11,7 @@ OUT_NAME=$2
 >&2 echo $OUT_NAME
 
 emcc $TEMP_NAME \
-    -O3 \
+    -Oz \
     -g2 \
     -s ALLOW_MEMORY_GROWTH=1 \
     --no-entry \
