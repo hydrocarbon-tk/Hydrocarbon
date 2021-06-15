@@ -214,7 +214,7 @@ export function convertListProductions(grammar: HCG3Grammar, error: Error[]): HC
 
                 if (!processListSymbol(sym, body, production, meta, grammar, index)) {
 
-                    processGroupSymbol(sym, body, meta, production, grammar);
+                    processGroupSymbol(sym, body, meta, production, grammar, index);
                 }
 
                 index++;
@@ -236,7 +236,7 @@ export function convertListProductions(grammar: HCG3Grammar, error: Error[]): HC
 
     return grammar;
 }
-function processGroupSymbol(sym: any, body: HCGProductionBody, meta: any, production: HCG3Production, grammar: HCG3Grammar) {
+function processGroupSymbol(sym: any, body: HCGProductionBody, meta: any, production: HCG3Production, grammar: HCG3Grammar, index: number) {
 
 
     if (Sym_Is_Group_Production(sym)) {
@@ -261,7 +261,7 @@ function processGroupSymbol(sym: any, body: HCGProductionBody, meta: any, produc
                 // Complex grouped productions (those with reduce actions) will need to be
                 // turned into new productions
                 const
-                    new_production_name = production.name + "_group_" + meta.index + "_" + i + "_";
+                    new_production_name = production.name + "_group_" + index + "_" + i + "_";
 
 
                 let new_production = createProduction(new_production_name, sym);
@@ -303,7 +303,7 @@ function processGroupSymbol(sym: any, body: HCGProductionBody, meta: any, produc
     }
 }
 
-function processListSymbol(sym: any, body: HCGProductionBody, production: HCG3Production, meta: any, grammar: HCG3Grammar, index) {
+function processListSymbol(sym: any, body: HCGProductionBody, production: HCG3Production, meta: any, grammar: HCG3Grammar, index: number) {
     if (Sym_Is_List_Production(sym)) {
 
         if (body.sym.length == 1 && !Body_Has_Reduce_Action(body) && production.bodies.length == 1) {
