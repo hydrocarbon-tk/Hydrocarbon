@@ -128,7 +128,7 @@ are four generic symbols that can be used within a grammar definition:
 
 - Generic Identifier: A sequence of characters starting with a character that belongs to the Unicode ID_Start class followed by any number of characters that belong to the Unicode ID_Continue class. 
     <br/> e.g: `g:id` 
-- Generic Natural Number: Any number of characters within the ASCII range `0x30` to `0x39`. 
+- Generic Natural Number: Any number of characters within the ASCII range `0x30` to `0x39` . 
     <br/>RegEx definition: `[0-9]+`  e.g: `g:num` 
 - Space: Any number of space characters, including ASCII code point `0x20` and characters belonging to the `WS` Unicode class. Also matches tab stop code points.
     <br/> e.g: `g:ws` 
