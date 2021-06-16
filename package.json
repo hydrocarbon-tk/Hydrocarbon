@@ -5,7 +5,7 @@
     "main": "./build/library/entry/hydrocarbon.js",
     "types": "./build/types/entry/hydrocarbon.d.ts",
     "bin": {
-        "hydrocarbon": "./build/library/entry/cli.js"
+        "hydrocarbon": "./index.js"
     },
     "type": "module",
     "scripts": {
