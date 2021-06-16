@@ -103,14 +103,19 @@ assert_group(
 
 
 assert_group(
-    "Should be able to use bootstrapped parser to compile another bootstrapped parser",
+    "Should be able to use bootstrapped parser to compile another bootstrapped parser: WASM",
     10000, sequence, () => {
         const compiled_grammar = await compileGrammarFromURI(hcg_grammar_file);
         const {
             recognizer_functions,
             meta,
         } = await buildRecognizer(compiled_grammar, 1);
-        const bootstrapped_parser = await createAddHocParser(compiled_grammar, recognizer_functions, meta);
+        const bootstrapped_parser = await createAddHocParser(
+            compiled_grammar,
+            recognizer_functions,
+            meta,
+            generateWebAssemblyParser
+        );
         const bootstrapped_compiled_grammar = await compileGrammarFromURI(hcg_grammar_file, bootstrapped_parser);
         const {
             recognizer_functions: bootstrapped_recognizer_functions,
@@ -121,6 +126,36 @@ assert_group(
             bootstrapped_recognizer_functions,
             bootstrapped_meta,
             generateWebAssemblyParser
+        );
+
+        const { result } = parser("\n <> test > t:r ( \\hello_world (+) ) ");
+
+        assert(result[0].type == "hc-grammar-3");
+        assert(result[0].productions[0].name == "test");
+    });
+
+assert_group(
+    "Should be able to use bootstrapped parser to compile another bootstrapped parser: JavaScript",
+    10000, sequence, () => {
+        const compiled_grammar = await compileGrammarFromURI(hcg_grammar_file);
+        const {
+            recognizer_functions,
+            meta,
+        } = await buildRecognizer(compiled_grammar, 1);
+        const bootstrapped_parser = await createAddHocParser(
+            compiled_grammar,
+            recognizer_functions,
+            meta
+        );
+        const bootstrapped_compiled_grammar = await compileGrammarFromURI(hcg_grammar_file, bootstrapped_parser);
+        const {
+            recognizer_functions: bootstrapped_recognizer_functions,
+            meta: bootstrapped_meta,
+        } = await buildRecognizer(bootstrapped_compiled_grammar, 10);
+        const parser = await createAddHocParser(
+            bootstrapped_compiled_grammar,
+            bootstrapped_recognizer_functions,
+            bootstrapped_meta
         );
 
         const { result } = parser("\n <> test > t:r ( \\hello_world (+) ) ");
