@@ -7,7 +7,7 @@ const parser = await compileJSParserFromGrammar(`
 @IGNORE g:ws
 
 <> A > C
-<> C > (B)(+\\; ) | (B)(+\\, )
+<> C > (B)(+ \\; ) | (B)(+ \\, )
 <> B > g:id
 `);
 

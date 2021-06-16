@@ -29,5 +29,5 @@ assert_group(
 
             parse = await createAddHocParser(compiled_grammar, recognizer_functions, meta, generateWebAssemblyParser);
 
-        assert(parse("tree gorilla ;") == { result: [{ b: { b: "gorilla" } }] });
+        assert("Input Correctly Parsed", parse("tree gorilla ;") == { result: [{ b: { b: "gorilla" } }] });
     });

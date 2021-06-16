@@ -4,7 +4,7 @@
  * a new HCG parser
  */
 
-import { compileGrammarFromString } from "../../build/library/grammar/compile";
+import { compileGrammarFromString } from "../../build/library/grammar/compile.js";
 
 //################################################################################################
 
