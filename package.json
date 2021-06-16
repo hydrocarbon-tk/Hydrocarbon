@@ -11,7 +11,7 @@
     "scripts": {
         "install": "./scripts/install.sh",
         "build": "tsc",
-        "prepublishOnly": "rm -rf ./build/ && tsc -p ./tsconfig.json && yarn test",
+        "prepublish": "rm -rf ./build && tsc & sleep 10",
         "test": "candle.cure --threads 2 ./test/",
         "test.hcg_grammar_parser": "candle.cure ./test/grammar_parser/grammar_parse.spec.js",
         "compile.skribble.debug": "./source/cli/cli.js compile --workers 10 --annotations --recognizer_type js --output_dir ./source/typescript/parsers/ ./source/grammars/misc/skribble.hcg",
