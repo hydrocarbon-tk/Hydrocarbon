@@ -45,12 +45,11 @@ export async function ParserFactory<T>(
             str_len = str.length,
             str_buffer_size = (str_len * 4) + 8,
             rules_buffer_size = str_len * 8,
-            input = init_data(str_buffer_size, rules_buffer_size, 0),
+            input = init_data(str_buffer_size, rules_buffer_size),
             byte_length = fillByteBufferWithUTF8FromString(str, input, str_buffer_size),
             fns = functions,
             fork_count = recognize(byte_length, production_id), // call with pointers
             forks = get_fork_pointers();
-
 
         const fork = forks[0];
 

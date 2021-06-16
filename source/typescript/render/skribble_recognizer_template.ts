@@ -95,15 +95,12 @@ fn createState:u32 (ENABLE_STACK_OUTPUT:u32) {
     [pub] stack_ptr: i32 = 0
     [pub] input_ptr: u32 = 0
     [pub] rules_ptr: u32 = 0
-    [pub] error_ptr: u32 = 0
     [pub] debug_ptr: u32 = 0
     [pub] input_len: u32 = 0
     [pub] rules_len: u32 = 0
-    [pub] error_len: u32 = 0
     [pub] origin_fork: u32 = 0
     [pub ptr] input: array_u8
     [pub ptr] rules: array_u16
-    [pub ptr] error: array_u8
     [pub] stack: function_pointer = 
         fn : i32 (l:__Lexer$ref,data:__ParserData$ref, state:u32, prod:u32, puid:i32){64}
     [pub] stash: array_u32 = call(64)
@@ -112,7 +109,7 @@ fn createState:u32 (ENABLE_STACK_OUTPUT:u32) {
     [pub] VALID: bool = 0 
 
     [pub]  fn ParserData:ParserData(
-        input_len_in:u32, rules_len_in:u32, error_len_in:u32, lexer_in: __Lexer$ptr
+        input_len_in:u32, rules_len_in:u32,  lexer_in: __Lexer$ptr
     ){
         this.lexer = lexer_in;
         this.state = createState(1);
@@ -121,26 +118,27 @@ fn createState:u32 (ENABLE_STACK_OUTPUT:u32) {
         this.stack_ptr = 0;
         this.input_ptr = 0;
         this.rules_ptr = 0;
-        this.error_ptr = 0;
         this.input_len = input_len_in;
         this.rules_len = rules_len_in;
-        this.error_len = error_len_in;
         this.origin_fork = 0;
         [this_] origin:u32 = 0;
         [this_] alternate:u32 = 0;
 
-        if(input_len_in > 0): { [new this_] input:array_u8 = array_u8(input_len_in);};
+        [new this_] input:array_u8 = array_u8(input_len_in);
         [new this_] rules:array_u16 = array_u16(rules_len_in);
-        [new this_] error:array_u8 = array_u8(error_len_in);
         [new this_ cpp_ignore] stash:array_u32 = array_u32(256);
         [new this_ cpp_ignore] stack:array_any = array_any();
     }
 
-    [pub]  fn ParserData:destructor(){
-        %%%% input;
-        %%%% rules;
-        %%%% error;
+    [pub] fn ParserData:destructor(){
+        
+        %%%% (input);
+            
+        %%%% (rules);
+        
+        **** ( lexer);
     }
+
 }
 
 [pub wasm] cls ForkData{
@@ -377,6 +375,7 @@ fn createState:u32 (ENABLE_STACK_OUTPUT:u32) {
             this.type = 0;
             this.byte_length = 0;
             this.token_length = 0;
+            this.current_byte = 0;
         }else{
             this.current_byte = data.input[this.byte_offset];
             if (this.current_byte) == 10:
@@ -430,11 +429,11 @@ fn cmpr_set : u32 (
 }
 
 fn create_parser_data_object:__ParserData$ptr(
-    input_len:u32, rules_len:u32, error_len:u32
+    input_len:u32, rules_len:u32
 ){
     [mut new] lexer: __Lexer$ptr = Lexer();
 
-    [static new]parser_data:__ParserData$ptr = ParserData(input_len, rules_len, error_len, lexer);
+    [static new]parser_data:__ParserData$ptr = ParserData(input_len, rules_len,  lexer);
 
     return : parser_data
 }
@@ -443,8 +442,7 @@ fn create_parser_data_object:__ParserData$ptr(
 
     [mut] fork:__ParserData$ptr = create_parser_data_object(
         0,
-        data.rules_len - data.rules_ptr,
-        data.error_len - data.error_ptr
+        data.rules_len - data.rules_ptr
     );
 
     fork_ref:__ParserData$ref = *>fork;
@@ -680,28 +678,33 @@ export function createExternFunctions(
     }
 
 
-    [extern]fn init_data:__u8$ptr(
-        input_len:u32 , 
-        rules_len:u32 ,
-        error_len:u32 
-    ){ 
+    fn clear_data:void () {
+
 
         //Free existing data
         [const]i:u32 =0;
+
         loop( ; i < data_stack_len; i++){
-            **** data_stack[i];
+            **** (fork_stack[i]);
         };
         i = 0;
         loop( ; i < data_stack_len; i++){
-            **** fork_stack[i];
+
+            **** (data_stack[i]);
         };
+    }
+
+    [extern]fn init_data:__u8$ptr(
+        input_len:u32 , 
+        rules_len:u32 
+    ){ 
+        clear_data();
 
         data_stack_len = 1;
 
         [mut] data:__ParserData$ptr = create_parser_data_object(
             input_len,
-            rules_len,
-            error_len
+            rules_len
         );
 
         data_stack[0] = data;
