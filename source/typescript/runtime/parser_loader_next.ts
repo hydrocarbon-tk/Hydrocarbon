@@ -85,9 +85,8 @@ export async function ParserFactory<T>(
                         if (low & 4) {
                             body = (body << 8) | len;
                             len = high;
-                            short_offset++;
+                            high = block[short_offset++];
                         }
-
                         const pos_a = pos[pos.length - len] || { off: 0, tl: 0 };
                         const pos_b = pos[pos.length - 1] || { off: 0, tl: 0 };
                         const e = stack.slice(-len);
@@ -106,7 +105,7 @@ export async function ParserFactory<T>(
 
                     if (low & 4) {
                         length = ((length << 16) | high);
-                        short_offset++;
+                        high = block[short_offset++];
                     }
 
                     stack.push(str.slice(token_offset, token_offset + length));
