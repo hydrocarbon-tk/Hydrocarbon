@@ -65,8 +65,6 @@ export function default_resolveUnresolvedLeaves(node: TransitionNode, nodes: Tra
             USE_FORKING = true,
             output_nodes = nodes.filter(i => i.transition_type !== TRANSITION_TYPE.IGNORE);
 
-        let leaf = root;// prev_prods;
-
         if (USE_BACKTRACKING) {
 
             const statements = createBackTrackingSequence(

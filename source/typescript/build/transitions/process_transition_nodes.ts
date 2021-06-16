@@ -64,7 +64,6 @@ export function processTransitionNodes(
 
             //Determine if state is PUIDABLE
             if (depth == 1) {
-                //  console.log({ node });
                 node.PUIDABLE = Items_Are_From_Same_Production(node.items, options.grammar);
             } else {
                 node.PUIDABLE = parent?.PUIDABLE;
@@ -111,10 +110,9 @@ export function processTransitionNodes(
                     };
 
                     if (WE_HAVE_UNRESOLVED_LEAVES) {
+
                         ({ root, leaves } = conflicting_leaf_resolve_function(virtual_state, nodes, options));
-                        //if (options.helper.ANNOTATED)
-                        //    if (root)
-                        //        root.shiftStatement("--UNRESOLVED-BRANCH--");
+
                     } else {
                         root = branch_resolve_function(
                             traverseInteriorNodes(filtered_nodes, options, grouping_fn),
@@ -134,10 +132,6 @@ export function processTransitionNodes(
                 node.code = root;
                 node.hash = hash;
                 node.PROCESSED = true;
-
-                //if (options.helper.ANNOTATED)
-                //    if (root)
-                //        root.shiftStatement("--BRANCH--");
 
                 break;
 
@@ -233,7 +227,7 @@ function* traverseInteriorNodes(
 function getGroupScore(a: TransitionGroup) {
     /** 
      * Classes: 
-     * EOF                          :     Lowest Score Period?
+     * EOF                          :     Lowest Score Period
      * 
      * DefinedSymbol DefinedNumeric :     0x00000001
      * 

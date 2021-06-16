@@ -54,7 +54,6 @@ export function default_resolveResolvedLeaf(item: Item, state: TransitionNode, o
 
     if (item) {
 
-
         if (options.helper.ANNOTATED)
             addItemAnnotationToExpressionList([item], grammar, code);
 
