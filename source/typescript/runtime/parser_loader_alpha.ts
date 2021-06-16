@@ -80,8 +80,6 @@ export function ParserFactory<T>(
 
                 const lex = new Lexer(str);
 
-                console.log(fork);
-
                 lex.off = fork.byte_offset;
                 lex.tl = fork.byte_length;
 
