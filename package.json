@@ -11,7 +11,7 @@
     "scripts": {
         "install": "./scripts/install.sh",
         "build": "tsc",
-        "prepublish": "rm -rf ./build && tsc & sleep 10",
+        "prepublish": "rm -rf ./build && tsc & sleep 20",
         "test": "candle.cure --threads 2 ./test/",
         "test.hcg_grammar_parser": "candle.cure ./test/grammar_parser/grammar_parse.spec.js",
         "compile.skribble.debug": "./source/cli/cli.js compile --workers 10 --annotations --recognizer_type js --output_dir ./source/typescript/parsers/ ./source/grammars/misc/skribble.hcg",
@@ -38,9 +38,9 @@
     "dependencies": {
         "@candlelib/conflagrate": "0.4.0",
         "@candlelib/js": "0.5.1",
+        "@candlelib/paraffin": "0.1.0",
         "@candlelib/uri": "0.2.1",
-        "@candlelib/wind": "0.5.0",
-        "@candlelib/paraffin": "0.1.0"
+        "@candlelib/wind": "0.5.0"
     },
     "devDependencies": {
         "@types/node": "^13.7.6"

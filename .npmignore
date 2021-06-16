@@ -6,6 +6,8 @@ docs/
 workspaces/
 tools/
 .git/
+web/
+.vscode/
 build/emsdk/
 
 
