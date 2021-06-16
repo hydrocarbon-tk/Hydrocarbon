@@ -1,3 +1,13 @@
+## [v0.11.0] - 2021-06-16 
+
+- [2021-06-16]
+
+    Updated CLI. Added `check-emsdk` sub-command, which installs Emscripten if it cannot be found on PATH. This runs as it's own command and in `compile` sub command if the `recognizer` argument is set to *wasm*.
+
+- [2021-06-16]
+
+    Removed EMSDK install command. Will replace with CLI based check for emsdk followed by a prompt to install if the SDK can't be found
+
 ## [v0.10.0] - 2021-06-16 
 
 - [2021-06-16]
