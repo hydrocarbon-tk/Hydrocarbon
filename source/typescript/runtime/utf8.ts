@@ -31,5 +31,8 @@ export function fillByteBufferWithUTF8FromString(string, buffer: Uint8Array, max
         }
     }
 
+    //Ensure input is null terminated
+    buffer[j] = 0;
+
     return j;
 }
