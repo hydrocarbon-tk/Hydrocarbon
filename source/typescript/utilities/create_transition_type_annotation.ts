@@ -10,7 +10,5 @@ import { TRANSITION_TYPE } from "../types/transition_node.js";
 import { ttt } from "./transition_type_to_string.js";
 
 export function createTransitionTypeAnnotation(options: RenderBodyOptions, transition_types: TRANSITION_TYPE[]): SKExpression {
-    return options.helper.ANNOTATED
-        ? <SKExpression>sk`"⤋⤋⤋  ${transition_types.map(ttt)} ⤋⤋⤋"`
-        : <SKExpression>sk`"-"`;
+    return <SKExpression>sk`"⤋⤋⤋  ${transition_types.map(ttt)} ⤋⤋⤋"`;
 }

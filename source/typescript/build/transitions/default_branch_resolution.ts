@@ -296,7 +296,8 @@ function createIfElseExpressions(
             case TRANSITION_TYPE.POST_PEEK_CONSUME:
                 code.unshift(...expressions);
                 //addSymbolAnnotationsToExpressionList(syms, grammar, code, "Post Peek");
-                code.unshift(createTransitionTypeAnnotation(options, transition_types));
+                if (options.helper.ANNOTATED)
+                    code.unshift(createTransitionTypeAnnotation(options, transition_types));
                 code.unshift(<SKExpression>sk`puid |= ${grammar.item_map.get(items[0].id).sym_uid}`);
                 code.unshift(createConsumeSk(lex_name));
                 expressions = code;
