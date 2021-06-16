@@ -10,7 +10,7 @@
     "type": "module",
     "scripts": {
         "build": "tsc",
-        "prepublish": "rm -rf ./build && tsc & sleep 20",
+        "prepublishOnly": "rm -rf ./build/library && rm -rf ./build/types && tsc & sleep 20",
         "test": "candle.cure --threads 2 ./test/",
         "test.hcg_grammar_parser": "candle.cure ./test/grammar_parser/grammar_parse.spec.js",
         "compile.skribble.debug": "./source/cli/cli.js compile --workers 10 --annotations --recognizer_type js --output_dir ./source/typescript/parsers/ ./source/grammars/misc/skribble.hcg",

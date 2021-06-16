@@ -63,8 +63,10 @@ async function CheckForSDK(args): Promise<boolean> {
                     console.log("Installing emsdk");
 
                     const install_script_path = URI.resolveRelative("../../../../scripts/install.sh", URI.getEXEURL(import.meta));
+                    const install_script_cwd = URI.resolveRelative("../../../../", URI.getEXEURL(import.meta));
 
                     cp.execFileSync(install_script_path + "", {
+                        cwd: install_script_cwd.dir,
                         stdio: "inherit"
                     });
 
