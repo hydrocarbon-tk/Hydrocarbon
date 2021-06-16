@@ -12,10 +12,14 @@ OUT_NAME=$2
 
 emcc $TEMP_NAME \
     -Oz \
-    -g2 \
-    -s ALLOW_MEMORY_GROWTH=1 \
-    --no-entry \
-    -s EXPORTED_FUNCTIONS='["_init_data","_get_next_command_block","_init_table","_get_fork_pointers","_recognize"]'\
+    --no-entry\
+    -s ASSERTIONS=0\
+    -s MALLOC=none\
+    -s TOTAL_STACK=512kb\
+    -s INITIAL_MEMORY=768kb\
+    -s ALLOW_MEMORY_GROWTH=1\
+    -s STANDALONE_WASM=1\
+    -s ERROR_ON_UNDEFINED_SYMBOLS=0\
+    -s EXPORTED_FUNCTIONS='["_init_data","_get_next_command_block","_init_table","_get_fork_pointers","_recognize","_malloc","_free"]'\
     -o $OUT_NAME
-
 
