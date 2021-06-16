@@ -9,7 +9,6 @@
     },
     "type": "module",
     "scripts": {
-        "install": "./scripts/install.sh",
         "build": "tsc",
         "prepublish": "rm -rf ./build && tsc & sleep 20",
         "test": "candle.cure --threads 2 ./test/",
