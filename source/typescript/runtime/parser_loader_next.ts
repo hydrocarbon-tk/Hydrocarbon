@@ -10,6 +10,7 @@ import { ForkData, RecognizeInitializer } from "../types/parser_data";
 import { initializeUTFLookupTableNew } from "./parser_memory_new.js";
 import { loadWASM } from "./wasm_loader_next.js";
 import { ParserEnvironment } from "../types/parser_environment.js";
+import { HCGParser } from "@candlelib/hydrocarbon/build/types/types/parser";
 
 export async function ParserFactory<T>(
 
@@ -18,7 +19,7 @@ export async function ParserFactory<T>(
     wasm_binary_string?: string,
 
     js_recognizer_loader?: () => RecognizeInitializer,
-) {
+): Promise<HCGParser> {
 
     let { recognize, init_data, init_table, get_fork_pointers, get_next_command_block }: RecognizeInitializer = <any>{};
 

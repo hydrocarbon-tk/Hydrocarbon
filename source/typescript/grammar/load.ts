@@ -11,7 +11,10 @@ import { default_map } from "../utilities/default_map.js";
  * @returns
  */
 await URI.server();
-export function loadGrammarFromString(str: string, grammar_parser: HCGParser = loader.parser): HCG3Grammar {
+
+const parser = await loader;
+export function loadGrammarFromString(str: string, grammar_parser: HCGParser = parser): HCG3Grammar {
+
     const a = grammar_parser(str);
 
     return a.result[0];
@@ -20,7 +23,7 @@ export function loadGrammarFromString(str: string, grammar_parser: HCGParser = l
  * Entry point to loading a grammar file from a URI
  */
 
-export async function loadGrammarFromFile(uri: URI | string, grammar_parser: HCGParser = loader.parser): Promise<HCG3Grammar> {
+export async function loadGrammarFromFile(uri: URI | string, grammar_parser: HCGParser = parser): Promise<HCG3Grammar> {
 
     const uri_string = uri + "";
 
@@ -45,7 +48,8 @@ export async function loadGrammarFromFile(uri: URI | string, grammar_parser: HCG
 }
 ;
 
-async function loadGrammar(uri: URI, grammar_parser: any = loader.parser, existing_grammars: Map<string, HCG3Grammar>): Promise<HCG3Grammar> {
+async function loadGrammar(uri: URI, grammar_parser: any = parser, existing_grammars: Map<string, HCG3Grammar>): Promise<HCG3Grammar> {
+
     uri = getResolvedURI(uri);
 
     const str = await uri.fetchText();
