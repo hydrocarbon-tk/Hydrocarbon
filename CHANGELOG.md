@@ -1,3 +1,17 @@
+## [v0.10.0] - 2021-06-16 
+
+- [2021-06-16]
+
+    Updated HCG parser to make use of WASM recognizer code.
+
+- [2021-06-15]
+
+    Updated README.md. Improved description of package, grammar information, and usage.
+
+- [2021-06-15]
+
+    Re-implemented WASM target through C++ source file rendering and Emscripten tool chain.
+
 ## [v0.9.0] - 2021-06-13 
 
 - [2021-06-11]
