@@ -1,5 +1,5 @@
 import { compileJSParserFromGrammar } from "../tools.js";
-assert_group(sequence, 10000, () => {
+assert_group(sequence, 5000, () => {
 
     const test_grammar_string =
         `@IGNORE g:ws tk:comment
