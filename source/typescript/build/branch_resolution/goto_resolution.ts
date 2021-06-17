@@ -3,17 +3,17 @@
  * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
  * disclaimer notice.
  */
-import { sk } from "../../skribble/skribble.js";
-import { SKBlock, SKBreak, SKExpression, SKLoop, SKMatch } from "../../skribble/types/node";
+import { TokenSymbol } from "@candlelib/hydrocarbon/build/types/types/symbol";
+import { sk, skRenderAsSK } from "../../skribble/skribble.js";
+import { SKBlock, SKBreak, SKExpression, SKIf, SKLoop, SKMatch } from "../../skribble/types/node";
 import { RenderBodyOptions } from "../../types/render_body_options";
 import { TransitionClauseGenerator } from "../../types/transition_generating";
-import { TransitionNode, TRANSITION_TYPE } from "../../types/transition_node.js";
+import { TransitionNode } from "../../types/transition_node.js";
 import { getClosure } from "../../utilities/closure.js";
-import { createBranchFunctionSk, getIncludeBooleansSk } from "../../utilities/code_generating.js";
+import { addSymbolAnnotationsToExpressionList, getIncludeBooleansSk } from "../../utilities/code_generating.js";
 import { getFollow } from "../../utilities/follow.js";
 import { rec_glob_lex_name } from "../../utilities/global_names.js";
-import { Item, itemsToProductions } from "../../utilities/item.js";
-import { processProductionChain } from "../../utilities/process_production_reduction_sequences.js";
+import { Item } from "../../utilities/item.js";
 import {
     getComplementOfSymbolSets,
     getSkippableSymbolsFromItems,
@@ -28,6 +28,8 @@ import {
     Sym_Is_Defined_Identifier,
     Sym_Is_Defined_Natural_Number, Sym_Is_Defined_Symbols
 } from "../../utilities/symbol.js";
+import { processTransitionNodes } from "../transitions/process_transition_nodes.js";
+import { yieldTransitions } from "../transitions/yield_transitions.js";
 import { default_resolveBranches } from "./default_branch_resolution.js";
 
 const SC = null;
@@ -68,40 +70,12 @@ export function resolveGOTOBranches(
 
             leaves.map(l => l.keys = keys);
 
-            let interrupt_statement = null;
+            let interrupt_statement: SKIf = null;
 
             if (end_items.length > 0)
                 CONTAINS_END_LEAF_THAT_SHOULD_LOOP = true;
 
-            if (false &&
-                PUIDABLE && !WE_HAVE_JUST_ONE_GOTO_GROUP &&
-                /**
-                 * Ensure code for the root productions is not wrapped in
-                 * a branch function to prevent failed parse paths and 
-                 * infinite recursion
-                 */
-                !keys.some(k => production_ids.includes(k))
-            ) {
-                //discard all leaves 
-                leaves.forEach(l => l.transition_type == TRANSITION_TYPE.IGNORE);
-                const nc = new SC;
-                const productions = itemsToProductions([items[0]], grammar);
-
-                processProductionChain(nc, options, productions);
-                const continue_name = createBranchFunctionSk(nc, options);
-
-                const call_name = createBranchFunctionSk(code, options);
-
-                code.addStatement(SC.Value("return -1"));
-
-                code.addStatement(SC.Call("pushFN", "data", continue_name));
-                code.addStatement(SC.UnaryPre(SC.Return, SC.Call(call_name, "l", "data", "state", "prod", "" + grammar.item_map.get(items[0].decrement().id).sym_uid)));
-                leaves[0].leaf.addStatement(SC.Value("return 0"));
-                leaves[0].leaf = nc;
-                leaves[0].INDIRECT = true;
-                leaves[0].transition_type = TRANSITION_TYPE.ASSERT;
-
-            } else if (active_items.length > 0) {
+            if (active_items.length > 0) {
 
                 /**
                  * Create look ahead for a preemptive reduce on keys that match the production id.
@@ -147,6 +121,49 @@ export function resolveGOTOBranches(
                     * 
                     * 
                     */
+
+                    //Use look ahead process to filter out productions that should be transitioned on. 
+                    /*
+                    const n = yieldTransitions(
+                        items,
+                        options, 0, [], false, true
+
+                    );
+
+                    const { code: code1, hash, leaves, prods } = processTransitionNodes(options, n, default_resolveBranches,
+                        (node, nodes, options) => {
+                            console.log("AAAAAAAAAA");
+                        }, (item, group, options) => {
+                            if (production_ids.includes(item.getProduction(grammar).id)) {
+                                return {
+
+                                    leaf: {
+                                        root: [sk`test__`],
+                                        leaf: [],
+
+                                    }
+                                };
+                            } else
+                                return {
+
+                                    leaf: {
+                                        root: [sk`test`],
+                                        leaf: [],
+
+                                    }
+                                };
+
+                        });
+
+                    code.unshift(...code1);
+
+
+
+
+                    console.log(code.map(skRenderAsSK));
+                    */
+
+
                     //Ensure only items that can be reached from the root production are used
                     const active_item_closure = getClosure(active_items.filter(i => production_ids.includes(i.getProduction(grammar).id)), grammar, true);
 
@@ -157,7 +174,7 @@ export function resolveGOTOBranches(
                     const follow = keys.flatMap(k => getFollow(k, grammar)).setFilter(sym => getUniqueSymbolName(sym));
 
                     const unique_candidates = getComplementOfSymbolSets(follow, active_symbols),
-                        checked_symbols = [],
+                        checked_symbols: TokenSymbol[] = [],
                         GEN_SYM = active_symbols.some(Sym_Is_A_Generic_Symbol),
                         GEN_ID = active_symbols.some(Sym_Is_A_Generic_Identifier),
                         GEN_NUM = active_symbols.some(Sym_Is_A_Generic_Number),
@@ -187,11 +204,17 @@ export function resolveGOTOBranches(
                             booleans = getIncludeBooleansSk(checked_symbols, options, rec_glob_lex_name, active_symbols);
 
                         if (booleans) {
-                            interrupt_statement = sk`if (${booleans}) : return : ${keys[0]}`;
+                            interrupt_statement = <SKIf>sk`if (${booleans}) : { return : ${keys[0]} }`;
+
+
+
+                            addSymbolAnnotationsToExpressionList(checked_symbols, grammar, (<SKBlock>interrupt_statement.expression).expressions);
                         }
                     }
                 }
             }
+
+
             if (interrupt_statement)
                 insertInterruptStatement(interrupt_statement, code);
 
@@ -234,7 +257,7 @@ export function resolveGOTOBranches(
 export function addClauseSuccessCheck(options: RenderBodyOptions): SKExpression {
     const { productions } = options;
 
-    return <SKExpression>sk`return : (prod ~= ${productions[0].id}) ? prod ? 1`;
+    return <SKExpression>sk`return : (prod ~= ${productions[0].id}) ? prod ? -1`;
 }
 
 function insertInterruptStatement(int_stmt: SKExpression, expression_array: SKExpression[]) {

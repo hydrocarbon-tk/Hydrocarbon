@@ -10,7 +10,7 @@ import { createAddHocParser } from "../../build/library/render/create_add_hoc_pa
 import { generateWebAssemblyParser, writeParserScriptFile } from "../../build/library/render/render.js";
 
 const
-    hcg_grammar_file = URI.resolveRelative("./source/grammars/hcg-3-alpha/hcg.hcg");
+    hcg_grammar_file = URI.resolveRelative("./source/grammars/hcg-3/hcg.hcg");
 
 //################################################################################################
 

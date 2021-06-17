@@ -7,9 +7,12 @@ import { SKNode } from "../skribble/types/node.js";
 export interface RDProductionFunction {
 
     id: number,
-    entry: SKNode;
-    goto?: SKNode;
-    reduce?: SKNode;
+    
+    fn: [
+        SKNode | undefined,
+        SKNode | undefined,
+        SKNode | undefined
+    ];
     productions?: Set<number>;
     RENDER?: boolean;
 

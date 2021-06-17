@@ -112,7 +112,6 @@ export async function generateWebAssemblyParser(
     const line_length = 200;
     const data_lines = [];
     let compressed_data = null;
-    console.log(export_expression_preamble);
     compressed_data = [...wasm_data].map(i => ("00" + i.toString(16)).slice(-2)).join("");
 
     for (let i = 0; i < compressed_data.length; i += line_length) {
@@ -160,7 +159,6 @@ export async function generateJSParser(
     ${hydrocarbon_import_path ? `import { ParserFactoryNext as ParserFactory } from "${hydrocarbon_import_path}"` : ""};
     const recognizer_initializer = (()=>{
         ${recognizer_script};
-        sequence_lookup = [${grammar.sequence_string.split("").map(s => s.charCodeAt(0)).join(",")}];
 
         return {
             init_data, 

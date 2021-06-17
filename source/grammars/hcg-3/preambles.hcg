@@ -53,20 +53,20 @@
 #
 
 # In either the Constructor Reduce function or the Return Expression Reduce function
-# the symbols of the production can be addressed using the $sym operator, which resolves
+# the symbols of the production can be addressed using the $ operator, which resolves
 # to the index location of the terminal symbol or non-terminal production within the 
-# production body. In the following case, the $sym3 resolves to the third symbol in the proceeding
+# production body. In the following case, $3 resolves to the third symbol in the proceeding
 # precedence_preamble body, sym::terminal_symbol ( keep in mind [(ERR g:ws)] is a meta object 
-# and is not an actual symbol of the production body). $sym4 resolves to the g:num symbol.
+# and is not an actual symbol of the production body). $4 resolves to the g:num symbol.
                                                   
 
 <> ignore_preamble >         \@ t:IGNORE sym::ignore_symbols g:nl                
                                                                         
-                                                                        f:r { { type:"ignore", symbols : $sym3 } }
+                                                                        f:r { { type:"ignore", symbols : $3 } }
 
 
 <> import_preamble >         \@ t:IMPORT g:ws(*) ( g:id | g:sym  )(+\" ) g:ws(+) ( t:AS | t:as ) sym::identifier g:nl  
                                                                         
-                                                                        f:r { { type:"import", uri: $sym4, reference:$sym7 } } 
+                                                                        f:r { { type:"import", uri: $4, reference:$7 } } 
 
 

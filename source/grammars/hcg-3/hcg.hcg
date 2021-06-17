@@ -31,7 +31,7 @@
 
  # Additional preambles definitions can be found in ./preambles.hcg
 
-# Hydrocarbon V2 productions are defined using a mix of ASCII and extended UTF characters to indicate
+# Hydrocarbon v3 productions are defined using a mix of ASCII and extended UTF characters to indicate
 # operators. A production is defined as [ <> ID > symbol symbol symbol ... ] where the [ > ] character is 
 # U+2192 Rightwards Arrow Character.
 
@@ -44,9 +44,9 @@
 <> head > pre::preamble?  prd::productions                             
                             f:r { { 
                                 type:"hc-grammar-3", 
-                                preamble:$$sym1 || [], 
-                                productions:$sym2.productions, 
-                                functions:$sym2.functions, 
+                                preamble:$$1 || [], 
+                                productions:$$2.productions, 
+                                functions:$$2.functions, 
                                 imported_grammars: [],
                                 meta:null,
                                 ignore:[],

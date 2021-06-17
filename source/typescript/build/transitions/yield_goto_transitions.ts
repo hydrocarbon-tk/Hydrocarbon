@@ -91,8 +91,8 @@ export function yieldGOTOTransitions(options: RenderBodyOptions, completed_produ
 
 
                 const
-                    
-                    items_to_process = goto_groups.get(production_id).map(i => i.increment()).setFilter(i=>i.id);
+
+                    items_to_process = goto_groups.get(production_id).map(i => i.increment()).setFilter(i => i.id);
                 const
 
                     nodes = yieldTransitions(items_to_process, options, 1),

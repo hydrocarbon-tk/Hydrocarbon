@@ -20,9 +20,9 @@ import {
     Sym_Is_Defined_Natural_Number, Sym_Is_Defined_Symbols,
     Sym_Is_EOF
 } from "../../utilities/symbol.js";
-import { default_resolveBranches } from "./default_branch_resolution.js";
-import { default_resolveResolvedLeaf } from "./default_resolved_leaf_resolution.js";
-import { default_resolveUnresolvedLeaves } from "./default_ambiguous_leaves_resolution.js";
+import { default_resolveBranches } from "../branch_resolution/default_branch_resolution.js";
+import { default_resolveResolvedLeaf } from "../branch_resolution/default_resolved_leaf_resolution.js";
+import { default_resolveUnresolvedLeaves } from "../branch_resolution/default_ambiguous_leaves_resolution.js";
 import { Items_Are_From_Same_Production } from "./yield_transitions.js";
 
 const SC = null;

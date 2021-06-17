@@ -9,7 +9,7 @@ import { RenderBodyOptions } from "../../types/render_body_options";
 import { TRANSITION_TYPE } from "../../types/transition_node.js";
 import { processProductionChain } from "../../utilities/process_production_reduction_sequences.js";
 import { VirtualProductionLinks } from "../../utilities/virtual_productions.js";
-import { addClauseSuccessCheck } from "./default_state_build.js";
+import { addClauseSuccessCheck } from "../branch_resolution/goto_resolution.js";
 
 
 const SC = null;

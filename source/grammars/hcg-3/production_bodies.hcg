@@ -8,9 +8,9 @@
 
 @IMPORT ./comments.hcg as cm
 
-@IMPORT ./functions.hcg as fn
+@IMPORT ./functions.hcg as _fn
 
-@IGNORE θws θnl 
+@IGNORE g:ws g:nl
 
 ########################################################################################################################
 ######################################  PRODUCTION BODIES
@@ -20,28 +20,28 @@
 
 <> production_bodies > (  production_body | cm::comment )(+\| )  
 
-<> production_body > ( \( t:FORK \) )? entries fn::reduce_function?                      
-                                                                    f:r { { type:"body", sym:$sym2, reduce_function:$$sym3, FORCE_FORK:!!$$sym1, id:-1, production:null } }
+<> production_body > ( \( t:FORK \) )? entries _fn::reduce_function?                      
+                                                                    f:r { { type:"body", sym:$2, reduce_function:$$3, FORCE_FORK:!!$$1, id:-1, production:null } }
 
 <> entries > entries body_entry 
-                                                                    f:r { $sym1.concat($sym2) }
+                                                                    f:r { $1.concat($2) }
         | body_entry                         
-                                                                    f:r { $sym1 }
+                                                                    f:r { $1 }
         | sym::empty_symbol                                              
                                                                     f:r { [] }
 
 
-<> body_entry > condition_clause                                   f:r { [$sym1] }                                 
+<> body_entry > condition_clause                                   f:r { [$1] }                                 
 
-       | sym::symbol                                               f:r { [$sym1] }
+       | sym::symbol                                               f:r { [$1] }
 
        | \[ body_entry(+) \]                                        
-                                                                   f:r { $sym2.flat().map(e => (e.NO_BLANK = true, e) ) }
+                                                                   f:r { $2.flat().map(e => (e.NO_BLANK = true, e) ) }
 
 <> condition_clause > 
-         \( \EXC sym::condition_symbol_list \)                     f:r { { type:"condition-exclude", sym : $sym3, offset : -1 } }
-       | \( \ERR sym::condition_symbol_list \)                     f:r { { type:"condition-error",   sym : $sym3, offset : -1 } }
-       | \( \IGN sym::condition_symbol_list \)                     f:r { { type:"condition-ignore",  sym : $sym3, offset : -1 } }
-       | \( \RST sym::condition_symbol_list \)                     f:r { { type:"condition-reset",   sym : $sym3, offset : -1 } }
-       | \( \RED sym::symbol \)                                    f:r { { type:"condition-reduce",  sym : $sym3, offset : -1 } }
+         \( \EXC sym::condition_symbol_list \)                     f:r { { type:"condition-exclude", sym : $3, offset : -1 } }
+       | \( \ERR sym::condition_symbol_list \)                     f:r { { type:"condition-error",   sym : $3, offset : -1 } }
+       | \( \IGN sym::condition_symbol_list \)                     f:r { { type:"condition-ignore",  sym : $3, offset : -1 } }
+       | \( \RST sym::condition_symbol_list \)                     f:r { { type:"condition-reset",   sym : $3, offset : -1 } }
+       | \( \RED sym::symbol \)                                    f:r { { type:"condition-reduce",  sym : $3, offset : -1 } }
 

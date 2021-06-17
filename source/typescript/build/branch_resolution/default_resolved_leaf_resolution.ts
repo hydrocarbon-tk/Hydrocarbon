@@ -39,8 +39,8 @@ export function default_resolveResolvedLeaf(item: Item, state: TransitionNode, o
 
         return {
             leaf: {
-                root: leaf_node,
-                leaf: leaf_node,
+                root: [],
+                leaf: [],
                 prods,
                 original_prods,
                 hash: "",
@@ -48,6 +48,7 @@ export function default_resolveResolvedLeaf(item: Item, state: TransitionNode, o
             }
         };
     }
+
 
     if (state.transition_type == TRANSITION_TYPE.ASSERT_CONSUME && !item.atEND)
         item = item.increment();

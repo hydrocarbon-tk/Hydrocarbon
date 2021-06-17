@@ -30,11 +30,30 @@ export function default_resolveUnresolvedLeaves(node: TransitionNode, nodes: Tra
                     })
                 ),
 
+        SHOULD_IGNORE = options.extended_goto_items.some(i => items.some(item => i.body == item.body)),
+
         IS_LEFT_RECURSIVE_WITH_FOREIGN_PRODUCTION_ITEMS = nodes.some(i => i.transition_type == TRANSITION_TYPE.IGNORE),
 
         out_prods: number[] = [],
 
         out_leaves: Leaf[] = [];
+    /*
+if (SHOULD_IGNORE) {
+
+return {
+root: [sk`return: ${options.production_ids[0]}`],
+leaves: [{
+root: [],
+leaf: [],
+prods: [],
+original_prods: [],
+hash: "",
+transition_type: TRANSITION_TYPE.IGNORE
+}],
+prods: out_prods.setFilter()
+};
+}
+*/
 
     let root: SKExpression[] = [];
 

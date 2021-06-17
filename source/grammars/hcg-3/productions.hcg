@@ -6,7 +6,7 @@
 
 @IMPORT ./production_bodies.hcg as pb
 
-@IMPORT ./functions.hcg as fn
+@IMPORT ./functions.hcg as _fn
 
 @IMPORT ./symbols.hcg as sym
 
@@ -19,28 +19,28 @@
 ########################################################################################################################
 
 <> productions > production                                          
-                                                            f:r {  { type:"production-section", functions:[], productions:[$sym1]   } }
-    | fn::referenced_function                                    
-                                                            f:r {  { type:"production-section", functions:[$sym1], productions:[]   } }
+                                                            f:r {  { type:"production-section", functions:[], productions:[$1]   } }
+    | _fn::referenced_function                                    
+                                                            f:r {  { type:"production-section", functions:[$1], productions:[]   } }
     | productions production                                  
-                                                            f:r {  $sym1.productions.push($sym2), $sym1 }
+                                                            f:r {  $1.productions.push($2), $1 }
     | productions cm::comment                                      
-                                                            f:r { $sym1 }
-    | productions fn::referenced_function                        
-                                                            f:r {  $sym1.functions.push($sym2), $sym1 }
+                                                            f:r { $1 }
+    | productions _fn::referenced_function                        
+                                                            f:r {  $1.functions.push($2), $1 }
 
  
-<> production > \<>  ( sym::production_id ↦r{ env.prod_name = $sym1 } ) production_start_symbol  pb::production_bodies? 
+<> production > \<>  ( sym::production_id f:r{ env.prod_name = $1 } ) production_start_symbol  pb::production_bodies? 
                                                                         
                                                             f:r { {
-                                                                type:"production", name:$sym2, bodies:$sym4, id:-1, recovery_handler:$sym5, pos:pos
+                                                                type:"production", name:$2, bodies:$4, id:-1, recovery_handler:$5, pos:pos
                                                             } }
-    | \+> ( sym::imported_production_symbol f:r{ env.prod_name = $sym1.val, $sym1 } ) production_start_symbol  pb::production_bodies
+
+    | \+> ( sym::imported_production_symbol f:r{ env.prod_name = $1.val, $1 } ) production_start_symbol  pb::production_bodies
 
                                                             f:r { {
-                                                                type:"production-merged-import", name:$sym2, bodies:$sym4, id:-1, recovery_handler:$sym5
+                                                                type:"production-merged-import", name:$2, bodies:$4, id:-1, recovery_handler:$5
                                                             } }
     
+<> production_start_symbol > \> 
     
-    
-<> production_start_symbol > \>

@@ -10,7 +10,7 @@
 
 <> comment > cm
 
-<> cm >  \# comment_primitive(+\' ) comment_delimiter             f:r { { type:"comment", value: $sym2 } }
+<> cm >  \# comment_primitive(+\' ) comment_delimiter             f:r { { type:"comment", value: $2 } }
 
 <> comment_delimiter > g:nl 
 

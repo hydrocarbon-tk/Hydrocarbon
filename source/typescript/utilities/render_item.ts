@@ -143,15 +143,13 @@ export function renderItem(
 
             ({ leaf_node: code, prods, original_prods } = renderItem(call_body, item.increment(), options, false, lexer_name, true, items));
 
-            //if (!item.increment().atEND)
-            //    call_body.push(<SKExpression>sk`return:-1`);
+
             const call_name = createBranchFunctionSk(call_body, options);
             const rc = [];
 
             rc.push(sk`pushFN(data, &> ${call_name})`);
             rc.push(sk`pushFN(data, &> ${getProductionFunctionName(grammar[first_non_passthrough], grammar)})`);
             rc.push(sk`return:puid`);
-            // /rc.addStatement(SC.UnaryPre(SC.Return, SC.Value("0")));
 
             leaf_expressions.push(...rc);
 
@@ -167,7 +165,6 @@ export function renderItem(
         if (!RENDER_WITH_NO_CHECK) {
             const _if = <SKIf & { expression: SKBlock; }>sk`if (${bool_expression}) : {}`;
 
-            //addSymbolAnnotationsToExpressionList([sym], grammar, _if.expression.expressions, "Single item assertion");
             leaf_expressions.push(_if);
             return renderItem(_if.expression.expressions, item.increment(), options, false, lexer_name, true);
         } else {

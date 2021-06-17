@@ -3,8 +3,8 @@
  * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
  * disclaimer notice.
  */
+import { HCG3Grammar } from "../types/grammar_nodes";
 import { performance } from "perf_hooks";
-import { Grammar } from "../types/grammar.js";
 import { Production } from "../types/production";
 import { TokenSymbol } from "../types/symbol";
 import { closure_group, TransitionTreeNode } from "../types/transition_tree_nodes";
