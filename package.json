@@ -1,6 +1,6 @@
 {
     "name": "@candlelib/hydrocarbon",
-    "version": "0.11.0",
+    "version": "0.11.1",
     "description": "Parser Compiler",
     "main": "./build/library/entry/hydrocarbon.js",
     "types": "./build/types/entry/hydrocarbon.d.ts",
@@ -35,11 +35,11 @@
     },
     "homepage": "https://github.com/CandleLibrary/Hydrocarbon#readme",
     "dependencies": {
-        "@candlelib/conflagrate": "0.4.1",
-        "@candlelib/js": "0.5.2",
-        "@candlelib/paraffin": "0.1.1",
-        "@candlelib/uri": "0.2.2",
-        "@candlelib/wind": "0.5.1"
+        "@candlelib/conflagrate": "0.4.2",
+        "@candlelib/js": "0.5.3",
+        "@candlelib/paraffin": "0.1.2",
+        "@candlelib/uri": "0.2.3",
+        "@candlelib/wind": "0.5.2"
     },
     "devDependencies": {
         "@types/node": "^13.7.6"
