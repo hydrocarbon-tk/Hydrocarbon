@@ -25,11 +25,11 @@
 <> lexer_symbol > generated_symbol
     | literal_symbol
     | escaped_symbol
-    | grouped_symbol grouped_delimiter                          f:r { { type:"symbol", val:$1, pos:pos } }    
+    | grouped_symbol grouped_delimiter                          f:r { { type:"symbol", val:$1, pos:pos, meta:false } }    
 
 <> grouped_delimiter >  g:nl | g:ws                                    
 
-<> grouped_symbol >  ( g:sym | g:id )(+\" )  sym_delimiter?     f:r { { type:"symbol", val:$1, pos:pos }}                                                    
+<> grouped_symbol >  ( g:sym | g:id )(+\" )  sym_delimiter?     f:r { { type:"symbol", val:$1, pos:pos, meta:false }}                                                    
 
 <> ignore_symbol > generated_symbol
     | literal_symbol
@@ -60,35 +60,35 @@
     | EOF_symbol
 
     | \( pb::production_bodies \)                        
-                                                                f:r { { type:"group-production", val:$2, pos:pos } }       
+                                                                f:r { { type:"group-production", val:$2, pos:pos, meta:false } }       
 
-    | symbol ( \(+ | \(* )  terminal_symbol?  \)                f:r { { type:"list-production", terminal_symbol:$$3, IS_OPTIONAL:($2 == "(*"), val:$1, pos:pos } }
+    | symbol ( \(+ | \(* )  terminal_symbol?  \)                f:r { { type:"list-production", terminal_symbol:$$3, IS_OPTIONAL:($2 == "(*"), val:$1, pos:pos, meta:false } }
 
-    | g:sym                                                     f:r { { type:"literal", val:$1, pos:pos } }
+    | g:sym                                                     f:r { { type:"literal", val:$1, pos:pos, meta:false } }
 
 <> EOF_symbol > 
-    \$eof                                                       f:r { { type:"eof", val:"END_OF_FILE", pos:pos } }
+    \$eof                                                       f:r { { type:"eof", val:"END_OF_FILE", pos:pos, meta:false } }
 
 <> empty_symbol > 
-    \$empty                                                     f:r { { type:"empty", val:"", pos:pos } }
+    \$empty                                                     f:r { { type:"empty", val:"", pos:pos, meta:false } }
 
 <> generated_symbol > 
-    \g: identifier                                              f:r { { type:"generated", val:$2, pos:pos } }
+    \g: identifier                                              f:r { { type:"generated", val:$2, pos:pos, meta:false } }
 
 <> literal_symbol > 
     \t: ( identifier | g:num ) sym_delimiter? 
-                                                                f:r { { type:"literal", val:""+$2, pos:pos } }
+                                                                f:r { { type:"literal", val:""+$2, pos:pos, meta:false } }
 
 <> escaped_symbol > 
-    \\ ( g:id | g:sym | g:num )(+\" ) sym_delimiter             f:r { { type:"literal", val:$2, pos:pos } }
+    \\ ( g:id | g:sym | g:num )(+\" ) sym_delimiter             f:r { { type:"literal", val:$2, pos:pos, meta:false } }
 
-<> production_token_symbol > \tk: identifier                    f:r { { type:"production_token", name:$2, production:null, val:-1, pos:pos } }
+<> production_token_symbol > \tk: identifier                    f:r { { type:"production_token", name:$2, production:null, val:-1, pos:pos, meta:false } }
 
 <> production_symbol > 
-    identifier                                                  f:r { { type:"sym-production", name:$1, production:null, val:-1, pos:pos } }
+    identifier                                                  f:r { { type:"sym-production", name:$1, production:null, val:-1, pos:pos, meta:false } }
 
 <> imported_production_symbol > 
-    identifier \:: identifier                                   f:r { { type:"sym-production-import", module:$1, production:$3, name:"", pos:pos } } 
+    identifier \:: identifier                                   f:r { { type:"sym-production-import", module:$1, production:$3, name:"", pos:pos, meta:false } } 
 
 <> production_id > identifier
 
@@ -97,3 +97,15 @@
 <> js_identifier >  def::js_identifier
 
 <> sym_delimiter >  g:ws | $eof  | g:nl 
+
+<> meta_symbols > 
+         \(EXC sym::condition_symbol_list \)                     
+                                                                f:r { { type:"meta-exclude", sym : $3, meta:true } }
+       | \(ERR sym::condition_symbol_list \)                     
+                                                                f:r { { type:"meta-error",   sym : $3, meta:true } }
+       | \(IGN sym::condition_symbol_list \)                     
+                                                                f:r { { type:"meta-ignore",  sym : $3, meta:true } }
+       | \(RST sym::condition_symbol_list \)                     
+                                                                f:r { { type:"meta-reset",   sym : $3, meta:true } }
+       | \(RED sym::symbol \)                                    
+                                                                f:r { { type:"meta-reduce",  sym : $3, meta:true } }

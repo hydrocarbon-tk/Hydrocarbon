@@ -31,17 +31,11 @@
                                                                     f:r { [] }
 
 
-<> body_entry > condition_clause                                   f:r { [$1] }                                 
+<> body_entry >  sym::symbol                                        f:r { [$1] }
+        
+      | sym::meta_symbol                                            f:r { [$1] }
 
-       | sym::symbol                                               f:r { [$1] }
+      | \[ body_entry(+) \]                                        
+                                                                    f:r { $2.flat().map(e => (e.NO_BLANK = true, e) ) }
 
-       | \[ body_entry(+) \]                                        
-                                                                   f:r { $2.flat().map(e => (e.NO_BLANK = true, e) ) }
-
-<> condition_clause > 
-         \( \EXC sym::condition_symbol_list \)                     f:r { { type:"condition-exclude", sym : $3, offset : -1 } }
-       | \( \ERR sym::condition_symbol_list \)                     f:r { { type:"condition-error",   sym : $3, offset : -1 } }
-       | \( \IGN sym::condition_symbol_list \)                     f:r { { type:"condition-ignore",  sym : $3, offset : -1 } }
-       | \( \RST sym::condition_symbol_list \)                     f:r { { type:"condition-reset",   sym : $3, offset : -1 } }
-       | \( \RED sym::symbol \)                                    f:r { { type:"condition-reduce",  sym : $3, offset : -1 } }
 
