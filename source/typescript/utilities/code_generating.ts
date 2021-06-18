@@ -36,7 +36,7 @@ import {
     Sym_Is_EOF,
 
     Sym_Is_Not_Consumed
-} from "./symbol.js";
+} from "../grammar/nodes/symbol.js";
 /**
  * Length of code hash string appended to GUID constant names. 
  */

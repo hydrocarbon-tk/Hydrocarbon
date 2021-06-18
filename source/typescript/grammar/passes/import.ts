@@ -4,8 +4,8 @@ import {
     HCG3Production,
     HCG3Symbol,
     HCGProductionBody
-} from "../types/grammar_nodes";
-import { createProductionSymbol, getProductionByName } from "./common.js";
+} from "../../types/grammar_nodes";
+import { createProductionSymbol, getProductionByName } from "../nodes/common.js";
 
 /**
  * Responsible discovering and collecting ALL imported modules.

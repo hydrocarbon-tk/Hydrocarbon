@@ -8,7 +8,7 @@ import { TransitionNode, TRANSITION_TYPE } from "../../types/transition_node.js"
 import { RenderBodyOptions } from "../../types/render_body_options";
 
 import { Item } from "../../utilities/item.js";
-import { Sym_Is_A_Production } from "../../utilities/symbol.js";
+import { Sym_Is_A_Production } from "../../grammar/nodes/symbol.js";
 import { yieldTransitions } from "./yield_transitions.js";
 import { processTransitionNodes } from "./process_transition_nodes.js";
 import { createTransitionNode } from "./create_transition_node.js";

@@ -9,7 +9,7 @@ import { RenderBodyOptions } from "../../types/render_body_options";
 import { getClosure, getFollowClosure } from "../../utilities/closure.js";
 import { getFollow } from "../../utilities/follow.js";
 import { getGotoItems, Item, itemsToProductions } from "../../utilities/item.js";
-import { getSymbolsFromClosure } from "../../utilities/symbol.js";
+import { getSymbolsFromClosure } from "../../grammar/nodes/symbol.js";
 import { getTransitionTree } from "../../utilities/transition_tree.js";
 import { const_EMPTY_ARRAY } from "../../utilities/const_EMPTY_ARRAY.js";
 import { createTransitionNode } from "./create_transition_node.js";

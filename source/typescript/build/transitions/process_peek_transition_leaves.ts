@@ -10,7 +10,7 @@ import { getClosure } from "../../utilities/closure.js";
 import { const_EMPTY_ARRAY } from "../../utilities/const_EMPTY_ARRAY.js";
 import { Item, Items_Have_The_Same_Active_Symbol } from "../../utilities/item.js";
 import { getProductionID } from "../../utilities/production.js";
-import { getFollowSymbolsFromItems, getUniqueSymbolName, Sym_Is_A_Production } from "../../utilities/symbol.js";
+import { getFollowSymbolsFromItems, getUniqueSymbolName, Sym_Is_A_Production } from "../../grammar/nodes/symbol.js";
 import { getTransitionTree } from "../../utilities/transition_tree.js";
 import { createTransitionNode } from "./create_transition_node.js";
 import { yieldEndItemTransitions } from "./yield_end_item_transitions.js";

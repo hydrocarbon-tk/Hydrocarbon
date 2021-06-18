@@ -8,7 +8,7 @@ import { TransitionNode, TRANSITION_TYPE } from "../../types/transition_node.js"
 import { RenderBodyOptions } from "../../types/render_body_options.js";
 import { Symbol } from "../../types/symbol.js";
 import { TransitionTreeNode } from "../../types/transition_tree_nodes";
-import { getSymbolFromUniqueName, getUniqueSymbolName } from "../../utilities/symbol.js";
+import { getSymbolFromUniqueName, getUniqueSymbolName } from "../../grammar/nodes/symbol.js";
 import { const_EMPTY_ARRAY } from "../../utilities/const_EMPTY_ARRAY.js";
 import { createTransitionNode } from "./create_transition_node.js";
 import { processPeekTransitionLeaves } from "./process_peek_transition_leaves.js";

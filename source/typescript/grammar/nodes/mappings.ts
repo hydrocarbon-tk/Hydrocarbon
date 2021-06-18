@@ -1,13 +1,14 @@
-import { NodeMappings } from "@candlelib/conflagrate/build/types/types/node_mappings";
-import { HCG3GrammarNode } from "../types/grammar_nodes";
+import { NodeMapping, NodeMappings } from "@candlelib/conflagrate/build/types/types/node_mappings";
+import { HCG3Grammar, HCG3GrammarNode } from "../../types/grammar_nodes";
 
 const hcg3_mappings: NodeMappings<HCG3GrammarNode, "type"> = <NodeMappings<HCG3GrammarNode, "type">>{
     typename: "type",
     type_lookup: () => 0,
     mappings: [
         { type: "null", template: "tempster" },
-        {
-            type: "hc-grammar-3", child_keys: ["preamble", "productions", "function"],
+        <NodeMapping<HCG3Grammar>>{
+            type: "hc-grammar-3", 
+            child_keys: ["preamble", "productions", "function"],
             template: "\\#HCG3 o:n @preamble...[o:n] o:n @productions"
         },
         {

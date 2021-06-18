@@ -1,18 +1,19 @@
 import { HCGParser } from "@candlelib/hydrocarbon/build/types/types/parser";
 import URI from "@candlelib/uri";
 import { HCG3Grammar } from "../types/grammar_nodes";
-import { integrateImportedGrammars } from "./import.js";
+import { buildItemMaps } from "./passes/item_map.js";
+import { integrateImportedGrammars } from "./passes/import.js";
 import {
     loadGrammarFromFile,
     loadGrammarFromString
-} from "./load.js";
+} from "./passes/load.js";
 import {
     buildSequenceString,
-    convertListProductions,
-    createItemMaps,
     createUniqueSymbolSet
-} from "./optimize.js";
-import { createJSFunctionsFromExpressions } from "./process_code.js";
+} from "./passes/common.js";
+import { convertListProductions } from "./passes/convert_list_productions.js";
+import { mergeProductions } from "./passes/merge_productions.js";
+import { createJSFunctionsFromExpressions } from "./passes/process_code.js";
 
 
 class GrammarCompilationReport extends Error {

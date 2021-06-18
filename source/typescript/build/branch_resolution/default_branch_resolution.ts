@@ -32,7 +32,7 @@ import {
     Sym_Is_Defined_Identifier,
     Sym_Is_Defined_Natural_Number,
     Sym_Is_Defined_Symbols
-} from "../../utilities/symbol.js";
+} from "../../grammar/nodes/symbol.js";
 
 /**
  * Handles intermediate state transitions. 

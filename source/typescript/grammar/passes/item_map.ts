@@ -3,20 +3,20 @@
  * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
  * disclaimer notice.
  */
-import { getStartItemsFromProduction } from "../build/function_constructor.js";
-import { EOF_SYM, ItemMapEntry } from "../types/grammar.js";
-import { HCG3Grammar, HCG3Production } from "../types/grammar_nodes.js";
-import { Production } from "../types/production.js";
-import { ProductionSymbol, Symbol, TokenSymbol } from "../types/symbol";
-import { getFirstTerminalSymbols } from "./first.js";
-import { Item } from "./item.js";
-import { doesProductionHaveEmpty, getProductionID } from "./production.js";
+import { getStartItemsFromProduction } from "../../build/function_constructor.js";
+import { EOF_SYM, ItemMapEntry } from "../../types/grammar.js";
+import { HCG3Grammar, HCG3Production } from "../../types/grammar_nodes.js";
+import { Production } from "../../types/production.js";
+import { ProductionSymbol, Symbol, TokenSymbol } from "../../types/symbol";
+import { getFirstTerminalSymbols } from "../../utilities/first.js";
+import { Item } from "../../utilities/item.js";
+import { doesProductionHaveEmpty, getProductionID } from "../../utilities/production.js";
 import {
     getSymbolName,
     getTrueSymbolValue, getUniqueSymbolName,
     Sym_Is_A_Production,
     Sym_Is_A_Production_Token
-} from "./symbol.js";
+} from "../nodes/symbol.js";
 
 type IntermediateItemMapEntry = (ItemMapEntry & {
     closure: Item[];

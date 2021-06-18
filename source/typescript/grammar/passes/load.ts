@@ -1,8 +1,8 @@
 import URI from "@candlelib/uri";
-import { HCG3Grammar } from "../types/grammar_nodes";
-import loader from "./hcg3_parser.js";
+import { HCG3Grammar } from "../../types/grammar_nodes";
+import loader from "../hcg3_parser.js";
 import { HCGParser } from "@candlelib/hydrocarbon/build/types/types/parser";
-import { default_map } from "../utilities/default_map.js";
+import { default_map } from "../../utilities/default_map.js";
 
 /**
  * Entry point to loading a grammar from a string
@@ -53,6 +53,8 @@ async function loadGrammar(uri: URI, grammar_parser: any = parser, existing_gram
     uri = getResolvedURI(uri);
 
     const str = await uri.fetchText();
+
+    console.log(`Grammar: Loading ${uri}`);
 
     const grammar = loadGrammarFromString(str, grammar_parser);
 

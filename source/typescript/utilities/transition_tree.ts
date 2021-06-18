@@ -16,9 +16,12 @@ import {
     getSymbolsFromClosure,
     getUniqueSymbolName,
     getUnskippableSymbolsFromClosure,
+    Symbols_Occlude,
+    Sym_Is_A_Generic_Identifier,
+    Sym_Is_A_Generic_Type,
     Sym_Is_A_Production,
     Sym_Is_A_Production_Token
-} from "./symbol.js";
+} from "../grammar/nodes/symbol.js";
 
 /**
  * Givin a set of root items, return a tree of nodes where each node represents a

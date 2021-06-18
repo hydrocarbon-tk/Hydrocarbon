@@ -7,8 +7,8 @@ import { Grammar, ProductionBody } from "../types/grammar.js";
 import { Production, VirtualProduction } from "../types/production.js";
 import { RenderBodyOptions } from "../types/render_body_options.js";
 import { Item } from "./item.js";
-import { buildItemMaps, getItemMapEntry } from "./item_map.js";
-import { getFollowSymbolsFromItems, getSymbolsFromClosure, getUniqueSymbolName, Sym_Is_A_Terminal } from "./symbol.js";
+import { buildItemMaps, getItemMapEntry } from "../grammar/passes/item_map.js";
+import { getFollowSymbolsFromItems, getSymbolsFromClosure, getUniqueSymbolName, Sym_Is_A_Terminal } from "../grammar/nodes/symbol.js";
 
 function remapBodyModifiers<B>(map: Map<number, B>, item: Item): Map<number, B> {
     return new Map([...map.entries()]

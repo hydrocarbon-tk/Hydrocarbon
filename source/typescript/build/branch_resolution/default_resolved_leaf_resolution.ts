@@ -14,7 +14,7 @@ import { rec_glob_lex_name } from "../../utilities/global_names.js";
 import { Item, itemsToProductions } from "../../utilities/item.js";
 import { processProductionChain } from "../../utilities/process_production_reduction_sequences.js";
 import { renderItem } from "../../utilities/render_item.js";
-import { getSkippableSymbolsFromItems, getSymbolsFromClosure } from "../../utilities/symbol.js";
+import { getSkippableSymbolsFromItems, getSymbolsFromClosure } from "../../grammar/nodes/symbol.js";
 
 
 

@@ -9,7 +9,7 @@ import { RenderBodyOptions } from "../../types/render_body_options";
 import { MultiItemReturnObject } from "../../types/transition_generating";
 import { Leaf, TransitionNode, TRANSITION_TYPE } from "../../types/transition_node.js";
 import { createBranchFunctionSk } from "../../utilities/code_generating.js";
-import { getUniqueSymbolName, Sym_Is_A_Production } from "../../utilities/symbol.js";
+import { getUniqueSymbolName, Sym_Is_A_Production } from "../../grammar/nodes/symbol.js";
 import { createVirtualProductionSequence } from "../function_constructor.js";
 
 const SC = null;

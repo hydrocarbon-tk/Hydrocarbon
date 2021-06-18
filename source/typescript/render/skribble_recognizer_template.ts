@@ -11,7 +11,7 @@ import { HCG3Grammar } from "../types/grammar_nodes.js";
 import { RDProductionFunction } from "../types/rd_production_function.js";
 import { createSkipCallSk, getProductionFunctionNameSk } from "../utilities/code_generating.js";
 import { getProductionClosure } from "../utilities/production.js";
-import { getSkippableSymbolsFromItems, getUnskippableSymbolsFromClosure } from "../utilities/symbol.js";
+import { getSkippableSymbolsFromItems, getUnskippableSymbolsFromClosure } from "../grammar/nodes/symbol.js";
 export const renderSkribbleRecognizer = (
     grammar: HCG3Grammar
 ): SKModule => {

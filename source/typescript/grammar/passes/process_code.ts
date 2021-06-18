@@ -1,6 +1,6 @@
 import { traverse } from "@candlelib/conflagrate";
 import { exp, JSNodeClass, JSNodeType, renderCompressed } from "@candlelib/js";
-import { HCG3Grammar } from "../types/grammar_nodes";
+import { HCG3Grammar } from "../../types/grammar_nodes";
 
 
 

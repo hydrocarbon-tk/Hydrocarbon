@@ -26,7 +26,7 @@ import {
     getSkippableSymbolsFromItems,
     Sym_Is_A_Production,
     Sym_Is_A_Production_Token
-} from "./symbol.js";
+} from "../grammar/nodes/symbol.js";
 
 export function renderItemReduction(
     code_node: SKExpression[],

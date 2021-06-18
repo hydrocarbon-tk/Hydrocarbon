@@ -7,7 +7,7 @@ import { getStartItemsFromProduction } from "../build/function_constructor.js";
 import { HCG3Grammar } from "../types/grammar_nodes.js";
 import { getGotoItems, Item, itemsToProductions } from "./item.js";
 import { getProductionID } from "./production.js";
-import { Sym_Is_A_Production_Token } from "./symbol.js";
+import { Sym_Is_A_Production_Token } from "../grammar/nodes/symbol.js";
 
 /**
  * Get set of all items that can be derived from the parameter items.

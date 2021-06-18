@@ -6,7 +6,7 @@
 import { HCG3Grammar } from "../types/grammar_nodes.js";
 import { TokenSymbol } from "../types/symbol";
 import { getProductionClosure } from "./production.js";
-import { getTrueSymbolValue, getUniqueSymbolName, Sym_Is_A_Production } from "./symbol.js";
+import { getTrueSymbolValue, getUniqueSymbolName, Sym_Is_A_Production } from "../grammar/nodes/symbol.js";
 
 
 export function getFirstTerminalSymbols(production_id: number, grammar: HCG3Grammar) {

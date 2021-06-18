@@ -12,7 +12,7 @@ import {
     HCG3TokenPosition,
     HCGProductionBody,
     HCG3SymbolNode
-} from "../types/grammar_nodes";
+} from "../../types/grammar_nodes";
 
 
 export function getProductionByName(grammar: HCG3Grammar, name: string): HCG3Production {
@@ -22,16 +22,14 @@ export function getProductionByName(grammar: HCG3Grammar, name: string): HCG3Pro
     return null;
 }
 export function Body_Has_Reduce_Action(body: HCGProductionBody) {
-
     return body.reduce_function != null;
-
 }
 export function copyBody(body: HCGProductionBody) {
     return copy(body);
 }
 export function replaceBodySymbol(body: HCGProductionBody, index: number, ...symbols: HCG3Symbol[]) {
     // Extend index values after the first body 
-    const extension_count = symbols.length;
+    const extension_count = getRealSymbolCount(symbols);
 
     offsetReduceFunctionSymRefs(body, index, extension_count - 1);
 
@@ -40,6 +38,10 @@ export function replaceBodySymbol(body: HCGProductionBody, index: number, ...sym
     if (body.sym.length == 0)
         body.sym.push(createEmptySymbol());
 }
+export function getRealSymbolCount(symbols: (HCG3Symbol)[]) {
+    return symbols.filter(s => !s.meta).length;
+}
+
 export function offsetReduceFunctionSymRefs(body: HCGProductionBody, offset_start: number, offset_count: number) {
 
     if (offset_count > 0 && Body_Has_Reduce_Action(body)) {
@@ -106,7 +108,8 @@ export function createProductionSymbol(name: string, IS_OPTIONAL: boolean = fals
         name: name,
         IS_NON_CAPTURE: false,
         IS_OPTIONAL: IS_OPTIONAL,
-        pos: mapped_sym?.pos ?? createZeroedPosition()
+        pos: mapped_sym?.pos ?? createZeroedPosition(),
+        meta: false
     };
 }
 function createEmptySymbol(): HCG3EmptySymbol {
@@ -117,7 +120,8 @@ function createEmptySymbol(): HCG3EmptySymbol {
         byte_offset: 0,
         IS_NON_CAPTURE: false,
         IS_OPTIONAL: false,
-        pos: createZeroedPosition()
+        pos: createZeroedPosition(),
+        meta: false
     };
 }
 function createZeroedPosition(): HCG3TokenPosition {
@@ -136,6 +140,7 @@ export function createProduction(name: string, mapped_sym: HCG3GrammarNode = nul
         id: -1,
         recovery_handler: null,
         pos: mapped_sym?.pos ?? createZeroedPosition(),
+        RECURSIVE: 0
     };
 }
 export function createProductionBody(mapped_sym: HCG3GrammarNode = null): HCGProductionBody {

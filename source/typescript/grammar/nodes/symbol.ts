@@ -4,8 +4,8 @@
  * disclaimer notice.
  */
 import { Lexer } from "@candlelib/wind";
-import { Grammar } from "../types/grammar.js";
-import { HCG3Grammar, HCG3Symbol } from "../types/grammar_nodes.js";
+import { Grammar } from "../../types/grammar.js";
+import { HCG3Grammar, HCG3Symbol } from "../../types/grammar_nodes.js";
 import {
     DefinedCharacterSymbol,
     DefinedIdentifierSymbol,
@@ -15,9 +15,9 @@ import {
     ProductionSymbol,
     ProductionTokenSymbol,
     TokenSymbol
-} from "../types/symbol";
-import { SymbolType } from "../types/symbol_type.js";
-import { Item } from "./item.js";
+} from "../../types/symbol";
+import { SymbolType } from "../../types/symbol_type.js";
+import { Item } from "../../utilities/item.js";
 
 export function getTrueSymbolValue(sym: TokenSymbol, grammar: HCG3Grammar): TokenSymbol[] {
     return [<TokenSymbol>sym];

@@ -16,7 +16,7 @@ import { const_EMPTY_ARRAY } from "../utilities/const_EMPTY_ARRAY.js";
 import { Item, ItemIndex } from "../utilities/item.js";
 import { getProductionClosure } from "../utilities/production.js";
 import { renderItem, renderItemReduction } from "../utilities/render_item.js";
-import { Sym_Is_A_Production } from "../utilities/symbol.js";
+import { Sym_Is_A_Production } from "../grammar/nodes/symbol.js";
 import { createVirtualProductions } from "../utilities/virtual_productions.js";
 import { Helper } from "./helper.js";
 import { addLeafStatements, addVirtualProductionLeafStatements } from "./transitions/add_leaf_statements.js";

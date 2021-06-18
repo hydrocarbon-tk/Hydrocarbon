@@ -11,7 +11,7 @@ import { TransitionTreeNode } from "../../types/transition_tree_nodes.js";
 import { getClosure } from "../../utilities/closure.js";
 import { const_EMPTY_ARRAY } from "../../utilities/const_EMPTY_ARRAY.js";
 import { Item, Items_Have_The_Same_Active_Symbol } from "../../utilities/item.js";
-import { getTokenSymbolsFromItems, Symbols_Are_The_Same, Sym_Is_A_Production, Sym_Is_A_Production_Token } from "../../utilities/symbol.js";
+import { getTokenSymbolsFromItems, Symbols_Are_The_Same, Sym_Is_A_Production, Sym_Is_A_Production_Token } from "../../grammar/nodes/symbol.js";
 import { getTransitionTree } from "../../utilities/transition_tree.js";
 import { createTransitionNode } from "./create_transition_node.js";
 import { yieldEndItemTransitions } from "./yield_end_item_transitions.js";

@@ -27,7 +27,7 @@ import {
     Sym_Is_A_Space_Generic,
     Sym_Is_Defined_Identifier,
     Sym_Is_Defined_Natural_Number, Sym_Is_Defined_Symbols
-} from "../../utilities/symbol.js";
+} from "../../grammar/nodes/symbol.js";
 import { processTransitionNodes } from "../transitions/process_transition_nodes.js";
 import { yieldTransitions } from "../transitions/yield_transitions.js";
 import { default_resolveBranches } from "./default_branch_resolution.js";
