@@ -217,10 +217,10 @@ fn createState:u32 (ENABLE_STACK_OUTPUT:u32) {
         return : (type & assert_class) == 0;
     }
 
-    [pub] fn setToken:void(type:u32, byte_length:u32, token_length:u32){
-        this.type = type;
-        this.byte_length = byte_length;
-        this.token_length = token_length;
+    [pub] fn setToken:void(type_in:u32, byte_length_in:u32, token_length_in:u32){
+        this.type = type_in;
+        this.byte_length = byte_length_in;
+        this.token_length = token_length_in;
     }
 
     [pub] fn getType : u32 (USE_UNICODE:bool, data: __ParserData$ref) { 
