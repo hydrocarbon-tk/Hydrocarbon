@@ -16,7 +16,7 @@ const hcg3_mappings: NodeMappings<HCG3GrammarNode, "type"> = <NodeMappings<HCG3G
         },
         {
             type: "production", child_keys: ["bodies"],
-            template: "production"
+            template: "\\<> m:s @name m:s \\> m:s i:s @bodies...[ o:n | m:s ] i:e"
         },
         {
             type: "production-merge", child_keys: ["bodies"],
