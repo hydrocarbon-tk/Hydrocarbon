@@ -118,7 +118,7 @@ const recognizer = addCLIConfig("compile", {
     accepted_values: ["js", "wasm"],
     help_brief:
         `
-Language in which to the recognizer. This only applies if the output targets
+Language in which to encode the recognizer. This only applies if the output targets
 TypeScript or JavaScript.
 
 Must be one of: 
@@ -158,12 +158,17 @@ addCLIConfig("compile", {
             }
 
 
-        console.log(`Starting recognizer compilation with ${number_of_workers.value || 1} threads`);
+        console.log(`Compiling grammar`);
 
         const
             threads = parseInt(number_of_workers.value ?? "1"),
-            grammar = await compileGrammarFromURI(file_path),
-            { meta, recognizer_functions } = await buildRecognizer(grammar, threads);
+            grammar = await compileGrammarFromURI(file_path);
+
+        console.log("Completed grammar compilation");
+
+        console.log(`Starting recognizer compilation with ${number_of_workers.value || 1} threads`);
+
+        const { meta, recognizer_functions } = await buildRecognizer(grammar, threads);
 
         console.log("Completed recognizer compilation");
 
