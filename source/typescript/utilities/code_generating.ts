@@ -166,7 +166,7 @@ export function getSkipFunctionNewSk(
             skip_function = <SKFunction>sk`
             fn temp:void (l:__Lexer$ref,data:__ParserData$ref, state:u32){
 
-                if((state) == NULL_STATE) : return;
+                if (state) == NULL_STATE : return;
 
                 [const] off:u32 = l.token_offset;
                 
@@ -174,7 +174,7 @@ export function getSkipFunctionNewSk(
                     
                     ${custom_skip_code ? custom_skip_code : ""}
                     
-                    if (!(${boolean})) : {
+                    if !(${boolean}) : {
                         break;
                     };
 
@@ -413,13 +413,13 @@ export function createSymbolMappingFunctionSk(
             ...generic_symbol_mappings
         ]) {
             const sc = sk`
-                if (${getIncludeBooleansSk(
+                if ${getIncludeBooleansSk(
                 [sym],
                 options,
                 lex_name,
                 symbol_mappings.map(([, s]) => s)
                     .filter(Sym_Is_A_Terminal)
-            )}) : {
+            )} : {
                     return : ${id};
                 }
             `;
@@ -541,8 +541,8 @@ export function* buildSwitchIfsSk(
         }
         const vals = yielded.value.flatMap(m => [m, ";"]).slice(0, -1);
         let _if = length == 1
-            ? sk`if (data.input[l.byte_offset + ${off}] ~= ${getUTF8ByteAtSk(shortest, off)} ): { ${vals} }`
-            : sk`if (${length} == compare(data, l.byte_offset + ${off}, ${offset}, ${length})) : { ${vals} }`;
+            ? sk`if data.input[l.byte_offset + ${off}] ~= ${getUTF8ByteAtSk(shortest, off)} : { ${vals} }`
+            : sk`if ${length} == compare(data, l.byte_offset + ${off}, ${offset}, ${length}) : { ${vals} }`;
 
         ifs.push(_if);
     }

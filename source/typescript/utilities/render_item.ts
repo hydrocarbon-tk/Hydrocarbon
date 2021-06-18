@@ -100,7 +100,6 @@ export function renderItem(
     let prods = [], original_prods = [], INDIRECT = false;
 
     if (!item.atEND) {
-
         if (FROM_UPPER) {
 
             const
@@ -152,7 +151,6 @@ export function renderItem(
             rc.push(sk`return:puid`);
 
             leaf_expressions.push(...rc);
-
             return { leaf_node: code, prods, INDIRECT, original_prods };
 
         } else if (RENDER_WITH_NO_CHECK) {
@@ -166,6 +164,11 @@ export function renderItem(
             const _if = <SKIf & { expression: SKBlock; }>sk`if (${bool_expression}) : {}`;
 
             leaf_expressions.push(_if);
+
+            if (leaf_expressions.slice(-1)[0].type !== "return")
+                leaf_expressions.push(<SKExpression>sk`return:-1`);
+
+
             return renderItem(_if.expression.expressions, item.increment(), options, false, lexer_name, true);
         } else {
             return renderItem(leaf_expressions, item.increment(), options, false, lexer_name, true);

@@ -392,6 +392,10 @@ function createIfElseExpressions(
                 expressions.push(<SKReturn>sk`return:puid`);
                 leaves.forEach(leaf => leaf.INDIRECT = true);
 
+
+                if (code.slice(-1)[0].type !== "return")
+                    code.push(<SKExpression>sk`return:-1`);
+
                 break;
 
             case TRANSITION_TYPE.ASSERT:
@@ -407,8 +411,6 @@ function createIfElseExpressions(
 
                 let scr = code;
 
-
-
                 if (state.PUIDABLE) {
 
                 } else if (items.length == 1) {
@@ -416,7 +418,7 @@ function createIfElseExpressions(
                     //build puid and pass to finishing function
                     const nc = [];
 
-                    //code.push(<SKExpression>sk`return:-1`);
+
 
                     const continue_name = createBranchFunctionSk(nc, options);
                     const call_name = createBranchFunctionSk(code, options);
@@ -431,6 +433,10 @@ function createIfElseExpressions(
                     leaves[0].leaf = nc;
                     leaves[0].INDIRECT = true;
                     leaves[0].transition_type = TRANSITION_TYPE.ASSERT;
+
+
+                    if (code.slice(-1)[0].type !== "return")
+                        code.push(<SKExpression>sk`return:-1`);
                 }
 
                 addIf(createIfStatementTransition(options, group, scr, assertion_boolean, FORCE_ASSERTIONS, "Assert"));
@@ -443,6 +449,7 @@ function createIfElseExpressions(
                 assertion_boolean = getIncludeBooleansSk(<TokenSymbol[]>syms, options, lex_name, <TokenSymbol[]>complement_symbols);
 
                 code.unshift(<SKExpression>sk`puid |= ${grammar.item_map.get(items[0].id).sym_uid}`);
+
                 code.unshift(createConsumeSk("l"));
 
                 addIf(createIfStatementTransition(options, group, code, assertion_boolean, FORCE_ASSERTIONS, "Assert Consume"));
@@ -476,7 +483,7 @@ function createIfStatementTransition(
 
     const transition_type: TRANSITION_TYPE = transition_types[0];
 
-    let if_stmt = <SKIf>sk`if(${boolean_assertion}): ${(<SKBlock>{
+    let if_stmt = <SKIf>sk`if ${boolean_assertion}: ${(<SKBlock>{
         type: "block",
         expressions: modified_code
     })

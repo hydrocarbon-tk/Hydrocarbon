@@ -204,11 +204,7 @@ export function resolveGOTOBranches(
                             booleans = getIncludeBooleansSk(checked_symbols, options, rec_glob_lex_name, active_symbols);
 
                         if (booleans) {
-                            interrupt_statement = <SKIf>sk`if (${booleans}) : { return : ${keys[0]} }`;
-
-
-
-                            addSymbolAnnotationsToExpressionList(checked_symbols, grammar, (<SKBlock>interrupt_statement.expression).expressions);
+                            interrupt_statement = <SKIf>sk`if ${booleans} : { return : ${keys[0]} }`;
                         }
                     }
                 }
