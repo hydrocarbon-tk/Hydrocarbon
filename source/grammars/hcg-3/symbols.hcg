@@ -98,14 +98,13 @@
 
 <> sym_delimiter >  g:ws | $eof  | g:nl 
 
-<> meta_symbols > 
-         \(EXC sym::condition_symbol_list \)                     
+<> meta_symbol >   \(EXC condition_symbol_list \)                     
                                                                 f:r { { type:"meta-exclude", sym : $3, meta:true } }
-       | \(ERR sym::condition_symbol_list \)                     
+       | \(ERR condition_symbol_list \)                     
                                                                 f:r { { type:"meta-error",   sym : $3, meta:true } }
-       | \(IGN sym::condition_symbol_list \)                     
+       | \(IGN condition_symbol_list \)                     
                                                                 f:r { { type:"meta-ignore",  sym : $3, meta:true } }
-       | \(RST sym::condition_symbol_list \)                     
+       | \(RST condition_symbol_list \)                     
                                                                 f:r { { type:"meta-reset",   sym : $3, meta:true } }
-       | \(RED sym::symbol \)                                    
+       | \(RED symbol \)                                    
                                                                 f:r { { type:"meta-reduce",  sym : $3, meta:true } }
