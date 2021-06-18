@@ -231,8 +231,9 @@ fn createState:u32 (ENABLE_STACK_OUTPUT:u32) {
             if ( !(USE_UNICODE) || this.current_byte < 128) :{
                 this.type = getTypeAt(this.current_byte)
            } else {
-                index:u32 = this.byte_offset;
-                this.type = getTypeAt(utf8ToCodePoint(byte_offset + byte_length, data.input));
+                [const] code_point:u32 = utf8ToCodePoint(this.byte_offset, data.input);
+                this.byte_length = getUTF8ByteLengthFromCodePoint(code_point);
+                this.type = getTypeAt(code_point);
             }
         };
 
@@ -286,16 +287,22 @@ fn createState:u32 (ENABLE_STACK_OUTPUT:u32) {
 
                 prev_byte_len:u32  = this.byte_length;
 
-                loop ( ((off + this.byte_length) < l) 
-                    && ((UNICODE_ID_START | UNICODE_ID_CONTINUE) & lookup_table[
-                        utf8ToCodePoint(this.byte_offset + this.byte_length, data.input)
-                    ]) > 0) {
-                    this.byte_length += 1;
-                    prev_byte_len = this.byte_length;
-                    this.token_length += 1;
+                loop ( (off + this.byte_length) < l)  {
+                    [const] code_point: u32 = utf8ToCodePoint(this.byte_offset + this.byte_length, data.input);
+
+                    if( ((UNICODE_ID_START | UNICODE_ID_CONTINUE) & lookup_table[code_point]) > 0) : {
+                        this.byte_length += getUTF8ByteLengthFromCodePoint(code_point);
+                        prev_byte_len = this.byte_length;
+                        this.token_length += 1;
+                    } else {
+                        break;
+                    }
                 };
+
                 this.byte_length = prev_byte_len;
+
                 this.type = TokenIdentifierUnicode;
+
                 return:  true;
             }  else 
                 return: false
