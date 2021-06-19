@@ -27,6 +27,7 @@ import { ParserFactory as ParserFactoryNext } from "../runtime/parser_loader_nex
 
 //Runtime - Deprecate
 import { LexerError } from "../lr(deprecate)/runtime/lexer_error.js";
+
 import { lrParse } from "../lr(deprecate)/runtime/lr_parser.js";
 
 //Diagnostics

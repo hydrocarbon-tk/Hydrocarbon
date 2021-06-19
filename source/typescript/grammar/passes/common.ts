@@ -33,7 +33,7 @@ export function createUniqueSymbolSet(grammar: HCG3Grammar, errors: Error[] = []
 
     const unique_map: Map<string, HCG3Symbol> = new Map([[getUniqueSymbolName(EOF_SYM), EOF_SYM]]);
 
-    let s_counter = 0, b_counter = 0, p_counter = 0, bodies = [], reduce_lu: Map<string, number> = new Map();
+    let b_counter = 0, p_counter = 0, bodies = [], reduce_lu: Map<string, number> = new Map();
 
     const production_lookup = new Map();
 
@@ -73,7 +73,7 @@ export function createUniqueSymbolSet(grammar: HCG3Grammar, errors: Error[] = []
 
             for (const sym of body.sym) {
                 processSymbol(sym, production_lookup, unique_map, errors);
-                sym.opt_id = s_counter++;
+                //sym.id = s_counter++;
             }
         }
     }
@@ -150,12 +150,12 @@ export function expandOptionalBody(production: HCG3Production) {
         for (const { node, meta } of traverse(body, "sym").makeMutable()) {
             const sym: HCG3SymbolNode = <any>node;
             if (sym.IS_OPTIONAL) {
-                const new_id = body.sym.filter((s) => s.opt_id != node.opt_id).reduce((r, n) => (n.opt_id | r), 0n);
+                const new_id = body.sym.filter((s) => s.opt_id != sym.opt_id).reduce((r, n) => (n.opt_id | r), 0n);
 
                 if (!processed_set.has(new_id)) {
                     processed_set.add(new_id);
                     const new_body = copyBody(body);
-                    removeBodySymbol(new_body, meta.index, node.opt_id);
+                    removeBodySymbol(new_body, meta.index, sym.opt_id);
                     addBodyToProduction(production, new_body);
                 }
             }

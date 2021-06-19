@@ -71,7 +71,8 @@ export function constructHybridFunction(production: HCG3Production, grammar: HCG
             RD_function,
             GOTO_Options.NO_GOTOS ? undefined : GOTO_function,
             ReduceFunction
-        ]
+        ],
+        RENDER: false
     };
 }
 

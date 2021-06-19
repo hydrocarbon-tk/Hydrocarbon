@@ -56,7 +56,7 @@ export function offsetReduceFunctionSymRefs(body: HCG3ProductionBody, offset_sta
     }
 }
 
-export function removeBodySymbol(body: HCG3ProductionBody, index: number, opt_id: bigint) {
+export function removeBodySymbol(body: HCG3ProductionBody, index: number, opt_id: bigint = null) {
     // Extend index values after the first body 
     if (Body_Has_Reduce_Action(body)) {
         body.reduce_function.txt = body.reduce_function.txt.replace(/\$(\d+)/g, (m, p1) => {
@@ -70,7 +70,10 @@ export function removeBodySymbol(body: HCG3ProductionBody, index: number, opt_id
         });
     }
 
-    body.sym = body.sym.filter(s => s.opt_id != opt_id);
+    if (opt_id)
+        body.sym = body.sym.filter(s => s.opt_id != opt_id);
+    else
+        body.sym.splice(index, 1);
 
     if (body.sym.length == 0)
         body.sym.push(createEmptySymbol());

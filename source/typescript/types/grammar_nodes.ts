@@ -72,8 +72,8 @@ export type HCG3Production = HCG3GeneralProduction | HCG3VirtualProduction | HCG
 
 export interface HCG3ProductionBody extends HCG3GrammarNode {
     type: "body",
-    sym: HCG3Symbol[];
     reduce_function?: HCG3Function;
+    sym: HCG3Symbol[];
     FORCE_FORK: boolean;
     id: number;
     production?: HCG3Production;

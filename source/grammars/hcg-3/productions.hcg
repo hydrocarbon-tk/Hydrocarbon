@@ -6,7 +6,7 @@
 
 @IMPORT ./production_bodies.hcg as pb
 
-@IMPORT ./functions.hcg as _fn
+@IMPORT ./functions.hcg as fn
 
 @IMPORT ./symbols.hcg as sym
 
@@ -20,13 +20,13 @@
 
 <> productions > production                                          
                                                             f:r {  { type:"production-section", functions:[], productions:[$1]   } }
-    | _fn::referenced_function                                    
+    | fn::referenced_function                                    
                                                             f:r {  { type:"production-section", functions:[$1], productions:[]   } }
     | productions production                                  
                                                             f:r {  $1.productions.push($2), $1 }
     | productions cm::comment                                      
                                                             f:r { $1 }
-    | productions _fn::referenced_function                        
+    | productions fn::referenced_function                        
                                                             f:r {  $1.functions.push($2), $1 }
 
  
