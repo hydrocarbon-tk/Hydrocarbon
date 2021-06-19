@@ -77,8 +77,8 @@ function processImportedBody(body: HCG3ProductionBody, root_grammar: HCG3Grammar
         }
 
         if (sym.type == "sym-production-import") {
-            const imported = getImportedGrammarFromReference(local_grammar, sym.module);
 
+            const imported = getImportedGrammarFromReference(local_grammar, sym.module);
             //Convert symbol to a local name
             //Find the production that is referenced in the grammar
             const prd = getProductionByName(imported.grammar, sym.production);

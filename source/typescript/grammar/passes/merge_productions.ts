@@ -7,9 +7,11 @@ import {
 import {
     addBodyToProduction,
     getProductionByName,
+    getRealSymbolCount,
     offsetReduceFunctionSymRefs,
     replaceBodySymbol
 } from "../nodes/common.js";
+import { getUniqueSymbolName, Sym_Is_A_Production, Sym_Is_A_Production_Token } from "../nodes/symbol.js";
 
 /**
  * Sets the recursion state on all productions in a grammar
@@ -135,16 +137,65 @@ export function mergeProductions(grammar: HCG3Grammar, error) {
                     if (!HAS_REDUCED_BODY) {
                         let i = 0;
                         let body_base = copy(body);
+
+                        // Check for any excludes that should
+                        // prevent this body from existing
+
                         for (const cpu_body of ref_prod.bodies) {
+
+                            let ALLOW_INCLUSION = true;
+
+                            const active_symbol = cpu_body.sym[0];
+
+                            if (!Sym_Is_A_Production(active_symbol)) {
+
+                                for (let i = 0; i <= index; i++) {
+                                    const excludes = body.excludes[i];
+                                    if (excludes) {
+                                        for (let j = 0; j < excludes.length; j++) {
+                                            const block = excludes[j];
+                                            const x = index - i;
+                                            const sym = block[x];
+                                            console.log(block, { active_symbol, sym }, { x, index }, getUniqueSymbolName(active_symbol), getUniqueSymbolName(sym));
+
+                                            if (sym && getUniqueSymbolName(sym) == getUniqueSymbolName(active_symbol)) {
+
+                                                let i = 1;
+                                                for (; i < cpu_body.sym.length && x + i < block.length; i++) {
+                                                    const n_sym = cpu_body.sym[i];
+                                                    const o_sym = block[x + i];
+
+                                                    if (!Sym_Is_A_Production(n_sym)) {
+                                                        if (getUniqueSymbolName(n_sym) != getUniqueSymbolName(o_sym))
+                                                            break;
+                                                    } else {
+                                                        break;
+                                                    }
+
+                                                }
+
+                                                if (i + x >= block.length) {
+                                                    ALLOW_INCLUSION = false;
+                                                } else {
+                                                    // Create new exclusion sliced to the block length
+                                                    // and positioned at the current index.
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
                             if (i++ > 0) {
                                 const new_body = copy(body_base);
 
                                 replaceBodySymbol(new_body, index, ...cpu_body.sym);
 
-                                addBodyToProduction(production, new_body);
+                                if (ALLOW_INCLUSION)
+                                    addBodyToProduction(production, new_body);
                             } else {
 
-                                offsetReduceFunctionSymRefs(body, index, cpu_body.sym.length - 1);
+                                offsetReduceFunctionSymRefs(body, index, getRealSymbolCount(cpu_body.sym) - 1);
 
                                 mutate(cpu_body.sym, true);
                             }

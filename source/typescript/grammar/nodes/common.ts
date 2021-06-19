@@ -39,6 +39,8 @@ export function replaceBodySymbol(body: HCG3ProductionBody, index: number, ...sy
         body.sym.push(createEmptySymbol());
 }
 export function getRealSymbolCount(symbols: (HCG3Symbol)[]) {
+
+    //return symbols.length;
     return symbols.filter(s => !s.meta).length;
 }
 
@@ -68,7 +70,7 @@ export function removeBodySymbol(body: HCG3ProductionBody, index: number, opt_id
         });
     }
 
-    body.sym.splice(index, 1);
+    body.sym = body.sym.filter(s => s.opt_id != opt_id);
 
     if (body.sym.length == 0)
         body.sym.push(createEmptySymbol());

@@ -95,7 +95,7 @@ function getItemMapVariables(grammar: HCG3Grammar, productions: HCG3Production[]
                         item,
                         closure: [],
                         reset_sym,
-                        excludes: b.excludes.get(item.offset) ?? [],
+                        excludes: b.excludes[item.offset] ?? [],
                         rank: item.offset,
                         // depth: depth,
                         hash: "",

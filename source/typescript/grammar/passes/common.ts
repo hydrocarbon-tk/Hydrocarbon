@@ -21,7 +21,7 @@ import { hcg3_mappings } from "../nodes/mappings.js";
 import { HCG3SymbolNode } from "@candlelib/hydrocarbon/build/types/types/grammar_nodes";
 
 const renderers = experimentalConstructRenderers(hcg3_mappings);
-const render = (grammar_node) => experimentalRender(grammar_node, hcg3_mappings, renderers);
+export const render = (grammar_node) => experimentalRender(grammar_node, hcg3_mappings, renderers);
 
 /**
  * Finds all unique symbols types amongst production and ignore symbols and
@@ -73,7 +73,7 @@ export function createUniqueSymbolSet(grammar: HCG3Grammar, errors: Error[] = []
 
             for (const sym of body.sym) {
                 processSymbol(sym, production_lookup, unique_map, errors);
-                sym.id = s_counter++;
+                sym.opt_id = s_counter++;
             }
         }
     }
@@ -140,19 +140,22 @@ export function expandOptionalBody(production: HCG3Production) {
     let i = 0n;
 
     for (const body of production.bodies)
-        for (const sym of body.sym)
-            sym.id = 1n << (i++);
+        for (const sym of body.sym) {
+            sym.opt_id = 1n << (i);
+            if (!sym.meta) i++;
+        }
 
 
     for (const body of production.bodies) {
         for (const { node, meta } of traverse(body, "sym").makeMutable()) {
-            if (node.IS_OPTIONAL) {
-                const new_id = body.sym.filter((_, i) => i != meta.index).reduce((r, n) => (n.id | r), 0n);
+            const sym: HCG3SymbolNode = <any>node;
+            if (sym.IS_OPTIONAL) {
+                const new_id = body.sym.filter((s) => s.opt_id != node.opt_id).reduce((r, n) => (n.opt_id | r), 0n);
 
                 if (!processed_set.has(new_id)) {
                     processed_set.add(new_id);
                     const new_body = copyBody(body);
-                    removeBodySymbol(new_body, meta.index);
+                    removeBodySymbol(new_body, meta.index, node.opt_id);
                     addBodyToProduction(production, new_body);
                 }
             }
@@ -167,91 +170,9 @@ export function getProductionSignature(production: HCG3Production) {
     return body_strings.join("\n | ");
 }
 
-export function getBodySignature(body: HCGProductionBody) {
+export function getBodySignature(body: HCG3ProductionBody) {
 
     return render(body) || "$EMPTY";
 }
 
-export function convertGroupProductions(grammar: HCG3Grammar): HCG3Grammar {
-    for (const production of grammar.productions) {
-        for (const { node: body, meta: b_meta } of traverse(production, "bodies").makeMutable()) {
-            let REMOVE_ORIGINAL_BODY = false;
-            for (const { node, meta } of traverse(body, "sym").makeMutable()) {
-                const sym: any = node;
 
-                REMOVE_ORIGINAL_BODY = processGroupSymbol(sym, REMOVE_ORIGINAL_BODY, body, meta, production, grammar);
-            }
-            if (REMOVE_ORIGINAL_BODY)
-                b_meta.mutate(null);
-        }
-    }
-    return grammar;
-}
-
-
-export function processGroupSymbol(sym: any, body: HCGProductionBody, meta: any, production: HCG3Production, grammar: HCG3Grammar, index: number) {
-
-
-    if (Sym_Is_Group_Production(sym)) {
-
-        if (sym.IS_OPTIONAL) {
-
-            const new_body = copyBody(body);
-
-            removeBodySymbol(new_body, meta.index);
-
-            addBodyToProduction(production, new_body);
-        }
-
-        let i = 0;
-
-        for (const group_body of sym.val) {
-
-            const new_body: HCGProductionBody = (i == sym.val.length - 1) ? body : copyBody(body);
-
-            if (Body_Has_Reduce_Action(group_body)) {
-
-                // Complex grouped productions (those with reduce actions) will need to be
-                // turned into new productions
-                const
-                    new_production_name = production.name + "_group_" + index + "_" + i + "_";
-
-
-                let new_production = createProduction(new_production_name, sym);
-
-                addBodyToProduction(new_production, group_body);
-
-                new_production = registerProduction(grammar, getProductionSignature(new_production), new_production);
-
-                const new_production_symbol = createProductionSymbol(new_production.name, sym.IS_OPTIONAL, sym);
-
-
-                if (new_body == body) {
-                    meta.mutate(new_production_symbol, true);
-                } else
-                    replaceBodySymbol(new_body, meta.index, new_production_symbol);
-
-            } else {
-                // Simple grouped productions bodies with no reduce actions can rolled into the original
-                // production as new bodies. Script refs will need to updated to point to the correct
-                // symbol indexes after this process is completed. 
-
-                if (new_body == body) {
-
-                    offsetReduceFunctionSymRefs(body, meta.index, group_body.sym.length - 1);
-                    meta.mutate(group_body.sym, true);
-                }
-                else
-                    replaceBodySymbol(new_body, meta.index, ...group_body.sym);
-
-            }
-
-
-            if (new_body != body)
-                addBodyToProduction(production, new_body);
-
-
-            i++;
-        }
-    }
-}

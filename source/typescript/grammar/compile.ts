@@ -31,10 +31,12 @@ export async function compileGrammar(grammar: HCG3Grammar) {
     try {
         await integrateImportedGrammars(grammar, errors);
         convertListProductions(grammar, errors);
+        extractMetaSymbols(grammar, errors);
+        //mergeProductions(grammar, errors); // Optional
         createJSFunctionsFromExpressions(grammar, errors);
         createUniqueSymbolSet(grammar, errors);
         buildSequenceString(grammar);
-        createItemMaps(grammar);
+        buildItemMaps(grammar);
     } catch (e) {
         errors.push(e);
     }

@@ -1,5 +1,5 @@
 import { NodeMapping, NodeMappings } from "@candlelib/conflagrate/build/types/types/node_mappings";
-import { HCG3Grammar, HCG3GrammarNode } from "../../types/grammar_nodes";
+import { HCG3Grammar, HCG3GrammarNode, HCG3MetaExclude } from "../../types/grammar_nodes";
 
 const hcg3_mappings: NodeMappings<HCG3GrammarNode, "type"> = <NodeMappings<HCG3GrammarNode, "type">>{
     typename: "type",
@@ -7,9 +7,13 @@ const hcg3_mappings: NodeMappings<HCG3GrammarNode, "type"> = <NodeMappings<HCG3G
     mappings: [
         { type: "null", template: "tempster" },
         <NodeMapping<HCG3Grammar>>{
-            type: "hc-grammar-3", 
+            type: "hc-grammar-3",
             child_keys: ["preamble", "productions", "function"],
             template: "\\#HCG3 o:n @preamble...[o:n] o:n @productions"
+        },
+        <NodeMapping<HCG3MetaExclude>>{
+            type: "meta-exclude", child_keys: ["sym"],
+            template: "\\(EXC m:s @sym...[m:s] m:s \\)"
         },
         {
             type: "production-import", child_keys: ["bodies"],
@@ -29,11 +33,11 @@ const hcg3_mappings: NodeMappings<HCG3GrammarNode, "type"> = <NodeMappings<HCG3G
         },
         {
             type: "body", child_keys: ["sym"],
-            template: "@sym... [m:s] {reduce_function: @reduce_function}"
+            template: "@sym...[ m:s ] {reduce_function: @reduce_function}"
         },
         {
             type: "comment",
-            template: "comment"
+            template: "@txt"
         },
         {
             type: "import", child_keys: ["sym"],
@@ -61,7 +65,7 @@ const hcg3_mappings: NodeMappings<HCG3GrammarNode, "type"> = <NodeMappings<HCG3G
         },
         {
             type: "literal",
-            template: "\\t: @val"
+            template: "\\\\  @val m:s"
         },
         {
             type: "production-token",
