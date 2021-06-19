@@ -12,6 +12,7 @@ import {
     replaceBodySymbol
 } from "../nodes/common.js";
 import { getUniqueSymbolName, Sym_Is_A_Production, Sym_Is_A_Production_Token } from "../nodes/symbol.js";
+import { render } from "./common.js";
 
 /**
  * Sets the recursion state on all productions in a grammar
@@ -92,6 +93,8 @@ export function mergeProductions(grammar: HCG3Grammar, error) {
 
             let tracking = new Map();
 
+            let depth = 0;
+
             for (const { node, meta: { mutate, index } } of traverse(body, "sym").makeMutable()) {
 
                 if (!tracking.get(index))
@@ -101,6 +104,8 @@ export function mergeProductions(grammar: HCG3Grammar, error) {
 
                 let sym = <HCG3Symbol><any>node;
                 if (sym.type == "sym-production") {
+
+                    if (depth++ > 1) break;
                     const name = sym.name;
 
                     const ref_prod = getProductionByName(grammar, name);
@@ -203,5 +208,9 @@ export function mergeProductions(grammar: HCG3Grammar, error) {
                 }
             }
         }
+
+        console.log(render(production));
     }
+
+    throw new Error("done");
 }

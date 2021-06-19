@@ -22,6 +22,6 @@ assert_group(sequence, 10000, () => {
 
     const grammar = await compileGrammar(test_grammar);
 
-    assert( grammar.productions[1].bodies.length == 6);
+    assert(grammar.productions[1].bodies.length == 3);
 
 });

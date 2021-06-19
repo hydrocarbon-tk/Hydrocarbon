@@ -32,7 +32,7 @@ export async function compileGrammar(grammar: HCG3Grammar) {
         await integrateImportedGrammars(grammar, errors);
         convertListProductions(grammar, errors);
         extractMetaSymbols(grammar, errors);
-        mergeProductions(grammar, errors); // Optional
+        //mergeProductions(grammar, errors); // Optional
         createJSFunctionsFromExpressions(grammar, errors);
         createUniqueSymbolSet(grammar, errors);
         buildSequenceString(grammar);
