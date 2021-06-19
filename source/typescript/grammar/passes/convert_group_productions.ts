@@ -92,7 +92,9 @@ export function processGroupSymbol(sym: any, body: HCG3ProductionBody, meta: any
                 // symbol indexes after this process is completed. 
                 if (new_body == body) {
 
+
                     offsetReduceFunctionSymRefs(body, meta.index, group_body.sym.length - 1);
+
                     meta.mutate(group_body.sym, true);
                 }
 
