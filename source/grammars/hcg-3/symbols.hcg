@@ -99,12 +99,12 @@
 <> sym_delimiter >  g:ws | $eof  | g:nl 
 
 <> meta_symbol >   \(EXC condition_symbol_list \)                     
-                                                                f:r { { type:"meta-exclude", sym : $3, meta:true } }
+                                                                f:r { { type:"meta-exclude", sym : $2, meta:true, index:-1} }
        | \(ERR condition_symbol_list \)                     
-                                                                f:r { { type:"meta-error",   sym : $3, meta:true } }
-       | \(IGN condition_symbol_list \)                     
-                                                                f:r { { type:"meta-ignore",  sym : $3, meta:true } }
+                                                                f:r { { type:"meta-error",   sym : $2, meta:true, index:-1} }
+       | \(IGN condition_symbol_list \)                    
+                                                                f:r { { type:"meta-ignore",  sym : $2, meta:true, index:-1} }
        | \(RST condition_symbol_list \)                     
-                                                                f:r { { type:"meta-reset",   sym : $3, meta:true } }
+                                                                f:r { { type:"meta-reset",   sym : $2, meta:true, index:-1} }
        | \(RED symbol \)                                    
-                                                                f:r { { type:"meta-reduce",  sym : $3, meta:true } }
+                                                                f:r { { type:"meta-reduce",  sym : $2, meta:true, index:-1} }
