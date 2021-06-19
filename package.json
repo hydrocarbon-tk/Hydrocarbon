@@ -24,6 +24,13 @@
         "type": "git",
         "url": "git+https://github.com/CandleLibrary/Hydrocarbon.git"
     },
+    "files": [
+        "/build/types",
+        "/build/library",
+        "/README.md",
+        "/CHANGELOG.md",
+        "/LICENSE"
+    ],
     "keywords": [
         "Compiler",
         "Parser"
