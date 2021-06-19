@@ -1,4 +1,14 @@
+import { TokenSymbol } from "@candlelib/hydrocarbon/build/types/types/symbol";
 import { ItemMapEntry } from "../types/grammar";
+
+
+export const enum RECURSIVE_STATE {
+    UNKNOWN = 0,
+    LEFT = 1,
+    RIGHT = 2,
+    LEFT_RIGHT = 3,
+    NONE = 4
+}
 
 export interface HCG3TokenPosition {
     offset: number;
@@ -32,9 +42,10 @@ export interface HCG3Import extends HCG3GrammarNode {
 
 export interface HCG3ProductionNode extends HCG3GrammarNode {
     name: any;
-    bodies: HCGProductionBody[];
+    bodies: HCG3ProductionBody[];
     id: number;
     recovery_handler: HCG3Function;
+    RECURSIVE: RECURSIVE_STATE,
 }
 export interface HCG3GeneralProduction extends HCG3ProductionNode {
     type: "production",
@@ -59,7 +70,7 @@ export interface HCG3MergedProduction extends HCG3ProductionNode {
 
 export type HCG3Production = HCG3GeneralProduction | HCG3VirtualProduction | HCG3ImportProduction | HCG3MergedProduction;
 
-export interface HCGProductionBody extends HCG3GrammarNode {
+export interface HCG3ProductionBody extends HCG3GrammarNode {
     type: "body",
     sym: HCG3Symbol[];
     reduce_function?: HCG3Function;
@@ -69,8 +80,7 @@ export interface HCGProductionBody extends HCG3GrammarNode {
 
     length?: number;
     reset?: any;
-    excludes?: any;
-
+    excludes?: TokenSymbol[][][];
     reduce_id?: number;
 }
 
@@ -113,7 +123,7 @@ export interface HCG3Grammar extends HCG3GrammarNode {
 
     common_import_name: string;
 
-    bodies?: HCGProductionBody[];
+    bodies?: HCG3ProductionBody[];
 
     reduce_functions: Map<string, number>;
 
@@ -128,14 +138,16 @@ export interface HCG3SymbolNode extends HCG3GrammarNode {
     IS_NON_CAPTURE?: boolean;
     DOES_SHIFT?: boolean;
     subtype?: string;
-    id?: number;
+    opt_id?: bigint;
     precedence?: number;
     pos: any;
+    meta: boolean;
 }
 
 export interface HCG3BasicSymbol extends HCG3SymbolNode {
     type: "symbol";
     val: string;
+    meta: false;
 }
 
 export interface HCG3ListProductionSymbol extends HCG3SymbolNode {
@@ -143,28 +155,32 @@ export interface HCG3ListProductionSymbol extends HCG3SymbolNode {
     val: HCG3SymbolNode;
     terminal_symbol: HCG3Symbol;
     OPTIONAL: boolean;
+    meta: false;
 }
 
 export interface HCG3GroupProduction extends HCG3SymbolNode {
     type: "group-production";
-    val: HCGProductionBody[];
+    val: HCG3ProductionBody[];
+    meta: false;
 }
 
 export interface HCG3EOFSymbol extends HCG3SymbolNode {
     type: "eof";
     val: "END_OF_FILE";
+    meta: false;
 }
 
 export interface HCG3EmptySymbol extends HCG3SymbolNode {
     type: "empty";
     val: "";
     byte_length: 0;
-
     byte_offset: 0;
+    meta: false;
 }
 
 export interface HCG3GeneratedSymbol extends HCG3SymbolNode {
     type: "generated";
+    meta: false;
 }
 
 export interface HCG3LiteralSymbol extends HCG3SymbolNode {
@@ -180,6 +196,7 @@ export interface HCG3LiteralSymbol extends HCG3SymbolNode {
      * character sequence within the character lookup table.
      */
     byte_offset?: number;
+    meta: false;
 
 }
 
@@ -190,6 +207,7 @@ export interface HCG3ProductionTokenSymbol extends HCG3SymbolNode {
     val: string | number;
 
     production?: HCG3Production;
+    meta: false;
 }
 
 export interface HCG3ProductionSymbol extends HCG3SymbolNode {
@@ -200,12 +218,44 @@ export interface HCG3ProductionSymbol extends HCG3SymbolNode {
     val: string | number;
 
     production?: HCG3Production;
+    meta: false;
 }
 
 export interface HCG3ProductionImportSymbol extends HCG3SymbolNode {
     type: "sym-production-import";
+    meta: false;
 }
 
+export interface HCG3MetaExclude extends HCG3SymbolNode {
+    type: "meta-exclude",
+    sym: TokenSymbol[],
+    meta: true;
+    index: number;
+}
+export interface HCG3MetaError extends HCG3SymbolNode {
+    type: "meta-error",
+    sym: HCG3Symbol[],
+    meta: true;
+    index: number;
+}
+export interface HCG3MetaIgnore extends HCG3SymbolNode {
+    type: "meta-ignore",
+    sym: HCG3Symbol[],
+    meta: true;
+    index: number;
+}
+export interface HCG3MetaReset extends HCG3SymbolNode {
+    type: "meta-reset",
+    sym: HCG3Symbol[],
+    meta: true;
+    index: number;
+}
+export interface HCG3MetaReduce extends HCG3SymbolNode {
+    type: "meta-reduce",
+    sym: HCG3Symbol,
+    meta: true;
+    index: number;
+}
 export type HCG3Symbol = HCG3BasicSymbol
     | HCG3ListProductionSymbol
     | HCG3GroupProduction
@@ -215,4 +265,9 @@ export type HCG3Symbol = HCG3BasicSymbol
     | HCG3LiteralSymbol
     | HCG3ProductionTokenSymbol
     | HCG3ProductionSymbol
-    | HCG3ProductionImportSymbol;
+    | HCG3ProductionImportSymbol
+    | HCG3MetaExclude
+    | HCG3MetaError
+    | HCG3MetaIgnore
+    | HCG3MetaReset
+    | HCG3MetaReduce;

@@ -173,7 +173,7 @@ export function getTransitionTree(
     return { tree_nodes, clear: false, AMBIGUOUS, max_depth: max_depth };
 }
 function getClosureGroups(
-    grammar: Grammar,
+    grammar: HCG3Grammar,
     { index, closure, final, starts }: closure_group,
     lr_transition_items: Item[]
 ): closure_group[] {
@@ -227,7 +227,7 @@ function getClosureGroups(
     }
     return group;
 }
-function incrementWithClosure(grammar: Grammar, item: Item, prod: Production, AUTO_INCREMENT: boolean = false): Item[] {
+function incrementWithClosure(grammar: HCG3Grammar, item: Item, prod: Production, AUTO_INCREMENT: boolean = false): Item[] {
 
     if (AUTO_INCREMENT || item.getProductionAtSymbol(grammar).id == prod.id)
         return getClosure([item.increment()], grammar);

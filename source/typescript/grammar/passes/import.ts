@@ -3,7 +3,7 @@ import {
     HCG3Grammar,
     HCG3Production,
     HCG3Symbol,
-    HCGProductionBody
+    HCG3ProductionBody
 } from "../../types/grammar_nodes";
 import { createProductionSymbol, getProductionByName } from "../nodes/common.js";
 
@@ -69,7 +69,7 @@ function integrateImportedProductions(root_grammar: HCG3Grammar, local_grammar: 
     for (const body of production.bodies)
         processImportedBody(body, root_grammar, local_grammar, imported_productions);
 }
-function processImportedBody(body: HCGProductionBody, root_grammar: HCG3Grammar, local_grammar: HCG3Grammar, imported_productions: Map<any, any>) {
+function processImportedBody(body: HCG3ProductionBody, root_grammar: HCG3Grammar, local_grammar: HCG3Grammar, imported_productions: Map<any, any>) {
     for (const { node: sym, meta: { mutate } } of traverse(body, "sym").makeMutable()) {
 
         if (root_grammar != local_grammar) {

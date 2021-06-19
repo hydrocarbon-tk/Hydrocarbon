@@ -75,7 +75,7 @@ export function constructHybridFunction(production: HCG3Production, grammar: HCG
     };
 }
 
-function constructReduceFunction(production: HCG3Production, options: RenderBodyOptions, grammar: HCG3Grammar) {
+function constructReduceFunction(production: HCG3Production, options: RenderBodyOptions, grammar: HCG3Grammar): SKFunction {
 
     const end_items = getStartItemsFromProduction(production).map(i => i.toEND());
     const ifs = [];

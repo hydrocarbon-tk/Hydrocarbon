@@ -2,7 +2,7 @@ import { experimentalConstructRenderers, experimentalRender, traverse } from "@c
 import {
     HCG3Grammar,
     HCG3Production,
-    HCGProductionBody
+    HCG3ProductionBody
 } from "../../types/grammar_nodes";
 import {
     addBodyToProduction, addSymbolToBody, Body_Has_Reduce_Action,
@@ -11,7 +11,8 @@ import {
 } from "../nodes/common.js";
 
 import { hcg3_mappings } from "../nodes/mappings.js";
-import { getProductionSignature, expandOptionalBody, processGroupSymbol } from "./common.js";
+import { getProductionSignature, expandOptionalBody } from "./common.js";
+import { processGroupSymbol } from "./convert_group_productions.js";
 
 
 const renderers = experimentalConstructRenderers(hcg3_mappings);
@@ -52,7 +53,7 @@ export function convertListProductions(grammar: HCG3Grammar, error: Error[]): HC
 }
 
 
-export function processListSymbol(sym: any, body: HCGProductionBody, production: HCG3Production, meta: any, grammar: HCG3Grammar, index: number) {
+export function processListSymbol(sym: any, body: HCG3ProductionBody, production: HCG3Production, meta: any, grammar: HCG3Grammar, index: number) {
     if (Sym_Is_List_Production(sym)) {
 
         if (body.sym.length == 1 && !Body_Has_Reduce_Action(body) && production.bodies.length == 1) {

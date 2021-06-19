@@ -10,7 +10,7 @@ import {
     HCG3ProductionSymbol,
     HCG3Symbol,
     HCG3TokenPosition,
-    HCGProductionBody,
+    HCG3ProductionBody,
     HCG3SymbolNode
 } from "../../types/grammar_nodes";
 
@@ -21,13 +21,13 @@ export function getProductionByName(grammar: HCG3Grammar, name: string): HCG3Pro
 
     return null;
 }
-export function Body_Has_Reduce_Action(body: HCGProductionBody) {
+export function Body_Has_Reduce_Action(body: HCG3ProductionBody) {
     return body.reduce_function != null;
 }
-export function copyBody(body: HCGProductionBody) {
+export function copyBody(body: HCG3ProductionBody) {
     return copy(body);
 }
-export function replaceBodySymbol(body: HCGProductionBody, index: number, ...symbols: HCG3Symbol[]) {
+export function replaceBodySymbol(body: HCG3ProductionBody, index: number, ...symbols: HCG3Symbol[]) {
     // Extend index values after the first body 
     const extension_count = getRealSymbolCount(symbols);
 
@@ -42,28 +42,29 @@ export function getRealSymbolCount(symbols: (HCG3Symbol)[]) {
     return symbols.filter(s => !s.meta).length;
 }
 
-export function offsetReduceFunctionSymRefs(body: HCGProductionBody, offset_start: number, offset_count: number) {
+export function offsetReduceFunctionSymRefs(body: HCG3ProductionBody, offset_start: number, offset_count: number) {
 
     if (offset_count > 0 && Body_Has_Reduce_Action(body)) {
         body.reduce_function.txt = body.reduce_function.txt.replace(/\$(\d+)/g, (m, p1) => {
-            const val = parseInt(p1);
-            if (val > offset_start)
+            const val = parseInt(p1) - 1;
+            if (val >= offset_start)
                 return "$" + (val + offset_count);
             return m;
         });
     }
 }
 
-export function removeBodySymbol(body: HCGProductionBody, index: number) {
+export function removeBodySymbol(body: HCG3ProductionBody, index: number, opt_id: bigint) {
     // Extend index values after the first body 
     if (Body_Has_Reduce_Action(body)) {
         body.reduce_function.txt = body.reduce_function.txt.replace(/\$(\d+)/g, (m, p1) => {
             const val = parseInt(p1);
-            if (val > index + 1)
+            if (val - 1 > index)
                 return "$" + (val - 1);
-            if (val == index + 1)
+            if (val - 1 == index)
                 return "\$NULL";
             return m;
+
         });
     }
 
@@ -72,7 +73,7 @@ export function removeBodySymbol(body: HCGProductionBody, index: number) {
     if (body.sym.length == 0)
         body.sym.push(createEmptySymbol());
 }
-export function setBodyReduceExpressionAction(body: HCGProductionBody, reduce_function_string: string) {
+export function setBodyReduceExpressionAction(body: HCG3ProductionBody, reduce_function_string: string) {
 
     const function_node: HCG3Function = {
         js: null,
@@ -82,13 +83,13 @@ export function setBodyReduceExpressionAction(body: HCGProductionBody, reduce_fu
 
     body.reduce_function = function_node;
 }
-export function replaceAllBodySymbols(body: HCGProductionBody, ...symbols: HCG3Symbol[]) {
+export function replaceAllBodySymbols(body: HCG3ProductionBody, ...symbols: HCG3Symbol[]) {
     body.sym = [...symbols];
 }
-export function addSymbolToBody(new_production_body: HCGProductionBody, sym: HCG3ListProductionSymbol) {
+export function addSymbolToBody(new_production_body: HCG3ProductionBody, sym: HCG3ListProductionSymbol) {
     new_production_body.sym.push(sym);
 }
-export function addBodyToProduction(new_production: HCG3Production, new_production_body: HCGProductionBody) {
+export function addBodyToProduction(new_production: HCG3Production, new_production_body: HCG3ProductionBody) {
     new_production.bodies.push(new_production_body);
 }
 export function addProductionToGrammar(grammar: HCG3Grammar, new_production: HCG3Production) {
@@ -143,7 +144,7 @@ export function createProduction(name: string, mapped_sym: HCG3GrammarNode = nul
         RECURSIVE: 0
     };
 }
-export function createProductionBody(mapped_sym: HCG3GrammarNode = null): HCGProductionBody {
+export function createProductionBody(mapped_sym: HCG3GrammarNode = null): HCG3ProductionBody {
     return {
         type: "body",
         FORCE_FORK: false,

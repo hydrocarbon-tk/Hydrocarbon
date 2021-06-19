@@ -7,26 +7,18 @@ import {
     HCG3ProductionSymbol,
     HCG3ProductionTokenSymbol,
     HCG3Symbol,
-    HCGProductionBody
+    HCG3ProductionBody
 } from "../../types/grammar_nodes";
 import { createSequenceData } from "../../utilities/grammar.js";
 import { getUniqueSymbolName, Sym_Is_A_Production, Sym_Is_A_Production_Token } from "../nodes/symbol.js";
 import {
     addBodyToProduction,
 
-    Body_Has_Reduce_Action,
     copyBody,
-    createProduction,
-
-    createProductionSymbol,
-    offsetReduceFunctionSymRefs,
-    registerProduction,
-    removeBodySymbol,
-
-    replaceBodySymbol,
-    Sym_Is_Group_Production
+    removeBodySymbol
 } from "../nodes/common.js";
 import { hcg3_mappings } from "../nodes/mappings.js";
+import { HCG3SymbolNode } from "@candlelib/hydrocarbon/build/types/types/grammar_nodes";
 
 const renderers = experimentalConstructRenderers(hcg3_mappings);
 const render = (grammar_node) => experimentalRender(grammar_node, hcg3_mappings, renderers);
