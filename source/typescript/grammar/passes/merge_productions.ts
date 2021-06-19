@@ -87,7 +87,7 @@ export function mergeProductions(grammar: HCG3Grammar, error) {
 
 
         for (const body of production.bodies) {
-            
+
             let tracking = new Map();
 
             for (const { node, meta: { mutate, index } } of traverse(body, "sym").makeMutable()) {

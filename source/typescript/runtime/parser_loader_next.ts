@@ -57,6 +57,7 @@ export async function ParserFactory<T>(
         if (!fork.VALID)
             throwForkError(str, fork);
 
+
         let stack = [],
             pos = [],
             block = get_next_command_block(fork),
@@ -64,6 +65,8 @@ export async function ParserFactory<T>(
             token_offset = 0,
             high = block[short_offset++],
             limit = 1000000;
+
+
 
         while (limit-- > 0) {
 
@@ -108,6 +111,8 @@ export async function ParserFactory<T>(
                         high = block[short_offset++];
                     }
 
+
+
                     stack.push(str.slice(token_offset, token_offset + length));
                     pos.push({ off: token_offset, tl: length });
                     token_offset += length;
@@ -142,9 +147,7 @@ function throwForkError(str: string, fork: ForkData) {
 
     lex.off = fork.byte_offset;
     lex.tl = fork.byte_length;
-
     let i = fork.byte_offset;
-
     for (; str[i] != "\n" && i >= 0; --i);
 
     lex.line = fork.line;
