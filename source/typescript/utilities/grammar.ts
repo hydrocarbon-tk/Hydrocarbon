@@ -9,8 +9,8 @@ import { Production } from "../types/production.js";
 import { DefinedSymbol, Symbol } from "../types/symbol";
 import { SymbolType } from "../types/symbol_type";
 import { Item } from "./item.js";
-import { buildItemMaps } from "./item_map.js";
-import { getUniqueSymbolName, Sym_Is_A_Production, Sym_Is_Defined, Sym_Is_Defined_Symbols } from "./symbol.js";
+import { buildItemMaps } from "../grammar/passes/item_map.js";
+import { getUniqueSymbolName, Sym_Is_A_Production, Sym_Is_Defined, Sym_Is_Defined_Symbols } from "../grammar/nodes/symbol.js";
 
 const
     production_stack_arg_name = "sym",

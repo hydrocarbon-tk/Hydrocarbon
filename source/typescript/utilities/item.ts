@@ -6,7 +6,7 @@
 import { EOF_SYM } from "../types/grammar.js";
 import { HCG3Grammar, HCG3Production, HCG3Symbol, HCG3ProductionBody } from "../types/grammar_nodes.js";
 import { Production } from "../types/production";
-import { convertSymbolToString, getRootSym, Sym_Is_A_Production } from "./symbol.js";
+import { convertSymbolToString, getRootSym, Sym_Is_A_Production } from "../grammar/nodes/symbol.js";
 
 export const enum ItemIndex {
     body_id = 0,

@@ -1,5 +1,5 @@
 import { compileGrammar } from "../../build/library/grammar/compile.js";
-import { loadGrammarFromString } from "../../build/library/grammar/load.js";
+import { loadGrammarFromString } from "../../build/library/grammar/passes/load.js";
 
 const test_grammar_string =
     `@IGNORE g:ws g:nl

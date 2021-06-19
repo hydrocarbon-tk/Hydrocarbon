@@ -140,7 +140,7 @@ assert_group("Utf8 four bytes 65536-1114111", () => {
     assert(utf8_4(string_to_utf("➃"), "➃".codePointAt(0)) == false);
 });
 
-import { characterToUTF8 } from "../build/library/utilities/symbol.js";
+import { characterToUTF8 } from "../build/library/grammar/nodes/symbol.js";
 
 assert_group("Hydrocarbon UTF Symbols", () => {
     assert(characterToUTF8(' ') == 'utf8_1(l,32)');

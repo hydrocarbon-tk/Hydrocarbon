@@ -1,6 +1,6 @@
 import { compileGrammar } from "../../build/library/grammar/compile.js";
 import { render } from "../../build/library/grammar/passes/common.js";
-import { loadGrammarFromString } from "../../build/library/grammar/load.js";
+import { loadGrammarFromString } from "../../build/library/grammar/passes/load.js";
 import { compileJSParserFromGrammar } from "../tools.js";
 assert_group(sequence, 10000, () => {
 
