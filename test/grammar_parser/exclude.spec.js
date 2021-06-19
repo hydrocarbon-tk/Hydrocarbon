@@ -19,11 +19,9 @@ assert_group(sequence, 10000, () => {
         `;
 
     const test_grammar = await loadGrammarFromString(test_grammar_string);
-    ;
+
     const grammar = await compileGrammar(test_grammar);
 
-    console.log(test_grammar.productions[1], render(test_grammar.productions[1]));
-
-    assert(i, grammar.productions[1].bodies.length == 3);
+    assert( grammar.productions[1].bodies.length == 6);
 
 });

@@ -156,7 +156,6 @@ export function mergeProductions(grammar: HCG3Grammar, error) {
                                             const block = excludes[j];
                                             const x = index - i;
                                             const sym = block[x];
-                                            console.log(block, { active_symbol, sym }, { x, index }, getUniqueSymbolName(active_symbol), getUniqueSymbolName(sym));
 
                                             if (sym && getUniqueSymbolName(sym) == getUniqueSymbolName(active_symbol)) {
 
