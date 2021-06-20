@@ -29,7 +29,8 @@
         "/build/library",
         "/README.md",
         "/CHANGELOG.md",
-        "/LICENSE"
+        "/LICENSE",
+        "/index.js"
     ],
     "keywords": [
         "Compiler",
