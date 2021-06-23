@@ -15,7 +15,7 @@ import { getSkippableSymbolsFromItems, getUnskippableSymbolsFromClosure } from "
 export const renderSkribbleRecognizer = (
     grammar: HCG3Grammar
 ): SKModule => {
-    return <SKModule>parser(`
+    const val = <SKModule>parser(`
 [static new] lookup_table : __u8$ptr;
 [static new] sequence_lookup : array_u8 = a(${grammar.sequence_string.split("").map(s => s.charCodeAt(0)).join(",")});
 [static] TokenSymbol: u32 = 1;
@@ -95,7 +95,6 @@ fn createState:u32 (ENABLE_STACK_OUTPUT:u32) {
     [pub] stack_ptr: i32 = 0
     [pub] input_ptr: u32 = 0
     [pub] rules_ptr: u32 = 0
-    [pub] debug_ptr: u32 = 0
     [pub] input_len: u32 = 0
     [pub] rules_len: u32 = 0
     [pub] origin_fork: u32 = 0
@@ -106,7 +105,9 @@ fn createState:u32 (ENABLE_STACK_OUTPUT:u32) {
     [pub] stash: array_u32 = call(64)
     [pub] origin: __ParserData$ptr
     [pub] alternate: __ParserData$ptr
+    [pub] next: __ParserData$ptr = 0
     [pub] VALID: bool = 0 
+    [pub] COMPLETED: bool = 0 
 
     [pub]  fn ParserData:ParserData(
         input_len_in:u32, rules_len_in:u32,  lexer_in: __Lexer$ptr
@@ -115,6 +116,7 @@ fn createState:u32 (ENABLE_STACK_OUTPUT:u32) {
         this.state = createState(1);
         this.prod = 0;
         this.VALID = false;
+        this.COMPLETED = false;
         this.stack_ptr = 0;
         this.input_ptr = 0;
         this.rules_ptr = 0;
@@ -123,14 +125,19 @@ fn createState:u32 (ENABLE_STACK_OUTPUT:u32) {
         this.origin_fork = 0;
         [this_] origin:u32 = 0;
         [this_] alternate:u32 = 0;
+        
+        if input_len_in > 0: {
+            [new this_] input:array_u8 = array_u8(input_len_in);
+        };
 
-        [new this_] input:array_u8 = array_u8(input_len_in);
         [new this_] rules:array_u16 = array_u16(rules_len_in);
         [new this_ cpp_ignore] stash:array_u32 = array_u32(256);
         [new this_ cpp_ignore] stack:array_any = array_any();
     }
 
     [pub] fn ParserData:destructor(){
+
+        if(next): **** next;
         
         %%%% (input);
             
@@ -141,7 +148,7 @@ fn createState:u32 (ENABLE_STACK_OUTPUT:u32) {
 
 }
 
-[pub wasm] cls ForkData{
+[pub wasm] cls DataRef{
 
     [pub] ptr: __ParserData$ptr = 0
     [pub] VALID:bool = 0
@@ -152,7 +159,7 @@ fn createState:u32 (ENABLE_STACK_OUTPUT:u32) {
     [pub] command_offset:u32 = 0
     [pub] command_block: array_u16 = array_u16(64)
 
-    [pub] fn ForkData:ForkData(
+    [pub] fn DataRef:DataRef(
         ptr_in:__ParserData$ptr,
         VALID_in:bool,
         depth_in:u32,
@@ -171,10 +178,16 @@ fn createState:u32 (ENABLE_STACK_OUTPUT:u32) {
     }
 }
 
+[pub] root_data: __ParserData$ptr = 0;
+[pub] tip_data: __ParserData$ptr = 0;
 
-[pub static new] data_stack : array___ParserData$ptr = Array(64);
-[pub static new] fork_stack : array___ForkData$ptr = Array(64);
-[pub] data_stack_len :u32 = 0;
+[pub static new] out_array : array___ParserData$ptr = Array(64);
+[pub static new] data_array : array___ParserData$ptr = Array(64);
+[pub static new] fork_array : array___DataRef$ptr = Array(64);
+
+[pub] out_array_len :u32 = 0;
+[pub] data_array_len :u32 = 0;
+[pub] fork_array_len :u32 = 0;
 
 [pub wasm] cls Lexer {
 
@@ -452,17 +465,21 @@ fn create_parser_data_object:__ParserData$ptr(
         data.rules_len - data.rules_ptr
     );
 
+    (*>tip_data).next = fork;
+    tip_data = fork;
+
     fork_ref:__ParserData$ref = *>fork;
 
     [mut] i:u32 = 0;
     
-    loop (; i < data.stack_ptr; i++)  {
+    loop (; i < data.stack_ptr + 1; i++)  {
         fork_ref.stash[i] = data.stash[i];
         fork_ref.stack[i] = data.stack[i];
     };
 
     fork_ref.stack_ptr = data.stack_ptr;
     fork_ref.input_ptr = data.input_ptr;
+    fork_ref.input_len = data.input_len;
     fork_ref.origin_fork = data.rules_ptr + data.origin_fork;
     fork_ref.origin = &>data;
     fork_ref.lexer = (*>data.lexer).copy();
@@ -476,9 +493,9 @@ fn create_parser_data_object:__ParserData$ptr(
 
     data.alternate = fork;
 
-    data_stack[data_stack_len] = fork;
+    data_array[data_array_len] = fork;
 
-    data_stack_len++;
+    data_array_len++;
 
     return :fork; 
 }
@@ -604,12 +621,175 @@ fn stepKernel:bool(data:__ParserData$ref, stack_base:i32){
     data.prod = result;
 
     if(result<0 || data.stack_ptr < stack_base) : {
-        data.VALID = (*>data.lexer).END(data);
+        data.VALID = (*>data.lexer).END(data) && (result >= 0);
         return:false;
     };
 
     return :true
 }
+
+fn addRefAtIndex:void(data:__ParserData$ptr, index:u32){
+    
+    [const]i:u32 = out_array_len;
+
+    if i > 63: i = 63;
+
+    out_array_len = i + 1;
+    
+    loop(; i > index; i--){
+        out_array[i+1] = out_array[i];
+    };
+
+    out_array[index] = data;
+}
+
+fn insertData:void(data:__ParserData$ptr){
+    
+    [const] in_ref:__ParserData$ref =  *>data;
+    
+    [const]i:u32 =0;
+
+    loop( ; i < out_array_len; i++){
+        [const] exist_ref:__ParserData$ref = *>out_array[i];
+
+        if ref.VALID : {
+            if (!exist_ref.VALID) : {
+                break;
+            }
+        } else {
+           if (!exist_ref.VALID && (exist_ref.input_ptr < in_ref.input_ptr)) :{
+                break;
+           }
+        }
+    };
+
+    if (i < 64):
+        addRefAtIndex(data, i);
+
+}
+
+fn run:void(){
+
+    loop ( (data_array_len > 0 ) ) {
+        
+        [const]i:u32 =0;
+
+        loop( ; i < data_array_len; i++){
+
+            [const] data:__ParserData$ref = *> data_array[i];
+            
+            if (!stepKernel(data, 0)) : {
+
+                data.COMPLETED = true;
+                
+                data_array_len--;
+                i--;
+                
+                [mut] j:u32 = i;
+
+                loop (; j < data_array_len; j++){
+                    data_array[j] = data_array[j+1];
+                };
+
+                insertData(&>data);
+            };
+        };
+    }
+}
+
+`);
+    return val;
+};
+
+export function createExternFunctions(
+    grammar: HCG3Grammar,
+    runner: Helper,
+    rd_functions: RDProductionFunction[],
+) {
+    return <SKModule>parser(`
+    fn dispatch:void(data:__ParserData$ref, production_index:u32){
+        match production_index :
+            ${rd_functions.filter(f => f.RENDER)
+            .map((fn, i) => {
+                const name = getProductionFunctionNameSk(grammar[fn.id], grammar);
+                const closure = getProductionClosure(0, grammar);
+                const skippable = getSkippableSymbolsFromItems(closure, grammar);
+                const unskippable = getUnskippableSymbolsFromClosure(closure, grammar);
+                const skip_fn = createSkipCallSk(skippable, <BaseOptions>{ grammar, helper: runner }, "(*>data.lexer)", false, unskippable, true);
+
+                if (skip_fn) {
+                    const skip_call = skRenderAsSK(skip_fn);
+                    return `${i} : { ${skip_call}; data.stack[0] = ${name}; data.stash[0] = ${0}; return }`;
+                }
+
+                return `${i} : { data.stack[0] = &> ${name}; data.stash[0] = ${0}; return }`;
+
+            }).join(",")}
+    }
+
+
+fn clear_data:void () {
+
+    **** root_data;
+    
+    [const]i:u32 =0;
+
+    loop( ; i < fork_array_len; i++){
+        **** (fork_array[i]);
+    };
+
+    fork_array_len = 0;
+}
+
+[extern]fn init_data:__u8$ptr(
+    input_len:u32 , 
+    rules_len:u32 
+){ 
+    clear_data();
+
+    data_array_len = 1;
+
+    [mut] data:__ParserData$ptr = create_parser_data_object(
+        input_len,
+        rules_len
+    );
+
+    data_array[0] = data;
+
+    return: (*>data).input;
+}
+
+
+[extern] fn init_table:__u8$ptr(){ 
+    [new] table: array_u8 = array_u8(${jump8bit_table_byte_size});
+
+    lookup_table = table;
+
+    return: lookup_table;  
+}
+
+[extern]fn get_fork_pointers:__DataRef$ptr$ptr(){
+
+    [mut] i:u32 = 0;
+
+    loop( ; i < out_array_len; i++){
+        [const] data:__ParserData$ref = *> out_array[i];
+
+        [mut new] fork:__DataRef$ptr = DataRef(
+            data_array[i],
+            (data.VALID),
+            (data.origin_fork + data.rules_ptr),
+            (*>data.lexer).byte_offset,
+            (*>data.lexer).byte_length,
+            (*>data.lexer).line
+        );
+        fork_array[i] = fork;
+    };
+
+    return: fork_array;
+}
+
+
 
 fn block64Consume:i32(data:__ParserData$ref, block:array_u16, offset:u32, block_offset:u32, limit:u32) {
     //Find offset block
@@ -642,145 +822,41 @@ fn block64Consume:i32(data:__ParserData$ref, block:array_u16, offset:u32, block_
     return: 0;
 }
 
-fn run:void(){
-    
-    [mut] ACTIVE:bool = true;
+[extern] fn get_next_command_block:__u16$ptr(fork:__DataRef$ptr) {
 
-    loop ((ACTIVE)) {
-        [const]i:u32 =0;
-        loop( ; i < data_stack_len; i++){
-            ACTIVE = stepKernel(*> data_stack[i], 0);
-        };
-    }
+    [const] fork_ref:__DataRef$ref = *>fork;
+
+    [static] remainder:u32 = block64Consume(
+        *>fork_ref.ptr, 
+        fork_ref.command_block, 
+        fork_ref.command_offset, 
+        0, 64);
+
+    fork_ref.command_offset += 64 - remainder;
+
+    if (remainder > 0) :
+        fork_ref.command_block[64 - remainder] = 0;
+
+    return : fork_ref.command_block;
 }
 
-
-`);
-};
-
-export function createExternFunctions(
-    grammar: HCG3Grammar,
-    runner: Helper,
-    rd_functions: RDProductionFunction[],
-) {
-    return <SKModule>parser(`
-    fn dispatch:void(data:__ParserData$ref, production_index:u32){
-        match production_index :
-            ${rd_functions.filter(f => f.RENDER)
-            .map((fn, i) => {
-                const name = getProductionFunctionNameSk(grammar[fn.id], grammar);
-                const closure = getProductionClosure(0, grammar);
-                const skippable = getSkippableSymbolsFromItems(closure, grammar);
-                const unskippable = getUnskippableSymbolsFromClosure(closure, grammar);
-                const skip_fn = createSkipCallSk(skippable, <BaseOptions>{ grammar, helper: runner }, "(*>data.lexer)", false, unskippable, true);
-
-                if (skip_fn) {
-                    const skip_call = skRenderAsSK(skip_fn);
-                    return `${i} : { ${skip_call}; data.stack[0] = ${name}; data.stash[0] = ${0}; return }`;
-                }
-
-                return `${i} : { data.stack[0] = &> ${name}; data.stash[0] = ${0}; return }`;
-
-            }).join(",")}
-    }
-
-
-    fn clear_data:void () {
-
-
-        //Free existing data
-        [const]i:u32 =0;
-
-        loop( ; i < data_stack_len; i++){
-            **** (fork_stack[i]);
-        };
-        i = 0;
-        loop( ; i < data_stack_len; i++){
-
-            **** (data_stack[i]);
-        };
-    }
-
-    [extern]fn init_data:__u8$ptr(
-        input_len:u32 , 
-        rules_len:u32 
-    ){ 
-        clear_data();
-
-        data_stack_len = 1;
-
-        [mut] data:__ParserData$ptr = create_parser_data_object(
-            input_len,
-            rules_len
-        );
-
-        data_stack[0] = data;
-
-        return: (*>data).input;
-    }
-
-
-    [extern] fn init_table:__u8$ptr(){ 
-        [new] table: array_u8 = array_u8(${jump8bit_table_byte_size});
-
-        lookup_table = table;
-
-        return: lookup_table;  
-    }
-
-    [extern]fn get_fork_pointers:__ForkData$ptr$ptr(){
-        
-        [mut] i:u32 = 0;
-
-        loop( ; i < data_stack_len; i++){
-            [const] data:__ParserData$ref = *> data_stack[i];
-
-            [mut new] fork:__ForkData$ptr = ForkData(
-                data_stack[i],
-                (data.VALID),
-                (data.origin_fork + data.rules_ptr),
-                (*>data.lexer).byte_offset,
-                (*>data.lexer).byte_length,
-                (*>data.lexer).line
-            );
-            fork_stack[i] = fork;
-        };
-
-        return: fork_stack;
-    }
-
-    [extern] fn get_next_command_block:__u16$ptr(fork:__ForkData$ptr) {
-
-        [const] fork_ref:__ForkData$ref = *>fork;
-
-        [static] remainder:u32 = block64Consume(
-            *>fork_ref.ptr, 
-            fork_ref.command_block, 
-            fork_ref.command_offset, 
-            0, 64);
-
-        fork_ref.command_offset += 64 - remainder;
-
-        if (remainder > 0) :
-            fork_ref.command_block[64 - remainder] = 0;
-
-        return : fork_ref.command_block;
-    }
+[extern] fn recognize:u32(input_byte_length:u32, production:u32){
     
-    [extern] fn recognize:u32(input_byte_length:u32, production:u32){
-        
-        [pub] data_ref:__ParserData$ref = *> data_stack[0];
-        
-        data_ref.input_len = input_byte_length;
-        
-        (*>data_ref.lexer).next(data_ref);
-        
-        dispatch(data_ref, production);
-        
-        run();
-        
-        return: data_stack_len;
-    }`);
+    [pub] data_ref:__ParserData$ref = *> data_array[0];
+    
+    data_ref.input_len = input_byte_length;
+    
+    (*>data_ref.lexer).next(data_ref);
+    
+    dispatch(data_ref, production);
+
+    root_data = &>data_ref;
+    tip_data = &>data_ref;
+    
+    run();
+    
+    return: data_array_len;
+}`);
 }
 
 export function createParserTemplate(
