@@ -92,7 +92,7 @@ export async function generateWebAssemblyParser(
 
         completer_script = renderJavaScriptReduceFunctionLookupArray(grammar),
 
-        { package_dir } = await getPackageJsonObject(),
+        { package_dir } = await getPackageJsonObject(URI.getEXEURL(import.meta)),
         dir = URI.resolveRelative("./hcg_temp", tmpdir() + "/temp"),
         cpp_file = URI.resolveRelative("./temp.cpp", dir),
         wasm_file = URI.resolveRelative("./temp.wasm", dir),
