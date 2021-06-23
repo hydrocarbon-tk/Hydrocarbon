@@ -195,8 +195,8 @@ function createForkSequence(
         } else {
             I++;
             out.push(
-                <SKExpression>sk`[static] fk${I}:ParserData = fork(data);`,
-                <SKExpression>sk`pushFN(fk${I}, &> ${call_name})`
+                <SKExpression>sk`[static] fk${I}:__ParserData$ptr = fork(data);`,
+                <SKExpression>sk`pushFN(*> fk${I}, &> ${call_name})`
             );
         }
     }
