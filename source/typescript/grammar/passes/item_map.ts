@@ -127,13 +127,14 @@ function ensureGrammarHasItemMap(grammar: HCG3Grammar) {
     if (!grammar.item_map) grammar.item_map = new Map;
 }
 
-function addFollowInformation(item: Item, grammar: HCG3Grammar, check_set: Set<string>[], follow_sym: TokenSymbol = EOF_SYM, breadcrumbs = [], item_map) {
+function addFollowInformation(item: Item, grammar: HCG3Grammar, check_set: Set<string>[], follow_sym: TokenSymbol = null, breadcrumbs = [], item_map) {
 
     for (const crumb of breadcrumbs)
         grammar.item_map.get(item.id).breadcrumbs.add(crumb);
 
     if (item.atEND) {
-        grammar.item_map.get(item.id).follow.add(getUniqueSymbolName(follow_sym));
+        if (follow_sym)
+            grammar.item_map.get(item.id).follow.add(getUniqueSymbolName(follow_sym));
         return;
     }
 
@@ -144,7 +145,7 @@ function addFollowInformation(item: Item, grammar: HCG3Grammar, check_set: Set<s
             ? item.increment().sym(grammar)
             : null,
         item_sym = item.sym(grammar),
-        follow: TokenSymbol[] = [follow_sym];
+        follow: TokenSymbol[] = follow_sym ? [follow_sym] : [];
 
     if (sym)
         if (Sym_Is_A_Production(sym)) {
@@ -280,8 +281,9 @@ function processClosures(
 
                     for (let i = exclude.length - 1; i >= 0; i--) {
                         const sym = itm.sym(grammar);
-                        if (getUniqueSymbolName(sym) != getUniqueSymbolName(exclude[i]))
+                        if (getUniqueSymbolName(sym) != getUniqueSymbolName(exclude[i])) {
                             continue outer;
+                        }
                         itm = itm.decrement();
                     }
                     temp.splice(i--, 1);
@@ -375,7 +377,7 @@ function processFollowSymbols(grammar: HCG3Grammar, productions: HCG3Production[
     const check_set: Set<string>[] = (grammar.productions ?? grammar).map(() => new Set());
     const item_map = [];
     for (const item of productions.flatMap(getStartItemsFromProduction))
-        addFollowInformation(item, grammar, check_set, EOF_SYM, [item.body_(grammar).production.id], item_map);
+        addFollowInformation(item, grammar, check_set, null, [item.body_(grammar).production.id], item_map);
 }
 
 
