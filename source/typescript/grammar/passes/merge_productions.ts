@@ -208,8 +208,6 @@ export function mergeProductions(grammar: HCG3Grammar, error) {
                 }
             }
         }
-
-        console.log(render(production));
     }
 
     throw new Error("done");
