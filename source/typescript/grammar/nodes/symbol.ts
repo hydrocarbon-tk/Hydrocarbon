@@ -44,7 +44,7 @@ export function convertSymbolToString(sym: HCG3Symbol) {
         case SymbolType.GENERATED:
             return `θ${sym.val}`;
         case SymbolType.LITERAL:
-            return `τ${sym.val}`;
+            return `τ${sym.val}` + (sym.IS_NON_CAPTURE ? "-ns" : "");
         case SymbolType.EMPTY:
             return `ɛ`;
         case SymbolType.END_OF_FILE:
@@ -61,12 +61,12 @@ export function getSymbolName(sym: HCG3Symbol) {
 
     return "[" + (sym.val ?? sym.name) + "]" + sym.type;
 }
-export function getUniqueSymbolName(sym: HCG3Symbol) {
+export function getUniqueSymbolName(sym: HCG3Symbol, INCLUDE_META: boolean = false) {
     if (!sym)
         return "not-a-symbol";
     return getSymbolName(sym)
         + (sym.DOES_SHIFT ? "----" : "")
-        + (sym.IS_NON_CAPTURE ? "-->" : "");
+        + (sym.IS_NON_CAPTURE && INCLUDE_META ? "-->" : "");
 }
 
 export function Sym_Is_Compound(s: HCG3Symbol): s is DefinedCharacterSymbol {

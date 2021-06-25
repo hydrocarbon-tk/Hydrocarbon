@@ -116,7 +116,7 @@ export function processSymbol(
             sym.val = production_lookup.get(sym.name)?.id;
     }
 
-    const unique_name = getUniqueSymbolName(sym);
+    const unique_name = getUniqueSymbolName(sym, true);
 
     if (!unique_map.has(unique_name))
         unique_map.set(unique_name, copy(sym));
