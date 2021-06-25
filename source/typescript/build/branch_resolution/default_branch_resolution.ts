@@ -20,6 +20,7 @@ import {
 import { createTransitionTypeAnnotation } from "../../utilities/create_transition_type_annotation.js";
 import { Item } from "../../utilities/item.js";
 import {
+    convertSymbolToString,
     Defined_Symbols_Occlude,
     getSkippableSymbolsFromItems,
     getSymbolName,
