@@ -126,6 +126,15 @@ Must be one of:
     wasm : WebAssembly`,
 });
 
+const annotated = addCLIConfig("compile", {
+    key: "annotated",
+    REQUIRES_VALUE: false,
+    help_brief:
+        `
+Include annotation strings within the recognizer code for manual debugging. Applies
+only to JavaScript/TypeScript based recognizers.`,
+});
+
 const number_of_workers = addCLIConfig("compile", {
     key: "threads",
     accepted_values: [Number],
@@ -168,7 +177,9 @@ addCLIConfig("compile", {
 
         console.log(`Starting recognizer compilation with ${number_of_workers.value || 1} threads`);
 
-        const { meta, recognizer_functions } = await buildRecognizer(grammar, threads);
+
+
+        const { meta, recognizer_functions } = await buildRecognizer(grammar, threads, !!annotated.value);
 
         console.log("Completed recognizer compilation");
 
