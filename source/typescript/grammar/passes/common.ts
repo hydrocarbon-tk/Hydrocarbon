@@ -57,8 +57,6 @@ export function createUniqueSymbolSet(grammar: HCG3Grammar, errors: Error[] = []
 
             body.reset = new Map;
 
-            body.excludes = new Map;
-
             if (body.reduce_function) {
                 const txt = body.reduce_function.js;
 
