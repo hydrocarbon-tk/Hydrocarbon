@@ -684,7 +684,6 @@ export function getIncludeBooleansSk(
             if (syms.length == 1) {
                 let [sym] = syms;
 
-                //Make sure we are working with the "true" symbol
                 sym = <DefinedSymbol>getCardinalSymbol(grammar, sym);
 
                 if (sym.byte_length == 1) {
