@@ -55,7 +55,7 @@ ${const_functions_a.map(fn => {
         return `${type} ${name}(${args});`;
     }).join("\n")}
 
-${recognizer_functions.filter(f => f.RENDER).map(fn => {
+${recognizer_functions.map(fn => {
         const name = getProductionFunctionNameSk(grammar[fn.id], grammar);
         const declarations = [`int ${name}(Lexer&, ParserData&, unsigned int, unsigned int, int);`];
         if (fn.goto)
