@@ -3,18 +3,17 @@
  * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
  * disclaimer notice.
  */
-import { Grammar } from "../../types/grammar";
-import { HybridDispatch, HybridDispatchResponse } from "../../types/worker_messaging.js";
+import { HCG3Grammar } from "../../types/grammar_nodes";
 import { ParserEnvironment } from "../../types/parser_environment.js";
-
-import { filloutWorkerGrammar } from "../../utilities/grammar.js";
+import { HybridDispatch, HybridDispatchResponse } from "../../types/worker_messaging.js";
 import { constructHybridFunction } from "../function_constructor.js";
 import { constructCompilerRunner, Helper } from "../helper.js";
 
 
+
 export class LocalWorker {
 
-    grammar: Grammar;
+    grammar: HCG3Grammar;
     env: ParserEnvironment;
     id: number;
     runner: Helper;
@@ -45,7 +44,7 @@ export class LocalWorker {
 
         let Response: HybridDispatchResponse = {};
 
-        const { fn, productions } = constructHybridFunction(this.grammar[job.production_id], this.grammar, this.runner);
+        const { fn, productions } = constructHybridFunction(this.grammar.productions[job.production_id], this.grammar, this.runner);
 
 
 

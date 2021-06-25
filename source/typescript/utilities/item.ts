@@ -80,7 +80,7 @@ export class Item extends Array {
     render(grammar: HCG3Grammar): string {
 
         const a = this.body_(grammar).sym
-            .map(sym => Sym_Is_A_Production(sym) ? { val: "\x1b[38;5;8m" + grammar[sym.val].name.replace(/\$/, "::\x1b[38;5;153m") } : sym)
+            .map(sym => Sym_Is_A_Production(sym) ? { val: "\x1b[38;5;8m" + grammar.productions[sym.val].name.replace(/\$/, "::\x1b[38;5;153m") } : sym)
             //@ts-ignore
             .flatMap((sym, i) => (i == this.offset) ? ["\x1b[38;5;226m•", SymbolToString(sym)] : SymbolToString(sym));
         if (a.length == this.offset)
@@ -91,7 +91,7 @@ export class Item extends Array {
     renderUnformatted(grammar: HCG3Grammar): string {
 
         const a = this.body_(grammar).sym
-            .map(sym => Sym_Is_A_Production(sym) ? Object.assign({}, sym, { val: grammar[sym.val].name }) : sym)
+            .map(sym => Sym_Is_A_Production(sym) ? Object.assign({}, sym, { val: grammar.productions[sym.val].name }) : sym)
             .map(sym => getRootSym(sym, grammar))
             //@ts-ignore
             .flatMap((sym, i) => (i == this.offset) ? ["•", convertSymbolToString(sym)] : convertSymbolToString(sym));
@@ -119,7 +119,7 @@ export class Item extends Array {
         //@ts-ignore
         const prod = this.sym(grammar).val;
 
-        return grammar[prod];
+        return grammar.productions[prod];
     }
 
     toEND() {

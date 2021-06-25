@@ -32,7 +32,7 @@ export class WorkerRunner {
 
         this.grammar = grammar;
         this.runner = runner;
-        this.to_process_rd_fn = (this.grammar.productions ?? this.grammar).map((a, i) => i + 1);
+        this.to_process_rd_fn = this.grammar.productions.map((a, i) => i + 1);
         this.IN_FLIGHT_JOBS = 0;
         this.functions = [];
         this.RUN = true;

@@ -51,7 +51,7 @@ export class Worker {
 
             let Response: HybridDispatchResponse = {};
 
-            const { fn, productions } = constructHybridFunction(this.grammar[job.production_id], this.grammar, this.runner);
+            const { fn, productions } = constructHybridFunction(this.grammar.productions[job.production_id], this.grammar, this.runner);
 
             Response.fn = fn;
             Response.productions = productions;

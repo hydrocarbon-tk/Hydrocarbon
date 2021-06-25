@@ -714,7 +714,7 @@ export function createExternFunctions(
         match production_index :
             ${rd_functions.filter(f => f.RENDER)
             .map((fn, i) => {
-                const name = getProductionFunctionNameSk(grammar[fn.id], grammar);
+                const name = getProductionFunctionNameSk(grammar.productions[fn.id], grammar);
                 const closure = getProductionClosure(0, grammar);
                 const skippable = getSkippableSymbolsFromItems(closure, grammar);
                 const unskippable = getUnskippableSymbolsFromClosure(closure, grammar);

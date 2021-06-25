@@ -12,12 +12,12 @@ import { Item } from "./item.js";
 
 
 export function getProductionClosure(production_id: number, grammar: HCG3Grammar, ENTER_TOKEN_PRODUCTIONS: boolean = false) {
-    const prod = grammar[production_id];
+    const prod = grammar.productions[production_id];
     return getClosure(getStartItemsFromProduction(prod), grammar, ENTER_TOKEN_PRODUCTIONS);
 }
 
 export function doesProductionHaveEmpty(production_id: number, grammar: HCG3Grammar) {
-    const production = grammar[production_id];
+    const production = grammar.productions[production_id];
 
     if (production.CHECKED_FOR_EMPTY)
         return production.HAS_EMPTY;

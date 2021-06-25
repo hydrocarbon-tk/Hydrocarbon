@@ -242,7 +242,7 @@ export function createProductionTokenFunctionSk(tok: ProductionTokenSymbol, opti
 
     if (!fn_ref) {
 
-        const production = grammar[prod_id];
+        const production = grammar.productions[prod_id];
 
         runner.referenced_production_ids.add(production.id);
 

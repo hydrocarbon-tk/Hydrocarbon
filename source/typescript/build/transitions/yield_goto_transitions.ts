@@ -118,7 +118,7 @@ export function yieldGOTOTransitions(options: RenderBodyOptions, completed_produ
                 pending_productions.push(...prods.setFilter());
 
             } else if (!production_ids.includes(production_id)) {
-                throw new Error("Missing goto group for " + grammar[production_id].name);
+                throw new Error("Missing goto group for " + grammar.productions[production_id].name);
             }
         }
 

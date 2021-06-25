@@ -27,6 +27,7 @@ import {
     Sym_Is_A_Production,
     Sym_Is_A_Production_Token
 } from "../grammar/nodes/symbol.js";
+import { HCG3Grammar } from "../types/grammar_nodes.js";
 
 export function renderItemReduction(
     code_node: SKExpression[],
@@ -51,7 +52,7 @@ export function renderItemReduction(
 
 }
 
-function getProductionPassthroughInformation(production_id: number, grammar: Grammar): {
+function getProductionPassthroughInformation(production_id: number, grammar: HCG3Grammar): {
     IS_PASSTHROUGH: boolean; first_non_passthrough: number; passthrough_chain: number[];
 } {
     return {
@@ -59,7 +60,7 @@ function getProductionPassthroughInformation(production_id: number, grammar: Gra
         first_non_passthrough: production_id,
         passthrough_chain: []
     };
-    const production = grammar[production_id];
+    const production = grammar.productions[production_id];
 
     const IS_PASSTHROUGH = production.bodies.length == 1
         && production.bodies[0].sym.length == 1
@@ -119,7 +120,7 @@ export function renderItem(
 
             INDIRECT = true;
 
-            const production = grammar[sym.val];
+            const production = grammar.productions[sym.val];
 
             called_productions.add(<number>production.id);
 
@@ -131,7 +132,7 @@ export function renderItem(
 
             if (IS_PASSTHROUGH) {
                 for (let prod_id of passthrough_chain.reverse()) {
-                    const body = grammar[prod_id].bodies[0];
+                    const body = grammar.productions[prod_id].bodies[0];
                     const body_item = new Item(body.id, body.length, body.length);
                     items.push(body_item);
                     renderItemReduction(call_body, body_item, options);
@@ -147,7 +148,7 @@ export function renderItem(
             const rc = [];
 
             rc.push(sk`pushFN(data, &> ${call_name})`);
-            rc.push(sk`pushFN(data, &> ${getProductionFunctionName(grammar[first_non_passthrough], grammar)})`);
+            rc.push(sk`pushFN(data, &> ${getProductionFunctionName(grammar.productions[first_non_passthrough], grammar)})`);
             rc.push(sk`return:puid`);
 
             leaf_expressions.push(...rc);

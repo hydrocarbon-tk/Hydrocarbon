@@ -381,7 +381,7 @@ function createIfElseExpressions(
 
             case TRANSITION_TYPE.ASSERT_PRODUCTION_CALL:
 
-                const production = grammar[group.items[0].sym(grammar).val];
+                const production = grammar.productions[group.items[0].sym(grammar).val];
 
                 options.called_productions.add(<number>production.id);
 

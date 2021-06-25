@@ -167,7 +167,7 @@ export function completeGrammar(grammar: HCG3Grammar, env) {
 
     for (let i = 0, j = 0; i < grammar.length; i++) {
 
-        const production = grammar[i];
+        const production = grammar.productions[i];
 
         removeDirectRecursiveBodies(production);
 

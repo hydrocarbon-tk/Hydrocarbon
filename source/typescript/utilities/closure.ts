@@ -56,7 +56,7 @@ export function getClosure(items: Item[], grammar: HCG3Grammar, ENTER_TOKEN_PROD
 
                 if (Sym_Is_A_Production_Token(sym)) {
 
-                    const prod = grammar[getProductionID(sym, grammar)];
+                    const prod = grammar.productions[getProductionID(sym, grammar)];
 
                     const tk_closure = getClosure(getStartItemsFromProduction(prod), grammar, true, internal$item_track);
 

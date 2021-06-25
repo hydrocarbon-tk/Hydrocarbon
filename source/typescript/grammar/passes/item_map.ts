@@ -81,7 +81,7 @@ function getItemMapVariables(grammar: HCG3Grammar, productions: HCG3Production[]
                     if (!item.atEND) {
                         const sym = item.sym(grammar);
                         if (Sym_Is_A_Production(sym) && sym.subtype) {
-                            const sub_production = grammar[sym.val];
+                            const sub_production = grammar.productions[sym.val];
 
                             for (const body of sub_production.bodies) {
                                 body.reset.set(0, b.reset.get(0));
@@ -182,7 +182,7 @@ function addFollowInformation(item: Item, grammar: HCG3Grammar, check_set: Set<s
         const
             parent_prod_id = item.getProduction(grammar).id,
             prod_id = getProductionID(item_sym, grammar),
-            prod: Production = grammar[prod_id];
+            prod: Production = grammar.productions[prod_id];
 
         for (const body of prod.bodies) {
 

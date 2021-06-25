@@ -38,7 +38,6 @@ export function createUniqueSymbolSet(grammar: HCG3Grammar, errors: Error[] = []
     const production_lookup = new Map();
 
     for (const production of grammar.productions) {
-        grammar[p_counter] = production;
         production.id = p_counter++;
         production_lookup.set(production.name, production);
     }
