@@ -215,7 +215,8 @@ function* traverseInteriorNodes(
 
             return (groupAEnd - groupBEnd);
 
-        return getGroupScore(a) - getGroupScore(b);
+        //Assert end 
+        return getGroupScore(b) - getGroupScore(a);
     })) {
         group.FIRST = i++ == 0;
         group.LAST = i == groups.length;
