@@ -9,7 +9,7 @@ import { RenderBodyOptions } from "../../types/render_body_options";
 import { getClosure, getFollowClosure } from "../../utilities/closure.js";
 import { getFollow } from "../../utilities/follow.js";
 import { getGotoItems, Item, itemsToProductions } from "../../utilities/item.js";
-import { getSymbolsFromClosure } from "../../grammar/nodes/symbol.js";
+import { convertSymbolToString, getSymbolsFromClosure, getUniqueSymbolName } from "../../grammar/nodes/symbol.js";
 import { getTransitionTree } from "../../utilities/transition_tree.js";
 import { const_EMPTY_ARRAY } from "../../utilities/const_EMPTY_ARRAY.js";
 import { createTransitionNode } from "./create_transition_node.js";
@@ -53,6 +53,8 @@ export function yieldEndItemTransitions(end_items: Item[], options: RenderBodyOp
 
         } else {
 
+            const all_items = [...grammar.item_map.values()].map(e => e.item).filter(i => !i.atEND && i.sym(grammar).type == "sym-production");
+
             let { tree_nodes } = getTransitionTree(
                 grammar,
                 end_items,
@@ -62,7 +64,7 @@ export function yieldEndItemTransitions(end_items: Item[], options: RenderBodyOp
 
                     let
                         item = i.increment(),
-                        closure = getFollowClosure(getClosure([item], grammar), goto_items, grammar);
+                        closure = getFollowClosure(getClosure([item], grammar), all_items, grammar);
 
                     const
                         index = original_prods.indexOf(i.getProductionAtSymbol(grammar).id),
