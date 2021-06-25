@@ -46,6 +46,10 @@ export interface HCG3ProductionNode extends HCG3GrammarNode {
     id: number;
     recovery_handler: HCG3Function;
     RECURSIVE: RECURSIVE_STATE,
+    /**
+     * A production that represents the root of the grammar or sub-grammar. 
+     */
+    ROOT_PRODUCTION?: boolean;
 }
 export interface HCG3GeneralProduction extends HCG3ProductionNode {
     type: "production",

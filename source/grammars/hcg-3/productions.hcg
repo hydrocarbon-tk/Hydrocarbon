@@ -30,16 +30,16 @@
                                                             f:r {  $1.functions.push($2), $1 }
 
  
-<> production > \<>  ( sym::production_id f:r{ env.prod_name = $1 } ) production_start_symbol  pb::production_bodies? 
+<> production > \<> \* ? ( sym::production_id f:r{ env.prod_name = $1 } ) production_start_symbol  pb::production_bodies? 
                                                                         
                                                             f:r { {
-                                                                type:"production", name:$2, bodies:$4, id:-1, recovery_handler:$5, pos:pos, recursion:0
+                                                                type:"production", name:$3, bodies:$5, id:-1, recovery_handler:$6, pos:pos, recursion:0, ROOT_PRODUCTION:!!$$sym2
                                                             } }
 
     | \+> ( sym::imported_production_symbol f:r{ env.prod_name = $1.val, $1 } ) production_start_symbol  pb::production_bodies
 
                                                             f:r { {
-                                                                type:"production-merged-import", name:$2, bodies:$4, id:-1, recovery_handler:$5
+                                                                type:"production-merged-import", name:$2, bodies:$4, id:-1, recovery_handler:$5, ROOT_PRODUCTION:false
                                                             } }
     
 <> production_start_symbol > \> 

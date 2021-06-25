@@ -376,8 +376,15 @@ function convertItemMapClosureItemsToStrings(item_maps_in_process: ItemMapEntry[
 function processFollowSymbols(grammar: HCG3Grammar, productions: HCG3Production[]) {
     const check_set: Set<string>[] = (grammar.productions ?? grammar).map(() => new Set());
     const item_map = [];
-    for (const item of productions.flatMap(getStartItemsFromProduction))
-        addFollowInformation(item, grammar, check_set, null, [item.body_(grammar).production.id], item_map);
+
+    for (const production of productions) {
+
+        const start_symbol = production.ROOT_PRODUCTION ? EOF_SYM : null;
+
+        for (const item of getStartItemsFromProduction(production))
+            addFollowInformation(item, grammar, check_set, start_symbol, [item.body_(grammar).production.id], item_map);
+
+    }
 }
 
 
