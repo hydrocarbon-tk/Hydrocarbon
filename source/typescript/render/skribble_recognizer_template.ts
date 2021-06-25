@@ -628,7 +628,7 @@ fn stepKernel:bool(data:__ParserData$ref, stack_base:i32){
     return :true
 }
 
-fn addRefAtIndex:void(data:__ParserData$ptr, index:u32){
+fn addDataToOutArray:void(data:__ParserData$ptr, index:u32){
     
     [const]i:u32 = out_array_len;
 
@@ -637,10 +637,21 @@ fn addRefAtIndex:void(data:__ParserData$ptr, index:u32){
     out_array_len = i + 1;
     
     loop(; i > index; i--){
-        out_array[i+1] = out_array[i];
+        out_array[i] = out_array[i-1];
     };
 
     out_array[index] = data;
+}
+
+fn removeEntryFromDataArray:void(index:u32){
+    
+    data_array_len--;
+
+    [mut] j:u32 = index;
+
+    loop (; j < data_array_len; j++){
+        data_array[j] = data_array[j+1];
+    };
 }
 
 fn insertData:void(data:__ParserData$ptr){
@@ -652,7 +663,7 @@ fn insertData:void(data:__ParserData$ptr){
     loop( ; i < out_array_len; i++){
         [const] exist_ref:__ParserData$ref = *>out_array[i];
 
-        if ref.VALID : {
+        if in_ref.VALID : {
             if (!exist_ref.VALID) : {
                 break;
             }
@@ -664,8 +675,7 @@ fn insertData:void(data:__ParserData$ptr){
     };
 
     if (i < 64):
-        addRefAtIndex(data, i);
-
+        addDataToOutArray(data, i);
 }
 
 fn run:void(){
@@ -681,15 +691,8 @@ fn run:void(){
             if (!stepKernel(data, 0)) : {
 
                 data.COMPLETED = true;
-                
-                data_array_len--;
-                i--;
-                
-                [mut] j:u32 = i;
 
-                loop (; j < data_array_len; j++){
-                    data_array[j] = data_array[j+1];
-                };
+                removeEntryFromDataArray(i--);
 
                 insertData(&>data);
             };
@@ -738,7 +741,7 @@ fn clear_data:void () {
         **** (fork_array[i]);
     };
 
-    fork_array_len = 0;
+    out_array_len = 0;
 }
 
 [extern]fn init_data:__u8$ptr(
@@ -776,7 +779,7 @@ fn clear_data:void () {
         [const] data:__ParserData$ref = *> out_array[i];
 
         [mut new] fork:__DataRef$ptr = DataRef(
-            data_array[i],
+            out_array[i],
             (data.VALID),
             (data.origin_fork + data.rules_ptr),
             (*>data.lexer).byte_offset,
@@ -855,7 +858,7 @@ fn block64Consume:i32(data:__ParserData$ref, block:array_u16, offset:u32, block_
     
     run();
     
-    return: data_array_len;
+    return: out_array_len;
 }`);
 }
 
