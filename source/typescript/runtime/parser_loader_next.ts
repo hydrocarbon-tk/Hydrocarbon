@@ -52,10 +52,12 @@ export async function ParserFactory<T>(
             fork_count = recognize(byte_length, production_id), // call with pointers
             forks = get_fork_pointers();
 
-        const fork = forks[0];
+        const fork = forks.filter(f => f.VALID)[0];
 
-        if (!fork.VALID)
-            throwForkError(str, fork);
+        if (!fork?.VALID)
+
+            if (!fork || !fork.VALID)
+                throwForkError(str, forks[0]);
 
 
         let stack = [],
