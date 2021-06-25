@@ -3,24 +3,7 @@
  * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
  * disclaimer notice.
  */
-import { sk } from "../../skribble/skribble.js";
-import { SKBlock, SKExpression, SKIf, SKMatch, SKReturn, SKString } from "../../skribble/types/node";
-import { Grammar } from "../../types/grammar.js";
-import { RenderBodyOptions } from "../../types/render_body_options";
-import { Symbol, TokenSymbol } from "../../types/symbol.js";
-import { TransitionClauseGenerator, TransitionGroup } from "../../types/transition_generating";
-import { TransitionNode, TRANSITION_TYPE } from "../../types/transition_node.js";
 import {
-    addItemAnnotationToExpressionList,
-    addSymbolAnnotationsToExpressionList,
-    createBranchFunctionSk, createConsumeSk,
-    createSkipCallSk, createSymbolMappingFunctionSk,
-    getIncludeBooleansSk, getProductionFunctionNameSk
-} from "../../utilities/code_generating.js";
-import { createTransitionTypeAnnotation } from "../../utilities/create_transition_type_annotation.js";
-import { Item } from "../../utilities/item.js";
-import {
-    convertSymbolToString,
     Defined_Symbols_Occlude,
     getSkippableSymbolsFromItems,
     getSymbolName,
@@ -34,6 +17,21 @@ import {
     Sym_Is_Defined_Natural_Number,
     Sym_Is_Defined_Symbols
 } from "../../grammar/nodes/symbol.js";
+import { sk } from "../../skribble/skribble.js";
+import { SKBlock, SKExpression, SKIf, SKMatch, SKReturn } from "../../skribble/types/node";
+import { RenderBodyOptions } from "../../types/render_body_options";
+import { Symbol, TokenSymbol } from "../../types/symbol.js";
+import { TransitionClauseGenerator, TransitionGroup } from "../../types/transition_generating";
+import { TransitionNode, TRANSITION_TYPE } from "../../types/transition_node.js";
+import {
+    addItemAnnotationToExpressionList,
+    addSymbolAnnotationsToExpressionList,
+    createBranchFunctionSk, createConsumeSk,
+    createSkipCallSk, createSymbolMappingFunctionSk,
+    getIncludeBooleansSk, getProductionFunctionNameSk
+} from "../../utilities/code_generating.js";
+import { createTransitionTypeAnnotation } from "../../utilities/create_transition_type_annotation.js";
+import { Item } from "../../utilities/item.js";
 
 /**
  * Handles intermediate state transitions. 
@@ -327,55 +325,27 @@ function createIfElseExpressions(
                  * Shift has priority over Reduce: if there are defined symbols that 
                  */
 
-                const own_syms = syms.filter(s => !r_syms.some(r => getUniqueSymbolName(s) == getUniqueSymbolName(r)));
+                if (i == groups.length - 1) {
+                    addIf({
+                        type: "block",
+                        expressions: code
+                    });
+                } else {
+                    const own_syms = syms.filter(s => !r_syms.some(r => getUniqueSymbolName(s) == getUniqueSymbolName(r)));
 
-                const mapped_symbols = [].concat(own_syms.map(s => [1, s]), r_syms.map(r => [0, r]));
-
-                const bool_fn = createSymbolMappingFunctionSk(
-                    options,
-                    lex_name,
-                    mapped_symbols
-                );
+                    const mapped_symbols = [].concat(own_syms.map(s => [1, s])/*, r_syms.map(r => [0, r])*/);
 
 
+                    const bool_fn = createSymbolMappingFunctionSk(
+                        options,
+                        lex_name,
+                        mapped_symbols
+                    );
 
-                assertion_boolean = <SKExpression>sk`${bool_fn}(${peek_name}, data) == 1`;
+                    assertion_boolean = <SKExpression>sk`${bool_fn}(${peek_name}, data) == 1`;
 
-                /*
-                for(const sym of occluding_symbols){
-                    const occluded = syms.filter(s=>Symbols_Occlude(s,sym))
-                    const bool = getIncludeBooleansSk(<TokenSymbol[]>occluded, options, peek_name);
-                    const negated_expression = getIncludeBooleansSk(<TokenSymbol[]>[sym], options, peek_name)
-                    const expression =  [SC.UnaryPre("!", SC.Group("(",negated_expression)), bool].reduce(reduceOR)
-                    occlusion_groups.push(expression)
+                    addIf(createIfStatementTransition(options, group, code, assertion_boolean, FORCE_ASSERTIONS, "Assert End"));
                 }
-
-
-                assertion_boolean = occlusion_groups.length > 0 ? occlusion_groups.reduce(reduceAnd) : assertion_boolean
-                */
-                /**
-                 * End items 
-                 */
-                /*
-                // Negative assertion helps prevent occlusions of subsequent group's symbols
-                // from an end items follow set
-                code.addStatement(syms.map(sanitizeSymbolValForComment).map(s=>`[${s}]`).join(" "))
-                const
-                    primary_symbols = syms, //syms.filter(a => complement_symbols.some(o => Sym_Is_EOF(a) || Defined_Symbols_Occlude(<any>a, o))),
-                    negate_symbols = r_syms.filter(Sym_Is_Defined).filter(s=>primary_symbols.some(p=>Symbols_Occlude(s, p))),
-                    remaining_symbols = getIncludeBooleansSk(<TokenSymbol[]>primary_symbols, options, peek_name),
-                    negated_expression = getIncludeBooleansSk(<TokenSymbol[]>negate_symbols, options, peek_name);
-
-                if (negated_expression) {
-
-                    if (primary_symbols.length > 0)
-                        assertion_boolean = SC.Binary(SC.Group("(",remaining_symbols),  "&&", SC.UnaryPre("!", SC.Group("(", negated_expression)) );
-                    else
-                        assertion_boolean = SC.UnaryPre("!", SC.Group("(",negated_expression));
-                } else assertion_boolean = remaining_symbols
-                */
-
-                addIf(createIfStatementTransition(options, group, code, assertion_boolean, FORCE_ASSERTIONS, "Assert End"));
 
                 break;
 
