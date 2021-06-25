@@ -155,7 +155,7 @@ export function getTransitionTree(
         tree_nodes.push({
             last_progress: depth - last_progress,
             progress,
-            sym: getUniqueSymbolName(sym),
+            sym: getUniqueSymbolName(sym, true),
             item_ids: group.map(i => i.item_id),
             unskippable,
             depth,
