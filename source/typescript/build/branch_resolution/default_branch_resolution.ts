@@ -331,9 +331,9 @@ function createIfElseExpressions(
                         expressions: code
                     });
                 } else {
-                    const own_syms = syms.filter(s => !r_syms.some(r => getUniqueSymbolName(s) == getUniqueSymbolName(r)));
+                    // const own_syms = syms.filter(s => !r_syms.some(r => getUniqueSymbolName(s) == getUniqueSymbolName(r)));
 
-                    const mapped_symbols = [].concat(own_syms.map(s => [1, s])/*, r_syms.map(r => [0, r])*/);
+                    const mapped_symbols = [].concat(syms.map(s => [1, s])/*, r_syms.map(r => [0, r])*/);
 
 
                     const bool_fn = createSymbolMappingFunctionSk(

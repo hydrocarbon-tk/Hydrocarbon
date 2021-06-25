@@ -7,11 +7,10 @@ import {
     HCG3GroupProduction,
     HCG3ListProductionSymbol,
     HCG3Production,
+    HCG3ProductionBody,
     HCG3ProductionSymbol,
     HCG3Symbol,
-    HCG3TokenPosition,
-    HCG3ProductionBody,
-    HCG3SymbolNode
+    HCG3TokenPosition
 } from "../../types/grammar_nodes";
 
 
@@ -49,7 +48,7 @@ export function offsetReduceFunctionSymRefs(body: HCG3ProductionBody, offset_sta
     if (offset_count > 0 && Body_Has_Reduce_Action(body)) {
         body.reduce_function.txt = body.reduce_function.txt.replace(/\$(\d+)/g, (m, p1) => {
             const val = parseInt(p1) - 1;
-            if (val >= offset_start) 
+            if (val >= offset_start)
                 return "$" + (val + 1 + offset_count);
             return m;
         });

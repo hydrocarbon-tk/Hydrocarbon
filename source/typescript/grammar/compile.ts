@@ -3,9 +3,11 @@ import URI from "@candlelib/uri";
 import { HCG3Grammar } from "../types/grammar_nodes";
 import {
     buildSequenceString,
-    createUniqueSymbolSet
+    createUniqueSymbolSet,
+    render
 } from "./passes/common.js";
 import { convertListProductions } from "./passes/convert_list_productions.js";
+import { extractMetaSymbols } from "./passes/extract_meta_symbols.js";
 import { integrateImportedGrammars } from "./passes/import.js";
 import { buildItemMaps } from "./passes/item_map.js";
 import {
@@ -13,8 +15,6 @@ import {
     loadGrammarFromString
 } from "./passes/load.js";
 import { createJSFunctionsFromExpressions } from "./passes/process_code.js";
-import { mergeProductions } from "./passes/merge_productions.js";
-import { extractMetaSymbols } from "./passes/extract_meta_symbols.js";
 
 
 class GrammarCompilationReport extends Error {
@@ -22,6 +22,23 @@ class GrammarCompilationReport extends Error {
         const messages = errors.map(e => "\n-----\n" + e.stack).join("\n----\n");
 
         super(messages);
+    }
+}
+
+function deduplicateProductionBodies(grammar: HCG3Grammar, error: Error[]) {
+    for (const production of grammar.productions) {
+        const valid_bodies = [];
+        const signatures = new Set;
+
+        for (const body of production.bodies) {
+            const sig = render(body);
+            if (!signatures.has(sig)) {
+                valid_bodies.push(body);
+                signatures.add(sig);
+            }
+        }
+
+        production.bodies = valid_bodies;
     }
 }
 
@@ -50,6 +67,7 @@ export async function compileGrammar(grammar: HCG3Grammar) {
         await integrateImportedGrammars(grammar, errors);
         convertListProductions(grammar, errors);
         extractMetaSymbols(grammar, errors);
+        deduplicateProductionBodies(grammar, errors);
         //mergeProductions(grammar, errors); // Optional
         createJSFunctionsFromExpressions(grammar, errors);
         createUniqueSymbolSet(grammar, errors);
