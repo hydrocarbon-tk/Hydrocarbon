@@ -208,6 +208,13 @@ export function resolveGOTOBranches(
                         }
                     }
                 }
+
+
+            } else if (skippable.length > 0 && active_items.length == 0) {
+                const skip = createSkipCallSk(skippable, options, "l", false);
+                if (skip) {
+                    code.unshift(skip);
+                }
             }
 
 
