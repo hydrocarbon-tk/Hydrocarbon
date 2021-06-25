@@ -84,7 +84,7 @@ export function getClosure(items: Item[], grammar: HCG3Grammar, ENTER_TOKEN_PROD
  * @param grammar 
  * @param productions 
  */
-export function getFollowClosure(closure: Item[], goto_transition_items: Item[], grammar: HCG3Grammar, productions: Set<number> = new Set, internal$item_track = new Set) {
+export function getFollowClosure(closure: Item[], goto_transition_items: Item[], grammar: HCG3Grammar, productions: Set<number> = new Set, internal$item_track: Set<string> = new Set) {
 
     const new_closure = closure.slice();
 
@@ -100,9 +100,9 @@ export function getFollowClosure(closure: Item[], goto_transition_items: Item[],
 
         const items = getGotoItems(grammar, [prod], goto_transition_items).map(i => i.increment());
 
-        const c = getClosure(items, grammar, undefined,  internal$item_track );
+        const c = getClosure(items, grammar, false, internal$item_track);
 
-        new_closure.push(...getFollowClosure(c, goto_transition_items, grammar, productions));
+        new_closure.push(...getFollowClosure(c, goto_transition_items, grammar, productions, internal$item_track));
     }
 
     return new_closure.setFilter(i => i.id).filter(i => !i.atEND);
