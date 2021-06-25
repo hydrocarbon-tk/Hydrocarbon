@@ -333,9 +333,10 @@ function createIfElseExpressions(
                 const bool_fn = createSymbolMappingFunctionSk(
                     options,
                     lex_name,
-                    mapped_symbols,
-                    "1"
+                    mapped_symbols
                 );
+
+
 
                 assertion_boolean = <SKExpression>sk`${bool_fn}(${peek_name}, data) == 1`;
 
