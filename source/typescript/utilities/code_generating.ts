@@ -352,7 +352,7 @@ export function createSymbolMappingFunctionSk(
     if (empty)
         default_return_value = "l.setToken( TokenSymbol, 0, 0 ); return:" + empty[0];
     else
-        default_return_value = "return:" + default_return_value;
+        default_return_value = "return:" + (default_return_value || "-1");
 
     let fn_ref;// = getGlobalObject("sym_map", symbols, options.helper);
 
@@ -370,7 +370,7 @@ export function createSymbolMappingFunctionSk(
             production_token_symbol: [number, TokenSymbol][]
                 = <[number, TokenSymbol][]>symbol_mappings.filter(([, sym]) => Sym_Is_A_Production_Token(sym)),
 
-            defined_symbols_reversed_map = new Map(defined_symbol_mappings.map((([i, s]) => [s, i]))),
+            defined_symbols_reversed_map = new Map(defined_symbol_mappings.map((([i, s]) => [getUniqueSymbolName(s), i]))),
 
             all_syms: Symbol[] = generic_symbol_mappings.map(([, sym]) => sym),
 
@@ -396,9 +396,12 @@ export function createSymbolMappingFunctionSk(
                 block.push(_if);
                 block = (<SKBlock>_if.expression).expressions;
             }
+
+            const sym_id = getUniqueSymbolName(sym);
+
             block.push(
                 <SKExpression>sk`${lex_name}.setToken(TokenSymbol, ${sym.byte_length}, ${sym.val.length});`,
-                <SKExpression>sk`return: ${defined_symbols_reversed_map.get(sym)};`
+                <SKExpression>sk`return: ${defined_symbols_reversed_map.get(sym_id)};`
             );
 
             yielded = gen.next();
