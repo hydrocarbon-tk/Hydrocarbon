@@ -1,5 +1,6 @@
 import { traverse } from "@candlelib/conflagrate";
 import { exp, JSNodeClass, JSNodeType, renderCompressed } from "@candlelib/js";
+
 import { HCG3Grammar } from "../../types/grammar_nodes";
 
 
@@ -8,6 +9,12 @@ export function createJSFunctionsFromExpressions(grammar: HCG3Grammar, error) {
     for (const production of grammar.productions) {
         for (const body of production.bodies) {
             if (body.reduce_function) {
+
+                if (body.reduce_function.txt.trim() == "") {
+                    body.reduce_function = null;
+                    continue;
+                }
+
                 const expression = exp(`(${body.reduce_function.txt.replace(/(\${1,2}\d+)/g, "$1_")})`);
 
                 const receiver = { ast: null };
