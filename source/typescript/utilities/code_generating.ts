@@ -33,6 +33,7 @@ import {
     Sym_Is_Defined,
     Sym_Is_Defined_Identifier,
     Sym_Is_Defined_Natural_Number,
+    Sym_Is_Defined_Symbol,
     Sym_Is_EOF,
 
     Sym_Is_Not_Consumed

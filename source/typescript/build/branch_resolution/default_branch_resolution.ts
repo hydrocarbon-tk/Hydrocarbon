@@ -13,9 +13,10 @@ import {
     Sym_Is_A_Generic_Symbol,
     Sym_Is_A_Production,
     Sym_Is_A_Production_Token,
+    Sym_Is_A_Token,
     Sym_Is_Defined_Identifier,
     Sym_Is_Defined_Natural_Number,
-    Sym_Is_Defined_Symbols
+    Sym_Is_Defined_Symbol
 } from "../../grammar/nodes/symbol.js";
 import { sk } from "../../skribble/skribble.js";
 import { SKBlock, SKExpression, SKIf, SKMatch, SKReturn } from "../../skribble/types/node";
@@ -111,7 +112,7 @@ function Groups_Contain_Symbol_Ambiguity(groups: TransitionGroup[]) {
             | ((+g.syms.some(Sym_Is_A_Generic_Symbol)) << 2),
             ((+g.syms.some(Sym_Is_Defined_Identifier)) << 0)
             | ((+g.syms.some(Sym_Is_Defined_Natural_Number)) << 1)
-            | ((+g.syms.some(Sym_Is_Defined_Symbols)) << 2)
+            | ((+g.syms.some(Sym_Is_Defined_Symbol)) << 2)
         ]
     );
 

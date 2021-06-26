@@ -70,7 +70,7 @@ export function getUniqueSymbolName(sym: HCG3Symbol, INCLUDE_META: boolean = fal
 }
 
 export function Sym_Is_Compound(s: HCG3Symbol): s is DefinedCharacterSymbol {
-    return Sym_Is_Defined_Symbols(s) && s.val.length > 1;
+    return Sym_Is_Defined_Symbol(s) && s.val.length > 1;
 }
 export function Sym_Is_Not_Consumed(s: HCG3Symbol): boolean {
     return !!s.IS_NON_CAPTURE;
@@ -119,7 +119,7 @@ export function Sym_Is_Defined(s: HCG3Symbol): s is DefinedSymbol {
  * A SpecifiedSymbol that is not a SpecifiedIdentifierSymbol nor a SpecifiedNumericSymbol
  * @param s
  */
-export function Sym_Is_Defined_Symbols(s: HCG3Symbol): s is DefinedCharacterSymbol {
+export function Sym_Is_Defined_Symbol(s: HCG3Symbol): s is DefinedCharacterSymbol {
     return Sym_Is_Defined(s) && !Defined_Sym_Is_An_Identifier(s) && !Sym_Is_Numeric(s);
 }
 export function Sym_Is_Defined_Identifier(s: HCG3Symbol): s is DefinedIdentifierSymbol {
@@ -223,13 +223,18 @@ export function Symbols_Occlude(target: HCG3Symbol, potentially_occludes: HCG3Sy
     if (Symbols_Are_The_Same(target, potentially_occludes)) return false;
     if (target.val == potentially_occludes.val) return false;
 
-    if (Sym_Is_A_Generic_Symbol(potentially_occludes) && Sym_Is_Defined_Symbols(target)) return true;
+    if (Sym_Is_A_Generic_Symbol(potentially_occludes) && Sym_Is_Defined_Symbol(target)) return true;
     if (Sym_Is_A_Generic_Identifier(potentially_occludes) && Sym_Is_Defined_Identifier(target)) return true;
     if (Sym_Is_A_Generic_Number(potentially_occludes) && Sym_Is_Defined_Natural_Number(target)) return true;
 
     return Defined_Symbols_Occlude(target, potentially_occludes);
 }
-
+/**
+ * Returns true if `target` is occluded by `potentially_occludes`
+ * @param target 
+ * @param potentially_occludes 
+ * @returns 
+ */
 export function Defined_Symbols_Occlude(target: HCG3Symbol, potentially_occludes: HCG3Symbol): boolean {
 
     if (!Sym_Is_Defined(target) || !Sym_Is_Defined(potentially_occludes)) return false;

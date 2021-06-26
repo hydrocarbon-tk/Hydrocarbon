@@ -26,7 +26,7 @@ import {
     Sym_Is_A_Generic_Number, Sym_Is_A_Generic_Symbol, Sym_Is_A_Generic_Type,
     Sym_Is_A_Space_Generic,
     Sym_Is_Defined_Identifier,
-    Sym_Is_Defined_Natural_Number, Sym_Is_Defined_Symbols
+    Sym_Is_Defined_Natural_Number, Sym_Is_Defined_Symbol
 } from "../../grammar/nodes/symbol.js";
 import { processTransitionNodes } from "../transitions/process_transition_nodes.js";
 import { yieldTransitions } from "../transitions/yield_transitions.js";
@@ -189,7 +189,7 @@ export function resolveGOTOBranches(
                             checked_symbols.push(s);
                         else if (Sym_Is_A_Generic_Type(s))
                             continue;
-                        else if (Sym_Is_Defined_Symbols(s)) {
+                        else if (Sym_Is_Defined_Symbol(s)) {
                             if (GEN_SYM || active_symbols.some(a => Symbols_Occlude(s, a) && a.val.length < s.val.length)) checked_symbols.push(s);
                         } else if (Sym_Is_Defined_Identifier(s) && !GEN_NL_WS) {
                             if (GEN_ID || active_symbols.some(a => Symbols_Occlude(s, a))) checked_symbols.push(s);

@@ -17,7 +17,7 @@ import {
     Sym_Is_A_Generic_Identifier,
     Sym_Is_A_Generic_Type,
     Sym_Is_Defined_Identifier,
-    Sym_Is_Defined_Natural_Number, Sym_Is_Defined_Symbols,
+    Sym_Is_Defined_Natural_Number, Sym_Is_Defined_Symbol,
     Sym_Is_EOF
 } from "../../grammar/nodes/symbol.js";
 import { default_resolveBranches } from "../branch_resolution/default_branch_resolution.js";
@@ -242,7 +242,7 @@ function getGroupScore(a: TransitionGroup) {
 
     let has_eof = 1 - (+a.syms.some(Sym_Is_EOF));
 
-    let _0x000000001 = a.syms.filter(s => Sym_Is_Defined_Symbols(s) || Sym_Is_Defined_Natural_Number(s)).length;
+    let _0x000000001 = a.syms.filter(s => Sym_Is_Defined_Symbol(s) || Sym_Is_Defined_Natural_Number(s)).length;
     let _0x000010000 = a.syms.filter(s => Sym_Is_Defined_Identifier(s)).length << 16;
     let _0x001000000 = +a.syms.filter(s => Sym_Is_A_Generic_Type(s) && !Sym_Is_A_Generic_Identifier(s)) << 28;
     let _0x010000000 = +a.syms.filter(s => Sym_Is_A_Generic_Identifier(s)) << 24;
