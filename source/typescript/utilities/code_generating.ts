@@ -449,7 +449,7 @@ export function createSymbolMappingFunctionSk(
 }
 
 function getUTF8ByteAtSk(s: DefinedSymbol, off: number): number {
-    return s.val[off].charCodeAt(0);
+    return s.val.charCodeAt(off);
 }
 
 export function* buildSwitchIfsAlternateSk(
