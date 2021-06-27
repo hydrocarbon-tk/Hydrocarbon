@@ -3,17 +3,18 @@
  * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
  * disclaimer notice.
  */
-import { EOF_SYM } from "../../types/grammar.js";
-import { TransitionNode, TRANSITION_TYPE } from "../../types/transition_node.js";
+import { HCG3Grammar } from "../../types/grammar_nodes";
+import { convertSymbolToString, getSymbolsFromClosure } from "../../grammar/nodes/symbol.js";
+import { EOF_SYM, EOP_SYM } from "../../types/grammar.js";
 import { RenderBodyOptions } from "../../types/render_body_options";
+import { TransitionNode, TRANSITION_TYPE } from "../../types/transition_node.js";
 import { getClosure, getFollowClosure } from "../../utilities/closure.js";
+import { const_EMPTY_ARRAY } from "../../utilities/const_EMPTY_ARRAY.js";
 import { getFollow } from "../../utilities/follow.js";
 import { getGotoItems, Item, itemsToProductions } from "../../utilities/item.js";
-import { convertSymbolToString, getSymbolsFromClosure, getUniqueSymbolName } from "../../grammar/nodes/symbol.js";
-import { getTransitionTree } from "../../utilities/transition_tree.js";
-import { const_EMPTY_ARRAY } from "../../utilities/const_EMPTY_ARRAY.js";
-import { createTransitionNode } from "./create_transition_node.js";
 import { processProductionChain } from "../../utilities/process_production_reduction_sequences.js";
+import { getTransitionTree } from "../../utilities/transition_tree.js";
+import { createTransitionNode } from "./create_transition_node.js";
 import { buildPeekTransitions } from "./yield_peek_transitions.js";
 export function yieldEndItemTransitions(end_items: Item[], options: RenderBodyOptions, offset: number): TransitionNode[] {
 
@@ -23,7 +24,7 @@ export function yieldEndItemTransitions(end_items: Item[], options: RenderBodyOp
 
         output_nodes: TransitionNode[] = [],
 
-        { grammar, goto_items } = options;
+        { grammar, goto_items, production_ids, productions } = options;
 
     let
         default_end_items: Item[] = [],
@@ -53,18 +54,17 @@ export function yieldEndItemTransitions(end_items: Item[], options: RenderBodyOp
 
         } else {
 
-            const all_items = [...grammar.item_map.values()].map(e => e.item).filter(i => !i.atEND && i.sym(grammar).type == "sym-production");
 
             let { tree_nodes } = getTransitionTree(
                 grammar,
                 end_items,
-                options.global_production_items/*goto_items*/,
+                goto_items,
                 10, 8, 200, 0,
                 goto_items.filter(i => original_prods.includes(+(i.sym(grammar).val))).map(i => {
 
                     let
                         item = i.increment(),
-                        closure = getFollowClosure(getClosure([item], grammar), all_items, grammar);
+                        closure = getFollowClosure(getClosure([item], grammar), goto_items, grammar);
 
                     const
                         index = original_prods.indexOf(i.getProductionAtSymbol(grammar).id),
@@ -87,10 +87,16 @@ export function yieldEndItemTransitions(end_items: Item[], options: RenderBodyOp
                     options,
                     offset,
                     (state, options, offset) => {
-                        const { items } = state;
+
+                        const { items, closure, symbols } = state;
                         const selected = items.sort((a, b) => a.body - b.body);
+
+                        const ADD_EOP = DoesItemReduceTo(options.production_ids[0], selected[0], grammar, goto_items);
+
                         state.transition_type = TRANSITION_TYPE.ASSERT_END;
                         state.items = selected.slice(0, 1);
+                        if (ADD_EOP)
+                            state.symbols.push(EOP_SYM);
                         used_items.push(...state.items);
                         state.completing = true;
                     },
@@ -110,10 +116,34 @@ export function yieldEndItemTransitions(end_items: Item[], options: RenderBodyOp
 
         const symbols = getFollow(item.getProduction(grammar).id, grammar);
 
-        if (symbols.length == 0) symbols.push(EOF_SYM);
+        if (symbols.length == 0) symbols.push(EOP_SYM);
 
-        output_nodes.push(createTransitionNode([item], symbols, TRANSITION_TYPE.ASSERT_END, offset + 1, 0));
+        output_nodes.push(createTransitionNode([item], symbols, TRANSITION_TYPE.ASSERT_END, offset + 1, 0, false));
     }
 
+
     return output_nodes;
+}
+
+function DoesItemReduceTo(production_id: number, item: Item, grammar: HCG3Grammar, goto_items: Item[], visited = new Set): boolean {
+    if (item.atEND) {
+
+        const id = item.getProduction(grammar).id;
+        if (id == production_id)
+            return true;
+
+        if (!visited.has(id)) {
+
+            visited.add(id);
+
+
+            for (let i of goto_items.filter(i => i.getProductionAtSymbol(grammar).id == id)) {
+
+                if (DoesItemReduceTo(production_id, i.increment(), grammar, goto_items, visited))
+                    return true;
+            }
+        }
+    }
+
+    return false;
 }

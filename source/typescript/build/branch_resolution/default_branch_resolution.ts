@@ -66,7 +66,7 @@ export function default_resolveBranches(
     if (options.helper.ANNOTATED) {
         addItemAnnotationToExpressionList(items, grammar, root);
         addSymbolAnnotationsToExpressionList(all_syms, grammar, root, "All symbols");
-        addSymbolAnnotationsToExpressionList(all_syms_unfiltered, grammar, root, "All symbols unfiltered " + number_of_end_groups);
+        addSymbolAnnotationsToExpressionList([], grammar, root, "Number of end groups" + number_of_end_groups);
     }
 
     const peek_name = createPeekStatements(options,
@@ -86,7 +86,7 @@ export function default_resolveBranches(
             for (const end_group of end_groups) {
 
                 const all_syms = groups.filter(g => g != end_group).flatMap(({ syms }) => syms).setFilter(getUniqueSymbolName);
-                end_group.syms = end_group.syms.filter(s => all_syms.some(a => Symbols_Occlude(s, a)));
+                end_group.syms = end_group.syms.filter(s => all_syms.some(a => Defined_Symbols_Occlude(a, s)));
             }
         }
 
@@ -185,7 +185,7 @@ function createSwitchBlock(
 
         let { items, code, transition_types } = groups[i];
 
-        if (transition_types[0] == TRANSITION_TYPE.ASSERT_END && DEFAULT_NOT_ADDED) {
+        if (transition_types[0] == TRANSITION_TYPE.ASSERT_END && i == groups.length - 1) {
             DEFAULT_NOT_ADDED = false;
             matches.push((<SKMatch>sk`match 1 : default || ${i} : ${(<SKBlock>{
                 type: "block",
@@ -332,7 +332,7 @@ function createIfElseExpressions(
                         expressions: code
                     });
                 } else {
-                    const occlusion_candidates = r_syms.filter(s => !syms.some(r => getUniqueSymbolName(s) == getUniqueSymbolName(r)));
+                    const occlusion_candidates = r_syms.filter(r => syms.some(s => Defined_Symbols_Occlude(s, r)));
 
                     const mapped_symbols = [].concat(syms.map(s => [1, s]), occlusion_candidates.map(r => [0, r]));
 

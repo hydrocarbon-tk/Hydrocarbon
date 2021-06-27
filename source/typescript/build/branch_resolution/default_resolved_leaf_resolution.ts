@@ -29,7 +29,7 @@ export function default_resolveResolvedLeaf(item: Item, state: TransitionNode, o
 
     if (options.helper.ANNOTATED) {
         code.push(createTransitionTypeAnnotation(options, [state.transition_type]));
-        addSymbolAnnotationsToExpressionList(getSymbolsFromClosure([item], grammar), grammar, leaf_node, "Leaf");
+        addSymbolAnnotationsToExpressionList(state.symbols, grammar, leaf_node, "Leaf");
     }
 
 

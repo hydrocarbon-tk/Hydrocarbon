@@ -1,6 +1,6 @@
 
 import { copy, experimentalConstructRenderers, experimentalRender, traverse } from "@candlelib/conflagrate";
-import { EOF_SYM } from "../../types/grammar.js";
+import { EOF_SYM, EOP_SYM } from "../../types/grammar.js";
 import {
     HCG3Grammar,
     HCG3Production,
@@ -31,7 +31,11 @@ export const render = (grammar_node) => experimentalRender(grammar_node, hcg3_ma
  */
 export function createUniqueSymbolSet(grammar: HCG3Grammar, errors: Error[] = []) {
 
-    const unique_map: Map<string, HCG3Symbol> = new Map([[getUniqueSymbolName(EOF_SYM), EOF_SYM]]);
+    
+    const unique_map: Map<string, HCG3Symbol> = <Map<string, HCG3Symbol>>new Map();
+
+    unique_map.set(getUniqueSymbolName(EOF_SYM), EOF_SYM);
+    unique_map.set(getUniqueSymbolName(EOP_SYM), EOP_SYM);
 
     let b_counter = 0, p_counter = 0, bodies = [], reduce_lu: Map<string, number> = new Map();
 

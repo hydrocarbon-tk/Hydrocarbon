@@ -4,7 +4,7 @@
  * disclaimer notice.
  */
 import { getStartItemsFromProduction } from "../../build/function_constructor.js";
-import { EOF_SYM, ItemMapEntry } from "../../types/grammar.js";
+import { EOF_SYM, EOP_SYM, ItemMapEntry } from "../../types/grammar.js";
 import { HCG3Grammar, HCG3Production } from "../../types/grammar_nodes.js";
 import { Production } from "../../types/production.js";
 import { ProductionSymbol, Symbol, TokenSymbol } from "../../types/symbol";
@@ -379,7 +379,7 @@ function processFollowSymbols(grammar: HCG3Grammar, productions: HCG3Production[
 
     for (const production of productions) {
 
-        const start_symbol = production.ROOT_PRODUCTION ? EOF_SYM : null;
+        const start_symbol = production.ROOT_PRODUCTION ? EOF_SYM : EOP_SYM;
 
         for (const item of getStartItemsFromProduction(production))
             addFollowInformation(item, grammar, check_set, start_symbol, [item.body_(grammar).production.id], item_map);

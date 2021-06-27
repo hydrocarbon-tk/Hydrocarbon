@@ -173,6 +173,11 @@ export interface HCG3EOFSymbol extends HCG3SymbolNode {
     val: "END_OF_FILE";
     meta: false;
 }
+export interface HCG3EOPSymbol extends HCG3SymbolNode {
+    type: "eop";
+    val: "END_OF_PRODUCTION";
+    meta: false;
+}
 
 export interface HCG3EmptySymbol extends HCG3SymbolNode {
     type: "empty";
@@ -210,7 +215,7 @@ export interface HCG3ProductionTokenSymbol extends HCG3SymbolNode {
 
     val: string | number;
 
-    production?: HCG3Production;
+    production?: HCG3Production; END_OF_PRODUCTION;
     meta: false;
 }
 
@@ -274,4 +279,5 @@ export type HCG3Symbol = HCG3BasicSymbol
     | HCG3MetaError
     | HCG3MetaIgnore
     | HCG3MetaReset
-    | HCG3MetaReduce;
+    | HCG3MetaReduce
+    | HCG3EOPSymbol;

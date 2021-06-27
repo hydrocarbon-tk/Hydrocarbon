@@ -5,24 +5,9 @@
  */
 import crypto from "crypto";
 import { Helper } from "../build/helper.js";
-import { sk, skRenderAsSK } from "../skribble/skribble.js";
-import { SKAssignment, SKBlock, SKCall, SKExpression, SKFunction, SKIdentifierReference, SKIf, SKNode, SKOperatorExpression, SKPrimitiveDeclaration, SKReference } from "../skribble/types/node.js";
-import { HCG3Production, HCG3Grammar } from "../types/grammar_nodes.js";
-import { BaseOptions, RenderBodyOptions } from "../types/render_body_options.js";
-import {
-    DefinedSymbol,
-    ProductionTokenSymbol,
-    Symbol,
-    TokenSymbol
-} from "../types/symbol";
-import { SymbolType } from "../types/symbol_type";
-import { Item } from "./item.js";
-import { getProductionClosure, getProductionID } from "./production.js";
 import {
     getTokenSymbolsFromItems,
     getUniqueSymbolName, Symbols_Occlude,
-
-
     Sym_Is_An_Assert_Function,
     Sym_Is_A_Generic_Identifier,
     Sym_Is_A_Generic_Number,
@@ -33,11 +18,23 @@ import {
     Sym_Is_Defined,
     Sym_Is_Defined_Identifier,
     Sym_Is_Defined_Natural_Number,
-    Sym_Is_Defined_Symbol,
     Sym_Is_EOF,
-
+    Sym_Is_EOP,
     Sym_Is_Not_Consumed
 } from "../grammar/nodes/symbol.js";
+import { sk, skRenderAsSK } from "../skribble/skribble.js";
+import { SKAssignment, SKBlock, SKCall, SKExpression, SKFunction, SKIdentifierReference, SKIf, SKNode, SKOperatorExpression, SKPrimitiveDeclaration, SKReference } from "../skribble/types/node.js";
+import { HCG3Grammar, HCG3Production } from "../types/grammar_nodes.js";
+import { BaseOptions, RenderBodyOptions } from "../types/render_body_options.js";
+import {
+    DefinedSymbol,
+    ProductionTokenSymbol,
+    Symbol,
+    TokenSymbol
+} from "../types/symbol";
+import { SymbolType } from "../types/symbol_type";
+import { Item } from "./item.js";
+import { getProductionClosure, getProductionID } from "./production.js";
 /**
  * Length of code hash string appended to GUID constant names. 
  */
@@ -96,6 +93,10 @@ export function translateSymbolValueSk(sym: TokenSymbol, grammar: HCG3Grammar, l
 
     if (Sym_Is_EOF(sym))
         return <SKExpression>sk`${lex_name}.END(data)`;
+
+    if (Sym_Is_EOP(sym))
+        return <SKExpression>sk`${lex_name}.EOP_TRUE()`;
+
     const USE_UNICODE = "true";
     switch (sym.type) {
         //case SymbolType.PRODUCTION_ASSERTION_FUNCTION:

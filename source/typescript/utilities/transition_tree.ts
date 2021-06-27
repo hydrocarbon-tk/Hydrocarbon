@@ -91,7 +91,6 @@ export function getTransitionTree(
         max_depth = depth;
 
     const
-        occluders = new Map,
         groups = closures.flatMap(cg => getClosureGroups(grammar, cg, lr_transition_items)).group(
             (cg, cgs) => {
                 for (const { sym } of cgs)

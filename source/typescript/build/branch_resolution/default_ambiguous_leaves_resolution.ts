@@ -61,7 +61,7 @@ prods: out_prods.setFilter()
         for (const leaf of node.leaves)
             leaf.INDIRECT = true;
 
-    let FALLBACK_REQUIRED = items.every(i => i.atEND);
+    let FALLBACK_REQUIRED = items.some(i => i.atEND);
     let v_depth = options.VIRTUAL_LEVEL;
 
     if (!FALLBACK_REQUIRED)
@@ -80,7 +80,7 @@ prods: out_prods.setFilter()
     if (FALLBACK_REQUIRED) {
 
         const
-            USE_BACKTRACKING = false,
+            USE_BACKTRACKING = false && !nodes.some(n => n.transition_type == TRANSITION_TYPE.ASSERT_END),
             USE_FORKING = true,
             output_nodes = nodes.filter(i => i.transition_type !== TRANSITION_TYPE.IGNORE);
 
@@ -193,7 +193,6 @@ function createForkSequence(
                 <SKExpression>sk`pushFN(data, &> ${call_name})`
             );
         } else {
-            I++;
             out.push(
                 <SKExpression>sk`[static] fk${I}:__ParserData$ptr = fork(data);`,
                 <SKExpression>sk`pushFN(*> fk${I}, &> ${call_name})`

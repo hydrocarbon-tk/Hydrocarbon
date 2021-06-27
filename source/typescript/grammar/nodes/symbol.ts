@@ -38,7 +38,6 @@ export function characterToUTF8(char: string) {
 }
 export function convertSymbolToString(sym: HCG3Symbol) {
     switch (sym.type) {
-        case SymbolType.ESCAPED:
         case SymbolType.SYMBOL:
             return `${sym.val}`;
         case SymbolType.GENERATED:
@@ -49,6 +48,8 @@ export function convertSymbolToString(sym: HCG3Symbol) {
             return `ɛ`;
         case SymbolType.END_OF_FILE:
             return `END_OF_FILE`;
+        case SymbolType.END_OF_PRODUCTION:
+            return `END_OF_PRODUCTION`;
         case SymbolType.PRODUCTION_TOKEN_SYMBOL:
             return `tk:${sym.name}`;
         default:
@@ -78,9 +79,15 @@ export function Sym_Is_Not_Consumed(s: HCG3Symbol): boolean {
 export function Sym_Is_EOF(s: HCG3Symbol): s is EOFSymbol {
     return s.type == SymbolType.END_OF_FILE || s.val == "END_OF_FILE";
 }
+
+export function Sym_Is_EOP(s: HCG3Symbol): s is EOFSymbol {
+    return s.type == SymbolType.END_OF_PRODUCTION || s.val == "END_OF_PRODUCTION";
+}
+
 export function Sym_Is_Consumed(s: HCG3Symbol): boolean {
     return !Sym_Is_Not_Consumed(s);
 }
+
 export function Sym_Is_A_Production(s: HCG3Symbol): s is ProductionSymbol {
     if (!s) return false;
     return s.type == SymbolType.PRODUCTION || s.type == "sym-production" || Sym_Is_A_Production_Token(s);

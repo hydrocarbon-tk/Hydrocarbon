@@ -98,6 +98,11 @@ function convertPeekStateToSingleItemNode(node: TransitionNode, { grammar }: Ren
 
             node.transition_type = TRANSITION_TYPE.ASSERT_PRODUCTION_SYMBOLS;
 
+        } else if (items[0].atEND) {
+            node.symbols = node.symbols.concat(
+                getFollowSymbolsFromItems(items, grammar)
+            ).setFilter(getUniqueSymbolName);
+            node.transition_type = TRANSITION_TYPE.ASSERT_END;
         } else {
 
             node.transition_type = TRANSITION_TYPE.ASSERT_CONSUME;

@@ -4,11 +4,14 @@
  * disclaimer notice.
  */
 import { Item } from "../utilities/item";
+import { HCG3EOFSymbol, HCG3EOPSymbol } from "./grammar_nodes";
 import { Production } from "./production";
 import { Symbol, TokenSymbol } from "./symbol";
 import { SymbolType } from "./symbol_type";
 
-export const EOF_SYM: TokenSymbol = { val: "END_OF_FILE", precedence: 0, type: SymbolType.END_OF_FILE };
+export const EOF_SYM: HCG3EOFSymbol = { val: "END_OF_FILE", precedence: 0, type: SymbolType.END_OF_FILE, meta: null, pos: null };
+
+export const EOP_SYM: HCG3EOPSymbol = { val: "END_OF_PRODUCTION", precedence: 0, type: SymbolType.END_OF_PRODUCTION, meta: null, pos: null };
 
 export interface ProductionBodyFunction {
     /**

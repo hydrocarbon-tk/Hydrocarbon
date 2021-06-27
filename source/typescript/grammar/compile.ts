@@ -1,3 +1,4 @@
+import { HCG3ProductionBody } from "@candlelib/hydrocarbon/build/types/types/grammar_nodes";
 import { HCGParser } from "@candlelib/hydrocarbon/build/types/types/parser";
 import URI from "@candlelib/uri";
 import { HCG3Grammar } from "../types/grammar_nodes";
@@ -30,8 +31,9 @@ function deduplicateProductionBodies(grammar: HCG3Grammar, error: Error[]) {
         const valid_bodies = [];
         const signatures = new Set;
 
+
         for (const body of production.bodies) {
-            const sig = render(body);
+            const sig = render(Object.assign({}, body, <HCG3ProductionBody>{ reduce_function: null }));
             if (!signatures.has(sig)) {
                 valid_bodies.push(body);
                 signatures.add(sig);

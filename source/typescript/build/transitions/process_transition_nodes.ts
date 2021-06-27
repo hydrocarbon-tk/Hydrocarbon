@@ -18,14 +18,14 @@ import {
     Sym_Is_A_Generic_Type,
     Sym_Is_Defined_Identifier,
     Sym_Is_Defined_Natural_Number, Sym_Is_Defined_Symbol,
-    Sym_Is_EOF
+    Sym_Is_EOF,
+    Sym_Is_EOP
 } from "../../grammar/nodes/symbol.js";
 import { default_resolveBranches } from "../branch_resolution/default_branch_resolution.js";
 import { default_resolveResolvedLeaf } from "../branch_resolution/default_resolved_leaf_resolution.js";
 import { default_resolveUnresolvedLeaves } from "../branch_resolution/default_ambiguous_leaves_resolution.js";
 import { Items_Are_From_Same_Production } from "./yield_transitions.js";
 
-const SC = null;
 export function defaultGrouping(g) { return g.hash; }
 type UnresolvedLeavesResolver = (node: TransitionNode, nodes: TransitionNode[], options: RenderBodyOptions) => MultiItemReturnObject;
 
@@ -204,6 +204,15 @@ function* traverseInteriorNodes(
         const groupAEnd = +(a.transition_types[0] == TRANSITION_TYPE.ASSERT_END);
         const groupBEnd = +(b.transition_types[0] == TRANSITION_TYPE.ASSERT_END);
 
+        if (groupAEnd * groupBEnd == 1)
+            return getGroupScore(b) - getGroupScore(a);
+
+        if (groupAEnd)
+            return 1;
+
+        if (groupBEnd)
+            return -1;
+
         for (const sym_a of a.syms)
             for (const sym_b of b.syms)
                 if (Symbols_Occlude(<TokenSymbol>sym_b, <TokenSymbol>sym_a))
@@ -211,11 +220,6 @@ function* traverseInteriorNodes(
                 else if (Symbols_Occlude(<TokenSymbol>sym_a, <TokenSymbol>sym_b))
                     return -1;
 
-        if (groupAEnd - groupBEnd != 0)
-
-            return (groupAEnd - groupBEnd);
-
-        //Assert end 
         return getGroupScore(b) - getGroupScore(a);
     })) {
         group.FIRST = i++ == 0;
@@ -240,7 +244,7 @@ function getGroupScore(a: TransitionGroup) {
      * GenericIdentifier            :     0x01000000
      */
 
-    let has_eof = 1 - (+a.syms.some(Sym_Is_EOF));
+    let has_eof = (a.syms.some(s => Sym_Is_EOF(s) || Sym_Is_EOP(s))) ? 0 : 1;
 
     let _0x000000001 = a.syms.filter(s => Sym_Is_Defined_Symbol(s) || Sym_Is_Defined_Natural_Number(s)).length;
     let _0x000010000 = a.syms.filter(s => Sym_Is_Defined_Identifier(s)).length << 16;
