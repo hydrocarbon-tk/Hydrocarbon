@@ -170,7 +170,7 @@ function createSwitchBlock(
         fn_name = createSymbolMappingFunctionSk(
             options,
             lex_name,
-            symbol_mappings
+            symbol_mappings.reverse()
         ),
 
         match = <SKMatch>sk`match ${fn_name}(${peek_name}, data): 1 : 1`,
