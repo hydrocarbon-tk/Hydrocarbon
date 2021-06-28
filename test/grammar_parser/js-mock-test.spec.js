@@ -7,7 +7,7 @@ import URI from "@candlelib/uri";
 import { buildRecognizer } from "../../build/library/build/build.js";
 import { compileGrammarFromURI } from "../../build/library/grammar/compile.js";
 import { createAddHocParser } from "../../build/library/render/create_add_hoc_parser.js";
-
+import { compileJSParserFromGrammar } from "../tools.js";
 await URI.server();
 
 const grammar_file = URI.resolveRelative("./test/languages/mock.javascript.hcg");
@@ -18,13 +18,8 @@ const grammar_file = URI.resolveRelative("./test/languages/mock.javascript.hcg")
 assert_group(
     "Should be able to use bootstrapped parser to compile mock JS grammar",
     20000, sequence, () => {
-        const
-            compiled_grammar = await compileGrammarFromURI(grammar_file),
-            { recognizer_functions, meta, }
-                = await buildRecognizer(compiled_grammar, 1),
-            parser = await createAddHocParser(compiled_grammar, recognizer_functions, meta);
 
-
+        const parser = await compileJSParserFromGrammar(grammar_file + "");
 
         const { result } = parser(`
 function Test( ){
