@@ -27,13 +27,17 @@ class GrammarCompilationReport extends Error {
 }
 
 function deduplicateProductionBodies(grammar: HCG3Grammar, error: Error[]) {
+
     for (const production of grammar.productions) {
+
         const valid_bodies = [];
+
         const signatures = new Set;
 
-
         for (const body of production.bodies) {
+
             const sig = render(Object.assign({}, body, <HCG3ProductionBody>{ reduce_function: null }));
+
             if (!signatures.has(sig)) {
                 valid_bodies.push(body);
                 signatures.add(sig);
