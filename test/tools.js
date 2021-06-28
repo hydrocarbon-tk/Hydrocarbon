@@ -16,7 +16,7 @@ export async function compileJSParserFromGrammar(string_or_url, DEBUG = false, r
     const { recognizer_functions, meta } = await buildRecognizer(compiled_grammar, 1, true);
     const parser_string = await generateJSParser(compiled_grammar, recognizer_functions, meta, "", "return");
 
-    await fsp.writeFile("./temp.js", parser_string);
+    //await fsp.writeFile("./temp.js", parser_string);
     return await createAddHocParser(compiled_grammar, recognizer_functions, meta);
 }
 
