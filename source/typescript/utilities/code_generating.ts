@@ -499,8 +499,11 @@ export function* buildSwitchIfsAlternateSk(
     const code_node = ifs.length > 0 ? [ifs[0]] : [];
 
     for (const sym of syms) {
-        if (sym.byte_length <= off)
+        if (sym.byte_length <= off) {
+
             yield { sym, code_node };
+            break;
+        }
     }
 
     return code_node;
