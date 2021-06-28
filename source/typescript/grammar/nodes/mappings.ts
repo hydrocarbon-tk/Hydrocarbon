@@ -5,7 +5,8 @@ const hcg3_mappings: NodeMappings<HCG3GrammarNode, "type"> = <NodeMappings<HCG3G
     typename: "type",
     type_lookup: () => 0,
     mappings: [
-        { type: "null", template: "tempster" },
+        { type: "null", template: "tempster @type" },
+
         <NodeMapping<HCG3Grammar>>{
             type: "hc-grammar-3",
             child_keys: ["preamble", "productions", "function"],
@@ -67,9 +68,14 @@ const hcg3_mappings: NodeMappings<HCG3GrammarNode, "type"> = <NodeMappings<HCG3G
             type: "literal",
             template: "\\\\  @val m:s"
         },
+
         {
             type: "production-token",
             template: "\\tk: @val"
+        },
+        {
+            type: "production_token",
+            template: "\\tk: @name"
         },
         {
             type: "sym-production",
