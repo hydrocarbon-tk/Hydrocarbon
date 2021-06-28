@@ -1,3 +1,9 @@
+## [v0.12.0] - 2021-06-28 
+
+- [2021-06-25]
+
+    Added root production specification `<> >>*<< production_name > ...` that allows specific production to be defined as entry points for sub-grammar recognition.
+
 ## [v0.11.0] - 2021-06-16 
 
 - [2021-06-16]
