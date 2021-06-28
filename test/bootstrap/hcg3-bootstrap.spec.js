@@ -66,7 +66,7 @@ assert_group(
 
 //Take parser and parse HCG grammar
 assert_group(
-    "Should be able to use bootstrapped parser to compile HCG Parser file hcg.hcg",
+    "Should be able to use bootstrapped parser to compile HCG Parser file",
     10000, sequence, () => {
         const compiled_grammar = await compileGrammarFromURI(hcg_grammar_file);
         const {
