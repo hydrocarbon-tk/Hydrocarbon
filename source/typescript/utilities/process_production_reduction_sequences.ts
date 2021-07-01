@@ -20,16 +20,14 @@ export function processProductionChain(
 ): number[] {
     let active_items: Item[] = [], { grammar, goto_items } = options;
 
-    let prod = active_productions || [], visited_prods: Set<string> = new Set;
+    let prod = active_productions || []/*, visited_prods: Set<string> = new Set*/;
 
     const items = (goto_items);
 
     active_items = getGotoItems(grammar, active_productions, items);
 
-    if (active_items.length == 0) {
-
+    if (active_items.length == 0)
         return prod;
-    }
 
     if (active_items.length == 1 && active_items.every(i => i.len == 1)) {
 
@@ -40,7 +38,7 @@ export function processProductionChain(
             active_items = getGotoItems(grammar, itemsToProductions(active_items, grammar), goto_items);
         }
     }
-
+    /*
     if (active_items.length > 0) {
         while (active_items.length > 0) {
             const new_items = active_items.filter(i => !visited_prods.has(i.id));
@@ -48,5 +46,6 @@ export function processProductionChain(
             active_items = getGotoItems(grammar, itemsToProductions(new_items, grammar), goto_items);
         }
     }
+    */
     return prod;
 }

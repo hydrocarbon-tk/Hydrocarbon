@@ -76,7 +76,7 @@ export function addLeafStatements(
 
         for (const goto_leaf of goto_leaves) {
 
-            let { leaf, prods, transition_type, INDIRECT, original_prods } = goto_leaf;
+            let { leaf, prods, transition_type, INDIRECT } = goto_leaf;
 
             //@ts-ignore
             if (goto_leaf.SET || transition_type == TRANSITION_TYPE.IGNORE)
@@ -84,8 +84,6 @@ export function addLeafStatements(
 
             //@ts-ignore
             goto_leaf.SET = true;
-
-            prods = processProductionChain(leaf, GOTO_Options, original_prods);
 
             if (transition_type == TRANSITION_TYPE.ASSERT_END
                 && production_ids.includes(prods[0])
@@ -181,7 +179,6 @@ export function* addVirtualProductionLeafStatements(
             } else if (
                 transition_type == TRANSITION_TYPE.ASSERT_END
                 && production_ids.includes(prods[0])
-                //&& production_ids.some(p_id => goto_leaf.keys.includes(p_id))
             ) {
                 if (production_ids.some(p_id => goto_leaf.keys.includes(p_id))) {
                     leaf.push(<SKExpression>sk`prod=${prods[0]}`);
