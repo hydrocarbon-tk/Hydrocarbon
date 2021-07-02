@@ -70,7 +70,7 @@ export function constructHybridFunction(production: HCG3Production, grammar: HCG
         fn: [
             RD_function,
             GOTO_Options.NO_GOTOS ? undefined : GOTO_function,
-            ReduceFunction
+            null//ReduceFunction
         ],
         RENDER: false
     };
