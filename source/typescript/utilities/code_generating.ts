@@ -240,6 +240,8 @@ export function createProductionTokenFunctionSk(tok: ProductionTokenSymbol, opti
     const prod_id = getProductionID(tok, grammar);
     const closure = getProductionClosure(prod_id, grammar, true);
 
+    const type_info = prod_id << 16;
+
     let fn_ref = getGlobalObjectSk("tk", closure, runner);
 
     if (!fn_ref) {
@@ -256,7 +258,7 @@ export function createProductionTokenFunctionSk(tok: ProductionTokenSymbol, opti
 
             token_function = <SKFunction>sk`
             fn temp:bool(l:__Lexer$ref,data:__ParserData$ref){       
-
+                if (l.type) == ${type_info} : return : true;
                 
                 if ${boolean} :{          
                     
@@ -273,7 +275,7 @@ export function createProductionTokenFunctionSk(tok: ProductionTokenSymbol, opti
                     [mut]ACTIVE:bool = true;
 
                     loop ( (ACTIVE) ) {
-                        ACTIVE = stepKernel(data, stack_ptr + 1);
+                        ACTIVE = stepKernel(data, l, stack_ptr + 1);
                     };
 
                     data.state = state;
@@ -282,6 +284,7 @@ export function createProductionTokenFunctionSk(tok: ProductionTokenSymbol, opti
                         data.stack_ptr = stack_ptr;
                         data.input_ptr = input_ptr;
                         l.slice(copy);
+                        l.type = ${type_info};
                         return: true;
                     } else {
                         l.sync(copy);
