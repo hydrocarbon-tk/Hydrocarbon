@@ -165,7 +165,14 @@ function createSwitchBlock(
 ) {
     const symbol_mappings: [number, Symbol][]
 
-        = <any>groups.flatMap((g, i) => g.syms.map(s => [i, s])),
+        = <any>groups.flatMap((g, i) => {
+
+            let syms = g.syms;
+
+            if (syms.some(Sym_Is_A_Generic_Identifier))
+                syms = syms.filter(s => !Sym_Is_Defined_Identifier(s));
+            return syms.map(s => [i, s]);
+        }),
 
         fn_name = createSymbolMappingFunctionSk(
             options,
@@ -380,7 +387,12 @@ function createIfElseExpressions(
 
                 if (FIRST_SYMBOL_IS_A_PRODUCTION && !FIRST_SYMBOL_IS_A_PRODUCTION_TOKEN) throw new Error("WTF");
 
-                assertion_boolean = getIncludeBooleansSk(<TokenSymbol[]>syms, options, peek_name, <TokenSymbol[]>complement_symbols);
+                const ALLOW_GEN_OCCLUSION = [
+                    TRANSITION_TYPE.PEEK_PRODUCTION_SYMBOLS,
+                    TRANSITION_TYPE.ASSERT_PRODUCTION_SYMBOLS
+                ].includes(transition_type);
+
+                assertion_boolean = getIncludeBooleansSk(<TokenSymbol[]>syms, options, peek_name, <TokenSymbol[]>complement_symbols, ALLOW_GEN_OCCLUSION);
 
                 let scr = code;
 
@@ -412,7 +424,28 @@ function createIfElseExpressions(
                         code.push(<SKExpression>sk`return:-1`);
                 }
 
-                addIf(createIfStatementTransition(options, group, scr, assertion_boolean, FORCE_ASSERTIONS, "Assert"));
+                if (
+                    i == groups.length - 1
+                    &&
+                    groups.length > 1
+                    && (
+                        transition_type == TRANSITION_TYPE.PEEK_PRODUCTION_SYMBOLS
+                        ||
+                        transition_type == TRANSITION_TYPE.ASSERT_PRODUCTION_SYMBOLS
+                    )
+                    &&
+                    (options.scope != "GOTO"
+                        || state.offset > 1)
+                ) {
+                    addIf({
+                        type: "block",
+                        expressions: scr
+                    });
+                } else {
+
+                    addIf(createIfStatementTransition(options, group, scr, assertion_boolean, FORCE_ASSERTIONS, "Assert"));
+                }
+
 
                 break;
 

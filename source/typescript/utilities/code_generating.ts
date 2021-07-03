@@ -619,7 +619,8 @@ export function getIncludeBooleansSk(
     options: BaseOptions,
     lex_name: string = "l",
     /* List of all symbols that can be encountered*/
-    ambient_symbols: TokenSymbol[] = []
+    ambient_symbols: TokenSymbol[] = [],
+    ALLOW_GEN_OCCLUSION = false
 ): SKExpression {
 
     const { grammar, helper: runner } = options;
@@ -629,15 +630,16 @@ export function getIncludeBooleansSk(
     ambient_symbols = ambient_symbols.concat(syms).setFilter(getUniqueSymbolName);
 
     let
+        HAVE_GEN_ID = syms.some(Sym_Is_A_Generic_Identifier),
         non_consume = syms.filter(Sym_Is_Not_Consumed),
         consume = syms.filter(Sym_Is_Consumed),
-        id = consume.filter(Sym_Is_Defined),
+        def = consume.filter(Sym_Is_Defined),
         ty = consume.filter(Sym_Is_A_Generic_Type),
         tk = consume.filter(Sym_Is_A_Production_Token),
         fn = consume.filter(Sym_Is_An_Assert_Function)
             .map(s => translateSymbolValueSk(s, grammar, lex_name)).sort();
 
-    if (id.length + ty.length + fn.length + tk.length + non_consume.length == 0)
+    if (def.length + ty.length + fn.length + tk.length + non_consume.length == 0)
         return null;
 
     let out_id: SKExpression[] = [], out_ty: SKExpression[] = [], out_fn: SKExpression[] = [], out_tk: SKExpression[] = [], out_non_consume: SKExpression[] = [];
@@ -653,7 +655,10 @@ export function getIncludeBooleansSk(
     if (fn.length > 0)
         out_fn = fn;
 
-    if (id.length > 0) {
+    if (def.length > 0) {
+
+        if (HAVE_GEN_ID && ALLOW_GEN_OCCLUSION)
+            def = def.filter(id => !Sym_Is_Defined_Identifier(id));
 
         const
             booleans: SKExpression[] = [],
@@ -661,7 +666,7 @@ export function getIncludeBooleansSk(
 
         let table = 0n, table_syms = [];
 
-        for (const sym of id) {
+        for (const sym of def) {
 
             const
                 char_code = sym.val.charCodeAt(0),
