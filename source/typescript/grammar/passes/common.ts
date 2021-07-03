@@ -10,7 +10,7 @@ import {
     HCG3ProductionBody
 } from "../../types/grammar_nodes";
 import { createSequenceData } from "../../utilities/grammar.js";
-import { getUniqueSymbolName, Sym_Is_A_Production, Sym_Is_A_Production_Token } from "../nodes/symbol.js";
+import { getUniqueSymbolName, Sym_Is_A_Production, Sym_Is_A_Production_Token, Sym_Is_Defined } from "../nodes/symbol.js";
 import {
     addBodyToProduction,
 
@@ -35,7 +35,7 @@ export const render = (grammar_node) => {
  */
 export function createUniqueSymbolSet(grammar: HCG3Grammar, errors: Error[] = []) {
 
-    
+
     const unique_map: Map<string, HCG3Symbol> = <Map<string, HCG3Symbol>>new Map();
 
     unique_map.set(getUniqueSymbolName(EOF_SYM), EOF_SYM);
@@ -127,8 +127,11 @@ export function processSymbol(
 
     const unique_name = getUniqueSymbolName(sym, true);
 
-    if (!unique_map.has(unique_name))
+    if (!unique_map.has(unique_name)) {
+        const copy_sym = copy(sym);
+        copy_sym.id = unique_map.size;
         unique_map.set(unique_name, copy(sym));
+    }
 
     if (Sym_Is_A_Production(sym) || Sym_Is_A_Production_Token(sym))
         sym.production = production_lookup.get(sym.name);

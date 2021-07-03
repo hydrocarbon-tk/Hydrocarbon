@@ -146,6 +146,7 @@ export interface HCG3SymbolNode extends HCG3GrammarNode {
     precedence?: number;
     pos: any;
     meta: boolean;
+    id: number;
 }
 
 export interface HCG3BasicSymbol extends HCG3SymbolNode {
