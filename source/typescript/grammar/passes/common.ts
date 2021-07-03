@@ -20,8 +20,12 @@ import {
 import { hcg3_mappings } from "../nodes/mappings.js";
 import { HCG3SymbolNode } from "@candlelib/hydrocarbon/build/types/types/grammar_nodes";
 
-const renderers = experimentalConstructRenderers(hcg3_mappings);
-export const render = (grammar_node) => experimentalRender(grammar_node, hcg3_mappings, renderers);
+let renderers = null;
+export const render = (grammar_node) => {
+    if (!renderers)
+        renderers = experimentalConstructRenderers(hcg3_mappings);
+    return experimentalRender(grammar_node, hcg3_mappings, renderers);
+};
 
 /**
  * Finds all unique symbols types amongst production and ignore symbols and

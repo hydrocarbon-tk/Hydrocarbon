@@ -95,23 +95,31 @@ import { ts_mappings } from "./ts_mappings.js";
 import { js_mappings } from "./js_mappings.js";
 import { cpp_mappings } from "./cpp_mappings.js";
 
-const renderers = experimentalConstructRenderers(<NodeMappings<SKNode, "type">>skribble_mappings);
-const ts_renderers = experimentalConstructRenderers(<NodeMappings<SKNode, "type">>ts_mappings);
-const js_renderers = experimentalConstructRenderers(<NodeMappings<SKNode, "type">>js_mappings);
-const cpp_renderers = experimentalConstructRenderers(<NodeMappings<SKNode, "type">>cpp_mappings);
+let renderers = null;
+let ts_renderers = null;
+let js_renderers = null;
+let cpp_renderers = null;
 
 export function skRenderAsSK(node: SKNode): string {
+    if (!renderers)
+        renderers = experimentalConstructRenderers(<NodeMappings<SKNode, "type">>skribble_mappings);
     return experimentalRender(node, <NodeMappings<SKNode, "type">>skribble_mappings, renderers);
 }
 
 export function skRenderAsTypeScript(node: SKNode): string {
+    if (!ts_renderers)
+        ts_renderers = experimentalConstructRenderers(<NodeMappings<SKNode, "type">>ts_mappings);
     return experimentalRender(node, <NodeMappings<SKNode, "type">>ts_mappings, ts_renderers);
 }
 
 export function skRenderAsJavaScript(node: SKNode): string {
+    if (!js_renderers)
+        js_renderers = experimentalConstructRenderers(<NodeMappings<SKNode, "type">>js_mappings);
     return experimentalRender(node, <NodeMappings<SKNode, "type">>js_mappings, js_renderers);
 }
 
 export function skRenderAsCPP(node: SKNode): string {
+    if (!cpp_renderers)
+        cpp_renderers = experimentalConstructRenderers(<NodeMappings<SKNode, "type">>cpp_mappings);
     return experimentalRender(node, <NodeMappings<SKNode, "type">>cpp_mappings, cpp_renderers);
 }
