@@ -1,4 +1,4 @@
-import { experimentalConstructRenderers, experimentalRender, traverse } from "@candlelib/conflagrate";
+import { traverse } from "@candlelib/conflagrate";
 import {
     HCG3Grammar,
     HCG3Production,
@@ -9,15 +9,8 @@ import {
     createProduction, createProductionBody, createProductionSymbol,
     registerProduction, replaceAllBodySymbols, setBodyReduceExpressionAction, Sym_Is_List_Production
 } from "../nodes/common.js";
-
-import { hcg3_mappings } from "../nodes/mappings.js";
-import { getProductionSignature, expandOptionalBody } from "./common.js";
+import { expandOptionalBody, getProductionSignature } from "./common.js";
 import { processGroupSymbol } from "./convert_group_productions.js";
-
-
-const renderers = experimentalConstructRenderers(hcg3_mappings);
-const render = (grammar_node) => experimentalRender(grammar_node, hcg3_mappings, renderers);
-
 
 export function convertListProductions(grammar: HCG3Grammar, error: Error[]): HCG3Grammar {
     let index = 0;
