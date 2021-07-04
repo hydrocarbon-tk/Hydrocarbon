@@ -110,7 +110,7 @@ export class Item extends Array {
         return (this.getProduction(grammar).id + ":" + this.body) + " " + this.body_(grammar).production.name + "=>" + this.renderUnformatted(grammar) + ` [ ${syms.join(", ")} ]`;
     }
 
-    getProduction(grammar: HCG3Grammar): Production {
+    getProduction(grammar: HCG3Grammar): HCG3Production {
         //@ts-ignore
         return this.body_(grammar).production;
     }

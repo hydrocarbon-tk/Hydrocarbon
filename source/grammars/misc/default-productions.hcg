@@ -52,10 +52,10 @@
 
 <> js_identifier > tk:js_id_symbols 
 
-<> js_id_symbols >  js_id_symbols g:id           f:r { $1 + $2 }
-    | js_id_symbols \_                           f:r { $1 + $2 }
-    | js_id_symbols \$                           f:r { $1 + $2 }
-    | js_id_symbols g:num                        f:r { $1 + $2 }
+<> js_id_symbols >  js_id_symbols (RST g:ws g:nl) g:id           f:r { $1 + $2 }
+    | js_id_symbols (RST g:ws g:nl) \_                           f:r { $1 + $2 }
+    | js_id_symbols (RST g:ws g:nl) \$                           f:r { $1 + $2 }
+    | js_id_symbols (RST g:ws g:nl) g:num                        f:r { $1 + $2 }
     | \_ 
     | \$ 
     | g:id

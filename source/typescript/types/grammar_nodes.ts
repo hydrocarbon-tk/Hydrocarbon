@@ -83,8 +83,9 @@ export interface HCG3ProductionBody extends HCG3GrammarNode {
     production?: HCG3Production;
 
     length?: number;
-    reset?: any;
     excludes?: TokenSymbol[][][];
+    ignore?: TokenSymbol[][];
+    reset?: TokenSymbol[][];
     reduce_id?: number;
 }
 
@@ -250,13 +251,13 @@ export interface HCG3MetaError extends HCG3SymbolNode {
 }
 export interface HCG3MetaIgnore extends HCG3SymbolNode {
     type: "meta-ignore",
-    sym: HCG3Symbol[],
+    sym: TokenSymbol[],
     meta: true;
     index: number;
 }
 export interface HCG3MetaReset extends HCG3SymbolNode {
     type: "meta-reset",
-    sym: HCG3Symbol[],
+    sym: TokenSymbol[],
     meta: true;
     index: number;
 }

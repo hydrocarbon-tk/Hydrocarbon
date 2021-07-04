@@ -3,19 +3,17 @@
  * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
  * disclaimer notice.
  */
-import { Grammar, ProductionBody } from "../types/grammar.js";
-import { Production, VirtualProduction } from "../types/production.js";
+import { HCG3Production, HCG3ProductionBody, HCG3VirtualProduction } from "../types/grammar_nodes";
+import { getSymbolsFromClosure, getUniqueSymbolName, Sym_Is_A_Terminal } from "../grammar/nodes/symbol.js";
+import { buildItemMaps, getItemMapEntry } from "../grammar/passes/item_map.js";
 import { RenderBodyOptions } from "../types/render_body_options.js";
 import { Item } from "./item.js";
-import { buildItemMaps, getItemMapEntry } from "../grammar/passes/item_map.js";
-import { getFollowSymbolsFromItems, getSymbolsFromClosure, getUniqueSymbolName, Sym_Is_A_Terminal } from "../grammar/nodes/symbol.js";
 
-function remapBodyModifiers<B>(map: Map<number, B>, item: Item): Map<number, B> {
-    return new Map([...map.entries()]
-        .filter(([number]) => number >= item.offset)
-        .map(([number, value]) => [number - item.offset, value]));
+function remapBodyModifiers(map: any[], item: Item): any[] {
+    return map
+        .filter((v, i) => i >= item.offset);
 }
-export type VirtualProductionLinks = Map<string, { p: Production; i: number; }>;
+export type VirtualProductionLinks = Map<string, { p: HCG3Production; i: number; }>;
 export function createVirtualProductions(items: Item[], options: RenderBodyOptions): {
     V_PRODS_ALREADY_EXIST: boolean;
     links: VirtualProductionLinks;
@@ -42,7 +40,9 @@ export function createVirtualProductions(items: Item[], options: RenderBodyOptio
             const
                 body = item.body_(grammar),
                 sym = body.sym.slice(item.offset),
-                virtual_body = <ProductionBody>{
+                virtual_body = <HCG3ProductionBody>{
+                    type: "body",
+                    FORCE_FORK: false,
                     id: grammar.bodies.length,
                     name: `virtual-body-${item.id}`,
                     BUILT: true,
@@ -57,21 +57,23 @@ export function createVirtualProductions(items: Item[], options: RenderBodyOptio
                     production: null,
                 },
 
-                production = <VirtualProduction>{
-                    id: grammar.length,
+                production = <HCG3VirtualProduction>{
+                    id: grammar.productions.length,
                     name: `virtual-${item.id}-lvl:${options.VIRTUAL_LEVEL}`,
                     type: "virtual-production",
                     HAS_EMPTY: false,
                     CHECKED_FOR_EMPTY: false,
                     IMPORTED: false,
                     bodies: [virtual_body],
-                    original_item: item
+                    original_item: item,
+                    RECURSIVE: production.RECURSIVE,
+                    recovery_handler: null
                 };
 
             virtual_body.production = production;
 
             grammar.bodies.push(virtual_body);
-            grammar.push(production);
+            grammar.productions.push(production);
             output.set(item.id, { p: production, i: i++ });
         }
 

@@ -84,12 +84,12 @@ function getItemMapVariables(grammar: HCG3Grammar, productions: HCG3Production[]
                             const sub_production = grammar.productions[sym.val];
 
                             for (const body of sub_production.bodies) {
-                                body.reset.set(0, b.reset.get(0));
+                                body.reset[0] = b.reset[0];
                             }
                         }
                     }
 
-                    const reset_sym = item.offset >= 0 ? (b.reset.get(item.offset) ?? []).map(getUniqueSymbolName) : [];
+                    const reset_sym = item.offset >= 0 ? (b.reset[item.offset] ?? []).map(getUniqueSymbolName) : [];
 
                     out_syms.push(<IntermediateItemMapEntry>{
                         item,
@@ -102,7 +102,9 @@ function getItemMapVariables(grammar: HCG3Grammar, productions: HCG3Production[]
                         follow: new Set,
                         skippable: null,
                         containing_items: new Set,
-                        breadcrumbs: new Set
+                        breadcrumbs: new Set,
+                        sym_uid: 0,
+                        id: -1
                     });
                     // depth++;
                 } while (item = item.increment());
@@ -255,7 +257,7 @@ function processClosures(
 
             const sym = item.sym(grammar);
 
-            if (Sym_Is_A_Production(sym) && !Sym_Is_A_Production_Token(sym)) {
+            if (Sym_Is_A_Production(sym) /*&& !Sym_Is_A_Production_Token(sym)*/) {
                 const prod_id = sym.val;
                 const existing_items = new Set();
 

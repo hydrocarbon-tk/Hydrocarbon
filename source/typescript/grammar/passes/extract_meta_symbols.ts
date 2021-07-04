@@ -5,6 +5,8 @@ export function extractMetaSymbols(grammar: HCG3Grammar, error: Error[]) {
     for (const production of grammar.productions) {
         for (const body of production.bodies) {
             body.excludes = [];
+            body.reset = [];
+            body.ignore = [];
             for (const { node, meta: { mutate, index } } of traverse(body, "sym").makeMutable()) {
                 const sym: HCG3Symbol = <any>node;
 
@@ -17,10 +19,20 @@ export function extractMetaSymbols(grammar: HCG3Grammar, error: Error[]) {
 
                             body.excludes[index].push(sym.sym);
                             break;
-                        case "meta-error":
                         case "meta-ignore":
-                        case "meta-reduce":
+                            if (!body.ignore[index])
+                                body.ignore[index] = [];
+
+                            body.ignore[index].push(...sym.sym);
+                            break;
                         case "meta-reset":
+                            
+                            if (!body.reset[index])
+                                body.reset[index] = [];
+
+                            body.reset[index].push(...sym.sym);
+                            break;
+                        case "meta-reduce":
                         case "meta-error":
                             break;
                     }
