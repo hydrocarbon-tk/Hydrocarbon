@@ -20,7 +20,8 @@ import {
     Sym_Is_A_Generic_Identifier,
     Sym_Is_A_Generic_Type,
     Sym_Is_A_Production,
-    Sym_Is_A_Production_Token
+    Sym_Is_A_Production_Token,
+    Sym_Is_EOF
 } from "../grammar/nodes/symbol.js";
 
 /**
@@ -190,10 +191,10 @@ function getClosureGroups(
 
         if (item.atEND) {
             const new_closure = getFollowClosure([item], lr_transition_items, grammar);
+            const production_id = closure[0].getProduction(grammar).id;
 
             if (new_closure.length == 0) {
 
-                const production_id = closure[0].getProduction(grammar).id;
 
                 for (const sym of getFollow(production_id, grammar))
                     group.push({ sym, index, item_id: item.decrement().id, unskippable, closure: closure.slice(0, 1), final: final + 2 });
@@ -204,9 +205,15 @@ function getClosureGroups(
                     { sym: null, item_id: item.id, unskippable, index, closure: new_closure, final: 0, starts },
                     lr_transition_items
                 );
+
+
                 group.push(...new_group);
+
+                for (const sym of getFollow(production_id, grammar).filter(i => Sym_Is_EOF(i))) {
+                    group.push({ sym, index, item_id: item.decrement().id, unskippable, closure: closure.slice(0, 1), final: final + 2 });
+                }
             }
-        } else if (!Sym_Is_A_Production(sym) || Sym_Is_A_Production_Token(sym)) {
+        } else if (!Sym_Is_A_Production(sym) && !Sym_Is_A_Production_Token(sym)) {
 
             let syms = [sym];
 

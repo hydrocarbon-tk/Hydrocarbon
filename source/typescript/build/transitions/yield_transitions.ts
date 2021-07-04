@@ -207,7 +207,7 @@ function yieldSingleItemNode(items: Item[], { grammar }: RenderBodyOptions, offs
 
         const
 
-            IS_SYM_PRODUCTION = Sym_Is_A_Production(items[0].sym(grammar)) && !Sym_Is_A_Production_Token(items[0].sym(grammar)),
+            IS_SYM_PRODUCTION = Sym_Is_A_Production(items[0].sym(grammar)),
 
             transition_type: TRANSITION_TYPE = IS_SYM_PRODUCTION
                 ? TRANSITION_TYPE.ASSERT_PRODUCTION_SYMBOLS

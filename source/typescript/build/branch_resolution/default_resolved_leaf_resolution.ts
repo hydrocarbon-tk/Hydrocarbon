@@ -3,6 +3,7 @@
  * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
  * disclaimer notice.
  */
+import { getSkippableSymbolsFromItems } from "../../grammar/nodes/symbol.js";
 import { sk, skRenderAsSK } from "../../skribble/skribble.js";
 import { SKExpression } from "../../skribble/types/node.js";
 import { RenderBodyOptions } from "../../types/render_body_options";
@@ -14,7 +15,6 @@ import { rec_glob_lex_name } from "../../utilities/global_names.js";
 import { Item, itemsToProductions } from "../../utilities/item.js";
 import { processProductionChain } from "../../utilities/process_production_reduction_sequences.js";
 import { renderItem } from "../../utilities/render_item.js";
-import { getSkippableSymbolsFromItems, getSymbolsFromClosure } from "../../grammar/nodes/symbol.js";
 
 
 
@@ -67,15 +67,14 @@ export function default_resolveResolvedLeaf(item: Item, state: TransitionNode, o
             const sc = [],
                 call_name = createBranchFunctionSk(sc, options);
 
-            code.push(<SKExpression>sk`puid |= ${grammar.item_map.get(item.id).sym_uid}`);
             code.push(<SKExpression>sk`pushFN(data, ${call_name})`);
             code.push(<SKExpression>sk`pushFN(data, ${getProductionFunctionName(production, grammar)})`);
-            code.push(<SKExpression>sk`return:puid`);
+            code.push(<SKExpression>sk`return:prod_start`);
 
             leaf_node = sc;
 
             original_prods = itemsToProductions([item], grammar);
-            
+
             prods = processProductionChain(leaf_node, options, original_prods);
 
         } else {

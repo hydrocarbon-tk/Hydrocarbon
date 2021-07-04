@@ -101,7 +101,7 @@ fn createState:u32 (ENABLE_STACK_OUTPUT:u32) {
     [pub ptr] input: array_u8
     [pub ptr] rules: array_u16
     [pub] stack: function_pointer = 
-        fn : i32 (l:__Lexer$ref,data:__ParserData$ref, state:u32, prod:u32, puid:i32){64}
+        fn : i32 (l:__Lexer$ref,data:__ParserData$ref, state:u32, prod:u32, prod_start:u32){64}
     [pub] stash: array_u32 = call(64)
     [pub] origin: __ParserData$ptr
     [pub] alternate: __ParserData$ptr
@@ -382,7 +382,9 @@ fn createState:u32 (ENABLE_STACK_OUTPUT:u32) {
         this.token_length = this.token_offset - source.token_offset;
         this.byte_offset = source.byte_offset;
         this.token_offset = source.token_offset;
+        this.current_byte = source.current_byte;
         this.line = source.line;
+        this.type = source.type;
         return:*>this;
     }
 
@@ -549,7 +551,7 @@ fn add_reduce:void(state:u32, data:__ParserData$ref, sym_len:u32, body:u32 = 0, 
     }
 }
 
-fn add_shift:void(l:__Lexer$ref,data:__ParserData$ref, tok_len:u32) {
+fn add_shift:void(data:__ParserData$ref, tok_len:u32) {
 
     if tok_len < 0 : return;
     
@@ -564,7 +566,7 @@ fn add_shift:void(l:__Lexer$ref,data:__ParserData$ref, tok_len:u32) {
     }
 }
 
-fn add_skip:void(l:__Lexer$ref, data:__ParserData$ref, skip_delta:u32){
+fn add_skip:void(data:__ParserData$ref, skip_delta:u32){
 
     if skip_delta < 1: return;
     
@@ -579,6 +581,34 @@ fn add_skip:void(l:__Lexer$ref, data:__ParserData$ref, skip_delta:u32){
     }
 }
 
+fn convert_prod_to_token:void(data:__ParserData$ref, prod_start:u32) {
+
+    [const] prod_end:u32 = data.rules_ptr;
+    [mut] token_len:u32 = 0;
+    [mut] i:u32 = prod_start;
+
+    loop (; i < prod_end; i++) {
+        
+        [mut] rule:u16 = data.rules[i];
+
+        if (rule & 4) == 1 : i++;
+
+        if (rule & 3) > 0 : {
+
+            [mut] length:u32 = (rule >> 3) & 0x1FFF;
+
+            if (rule & 4) == 1 : 
+                length = ((length << 16) | data.rules[i]);
+
+            token_len += length;
+        }
+    };
+
+    data.rules_ptr = prod_start;
+
+    add_shift(data, token_len);
+}
+
 
 [pub] fn mark:u32 (val:u32, data:__ParserData$ref) { return:action_ptr }
 
@@ -590,7 +620,7 @@ fn reset:u32 (mark:u32, origin:__Lexer$ref, advanced:__Lexer$ref, state:u32) {
 }
 
 fn consume: bool (l:__Lexer$ref, data:__ParserData$ref, state:u32) {
-    if isOutputEnabled(state) : add_shift(l, data, l.token_length);
+    if isOutputEnabled(state) : add_shift(data, l.token_length);
     l.next(data);
     return:true
 }
@@ -598,16 +628,16 @@ fn consume: bool (l:__Lexer$ref, data:__ParserData$ref, state:u32) {
 fn pushFN:void(
     data:__ParserData$ref, 
     [pub] _fn_ref: function_pointer = 
-        fn : i32 (l:__Lexer$ref,data:__ParserData$ref, state:u32, prod:u32, puid:i32){}
+        fn : i32 (l:__Lexer$ref,data:__ParserData$ref, state:u32, prod:u32, prod_start:u32){}
 ){ 
     data.stack[++data.stack_ptr] = _fn_ref; 
 }
 
-fn stepKernel:bool(data:__ParserData$ref, stack_base:i32){
+fn stepKernel:bool(data:__ParserData$ref, lexer:__Lexer$ref, stack_base:i32){
     [mut] ptr:i32 = data.stack_ptr;
 
     [static js_ignore] _fn:function_pointer = 
-    fn : i32 (l:__Lexer$ref,data:__ParserData$ref, state:u32, prod:u32, puid:i32){data.stack[ptr]};
+    fn : i32 (l:__Lexer$ref,data:__ParserData$ref, state:u32, prod:u32, prod_start:u32){data.stack[ptr]};
 
     [static cpp_ignore] _fn: any = data.stack[ptr];
 
@@ -615,9 +645,10 @@ fn stepKernel:bool(data:__ParserData$ref, stack_base:i32){
 
     data.stack_ptr--;
 
-    [static] result:u32 = _fn(*> data.lexer, data, data.state, data.prod, stash);
+    [static] result:u32 = _fn(lexer, data, data.state, data.prod, stash);
 
     data.stash[ptr] = result;
+    data.stash[ptr + 1] = result;
     data.prod = result;
 
     if(result<0 || data.stack_ptr < stack_base) : {
@@ -688,7 +719,7 @@ fn run:void(){
 
             [const] data:__ParserData$ref = *> data_array[i];
             
-            if (!stepKernel(data, 0)) : {
+            if (!stepKernel(data, *>data.lexer, 0)) : {
 
                 data.COMPLETED = true;
 
@@ -722,7 +753,7 @@ export function createExternFunctions(
 
                 if (skip_fn) {
                     const skip_call = skRenderAsSK(skip_fn);
-                    return `${i} : { ${skip_call}; data.stack[0] = ${name}; data.stash[0] = ${0}; return }`;
+                    return `${i} : { ${skip_call}; data.stack[0] = &> ${name}; data.stash[0] = ${0}; return }`;
                 }
 
                 return `${i} : { data.stack[0] = &> ${name}; data.stash[0] = ${0}; return }`;

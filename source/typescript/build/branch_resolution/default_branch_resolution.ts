@@ -39,7 +39,7 @@ import { Item } from "../../utilities/item.js";
  */
 export function default_resolveBranches(
     gen: TransitionClauseGenerator,
-    node: TransitionNode,
+    state: TransitionNode,
     items: Item[],
     level: number,
     options: RenderBodyOptions,
@@ -70,7 +70,7 @@ export function default_resolveBranches(
     }
 
     const peek_name = createPeekStatements(options,
-        node,
+        state,
         root,
         "l",
         "l",
@@ -94,7 +94,7 @@ export function default_resolveBranches(
 
     } else
 
-        root = createIfElseExpressions(options, node, groups, root, "l", peek_name, all_syms, FORCE_ASSERTIONS);
+        root = createIfElseExpressions(options, state, groups, root, "l", peek_name, all_syms, FORCE_ASSERTIONS);
 
 
     return root;
@@ -289,6 +289,7 @@ function createIfElseExpressions(
 
         const
             group = groups[i],
+
             { syms, transition_types, code, items, leaves } = group,
             complement_symbols = groups.filter((l, j) => j > i).flatMap(g => g.syms).setFilter(getUniqueSymbolName);
 
@@ -297,16 +298,17 @@ function createIfElseExpressions(
         const
             transition_type: TRANSITION_TYPE = transition_types[0],
             FIRST_SYMBOL_IS_A_PRODUCTION = Sym_Is_A_Production(syms[0]),
-            FIRST_SYMBOL_IS_A_PRODUCTION_TOKEN = Sym_Is_A_Production_Token(syms[0]);
+            FIRST_SYMBOL_IS_A_PRODUCTION_TOKEN = false; //Sym_Is_A_Production_Token(syms[0]);
 
         switch (transition_type) {
 
             case TRANSITION_TYPE.POST_PEEK_CONSUME:
+
                 code.unshift(...expressions);
-                //addSymbolAnnotationsToExpressionList(syms, grammar, code, "Post Peek");
+
                 if (options.helper.ANNOTATED)
                     code.unshift(createTransitionTypeAnnotation(options, transition_types));
-                code.unshift(<SKExpression>sk`puid |= ${grammar.item_map.get(items[0].id).sym_uid}`);
+
                 code.unshift(createConsumeSk(lex_name));
                 expressions = code;
                 break;
@@ -368,8 +370,7 @@ function createIfElseExpressions(
                 const call_name = createBranchFunctionSk(code, options);
                 expressions.push(<SKExpression>sk`pushFN(data, &> ${call_name})`);
                 expressions.push(<SKExpression>sk`pushFN(data, &>  ${getProductionFunctionNameSk(production, grammar)})`);
-                expressions.push(<SKExpression>sk`puid |= ${grammar.item_map.get(items[0].id).sym_uid}`);
-                expressions.push(<SKReturn>sk`return:puid`);
+                expressions.push(<SKReturn>sk`return:data.rules_ptr`);
                 leaves.forEach(leaf => leaf.INDIRECT = true);
 
 
@@ -396,13 +397,9 @@ function createIfElseExpressions(
 
                 let scr = code;
 
-                if (state.PUIDABLE) {
-
-                } else if (items.length == 1) {
+                if (items.length == 1) {
                     scr = [];
-                    //build puid and pass to finishing function
                     const nc = [];
-
 
 
                     const continue_name = createBranchFunctionSk(nc, options);
@@ -410,9 +407,11 @@ function createIfElseExpressions(
 
 
                     scr.push(<SKExpression>sk`pushFN(data, &> ${continue_name})`);
-                    scr.push(<SKExpression>sk`return: ${call_name}(l, data, state, prod, ${grammar.item_map.get(items[0].decrement().id).sym_uid})`);
+                    //scr.push(<SKExpression>sk`pushFN(data, &> ${call_name})`);
+                    scr.push(<SKExpression>sk`return: ${call_name}(l, data, state, prod, prod_start)`);
 
-                    leaves[0].leaf.push(<SKReturn>sk`return:prod`);
+
+                    leaves[0].leaf.push(<SKReturn>sk`return:prod_start`);
 
                     leaves.forEach(l => l.transition_type == TRANSITION_TYPE.IGNORE);
                     leaves[0].leaf = nc;
@@ -432,6 +431,12 @@ function createIfElseExpressions(
                         transition_type == TRANSITION_TYPE.PEEK_PRODUCTION_SYMBOLS
                         ||
                         transition_type == TRANSITION_TYPE.ASSERT_PRODUCTION_SYMBOLS
+                        ||
+                        (
+                            transition_type == TRANSITION_TYPE.ASSERT_PEEK
+                            &&
+                            state.peek_level >= 1
+                        )
                     )
                     &&
                     (options.scope != "GOTO"
@@ -453,8 +458,6 @@ function createIfElseExpressions(
 
 
                 assertion_boolean = getIncludeBooleansSk(<TokenSymbol[]>syms, options, lex_name, <TokenSymbol[]>complement_symbols);
-
-                code.unshift(<SKExpression>sk`puid |= ${grammar.item_map.get(items[0].id).sym_uid}`);
 
                 code.unshift(createConsumeSk("l"));
 

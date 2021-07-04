@@ -57,11 +57,11 @@ ${const_functions_a.map(fn => {
 
 ${recognizer_functions.map(fn => {
         const name = getProductionFunctionNameSk(grammar.productions[fn.id], grammar);
-        const declarations = [`int ${name}(Lexer&, ParserData&, unsigned int, unsigned int, int);`];
+        const declarations = [`int ${name}(Lexer&, ParserData&, unsigned int, unsigned int, unsigned int);`];
         if (fn.goto)
-            declarations.push(`int ${name}_goto(Lexer&, ParserData&, unsigned int, unsigned int, int);`);
+            declarations.push(`int ${name}_goto(Lexer&, ParserData&, unsigned int, unsigned int, unsigned int);`);
         if (fn.reduce)
-            declarations.push(`int ${name}_reduce(Lexer&, ParserData&, unsigned int, unsigned int, int);`);
+            declarations.push(`int ${name}_reduce(Lexer&, ParserData&, unsigned int, unsigned int, unsigned int);`);
         return declarations.join("\n");
     }).join("\n")}
 ${""}

@@ -4,8 +4,9 @@
  * disclaimer notice.
  */
 import { performance } from "perf_hooks";
+import { Sym_Is_A_Production } from "../grammar/nodes/symbol.js";
 import { sk } from "../skribble/skribble.js";
-import { SKBlock, SKExpression, SKFunction, SKIf, SKPrimitiveDeclaration } from "../skribble/types/node.js";
+import { SKExpression, SKFunction, SKPrimitiveDeclaration } from "../skribble/types/node.js";
 import { HCG3Grammar, HCG3Production } from "../types/grammar_nodes.js";
 import { RDProductionFunction } from "../types/rd_production_function";
 import { RenderBodyOptions } from "../types/render_body_options";
@@ -15,13 +16,12 @@ import { collapseBranchNamesSk, createBranchFunctionSk, getProductionFunctionNam
 import { const_EMPTY_ARRAY } from "../utilities/const_EMPTY_ARRAY.js";
 import { Item, ItemIndex } from "../utilities/item.js";
 import { getProductionClosure } from "../utilities/production.js";
-import { renderItem, renderItemReduction } from "../utilities/render_item.js";
-import { Sym_Is_A_Production } from "../grammar/nodes/symbol.js";
+import { renderItem } from "../utilities/render_item.js";
 import { createVirtualProductions } from "../utilities/virtual_productions.js";
-import { Helper } from "./helper.js";
-import { addLeafStatements, addVirtualProductionLeafStatements } from "./transitions/add_leaf_statements.js";
 import { default_resolveBranches } from "./branch_resolution/default_branch_resolution.js";
 import { addClauseSuccessCheck, resolveGOTOBranches } from "./branch_resolution/goto_resolution.js";
+import { Helper } from "./helper.js";
+import { addLeafStatements, addVirtualProductionLeafStatements } from "./transitions/add_leaf_statements.js";
 import { processTransitionNodes } from "./transitions/process_transition_nodes.js";
 import { yieldGOTOTransitions } from "./transitions/yield_goto_transitions.js";
 import { yieldTransitions } from "./transitions/yield_transitions.js";
@@ -36,10 +36,10 @@ export function constructHybridFunction(production: HCG3Production, grammar: HCG
         start = performance.now(),
 
         RD_function = <SKFunction>sk`
-        fn ${getProductionFunctionName(production, grammar)}:i32(l:__Lexer$ref,data:__ParserData$ref, state:u32, prod:u32, puid:i32){ ${runner.ANNOTATED ? "debugger;" : ""}}`,
+        fn ${getProductionFunctionName(production, grammar)}:i32(l:__Lexer$ref,data:__ParserData$ref, state:u32, prod:u32, prod_start:u32){ ${runner.ANNOTATED ? "debugger;" : ""} prod_start = data.rules_ptr; }`,
 
         GOTO_function = <SKFunction>sk`
-        fn ${getProductionFunctionName(production, grammar)}_goto:i32(l:__Lexer$ref,data:__ParserData$ref, state:u32, prod:u32, puid:i32){ ${runner.ANNOTATED ? "debugger;" : ""} }`,
+        fn ${getProductionFunctionName(production, grammar)}_goto:i32(l:__Lexer$ref,data:__ParserData$ref, state:u32, prod:u32, prod_start:u32){ ${runner.ANNOTATED ? "debugger;" : ""} }`,
 
         { RDOptions, GOTO_Options, RD_fn_contents, GOTO_fn_contents }
             = compileProductionFunctions(grammar, runner, [production]);
@@ -62,8 +62,6 @@ export function constructHybridFunction(production: HCG3Production, grammar: HCG
     if (!GOTO_Options.NO_GOTOS)
         GOTO_function.expressions.push(addClauseSuccessCheck(RDOptions));
 
-    const ReduceFunction = constructReduceFunction(production, RDOptions, grammar);
-
     return {
         productions: new Set([...RDOptions.called_productions.values(), ...GOTO_Options.called_productions.values(), ...runner.referenced_production_ids.values()]),
         id: production.id,
@@ -74,33 +72,6 @@ export function constructHybridFunction(production: HCG3Production, grammar: HCG
         ],
         RENDER: false
     };
-}
-
-function constructReduceFunction(production: HCG3Production, options: RenderBodyOptions, grammar: HCG3Grammar): SKFunction {
-
-    const end_items = getStartItemsFromProduction(production).map(i => i.toEND());
-    const ifs = [];
-
-    for (const item of end_items) {
-
-        if (item.len == 1 && !item.body_(grammar).reduce_function) continue;
-
-        const index = options.grammar.item_map.get(item.id).sym_uid;
-        const _if = <SKIf>sk`if ${index} == puid : { }`;
-
-        renderItemReduction((<SKBlock>_if.expression).expressions, item, options, false);
-
-        ifs.push(_if);
-    }
-
-    ifs.reduce((r, i) => r ? (r.else = i, i) : i, null);
-
-    const fn = sk`fn $${production.name}_reducer:i32 (l:__Lexer$ref, data:__ParserData$ref, state:u32, prod:u32, puid:i32){
-        ${ifs[0] ? [ifs[0], ";"] : ""}
-        return : ${production.id}
-    }`;
-
-    return fn;
 }
 
 

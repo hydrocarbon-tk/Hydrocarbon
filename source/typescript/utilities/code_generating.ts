@@ -3,6 +3,7 @@
  * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
  * disclaimer notice.
  */
+import { ProductionTokenSymbol } from "@candlelib/hydrocarbon/build/types/types/symbol";
 import crypto from "crypto";
 import { Helper } from "../build/helper.js";
 import {
@@ -28,7 +29,7 @@ import { HCG3Grammar, HCG3Production } from "../types/grammar_nodes.js";
 import { BaseOptions, RenderBodyOptions } from "../types/render_body_options.js";
 import {
     DefinedSymbol,
-    ProductionTokenSymbol,
+
     Symbol,
     TokenSymbol
 } from "../types/symbol";
@@ -99,12 +100,7 @@ export function translateSymbolValueSk(sym: TokenSymbol, grammar: HCG3Grammar, l
 
     const USE_UNICODE = "true";
     switch (sym.type) {
-        //case SymbolType.PRODUCTION_ASSERTION_FUNCTION:
-        //    if (sym.DOES_SHIFT)
-        //        return <SKExpression>sk`${getAssertionFunctionNameSk(sym.val)}(${lex_name})`;
-        //    else
-        //        return <SKExpression>sk`${getAssertionFunctionNameSk(sym.val)}(${lex_name})`;
-        //
+
         case SymbolType.GENERATED:
             switch (sym.val) {
                 case "ws": return <SKExpression>sk`${lex_name}.isSP(${USE_UNICODE}, data)`;
@@ -182,7 +178,7 @@ export function getSkipFunctionNewSk(
 
                     l.next(data);
                 };
-                if isOutputEnabled(state) : add_skip(l, data, l.token_offset - off);
+                if isOutputEnabled(state) : add_skip(data, l.token_offset - off);
             }`;
 
         fn_ref = packGlobalFunctionSk("skip", "Lexer", skip_symbols, skip_function, runner);
@@ -203,7 +199,7 @@ export function collapseBranchNamesSk(options: RenderBodyOptions) {
         const
             hash = expressionListHash(body),
 
-            token_function = <SKFunction>sk`fn temp:i32 (l:__Lexer$ref, data:__ParserData$ref, state:u32, prod:u32, puid:i32){
+            token_function = <SKFunction>sk`fn temp:i32 (l:__Lexer$ref, data:__ParserData$ref, state:u32, prod:u32, prod_start:u32){
                 /*${hash}*/
             }`;
 

@@ -31,45 +31,7 @@ export function getClosure(items: Item[], grammar: HCG3Grammar, ENTER_TOKEN_PROD
 
         const item_id = item.id;
 
-        if (ENTER_TOKEN_PRODUCTIONS) {
-
-            if (internal$item_track.has(item_id))
-                continue;
-
-            internal$item_track.add(item_id);
-        }
-
         closure.push(...grammar.item_map.get(item_id).closure);
-    }
-
-    if (ENTER_TOKEN_PRODUCTIONS) {
-
-        const modified_closure = [];
-
-        for (const item_id of closure) {
-
-            const item = grammar.item_map.get(item_id)?.item;
-
-            if (!item.atEND) {
-
-                const sym = item.sym(grammar);
-
-                if (Sym_Is_A_Production_Token(sym)) {
-
-                    const prod = grammar.productions[getProductionID(sym, grammar)];
-
-                    const tk_closure = getClosure(getStartItemsFromProduction(prod), grammar, true, internal$item_track);
-
-                    modified_closure.push(...tk_closure.map(i => i.id));
-
-                } else {
-                    modified_closure.push(item_id);
-                }
-
-            } else modified_closure.push(item_id);
-        }
-
-        closure = modified_closure;
     }
 
     closure = closure.setFilter(i => i);
@@ -87,8 +49,6 @@ export function getClosure(items: Item[], grammar: HCG3Grammar, ENTER_TOKEN_PROD
 export function getFollowClosure(closure: Item[], goto_transition_items: Item[], grammar: HCG3Grammar, productions: Set<number> = new Set, internal$item_track: Set<string> = new Set) {
 
     const new_closure = closure.slice();
-
-
     const prods = itemsToProductions(closure.filter(i => i.atEND), grammar);
 
     for (let prod of prods) {

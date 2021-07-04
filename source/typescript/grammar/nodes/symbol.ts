@@ -90,7 +90,7 @@ export function Sym_Is_Consumed(s: HCG3Symbol): boolean {
 
 export function Sym_Is_A_Production(s: HCG3Symbol): s is ProductionSymbol {
     if (!s) return false;
-    return s.type == SymbolType.PRODUCTION || s.type == "sym-production" || Sym_Is_A_Production_Token(s);
+    return s.type == "sym-production" || Sym_Is_A_Production_Token(s);
 }
 
 export function Sym_Is_A_Production_Token(s: HCG3Symbol): s is (ProductionTokenSymbol) {
@@ -99,7 +99,7 @@ export function Sym_Is_A_Production_Token(s: HCG3Symbol): s is (ProductionTokenS
 }
 
 export function Sym_Is_A_Terminal(s: HCG3Symbol): s is TokenSymbol {
-    return false == Sym_Is_A_Production(s) || Sym_Is_A_Production_Token(s);
+    return false == Sym_Is_A_Production(s);
 }
 
 export function Sym_Is_A_Token(s: HCG3Symbol): s is TokenSymbol {
@@ -186,7 +186,7 @@ export function getTokenSymbolsFromItems(items: Item[], grammar: HCG3Grammar): T
     return items.filter(i => !i.atEND)
         .flatMap(i => getTrueSymbolValue(<TokenSymbol>i.sym(grammar), grammar))
         .setFilter(getUniqueSymbolName)
-        .filter(sym => !Sym_Is_A_Production(sym) || Sym_Is_A_Production_Token(sym));
+        .filter(sym => !Sym_Is_A_Production(sym));
 }
 
 export function getSkippableSymbolsFromItems(items: Item[], grammar: Grammar): TokenSymbol[] {
@@ -270,7 +270,7 @@ export function getSymbolsFromClosure(closure: Item[], grammar: HCG3Grammar): HC
         ...new Set(
             closure
                 .filter(i => !i.atEND)
-                .filter(i => !Sym_Is_A_Production(i.sym(grammar)) || Sym_Is_A_Production_Token(i.sym(grammar)))
+                .filter(i => !Sym_Is_A_Production(i.sym(grammar)))
                 .flatMap(i => getTrueSymbolValue(<TokenSymbol>i.sym(grammar), grammar))
         ).values()
     ];
