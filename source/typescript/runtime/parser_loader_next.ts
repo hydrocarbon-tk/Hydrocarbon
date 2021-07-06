@@ -52,12 +52,14 @@ export async function ParserFactory<T>(
             fork_count = recognize(byte_length, production_id), // call with pointers
             forks = get_fork_pointers();
 
-        const fork = forks.filter(f => f.VALID)[0];
+        let fork = forks.filter(f => f.VALID)[0];
 
-        if (!fork?.VALID)
+        if (!fork?.VALID) {
+            fork = forks.sort((a, b) => b.byte_offset - a.byte_offset)[0];
 
-            if (!fork || !fork.VALID)
-                throwForkError(str, forks[0]);
+            throwForkError(str, fork);
+
+        }
 
 
         let stack = [],
@@ -69,7 +71,6 @@ export async function ParserFactory<T>(
             limit = 1000000;
 
 
-
         while (limit-- > 0) {
 
             let low = high;
@@ -79,7 +80,6 @@ export async function ParserFactory<T>(
             high = block[short_offset++];
 
             const rule = low & 3;
-
             switch (rule) {
                 case 0: //REDUCE;
                     {
