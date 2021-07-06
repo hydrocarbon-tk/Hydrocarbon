@@ -104,7 +104,6 @@ fn createState:u32 (ENABLE_STACK_OUTPUT:u32) {
         fn : i32 (l:__Lexer$ref,data:__ParserData$ref, state:u32, prod:u32, prod_start:u32){64}
     [pub] stash: array_u32 = call(64)
     [pub] origin: __ParserData$ptr
-    [pub] alternate: __ParserData$ptr
     [pub] next: __ParserData$ptr = 0
     [pub] VALID: bool = 0 
     [pub] COMPLETED: bool = 0 
@@ -124,7 +123,6 @@ fn createState:u32 (ENABLE_STACK_OUTPUT:u32) {
         this.rules_len = rules_len_in;
         this.origin_fork = 0;
         [this_] origin:u32 = 0;
-        [this_] alternate:u32 = 0;
         
         if input_len_in > 0: {
             [new this_] input:array_u8 = array_u8(input_len_in);
@@ -136,8 +134,6 @@ fn createState:u32 (ENABLE_STACK_OUTPUT:u32) {
     }
 
     [pub] fn ParserData:destructor(){
-
-        if(next): **** next;
         
         %%%% (input);
             
@@ -489,12 +485,6 @@ fn create_parser_data_object:__ParserData$ptr(
     fork_ref.prod = data.prod;
     fork_ref.input = data.input;
 
-    loop ((data.alternate)) {
-        data = *>data.alternate;
-    };
-
-    data.alternate = fork;
-
     data_array[data_array_len] = fork;
 
     data_array_len++;
@@ -766,13 +756,15 @@ fn clear_data:void () {
 
     **** root_data;
     
-    [const]i:u32 =0;
+    [mut]i:u32 =0;
 
     loop( ; i < fork_array_len; i++){
-        **** (fork_array[i]);
+        **** fork_array[i];
     };
 
+    fork_array_len = 0;
     out_array_len = 0;
+    data_array_len = 0;
 }
 
 [extern]fn init_data:__u8$ptr(
@@ -805,7 +797,6 @@ fn clear_data:void () {
 [extern]fn get_fork_pointers:__DataRef$ptr$ptr(){
 
     [mut] i:u32 = 0;
-
     loop( ; i < out_array_len; i++){
         [const] data:__ParserData$ref = *> out_array[i];
 
@@ -817,6 +808,9 @@ fn clear_data:void () {
             (*>data.lexer).byte_length,
             (*>data.lexer).line
         );
+
+        fork_array_len++;
+
         fork_array[i] = fork;
     };
 
@@ -828,16 +822,16 @@ fn clear_data:void () {
 fn block64Consume:i32(data:__ParserData$ref, block:array_u16, offset:u32, block_offset:u32, limit:u32) {
     //Find offset block
 
-    [mut] containing_data:__ParserData$ref = data;
+    [mut] containing_data:__ParserData$ptr = data;
     [mut] end:i32 = containing_data.origin_fork + data.rules_ptr;
 
     //Find closest root
-    loop ((containing_data.origin_fork > offset) ){
-        end = containing_data.origin_fork;
-        containing_data = *>containing_data.origin;
+    loop (((*>containing_data).origin_fork > offset) ){
+        end = (*>containing_data).origin_fork;
+        containing_data = (*>containing_data).origin;
     };
 
-    [mut] start:i32 = containing_data.origin_fork;
+    [mut] start:i32 = (*>containing_data).origin_fork;
 
     offset -= start;
     end -= start;
@@ -848,7 +842,7 @@ fn block64Consume:i32(data:__ParserData$ref, block:array_u16, offset:u32, block_
     if (ptr >= end) : return : limit - block_offset;
 
     loop ((block_offset < limit) ){
-        block[block_offset++] = containing_data.rules[ptr++];
+        block[block_offset++] = (*>containing_data).rules[ptr++];
         if (ptr >= end) :
             return: block64Consume(data, block, ptr + start, block_offset, limit);
     };
