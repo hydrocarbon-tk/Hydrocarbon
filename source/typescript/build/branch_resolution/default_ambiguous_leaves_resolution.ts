@@ -137,8 +137,6 @@ function createBackTrackingSequence(
 
         out_leaves.push(...leaves);
 
-        out.push(SC.Comment(items));
-
         if (I++ == 0) {
             // Preserve the `code` array to allow additional statements to
             // be added to it
@@ -194,7 +192,7 @@ function createForkSequence(
             );
         } else {
             out.push(
-                <SKExpression>sk`[static] fk${I}:__ParserData$ptr = fork(data);`,
+                <SKExpression>sk`[static] fk${I}:__ParserData$ptr = fork(data, db);`,
                 <SKExpression>sk`pushFN(*> fk${I}, &> ${call_name})`
             );
         }
