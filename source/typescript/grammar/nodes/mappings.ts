@@ -50,7 +50,7 @@ const hcg3_mappings: NodeMappings<HCG3GrammarNode, "type"> = <NodeMappings<HCG3G
         },
         {
             type: "symbol",
-            template: "\\\\ @val m:s"
+            template: "l: @val m:s"
         },
         {
             type: "eof",
@@ -66,7 +66,7 @@ const hcg3_mappings: NodeMappings<HCG3GrammarNode, "type"> = <NodeMappings<HCG3G
         },
         {
             type: "literal",
-            template: "\\\\  @val m:s"
+            template: "l: @val m:s"
         },
 
         {
