@@ -245,7 +245,11 @@ function createPeekStatements(
             if (skip) root.push(skip);
             else root.push(<SKExpression>sk`pk.next(data)`);
         }
-    } else if (state.offset > 0) {
+    } else if (state.offset == 1 && options.scope == "GOTO") {
+        const skip = createSkipCallSk(skippable, options, "l", false);
+        if (skip) root.push(skip);
+    } else if (state.peek_level < 0) {
+        //Post peek consume
         const skip = createSkipCallSk(skippable, options, "l", false);
         if (skip) root.push(skip);
     }
