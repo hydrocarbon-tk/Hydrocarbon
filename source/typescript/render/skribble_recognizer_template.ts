@@ -101,8 +101,8 @@ fn createState:u32 (ENABLE_STACK_OUTPUT:u32) {
     [pub ptr] input: array_u8
     [pub ptr] rules: array_u16
     [pub] stack: function_pointer = 
-        fn : i32 (l:__Lexer$ref,data:__ParserData$ref, state:u32, prod:u32, prod_start:u32){64}
-    [pub] stash: array_u32 = call(64)
+        fn : i32 (l:__Lexer$ref,data:__ParserData$ref,db: __ParserDataBuffer$ref, state:u32, prod:u32, prod_start:u32){256}
+    [pub] stash: array_u32 = call(256)
     [pub] origin: __ParserData$ptr
     [pub] next: __ParserData$ptr = 0
     [pub] VALID: bool = 0 
@@ -133,6 +133,10 @@ fn createState:u32 (ENABLE_STACK_OUTPUT:u32) {
         [new this_ cpp_ignore] stack:array_any = array_any();
     }
 
+    [pub] fn sync:void(ptr:__ParserData$ptr){
+        if (ptr) == this : return;
+    }
+
     [pub] fn ParserData:destructor(){
         
         %%%% (input);
@@ -141,7 +145,35 @@ fn createState:u32 (ENABLE_STACK_OUTPUT:u32) {
         
         **** ( lexer);
     }
+}
 
+[pub wasm]  cls ParserDataBuffer{
+
+    [pub new] data : array___ParserData$ptr = Array(64)
+
+    [pub] len : i32
+
+    [pub] fn ParserDataBuffer:ParserDataBuffer(){
+        this.len = 0;
+        [new this_ cpp_ignore] data : array___ParserData$ptr = array_any();
+    }
+
+
+    [pub] fn addDataPointer:void(ptr: __ParserData$ptr){
+        this.data[this.len++] = ptr;
+    }
+
+
+    [pub] fn removeDataAtIndex:void(index:i32){
+        
+        this.len--;
+
+        [mut] j:u32 = index;
+
+        loop (; j < this.len; j++){
+            this.data[j] = this.data[j+1];
+        };
+    }
 }
 
 [pub wasm] cls DataRef{
@@ -177,11 +209,9 @@ fn createState:u32 (ENABLE_STACK_OUTPUT:u32) {
 [pub] root_data: __ParserData$ptr = 0;
 [pub] tip_data: __ParserData$ptr = 0;
 
-[pub static new] out_array : array___ParserData$ptr = Array(64);
 [pub static new] data_array : array___ParserData$ptr = Array(64);
 [pub static new] fork_array : array___DataRef$ptr = Array(64);
 
-[pub] out_array_len :u32 = 0;
 [pub] data_array_len :u32 = 0;
 [pub] fork_array_len :u32 = 0;
 
@@ -456,7 +486,10 @@ fn create_parser_data_object:__ParserData$ptr(
     return : parser_data
 }
 
-[ptr] fn fork:__ParserData$ptr(data:__ParserData$ref) {
+[ptr] fn fork:__ParserData$ptr(
+    data:__ParserData$ref,
+    data_buffer:__ParserDataBuffer$ref
+) {
 
     [mut] fork:__ParserData$ptr = create_parser_data_object(
         0,
@@ -485,9 +518,7 @@ fn create_parser_data_object:__ParserData$ptr(
     fork_ref.prod = data.prod;
     fork_ref.input = data.input;
 
-    data_array[data_array_len] = fork;
-
-    data_array_len++;
+    data_buffer.addDataPointer(fork);
 
     return :fork; 
 }
@@ -599,14 +630,12 @@ fn convert_prod_to_token:void(data:__ParserData$ref, prod_start:u32) {
     add_shift(data, token_len);
 }
 
-
 [pub] fn mark:u32 (val:u32, data:__ParserData$ref) { return:action_ptr }
 
-
-fn reset:u32 (mark:u32, origin:__Lexer$ref, advanced:__Lexer$ref, state:u32) {
-    action_ptr = mark;
-    advanced.sync(origin);
-    return:state
+fn reset:void (data:__ParserData$ref, origin:__Lexer$ref, s_ptr:u32, r_ptr:u32) {
+    data.rules_ptr = r_ptr;
+    data.stack_ptr = s_ptr;
+    (*>data.lexer).sync(origin);
 }
 
 fn consume: bool (l:__Lexer$ref, data:__ParserData$ref, state:u32) {
@@ -618,16 +647,21 @@ fn consume: bool (l:__Lexer$ref, data:__ParserData$ref, state:u32) {
 fn pushFN:void(
     data:__ParserData$ref, 
     [pub] _fn_ref: function_pointer = 
-        fn : i32 (l:__Lexer$ref,data:__ParserData$ref, state:u32, prod:u32, prod_start:u32){}
+        fn : i32 (l:__Lexer$ref,data:__ParserData$ref,db: __ParserDataBuffer$ref, state:u32, prod:u32, prod_start:u32){}
 ){ 
     data.stack[++data.stack_ptr] = _fn_ref; 
 }
 
-fn stepKernel:bool(data:__ParserData$ref, lexer:__Lexer$ref, stack_base:i32){
+fn stepKernel:bool(
+    data:__ParserData$ref, 
+    lexer:__Lexer$ref, 
+    data_buffer:__ParserDataBuffer$ref, 
+    stack_base:i32
+){
     [mut] ptr:i32 = data.stack_ptr;
 
     [static js_ignore] _fn:function_pointer = 
-    fn : i32 (l:__Lexer$ref,data:__ParserData$ref, state:u32, prod:u32, prod_start:u32){data.stack[ptr]};
+    fn : i32 (l:__Lexer$ref,data:__ParserData$ref, db:__ParserDataBuffer$ref, state:u32, prod:u32, prod_start:u32){data.stack[ptr]};
 
     [static cpp_ignore] _fn: any = data.stack[ptr];
 
@@ -635,7 +669,7 @@ fn stepKernel:bool(data:__ParserData$ref, lexer:__Lexer$ref, stack_base:i32){
 
     data.stack_ptr--;
 
-    [static] result:u32 = _fn(lexer, data, data.state, data.prod, stash);
+    [static] result:u32 = _fn(lexer, data, data_buffer, data.state, data.prod, stash);
 
     data.stash[ptr] = result;
     data.stash[ptr + 1] = result;
@@ -649,40 +683,19 @@ fn stepKernel:bool(data:__ParserData$ref, lexer:__Lexer$ref, stack_base:i32){
     return :true
 }
 
-fn addDataToOutArray:void(data:__ParserData$ptr, index:u32){
-    
-    [const]i:u32 = out_array_len;
-
-    if i > 63: i = 63;
-
-    out_array_len = i + 1;
-    
-    loop(; i > index; i--){
-        out_array[i] = out_array[i-1];
-    };
-
-    out_array[index] = data;
-}
-
-fn removeEntryFromDataArray:void(index:u32){
-    
-    data_array_len--;
-
-    [mut] j:u32 = index;
-
-    loop (; j < data_array_len; j++){
-        data_array[j] = data_array[j+1];
-    };
-}
-
-fn insertData:void(data:__ParserData$ptr){
+fn insertData:i32(
+    data:__ParserData$ptr, 
+    resolved:__ParserData$ptr$ptr, 
+    resolved_len:i32, 
+    resolved_max:i32
+){
     
     [const] in_ref:__ParserData$ref =  *>data;
     
-    [const]i:u32 =0;
+    [mut]index:u32 =0;
 
-    loop( ; i < out_array_len; i++){
-        [const] exist_ref:__ParserData$ref = *>out_array[i];
+    loop( ; index < resolved_len; index++){
+        [const] exist_ref:__ParserData$ref = *>resolved[index];
 
         if in_ref.VALID : {
             if (!exist_ref.VALID) : {
@@ -695,30 +708,55 @@ fn insertData:void(data:__ParserData$ptr){
         }
     };
 
-    if (i < 64):
-        addDataToOutArray(data, i);
+    if (index < resolved_max) : {
+
+        [mut]i:u32 = resolved_len;
+
+        if i > resolved_max - 1 : i = resolved_max - 1;
+        
+        loop(; i > index; i--){
+            resolved[i] = resolved[i-1];
+        };
+
+        resolved[index] = data;
+    
+        return : resolved_len + 1;
+    };
+    
+    return : resolved_max;
 }
 
-fn run:void(){
+fn run:i32(origin:__ParserData$ptr,  resolved:__ParserData$ptr$ptr, resolved_len:i32, resolved_max:i32, base:u32){
 
-    loop ( (data_array_len > 0 ) ) {
+    [mut new cpp_ignore] data_buffer : ParserDataBuffer = ParserDataBuffer();
+    [mut js_ignore] data_buffer : ParserDataBuffer;
+
+    data_buffer.addDataPointer(origin);
+
+    loop ( ( data_buffer.len > 0 ) ) {
         
-        [const]i:u32 =0;
+        [const]i:i32 =0;
 
-        loop( ; i < data_array_len; i++){
+        loop( ; i < data_buffer.len; i++){
 
-            [const] data:__ParserData$ref = *> data_array[i];
+            [const] data:__ParserData$ref = *> data_buffer.data[i];
             
-            if (!stepKernel(data, *>data.lexer, 0)) : {
+            if (!stepKernel(data, *>data.lexer, data_buffer, base)) : {
 
                 data.COMPLETED = true;
 
-                removeEntryFromDataArray(i--);
+                data_buffer.removeDataAtIndex(i--);
 
-                insertData(&>data);
+                resolved_len = insertData(&>data,
+                    resolved,
+                    resolved_len,
+                    resolved_max
+                );
             };
         };
-    }
+    };
+
+    return : resolved_len 
 }
 
 `);
@@ -731,6 +769,9 @@ export function createExternFunctions(
     rd_functions: RDProductionFunction[],
 ) {
     return <SKModule>parser(`
+    [pub static new] out_array : array___ParserData$ptr = Array(64);
+    [pub] out_array_len :u32 = 0;
+    
     fn dispatch:void(data:__ParserData$ref, production_index:u32){
         match production_index :
             ${rd_functions.filter(f => f.RENDER && grammar.productions[f.id].ROOT_PRODUCTION)
@@ -772,8 +813,6 @@ fn clear_data:void () {
     rules_len:u32 
 ){ 
     clear_data();
-
-    data_array_len = 1;
 
     [mut] data:__ParserData$ptr = create_parser_data_object(
         input_len,
@@ -819,11 +858,11 @@ fn clear_data:void () {
 
 
 
-fn block64Consume:i32(data:__ParserData$ref, block:array_u16, offset:u32, block_offset:u32, limit:u32) {
+fn block64Consume:i32(data:__ParserData$ptr, block:array_u16, offset:u32, block_offset:u32, limit:u32) {
     //Find offset block
 
     [mut] containing_data:__ParserData$ptr = data;
-    [mut] end:i32 = containing_data.origin_fork + data.rules_ptr;
+    [mut] end:i32 = (*>containing_data).origin_fork + (*>data).rules_ptr;
 
     //Find closest root
     loop (((*>containing_data).origin_fork > offset) ){
@@ -855,7 +894,7 @@ fn block64Consume:i32(data:__ParserData$ref, block:array_u16, offset:u32, block_
     [const] fork_ref:__DataRef$ref = *>fork;
 
     [static] remainder:u32 = block64Consume(
-        *>fork_ref.ptr, 
+        fork_ref.ptr, 
         fork_ref.command_block, 
         fork_ref.command_offset, 
         0, 64);
@@ -881,15 +920,8 @@ fn block64Consume:i32(data:__ParserData$ref, block:array_u16, offset:u32, block_
     root_data = &>data_ref;
     tip_data = &>data_ref;
     
-    run();
+    out_array_len = run(&>data_ref, out_array, out_array_len, 64, 0);
     
     return: out_array_len;
 }`);
-}
-
-export function createParserTemplate(
-    grammar,
-    runner,
-) {
-
 }

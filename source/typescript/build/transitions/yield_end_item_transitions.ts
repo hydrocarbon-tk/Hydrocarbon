@@ -3,9 +3,9 @@
  * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
  * disclaimer notice.
  */
+import { getSymbolsFromClosure } from "../../grammar/nodes/symbol.js";
+import { EOP_SYM } from "../../types/grammar.js";
 import { HCG3Grammar } from "../../types/grammar_nodes";
-import { convertSymbolToString, getSymbolsFromClosure } from "../../grammar/nodes/symbol.js";
-import { EOF_SYM, EOP_SYM } from "../../types/grammar.js";
 import { RenderBodyOptions } from "../../types/render_body_options";
 import { TransitionNode, TRANSITION_TYPE } from "../../types/transition_node.js";
 import { getClosure, getFollowClosure } from "../../utilities/closure.js";

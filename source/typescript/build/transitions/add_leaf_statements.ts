@@ -88,7 +88,7 @@ export function addLeafStatements(
             if (transition_type == TRANSITION_TYPE.ASSERT_END
                 && production_ids.includes(prods[0])
             ) {
-                if (production_ids.some(p_id => goto_leaf.keys.includes(p_id))) {
+                if (production_ids.some(p_id => goto_leaf.keys.includes(p_id) && !INDIRECT)) {
                     leaf.push(<SKExpression>sk`prod=${prods[0]}`);
                     leaf.push(<SKExpression>sk`continue`);
                 } else if (goto_ids.has(prods[0])) {

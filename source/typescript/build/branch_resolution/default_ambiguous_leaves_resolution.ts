@@ -80,7 +80,7 @@ prods: out_prods.setFilter()
     if (FALLBACK_REQUIRED) {
 
         const
-            USE_BACKTRACKING = false && !nodes.some(n => n.transition_type == TRANSITION_TYPE.ASSERT_END),
+            USE_BACKTRACKING = !nodes.some(n => n.transition_type == TRANSITION_TYPE.ASSERT_END),
             USE_FORKING = true,
             output_nodes = nodes.filter(i => i.transition_type !== TRANSITION_TYPE.IGNORE);
 
@@ -126,40 +126,37 @@ function createBackTrackingSequence(
     const out: SKExpression[] = [];
 
     out.push(
-        <SKExpression>sk`[mut] mk:i32 = mark();`,
-        <SKExpression>sk`[mut] anchor:Lexer = l.copy();`,
-        <SKExpression>sk`[mut] anchor_state:u32 = state;`
+        <SKExpression>sk`[mut] origin:Lexer = l.copy()`,
+        <SKExpression>sk`[mut] s_ptr:u32 = data.stack_ptr`,
+        <SKExpression>sk`[mut] r_ptr:u32 = data.rules_ptr`
     );
+
+    //Combine production that transition on the same symbol
+
+
 
     for (const { code, items, prods, leaves } of output_nodes) {
 
         out_prods.push(...prods);
-
         out_leaves.push(...leaves);
 
-        if (I++ == 0) {
-            // Preserve the `code` array to allow additional statements to
-            // be added to it
-            const block = <SKBlock>sk`{}`;
-            block.expressions = code;
-            out.push(block);
 
-        } else {
-            // Preserve the `code` array to allow additional statements to
-            // be added to it
-            const block = <SKBlock>sk`{}`;
-            block.expressions = code;
-            out.push(
-                <SKExpression>sk`state = reset(mk, anchor, l, anchor_state)`,
-                block
-            );
+        const block = <SKBlock>sk`{}`;
+        const ret = code.filter(sk => sk.type == "return")[0];
+        const remaining = code.filter(sk => sk.type != "return");
+        block.expressions = remaining;
+        block.expressions.push(sk`[mut] output:array___ParserData$ptr = Array(1);`);
+        block.expressions.push(sk`[mut] result:i32 = run(data, output, 0, 1, s_ptr);`);
 
-        }
-    }
+        const resolve = <SKBlock>sk`if ( result > 0 && ${prods.map(p => `(output[0].prod) == ${p}`).join(" || ")} ) : {
+                data.sync(output[0]);
+                ${ret || "return : data.rules_ptr"}
+            }`;
+        out.push(block);
+        out.push(resolve);
 
-    if (IS_LEFT_RECURSIVE_WITH_FOREIGN_PRODUCTION_ITEMS) {
         out.push(
-            <SKExpression>sk`state = reset(mk, anchor, l, anchor_state)`
+            <SKExpression>sk`reset(data, origin, s_ptr, r_ptr)`
         );
     }
 

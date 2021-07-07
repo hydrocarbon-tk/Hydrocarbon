@@ -47,7 +47,8 @@ export function buildCPPRecognizerSource(
     return `
 /*Begin Forward Declarations*/\n
 class Lexer;
-class ParserData;\n
+class ParserData;
+class ParserDataBuffer;
 ${const_functions_a.map(fn => {
         const name = skRenderAsCPP(fn.name);
         const type = skRenderAsCPP(fn.return_type);
@@ -57,11 +58,11 @@ ${const_functions_a.map(fn => {
 
 ${recognizer_functions.map(fn => {
         const name = getProductionFunctionNameSk(grammar.productions[fn.id], grammar);
-        const declarations = [`int ${name}(Lexer&, ParserData&, unsigned int, unsigned int, unsigned int);`];
+        const declarations = [`int ${name}(Lexer&, ParserData&, ParserDataBuffer&, unsigned int, unsigned int, unsigned int);`];
         if (fn.goto)
-            declarations.push(`int ${name}_goto(Lexer&, ParserData&, unsigned int, unsigned int, unsigned int);`);
+            declarations.push(`int ${name}_goto(Lexer&, ParserData&, ParserDataBuffer&, unsigned int, unsigned int, unsigned int);`);
         if (fn.reduce)
-            declarations.push(`int ${name}_reduce(Lexer&, ParserData&, unsigned int, unsigned int, unsigned int);`);
+            declarations.push(`int ${name}_reduce(Lexer&, ParserData&, ParserDataBuffer&, unsigned int, unsigned int, unsigned int);`);
         return declarations.join("\n");
     }).join("\n")}
 ${""}

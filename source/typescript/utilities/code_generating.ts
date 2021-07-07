@@ -199,7 +199,7 @@ export function collapseBranchNamesSk(options: RenderBodyOptions) {
         const
             hash = expressionListHash(body),
 
-            token_function = <SKFunction>sk`fn temp:i32 (l:__Lexer$ref, data:__ParserData$ref, state:u32, prod:u32, prod_start:u32){
+            token_function = <SKFunction>sk`fn temp:i32 (l:__Lexer$ref, data:__ParserData$ref, db:__ParserDataBuffer$ref, state:u32, prod:u32, prod_start:u32){
                 /*${hash}*/
             }`;
 

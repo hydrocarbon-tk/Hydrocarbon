@@ -36,10 +36,10 @@ export function constructHybridFunction(production: HCG3Production, grammar: HCG
         start = performance.now(),
 
         RD_function = <SKFunction>sk`
-        fn ${getProductionFunctionName(production, grammar)}:i32(l:__Lexer$ref,data:__ParserData$ref, state:u32, prod:u32, prod_start:u32){ ${runner.ANNOTATED ? "debugger;" : ""} prod_start = data.rules_ptr; }`,
+        fn ${getProductionFunctionName(production, grammar)}:i32(l:__Lexer$ref,data:__ParserData$ref, db:__ParserDataBuffer$ref, state:u32, prod:u32, prod_start:u32){ ${runner.ANNOTATED ? "debugger;" : ""} prod_start = data.rules_ptr; }`,
 
         GOTO_function = <SKFunction>sk`
-        fn ${getProductionFunctionName(production, grammar)}_goto:i32(l:__Lexer$ref,data:__ParserData$ref, state:u32, prod:u32, prod_start:u32){ ${runner.ANNOTATED ? "debugger;" : ""} }`,
+        fn ${getProductionFunctionName(production, grammar)}_goto:i32(l:__Lexer$ref,data:__ParserData$ref, db:__ParserDataBuffer$ref, state:u32, prod:u32, prod_start:u32){ ${runner.ANNOTATED ? "debugger;" : ""} }`,
 
         { RDOptions, GOTO_Options, RD_fn_contents, GOTO_fn_contents }
             = compileProductionFunctions(grammar, runner, [production]);

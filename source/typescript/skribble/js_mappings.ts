@@ -293,7 +293,7 @@ export const js_mappings: NodeMappings<SKNode, "type"> = <NodeMappings<SKNode, "
         <NodeMapping<SKPrimitiveDeclaration>>{
             type: "declaration",
             child_keys: ["type", "primitive_type", "initialization"],
-            template: "@var_type m:s @name {initialization: o:s = o:s {new: new m:s} @initialization}",
+            template: "@var_type m:s @name {initialization: o:s = o:s {new: new m:s} @initialization} ;",
             custom_render: (state, template_fn) => {
 
                 let variable_type = "var";
@@ -369,14 +369,14 @@ export const js_mappings: NodeMappings<SKNode, "type"> = <NodeMappings<SKNode, "
                             if (call.parameters) {
 
                                 if (call.parameters.length == 1 && call.parameters[0].type == "number") {
-                                    return prefix + name.trim() + ` = new ${type}(${template_fn(state, call.parameters[0], false)})`;
+                                    return prefix + name.trim() + ` = new ${type}(${template_fn(state, call.parameters[0], false)});`;
                                 } else if (call.parameters.length > 0 && call.parameters.every(e => e.type == "number")) {
-                                    return prefix + name.trim() + ` = new ${type}([${call.parameters.map(p => p.value)}])`;
+                                    return prefix + name.trim() + ` = new ${type}([${call.parameters.map(p => p.value)}]);`;
                                 } else if (call.parameters.length == 1) {
-                                    return prefix + name.trim() + ` = new ${type}(${template_fn(state, call.parameters[0], false)})`;
+                                    return prefix + name.trim() + ` = new ${type}(${template_fn(state, call.parameters[0], false)});`;
                                 }
                             } else
-                                return prefix + name.trim() + ` = []`;
+                                return prefix + name.trim() + ` = [];`;
                         } else {
                             //Array will be a pointer
 

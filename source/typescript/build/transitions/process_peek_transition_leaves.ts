@@ -165,6 +165,7 @@ function addUnresolvedNode(node: TransitionNode, options: RenderBodyOptions, off
         //filter out shift/reduce conflicts
         let filtered_items = items.filter(i => {
             if (i.atEND) {
+                return false;
                 if (items.some(j => j != i && j.getProduction(options.grammar).id == i.getProduction(options.grammar).id)) return false;
 
                 const sym = i.decrement().sym(options.grammar);
@@ -186,7 +187,7 @@ function addUnresolvedNode(node: TransitionNode, options: RenderBodyOptions, off
             node.transition_type = TRANSITION_TYPE.ASSERT_PEEK_VP;
         } else {
 
-            for (const items_with_same_symbol of filtered_items.group(i => i.sym(options.grammar))) {
+            for (const items_with_same_symbol of filtered_items.group(i => getUniqueSymbolName(i.sym(options.grammar)))) {
 
 
 
