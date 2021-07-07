@@ -25,7 +25,7 @@ export function default_resolveResolvedLeaf(item: Item, state: TransitionNode, o
         code: SKExpression[] = state.code || [],
         SHOULD_IGNORE = extended_production_shift_items.some(i => i.body == item.body);
 
-    let leaf_node = code, prods = [], original_prods = [], INDIRECT = false;
+    let leaf_node = code, prods = [], original_prods = [], INDIRECT = false, EMPTY = false;
 
     if (options.helper.ANNOTATED) {
         code.push(createTransitionTypeAnnotation(options, [state.transition_type]));
@@ -91,7 +91,7 @@ export function default_resolveResolvedLeaf(item: Item, state: TransitionNode, o
             if (skip)
                 code.push(skip);
 
-            ({ leaf_node, prods, INDIRECT, original_prods } = renderItem(code, item, options,
+            ({ leaf_node, prods, INDIRECT, original_prods, EMPTY } = renderItem(code, item, options,
                 state.transition_type == TRANSITION_TYPE.ASSERT
                 || state.transition_type == TRANSITION_TYPE.ASSERT_PEEK
                 || state.transition_type == TRANSITION_TYPE.ASSERT_PEEK_VP));
@@ -109,6 +109,7 @@ export function default_resolveResolvedLeaf(item: Item, state: TransitionNode, o
             original_prods,
             hash: hashString(item.renderUnformattedWithProduction(grammar) + code.map(skRenderAsSK).join("")),
             INDIRECT,
+            EMPTY,
             transition_type: state.transition_type
         }
     };

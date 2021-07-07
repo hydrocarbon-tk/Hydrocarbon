@@ -189,6 +189,8 @@ export interface Leaf {
      * from the production RD or GOTO functions
      */
     INDIRECT?: boolean;
+
+    EMPTY?: boolean;
 }
 
 export interface GeneratorStateReturn {

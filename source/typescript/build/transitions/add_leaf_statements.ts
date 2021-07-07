@@ -49,7 +49,7 @@ export function addLeafStatements(
     let GOTOS_FOLDED = false;
 
     for (const rd_leaf of rd_leaves) {
-        let { leaf, prods, original_prods } = rd_leaf;
+        let { leaf, prods, original_prods, EMPTY } = rd_leaf;
 
         //@ts-ignore
         if (rd_leaf.SET)
@@ -65,7 +65,8 @@ export function addLeafStatements(
 
         } else {
 
-            leaf.push(<SKExpression>sk`pushFN(data, &> ${goto_fn_name})`);
+            if (!EMPTY)
+                leaf.push(<SKExpression>sk`pushFN(data, &> ${goto_fn_name})`);
             leaf.push(<SKExpression>sk`return : ${prods[0]}`);
         }
     }
@@ -76,7 +77,7 @@ export function addLeafStatements(
 
         for (const goto_leaf of goto_leaves) {
 
-            let { leaf, prods, transition_type, INDIRECT } = goto_leaf;
+            let { leaf, prods, transition_type, INDIRECT, EMPTY } = goto_leaf;
 
             //@ts-ignore
             if (goto_leaf.SET || transition_type == TRANSITION_TYPE.IGNORE)

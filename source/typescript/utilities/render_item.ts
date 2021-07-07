@@ -7,7 +7,8 @@ import {
     getRootSym,
     getSkippableSymbolsFromItems,
     Sym_Is_A_Production,
-    Sym_Is_A_Production_Token
+    Sym_Is_A_Production_Token,
+    Sym_Is_Empty
 } from "../grammar/nodes/symbol.js";
 import { sk } from "../skribble/skribble.js";
 import { SKBlock, SKExpression, SKIf } from "../skribble/types/node";
@@ -57,9 +58,12 @@ export function renderItem(
 ): { leaf_node: SKExpression[], original_prods: number[], prods: number[]; INDIRECT: boolean; } {
     const { grammar, helper: runner, called_productions } = options;
 
-    let prods = [], original_prods = [], INDIRECT = false;
+    let prods = [], original_prods = [], INDIRECT = false, EMPTY = false;
 
     if (!item.atEND) {
+
+        const SYM_IS_EMPTY = Sym_Is_Empty(item.sym(grammar));
+
         if (FROM_UPPER) {
 
             const
@@ -105,25 +109,35 @@ export function renderItem(
             leaf_expressions.push(...rc);
             return { leaf_node: code, prods, INDIRECT, original_prods };
 
-        } else if (RENDER_WITH_NO_CHECK) {
-            leaf_expressions.push(createConsumeSk(lexer_name));
+        } else if (!SYM_IS_EMPTY) {
+            if (RENDER_WITH_NO_CHECK) {
+
+                leaf_expressions.push(createConsumeSk(lexer_name));
+            } else {
+                bool_expression = createAssertionShiftSk(options, sym, lexer_name);
+                RENDER_WITH_NO_CHECK = false;
+            }
+
+
+            if (!RENDER_WITH_NO_CHECK) {
+                const _if = <SKIf & { expression: SKBlock; }>sk`if (${bool_expression}) : {}`;
+
+                leaf_expressions.push(_if);
+
+                if (leaf_expressions.slice(-1)[0].type !== "return")
+                    leaf_expressions.push(<SKExpression>sk`return:-1`);
+
+
+                return renderItem(_if.expression.expressions, item.increment(), options, false, lexer_name, true);
+            } else {
+                return renderItem(leaf_expressions, item.increment(), options, false, lexer_name, true);
+            }
         } else {
-            bool_expression = createAssertionShiftSk(options, sym, lexer_name);
-            RENDER_WITH_NO_CHECK = false;
-        }
+            original_prods = itemsToProductions([item], grammar);
 
-        if (!RENDER_WITH_NO_CHECK) {
-            const _if = <SKIf & { expression: SKBlock; }>sk`if (${bool_expression}) : {}`;
+            prods = processProductionChain(leaf_expressions, options, itemsToProductions([item], grammar));
 
-            leaf_expressions.push(_if);
-
-            if (leaf_expressions.slice(-1)[0].type !== "return")
-                leaf_expressions.push(<SKExpression>sk`return:-1`);
-
-
-            return renderItem(_if.expression.expressions, item.increment(), options, false, lexer_name, true);
-        } else {
-            return renderItem(leaf_expressions, item.increment(), options, false, lexer_name, true);
+            EMPTY = true;
         }
 
     } else {
@@ -135,5 +149,5 @@ export function renderItem(
     }
 
 
-    return { leaf_node: leaf_expressions, prods, original_prods, INDIRECT };
+    return { leaf_node: leaf_expressions, prods, original_prods, INDIRECT, EMPTY };
 }
