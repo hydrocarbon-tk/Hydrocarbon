@@ -36,6 +36,6 @@
       | sym::meta_symbol                                            f:r { [$1] }
 
       | \[ body_entry(+) \]                                        
-                                                                    f:r { $2.flat().map(e => (e.NO_BLANK = true, e) ) }
+                                                                    f:r { env.group_id++, $2.flat().map(e => (e.OPTIONAL ? e.OPTIONAL |= env.group_id << 8 : 0, e) ) }
 
 

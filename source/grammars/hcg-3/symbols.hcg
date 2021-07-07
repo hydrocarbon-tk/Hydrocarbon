@@ -41,7 +41,7 @@
     | escaped_symbol
     
 
-<> symbol > symbol \?                                            f:r { $1.IS_OPTIONAL = true, $1 }
+<> symbol > symbol \?                                            f:r { $1.IS_OPTIONAL = 1, $1 }
     
     | \?= symbol                                                 f:r { $2.IS_NON_CAPTURE = true, $2 }
     
@@ -62,7 +62,7 @@
     | \( pb::production_bodies \)                        
                                                                 f:r { { type:"group-production", val:$2, pos:pos, meta:false } }       
 
-    | symbol ( \(+ | \(* )  terminal_symbol?  \)                f:r { { type:"list-production", terminal_symbol:$$3, IS_OPTIONAL:($2 == "(*"), val:$1, pos:pos, meta:false } }
+    | symbol ( \(+ | \(* )  terminal_symbol?  \)                f:r { { type:"list-production", terminal_symbol:$$3, IS_OPTIONAL:+($2 == "(*"), val:$1, pos:pos, meta:false } }
 
     | g:sym                                                     f:r { { type:"literal", val:$1, pos:pos, meta:false } }
 

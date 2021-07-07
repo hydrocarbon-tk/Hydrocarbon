@@ -106,9 +106,10 @@ export function Sym_Is_Group_Production(sym: any): sym is HCG3GroupProduction {
     return sym.type && (<HCG3GroupProduction>sym).type == "group-production";
 }
 
-export function createProductionSymbol(name: string, IS_OPTIONAL: boolean = false, mapped_sym: HCG3GrammarNode = null): HCG3ProductionSymbol {
+export function createProductionSymbol(name: string, IS_OPTIONAL: number = 0, mapped_sym: HCG3GrammarNode = null): HCG3ProductionSymbol {
     return {
         type: 'sym-production',
+        id: -1,
         val: -1,
         name: name,
         IS_NON_CAPTURE: false,

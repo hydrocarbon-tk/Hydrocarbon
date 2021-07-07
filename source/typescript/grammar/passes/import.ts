@@ -84,8 +84,7 @@ function processImportedBody(body: HCG3ProductionBody, root_grammar: HCG3Grammar
             const prd = getProductionByName(imported.grammar, sym.production);
             const name = imported.grammar.common_import_name + "__" + prd.name;
 
-
-            const prod = createProductionSymbol(name, sym.IS_OPTIONAL || false, sym);
+            const prod = createProductionSymbol(name, sym.IS_OPTIONAL || 0, sym);
 
             mutate(prod);
 

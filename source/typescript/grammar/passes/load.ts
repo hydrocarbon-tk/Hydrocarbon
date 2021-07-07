@@ -15,7 +15,7 @@ await URI.server();
 const parser = await loader;
 export function loadGrammarFromString(str: string, grammar_parser: HCGParser = parser): HCG3Grammar {
 
-    const a = grammar_parser(str);
+    const a = grammar_parser(str, { group_id: 0 });
 
     return a.result[0];
 }

@@ -139,7 +139,7 @@ export interface HCG3Grammar extends HCG3GrammarNode {
 //// SYMBOLS
 export interface HCG3SymbolNode extends HCG3GrammarNode {
     val: any;
-    IS_OPTIONAL?: boolean;
+    IS_OPTIONAL?: number;
     IS_NON_CAPTURE?: boolean;
     DOES_SHIFT?: boolean;
     subtype?: string;
