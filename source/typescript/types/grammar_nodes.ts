@@ -234,6 +234,8 @@ export interface HCG3ProductionSymbol extends HCG3SymbolNode {
 
 export interface HCG3ProductionImportSymbol extends HCG3SymbolNode {
     type: "sym-production-import";
+    production?: string;
+    module: any;
     meta: false;
 }
 

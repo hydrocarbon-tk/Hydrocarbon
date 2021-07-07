@@ -1,4 +1,5 @@
 import { copy, traverse } from "@candlelib/conflagrate";
+import { HCG3SymbolNode } from "@candlelib/hydrocarbon/build/types/types/grammar_nodes";
 import {
     HCG3Grammar,
     HCG3Production,
@@ -70,7 +71,9 @@ function integrateImportedProductions(root_grammar: HCG3Grammar, local_grammar: 
         processImportedBody(body, root_grammar, local_grammar, imported_productions);
 }
 function processImportedBody(body: HCG3ProductionBody, root_grammar: HCG3Grammar, local_grammar: HCG3Grammar, imported_productions: Map<any, any>) {
-    for (const { node: sym, meta: { mutate } } of traverse(body, "sym").makeMutable()) {
+    for (const { node, meta: { mutate } } of traverse(body, "sym").makeMutable()) {
+
+        const sym: HCG3Symbol = <any>node;
 
         if (root_grammar != local_grammar) {
             processForeignSymbol(sym, local_grammar, imported_productions, root_grammar);
