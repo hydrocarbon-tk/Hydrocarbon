@@ -52,7 +52,7 @@ export function default_resolveBranches(
         end_groups = groups.filter(group => group.transition_types[0] == TRANSITION_TYPE.ASSERT_END),
         number_of_end_groups = end_groups.length,
         all_syms = groups.flatMap(({ syms }) => syms).setFilter(getUniqueSymbolName),
-        all_syms_unfiltered = groups.flatMap(({ syms }) => syms),
+
         GROUPS_CONTAIN_SYMBOL_AMBIGUITY = Groups_Contain_Symbol_Ambiguity(groups);
 
     let root: SKExpression[] = [];
@@ -360,7 +360,6 @@ function createIfElseExpressions(
 
                     addIf(createIfStatementTransition(options, group, code, assertion_boolean, FORCE_ASSERTIONS, "Assert End"));
                 }
-
                 break;
 
             case TRANSITION_TYPE.ASSERT_PRODUCTION_CALL:
@@ -369,14 +368,11 @@ function createIfElseExpressions(
 
                 options.called_productions.add(<number>production.id);
 
-                //addSymbolAnnotationsToExpressionList(syms, grammar, code, "Production Call Symbols");
-
                 const call_name = createBranchFunctionSk(code, options);
                 expressions.push(<SKExpression>sk`pushFN(data, &> ${call_name})`);
                 expressions.push(<SKExpression>sk`pushFN(data, &>  ${getProductionFunctionNameSk(production, grammar)})`);
                 expressions.push(<SKReturn>sk`return:data.rules_ptr`);
                 leaves.forEach(leaf => leaf.INDIRECT = true);
-
 
                 if (code.slice(-1)[0].type !== "return")
                     code.push(<SKExpression>sk`return:-1`);
@@ -411,14 +407,14 @@ function createIfElseExpressions(
 
 
                     scr.push(<SKExpression>sk`pushFN(data, &> ${continue_name})`);
-                    //scr.push(<SKExpression>sk`pushFN(data, &> ${call_name})`);
-                    scr.push(<SKExpression>sk`return: ${call_name}(l, data, state, prod, prod_start)`);
+                    scr.push(<SKExpression>sk`return: ${call_name}(l, data, db, state, prod, prod_start)`);
 
 
                     leaves[0].leaf.push(<SKReturn>sk`return:prod_start`);
 
                     leaves.forEach(l => l.transition_type == TRANSITION_TYPE.IGNORE);
                     leaves[0].leaf = nc;
+
                     leaves[0].INDIRECT = true;
                     leaves[0].transition_type = TRANSITION_TYPE.ASSERT;
 
