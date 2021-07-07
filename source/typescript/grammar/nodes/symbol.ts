@@ -79,6 +79,9 @@ export function Sym_Is_Not_Consumed(s: HCG3Symbol): boolean {
 export function Sym_Is_EOF(s: HCG3Symbol): s is EOFSymbol {
     return s.type == SymbolType.END_OF_FILE || s.val == "END_OF_FILE";
 }
+export function Sym_Is_Empty(s: HCG3Symbol): s is EOFSymbol {
+    return s.type == "empty";
+}
 
 export function Sym_Is_EOP(s: HCG3Symbol): s is EOFSymbol {
     return s.type == SymbolType.END_OF_PRODUCTION || s.val == "END_OF_PRODUCTION";
