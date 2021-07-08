@@ -10,7 +10,7 @@ import { HybridDispatch, HybridDispatchResponse } from "../../types/worker_messa
 import "../../utilities/array_globals.js";
 import { filloutWorkerGrammar } from "../../utilities/grammar.js";
 import { constructHybridFunction } from "../function_constructor.js";
-import { constructCompilerRunner, Helper } from "../helper.js";
+import { createRunner, Helper } from "../helper.js";
 
 
 
@@ -33,7 +33,7 @@ export class Worker {
 
         this.id = id;
 
-        this.runner = constructCompilerRunner(ANNOTATED, DEBUG);
+        this.runner = createRunner(ANNOTATED, DEBUG);
 
         this.pp = pp;
 

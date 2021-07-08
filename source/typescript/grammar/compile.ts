@@ -16,7 +16,9 @@ import {
     loadGrammarFromString
 } from "./passes/load.js";
 import { createJSFunctionsFromExpressions } from "./passes/process_code.js";
+import fs from "fs";
 
+const fsp = fs.promises;
 
 class GrammarCompilationReport extends Error {
     constructor(errors: Error[]) {
@@ -70,7 +72,7 @@ export async function compileGrammar(grammar: HCG3Grammar) {
     }
 
     try {
-        await integrateImportedGrammars(grammar, errors);
+        integrateImportedGrammars(grammar, errors);
         convertListProductions(grammar, errors);
         extractMetaSymbols(grammar, errors);
         deduplicateProductionBodies(grammar, errors);
@@ -79,6 +81,8 @@ export async function compileGrammar(grammar: HCG3Grammar) {
         createUniqueSymbolSet(grammar, errors);
         buildSequenceString(grammar);
         buildItemMaps(grammar);
+        await fsp.writeFile("./temp.test", grammar.productions.map(p => render(p)).join("\n\n"));
+        //console.log(grammar.productions.map(p => render(p)).join("\n"));
     } catch (e) {
         errors.push(e);
     }

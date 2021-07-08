@@ -65,8 +65,7 @@ export function default_resolveBranches(
 
     if (options.helper.ANNOTATED) {
         addItemAnnotationToExpressionList(items, grammar, root);
-        addSymbolAnnotationsToExpressionList(all_syms, grammar, root, "All symbols");
-        addSymbolAnnotationsToExpressionList([], grammar, root, "Number of end groups" + number_of_end_groups);
+        addSymbolAnnotationsToExpressionList(all_syms, grammar, root, "offset " + state.offset);
     }
 
     const peek_name = createPeekStatements(options,
@@ -192,19 +191,19 @@ function createSwitchBlock(
 
         let { items, code, transition_types } = groups[i];
 
+        const expr = code.slice(-1)[0];
+
         if (transition_types[0] == TRANSITION_TYPE.ASSERT_END && i == groups.length - 1) {
             DEFAULT_NOT_ADDED = false;
-            matches.push((<SKMatch>sk`match 1 : default || ${i} : ${(<SKBlock>{
+            matches.push((<SKMatch>sk`match 1 : default || ${i} : { ${(<SKBlock>{
                 type: "block",
                 expressions: code
-            })
-                }`).matches[0]);
+            })}; break; }`).matches[0]);
         } else {
-            matches.push((<SKMatch>sk`match 1 : ${i} : ${(<SKBlock>{
+            matches.push((<SKMatch>sk`match 1 : ${i} : { ${(<SKBlock>{
                 type: "block",
                 expressions: code
-            })
-                }`).matches[0]);
+            })}; break; };`).matches[0]);
         }
     }
 

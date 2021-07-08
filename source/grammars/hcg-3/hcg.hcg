@@ -46,7 +46,7 @@
                                 type:"hc-grammar-3", 
                                 preamble:$$1 || [], 
                                 productions:$$2.productions, 
-                                functions:$$2.functions, 
+                                functions:$$2.functions || [], 
                                 imported_grammars: [],
                                 meta:null,
                                 ignore:[],

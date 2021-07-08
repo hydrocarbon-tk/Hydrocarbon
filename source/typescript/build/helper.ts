@@ -103,6 +103,6 @@ export class Helper {
         return { const: const_ty_node, fn: code_fn_node };
     }
 }
-export function constructCompilerRunner(ANNOTATED: boolean = false, DEBUG: boolean = false): Helper {
+export function createRunner(ANNOTATED: boolean = false, DEBUG: boolean = false): Helper {
     return new Helper(ANNOTATED, DEBUG);
 };

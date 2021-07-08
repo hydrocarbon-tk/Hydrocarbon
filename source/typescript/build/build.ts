@@ -1,5 +1,5 @@
 import spark from "@candlelib/spark";
-import { constructCompilerRunner, Helper } from "../build/helper.js";
+import { createRunner, Helper } from "../build/helper.js";
 import { WorkerRunner } from "../build/workers/worker_runner.js";
 import { HCG3Grammar } from "../types/grammar_nodes.js";
 import { RDProductionFunction } from "../types/rd_production_function.js";
@@ -13,7 +13,7 @@ export async function buildRecognizer(
 }> {
 
     const
-        runner: Helper = constructCompilerRunner(ADD_ANNOTATIONS, false),
+        runner: Helper = createRunner(ADD_ANNOTATIONS, false),
 
         mt_code_compiler = new WorkerRunner(grammar, runner, number_of_workers);
 

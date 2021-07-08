@@ -351,7 +351,7 @@ export function createSymbolMappingFunctionSk(
     const empty = symbol_mappings.filter(([i, s]) => s.type == "empty")[0];
 
     if (empty)
-        default_return_value = "l.setToken( TokenSymbol, 0, 0 ); return:" + empty[0];
+        default_return_value = "return:" + empty[0];
     else
         default_return_value = "return:" + (default_return_value || "-1");
 
@@ -639,6 +639,8 @@ export function getIncludeBooleansSk(
         return null;
 
     let out_id: SKExpression[] = [], out_ty: SKExpression[] = [], out_fn: SKExpression[] = [], out_tk: SKExpression[] = [], out_non_consume: SKExpression[] = [];
+
+
 
     if (non_consume.length > 0) {
 

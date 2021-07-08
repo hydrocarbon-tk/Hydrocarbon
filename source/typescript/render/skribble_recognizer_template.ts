@@ -555,7 +555,7 @@ fn add_reduce:void(state:u32, data:__ParserData$ref, sym_len:u32, body:u32 = 0, 
     
         if body > 0xFF || sym_len > 0x1F : {
             
-            [const] low:u32 = (1 << 2) | (body & 0xFFF8);
+            [const] low:u32 = (1 << 2) | ( body << 3);
             
             [const] high:u32 = sym_len;
 

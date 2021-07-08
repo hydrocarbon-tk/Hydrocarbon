@@ -7,7 +7,7 @@ import { HCG3Grammar } from "../../types/grammar_nodes";
 import { ParserEnvironment } from "../../types/parser_environment.js";
 import { HybridDispatch, HybridDispatchResponse } from "../../types/worker_messaging.js";
 import { constructHybridFunction } from "../function_constructor.js";
-import { constructCompilerRunner, Helper } from "../helper.js";
+import { createRunner, Helper } from "../helper.js";
 
 
 
@@ -32,7 +32,7 @@ export class LocalWorker {
 
         this.id = id;
 
-        this.runner = constructCompilerRunner(ANNOTATED, DEBUG);
+        this.runner = createRunner(ANNOTATED, DEBUG);
 
         this.response = null;
 

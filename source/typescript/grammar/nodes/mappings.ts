@@ -58,7 +58,7 @@ const hcg3_mappings: NodeMappings<HCG3GrammarNode, "type"> = <NodeMappings<HCG3G
         },
         {
             type: "empty",
-            template: "\\$empty"
+            template: "\\$empty "
         },
         {
             type: "generated",
@@ -66,7 +66,7 @@ const hcg3_mappings: NodeMappings<HCG3GrammarNode, "type"> = <NodeMappings<HCG3G
         },
         {
             type: "literal",
-            template: "l: @val m:s"
+            template: "\\l: @val m:s"
         },
 
         {
@@ -83,7 +83,7 @@ const hcg3_mappings: NodeMappings<HCG3GrammarNode, "type"> = <NodeMappings<HCG3G
         },
         {
             type: "sym-production-import",
-            template: "$module \\:: $production"
+            template: "@module \\:: @production "
         },
         {
             type: "group-production",

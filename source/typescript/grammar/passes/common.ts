@@ -159,7 +159,6 @@ export function expandOptionalBody(production: HCG3Production) {
             const sym: HCG3SymbolNode = <any>node;
             if (sym.IS_OPTIONAL) {
                 const OPTIONAL_CLASS = sym.IS_OPTIONAL >> 8;
-
                 if (OPTIONAL_CLASS == 0 || body.sym.filter(s => s.IS_OPTIONAL && (s.IS_OPTIONAL >> 8) == OPTIONAL_CLASS && s !== sym).length > 0) {
 
                     const new_id = body.sym.filter((s) => s.opt_id != sym.opt_id).reduce((r, n) => (n.opt_id | r), 0n);

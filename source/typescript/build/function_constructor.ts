@@ -36,10 +36,10 @@ export function constructHybridFunction(production: HCG3Production, grammar: HCG
         start = performance.now(),
 
         RD_function = <SKFunction>sk`
-        fn ${getProductionFunctionName(production, grammar)}:i32(l:__Lexer$ref,data:__ParserData$ref, db:__ParserDataBuffer$ref, state:u32, prod:u32, prod_start:u32){ ${runner.ANNOTATED ? "debugger;" : ""} prod_start = data.rules_ptr; }`,
+        fn ${getProductionFunctionName(production, grammar)}:i32(l:__Lexer$ref,data:__ParserData$ref, db:__ParserDataBuffer$ref, state:u32, prod:u32, prod_start:u32){ ${runner.ANNOTATED ? "" : ""} prod_start = data.rules_ptr; }`,
 
         GOTO_function = <SKFunction>sk`
-        fn ${getProductionFunctionName(production, grammar)}_goto:i32(l:__Lexer$ref,data:__ParserData$ref, db:__ParserDataBuffer$ref, state:u32, prod:u32, prod_start:u32){ ${runner.ANNOTATED ? "debugger;" : ""} }`,
+        fn ${getProductionFunctionName(production, grammar)}_goto:i32(l:__Lexer$ref,data:__ParserData$ref, db:__ParserDataBuffer$ref, state:u32, prod:u32, prod_start:u32){ ${runner.ANNOTATED ? "" : ""} }`,
 
         { RDOptions, GOTO_Options, RD_fn_contents, GOTO_fn_contents }
             = compileProductionFunctions(grammar, runner, [production]);
@@ -194,7 +194,7 @@ export function compileProductionFunctions(
 
         initial_items = getProductionItemsThatAreNotRightRecursive(productions, grammar),
 
-        RDOptions = generateOptions(
+        RDOptions = createBuildOptions(
             grammar, runner,
             productions,
             IS_VIRTUAL
@@ -211,7 +211,7 @@ export function compileProductionFunctions(
         { code: RD_fn_contents, prods: completed_productions, leaves: rd_leaves }
             = processTransitionNodes(RDOptions, rd_nodes, default_resolveBranches),
 
-        GOTO_Options = generateOptions(
+        GOTO_Options = createBuildOptions(
             grammar, runner,
             productions,
             IS_VIRTUAL,
@@ -229,7 +229,7 @@ export function compileProductionFunctions(
 
     return { RDOptions, GOTO_Options, RD_fn_contents, GOTO_fn_contents };
 }
-export function generateOptions(
+export function createBuildOptions(
     grammar: HCG3Grammar,
     runner: Helper,
     /**

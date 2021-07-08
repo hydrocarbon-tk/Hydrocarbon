@@ -137,6 +137,9 @@ export function renderItem(
 
             prods = processProductionChain(leaf_expressions, options, itemsToProductions([item], grammar));
 
+            leaf_expressions.push(sk`l.setToken( TokenSymbol, 0, 0 )`);
+            leaf_expressions.push(sk`consume(l,data,state)`);
+
             EMPTY = true;
         }
 

@@ -79,6 +79,8 @@ export async function ParserFactory<T>(
 
             high = block[short_offset++];
 
+            //console.log(stack);
+
             const rule = low & 3;
             switch (rule) {
                 case 0: //REDUCE;
@@ -88,7 +90,7 @@ export async function ParserFactory<T>(
                             len = ((low >> 3) & 0x1F);
 
                         if (low & 4) {
-                            body = (body << 8) | len;
+                            body = (low >> 3);
                             len = high;
                             high = block[short_offset++];
                         }

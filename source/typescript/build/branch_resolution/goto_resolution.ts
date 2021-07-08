@@ -48,8 +48,7 @@ export function resolveGOTOBranches(
             goto_groups = [...gen],
             WE_HAVE_JUST_ONE_GOTO_GROUP = goto_groups.length == 1;
         let
-            CONTAINS_END_LEAF_THAT_SHOULD_LOOP = false,
-            first_goto_group_keys: number[] = null;
+            CONTAINS_END_LEAF_THAT_SHOULD_LOOP = false;
 
         let match_stmt: SKMatch | SKExpression = <SKMatch>sk`match prod: 1:1`;
 
@@ -122,48 +121,6 @@ export function resolveGOTOBranches(
                     * 
                     */
 
-                    //Use look ahead process to filter out productions that should be transitioned on. 
-                    /*
-                    const n = yieldTransitions(
-                        items,
-                        options, 0, [], false, true
-
-                    );
-
-                    const { code: code1, hash, leaves, prods } = processTransitionNodes(options, n, default_resolveBranches,
-                        (node, nodes, options) => {
-                            console.log("AAAAAAAAAA");
-                        }, (item, group, options) => {
-                            if (production_ids.includes(item.getProduction(grammar).id)) {
-                                return {
-
-                                    leaf: {
-                                        root: [sk`test__`],
-                                        leaf: [],
-
-                                    }
-                                };
-                            } else
-                                return {
-
-                                    leaf: {
-                                        root: [sk`test`],
-                                        leaf: [],
-
-                                    }
-                                };
-
-                        });
-
-                    code.unshift(...code1);
-
-
-
-
-                    console.log(code.map(skRenderAsSK));
-                    */
-
-
                     //Ensure only items that can be reached from the root production are used
                     const active_item_closure = getClosure(active_items.filter(i => production_ids.includes(i.getProduction(grammar).id)), grammar, true);
 
@@ -224,7 +181,6 @@ export function resolveGOTOBranches(
             if (!WE_HAVE_JUST_ONE_GOTO_GROUP)
                 code.push(<SKBreak>sk`break`);
 
-
             const match_clause = (<SKMatch>sk`match 1 : ${keys.join(",")}: ${(<SKBlock>{
                 type: "block",
                 expressions: code
@@ -234,10 +190,8 @@ export function resolveGOTOBranches(
 
             (<SKMatch>match_stmt).matches.push(match_clause);
 
-            if (WE_HAVE_JUST_ONE_GOTO_GROUP) {
-                first_goto_group_keys = keys;
+            if (WE_HAVE_JUST_ONE_GOTO_GROUP)
                 out = (<SKBlock>(<SKMatch>match_stmt).matches[0].expression).expressions;
-            }
         }
 
         if (CONTAINS_END_LEAF_THAT_SHOULD_LOOP) {
