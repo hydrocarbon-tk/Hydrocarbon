@@ -128,7 +128,7 @@ function createBackTrackingSequence(
     const out: SKExpression[] = [];
 
     out.push(
-        <SKExpression>sk`[mut] origin:Lexer = l.copy()`,
+        <SKExpression>sk`[mut] origin:Lexer = l.copyInPlace()`,
         <SKExpression>sk`[mut] s_ptr:u32 = data.stack_ptr`,
         <SKExpression>sk`[mut] r_ptr:u32 = data.rules_ptr`
     );
@@ -148,7 +148,7 @@ function createBackTrackingSequence(
         const remaining = code.filter(sk => sk.type != "return");
         block.expressions = remaining;
         block.expressions.push(sk`[mut] output:array___ParserData$ptr = Array(1);`);
-        block.expressions.push(sk`[mut] result:i32 = run(data, output, 0, 1, 0);`);
+        block.expressions.push(sk`[mut] result:i32 = run(&>data, output, 0, 1, 0);`);
 
         const call_name = createBranchFunctionSk([
             sk`return : -${prods[0]}`
@@ -156,7 +156,7 @@ function createBackTrackingSequence(
 
         block.expressions.unshift(<SKExpression>sk`pushFN(data, &> ${call_name})`);
 
-        const resolve = <SKBlock>sk`if ( result > 0 && ${prods.map(p => `(output[0].prod) == -${p}`).join(" || ")} ) : {
+        const resolve = <SKBlock>sk`if ( result > 0 && ${prods.map(p => `((*>output[0]).prod) == -${p}`).join(" || ")} ) : {
                 data.sync(output[0]);
                 ${ret || "return : data.rules_ptr"}
             }`;

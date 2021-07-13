@@ -263,6 +263,8 @@ export function createProductionTokenFunctionSk(tok: ProductionTokenSymbol, opti
                     [const] input_ptr:u32 = data.input_ptr;
                     [const] state:u32 = data.state;
                     [const] copy:Lexer = l.copyInPlace();
+                    [mut new cpp_ignore] data_buffer : ParserDataBuffer = ParserDataBuffer();
+                    [mut js_ignore] data_buffer : ParserDataBuffer;
 
                     pushFN(data, &> ${getProductionFunctionNameSk(production, grammar)});
 
@@ -271,7 +273,7 @@ export function createProductionTokenFunctionSk(tok: ProductionTokenSymbol, opti
                     [mut]ACTIVE:bool = true;
 
                     loop ( (ACTIVE) ) {
-                        ACTIVE = stepKernel(data, l, stack_ptr + 1);
+                        ACTIVE = stepKernel(data, l, data_buffer, stack_ptr + 1);
                     };
 
                     data.state = state;

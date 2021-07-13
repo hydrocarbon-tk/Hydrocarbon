@@ -669,7 +669,7 @@ fn stepKernel:bool(
 
     data.stack_ptr--;
 
-    [static] result:u32 = _fn(lexer, data, data_buffer, data.state, data.prod, stash);
+    [static] result:i32 = _fn(lexer, data, data_buffer, data.state, data.prod, stash);
 
     data.stash[ptr] = result;
     data.stash[ptr + 1] = result;
