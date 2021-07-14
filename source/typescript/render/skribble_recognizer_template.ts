@@ -476,6 +476,26 @@ fn cmpr_set : u32 (
     return : false;
 }
 
+
+fn cmpr_set_id : u32 (
+    l : __Lexer$ref,
+    data: __ParserData$ref,
+    sequence_offset:u32,
+    byte_length:u32,
+    token_length:u32
+){
+    if 
+        (byte_length) == compare(data, l.byte_offset, sequence_offset, byte_length) 
+        && 
+        l.isDiscrete(data, TokenIdentifier, byte_length, true) : {
+        l.byte_length = byte_length;
+        l.token_length = token_length;
+        return : true;
+    };
+
+    return : false;
+}
+
 fn create_parser_data_object:__ParserData$ptr(
     input_len:u32, rules_len:u32
 ){

@@ -707,9 +707,11 @@ export function getIncludeBooleansSk(
                         char_code = sym.val.charCodeAt(0);
                     booleans.push(getLexerByteBooleanSk(lex_name, char_code));
                 } else {
+                    const compare_set_type = Sym_Is_Defined_Identifier(sym) ? "cmpr_set_id" : "cmpr_set";
+
                     booleans.push(
                         <SKExpression>
-                        sk`/*[${sanitizeSymbolValForCommentSk(sym)}]*/cmpr_set(${lex_name},data, ${sym.byte_offset}, ${sym.byte_length}, ${sym.val.length})`
+                        sk`${compare_set_type}(${lex_name},data, ${sym.byte_offset}, ${sym.byte_length}, ${sym.val.length})`
                     );
                 }
             } else {
