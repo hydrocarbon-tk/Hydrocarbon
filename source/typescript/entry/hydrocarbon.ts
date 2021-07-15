@@ -20,34 +20,29 @@ import "../utilities/array_globals.js";
 //Runtime - Hybrid
 import { initializeUTFLookupTable } from "../runtime/parser_memory_new.js";
 import { loadWASM, buildParserMemoryBuffer } from "../runtime/parser_memory_old.js";
-//import { loadWASM } from "../runtime/wasm_loader.js";
 import { ParserFactory } from "../runtime/parser_loader.js";
 import { ParserFactory as ParserFactoryNew } from "../runtime/parser_loader_alpha.js";
 import { ParserFactory as ParserFactoryNext } from "../runtime/parser_loader_next.js";
 
-//Runtime - Deprecate
-import { LexerError } from "../lr(deprecate)/runtime/lexer_error.js";
-
-import { lrParse } from "../lr(deprecate)/runtime/lr_parser.js";
-
 //Diagnostics
 import { ParserEnvironment } from "../types/parser_environment.js";
-import { ErrorHandler, ParserData } from "../lr(deprecate)/runtime/parser_data.js";
 import { compileGrammarFromString, compileGrammarFromURI } from "../grammar/compile.js";
+import { HCGParser } from "../types/parser.js";
+
 
 export {
+    //Types
+    HCGParser,
+    ParserEnvironment,
+
+    //Code
     loadWASM,
-    buildParserMemoryBuffer,
     ParserFactory,
     ParserFactoryNew,
     ParserFactoryNext,
-    //loadWASM,
-    ErrorHandler,
-    ParserData,
-    LexerError,
-    ParserEnvironment,
+    buildParserMemoryBuffer,
+    
     initializeUTFLookupTable,
-    lrParse,
     compileGrammarFromString,
     compileGrammarFromURI
 };
