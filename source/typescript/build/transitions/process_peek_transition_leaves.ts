@@ -163,18 +163,7 @@ function addUnresolvedNode(node: TransitionNode, options: RenderBodyOptions, off
     } else {
 
         //filter out shift/reduce conflicts
-        let filtered_items = items.filter(i => {
-            if (i.atEND) {
-                return false;
-                if (items.some(j => j != i && j.getProduction(options.grammar).id == i.getProduction(options.grammar).id)) return false;
-
-                const sym = i.decrement().sym(options.grammar);
-
-                if (Sym_Is_A_Production(sym))
-                    if (items.some(j => j != i && j.getProduction(options.grammar).id == sym.val)) return false;
-            }
-            return true;
-        });
+        let filtered_items = items.filter(i => !i.atEND);
 
         if (filtered_items.length == 1) {
 

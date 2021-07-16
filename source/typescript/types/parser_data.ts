@@ -37,7 +37,6 @@ export interface RecognizeInitializer {
     init_data: (
         input_len: number,
         rules_len: number,
-        error_len: number,
     ) => Uint8Array,
 
     /**

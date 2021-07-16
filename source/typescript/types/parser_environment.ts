@@ -3,29 +3,12 @@
  * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
  * disclaimer notice.
  */
-import { ErrorHandler } from "../lr(deprecate)/runtime/parser_data";
 
 /**
  * Defines custom function handlers and options for lrParser
  */
 export interface ParserEnvironment {
-    functions?: {
-        /**
-         * #### Last Resort Recovery Handler
-         * 
-         * Called when all other recovery actions have been exhausted,
-         * including *frrh* (First Resort Recovery Handler)
-         */
-        lrrh?: ErrorHandler;
 
-        /**
-         * #### First Resort Recovery Handler
-         * 
-         * Called before any other recovery action has been taken,
-         * including *lrrh* (First Resort Recovery Handler)
-         */
-        frrh?: ErrorHandler;
-    };
     /**
      * Proxy of functions
      */
