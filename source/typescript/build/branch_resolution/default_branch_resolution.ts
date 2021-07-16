@@ -426,20 +426,8 @@ function createIfElseExpressions(
                     i == groups.length - 1
                     &&
                     groups.length > 1
-                    && (
-                        transition_type == TRANSITION_TYPE.PEEK_PRODUCTION_SYMBOLS
-                        ||
-                        transition_type == TRANSITION_TYPE.ASSERT_PRODUCTION_SYMBOLS
-                        ||
-                        (
-                            transition_type == TRANSITION_TYPE.ASSERT_PEEK
-                            &&
-                            state.peek_level >= 1
-                        )
-                    )
                     &&
-                    (options.scope != "GOTO"
-                        || state.offset > 1)
+                    Group_Allows_Unchecked(group, state, options)
                 ) {
                     addIf({
                         type: "block",
@@ -474,6 +462,27 @@ function createIfElseExpressions(
 
 }
 
+function Group_Allows_Unchecked(group: TransitionGroup, state: TransitionNode, options: RenderBodyOptions): boolean {
+
+    const { syms, transition_types, code, items, leaves } = group;
+
+    const [transition_type] = transition_types;
+
+    return (
+        transition_type == TRANSITION_TYPE.PEEK_PRODUCTION_SYMBOLS
+        ||
+        transition_type == TRANSITION_TYPE.ASSERT_PRODUCTION_SYMBOLS
+        ||
+        (
+            transition_type == TRANSITION_TYPE.ASSERT_PEEK
+            &&
+            state.peek_level >= 1
+        )
+    )
+        &&
+        (options.scope != "GOTO"
+            || state.offset > 1);
+}
 
 
 
