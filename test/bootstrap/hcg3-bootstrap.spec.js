@@ -76,6 +76,8 @@ assert_group(
 
         const parser = await createAddHocParser(compiled_grammar, recognizer_functions, meta);
 
+        assert(parser !== null);
+
         const { result } = parser(await hcg_grammar_file.fetchText());
 
         assert(result[0].type == "hc-grammar-3");
@@ -94,6 +96,8 @@ assert_group(
         } = await buildRecognizer(compiled_grammar, 1);
 
         const bootstrapped_parser = await createAddHocParser(compiled_grammar, recognizer_functions, meta);
+
+        assert(bootstrapped_parser !== null);
         const bootstrapped_compiled_grammar = await compileGrammarFromURI(hcg_grammar_file, bootstrapped_parser);
 
         assert(bootstrapped_compiled_grammar !== null);
@@ -104,7 +108,7 @@ assert_group(
 
 assert_group(
     "Should be able to use bootstrapped parser to compile another bootstrapped parser: WASM",
-    10000, sequence, () => {
+    20000, sequence, () => {
         const compiled_grammar = await compileGrammarFromURI(hcg_grammar_file);
         const {
             recognizer_functions,
@@ -136,7 +140,7 @@ assert_group(
 
 assert_group(
     "Should be able to use bootstrapped parser to compile another bootstrapped parser: JavaScript",
-    10000, sequence, () => {
+    20000, sequence, () => {
         const compiled_grammar = await compileGrammarFromURI(hcg_grammar_file);
         const {
             recognizer_functions,
@@ -166,7 +170,7 @@ assert_group(
 
 assert_group(
     "Should be able to write bootstrapped parser to staging file",
-    10000, sequence, () => {
+    20000, sequence, () => {
 
 
         const compiled_grammar = await compileGrammarFromURI(hcg_grammar_file);
