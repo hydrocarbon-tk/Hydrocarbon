@@ -60,7 +60,7 @@ prods: out_prods.setFilter()
         for (const leaf of node.leaves)
             leaf.INDIRECT = true;
 
-    let FALLBACK_REQUIRED = items.some(i => i.atEND);
+    let FALLBACK_REQUIRED = true || items.some(i => i.atEND) && items.every(i => i.offset > 0);
     let v_depth = options.VIRTUAL_LEVEL;
 
     if (!FALLBACK_REQUIRED)
@@ -68,6 +68,7 @@ prods: out_prods.setFilter()
             root = createVirtualProductionSequence(options, items, expected_symbols, out_leaves, out_prods);
         } catch (e) {
             //throw e;
+            console.log(e);
 
             if (v_depth > 0) throw e;
 
@@ -79,9 +80,15 @@ prods: out_prods.setFilter()
     if (FALLBACK_REQUIRED) {
 
         const
+
             USE_BACKTRACKING = !nodes.some(n => n.transition_type == TRANSITION_TYPE.ASSERT_END),
+
             USE_FORKING = true,
-            output_nodes = nodes.filter(i => i.transition_type !== TRANSITION_TYPE.IGNORE);
+            output_nodes = nodes.filter(i => i.transition_type !== TRANSITION_TYPE.IGNORE).sort((a, b) =>
+                b.items.sort((a, b) => b.len - a.len)[0].len
+                -
+                a.items.sort((a, b) => b.len - a.len)[0].len
+            );
 
         if (USE_BACKTRACKING) {
 
@@ -138,29 +145,32 @@ function createBackTrackingSequence(
 
     for (const { code, items, prods, leaves } of output_nodes) {
 
+        leaves.map(l => l.BACKTRACK == true);
+
         out_prods.push(...prods);
         out_leaves.push(...leaves);
 
-
-        const block = <SKBlock>sk`{}`;
         const ret = code.filter(sk => sk.type == "return")[0];
-        const remaining = code.filter(sk => sk.type != "return");
-        block.expressions = remaining;
-        block.expressions.push(sk`[mut] output:array___ParserData$ptr = Array(1);`);
-        block.expressions.push(sk`[mut] result:i32 = run(&>data, output, 0, 1, 0);`);
 
         const call_name = createBranchFunctionSk([
-            sk`return : -${prods[0]}`
+            <SKExpression>sk`return : -${prods[0]}`
         ], options);
 
-        block.expressions.unshift(<SKExpression>sk`pushFN(data, &> ${call_name})`);
+        code.unshift(<SKExpression>sk`pushFN(data, &> ${call_name})`);
+        code.push(<SKExpression>sk`return: -1;`);
+
+        const init_name = createBranchFunctionSk(code, options);
+
+        const block = <SKBlock>sk`{}`;
+
+        block.expressions.push(<SKExpression>sk`pushFN(data, &> ${init_name})`);
+        block.expressions.push(<SKExpression>sk`[mut] output:array___ParserData$ptr = Array(1);`);
+        block.expressions.push(<SKExpression>sk`[mut] result:i32 = run(&>data, output, 0, 1, 0);`);
 
         const resolve = <SKBlock>sk`if ( result > 0 && ${prods.map(p => `((*>output[0]).prod) == -${p}`).join(" || ")} ) : {
                 data.sync(output[0]);
-                ${ret || "return : data.rules_ptr"}
+                ${ret || "return : data.rules_ptr;"}
             }`;
-
-        leaves.map(l => l.BACKTRACK == true);
         block.expressions.push(resolve);
 
         out.push(block);
@@ -170,7 +180,7 @@ function createBackTrackingSequence(
         );
     }
 
-    out.push(sk`return :-1`);
+    out.push(<SKExpression>sk`return :-1`);
 
     return out;
 }

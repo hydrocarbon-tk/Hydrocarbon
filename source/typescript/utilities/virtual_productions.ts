@@ -40,6 +40,7 @@ export function createVirtualProductions(items: Item[], options: RenderBodyOptio
             const
                 body = item.body_(grammar),
                 sym = body.sym.slice(item.offset),
+                prod = item.getProduction(grammar),
                 virtual_body = <HCG3ProductionBody>{
                     type: "body",
                     FORCE_FORK: false,
@@ -66,7 +67,8 @@ export function createVirtualProductions(items: Item[], options: RenderBodyOptio
                     IMPORTED: false,
                     bodies: [virtual_body],
                     original_item: item,
-                    RECURSIVE: production.RECURSIVE,
+                    RECURSIVE: prod.RECURSIVE,
+                    IS_ENTRY: false,
                     recovery_handler: null
                 };
 
