@@ -588,9 +588,11 @@ export function buildIfsSk(
 
         if (code_node) {
 
+            const def_type = Sym_Is_Defined_Identifier(sym) ? "TokenIdentifier" : "TokenSymbol";
+
 
             code_node.push(
-                <SKExpression>sk`${lex_name}.setToken(TokenSymbol, ${sym.byte_length}, ${sym.val.length})`
+                <SKExpression>sk`${lex_name}.setToken(${def_type}, ${sym.byte_length}, ${sym.val.length})`
             );
 
             if (Sym_Is_Defined_Identifier(sym) && occluders.some(Sym_Is_A_Generic_Identifier))
