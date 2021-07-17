@@ -53,23 +53,8 @@ function deduplicateProductionBodies(grammar: HCG3Grammar, error: Error[]) {
 export async function compileGrammar(grammar: HCG3Grammar) {
     const errors: Error[] = [];
 
-    const fn_lu = grammar.functions.reduce((r, v) => (r.set(v.id, v), r), new Map);
 
-    //Merge referenced functions
-    for (const production of grammar.productions) {
-        for (const body of production.bodies) {
 
-            if (body.reduce_function && body.reduce_function.ref) {
-                const original = body.reduce_function;
-                const ref = body.reduce_function.ref;
-                const red_fn = fn_lu.get(ref);
-
-                if (red_fn) {
-                    body.reduce_function = Object.assign({}, red_fn, { type: "RETURNED" });
-                }
-            }
-        }
-    }
 
     try {
         integrateImportedGrammars(grammar, errors);
@@ -81,6 +66,7 @@ export async function compileGrammar(grammar: HCG3Grammar) {
         createUniqueSymbolSet(grammar, errors);
         buildSequenceString(grammar);
         buildItemMaps(grammar);
+
         await fsp.writeFile("./temp.test", grammar.productions.map(p => render(p)).join("\n\n"));
         //console.log(grammar.productions.map(p => render(p)).join("\n"));
     } catch (e) {

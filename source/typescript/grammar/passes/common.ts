@@ -47,13 +47,18 @@ export function createUniqueSymbolSet(grammar: HCG3Grammar, errors: Error[] = []
 
     grammar.productions[0].ROOT_PRODUCTION = true;
 
-    for (const production of grammar.productions) {
-        production.id = p_counter++;
+
+    for (const production of grammar.productions)
         production_lookup.set(production.name, production);
-    }
+
+    assignEntryProductions(grammar, production_lookup);
+
+
+    for (const production of grammar.productions)
+        production.id = p_counter++;
+
 
     for (const production of grammar.productions) {
-
         for (const body of production.bodies) {
 
             body.production = production;
@@ -67,14 +72,13 @@ export function createUniqueSymbolSet(grammar: HCG3Grammar, errors: Error[] = []
             if (body.reduce_function) {
                 const txt = body.reduce_function.js;
 
-                if (!reduce_lu.has(txt)) {
+                if (!reduce_lu.has(txt))
                     reduce_lu.set(txt, reduce_lu.size);
-                }
 
                 body.reduce_id = reduce_lu.get(txt);
-            } else {
+
+            } else
                 body.reduce_id = -1;
-            }
 
             for (const sym of body.sym) {
                 processSymbol(sym, production_lookup, unique_map, errors);

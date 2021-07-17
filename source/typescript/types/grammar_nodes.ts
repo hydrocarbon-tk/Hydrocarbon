@@ -23,11 +23,30 @@ export interface HCG3GrammarNode {
 
 
 export interface HCG3PreambleNode extends HCG3GrammarNode { }
-export interface HCG3Function extends HCG3GrammarNode {
-    type: "RETURNED",
-    txt: string,
-    js: string;
+
+export interface HCG3ReferencedFunction extends HCG3GrammarNode {
+    type: "ref-function";
+    id: string;
+    txt: string;
 }
+
+export interface HCGENVFunctionRef extends HCG3GrammarNode {
+    type: "env-function-reference";
+    ref: string;
+}
+
+export interface HCGLocalFunctionRef extends HCG3GrammarNode {
+    type: "local-function-reference";
+    ref: string;
+}
+export interface HCG3Function extends HCG3GrammarNode {
+    type: "RETURNED";
+    txt: string;
+    js: string;
+    ref?: string;
+    name?: string;
+}
+
 export interface HCG3Comment extends HCG3GrammarNode {
     type: "comment", val: string;
 }
@@ -76,12 +95,11 @@ export type HCG3Production = HCG3GeneralProduction | HCG3VirtualProduction | HCG
 
 export interface HCG3ProductionBody extends HCG3GrammarNode {
     type: "body",
-    reduce_function?: HCG3Function;
+    reduce_function?: HCG3Function | HCGLocalFunctionRef | HCGENVFunctionRef;
     sym: HCG3Symbol[];
     FORCE_FORK: boolean;
     id: number;
     production?: HCG3Production;
-
     length?: number;
     excludes?: TokenSymbol[][][];
     ignore?: TokenSymbol[][];
@@ -96,7 +114,7 @@ export interface HCG3Grammar extends HCG3GrammarNode {
     type: "hc-grammar-3";
     preamble: (HCG3Import | HCG3Ignore)[];
     productions: HCG3Production[];
-    function: HCG3Function[];
+    functions: HCG3ReferencedFunction[];
     imported_grammars: { reference: string, uri: string, grammar: HCG3Grammar; }[];
 
     meta?: {
