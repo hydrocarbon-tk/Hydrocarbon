@@ -73,7 +73,7 @@ export function addLeafStatements(
 
     if (!NO_GOTOS) {
 
-        const goto_ids = new Set(extended_goto_items.map(i => i.getProductionAtSymbol(grammar).id));
+        const goto_ids = new Set(extended_goto_items.filter(i => !i.atEND).map(i => i.getProductionAtSymbol(grammar).id));
 
         for (const goto_leaf of goto_leaves) {
 

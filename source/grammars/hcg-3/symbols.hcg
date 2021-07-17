@@ -77,7 +77,7 @@
 
 <> literal_symbol > 
     \t: ( identifier | g:num ) sym_delimiter? 
-                                                                f:r { { type:"literal", val:""+$2, pos:pos, meta:false } }
+                                                                f:r { { type:"exclusive-literal", val:""+$2, pos:pos, meta:false } }
 
 <> escaped_symbol > 
     \\ ( g:id | g:sym | g:num )(+\" ) sym_delimiter             f:r { { type:"literal", val:$2, pos:pos, meta:false } }

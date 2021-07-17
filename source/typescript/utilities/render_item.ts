@@ -23,7 +23,7 @@ import {
     getProductionFunctionName
 } from "./code_generating.js";
 import { rec_glob_lex_name } from "./global_names.js";
-import { Item, itemsToProductions } from "./item.js";
+import { Item, itemsToProductionIDs } from "./item.js";
 import { processProductionChain } from "./process_production_reduction_sequences.js";
 
 export function renderItemReduction(
@@ -41,6 +41,8 @@ export function renderItemReduction(
         return;
 
     const body = item.body_(grammar);
+
+
 
     if (body.reduce_id >= 0)
         code_node.push(createReduceFunctionSK(item, grammar));
@@ -96,9 +98,9 @@ export function renderItem(
             ({ leaf_node: code, prods, original_prods } = renderItem(call_body, item.increment(), options, false, lexer_name, true, items));
 
 
-            if (IS_TOKEN_PRODUCTION) {
+            if (IS_TOKEN_PRODUCTION)
                 call_body.unshift(sk`convert_prod_to_token(data, prod_start)`);
-            }
+
             const call_name = createBranchFunctionSk(call_body, options);
             const rc = [];
 
@@ -133,9 +135,9 @@ export function renderItem(
                 return renderItem(leaf_expressions, item.increment(), options, false, lexer_name, true);
             }
         } else {
-            original_prods = itemsToProductions([item], grammar);
+            original_prods = itemsToProductionIDs([item], grammar);
 
-            prods = processProductionChain(leaf_expressions, options, itemsToProductions([item], grammar));
+            prods = processProductionChain(leaf_expressions, options, itemsToProductionIDs([item], grammar));
 
             leaf_expressions.push(sk`l.setToken( TokenSymbol, 0, 0 )`);
             leaf_expressions.push(sk`consume(l,data,state)`);
@@ -146,9 +148,9 @@ export function renderItem(
     } else {
         renderItemReduction(leaf_expressions, item, options, false);
 
-        original_prods = itemsToProductions([item], grammar);
+        original_prods = itemsToProductionIDs([item], grammar);
 
-        prods = processProductionChain(leaf_expressions, options, itemsToProductions([item], grammar));
+        prods = processProductionChain(leaf_expressions, options, itemsToProductionIDs([item], grammar));
     }
 
 

@@ -30,7 +30,7 @@ export function buildPeekTransitions(
     offset: number,
     leafHandler: leafHandler = processPeekTransitionLeaves,
     filter_symbols: Symbol[] = const_EMPTY_ARRAY,
-    depth: number = 0,
+    depth: number = 0
 ): TransitionNode[] {
 
     const

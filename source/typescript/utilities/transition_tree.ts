@@ -3,8 +3,21 @@
  * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
  * disclaimer notice.
  */
-import { HCG3Grammar } from "../types/grammar_nodes";
 import { performance } from "perf_hooks";
+import {
+    getSymbolsFromClosure,
+    getUniqueSymbolName,
+    getUnskippableSymbolsFromClosure,
+
+    Sym_Is_A_Generic_Identifier,
+
+    Sym_Is_A_Production,
+    Sym_Is_A_Production_Token,
+    Sym_Is_Defined_Identifier,
+    Sym_Is_EOF,
+    Sym_Is_Exclusive
+} from "../grammar/nodes/symbol.js";
+import { HCG3Grammar } from "../types/grammar_nodes";
 import { Production } from "../types/production";
 import { TokenSymbol } from "../types/symbol";
 import { closure_group, TransitionTreeNode } from "../types/transition_tree_nodes";
@@ -12,17 +25,6 @@ import { getClosure, getFollowClosure } from "./closure.js";
 import { getFollow } from "./follow.js";
 import { Item } from "./item.js";
 import { getProductionClosure } from "./production.js";
-import {
-    getSymbolsFromClosure,
-    getUniqueSymbolName,
-    getUnskippableSymbolsFromClosure,
-    Symbols_Occlude,
-    Sym_Is_A_Generic_Identifier,
-    Sym_Is_A_Generic_Type,
-    Sym_Is_A_Production,
-    Sym_Is_A_Production_Token,
-    Sym_Is_EOF
-} from "../grammar/nodes/symbol.js";
 
 /**
  * Givin a set of root items, return a tree of nodes where each node represents a
@@ -32,7 +34,7 @@ import {
  * Default depth is 1.
  */
 export function getTransitionTree(
-    grammar: Grammar,
+    grammar: HCG3Grammar,
     root_items: Item[],
     lr_transition_items: Item[],
     max_tree_depth = 1,
@@ -92,32 +94,44 @@ export function getTransitionTree(
         max_depth = depth;
 
     const
-        groups = closures.flatMap(cg => getClosureGroups(grammar, cg, lr_transition_items)).group(
-            (cg, cgs) => {
-                for (const { sym } of cgs)
-                    //if (doSymbolsOcclude(cg.sym, sym)) {
-                    //    const char = cg.sym.val[0];
-                    //    if (!occluders.has(char))
-                    //        occluders.set(char, "!---occluders" + occluders.size);
-                    //    return occluders.get(char);
-                    //}
-                    return getUniqueSymbolName(cg.sym);
-            }
-        ),
+        closure_groups = closures.flatMap(cg => getClosureGroups(grammar, cg, lr_transition_items)),
+
+        id_closure_groups = closure_groups.filter(g => Sym_Is_A_Generic_Identifier(g.sym)).setFilter(s => s.item_id),
+
+        groups = closure_groups.group(cg => getUniqueSymbolName(cg.sym)),
+
         tree_nodes: TransitionTreeNode[] = [];
 
     for (const group of groups) {
+
+        const INCLUDE_GENERIC_ID =
+            Sym_Is_Defined_Identifier(group[0].sym)
+            &&
+            !Sym_Is_Exclusive(group[0].sym)
+            &&
+            id_closure_groups.length > 0;
+
+        if (INCLUDE_GENERIC_ID) {
+            group.push(...id_closure_groups);
+        };
 
         let next = [];
 
         const
             unskippable = group.flatMap(g => g.unskippable),
+
             sym = group[0].sym,
+
             new_roots = group.map(cg => cg.index).setFilter().map(i => root_items[i]),
+
             progress = new_roots.length != len,
-            quit = !progress && (depth - last_progress) >= Math.max(max_tree_depth - depth, max_no_progress),
+
+            quit = (depth - last_progress) >= Math.max(max_tree_depth - depth, max_no_progress),
+
             closure = group.filter(g => g.final == 0).flatMap(g => g.closure).filter(i => i.offset > 0).setFilter(i => i.id),
+
             starts = group.flatMap(g => g.starts ?? []).setFilter(i => i.id),
+
             curr_progress = progress ? depth : last_progress;
 
         if (progress)
@@ -162,7 +176,7 @@ export function getTransitionTree(
             closure,
             roots: new_roots,
             starts,
-            next: progress ? next : [],
+            next: next,
             final_count: group.reduce((r, c) => c.final + r, 0)
         });
     }
@@ -213,30 +227,27 @@ function getClosureGroups(
                     group.push({ sym, index, item_id: item.decrement().id, unskippable, closure: closure.slice(0, 1), final: final + 2 });
                 }
             }
-        } else if (!Sym_Is_A_Production(sym) && !Sym_Is_A_Production_Token(sym)) {
+        } else if (Sym_Is_A_Production_Token(sym)) {
 
-            let syms = [sym];
+            for (const new_item of getProductionClosure(sym.val, grammar, true)) {
 
-            if (Sym_Is_A_Production_Token(sym))
-                syms = <TokenSymbol[]>getSymbolsFromClosure(getProductionClosure(sym.val, grammar, true), grammar);
+                const new_sym = new_item.sym(grammar);
 
+                if (!Sym_Is_A_Production(new_item.sym(grammar))) {
 
-            for (const sym of syms) {
-
-                const new_closure = [];
-
-                new_closure.push(...incrementWithClosure(grammar, item, null, true));
-
-                group.push({ sym, index: index, item_id: item.id, unskippable, closure: new_closure.setFilter(i => i.id), final: final, starts: starts ? starts : [item] });
+                    const new_closure = new_item.increment() ? getClosure([new_item.increment()], grammar, true) : [new_item.increment()];
+                    group.push({ sym: new_sym, index: index, item_id: item.id, unskippable, closure: new_closure.setFilter(i => i.id), final: final, starts: starts ? starts : [item] });
+                }
             }
+        } else if (!Sym_Is_A_Production(sym)) {
+
+            const new_closure = incrementWithClosure(grammar, item, null);
+            group.push({ sym, index: index, item_id: item.id, unskippable, closure: new_closure.setFilter(i => i.id), final: final, starts: starts ? starts : [item] });
         }
     }
     return group;
 }
-function incrementWithClosure(grammar: HCG3Grammar, item: Item, prod: Production, AUTO_INCREMENT: boolean = false): Item[] {
-
-    if (AUTO_INCREMENT || item.getProductionAtSymbol(grammar).id == prod.id)
-        return getClosure([item.increment()], grammar);
-
-    return [item];
+function incrementWithClosure(grammar: HCG3Grammar, item: Item, prod: Production): Item[] {
+    return getClosure([item.increment()], grammar, true);
 }
+

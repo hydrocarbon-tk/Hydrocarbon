@@ -6,7 +6,7 @@
 import { SKExpression } from "../skribble/types/node";
 import { RenderBodyOptions } from "../types/render_body_options";
 
-import { getGotoItems, Item, itemsToProductions } from "./item.js";
+import { getGotoItems, Item, itemsToProductionIDs } from "./item.js";
 import { renderItemReduction } from "./render_item.js";
 
 export function processProductionChain(
@@ -35,7 +35,7 @@ export function processProductionChain(
         while (active_items.length == 1 && active_items.every(i => i.len == 1)) {
             prod[0] = active_items[0].getProduction(grammar).id;
             renderItemReduction(expression_block, active_items[0], options, false);
-            active_items = getGotoItems(grammar, itemsToProductions(active_items, grammar), goto_items);
+            active_items = getGotoItems(grammar, itemsToProductionIDs(active_items, grammar), goto_items);
         }
     }
     /*

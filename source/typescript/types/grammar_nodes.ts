@@ -211,6 +211,23 @@ export interface HCG3LiteralSymbol extends HCG3SymbolNode {
 
 }
 
+export interface HCG3ExclusiveLiteralSymbol extends HCG3SymbolNode {
+    type: "exclusive-literal";
+
+    /**
+     * Size of the character sequence in UTF8 encoding
+     */
+    byte_length?: number;
+
+    /**
+     * If the byte_length is more than, then this is the offset of the 
+     * character sequence within the character lookup table.
+     */
+    byte_offset?: number;
+    meta: false;
+
+}
+
 export interface HCG3ProductionTokenSymbol extends HCG3SymbolNode {
     type: "production_token";
     name: string;
@@ -275,6 +292,7 @@ export type HCG3Symbol = HCG3BasicSymbol
     | HCG3EOFSymbol
     | HCG3EmptySymbol
     | HCG3GeneratedSymbol
+    | HCG3ExclusiveLiteralSymbol
     | HCG3LiteralSymbol
     | HCG3ProductionTokenSymbol
     | HCG3ProductionSymbol

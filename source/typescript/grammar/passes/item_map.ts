@@ -29,7 +29,7 @@ type ItemMapVariables = {
     }[];
 };
 
-export function buildItemMaps(grammar: HCG3Grammar, productions: HCG3Production[] = grammar.productions ?? grammar) {
+export function buildItemMaps(grammar: HCG3Grammar, productions: HCG3Production[] = grammar.productions) {
 
     /////////////////////////////////////////////////////////////
     ensureGrammarHasItemMap(grammar);
@@ -45,9 +45,6 @@ export function buildItemMaps(grammar: HCG3Grammar, productions: HCG3Production[
 
     /////////////////////////////////////////////////////////////
     addItemMapsToGrammar(item_maps_in_process, grammar);
-
-    /////////////////////////////////////////////////////////////
-    convertItemMapClosureItemsToStrings(item_maps_in_process, grammar);
 
     /////////////////////////////////////////////////////////////
     processFollowSymbols(grammar, productions);
@@ -70,6 +67,7 @@ function getItemMapVariables(grammar: HCG3Grammar, productions: HCG3Production[]
         item_maps_in_process: ItemMapEntry[] = productions.flatMap((p) => {
 
             const array_of_item_maps = getStartItemsFromProduction(p).map(item => {
+
 
                 const out_syms: IntermediateItemMapEntry[] = [];
 
@@ -97,7 +95,6 @@ function getItemMapVariables(grammar: HCG3Grammar, productions: HCG3Production[]
                         reset_sym,
                         excludes: b.excludes[item.offset] ?? [],
                         rank: item.offset,
-                        // depth: depth,
                         hash: "",
                         follow: new Set,
                         skippable: null,
@@ -217,19 +214,18 @@ function addFollowInformation(item: Item, grammar: HCG3Grammar, check_set: Set<s
 }
 
 export function getItemMapEntry(grammar: HCG3Grammar, item_id: string): ItemMapEntry {
-    if (!grammar.item_map.has(item_id)) {
+
+    if (!grammar.item_map.has(item_id))
         return null;
-        grammar.item_map.set(item_id, <ItemMapEntry>{
-            item: null,
-            closure: [],
-            containing_items: new Set,
-            //depth: Infinity
-        });
-    }
 
     return grammar.item_map.get(item_id);
 }
-
+/**
+ * Builds the closure of every item 
+ * @param grammar 
+ * @param item_maps_in_process 
+ * @param extant_production_item_maps 
+ */
 function processClosures(
     grammar: HCG3Grammar,
     item_maps_in_process: ItemMapEntry[],
@@ -237,69 +233,109 @@ function processClosures(
 ) {
     let CHANGE = true, pending_item_maps_scratch: ItemMapEntry[] = item_maps_in_process.slice();
 
-    while (CHANGE || pending_item_maps_scratch.length > 0) {
+    for (const item_map of pending_item_maps_scratch) {
 
-        CHANGE = false;
+        const { item, excludes } = item_map;
 
-        let pending_item_maps = pending_item_maps_scratch.slice();
+        let productions = new Set();
 
-        pending_item_maps_scratch.length = 0;
+        const pending_items = [item];
 
-        for (const item_map of pending_item_maps) {
+        const pending_non_token_items = [item];
 
-            const { item, excludes } = item_map;
+        if (!item.atEND) {
 
-            let temp: Item[] = [];
 
-            temp.push(item);
+            for (let i = 0, item = pending_items[i]; i < pending_items.length; item = pending_items[++i]) {
 
-            if (item.atEND) { item_map.closure = temp; continue; };
+                let sym = item.sym(grammar);
 
-            const sym = item.sym(grammar);
+                if (Sym_Is_A_Production(sym)/* && !Sym_Is_A_Production_Token(sym)*/) {
 
-            if (Sym_Is_A_Production(sym) /*&& !Sym_Is_A_Production_Token(sym)*/) {
-                const prod_id = sym.val;
-                const existing_items = new Set();
+                    const prod_id: number = <number>sym.val;
 
-                for (const item_map of extant_production_item_maps[prod_id].item_maps) {
-                    for (const item of item_map.closure) {
-                        if (existing_items.has(item.id))
-                            continue;
-                        temp.push(item);
-                        existing_items.add(item.id);
+                    if (productions.has(prod_id))
+                        continue;
+
+                    productions.add(prod_id);
+
+                    for (const { item } of (extant_production_item_maps[prod_id].item_maps)) {
+
+                        pending_items.push(item);
                     }
                 }
             }
-
-            let new_hash = temp.map(i => i.id).setFilter().sort().join("");
 
             for (const exclude of excludes) {
 
-                outer: for (let i = 0; i < temp.length; i++) {
-                    let itm = Item.fromArray(<Item>temp[i]);
-                    if (itm.length < exclude.length)
+                outer: for (let i = 0; i < pending_items.length; i++) {
+
+                    let item = Item.fromArray(pending_items[i]);
+
+                    if (item.length < exclude.length)
                         continue;
-                    itm[2] = exclude.length - 1;
+
+                    item[2] = exclude.length - 1;
 
                     for (let i = exclude.length - 1; i >= 0; i--) {
-                        const sym = itm.sym(grammar);
+                        const sym = item.sym(grammar);
                         if (getUniqueSymbolName(sym) != getUniqueSymbolName(exclude[i])) {
                             continue outer;
                         }
-                        itm = itm.decrement();
+                        item = item.decrement();
                     }
-                    temp.splice(i--, 1);
+                    pending_items.splice(i--, 1);
                 }
             }
 
-            if (item_map.hash != new_hash)
-                pending_item_maps_scratch.push(item_map);
-            else
-                CHANGE = true;
+            productions = new Set;
 
-            item_map.closure = temp;
-            item_map.hash = new_hash;
+            for (let i = 0, item = pending_non_token_items[i]; i < pending_non_token_items.length; item = pending_non_token_items[++i]) {
+
+                let sym = item.sym(grammar);
+
+                if (Sym_Is_A_Production(sym) && !Sym_Is_A_Production_Token(sym)) {
+
+                    const prod_id: number = <number>sym.val;
+
+                    if (productions.has(prod_id))
+                        continue;
+
+                    productions.add(prod_id);
+
+                    for (const { item } of (extant_production_item_maps[prod_id].item_maps)) {
+
+                        pending_non_token_items.push(item);
+                    }
+                }
+            }
+
+            for (const exclude of excludes) {
+
+                outer: for (let i = 0; i < pending_non_token_items.length; i++) {
+
+                    let item = Item.fromArray(pending_non_token_items[i]);
+
+                    if (item.length < exclude.length)
+                        continue;
+
+                    item[2] = exclude.length - 1;
+
+                    for (let i = exclude.length - 1; i >= 0; i--) {
+                        const sym = item.sym(grammar);
+                        if (getUniqueSymbolName(sym) != getUniqueSymbolName(exclude[i])) {
+                            continue outer;
+                        }
+                        item = item.decrement();
+                    }
+                    pending_non_token_items.splice(i--, 1);
+                }
+            }
         }
+
+        item_map.closure = pending_items.map(i => i.id).setFilter();
+        item_map.non_token_closure = pending_non_token_items.map(i => i.id).setFilter();
+        item_map.hash = item_map.closure.sort().join("");
     }
 }
 
@@ -358,22 +394,10 @@ function addPositionalSymbolId(grammar: HCG3Grammar, production: HCG3Production)
 
 
 function addItemMapsToGrammar(item_maps_in_process: ItemMapEntry[], grammar: HCG3Grammar) {
+
     for (const i of item_maps_in_process) grammar.item_map.set(i.item.id, i);
 }
 
-function convertItemMapClosureItemsToStrings(item_maps_in_process: ItemMapEntry[], grammar: HCG3Grammar) {
-    for (const item_map of item_maps_in_process) {
-
-        const { item } = item_map, item_id = item.id;
-
-        //Convert items to their string identifier to be more data friendly when transferring to workers. 
-        item_map.closure = (<Item[]><any>item_map.closure).map(i => i.id).setFilter();
-
-        //for (const sub_item_id of item_map.closure)
-        //    if (item_id !== sub_item_id)
-        //        getItemMapEntry(grammar, sub_item_id).containing_items.add(item_id);
-    }
-}
 
 function processFollowSymbols(grammar: HCG3Grammar, productions: HCG3Production[]) {
     const check_set: Set<string>[] = (grammar.productions ?? grammar).map(() => new Set());
@@ -407,12 +431,6 @@ function processSkippedSymbols(grammar: HCG3Grammar, item_maps_in_process: ItemM
 
         item_map.skippable = new Set(
             standard_skips
-                .filter(i => {
-                    //if (Sym_Is_A_Production_Token(i) && (item_map.breadcrumbs.has(getProductionID(i, grammar)))) {
-                    //    return false;
-                    //}
-                    return true;
-                })
                 .map(getSymbolName)
                 .filter(i => !item_map.reset_sym.includes(i))
                 .filter(i => !first.has(i))

@@ -3,7 +3,7 @@
  * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
  * disclaimer notice.
  */
-import { HCG3EmptySymbol, HCG3EOFSymbol, HCG3EOPSymbol, HCG3GeneratedSymbol, HCG3LiteralSymbol, HCG3ProductionSymbol, HCG3ProductionTokenSymbol } from "./grammar_nodes";
+import { HCG3EmptySymbol, HCG3EOFSymbol, HCG3EOPSymbol, HCG3ExclusiveLiteralSymbol, HCG3GeneratedSymbol, HCG3LiteralSymbol, HCG3ProductionSymbol, HCG3ProductionTokenSymbol } from "./grammar_nodes";
 
 
 export interface DefinedNumericSymbol extends HCG3LiteralSymbol { }
@@ -32,6 +32,7 @@ export interface ProductionTokenSymbol extends HCG3ProductionTokenSymbol {
 export type DefinedSymbol =
     | DefinedCharacterSymbol
     | DefinedIdentifierSymbol
+    | HCG3ExclusiveLiteralSymbol
     | DefinedNumericSymbol;
 export type TokenSymbol =
     | DefinedSymbol

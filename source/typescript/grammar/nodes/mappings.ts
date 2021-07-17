@@ -68,6 +68,10 @@ const hcg3_mappings: NodeMappings<HCG3GrammarNode, "type"> = <NodeMappings<HCG3G
             type: "literal",
             template: "\\l: @val m:s"
         },
+        {
+            type: "exclusive-literal",
+            template: "\\l: @val m:s"
+        },
 
         {
             type: "production-token",

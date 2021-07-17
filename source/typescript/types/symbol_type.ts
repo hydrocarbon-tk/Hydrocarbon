@@ -5,8 +5,9 @@
  */
 
 export const enum SymbolType {
-    PRODUCTION = "production",
+    PRODUCTION = "sym-production",
     LITERAL = "literal",
+    EXCLUSIVE_LITERAL = "exclusive-literal",
     GENERATED = "generated",
     ESCAPED = "escaped",
     SYMBOL = "symbol",

@@ -12,7 +12,7 @@ import { TransitionNode, TRANSITION_TYPE } from "../../types/transition_node.js"
 import { addItemAnnotationToExpressionList, addSymbolAnnotationsToExpressionList, createBranchFunctionSk, createSkipCallSk, getProductionFunctionName, hashString } from "../../utilities/code_generating.js";
 import { createTransitionTypeAnnotation } from "../../utilities/create_transition_type_annotation.js";
 import { rec_glob_lex_name } from "../../utilities/global_names.js";
-import { Item, itemsToProductions } from "../../utilities/item.js";
+import { Item, itemsToProductionIDs } from "../../utilities/item.js";
 import { processProductionChain } from "../../utilities/process_production_reduction_sequences.js";
 import { renderItem } from "../../utilities/render_item.js";
 
@@ -73,7 +73,7 @@ export function default_resolveResolvedLeaf(item: Item, state: TransitionNode, o
 
             leaf_node = sc;
 
-            original_prods = itemsToProductions([item], grammar);
+            original_prods = itemsToProductionIDs([item], grammar);
 
             prods = processProductionChain(leaf_node, options, original_prods);
 

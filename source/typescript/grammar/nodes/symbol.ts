@@ -36,6 +36,7 @@ export function characterToUTF8(char: string) {
         return `utf8_4(l,${code_point})`;
     }
 }
+
 export function convertSymbolToString(sym: HCG3Symbol) {
     switch (sym.type) {
         case SymbolType.SYMBOL:
@@ -43,6 +44,7 @@ export function convertSymbolToString(sym: HCG3Symbol) {
         case SymbolType.GENERATED:
             return `θ${sym.val}`;
         case SymbolType.LITERAL:
+        case SymbolType.EXCLUSIVE_LITERAL:
             return `τ${sym.val}` + (sym.IS_NON_CAPTURE ? "-ns" : "");
         case SymbolType.EMPTY:
             return `ɛ`;
@@ -56,22 +58,20 @@ export function convertSymbolToString(sym: HCG3Symbol) {
             return sym.val;
     }
 }
+
 export function getSymbolName(sym: HCG3Symbol) {
-    if (!sym)
-        return "";
+
+    if (!sym) return "";
 
     return "[" + (sym.val ?? sym.name) + "]" + sym.type;
 }
+
 export function getUniqueSymbolName(sym: HCG3Symbol, INCLUDE_META: boolean = false) {
     if (!sym)
         return "not-a-symbol";
     return getSymbolName(sym)
         + (sym.DOES_SHIFT ? "----" : "")
         + (sym.IS_NON_CAPTURE && INCLUDE_META ? "-->" : "");
-}
-
-export function Sym_Is_Compound(s: HCG3Symbol): s is DefinedCharacterSymbol {
-    return Sym_Is_Defined_Symbol(s) && s.val.length > 1;
 }
 export function Sym_Is_Not_Consumed(s: HCG3Symbol): boolean {
     return !!s.IS_NON_CAPTURE;
@@ -102,13 +102,8 @@ export function Sym_Is_A_Production_Token(s: HCG3Symbol): s is (ProductionTokenS
 }
 
 export function Sym_Is_A_Terminal(s: HCG3Symbol): s is TokenSymbol {
-    return false == Sym_Is_A_Production(s);
+    return !Sym_Is_A_Production(s);
 }
-
-export function Sym_Is_A_Token(s: HCG3Symbol): s is TokenSymbol {
-    return Sym_Is_A_Terminal(s);
-}
-
 
 export function Sym_Is_An_Assert_Function(s: HCG3Symbol): s is any {
     return false;
@@ -117,10 +112,15 @@ export function Sym_Is_An_Assert_Function(s: HCG3Symbol): s is any {
 export function Sym_Is_A_Generic_Type(s: HCG3Symbol): s is (GeneratedSymbol | EOFSymbol) {
     return (s.type == SymbolType.GENERATED || Sym_Is_EOF(s));
 }
+
 /**
  * Any symbol that is not Generated, an AssertFunction, or a Production
  * @param s
  */
+export function Sym_Is_Exclusive(s: HCG3Symbol): boolean {
+
+    return s.type == SymbolType.EXCLUSIVE_LITERAL;
+}
 
 export function Sym_Is_Defined(s: HCG3Symbol): s is DefinedSymbol {
     return !Sym_Is_A_Production(s) && !Sym_Is_A_Generic_Type(s);
@@ -157,6 +157,7 @@ export function Defined_Sym_Is_An_Identifier(sym: HCG3Symbol): sym is DefinedIde
     const lex = new Lexer(val + "");
     return lex.ty == lex.types.id && lex.tl == val.length;
 }
+
 export function Sym_Is_Not_A_Defined_Identifier(sym: HCG3Symbol): boolean {
     return !Sym_Is_Defined_Identifier(sym);
 }
@@ -173,9 +174,13 @@ export function Sym_Has_Multiple_Characters(sym: HCG3Symbol): boolean {
     return !Sym_Has_Just_One_Character(sym);
 }
 export function Sym_Is_A_Generic_Newline(sym: HCG3Symbol): sym is GeneratedSymbol { return sym.val == "nl" && sym.type == SymbolType.GENERATED; }
+
 export function Sym_Is_A_Generic_Identifier(sym: HCG3Symbol): sym is GeneratedSymbol { return sym.val == "id" && sym.type == SymbolType.GENERATED; }
+
 export function Sym_Is_A_Generic_Symbol(sym: HCG3Symbol): sym is GeneratedSymbol { return sym.val == "sym" && sym.type == SymbolType.GENERATED; }
+
 export function Sym_Is_A_Generic_Number(sym: HCG3Symbol): sym is GeneratedSymbol { return sym.val == "num" && sym.type == SymbolType.GENERATED; }
+
 export function Sym_Is_A_Space_Generic(sym: HCG3Symbol): sym is GeneratedSymbol { return sym.val == "ws"; }
 
 export function getFollowSymbolsFromItems(items: Item[], grammar: Grammar): TokenSymbol[] {
@@ -213,11 +218,11 @@ export function getComplementOfSymbolSets(setA: TokenSymbol[], setB: TokenSymbol
         return !setB.some(b => getUniqueSymbolName(b) == unique_name);
     });
 }
-;
 
 export function getSymbolFromUniqueName(grammar: HCG3Grammar, name: string): HCG3Symbol {
     return grammar.meta.all_symbols.get(name);
 }
+
 export function getRootSym<T = HCG3Symbol>(sym: T, grammar: HCG3Grammar): T {
     if ((<HCG3Symbol><any>sym).type == SymbolType.END_OF_FILE)
         return sym;
@@ -260,6 +265,7 @@ export function Defined_Symbols_Occlude(target: HCG3Symbol, potentially_occludes
 
     return true;
 }
+
 export function Symbols_Are_The_Same(a: HCG3Symbol, b: HCG3Symbol) {
     return getUniqueSymbolName(a) == getUniqueSymbolName(b);
 }

@@ -36,6 +36,12 @@ export class ItemGraphNode {
  */
 export class Item extends Array {
 
+    static fromString(str: string): Item {
+        const array = str.replace("|-", "").split(":").map(i => parseInt(i));
+
+        return Item.fromArray(array);
+    }
+
     static fromArray(array: Array<any>): Item {
 
         if (array instanceof Item) return new Item(array.body, array.len, array.offset);
@@ -103,7 +109,7 @@ export class Item extends Array {
 
     renderUnformattedWithProduction(grammar: HCG3Grammar): string {
         const all_items = [...grammar.item_map.values()].map(e => e.item).filter(i => !i.atEND && i.sym(grammar).type == "sym-production");
-        const closure = this.atEND ? getFollowClosure(getClosure([this], grammar), all_items, grammar) : getClosure([this], grammar);
+        const closure = this.atEND ? getFollowClosure(getClosure([this], grammar, true), all_items, grammar) : getClosure([this], grammar, true);
         const syms = getSymbolsFromClosure(closure, grammar).map(convertSymbolToString).setFilter();
 
 
@@ -182,7 +188,7 @@ export function getGotoItems(grammar: HCG3Grammar, active_productions: number[],
     return out;
 }
 
-export function itemsToProductions(items: Item[], grammar: HCG3Grammar): number[] {
+export function itemsToProductionIDs(items: Item[], grammar: HCG3Grammar): number[] {
     return items.map(i => i.getProduction(grammar).id);
 }
 

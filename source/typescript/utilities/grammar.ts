@@ -220,12 +220,6 @@ export function completeGrammar(grammar: HCG3Grammar, env) {
         switch (s.type) {
             case SymbolType.PRODUCTION:
                 /*Do nothing */ break;
-            case SymbolType.PRODUCTION_ASSERTION_FUNCTION:
-            case SymbolType.PRODUCTION_TOKEN_SYMBOL:
-            case SymbolType.GENERATED:
-            case SymbolType.SYMBOL:
-            case SymbolType.ESCAPED:
-            case SymbolType.LITERAL:
             default:
                 symbols.set(getUniqueSymbolName(s), s);
         }

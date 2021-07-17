@@ -5,7 +5,7 @@
  */
 import { getStartItemsFromProduction } from "../build/function_constructor.js";
 import { HCG3Grammar } from "../types/grammar_nodes.js";
-import { getGotoItems, Item, itemsToProductions } from "./item.js";
+import { getGotoItems, Item, itemsToProductionIDs } from "./item.js";
 import { getProductionID } from "./production.js";
 import { Sym_Is_A_Production_Token } from "../grammar/nodes/symbol.js";
 
@@ -23,7 +23,7 @@ import { Sym_Is_A_Production_Token } from "../grammar/nodes/symbol.js";
  * @param grammar 
  * @param ENTER_TOKEN_PRODUCTIONS 
  */
-export function getClosure(items: Item[], grammar: HCG3Grammar, ENTER_TOKEN_PRODUCTIONS: boolean = false, internal$item_track: Set<string> = new Set): Item[] {
+export function getClosure(items: Item[], grammar: HCG3Grammar, ENTER_TOKEN_PRODUCTIONS: boolean = false): Item[] {
 
     let closure = [];
 
@@ -31,10 +31,16 @@ export function getClosure(items: Item[], grammar: HCG3Grammar, ENTER_TOKEN_PROD
 
         const item_id = item.id;
 
-        closure.push(...grammar.item_map.get(item_id).closure);
+        closure.push(
+            ...(
+                ENTER_TOKEN_PRODUCTIONS
+                    ? grammar.item_map.get(item_id).closure
+                    : grammar.item_map.get(item_id).non_token_closure
+            )
+        );
     }
 
-    closure = closure.setFilter(i => i);
+    closure = closure.setFilter();
 
     return closure.map(i => grammar.item_map.get(i).item);
 }
@@ -46,10 +52,17 @@ export function getClosure(items: Item[], grammar: HCG3Grammar, ENTER_TOKEN_PROD
  * @param grammar 
  * @param productions 
  */
-export function getFollowClosure(closure: Item[], goto_transition_items: Item[], grammar: HCG3Grammar, productions: Set<number> = new Set, internal$item_track: Set<string> = new Set) {
+export function getFollowClosure(
+    closure: Item[],
+    goto_transition_items: Item[],
+    grammar: HCG3Grammar,
+    productions: Set<number> = new Set,
+    internal$item_track: Set<string> = new Set
+) {
+    closure = closure.setFilter(i => i.id);
 
     const new_closure = closure.slice();
-    const prods = itemsToProductions(closure.filter(i => i.atEND), grammar);
+    const prods = itemsToProductionIDs(closure.filter(i => i.atEND), grammar);
 
     for (let prod of prods) {
 
@@ -60,7 +73,7 @@ export function getFollowClosure(closure: Item[], goto_transition_items: Item[],
 
         const items = getGotoItems(grammar, [prod], goto_transition_items).map(i => i.increment());
 
-        const c = getClosure(items, grammar, false, internal$item_track);
+        const c = getClosure(items, grammar, true);
 
         new_closure.push(...getFollowClosure(c, goto_transition_items, grammar, productions, internal$item_track));
     }

@@ -48,8 +48,10 @@ export function yieldGOTOTransitions(options: RenderBodyOptions, completed_produ
                 && production_ids.includes(item.getProductionAtSymbol(grammar).id)
                 && !production_ids.includes(getProductionID(item, grammar))
                 && !nonterm_shift_items.some(i => i.id == item.id)
-            )
+            ) {
+
                 extended_goto_items.push(item);
+            }
         }
 
         nonterm_shift_items = nonterm_shift_items.concat(extended_goto_items).setFilter(i => i.id);

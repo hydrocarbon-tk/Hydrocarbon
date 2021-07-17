@@ -12,7 +12,6 @@ import { createBranchFunctionSk } from "../../utilities/code_generating.js";
 import { getUniqueSymbolName, Sym_Is_A_Production } from "../../grammar/nodes/symbol.js";
 import { createVirtualProductionSequence } from "../function_constructor.js";
 
-const SC = null;
 export function default_resolveUnresolvedLeaves(node: TransitionNode, nodes: TransitionNode[], options: RenderBodyOptions): MultiItemReturnObject {
 
     const

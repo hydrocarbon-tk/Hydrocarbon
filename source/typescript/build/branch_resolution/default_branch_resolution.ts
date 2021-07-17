@@ -7,13 +7,12 @@ import {
     Defined_Symbols_Occlude,
     getSkippableSymbolsFromItems,
     getSymbolName,
-    getUniqueSymbolName, Symbols_Occlude,
+    getUniqueSymbolName,
     Sym_Is_A_Generic_Identifier,
     Sym_Is_A_Generic_Number,
     Sym_Is_A_Generic_Symbol,
     Sym_Is_A_Production,
     Sym_Is_A_Production_Token,
-    Sym_Is_A_Token,
     Sym_Is_Defined_Identifier,
     Sym_Is_Defined_Natural_Number,
     Sym_Is_Defined_Symbol
@@ -46,10 +45,12 @@ export function default_resolveBranches(
     FORCE_ASSERTIONS: boolean = false
 ): SKExpression[] {
 
-    const
+    let
         { grammar, helper: runner } = options,
+
         groups = [...gen],
         end_groups = groups.filter(group => group.transition_types[0] == TRANSITION_TYPE.ASSERT_END),
+
         number_of_end_groups = end_groups.length,
         all_syms = groups.flatMap(({ syms }) => syms).setFilter(getUniqueSymbolName),
 
@@ -81,12 +82,21 @@ export function default_resolveBranches(
 
         if (number_of_end_groups >= 1 && GROUPS_CONTAIN_SYMBOL_AMBIGUITY) {
 
-
             for (const end_group of end_groups) {
 
                 const all_syms = groups.filter(g => g != end_group).flatMap(({ syms }) => syms).setFilter(getUniqueSymbolName);
                 end_group.syms = end_group.syms.filter(s => all_syms.some(a => Defined_Symbols_Occlude(a, s)));
             }
+        } else if (number_of_end_groups == 0) {
+
+            const defaults = groups.filter(g => Group_Allows_Unchecked(g, state, options)).sort((a, b) => b.syms.length - a.syms.length);
+
+            const def = defaults[0];
+
+            if (def) {
+                //  groups = [...groups.filter(g => g != def), def];
+            }
+
         }
 
         createSwitchBlock(options, groups, peek_name, "l", root);
@@ -204,6 +214,7 @@ function createSwitchBlock(
                 type: "block",
                 expressions: code
             })}; break; };`).matches[0]);
+
         }
     }
 
@@ -275,6 +286,8 @@ function createIfElseExpressions(
 
     let previous_transition: TRANSITION_TYPE;
 
+    const last_group_index = groups.filter(g => g.transition_types[0] !== TRANSITION_TYPE.IGNORE).length - 1;
+
     function addIf(_if: SKIf) {
 
         if (last_if) {
@@ -301,7 +314,7 @@ function createIfElseExpressions(
         const
             transition_type: TRANSITION_TYPE = transition_types[0],
             FIRST_SYMBOL_IS_A_PRODUCTION = Sym_Is_A_Production(syms[0]),
-            FIRST_SYMBOL_IS_A_PRODUCTION_TOKEN = false; //Sym_Is_A_Production_Token(syms[0]);
+            FIRST_SYMBOL_IS_A_PRODUCTION_TOKEN = Sym_Is_A_Production_Token(syms[0]);
 
         switch (transition_type) {
 
@@ -338,7 +351,7 @@ function createIfElseExpressions(
                  * Shift has priority over Reduce: if there are defined symbols that 
                  */
 
-                if (i == groups.length - 1) {
+                if (i == last_group_index) {
                     addIf({
                         type: "block",
                         expressions: code
@@ -366,6 +379,10 @@ function createIfElseExpressions(
                 const production = grammar.productions[group.items[0].sym(grammar).val];
 
                 options.called_productions.add(<number>production.id);
+
+
+                if (Sym_Is_A_Production_Token(items[0].sym(grammar)))
+                    code.unshift(sk`convert_prod_to_token(data, prod_start)`);
 
                 const call_name = createBranchFunctionSk(code, options);
                 expressions.push(<SKExpression>sk`pushFN(data, &> ${call_name})`);
@@ -423,9 +440,9 @@ function createIfElseExpressions(
                 }
 
                 if (
-                    i == groups.length - 1
+                    i == last_group_index
                     &&
-                    groups.length > 1
+                    last_group_index > 0
                     &&
                     Group_Allows_Unchecked(group, state, options)
                 ) {
@@ -469,6 +486,8 @@ function Group_Allows_Unchecked(group: TransitionGroup, state: TransitionNode, o
     const [transition_type] = transition_types;
 
     return (
+        transition_type == TRANSITION_TYPE.PEEK_UNRESOLVED
+        ||
         transition_type == TRANSITION_TYPE.PEEK_PRODUCTION_SYMBOLS
         ||
         transition_type == TRANSITION_TYPE.ASSERT_PRODUCTION_SYMBOLS
@@ -480,8 +499,7 @@ function Group_Allows_Unchecked(group: TransitionGroup, state: TransitionNode, o
         )
     )
         &&
-        (options.scope != "GOTO"
-            || state.offset > 1);
+        (options.scope != "GOTO" || state.offset > 1);
 }
 
 
@@ -495,10 +513,8 @@ function createIfStatementTransition(
     ShiftComment: string = ""
 ): SKIf {
 
-    const { grammar, helper: runner } = options;
-    let { syms, items, LAST, FIRST, transition_types } = group;
-
-    const transition_type: TRANSITION_TYPE = transition_types[0];
+    const { grammar } = options;
+    let { syms } = group;
 
     let if_stmt = <SKIf>sk`if ${boolean_assertion}: ${(<SKBlock>{
         type: "block",
@@ -507,20 +523,8 @@ function createIfStatementTransition(
 
         }`;
 
-    //addSymbolAnnotationsToExpressionList(syms, grammar, modified_code, ShiftComment);
-
-    const SKIP_BOOL_EXPRESSION = (!FORCE_ASSERTIONS || transition_type == TRANSITION_TYPE.ASSERT_END)
-        && (LAST && !FIRST)
-        && (
-            // transition_type == TRANSITION_TYPE.ASSERT_PRODUCTION_SYMBOLS
-            //|| transition_type == TRANSITION_TYPE.ASSERT
-            //|| transition_type == TRANSITION_TYPE.PEEK_PRODUCTION_SYMBOLS
-            //|| transition_type == TRANSITION_TYPE.PEEK_UNRESOLVED
-            //|| transition_type == TRANSITION_TYPE.ASSERT_PEEK
-            //|| transition_type == TRANSITION_TYPE.ASSERT_PEEK_VP
-            //|| 
-            transition_type == TRANSITION_TYPE.ASSERT_END
-        );
+    if (options.helper.ANNOTATED)
+        addSymbolAnnotationsToExpressionList(syms, grammar, modified_code, ShiftComment);
 
     return if_stmt;
 }

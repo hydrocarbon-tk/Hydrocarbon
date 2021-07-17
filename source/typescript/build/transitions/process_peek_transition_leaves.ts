@@ -19,11 +19,11 @@ import {
     yieldTransitions
 } from "./yield_transitions.js";
 
-
+//*
 export function processPeekTransitionLeaves(
     node: TransitionNode,
     options: RenderBodyOptions,
-    offset: number = 0,
+    offset: number = 0
 ): void {
 
     const { grammar } = options;
@@ -33,7 +33,6 @@ export function processPeekTransitionLeaves(
         if (Items_From_Same_Production_Allow_Production_Call(node, options, offset))
 
             throw new Error("This case should have been handled in yieldNodes");
-
 
         if (node.items.length > 1) {
 
@@ -51,20 +50,25 @@ export function processPeekTransitionLeaves(
 
             else if (No_Matching_Extended_Goto_Item_In_State_Closure(node, options))
 
+
                 if (State_Closure_Allows_Production_Call(node, options))
 
                     convertStateToClosureProductionCall(node, offset);
 
-                else
+                else if (offset == 0) {
                     addRegularYieldNode(node, getClosure(node.closure, grammar), options, offset + 1);
+                } else
+
+                    addUnresolvedNode(node, options, offset);
 
             else
 
                 if (
                     Every_Leaf_Of_TransitionTree_Contain_One_Root_Item(
-                        getTransitionTree(grammar, node.items, options.global_production_items/*options.goto_items*/, 10, 8).tree_nodes[0]
+                        getTransitionTree(grammar, node.items, options.global_production_items, 10, 8).tree_nodes[0]
                     )
                 )
+
 
                     addRegularYieldNode(node, node.items, options, offset);
 
@@ -72,8 +76,7 @@ export function processPeekTransitionLeaves(
 
                     addUnresolvedNode(node, options, offset);
 
-        }
-        else
+        } else
 
             convertPeekStateToSingleItemNode(node, options, offset);
 
@@ -177,8 +180,6 @@ function addUnresolvedNode(node: TransitionNode, options: RenderBodyOptions, off
         } else {
 
             for (const items_with_same_symbol of filtered_items.group(i => getUniqueSymbolName(i.sym(options.grammar)))) {
-
-
 
 
                 const unresolved_leaf_node = createTransitionNode(items_with_same_symbol, node.symbols, TRANSITION_TYPE.ASSERT, offset, node.peek_level, true);

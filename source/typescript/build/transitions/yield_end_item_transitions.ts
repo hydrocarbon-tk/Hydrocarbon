@@ -11,7 +11,7 @@ import { TransitionNode, TRANSITION_TYPE } from "../../types/transition_node.js"
 import { getClosure, getFollowClosure } from "../../utilities/closure.js";
 import { const_EMPTY_ARRAY } from "../../utilities/const_EMPTY_ARRAY.js";
 import { getFollow } from "../../utilities/follow.js";
-import { getGotoItems, Item, itemsToProductions } from "../../utilities/item.js";
+import { getGotoItems, Item, itemsToProductionIDs } from "../../utilities/item.js";
 import { processProductionChain } from "../../utilities/process_production_reduction_sequences.js";
 import { getTransitionTree } from "../../utilities/transition_tree.js";
 import { createTransitionNode } from "./create_transition_node.js";
@@ -34,8 +34,8 @@ export function yieldEndItemTransitions(end_items: Item[], options: RenderBodyOp
     if (goto_items.length > 0 && end_items.length > 1) {
 
         const
-            original_prods = itemsToProductions(end_items, grammar),
-            prods = end_items.map(i => processProductionChain([], options, itemsToProductions([i], grammar))[0]),
+            original_prods = itemsToProductionIDs(end_items, grammar),
+            prods = end_items.map(i => processProductionChain([], options, itemsToProductionIDs([i], grammar))[0]),
             active_items = getGotoItems(grammar, prods, goto_items).map(i => i.increment());
 
         if (active_items.length == 1) {
@@ -53,7 +53,6 @@ export function yieldEndItemTransitions(end_items: Item[], options: RenderBodyOp
             default_end_items = end_items;
 
         } else {
-
 
             let { tree_nodes } = getTransitionTree(
                 grammar,
