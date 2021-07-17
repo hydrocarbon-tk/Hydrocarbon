@@ -9,7 +9,7 @@ import {
 import { default as URI, default as URL } from "@candlelib/uri";
 import { buildRecognizer } from "../build/build.js";
 import { compileGrammarFromURI } from "../grammar/compile.js";
-import { generateJSParser, generateWebAssemblyParser, writeParserScriptFile } from "../render/render.js";
+import { generateJSParser, generateTSParser, generateWebAssemblyParser, writeParserScriptFile } from "../render/render.js";
 
 await URL.server();
 
@@ -25,7 +25,6 @@ async function CheckForSDK(args): Promise<boolean> {
 
         const version_number = emcc_version.match(/\d+\.\d+\.\d+/g)[0]?.split(".").map(s => parseInt(s));
 
-
         if (version_number[0] < 2)
             console.log(`emcc version ${version_number.join(".")} too old`);
         else {
@@ -39,7 +38,7 @@ async function CheckForSDK(args): Promise<boolean> {
 
         try {
             if (await emsdk_env_path.fetchText()) {
-                console.log("Local installation found");
+                console.log("Local EMSDK installation found");
                 HAVE_VERSION = true;
             }
         } catch (e) {
@@ -198,8 +197,8 @@ addCLIConfig("compile", {
 
             const generator = (recognizer.value == "wasm")
                 ? generateWebAssemblyParser
-                : (recognizer.value == "ts")
-                    ? generateJSParser
+                : (recognizer.value == "ts" || output_path.ext == "ts")
+                    ? generateTSParser
                     : generateJSParser;
 
 
