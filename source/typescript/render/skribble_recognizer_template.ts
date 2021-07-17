@@ -794,7 +794,7 @@ export function createExternFunctions(
     
     fn dispatch:void(data:__ParserData$ref, production_index:u32){
         match production_index :
-            ${rd_functions.filter(f => f.RENDER && grammar.productions[f.id].ROOT_PRODUCTION)
+            ${rd_functions.filter(f => f.RENDER && grammar.productions[f.id].IS_ENTRY)
             .map((fn, i) => {
                 const name = getProductionFunctionNameSk(grammar.productions[fn.id], grammar);
                 const closure = getProductionClosure(0, grammar);

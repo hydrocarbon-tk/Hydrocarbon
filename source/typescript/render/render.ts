@@ -3,7 +3,6 @@
  * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
  * disclaimer notice.
  */
-import { getPackageJsonObject } from "@candlelib/paraffin";
 import URI from "@candlelib/uri";
 import { Helper } from "../build/helper.js";
 import { skRenderAsCPP, skRenderAsJavaScript } from "../skribble/skribble.js";
@@ -93,11 +92,11 @@ export async function generateWebAssemblyParser(
 
         completer_script = renderJavaScriptReduceFunctionLookupArray(grammar),
 
-        { package_dir } = await getPackageJsonObject(URI.getEXEURL(import.meta)),
         dir = URI.resolveRelative("./hcg_temp", tmpdir() + "/temp"),
         cpp_file = URI.resolveRelative("./temp.cpp", dir),
         wasm_file = URI.resolveRelative("./temp.wasm", dir),
-        script_file = URI.resolveRelative("./scripts/build.sh", package_dir);
+        package_dir = URI.resolveRelative("../../../../", URI.getEXEURL(import.meta).dir),
+        script_file = URI.resolveRelative("./scripts/build.sh", package_dir.dir);
 
     await fsp.mkdir(dir + "", { recursive: true });
 
@@ -105,7 +104,7 @@ export async function generateWebAssemblyParser(
 
     child_process.execFileSync(script_file + "", [cpp_file + "", wasm_file + ""], {
         shell: false,
-        cwd: package_dir,
+        cwd: package_dir + "",
     });
 
     const wasm_data = new Buffer(await wasm_file.fetchBuffer());
@@ -129,12 +128,11 @@ export async function generateWebAssemblyParser(
     
     const reduce_functions = ${completer_script};
     
-    ${export_expression_preamble} ParserFactory(reduce_functions, wasm_recognizer);
+    ${export_expression_preamble} ParserFactory(reduce_functions, wasm_recognizer, undefined, ${createEntryList(grammar)});
     `;
 }
 /**
  * Constructs a parser string based on grammar and it's build artifacts.
- * 
  * 
  * @param grammar 
  * @param recognizer_functions 
@@ -172,8 +170,55 @@ export async function generateJSParser(
 
     const reduce_functions = ${completer_script};
 
-    ${export_expression_preamble} ParserFactory(reduce_functions, undefined, recognizer_initializer);
+    ${export_expression_preamble} ParserFactory(reduce_functions, undefined, recognizer_initializer,${createEntryList(grammar)});
     `;
+}
+
+/**
+ * Constructs a parser string based on grammar and it's build artifacts.
+ * 
+ * @param grammar 
+ * @param recognizer_functions 
+ * @param meta 
+ * @param hydrocarbon_import_path - Optional: Adds an import line for Hydrocarbon~ParserFactory
+ *  to the top of script. The <hydrocarbon_import_path> will be used to assign the correct
+ *  import path from 
+ * @returns 
+ */
+export async function generateTSParser(
+    grammar: HCG3Grammar,
+    recognizer_functions: RDProductionFunction[],
+    meta: Helper,
+    hydrocarbon_import_path: string = "@candlelib/hydrocarbon",
+    export_expression_preamble: string = "export default"
+): Promise<string> {
+
+    const { completer_script, recognizer_script } = buildJSParserStrings(
+        grammar, recognizer_functions, meta
+    );
+
+    return `
+    ${hydrocarbon_import_path ? `import { ParserFactoryNext as ParserFactory } from "${hydrocarbon_import_path}"` : ""};
+    const recognizer_initializer = (()=>{
+        ${recognizer_script};
+
+        return {
+            init_data, 
+            get_next_command_block,
+            init_table,
+            get_fork_pointers,
+            recognize 
+        };
+    });
+
+    const reduce_functions = ${completer_script};
+
+    ${export_expression_preamble} ParserFactory<any, ${createEntryList(grammar)}>(reduce_functions, undefined, recognizer_initializer,${createEntryList(grammar)});
+    `;
+}
+
+function createEntryList(grammar: HCG3Grammar) {
+    return "{" + grammar.productions.filter(p => p.IS_ENTRY).map((p, i) => p.name.replace(/\:\:/, "_") + ":" + i).join(",") + "}";
 }
 
 /**

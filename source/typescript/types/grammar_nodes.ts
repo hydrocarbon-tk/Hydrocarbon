@@ -69,6 +69,11 @@ export interface HCG3ProductionNode extends HCG3GrammarNode {
      * A production that represents the root of the grammar or sub-grammar. 
      */
     ROOT_PRODUCTION?: boolean;
+
+    /**
+     *  The production represents an entrypoint into the grammar / sub-grammar. 
+     */
+    IS_ENTRY: boolean;
 }
 export interface HCG3GeneralProduction extends HCG3ProductionNode {
     type: "production",

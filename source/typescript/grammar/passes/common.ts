@@ -27,6 +27,40 @@ export const render = (grammar_node) => {
     return experimentalRender(grammar_node, hcg3_mappings, renderers);
 };
 
+function assignEntryProductions(grammar: HCG3Grammar, production_lookup) {
+    let i = 0;
+
+    let HAVE_ENTRY_PRODUCTIONS = false;
+    //*
+    for (const production of grammar.productions) {
+
+        if (production.name == "__entries__") {
+
+            for (const body of production.bodies) {
+
+                const [sym] = body.sym;
+
+                if (sym.type == "sym-production") {
+
+                    production_lookup.get(sym.name).IS_ENTRY = true;
+
+                    HAVE_ENTRY_PRODUCTIONS = true;
+                }
+            }
+
+            grammar.productions.splice(i, 1);
+
+            break;
+        }
+        i++;
+    }
+    //*/
+
+    if (!HAVE_ENTRY_PRODUCTIONS)
+        grammar.productions[0].IS_ENTRY = true;
+
+}
+
 /**
  * Finds all unique symbols types amongst production and ignore symbols and
  * adds them to the grammar's meta.all_symbols Map, keyed by the result 

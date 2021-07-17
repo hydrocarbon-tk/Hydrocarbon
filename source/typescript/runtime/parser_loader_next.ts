@@ -5,21 +5,23 @@
  */
 import { Lexer } from "@candlelib/wind";
 import { fillByteBufferWithUTF8FromString } from "./utf8.js";
-import { HCGProductionFunction } from "../types/parser";
+import { HCGParser, HCGProductionFunction } from "../types/parser";
 import { ForkData, RecognizeInitializer } from "../types/parser_data";
 import { initializeUTFLookupTableNew } from "./parser_memory_new.js";
 import { loadWASM } from "./wasm_loader_next.js";
 import { ParserEnvironment } from "../types/parser_environment.js";
-import { HCGParser } from "@candlelib/hydrocarbon/build/types/types/parser";
 
-export async function ParserFactory<T>(
+export async function ParserFactory<T, R = {}>(
 
     functions: HCGProductionFunction<T>[],
 
     wasm_binary_string?: string,
 
     js_recognizer_loader?: () => RecognizeInitializer,
-): Promise<HCGParser> {
+
+    entry_name_list: R = <R><any>{}
+
+): Promise<HCGParser<T, R>> {
 
     let { recognize, init_data, init_table, get_fork_pointers, get_next_command_block }: RecognizeInitializer = <any>{};
 
@@ -40,7 +42,7 @@ export async function ParserFactory<T>(
 
     initializeUTFLookupTableNew(init_table());
 
-    return function (str: string, env: ParserEnvironment = {}, production_id = 0) {
+    const out = function (str: string, env: ParserEnvironment = {}, production_id = 0) {
 
         const
             str_len = str.length,
@@ -61,7 +63,6 @@ export async function ParserFactory<T>(
 
         }
 
-
         let stack = [],
             pos = [],
             block = get_next_command_block(fork),
@@ -70,7 +71,7 @@ export async function ParserFactory<T>(
             high = block[short_offset++],
             limit = 1000000;
 
-
+        const trace = [];
         while (limit-- > 0) {
 
             let low = high;
@@ -79,9 +80,8 @@ export async function ParserFactory<T>(
 
             high = block[short_offset++];
 
-            //console.log(stack);
-
             const rule = low & 3;
+
             switch (rule) {
                 case 0: //REDUCE;
                     {
@@ -105,9 +105,11 @@ export async function ParserFactory<T>(
                         pos.length = pos.length - len + 1;
 
 
+
                     } break;
 
                 case 1: { //SHIFT;
+
                     let length = (low >>> 3) & 0x1FFF;
 
                     if (low & 4) {
@@ -120,6 +122,7 @@ export async function ParserFactory<T>(
                     stack.push(str.slice(token_offset, token_offset + length));
                     pos.push({ off: token_offset, tl: length });
                     token_offset += length;
+
                 } break;
 
                 case 2: { //SKIP
@@ -132,6 +135,7 @@ export async function ParserFactory<T>(
                     }
 
                     token_offset += length;
+
                 }
             }
 
@@ -141,8 +145,16 @@ export async function ParserFactory<T>(
             }
         }
 
+
         return { result: stack };
     };
+
+    let i = 0;
+
+    for (const key in entry_name_list)
+        out[key] = entry_name_list[key];
+
+    return out;
 };
 
 function throwForkError(str: string, fork: ForkData) {

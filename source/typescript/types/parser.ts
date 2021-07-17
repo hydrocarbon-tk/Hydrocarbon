@@ -3,17 +3,15 @@
  * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
  * disclaimer notice.
  */
-import { ParserEnvironment } from "../runtime";
-import { GrammarParserEnvironment } from "./grammar_compiler_environment";
 
-export interface HCGParser<T = any> {
+import { GrammarParserEnvironment } from "./grammar_compiler_environment";
+import { ParserEnvironment } from "./parser_environment";
+
+export type HCGParser<T = any, R = any> = {
     (input: string, env: GrammarParserEnvironment): {
-        FAILED: boolean;
         result: T[];
-        action_length: number;
-        error_message: string;
     };
-}
+} & R;
 
 export interface HCGTokenPosition {
     line: number,
