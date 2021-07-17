@@ -291,7 +291,7 @@ export const cpp_mappings: NodeMappings<SKNode, "type"> = <NodeMappings<SKNode, 
         <NodeMapping<SKNamespace>>{
             type: "namespace",
             child_keys: ["statements"],
-            template: "ns m:s @name \\{@statements...[\\; o:n] \\}"
+            template: "ns m:s @name \\{@statements...[\\; o:n] \\; \\}"
         },
         <NodeMapping<SKPrimitiveDeclaration>>{
             type: "declaration",
