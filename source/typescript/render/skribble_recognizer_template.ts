@@ -136,15 +136,6 @@ fn createState:u32 (ENABLE_STACK_OUTPUT:u32) {
     [pub] fn sync:void(ptr:__ParserData$ptr){
         if (ptr) == this : return;
     }
-
-    [pub] fn ParserData:destructor(){
-        
-        %%%% (input);
-            
-        %%%% (rules);
-        
-        **** ( lexer);
-    }
 }
 
 [pub wasm]  cls ParserDataBuffer{
@@ -815,8 +806,28 @@ export function createExternFunctions(
 
 fn clear_data:void () {
 
-    **** root_data;
-    
+    [mut]curr: __ParserData$ptr  = root_data;
+
+    if(curr) : {
+
+        [mut]next: __ParserData$ptr  = (*>curr).next;
+        
+        loop ( (curr) )  {
+            
+            next = ((*>curr).next);
+            
+            %%%% ((*>curr).input);
+            
+            %%%% ((*>curr).rules);
+            
+            **** ((*>curr).lexer);    
+            
+            **** curr;
+            
+            curr = next;
+        }; 
+    };
+        
     [mut]i:u32 =0;
 
     loop( ; i < fork_array_len; i++){
