@@ -105,8 +105,7 @@ export function renderItem(
             const rc = [];
 
             rc.push(sk`pushFN(data, &> ${call_name}, data.rules_ptr)`);
-            rc.push(sk`pushFN(data, &> ${getProductionFunctionName(grammar.productions[production.id], grammar)}, 0)`);
-            rc.push(sk`return: data.rules_ptr`);
+            rc.push(sk`return : ${getProductionFunctionName(production, grammar)}(l, data,db,state,data.rules_ptr,prod_start);`);
 
             leaf_expressions.push(...rc);
             return { leaf_node: code, prods, INDIRECT, original_prods };

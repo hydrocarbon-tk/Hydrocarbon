@@ -386,8 +386,8 @@ function createIfElseExpressions(
 
                 const call_name = createBranchFunctionSk(code, options);
                 expressions.push(<SKExpression>sk`pushFN(data, &> ${call_name}, data.rules_ptr)`);
-                expressions.push(<SKExpression>sk`pushFN(data, &>  ${getProductionFunctionNameSk(production, grammar)}, data.rules_ptr)`);
-                expressions.push(<SKReturn>sk`return:data.rules_ptr`);
+
+                expressions.push(<SKReturn>sk`return: ${getProductionFunctionNameSk(production, grammar)}(l, data,db,state,data.rules_ptr,prod_start);`);
                 leaves.forEach(leaf => leaf.INDIRECT = true);
 
                 if (code.slice(-1)[0].type !== "return")
@@ -433,6 +433,8 @@ function createIfElseExpressions(
 
                     leaves[0].INDIRECT = true;
                     leaves[0].transition_type = TRANSITION_TYPE.ASSERT;
+
+
 
 
                     if (code.slice(-1)[0].type !== "return")
