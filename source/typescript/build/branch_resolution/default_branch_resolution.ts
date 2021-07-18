@@ -414,17 +414,13 @@ function createIfElseExpressions(
                 let scr = code;
 
                 if (items.length == 1) {
-                    scr = [];
+
                     const nc = [];
 
 
                     const continue_name = createBranchFunctionSk(nc, options);
-                    const call_name = createBranchFunctionSk(code, options);
 
-
-                    scr.push(<SKExpression>sk`pushFN(data, &> ${continue_name}, 0)`);
-                    scr.push(<SKExpression>sk`return: ${call_name}(l, data, db, state, prod, prod_start)`);
-
+                    scr.unshift(<SKExpression>sk`pushFN(data, &> ${continue_name}, 0)`);
 
                     leaves[0].leaf.push(<SKReturn>sk`return:prod_start`);
 
@@ -433,9 +429,6 @@ function createIfElseExpressions(
 
                     leaves[0].INDIRECT = true;
                     leaves[0].transition_type = TRANSITION_TYPE.ASSERT;
-
-
-
 
                     if (code.slice(-1)[0].type !== "return")
                         code.push(<SKExpression>sk`return:-1`);

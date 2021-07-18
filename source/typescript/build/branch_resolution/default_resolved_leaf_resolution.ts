@@ -107,7 +107,7 @@ export function default_resolveResolvedLeaf(item: Item, state: TransitionNode, o
             leaf: leaf_node,
             prods,
             original_prods,
-            hash: hashString(item.renderUnformattedWithProduction(grammar) + code.map(skRenderAsSK).join("")),
+            hash: hashString(item.getProduction(grammar).id + "-" + code.map(skRenderAsSK).join("")),
             INDIRECT,
             EMPTY,
             transition_type: state.transition_type
