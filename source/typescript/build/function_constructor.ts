@@ -165,7 +165,7 @@ export function createVirtualProductionSequence(
     }
 
     out.push(
-        <SKExpression>sk`pushFN(data, &> ${rd_virtual_name})`,
+        <SKExpression>sk`pushFN(data, &> ${rd_virtual_name}, 0)`,
         <SKExpression>sk`return:0`,
     );
 

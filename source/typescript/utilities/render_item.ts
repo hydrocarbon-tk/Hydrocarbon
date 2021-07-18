@@ -104,8 +104,8 @@ export function renderItem(
             const call_name = createBranchFunctionSk(call_body, options);
             const rc = [];
 
-            rc.push(sk`pushFN(data, &> ${call_name})`);
-            rc.push(sk`pushFN(data, &> ${getProductionFunctionName(grammar.productions[production.id], grammar)})`);
+            rc.push(sk`pushFN(data, &> ${call_name}, data.rules_ptr)`);
+            rc.push(sk`pushFN(data, &> ${getProductionFunctionName(grammar.productions[production.id], grammar)}, 0)`);
             rc.push(sk`return: data.rules_ptr`);
 
             leaf_expressions.push(...rc);

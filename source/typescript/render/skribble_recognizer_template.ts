@@ -658,9 +658,12 @@ fn consume: bool (l:__Lexer$ref, data:__ParserData$ref, state:u32) {
 fn pushFN:void(
     data:__ParserData$ref, 
     [pub] _fn_ref: function_pointer = 
-        fn : i32 (l:__Lexer$ref,data:__ParserData$ref,db: __ParserDataBuffer$ref, state:u32, prod:u32, prod_start:u32){}
+        fn : i32 (l:__Lexer$ref,data:__ParserData$ref,db: __ParserDataBuffer$ref, state:u32, prod:u32, prod_start:u32){},
+    stash: i32
 ){ 
     data.stack[++data.stack_ptr] = _fn_ref; 
+    data.stash[data.stack_ptr] = stash; 
+    data.stash[data.stack_ptr + 1] = stash;
 }
 
 fn stepKernel:bool(
@@ -681,9 +684,7 @@ fn stepKernel:bool(
     data.stack_ptr--;
 
     [static] result:i32 = _fn(lexer, data, data_buffer, data.state, data.prod, stash);
-
-    data.stash[ptr] = result;
-    data.stash[ptr + 1] = result;
+    
     data.prod = result;
 
     if(result<0 || data.stack_ptr < stack_base) : {

@@ -266,7 +266,7 @@ export function createProductionTokenFunctionSk(tok: ProductionTokenSymbol, opti
                     [mut new cpp_ignore] data_buffer : ParserDataBuffer = ParserDataBuffer();
                     [mut js_ignore] data_buffer : ParserDataBuffer;
 
-                    pushFN(data, &> ${getProductionFunctionNameSk(production, grammar)});
+                    pushFN(data, &> ${getProductionFunctionNameSk(production, grammar)}, 0);
 
                     data.state = NULL_STATE;
 

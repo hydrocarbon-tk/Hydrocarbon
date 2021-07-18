@@ -66,7 +66,7 @@ export function addLeafStatements(
         } else {
 
             if (!EMPTY)
-                leaf.push(<SKExpression>sk`pushFN(data, &> ${goto_fn_name})`);
+                leaf.push(<SKExpression>sk`pushFN(data, &> ${goto_fn_name}, ${prods[0]})`);
             leaf.push(<SKExpression>sk`return : ${prods[0]}`);
         }
     }
@@ -93,7 +93,7 @@ export function addLeafStatements(
                     leaf.push(<SKExpression>sk`prod=${prods[0]}`);
                     leaf.push(<SKExpression>sk`continue`);
                 } else if (goto_ids.has(prods[0])) {
-                    leaf.push(<SKExpression>sk`pushFN(data,&> ${goto_fn_name})`);
+                    leaf.push(<SKExpression>sk`pushFN(data,&> ${goto_fn_name}, ${prods[0]})`);
                     leaf.push(<SKExpression>sk`return:${prods[0]}`);
                 } else {
                     leaf.push(<SKExpression>sk`return:${prods[0]}`);
@@ -104,7 +104,7 @@ export function addLeafStatements(
                 leaf.push(<SKExpression>sk`prod=${prods[0]}`);
                 leaf.push(<SKExpression>sk`continue`);
             } else {
-                leaf.push(<SKExpression>sk`pushFN(data,&> ${goto_fn_name})`);
+                leaf.push(<SKExpression>sk`pushFN(data,&> ${goto_fn_name}, ${prods[0]})`);
                 leaf.push(<SKExpression>sk`return:${prods[0]}`);
             }
         }
@@ -156,7 +156,7 @@ export function* addVirtualProductionLeafStatements(
         } else if (NO_GOTOS) {
             leaf.push(<SKExpression>sk`return:${prods[0]}`);
         } else {
-            leaf.push(<SKExpression>sk`pushFN(data, &> ${goto_fn_name})`);
+            leaf.push(<SKExpression>sk`pushFN(data, &> ${goto_fn_name}, ${prods[0]})`);
             leaf.push(<SKExpression>sk`return:${prods[0]}`);
         }
     }
@@ -192,7 +192,7 @@ export function* addVirtualProductionLeafStatements(
                 leaf.push(<SKExpression>sk`prod=${prods[0]}`);
                 leaf.push(<SKExpression>sk`continue`);
             } else {
-                leaf.push(<SKExpression>sk`pushFN(data, &> ${goto_fn_name})`);
+                leaf.push(<SKExpression>sk`pushFN(data, &> ${goto_fn_name}, ${prods[0]})`);
                 leaf.push(<SKExpression>sk`return:${prods[0]}`);
             }
 

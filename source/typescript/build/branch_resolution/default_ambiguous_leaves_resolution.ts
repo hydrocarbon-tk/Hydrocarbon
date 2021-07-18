@@ -156,14 +156,14 @@ function createBackTrackingSequence(
             <SKExpression>sk`return : -${prods[0]}`
         ], options);
 
-        code.unshift(<SKExpression>sk`pushFN(data, &> ${call_name})`);
+        code.unshift(<SKExpression>sk`pushFN(data, &> ${call_name}, 0)`);
         code.push(<SKExpression>sk`return: -1;`);
 
         const init_name = createBranchFunctionSk(code, options);
 
         const block = <SKBlock>sk`{}`;
 
-        block.expressions.push(<SKExpression>sk`pushFN(data, &> ${init_name})`);
+        block.expressions.push(<SKExpression>sk`pushFN(data, &> ${init_name}, 0)`);
         block.expressions.push(<SKExpression>sk`[mut] output:array___ParserData$ptr = Array(1);`);
         block.expressions.push(<SKExpression>sk`[mut] result:i32 = run(&>data, output, 0, 1, 0);`);
 
@@ -207,12 +207,12 @@ function createForkSequence(
 
         if (I++ == output_nodes.length - 1) {
             out.push(
-                <SKExpression>sk`pushFN(data, &> ${call_name})`
+                <SKExpression>sk`pushFN(data, &> ${call_name}, 0)`
             );
         } else {
             out.push(
                 <SKExpression>sk`[static] fk${I}:__ParserData$ptr = fork(data, db);`,
-                <SKExpression>sk`pushFN(*> fk${I}, &> ${call_name})`
+                <SKExpression>sk`pushFN(*> fk${I}, &> ${call_name}, 0)`
             );
         }
     }

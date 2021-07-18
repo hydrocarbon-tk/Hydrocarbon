@@ -67,8 +67,8 @@ export function default_resolveResolvedLeaf(item: Item, state: TransitionNode, o
             const sc = [],
                 call_name = createBranchFunctionSk(sc, options);
 
-            code.push(<SKExpression>sk`pushFN(data, ${call_name})`);
-            code.push(<SKExpression>sk`pushFN(data, ${getProductionFunctionName(production, grammar)})`);
+            code.push(<SKExpression>sk`pushFN(data, ${call_name}, prod_start)`);
+            code.push(<SKExpression>sk`pushFN(data, ${getProductionFunctionName(production, grammar)}, prod_start)`);
             code.push(<SKExpression>sk`return:prod_start`);
 
             leaf_node = sc;

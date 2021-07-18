@@ -385,8 +385,8 @@ function createIfElseExpressions(
                     code.unshift(sk`convert_prod_to_token(data, prod_start)`);
 
                 const call_name = createBranchFunctionSk(code, options);
-                expressions.push(<SKExpression>sk`pushFN(data, &> ${call_name})`);
-                expressions.push(<SKExpression>sk`pushFN(data, &>  ${getProductionFunctionNameSk(production, grammar)})`);
+                expressions.push(<SKExpression>sk`pushFN(data, &> ${call_name}, data.rules_ptr)`);
+                expressions.push(<SKExpression>sk`pushFN(data, &>  ${getProductionFunctionNameSk(production, grammar)}, data.rules_ptr)`);
                 expressions.push(<SKReturn>sk`return:data.rules_ptr`);
                 leaves.forEach(leaf => leaf.INDIRECT = true);
 
@@ -422,7 +422,7 @@ function createIfElseExpressions(
                     const call_name = createBranchFunctionSk(code, options);
 
 
-                    scr.push(<SKExpression>sk`pushFN(data, &> ${continue_name})`);
+                    scr.push(<SKExpression>sk`pushFN(data, &> ${continue_name}, 0)`);
                     scr.push(<SKExpression>sk`return: ${call_name}(l, data, db, state, prod, prod_start)`);
 
 
