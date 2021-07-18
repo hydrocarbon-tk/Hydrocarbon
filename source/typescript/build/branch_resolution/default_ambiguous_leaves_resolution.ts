@@ -169,7 +169,7 @@ function createBackTrackingSequence(
 
         const resolve = <SKBlock>sk`if ( result > 0 && ${prods.map(p => `((*>output[0]).prod) == -${p}`).join(" || ")} ) : {
                 data.sync(output[0]);
-                ${ret || "return : data.rules_ptr;"}
+                ${"return : data.rules_ptr;"}
             }`;
         block.expressions.push(resolve);
 
