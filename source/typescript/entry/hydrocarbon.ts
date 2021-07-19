@@ -22,8 +22,8 @@ import { initializeUTFLookupTable } from "../runtime/parser_memory_new.js";
 import { loadWASM, buildParserMemoryBuffer } from "../runtime/parser_memory_old.js";
 import { ParserFactory } from "../runtime/parser_loader.js";
 import { ParserFactory as ParserFactoryNew } from "../runtime/parser_loader_alpha.js";
-import { ParserFactory as ParserFactoryNextInterface } from "../runtime/parser_loader_next.js";
-import { Token } from "../runtime/Token";
+import { ParserFactory as ParserFactoryNext } from "../runtime/parser_loader_next.js";
+import { Token } from "../runtime/token.hs";
 
 //Diagnostics
 import { ParserEnvironment } from "../types/parser_environment.js";
