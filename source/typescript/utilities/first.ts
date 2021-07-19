@@ -10,9 +10,11 @@ import { getTrueSymbolValue, getUniqueSymbolName, Sym_Is_A_Production } from "..
 
 
 export function getFirstTerminalSymbols(production_id: number, grammar: HCG3Grammar) {
-    const closure = getProductionClosure(production_id, grammar);
+
+    const closure = getProductionClosure(production_id, grammar, true);
     const syms = closure.filter(i => !i.atEND && !Sym_Is_A_Production(i.sym(grammar)))
         .flatMap(i => getTrueSymbolValue(<TokenSymbol>i.sym(grammar), grammar))
+
         .setFilter(getUniqueSymbolName);
 
     return syms;
