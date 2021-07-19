@@ -23,7 +23,7 @@ import { loadWASM, buildParserMemoryBuffer } from "../runtime/parser_memory_old.
 import { ParserFactory } from "../runtime/parser_loader.js";
 import { ParserFactory as ParserFactoryNew } from "../runtime/parser_loader_alpha.js";
 import { ParserFactory as ParserFactoryNext } from "../runtime/parser_loader_next.js";
-import { Token } from "../runtime/token.hs";
+import { Token } from "../runtime/token.js";
 
 //Diagnostics
 import { ParserEnvironment } from "../types/parser_environment.js";
