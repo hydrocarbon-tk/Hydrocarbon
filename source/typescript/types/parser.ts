@@ -4,6 +4,7 @@
  * disclaimer notice.
  */
 
+import { Token } from "../runtime/Token";
 import { GrammarParserEnvironment } from "./grammar_compiler_environment";
 import { ParserEnvironment } from "./parser_environment";
 
@@ -20,7 +21,7 @@ export interface HCGTokenPosition {
 }
 
 export interface HCGProductionFunction<T> {
-    (env: ParserEnvironment, sym: (string | T)[], pos: HCGTokenPosition): T;
+    (env: ParserEnvironment, sym: (string | T)[], pos: Token): T;
 }
 /**
  * Loads parser recognizer and links with completer, memory, and production functions

@@ -8,14 +8,22 @@ import { SKBlock, SKExpression } from "../../skribble/types/node";
 import { RenderBodyOptions } from "../../types/render_body_options";
 import { MultiItemReturnObject } from "../../types/transition_generating";
 import { Leaf, TransitionNode, TRANSITION_TYPE } from "../../types/transition_node.js";
-import { createBranchFunctionSk } from "../../utilities/code_generating.js";
+import { addItemAnnotationToExpressionList, createBranchFunctionSk } from "../../utilities/code_generating.js";
 import { getUniqueSymbolName, Sym_Is_A_Production } from "../../grammar/nodes/symbol.js";
 import { createVirtualProductionSequence } from "../function_constructor.js";
+import { default_resolveResolvedLeaf } from "./default_resolved_leaf_resolution.js";
 
 export function default_resolveUnresolvedLeaves(node: TransitionNode, nodes: TransitionNode[], options: RenderBodyOptions): MultiItemReturnObject {
 
-    const
+    //Remove extended goto items
 
+    nodes = nodes.filter(n => {
+        const used = n.items.filter(item => !options.extended_goto_items.some(i => i.body == item.body));
+
+        return used.length > 0;
+    }).filter(n => n.transition_type !== TRANSITION_TYPE.IGNORE);
+
+    const
         items = nodes.flatMap(s => s.items).setFilter(i => i.id),
 
         expected_symbols =
@@ -29,30 +37,35 @@ export function default_resolveUnresolvedLeaves(node: TransitionNode, nodes: Tra
                     })
                 ),
 
-        SHOULD_IGNORE = options.extended_goto_items.some(i => items.some(item => i.body == item.body)),
-
-        IS_LEFT_RECURSIVE_WITH_FOREIGN_PRODUCTION_ITEMS = nodes.some(i => i.transition_type == TRANSITION_TYPE.IGNORE),
+        SHOULD_IGNORE = nodes.length == 0, //options.extended_goto_items.some(i => items.some(item => i.body == item.body)),
 
         out_prods: number[] = [],
 
         out_leaves: Leaf[] = [];
-    /*
-if (SHOULD_IGNORE) {
 
-return {
-root: [sk`return: ${options.production_ids[0]}`],
-leaves: [{
-root: [],
-leaf: [],
-prods: [],
-original_prods: [],
-hash: "",
-transition_type: TRANSITION_TYPE.IGNORE
-}],
-prods: out_prods.setFilter()
-};
-}
-*/
+    if (nodes.length == 1) {
+
+        const node = nodes[0];
+        //const leaf = default_resolveResolvedLeaf(node.items[0], node, options).leaf;
+        return { leaves: node.leaves, root: [...node.code], prods: node.prods };
+    }
+    //*
+    if (SHOULD_IGNORE) {
+
+        return {
+            root: [sk`return: ${options.production_ids[0]}`],
+            leaves: [{
+                root: [],
+                leaf: [],
+                prods: [],
+                original_prods: [],
+                hash: "",
+                transition_type: TRANSITION_TYPE.IGNORE
+            }],
+            prods: out_prods.setFilter()
+        };
+    }
+    //*/
 
     let root: SKExpression[] = [];
 
@@ -96,8 +109,7 @@ prods: out_prods.setFilter()
                 options,
                 output_nodes,
                 out_prods,
-                out_leaves,
-                IS_LEFT_RECURSIVE_WITH_FOREIGN_PRODUCTION_ITEMS
+                out_leaves
             );
 
             root.push(...statements);
@@ -125,13 +137,17 @@ function createBackTrackingSequence(
     options: RenderBodyOptions,
     output_nodes: TransitionNode[],
     out_prods: number[],
-    out_leaves: Leaf[],
-    IS_LEFT_RECURSIVE_WITH_FOREIGN_PRODUCTION_ITEMS: boolean
+    out_leaves: Leaf[]
 ): SKExpression[] {
 
     let I = 0;
 
     const out: SKExpression[] = [];
+
+    if (options.helper.ANNOTATED) {
+        addItemAnnotationToExpressionList(output_nodes.flatMap(n => n.items), options.grammar, out);
+    }
+
 
     out.push(
         <SKExpression>sk`[mut] origin:Lexer = l.copyInPlace()`,
@@ -140,6 +156,7 @@ function createBackTrackingSequence(
     );
 
     //Combine production that transition on the same symbol
+
 
 
 

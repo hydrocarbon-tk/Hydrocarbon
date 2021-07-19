@@ -10,7 +10,52 @@ import { ForkData, RecognizeInitializer } from "../types/parser_data";
 import { initializeUTFLookupTableNew } from "./parser_memory_new.js";
 import { loadWASM } from "./wasm_loader_next.js";
 import { ParserEnvironment } from "../types/parser_environment.js";
+import { Token } from "./token.js";
 
+class BlockInterface {
+    private fork: ForkData;
+    private get_next_block: (fork: ForkData) => void;
+    private block: Uint16Array;
+    private offset: number;
+    constructor(fork: ForkData, get_next_block: (fork: ForkData) => Uint16Array) {
+
+        this.fork = fork;
+
+        this.block = get_next_block(fork);
+
+        this.get_next_block = get_next_block;
+
+        this.offset = 0;
+    }
+
+    get high(): number {
+
+        this.increment();
+
+        return this.block[this.offset];
+    }
+
+    get low(): number {
+        return this.block[this.offset];
+    }
+    increment() {
+
+        if (this.offset > 62) {
+            this.get_next_block(this.fork);
+            this.offset = 0;
+        } else
+            this.offset++;
+    }
+};
+
+/**
+ * Provides 
+ * @param functions 
+ * @param wasm_binary_string 
+ * @param js_recognizer_loader 
+ * @param entry_name_list 
+ * @returns 
+ */
 export async function ParserFactory<T, R = {}>(
 
     functions: HCGProductionFunction<T>[],
@@ -42,16 +87,24 @@ export async function ParserFactory<T, R = {}>(
 
     initializeUTFLookupTableNew(init_table());
 
-    const out = function (str: string, env: ParserEnvironment = {}, production_id = 0) {
+    const out = function (input_string: string, env: ParserEnvironment = {}, production_id = 0) {
 
         const
-            str_len = str.length,
+
+            str_len = input_string.length,
+
             str_buffer_size = (str_len * 4) + 8,
+
             rules_buffer_size = str_len * 8,
+
             input = init_data(str_buffer_size, rules_buffer_size),
-            byte_length = fillByteBufferWithUTF8FromString(str, input, str_buffer_size),
+
+            byte_length = fillByteBufferWithUTF8FromString(input_string, input, str_buffer_size),
+
             fns = functions,
-            fork_count = recognize(byte_length, production_id), // call with pointers
+
+            fork_count = recognize(byte_length, production_id),
+
             forks = get_fork_pointers();
 
         let fork = forks.filter(f => f.VALID)[0];
@@ -59,26 +112,23 @@ export async function ParserFactory<T, R = {}>(
         if (!fork?.VALID) {
             fork = forks.sort((a, b) => b.byte_offset - a.byte_offset)[0];
 
-            throwForkError(str, fork);
-
+            throwForkError(input_string, fork);
         }
 
         let stack = [],
-            pos = [],
-            block = get_next_command_block(fork),
-            short_offset = 0,
+            tokens = [],
             token_offset = 0,
-            high = block[short_offset++],
             limit = 1000000;
 
-        const trace = [];
+        const
+            default_token: Token = new Token(input_string, "", 0, 0),
+            block = new BlockInterface(fork, get_next_command_block);
+
         while (limit-- > 0) {
 
-            let low = high;
+            let low = block.low;
 
             if (low == 0) break;
-
-            high = block[short_offset++];
 
             const rule = low & 3;
 
@@ -91,20 +141,25 @@ export async function ParserFactory<T, R = {}>(
 
                         if (low & 4) {
                             body = (low >> 3);
-                            len = high;
-                            high = block[short_offset++];
+                            len = block.high;
                         }
-                        const pos_a = pos[pos.length - len] || { off: 0, tl: 0 };
-                        const pos_b = pos[pos.length - 1] || { off: 0, tl: 0 };
-                        const e = stack.slice(-len);
 
-                        pos[stack.length - len] = { off: pos_a.off, tl: pos_b.off - pos_a.off + pos_b.tl };
-                        stack[stack.length - len] = fns[body](env, e, { off: pos_a.off, tl: pos_b.off - pos_a.off + pos_b.tl });
+                        const
+                            pos_a = tokens[tokens.length - len] || default_token,
+
+                            pos_b = tokens[tokens.length - 1] || default_token,
+
+                            e = stack.slice(-len),
+
+                            token = Token.fromRange(pos_a, pos_b);
+
+                        tokens[stack.length - len] = token;
+
+                        stack[stack.length - len] = fns[body](env, e, token);
 
                         stack.length = stack.length - len + 1;
-                        pos.length = pos.length - len + 1;
 
-
+                        tokens.length = tokens.length - len + 1;
 
                     } break;
 
@@ -112,15 +167,12 @@ export async function ParserFactory<T, R = {}>(
 
                     let length = (low >>> 3) & 0x1FFF;
 
-                    if (low & 4) {
-                        length = ((length << 16) | high);
-                        high = block[short_offset++];
-                    }
+                    if (low & 4) length = ((length << 16) | block.high);
 
+                    stack.push(input_string.slice(token_offset, token_offset + length));
 
+                    tokens.push(new Token(input_string, "", length, token_offset));
 
-                    stack.push(str.slice(token_offset, token_offset + length));
-                    pos.push({ off: token_offset, tl: length });
                     token_offset += length;
 
                 } break;
@@ -129,27 +181,17 @@ export async function ParserFactory<T, R = {}>(
 
                     let length = (low >>> 3) & 0x1FFF;
 
-                    if (low & 4) {
-                        length = ((length << 16) | high);
-                        short_offset++;
-                    }
+                    if (low & 4) length = ((length << 16) | block.high);
 
                     token_offset += length;
-
                 }
             }
 
-            if (short_offset > 63) {
-                get_next_command_block(fork);
-                short_offset = 0;
-            }
+            block.increment();
         }
-
 
         return { result: stack };
     };
-
-    let i = 0;
 
     for (const key in entry_name_list)
         out[key] = entry_name_list[key];

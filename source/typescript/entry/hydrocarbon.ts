@@ -22,7 +22,8 @@ import { initializeUTFLookupTable } from "../runtime/parser_memory_new.js";
 import { loadWASM, buildParserMemoryBuffer } from "../runtime/parser_memory_old.js";
 import { ParserFactory } from "../runtime/parser_loader.js";
 import { ParserFactory as ParserFactoryNew } from "../runtime/parser_loader_alpha.js";
-import { ParserFactory as ParserFactoryNext } from "../runtime/parser_loader_next.js";
+import { ParserFactory as ParserFactoryNextInterface } from "../runtime/parser_loader_next.js";
+import { Token } from "../runtime/Token";
 
 //Diagnostics
 import { ParserEnvironment } from "../types/parser_environment.js";
@@ -34,6 +35,7 @@ export {
     //Types
     HCGParser,
     ParserEnvironment,
+    Token,
 
     //Code
     loadWASM,
@@ -41,7 +43,7 @@ export {
     ParserFactoryNew,
     ParserFactoryNext,
     buildParserMemoryBuffer,
-    
+
     initializeUTFLookupTable,
     compileGrammarFromString,
     compileGrammarFromURI
