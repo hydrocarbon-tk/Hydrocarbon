@@ -16,9 +16,6 @@ import {
     loadGrammarFromString
 } from "./passes/load.js";
 import { createJSFunctionsFromExpressions } from "./passes/process_code.js";
-import fs from "fs";
-
-const fsp = fs.promises;
 
 class GrammarCompilationReport extends Error {
     constructor(errors: Error[]) {
@@ -51,10 +48,8 @@ function deduplicateProductionBodies(grammar: HCG3Grammar, error: Error[]) {
 }
 
 export async function compileGrammar(grammar: HCG3Grammar) {
+
     const errors: Error[] = [];
-
-
-
 
     try {
         integrateImportedGrammars(grammar, errors);
@@ -67,8 +62,6 @@ export async function compileGrammar(grammar: HCG3Grammar) {
         buildSequenceString(grammar);
         buildItemMaps(grammar);
 
-        await fsp.writeFile("./temp.test", grammar.productions.map(p => render(p)).join("\n\n"));
-        //console.log(grammar.productions.map(p => render(p)).join("\n"));
     } catch (e) {
         errors.push(e);
     }
