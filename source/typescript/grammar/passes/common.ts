@@ -121,18 +121,11 @@ export function createUniqueSymbolSet(grammar: HCG3Grammar, errors: Error[] = []
         }
     }
 
-    grammar.meta = Object.assign({}, grammar.meta ?? {}, {
-        all_symbols: unique_map,
-        ignore: [grammar.preamble.filter(t => t.type == "ignore")[0]].filter(i => !!i),
-        reduce_functions: reduce_lu
-    });
-
-    for (const ignore of grammar.meta.ignore)
-        for (const sym of ignore.symbols)
-            processSymbol(sym, production_lookup, unique_map, errors);
-
+    grammar.meta.all_symbols = unique_map;
+    for (const sym of grammar.meta.ignore)
+        processSymbol(sym, production_lookup, unique_map, errors);
     grammar.reduce_functions = reduce_lu;
-
+    grammar.meta.reduce_functions = reduce_lu;
     grammar.bodies = bodies;
 }
 

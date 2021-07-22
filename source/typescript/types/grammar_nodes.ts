@@ -76,9 +76,10 @@ export interface HCG3ProductionNode extends HCG3GrammarNode {
     IS_ENTRY: boolean;
 
     /**
-     * The original grammar in which this production is defined in
+     * The original identifier of the source grammar if it 
+     * has been imported
      */
-    origin_grammar?: HCG3Grammar;
+    grammar_id?: string;
 }
 export interface HCG3GeneralProduction extends HCG3ProductionNode {
     type: "production",

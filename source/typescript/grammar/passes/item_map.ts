@@ -415,13 +415,18 @@ function processFollowSymbols(grammar: HCG3Grammar, productions: HCG3Production[
     }
 }
 
+function getOriginGrammarOfProduction(production: HCG3Production, grammar: HCG3Grammar): HCG3Grammar {
+
+    return grammar;
+}
+
 
 function processSkippedSymbols(grammar: HCG3Grammar, item_maps_in_process: ItemMapEntry[]) {
 
     const standard_skips = [];
 
     for (const skipped_symbol of grammar.meta.ignore)
-        standard_skips.push(...skipped_symbol.symbols);
+        standard_skips.push(skipped_symbol);
 
     for (const item_map of item_maps_in_process) {
 

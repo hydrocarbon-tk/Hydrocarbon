@@ -109,8 +109,6 @@ async function loadGrammar(uri: URI, grammar_parser: any = parser, existing_gram
 
     return grammar;
 }
-
-
 function resolveReferencedFunctions(grammar: HCG3Grammar) {
     const fn_lu = grammar.functions.reduce((r, v) => (r.set(v.id, v), r), new Map);
 
@@ -129,6 +127,11 @@ function resolveReferencedFunctions(grammar: HCG3Grammar) {
                     type: "RETURNED",
                 };
             }
+
+
+    grammar.meta = {};
+
+    grammar.meta.ignore = <any[]>[grammar.preamble.filter(t => t.type == "ignore")[0]].filter(i => !!i)[0]?.symbols ?? [];
 }
 
 export function getResolvedURI(uri: URI, source?: URI) {
