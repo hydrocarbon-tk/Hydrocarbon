@@ -13,7 +13,7 @@ function get4AlignedOffset(request_size: number) {
 /**
 Simple WASM loader for Hydrocarbon Parser Recognizers
 */
-export function loadWASM(source: BufferSource): RecognizeInitializer {
+export async function loadWASM(source: BufferSource): Promise<RecognizeInitializer> {
 
     let allocation_head = 0;
     let heap_start = 0;
@@ -50,8 +50,8 @@ export function loadWASM(source: BufferSource): RecognizeInitializer {
     };
 
     const
-        module = new WebAssembly.Module(source),
-        instance = new WebAssembly.Instance(module, wasm_imports),
+        module = await WebAssembly.compile(source),
+        instance = await WebAssembly.instantiate(module, wasm_imports),
         wasm_exports = instance.exports;
 
     memory = <any>wasm_exports.memory;

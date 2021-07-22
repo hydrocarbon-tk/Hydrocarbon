@@ -78,7 +78,7 @@ export async function ParserFactory<T, R = {}>(
         for (let i = 0; i < wasm_binary_string.length; i += 2)
             out[i >> 1] = parseInt(wasm_binary_string.slice(i, i + 2), 16);
 
-        ({ recognize, init_data, init_table, get_fork_pointers, get_next_command_block } = loadWASM(out));
+        ({ recognize, init_data, init_table, get_fork_pointers, get_next_command_block } = await loadWASM(out));
 
     } else {
         //load javascript data;
