@@ -43,6 +43,8 @@
 
 <> symbol > symbol \?                                            f:r { $1.IS_OPTIONAL = 1, $1 }
     
+    | \<= symbol                                                 f:r { { type:"look-behind", val:$2.val, phased: $2 } }
+
     | \?= symbol                                                 f:r { $2.IS_NON_CAPTURE = true, $2 }
     
     | generated_symbol 

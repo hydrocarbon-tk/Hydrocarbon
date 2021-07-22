@@ -15,7 +15,8 @@ import {
     getSymbolName,
     getTrueSymbolValue, getUniqueSymbolName,
     Sym_Is_A_Production,
-    Sym_Is_A_Production_Token
+    Sym_Is_A_Production_Token,
+    Sym_Is_LookBehind
 } from "../nodes/symbol.js";
 
 type IntermediateItemMapEntry = (ItemMapEntry & {
@@ -132,7 +133,7 @@ function addFollowInformation(item: Item, grammar: HCG3Grammar, check_set: Set<s
         grammar.item_map.get(item.id).breadcrumbs.add(crumb);
 
     if (item.atEND) {
-        if (follow_sym)
+        if (follow_sym && !Sym_Is_LookBehind(follow_sym))
             grammar.item_map.get(item.id).follow.add(getUniqueSymbolName(follow_sym));
         return;
     }
@@ -203,7 +204,8 @@ function addFollowInformation(item: Item, grammar: HCG3Grammar, check_set: Set<s
 
                     const new_item = new Item(body.id, body.length, body.length);
 
-                    grammar.item_map.get(new_item.id).follow.add(getUniqueSymbolName(follow_sym));
+                    if (!Sym_Is_LookBehind(follow_sym))
+                        grammar.item_map.get(new_item.id).follow.add(getUniqueSymbolName(follow_sym));
 
                 }
             }

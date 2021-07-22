@@ -74,6 +74,11 @@ export interface HCG3ProductionNode extends HCG3GrammarNode {
      *  The production represents an entrypoint into the grammar / sub-grammar. 
      */
     IS_ENTRY: boolean;
+
+    /**
+     * The original grammar in which this production is defined in
+     */
+    origin_grammar?: HCG3Grammar;
 }
 export interface HCG3GeneralProduction extends HCG3ProductionNode {
     type: "production",
@@ -279,6 +284,11 @@ export interface HCG3ProductionImportSymbol extends HCG3SymbolNode {
     meta: false;
 }
 
+export interface HCG3LookBehind extends HCG3SymbolNode {
+    type: "look-behind";
+    phased: TokenSymbol;
+}
+
 export interface HCG3MetaExclude extends HCG3SymbolNode {
     type: "meta-exclude",
     sym: TokenSymbol[],
@@ -325,4 +335,5 @@ export type HCG3Symbol = HCG3BasicSymbol
     | HCG3MetaIgnore
     | HCG3MetaReset
     | HCG3MetaReduce
+    | HCG3LookBehind
     | HCG3EOPSymbol;

@@ -5,7 +5,7 @@
  */
 import { Lexer } from "@candlelib/wind";
 import { Grammar } from "../../types/grammar.js";
-import { HCG3Grammar, HCG3Symbol, HCG3EmptySymbol, HCG3EOPSymbol } from "../../types/grammar_nodes.js";
+import { HCG3Grammar, HCG3Symbol, HCG3EmptySymbol, HCG3EOPSymbol, HCG3LookBehind } from "../../types/grammar_nodes.js";
 import {
     DefinedCharacterSymbol,
     DefinedIdentifierSymbol,
@@ -54,6 +54,8 @@ export function convertSymbolToString(sym: HCG3Symbol) {
             return `END_OF_PRODUCTION`;
         case SymbolType.PRODUCTION_TOKEN_SYMBOL:
             return `tk:${sym.name}`;
+        case "look-behind":
+            return `lb[${convertSymbolToString(sym.phased)}]`;
         default:
             return sym.val;
     }
@@ -74,7 +76,11 @@ export function getUniqueSymbolName(sym: HCG3Symbol, INCLUDE_META: boolean = fal
         + (sym.IS_NON_CAPTURE && INCLUDE_META ? "-->" : "");
 }
 export function Sym_Is_Not_Consumed(s: HCG3Symbol): boolean {
-    return !!s.IS_NON_CAPTURE;
+    return !!s.IS_NON_CAPTURE || Sym_Is_LookBehind(s);
+}
+
+export function Sym_Is_LookBehind(s: HCG3Symbol): s is HCG3LookBehind {
+    return s.type == "look-behind";
 }
 export function Sym_Is_EOF(s: HCG3Symbol): s is EOFSymbol {
     return s.type == SymbolType.END_OF_FILE || s.val == "END_OF_FILE";
@@ -123,7 +129,7 @@ export function Sym_Is_Exclusive(s: HCG3Symbol): boolean {
 }
 
 export function Sym_Is_Defined(s: HCG3Symbol): s is DefinedSymbol {
-    return !Sym_Is_A_Production(s) && !Sym_Is_A_Generic_Type(s);
+    return !Sym_Is_A_Production(s) && !Sym_Is_A_Generic_Type(s) && !Sym_Is_LookBehind(s);
 }
 /**
  * A SpecifiedSymbol that is not a SpecifiedIdentifierSymbol nor a SpecifiedNumericSymbol
@@ -197,7 +203,7 @@ export function getTokenSymbolsFromItems(items: Item[], grammar: HCG3Grammar): T
         .filter(sym => !Sym_Is_A_Production(sym));
 }
 
-export function getSkippableSymbolsFromItems(items: Item[], grammar: Grammar): TokenSymbol[] {
+export function getSkippableSymbolsFromItems(items: Item[], grammar: HCG3Grammar): TokenSymbol[] {
 
     return items.flatMap(i => [...grammar.item_map.get(i.id).skippable.values()])
         .group()

@@ -3,10 +3,10 @@
  * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
  * disclaimer notice.
  */
-import { ProductionTokenSymbol } from "@candlelib/hydrocarbon/build/types/types/symbol";
 import crypto from "crypto";
 import { Helper } from "../build/helper.js";
 import {
+    getSkippableSymbolsFromItems,
     getTokenSymbolsFromItems,
     getUniqueSymbolName, Symbols_Occlude,
     Sym_Is_An_Assert_Function,
@@ -21,15 +21,16 @@ import {
     Sym_Is_Defined_Natural_Number,
     Sym_Is_EOF,
     Sym_Is_EOP,
+    Sym_Is_LookBehind,
     Sym_Is_Not_Consumed
 } from "../grammar/nodes/symbol.js";
 import { sk, skRenderAsSK } from "../skribble/skribble.js";
 import { SKAssignment, SKBlock, SKCall, SKExpression, SKFunction, SKIdentifierReference, SKIf, SKNode, SKOperatorExpression, SKPrimitiveDeclaration, SKReference } from "../skribble/types/node.js";
-import { HCG3Grammar, HCG3Production } from "../types/grammar_nodes.js";
+import { HCG3Grammar, HCG3LookBehind, HCG3Production } from "../types/grammar_nodes.js";
 import { BaseOptions, RenderBodyOptions } from "../types/render_body_options.js";
 import {
     DefinedSymbol,
-
+    ProductionTokenSymbol,
     Symbol,
     TokenSymbol
 } from "../types/symbol";
@@ -187,10 +188,6 @@ export function getSkipFunctionNewSk(
     return fn_ref;
 }
 
-function hashSK(node: SKNode) {
-    return hashString(skRenderAsSK(node));
-}
-
 export function collapseBranchNamesSk(options: RenderBodyOptions) {
     const { branches, helper: runner } = options;
 
@@ -298,41 +295,6 @@ export function createProductionTokenFunctionSk(tok: ProductionTokenSymbol, opti
         return packGlobalFunctionSk("tk", "bool", closure, token_function, runner);
     } else
         return fn_ref;
-}
-
-export function createNonCaptureBooleanCheckSk(symbols: TokenSymbol[], options: BaseOptions, ambient_symbols: TokenSymbol[]): SKReference {
-
-    const { helper: runner } = options;
-
-    let fn_ref = getGlobalObjectSk("nocap", symbols, runner);
-
-
-
-    if (!fn_ref) {
-        const
-            boolean =
-                getIncludeBooleansSk(symbols.map(sym => Object.assign({}, sym, { IS_NON_CAPTURE: false })), options, "l", ambient_symbols),
-
-            token_function = <SKFunction>sk`
-                fn temp:bool(l:__Lexer$ref, data:__ParserData$ref){
-                    [const] a:u32 = l.token_length;
-                    [const] b:u32 = l.byte_length;
-
-                    if (${boolean}): {
-                        l.token_length = 0;
-                        l.byte_length = 0;
-                        return : true;
-                    };
-
-                    l.token_length = a;
-                    l.byte_length = b;
-
-                    return : false;
-                }
-            `;
-
-        return packGlobalFunctionSk("nocap", "bool", symbols, token_function, runner);
-    } else return fn_ref;
 }
 
 /**
@@ -590,18 +552,25 @@ export function buildIfsSk(
 
             const def_type = Sym_Is_Defined_Identifier(sym) ? "TokenIdentifier" : "TokenSymbol";
 
+            if (occluders.includes(sym)) {
 
-            code_node.push(
-                <SKExpression>sk`${lex_name}.setToken(${def_type}, ${sym.byte_length}, ${sym.val.length})`
-            );
+                code_node.push(<SKExpression>sk`return : false`);
+            } else {
 
-            if (Sym_Is_Defined_Identifier(sym) && occluders.some(Sym_Is_A_Generic_Identifier))
-                code_node.push(<SKExpression>sk`if !l.isDiscrete(data,TokenIdentifier,${sym.byte_length}) : return : false`);
+                code_node.push(
+                    <SKExpression>sk`${lex_name}.setToken(${def_type}, ${sym.byte_length}, ${sym.val.length})`
+                );
 
-            if (Sym_Is_Defined_Natural_Number(sym) && occluders.some(Sym_Is_A_Generic_Number))
-                code_node.push(<SKExpression>sk`if !l.isDiscrete(data,TokenNumber,${sym.byte_length}) : return : false`);
+                if (Sym_Is_Defined_Identifier(sym) && occluders.some(Sym_Is_A_Generic_Identifier))
+                    code_node.push(<SKExpression>sk`if !l.isDiscrete(data,TokenIdentifier,${sym.byte_length}) : return : false`);
 
-            code_node.push(<SKExpression>sk`return : true`);
+                if (Sym_Is_Defined_Natural_Number(sym) && occluders.some(Sym_Is_A_Generic_Number))
+                    code_node.push(<SKExpression>sk`if !l.isDiscrete(data,TokenNumber,${sym.byte_length}) : return : false`);
+
+
+                code_node.push(<SKExpression>sk`return : true`);
+            }
+
         }
 
         yielded = gen.next();
@@ -648,10 +617,23 @@ export function getIncludeBooleansSk(
 
     if (non_consume.length > 0) {
 
-        const
-            fn_name = createNonCaptureBooleanCheckSk(non_consume, options, ambient_symbols);
+        const lb = non_consume.filter(Sym_Is_LookBehind);
 
-        out_non_consume.push(<SKExpression>sk`${fn_name}(${lex_name}, data) /*${non_consume.map(sym => `[${sanitizeSymbolValForCommentSk(sym)}]`).join(" ")}*/`);
+        for (const sym of lb) {
+            const fn_name = createNonCaptureLookBehind(sym, options);
+
+            out_non_consume.push(<SKExpression>sk`${fn_name}(${lex_name}, data)`);
+        }
+
+        const reg = non_consume.filter(s => !Sym_Is_LookBehind(s));
+
+        if (reg.length > 0) {
+
+            const
+                fn_name = createNonCaptureBooleanCheckSk(reg, options, ambient_symbols);
+
+            out_non_consume.push(<SKExpression>sk`${fn_name}(${lex_name}, data) /*${reg.map(sym => `[${sanitizeSymbolValForCommentSk(sym)}]`).join(" ")}*/`);
+        }
     }
 
     if (fn.length > 0)
@@ -672,7 +654,7 @@ export function getIncludeBooleansSk(
 
             const
                 char_code = sym.val.charCodeAt(0),
-                occluders = ambient_symbols.filter(a_sym => Symbols_Occlude(a_sym, sym));
+                occluders = ambient_symbols.filter(a_sym => Symbols_Occlude(sym, a_sym));
 
             if (occluders.length > 0 || sym.val.length > 1) {
 
@@ -699,15 +681,19 @@ export function getIncludeBooleansSk(
 
         for (const { syms, occluders } of char_groups) {
 
-            if (syms.length == 1) {
+            if (syms.length == 1 && occluders.length < 1) {
+
                 let [sym] = syms;
 
                 sym = <DefinedSymbol>getCardinalSymbol(grammar, sym);
 
                 if (sym.byte_length == 1) {
+
                     const
                         char_code = sym.val.charCodeAt(0);
+
                     booleans.push(getLexerByteBooleanSk(lex_name, char_code));
+
                 } else {
                     const compare_set_type = Sym_Is_Defined_Identifier(sym) ? "cmpr_set_id" : "cmpr_set";
 
@@ -721,8 +707,12 @@ export function getIncludeBooleansSk(
 
                 if (!fn_ref) {
 
+                    const sym_lu = new Set(syms.map(s => getUniqueSymbolName(s)));
+
+                    const actual_occluders = occluders.filter(o => !sym_lu.has(getUniqueSymbolName(o)));
+
                     const
-                        nodes = buildIfsSk(options, syms, "l", occluders),
+                        nodes = buildIfsSk(options, [...syms, ...actual_occluders.filter(Sym_Is_Defined)].setFilter(getUniqueSymbolName), "l", actual_occluders),
                         fn = <SKFunction>sk`fn temp:bool(l:__Lexer$ref, data:__ParserData$ref){
                             ${nodes.flatMap((m => [m, ";"]))}
                         }`;
@@ -777,6 +767,83 @@ export function getIncludeBooleansSk(
     //*/
 
     return convertExpressionArrayToBooleanSk([...out_non_consume, ...out_tk, ...out_id, ...out_ty, ...out_fn]);
+}
+
+export function createNonCaptureBooleanCheckSk(symbols: TokenSymbol[], options: BaseOptions, ambient_symbols: TokenSymbol[]): SKReference {
+
+    const { helper: runner } = options;
+
+    let fn_ref = getGlobalObjectSk("nocap", symbols, runner);
+
+    if (!fn_ref) {
+        const
+            boolean =
+                getIncludeBooleansSk(symbols.map(sym => Object.assign({}, sym, { IS_NON_CAPTURE: false })), options, "l", ambient_symbols),
+
+            token_function = <SKFunction>sk`
+                fn temp:bool(l:__Lexer$ref, data:__ParserData$ref){
+                    [const] a:u32 = l.token_length;
+                    [const] b:u32 = l.byte_length;
+
+                    if (${boolean}): {
+                        l.token_length = 0;
+                        l.byte_length = 0;
+                        return : true;
+                    };
+
+                    l.token_length = a;
+                    l.byte_length = b;
+
+                    return : false;
+                }
+            `;
+
+        return packGlobalFunctionSk("nocap", "bool", symbols, token_function, runner);
+    } else return fn_ref;
+}
+
+
+function createNonCaptureLookBehind(symbol: HCG3LookBehind, options: RenderBodyOptions): SKReference {
+
+    const phased_symbol = symbol.phased;
+
+    const { helper: runner } = options;
+
+    let fn_ref = getGlobalObjectSk("nocap_lb", [<Symbol>phased_symbol], options.helper);
+
+    if (!fn_ref) {
+
+        const skippable_symbols = getSkippableSymbolsFromItems([options.grammar.item_map.values().next().value.item], options.grammar).filter(s => getUniqueSymbolName(s) != getUniqueSymbolName(phased_symbol));
+
+        const skip = createSkipCallSk(skippable_symbols, options, "pk", true);
+
+        const boolean = getIncludeBooleansSk([phased_symbol], options, "pk");
+
+        const token_function = <SKFunction>sk`
+        fn temp:bool(l:__Lexer$ref, data:__ParserData$ref){
+        
+            [mut]pk:Lexer = l.copyInPlace();
+            
+            pk.byte_offset = l.prev_byte_offset;
+            
+            pk.byte_length = 0;
+            
+            pk.next(data);
+            
+            ${skip ? skip : ""};
+            
+            if (${boolean})  : { 
+                l.token_length = 0;
+                l.byte_length = 0;
+                return : true;
+            };
+
+            return : false;        
+        }`;
+
+        return packGlobalFunctionSk("nocap_lb", "bool", [phased_symbol], token_function, runner);
+    }
+    return fn_ref;
 }
 
 function ensureSymbolsAreGlobalSk<T = Symbol>(syms: T[], grammar: HCG3Grammar): T[] {

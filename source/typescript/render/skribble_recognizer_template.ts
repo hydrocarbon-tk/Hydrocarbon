@@ -212,7 +212,7 @@ fn createState:u32 (ENABLE_STACK_OUTPUT:u32) {
     [pub] token_offset:u32= 0
     [pub] byte_length:u16 = 0
     [pub] token_length:u16 = 0
-    [pub] prev_token_offset:u32 = 0
+    [pub] prev_byte_offset:u32 = 0
     [pub] type:u32 = 0
     [pub] line:u16 = 0
     [pub] current_byte:u16 = 0
@@ -222,7 +222,7 @@ fn createState:u32 (ENABLE_STACK_OUTPUT:u32) {
         this.byte_length = 0;
         this.token_length = 0;
         this.token_offset = 0;
-        this.prev_token_offset = 0;
+        this.prev_byte_offset = 0;
         this.type = 0;
         this.line = 0;
         this.current_byte = 0;
@@ -351,7 +351,7 @@ fn createState:u32 (ENABLE_STACK_OUTPUT:u32) {
         
         destination_ref.token_length = this.token_length;
         destination_ref.token_offset = this.token_offset;
-        destination_ref.prev_token_offset = this.prev_token_offset;
+        destination_ref.prev_byte_offset = this.prev_byte_offset;
         
         destination_ref.line = this.line;
         destination_ref.byte_length = this.byte_length;
@@ -369,7 +369,7 @@ fn createState:u32 (ENABLE_STACK_OUTPUT:u32) {
         
         destination.token_length = this.token_length;
         destination.token_offset = this.token_offset;
-        destination.prev_token_offset = this.prev_token_offset;
+        destination.prev_byte_offset = this.prev_byte_offset;
         
         destination.line = this.line;
         destination.byte_length = this.byte_length;
@@ -385,7 +385,7 @@ fn createState:u32 (ENABLE_STACK_OUTPUT:u32) {
         
         this.token_length = source.token_length;
         this.token_offset = source.token_offset;
-        this.prev_token_offset = source.prev_token_offset;
+        this.prev_byte_offset = source.prev_byte_offset;
         
         this.line = source.line;
         this.type = source.type;
@@ -650,6 +650,7 @@ fn reset:void (data:__ParserData$ref, origin:__Lexer$ref, s_ptr:u32, r_ptr:u32) 
 }
 
 fn consume: bool (l:__Lexer$ref, data:__ParserData$ref, state:u32) {
+    l.prev_byte_offset = l.byte_offset + l.byte_length;
     if isOutputEnabled(state) : add_shift(data, l.token_length);
     l.next(data);
     return:true
