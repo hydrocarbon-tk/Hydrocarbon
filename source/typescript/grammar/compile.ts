@@ -8,7 +8,7 @@ import {
     render
 } from "./passes/common.js";
 import { convertListProductions } from "./passes/convert_list_productions.js";
-import { extractMetaSymbols } from "./passes/extract_meta_symbols.js";
+import { extractMetaSymbolsFromBodies } from "./passes/extract_meta_symbols.js";
 import { integrateImportedGrammars } from "./passes/import.js";
 import { buildItemMaps } from "./passes/item_map.js";
 import {
@@ -54,7 +54,7 @@ export async function compileGrammar(grammar: HCG3Grammar) {
     try {
         integrateImportedGrammars(grammar, errors);
         convertListProductions(grammar, errors);
-        extractMetaSymbols(grammar, errors);
+        extractMetaSymbolsFromBodies(grammar, errors);
         deduplicateProductionBodies(grammar, errors);
         //mergeProductions(grammar, errors); // Optional
         createJSFunctionsFromExpressions(grammar, errors);
