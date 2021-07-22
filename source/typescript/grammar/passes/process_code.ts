@@ -13,22 +13,13 @@ export function createJSFunctionsFromExpressions(grammar: HCG3Grammar, error) {
 
                 const fn = body.reduce_function;
 
-                if (fn.txt.trim() == "") {
-                    let DISCARD = true;
 
-                    if (fn.env) {
-                        if (fn.name) {
-                            fn.js = `(env,sym,pos)=>env.functions.${fn.name}(env,sym,pos)`;
-                            continue;
-                        }
-                    }
-
-                    if (DISCARD) {
-
-                        body.reduce_function = null;
-
-                        continue;
-                    }
+                if (fn.type == "env-function-reference") {
+                    fn.js = `(env,sym,pos)=>env.functions.${fn.ref}(env,sym,pos)`;
+                    continue;
+                } else if (!fn.txt) {
+                    body.reduce_function = null;
+                    continue;
                 }
 
                 const expression = exp(`(${fn.txt.replace(/(\${1,2}\d+)/g, "$1_")})`);

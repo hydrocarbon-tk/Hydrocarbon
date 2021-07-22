@@ -46,27 +46,33 @@ export function getRealSymbolCount(symbols: (HCG3Symbol)[]) {
 export function offsetReduceFunctionSymRefs(body: HCG3ProductionBody, offset_start: number, offset_count: number) {
 
     if (offset_count > 0 && Body_Has_Reduce_Action(body)) {
-        body.reduce_function.txt = body.reduce_function.txt.replace(/\$(\d+)/g, (m, p1) => {
-            const val = parseInt(p1) - 1;
-            if (val >= offset_start)
-                return "$" + (val + 1 + offset_count);
-            return m;
-        });
+
+        if (body.reduce_function.type != "env-function-reference") {
+            body.reduce_function.txt = body.reduce_function.txt.replace(/\$(\d+)/g, (m, p1) => {
+                const val = parseInt(p1) - 1;
+                if (val >= offset_start)
+                    return "$" + (val + 1 + offset_count);
+                return m;
+            });
+        }
     }
 }
 
 export function removeBodySymbol(body: HCG3ProductionBody, index: number, opt_id: bigint = null) {
     // Extend index values after the first body 
     if (Body_Has_Reduce_Action(body)) {
-        body.reduce_function.txt = body.reduce_function.txt.replace(/\$(\d+)/g, (m, p1) => {
-            const val = parseInt(p1);
-            if (val - 1 > index)
-                return "$" + (val - 1);
-            if (val - 1 == index)
-                return "\$NULL";
-            return m;
 
-        });
+        if (body.reduce_function.type != "env-function-reference") {
+            body.reduce_function.txt = body.reduce_function.txt.replace(/\$(\d+)/g, (m, p1) => {
+                const val = parseInt(p1);
+                if (val - 1 > index)
+                    return "$" + (val - 1);
+                if (val - 1 == index)
+                    return "\$NULL";
+                return m;
+
+            });
+        }
     }
 
     if (opt_id)
