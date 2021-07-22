@@ -35,14 +35,27 @@ export async function loadGrammarFromFile(uri: URI | string, grammar_parser: HCG
 
     existing_grammars.set("root", grammar);
 
+    const import_grammars = new Map(grammar.imported_grammars.map(g => [g.uri, g]));
+
     for (const grammar of existing_grammars.values()) {
 
         grammar.common_import_name = (new URI(grammar.URI)).filename.replace(/-/g, "_");
 
-        for (const imported_grammar of grammar.imported_grammars) {
-            imported_grammar.grammar = existing_grammars.get(imported_grammar.uri);
+        if (!import_grammars.has(grammar.URI)) {
+            import_grammars.set(grammar.URI, {
+                reference: grammar.common_import_name,
+                uri: grammar.URI,
+                grammar: null,
+            });
         }
+
+        for (const imported_grammar of grammar.imported_grammars)
+            imported_grammar.grammar = existing_grammars.get(imported_grammar.uri);
+
+        import_grammars.get(grammar.URI).grammar = grammar;
     }
+
+    grammar.imported_grammars = [...import_grammars.values()];
 
     return grammar;
 }
