@@ -3,8 +3,9 @@
  * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
  * disclaimer notice.
  */
+import { HCG3Grammar } from "source/typescript/types/grammar_nodes.js";
 import { getTokenSymbolsFromItems, Symbols_Are_The_Same, Sym_Is_A_Production } from "../../grammar/nodes/symbol.js";
-import { EOF_SYM, Grammar } from "../../types/grammar.js";
+import { EOF_SYM, Grammar } from "../../types/item_map.js";
 import { RenderBodyOptions } from "../../types/render_body_options";
 import { Symbol } from "../../types/symbol.js";
 import { TransitionNode, TRANSITION_TYPE } from "../../types/transition_node.js";
@@ -116,7 +117,7 @@ export function getMaxOffsetOfItems(active_items: Item[]) {
     return active_items.reduce((r, i) => Math.max(i.offset, r), 0);
 }
 
-export function Items_Are_From_Same_Production(active_items: Item[], grammar: Grammar) {
+export function Items_Are_From_Same_Production(active_items: Item[], grammar: HCG3Grammar) {
     return active_items.setFilter(i => i.getProduction(grammar).id).length == 1;
 }
 

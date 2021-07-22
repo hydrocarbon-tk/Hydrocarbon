@@ -1,5 +1,5 @@
 import { TokenSymbol } from "@candlelib/hydrocarbon/build/types/types/symbol";
-import { ItemMapEntry } from "../types/grammar";
+import { ItemMapEntry } from "./item_map";
 
 
 export const enum RECURSIVE_STATE {

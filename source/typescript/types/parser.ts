@@ -4,12 +4,11 @@
  * disclaimer notice.
  */
 
-import { Token } from "../runtime/Token";
-import { GrammarParserEnvironment } from "./grammar_compiler_environment";
+import { Token } from "../runtime/token";
 import { ParserEnvironment } from "./parser_environment";
 
 export type HCGParser<T = any, R = any> = {
-    (input: string, env: GrammarParserEnvironment): {
+    (input: string, env: any): {
         result: T[];
     };
 } & R;

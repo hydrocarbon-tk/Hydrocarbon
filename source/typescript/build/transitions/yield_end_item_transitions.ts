@@ -4,7 +4,7 @@
  * disclaimer notice.
  */
 import { getSymbolsFromClosure } from "../../grammar/nodes/symbol.js";
-import { EOP_SYM } from "../../types/grammar.js";
+import { EOP_SYM } from "../../types/item_map.js";
 import { HCG3Grammar } from "../../types/grammar_nodes";
 import { RenderBodyOptions } from "../../types/render_body_options";
 import { TransitionNode, TRANSITION_TYPE } from "../../types/transition_node.js";

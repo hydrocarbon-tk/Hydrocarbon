@@ -1,6 +1,6 @@
 
 import { copy, experimentalConstructRenderers, experimentalRender, traverse } from "@candlelib/conflagrate";
-import { EOF_SYM, EOP_SYM } from "../../types/grammar.js";
+import { EOF_SYM, EOP_SYM } from "../../types/item_map.js";
 import {
     HCG3Grammar,
     HCG3Production,
@@ -9,7 +9,7 @@ import {
     HCG3Symbol,
     HCG3ProductionBody
 } from "../../types/grammar_nodes";
-import { createSequenceData } from "../../utilities/grammar.js";
+import { createSequenceData } from "../../utilities/create_byte_sequences.js";
 import { getUniqueSymbolName, Sym_Is_A_Production, Sym_Is_A_Production_Token, Sym_Is_Defined } from "../nodes/symbol.js";
 import {
     addBodyToProduction,

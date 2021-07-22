@@ -4,7 +4,7 @@
  * disclaimer notice.
  */
 import { Lexer } from "@candlelib/wind";
-import { Grammar } from "../../types/grammar.js";
+import { Grammar } from "../../types/item_map.js";
 import { HCG3Grammar, HCG3Symbol, HCG3EmptySymbol, HCG3EOPSymbol, HCG3LookBehind } from "../../types/grammar_nodes.js";
 import {
     DefinedCharacterSymbol,
@@ -189,7 +189,7 @@ export function Sym_Is_A_Generic_Number(sym: HCG3Symbol): sym is GeneratedSymbol
 
 export function Sym_Is_A_Space_Generic(sym: HCG3Symbol): sym is GeneratedSymbol { return sym.val == "ws"; }
 
-export function getFollowSymbolsFromItems(items: Item[], grammar: Grammar): TokenSymbol[] {
+export function getFollowSymbolsFromItems(items: Item[], grammar: HCG3Grammar): TokenSymbol[] {
     return items.filter(i => i.atEND)
         .flatMap(i => [...grammar.item_map.get(i.id).follow.values()])
         .setFilter()

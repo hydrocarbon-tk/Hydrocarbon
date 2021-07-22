@@ -3,7 +3,7 @@
  * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
  * disclaimer notice.
  */
-import { Grammar } from "../../types/grammar.js";
+import { Grammar } from "../../types/item_map.js";
 import { RenderBodyOptions } from "../../types/render_body_options.js";
 import { TransitionNode, TRANSITION_TYPE } from "../../types/transition_node.js";
 import { getClosure } from "../../utilities/closure.js";
@@ -18,6 +18,7 @@ import {
     Every_Leaf_Of_TransitionTree_Contain_One_Root_Item, getMaxOffsetOfItems, Items_Are_From_Same_Production,
     yieldTransitions
 } from "./yield_transitions.js";
+import { HCG3Grammar } from "source/typescript/types/grammar_nodes.js";
 
 //*
 export function processPeekTransitionLeaves(
@@ -198,7 +199,7 @@ function addUnresolvedNode(node: TransitionNode, options: RenderBodyOptions, off
 
 
 
-function Active_Symbol_Of_First_Item_Is_A_Production(node: TransitionNode, grammar: Grammar) {
+function Active_Symbol_Of_First_Item_Is_A_Production(node: TransitionNode, grammar: HCG3Grammar) {
     return Sym_Is_A_Production(node.items[0].sym(grammar));
 }
 

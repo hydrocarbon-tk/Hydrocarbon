@@ -4,15 +4,27 @@
  * disclaimer notice.
  */
 import { HCG3Grammar } from "source/typescript/types/grammar_nodes.js";
+import { Item } from "../../utilities/item.js";
 import { parentPort, workerData } from "worker_threads";
 import { ParserEnvironment } from "../../types/parser_environment.js";
 import { HybridDispatch, HybridDispatchResponse } from "../../types/worker_messaging.js";
 import "../../utilities/array_globals.js";
-import { filloutWorkerGrammar } from "../../utilities/grammar.js";
 import { constructHybridFunction } from "../function_constructor.js";
 import { createRunner, Helper } from "../helper.js";
 
-
+/**
+ * Fillout Worker Grammar
+ * 
+ * Takes an existing filled out grammar that has been transferred to 
+ * a worker and re-implements missing methods for custom types.
+ * 
+ * Returns nothing
+ */
+export function filloutWorkerGrammar(grammar: HCG3Grammar) {
+    for (const [key, val] of grammar.item_map.entries()) {
+        val.item = Item.fromArray(val.item);
+    }
+}
 
 export class Worker {
 

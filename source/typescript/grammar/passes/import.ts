@@ -1,10 +1,8 @@
 import { copy, traverse } from "@candlelib/conflagrate";
-import { HCG3SymbolNode } from "@candlelib/hydrocarbon/build/types/types/grammar_nodes";
 import {
     HCG3Grammar,
     HCG3Production,
-    HCG3Symbol,
-    HCG3ProductionBody
+    HCG3Symbol
 } from "../../types/grammar_nodes";
 import { createProductionSymbol, getProductionByName } from "../nodes/common.js";
 

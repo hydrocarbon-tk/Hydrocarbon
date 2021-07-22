@@ -3,7 +3,7 @@
  * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
  * disclaimer notice.
  */
-import { EOF_SYM } from "../types/grammar.js";
+import { EOF_SYM } from "../types/item_map.js";
 import { HCG3Grammar, HCG3Production, HCG3Symbol, HCG3ProductionBody } from "../types/grammar_nodes.js";
 import { Production } from "../types/production";
 import { convertSymbolToString, getRootSym, getSymbolsFromClosure, Sym_Is_A_Production } from "../grammar/nodes/symbol.js";
@@ -116,8 +116,8 @@ export class Item extends Array {
         return (this.getProduction(grammar).id + ":" + this.body) + " " + this.body_(grammar).production.name + "=>" + this.renderUnformatted(grammar) + ` [ ${syms.join(", ")} ]`;
     }
 
+    //@ts-ignore
     getProduction(grammar: HCG3Grammar): HCG3Production {
-        //@ts-ignore
         return this.body_(grammar).production;
     }
 

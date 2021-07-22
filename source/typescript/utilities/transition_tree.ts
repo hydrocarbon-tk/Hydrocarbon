@@ -241,13 +241,13 @@ function getClosureGroups(
             }
         } else if (!Sym_Is_A_Production(sym)) {
 
-            const new_closure = incrementWithClosure(grammar, item, null);
+            const new_closure = incrementWithClosure(grammar, item);
             group.push({ sym, index: index, item_id: item.id, unskippable, closure: new_closure.setFilter(i => i.id), final: final, starts: starts ? starts : [item] });
         }
     }
     return group;
 }
-function incrementWithClosure(grammar: HCG3Grammar, item: Item, prod: Production): Item[] {
+function incrementWithClosure(grammar: HCG3Grammar, item: Item): Item[] {
     return getClosure([item.increment()], grammar, true);
 }
 

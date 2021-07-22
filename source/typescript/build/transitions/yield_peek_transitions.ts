@@ -3,12 +3,12 @@
  * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
  * disclaimer notice.
  */
-import { Grammar } from "../../types/grammar.js";
-import { TransitionNode, TRANSITION_TYPE } from "../../types/transition_node.js";
+import { HCG3Grammar } from "source/typescript/types/grammar_nodes.js";
+import { getSymbolFromUniqueName, getUniqueSymbolName } from "../../grammar/nodes/symbol.js";
 import { RenderBodyOptions } from "../../types/render_body_options.js";
 import { Symbol } from "../../types/symbol.js";
+import { TransitionNode, TRANSITION_TYPE } from "../../types/transition_node.js";
 import { TransitionTreeNode } from "../../types/transition_tree_nodes";
-import { getSymbolFromUniqueName, getUniqueSymbolName } from "../../grammar/nodes/symbol.js";
 import { const_EMPTY_ARRAY } from "../../utilities/const_EMPTY_ARRAY.js";
 import { createTransitionNode } from "./create_transition_node.js";
 import { processPeekTransitionLeaves } from "./process_peek_transition_leaves.js";
@@ -16,7 +16,7 @@ import { processPeekTransitionLeaves } from "./process_peek_transition_leaves.js
 
 export type leafHandler = (node: TransitionNode, options: RenderBodyOptions, offset: number) => void;
 
-export function convertTransitionTreeNodeToRenderable(node: TransitionTreeNode, grammar: Grammar) {
+export function convertTransitionTreeNodeToRenderable(node: TransitionTreeNode, grammar: HCG3Grammar) {
     return Object.assign({}, node, {
         roots: node.roots.map(r => r.renderUnformattedWithProduction(grammar)),
         next: node.next.map(n => convertTransitionTreeNodeToRenderable(n, grammar)),

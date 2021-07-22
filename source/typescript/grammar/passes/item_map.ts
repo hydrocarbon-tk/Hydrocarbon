@@ -4,7 +4,7 @@
  * disclaimer notice.
  */
 import { getStartItemsFromProduction } from "../../build/function_constructor.js";
-import { EOF_SYM, EOP_SYM, ItemMapEntry } from "../../types/grammar.js";
+import { EOF_SYM, EOP_SYM, ItemMapEntry } from "../../types/item_map.js";
 import { HCG3Grammar, HCG3Production } from "../../types/grammar_nodes.js";
 import { Production } from "../../types/production.js";
 import { ProductionSymbol, Symbol, TokenSymbol } from "../../types/symbol";
@@ -182,7 +182,7 @@ function addFollowInformation(item: Item, grammar: HCG3Grammar, check_set: Set<s
         const
             parent_prod_id = item.getProduction(grammar).id,
             prod_id = getProductionID(item_sym, grammar),
-            prod: Production = grammar.productions[prod_id];
+            prod: HCG3Production = grammar.productions[prod_id];
 
         for (const body of prod.bodies) {
 
