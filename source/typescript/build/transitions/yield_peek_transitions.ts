@@ -14,7 +14,7 @@ import { createTransitionNode } from "./create_transition_node.js";
 import { processPeekTransitionLeaves } from "./process_peek_transition_leaves.js";
 
 
-export type leafHandler = (node: TransitionNode, options: RenderBodyOptions, offset: number) => void;
+export type leafHandler = (node: TransitionNode, options: RenderBodyOptions, root_depth: number, leaf_depth: number) => void;
 
 export function convertTransitionTreeNodeToRenderable(node: TransitionTreeNode, grammar: HCG3Grammar) {
     return Object.assign({}, node, {
@@ -59,7 +59,7 @@ export function buildPeekTransitions(
         if (group[0].next.length > 0)
             node.nodes.push(...buildPeekTransitions(group[0].next, options, offset, leafHandler, const_EMPTY_ARRAY, depth + 1));
         else
-            leafHandler(node, options, offset);
+            leafHandler(node, options, offset, depth);
 
         output_nodes.push(node);
     }

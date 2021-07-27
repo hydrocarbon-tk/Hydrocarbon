@@ -3,7 +3,7 @@
  * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
  * disclaimer notice.
  */
-import { getSkippableSymbolsFromItems } from "../../grammar/nodes/symbol.js";
+import { convertSymbolToString, getSkippableSymbolsFromItems } from "../../grammar/nodes/symbol.js";
 import { sk, skRenderAsSK } from "../../skribble/skribble.js";
 import { SKExpression } from "../../skribble/types/node.js";
 import { RenderBodyOptions } from "../../types/render_body_options";
@@ -99,7 +99,10 @@ export function default_resolveResolvedLeaf(item: Item, state: TransitionNode, o
 
         for (const prod of prods)
             leaf_productions.add(prod);
+
+
     }
+
 
     return {
         leaf: {

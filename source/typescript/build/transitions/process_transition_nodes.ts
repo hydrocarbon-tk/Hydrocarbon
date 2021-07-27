@@ -4,14 +4,6 @@
  * disclaimer notice.
  */
 import { bidirectionalTraverse, TraverseState } from "@candlelib/conflagrate";
-import { sk } from "../../skribble/skribble.js";
-import { SKExpression } from "../../skribble/types/node";
-import { RenderBodyOptions } from "../../types/render_body_options";
-import { TokenSymbol } from "../../types/symbol";
-import { MultiItemReturnObject, SingleItemReturnObject, TransitionClauseGenerator, TransitionGroup } from "../../types/transition_generating";
-import { GeneratorStateReturn, TransitionNode, TRANSITION_TYPE } from "../../types/transition_node.js";
-import { expressionListHash } from "../../utilities/code_generating.js";
-import { Item } from "../../utilities/item.js";
 import {
     Symbols_Occlude,
     Sym_Is_A_Generic_Identifier,
@@ -21,9 +13,17 @@ import {
     Sym_Is_EOF,
     Sym_Is_EOP
 } from "../../grammar/nodes/symbol.js";
+import { sk } from "../../skribble/skribble.js";
+import { SKExpression } from "../../skribble/types/node";
+import { RenderBodyOptions } from "../../types/render_body_options";
+import { TokenSymbol } from "../../types/symbol";
+import { MultiItemReturnObject, SingleItemReturnObject, TransitionClauseGenerator, TransitionGroup } from "../../types/transition_generating";
+import { GeneratorStateReturn, TransitionNode, TRANSITION_TYPE } from "../../types/transition_node.js";
+import { expressionListHash } from "../../utilities/code_generating.js";
+import { Item } from "../../utilities/item.js";
+import { default_resolveUnresolvedLeaves } from "../branch_resolution/default_ambiguous_leaves_resolution.js";
 import { default_resolveBranches } from "../branch_resolution/default_branch_resolution.js";
 import { default_resolveResolvedLeaf } from "../branch_resolution/default_resolved_leaf_resolution.js";
-import { default_resolveUnresolvedLeaves } from "../branch_resolution/default_ambiguous_leaves_resolution.js";
 import { Items_Are_From_Same_Production } from "./yield_transitions.js";
 
 export function defaultGrouping(g) { return g.hash; }
@@ -149,23 +149,22 @@ export function processTransitionNodes(
                     if (options.helper.ANNOTATED)
                         if (root)
                             root.unshift(<SKExpression>sk`"--UNRESOLVED-LEAF--"`);
-                    break;
-                    throw new Error("Flow should not enter this block: Multi-item moved to group section");
+
+                } else if (node.items.length == 0)
+                    throw new Error("Transition node has no items");
+                else {
+
+                    const { leaf } = leaf_resolve_function(node.items[0], node, options);
+
+                    node.code = leaf.root;
+                    node.hash = leaf.hash;
+                    node.prods = leaf.prods;
+                    node.leaves = [leaf];
+
+                    if (options.helper.ANNOTATED)
+                        if (leaf.root)
+                            leaf.root.unshift(<SKExpression>sk`"--LEAF--"`);
                 }
-
-                if (node.items.length == 0)
-                    throw new Error("Flow should not enter this block: Multi-item moved to group section");
-
-                const { leaf } = leaf_resolve_function(node.items[0], node, options);
-
-                node.code = leaf.root;
-                node.hash = leaf.hash;
-                node.prods = leaf.prods;
-                node.leaves = [leaf];
-
-                if (options.helper.ANNOTATED)
-                    if (leaf.root)
-                        leaf.root.unshift(<SKExpression>sk`"--LEAF--"`);
                 break;
 
         }

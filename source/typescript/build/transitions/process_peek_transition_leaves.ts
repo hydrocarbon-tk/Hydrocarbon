@@ -3,14 +3,14 @@
  * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
  * disclaimer notice.
  */
-import { Grammar } from "../../types/item_map.js";
+import { HCG3Grammar } from "source/typescript/types/grammar_nodes.js";
+import { getFollowSymbolsFromItems, getUniqueSymbolName, Sym_Is_A_Production } from "../../grammar/nodes/symbol.js";
 import { RenderBodyOptions } from "../../types/render_body_options.js";
 import { TransitionNode, TRANSITION_TYPE } from "../../types/transition_node.js";
 import { getClosure } from "../../utilities/closure.js";
 import { const_EMPTY_ARRAY } from "../../utilities/const_EMPTY_ARRAY.js";
 import { Item, Items_Have_The_Same_Active_Symbol } from "../../utilities/item.js";
 import { getProductionID } from "../../utilities/production.js";
-import { getFollowSymbolsFromItems, getUniqueSymbolName, Sym_Is_A_Production } from "../../grammar/nodes/symbol.js";
 import { getTransitionTree } from "../../utilities/transition_tree.js";
 import { createTransitionNode } from "./create_transition_node.js";
 import { yieldEndItemTransitions } from "./yield_end_item_transitions.js";
@@ -18,20 +18,21 @@ import {
     Every_Leaf_Of_TransitionTree_Contain_One_Root_Item, getMaxOffsetOfItems, Items_Are_From_Same_Production,
     yieldTransitions
 } from "./yield_transitions.js";
-import { HCG3Grammar } from "source/typescript/types/grammar_nodes.js";
 
 //*
 export function processPeekTransitionLeaves(
     node: TransitionNode,
     options: RenderBodyOptions,
-    offset: number = 0
+    root_depth: number = 0,
+    leaf_depth: number = 0
 ): void {
 
     const { grammar } = options;
 
+
     if (node.items.length > 0) {
 
-        if (Items_From_Same_Production_Allow_Production_Call(node, options, offset))
+        if (Items_From_Same_Production_Allow_Production_Call(node, options, root_depth))
 
             throw new Error("This case should have been handled in yieldNodes");
 
@@ -39,47 +40,56 @@ export function processPeekTransitionLeaves(
 
             if (node.items.some(i => i.atEND))
 
-                addUnresolvedNode(node, options, offset);
+                addUnresolvedNode(node, options, root_depth);
 
-            else if (We_Can_Call_Single_Production_From_Items(node, options))
-
-                convertStateToProductionCall(node, offset);
-
-            else if (Items_Have_The_Same_Active_Symbol(node.items, grammar))
-
-                addSameActiveSymbolNode(node, options, offset);
-
-            else if (No_Matching_Extended_Goto_Item_In_State_Closure(node, options))
+            else if (We_Can_Call_Single_Production_From_Items(node, options)) {
 
 
-                if (State_Closure_Allows_Production_Call(node, options))
+                convertStateToProductionCall(node, root_depth);
 
-                    convertStateToClosureProductionCall(node, offset);
+            } else if (Items_Have_The_Same_Active_Symbol(node.items, grammar)) {
 
-                else if (offset == 0) {
-                    addRegularYieldNode(node, getClosure(node.closure, grammar), options, offset + 1);
-                } else
+                addSameActiveSymbolNode(node, options, root_depth);
 
-                    addUnresolvedNode(node, options, offset);
+            } else if (No_Matching_Extended_Goto_Item_In_State_Closure(node, options)) {
 
-            else
+                if (State_Closure_Allows_Production_Call(node, options)) {
+
+                    convertStateToClosureProductionCall(node, root_depth);
+                }
+
+                else if (leaf_depth <= 0 && root_depth == 0) {
+
+                    /**
+                     * At offset zero, were all all closure items are at the start position, we can attempt
+                     * to transition on closure items instead of the root production items.
+                     */
+
+                    //console.log("AAA", node.closure.map(i => i.renderUnformattedWithProduction(grammar)), getClosure(node.closure, grammar).map(i => i.renderUnformattedWithProduction(grammar)));
+
+                    addRegularYieldNode(node, getClosure(node.closure, grammar), options, root_depth + 1);
+                } else {
+
+                    addUnresolvedNode(node, options, root_depth);
+                }
+
+            } else
 
                 if (
                     Every_Leaf_Of_TransitionTree_Contain_One_Root_Item(
-                        getTransitionTree(grammar, node.items, options.global_production_items, 10, 8).tree_nodes[0]
+                        getTransitionTree(grammar, node.items, options.goto_items, 10, 8).tree_nodes[0]
                     )
                 )
 
-
-                    addRegularYieldNode(node, node.items, options, offset);
+                    addRegularYieldNode(node, node.items, options, root_depth);
 
                 else
 
-                    addUnresolvedNode(node, options, offset);
+                    addUnresolvedNode(node, options, root_depth);
 
         } else
 
-            convertPeekStateToSingleItemNode(node, options, offset);
+            convertPeekStateToSingleItemNode(node, options, root_depth);
 
     }
 }
@@ -153,7 +163,9 @@ function convertStateToProductionCall(node: TransitionNode, offset: number) {
 
 function addRegularYieldNode(node: TransitionNode, items: Item[], options: RenderBodyOptions, offset: number) {
 
-    node.nodes.push(...yieldTransitions(items, options, offset + 1, const_EMPTY_ARRAY, true));
+    const nodes = yieldTransitions(items, options, offset + 1, const_EMPTY_ARRAY, true);
+
+    node.nodes.push(...nodes);
 
 }
 
@@ -222,7 +234,7 @@ function No_Matching_Extended_Goto_Item_In_State_Closure(node: TransitionNode, o
         &&
         node.items.every(i => !extended_goto_items.some(s => s.body == i.body))
         &&
-        node.items.every(i => !i.atEND);
+        !node.items.some(i => i.atEND);
 }
 
 function Items_From_Same_Production_Allow_Production_Call(node: TransitionNode, options: RenderBodyOptions, offset: number) {

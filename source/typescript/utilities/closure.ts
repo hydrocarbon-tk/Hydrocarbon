@@ -57,7 +57,8 @@ export function getFollowClosure(
     goto_transition_items: Item[],
     grammar: HCG3Grammar,
     productions: Set<number> = new Set,
-    internal$item_track: Set<string> = new Set
+    internal$item_track: Set<string> = new Set,
+    KEEP_END_ITEMS = false
 ) {
     closure = closure.setFilter(i => i.id);
 
@@ -75,8 +76,10 @@ export function getFollowClosure(
 
         const c = getClosure(items, grammar, true);
 
-        new_closure.push(...getFollowClosure(c, goto_transition_items, grammar, productions, internal$item_track));
+        new_closure.push(...getFollowClosure(c, goto_transition_items, grammar, productions, internal$item_track, KEEP_END_ITEMS));
     }
 
+    if (KEEP_END_ITEMS)
+        return new_closure.setFilter(i => i.id);
     return new_closure.setFilter(i => i.id).filter(i => !i.atEND);
 }

@@ -3,7 +3,7 @@
  * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
  * disclaimer notice.
  */
-import { getSymbolsFromClosure } from "../../grammar/nodes/symbol.js";
+import { getSymbolsFromClosure, Sym_Is_A_Production } from "../../grammar/nodes/symbol.js";
 import { EOP_SYM } from "../../types/item_map.js";
 import { HCG3Grammar } from "../../types/grammar_nodes";
 import { RenderBodyOptions } from "../../types/render_body_options";
@@ -54,6 +54,8 @@ export function yieldEndItemTransitions(end_items: Item[], options: RenderBodyOp
 
         } else {
 
+            //*
+
             let { tree_nodes } = getTransitionTree(
                 grammar,
                 end_items,
@@ -75,7 +77,7 @@ export function yieldEndItemTransitions(end_items: Item[], options: RenderBodyOp
 
                     closures.push(c);
 
-                    return { final: 0, sym: null, index, closure: closure };
+                    return { final: 0, sym: null, index, closure: closure, production_shift_items: closure.filter(i => Sym_Is_A_Production(i.sym(grammar))) };
                 }));
 
             let used_items = [];
@@ -96,6 +98,7 @@ export function yieldEndItemTransitions(end_items: Item[], options: RenderBodyOp
                         state.items = selected.slice(0, 1);
                         if (ADD_EOP)
                             state.symbols.push(EOP_SYM);
+
                         used_items.push(...state.items);
                         state.completing = true;
                     },
@@ -104,6 +107,7 @@ export function yieldEndItemTransitions(end_items: Item[], options: RenderBodyOp
             }
 
             default_end_items = end_items.filter(i => !used_items.some(s => s.id == i.id));
+            //*/
         }
     } else {
         default_end_items = end_items;

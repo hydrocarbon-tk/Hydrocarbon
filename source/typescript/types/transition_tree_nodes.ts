@@ -32,4 +32,6 @@ export interface closure_group {
      * Items that transition on the sym
      */
     starts?: Item[];
+
+    production_shift_items: Item[];
 }
