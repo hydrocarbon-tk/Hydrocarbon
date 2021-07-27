@@ -15,9 +15,11 @@ await URI.server();
 const parser = await loader;
 export function loadGrammarFromString(str: string, grammar_parser: HCGParser = parser): HCG3Grammar {
 
-    const a = grammar_parser(str, { group_id: 0 });
+    const grammar = grammar_parser(str, { group_id: 0 }).result[0];
 
-    return a.result[0];
+    resolveReferencedFunctions(grammar);
+
+    return grammar;
 }
 /**
  * Entry point to loading a grammar file from a URI
@@ -37,22 +39,29 @@ export async function loadGrammarFromFile(uri: URI | string, grammar_parser: HCG
 
     const import_grammars = new Map(grammar.imported_grammars.map(g => [g.uri, g]));
 
-    for (const grammar of existing_grammars.values()) {
+    for (const gmmr of existing_grammars.values()) {
 
-        grammar.common_import_name = (new URI(grammar.URI)).filename.replace(/-/g, "_");
+        if (gmmr == grammar) continue;
 
-        if (!import_grammars.has(grammar.URI)) {
-            import_grammars.set(grammar.URI, {
-                reference: grammar.common_import_name,
-                uri: grammar.URI,
+        gmmr.common_import_name = (new URI(gmmr.URI)).filename.replace(/-/g, "_");
+
+        if (!import_grammars.has(gmmr.URI)) {
+            import_grammars.set(gmmr.URI, {
+                reference: gmmr.common_import_name,
+                uri: gmmr.URI,
                 grammar: null,
             });
         }
 
-        for (const imported_grammar of grammar.imported_grammars)
+        for (const imported_grammar of gmmr.imported_grammars)
             imported_grammar.grammar = existing_grammars.get(imported_grammar.uri);
 
-        import_grammars.get(grammar.URI).grammar = grammar;
+        import_grammars.get(gmmr.URI).grammar = gmmr;
+
+        const ref_name = import_grammars.get(gmmr.URI).grammar.common_import_name;
+
+        for (const production of gmmr.productions)
+            production.grammar_id = ref_name;
     }
 
     grammar.imported_grammars = [...import_grammars.values()];
@@ -112,7 +121,8 @@ async function loadGrammar(uri: URI, grammar_parser: any = parser, existing_gram
 function resolveReferencedFunctions(grammar: HCG3Grammar) {
     const fn_lu = grammar.functions.reduce((r, v) => (r.set(v.id, v), r), new Map);
 
-    for (const production of grammar.productions)
+    for (const production of grammar.productions) {
+
 
         for (const body of production.bodies)
 
@@ -128,6 +138,7 @@ function resolveReferencedFunctions(grammar: HCG3Grammar) {
                 };
             }
 
+    }
 
     grammar.meta = {};
 

@@ -417,18 +417,28 @@ function processFollowSymbols(grammar: HCG3Grammar, productions: HCG3Production[
 
 function getOriginGrammarOfProduction(production: HCG3Production, grammar: HCG3Grammar): HCG3Grammar {
 
+    if (production.grammar_id) {
+
+        const imported = grammar.imported_grammars.filter(g => g.grammar.common_import_name == production.grammar_id)[0];
+
+        return imported.grammar;
+
+    }
+
     return grammar;
 }
 
 
 function processSkippedSymbols(grammar: HCG3Grammar, item_maps_in_process: ItemMapEntry[]) {
 
-    const standard_skips = [];
-
-    for (const skipped_symbol of grammar.meta.ignore)
-        standard_skips.push(skipped_symbol);
-
     for (const item_map of item_maps_in_process) {
+
+        const production = item_map.item.getProduction(grammar);
+
+        const standard_skips = [];
+
+        for (const skipped_symbol of getOriginGrammarOfProduction(production, grammar).meta.ignore)
+            standard_skips.push(skipped_symbol);
 
         const first = item_map.item.atEND
             ? item_map.follow

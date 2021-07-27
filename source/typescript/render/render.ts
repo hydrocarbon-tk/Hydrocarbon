@@ -276,7 +276,7 @@ function compileRecognizerSource(runner: Helper, grammar: HCG3Grammar, recognize
 
 
 export function renderJavaScriptReduceFunctionLookupArray(grammar: HCG3Grammar): string {
-    const reduce_functions_str = [...grammar.meta.reduce_functions.keys()].map((b, i) => {
+    const reduce_functions_str = [...grammar.reduce_functions.keys()].map((b, i) => {
         if (b.includes("return") || true) {
             return b.replace(/^return/, "(env, sym, pos)=>(").slice(0, -1) + ")" + `/*${i}*/`;
         } else {

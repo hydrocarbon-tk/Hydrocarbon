@@ -122,11 +122,13 @@ export function createUniqueSymbolSet(grammar: HCG3Grammar, errors: Error[] = []
     }
 
     grammar.meta.all_symbols = unique_map;
-    for (const sym of grammar.meta.ignore)
-        processSymbol(sym, production_lookup, unique_map, errors);
     grammar.reduce_functions = reduce_lu;
-    grammar.meta.reduce_functions = reduce_lu;
     grammar.bodies = bodies;
+
+    for (const g of [grammar, ...grammar.imported_grammars.map(g => g.grammar)]) {
+        for (const sym of g.meta.ignore)
+            processSymbol(sym, production_lookup, unique_map, errors);
+    }
 }
 
 class MissingProduction extends Error {
