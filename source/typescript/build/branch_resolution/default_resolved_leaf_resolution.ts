@@ -3,15 +3,12 @@
  * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
  * disclaimer notice.
  */
-import { convertSymbolToString, getSkippableSymbolsFromItems } from "../../grammar/nodes/symbol.js";
 import { sk, skRenderAsSK } from "../../skribble/skribble.js";
 import { SKExpression } from "../../skribble/types/node.js";
 import { RenderBodyOptions } from "../../types/render_body_options";
 import { SingleItemReturnObject } from "../../types/transition_generating";
 import { TransitionNode, TRANSITION_TYPE } from "../../types/transition_node.js";
-import { addItemAnnotationToExpressionList, addSymbolAnnotationsToExpressionList, createBranchFunctionSk, createSkipCallSk, getProductionFunctionName, hashString } from "../../utilities/code_generating.js";
-import { createTransitionTypeAnnotation } from "../../utilities/create_transition_type_annotation.js";
-import { rec_glob_lex_name } from "../../utilities/global_names.js";
+import { addItemAnnotationToExpressionList, createBranchFunction, createScanFunctionCall, getProductionFunctionName, hashString } from "../../utilities/code_generating.js";
 import { Item, itemsToProductionIDs } from "../../utilities/item.js";
 import { processProductionChain } from "../../utilities/process_production_reduction_sequences.js";
 import { renderItem } from "../../utilities/render_item.js";
@@ -26,12 +23,6 @@ export function default_resolveResolvedLeaf(item: Item, state: TransitionNode, o
         SHOULD_IGNORE = extended_production_shift_items.some(i => i.body == item.body);
 
     let leaf_node = code, prods = [], original_prods = [], INDIRECT = false, EMPTY = false;
-
-    if (options.helper.ANNOTATED) {
-        code.push(createTransitionTypeAnnotation(options, [state.transition_type]));
-        addSymbolAnnotationsToExpressionList(state.symbols, grammar, leaf_node, "Leaf");
-    }
-
 
     if (SHOULD_IGNORE) {
 
@@ -49,7 +40,6 @@ export function default_resolveResolvedLeaf(item: Item, state: TransitionNode, o
         };
     }
 
-
     if (state.transition_type == TRANSITION_TYPE.ASSERT_CONSUME && !item.atEND)
         item = item.increment();
 
@@ -65,7 +55,7 @@ export function default_resolveResolvedLeaf(item: Item, state: TransitionNode, o
             options.called_productions.add(production.id);
 
             const sc = [],
-                call_name = createBranchFunctionSk(sc, options);
+                call_name = createBranchFunction(sc, options);
 
             code.push(<SKExpression>sk`pushFN(data, ${call_name}, prod_start)`);
 
@@ -81,17 +71,14 @@ export function default_resolveResolvedLeaf(item: Item, state: TransitionNode, o
 
             const
 
-                skippable = getSkippableSymbolsFromItems([item], grammar),
-
-                skip = state.transition_type == TRANSITION_TYPE.ASSERT_CONSUME
+                scan = state.transition_type == TRANSITION_TYPE.ASSERT_CONSUME
                     && !item.atEND
-                    ? createSkipCallSk(skippable, options, rec_glob_lex_name, false)
+                    ? createScanFunctionCall([item], options)
                     : undefined;
 
-            if (skip)
-                code.push(skip);
+            if (scan) code.push(scan);
 
-            ({ leaf_node, prods, INDIRECT, original_prods, EMPTY } = renderItem(code, item, options,
+            ({ leaf_node, prods, INDIRECT, original_prods } = renderItem(code, item, options,
                 state.transition_type == TRANSITION_TYPE.ASSERT
                 || state.transition_type == TRANSITION_TYPE.ASSERT_PEEK
                 || state.transition_type == TRANSITION_TYPE.ASSERT_PEEK_VP));
@@ -99,10 +86,7 @@ export function default_resolveResolvedLeaf(item: Item, state: TransitionNode, o
 
         for (const prod of prods)
             leaf_productions.add(prod);
-
-
     }
-
 
     return {
         leaf: {

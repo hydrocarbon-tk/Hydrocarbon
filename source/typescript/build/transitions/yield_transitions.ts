@@ -3,9 +3,9 @@
  * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
  * disclaimer notice.
  */
-import { HCG3Grammar } from "source/typescript/types/grammar_nodes.js";
+import { default_EOF } from "../../grammar/nodes/default_symbols.js";
 import { getTokenSymbolsFromItems, Symbols_Are_The_Same, Sym_Is_A_Production } from "../../grammar/nodes/symbol.js";
-import { EOF_SYM } from "../../types/item_map.js";
+import { HCG3Grammar } from "../../types/grammar_nodes.js";
 import { RenderBodyOptions } from "../../types/render_body_options";
 import { Symbol } from "../../types/symbol.js";
 import { TransitionNode, TRANSITION_TYPE } from "../../types/transition_node.js";
@@ -45,7 +45,7 @@ export function yieldTransitions(
         { grammar, production_ids } = options,
         output_nodes: TransitionNode[] = [],
         active_items = in_items.filter(item => {
-            const sym = item.sym(grammar) || EOF_SYM;
+            const sym = item.sym(grammar) || default_EOF;
 
             return Sym_Is_A_Production(sym)
                 || item.atEND
@@ -197,7 +197,7 @@ function yieldProductionCallNode(active_items: Item[], offset: number): Transiti
 
         items = [new Item(first.body, first.len, 0)];
 
-    return [createTransitionNode(items, [EOF_SYM], TRANSITION_TYPE.ASSERT_PRODUCTION_SYMBOLS, offset)];
+    return [createTransitionNode(items, [default_EOF], TRANSITION_TYPE.ASSERT_PRODUCTION_SYMBOLS, offset)];
 }
 
 function yieldSingleItemNode(items: Item[], { grammar }: RenderBodyOptions, offset: number): TransitionNode[] {

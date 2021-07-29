@@ -52,7 +52,7 @@ export function buildPeekTransitions(
                 .map(g => g.sym)
                 .map(s => getSymbolFromUniqueName(options.grammar, s)),
 
-            node = createTransitionNode(group[0].roots, symbols, TRANSITION_TYPE.ASSERT_PEEK, offset, depth);
+            node = createTransitionNode(group[0].roots, symbols, TRANSITION_TYPE.ASSERT_PEEK, offset, depth, false, group[0].root_id, group.flatMap(g => g.item_ids));
 
         node.closure = group.flatMap(g => g.starts).setFilter(s => s.id);
 

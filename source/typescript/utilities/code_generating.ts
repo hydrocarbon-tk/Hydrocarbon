@@ -7,51 +7,63 @@ import crypto from "crypto";
 import { Helper } from "../build/helper.js";
 import {
     getSkippableSymbolsFromItems,
+    getSymbolsFromClosure,
     getTokenSymbolsFromItems,
-    getUniqueSymbolName, Symbols_Occlude,
-    Sym_Is_An_Assert_Function,
+    getUniqueSymbolName,
     Sym_Is_A_Generic_Identifier,
     Sym_Is_A_Generic_Number,
     Sym_Is_A_Generic_Type,
     Sym_Is_A_Production_Token,
     Sym_Is_A_Terminal,
-    Sym_Is_Consumed,
     Sym_Is_Defined,
     Sym_Is_Defined_Identifier,
     Sym_Is_Defined_Natural_Number,
     Sym_Is_EOF,
     Sym_Is_EOP,
-    Sym_Is_LookBehind,
-    Sym_Is_Not_Consumed
+    Sym_Is_Exclusive,
+    Sym_Is_Look_Behind,
+    Sym_Is_Not_Consumed,
+    Sym_Is_Virtual_Token
 } from "../grammar/nodes/symbol.js";
+import { NULL_STATE } from "../render/skribble_recognizer_template.js";
 import { sk, skRenderAsSK } from "../skribble/skribble.js";
-import { SKAssignment, SKBlock, SKCall, SKExpression, SKFunction, SKIdentifierReference, SKIf, SKNode, SKOperatorExpression, SKPrimitiveDeclaration, SKReference } from "../skribble/types/node.js";
-import { HCG3Grammar, HCG3LookBehind, HCG3Production } from "../types/grammar_nodes.js";
-import { BaseOptions, RenderBodyOptions } from "../types/render_body_options.js";
+import {
+    SKAssignment, SKBlock,
+    SKCall,
+    SKExpression,
+    SKFunction,
+    SKIdentifierReference,
+    SKIf,
+    SKNode,
+    SKOperatorExpression,
+    SKPrimitiveDeclaration,
+    SKReference
+} from "../skribble/types/node.js";
 import {
     DefinedSymbol,
+    HCG3Grammar,
+    HCG3LookBehind,
+    HCG3Production,
+    HCG3Symbol,
     ProductionTokenSymbol,
-    Symbol,
-    TokenSymbol
-} from "../types/symbol";
-import { SymbolType } from "../types/symbol_type";
+    TokenSymbol,
+    SymbolType,
+    VirtualTokenSymbol
+} from "../types/grammar_nodes.js";
+import {
+    BaseOptions,
+    RenderBodyOptions
+} from "../types/render_body_options.js";
+import { getClosure } from "./closure.js";
+import { getSymbolTree, TokenTreeNode } from "./getSymbolValueAtOffset.js";
 import { Item } from "./item.js";
 import { getProductionClosure, getProductionID } from "./production.js";
-/**
- * Length of code hash string appended to GUID constant names. 
- */
-const hash_length = 16;
-
-
 
 export const createReduceFunctionSK = (item: Item, grammar: HCG3Grammar): SKCall =>
     <SKCall>sk`add_reduce(state, data, ${item.len}, ${item.body_(grammar).reduce_id + 1})`;
 
-
-
 export const createDefaultReduceFunctionSk =
     (item: Item): SKCall => <SKCall>sk`add_reduce(state, data, ${item.len})`;
-
 
 export function getProductionFunctionName(production: HCG3Production, grammar: HCG3Grammar): string {
     return "$" + production.name;
@@ -63,67 +75,50 @@ export const createConsumeSk = (lex_name: string): SKCall => <SKCall>sk`consume(
 export const createAssertConsumeSk = (lex_name: string = "l:Lexer", boolean: SKExpression): SKOperatorExpression =>
     <SKOperatorExpression>sk`((${boolean}) && ${createConsumeSk(lex_name)})`;
 export const createAssertionShiftSk = (options: BaseOptions, sym: TokenSymbol, lex_name: string = "l"): SKOperatorExpression =>
-    createAssertConsumeSk(lex_name, getIncludeBooleansSk([sym], options, lex_name));
+    createAssertConsumeSk(lex_name, getIncludeBooleans([sym], lex_name));
 
-export function createProductionCallSk(
-    production: HCG3Production,
-    options: RenderBodyOptions,
-    lexer_name: string = "l"
-): SKAssignment {
-
-    const { called_productions, grammar } = options;
-
-    called_productions.add(<number>production.id);
-
-    return <SKAssignment>sk`state = ${getProductionFunctionName(production, grammar)}(${lexer_name}, data, state)`;
-}
-
-export function sanitizeSymbolValForCommentSk(sym: string | TokenSymbol): string {
+export function sanitizeSymbolValForComment(sym: string | TokenSymbol): string {
     if (typeof sym == "string")
         return sym.replace(/\*/g, "asterisk");
     return sym.val.toString().replace(/\*/g, "asterisk");
 }
 
-export function getAssertionFunctionNameSk(name: string) {
-    return `__${name}__`;
-}
-export function translateSymbolValueSk(sym: TokenSymbol, grammar: HCG3Grammar, lex_name: string = "l"): SKExpression {
+export function getSymbolBoolean(sym: TokenSymbol, grammar: HCG3Grammar, lex_name: string = "l"): string {
 
     const
         char_len = sym.val.toString().length,
-        annotation = `/*[${sanitizeSymbolValForCommentSk(sym)}]*/`;
+        annotation = `/*[${sanitizeSymbolValForComment(sym)}]*/`;
 
     if (Sym_Is_EOF(sym))
-        return <SKExpression>sk`${lex_name}.END(data)`;
+        return <SKExpression>`${lex_name}.END(data)`;
 
     if (Sym_Is_EOP(sym))
-        return <SKExpression>sk`${lex_name}.EOP_TRUE()`;
+        return <SKExpression>`${lex_name}.EOP_TRUE()`;
 
     const USE_UNICODE = "true";
+
     switch (sym.type) {
 
         case SymbolType.GENERATED:
             switch (sym.val) {
-                case "ws": return <SKExpression>sk`${lex_name}.isSP(${USE_UNICODE}, data)`;
-                case "num": return <SKExpression>sk`${lex_name}.isNum(data)`;
-                case "id": return <SKExpression>sk`${lex_name}.isUniID(data)`;
-                case "nl": return <SKExpression>sk`${lex_name}.isNL()`;
-                case "sym": return <SKExpression>sk`${lex_name}.isSym(${USE_UNICODE}, data)`;
-                default: return <SKExpression>sk`false`;
+                case "sp": return `${lex_name}.isSP(${USE_UNICODE}, data)`;
+                case "num": return `${lex_name}.isNum(data)`;
+                case "id": return `${lex_name}.isUniID(data)`;
+                case "nl": return `${lex_name}.isNL()`;
+                case "sym": return `${lex_name}.isSym(${USE_UNICODE}, data)`;
+                default: return `false`;
             }
         case SymbolType.LITERAL:
-        case SymbolType.ESCAPED:
-        case SymbolType.SYMBOL:
             if (char_len == 1) {
-                return <SKExpression>sk`${sym.val.codePointAt(0)}${annotation}`;
+                return `${sym.val.codePointAt(0)}${annotation}`;
             } else {
-                return <SKExpression>sk`${sym.val.codePointAt(0)}${annotation}`;
+                return `${sym.val.codePointAt(0)}${annotation}`;
             }
         case SymbolType.EMPTY:
             return null;
     }
 }
-export function createSkipCallSk(
+export function createSkipCall(
     symbols: TokenSymbol[],
     options: BaseOptions,
     lex_name: string = "l",
@@ -134,7 +129,7 @@ export function createSkipCallSk(
 
     const { helper: runner } = options;
 
-    const skip = getSkipFunctionNewSk(symbols, options, undefined, exclude);
+    const skip = getSkipFunctionNew(symbols, options, undefined, exclude);
 
     if (skip)
         return <SKExpression>sk`${skip}(${lex_name}/*${symbols.map(s => `[ ${s.val} ]`).join("")}*/, data, ${!peek ? USE_NUMBER ? 0xFFFFFF : "state" : "STATE_ALLOW_SKIP"});\n`;
@@ -142,53 +137,7 @@ export function createSkipCallSk(
     return null;
 }
 
-export function getSkipFunctionNewSk(
-    skip_symbols: TokenSymbol[],
-    options: BaseOptions,
-    custom_skip_code: SKNode,
-    exclude: TokenSymbol[] = []
-): SKReference {
-
-    const { helper: runner } = options;
-
-    if (skip_symbols.length == 0)
-        return null;
-
-    let fn_ref = getGlobalObjectSk("skip", skip_symbols, runner);
-
-    if (!fn_ref) {
-
-
-        const
-            boolean = getIncludeBooleansSk(skip_symbols, options, "l", exclude),
-
-            skip_function = <SKFunction>sk`
-            fn temp:void (l:__Lexer$ref,data:__ParserData$ref, state:u32){
-
-                if (state) == NULL_STATE : return;
-
-                [const] off:u32 = l.token_offset;
-                
-                loop (1){
-                    
-                    ${custom_skip_code ? custom_skip_code : ""}
-                    
-                    if !(${boolean}) : {
-                        break;
-                    };
-
-                    l.next(data);
-                };
-                if isOutputEnabled(state) : add_skip(data, l.token_offset - off);
-            }`;
-
-        fn_ref = packGlobalFunctionSk("skip", "Lexer", skip_symbols, skip_function, runner);
-    }
-
-    return fn_ref;
-}
-
-export function collapseBranchNamesSk(options: RenderBodyOptions) {
+export function collapseBranchNames(options: RenderBodyOptions) {
     const { branches, helper: runner } = options;
 
     for (const { name, body } of branches) {
@@ -202,7 +151,7 @@ export function collapseBranchNamesSk(options: RenderBodyOptions) {
 
         token_function.expressions = body;
 
-        var val = packGlobalFunctionSk("branch", "int", token_function, token_function, runner);
+        var val = packGlobalFunction("branch", "int", token_function, token_function, runner);
 
         name.value = val.value;
     }
@@ -216,7 +165,7 @@ export function collapseBranchNamesSk(options: RenderBodyOptions) {
  * @param branch_expressions 
  * @param options 
  */
-export function createBranchFunctionSk(branch_expressions: SKExpression[], options: RenderBodyOptions): SKIdentifierReference {
+export function createBranchFunction(branch_expressions: SKExpression[], options: RenderBodyOptions): SKIdentifierReference {
 
     let fn_ref: SKIdentifierReference = { type: "reference", value: "temp_" + hashString(branch_expressions.map(skRenderAsSK).join("")) };
 
@@ -228,16 +177,59 @@ export function createBranchFunctionSk(branch_expressions: SKExpression[], optio
     return fn_ref;
 }
 
-export function createProductionTokenFunctionSk(tok: ProductionTokenSymbol, options: BaseOptions): SKReference {
+
+function createNonCaptureLookBehind(symbol: HCG3LookBehind, options: RenderBodyOptions): SKReference {
+
+    const phased_symbol = getCardinalSymbol(options.grammar, symbol.phased);
+
+    const { helper: runner } = options;
+
+    let fn_ref = getGlobalObject("nocap_lb", [<HCG3Symbol>phased_symbol], options.helper);
+
+    if (!fn_ref) {
+
+        const type_info = symbol.id;
+
+        const boolean = getIncludeBooleans([phased_symbol], "pk");
+
+        const token_function = <SKFunction>sk`
+        fn temp:bool(l:__Lexer$ref, data:__ParserData$ref, state:u32){
+
+            if (l.type) == ${type_info} : return : true;
+
+            [mut]pk:Lexer = l.copyInPlace();
+            
+            pk.byte_offset = l.prev_byte_offset;
+            pk.byte_length = 0;
+
+            loop((pk.byte_offset < l.byte_offset)) {
+                ${createSymbolScanFunctionCall([phased_symbol], options, "pk")};
+                if(${boolean}): { 
+                    l.setToken(${type_info},0,0);
+                    return : true;
+                };
+                pk.next(data);
+            };
+
+            return : false;        
+        }`;
+
+        return packGlobalFunction("nocap_lb", "bool", [phased_symbol], token_function, runner);
+    }
+    return fn_ref;
+}
+
+
+export function createProductionTokenFunction(tok: ProductionTokenSymbol, options: BaseOptions): SKReference {
     const { grammar, helper: runner } = options;
     const prod_id = getProductionID(tok, grammar);
     const closure = getProductionClosure(prod_id, grammar, true);
 
-    const type_info = prod_id << 16;
 
-    let fn_ref = getGlobalObjectSk("tk", closure, runner);
+    let fn_ref = getGlobalObject("tk", closure, runner);
 
     if (!fn_ref) {
+        const type_info = tok.id;
 
         const production = grammar.productions[prod_id];
 
@@ -247,52 +239,49 @@ export function createProductionTokenFunctionSk(tok: ProductionTokenSymbol, opti
 
             anticipated_syms = getTokenSymbolsFromItems(closure, grammar),
 
-            boolean = getIncludeBooleansSk(anticipated_syms, options),
+            boolean = getIncludeBooleans(anticipated_syms),
 
             token_function = <SKFunction>sk`
             fn temp:bool(l:__Lexer$ref,data:__ParserData$ref){       
-                if (l.type) == ${type_info} : return : true;
-                
-                if ${boolean} :{          
+                if (l.type) == ${type_info} : return : true;     
                     
-                    // preserve the current state of the data
-                    [const] stack_ptr :u32 = data.stack_ptr;
-                    [const] input_ptr:u32 = data.input_ptr;
-                    [const] state:u32 = data.state;
-                    [const] copy:Lexer = l.copyInPlace();
-                    [mut new cpp_ignore] data_buffer : ParserDataBuffer = ParserDataBuffer();
-                    [mut js_ignore] data_buffer : ParserDataBuffer;
+                // preserve the current state of the data
+                [const] stack_ptr :u32 = data.stack_ptr;
+                [const] input_ptr:u32 = data.input_ptr;
+                [const] state:u32 = data.state;
+                [const] copy:Lexer = l.copyInPlace();
+                [mut new cpp_ignore] data_buffer : ParserDataBuffer = ParserDataBuffer();
+                [mut js_ignore] data_buffer : ParserDataBuffer;
 
-                    pushFN(data, &> ${getProductionFunctionNameSk(production, grammar)}, 0);
+                pushFN(data, &> ${getProductionFunctionNameSk(production, grammar)}, 0);
 
-                    data.state = NULL_STATE;
+                data.state = ${NULL_STATE};
 
-                    [mut]ACTIVE:bool = true;
+                [mut]ACTIVE:bool = true;
 
-                    loop ( (ACTIVE) ) {
-                        ACTIVE = stepKernel(data, l, data_buffer, stack_ptr + 1);
-                    };
+                loop ( (ACTIVE) ) {
+                    ACTIVE = stepKernel(data, l, data_buffer, stack_ptr + 1);
+                };
 
-                    data.state = state;
+                data.state = state;
 
-                    if data.prod ~= ${production.id} : {
-                        data.stack_ptr = stack_ptr;
-                        data.input_ptr = input_ptr;
-                        l.slice(copy);
-                        l.type = ${type_info};
-                        return: true;
-                    } else {
-                        l.sync(copy);
-                        data.stack_ptr = stack_ptr;
-                        data.input_ptr = input_ptr;
-                        return: false;
-                    };
+                if data.prod ~= ${production.id} : {
+                    data.stack_ptr = stack_ptr;
+                    data.input_ptr = input_ptr;
+                    l.slice(copy);
+                    l.type = ${type_info};
+                    return: true;
+                } else {
+                    l.sync(copy);
+                    data.stack_ptr = stack_ptr;
+                    data.input_ptr = input_ptr;
+                    return: false;
                 };
                 
                 return: false;
             }`;
 
-        return packGlobalFunctionSk("tk", "bool", closure, token_function, runner);
+        return packGlobalFunction("tk", "bool", closure, token_function, runner);
     } else
         return fn_ref;
 }
@@ -305,10 +294,10 @@ export function createProductionTokenFunctionSk(tok: ProductionTokenSymbol, opti
  * @param generic_symbol_mappings 
  * @param all_syms 
  */
-export function createSymbolMappingFunctionSk(
+export function createSymbolMappingFunction(
     options: RenderBodyOptions,
     lex_name: string,
-    symbol_mappings: [number, Symbol][],
+    symbol_mappings: [number, HCG3Symbol][],
     default_return_value: string = "-1"
 ): SKReference {
     const symbols = symbol_mappings.map(([, s]) => s);
@@ -319,7 +308,7 @@ export function createSymbolMappingFunctionSk(
     else
         default_return_value = "return:" + (default_return_value || "-1");
 
-    let fn_ref;// = getGlobalObject("sym_map", symbols, options.helper);
+    let fn_ref;
 
     if (!fn_ref) {
 
@@ -337,11 +326,11 @@ export function createSymbolMappingFunctionSk(
 
             defined_symbols_reversed_map = new Map(defined_symbol_mappings.map((([i, s]) => [getUniqueSymbolName(s), i]))),
 
-            all_syms: Symbol[] = generic_symbol_mappings.map(([, sym]) => sym),
+            all_syms: HCG3Symbol[] = generic_symbol_mappings.map(([, sym]) => sym),
 
             fn_lex_name = "l",
 
-            gen = buildSwitchIfsAlternateSk(grammar, defined_symbol_mappings.map(([, s]) => s), fn_lex_name);
+            gen = buildSwitchIfsAlternate(grammar, defined_symbol_mappings.map(([, s]) => s), fn_lex_name);
 
         //Defined Symbols
         let yielded = gen.next();
@@ -381,12 +370,9 @@ export function createSymbolMappingFunctionSk(
             ...generic_symbol_mappings
         ]) {
             const sc = sk`
-                if ${getIncludeBooleansSk(
+                if ${getIncludeBooleans(
                 [sym],
-                options,
-                lex_name,
-                symbol_mappings.map(([, s]) => s)
-                    .filter(Sym_Is_A_Terminal)
+                lex_name
             )} : {
                     return : ${id};
                 }
@@ -406,29 +392,29 @@ export function createSymbolMappingFunctionSk(
                 ${default_return_value};
             }`;
 
-        return packGlobalFunctionSk("sym_map", "int", fn, fn, options.helper);
+        return packGlobalFunction("sym_map", "int", fn, fn, options.helper);
     }
 
     return fn_ref;
 }
 
-function getUTF8ByteAtSk(s: DefinedSymbol, off: number): number {
+function getUTF8ByteAt(s: DefinedSymbol, off: number): number {
     return s.val.charCodeAt(off);
 }
 
-export function* buildSwitchIfsAlternateSk(
+export function* buildSwitchIfsAlternate(
     grammar: HCG3Grammar,
     syms: DefinedSymbol[],
     lex_name: string = "l",
     occluders: TokenSymbol[] = [],
     off = 0
 ): Generator<IfNode, IfNode["code_node"], void> {
-    if (off == 0) syms = ensureSymbolsAreGlobalSk(syms, grammar);
+    if (off == 0) syms = ensureSymbolsAreGlobal(syms, grammar);
 
     //Group symbols based on their 
     let pending_syms = syms
         .filter(s => (s.byte_length - off) > 0)
-        .group(s => getUTF8ByteAtSk(s, off));
+        .group(s => getUTF8ByteAt(s, off));
 
     let ifs = [];
 
@@ -440,9 +426,9 @@ export function* buildSwitchIfsAlternateSk(
         let gen: Generator<IfNode, IfNode["code_node"], void>;
 
         if (syms.length == 1) {
-            gen = buildSwitchIfsSk(grammar, syms, lex_name, occluders, off + 1);
+            gen = buildSwitchIfs(grammar, syms, lex_name, occluders, off + 1);
         } else {
-            gen = buildSwitchIfsAlternateSk(grammar, syms, lex_name, occluders, off + 1);
+            gen = buildSwitchIfsAlternate(grammar, syms, lex_name, occluders, off + 1);
         }
 
         let yielded = gen.next();
@@ -452,7 +438,7 @@ export function* buildSwitchIfsAlternateSk(
             yielded = gen.next();
         }
 
-        const _if = sk`if data.input[l.byte_offset + ${off}] ~= ${getUTF8ByteAtSk(shortest, off)} : { ${yielded.value.flatMap(v => [v, ";"])}; }`;
+        const _if = sk`if data.input[l.byte_offset + ${off}] ~= ${getUTF8ByteAt(shortest, off)} : { ${yielded.value.flatMap(v => [v, ";"])}; }`;
 
         ifs.push(_if);
     }
@@ -477,7 +463,7 @@ type IfNode = {
     code_node: SKExpression[];
 };
 
-export function* buildSwitchIfsSk(
+export function* buildSwitchIfs(
     grammar: HCG3Grammar,
     syms: DefinedSymbol[],
     lex_name: string = "l",
@@ -486,7 +472,7 @@ export function* buildSwitchIfsSk(
 ): Generator<IfNode, SKExpression[], void> {
 
     if (off == 0)
-        syms = ensureSymbolsAreGlobalSk(syms, grammar);
+        syms = ensureSymbolsAreGlobal(syms, grammar);
 
     let ifs = [];
 
@@ -503,7 +489,7 @@ export function* buildSwitchIfsSk(
         const length = shortest.byte_length - off;
         const offset = shortest.byte_offset + off;
 
-        const gen = buildSwitchIfsSk(grammar, syms, lex_name, occluders, off + length);
+        const gen = buildSwitchIfs(grammar, syms, lex_name, occluders, off + length);
 
         let yielded = gen.next();
         while (yielded.done == false) {
@@ -512,7 +498,7 @@ export function* buildSwitchIfsSk(
         }
         const vals = yielded.value.flatMap(m => [m, ";"]).slice(0, -1);
         let _if = length == 1
-            ? sk`if data.input[l.byte_offset + ${off}] ~= ${getUTF8ByteAtSk(shortest, off)} : { ${vals} }`
+            ? sk`if data.input[l.byte_offset + ${off}] ~= ${getUTF8ByteAt(shortest, off)} : { ${vals} }`
             : sk`if ${length} == compare(data, l.byte_offset + ${off}, ${offset}, ${length}) : { ${vals} }`;
 
         ifs.push(_if);
@@ -531,351 +517,41 @@ export function* buildSwitchIfsSk(
     return code_node;
 }
 
-export function buildIfsSk(
-    options: BaseOptions,
-    syms: DefinedSymbol[],
-    lex_name: string = "l",
-    occluders: TokenSymbol[] = []
-): SKExpression[] {
 
-    const
-        { grammar } = options,
-        gen = buildSwitchIfsSk(grammar, syms, lex_name, occluders);
-
-    let yielded = gen.next();
-
-    while (yielded.done == false) {
-
-        const { code_node, sym } = yielded.value;
-
-        if (code_node) {
-
-            const def_type = Sym_Is_Defined_Identifier(sym) ? "TokenIdentifier" : "TokenSymbol";
-
-            if (occluders.includes(sym)) {
-
-                code_node.push(<SKExpression>sk`return : false`);
-            } else {
-
-                code_node.push(
-                    <SKExpression>sk`${lex_name}.setToken(${def_type}, ${sym.byte_length}, ${sym.val.length})`
-                );
-
-                if (Sym_Is_Defined_Identifier(sym) && occluders.some(Sym_Is_A_Generic_Identifier))
-                    code_node.push(<SKExpression>sk`if !l.isDiscrete(data,TokenIdentifier,${sym.byte_length}) : return : false`);
-
-                if (Sym_Is_Defined_Natural_Number(sym) && occluders.some(Sym_Is_A_Generic_Number))
-                    code_node.push(<SKExpression>sk`if !l.isDiscrete(data,TokenNumber,${sym.byte_length}) : return : false`);
-
-
-                code_node.push(<SKExpression>sk`return : true`);
-            }
-
-        }
-
-        yielded = gen.next();
-    }
-
-    const code_node = yielded.value;
-
-    code_node.push(<SKExpression>sk`return : false`);
-
-    return code_node;
-}
-
-export function getIncludeBooleansSk(
+export function getIncludeBooleans(
     syms: TokenSymbol[],
-    options: BaseOptions,
     lex_name: string = "l",
-    /* List of all symbols that can be encountered*/
-    ambient_symbols: TokenSymbol[] = [],
-    ALLOW_GEN_OCCLUSION = false
 ): SKExpression {
+    const types = syms.map(s => {
+        return <SKExpression>sk`${lex_name}.type ~= ${s.id}}`;
+    });
 
-    const { grammar, helper: runner } = options;
-
-    syms = syms.setFilter(s => getUniqueSymbolName(s));
-
-    ambient_symbols = ambient_symbols.concat(syms).setFilter(getUniqueSymbolName);
-
-    let
-        HAVE_GEN_ID = syms.some(Sym_Is_A_Generic_Identifier),
-        non_consume = syms.filter(Sym_Is_Not_Consumed),
-        consume = syms.filter(Sym_Is_Consumed),
-        def = consume.filter(Sym_Is_Defined),
-        ty = consume.filter(Sym_Is_A_Generic_Type),
-        tk = consume.filter(Sym_Is_A_Production_Token),
-        fn = consume.filter(Sym_Is_An_Assert_Function)
-            .map(s => translateSymbolValueSk(s, grammar, lex_name)).sort();
-
-    if (def.length + ty.length + fn.length + tk.length + non_consume.length == 0)
-        return null;
-
-    let out_id: SKExpression[] = [], out_ty: SKExpression[] = [], out_fn: SKExpression[] = [], out_tk: SKExpression[] = [], out_non_consume: SKExpression[] = [];
-
-
-
-    if (non_consume.length > 0) {
-
-        const lb = non_consume.filter(Sym_Is_LookBehind);
-
-        for (const sym of lb) {
-            const fn_name = createNonCaptureLookBehind(sym, options);
-
-            out_non_consume.push(<SKExpression>sk`${fn_name}(${lex_name}, data)`);
-        }
-
-        const reg = non_consume.filter(s => !Sym_Is_LookBehind(s));
-
-        if (reg.length > 0) {
-
-            const
-                fn_name = createNonCaptureBooleanCheckSk(reg, options, ambient_symbols);
-
-            out_non_consume.push(<SKExpression>sk`${fn_name}(${lex_name}, data) /*${reg.map(sym => `[${sanitizeSymbolValForCommentSk(sym)}]`).join(" ")}*/`);
-        }
-    }
-
-    if (fn.length > 0)
-        out_fn = fn;
-
-    if (def.length > 0) {
-
-        if (HAVE_GEN_ID && ALLOW_GEN_OCCLUSION)
-            def = def.filter(id => !Sym_Is_Defined_Identifier(id));
-
-        const
-            booleans: SKExpression[] = [],
-            char_tuples: [DefinedSymbol, TokenSymbol[]][] = [];
-
-        let table = 0n, table_syms = [];
-
-        for (const sym of def) {
-
-            const
-                char_code = sym.val.charCodeAt(0),
-                occluders = ambient_symbols.filter(a_sym => Symbols_Occlude(sym, a_sym));
-
-            if (occluders.length > 0 || sym.val.length > 1) {
-
-                char_tuples.push(<[DefinedSymbol, TokenSymbol[]]>[sym, occluders]);
-
-            } else if (char_code < 128) {
-
-                table_syms.push(sym);
-
-                table |= 1n << BigInt(char_code);
-
-            } else {
-                booleans.push(getLexerByteBooleanSk(lex_name, char_code));
-            }
-        }
-
-        const char_groups = char_tuples
-            .group(([sym]) => sym.val.toString()[0])
-            .map((tuples) => {
-                const syms = tuples.map(([a]) => a);
-                const occluders = tuples.flatMap(([, a]) => a).setFilter(getUniqueSymbolName);
-                return { syms, occluders };
-            });
-
-        for (const { syms, occluders } of char_groups) {
-
-            if (syms.length == 1 && occluders.length < 1) {
-
-                let [sym] = syms;
-
-                sym = <DefinedSymbol>getCardinalSymbol(grammar, sym);
-
-                if (sym.byte_length == 1) {
-
-                    const
-                        char_code = sym.val.charCodeAt(0);
-
-                    booleans.push(getLexerByteBooleanSk(lex_name, char_code));
-
-                } else {
-                    const compare_set_type = Sym_Is_Defined_Identifier(sym) ? "cmpr_set_id" : "cmpr_set";
-
-                    booleans.push(
-                        <SKExpression>
-                        sk`${compare_set_type}(${lex_name},data, ${sym.byte_offset}, ${sym.byte_length}, ${sym.val.length})`
-                    );
-                }
-            } else {
-                let fn_ref = getGlobalObjectSk("dt", [...syms, ...occluders], runner);
-
-                if (!fn_ref) {
-
-                    const sym_lu = new Set(syms.map(s => getUniqueSymbolName(s)));
-
-                    const actual_occluders = occluders.filter(o => !sym_lu.has(getUniqueSymbolName(o)));
-
-                    const
-                        nodes = buildIfsSk(options, [...syms, ...actual_occluders.filter(Sym_Is_Defined)].setFilter(getUniqueSymbolName), "l", actual_occluders),
-                        fn = <SKFunction>sk`fn temp:bool(l:__Lexer$ref, data:__ParserData$ref){
-                            ${nodes.flatMap((m => [m, ";"]))}
-                        }`;
-                    fn_ref = packGlobalFunctionSk("dt", "bool", [...syms, ...occluders], fn, runner);
-                }
-
-                booleans.push(
-                    <SKExpression>
-                    sk`${fn_ref}(${lex_name}, data)`
-                );
-            }
-        }
-
-        if (table > 0n) {
-
-            if (table_syms.length < 3) {
-
-                for (const sym of table_syms)
-                    booleans.push(getLexerByteBooleanSk(lex_name, sym.val.charCodeAt(0)));
-
-            } else {
-
-                booleans.push(
-                    <SKExpression>
-                    sk`assert_ascii(${lex_name}, ${["0x" + ((table >> 0n) & 0xffffffffn).toString(16),
-                    "0x" + ((table >> 32n) & 0xffffffffn).toString(16),
-                    "0x" + ((table >> 64n) & 0xffffffffn).toString(16),
-                    "0x" + ((table >> 96n) & 0xffffffffn).toString(16)].join(",")
-
-                        })`
-                );
-            }
-        }
-
-        out_id = booleans;
-    }
-
-    if (ty.length > 0)
-        out_ty = ty.sort((a, b) => a.val < b.val ? -1 : 1).map(s => translateSymbolValueSk(s, grammar, lex_name));
-
-    //*
-    if (tk.length > 0) {
-        for (const tok of tk) {
-
-            const
-                fn_name = createProductionTokenFunctionSk(tok, options),
-                fn = <SKExpression>sk`${fn_name}(${lex_name}, data)`;
-
-            out_tk.push(fn);
-        }
-    }
-    //*/
-
-    return convertExpressionArrayToBooleanSk([...out_non_consume, ...out_tk, ...out_id, ...out_ty, ...out_fn]);
+    return convertExpressionArrayToBoolean(types);
+}
+function ensureSymbolsAreGlobal<T = HCG3Symbol>(syms: T[], grammar: HCG3Grammar): T[] {
+    return <T[]><any>(<HCG3Symbol[]><any>syms).map(s => getCardinalSymbol(grammar, s));
 }
 
-export function createNonCaptureBooleanCheckSk(symbols: TokenSymbol[], options: BaseOptions, ambient_symbols: TokenSymbol[]): SKReference {
-
-    const { helper: runner } = options;
-
-    let fn_ref = getGlobalObjectSk("nocap", symbols, runner);
-
-    if (!fn_ref) {
-        const
-            boolean =
-                getIncludeBooleansSk(symbols.map(sym => Object.assign({}, sym, { IS_NON_CAPTURE: false })), options, "l", ambient_symbols),
-
-            token_function = <SKFunction>sk`
-                fn temp:bool(l:__Lexer$ref, data:__ParserData$ref){
-                    [const] a:u32 = l.token_length;
-                    [const] b:u32 = l.byte_length;
-
-                    if (${boolean}): {
-                        l.token_length = 0;
-                        l.byte_length = 0;
-                        return : true;
-                    };
-
-                    l.token_length = a;
-                    l.byte_length = b;
-
-                    return : false;
-                }
-            `;
-
-        return packGlobalFunctionSk("nocap", "bool", symbols, token_function, runner);
-    } else return fn_ref;
+function getCardinalSymbol<T = HCG3Symbol>(grammar: HCG3Grammar, sym: T): T {
+    return <any>grammar.meta.all_symbols.get(getUniqueSymbolName(<any>sym));
 }
 
-
-function createNonCaptureLookBehind(symbol: HCG3LookBehind, options: RenderBodyOptions): SKReference {
-
-    const phased_symbol = symbol.phased;
-
-    const { helper: runner } = options;
-
-    let fn_ref = getGlobalObjectSk("nocap_lb", [<Symbol>phased_symbol], options.helper);
-
-    if (!fn_ref) {
-
-        const skippable_symbols = getSkippableSymbolsFromItems([options.grammar.item_map.values().next().value.item], options.grammar).filter(s => getUniqueSymbolName(s) != getUniqueSymbolName(phased_symbol));
-
-        const skip = createSkipCallSk(skippable_symbols, options, "pk", true);
-
-        const boolean = getIncludeBooleansSk([phased_symbol], options, "pk");
-
-        const token_function = <SKFunction>sk`
-        fn temp:bool(l:__Lexer$ref, data:__ParserData$ref){
-        
-            [mut]pk:Lexer = l.copyInPlace();
-            
-            pk.byte_offset = l.prev_byte_offset;
-            
-            pk.byte_length = 0;
-            
-            pk.next(data);
-            
-            ${skip ? skip : ""};
-            
-            if (${boolean})  : { 
-                l.token_length = 0;
-                l.byte_length = 0;
-                return : true;
-            };
-
-            return : false;        
-        }`;
-
-        return packGlobalFunctionSk("nocap_lb", "bool", [phased_symbol], token_function, runner);
-    }
-    return fn_ref;
-}
-
-function ensureSymbolsAreGlobalSk<T = Symbol>(syms: T[], grammar: HCG3Grammar): T[] {
-    return <T[]><any>(<Symbol[]><any>syms).map(s => getCardinalSymbolSk(grammar, s));
-}
-
-function getCardinalSymbol(grammar: HCG3Grammar, sym: Symbol): Symbol {
-    return <any>grammar.meta.all_symbols.get(getUniqueSymbolName(sym));
-}
-
-function getCardinalSymbolSk(grammar: HCG3Grammar, sym: Symbol): Symbol {
-    return <any>grammar.meta.all_symbols.get(getUniqueSymbolName(sym));
-}
-function convertExpressionArrayToBooleanSk(array: SKExpression[], delimiter: string = "||"): SKExpression {
+function convertExpressionArrayToBoolean(array: SKExpression[], delimiter: string = "||"): SKExpression {
     return <SKExpression>sk`${array.flatMap(m => [m, delimiter]).slice(0, -1)}`;
 }
 
-function getLexerByteBooleanSk(lex_name: string, char_code: number, operator: string = "~="): SKExpression {
-    return <SKExpression>sk`${lex_name}.current_byte ${operator} ${char_code} /*[${String.fromCharCode(char_code)}]*/`;
-}
 /**
  * 
  */
-export function packGlobalFunctionSk(fn_class: string, fn_type: string, unique_objects: ((Symbol | Item)[] | SKFunction), fn: SKFunction, helper: Helper): SKReference {
+export function packGlobalFunction(fn_class: string, fn_type: string, unique_objects: ((HCG3Symbol | Item)[] | SKFunction), fn: SKFunction, helper: Helper): SKReference {
 
-    const string_name = getGloballyConsistentNameSk(fn_class, unique_objects);
+    const string_name = getGloballyConsistentName(fn_class, unique_objects);
     const function_name = <SKPrimitiveDeclaration>sk`${string_name}:${fn_type}`;
     return helper.add_constant(function_name, fn);
 }
 
-function getGlobalObjectSk(fn_class: string, unique_objects: ((Symbol | Item)[] | SKFunction), runner: Helper) {
-    const name = getGloballyConsistentNameSk(fn_class, unique_objects);
+function getGlobalObject(fn_class: string, unique_objects: ((HCG3Symbol | Item)[] | SKFunction), runner: Helper) {
+    const name = getGloballyConsistentName(fn_class, unique_objects);
 
     return runner.constant_map.has(name)
         ? runner.constant_map.get(name).name
@@ -885,27 +561,21 @@ function getGlobalObjectSk(fn_class: string, unique_objects: ((Symbol | Item)[] 
  * Generate a function name that is consistent amongst
  * all workers. 
  */
-export function getGloballyConsistentNameSk(prepend_js_identifier: string, unique_objects: ((Symbol | Item)[] | SKFunction)): string {
+export function getGloballyConsistentName(prepend_js_identifier: string, unique_objects: ((HCG3Symbol | Item)[] | SKFunction)): string {
 
     let string_to_hash = "";
     if (This_Is_An_SKFunction(unique_objects)) {
         string_to_hash = skRenderAsSK(unique_objects);
     } else {
-        if (This_Is_An_Item_ArraySk(unique_objects)) {
+        if (This_Is_An_Item_Array(unique_objects)) {
             string_to_hash = unique_objects.map(i => i.id).setFilter().sort().join("");
         } else {
-            string_to_hash = (<Symbol[]>unique_objects).map(getUniqueSymbolName).setFilter().sort().join("");
+            string_to_hash = (<HCG3Symbol[]>unique_objects).map(getUniqueSymbolName).setFilter().sort().join("");
         }
     }
 
     return `${prepend_js_identifier}_${hashString(string_to_hash).slice(0, 16)}`;
 }
-
-
-export function nodeHash(node: SKNode) {
-    return hashString(skRenderAsSK(node));
-}
-
 
 export function expressionListHash(exprs: SKExpression[]) {
     return hashString(exprs.map(skRenderAsSK).join(""));
@@ -914,14 +584,8 @@ export function expressionListHash(exprs: SKExpression[]) {
 export function hashString(string: string) {
     return crypto.createHash('md5').update(string).digest("hex");
 }
-function This_Is_An_Item_Array(input: any[]): input is Item[] {
-    if (Array.isArray(input) && input.every(i => i instanceof Item)) {
-        return true;
-    }
-    return false;
-}
 
-function This_Is_An_Item_ArraySk(input: any[] | any): input is Item[] {
+function This_Is_An_Item_Array(input: any[] | any): input is Item[] {
     if (Array.isArray(input) && input.every(i => i instanceof Item)) {
         return true;
     }
@@ -937,18 +601,361 @@ function This_Is_An_SKFunction(input: any): input is SKFunction {
 
 export function addItemAnnotationToExpressionList(items: Item[], grammar: HCG3Grammar, root: SKExpression[]) {
     for (const item_str of items.map(i => i.renderUnformattedWithProduction(grammar)))
-        root.push(<SKExpression><SKString>{
+        root.push(<SKExpression><any>{
+
             type: "string",
             value: item_str.replace(/\'/g, '"').replace(/\\/g, "f:s")
         });
 }
 
-export function addSymbolAnnotationsToExpressionList(syms: Symbol[], grammar: HCG3Grammar, expression_list: SKExpression[], comment: string = "") {
+export function addSymbolAnnotationsToExpressionList(syms: HCG3Symbol[], grammar: HCG3Grammar, expression_list: SKExpression[], comment: string = "") {
     const symbol_string = syms.map(s => ("" + s.val).replace(/\'/g, '"').replace(/\\/g, "f:s")).join(" ");
 
-    expression_list.unshift(<SKExpression><SKString>{
+    expression_list.unshift(<SKExpression><any>{
         type: "string",
         value: comment + " [  " + symbol_string + "  ]"
     });
 
+}
+
+
+function render(node: TokenTreeNode, options, insert_expression: SKExpression[] = []) {
+
+    let ifs = [];
+
+    let append = [];
+
+    let prepend = [];
+
+    if (node.nodes.length == 0) {
+
+        return renderLeaf(node, options);
+
+    } else {
+
+        let base = node;
+
+        if (base.nodes.length == 1) {
+
+            const tk_len = base.tk_length;
+
+            while (base.nodes[0].nodes.length == 1 && base.nodes[0].nodes[0].tk_length == tk_len)
+                base = base.nodes[0];
+
+            ifs.push(createIfClause(node.symbols[0], node.offset, base.nodes[0].offset - node.offset, options, render(base.nodes[0], options)));
+
+        } else for (const n of base.nodes) {
+
+            if (Sym_Is_Virtual_Token(n.symbols[0])) {
+                console.log(0, 3, node);
+            }
+
+            ifs.push(createIfClause(n.symbols[0], node.offset, n.offset - node.offset, options, render(n, options)));
+        }
+
+        const completed_ids = base.symbols.filter(Sym_Is_Defined).filter(s => s.val.length == node.offset).setFilter(getUniqueSymbolName);
+
+        if (completed_ids.length > 0) {
+            const copy = Object.assign({}, base);
+            copy.symbols = copy.symbols.filter(s => {
+                if (Sym_Is_Defined(s))
+                    if (s.val.length > node.offset)
+                        return false;
+                return true;
+            }
+
+            );
+            ifs.push(...renderLeaf(copy, options));
+        }
+
+        if (node.offset == 0) {
+
+            const ifs = [];
+
+            const lb_syms = node.symbols.filter(Sym_Is_Look_Behind).setFilter(getUniqueSymbolName);
+
+            const tk_syms = node.symbols.filter(Sym_Is_A_Production_Token).setFilter(getUniqueSymbolName);
+
+            const gen_syms = node.symbols.filter(Sym_Is_A_Generic_Type).setFilter(getUniqueSymbolName);
+
+            for (const lb_sym of lb_syms) {
+
+                const lb_name = createNonCaptureLookBehind(lb_sym, options);
+
+                prepend.push(sk`if (${lb_name}(l,data, state)) : { return: l.type }`);
+            }
+
+            for (const tk_sym of tk_syms) {
+                const tk_name = createProductionTokenFunction(tk_sym, options);
+
+                if (Sym_Is_Not_Consumed(tk_sym))
+                    ifs.push(sk`if (${tk_name}(l,data)) : { return:l.setToken(l.type,0,0); }`);
+                else
+                    ifs.push(sk`if (${tk_name}(l,data)) : { return: l.type }`);
+            }
+
+            for (const gen_sym of gen_syms) {
+                if (Sym_Is_Not_Consumed(gen_sym))
+                    ifs.push(sk`if ${getSymbolBoolean(gen_sym, options.grammar, "l")}: { return:l.setToken(l.type,0,0); }`);
+
+                else
+                    ifs.push(sk`if ${getSymbolBoolean(gen_sym, options.grammar, "l")} : { return: l.type }`);
+            }
+
+            ifs.reduce((r: SKIf, a: SKIf) => ((!r) ? a : (r.else = a, a)), null);
+
+            if (ifs[0])
+                append.push(ifs[0]);
+        }
+    }
+
+    ifs.reduce((r: SKIf, a: SKIf) => ((!r) ? a : (r.else = a, a)), null);
+
+    return ifs[0] ? [...prepend, ...insert_expression, ifs[0], ...append] : [...prepend, ...insert_expression, ...append];
+}
+
+function renderLeaf(node: TokenTreeNode, options: any,) {
+
+    let ifs = [];
+
+    let append = [];
+
+    let prepend = [];
+
+    const id = node.symbols.filter(Sym_Is_Defined).setFilter(getUniqueSymbolName);
+    const tk_syms: (ProductionTokenSymbol | VirtualTokenSymbol)[] = <any>node.symbols.filter(s => Sym_Is_Virtual_Token(s) || Sym_Is_A_Production_Token(s)).setFilter(getUniqueSymbolName);
+
+    const gen_syms = node.symbols.filter(Sym_Is_A_Generic_Type).setFilter(getUniqueSymbolName);
+
+    const look_behind_symbols: HCG3LookBehind[] = <any>node.symbols.filter(Sym_Is_Look_Behind).setFilter(getUniqueSymbolName);
+
+    const default_bin = node.offset > 0 ? ifs : append;
+
+    const length_assertion = (node.offset > 0) ? `&& l.byte_length > ${node.offset}` : "";
+
+    for (const lb_sym of look_behind_symbols) {
+
+        const lb_name = createNonCaptureLookBehind(lb_sym, options);
+
+        prepend.push(sk`if (${lb_name}(l,data, state)) : { return: l.type }`);
+    }
+
+    for (const tk_sym of tk_syms) {
+
+        const tk_name = createProductionTokenFunction(Sym_Is_Virtual_Token(tk_sym) ? tk_sym.root : tk_sym, options);
+
+        if (Sym_Is_Not_Consumed(tk_sym))
+            default_bin.push(sk`if (${tk_name}(l,data) ${length_assertion}) : { return:l.setToken(l.type,0,0); }`);
+        else
+            default_bin.push(sk`if (${tk_name}(l,data) ${length_assertion}) : { return: l.type }`);
+    }
+
+    for (const gen_sym of gen_syms) {
+
+        if (Sym_Is_Not_Consumed(gen_sym))
+            default_bin.push(sk`if ${getSymbolBoolean(gen_sym, options.grammar, "l")} ${length_assertion} : { return:l.setToken(l.type,0,0); }`);
+
+        else
+            default_bin.push(sk`if ${getSymbolBoolean(gen_sym, options.grammar, "l")} ${length_assertion} : { return: l.type }`);
+    }
+
+    for (const defined of id) {
+
+        const preamble = node.offset > 0 && defined.byte_length <= node.offset ? "" : getIfClausePreamble(defined.byte_length - node.offset, node.offset, defined, node.offset, options);
+
+        if (Sym_Is_Exclusive(defined)) {
+
+            if (Sym_Is_Not_Consumed(defined))
+                ifs.push(sk`${preamble}{return:l.setToken(${defined.id}, 0,0);}`);
+
+            else
+                ifs.push(sk`${preamble}{return:l.setToken(${defined.id}, ${defined.byte_length},${defined.val.length});}`);
+
+        } else {
+            const symbols = node.symbols.map(s => Sym_Is_Virtual_Token(s) ? s.root : s);
+
+            const id = generateHybridIdentifier(symbols);
+
+            if (Sym_Is_Not_Consumed(defined))
+                ifs.push(sk`${preamble}{return:l.setToken(${defined.id},0,0);}`);
+
+            else
+                ifs.push(sk`${preamble}{return:l.setToken(${id}, ${defined.byte_length},${defined.val.length});}`);
+
+
+        }
+    }
+
+    ifs.reduce((r: SKIf, a: SKIf) => ((!r) ? a : (r.else = a, a)), null);
+
+    return ifs[0] ? [...prepend, ifs[0], ...append] : [...prepend, ...append];
+}
+
+function createIfClause(symbol: DefinedSymbol | VirtualTokenSymbol, offset: number, length: number, options: any, expressions: SKExpression[]) {
+
+    const start = offset;
+
+    if (Sym_Is_Virtual_Token(symbol)) {
+        length = 1;
+        offset = offset - symbol.root_offset;
+        symbol = <DefinedSymbol>symbol.item.sym(options.grammar);
+    }
+    let _if = sk`${getIfClausePreamble(length, start, symbol, offset, options)} {}`;
+
+
+    if (expressions.length == 1 && expressions[0].type == "block") {
+        _if.expression = expressions[0];
+    } else
+        _if.expression.expressions.push(...expressions);
+
+    return _if;
+}
+
+function getIfClausePreamble(length: number, start: number, symbol: DefinedSymbol, offset: number, options) {
+
+    symbol = getCardinalSymbol(options.grammar, symbol);
+
+    if (isNaN(getUTF8ByteAt(symbol, offset))) {
+
+        console.log({ symbol, start, offset, length });
+    }
+    return length == 1
+        ? `if data.input[l.byte_offset ${start > 0 ? "+" + start : ""}] ~= ${getUTF8ByteAt(symbol, offset)} :`
+        : `if ${length} == compare(data, l.byte_offset  ${start > 0 ? "+" + start : ""}, ${symbol.byte_offset + offset}, ${length}) :`;
+}
+
+export function generateHybridIdentifier(symbols: HCG3Symbol[]) {
+    return symbols.map(s => s.id).setFilter().sort().reduce((r, s, i) => r | (s << (10 * i)), 0);
+}
+
+export function renderSteps(symbols, options) {
+    const fn: SKFunction = <any>sk`fn test:i32(){}`;
+
+    let root_node: TokenTreeNode = getSymbolTree(symbols, options.grammar);
+
+    fn.expressions.push(...render(root_node, options), <SKExpression>sk`return:-1`);
+
+    return fn;
+}
+
+export function createItemScanFunction(items: Item[], options: BaseOptions, PEEKING: boolean = false): SKReference {
+
+    const { grammar } = options;
+
+    const skippable = getSkippableSymbolsFromItems(items, grammar);
+
+    const symbols = getSymbolsFromClosure(getClosure(items, grammar), grammar).setFilter(getUniqueSymbolName);
+
+    const id_symbols = [...symbols, ...skippable].setFilter(getUniqueSymbolName);
+
+    let fn_ref = getGlobalObject("skip", id_symbols, options.helper);
+
+    if (!fn_ref) {
+
+        let skip_fn_call = null;
+
+        if (skippable.length > 0)
+            skip_fn_call = createSkipCall(skippable, options, "l", PEEKING);
+
+        const scan_function: SKFunction = <any>sk`fn temp:void(l:__Lexer$ref, data:__ParserData$ref, state:u32){   }`;
+
+        addSymbolAnnotationsToExpressionList(symbols, options.grammar, scan_function.expressions, "test");
+
+        if (skip_fn_call)
+            scan_function.expressions.push(skip_fn_call);
+
+        scan_function.expressions.push(...render(getSymbolTree(symbols, options.grammar), options, [sk`if l.type > 0 : return:0;`]
+        ), <SKExpression>sk`return:-1`);
+
+        fn_ref = packGlobalFunction("scan", "void", id_symbols, scan_function, options.helper);
+    }
+
+    return fn_ref;
+}
+
+export function createSymbolScanFunction(symbols: TokenSymbol[], options: BaseOptions, PEEKING: boolean = false, ALLOW_SKIP: boolean = true): SKReference {
+
+    const id_symbols = [...symbols].setFilter(getUniqueSymbolName);
+
+    let fn_ref = getGlobalObject("skip", id_symbols, options.helper);
+
+    if (!fn_ref) {
+
+        const scan_function: SKFunction = <any>sk`fn temp:void(l:__Lexer$ref, data:__ParserData$ref, state:u32){ if l.type > 0 : return:0;  }`;
+
+        scan_function.expressions.push(...render(getSymbolTree(symbols, options.grammar), options), <SKExpression>sk`return:-1`);
+
+        fn_ref = packGlobalFunction("sym_scan", "void", id_symbols, scan_function, options.helper);
+    }
+
+    return fn_ref;
+}
+
+export function createScanFunctionCall(
+    items: Item[],
+    options: BaseOptions,
+    lex_name: string = "l",
+    PEEK: boolean = false,
+): SKExpression {
+
+    const scan = createItemScanFunction(items, options, PEEK);
+    return <SKExpression>sk`${scan}(${lex_name}, data, ${!PEEK ? "state" : "STATE_ALLOW_SKIP"});`;
+}
+export function createSymbolScanFunctionCall(
+    symbols: TokenSymbol[],
+    options: BaseOptions,
+    lex_name: string = "l",
+    PEEK: boolean = false,
+): SKExpression {
+
+    const scan = createSymbolScanFunction(symbols, options, PEEK);
+    return <SKExpression>sk`${scan}(${lex_name}, data, ${!PEEK ? "state" : "STATE_ALLOW_SKIP"});`;
+}
+export function getSkipFunctionNew(
+    skip_symbols: TokenSymbol[],
+    options: BaseOptions,
+    custom_skip_code: SKNode,
+    exclude: TokenSymbol[] = []
+): SKReference {
+
+    const { helper: runner } = options;
+
+    if (skip_symbols.length == 0)
+        return null;
+
+    let fn_ref = getGlobalObject("skip", skip_symbols, runner);
+
+    if (!fn_ref) {
+
+        const
+            boolean = getIncludeBooleans(skip_symbols, "l"),
+
+            skip_function = <SKFunction>sk`
+            fn temp:void (l:__Lexer$ref,data:__ParserData$ref, state:u32){
+
+                if l.type > 0 : return;
+
+                if (state) == ${NULL_STATE} : return;
+
+                [const] off:u32 = l.token_offset;
+                
+                loop (1){
+
+                    ${createSymbolScanFunctionCall(skip_symbols, options, "l")};
+                    
+                    ${custom_skip_code ? custom_skip_code : ""}
+                    
+                    if !(${boolean}) : {
+                        break;
+                    };
+
+                    l.next(data);
+                };
+                if isOutputEnabled(state) : add_skip(data, l.token_offset - off);
+            }`;
+
+        fn_ref = packGlobalFunction("skip", "Lexer", skip_symbols, skip_function, runner);
+    }
+
+    return fn_ref;
 }

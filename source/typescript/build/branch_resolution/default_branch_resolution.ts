@@ -5,8 +5,6 @@
  */
 import {
     Defined_Symbols_Occlude,
-    getSkippableSymbolsFromItems,
-    getSymbolName,
     getUniqueSymbolName,
     Sym_Is_A_Generic_Identifier,
     Sym_Is_A_Generic_Number,
@@ -15,20 +13,22 @@ import {
     Sym_Is_A_Production_Token,
     Sym_Is_Defined_Identifier,
     Sym_Is_Defined_Natural_Number,
-    Sym_Is_Defined_Symbol
+    Sym_Is_Defined_Symbol,
+    Sym_Is_Empty
 } from "../../grammar/nodes/symbol.js";
 import { sk } from "../../skribble/skribble.js";
 import { SKBlock, SKExpression, SKIf, SKMatch, SKReturn } from "../../skribble/types/node";
+import { HCG3Symbol, TokenSymbol } from "../../types/grammar_nodes";
 import { RenderBodyOptions } from "../../types/render_body_options";
-import { Symbol, TokenSymbol } from "../../types/symbol.js";
 import { TransitionClauseGenerator, TransitionGroup } from "../../types/transition_generating";
 import { TransitionNode, TRANSITION_TYPE } from "../../types/transition_node.js";
 import {
     addItemAnnotationToExpressionList,
     addSymbolAnnotationsToExpressionList,
-    createBranchFunctionSk, createConsumeSk,
-    createSkipCallSk, createSymbolMappingFunctionSk,
-    getIncludeBooleansSk, getProductionFunctionNameSk
+    createBranchFunction, createConsumeSk,
+    createScanFunctionCall,
+    createSymbolMappingFunction,
+    getIncludeBooleans, getProductionFunctionNameSk
 } from "../../utilities/code_generating.js";
 import { createTransitionTypeAnnotation } from "../../utilities/create_transition_type_annotation.js";
 import { Item } from "../../utilities/item.js";
@@ -54,7 +54,7 @@ export function default_resolveBranches(
         number_of_end_groups = end_groups.length,
         all_syms = groups.flatMap(({ syms }) => syms).setFilter(getUniqueSymbolName),
 
-        GROUPS_CONTAIN_SYMBOL_AMBIGUITY = Groups_Contain_Symbol_Ambiguity(groups);
+        GROUPS_CONTAIN_SYMBOL_AMBIGUITY = false; //Groups_Contain_Symbol_Ambiguity(groups);
 
     let root: SKExpression[] = [];
 
@@ -74,11 +74,10 @@ export function default_resolveBranches(
         root,
         "l",
         "l",
-        getSkippableSymbolsFromItems(items, grammar).filter(i => !all_syms.some(j => getSymbolName(i) == getSymbolName(j))),
         groups
     );
 
-    if ((groups.length >= 5 || GROUPS_CONTAIN_SYMBOL_AMBIGUITY) && number_of_end_groups <= 1) {
+    if (GROUPS_CONTAIN_SYMBOL_AMBIGUITY && number_of_end_groups <= 1) {
 
         if (number_of_end_groups >= 1 && GROUPS_CONTAIN_SYMBOL_AMBIGUITY) {
 
@@ -94,12 +93,12 @@ export function default_resolveBranches(
             const def = defaults[0];
 
             if (def) {
-                //  groups = [...groups.filter(g => g != def), def];
+                groups = [...groups.filter(g => g != def), def];
             }
 
         }
 
-        createSwitchBlock(options, groups, peek_name, "l", root);
+        createSwitchBlock(options, groups, peek_name, peek_name, root);
 
     } else
 
@@ -109,55 +108,6 @@ export function default_resolveBranches(
     return root;
 }
 
-/**
- * Checks for groups that have mutually occluding symbols
- */
-function Groups_Contain_Symbol_Ambiguity(groups: TransitionGroup[]) {
-
-    const masks: [number, number][] = groups.map(
-        g => [
-            ((+g.syms.some(Sym_Is_A_Generic_Identifier)) << 0)
-            | ((+g.syms.some(Sym_Is_A_Generic_Number)) << 1)
-            | ((+g.syms.some(Sym_Is_A_Generic_Symbol)) << 2),
-            ((+g.syms.some(Sym_Is_Defined_Identifier)) << 0)
-            | ((+g.syms.some(Sym_Is_Defined_Natural_Number)) << 1)
-            | ((+g.syms.some(Sym_Is_Defined_Symbol)) << 2)
-        ]
-    );
-
-    for (let i = 0; i < masks.length; i++) {
-        for (let j = 0; j < masks.length; j++) {
-
-            if (i == j) continue;
-
-            const [genA, defA] = masks[i];
-            const [genB, defB] = masks[j];
-
-            if (
-                ((genA & defB) && (genB & defA))
-                || (genB & genA)
-            ) return true;
-        }
-    }
-
-    for (let i = 0; i < groups.length; i++) {
-        for (let j = i; j < groups.length; j++) {
-            if (j == i) continue;
-            const groupA = groups[i];
-            const groupB = groups[j];
-
-            for (const symA of groupA.syms) {
-                for (const symB of groupB.syms) {
-                    if (Defined_Symbols_Occlude(symA, symB))
-                        return true;
-                }
-            }
-        }
-    }
-
-    return false;
-
-}
 /**
  * Used in cases of large number of symbols + transitions or occlusion conflicts
  * @param options 
@@ -172,24 +122,7 @@ function createSwitchBlock(
     lex_name: string,
     root: SKExpression[]
 ) {
-    const symbol_mappings: [number, Symbol][]
-
-        = <any>groups.flatMap((g, i) => {
-
-            let syms = g.syms;
-
-            if (syms.some(Sym_Is_A_Generic_Identifier))
-                syms = syms.filter(s => !Sym_Is_Defined_Identifier(s));
-            return syms.map(s => [i, s]);
-        }),
-
-        fn_name = createSymbolMappingFunctionSk(
-            options,
-            lex_name,
-            symbol_mappings.reverse()
-        ),
-
-        match = <SKMatch>sk`match ${fn_name}(${peek_name}, data): 1 : 1`,
+    const match = <SKMatch>sk`match ${lex_name}.type: 1 : 1`,
 
         matches = match.matches;
 
@@ -199,18 +132,18 @@ function createSwitchBlock(
 
     for (let i = 0; i < groups.length; i++) {
 
-        let { items, code, transition_types } = groups[i];
-
-        const expr = code.slice(-1)[0];
+        let { items, code, transition_types, syms } = groups[i];
+        const ids = syms.map(s => s.id).setFilter();
 
         if (transition_types[0] == TRANSITION_TYPE.ASSERT_END && i == groups.length - 1) {
             DEFAULT_NOT_ADDED = false;
-            matches.push((<SKMatch>sk`match 1 : default || ${i} : { ${(<SKBlock>{
+            matches.push((<SKMatch>sk`match 1 : default || ${ids.join("|")} : { ${(<SKBlock>{
                 type: "block",
                 expressions: code
             })}; break; }`).matches[0]);
         } else {
-            matches.push((<SKMatch>sk`match 1 : ${i} : { ${(<SKBlock>{
+
+            matches.push((<SKMatch>sk`match 1 : ${ids.join("|")} : { ${(<SKBlock>{
                 type: "block",
                 expressions: code
             })}; break; };`).matches[0]);
@@ -230,18 +163,23 @@ function createPeekStatements(
     root: SKExpression[],
     lex_name: string,
     peek_name: string,
-    skippable: TokenSymbol[],
     groups: TransitionGroup[],
 
 ) {
     if (Every_Transition_Does_Not_Require_A_Skip(groups))
         return lex_name;
 
+    const items = groups.flatMap(i => i.t_items).setFilter().map(g => Item.fromString(g));
+
+    if (options.helper.ANNOTATED)
+        addItemAnnotationToExpressionList(items, options.grammar, root);
+
     if (state.peek_level >= 0) {
 
         if (state.offset > 0 && state.peek_level == 0) {
-            const skip = createSkipCallSk(skippable, options, lex_name, false);
-            if (skip) root.push(skip);
+
+            root.push(createScanFunctionCall(items, options, lex_name, false));
+
         } else if (state.peek_level >= 1) {
 
             peek_name = "pk";
@@ -249,19 +187,15 @@ function createPeekStatements(
             if (state.peek_level == 1)
                 root.push(<SKExpression>sk`[mut] pk:Lexer = ${lex_name}.copyInPlace()`);
 
-
-            const skip = createSkipCallSk(skippable, options, "pk.next(data)", true);
-
-            if (skip) root.push(skip);
-            else root.push(<SKExpression>sk`pk.next(data)`);
+            root.push(createScanFunctionCall(items, options, "pk.next(data)", true));
         }
     } else if (state.offset == 1 && options.scope == "GOTO") {
-        const skip = createSkipCallSk(skippable, options, "l", false);
-        if (skip) root.push(skip);
-    } else if (state.peek_level < 0) {
-        //Post peek consume
-        const skip = createSkipCallSk(skippable, options, "l", false);
-        if (skip) root.push(skip);
+
+        root.push(createScanFunctionCall(items, options, "l", false));
+
+    } else if (state.peek_level < 0 && state.offset > 0) {
+
+        root.push(createScanFunctionCall(state.items, options, "l", false));
     }
 
     return peek_name;
@@ -278,13 +212,11 @@ function createIfElseExpressions(
     root: SKExpression[],
     lex_name: string,
     peek_name: string,
-    all_syms: Symbol[],
+    all_syms: HCG3Symbol[],
     FORCE_ASSERTIONS: boolean,
 ): SKExpression[] {
 
     let expressions = root, last_if: SKIf = null;
-
-    let previous_transition: TRANSITION_TYPE;
 
     const last_group_index = groups.filter(g => g.transition_types[0] !== TRANSITION_TYPE.IGNORE).length - 1;
 
@@ -298,7 +230,7 @@ function createIfElseExpressions(
         last_if = _if;
     }
 
-    const { grammar, helper: runner } = options;
+    const { grammar } = options;
 
     for (let i = 0; i < groups.length; i++) {
 
@@ -306,8 +238,7 @@ function createIfElseExpressions(
         const
             group = groups[i],
 
-            { syms, transition_types, code, items, leaves } = group,
-            complement_symbols = groups.filter((l, j) => j > i).flatMap(g => g.syms).setFilter(getUniqueSymbolName);
+            { syms, transition_types, code, items, leaves } = group;
 
         let assertion_boolean: SKExpression = null;
 
@@ -362,7 +293,7 @@ function createIfElseExpressions(
                     const mapped_symbols = [].concat(syms.map(s => [1, s]), occlusion_candidates.map(r => [0, r]));
 
 
-                    const bool_fn = createSymbolMappingFunctionSk(
+                    const bool_fn = createSymbolMappingFunction(
                         options,
                         lex_name,
                         mapped_symbols
@@ -380,11 +311,7 @@ function createIfElseExpressions(
 
                 options.called_productions.add(<number>production.id);
 
-
-                if (Sym_Is_A_Production_Token(items[0].sym(grammar)))
-                    code.unshift(sk`convert_prod_to_token(data, prod_start)`);
-
-                const call_name = createBranchFunctionSk(code, options);
+                const call_name = createBranchFunction(code, options);
                 expressions.push(<SKExpression>sk`pushFN(data, &> ${call_name}, data.rules_ptr)`);
 
                 expressions.push(<SKReturn>sk`return: ${getProductionFunctionNameSk(production, grammar)}(l, data,db,state,data.rules_ptr,prod_start);`);
@@ -404,12 +331,7 @@ function createIfElseExpressions(
 
                 if (FIRST_SYMBOL_IS_A_PRODUCTION && !FIRST_SYMBOL_IS_A_PRODUCTION_TOKEN) throw new Error("WTF");
 
-                const ALLOW_GEN_OCCLUSION = [
-                    TRANSITION_TYPE.PEEK_PRODUCTION_SYMBOLS,
-                    TRANSITION_TYPE.ASSERT_PRODUCTION_SYMBOLS
-                ].includes(transition_type);
-
-                assertion_boolean = getIncludeBooleansSk(<TokenSymbol[]>syms, options, peek_name, <TokenSymbol[]>complement_symbols, ALLOW_GEN_OCCLUSION);
+                assertion_boolean = getIncludeBooleans(<TokenSymbol[]>syms, peek_name);
 
                 let scr = code;
 
@@ -417,8 +339,7 @@ function createIfElseExpressions(
 
                     const nc = [];
 
-
-                    const continue_name = createBranchFunctionSk(nc, options);
+                    const continue_name = createBranchFunction(nc, options);
 
                     scr.unshift(<SKExpression>sk`pushFN(data, &> ${continue_name}, 0)`);
 
@@ -432,6 +353,8 @@ function createIfElseExpressions(
 
                     if (code.slice(-1)[0].type !== "return")
                         code.push(<SKExpression>sk`return:-1`);
+                    if (state.peek_level > 0)
+                        code.unshift(sk`l.type = ${group.root_id}`);
                 }
 
                 if (
@@ -440,6 +363,8 @@ function createIfElseExpressions(
                     last_group_index > 0
                     &&
                     Group_Allows_Unchecked(group, state, options)
+                    &&
+                    !all_syms.some(Sym_Is_Empty)
                 ) {
                     addIf({
                         type: "block",
@@ -447,16 +372,14 @@ function createIfElseExpressions(
                     });
                 } else {
 
-                    addIf(createIfStatementTransition(options, group, scr, assertion_boolean, FORCE_ASSERTIONS, "Assert"));
+                    addIf(createIfStatementTransition(options, group, scr, assertion_boolean, FORCE_ASSERTIONS, "Asserts"));
                 }
-
 
                 break;
 
             case TRANSITION_TYPE.ASSERT_CONSUME:
 
-
-                assertion_boolean = getIncludeBooleansSk(<TokenSymbol[]>syms, options, lex_name, <TokenSymbol[]>complement_symbols);
+                assertion_boolean = getIncludeBooleans(<TokenSymbol[]>syms, lex_name);
 
                 code.unshift(createConsumeSk("l"));
 
@@ -466,8 +389,6 @@ function createIfElseExpressions(
 
             case TRANSITION_TYPE.IGNORE: break;
         }
-
-        previous_transition = transition_type;
     }
 
     return expressions;
@@ -476,7 +397,7 @@ function createIfElseExpressions(
 
 function Group_Allows_Unchecked(group: TransitionGroup, state: TransitionNode, options: RenderBodyOptions): boolean {
 
-    const { syms, transition_types, code, items, leaves } = group;
+    const { transition_types } = group;
 
     const [transition_type] = transition_types;
 

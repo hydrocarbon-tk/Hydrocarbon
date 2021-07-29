@@ -4,6 +4,7 @@
  * disclaimer notice.
  */
 import { bidirectionalTraverse, TraverseState } from "@candlelib/conflagrate";
+import { TokenSymbol } from "source/typescript/types/grammar_nodes.js";
 import {
     Symbols_Occlude,
     Sym_Is_A_Generic_Identifier,
@@ -16,7 +17,6 @@ import {
 import { sk } from "../../skribble/skribble.js";
 import { SKExpression } from "../../skribble/types/node";
 import { RenderBodyOptions } from "../../types/render_body_options";
-import { TokenSymbol } from "../../types/symbol";
 import { MultiItemReturnObject, SingleItemReturnObject, TransitionClauseGenerator, TransitionGroup } from "../../types/transition_generating";
 import { GeneratorStateReturn, TransitionNode, TRANSITION_TYPE } from "../../types/transition_node.js";
 import { expressionListHash } from "../../utilities/code_generating.js";
@@ -195,7 +195,7 @@ function* traverseInteriorNodes(
                 leaves = group.flatMap(g => g.leaves),
                 yielders = group.map(i => i.transition_type).setFilter();
 
-            return { PUIDABLE, leaves, transition_types: yielders, syms, code, items, hash, LAST: false, FIRST: false, prods: group.flatMap(g => g.prods).setFilter() };
+            return { t_items: group.flatMap(g => g.t_items), root_id: group[0].root_id, PUIDABLE, leaves, transition_types: yielders, syms, code, items, hash, LAST: false, FIRST: false, prods: group.flatMap(g => g.prods).setFilter() };
         });
     let i = 0;
     for (const group of sel_group.sort((a, b) => {

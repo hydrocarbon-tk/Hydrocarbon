@@ -3,17 +3,16 @@
  * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
  * disclaimer notice.
  */
-import { performance } from "perf_hooks";
-import { Sym_Is_A_Production } from "../grammar/nodes/symbol.js";
+import { Sym_Is_A_Production, Sym_Is_Empty } from "../grammar/nodes/symbol.js";
 import { sk } from "../skribble/skribble.js";
 import { SKExpression, SKFunction, SKPrimitiveDeclaration } from "../skribble/types/node.js";
-import { HCG3Grammar, HCG3Production } from "../types/grammar_nodes.js";
+import { HCG3Grammar, HCG3Production, HCG3Symbol } from "../types/grammar_nodes.js";
 import { RDProductionFunction } from "../types/rd_production_function";
 import { RenderBodyOptions } from "../types/render_body_options";
-import { Symbol } from "../types/symbol.js";
 import { Leaf, TRANSITION_TYPE } from "../types/transition_node.js";
-import { collapseBranchNamesSk, createBranchFunctionSk, getProductionFunctionName } from "../utilities/code_generating.js";
+import { collapseBranchNames, createBranchFunction, createScanFunctionCall, getProductionFunctionName } from "../utilities/code_generating.js";
 import { const_EMPTY_ARRAY } from "../utilities/const_EMPTY_ARRAY.js";
+import { createTransitionTypeAnnotation } from "../utilities/create_transition_type_annotation.js";
 import { Item, ItemIndex } from "../utilities/item.js";
 import { getProductionClosure } from "../utilities/production.js";
 import { renderItem } from "../utilities/render_item.js";
@@ -25,6 +24,7 @@ import { addLeafStatements, addVirtualProductionLeafStatements } from "./transit
 import { processTransitionNodes } from "./transitions/process_transition_nodes.js";
 import { yieldGOTOTransitions } from "./transitions/yield_goto_transitions.js";
 import { yieldTransitions } from "./transitions/yield_transitions.js";
+
 export function constructHybridFunction(production: HCG3Production, grammar: HCG3Grammar, runner: Helper): RDProductionFunction {
 
     const
@@ -33,10 +33,8 @@ export function constructHybridFunction(production: HCG3Production, grammar: HCG
 
         goto_fn_name = <SKPrimitiveDeclaration>sk`[priv] ${getProductionFunctionName(production, grammar)}_goto:u32`,
 
-        start = performance.now(),
-
         RD_function = <SKFunction>sk`
-        fn ${getProductionFunctionName(production, grammar)}:i32(l:__Lexer$ref,data:__ParserData$ref, db:__ParserDataBuffer$ref, state:u32, prod:u32, prod_start:u32){ ${runner.ANNOTATED ? "" : ""} prod_start = data.rules_ptr; }`,
+        fn ${getProductionFunctionName(production, grammar)}:i32(l:__Lexer$ref,data:__ParserData$ref, db:__ParserDataBuffer$ref, state:u32, prod:u32, prod_start:u32){ ${runner.ANNOTATED ? "" : ""} }`,
 
         GOTO_function = <SKFunction>sk`
         fn ${getProductionFunctionName(production, grammar)}_goto:i32(l:__Lexer$ref,data:__ParserData$ref, db:__ParserDataBuffer$ref, state:u32, prod:u32, prod_start:u32){ ${runner.ANNOTATED ? "" : ""} }`,
@@ -44,7 +42,27 @@ export function constructHybridFunction(production: HCG3Production, grammar: HCG
         { RDOptions, GOTO_Options, RD_fn_contents, GOTO_fn_contents }
             = compileProductionFunctions(grammar, runner, [production]);
 
-    RD_function.expressions.push(...RD_fn_contents, <SKExpression>sk`return:-1`);
+    RD_function.expressions.push(...RD_fn_contents);
+
+    if (RD_fn_contents.slice(-1)[0].type !== "return") {
+        /**
+         * If the production contains an empty body, we'll 
+         * want to complete the production even if all other
+         * bodies have failed to parse.
+         */
+        const empty_body = production.bodies.filter(b => Sym_Is_Empty(b.sym[0]))[0];
+        if (empty_body) {
+            const item = new Item(empty_body.id, empty_body.length, 0);
+
+            //TODO: Reset output pointer to production start
+
+            renderItem(RD_function.expressions, item, RDOptions);
+
+            RD_function.expressions.push(<SKExpression>sk`return:${production.id}`);
+        } else {
+            RD_function.expressions.push(<SKExpression>sk`return:-1`);
+        }
+    }
 
     GOTO_function.expressions.push(...GOTO_fn_contents);
 
@@ -56,8 +74,8 @@ export function constructHybridFunction(production: HCG3Production, grammar: HCG
         RDOptions,
         GOTO_Options);
 
-    collapseBranchNamesSk(RDOptions);
-    collapseBranchNamesSk(GOTO_Options);
+    collapseBranchNames(RDOptions);
+    collapseBranchNames(GOTO_Options);
 
     if (!GOTO_Options.NO_GOTOS)
         GOTO_function.expressions.push(addClauseSuccessCheck(RDOptions));
@@ -78,7 +96,7 @@ export function constructHybridFunction(production: HCG3Production, grammar: HCG
 export function createVirtualProductionSequence(
     options: RenderBodyOptions,
     items: Item[],
-    expected_symbols: Symbol[] = [],
+    expected_symbols: HCG3Symbol[] = [],
     out_leaves: Leaf[],
     out_prods: number[] = [],
     /**
@@ -114,9 +132,9 @@ export function createVirtualProductionSequence(
             (CLEAN ? 1 : options.VIRTUAL_LEVEL + 1)
         ),
 
-        rd_virtual_name = createBranchFunctionSk(RD_fn_contents, RDOptions),
+        rd_virtual_name = createBranchFunction(RD_fn_contents, RDOptions),
 
-        goto_virtual_name = createBranchFunctionSk(GOTO_fn_contents, GOTO_Options),
+        goto_virtual_name = createBranchFunction(GOTO_fn_contents, GOTO_Options),
 
         gen = addVirtualProductionLeafStatements(
             RD_fn_contents,
@@ -169,9 +187,9 @@ export function createVirtualProductionSequence(
         <SKExpression>sk`return:0`,
     );
 
-    collapseBranchNamesSk(RDOptions);
+    collapseBranchNames(RDOptions);
 
-    collapseBranchNamesSk(GOTO_Options);
+    collapseBranchNames(GOTO_Options);
 
     return out;
 }
@@ -189,6 +207,8 @@ export function compileProductionFunctions(
     IS_VIRTUAL: number = 0
 ) {
     //if (IS_VIRTUAL > 32) throw new Error("Virtual production depth is too high");
+
+    grammar.lr_items = [...grammar.item_map.values()].filter(i => !i.item.atEND && Sym_Is_A_Production(i.item.sym(grammar))).map(i => i.item);
 
     const
 
@@ -223,6 +243,15 @@ export function compileProductionFunctions(
             yieldGOTOTransitions(GOTO_Options, completed_productions),
             resolveGOTOBranches
         );
+
+
+
+    if (rd_nodes.length == 1 && (rd_nodes[0].transition_type == TRANSITION_TYPE.ASSERT_PRODUCTION_CALL || rd_nodes[0].transition_type == TRANSITION_TYPE.ASSERT_PRODUCTION_SYMBOLS)) {
+        RD_fn_contents.unshift(createTransitionTypeAnnotation(RDOptions, [rd_nodes[0].transition_type]));
+    } else
+        RD_fn_contents.unshift(createScanFunctionCall(initial_items, RDOptions, "l", false));
+
+
 
     RDOptions.leaves = rd_leaves;
     GOTO_Options.leaves = goto_leaves;

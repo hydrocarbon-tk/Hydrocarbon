@@ -20,6 +20,17 @@ export async function compileJSParserFromGrammar(string_or_url, DEBUG = false, r
     return await createAddHocParser(compiled_grammar, recognizer_functions, meta);
 }
 
+export async function compileJSParserStringFromGrammar(string_or_url, DEBUG = false, recognizer_type = "js") {
+
+    const compiled_grammar = await compileGrammar(string_or_url);
+
+    const { recognizer_functions, meta } = await buildRecognizer(compiled_grammar, 1, true);
+    const parser_string = await generateJSParser(compiled_grammar, recognizer_functions, meta, "", "return");
+
+    await fsp.writeFile("./temp.js", parser_string);
+    return parser_string;
+}
+
 
 const cache = new Map();
 

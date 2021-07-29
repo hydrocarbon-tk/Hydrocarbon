@@ -4,7 +4,8 @@ import URI from "@candlelib/uri";
 import { HCG3Grammar } from "../types/grammar_nodes";
 import {
     buildSequenceString,
-    createUniqueSymbolSet,
+    createCollisionMatrix,
+    processSymbols,
     render
 } from "./passes/common.js";
 import { convertListProductions } from "./passes/convert_list_productions.js";
@@ -58,9 +59,10 @@ export async function compileGrammar(grammar: HCG3Grammar) {
         deduplicateProductionBodies(grammar, errors);
         //mergeProductions(grammar, errors); // Optional
         createJSFunctionsFromExpressions(grammar, errors);
-        createUniqueSymbolSet(grammar, errors);
+        processSymbols(grammar, errors);
         buildSequenceString(grammar);
         buildItemMaps(grammar);
+        createCollisionMatrix(grammar);
 
     } catch (e) {
         errors.push(e);

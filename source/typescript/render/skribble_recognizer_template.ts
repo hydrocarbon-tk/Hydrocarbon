@@ -5,30 +5,23 @@
  */
 import { Helper } from "../build/helper.js";
 import { jump8bit_table_byte_size } from "../runtime/parser_memory_new.js";
-import { parser, skRenderAsSK } from "../skribble/skribble.js";
+import { TokenTypes } from "../runtime/TokenTypes.js";
+import { parser } from "../skribble/skribble.js";
 import { SKModule } from "../skribble/types/node.js";
 import { HCG3Grammar } from "../types/grammar_nodes.js";
 import { RDProductionFunction } from "../types/rd_production_function.js";
-import { createSkipCallSk, getProductionFunctionNameSk } from "../utilities/code_generating.js";
-import { getProductionClosure } from "../utilities/production.js";
-import { getSkippableSymbolsFromItems, getUnskippableSymbolsFromClosure } from "../grammar/nodes/symbol.js";
+import { getProductionFunctionNameSk } from "../utilities/code_generating.js";
+
+export const NULL_STATE = 0;
+const UNICODE_ID_CONTINUE = 32;
+const UNICODE_ID_START = 64;
 export const renderSkribbleRecognizer = (
     grammar: HCG3Grammar
 ): SKModule => {
     const val = <SKModule>parser(`
 [static new] lookup_table : __u8$ptr;
 [static new] sequence_lookup : array_u8 = a(${grammar.sequence_string.split("").map(s => s.charCodeAt(0)).join(",")});
-[static] TokenSymbol: u32 = 1;
 [static] action_ptr: u32 = 0;
-[static] TokenIdentifier: u32 = 2;
-[static] TokenSpace: u32 = 4;
-[static] TokenNewLine: u32 = 8;
-[static] TokenNumber: u32 = 16;
-[static] TokenIdentifierUnicode: u32 = 32 | TokenIdentifier;
-[static] TokenFullNumber: u32 = 128 | TokenNumber;
-[static] UNICODE_ID_CONTINUE: u32 = 32;
-[static] UNICODE_ID_START: u32 = 64;
-[static] NULL_STATE: u32 = 0;
 [static] STATE_ALLOW_SKIP: u32 = 1;
 [static] STATE_ALLOW_OUTPUT: u32 = 2;
 
@@ -228,63 +221,58 @@ fn createState:u32 (ENABLE_STACK_OUTPUT:u32) {
         this.current_byte = 0;
     }
 
-    [pub] fn isDiscrete: bool (data:__ParserData$ref, assert_class:u32, offset:u32 = 0, USE_UNICODE:bool = false) {
-
-        [mut] type:u32 = 0;
-
-        offset += this.byte_offset;
-
-        if (offset >= data.input_len ): return: true;
-
-        [mut] current_byte:u32 = data.input[offset];
-
-        if (!USE_UNICODE || current_byte < 128) : {
-            type = getTypeAt(current_byte);
-        } else 
-            type = getTypeAt(utf8ToCodePoint(offset,  data.input));
-        
-        
-        return : (type & assert_class) == 0;
-    }
-
-    [pub] fn setToken:void(type_in:u32, byte_length_in:u32, token_length_in:u32){
+    [pub] fn setToken:i32(type_in:i32, byte_length_in:u32, token_length_in:u32){
         this.type = type_in;
         this.byte_length = byte_length_in;
         this.token_length = token_length_in;
+        return :type_in;
     }
+
 
     [pub] fn getType : u32 (USE_UNICODE:bool, data: __ParserData$ref) { 
 
-        if this.END(data) : return : 0;
+        [mut] type:u32 = this.type;
 
-        if (this.type) == 0 :{
+        if this.END(data) : return : ${TokenTypes.END_OF_FILE};
+
+        if (type) == 0 :{
             if ( !(USE_UNICODE) || this.current_byte < 128) :{
-                this.type = getTypeAt(this.current_byte)
+                type = getTypeAt(this.current_byte)
            } else {
                 [const] code_point:u32 = utf8ToCodePoint(this.byte_offset, data.input);
                 this.byte_length = getUTF8ByteLengthFromCodePoint(code_point);
-                this.type = getTypeAt(code_point);
+                type = getTypeAt(code_point);
             }
         };
 
-        return : this.type;
+        return : type;
     }
 
     [pub] fn isSym : bool (USE_UNICODE:bool, data:__ParserData$ref) {
-        return : (!this.END(data)) && this.getType(USE_UNICODE, data) == TokenSymbol;
+        return : (!this.END(data)) && this.getType(USE_UNICODE, data) == ${TokenTypes.SYMBOL};
     }
 
     [pub] fn isNL : bool () {
-        return : (this.current_byte) == 10 || (this.current_byte) == 13
+
+        if((this.type) == 0 && ( this.current_byte) == 10 || (this.current_byte) == 13 ): {
+            this.type = ${TokenTypes.NEW_LINE};
+        };
+
+        return : (this.type )== ${TokenTypes.NEW_LINE};
     }
 
     [pub] fn isSP : bool  (USE_UNICODE:bool, data:__ParserData$ref) {
-        return : (this.current_byte) == 32 || USE_UNICODE && (TokenSpace) == this.getType(USE_UNICODE, data)
+        
+        if((this.type) == 0 && (this.current_byte) == 32): {
+            this.type = ${TokenTypes.SPACE}
+        };
+
+        return : (this.type )== ${TokenTypes.SPACE}
     }
 
     [pub] fn isNum : bool  (data:__ParserData$ref) {
-        if (this.type) == 0 || (this.type) == TokenNumber : {
-            if this.getType(false, data) == TokenNumber : {
+        if (this.type) == 0 : {
+            if this.getType(false, data) == ${TokenTypes.NUMBER} : {
 
                 [const] l :u32 = data.input_len;
 
@@ -295,21 +283,21 @@ fn createState:u32 (ENABLE_STACK_OUTPUT:u32) {
                     this.token_length += 1;
                 };
 
-                this.type = TokenFullNumber;
+                this.type = ${TokenTypes.NUMBER};
                 
                 return : true
 
             } else 
                 return : false
         } else 
-            return : (this.type) == TokenFullNumber
+            return : (this.type) == ${TokenTypes.NUMBER}
     }
 
     [pub] fn isUniID : bool  (data:__ParserData$ref) {
         
-        if ((this.type) == 0 || (this.type) == TokenIdentifier) : {
+        if ((this.type) == 0 ) : {
 
-            if (this.getType(true, data) == TokenIdentifier) : {
+            if (this.getType(true, data) ==  ${TokenTypes.IDENTIFIER}) : {
 
                 [const] l :u32 = data.input_len;
 
@@ -320,7 +308,7 @@ fn createState:u32 (ENABLE_STACK_OUTPUT:u32) {
                 loop ( (off + this.byte_length) < l)  {
                     [const] code_point: u32 = utf8ToCodePoint(this.byte_offset + this.byte_length, data.input);
 
-                    if( ((UNICODE_ID_START | UNICODE_ID_CONTINUE) & lookup_table[code_point]) > 0) : {
+                    if( ((${UNICODE_ID_CONTINUE | UNICODE_ID_START}) & lookup_table[code_point]) > 0) : {
                         this.byte_length += getUTF8ByteLengthFromCodePoint(code_point);
                         prev_byte_len = this.byte_length;
                         this.token_length += 1;
@@ -331,13 +319,13 @@ fn createState:u32 (ENABLE_STACK_OUTPUT:u32) {
 
                 this.byte_length = prev_byte_len;
 
-                this.type = TokenIdentifierUnicode;
+                this.type = ${TokenTypes.IDENTIFIER};
 
                 return:  true;
             }  else 
                 return: false
         } else 
-            return: (this.type) == TokenIdentifierUnicode;
+            return: (this.type) == ${TokenTypes.IDENTIFIER};
     }
 
     [pub] fn copy: __Lexer$ptr (){
@@ -410,8 +398,8 @@ fn createState:u32 (ENABLE_STACK_OUTPUT:u32) {
         this.byte_offset += this.byte_length;
         this.token_offset += this.token_length;
         
-        if(data.input_len < this.byte_offset) :{
-            this.type = 0;
+        if(data.input_len <= this.byte_offset) :{
+            this.type = ${TokenTypes.END_OF_FILE};
             this.byte_length = 0;
             this.token_length = 0;
             this.current_byte = 0;
@@ -427,12 +415,10 @@ fn createState:u32 (ENABLE_STACK_OUTPUT:u32) {
         return :*> this;
     }
     
-
     [pub] fn END:bool (data:__ParserData$ref){
         return : this.byte_offset >= data.input_len
     }
 }
-
 
 fn compare: u32(
     data: __ParserData$ref,
@@ -448,43 +434,6 @@ fn compare: u32(
         if(data.input[i] != sequence_lookup[j] ) : return : j - sequence_offset;
 
     return : byte_length;
-}
-
-
-fn cmpr_set : u32 (
-    l : __Lexer$ref,
-    data: __ParserData$ref,
-    sequence_offset:u32,
-    byte_length:u32,
-    token_length:u32
-){
-    if (byte_length) == compare(data, l.byte_offset, sequence_offset, byte_length) : {
-        l.byte_length = byte_length;
-        l.token_length = token_length;
-        return : true;
-    };
-
-    return : false;
-}
-
-
-fn cmpr_set_id : u32 (
-    l : __Lexer$ref,
-    data: __ParserData$ref,
-    sequence_offset:u32,
-    byte_length:u32,
-    token_length:u32
-){
-    if 
-        (byte_length) == compare(data, l.byte_offset, sequence_offset, byte_length) 
-        && 
-        l.isDiscrete(data, TokenIdentifier, byte_length, true) : {
-        l.byte_length = byte_length;
-        l.token_length = token_length;
-        return : true;
-    };
-
-    return : false;
 }
 
 fn create_parser_data_object:__ParserData$ptr(
@@ -534,23 +483,7 @@ fn create_parser_data_object:__ParserData$ptr(
     return :fork; 
 }
 
-
-[pub] fn assert_ascii:bool(l:__Lexer$ref, a:u32, b:u32, c:u32, d:u32) {
-    
-    [const] ascii : u32 = l.current_byte;
-
-    if ascii < 32: return: ((a & (1 << ascii)) != 0)
-
-    else if ascii < 64: return: ((b & (1 << (ascii - 32))) != 0)
-
-    else if ascii < 96: return: ((c & (1 << (ascii - 64))) != 0)
-
-    else if ascii < 128: return: ((d & (1 << (ascii - 96))) != 0);
-
-    return:false
-}
-
-fn isOutputEnabled:bool (state:u32) { return: NULL_STATE != (state & STATE_ALLOW_OUTPUT) }
+fn isOutputEnabled:bool (state:u32) { return: ${NULL_STATE} != (state & STATE_ALLOW_OUTPUT) }
 
 fn set_action:void (val:u32, data:__ParserData$ref) {
     if(data.rules_ptr > data.rules_len) : return;
@@ -613,34 +546,6 @@ fn add_skip:void(data:__ParserData$ref, skip_delta:u32){
     }
 }
 
-fn convert_prod_to_token:void(data:__ParserData$ref, prod_start:u32) {
-
-    [const] prod_end:u32 = data.rules_ptr;
-    [mut] token_len:u32 = 0;
-    [mut] i:u32 = prod_start;
-
-    loop (; i < prod_end; i++) {
-        
-        [mut] rule:u16 = data.rules[i];
-
-        if (rule & 4) == 1 : i++;
-
-        if (rule & 3) > 0 : {
-
-            [mut] length:u32 = (rule >> 3) & 0x1FFF;
-
-            if (rule & 4) == 1 : 
-                length = ((length << 16) | data.rules[i]);
-
-            token_len += length;
-        }
-    };
-
-    data.rules_ptr = prod_start;
-
-    add_shift(data, token_len);
-}
-
 [pub] fn mark:u32 (val:u32, data:__ParserData$ref) { return:action_ptr }
 
 fn reset:void (data:__ParserData$ref, origin:__Lexer$ref, s_ptr:u32, r_ptr:u32) {
@@ -689,7 +594,6 @@ fn stepKernel:bool(
     data.prod = result;
 
     if(result<0 || data.stack_ptr < stack_base) : {
-        data.VALID = (*>data.lexer).END(data) && (result >= 0);
         return:false;
     };
 
@@ -739,7 +643,7 @@ fn insertData:i32(
     return : resolved_max;
 }
 
-fn run:i32(origin:__ParserData$ptr,  resolved:__ParserData$ptr$ptr, resolved_len:i32, resolved_max:i32, base:u32){
+fn run:i32(origin:__ParserData$ptr,  resolved:__ParserData$ptr$ptr, resolved_len:i32, resolved_max:i32, base:u32, prod_id:u32){
 
     [mut new cpp_ignore] data_buffer : ParserDataBuffer = ParserDataBuffer();
     [mut js_ignore] data_buffer : ParserDataBuffer;
@@ -757,6 +661,8 @@ fn run:i32(origin:__ParserData$ptr,  resolved:__ParserData$ptr$ptr, resolved_len
             if (!stepKernel(data, *>data.lexer, data_buffer, base)) : {
 
                 data.COMPLETED = true;
+
+                data.VALID = (data.prod) == prod_id;
 
                 data_buffer.removeDataAtIndex(i--);
 
@@ -790,16 +696,6 @@ export function createExternFunctions(
             ${rd_functions.filter(f => f.RENDER && grammar.productions[f.id].IS_ENTRY)
             .map((fn, i) => {
                 const name = getProductionFunctionNameSk(grammar.productions[fn.id], grammar);
-                const closure = getProductionClosure(0, grammar);
-                const skippable = getSkippableSymbolsFromItems(closure, grammar);
-                const unskippable = getUnskippableSymbolsFromClosure(closure, grammar);
-                const skip_fn = createSkipCallSk(skippable, <BaseOptions>{ grammar, helper: runner }, "(*>data.lexer)", false, unskippable, true);
-
-                if (skip_fn) {
-                    const skip_call = skRenderAsSK(skip_fn);
-                    return `${i} : { ${skip_call}; data.stack[0] = &> ${name}; data.stash[0] = ${0}; return }`;
-                }
-
                 return `${i} : { data.stack[0] = &> ${name}; data.stash[0] = ${0}; return }`;
 
             }).join(",")}
@@ -953,7 +849,7 @@ fn block64Consume:i32(data:__ParserData$ptr, block:array_u16, offset:u32, block_
     root_data = &>data_ref;
     tip_data = &>data_ref;
     
-    out_array_len = run(&>data_ref, out_array, out_array_len, 64, 0);
+    out_array_len = run(&>data_ref, out_array, out_array_len, 64, 0, production);
     
     return: out_array_len;
 }`);

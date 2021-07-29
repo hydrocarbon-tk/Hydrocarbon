@@ -20,8 +20,10 @@ export interface TransitionTreeNode {
     closure: Item[];
     starts?: Item[];
     final_count: number;
+
+    root_id?: number;
 }
-export interface closure_group {
+export interface ClosureGroup {
     sym: Symbol;
     item_id?: string;
     index: number;
@@ -32,6 +34,7 @@ export interface closure_group {
      * Items that transition on the sym
      */
     starts?: Item[];
+    root_id?: number;
 
     production_shift_items: Item[];
 }

@@ -60,14 +60,8 @@ export function processPeekTransitionLeaves(
 
                 else if (leaf_depth <= 0 && root_depth == 0) {
 
-                    /**
-                     * At offset zero, were all all closure items are at the start position, we can attempt
-                     * to transition on closure items instead of the root production items.
-                     */
-
-                    //console.log("AAA", node.closure.map(i => i.renderUnformattedWithProduction(grammar)), getClosure(node.closure, grammar).map(i => i.renderUnformattedWithProduction(grammar)));
-
                     addRegularYieldNode(node, getClosure(node.closure, grammar), options, root_depth + 1);
+
                 } else {
 
                     addUnresolvedNode(node, options, root_depth);
@@ -195,7 +189,7 @@ function addUnresolvedNode(node: TransitionNode, options: RenderBodyOptions, off
             for (const items_with_same_symbol of filtered_items.group(i => getUniqueSymbolName(i.sym(options.grammar)))) {
 
 
-                const unresolved_leaf_node = createTransitionNode(items_with_same_symbol, node.symbols, TRANSITION_TYPE.ASSERT, offset, node.peek_level, true);
+                const unresolved_leaf_node = createTransitionNode(items_with_same_symbol, node.symbols, TRANSITION_TYPE.ASSERT, offset, node.peek_level, true, 55);
 
                 unresolved_leaf_node.nodes.push(...yieldTransitions(items_with_same_symbol, options, offset, const_EMPTY_ARRAY, false));
 

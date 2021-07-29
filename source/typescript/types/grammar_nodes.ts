@@ -1,13 +1,36 @@
-import { TokenSymbol } from "@candlelib/hydrocarbon/build/types/types/symbol";
+/* 
+ * Copyright (C) 2021 Anthony Weathersby - The Hydrocarbon Parser Compiler
+ * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
+ * disclaimer notice.
+ */
+
+import { TokenTypes } from "../runtime/TokenTypes";
+import { Item } from "../utilities/item";
 import { ItemMapEntry } from "./item_map";
-
-
 export const enum RECURSIVE_STATE {
     UNKNOWN = 0,
     LEFT = 1,
     RIGHT = 2,
     LEFT_RIGHT = 3,
     NONE = 4
+}
+
+export const enum SymbolType {
+    PRODUCTION = "sym-production",
+    LITERAL = "literal",
+    EXCLUSIVE_LITERAL = "exclusive-literal",
+    GENERATED = "generated",
+    SYMBOL = "symbol",
+    EMPTY = "empty",
+    END_OF_FILE = "eof",
+    PRODUCTION_ASSERTION_FUNCTION = "assert_token_function",
+    PRODUCTION_TOKEN_SYMBOL = "production_token",
+    END_OF_PRODUCTION = "eop",
+    IMPORT_PRODUCTION = "sym-production-import",
+    LOOK_BEHIND = "look-behind",
+    VIRTUAL_TOKEN = "v-token-production",
+    GROUP_PRODUCTION = "group-production",
+    LIST_PRODUCTION = "list-production",
 }
 
 export interface HCG3TokenPosition {
@@ -80,6 +103,12 @@ export interface HCG3ProductionNode extends HCG3GrammarNode {
      * has been imported
      */
     grammar_id?: string;
+
+
+
+    CHECKED_FOR_EMPTY?: boolean;
+
+    HAS_EMPTY?: boolean;
 }
 export interface HCG3GeneralProduction extends HCG3ProductionNode {
     type: "production",
@@ -147,6 +176,12 @@ export interface HCG3Grammar extends HCG3GrammarNode {
     item_map: Map<string, ItemMapEntry>;
 
     /**
+     * A lookup matrix that identifies tokens that collide with each other
+     */
+    collision_matrix: boolean[][];
+
+
+    /**
      * An byte buffer of all defined characters sequences that can show up in the grammar. 
      * These are mapped back to DefinedSymbols with the offset indicating where that particular
      * symbols sequence begins and a the length in bytes of the symbols sequence.
@@ -179,14 +214,8 @@ export interface HCG3SymbolNode extends HCG3GrammarNode {
     id: number;
 }
 
-export interface HCG3BasicSymbol extends HCG3SymbolNode {
-    type: "symbol";
-    val: string;
-    meta: false;
-}
-
 export interface HCG3ListProductionSymbol extends HCG3SymbolNode {
-    type: "list-production";
+    type: SymbolType.LIST_PRODUCTION;
     val: HCG3SymbolNode;
     terminal_symbol: HCG3Symbol;
     OPTIONAL: boolean;
@@ -194,24 +223,24 @@ export interface HCG3ListProductionSymbol extends HCG3SymbolNode {
 }
 
 export interface HCG3GroupProduction extends HCG3SymbolNode {
-    type: "group-production";
+    type: SymbolType.GROUP_PRODUCTION;
     val: HCG3ProductionBody[];
     meta: false;
 }
 
 export interface HCG3EOFSymbol extends HCG3SymbolNode {
-    type: "eof";
+    type: SymbolType.END_OF_FILE;
     val: "END_OF_FILE";
     meta: false;
 }
 export interface HCG3EOPSymbol extends HCG3SymbolNode {
-    type: "eop";
+    type: SymbolType.END_OF_PRODUCTION;
     val: "END_OF_PRODUCTION";
     meta: false;
 }
 
 export interface HCG3EmptySymbol extends HCG3SymbolNode {
-    type: "empty";
+    type: SymbolType.EMPTY;
     val: "";
     byte_length: 0;
     byte_offset: 0;
@@ -219,12 +248,12 @@ export interface HCG3EmptySymbol extends HCG3SymbolNode {
 }
 
 export interface HCG3GeneratedSymbol extends HCG3SymbolNode {
-    type: "generated";
+    type: SymbolType.GENERATED;
     meta: false;
 }
 
 export interface HCG3LiteralSymbol extends HCG3SymbolNode {
-    type: "literal";
+    type: SymbolType.LITERAL;
 
     /**
      * Size of the character sequence in UTF8 encoding
@@ -241,7 +270,7 @@ export interface HCG3LiteralSymbol extends HCG3SymbolNode {
 }
 
 export interface HCG3ExclusiveLiteralSymbol extends HCG3SymbolNode {
-    type: "exclusive-literal";
+    type: SymbolType.EXCLUSIVE_LITERAL;
 
     /**
      * Size of the character sequence in UTF8 encoding
@@ -258,35 +287,34 @@ export interface HCG3ExclusiveLiteralSymbol extends HCG3SymbolNode {
 }
 
 export interface HCG3ProductionTokenSymbol extends HCG3SymbolNode {
-    type: "production_token";
+    type: SymbolType.PRODUCTION_TOKEN_SYMBOL;
     name: string;
-
-    val: string | number;
+    val: number;
 
     production?: HCG3Production; END_OF_PRODUCTION;
     meta: false;
 }
 
 export interface HCG3ProductionSymbol extends HCG3SymbolNode {
-    type: "sym-production";
+    type: SymbolType.PRODUCTION;
 
     name: string;
 
-    val: string | number;
+    val: number;
 
     production?: HCG3Production;
     meta: false;
 }
 
 export interface HCG3ProductionImportSymbol extends HCG3SymbolNode {
-    type: "sym-production-import";
+    type: SymbolType.IMPORT_PRODUCTION;
     production?: string;
     module: any;
     meta: false;
 }
 
 export interface HCG3LookBehind extends HCG3SymbolNode {
-    type: "look-behind";
+    type: SymbolType.LOOK_BEHIND;
     phased: TokenSymbol;
 }
 
@@ -320,8 +348,78 @@ export interface HCG3MetaReduce extends HCG3SymbolNode {
     meta: true;
     index: number;
 }
-export type HCG3Symbol = HCG3BasicSymbol
-    | HCG3ListProductionSymbol
+
+export interface DefinedNumericSymbol extends HCG3LiteralSymbol { }
+
+export interface DefinedIdentifierSymbol extends HCG3LiteralSymbol { }
+
+export interface DefinedCharacterSymbol extends HCG3LiteralSymbol { }
+
+export interface GeneratedSymbol extends HCG3GeneratedSymbol {
+    val: "sym";
+    id: TokenTypes.SYMBOL;
+}
+
+export interface GeneratedNewLine extends HCG3GeneratedSymbol {
+    val: "nl";
+    id: TokenTypes.NEW_LINE;
+}
+export interface GeneratedNumber extends HCG3GeneratedSymbol {
+
+    val: "num";
+    id: TokenTypes.NUMBER;
+}
+export interface GeneratedSpace extends HCG3GeneratedSymbol {
+
+    val: "sp";
+    id: TokenTypes.SPACE;
+}
+export interface GeneratedIdentifier extends HCG3GeneratedSymbol {
+    val: "id";
+    id: TokenTypes.IDENTIFIER;
+}
+export interface EOFSymbol extends HCG3EOFSymbol {
+    id: TokenTypes.END_OF_FILE;
+}
+
+export interface ProductionSymbol extends HCG3ProductionSymbol { }
+
+export interface VirtualTokenSymbol extends HCG3SymbolNode {
+    type: SymbolType.VIRTUAL_TOKEN;
+    val: number;
+    symbol: HCG3Symbol;
+    item: Item;
+    root: HCG3ProductionTokenSymbol;
+    root_offset: number;
+    token_offset: number;
+    peek_depth: number;
+    closure: Item[];
+    production_offset: number;
+
+}
+
+export interface ProductionTokenSymbol extends HCG3ProductionTokenSymbol { }
+/**
+ * Any symbol that is not a ProductionSymbol, ProductionTokenSymbol, AssertionFunctionSymbol, or GeneratedSymbol.
+ * 
+ * Specifically, any symbol that is comprised of a discrete sequence of characters
+ * defined by the grammar author.
+ */
+export type DefinedSymbol =
+    | DefinedCharacterSymbol
+    | DefinedIdentifierSymbol
+    | HCG3ExclusiveLiteralSymbol
+    | DefinedNumericSymbol;
+export type TokenSymbol =
+    | VirtualTokenSymbol
+    | DefinedSymbol
+    | HCG3GeneratedSymbol
+    | HCG3EOFSymbol
+    | HCG3EOPSymbol
+    | HCG3EmptySymbol
+    | HCG3ProductionTokenSymbol;
+export type HCG3Symbol =
+    HCG3ListProductionSymbol
     | HCG3GroupProduction
     | HCG3EOFSymbol
     | HCG3EmptySymbol
@@ -337,4 +435,5 @@ export type HCG3Symbol = HCG3BasicSymbol
     | HCG3MetaReset
     | HCG3MetaReduce
     | HCG3LookBehind
-    | HCG3EOPSymbol;
+    | HCG3EOPSymbol
+    | TokenSymbol;

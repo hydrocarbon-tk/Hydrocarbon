@@ -78,7 +78,7 @@ export function yieldGOTOTransitions(options: RenderBodyOptions, completed_produ
         // Repeat
         const active_productions: Set<number> = new Set;
         const pending_productions: number[] = completed_productions.setFilter();
-        const goto_groups = nonterm_shift_items.setFilter(i=>i.id).groupMap(i => i.getProductionAtSymbol(grammar).id);
+        const goto_groups = nonterm_shift_items.setFilter(i => i.id).groupMap(i => i.getProductionAtSymbol(grammar).id);
 
         for (let i = 0; i < pending_productions.length; i++) {
 

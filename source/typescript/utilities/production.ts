@@ -4,9 +4,7 @@
  * disclaimer notice.
  */
 import { getStartItemsFromProduction } from "../build/function_constructor.js";
-import { HCG3Grammar } from "../types/grammar_nodes.js";
-import { ProductionSymbol, ProductionTokenSymbol } from "../types/symbol";
-import { SymbolType } from "../types/symbol_type";
+import { HCG3Grammar, HCG3ProductionTokenSymbol, ProductionSymbol, SymbolType } from "../types/grammar_nodes.js";
 import { getClosure } from "./closure.js";
 import { Item } from "./item.js";
 
@@ -35,7 +33,7 @@ export function doesProductionHaveEmpty(production_id: number, grammar: HCG3Gram
  * @param object
  * @param grammar
  */
-export function getProductionID(object: ProductionTokenSymbol | ProductionSymbol | Item, grammar: HCG3Grammar): number {
+export function getProductionID(object: HCG3ProductionTokenSymbol | ProductionSymbol | Item, grammar: HCG3Grammar): number {
     if (object instanceof Item)
         return object.getProduction(grammar).id;
     else

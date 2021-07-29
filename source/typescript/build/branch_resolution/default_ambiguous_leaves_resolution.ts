@@ -8,7 +8,7 @@ import { SKBlock, SKExpression } from "../../skribble/types/node";
 import { RenderBodyOptions } from "../../types/render_body_options";
 import { MultiItemReturnObject } from "../../types/transition_generating";
 import { Leaf, TransitionNode, TRANSITION_TYPE } from "../../types/transition_node.js";
-import { addItemAnnotationToExpressionList, createBranchFunctionSk } from "../../utilities/code_generating.js";
+import { addItemAnnotationToExpressionList, createBranchFunction } from "../../utilities/code_generating.js";
 import { getUniqueSymbolName, Sym_Is_A_Production } from "../../grammar/nodes/symbol.js";
 import { createVirtualProductionSequence } from "../function_constructor.js";
 import { default_resolveResolvedLeaf } from "./default_resolved_leaf_resolution.js";
@@ -81,7 +81,6 @@ export function default_resolveUnresolvedLeaves(node: TransitionNode, nodes: Tra
             root = createVirtualProductionSequence(options, items, expected_symbols, out_leaves, out_prods);
         } catch (e) {
             //throw e;
-            console.log(e);
 
             if (v_depth > 0) throw e;
 
@@ -169,14 +168,14 @@ function createBackTrackingSequence(
 
         const ret = code.filter(sk => sk.type == "return")[0];
 
-        const call_name = createBranchFunctionSk([
+        const call_name = createBranchFunction([
             <SKExpression>sk`return : -${prods[0]}`
         ], options);
 
         code.unshift(<SKExpression>sk`pushFN(data, &> ${call_name}, 0)`);
         code.push(<SKExpression>sk`return: -1;`);
 
-        const init_name = createBranchFunctionSk(code, options);
+        const init_name = createBranchFunction(code, options);
 
         const block = <SKBlock>sk`{}`;
 
@@ -220,7 +219,7 @@ function createForkSequence(
         out_prods.push(...prods);
         out_leaves.push(...leaves);
 
-        const call_name = createBranchFunctionSk(code, options);
+        const call_name = createBranchFunction(code, options);
 
         if (I++ == output_nodes.length - 1) {
             out.push(

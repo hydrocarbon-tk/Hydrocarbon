@@ -19,6 +19,7 @@ export type TransitionGroup = {
     prods: number[];
     leaves: Leaf[];
     PUIDABLE: boolean,
+    root_id: number,
     transition_types: TRANSITION_TYPE[];
 };
 export type TransitionClauseGenerator = Generator<TransitionGroup>;

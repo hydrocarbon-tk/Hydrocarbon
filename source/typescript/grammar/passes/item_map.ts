@@ -4,19 +4,19 @@
  * disclaimer notice.
  */
 import { getStartItemsFromProduction } from "../../build/function_constructor.js";
-import { EOF_SYM, EOP_SYM, ItemMapEntry } from "../../types/item_map.js";
 import { HCG3Grammar, HCG3Production } from "../../types/grammar_nodes.js";
-import { Production } from "../../types/production.js";
+import { EOP_SYM, ItemMapEntry } from "../../types/item_map.js";
 import { ProductionSymbol, Symbol, TokenSymbol } from "../../types/symbol";
 import { getFirstTerminalSymbols } from "../../utilities/first.js";
 import { Item } from "../../utilities/item.js";
 import { doesProductionHaveEmpty, getProductionID } from "../../utilities/production.js";
+import { default_EOF, default_EOP } from "../nodes/default_symbols.js";
 import {
     getSymbolName,
     getTrueSymbolValue, getUniqueSymbolName,
     Sym_Is_A_Production,
     Sym_Is_A_Production_Token,
-    Sym_Is_LookBehind
+    Sym_Is_Look_Behind
 } from "../nodes/symbol.js";
 
 type IntermediateItemMapEntry = (ItemMapEntry & {
@@ -133,7 +133,7 @@ function addFollowInformation(item: Item, grammar: HCG3Grammar, check_set: Set<s
         grammar.item_map.get(item.id).breadcrumbs.add(crumb);
 
     if (item.atEND) {
-        if (follow_sym && !Sym_Is_LookBehind(follow_sym))
+        if (follow_sym && !Sym_Is_Look_Behind(follow_sym))
             grammar.item_map.get(item.id).follow.add(getUniqueSymbolName(follow_sym));
         return;
     }
@@ -175,7 +175,7 @@ function addFollowInformation(item: Item, grammar: HCG3Grammar, check_set: Set<s
 
             } while (false && doesProductionHaveEmpty(getProductionID(<ProductionSymbol>sym, grammar), grammar));
 
-        } else follow = getTrueSymbolValue(sym, grammar);
+        } else follow = [sym];
 
     if (Sym_Is_A_Production(item_sym)) {
 
@@ -204,8 +204,7 @@ function addFollowInformation(item: Item, grammar: HCG3Grammar, check_set: Set<s
 
                     const new_item = new Item(body.id, body.length, body.length);
 
-                    if (!Sym_Is_LookBehind(follow_sym))
-                        grammar.item_map.get(new_item.id).follow.add(getUniqueSymbolName(follow_sym));
+                    grammar.item_map.get(new_item.id).follow.add(getUniqueSymbolName(follow_sym));
 
                 }
             }
@@ -407,7 +406,7 @@ function processFollowSymbols(grammar: HCG3Grammar, productions: HCG3Production[
 
     for (const production of productions) {
 
-        const start_symbol = production.ROOT_PRODUCTION ? EOF_SYM : EOP_SYM;
+        const start_symbol = production.ROOT_PRODUCTION ? default_EOF : default_EOP;
 
         for (const item of getStartItemsFromProduction(production))
             addFollowInformation(item, grammar, check_set, start_symbol, [item.body_(grammar).production.id], item_map);

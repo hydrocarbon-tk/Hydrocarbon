@@ -81,5 +81,5 @@ export function getFollowClosure(
 
     if (KEEP_END_ITEMS)
         return new_closure.setFilter(i => i.id);
-    return new_closure.setFilter(i => i.id).filter(i => !i.atEND);
+    return new_closure.setFilter(i => i.id);
 }

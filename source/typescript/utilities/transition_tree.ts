@@ -3,11 +3,16 @@
 * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
 * disclaimer notice.
 */
+
 import { performance } from "perf_hooks";
+import { default_EOF, default_EOP } from "../grammar/nodes/default_symbols.js";
 import {
-    getSymbolsFromClosure,
     getUniqueSymbolName,
     getUnskippableSymbolsFromClosure,
+
+    SymbolsCollide,
+
+    Symbols_Are_The_Same,
 
     Sym_Is_A_Generic_Identifier,
 
@@ -15,17 +20,14 @@ import {
 
     Sym_Is_A_Production_Token,
 
-    Sym_Is_Defined_Identifier,
-    Sym_Is_EOF,
-    Sym_Is_Exclusive
+    Sym_Is_EOF
 } from "../grammar/nodes/symbol.js";
-import { HCG3Grammar } from "../types/grammar_nodes";
-import { TokenSymbol } from "../types/symbol";
-import { closure_group, TransitionTreeNode } from "../types/transition_tree_nodes";
+import { HCG3Grammar, TokenSymbol } from "../types/grammar_nodes";
+import { ClosureGroup, TransitionTreeNode } from "../types/transition_tree_nodes";
 import { getClosure, getFollowClosure } from "./closure.js";
+import { generateHybridIdentifier } from "./code_generating.js";
 import { getFollow } from "./follow.js";
 import { Item } from "./item.js";
-import { getProductionClosure } from "./production.js";
 
 
 const goto_items = new Map();
@@ -51,7 +53,7 @@ export function getTransitionTree(
      */
     max_time_limit = 150,
     depth: number = -1,
-    closures: closure_group[] = null,
+    closures: ClosureGroup[] = null,
     len = 0,
     last_progress = 0,
     root_time = performance.now()
@@ -62,18 +64,14 @@ export function getTransitionTree(
         if (!goto_items.has(grammar))
             goto_items.set(grammar, [...grammar.item_map.values()].map(i => i.item).filter(i => !i.atEND && Sym_Is_A_Production(i.sym(grammar))));
 
-
-
         closures = root_items.map((i, index) => {
             const c = getClosure([i], grammar);
-            //console.log(c.map(i => i.renderUnformattedWithProduction(grammar)));
 
             return ({
                 final: 0,
                 sym: null,
                 index,
                 closure: c,
-                //production_shift_items: c.filter(i => Sym_Is_A_Production(i.sym(grammar)))
                 production_shift_items: lr_transition_items.concat(c).filter(i => Sym_Is_A_Production(i.sym(grammar))).setFilter(i => i.id)
             });
         });
@@ -114,34 +112,39 @@ export function getTransitionTree(
         AMBIGUOUS = false,
         max_depth = depth;
 
+    //Combine collision groups
+
     const
         closure_groups = closures.flatMap(cg => getClosureGroups(grammar, cg, lr_transition_items, root_items)),
-
-        id_closure_groups = closure_groups.filter(g => Sym_Is_A_Generic_Identifier(g.sym)).setFilter(s => s.item_id),
 
         groups = closure_groups.group(cg => getUniqueSymbolName(cg.sym)),
 
         tree_nodes: TransitionTreeNode[] = [];
 
+    const collision_groups = [];
+
     for (const group of groups) {
+        const incoming_sym = group[0].sym;
+        if (
+            Sym_Is_A_Production_Token(incoming_sym)
+            ||
+            Sym_Is_A_Generic_Identifier(incoming_sym)
+        ) for (const extant_group of groups) {
+            const root_sym = extant_group[0].sym;
+            if (!Symbols_Are_The_Same(incoming_sym, root_sym) && SymbolsCollide(incoming_sym, root_sym, grammar)) {
+                collision_groups.push([...extant_group, ...group]);
 
-        const INCLUDE_GENERIC_ID =
-            Sym_Is_Defined_Identifier(group[0].sym)
-            &&
-            !Sym_Is_Exclusive(group[0].sym)
-            &&
-            id_closure_groups.length > 0;
+            }
+        }
+    }
 
-        if (INCLUDE_GENERIC_ID) {
-            group.push(...id_closure_groups);
-        };
+    for (const group of [...groups, ...collision_groups]) {
 
         let next = [];
-
+        let sym = group[0].sym;
         const
+            root_id = group[0].root_id,
             unskippable = group.flatMap(g => g.unskippable),
-
-            sym = group[0].sym,
 
             new_roots = group.map(cg => cg.index).setFilter().map(i => root_items[i]),
 
@@ -154,6 +157,7 @@ export function getTransitionTree(
             starts = group.flatMap(g => g.starts ?? []).setFilter(i => i.id),
 
             curr_progress = progress ? depth : last_progress;
+
 
         if (progress)
             GLOBAL_PROGRESS = true;
@@ -187,6 +191,23 @@ export function getTransitionTree(
             }
         }
 
+        const syms = group.map(g => g.sym).setFilter(getUniqueSymbolName);
+
+        if (syms.length > 1) {
+            //generate a hybrid symbol
+            const val = generateHybridIdentifier(syms);
+
+            sym = {
+                type: "hybrid",
+                val: "hybrid-" + val + `[${syms.sort((a, b) => b.id - a.id).map(getUniqueSymbolName).join("  ")}]`,
+                id: val
+            };
+
+            if (!grammar.meta.all_symbols.has(getUniqueSymbolName(sym))) {
+                grammar.meta.all_symbols.set(getUniqueSymbolName(sym), sym);
+            }
+        }
+
         tree_nodes.push({
             last_progress: depth - last_progress,
             progress,
@@ -198,6 +219,7 @@ export function getTransitionTree(
             roots: new_roots,
             starts,
             next: next,
+            root_id,
             final_count: group.reduce((r, c) => c.final + r, 0)
         });
     }
@@ -209,10 +231,10 @@ export function getTransitionTree(
 }
 function getClosureGroups(
     grammar: HCG3Grammar,
-    { index, closure, final, starts, production_shift_items }: closure_group,
+    { index, closure, final, starts, production_shift_items, root_id }: ClosureGroup,
     lr_transition_items: Item[],
     root_items: Item[]
-): closure_group[] {
+): ClosureGroup[] {
 
     if (final > 1)
         return [];
@@ -232,92 +254,88 @@ function getClosureGroups(
             const production_id = closure[0].getProduction(grammar).id;
 
             if (new_closure.length == 0) {
-
-                //for (const sym of getFollow(production_id, grammar))
-                //    group.push({ sym, index, item_id: item.decrement().id, unskippable, closure: closure.slice(0, 1), final: final + 2 });
-
-                const productions = getFollowClosure([item], production_shift_items, grammar, undefined, undefined, true).filter(i => root_items.some(g => g.body == i.body)).map(s => s.getProduction(grammar).id).setFilter();
+                const productions = getFollowClosure([item], grammar.lr_items, grammar, undefined, undefined, true).filter(i => root_items.some(g => g.body == i.body)).map(s => s.getProduction(grammar).id).setFilter();
                 const follow_syms = productions.flatMap(p => getFollow(p, grammar)).setFilter(getUniqueSymbolName);
 
-                const closure = getFollowClosure([item], production_shift_items, grammar, undefined, undefined, true);
-
                 for (const sym of follow_syms) {
-                    group.push({ sym, index, item_id: item.decrement().id, unskippable, stats: [], closure: [], final: final + 2, production_shift_items: [] });
+                    group.push({ sym, index, item_id: item.decrement().id, unskippable, stats: [], closure: [], final: final + 2, production_shift_items: [], root_id: root_id ?? sym.id, });
                 }
 
             } else {
 
-                const new_group = getClosureGroups(
-                    grammar,
-                    {
-                        sym: null,
-                        item_id: item.id,
-                        unskippable,
-                        index,
-                        closure: new_closure,
-                        final: 0,
-                        starts: starts,
-                        production_shift_items: production_shift_items.concat(new_closure)
-                            .filter(i => Sym_Is_A_Production(i.sym(grammar)))
+                const norm_closure = new_closure.filter(i => !i.atEND);
+                const end_productions: [number, Item][] = new_closure.filter(i => i.atEND).map(i => [i.getProduction(grammar).id, i]);
 
-                            .setFilter(i => i.id)
-                            .flatMap(i => {
-                                if (i.getProductionAtSymbol(grammar).id == production_id) {
-                                    const inc = i.increment();
-                                    if (!inc.atEND && Sym_Is_A_Production(inc.sym(grammar)))
-                                        return [inc];
-                                    return [];
-                                }
-                                return [i];
-                            }).setFilter(i => i.id)
-                    },
-                    lr_transition_items,
-                    root_items
-                );
+                if (end_productions.length > 0) {
 
-                group.push(...new_group);
+                    const goal_productions = root_items.map(i => i.getProduction(grammar).id);
+                    const result = end_productions.filter(p => goal_productions.includes(p[0])).map(([, i]) => i);
 
-                for (const sym of getFollow(production_id, grammar).filter(i => Sym_Is_EOF(i)))
-                    group.push({ sym, index, item_id: item.decrement().id, unskippable, closure: closure.slice(0, 1), final: final + 2 });
-            }
-        } else if (Sym_Is_A_Production_Token(sym)) {
+                    if (result.length > 0) {
 
-            const closure = getProductionClosure(sym.val, grammar, true);
+                        const follow_syms = getFollowClosure(result, grammar.lr_items.filter(i => !production_shift_items.some(j => j.id == i.id)), grammar).filter(i => !i.atEND);
 
-            for (const new_item of closure) {
+                        for (const item of [...follow_syms.filter(i => !i.getProductionAtSymbol(grammar))]) {
 
-                const new_sym = new_item.sym(grammar);
+                            const sym = item.sym(grammar);
 
-                if (!Sym_Is_A_Production(new_sym)) {
+                            group.push({ sym, index, item_id: item.id, unskippable, stats: [], closure: [], final: final + 2, production_shift_items: [], root_id: root_id ?? sym.id, });
+                        }
 
-                    const new_closure = new_item.increment() ? getClosure([new_item.increment()], grammar, true) : [new_item.increment()];
-                    const psi = production_shift_items.concat(new_closure.filter(i => Sym_Is_A_Production(i.sym(grammar))));
+                        group.push({ sym: default_EOP, index, item_id: item.decrement().id, unskippable, stats: [], closure: [], final: final + 2, production_shift_items: [], root_id: root_id ?? sym.id, });
+                    }
+                } if (norm_closure.length > 0) {
 
-                    group.push({
-                        sym: new_sym,
-                        index: index,
-                        item_id: item.id,
-                        unskippable,
-                        closure: new_closure.setFilter(i => i.id),
-                        final: final,
-                        starts: starts ? starts : [item],
-                        production_shift_items: psi
-                    });
+                    const new_group = getClosureGroups(
+                        grammar,
+                        {
+                            sym: null,
+                            item_id: item.id,
+                            unskippable,
+                            index,
+                            closure: norm_closure,
+                            final: 0,
+                            starts: starts,
+                            root_id,
+                            production_shift_items: production_shift_items.concat(norm_closure)
+                                .filter(i => Sym_Is_A_Production(i.sym(grammar)))
+
+                                .setFilter(i => i.id)
+                                .flatMap(i => {
+                                    if (i.getProductionAtSymbol(grammar).id == production_id) {
+                                        const inc = i.increment();
+                                        if (!inc.atEND && Sym_Is_A_Production(inc.sym(grammar)))
+                                            return [inc];
+                                        return [];
+                                    }
+                                    return [i];
+                                }).setFilter(i => i.id)
+                        },
+                        lr_transition_items,
+                        root_items
+                    );
+
+                    group.push(...new_group);
+
+                    for (const sym of getFollow(production_id, grammar).filter(i => Sym_Is_EOF(i)))
+                        group.push({ sym, index, item_id: item.decrement().id, unskippable, closure: closure.slice(0, 1), final: final + 2, root_id: root_id ?? sym.id });
                 }
             }
-        } else if (!Sym_Is_A_Production(sym)) {
+        } else if (!Sym_Is_A_Production(sym) || Sym_Is_A_Production_Token(sym)) {
 
             const new_closure = incrementWithClosure(grammar, item);
 
             const psi = production_shift_items.concat(new_closure.filter(i => Sym_Is_A_Production(i.sym(grammar))));
 
             group.push({
-                sym, index: index,
+                sym,
+                index: index,
                 item_id: item.id,
                 unskippable,
                 closure: new_closure.setFilter(i => i.id),
                 final: final,
                 starts: starts ? starts : [item],
+                root_id: root_id ?? sym.id,
                 production_shift_items: psi
             });
         }
@@ -325,58 +343,6 @@ function getClosureGroups(
     return group;
 }
 function incrementWithClosure(grammar: HCG3Grammar, item: Item): Item[] {
-    return getClosure([item.increment()], grammar, true);
+    return getClosure([item.increment()], grammar);
 }
-
-
-            //else if (Sym_Is_A_Production(sym)) {
-/*
-
-const pending_production_items = new Set();
-if (production_cache.has(sym.val))
-    return [];
-
-production_cache.add(sym.val);
-
-
-const pending__items_array = getProductionClosure(sym.val, grammar, true);
-
-console.log(sym.val, item.renderUnformattedWithProduction(grammar), pending__items_array.map(i => i.renderUnformattedWithProduction(grammar)));
-
-for (let i = 0; i < pending__items_array.length; i++) {
-
-    const new_item = pending__items_array[i];
-
-    if (!pending_production_items.has(new_item.id)) {
-
-        pending_production_items.add(item.id);
-
-        const new_sym = new_item.sym(grammar);
-
-        if (!Sym_Is_A_Production(new_sym)) {
-            const new_closure = new_item.increment() ? getClosure([new_item.increment()], grammar, true) : [new_item.increment()];
-
-            group.push({ sym: new_sym, index: index, item_id: item.id, unskippable, closure: new_closure.setFilter(i => i.id), final: final, starts: starts ? starts : [item], production_shift_items: production_shift_items.slice() });
-        } else {
-
-            group.push(
-                ...getClosureGroups(
-                    grammar,
-                    {
-                        sym: null,
-                        index: index,
-                        item_id: item.id,
-                        unskippable,
-                        closure: [],
-                        final: final,
-                        starts: starts ? starts : [item],
-                        production_shift_items: production_shift_items.concat(new_item).setFilter(i => i.id)
-                    }, lr_transition_items,
-                    production_cache
-                )
-            );
-        }
-    }
-}
-*/
 

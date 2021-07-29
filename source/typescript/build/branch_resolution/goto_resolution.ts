@@ -4,16 +4,6 @@
  * disclaimer notice.
  */
 import { TokenSymbol } from "@candlelib/hydrocarbon/build/types/types/symbol";
-import { sk, skRenderAsSK } from "../../skribble/skribble.js";
-import { SKBlock, SKBreak, SKExpression, SKIf, SKLoop, SKMatch } from "../../skribble/types/node";
-import { RenderBodyOptions } from "../../types/render_body_options";
-import { TransitionClauseGenerator } from "../../types/transition_generating";
-import { TransitionNode } from "../../types/transition_node.js";
-import { getClosure } from "../../utilities/closure.js";
-import { addSymbolAnnotationsToExpressionList, createSkipCallSk, getIncludeBooleansSk } from "../../utilities/code_generating.js";
-import { getFollow } from "../../utilities/follow.js";
-import { rec_glob_lex_name } from "../../utilities/global_names.js";
-import { Item } from "../../utilities/item.js";
 import {
     getComplementOfSymbolSets,
     getSkippableSymbolsFromItems,
@@ -28,11 +18,18 @@ import {
     Sym_Is_Defined_Identifier,
     Sym_Is_Defined_Natural_Number, Sym_Is_Defined_Symbol
 } from "../../grammar/nodes/symbol.js";
-import { processTransitionNodes } from "../transitions/process_transition_nodes.js";
-import { yieldTransitions } from "../transitions/yield_transitions.js";
+import { sk } from "../../skribble/skribble.js";
+import { SKBlock, SKBreak, SKExpression, SKIf, SKLoop, SKMatch } from "../../skribble/types/node";
+import { RenderBodyOptions } from "../../types/render_body_options";
+import { TransitionClauseGenerator } from "../../types/transition_generating";
+import { TransitionNode } from "../../types/transition_node.js";
+import { getClosure } from "../../utilities/closure.js";
+import { createScanFunctionCall, createSkipCall, getIncludeBooleans } from "../../utilities/code_generating.js";
+import { getFollow } from "../../utilities/follow.js";
+import { rec_glob_lex_name } from "../../utilities/global_names.js";
+import { Item } from "../../utilities/item.js";
 import { default_resolveBranches } from "./default_branch_resolution.js";
 
-const SC = null;
 
 export function resolveGOTOBranches(
     gen: TransitionClauseGenerator,
@@ -157,21 +154,23 @@ export function resolveGOTOBranches(
 
                     if (checked_symbols.length > 0) {
 
-                        const
-                            booleans = getIncludeBooleansSk(checked_symbols, options, rec_glob_lex_name, active_symbols);
-
-                        if (booleans) {
-                            interrupt_statement = <SKIf>sk`if ${booleans} : { return : ${keys[0]} }`;
-                        }
+                        //const
+                        //    booleans = getIncludeBooleans(checked_symbols, options, rec_glob_lex_name, active_symbols);
+                        //
+                        //if (booleans) {
+                        //    interrupt_statement = <SKIf>sk`if ${booleans} : { return : ${keys[0]} }`;
+                        //}
                     }
                 }
 
 
-            } else if (skippable.length > 0 && active_items.length == 0) {
-                const skip = createSkipCallSk(skippable, options, "l", false);
-                if (skip) {
-                    code.unshift(skip);
-                }
+            } else if (active_items.length == 0) {
+
+                // createScanFunctionCallSk(active_items, options)
+                // const skip = createSkipCallSk(skippable, options, "l", false);
+                // if (skip) {
+                //     code.unshift(skip);
+                // }
             }
 
 

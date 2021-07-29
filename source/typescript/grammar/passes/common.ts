@@ -1,25 +1,23 @@
 
 import { copy, experimentalConstructRenderers, experimentalRender, traverse } from "@candlelib/conflagrate";
-import { EOF_SYM, EOP_SYM } from "../../types/item_map.js";
+import { TokenTypes } from "source/typescript/runtime/TokenTypes";
 import {
     HCG3Grammar,
     HCG3Production,
-    HCG3ProductionSymbol,
+    HCG3ProductionBody, HCG3ProductionSymbol,
     HCG3ProductionTokenSymbol,
-    HCG3Symbol,
-    HCG3ProductionBody
+    HCG3Symbol, HCG3SymbolNode
 } from "../../types/grammar_nodes";
 import { createSequenceData } from "../../utilities/create_byte_sequences.js";
-import { getUniqueSymbolName, Sym_Is_A_Production, Sym_Is_A_Production_Token, Sym_Is_Defined } from "../nodes/symbol.js";
+import { getSymbolTreeLeaves, getSymbolTree } from "../../utilities/getSymbolValueAtOffset.js";
 import {
     addBodyToProduction,
-
     copyBody,
     removeBodySymbol
 } from "../nodes/common.js";
+import { default_array } from "../nodes/default_symbols.js";
 import { hcg3_mappings } from "../nodes/mappings.js";
-import { HCG3SymbolNode } from "@candlelib/hydrocarbon/build/types/types/grammar_nodes";
-
+import { getUniqueSymbolName, Sym_Is_A_Production, Sym_Is_A_Production_Token, Sym_Is_Defined, Sym_Is_EOF, Sym_Is_EOP, Sym_Is_Exclusive, Sym_Is_Look_Behind } from "../nodes/symbol.js";
 let renderers = null;
 export const render = (grammar_node) => {
     if (!renderers)
@@ -67,13 +65,15 @@ function assignEntryProductions(grammar: HCG3Grammar, production_lookup) {
  * of c
  * @param grammar 
  */
-export function createUniqueSymbolSet(grammar: HCG3Grammar, errors: Error[] = []) {
+export function processSymbols(grammar: HCG3Grammar, errors: Error[] = []) {
 
 
-    const unique_map: Map<string, HCG3Symbol> = <Map<string, HCG3Symbol>>new Map();
+    let id_offset = TokenTypes.CUSTOM_START_POINT;
 
-    unique_map.set(getUniqueSymbolName(EOF_SYM), EOF_SYM);
-    unique_map.set(getUniqueSymbolName(EOP_SYM), EOP_SYM);
+    //Add default generated symbols to grammar
+    const unique_map: Map<string, HCG3Symbol> = <Map<string, HCG3Symbol>>new Map(
+        default_array.map(sym => [getUniqueSymbolName(sym), sym])
+    );
 
     let b_counter = 0, p_counter = 0, bodies = [], reduce_lu: Map<string, number> = new Map();
 
@@ -114,10 +114,8 @@ export function createUniqueSymbolSet(grammar: HCG3Grammar, errors: Error[] = []
             } else
                 body.reduce_id = -1;
 
-            for (const sym of body.sym) {
-                processSymbol(sym, production_lookup, unique_map, errors);
-                //sym.id = s_counter++;
-            }
+            for (const sym of body.sym)
+                id_offset = processSymbol(sym, production_lookup, unique_map, errors, id_offset);
         }
     }
 
@@ -125,17 +123,60 @@ export function createUniqueSymbolSet(grammar: HCG3Grammar, errors: Error[] = []
     grammar.reduce_functions = reduce_lu;
     grammar.bodies = bodies;
 
-    for (const g of [grammar, ...grammar.imported_grammars.map(g => g.grammar)]) {
+    for (const g of [grammar, ...grammar.imported_grammars.map(g => g.grammar)])
         for (const sym of g.meta.ignore)
-            processSymbol(sym, production_lookup, unique_map, errors);
-    }
+            id_offset = processSymbol(sym, production_lookup, unique_map, errors, id_offset);
+
+
 }
+
+export function createCollisionMatrix(grammar: HCG3Grammar) {
+
+    const collision_matrix: boolean[][] = [];
+
+    for (const symA of grammar.meta.all_symbols.values()) {
+
+        if (Sym_Is_A_Production(symA))
+            continue;
+
+        const j = [];
+
+        collision_matrix[symA.id] = j;
+
+        for (const symB of grammar.meta.all_symbols.values()) {
+
+            if (symB == symA || Sym_Is_EOF(symA) || Sym_Is_EOP(symA) || Sym_Is_EOF(symB) || Sym_Is_EOP(symB) || Sym_Is_Look_Behind(symA) || Sym_Is_Look_Behind(symB)) {
+                j[symB.id] = (!!0);
+            } else if (Sym_Is_A_Production(symB)) {
+                continue;
+            } else if (Symbols_Are_Ambiguous(symA, symB, grammar)) {
+                j[symB.id] = (!!1);
+            } else {
+                j[symB.id] = (!!0);
+            }
+        }
+    }
+
+    grammar.collision_matrix = collision_matrix;
+}
+function Symbols_Are_Ambiguous(symA, symB, grammar) {
+    for (const node of getSymbolTreeLeaves(getSymbolTree([symA, symB], grammar))) {
+        if (node.symbols.length > 1 && node.offset > 0) {
+            if (node.symbols.filter(Sym_Is_Exclusive).length == 1)
+                return false;
+            else
+                return true;
+        }
+    }
+
+    return false;
+}
+
 
 class MissingProduction extends Error {
     constructor(ref_sym: HCG3ProductionSymbol | HCG3ProductionTokenSymbol) {
         super(`Missing production ${ref_sym.name}`);
     }
-
     get stack() { return ""; }
 }
 
@@ -143,8 +184,12 @@ export function processSymbol(
     sym: HCG3Symbol,
     production_lookup: Map<any, any>,
     unique_map: Map<string, HCG3Symbol>,
-    errors: Error[]
-) {
+    errors: Error[],
+    id_offset: number
+): number {
+    //-----------------------
+    sym.pos = {};
+    //-----------------------
 
     if (Sym_Is_A_Production(sym) || Sym_Is_A_Production_Token(sym)) {
 
@@ -158,22 +203,44 @@ export function processSymbol(
 
     const unique_name = getUniqueSymbolName(sym, true);
 
+
     if (!unique_map.has(unique_name)) {
+
+        if (Sym_Is_Defined(sym))
+            sym.byte_length = sym.val.length;
+
         const copy_sym = copy(sym);
-        copy_sym.id = unique_map.size;
-        unique_map.set(unique_name, copy(sym));
+
+        if (Sym_Is_A_Production(sym) || Sym_Is_A_Production_Token(sym))
+            copy_sym.production = production_lookup.get(sym.name);
+
+        if (Sym_Is_A_Production(sym))
+            copy_sym.id = -1;
+        else
+            copy_sym.id = id_offset++;
+
+        unique_map.set(unique_name, copy_sym);
     }
+
 
     if (Sym_Is_A_Production(sym) || Sym_Is_A_Production_Token(sym))
         sym.production = production_lookup.get(sym.name);
 
+    const prime = unique_map.get(unique_name);
+
+    if (Sym_Is_Defined(prime))
+        //@ts-ignore
+        sym.byte_length = prime.byte_length;
+
+    sym.id = prime.id;
+
+    return id_offset;
 }
 
 
 export function buildSequenceString(grammar: HCG3Grammar) {
     grammar.sequence_string = createSequenceData(grammar);
 }
-
 
 export function expandOptionalBody(production: HCG3Production) {
     const processed_set = new Set();

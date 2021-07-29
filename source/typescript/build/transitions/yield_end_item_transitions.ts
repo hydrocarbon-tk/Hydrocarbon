@@ -3,8 +3,8 @@
  * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
  * disclaimer notice.
  */
+import { default_EOP } from "../../grammar/nodes/default_symbols.js";
 import { getSymbolsFromClosure, Sym_Is_A_Production } from "../../grammar/nodes/symbol.js";
-import { EOP_SYM } from "../../types/item_map.js";
 import { HCG3Grammar } from "../../types/grammar_nodes";
 import { RenderBodyOptions } from "../../types/render_body_options";
 import { TransitionNode, TRANSITION_TYPE } from "../../types/transition_node.js";
@@ -65,7 +65,7 @@ export function yieldEndItemTransitions(end_items: Item[], options: RenderBodyOp
 
                     let
                         item = i.increment(),
-                        closure = getFollowClosure(getClosure([item], grammar), goto_items, grammar);
+                        closure = getFollowClosure(getClosure([item], grammar), goto_items, grammar).filter(i => !i.atEND);
 
                     const
                         index = original_prods.indexOf(i.getProductionAtSymbol(grammar).id),
@@ -96,11 +96,11 @@ export function yieldEndItemTransitions(end_items: Item[], options: RenderBodyOp
 
                         state.transition_type = TRANSITION_TYPE.ASSERT_END;
                         state.items = selected.slice(0, 1);
+
                         if (ADD_EOP)
-                            state.symbols.push(EOP_SYM);
+                            state.symbols.push(default_EOP);
 
                         used_items.push(...state.items);
-                        state.completing = true;
                     },
                     const_EMPTY_ARRAY,
                     -1));
@@ -119,9 +119,9 @@ export function yieldEndItemTransitions(end_items: Item[], options: RenderBodyOp
 
         const symbols = getFollow(item.getProduction(grammar).id, grammar);
 
-        if (symbols.length == 0) symbols.push(EOP_SYM);
+        if (symbols.length == 0) symbols.push(default_EOP);
 
-        output_nodes.push(createTransitionNode([item], symbols, TRANSITION_TYPE.ASSERT_END, offset + 1, 0, false));
+        output_nodes.push(createTransitionNode([item], symbols, TRANSITION_TYPE.ASSERT_END, offset + 1, 0, false, 66));
     }
 
 

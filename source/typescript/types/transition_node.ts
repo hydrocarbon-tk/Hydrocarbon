@@ -3,10 +3,9 @@
  * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
  * disclaimer notice.
  */
-import { Symbol } from "./symbol";
+import { SKExpression } from "../skribble/types/node";
 import { Item } from "../utilities/item.js";
-import { SC } from "../utilities/skribble.js";
-import { SKBlock, SKExpression, SKNode } from "../skribble/types/node";
+import { HCG3Symbol } from "./grammar_nodes";
 
 /**
  * Attribute that indicates the type of tree that
@@ -115,7 +114,7 @@ export interface TransitionNode {
      */
     hash: string;
 
-    symbols?: Symbol[];
+    symbols?: HCG3Symbol[];
 
     /**
      * The depth of the peeking node relative to the initiation of the peek.
@@ -126,11 +125,6 @@ export interface TransitionNode {
      * The depth of the node relative to the start of the production function.
      */
     offset: number;
-
-    /**
-     * Indicates the node will complete a production.
-     */
-    completing: boolean;
 
     /**
      * Active items at this node.
@@ -163,6 +157,14 @@ export interface TransitionNode {
     UNRESOLVED_LEAF: boolean;
 
     PUIDABLE: boolean;
+
+    root_id: number;
+
+    /**
+     * The current set of item ids that represent 
+     * the state that yielded this node's symbols
+     */
+    t_items: string[];
 }
 
 /**

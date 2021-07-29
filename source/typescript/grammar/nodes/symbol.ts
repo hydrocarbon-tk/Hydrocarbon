@@ -4,20 +4,22 @@
  * disclaimer notice.
  */
 import { Lexer } from "@candlelib/wind";
-import { Grammar } from "../../types/item_map.js";
-import { HCG3Grammar, HCG3Symbol, HCG3EmptySymbol, HCG3EOPSymbol, HCG3LookBehind } from "../../types/grammar_nodes.js";
 import {
+
     DefinedCharacterSymbol,
     DefinedIdentifierSymbol,
     DefinedNumericSymbol,
     DefinedSymbol, EOFSymbol,
-    GeneratedSymbol,
+    GeneratedSymbol, HCG3EmptySymbol, HCG3EOPSymbol, HCG3Grammar, HCG3LookBehind,
     ProductionSymbol,
     ProductionTokenSymbol,
-    TokenSymbol
-} from "../../types/symbol";
-import { SymbolType } from "../../types/symbol_type.js";
+    HCG3Symbol,
+    TokenSymbol,
+    VirtualTokenSymbol,
+    SymbolType
+} from "../../types/grammar_nodes.js";
 import { Item } from "../../utilities/item.js";
+
 
 export function getTrueSymbolValue(sym: TokenSymbol, grammar: HCG3Grammar): TokenSymbol[] {
     return [<TokenSymbol>sym];
@@ -39,8 +41,6 @@ export function characterToUTF8(char: string) {
 
 export function convertSymbolToString(sym: HCG3Symbol) {
     switch (sym.type) {
-        case SymbolType.SYMBOL:
-            return `${sym.val}`;
         case SymbolType.GENERATED:
             return `θ${sym.val}`;
         case SymbolType.LITERAL:
@@ -68,25 +68,25 @@ export function getSymbolName(sym: HCG3Symbol) {
     return "[" + (sym.val ?? sym.name) + "]" + sym.type;
 }
 
-export function getUniqueSymbolName(sym: HCG3Symbol, INCLUDE_META: boolean = false) {
+export function getUniqueSymbolName(sym: HCG3Symbol, _a?: any, _b?: any) {
     if (!sym)
         return "not-a-symbol";
     return getSymbolName(sym)
-        + (sym.DOES_SHIFT ? "----" : "")
-        + (sym.IS_NON_CAPTURE && INCLUDE_META ? "-->" : "");
+        + (sym.DOES_SHIFT ? "--" : "")
+        + (sym.IS_NON_CAPTURE ? "-->" : "");
 }
 export function Sym_Is_Not_Consumed(s: HCG3Symbol): boolean {
-    return !!s.IS_NON_CAPTURE || Sym_Is_LookBehind(s);
+    return !!s.IS_NON_CAPTURE || Sym_Is_Look_Behind(s);
 }
 
-export function Sym_Is_LookBehind(s: HCG3Symbol): s is HCG3LookBehind {
-    return s.type == "look-behind";
+export function Sym_Is_Look_Behind(s: HCG3Symbol): s is HCG3LookBehind {
+    return s.type == SymbolType.LOOK_BEHIND;
 }
 export function Sym_Is_EOF(s: HCG3Symbol): s is EOFSymbol {
     return s.type == SymbolType.END_OF_FILE || s.val == "END_OF_FILE";
 }
 export function Sym_Is_Empty(s: HCG3Symbol): s is HCG3EmptySymbol {
-    return s.type == "empty";
+    return s.type == SymbolType.EMPTY;
 }
 
 export function Sym_Is_EOP(s: HCG3Symbol): s is HCG3EOPSymbol {
@@ -97,9 +97,13 @@ export function Sym_Is_Consumed(s: HCG3Symbol): boolean {
     return !Sym_Is_Not_Consumed(s);
 }
 
+export function Sym_Is_Virtual_Token(s: HCG3Symbol): s is VirtualTokenSymbol {
+    return s && s.type == SymbolType.VIRTUAL_TOKEN;
+}
+
 export function Sym_Is_A_Production(s: HCG3Symbol): s is ProductionSymbol {
     if (!s) return false;
-    return s.type == "sym-production" || Sym_Is_A_Production_Token(s);
+    return s.type == SymbolType.PRODUCTION;
 }
 
 export function Sym_Is_A_Production_Token(s: HCG3Symbol): s is (ProductionTokenSymbol) {
@@ -129,7 +133,7 @@ export function Sym_Is_Exclusive(s: HCG3Symbol): boolean {
 }
 
 export function Sym_Is_Defined(s: HCG3Symbol): s is DefinedSymbol {
-    return !Sym_Is_A_Production(s) && !Sym_Is_A_Generic_Type(s) && !Sym_Is_LookBehind(s);
+    return !Sym_Is_A_Production(s) && !Sym_Is_A_Generic_Type(s) && !Sym_Is_Look_Behind(s) && !Sym_Is_A_Production_Token(s) && !Sym_Is_Virtual_Token(s);
 }
 /**
  * A SpecifiedSymbol that is not a SpecifiedIdentifierSymbol nor a SpecifiedNumericSymbol
@@ -290,3 +294,7 @@ export function getSymbolsFromClosure(closure: Item[], grammar: HCG3Grammar): HC
         ).values()
     ];
 }
+
+export function SymbolsCollide(symA: HCG3Symbol, symB: HCG3Symbol, grammar: HCG3Grammar): boolean {
+    return grammar.collision_matrix[symA.id][symB.id];
+};

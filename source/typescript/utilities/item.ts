@@ -3,11 +3,9 @@
  * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
  * disclaimer notice.
  */
-import { EOF_SYM } from "../types/item_map.js";
-import { HCG3Grammar, HCG3Production, HCG3Symbol, HCG3ProductionBody } from "../types/grammar_nodes.js";
-import { Production } from "../types/production";
-import { convertSymbolToString, getRootSym, getSymbolsFromClosure, Sym_Is_A_Production } from "../grammar/nodes/symbol.js";
-import { getClosure, getFollowClosure } from "./closure.js";
+import { default_EOF } from "../grammar/nodes/default_symbols.js";
+import { convertSymbolToString, getRootSym, Sym_Is_A_Production } from "../grammar/nodes/symbol.js";
+import { HCG3Grammar, HCG3Production, HCG3ProductionBody, HCG3Symbol } from "../types/grammar_nodes.js";
 
 export const enum ItemIndex {
     body_id = 0,
@@ -80,7 +78,7 @@ export class Item extends Array {
     }
 
     sym(grammar: HCG3Grammar): HCG3Symbol {
-        return this.body_(grammar).sym[this.offset] || EOF_SYM;
+        return this.body_(grammar).sym[this.offset] || default_EOF;
     }
 
     render(grammar: HCG3Grammar): string {
