@@ -410,9 +410,26 @@ export function addSymbolAnnotationsToExpressionList(syms: HCG3Symbol[], grammar
     });
 
 }
+export function createSymbolScanIntermediate(node: TokenTreeNode, options: BaseOptions, PEEKING: boolean = false, ALLOW_SKIP: boolean = true): SKReference {
+
+    const id_symbols = node.symbols.setFilter(getUniqueSymbolName);
+
+    let fn_ref = getGlobalObject("inter_scan", id_symbols, options.helper);
+
+    if (!fn_ref) {
+
+        const scan_function: SKFunction = <any>sk`fn temp:bool(l:__Lexer$ref, data:__ParserData$ref){ }`;
+
+        scan_function.expressions.push(...render(node, options, [], true), <SKExpression>sk`return:false`);
+
+        fn_ref = packGlobalFunction("inter_scan", "bool", id_symbols, scan_function, options.helper);
+    }
+
+    return fn_ref;
+}
 
 
-function render(node: TokenTreeNode, options, insert_expression: SKExpression[] = []) {
+function render(node: TokenTreeNode, options: BaseOptions, insert_expression: SKExpression[] = [], USE_BOOLEAN: boolean = false) {
 
     let ifs = [];
 
@@ -422,7 +439,7 @@ function render(node: TokenTreeNode, options, insert_expression: SKExpression[] 
 
     if (node.nodes.length == 0) {
 
-        return renderLeaf(node, options);
+        return renderLeaf(node, options, USE_BOOLEAN);
 
     } else {
 
@@ -435,11 +452,27 @@ function render(node: TokenTreeNode, options, insert_expression: SKExpression[] 
             while (base.nodes[0].nodes.length == 1 && base.nodes[0].nodes[0].tk_length == tk_len)
                 base = base.nodes[0];
 
-            ifs.push(createIfClause(node.symbols[0], node.offset, base.nodes[0].offset - node.offset, options, render(base.nodes[0], options)));
+            if (base.nodes.length > 1 && node.offset == 0) {
+                const result = createSymbolScanIntermediate(base.nodes[0], options);
+
+                ifs.push(createIfClause(node.symbols[0], node.offset, base.nodes[0].offset - node.offset, options, [sk`if ${result}(l,data):{ return }`]));
+
+            } else {
+
+                ifs.push(createIfClause(node.symbols[0], node.offset, base.nodes[0].offset - node.offset, options, render(base.nodes[0], options, [], USE_BOOLEAN)));
+            }
+
 
         } else for (const n of base.nodes) {
 
-            ifs.push(createIfClause(n.symbols[0], node.offset, n.offset - node.offset, options, render(n, options)));
+            if (base.nodes.length > 1 && node.offset == 0) {
+                const result = createSymbolScanIntermediate(n, options);
+
+                ifs.push(createIfClause(n.symbols[0], node.offset, base.nodes[0].offset - node.offset, options, [sk`if ${result}(l,data):{ return }`]));
+            } else {
+
+                ifs.push(createIfClause(n.symbols[0], node.offset, n.offset - node.offset, options, render(n, options, [], USE_BOOLEAN)));
+            }
         }
 
         const completed_ids = base.symbols.filter(Sym_Is_Defined).filter(s => s.val.length == node.offset).setFilter(getUniqueSymbolName);
@@ -454,7 +487,7 @@ function render(node: TokenTreeNode, options, insert_expression: SKExpression[] 
             }
 
             );
-            ifs.push(...renderLeaf(copy, options));
+            ifs.push(...renderLeaf(copy, options, USE_BOOLEAN));
         }
 
         if (node.offset == 0) {
@@ -496,13 +529,15 @@ function render(node: TokenTreeNode, options, insert_expression: SKExpression[] 
     return ifs[0] ? [...prepend, ...insert_expression, ifs[0], ...append] : [...prepend, ...insert_expression, ...append];
 }
 
-function renderLeaf(node: TokenTreeNode, options: any,) {
+function renderLeaf(node: TokenTreeNode, options: any, USE_BOOLEAN: boolean = false) {
 
     let ifs = [];
 
     let append = [];
 
     let prepend = [];
+
+    const return_str = USE_BOOLEAN ? "return : true" : "return";
 
     const id = node.symbols.filter(Sym_Is_Defined).setFilter(getUniqueSymbolName);
     const tk_syms: (ProductionTokenSymbol | VirtualTokenSymbol)[] = <any>node.symbols.filter(s => Sym_Is_Virtual_Token(s) || Sym_Is_A_Production_Token(s)).setFilter(getUniqueSymbolName);
@@ -519,19 +554,19 @@ function renderLeaf(node: TokenTreeNode, options: any,) {
 
         const lb_name = createNonCaptureLookBehind(lb_sym, options);
 
-        prepend.push(sk`if ${lb_name}(l,data, state) : { return }`);
+        prepend.push(sk`if ${lb_name}(l,data, state) : { ${return_str} }`);
     }
 
     for (const tk_sym of tk_syms) {
 
         const tk_name = createProductionTokenFunction(Sym_Is_Virtual_Token(tk_sym) ? tk_sym.root : tk_sym, options);
 
-        default_bin.push(sk`if ${tk_name}(l,data) ${length_assertion} : { return }`);
+        default_bin.push(sk`if ${tk_name}(l,data) ${length_assertion} : { ${return_str} }`);
     }
 
     for (const gen_sym of gen_syms) {
 
-        default_bin.push(sk`if ${getSymbolBoolean(gen_sym, options.grammar, "l")} ${length_assertion} : { return }`);
+        default_bin.push(sk`if ${getSymbolBoolean(gen_sym, options.grammar, "l")} ${length_assertion} : { ${return_str} }`);
     }
 
     for (const defined of id) {
@@ -540,14 +575,14 @@ function renderLeaf(node: TokenTreeNode, options: any,) {
 
         if (Sym_Is_Exclusive(defined)) {
 
-            ifs.push(sk`${preamble}{l.setToken(${defined.id}, ${defined.byte_length},${defined.val.length});return}`);
+            ifs.push(sk`${preamble}{l.setToken(${defined.id}, ${defined.byte_length},${defined.val.length});${return_str}}`);
 
         } else {
             const symbols = node.symbols.map(s => Sym_Is_Virtual_Token(s) ? s.root : s);
 
             const id = generateHybridIdentifier(symbols);
 
-            ifs.push(sk`${preamble}{l.setToken(${id}, ${defined.byte_length},${defined.val.length});return}`);
+            ifs.push(sk`${preamble}{l.setToken(${id}, ${defined.byte_length},${defined.val.length});${return_str}}`);
         }
     }
 
