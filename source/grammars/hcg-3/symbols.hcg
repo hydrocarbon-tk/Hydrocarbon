@@ -94,9 +94,13 @@
 
 <> production_id > identifier
 
-<> identifier >  def::js_identifier 
+<> identifier > tk:identifier_syms 
 
-<> js_identifier >  def::js_identifier
+<> identifier_syms >  identifier_syms (RST g:ws g:nl) g:id           f:r { $1 + $2 }
+    | identifier_syms (RST g:ws g:nl) \_                           f:r { $1 + $2 }
+    | identifier_syms (RST g:ws g:nl) g:num                        f:r { $1 + $2 }
+    | \_ 
+    | g:id
 
 <> sym_delimiter >  g:sp | $eof  | g:nl 
 

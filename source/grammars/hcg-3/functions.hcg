@@ -42,13 +42,13 @@
                                                                         }
                                                                     }
 
-     | js_function_start_symbol ( t:return | t:r ) \^  sym::js_identifier     
+     | js_function_start_symbol ( t:return | t:r ) \^  sym::identifier     
                                                                      f:r { {
                                                                             type:"env-function-reference",             
                                                                             ref:$4,
                                                                         }
                                                                     }
-    | js_function_start_symbol ( t:return | t:r ) \=>  sym::js_identifier    
+    | js_function_start_symbol ( t:return | t:r ) \=>  sym::identifier    
                                                                     f:r { {
                                                                             type:"local-function-reference",             
                                                                             ref:$4,
@@ -67,7 +67,7 @@
                                                                         }
                                                                     }
 
-    | (js_function_start_symbol f:r { $1+"DD" }) \^ sym::js_identifier                             
+    | (js_function_start_symbol f:r { $1+"DD" }) \^ sym::identifier                             
                                                                     f:r {
                                                                         {type:"INLINE",     
                                                                         txt:"", 
