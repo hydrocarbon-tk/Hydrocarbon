@@ -57,7 +57,7 @@ export function convertSymbolToString(sym: HCG3Symbol) {
         case "look-behind":
             return `lb[${convertSymbolToString(sym.phased)}]`;
         default:
-            return sym.val;
+            return sym.val + (sym.IS_NON_CAPTURE ? "-ns" : "");
     }
 }
 
@@ -71,9 +71,9 @@ export function getSymbolName(sym: HCG3Symbol) {
 export function getUniqueSymbolName(sym: HCG3Symbol, _a?: any, _b?: any) {
     if (!sym)
         return "not-a-symbol";
-    return getSymbolName(sym)
-        + (sym.DOES_SHIFT ? "--" : "")
-        + (sym.IS_NON_CAPTURE ? "-->" : "");
+    return getSymbolName(sym);
+    //+ (sym.DOES_SHIFT ? "--" : "")
+    //+ (sym.IS_NON_CAPTURE ? "-->" : "");
 }
 export function Sym_Is_Not_Consumed(s: HCG3Symbol): boolean {
     return !!s.IS_NON_CAPTURE || Sym_Is_Look_Behind(s);
@@ -239,7 +239,9 @@ export function getRootSym<T = HCG3Symbol>(sym: T, grammar: HCG3Grammar): T {
 
     const name = getUniqueSymbolName(<HCG3Symbol><any>sym);
 
-    return <T><any>grammar.meta.all_symbols.get(name) || sym;
+    const obj = Object.assign({}, <T><any>grammar.meta.all_symbols.get(name) || sym, sym);
+
+    return obj;
 }
 
 export function Symbols_Occlude(target: HCG3Symbol, potentially_occludes: HCG3Symbol): boolean {

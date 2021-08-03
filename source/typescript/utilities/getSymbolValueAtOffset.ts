@@ -110,10 +110,6 @@ export function getSymbolTree(symbols: TokenSymbol[], grammar, offset = 0): Toke
 
     if (offset == 0)
         symbols = symbols.filter(s => !Sym_Is_Empty(s));
-
-    //if (offset > 4)
-    //    return { id:"", symbols: [], nodes: [], offset };
-
     const defined_buckets = [], token_buckets = [], generic_buckets = [], syms = symbols.sort((a, b) => {
         const [scoreA, scoreB] = [a, b].map(sym => {
             if (Sym_Is_Look_Behind(sym))

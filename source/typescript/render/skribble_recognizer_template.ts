@@ -231,25 +231,29 @@ fn createState:u32 (ENABLE_STACK_OUTPUT:u32) {
 
     [pub] fn getType : u32 (USE_UNICODE:bool, data: __ParserData$ref) { 
 
-        [mut] type:u32 = this.type;
+        [mut] t:u32 = this.type;
 
         if this.END(data) : return : ${TokenTypes.END_OF_FILE};
 
-        if (type) == 0 :{
+        if (t) == 0 :{
             if ( !(USE_UNICODE) || this.current_byte < 128) :{
-                type = getTypeAt(this.current_byte)
+                t = getTypeAt(this.current_byte)
            } else {
                 [const] code_point:u32 = utf8ToCodePoint(this.byte_offset, data.input);
                 this.byte_length = getUTF8ByteLengthFromCodePoint(code_point);
-                type = getTypeAt(code_point);
+                t = getTypeAt(code_point);
             }
         };
 
-        return : type;
+        return : t;
     }
 
     [pub] fn isSym : bool (USE_UNICODE:bool, data:__ParserData$ref) {
-        return : (!this.END(data)) && this.getType(USE_UNICODE, data) == ${TokenTypes.SYMBOL};
+        if((this.type) == 0 && this.getType(USE_UNICODE, data) == ${TokenTypes.SYMBOL}): {
+            this.type = ${TokenTypes.SYMBOL};
+        };
+
+        return : (this.type )== ${TokenTypes.SYMBOL};
     }
 
     [pub] fn isNL : bool () {

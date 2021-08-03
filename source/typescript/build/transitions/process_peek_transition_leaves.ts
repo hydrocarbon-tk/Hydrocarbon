@@ -14,6 +14,7 @@ import { getProductionID } from "../../utilities/production.js";
 import { getTransitionTree } from "../../utilities/transition_tree.js";
 import { createTransitionNode } from "./create_transition_node.js";
 import { yieldEndItemTransitions } from "./yield_end_item_transitions.js";
+import { buildPeekTransitions } from "./yield_peek_transitions.js";
 import {
     Every_Leaf_Of_TransitionTree_Contain_One_Root_Item, getMaxOffsetOfItems, Items_Are_From_Same_Production,
     yieldTransitions
@@ -29,7 +30,6 @@ export function processPeekTransitionLeaves(
 
     const { grammar } = options;
 
-
     if (node.items.length > 0) {
 
         if (Items_From_Same_Production_Allow_Production_Call(node, options, root_depth))
@@ -44,7 +44,6 @@ export function processPeekTransitionLeaves(
 
             else if (We_Can_Call_Single_Production_From_Items(node, options)) {
 
-
                 convertStateToProductionCall(node, root_depth);
 
             } else if (Items_Have_The_Same_Active_Symbol(node.items, grammar)) {
@@ -56,9 +55,8 @@ export function processPeekTransitionLeaves(
                 if (State_Closure_Allows_Production_Call(node, options)) {
 
                     convertStateToClosureProductionCall(node, root_depth);
-                }
 
-                else if (leaf_depth <= 0 && root_depth == 0) {
+                } else if (leaf_depth <= 0 && root_depth == 0) {
 
                     addRegularYieldNode(node, getClosure(node.closure, grammar), options, root_depth + 1);
 
@@ -81,9 +79,10 @@ export function processPeekTransitionLeaves(
 
                     addUnresolvedNode(node, options, root_depth);
 
-        } else
+        } else {
 
             convertPeekStateToSingleItemNode(node, options, root_depth);
+        }
 
     }
 }
@@ -239,4 +238,26 @@ function Items_From_Same_Production_Allow_Production_Call(node: TransitionNode, 
         prod = first.getProduction(grammar);
 
     return offset == 0 && ITEMS_ARE_FROM_SAME_PRODUCTION && !production_ids.includes(prod.id);
+}
+
+export function yieldPeekedNodes(active_items: Item[], options: RenderBodyOptions, offset: number, filter_symbols: Symbol[] = const_EMPTY_ARRAY): TransitionNode[] {
+
+    const
+        { grammar, goto_items: production_shift_items } = options,
+        { tree_nodes } = getTransitionTree(
+            grammar,
+            active_items,
+            //options.global_production_items
+            production_shift_items,
+            10,
+            10,
+            200
+        );
+
+
+
+    const nodes = buildPeekTransitions(tree_nodes[0].next, options, offset, undefined, filter_symbols, 0);
+
+
+    return nodes;
 }

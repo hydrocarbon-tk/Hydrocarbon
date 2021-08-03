@@ -12,7 +12,7 @@
 
 @IMPORT ./comments.hcg as cm
 
-@IGNORE g:ws g:nl
+@IGNORE g:sp g:nl
 
 ########################################################################################################################
 ######################################  PRODUCTIONS
@@ -33,7 +33,7 @@
 <> production > \<> \* ? ( sym::production_id f:r{ env.prod_name = $1 } ) production_start_symbol  pb::production_bodies? 
                                                                         
                                                             f:r { {
-                                                                type:"production", name:$3, bodies:$5, id:-1, recovery_handler:$6, pos:pos, recursion:0, ROOT_PRODUCTION:!!$$sym2
+                                                                type:"production", name:$3, bodies:$$5, id:-1, recovery_handler:$6, pos:pos, recursion:0, ROOT_PRODUCTION:!!$$sym2
                                                             } }
 
     | \+> ( sym::imported_production_symbol f:r{ env.prod_name = $1.val, $1 } ) production_start_symbol  pb::production_bodies

@@ -12,7 +12,6 @@ import { RenderBodyOptions } from "../types/render_body_options";
 import { Leaf, TRANSITION_TYPE } from "../types/transition_node.js";
 import { collapseBranchNames, createBranchFunction, createScanFunctionCall, getProductionFunctionName } from "../utilities/code_generating.js";
 import { const_EMPTY_ARRAY } from "../utilities/const_EMPTY_ARRAY.js";
-import { createTransitionTypeAnnotation } from "../utilities/create_transition_type_annotation.js";
 import { Item, ItemIndex } from "../utilities/item.js";
 import { getProductionClosure } from "../utilities/production.js";
 import { renderItem } from "../utilities/render_item.js";
@@ -247,11 +246,9 @@ export function compileProductionFunctions(
 
 
     if (rd_nodes.length == 1 && (rd_nodes[0].transition_type == TRANSITION_TYPE.ASSERT_PRODUCTION_CALL || rd_nodes[0].transition_type == TRANSITION_TYPE.ASSERT_PRODUCTION_SYMBOLS)) {
-        RD_fn_contents.unshift(createTransitionTypeAnnotation(RDOptions, [rd_nodes[0].transition_type]));
+
     } else
         RD_fn_contents.unshift(createScanFunctionCall(initial_items, RDOptions, "l", false));
-
-
 
     RDOptions.leaves = rd_leaves;
     GOTO_Options.leaves = goto_leaves;

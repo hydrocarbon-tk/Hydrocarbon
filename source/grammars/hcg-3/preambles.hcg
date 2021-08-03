@@ -15,7 +15,7 @@
 
 @IMPORT ./symbols.hcg as sym
 
-@IGNORE g:ws g:nl
+@IGNORE g:sp g:nl
 
 # ----------- Used for testing ---------------
 
@@ -48,7 +48,7 @@
 
 
 # Production bodies can contain a mixture of non-terminal production names,
-# terminal symbols, meta statements such as "(ERR g:ws)", and inline production 
+# terminal symbols, meta statements such as "(ERR g:sp)", and inline production 
 # functions. 
 #
 
@@ -56,7 +56,7 @@
 # the symbols of the production can be addressed using the $ operator, which resolves
 # to the index location of the terminal symbol or non-terminal production within the 
 # production body. In the following case, $3 resolves to the third symbol in the proceeding
-# precedence_preamble body, sym::terminal_symbol ( keep in mind [(ERR g:ws)] is a meta object 
+# precedence_preamble body, sym::terminal_symbol ( keep in mind [(ERR g:sp)] is a meta object 
 # and is not an actual symbol of the production body). $4 resolves to the g:num symbol.
                                                   
 
@@ -65,7 +65,7 @@
                                                                         f:r { { type:"ignore", symbols : $3 } }
 
 
-<> import_preamble >         \@ t:IMPORT g:ws(*) ( g:id | g:sym  )(+\" ) g:ws(+) ( t:AS | t:as ) sym::identifier g:nl  
+<> import_preamble >         \@ t:IMPORT g:sp(*) ( g:id | g:sym  )(+\" ) g:sp(+) ( t:AS | t:as ) sym::identifier g:nl  
                                                                         
                                                                         f:r { { type:"import", uri: $4, reference:$7 } } 
 

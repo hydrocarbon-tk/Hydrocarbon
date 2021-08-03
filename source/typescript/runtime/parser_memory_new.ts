@@ -59,7 +59,7 @@ export function initializeUTFLookupTable(
 
 
 /**
- * Allocates and initializes a pool of memory large enough to contain the lexer jump table, action array buffer, and error array buffer.
+ * Allocates and initializes a pool of memory large enough to contain the lexer jump table.
  * @param USE_ARRAY_BUFFER Use ArrayBuffer storage, otherwise use a WebAssembly.Memory buffer.
  * @param action32bit_array_byte_size 
  * @param error8bit_array_byte_size 
@@ -101,7 +101,7 @@ export function initializeUTFLookupTableNew(
 };
 
 /**
- * Allocates and initializes a pool of memory large enough to contain the lexer jump table, action array buffer, and error array buffer.
+ * Allocates and initializes a pool of memory large enough to contain the lexer jump table.
  * @param USE_ARRAY_BUFFER Use ArrayBuffer storage, otherwise use a WebAssembly.Memory buffer.
  * @param action32bit_array_byte_size 
  * @param error8bit_array_byte_size 

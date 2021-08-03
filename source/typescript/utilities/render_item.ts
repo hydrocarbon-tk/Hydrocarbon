@@ -8,14 +8,15 @@ import { TokenType } from "@candlelib/wind";
 import {
     getRootSym,
     Sym_Is_A_Production,
-    Sym_Is_Empty
+    Sym_Is_Empty,
+    Sym_Is_Not_Consumed
 } from "../grammar/nodes/symbol.js";
 import { TokenTypes } from "../runtime/TokenTypes.js";
 import { sk } from "../skribble/skribble.js";
 import { SKBlock, SKExpression, SKIf } from "../skribble/types/node";
 import { RenderBodyOptions } from "../types/render_body_options";
 import {
-    createAssertionShiftSk,
+    getIncludeBooleans,
     createBranchFunction,
     createConsumeSk,
     createDefaultReduceFunctionSk,
@@ -54,7 +55,7 @@ export function renderItem(
     item: Item,
     options: RenderBodyOptions,
     RENDER_WITH_NO_CHECK = false,
-    lexer_name: string = rec_glob_lex_name,
+    lex_name: string = rec_glob_lex_name,
     POST_CONSUME = false,
     items = [],
 ): { leaf_node: SKExpression[], original_prods: number[], prods: number[]; INDIRECT: boolean; EMPTY: boolean; } {
@@ -63,8 +64,6 @@ export function renderItem(
     let prods = [], original_prods = [], INDIRECT = false, EMPTY = false;
 
     if (!item.atEND) {
-
-        let bool_expression = null;
 
         const sym = getRootSym(item.sym(grammar), grammar);
 
@@ -81,7 +80,7 @@ export function renderItem(
                 items = [item.toEND()],
                 code: SKExpression[] = null;
 
-            ({ leaf_node: code, prods, original_prods } = renderItem(call_body, item.increment(), options, false, lexer_name, true, items));
+            ({ leaf_node: code, prods, original_prods } = renderItem(call_body, item.increment(), options, false, lex_name, true, items));
 
             const
                 call_name = createBranchFunction(call_body, options),
@@ -100,30 +99,28 @@ export function renderItem(
                 leaf_expressions.push(createScanFunctionCall([item], options));
 
             if (RENDER_WITH_NO_CHECK) {
-                leaf_expressions.push(createConsumeSk(lexer_name));
+                if (Sym_Is_Not_Consumed(sym))
+                    leaf_expressions.push(<SKExpression>sk`${lex_name}.setToken(${lex_name}.type, 0, 0)`);
+                leaf_expressions.push(createConsumeSk(lex_name));
+                return renderItem(leaf_expressions, item.increment(), options, false, lex_name, true);
             } else {
-                bool_expression = createAssertionShiftSk(options, sym, lexer_name);
                 RENDER_WITH_NO_CHECK = false;
-            }
 
-            if (!RENDER_WITH_NO_CHECK) {
-                const _if = <SKIf & { expression: SKBlock; }>sk`if (${bool_expression}) : {}`;
+
+                const _if = <SKIf & { expression: SKBlock; }>sk`if (${getIncludeBooleans([sym], lex_name)}) : {}`;
 
                 leaf_expressions.push(_if);
+                if (Sym_Is_Not_Consumed(sym))
+                    _if.expression.expressions.push(<SKExpression>sk`${lex_name}.setToken(${lex_name}.type, 0, 0)`);
+                _if.expression.expressions.push(createConsumeSk(lex_name));
 
-                if (leaf_expressions.slice(-1)[0].type !== "return")
-                    leaf_expressions.push(<SKExpression>sk`return:-1`);
-
-
-                return renderItem(_if.expression.expressions, item.increment(), options, false, lexer_name, true);
-            } else {
-                return renderItem(leaf_expressions, item.increment(), options, false, lexer_name, true);
+                return renderItem(_if.expression.expressions, item.increment(), options, false, lex_name, true);
             }
         } else {
             original_prods = itemsToProductionIDs([item], grammar);
             prods = processProductionChain(leaf_expressions, options, itemsToProductionIDs([item], grammar));
-            leaf_expressions.push(sk`l.setToken( ${TokenTypes.SYMBOL}, 0, 0 )`);
-            leaf_expressions.push(createConsumeSk(lexer_name));
+            leaf_expressions.push(<SKExpression>sk`l.setToken( ${TokenTypes.SYMBOL}, 0, 0 )`);
+            leaf_expressions.push(createConsumeSk(lex_name));
             EMPTY = true;
         }
 

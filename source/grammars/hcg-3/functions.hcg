@@ -8,7 +8,7 @@
 
 @IMPORT ./comments.hcg as cm
 
-@IGNORE g:ws g:nl
+@IGNORE g:sp g:nl
 
 ########################################################################################################################
 ######################################  FUNCTIONS
@@ -84,7 +84,7 @@
 
 <> js_primitive > g:id 
     | g:num 
-    | g:ws 
+    | g:sp 
     | g:sym 
     | sym::generated_symbol 
     | sym::literal_symbol

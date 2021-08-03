@@ -156,9 +156,6 @@ function createBackTrackingSequence(
 
     //Combine production that transition on the same symbol
 
-
-
-
     for (const { code, items, prods, leaves } of output_nodes) {
 
         leaves.map(l => l.BACKTRACK == true);
@@ -181,7 +178,7 @@ function createBackTrackingSequence(
 
         block.expressions.push(<SKExpression>sk`pushFN(data, &> ${init_name}, 0)`);
         block.expressions.push(<SKExpression>sk`[mut] output:array___ParserData$ptr = Array(1);`);
-        block.expressions.push(<SKExpression>sk`[mut] result:i32 = run(&>data, output, 0, 1, 0);`);
+        block.expressions.push(<SKExpression>sk`[mut] result:i32 = run(&>data, output, 0, 1, 0, 0);`);
 
         const resolve = <SKBlock>sk`if ( result > 0 && ${prods.map(p => `((*>output[0]).prod) == -${p}`).join(" || ")} ) : {
                 data.sync(output[0]);

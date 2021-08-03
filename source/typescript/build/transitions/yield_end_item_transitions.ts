@@ -54,8 +54,6 @@ export function yieldEndItemTransitions(end_items: Item[], options: RenderBodyOp
 
         } else {
 
-            //*
-
             let { tree_nodes } = getTransitionTree(
                 grammar,
                 end_items,
@@ -107,7 +105,6 @@ export function yieldEndItemTransitions(end_items: Item[], options: RenderBodyOp
             }
 
             default_end_items = end_items.filter(i => !used_items.some(s => s.id == i.id));
-            //*/
         }
     } else {
         default_end_items = end_items;

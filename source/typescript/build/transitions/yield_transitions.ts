@@ -5,9 +5,8 @@
  */
 import { default_EOF } from "../../grammar/nodes/default_symbols.js";
 import { getTokenSymbolsFromItems, Symbols_Are_The_Same, Sym_Is_A_Production } from "../../grammar/nodes/symbol.js";
-import { HCG3Grammar } from "../../types/grammar_nodes.js";
+import { HCG3Grammar, HCG3Symbol } from "../../types/grammar_nodes.js";
 import { RenderBodyOptions } from "../../types/render_body_options";
-import { Symbol } from "../../types/symbol.js";
 import { TransitionNode, TRANSITION_TYPE } from "../../types/transition_node.js";
 import { TransitionTreeNode } from "../../types/transition_tree_nodes.js";
 import { getClosure } from "../../utilities/closure.js";
@@ -15,6 +14,7 @@ import { const_EMPTY_ARRAY } from "../../utilities/const_EMPTY_ARRAY.js";
 import { Item, Items_Have_The_Same_Active_Symbol } from "../../utilities/item.js";
 import { getTransitionTree } from "../../utilities/transition_tree.js";
 import { createTransitionNode } from "./create_transition_node.js";
+import { yieldPeekedNodes } from "./process_peek_transition_leaves.js";
 import { yieldEndItemTransitions } from "./yield_end_item_transitions.js";
 import { buildPeekTransitions } from "./yield_peek_transitions.js";
 
@@ -35,7 +35,7 @@ export function yieldTransitions(
 
     offset: number = 0,
 
-    filter_symbols: Symbol[] = const_EMPTY_ARRAY,
+    filter_symbols: HCG3Symbol[] = const_EMPTY_ARRAY,
 
     FROM_PEEKED_TRANSITION: boolean = false
 
@@ -118,28 +118,6 @@ export function getMaxOffsetOfItems(active_items: Item[]) {
 
 export function Items_Are_From_Same_Production(active_items: Item[], grammar: HCG3Grammar) {
     return active_items.setFilter(i => i.getProduction(grammar).id).length == 1;
-}
-
-function yieldPeekedNodes(active_items: Item[], options: RenderBodyOptions, offset: number, filter_symbols: Symbol[] = const_EMPTY_ARRAY): TransitionNode[] {
-
-    const
-        { grammar, goto_items: production_shift_items } = options,
-        { tree_nodes } = getTransitionTree(
-            grammar,
-            active_items,
-            //options.global_production_items
-            production_shift_items,
-            10,
-            10,
-            200
-        );
-
-
-
-    const nodes = buildPeekTransitions(tree_nodes[0].next, options, offset, undefined, filter_symbols, 0);
-
-
-    return nodes;
 }
 
 function yieldNodesOfItemsWithSameSymbol(active_items: Item[], options: RenderBodyOptions, offset: number, FROM_PEEKED_TRANSITION: boolean): TransitionNode[] {

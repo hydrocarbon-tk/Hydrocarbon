@@ -8,7 +8,7 @@
 
 @IMPORT ../misc/default-productions.hcg as def
 
-@IGNORE g:ws g:nl
+@IGNORE g:sp g:nl
 
 #######################################################################################################################
 ######################################  SYMBOLS
@@ -27,7 +27,7 @@
     | escaped_symbol
     | grouped_symbol grouped_delimiter                          f:r { { type:"symbol", val:$1, pos:pos, meta:false } }    
 
-<> grouped_delimiter >  g:nl | g:ws                                    
+<> grouped_delimiter >  g:nl | g:sp                                    
 
 <> grouped_symbol >  ( g:sym | g:id )(+\" )  sym_delimiter?     f:r { { type:"symbol", val:$1, pos:pos, meta:false }}                                                    
 
@@ -78,7 +78,7 @@
     \g: identifier                                              f:r { { type:"generated", val:$2, pos:pos, meta:false } }
 
 <> literal_symbol > 
-    \t: ( identifier | g:num ) sym_delimiter? 
+    \t: ( g:id | g:num )(+\" ) sym_delimiter? 
                                                                 f:r { { type:"exclusive-literal", val:""+$2, pos:pos, meta:false } }
 
 <> escaped_symbol > 
@@ -98,7 +98,7 @@
 
 <> js_identifier >  def::js_identifier
 
-<> sym_delimiter >  g:ws | $eof  | g:nl 
+<> sym_delimiter >  g:sp | $eof  | g:nl 
 
 <> meta_symbol >   \(EXC condition_symbol_list \)                     
                                                                 f:r { { type:"meta-exclude", sym : $2, meta:true, index:-1} }

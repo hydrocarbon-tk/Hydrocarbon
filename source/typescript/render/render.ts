@@ -122,13 +122,13 @@ export async function generateWebAssemblyParser(
     const data = `${data_lines.map(d => `"${d}"`).join("\n+")}`;
 
     return `
-    ${hydrocarbon_import_path ? `import { ParserFactoryNext as ParserFactory } from "${hydrocarbon_import_path}"` : ""};
+    ${hydrocarbon_import_path ? `import { ParserFactoryNext as ParserFactory,  initializeUTFLookupTableNewPlus as memInit  } from "${hydrocarbon_import_path}"` : ""};
     
     const wasm_recognizer = ${data};
     
     const reduce_functions = ${completer_script};
     
-    ${export_expression_preamble} ParserFactory(reduce_functions, wasm_recognizer, undefined, ${createEntryList(grammar)});
+    ${export_expression_preamble} ParserFactory(reduce_functions, wasm_recognizer, undefined, ${createEntryList(grammar)}, memInit);
     `;
 }
 /**
@@ -155,7 +155,7 @@ export async function generateJSParser(
     );
 
     return `
-    ${hydrocarbon_import_path ? `import { ParserFactoryNext as ParserFactory } from "${hydrocarbon_import_path}"` : ""};
+    ${hydrocarbon_import_path ? `import { ParserFactoryNext as ParserFactory, initializeUTFLookupTableNewPlus as memInit  } from "${hydrocarbon_import_path}"` : ""};
     const recognizer_initializer = (()=>{
         ${recognizer_script};
 
@@ -170,7 +170,7 @@ export async function generateJSParser(
 
     const reduce_functions = ${completer_script};
 
-    ${export_expression_preamble} ParserFactory(reduce_functions, undefined, recognizer_initializer,${createEntryList(grammar)});
+    ${export_expression_preamble} ParserFactory(reduce_functions, undefined, recognizer_initializer, ${createEntryList(grammar)}, memInit);
     `;
 }
 

@@ -74,7 +74,7 @@ export function getFollowClosure(
 
         const items = getGotoItems(grammar, [prod], goto_transition_items).map(i => i.increment());
 
-        const c = getClosure(items, grammar, true);
+        const c = getClosure(items, grammar, false);
 
         new_closure.push(...getFollowClosure(c, goto_transition_items, grammar, productions, internal$item_track, KEEP_END_ITEMS));
     }

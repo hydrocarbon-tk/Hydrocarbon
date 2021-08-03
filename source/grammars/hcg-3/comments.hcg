@@ -4,7 +4,7 @@
 
 # version 3.0
 
-@IGNORE g:ws g:nl
+@IGNORE g:sp g:nl
 
 <> hcg_comment > comment 
 
@@ -14,4 +14,4 @@
 
 <> comment_delimiter > g:nl 
 
-<> comment_primitive > g:sym | g:id | g:num | g:ws
+<> comment_primitive > g:sym | g:id | g:num | g:sp

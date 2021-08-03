@@ -203,7 +203,6 @@ export function processSymbol(
 
     const unique_name = getUniqueSymbolName(sym, true);
 
-
     if (!unique_map.has(unique_name)) {
 
         if (Sym_Is_Defined(sym))
@@ -218,6 +217,8 @@ export function processSymbol(
             copy_sym.id = -1;
         else
             copy_sym.id = id_offset++;
+
+        copy_sym.IS_NON_CAPTURE = undefined;
 
         unique_map.set(unique_name, copy_sym);
     }
