@@ -65,7 +65,8 @@ export interface HCGLocalFunctionRef extends HCG3GrammarNode {
 export interface HCG3Function extends HCG3GrammarNode {
     type: "RETURNED";
     txt: string;
-    js: string;
+    js?: string;
+    cpp?: string;
     ref?: string;
     name?: string;
 }

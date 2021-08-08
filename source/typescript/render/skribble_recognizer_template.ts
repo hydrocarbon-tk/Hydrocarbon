@@ -15,15 +15,24 @@ import { getProductionFunctionNameSk } from "../utilities/code_generating.js";
 export const NULL_STATE = 0;
 const UNICODE_ID_CONTINUE = 32;
 const UNICODE_ID_START = 64;
+const STATE_ALLOW_SKIP = 1;
+const STATE_ALLOW_OUTPUT = 2;
 export const renderSkribbleRecognizer = (
-    grammar: HCG3Grammar
+    grammar: HCG3Grammar,
+    INCLUDE_LU_TABLE_INITS: boolean = true
 ): SKModule => {
     const val = <SKModule>parser(`
-[static new] lookup_table : __u8$ptr;
-[static new] sequence_lookup : array_u8 = a(${grammar.sequence_string.split("").map(s => s.charCodeAt(0)).join(",")});
+${INCLUDE_LU_TABLE_INITS ? "[static new] char_lu_table : __u8$ptr;" : ""}
+
 [static] action_ptr: u32 = 0;
-[static] STATE_ALLOW_SKIP: u32 = 1;
-[static] STATE_ALLOW_OUTPUT: u32 = 2;
+[static pub] data_array_len :u32 = 0;
+[static pub] fork_array_len :u32 = 0;
+[pub] root_data: __ParserData$ptr = 0;
+[pub] tip_data: __ParserData$ptr = 0;
+[pub static new] data_array : array___ParserData$ptr = Array(64);
+[pub static new] fork_array : array___DataRef$ptr = Array(64);
+[pub static new] out_array : array___ParserData$ptr = Array(64);
+[pub] out_array_len :u32 = 0;
 
 fn getUTF8ByteLengthFromCodePoint : u32(code_point : u32){
 
@@ -74,11 +83,11 @@ fn  utf8ToCodePoint : u32 (index:u32, buffer: array_u8){
 
 fn getTypeAt : u32 ( code_point : u32 ) {
 
-    return : (lookup_table[code_point] & 0x1F);
+    return : (char_lu_table[code_point] & 0x1F);
 }
 
 fn createState:u32 (ENABLE_STACK_OUTPUT:u32) {
-    return : STATE_ALLOW_SKIP | (ENABLE_STACK_OUTPUT << 1);
+    return : ${STATE_ALLOW_SKIP} | (ENABLE_STACK_OUTPUT << 1);
 }
 
 [pub wasm]  cls ParserData{
@@ -93,16 +102,17 @@ fn createState:u32 (ENABLE_STACK_OUTPUT:u32) {
     [pub] origin_fork: u32 = 0
     [pub ptr] input: array_u8
     [pub ptr] rules: array_u16
-    [pub] stack: function_pointer = 
-        fn : i32 (l:__Lexer$ref,data:__ParserData$ref,db: __ParserDataBuffer$ref, state:u32, prod:u32, prod_start:u32){256}
+    [pub] sequence: __u8$ptr
+    [pub] stack: array_StackFunction = call(256)
     [pub] stash: array_u32 = call(256)
     [pub] origin: __ParserData$ptr
     [pub] next: __ParserData$ptr = 0
     [pub] VALID: bool = 0 
     [pub] COMPLETED: bool = 0 
+    
 
     [pub]  fn ParserData:ParserData(
-        input_len_in:u32, rules_len_in:u32,  lexer_in: __Lexer$ptr
+        input_len_in:u32, rules_len_in:u32, lexer_in: __Lexer$ptr
     ){
         this.lexer = lexer_in;
         this.state = createState(1);
@@ -189,15 +199,6 @@ fn createState:u32 (ENABLE_STACK_OUTPUT:u32) {
         [this_ new cpp_ignore] command_block:Uint16Array = Uint16Array(64);
     }
 }
-
-[pub] root_data: __ParserData$ptr = 0;
-[pub] tip_data: __ParserData$ptr = 0;
-
-[pub static new] data_array : array___ParserData$ptr = Array(64);
-[pub static new] fork_array : array___DataRef$ptr = Array(64);
-
-[pub] data_array_len :u32 = 0;
-[pub] fork_array_len :u32 = 0;
 
 [pub wasm] cls Lexer {
 
@@ -312,7 +313,7 @@ fn createState:u32 (ENABLE_STACK_OUTPUT:u32) {
                 loop ( (off + this.byte_length) < l)  {
                     [const] code_point: u32 = utf8ToCodePoint(this.byte_offset + this.byte_length, data.input);
 
-                    if( ((${UNICODE_ID_CONTINUE | UNICODE_ID_START}) & lookup_table[code_point]) > 0) : {
+                    if( ((${UNICODE_ID_CONTINUE | UNICODE_ID_START}) & char_lu_table[code_point]) > 0) : {
                         this.byte_length += getUTF8ByteLengthFromCodePoint(code_point);
                         prev_byte_len = this.byte_length;
                         this.token_length += 1;
@@ -435,7 +436,7 @@ fn compare: u32(
     [const] len:u32 = j+byte_length;
 
     loop(;j<len; i++, j++)
-        if(data.input[i] != sequence_lookup[j] ) : return : j - sequence_offset;
+        if(data.input[i] != data.sequence[j] ) : return : j - sequence_offset;
 
     return : byte_length;
 }
@@ -487,7 +488,7 @@ fn create_parser_data_object:__ParserData$ptr(
     return :fork; 
 }
 
-fn isOutputEnabled:bool (state:u32) { return: ${NULL_STATE} != (state & STATE_ALLOW_OUTPUT) }
+fn isOutputEnabled:bool (state:u32) { return: ${NULL_STATE} != (state & ${STATE_ALLOW_OUTPUT}) }
 
 fn set_action:void (val:u32, data:__ParserData$ref) {
     if(data.rules_ptr > data.rules_len) : return;
@@ -567,8 +568,7 @@ fn consume: bool (l:__Lexer$ref, data:__ParserData$ref, state:u32) {
 
 fn pushFN:void(
     data:__ParserData$ref, 
-    [pub] _fn_ref: function_pointer = 
-        fn : i32 (l:__Lexer$ref,data:__ParserData$ref,db: __ParserDataBuffer$ref, state:u32, prod:u32, prod_start:u32){},
+    [pub] _fn_ref: StackFunction,
     stash: i32
 ){ 
     data.stack[++data.stack_ptr] = _fn_ref; 
@@ -584,10 +584,7 @@ fn stepKernel:bool(
 ){
     [mut] ptr:i32 = data.stack_ptr;
 
-    [static js_ignore] _fn:function_pointer = 
-    fn : i32 (l:__Lexer$ref,data:__ParserData$ref, db:__ParserDataBuffer$ref, state:u32, prod:u32, prod_start:u32){data.stack[ptr]};
-
-    [static cpp_ignore] _fn: any = data.stack[ptr];
+    [static] _fn: StackFunction = data.stack[ptr];
 
     [static] stash:u32 = data.stash[ptr];
 
@@ -690,22 +687,9 @@ export function createExternFunctions(
     grammar: HCG3Grammar,
     runner: Helper,
     rd_functions: RDProductionFunction[],
+    INCLUDE_LU_TABLE_INITS: boolean = true
 ) {
     return <SKModule>parser(`
-    [pub static new] out_array : array___ParserData$ptr = Array(64);
-    [pub] out_array_len :u32 = 0;
-    
-    fn dispatch:void(data:__ParserData$ref, production_index:u32){
-        match production_index :
-            ${rd_functions.filter(f => f.RENDER && grammar.productions[f.id].IS_ENTRY)
-            .map((fn, i) => {
-                const name = getProductionFunctionNameSk(grammar.productions[fn.id], grammar);
-                return `${i} : { data.stack[0] = &> ${name}; data.stash[0] = ${0}; return }`;
-
-            }).join(",")}
-    }
-
-
 fn clear_data:void () {
 
     [mut]curr: __ParserData$ptr  = root_data;
@@ -757,14 +741,14 @@ fn clear_data:void () {
     return: (*>data).input;
 }
 
-
-[extern] fn init_table:__u8$ptr(){ 
+${INCLUDE_LU_TABLE_INITS ?
+            `[extern] fn init_table:__u8$ptr(){ 
     [new] table: array_u8 = array_u8(${jump8bit_table_byte_size});
 
-    lookup_table = table;
+    char_lu_table = table;
 
-    return: lookup_table;  
-}
+    return: char_lu_table;  
+}`: ""}
 
 [extern]fn get_fork_pointers:__DataRef$ptr$ptr(){
 
@@ -840,15 +824,20 @@ fn block64Consume:i32(data:__ParserData$ptr, block:array_u16, offset:u32, block_
     return : fork_ref.command_block;
 }
 
-[extern] fn recognize:u32(input_byte_length:u32, production:u32){
+[extern] fn recognize:u32(
+    input_byte_length:u32, 
+    production:u32,
+    sequence_lu: __u8$ptr,
+    [pub] _fn_ref: StackFunction
+){
     
     [pub] data_ref:__ParserData$ref = *> data_array[0];
-    
+    data_ref.sequence = sequence_lu;
+    data_ref.stack[0] = _fn_ref; 
+    data_ref.stash[0] = 0;
     data_ref.input_len = input_byte_length;
     
     (*>data_ref.lexer).next(data_ref);
-    
-    dispatch(data_ref, production);
 
     root_data = &>data_ref;
     tip_data = &>data_ref;

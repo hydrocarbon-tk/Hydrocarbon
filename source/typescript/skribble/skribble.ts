@@ -94,11 +94,15 @@ import { NodeMappings } from "@candlelib/conflagrate/build/types/types/node_mapp
 import { ts_mappings } from "./ts_mappings.js";
 import { js_mappings } from "./js_mappings.js";
 import { cpp_mappings } from "./cpp_mappings.js";
+import { cpp_declaration_mappings } from "./cpp_header_mappings.js";
+import { cpp_definition_mappings } from "./cpp_source_mappings.js";
 
 let renderers = null;
 let ts_renderers = null;
 let js_renderers = null;
 let cpp_renderers = null;
+let cpp_decl_renderers = null;
+let cpp_def_renderers = null;
 
 export function skRenderAsSK(node: SKNode): string {
     if (!renderers)
@@ -122,4 +126,16 @@ export function skRenderAsCPP(node: SKNode): string {
     if (!cpp_renderers)
         cpp_renderers = experimentalConstructRenderers(<NodeMappings<SKNode, "type">>cpp_mappings);
     return experimentalRender(node, <NodeMappings<SKNode, "type">>cpp_mappings, cpp_renderers);
+}
+
+export function skRenderAsCPPDeclarations(node: SKNode): string {
+    if (!cpp_decl_renderers)
+        cpp_decl_renderers = experimentalConstructRenderers(<NodeMappings<SKNode, "type">>cpp_declaration_mappings);
+    return experimentalRender(node, <NodeMappings<SKNode, "type">>cpp_declaration_mappings, cpp_decl_renderers);
+}
+
+export function skRenderAsCPPDefinitions(node: SKNode): string {
+    if (!cpp_def_renderers)
+        cpp_def_renderers = experimentalConstructRenderers(<NodeMappings<SKNode, "type">>cpp_definition_mappings);
+    return experimentalRender(node, <NodeMappings<SKNode, "type">>cpp_definition_mappings, cpp_def_renderers);
 }

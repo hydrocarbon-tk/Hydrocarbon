@@ -20,7 +20,7 @@ import {
     SKType, SKTypeReference, SKTypeString
 } from "./types/node";
 
-export const cpp_mappings: NodeMappings<SKNode, "type"> = <NodeMappings<SKNode, "type">>{
+export const cpp_declaration_mappings: NodeMappings<SKNode, "type"> = <NodeMappings<SKNode, "type">>{
     typename: "type",
     type_lookup: () => 0,
     mappings: [
@@ -202,63 +202,6 @@ export const cpp_mappings: NodeMappings<SKNode, "type"> = <NodeMappings<SKNode, 
                 return template_fn(state, new_node, true);
             }
         },
-        <NodeMapping<SKLoop>>{
-            type: "loop",
-            child_keys: ["assertion", "expression"],
-            template: "while { assertion: \\( o:s @assertion? o:s \\) } i:s m:s @expression i:e"
-        },
-        <NodeMapping<SKFor>>{
-            type: "for-loop",
-            child_keys: ["initializers", "assertion", "post_iteration", "expression"],
-            template: "for \\( o:s @initializers...[,] o:s \\; o:s @assertion? o:s \\; o:s  @post_iteration...[, o:s] o:s \\) o:s o:n @expression",
-            custom_render: (state, template_fn) => {
-                return template_fn(state);
-            }
-        },
-
-        <NodeMapping<SKIn>>{
-            type: "in-loop",
-            child_keys: ["initializer", "target", "expression"],
-            template: "for \\( o:s @initializer m:s of m:s @target o:s \\) o:n @expression"
-        },
-        <NodeMapping<SKMatch>>{
-            type: "match",
-            child_keys: ["match_expression", "matches"],
-            template: "switch \\( @match_expression \\) \\{ i:s o:n @matches...[o:n] i:e o:n\\}"
-        },
-        <NodeMapping<SKMatchTarget>>{
-            type: "match-clause",
-            child_keys: ["match", "expression"],
-            template: "case @match \\: o:s o:n @expression",
-            custom_render: (state, template_fn) => {
-
-                const { node, indent } = state;
-
-                const cases = [];
-
-                if (node.match.type == "operator-expression") {
-
-                    cases.push(...node.match.list.map(s => {
-                        if (s.type == "operator")
-                            return null;
-                        if (s?.value?.trim() == "default")
-                            return "default:";
-                        return `case ${template_fn(state, s)}:`;
-
-
-                    }).filter(s => s));
-                } else if (node.match?.value.trim() == "default") {
-                    cases.push(`default:`);
-                } else {
-                    cases.push(`case ${template_fn(state, node.match)}:`);
-                }
-
-                const offset = " ".repeat(4 * indent);
-
-                return `${cases.join("\n" + offset)} ${"\n" + offset}${template_fn(state, node.expression)};`;
-
-            }
-        },
         <NodeMapping<SKCall>>{
             type: "call",
             child_keys: ["reference", "parameters"],
@@ -269,24 +212,10 @@ export const cpp_mappings: NodeMappings<SKNode, "type"> = <NodeMappings<SKNode, 
             child_keys: ["expression"],
             template: "( o:s @expression o:s )"
         },
-        <NodeMapping<SKBreak>>{
-            type: "break",
-            child_keys: ["expression"],
-            template: "break"
-        },
         <NodeMapping<SKBlock>>{
             type: "block",
             child_keys: ["expressions"],
             template: "\\{ i:s o:n   @expressions...[\\; o:n] \\;  i:e o:n \\}"
-        },
-        <NodeMapping<SKReturn>>{
-            type: "return",
-            child_keys: ["expression"],
-            template: "return {expression : m:s @expression }"
-        },
-        <NodeMapping<SKContinue>>{
-            type: "continue",
-            template: "continue"
         },
         <NodeMapping<SKNamespace>>{
             type: "namespace",
@@ -380,11 +309,10 @@ export const cpp_mappings: NodeMappings<SKNode, "type"> = <NodeMappings<SKNode, 
                 return template_fn(state, Object.assign({}, node));
             }
         },
-
         <NodeMapping<SKPrimitiveArgument>>{
             type: "argument",
             child_keys: ["type", "primitive_type", "initialization"],
-            template: "@primitive_type m:s @name{initialization: o:s = o:s @initialization}",
+            template: "@primitive_type m:s @name {initialization: o:s = o:s @initialization}",
             custom_render: (state, template_fn) => {
 
                 let { node } = state;
@@ -438,7 +366,7 @@ export const cpp_mappings: NodeMappings<SKNode, "type"> = <NodeMappings<SKNode, 
         <NodeMapping<SKMethod>>{
             type: "method",
             child_keys: ["name", "return_type", "parameters", "expressions"],
-            template: "{pub: public\\: } @return_type m:s @name (@parameters...[,o:s]) \\{ i:s o:n @expressions...[;o:n] \\; i:e o:n \\}",
+            template: "{pub: public\\: } @return_type m:s @name (@parameters...[,o:s]) \\;",
             custom_render: (state, template_fn) => {
 
                 let new_node: SKMethod = Object.assign({}, state.node);
@@ -458,21 +386,15 @@ export const cpp_mappings: NodeMappings<SKNode, "type"> = <NodeMappings<SKNode, 
         <NodeMapping<SKFunction>>{
             type: "function",
             child_keys: ["name", "return_type", "parameters", "expressions"],
-            template: "@return_type m:s @name (@parameters...[,o:s]) \\{ i:s o:n @expressions...[;o:n] \\; i:e o:n \\}",
+            template: "@return_type m:s @name (@parameters...[ \\, o:s]) \\;",
 
             custom_render: (state, template_fn) => {
+                const new_node = copy(state.node);
 
-                if (state.node.modifiers.includes("extern")) {
-                    state.indent++;
+                //Deceleration parameter names are superfluous and are removed
+                new_node.parameters = new_node.parameters.map(p => (p.name.value = "", p));
 
-                    const out = `extern "C" {\n    ${template_fn(state)}\n  }`;
-
-                    state.indent--;
-                    return out;
-                }
-
-
-                return template_fn(state);
+                return template_fn(state, new_node);
             }
         },
         <NodeMapping<SKLambda>>{
@@ -494,14 +416,11 @@ export const cpp_mappings: NodeMappings<SKNode, "type"> = <NodeMappings<SKNode, 
                 }).join("\n");
 
                 return str;
-
-
-                return template_fn(state, new_node);
             }
         }
     ]
 };
 
-const lu_table = new Map(cpp_mappings.mappings.map((i, j) => [i.type, j]));
+const lu_table = new Map(cpp_declaration_mappings.mappings.map((i, j) => [i.type, j]));
 
-cpp_mappings.type_lookup = (node, name) => lu_table.get(node.type) || -1;
+cpp_declaration_mappings.type_lookup = (node, name) => lu_table.get(node.type) || -1;

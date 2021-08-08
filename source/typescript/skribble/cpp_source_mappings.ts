@@ -20,7 +20,7 @@ import {
     SKType, SKTypeReference, SKTypeString
 } from "./types/node";
 
-export const cpp_mappings: NodeMappings<SKNode, "type"> = <NodeMappings<SKNode, "type">>{
+export const cpp_definition_mappings: NodeMappings<SKNode, "type"> = <NodeMappings<SKNode, "type">>{
     typename: "type",
     type_lookup: () => 0,
     mappings: [
@@ -380,7 +380,6 @@ export const cpp_mappings: NodeMappings<SKNode, "type"> = <NodeMappings<SKNode, 
                 return template_fn(state, Object.assign({}, node));
             }
         },
-
         <NodeMapping<SKPrimitiveArgument>>{
             type: "argument",
             child_keys: ["type", "primitive_type", "initialization"],
@@ -399,30 +398,36 @@ export const cpp_mappings: NodeMappings<SKNode, "type"> = <NodeMappings<SKNode, 
         <NodeMapping<SKClass>>{
             type: "class",
             child_keys: ["name", "members"],
-            template: "class m:s @name \\{ i:s o:n \\public: o:n @mem_str i:e o:n \\}",
+            template: "@mem_str",
             custom_render: (state, template_fn) => {
 
                 const new_node: SKClass = Object.assign({}, state.node);
 
-
                 state.indent++;
                 let str = new_node.members.map(m => {
                     if (m.type == "declaration") {
-                        return template_fn(state, m, false) + ";";
+                        return "";
+                        //return template_fn(state, m, false) + ";";
                     } else if (m.type == "function") {
 
                         m = copy(m);
+                        m.type = "method";
 
                         if (m.return_type.value == "destructor") {
 
-                            m.name.value = "~" + new_node.name.value;
+                            // m.name.value = "~" + new_node.name.value;
 
                             m.return_type.value = "";
 
                         } else if (m.name.value == new_node.name.value) {
 
-                            m.name.value = "";
+
+                            //m.name.value = new_node.name.value;
+
+                            m.return_type = null;
                         }
+
+                        m.class_name = new_node.name.value;
 
                         return template_fn(state, m, false);
                     }
@@ -438,7 +443,7 @@ export const cpp_mappings: NodeMappings<SKNode, "type"> = <NodeMappings<SKNode, 
         <NodeMapping<SKMethod>>{
             type: "method",
             child_keys: ["name", "return_type", "parameters", "expressions"],
-            template: "{pub: public\\: } @return_type m:s @name (@parameters...[,o:s]) \\{ i:s o:n @expressions...[;o:n] \\; i:e o:n \\}",
+            template: "@return_type? m:s @class_name? \\:: @name (@parameters...[,o:s]) \\{ i:s o:n @expressions...[;o:n] \\; i:e o:n \\}",
             custom_render: (state, template_fn) => {
 
                 let new_node: SKMethod = Object.assign({}, state.node);
@@ -462,17 +467,12 @@ export const cpp_mappings: NodeMappings<SKNode, "type"> = <NodeMappings<SKNode, 
 
             custom_render: (state, template_fn) => {
 
-                if (state.node.modifiers.includes("extern")) {
-                    state.indent++;
+                const new_node = copy(state.node);
 
-                    const out = `extern "C" {\n    ${template_fn(state)}\n  }`;
+                //Do not initialize definition parameters
+                new_node.parameters = new_node.parameters.map(p => (p.initialization = null, p));
 
-                    state.indent--;
-                    return out;
-                }
-
-
-                return template_fn(state);
+                return template_fn(state, new_node);
             }
         },
         <NodeMapping<SKLambda>>{
@@ -502,6 +502,6 @@ export const cpp_mappings: NodeMappings<SKNode, "type"> = <NodeMappings<SKNode, 
     ]
 };
 
-const lu_table = new Map(cpp_mappings.mappings.map((i, j) => [i.type, j]));
+const lu_table = new Map(cpp_definition_mappings.mappings.map((i, j) => [i.type, j]));
 
-cpp_mappings.type_lookup = (node, name) => lu_table.get(node.type) || -1;
+cpp_definition_mappings.type_lookup = (node, name) => lu_table.get(node.type) || -1;

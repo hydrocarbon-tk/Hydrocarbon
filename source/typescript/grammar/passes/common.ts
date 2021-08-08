@@ -75,7 +75,7 @@ export function processSymbols(grammar: HCG3Grammar, errors: Error[] = []) {
         default_array.map(sym => [getUniqueSymbolName(sym), sym])
     );
 
-    let b_counter = 0, p_counter = 0, bodies = [], reduce_lu: Map<string, number> = new Map();
+    let b_counter = 0, p_counter = 0, bodies = [];
 
     const production_lookup = new Map();
 
@@ -103,24 +103,12 @@ export function processSymbols(grammar: HCG3Grammar, errors: Error[] = []) {
 
             body.length = body.sym.length;
 
-            if (body.reduce_function) {
-                const txt = body.reduce_function.js;
-
-                if (!reduce_lu.has(txt))
-                    reduce_lu.set(txt, reduce_lu.size);
-
-                body.reduce_id = reduce_lu.get(txt);
-
-            } else
-                body.reduce_id = -1;
-
             for (const sym of body.sym)
                 id_offset = processSymbol(sym, production_lookup, unique_map, errors, id_offset);
         }
     }
 
     grammar.meta.all_symbols = unique_map;
-    grammar.reduce_functions = reduce_lu;
     grammar.bodies = bodies;
 
     for (const g of [grammar, ...grammar.imported_grammars.map(g => g.grammar)])

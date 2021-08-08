@@ -5,7 +5,7 @@
  */
 import URI from "@candlelib/uri";
 import { Helper } from "../build/helper.js";
-import { skRenderAsCPP, skRenderAsJavaScript } from "../skribble/skribble.js";
+import { sk, skRenderAsCPP, skRenderAsCPPDeclarations, skRenderAsCPPDefinitions, skRenderAsJavaScript } from "../skribble/skribble.js";
 import { HCG3Grammar } from "../types/grammar_nodes.js";
 import { ParserGenerator } from "../types/ParserGenerator.js";
 import { RDProductionFunction } from "../types/rd_production_function.js";
@@ -68,6 +68,102 @@ ${""}
 /*End Forward Declarations*/
 
 ${recognizer_source}`;
+}
+
+
+export async function generateCPPParser(
+    grammar: HCG3Grammar,
+    recognizer_functions: RDProductionFunction[],
+    meta: Helper,
+    output_location: string = "",
+    ___: string = ""
+): Promise<string> {
+
+    const fs = (await import("fs")).default;
+
+    const fsp = fs.promises;
+
+    const
+        package_dir = URI.resolveRelative(output_location, "./"),
+        header_dir = URI.resolveRelative("./include/", package_dir),
+        source_dir = URI.resolveRelative("./source/", package_dir),
+        //File paths
+        entry_header_file = URI.resolveRelative("./parser.h", header_dir),
+        core_parser_header_file = URI.resolveRelative("./core_parser.h", header_dir),
+        core_parser_source_file = URI.resolveRelative("./core_parser.cpp", source_dir),
+        spec_parser_header_file = URI.resolveRelative("./spec_parser.h", header_dir),
+        spec_parser_source_file = URI.resolveRelative("./spec_parser.cpp", source_dir);
+
+    await fsp.mkdir(header_dir + "", { recursive: true });
+
+    const main_file = `
+#pragma once
+#include "./core_parser.h"
+#include "./node_base.h"
+#include "./parser_entry.h"
+#include "./spec_parser.h"
+
+namespace myParser {
+
+    enum ${grammar.enums.name.toUpperCase() + "_enum"} : unsigned {
+        ${grammar.enums.keys.map(k => k.toUpperCase()).join(",\n")}
+    };
+    ${skRenderAsCPP(sk`[static new] sequence_lookup : array_u8 = a(${grammar.sequence_string.split("").map(s => s.charCodeAt(0)).join(",")})`)};
+
+    ${grammar.cpp_classes.join(";\n\n")}
+    
+    HYDROCARBON::ReduceFunction reduce_functions[] = ${renderCPPReduceFunctionLookupArray(grammar)};
+    
+    HYDROCARBON::ASTRef parse(char * utf8_encoded_input, unsigned long ut8_byte_length){
+        return parserCore(
+            utf8_encoded_input, 
+            ut8_byte_length,
+            sequence_lookup, 
+            $start,
+            myParser::reduce_functions
+            );
+        }
+}`;
+    await fsp.writeFile(entry_header_file + '', main_file);
+
+    //Core Files
+    //*
+    const recognizer_code = renderSkribbleRecognizer(grammar, false);
+    const extern_functions = createExternFunctions(grammar, meta, recognizer_functions, false);
+    let core_decl = skRenderAsCPPDeclarations(recognizer_code) + "\n" + skRenderAsCPPDeclarations(extern_functions);
+    await fsp.writeFile(core_parser_header_file + '',
+        `#pragma once
+#include "completer.h"
+#include "ast_ref.h"
+#include "type_defs.h"
+namespace HYDROCARBON 
+{ ${core_decl} \n }`
+    );
+    let core_def = skRenderAsCPPDefinitions(recognizer_code) + "\n" + skRenderAsCPPDefinitions(extern_functions);
+    await fsp.writeFile(core_parser_source_file + '',
+        `#include "../include/core_parser.h" \n namespace HYDROCARBON { \n ${core_def} \n }`
+    );
+    //*/
+    //Spec Files
+    //*
+
+    const { const: constants_a, fn: const_functions_a } = meta.render_constants();
+
+    const str = [...constants_a, ...const_functions_a];
+
+    for (const { entry, goto, reduce } of recognizer_functions)
+        str.push(...[entry, goto, reduce].filter(i => i));
+
+    await fsp.writeFile(spec_parser_header_file + '',
+        `#pragma once\n #include "./core_parser.h" \n namespace myParser { 
+    using HYDROCARBON::Lexer;
+    using HYDROCARBON::ParserData;
+    using HYDROCARBON::ParserDataBuffer;    
+\n ${str.map(skRenderAsCPPDeclarations).join("\n\n")} \n }`);
+
+    await fsp.writeFile(spec_parser_source_file + '', `#include "../include/spec_parser.h" \n namespace myParser { \n using namespace HYDROCARBON; \n ${str.map(skRenderAsCPP).join("\n\n")} \n }`);
+    //*/;
+    return main_file;
 }
 
 export async function generateWebAssemblyParser(
@@ -275,6 +371,8 @@ function compileRecognizerSource(runner: Helper, grammar: HCG3Grammar, recognize
 }
 
 
+
+
 export function renderJavaScriptReduceFunctionLookupArray(grammar: HCG3Grammar): string {
     const reduce_functions_str = [...grammar.reduce_functions.keys()].map((b, i) => {
         if (b.includes("return") || true) {
@@ -282,8 +380,13 @@ export function renderJavaScriptReduceFunctionLookupArray(grammar: HCG3Grammar):
         } else {
             return `(env, sym)=>new (class{constructor(env, sym, pos){${b}}})(env, sym)` + `/*${i}*/`;
         }
-    }).join("\n,");
+    }).join(",\n");
 
     return `[(_,s)=>s[s.length-1], ${reduce_functions_str}]`;
 }
 
+export function renderCPPReduceFunctionLookupArray(grammar: HCG3Grammar): string {
+    const reduce_functions_str = [...grammar.reduce_functions.keys()].map((b, i) => b).join(",\n");
+
+    return `{[](HYDROCARBON::ASTRef * stack, int len){return stack[len-1];}, ${reduce_functions_str}}`;
+}
