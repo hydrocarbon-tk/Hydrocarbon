@@ -11,5 +11,5 @@ namespace HYDROCARBON
 
     ASTRef createInvalidParseASTRef(DataRef &);
 
-    ASTRef convertForkToASTRef(char *, DataRef &, ReduceFunction *);
+    ASTRef convertForkToASTRef(DataRef &, ReduceFunction *);
 } // namespace HYDROCARBON

@@ -72,6 +72,45 @@ ${recognizer_source}`;
 }
 
 
+export async function generateCPPLibraryFiles(output_location: string = "") {
+
+    const
+        fs = (await import("fs")).default,
+
+        fsp = fs.promises,
+
+        package_dir = URI.resolveRelative(output_location, "./"),
+
+        header_dir = URI.resolveRelative("./include/", package_dir),
+
+        source_dir = URI.resolveRelative("./source/", package_dir),
+
+        core_parser_header_file = URI.resolveRelative("./core_parser.h", header_dir),
+
+        core_parser_source_file = URI.resolveRelative("./core_parser.cpp", source_dir);
+
+    await fsp.mkdir(header_dir + "", { recursive: true });
+    await fsp.mkdir(source_dir + "", { recursive: true });
+
+    //Core Files
+    //*
+    const recognizer_code = renderSkribbleRecognizer(false);
+    const extern_functions = createExternFunctions(false);
+    let core_decl = skRenderAsCPPDeclarations(recognizer_code) + "\n" + skRenderAsCPPDeclarations(extern_functions);
+    await fsp.writeFile(core_parser_header_file + '',
+        `#pragma once
+#include "char_lu_table.h"
+#include "ast_ref.h"
+#include "type_defs.h"
+namespace HYDROCARBON 
+{ ${core_decl} \n }`
+    );
+    let core_def = skRenderAsCPPDefinitions(recognizer_code) + "\n" + skRenderAsCPPDefinitions(extern_functions);
+    await fsp.writeFile(core_parser_source_file + '',
+        `#include "../include/core_parser.h" \n namespace HYDROCARBON { \n ${core_def} \n }`
+    );
+}
+
 export async function generateCPPParser(
     grammar: HCG3Grammar,
     recognizer_functions: RDProductionFunction[],
@@ -80,22 +119,26 @@ export async function generateCPPParser(
     ___: string = ""
 ): Promise<string> {
 
-    const fs = (await import("fs")).default;
-
-    const fsp = fs.promises;
-
     const
+        fs = (await import("fs")).default,
+
+        fsp = fs.promises,
+
+
         package_dir = URI.resolveRelative(output_location, "./"),
+
         header_dir = URI.resolveRelative("./include/", package_dir),
-        source_dir = URI.resolveRelative("./source/", package_dir),
-        //File paths
+
         entry_header_file = URI.resolveRelative("./parser.h", header_dir),
-        core_parser_header_file = URI.resolveRelative("./core_parser.h", header_dir),
-        core_parser_source_file = URI.resolveRelative("./core_parser.cpp", source_dir),
+
+        source_dir = URI.resolveRelative("./source/", package_dir),
+
         spec_parser_header_file = URI.resolveRelative("./spec_parser.h", header_dir),
+
         spec_parser_source_file = URI.resolveRelative("./spec_parser.cpp", source_dir);
 
     await fsp.mkdir(header_dir + "", { recursive: true });
+    await fsp.mkdir(source_dir + "", { recursive: true });
 
     const main_file = `
 #pragma once
@@ -130,24 +173,6 @@ namespace myParser {
         }
 }`;
     await fsp.writeFile(entry_header_file + '', main_file);
-
-    //Core Files
-    //*
-    const recognizer_code = renderSkribbleRecognizer(grammar, false);
-    const extern_functions = createExternFunctions(grammar, meta, recognizer_functions, false);
-    let core_decl = skRenderAsCPPDeclarations(recognizer_code) + "\n" + skRenderAsCPPDeclarations(extern_functions);
-    await fsp.writeFile(core_parser_header_file + '',
-        `#pragma once
-#include "char_lu_table.h"
-#include "ast_ref.h"
-#include "type_defs.h"
-namespace HYDROCARBON 
-{ ${core_decl} \n }`
-    );
-    let core_def = skRenderAsCPPDefinitions(recognizer_code) + "\n" + skRenderAsCPPDefinitions(extern_functions);
-    await fsp.writeFile(core_parser_source_file + '',
-        `#include "../include/core_parser.h" \n namespace HYDROCARBON { \n ${core_def} \n }`
-    );
     //*/
     //Spec Files
     //*

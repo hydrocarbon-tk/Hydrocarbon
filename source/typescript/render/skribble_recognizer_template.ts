@@ -18,7 +18,6 @@ const UNICODE_ID_START = 64;
 const STATE_ALLOW_SKIP = 1;
 const STATE_ALLOW_OUTPUT = 2;
 export const renderSkribbleRecognizer = (
-    grammar: HCG3Grammar,
     INCLUDE_LU_TABLE_INITS: boolean = true
 ): SKModule => {
     const val = <SKModule>parser(`
@@ -100,8 +99,8 @@ fn createState:u32 (ENABLE_STACK_OUTPUT:u32) {
     [pub] input_len: u32 = 0
     [pub] rules_len: u32 = 0
     [pub] origin_fork: u32 = 0
-    [pub ptr] input: array_u8
     [pub ptr] rules: array_u16
+    [pub] input: __u8$ptr
     [pub] sequence: __u8$ptr
     [pub] stack: array_StackFunction = call(256)
     [pub] stash: array_u32 = call(256)
@@ -112,7 +111,10 @@ fn createState:u32 (ENABLE_STACK_OUTPUT:u32) {
     
 
     [pub]  fn ParserData:ParserData(
-        input_len_in:u32, rules_len_in:u32, lexer_in: __Lexer$ptr
+        input_buffer: __u8$ptr,
+        input_len_in:u32, 
+        rules_len_in:u32, 
+        lexer_in: __Lexer$ptr
     ){
         this.lexer = lexer_in;
         this.state = createState(1);
@@ -126,11 +128,7 @@ fn createState:u32 (ENABLE_STACK_OUTPUT:u32) {
         this.rules_len = rules_len_in;
         this.origin_fork = 0;
         [this_] origin:u32 = 0;
-        
-        if input_len_in > 0: {
-            [new this_] input:array_u8 = array_u8(input_len_in);
-        };
-
+        this.input = input_buffer;
         [new this_] rules:array_u16 = array_u16(rules_len_in);
         [new this_ cpp_ignore] stash:array_u32 = array_u32(256);
         [new this_ cpp_ignore] stack:array_any = array_any();
@@ -442,11 +440,11 @@ fn compare: u32(
 }
 
 fn create_parser_data_object:__ParserData$ptr(
-    input_len:u32, rules_len:u32
+    input_buffer: __u8$ptr, input_len:u32, rules_len:u32
 ){
     [mut new] lexer: __Lexer$ptr = Lexer();
 
-    [static new]parser_data:__ParserData$ptr = ParserData(input_len, rules_len,  lexer);
+    [static new]parser_data:__ParserData$ptr = ParserData(input_buffer, input_len, rules_len,  lexer);
 
     return : parser_data
 }
@@ -457,7 +455,8 @@ fn create_parser_data_object:__ParserData$ptr(
 ) {
 
     [mut] fork:__ParserData$ptr = create_parser_data_object(
-        0,
+        data.input, 
+        data.input_len,
         data.rules_len - data.rules_ptr
     );
 
@@ -475,13 +474,11 @@ fn create_parser_data_object:__ParserData$ptr(
 
     fork_ref.stack_ptr = data.stack_ptr;
     fork_ref.input_ptr = data.input_ptr;
-    fork_ref.input_len = data.input_len;
     fork_ref.origin_fork = data.rules_ptr + data.origin_fork;
     fork_ref.origin = &>data;
     fork_ref.lexer = (*>data.lexer).copy();
     fork_ref.state = data.state;
     fork_ref.prod = data.prod;
-    fork_ref.input = data.input;
 
     data_buffer.addDataPointer(fork);
 
@@ -684,9 +681,6 @@ fn run:i32(origin:__ParserData$ptr,  resolved:__ParserData$ptr$ptr, resolved_len
 };
 
 export function createExternFunctions(
-    grammar: HCG3Grammar,
-    runner: Helper,
-    rd_functions: RDProductionFunction[],
     INCLUDE_LU_TABLE_INITS: boolean = true
 ) {
     return <SKModule>parser(`
@@ -701,8 +695,6 @@ fn clear_data:void () {
         loop ( (curr) )  {
             
             next = ((*>curr).next);
-            
-            %%%% ((*>curr).input);
             
             %%%% ((*>curr).rules);
             
@@ -725,20 +717,20 @@ fn clear_data:void () {
     data_array_len = 0;
 }
 
-[extern]fn init_data:__u8$ptr(
-    input_len:u32 , 
+[extern]fn init_data:void(
+    input_buffer: __u8$ptr,
+    input_len:u32, 
     rules_len:u32 
 ){ 
     clear_data();
 
     [mut] data:__ParserData$ptr = create_parser_data_object(
+        input_buffer,
         input_len,
         rules_len
     );
 
     data_array[0] = data;
-
-    return: (*>data).input;
 }
 
 ${INCLUDE_LU_TABLE_INITS ?

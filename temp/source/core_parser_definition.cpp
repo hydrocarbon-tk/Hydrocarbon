@@ -8,10 +8,7 @@ namespace HYDROCARBON
                       ReduceFunction *reduce_functions)
     {
 
-        unsigned char *buffer = init_data(input_byte_count, input_byte_count * 4);
-
-        for (auto i = 0; i < input_byte_count; i++)
-            buffer[i] = utf8_encoded_input[i];
+        init_data((unsigned char *)utf8_encoded_input, input_byte_count, input_byte_count * 4);
 
         // upload string data
         int fork_count =
@@ -28,7 +25,7 @@ namespace HYDROCARBON
         DataRef &fork6 = *forks[5];
 
         if (fork1.VALID)
-            return convertForkToASTRef(utf8_encoded_input, fork1, reduce_functions);
+            return convertForkToASTRef(fork1, reduce_functions);
         else
             return createInvalidParseASTRef(fork1);
     }
@@ -38,7 +35,7 @@ namespace HYDROCARBON
         return ASTRef(fork.byte_offset, fork.byte_length, true);
     }
 
-    ASTRef convertForkToASTRef(char *utf8_encoded_input, DataRef &fork, ReduceFunction *reduce_functions)
+    ASTRef convertForkToASTRef(DataRef &fork, ReduceFunction *reduce_functions)
     {
 
         unsigned short *block = get_next_command_block(&fork);
