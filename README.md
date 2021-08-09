@@ -131,7 +131,7 @@ are four generic symbols that can be used within a grammar definition:
 - Generic Natural Number: Any number of characters within the ASCII range `0x30` to `0x39` . 
     <br/>RegEx definition: `[0-9]+`  e.g: `g:num` 
 - Space: Any number of space characters, including ASCII code point `0x20` and characters belonging to the `WS` Unicode class. Also matches tab stop code points.
-    <br/> e.g: `g:ws` 
+    <br/> e.g: `g:sp` 
 - New Line: Any number of ASCII code points `0xA` and `0xF` to match `<LF>` and `<CRLF>`
   <br/> e.g: `g:nl` 
 - Generic Symbol: Any SINGLE code point that does match one of the proceeding definitions for generic symbols
