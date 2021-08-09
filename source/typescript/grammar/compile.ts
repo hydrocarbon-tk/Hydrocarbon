@@ -16,7 +16,7 @@ import {
     loadGrammarFromFile,
     loadGrammarFromString
 } from "./passes/load.js";
-import { createJSFunctionsFromExpressions } from "./passes/process_code.js";
+import { createJSFunctionsFromExpressions } from "./passes/process_js_code.js";
 
 class GrammarCompilationReport extends Error {
     constructor(errors: Error[]) {

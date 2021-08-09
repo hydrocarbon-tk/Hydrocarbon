@@ -90,6 +90,9 @@ namespace HYDROCARBON
           template <typename T>
           operator T *() const { return (T *)toNode(); }
 
+     public:
+          static ASTRef vector();
+
      } ASTRef;
 
 } // namespace HYDROCARBON
