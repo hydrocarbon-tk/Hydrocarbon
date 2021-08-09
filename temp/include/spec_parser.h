@@ -5,7 +5,9 @@
     using HYDROCARBON::ParserData;
     using HYDROCARBON::ParserDataBuffer;    
 
- int branch_0e449cbec7e337e6(Lexer& , ParserData& , ParserDataBuffer& , unsigned int , unsigned int , unsigned int );
+ int branch_23533b88b98ddaf7(Lexer& , ParserData& , ParserDataBuffer& , unsigned int , unsigned int , unsigned int );
+
+int branch_2775a71ce4f52201(Lexer& , ParserData& , ParserDataBuffer& , unsigned int , unsigned int , unsigned int );
 
 int branch_5918a25f46072194(Lexer& , ParserData& , ParserDataBuffer& , unsigned int , unsigned int , unsigned int );
 

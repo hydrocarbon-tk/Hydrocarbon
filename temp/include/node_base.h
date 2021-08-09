@@ -12,18 +12,7 @@
 namespace HYDROCARBON
 {
 
-  struct String : public ASTRef
-  {
-  };
-
-  struct VAL
-  {
-    // virtual std::string toString() const;
-
-    // operator new(){};
-  };
-
-  struct Node : public VAL
+  struct NODE
   {
   };
 

@@ -198,6 +198,21 @@ export interface HCG3Grammar extends HCG3GrammarNode {
     reduce_functions: Map<string, number>;
 
     production_hash_lookup?: any;
+    /**
+     * Properties for producing a JS/TS/WASM module
+     */
+    js?: {
+
+    };
+
+    /**
+     * Properties for producing a cpp module
+     */
+    cpp?: {
+        primary_enum: any;
+        classes: string[];
+        
+    };
 }
 
 ////////////////////////////////////////////////////////////////////

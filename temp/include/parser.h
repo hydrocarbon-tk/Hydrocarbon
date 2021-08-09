@@ -5,44 +5,69 @@
 #include "./parser_entry.h"
 #include "./spec_parser.h"
 
-namespace myParser {
+namespace myParser
+{
 
-    enum TYPE_enum : unsigned {
+    using HYDROCARBON::ASTRef;
+
+    enum class type_enum : unsigned
+    {
+
+        UNDEFINED,
         FUNCTION,
-PARAM
+        PARAM
     };
-    unsigned char sequence_lookup[22] = {40,41,123,125,44,69,78,68,95,79,70,95,80,82,79,68,85,67,84,73,79,78};
+    unsigned char sequence_lookup[22] = {40, 41, 123, 125, 44, 69, 78, 68, 95, 79, 70, 95, 80, 82, 79, 68, 85, 67, 84, 73, 79, 78};
 
-    class FUNCTION : public HYDROCARBON::Node { 
-            public:
-            TYPE_enum type = TYPE_enum::FUNCTION;
-HYDROCARBON::ASTRef name = 0;
-HYDROCARBON::ASTRef params = 0;    
+    class BASE : public HYDROCARBON::NODE
+    {
+    public:
+        const type_enum type = type_enum::UNDEFINED;
 
-        FUNCTION( HYDROCARBON::ASTRef name_,HYDROCARBON::ASTRef params_ ) 
-            : HYDROCARBON::Node(), name(name_),params(params_) {}
-        };;
+        BASE(type_enum type_) : HYDROCARBON::NODE(), type(type_) {}
+    };
+    ;
 
-class PARAM : public HYDROCARBON::Node { 
-            public:
-            TYPE_enum type = TYPE_enum::PARAM;
-HYDROCARBON::ASTRef name = 0;    
+    class FUNCTION : public BASE
+    {
+    public:
+        HYDROCARBON::ASTRef name = 0;
+        HYDROCARBON::ASTRef params = 0;
 
-        PARAM( HYDROCARBON::ASTRef name_ ) 
-            : HYDROCARBON::Node(), name(name_) {}
-        };
-    
-    HYDROCARBON::ReduceFunction reduce_functions[] = {[](HYDROCARBON::ASTRef * stack, int len){return stack[len-1];}, [](HYDROCARBON::ASTRef * stack, int len){return HYDROCARBON::ASTRef(new class FUNCTION (stack[0],stack[2])); },
-[](HYDROCARBON::ASTRef * stack, int len){return HYDROCARBON::ASTRef(new class FUNCTION (stack[0],0)); },
-[](HYDROCARBON::ASTRef * stack, int len){return HYDROCARBON::ASTRef(new class PARAM (stack[0])); }};
-    
-    HYDROCARBON::ASTRef parse(char * utf8_encoded_input, unsigned long ut8_byte_length){
+        FUNCTION(HYDROCARBON::ASTRef name_, HYDROCARBON::ASTRef params_)
+            : BASE(type_enum::FUNCTION), name(name_), params(params_) {}
+    };
+    ;
+
+    class PARAM : public BASE
+    {
+    public:
+        HYDROCARBON::ASTRef name = 0;
+
+        PARAM(HYDROCARBON::ASTRef name_)
+            : BASE(type_enum::PARAM), name(name_) {}
+    };
+
+    HYDROCARBON::ReduceFunction reduce_functions[] = {[](HYDROCARBON::ASTRef *stack, int len)
+                                                      { return stack[len - 1]; },
+                                                      [](HYDROCARBON::ASTRef *stack, int len)
+                                                      { return (ASTRef(new FUNCTION(stack[0], stack[2]))); },
+                                                      [](HYDROCARBON::ASTRef *stack, int len)
+                                                      { return (ASTRef(new FUNCTION(stack[0], 0))); },
+                                                      [](HYDROCARBON::ASTRef *stack, int len)
+                                                      { return (ASTRef(new PARAM(stack[0]))); },
+                                                      [](HYDROCARBON::ASTRef *stack, int len)
+                                                      { return (ASTRef::vector(stack[0])); },
+                                                      [](HYDROCARBON::ASTRef *stack, int len)
+                                                      { return (stack[0].push(stack[2]), stack[0]); }};
+
+    HYDROCARBON::ASTRef parse(char *utf8_encoded_input, unsigned long ut8_byte_length)
+    {
         return parserCore(
-            utf8_encoded_input, 
+            utf8_encoded_input,
             ut8_byte_length,
-            sequence_lookup, 
+            sequence_lookup,
             $start,
-            myParser::reduce_functions
-            );
-        }
+            myParser::reduce_functions);
+    }
 }

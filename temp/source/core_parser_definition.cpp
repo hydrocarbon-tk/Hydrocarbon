@@ -5,9 +5,7 @@ namespace HYDROCARBON
 
     ASTRef parserCore(char *utf8_encoded_input, unsigned long input_byte_count,
                       unsigned char *sequence_data, StackFunction stack_function,
-                      ReduceFunction *reduce_functions
-
-    )
+                      ReduceFunction *reduce_functions)
     {
 
         unsigned char *buffer = init_data(input_byte_count, input_byte_count * 4);
@@ -29,19 +27,28 @@ namespace HYDROCARBON
         DataRef &fork5 = *forks[4];
         DataRef &fork6 = *forks[5];
 
-        bool valid = fork1.VALID;
+        if (fork1.VALID)
+            return convertForkToASTRef(utf8_encoded_input, fork1, reduce_functions);
+        else
+            return createInvalidParseASTRef(fork1);
+    }
 
-        unsigned short *block = get_next_command_block(&fork1);
+    ASTRef createInvalidParseASTRef(DataRef &fork)
+    {
+        return ASTRef(fork.byte_offset, fork.byte_length, true);
+    }
+
+    ASTRef convertForkToASTRef(char *utf8_encoded_input, DataRef &fork, ReduceFunction *reduce_functions)
+    {
+
+        unsigned short *block = get_next_command_block(&fork);
 
         auto short_offset = 0, token_offset = 0;
-
         auto high = block[short_offset++];
-
         auto limit = 1000000;
-
-        int length = 0;
-        int offset = 0;
-        int stack_pointer = 0;
+        auto length = 0;
+        auto offset = 0;
+        auto stack_pointer = 0;
 
         ASTRef stack[1024];
 
@@ -90,8 +97,6 @@ namespace HYDROCARBON
 
                 stack[stack_pointer++] = token;
 
-                token.print(utf8_encoded_input);
-
                 token_offset += length;
             }
             break;
@@ -109,18 +114,17 @@ namespace HYDROCARBON
 
                 auto token = ASTRef(token_offset, length);
 
-                token.print(utf8_encoded_input);
-
                 token_offset += length;
             }
             }
 
             if (short_offset > 63)
             {
-                block = get_next_command_block(&fork1);
+                block = get_next_command_block(&fork);
                 short_offset = 0;
             }
         }
+
         return stack[0];
     }
 } // namespace HYDROCARBON

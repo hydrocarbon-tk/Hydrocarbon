@@ -5,6 +5,7 @@
  */
 import URI from "@candlelib/uri";
 import { Helper } from "../build/helper.js";
+import { getEnumTypeName } from "../grammar/passes/process_cpp_code.js";
 import { sk, skRenderAsCPP, skRenderAsCPPDeclarations, skRenderAsCPPDefinitions, skRenderAsJavaScript } from "../skribble/skribble.js";
 import { HCG3Grammar } from "../types/grammar_nodes.js";
 import { ParserGenerator } from "../types/ParserGenerator.js";
@@ -105,12 +106,16 @@ export async function generateCPPParser(
 
 namespace myParser {
 
-    enum ${grammar.enums.name.toUpperCase() + "_enum"} : unsigned {
+    using HYDROCARBON::ASTRef;
+
+    enum class ${getEnumTypeName(grammar.enums.name)} : unsigned {
+
+        UNDEFINED,
         ${grammar.enums.keys.map(k => k.toUpperCase()).join(",\n")}
     };
     ${skRenderAsCPP(sk`[static new] sequence_lookup : array_u8 = a(${grammar.sequence_string.split("").map(s => s.charCodeAt(0)).join(",")})`)};
 
-    ${grammar.cpp_classes.join(";\n\n")}
+    ${grammar.cpp.classes.join(";\n\n")}
     
     HYDROCARBON::ReduceFunction reduce_functions[] = ${renderCPPReduceFunctionLookupArray(grammar)};
     
@@ -133,7 +138,7 @@ namespace myParser {
     let core_decl = skRenderAsCPPDeclarations(recognizer_code) + "\n" + skRenderAsCPPDeclarations(extern_functions);
     await fsp.writeFile(core_parser_header_file + '',
         `#pragma once
-#include "completer.h"
+#include "char_lu_table.h"
 #include "ast_ref.h"
 #include "type_defs.h"
 namespace HYDROCARBON 

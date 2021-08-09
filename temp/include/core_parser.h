@@ -1,18 +1,9 @@
 #pragma once
-#include "completer.h"
+#include "char_lu_table.h"
 #include "ast_ref.h"
 #include "type_defs.h"
 namespace HYDROCARBON 
-{ unsigned int action_ptr = 0;
-unsigned int data_array_len  = 0;
-unsigned int fork_array_len  = 0;
-ParserData* root_data = 0;
-ParserData* tip_data = 0;
-ParserData** data_array=new ParserData*[64];
-DataRef** fork_array=new DataRef*[64];
-ParserData** out_array=new ParserData*[64];
-unsigned int out_array_len  = 0;
-unsigned int getUTF8ByteLengthFromCodePoint (unsigned int );
+{ unsigned int getUTF8ByteLengthFromCodePoint (unsigned int );
 unsigned int utf8ToCodePoint (unsigned int , unsigned char* );
 unsigned int getTypeAt (unsigned int );
 unsigned int createState(unsigned int );

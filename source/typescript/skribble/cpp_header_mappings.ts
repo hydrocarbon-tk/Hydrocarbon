@@ -409,11 +409,18 @@ export const cpp_declaration_mappings: NodeMappings<SKNode, "type"> = <NodeMappi
 
                 const new_node: SKModule = Object.assign({}, state.node);
                 let str = state.node.statements.map(m => {
-                    if (m.type == "declaration" || m.type == "class") {
+                    if (m.type == "declaration") {
+                        //only static and extern declerations are allowed 
+                        if (m.modifiers.includes("extern"))
+                            return template_fn(state, m, false) + ";";
+                        else return "";
+                    } else if (m.type == "class") {
                         return template_fn(state, m, false) + ";";
-                    } else
+                    } else {
+                        //References
                         return template_fn(state, m, false);
-                }).join("\n");
+                    }
+                }).filter(i => !!i).join("\n");
 
                 return str;
             }

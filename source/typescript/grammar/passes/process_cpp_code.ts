@@ -19,7 +19,7 @@ duplicate.mappings.push(
     },
     {
         type: "cpp_class_constructor",
-        template: "ASTRef \\( \\new m:s \\class m:s @cardinal_name__ \\( @args...[\\,] \\) \\) ",
+        template: "ASTRef \\( \\new m:s @cardinal_name__ \\( @args...[\\,] \\) \\) ",
         custom_render(state, template_fn) {
             state.node.args = Object.entries(state.node.properties).map(([k, v]) => (v.name = k, v)).filter(v => v.type != "ENUM");
 
@@ -39,38 +39,56 @@ function parseAndRender(ast) { return experimentalRender(ast, duplicate, rendere
 interface CPPType {
     __type__: string;
 
-    __p_id__: number;
-
-    __b_id__: number;
+    type: string;
 
     type_name: string;
 }
 interface CPPTokenClass extends CPPType {
+
+    cardinal_name__: string;
     __type__: "class";
     enums: {
         [name in string]: EnumType;
     };
 
     properties: {
-        [name in string]: CPPType;
+        [name in string]: CPPTypes;
     };
 }
 interface EnumType extends CPPType {
-    __type__: "enum";
+    __type__: "ENUM";
+
+    type: "ENUM";
+
+    group: string;
+
+    value: string;
+
+    default_val: string;
+}
+
+interface ValType extends CPPType {
+    __type__: "VAL";
+
+    type: "VAL";
 
     group: string;
 
     value: string;
 }
 
+type CPPTypes = ValType | EnumType;
+
 export function createCPPCode(grammar: HCG3Grammar): void {
     // Reset the reduce_functions lookup to prepare the grammar for output
     // to C++ format. 
     grammar.reduce_functions = <Map<string, number>>new Map();
+    grammar.cpp = {
+        classes: null,
+        primary_enum: null
+    };
 
     const class_types = [];
-
-    const non_class_types = [];
 
     //Create classes based on return values
     for (const production of grammar.productions) {
@@ -79,8 +97,6 @@ export function createCPPCode(grammar: HCG3Grammar): void {
         // this will be used later to assign types to
         // class members. 
         for (const body of production.bodies) {
-
-            const cpp_type: CPPType = { __type__: "undefined", __p_id__: production.id, __b_id__: body.id };
 
             if (body.reduce_function) {
 
@@ -103,16 +119,20 @@ export function createCPPCode(grammar: HCG3Grammar): void {
                     if (node.type == JSNodeType.ObjectLiteral) {
                         // CPP only accepts basic member types:
                         // PropertyBinding with identifiers keys
-                        const cpp_type: CPPTokenClass = { type: "cpp_class_constructor", __type__: "class", __p_id__: production.id, __b_id__: body.id };
-                        mutate(<any>convertObjectLiteralNodeToCPPClassNode(cpp_type, node, body));
+
+                        const cpp_type = <any>convertObjectLiteralNodeToCPPClassNode(node, body);
+                        mutate(cpp_type);
                         class_types.push(cpp_type);
                     } else {
-                        non_class_types.push(cpp_type);
-
                         if (node.type == JSNodeType.ArrayLiteral) {
+
+                            //@ts-ignore
                             node.type = "cpp_ast_ref_vector";
+
                         } else if (node.type == JSNodeType.IdentifierReference) {
-                            mutate(JSIdentifierRefToCPPVal(node, "", body));
+                            const val = JSIdentifierRefToCPPVal(node, "", body);
+                            if (val)
+                                mutate(<any>val);
                         }
                     }
                 }
@@ -123,7 +143,7 @@ export function createCPPCode(grammar: HCG3Grammar): void {
     }
 
     //Merge class types that have the same enum
-    const processed_classes = processClasses(class_types, grammar);
+    const { processed_classes } = processClasses(class_types, grammar);
 
     buildCPPClasses(processed_classes, grammar);
 
@@ -160,12 +180,12 @@ function processClasses(class_types: any[], grammar: HCG3Grammar) {
 
         for (const [key, class_values] of groups.entries()) {
 
-
             grammar.enums.keys.push(key);
 
             const { key_vals, cardinal_class } = processClassInfo(key, class_values, grammar);
 
             processed_classes.push(cardinal_class);
+
         }
     }
 
@@ -177,71 +197,101 @@ function processClasses(class_types: any[], grammar: HCG3Grammar) {
 
         processed_classes.push(cardinal_class);
     }
-    return processed_classes;
+    return { processed_classes, largest_enum_key };
 }
 
 function convertBodyFunctionsToLambdas(grammar: HCG3Grammar) {
+
     for (const body of grammar.bodies) {
+
         const { reduce_function } = body;
 
         if (reduce_function) {
-            const fn = `[](HYDROCARBON::ASTRef * stack, int len){return (${parseAndRender(reduce_function.raw)}); }`;
 
-            console.log(fn);
+            const fn = `[](HYDROCARBON::ASTRef * stack, int len){return (${parseAndRender(reduce_function.raw)}); }`;
 
             addReduceFNStringToLUT(body, grammar, fn);
         } else {
+
             addReduceFNStringToLUT(body, grammar);
         }
     }
 }
 
-function buildCPPClasses(processed_classes: any[], grammar: HCG3Grammar) {
+export function getEnumTypeName(enum_name: string) {
+    return `${enum_name}_enum`;
+}
+
+function buildCPPClasses(processed_classes: CPPTokenClass[], grammar: HCG3Grammar) {
 
     const cpp_classes = [];
+
+    let base_enum_type = "";
+
+    if (grammar.enums) {
+        const name = grammar.enums.name;
+        base_enum_type = getEnumTypeName(name);
+        cpp_classes.push(
+            `
+class BASE : public HYDROCARBON::NODE{
+    public:
+    const ${base_enum_type} ${name} = ${base_enum_type}::UNDEFINED;
+
+    BASE(${base_enum_type} ${name}_) : HYDROCARBON::NODE(), ${name}(${name}_){}
+};`
+        );
+    }
 
     //Build classes
     for (const processed_class of processed_classes) {
 
-        const { cardinal_name__ } = processed_class;
+        let base_enum_name = "";
 
-        const key_vals = Object.entries(processed_class.properties);
+        const
 
-        const assigned_kv = key_vals.filter(([, b]) => b.type != "ENUM");
+            { cardinal_name__ } = processed_class,
 
-        const class_member_declaration = key_vals.map(([k, b]) => {
-            if (b.type == "ENUM") {
-                return `${b.type_name}_enum ${k} = ${b.type_name}_enum::${b.default_val};`;
-            }
+            key_vals = Object.entries(processed_class.properties),
 
-            else
-                return `HYDROCARBON::ASTRef ${k} = 0;`;
-        }).join("\n");
+            assigned_kv = key_vals.filter(([, b]) => b.type != "ENUM"),
 
-        let class_ = `class ${cardinal_name__} : public HYDROCARBON::Node { 
+
+            class_member_declaration = key_vals.map(([k, b]) => {
+                if (b.type == "ENUM") {
+                    const enum_type = getEnumTypeName(b.type_name);
+                    if (enum_type != base_enum_type)
+                        return `${enum_type} ${k} = ${getEnumTypeName(b.type_name)}::${b.default_val};`;
+                    else {
+                        base_enum_name = b.default_val;
+                        return "";
+                    }
+                } else
+                    return `HYDROCARBON::ASTRef ${k} = 0;`;
+            }).join("\n");
+
+        let class_ = `class ${cardinal_name__} : public BASE { 
             public:
             ${class_member_declaration}    
 
         ${cardinal_name__}( ${assigned_kv.map(([k]) => `HYDROCARBON::ASTRef ${k}_`).join(",")} ) 
-            : HYDROCARBON::Node(), ${assigned_kv.map(([k, b]) => `${k}(${k}_)`).join(",")} {}
+            : ${base_enum_type ? `BASE(${base_enum_type}::${base_enum_name})` : `HYDROCARBON::NODE()`}, ${assigned_kv.map(([k, b]) => `${k}(${k}_)`).join(",")} {}
         };`;
 
         cpp_classes.push(class_);
     }
 
-    grammar.cpp_classes = cpp_classes;
+    grammar.cpp.classes = cpp_classes;
 }
 
 function groupEnums(s) {
 
     const enum_keys = [];
 
-
     for (const key in s.properties) {
 
         const val = s.properties[key];
 
-        if (val.__type__ == "enum")
+        if (val.type == "ENUM")
             enum_keys.push(key);
     }
 
@@ -252,14 +302,12 @@ function groupEnums(s) {
 function processClassInfo(class_name: string, class_values: CPPTokenClass[], grammar: HCG3Grammar) {
 
     const
-        cardinal_class = { __type__: "class", cardinal_name__: class_name, properties: {} },
+        cardinal_class = { type: "class", cardinal_name__: class_name, properties: {} },
         key_vals = new Map;
 
     for (const class_value of class_values) {
 
-        const { __b_id__, properties } = class_value;
-
-        grammar.bodies[__b_id__].cpp_value = class_value;
+        const { properties } = class_value;
 
         let i = 0;
 
@@ -272,7 +320,7 @@ function processClassInfo(class_name: string, class_values: CPPTokenClass[], gra
                 const index = properties[key].type == "ENUM" ? -1 : i++;
 
                 cardinal_class.properties[key] = {
-                    type: properties[key].type, index, type_name: (properties[key].type_name ?? "").toUpperCase(), default_val: properties[key].default_val
+                    type: properties[key].type, index, type_name: (properties[key].type_name ?? ""), default_val: properties[key].default_val
                 };
             }
         }
@@ -294,15 +342,14 @@ function processClassInfo(class_name: string, class_values: CPPTokenClass[], gra
         class_value.cardinal_name__ = class_name;
     }
 
-
     return { key_vals, cardinal_class };
 }
 
-function convertObjectLiteralNodeToCPPClassNode(class_info: CPPTokenClass, obj_literal: JSObjectLiteral, body: HCG3ProductionBody) {
+function convertObjectLiteralNodeToCPPClassNode(obj_literal: JSObjectLiteral, body: HCG3ProductionBody) {
 
-    class_info.__type__ = "class";
+    const class_info: CPPTokenClass = { type: "cpp_class_constructor", __type__: "class", cardinal_name__: "", enums: {}, properties: {}, type_name: "" };
 
-    const data = class_info.properties = {};
+    const data = class_info.properties;
 
     for (const node of obj_literal.nodes) {
 
@@ -316,9 +363,9 @@ function convertObjectLiteralNodeToCPPClassNode(class_info: CPPTokenClass, obj_l
             let cpp_class_member = data[key.value];
 
             if (!cpp_class_member)
-                cpp_class_member = data[key.value] = {
+                cpp_class_member = data[key.value] = <ValType>{
                     stack_index: -1,
-                    type: null
+                    type: null, index: -1, __type__: "VAL", type_name: "", value: "", group: ""
                 };
 
             switch (val.type) {
@@ -336,11 +383,12 @@ function convertObjectLiteralNodeToCPPClassNode(class_info: CPPTokenClass, obj_l
                     break;
 
                 case JSNodeType.BooleanLiteral:
-
                     break;
 
                 case JSNodeType.IdentifierReference:
-                    data[key.value] = JSIdentifierRefToCPPVal(val, key.value, body);
+                    const type = JSIdentifierRefToCPPVal(val, key.value, body);
+                    if (type)
+                        data[key.value] = type;
                     break;
                 default:
                     throw new Error("Unable to convert type: " + JSNodeTypeLU[node.type] + " object object literal");
@@ -351,7 +399,7 @@ function convertObjectLiteralNodeToCPPClassNode(class_info: CPPTokenClass, obj_l
 
     return class_info;
 }
-function JSIdentifierRefToCPPVal(val: JSIdentifierReference, type_name: string, body: HCG3ProductionBody) {
+function JSIdentifierRefToCPPVal(val: JSIdentifierReference, type_name: string, body: HCG3ProductionBody): void | EnumType | ValType {
     const ref = val.value;
 
     if (ref[0] == "$") {
@@ -360,7 +408,7 @@ function JSIdentifierRefToCPPVal(val: JSIdentifierReference, type_name: string, 
             converted_ref = converted_ref.slice(1);
 
         if (converted_ref == "NULL") {
-            return { type: "VAL", stack_index: -1, index: -1 };
+            return <ValType>{ type: "VAL", stack_index: -1, index: -1, __type__: "VAL", type_name: "", value: "", group: "" };
         } else {
             const val = parseInt(converted_ref);
 
@@ -372,9 +420,9 @@ function JSIdentifierRefToCPPVal(val: JSIdentifierReference, type_name: string, 
             if (index >= 100)
                 index = body.sym.length - 1;
 
-            return { type: "VAL", stack_index: index, index: -1 };
+            return <ValType>{ type: "VAL", stack_index: index, index: -1, __type__: "VAL", type_name: "", value: "", group: "" };
         }
     } else if (ref.slice(0, 6) == "enum__") {
-        return { type: "ENUM", type_name, default_val: ref.slice(6) };
+        return <EnumType>{ type: "ENUM", type_name, default_val: ref.slice(6) };
     }
 }

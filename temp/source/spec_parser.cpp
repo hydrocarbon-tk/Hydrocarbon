@@ -1,7 +1,9 @@
 #include "../include/spec_parser.h" 
  namespace myParser { 
  using namespace HYDROCARBON; 
- int branch_0e449cbec7e337e6(Lexer& l, ParserData& data, ParserDataBuffer& db, unsigned int state, unsigned int prod, unsigned int prod_start){add_reduce( state, data, 3 );return prod_start;}
+ int branch_23533b88b98ddaf7(Lexer& l, ParserData& data, ParserDataBuffer& db, unsigned int state, unsigned int prod, unsigned int prod_start){add_reduce( state, data, 1, 4 );return $A_list_3_goto( l, data, db, state, 3, prod_start );}
+
+int branch_2775a71ce4f52201(Lexer& l, ParserData& data, ParserDataBuffer& db, unsigned int state, unsigned int prod, unsigned int prod_start){add_reduce( state, data, 3, 5 );return prod_start;}
 
 int branch_5918a25f46072194(Lexer& l, ParserData& data, ParserDataBuffer& db, unsigned int state, unsigned int prod, unsigned int prod_start){return 1;}
 
@@ -41,7 +43,7 @@ int $A(Lexer& l, ParserData& data, ParserDataBuffer& db, unsigned int state, uns
 
 int $B(Lexer& l, ParserData& data, ParserDataBuffer& db, unsigned int state, unsigned int prod, unsigned int prod_start){scan_c94a6e3624128cfe( l, data, state );if( l.type  == 3 ){consume( l, data, state );add_reduce( state, data, 1, 3 );return 2;};return - 1;}
 
-int $A_list_3(Lexer& l, ParserData& data, ParserDataBuffer& db, unsigned int state, unsigned int prod, unsigned int prod_start){pushFN( data, & branch_881813e0b3d55eb6, data.rules_ptr );return $B( l, data, db, state, data.rules_ptr, prod_start );}
+int $A_list_3(Lexer& l, ParserData& data, ParserDataBuffer& db, unsigned int state, unsigned int prod, unsigned int prod_start){pushFN( data, & branch_23533b88b98ddaf7, data.rules_ptr );return $B( l, data, db, state, data.rules_ptr, prod_start );}
 
-int $A_list_3_goto(Lexer& l, ParserData& data, ParserDataBuffer& db, unsigned int state, unsigned int prod, unsigned int prod_start){scan_4747dbfb51336a43( l, data, state );scan_1d8c1f9069fcd82e( l, data, state );if( l.type  == 13 ){pushFN( data, & branch_881813e0b3d55eb6, 0 );consume( l, data, state );pushFN( data, & branch_0e449cbec7e337e6, data.rules_ptr );return $B( l, data, db, state, data.rules_ptr, prod_start );};return ( prod  == 3 ) ? prod  : - 1;} 
+int $A_list_3_goto(Lexer& l, ParserData& data, ParserDataBuffer& db, unsigned int state, unsigned int prod, unsigned int prod_start){scan_4747dbfb51336a43( l, data, state );scan_1d8c1f9069fcd82e( l, data, state );if( l.type  == 13 ){pushFN( data, & branch_881813e0b3d55eb6, 0 );consume( l, data, state );pushFN( data, & branch_2775a71ce4f52201, data.rules_ptr );return $B( l, data, db, state, data.rules_ptr, prod_start );};return ( prod  == 3 ) ? prod  : - 1;} 
  }
