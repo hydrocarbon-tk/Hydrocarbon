@@ -1,4 +1,4 @@
-#include "../include/core_parser.h"
+#include "hc_cpp/include/core_parser.h"
 namespace HYDROCARBON
 {
     unsigned int action_ptr = 0;

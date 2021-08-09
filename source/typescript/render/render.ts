@@ -142,9 +142,7 @@ export async function generateCPPParser(
 
     const main_file = `
 #pragma once
-#include "./core_parser.h"
-#include "./node_base.h"
-#include "./parser_entry.h"
+#include "hc_cpp/include/hydrocarbon.h"
 #include "./spec_parser.h"
 
 namespace myParser {
@@ -185,7 +183,9 @@ namespace myParser {
         str.push(...[entry, goto, reduce].filter(i => i));
 
     await fsp.writeFile(spec_parser_header_file + '',
-        `#pragma once\n #include "./core_parser.h" \n namespace myParser { 
+        `#pragma once 
+#include "hc_cpp/include/hydrocarbon.h"
+namespace myParser { 
     using HYDROCARBON::Lexer;
     using HYDROCARBON::ParserData;
     using HYDROCARBON::ParserDataBuffer;    

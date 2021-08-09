@@ -11,6 +11,7 @@ int main()
   char input[] = "identifier ( APPLEJUICE, KRAKU ) { testmasson }";
 
   std::chrono::time_point<std::chrono::system_clock> start, end;
+  
   start = std::chrono::system_clock::now();
 
   ASTRef result = myParser::parse(input, sizeof(input) - 1);

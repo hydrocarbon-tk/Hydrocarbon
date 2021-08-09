@@ -1,4 +1,4 @@
-#include "../include/ast_ref.h"
+#include "hc_cpp/include/ast_ref.h"
 
 #include <string>
 #include <iostream>
@@ -35,22 +35,26 @@ void ASTRef::print(const char *input) const
         std::string out_string(&input[token_offset()], token_length());
 
         std::cout << out_string << std::endl;
-    }else if(isInvalidToken()){
+    }
+    else if (isInvalidToken())
+    {
 
         std::string out_string(&input[token_offset()], token_length());
 
-        std::cout << "Unexpected token [ " <<  out_string << " ]" << std::endl;
-        
-    } else
+        std::cout << "Unexpected token [ " << out_string << " ]" << std::endl;
+    }
+    else
     {
         std::cout << "ASTRef: " << store << std::endl;
     }
 }
 
-unsigned ASTRef::token_length() const {
+unsigned ASTRef::token_length() const
+{
     return (isToken() || isInvalidToken()) ? ((unsigned)((store >> 2) & 0x3FFF'FFFF)) : -1;
 }
 
-unsigned ASTRef::token_offset() const {
+unsigned ASTRef::token_offset() const
+{
     return (isToken() || isInvalidToken()) ? ((unsigned)((store >> 32) & 0xFFFF'FFFF)) : -1;
 }

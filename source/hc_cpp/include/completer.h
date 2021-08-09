@@ -1,8 +1,8 @@
 #pragma once
 
-#include "core_parser.h"
-#include "ast_ref.h"
-#include "type_defs.h"
+#include "./core_parser.h"
+#include "./ast_ref.h"
+#include "./type_defs.h"
 
 namespace HYDROCARBON
 {

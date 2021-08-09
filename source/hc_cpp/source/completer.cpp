@@ -1,4 +1,4 @@
-#include "../include/parser_entry.h"
+#include "hc_cpp/include/completer.h"
 
 namespace HYDROCARBON
 {

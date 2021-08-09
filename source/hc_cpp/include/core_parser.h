@@ -1,7 +1,7 @@
 #pragma once
-#include "char_lu_table.h"
-#include "ast_ref.h"
-#include "type_defs.h"
+#include "./character_lookup_table.h"
+#include "./ast_ref.h"
+#include "./type_defs.h"
 namespace HYDROCARBON
 {
     unsigned int getUTF8ByteLengthFromCodePoint(unsigned int);
