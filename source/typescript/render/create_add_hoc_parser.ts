@@ -1,6 +1,5 @@
-import { HCGParser } from "@candlelib/hydrocarbon/build/types/types/parser";
 import { Helper } from "../build/helper.js";
-import { ParserFactoryNext } from "../entry/hydrocarbon.js";
+import { HCGParser, ParserFactoryNext } from "../entry/hydrocarbon.js";
 import { initializeUTFLookupTableNewPlus } from "../runtime/parser_memory_new.js";
 import { HCG3Grammar } from "../types/grammar_nodes.js";
 import { ParserGenerator } from "../types/ParserGenerator";

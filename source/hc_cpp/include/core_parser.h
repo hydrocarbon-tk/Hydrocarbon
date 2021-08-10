@@ -1,6 +1,5 @@
 #pragma once
 #include "./character_lookup_table.h"
-#include "./ast_ref.h"
 #include "./type_defs.h"
 namespace HYDROCARBON
 {

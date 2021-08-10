@@ -47,7 +47,7 @@
         "@candlelib/wind": "0.5.3"
     },
     "devDependencies": {
-        "@types/node": "^13.7.6"
+        "@types/node": "^16.4.13"
     },
     "eslintConfig": {
         "parserOptions": {

@@ -1,9 +1,10 @@
 import URL from "@candlelib/uri";
 import fs from "fs";
 import { buildRecognizer } from "../build/library/build/build.js";
+import { ParserFactoryNext } from "../build/library/entry/hydrocarbon.js";
 import { compileGrammarFromString, compileGrammarFromURI } from "../build/library/grammar/compile.js";
-import { createAddHocParser } from "../build/library/render/create_add_hoc_parser.js";
 import { generateJSParser } from "../build/library/render/render.js";
+import { initializeUTFLookupTableNewPlus } from "../build/library/runtime/parser_memory_new.js";
 const fsp = fs.promises;
 
 /**
@@ -13,18 +14,20 @@ export async function compileJSParserFromGrammar(string_or_url, DEBUG = false, r
 
     const compiled_grammar = await compileGrammar(string_or_url);
 
-    const { recognizer_functions, meta } = await buildRecognizer(compiled_grammar, 1, true);
+    const { recognizer_functions, meta } = await buildRecognizer(compiled_grammar, 1, 1);
     const parser_string = await generateJSParser(compiled_grammar, recognizer_functions, meta, "", "return");
 
-    //await fsp.writeFile("./temp.js", parser_string);
-    return await createAddHocParser(compiled_grammar, recognizer_functions, meta);
+    await fsp.writeFile("./temp.js", parser_string);
+
+    return new Function("ParserFactory", "memInit", parser_string,)(ParserFactoryNext, initializeUTFLookupTableNewPlus);
+    //return await createAddHocParser(compiled_grammar, recognizer_functions, meta);
 }
 
 export async function compileJSParserStringFromGrammar(string_or_url, DEBUG = false, recognizer_type = "js") {
 
     const compiled_grammar = await compileGrammar(string_or_url);
 
-    const { recognizer_functions, meta } = await buildRecognizer(compiled_grammar, 1, true);
+    const { recognizer_functions, meta } = await buildRecognizer(compiled_grammar, 1, false);
     const parser_string = await generateJSParser(compiled_grammar, recognizer_functions, meta, "", "return");
 
     await fsp.writeFile("./temp.js", parser_string);

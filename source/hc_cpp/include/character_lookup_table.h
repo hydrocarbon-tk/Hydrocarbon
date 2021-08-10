@@ -6,6 +6,8 @@ namespace HYDROCARBON
 
   static const int jump8bit_table_byte_size = 382976;
 
+#ifndef INIT_TABLE_EXTERNALLY
+
   /* Unicode character class definitions */
   static const int uni_id_start_discrete[] = {
       170, 181, 186, 748, 750, 895, 902, 908, 1369,
@@ -288,7 +290,9 @@ namespace HYDROCARBON
 
     return jump_table;
   }
-
   extern const CHAR_LU_TYPE char_lu_table;
+#else
+  extern unsigned char *char_lu_table;
+#endif
 
 } // namespace HYDROCARBON

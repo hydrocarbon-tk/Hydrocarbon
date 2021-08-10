@@ -3,25 +3,17 @@
  * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
  * disclaimer notice.
  */
-import { Helper } from "../build/helper.js";
-import { jump8bit_table_byte_size } from "../runtime/parser_memory_new.js";
 import { TokenTypes } from "../runtime/TokenTypes.js";
 import { parser } from "../skribble/skribble.js";
 import { SKModule } from "../skribble/types/node.js";
-import { HCG3Grammar } from "../types/grammar_nodes.js";
-import { RDProductionFunction } from "../types/rd_production_function.js";
-import { getProductionFunctionNameSk } from "../utilities/code_generating.js";
 
 export const NULL_STATE = 0;
 export const UNICODE_ID_CONTINUE = 32;
 export const UNICODE_ID_START = 64;
 export const STATE_ALLOW_SKIP = 1;
 export const STATE_ALLOW_OUTPUT = 2;
-export const renderSkribbleRecognizer = (
-    INCLUDE_LU_TABLE_INITS: boolean = true
-): SKModule => {
+export const renderSkribbleRecognizer = (): SKModule => {
     const val = <SKModule>parser(`
-${INCLUDE_LU_TABLE_INITS ? "[static new] char_lu_table : __u8$ptr;" : ""}
 
 [static] action_ptr: u32 = 0;
 [static pub] data_array_len :u32 = 0;
@@ -676,14 +668,6 @@ fn run:i32(origin:__ParserData$ptr,  resolved:__ParserData$ptr$ptr, resolved_len
     return : resolved_len 
 }
 
-`);
-    return val;
-};
-
-export function createExternFunctions(
-    INCLUDE_LU_TABLE_INITS: boolean = true
-) {
-    return <SKModule>parser(`
 fn clear_data:void () {
 
     [mut]curr: __ParserData$ptr  = root_data;
@@ -717,7 +701,7 @@ fn clear_data:void () {
     data_array_len = 0;
 }
 
-[extern]fn init_data:void(
+fn init_data:void(
     input_buffer: __u8$ptr,
     input_len:u32, 
     rules_len:u32 
@@ -733,16 +717,7 @@ fn clear_data:void () {
     data_array[0] = data;
 }
 
-${INCLUDE_LU_TABLE_INITS ?
-            `[extern] fn init_table:__u8$ptr(){ 
-    [new] table: array_u8 = array_u8(${jump8bit_table_byte_size});
-
-    char_lu_table = table;
-
-    return: char_lu_table;  
-}`: ""}
-
-[extern]fn get_fork_pointers:__DataRef$ptr$ptr(){
+fn get_fork_pointers:__DataRef$ptr$ptr(){
 
     [mut] i:u32 = 0;
     loop( ; i < out_array_len; i++){
@@ -764,8 +739,6 @@ ${INCLUDE_LU_TABLE_INITS ?
 
     return: fork_array;
 }
-
-
 
 fn block64Consume:i32(data:__ParserData$ptr, block:array_u16, offset:u32, block_offset:u32, limit:u32) {
     //Find offset block
@@ -798,7 +771,7 @@ fn block64Consume:i32(data:__ParserData$ptr, block:array_u16, offset:u32, block_
     return: 0;
 }
 
-[extern] fn get_next_command_block:__u16$ptr(fork:__DataRef$ptr) {
+fn get_next_command_block:__u16$ptr(fork:__DataRef$ptr) {
 
     [const] fork_ref:__DataRef$ref = *>fork;
 
@@ -816,7 +789,7 @@ fn block64Consume:i32(data:__ParserData$ptr, block:array_u16, offset:u32, block_
     return : fork_ref.command_block;
 }
 
-[extern] fn recognize:u32(
+fn recognize:u32(
     input_byte_length:u32, 
     production:u32,
     sequence_lu: __u8$ptr,
@@ -838,4 +811,5 @@ fn block64Consume:i32(data:__ParserData$ptr, block:array_u16, offset:u32, block_
     
     return: out_array_len;
 }`);
-}
+    return val;
+};

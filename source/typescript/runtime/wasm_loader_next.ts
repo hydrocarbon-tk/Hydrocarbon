@@ -3,8 +3,8 @@
  * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
  * disclaimer notice.
  */
+import { ForkData, RecognizeInitializer } from "../types/parser_data";
 import { jump8bit_table_byte_size } from "./parser_memory_new.js";
-import { ParserData, ForkData, RecognizeInitializer } from "../types/parser_data";
 
 function get4AlignedOffset(request_size: number) {
     return (4 - request_size % 4) + request_size;
@@ -123,7 +123,7 @@ export async function loadWASM(source: BufferSource): Promise<RecognizeInitializ
             return previous_command_block;
         },
 
-        init_data(input_len: number, rules_len: number, error_len: number) {
+        init_data(input_len: number, rules_len: number) {
             //Automatically clear all allocated data.
             allocation_head = 0;
 
@@ -131,7 +131,7 @@ export async function loadWASM(source: BufferSource): Promise<RecognizeInitializ
 
             previous_fork_reference = null;
 
-            const input_ptr = wasm_init_data(input_len, rules_len, error_len);
+            const input_ptr = wasm_init_data(input_len, rules_len);
 
             return new Uint8Array(memory_buffer, input_ptr, input_len);
         },

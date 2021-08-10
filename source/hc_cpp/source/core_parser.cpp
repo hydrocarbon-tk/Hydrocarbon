@@ -385,7 +385,7 @@ namespace HYDROCARBON
     {
         if (tok_len < 0)
             return;
-        ;
+
         if (tok_len > 0x1FFF)
         {
             unsigned int low = 1 | (1 << 2) | ((tok_len >> 13) & 0xFFF8);
@@ -558,25 +558,31 @@ namespace HYDROCARBON
     {
         ParserData *containing_data = data;
         int end = (*containing_data).origin_fork + (*data).rules_ptr;
+
         while (((*containing_data).origin_fork > offset))
         {
             end = (*containing_data).origin_fork;
             containing_data = (*containing_data).origin;
         };
+
         int start = (*containing_data).origin_fork;
+
         offset -= start;
+
         end -= start;
+
         unsigned int ptr = offset;
+
         if ((ptr >= end))
             return limit - block_offset;
-        ;
+
         while ((block_offset < limit))
         {
             block[block_offset++] = (*containing_data).rules[ptr++];
             if ((ptr >= end))
                 return block64Consume(data, block, ptr + start, block_offset, limit);
-            ;
         };
+
         return 0;
     }
     unsigned short *get_next_command_block(DataRef *fork)
