@@ -28,6 +28,20 @@ int ASTRef::size() const { return isVector() ? toVectorPtr()->size() : -1; }
 
 ASTRef::ASTRefVector *ASTRef::toVectorPtr() const { return isVector() ? (ASTRef::ASTRefVector *)(store & PtrMask) : nullptr; }
 
+ASTRef::TYPE ASTRef::getType() const {
+    if(isNull())
+        return TYPE::Null;
+    if(isToken())
+        return TYPE::TOKEN;
+    if(isInvalidToken())
+        return TYPE::INVALID_TOKEN;
+    if(isNode())
+        return TYPE::NODE;
+    if(isVector())
+        return TYPE::VECTOR;
+    return TYPE::Null;
+}
+
 void ASTRef::print(const char *input) const
 {
     if (isToken())
@@ -49,6 +63,29 @@ void ASTRef::print(const char *input) const
         std::cout << "ASTRef: " << store << std::endl;
     }
 }
+
+void ASTRef::printType() const
+{
+
+    switch(getType()){
+        case TYPE::INVALID_TOKEN:
+            std::cout << "INVALID_TOKEN" << std::endl;
+            break;
+        case TYPE::TOKEN:
+            std::cout << "TOKEN" << std::endl;
+            break;
+        case TYPE::Null:
+            std::cout << "NULL" << std::endl;
+            break;
+        case TYPE::NODE:
+            std::cout << "NODE" << std::endl;
+            break;
+        case TYPE::VECTOR:
+            std::cout << "VECTOR" << std::endl;
+            break;
+    }
+}
+
 
 unsigned ASTRef::token_length() const
 {

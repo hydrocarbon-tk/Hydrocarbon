@@ -39,11 +39,20 @@ namespace HYDROCARBON
       */
      typedef struct ASTRef
      {
-
+          
           typedef std::vector<ASTRef> ASTRefVector;
 
+          enum TYPE
+          {
+               NODE,
+               TOKEN,
+               INVALID_TOKEN,
+               Null,
+               VECTOR
+          };
+
      private:
-          u64 store;
+           u64 store;
 
      public:
           ASTRef() : store(0) {}
@@ -87,6 +96,18 @@ namespace HYDROCARBON
           };
 
           void print(const char *) const;
+          /**
+           * Returns enum val ASTRef::TYPE representing the type 
+           * of the underlying resource;
+           * One of: NODE | TOKEN | INVALID_TOKEN | NULL | VECTOR
+           */
+          TYPE getType() const;
+
+          /**
+           * Print the type of the underlying resource. 
+           * One of: NODE | TOKEN | INVALID_TOKEN | NULL | VECTOR
+           */
+          void printType() const;
 
           // Token Code ------------------------------------------------
           /**
