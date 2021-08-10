@@ -4,13 +4,10 @@
  * disclaimer notice.
  */
 import crypto from "crypto";
-import { types } from "../../../../../../../projects/lib_candle_library/node_modules/@candlelib/css/build/types/properties/property_and_type_definitions.js";
 import { Helper } from "../build/helper.js";
 import {
     getSkippableSymbolsFromItems,
-    getSymbolsFromClosure,
-    getTokenSymbolsFromItems,
-    getUniqueSymbolName,
+    getSymbolsFromClosure, getUniqueSymbolName,
     Sym_Is_A_Generic_Type,
     Sym_Is_A_Production_Token,
     Sym_Is_Defined,
@@ -20,7 +17,7 @@ import {
     Sym_Is_Look_Behind,
     Sym_Is_Virtual_Token
 } from "../grammar/nodes/symbol.js";
-import { NULL_STATE } from "../render/skribble_recognizer_template.js";
+import { NULL_STATE, STATE_ALLOW_SKIP } from "../render/skribble_recognizer_template.js";
 import { sk, skRenderAsSK } from "../skribble/skribble.js";
 import {
     SKCall,
@@ -28,9 +25,7 @@ import {
     SKFunction,
     SKIdentifierReference,
     SKIf,
-    SKNode,
-    SKOperatorExpression,
-    SKPrimitiveDeclaration,
+    SKNode, SKPrimitiveDeclaration,
     SKReference
 } from "../skribble/types/node.js";
 import {
@@ -60,10 +55,10 @@ export const createReduceFunctionSK = (item: Item, grammar: HCG3Grammar): SKCall
 export const createDefaultReduceFunctionSk =
     (item: Item): SKCall => <SKCall>sk`add_reduce(state, data, ${item.len})`;
 
-export function getProductionFunctionName(production: HCG3Production, grammar: HCG3Grammar): string {
+export function getProductionFunctionName(production: HCG3Production): string {
     return "$" + production.name;
 }
-export const getProductionFunctionNameSk = (production: HCG3Production, grammar: HCG3Grammar): string => "$" + production.name;
+export const getProductionFunctionNameSk = (production: HCG3Production): string => "$" + production.name;
 
 export const createConsumeSk = (lex_name: string): SKCall => <SKCall>sk`consume(${lex_name}, data, state)`;
 
@@ -122,7 +117,7 @@ export function createSkipCall(
     const skip = getSkipFunctionNew(symbols, options, undefined, exclude);
 
     if (skip)
-        return <SKExpression>sk`${skip}(${lex_name}/*${symbols.map(s => `[ ${s.val} ]`).join("")}*/, data, ${!peek ? USE_NUMBER ? 0xFFFFFF : "state" : "STATE_ALLOW_SKIP"});\n`;
+        return <SKExpression>sk`${skip}(${lex_name}/*${symbols.map(s => `[ ${s.val} ]`).join("")}*/, data, ${!peek ? USE_NUMBER ? 0xFFFFFF : "state" : STATE_ALLOW_SKIP});\n`;
 
     return null;
 }
@@ -686,7 +681,7 @@ export function createScanFunctionCall(
 ): SKExpression {
 
     const scan = createItemScanFunction(items, options, PEEK, extra_symbols);
-    return <SKExpression>sk`${scan}(${lex_name}, data, ${!PEEK ? "state" : "STATE_ALLOW_SKIP"});`;
+    return <SKExpression>sk`${scan}(${lex_name}, data, ${!PEEK ? "state" : STATE_ALLOW_SKIP});`;
 }
 export function createSymbolScanFunctionCall(
     symbols: TokenSymbol[],
@@ -696,7 +691,7 @@ export function createSymbolScanFunctionCall(
 ): SKExpression {
 
     const scan = createSymbolScanFunction(symbols, options, PEEK);
-    return <SKExpression>sk`${scan}(${lex_name}, data, ${!PEEK ? "state" : "STATE_ALLOW_SKIP"});`;
+    return <SKExpression>sk`${scan}(${lex_name}, data, ${!PEEK ? "state" : STATE_ALLOW_SKIP});`;
 }
 export function getSkipFunctionNew(
     skip_symbols: TokenSymbol[],

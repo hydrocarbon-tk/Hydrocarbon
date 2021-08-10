@@ -13,10 +13,10 @@ import { RDProductionFunction } from "../types/rd_production_function.js";
 import { getProductionFunctionNameSk } from "../utilities/code_generating.js";
 
 export const NULL_STATE = 0;
-const UNICODE_ID_CONTINUE = 32;
-const UNICODE_ID_START = 64;
-const STATE_ALLOW_SKIP = 1;
-const STATE_ALLOW_OUTPUT = 2;
+export const UNICODE_ID_CONTINUE = 32;
+export const UNICODE_ID_START = 64;
+export const STATE_ALLOW_SKIP = 1;
+export const STATE_ALLOW_OUTPUT = 2;
 export const renderSkribbleRecognizer = (
     INCLUDE_LU_TABLE_INITS: boolean = true
 ): SKModule => {

@@ -152,11 +152,11 @@ namespace myParser {
     enum class ${getEnumTypeName(grammar.enums.name)} : unsigned {
 
         UNDEFINED,
-        ${grammar.enums.keys.map(k => k.toUpperCase()).join(",\n")}
+        ${grammar.enums.keys.map(k => k).join(",\n")}
     };
     ${skRenderAsCPP(sk`[static new] sequence_lookup : array_u8 = a(${grammar.sequence_string.split("").map(s => s.charCodeAt(0)).join(",")})`)};
 
-    ${grammar.cpp.classes.join(";\n\n")}
+    ${grammar.cpp.classes.join(";\n\n")};
     
     HYDROCARBON::ReduceFunction reduce_functions[] = ${renderCPPReduceFunctionLookupArray(grammar)};
     
@@ -165,7 +165,7 @@ namespace myParser {
             utf8_encoded_input, 
             ut8_byte_length,
             sequence_lookup, 
-            $start,
+            ${getProductionFunctionNameSk(grammar.productions[0])},
             myParser::reduce_functions
             );
         }

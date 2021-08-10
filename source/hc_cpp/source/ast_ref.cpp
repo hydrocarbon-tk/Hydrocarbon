@@ -41,7 +41,8 @@ void ASTRef::print(const char *input) const
 
         std::string out_string(&input[token_offset()], token_length());
 
-        std::cout << "Unexpected token [ " << out_string << " ]" << std::endl;
+        std::cout << "Unexpected token [ " << out_string << " ]"
+                  << "\n at offset: " << token_offset() << std::endl;
     }
     else
     {

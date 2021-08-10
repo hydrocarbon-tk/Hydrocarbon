@@ -169,7 +169,7 @@ namespace HYDROCARBON
 
           // Conversion operators ------------------------------------------------
 
-          operator bool() const { return store == 0; };
+          operator bool() const { return !isNull(); };
 
           template <typename T>
           operator T *() const { return toNode<T>(); }
