@@ -80,8 +80,9 @@ export function default_resolveResolvedLeaf(item: Item, state: TransitionNode, o
 
             ({ leaf_node, prods, INDIRECT, original_prods } = renderItem(code, item, options,
                 ((item.offset > 0 || options.scope != "GOTO") &&
-                    state.transition_type == TRANSITION_TYPE.ASSERT_PRODUCTION_CALL ||
-                    state.transition_type == TRANSITION_TYPE.ASSERT_PRODUCTION_SYMBOLS) ||
+                    (state.transition_type == TRANSITION_TYPE.PEEK_PRODUCTION_SYMBOLS ||
+                        state.transition_type == TRANSITION_TYPE.ASSERT_PRODUCTION_CALL ||
+                        state.transition_type == TRANSITION_TYPE.ASSERT_PRODUCTION_SYMBOLS)) ||
                 (state.transition_type == TRANSITION_TYPE.ASSERT
                     || state.transition_type == TRANSITION_TYPE.ASSERT_PEEK
                     || state.transition_type == TRANSITION_TYPE.ASSERT_PEEK_VP)));

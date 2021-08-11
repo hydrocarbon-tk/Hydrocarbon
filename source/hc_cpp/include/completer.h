@@ -6,10 +6,9 @@
 
 namespace HYDROCARBON
 {
-    ASTRef parserCore(char *, unsigned long, unsigned char *, StackFunction,
-                      ReduceFunction *);
+    ASTRef parserCore(char *, unsigned long, StackFunction, ReduceFunction *);
 
     ASTRef createInvalidParseASTRef(DataRef &);
 
-    ASTRef convertForkToASTRef(DataRef &, ReduceFunction *);
+    ASTRef convertForkToASTRef(DataRef &, ReduceFunction *, char *);
 } // namespace HYDROCARBON

@@ -90,7 +90,7 @@ export function renderItem(
                 rc = [];
 
             rc.push(sk`pushFN(data, &> ${call_name}, data.rules_ptr)`);
-            rc.push(sk`return : ${getProductionFunctionName(production, grammar)}(l, data,db,state,data.rules_ptr,prod_start);`);
+            rc.push(sk`return : ${getProductionFunctionName(production)}(l, data,db,state,data.rules_ptr,prod_start);`);
             if (RENDER_WITH_NO_CHECK) {
                 leaf_expressions.push(...rc);
             } else {
@@ -98,7 +98,7 @@ export function renderItem(
                 const symbols = getTokenSymbolsFromItems(getClosure([item], grammar), grammar);
 
 
-                const _if = <SKIf & { expression: SKBlock; }>sk`if (${getIncludeBooleans(symbols, lex_name)}) : {}`;
+                const _if = <SKIf & { expression: SKBlock; }>sk`if (${getIncludeBooleans(symbols, grammar, lex_name)}) : {}`;
 
                 _if.expression.expressions = rc;
 
@@ -121,7 +121,7 @@ export function renderItem(
             } else {
                 RENDER_WITH_NO_CHECK = false;
 
-                const _if = <SKIf & { expression: SKBlock; }>sk`if (${getIncludeBooleans([sym], lex_name)}) : {}`;
+                const _if = <SKIf & { expression: SKBlock; }>sk`if (${getIncludeBooleans([sym], grammar, lex_name)}) : {}`;
 
                 leaf_expressions.push(_if);
                 if (Sym_Is_Not_Consumed(sym))

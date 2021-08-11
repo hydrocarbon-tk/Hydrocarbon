@@ -7,6 +7,7 @@ namespace HYDROCARBON
     unsigned int utf8ToCodePoint(unsigned int, unsigned char *);
     unsigned int getTypeAt(unsigned int);
     unsigned int createState(unsigned int);
+
     class ParserData
     {
     public:
@@ -19,9 +20,9 @@ namespace HYDROCARBON
         unsigned int input_len = 0;
         unsigned int rules_len = 0;
         unsigned int origin_fork = 0;
+        unsigned int active_token_productions = 0;
         unsigned short *rules;
         unsigned char *input;
-        unsigned char *sequence;
         StackFunction stack[256] = {0};
         unsigned int stash[256] = {0};
         ParserData *origin;
@@ -81,7 +82,9 @@ namespace HYDROCARBON
         Lexer &next(ParserData &);
         bool END(ParserData &);
     };
-    unsigned int compare(ParserData &, unsigned int, unsigned int, unsigned int);
+
+    unsigned int token_production(Lexer &, ParserData &, StackFunction, u32, u32, u32);
+    unsigned int compare(ParserData &, unsigned int, unsigned int, unsigned int, unsigned char *);
     ParserData *create_parser_data_object(unsigned char *, unsigned int, unsigned int);
     ParserData *fork(ParserData &, ParserDataBuffer &);
     bool isOutputEnabled(unsigned int);
@@ -101,5 +104,5 @@ namespace HYDROCARBON
     DataRef **get_fork_pointers();
     int block64Consume(ParserData *, unsigned short *, unsigned int, unsigned int, unsigned int);
     unsigned short *get_next_command_block(DataRef *);
-    unsigned int recognize(unsigned int, unsigned int, unsigned char *, StackFunction);
+    unsigned int recognize(unsigned int, unsigned int, StackFunction);
 }

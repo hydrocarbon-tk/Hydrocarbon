@@ -16,7 +16,7 @@ import {
 } from "../../grammar/nodes/symbol.js";
 import { sk } from "../../skribble/skribble.js";
 import { SKBlock, SKExpression, SKIf, SKMatch, SKReturn } from "../../skribble/types/node";
-import { HCG3Symbol, TokenSymbol } from "../../types/grammar_nodes";
+import { HCG3Grammar, HCG3Symbol, TokenSymbol } from "../../types/grammar_nodes";
 import { RenderBodyOptions } from "../../types/render_body_options";
 import { TransitionClauseGenerator, TransitionGroup } from "../../types/transition_generating";
 import { TransitionNode, TRANSITION_TYPE } from "../../types/transition_node.js";
@@ -180,7 +180,7 @@ function createIfElseExpressions(
                     });
                 } else {
 
-                    assertion_boolean = getIncludeBooleans(syms);
+                    assertion_boolean = getIncludeBooleans(syms, grammar);
 
                     addIf(createIfStatementTransition(options, group, code, assertion_boolean, FORCE_ASSERTIONS, "Assert End"));
                 }
@@ -212,7 +212,7 @@ function createIfElseExpressions(
 
                 if (FIRST_SYMBOL_IS_A_PRODUCTION && !FIRST_SYMBOL_IS_A_PRODUCTION_TOKEN) throw new Error("WTF");
 
-                assertion_boolean = getIncludeBooleans(<TokenSymbol[]>syms, peek_name);
+                assertion_boolean = getIncludeBooleans(<TokenSymbol[]>syms, grammar, peek_name);
 
                 let scr = code;
 
@@ -267,18 +267,18 @@ function createIfElseExpressions(
 
                 code.unshift(createConsumeSk(lex_name));
 
-                shiftNonConsumeExpression(code, syms, lex_name);
+                shiftNonConsumeExpression(code, syms, grammar, lex_name);
 
                 expressions = code;
                 break;
 
             case TRANSITION_TYPE.ASSERT_CONSUME:
 
-                assertion_boolean = getIncludeBooleans(<TokenSymbol[]>syms, lex_name);
+                assertion_boolean = getIncludeBooleans(<TokenSymbol[]>syms, grammar, lex_name);
 
                 code.unshift(createConsumeSk("l"));
 
-                shiftNonConsumeExpression(code, syms, lex_name);
+                shiftNonConsumeExpression(code, syms, grammar, lex_name);
 
                 addIf(createIfStatementTransition(options, group, code, assertion_boolean, FORCE_ASSERTIONS, "Assert Consume"));
 
@@ -292,14 +292,14 @@ function createIfElseExpressions(
 
 }
 
-function shiftNonConsumeExpression(sk_expr_list: SKExpression[], syms: TokenSymbol[], lex_name: string = "l") {
+function shiftNonConsumeExpression(sk_expr_list: SKExpression[], syms: TokenSymbol[], grammar: HCG3Grammar, lex_name: string = "l") {
     const non_consume = syms.filter(Sym_Is_Not_Consumed);
 
     if (non_consume.length > 0) {
         if (non_consume.length == syms.length) {
             sk_expr_list.unshift(<SKExpression>sk`${lex_name}.setToken(${lex_name}.type, 0, 0)`);
         } else {
-            sk_expr_list.unshift(<SKExpression>sk`if (${getIncludeBooleans([sym], lex_name)}) : ${lex_name}.setToken(${lex_name}.type, 0, 0);`);
+            sk_expr_list.unshift(<SKExpression>sk`if (${getIncludeBooleans([sym], grammar, lex_name)}) : ${lex_name}.setToken(${lex_name}.type, 0, 0);`);
         }
     }
 }

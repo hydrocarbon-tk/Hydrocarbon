@@ -8,7 +8,7 @@ import { Helper } from "../build/helper.js";
 import { getEnumTypeName } from "../grammar/passes/process_cpp_code.js";
 import { jump8bit_table_byte_size } from "../runtime/parser_memory_new.js";
 import { sk, skRenderAsCPP, skRenderAsCPPDeclarations, skRenderAsCPPDefinitions, skRenderAsJavaScript, skRenderAsTypeScript } from "../skribble/skribble.js";
-import { SKExpression, SKNode } from "../skribble/types/node.js";
+import { SKExpression, SKFunction, SKNode } from "../skribble/types/node.js";
 import { HCG3Grammar } from "../types/grammar_nodes.js";
 import { ParserGenerator } from "../types/ParserGenerator.js";
 import { RDProductionFunction } from "../types/rd_production_function.js";
@@ -103,6 +103,8 @@ export async function generateCPPParser(
 ): Promise<string> {
 
     const
+        grammar_namespace = "myParser",
+
         fs = (await import("fs")).default,
 
         fsp = fs.promises,
@@ -128,7 +130,7 @@ export async function generateCPPParser(
 #include "hc_cpp/include/hydrocarbon.h"
 #include "./spec_parser.h"
 
-namespace myParser {
+namespace ${grammar_namespace} {
 
     using HYDROCARBON::ASTRef;
 
@@ -137,7 +139,7 @@ namespace myParser {
         UNDEFINED,
         ${grammar.enums.keys.map(k => k).join(",\n")}
     };
-    ${skRenderAsCPP(createSequenceArraySk(grammar))};
+    
 
     ${grammar.cpp.classes.join(";\n\n")};
     
@@ -147,28 +149,29 @@ namespace myParser {
         return parserCore(
             utf8_encoded_input, 
             ut8_byte_length,
-            sequence_lookup, 
             ${getProductionFunctionNameSk(grammar.productions[0])},
             myParser::reduce_functions
             );
         }
 }`;
     await fsp.writeFile(entry_header_file + '', main_file);
+
+
     //*/
     //Spec Files
     //*
 
-    const token_lookup_functions = createSymbolScanFunctionNew({
-        grammar: grammar,
-        helper: meta
-    }).map(skRenderAsCPP).join("\n\n");
+    const
+        sym_map = new Map(),
 
-    const { const: constants_a, fn: const_functions_a } = meta.render_constants();
+        token_lookup_functions = extractAndReplaceTokenMapRefs(createSymbolScanFunctionNew({
+            grammar: grammar,
+            helper: meta
+        }).map(skRenderAsCPP).join("\n\n"), sym_map),
 
-    const grammar_functions = [...constants_a, ...const_functions_a];
+        grammar_functions = createGrammarFunctionArray(meta, recognizer_functions),
 
-    for (const { entry, goto, reduce } of recognizer_functions)
-        grammar_functions.push(...[entry, goto, reduce].filter(i => i));
+        functions_string = extractAndReplaceTokenMapRefs(grammar_functions.map(skRenderAsCPP).join("\n\n"), sym_map);
 
     await fsp.writeFile(spec_parser_header_file + '',
         `#pragma once 
@@ -179,19 +182,12 @@ namespace myParser {
     using HYDROCARBON::ParserDataBuffer;    
 \n ${grammar_functions.map(skRenderAsCPPDeclarations).join("\n\n")} \n }`);
 
-    const
-        sym_map = new Map,
-        functions_string = grammar_functions.map(skRenderAsCPP).join("\n\n").replace(/symbollookup(\_\d+)+/g, (a, b, c) => {
-            if (!sym_map.has(a)) {
-                sym_map.set(a, sym_map.size);
-            }
-            return sym_map.get(a);
-        });
 
     await fsp.writeFile(spec_parser_source_file + '', `#include "../include/spec_parser.h" 
- namespace myParser { 
+ namespace ${grammar_namespace} { 
      using namespace HYDROCARBON; 
     ${skRenderAsCPP(createTokenLUSK(sym_map))};
+    ${skRenderAsCPP(createSequenceArraySk(grammar))};
     ${skRenderAsCPP(createActiveTokenSK(grammar))}
     ${token_lookup_functions}
      ${functions_string} 
@@ -227,24 +223,20 @@ export async function generateWebAssemblyParser(
 
         script_file = URI.resolveRelative("./scripts/build.sh", package_dir.dir),
 
-        { const: constants_a, fn: const_functions_a } = meta.render_constants(),
+        sym_map = new Map(),
 
-        grammar_functions = [...constants_a, ...const_functions_a];
+        token_lookup_functions = extractAndReplaceTokenMapRefs(createSymbolScanFunctionNew({
+            grammar: grammar,
+            helper: meta
+        }).map(skRenderAsCPP).join("\n\n"), sym_map),
 
-    for (const { entry, goto, reduce } of recognizer_functions)
-        grammar_functions.push(...[entry, goto, reduce].filter(i => i));
+        grammar_functions = createGrammarFunctionArray(meta, recognizer_functions),
 
-    const sym_map = new Map();
-    const functions_string = grammar_functions.map(skRenderAsCPP).join("\n\n").replace(/symbollookup(\_\d+)+/g, (a, b, c) => {
-        if (!sym_map.has(a)) {
-            sym_map.set(a, sym_map.size);
-        }
-        return sym_map.get(a);
-    });
+        functions_string = extractAndReplaceTokenMapRefs(grammar_functions.map(skRenderAsCPP).join("\n\n"), sym_map),
 
-    //Build WASM Data segment ----------------------------------------------------
+        //Build WASM Data segment ----------------------------------------------------
 
-    const cpp_entry_content = `
+        cpp_entry_content = `
 // The character lookup table will be initialized externally,
 // removing the need to include the need to use the lu_character_file;
 #define INIT_TABLE_EXTERNALLY
@@ -258,16 +250,11 @@ using HYDROCARBON::ParserData;
 using HYDROCARBON::ParserDataBuffer; 
 using HYDROCARBON::isOutputEnabled; 
 
-${skRenderAsCPP(createTokenLUSK(sym_map))}
-        
+${grammar_functions.map(skRenderAsCPPDeclarations).join("\n\n")};
+
+${skRenderAsCPP(createTokenLUSK(sym_map))};
 ${skRenderAsCPP(createActiveTokenSK(grammar))}
-
-${createSymbolScanFunctionNew({
-        grammar: grammar,
-        helper: meta
-    }).map(skRenderAsCPP).join("\n\n")}
-
-${grammar_functions.map(skRenderAsCPPDeclarations).join("\n\n")}
+${token_lookup_functions}
 
 ${functions_string}
 
@@ -308,12 +295,12 @@ extern "C" {
 
         switch(production){
             ${recognizer_functions.filter(f => f.RENDER && grammar.productions[f.id].IS_ENTRY)
-            .map((fn, i) => {
+                .map((fn, i) => {
 
-                const name = getProductionFunctionNameSk(grammar.productions[fn.id]);
+                    const name = getProductionFunctionNameSk(grammar.productions[fn.id]);
 
-                return `case ${i} : return HYDROCARBON::recognize(byte_length, production, sequence_lookup, &${name});`;
-            }).join("\n" + " ".repeat(16))}
+                    return `case ${i} : return HYDROCARBON::recognize(byte_length, production, &${name});`;
+                }).join("\n" + " ".repeat(16))}
         }
 
         return 0;
@@ -358,6 +345,38 @@ extern "C" {
     
     ${export_expression_preamble} ParserFactory
         (reduce_functions, wasm_recognizer, undefined, ${createEntryList(grammar)}, memInit);`;
+}
+
+function createGrammarFunctionArray(meta: Helper, recognizer_functions: RDProductionFunction[]) {
+    const
+
+        { const: constants_a, fn: const_functions_a } = meta.render_constants(), grammar_functions = [renderIntermediateFunction(), ...constants_a, ...const_functions_a];
+
+    for (const { entry, goto, reduce } of recognizer_functions)
+        grammar_functions.push(...[entry, goto, reduce].filter(i => i));
+    return grammar_functions;
+}
+
+function renderIntermediateFunction() {
+    return <SKFunction>sk`fn pre_scan:bool(l:__Lexer$ref,data:__ParserData$ref, tk_row:u32){
+    
+        scan(l, data, tk_row, 0, 0);
+    
+        [mut] type:u32 = l.type;
+    
+        l.type = 0;
+    
+        return : type > 0;
+    }`;
+}
+
+function extractAndReplaceTokenMapRefs(token_lookup_functions: string, sym_map: Map<any, any>) {
+    return token_lookup_functions.replace(/symbollookup(\_\d+)+/g, (a, b, c) => {
+        if (!sym_map.has(a)) {
+            sym_map.set(a, sym_map.size);
+        }
+        return sym_map.get(a);
+    });
 }
 
 /**
@@ -473,7 +492,7 @@ function createTokenLUSK(sym_map: Map<any, any>): SKNode {
 }
 
 function createSequenceArraySk(grammar: HCG3Grammar): SKNode {
-    return <SKNode>sk`[static new] sequence_lookup : array_u8 = a(${grammar.sequence_string.split("").map(s => s.charCodeAt(0)).join(",")})`;
+    return <SKNode>sk`[static new] token_sequence_lookup : array_u8 = a(${grammar.sequence_string.split("").map(s => s.charCodeAt(0)).join(",")})`;
 }
 
 /**

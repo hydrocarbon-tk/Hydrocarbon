@@ -86,11 +86,11 @@ fn createState:u32 (ENABLE_STACK_OUTPUT:u32) {
     [pub] state: u32
     [pub] prod: u32 = 0 
     [pub] stack_ptr: i32 = 0
-    [pub] input_ptr: u32 = 0
     [pub] rules_ptr: u32 = 0
     [pub] input_len: u32 = 0
     [pub] rules_len: u32 = 0
-    [pub] origin_fork: u32 = 0
+    [pub] rules_len: u32 = 0
+    [pub] active_token_productions: u32 = 0
     [pub ptr] rules: array_u16
     [pub] input: __u8$ptr
     [pub] sequence: __u8$ptr
@@ -100,7 +100,6 @@ fn createState:u32 (ENABLE_STACK_OUTPUT:u32) {
     [pub] next: __ParserData$ptr = 0
     [pub] VALID: bool = 0 
     [pub] COMPLETED: bool = 0 
-    
 
     [pub]  fn ParserData:ParserData(
         input_buffer: __u8$ptr,
@@ -114,7 +113,6 @@ fn createState:u32 (ENABLE_STACK_OUTPUT:u32) {
         this.VALID = false;
         this.COMPLETED = false;
         this.stack_ptr = 0;
-        this.input_ptr = 0;
         this.rules_ptr = 0;
         this.input_len = input_len_in;
         this.rules_len = rules_len_in;
@@ -415,18 +413,64 @@ fn createState:u32 (ENABLE_STACK_OUTPUT:u32) {
     }
 }
 
+fn token_production:bool(l:__Lexer$ref, data:__ParserData$ref, production:StackFunction, pid:u32, type:u32, tk_flag:u32){       
+
+    if (l.type) == type : return : true;   
+    
+    if (data.active_token_productions & tk_flag) : return : false;     
+    
+    data.active_token_productions |= tk_flag;
+        
+    // preserve the current state of the data
+    [const] stack_ptr :u32 = data.stack_ptr;
+    [const] state:u32 = data.state;
+    [mut new cpp_ignore] data_buffer : ParserDataBuffer = ParserDataBuffer();
+    [mut js_ignore] data_buffer : ParserDataBuffer;
+
+    pushFN(data, production, 0);
+
+    data.state = ${NULL_STATE};
+
+    data.active_token_productions ^= tk_flag;
+
+    [mut]ACTIVE:bool = true;
+
+    loop ( (ACTIVE) ) {
+        ACTIVE = stepKernel(data, l, data_buffer, stack_ptr + 1);
+    };
+
+    data.state = state;
+
+    if data.prod ~= pid : {
+        data.stack_ptr = stack_ptr;
+        l.slice(copy);
+        l.type = type;
+        return: true;
+    } else {
+        data.stack_ptr = stack_ptr;
+        l.sync(copy);
+        return: false;
+    };
+    
+    return: false;
+}
+
+
+// Compare ----------------------------------------------------------------------------------------------
+
 fn compare: u32(
     data: __ParserData$ref,
     data_offset: u32,
     sequence_offset:u32,
-    byte_length: u32
+    byte_length: u32,
+    sequence: __u8$ptr
 ){
     [mut] i:u32 = data_offset;
     [mut] j:u32 = sequence_offset;
     [const] len:u32 = j+byte_length;
 
     loop(;j<len; i++, j++)
-        if(data.input[i] != data.sequence[j] ) : return : j - sequence_offset;
+        if(data.input[i] != sequence[j] ) : return : j - sequence_offset;
 
     return : byte_length;
 }
@@ -465,13 +509,12 @@ fn create_parser_data_object:__ParserData$ptr(
     };
 
     fork_ref.stack_ptr = data.stack_ptr;
-    fork_ref.input_ptr = data.input_ptr;
+    fork_ref.active_token_productions = data.active_token_productions;
     fork_ref.origin_fork = data.rules_ptr + data.origin_fork;
     fork_ref.origin = &>data;
     fork_ref.lexer = (*>data.lexer).copy();
     fork_ref.state = data.state;
     fork_ref.prod = data.prod;
-    fork_ref.sequence = data.sequence;
 
     data_buffer.addDataPointer(fork);
 
@@ -605,14 +648,10 @@ fn insertData:i32(
     loop( ; index < resolved_len; index++){
         [const] exist_ref:__ParserData$ref = *>resolved[index];
 
-        if in_ref.VALID : {
-            if (!exist_ref.VALID) : {
-                break;
-            }
-        } else {
-           if (!exist_ref.VALID && (exist_ref.input_ptr < in_ref.input_ptr)) :{
-                break;
-           }
+        if in_ref.VALID && (!exist_ref.VALID): {
+            break;
+        } else if (!exist_ref.VALID && ((*>(exist_ref.lexer)).byte_offset < (*>(in_ref.lexer)).byte_offset)) :{
+            break;
         }
     };
 
@@ -793,12 +832,10 @@ fn get_next_command_block:__u16$ptr(fork:__DataRef$ptr) {
 fn recognize:u32(
     input_byte_length:u32, 
     production:u32,
-    sequence_lu: __u8$ptr,
     [pub] _fn_ref: StackFunction
 ){
     
     [pub] data_ref:__ParserData$ref = *> data_array[0];
-    data_ref.sequence = sequence_lu;
     data_ref.stack[0] = _fn_ref; 
     data_ref.stash[0] = 0;
     data_ref.input_len = input_byte_length;

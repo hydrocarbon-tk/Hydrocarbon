@@ -4,7 +4,7 @@ namespace HYDROCARBON
 {
 
     ASTRef parserCore(char *utf8_encoded_input, unsigned long input_byte_count,
-                      unsigned char *sequence_data, StackFunction stack_function,
+                      StackFunction stack_function,
                       ReduceFunction *reduce_functions)
     {
 
@@ -12,7 +12,7 @@ namespace HYDROCARBON
 
         // upload string data
         int fork_count =
-            recognize(input_byte_count, 0, sequence_data, stack_function);
+            recognize(input_byte_count, 0, stack_function);
 
         // start process
         auto forks = get_fork_pointers();
@@ -25,7 +25,7 @@ namespace HYDROCARBON
         DataRef &fork6 = *forks[5];
 
         if (fork1.VALID)
-            return convertForkToASTRef(fork1, reduce_functions);
+            return convertForkToASTRef(fork1, reduce_functions, utf8_encoded_input);
         else
             return createInvalidParseASTRef(fork1);
     }
@@ -35,7 +35,7 @@ namespace HYDROCARBON
         return ASTRef(fork.byte_offset, fork.byte_length, true);
     }
 
-    ASTRef convertForkToASTRef(DataRef &fork, ReduceFunction *reduce_functions)
+    ASTRef convertForkToASTRef(DataRef &fork, ReduceFunction *reduce_functions, char *utf8_encoded_input)
     {
 
         unsigned short *block = get_next_command_block(&fork);
@@ -91,6 +91,8 @@ namespace HYDROCARBON
                 }
 
                 auto token = ASTRef(token_offset, length);
+
+                token.print(utf8_encoded_input);
 
                 stack[stack_pointer++] = token;
 

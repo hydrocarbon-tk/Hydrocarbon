@@ -216,7 +216,7 @@ export interface HCG3Grammar extends HCG3GrammarNode {
     cpp?: {
         primary_enum: any;
         classes: string[];
-        
+
     };
 }
 
@@ -311,9 +311,9 @@ export interface HCG3ProductionTokenSymbol extends HCG3SymbolNode {
     type: SymbolType.PRODUCTION_TOKEN_SYMBOL;
     name: string;
     val: number;
-
     production?: HCG3Production; END_OF_PRODUCTION;
     meta: false;
+    token_id: number;
 }
 
 export interface HCG3ProductionSymbol extends HCG3SymbolNode {

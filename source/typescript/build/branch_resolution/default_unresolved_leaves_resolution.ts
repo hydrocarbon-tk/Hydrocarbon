@@ -81,6 +81,7 @@ export function default_resolveUnresolvedLeaves(node: TransitionNode, nodes: Tra
             root = createVirtualProductionSequence(options, items, expected_symbols, out_leaves, out_prods);
         } catch (e) {
             //throw e;
+            console.log(e);
 
             if (v_depth > 0) throw e;
 
@@ -92,7 +93,6 @@ export function default_resolveUnresolvedLeaves(node: TransitionNode, nodes: Tra
     if (FALLBACK_REQUIRED) {
 
         const
-
             USE_BACKTRACKING = !nodes.some(n => n.transition_type == TRANSITION_TYPE.ASSERT_END),
 
             USE_FORKING = true,

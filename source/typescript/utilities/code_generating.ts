@@ -7,7 +7,7 @@ import crypto from "crypto";
 import { createRunner, Helper } from "../build/helper.js";
 import {
     getSkippableSymbolsFromItems,
-    getSymbolsFromClosure, getUniqueSymbolName,
+    getSymbolsFromClosure, getTokenSymbolsFromItems, getUniqueSymbolName,
     Sym_Is_A_Generic_Type,
     Sym_Is_A_Production_Token,
     Sym_Is_A_Terminal,
@@ -161,7 +161,7 @@ function createNonCaptureLookBehind(symbol: HCG3LookBehind, options: BaseOptions
 
         const type_info = symbol.id;
 
-        const boolean = getIncludeBooleans([phased_symbol], "pk");
+        const boolean = getIncludeBooleans([phased_symbol], options.grammar, "pk");
 
         const token_function = <SKFunction>sk`
         fn temp:bool(l:__Lexer$ref, data:__ParserData$ref, state:u32){
@@ -191,119 +191,9 @@ function createNonCaptureLookBehind(symbol: HCG3LookBehind, options: BaseOptions
 }
 
 
-export function createProductionTokenFunction(tok: ProductionTokenSymbol, options: BaseOptions): SKReference {
-    const { grammar, helper: runner } = options;
-    const prod_id = getProductionID(tok, grammar);
-    const closure = getProductionClosure(prod_id, grammar, true);
 
-
-    let fn_ref = getGlobalObject("tk", closure, runner);
-
-    if (!fn_ref) {
-        const type_info = tok.id;
-
-        const production = grammar.productions[prod_id];
-
-        runner.referenced_production_ids.add(production.id);
-
-        const
-
-            token_function = <SKFunction>sk`
-            fn temp:bool(l:__Lexer$ref,data:__ParserData$ref){       
-                if (l.type) == ${type_info} : return : true;     
-                    
-                // preserve the current state of the data
-                [const] stack_ptr :u32 = data.stack_ptr;
-                [const] input_ptr:u32 = data.input_ptr;
-                [const] state:u32 = data.state;
-                [const] copy:Lexer = l.copyInPlace();
-                [mut new cpp_ignore] data_buffer : ParserDataBuffer = ParserDataBuffer();
-                [mut js_ignore] data_buffer : ParserDataBuffer;
-
-                pushFN(data, &> ${getProductionFunctionNameSk(production, grammar)}, 0);
-
-                data.state = ${NULL_STATE};
-
-                [mut]ACTIVE:bool = true;
-
-                loop ( (ACTIVE) ) {
-                    ACTIVE = stepKernel(data, l, data_buffer, stack_ptr + 1);
-                };
-
-                data.state = state;
-
-                if data.prod ~= ${production.id} : {
-                    data.stack_ptr = stack_ptr;
-                    data.input_ptr = input_ptr;
-                    l.slice(copy);
-                    l.type = ${type_info};
-                    return: true;
-                } else {
-                    l.sync(copy);
-                    data.stack_ptr = stack_ptr;
-                    data.input_ptr = input_ptr;
-                    return: false;
-                };
-                
-                return: false;
-            }`;
-
-        return packGlobalFunction("tk", "bool", closure, token_function, runner);
-    } else
-        return fn_ref;
-}
 function getUTF8ByteAt(s: DefinedSymbol, off: number): number {
     return s.val.charCodeAt(off);
-}
-export function getIncludeBooleans(
-    syms: TokenSymbol[],
-    lex_name: string = "l",
-): SKExpression {
-    const types = [];
-    if (syms.length < 3) {
-        types.push(...syms.map(s => {
-            return <SKExpression>sk`${lex_name}.type ~= ${s.id}}`;
-        }));
-
-
-    } else {
-        const nums = syms.map(sym => sym.id);
-        const low = nums.filter(num => num <= 255);
-        const high = nums.filter(num => num > 255);
-
-        types.push(...high.map(val => {
-            return <SKExpression>sk`${lex_name}.type ~= ${val}}`;
-        }));
-
-        types.push(...[low.filter(num => num < 32),
-        low.filter(num => num >= 32 && num < 64),
-        low.filter(num => num >= 64 && num < 96),
-        low.filter(num => num >= 96 && num < 128),
-        low.filter(num => num >= 128 && num < 160),
-        low.filter(num => num >= 160 && num < 192),
-        low.filter(num => num >= 192 && num < 224),
-        low.filter(num => num >= 224 && num < 256)].map((array, i) => {
-            if (array.length == 0)
-                return null;
-            const val = array.reduce((r, v, i) => r | (1 << (v % 32)), 0);
-
-            return sk`( 
-                        ${lex_name}.type >= ${i * 32} 
-                        && 
-                        ${lex_name}.type < ${(i + 1) * 32} 
-                        && 
-                        0 < ( 
-                            ${val >>> 0} & (
-                                1 << (  ${lex_name}.type - ${i * 32} )
-                            )
-                        )
-                    )`;
-        }).filter(s => !!s));
-
-
-
-    }
-    return convertExpressionArrayToBoolean(types);
 }
 
 function getCardinalSymbol<T = HCG3Symbol>(grammar: HCG3Grammar, sym: T): T {
@@ -419,7 +309,7 @@ function getIfClausePreamble(length: number, start: number, symbol: DefinedSymbo
 
     return length == 1
         ? `if ${active_token_query} data.input[l.byte_offset ${start > 0 ? "+" + start : ""}] ~= ${getUTF8ByteAt(symbol, offset)} :`
-        : `if ${active_token_query} ${length} == compare(data, l.byte_offset  ${start > 0 ? "+" + start : ""}, ${symbol.byte_offset + offset}, ${length}) :`;
+        : `if ${active_token_query} ${length} == compare(data, l.byte_offset  ${start > 0 ? "+" + start : ""}, ${symbol.byte_offset + offset}, ${length}, token_sequence_lookup) :`;
 }
 
 export function generateHybridIdentifier(symbols: HCG3Symbol[]) {
@@ -464,7 +354,7 @@ export function createScanFunctionCall(
 
     const { grammar } = options;
 
-    const symbols = [...getSymbolsFromClosure(getClosure(items, grammar), grammar), ...extra_symbols].setFilter(getUniqueSymbolName);
+    const symbols = [...getTokenSymbolsFromItems(getClosure(items, grammar), grammar), ...extra_symbols].setFilter(getUniqueSymbolName);
     const skippable = getSkippableSymbolsFromItems(items, grammar).filter(sym => !symbols.some(s => getUniqueSymbolName(s) == getUniqueSymbolName(sym)));
 
     const full_mapped_symbols = symbols.concat(skippable).setFilter(getUniqueSymbolName);
@@ -479,17 +369,60 @@ function getSymbolMapPlaceHolder(symbols: TokenSymbol[], grammar: HCG3Grammar) {
     return "symbollookup_" + getSymbolMap(symbols, grammar).map(i => i >>> 0).join("_");
 }
 
+
+export function getIncludeBooleans(
+    syms: TokenSymbol[],
+    grammar: HCG3Grammar,
+    lex_name: string = "l",
+): SKExpression {
+    const types = [];
+    if (syms.length < 3) {
+        types.push(...syms.map(s => {
+            return <SKExpression>sk`${lex_name}.type ~= ${s.id}}`;
+        }));
+    } else {
+        const tabled = syms.filter(sym => sym.id <= 255 && sym.id >= 1);
+        const non_table = syms.filter(sym => sym.id > 255 && sym.id < 1);
+
+        types.push(...non_table.map(sym => {
+            return <SKExpression>sk`${lex_name}.type ~= ${sym.id}}`;
+        }));
+
+        const symbol_map_id = getSymbolMapPlaceHolder(tabled, grammar);
+
+        types.push(sk`isTokenActive(${lex_name}.type, ${symbol_map_id})`);
+    }
+    return convertExpressionArrayToBoolean(types);
+}
+
+export function createProductionTokenCall(tok: ProductionTokenSymbol, options: BaseOptions, ADD_PRE_SCAN_BOOLEAN: boolean = false): string {
+    const { grammar, helper: runner } = options;
+    const prod_id = getProductionID(tok, grammar);
+    const production = grammar.productions[prod_id];
+    const prod_name = getProductionFunctionNameSk(production);
+
+    let pre_scan = "";
+
+    if (ADD_PRE_SCAN_BOOLEAN) {
+
+        const symbols = getTokenSymbolsFromItems(getProductionClosure(prod_id, grammar, false), grammar).setFilter(getUniqueSymbolName);
+
+        const symbol_map_id = getSymbolMapPlaceHolder(symbols, grammar);
+
+        pre_scan = `pre_scan(l, data, ${symbol_map_id}) &&`;
+    }
+
+    return `${pre_scan} token_production(l, data, &> ${prod_name}, ${prod_id}, ${tok.id}, ${1 << tok.token_id})`;
+}
+
 export function createSymbolScanFunctionCall(
     symbols: TokenSymbol[],
     options: BaseOptions,
     lex_name: string = "l",
     PEEK: boolean = false,
 ): SKExpression {
-
     const { grammar } = options;
-
     const symbol_map_id = getSymbolMapPlaceHolder(symbols, grammar);
-
     return <SKExpression>sk`scan(${lex_name}, data, ${symbol_map_id}, 0, ${!PEEK ? "state" : STATE_ALLOW_SKIP});`;
 }
 
@@ -506,9 +439,6 @@ export function createSymbolScanFunctionNew(options: BaseOptions): SKFunction[] 
         .filter(sym => !Sym_Is_EOF(sym) && !Sym_Is_EOP(sym) && !Sym_Is_Hybrid(sym))
 
         .setFilter(getUniqueSymbolName);
-
-    console.log(id_symbols.map(getUniqueSymbolName));
-
 
     const outer_fn = <SKFunction>sk`
     fn scan:void(l:__Lexer$ref,data:__ParserData$ref, tk_row:u32, pk_row:u32, state:u32){
@@ -580,8 +510,9 @@ export function createSymbolScanFunctionNew(options: BaseOptions): SKFunction[] 
     const ifs = [];
 
     for (const tk_sym of tk_syms) {
-        const tk_name = createProductionTokenFunction(tk_sym, options);
-        ifs.push(sk`if ${getActiveTokenQuery(tk_sym)} && ${tk_name}(l,data) : { return }`);
+        const token_production_call = createProductionTokenCall(tk_sym, options, true);
+
+        ifs.push(sk`if ${getActiveTokenQuery(tk_sym)} && ${token_production_call} : { return }`);
     }
 
     for (const gen_sym of gen_syms)
@@ -663,20 +594,18 @@ function renderLeafNew(node: TokenTreeNode, options: any, USE_BOOLEAN: boolean =
 
     const length_assertion = (node.offset >= 0) ? `&& l.byte_length > ${node.offset}` : "";
 
+
     for (const tk_sym of tk_syms) {
 
-        const tk_name = createProductionTokenFunction(Sym_Is_Virtual_Token(tk_sym) ? tk_sym.root : tk_sym, options);
+        const token_production_call = createProductionTokenCall(Sym_Is_Virtual_Token(tk_sym) ? tk_sym.root : tk_sym, options);
 
-        default_bin.push(sk`if ${getActiveTokenQuery(tk_sym)} && ${tk_name}(l,data) ${length_assertion} : { return; }`);
+        default_bin.push(sk`if ${getActiveTokenQuery(tk_sym)} && ${token_production_call} ${length_assertion} : { return; }`);
     }
 
     for (const gen_sym of gen_syms) {
 
         default_bin.push(sk`if ${getActiveTokenQuery(gen_sym)} && ${getSymbolBoolean(gen_sym, options.grammar, "l")} ${length_assertion} : { return  }`);
     }
-    if (id.length > 1)
-        console.log({ id });
-
 
     for (const defined of id) {
 

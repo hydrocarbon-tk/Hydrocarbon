@@ -21,7 +21,7 @@ import { MultiItemReturnObject, SingleItemReturnObject, TransitionClauseGenerato
 import { GeneratorStateReturn, TransitionNode, TRANSITION_TYPE } from "../../types/transition_node.js";
 import { expressionListHash } from "../../utilities/code_generating.js";
 import { Item } from "../../utilities/item.js";
-import { default_resolveUnresolvedLeaves } from "../branch_resolution/default_ambiguous_leaves_resolution.js";
+import { default_resolveUnresolvedLeaves } from "../branch_resolution/default_unresolved_leaves_resolution.js";
 import { default_resolveBranches } from "../branch_resolution/default_branch_resolution.js";
 import { default_resolveResolvedLeaf } from "../branch_resolution/default_resolved_leaf_resolution.js";
 import { Items_Are_From_Same_Production } from "./yield_transitions.js";

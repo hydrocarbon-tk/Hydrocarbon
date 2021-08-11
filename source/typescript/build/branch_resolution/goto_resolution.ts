@@ -54,7 +54,7 @@ export function resolveGOTOBranches(
 
             leaves.map(l => l.keys = keys);
 
-            let interrupt_statement: SKExpression = null;
+            let production_aware_scan: SKExpression = null;
 
             if (end_items.length > 0)
                 CONTAINS_END_LEAF_THAT_SHOULD_LOOP = true;
@@ -72,14 +72,13 @@ export function resolveGOTOBranches(
                         ...keys.flatMap(i => grammar.productions[i].bodies).map(b => new Item(b.id, b.length, b.length))
                     ], grammar.lr_items, grammar);
 
-                    interrupt_statement = createScanFunctionCall(item_closure, options, "l");
+                    production_aware_scan = createScanFunctionCall(item_closure, options, "l");
 
                 }
             }
 
-
-            if (interrupt_statement)
-                insertInterruptStatement(interrupt_statement, code);
+            if (production_aware_scan)
+                insertProductionAwareScan(production_aware_scan, code);
 
             if (!WE_HAVE_JUST_ONE_GOTO_GROUP)
                 code.push(<SKBreak>sk`break`);
@@ -87,7 +86,7 @@ export function resolveGOTOBranches(
             const match_clause = (<SKMatch>sk`match 1 : ${keys.join(",")}: ${(<SKBlock>{
                 type: "block",
                 expressions: code
-            }) }`).matches[0];
+            })}`).matches[0];
 
 
             (<SKMatch>match_stmt).matches.push(match_clause);
@@ -119,15 +118,15 @@ export function addClauseSuccessCheck(options: RenderBodyOptions): SKExpression 
     return <SKExpression>sk`return : (prod ~= ${productions[0].id}) ? prod ? -1`;
 }
 
-function insertInterruptStatement(int_stmt: SKExpression, expression_array: SKExpression[]) {
-    //The interrupt needs to be added after the first skip statement if present
+function insertProductionAwareScan(production_aware_scan: SKExpression, expression_array: SKExpression[]) {
+    //The production aware scan needs to replace the first scan call or be added to top of expression list
     for (let i = 0; i < expression_array.length; i++) {
         const node = expression_array[i];
-        if (node.type == "call" && node.reference.type == "reference" && node.reference.value.slice(0, 4) == "skip") {
-            expression_array.splice(i + 1, 0, int_stmt);
+        if (node.type == "call" && node.reference.type == "reference" && node.reference.value.slice(0, 4) == "scan") {
+            expression_array[i] = production_aware_scan;
             return;
         }
     }
 
-    expression_array.unshift(int_stmt);
+    expression_array.unshift(production_aware_scan);
 }

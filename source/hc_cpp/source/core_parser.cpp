@@ -312,13 +312,63 @@ namespace HYDROCARBON
         return *this;
     }
     bool Lexer ::END(ParserData &data) { return byte_offset >= data.input_len; };
-    unsigned int compare(ParserData &data, unsigned int data_offset, unsigned int sequence_offset, unsigned int byte_length)
+
+    unsigned int token_production(Lexer & l, ParserData& data, StackFunction production, u32 pid, u32 type, u32 tk_flag){
+        if ((l.type) == type)
+            return true;
+
+        if(data.active_token_productions & tk_flag)
+            return false;
+
+        data.active_token_productions |= tk_flag;
+        
+        unsigned int stack_ptr = data.stack_ptr;
+        unsigned int input_ptr = data.input_ptr;
+        unsigned int state = data.state;
+        Lexer copy = l.copyInPlace();
+        
+        ParserDataBuffer data_buffer;
+        pushFN(data, production, 0);
+
+        data.state = 0;
+        
+        bool ACTIVE = true;
+        
+        while ((ACTIVE))
+        {
+            ACTIVE = stepKernel(data, l, data_buffer, stack_ptr + 1);
+        };
+
+        data.state = state;
+
+        data.active_token_productions ^= tk_flag;
+        
+        if (data.prod == pid)
+        {
+            data.stack_ptr = stack_ptr;
+            data.input_ptr = input_ptr;
+            l.slice(copy);
+            l.type = type;
+            return true;
+        }
+        else
+        {
+            data.stack_ptr = stack_ptr;
+            data.input_ptr = input_ptr;
+            l.sync(copy);
+            return false;
+        };
+        return false;
+    }
+
+
+    unsigned int compare(ParserData &data, unsigned int data_offset, unsigned int sequence_offset, unsigned int byte_length, unsigned char * sequence)
     {
         unsigned int i = data_offset;
         unsigned int j = sequence_offset;
         unsigned int len = j + byte_length;
         for (; j < len; i++, j++)
-            if ((data.input[i] != data.sequence[j]))
+            if ((data.input[i] != sequence[j]))
                 return j - sequence_offset;
         ;
         return byte_length;
@@ -348,7 +398,6 @@ namespace HYDROCARBON
         fork_ref.lexer = (*data.lexer).copy();
         fork_ref.state = data.state;
         fork_ref.prod = data.prod;
-        fork_ref.sequence = data.sequence;
         data_buffer.addDataPointer(fork);
         return fork;
     }
@@ -461,20 +510,11 @@ namespace HYDROCARBON
         for (; index < resolved_len; index++)
         {
             ParserData &exist_ref = *resolved[index];
-            if (in_ref.VALID)
-            {
-                if ((!exist_ref.VALID))
-                {
-                    break;
-                };
-            }
-            else
-            {
-                if ((!exist_ref.VALID && (exist_ref.input_ptr < in_ref.input_ptr)))
-                {
-                    break;
-                };
-            };
+            if (in_ref.VALID && !exist_ref.VALID)
+                break;
+            else if ((exist_ref.VALID && (exist_ref.lexer->byte_offset < in_ref.lexer->byte_offset)))
+                break;
+            
         };
         if ((index < resolved_max))
         {
@@ -596,10 +636,9 @@ namespace HYDROCARBON
         ;
         return fork_ref.command_block;
     }
-    unsigned int recognize(unsigned int input_byte_length, unsigned int production, unsigned char *sequence_lu, StackFunction _fn_ref)
+    unsigned int recognize(unsigned int input_byte_length, unsigned int production, StackFunction _fn_ref)
     {
         ParserData &data_ref = *data_array[0];
-        data_ref.sequence = sequence_lu;
         data_ref.stack[0] = _fn_ref;
         data_ref.stash[0] = 0;
         data_ref.input_len = input_byte_length;

@@ -76,6 +76,8 @@ export function processSymbols(grammar: HCG3Grammar, errors: Error[] = []) {
         default_array.map(sym => [getUniqueSymbolName(sym), sym])
     );
 
+    const token_production_set: Set<string> = new Set();
+
     let b_counter = 0, p_counter = 0, bodies = [];
 
     const production_lookup = new Map();
@@ -105,7 +107,7 @@ export function processSymbols(grammar: HCG3Grammar, errors: Error[] = []) {
             body.length = body.sym.length;
 
             for (const sym of body.sym)
-                id_offset = processSymbol(sym, production_lookup, unique_map, errors, id_offset);
+                id_offset = processSymbol(sym, production_lookup, unique_map, token_production_set, errors, id_offset);
         }
     }
 
@@ -114,7 +116,7 @@ export function processSymbols(grammar: HCG3Grammar, errors: Error[] = []) {
 
     for (const g of [grammar, ...grammar.imported_grammars.map(g => g.grammar)])
         for (const sym of g.meta.ignore)
-            id_offset = processSymbol(sym, production_lookup, unique_map, errors, id_offset);
+            id_offset = processSymbol(sym, production_lookup, unique_map, token_production_set, errors, id_offset);
 
     const symbol_ids_array = [...unique_map.values()].filter(s => s.id).map(s => s.id).sort((a, b) => a - b).filter(i => i >= 1);
 
@@ -177,6 +179,7 @@ export function processSymbol(
     sym: HCG3Symbol,
     production_lookup: Map<any, any>,
     unique_map: Map<string, HCG3Symbol>,
+    token_production_set: Set<string>,
     errors: Error[],
     id_offset: number
 ): number {
@@ -203,8 +206,13 @@ export function processSymbol(
 
         const copy_sym = copy(sym);
 
-        if (Sym_Is_A_Production(sym) || Sym_Is_A_Production_Token(sym))
-            copy_sym.production = production_lookup.get(sym.name);
+        if (Sym_Is_A_Production(copy_sym) || Sym_Is_A_Production_Token(copy_sym))
+            copy_sym.production = production_lookup.get(copy_sym.name);
+
+        if (Sym_Is_A_Production_Token(copy_sym) && !token_production_set.has(unique_name)) {
+            copy_sym.token_id = token_production_set.size;
+            token_production_set.add(unique_name);
+        }
 
         if (Sym_Is_A_Production(sym))
             copy_sym.id = -1;
@@ -221,6 +229,10 @@ export function processSymbol(
         sym.production = production_lookup.get(sym.name);
 
     const prime = unique_map.get(unique_name);
+
+    if (Sym_Is_A_Production_Token(prime))
+        //@ts-ignore
+        sym.token_id = prime.token_id;
 
     if (Sym_Is_Defined(prime))
         //@ts-ignore
