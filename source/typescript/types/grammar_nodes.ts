@@ -167,6 +167,11 @@ export interface HCG3Grammar extends HCG3GrammarNode {
         symbol?: Map<string, HCG3Symbol>;
 
         reduce_functions?: Map<any, string>;
+        /**
+         * Number of 32 bit blocks required to cover all token ids
+         * within the token look up tables. 
+         */
+        token_row_size: number;
 
     };
 

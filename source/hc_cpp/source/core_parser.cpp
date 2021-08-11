@@ -348,6 +348,7 @@ namespace HYDROCARBON
         fork_ref.lexer = (*data.lexer).copy();
         fork_ref.state = data.state;
         fork_ref.prod = data.prod;
+        fork_ref.sequence = data.sequence;
         data_buffer.addDataPointer(fork);
         return fork;
     }

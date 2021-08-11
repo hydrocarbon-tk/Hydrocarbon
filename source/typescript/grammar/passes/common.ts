@@ -1,6 +1,7 @@
 
 import { copy, experimentalConstructRenderers, experimentalRender, traverse } from "@candlelib/conflagrate";
-import { TokenTypes } from "source/typescript/runtime/TokenTypes";
+import { TokenTypes } from "../../runtime/TokenTypes";
+import { token_lu_bit_size } from "../../utilities/code_generating.js";
 import {
     HCG3Grammar,
     HCG3Production,
@@ -114,6 +115,10 @@ export function processSymbols(grammar: HCG3Grammar, errors: Error[] = []) {
     for (const g of [grammar, ...grammar.imported_grammars.map(g => g.grammar)])
         for (const sym of g.meta.ignore)
             id_offset = processSymbol(sym, production_lookup, unique_map, errors, id_offset);
+
+    const symbol_ids_array = [...unique_map.values()].filter(s => s.id).map(s => s.id).sort((a, b) => a - b).filter(i => i >= 1);
+
+    grammar.meta.token_row_size = (Math.ceil(symbol_ids_array.slice(-1)[0] / 32) * 32) / token_lu_bit_size;
 
 
 }

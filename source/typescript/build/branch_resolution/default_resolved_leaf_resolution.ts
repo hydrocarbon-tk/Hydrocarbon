@@ -79,9 +79,12 @@ export function default_resolveResolvedLeaf(item: Item, state: TransitionNode, o
             if (scan) code.push(scan);
 
             ({ leaf_node, prods, INDIRECT, original_prods } = renderItem(code, item, options,
-                state.transition_type == TRANSITION_TYPE.ASSERT
-                || state.transition_type == TRANSITION_TYPE.ASSERT_PEEK
-                || state.transition_type == TRANSITION_TYPE.ASSERT_PEEK_VP));
+                ((item.offset > 0 || options.scope != "GOTO") &&
+                    state.transition_type == TRANSITION_TYPE.ASSERT_PRODUCTION_CALL ||
+                    state.transition_type == TRANSITION_TYPE.ASSERT_PRODUCTION_SYMBOLS) ||
+                (state.transition_type == TRANSITION_TYPE.ASSERT
+                    || state.transition_type == TRANSITION_TYPE.ASSERT_PEEK
+                    || state.transition_type == TRANSITION_TYPE.ASSERT_PEEK_VP)));
         }
 
         for (const prod of prods)

@@ -4,12 +4,13 @@
  * disclaimer notice.
  */
 import crypto from "crypto";
-import { Helper } from "../build/helper.js";
+import { createRunner, Helper } from "../build/helper.js";
 import {
     getSkippableSymbolsFromItems,
     getSymbolsFromClosure, getUniqueSymbolName,
     Sym_Is_A_Generic_Type,
     Sym_Is_A_Production_Token,
+    Sym_Is_A_Terminal,
     Sym_Is_Defined,
     Sym_Is_EOF,
     Sym_Is_EOP,
@@ -18,13 +19,15 @@ import {
     Sym_Is_Virtual_Token
 } from "../grammar/nodes/symbol.js";
 import { NULL_STATE, STATE_ALLOW_SKIP } from "../render/skribble_recognizer_template.js";
-import { sk, skRenderAsSK } from "../skribble/skribble.js";
+import { sk, skRenderAsJavaScript, skRenderAsSK } from "../skribble/skribble.js";
 import {
+    SKBlock,
     SKCall,
     SKExpression,
     SKFunction,
     SKIdentifierReference,
     SKIf,
+    SKMatch,
     SKNode, SKPrimitiveDeclaration,
     SKReference
 } from "../skribble/types/node.js";
@@ -103,24 +106,7 @@ export function getSymbolBoolean(sym: TokenSymbol, grammar: HCG3Grammar, lex_nam
             return null;
     }
 }
-export function createSkipCall(
-    symbols: TokenSymbol[],
-    options: BaseOptions,
-    lex_name: string = "l",
-    peek: boolean,
-    exclude: TokenSymbol[] = [],
-    USE_NUMBER = false
-): SKExpression {
 
-    const { helper: runner } = options;
-
-    const skip = getSkipFunctionNew(symbols, options, undefined, exclude);
-
-    if (skip)
-        return <SKExpression>sk`${skip}(${lex_name}/*${symbols.map(s => `[ ${s.val} ]`).join("")}*/, data, ${!peek ? USE_NUMBER ? 0xFFFFFF : "state" : STATE_ALLOW_SKIP});\n`;
-
-    return null;
-}
 
 export function collapseBranchNames(options: RenderBodyOptions) {
     const { branches, helper: runner } = options;
@@ -163,7 +149,7 @@ export function createBranchFunction(branch_expressions: SKExpression[], options
 }
 
 
-function createNonCaptureLookBehind(symbol: HCG3LookBehind, options: RenderBodyOptions): SKReference {
+function createNonCaptureLookBehind(symbol: HCG3LookBehind, options: BaseOptions): SKReference {
 
     const phased_symbol = getCardinalSymbol(options.grammar, symbol.phased);
 
@@ -390,7 +376,6 @@ function This_Is_An_SKFunction(input: any): input is SKFunction {
 export function addItemAnnotationToExpressionList(items: Item[], grammar: HCG3Grammar, root: SKExpression[]) {
     for (const item_str of items.map(i => i.renderUnformattedWithProduction(grammar)))
         root.push(<SKExpression><any>{
-
             type: "string",
             value: item_str.replace(/\'/g, '"').replace(/\\/g, "f:s")
         });
@@ -405,36 +390,222 @@ export function addSymbolAnnotationsToExpressionList(syms: HCG3Symbol[], grammar
     });
 
 }
-export function createSymbolScanIntermediate(node: TokenTreeNode, options: BaseOptions, PEEKING: boolean = false, ALLOW_SKIP: boolean = true): SKReference {
 
-    const id_symbols = node.symbols.setFilter(getUniqueSymbolName);
+function createIfClause(symbol: DefinedSymbol | VirtualTokenSymbol, offset: number, length: number, options: any, expressions: SKExpression[]) {
 
-    let fn_ref = getGlobalObject("inter_scan", id_symbols, options.helper);
+    const start = offset;
 
-    if (!fn_ref) {
-
-        const scan_function: SKFunction = <any>sk`fn temp:bool(l:__Lexer$ref, data:__ParserData$ref){ }`;
-
-        scan_function.expressions.push(...render(node, options, [], true), <SKExpression>sk`return:false`);
-
-        fn_ref = packGlobalFunction("inter_scan", "bool", id_symbols, scan_function, options.helper);
+    if (Sym_Is_Virtual_Token(symbol)) {
+        length = 1;
+        offset = offset - symbol.root_offset;
+        symbol = <DefinedSymbol>symbol.item.sym(options.grammar);
     }
+    let _if = sk`${getIfClausePreamble(length, start, symbol, offset, options, false)} {}`;
 
-    return fn_ref;
+
+    if (expressions.length == 1 && expressions[0].type == "block") {
+        _if.expression = expressions[0];
+    } else
+        _if.expression.expressions.push(...expressions);
+
+    return _if;
+}
+
+function getIfClausePreamble(length: number, start: number, symbol: DefinedSymbol, offset: number, options, ADD_TOKEN_QUERY = true) {
+
+    symbol = getCardinalSymbol(options.grammar, symbol);
+
+    const active_token_query = ADD_TOKEN_QUERY ? getActiveTokenQuery(symbol) + " &&" : "";
+
+    return length == 1
+        ? `if ${active_token_query} data.input[l.byte_offset ${start > 0 ? "+" + start : ""}] ~= ${getUTF8ByteAt(symbol, offset)} :`
+        : `if ${active_token_query} ${length} == compare(data, l.byte_offset  ${start > 0 ? "+" + start : ""}, ${symbol.byte_offset + offset}, ${length}) :`;
+}
+
+export function generateHybridIdentifier(symbols: HCG3Symbol[]) {
+    return symbols.filter(Sym_Is_Defined).map(s => s.id).setFilter().sort().reduce((r, s, i) => r ^ (s << 12), 1);
 }
 
 
-function render(node: TokenTreeNode, options: BaseOptions, insert_expression: SKExpression[] = [], USE_BOOLEAN: boolean = false) {
+export const token_lu_bit_size_offset = 4;
+export const token_lu_bit_size = 1 << token_lu_bit_size_offset;
+export function getSymbolMap(symbols: TokenSymbol[], grammar: HCG3Grammar): number[] {
+    const ids = symbols.filter(s => s.id).map(s => s.id).sort((a, b) => a - b).filter(i => i >= 1);
+
+    const max = grammar.meta.token_row_size * token_lu_bit_size;
+    const flags = [0];
+    let base = 0;
+    let index = 0;
+
+    for (const id of ids) {
+        while (id > (base + token_lu_bit_size)) {
+            base += token_lu_bit_size;
+            index++;
+            flags.push(0);
+        }
+        flags[index] |= 1 << (id - base - 1);
+    }
+
+    while (max > (base + token_lu_bit_size)) {
+        base += token_lu_bit_size;
+        index++;
+        flags.push(0);
+    }
+
+    return flags;
+}
+export function createScanFunctionCall(
+    items: Item[],
+    options: BaseOptions,
+    lex_name: string = "l",
+    PEEK: boolean = false,
+    extra_symbols: TokenSymbol[] = [],
+): SKExpression {
+
+    const { grammar } = options;
+
+    const symbols = [...getSymbolsFromClosure(getClosure(items, grammar), grammar), ...extra_symbols].setFilter(getUniqueSymbolName);
+    const skippable = getSkippableSymbolsFromItems(items, grammar).filter(sym => !symbols.some(s => getUniqueSymbolName(s) == getUniqueSymbolName(sym)));
+
+    const full_mapped_symbols = symbols.concat(skippable).setFilter(getUniqueSymbolName);
+
+    const symbol_map_id = getSymbolMapPlaceHolder(full_mapped_symbols, grammar);
+
+    const skippable_map_id = (skippable) ? getSymbolMapPlaceHolder(skippable, grammar) : "0";
+
+    return <SKExpression>sk`scan(${lex_name}, data, ${symbol_map_id}, ${skippable_map_id}, ${!PEEK ? "state" : STATE_ALLOW_SKIP});`;
+}
+function getSymbolMapPlaceHolder(symbols: TokenSymbol[], grammar: HCG3Grammar) {
+    return "symbollookup_" + getSymbolMap(symbols, grammar).map(i => i >>> 0).join("_");
+}
+
+export function createSymbolScanFunctionCall(
+    symbols: TokenSymbol[],
+    options: BaseOptions,
+    lex_name: string = "l",
+    PEEK: boolean = false,
+): SKExpression {
+
+    const { grammar } = options;
+
+    const symbol_map_id = getSymbolMapPlaceHolder(symbols, grammar);
+
+    return <SKExpression>sk`scan(${lex_name}, data, ${symbol_map_id}, 0, ${!PEEK ? "state" : STATE_ALLOW_SKIP});`;
+}
+
+function getActiveTokenQuery(symbol: TokenSymbol | ProductionTokenSymbol): string {
+    return Sym_Is_Virtual_Token(symbol) ? `isTokenActive(${symbol.root.id}, tk_row)` : `isTokenActive(${symbol.id}, tk_row)`;
+}
+
+export function createSymbolScanFunctionNew(options: BaseOptions): SKFunction[] {
+
+    const { grammar } = options;
+
+    const id_symbols = [...grammar.meta.all_symbols.values()]
+        .filter(s => Sym_Is_A_Terminal(s) || Sym_Is_A_Production_Token(s))
+        .filter(sym => !Sym_Is_EOF(sym) && !Sym_Is_EOP(sym) && !Sym_Is_Hybrid(sym))
+
+        .setFilter(getUniqueSymbolName);
+
+    console.log(id_symbols.map(getUniqueSymbolName));
+
+
+    const outer_fn = <SKFunction>sk`
+    fn scan:void(l:__Lexer$ref,data:__ParserData$ref, tk_row:u32, pk_row:u32, state:u32){
+        //Do look behind
+        
+        if((l.type) <= 0) : 
+            scan_core(l, data, tk_row, state);
+
+        if(pk_row > 0 && isTokenActive(l.type, pk_row)) : {
+            [mut] offset:u32 = l.token_offset;
+            loop((isTokenActive(l.type, pk_row))){
+                l.next(data);
+                scan_core(l, data, tk_row, state);
+            };
+            if( isOutputEnabled( state ) ) : add_skip( data, l.token_offset  - offset );
+        }
+    }
+    `;
+
+    const tree = getSymbolTree(id_symbols, grammar);
+
+    const lb_syms = tree.symbols.filter(Sym_Is_Look_Behind).setFilter(getUniqueSymbolName);
+
+    const tk_syms = tree.symbols.filter(Sym_Is_A_Production_Token).setFilter(getUniqueSymbolName);
+
+    const gen_syms = tree.symbols.filter(Sym_Is_A_Generic_Type).setFilter(getUniqueSymbolName);
+
+    const group_size = 0x7F;
+
+    for (const lb_sym of lb_syms.reverse()) {
+
+        const lb_name = createNonCaptureLookBehind(lb_sym, options);
+
+        outer_fn.expressions.unshift(<SKExpression>sk`if ${getActiveTokenQuery(lb_sym)} && ${lb_name}(l,data, state) : { return }`);
+    }
+
+    const fn = <SKFunction>sk`fn scan_core:void(l:__Lexer$ref,data:__ParserData$ref, tk_row:u32, state:u32){ }`;
+
+    const expression_array = fn.expressions;
+
+    const match_stmt: SKMatch = <SKMatch>sk`match (data.input[l.byte_offset] & ${group_size}): default:break`;
+
+    expression_array.push(match_stmt);
+
+    //Add defined & interfering token look ups
+
+    const group = tree.nodes.groupMap(n => n.id.charCodeAt(0) & group_size);
+
+    for (const [key, nodes] of [...group.entries()].sort((a, b) => a[0] - b[0])) {
+
+        const tree: TokenTreeNode = {
+            id: "",
+            nodes,
+            offset: 0,
+            tk_length: nodes.flatMap(n => n.symbols).setFilter(getUniqueSymbolName).length,
+            symbols: nodes.flatMap(n => n.symbols).setFilter(getUniqueSymbolName)
+        };
+
+        const match_clause = (<SKMatch>sk`match 1 : ${key}: ${(<SKBlock>{
+            type: "block",
+            expressions: [...renderNew(tree, options), sk`break;`]
+        })}`).matches[0];
+
+        match_stmt.matches.push(match_clause);
+    }
+
+    //Add fallback types
+
+    const ifs = [];
+
+    for (const tk_sym of tk_syms) {
+        const tk_name = createProductionTokenFunction(tk_sym, options);
+        ifs.push(sk`if ${getActiveTokenQuery(tk_sym)} && ${tk_name}(l,data) : { return }`);
+    }
+
+    for (const gen_sym of gen_syms)
+        ifs.push(sk`if ${getActiveTokenQuery(gen_sym)} && ${getSymbolBoolean(gen_sym, options.grammar, "l")} : { return }`);
+
+    ifs.reduce((r: SKIf, a: SKIf) => ((!r) ? a : (r.else = a, a)), null);
+
+    if (ifs[0])
+        expression_array.push(ifs[0]);
+
+    return [fn, outer_fn];
+}
+
+function Sym_Is_Hybrid(sym: TokenSymbol): sym is any {
+    return sym.type == "hybrid";
+}
+
+function renderNew(node: TokenTreeNode, options: BaseOptions, insert_expression: SKExpression[] = [], USE_BOOLEAN: boolean = false) {
 
     let ifs = [];
 
-    let append = [];
-
-    let prepend = [];
-
     if (node.nodes.length == 0) {
 
-        return renderLeaf(node, options, USE_BOOLEAN);
+        return renderLeafNew(node, options, true);
 
     } else {
 
@@ -447,27 +618,10 @@ function render(node: TokenTreeNode, options: BaseOptions, insert_expression: SK
             while (base.nodes[0].nodes.length == 1 && base.nodes[0].nodes[0].tk_length == tk_len)
                 base = base.nodes[0];
 
-            if (base.nodes.length > 1 && node.offset == 0) {
-                const result = createSymbolScanIntermediate(base.nodes[0], options);
-
-                ifs.push(createIfClause(node.symbols[0], node.offset, base.nodes[0].offset - node.offset, options, [sk`if ${result}(l,data):{ return }`]));
-
-            } else {
-
-                ifs.push(createIfClause(node.symbols[0], node.offset, base.nodes[0].offset - node.offset, options, render(base.nodes[0], options, [], USE_BOOLEAN)));
-            }
-
+            ifs.push(createIfClause(node.symbols[0], node.offset, base.nodes[0].offset - node.offset, options, renderNew(base.nodes[0], options, [], USE_BOOLEAN)));
 
         } else for (const n of base.nodes) {
-
-            if (base.nodes.length > 1 && node.offset == 0) {
-                const result = createSymbolScanIntermediate(n, options);
-
-                ifs.push(createIfClause(n.symbols[0], node.offset, base.nodes[0].offset - node.offset, options, [sk`if ${result}(l,data):{ return }`]));
-            } else {
-
-                ifs.push(createIfClause(n.symbols[0], node.offset, n.offset - node.offset, options, render(n, options, [], USE_BOOLEAN)));
-            }
+            ifs.push(createIfClause(n.symbols[0], node.offset, n.offset - node.offset, options, renderNew(n, options, [], USE_BOOLEAN)));
         }
 
         const completed_ids = base.symbols.filter(Sym_Is_Defined).filter(s => s.val.length == node.offset).setFilter(getUniqueSymbolName);
@@ -482,49 +636,16 @@ function render(node: TokenTreeNode, options: BaseOptions, insert_expression: SK
             }
 
             );
-            ifs.push(...renderLeaf(copy, options, USE_BOOLEAN));
-        }
-
-        if (node.offset == 0) {
-
-            const ifs = [];
-
-            const lb_syms = node.symbols.filter(Sym_Is_Look_Behind).setFilter(getUniqueSymbolName);
-
-            const tk_syms = node.symbols.filter(Sym_Is_A_Production_Token).setFilter(getUniqueSymbolName);
-
-            const gen_syms = node.symbols.filter(Sym_Is_A_Generic_Type).setFilter(getUniqueSymbolName);
-
-            for (const lb_sym of lb_syms) {
-
-                const lb_name = createNonCaptureLookBehind(lb_sym, options);
-
-                prepend.push(sk`if ${lb_name}(l,data, state) : { return }`);
-            }
-
-            for (const tk_sym of tk_syms) {
-                const tk_name = createProductionTokenFunction(tk_sym, options);
-
-                ifs.push(sk`if ${tk_name}(l,data) : { return }`);
-            }
-
-            for (const gen_sym of gen_syms) {
-                ifs.push(sk`if ${getSymbolBoolean(gen_sym, options.grammar, "l")} : { return }`);
-            }
-
-            ifs.reduce((r: SKIf, a: SKIf) => ((!r) ? a : (r.else = a, a)), null);
-
-            if (ifs[0])
-                append.push(ifs[0]);
+            ifs.push(...renderLeafNew(copy, options, true));
         }
     }
 
     ifs.reduce((r: SKIf, a: SKIf) => ((!r) ? a : (r.else = a, a)), null);
 
-    return ifs[0] ? [...prepend, ...insert_expression, ifs[0], ...append] : [...prepend, ...insert_expression, ...append];
+    return ifs[0] ? [...insert_expression, ifs[0]] : [...insert_expression];
 }
 
-function renderLeaf(node: TokenTreeNode, options: any, USE_BOOLEAN: boolean = false) {
+function renderLeafNew(node: TokenTreeNode, options: any, USE_BOOLEAN: boolean = false) {
 
     let ifs = [];
 
@@ -532,212 +653,55 @@ function renderLeaf(node: TokenTreeNode, options: any, USE_BOOLEAN: boolean = fa
 
     let prepend = [];
 
-    const return_str = USE_BOOLEAN ? "return : true" : "return";
+    const id = node.symbols.filter(Sym_Is_Defined).setFilter(getUniqueSymbolName).sort((a, b) => (+Sym_Is_Exclusive(a)) - (+Sym_Is_Exclusive(b)));
 
-    const id = node.symbols.filter(Sym_Is_Defined).setFilter(getUniqueSymbolName);
     const tk_syms: (ProductionTokenSymbol | VirtualTokenSymbol)[] = <any>node.symbols.filter(s => Sym_Is_Virtual_Token(s) || Sym_Is_A_Production_Token(s)).setFilter(getUniqueSymbolName);
 
     const gen_syms = node.symbols.filter(Sym_Is_A_Generic_Type).setFilter(getUniqueSymbolName);
 
-    const look_behind_symbols: HCG3LookBehind[] = <any>node.symbols.filter(Sym_Is_Look_Behind).setFilter(getUniqueSymbolName);
+    const default_bin = node.offset >= 0 ? ifs : append;
 
-    const default_bin = node.offset > 0 ? ifs : append;
-
-    const length_assertion = (node.offset > 0) ? `&& l.byte_length > ${node.offset}` : "";
-
-    for (const lb_sym of look_behind_symbols) {
-
-        const lb_name = createNonCaptureLookBehind(lb_sym, options);
-
-        prepend.push(sk`if ${lb_name}(l,data, state) : { ${return_str} }`);
-    }
+    const length_assertion = (node.offset >= 0) ? `&& l.byte_length > ${node.offset}` : "";
 
     for (const tk_sym of tk_syms) {
 
         const tk_name = createProductionTokenFunction(Sym_Is_Virtual_Token(tk_sym) ? tk_sym.root : tk_sym, options);
 
-        default_bin.push(sk`if ${tk_name}(l,data) ${length_assertion} : { ${return_str} }`);
+        default_bin.push(sk`if ${getActiveTokenQuery(tk_sym)} && ${tk_name}(l,data) ${length_assertion} : { return; }`);
     }
 
     for (const gen_sym of gen_syms) {
 
-        default_bin.push(sk`if ${getSymbolBoolean(gen_sym, options.grammar, "l")} ${length_assertion} : { ${return_str} }`);
+        default_bin.push(sk`if ${getActiveTokenQuery(gen_sym)} && ${getSymbolBoolean(gen_sym, options.grammar, "l")} ${length_assertion} : { return  }`);
     }
+    if (id.length > 1)
+        console.log({ id });
+
 
     for (const defined of id) {
 
-        const preamble = node.offset > 0 && defined.byte_length <= node.offset ? "" : getIfClausePreamble(defined.byte_length - node.offset, node.offset, defined, node.offset, options);
+        if (Sym_Is_Exclusive(defined) || (tk_syms.length + gen_syms.length) < 1) {
+            const preamble = defined.byte_length <= node.offset ? "" : getIfClausePreamble(defined.byte_length - node.offset, node.offset, defined, node.offset, options, !Sym_Is_Exclusive(defined));
 
-        if (Sym_Is_Exclusive(defined)) {
-
-            ifs.push(sk`${preamble}{l.setToken(${defined.id}, ${defined.byte_length},${defined.val.length});${return_str}}`);
+            ifs.push(sk`${preamble}{l.setToken(${defined.id}, ${defined.byte_length},${defined.val.length}); return;}`);
 
         } else {
-            const symbols = node.symbols.map(s => Sym_Is_Virtual_Token(s) ? s.root : s);
+            const preamble = defined.byte_length <= node.offset ? "if " + getActiveTokenQuery(defined) + ":" : getIfClausePreamble(defined.byte_length - node.offset, node.offset, defined, node.offset, options);
+            const symbols = [...tk_syms, ...gen_syms].map(s => Sym_Is_Virtual_Token(s) ? s.root : s).setFilter(getUniqueSymbolName);
 
-            const id = generateHybridIdentifier(symbols);
+            const id = generateHybridIdentifier([defined, ...symbols]);
 
-            ifs.push(sk`${preamble}{l.setToken(${id}, ${defined.byte_length},${defined.val.length});${return_str}}`);
+            ifs.push(sk`${preamble}{
+                if ${symbols.filter(s => s.id != defined.id).map(getActiveTokenQuery).join("  || ")}: {
+                    l.setToken(${id}, ${defined.byte_length},${defined.val.length}); return;
+                }else{
+                    l.setToken(${defined.id}, ${defined.byte_length},${defined.val.length}); return;
+                }
+            }`);
         }
     }
 
     ifs.reduce((r: SKIf, a: SKIf) => ((!r) ? a : (r.else = a, a)), null);
 
     return ifs[0] ? [...prepend, ifs[0], ...append] : [...prepend, ...append];
-}
-
-function createIfClause(symbol: DefinedSymbol | VirtualTokenSymbol, offset: number, length: number, options: any, expressions: SKExpression[]) {
-
-    const start = offset;
-
-    if (Sym_Is_Virtual_Token(symbol)) {
-        length = 1;
-        offset = offset - symbol.root_offset;
-        symbol = <DefinedSymbol>symbol.item.sym(options.grammar);
-    }
-    let _if = sk`${getIfClausePreamble(length, start, symbol, offset, options)} {}`;
-
-
-    if (expressions.length == 1 && expressions[0].type == "block") {
-        _if.expression = expressions[0];
-    } else
-        _if.expression.expressions.push(...expressions);
-
-    return _if;
-}
-
-function getIfClausePreamble(length: number, start: number, symbol: DefinedSymbol, offset: number, options) {
-
-    symbol = getCardinalSymbol(options.grammar, symbol);
-
-    return length == 1
-        ? `if data.input[l.byte_offset ${start > 0 ? "+" + start : ""}] ~= ${getUTF8ByteAt(symbol, offset)} :`
-        : `if ${length} == compare(data, l.byte_offset  ${start > 0 ? "+" + start : ""}, ${symbol.byte_offset + offset}, ${length}) :`;
-}
-
-export function generateHybridIdentifier(symbols: HCG3Symbol[]) {
-    return symbols.map(s => s.id).setFilter().sort().reduce((r, s, i) => r | (s << (10 * i)), 0);
-}
-
-export function createItemScanFunction(items: Item[], options: BaseOptions, PEEKING: boolean = false, extra_symbols: TokenSymbol[] = []): SKReference {
-
-    const { grammar } = options;
-
-    const symbols = [...getSymbolsFromClosure(getClosure(items, grammar), grammar), ...extra_symbols].setFilter(getUniqueSymbolName);
-    const skippable = getSkippableSymbolsFromItems(items, grammar).filter(sym => !symbols.some(s => getUniqueSymbolName(s) == getUniqueSymbolName(sym)));
-
-    const id_symbols = [...symbols, ...skippable.map(sym => Object.assign({}, sym, { type: sym.type + "---" }))].setFilter(getUniqueSymbolName);
-
-    let fn_ref = getGlobalObject("skip", id_symbols, options.helper);
-
-    if (!fn_ref) {
-
-        let skip_fn_call = null;
-
-        if (skippable.length > 0)
-            skip_fn_call = createSkipCall(skippable, options, "l", PEEKING);
-
-        const scan_function: SKFunction = <any>sk`fn temp:void(l:__Lexer$ref, data:__ParserData$ref, state:u32){   }`;
-
-        if (options.helper.ANNOTATED)
-            addSymbolAnnotationsToExpressionList(symbols, options.grammar, scan_function.expressions, "test");
-
-        if (skip_fn_call)
-            scan_function.expressions.push(skip_fn_call);
-
-        scan_function.expressions.push(...render(getSymbolTree(symbols, options.grammar), options, [sk`if l.type > 0 : return;`]
-        ));
-
-        fn_ref = packGlobalFunction("scan", "void", id_symbols, scan_function, options.helper);
-    }
-
-    return fn_ref;
-}
-
-export function createSymbolScanFunction(symbols: TokenSymbol[], options: BaseOptions, PEEKING: boolean = false, ALLOW_SKIP: boolean = true): SKReference {
-
-    const id_symbols = [...symbols].setFilter(getUniqueSymbolName);
-
-    let fn_ref = getGlobalObject("skip", id_symbols, options.helper);
-
-    if (!fn_ref) {
-
-        const scan_function: SKFunction = <any>sk`fn temp:void(l:__Lexer$ref, data:__ParserData$ref, state:u32){ if l.type > 0 : return;  }`;
-
-        scan_function.expressions.push(...render(getSymbolTree(symbols, options.grammar), options));
-
-        fn_ref = packGlobalFunction("sym_scan", "void", id_symbols, scan_function, options.helper);
-    }
-
-    return fn_ref;
-}
-
-export function createScanFunctionCall(
-    items: Item[],
-    options: BaseOptions,
-    lex_name: string = "l",
-    PEEK: boolean = false,
-    extra_symbols: TokenSymbol[] = [],
-): SKExpression {
-
-    const scan = createItemScanFunction(items, options, PEEK, extra_symbols);
-    return <SKExpression>sk`${scan}(${lex_name}, data, ${!PEEK ? "state" : STATE_ALLOW_SKIP});`;
-}
-export function createSymbolScanFunctionCall(
-    symbols: TokenSymbol[],
-    options: BaseOptions,
-    lex_name: string = "l",
-    PEEK: boolean = false,
-): SKExpression {
-
-    const scan = createSymbolScanFunction(symbols, options, PEEK);
-    return <SKExpression>sk`${scan}(${lex_name}, data, ${!PEEK ? "state" : STATE_ALLOW_SKIP});`;
-}
-export function getSkipFunctionNew(
-    skip_symbols: TokenSymbol[],
-    options: BaseOptions,
-    custom_skip_code: SKNode,
-    exclude: TokenSymbol[] = []
-): SKReference {
-
-    const { helper: runner } = options;
-
-    if (skip_symbols.length == 0)
-        return null;
-
-    let fn_ref = getGlobalObject("skip", skip_symbols, runner);
-
-    if (!fn_ref) {
-
-        const
-            boolean = getIncludeBooleans(skip_symbols, "l"),
-
-            skip_function = <SKFunction>sk`
-            fn temp:void (l:__Lexer$ref,data:__ParserData$ref, state:u32){
-
-                if l.type > 0 : return;
-
-                if (state) == ${NULL_STATE} : return;
-
-                [const] off:u32 = l.token_offset;
-                
-                loop (1){
-
-                    ${createSymbolScanFunctionCall(skip_symbols, options, "l")};
-                    
-                    ${custom_skip_code ? custom_skip_code : ""}
-                    
-                    if !(${boolean}) : {
-                        break;
-                    };
-
-                    l.next(data);
-                };
-                if isOutputEnabled(state) : add_skip(data, l.token_offset - off);
-            }`;
-
-        fn_ref = packGlobalFunction("skip", "Lexer", skip_symbols, skip_function, runner);
-    }
-
-    return fn_ref;
 }

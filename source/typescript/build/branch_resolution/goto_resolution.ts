@@ -87,8 +87,7 @@ export function resolveGOTOBranches(
             const match_clause = (<SKMatch>sk`match 1 : ${keys.join(",")}: ${(<SKBlock>{
                 type: "block",
                 expressions: code
-            })
-                }`).matches[0];
+            }) }`).matches[0];
 
 
             (<SKMatch>match_stmt).matches.push(match_clause);

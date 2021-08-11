@@ -1,7 +1,6 @@
-import { HCG3ProductionBody } from "@candlelib/hydrocarbon/build/types/types/grammar_nodes";
-import { HCGParser } from "@candlelib/hydrocarbon/build/types/types/parser";
 import URI from "@candlelib/uri";
-import { HCG3Grammar } from "../types/grammar_nodes";
+import { HCG3Grammar, HCG3ProductionBody } from "../types/grammar_nodes";
+import { HCGParser } from "../types/parser";
 import {
     buildSequenceString,
     createCollisionMatrix,

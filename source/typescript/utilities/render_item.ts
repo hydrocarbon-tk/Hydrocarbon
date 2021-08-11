@@ -7,6 +7,8 @@
 import { TokenType } from "@candlelib/wind";
 import {
     getRootSym,
+    getSymbolsFromClosure,
+    getTokenSymbolsFromItems,
     Sym_Is_A_Production,
     Sym_Is_Empty,
     Sym_Is_Not_Consumed
@@ -15,6 +17,7 @@ import { TokenTypes } from "../runtime/TokenTypes.js";
 import { sk } from "../skribble/skribble.js";
 import { SKBlock, SKExpression, SKIf } from "../skribble/types/node";
 import { RenderBodyOptions } from "../types/render_body_options";
+import { getClosure } from "./closure.js";
 import {
     getIncludeBooleans,
     createBranchFunction,
@@ -88,8 +91,20 @@ export function renderItem(
 
             rc.push(sk`pushFN(data, &> ${call_name}, data.rules_ptr)`);
             rc.push(sk`return : ${getProductionFunctionName(production, grammar)}(l, data,db,state,data.rules_ptr,prod_start);`);
+            if (RENDER_WITH_NO_CHECK) {
+                leaf_expressions.push(...rc);
+            } else {
 
-            leaf_expressions.push(...rc);
+                const symbols = getTokenSymbolsFromItems(getClosure([item], grammar), grammar);
+
+
+                const _if = <SKIf & { expression: SKBlock; }>sk`if (${getIncludeBooleans(symbols, lex_name)}) : {}`;
+
+                _if.expression.expressions = rc;
+
+                leaf_expressions.push(_if);
+            }
+
 
             return { leaf_node: code, prods, INDIRECT, original_prods, EMPTY };
 
@@ -105,7 +120,6 @@ export function renderItem(
                 return renderItem(leaf_expressions, item.increment(), options, false, lex_name, true);
             } else {
                 RENDER_WITH_NO_CHECK = false;
-
 
                 const _if = <SKIf & { expression: SKBlock; }>sk`if (${getIncludeBooleans([sym], lex_name)}) : {}`;
 

@@ -8,11 +8,11 @@ import { Helper } from "../build/helper.js";
 import { getEnumTypeName } from "../grammar/passes/process_cpp_code.js";
 import { jump8bit_table_byte_size } from "../runtime/parser_memory_new.js";
 import { sk, skRenderAsCPP, skRenderAsCPPDeclarations, skRenderAsCPPDefinitions, skRenderAsJavaScript, skRenderAsTypeScript } from "../skribble/skribble.js";
-import { SKNode } from "../skribble/types/node.js";
+import { SKExpression, SKNode } from "../skribble/types/node.js";
 import { HCG3Grammar } from "../types/grammar_nodes.js";
 import { ParserGenerator } from "../types/ParserGenerator.js";
 import { RDProductionFunction } from "../types/rd_production_function.js";
-import { getProductionFunctionNameSk } from "../utilities/code_generating.js";
+import { createSymbolScanFunctionNew, getProductionFunctionNameSk, token_lu_bit_size, token_lu_bit_size_offset } from "../utilities/code_generating.js";
 import { renderSkribbleRecognizer } from "./skribble_recognizer_template.js";
 
 export function buildCPPRecognizerSource(
@@ -158,12 +158,17 @@ namespace myParser {
     //Spec Files
     //*
 
+    const token_lookup_functions = createSymbolScanFunctionNew({
+        grammar: grammar,
+        helper: meta
+    }).map(skRenderAsCPP).join("\n\n");
+
     const { const: constants_a, fn: const_functions_a } = meta.render_constants();
 
-    const str = [...constants_a, ...const_functions_a];
+    const grammar_functions = [...constants_a, ...const_functions_a];
 
     for (const { entry, goto, reduce } of recognizer_functions)
-        str.push(...[entry, goto, reduce].filter(i => i));
+        grammar_functions.push(...[entry, goto, reduce].filter(i => i));
 
     await fsp.writeFile(spec_parser_header_file + '',
         `#pragma once 
@@ -172,9 +177,25 @@ namespace myParser {
     using HYDROCARBON::Lexer;
     using HYDROCARBON::ParserData;
     using HYDROCARBON::ParserDataBuffer;    
-\n ${str.map(skRenderAsCPPDeclarations).join("\n\n")} \n }`);
+\n ${grammar_functions.map(skRenderAsCPPDeclarations).join("\n\n")} \n }`);
 
-    await fsp.writeFile(spec_parser_source_file + '', `#include "../include/spec_parser.h" \n namespace myParser { \n using namespace HYDROCARBON; \n ${str.map(skRenderAsCPP).join("\n\n")} \n }`);
+    const
+        sym_map = new Map,
+        functions_string = grammar_functions.map(skRenderAsCPP).join("\n\n").replace(/symbollookup(\_\d+)+/g, (a, b, c) => {
+            if (!sym_map.has(a)) {
+                sym_map.set(a, sym_map.size);
+            }
+            return sym_map.get(a);
+        });
+
+    await fsp.writeFile(spec_parser_source_file + '', `#include "../include/spec_parser.h" 
+ namespace myParser { 
+     using namespace HYDROCARBON; 
+    ${skRenderAsCPP(createTokenLUSK(sym_map))};
+    ${skRenderAsCPP(createActiveTokenSK(grammar))}
+    ${token_lookup_functions}
+     ${functions_string} 
+}`);
     //*/;
     return main_file;
 }
@@ -213,6 +234,14 @@ export async function generateWebAssemblyParser(
     for (const { entry, goto, reduce } of recognizer_functions)
         grammar_functions.push(...[entry, goto, reduce].filter(i => i));
 
+    const sym_map = new Map();
+    const functions_string = grammar_functions.map(skRenderAsCPP).join("\n\n").replace(/symbollookup(\_\d+)+/g, (a, b, c) => {
+        if (!sym_map.has(a)) {
+            sym_map.set(a, sym_map.size);
+        }
+        return sym_map.get(a);
+    });
+
     //Build WASM Data segment ----------------------------------------------------
 
     const cpp_entry_content = `
@@ -229,9 +258,18 @@ using HYDROCARBON::ParserData;
 using HYDROCARBON::ParserDataBuffer; 
 using HYDROCARBON::isOutputEnabled; 
 
+${skRenderAsCPP(createTokenLUSK(sym_map))}
+        
+${skRenderAsCPP(createActiveTokenSK(grammar))}
+
+${createSymbolScanFunctionNew({
+        grammar: grammar,
+        helper: meta
+    }).map(skRenderAsCPP).join("\n\n")}
+
 ${grammar_functions.map(skRenderAsCPPDeclarations).join("\n\n")}
 
-${grammar_functions.map(skRenderAsCPP).join("\n\n")}
+${functions_string}
 
 static unsigned char * input = nullptr;
 
@@ -344,15 +382,39 @@ export async function generateJSParser(
 
     const renderFunction = (INCLUDE_TYPES ? skRenderAsTypeScript : skRenderAsJavaScript);
 
+    const sym_map = new Map();
+
+    const b = renderFunction(createSequenceArraySk(grammar)).replace(/symbol_lookup(\_\d+)+/g, (a, b, c) => {
+        if (!sym_map.has(a)) {
+            sym_map.set(a, sym_map.size);
+        }
+        return sym_map.get(a);
+    });
+    const a = renderFunction(compileRecognizerSource(meta, grammar, recognizer_functions)).replace(/symbollookup(\_\d+)+/g, (a, b, c) => {
+        if (!sym_map.has(a)) {
+            sym_map.set(a, sym_map.size);
+        }
+        return sym_map.get(a);
+    });
+
     return `
     ${hydrocarbon_import_path ? `import { ParserFactoryNext as ParserFactory, initializeUTFLookupTableNewPlus as memInit} from "${hydrocarbon_import_path}"` : ""};
     const recognizer_initializer = (()=>{
 
         const char_lu_table = new Uint8Array(${jump8bit_table_byte_size});
+        
+        ${renderFunction(createTokenLUSK(sym_map))}
+        
+        ${renderFunction(createActiveTokenSK(grammar))}
 
-        ${renderFunction(createSequenceArraySk(grammar))};
+        ${createSymbolScanFunctionNew({
+        grammar: grammar,
+        helper: meta
+    }).map(renderFunction).join("\n\n")}
 
-        ${renderFunction(compileRecognizerSource(meta, grammar, recognizer_functions))};
+        ${b};
+
+        ${a};
 
         function recognize_primary( byte_length, production){
 
@@ -391,6 +453,23 @@ export async function generateJSParser(
 
     ${export_expression_preamble} ParserFactory${INCLUDE_TYPES ? `<any, ${createEntryList(grammar)}>` : ""}
         (reduce_functions, undefined, recognizer_initializer, ${createEntryList(grammar)}, memInit);`;
+}
+
+function createActiveTokenSK(grammar: HCG3Grammar): SKNode {
+    return <SKExpression>sk`
+            fn isTokenActive:bool(token_id:u32, row:u32) {
+
+                [mut] index : u32 = (row ${grammar.meta.token_row_size > 1 ? "* " + grammar.meta.token_row_size : ""}) + (token_id >> ${token_lu_bit_size_offset});
+
+                [mut] shift : u32 = 1 << (${token_lu_bit_size - 1} & (token_id - 1));
+            
+                return : (token_lookup[index] & shift) > 0;
+            }
+        `;
+}
+
+function createTokenLUSK(sym_map: Map<any, any>): SKNode {
+    return <SKExpression>sk`[mut] token_lookup: array_u${token_lu_bit_size} = array_u${token_lu_bit_size}(${[...sym_map.keys()].flatMap(s => s.split("_").slice(1)).join(",")});`;
 }
 
 function createSequenceArraySk(grammar: HCG3Grammar): SKNode {

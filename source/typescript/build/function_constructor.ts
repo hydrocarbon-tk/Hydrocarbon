@@ -55,7 +55,7 @@ export function constructHybridFunction(production: HCG3Production, grammar: HCG
 
             //TODO: Reset output pointer to production start
 
-            renderItem(RD_function.expressions, item, RDOptions);
+            renderItem(RD_function.expressions, item, RDOptions, true);
 
             RD_function.expressions.push(<SKExpression>sk`return:${production.id}`);
         } else {

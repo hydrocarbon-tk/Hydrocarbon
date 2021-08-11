@@ -471,6 +471,7 @@ fn create_parser_data_object:__ParserData$ptr(
     fork_ref.lexer = (*>data.lexer).copy();
     fork_ref.state = data.state;
     fork_ref.prod = data.prod;
+    fork_ref.sequence = data.sequence;
 
     data_buffer.addDataPointer(fork);
 
