@@ -96,10 +96,12 @@ import { js_mappings } from "./js_mappings.js";
 import { cpp_mappings } from "./cpp_mappings.js";
 import { cpp_declaration_mappings } from "./cpp_header_mappings.js";
 import { cpp_definition_mappings } from "./cpp_source_mappings.js";
+import { rust_mappings } from "./rust_mappings.js";
 
 let renderers = null;
 let ts_renderers = null;
 let js_renderers = null;
+let rust_renderers = null;
 let cpp_renderers = null;
 let cpp_decl_renderers = null;
 let cpp_def_renderers = null;
@@ -120,6 +122,12 @@ export function skRenderAsJavaScript(node: SKNode): string {
     if (!js_renderers)
         js_renderers = experimentalConstructRenderers(<NodeMappings<SKNode, "type">>js_mappings);
     return experimentalRender(node, <NodeMappings<SKNode, "type">>js_mappings, js_renderers);
+}
+
+export function skRenderAsRust(node: SKNode): string {
+    if (!rust_renderers)
+        rust_renderers = experimentalConstructRenderers(<NodeMappings<SKNode, "type">>rust_mappings);
+    return experimentalRender(node, <NodeMappings<SKNode, "type">>rust_mappings, rust_renderers);
 }
 
 export function skRenderAsCPP(node: SKNode): string {

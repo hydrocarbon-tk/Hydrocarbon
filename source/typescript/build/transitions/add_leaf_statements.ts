@@ -140,6 +140,7 @@ export function* addVirtualProductionLeafStatements(
         { leaves: goto_leaves, NO_GOTOS } = GOTO_Options,
         p_map = new Map([...v_map.entries()].map(([id, { p, i }]) => [p.id, id]));
 
+    let GOTOS_FOLDED = false;
 
     for (const rd_leaf of rd_leaves) {
         const { leaf, prods } = rd_leaf;
@@ -159,8 +160,6 @@ export function* addVirtualProductionLeafStatements(
             leaf.push(<SKExpression>sk`return : ${goto_fn_name}(l, data, db, state, ${prods[0]}, prod_start)`);
         }
     }
-
-    let GOTOS_FOLDED = false;
 
     if (!NO_GOTOS)
         for (const goto_leaf of goto_leaves) {
@@ -198,6 +197,8 @@ export function* addVirtualProductionLeafStatements(
 
     if (GOTOS_FOLDED)
         RD_fn_contents.push(addClauseSuccessCheck(RDOptions));
-    else
-        RD_fn_contents.push(<SKExpression>sk`return:-1`);
+    else {
+        if (RD_fn_contents[RD_fn_contents.length - 1]?.type !== "return")
+            RD_fn_contents.push(<SKExpression>sk`return:-1`);
+    }
 }

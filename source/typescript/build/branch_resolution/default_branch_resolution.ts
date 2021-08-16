@@ -235,7 +235,7 @@ function createIfElseExpressions(
                     if (code.slice(-1)[0].type !== "return")
                         code.push(<SKExpression>sk`return:-1`);
                     if (state.peek_level > 0)
-                        code.unshift(sk`l.type = ${group.root_id}`);
+                        code.unshift(<SKExpression>sk`l._type = ${group.root_id}`);
                 }
 
                 if (
@@ -297,9 +297,9 @@ function shiftNonConsumeExpression(sk_expr_list: SKExpression[], syms: TokenSymb
 
     if (non_consume.length > 0) {
         if (non_consume.length == syms.length) {
-            sk_expr_list.unshift(<SKExpression>sk`${lex_name}.setToken(${lex_name}.type, 0, 0)`);
+            sk_expr_list.unshift(<SKExpression>sk`${lex_name}.setToken(${lex_name}._type, 0, 0)`);
         } else {
-            sk_expr_list.unshift(<SKExpression>sk`if (${getIncludeBooleans([sym], grammar, lex_name)}) : ${lex_name}.setToken(${lex_name}.type, 0, 0);`);
+            sk_expr_list.unshift(<SKExpression>sk`if (${getIncludeBooleans([sym], grammar, lex_name)}) : ${lex_name}.setToken(${lex_name}._type, 0, 0);`);
         }
     }
 }

@@ -82,9 +82,12 @@ export function createVirtualProductions(items: Item[], options: RenderBodyOptio
         buildItemMaps(grammar, Array.from(output.values()).map(({ p }) => p));
 
         for (const [item_id, { p: production }] of output.entries()) {
-            const item = getItemMapEntry(grammar, item_id).item;
-            const body = production.bodies[0];
-            const v_item = new Item(body.id, body.length, 0);
+            const
+                item = getItemMapEntry(grammar, item_id).item,
+                
+                body = production.bodies[0],
+                
+                v_item = new Item(body.id, body.length, 0);
 
             for (let j = v_item, i = item; ;) {
                 if (!i) break;
@@ -98,12 +101,15 @@ export function createVirtualProductions(items: Item[], options: RenderBodyOptio
         }
 
         for (const [item_id, { p: production }] of output.entries()) {
-            const item_map = getItemMapEntry(grammar, getItemMapEntry(grammar, item_id).item.toEND().id);
-            const body = production.bodies[0];
+            const
 
+                item_map = getItemMapEntry(grammar, getItemMapEntry(grammar, item_id).item.toEND().id),
 
-            const v_item = new Item(body.id, body.length, body.length);
-            const v_item_map = getItemMapEntry(grammar, v_item.id);
+                body = production.bodies[0],
+
+                v_item = new Item(body.id, body.length, body.length),
+
+                v_item_map = getItemMapEntry(grammar, v_item.id);
 
             if (item_map.item.atEND) {
                 for (const value of item_map.follow.values())
@@ -111,6 +117,7 @@ export function createVirtualProductions(items: Item[], options: RenderBodyOptio
             } else {
                 let next_item_map = getItemMapEntry(grammar, item_map.item.increment().id);
                 const closure = next_item_map.closure.map(i => getItemMapEntry(grammar, i).item);
+
                 for (const sym of getSymbolsFromClosure(closure, grammar).filter(Sym_Is_A_Terminal).map(getUniqueSymbolName))
                     v_item_map.follow.add(sym);
             }

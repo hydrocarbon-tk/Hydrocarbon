@@ -7,7 +7,7 @@ import URI from "@candlelib/uri";
 import { Helper } from "../build/helper.js";
 import { getEnumTypeName } from "../grammar/passes/process_cpp_code.js";
 import { jump8bit_table_byte_size } from "../runtime/parser_memory_new.js";
-import { sk, skRenderAsCPP, skRenderAsCPPDeclarations, skRenderAsCPPDefinitions, skRenderAsJavaScript, skRenderAsTypeScript } from "../skribble/skribble.js";
+import { sk, skRenderAsCPP, skRenderAsCPPDeclarations, skRenderAsCPPDefinitions, skRenderAsJavaScript, skRenderAsRust, skRenderAsTypeScript } from "../skribble/skribble.js";
 import { SKExpression, SKFunction, SKNode } from "../skribble/types/node.js";
 import { HCG3Grammar } from "../types/grammar_nodes.js";
 import { ParserGenerator } from "../types/ParserGenerator.js";
@@ -55,6 +55,119 @@ ${recognizer_source}`;
 }
 
 
+export async function generateRustLibraryFiles(output_location: string = "") {
+
+    const
+
+        fs = (await import("fs")).default,
+
+        fsp = fs.promises,
+
+        package_dir = URI.resolveRelative(output_location, "./"),
+
+        header_dir = URI.resolveRelative("./include/", package_dir),
+
+        source_dir = URI.resolveRelative("./source/", package_dir),
+
+        core_parser_source_file = URI.resolveRelative("./core_parser.rs", source_dir);
+
+    await fsp.mkdir(header_dir + "", { recursive: true });
+    await fsp.mkdir(source_dir + "", { recursive: true });
+
+    //Core Files
+    //*
+    const recognizer_code = renderSkribbleRecognizer();
+
+    await fsp.writeFile(core_parser_source_file + '',
+        `
+mod HYDROCARBON 
+{ \n ${skRenderAsRust(recognizer_code)} \n }`
+    );
+}
+
+export async function generateRustParser(
+    grammar: HCG3Grammar,
+    recognizer_functions: RDProductionFunction[],
+    meta: Helper,
+    output_location: string = "",
+    ___: string = ""
+): Promise<string> {
+
+    const
+        grammar_namespace = "myParser",
+
+        fs = (await import("fs")).default,
+
+        fsp = fs.promises,
+
+        package_dir = URI.resolveRelative(output_location, "./"),
+
+        entry_header_file = URI.resolveRelative("./parser.rs", package_dir),
+
+        source_dir = URI.resolveRelative("./source/", package_dir),
+
+        spec_parser_source_file = URI.resolveRelative("./spec_parser.rs", source_dir);
+
+    await fsp.mkdir(source_dir + "", { recursive: true });
+
+    const main_file = `
+mod ${grammar_namespace} {
+    
+    use HYDROCARBON::*;
+
+    pub enum ${getEnumTypeName(grammar.enums.name)} {
+
+        UNDEFINED,
+        ${grammar.enums.keys.map(k => k).join(",\n")}
+    }
+    
+
+    ${grammar.cpp.classes.join(";\n\n")};
+    
+    const let reduce_functions : Vec<HYDROCARBON::ReduceFunction> = vec(${renderCPPReduceFunctionLookupArray(grammar)});
+    
+    HYDROCARBON::ASTRef parse(char * utf8_encoded_input, unsigned long ut8_byte_length){
+        return parserCore(
+            utf8_encoded_input, 
+            ut8_byte_length,
+            ${getProductionFunctionNameSk(grammar.productions[0])},
+            myParser::reduce_functions
+            );
+        }
+}`;
+    await fsp.writeFile(entry_header_file + '', main_file);
+
+    //*/
+    //Spec Files
+    //*
+
+    const
+        sym_map = new Map(),
+
+        token_lookup_functions = extractAndReplaceTokenMapRefs(createSymbolScanFunctionNew({
+            grammar: grammar,
+            helper: meta
+        }).map(skRenderAsRust).join("\n\n"), sym_map),
+
+        grammar_functions = createGrammarFunctionArray(meta, recognizer_functions),
+
+        functions_string = extractAndReplaceTokenMapRefs(grammar_functions.map(skRenderAsRust).join("\n\n"), sym_map);
+
+    await fsp.writeFile(spec_parser_source_file + '', `
+ mod ${grammar_namespace} { 
+     use HYDROCARBON::*; 
+    ${skRenderAsRust(createTokenLUSK(sym_map))};
+    ${skRenderAsRust(createSequenceArraySk(grammar))};
+    ${skRenderAsRust(createActiveTokenSK(grammar))}
+    ${token_lookup_functions}
+     ${functions_string} 
+}`);
+    //*/;
+    return main_file;
+}
+
+
+
 export async function generateCPPLibraryFiles(output_location: string = "") {
 
     const
@@ -93,6 +206,7 @@ namespace HYDROCARBON
         `#include "../include/core_parser.h" \n namespace HYDROCARBON { \n ${core_def} \n }`
     );
 }
+
 
 export async function generateCPPParser(
     grammar: HCG3Grammar,
@@ -254,13 +368,14 @@ ${grammar_functions.map(skRenderAsCPPDeclarations).join("\n\n")};
 
 ${skRenderAsCPP(createTokenLUSK(sym_map))};
 ${skRenderAsCPP(createActiveTokenSK(grammar))}
+${skRenderAsCPP(createSequenceArraySk(grammar))};
+
 ${token_lookup_functions}
 
 ${functions_string}
 
 static unsigned char * input = nullptr;
 
-${skRenderAsCPP(createSequenceArraySk(grammar))};
 
 extern "C" {
     
@@ -362,11 +477,11 @@ function renderIntermediateFunction() {
     
         scan(l, data, tk_row, 0, 0);
     
-        [mut] type:u32 = l.type;
+        [mut] type_cache:u32 = l._type;
     
-        l.type = 0;
+        l._type = 0;
     
-        return : type > 0;
+        return : type_cache > 0;
     }`;
 }
 

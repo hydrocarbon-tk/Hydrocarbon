@@ -26,6 +26,8 @@ import { yieldTransitions } from "./transitions/yield_transitions.js";
 
 export function constructHybridFunction(production: HCG3Production, grammar: HCG3Grammar, runner: Helper): RDProductionFunction {
 
+    grammar.branches = [];
+
     const
 
         rd_fn_name = <SKPrimitiveDeclaration>sk`[priv] ${getProductionFunctionName(production, grammar)}:u32`,
@@ -73,7 +75,6 @@ export function constructHybridFunction(production: HCG3Production, grammar: HCG
         RDOptions,
         GOTO_Options);
 
-    collapseBranchNames(RDOptions);
     collapseBranchNames(GOTO_Options);
 
     if (!GOTO_Options.NO_GOTOS)
@@ -145,6 +146,9 @@ export function createVirtualProductionSequence(
             virtual_links
         );
 
+    if (!GOTO_Options.NO_GOTOS)
+        GOTO_fn_contents.push(addClauseSuccessCheck(RDOptions));
+
     for (let { item_id, leaf, prods } of gen) {
 
         const item = grammar.item_map.get(item_id).item;
@@ -177,7 +181,7 @@ export function createVirtualProductionSequence(
     if (options.helper.ANNOTATED) {
         out.push(
             <SKExpression>sk`"-------------VPROD-------------------------"`,
-            <SKExpression>sk`"${items.map(i => i.renderUnformattedWithProduction(grammar)).join("\n")}"`,
+            //<SKExpression>sk`"${items.map(i => i.renderUnformattedWithProduction(grammar)).join(" ")}"`,
         );
     }
 
@@ -186,9 +190,8 @@ export function createVirtualProductionSequence(
         <SKExpression>sk`return:0`,
     );
 
-    collapseBranchNames(RDOptions);
-
-    collapseBranchNames(GOTO_Options);
+    //collapseBranchNames(RDOptions);
+    //collapseBranchNames(GOTO_Options);
 
     return out;
 }
@@ -205,7 +208,7 @@ export function compileProductionFunctions(
     filter_symbols: Symbol[] = const_EMPTY_ARRAY,
     IS_VIRTUAL: number = 0
 ) {
-    //if (IS_VIRTUAL > 32) throw new Error("Virtual production depth is too high");
+    if (IS_VIRTUAL > 32) throw new Error("Virtual production depth is too high");
 
     grammar.lr_items = [...grammar.item_map.values()].filter(i => !i.item.atEND && Sym_Is_A_Production(i.item.sym(grammar))).map(i => i.item);
 
