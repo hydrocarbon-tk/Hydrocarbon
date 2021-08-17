@@ -26,9 +26,88 @@ impl ASTRefString {
     //To utf8 string
     //To floating point
     //To integer
-    //To encapsulating string
-}
+    /// fn metrics()->u32{5}
 
+    /// Get information on the line and character offset of the of
+    /// the ASTRefString
+    /// (lines proceeding offset: u32, character offset from line start: u32)
+    /// *
+    pub fn metrics<'a>(&self, source: &'a [u8]) -> (u32, u32) {
+        (0, 0)
+    }
+
+    /// Return a user friendly string reporting the unexpected
+    /// condition that has occurred while parsing an input.
+    pub fn report<'a>(&self, source: &'a [u8]) -> String {
+        // Get the start of the line from the source string
+        let length = source.len();
+
+        // Find the proceeding line break relative to the offset.
+        let mut index = self.offset;
+
+        while index > 0 && source[index] != 10 {
+            index -= 1;
+        }
+
+        //Get the number of proceeding lines
+
+        let mut line_count = 1;
+
+        while index > 0 {
+            if source[index] != 10 {
+                line_count += 1
+            }
+            index -= 1;
+        }
+
+        let slice_start = index;
+
+        // Find the following line break relative to the offset.
+        let mut index = self.offset;
+
+        while index < length as usize && source[index] != 10 {
+            index += 1;
+        }
+
+        let slice_end = index;
+
+        //TODO: Keep the slice under a certain character limit ?
+        let slice_length = slice_end - slice_start;
+
+        use std::str;
+
+        //Create the error message
+        if self.offset >= length {
+            // EOF Error message
+            let message = String::from("Unexpected end of input");
+            let pointer_string = " ".repeat(self.offset - slice_start) + "^";
+
+            if let Ok(utf8_string) = str::from_utf8(&Vec::from(&source[slice_start..slice_end])) {
+                return message + "\n" + utf8_string + "\n" + &pointer_string;
+            }
+        } else {
+            // Unexpected token error message
+            if let Ok(token) = str::from_utf8(&Vec::from(
+                &source[self.offset..(self.offset + self.length)],
+            )) {
+                let message = format!(
+                    "Unexpected token [{}] encountered at {}:{}:",
+                    token,
+                    line_count,
+                    self.offset - slice_start
+                );
+                let pointer_string =
+                    " ".repeat(self.offset - slice_start) + &("^".repeat(self.length));
+                let ref string = Vec::from(&source[slice_start..slice_end]);
+                if let Ok(utf8_string) = str::from_utf8(string) {
+                    return message + "\n" + utf8_string + "\n" + &pointer_string + "\n";
+                }
+            }
+        }
+
+        String::from("Unable to produce error message")
+    }
+}
 #[derive(Debug)]
 pub enum ASTRef<T> {
     FAILED_TOKEN(ASTRefString),
@@ -66,7 +145,10 @@ pub fn parser_core<T: std::fmt::Debug>(
         }
     } else if failure.len() > 0 {
         if let Some(longest_failure) = failure.get_ref_state(0) {
-            return Some(Box::new(ASTRef::NONE));
+            return Some(Box::new(ASTRef::FAILED_TOKEN(ASTRefString {
+                offset: longest_failure.lexer.byte_offset as usize,
+                length: longest_failure.lexer.byte_length as usize,
+            })));
         }
     }
 
