@@ -116,8 +116,9 @@ export async function generateRustParser(
     
     use candlelib_hydrocarbon::completer::*;
     use super::spec_parser::*;
-
-    type NodeRef = Box<ASTRef<TypeEnum>>;
+    
+    pub type NodeRef = ASTRef<TypeEnum>;
+    pub type BoxedNodeRef = Box<ASTRef<TypeEnum>>;
 
     ${rendered_structs.map(s => `#[derive(Debug)]\n${s}`).join("\n\n")}
 

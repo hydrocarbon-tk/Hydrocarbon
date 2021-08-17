@@ -64,7 +64,6 @@ export function default_resolveUnresolvedLeaves(node: TransitionNode, nodes: Tra
             prods: out_prods.setFilter()
         };
     }
-    //*/
 
     let root: SKExpression[] = [];
 

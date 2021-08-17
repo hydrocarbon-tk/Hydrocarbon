@@ -16,6 +16,7 @@ import { processProductionChain } from "../../utilities/process_production_reduc
 import { getTransitionTree } from "../../utilities/transition_tree.js";
 import { createTransitionNode } from "./create_transition_node.js";
 import { buildPeekTransitions } from "./yield_peek_transitions.js";
+import { yieldTransitions } from "./yield_transitions.js";
 export function yieldEndItemTransitions(end_items: Item[], options: RenderBodyOptions, offset: number): TransitionNode[] {
 
     if (end_items.length == 0) return [];
@@ -78,7 +79,7 @@ export function yieldEndItemTransitions(end_items: Item[], options: RenderBodyOp
                     return { final: 0, sym: null, index, closure: closure, production_shift_items: closure.filter(i => Sym_Is_A_Production(i.sym(grammar))) };
                 }));
 
-            let used_items = [];
+            let used_items = new Set;
 
             if (tree_nodes.length > 0) {
                 output_nodes.push(...buildPeekTransitions(
@@ -88,23 +89,30 @@ export function yieldEndItemTransitions(end_items: Item[], options: RenderBodyOp
                     (state, options, offset) => {
 
                         const { items, closure, symbols } = state;
-                        const selected = items.sort((a, b) => a.body - b.body);
 
-                        const ADD_EOP = DoesItemReduceTo(options.production_ids[0], selected[0], grammar, goto_items);
+                        if (items.length > 1) {
+                            state.transition_type = TRANSITION_TYPE.PEEK_UNRESOLVED;
+                            for (const item of items) {
 
-                        state.transition_type = TRANSITION_TYPE.ASSERT_END;
-                        state.items = selected.slice(0, 1);
+                                const unresolved_leaf_node = createTransitionNode([item], symbols, TRANSITION_TYPE.ASSERT_END, offset, state.peek_level, true, 55);
 
-                        if (ADD_EOP)
-                            state.symbols.push(default_EOP);
+                                unresolved_leaf_node.nodes.push(...yieldTransitions([item], options, offset, const_EMPTY_ARRAY, false));
 
-                        used_items.push(...state.items);
+                                state.nodes.push(unresolved_leaf_node);
+
+                            }
+                        } else {
+                            state.transition_type = TRANSITION_TYPE.ASSERT_END;
+                        }
+
+                        for (const item of items)
+                            used_items.add(item.id);
                     },
                     const_EMPTY_ARRAY,
                     -1));
             }
 
-            default_end_items = end_items.filter(i => !used_items.some(s => s.id == i.id));
+            default_end_items = end_items.filter(i => !used_items.has(i.id));
         }
     } else {
         default_end_items = end_items;

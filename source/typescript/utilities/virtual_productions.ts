@@ -81,6 +81,7 @@ export function createVirtualProductions(items: Item[], options: RenderBodyOptio
 
         buildItemMaps(grammar, Array.from(output.values()).map(({ p }) => p));
 
+        /*
         for (const [item_id, { p: production }] of output.entries()) {
             const
                 item = getItemMapEntry(grammar, item_id).item,
@@ -92,7 +93,9 @@ export function createVirtualProductions(items: Item[], options: RenderBodyOptio
             for (let j = v_item, i = item; ;) {
                 if (!i) break;
 
+                //
                 grammar.item_map.get(j.id).sym_uid
+                    //
                     = grammar.item_map.get(i.id).sym_uid;
 
                 j = j.increment();
@@ -121,7 +124,7 @@ export function createVirtualProductions(items: Item[], options: RenderBodyOptio
                 for (const sym of getSymbolsFromClosure(closure, grammar).filter(Sym_Is_A_Terminal).map(getUniqueSymbolName))
                     v_item_map.follow.add(sym);
             }
-        }
+        }//*/
     }
 
     return { links: output, V_PRODS_ALREADY_EXIST };
