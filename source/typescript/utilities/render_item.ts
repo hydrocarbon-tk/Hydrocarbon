@@ -16,13 +16,12 @@ import { SKBlock, SKExpression, SKIf } from "../skribble/types/node";
 import { RenderBodyOptions } from "../types/render_body_options";
 import { getClosure } from "./closure.js";
 import {
-    addItemAnnotationToExpressionList,
     createBranchFunction,
     createConsumeSk,
     createDefaultReduceFunctionSk,
     createProductionReturn,
     createReduceFunctionSK,
-    createScanFunctionCall, getIncludeBooleans, getProductionFunctionName
+    createScanFunctionCall, getIncludeBooleans
 } from "./code_generating.js";
 import { Item, itemsToProductionIDs } from "./item.js";
 import { processProductionChain } from "./process_production_reduction_sequences.js";
@@ -54,9 +53,8 @@ export function renderItem(
     item: Item,
     options: RenderBodyOptions,
     RENDER_WITH_NO_CHECK = false,
-    lex_name: string = "state.lexer",
     POST_CONSUME = false,
-    items = [],
+    lex_name: string = "state.lexer",
 ): { leaf_node: SKExpression[], original_prods: number[], prods: number[]; INDIRECT: boolean; EMPTY: boolean; } {
     const { grammar, helper: runner, called_productions } = options;
 
@@ -76,29 +74,31 @@ export function renderItem(
 
             let
                 call_body = [],
-                items = [item.toEND()],
                 code: SKExpression[] = null;
 
-            ({ leaf_node: code, prods, original_prods } = renderItem(call_body, item.increment(), options, false, lex_name, true, items));
+            ({ leaf_node: code, prods, original_prods } = renderItem(call_body, item.increment(), options, false, true, lex_name));
 
             const
                 call_name = createBranchFunction(call_body, options),
                 rc = [];
 
             rc.push(sk`state.push_fn( &> ${call_name}, state.get_rules_ptr_val())`);
+
             rc.push(createProductionReturn(production));
-            if (RENDER_WITH_NO_CHECK) {
+
+            if (RENDER_WITH_NO_CHECK || POST_CONSUME) {
+
                 leaf_expressions.push(...rc);
+
             } else {
 
                 const symbols = getTokenSymbolsFromItems(getClosure([item], grammar), grammar);
 
+                const if_stmt = <SKIf & { expression: SKBlock; }>sk`if (${getIncludeBooleans(symbols, grammar, lex_name)}) : {}`;
 
-                const _if = <SKIf & { expression: SKBlock; }>sk`if (${getIncludeBooleans(symbols, grammar, lex_name)}) : {}`;
+                if_stmt.expression.expressions = rc;
 
-                _if.expression.expressions = rc;
-
-                leaf_expressions.push(_if);
+                leaf_expressions.push(if_stmt);
             }
 
 
@@ -110,31 +110,41 @@ export function renderItem(
                 leaf_expressions.push(createScanFunctionCall([item], options));
 
             if (RENDER_WITH_NO_CHECK) {
+
                 if (Sym_Is_Not_Consumed(sym))
                     leaf_expressions.push(<SKExpression>sk`${lex_name}.setToken(${lex_name}.type, 0, 0)`);
+
                 leaf_expressions.push(createConsumeSk(lex_name));
-                return renderItem(leaf_expressions, item.increment(), options, false, lex_name, true);
+
+                return renderItem(leaf_expressions, item.increment(), options, false, true, lex_name);
             } else {
-                RENDER_WITH_NO_CHECK = false;
 
-                const _if = <SKIf & { expression: SKBlock; }>sk`if (${getIncludeBooleans([sym], grammar, lex_name)}) : {}`;
+                const if_stmt = <SKIf & { expression: SKBlock; }>sk`if (${getIncludeBooleans([sym], grammar, lex_name)}) : {}`;
 
-                leaf_expressions.push(_if);
+                leaf_expressions.push(if_stmt);
+
                 if (Sym_Is_Not_Consumed(sym))
-                    _if.expression.expressions.push(<SKExpression>sk`${lex_name}.setToken(${lex_name}.type, 0, 0)`);
-                _if.expression.expressions.push(createConsumeSk(lex_name));
+                    if_stmt.expression.expressions.push(<SKExpression>sk`${lex_name}.setToken(${lex_name}.type, 0, 0)`);
 
-                return renderItem(_if.expression.expressions, item.increment(), options, false, lex_name, true);
+                if_stmt.expression.expressions.push(createConsumeSk(lex_name));
+
+                return renderItem(if_stmt.expression.expressions, item.increment(), options, false, true, lex_name);
             }
-        } else {
+        } else { // Item is at its end position.
+
             original_prods = itemsToProductionIDs([item], grammar);
+
             prods = processProductionChain(leaf_expressions, options, itemsToProductionIDs([item], grammar));
+
             leaf_expressions.push(<SKExpression>sk`state.lexer.setToken( ${TokenTypes.SYMBOL}, 0, 0 )`);
+
             leaf_expressions.push(createConsumeSk(lex_name));
+
             EMPTY = true;
         }
 
     } else {
+
         renderItemReduction(leaf_expressions, item, options);
 
         original_prods = itemsToProductionIDs([item], grammar);
