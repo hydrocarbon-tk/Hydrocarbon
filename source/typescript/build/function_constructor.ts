@@ -35,10 +35,11 @@ export function constructHybridFunction(production: HCG3Production, grammar: HCG
         goto_fn_name = <SKPrimitiveDeclaration>sk`[priv] ${getProductionFunctionName(production, grammar)}_goto:u32`,
 
         RD_function = <SKFunction>sk`
-        fn ${getProductionFunctionName(production, grammar)}:i32(l:__Lexer$ref,data:__ParserData$ref, db:__ParserDataBuffer$ref, state:u32, prod:u32, prod_start:u32){ ${runner.ANNOTATED ? "" : ""} }`,
+
+        [pub] fn ${getProductionFunctionName(production, grammar)}:i32(state:__ParserState$ref, db:__ParserStateBuffer$ref, prod:i32, prod_start:i32){ ${runner.ANNOTATED ? "" : ""} }`,
 
         GOTO_function = <SKFunction>sk`
-        fn ${getProductionFunctionName(production, grammar)}_goto:i32(l:__Lexer$ref,data:__ParserData$ref, db:__ParserDataBuffer$ref, state:u32, prod:u32, prod_start:u32){ ${runner.ANNOTATED ? "" : ""} }`,
+        [pub] fn ${getProductionFunctionName(production, grammar)}_goto:i32(state:__ParserState$ref, db:__ParserStateBuffer$ref, [mut] prod:i32, prod_start:i32){ ${runner.ANNOTATED ? "" : ""} }`,
 
         { RDOptions, GOTO_Options, RD_fn_contents, GOTO_fn_contents }
             = compileProductionFunctions(grammar, runner, [production]);
@@ -186,7 +187,7 @@ export function createVirtualProductionSequence(
     }
 
     out.push(
-        <SKExpression>sk`pushFN(data, &> ${rd_virtual_name}, 0)`,
+        <SKExpression>sk`state.push_fn(&> ${rd_virtual_name}, 0)`,
         <SKExpression>sk`return:0`,
     );
 
@@ -251,7 +252,7 @@ export function compileProductionFunctions(
     if (rd_nodes.length == 1 && (rd_nodes[0].transition_type == TRANSITION_TYPE.ASSERT_PRODUCTION_CALL || rd_nodes[0].transition_type == TRANSITION_TYPE.ASSERT_PRODUCTION_SYMBOLS)) {
 
     } else
-        RD_fn_contents.unshift(createScanFunctionCall(initial_items, RDOptions, "l", false));
+        RD_fn_contents.unshift(createScanFunctionCall(initial_items, RDOptions, "state.lexer", false));
 
     RDOptions.leaves = rd_leaves;
     GOTO_Options.leaves = goto_leaves;

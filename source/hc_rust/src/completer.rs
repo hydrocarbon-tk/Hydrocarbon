@@ -4,6 +4,15 @@ use super::core_parser::ParserStateBuffer;
 use super::core_parser::ParserStateIterator;
 use super::core_parser::StackFunction;
 
+///
+/// Base string container.
+///
+/// Does not store string data
+/// but rather holds the offset and length of a given
+/// token or run of tokens. The programmer is
+/// required to provide the original string to the
+/// implementation methods in order to extract the
+/// underlying representation of the data.
 #[derive(Debug)]
 pub struct ASTRefString {
     offset: usize,
@@ -14,18 +23,23 @@ impl ASTRefString {
     pub fn slice<'a>(&self, source: &'a [u8]) -> &'a [u8] {
         return &source[self.offset..(self.offset + self.length)];
     }
+    //To utf8 string
+    //To floating point
+    //To integer
+    //To encapsulating string
 }
 
 #[derive(Debug)]
 pub enum ASTRef<T> {
     FAILED_TOKEN(ASTRefString),
+    VECTOR(Vec<BoxedASTRef<T>>),
     STRING(ASTRefString),
     NODE(T),
     NONE,
 }
 
-type BoxedASTRef<T> = Box<ASTRef<T>>;
-type OptionedBoxedASTRef<T> = Option<BoxedASTRef<T>>;
+pub type BoxedASTRef<T> = Box<ASTRef<T>>;
+pub type OptionedBoxedASTRef<T> = Option<BoxedASTRef<T>>;
 
 pub type ReduceFunction<T: std::fmt::Debug> =
     fn(Vec<BoxedASTRef<T>>, body_len: u32) -> BoxedASTRef<T>;
@@ -47,11 +61,11 @@ pub fn parser_core<T: std::fmt::Debug>(
     );
 
     if success.len() > 0 {
-        if let Some(longest_success) = success.get_data_as_ref(0) {
+        if let Some(longest_success) = success.get_ref_state(0) {
             return convert_fork_to_astref(longest_success, reduce_functions);
         }
     } else if failure.len() > 0 {
-        if let Some(longest_failure) = failure.get_data_as_ref(0) {
+        if let Some(longest_failure) = failure.get_ref_state(0) {
             return Some(Box::new(ASTRef::NONE));
         }
     }
@@ -67,7 +81,6 @@ fn convert_fork_to_astref<T: std::fmt::Debug>(
     let mut stack: Vec<BoxedASTRef<T>> = Vec::with_capacity(128);
     let mut stack_pointer: usize = 0;
     let mut token_offset: usize = 0;
-
     while let Some(instr) = iter.next() {
         let rule = instr & 3;
 
@@ -144,6 +157,9 @@ mod completer_test {
     use super::super::core_parser::consume;
     use super::*;
 
+    type NodeRef = ASTRef<Test>;
+    type BoxedNodeRef = Box<NodeRef>;
+
     #[derive(Debug)]
     struct Number {
         tempo: u32,
@@ -151,7 +167,7 @@ mod completer_test {
 
     #[derive(Debug)]
     struct VALUE {
-        tempo: Box<ASTRef<Test>>,
+        tempo: BoxedNodeRef,
     }
 
     #[derive(Debug)]
@@ -174,12 +190,12 @@ mod completer_test {
         -1
     }
 
-    fn testNodeBuilder(mut data: Vec<Box<ASTRef<Test>>>, body_len: u32) -> Box<ASTRef<Test>> {
-        let tempo = data.remove(0);
-        Box::new(ASTRef::NODE(Test::NUMBER(VALUE { tempo })))
-    }
-
-    static D: [ReduceFunction<Test>; 1] = [testNodeBuilder];
+    static D: [ReduceFunction<Test>; 1] = [
+        |mut data: Vec<BoxedNodeRef>, body_len: u32| -> BoxedNodeRef {
+            let tempo = data.remove(0);
+            Box::new(ASTRef::NODE(Test::NUMBER(VALUE { tempo })))
+        },
+    ];
 
     #[test]
     fn it_should_complete_a_parse_run1() {
@@ -193,13 +209,9 @@ mod completer_test {
                 let Test::NUMBER(ref val) = a;
                 if let ASTRef::STRING(ref _string) = val.tempo.as_ref() {
                     println!("{:?}", std::str::from_utf8(_string.slice(&string)));
+                    assert_eq!(std::str::from_utf8(_string.slice(&string)), Ok(")*+"))
                 }
             }
         }
-
-        println!("{:?}", result);
-        //drop(result);
-
-        println!("{:?}", string);
     }
 }

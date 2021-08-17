@@ -72,7 +72,7 @@ export function resolveGOTOBranches(
                         ...keys.flatMap(i => grammar.productions[i].bodies).map(b => new Item(b.id, b.length, b.length))
                     ], grammar.lr_items, grammar);
 
-                    production_aware_scan = createScanFunctionCall(item_closure, options, "l");
+                    production_aware_scan = createScanFunctionCall(item_closure, options);
 
                 }
             }
@@ -92,19 +92,21 @@ export function resolveGOTOBranches(
             (<SKMatch>match_stmt).matches.push(match_clause);
 
             if (WE_HAVE_JUST_ONE_GOTO_GROUP)
+
                 out = (<SKBlock>(<SKMatch>match_stmt).matches[0].expression).expressions;
         }
 
+
+        const match_clause = (<SKMatch>sk`match prod : default:break`).matches[0];
+        (<SKMatch>match_stmt).matches.push(match_clause);
+
+
         if (CONTAINS_END_LEAF_THAT_SHOULD_LOOP) {
-            return [<SKLoop>sk`loop (1){
+            return [<SKLoop>sk`loop (true){
                 ${match_stmt};
                 break;
             }`];
-        } else if (!WE_HAVE_JUST_ONE_GOTO_GROUP) {
-            const match_clause = (<SKMatch>sk`match 1 : default:break`).matches[0];
-            (<SKMatch>match_stmt).matches.push(match_clause);
         }
-
 
         return out;
     }

@@ -206,6 +206,12 @@ export const rust_mappings: NodeMappings<SKNode, "type"> = <NodeMappings<SKNode,
 
                             i += 2;
                             continue;
+                        } else if (A.type == "operator" && A.val == "&>>") {
+                            //list.push(B);
+                            list.push(Object.assign({}, A, { val: "&" }), B);
+
+                            i += 2;
+                            continue;
                         } else if (A.type == "operator" && A.val == "*>") {
                             list.push(Object.assign({}, A, { val: "*" }), B);
                             i += 2;
@@ -239,11 +245,12 @@ export const rust_mappings: NodeMappings<SKNode, "type"> = <NodeMappings<SKNode,
         <NodeMapping<SKLoop>>{
             type: "loop",
             child_keys: ["assertion", "expression"],
-            template: "while m:s { assertion: @assertion? } i:s m:s @expression i:e",
+            template: "{is_infinite : loop \or while m:s { assertion: @assertion? } }i:s m:s @expression i:e",
             custom_render: (state, template_fn) => {
-                if (state.node.assertion.value == "1") {
 
-                }
+                if (state.node.assertion.type == "boolean")
+                    return template_fn(state, Object.assign({}, state.node, { is_infinite: true }));
+
 
                 return template_fn(state);
             }
@@ -292,6 +299,11 @@ export const rust_mappings: NodeMappings<SKNode, "type"> = <NodeMappings<SKNode,
                     cases.push(`_`);
                 } else {
                     cases.push(`${template_fn(state, node.match)}`);
+                }
+
+
+                if (node.expression.type.trim() == "break") {
+                    node.expression = "()";
                 }
 
                 const offset = " ".repeat(4 * indent);
@@ -344,7 +356,7 @@ export const rust_mappings: NodeMappings<SKNode, "type"> = <NodeMappings<SKNode,
         <NodeMapping<SKPrimitiveDeclaration>>{
             type: "parameter-declaration",
             child_keys: ["type", "primitive_type", "initialization"],
-            template: "@name {primitive_type: \\:  m:s @primitive_type} {initialization: o:s = o:s @initialization}",
+            template: "{mutable: \\mut m:s} @name {primitive_type: \\:  m:s @primitive_type} {initialization: o:s = o:s @initialization}",
             custom_render: parameterCustomRender
         },
 
@@ -441,7 +453,7 @@ export const rust_mappings: NodeMappings<SKNode, "type"> = <NodeMappings<SKNode,
         <NodeMapping<SKFunction>>{
             type: "function",
             child_keys: ["name", "return_type", "parameters", "expressions"],
-            template: "fn m:s @name (@parameters...[,o:s]) {return_type: \\-> @return_type } \\{ i:s o:n @expressions...[;o:n] \\; i:e o:n \\}",
+            template: "{pub: \\pub m:s} fn m:s @name (@parameters...[,o:s]) {return_type: \\-> @return_type } \\{ i:s o:n @expressions...[;o:n] \\; i:e o:n \\}",
 
             custom_render: (state, template_fn) => {
 
@@ -451,7 +463,12 @@ export const rust_mappings: NodeMappings<SKNode, "type"> = <NodeMappings<SKNode,
                     new_node.return_type = null;
                 }
 
+                if (new_node.modifiers.includes("pub")) {
+                    new_node.pub = true;
+                }
+
                 new_node.parameters = new_node.parameters.map(p => (p.type = "parameter-declaration", p));
+
 
                 return template_fn(state, new_node);
             }
@@ -494,6 +511,11 @@ function parameterCustomRender(state, template_fn) {
     let node: SKPrimitiveDeclaration = copy(state.node);
 
     const name = template_fn(state, node.name, false);
+
+    if (node.type == "parameter-declaration") {
+        if (node.modifiers.includes("mut"))
+            node.mutable = true;
+    }
 
     if (node.modifiers.includes("cpp_ignore"))
         return "";

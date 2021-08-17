@@ -4,6 +4,7 @@
  * disclaimer notice.
  */
 
+import { CompilableStruct } from "./compilable_nodes";
 import { TokenTypes } from "../runtime/TokenTypes";
 import { Item } from "../utilities/item";
 import { ItemMapEntry } from "./item_map";
@@ -69,6 +70,7 @@ export interface HCG3Function extends HCG3GrammarNode {
     cpp?: string;
     ref?: string;
     name?: string;
+    compilable_ast?: any;
 }
 
 export interface HCG3Comment extends HCG3GrammarNode {
@@ -104,11 +106,7 @@ export interface HCG3ProductionNode extends HCG3GrammarNode {
      * has been imported
      */
     grammar_id?: string;
-
-
-
     CHECKED_FOR_EMPTY?: boolean;
-
     HAS_EMPTY?: boolean;
 }
 export interface HCG3GeneralProduction extends HCG3ProductionNode {
@@ -200,7 +198,7 @@ export interface HCG3Grammar extends HCG3GrammarNode {
 
     bodies?: HCG3ProductionBody[];
 
-    reduce_functions: Map<string, number>;
+    reduce_functions: Map<string, { id: number, data: any; }>;
 
     production_hash_lookup?: any;
     /**
@@ -213,9 +211,9 @@ export interface HCG3Grammar extends HCG3GrammarNode {
     /**
      * Properties for producing a cpp module
      */
-    cpp?: {
+    compiled?: {
         primary_enum: any;
-        classes: string[];
+        structs: CompilableStruct[];
 
     };
 }

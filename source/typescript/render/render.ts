@@ -5,16 +5,16 @@
  */
 import URI from "@candlelib/uri";
 import { Helper } from "../build/helper.js";
-import { getEnumTypeName } from "../grammar/passes/process_cpp_code.js";
 import { jump8bit_table_byte_size } from "../runtime/parser_memory_new.js";
 import { sk, skRenderAsCPP, skRenderAsCPPDeclarations, skRenderAsCPPDefinitions, skRenderAsJavaScript, skRenderAsRust, skRenderAsTypeScript } from "../skribble/skribble.js";
 import { SKExpression, SKFunction, SKNode } from "../skribble/types/node.js";
 import { HCG3Grammar } from "../types/grammar_nodes.js";
 import { ParserGenerator } from "../types/ParserGenerator.js";
 import { RDProductionFunction } from "../types/rd_production_function.js";
-import { createSymbolScanFunctionNew, getProductionFunctionNameSk, token_lu_bit_size, token_lu_bit_size_offset } from "../utilities/code_generating.js";
+import { createSymbolScanFunctionNew, getProductionFunctionNameSk, renderPreScanFunction, token_lu_bit_size, token_lu_bit_size_offset } from "../utilities/code_generating.js";
+import { getEnumTypeName } from "./cpp_render.js";
 import { renderSkribbleRecognizer } from "./skribble_recognizer_template.js";
-
+import * as rust from "./rust_render.js";
 export function buildCPPRecognizerSource(
     grammar: HCG3Grammar,
     recognizer_functions: RDProductionFunction[],
@@ -104,37 +104,33 @@ export async function generateRustParser(
 
         entry_header_file = URI.resolveRelative("./parser.rs", package_dir),
 
-        source_dir = URI.resolveRelative("./source/", package_dir),
+        spec_parser_source_file = URI.resolveRelative("./spec_parser.rs", package_dir);
 
-        spec_parser_source_file = URI.resolveRelative("./spec_parser.rs", source_dir);
+    await fsp.mkdir(package_dir + "", { recursive: true });
 
-    await fsp.mkdir(source_dir + "", { recursive: true });
+    const rendered_structs = rust.buildCompilableStructs(grammar);
+
+    const main_enum_list = rust.createRustEnumList(grammar);
 
     const main_file = `
-mod ${grammar_namespace} {
     
-    use HYDROCARBON::*;
+    use candlelib_hydrocarbon::completer::*;
+    use super::spec_parser::*;
 
-    pub enum ${getEnumTypeName(grammar.enums.name)} {
+    type NodeRef = Box<ASTRef<TypeEnum>>;
 
-        UNDEFINED,
-        ${grammar.enums.keys.map(k => k).join(",\n")}
+    ${rendered_structs.map(s => `#[derive(Debug)]\n${s}`).join("\n\n")}
+
+    #[derive(Debug)]
+    ${main_enum_list}
+    
+    ${rust.renderRustFunctionLUArray(grammar)};
+
+
+    pub fn parse(string_data: &[u8]) -> OptionedBoxedASTRef<TypeEnum> {
+        parser_core(string_data, 0, ${getProductionFunctionNameSk(grammar.productions[0])}, &reduce_functions)
     }
-    
-
-    ${grammar.cpp.classes.join(";\n\n")};
-    
-    const let reduce_functions : Vec<HYDROCARBON::ReduceFunction> = vec(${renderCPPReduceFunctionLookupArray(grammar)});
-    
-    HYDROCARBON::ASTRef parse(char * utf8_encoded_input, unsigned long ut8_byte_length){
-        return parserCore(
-            utf8_encoded_input, 
-            ut8_byte_length,
-            ${getProductionFunctionNameSk(grammar.productions[0])},
-            myParser::reduce_functions
-            );
-        }
-}`;
+`;
     await fsp.writeFile(entry_header_file + '', main_file);
 
     //*/
@@ -154,19 +150,22 @@ mod ${grammar_namespace} {
         functions_string = extractAndReplaceTokenMapRefs(grammar_functions.map(skRenderAsRust).join("\n\n"), sym_map);
 
     await fsp.writeFile(spec_parser_source_file + '', `
- mod ${grammar_namespace} { 
-     use HYDROCARBON::*; 
+    use candlelib_hydrocarbon::core_parser::*;
     ${skRenderAsRust(createTokenLUSK(sym_map))};
     ${skRenderAsRust(createSequenceArraySk(grammar))};
-    ${skRenderAsRust(createActiveTokenSK(grammar))}
+
+    fn isTokenActive(token_id: i32, row: u32) -> bool {
+        let index = ((row * 6) + (token_id >> 4) as u32) as usize;
+        let shift: u16 = 1 << (15 & (token_id - 1));
+        return (token_lookup[index] & shift) > 0;
+    }
+
     ${token_lookup_functions}
      ${functions_string} 
-}`);
+`);
     //*/;
     return main_file;
 }
-
-
 
 export async function generateCPPLibraryFiles(output_location: string = "") {
 
@@ -255,7 +254,7 @@ namespace ${grammar_namespace} {
     };
     
 
-    ${grammar.cpp.classes.join(";\n\n")};
+    ${grammar.compiled.structs.join(";\n\n")};
     
     HYDROCARBON::ReduceFunction reduce_functions[] = ${renderCPPReduceFunctionLookupArray(grammar)};
     
@@ -465,24 +464,11 @@ extern "C" {
 function createGrammarFunctionArray(meta: Helper, recognizer_functions: RDProductionFunction[]) {
     const
 
-        { const: constants_a, fn: const_functions_a } = meta.render_constants(), grammar_functions = [renderIntermediateFunction(), ...constants_a, ...const_functions_a];
+        { const: constants_a, fn: const_functions_a } = meta.render_constants(), grammar_functions = [renderPreScanFunction(), ...constants_a, ...const_functions_a];
 
     for (const { entry, goto, reduce } of recognizer_functions)
         grammar_functions.push(...[entry, goto, reduce].filter(i => i));
     return grammar_functions;
-}
-
-function renderIntermediateFunction() {
-    return <SKFunction>sk`fn pre_scan:bool(l:__Lexer$ref,data:__ParserData$ref, tk_row:u32){
-    
-        scan(l, data, tk_row, 0, 0);
-    
-        [mut] type_cache:u32 = l._type;
-    
-        l._type = 0;
-    
-        return : type_cache > 0;
-    }`;
 }
 
 function extractAndReplaceTokenMapRefs(token_lookup_functions: string, sym_map: Map<any, any>) {

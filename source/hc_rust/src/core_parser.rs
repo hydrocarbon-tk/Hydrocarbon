@@ -13,7 +13,7 @@ fn null_fn(a: &mut ParserState, b: &mut ParserStateBuffer, c: i32, d: i32) -> i3
 pub struct ParserState {
     pub lexer: Lexer,
 
-    state: u32,
+    pub state: u32,
     prod: i32,
     active_token_productions: u32,
     origin_fork: u32,
@@ -24,8 +24,7 @@ pub struct ParserState {
     origin: *const ParserState,
 
     rules: Vec<u16>,
-    rules_ptr: u32,
-    rules_len: u32,
+    rules_ptr: i32,
 
     stash: [i32; 64],
     stack: [StackFunction; 64],
@@ -38,24 +37,23 @@ pub struct ParserState {
 }
 
 impl ParserState {
-    pub fn new(input_buffer: *const u8, input_len_in: u32, rules_len_in: u32) -> ParserState {
+    pub fn new(input_buffer: *const u8, input_len_in: u32) -> ParserState {
         ParserState {
             stack: [null_fn; 64],
             stash: [0; 64],
             lexer: Lexer::new(),
-            state: createState(1),
+            state: create_state(1),
             prod: 0,
             VALID: true,
             COMPLETED: false, /*  */
             stack_ptr: 0,
             rules_ptr: 0,
             input_len: input_len_in,
-            rules_len: rules_len_in,
             active_token_productions: 0,
             origin: std::ptr::null(),
             origin_fork: 0,
             input: input_buffer,
-            rules: Vec::new(),
+            rules: Vec::with_capacity(512),
             refs: 0,
         }
     }
@@ -63,20 +61,32 @@ impl ParserState {
         return;
     }
 
-    pub fn getInputArray<'A>(&self) -> &'A [u8] {
+    pub fn get_rules_ptr_val(&self) -> i32 {
+        self.rules_ptr
+    }
+
+    pub fn get_input_len(&self) -> u32 {
+        self.input_len
+    }
+
+    pub fn get_input_array<'a>(&self) -> &'a [u8] {
         use std::slice;
 
-        let u8_slice: &'A [u8] =
+        let u8_slice: &'a [u8] =
             unsafe { slice::from_raw_parts(self.input, self.input_len as usize) };
 
         u8_slice
     }
 
-    pub fn pushFN(&mut self, _fn_ref: StackFunction, stash_value: i32) {
+    pub fn push_fn(&mut self, _fn_ref: StackFunction, stash_value: i32) {
         self.stack_ptr += 1;
         self.stack[self.stack_ptr as usize] = _fn_ref;
         self.stash[self.stack_ptr as usize] = stash_value;
         self.stash[(self.stack_ptr + 1) as usize] = stash_value;
+    }
+
+    pub fn get_byte_from_input(&self, index: u32) -> u8 {
+        unsafe { *self.input.offset(index as isize) as u8 }
     }
 }
 
@@ -164,17 +174,13 @@ impl ParserStateBuffer {
         self.data.len()
     }
 
-    pub fn createData<'A>(
+    pub fn create_data<'A>(
         &'A mut self,
         input_buffer: &[u8],
         input_len_in: u32,
         rules_len_in: u32,
     ) -> &'A mut ParserState {
-        let data = Box::new(ParserState::new(
-            input_buffer.as_ptr(),
-            input_len_in,
-            rules_len_in,
-        ));
+        let data = Box::new(ParserState::new(input_buffer.as_ptr(), input_len_in));
 
         let index = self.data.len();
 
@@ -183,15 +189,15 @@ impl ParserStateBuffer {
         return self.data[index].as_mut();
     }
 
-    pub fn addDataPointer(&mut self, data: Box<ParserState>) {
+    pub fn add_state_pointer(&mut self, data: Box<ParserState>) {
         self.data.push(data);
     }
 
-    pub fn removeDataAtIndex(&mut self, index: usize) -> Box<ParserState> {
+    pub fn remove_state_at_index(&mut self, index: usize) -> Box<ParserState> {
         return self.data.remove(index);
     }
 
-    pub fn addDataPointerSorted(&mut self, pointer: Box<ParserState>) -> u32 {
+    pub fn add_state_pointer_and_sort(&mut self, pointer: Box<ParserState>) -> u32 {
         let mut index: usize = 0;
 
         let data = pointer.as_ref();
@@ -218,15 +224,15 @@ impl ParserStateBuffer {
         self.len() > 0 && self.data[0].as_ref().VALID
     }
 
-    pub fn get_valid_parser_data(&mut self) -> Option<Box<ParserState>> {
+    pub fn get_valid_parser_state(&mut self) -> Option<Box<ParserState>> {
         if self.have_valid() {
-            return Some(self.removeDataAtIndex(0));
+            return Some(self.remove_state_at_index(0));
         }
 
         return None;
     }
 
-    pub fn get_data_as_mut(&mut self, index: usize) -> Option<&mut ParserState> {
+    pub fn get_mut_state(&mut self, index: usize) -> Option<&mut ParserState> {
         if self.len() > index {
             return Some(self.data[index].as_mut());
         }
@@ -234,7 +240,7 @@ impl ParserStateBuffer {
         return None;
     }
 
-    pub fn get_data_as_ref(&self, index: usize) -> Option<&ParserState> {
+    pub fn get_ref_state(&self, index: usize) -> Option<&ParserState> {
         if self.len() > index {
             return Some(self.data[index].as_ref());
         }
@@ -242,16 +248,18 @@ impl ParserStateBuffer {
         return None;
     }
 
-    pub fn get_recycled_ParserState(&mut self, parser_data: &ParserState) -> Box<ParserState> {
+    pub fn get_recycled_ParserState(&mut self, state: &ParserState) -> Box<ParserState> {
         if self.len() > 0 {
             let mut i: usize = 0;
 
             while i < self.len() {
                 let a = self.data[i].as_ref();
                 if !a.VALID && a.refs == 1 {
-                    let mut invalid_ptr = self.removeDataAtIndex(i);
+                    let mut invalid_ptr = self.remove_state_at_index(i);
 
-                    invalid_ptr.as_mut().rules_len = parser_data.rules_len;
+                    let mut invalid_state = invalid_ptr.as_mut();
+
+                    invalid_state.rules.clear();
 
                     return invalid_ptr;
                 }
@@ -260,22 +268,19 @@ impl ParserStateBuffer {
         } else {
         }
 
-        return Box::new(ParserState::new(
-            parser_data.input,
-            parser_data.input_len,
-            parser_data.rules_len,
-        ));
+        return Box::new(ParserState::new(state.input, state.input_len));
     }
 }
 
+#[derive(Debug)]
 pub struct Lexer {
     pub byte_offset: u32,
     pub token_offset: u32,
-    token_length: u16,
-    byte_length: u16,
-    prev_byte_offset: u32,
-    line: u16,
-    _type: i32,
+    pub token_length: u16,
+    pub byte_length: u16,
+    pub prev_byte_offset: u32,
+    pub line: u16,
+    pub _type: i32,
     pub current_byte: u8,
 }
 
@@ -299,32 +304,31 @@ impl Lexer {
         self.token_length = token_length_in as u16;
         return type_in;
     }
-    pub fn getType(&mut self, data: &mut ParserState, USE_UNICODE: bool) -> i32 {
+    pub fn getType(&mut self, input: &[u8], USE_UNICODE: bool) -> i32 {
         let mut _type: i32 = self._type;
 
-        if self.END(data) {
+        if self.END(input.len()) {
             return 1;
         }
 
         if (_type) == 0 {
             if !USE_UNICODE || self.current_byte < 128 {
-                _type = getTypeAt(self.current_byte as u32);
+                _type = get_type_at(self.current_byte as u32);
             } else {
                 {
-                    let code_point: u32 =
-                        utf8ToCodePoint(self.byte_offset as usize, data.getInputArray());
+                    let code_point: u32 = utf8_to_code_point(self.byte_offset as usize, input);
 
-                    self.byte_length = getUTF8ByteLengthFromCodePoint(code_point) as u16;
+                    self.byte_length = get_utf8_byte_length_from_code_point(code_point) as u16;
 
-                    _type = getTypeAt(code_point);
+                    _type = get_type_at(code_point);
                 }
             };
         }
         _type
     }
 
-    pub fn isSym(&mut self, data: &mut ParserState, USE_UNICODE: bool) -> bool {
-        if (self._type) == 0 && self.getType(data, USE_UNICODE) == 2 {
+    pub fn isSym(&mut self, input: &[u8], USE_UNICODE: bool) -> bool {
+        if (self._type) == 0 && self.getType(input, USE_UNICODE) == 2 {
             self._type = 2;
         };
         return (self._type) == 2;
@@ -344,16 +348,16 @@ impl Lexer {
         return (self._type) == 8;
     }
 
-    pub fn isNum(&mut self, data: &mut ParserState) -> bool {
+    pub fn isNum(&mut self, input: &[u8]) -> bool {
         if (self._type) == 0 {
-            if self.getType(data, false) == 5 {
-                let l: usize = data.input_len as usize;
+            if self.getType(input, false) == 5 {
+                let l: usize = input.len() as usize;
+
                 let mut off: usize = self.byte_offset as usize;
-                let input = data.getInputArray();
 
                 while off < l {
                     off += 1;
-                    if 47 <= input[off] || input[off] >= 58 {
+                    if (48 > input[off]) || (input[off] > 57) {
                         break;
                     };
                     self.byte_length += 1;
@@ -369,23 +373,23 @@ impl Lexer {
         };
     }
 
-    pub fn isUniID(&mut self, data: &mut ParserState) -> bool {
+    pub fn isUniID(&mut self, input: &[u8]) -> bool {
         if (self._type) == 0 {
-            if self.getType(data, true) == 3 {
-                let l: usize = data.input_len as usize;
+            if self.getType(input, true) == 3 {
+                let l: usize = input.len() as usize;
 
                 let off: usize = self.byte_offset as usize;
 
                 let mut prev_byte_len: usize = self.byte_length as usize;
 
                 while (off + self.byte_length as usize) < l {
-                    let code_point = utf8ToCodePoint(
+                    let code_point = utf8_to_code_point(
                         (self.byte_offset as u32 + self.byte_length as u32) as usize,
-                        data.getInputArray(),
+                        input,
                     );
 
                     if ((96) & CHAR_LU_TABLE[code_point as usize]) > 0 {
-                        self.byte_length += getUTF8ByteLengthFromCodePoint(code_point) as u16;
+                        self.byte_length += get_utf8_byte_length_from_code_point(code_point) as u16;
                         prev_byte_len = self.byte_length as usize;
                         self.token_length += 1;
                     } else {
@@ -403,8 +407,6 @@ impl Lexer {
         } else {
             return (self._type) == 3;
         }
-
-        false
     }
 
     pub fn copyInPlace(&self) -> Lexer {
@@ -441,10 +443,10 @@ impl Lexer {
         self._type = source._type;
         return self;
     }
-    pub fn next(&mut self, input: &[u8], input_len: u32) -> &mut Lexer {
+    pub fn next(&mut self, input: &[u8]) -> &mut Lexer {
         self.byte_offset += self.byte_length as u32;
         self.token_offset += self.token_length as u32;
-        if input_len <= self.byte_offset {
+        if input.len() <= self.byte_offset as usize {
             self._type = 1;
             self.byte_length = 0;
             self.token_length = 0;
@@ -462,12 +464,12 @@ impl Lexer {
         };
         return self;
     }
-    pub fn END(&mut self, data: &ParserState) -> bool {
-        return self.byte_offset >= data.input_len;
+    pub fn END(&mut self, input_len: usize) -> bool {
+        return self.byte_offset as usize >= input_len;
     }
 }
 
-fn getUTF8ByteLengthFromCodePoint(code_point: u32) -> u8 {
+fn get_utf8_byte_length_from_code_point(code_point: u32) -> u8 {
     if (code_point) == 0 {
         return 1;
     } else {
@@ -489,7 +491,7 @@ fn getUTF8ByteLengthFromCodePoint(code_point: u32) -> u8 {
     };
 }
 
-fn utf8ToCodePoint(index: usize, buffer: &[u8]) -> u32 {
+fn utf8_to_code_point(index: usize, buffer: &[u8]) -> u32 {
     let a: u32 = buffer[index] as u32;
 
     if a & 0x80 > 0 {
@@ -524,66 +526,66 @@ fn utf8ToCodePoint(index: usize, buffer: &[u8]) -> u32 {
     0
 }
 
-fn getTypeAt(code_point: u32) -> i32 {
-    return (CHAR_LU_TABLE[code_point as usize] & 0x1F) as i32;
+fn get_type_at(code_point: u32) -> i32 {
+    (CHAR_LU_TABLE[code_point as usize] & 0x1F) as i32
 }
 
-fn createState(ENABLE_STACK_OUTPUT: u32) -> u32 {
-    return 1 | (ENABLE_STACK_OUTPUT << 1);
+pub fn create_state(ENABLE_STACK_OUTPUT: u32) -> u32 {
+    1 | (ENABLE_STACK_OUTPUT << 1)
 }
 
-fn token_production(
-    mut data: &mut ParserState,
+pub fn token_production(
+    mut state: &mut ParserState,
     production: StackFunction,
     pid: i32,
     _type: i32,
     tk_flag: u32,
 ) -> bool {
-    let l: &Lexer = &data.lexer;
+    let l: &Lexer = &state.lexer;
     if l._type == _type {
         return true;
     }
 
-    if (data.active_token_productions & tk_flag) > 0 {
+    if (state.active_token_productions & tk_flag) > 0 {
         return false;
     }
 
-    data.active_token_productions |= tk_flag;
+    state.active_token_productions |= tk_flag;
 
-    let stack_ptr: i32 = data.stack_ptr;
-    let state: u32 = data.state;
+    let stack_ptr: i32 = state.stack_ptr;
+    let state_cache: u32 = state.state;
 
     let mut data_buffer: ParserStateBuffer = ParserStateBuffer::new();
 
-    let copy = data.lexer.copyInPlace();
+    let copy = state.lexer.copyInPlace();
 
-    data.state = 0;
-    data.active_token_productions ^= tk_flag;
-    data.pushFN(production, 0);
+    state.state = 0;
+    state.active_token_productions ^= tk_flag;
+    state.push_fn(production, 0);
 
     let mut ACTIVE: bool = true;
 
     while ACTIVE {
-        ACTIVE = stepKernel(data, &mut data_buffer, stack_ptr + 1);
+        ACTIVE = stepKernel(state, &mut data_buffer, stack_ptr + 1);
     }
 
-    data.state = state;
+    state.state = state_cache;
 
-    if data.prod == pid {
-        data.stack_ptr = stack_ptr;
-        data.lexer.slice(&copy);
-        data.lexer._type = _type;
+    if state.prod == pid {
+        state.stack_ptr = stack_ptr;
+        state.lexer.slice(&copy);
+        state.lexer._type = _type;
         return true;
     } else {
-        data.stack_ptr = stack_ptr;
-        data.lexer.sync(&copy);
+        state.stack_ptr = stack_ptr;
+        state.lexer.sync(&copy);
         return false;
     };
 
     false
 }
-fn compare(
-    data: &mut ParserState,
+pub fn compare(
+    state: &mut ParserState,
     data_offset: u32,
     sequence_offset: u32,
     byte_length: u32,
@@ -594,7 +596,7 @@ fn compare(
     let len: usize = j + byte_length as usize;
 
     while j < len {
-        if unsafe { *data.input.offset(i as isize) } != sequence[j] {
+        if unsafe { *state.input.offset(i as isize) } != sequence[j] {
             return j as u32 - sequence_offset;
         };
         j += 1;
@@ -605,56 +607,56 @@ fn compare(
 }
 
 pub fn fork<'A>(
-    data: &mut ParserState,
+    state: &mut ParserState,
     process_buffer: &'A mut ParserStateBuffer,
 ) -> &'A mut ParserState {
-    let mut state_pointer = process_buffer.get_recycled_ParserState(data);
+    let mut state_pointer = process_buffer.get_recycled_ParserState(state);
     {
         let forked_state = state_pointer.as_mut();
 
         let mut i: usize = 0;
 
-        if data.stack_ptr > 0 {
-            while i < data.stack_ptr as usize {
-                forked_state.stash[i] = data.stash[i];
-                forked_state.stack[i] = data.stack[i];
+        if state.stack_ptr > 0 {
+            while i < state.stack_ptr as usize {
+                forked_state.stash[i] = state.stash[i];
+                forked_state.stack[i] = state.stack[i];
                 i += 1;
             }
         }
 
         //Increment the refs count to prevent the
         //ParserState from being recycled.
-        data.refs += 1;
-        forked_state.origin = &*data;
+        state.refs += 1;
+        forked_state.origin = &*state;
 
-        forked_state.stack_ptr = data.stack_ptr;
-        forked_state.active_token_productions = data.active_token_productions;
-        forked_state.origin_fork = data.rules_ptr + data.origin_fork;
-        forked_state.lexer = data.lexer.copyInPlace();
-        forked_state.state = data.state;
-        forked_state.prod = data.prod;
+        forked_state.stack_ptr = state.stack_ptr;
+        forked_state.active_token_productions = state.active_token_productions;
+        forked_state.origin_fork = (state.rules_ptr as u32) + state.origin_fork;
+        forked_state.lexer = state.lexer.copyInPlace();
+        forked_state.state = state.state;
+        forked_state.prod = state.prod;
     }
 
-    process_buffer.addDataPointer(state_pointer);
+    process_buffer.add_state_pointer(state_pointer);
 
     let size = process_buffer.data.len();
 
     return process_buffer.data[(size - 1) as usize].as_mut();
 }
 
-fn isOutputEnabled(state: u32) -> bool {
+pub fn isOutputEnabled(state: u32) -> bool {
     return 0 != (state & 2);
 }
-fn set_action(val: u32, data: &mut ParserState) {
-    if data.rules_ptr > data.rules_len {
+fn set_action(val: u32, state: &mut ParserState) {
+    if (state.rules_ptr as u32) > state.rules.len() as u32 {
         return;
     };
-    data.rules.push(val as u16);
-    // [data.rules_ptr as usize] = val as u16;
-    data.rules_ptr += 1;
+    state.rules.push(val as u16);
+    // [state.rules_ptr as usize] = val as u16;
+    state.rules_ptr += 1;
 }
-pub fn add_reduce(data: &mut ParserState, sym_len: u32, body: u32) {
-    if isOutputEnabled(data.state) {
+pub fn add_reduce(state: &mut ParserState, sym_len: u32, body: u32) {
+    if isOutputEnabled(state.state) {
         let total: u32 = body + sym_len;
         if (total) == 0 {
             return;
@@ -662,33 +664,30 @@ pub fn add_reduce(data: &mut ParserState, sym_len: u32, body: u32) {
         if body > 0xFF || sym_len > 0x1F {
             let low: u32 = (1 << 2) | (body << 3);
             let high: u32 = sym_len;
-            set_action(low, data);
-            set_action(high, data);
+            set_action(low, state);
+            set_action(high, state);
         } else {
             {
                 let low: u32 = ((sym_len & 0x1F) << 3) | ((body & 0xFF) << 8);
-                set_action(low, data);
+                set_action(low, state);
             }
         }
     };
 }
-pub fn add_shift(data: &mut ParserState, tok_len: u32) {
-    if tok_len < 0 {
-        return;
-    };
+pub fn add_shift(state: &mut ParserState, tok_len: u32) {
     if tok_len > 0x1FFF {
         let low: u32 = 1 | (1 << 2) | ((tok_len >> 13) & 0xFFF8);
         let high: u32 = tok_len & 0xFFFF;
-        set_action(low, data);
-        set_action(high, data);
+        set_action(low, state);
+        set_action(high, state);
     } else {
         {
             let low: u32 = 1 | ((tok_len << 3) & 0xFFF8);
-            set_action(low, data);
+            set_action(low, state);
         }
     };
 }
-pub fn add_skip(data: &mut ParserState, skip_delta: u32) {
+pub fn add_skip(state: &mut ParserState, skip_delta: u32) {
     if skip_delta < 1 {
         return;
     };
@@ -696,52 +695,52 @@ pub fn add_skip(data: &mut ParserState, skip_delta: u32) {
         let low: u32 = 2 | (1 << 2) | ((skip_delta >> 13) & 0xFFF8);
         let high: u32 = skip_delta & 0xFFFF;
 
-        set_action(low, data);
-        set_action(high, data);
+        set_action(low, state);
+        set_action(high, state);
     } else {
         {
             let low: u32 = 2 | ((skip_delta << 3) & 0xFFF8);
-            set_action(low, data);
+            set_action(low, state);
         }
     };
 }
 
-pub fn reset(data: &mut ParserState, origin: &mut Lexer, s_ptr: i32, r_ptr: u32) {
+pub fn reset(state: &mut ParserState, origin: &mut Lexer, s_ptr: i32, r_ptr: i32) {
     unsafe {
-        data.rules.set_len(r_ptr as usize);
+        state.rules.set_len(r_ptr as usize);
     }
-    data.rules_ptr = r_ptr;
-    data.stack_ptr = s_ptr;
-    data.lexer.sync(origin);
+    state.rules_ptr = r_ptr;
+    state.stack_ptr = s_ptr;
+    state.lexer.sync(origin);
 }
-pub fn consume(data: &mut ParserState) -> bool {
-    data.lexer.prev_byte_offset = data.lexer.byte_offset + data.lexer.byte_length as u32;
+pub fn consume(state: &mut ParserState) -> bool {
+    state.lexer.prev_byte_offset = state.lexer.byte_offset + state.lexer.byte_length as u32;
 
-    if isOutputEnabled(data.state) {
-        add_shift(data, data.lexer.token_length as u32)
+    if isOutputEnabled(state.state) {
+        add_shift(state, state.lexer.token_length as u32)
     };
 
-    data.lexer.next(data.getInputArray(), data.input_len);
+    state.lexer.next(state.get_input_array());
 
     return true;
 }
 
 fn stepKernel(
-    data: &mut ParserState,
+    state: &mut ParserState,
     data_buffer: &mut ParserStateBuffer,
     stack_base: i32,
 ) -> bool {
-    let ptr: i32 = data.stack_ptr;
+    let ptr: i32 = state.stack_ptr;
 
-    let _fn: StackFunction = data.stack[ptr as usize];
+    let _fn: StackFunction = state.stack[ptr as usize];
 
-    let stash: i32 = data.stash[ptr as usize];
+    let stash: i32 = state.stash[ptr as usize];
 
-    data.stack_ptr -= 1;
+    state.stack_ptr -= 1;
 
-    data.prod = _fn(data, data_buffer, data.prod, stash);
+    state.prod = _fn(state, data_buffer, state.prod, stash);
 
-    if data.prod < 0 || data.stack_ptr < stack_base {
+    if state.prod < 0 || state.stack_ptr < stack_base {
         return false;
     };
 
@@ -758,17 +757,19 @@ fn run(
         let mut i: usize = 0;
 
         while i < process_buffer.len() {
-            let data = process_buffer.data[i].as_mut();
+            let state = process_buffer.data[i].as_mut();
 
-            if !stepKernel(data, invalid_buffer, base) {
-                data.COMPLETED = true;
+            if !stepKernel(state, invalid_buffer, base) {
+                state.COMPLETED = true;
 
-                data.VALID = (data.prod) == prod_id;
+                state.VALID = (state.prod) == prod_id;
 
-                if data.VALID {
-                    valid_buffer.addDataPointerSorted(process_buffer.removeDataAtIndex(i));
+                if state.VALID {
+                    valid_buffer
+                        .add_state_pointer_and_sort(process_buffer.remove_state_at_index(i));
                 } else {
-                    invalid_buffer.addDataPointerSorted(process_buffer.removeDataAtIndex(i));
+                    invalid_buffer
+                        .add_state_pointer_and_sort(process_buffer.remove_state_at_index(i));
                 }
             } else {
                 i += 1;
@@ -776,8 +777,8 @@ fn run(
         }
 
         while invalid_buffer.have_valid() {
-            match invalid_buffer.get_valid_parser_data() {
-                Some(x) => process_buffer.addDataPointer(x),
+            match invalid_buffer.get_valid_parser_state() {
+                Some(x) => process_buffer.add_state_pointer(x),
                 None => (),
             }
         }
@@ -796,13 +797,13 @@ pub fn recognize<'a>(
     let mut invalid_buffer = ParserStateBuffer::new();
     let mut valid_buffer = ParserStateBuffer::new();
 
-    let data = process_buffer.createData(input_buffer, input_byte_length, rules_max_length);
+    let state = process_buffer.create_data(input_buffer, input_byte_length, rules_max_length);
 
-    data.stack[0] = _fn_ref;
+    state.stack[0] = _fn_ref;
 
-    data.stash[0] = 0;
+    state.stash[0] = 0;
 
-    data.lexer.next(data.getInputArray(), data.input_len);
+    state.lexer.next(state.get_input_array());
 
     run(
         &mut process_buffer,
@@ -821,12 +822,12 @@ mod recognizer_test {
     use super::*;
 
     fn testFN(
-        data: &mut ParserState,
+        state: &mut ParserState,
         buffer: &mut ParserStateBuffer,
         prop: i32,
         cache: i32,
     ) -> i32 {
-        if data.lexer.current_byte == 32 {
+        if state.lexer.current_byte == 32 {
             return 0;
         }
         -1
@@ -858,17 +859,17 @@ mod recognizer_test {
         {
             let forkA = fork(data, buffer);
 
-            forkA.pushFN(testFNDest1, 2);
+            forkA.push_fn(testFNDest1, 2);
         }
         {
             let forkB = fork(data, buffer);
 
-            forkB.pushFN(testFNDest2, 2);
+            forkB.push_fn(testFNDest2, 2);
         }
         {
             let forkC = fork(data, buffer);
 
-            forkC.pushFN(testFNDest3, 2);
+            forkC.push_fn(testFNDest3, 2);
         }
 
         -1

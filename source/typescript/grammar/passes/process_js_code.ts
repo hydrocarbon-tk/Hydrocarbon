@@ -127,13 +127,13 @@ export function createJSFunctionsFromExpressions(grammar: HCG3Grammar, error) {
     }
 }
 
-export function addReduceFNStringToLUT(body: HCG3ProductionBody, grammar: HCG3Grammar, txt: string = null) {
+export function addReduceFNStringToLUT(body: HCG3ProductionBody, grammar: HCG3Grammar, txt: string = null, data = null) {
     if (txt) {
 
         if (!grammar.reduce_functions.has(txt))
-            grammar.reduce_functions.set(txt, grammar.reduce_functions.size);
+            grammar.reduce_functions.set(txt, { id: grammar.reduce_functions.size, data });
 
-        body.reduce_id = grammar.reduce_functions.get(txt);
+        body.reduce_id = grammar.reduce_functions.get(txt).id;
 
     }
     else

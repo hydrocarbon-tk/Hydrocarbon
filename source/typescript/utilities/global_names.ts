@@ -2,8 +2,8 @@
  * Copyright (C) 2021 Anthony Weathersby - The Hydrocarbon Parser Compiler
  * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
  * disclaimer notice.
- */export const rec_glob_data_name = "data";
-export const rec_glob_lex_name = "l";
+ */export const rec_glob_state_name = "state";
+export const rec_glob_lex_name = "state.lexer";
 /**
  * Recognizer function names
  */

@@ -4,19 +4,15 @@
  * disclaimer notice.
  */
 import {
-    Defined_Symbols_Occlude,
-    getTrueSymbolValue,
-    getUniqueSymbolName,
+    getRootSym, getUniqueSymbolName,
     Sym_Is_A_Production,
     Sym_Is_A_Production_Token,
-    Sym_Is_Empty,
-    getRootSym,
-    Sym_Is_EOP,
+    Sym_Is_Empty, Sym_Is_EOP,
     Sym_Is_Not_Consumed
 } from "../../grammar/nodes/symbol.js";
 import { sk } from "../../skribble/skribble.js";
-import { SKBlock, SKExpression, SKIf, SKMatch, SKReturn } from "../../skribble/types/node";
-import { HCG3Grammar, HCG3Symbol, TokenSymbol } from "../../types/grammar_nodes";
+import { SKBlock, SKExpression, SKIf, SKReturn } from "../../skribble/types/node";
+import { HCG3Grammar, HCG3Production, HCG3Symbol, TokenSymbol } from "../../types/grammar_nodes";
 import { RenderBodyOptions } from "../../types/render_body_options";
 import { TransitionClauseGenerator, TransitionGroup } from "../../types/transition_generating";
 import { TransitionNode, TRANSITION_TYPE } from "../../types/transition_node.js";
@@ -24,6 +20,7 @@ import {
     addItemAnnotationToExpressionList,
     addSymbolAnnotationsToExpressionList,
     createBranchFunction, createConsumeSk,
+    createProductionReturn,
     createScanFunctionCall,
 
     getIncludeBooleans, getProductionFunctionNameSk
@@ -62,9 +59,9 @@ export function default_resolveBranches(
         addSymbolAnnotationsToExpressionList(all_syms, grammar, root, "offset " + state.offset);
     }
 
-    const peek_name = addScanStatement(options, state, root, "l", "l", groups, all_syms);
+    const peek_name = addScanStatement(options, state, root, "state.lexer", "state.lexer", groups, all_syms);
 
-    root = createIfElseExpressions(options, state, groups, root, "l", peek_name, all_syms, FORCE_ASSERTIONS);
+    root = createIfElseExpressions(options, state, groups, root, "state.lexer", peek_name, all_syms, FORCE_ASSERTIONS);
 
     return root;
 }
@@ -86,7 +83,7 @@ function addScanStatement(
 
         if (groups.every(g => g.transition_types[0] == TRANSITION_TYPE.ASSERT_END) && groups.length > 1) {
 
-            root.push(createScanFunctionCall(items, options, "l", false, all_syms));
+            root.push(createScanFunctionCall(items, options, "state.lexer", false, all_syms));
         }
 
         return lex_name;
@@ -110,15 +107,15 @@ function addScanStatement(
             if (state.peek_level == 1)
                 root.push(<SKExpression>sk`[mut] pk:Lexer = ${lex_name}.copyInPlace()`);
 
-            root.push(createScanFunctionCall(items, options, "pk.next(data)", true, all_syms));
+            root.push(createScanFunctionCall(items, options, "pk.next(state)", true, all_syms));
         }
     } else if (offset == 1 && options.scope == "GOTO") {
 
-        root.push(createScanFunctionCall(items, options, "l", false, all_syms));
+        root.push(createScanFunctionCall(items, options, "state.lexer", false, all_syms));
 
     } else if (state.peek_level < 0 && offset > 0) {
 
-        root.push(createScanFunctionCall(state.items, options, "l", false, all_syms));
+        root.push(createScanFunctionCall(state.items, options, "state.lexer", false, all_syms));
     }
     return peek_name;
 }
@@ -193,9 +190,9 @@ function createIfElseExpressions(
                 options.called_productions.add(<number>production.id);
 
                 const call_name = createBranchFunction(code, options);
-                expressions.push(<SKExpression>sk`pushFN(data, &> ${call_name}, data.rules_ptr)`);
+                expressions.push(<SKExpression>sk`state.push_fn( &> ${call_name}, state.get_rules_ptr_val())`);
 
-                expressions.push(<SKReturn>sk`return: ${getProductionFunctionNameSk(production, grammar)}(l, data,db,state,data.rules_ptr,prod_start);`);
+                expressions.push(createProductionReturn(production));
                 leaves.forEach(leaf => leaf.INDIRECT = true);
 
                 if (code.slice(-1)[0].type !== "return")
@@ -222,7 +219,7 @@ function createIfElseExpressions(
 
                     const continue_name = createBranchFunction(nc, options);
 
-                    scr.unshift(<SKExpression>sk`pushFN(data, &> ${continue_name}, 0)`);
+                    scr.unshift(<SKExpression>sk`state.push_fn( &> ${continue_name}, 0)`);
 
                     leaves[0].leaf.push(<SKReturn>sk`return:prod_start`);
 
@@ -235,7 +232,7 @@ function createIfElseExpressions(
                     if (code.slice(-1)[0].type !== "return")
                         code.push(<SKExpression>sk`return:-1`);
                     if (state.peek_level > 0)
-                        code.unshift(<SKExpression>sk`l._type = ${group.root_id}`);
+                        code.unshift(<SKExpression>sk`state.lexer._type = ${group.root_id}`);
                 }
 
                 if (
@@ -276,7 +273,7 @@ function createIfElseExpressions(
 
                 assertion_boolean = getIncludeBooleans(<TokenSymbol[]>syms, grammar, lex_name);
 
-                code.unshift(createConsumeSk("l"));
+                code.unshift(createConsumeSk("state.lexer"));
 
                 shiftNonConsumeExpression(code, syms, grammar, lex_name);
 
@@ -292,7 +289,7 @@ function createIfElseExpressions(
 
 }
 
-function shiftNonConsumeExpression(sk_expr_list: SKExpression[], syms: TokenSymbol[], grammar: HCG3Grammar, lex_name: string = "l") {
+function shiftNonConsumeExpression(sk_expr_list: SKExpression[], syms: TokenSymbol[], grammar: HCG3Grammar, lex_name: string = "state.lexer") {
     const non_consume = syms.filter(Sym_Is_Not_Consumed);
 
     if (non_consume.length > 0) {

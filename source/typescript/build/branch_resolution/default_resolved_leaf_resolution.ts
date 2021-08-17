@@ -8,7 +8,7 @@ import { SKExpression } from "../../skribble/types/node.js";
 import { RenderBodyOptions } from "../../types/render_body_options";
 import { SingleItemReturnObject } from "../../types/transition_generating";
 import { TransitionNode, TRANSITION_TYPE } from "../../types/transition_node.js";
-import { addItemAnnotationToExpressionList, createBranchFunction, createScanFunctionCall, getProductionFunctionName, hashString } from "../../utilities/code_generating.js";
+import { addItemAnnotationToExpressionList, createBranchFunction, createProductionReturn, createScanFunctionCall, getProductionFunctionName, hashString } from "../../utilities/code_generating.js";
 import { Item, itemsToProductionIDs } from "../../utilities/item.js";
 import { processProductionChain } from "../../utilities/process_production_reduction_sequences.js";
 import { renderItem } from "../../utilities/render_item.js";
@@ -57,9 +57,9 @@ export function default_resolveResolvedLeaf(item: Item, state: TransitionNode, o
             const sc = [],
                 call_name = createBranchFunction(sc, options);
 
-            code.push(<SKExpression>sk`pushFN(data, ${call_name}, prod_start)`);
+            code.push(<SKExpression>sk`state.push_fn(${call_name}, prod_start)`);
 
-            code.push(<SKExpression>sk`return : ${getProductionFunctionName(production, grammar)}(l, data,db,state,prod_start,prod_start);`);
+            code.push(createProductionReturn(production,"prod_start", "prod_start"));
 
             leaf_node = sc;
 

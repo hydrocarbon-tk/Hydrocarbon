@@ -25,7 +25,7 @@ export function createVirtualProductions(items: Item[], options: RenderBodyOptio
     let i = 0;
 
     //Check to so if these virtual productions already exist
-    if (items.every(i => i.getProduction(grammar).type == "virtual-production")) {
+    if (items.some(i => i.getProduction(grammar).type == "virtual-production")) {
 
         for (const item of items)
             output.set(item.id, { p: item.getProduction(grammar), i: i++ });
@@ -84,9 +84,9 @@ export function createVirtualProductions(items: Item[], options: RenderBodyOptio
         for (const [item_id, { p: production }] of output.entries()) {
             const
                 item = getItemMapEntry(grammar, item_id).item,
-                
+
                 body = production.bodies[0],
-                
+
                 v_item = new Item(body.id, body.length, 0);
 
             for (let j = v_item, i = item; ;) {

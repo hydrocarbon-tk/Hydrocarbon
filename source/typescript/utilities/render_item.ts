@@ -4,11 +4,8 @@
  * disclaimer notice.
  */
 
-import { TokenType } from "@candlelib/wind";
 import {
-    getRootSym,
-    getSymbolsFromClosure,
-    getTokenSymbolsFromItems,
+    getRootSym, getTokenSymbolsFromItems,
     Sym_Is_A_Production,
     Sym_Is_Empty,
     Sym_Is_Not_Consumed
@@ -19,15 +16,14 @@ import { SKBlock, SKExpression, SKIf } from "../skribble/types/node";
 import { RenderBodyOptions } from "../types/render_body_options";
 import { getClosure } from "./closure.js";
 import {
-    getIncludeBooleans,
+    addItemAnnotationToExpressionList,
     createBranchFunction,
     createConsumeSk,
     createDefaultReduceFunctionSk,
+    createProductionReturn,
     createReduceFunctionSK,
-    createScanFunctionCall,
-    getProductionFunctionName
+    createScanFunctionCall, getIncludeBooleans, getProductionFunctionName
 } from "./code_generating.js";
-import { rec_glob_lex_name } from "./global_names.js";
 import { Item, itemsToProductionIDs } from "./item.js";
 import { processProductionChain } from "./process_production_reduction_sequences.js";
 
@@ -46,9 +42,9 @@ export function renderItemReduction(
 
     const body = item.body_(grammar);
 
-    if (body.reduce_id >= 0)
+    if (body.reduce_id >= 0) {
         code_node.push(createReduceFunctionSK(item, grammar));
-    else if (item.len > 1)
+    } else if (item.len > 1)
         code_node.push(createDefaultReduceFunctionSk(item));
 }
 
@@ -58,7 +54,7 @@ export function renderItem(
     item: Item,
     options: RenderBodyOptions,
     RENDER_WITH_NO_CHECK = false,
-    lex_name: string = rec_glob_lex_name,
+    lex_name: string = "state.lexer",
     POST_CONSUME = false,
     items = [],
 ): { leaf_node: SKExpression[], original_prods: number[], prods: number[]; INDIRECT: boolean; EMPTY: boolean; } {
@@ -89,8 +85,8 @@ export function renderItem(
                 call_name = createBranchFunction(call_body, options),
                 rc = [];
 
-            rc.push(sk`pushFN(data, &> ${call_name}, data.rules_ptr)`);
-            rc.push(sk`return : ${getProductionFunctionName(production)}(l, data,db,state,data.rules_ptr,prod_start);`);
+            rc.push(sk`state.push_fn( &> ${call_name}, state.get_rules_ptr_val())`);
+            rc.push(createProductionReturn(production));
             if (RENDER_WITH_NO_CHECK) {
                 leaf_expressions.push(...rc);
             } else {
@@ -133,7 +129,7 @@ export function renderItem(
         } else {
             original_prods = itemsToProductionIDs([item], grammar);
             prods = processProductionChain(leaf_expressions, options, itemsToProductionIDs([item], grammar));
-            leaf_expressions.push(<SKExpression>sk`l.setToken( ${TokenTypes.SYMBOL}, 0, 0 )`);
+            leaf_expressions.push(<SKExpression>sk`state.lexer.setToken( ${TokenTypes.SYMBOL}, 0, 0 )`);
             leaf_expressions.push(createConsumeSk(lex_name));
             EMPTY = true;
         }

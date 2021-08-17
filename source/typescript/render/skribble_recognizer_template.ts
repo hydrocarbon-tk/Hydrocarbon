@@ -84,7 +84,7 @@ fn createState:u32 (ENABLE_STACK_OUTPUT:u32) {
     [pub] input: __array_u8$ptr
     [pub] stack: array_StackFunction = call(256)
     [pub] stash: array_u32 = call(256)
-    [pub] origin: __ParserData$ptr
+    [pub] origin: __ParserState$ptr
     [pub] VALID: bool = 0 
     [pub] COMPLETED: bool = 0 
 
@@ -110,34 +110,34 @@ fn createState:u32 (ENABLE_STACK_OUTPUT:u32) {
         [new this_ cpp_ignore] stack:array_any = array_any();
     }
 
-    [pub] fn sync:void(ptr:__ParserData$ptr){
+    [pub] fn sync:void(ptr:__ParserState$ptr){
         if (ptr) == this : return;
     }
 }
 
 [pub wasm]  cls ParserDataBuffer{
 
-    [pub new] data : array___ParserData = Array(64)
+    [pub new] data : array___ParserState = Array(64)
 
     [pub] len : i32
 
     [pub] fn ParserDataBuffer:ParserDataBuffer(){
         this.len = 0;
-        [new this_ cpp_ignore] data : array___ParserData$ptr = array_any();
+        [new this_ cpp_ignore] data : array___ParserState$ptr = array_any();
     }
 
-    [pub] fn addDataPointer:void(ptr: __ParserData){
+    [pub] fn addDataPointer:void(ptr: __ParserState){
         this.data[this.len] = ptr;
         this.len += 1;
     }
 
-    [pub] fn removeDataAtIndex:__ParserData(index:i32){
+    [pub] fn removeDataAtIndex:__ParserState(index:i32){
         
         this.len-=1;
 
         [mut] j:u32 = index;
 
-        [mut] data : __ParserData  = this.data[index];
+        [mut] data : __ParserState  = this.data[index];
 
         loop ((j < this.len)){
             this.data[j] = this.data[j+1];
@@ -148,13 +148,13 @@ fn createState:u32 (ENABLE_STACK_OUTPUT:u32) {
     }
 
     [pub] fn addDataPointerSorted:void(
-        data:__ParserData
+        data:__ParserState
     ){
         
         [mut]index:u32 =0;
     
         loop( (index < resolved_len)){
-            [const] exist_ref:__ParserData$ref = *>resolved[index];
+            [const] exist_ref:__ParserState$ref = *>resolved[index];
     
             if data.VALID && (!exist_ref.VALID): {
                 break;
@@ -204,7 +204,7 @@ fn createState:u32 (ENABLE_STACK_OUTPUT:u32) {
         return :type_in;
     }
 
-    [pub] fn getType : u32 (USE_UNICODE:bool, data: __ParserData$ref) { 
+    [pub] fn getType : u32 (USE_UNICODE:bool, data: __ParserState$ref) { 
 
         [mut] t:u32 = this._type;
 
@@ -223,7 +223,7 @@ fn createState:u32 (ENABLE_STACK_OUTPUT:u32) {
         return : t;
     }
 
-    [pub] fn isSym : bool (USE_UNICODE:bool, data:__ParserData$ref) {
+    [pub] fn isSym : bool (USE_UNICODE:bool, data:__ParserState$ref) {
         if((this._type) == 0 && this.getType(USE_UNICODE, data) == ${TokenTypes.SYMBOL}): {
             this._type = ${TokenTypes.SYMBOL};
         };
@@ -240,7 +240,7 @@ fn createState:u32 (ENABLE_STACK_OUTPUT:u32) {
         return : (this._type )== ${TokenTypes.NEW_LINE};
     }
 
-    [pub] fn isSP : bool  (USE_UNICODE:bool, data:__ParserData$ref) {
+    [pub] fn isSP : bool  (USE_UNICODE:bool, data:__ParserState$ref) {
         
         if((this._type) == 0 && (this.current_byte) == 32): {
             this._type = ${TokenTypes.SPACE}
@@ -249,7 +249,7 @@ fn createState:u32 (ENABLE_STACK_OUTPUT:u32) {
         return : (this._type )== ${TokenTypes.SPACE}
     }
 
-    [pub] fn isNum : bool  (data:__ParserData$ref) {
+    [pub] fn isNum : bool  (data:__ParserState$ref) {
         
         if (this._type) == 0 : {
             if this.getType(false, data) == ${TokenTypes.NUMBER} : {
@@ -273,7 +273,7 @@ fn createState:u32 (ENABLE_STACK_OUTPUT:u32) {
             return : (this._type) == ${TokenTypes.NUMBER}
     }
 
-    [pub] fn isUniID : bool  (data:__ParserData$ref) {
+    [pub] fn isUniID : bool  (data:__ParserState$ref) {
         
         if ((this._type) == 0 ) : {
 
@@ -373,7 +373,7 @@ fn createState:u32 (ENABLE_STACK_OUTPUT:u32) {
         return:*>this;
     }
 
-    [pub] fn next:__Lexer$ref (data: __ParserData$ref){
+    [pub] fn next:__Lexer$ref (data: __ParserState$ref){
             
         this.byte_offset += this.byte_length;
         this.token_offset += this.token_length;
@@ -395,12 +395,12 @@ fn createState:u32 (ENABLE_STACK_OUTPUT:u32) {
         return :*> this;
     }
     
-    [pub] fn END:bool (data:__ParserData$ref){
+    [pub] fn END:bool (data:__ParserState$ref){
         return : this.byte_offset >= data.input_len
     }
 }
 
-fn token_production:bool(data:__ParserData$ref, production:StackFunction, pid:u32, _type:u32, tk_flag:u32){       
+fn token_production:bool(data:__ParserState$ref, production:StackFunction, pid:u32, _type:u32, tk_flag:u32){       
     
     [mut] l:__Lexer$ref = data.lexer;
 
@@ -448,7 +448,7 @@ fn token_production:bool(data:__ParserData$ref, production:StackFunction, pid:u3
 // Compare ----------------------------------------------------------------------------------------------
 
 fn compare: u32(
-    data: __ParserData$ref,
+    data: __ParserState$ref,
     data_offset: u32,
     sequence_offset:u32,
     byte_length: u32,
@@ -467,26 +467,26 @@ fn compare: u32(
     return : byte_length;
 }
 
-fn create_parser_data_object:__ParserData$ptr(
+fn create_parser_data_object:__ParserState$ptr(
     input_buffer: __u8$ptr, input_len:u32, rules_len:u32
 ){
-    [static new]parser_data:__ParserData$ptr = ParserData(input_buffer, input_len, rules_len);
+    [static new]parser_data:__ParserState$ptr = ParserData(input_buffer, input_len, rules_len);
 
     return : parser_data
 }
 
-[ptr] fn fork:__ParserData$ptr(
-    data:__ParserData$ref,
-    data_buffer:__ParserDataBuffer$ref
+[ptr] fn fork:__ParserState$ptr(
+    data:__ParserState$ref,
+    data_buffer:__ParserStateBuffer$ref
 ) {
 
-    [mut] fork:__ParserData = __ParserData(
+    [mut] fork:__ParserState = __ParserState(
         data.input, 
         data.input_len,
         data.rules_len - data.rules_ptr
     );
 
-    fork_ref:__ParserData$ref = *>fork;
+    fork_ref:__ParserState$ref = *>fork;
 
     [mut] i:u32 = 0;
     
@@ -511,13 +511,13 @@ fn create_parser_data_object:__ParserData$ptr(
 
 fn isOutputEnabled:bool (state:u32) { return: ${NULL_STATE} != (state & ${STATE_ALLOW_OUTPUT}) }
 
-fn set_action:void (val:u32, data:__ParserData$ref) {
+fn set_action:void (val:u32, data:__ParserState$ref) {
     if(data.rules_ptr > data.rules_len) : return;
     data.rules[data.rules_ptr] = val;
     data.rules_ptr +=1;
 }
 
-fn add_reduce:void(data:__ParserData$ref, sym_len:u32, body:u32) {
+fn add_reduce:void(data:__ParserState$ref, sym_len:u32, body:u32) {
     if isOutputEnabled(data.state) : {
 
         [mut] total:u32 = body + sym_len;
@@ -543,7 +543,7 @@ fn add_reduce:void(data:__ParserData$ref, sym_len:u32, body:u32) {
     }
 }
 
-fn add_shift:void(data:__ParserData$ref, tok_len:u32) {
+fn add_shift:void(data:__ParserState$ref, tok_len:u32) {
 
     if tok_len < 0 : return;
     
@@ -558,7 +558,7 @@ fn add_shift:void(data:__ParserData$ref, tok_len:u32) {
     }
 }
 
-fn add_skip:void(data:__ParserData$ref, skip_delta:u32){
+fn add_skip:void(data:__ParserState$ref, skip_delta:u32){
 
     if skip_delta < 1: return;
     
@@ -573,13 +573,13 @@ fn add_skip:void(data:__ParserData$ref, skip_delta:u32){
     }
 }
 
-fn reset:void (data:__ParserData$ref, origin:__Lexer$ref, s_ptr:u32, r_ptr:u32) {
+fn reset:void (data:__ParserState$ref, origin:__Lexer$ref, s_ptr:u32, r_ptr:u32) {
     data.rules_ptr = r_ptr;
     data.stack_ptr = s_ptr;
     (*>data.lexer).sync(origin);
 }
 
-fn consume: bool (data:__ParserData$ref) {
+fn consume: bool (data:__ParserState$ref) {
     data.l.prev_byte_offset = l.byte_offset + l.byte_length;
     if isOutputEnabled(data.state) : add_shift(data, l.token_length);
     data.l.next(data);
@@ -587,7 +587,7 @@ fn consume: bool (data:__ParserData$ref) {
 }
 
 fn pushFN:void(
-    data:__ParserData$ref, 
+    data:__ParserState$ref, 
     [pub] _fn_ref: StackFunction,
     stash: i32
 ){ 
@@ -598,9 +598,9 @@ fn pushFN:void(
 }
 
 fn stepKernel:bool(
-    data:__ParserData$ref, 
+    data:__ParserState$ref, 
     lexer:__Lexer$ref, 
-    data_buffer:__ParserDataBuffer$ref, 
+    data_buffer:__ParserStateBuffer$ref, 
     stack_base:i32
 ){
     [mut] ptr:i32 = data.stack_ptr;
@@ -624,8 +624,8 @@ fn stepKernel:bool(
 
 
 fn run:i32(
-    process_buffer : __ParserDataBuffer$ref,
-    out_buffer : __ParserDataBuffer$ref,
+    process_buffer : __ParserStateBuffer$ref,
+    out_buffer : __ParserStateBuffer$ref,
     base:u32, 
     prod_id:u32
 ){
@@ -636,7 +636,7 @@ fn run:i32(
 
         loop( (i < process_buffer.len)){
 
-            [const] data:__ParserData$ref = *> process_buffer.data[i];
+            [const] data:__ParserState$ref = *> process_buffer.data[i];
             
             if (!stepKernel(data, *>data.lexer, process_buffer, base)) : {
 
@@ -667,7 +667,7 @@ fn recognize: ParserDataBuffer(
     [mut new cpp_ignore] process_buffer : ParserDataBuffer = ParserDataBuffer();
     [mut new cpp_ignore] out_buffer : ParserDataBuffer = ParserDataBuffer();
     [mut js_ignore] data_buffer : ParserDataBuffer;
-    [mut] data_ref:__ParserData= __ParserData(
+    [mut] data_ref:__ParserState= __ParserState(
         input_buffer,
         input_len,
         rules_len

@@ -3,15 +3,14 @@
  * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
  * disclaimer notice.
  */
+import { getUniqueSymbolName, Sym_Is_A_Production } from "../../grammar/nodes/symbol.js";
 import { sk } from "../../skribble/skribble.js";
 import { SKBlock, SKExpression } from "../../skribble/types/node";
 import { RenderBodyOptions } from "../../types/render_body_options";
 import { MultiItemReturnObject } from "../../types/transition_generating";
 import { Leaf, TransitionNode, TRANSITION_TYPE } from "../../types/transition_node.js";
 import { addItemAnnotationToExpressionList, createBranchFunction } from "../../utilities/code_generating.js";
-import { getUniqueSymbolName, Sym_Is_A_Production } from "../../grammar/nodes/symbol.js";
 import { createVirtualProductionSequence } from "../function_constructor.js";
-import { default_resolveResolvedLeaf } from "./default_resolved_leaf_resolution.js";
 
 export function default_resolveUnresolvedLeaves(node: TransitionNode, nodes: TransitionNode[], options: RenderBodyOptions): MultiItemReturnObject {
 
@@ -93,7 +92,7 @@ export function default_resolveUnresolvedLeaves(node: TransitionNode, nodes: Tra
     if (FALLBACK_REQUIRED) {
 
         const
-            USE_BACKTRACKING = !nodes.some(n => n.transition_type == TRANSITION_TYPE.ASSERT_END),
+            USE_BACKTRACKING = false && !nodes.some(n => n.transition_type == TRANSITION_TYPE.ASSERT_END),
 
             USE_FORKING = true,
             output_nodes = nodes.filter(i => i.transition_type !== TRANSITION_TYPE.IGNORE).sort((a, b) =>
@@ -150,8 +149,8 @@ function createBackTrackingSequence(
 
     out.push(
         <SKExpression>sk`[mut] origin:Lexer = l.copyInPlace()`,
-        <SKExpression>sk`[mut] s_ptr:u32 = data.stack_ptr`,
-        <SKExpression>sk`[mut] r_ptr:u32 = data.rules_ptr`
+        <SKExpression>sk`[mut] s_ptr:u32 = state.stack_ptr`,
+        <SKExpression>sk`[mut] r_ptr:u32 = state.get_rules_ptr_val()`
     );
 
     //Combine production that transition on the same symbol
@@ -169,27 +168,27 @@ function createBackTrackingSequence(
             <SKExpression>sk`return : -${prods[0]}`
         ], options);
 
-        code.unshift(<SKExpression>sk`pushFN(data, &> ${call_name}, 0)`);
+        code.unshift(<SKExpression>sk`state.push_fn(&> ${call_name}, 0)`);
         code.push(<SKExpression>sk`return: -1;`);
 
         const init_name = createBranchFunction(code, options);
 
         const block = <SKBlock>sk`{}`;
 
-        block.expressions.push(<SKExpression>sk`pushFN(data, &> ${init_name}, 0)`);
-        block.expressions.push(<SKExpression>sk`[mut] output:array___ParserData$ptr = Array(1);`);
-        block.expressions.push(<SKExpression>sk`[mut] result:i32 = run(&>data, output, 0, 1, 0, 0);`);
+        block.expressions.push(<SKExpression>sk`state.push_fn(&> ${init_name}, 0)`);
+        block.expressions.push(<SKExpression>sk`[mut] output:array___ParserState$ptr = Array(1);`);
+        block.expressions.push(<SKExpression>sk`[mut] result:i32 = run(&>state, output, 0, 1, 0, 0);`);
 
         const resolve = <SKBlock>sk`if ( result > 0 && ${prods.map(p => `((*>output[0]).prod) == -${p}`).join(" || ")} ) : {
-                data.sync(output[0]);
-                ${"return : data.rules_ptr;"}
+                state.sync(output[0]);
+                ${"return : state.get_rules_ptr_val();"}
             }`;
         block.expressions.push(resolve);
 
         out.push(block);
 
         out.push(
-            <SKExpression>sk`reset(data, origin, s_ptr, r_ptr)`
+            <SKExpression>sk`reset(state, origin, s_ptr, r_ptr)`
         );
     }
 
@@ -220,12 +219,12 @@ function createForkSequence(
 
         if (I++ == output_nodes.length - 1) {
             out.push(
-                <SKExpression>sk`pushFN(data, &> ${call_name}, 0)`
+                <SKExpression>sk`state.push_fn(&> ${call_name}, 0)`
             );
         } else {
             out.push(
-                <SKExpression>sk`[static] fk${I}:__ParserData$ptr = fork(data, db);`,
-                <SKExpression>sk`pushFN(*> fk${I}, &> ${call_name}, 0)`
+                <SKExpression>sk`[static mut] fk${I}:__ParserState$ref = fork(state, db);`,
+                <SKExpression>sk`fk${I}.push_fn(&> ${call_name}, 0)`
             );
         }
     }

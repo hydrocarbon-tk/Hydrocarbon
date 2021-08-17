@@ -1,5 +1,5 @@
 [package]
-name = "lib_cl_hydrocarbon"
+name = "candlelib_hydrocarbon"
 version = "0.0.1"
 edition = "2018"
 
@@ -8,3 +8,6 @@ crate-type = ["lib"]
 path = "src/lib.rs"
 
 [dependencies]
+
+[profile.dev]
+debug = 2
