@@ -90,7 +90,7 @@ export async function generateRustParser(
 
     fn isTokenActive(token_id: i32, row: u32) -> bool {
         let index = ((row * 6) + (token_id >> 4) as u32) as usize;
-        let shift: u16 = 1 << (15 & (token_id - 1));
+        let shift: u16 = 1 << (15 & (token_id));
         return (token_lookup[index] & shift) > 0;
     }
 
@@ -495,7 +495,7 @@ function createActiveTokenSK(grammar: HCG3Grammar): SKNode {
 
                 [mut] index : u32 = (row ${grammar.meta.token_row_size > 1 ? "* " + grammar.meta.token_row_size : ""}) + (token_id >> ${token_lu_bit_size_offset});
 
-                [mut] shift : u32 = 1 << (${token_lu_bit_size - 1} & (token_id - 1));
+                [mut] shift : u32 = 1 << (${token_lu_bit_size - 1} & (token_id));
             
                 return : (token_lookup[index] & shift) > 0;
             }

@@ -348,7 +348,7 @@ export function generateHybridIdentifier(symbols: HCG3Symbol[]) {
 }
 
 
-export const token_lu_bit_size_offset = 4;
+export const token_lu_bit_size_offset = 5;
 export const token_lu_bit_size = 1 << token_lu_bit_size_offset;
 export function getSymbolMap(symbols: TokenSymbol[], grammar: HCG3Grammar): number[] {
     const ids = symbols.filter(s => s.id).map(s => s.id).sort((a, b) => a - b).filter(i => i >= 1);
@@ -359,12 +359,12 @@ export function getSymbolMap(symbols: TokenSymbol[], grammar: HCG3Grammar): numb
     let index = 0;
 
     for (const id of ids) {
-        while (id > (base + token_lu_bit_size)) {
+        while (id >= (base + token_lu_bit_size)) {
             base += token_lu_bit_size;
             index++;
             flags.push(0);
         }
-        flags[index] |= 1 << (id - base - 1);
+        flags[index] |= 1 << (id - base);
     }
 
     while (max > (base + token_lu_bit_size)) {
@@ -375,7 +375,7 @@ export function getSymbolMap(symbols: TokenSymbol[], grammar: HCG3Grammar): numb
 
     return flags;
 }
-function getSymbolMapPlaceHolder(symbols: TokenSymbol[], grammar: HCG3Grammar) {
+export function getSymbolMapPlaceHolder(symbols: TokenSymbol[], grammar: HCG3Grammar) {
     return "symbollookup_" + getSymbolMap(symbols, grammar).map(i => i >>> 0).join("_");
 }
 
