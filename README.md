@@ -174,8 +174,6 @@ The split functions allow the **recognizer** to be defined using C/C++ friendly 
 
 ## ASCII, UTF-8, & byte parsing
 
-## Tokenizer-less Parsing
-
 ## Unlimited Look Ahead
 
 ## Left Recursion
