@@ -129,21 +129,22 @@ pub fn parser_core<T: std::fmt::Debug>(
     entry_functions: StackFunction,
     reduce_functions: &[ReduceFunction<T>],
 ) -> OptionedBoxedASTRef<T> {
-    let rules_max_len = (utf_8_input.len() * 3) as u32;
-
     let (success, failure) = recognize(
         utf_8_input,
         utf_8_input.len() as u32,
-        rules_max_len,
         expected_resolved_id,
         entry_functions,
     );
 
     if success.len() > 0 {
         if let Some(longest_success) = success.get_ref_state(0) {
-            return convert_fork_to_astref(longest_success, reduce_functions);
+            if (longest_success.lexer.byte_offset >= utf_8_input.len() as u32) {
+                return convert_fork_to_astref(longest_success, reduce_functions);
+            }
         }
-    } else if failure.len() > 0 {
+    }
+
+    if failure.len() > 0 {
         if let Some(longest_failure) = failure.get_ref_state(0) {
             return Some(Box::new(ASTRef::FAILED_TOKEN(ASTRefString {
                 offset: longest_failure.lexer.byte_offset as usize,

@@ -105,19 +105,42 @@ export function getSymbolBoolean(sym: TokenSymbol, grammar: HCG3Grammar, lex_nam
 }
 
 
-export function createProductionReturn(production: HCG3Production, prod: string = "state.get_rules_ptr_val()", stash: string = "prod_start"): SKExpression {
-    return <SKReturn>sk`return: ${getProductionFunctionNameSk(production)}(state,db,${prod},${stash});`;
+export function createProductionReturn(production: HCG3Production, prod: string = "0", stash: string = "prod_start"): SKExpression {
+    return <SKReturn>sk`return: ${getProductionFunctionNameSk(production)}(state,db,${prod});`;
 }
 
 export function collapseBranchNames(options: RenderBodyOptions) {
     const { grammar: { branches }, helper: runner } = options;
 
-    for (const { name, body } of branches) {
+    for (const { name: ref, body } of branches) {
+
+        // Remove single call functions and replace source reference with the callee name
+        if (body.length == 1 && body[0].type == "return") {
+
+            const [_return] = body;
+            if (_return.expression.type == "call") {
+
+                //Since the calling site name represents is `state.push_fn(XXXXX, production id)` 
+                //This can be trivially replaced by the contents the return value to reduce the 
+                //number of branch functions and runtime calls. 
+
+                ref.value = _return.expression.reference.value + ` /*${skRenderAsSK(_return.expression)}*/`;
+
+                //No longer need to create a branch function. So skip rest of processing for this
+                //reference
+                continue;
+            } else if (_return.expression.type == "number") {
+                ref.value = `set_production /*${skRenderAsSK(_return.expression)}*/`;
+                //No longer need to create a branch function. So skip rest of processing for this
+                //reference
+                continue;
+            }
+        }
 
         const
             hash = expressionListHash(body),
 
-            token_function = <SKFunction>sk`fn temp:i32 (state:__ParserState$ref, db:__ParserStateBuffer$ref, [mut] prod:i32, prod_start:i32){
+            token_function = <SKFunction>sk`fn temp:i32 (state:__ParserState$ref, db:__ParserStateBuffer$ref, [mut] prod:i32){
                 /*${hash}*/
             }`;
 
@@ -129,7 +152,7 @@ export function collapseBranchNames(options: RenderBodyOptions) {
 
         var val = packGlobalFunction("branch", "int", token_function, token_function, runner);
 
-        name.value = val.value;
+        ref.value = val.value;
     }
 }
 /**
@@ -461,7 +484,7 @@ export function createSymbolScanFunctionNew(options: BaseOptions): SKFunction[] 
                 state.lexer.next(state.get_input_array());
                 scan_core(state, tk_row);
             };
-            if( isOutputEnabled( state.state ) ) : add_skip( state, state.lexer.token_offset  - offset );
+            if( is_output_enabled( state.state ) ) : add_skip( state, state.lexer.token_offset  - offset );
         }
     }
     `;
@@ -648,12 +671,17 @@ function renderLeafNew(node: TokenTreeNode, options: any, USE_BOOLEAN: boolean =
 }
 export function renderPreScanFunction() {
     return <SKFunction>sk`fn pre_scan:bool(state:__ParserState$ref, tk_row:u32){
-    
+        
+        [mut] tk_length: u16 = state.lexer.token_length;
+        [mut] bt_length: u16 = state.lexer.byte_length;
+        
         scan(state, tk_row, 0);
-    
+        
         [mut] type_cache:i32 = state.lexer._type;
     
         state.lexer._type = 0;
+        state.lexer.token_length = tk_length;
+        state.lexer.byte_length = bt_length;
     
         return : type_cache > 0;
     }`;

@@ -3,31 +3,38 @@
 namespace HYDROCARBON
 {
 
-    ASTRef parserCore(char *utf8_encoded_input, unsigned long input_byte_count,
+    ASTRef parserCore(u8 *utf8_encoded_input,
+                      u32 input_byte_count,
+                      i32 expected_resolved_id,
                       StackFunction stack_function,
                       ReduceFunction *reduce_functions)
     {
 
-        init_data((unsigned char *)utf8_encoded_input, input_byte_count, input_byte_count * 4);
+        ParseResultBuffers result = recognize(
+            utf8_encoded_input,
+            input_byte_count,
+            expected_resolved_id,
+            stack_function);
 
-        // upload string data
-        int fork_count =
-            recognize(input_byte_count, 0, stack_function);
+        auto &valid = result.valid;
+        auto &invalid = result.invalid;
 
-        // start process
-        auto forks = get_fork_pointers();
+        if (valid.len() > 0)
+        {
+            auto &farthest_success = valid.get_ref_state(0);
+            if (farthest_success.lexer.byte_offset >= input_byte_count)
+            {
+                return convertForkToASTRef(farthest_success, reduce_functions);
+            }
+        }
 
-        DataRef &fork1 = *forks[0];
-        DataRef &fork2 = *forks[1];
-        DataRef &fork3 = *forks[2];
-        DataRef &fork4 = *forks[3];
-        DataRef &fork5 = *forks[4];
-        DataRef &fork6 = *forks[5];
+        if (failure.length > 0)
+        {
+            auto &farthest_failure = invalid.get_ref_state(0);
+            return ASTRef(farthest_failure.lexer.byte_offset, farthest_failure.lexer.byte_length, true);
+        }
 
-        if (fork1.VALID)
-            return convertForkToASTRef(fork1, reduce_functions, utf8_encoded_input);
-        else
-            return createInvalidParseASTRef(fork1);
+        return ASTRef(0, 0, true);
     }
 
     ASTRef createInvalidParseASTRef(DataRef &fork)
@@ -35,31 +42,24 @@ namespace HYDROCARBON
         return ASTRef(fork.byte_offset, fork.byte_length, true);
     }
 
-    ASTRef convertForkToASTRef(DataRef &fork, ReduceFunction *reduce_functions, char *utf8_encoded_input)
+    ASTRef convertForkToASTRef(ParserState &state, ReduceFunction *reduce_functions)
     {
 
-        unsigned short *block = get_next_command_block(&fork);
+        ParserStateIterator iter(state);
 
-        auto short_offset = 0, token_offset = 0;
-        auto high = block[short_offset++];
-        auto limit = 1000000;
+        auto token_offset = 0;
         auto length = 0;
         auto offset = 0;
         auto stack_pointer = 0;
 
         ASTRef stack[1024];
 
-        while (limit-- > 0)
+        while (iter.is_valid())
         {
 
-            auto low = high;
+            auto instr = iter.next();
 
-            if (low == 0)
-                break;
-
-            high = block[short_offset++];
-
-            auto rule = low & 3;
+            auto rule = instr & 3;
 
             switch (rule)
             {
@@ -67,11 +67,10 @@ namespace HYDROCARBON
             {
                 auto body = (low >> 8) & 0xFF, len = ((low >> 3) & 0x1F);
 
-                if (low & 4)
+                if (instr & 4)
                 {
                     body = (body << 8) | len;
-                    len = high;
-                    short_offset++;
+                    len = iter.next();
                 }
 
                 stack[stack_pointer - len] = reduce_functions[body](&stack[stack_pointer - len], len);
@@ -86,8 +85,7 @@ namespace HYDROCARBON
 
                 if (low & 4)
                 {
-                    length = ((length << 16) | high);
-                    short_offset++;
+                    length = ((length << 16) | iter.next());
                 }
 
                 auto token = ASTRef(token_offset, length);
@@ -107,20 +105,13 @@ namespace HYDROCARBON
 
                 if (low & 4)
                 {
-                    length = ((length << 16) | high);
-                    short_offset++;
+                    length = ((length << 16) | iter.next());
                 }
 
                 auto token = ASTRef(token_offset, length);
 
                 token_offset += length;
             }
-            }
-
-            if (short_offset > 63)
-            {
-                block = get_next_command_block(&fork);
-                short_offset = 0;
             }
         }
 

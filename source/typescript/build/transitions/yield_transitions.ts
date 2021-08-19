@@ -44,14 +44,15 @@ export function yieldTransitions(
     const
         { grammar, production_ids } = options,
         output_nodes: TransitionNode[] = [],
-        active_items = in_items.filter(item => {
+        active_items = in_items/*.filter(item => {
+            return true;
             const sym = item.sym(grammar) || default_EOF;
 
             return Sym_Is_A_Production(sym)
                 || item.atEND
                 || filter_symbols.length == 0
                 || filter_symbols.some(f => Symbols_Are_The_Same(f, sym));
-        });
+        })*/;
 
 
     /**
@@ -103,7 +104,7 @@ export function yieldTransitions(
 
         } else {
 
-            output_nodes.push(...yieldPeekedNodes(active_items, options, offset, filter_symbols));
+            output_nodes.push(...yieldPeekedNodes(active_items, options, offset, []));
         }
 
     }

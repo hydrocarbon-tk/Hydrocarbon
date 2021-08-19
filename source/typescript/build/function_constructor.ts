@@ -28,6 +28,12 @@ export function constructHybridFunction(production: HCG3Production, grammar: HCG
 
     grammar.branches = [];
 
+    const body_len = grammar.bodies.length;
+    const production_len = grammar.productions.length;
+    const meta_item_cache = new Map(grammar.item_map.entries());
+    const cached_item_map = grammar.item_map;
+    grammar.item_map = meta_item_cache;
+
     const
 
         rd_fn_name = <SKPrimitiveDeclaration>sk`[priv] ${getProductionFunctionName(production, grammar)}:u32`,
@@ -36,10 +42,10 @@ export function constructHybridFunction(production: HCG3Production, grammar: HCG
 
         RD_function = <SKFunction>sk`
 
-        [pub] fn ${getProductionFunctionName(production, grammar)}:i32(state:__ParserState$ref, db:__ParserStateBuffer$ref, prod:i32, prod_start:i32){ ${runner.ANNOTATED ? "" : ""} }`,
+        [pub] fn ${getProductionFunctionName(production, grammar)}:i32(state:__ParserState$ref, db:__ParserStateBuffer$ref, prod:i32){ ${runner.ANNOTATED ? "" : ""} }`,
 
         GOTO_function = <SKFunction>sk`
-        [pub] fn ${getProductionFunctionName(production, grammar)}_goto:i32(state:__ParserState$ref, db:__ParserStateBuffer$ref, [mut] prod:i32, prod_start:i32){ ${runner.ANNOTATED ? "" : ""} }`,
+        [pub] fn ${getProductionFunctionName(production, grammar)}_goto:i32(state:__ParserState$ref, db:__ParserStateBuffer$ref, [mut] prod:i32){ ${runner.ANNOTATED ? "" : ""} }`,
 
         { RDOptions, GOTO_Options, RD_fn_contents, GOTO_fn_contents }
             = compileProductionFunctions(grammar, runner, [production]);
@@ -80,6 +86,11 @@ export function constructHybridFunction(production: HCG3Production, grammar: HCG
 
     if (!GOTO_Options.NO_GOTOS)
         GOTO_function.expressions.push(addClauseSuccessCheck(RDOptions));
+
+    //clean up virtual productions
+    grammar.bodies.length = body_len;
+    grammar.productions.length = production_len;
+    grammar.item_map = cached_item_map;
 
     return {
         productions: new Set([...RDOptions.called_productions.values(), ...GOTO_Options.called_productions.values(), ...runner.referenced_production_ids.values()]),

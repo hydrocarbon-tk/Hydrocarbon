@@ -167,7 +167,7 @@ export const js_mappings: NodeMappings<SKNode, "type"> = <NodeMappings<SKNode, "
                         } else if (A.type == "operator" && A.val == "%%%%") {
                             //Skip array_delete operator
                             return "";
-                        } else if (A.type == "operator" && A.val == "&>") {
+                        } else if ((A.type == "operator" && A.val == "&>") || (A.type == "operator" && A.val == "&>>")) {
                             //Skip memory operator
                             continue;
                         } else if (A.type == "operator" && A.val == "*>") {
@@ -221,12 +221,12 @@ export const js_mappings: NodeMappings<SKNode, "type"> = <NodeMappings<SKNode, "
         <NodeMapping<SKMatch>>{
             type: "match",
             child_keys: ["match_expression", "matches"],
-            template: "switch \\( @match_expression \\) \\{ i:s o:n @matches...[o:n] i:e o:n\\}"
+            template: "switch \\( @match_expression \\) \\{ i:s o:n @matches...[o:n \\break; o:n ] i:e o:n\\}"
         },
         <NodeMapping<SKMatchTarget>>{
             type: "match-clause",
             child_keys: ["match", "expression"],
-            template: "case @match \\: o:s o:n @expression",
+            template: "case @match \\: o:s o:n @expression o:n \\break",
             custom_render: (state, template_fn) => {
 
                 const { node, indent } = state;

@@ -82,7 +82,7 @@ export function renderItem(
                 call_name = createBranchFunction(call_body, options),
                 rc = [];
 
-            rc.push(sk`state.push_fn( &> ${call_name}, state.get_rules_ptr_val())`);
+            rc.push(sk`state.push_fn( &> ${call_name}, 0)`);
 
             rc.push(createProductionReturn(production));
 

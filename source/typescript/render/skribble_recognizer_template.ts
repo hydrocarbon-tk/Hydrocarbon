@@ -15,97 +15,56 @@ export const STATE_ALLOW_OUTPUT = 2;
 export const renderSkribbleRecognizer = (): SKModule => {
     const val = <SKModule>parser(`
 
-fn getUTF8ByteLengthFromCodePoint : u32(code_point : u32){
+[pub wasm]  cls ParserState{
+    [pub] lexer: Lexer
 
-    if (code_point) == 0:{
-        return: 1;
-   } else if (code_point & 0x7F) == code_point : {
-        return: 1;
-    } else if (code_point & 0x7FF) == code_point : {
-        return: 2;
-    } else if (code_point & 0xFFFF) == code_point : {
-        return: 3;
-    } else {
-        return: 4;
-    }
-}
-
-fn  utf8ToCodePoint : u32 (index:u32, buffer: array_u8){
-    [mut] a: u8 = buffer[index];
-    [mut] flag: u8 = 14;
-
-    if a & 0x80 : {
-    
-        flag = a & 0xF0;
-
-        [const] b:u8 = buffer[index+1];
-
-        if flag & 0xE0 : {
-
-            flag = a & 0xF8;
-
-            [const] c:u8 = buffer[index+2];
-
-            if (flag) == 0xF0 : {
-                return: ((a & 0x7) << 18) | ((b & 0x3F) << 12) | ((c & 0x3F) << 6) | (buffer[index+3] & 0x3F);
-            } else if (flag) == 0xE0 : {
-                return: ((a & 0xF) << 12) | ((b & 0x3F) << 6) | (c & 0x3F);
-            }
-
-        } else if (flag) == 0xC : {
-            return: ((a & 0x1F) << 6) | b & 0x3F;
-        }
-
-    } else return: a;
-
-    return:0;
-
-}
-
-fn getTypeAt : u32 ( code_point : u32 ) {
-
-    return : (char_lu_table[code_point] & 0x1F);
-}
-
-fn createState:u32 (ENABLE_STACK_OUTPUT:u32) {
-    return : ${STATE_ALLOW_SKIP} | (ENABLE_STACK_OUTPUT << 1);
-}
-
-[pub wasm]  cls ParserData{
-    [pub ptr] lexer: Lexer
     [pub] state: u32 = 0
     [pub] prod: u32 = 0 
-    [pub] stack_ptr: i32 = 0
-    [pub] rules_ptr: u32 = 0
-    [pub] input_len: u32 = 0
-    [pub] rules_len: u32 = 0
     [pub] active_token_productions: u32 = 0
-    [pub ptr] rules: array_u16
-    [pub] input: __array_u8$ptr
-    [pub] stack: array_StackFunction = call(256)
-    [pub] stash: array_u32 = call(256)
-    [pub] origin: __ParserState$ptr
+    
     [pub] VALID: bool = 0 
     [pub] COMPLETED: bool = 0 
 
-    [pub]  fn ParserData:ParserData(
+    [pub] origin: __ParserState$ptr
+    [pub] origin_fork: u32 = 0 
+    
+    [pub ptr] rules: array_u16
+    [pub] rules_ptr: u32 = 0
+
+    [pub] stash: array_u32 = call(256)
+    [pub] stack: array_StackFunction = call(256)
+    [pub] stack_ptr: i32 = 0
+    
+    [pub] input: __array_u8$ptr
+    [pub] input_len: u32 = 0
+    
+    [pub] refs: u8 = 0
+    
+
+    [pub]  fn ParserState:ParserState(
         input_buffer: __u8$ptr,
-        input_len_in:u32, 
-        rules_len_in:u32
+        input_len_in:u32
     ){
-        this.lexer = lexer_in;
-        this.state = createState(1);
+        
+        [new this_ cpp_ignore] lexer:Lexer = Lexer();
+        
+        this.state = create_state(1);
         this.prod = 0;
+
         this.VALID = false;
         this.COMPLETED = false;
         this.stack_ptr = 0;
         this.rules_ptr = 0;
         this.input_len = input_len_in;
-        this.rules_len = rules_len_in;
+        
+        this.origin = 0;
         this.origin_fork = 0;
-        [this_] origin:u32 = 0;
+        
         this.input = input_buffer;
+        
         [new this_] rules:array_u16 = array_u16(rules_len_in);
+        
+        
         [new this_ cpp_ignore] stash:array_u32 = array_u32(256);
         [new this_ cpp_ignore] stack:array_any = array_any();
     }
@@ -113,15 +72,37 @@ fn createState:u32 (ENABLE_STACK_OUTPUT:u32) {
     [pub] fn sync:void(ptr:__ParserState$ptr){
         if (ptr) == this : return;
     }
+
+    [pub] fn get_rules_ptr_val:u32(){
+        return : this.rules_ptr;
+    }
+
+    [pub] fn get_input_len:u32(){
+        return : this.input_len;
+    }
+
+    [pub] fn get_input_array: __array_u8$ptr (){
+        return : this.input_array;
+    }
+
+    [pub] fn push_fn:void(_fn_ref: StackFunction, stash_value: i32) {
+        this.stack_ptr += 1;
+        this.stack[this.stack_ptr] = _fn_ref;
+        this.stash[this.stack_ptr] = stash_value;
+    }
+
+    [pub] fn get_byte_from_input:i32(index: u32) {
+        return : &>self.input[index]
+    }
 }
 
-[pub wasm]  cls ParserDataBuffer{
+[pub wasm]  cls ParserStateBuffer{
 
     [pub new] data : array___ParserState = Array(64)
 
     [pub] len : i32
 
-    [pub] fn ParserDataBuffer:ParserDataBuffer(){
+    [pub] fn ParserStateBuffer:ParserStateBuffer(){
         this.len = 0;
         [new this_ cpp_ignore] data : array___ParserState$ptr = array_any();
     }
@@ -413,8 +394,8 @@ fn token_production:bool(data:__ParserState$ref, production:StackFunction, pid:u
     // preserve the current state of the data
     [const] stack_ptr :u32 = data.stack_ptr;
     [const] state:u32 = data.state;
-    [mut new cpp_ignore] data_buffer : ParserDataBuffer = ParserDataBuffer();
-    [mut js_ignore] data_buffer : ParserDataBuffer;
+    [mut new cpp_ignore] data_buffer : ParserStateBuffer = ParserStateBuffer();
+    [mut js_ignore] data_buffer : ParserStateBuffer;
 
     pushFN(data, production, 0);
 
@@ -445,7 +426,61 @@ fn token_production:bool(data:__ParserState$ref, production:StackFunction, pid:u
 }
 
 
-// Compare ----------------------------------------------------------------------------------------------
+fn getUTF8ByteLengthFromCodePoint : u32(code_point : u32){
+
+    if (code_point) == 0:{
+        return: 1;
+   } else if (code_point & 0x7F) == code_point : {
+        return: 1;
+    } else if (code_point & 0x7FF) == code_point : {
+        return: 2;
+    } else if (code_point & 0xFFFF) == code_point : {
+        return: 3;
+    } else {
+        return: 4;
+    }
+}
+
+fn  utf8ToCodePoint : u32 (index:u32, buffer: array_u8){
+    [mut] a: u8 = buffer[index];
+    [mut] flag: u8 = 14;
+
+    if a & 0x80 : {
+    
+        flag = a & 0xF0;
+
+        [const] b:u8 = buffer[index+1];
+
+        if flag & 0xE0 : {
+
+            flag = a & 0xF8;
+
+            [const] c:u8 = buffer[index+2];
+
+            if (flag) == 0xF0 : {
+                return: ((a & 0x7) << 18) | ((b & 0x3F) << 12) | ((c & 0x3F) << 6) | (buffer[index+3] & 0x3F);
+            } else if (flag) == 0xE0 : {
+                return: ((a & 0xF) << 12) | ((b & 0x3F) << 6) | (c & 0x3F);
+            }
+
+        } else if (flag) == 0xC : {
+            return: ((a & 0x1F) << 6) | b & 0x3F;
+        }
+
+    } else return: a;
+
+    return:0;
+
+}
+
+fn getTypeAt : u32 ( code_point : u32 ) {
+
+    return : (char_lu_table[code_point] & 0x1F);
+}
+
+fn create_state:u32 (ENABLE_STACK_OUTPUT:u32) {
+    return : ${STATE_ALLOW_SKIP} | (ENABLE_STACK_OUTPUT << 1);
+}
 
 fn compare: u32(
     data: __ParserState$ref,
@@ -470,7 +505,7 @@ fn compare: u32(
 fn create_parser_data_object:__ParserState$ptr(
     input_buffer: __u8$ptr, input_len:u32, rules_len:u32
 ){
-    [static new]parser_data:__ParserState$ptr = ParserData(input_buffer, input_len, rules_len);
+    [static new]parser_data:__ParserState$ptr = ParserState(input_buffer, input_len, rules_len);
 
     return : parser_data
 }
@@ -658,15 +693,15 @@ fn run:i32(
     return : resolved_len 
 }
 
-fn recognize: ParserDataBuffer(
+fn recognize: ParserStateBuffer(
     input_buffer: __u8$ptr,
     input_byte_length:u32, 
     production:u32,
     [pub] _fn_ref: StackFunction
 ){  
-    [mut new cpp_ignore] process_buffer : ParserDataBuffer = ParserDataBuffer();
-    [mut new cpp_ignore] out_buffer : ParserDataBuffer = ParserDataBuffer();
-    [mut js_ignore] data_buffer : ParserDataBuffer;
+    [mut new cpp_ignore] process_buffer : ParserStateBuffer = ParserStateBuffer();
+    [mut new cpp_ignore] out_buffer : ParserStateBuffer = ParserStateBuffer();
+    [mut js_ignore] data_buffer : ParserStateBuffer;
     [mut] data_ref:__ParserState= __ParserState(
         input_buffer,
         input_len,

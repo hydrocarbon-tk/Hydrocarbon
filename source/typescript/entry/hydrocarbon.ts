@@ -16,21 +16,22 @@
 
 import "../utilities/array_globals.js";
 
-
 //Runtime - Hybrid
 import { initializeUTFLookupTable } from "../runtime/parser_memory_new.js";
 import { loadWASM, buildParserMemoryBuffer } from "../runtime/parser_memory_old.js";
 import { initializeUTFLookupTableNewPlus } from "../runtime/parser_memory_new.js";
 import { ParserFactory } from "../runtime/parser_loader.js";
 import { ParserFactory as ParserFactoryNew } from "../runtime/parser_loader_alpha.js";
+import { ParserFactory as ParserFactoryBeta } from "../runtime/parser_loader_beta.js";
 import { ParserFactory as ParserFactoryNext } from "../runtime/parser_loader_next.js";
 import { Token } from "../runtime/token.js";
+import { fillByteBufferWithUTF8FromString } from "../runtime/utf8.js";
+export * as ParserCore from "../runtime/core_parser.js";
 
 //Diagnostics
 import { ParserEnvironment } from "../types/parser_environment.js";
 import { compileGrammarFromString, compileGrammarFromURI } from "../grammar/compile.js";
 import { HCGParser } from "../types/parser.js";
-
 
 export {
     //Types
@@ -39,10 +40,12 @@ export {
     Token,
 
     //Code
+    fillByteBufferWithUTF8FromString,
     loadWASM,
     ParserFactory,
     ParserFactoryNew,
     ParserFactoryNext,
+    ParserFactoryBeta,
     buildParserMemoryBuffer,
     initializeUTFLookupTableNewPlus,
 

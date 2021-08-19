@@ -167,8 +167,11 @@ function addUnresolvedNode(node: TransitionNode, options: RenderBodyOptions, off
     const items = node.items.setFilter(i => i.id);
 
     if (items.every(i => i.atEND)) {
+
         node.transition_type = TRANSITION_TYPE.ASSERT_END;
+
         node.nodes.push(...yieldEndItemTransitions(items, options, offset));
+        
     } else {
 
         //filter out shift/reduce conflicts

@@ -78,7 +78,7 @@ export function processTransitionNodes(
                     nodes = node.nodes,
                     prods = nodes.flatMap(g => g.prods).setFilter(),
                     items = nodes.flatMap(g => g.items).setFilter(i => i.id),
-                    filtered_nodes = nodes.filter(s => s.transition_type !== TRANSITION_TYPE.IGNORE && !!s.code),
+                    filtered_nodes = nodes.filter(s => /*s.transition_type !== TRANSITION_TYPE.IGNORE &&*/ !!s.code),
                     WE_HAVE_UNRESOLVED_LEAVES = nodes.some(s => s.UNRESOLVED_LEAF);
 
                 let

@@ -4,7 +4,7 @@ import { initializeUTFLookupTableNewPlus } from "../runtime/parser_memory_new.js
 import { HCG3Grammar } from "../types/grammar_nodes.js";
 import { ParserGenerator } from "../types/ParserGenerator";
 import { RDProductionFunction } from "../types/rd_production_function.js";
-import { generateJSParser } from "./render.js";
+import { generateScriptParser } from "./render.js";
 
 
 /**
@@ -23,7 +23,7 @@ export async function createAddHocParser<T = any>(
     grammar: HCG3Grammar,
     recognizer_functions: RDProductionFunction[],
     meta: Helper,
-    fn_generate_parser: ParserGenerator = generateJSParser
+    fn_generate_parser: ParserGenerator = generateScriptParser
 ): Promise<HCGParser<T>> {
 
     const parser_string = await fn_generate_parser(

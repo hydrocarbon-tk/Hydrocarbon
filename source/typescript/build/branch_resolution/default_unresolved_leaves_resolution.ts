@@ -3,6 +3,7 @@
  * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
  * disclaimer notice.
  */
+import { processProductionChain } from "../../utilities/process_production_reduction_sequences.js";
 import { getUniqueSymbolName, Sym_Is_A_Production } from "../../grammar/nodes/symbol.js";
 import { sk } from "../../skribble/skribble.js";
 import { SKBlock, SKExpression } from "../../skribble/types/node";
@@ -17,6 +18,8 @@ export function default_resolveUnresolvedLeaves(node: TransitionNode, nodes: Tra
     //Remove extended goto items
 
     nodes = nodes.filter(n => {
+
+        return true;
         const used = n.items.filter(item => !options.extended_goto_items.some(i => i.body == item.body));
 
         return used.length > 0;
@@ -49,7 +52,7 @@ export function default_resolveUnresolvedLeaves(node: TransitionNode, nodes: Tra
         return { leaves: node.leaves, root: [...node.code], prods: node.prods };
     }
     //*
-    if (SHOULD_IGNORE) {
+    if (false && SHOULD_IGNORE) {
 
         return {
             root: [sk`return: ${options.production_ids[0]}`],
@@ -65,13 +68,15 @@ export function default_resolveUnresolvedLeaves(node: TransitionNode, nodes: Tra
         };
     }
 
+
     let root: SKExpression[] = [];
 
     for (const node of nodes)
         for (const leaf of node.leaves)
             leaf.INDIRECT = true;
 
-    let FALLBACK_REQUIRED = (items.some(i => i.atEND) || !items.every(i => i.offset > 0));
+    let FALLBACK_REQUIRED = true || (items.some(i => i.atEND) || !items.every(i => i.offset > 0));
+
     let v_depth = options.VIRTUAL_LEVEL;
 
     if (!FALLBACK_REQUIRED)
@@ -148,8 +153,8 @@ function createBackTrackingSequence(
 
     out.push(
         <SKExpression>sk`[mut] origin:Lexer = l.copyInPlace()`,
-        <SKExpression>sk`[mut] s_ptr:u32 = state.stack_ptr`,
-        <SKExpression>sk`[mut] r_ptr:u32 = state.get_rules_ptr_val()`
+        <SKExpression>sk`[mut] s_ptr:u32 = state.get_stack_pt()`,
+        <SKExpression>sk`[mut] r_ptr:u32 = state.get_rules_pt()`
     );
 
     //Combine production that transition on the same symbol
@@ -180,14 +185,14 @@ function createBackTrackingSequence(
 
         const resolve = <SKBlock>sk`if ( result > 0 && ${prods.map(p => `((*>output[0]).prod) == -${p}`).join(" || ")} ) : {
                 state.sync(output[0]);
-                ${"return : state.get_rules_ptr_val();"}
+                ${"return : 0;"}
             }`;
         block.expressions.push(resolve);
 
         out.push(block);
 
         out.push(
-            <SKExpression>sk`reset(state, origin, s_ptr, r_ptr)`
+            <SKExpression>sk`state.reset(state, origin, s_ptr, r_ptr)`
         );
     }
 
@@ -216,14 +221,16 @@ function createForkSequence(
 
         const call_name = createBranchFunction(code, options);
 
+        const prod = processProductionChain([], options, prods)[0];
+
         if (I++ == output_nodes.length - 1) {
             out.push(
-                <SKExpression>sk`state.push_fn(&> ${call_name}, 0)`
+                <SKExpression>sk`state.push_fn(&> ${call_name}, ${prod})`
             );
         } else {
             out.push(
-                <SKExpression>sk`[static mut] fk${I}:__ParserState$ref = fork(state, db);`,
-                <SKExpression>sk`fk${I}.push_fn(&> ${call_name}, 0)`
+                <SKExpression>sk`[static mut] fk${I}:__ParserState$ref = state.fork(db);`,
+                <SKExpression>sk`fk${I}.push_fn(&> ${call_name}, ${prod})`
             );
         }
     }

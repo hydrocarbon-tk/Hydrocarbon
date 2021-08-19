@@ -24,20 +24,25 @@ export function default_resolveResolvedLeaf(item: Item, state: TransitionNode, o
 
     let leaf_node = code, prods = [], original_prods = [], INDIRECT = false, EMPTY = false;
 
-    if (SHOULD_IGNORE) {
+    if (item.atEND && SHOULD_IGNORE) {
+
+
+        if (options.helper.ANNOTATED)
+            code.push(sk`"--leafy--"`);
 
         state.transition_type = TRANSITION_TYPE.IGNORE;
 
         return {
             leaf: {
-                root: [],
-                leaf: [],
-                prods,
+                root: code,
+                leaf: code,
+                prods: options.production_ids.slice(),
                 original_prods,
                 hash: "",
                 transition_type: state.transition_type
             }
         };
+
     }
 
     if (state.transition_type == TRANSITION_TYPE.ASSERT_CONSUME && !item.atEND)
@@ -57,9 +62,9 @@ export function default_resolveResolvedLeaf(item: Item, state: TransitionNode, o
             const sc = [],
                 call_name = createBranchFunction(sc, options);
 
-            code.push(<SKExpression>sk`state.push_fn(${call_name}, prod_start)`);
+            code.push(<SKExpression>sk`state.push_fn(${call_name}, 0)`);
 
-            code.push(createProductionReturn(production,"prod_start", "prod_start"));
+            code.push(createProductionReturn(production, "prod", "prod_start"));
 
             leaf_node = sc;
 

@@ -66,7 +66,7 @@ export function addLeafStatements(
         } else {
 
             if (!EMPTY) {
-                leaf.push(<SKExpression>sk`return : ${goto_fn_name}(state, db, ${prods[0]}, prod_start)`);
+                leaf.push(<SKExpression>sk`return : ${goto_fn_name}(state, db, ${prods[0]})`);
             } else {
                 leaf.push(<SKExpression>sk`return : ${prods[0]}`);
             }
@@ -82,8 +82,16 @@ export function addLeafStatements(
             let { leaf, prods, transition_type, INDIRECT, EMPTY } = goto_leaf;
 
             //@ts-ignore
-            if (goto_leaf.SET || transition_type == TRANSITION_TYPE.IGNORE)
+            if (goto_leaf.SET || transition_type == TRANSITION_TYPE.IGNORE) {
+
+                // If here, then most likely the parser has transitioned on a production
+                // outside the scope of the originating production. We should immediately
+                // return the original productions value, as at this point we are no
+                // longer processing symbols that can be a part of the originating 
+                // production.
+                leaf.push(<SKExpression>sk`return:${prods[0]}`);
                 continue;
+            }
 
             //@ts-ignore
             goto_leaf.SET = true;
@@ -95,8 +103,8 @@ export function addLeafStatements(
                     leaf.push(<SKExpression>sk`prod=${prods[0]}`);
                     leaf.push(<SKExpression>sk`continue`);
                 } else if (goto_ids.has(prods[0])) {
-                    leaf.push(<SKExpression>sk`return : ${goto_fn_name}(state, db, ${prods[0]}, prod_start)`);
-                    leaf.push(<SKExpression>sk`return : ${goto_fn_name}(state, db, ${prods[0]}, prod_start)`);
+                    leaf.push(<SKExpression>sk`return : ${goto_fn_name}(state, db, ${prods[0]})`);
+                    leaf.push(<SKExpression>sk`return : ${goto_fn_name}(state, db, ${prods[0]})`);
                 } else {
                     leaf.push(<SKExpression>sk`return:${prods[0]}`);
                 }
@@ -106,7 +114,7 @@ export function addLeafStatements(
                 leaf.push(<SKExpression>sk`prod=${prods[0]}`);
                 leaf.push(<SKExpression>sk`continue`);
             } else {
-                leaf.push(<SKExpression>sk`return : ${goto_fn_name}(state, db, ${prods[0]}, prod_start)`);
+                leaf.push(<SKExpression>sk`return : ${goto_fn_name}(state, db, ${prods[0]})`);
             }
         }
     }
@@ -158,7 +166,7 @@ export function* addVirtualProductionLeafStatements(
         } else if (NO_GOTOS) {
             leaf.push(<SKExpression>sk`return:${prods[0]}`);
         } else {
-            leaf.push(<SKExpression>sk`return : ${goto_fn_name}(state, db, ${prods[0]}, prod_start)`);
+            leaf.push(<SKExpression>sk`return : ${goto_fn_name}(state, db, ${prods[0]})`);
         }
     }
 
@@ -168,8 +176,11 @@ export function* addVirtualProductionLeafStatements(
             const { leaf, prods, transition_type, INDIRECT } = goto_leaf;
 
             //@ts-ignore
-            if (goto_leaf.SET || transition_type == TRANSITION_TYPE.IGNORE)
+            if (goto_leaf.SET || transition_type == TRANSITION_TYPE.IGNORE) {
+
+                console.log(leaf);
                 continue;
+            }
 
             //@ts-ignore
             goto_leaf.SET = true;
@@ -191,7 +202,7 @@ export function* addVirtualProductionLeafStatements(
                 leaf.push(<SKExpression>sk`prod=${prods[0]}`);
                 leaf.push(<SKExpression>sk`continue`);
             } else {
-                leaf.push(<SKExpression>sk`return : ${goto_fn_name}(state, db, ${prods[0]}, prod_start)`);
+                leaf.push(<SKExpression>sk`return : ${goto_fn_name}(state, db, ${prods[0]})`);
             }
 
         }

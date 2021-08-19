@@ -92,11 +92,12 @@ export function createJSFunctionsFromExpressions(grammar: HCG3Grammar, error) {
 
                     if (IS_NULLIFY_SYM || IS_REPLACE_SYM) {
 
-                        let index = parseInt(
+                        const val =
                             IS_NULLIFY_SYM ?
                                 value.slice(2) :
-                                value.slice(1)
-                        ) - 1;
+                                value.slice(1);
+
+                        let index = parseInt(val) - 1;
 
                         if (value == "$NULL" || value == "$$NULL") {
 
@@ -107,9 +108,32 @@ export function createJSFunctionsFromExpressions(grammar: HCG3Grammar, error) {
                                 replace(null, true);
 
                         } else {
-                            if (index >= 100)
-                                index = body.sym.length - 1;
-                            replace(exp(`sym[${index}]`));
+
+                            if (isNaN(index)) {
+
+                                switch (val) {
+                                    case "vec_create":
+                                        replace(exp(`[sym[${0}]]`));
+                                        break;
+                                    case "vec_join":
+                                        replace(exp(`(sym[${0}].push(sym[${body.sym.length - 1}]), sym[${0}])`));
+                                        break;
+                                    case "string_create":
+                                        replace(exp(`sym[${0}] + ""`));
+                                        break;
+                                    case "string_join":
+                                        replace(exp(`sym[${0}] + sym[${body.sym.length - 1}]`));
+                                        break;
+                                    default:
+                                        throw new Error(`Unexpected non integer value from ${val}`);
+
+                                }
+                            } else {
+
+                                if (index >= 100)
+                                    index = body.sym.length - 1;
+                                replace(exp(`sym[${index}]`));
+                            }
                         }
                     }
                 }

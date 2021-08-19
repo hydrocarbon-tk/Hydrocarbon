@@ -168,9 +168,11 @@ export const cpp_mappings: NodeMappings<SKNode, "type"> = <NodeMappings<SKNode, 
                             list.push(Object.assign({}, A, { val: "delete[] " }), B);
                             i += 2;
                             continue;
-                        } else if (A.type == "operator" && A.val == "&>") {
+                        } else if ((A.type == "operator" && A.val == "&>")) {
                             list.push(Object.assign({}, A, { val: "&" }), B);
                             i += 2;
+                            continue;
+                        } else if ((A.type == "operator" && A.val == "&>>")) {
                             continue;
                         } else if (A.type == "operator" && A.val == "*>") {
                             list.push(Object.assign({}, A, { val: "*" }), B);
@@ -224,7 +226,7 @@ export const cpp_mappings: NodeMappings<SKNode, "type"> = <NodeMappings<SKNode, 
         <NodeMapping<SKMatch>>{
             type: "match",
             child_keys: ["match_expression", "matches"],
-            template: "switch \\( @match_expression \\) \\{ i:s o:n @matches...[o:n] i:e o:n\\}"
+            template: "switch \\( @match_expression \\) \\{ i:s o:n @matches...[o:n  \\break; o:n ] i:e o:n\\}"
         },
         <NodeMapping<SKMatchTarget>>{
             type: "match-clause",

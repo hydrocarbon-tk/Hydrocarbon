@@ -12,7 +12,7 @@ import {
 } from "../../grammar/nodes/symbol.js";
 import { sk } from "../../skribble/skribble.js";
 import { SKBlock, SKExpression, SKIf, SKReturn } from "../../skribble/types/node";
-import { HCG3Grammar, HCG3Production, HCG3Symbol, TokenSymbol } from "../../types/grammar_nodes";
+import { HCG3Grammar, HCG3Symbol, TokenSymbol } from "../../types/grammar_nodes";
 import { RenderBodyOptions } from "../../types/render_body_options";
 import { TransitionClauseGenerator, TransitionGroup } from "../../types/transition_generating";
 import { TransitionNode, TRANSITION_TYPE } from "../../types/transition_node.js";
@@ -23,10 +23,11 @@ import {
     createProductionReturn,
     createScanFunctionCall,
 
-    getIncludeBooleans, getProductionFunctionNameSk
+    getIncludeBooleans
 } from "../../utilities/code_generating.js";
 import { createTransitionTypeAnnotation } from "../../utilities/create_transition_type_annotation.js";
 import { Item } from "../../utilities/item.js";
+import { processProductionChain } from "../../utilities/process_production_reduction_sequences.js";
 
 /**
  * Handles intermediate state transitions. 
@@ -44,7 +45,12 @@ export function default_resolveBranches(
         { grammar, helper: runner } = options,
 
         groups = [...gen],
-        all_syms = groups.flatMap(({ syms }) => syms).setFilter(getUniqueSymbolName);
+        all_syms = groups.flatMap(({ syms }) => syms).setFilter(getUniqueSymbolName),
+
+        ALL_STATES_ARE_IGNORE = state.leaves.every(n => n.transition_type == TRANSITION_TYPE.IGNORE);
+
+    if (ALL_STATES_ARE_IGNORE)
+        return state.leaves[0].leaf;
 
     let root: SKExpression[] = [];
 
@@ -190,7 +196,7 @@ function createIfElseExpressions(
                 options.called_productions.add(<number>production.id);
 
                 const call_name = createBranchFunction(code, options);
-                expressions.push(<SKExpression>sk`state.push_fn( &> ${call_name}, state.get_rules_ptr_val())`);
+                expressions.push(<SKExpression>sk`state.push_fn( &> ${call_name}, 0)`);
 
                 expressions.push(createProductionReturn(production));
                 leaves.forEach(leaf => leaf.INDIRECT = true);
@@ -218,10 +224,11 @@ function createIfElseExpressions(
                     const nc = [];
 
                     const continue_name = createBranchFunction(nc, options);
+                    const prods = processProductionChain([], options, [items[0].getProduction(grammar).id]);
+                    scr.unshift(<SKExpression>sk`state.push_fn( &> ${continue_name}, ${prods[0]})`);
 
-                    scr.unshift(<SKExpression>sk`state.push_fn( &> ${continue_name}, 0)`);
 
-                    leaves[0].leaf.push(<SKReturn>sk`return:prod_start`);
+                    leaves[0].leaf.push(<SKReturn>sk`return:0`);
 
                     leaves.forEach(l => l.transition_type == TRANSITION_TYPE.IGNORE);
                     leaves[0].leaf = nc;

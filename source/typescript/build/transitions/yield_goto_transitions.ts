@@ -13,6 +13,7 @@ import { yieldTransitions } from "./yield_transitions.js";
 import { processTransitionNodes } from "./process_transition_nodes.js";
 import { createTransitionNode } from "./create_transition_node.js";
 import { getProductionID } from "../../utilities/production.js";
+import { addItemAnnotationToExpressionList } from "../../utilities/code_generating.js";
 
 export function yieldGOTOTransitions(options: RenderBodyOptions, completed_productions: number[]): TransitionNode[] {
 
@@ -91,22 +92,24 @@ export function yieldGOTOTransitions(options: RenderBodyOptions, completed_produ
 
             if (goto_groups.has(production_id)) {
 
-
                 const
 
-                    items_to_process = goto_groups.get(production_id).map(i => i.increment()).setFilter(i => i.id);
-                const
+                    items_to_process = goto_groups.get(production_id).map(i => i.increment()).setFilter(i => i.id),
 
                     nodes = yieldTransitions(items_to_process, options, 1),
 
                     { code, hash, leaves, prods } = processTransitionNodes(options, nodes),
 
                     node = createTransitionNode(
-                        items_to_process.filter(i => i.offset == 1),
+                        items_to_process/*.filter(i => i.offset == 1)*/,
                         [<any>production_id],
                         TRANSITION_TYPE.ASSERT,
                         0
                     );
+
+                const d = [];
+
+                code.unshift(...d);
 
                 node.code = code;
                 node.hash = hash;
@@ -120,7 +123,7 @@ export function yieldGOTOTransitions(options: RenderBodyOptions, completed_produ
                 pending_productions.push(...prods.setFilter());
 
             } else if (!production_ids.includes(production_id)) {
-                throw new Error("Missing goto group for " + grammar.productions[production_id].name);
+                //throw new Error("Missing goto group for " + grammar.productions[production_id].name);
             }
         }
 

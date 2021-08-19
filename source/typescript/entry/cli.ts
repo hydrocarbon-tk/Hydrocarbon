@@ -9,7 +9,8 @@ import {
 import { default as URI, default as URL } from "@candlelib/uri";
 import { buildRecognizer } from "../build/build.js";
 import { compileGrammarFromURI } from "../grammar/compile.js";
-import { generateJSParser, generateTSParser, generateWebAssemblyParser, writeParserScriptFile } from "../render/render.js";
+import { createCompilableCode } from "../grammar/passes/process_compiled_code.js";
+import { generateScriptParser, generateRustParser, generateTSParser, generateWebAssemblyParser, writeJSBasedParserScriptFile, generateCPPParser } from "../render/render.js";
 
 await URL.server();
 
@@ -101,14 +102,15 @@ const out_dir = addCLIConfig("compile", {
 const type = addCLIConfig("compile", {
     key: "type",
     REQUIRES_VALUE: true,
-    accepted_values: ["c++", "js", "ts"],
+    accepted_values: ["c++", "js", "ts", "rust"],
     help_brief:
         `
 Target output language of the parser.
 Must be one of: 
-    c++ 
-    js : JavaScript  
-    ts : TypeScript`,
+    c++ : C++ Dir with Header & Source Folders
+    rust : Rust Cargo Directory
+    js : Single File JavaScript  
+    ts : Single File TypeScript`,
 });
 
 const recognizer = addCLIConfig("compile", {
@@ -133,6 +135,18 @@ const annotated = addCLIConfig("compile", {
 Include annotation strings within the recognizer code for manual debugging. Applies
 only to JavaScript/TypeScript based recognizers.`,
 });
+
+const namespace = addCLIConfig("compile", {
+    key: "namespace",
+    REQUIRES_VALUE: true,
+    help_brief:
+        `
+A unique name to give to the parser's namespace. Should only contain characters in 
+the set described by this regex: [a-zA-Z\_][a-zA-Z\_]*. This will also serve as the 
+folder name for C++ and RUST output which will be placed within the output file path.
+Defaults to "parser" `,
+});
+
 
 const number_of_workers = addCLIConfig("compile", {
     key: "threads",
@@ -165,54 +179,115 @@ addCLIConfig("compile", {
                 process.exit();
             }
 
-
         console.log(`Compiling grammar`);
 
         const
-            threads = parseInt(number_of_workers.value ?? "1"),
+            threads = parseInt(number_of_workers.value ?? "2"),
             grammar = await compileGrammarFromURI(file_path);
+
+        if (type.value == "rust" || type.value == "c++")
+            // Compile the extended reduce actions function and classes
+            // this destroys any code generate for TypeScript or JavaScript outputs
+            // hence the if gate.
+            createCompilableCode(grammar);
 
         console.log("Completed grammar compilation");
 
         console.log(`Starting recognizer compilation with ${number_of_workers.value || 1} threads`);
 
-
-
+        // Compile recognizer code
         const { meta, recognizer_functions } = await buildRecognizer(grammar, threads, !!annotated.value);
 
         console.log("Completed recognizer compilation");
 
-        if (type.value == "c++") {
+        switch (type.value) {
+            case "c++":
+                {
+                    // Need to generate source and cargo file, and map this
+                    // installation's hc_rust source to the cargo file's dependencies.
+                    //
+                    console.log("Writing cpp files");
 
-            if (!output_path.filename)
-                output_path.path = output_path.path + "/" + file_path.filename + ".cpp";
-            console.log("Writing cpp source file");
-            console.log("Compilation to C++ not yet implemented");
-        } else {
+                    const ns = namespace.value || "parser";
 
-            if (!output_path.filename)
-                output_path.path = output_path.dir + file_path.filename + (type.value == "ts" ? ".ts" : ".js");
+                    const folder = URL.resolveRelative(`./${ns}/`, output_path);
 
-            console.log("Building parser script");
+                    //Source files
+                    await generateCPPParser(grammar, recognizer_functions, meta, folder + "", ns);
 
-            const generator = (recognizer.value == "wasm")
-                ? generateWebAssemblyParser
-                : (recognizer.value == "ts" || output_path.ext == "ts")
-                    ? generateTSParser
-                    : generateJSParser;
+                }
+                break;
+            case "rust":
+                { // Need to generate source and cargo file, and map this
+                    // installation's hc_rust source to the cargo file's dependencies.
+                    //
+                    console.log("Writing rust files");
+
+                    const ns = namespace.value || "parser";
+
+                    const folder = URL.resolveRelative(`./${ns}/`, output_path);
+
+                    //Source files
+                    await generateRustParser(grammar, recognizer_functions, meta, folder + "", ns);
+
+                    const fsp = (await import("fs")).promises;
+
+                    //Cargo file
+                    const cargo_path = URL.resolveRelative("./Cargo.toml", folder);
+                    const lib_path = URL.resolveRelative("./lib.rs", folder);
+                    const hc_depend_path = URL.resolveRelative("../../../../source/hc_rust", URI.getEXEURL(import.meta));
+
+                    const cargo_file = `[package]
+name = "${ns}"
+version = "0.0.1"
+edition = "2018"
+
+[lib]
+name = "${ns}"
+crate-type = ["lib"]
+path = "./lib.rs"
+
+[dependencies]
+candlelib_hydrocarbon = { path = "${hc_depend_path}" }
+`;
+                    const lib_file = `#![allow(warnings)]
+pub mod parser;
+mod spec_parser;
+`;
+
+                    await fsp.writeFile(cargo_path + "", cargo_file);
+                    await fsp.writeFile(lib_path + "", lib_file);
+
+                    break;
+                }
+            case "wasm":
+            case "ts":
+            case "js":
+                if (!output_path.filename)
+                    output_path.path = output_path.dir + file_path.filename + (type.value == "ts" ? ".ts" : ".js");
+
+                console.log("Building parser script");
+
+                const generator = (recognizer.value == "wasm")
+                    ? generateWebAssemblyParser
+                    : generateScriptParser;
 
 
-            await writeParserScriptFile(
-                output_path + "",
-                grammar,
-                recognizer_functions,
-                meta,
-                "@candlelib/hydrocarbon",
-                generator
-            );
+                await writeJSBasedParserScriptFile(
+                    output_path + "",
+                    grammar,
+                    recognizer_functions,
+                    meta,
+                    "@candlelib/hydrocarbon",
+                    generator,
+                );
 
-            console.log(`Parser Script Built and written to ${output_path + ""}`);
+                break;
+            default:
+                break;
         }
+
+        console.log("Process complete");
     } catch (e) {
         console.log(e);
     }
@@ -236,7 +311,7 @@ addCLIConfig("create-staged", {
             meta: bootstrapped_meta,
         } = await buildRecognizer(bootstrapped_compiled_grammar, 1);
 
-    let SUCCESS = await writeParserScriptFile(
+    let SUCCESS = await writeJSBasedParserScriptFile(
         URI.resolveRelative("./build/staged/hcg3_parser.staged.ts") + "",
         bootstrapped_compiled_grammar, bootstrapped_recognizer_functions, bootstrapped_meta,
         "../runtime/parser_loader_next.js",
