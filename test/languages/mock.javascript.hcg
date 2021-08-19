@@ -1,7 +1,7 @@
 # Mock version of JavaScript with comments and automatic semicolon "insertion". 
 # This is NOT a complete example of the JavaScript specification
 
-@IGNORE g:ws g:nl tk:comments
+@IGNORE g:sp g:nl tk:comments
 
 
 <> javascript > statements                                                          f:r{ { ty:"js", stmts:$1 } }
@@ -73,5 +73,5 @@
 
 <> asi > \; | ?={ | ?=g:nl | ?=$eof
 
-<> comments > \/* ( g:ws | g:nl | g:id | g:num | g:sym )(*) \*/
-    | \// ( g:ws | g:id | g:num | g:sym )(*) g:nl
+<> comments > \/* ( g:sp | g:nl | g:id | g:num | g:sym )(*) \*/
+    | \// ( g:sp | g:id | g:num | g:sym )(*) g:nl

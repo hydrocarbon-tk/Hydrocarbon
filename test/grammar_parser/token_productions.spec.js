@@ -2,13 +2,13 @@ import { compileJSParserFromGrammar } from "../tools.js";
 assert_group(sequence, 10000, () => {
 
     const test_grammar_string =
-        `@IGNORE g:ws
+        `@IGNORE g:sp
         
         <> start >  data
         
         <> data > ( tk:comment | g:id )(*)
 
-        <> comment > \\/* ( g:ws | g:nl | g:id | g:num | g:sym )(*) \\*/
+        <> comment > \\/* ( g:sp | g:nl | g:id | g:num | g:sym )(*) \\*/
         `;
 
 

@@ -2,7 +2,7 @@ import { compileGrammar } from "../../build/library/grammar/compile.js";
 import { loadGrammarFromString } from "../../build/library/grammar/passes/load.js";
 
 const test_grammar_string =
-    `@IGNORE g:ws g:nl
+    `@IGNORE g:sp g:nl
 
         <> start > A f:r { $1 + "test" }
         

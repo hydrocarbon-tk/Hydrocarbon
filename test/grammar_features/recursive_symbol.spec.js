@@ -4,7 +4,7 @@ import { compileJSParserFromGrammar } from "../tools.js";
 
 
 const parser = await compileJSParserFromGrammar(`
-@IGNORE g:ws
+@IGNORE g:sp
 
 <> A > C
 <> C > (B)(+ \\; ) | (B)(+ \\, )

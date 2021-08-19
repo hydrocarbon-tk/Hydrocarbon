@@ -40,7 +40,7 @@ $ npm install -g @candlelib/hydrocarbon
 
 ```ini
 # my_json_like_language.hcg
-@IGNORE g:ws g:nl
+@IGNORE g:sp g:nl
 
 <> JSON > object                                   
 

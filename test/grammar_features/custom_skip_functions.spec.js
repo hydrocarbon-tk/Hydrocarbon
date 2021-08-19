@@ -1,9 +1,9 @@
 import { compileJSParserFromGrammar } from "../tools.js";
 
 const parser = await compileJSParserFromGrammar(
-    `@IGNORE g:ws
+    `@IGNORE g:sp
 
-    #<custom_skip> \\/*  ( g:ws | g:sym | g:nl | g:id )(*)  \\*/
+    #<custom_skip> \\/*  ( g:sp | g:sym | g:nl | g:id )(*)  \\*/
     #
     #<tk::comment> \#(*
 

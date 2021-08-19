@@ -1,6 +1,6 @@
 # Mock version of a JSON grammar. May not be, and is not intended to be complete
 
-@IGNORE g:ws g:nl
+@IGNORE g:sp g:nl
 
 <> JSON > object                                   
 
@@ -18,6 +18,6 @@
 
 <> array > \[ value(*\, ) \]                        f:r{ $$2 || [] }
 
-<> number > g:num ( \. g:num )? ( \e g:num )? ( ?=g:ws )?
+<> number > g:num ( \. g:num )? ( \e g:num )? ( ?=g:sp )?
 
 <> string > \"  ( g:id | g:num | g:sym )(*) \"

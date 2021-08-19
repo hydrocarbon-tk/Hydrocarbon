@@ -12,7 +12,7 @@ assert_group(
 
         const
             compiled_grammar = await compileGrammarFromString(`
-            @IGNORE g:ws
+            @IGNORE g:sp
 
             <> start > B  f:r{ {b: $1} }
             

@@ -5,7 +5,7 @@ import { compileJSParserFromGrammar } from "../tools.js";
 assert_group(sequence, 10000, () => {
 
     const test_grammar_string =
-        `@IGNORE g:ws g:nl
+        `@IGNORE g:sp g:nl
 
         <> start > A
 
