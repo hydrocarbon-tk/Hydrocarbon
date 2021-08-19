@@ -4,7 +4,7 @@
 
 <h3 align=center>A Recursive Descent Parser Compiler</h3>
 
-<p align=center> <sub><b>v0.10.0</b></sub> </p>
+<p align=center> <sub><b>v0.12.0</b></sub> </p>
 
 
 CandleLibrary Hydrocarbon is a parser compiler that is able to create recusive descent parsers from a custom grammar format known as Hydrocarbon 
