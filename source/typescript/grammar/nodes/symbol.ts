@@ -72,8 +72,6 @@ export function getUniqueSymbolName(sym: HCG3Symbol, _a?: any, _b?: any) {
     if (!sym)
         return "not-a-symbol";
     return getSymbolName(sym);
-    //+ (sym.DOES_SHIFT ? "--" : "")
-    //+ (sym.IS_NON_CAPTURE ? "-->" : "");
 }
 export function Sym_Is_Not_Consumed(s: HCG3Symbol): boolean {
     return !!s.IS_NON_CAPTURE || Sym_Is_Look_Behind(s);

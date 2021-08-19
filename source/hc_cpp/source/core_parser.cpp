@@ -6,7 +6,7 @@ namespace HYDROCARBON
     /////////////////////////////////////////////
 
     ParserState::ParserState(u8 *input_buffer, u32 input_len_in)
-        : lexer()
+        : lexer(input_buffer, input_len_in)
     {
         stack.reserve(64);
         stash.reserve(64);
@@ -14,10 +14,7 @@ namespace HYDROCARBON
 
         origin = nullptr;
 
-        input = input_buffer;
-
         state = createState(1);
-        input_len = input_len_in;
         origin_fork = 0;
         prod = -1;
 
@@ -40,10 +37,6 @@ namespace HYDROCARBON
     {
         return rules.size();
     }
-    u32 ParserState::get_input_len()
-    {
-        return input_len;
-    }
 
     void ParserState::push_fn(StackFunction stack_val, i32 stash_val)
     {
@@ -51,23 +44,11 @@ namespace HYDROCARBON
         stash.push_back(stash_val);
     }
 
-    Input ParserState::get_input_array()
-    {
-        Input input_out = {input, input_len};
-        return input_out;
-    }
-
-    u8 ParserState::get_byte_from_input(u32 index)
-    {
-        return input[index];
-    }
-
     void ParserState::reset(Lexer &origin, u32 stack_ptr, u32 rules_ptr)
     {
         rules.resize(rules_ptr);
         stack.resize(stack_ptr);
         stash.resize(stack_ptr);
-
         lexer.sync(origin);
     }
 
@@ -88,7 +69,6 @@ namespace HYDROCARBON
         refs++;
         forked_state.origin = this;
         forked_state.origin_fork = get_rules_len();
-        forked_state.active_token_productions = active_token_productions;
         forked_state.lexer.sync(lexer);
         forked_state.state = state;
         forked_state.prod = prod;
@@ -110,7 +90,7 @@ namespace HYDROCARBON
 
     ParserStateIterator::ParserStateIterator(ParserState &state)
     {
-        auto *active = &state;
+        ParserState *active = &state;
 
         refs.push_back(active);
 
@@ -120,7 +100,7 @@ namespace HYDROCARBON
             refs.push_back(active);
         }
 
-        auto last = refs.back();
+        ParserState *last = refs.back();
 
         refs.pop_back();
 
@@ -141,7 +121,7 @@ namespace HYDROCARBON
         {
             if (refs.size() > 0)
             {
-                auto last = refs.back();
+                ParserState *last = refs.back();
                 refs.pop_back();
                 index = 0;
                 limit = refs.size() > 0 ? refs.back()->origin_fork : last->get_rules_len();
@@ -165,7 +145,7 @@ namespace HYDROCARBON
 
     ParserState *ParserStateBuffer::remove_state_at_index(i32 index)
     {
-        auto temp_location = data[index];
+        ParserState *temp_location = data[index];
         data.erase(data.begin() + index);
         return temp_location;
     }
@@ -173,13 +153,13 @@ namespace HYDROCARBON
     {
         return data.size();
     }
-    ParserState *ParserStateBuffer::create_data(u8 *input, u32 input_len)
+    ParserState &ParserStateBuffer::create_state(u8 *input, u32 input_len)
     {
         ParserState *state = new ParserState{input, input_len};
 
         data.push_back(state);
 
-        return state;
+        return *state;
     }
     void ParserStateBuffer::add_state_pointer(ParserState *state)
     {
@@ -191,7 +171,7 @@ namespace HYDROCARBON
 
         while (index < data.size())
         {
-            auto exist_ref = data[index];
+            ParserState *exist_ref = data[index];
 
             if (state_pointer->VALID &&
                 (!exist_ref->VALID))
@@ -216,7 +196,7 @@ namespace HYDROCARBON
     {
         return data.size() > 0 && data[0]->VALID;
     }
-    ParserState *ParserStateBuffer::get_valid_parser_state()
+    ParserState *ParserStateBuffer::remove_valid_parser_state()
     {
         if (have_valid())
         {
@@ -240,11 +220,11 @@ namespace HYDROCARBON
             auto i = 0;
             while (i < len())
             {
-                auto ref = data[i];
+                ParserState *ref = data[i];
 
                 if (!ref->VALID && ref->refs < 1)
                 {
-                    auto invalid_state = remove_state_at_index(i);
+                    ParserState *invalid_state = remove_state_at_index(i);
 
                     invalid_state->rules.clear();
 
@@ -255,35 +235,43 @@ namespace HYDROCARBON
             }
         }
 
-        return new ParserState(state.input, state.input_len);
+        return new ParserState(state.lexer.input, state.lexer.input_len);
     }
 
     /////////////////////////////////////////////
     // LEXER
     /////////////////////////////////////////////
 
-    Lexer ::Lexer()
-    {
-        byte_offset = 0;
-        byte_length = 0;
-        token_length = 0;
-        token_offset = 0;
-        prev_byte_offset = 0;
-        _type = 0;
-        line = 0;
-        current_byte = 0;
-    }
-    i32 Lexer ::setToken(i32 type_in, u32 byte_length_in, u32 token_length_in)
+    Lexer::Lexer(u8 *_input, u32 _input_len) : input(_input),
+                                               input_len(_input_len),
+                                               byte_offset(0),
+                                               byte_length(0),
+                                               token_length(0),
+                                               token_offset(0),
+                                               prev_byte_offset(0),
+                                               prev_token_offset(0),
+                                               active_token_productions(0),
+                                               _type(0),
+                                               line(0),
+                                               current_byte(0) {}
+
+    i32 Lexer::setToken(i32 type_in, u32 byte_length_in, u32 token_length_in)
     {
         _type = type_in;
         byte_length = byte_length_in;
         token_length = token_length_in;
         return type_in;
     }
-    u32 Lexer ::getType(Input input_struct, bool USE_UNICODE)
+
+    u8 Lexer::get_byte_at(u32 index)
+    {
+        return input[index];
+    }
+
+    u32 Lexer::getType(bool USE_UNICODE)
     {
         u32 t = _type;
-        if (END(input_struct))
+        if (END())
             return 1;
         ;
         if ((t) == 0)
@@ -294,22 +282,22 @@ namespace HYDROCARBON
             }
             else
             {
-                u32 code_point = utf8ToCodePoint(byte_offset, input_struct);
-                byte_length = getUTF8ByteLengthFromCodePoint(code_point);
+                u32 code_point = get_utf8_code_point_at(byte_offset, input);
+                byte_length = get_ut8_byte_length_from_code_point(code_point);
                 t = getTypeAt(code_point);
             }
         }
         return t;
     }
-    bool Lexer ::isSym(Input input_struct, bool USE_UNICODE)
+    bool Lexer::isSym(bool USE_UNICODE)
     {
-        if (_type == 0 && getType(input_struct, USE_UNICODE) == 2)
+        if (_type == 0 && getType(USE_UNICODE) == 2)
         {
             _type = 2;
         }
         return _type == 2;
     }
-    bool Lexer ::isNL()
+    bool Lexer::isNL()
     {
         if (_type == 0 && (current_byte) == 10 || (current_byte) == 13)
         {
@@ -317,7 +305,7 @@ namespace HYDROCARBON
         }
         return _type == 7;
     }
-    bool Lexer ::isSP(bool USE_UNICODE)
+    bool Lexer::isSP(bool USE_UNICODE)
     {
         if (_type == 0 && (current_byte) == 32)
         {
@@ -325,15 +313,15 @@ namespace HYDROCARBON
         }
         return _type == 8;
     }
-    bool Lexer ::isNum(Input input_struct)
+    bool Lexer::isNum()
     {
         if (_type == 0)
         {
-            if (getType(input_struct, false) == 5)
+            if (getType(false) == 5)
             {
-                u32 l = input_struct.length;
+                u32 l = input_len;
                 u32 off = byte_offset;
-                while ((off++ < l) && 47 < input_struct.input[off] && input_struct.input[off] < 58)
+                while ((off++ < l) && 47 < input[off] && input[off] < 58)
                 {
                     byte_length += 1;
                     token_length += 1;
@@ -347,21 +335,21 @@ namespace HYDROCARBON
         else
             return _type == 5;
     }
-    bool Lexer ::isUniID(Input input_struct)
+    bool Lexer::isUniID()
     {
         if (_type == 0)
         {
-            if (getType(input_struct, true) == 3)
+            if (getType(true) == 3)
             {
-                u32 l = input_struct.length;
+                u32 l = input_len;
                 u32 off = byte_offset;
                 u32 prev_byte_len = byte_length;
                 while ((off + byte_length) < l)
                 {
-                    u32 code_point = utf8ToCodePoint(byte_offset + byte_length, input_struct);
+                    u32 code_point = get_utf8_code_point_at(byte_offset + byte_length, input);
                     if ((96 & char_lu_table[code_point]) > 0)
                     {
-                        byte_length += getUTF8ByteLengthFromCodePoint(code_point);
+                        byte_length += get_ut8_byte_length_from_code_point(code_point);
                         prev_byte_len = byte_length;
                         token_length += 1;
                     }
@@ -381,47 +369,38 @@ namespace HYDROCARBON
             return _type == 3;
     }
 
-    Lexer Lexer ::copyInPlace()
+    Lexer Lexer::copy_in_place()
     {
-        Lexer destination = Lexer();
-        destination.byte_offset = byte_offset;
-        destination.byte_length = byte_length;
-        destination.token_length = token_length;
-        destination.token_offset = token_offset;
-        destination.prev_byte_offset = prev_byte_offset;
-        destination.line = line;
-        destination.byte_length = byte_length;
-        destination.current_byte = current_byte;
+        Lexer destination = Lexer(input, input_len);
+        destination.sync(*this);
         return destination;
     }
-    Lexer &Lexer ::sync(Lexer &source)
+    Lexer &Lexer::sync(Lexer &source)
     {
         byte_offset = source.byte_offset;
         byte_length = source.byte_length;
         token_length = source.token_length;
         token_offset = source.token_offset;
         prev_byte_offset = source.prev_byte_offset;
+        prev_token_offset = source.prev_token_offset;
         line = source.line;
         _type = source._type;
         current_byte = source.current_byte;
+        active_token_productions = source.active_token_productions;
         return *this;
     }
-    Lexer &Lexer ::slice(Lexer &source)
+    Lexer &Lexer::set_token_span_to(Lexer &source)
     {
-        byte_length = byte_offset - source.byte_offset;
-        token_length = token_offset - source.token_offset;
-        byte_offset = source.byte_offset;
-        token_offset = source.token_offset;
-        current_byte = source.current_byte;
-        line = source.line;
+        byte_length = source.prev_byte_offset - byte_offset;
+        token_length = source.prev_token_offset - token_offset;
         _type = source._type;
         return *this;
     }
-    Lexer &Lexer ::next(Input input_struct)
+    Lexer &Lexer::next()
     {
         byte_offset += byte_length;
         token_offset += token_length;
-        if (input_struct.length <= byte_offset)
+        if (input_len <= byte_offset)
         {
             _type = 1;
             byte_length = 0;
@@ -430,7 +409,7 @@ namespace HYDROCARBON
         }
         else
         {
-            current_byte = input_struct.input[byte_offset];
+            current_byte = input[byte_offset];
             if ((current_byte) == 10)
                 line += 1;
 
@@ -440,13 +419,13 @@ namespace HYDROCARBON
         }
         return *this;
     }
-    bool Lexer ::END(Input input_struct) { return byte_offset >= input_struct.length; }
+    bool Lexer::END() { return byte_offset >= input_len; }
 
     /////////////////////////////////////////////
     // OTHER FUNCTIONS
     /////////////////////////////////////////////
 
-    u32 getUTF8ByteLengthFromCodePoint(u32 code_point)
+    u32 get_ut8_byte_length_from_code_point(u32 code_point)
     {
         if ((code_point) == 0)
         {
@@ -470,21 +449,21 @@ namespace HYDROCARBON
         }
     }
 
-    u32 utf8ToCodePoint(u32 index, Input input_struct)
+    u32 get_utf8_code_point_at(u32 index, u8 *input)
     {
-        u8 a = input_struct.input[index];
+        u8 a = input[index];
         u8 flag = 14;
         if (a & 0x80)
         {
             flag = a & 0xF0;
-            u8 b = input_struct.input[index + 1];
+            u8 b = input[index + 1];
             if (flag & 0xE0)
             {
                 flag = a & 0xF8;
-                u8 c = input_struct.input[index + 2];
+                u8 c = input[index + 2];
                 if ((flag) == 0xF0)
                 {
-                    return ((a & 0x7) << 18) | ((b & 0x3F) << 12) | ((c & 0x3F) << 6) | (input_struct.input[index + 3] & 0x3F);
+                    return ((a & 0x7) << 18) | ((b & 0x3F) << 12) | ((c & 0x3F) << 6) | (input[index + 3] & 0x3F);
                 }
                 else if ((flag) == 0xE0)
                 {
@@ -505,54 +484,48 @@ namespace HYDROCARBON
 
     u32 createState(u32 ENABLE_STACK_OUTPUT) { return 1 | (ENABLE_STACK_OUTPUT << 1); }
 
-    bool token_production(ParserState &state, StackFunction production, u32 pid, u32 _type, u32 tk_flag)
+    bool token_production(Lexer &lexer, StackFunction production, u32 pid, u32 _type, u32 tk_flag)
     {
-        auto &l = state.lexer;
-
-        if ((l._type) == _type)
+        if (lexer._type == _type)
+        {
             return true;
+        }
 
-        if (state.active_token_productions & tk_flag)
+        if ((lexer.active_token_productions & tk_flag) > 0)
+        {
             return false;
+        }
 
-        state.active_token_productions |= tk_flag;
-
-        u32 stack_ptr = state.get_stack_len();
-        u32 rules_ptr = state.get_rules_len();
-        u32 state_cache = state.state;
-        Lexer copy = l.copyInPlace();
+        lexer.active_token_productions |= tk_flag;
 
         ParserStateBuffer data_buffer;
+        ParserState state(lexer.input, lexer.input_len);
+
+        state.lexer.sync(lexer);
+        state.push_fn(production, 0);
+        state.state = 0;
 
         bool ACTIVE = true;
 
-        state.push_fn(production, 0);
-
-        state.state = 0;
-
         while (ACTIVE)
-            ACTIVE = step_kernel(state, data_buffer, stack_ptr);
+        {
+            ACTIVE = step_kernel(state, data_buffer, 0);
+        }
 
-        state.state = state_cache;
-
-        state.active_token_productions ^= tk_flag;
+        lexer.active_token_productions ^= tk_flag;
 
         if (state.prod == pid)
         {
-            state.stash.resize(stack_ptr);
-            state.stack.resize(stack_ptr);
-            l.slice(copy);
-            l._type = _type;
+            lexer.set_token_span_to(state.lexer);
+            lexer._type = _type;
             return true;
         }
-        else
-            state.reset(copy, stack_ptr, rules_ptr);
 
         return false;
     }
 
     u32 compare(
-        ParserState &state,
+        Lexer &lexer,
         u32 data_offset,
         u32 sequence_offset,
         u32 byte_length,
@@ -562,7 +535,7 @@ namespace HYDROCARBON
         u32 j = sequence_offset;
         u32 len = j + byte_length;
         for (; j < len; i++, j++)
-            if ((state.input[i] != sequence[j]))
+            if ((lexer.get_byte_at(i) != sequence[j]))
                 return j - sequence_offset;
         ;
         return byte_length;
@@ -633,12 +606,17 @@ namespace HYDROCARBON
     {
         auto &l = state.lexer;
 
-        l.prev_byte_offset = l.byte_offset + l.byte_length;
-
         if (is_output_enabled(state.state))
+        {
+            auto skip_delta = state.lexer.byte_offset - state.lexer.prev_byte_offset;
+            add_skip(state, skip_delta);
             add_shift(state, l.token_length);
+        }
 
-        l.next(state.get_input_array());
+        l.prev_byte_offset = l.byte_offset + l.byte_length;
+        l.prev_token_offset = l.token_offset + l.token_length;
+
+        l.next();
 
         return true;
     }
@@ -700,7 +678,7 @@ namespace HYDROCARBON
             }
 
             while (invalid_buffer.have_valid())
-                process_buffer.add_state_pointer(invalid_buffer.get_valid_parser_state());
+                process_buffer.add_state_pointer(invalid_buffer.remove_valid_parser_state());
         }
         return valid_buffer.len();
     }
@@ -715,11 +693,11 @@ namespace HYDROCARBON
         ParserStateBuffer process_buffer;
         ParserResultBuffers result(new ParserStateBuffer(), new ParserStateBuffer());
 
-        auto state = process_buffer.create_data(input_buffer, input_byte_length);
+        auto &state = process_buffer.create_state(input_buffer, input_byte_length);
 
-        state->push_fn(state_function, 0);
+        state.push_fn(state_function, 0);
 
-        state->lexer.next({input_buffer, input_byte_length});
+        state.lexer.next();
 
         run(
             process_buffer,

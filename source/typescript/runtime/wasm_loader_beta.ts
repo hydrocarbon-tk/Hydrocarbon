@@ -9,7 +9,7 @@ import { jump8bit_table_byte_size } from "./parser_memory_new.js";
 import { fillByteBufferWithUTF8FromString } from "./utf8.js";
 
 function get4AlignedOffset(request_size: number) {
-    return (4 - request_size % 4) + request_size;
+    return (8 - (request_size % 8)) + request_size;
 }
 
 /**
@@ -17,27 +17,41 @@ Simple WASM loader for Hydrocarbon Parser Recognizers
 */
 export async function loadWASM(source: BufferSource): Promise<RecognizeInitializer> {
 
-    let allocation_head = 0;
+    let allocation_head = 8;
     let heap_start = 0;
     var memory: WebAssembly.Memory = null;
     var memory_buffer: ArrayBuffer = null;
     var memory_buffer_size = 0;
+    var memory_buckets = new Map();
     function malloc(request_size: number) {
 
-        //increment the baseline
-        const new_ptr = allocation_head + heap_start;
+        const book_keep_size = 8;
 
-        //the next increment must be on a 4 byte boundary
+        let new_ptr = allocation_head + heap_start;
 
-        growMemoryIfNeeded(get4AlignedOffset(request_size) + 64);
+        if (memory_buckets.has(request_size)) {
 
-        allocation_head += get4AlignedOffset(request_size);
+            new_ptr = memory_buckets.get(request_size).pop();
+
+        } else {
+
+            //the next increment must be on a 4 byte boundary
+
+            const block = get4AlignedOffset(request_size) + book_keep_size;
+
+            growMemoryIfNeeded(block);
+
+            allocation_head += block;
+
+            if (new_ptr > 0)
+                (new Uint32Array(memory_buffer, new_ptr - 8, 1))[0] = request_size;
+        }
 
         return new_ptr;
     }
 
     function growMemoryIfNeeded(additional_space) {
-        if (allocation_head + heap_start + additional_space >= memory_buffer_size) {
+        if (allocation_head + heap_start + additional_space >= memory_buffer_size - 16) {
             const diff = (allocation_head + heap_start + additional_space) - memory_buffer_size;
             const grow_size = Math.ceil(((diff / 65536) + 1) * 1.2);
             memory.grow(grow_size);
@@ -46,7 +60,16 @@ export async function loadWASM(source: BufferSource): Promise<RecognizeInitializ
         }
     }
 
-    function free(freed_pointer: number) { /** NOOP */ return 0; }
+    function free(freed_pointer: number) {
+        const [request_size] = (new Uint32Array(memory_buffer, freed_pointer - 8, 1));
+
+        if (!memory_buckets.has(request_size))
+            memory_buckets.set(request_size, []);
+
+        memory_buckets.get(request_size).push(freed_pointer);
+        /** NOOP */ return 0;
+
+    }
     function proc_exit() { /*NOOP*/ }
 
     const wasm_imports = {
@@ -109,7 +132,7 @@ export async function loadWASM(source: BufferSource): Promise<RecognizeInitializ
         }
 
         get lexer(): LexerWrapper {
-            return new LexerWrapper(new Uint32Array(memory_buffer, this.__ptr__, 0)[0]);
+            return new LexerWrapper(this.__ptr__);
         }
     }
 
@@ -121,11 +144,11 @@ export async function loadWASM(source: BufferSource): Promise<RecognizeInitializ
         }
 
         get byte_offset(): number {
-            return new Uint32Array(memory_buffer, this.__ptr__, 1)[0];
+            return new Uint32Array(memory_buffer, this.__ptr__ + 8, 1,)[0];
         }
 
         get byte_length(): number {
-            return new Uint16Array(memory_buffer, this.__ptr__, 5)[4];
+            return new Uint16Array(memory_buffer, this.__ptr__ + 36, 1)[0];
         }
     }
 
@@ -143,13 +166,14 @@ export async function loadWASM(source: BufferSource): Promise<RecognizeInitializ
             return wasm_iterator_valid(this.__ptr__) > 0;
         }
     }
-
+    let dd = null;
 
     return {
         recognize(input_string: string, production_id: number = 0) {
-
+            dd;
             //Clear heap
             allocation_head = 0;
+            memory_buckets.clear();
 
             //Create Input buffer 
 
@@ -192,9 +216,11 @@ export async function loadWASM(source: BufferSource): Promise<RecognizeInitializ
             // This allows the clearing of the heap to execute as a NOOP
             // when a new parser run is started.
 
-            heap_start = allocation_head;
+            heap_start += allocation_head;
 
             allocation_head = 0;
+
+            dd = destination;
 
             return destination;
         }

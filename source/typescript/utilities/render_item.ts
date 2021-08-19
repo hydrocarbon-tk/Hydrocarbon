@@ -107,7 +107,7 @@ export function renderItem(
         } else if (!Sym_Is_Empty(item.sym(grammar))) {
 
             if (POST_CONSUME)
-                leaf_expressions.push(createScanFunctionCall([item], options));
+                leaf_expressions.push(createScanFunctionCall([item], options, lex_name));
 
             if (RENDER_WITH_NO_CHECK) {
 

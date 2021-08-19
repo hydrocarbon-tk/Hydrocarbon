@@ -152,7 +152,7 @@ function createBackTrackingSequence(
 
 
     out.push(
-        <SKExpression>sk`[mut] origin:Lexer = l.copyInPlace()`,
+        <SKExpression>sk`[mut] origin:Lexer = l.copy_in_place()`,
         <SKExpression>sk`[mut] s_ptr:u32 = state.get_stack_pt()`,
         <SKExpression>sk`[mut] r_ptr:u32 = state.get_rules_pt()`
     );

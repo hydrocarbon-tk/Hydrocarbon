@@ -1,4 +1,4 @@
-@IGNORE g:ws g:nl tk:comment
+@IGNORE g:sp g:nl tk:comment
 
 <> info > data(*)
 

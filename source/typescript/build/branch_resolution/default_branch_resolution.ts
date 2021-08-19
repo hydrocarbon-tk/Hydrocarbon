@@ -111,9 +111,11 @@ function addScanStatement(
             peek_name = "pk";
 
             if (state.peek_level == 1)
-                root.push(<SKExpression>sk`[mut] pk:Lexer = ${lex_name}.copyInPlace()`);
+                root.push(<SKExpression>sk`[mut] ${peek_name}:Lexer = ${lex_name}.copy_in_place()`);
 
-            root.push(createScanFunctionCall(items, options, "pk.next(state)", true, all_syms));
+            root.push(<SKExpression>sk`${peek_name}.next()`);
+
+            root.push(createScanFunctionCall(items, options, peek_name, true, all_syms));
         }
     } else if (offset == 1 && options.scope == "GOTO") {
 

@@ -17,7 +17,6 @@ import {
     Sym_Is_Look_Behind,
     Sym_Is_Virtual_Token
 } from "../grammar/nodes/symbol.js";
-import { STATE_ALLOW_SKIP } from "../render/skribble_recognizer_template.js";
 import { sk, skRenderAsSK } from "../skribble/skribble.js";
 import {
     SKBlock,
@@ -75,10 +74,10 @@ export function getSymbolBoolean(sym: TokenSymbol, grammar: HCG3Grammar, lex_nam
         annotation = `/*[${sanitizeSymbolValForComment(sym)}]*/`;
 
     if (Sym_Is_EOF(sym))
-        return <SKExpression>`${lex_name}.END(state)`;
+        return `${lex_name}.END(state)`;
 
     if (Sym_Is_EOP(sym))
-        return <SKExpression>`${lex_name}.EOP_TRUE()`;
+        return `${lex_name}.EOP_TRUE()`;
 
     const USE_UNICODE = "true";
 
@@ -87,10 +86,10 @@ export function getSymbolBoolean(sym: TokenSymbol, grammar: HCG3Grammar, lex_nam
         case SymbolType.GENERATED:
             switch (sym.val) {
                 case "sp": return `${lex_name}.isSP(${USE_UNICODE})`;
-                case "num": return `${lex_name}.isNum(state.get_input_array())`;
-                case "id": return `${lex_name}.isUniID(state.get_input_array())`;
+                case "num": return `${lex_name}.isNum()`;
+                case "id": return `${lex_name}.isUniID()`;
                 case "nl": return `${lex_name}.isNL()`;
-                case "sym": return `${lex_name}.isSym(state.get_input_array(),${USE_UNICODE})`;
+                case "sym": return `${lex_name}.isSym(${USE_UNICODE})`;
                 default: return `false`;
             }
         case SymbolType.LITERAL:
@@ -199,7 +198,7 @@ function createNonCaptureLookBehind(symbol: HCG3LookBehind, options: BaseOptions
 
             if (state.lexer._type) == ${type_info} : return : true;
 
-            [mut]pk:Lexer = state.lexer.copyInPlace();
+            [mut]pk:Lexer = state.lexer.copy_in_place();
             
             pk.byte_offset = state.lexer.prev_byte_offset;
             pk.byte_length = 0;
@@ -321,7 +320,7 @@ function createIfClause(symbol: DefinedSymbol | VirtualTokenSymbol, offset: numb
         offset = offset - symbol.root_offset;
         symbol = <DefinedSymbol>symbol.item.sym(options.grammar);
     }
-    let _if = sk`${getIfClausePreamble(length, start, symbol, offset, options, false)} {}`;
+    let _if = <SKIf>sk`${getIfClausePreamble(length, start, symbol, offset, options, false)} {}`;
 
 
     if (expressions.length == 1 && expressions[0].type == "block") {
@@ -340,8 +339,8 @@ function getIfClausePreamble(length: number, start: number, symbol: DefinedSymbo
 
 
     return length == 1
-        ? `if ${active_token_query} state.get_byte_from_input(state.lexer.byte_offset ${start > 0 ? "+" + start : ""}) ~= ${getUTF8ByteAt(symbol, offset)} :`
-        : `if ${active_token_query} ${length} == compare(state, state.lexer.byte_offset  ${start > 0 ? "+" + start : ""}, ${symbol.byte_offset + offset}, ${length}, &>>token_sequence_lookup) :`;
+        ? `if ${active_token_query} lexer.get_byte_at(lexer.byte_offset ${start > 0 ? "+" + start : ""}) ~= ${getUTF8ByteAt(symbol, offset)} :`
+        : `if ${active_token_query} ${length} == compare(lexer, lexer.byte_offset  ${start > 0 ? "+" + start : ""}, ${symbol.byte_offset + offset}, ${length}, &>>token_sequence_lookup) :`;
 }
 
 export function generateHybridIdentifier(symbols: HCG3Symbol[]) {
@@ -375,27 +374,6 @@ export function getSymbolMap(symbols: TokenSymbol[], grammar: HCG3Grammar): numb
     }
 
     return flags;
-}
-export function createScanFunctionCall(
-    items: Item[],
-    options: BaseOptions,
-    lex_name: string = "state.lexer",
-    PEEK: boolean = false,
-    extra_symbols: TokenSymbol[] = [],
-): SKExpression {
-
-    const { grammar } = options;
-
-    const symbols = [...getTokenSymbolsFromItems(getClosure(items, grammar), grammar), ...extra_symbols].setFilter(getUniqueSymbolName);
-    const skippable = getSkippableSymbolsFromItems(items, grammar).filter(sym => !symbols.some(s => getUniqueSymbolName(s) == getUniqueSymbolName(sym)));
-
-    const full_mapped_symbols = symbols.concat(skippable).setFilter(getUniqueSymbolName);
-
-    const symbol_map_id = getSymbolMapPlaceHolder(full_mapped_symbols, grammar);
-
-    const skippable_map_id = (skippable) ? getSymbolMapPlaceHolder(skippable, grammar) : "0";
-
-    return <SKExpression>sk`scan(state, ${symbol_map_id}, ${skippable_map_id});`;
 }
 function getSymbolMapPlaceHolder(symbols: TokenSymbol[], grammar: HCG3Grammar) {
     return "symbollookup_" + getSymbolMap(symbols, grammar).map(i => i >>> 0).join("_");
@@ -441,10 +419,31 @@ export function createProductionTokenCall(tok: ProductionTokenSymbol, options: B
 
         const symbol_map_id = getSymbolMapPlaceHolder(symbols, grammar);
 
-        pre_scan = `pre_scan(state, ${symbol_map_id}) &&`;
+        pre_scan = `pre_scan(lexer, ${symbol_map_id}) &&`;
     }
 
-    return `${pre_scan} token_production(state, &> ${prod_name}, ${prod_id}, ${tok.id}, ${1 << tok.token_id})`;
+    return `${pre_scan} token_production(lexer, &> ${prod_name}, ${prod_id}, ${tok.id}, ${1 << tok.token_id})`;
+}
+export function createScanFunctionCall(
+    items: Item[],
+    options: BaseOptions,
+    lex_name: string = "state.lexer",
+    PEEK: boolean = false,
+    extra_symbols: TokenSymbol[] = [],
+): SKExpression {
+
+    const { grammar } = options;
+
+    const symbols = [...getTokenSymbolsFromItems(getClosure(items, grammar), grammar), ...extra_symbols].setFilter(getUniqueSymbolName);
+    const skippable = getSkippableSymbolsFromItems(items, grammar).filter(sym => !symbols.some(s => getUniqueSymbolName(s) == getUniqueSymbolName(sym)));
+
+    const full_mapped_symbols = symbols.concat(skippable).setFilter(getUniqueSymbolName);
+
+    const symbol_map_id = getSymbolMapPlaceHolder(full_mapped_symbols, grammar);
+
+    const skippable_map_id = (skippable.length > 0) ? getSymbolMapPlaceHolder(skippable, grammar) : "0";
+
+    return <SKExpression>sk`scan(${lex_name}, ${symbol_map_id}, ${skippable_map_id});`;
 }
 
 export function createSymbolScanFunctionCall(
@@ -455,7 +454,7 @@ export function createSymbolScanFunctionCall(
 ): SKExpression {
     const { grammar } = options;
     const symbol_map_id = getSymbolMapPlaceHolder(symbols, grammar);
-    return <SKExpression>sk`scan(${lex_name}, state, ${symbol_map_id}, 0);`;
+    return <SKExpression>sk`scan(${lex_name}, ${symbol_map_id}, 0);`;
 }
 
 function getActiveTokenQuery(symbol: TokenSymbol | ProductionTokenSymbol): string {
@@ -473,18 +472,16 @@ export function createSymbolScanFunctionNew(options: BaseOptions): SKFunction[] 
         .setFilter(getUniqueSymbolName);
 
     const outer_fn = <SKFunction>sk`
-    fn scan:void(state:__ParserState$ref, tk_row:u32, pk_row:u32){
+    fn scan:void(lexer:__Lexer$ref, tk_row:u32, pk_row:u32){
         //Do look behind        
-        if((state.lexer._type) <= 0) : 
-            scan_core(state, tk_row);
+        if((lexer._type) <= 0) : 
+            scan_core(lexer, tk_row);
 
-        if(pk_row > 0 && isTokenActive(state.lexer._type, pk_row)) : {
-            [mut] offset:u32 = state.lexer.token_offset;
-            loop((isTokenActive(state.lexer._type, pk_row))){
-                state.lexer.next(state.get_input_array());
-                scan_core(state, tk_row);
+        if(pk_row > 0 && isTokenActive(lexer._type, pk_row)) : {
+            loop((isTokenActive(lexer._type, pk_row))){
+                lexer.next();
+                scan_core(lexer, tk_row);
             };
-            if( is_output_enabled( state.state ) ) : add_skip( state, state.lexer.token_offset  - offset );
         }
     }
     `;
@@ -506,12 +503,12 @@ export function createSymbolScanFunctionNew(options: BaseOptions): SKFunction[] 
         outer_fn.expressions.splice(1, 0, (<SKExpression>sk`if ${getActiveTokenQuery(lb_sym)} && ${lb_name}(state) : { return }`));
     }
 
-    const fn = <SKFunction>sk`fn scan_core:void(state:__ParserState$ref, tk_row:u32){  }`;
+    const fn = <SKFunction>sk`fn scan_core:void(lexer:__Lexer$ref, tk_row:u32){  }`;
 
 
     const expression_array = fn.expressions;
 
-    const match_stmt: SKMatch = <SKMatch>sk`match (state.get_byte_from_input(state.lexer.byte_offset) & ${group_size}): default:break`;
+    const match_stmt: SKMatch = <SKMatch>sk`match (lexer.get_byte_at(lexer.byte_offset) & ${group_size}): default:break`;
 
     expression_array.push(match_stmt);
 
@@ -551,14 +548,25 @@ export function createSymbolScanFunctionNew(options: BaseOptions): SKFunction[] 
     }
 
     for (const gen_sym of gen_syms)
-        ifs.push(sk`if ${getActiveTokenQuery(gen_sym)} && ${getSymbolBoolean(gen_sym, options.grammar)} : { return }`);
+        ifs.push(sk`if ${getActiveTokenQuery(gen_sym)} && ${getSymbolBoolean(gen_sym, options.grammar, "lexer")} : { return }`);
 
-    ifs.reduce((r: SKIf, a: SKIf) => ((!r) ? a : (r.else = a, a)), null);
+    const [first] = mergeIfStatement(ifs);
 
-    if (ifs[0])
-        expression_array.push(ifs[0]);
+    if (first)
+        expression_array.push(first);
 
     return [fn, outer_fn];
+}
+/**
+ * Combine a list of seperate SK if nodes into an if-else chain.
+ * Return a tuple containing the first and last if node (may be aliased 
+ * or undefined if ifs.length == 0)
+ * @param ifs <SKIF>  A list of if statements
+ */
+function mergeIfStatement(ifs: SKIf[]) {
+    ifs.reduce((r: SKIf, a: SKIf) => ((!r) ? a : (r.else = a, a)), null);
+
+    return [ifs[0], ifs[ifs.length - 1]];
 }
 
 function Sym_Is_Hybrid(sym: TokenSymbol): sym is any {
@@ -606,29 +614,30 @@ function renderNew(node: TokenTreeNode, options: BaseOptions, insert_expression:
         }
     }
 
-    ifs.reduce((r: SKIf, a: SKIf) => ((!r) ? a : (r.else = a, a)), null);
+    const [first] = mergeIfStatement(ifs);
 
-    return ifs[0] ? [...insert_expression, ifs[0]] : [...insert_expression];
+    return first ? [...insert_expression, first] : [...insert_expression];
 }
 
 function renderLeafNew(node: TokenTreeNode, options: any, USE_BOOLEAN: boolean = false) {
 
-    let ifs = [];
+    let
+        ifs = [],
 
-    let append = [];
+        append = [],
 
-    let prepend = [];
+        prepend = [];
 
-    const id = node.symbols.filter(Sym_Is_Defined).setFilter(getUniqueSymbolName).sort((a, b) => (+Sym_Is_Exclusive(a)) - (+Sym_Is_Exclusive(b)));
+    const
+        id = node.symbols.filter(Sym_Is_Defined).setFilter(getUniqueSymbolName).sort((a, b) => (+Sym_Is_Exclusive(b)) - (+Sym_Is_Exclusive(a))),
 
-    const tk_syms: (ProductionTokenSymbol | VirtualTokenSymbol)[] = <any>node.symbols.filter(s => Sym_Is_Virtual_Token(s) || Sym_Is_A_Production_Token(s)).setFilter(getUniqueSymbolName);
+        tk_syms: (ProductionTokenSymbol | VirtualTokenSymbol)[] = <any>node.symbols.filter(s => Sym_Is_Virtual_Token(s) || Sym_Is_A_Production_Token(s)).setFilter(getUniqueSymbolName),
 
-    const gen_syms = node.symbols.filter(Sym_Is_A_Generic_Type).setFilter(getUniqueSymbolName);
+        gen_syms = node.symbols.filter(Sym_Is_A_Generic_Type).setFilter(getUniqueSymbolName),
 
-    const default_bin = node.offset >= 0 ? ifs : append;
+        default_bin = node.offset >= 0 ? ifs : append,
 
-    const length_assertion = (node.offset >= 0) ? `&& state.lexer.byte_length > ${node.offset}` : "";
-
+        length_assertion = (node.offset >= 0) ? `&& lexer.byte_length > ${node.offset}` : "";
 
     for (const tk_sym of tk_syms) {
 
@@ -639,50 +648,58 @@ function renderLeafNew(node: TokenTreeNode, options: any, USE_BOOLEAN: boolean =
 
     for (const gen_sym of gen_syms) {
 
-        default_bin.push(sk`if ${getActiveTokenQuery(gen_sym)} && ${getSymbolBoolean(gen_sym, options.grammar)} ${length_assertion} : { return  }`);
+        default_bin.push(sk`if ${getActiveTokenQuery(gen_sym)} && ${getSymbolBoolean(gen_sym, options.grammar, "lexer")} ${length_assertion} : { return  }`);
     }
 
     for (const defined of id) {
 
         if (Sym_Is_Exclusive(defined) || (tk_syms.length + gen_syms.length) < 1) {
-            const preamble = defined.byte_length <= node.offset ? "" : getIfClausePreamble(defined.byte_length - node.offset, node.offset, defined, node.offset, options, !Sym_Is_Exclusive(defined));
 
-            ifs.push(sk`${preamble}{state.lexer.setToken(${defined.id}, ${defined.byte_length},${defined.val.length}); return;}`);
+            const preamble = defined.byte_length <= node.offset
+                ? "if " + getActiveTokenQuery(defined) + ":"
+                : getIfClausePreamble(defined.byte_length - node.offset, node.offset, defined, node.offset, options);
+
+            ifs.push(sk`${preamble}{lexer.setToken(${defined.id}, ${defined.byte_length},${defined.val.length}); return;}`);
 
         } else {
-            const preamble = defined.byte_length <= node.offset ? "if " + getActiveTokenQuery(defined) + ":" : getIfClausePreamble(defined.byte_length - node.offset, node.offset, defined, node.offset, options);
+
+            const preamble = defined.byte_length <= node.offset
+                ? "if " + getActiveTokenQuery(defined) + ":"
+                : getIfClausePreamble(defined.byte_length - node.offset, node.offset, defined, node.offset, options);
+
             const symbols = [...tk_syms, ...gen_syms].map(s => Sym_Is_Virtual_Token(s) ? s.root : s).setFilter(getUniqueSymbolName);
 
             const id = generateHybridIdentifier([defined, ...symbols]);
 
             ifs.push(sk`${preamble}{
                 if ${symbols.filter(s => s.id != defined.id).map(getActiveTokenQuery).join("  || ")}: {
-                    state.lexer.setToken(${id}, ${defined.byte_length},${defined.val.length}); return;
-                }else{
-                    state.lexer.setToken(${defined.id}, ${defined.byte_length},${defined.val.length}); return;
+                    lexer.setToken(${id}, ${defined.byte_length},${defined.val.length}); return;
+                }else if ${getActiveTokenQuery(defined)} : {
+                    lexer.setToken(${defined.id}, ${defined.byte_length},${defined.val.length}); return;
                 }
             }`);
         }
     }
 
-    ifs.reduce((r: SKIf, a: SKIf) => ((!r) ? a : (r.else = a, a)), null);
+    const [first] = mergeIfStatement(ifs);
 
-    return ifs[0] ? [...prepend, ifs[0], ...append] : [...prepend, ...append];
+    return first ? [...prepend, first, ...append] : [...prepend, ...append];
 }
 export function renderPreScanFunction() {
-    return <SKFunction>sk`fn pre_scan:bool(state:__ParserState$ref, tk_row:u32){
+    return <SKFunction>sk`fn pre_scan:bool(lexer:__Lexer$ref, tk_row:u32){
         
-        [mut] tk_length: u16 = state.lexer.token_length;
-        [mut] bt_length: u16 = state.lexer.byte_length;
+        [mut] tk_length: u16 = lexer.token_length;
+        [mut] bt_length: u16 = lexer.byte_length;
+        [mut] type_cache: u32 = lexer._type;
         
-        scan(state, tk_row, 0);
+        scan(lexer, tk_row, 0);
         
-        [mut] type_cache:i32 = state.lexer._type;
+        [mut] type_out:i32 = lexer._type;
     
-        state.lexer._type = 0;
-        state.lexer.token_length = tk_length;
-        state.lexer.byte_length = bt_length;
+        lexer._type = type_cache;
+        lexer.token_length = tk_length;
+        lexer.byte_length = bt_length;
     
-        return : type_cache > 0;
+        return : type_out > 0;
     }`;
 }

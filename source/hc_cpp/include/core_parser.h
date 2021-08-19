@@ -8,37 +8,41 @@ namespace HYDROCARBON
     /////////////////////////////////////////////
     // LEXER
     /////////////////////////////////////////////
-    struct Input
-    {
-        u8 *input;
-        u32 length;
-    };
-
     class Lexer
     {
     public:
-        u32 byte_offset = 0;
-        u32 token_offset = 0;
-        unsigned short byte_length = 0;
-        unsigned short token_length = 0;
-        u32 prev_byte_offset = 0;
-        u32 _type = 0;
-        unsigned short line = 0;
-        unsigned short current_byte = 0;
+        // 8 byte
+        u8 *input = 0; // 0
 
-        Lexer();
+        // 4 byte
+        u32 byte_offset = 0;              // 8
+        u32 token_offset = 0;             // 12
+        u32 prev_byte_offset = 0;         // 16
+        u32 prev_token_offset = 0;        // 20
+        u32 active_token_productions = 0; // 24
+        u32 input_len = 0;                // 28
+        u32 _type = 0;                    // 32
+
+        // 2 byte
+        u16 byte_length = 0;  // 36
+        u16 token_length = 0; // 38
+        u16 line = 0;         // 40
+        u16 current_byte = 0; // 42
+
+        Lexer(u8 *, u32);
         i32 setToken(i32, u32, u32);
-        u32 getType(Input, bool);
-        bool isSym(Input, bool);
+        u8 get_byte_at(u32);
+        u32 getType(bool);
+        bool isSym(bool);
         bool isNL();
         bool isSP(bool);
-        bool isNum(Input);
-        bool isUniID(Input);
-        Lexer copyInPlace();
+        bool isNum();
+        bool isUniID();
+        Lexer copy_in_place();
         Lexer &sync(Lexer &);
-        Lexer &slice(Lexer &);
-        Lexer &next(Input);
-        bool END(Input);
+        Lexer &set_token_span_to(Lexer &);
+        Lexer &next();
+        bool END();
     };
 
     /////////////////////////////////////////////
@@ -53,14 +57,11 @@ namespace HYDROCARBON
         std::vector<StackFunction> stack;
         std::vector<u16> rules;
         std::vector<i32> stash;
-        u8 *input = 0;
         ParserState *origin = 0;
 
         // 4 byte
         u32 state;
-        u32 active_token_productions = 0;
         u32 origin_fork = 0;
-        u32 input_len = 0;
         i32 prod;
 
         // 1 byte
@@ -72,9 +73,7 @@ namespace HYDROCARBON
         void sync(ParserState *);
         u32 get_stack_len();
         u32 get_rules_len();
-        u32 get_input_len();
         void push_fn(StackFunction, i32);
-        Input get_input_array();
         u8 get_byte_from_input(u32);
         void reset(Lexer &, u32, u32);
         ParserState &fork(ParserStateBuffer &);
@@ -119,15 +118,15 @@ namespace HYDROCARBON
             }
         };
         ParserState *remove_state_at_index(i32);
+        ParserState *remove_valid_parser_state();
+        ParserState *get_recycled_ParserState(ParserState &);
         u32 len();
-        ParserState *create_data(u8 *, u32);
+        ParserState &create_state(u8 *, u32);
         void add_state_pointer(ParserState *);
         u32 add_state_pointer_and_sort(ParserState *);
         bool have_valid();
-        ParserState *get_valid_parser_state();
         ParserState &get_mut_state(u32);
         ParserState &get_ref_state(u32);
-        ParserState *get_recycled_ParserState(ParserState &);
         ParserState &fork(ParserStateBuffer &);
     };
     class DataRef
@@ -140,7 +139,7 @@ namespace HYDROCARBON
         u32 byte_length = 0;
         u32 line = 0;
         u32 command_offset = 0;
-        unsigned short command_block[64] = {0};
+        u16 command_block[64] = {0};
         DataRef(ParserState *, bool, u32, u32, u32, u32);
     };
 
@@ -166,7 +165,8 @@ namespace HYDROCARBON
 
         ParserResultBuffers(
             const ParserResultBuffers &origin) : valid(origin.valid),
-                                                 invalid(origin.invalid)
+                                                 invalid(origin.invalid),
+                                                 reference(origin.reference)
         {
             (*reference) += 1;
         }
@@ -174,12 +174,35 @@ namespace HYDROCARBON
         ~ParserResultBuffers()
         {
             (*reference) -= 1;
-            if (*reference == 1)
+            if (*reference < 1)
+            {
+                if (invalid)
+                    delete invalid;
+                if (valid)
+                    delete valid;
+            }
+        }
+
+        ParserResultBuffers &operator=(const ParserResultBuffers &origin)
+        {
+            (*reference) -= 1;
+
+            if (*reference < 1)
             {
                 delete reference;
-                delete invalid;
-                delete valid;
+                if (invalid)
+                    delete invalid;
+                if (valid)
+                    delete valid;
             }
+
+            reference = origin.reference;
+            invalid = origin.invalid;
+            valid = origin.valid;
+
+            (*reference) += 1;
+
+            return *this;
         }
     };
 
@@ -187,13 +210,13 @@ namespace HYDROCARBON
     // OTHER FUNCTIONS
     /////////////////////////////////////////////
 
-    u32 getUTF8ByteLengthFromCodePoint(u32);
-    u32 utf8ToCodePoint(u32, Input);
+    u32 get_ut8_byte_length_from_code_point(u32);
+    u32 get_utf8_code_point_at(u32, u8 *);
     u32 getTypeAt(u32);
     u32 createState(u32);
 
-    bool token_production(ParserState &, StackFunction, u32, u32, u32);
-    u32 compare(ParserState &, u32, u32, u32, u8 *);
+    bool token_production(Lexer &, StackFunction, u32, u32, u32);
+    u32 compare(Lexer &, u32, u32, u32, u8 *);
     ParserState *create_parser_data_object(u8 *, u32, u32);
     bool is_output_enabled(u32);
     void add_reduce(ParserState &, u32, u32 = 0);

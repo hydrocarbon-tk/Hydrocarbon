@@ -72,7 +72,6 @@ function getItemMapVariables(grammar: HCG3Grammar, productions: HCG3Production[]
 
                 const out_syms: IntermediateItemMapEntry[] = [];
 
-                // let depth = item.body + p.id * grammar.length;
                 const b = item.body_(grammar);
 
                 do {
@@ -313,6 +312,7 @@ function processClosures(
 
             for (const exclude of excludes) {
 
+
                 outer: for (let i = 0; i < pending_non_token_items.length; i++) {
 
                     let item = Item.fromArray(pending_non_token_items[i]);
@@ -444,6 +444,7 @@ function processSkippedSymbols(grammar: HCG3Grammar, item_maps_in_process: ItemM
             : Sym_Is_A_Production(item_map.item.sym(grammar))
                 ? new Set(getFirstTerminalSymbols(+item_map.item.sym(grammar).val, grammar).map(getSymbolName))
                 : new Set((getTrueSymbolValue(<TokenSymbol>item_map.item.sym(grammar), grammar)).map(getSymbolName));
+
 
         item_map.skippable = new Set(
             standard_skips

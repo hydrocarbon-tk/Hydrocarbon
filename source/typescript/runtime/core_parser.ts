@@ -20,10 +20,9 @@ export class ParserState {
     stash: number[];
     stack: StackFunction[];
     origin: ParserState;
-    input: Uint8Array;
+
     // 4 byte
     state: number;
-    active_token_productions: number;
     origin_fork: number;
     input_len: number;
     prod: number;
@@ -33,17 +32,15 @@ export class ParserState {
     refs: number;
 
     constructor(input_buffer: Uint8Array, input_len_in: number) {
-        this.lexer = new Lexer();
+        this.lexer = new Lexer(input_buffer, input_len_in);
         this.stack = [];
         this.stash = [];
         this.rules = [];
 
         this.origin = null;
 
-        this.input = input_buffer;
 
         this.state = createState(1);
-        this.input_len = input_len_in;
         this.origin_fork = 0;
         this.prod = -1;
 
@@ -51,36 +48,20 @@ export class ParserState {
         this.COMPLETED = false;
         this.refs = 0;
     }
-
     sync(ptr: ParserState) {
         if (ptr == this)
             return;
     };
-
     get_stack_len(): number {
         return this.stack.length;
     };
-
     get_rules_len(): number {
         return this.rules.length;
     };
-    get_input_len(): number {
-        return this.input_len;
-    };
-
     push_fn(stack_val: StackFunction, stash_val: number) {
         this.stack.push(stack_val);
         this.stash.push(stash_val);
     };
-
-    get_input_array(): Uint8Array {
-        return this.input;
-    };
-
-    get_byte_from_input(index: number): number {
-        return this.input[index];
-    };
-
     reset(origin: Lexer, stack_ptr: number, rules_ptr: number) {
         this.rules.length = rules_ptr;
         this.stack.length = stack_ptr;
@@ -102,7 +83,6 @@ export class ParserState {
         this.refs++;
         forked_state.origin = this;
         forked_state.origin_fork = this.get_rules_len();
-        forked_state.active_token_productions = this.active_token_productions;
         forked_state.lexer.sync(this.lexer);
         forked_state.state = this.state;
         forked_state.prod = this.prod;
@@ -189,7 +169,7 @@ export class ParserStateBuffer {
     len(): number {
         return this.data.length;
     };
-    create_data(input: Uint8Array, input_len: number): ParserState {
+    create_state(input: Uint8Array, input_len: number): ParserState {
 
         let state: ParserState = new ParserState(input, input_len);
 
@@ -226,7 +206,7 @@ export class ParserStateBuffer {
     have_valid(): boolean {
         return this.data.length > 0 && this.data[0].VALID;
     };
-    get_valid_parser_state(): ParserState {
+    remove_valid_parser_state(): ParserState {
         if (this.have_valid()) {
             return this.remove_state_at_index(0);
         }
@@ -257,7 +237,7 @@ export class ParserStateBuffer {
             }
         }
 
-        return new ParserState(state.input, state.input_len);
+        return new ParserState(state.lexer.input, state.lexer.input.length);
     };
 }
 
@@ -271,17 +251,23 @@ class Lexer {
     token_length: number;
     byte_length: number;
     prev_byte_offset: number;
+    prev_token_offset: number;
     line: number;
     _type: number;
     current_byte: number;
-
-
-    constructor() {
+    input: Uint8Array;
+    input_len: number;
+    active_token_productions: number;
+    constructor(input_buffer: Uint8Array, input_len_in: number) {
+        this.input = input_buffer;
+        this.input_len = input_len_in;
         this.byte_offset = 0;
         this.byte_length = 0;
         this.token_length = 0;
         this.token_offset = 0;
         this.prev_byte_offset = 0;
+        this.prev_token_offset = 0;
+        this.active_token_productions = 0;
         this._type = 0;
         this.line = 0;
         this.current_byte = 0;
@@ -292,10 +278,13 @@ class Lexer {
         this.token_length = token_length_in;
         return type_in;
     }
-    getType(input: Uint8Array, USE_UNICODE: boolean) {
+    get_byte_at(index: number): number {
+        return this.input[index];
+    };
+    getType(USE_UNICODE: boolean) {
         let t: number = this._type;
 
-        if (this.END(input))
+        if (this.END())
             return 1;
 
         if ((t) == 0) {
@@ -303,15 +292,15 @@ class Lexer {
                 t = getTypeAt(this.current_byte);
             }
             else {
-                let code_point: number = utf8ToCodePoint(this.byte_offset, input);
-                this.byte_length = getUTF8ByteLengthFromCodePoint(code_point);
+                let code_point: number = get_utf8_code_point_at(this.byte_offset, this.input);
+                this.byte_length = get_ut8_byte_length_from_code_point(code_point);
                 t = getTypeAt(code_point);
             };
         };
         return t;
     }
-    isSym(input: Uint8Array, USE_UNICODE: boolean): boolean {
-        if (this._type == 0 && this.getType(input, USE_UNICODE) == 2) {
+    isSym(USE_UNICODE: boolean): boolean {
+        if (this._type == 0 && this.getType(USE_UNICODE) == 2) {
             this._type = 2;
         };
         return this._type == 2;
@@ -328,12 +317,12 @@ class Lexer {
         };
         return this._type == 8;
     }
-    isNum(input: Uint8Array): boolean {
+    isNum(): boolean {
         if (this._type == 0) {
-            if (this.getType(input, false) == 5) {
-                let l = input.length;
+            if (this.getType(false) == 5) {
+                let l = this.input.length;
                 let off = this.byte_offset;
-                while ((off++ < l) && 47 < input[off] && input[off] < 58) {
+                while ((off++ < l) && 47 < this.input[off] && this.input[off] < 58) {
                     this.byte_length += 1;
                     this.token_length += 1;
                 };
@@ -346,16 +335,16 @@ class Lexer {
         else
             return this._type == 5;
     }
-    isUniID(input: Uint8Array): boolean {
+    isUniID(): boolean {
         if (this._type == 0) {
-            if (this.getType(input, true) == 3) {
-                let l: number = input.length;
+            if (this.getType(true) == 3) {
+                let l: number = this.input.length;
                 let off: number = this.byte_offset;
                 let prev_byte_len: number = this.byte_length;
                 while ((off + this.byte_length) < l) {
-                    let code_point = utf8ToCodePoint(this.byte_offset + this.byte_length, input);
+                    let code_point = get_utf8_code_point_at(this.byte_offset + this.byte_length, this.input);
                     if ((96 & char_lu_table[code_point]) > 0) {
-                        this.byte_length += getUTF8ByteLengthFromCodePoint(code_point);
+                        this.byte_length += get_ut8_byte_length_from_code_point(code_point);
                         prev_byte_len = this.byte_length;
                         this.token_length += 1;
                     }
@@ -374,50 +363,39 @@ class Lexer {
             return this._type == 3;
     }
 
-    copyInPlace(): Lexer {
-        const destination = new Lexer();
-        destination.byte_offset = this.byte_offset;
-        destination.byte_length = this.byte_length;
-        destination.token_length = this.token_length;
-        destination.token_offset = this.token_offset;
-        destination.prev_byte_offset = this.prev_byte_offset;
-        destination.line = this.line;
-        destination.byte_length = this.byte_length;
-        destination.current_byte = this.current_byte;
+    copy_in_place(): Lexer {
+        const destination = new Lexer(this.input, this.input_len);
+        destination.sync(this);
         return destination;
     }
-    sync(source: Lexer): Lexer {
+    sync(source: Lexer) {
         this.byte_offset = source.byte_offset;
         this.byte_length = source.byte_length;
         this.token_length = source.token_length;
         this.token_offset = source.token_offset;
         this.prev_byte_offset = source.prev_byte_offset;
+        this.prev_token_offset = source.prev_token_offset;
         this.line = source.line;
         this._type = source._type;
         this.current_byte = source.current_byte;
-        return this;
+        this.active_token_productions = source.active_token_productions;
     }
-    slice(source: Lexer): Lexer {
-        this.byte_length = this.byte_offset - source.byte_offset;
-        this.token_length = this.token_offset - source.token_offset;
-        this.byte_offset = source.byte_offset;
-        this.token_offset = source.token_offset;
-        this.current_byte = source.current_byte;
-        this.line = source.line;
+    set_token_span_to(source: Lexer) {
+        this.byte_length = source.prev_byte_offset - this.byte_offset;
+        this.token_length = source.prev_token_offset - this.token_offset;
         this._type = source._type;
-        return this;
     };
-    next(input: Uint8Array): Lexer {
+    next() {
         this.byte_offset += this.byte_length;
         this.token_offset += this.token_length;
-        if (input.length <= this.byte_offset) {
+        if (this.input.length <= this.byte_offset) {
             this._type = 1;
             this.byte_length = 0;
             this.token_length = 0;
             this.current_byte = 0;
         }
         else {
-            this.current_byte = input[this.byte_offset];
+            this.current_byte = this.input[this.byte_offset];
             if (this.current_byte == 10)
                 this.line += 1;
 
@@ -425,17 +403,15 @@ class Lexer {
             this.byte_length = 1;
             this.token_length = 1;
         };
-
-        return this;
     }
-    END(input: Uint8Array): boolean { return this.byte_offset >= input.length; };
+    END(): boolean { return this.byte_offset >= this.input.length; };
 }
 
 /////////////////////////////////////////////
 // OTHER FUNCTIONS
 /////////////////////////////////////////////
 
-function getUTF8ByteLengthFromCodePoint(code_point: number): number {
+function get_ut8_byte_length_from_code_point(code_point: number): number {
     if ((code_point) == 0) {
         return 1;
     }
@@ -452,7 +428,7 @@ function getUTF8ByteLengthFromCodePoint(code_point: number): number {
         return 4;
     };
 }
-function utf8ToCodePoint(index: number, buffer: Uint8Array): number {
+function get_utf8_code_point_at(index: number, buffer: Uint8Array): number {
     let a = buffer[index];
     let flag = 14;
     if (a & 0x80) {
@@ -481,52 +457,43 @@ function getTypeAt(code_point: number): number { return (char_lu_table[code_poin
 
 export function createState(ENABLE_STACK_OUTPUT: number): number { return 1 | (ENABLE_STACK_OUTPUT << 1); }
 
-export function token_production(state: ParserState, production: StackFunction, pid: number, _type: number, tk_flag: number): boolean {
-    const l = state.lexer;
-
-    if ((l._type) == _type)
-        return true;
-
-    if (state.active_token_productions & tk_flag)
-        return false;
-
-    state.active_token_productions |= tk_flag;
-
-    let stack_ptr = state.get_stack_len();
-    let rules_ptr = state.get_rules_len();
-    let state_cache = state.state;
-    let copy = l.copyInPlace();
-
-    let data_buffer: ParserStateBuffer = new ParserStateBuffer;
-
-    let ACTIVE = true;
-
-    state.push_fn(production, 0);
-
-    state.state = 0;
-
-    while (ACTIVE)
-        ACTIVE = step_kernel(state, data_buffer, stack_ptr);
-
-    state.state = state_cache;
-
-    state.active_token_productions ^= tk_flag;
-
-    if (state.prod == pid) {
-        state.stash.length = stack_ptr;
-        state.stack.length = stack_ptr;
-        l.slice(copy);
-        l._type = _type;
+export function token_production(lexer: Lexer, production: StackFunction, pid: number, _type: number, tk_flag: number): boolean {
+    if (lexer._type == _type) {
         return true;
     }
-    else
-        state.reset(copy, stack_ptr, rules_ptr);
+
+    if ((lexer.active_token_productions & tk_flag) > 0) {
+        return false;
+    }
+
+    lexer.active_token_productions |= tk_flag;
+
+    let data_buffer: ParserStateBuffer = new ParserStateBuffer();
+    let state: ParserState = new ParserState(lexer.input, lexer.input.length);
+
+    state.lexer.sync(lexer);
+    state.push_fn(production, 0);
+    state.state = 0;
+
+    let ACTIVE: boolean = true;
+
+    while (ACTIVE) {
+        ACTIVE = step_kernel(state, data_buffer, 0);
+    }
+
+    lexer.active_token_productions ^= tk_flag;
+
+    if (state.prod == pid) {
+        lexer.set_token_span_to(state.lexer);
+        lexer._type = _type;
+        return true;
+    }
 
     return false;
 }
 
 export function compare(
-    state: ParserState,
+    lexer: Lexer,
     data_offset: number,
     sequence_offset: number,
     byte_length: number,
@@ -536,7 +503,7 @@ export function compare(
     let j = sequence_offset;
     let len = j + byte_length;
     for (; j < len; i++, j++)
-        if ((state.input[i] != sequence[j]))
+        if ((lexer.get_byte_at(i) != sequence[j]))
             return j - sequence_offset;
     ;
     return byte_length;
@@ -596,12 +563,17 @@ export function add_skip(state: ParserState, skip_delta: number) {
 export function consume(state: ParserState): boolean {
 
     const l = state.lexer;
-    l.prev_byte_offset = l.byte_offset + l.byte_length;
-    if (is_output_enabled(state.state))
+
+    if (is_output_enabled(state.state)) {
+        let skip_delta = state.lexer.byte_offset - state.lexer.prev_byte_offset;
+        add_skip(state, skip_delta);
         add_shift(state, l.token_length);
+    }
 
+    l.prev_byte_offset = l.byte_offset + l.byte_length;
+    l.prev_token_offset = l.token_offset + l.token_length;
 
-    l.next(state.get_input_array());
+    l.next();
 
     return true;
 }
@@ -651,7 +623,7 @@ function run(process_buffer: ParserStateBuffer,
         };
 
         while (invalid_buffer.have_valid())
-            process_buffer.add_state_pointer(invalid_buffer.get_valid_parser_state());
+            process_buffer.add_state_pointer(invalid_buffer.remove_valid_parser_state());
     };
     return valid_buffer.len();
 }
@@ -667,11 +639,11 @@ export function recognize(
     let valid = new ParserStateBuffer;
     let invalid = new ParserStateBuffer;
 
-    let state = process_buffer.create_data(input_buffer, input_byte_length);
+    let state = process_buffer.create_state(input_buffer, input_byte_length);
 
     state.push_fn(state_function, 0);
 
-    state.lexer.next(input_buffer);
+    state.lexer.next();
 
     run(
         process_buffer,

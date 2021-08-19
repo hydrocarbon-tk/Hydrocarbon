@@ -24,7 +24,7 @@ export function default_resolveResolvedLeaf(item: Item, state: TransitionNode, o
 
     let leaf_node = code, prods = [], original_prods = [], INDIRECT = false, EMPTY = false;
 
-    if (item.atEND && SHOULD_IGNORE) {
+    if (SHOULD_IGNORE) {
 
 
         if (options.helper.ANNOTATED)

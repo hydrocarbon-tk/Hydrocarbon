@@ -11,7 +11,7 @@
 <> expression > id_sequence
               | math_expression 
 
-<> id_sequence > identifier(+g:ws )
+<> id_sequence > identifier(+g:sp )
 
 <> math_expression > additive 
 
@@ -48,4 +48,4 @@
 
 <> identifier > (def::js_identifier)
 
-<> comment > \/* ( g:num | g:id | g:sym | g:ws | g:nl)(*) \*/ 
+<> comment > \/* ( g:num | g:id | g:sym | g:sp | g:nl)(*) \*/ 

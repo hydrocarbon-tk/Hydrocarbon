@@ -7,7 +7,7 @@ import URI from "@candlelib/uri";
 import { buildRecognizer } from "../../build/library/build/build.js";
 import { compileGrammarFromURI } from "../../build/library/grammar/compile.js";
 import { createAddHocParser } from "../../build/library/render/create_add_hoc_parser.js";
-import { generateJSParser, generateWebAssemblyParser, writeParserScriptFile } from "../../build/library/render/render.js";
+import { generateScriptParser, generateWebAssemblyParser, writeJSBasedParserScriptFile } from "../../build/library/render/render.js";
 
 const
     hcg_grammar_file = URI.resolveRelative("./source/grammars/hcg-3/hcg.hcg");
@@ -149,7 +149,7 @@ assert_group(
             compiled_grammar,
             recognizer_functions,
             meta,
-            generateJSParser
+            generateScriptParser
         );
         const bootstrapped_compiled_grammar = await compileGrammarFromURI(hcg_grammar_file, bootstrapped_parser);
         const {
@@ -160,7 +160,7 @@ assert_group(
             bootstrapped_compiled_grammar,
             bootstrapped_recognizer_functions,
             bootstrapped_meta,
-            generateJSParser
+            generateScriptParser
         );
 
         const { result } = parser("\n <> test > t:r ( \\hello_world (+) ) ");
@@ -186,10 +186,10 @@ assert_group(
             meta: bootstrapped_meta,
         } = await buildRecognizer(bootstrapped_compiled_grammar, 1);
 
-        let SUCCESS = await writeParserScriptFile(
+        let SUCCESS = await writeJSBasedParserScriptFile(
             URI.resolveRelative("./build/staged/hcg3_parser.staged.ts") + "",
             bootstrapped_compiled_grammar, bootstrapped_recognizer_functions, bootstrapped_meta,
-            "../runtime/parser_loader_next.js",
+            "../runtime/parser_loader_beta.js",
             generateWebAssemblyParser
         );
 

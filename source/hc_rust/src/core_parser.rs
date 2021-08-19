@@ -25,12 +25,9 @@ pub struct ParserState {
     stash: Vec<i32>,
     stack: Vec<StackFunction>,
     origin: *const ParserState,
-    input: *const u8,
     // 4 byte
     pub state: u32,
-    active_token_productions: u32,
     origin_fork: u32,
-    input_len: u32,
     prod: i32,
     // 1 byte
     VALID: bool,
@@ -41,7 +38,7 @@ pub struct ParserState {
 impl ParserState {
     pub fn new(input_buffer: *const u8, input_len_in: u32) -> ParserState {
         ParserState {
-            lexer: Lexer::new(),
+            lexer: Lexer::new(input_buffer, input_len_in),
 
             stack: Vec::with_capacity(64),
             stash: Vec::with_capacity(64),
@@ -49,15 +46,12 @@ impl ParserState {
 
             origin: std::ptr::null(),
 
-            input: input_buffer,
-
             state: create_state(1),
-            input_len: input_len_in,
-            active_token_productions: 0,
             origin_fork: 0,
+            prod: -1,
+
             VALID: true,
             COMPLETED: false, /*  */
-            prod: -1,
 
             refs: 0,
         }
@@ -74,26 +68,9 @@ impl ParserState {
         self.rules.len() as u32
     }
 
-    pub fn get_input_len(&self) -> u32 {
-        self.input_len
-    }
-
     pub fn push_fn(&mut self, stack_val: StackFunction, stash_val: i32) {
         self.stack.push(stack_val);
         self.stash.push(stash_val);
-    }
-
-    pub fn get_input_array<'a>(&self) -> &'a [u8] {
-        use std::slice;
-
-        let u8_slice: &'a [u8] =
-            unsafe { slice::from_raw_parts(self.input, self.input_len as usize) };
-
-        u8_slice
-    }
-
-    pub fn get_byte_from_input(&self, index: u32) -> u8 {
-        unsafe { *self.input.offset(index as isize) as u8 }
     }
 
     pub fn reset(&mut self, origin: &Lexer, stack_ptr: u32, rules_ptr: u32) {
@@ -126,7 +103,6 @@ impl ParserState {
             self.refs += 1;
             forked_state.origin = &*self;
             forked_state.origin_fork = self.get_rules_len();
-            forked_state.active_token_productions = self.active_token_productions;
             forked_state.lexer.sync(&self.lexer);
             forked_state.state = self.state;
             forked_state.prod = self.prod;
@@ -162,7 +138,7 @@ impl ParserStateBuffer {
         self.data.len()
     }
 
-    pub fn create_data<'A>(
+    pub fn create_state<'A>(
         &'A mut self,
         input_buffer: &[u8],
         input_len_in: u32,
@@ -211,7 +187,7 @@ impl ParserStateBuffer {
         self.len() > 0 && self.data[0].as_ref().VALID
     }
 
-    pub fn get_valid_parser_state(&mut self) -> Option<Box<ParserState>> {
+    pub fn remove_valid_parser_state(&mut self) -> Option<Box<ParserState>> {
         if self.have_valid() {
             return Some(self.remove_state_at_index(0));
         }
@@ -243,7 +219,6 @@ impl ParserStateBuffer {
                 let a = self.data[i].as_ref();
                 if !a.VALID && a.refs < 1 {
                     let mut invalid_ptr = self.remove_state_at_index(i);
-
                     let mut invalid_state = invalid_ptr.as_mut();
 
                     invalid_state.rules.clear();
@@ -252,16 +227,18 @@ impl ParserStateBuffer {
                 }
                 i += 1;
             }
-        } else {
         }
 
-        return Box::new(ParserState::new(state.input, state.input_len));
+        return Box::new(ParserState::new(
+            state.lexer.input.as_ptr(),
+            state.lexer.input.len() as u32,
+        ));
     }
 }
 
-/////////////////////////////////////////////
+// ///////////////////////////////////////////
 // PARSER STATE ITERATOR
-/////////////////////////////////////////////
+// ///////////////////////////////////////////
 
 use std::iter::Iterator;
 
@@ -346,22 +323,32 @@ pub struct Lexer {
     pub token_length: u16,
     pub byte_length: u16,
     pub prev_byte_offset: u32,
+    pub prev_token_offset: u32,
     pub line: u16,
     pub _type: i32,
     pub current_byte: u8,
+    pub active_token_productions: u32,
+    input: &'static [u8],
 }
 
 impl Lexer {
-    pub fn new() -> Lexer {
+    pub fn new<'a>(input_buffer: *const u8, input_len_in: u32) -> Lexer {
+        use std::slice;
+
+        let u8_slice: &[u8] = unsafe { slice::from_raw_parts(input_buffer, input_len_in as usize) };
+
         Lexer {
             byte_offset: 0,
             token_offset: 0,
             byte_length: 0,
             token_length: 0,
             prev_byte_offset: 0,
+            prev_token_offset: 0,
+            active_token_productions: 0,
             _type: 0,
             line: 0,
             current_byte: 0,
+            input: u8_slice,
         }
     }
 
@@ -371,10 +358,15 @@ impl Lexer {
         self.token_length = token_length_in as u16;
         return type_in;
     }
-    pub fn getType(&mut self, input: &[u8], USE_UNICODE: bool) -> i32 {
+
+    pub fn get_byte_at(&self, index: usize) -> u8 {
+        self.input[index]
+    }
+
+    pub fn getType(&mut self, USE_UNICODE: bool) -> i32 {
         let mut _type: i32 = self._type;
 
-        if self.END(input.len()) {
+        if self.END() {
             return 1;
         }
 
@@ -383,9 +375,10 @@ impl Lexer {
                 _type = get_type_at(self.current_byte as u32);
             } else {
                 {
-                    let code_point: u32 = utf8_to_code_point(self.byte_offset as usize, input);
+                    let code_point: u32 =
+                        get_utf8_code_point_at(self.byte_offset as usize, self.input);
 
-                    self.byte_length = get_utf8_byte_length_from_code_point(code_point) as u16;
+                    self.byte_length = get_ut8_byte_length_from_code_point(code_point) as u16;
 
                     _type = get_type_at(code_point);
                 }
@@ -394,8 +387,8 @@ impl Lexer {
         _type
     }
 
-    pub fn isSym(&mut self, input: &[u8], USE_UNICODE: bool) -> bool {
-        if (self._type) == 0 && self.getType(input, USE_UNICODE) == 2 {
+    pub fn isSym(&mut self, USE_UNICODE: bool) -> bool {
+        if (self._type) == 0 && self.getType(USE_UNICODE) == 2 {
             self._type = 2;
         };
         return (self._type) == 2;
@@ -415,16 +408,16 @@ impl Lexer {
         return (self._type) == 8;
     }
 
-    pub fn isNum(&mut self, input: &[u8]) -> bool {
+    pub fn isNum(&mut self) -> bool {
         if (self._type) == 0 {
-            if self.getType(input, false) == 5 {
-                let l: usize = input.len() as usize;
+            if self.getType(false) == 5 {
+                let l: usize = self.input.len() as usize;
 
                 let mut off: usize = self.byte_offset as usize;
 
                 while off < l {
                     off += 1;
-                    if (48 > input[off]) || (input[off] > 57) {
+                    if (48 > self.input[off]) || (self.input[off] > 57) {
                         break;
                     };
                     self.byte_length += 1;
@@ -440,23 +433,23 @@ impl Lexer {
         };
     }
 
-    pub fn isUniID(&mut self, input: &[u8]) -> bool {
+    pub fn isUniID(&mut self) -> bool {
         if (self._type) == 0 {
-            if self.getType(input, true) == 3 {
-                let l: usize = input.len() as usize;
+            if self.getType(true) == 3 {
+                let l: usize = self.input.len() as usize;
 
                 let off: usize = self.byte_offset as usize;
 
                 let mut prev_byte_len: usize = self.byte_length as usize;
 
                 while (off + self.byte_length as usize) < l {
-                    let code_point = utf8_to_code_point(
+                    let code_point = get_utf8_code_point_at(
                         (self.byte_offset as u32 + self.byte_length as u32) as usize,
-                        input,
+                        self.input,
                     );
 
                     if ((96) & CHAR_LU_TABLE[code_point as usize]) > 0 {
-                        self.byte_length += get_utf8_byte_length_from_code_point(code_point) as u16;
+                        self.byte_length += get_ut8_byte_length_from_code_point(code_point) as u16;
                         prev_byte_len = self.byte_length as usize;
                         self.token_length += 1;
                     } else {
@@ -476,51 +469,41 @@ impl Lexer {
         }
     }
 
-    pub fn copyInPlace(&self) -> Lexer {
-        let mut destination: Lexer = Lexer::new();
-        destination._type = self._type;
-        destination.byte_offset = self.byte_offset;
-        destination.byte_length = self.byte_length;
-        destination.token_length = self.token_length;
-        destination.token_offset = self.token_offset;
-        destination.prev_byte_offset = self.prev_byte_offset;
-        destination.line = self.line;
-        destination.byte_length = self.byte_length;
-        destination.current_byte = self.current_byte;
+    pub fn copy_in_place(&self) -> Lexer {
+        let mut destination: Lexer = Lexer::new(self.input.as_ptr(), self.input.len() as u32);
+        destination.sync(self);
         return destination;
     }
-    pub fn sync(&mut self, source: &Lexer) -> &mut Lexer {
+
+    pub fn sync(&mut self, source: &Lexer) {
         self.byte_offset = source.byte_offset;
         self.byte_length = source.byte_length;
         self.token_length = source.token_length;
         self.token_offset = source.token_offset;
         self.prev_byte_offset = source.prev_byte_offset;
+        self.prev_byte_offset = self.prev_token_offset;
         self.line = source.line;
         self._type = source._type;
         self.current_byte = source.current_byte;
-        return self;
+        self.active_token_productions = self.active_token_productions;
     }
-    pub fn slice(&mut self, source: &Lexer) -> &mut Lexer {
-        self.byte_length = (self.byte_offset - source.byte_offset) as u16;
-        self.token_length = (self.token_offset - source.token_offset) as u16;
-        self.byte_offset = source.byte_offset;
-        self.token_offset = source.token_offset;
-        self.current_byte = source.current_byte;
-        self.line = source.line;
+    pub fn set_token_span_to(&mut self, source: &Lexer) {
+        self.byte_length = (source.prev_byte_offset - self.byte_offset) as u16;
+        self.token_length = (source.prev_token_offset - self.token_offset) as u16;
         self._type = source._type;
-        return self;
     }
-    pub fn next(&mut self, input: &[u8]) -> &mut Lexer {
+
+    pub fn next(&mut self) {
         self.byte_offset += self.byte_length as u32;
         self.token_offset += self.token_length as u32;
-        if input.len() <= self.byte_offset as usize {
+        if self.input.len() <= self.byte_offset as usize {
             self._type = 1;
             self.byte_length = 0;
             self.token_length = 0;
             self.current_byte = 0;
         } else {
             {
-                self.current_byte = input[self.byte_offset as usize];
+                self.current_byte = self.input[self.byte_offset as usize];
                 if (self.current_byte) == 10 {
                     self.line += 1
                 };
@@ -529,10 +512,9 @@ impl Lexer {
                 self.token_length = 1;
             }
         };
-        return self;
     }
-    pub fn END(&mut self, input_len: usize) -> bool {
-        return self.byte_offset as usize >= input_len;
+    pub fn END(&mut self) -> bool {
+        return self.byte_offset as usize >= self.input.len();
     }
 }
 
@@ -540,7 +522,7 @@ impl Lexer {
 // OTHER FUNCTIONS
 /////////////////////////////////////////////
 
-fn get_utf8_byte_length_from_code_point(code_point: u32) -> u8 {
+fn get_ut8_byte_length_from_code_point(code_point: u32) -> u8 {
     if (code_point) == 0 {
         return 1;
     } else if (code_point & 0x7F) == code_point {
@@ -554,7 +536,7 @@ fn get_utf8_byte_length_from_code_point(code_point: u32) -> u8 {
     }
 }
 
-fn utf8_to_code_point(index: usize, buffer: &[u8]) -> u32 {
+fn get_utf8_code_point_at(index: usize, buffer: &[u8]) -> u32 {
     let a: u32 = buffer[index] as u32;
 
     if a & 0x80 > 0 {
@@ -598,62 +580,48 @@ pub fn create_state(ENABLE_STACK_OUTPUT: u32) -> u32 {
 }
 
 pub fn token_production(
-    mut state: &mut ParserState,
+    lexer: &mut Lexer,
     production: StackFunction,
     pid: i32,
     _type: i32,
     tk_flag: u32,
 ) -> bool {
-    let l: &Lexer = &state.lexer;
-
-    if l._type == _type {
+    if lexer._type == _type {
         return true;
     }
 
-    if (state.active_token_productions & tk_flag) > 0 {
+    if (lexer.active_token_productions & tk_flag) > 0 {
         return false;
     }
 
-    state.active_token_productions |= tk_flag;
-
-    let stack_ptr: u32 = state.get_stack_len();
-    let rules_ptr: u32 = state.get_rules_len();
-    let state_cache: u32 = state.state;
-
-    let copy = state.lexer.copyInPlace();
+    lexer.active_token_productions |= tk_flag;
 
     let mut data_buffer: ParserStateBuffer = ParserStateBuffer::new();
+    let mut token_state = ParserState::new(lexer.input.as_ptr(), lexer.input.len() as u32);
+
+    token_state.lexer.sync(lexer);
+    token_state.push_fn(production, 0);
+    token_state.state = 0;
 
     let mut ACTIVE: bool = true;
 
-    state.push_fn(production, 0);
-
-    state.state = 0;
-
     while ACTIVE {
-        ACTIVE = step_kernel(state, &mut data_buffer, stack_ptr);
+        ACTIVE = step_kernel(&mut token_state, &mut data_buffer, 0);
     }
 
-    state.state = state_cache;
+    lexer.active_token_productions ^= tk_flag;
 
-    state.active_token_productions ^= tk_flag;
-
-    if state.prod == pid {
-        unsafe {
-            state.stack.set_len(stack_ptr as usize);
-            state.stash.set_len(stack_ptr as usize);
-        }
-        state.lexer.slice(&copy);
-        state.lexer._type = _type;
+    if token_state.prod == pid {
+        lexer.set_token_span_to(&token_state.lexer);
+        lexer._type = _type;
         return true;
-    } else {
-        state.reset(&copy, stack_ptr, rules_ptr);
     }
 
     false
 }
+
 pub fn compare(
-    state: &mut ParserState,
+    lexer: &mut Lexer,
     data_offset: u32,
     sequence_offset: u32,
     byte_length: u32,
@@ -664,7 +632,7 @@ pub fn compare(
     let len: usize = j + byte_length as usize;
 
     while j < len {
-        if unsafe { *state.input.offset(i as isize) } != sequence[j] {
+        if lexer.get_byte_at(i) != sequence[j] {
             return j as u32 - sequence_offset;
         };
         j += 1;
@@ -723,13 +691,16 @@ pub fn add_skip(state: &mut ParserState, skip_delta: u32) {
 }
 
 pub fn consume(state: &mut ParserState) -> bool {
-    state.lexer.prev_byte_offset = state.lexer.byte_offset + state.lexer.byte_length as u32;
-
     if is_output_enabled(state.state) {
-        add_shift(state, state.lexer.token_length as u32)
+        let skip_delta = state.lexer.byte_offset - state.lexer.prev_byte_offset;
+        add_skip(state, skip_delta);
+        add_shift(state, state.lexer.token_length as u32);
     };
 
-    state.lexer.next(state.get_input_array());
+    state.lexer.prev_byte_offset = state.lexer.byte_offset + state.lexer.byte_length as u32;
+    state.lexer.prev_token_offset = state.lexer.token_offset + state.lexer.token_length as u32;
+
+    state.lexer.next();
 
     return true;
 }
@@ -784,7 +755,7 @@ fn run(
         }
 
         while invalid_buffer.have_valid() {
-            match invalid_buffer.get_valid_parser_state() {
+            match invalid_buffer.remove_valid_parser_state() {
                 Some(x) => process_buffer.add_state_pointer(x),
                 None => (),
             }
@@ -803,11 +774,11 @@ pub fn recognize<'a>(
     let mut invalid_buffer = ParserStateBuffer::new();
     let mut valid_buffer = ParserStateBuffer::new();
 
-    let state = process_buffer.create_data(input_buffer, input_byte_length);
+    let state = process_buffer.create_state(input_buffer, input_byte_length);
 
     state.push_fn(state_function, 0);
 
-    state.lexer.next(state.get_input_array());
+    state.lexer.next();
 
     run(
         &mut process_buffer,

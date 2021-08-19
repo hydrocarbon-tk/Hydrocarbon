@@ -36,16 +36,16 @@ export function constructHybridFunction(production: HCG3Production, grammar: HCG
 
     const
 
-        rd_fn_name = <SKPrimitiveDeclaration>sk`[priv] ${getProductionFunctionName(production, grammar)}:u32`,
+        rd_fn_name = <SKPrimitiveDeclaration>sk`[priv] ${getProductionFunctionName(production)}:u32`,
 
-        goto_fn_name = <SKPrimitiveDeclaration>sk`[priv] ${getProductionFunctionName(production, grammar)}_goto:u32`,
+        goto_fn_name = <SKPrimitiveDeclaration>sk`[priv] ${getProductionFunctionName(production)}_goto:u32`,
 
         RD_function = <SKFunction>sk`
 
-        [pub] fn ${getProductionFunctionName(production, grammar)}:i32(state:__ParserState$ref, db:__ParserStateBuffer$ref, prod:i32){ ${runner.ANNOTATED ? "" : ""} }`,
+        [pub] fn ${getProductionFunctionName(production)}:i32(state:__ParserState$ref, db:__ParserStateBuffer$ref, prod:i32){ ${runner.ANNOTATED ? "" : ""} }`,
 
         GOTO_function = <SKFunction>sk`
-        [pub] fn ${getProductionFunctionName(production, grammar)}_goto:i32(state:__ParserState$ref, db:__ParserStateBuffer$ref, [mut] prod:i32){ ${runner.ANNOTATED ? "" : ""} }`,
+        [pub] fn ${getProductionFunctionName(production)}_goto:i32(state:__ParserState$ref, db:__ParserStateBuffer$ref, [mut] prod:i32){ ${runner.ANNOTATED ? "" : ""} }`,
 
         { RDOptions, GOTO_Options, RD_fn_contents, GOTO_fn_contents }
             = compileProductionFunctions(grammar, runner, [production]);

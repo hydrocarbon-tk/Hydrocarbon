@@ -1,4 +1,4 @@
-@IGNORE g:ws g:nl tk:comment
+@IGNORE g:sp g:nl tk:comment
 
 @IMPORT default-productions as def
 
@@ -191,7 +191,7 @@ f:r {
 <> identifier > tk:identifier_token
 f:r { { type:"identifier", value: $$sym1  } }
 
-<> identifier_token > ( g:id | \_ | \$ ) ( g:id | \_ | \$ )(*)  ( ?=g:ws | ?=g:nl )?
+<> identifier_token > ( g:id | \_ | \$ ) ( g:id | \_ | \$ )(*)  ( ?=g:sp | ?=g:nl )?
 
 <> modifier_list >\[ modifier(+) \] 
 f:r { $sym2 }
@@ -231,9 +231,9 @@ f:r { { type:"null"  } }
 | template
 f:r { env.grabTemplateNode("template-value") }
 
-<> string > \" ( g:ws | g:nl | g:id | g:sym  | g:num | \\" )(*\' ) \"
+<> string > \" ( g:sp | g:nl | g:id | g:sym  | g:num | \\" )(*\' ) \"
 f:r { { type:"string", value: $$sym2  } }
-| \' ( g:ws | g:nl | g:id | g:sym | g:num | \\" )(*\' ) \'
+| \' ( g:sp | g:nl | g:id | g:sym | g:num | \\" )(*\' ) \'
 f:r { { type:"string", value: $$sym2  } }
 
 <> num > tk:num_tok
@@ -243,10 +243,10 @@ f:r { { type:"string", value: $$sym2  } }
     | def::binary
     | def::octal
 
-<> operator > g:sym g:sym(*\' ) ( ?=g:ws | ?=g:nl )?
+<> operator > g:sym g:sym(*\' ) ( ?=g:sp | ?=g:nl )?
     f:r { { type:"operator", val: $sym1 + $sym2, precedence:0  } }
 
-    |  \== g:sym(*\' ) ( ?=g:ws | ?=g:nl )?
+    |  \== g:sym(*\' ) ( ?=g:sp | ?=g:nl )?
     f:r { { type:"operator", val: $sym1 + $sym2, precedence:0  } }
 
 <> modifier > \pub | \priv | \export | \mut | \imut | g:id

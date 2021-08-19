@@ -6,7 +6,7 @@
 
 @SYMBOL </ (( )) )( " ' 
 
-@IGNORE g:ws g:nl 
+@IGNORE g:sp g:nl 
 
 <> S > GOAL_TAG
 
@@ -55,7 +55,7 @@
 	│ ATTRIBUTE_DATA ATTRUBUTE_DATA_VALUE 			↦return { sym[0] + sym[1]}
 
 <> ATTRUBUTE_DATA_VALUE > g:id 
-	│ g:ws │ g:any
+	│ g:sp │ g:any
 
 <> TAGNAME > g:id
 
@@ -67,7 +67,7 @@
 <> BODY_STRING > BODY_STRING BODY_SYMBOLS 			↦return { sym[0] + sym[1] }			
 	│ BODY_SYMBOLS 									↦return { sym[0] + "" }
 
-<> BODY_SYMBOLS > g:id │ g:any │ g:ws │ g:nl
+<> BODY_SYMBOLS > g:id │ g:any │ g:sp │ g:nl
 
 <> BINDING > CALL_BINDING  							
 	│ BASIC_BINDING
@@ -77,5 +77,5 @@
 <> CALL_BINDING > \(( ↦{ env.start = lex.off+2 } BINDING_DATA \)( BINDING_DATA \))    ↦cstr {  }
 
 <> BINDING_DATA > BINDING_DATA BINDING_DATA    ↦return { null }   
-	│ g:id │ g:ws │ g:nl │ g:sym │ g:op │ g:any  		  
+	│ g:id │ g:sp │ g:nl │ g:sym │ g:op │ g:any  		  
 

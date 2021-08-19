@@ -7,7 +7,7 @@ import { Lexer } from "@candlelib/wind";
 import { HCGParser, HCGProductionFunction } from "../types/parser";
 import { RecognizeInitializer } from "../types/parser_data";
 import { ParserEnvironment } from "../types/parser_environment.js";
-import { initializeUTFLookupTableNew, initializeUTFLookupTableNewPlus, jump8bit_table_byte_size } from "./parser_memory_new.js";
+import { initializeUTFLookupTableNewPlus } from "./parser_memory_new.js";
 import { Token } from "./token.js";
 import { loadWASM } from "./wasm_loader_beta.js";
 
@@ -29,9 +29,7 @@ export async function ParserFactory<T, R = {}>(
 
     js_recognizer_loader?: () => RecognizeInitializer,
 
-    entry_name_list: R = <R><any>{},
-
-    memory_init: (buffer: Uint8Array) => void = initializeUTFLookupTableNew
+    entry_name_list: R = <R><any>{}
 
 ): Promise<HCGParser<T, R>> {
 
@@ -52,9 +50,7 @@ export async function ParserFactory<T, R = {}>(
         ({ recognize, init_table, create_iterator } = js_recognizer_loader());
     }
 
-
-    const memory_buffer = init_table();
-    memory_init(memory_buffer);
+    initializeUTFLookupTableNewPlus(init_table());
 
     const out: any = function (input_string: string, env: ParserEnvironment = {}, production_id = 0) {
 

@@ -1,7 +1,9 @@
 import { Helper } from "../build/helper.js";
-import { HCGParser, ParserFactoryNext } from "../entry/hydrocarbon.js";
-import { initializeUTFLookupTableNewPlus } from "../runtime/parser_memory_new.js";
+import * as ParserCore from "../runtime/core_parser.js";
+import { ParserFactory } from "../runtime/parser_loader_beta.js";
+import { fillByteBufferWithUTF8FromString } from "../runtime/utf8.js";
 import { HCG3Grammar } from "../types/grammar_nodes.js";
+import { HCGParserConstructor } from "../types/parser.js";
 import { ParserGenerator } from "../types/ParserGenerator";
 import { RDProductionFunction } from "../types/rd_production_function.js";
 import { generateScriptParser } from "./render.js";
@@ -24,7 +26,7 @@ export async function createAddHocParser<T = any>(
     recognizer_functions: RDProductionFunction[],
     meta: Helper,
     fn_generate_parser: ParserGenerator = generateScriptParser
-): Promise<HCGParser<T>> {
+): Promise<HCGParserConstructor<T>> {
 
     const parser_string = await fn_generate_parser(
         grammar,
@@ -34,6 +36,15 @@ export async function createAddHocParser<T = any>(
         "return"
     );
 
-    return new Function("ParserFactory", "memInit", parser_string)(ParserFactoryNext, initializeUTFLookupTableNewPlus);
+    return new Function(
+        "ParserFactory",
+        "fillByteBufferWithUTF8FromString",
+        "ParserCore",
+        parser_string
+    )(
+        ParserFactory,
+        fillByteBufferWithUTF8FromString,
+        ParserCore
+    );
 }
 

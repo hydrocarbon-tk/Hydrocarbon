@@ -9,7 +9,6 @@ import { jump8bit_table_byte_size } from "../runtime/parser_memory_new.js";
 import { sk, skRenderAsCPP, skRenderAsCPPDeclarations, skRenderAsJavaScript, skRenderAsRust, skRenderAsTypeScript } from "../skribble/skribble.js";
 import { SKExpression, SKNode } from "../skribble/types/node.js";
 import { HCG3Grammar } from "../types/grammar_nodes.js";
-import { ParserGenerator } from "../types/ParserGenerator.js";
 import { RDProductionFunction } from "../types/rd_production_function.js";
 import { createSymbolScanFunctionNew, getProductionFunctionNameSk, renderPreScanFunction, token_lu_bit_size, token_lu_bit_size_offset } from "../utilities/code_generating.js";
 import * as cpp from "./cpp_render.js";
@@ -355,7 +354,10 @@ extern "C" {
     //Render TS/JS script code ----------------------------------------------------
 
     return `
-    ${hydrocarbon_import_path ? `import { ParserFactoryBeta as ParserFactory,  initializeUTFLookupTableNewPlus as memInit  } from "${hydrocarbon_import_path}"` : ""};
+    ${hydrocarbon_import_path ?
+            `import { 
+    ParserFactoryBeta as ParserFactory
+} from "${hydrocarbon_import_path}"` : ""};
     
     const 
         wasm_recognizer = ${wasm_data_segment},
@@ -363,7 +365,7 @@ extern "C" {
         reduce_functions = ${renderJavaScriptReduceFunctionLookupArray(grammar)};
     
     ${export_expression_preamble} ParserFactory
-        (reduce_functions, wasm_recognizer, undefined, ${createEntryList(grammar)}, memInit);`;
+        (reduce_functions, wasm_recognizer, undefined, ${createEntryList(grammar)});`;
 }
 
 
@@ -404,7 +406,6 @@ export async function generateScriptParser(
     return `
     ${hydrocarbon_import_path ? `import { 
         ParserFactoryBeta as ParserFactory, 
-        initializeUTFLookupTableNewPlus as memInit,
         fillByteBufferWithUTF8FromString,
         ParserCore
     } from "${hydrocarbon_import_path}"` : ""};
@@ -465,7 +466,7 @@ export async function generateScriptParser(
     const reduce_functions = ${renderJavaScriptReduceFunctionLookupArray(grammar)};
 
     ${export_expression_preamble} ParserFactory${INCLUDE_TYPES ? `<any, ${createEntryList(grammar)}>` : ""}
-        (reduce_functions, undefined, recognizer_initializer, ${createEntryList(grammar)}, memInit);`;
+        (reduce_functions, undefined, recognizer_initializer, ${createEntryList(grammar)});`;
 }
 function createGrammarFunctionArray(meta: Helper, recognizer_functions: RDProductionFunction[]) {
     const

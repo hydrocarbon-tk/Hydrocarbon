@@ -125,7 +125,7 @@ export function createJSFunctionsFromExpressions(grammar: HCG3Grammar, error) {
                                         replace(exp(`sym[${0}] + sym[${body.sym.length - 1}]`));
                                         break;
                                     default:
-                                        throw new Error(`Unexpected non integer value from ${val}`);
+                                        throw new Error(`Unexpected non integer value from ${val} ${index} ${node.value}`);
 
                                 }
                             } else {

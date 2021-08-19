@@ -14,7 +14,9 @@ import {
     Sym_Is_A_Generic_Identifier,
     Sym_Is_A_Production,
     Sym_Is_A_Production_Token,
-    Sym_Is_EOF
+    Sym_Is_Defined,
+    Sym_Is_EOF,
+    Sym_Is_Exclusive
 } from "../grammar/nodes/symbol.js";
 import { HCG3Grammar, TokenSymbol } from "../types/grammar_nodes";
 import { ClosureGroup, TransitionTreeNode } from "../types/transition_tree_nodes";
@@ -118,7 +120,14 @@ export function getTransitionTree(
     const
         new_groups = groups
             .flatMap(cg => getClosureGroups(grammar, cg, lr_transition_items, root_items))
-            .group(cg => getUniqueSymbolName(cg.sym)),
+            .group(cg => {
+
+                if (Sym_Is_Defined(cg.sym)) {
+                    return cg.sym.val + "--DEFINED";
+                }
+
+                return getUniqueSymbolName(cg.sym);
+            }),
 
         tree_nodes: TransitionTreeNode[] = [];
 
@@ -198,17 +207,26 @@ export function getTransitionTree(
 
         if (syms.length > 1) {
 
-            //generate a hybrid symbol
-            const val = generateHybridIdentifier(syms);
+            if (syms.every(Sym_Is_Defined)) {
+                // Extract the exclusive terminal which will suffice
+                // to match items that need the exclusive terminal
+                // as well as non-exclusive versions.
+                sym = syms.filter(Sym_Is_Exclusive)[0] || sym[0];
+            } else {
+                const considered_syms = syms.filter(s => Sym_Is_Exclusive(s) || !Sym_Is_Defined(s));
 
-            sym = {
-                type: "hybrid",
-                val: "hybrid-" + val + `[${syms.sort((a, b) => b.id - a.id).map(getUniqueSymbolName).join("  ")}]`,
-                id: val
-            };
+                //generate a hybrid symbol
+                const val = generateHybridIdentifier(considered_syms);
 
-            if (!grammar.meta.all_symbols.has(getUniqueSymbolName(sym)))
-                grammar.meta.all_symbols.set(getUniqueSymbolName(sym), sym);
+                sym = {
+                    type: "hybrid",
+                    val: "hybrid-" + val + `[${considered_syms.sort((a, b) => b.id - a.id).map(getUniqueSymbolName).join("  ")}]`,
+                    id: val
+                };
+
+                if (!grammar.meta.all_symbols.has(getUniqueSymbolName(sym)))
+                    grammar.meta.all_symbols.set(getUniqueSymbolName(sym), sym);
+            }
         }
 
         tree_nodes.push({

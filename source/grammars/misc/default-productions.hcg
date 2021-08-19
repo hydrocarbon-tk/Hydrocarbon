@@ -2,7 +2,7 @@
 
 <>start > defaultproductions
 
-<> defaultproductions > defaultproduction(+ g:ws )
+<> defaultproductions > defaultproduction(+ g:sp )
 
 <> defaultproduction > number
     | hex
@@ -48,14 +48,14 @@
 
 <> string_token > string_value(+\" )
 
-<> string_value >  ( g:num | g:id | g:sym | g:ws |  \\ ( g:num | g:id | g:sym | g:ws | g:nl ) ) (+\' )
+<> string_value >  ( g:num | g:id | g:sym | g:sp |  \\ ( g:num | g:id | g:sym | g:sp | g:nl ) ) (+\' )
 
 <> js_identifier > tk:js_id_symbols 
 
-<> js_id_symbols >  js_id_symbols (RST g:ws g:nl) g:id           f:r { $1 + $2 }
-    | js_id_symbols (RST g:ws g:nl) \_                           f:r { $1 + $2 }
-    | js_id_symbols (RST g:ws g:nl) \$                           f:r { $1 + $2 }
-    | js_id_symbols (RST g:ws g:nl) g:num                        f:r { $1 + $2 }
+<> js_id_symbols >  js_id_symbols (RST g:sp g:nl) g:id           f:r { $1 + $2 }
+    | js_id_symbols (RST g:sp g:nl) \_                           f:r { $1 + $2 }
+    | js_id_symbols (RST g:sp g:nl) \$                           f:r { $1 + $2 }
+    | js_id_symbols (RST g:sp g:nl) g:num                        f:r { $1 + $2 }
     | \_ 
     | \$ 
     | g:id
