@@ -497,7 +497,7 @@ function createActiveTokenSK(grammar: HCG3Grammar): SKNode {
 
                 [mut] shift : u32 = 1 << (${token_lu_bit_size - 1} & (token_id));
             
-                return : (token_lookup[index] & shift) > 0;
+                return : (token_lookup[index] & shift) != 0;
             }
         `;
 }
