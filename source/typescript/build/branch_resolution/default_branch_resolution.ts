@@ -97,9 +97,6 @@ function addScanStatement(
 
     const offset = options.scope == "GOTO" ? state.offset : state.offset;
 
-    if (options.helper.ANNOTATED)
-        addItemAnnotationToExpressionList(items, options.grammar, root);
-
     if (state.peek_level >= 0) {
 
         if (offset > 0 && state.peek_level == 0) {
