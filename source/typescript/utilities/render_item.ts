@@ -13,6 +13,7 @@ import {
 import { TokenTypes } from "../runtime/TokenTypes.js";
 import { sk } from "../skribble/skribble.js";
 import { SKBlock, SKExpression, SKIf } from "../skribble/types/node";
+import { TokenSymbol } from "../types/grammar_nodes.js";
 import { RenderBodyOptions } from "../types/render_body_options";
 import { getClosure } from "./closure.js";
 import {
@@ -82,7 +83,7 @@ export function renderItem(
                 call_name = createBranchFunction(call_body, options),
                 rc = [];
 
-            rc.push(sk`state.push_fn( &> ${call_name}, 0)`);
+            rc.push(sk`state.push_fn( &> ${call_name}, ${prods[0]})`);
 
             rc.push(createProductionReturn(production));
 
@@ -111,8 +112,7 @@ export function renderItem(
 
             if (RENDER_WITH_NO_CHECK) {
 
-                if (Sym_Is_Not_Consumed(sym))
-                    leaf_expressions.push(<SKExpression>sk`${lex_name}.setToken(${lex_name}.type, 0, 0)`);
+                addNotConsumedStatement(sym, leaf_expressions, lex_name);
 
                 leaf_expressions.push(createConsumeSk(lex_name));
 
@@ -123,8 +123,7 @@ export function renderItem(
 
                 leaf_expressions.push(if_stmt);
 
-                if (Sym_Is_Not_Consumed(sym))
-                    if_stmt.expression.expressions.push(<SKExpression>sk`${lex_name}.setToken(${lex_name}.type, 0, 0)`);
+                addNotConsumedStatement(sym, if_stmt, lex_name);
 
                 if_stmt.expression.expressions.push(createConsumeSk(lex_name));
 
@@ -154,3 +153,8 @@ export function renderItem(
 
     return { leaf_node: leaf_expressions, prods, original_prods, INDIRECT, EMPTY };
 }
+function addNotConsumedStatement(sym: TokenSymbol, stmts: SKExpression[], lex_name: string) {
+    if (Sym_Is_Not_Consumed(sym))
+        stmts.push(<SKExpression>sk`${lex_name}.setToken(${lex_name}._type, 0, 0)`);
+}
+
