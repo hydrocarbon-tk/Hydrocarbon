@@ -1,6 +1,7 @@
+import URI from "@candlelib/uri";
 import { Helper } from "../build/helper.js";
 import * as ParserCore from "../runtime/core_parser.js";
-import { ParserFactory } from "../runtime/parser_loader_beta.js";
+import { ParserFactory } from "../runtime/parser_loader_gamma.js";
 import { fillByteBufferWithUTF8FromString } from "../runtime/utf8.js";
 import { HCG3Grammar } from "../types/grammar_nodes.js";
 import { HCGParserConstructor } from "../types/parser.js";
@@ -33,18 +34,23 @@ export async function createAddHocParser<T = any>(
         recognizer_functions,
         meta,
         "",
-        "return"
+        "return",
+        "temp_parser",
+        "",
+        "",
     );
 
     return new Function(
         "ParserFactory",
         "fillByteBufferWithUTF8FromString",
         "ParserCore",
+        "URI",
         parser_string
     )(
         ParserFactory,
         fillByteBufferWithUTF8FromString,
-        ParserCore
+        ParserCore,
+        URI
     );
 }
 

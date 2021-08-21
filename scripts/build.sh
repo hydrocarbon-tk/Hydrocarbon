@@ -16,7 +16,7 @@ FN_LIST='"_malloc","_free","_init_table","_recognize","_create_iterator","_itera
 
 >&2 echo "$FN_LIST"
 
-emcc -Oz\
+emcc -O3\
     -w\
     -DINIT_TABLE_EXTERNALLY\
     --no-entry\

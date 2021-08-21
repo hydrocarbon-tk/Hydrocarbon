@@ -202,6 +202,22 @@ namespace ${namespace} {
     return main_file;
 }
 
+/**
+ * Creates a WASM binary file and script file for the parser of the given grammar. 
+ * 
+ * 
+ * @param grammar 
+ * @param recognizer_functions 
+ * @param meta 
+ * @param hydrocarbon_import_path 
+ * @param export_expression_preamble 
+ * @param namespace 
+ * @param outpath - If empty, an script file will not be written. The script string will still be returned, 
+ * and the WASM file will be written to the temporary directory
+ * @param js_extension - The extension to give to the script file. Recommend either "ts" or "js"
+ * 
+ * @returns The script source string
+ */
 export async function generateWebAssemblyParser(
     grammar: HCG3Grammar,
     recognizer_functions: RDProductionFunction[],
@@ -211,8 +227,8 @@ export async function generateWebAssemblyParser(
     namespace: string = "parser",
     outpath: string = "./",
     js_extension: string = "js",
-    INCLUDE_TYPES: boolean = false,
-): Promise<void> {
+    _: boolean = false,
+): Promise<string> {
 
     const
         child_process = (await import("child_process")).default,
@@ -225,15 +241,15 @@ export async function generateWebAssemblyParser(
 
         sym_map = new Map(),
 
-        dir = URI.resolveRelative("./hcg_temp", tmpdir() + "/temp"),
+        temporary_directory_pathh = URI.resolveRelative("./hcg_temp", tmpdir() + "/temp"),
 
-        cpp_source_file_path = URI.resolveRelative("./temp.cpp", dir),
+        cpp_source_file_path = URI.resolveRelative("./temp.cpp", temporary_directory_pathh),
 
         package_directory_path = URI.resolveRelative("../../../", URI.getEXEURL(import.meta).dir),
 
         build_script_path = URI.resolveRelative("./scripts/build.sh", package_directory_path.dir),
 
-        wasm_file_path = URI.resolveRelative(`./${namespace}.wasm`, outpath),
+        wasm_file_path = URI.resolveRelative(`./${namespace}.wasm`, outpath || temporary_directory_pathh),
 
         script_file_path = URI.resolveRelative(`./${namespace}.${js_extension}`, outpath),
 
@@ -333,7 +349,7 @@ extern "C" {
 
     //Render WASM script code ----------------------------------------------------
 
-    await fsp.mkdir(dir + "", { recursive: true });
+    await fsp.mkdir(temporary_directory_pathh + "", { recursive: true });
 
     await fsp.writeFile(cpp_source_file_path + '', cpp_entry_content);
 
@@ -348,18 +364,21 @@ extern "C" {
     ${hydrocarbon_import_path ?
             `import { 
     ParserFactoryGamma as ParserFactory
-} from "${hydrocarbon_import_path}"` : ""};
-
-    import URI from "@candlelib/uri";
+} from "${hydrocarbon_import_path}"; \n import URI from "@candlelib/uri";` : ""};
     
-    const  wasm_recognizer = URI.resolveRelative("./${namespace}.wasm", URI.getEXEURL(import.meta)),
+    const  wasm_recognizer = ${outpath
+            ? `URI.resolveRelative("${script_file_path.getRelativeTo(wasm_file_path) + ""}", URI.getEXEURL(import.meta))`
+            : `new URI("${wasm_file_path + ""}")`},
     
         reduce_functions = ${renderJavaScriptReduceFunctionLookupArray(grammar)};
     
     ${export_expression_preamble} ParserFactory
         (reduce_functions, wasm_recognizer, undefined, ${createEntryList(grammar)});`;
 
-    await fsp.writeFile(script_file_path + '', main);
+    if (outpath)
+        await fsp.writeFile(script_file_path + '', main);
+
+    return main;
 }
 
 
@@ -384,7 +403,7 @@ export async function generateScriptParser(
     outpath: string = "./",
     js_extension: string = "js",
     INCLUDE_TYPES: boolean = false,
-): Promise<void> {
+): Promise<string> {
 
     const renderFunction = (INCLUDE_TYPES ? skRenderAsTypeScript : skRenderAsJavaScript);
 
@@ -473,7 +492,11 @@ export async function generateScriptParser(
     ${export_expression_preamble} ParserFactory${INCLUDE_TYPES ? `<any, ${createEntryList(grammar)}>` : ""}
         (reduce_functions, undefined, recognizer_initializer, ${createEntryList(grammar)});`;
 
-    await fsp.writeFile(script_file_path + '', main);
+
+    if (outpath)
+        await fsp.writeFile(script_file_path + '', main);
+
+    return main;
 }
 function createGrammarFunctionArray(meta: Helper, recognizer_functions: RDProductionFunction[]) {
     const

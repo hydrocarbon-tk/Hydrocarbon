@@ -1,6 +1,6 @@
 import URI from "@candlelib/uri";
 import { HCG3Function, HCG3Grammar } from "../../types/grammar_nodes";
-import loader from "../hcg3_parser.js";
+import loader from "../grammar_parser.js";
 import { default_map } from "../../utilities/default_map.js";
 import { HCGParser } from "../../types/parser";
 

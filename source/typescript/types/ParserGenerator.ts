@@ -7,5 +7,9 @@ export type ParserGenerator = (
     recognizer_functions: RDProductionFunction[],
     meta: Helper,
     hydrocarbon_import_path?: string,
-    export_expression_preamble?: string
+    export_expression_preamble?: string,
+    namespace?: string,
+    outpath?: string,
+    js_extension?: string,
+    INCLUDE_TYPES?: boolean,
 ) => Promise<string>;

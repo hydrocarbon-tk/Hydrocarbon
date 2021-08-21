@@ -131,6 +131,8 @@ function processSymbol(sym: HCG3Symbol, NOT_ORIGIN: boolean, root_grammar: HCG3G
         //Convert symbol to a local name
         //Find the production that is referenced in the grammar
         const prd = getProductionByName(imported.grammar, sym.production);
+
+
         const name = imported.grammar.common_import_name + "__" + prd.name;
 
         const prod = createProductionSymbol(name, sym.IS_OPTIONAL || 0, sym);
@@ -142,6 +144,7 @@ function processSymbol(sym: HCG3Symbol, NOT_ORIGIN: boolean, root_grammar: HCG3G
             const cp = copy(prd);
 
             cp.name = name;
+
 
             cp.grammar_id = imported.grammar.common_import_name;
 
