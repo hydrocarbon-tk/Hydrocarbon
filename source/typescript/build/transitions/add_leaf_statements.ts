@@ -43,7 +43,7 @@ export function addLeafStatements(
     GOTO_Options: RenderBodyOptions) {
     const
         { leaves: rd_leaves, production_ids, grammar } = RDOptions,
-        { leaves: goto_leaves, NO_GOTOS, extended_goto_items } = GOTO_Options;
+        { leaves: goto_leaves, NO_GOTOS, goto_items } = GOTO_Options;
 
 
     let GOTOS_FOLDED = false;
@@ -75,7 +75,7 @@ export function addLeafStatements(
 
     if (!NO_GOTOS) {
 
-        const goto_ids = new Set([...extended_goto_items.values()].map(i => grammar.bodies[i].production.id));
+        const recursive_production_ids = new Set(goto_items.map(i => grammar.bodies[i.body].production.id));
 
         for (const goto_leaf of goto_leaves) {
 
@@ -96,13 +96,15 @@ export function addLeafStatements(
             //@ts-ignore
             goto_leaf.SET = true;
 
-            if (transition_type == TRANSITION_TYPE.ASSERT_END
-                && production_ids.includes(prods[0])
+            if (
+                transition_type == TRANSITION_TYPE.ASSERT_END
+                && 
+                production_ids.includes(prods[0])
             ) {
-                if (production_ids.some(p_id => goto_leaf.keys.includes(p_id) && !INDIRECT)) {
+                if (!INDIRECT) {
                     leaf.push(<SKExpression>sk`prod=${prods[0]}`);
                     leaf.push(<SKExpression>sk`continue`);
-                } else if (goto_ids.has(prods[0])) {
+                } else if (recursive_production_ids.has(prods[0])) {
                     leaf.push(<SKExpression>sk`return : ${goto_fn_name}(state, db, ${prods[0]})`);
                 } else {
                     leaf.push(<SKExpression>sk`return:${prods[0]}`);
