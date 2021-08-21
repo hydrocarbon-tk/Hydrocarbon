@@ -207,29 +207,35 @@ export async function generateWebAssemblyParser(
     recognizer_functions: RDProductionFunction[],
     meta: Helper,
     hydrocarbon_import_path: string = "@candlelib/hydrocarbon",
-    export_expression_preamble: string = "export default"
-): Promise<string> {
+    export_expression_preamble: string = "export default",
+    namespace: string = "parser",
+    outpath: string = "./",
+    js_extension: string = "js",
+    INCLUDE_TYPES: boolean = false,
+): Promise<void> {
 
     const
         child_process = (await import("child_process")).default,
 
         fs = (await import("fs")).default,
 
+        fsp = fs.promises,
+
         { tmpdir } = await import("os"),
 
-        fsp = fs.promises,
+        sym_map = new Map(),
 
         dir = URI.resolveRelative("./hcg_temp", tmpdir() + "/temp"),
 
-        cpp_file = URI.resolveRelative("./temp.cpp", dir),
+        cpp_source_file_path = URI.resolveRelative("./temp.cpp", dir),
 
-        wasm_file = URI.resolveRelative("./temp.wasm", dir),
+        package_directory_path = URI.resolveRelative("../../../", URI.getEXEURL(import.meta).dir),
 
-        package_dir = URI.resolveRelative("../../../../", URI.getEXEURL(import.meta).dir),
+        build_script_path = URI.resolveRelative("./scripts/build.sh", package_directory_path.dir),
 
-        script_file = URI.resolveRelative("./scripts/build.sh", package_dir.dir),
+        wasm_file_path = URI.resolveRelative(`./${namespace}.wasm`, outpath),
 
-        sym_map = new Map(),
+        script_file_path = URI.resolveRelative(`./${namespace}.${js_extension}`, outpath),
 
         token_lookup_functions = extractAndReplaceTokenMapRefs(createSymbolScanFunctionNew({
             grammar: grammar,
@@ -317,7 +323,7 @@ extern "C" {
 
                     const name = getProductionFunctionNameSk(grammar.productions[fn.id]);
 
-                    return `case ${i} : temp = HYDROCARBON::recognize(buffer, byte_length, ${fn.id}, &${name});`;
+                    return `case ${i} : temp = HYDROCARBON::recognize(buffer, byte_length, ${fn.id}, &${name}); break;`;
                 }).join("\n" + " ".repeat(16))}
         }
 
@@ -325,47 +331,35 @@ extern "C" {
     }
 }`;
 
+    //Render WASM script code ----------------------------------------------------
+
     await fsp.mkdir(dir + "", { recursive: true });
-    await fsp.writeFile(cpp_file + '', cpp_entry_content);
 
-    child_process.execFileSync(script_file + "", [cpp_file + "", wasm_file + ""], {
+    await fsp.writeFile(cpp_source_file_path + '', cpp_entry_content);
+
+    child_process.execFileSync(build_script_path + "", [cpp_source_file_path + "", wasm_file_path + ""], {
         shell: false,
-        cwd: package_dir + "",
+        cwd: package_directory_path + "",
     });
-
-    const
-
-        wasm_data = Buffer.from(await wasm_file.fetchBuffer()),
-
-        line_length = 200,
-
-        data_lines = [];
-
-    let compressed_data = null;
-    compressed_data = [...wasm_data].map(i => ("00" + i.toString(16)).slice(-2)).join("");
-
-    for (let i = 0; i < compressed_data.length; i += line_length) {
-        const max_line = Math.min(compressed_data.length - i, line_length);
-        data_lines.push(compressed_data.slice(i, i + max_line));
-    }
-
-    const wasm_data_segment = `${data_lines.map(d => `"${d}"`).join("\n+")}`;
 
     //Render TS/JS script code ----------------------------------------------------
 
-    return `
+    const main = `
     ${hydrocarbon_import_path ?
             `import { 
-    ParserFactoryBeta as ParserFactory
+    ParserFactoryGamma as ParserFactory
 } from "${hydrocarbon_import_path}"` : ""};
+
+    import URI from "@candlelib/uri";
     
-    const 
-        wasm_recognizer = ${wasm_data_segment},
+    const  wasm_recognizer = URI.resolveRelative("./${namespace}.wasm", URI.getEXEURL(import.meta)),
     
         reduce_functions = ${renderJavaScriptReduceFunctionLookupArray(grammar)};
     
     ${export_expression_preamble} ParserFactory
         (reduce_functions, wasm_recognizer, undefined, ${createEntryList(grammar)});`;
+
+    await fsp.writeFile(script_file_path + '', main);
 }
 
 
@@ -386,12 +380,19 @@ export async function generateScriptParser(
     meta: Helper,
     hydrocarbon_import_path: string = "@candlelib/hydrocarbon",
     export_expression_preamble: string = "export default",
-    INCLUDE_TYPES: boolean = false
-): Promise<string> {
+    namespace: string = "parser",
+    outpath: string = "./",
+    js_extension: string = "js",
+    INCLUDE_TYPES: boolean = false,
+): Promise<void> {
 
     const renderFunction = (INCLUDE_TYPES ? skRenderAsTypeScript : skRenderAsJavaScript);
 
     const
+        fs = (await import("fs")).default,
+
+        fsp = fs.promises,
+
         sym_map = new Map(),
 
         token_lookup_functions = extractAndReplaceTokenMapRefs(createSymbolScanFunctionNew({
@@ -401,11 +402,15 @@ export async function generateScriptParser(
 
         grammar_functions = createGrammarFunctionArray(meta, recognizer_functions),
 
+        script_file_path = URI.resolveRelative(`./${namespace}.${js_extension}`, outpath),
+
         functions_string = extractAndReplaceTokenMapRefs(grammar_functions.map(renderFunction).join("\n\n"), sym_map);
 
-    return `
+    await fsp.mkdir(script_file_path.dir + "", { recursive: true });
+
+    const main = `
     ${hydrocarbon_import_path ? `import { 
-        ParserFactoryBeta as ParserFactory, 
+        ParserFactoryGamma as ParserFactory, 
         fillByteBufferWithUTF8FromString,
         ParserCore
     } from "${hydrocarbon_import_path}"` : ""};
@@ -467,6 +472,8 @@ export async function generateScriptParser(
 
     ${export_expression_preamble} ParserFactory${INCLUDE_TYPES ? `<any, ${createEntryList(grammar)}>` : ""}
         (reduce_functions, undefined, recognizer_initializer, ${createEntryList(grammar)});`;
+
+    await fsp.writeFile(script_file_path + '', main);
 }
 function createGrammarFunctionArray(meta: Helper, recognizer_functions: RDProductionFunction[]) {
     const
@@ -547,30 +554,34 @@ function createEntryList(grammar: HCG3Grammar) {
  * @returns 
  */
 export async function writeJSBasedParserScriptFile(
-    file_path: string,
+    file_path: URI,
     grammar: HCG3Grammar,
     recognizer_functions: RDProductionFunction[],
     meta: Helper,
     hydrocarbon_import_path: string = "@candlelib/hydrocarbon",
-    fn_parser_generator = generateScriptParser
+    fn_parser_generator: typeof generateScriptParser = generateScriptParser
 ): Promise<boolean> {
 
     const fs = (await import("fs")).default;
 
     const fsp = fs.promises;
 
-    const file_dir = (new URI(file_path)).dir;
+    const file_dir = file_path.dir;
 
     await fsp.mkdir(file_dir, { recursive: true });
 
-    const parser_string = await fn_parser_generator(grammar, recognizer_functions, meta, hydrocarbon_import_path);
+    await fn_parser_generator(
+        grammar,
+        recognizer_functions,
+        meta,
+        hydrocarbon_import_path,
+        undefined,
+        file_path.filename,
+        file_dir,
+        file_path.ext
+    );
 
-    try {
-        await fsp.writeFile(file_path, parser_string);
-        return true;
-    } catch (e) {
-        throw e;
-    }
+    return true;
 }
 
 

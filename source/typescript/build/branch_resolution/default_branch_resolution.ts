@@ -62,7 +62,7 @@ export function default_resolveBranches(
 
     if (options.helper.ANNOTATED) {
         addItemAnnotationToExpressionList(items, grammar, root);
-        addSymbolAnnotationsToExpressionList(all_syms, grammar, root, "offset " + state.offset);
+        addSymbolAnnotationsToExpressionList(all_syms, grammar, root, "offset " + state.offset + " peek_level" + state.peek_level);
     }
 
     const peek_name = addScanStatement(options, state, root, "state.lexer", "state.lexer", groups, all_syms);

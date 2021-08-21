@@ -29,7 +29,7 @@ export function buildPeekTransitions(
     offset: number,
     leafHandler: leafHandler = processPeekTransitionLeaves,
     filter_symbols: HCG3Symbol[] = const_EMPTY_ARRAY,
-    depth: number = 0,
+    peek_depth: number = 0,
     RESET_ROOTS = false,
 ): TransitionNode[] {
 
@@ -52,17 +52,17 @@ export function buildPeekTransitions(
                 .map(g => g.sym)
                 .map(s => getSymbolFromUniqueName(options.grammar, s)),
 
-            node = createTransitionNode(group[0].roots, symbols, TRANSITION_TYPE.ASSERT_PEEK, offset, depth, false, group[0].root_id, group.flatMap(g => g.item_ids));
+            node = createTransitionNode(group[0].roots, symbols, TRANSITION_TYPE.ASSERT_PEEK, offset, peek_depth, false, group[0].root_id, group.flatMap(g => g.item_ids));
 
         node.closure = group.flatMap(g => g.starts).setFilter(s => s.id);
 
         if (group[0].next.length > 0)
-            node.nodes.push(...buildPeekTransitions(group[0].next, options, offset, leafHandler, const_EMPTY_ARRAY, depth + 1));
+            node.nodes.push(...buildPeekTransitions(group[0].next, options, offset, leafHandler, const_EMPTY_ARRAY, peek_depth + 1));
         else {
             if (RESET_ROOTS)
                 node.items = node.items.map(i => i.decrement());
 
-            leafHandler(node, options, offset, depth);
+            leafHandler(node, options, offset, peek_depth);
         }
 
         output_nodes.push(node);

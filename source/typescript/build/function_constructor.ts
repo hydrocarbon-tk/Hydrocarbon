@@ -289,7 +289,7 @@ export function createBuildOptions(
         goto_items: productions.flatMap(
             p => getGotoItemsFromProductionClosure(p, grammar)
         ).setFilter(i => i.id),
-        extended_goto_items: [],
+        extended_goto_items: new Set(),
         called_productions: new Set(),
         leaf_productions: new Set(),
         active_keys: [],

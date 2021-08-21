@@ -23,6 +23,7 @@ import { initializeUTFLookupTableNewPlus } from "../runtime/parser_memory_new.js
 import { ParserFactory } from "../runtime/parser_loader.js";
 import { ParserFactory as ParserFactoryNew } from "../runtime/parser_loader_alpha.js";
 import { ParserFactory as ParserFactoryBeta } from "../runtime/parser_loader_beta.js";
+import { ParserFactory as ParserFactoryGamma } from "../runtime/parser_loader_gamma.js";
 import { ParserFactory as ParserFactoryNext } from "../runtime/parser_loader_next.js";
 import { Token } from "../runtime/token.js";
 import { fillByteBufferWithUTF8FromString } from "../runtime/utf8.js";
@@ -46,6 +47,7 @@ export {
     ParserFactoryNew,
     ParserFactoryNext,
     ParserFactoryBeta,
+    ParserFactoryGamma,
     buildParserMemoryBuffer,
     initializeUTFLookupTableNewPlus,
 

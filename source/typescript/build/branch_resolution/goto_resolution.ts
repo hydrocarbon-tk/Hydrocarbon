@@ -12,7 +12,7 @@ import { SKBlock, SKBreak, SKExpression, SKLoop, SKMatch } from "../../skribble/
 import { RenderBodyOptions } from "../../types/render_body_options";
 import { TransitionClauseGenerator } from "../../types/transition_generating";
 import { TransitionNode } from "../../types/transition_node.js";
-import { getFollowClosure } from "../../utilities/closure.js";
+import { getClosure } from "../../utilities/closure.js";
 import { createScanFunctionCall } from "../../utilities/code_generating.js";
 import { getFollow } from "../../utilities/follow.js";
 import { Item } from "../../utilities/item.js";
@@ -58,23 +58,18 @@ export function resolveGOTOBranches(
 
             if (end_items.length > 0)
                 CONTAINS_END_LEAF_THAT_SHOULD_LOOP = true;
+            /**
+             * Create look ahead for a preemptive reduce on keys that match the production id.
+             */
+            if (keys.some(k => production_ids.includes(k))) {
 
-            if (active_items.length > 0) {
-                /**
-                 * Create look ahead for a preemptive reduce on keys that match the production id.
-                 */
-                if (keys.some(k => production_ids.includes(k))) {
+                //Ensure only items that can be reached from the root production are used
+                const item_closure = getClosure([
+                    ...items,
+                    ...keys.flatMap(i => grammar.productions[i].bodies).map(b => new Item(b.id, b.length, b.length)),
+                ], grammar);
 
-
-                    //Ensure only items that can be reached from the root production are used
-                    const item_closure = getFollowClosure([
-                        ...items,
-                        ...keys.flatMap(i => grammar.productions[i].bodies).map(b => new Item(b.id, b.length, b.length))
-                    ], grammar.lr_items, grammar);
-
-                    production_aware_scan = createScanFunctionCall(item_closure, options);
-
-                }
+                production_aware_scan = createScanFunctionCall(item_closure, options, undefined, undefined, keys.flatMap(i => getFollow(i, grammar)));
             }
 
             if (production_aware_scan)
@@ -87,7 +82,6 @@ export function resolveGOTOBranches(
                 type: "block",
                 expressions: code
             })}`).matches[0];
-
 
             (<SKMatch>match_stmt).matches.push(match_clause);
 

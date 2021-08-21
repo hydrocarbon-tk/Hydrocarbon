@@ -14,7 +14,7 @@ import { const_EMPTY_ARRAY } from "../../utilities/const_EMPTY_ARRAY.js";
 import { Item, Items_Have_The_Same_Active_Symbol } from "../../utilities/item.js";
 import { getTransitionTree } from "../../utilities/transition_tree.js";
 import { createTransitionNode } from "./create_transition_node.js";
-import { yieldPeekedNodes } from "./process_peek_transition_leaves.js";
+import { processPeekTransitionLeaves, yieldPeekedNodes } from "./process_peek_transition_leaves.js";
 import { yieldEndItemTransitions } from "./yield_end_item_transitions.js";
 import { buildPeekTransitions } from "./yield_peek_transitions.js";
 
@@ -44,16 +44,7 @@ export function yieldTransitions(
     const
         { grammar, production_ids } = options,
         output_nodes: TransitionNode[] = [],
-        active_items = in_items/*.filter(item => {
-            return true;
-            const sym = item.sym(grammar) || default_EOF;
-
-            return Sym_Is_A_Production(sym)
-                || item.atEND
-                || filter_symbols.length == 0
-                || filter_symbols.some(f => Symbols_Are_The_Same(f, sym));
-        })*/;
-
+        active_items = in_items;
 
     /**
     * If all items are from the same production and the current production function is NOT processing
@@ -104,7 +95,7 @@ export function yieldTransitions(
 
         } else {
 
-            output_nodes.push(...yieldPeekedNodes(active_items, options, offset, []));
+            output_nodes.push(...yieldPeekedNodes(active_items, options, offset));
         }
 
     }
@@ -112,6 +103,11 @@ export function yieldTransitions(
     return output_nodes;
 }
 
+
+export function Some_Items_Are_In_Extended_Goto(active_items: Item[], options: RenderBodyOptions) {
+
+    return active_items.some(s => options.extended_goto_items.has(s.body));
+}
 
 export function getMaxOffsetOfItems(active_items: Item[]) {
     return active_items.reduce((r, i) => Math.max(i.offset, r), 0);
@@ -121,28 +117,56 @@ export function Items_Are_From_Same_Production(active_items: Item[], grammar: HC
     return active_items.setFilter(i => i.getProduction(grammar).id).length == 1;
 }
 
-function yieldNodesOfItemsWithSameSymbol(active_items: Item[], options: RenderBodyOptions, offset: number, FROM_PEEKED_TRANSITION: boolean): TransitionNode[] {
+function yieldNodesOfItemsWithSameSymbol(active_items: Item[],
+    options: RenderBodyOptions,
+    offset: number,
+    FROM_PEEKED_TRANSITION: boolean
+): TransitionNode[] {
 
-    let leaf_node: TransitionNode = null, root = null;
 
     const { grammar } = options, output_nodes = [];
 
-    while (active_items.every(i => !i.atEND && i.sym(grammar).val == active_items[0].sym(grammar).val)) {
+    let leaf_node: TransitionNode = output_nodes, root = null;
 
+    const roots = active_items.slice();
+    // If there are extended items (added through the goto path initialization) we 
+    // we should not consume the token if ANY of the items are from one of the extended
+    // goto set. 
+    const HAVE_GOTO = Some_Items_Are_In_Extended_Goto(active_items, options);
+
+    let peek_depth = HAVE_GOTO ? 0 : -1;
+
+    if (HAVE_GOTO && FROM_PEEKED_TRANSITION) {
+
+        peek_depth++;
+        active_items = active_items.map(i => i.increment());
+    }
+
+    while (
+
+        Items_Have_The_Same_Active_Symbol(active_items, grammar)
+
+    ) {
         const
             sym = active_items[0].sym(grammar),
             node = createTransitionNode(
                 active_items.slice(),
                 [sym],
-                Sym_Is_A_Production(sym)
-                    ? TRANSITION_TYPE.ASSERT_PRODUCTION_CALL
-                    : (FROM_PEEKED_TRANSITION)
-                        ? TRANSITION_TYPE.POST_PEEK_CONSUME
-                        : TRANSITION_TYPE.ASSERT_CONSUME,
+                HAVE_GOTO
+                    ? TRANSITION_TYPE.ASSERT_PEEK
+                    : Sym_Is_A_Production(sym)
+                        ? TRANSITION_TYPE.ASSERT_PRODUCTION_CALL
+                        : (FROM_PEEKED_TRANSITION)
+                            ? TRANSITION_TYPE.POST_PEEK_CONSUME
+                            : TRANSITION_TYPE.ASSERT_CONSUME,
                 offset++
             );
 
-        if (leaf_node) {
+        node.peek_level = peek_depth;
+
+        peek_depth += HAVE_GOTO ? 1 : 0;
+
+        if (root) {
             leaf_node.nodes.push(node);
             leaf_node = node;
         } else {
@@ -156,14 +180,47 @@ function yieldNodesOfItemsWithSameSymbol(active_items: Item[], options: RenderBo
         FROM_PEEKED_TRANSITION = false;
     }
 
-    const nodes = yieldTransitions(active_items, options, offset);
+    if (HAVE_GOTO) {
 
-    if (nodes.length == 0) {
-        throw new Error(
-            `Unexpected end of nodes\n${root.items.map(i => i.renderUnformattedWithProduction(grammar)).join("\n")}`);
+        const root_map = new Map(roots.map(i => [i.body, i]));
+
+        const nodes = yieldPeekedNodes(active_items, options, offset, (
+            node: TransitionNode,
+            options: RenderBodyOptions,
+            root_depth: number,
+            leaf_depth: number
+        ) => {
+            const ignored = node.items.filter(i => Some_Items_Are_In_Extended_Goto([i], options));
+            const active = node.items.filter(i => !Some_Items_Are_In_Extended_Goto([i], options));
+
+            if (active.length < 1) {
+                node.transition_type == TRANSITION_TYPE.IGNORE;
+                node.leaves = [];
+                node.items = [ignored[0]];
+                return;
+            }
+
+            node.items = active.map(i => root_map.get(i.body));
+
+            return processPeekTransitionLeaves(node, options, root_depth, leaf_depth - peek_depth);
+        }, peek_depth);
+
+        if (leaf_node.nodes)
+            leaf_node.nodes.push(...nodes);
+        else
+            output_nodes.push(...nodes);
+    } else {
+
+        const nodes = yieldTransitions(active_items, options, offset);
+
+        if (nodes.length == 0) {
+            throw new Error(
+                `Unexpected end of nodes\n${root.items.map(i => i.renderUnformattedWithProduction(grammar)).join("\n")}`);
+        }
+
+        leaf_node.nodes.push(...nodes);
+
     }
-
-    leaf_node.nodes.push(...nodes);
 
     return output_nodes;
 }

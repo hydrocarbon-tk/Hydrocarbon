@@ -8,5 +8,5 @@ import URI from "@candlelib/uri";
 await URI.server();
 
 export const default_map = {
-    "default-productions": URI.resolveRelative("../../../../source/grammars/misc/default-productions.hcg", URI.getEXEURL(import.meta))
+    "default-productions": URI.resolveRelative("../../../source/grammars/misc/default-productions.hcg", URI.getEXEURL(import.meta))
 };

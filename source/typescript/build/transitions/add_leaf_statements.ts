@@ -75,7 +75,7 @@ export function addLeafStatements(
 
     if (!NO_GOTOS) {
 
-        const goto_ids = new Set(extended_goto_items.filter(i => !i.atEND).map(i => i.getProductionAtSymbol(grammar).id));
+        const goto_ids = new Set([...extended_goto_items.values()].map(i => grammar.bodies[i].production.id));
 
         for (const goto_leaf of goto_leaves) {
 
@@ -104,12 +104,13 @@ export function addLeafStatements(
                     leaf.push(<SKExpression>sk`continue`);
                 } else if (goto_ids.has(prods[0])) {
                     leaf.push(<SKExpression>sk`return : ${goto_fn_name}(state, db, ${prods[0]})`);
-                    leaf.push(<SKExpression>sk`return : ${goto_fn_name}(state, db, ${prods[0]})`);
                 } else {
                     leaf.push(<SKExpression>sk`return:${prods[0]}`);
                 }
-            } else if (transition_type == TRANSITION_TYPE.ASSERT_END
-                && !INDIRECT
+            } else if (
+                transition_type == TRANSITION_TYPE.ASSERT_END
+                &&
+                !INDIRECT
             ) {
                 leaf.push(<SKExpression>sk`prod=${prods[0]}`);
                 leaf.push(<SKExpression>sk`continue`);

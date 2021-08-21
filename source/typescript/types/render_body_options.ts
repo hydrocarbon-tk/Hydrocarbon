@@ -51,7 +51,7 @@ export interface RenderBodyOptions extends BaseOptions {
      * Items that shift on a production but are 
      * not part of the productions initial closure.
      */
-    extended_goto_items: Item[];
+    extended_goto_items: Set<number>;
 
     //cache: Map<string, { code: SC, prods: number[]; leaves: Leaf[], hash: string; }>;
 

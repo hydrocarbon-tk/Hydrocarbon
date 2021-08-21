@@ -17,13 +17,7 @@ export function default_resolveUnresolvedLeaves(node: TransitionNode, nodes: Tra
 
     //Remove extended goto items
 
-    nodes = nodes.filter(n => {
-
-        return true;
-        const used = n.items.filter(item => !options.extended_goto_items.some(i => i.body == item.body));
-
-        return used.length > 0;
-    }).filter(n => n.transition_type !== TRANSITION_TYPE.IGNORE);
+    nodes = nodes.filter(n => n.transition_type !== TRANSITION_TYPE.IGNORE);
 
     const
         items = nodes.flatMap(s => s.items).setFilter(i => i.id),

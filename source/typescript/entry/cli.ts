@@ -14,6 +14,8 @@ import { generateScriptParser, generateRustParser, generateTSParser, generateWeb
 
 await URL.server();
 
+const cli_log = console.log;
+
 async function CheckForSDK(args): Promise<boolean> {
 
     const cp = (await import("child_process")).default;
@@ -27,23 +29,24 @@ async function CheckForSDK(args): Promise<boolean> {
         const version_number = emcc_version.match(/\d+\.\d+\.\d+/g)[0]?.split(".").map(s => parseInt(s));
 
         if (version_number[0] < 2)
-            console.log(`emcc version ${version_number.join(".")} too old`);
+            cli_log(`emcc version ${version_number.join(".")} too old`);
         else {
-            console.log("Found compatible version of EMSDK");
+            cli_log("Found compatible version of EMSDK");
             HAVE_VERSION = true;
         }
 
     } catch (e) {
         //Check local install
-        const emsdk_env_path = URI.resolveRelative("../../../emsdk/emsdk_env.sh", URI.getEXEURL(import.meta));
+        const emsdk_env_path = URI.resolveRelative("../../emsdk/emsdk_env.sh", URI.getEXEURL(import.meta));
+
 
         try {
             if (await emsdk_env_path.fetchText()) {
-                console.log("Local EMSDK installation found");
+                cli_log("Local EMSDK installation found");
                 HAVE_VERSION = true;
             }
         } catch (e) {
-            console.log("Could not find EMSDK installation");
+            cli_log("Could not find EMSDK installation");
         }
     }
 
@@ -60,10 +63,10 @@ async function CheckForSDK(args): Promise<boolean> {
 
                 rl.close();
                 if ("yes".includes(reply.toLowerCase())) {
-                    console.log("Installing emsdk");
+                    cli_log("Installing emsdk");
 
-                    const install_script_path = URI.resolveRelative("../../../../scripts/install.sh", URI.getEXEURL(import.meta));
-                    const install_script_cwd = URI.resolveRelative("../../../../", URI.getEXEURL(import.meta));
+                    const install_script_path = URI.resolveRelative("../../../scripts/install.sh", URI.getEXEURL(import.meta));
+                    const install_script_cwd = URI.resolveRelative("../../../", URI.getEXEURL(import.meta));
 
                     cp.execFileSync(install_script_path + "", {
                         cwd: install_script_cwd.dir,
@@ -72,7 +75,7 @@ async function CheckForSDK(args): Promise<boolean> {
 
                     res(true);
                 } else {
-                    console.log("No changes have been made");
+                    cli_log("No changes have been made");
                     res(false);
                 }
             });
@@ -175,11 +178,11 @@ addCLIConfig("compile", {
 
         if (recognizer.value == "wasm")
             if (!await CheckForSDK(args)) {
-                console.log("Could not locate EMSDK installation. Aborting");
+                cli_log("Could not locate EMSDK installation. Aborting");
                 process.exit();
             }
 
-        console.log(`Compiling grammar`);
+        cli_log(`Compiling grammar`);
 
         const
             threads = parseInt(number_of_workers.value ?? "2"),
@@ -191,14 +194,14 @@ addCLIConfig("compile", {
             // hence the if gate.
             createCompilableCode(grammar);
 
-        console.log("Completed grammar compilation");
+        cli_log("Completed grammar compilation");
 
-        console.log(`Starting recognizer compilation with ${number_of_workers.value || 1} threads`);
+        cli_log(`Starting recognizer compilation with ${number_of_workers.value || 1} threads`);
 
         // Compile recognizer code
         const { meta, recognizer_functions } = await buildRecognizer(grammar, threads, !!annotated.value);
 
-        console.log("Completed recognizer compilation");
+        cli_log("Completed recognizer compilation");
 
         switch (type.value) {
             case "c++":
@@ -206,7 +209,7 @@ addCLIConfig("compile", {
                     // Need to generate source and cargo file, and map this
                     // installation's hc_rust source to the cargo file's dependencies.
                     //
-                    console.log("Writing cpp files");
+                    cli_log("Writing cpp files");
 
                     const ns = namespace.value || "parser";
 
@@ -221,7 +224,7 @@ addCLIConfig("compile", {
                 { // Need to generate source and cargo file, and map this
                     // installation's hc_rust source to the cargo file's dependencies.
                     //
-                    console.log("Writing rust files");
+                    cli_log("Writing rust files");
 
                     const ns = namespace.value || "parser";
 
@@ -235,7 +238,7 @@ addCLIConfig("compile", {
                     //Cargo file
                     const cargo_path = URL.resolveRelative("./Cargo.toml", folder);
                     const lib_path = URL.resolveRelative("./lib.rs", folder);
-                    const hc_depend_path = URL.resolveRelative("../../../../source/hc_rust", URI.getEXEURL(import.meta));
+                    const hc_depend_path = URL.resolveRelative("../../../source/hc_rust", URI.getEXEURL(import.meta));
 
                     const cargo_file = `[package]
 name = "${ns}"
@@ -266,7 +269,7 @@ mod spec_parser;
                 if (!output_path.filename)
                     output_path.path = output_path.dir + file_path.filename + (type.value == "ts" ? ".ts" : ".js");
 
-                console.log("Building parser script");
+                cli_log("Building parser script");
 
                 const generator = (recognizer.value == "wasm")
                     ? generateWebAssemblyParser
@@ -274,7 +277,7 @@ mod spec_parser;
 
 
                 await writeJSBasedParserScriptFile(
-                    output_path + "",
+                    output_path,
                     grammar,
                     recognizer_functions,
                     meta,
@@ -287,9 +290,9 @@ mod spec_parser;
                 break;
         }
 
-        console.log("Process complete");
+        cli_log("Process complete");
     } catch (e) {
-        console.log(e);
+        cli_log(e);
     }
 });
 

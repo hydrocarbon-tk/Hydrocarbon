@@ -19,7 +19,7 @@ export function yieldGOTOTransitions(options: RenderBodyOptions, completed_produ
 
     const { grammar, goto_items, production_ids, extended_goto_items } = options;
 
-    let nonterm_shift_items: Item[] = goto_items;
+    let nonterm_shift_items: Item[] = goto_items.slice();
 
     const
         PRODUCTION_IS_LEFT_RECURSIVE =
@@ -50,12 +50,12 @@ export function yieldGOTOTransitions(options: RenderBodyOptions, completed_produ
                 && !production_ids.includes(getProductionID(item, grammar))
                 && !nonterm_shift_items.some(i => i.id == item.id)
             ) {
-
-                extended_goto_items.push(item);
+                nonterm_shift_items.push(item);
+                extended_goto_items.add(item.body);
             }
         }
 
-        nonterm_shift_items = nonterm_shift_items.concat(extended_goto_items).setFilter(i => i.id);
+        nonterm_shift_items = nonterm_shift_items.setFilter(i => i.id);
     }
 
     if (

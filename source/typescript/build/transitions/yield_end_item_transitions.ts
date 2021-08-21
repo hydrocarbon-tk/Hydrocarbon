@@ -4,7 +4,7 @@
  * disclaimer notice.
  */
 import { default_EOP } from "../../grammar/nodes/default_symbols.js";
-import { getSymbolsFromClosure, Sym_Is_A_Production } from "../../grammar/nodes/symbol.js";
+import { getFollowSymbolsFromItems, getSymbolsFromClosure, getUniqueSymbolName, Sym_Is_A_Production, Sym_Is_EOF } from "../../grammar/nodes/symbol.js";
 import { HCG3Grammar } from "../../types/grammar_nodes";
 import { RenderBodyOptions } from "../../types/render_body_options";
 import { TransitionNode, TRANSITION_TYPE } from "../../types/transition_node.js";
@@ -21,16 +21,16 @@ export function yieldEndItemTransitions(end_items: Item[], options: RenderBodyOp
 
     if (end_items.length == 0) return [];
 
+
     const
 
         output_nodes: TransitionNode[] = [],
 
         { grammar, goto_items, production_ids, productions } = options;
 
+
     let
-        default_end_items: Item[] = [],
-        roots = [],
-        closures = [];
+        default_end_items: Item[] = [];
 
     if (goto_items.length > 0 && end_items.length > 1) {
 
@@ -59,24 +59,27 @@ export function yieldEndItemTransitions(end_items: Item[], options: RenderBodyOp
                 grammar,
                 end_items,
                 goto_items,
-                10, 8, 200, 0,
+                {
+                    expanded_limit: 5,
+                    max_tree_depth: 10,
+                    max_no_progress: 8,
+                    max_time_limit: 200,
+                },
+                0,
                 goto_items.filter(i => original_prods.includes(+(i.sym(grammar).val))).map(i => {
 
                     let
                         item = i.increment(),
-                        closure = getFollowClosure(getClosure([item], grammar), goto_items, grammar).filter(i => !i.atEND);
+                        shift_closure = getFollowClosure(getClosure([item], grammar), goto_items, grammar).filter(i => !i.atEND),
+                        closure = [item];
 
                     const
                         index = original_prods.indexOf(i.getProductionAtSymbol(grammar).id),
                         c = closure.slice();
 
-                    roots.push(index);
-
                     c.unshift(end_items[index]);
 
-                    closures.push(c);
-
-                    return { final: 0, sym: null, index, closure: closure, production_shift_items: closure.filter(i => Sym_Is_A_Production(i.sym(grammar))) };
+                    return { final: 0, sym: null, index, closure: closure, production_shift_items: goto_items /* shift_closure.filter(i => Sym_Is_A_Production(i.sym(grammar)) )*/ };
                 }));
 
             let used_items = new Set;
@@ -86,13 +89,14 @@ export function yieldEndItemTransitions(end_items: Item[], options: RenderBodyOp
                     tree_nodes,
                     options,
                     offset,
-                    (state, options, offset) => {
+                    (state, options, offset, peek_depth) => {
 
                         const { items, closure, symbols } = state;
 
                         if (items.length > 1) {
                             state.transition_type = TRANSITION_TYPE.PEEK_UNRESOLVED;
                             for (const item of items) {
+
 
                                 const unresolved_leaf_node = createTransitionNode([item], symbols, TRANSITION_TYPE.ASSERT_END, offset, state.peek_level, true, 55);
 
@@ -102,6 +106,7 @@ export function yieldEndItemTransitions(end_items: Item[], options: RenderBodyOp
 
                             }
                         } else {
+
                             state.transition_type = TRANSITION_TYPE.ASSERT_END;
                         }
 

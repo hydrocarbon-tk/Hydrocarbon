@@ -3,6 +3,7 @@
  * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
  * disclaimer notice.
  */
+import { ttt } from "../../utilities/transition_type_to_string.js";
 import { sk, skRenderAsSK } from "../../skribble/skribble.js";
 import { SKExpression } from "../../skribble/types/node.js";
 import { RenderBodyOptions } from "../../types/render_body_options";
@@ -18,9 +19,9 @@ import { renderItem } from "../../utilities/render_item.js";
 export function default_resolveResolvedLeaf(item: Item, state: TransitionNode, options: RenderBodyOptions): SingleItemReturnObject {
 
     const
-        { grammar, helper: runner, leaf_productions, production_ids, extended_goto_items: extended_production_shift_items, leaves } = options,
+        { grammar, helper: runner, leaf_productions, production_ids, extended_goto_items, goto_items, leaves } = options,
         code: SKExpression[] = state.code || [],
-        SHOULD_IGNORE = extended_production_shift_items.some(i => i.body == item.body);
+        SHOULD_IGNORE = extended_goto_items.has(item.body) /* && !goto_items.some(i => i.body == item.body) */;
 
     let leaf_node = code, prods = [], original_prods = [], INDIRECT = false, EMPTY = false;
 
@@ -62,35 +63,43 @@ export function default_resolveResolvedLeaf(item: Item, state: TransitionNode, o
             const sc = [],
                 call_name = createBranchFunction(sc, options);
 
-            code.push(<SKExpression>sk`state.push_fn(${call_name}, 0)`);
-
-            code.push(createProductionReturn(production, "prod", "prod_start"));
-
             leaf_node = sc;
 
             original_prods = itemsToProductionIDs([item], grammar);
 
             prods = processProductionChain(leaf_node, options, original_prods);
 
+            if (prods[0] == 0)
+                console.log(item.renderUnformattedWithProduction(grammar), prods);
+
+            code.push(<SKExpression>sk`state.push_fn(${call_name}, ${prods[0]})`);
+
+            code.push(createProductionReturn(production, "prod", "prod_start"));
+
+
         } else {
+
+            const WILL_CALL_PRODUCTION_FUNCTION = ((item.offset >= 0) &&
+                (options.scope == "RD" || (state.offset > 1)) &&
+                (state.transition_type == TRANSITION_TYPE.PEEK_PRODUCTION_SYMBOLS ||
+                    state.transition_type == TRANSITION_TYPE.ASSERT_PRODUCTION_CALL ||
+                    state.transition_type == TRANSITION_TYPE.ASSERT_PRODUCTION_SYMBOLS));
+
+            const CAN_SKIP_IF_BRANCH = WILL_CALL_PRODUCTION_FUNCTION ||
+                (state.transition_type == TRANSITION_TYPE.ASSERT
+                    || state.transition_type == TRANSITION_TYPE.ASSERT_PEEK
+                    || state.transition_type == TRANSITION_TYPE.ASSERT_PEEK_VP);
 
             const
 
-                scan = state.transition_type == TRANSITION_TYPE.ASSERT_CONSUME
-                    && !item.atEND
+                scan = state.transition_type == (TRANSITION_TYPE.ASSERT_CONSUME
+                    && !item.atEND) || (state.offset <= 1 && options.scope == "GOTO")
                     ? createScanFunctionCall([item], options)
                     : undefined;
 
             if (scan) code.push(scan);
 
-            ({ leaf_node, prods, INDIRECT, original_prods } = renderItem(code, item, options,
-                ((item.offset > 0 || options.scope != "GOTO") &&
-                    (state.transition_type == TRANSITION_TYPE.PEEK_PRODUCTION_SYMBOLS ||
-                        state.transition_type == TRANSITION_TYPE.ASSERT_PRODUCTION_CALL ||
-                        state.transition_type == TRANSITION_TYPE.ASSERT_PRODUCTION_SYMBOLS)) ||
-                (state.transition_type == TRANSITION_TYPE.ASSERT
-                    || state.transition_type == TRANSITION_TYPE.ASSERT_PEEK
-                    || state.transition_type == TRANSITION_TYPE.ASSERT_PEEK_VP)));
+            ({ leaf_node, prods, INDIRECT, original_prods } = renderItem(code, item, options, CAN_SKIP_IF_BRANCH));
         }
 
         for (const prod of prods)

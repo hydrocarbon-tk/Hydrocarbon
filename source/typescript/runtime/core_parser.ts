@@ -466,12 +466,12 @@ export function token_production(lexer: Lexer, production: StackFunction, pid: n
         return false;
     }
 
-    lexer.active_token_productions |= tk_flag;
 
     let data_buffer: ParserStateBuffer = new ParserStateBuffer();
     let state: ParserState = new ParserState(lexer.input, lexer.input.length);
 
     state.lexer.sync(lexer);
+    state.lexer.active_token_productions |= tk_flag;
     state.push_fn(production, 0);
     state.state = 0;
 
@@ -480,8 +480,6 @@ export function token_production(lexer: Lexer, production: StackFunction, pid: n
     while (ACTIVE) {
         ACTIVE = step_kernel(state, data_buffer, 0);
     }
-
-    lexer.active_token_productions ^= tk_flag;
 
     if (state.prod == pid) {
         lexer.set_token_span_to(state.lexer);

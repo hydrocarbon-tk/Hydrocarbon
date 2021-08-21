@@ -69,7 +69,12 @@ export function processPeekTransitionLeaves(
 
                 if (
                     Every_Leaf_Of_TransitionTree_Contain_One_Root_Item(
-                        getTransitionTree(grammar, node.items, options.goto_items, 10, 8).tree_nodes[0]
+                        getTransitionTree(grammar, node.items, options.goto_items, {
+                            expanded_limit: 0,
+                            max_tree_depth: 0,
+                            max_no_progress: 10,
+                            max_time_limit: 8,
+                        }).tree_nodes[0]
                     )
                 )
 
@@ -171,7 +176,7 @@ function addUnresolvedNode(node: TransitionNode, options: RenderBodyOptions, off
         node.transition_type = TRANSITION_TYPE.ASSERT_END;
 
         node.nodes.push(...yieldEndItemTransitions(items, options, offset));
-        
+
     } else {
 
         //filter out shift/reduce conflicts
@@ -228,7 +233,7 @@ function No_Matching_Extended_Goto_Item_In_State_Closure(node: TransitionNode, o
 
     return getMaxOffsetOfItems(node.items) == 0
         &&
-        node.items.every(i => !extended_goto_items.some(s => s.body == i.body))
+        node.items.every(i => !extended_goto_items.has(i.body))
         &&
         !node.items.some(i => i.atEND);
 }
@@ -243,23 +248,32 @@ function Items_From_Same_Production_Allow_Production_Call(node: TransitionNode, 
     return offset == 0 && ITEMS_ARE_FROM_SAME_PRODUCTION && !production_ids.includes(prod.id);
 }
 
-export function yieldPeekedNodes(active_items: Item[], options: RenderBodyOptions, offset: number, filter_symbols: Symbol[] = const_EMPTY_ARRAY): TransitionNode[] {
+export function yieldPeekedNodes(
+    active_items: Item[],
+    options: RenderBodyOptions,
+    offset: number,
+    leaf_handler = processPeekTransitionLeaves,
+    peek_depth: number = 0,
+    filter_symbols: Symbol[] = const_EMPTY_ARRAY,
+): TransitionNode[] {
 
     const
-        { grammar, goto_items: production_shift_items } = options,
+        { grammar, goto_items } = options,
         { tree_nodes } = getTransitionTree(
             grammar,
             active_items,
-            //options.global_production_items
-            production_shift_items,
-            10,
-            10,
-            200
+            goto_items,
+            {
+                expanded_limit: 2,
+                max_tree_depth: 10,
+                max_no_progress: 10,
+                max_time_limit: 200,
+            }
         );
 
 
 
-    const nodes = buildPeekTransitions(tree_nodes[0].next, options, offset, undefined, filter_symbols, 0);
+    const nodes = buildPeekTransitions(tree_nodes[0].next, options, offset, leaf_handler, filter_symbols, peek_depth);
 
 
     return nodes;

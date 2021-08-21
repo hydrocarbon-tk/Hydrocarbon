@@ -3,8 +3,7 @@
  * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
  * disclaimer notice.
  */
-import { HCG3Grammar } from "../types/grammar_nodes";
-import { TokenSymbol } from "../types/symbol";
+import { HCG3Grammar, TokenSymbol } from "../types/grammar_nodes";
 import { Item } from "./item.js";
 
 

@@ -194,22 +194,22 @@ function createNonCaptureLookBehind(symbol: HCG3LookBehind, options: BaseOptions
         const boolean = getIncludeBooleans([phased_symbol], options.grammar, "pk");
 
         const token_function = <SKFunction>sk`
-        fn temp:bool(state:__ParserState$ref){
+        fn temp:bool(lexer:__Lexer$ref){
 
-            if (state.lexer._type) == ${type_info} : return : true;
+            if (lexer._type) == ${type_info} : return : true;
 
-            [mut]pk:Lexer = state.lexer.copy_in_place();
+            [mut]pk:Lexer = lexer.copy_in_place();
             
-            pk.byte_offset = state.lexer.prev_byte_offset;
+            pk.byte_offset = lexer.prev_byte_offset;
             pk.byte_length = 0;
 
-            loop((pk.byte_offset < state.lexer.byte_offset)) {
+            loop((pk.byte_offset < lexer.byte_offset)) {
                 ${createSymbolScanFunctionCall([phased_symbol], options, "pk")};
                 if ${boolean}: { 
-                    state.lexer.setToken(${type_info},0,0);
+                    lexer.setToken(${type_info},0,0);
                     return : true;
                 };
-                pk.next(state.get_input_array());
+                pk.next();
             };
 
             return : false;        
@@ -344,7 +344,7 @@ function getIfClausePreamble(length: number, start: number, symbol: DefinedSymbo
 }
 
 export function generateHybridIdentifier(symbols: HCG3Symbol[]) {
-    return symbols.filter(Sym_Is_Defined).map(s => s.id).setFilter().sort().reduce((r, s, i) => r ^ (s << 12), 1);
+    return symbols.map(s => s.id).setFilter().sort().reduce((r, s, i) => r ^ (s << 10), 1);
 }
 
 
@@ -386,13 +386,21 @@ export function getIncludeBooleans(
     lex_name: string = "state.lexer",
 ): SKExpression {
     const types = [];
-    if (syms.length < 3) {
-        types.push(...syms.map(s => {
+    // Dump hybrid symbols into own bucket.
+    const used_syms = syms.flatMap(s => {
+        if (Sym_Is_Hybrid(s)) {
+            return [s, ...s.syms];
+        }
+        return s;
+    }).setFilter(getUniqueSymbolName);
+
+    if (used_syms.length < 5) {
+        types.push(...used_syms.map(s => {
             return <SKExpression>sk`${lex_name}._type ~= ${s.id}}`;
         }));
     } else {
-        const tabled = syms.filter(sym => sym.id <= 255 && sym.id >= 1);
-        const non_table = syms.filter(sym => sym.id > 255 && sym.id < 1);
+        const tabled = used_syms.filter(sym => sym.id <= 255 && sym.id >= 1);
+        const non_table = used_syms.filter(sym => sym.id > 255 && sym.id < 1);
 
         types.push(...non_table.map(sym => {
             return <SKExpression>sk`${lex_name}._type ~= ${sym.id}}`;
@@ -500,7 +508,7 @@ export function createSymbolScanFunctionNew(options: BaseOptions): SKFunction[] 
 
         const lb_name = createNonCaptureLookBehind(lb_sym, options);
 
-        outer_fn.expressions.splice(1, 0, (<SKExpression>sk`if ${getActiveTokenQuery(lb_sym)} && ${lb_name}(state) : { return }`));
+        outer_fn.expressions.splice(1, 0, (<SKExpression>sk`if ${getActiveTokenQuery(lb_sym)} && ${lb_name}(lexer) : { return }`));
     }
 
     const fn = <SKFunction>sk`fn scan_core:void(lexer:__Lexer$ref, tk_row:u32){  }`;
