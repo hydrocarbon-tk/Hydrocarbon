@@ -1,0 +1,30 @@
+@IGNORE g:sp g:nl
+
+<> start > state_declaration instructions?   f:r { { type:"state", id:$1, instructions: $2 } }
+
+<> state_declaration > t:state \[ tk:state_hash_token \]     f:r { $3 }
+
+<> instructions > instruction(+ \then )
+
+<> instruction>
+    t:on t:prod id_list \( instructions \)        
+                                            f:r { { type:"prod", instructions: $5  } }
+    | \shift id_list \then \goto state_declaration                       
+                                            f:r { { type:"shift", ids: $2  } }
+    | \peek id_list \then \goto state_declaration                         
+                                            f:r { { type:"goto", ids: $2  } }
+    | \goto state_declaration               
+                                            f:r { { type:"goto", state: $2  } }
+    | \reduce g:num g:num                
+                                            f:r { { type:"goto", len: $2, reduce_fn: $3 } }
+    | \set_prod g:num                 
+                                            f:r { { type:"set-prod", prod: $2  } }
+
+<> id_list > \[ g:num(+) \]                 f:r { { type:"id-list", ids: $2  } }
+
+<> state_hash_token > 
+    | state_hash_token (RST g:sp g:nl)  g:id 
+    | state_hash_token (RST g:sp g:nl)  g:num
+    | g:id
+    | g:num
+    | g:sym
