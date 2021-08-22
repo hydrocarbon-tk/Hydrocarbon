@@ -1,4 +1,4 @@
-@IGNORE g:sp g:nl
+@IGNORE g:sp g:nl tk:comment
 
 <> start > state_declaration instructions expected_symbols?   f:r { { type:"state", id:$1, instructions: $2, symbol_meta:$$3 } }
 
@@ -37,3 +37,5 @@
     | g:id
     | g:num
     | g:sym
+
+<> comment > \/* ( g:sp | g:nl | g:id | g:num | g:sym )(*) \*/
