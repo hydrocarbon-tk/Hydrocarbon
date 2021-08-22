@@ -1,45 +1,46 @@
 @IGNORE g:sp g:nl tk:comment
 
-<> start > state_declaration instructions on_fail? expected_symbols?   f:r { { type:"state", id:$1, instructions: $2, fail: $3, symbol_meta:$$4 } }
+<> start > state_declaration instructions on_fail? expected_symbols?   
+                                            f:r { { type:"state", id:$1, instructions: $2, fail: $3, symbol_meta:$4 } }
 
-<> state_declaration > t:state \[ tk:state_hash_token \]     f:r { $3 }
+<> state_declaration > t:state \[ tk:state_hash_token \]     
+                                            f:r { $3 }
 
-<> instructions > instruction(+)
+<> instructions > instruction ( \then instruction_sequence )? 
+                                            f:r { ($1.then = $2, $1) }
 
 <> instruction_sequence > instruction(+ \then )
 
 <> instruction>
-    t:on t:prod id_list \( instruction_sequence \)        
-                                            f:r { { type:"prod", ids:$3, instructions: $5  } }
-    | \shift id_list \then \goto state_declaration                       
-                                            f:r { { type:"shift", ids: $2, goto_state: $4 } }
-    | \peek id_list \then \goto state_declaration                         
-                                            f:r { { type:"peek", ids: $2, goto_state: $4 } }
-    | \goto state_declaration               
-                                            f:r { { type:"goto", state: $2  } }
-    | \reduce g:num g:num                
-                                            f:r { { type:"goto", len: $2, reduce_fn: $3 } }
-    | \set \prod \to g:num                 
-                                            f:r { { type:"set-prod", id: $4  } }
+    t:on t:prod id_list \( instruction \)        
+                                            f:r { { type:"prod", production_ids:$3, instructions: $5  } }
+    | \shift id_list                      
+                                            f:r { { type:"shift", token_ids: $2} }
+    | \peek id_list                     
+                                            f:r { { type:"peek", token_ids: $2} }
+    | \goto state_declaration
+                                            f:r { { type:"goto", state: $2 } }
+    | \reduce g:num g:num           
+                                            f:r { { type:"goto", len: parseInt($2), reduce_fn: parseInt($3) } }
+    | \set \prod \to g:num             
+                                            f:r { { type:"set-prod", id: parseInt($4)  } }
     | \fork \to \( state_declaration(+\, ) \)
                                             f:r { { type:"fork-to", states: $4  } }
-    | \abort
-                                            f:r { { type:"abort", states: $4  } }
     | \scan \until id_list
-                                            f:r { { type:"scan-until", ids: $3  } }
+                                            f:r { { type:"scan-until", token_ids: $3  } }
     | \pop g:num
-                                            f:r { { type:"pop", len: $2  } }                                                
+                                            f:r { { type:"pop", len: parseInt($2)  } }                                                
 
-<> on_fail > \on \fail \( instruction_sequence \)                                  
-                                            f:r { { type:"on-fail", instructions: $4  } }
+<> on_fail > \on \fail instructions                                 
+                                            f:r { { type:"on-fail", instruction: $3  } }
 
-<> expected_symbols > \symbols: \expected \[ g:num(+) \] 
+<> expected_symbols > \symbols: \expected id_list
 
-    ( \skipped \[ g:num(+) \] f:r{ $3 } )?
+    ( \skipped id_list f:r{ $2 } )?
 
-    f:r { { type:"symbols", expected:$4, skipped:$$6 || [] } }
+    f:r { { type:"symbols", expected:$3, skipped:$$4 || [] } }
 
-<> id_list > \[ g:num(+) \]                 f:r { { type:"id-list", ids: $2  } }
+<> id_list > \[ g:num(+) \]                 f:r { $2.map(i=>parseInt(i)) }
 
 <> state_hash_token > 
     state_hash_token (RST g:sp g:nl)  \_
