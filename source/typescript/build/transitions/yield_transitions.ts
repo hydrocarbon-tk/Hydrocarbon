@@ -55,6 +55,7 @@ export function yieldTransitions(
     */
     if (active_items.length > 0) {
 
+
         const
 
             max_item_offset = getMaxOffsetOfItems(active_items),
@@ -80,6 +81,7 @@ export function yieldTransitions(
         if (ALL_ITEMS_ARE_END_ITEMS) {
             output_nodes.push(...yieldEndItemTransitions(active_items, options, offset));
         } else if (THERE_IS_ONLY_ONE_ACTIVE_ITEM && NO_END_ITEMS_PRESENT) {
+
             output_nodes.push(...yieldSingleItemNode(active_items, options, offset));
 
         } else if (ALL_ITEMS_ARE_FROM_SAME_PRODUCTION

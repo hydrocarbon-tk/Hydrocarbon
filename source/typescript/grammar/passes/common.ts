@@ -192,6 +192,8 @@ export function processSymbol(
         const prod = production_lookup.get(sym.name);
 
         if (!prod) {
+            console.dir(production_lookup, { depth: 1 });
+
             errors.push(new MissingProduction(sym));
         } else
             sym.val = production_lookup.get(sym.name)?.id;

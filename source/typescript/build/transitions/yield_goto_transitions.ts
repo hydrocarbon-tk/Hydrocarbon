@@ -4,18 +4,26 @@
  * disclaimer notice.
  */
 
-import { TransitionNode, TRANSITION_TYPE } from "../../types/transition_node.js";
-import { RenderBodyOptions } from "../../types/render_body_options";
-
-import { Item } from "../../utilities/item.js";
 import { Sym_Is_A_Production } from "../../grammar/nodes/symbol.js";
-import { yieldTransitions } from "./yield_transitions.js";
-import { processTransitionNodes } from "./process_transition_nodes.js";
-import { createTransitionNode } from "./create_transition_node.js";
+import { RenderBodyOptions } from "../../types/render_body_options";
+import { TransitionNode, TRANSITION_TYPE } from "../../types/transition_node.js";
+import { Item } from "../../utilities/item.js";
 import { getProductionID } from "../../utilities/production.js";
-import { addItemAnnotationToExpressionList } from "../../utilities/code_generating.js";
+import { default_resolveBranches } from "../default_resolution/default_branch_resolution.js";
+import { default_resolveResolvedLeaf } from "../default_resolution/default_resolved_leaf_resolution.js";
+import { default_resolveUnresolvedLeaves } from "../default_resolution/default_unresolved_leaves_resolution.js";
+import { createTransitionNode } from "./create_transition_node.js";
+import { processTransitionNodes } from "./process_transition_nodes.js";
+import { yieldTransitions } from "./yield_transitions.js";
 
-export function yieldGOTOTransitions(options: RenderBodyOptions, completed_productions: number[]): TransitionNode[] {
+
+export function yieldGOTOTransitions(
+    options: RenderBodyOptions,
+    completed_productions: number[],
+    resolveBranches: typeof default_resolveBranches = default_resolveBranches,
+    resolveUnresolvedLeaves: typeof default_resolveUnresolvedLeaves = default_resolveUnresolvedLeaves,
+    resolveResolvedLeaf: typeof default_resolveResolvedLeaf = default_resolveResolvedLeaf
+): TransitionNode[] {
 
     const { grammar, goto_items, production_ids, extended_goto_items } = options;
 
@@ -44,8 +52,9 @@ export function yieldGOTOTransitions(options: RenderBodyOptions, completed_produ
 
         for (const { item } of grammar.item_map.values()) {
             if (
-                !item.atEND
-                && Sym_Is_A_Production(item.sym(grammar))
+                //!item.atEND
+                //&& 
+                Sym_Is_A_Production(item.sym(grammar))
                 && production_ids.includes(item.getProductionAtSymbol(grammar).id)
                 && !production_ids.includes(getProductionID(item, grammar))
                 && !nonterm_shift_items.some(i => i.id == item.id)
@@ -67,7 +76,7 @@ export function yieldGOTOTransitions(options: RenderBodyOptions, completed_produ
         && completed_productions.setFilter().length == 1
         && production_ids.includes(completed_productions.setFilter()[0])
     ) {
-        /* pass through */
+        options.NO_GOTOS = true;
     } else if (nonterm_shift_items.length > 0) {
 
         const output_nodes = [];
@@ -98,7 +107,7 @@ export function yieldGOTOTransitions(options: RenderBodyOptions, completed_produ
 
                     nodes = yieldTransitions(items_to_process, options, 1),
 
-                    { code, hash, leaves, prods } = processTransitionNodes(options, nodes),
+                    { code, hash, leaves, prods } = processTransitionNodes(options, nodes, resolveBranches, resolveUnresolvedLeaves, resolveResolvedLeaf),
 
                     node = createTransitionNode(
                         items_to_process/*.filter(i => i.offset == 1)*/,
@@ -129,8 +138,6 @@ export function yieldGOTOTransitions(options: RenderBodyOptions, completed_produ
 
         return output_nodes;
     }
-
-    options.NO_GOTOS = true;
 
     return [];
 }

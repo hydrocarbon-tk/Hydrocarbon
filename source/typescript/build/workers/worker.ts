@@ -9,7 +9,7 @@ import { parentPort, workerData } from "worker_threads";
 import { ParserEnvironment } from "../../types/parser_environment.js";
 import { HybridDispatch, HybridDispatchResponse } from "../../types/worker_messaging.js";
 import "../../utilities/array_globals.js";
-import { constructHybridFunction } from "../function_constructor.js";
+import { constructHybridFunctionParser } from "../function_constructor.js";
 import { createRunner, Helper } from "../helper.js";
 
 /**
@@ -63,7 +63,7 @@ export class Worker {
 
             let Response: HybridDispatchResponse = {};
 
-            const { fn, productions } = constructHybridFunction(this.grammar.productions[job.production_id], this.grammar, this.runner);
+            const { fn, productions } = constructHybridFunctionParser(this.grammar.productions[job.production_id], this.grammar, this.runner);
 
             Response.fn = fn;
             Response.productions = productions;

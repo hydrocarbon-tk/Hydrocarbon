@@ -21,10 +21,9 @@ import { MultiItemReturnObject, SingleItemReturnObject, TransitionClauseGenerato
 import { GeneratorStateReturn, TransitionNode, TRANSITION_TYPE } from "../../types/transition_node.js";
 import { expressionListHash } from "../../utilities/code_generating.js";
 import { Item } from "../../utilities/item.js";
-import { default_resolveUnresolvedLeaves } from "../branch_resolution/default_unresolved_leaves_resolution.js";
-import { default_resolveBranches } from "../branch_resolution/default_branch_resolution.js";
-import { default_resolveResolvedLeaf } from "../branch_resolution/default_resolved_leaf_resolution.js";
-import { Items_Are_From_Same_Production } from "./yield_transitions.js";
+import { default_resolveBranches } from "../default_resolution/default_branch_resolution.js";
+import { default_resolveResolvedLeaf } from "../default_resolution/default_resolved_leaf_resolution.js";
+import { default_resolveUnresolvedLeaves } from "../default_resolution/default_unresolved_leaves_resolution.js";
 
 export function defaultGrouping(g) { return g.hash; }
 type UnresolvedLeavesResolver = (node: TransitionNode, nodes: TransitionNode[], options: RenderBodyOptions) => MultiItemReturnObject;
@@ -60,16 +59,6 @@ export function processTransitionNodes(
             node.PROCESSED = true;
         }
 
-        if (traverse_state == TraverseState.ENTER || traverse_state == TraverseState.LEAF) {
-
-            //Determine if state is PUIDABLE
-            if (depth == 1) {
-                node.PUIDABLE = Items_Are_From_Same_Production(node.items, options.grammar);
-            } else {
-                node.PUIDABLE = parent?.PUIDABLE;
-            }
-        }
-
         switch (traverse_state) {
 
             case TraverseState.EXIT:
@@ -78,7 +67,7 @@ export function processTransitionNodes(
                     nodes = node.nodes,
                     prods = nodes.flatMap(g => g.prods).setFilter(),
                     items = nodes.flatMap(g => g.items).setFilter(i => i.id),
-                    filtered_nodes = nodes.filter(s => /*s.transition_type !== TRANSITION_TYPE.IGNORE &&*/ !!s.code),
+                    filtered_nodes = nodes,//.filter(s => /*s.transition_type !== TRANSITION_TYPE.IGNORE &&*/ !!s.code),
                     WE_HAVE_UNRESOLVED_LEAVES = nodes.some(s => s.UNRESOLVED_LEAF);
 
                 let
@@ -99,7 +88,7 @@ export function processTransitionNodes(
                         nodes: [],
                         symbols: [],
                         code: filtered_nodes[0].code,
-                        hash: filtered_nodes[0].hash,
+                        hash: "" //filtered_nodes[0].hash,
                         prods,
                         items,
                         completing: false,
@@ -114,6 +103,7 @@ export function processTransitionNodes(
                         ({ root, leaves } = conflicting_leaf_resolve_function(virtual_state, nodes, options));
 
                     } else {
+
                         root = branch_resolve_function(
                             traverseInteriorNodes(filtered_nodes, options, grouping_fn),
                             virtual_state,
@@ -122,7 +112,7 @@ export function processTransitionNodes(
                             options
                         );
                     }
-                    hash = expressionListHash(root);
+                    hash = virtual_state.hash || expressionListHash(root);
                 } else {
                     root = null;
                 }
@@ -138,18 +128,7 @@ export function processTransitionNodes(
             case TraverseState.LEAF:
 
                 if (node.items.length > 1) {
-                    const { root, leaves, prods } = conflicting_leaf_resolve_function(node, [node], options);
-                    node.code = root;
-                    root.unshift(<SKExpression>sk`"__TESTING__HOW_WE_GOT_HERE__"`);
-                    console.log("Flow should not enter this block: Multi-item moved to group section");
-
-                    node.hash = expressionListHash(root);
-                    node.prods = prods;
-                    node.leaves = leaves;
-                    if (options.helper.ANNOTATED)
-                        if (root)
-                            root.unshift(<SKExpression>sk`"--UNRESOLVED-LEAF--"`);
-
+                    throw new Error("Flow should not enter this block: Multi-item moved to group section");
                 } else if (node.items.length == 0)
                     throw new Error("Transition node has no items");
                 else {

@@ -27,7 +27,6 @@ export function resolveGOTOBranches(
 ): SKExpression[] {
 
     if (state.offset == 0) {
-
         const
             { grammar, production_ids } = options,
             goto_groups = [...gen],

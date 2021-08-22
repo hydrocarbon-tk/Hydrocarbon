@@ -6,7 +6,8 @@
 import { HCG3Grammar } from "../../types/grammar_nodes";
 import { ParserEnvironment } from "../../types/parser_environment.js";
 import { HybridDispatch, HybridDispatchResponse } from "../../types/worker_messaging.js";
-import { constructHybridFunction } from "../function_constructor.js";
+import { constructHybridFunctionParser } from "../function_constructor.js";
+import { constructTableParser } from "../table_constructor.js";
 import { createRunner, Helper } from "../helper.js";
 
 
@@ -44,10 +45,10 @@ export class LocalWorker {
 
         let Response: HybridDispatchResponse = {};
 
-        const { fn, productions } = constructHybridFunction(this.grammar.productions[job.production_id], this.grammar, this.runner);
+        //const { fn, productions } = constructHybridFunctionParser(this.grammar.productions[job.production_id], this.grammar, this.runner);
+        const { fn, productions } = constructTableParser(this.grammar.productions[job.production_id], this.grammar, this.runner);
 
-
-
+        console.log("\\\\\ \n\n\n");
         Response.fn = fn;
         Response.productions = productions;
         Response.production_id = job.production_id;

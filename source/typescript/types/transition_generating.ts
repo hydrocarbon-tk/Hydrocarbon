@@ -4,13 +4,13 @@
  * disclaimer notice.
  */
 import { Leaf, TRANSITION_TYPE } from "./transition_node";
-import { Symbol } from "./symbol";
 import { Item } from "../utilities/item";
 import { SKExpression } from "../skribble/types/node";
+import { TokenSymbol } from "./grammar_nodes";
 
 
 export type TransitionGroup = {
-    syms: Symbol[];
+    syms: TokenSymbol[];
     code: SKExpression[];
     items: Item[];
     hash: string;

@@ -3,28 +3,28 @@
  * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
  * disclaimer notice.
  */
-import { Sym_Is_A_Production, Sym_Is_Empty } from "../grammar/nodes/symbol.js";
+import { Sym_Is_A_Production } from "../grammar/nodes/symbol.js";
 import { sk } from "../skribble/skribble.js";
-import { SKExpression, SKFunction, SKPrimitiveDeclaration } from "../skribble/types/node.js";
+import { SKExpression } from "../skribble/types/node.js";
 import { HCG3Grammar, HCG3Production, HCG3Symbol } from "../types/grammar_nodes.js";
 import { RDProductionFunction } from "../types/rd_production_function";
 import { RenderBodyOptions } from "../types/render_body_options";
 import { Leaf, TRANSITION_TYPE } from "../types/transition_node.js";
-import { collapseBranchNames, createBranchFunction, createScanFunctionCall, getProductionFunctionName } from "../utilities/code_generating.js";
 import { const_EMPTY_ARRAY } from "../utilities/const_EMPTY_ARRAY.js";
 import { Item, ItemIndex } from "../utilities/item.js";
 import { getProductionClosure } from "../utilities/production.js";
 import { renderItem } from "../utilities/render_item.js";
 import { createVirtualProductions } from "../utilities/virtual_productions.js";
-import { default_resolveBranches } from "./default_resolution/default_branch_resolution.js";
-import { addClauseSuccessCheck, resolveGOTOBranches } from "./default_resolution/default_goto_resolution.js";
 import { Helper } from "./helper.js";
-import { addLeafStatements, addVirtualProductionLeafStatements } from "./transitions/add_leaf_statements.js";
+import { table_resolveBranches } from "./table_branch_resolution/table_branch_resolution.js";
+import { table_resolveGOTOBranches } from "./table_branch_resolution/table_goto_resolution.js";
+import { table_resolveResolvedLeaf } from "./table_branch_resolution/table_resolved_leaf_resolution.js";
+import { table_resolveUnresolvedLeaves } from "./table_branch_resolution/table_unresolved_leaves_resolution.js";
 import { processTransitionNodes } from "./transitions/process_transition_nodes.js";
 import { yieldGOTOTransitions } from "./transitions/yield_goto_transitions.js";
 import { yieldTransitions } from "./transitions/yield_transitions.js";
 
-export function constructHybridFunctionParser(production: HCG3Production, grammar: HCG3Grammar, runner: Helper): RDProductionFunction {
+export function constructTableParser(production: HCG3Production, grammar: HCG3Grammar, runner: Helper): RDProductionFunction {
 
     grammar.branches = [];
 
@@ -35,59 +35,11 @@ export function constructHybridFunctionParser(production: HCG3Production, gramma
     grammar.item_map = meta_item_cache;
 
     const
-
-        rd_fn_name = <SKPrimitiveDeclaration>sk`[priv] ${getProductionFunctionName(production)}:u32`,
-
-        goto_fn_name = <SKPrimitiveDeclaration>sk`[priv] ${getProductionFunctionName(production)}_goto:u32`,
-
-        RD_function = <SKFunction>sk`
-
-        [pub] fn ${getProductionFunctionName(production)}:i32(state:__ParserState$ref, db:__ParserStateBuffer$ref, prod:i32){ ${runner.ANNOTATED ? "" : ""} }`,
-
-        GOTO_function = <SKFunction>sk`
-        [pub] fn ${getProductionFunctionName(production)}_goto:i32(state:__ParserState$ref, db:__ParserStateBuffer$ref, [mut] prod:i32){ ${runner.ANNOTATED ? "" : ""} }`,
-
-        { RDOptions, GOTO_Options, RD_fn_contents, GOTO_fn_contents }
-            = compileProductionFunctions(grammar, runner, [production]);
-
-    RD_function.expressions.push(...RD_fn_contents);
-
-    if (RD_fn_contents.slice(-1)[0].type !== "return") {
-        /**
-         * If the production contains an empty body, we'll 
-         * want to complete the production even if all other
-         * bodies have failed to parse.
-         */
-        const empty_body = production.bodies.filter(b => Sym_Is_Empty(b.sym[0]))[0];
-        if (empty_body) {
-            const item = new Item(empty_body.id, empty_body.length, 0);
-
-            //TODO: Reset output pointer to production start
-
-            renderItem(RD_function.expressions, item, RDOptions, true);
-
-            RD_function.expressions.push(<SKExpression>sk`return:${production.id}`);
-        } else {
-            RD_function.expressions.push(<SKExpression>sk`return:-1`);
-        }
-    }
-
-    GOTO_function.expressions.push(...GOTO_fn_contents);
-
-    addLeafStatements(
-        RD_fn_contents,
-        GOTO_fn_contents,
-        rd_fn_name,
-        goto_fn_name.name,
-        RDOptions,
-        GOTO_Options);
-
-    collapseBranchNames(GOTO_Options);
-
-    if (!GOTO_Options.NO_GOTOS)
-        GOTO_function.expressions.push(addClauseSuccessCheck(RDOptions));
+        { RDOptions, GOTO_Options }
+            = compileProductionTables(grammar, runner, [production]);
 
     //clean up virtual productions
+
     grammar.bodies.length = body_len;
     grammar.productions.length = production_len;
     grammar.item_map = cached_item_map;
@@ -95,11 +47,7 @@ export function constructHybridFunctionParser(production: HCG3Production, gramma
     return {
         productions: new Set([...RDOptions.called_productions.values(), ...GOTO_Options.called_productions.values(), ...runner.referenced_production_ids.values()]),
         id: production.id,
-        fn: [
-            RD_function,
-            GOTO_Options.NO_GOTOS ? undefined : GOTO_function,
-            null//ReduceFunction
-        ],
+        fn: [],
         RENDER: false
     };
 }
@@ -135,31 +83,15 @@ export function createVirtualProductionSequence(
     if (options.VIRTUAL_LEVEL > 8)
         throw new Error("Virtual production level too high");
 
-    const { RDOptions, GOTO_Options, RD_fn_contents, GOTO_fn_contents }
-        = compileProductionFunctions(
+    const { RDOptions, GOTO_Options }
+        = compileProductionTables(
             grammar,
             helper,
             Array.from(virtual_links.values()).map(({ p }) => p),
             expected_symbols,
             (CLEAN ? 1 : options.VIRTUAL_LEVEL + 1)
-        ),
-
-        rd_virtual_name = createBranchFunction(RD_fn_contents, RDOptions),
-
-        goto_virtual_name = createBranchFunction(GOTO_fn_contents, GOTO_Options),
-
-        gen = addVirtualProductionLeafStatements(
-            RD_fn_contents,
-            GOTO_fn_contents,
-            rd_virtual_name,
-            goto_virtual_name,
-            RDOptions,
-            GOTO_Options,
-            virtual_links
         );
 
-    if (!GOTO_Options.NO_GOTOS)
-        GOTO_fn_contents.push(addClauseSuccessCheck(RDOptions));
 
     for (let { item_id, leaf, prods } of gen) {
 
@@ -208,7 +140,7 @@ export function createVirtualProductionSequence(
     return out;
 }
 
-export function compileProductionFunctions(
+export function compileProductionTables(
     grammar: HCG3Grammar,
     runner: Helper,
     productions: HCG3Production[],
@@ -242,33 +174,44 @@ export function compileProductionFunctions(
             filter_symbols
         ),
 
-        { code: RD_fn_contents, prods: completed_productions, leaves: rd_leaves }
-            = processTransitionNodes(RDOptions, rd_nodes, default_resolveBranches),
+        { prods: completed_productions, leaves: rd_leaves, hash }
+            = processTransitionNodes(
+                RDOptions,
+                rd_nodes,
+                table_resolveBranches,
+                table_resolveUnresolvedLeaves,
+                table_resolveResolvedLeaf
+            ),
 
         GOTO_Options = createBuildOptions(
-            grammar, runner,
+            grammar,
+            runner,
             productions,
             IS_VIRTUAL,
             "GOTO"
         ),
 
-        { code: GOTO_fn_contents, leaves: goto_leaves } = processTransitionNodes(
+        { leaves: goto_leaves, hash: goto_hash } = processTransitionNodes(
             GOTO_Options,
-            yieldGOTOTransitions(GOTO_Options, completed_productions),
-            resolveGOTOBranches
+            yieldGOTOTransitions(
+                GOTO_Options,
+                completed_productions,
+                table_resolveBranches,
+                table_resolveUnresolvedLeaves,
+                table_resolveResolvedLeaf
+            ),
+            table_resolveGOTOBranches,
+            table_resolveUnresolvedLeaves,
+            table_resolveResolvedLeaf
         );
 
+    console.log(`state [${productions[0].name}] goto state [${hash}] ${GOTO_Options.NO_GOTOS ? `then set prod to ${productions[0].id} ` : `then goto state [${productions[0].name}_goto]`} `);
 
-
-    if (rd_nodes.length == 1 && (rd_nodes[0].transition_type == TRANSITION_TYPE.ASSERT_PRODUCTION_CALL || rd_nodes[0].transition_type == TRANSITION_TYPE.ASSERT_PRODUCTION_SYMBOLS)) {
-
-    } else
-        RD_fn_contents.unshift(createScanFunctionCall(initial_items, RDOptions, "state.lexer", false));
 
     RDOptions.leaves = rd_leaves;
     GOTO_Options.leaves = goto_leaves;
 
-    return { RDOptions, GOTO_Options, RD_fn_contents, GOTO_fn_contents };
+    return { RDOptions, GOTO_Options };
 }
 export function createBuildOptions(
     grammar: HCG3Grammar,

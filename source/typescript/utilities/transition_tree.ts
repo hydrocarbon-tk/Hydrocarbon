@@ -7,6 +7,7 @@
 import { performance } from "perf_hooks";
 import { default_EOP } from "../grammar/nodes/default_symbols.js";
 import {
+    convertSymbolToString,
     getFollowSymbolsFromItems,
     getUniqueSymbolName,
     getUnskippableSymbolsFromClosure,
@@ -159,8 +160,7 @@ export function getTransitionTree(
             const root_sym = extant_group[0].sym;
             if (!Symbols_Are_The_Same(incoming_sym, root_sym) && SymbolsCollide(incoming_sym, root_sym, grammar)) {
                 extant_group.push(...group);
-                //    collision_groups.push([...extant_group, ...group]);
-
+                //collision_groups.push([...extant_group, ...group]);
             }
         }
     }
@@ -225,7 +225,6 @@ export function getTransitionTree(
         }
 
         if (syms.length > 1) {
-
             if (syms.every(Sym_Is_Defined)) {
                 // Extract the exclusive terminal which will suffice
                 // to match items that need the exclusive terminal

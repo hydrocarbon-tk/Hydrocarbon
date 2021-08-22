@@ -65,7 +65,7 @@ export function getSymbolName(sym: HCG3Symbol) {
 
     if (!sym) return "";
 
-    return "[" + (sym.val ?? sym.name) + "]" + sym.type;
+    return sym.type + " [" + (sym.val ? `"${sym.val}"` : sym.name) + "]";
 }
 
 export function getUniqueSymbolName(sym: HCG3Symbol, _a?: any, _b?: any) {

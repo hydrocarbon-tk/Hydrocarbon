@@ -57,10 +57,12 @@ export function buildPeekTransitions(
         node.closure = group.flatMap(g => g.starts).setFilter(s => s.id);
 
         if (group[0].next.length > 0)
-            node.nodes.push(...buildPeekTransitions(group[0].next, options, offset, leafHandler, const_EMPTY_ARRAY, peek_depth + 1));
+            node.nodes.push(...buildPeekTransitions(group.flatMap(g => g.next), options, offset, leafHandler, const_EMPTY_ARRAY, peek_depth + 1));
         else {
             if (RESET_ROOTS)
                 node.items = node.items.map(i => i.decrement());
+
+            node.items = node.items.setFilter(i => i.id);
 
             leafHandler(node, options, offset, peek_depth);
         }

@@ -133,7 +133,10 @@ function convertPeekStateToSingleItemNode(node: TransitionNode, { grammar }: Ren
     } else if (node.peek_level > 0) {
         node.transition_type = TRANSITION_TYPE.ASSERT_PEEK;
     } else {
-        node.transition_type = TRANSITION_TYPE.ASSERT;
+        //Symbols can be trivially consumed
+        node.items = node.items.map(i => i.increment());
+
+        node.transition_type = TRANSITION_TYPE.ASSERT_CONSUME;
     }
 
 
@@ -264,14 +267,12 @@ export function yieldPeekedNodes(
             active_items,
             goto_items,
             {
-                expanded_limit: 2,
-                max_tree_depth: 10,
-                max_no_progress: 10,
-                max_time_limit: 200,
+                expanded_limit: 10,
+                max_tree_depth: 12,
+                max_no_progress: 20,
+                max_time_limit: 300,
             }
         );
-
-
 
     const nodes = buildPeekTransitions(tree_nodes[0].next, options, offset, leaf_handler, filter_symbols, peek_depth);
 
