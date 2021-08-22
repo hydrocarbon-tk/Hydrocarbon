@@ -4,10 +4,12 @@
 
 <> state_declaration > t:state \[ tk:state_hash_token \]     f:r { $3 }
 
-<> instructions > instruction(+ \then )
+<> instructions > instruction(+)
+
+<> instruction_sequence > instruction(+ \then )
 
 <> instruction>
-    t:on t:prod id_list \( instructions \)        
+    t:on t:prod id_list \( instruction_sequence \)        
                                             f:r { { type:"prod", ids:$3, instructions: $5  } }
     | \shift id_list \then \goto state_declaration                       
                                             f:r { { type:"shift", ids: $2, goto_state: $4 } }
@@ -24,9 +26,11 @@
     | \abort
                                             f:r { { type:"abort", states: $4  } }
     | \scan \until id_list
-                                            f:r { { type:"scan-until", ids: $3  } }                                            
+                                            f:r { { type:"scan-until", ids: $3  } }
+    | \pop g:num
+                                            f:r { { type:"pop", len: $2  } }                                                
 
-<> on_fail > \on \fail \( instructions \)                                  
+<> on_fail > \on \fail \( instruction_sequence \)                                  
                                             f:r { { type:"on-fail", instructions: $4  } }
 
 <> expected_symbols > \symbols: \expected \[ g:num(+) \] 
