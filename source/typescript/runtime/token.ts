@@ -1,3 +1,5 @@
+import { Lexer } from "@candlelib/wind";
+
 /**
  * Small class to that methods to extract string information
  * and retrieve text meta data for particular tokens and token
@@ -48,5 +50,23 @@ export class Token {
                     this._line++;
         }
         return this._line;
+    }
+
+    throw(message) {
+        const lex = new Lexer(this.source);
+
+        lex.off = this.off;
+        lex.tl = this.tl;
+        lex.line = this.line;
+
+        let i = this.off;
+
+        for (; this.source[i] != "\n" && i >= 0; --i);
+
+        lex.column = this.off - i - 1;
+
+        lex.throw(message);
+
+        throw Error("Could not parse data");
     }
 };

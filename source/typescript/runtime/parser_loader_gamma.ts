@@ -4,7 +4,6 @@
  * disclaimer notice.
  */
 import URI from "@candlelib/uri";
-import { Lexer } from "@candlelib/wind";
 import { HCGParser, HCGProductionFunction } from "../types/parser";
 import { RecognizeInitializer } from "../types/parser_data";
 import { ParserEnvironment } from "../types/parser_environment.js";
@@ -133,19 +132,12 @@ export async function ParserFactory<T, R = {}>(
 
             const farthest_invalid_state = invalid.get_mut_state(0);
 
-            const lex = new Lexer(input_string);
+            const token = new Token(input_string, "",
+                farthest_invalid_state.lexer.byte_length,
+                farthest_invalid_state.lexer.byte_offset
+            );
 
-            lex.off = farthest_invalid_state.lexer.byte_offset;
-            lex.tl = farthest_invalid_state.lexer.byte_length;
-            let i = lex.off;
-            for (; input_string[i] != "\n" && i >= 0; --i);
-
-            lex.line = 0;
-            lex.column = lex.off - i;
-
-            lex.throw(`Unexpected token [${input_string.slice(lex.off, lex.off + lex.tl)}]`);
-
-            throw Error("Could not parse data");
+            token.throw(`Unexpected token [${token.slice()}]`);
         }
 
         return { result: null };
