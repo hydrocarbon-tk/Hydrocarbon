@@ -455,20 +455,20 @@ namespace HYDROCARBON
         u32 flag = *((u32 *)&input[index]);
 
         u32 a = input[index + 0];
-        u32 b = input[index+1] & 0x3F);
-        u32 c = input[index+2] & 0x3F);
-        u32 d = input[index+3] & 0x3F);
+        u32 b = input[index + 1] & 0x3F;
+        u32 c = input[index + 2] & 0x3F;
+        u32 d = input[index + 3] & 0x3F;
 
         if (flag & 0x80000000)
         {
 
-            if ((flag & 0xE0C00000) >>> 0 == 0xC0800000)
+            if ((flag & 0xE0C00000) == 0xC0800000)
                 return ((a & 0x1F) << 6) | b;
 
-            if ((flag & 0xF0C0C000) >>> 0 == 0xE0808000)
+            if ((flag & 0xF0C0C000) == 0xE0808000)
                 return ((a & 0xF) << 12) | (b << 6) | c;
 
-            if ((flag & 0xF8C0C0C0) >>> 0 == 0xF0808080)
+            if ((flag & 0xF8C0C0C0) == 0xF0808080)
                 return ((a & 0x7) << 18) | (b << 12) | (c << 6) | d;
         }
         else
@@ -605,7 +605,7 @@ namespace HYDROCARBON
 
         if (is_output_enabled(state.state))
         {
-            auto skip_delta = state.lexer.token_length - state.lexer.prev_token_length;
+            auto skip_delta = state.lexer.token_length - state.lexer.prev_token_offset;
             add_skip(state, skip_delta);
             add_shift(state, l.token_length);
         }

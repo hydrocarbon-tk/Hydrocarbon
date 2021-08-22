@@ -1,6 +1,6 @@
 @IGNORE g:sp g:nl tk:comment
 
-<> start > state_declaration instructions expected_symbols?   f:r { { type:"state", id:$1, instructions: $2, symbol_meta:$$3 } }
+<> start > state_declaration instructions on_fail? expected_symbols?   f:r { { type:"state", id:$1, instructions: $2, fail: $3, symbol_meta:$$4 } }
 
 <> state_declaration > t:state \[ tk:state_hash_token \]     f:r { $3 }
 
@@ -12,7 +12,7 @@
     | \shift id_list \then \goto state_declaration                       
                                             f:r { { type:"shift", ids: $2, goto_state: $4 } }
     | \peek id_list \then \goto state_declaration                         
-                                            f:r { { type:"goto", ids: $2, goto_state: $4 } }
+                                            f:r { { type:"peek", ids: $2, goto_state: $4 } }
     | \goto state_declaration               
                                             f:r { { type:"goto", state: $2  } }
     | \reduce g:num g:num                
@@ -21,13 +21,19 @@
                                             f:r { { type:"set-prod", id: $4  } }
     | \fork \to \( state_declaration(+\, ) \)
                                             f:r { { type:"fork-to", states: $4  } }
+    | \abort
+                                            f:r { { type:"abort", states: $4  } }
+    | \scan \until id_list
+                                            f:r { { type:"scan-until", ids: $3  } }                                            
+
+<> on_fail > \on \fail \( instructions \)                                  
+                                            f:r { { type:"on-fail", instructions: $4  } }
 
 <> expected_symbols > \symbols: \expected \[ g:num(+) \] 
+
     ( \skipped \[ g:num(+) \] f:r{ $3 } )?
 
     f:r { { type:"symbols", expected:$4, skipped:$$6 || [] } }
-
-
 
 <> id_list > \[ g:num(+) \]                 f:r { { type:"id-list", ids: $2  } }
 
