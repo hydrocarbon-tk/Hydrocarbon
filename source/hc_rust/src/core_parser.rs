@@ -537,33 +537,29 @@ fn get_ut8_byte_length_from_code_point(code_point: u32) -> u8 {
 }
 
 fn get_utf8_code_point_at(index: usize, buffer: &[u8]) -> u32 {
-    let a: u32 = buffer[index] as u32;
+    let a: u32 = buffer[(index + 0)] as u32;
+    let mut b: u32 = buffer[(index + 1)] as u32;
+    let mut c: u32 = buffer[(index + 2)] as u32;
+    let mut d: u32 = buffer[(index + 3)] as u32;
 
-    if a & 0x80 > 0 {
-        let flag = a & 0xF0;
+    let flag: u32 = a << 24 | b << 16 | c << 8 | d;
 
-        let b: u32 = buffer[index + 1] as u32;
+    if flag & 0x80000000 > 0 {
+        b &= 0x3F;
 
-        if flag & 0xE0 > 0 {
-            let flag = a & 0xF8;
+        if (flag & 0xE0C00000) == 0xC0800000 {
+            return ((a & 0x1F) << 6) | b;
+        }
+        c &= 0x3F;
 
-            let c: u32 = buffer[index + 2] as u32;
+        if (flag & 0xF0C0C000) == 0xE0808000 {
+            return ((a & 0xF) << 12) | (b << 6) | c;
+        }
+        d &= 0x3F;
 
-            if (flag) == 0xF0 {
-                return ((a & 0x7) << 18)
-                    | ((b & 0x3F) << 12)
-                    | ((c & 0x3F) << 6)
-                    | (buffer[index + 3] as u32 & 0x3F);
-            } else {
-                if (flag) == 0xE0 {
-                    return ((a & 0xF) << 12) | ((b & 0x3F) << 6) | (c & 0x3F);
-                }
-            };
-        } else {
-            if (flag) == 0xC {
-                return ((a & 0x1F) << 6) | b & 0x3F;
-            }
-        };
+        if (flag & 0xF8C0C0C0) == 0xF0808080 {
+            return ((a & 0x7) << 18) | (b << 12) | (c << 6) | d;
+        }
     } else {
         return a;
     };

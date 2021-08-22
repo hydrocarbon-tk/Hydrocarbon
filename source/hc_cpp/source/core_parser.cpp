@@ -451,32 +451,29 @@ namespace HYDROCARBON
 
     u32 get_utf8_code_point_at(u32 index, u8 *input)
     {
-        u8 a = input[index];
-        u8 flag = 14;
-        if (a & 0x80)
+
+        u32 flag = *((u32 *)&input[index]);
+
+        u32 a = input[index + 0];
+        u32 b = input[index+1] & 0x3F);
+        u32 c = input[index+2] & 0x3F);
+        u32 d = input[index+3] & 0x3F);
+
+        if (flag & 0x80000000)
         {
-            flag = a & 0xF0;
-            u8 b = input[index + 1];
-            if (flag & 0xE0)
-            {
-                flag = a & 0xF8;
-                u8 c = input[index + 2];
-                if ((flag) == 0xF0)
-                {
-                    return ((a & 0x7) << 18) | ((b & 0x3F) << 12) | ((c & 0x3F) << 6) | (input[index + 3] & 0x3F);
-                }
-                else if ((flag) == 0xE0)
-                {
-                    return ((a & 0xF) << 12) | ((b & 0x3F) << 6) | (c & 0x3F);
-                }
-            }
-            else if ((flag) == 0xC)
-            {
-                return ((a & 0x1F) << 6) | b & 0x3F;
-            }
+
+            if ((flag & 0xE0C00000) >>> 0 == 0xC0800000)
+                return ((a & 0x1F) << 6) | b;
+
+            if ((flag & 0xF0C0C000) >>> 0 == 0xE0808000)
+                return ((a & 0xF) << 12) | (b << 6) | c;
+
+            if ((flag & 0xF8C0C0C0) >>> 0 == 0xF0808080)
+                return ((a & 0x7) << 18) | (b << 12) | (c << 6) | d;
         }
         else
             return a;
+
         return 0;
     }
 
@@ -608,7 +605,7 @@ namespace HYDROCARBON
 
         if (is_output_enabled(state.state))
         {
-            auto skip_delta = state.lexer.byte_offset - state.lexer.prev_byte_offset;
+            auto skip_delta = state.lexer.token_length - state.lexer.prev_token_length;
             add_skip(state, skip_delta);
             add_shift(state, l.token_length);
         }

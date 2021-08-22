@@ -661,7 +661,7 @@ function renderLeafNew(node: TokenTreeNode, options: any, USE_BOOLEAN: boolean =
 
     for (const defined of id) {
 
-        if (Sym_Is_Exclusive(defined) || (tk_syms.length + gen_syms.length) < 1) {
+        if (true  /*Sym_Is_Exclusive(defined) || (tk_syms.length + gen_syms.length) < 1*/) {
 
             const preamble = defined.byte_length <= node.offset
                 ? "if " + getActiveTokenQuery(defined) + ":"
@@ -669,7 +669,7 @@ function renderLeafNew(node: TokenTreeNode, options: any, USE_BOOLEAN: boolean =
 
             ifs.push(sk`${preamble}{lexer.setToken(${defined.id}, ${defined.byte_length},${defined.val.length}); return;}`);
 
-        } else {
+        }/* else {
 
             const preamble = defined.byte_length <= node.offset
                 ? "if " + getActiveTokenQuery(defined) + ":"
@@ -677,7 +677,7 @@ function renderLeafNew(node: TokenTreeNode, options: any, USE_BOOLEAN: boolean =
 
             const symbols = [...tk_syms, ...gen_syms].map(s => Sym_Is_Virtual_Token(s) ? s.root : s).setFilter(getUniqueSymbolName);
 
-            const id = generateHybridIdentifier([defined, ...symbols]);
+            const id = defined.id; //generateHybridIdentifier([defined, ...symbols]);
 
             ifs.push(sk`${preamble}{
                 if ${symbols.filter(s => s.id != defined.id).map(getActiveTokenQuery).join("  || ")}: {
@@ -686,7 +686,7 @@ function renderLeafNew(node: TokenTreeNode, options: any, USE_BOOLEAN: boolean =
                     lexer.setToken(${defined.id}, ${defined.byte_length},${defined.val.length}); return;
                 }
             }`);
-        }
+        }*/
     }
 
     const [first] = mergeIfStatement(ifs);

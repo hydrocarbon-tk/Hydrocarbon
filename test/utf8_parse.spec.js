@@ -47,29 +47,26 @@ assert_group("String to UTF8", () => {
 
 function utf8ToCodePoint(buffer) {
 
+    const flag = +buffer[0] << 24
+        | (buffer[1] ?? 0) << 16
+        | (buffer[2] ?? 0) << 8
+        | (buffer[3] ?? 0);
+
     const a = buffer[0];
+    const b = (+buffer[1] & 0x3F);
+    const c = (+buffer[2] & 0x3F);
+    const d = (+buffer[3] & 0x3F);
 
-    let flag = 0xE;
+    if (flag & 0x80000000) {
 
-    if (a & 0x80) {
+        if ((flag & 0xE0C00000) >>> 0 == 0xC0800000)
+            return ((a & 0x1F) << 6) | b;
 
-        flag = a & 0xF0;
+        if ((flag & 0xF0C0C000) >>> 0 == 0xE0808000)
+            return ((a & 0xF) << 12) | (b << 6) | c;
 
-        const b = buffer[1];
-
-        if (flag & 0xE0) {
-
-            flag = a & 0xF8;
-
-            const c = buffer[2];
-
-            if (flag == 0xF0)
-                return ((a & 0x7) << 18) | ((b & 0x3F) << 12) | ((c & 0x3F) << 6) | (buffer[3] & 0x3F);
-
-            else if (flag == 0xE0)
-                return ((a & 0xF) << 12) | ((b & 0x3F) << 6) | (c & 0x3F);
-
-        } else if (flag == 0xC) return ((a & 0x1F) << 6) | b & 0x3F;
+        if ((flag & 0xF8C0C0C0) >>> 0 == 0xF0808080)
+            return ((a & 0x7) << 18) | (b << 12) | (c << 6) | d;
 
     } else return a;
 
@@ -86,6 +83,7 @@ assert_group("UTF8 to String", () => {
     assert(String.fromCodePoint(utf8ToCodePoint(string_to_utf("➃"))) == "➃");
     assert(String.fromCodePoint(utf8ToCodePoint(string_to_utf("✍"))) == "✍");
     assert(String.fromCodePoint(utf8ToCodePoint(string_to_utf("A"))) == "A");
+    assert(String.fromCodePoint(utf8ToCodePoint(string_to_utf("θ"))) == "θ");
 });
 
 function utf8_1(utf, index) { return utf == index; }

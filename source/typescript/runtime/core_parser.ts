@@ -301,6 +301,9 @@ class Lexer {
     }
     isSym(USE_UNICODE: boolean): boolean {
         if (this._type == 0 && this.getType(USE_UNICODE) == 2) {
+            this.byte_length = get_ut8_byte_length_from_code_point(
+                get_utf8_code_point_at(this.byte_offset, this.input)
+            );
             this._type = 2;
         };
         return this._type == 2;
@@ -429,27 +432,29 @@ function get_ut8_byte_length_from_code_point(code_point: number): number {
     };
 }
 function get_utf8_code_point_at(index: number, buffer: Uint8Array): number {
-    let a = buffer[index];
-    let flag = 14;
-    if (a & 0x80) {
-        flag = a & 0xF0;
-        let b = buffer[index + 1];
-        if (flag & 0xE0) {
-            flag = a & 0xF8;
-            let c = buffer[index + 2];
-            if ((flag) == 0xF0) {
-                return ((a & 0x7) << 18) | ((b & 0x3F) << 12) | ((c & 0x3F) << 6) | (buffer[index + 3] & 0x3F);
-            }
-            else if ((flag) == 0xE0) {
-                return ((a & 0xF) << 12) | ((b & 0x3F) << 6) | (c & 0x3F);
-            };
-        }
-        else if ((flag) == 0xC) {
-            return ((a & 0x1F) << 6) | b & 0x3F;
-        };
-    }
-    else
-        return a;
+    const flag = +buffer[index + 0] << 24
+        | (buffer[index + 1] ?? 0) << 16
+        | (buffer[index + 2] ?? 0) << 8
+        | (buffer[index + 3] ?? 0);
+
+    const a = buffer[index + 0];
+    const b = (+buffer[index + 1] & 0x3F);
+    const c = (+buffer[index + 2] & 0x3F);
+    const d = (+buffer[index + 3] & 0x3F);
+
+    if (flag & 0x80000000) {
+
+        if ((flag & 0xE0C00000) >>> 0 == 0xC0800000)
+            return ((a & 0x1F) << 6) | b;
+
+        if ((flag & 0xF0C0C000) >>> 0 == 0xE0808000)
+            return ((a & 0xF) << 12) | (b << 6) | c;
+
+        if ((flag & 0xF8C0C0C0) >>> 0 == 0xF0808080)
+            return ((a & 0x7) << 18) | (b << 12) | (c << 6) | d;
+
+    } else return a;
+
     return 0;
 }
 
@@ -563,7 +568,7 @@ export function consume(state: ParserState): boolean {
     const l = state.lexer;
 
     if (is_output_enabled(state.state)) {
-        let skip_delta = state.lexer.byte_offset - state.lexer.prev_byte_offset;
+        let skip_delta = state.lexer.token_offset - state.lexer.prev_token_offset;
         add_skip(state, skip_delta);
         add_shift(state, l.token_length);
     }

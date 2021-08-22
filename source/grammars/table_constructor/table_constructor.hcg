@@ -32,10 +32,11 @@
 <> id_list > \[ g:num(+) \]                 f:r { { type:"id-list", ids: $2  } }
 
 <> state_hash_token > 
+    state_hash_token (RST g:sp g:nl)  \_
     | state_hash_token (RST g:sp g:nl)  g:id 
     | state_hash_token (RST g:sp g:nl)  g:num
     | g:id
     | g:num
-    | g:sym
+    | \_
 
 <> comment > \/* ( g:sp | g:nl | g:id | g:num | g:sym )(*) \*/
