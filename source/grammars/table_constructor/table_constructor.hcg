@@ -1,6 +1,6 @@
 @IGNORE g:sp g:nl
 
-<> start > state_declaration instructions?   f:r { { type:"state", id:$1, instructions: $2 } }
+<> start > state_declaration instructions expected_symbols?   f:r { { type:"state", id:$1, instructions: $2, symbol_meta:$$3 } }
 
 <> state_declaration > t:state \[ tk:state_hash_token \]     f:r { $3 }
 
@@ -8,17 +8,26 @@
 
 <> instruction>
     t:on t:prod id_list \( instructions \)        
-                                            f:r { { type:"prod", instructions: $5  } }
+                                            f:r { { type:"prod", ids:$3, instructions: $5  } }
     | \shift id_list \then \goto state_declaration                       
-                                            f:r { { type:"shift", ids: $2  } }
+                                            f:r { { type:"shift", ids: $2, goto_state: $4 } }
     | \peek id_list \then \goto state_declaration                         
-                                            f:r { { type:"goto", ids: $2  } }
+                                            f:r { { type:"goto", ids: $2, goto_state: $4 } }
     | \goto state_declaration               
                                             f:r { { type:"goto", state: $2  } }
     | \reduce g:num g:num                
                                             f:r { { type:"goto", len: $2, reduce_fn: $3 } }
-    | \set_prod g:num                 
-                                            f:r { { type:"set-prod", prod: $2  } }
+    | \set \prod \to g:num                 
+                                            f:r { { type:"set-prod", id: $4  } }
+    | \fork \to \( state_declaration(+\, ) \)
+                                            f:r { { type:"fork-to", states: $4  } }
+
+<> expected_symbols > \symbols: \expected \[ g:num(+) \] 
+    ( \skipped \[ g:num(+) \] f:r{ $3 } )?
+
+    f:r { { type:"symbols", expected:$4, skipped:$$6 || [] } }
+
+
 
 <> id_list > \[ g:num(+) \]                 f:r { { type:"id-list", ids: $2  } }
 
