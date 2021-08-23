@@ -21,7 +21,7 @@
         } = ParserCore;
     
 
-        var token_lookup = new Uint32Array([40,2,0,4,384,72,384,64,4480,64,131456,64,2684354946,64,3061596546,64,536871296,64,1410,96,2684363138,64,377241984,64,65920,64,896,64,1408,64,2432,64,8576,64,33152,64,416,64,8388992,64,16777600,64,134218112,64,1073742208,64,2147484032,64,384,65,424,66,40,66,0,64,0,66,8,64,32,64,384,68,428,72,131456,80,384,80,384,96,4512,64,428,64,428,0,388,64,128,64,256,64,392,64]);;
+        var token_lookup = new Uint32Array([40,2,0,4,384,72,384,64,3061735810,64,377241984,64,377241600,0,65920,64,4480,64,131456,64,2684354946,64,3061596546,64,536871296,64,1410,96,896,64,1408,64,2432,64,8576,64,33152,64,416,64,8388992,64,16777600,64,134218112,64,1073742208,64,2147484032,64,384,65,424,66,40,66,0,64,0,66,8,64,32,64,384,68,428,72,377225216,0,131456,80,384,80,384,96,4512,64,428,64,428,0,388,64,128,64,256,64,392,64]);;
         var token_sequence_lookup = new Uint8Array([91,93,40,41,115,121,109,98,111,108,115,58,95,47,42,47,44,69,78,68,95,79,70,95,80,82,79,68,85,67,84,73,79,78,116,104,101,110,111,110,112,114,111,100,103,111,116,111,114,101,100,117,99,101,102,111,114,107,117,110,116,105,108,101,120,112,101,99,116,101,100,115,107,105,112,112,101,100,112,101,101,107,102,97,105,108,115,116,97,116,101,115,104,105,102,116,115,99,97,110,115,101,116,112,111,112]);;
         function isTokenActive(token_id, row){
     var index  = ( row  * 2 ) + ( token_id  >> 5 );;
@@ -413,9 +413,19 @@ function branch_09fd4c587b3f4d77(state, db, prod){
     return 0
 }
 
+function branch_0d6249e23d42ec1c(state, db, prod){
+    add_reduce( state, 2, 24 );
+    return 12
+}
+
 function branch_0ec80ad115fad29d(state, db, prod){
     add_reduce( state, 3, 17 );
     return 0
+}
+
+function branch_1297f2b70da7ddb8(state, db, prod){
+    add_reduce( state, 2, 23 );
+    return hc_start_list_1_goto( state, db, 10 )
 }
 
 function branch_138db6e945230ea2(state, db, prod){
@@ -433,14 +443,32 @@ function branch_1e3ac8120e7b258b(state, db, prod){
     return 0
 }
 
+function branch_21425a45d365cd23(state, db, prod){
+    scan( state.lexer, 4, 3 );
+    if( state.lexer._type  == 13 ){
+    state.push_fn( set_production /*2*/, 2 );
+    consume( state );
+    state.push_fn( branch_48fab4c983fae22f, 2 );
+    return hc_instruction_sequence( state, db, 0 )
+} else {
+    add_reduce( state, 1, 7 );
+    return 2
+};
+    return - 1
+}
+
 function branch_235fbc4dfe75738d(state, db, prod){
     add_reduce( state, 3, 9 );
     return 0
 }
 
-function branch_4283f8747d15b12f(state, db, prod){
-    add_reduce( state, 2, 23 );
-    return 11
+function branch_3529d11e1804c05b(state, db, prod){
+    scan( state.lexer, 5, 3 );
+    if( ( isTokenActive( state.lexer._type, 6 ) ) ){
+    state.push_fn( branch_1297f2b70da7ddb8, 10 );
+    return hc_instructions( state, db, 0 )
+};
+    return - 1
 }
 
 function branch_48fab4c983fae22f(state, db, prod){
@@ -448,8 +476,24 @@ function branch_48fab4c983fae22f(state, db, prod){
     return 0
 }
 
+function branch_4aedc05f51d50cf7(state, db, prod){
+    scan( state.lexer, 7, 3 );
+    if( ( state.lexer._type  == 16 ) ){
+    consume( state );
+    state.push_fn( branch_7e0bbedbcd557155, 4 );
+    return hc_instructions( state, db, 0 )
+};
+    return - 1
+}
+
+function branch_56d6026fd0c63a35(state, db, prod){
+    scan( state.lexer, 5, 3 );
+    state.push_fn( branch_9c1d877232b04ab0, 0 );
+    return hc_start_list_1( state, db, 0 )
+}
+
 function branch_5af01780703a7f38(state, db, prod){
-    scan( state.lexer, 4, 3 );
+    scan( state.lexer, 8, 3 );
     if( ( state.lexer._type  == 12 ) ){
     consume( state );
     add_reduce( state, 3, 22 );
@@ -463,8 +507,13 @@ function branch_60d1f22634e1d8d8(state, db, prod){
     return 0
 }
 
+function branch_687f18730960b285(state, db, prod){
+    add_reduce( state, 2, 23 );
+    return 0
+}
+
 function branch_6eb00fcfeb7a31f0(state, db, prod){
-    scan( state.lexer, 5, 3 );
+    scan( state.lexer, 9, 3 );
     if( ( state.lexer._type  == 17 ) ){
     consume( state );
     add_reduce( state, 5, 16 );
@@ -474,7 +523,7 @@ function branch_6eb00fcfeb7a31f0(state, db, prod){
 }
 
 function branch_76172413ac3da6d8(state, db, prod){
-    scan( state.lexer, 6, 3 );
+    scan( state.lexer, 10, 3 );
     if( state.lexer._type  == 31 ){
     state.push_fn( set_production /*0*/, 0 );
     state.push_fn( branch_1e3ac8120e7b258b, 0 );
@@ -487,13 +536,18 @@ function branch_76172413ac3da6d8(state, db, prod){
 }
 
 function branch_7e0bbedbcd557155(state, db, prod){
-    scan( state.lexer, 5, 3 );
+    scan( state.lexer, 9, 3 );
     if( ( state.lexer._type  == 17 ) ){
     consume( state );
     add_reduce( state, 6, 10 );
     return 0
 };
     return - 1
+}
+
+function branch_885c06a78a312e44(state, db, prod){
+    add_reduce( state, 1, 8 );
+    return hc_instruction_list_40_goto( state, db, 11 )
 }
 
 function branch_895aa123fa566ad1(state, db, prod){
@@ -506,10 +560,15 @@ function branch_8fe8831ed25331e2(state, db, prod){
     return 0
 }
 
+function branch_97d972e3a6b0bbc5(state, db, prod){
+    add_reduce( state, 1, 8 );
+    return hc_start_list_1_goto( state, db, 10 )
+}
+
 function branch_9c1d877232b04ab0(state, db, prod){
-    scan( state.lexer, 7, 3 );
+    scan( state.lexer, 11, 3 );
     if( state.lexer._type  == 29 ){
-    scan( state.lexer, 8, 3 );
+    scan( state.lexer, 12, 3 );
     state.push_fn( branch_76172413ac3da6d8, 0 );
     return hc_on_fail( state, db, 0 )
 } else if( state.lexer._type  == 31 ){
@@ -529,7 +588,7 @@ function branch_ae3568acd52fc829(state, db, prod){
 }
 
 function branch_ae93f32fdd0426e8(state, db, prod){
-    scan( state.lexer, 9, 3 );
+    scan( state.lexer, 13, 3 );
     if( state.lexer._type  == 37 ){
     state.push_fn( set_production /*6*/, 6 );
     state.push_fn( branch_bf6fc030bbf1df47, 6 );
@@ -541,39 +600,9 @@ function branch_ae93f32fdd0426e8(state, db, prod){
     return - 1
 }
 
-function branch_baa35c40c5f5a61c(state, db, prod){
-    scan( state.lexer, 10, 3 );
-    if( state.lexer._type  == 13 ){
-    state.push_fn( set_production /*2*/, 2 );
-    consume( state );
-    state.push_fn( branch_48fab4c983fae22f, 2 );
-    return hc_instruction_sequence( state, db, 0 )
-} else {
-    add_reduce( state, 1, 7 );
-    return 2
-};
-    return - 1
-}
-
 function branch_bf6fc030bbf1df47(state, db, prod){
     add_reduce( state, 4, 20 );
     return 0
-}
-
-function branch_cf9ea2a468a0b695(state, db, prod){
-    scan( state.lexer, 11, 3 );
-    state.push_fn( branch_9c1d877232b04ab0, 0 );
-    return hc_instructions( state, db, 0 )
-}
-
-function branch_da6016855daf0b0d(state, db, prod){
-    scan( state.lexer, 12, 3 );
-    if( ( state.lexer._type  == 16 ) ){
-    consume( state );
-    state.push_fn( branch_7e0bbedbcd557155, 4 );
-    return hc_instruction( state, db, 0 )
-};
-    return - 1
 }
 
 function branch_e881e748d0da91c5(state, db, prod){
@@ -581,27 +610,22 @@ function branch_e881e748d0da91c5(state, db, prod){
     return hc_instruction_sequence_goto( state, db, 3 )
 }
 
-function branch_ece3786788effda9(state, db, prod){
-    add_reduce( state, 1, 8 );
-    return hc_instruction_list_40_goto( state, db, 10 )
-}
-
 function hc_start(state, db, prod){
-    state.push_fn( branch_cf9ea2a468a0b695, 0 );
+    state.push_fn( branch_56d6026fd0c63a35, 0 );
     return hc_state_declaration( state, db, 0 )
 }
 
 function hc_state_declaration(state, db, prod){
-    scan( state.lexer, 13, 3 );
+    scan( state.lexer, 14, 3 );
     if( state.lexer._type  == 9 ){
     consume( state );
-    scan( state.lexer, 14, 3 );
+    scan( state.lexer, 15, 3 );
     if( ( state.lexer._type  == 10 ) ){
         consume( state );
-        scan( state.lexer, 15, 3 );
+        scan( state.lexer, 16, 3 );
         if( ( state.lexer._type  == 11 ) ){
             consume( state );
-            scan( state.lexer, 4, 3 );
+            scan( state.lexer, 8, 3 );
             if( ( state.lexer._type  == 12 ) ){
                 consume( state );
                 add_reduce( state, 4, 5 );
@@ -614,7 +638,7 @@ function hc_state_declaration(state, db, prod){
 }
 
 function hc_instructions(state, db, prod){
-    state.push_fn( branch_baa35c40c5f5a61c, 0 );
+    state.push_fn( branch_21425a45d365cd23, 0 );
     return hc_instruction( state, db, 0 )
 }
 
@@ -628,10 +652,10 @@ function hc_instruction_sequence_goto(state, db, prod){
         switch(prod){
             case 3: 
             {
-                scan( state.lexer, 10, 3 );
+                scan( state.lexer, 4, 3 );
                 if( state.lexer._type  == 13 ){
                     state.push_fn( hc_instruction_sequence_goto /*hc_instruction_sequence_goto( state, db, 3 )*/, 3 );
-                    scan( state.lexer, 16, 3 );
+                    scan( state.lexer, 17, 3 );
                     consume( state );
                     state.push_fn( branch_235fbc4dfe75738d, 3 );
                     return hc_instruction( state, db, 0 )
@@ -647,14 +671,14 @@ function hc_instruction_sequence_goto(state, db, prod){
 }
 
 function hc_instruction(state, db, prod){
-    scan( state.lexer, 11, 3 );
+    scan( state.lexer, 5, 3 );
     if( state.lexer._type  == 14 ){
     state.push_fn( set_production /*4*/, 4 );
     consume( state );
-    scan( state.lexer, 17, 3 );
+    scan( state.lexer, 18, 3 );
     if( ( state.lexer._type  == 15 ) ){
         consume( state );
-        state.push_fn( branch_da6016855daf0b0d, 4 );
+        state.push_fn( branch_4aedc05f51d50cf7, 4 );
         return hc_id_list( state, db, 0 )
     };
     return - 1
@@ -676,10 +700,10 @@ function hc_instruction(state, db, prod){
 } else if( state.lexer._type  == 21 ){
     state.push_fn( set_production /*4*/, 4 );
     consume( state );
-    scan( state.lexer, 18, 3 );
+    scan( state.lexer, 19, 3 );
     if( ( state.lexer._type  == 5 ) ){
         consume( state );
-        scan( state.lexer, 18, 3 );
+        scan( state.lexer, 19, 3 );
         if( ( state.lexer._type  == 5 ) ){
             consume( state );
             add_reduce( state, 3, 14 );
@@ -690,13 +714,13 @@ function hc_instruction(state, db, prod){
 } else if( state.lexer._type  == 22 ){
     state.push_fn( set_production /*4*/, 4 );
     consume( state );
-    scan( state.lexer, 19, 3 );
+    scan( state.lexer, 20, 3 );
     if( ( state.lexer._type  == 23 ) ){
         consume( state );
-        scan( state.lexer, 20, 3 );
+        scan( state.lexer, 21, 3 );
         if( ( state.lexer._type  == 24 ) ){
             consume( state );
-            scan( state.lexer, 18, 3 );
+            scan( state.lexer, 19, 3 );
             if( ( state.lexer._type  == 5 ) ){
                 consume( state );
                 add_reduce( state, 4, 15 );
@@ -708,10 +732,10 @@ function hc_instruction(state, db, prod){
 } else if( state.lexer._type  == 25 ){
     state.push_fn( set_production /*4*/, 4 );
     consume( state );
-    scan( state.lexer, 20, 3 );
+    scan( state.lexer, 21, 3 );
     if( ( state.lexer._type  == 24 ) ){
         consume( state );
-        scan( state.lexer, 12, 3 );
+        scan( state.lexer, 7, 3 );
         if( ( state.lexer._type  == 16 ) ){
             consume( state );
             state.push_fn( branch_6eb00fcfeb7a31f0, 4 );
@@ -722,7 +746,7 @@ function hc_instruction(state, db, prod){
 } else if( state.lexer._type  == 26 ){
     state.push_fn( set_production /*4*/, 4 );
     consume( state );
-    scan( state.lexer, 21, 3 );
+    scan( state.lexer, 22, 3 );
     if( ( state.lexer._type  == 27 ) ){
         consume( state );
         state.push_fn( branch_0ec80ad115fad29d, 4 );
@@ -732,7 +756,7 @@ function hc_instruction(state, db, prod){
 } else if( state.lexer._type  == 28 ){
     state.push_fn( set_production /*4*/, 4 );
     consume( state );
-    scan( state.lexer, 18, 3 );
+    scan( state.lexer, 19, 3 );
     if( ( state.lexer._type  == 5 ) ){
         consume( state );
         add_reduce( state, 2, 18 );
@@ -744,10 +768,10 @@ function hc_instruction(state, db, prod){
 }
 
 function hc_on_fail(state, db, prod){
-    scan( state.lexer, 8, 3 );
+    scan( state.lexer, 12, 3 );
     if( state.lexer._type  == 29 ){
     consume( state );
-    scan( state.lexer, 22, 3 );
+    scan( state.lexer, 23, 3 );
     if( ( state.lexer._type  == 30 ) ){
         consume( state );
         state.push_fn( branch_ae3568acd52fc829, 5 );
@@ -758,13 +782,13 @@ function hc_on_fail(state, db, prod){
 }
 
 function hc_expected_symbols(state, db, prod){
-    scan( state.lexer, 23, 3 );
+    scan( state.lexer, 24, 3 );
     if( state.lexer._type  == 31 ){
     consume( state );
-    scan( state.lexer, 24, 3 );
+    scan( state.lexer, 25, 3 );
     if( state.lexer._type  == 32 ){
         consume( state );
-        scan( state.lexer, 14, 3 );
+        scan( state.lexer, 15, 3 );
         state.push_fn( branch_ae93f32fdd0426e8, 0 );
         return hc_id_list( state, db, 0 )
     }
@@ -773,10 +797,10 @@ function hc_expected_symbols(state, db, prod){
 }
 
 function hc_id_list(state, db, prod){
-    scan( state.lexer, 14, 3 );
+    scan( state.lexer, 15, 3 );
     if( state.lexer._type  == 10 ){
     consume( state );
-    scan( state.lexer, 18, 3 );
+    scan( state.lexer, 19, 3 );
     if( ( state.lexer._type  == 5 ) ){
         state.push_fn( branch_5af01780703a7f38, 7 );
         return hc_id_list_list_59( state, db, 0 )
@@ -786,7 +810,7 @@ function hc_id_list(state, db, prod){
 }
 
 function hc_state_hash_token(state, db, prod){
-    scan( state.lexer, 25, 3 );
+    scan( state.lexer, 26, 3 );
     if( state.lexer._type  == 3 || state.lexer._type  == 5 || state.lexer._type  == 33 ){
     consume( state );
     return hc_state_hash_token_goto( state, db, 8 )
@@ -795,22 +819,22 @@ function hc_state_hash_token(state, db, prod){
 }
 
 function hc_state_hash_token_goto(state, db, prod){
-    scan( state.lexer, 26, 27 );
+    scan( state.lexer, 27, 28 );
     if( state.lexer._type  == 33 ){
     state.push_fn( hc_state_hash_token_goto /*hc_state_hash_token_goto( state, db, 8 )*/, 8 );
-    scan( state.lexer, 28, 27 );
+    scan( state.lexer, 29, 28 );
     consume( state );
     add_reduce( state, 2, 0 );
     return 0
 } else if( state.lexer._type  == 3 ){
     state.push_fn( hc_state_hash_token_goto /*hc_state_hash_token_goto( state, db, 8 )*/, 8 );
-    scan( state.lexer, 29, 27 );
+    scan( state.lexer, 30, 28 );
     consume( state );
     add_reduce( state, 2, 0 );
     return 0
 } else if( state.lexer._type  == 5 ){
     state.push_fn( hc_state_hash_token_goto /*hc_state_hash_token_goto( state, db, 8 )*/, 8 );
-    scan( state.lexer, 30, 27 );
+    scan( state.lexer, 31, 28 );
     consume( state );
     add_reduce( state, 2, 0 );
     return 0
@@ -819,10 +843,10 @@ function hc_state_hash_token_goto(state, db, prod){
 }
 
 function hc_comment(state, db, prod){
-    scan( state.lexer, 31, 3 );
+    scan( state.lexer, 32, 3 );
     if( state.lexer._type  == 34 ){
     consume( state );
-    scan( state.lexer, 32, 27 );
+    scan( state.lexer, 33, 28 );
     if( state.lexer._type  == 35 ){
         state.push_fn( set_production /*9*/, 9 );
         consume( state );
@@ -837,30 +861,65 @@ function hc_comment(state, db, prod){
     return - 1
 }
 
+function hc_start_list_1(state, db, prod){
+    state.push_fn( branch_97d972e3a6b0bbc5, 10 );
+    return hc_instructions( state, db, 0 )
+}
+
+function hc_start_list_1_goto(state, db, prod){
+    while( true ) {
+        switch(prod){
+            case 10: 
+            {
+                scan( state.lexer, 11, 3 );
+                if( isTokenActive( state.lexer._type, 34 ) ){
+                    state.push_fn( hc_start_list_1_goto /*hc_start_list_1_goto( state, db, 10 )*/, 10 );
+                    scan( state.lexer, 5, 3 );
+                    if( ( isTokenActive( state.lexer._type, 6 ) ) ){
+                        state.push_fn( branch_687f18730960b285, 10 );
+                        return hc_instructions( state, db, 0 )
+                    };
+                    return - 1
+                } else if( state.lexer._type  == 14 ){
+                    var fk1 = state.fork( db );;
+                    fk1.push_fn( set_production /*10*/, 10 );
+                    state.push_fn( branch_3529d11e1804c05b, 10 );
+                    return 0
+                }
+            }
+            break;
+            default: 
+            break
+        };
+        break
+    };
+    return ( prod  == 10 ) ? prod  : - 1
+}
+
 function hc_instruction_list_40(state, db, prod){
-    state.push_fn( branch_ece3786788effda9, 10 );
+    state.push_fn( branch_885c06a78a312e44, 11 );
     return hc_state_declaration( state, db, 0 )
 }
 
 function hc_instruction_list_40_goto(state, db, prod){
-    scan( state.lexer, 33, 3 );
+    scan( state.lexer, 35, 3 );
     if( state.lexer._type  == 36 ){
-    state.push_fn( hc_instruction_list_40_goto /*hc_instruction_list_40_goto( state, db, 10 )*/, 10 );
-    scan( state.lexer, 34, 3 );
+    state.push_fn( hc_instruction_list_40_goto /*hc_instruction_list_40_goto( state, db, 11 )*/, 11 );
+    scan( state.lexer, 36, 3 );
     consume( state );
-    state.push_fn( branch_235fbc4dfe75738d, 10 );
+    state.push_fn( branch_235fbc4dfe75738d, 11 );
     return hc_state_declaration( state, db, 0 )
 };
-    return ( prod  == 10 ) ? prod  : - 1
+    return ( prod  == 11 ) ? prod  : - 1
 }
 
 function hc_expected_symbols_group_53_0_(state, db, prod){
-    scan( state.lexer, 35, 3 );
+    scan( state.lexer, 37, 3 );
     if( state.lexer._type  == 37 ){
     consume( state );
-    scan( state.lexer, 14, 3 );
+    scan( state.lexer, 15, 3 );
     if( ( state.lexer._type  == 10 ) ){
-        state.push_fn( branch_4283f8747d15b12f, 11 );
+        state.push_fn( branch_0d6249e23d42ec1c, 12 );
         return hc_id_list( state, db, 0 )
     }
 };
@@ -868,72 +927,72 @@ function hc_expected_symbols_group_53_0_(state, db, prod){
 }
 
 function hc_id_list_list_59(state, db, prod){
-    scan( state.lexer, 18, 3 );
+    scan( state.lexer, 19, 3 );
     if( state.lexer._type  == 5 ){
     consume( state );
     scan( state.lexer, 3, 3 );
     add_reduce( state, 1, 8 );
-    return hc_id_list_list_59_goto( state, db, 12 )
+    return hc_id_list_list_59_goto( state, db, 13 )
 };
     return - 1
 }
 
 function hc_id_list_list_59_goto(state, db, prod){
-    scan( state.lexer, 36, 3 );
+    scan( state.lexer, 38, 3 );
     if( state.lexer._type  == 5 ){
-    state.push_fn( hc_id_list_list_59_goto /*hc_id_list_list_59_goto( state, db, 12 )*/, 12 );
-    scan( state.lexer, 18, 3 );
+    state.push_fn( hc_id_list_list_59_goto /*hc_id_list_list_59_goto( state, db, 13 )*/, 13 );
+    scan( state.lexer, 19, 3 );
     consume( state );
-    add_reduce( state, 2, 24 );
+    add_reduce( state, 2, 23 );
     return 0
 };
-    return ( prod  == 12 ) ? prod  : - 1
+    return ( prod  == 13 ) ? prod  : - 1
 }
 
 function hc_comment_list_80(state, db, prod){
-    scan( state.lexer, 37, 27 );
-    if( isTokenActive( state.lexer._type, 38 ) ){
+    scan( state.lexer, 39, 28 );
+    if( isTokenActive( state.lexer._type, 40 ) ){
     consume( state );
     add_reduce( state, 1, 8 );
-    return hc_comment_list_80_goto( state, db, 13 )
+    return hc_comment_list_80_goto( state, db, 14 )
 };
     return - 1
 }
 
 function hc_comment_list_80_goto(state, db, prod){
-    scan( state.lexer, 32, 27 );
+    scan( state.lexer, 33, 28 );
     if( state.lexer._type  == 2 ){
-    state.push_fn( hc_comment_list_80_goto /*hc_comment_list_80_goto( state, db, 13 )*/, 13 );
-    scan( state.lexer, 39, 3 );
+    state.push_fn( hc_comment_list_80_goto /*hc_comment_list_80_goto( state, db, 14 )*/, 14 );
+    scan( state.lexer, 41, 3 );
     consume( state );
-    add_reduce( state, 2, 24 );
+    add_reduce( state, 2, 23 );
     return 0
 } else if( state.lexer._type  == 8 ){
-    state.push_fn( hc_comment_list_80_goto /*hc_comment_list_80_goto( state, db, 13 )*/, 13 );
-    scan( state.lexer, 3, 40 );
+    state.push_fn( hc_comment_list_80_goto /*hc_comment_list_80_goto( state, db, 14 )*/, 14 );
+    scan( state.lexer, 3, 42 );
     consume( state );
-    add_reduce( state, 2, 24 );
+    add_reduce( state, 2, 23 );
     return 0
 } else if( state.lexer._type  == 7 ){
-    state.push_fn( hc_comment_list_80_goto /*hc_comment_list_80_goto( state, db, 13 )*/, 13 );
-    scan( state.lexer, 3, 41 );
+    state.push_fn( hc_comment_list_80_goto /*hc_comment_list_80_goto( state, db, 14 )*/, 14 );
+    scan( state.lexer, 3, 43 );
     consume( state );
-    add_reduce( state, 2, 24 );
+    add_reduce( state, 2, 23 );
     return 0
 } else if( state.lexer._type  == 3 ){
-    state.push_fn( hc_comment_list_80_goto /*hc_comment_list_80_goto( state, db, 13 )*/, 13 );
-    scan( state.lexer, 42, 3 );
+    state.push_fn( hc_comment_list_80_goto /*hc_comment_list_80_goto( state, db, 14 )*/, 14 );
+    scan( state.lexer, 44, 3 );
     consume( state );
-    add_reduce( state, 2, 24 );
+    add_reduce( state, 2, 23 );
     return 0
 } else if( state.lexer._type  == 5 ){
-    state.push_fn( hc_comment_list_80_goto /*hc_comment_list_80_goto( state, db, 13 )*/, 13 );
-    scan( state.lexer, 18, 3 );
+    state.push_fn( hc_comment_list_80_goto /*hc_comment_list_80_goto( state, db, 14 )*/, 14 );
+    scan( state.lexer, 19, 3 );
     consume( state );
-    add_reduce( state, 2, 24 );
+    add_reduce( state, 2, 23 );
     return 0
 };
-    return ( prod  == 13 ) ? prod  : - 1
+    return ( prod  == 14 ) ? prod  : - 1
 } 
 
         function recognize_primary( string, production){
@@ -985,8 +1044,8 @@ function hc_comment_list_80_goto(state, db, prod){
 (env, sym, pos)=> ({type:"symbols",expected:sym[2],skipped:sym[3]||[]}) /*19*/,
 (env, sym, pos)=> ({type:"symbols",expected:sym[2],skipped:null||[]}) /*20*/,
 (env, sym, pos)=> (sym[1].map(i=>parseInt(i))) /*21*/,
-(env, sym, pos)=> (sym[1]) /*22*/,
-(env, sym, pos)=> ((sym[0].push(sym[1]),sym[0])) /*23*/];
+(env, sym, pos)=> ((sym[0].push(sym[1]),sym[0])) /*22*/,
+(env, sym, pos)=> (sym[1]) /*23*/];
 
     export default ParserFactory
         (reduce_functions, undefined, recognizer_initializer, {start:0});

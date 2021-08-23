@@ -1,6 +1,6 @@
 @IGNORE g:sp g:nl tk:comment
 
-<> start > state_declaration instructions on_fail? expected_symbols?   
+<> start > state_declaration instructions(+) on_fail? expected_symbols?   
                                             f:r { { type:"state", id:$1, instructions: $2, fail: $3, symbol_meta:$4 } }
 
 <> state_declaration > t:state \[ tk:state_hash_token \]     
@@ -12,7 +12,7 @@
 <> instruction_sequence > instruction(+ \then )
 
 <> instruction>
-    t:on t:prod id_list \( instruction \)        
+    t:on t:prod id_list \( instructions \)        
                                             f:r { { type:"prod", production_ids:$3, instructions: $5  } }
     | \shift id_list                      
                                             f:r { { type:"shift", token_ids: $2} }
