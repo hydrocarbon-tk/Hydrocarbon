@@ -14,10 +14,12 @@
 <> instruction>
     t:on t:prod id_list \( instructions \)        
                                             f:r { { type:"prod", production_ids:$3, instructions: $5  } }
-    | \shift id_list                      
-                                            f:r { { type:"shift", token_ids: $2} }
+    | \consume id_list                      
+                                            f:r { { type:"consume", token_ids: $2} }
     | \peek id_list                     
                                             f:r { { type:"peek", token_ids: $2} }
+    | \assert id_list                     
+                                            f:r { { type:"assert", token_ids: $2} }
     | \goto state_declaration
                                             f:r { { type:"goto", state: $2 } }
     | \reduce g:num g:num           
