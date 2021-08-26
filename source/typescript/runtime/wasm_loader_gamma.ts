@@ -155,11 +155,11 @@ export async function load_wasm_recognizer(source_path: URI): Promise<RecognizeI
         }
 
         get byte_offset(): number {
-            return new Uint32Array(memory_buffer, this.__ptr__ + 8, 1,)[0];
+            return new Uint32Array(memory_buffer, this.__ptr__ + 4, 1)[0];
         }
 
         get byte_length(): number {
-            return new Uint16Array(memory_buffer, this.__ptr__ + 36, 1)[0];
+            return new Uint16Array(memory_buffer, this.__ptr__ + 32, 1)[0];
         }
     }
 

@@ -11,21 +11,21 @@ namespace HYDROCARBON
     class Lexer
     {
     public:
-        // 8 byte
+        // 4 byte
         u8 *input = 0; // 0
 
         // 4 byte
-        u32 byte_offset = 0;              // 8
-        u32 token_offset = 0;             // 12
-        u32 prev_byte_offset = 0;         // 16
-        u32 prev_token_offset = 0;        // 20
-        u32 active_token_productions = 0; // 24
-        u32 input_len = 0;                // 28
-        u32 _type = 0;                    // 32
+        u32 byte_offset = 0;              // 4
+        u32 token_offset = 0;             // 8
+        u32 prev_byte_offset = 0;         // 12
+        u32 prev_token_offset = 0;        // 16
+        u32 active_token_productions = 0; // 20
+        u32 input_len = 0;                // 24
+        u32 _type = 0;                    // 28
 
         // 2 byte
-        u16 byte_length = 0;  // 36
-        u16 token_length = 0; // 38
+        u16 byte_length = 0;  // 32
+        u16 token_length = 0; // 34
         u16 line = 0;         // 40
         u16 current_byte = 0; // 42
 

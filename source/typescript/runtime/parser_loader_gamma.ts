@@ -141,7 +141,7 @@ export async function ParserFactory<T, R = {}>(
             for (; input_string[i] != "\n" && i >= 0; --i);
 
             lex.line = 0;
-            lex.column = 0 - i;
+            lex.column = lex.off - i;
 
             lex.throw(`Unexpected token [${input_string.slice(lex.off, lex.off + lex.tl)}]`);
 
