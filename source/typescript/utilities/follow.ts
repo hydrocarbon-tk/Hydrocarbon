@@ -8,6 +8,7 @@ import { Item } from "./item.js";
 
 
 export function getFollow(production_id: number, grammar: HCG3Grammar): TokenSymbol[] {
+
     const prod = grammar.productions[production_id];
 
     return prod.bodies

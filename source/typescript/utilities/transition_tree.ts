@@ -23,7 +23,6 @@ import { HCG3Grammar, TokenSymbol } from "../types/grammar_nodes";
 import { ClosureGroup, TransitionTreeNode } from "../types/transition_tree_nodes";
 import { getClosure, getFollowClosure } from "./closure.js";
 import { generateHybridIdentifier } from "./code_generating.js";
-import { getFollow } from "./follow.js";
 import { Item } from "./item.js";
 
 
