@@ -22,8 +22,10 @@ export function createJSFunctionsFromExpressions(grammar: HCG3Grammar, error) {
 
                 if (fn.type == "env-function-reference") {
                     fn.js = `(env, sym, pos)=> env.functions.${fn.ref} (env, sym, pos)`;
+                    addReduceFNStringToLUT(body, grammar, fn.js);
                     continue;
                 } else if (!fn.txt) {
+                    addReduceFNStringToLUT(body, grammar);
                     body.reduce_function = null;
                     continue;
                 }
