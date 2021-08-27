@@ -20,32 +20,32 @@
                                             f:r { { type:"prod", production_ids:$3, instructions: $5  } }
 
 <> token_branch_instruction >
-     \consume id_list  \( instruction_sequence \)                     
+     t:consume id_list  \( instruction_sequence \)                     
                                             f:r { { type:"consume", token_ids: $2, instructions: $4} }
-    | \peek id_list \( instruction_sequence \)                    
+    | t:peek id_list \( instruction_sequence \)                    
                                             f:r { { type:"peek", token_ids: $2, instructions: $4} }
-    | \assert id_list \( instruction_sequence \)                     
+    | t:assert id_list \( instruction_sequence \)                     
                                             f:r { { type:"assert", token_ids: $2,instructions: $4} }
 
 <> goto_instruction > 
 
-    \goto state_declaration
+    t:goto state_declaration
                                             f:r { { type:"goto", state: $2 } }
 <> sequence_instruction >
 
-    \reduce g:num g:num           
+    t:reduce g:num g:num           
                                             f:r { { type:"reduce", len: parseInt($2), reduce_fn: parseInt($3) } }
-    | \set \prod \to g:num             
+    | t:set t:prod t:to g:num             
                                             f:r { { type:"set-prod", id: parseInt($4)  } }
-    | \fork \to \( state_declaration(+\, ) \)
+    | t:fork t:to \( state_declaration(+\, ) \)
                                             f:r { { type:"fork-to", states: $4  } }
-    | \scan \until id_list
+    | t:scan t:until id_list
                                             f:r { { type:"scan-until", token_ids: $3  } }
-    | \pop g:num
+    | t:pop g:num
                                             f:r { { type:"pop", len: parseInt($2)  } }                                                
 
-<> on_fail > \on \fail top_level_instructions                                 
-                                            f:r { { type:"on-fail", instructions: $3  } }
+<> on_fail > t:on t:fail \( top_level_instructions \)                                 
+                                            f:r { { type:"on-fail", instructions: $4  } }
 
 <> expected_symbols > \symbols: \expected id_list
 
