@@ -60,6 +60,7 @@ function getTKProdSymbolsFromClosure(
                 id: getSymbolValueAtOffset(sym) + "",
                 symbol: <VirtualTokenSymbol>{
                     item,
+                    val: getUniqueSymbolName(symbol.root),
                     type: "v-token-production",
                     root: symbol.root,
                     closure: closure,
@@ -76,6 +77,7 @@ function getTKProdSymbolsFromClosure(
                     id: getSymbolValueAtOffset(sym) + "",
                     symbol: <VirtualTokenSymbol>{
                         item,
+                        val: getUniqueSymbolName(symbol.root),
                         type: "v-token-production",
                         root: symbol.root,
                         closure: closure,
