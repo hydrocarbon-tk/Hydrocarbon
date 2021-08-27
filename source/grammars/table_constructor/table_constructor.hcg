@@ -1,29 +1,40 @@
 @IGNORE g:sp g:nl tk:comment
 
-<> start > state_declaration instructions(+) on_fail? expected_symbols?   
+<> start > state_declaration top_level_instructions on_fail? expected_symbols?   
                                             f:r { { type:"state", id:$1, instructions: $2, fail: $3, symbol_meta:$4 } }
 
 <> state_declaration > t:state \[ tk:state_hash_token \]     
                                             f:r { $3 }
 
-<> instructions > instruction ( \then instruction_sequence )? 
-                                            f:r { ($1.then = $2, $1) }
+<> top_level_instructions > 
+     prod_branch_instruction(+) 
+     | token_branch_instruction(+) 
+     | instruction_sequence                             
 
-<> instruction_sequence > instruction(+ \then )
+<> instruction_sequence > sequence_instruction(+ \then ) ( \then goto_instruction(* \then ) )? f:r{ [...$1, ...$2] }
+    | goto_instruction(* \then )
 
-<> instruction>
-    t:on t:prod id_list \( instructions \)        
+<> prod_branch_instruction >
+
+    t:on t:prod id_list \( instruction_sequence \)        
                                             f:r { { type:"prod", production_ids:$3, instructions: $5  } }
-    | \consume id_list                      
-                                            f:r { { type:"consume", token_ids: $2} }
-    | \peek id_list                     
-                                            f:r { { type:"peek", token_ids: $2} }
-    | \assert id_list                     
-                                            f:r { { type:"assert", token_ids: $2} }
-    | \goto state_declaration
+
+<> token_branch_instruction >
+     \consume id_list  \( instruction_sequence \)                     
+                                            f:r { { type:"consume", token_ids: $2, instructions: $4} }
+    | \peek id_list \( instruction_sequence \)                    
+                                            f:r { { type:"peek", token_ids: $2, instructions: $4} }
+    | \assert id_list \( instruction_sequence \)                     
+                                            f:r { { type:"assert", token_ids: $2,instructions: $4} }
+
+<> goto_instruction > 
+
+    \goto state_declaration
                                             f:r { { type:"goto", state: $2 } }
-    | \reduce g:num g:num           
-                                            f:r { { type:"goto", len: parseInt($2), reduce_fn: parseInt($3) } }
+<> sequence_instruction >
+
+    \reduce g:num g:num           
+                                            f:r { { type:"reduce", len: parseInt($2), reduce_fn: parseInt($3) } }
     | \set \prod \to g:num             
                                             f:r { { type:"set-prod", id: parseInt($4)  } }
     | \fork \to \( state_declaration(+\, ) \)
@@ -33,8 +44,8 @@
     | \pop g:num
                                             f:r { { type:"pop", len: parseInt($2)  } }                                                
 
-<> on_fail > \on \fail instructions                                 
-                                            f:r { { type:"on-fail", instruction: $3  } }
+<> on_fail > \on \fail top_level_instructions                                 
+                                            f:r { { type:"on-fail", instructions: $3  } }
 
 <> expected_symbols > \symbols: \expected id_list
 
