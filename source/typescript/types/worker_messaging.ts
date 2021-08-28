@@ -21,4 +21,6 @@ export interface HybridDispatchResponse {
     productions?: Set<number>;
     const_map?: Map<GlobalName, ConstantObj>;
     fn?: SC;
+
+    tables?: Map<string, string>;
 }

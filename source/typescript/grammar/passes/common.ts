@@ -140,11 +140,18 @@ export function createCollisionMatrix(grammar: HCG3Grammar) {
 
         for (const symB of grammar.meta.all_symbols.values()) {
 
-            if (symB == symA || Sym_Is_EOF(symA) || Sym_Is_EOP(symA) || Sym_Is_EOF(symB) || Sym_Is_EOP(symB) || Sym_Is_Look_Behind(symA) || Sym_Is_Look_Behind(symB)) {
+            if (
+                symB == symA
+                || Sym_Is_EOF(symA) || Sym_Is_EOP(symA)
+                || Sym_Is_EOF(symB) || Sym_Is_EOP(symB)
+                || Sym_Is_Look_Behind(symA) || Sym_Is_Look_Behind(symB)
+            ) {
                 j[symB.id] = (!!0);
             } else if (Sym_Is_A_Production(symB)) {
                 continue;
-            } else if (Symbols_Are_Ambiguous(symA, symB, grammar)) {
+            }
+
+            if (Symbols_Are_Ambiguous(symA, symB, grammar)) {
                 j[symB.id] = (!!1);
             } else {
                 j[symB.id] = (!!0);
@@ -154,16 +161,17 @@ export function createCollisionMatrix(grammar: HCG3Grammar) {
 
     grammar.collision_matrix = collision_matrix;
 }
+
 function Symbols_Are_Ambiguous(symA, symB, grammar) {
     for (const node of getSymbolTreeLeaves(getSymbolTree([symA, symB], grammar))) {
         if (node.symbols.length > 1 && node.offset > 0) {
-            if (node.symbols.filter(Sym_Is_Exclusive).length == 1)
+            if (node.symbols.filter(Sym_Is_Exclusive).length > 0)
                 return false;
-            else
+            else {
                 return true;
+            }
         }
     }
-
     return false;
 }
 

@@ -10,9 +10,9 @@ import { TransitionNode, TRANSITION_TYPE } from "../../types/transition_node.js"
 
 export function table_resolveUnresolvedLeaves(node: TransitionNode, nodes: TransitionNode[], options: RenderBodyOptions): MultiItemReturnObject {
 
-
     //remove extended goto transition
-    nodes; //= nodes.filter(n => n.transition_type !== TRANSITION_TYPE.IGNORE);
+
+    const items = node.items;
 
     if (nodes.length == 1) {
         return { leaves: node.leaves, root: [], prods: node.prods };
@@ -33,7 +33,17 @@ export function table_resolveUnresolvedLeaves(node: TransitionNode, nodes: Trans
 
     const hash = hashString(nodes.map(i => i.hash).join("----!merged!merged!---")).slice(0, 8);
 
-    console.log(`state [${hash}] -- FORKED -- fork to states ${nodes.map(i => `[${i.hash}]`).join(" ")}`);
+    const code = `
+state [${hash}] 
+
+    /*
+    ${items.map(i => i.renderUnformattedWithProduction(options.grammar)).join("\n    ")}
+    */
+
+    fork to ( ${nodes.map(i => `state [${i.hash}]`).join(", ")} ) 
+`;
+    options.table.map.set(hash, code);
+    options.table.entries.push(code);
 
     node.hash = hash;
 

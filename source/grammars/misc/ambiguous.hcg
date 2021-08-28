@@ -1,23 +1,37 @@
 <> S > E 
 
-f:r{ { type:"E", d:$sym1}  } 
+f:r{ { type:"E", d:$
+1}  } 
 
     | F
 
-f:r{ { type:"F", d:$sym1 }  } 
+f:r{ { type:"F", d:$
+1 }  } 
 
 <> E > \a \b 
 
-f:r{  $sym1 + $sym2   } 
+f:r{  $
+1 + $
+2   } 
 
 | \a E \b
 
-f:r{  $sym1 + $sym2  + $sym3 } 
+f:r{  $
+1 + $
+2  + $
+3 } 
 
 <> F > \a \b \b 
 
-f:r{ "<" + $sym1 + $sym2  + $sym3 + ">" } 
+f:r{ "<" + $
+1 + $
+2  + $
+3 + ">" } 
 
 | \a F \b \b
 
-f:r{  $sym1 + $sym2 + "|"  + $sym3 + $sym4 } 
+f:r{  $
+1 + $
+2 + "|"  + $
+3 + $
+4 } 

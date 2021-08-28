@@ -42,15 +42,15 @@ export function processPeekTransitionLeaves(
 
                 addUnresolvedNode(node, options, root_depth);
 
-            else if (We_Can_Call_Single_Production_From_Items(node, options)) {
+            else if (We_Can_Call_Single_Production_From_Items(node, options))
 
                 convertStateToProductionCall(node, root_depth);
 
-            } else if (Items_Have_The_Same_Active_Symbol(node.items, grammar)) {
+            else if (Items_Have_The_Same_Active_Symbol(node.items, grammar))
 
                 addSameActiveSymbolNode(node, options, root_depth);
 
-            } else if (No_Matching_Extended_Goto_Item_In_State_Closure(node, options)) {
+            else if (No_Matching_Extended_Goto_Item_In_State_Closure(node, options)) {
 
                 if (State_Closure_Allows_Production_Call(node, options)) {
 
@@ -133,10 +133,7 @@ function convertPeekStateToSingleItemNode(node: TransitionNode, { grammar }: Ren
     } else if (node.peek_level > 0) {
         node.transition_type = TRANSITION_TYPE.ASSERT_PEEK;
     } else {
-        //Symbols can be trivially consumed
-        node.items = node.items.map(i => i.increment());
-
-        node.transition_type = TRANSITION_TYPE.ASSERT_CONSUME;
+        node.transition_type = TRANSITION_TYPE.ASSERT;
     }
 
 
@@ -195,11 +192,11 @@ function addUnresolvedNode(node: TransitionNode, options: RenderBodyOptions, off
 
             node.transition_type = TRANSITION_TYPE.ASSERT_PEEK_VP;
         } else {
+            console.log(items.map(i => i.renderUnformattedWithProduction(options.grammar)));
 
             for (const items_with_same_symbol of filtered_items.group(i => getUniqueSymbolName(i.sym(options.grammar)))) {
 
-
-                const unresolved_leaf_node = createTransitionNode(items_with_same_symbol, node.symbols, TRANSITION_TYPE.ASSERT, offset, node.peek_level, true, 55);
+                const unresolved_leaf_node = createTransitionNode(items_with_same_symbol, node.symbols, TRANSITION_TYPE.ASSERT, offset, node.peek_level, true);
 
                 unresolved_leaf_node.nodes.push(...yieldTransitions(items_with_same_symbol, options, offset, const_EMPTY_ARRAY, false));
 
@@ -220,9 +217,11 @@ function Active_Symbol_Of_First_Item_Is_A_Production(node: TransitionNode, gramm
 }
 
 function We_Can_Call_Single_Production_From_Items({ items }: TransitionNode, { grammar, production_ids }: RenderBodyOptions) {
+
     return getMaxOffsetOfItems(items) == 0
         && Items_Are_From_Same_Production(items, grammar)
         && items.every(i => !i.atEND)
+
         && !production_ids.includes(getProductionID(items[0], grammar));
 }
 
@@ -268,11 +267,12 @@ export function yieldPeekedNodes(
             goto_items,
             {
                 expanded_limit: 10,
-                max_tree_depth: 12,
-                max_no_progress: 20,
+                max_tree_depth: 10,
+                max_no_progress: 3,
                 max_time_limit: 300,
             }
         );
+
 
     const nodes = buildPeekTransitions(tree_nodes[0].next, options, offset, leaf_handler, filter_symbols, peek_depth);
 

@@ -82,6 +82,14 @@ export interface RenderBodyOptions extends BaseOptions {
 
     branches: { name: SKReference, body: SKExpression[]; }[];
 
+    /**
+     * Object stores for table based builds
+     */
+    table?: {
+        map: Map<string, string>;
+        entries: string[];
+    };
+
 }
 export const enum ReturnType {
     ACCEPT = 0,

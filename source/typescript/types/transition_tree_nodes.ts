@@ -3,8 +3,8 @@
  * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
  * disclaimer notice.
  */
-import { Symbol, TokenSymbol } from "./symbol";
 import { Item } from "../utilities/item";
+import { HCG3Symbol } from './grammar_nodes';
 
 
 export interface TransitionTreeNode {
@@ -14,7 +14,6 @@ export interface TransitionTreeNode {
 
     item_ids: string[];
     sym: string;
-    unskippable: TokenSymbol[];
     roots: Item[];
     next: TransitionTreeNode[];
     closure: Item[];
@@ -24,17 +23,16 @@ export interface TransitionTreeNode {
     root_id?: number;
 }
 export interface ClosureGroup {
-    sym: Symbol;
+    sym: HCG3Symbol;
     item_id?: string;
     index: number;
     closure: Item[];
-    unskippable?: TokenSymbol[];
     final: number;
     /**
      * Items that transition on the sym
      */
     starts?: Item[];
-    root_id?: number;
-
+    tree_depth?: number;
     production_shift_items: Item[];
+    previous_group?: ClosureGroup;
 }

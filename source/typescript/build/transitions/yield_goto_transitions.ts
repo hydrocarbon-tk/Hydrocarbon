@@ -52,10 +52,14 @@ export function yieldGOTOTransitions(
 
         for (const { item } of grammar.item_map.values()) {
             if (
-                //!item.atEND
-                //&& 
+                !item.atEND
+
+                &&
+
                 Sym_Is_A_Production(item.sym(grammar))
+
                 && production_ids.includes(item.getProductionAtSymbol(grammar).id)
+
                 && !production_ids.includes(getProductionID(item, grammar))
                 && !nonterm_shift_items.some(i => i.id == item.id)
             ) {
@@ -67,6 +71,7 @@ export function yieldGOTOTransitions(
         nonterm_shift_items = nonterm_shift_items.setFilter(i => i.id);
     }
 
+
     if (
         PRODUCTION_IS_NOT_LEFT_RECURSIVE
 
@@ -75,9 +80,7 @@ export function yieldGOTOTransitions(
 
         && completed_productions.setFilter().length == 1
         && production_ids.includes(completed_productions.setFilter()[0])
-    ) {
-        options.NO_GOTOS = true;
-    } else if (nonterm_shift_items.length > 0) {
+    ) { /* intentional */ } else if (nonterm_shift_items.length > 0) {
 
         const output_nodes = [];
 
@@ -90,7 +93,10 @@ export function yieldGOTOTransitions(
         const pending_productions: number[] = completed_productions.setFilter();
         const goto_groups = nonterm_shift_items.setFilter(i => i.id).groupMap(i => i.getProductionAtSymbol(grammar).id);
 
+
+
         for (let i = 0; i < pending_productions.length; i++) {
+
 
             const production_id = pending_productions[i];
 
@@ -105,7 +111,10 @@ export function yieldGOTOTransitions(
 
                     items_to_process = goto_groups.get(production_id).map(i => i.increment()).setFilter(i => i.id),
 
-                    nodes = yieldTransitions(items_to_process, options, 1),
+                    nodes = yieldTransitions(items_to_process, options, 1).map(node => {
+                        node.goto_prod_id = <any>production_id;
+                        return node;
+                    }),
 
                     { code, hash, leaves, prods } = processTransitionNodes(options, nodes, resolveBranches, resolveUnresolvedLeaves, resolveResolvedLeaf),
 
@@ -132,12 +141,14 @@ export function yieldGOTOTransitions(
                 pending_productions.push(...prods.setFilter());
 
             } else if (!production_ids.includes(production_id)) {
-                //throw new Error("Missing goto group for " + grammar.productions[production_id].name);
+                throw new Error("Missing goto group for " + grammar.productions[production_id].name);
             }
         }
 
         return output_nodes;
     }
+
+    options.NO_GOTOS = true;
 
     return [];
 }

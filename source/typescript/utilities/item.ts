@@ -192,5 +192,11 @@ export function itemsToProductionIDs(items: Item[], grammar: HCG3Grammar): numbe
 }
 
 export function Items_Have_The_Same_Active_Symbol(items: Item[], grammar: HCG3Grammar) {
-    return items.every(i => !i.atEND && i.sym(grammar).val == items[0].sym(grammar).val);
+    return items.every(
+        i => !i.atEND
+            &&
+            i.sym(grammar).val == items[0].sym(grammar).val
+        //  &&
+        //  !Sym_Is_A_Production(i.sym(grammar))
+    );
 }

@@ -8,11 +8,7 @@ export interface RDProductionFunction {
 
     id: number,
 
-    entry: SKFunction,
-
-    goto: SKFunction,
-
-    reduce: SKFunction,
+    fn: [SKFunction?, SKFunction?, SKFunction?];
 
     productions?: Set<number>;
 

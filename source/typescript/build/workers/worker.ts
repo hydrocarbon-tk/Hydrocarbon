@@ -11,6 +11,8 @@ import { HybridDispatch, HybridDispatchResponse } from "../../types/worker_messa
 import "../../utilities/array_globals.js";
 import { constructHybridFunctionParser } from "../function_constructor.js";
 import { createRunner, Helper } from "../helper.js";
+import { constructTableParser } from '../table_constructor.js';
+import { productions } from '../../../../../../../../projects/lib_candle_library/node_modules/@candlelib/css/build/types/css.js';
 
 /**
  * Fillout Worker Grammar
@@ -29,7 +31,6 @@ export function filloutWorkerGrammar(grammar: HCG3Grammar) {
 export class Worker {
 
     grammar: HCG3Grammar;
-    env: ParserEnvironment;
     id: number;
     runner: Helper;
 
@@ -40,8 +41,6 @@ export class Worker {
         const { grammar, env_path, id, ANNOTATED, DEBUG } = wd;
 
         this.grammar = grammar;
-
-        this.env = { functions: {} };
 
         this.id = id;
 
@@ -57,16 +56,19 @@ export class Worker {
 
         filloutWorkerGrammar(this.grammar);
 
-        grammar.graph_id = 0;
-
         this.pp.on("message", (job: HybridDispatch) => {
 
             let Response: HybridDispatchResponse = {};
 
-            const { fn, productions } = constructHybridFunctionParser(this.grammar.productions[job.production_id], this.grammar, this.runner);
+            if (false) {
+                const { fn, productions } = constructHybridFunctionParser(this.grammar.productions[job.production_id], this.grammar, this.runner);
+                Response.fn = fn;
+                Response.productions = productions;
+            } else {
+                const { tables, id } = constructTableParser(this.grammar.productions[job.production_id], this.grammar, this.runner);
+                Response.tables = tables;
+            }
 
-            Response.fn = fn;
-            Response.productions = productions;
             Response.production_id = job.production_id;
             Response.const_map = this.runner.constant_map;
             parentPort.postMessage(Response);

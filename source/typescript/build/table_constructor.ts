@@ -7,7 +7,6 @@ import { Sym_Is_A_Production } from "../grammar/nodes/symbol.js";
 import { sk } from "../skribble/skribble.js";
 import { SKExpression } from "../skribble/types/node.js";
 import { HCG3Grammar, HCG3Production, HCG3Symbol } from "../types/grammar_nodes.js";
-import { RDProductionFunction } from "../types/rd_production_function";
 import { RenderBodyOptions } from "../types/render_body_options";
 import { Leaf, TRANSITION_TYPE } from "../types/transition_node.js";
 import { const_EMPTY_ARRAY } from "../utilities/const_EMPTY_ARRAY.js";
@@ -24,7 +23,10 @@ import { processTransitionNodes } from "./transitions/process_transition_nodes.j
 import { yieldGOTOTransitions } from "./transitions/yield_goto_transitions.js";
 import { yieldTransitions } from "./transitions/yield_transitions.js";
 
-export function constructTableParser(production: HCG3Production, grammar: HCG3Grammar, runner: Helper): RDProductionFunction {
+export function constructTableParser(production: HCG3Production, grammar: HCG3Grammar, runner: Helper): {
+    tables: Map<string, string>;
+    id: number;
+} {
 
     grammar.branches = [];
 
@@ -35,7 +37,7 @@ export function constructTableParser(production: HCG3Production, grammar: HCG3Gr
     grammar.item_map = meta_item_cache;
 
     const
-        { RDOptions, GOTO_Options }
+        { RDOptions }
             = compileProductionTables(grammar, runner, [production]);
 
     //clean up virtual productions
@@ -45,10 +47,8 @@ export function constructTableParser(production: HCG3Production, grammar: HCG3Gr
     grammar.item_map = cached_item_map;
 
     return {
-        productions: new Set([...RDOptions.called_productions.values(), ...GOTO_Options.called_productions.values(), ...runner.referenced_production_ids.values()]),
+        tables: RDOptions.table.map,
         id: production.id,
-        fn: [],
-        RENDER: false
     };
 }
 
@@ -163,7 +163,7 @@ export function compileProductionTables(
         RDOptions = createBuildOptions(
             grammar, runner,
             productions,
-            IS_VIRTUAL
+            IS_VIRTUAL,
         ),
 
         rd_nodes = yieldTransitions(
@@ -188,14 +188,15 @@ export function compileProductionTables(
             runner,
             productions,
             IS_VIRTUAL,
-            "GOTO"
+            "GOTO",
+            RDOptions.table
         ),
 
         { leaves: goto_leaves, hash: goto_hash } = processTransitionNodes(
             GOTO_Options,
             yieldGOTOTransitions(
                 GOTO_Options,
-                completed_productions,
+                GOTO_Options.goto_items.map(i => i.getProduction(grammar).id),
                 table_resolveBranches,
                 table_resolveUnresolvedLeaves,
                 table_resolveResolvedLeaf
@@ -205,11 +206,16 @@ export function compileProductionTables(
             table_resolveResolvedLeaf
         );
 
-    console.log(`state [${productions[0].name}] goto state [${hash}] ${GOTO_Options.NO_GOTOS ? `then set prod to ${productions[0].id} ` : `then goto state [${productions[0].name}_goto]`} `);
+    const code = `
+state [${productions[0].name}]    
 
+    goto state [${hash}] ${GOTO_Options.NO_GOTOS ? `` : `then goto state [${productions[0].name}_goto]`}
+    `;
 
-    RDOptions.leaves = rd_leaves;
-    GOTO_Options.leaves = goto_leaves;
+    RDOptions.table.map.set(productions[0].name, code);
+    RDOptions.table.entries.push(code);
+
+    
 
     return { RDOptions, GOTO_Options };
 }
@@ -221,7 +227,11 @@ export function createBuildOptions(
      */
     productions: HCG3Production[],
     IS_VIRTUAL: number = 0,
-    scope: "RD" | "GOTO" = "RD"
+    scope: "RD" | "GOTO" = "RD",
+    table: RenderBodyOptions["table"] = {
+        entries: [],
+        map: new Map()
+    }
 ): RenderBodyOptions {
     return {
         scope,
@@ -240,6 +250,7 @@ export function createBuildOptions(
         branches: [],
         VIRTUAL_LEVEL: IS_VIRTUAL,
         NO_GOTOS: false,
+        table: table,
         global_production_items: [...grammar.item_map.values()].map(i => i.item).filter(i => !i.atEND && Sym_Is_A_Production(i.sym(grammar)))
     };
 }

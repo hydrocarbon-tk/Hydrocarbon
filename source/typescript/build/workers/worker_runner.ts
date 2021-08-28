@@ -5,7 +5,6 @@
  */
 import { HCG3Grammar } from "source/typescript/types/grammar_nodes.js";
 import { Worker } from "worker_threads";
-import { ParserEnvironment } from "../../types/parser_environment";
 import { RDProductionFunction } from "../../types/rd_production_function.js";
 import { WorkerContainer } from "../../types/worker_container";
 import { HybridDispatch, HybridDispatchResponse, HybridJobType } from "../../types/worker_messaging.js";
@@ -22,6 +21,7 @@ export class WorkerRunner {
     to_process_rd_fn: number[];
     runner: Helper;
     IN_FLIGHT_JOBS: number;
+    tables: Map<string, string>;
 
     constructor(
         grammar: HCG3Grammar,
@@ -32,6 +32,7 @@ export class WorkerRunner {
 
         this.grammar = grammar;
         this.runner = runner;
+        this.tables = new Map;
         this.to_process_rd_fn = this.grammar.productions.map((a, i) => i + 1);
         this.IN_FLIGHT_JOBS = 0;
         this.functions = [];
@@ -71,17 +72,23 @@ export class WorkerRunner {
 
     mergeWorkerData(worker: WorkerContainer, response: HybridDispatchResponse) {
 
-        const { const_map, fn, productions, production_id } = response;
+        const { const_map, fn, productions, production_id, tables } = response;
 
-        this.runner.join_constant_map(const_map);
+        if (tables)
+            for (const [key, val] of tables.entries())
+                this.tables.set(key, val);
 
-        this.functions[production_id] = {
-            id: production_id,
-            entry: fn[0],
-            goto: fn[1],
-            reduce: fn[2],
-            productions: productions,
-        };
+        if (const_map)
+            this.runner.join_constant_map(const_map);
+
+        if (fn)
+            this.functions[production_id] = {
+                id: production_id,
+                entry: fn[0],
+                goto: fn[1],
+                reduce: fn[2],
+                productions: productions,
+            };
 
         this.IN_FLIGHT_JOBS--;
 

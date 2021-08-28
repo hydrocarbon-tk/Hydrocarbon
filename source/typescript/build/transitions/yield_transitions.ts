@@ -87,7 +87,7 @@ export function yieldTransitions(
         } else if (ALL_ITEMS_ARE_FROM_SAME_PRODUCTION
             && !ALL_ITEMS_ARE_FROM_ROOT_PRODUCTION
             && NO_END_ITEMS_PRESENT
-            && ITEMS_HAVE_A_MAX_OFFSET_OF_ZERO
+            //&& ITEMS_HAVE_A_MAX_OFFSET_OF_ZERO
         ) {
             output_nodes.push(...yieldProductionCallNode(active_items, offset));
 

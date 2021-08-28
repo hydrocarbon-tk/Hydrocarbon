@@ -216,6 +216,11 @@ export interface HCG3Grammar extends HCG3GrammarNode {
         structs: CompilableStruct[];
 
     };
+    /**
+     * All items that are `A => . A` a
+     * for some production A
+     */
+    lr_items?: Item[];
 }
 
 ////////////////////////////////////////////////////////////////////

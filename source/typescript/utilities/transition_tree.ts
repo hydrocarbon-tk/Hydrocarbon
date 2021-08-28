@@ -5,13 +5,10 @@
 */
 
 import { performance } from "perf_hooks";
-import { default_EOP } from "../grammar/nodes/default_symbols.js";
+import { default_EOF, default_EOP } from '../grammar/nodes/default_symbols.js';
 import {
-    convertSymbolToString,
     getFollowSymbolsFromItems,
-    getUniqueSymbolName,
-    getUnskippableSymbolsFromClosure,
-    SymbolsCollide,
+    getUniqueSymbolName, SymbolsCollide,
     Symbols_Are_The_Same,
     Sym_Is_A_Generic_Identifier,
     Sym_Is_A_Production,
@@ -20,7 +17,7 @@ import {
     Sym_Is_EOF,
     Sym_Is_Exclusive
 } from "../grammar/nodes/symbol.js";
-import { HCG3Grammar, TokenSymbol } from "../types/grammar_nodes";
+import { HCG3Grammar } from "../types/grammar_nodes";
 import { ClosureGroup, TransitionTreeNode } from "../types/transition_tree_nodes";
 import { getClosure, getFollowClosure } from "./closure.js";
 import { generateHybridIdentifier } from "./code_generating.js";
@@ -68,7 +65,8 @@ export function getTransitionTree(
     __len__ = 0,
     __last_progress__ = 0,
     __root_time__ = performance.now(),
-    __new_roots__: Item[] = []
+    __new_roots__: Item[] = [],
+    __seen_hashes__: Map<string, number> = new Map()
 ): { tree_nodes: TransitionTreeNode[]; clear: boolean; AMBIGUOUS: boolean; max_depth: number; } {
 
     if (!__groups__) {
@@ -80,17 +78,33 @@ export function getTransitionTree(
             const c = getClosure([i], grammar);
 
             return ({
-                final: 0,
+                final: -Infinity,
                 sym: null,
                 index,
                 closure: c,
-                production_shift_items: lr_transition_items.concat(c).filter(i => Sym_Is_A_Production(i.sym(grammar))).setFilter(i => i.id)
+                production_shift_items: lr_transition_items.concat(c).filter(i => Sym_Is_A_Production(i.sym(grammar))).setFilter(i => i.id),
+                tree_depth: 0,
             });
         });
 
-        const { AMBIGUOUS, clear, max_depth, tree_nodes } = getTransitionTree(grammar, root_items, lr_transition_items, {
-            expanded_limit, max_tree_depth, max_no_progress, max_time_limit,
-        }, 0, __groups__);
+        const { AMBIGUOUS, clear, max_depth, tree_nodes } = getTransitionTree(
+            grammar,
+            root_items,
+            lr_transition_items,
+            {
+                expanded_limit,
+                max_tree_depth,
+                max_no_progress,
+                max_time_limit,
+            },
+            0,
+            __groups__,
+            __len__,
+            __last_progress__,
+            __root_time__,
+            __new_roots__,
+            __seen_hashes__
+        );
 
         return {
             AMBIGUOUS,
@@ -99,7 +113,6 @@ export function getTransitionTree(
             tree_nodes: [
                 {
                     item_ids: [],
-                    unskippable: [],
                     depth: -1,
                     next: tree_nodes,
                     roots: root_items,
@@ -164,36 +177,71 @@ export function getTransitionTree(
             }
         }
     }
+    const groups = [...new_groups, ...collision_groups];
 
-    for (const group of [...new_groups, ...collision_groups]) {
+
+    const new_hash = new Map(__seen_hashes__.entries());
+
+
+
+    const hash = groups.map(g => g.map(g => g.closure[0].id).setFilter().sort().join("---")).setFilter().sort().join("----");
+
+
+    if (!new_hash.has(hash))
+        new_hash.set(hash, 0);
+    else if (__depth__ > max_no_progress) {
+        return { tree_nodes: [], clear: true, AMBIGUOUS: true, max_depth: __depth__ };
+    }
+
+    for (const group of groups) {
 
         let next = [];
         let sym = group[0].sym;
 
         const syms = group.map(g => g.sym).setFilter(getUniqueSymbolName),
 
-            root_id = group[0].root_id,
-            unskippable = group.flatMap(g => g.unskippable),
+            hash = group.map(g => g.closure[0].id).setFilter().sort().join("---"),
+
+            tree_depth = Math.max(...group.map(i => i.tree_depth)),
 
             new_roots = group.map(cg => cg.index).setFilter().map(i => root_items[i]),
 
-            progress = new_roots.length != __len__,
+            closure = group.flatMap(g => g.closure).filter(i => i.offset > 0).setFilter(i => i.id),
+
+            starts = group.flatMap(g => g.starts ?? []).setFilter(i => i.id);
+
+
+        if (!new_hash.has(hash))
+            new_hash.set(hash, 0);
+        else if (__depth__ > max_no_progress) {
+
+            __last_progress__ = -Infinity;
+        }
+
+        const
+
+            progress = true || new_roots.length != __len__,
 
             quit = (__depth__ - __last_progress__) >= Math.max(max_tree_depth - __depth__, max_no_progress),
-
-            closure = group.filter(g => g.final == 0).flatMap(g => g.closure).filter(i => i.offset > 0).setFilter(i => i.id),
-
-            starts = group.flatMap(g => g.starts ?? []).setFilter(i => i.id),
 
             curr_progress = progress ? __depth__ : __last_progress__;
 
         if (progress)
             GLOBAL_PROGRESS = true;
 
-        if (quit)
-            CLEAR_REQUESTED = true;
+        const bodies = group.map(g => g.closure[0]).map(a => a ? a.body : -1).setFilter();
+        if (
+            bodies.length == 1
+            &&
+            new_roots.some(s => bodies[0] == s.body)
+        ) {
+            // All current active items are the same representation 
+            // of one of  root items at an offset > 0
 
-        if (!quit) {
+            new_roots.length = 0;
+            new_roots.push(...root_items.filter(a => a.body == bodies[0]));
+
+        } else if (!quit) {
 
             const { tree_nodes, clear, AMBIGUOUS: A, max_depth: md }
                 = getTransitionTree(
@@ -211,7 +259,8 @@ export function getTransitionTree(
                     new_roots.length,
                     curr_progress,
                     __root_time__,
-                    new_roots
+                    new_roots,
+                    new_hash
                 );
 
             AMBIGUOUS = AMBIGUOUS || A;
@@ -222,9 +271,12 @@ export function getTransitionTree(
                 max_depth = Math.max(md, max_depth + 1);
                 next = tree_nodes;
             }
-        }
+        } else
+
+            CLEAR_REQUESTED = true;
 
         if (syms.length > 1) {
+            //*
             if (syms.every(Sym_Is_Defined)) {
                 // Extract the exclusive terminal which will suffice
                 // to match items that need the exclusive terminal
@@ -248,6 +300,7 @@ export function getTransitionTree(
                 if (!grammar.meta.all_symbols.has(getUniqueSymbolName(sym)))
                     grammar.meta.all_symbols.set(getUniqueSymbolName(sym), sym);
             }
+            //*/
         }
 
         tree_nodes.push({
@@ -255,13 +308,12 @@ export function getTransitionTree(
             progress,
             sym: getUniqueSymbolName(sym),
             item_ids: group.map(i => i.item_id),
-            unskippable,
             depth: __depth__,
             closure,
             roots: new_roots,
             starts,
             next: next,
-            root_id,
+            tree_depth,
             final_count: group.reduce((r, c) => c.final + r, 0)
         });
     }
@@ -273,96 +325,136 @@ export function getTransitionTree(
 }
 function getClosureGroups(
     grammar: HCG3Grammar,
-    { index, closure, final, starts, production_shift_items, root_id }: ClosureGroup,
+    incoming_group: ClosureGroup,
     lr_transition_items: Item[],
     root_items: Item[],
-    expanded_limit = 0
+    expanded_limit = 0,
+    new_previous_group = incoming_group
 ): ClosureGroup[] {
+
+    const { index, closure, final, starts, production_shift_items, tree_depth, previous_group } = incoming_group;
 
     if (final > expanded_limit) {
         return [];
     }
 
     const
-        group = [],
-        unskippable: TokenSymbol[] = <any>getUnskippableSymbolsFromClosure(closure, grammar);
+        group: ClosureGroup[] = [];
 
     for (const item of closure) {
 
         const sym = item.sym?.(grammar);
-
         if (item.atEND) {
 
-            let new_final = final;
+            //Find items that shift on the production within previous groups
 
-            let new_closure = getFollowClosure([item], production_shift_items, grammar);
+            const prod_id = item.getProduction(grammar).id;
 
-            const production_id = closure[0].getProduction(grammar).id;
+            let NO_TRANSITIONS = true;
 
-            if (new_closure.length == 0) {
+            let prev = previous_group;
 
-                new_final += 1;
-                new_closure = getFollowClosure([item], grammar.lr_items, grammar, undefined, undefined, true).filter(i => root_items.some(g => g.body == i.body));
-            }
+            while (prev && NO_TRANSITIONS) {
 
-            const non_end_items = new_closure.filter(i => !i.atEND);
-            const end_productions: [number, Item][] = new_closure.filter(i => i.atEND).map(i => [i.getProduction(grammar).id, i]);
+                for (const item of prev.production_shift_items) {
 
-            if (end_productions.length > 0) {
+                    const sym = item.sym(grammar);
 
-                const goal_productions = root_items.map(i => i.getProduction(grammar).id);
-                const result = end_productions.filter(p => goal_productions.includes(p[0])).map(([, i]) => i);
+                    if (Sym_Is_A_Production(sym) && sym.val == prod_id) {
 
-                if (result.length > 0) {
+                        NO_TRANSITIONS = false;
 
-                    const follow_syms = getFollowClosure(result, grammar.lr_items.filter(i => !production_shift_items.some(j => j.id == i.id)), grammar).filter(i => !i.atEND);
+                        //increment_symbol and do closure group with the symbol.
 
-                    for (const item of [...follow_syms.filter(i => !i.getProductionAtSymbol(grammar))]) {
+                        let new_item = item.increment();
 
-                        const sym = item.sym(grammar);
+                        let new_closure = getClosure([new_item], grammar);
 
-                        group.push({ sym, index, item_id: item.id, unskippable, stats: [], closure: [], final: new_final, production_shift_items: [], root_id: root_id ?? sym.id, });
+                        const new_group = getClosureGroups(
+                            grammar,
+                            {
+                                sym: null,
+                                item_id: item.id,
+                                index,
+                                closure: new_closure,
+                                final: prev.final,
+                                starts: starts,
+                                tree_depth: prev.tree_depth,
+                                production_shift_items: production_shift_items.concat(prev.closure)
+
+                                    .filter(i => Sym_Is_A_Production(i.sym(grammar)))
+
+                                    .setFilter(i => i.id),
+                                previous_group
+                            },
+                            lr_transition_items,
+                            root_items,
+                            expanded_limit,
+                            prev
+                        );
+
+                        group.push(...new_group);
                     }
-
-                    group.push({ sym: default_EOP, index, item_id: item.decrement().id, unskippable, stats: [], closure: [], final: new_final, production_shift_items: [], root_id: root_id ?? sym.id, });
                 }
 
-            } if (non_end_items.length > 0) {
+                prev = prev.previous_group;
+            }
+
+            if (NO_TRANSITIONS && !prev) {
+
+                // Stack is exhausted and any other transitions exist outside
+                // the scope of the root items. We may proceed to consider transitions
+                // from the global scope (i.e. any transitions from the grammar that match 
+                // the on the production id), however, as this can lead to infinity recursion
+                // final is now converted to a positive integer value and will be incremented
+                // here on until its value is equal to expand_limit. The 
+                // graph evaluation is stopped once this occurs
+
+                const new_closure = getFollowClosure([item], grammar.lr_items, grammar, undefined, undefined, true).filter(i => root_items.some(g => g.body == i.body));
 
                 const new_group = getClosureGroups(
                     grammar,
                     {
                         sym: null,
                         item_id: item.id,
-                        unskippable,
                         index,
-                        closure: non_end_items,
-                        final: new_final,
+                        closure: new_closure,
+                        final: final >= 0 ? final + 1 : 0,
                         starts: starts,
-                        root_id,
-                        production_shift_items: production_shift_items.concat(non_end_items)
-                            .filter(i => Sym_Is_A_Production(i.sym(grammar)))
-
-                            .setFilter(i => i.id)
-                            .flatMap(i => {
-                                if (i.getProductionAtSymbol(grammar).id == production_id) {
-                                    const inc = i.increment();
-                                    if (!inc.atEND && Sym_Is_A_Production(inc.sym(grammar)))
-                                        return [inc];
-                                    return [];
-                                }
-                                return [i];
-                            }).setFilter(i => i.id),
+                        tree_depth: 1,
+                        production_shift_items: grammar.lr_items,
+                        previous_group: {
+                            closure: new_closure,
+                            previous_group: null,
+                            final: Infinity,
+                            index,
+                            production_shift_items: grammar.lr_items,
+                            sym: null,
+                            item_id: item.id,
+                            starts: starts,
+                            tree_depth: 0
+                        }
                     },
                     lr_transition_items,
                     root_items,
-                    expanded_limit
+                    expanded_limit,
+
                 );
 
                 group.push(...new_group);
             }
-            for (const sym of getFollowSymbolsFromItems([item], grammar).filter(i => Sym_Is_EOF(i)))
-                group.push({ sym, index, item_id: item.decrement().id, unskippable, closure: closure.slice(0, 1), final: Infinity, root_id: root_id ?? sym.id });
+
+            if (root_items.some(r => r.body == item.body))
+                group.push({
+                    sym: default_EOF,
+                    index,
+                    item_id: item.decrement().id,
+                    closure: [item],
+                    final: Infinity,
+                    tree_depth: tree_depth - 1,
+                    previous_group: null,
+                    production_shift_items: []
+                });
 
         } else if (!Sym_Is_A_Production(sym) || Sym_Is_A_Production_Token(sym)) {
 
@@ -374,15 +466,16 @@ function getClosureGroups(
                 sym,
                 index: index,
                 item_id: item.id,
-                unskippable,
                 closure: new_closure.setFilter(i => i.id),
                 final: final,
                 starts: starts ? starts : [item],
-                root_id: root_id ?? sym.id,
-                production_shift_items: psi
+                tree_depth: tree_depth + 1,
+                production_shift_items: psi,
+                previous_group: new_previous_group
             });
         }
     }
+
     return group;
 }
 function incrementWithClosure(grammar: HCG3Grammar, item: Item): Item[] {

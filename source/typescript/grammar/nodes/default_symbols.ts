@@ -17,7 +17,7 @@ export const
     default_EOP: HCG3EOPSymbol = {
         type: "eop",
         val: "END_OF_PRODUCTION",
-        id: -1,
+        id: TokenTypes.END_OF_FILE,
         pos: {},
         meta: null,
     },

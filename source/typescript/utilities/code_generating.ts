@@ -375,6 +375,32 @@ export function getSymbolMap(symbols: TokenSymbol[], grammar: HCG3Grammar): numb
 
     return flags;
 }
+
+export function getSymbolMapFromIds(ids: number[], grammar: HCG3Grammar): number[] {
+    ids = ids.sort((a, b) => a - b).filter(i => i >= 1);
+
+    const max = grammar.meta.token_row_size * token_lu_bit_size;
+    const flags = [0];
+    let base = 0;
+    let index = 0;
+
+    for (const id of ids) {
+        while (id >= (base + token_lu_bit_size)) {
+            base += token_lu_bit_size;
+            index++;
+            flags.push(0);
+        }
+        flags[index] |= 1 << (id - base);
+    }
+
+    while (max > (base + token_lu_bit_size)) {
+        base += token_lu_bit_size;
+        index++;
+        flags.push(0);
+    }
+
+    return flags;
+}
 export function getSymbolMapPlaceHolder(symbols: TokenSymbol[], grammar: HCG3Grammar) {
     return "symbollookup_" + getSymbolMap(symbols, grammar).map(i => i >>> 0).join("_");
 }

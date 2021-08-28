@@ -23,7 +23,11 @@ import { Sym_Is_A_Production_Token } from "../grammar/nodes/symbol.js";
  * @param grammar 
  * @param ENTER_TOKEN_PRODUCTIONS 
  */
-export function getClosure(items: Item[], grammar: HCG3Grammar, ENTER_TOKEN_PRODUCTIONS: boolean = false): Item[] {
+export function getClosure(
+    items: Item[],
+    grammar: HCG3Grammar,
+    ENTER_TOKEN_PRODUCTIONS: boolean = false
+): Item[] {
 
     let closure = [];
 
@@ -63,7 +67,8 @@ export function getFollowClosure(
     closure = closure.setFilter(i => i.id);
 
     const new_closure = closure.slice();
-    const prods = itemsToProductionIDs(closure.filter(i => i.atEND), grammar);
+    const prods = itemsToProductionIDs(closure.filter(i => i.atEND),
+        grammar);
 
     for (let prod of prods) {
 

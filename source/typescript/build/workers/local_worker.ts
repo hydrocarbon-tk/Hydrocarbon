@@ -15,7 +15,6 @@ import { createRunner, Helper } from "../helper.js";
 export class LocalWorker {
 
     grammar: HCG3Grammar;
-    env: ParserEnvironment;
     id: number;
     runner: Helper;
 
@@ -28,8 +27,6 @@ export class LocalWorker {
         const { workerData: { grammar, env_path, id, ANNOTATED, DEBUG } } = wd;
 
         this.grammar = grammar;
-
-        this.env = { functions: {} };
 
         this.id = id;
 
@@ -45,12 +42,16 @@ export class LocalWorker {
 
         let Response: HybridDispatchResponse = {};
 
-        //const { fn, productions } = constructHybridFunctionParser(this.grammar.productions[job.production_id], this.grammar, this.runner);
-        const { fn, productions } = constructTableParser(this.grammar.productions[job.production_id], this.grammar, this.runner);
+        if (false) {
+            const { fn, productions } = constructHybridFunctionParser(this.grammar.productions[job.production_id], this.grammar, this.runner);
+            Response.fn = fn;
+            Response.productions = productions;
+        } else {
+            const { tables, id } = constructTableParser(this.grammar.productions[job.production_id], this.grammar, this.runner);
+            Response.tables = tables;
+        }
 
         console.log("\\\\\ \n\n\n");
-        Response.fn = fn;
-        Response.productions = productions;
         Response.production_id = job.production_id;
         Response.const_map = this.runner.constant_map;
 

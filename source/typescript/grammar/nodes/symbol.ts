@@ -42,10 +42,11 @@ export function characterToUTF8(char: string) {
 export function convertSymbolToString(sym: HCG3Symbol) {
     switch (sym.type) {
         case SymbolType.GENERATED:
-            return `θ${sym.val}`;
+            return `g:${sym.val}`;
         case SymbolType.LITERAL:
+            return `\\${sym.val}` + (sym.IS_NON_CAPTURE ? "-ns" : "");
         case SymbolType.EXCLUSIVE_LITERAL:
-            return `τ${sym.val}` + (sym.IS_NON_CAPTURE ? "-ns" : "");
+            return `t:${sym.val}` + (sym.IS_NON_CAPTURE ? "-ns" : "");
         case SymbolType.EMPTY:
             return `ɛ`;
         case SymbolType.END_OF_FILE:

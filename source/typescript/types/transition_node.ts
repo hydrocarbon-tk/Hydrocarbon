@@ -164,7 +164,7 @@ export interface TransitionNode {
      * The current set of item ids that represent 
      * the state that yielded this node's symbols
      */
-    t_items: string[];
+    //t_items: string[];
 }
 
 /**

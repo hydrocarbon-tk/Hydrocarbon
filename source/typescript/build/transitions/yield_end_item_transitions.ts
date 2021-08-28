@@ -98,7 +98,7 @@ export function yieldEndItemTransitions(end_items: Item[], options: RenderBodyOp
                             for (const item of items) {
 
 
-                                const unresolved_leaf_node = createTransitionNode([item], symbols, TRANSITION_TYPE.ASSERT_END, offset, state.peek_level, true, 55);
+                                const unresolved_leaf_node = createTransitionNode([item], symbols, TRANSITION_TYPE.ASSERT_END, offset, state.peek_level, true);
 
                                 unresolved_leaf_node.nodes.push(...yieldTransitions([item], options, offset, const_EMPTY_ARRAY, false));
 

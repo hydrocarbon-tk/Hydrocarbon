@@ -46,11 +46,16 @@ export function processTransitionNodes(
 
     const finale_node = { ast: <TransitionNode>null };
 
-    for (const { node: node, meta: { traverse_state, skip, depth, parent } } of bidirectionalTraverse<TransitionNode, "nodes">(<TransitionNode>{ nodes: nodes }, "nodes", false)
-        .extract(finale_node)
-        .makeSkippable()
+    for (const { node: node, meta: { traverse_state, skip, depth, parent } } of
+        bidirectionalTraverse<TransitionNode, "nodes">(<TransitionNode>{ nodes: nodes }, "nodes",
+            false
+        )
+            .extract(finale_node)
+            .makeSkippable()
     ) {
+
         if (traverse_state == TraverseState.EXIT || traverse_state == TraverseState.LEAF) {
+
             if (node.PROCESSED) {
                 skip();
                 continue;
@@ -88,10 +93,11 @@ export function processTransitionNodes(
                         nodes: [],
                         symbols: [],
                         code: filtered_nodes[0].code,
-                        hash: "" //filtered_nodes[0].hash,
+                        hash: "", //filtered_nodes[0].hash,
                         prods,
                         items,
-                        completing: false,
+                        goto_prod_id: node.goto_prod_id,
+                        root_id: node.root_id,
                         peek_level: filtered_nodes[0].peek_level,
                         offset: filtered_nodes[0].offset,
                         transition_type: filtered_nodes[0].transition_type,
@@ -174,7 +180,7 @@ function* traverseInteriorNodes(
                 leaves = group.flatMap(g => g.leaves),
                 yielders = group.map(i => i.transition_type).setFilter();
 
-            return { t_items: group.flatMap(g => g.t_items), root_id: group[0].root_id, PUIDABLE, leaves, transition_types: yielders, syms, code, items, hash, LAST: false, FIRST: false, prods: group.flatMap(g => g.prods).setFilter() };
+            return { root_id: group[0].root_id, PUIDABLE, leaves, transition_types: yielders, syms, code, items, hash, LAST: false, FIRST: false, prods: group.flatMap(g => g.prods).setFilter() };
         });
     let i = 0;
     for (const group of sel_group.sort((a, b) => {

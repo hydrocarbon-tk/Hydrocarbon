@@ -1,12 +1,11 @@
+@IGNORE g:sp 
+
 <> start > A
 
-<> A >  ( A \mangos | B \avocados )(*) \grapes (+\, )
-    | g:id? g:num f:r{ $1 + $2 }
+<> A >  ( A | B \avocados )(*) t:grapes
+    | g:id? g:num \r f:r{ $1 + $2 } 
     
 
-<> B > ( ( \tomatoes | \watermellon )(*\; )  )(*)
+<> B > ( ( t:tomatoes | t:watermellon )(+\; )  )(+)
   # | g:id C g:id 
-    
-
-<> C > \a | \b ? | \c | \d | \e | \f | \g
 

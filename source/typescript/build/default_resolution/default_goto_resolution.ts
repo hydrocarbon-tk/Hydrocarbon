@@ -40,7 +40,7 @@ export function resolveGOTOBranches(
 
         let out: SKExpression[] = [match_stmt];
 
-        for (const { syms, items, code, hash, leaves, prods, PUIDABLE } of goto_groups.sort(
+        for (const { syms, items, code, hash, leaves, prods } of goto_groups.sort(
             (a, b) => <number><any>a.syms[0] - <number><any>b.syms[0])
         ) {
 
