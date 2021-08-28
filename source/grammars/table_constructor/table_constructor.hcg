@@ -17,15 +17,15 @@
 <> prod_branch_instruction >
 
     t:on t:prod id_list \( instruction_sequence \)        
-                                            f:r { { type:"prod", production_ids:$3, instructions: $5  } }
+                                            f:r { { type:"prod", ids:$3, instructions: $5  } }
 
 <> token_branch_instruction >
      t:consume id_list  \( instruction_sequence \)                     
-                                            f:r { { type:"consume", token_ids: $2, instructions: $4} }
+                                            f:r { { type:"consume", ids: $2, instructions: $4} }
     | t:peek id_list \( instruction_sequence \)                    
-                                            f:r { { type:"peek", token_ids: $2, instructions: $4} }
+                                            f:r { { type:"peek", ids: $2, instructions: $4} }
     | t:assert id_list \( instruction_sequence \)                     
-                                            f:r { { type:"assert", token_ids: $2,instructions: $4} }
+                                            f:r { { type:"assert", ids: $2,instructions: $4} }
 
 <> goto_instruction > 
 
@@ -42,10 +42,16 @@
     | t:scan t:until id_list
                                             f:r { { type:"scan-until", token_ids: $3  } }
     | t:pop g:num
-                                            f:r { { type:"pop", len: parseInt($2)  } }                                                
+                                            f:r { { type:"pop", len: parseInt($2)  } }
+    | t:set g:token g:length g:num
+                                            f:r { { type:"token-length", len: parseInt($2)  } }
+    | t:pass
+                                            f:r { { type:"pass"  } }
+    | t:fail
+                                            f:r { { type:"fail"  } }                                                
 
-<> on_fail > t:on t:fail \( top_level_instructions \)                                 
-                                            f:r { { type:"on-fail", instructions: $4  } }
+<> on_fail > t:on t:fail state_declaration top_level_instructions expected_symbols?                                 
+                                            f:r { { type:"on-fail-state", id:$3, instructions: $4, symbol_meta: $5  } }
 
 <> expected_symbols > \symbols: \expected id_list
 

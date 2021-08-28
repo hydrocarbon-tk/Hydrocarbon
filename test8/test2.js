@@ -17,10 +17,10 @@ state [c3eb751f]
         goto state [c3eb751f]
     )
 
-    on fail (
+    on fail state [failed_state]
         on prod [22] (
-            goto state [c3eb751f]
+            pass
         )
-    )
+    
 
 `), { depth: null });
