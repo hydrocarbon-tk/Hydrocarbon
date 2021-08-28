@@ -508,7 +508,7 @@ function createGrammarFunctionArray(meta: Helper, recognizer_functions: RDProduc
     return grammar_functions;
 }
 
-function extractAndReplaceTokenMapRefs(token_lookup_functions: string, sym_map: Map<any, any>) {
+export function extractAndReplaceTokenMapRefs(token_lookup_functions: string, sym_map: Map<any, any>) {
     return token_lookup_functions.replace(/symbollookup(\_\d+)+/g, (a, b, c) => {
         if (!sym_map.has(a)) {
             sym_map.set(a, sym_map.size);
@@ -519,7 +519,7 @@ function extractAndReplaceTokenMapRefs(token_lookup_functions: string, sym_map: 
 
 
 
-function createActiveTokenSK(grammar: HCG3Grammar): SKNode {
+export function createActiveTokenSK(grammar: HCG3Grammar): SKNode {
     return <SKExpression>sk`
             fn isTokenActive:bool(token_id:u32, row:u32) {
 

@@ -245,7 +245,7 @@ export class ParserStateBuffer {
 // LEXER
 /////////////////////////////////////////////
 
-class Lexer {
+export class Lexer {
     byte_offset: number;
     token_offset: number;
     token_length: number;
@@ -514,20 +514,20 @@ export function compare(
 
 export function is_output_enabled(state: number): boolean { return 0 != (state & 2); }
 
-export function add_reduce(state: ParserState, sym_len: number, body: number): void {
+export function add_reduce(state: ParserState, sym_len: number, fn_id: number): void {
     if (is_output_enabled(state.state)) {
-        let total = body + sym_len;
+        let total = fn_id + sym_len;
         if ((total) == 0)
             return;
 
-        if (body > 0xFF || sym_len > 0x1F) {
-            let low = (1 << 2) | (body << 3);
+        if (fn_id > 0xFF || sym_len > 0x1F) {
+            let low = (1 << 2) | (fn_id << 3);
             let high = sym_len;
             state.add_rule(low);
             state.add_rule(high);
         }
         else {
-            let low = ((sym_len & 0x1F) << 3) | ((body & 0xFF) << 8);
+            let low = ((sym_len & 0x1F) << 3) | ((fn_id & 0xFF) << 8);
             state.add_rule(low);
         };
     };

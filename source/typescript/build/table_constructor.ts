@@ -196,7 +196,7 @@ export function compileProductionTables(
             GOTO_Options,
             yieldGOTOTransitions(
                 GOTO_Options,
-                GOTO_Options.goto_items.map(i => i.getProduction(grammar).id),
+                [...completed_productions, ...GOTO_Options.goto_items.map(i => i.getProduction(grammar).id)].setFilter(),
                 table_resolveBranches,
                 table_resolveUnresolvedLeaves,
                 table_resolveResolvedLeaf
@@ -215,7 +215,7 @@ state [${productions[0].name}]
     RDOptions.table.map.set(productions[0].name, code);
     RDOptions.table.entries.push(code);
 
-    
+
 
     return { RDOptions, GOTO_Options };
 }

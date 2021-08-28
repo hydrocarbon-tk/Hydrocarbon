@@ -41,8 +41,8 @@ export function table_resolveBranches(
     }
 
     const nodes = [...gen];//.filter(node => node.hash != "ignore");
-    const prods = nodes.flatMap(n => n.prods).setFilter();
 
+    const prods = state.prods;
 
     let symbols = nodes.flatMap(n => n.syms).setFilter(getUniqueSymbolName);
 
@@ -135,8 +135,7 @@ export function table_resolveBranches(
 
     code += "    " + branches.join("\n\n    ");
 
-    code = add_symbol_clause(items, prods, options, code);
-
+    code += create_symbol_claues(items, prods, options);
 
     options.table.map.set(hash, code);
     options.table.entries.push(code);
@@ -147,24 +146,30 @@ export function table_resolveBranches(
 }
 
 
-export function add_symbol_clause(items: Item[], prods: number[], options: RenderBodyOptions, code: string) {
-    const expected_symbols = getSymbolsFromClosure([
-        ...items.flatMap(i => i.atEND ? getFollowClosure([i], options.grammar.lr_items, options.grammar) : getClosure([i], options.grammar, false)),
-        ...prods.flatMap(i => options.grammar.productions[i].bodies).map(b => new Item(b.id, b.length, b.length)),
-    ], options.grammar).setFilter(getUniqueSymbolName);
+export function create_symbol_claues(items: Item[], prods: number[], { scope, grammar }: RenderBodyOptions) {
+    const active_items = items.filter(i => !i.atEND);
+    const end_items = items.filter(i => i.atEND);
+
+    const expected_symbols = [
+        ...getSymbolsFromClosure([
+            ...active_items.flatMap(i => getClosure([i], grammar, false)),
+            ...prods.flatMap(i => grammar.productions[i].bodies).map(b => new Item(b.id, b.length, b.length)),
+        ], grammar),
+        ...getFollowSymbolsFromItems(end_items, grammar)
+    ].setFilter(getUniqueSymbolName);
 
     const skipped_symbols = getSkippableSymbolsFromItems(getFollowClosure(
         [...items,
 
-        ...(options.scope == "GOTO"
-            ? prods.flatMap(i => options.grammar.productions[i].bodies).map(b => new Item(b.id, b.length, b.length))
+        ...(scope == "GOTO"
+            ? prods.flatMap(i => grammar.productions[i].bodies).map(b => new Item(b.id, b.length, b.length))
             : [])
         ],
-        options.grammar.lr_items,
-        options.grammar
-    ), options.grammar);
-
-    code += `
+        grammar.lr_items,
+        grammar
+    ), grammar);
+    let code =
+        `
         
     symbols: 
         expected[${expected_symbols.map(convert_sym_to_code).join("   ")}]`;

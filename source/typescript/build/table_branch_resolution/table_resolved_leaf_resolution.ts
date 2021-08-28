@@ -11,7 +11,7 @@ import { TransitionNode, TRANSITION_TYPE } from "../../types/transition_node.js"
 import { hashString } from "../../utilities/code_generating.js";
 import { Item } from "../../utilities/item.js";
 import { Some_Items_Are_In_Extended_Goto } from "../transitions/yield_transitions.js";
-import { add_symbol_clause, convert_sym_to_code } from './table_branch_resolution.js';
+import { create_symbol_claues, convert_sym_to_code } from './table_branch_resolution.js';
 
 let grammar: HCG3Grammar = null;
 
@@ -47,7 +47,7 @@ export function table_resolveResolvedLeaf(item: Item, state: TransitionNode, opt
             EMPTY: false,
             INDIRECT: false,
             keys: [],
-            prods: options.production_ids.slice()
+            prods: [item.getProduction(options.grammar).id]
         }
     };
 }
@@ -95,7 +95,7 @@ function renderItem(item: Item, options: RenderBodyOptions): string {
 
             code = `state [${hash}] \n    ${hash_basis}`;
 
-            code = add_symbol_clause([item], [item.getProduction(grammar).id], options, code);
+            code += create_symbol_claues([item], [item.getProduction(grammar).id], options);
         }
     }
 

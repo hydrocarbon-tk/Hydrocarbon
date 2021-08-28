@@ -8,7 +8,7 @@ import { RenderBodyOptions } from "../../types/render_body_options";
 import { TransitionClauseGenerator } from "../../types/transition_generating";
 import { TransitionNode, TRANSITION_TYPE } from "../../types/transition_node.js";
 import { Item } from "../../utilities/item.js";
-import { add_symbol_clause, table_resolveBranches } from "./table_branch_resolution.js";
+import { create_symbol_claues, table_resolveBranches } from "./table_branch_resolution.js";
 
 
 export function table_resolveGOTOBranches(

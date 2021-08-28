@@ -78,8 +78,8 @@ export function yieldGOTOTransitions(
         //There is no left recursion for this production and the only completed production from 
         // the RD section is the production itself.
 
-        && completed_productions.setFilter().length == 1
-        && production_ids.includes(completed_productions.setFilter()[0])
+        && completed_productions.length == 1
+        && production_ids.includes(completed_productions[0])
     ) { /* intentional */ } else if (nonterm_shift_items.length > 0) {
 
         const output_nodes = [];
