@@ -11,7 +11,7 @@
      | token_branch_instruction(+) 
      | instruction_sequence                             
 
-<> instruction_sequence > sequence_instruction(+ \then ) ( \then goto_instruction(* \then ) )? f:r{ [...$1, ...$2] }
+<> instruction_sequence > sequence_instruction(+ \then ) ( \then goto_instruction(+ \then ) )? ( \then t:repeat t:state f:r{ { type:"repeat-state" } } )? f:r{ [...$1, ...$2, $3] }
     | goto_instruction(* \then )
 
 <> prod_branch_instruction >
@@ -44,9 +44,13 @@
     | t:pop g:num
                                             f:r { { type:"pop", len: parseInt($2)  } }
     | t:set g:token g:length g:num
-                                            f:r { { type:"token-length", len: parseInt($2)  } }
+                                            f:r { { type:"token-length", len: parseInt($4)  } }
+    | t:set g:token g:id g:num
+                                            f:r { { type:"token-id", id: parseInt($4)  } }
     | t:pass
                                             f:r { { type:"pass"  } }
+    | t:end
+                                            f:r { { type:"end"  } }
     | t:fail
                                             f:r { { type:"fail"  } }                                                
 

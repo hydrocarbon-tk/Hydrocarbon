@@ -10,7 +10,7 @@ const string = await fs.promises.readFile("../wick/source/grammars/wick.hcg", { 
 console.dir(parser(`
 state [c3eb751f]
     on prod [22] (
-        fork to(state [A], state[B]) then goto state [A]
+        fork to(state [A], state[B]) then goto state [A] then repeat state
     )
 
     on prod [22] (
