@@ -12,7 +12,7 @@
      | instruction_sequence                             
 
 <> instruction_sequence > sequence_instruction(+ \then ) ( \then goto_instruction(+ \then ) )? ( \then t:repeat t:state f:r{ { type:"repeat-state" } } )? f:r{ [...$1, ...$2, $3] }
-    | goto_instruction(* \then )
+    | goto_instruction(* \then ) ( \then t:repeat t:state f:r{ { type:"repeat-state" } } )? f:r{ [...$1, $2] }
 
 <> prod_branch_instruction >
 

@@ -21,7 +21,7 @@
         } = ParserCore;
     
 
-        var token_lookup = new Uint32Array([40,32,0,64,1410,3080,384,2048,131456,2048,262528,2048,4480,2048,771277184,2055,771277186,2063,384,2064,763666818,2063,4194688,2304,4194688,2048,33152,2048,384,2176,33154,2056,4497794,2056,896,2048,1408,2048,2432,2048,767574016,7,767574400,2055,763363328,7,763363712,2055,65920,2048,3670400,2048,416,2048,1073807744,2048,33554816,2048,2147484040,2048,268435840,2048,384,2052,384,2056,424,2080,40,2080,0,2048,0,2080,8,2048,32,2048,384,2112,428,2176,3703170,2056,303490,2056,767558016,2311,8576,2048,384,2304,262528,2560,384,2560,384,3072,4512,2048,428,2048,428,0,388,2048,128,2048,256,2048,392,2048]);;
+        var token_lookup = new Uint32Array([40,32,0,64,131456,2048,384,2048,771285376,2055,262528,2048,4480,2048,771285378,2063,33152,2048,1410,3080,763666818,2063,4194688,2304,4194688,2048,384,2176,33154,2056,4497794,2056,384,2064,896,2048,1408,2048,2432,2048,767582208,7,767582592,2055,763363328,7,763363712,2055,65920,2048,3670400,2048,416,2048,1073807744,2048,33554816,2048,2147484040,2048,268435840,2048,384,2052,384,2056,424,2080,40,2080,0,2048,0,2080,8,2048,32,2048,384,2112,428,2176,3703170,2056,303490,2056,767558016,2311,8576,2048,384,2304,262528,2560,384,2560,384,3072,4512,2048,428,2048,428,0,388,2048,128,2048,256,2048,392,2048]);;
         var token_sequence_lookup = new Uint8Array([91,93,40,41,115,121,109,98,111,108,115,58,95,47,42,47,44,69,78,68,95,79,70,95,80,82,79,68,85,67,84,73,79,78,116,104,101,110,111,110,112,114,111,100,99,111,110,115,117,109,101,97,115,115,101,114,116,103,111,116,111,114,101,100,117,99,101,102,111,114,107,117,110,116,105,108,101,120,112,101,99,116,101,100,115,107,105,112,112,101,100,112,101,101,107,114,101,112,101,97,116,102,97,105,108,101,110,100,115,116,97,116,101,115,99,97,110,115,101,116,112,97,115,115,112,111,112]);;
         function isTokenActive(token_id, row){
     var index  = ( row  * 2 ) + ( token_id  >> 5 );;
@@ -471,9 +471,20 @@ function branch_09fd4c587b3f4d77(state, db, prod){
     return 0
 }
 
-function branch_1ac4137dc88a80cf(state, db, prod){
-    add_reduce( state, 4, 27 );
-    return 0
+function branch_0c182239d735bf2c(state, db, prod){
+    scan( state.lexer, 2, 3 );
+    if( ( state.lexer._type  == 17 ) ){
+    consume( state );
+    state.push_fn( branch_d11c38771b0c6f91, 4 );
+    return hc_instruction_sequence( state, db, 0 )
+};
+    return - 1
+}
+
+function branch_0e55412c0df55844(state, db, prod){
+    scan( state.lexer, 4, 3 );
+    state.push_fn( branch_e34e95d6bb60da78, 0 );
+    return hc_top_level_instructions( state, db, 0 )
 }
 
 function branch_1e3ac8120e7b258b(state, db, prod){
@@ -486,22 +497,19 @@ function branch_20b33064645a28fc(state, db, prod){
     return 0
 }
 
-function branch_2a6be2d7cc1d117a(state, db, prod){
-    scan( state.lexer, 2, 3 );
-    if( state.lexer._type  == 42 ){
-    state.push_fn( set_production /*9*/, 9 );
-    state.push_fn( branch_1ac4137dc88a80cf, 9 );
-    return hc_expected_symbols_group_84_0_( state, db, 0 )
-} else {
-    add_reduce( state, 3, 28 );
-    return 9
+function branch_278d9024a1081640(state, db, prod){
+    scan( state.lexer, 5, 3 );
+    if( ( state.lexer._type  == 18 ) ){
+    consume( state );
+    add_reduce( state, 5, 14 );
+    return 0
 };
     return - 1
 }
 
-function branch_2e46b74170aaf80d(state, db, prod){
-    add_reduce( state, 1, 30 );
-    return hc_instruction_sequence_list_11_goto( state, db, 15 )
+function branch_2b54638e04cc6687(state, db, prod){
+    add_reduce( state, 1, 10 );
+    return 0
 }
 
 function branch_2f5fa2fd42fd13a2(state, db, prod){
@@ -509,18 +517,23 @@ function branch_2f5fa2fd42fd13a2(state, db, prod){
     return 0
 }
 
-function branch_40e4337463d2865c(state, db, prod){
-    add_reduce( state, 5, 25 );
+function branch_365676ebfe0997e2(state, db, prod){
+    add_reduce( state, 2, 16 );
+    return 6
+}
+
+function branch_3ef6c5cb45dcabc3(state, db, prod){
+    add_reduce( state, 4, 29 );
     return 0
 }
 
-function branch_4a15d90fe8fe3ba8(state, db, prod){
-    add_reduce( state, 1, 30 );
-    return hc_sequence_instruction_list_58_goto( state, db, 18 )
+function branch_41a079d538412316(state, db, prod){
+    add_reduce( state, 2, 32 );
+    return 0
 }
 
 function branch_4a1d0a6114c4847d(state, db, prod){
-    scan( state.lexer, 4, 3 );
+    scan( state.lexer, 2, 3 );
     if( ( state.lexer._type  == 17 ) ){
     consume( state );
     state.push_fn( branch_efa91ededef7e842, 5 );
@@ -529,99 +542,100 @@ function branch_4a1d0a6114c4847d(state, db, prod){
     return - 1
 }
 
-function branch_52d31ea33c48b584(state, db, prod){
-    add_reduce( state, 3, 18 );
-    return 0
-}
-
-function branch_535474d2cbaa42f3(state, db, prod){
+function branch_5b648bd486ebcda7(state, db, prod){
     scan( state.lexer, 5, 3 );
     if( ( state.lexer._type  == 18 ) ){
     consume( state );
-    add_reduce( state, 5, 12 );
+    add_reduce( state, 5, 19 );
     return 0
 };
     return - 1
 }
 
-function branch_5c6a59a2b911c6e8(state, db, prod){
-    scan( state.lexer, 5, 3 );
-    if( ( state.lexer._type  == 18 ) ){
-    consume( state );
-    add_reduce( state, 5, 17 );
-    return 0
-};
-    return - 1
-}
-
-function branch_6094747f87e6d6ce(state, db, prod){
-    add_reduce( state, 2, 34 );
-    return 19
-}
-
-function branch_64b84888e7884eb5(state, db, prod){
+function branch_6724550e685b2d7c(state, db, prod){
     scan( state.lexer, 6, 3 );
     if( ( state.lexer._type  == 12 ) ){
     consume( state );
-    add_reduce( state, 3, 29 );
+    add_reduce( state, 3, 31 );
     return 10
 };
     return - 1
 }
 
-function branch_7438d25cee351d2c(state, db, prod){
-    scan( state.lexer, 7, 3 );
-    state.push_fn( branch_b3a79ff7e932cdaa, 0 );
-    return hc_top_level_instructions( state, db, 0 )
+function branch_67a3d41791302cc9(state, db, prod){
+    add_reduce( state, 1, 10 );
+    return hc_sequence_instruction_list_61_goto( state, db, 18 )
 }
 
-function branch_81be05ad74b5cee2(state, db, prod){
-    add_reduce( state, 2, 31 );
+function branch_68a5b053887cd851(state, db, prod){
+    scan( state.lexer, 7, 3 );
+    if( state.lexer._type  == 15 ){
+    scan( state.lexer, 8, 3 );
+    state.push_fn( branch_cfa97a836541a250, 0 );
+    return hc_on_fail( state, db, 0 )
+} else if( state.lexer._type  == 35 ){
+    state.push_fn( set_production /*0*/, 0 );
+    state.push_fn( branch_09fd4c587b3f4d77, 0 );
+    return hc_expected_symbols( state, db, 0 )
+} else {
+    add_reduce( state, 2, 4 );
+    return 0
+};
+    return - 1
+}
+
+function branch_6d5b7a80a3550502(state, db, prod){
+    add_reduce( state, 3, 33 );
     return 0
 }
 
-function branch_85c92c2b232d339c(state, db, prod){
-    add_reduce( state, 1, 30 );
-    return hc_top_level_instructions_list_8_goto( state, db, 13 )
+function branch_7b8976b8db627626(state, db, prod){
+    add_reduce( state, 1, 10 );
+    return hc_instruction_sequence_list_11_goto( state, db, 15 )
 }
 
-function branch_873b1e7a8b69a00e(state, db, prod){
-    add_reduce( state, 2, 14 );
-    return 6
-}
-
-function branch_8fdd795d98460e71(state, db, prod){
-    scan( state.lexer, 4, 3 );
+function branch_7c09c6f4cb7fb391(state, db, prod){
+    scan( state.lexer, 2, 3 );
     if( ( state.lexer._type  == 17 ) ){
     consume( state );
-    state.push_fn( branch_535474d2cbaa42f3, 5 );
+    state.push_fn( branch_278d9024a1081640, 5 );
     return hc_instruction_sequence( state, db, 0 )
 };
     return - 1
 }
 
-function branch_90dc3539babc0183(state, db, prod){
-    add_reduce( state, 1, 30 );
-    return hc_instruction_sequence_list_14_goto( state, db, 16 )
+function branch_889d629ab8fb98c6(state, db, prod){
+    scan( state.lexer, 4, 3 );
+    state.push_fn( branch_68a5b053887cd851, 0 );
+    return hc_top_level_instructions( state, db, 0 )
 }
 
-function branch_9f174ca041316d09(state, db, prod){
-    scan( state.lexer, 8, 3 );
-    if( state.lexer._type  == 35 ){
-    var pk = state.lexer.copy_in_place(  );;
-    pk.next(  );
-    scan( pk, 9, 3 );
-    if( pk._type  == 36 ){
-        state.lexer._type  = 35;
-        state.push_fn( set_production /*8*/, 8 );
-        state.push_fn( branch_40e4337463d2865c, 8 );
-        return hc_expected_symbols( state, db, 0 )
-    }
-} else {
-    add_reduce( state, 4, 26 );
-    return 8
+function branch_8f2749db2e0e5e95(state, db, prod){
+    scan( state.lexer, 5, 3 );
+    if( ( state.lexer._type  == 18 ) ){
+    consume( state );
+    add_reduce( state, 5, 15 );
+    return 0
 };
     return - 1
+}
+
+function branch_9673f5b0997e96d4(state, db, prod){
+    scan( state.lexer, 9, 3 );
+    if( state.lexer._type  == 42 ){
+    state.push_fn( set_production /*9*/, 9 );
+    state.push_fn( branch_3ef6c5cb45dcabc3, 9 );
+    return hc_expected_symbols_group_87_0_( state, db, 0 )
+} else {
+    add_reduce( state, 3, 30 );
+    return 9
+};
+    return - 1
+}
+
+function branch_9697680e19fd145b(state, db, prod){
+    add_reduce( state, 1, 10 );
+    return hc_instruction_sequence_list_14_goto( state, db, 16 )
 }
 
 function branch_a647211903a31e66(state, db, prod){
@@ -648,35 +662,23 @@ function branch_a647211903a31e66(state, db, prod){
     return - 1
 }
 
-function branch_b1d199fb03d9a455(state, db, prod){
-    scan( state.lexer, 4, 3 );
+function branch_b2aefaa650f5dffc(state, db, prod){
+    scan( state.lexer, 2, 3 );
     if( ( state.lexer._type  == 17 ) ){
     consume( state );
-    state.push_fn( branch_f9a7bce34becdc0a, 5 );
+    state.push_fn( branch_8f2749db2e0e5e95, 5 );
     return hc_instruction_sequence( state, db, 0 )
 };
     return - 1
 }
 
-function branch_b3a79ff7e932cdaa(state, db, prod){
-    scan( state.lexer, 8, 3 );
-    if( state.lexer._type  == 15 ){
-    scan( state.lexer, 13, 3 );
-    state.push_fn( branch_cfa97a836541a250, 0 );
-    return hc_on_fail( state, db, 0 )
-} else if( state.lexer._type  == 35 ){
-    state.push_fn( set_production /*0*/, 0 );
-    state.push_fn( branch_09fd4c587b3f4d77, 0 );
-    return hc_expected_symbols( state, db, 0 )
-} else {
-    add_reduce( state, 2, 4 );
-    return 0
-};
-    return - 1
+function branch_b94e16a52fa6f76d(state, db, prod){
+    add_reduce( state, 2, 35 );
+    return 19
 }
 
 function branch_c2b7833681a21213(state, db, prod){
-    scan( state.lexer, 14, 3 );
+    scan( state.lexer, 13, 3 );
     if( ( state.lexer._type  == 39 ) ){
     consume( state );
     add_reduce( state, 3, 0 );
@@ -686,7 +688,7 @@ function branch_c2b7833681a21213(state, db, prod){
 }
 
 function branch_cfa97a836541a250(state, db, prod){
-    scan( state.lexer, 15, 3 );
+    scan( state.lexer, 14, 3 );
     if( state.lexer._type  == 35 ){
     state.push_fn( set_production /*0*/, 0 );
     state.push_fn( branch_1e3ac8120e7b258b, 0 );
@@ -698,8 +700,18 @@ function branch_cfa97a836541a250(state, db, prod){
     return - 1
 }
 
+function branch_d11c38771b0c6f91(state, db, prod){
+    scan( state.lexer, 5, 3 );
+    if( ( state.lexer._type  == 18 ) ){
+    consume( state );
+    add_reduce( state, 6, 12 );
+    return 4
+};
+    return - 1
+}
+
 function branch_d17c6b93d76f2b55(state, db, prod){
-    scan( state.lexer, 16, 3 );
+    scan( state.lexer, 15, 3 );
     if( state.lexer._type  == 13 ){
     state.push_fn( set_production /*3*/, 3 );
     state.push_fn( branch_2f5fa2fd42fd13a2, 3 );
@@ -711,29 +723,51 @@ function branch_d17c6b93d76f2b55(state, db, prod){
     return - 1
 }
 
-function branch_d27bc80eff49d685(state, db, prod){
-    add_reduce( state, 3, 32 );
+function branch_dab0f4545fd99b27(state, db, prod){
+    add_reduce( state, 1, 10 );
+    return hc_top_level_instructions_list_9_goto( state, db, 14 )
+}
+
+function branch_df87f6b23943389a(state, db, prod){
+    add_reduce( state, 3, 20 );
     return 0
 }
 
-function branch_d78884d0296f0385(state, db, prod){
-    scan( state.lexer, 5, 3 );
-    if( ( state.lexer._type  == 18 ) ){
-    consume( state );
-    add_reduce( state, 6, 10 );
-    return 4
+function branch_e34e95d6bb60da78(state, db, prod){
+    scan( state.lexer, 7, 3 );
+    if( state.lexer._type  == 35 ){
+    var pk = state.lexer.copy_in_place(  );;
+    pk.next(  );
+    scan( pk, 16, 3 );
+    if( pk._type  == 36 ){
+        state.lexer._type  = 35;
+        state.push_fn( set_production /*8*/, 8 );
+        state.push_fn( branch_e58c6c36716bc767, 8 );
+        return hc_expected_symbols( state, db, 0 )
+    }
+} else {
+    add_reduce( state, 4, 28 );
+    return 8
 };
     return - 1
 }
 
-function branch_ee608efe32fd2b09(state, db, prod){
-    scan( state.lexer, 4, 3 );
-    if( ( state.lexer._type  == 17 ) ){
-    consume( state );
-    state.push_fn( branch_d78884d0296f0385, 4 );
-    return hc_instruction_sequence( state, db, 0 )
+function branch_e42f5e2f00768c26(state, db, prod){
+    scan( state.lexer, 15, 3 );
+    if( state.lexer._type  == 13 ){
+    state.push_fn( set_production /*3*/, 3 );
+    state.push_fn( branch_20b33064645a28fc, 3 );
+    return hc_instruction_sequence_group_15_0_( state, db, 0 )
+} else {
+    add_reduce( state, 1, 9 );
+    return 3
 };
     return - 1
+}
+
+function branch_e58c6c36716bc767(state, db, prod){
+    add_reduce( state, 5, 27 );
+    return 0
 }
 
 function branch_efa91ededef7e842(state, db, prod){
@@ -746,29 +780,13 @@ function branch_efa91ededef7e842(state, db, prod){
     return - 1
 }
 
-function branch_f07baa3ad155e358(state, db, prod){
-    add_reduce( state, 1, 30 );
-    return hc_top_level_instructions_list_9_goto( state, db, 14 )
-}
-
-function branch_f7282cd2013ce807(state, db, prod){
-    scan( state.lexer, 7, 3 );
-    state.push_fn( branch_9f174ca041316d09, 0 );
-    return hc_top_level_instructions( state, db, 0 )
-}
-
-function branch_f9a7bce34becdc0a(state, db, prod){
-    scan( state.lexer, 5, 3 );
-    if( ( state.lexer._type  == 18 ) ){
-    consume( state );
-    add_reduce( state, 5, 11 );
-    return 0
-};
-    return - 1
+function branch_f9f1f14d284617c9(state, db, prod){
+    add_reduce( state, 1, 10 );
+    return hc_top_level_instructions_list_8_goto( state, db, 13 )
 }
 
 function hc_start(state, db, prod){
-    state.push_fn( branch_7438d25cee351d2c, 0 );
+    state.push_fn( branch_889d629ab8fb98c6, 0 );
     return hc_state_declaration( state, db, 0 )
 }
 
@@ -795,7 +813,7 @@ function hc_state_declaration(state, db, prod){
 }
 
 function hc_top_level_instructions(state, db, prod){
-    scan( state.lexer, 7, 3 );
+    scan( state.lexer, 4, 3 );
     if( isTokenActive( state.lexer._type, 20 ) ){
     state.push_fn( set_production /*2*/, 2 );
     state.push_fn( set_production /*0*/, 2 );
@@ -824,9 +842,13 @@ function hc_instruction_sequence(state, db, prod){
     state.push_fn( branch_a647211903a31e66, 0 );
     return hc_instruction_sequence_list_11( state, db, 0 )
 } else if( state.lexer._type  == 22 ){
-    state.push_fn( set_production /*3*/, 3 );
-    state.push_fn( set_production /*0*/, 3 );
+    scan( state.lexer, 12, 3 );
+    state.push_fn( branch_e42f5e2f00768c26, 0 );
     return hc_instruction_sequence_list_14( state, db, 0 )
+} else if( state.lexer._type  == 13 ){
+    state.push_fn( set_production /*3*/, 3 );
+    state.push_fn( branch_2b54638e04cc6687, 3 );
+    return hc_instruction_sequence_group_15_0_( state, db, 0 )
 };
     state.lexer.setToken( 2, 0, 0 );
     consume( state );
@@ -834,13 +856,13 @@ function hc_instruction_sequence(state, db, prod){
 }
 
 function hc_prod_branch_instruction(state, db, prod){
-    scan( state.lexer, 13, 3 );
+    scan( state.lexer, 8, 3 );
     if( state.lexer._type  == 15 ){
     consume( state );
     scan( state.lexer, 24, 3 );
     if( ( state.lexer._type  == 16 ) ){
         consume( state );
-        state.push_fn( branch_ee608efe32fd2b09, 4 );
+        state.push_fn( branch_0c182239d735bf2c, 4 );
         return hc_id_list( state, db, 0 )
     }
 };
@@ -852,17 +874,17 @@ function hc_token_branch_instruction(state, db, prod){
     if( state.lexer._type  == 19 ){
     state.push_fn( set_production /*5*/, 5 );
     consume( state );
-    state.push_fn( branch_b1d199fb03d9a455, 5 );
+    state.push_fn( branch_4a1d0a6114c4847d, 5 );
     return hc_id_list( state, db, 0 )
 } else if( state.lexer._type  == 20 ){
     state.push_fn( set_production /*5*/, 5 );
     consume( state );
-    state.push_fn( branch_8fdd795d98460e71, 5 );
+    state.push_fn( branch_7c09c6f4cb7fb391, 5 );
     return hc_id_list( state, db, 0 )
 } else if( state.lexer._type  == 21 ){
     state.push_fn( set_production /*5*/, 5 );
     consume( state );
-    state.push_fn( branch_4a1d0a6114c4847d, 5 );
+    state.push_fn( branch_b2aefaa650f5dffc, 5 );
     return hc_id_list( state, db, 0 )
 };
     return - 1
@@ -874,7 +896,7 @@ function hc_goto_instruction(state, db, prod){
     consume( state );
     scan( state.lexer, 17, 3 );
     if( ( state.lexer._type  == 9 ) ){
-        state.push_fn( branch_873b1e7a8b69a00e, 6 );
+        state.push_fn( branch_365676ebfe0997e2, 6 );
         return hc_state_declaration( state, db, 0 )
     }
 };
@@ -892,7 +914,7 @@ function hc_sequence_instruction(state, db, prod){
         scan( state.lexer, 26, 3 );
         if( ( state.lexer._type  == 5 ) ){
             consume( state );
-            add_reduce( state, 3, 15 );
+            add_reduce( state, 3, 17 );
             return 0
         }
     };
@@ -909,7 +931,7 @@ function hc_sequence_instruction(state, db, prod){
             scan( state.lexer, 26, 3 );
             if( ( state.lexer._type  == 5 ) ){
                 consume( state );
-                add_reduce( state, 4, 16 );
+                add_reduce( state, 4, 18 );
                 return 0
             }
         };
@@ -923,7 +945,7 @@ function hc_sequence_instruction(state, db, prod){
             scan( state.lexer, 26, 3 );
             if( ( state.lexer._type  == 5 ) ){
                 consume( state );
-                add_reduce( state, 4, 20 );
+                add_reduce( state, 4, 22 );
                 return 0
             };
             return - 1
@@ -933,7 +955,7 @@ function hc_sequence_instruction(state, db, prod){
             scan( state.lexer, 26, 3 );
             if( ( state.lexer._type  == 5 ) ){
                 consume( state );
-                add_reduce( state, 4, 21 );
+                add_reduce( state, 4, 23 );
                 return 0
             };
             return - 1
@@ -945,11 +967,11 @@ function hc_sequence_instruction(state, db, prod){
     scan( state.lexer, 28, 3 );
     if( ( state.lexer._type  == 25 ) ){
         consume( state );
-        scan( state.lexer, 4, 3 );
+        scan( state.lexer, 2, 3 );
         if( ( state.lexer._type  == 17 ) ){
             consume( state );
-            state.push_fn( branch_5c6a59a2b911c6e8, 7 );
-            return hc_sequence_instruction_list_58( state, db, 0 )
+            state.push_fn( branch_5b648bd486ebcda7, 7 );
+            return hc_sequence_instruction_list_61( state, db, 0 )
         }
     };
     return - 1
@@ -959,7 +981,7 @@ function hc_sequence_instruction(state, db, prod){
     scan( state.lexer, 30, 3 );
     if( ( state.lexer._type  == 28 ) ){
         consume( state );
-        state.push_fn( branch_52d31ea33c48b584, 7 );
+        state.push_fn( branch_df87f6b23943389a, 7 );
         return hc_id_list( state, db, 0 )
     };
     return - 1
@@ -969,38 +991,38 @@ function hc_sequence_instruction(state, db, prod){
     scan( state.lexer, 26, 3 );
     if( ( state.lexer._type  == 5 ) ){
         consume( state );
-        add_reduce( state, 2, 19 );
+        add_reduce( state, 2, 21 );
         return 0
     };
     return - 1
 } else if( state.lexer._type  == 32 ){
     state.push_fn( set_production /*7*/, 7 );
     consume( state );
-    add_reduce( state, 1, 22 );
+    add_reduce( state, 1, 24 );
     return 0
 } else if( state.lexer._type  == 33 ){
     state.push_fn( set_production /*7*/, 7 );
     consume( state );
-    add_reduce( state, 1, 23 );
+    add_reduce( state, 1, 25 );
     return 0
 } else if( state.lexer._type  == 34 ){
     state.push_fn( set_production /*7*/, 7 );
     consume( state );
-    add_reduce( state, 1, 24 );
+    add_reduce( state, 1, 26 );
     return 0
 };
     return - 1
 }
 
 function hc_on_fail(state, db, prod){
-    scan( state.lexer, 13, 3 );
+    scan( state.lexer, 8, 3 );
     if( state.lexer._type  == 15 ){
     consume( state );
     scan( state.lexer, 31, 3 );
     if( state.lexer._type  == 34 ){
         consume( state );
         scan( state.lexer, 17, 3 );
-        state.push_fn( branch_f7282cd2013ce807, 0 );
+        state.push_fn( branch_0e55412c0df55844, 0 );
         return hc_state_declaration( state, db, 0 )
     }
 };
@@ -1011,11 +1033,11 @@ function hc_expected_symbols(state, db, prod){
     scan( state.lexer, 32, 3 );
     if( state.lexer._type  == 35 ){
     consume( state );
-    scan( state.lexer, 9, 3 );
+    scan( state.lexer, 16, 3 );
     if( state.lexer._type  == 36 ){
         consume( state );
         scan( state.lexer, 18, 3 );
-        state.push_fn( branch_2a6be2d7cc1d117a, 0 );
+        state.push_fn( branch_9673f5b0997e96d4, 0 );
         return hc_id_list( state, db, 0 )
     }
 };
@@ -1028,8 +1050,8 @@ function hc_id_list(state, db, prod){
     consume( state );
     scan( state.lexer, 26, 3 );
     if( ( state.lexer._type  == 5 ) ){
-        state.push_fn( branch_64b84888e7884eb5, 10 );
-        return hc_id_list_list_90( state, db, 0 )
+        state.push_fn( branch_6724550e685b2d7c, 10 );
+        return hc_id_list_list_93( state, db, 0 )
     }
 };
     return - 1
@@ -1081,14 +1103,14 @@ function hc_comment(state, db, prod){
     } else {
         state.push_fn( set_production /*12*/, 12 );
         state.push_fn( branch_c2b7833681a21213, 12 );
-        return hc_comment_list_111( state, db, 0 )
+        return hc_comment_list_114( state, db, 0 )
     }
 };
     return - 1
 }
 
 function hc_top_level_instructions_list_8(state, db, prod){
-    state.push_fn( branch_85c92c2b232d339c, 13 );
+    state.push_fn( branch_f9f1f14d284617c9, 13 );
     return hc_prod_branch_instruction( state, db, 0 )
 }
 
@@ -1097,7 +1119,7 @@ function hc_top_level_instructions_list_8_goto(state, db, prod){
         switch(prod){
             case 13: 
             {
-                scan( state.lexer, 15, 3 );
+                scan( state.lexer, 14, 3 );
                 if( state.lexer._type  == 15 ){
                     var pk = state.lexer.copy_in_place(  );;
                     pk.next(  );
@@ -1105,9 +1127,9 @@ function hc_top_level_instructions_list_8_goto(state, db, prod){
                     if( pk._type  == 16 ){
                         state.lexer._type  = 15;
                         state.push_fn( hc_top_level_instructions_list_8_goto /*hc_top_level_instructions_list_8_goto( state, db, 13 )*/, 13 );
-                        scan( state.lexer, 13, 3 );
+                        scan( state.lexer, 8, 3 );
                         if( ( state.lexer._type  == 15 ) ){
-                            state.push_fn( branch_81be05ad74b5cee2, 13 );
+                            state.push_fn( branch_41a079d538412316, 13 );
                             return hc_prod_branch_instruction( state, db, 0 )
                         };
                         return - 1
@@ -1124,7 +1146,7 @@ function hc_top_level_instructions_list_8_goto(state, db, prod){
 }
 
 function hc_top_level_instructions_list_9(state, db, prod){
-    state.push_fn( branch_f07baa3ad155e358, 14 );
+    state.push_fn( branch_dab0f4545fd99b27, 14 );
     return hc_token_branch_instruction( state, db, 0 )
 }
 
@@ -1138,7 +1160,7 @@ function hc_top_level_instructions_list_9_goto(state, db, prod){
                     state.push_fn( hc_top_level_instructions_list_9_goto /*hc_top_level_instructions_list_9_goto( state, db, 14 )*/, 14 );
                     scan( state.lexer, 25, 3 );
                     if( ( state.lexer._type  == 19 || state.lexer._type  == 20 || state.lexer._type  == 21 ) ){
-                        state.push_fn( branch_81be05ad74b5cee2, 14 );
+                        state.push_fn( branch_41a079d538412316, 14 );
                         return hc_token_branch_instruction( state, db, 0 )
                     };
                     return - 1
@@ -1154,7 +1176,7 @@ function hc_top_level_instructions_list_9_goto(state, db, prod){
 }
 
 function hc_instruction_sequence_list_11(state, db, prod){
-    state.push_fn( branch_2e46b74170aaf80d, 15 );
+    state.push_fn( branch_7b8976b8db627626, 15 );
     return hc_sequence_instruction( state, db, 0 )
 }
 
@@ -1173,7 +1195,7 @@ function hc_instruction_sequence_list_11_goto(state, db, prod){
                         state.push_fn( hc_instruction_sequence_list_11_goto /*hc_instruction_sequence_list_11_goto( state, db, 15 )*/, 15 );
                         scan( state.lexer, 44, 3 );
                         consume( state );
-                        state.push_fn( branch_d27bc80eff49d685, 15 );
+                        state.push_fn( branch_6d5b7a80a3550502, 15 );
                         return hc_sequence_instruction( state, db, 0 )
                     } else if( pk._type  == 22 ){
                         return 15
@@ -1190,7 +1212,7 @@ function hc_instruction_sequence_list_11_goto(state, db, prod){
 }
 
 function hc_instruction_sequence_list_14(state, db, prod){
-    state.push_fn( branch_90dc3539babc0183, 16 );
+    state.push_fn( branch_9697680e19fd145b, 16 );
     return hc_goto_instruction( state, db, 0 )
 }
 
@@ -1209,8 +1231,10 @@ function hc_instruction_sequence_list_14_goto(state, db, prod){
                         state.push_fn( hc_instruction_sequence_list_14_goto /*hc_instruction_sequence_list_14_goto( state, db, 16 )*/, 16 );
                         scan( state.lexer, 44, 3 );
                         consume( state );
-                        state.push_fn( branch_d27bc80eff49d685, 16 );
+                        state.push_fn( branch_6d5b7a80a3550502, 16 );
                         return hc_goto_instruction( state, db, 0 )
+                    } else if( pk._type  == 40 ){
+                        return 16
                     }
                 } else {
                     return 16
@@ -1235,7 +1259,7 @@ function hc_instruction_sequence_group_15_0_(state, db, prod){
         scan( state.lexer, 17, 3 );
         if( ( state.lexer._type  == 9 ) ){
             consume( state );
-            add_reduce( state, 3, 33 );
+            add_reduce( state, 3, 34 );
             return 17
         }
     }
@@ -1243,100 +1267,100 @@ function hc_instruction_sequence_group_15_0_(state, db, prod){
     return - 1
 }
 
-function hc_sequence_instruction_list_58(state, db, prod){
-    state.push_fn( branch_4a15d90fe8fe3ba8, 18 );
+function hc_sequence_instruction_list_61(state, db, prod){
+    state.push_fn( branch_67a3d41791302cc9, 18 );
     return hc_state_declaration( state, db, 0 )
 }
 
-function hc_sequence_instruction_list_58_goto(state, db, prod){
+function hc_sequence_instruction_list_61_goto(state, db, prod){
     scan( state.lexer, 46, 3 );
     if( state.lexer._type  == 41 ){
-    state.push_fn( hc_sequence_instruction_list_58_goto /*hc_sequence_instruction_list_58_goto( state, db, 18 )*/, 18 );
+    state.push_fn( hc_sequence_instruction_list_61_goto /*hc_sequence_instruction_list_61_goto( state, db, 18 )*/, 18 );
     scan( state.lexer, 47, 3 );
     consume( state );
-    state.push_fn( branch_d27bc80eff49d685, 18 );
+    state.push_fn( branch_6d5b7a80a3550502, 18 );
     return hc_state_declaration( state, db, 0 )
 };
     return ( prod  == 18 ) ? prod  : - 1
 }
 
-function hc_expected_symbols_group_84_0_(state, db, prod){
+function hc_expected_symbols_group_87_0_(state, db, prod){
     scan( state.lexer, 48, 3 );
     if( state.lexer._type  == 42 ){
     consume( state );
     scan( state.lexer, 18, 3 );
     if( ( state.lexer._type  == 10 ) ){
-        state.push_fn( branch_6094747f87e6d6ce, 19 );
+        state.push_fn( branch_b94e16a52fa6f76d, 19 );
         return hc_id_list( state, db, 0 )
     }
 };
     return - 1
 }
 
-function hc_id_list_list_90(state, db, prod){
+function hc_id_list_list_93(state, db, prod){
     scan( state.lexer, 26, 3 );
     if( state.lexer._type  == 5 ){
     consume( state );
     scan( state.lexer, 3, 3 );
-    add_reduce( state, 1, 30 );
-    return hc_id_list_list_90_goto( state, db, 20 )
+    add_reduce( state, 1, 10 );
+    return hc_id_list_list_93_goto( state, db, 20 )
 };
     return - 1
 }
 
-function hc_id_list_list_90_goto(state, db, prod){
+function hc_id_list_list_93_goto(state, db, prod){
     scan( state.lexer, 49, 3 );
     if( state.lexer._type  == 5 ){
-    state.push_fn( hc_id_list_list_90_goto /*hc_id_list_list_90_goto( state, db, 20 )*/, 20 );
+    state.push_fn( hc_id_list_list_93_goto /*hc_id_list_list_93_goto( state, db, 20 )*/, 20 );
     scan( state.lexer, 26, 3 );
     consume( state );
-    add_reduce( state, 2, 31 );
+    add_reduce( state, 2, 32 );
     return 0
 };
     return ( prod  == 20 ) ? prod  : - 1
 }
 
-function hc_comment_list_111(state, db, prod){
+function hc_comment_list_114(state, db, prod){
     scan( state.lexer, 50, 35 );
     if( isTokenActive( state.lexer._type, 51 ) ){
     consume( state );
-    add_reduce( state, 1, 30 );
-    return hc_comment_list_111_goto( state, db, 21 )
+    add_reduce( state, 1, 10 );
+    return hc_comment_list_114_goto( state, db, 21 )
 };
     return - 1
 }
 
-function hc_comment_list_111_goto(state, db, prod){
+function hc_comment_list_114_goto(state, db, prod){
     scan( state.lexer, 40, 35 );
     if( state.lexer._type  == 2 ){
-    state.push_fn( hc_comment_list_111_goto /*hc_comment_list_111_goto( state, db, 21 )*/, 21 );
+    state.push_fn( hc_comment_list_114_goto /*hc_comment_list_114_goto( state, db, 21 )*/, 21 );
     scan( state.lexer, 52, 3 );
     consume( state );
-    add_reduce( state, 2, 31 );
+    add_reduce( state, 2, 32 );
     return 0
 } else if( state.lexer._type  == 8 ){
-    state.push_fn( hc_comment_list_111_goto /*hc_comment_list_111_goto( state, db, 21 )*/, 21 );
+    state.push_fn( hc_comment_list_114_goto /*hc_comment_list_114_goto( state, db, 21 )*/, 21 );
     scan( state.lexer, 3, 53 );
     consume( state );
-    add_reduce( state, 2, 31 );
+    add_reduce( state, 2, 32 );
     return 0
 } else if( state.lexer._type  == 7 ){
-    state.push_fn( hc_comment_list_111_goto /*hc_comment_list_111_goto( state, db, 21 )*/, 21 );
+    state.push_fn( hc_comment_list_114_goto /*hc_comment_list_114_goto( state, db, 21 )*/, 21 );
     scan( state.lexer, 3, 54 );
     consume( state );
-    add_reduce( state, 2, 31 );
+    add_reduce( state, 2, 32 );
     return 0
 } else if( state.lexer._type  == 3 ){
-    state.push_fn( hc_comment_list_111_goto /*hc_comment_list_111_goto( state, db, 21 )*/, 21 );
+    state.push_fn( hc_comment_list_114_goto /*hc_comment_list_114_goto( state, db, 21 )*/, 21 );
     scan( state.lexer, 55, 3 );
     consume( state );
-    add_reduce( state, 2, 31 );
+    add_reduce( state, 2, 32 );
     return 0
 } else if( state.lexer._type  == 5 ){
-    state.push_fn( hc_comment_list_111_goto /*hc_comment_list_111_goto( state, db, 21 )*/, 21 );
+    state.push_fn( hc_comment_list_114_goto /*hc_comment_list_114_goto( state, db, 21 )*/, 21 );
     scan( state.lexer, 26, 3 );
     consume( state );
-    add_reduce( state, 2, 31 );
+    add_reduce( state, 2, 32 );
     return 0
 };
     return ( prod  == 21 ) ? prod  : - 1
@@ -1378,31 +1402,32 @@ function hc_comment_list_111_goto(state, db, prod){
 (env, sym, pos)=> ([...sym[0],sym[1]]) /*6*/,
 (env, sym, pos)=> ([...sym[0],...sym[2]]) /*7*/,
 (env, sym, pos)=> ([...sym[0]]) /*8*/,
-(env, sym, pos)=> ({type:"prod",ids:sym[2],instructions:sym[4]}) /*9*/,
-(env, sym, pos)=> ({type:"consume",ids:sym[1],instructions:sym[3]}) /*10*/,
-(env, sym, pos)=> ({type:"peek",ids:sym[1],instructions:sym[3]}) /*11*/,
-(env, sym, pos)=> ({type:"assert",ids:sym[1],instructions:sym[3]}) /*12*/,
-(env, sym, pos)=> ({type:"goto",state:sym[1]}) /*13*/,
-(env, sym, pos)=> ({type:"reduce",len:parseInt(sym[1]),reduce_fn:parseInt(sym[2])}) /*14*/,
-(env, sym, pos)=> ({type:"set-prod",id:parseInt(sym[3])}) /*15*/,
-(env, sym, pos)=> ({type:"fork-to",states:sym[3]}) /*16*/,
-(env, sym, pos)=> ({type:"scan-until",token_ids:sym[2]}) /*17*/,
-(env, sym, pos)=> ({type:"pop",len:parseInt(sym[1])}) /*18*/,
-(env, sym, pos)=> ({type:"token-length",len:parseInt(sym[3])}) /*19*/,
-(env, sym, pos)=> ({type:"token-id",id:parseInt(sym[3])}) /*20*/,
-(env, sym, pos)=> ({type:"pass"}) /*21*/,
-(env, sym, pos)=> ({type:"end"}) /*22*/,
-(env, sym, pos)=> ({type:"fail"}) /*23*/,
-(env, sym, pos)=> ({type:"on-fail-state",id:sym[2],instructions:sym[3],symbol_meta:sym[4]}) /*24*/,
-(env, sym, pos)=> ({type:"on-fail-state",id:sym[2],instructions:sym[3]}) /*25*/,
-(env, sym, pos)=> ({type:"symbols",expected:sym[2],skipped:sym[3]||[]}) /*26*/,
-(env, sym, pos)=> ({type:"symbols",expected:sym[2],skipped:null||[]}) /*27*/,
-(env, sym, pos)=> (sym[1].map(i=>parseInt(i))) /*28*/,
-(env, sym, pos)=> ([sym[0]]) /*29*/,
-(env, sym, pos)=> ((sym[0].push(sym[1]),sym[0])) /*30*/,
-(env, sym, pos)=> ((sym[0].push(sym[2]),sym[0])) /*31*/,
-(env, sym, pos)=> ({type:"repeat-state"}) /*32*/,
-(env, sym, pos)=> (sym[1]) /*33*/];
+(env, sym, pos)=> ([sym[0]]) /*9*/,
+(env, sym, pos)=> ([]) /*10*/,
+(env, sym, pos)=> ({type:"prod",ids:sym[2],instructions:sym[4]}) /*11*/,
+(env, sym, pos)=> ({type:"consume",ids:sym[1],instructions:sym[3]}) /*12*/,
+(env, sym, pos)=> ({type:"peek",ids:sym[1],instructions:sym[3]}) /*13*/,
+(env, sym, pos)=> ({type:"assert",ids:sym[1],instructions:sym[3]}) /*14*/,
+(env, sym, pos)=> ({type:"goto",state:sym[1]}) /*15*/,
+(env, sym, pos)=> ({type:"reduce",len:parseInt(sym[1]),reduce_fn:parseInt(sym[2])}) /*16*/,
+(env, sym, pos)=> ({type:"set-prod",id:parseInt(sym[3])}) /*17*/,
+(env, sym, pos)=> ({type:"fork-to",states:sym[3]}) /*18*/,
+(env, sym, pos)=> ({type:"scan-until",token_ids:sym[2]}) /*19*/,
+(env, sym, pos)=> ({type:"pop",len:parseInt(sym[1])}) /*20*/,
+(env, sym, pos)=> ({type:"token-length",len:parseInt(sym[3])}) /*21*/,
+(env, sym, pos)=> ({type:"token-id",id:parseInt(sym[3])}) /*22*/,
+(env, sym, pos)=> ({type:"pass"}) /*23*/,
+(env, sym, pos)=> ({type:"end"}) /*24*/,
+(env, sym, pos)=> ({type:"fail"}) /*25*/,
+(env, sym, pos)=> ({type:"on-fail-state",id:sym[2],instructions:sym[3],symbol_meta:sym[4]}) /*26*/,
+(env, sym, pos)=> ({type:"on-fail-state",id:sym[2],instructions:sym[3]}) /*27*/,
+(env, sym, pos)=> ({type:"symbols",expected:sym[2],skipped:sym[3]||[]}) /*28*/,
+(env, sym, pos)=> ({type:"symbols",expected:sym[2],skipped:null||[]}) /*29*/,
+(env, sym, pos)=> (sym[1].map(i=>parseInt(i))) /*30*/,
+(env, sym, pos)=> ((sym[0].push(sym[1]),sym[0])) /*31*/,
+(env, sym, pos)=> ((sym[0].push(sym[2]),sym[0])) /*32*/,
+(env, sym, pos)=> ({type:"repeat-state"}) /*33*/,
+(env, sym, pos)=> (sym[1]) /*34*/];
 
     export default ParserFactory
         (reduce_functions, undefined, recognizer_initializer, {start:0});
