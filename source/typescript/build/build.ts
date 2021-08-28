@@ -1,4 +1,5 @@
 import spark from "@candlelib/spark";
+import { Token } from '../runtime/token.js';
 import { createRunner, Helper } from "../build/helper.js";
 import { WorkerRunner } from "../build/workers/worker_runner.js";
 import { getProductionByName } from '../grammar/nodes/common.js';
@@ -67,7 +68,9 @@ export async function buildRecognizer(
         `
     ))(token_lookup_array, token_sequence_lookup);
     //Go through the build pass
-    const input_buffer = new Uint8Array("aabb".split("").map(c => c.charCodeAt(0)));
+
+    const input_string = "aabbbbb";
+    const input_buffer = new Uint8Array(input_string.split("").map(c => c.charCodeAt(0)));
 
     const kernel_states: KernelState[] = [{
         lexer_pointer: 0,
@@ -81,11 +84,29 @@ export async function buildRecognizer(
 
     kernel_states[0].state_stack[1] = [...entry_pointers.values()][0].pointer;
 
+    let SUCCESSFUL_PARSE = false;
+
     while (kernel_states.length > 0) {
+
         for (let kernel_state of kernel_states) {
-            kernel_executor(kernel_state, kernel_states);
+
+            const FAILED = kernel_executor(kernel_state, kernel_states);
+
+            SUCCESSFUL_PARSE ||= (!FAILED && kernel_state.lexer_stack[0].END());
+
+            if (FAILED || !kernel_state.lexer_stack[0].END()) {
+                const token = new Token(input_string, "", kernel_state.lexer_stack[0].byte_length, kernel_state.lexer_stack[0].byte_offset);
+                if (kernel_state.lexer_stack[0].END())
+                    console.warn(token.returnError("Unexpected End Of Input").toString());
+                else
+                    console.warn(token.returnError("Unexpected Token").toString());
+            }
         }
+
+        kernel_states.length = 0;
     }
+
+    console.log({ SUCCESSFUL_PARSE });
 
     return {
         recognizer_functions: mt_code_compiler.functions,
@@ -129,7 +150,9 @@ function kernel_executor(
         while (i++ < 4) {
             // Hint to the compiler to inline this section 4 times
 
-            const state = state_stack[kernel_state.stack_pointer--];
+            const state = state_stack[kernel_state.stack_pointer];
+
+            kernel_state.stack_pointer -= 1;
 
             if (state > 0) {
 
@@ -210,13 +233,21 @@ function state_executor(
     const Gamma_u32 = kernel_state.state_buffer[state_index + 2];
     const Delta_u32 = kernel_state.state_buffer[state_index + 3];
 
-    //If the state value is true then increment stack pointer
-    //after setting the stack pointer with the fail state value
+    // If the state value is true then increment stack pointer
+    // after setting the stack pointer with the fail state value.
+    // However, if the previous state is the same as the failure state,
+    // do not increment. This prevents the stack from needlessly growing
+    // from repeating states that are linked to failures states. 
+
     const increment_stack_pointer_mask = 1;
+
+    const previous_state = kernel_state.state_stack[kernel_state.stack_pointer];
 
     kernel_state.state_stack[kernel_state.stack_pointer + 1] = Beta__u32;
 
-    kernel_state.stack_pointer += (Alpha_u32 & increment_stack_pointer_mask);
+    const failure_bit = (Alpha_u32 & increment_stack_pointer_mask) & +((previous_state ^ Beta__u32) > 0);
+
+    kernel_state.stack_pointer += failure_bit;
 
     // Main instruction process ----------------------
 
@@ -298,7 +329,8 @@ function state_executor(
                         kernel_states
                     ));
                 } else {
-                    //Use default
+                    // Use default behavior found at the end of the 
+                    // state table
                     ({ fail_mode, prod } = instruction_executor(
                         state_index + 4 + number_of_rows * row_size,
                         prod,
@@ -412,7 +444,6 @@ function instruction_executor(
                 // /if ((low & 0x4) == 0x4)
                 // /    state.add_rule(high & 0xFFF);
                 break;
-
             case 9://InstructionType.repeat: 
                 kernel_state.stack_pointer += 1;
                 break;;
@@ -500,8 +531,9 @@ function convertBlockDataToBufferData(block_info: BlockData, state_map: StateMap
         let temp_buffer = [];
         for (; i < data.length; i++) {
             switch (data[i]) {
-                case "end":
-                case InstructionType.pass: temp_buffer.push(0 >>> 0); break;
+
+                case "end": case InstructionType.pass:
+                    temp_buffer.push(0 >>> 0); break;
 
                 case InstructionType.consume: {
                     temp_buffer.push(1 << 28);
@@ -575,9 +607,9 @@ function convertBlockDataToBufferData(block_info: BlockData, state_map: StateMap
                 temp_buffer.push(0);
         }
 
-
         buffer.push(...temp_buffer);
     }
+
     while (buffer.length < (block_info.total_size >> 2))
         buffer.push(0);
 
@@ -716,8 +748,12 @@ function createInstructionSequence(active_instructions: Instruction[]): { byte_l
 
     const byte_sequence = [];
 
-    const goto_instructions = active_instructions.filter(i => i.type == InstructionType.goto).reverse();
-    const standard_instructions = active_instructions.filter(i => i.type != InstructionType.goto);
+    // The order of the goto instructions are reversed to change 
+    // their execution order from FIFO to FILO, conforming to 
+    // behavior observed on a stack.
+
+    const goto_instructions = active_instructions.filter(i => i.type == InstructionType.goto || i.type == InstructionType.repeat).reverse();
+    const standard_instructions = active_instructions.filter(i => !(i.type == InstructionType.goto || i.type == InstructionType.repeat));
 
     let byte_length = 0;
 
@@ -770,6 +806,7 @@ function createInstructionSequence(active_instructions: Instruction[]): { byte_l
                 break;
 
             case InstructionType.repeat:
+
                 byte_length += 4;
                 byte_sequence.push(InstructionType.repeat);
                 break;

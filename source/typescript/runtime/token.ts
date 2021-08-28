@@ -52,7 +52,7 @@ export class Token {
         return this._line;
     }
 
-    throw(message) {
+    returnError(message) {
         const lex = new Lexer(this.source);
 
         lex.off = this.off;
@@ -65,8 +65,10 @@ export class Token {
 
         lex.column = this.off - i - 1;
 
-        lex.throw(message);
+        return new Error(lex.errorMessage(message));
+    }
 
-        throw Error("Could not parse data");
+    throw(message) {
+        throw this.returnError(message);
     }
 };
