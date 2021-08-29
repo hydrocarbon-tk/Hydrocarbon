@@ -1,13 +1,13 @@
 import { HCG3EOPSymbol } from "@candlelib/hydrocarbon/build/types/types/grammar_nodes";
 import { TokenTypes } from "../../runtime/TokenTypes.js";
 import {
-    EOFSymbol,
+
     GeneratedIdentifier,
     GeneratedNewLine,
     GeneratedNumber,
     GeneratedSpace,
     GeneratedSymbol
-} from "../../types/symbol";
+} from "../../types/grammar_nodes";
 
 /**
  * Default Symbols

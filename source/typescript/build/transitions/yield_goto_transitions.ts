@@ -9,9 +9,9 @@ import { RenderBodyOptions } from "../../types/render_body_options";
 import { TransitionNode, TRANSITION_TYPE } from "../../types/transition_node.js";
 import { Item } from "../../utilities/item.js";
 import { getProductionID } from "../../utilities/production.js";
-import { default_resolveBranches } from "../default_resolution/default_branch_resolution.js";
-import { default_resolveResolvedLeaf } from "../default_resolution/default_resolved_leaf_resolution.js";
-import { default_resolveUnresolvedLeaves } from "../default_resolution/default_unresolved_leaves_resolution.js";
+import { table_resolveBranches } from '../table_branch_resolution/table_branch_resolution.js';
+import { table_resolveResolvedLeaf } from '../table_branch_resolution/table_resolved_leaf_resolution.js';
+import { table_resolveUnresolvedLeaves } from '../table_branch_resolution/table_unresolved_leaves_resolution.js';
 import { createTransitionNode } from "./create_transition_node.js";
 import { processTransitionNodes } from "./process_transition_nodes.js";
 import { yieldTransitions } from "./yield_transitions.js";
@@ -20,9 +20,9 @@ import { yieldTransitions } from "./yield_transitions.js";
 export function yieldGOTOTransitions(
     options: RenderBodyOptions,
     completed_productions: number[],
-    resolveBranches: typeof default_resolveBranches = default_resolveBranches,
-    resolveUnresolvedLeaves: typeof default_resolveUnresolvedLeaves = default_resolveUnresolvedLeaves,
-    resolveResolvedLeaf: typeof default_resolveResolvedLeaf = default_resolveResolvedLeaf
+    resolveBranches: typeof table_resolveBranches = table_resolveBranches,
+    resolveUnresolvedLeaves: typeof table_resolveUnresolvedLeaves = table_resolveUnresolvedLeaves,
+    resolveResolvedLeaf: typeof table_resolveResolvedLeaf = table_resolveResolvedLeaf
 ): TransitionNode[] {
 
     const { grammar, goto_items, production_ids, extended_goto_items } = options;

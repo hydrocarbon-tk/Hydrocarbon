@@ -18,11 +18,12 @@
         "skipLibCheck": true,
         "skipDefaultLibCheck": true,
         "allowSyntheticDefaultImports": true,
+        "disableReferencedProjectLoad": true,
         "module": "ESNext",
         "outDir": "./build/library/",
         "declarationDir": "./build/types/",
         "declaration": true,
         "moduleResolution": "node",
-        "sourceMap": true
+        "sourceMap": true,
     }
 }

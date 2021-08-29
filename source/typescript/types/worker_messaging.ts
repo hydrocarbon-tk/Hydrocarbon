@@ -3,8 +3,6 @@
  * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
  * disclaimer notice.
  */
-import { GlobalName, ConstantObj } from "../build/helper";
-import { SC } from "../utilities/skribble.js";
 
 export enum HybridJobType {
     UNDEFINED,
@@ -18,9 +16,5 @@ export interface HybridDispatch {
 
 export interface HybridDispatchResponse {
     production_id?: number;
-    productions?: Set<number>;
-    const_map?: Map<GlobalName, ConstantObj>;
-    fn?: SC;
-
     tables?: Map<string, string>;
 }

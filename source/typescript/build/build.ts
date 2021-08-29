@@ -1,5 +1,4 @@
 import spark from "@candlelib/spark";
-import { createRunner, Helper } from "../build/helper.js";
 import { WorkerRunner } from "../build/workers/worker_runner.js";
 import { getProductionByName } from '../grammar/nodes/common.js';
 import { createActiveTokenSK, extractAndReplaceTokenMapRefs } from '../render/render.js';
@@ -8,24 +7,20 @@ import { Token } from '../runtime/token.js';
 import { skRenderAsJavaScript } from '../skribble/skribble.js';
 import { HCG3Grammar } from "../types/grammar_nodes.js";
 import { RDProductionFunction } from "../types/rd_production_function.js";
-import { createSymbolScanFunctionNew, getSymbolMapFromIds, token_lu_bit_size } from '../utilities/code_generating.js';
+import { getSymbolMapFromIds, getSymbolScannerFunctions, token_lu_bit_size } from '../utilities/code_generating.js';
 import parser_loader from "./table_code.js";
 
 const parse_table_code = await parser_loader;
 
 export async function buildRecognizer(
     grammar: HCG3Grammar,
-    number_of_workers: number = 1,
-    ADD_ANNOTATIONS: boolean = false
+    number_of_workers: number = 1
 ): Promise<{
     recognizer_functions: RDProductionFunction[];
-    meta: Helper;
 }> {
 
     const
-        runner: Helper = createRunner(ADD_ANNOTATIONS, false),
-
-        mt_code_compiler = new WorkerRunner(grammar, runner, number_of_workers);
+        mt_code_compiler = new WorkerRunner(grammar, number_of_workers);
 
     for (const updates of mt_code_compiler.run())
         await spark.sleep(1);
@@ -102,10 +97,9 @@ export async function buildRecognizer(
     const reverse_state_lookup = new Map([...states_map.entries()].map(([key, val]) => [val.pointer, val.string]));
     //Attempt to parse input
 
-    const token_lookup_functions = extractAndReplaceTokenMapRefs(createSymbolScanFunctionNew({
-        grammar: grammar,
-        helper: runner
-    }).map(skRenderAsJavaScript).join("\n\n"), sym_map);
+    const token_lookup_functions = extractAndReplaceTokenMapRefs(getSymbolScannerFunctions(grammar)
+        .map(skRenderAsJavaScript)
+        .join("\n\n"), sym_map);
 
     let tk_scan = (Function("token_lookup", "token_sequence_lookup",
         `${skRenderAsJavaScript(createActiveTokenSK(grammar))}
@@ -159,8 +153,7 @@ export async function buildRecognizer(
     console.log({ SUCCESSFUL_PARSE });
 
     return {
-        recognizer_functions: mt_code_compiler.functions,
-        meta: runner
+        recognizer_functions: mt_code_compiler.functions
     };
 }
 

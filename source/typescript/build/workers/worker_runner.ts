@@ -8,7 +8,6 @@ import { Worker } from "worker_threads";
 import { RDProductionFunction } from "../../types/rd_production_function.js";
 import { WorkerContainer } from "../../types/worker_container";
 import { HybridDispatch, HybridDispatchResponse, HybridJobType } from "../../types/worker_messaging.js";
-import { Helper } from "../helper.js";
 import { LocalWorker } from "./local_worker.js";
 export class WorkerRunner {
     grammar: HCG3Grammar;
@@ -19,19 +18,17 @@ export class WorkerRunner {
     functions: Array<RDProductionFunction>;
     errors: any;
     to_process_rd_fn: number[];
-    runner: Helper;
     IN_FLIGHT_JOBS: number;
     tables: Map<string, string>;
 
     constructor(
         grammar: HCG3Grammar,
-        runner: Helper,
         number_of_workers = 2
     ) {
         let id = 0;
 
         this.grammar = grammar;
-        this.runner = runner;
+
         this.tables = new Map;
         this.to_process_rd_fn = this.grammar.productions.map((a, i) => i + 1);
         this.IN_FLIGHT_JOBS = 0;
@@ -51,10 +48,10 @@ export class WorkerRunner {
                 READY: true,
                 target: this.number_of_workers == 1 ?
                     new LocalWorker(
-                        { workerData: { id: id++, grammar, ANNOTATED: runner.ANNOTATED, DEBUG: runner.DEBUG } },
+                        { workerData: { id: id++, grammar } },
                         (data: HybridDispatchResponse) => this.mergeWorkerData(<WorkerContainer>obj, data)
                     )
-                    : new Worker(this.module_url, { workerData: { id: id++, grammar, ANNOTATED: runner.ANNOTATED, DEBUG: runner.DEBUG } })
+                    : new Worker(this.module_url, { workerData: { id: id++, grammar } })
             }));
 
         this.workers.forEach(
@@ -72,23 +69,10 @@ export class WorkerRunner {
 
     mergeWorkerData(worker: WorkerContainer, response: HybridDispatchResponse) {
 
-        const { const_map, fn, productions, production_id, tables } = response;
+        const { tables } = response;
 
-        if (tables)
-            for (const [key, val] of tables.entries())
-                this.tables.set(key, val);
-
-        if (const_map)
-            this.runner.join_constant_map(const_map);
-
-        if (fn)
-            this.functions[production_id] = {
-                id: production_id,
-                entry: fn[0],
-                goto: fn[1],
-                reduce: fn[2],
-                productions: productions,
-            };
+        for (const [key, val] of tables.entries())
+            this.tables.set(key, val);
 
         this.IN_FLIGHT_JOBS--;
 

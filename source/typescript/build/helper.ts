@@ -3,16 +3,15 @@
  * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
  * disclaimer notice.
  */
-import { debug } from "console";
 import { SKExpression, SKFunction, SKNode, SKPrimitiveDeclaration, SKReference } from "../skribble/types/node.js";
-const SC = null;
+
 /**
  * A generated name that is unique to a specific sequence of code
  * and that is consistently and independently derived in any given 
  * worker thread.
  */
 export type GlobalName = string;
-export type ConstantName = string;
+
 export type ConstantObj = { original_name: SKPrimitiveDeclaration, name: SKReference, code_node: SKNode; };
 export class Helper {
 

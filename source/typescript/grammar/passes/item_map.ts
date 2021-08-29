@@ -3,10 +3,11 @@
  * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
  * disclaimer notice.
  */
-import { getStartItemsFromProduction } from "../../build/function_constructor.js";
+import { HCG3Symbol } from '@candlelib/hydrocarbon/build/types/types/grammar_nodes';
+import { getStartItemsFromProduction } from '../../build/table_constructor.js';
+import { ProductionSymbol, TokenSymbol } from "../../types/grammar_nodes";
 import { HCG3Grammar, HCG3Production } from "../../types/grammar_nodes.js";
-import { EOP_SYM, ItemMapEntry } from "../../types/item_map.js";
-import { ProductionSymbol, Symbol, TokenSymbol } from "../../types/symbol";
+import { ItemMapEntry } from "../../types/item_map.js";
 import { getFirstTerminalSymbols } from "../../utilities/first.js";
 import { Item } from "../../utilities/item.js";
 import { doesProductionHaveEmpty, getProductionID } from "../../utilities/production.js";
@@ -139,10 +140,10 @@ function addFollowInformation(item: Item, grammar: HCG3Grammar, check_set: Set<s
 
     item_map.push(item.renderUnformattedWithProduction(grammar));
 
-    let sym: Symbol =
-        !item.increment().atEND
+    let sym: HCG3Symbol = <any>
+        (!item.increment().atEND
             ? item.increment().sym(grammar)
-            : null,
+            : null),
         item_sym = item.sym(grammar),
         follow: TokenSymbol[] = follow_sym ? [follow_sym] : [];
 

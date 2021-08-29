@@ -4,8 +4,7 @@
  * disclaimer notice.
  */
 import { Sym_Is_Defined, Sym_Is_Defined_Symbol } from "../grammar/nodes/symbol.js";
-import { HCG3Grammar } from "../types/grammar_nodes.js";
-import { DefinedSymbol } from "../types/symbol";
+import { DefinedSymbol, HCG3Grammar } from "../types/grammar_nodes.js";
 
 
 /************ Grammar Production Functions *****************************/

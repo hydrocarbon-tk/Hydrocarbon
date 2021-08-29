@@ -4,19 +4,16 @@
  * disclaimer notice.
  */
 import { default_EOF } from "../../grammar/nodes/default_symbols.js";
-import { getTokenSymbolsFromItems, Symbols_Are_The_Same, Sym_Is_A_Production } from "../../grammar/nodes/symbol.js";
-import { HCG3Grammar, HCG3Symbol } from "../../types/grammar_nodes.js";
+import { getTokenSymbolsFromItems, Sym_Is_A_Production } from "../../grammar/nodes/symbol.js";
+import { HCG3Grammar } from "../../types/grammar_nodes.js";
 import { RenderBodyOptions } from "../../types/render_body_options";
 import { TransitionNode, TRANSITION_TYPE } from "../../types/transition_node.js";
 import { TransitionTreeNode } from "../../types/transition_tree_nodes.js";
 import { getClosure } from "../../utilities/closure.js";
-import { const_EMPTY_ARRAY } from "../../utilities/const_EMPTY_ARRAY.js";
 import { Item, Items_Have_The_Same_Active_Symbol } from "../../utilities/item.js";
-import { getTransitionTree } from "../../utilities/transition_tree.js";
 import { createTransitionNode } from "./create_transition_node.js";
 import { processPeekTransitionLeaves, yieldPeekedNodes } from "./process_peek_transition_leaves.js";
 import { yieldEndItemTransitions } from "./yield_end_item_transitions.js";
-import { buildPeekTransitions } from "./yield_peek_transitions.js";
 
 export function Every_Leaf_Of_TransitionTree_Contain_One_Root_Item(node: TransitionTreeNode) {
 
@@ -34,8 +31,6 @@ export function yieldTransitions(
     options: RenderBodyOptions,
 
     offset: number = 0,
-
-    filter_symbols: HCG3Symbol[] = const_EMPTY_ARRAY,
 
     FROM_PEEKED_TRANSITION: boolean = false
 

@@ -3,7 +3,7 @@
  * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
  * disclaimer notice.
  */
-import { getStartItemsFromProduction } from "../build/function_constructor.js";
+import { getStartItemsFromProduction } from '../build/table_constructor.js';
 import { HCG3Grammar, HCG3ProductionTokenSymbol, ProductionSymbol, SymbolType } from "../types/grammar_nodes.js";
 import { getClosure } from "./closure.js";
 import { Item } from "./item.js";

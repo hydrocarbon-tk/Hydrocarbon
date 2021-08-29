@@ -14,16 +14,15 @@ import {
     Sym_Is_EOF,
     Sym_Is_EOP
 } from "../../grammar/nodes/symbol.js";
-import { sk } from "../../skribble/skribble.js";
 import { SKExpression } from "../../skribble/types/node";
 import { RenderBodyOptions } from "../../types/render_body_options";
 import { MultiItemReturnObject, SingleItemReturnObject, TransitionClauseGenerator, TransitionGroup } from "../../types/transition_generating";
 import { GeneratorStateReturn, TransitionNode, TRANSITION_TYPE } from "../../types/transition_node.js";
 import { expressionListHash } from "../../utilities/code_generating.js";
 import { Item } from "../../utilities/item.js";
-import { default_resolveBranches } from "../default_resolution/default_branch_resolution.js";
-import { default_resolveResolvedLeaf } from "../default_resolution/default_resolved_leaf_resolution.js";
-import { default_resolveUnresolvedLeaves } from "../default_resolution/default_unresolved_leaves_resolution.js";
+import { table_resolveBranches } from '../table_branch_resolution/table_branch_resolution.js';
+import { table_resolveResolvedLeaf } from '../table_branch_resolution/table_resolved_leaf_resolution.js';
+import { table_resolveUnresolvedLeaves } from '../table_branch_resolution/table_unresolved_leaves_resolution.js';
 
 export function defaultGrouping(g) { return g.hash; }
 type UnresolvedLeavesResolver = (node: TransitionNode, nodes: TransitionNode[], options: RenderBodyOptions) => MultiItemReturnObject;
@@ -35,9 +34,9 @@ type LeafNodeResolver = (item: Item, group: TransitionNode, options: RenderBodyO
 export function processTransitionNodes(
     options: RenderBodyOptions,
     nodes: TransitionNode[],
-    branch_resolve_function: InteriorNodesResolver = default_resolveBranches,
-    conflicting_leaf_resolve_function: UnresolvedLeavesResolver = default_resolveUnresolvedLeaves,
-    leaf_resolve_function: LeafNodeResolver = default_resolveResolvedLeaf,
+    branch_resolve_function: InteriorNodesResolver = table_resolveBranches,
+    conflicting_leaf_resolve_function: UnresolvedLeavesResolver = table_resolveUnresolvedLeaves,
+    leaf_resolve_function: LeafNodeResolver = table_resolveResolvedLeaf,
     grouping_fn: (node: TransitionNode, level: number, peeking: boolean) => string = defaultGrouping
 ): GeneratorStateReturn {
 
@@ -145,10 +144,6 @@ export function processTransitionNodes(
                     node.hash = leaf.hash;
                     node.prods = leaf.prods;
                     node.leaves = [leaf];
-
-                    if (options.helper.ANNOTATED)
-                        if (leaf.root)
-                            leaf.root.unshift(<SKExpression>sk`"--LEAF--"`);
                 }
                 break;
 

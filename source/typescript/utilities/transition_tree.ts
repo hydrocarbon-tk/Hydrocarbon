@@ -5,17 +5,14 @@
 */
 
 import { performance } from "perf_hooks";
-import { default_EOF, default_EOP } from '../grammar/nodes/default_symbols.js';
+import { default_EOF } from '../grammar/nodes/default_symbols.js';
 import {
-    getFollowSymbolsFromItems,
     getUniqueSymbolName, SymbolsCollide,
     Symbols_Are_The_Same,
     Sym_Is_A_Generic_Identifier,
     Sym_Is_A_Production,
     Sym_Is_A_Production_Token,
-    Sym_Is_Defined,
-    Sym_Is_EOF,
-    Sym_Is_Exclusive
+    Sym_Is_Defined, Sym_Is_Exclusive
 } from "../grammar/nodes/symbol.js";
 import { HCG3Grammar } from "../types/grammar_nodes";
 import { ClosureGroup, TransitionTreeNode } from "../types/transition_tree_nodes";

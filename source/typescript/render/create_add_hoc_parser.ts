@@ -7,7 +7,7 @@ import { HCG3Grammar } from "../types/grammar_nodes.js";
 import { HCGParserConstructor } from "../types/parser.js";
 import { ParserGenerator } from "../types/ParserGenerator";
 import { RDProductionFunction } from "../types/rd_production_function.js";
-import { generateScriptParser } from "./render.js";
+//import { generateScriptParser } from "./render.js";
 
 
 /**
@@ -26,7 +26,7 @@ export async function createAddHocParser<T = any>(
     grammar: HCG3Grammar,
     recognizer_functions: RDProductionFunction[],
     meta: Helper,
-    fn_generate_parser: ParserGenerator = generateScriptParser
+    fn_generate_parser: ParserGenerator //= generateScriptParser
 ): Promise<HCGParserConstructor<T>> {
 
     const parser_string = await fn_generate_parser(

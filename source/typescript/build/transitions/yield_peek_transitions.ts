@@ -3,12 +3,11 @@
  * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
  * disclaimer notice.
  */
-import { HCG3Grammar, HCG3Symbol } from "source/typescript/types/grammar_nodes.js";
-import { getSymbolFromUniqueName, getUniqueSymbolName, Sym_Is_EOF } from "../../grammar/nodes/symbol.js";
+import { HCG3Grammar } from "source/typescript/types/grammar_nodes.js";
+import { getSymbolFromUniqueName } from "../../grammar/nodes/symbol.js";
 import { RenderBodyOptions } from "../../types/render_body_options.js";
 import { TransitionNode, TRANSITION_TYPE } from "../../types/transition_node.js";
 import { TransitionTreeNode } from "../../types/transition_tree_nodes";
-import { const_EMPTY_ARRAY } from "../../utilities/const_EMPTY_ARRAY.js";
 import { createTransitionNode } from "./create_transition_node.js";
 import { processPeekTransitionLeaves } from "./process_peek_transition_leaves.js";
 
@@ -28,7 +27,6 @@ export function buildPeekTransitions(
     options: RenderBodyOptions,
     offset: number,
     leafHandler: leafHandler = processPeekTransitionLeaves,
-    filter_symbols: HCG3Symbol[] = const_EMPTY_ARRAY,
     peek_depth: number = 0,
     RESET_ROOTS = false,
 ): TransitionNode[] {
@@ -82,7 +80,6 @@ export function buildPeekTransitions(
                     options,
                     offset,
                     leafHandler,
-                    const_EMPTY_ARRAY,
                     peek_depth + 1
                 )
             );

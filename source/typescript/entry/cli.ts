@@ -10,7 +10,7 @@ import { default as URI, default as URL } from "@candlelib/uri";
 import { buildRecognizer } from "../build/build.js";
 import { compileGrammarFromURI } from "../grammar/compile.js";
 import { createCompilableCode } from "../grammar/passes/process_compiled_code.js";
-import { generateScriptParser, generateRustParser, generateTSParser, generateWebAssemblyParser, writeJSBasedParserScriptFile, generateCPPParser } from "../render/render.js";
+import { generateCPPParser, generateRustParser, generateScriptParser, generateWebAssemblyParser, writeJSBasedParserScriptFile } from "../render/render.js";
 
 await URL.server();
 
@@ -199,7 +199,7 @@ addCLIConfig("compile", {
         cli_log(`Starting recognizer compilation with ${number_of_workers.value || 1} threads`);
 
         // Compile recognizer code
-        const { meta, recognizer_functions } = await buildRecognizer(grammar, threads, !!annotated.value);
+        const { recognizer_functions } = await buildRecognizer(grammar, threads);
 
         cli_log("Completed recognizer compilation");
 
@@ -276,14 +276,14 @@ mod spec_parser;
                     : generateScriptParser;
 
 
-                await writeJSBasedParserScriptFile(
-                    output_path,
-                    grammar,
-                    recognizer_functions,
-                    meta,
-                    "@candlelib/hydrocarbon",
-                    generator,
-                );
+                // await writeJSBasedParserScriptFile(
+                //     output_path,
+                //     grammar,
+                //     recognizer_functions,
+                //     meta,
+                //     "@candlelib/hydrocarbon",
+                //     generator,
+                // );
 
                 break;
             default:
@@ -310,8 +310,7 @@ addCLIConfig("create-staged", {
         compiled_grammar = await compileGrammarFromURI(hcg_grammar_file),
         bootstrapped_compiled_grammar = await compileGrammarFromURI(hcg_grammar_file),
         {
-            recognizer_functions: bootstrapped_recognizer_functions,
-            meta: bootstrapped_meta,
+            recognizer_functions: bootstrapped_recognizer_functions
         } = await buildRecognizer(bootstrapped_compiled_grammar, 1);
 
     let SUCCESS = await writeJSBasedParserScriptFile(

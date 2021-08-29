@@ -8,7 +8,6 @@ import { getFollowSymbolsFromItems, getUniqueSymbolName, Sym_Is_A_Production } f
 import { RenderBodyOptions } from "../../types/render_body_options.js";
 import { TransitionNode, TRANSITION_TYPE } from "../../types/transition_node.js";
 import { getClosure } from "../../utilities/closure.js";
-import { const_EMPTY_ARRAY } from "../../utilities/const_EMPTY_ARRAY.js";
 import { Item, Items_Have_The_Same_Active_Symbol } from "../../utilities/item.js";
 import { getProductionID } from "../../utilities/production.js";
 import { getTransitionTree } from "../../utilities/transition_tree.js";
@@ -161,7 +160,7 @@ function convertStateToProductionCall(node: TransitionNode, offset: number) {
 
 function addRegularYieldNode(node: TransitionNode, items: Item[], options: RenderBodyOptions, offset: number) {
 
-    const nodes = yieldTransitions(items, options, offset + 1, const_EMPTY_ARRAY, true);
+    const nodes = yieldTransitions(items, options, offset + 1, true);
 
     node.nodes.push(...nodes);
 
@@ -198,7 +197,7 @@ function addUnresolvedNode(node: TransitionNode, options: RenderBodyOptions, off
 
                 const unresolved_leaf_node = createTransitionNode(items_with_same_symbol, node.symbols, TRANSITION_TYPE.ASSERT, offset, node.peek_level, true);
 
-                unresolved_leaf_node.nodes.push(...yieldTransitions(items_with_same_symbol, options, offset, const_EMPTY_ARRAY, false));
+                unresolved_leaf_node.nodes.push(...yieldTransitions(items_with_same_symbol, options, offset, false));
 
                 node.nodes.push(unresolved_leaf_node);
             }
@@ -256,7 +255,6 @@ export function yieldPeekedNodes(
     offset: number,
     leaf_handler = processPeekTransitionLeaves,
     peek_depth: number = 0,
-    filter_symbols: Symbol[] = const_EMPTY_ARRAY,
 ): TransitionNode[] {
 
     const
@@ -274,7 +272,13 @@ export function yieldPeekedNodes(
         );
 
 
-    const nodes = buildPeekTransitions(tree_nodes[0].next, options, offset, leaf_handler, filter_symbols, peek_depth);
+    const nodes = buildPeekTransitions(
+        tree_nodes[0].next,
+        options,
+        offset,
+        leaf_handler,
+        peek_depth
+    );
 
 
     return nodes;

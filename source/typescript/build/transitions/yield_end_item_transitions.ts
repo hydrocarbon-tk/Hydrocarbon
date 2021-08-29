@@ -4,12 +4,11 @@
  * disclaimer notice.
  */
 import { default_EOP } from "../../grammar/nodes/default_symbols.js";
-import { getFollowSymbolsFromItems, getSymbolsFromClosure, getUniqueSymbolName, Sym_Is_A_Production, Sym_Is_EOF } from "../../grammar/nodes/symbol.js";
+import { getSymbolsFromClosure } from "../../grammar/nodes/symbol.js";
 import { HCG3Grammar } from "../../types/grammar_nodes";
 import { RenderBodyOptions } from "../../types/render_body_options";
 import { TransitionNode, TRANSITION_TYPE } from "../../types/transition_node.js";
 import { getClosure, getFollowClosure } from "../../utilities/closure.js";
-import { const_EMPTY_ARRAY } from "../../utilities/const_EMPTY_ARRAY.js";
 import { getFollow } from "../../utilities/follow.js";
 import { getGotoItems, Item, itemsToProductionIDs } from "../../utilities/item.js";
 import { processProductionChain } from "../../utilities/process_production_reduction_sequences.js";
@@ -36,7 +35,7 @@ export function yieldEndItemTransitions(end_items: Item[], options: RenderBodyOp
 
         const
             original_prods = itemsToProductionIDs(end_items, grammar),
-            prods = end_items.map(i => processProductionChain([], options, itemsToProductionIDs([i], grammar))[0]),
+            prods = end_items.map(i => processProductionChain(options, itemsToProductionIDs([i], grammar))[0]),
             active_items = getGotoItems(grammar, prods, goto_items).map(i => i.increment());
 
         if (active_items.length == 1) {
@@ -100,7 +99,7 @@ export function yieldEndItemTransitions(end_items: Item[], options: RenderBodyOp
 
                                 const unresolved_leaf_node = createTransitionNode([item], symbols, TRANSITION_TYPE.ASSERT_END, offset, state.peek_level, true);
 
-                                unresolved_leaf_node.nodes.push(...yieldTransitions([item], options, offset, const_EMPTY_ARRAY, false));
+                                unresolved_leaf_node.nodes.push(...yieldTransitions([item], options, offset, false));
 
                                 state.nodes.push(unresolved_leaf_node);
 
@@ -113,7 +112,6 @@ export function yieldEndItemTransitions(end_items: Item[], options: RenderBodyOp
                         for (const item of items)
                             used_items.add(item.id);
                     },
-                    const_EMPTY_ARRAY,
                     -1));
             }
 
