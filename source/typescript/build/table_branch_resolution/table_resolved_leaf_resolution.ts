@@ -67,15 +67,16 @@ function renderItem(item: Item, options: RenderBodyOptions): string {
         const set_prod_clause = `set prod to ${body.production.id}`;
 
         if (body.reduce_id >= 0)
-            hash_basis = `reduce ${item.len} ${body.reduce_id}\n    then ${set_prod_clause}`;
+            hash_basis = `reduce ${item.len} ${body.reduce_id} then ${set_prod_clause}`;
         else if (item.len > 1)
-            hash_basis = `reduce ${item.len} 0\n    then ${set_prod_clause}`;
+            hash_basis = `reduce ${item.len} 0 then ${set_prod_clause}`;
         else
             hash_basis = `${set_prod_clause}`;
 
         hash = hashString(hash_basis).slice(0, 8);
 
-        code = `state [${hash}]\n    ${hash_basis}`;
+        code = `state [${hash}]\n    /* 
+        ${item.renderUnformattedWithProduction(options.grammar).replace(/\*\//g, "asterisk/")}\n    */\n    ${hash_basis}`;
 
     } else {
         const sym = item.sym(grammar);
@@ -86,14 +87,16 @@ function renderItem(item: Item, options: RenderBodyOptions): string {
             const cardinal = getRootSym(sym, grammar);
             const hash_basis = `goto state [${cardinal.production.name}] then goto state [${next_state}]`;
             hash = hashString(hash_basis).slice(0, 8);
-            code = `state [${hash}] ${hash_basis} `;
+            code = `state [${hash}]\n    /* 
+            ${item.renderUnformattedWithProduction(options.grammar).replace(/\*\//g, "asterisk/")}\n     */\n    ${hash_basis} `;
         } else {
 
             const hash_basis = `consume [${convert_sym_to_code(sym)}] ( goto state [${next_state}] )`;
 
             hash = hashString(hash_basis).slice(0, 8);
 
-            code = `state [${hash}] \n    ${hash_basis}`;
+            code = `state [${hash}] \n     /* 
+            ${item.renderUnformattedWithProduction(options.grammar).replace(/\*\//g, "asterisk/")} \n    */\n    ${hash_basis}`;
 
             code += create_symbol_claues([item], [item.getProduction(grammar).id], options);
         }
