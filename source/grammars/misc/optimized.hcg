@@ -1,17 +1,17 @@
-@IGNORE θws tk:comment
+@IGNORE g:sp tk:comment
 
 @IMPORT ./default-productions.hcg as def
 
 <> start > blocks
     
-<> blocks > ( \[ expressions? \] f:r{ $$sym2 } )(+\& )
+<> blocks > ( \[ expressions? \] f:r{ $$2 } )(+ \& )
 
 <> expressions > expression(+\, )
 
 <> expression > id_sequence
               | math_expression 
 
-<> id_sequence > identifier(+g:sp )
+<> id_sequence > identifier(+ g:sp )
 
 <> math_expression > additive 
 
@@ -21,10 +21,10 @@
 <> multiplicative > unary \+ additive
             | unary
 
-<> unary > \++ closure       f:r{ { type:"inc", val: $$sym2 } }
-         | \-- closure       f:r{ { type:"dec", val: $$sym2 } }
-         | closure \--       f:r{ { type:"post-inc", val: $$sym2 } }
-         | closure \++       f:r{ { type:"post-dec", val: $$sym2 } }
+<> unary > \++ closure       f:r{ { type:"inc", val: $$2 } }
+         | \-- closure       f:r{ { type:"dec", val: $$2 } }
+         | closure \--       f:r{ { type:"post-inc", val: $$2 } }
+         | closure \++       f:r{ { type:"post-dec", val: $$2 } }
          | closure
 
 <> closure > \( expressions \)  

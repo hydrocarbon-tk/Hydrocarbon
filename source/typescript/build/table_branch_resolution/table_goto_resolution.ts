@@ -41,8 +41,8 @@ export function table_resolveGOTOBranches(
 
         code += "    " + branches.join("\n\n    ");
 
-        code += `\n\n    on fail state[${production_name}_goto_failed] 
-        on prod [ ${options.production_ids[0]} ] ( pass )`;
+        code += `\n\n    on fail state [${production_name}_goto_failed] 
+    on prod [ ${options.production_ids[0]} ] ( pass )`;
 
         options.table.map.set(hash, code);
         options.table.entries.push(code);

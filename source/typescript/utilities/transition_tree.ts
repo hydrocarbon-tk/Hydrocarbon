@@ -329,7 +329,8 @@ function getClosureGroups(
     lr_transition_items: Item[],
     root_items: Item[],
     expanded_limit = 0,
-    new_previous_group = incoming_group
+    new_previous_group = incoming_group,
+    production_trap = new Set
 ): ClosureGroup[] {
 
     const { index, closure, final, starts, production_shift_items, tree_depth, previous_group } = incoming_group;
@@ -358,9 +359,12 @@ function getClosureGroups(
 
                 for (const item of prev.production_shift_items) {
 
+
                     const sym = item.sym(grammar);
 
-                    if (Sym_Is_A_Production(sym) && sym.val == prod_id) {
+                    if (Sym_Is_A_Production(sym) && sym.val == prod_id && !production_trap.has(item.id)) {
+
+                        production_trap.add(item.id);
 
                         NO_TRANSITIONS = false;
 
@@ -390,7 +394,8 @@ function getClosureGroups(
                             lr_transition_items,
                             root_items,
                             expanded_limit,
-                            prev
+                            prev,
+                            production_trap
                         );
 
                         group.push(...new_group);
@@ -438,6 +443,8 @@ function getClosureGroups(
                     lr_transition_items,
                     root_items,
                     expanded_limit,
+                    undefined,
+                    production_trap
 
                 );
 

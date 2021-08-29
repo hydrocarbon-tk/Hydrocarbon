@@ -1,10 +1,10 @@
 import spark from "@candlelib/spark";
-import { Token } from '../runtime/token.js';
 import { createRunner, Helper } from "../build/helper.js";
 import { WorkerRunner } from "../build/workers/worker_runner.js";
 import { getProductionByName } from '../grammar/nodes/common.js';
 import { createActiveTokenSK, extractAndReplaceTokenMapRefs } from '../render/render.js';
-import { consume, Lexer } from '../runtime/core_parser.js';
+import { Lexer } from '../runtime/core_parser.js';
+import { Token } from '../runtime/token.js';
 import { skRenderAsJavaScript } from '../skribble/skribble.js';
 import { HCG3Grammar } from "../types/grammar_nodes.js";
 import { RDProductionFunction } from "../types/rd_production_function.js";
@@ -42,14 +42,60 @@ export async function buildRecognizer(
 
         state_ast.__source__ = state_string;
 
-        states_map.set(state_ast.id, { block: null, block_offset: 0, pointer: -1, string: state_string, state_ast });
+        const IS_PRODUCTION_ENTRY = getProductionByName(grammar, state_ast.id) != null;
+
+        states_map.set(state_ast.id, {
+            reference_count: 0,
+            block_offset: 0,
+            pointer: -1,
+            attributes: IS_PRODUCTION_ENTRY ? StateAttrib.PRODUCTION_ENTRY : 0,
+            string: state_string,
+            state_ast,
+            block: null,
+        });
+
+        //Extract and create failed states
+        if (state_ast.fail) {
+
+            const fail_state = state_ast.fail;
+
+            states_map.set(fail_state.id, {
+                reference_count: 1,
+                block_offset: 0,
+                pointer: 0,
+                attributes: StateAttrib.FAIL_STATE,
+                string: "[ FAILURE HANDLER ]\n\n" + state_string.slice(state_string.indexOf("on fail")),
+                state_ast: fail_state,
+                block: null,
+            });
+        }
     }
 
-    //Build buffers;
+    //Process States -------------------------------------------------------------
 
     const sym_map: Map<string, number> = new Map();
 
-    const state_buffer = new Uint32Array(buildStatesOutputs(states_map, grammar, sym_map));
+    statesOutputsInitialPass(states_map, grammar);
+    let prev_size = states_map.size;
+
+    let ALLOW_OPTIMIZATIONS = true;
+
+    let original_states = new Map(states_map);
+
+    if (ALLOW_OPTIMIZATIONS)
+        while (statesOutputsOptimizationPass(states_map, grammar, original_states)) {
+
+            console.log(`reduction ratio ${Math.round((1 - (states_map.size / prev_size)) * 100)}% - prev size ${prev_size} - current size ${states_map.size}`);
+
+            prev_size = states_map.size;
+        }
+
+    const state_buffer = new Uint32Array(statesOutputsBuildPass(states_map, grammar, sym_map));
+
+    console.log(`Buffer size = ${state_buffer.length * 4}bytes`);
+
+    //Build Recognizer Components -------------------------------------------------------------
+
     const token_lookup_array = new ({ 8: Uint8Array, 16: Uint8Array, 32: Uint32Array }[token_lu_bit_size])([...sym_map.keys()].flatMap(s => s.split("_")));
     const token_sequence_lookup = new Uint8Array(grammar.sequence_string.split("").map(s => s.charCodeAt(0)));
     const entry_pointers = grammar.productions.filter(p => p.IS_ENTRY).map(p => ({ name: p.name, pointer: states_map.get(p.name).pointer }));
@@ -69,7 +115,7 @@ export async function buildRecognizer(
     ))(token_lookup_array, token_sequence_lookup);
     //Go through the build pass
 
-    const input_string = "aabbbbb";
+    const input_string = "aabbbb";
     const input_buffer = new Uint8Array(input_string.split("").map(c => c.charCodeAt(0)));
 
     const kernel_states: KernelState[] = [{
@@ -90,17 +136,21 @@ export async function buildRecognizer(
 
         for (let kernel_state of kernel_states) {
 
-            const FAILED = kernel_executor(kernel_state, kernel_states);
+            const { FAILED, last_state } = kernel_executor(kernel_state, kernel_states);
 
             SUCCESSFUL_PARSE ||= (!FAILED && kernel_state.lexer_stack[0].END());
 
             if (FAILED || !kernel_state.lexer_stack[0].END()) {
-                const token = new Token(input_string, "", kernel_state.lexer_stack[0].byte_length, kernel_state.lexer_stack[0].byte_offset);
+
+                const token = new Token(input_string, "", kernel_state.lexer_stack[0].byte_length, kernel_state.lexer_stack[0].byte_offset + 1);
+
                 if (kernel_state.lexer_stack[0].END())
                     console.warn(token.returnError("Unexpected End Of Input").toString());
                 else
                     console.warn(token.returnError("Unexpected Token").toString());
             }
+
+            console.log(`Last Good State => {\n${reverse_state_lookup.get(last_state)}\n}`);
         }
 
         kernel_states.length = 0;
@@ -131,7 +181,7 @@ const fail_state_mask = 1 << 26;
 function kernel_executor(
     kernel_state: KernelState,
     kernel_states: KernelState[]
-): boolean {
+) {
 
     const {
         state_stack,
@@ -142,6 +192,8 @@ function kernel_executor(
     //Input
     let fail_mode = false;
     let prod = 0;
+
+    let last_good_state = 0, previous_good_state = 0;
 
     while (true) {
 
@@ -185,20 +237,21 @@ function kernel_executor(
                  * 
                  */
 
-                const state_index = state & state_index_mask;
+                const state_pointer = state & state_index_mask;
 
                 if (!fail_mode) {
-
                     ({ fail_mode, prod } = state_executor(
-                        state_index,
+                        state_pointer,
                         prod,
                         kernel_state,
                         kernel_states,
                     ));
 
+                    last_good_state = state_pointer;
+
                 } else if ((state & fail_state_mask) != 0) {
                     ({ fail_mode, prod } = state_executor(
-                        state_index,
+                        state_pointer,
                         prod,
                         kernel_state,
                         kernel_states,
@@ -211,12 +264,12 @@ function kernel_executor(
             break;
     }
 
-    return fail_mode;
+    return { FAILED: fail_mode, last_state: last_good_state };
 
 }
 
 function state_executor(
-    state_index: u32,
+    state_pointer: u32,
     prod,
     kernel_state: KernelState,
     kernel_states: KernelState[]
@@ -228,10 +281,10 @@ function state_executor(
     // state executor or the table executor (scanner executor is 
     // not yet implemented )
 
-    const Alpha_u32 = kernel_state.state_buffer[state_index];
-    const Beta__u32 = kernel_state.state_buffer[state_index + 1];
-    const Gamma_u32 = kernel_state.state_buffer[state_index + 2];
-    const Delta_u32 = kernel_state.state_buffer[state_index + 3];
+    const Alpha_u32 = kernel_state.state_buffer[state_pointer];
+    const Beta__u32 = kernel_state.state_buffer[state_pointer + 1];
+    const Gamma_u32 = kernel_state.state_buffer[state_pointer + 2];
+    const Delta_u32 = kernel_state.state_buffer[state_pointer + 3];
 
     // If the state value is true then increment stack pointer
     // after setting the stack pointer with the fail state value.
@@ -262,7 +315,7 @@ function state_executor(
                 // is directly handled by the instruction executor
 
                 ({ fail_mode, prod } = instruction_executor(
-                    state_index + 4,
+                    state_pointer + 4,
                     prod,
                     lexer,
                     kernel_state,
@@ -322,23 +375,26 @@ function state_executor(
 
                 if (input_value >= 0 && input_value < number_of_rows) {
                     ({ fail_mode, prod } = instruction_executor(
-                        state_index + 4 + input_value * row_size,
+                        state_pointer + 4 + input_value * row_size,
                         prod,
                         lexer,
                         kernel_state,
                         kernel_states
                     ));
                 } else {
+
                     // Use default behavior found at the end of the 
                     // state table
                     ({ fail_mode, prod } = instruction_executor(
-                        state_index + 4 + number_of_rows * row_size,
+                        state_pointer + 4 + number_of_rows * row_size,
                         prod,
                         lexer,
                         kernel_state,
                         kernel_states
                     ));
+
                 }
+
             } break;
         case 3: //scanner 
             {
@@ -462,29 +518,6 @@ function instruction_executor(
 
 const numeric_sort = (a: number, b: number): number => a - b;
 
-function statesOutputsInitialPass(StatesOutputs: Map<string, {
-    string: string, state_ast: State;
-}>, grammar: HCG3Grammar) {
-}
-
-function statesOutputsOptimizationPass(StatesOutputs: Map<string, {
-    string: string, state_ast: State;
-}>, grammar: HCG3Grammar) {
-}
-
-function statesOutputsBuildPass(StatesOutputs: Map<string, {
-    string: string, state_ast: State;
-}>, grammar: HCG3Grammar) {
-}
-
-type StateMap = Map<string, {
-    string: string;
-    state_ast: State;
-    pointer: number,
-    block_offset: number,
-    block: BlockData;
-}>;
-
 function convertBlockDataToBufferData(block_info: BlockData, state_map: StateMap): number[] {
     const buffer = [];
 
@@ -540,7 +573,8 @@ function convertBlockDataToBufferData(block_info: BlockData, state_map: StateMap
                 } break;
 
                 case InstructionType.goto: {
-                    temp_buffer.push(2 << 28 | state_map.get(data[++i]).pointer);
+                    i++;
+                    temp_buffer.push(2 << 28 | state_map.get(data[i]).pointer);
                 } break;
 
                 case InstructionType.set_prod: {
@@ -610,76 +644,340 @@ function convertBlockDataToBufferData(block_info: BlockData, state_map: StateMap
         buffer.push(...temp_buffer);
     }
 
-    while (buffer.length < (block_info.total_size >> 2))
+    while (buffer.length < (block_info.total_size / 4))
         buffer.push(0);
+
+    if (buffer.length > (block_info.total_size / 4))
+        debugger;
 
     return buffer;
 }
 
+interface StateData {
+    string: string;
+    state_ast: State;
+    pointer: number;
+    block_offset: number;
+    block: BlockData;
+    reference_count: number;
+    attributes: StateAttrib;
+}
 
-function buildStatesOutputs(StateMap: StateMap, grammar: HCG3Grammar, sym_map: Map<string, number> = new Map()) {
+type StateMap = Map<string, StateData>;
 
-    let total_instruction_byte_size = 0;
+const enum StateAttrib {
+    HAS_GOTOS = 1 << 0,
+    PROD_BRANCH = 1 << 1,
+    PEEK_BRANCH = 1 << 2,
+    ASSERT_BRANCH = 1 << 3,
+    CONSUME_BRANCH = 1 << 4,
+    MULTI_BRANCH = 1 << 5,
+    FAIL_STATE = 1 << 6,
+    PRODUCTION_ENTRY = 1 << 7,
+    TOKEN_BRANCH = ASSERT_BRANCH | CONSUME_BRANCH | PEEK_BRANCH
+}
+
+function statesOutputsInitialPass(StateMap: StateMap, grammar: HCG3Grammar) {
 
     for (const [state_name, state_data] of StateMap) {
-        //Extract and create failed states
-        if (state_data.state_ast.fail) {
 
-            const fail_state = state_data.state_ast.fail;
+        //Build reference counts
+        const instructions = [...state_data.state_ast.instructions];
 
-            StateMap.set(fail_state.id, {
-                block: null,
-                block_offset: 0,
-                pointer: 0,
-                state_ast: fail_state,
-                string: "[FAILURE MODE] \n" + state_data.string
-            });
+        let attributes = state_data.attributes;
+
+        for (const instruction of instructions) {
+            switch (instruction.type) {
+
+                case InstructionType.goto: {
+
+                    attributes |= StateAttrib.HAS_GOTOS;
+
+                    const state = instruction.state;
+
+                    StateMap.get(state).reference_count++;
+
+                } break;
+
+                case InstructionType.fork_to: {
+                    for (const state of instruction.states)
+                        StateMap.get(state).reference_count++;
+                } break;
+
+                case InstructionType.prod:
+                case InstructionType.peek:
+                case InstructionType.consume:
+                case InstructionType.assert:
+                    {
+                        instructions.push(...instruction.instructions);
+                    } break;
+            }
         }
-    }
 
-    for (const [state_name, state_data] of StateMap) {
-
-        const { state_ast } = state_data;
-
-        const { instructions, symbol_meta } = state_ast;
+        //Construct base state attributes 
 
         // Get all initial states. if branch function,
         // assert all top level instructions are of the
         // the same class [prod or token]
 
-        let IS_TOKEN_BRANCH = false;
-        let IS_PEEK_BRANCH = false;
-        let IS_PROD_BRANCH = false;
+        const token_instr_types = {
+            [InstructionType.assert]: StateAttrib.ASSERT_BRANCH,
+            [InstructionType.consume]: StateAttrib.CONSUME_BRANCH,
+            [InstructionType.peek]: StateAttrib.PEEK_BRANCH,
+            [InstructionType.prod]: StateAttrib.PROD_BRANCH
+        };
 
-        const token_instr_types = ["assert", "consume", "peek"];
+        attributes |= state_data.state_ast.instructions.reduce((r, v) =>
+            r | (token_instr_types[v.type] ?? 0), 0);
 
-        if (token_instr_types.includes(instructions[0].type)) {
+        if ((attributes & (StateAttrib.TOKEN_BRANCH | StateAttrib.CONSUME_BRANCH)) > 0
+            &&
+            state_data.state_ast.instructions.length > 1
+        ) attributes |= StateAttrib.MULTI_BRANCH;
 
-            IS_TOKEN_BRANCH = instructions.reduce((val, { type }) => val && token_instr_types.includes(type), true);
+        if (
+            (attributes & StateAttrib.TOKEN_BRANCH) > 0
+            &&
+            (attributes & StateAttrib.PROD_BRANCH) > 0
+        ) new Error(`Unsupported mixture of token branch (assert | consume | peek) and production branch ( on prod ) instructions`);
 
-            if (!IS_TOKEN_BRANCH) {
-                throw new Error(`Expected state [${state_name}] to be comprised of top level token instructions`);
+        if (
+            (attributes & (StateAttrib.ASSERT_BRANCH | StateAttrib.CONSUME_BRANCH)) > 0
+            &&
+            (attributes & StateAttrib.PEEK_BRANCH) > 0
+        ) new Error(`Unsupported mixture of assertion branch (assert | consume ) and peek branch ( peek ) instructions`);
+
+        state_data.attributes = attributes;
+    }
+}
+
+function statesOutputsOptimizationPass(StateMap: StateMap, grammar: HCG3Grammar, StateMap_: StateMap): boolean {
+
+    let MUTATION_OCCURRED = false;
+
+    const to_remove = [];
+
+    for (const [state_name, state_data] of StateMap) {
+
+        const { state_ast, attributes, string } = state_data;
+
+        const { instructions, symbol_meta } = state_ast;
+
+        if (attributes & StateAttrib.ASSERT_BRANCH
+            ||
+            attributes & StateAttrib.CONSUME_BRANCH
+        ) {
+            if (
+                !(attributes & StateAttrib.MULTI_BRANCH)
+                &&
+                instructions[0].type == InstructionType.assert
+                &&
+                instructions[0].instructions[0].type == InstructionType.goto
+                &&
+                (StateMap.get(instructions[0].instructions[0].state).attributes & StateAttrib.PRODUCTION_ENTRY)
+            ) {
+                //Replace the state with contents of the production state
+                const prod_state = StateMap.get(instructions[0].instructions[0].state);
+
+                //console.log("woopah", instructions[0].instructions[0].state);
+                //console.log(string);
+                //console.log(prod_state.string);
+
+                state_data.attributes = prod_state.attributes ^ StateAttrib.PRODUCTION_ENTRY;
+                // Flatten the state since the assert is now superfluous.
+                // The production state will make the same assertion
+                state_ast.instructions = state_ast.instructions[0].instructions;
+                state_ast.instructions.splice(0, 1, ...prod_state.state_ast.instructions);
+                prod_state.state_ast.instructions.forEach(({ type, state }) => {
+                    if (type == InstructionType.goto) {
+                        StateMap.get(state).reference_count++;
+                    }
+                });
+
+
+                MUTATION_OCCURRED = true;
+                continue;
             }
-            if (instructions.some(({ type }) => type == InstructionType.peek)) {
-                IS_PEEK_BRANCH = instructions.reduce((val, { type }) => val && (type == InstructionType.peek), true);
 
-                if (!IS_PEEK_BRANCH) {
-                    throw new Error(`Expected state [${state_name}] to be completely comprised of top level peek instructions`);
+            for (let i = 0; i < instructions.length; i++) {
+
+                const instruction = instructions[i];
+
+                if (
+                    instruction.type == InstructionType.assert
+                    &&
+                    instruction.instructions[0].type == InstructionType.goto
+                ) {
+                    //Reduce asserts with consumes form single branch productions
+                    const goto_state = StateMap.get(instruction.instructions[0].state);
+
+                    const { state_ast, attributes, string: goto_string } = goto_state;
+
+                    if (
+                        (attributes & StateAttrib.CONSUME_BRANCH)
+                        &&
+                        !(attributes & StateAttrib.MULTI_BRANCH)
+                    ) {
+
+                        instruction.type = InstructionType.consume;
+
+                        instruction.instructions.splice(0, 1, ...state_ast.instructions[0].instructions);
+                        state_ast.instructions[0].instructions.forEach(({ type, state }) => {
+                            if (type == InstructionType.goto) {
+                                StateMap.get(state).reference_count++;
+                            }
+                        });
+
+                        decreaseReference(goto_state, to_remove);
+
+                        MUTATION_OCCURRED = true;
+
+                        continue;
+                    }
+                }
+
+                if (
+                    (
+                        instruction.type == InstructionType.assert
+                        ||
+                        instruction.type == InstructionType.consume
+                        ||
+                        instruction.type == InstructionType.prod
+                    )
+                ) {
+
+                    const instructions = instruction.instructions;
+
+                    for (let j = 0; j < instructions.length; j++) {
+                        const instruction = instructions[j];
+                        if (
+                            instruction.type == InstructionType.goto
+                        ) {
+                            //Reduce asserts with consumes form single branch productions
+                            const goto_state = StateMap.get(instruction.state);
+
+                            const { state_ast, attributes, string: goto_string } = goto_state;
+
+                            if (
+                                !(attributes & (StateAttrib.TOKEN_BRANCH | StateAttrib.PROD_BRANCH))
+                                &&
+                                (!(attributes & StateAttrib.HAS_GOTOS) || (
+                                    (instructions.length == 1)
+                                    ||
+                                    (j == instructions.length - 1)
+                                    ||
+                                    (
+                                        (
+                                            instructions[j + 1].type == InstructionType.goto
+                                            ||
+                                            instructions[j + 1].type == InstructionType.repeat
+                                        )
+                                        &&
+                                        (
+                                            j == 0 || !(
+                                                instructions[j - 1].type == InstructionType.goto
+                                                ||
+                                                instructions[j - 1].type == InstructionType.repeat
+                                            )
+                                        )
+                                    )
+                                ))
+                            ) {
+                                //console.log(string);
+                                //console.log(goto_string);
+                                instructions.splice(j, 1, ...state_ast.instructions);
+                                state_ast.instructions.forEach(({ type, state }) => {
+                                    if (type == InstructionType.goto) {
+                                        StateMap.get(state).reference_count++;
+                                    }
+                                });
+
+                                decreaseReference(goto_state, to_remove);
+
+                                MUTATION_OCCURRED = true;
+
+                                continue;
+                            }
+                        }
+                    }
+                }
+
+                if (
+                    instruction.type == InstructionType.goto
+                ) {
+                    //Reduce asserts with consumes form single branch productions
+                    const goto_state = StateMap.get(instruction.state);
+
+                    const { state_ast, attributes, string: goto_string } = goto_state;
+
+                    if (
+                        !(attributes & (StateAttrib.TOKEN_BRANCH | StateAttrib.PROD_BRANCH))
+                        &&
+                        (!(attributes & StateAttrib.HAS_GOTOS) || (
+                            (instructions.length == 1)
+                            ||
+                            (i == instructions.length - 1)
+                            ||
+                            (
+                                (
+                                    instructions[i + 1].type == InstructionType.goto
+                                    ||
+                                    instructions[i + 1].type == InstructionType.repeat
+                                )
+                                &&
+                                (
+                                    i == 0 || !(
+                                        instructions[i - 1].type == InstructionType.goto
+                                        ||
+                                        instructions[i - 1].type == InstructionType.repeat
+                                    )
+                                )
+                            )
+                        ))
+                    ) {
+
+                        instructions.splice(i, 1, ...state_ast.instructions);
+
+                        decreaseReference(goto_state, to_remove);
+
+                        MUTATION_OCCURRED = true;
+
+                        continue;
+                    }
                 }
             }
         }
+    }
 
-        const prod_instr_types = ["prod"];
+    for (const state_name of to_remove)
+        StateMap.delete(state_name);
 
-        if (prod_instr_types.includes(instructions[0].type)) {
-            IS_PROD_BRANCH = instructions.reduce((val, { type }) => val && prod_instr_types.includes(type), true);
 
-            if (!IS_PROD_BRANCH) {
-                throw new Error(`Expected state [${state_name}] to be comprised of top level prod instructions`);
-            }
-        }
+    return MUTATION_OCCURRED;
+}
 
-        let STATE_IS_TRIVIAL = !(IS_TOKEN_BRANCH || IS_PROD_BRANCH) && instructions.length <= 1 && !getProductionByName(grammar, state_name);
+function decreaseReference(goto_state: StateData, to_remove: string[]) {
+
+    goto_state.reference_count--;
+
+    if (
+        goto_state.reference_count <= 0
+        &&
+        !(goto_state.attributes & StateAttrib.PRODUCTION_ENTRY)
+    ) {
+        to_remove.push(goto_state.state_ast.id);
+    }
+}
+
+function statesOutputsBuildPass(StateMap: StateMap, grammar: HCG3Grammar, sym_map: Map<string, number> = new Map()) {
+
+    let total_instruction_byte_size = 0;
+
+    for (const [state_name, state_data] of StateMap) {
+
+        const { state_ast, attributes, string } = state_data;
+
+        const { instructions, symbol_meta } = state_ast;
 
         let skip_id = 0, tok_id = 0;
 
@@ -710,13 +1008,21 @@ function buildStatesOutputs(StateMap: StateMap, grammar: HCG3Grammar, sym_map: M
 
         state_data.block_offset = total_instruction_byte_size;
 
-        if (IS_PROD_BRANCH) {
+        if ((attributes & (StateAttrib.PROD_BRANCH)) > 0) {
             const block_info = buildBranchTableBlock(state_ast, tok_id, skip_id, "production");
             total_instruction_byte_size += block_info.total_size;
             state_data.block = block_info;
 
-        } else if (IS_TOKEN_BRANCH) {
-            const block_info = buildBranchTableBlock(state_ast, tok_id, skip_id, "token", IS_PEEK_BRANCH ? "peek" : "assert");
+        } else if ((attributes & (StateAttrib.TOKEN_BRANCH)) > 0) {
+            const block_info = buildBranchTableBlock(
+                state_ast,
+                tok_id,
+                skip_id,
+                "token",
+                (attributes & (StateAttrib.PEEK_BRANCH))
+                    ? "peek"
+                    : "assert"
+            );
             total_instruction_byte_size += block_info.total_size;
             state_data.block = block_info;
 
@@ -728,7 +1034,7 @@ function buildStatesOutputs(StateMap: StateMap, grammar: HCG3Grammar, sym_map: M
 
         state_data.pointer = (state_data.block_offset / 4);
 
-        if (state_ast.type == "on-fail-state")
+        if ((attributes & StateAttrib.FAIL_STATE) > 0)
             state_data.pointer |= fail_state_mask;
 
     }
@@ -786,7 +1092,7 @@ function createInstructionSequence(active_instructions: Instruction[]): { byte_l
                 break;
 
             case InstructionType.fork_to:
-                byte_length += 4 + 4 * (instr.states.length - 1);
+                byte_length += 4 + 4 * (instr.states.length);
                 byte_sequence.push(InstructionType.fork_to, instr.states.length, ...instr.states);
                 break;
 
@@ -941,7 +1247,7 @@ function buildBasicInstructionBlock(state_ast: State, tok_id = 0, skip_id = 0): 
         lexer_type: "assert"
     };
 
-    return { table_header, table_entries, default_entry: byte_sequence, total_size: instruction_byte_size + 16 };
+    return { table_header, table_entries, default_entry: byte_sequence, total_size: get32AlignedOffset(instruction_byte_size + 16) };
 }
 
 function getInstructionComplexity(instr) {
@@ -970,7 +1276,7 @@ interface State {
     };
 }
 
-enum InstructionType {
+const enum InstructionType {
     prod = "prod",
     consume = "consume",
     peek = "peek",
