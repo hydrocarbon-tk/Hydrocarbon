@@ -1,0 +1,799 @@
+import { Lexer } from "./lexer.js";
+import { i32, u32 } from "../types/build_types";
+
+//Global Constants
+const state_index_mask = (1 << 24) - 1;
+export const fail_state_mask = 1 << 26;
+export const alpha_increment_stack_pointer_mask = 1 << 0;
+export const alpha_have_default_action_mask = 1 << 1;
+export const alpha_auto_accept_with_peek_mask = 1 << 2;
+export const alpha_auto_consume_with_peek_mask = 1 << 3;
+
+type ScannerFunction = (l: Lexer, i: u32, j: u32) => void;
+
+export interface KernelStateType {
+    lexer_pointer: u32;
+    readonly lexer_stack: Lexer[];
+    stack_pointer: u32;
+    state_stack: Uint32Array;
+    tk_scan: ScannerFunction;
+    readonly state_buffer: Uint32Array;
+}
+
+export class KernelState implements KernelStateType {
+    lexer_pointer: u32;
+    readonly lexer_stack: Lexer[];
+    stack_pointer: u32;
+    state_stack: Uint32Array;
+    tk_scan: ScannerFunction;
+    readonly state_buffer: Uint32Array;
+    // 8 byte +
+    rules: number[];
+    origin: KernelState;
+
+    // 4 byte
+    state: number;
+    origin_fork: number;
+    input_len: number;
+
+    // 1 byte
+    VALID: boolean;
+    COMPLETED: boolean;
+    refs: number;
+    constructor(
+        state_buffer: Uint32Array,
+        input_buffer: Uint8Array,
+        input_len_in: number,
+        tk_scan: ScannerFunction,
+    ) {
+        this.lexer_stack = (new Array(16))
+            .fill(0)
+            .map(i => { const lexer = new Lexer(input_buffer, input_buffer.length); lexer.next(); return lexer; });
+
+        this.state_stack = new Uint32Array(128);
+
+        this.stack_pointer = 1;
+
+        this.lexer_pointer = 0;
+
+        this.tk_scan = tk_scan;
+
+        this.state_buffer = state_buffer;
+
+        this.rules = [];
+
+        this.origin = null;
+
+        this.state = 0xFFFFFFFF;
+
+        this.origin_fork = 0;
+
+        this.VALID = true;
+
+        this.COMPLETED = false;
+
+        this.refs = 0;
+    }
+
+    get_rules_len(): number {
+        return this.rules.length;
+    };
+
+    fork(process_buffer: KernelStateBuffer): KernelState {
+
+        let forked_state: KernelState = process_buffer.get_recycled_KernelState(this);
+
+        for (let i = 0; i < 10; i++)
+            forked_state.lexer_stack[i].sync(this.lexer_stack[i]);
+
+        for (let i = 0; i <= this.stack_pointer; i++)
+            forked_state.state_stack[i] = this.state_stack[i];
+
+        //Increment the refs count to prevent the
+        //KernelState from being recycled.
+        forked_state.origin = this;
+        forked_state.stack_pointer = this.stack_pointer;
+        forked_state.lexer_pointer = this.lexer_pointer;
+        forked_state.origin_fork = this.get_rules_len();
+        forked_state.state = this.state;
+        forked_state.VALID = true;
+
+        this.refs++;
+
+        process_buffer.add_state_pointer(forked_state);
+
+        return forked_state;
+    }
+    add_rule(val: number): void {
+        this.rules.push(val);
+    }
+
+    add_reduce(sym_len: number, fn_id: number): void {
+
+        if (0 != (this.state & 2)) {
+            let total = fn_id + sym_len;
+            if ((total) == 0)
+                return;
+
+            if (fn_id > 0xFF || sym_len > 0x1F) {
+                let low = (1 << 2) | (fn_id << 3);
+                let high = sym_len;
+                this.add_rule(low);
+                this.add_rule(high);
+            }
+            else {
+                let low = ((sym_len & 0x1F) << 3) | ((fn_id & 0xFF) << 8);
+                this.add_rule(low);
+            };
+        };
+    }
+    add_shift(tok_len: number) {
+        if (tok_len < 0)
+            return;
+
+        if (tok_len > 0x1FFF) {
+            let low = 1 | (1 << 2) | ((tok_len >> 13) & 0xFFF8);
+            let high = (tok_len & 0xFFFF);
+            this.add_rule(low);
+            this.add_rule(high);
+        }
+        else {
+            let low = 1 | ((tok_len << 3) & 0xFFF8);
+            this.add_rule(low);
+        };
+    }
+    add_skip(skip_delta: number) {
+        if (skip_delta < 1)
+            return;
+        ;
+        if (skip_delta > 0x1FFF) {
+            let low = 2 | (1 << 2) | ((skip_delta >> 13) & 0xFFF8);
+            let high = (skip_delta & 0xFFFF);
+            this.add_rule(low);
+            this.add_rule(high);
+        }
+        else {
+            let low = 2 | ((skip_delta << 3) & 0xFFF8);
+            this.add_rule(low);
+        };
+    }
+
+    consume(lexer_pointer: number): boolean {
+
+        const l = this.lexer_stack[lexer_pointer];
+
+        if (0 != (this.state & 2)) {
+
+            let skip_delta = l.token_offset - l.prev_token_offset;
+
+            this.add_skip(skip_delta);
+
+            this.add_shift(l.token_length);
+        }
+
+        l.prev_byte_offset = l.byte_offset + l.byte_length;
+        l.prev_token_offset = l.token_offset + l.token_length;
+
+        l.next();
+
+        return true;
+    }
+}
+
+export class KernelStateBuffer {
+
+    data: KernelState[];
+
+    constructor() {
+        this.data = [];
+    }
+    remove_state_at_index(index: number): KernelState {
+        let temp_location = this.data[index];
+        this.data.splice(index, 1);
+        return temp_location;
+    }
+    len(): number {
+        return this.data.length;
+    };
+    create_state(
+        state_buffer: Uint32Array,
+        input_buffer: Uint8Array,
+        input_len_in: number,
+        tk_scan: ScannerFunction
+    ): KernelState {
+
+        let state: KernelState = new KernelState(
+            state_buffer,
+            input_buffer,
+            input_len_in,
+            tk_scan
+        );
+
+        this.data.push(state);
+
+        return state;
+    };
+    add_state_pointer(state: KernelState): void {
+        this.data.push(state);
+    }
+    add_state_pointer_and_sort(state: KernelState): number {
+
+        let index = 0;
+
+        while (index < this.data.length) {
+            let exist_ref = this.data[index];
+
+            if (state.VALID &&
+                (!exist_ref.VALID)) {
+                break;
+            }
+            else {
+                if (exist_ref.lexer_stack[0].byte_offset < state.lexer_stack[0].byte_offset) {
+                    break;
+                }
+            };
+            index++;
+        }
+
+        this.data.splice(index, 0, state);
+
+        return this.data.length;
+    };
+    have_valid(): boolean {
+        return this.data.length > 0 && this.data[0].VALID;
+    };
+    remove_valid_parser_state(): KernelState {
+        if (this.have_valid()) {
+            return this.remove_state_at_index(0);
+        }
+        return null;
+    };
+    get_mut_state(index: number): KernelState {
+        return this.data[index];
+    };
+    get_ref_state(index: number): KernelState {
+        return this.data[index];
+    };
+
+    get_recycled_KernelState(state: KernelState): KernelState {
+
+        if (this.len() > 0) {
+
+            let i = 0;
+
+            while (i < this.len()) {
+                let ref = this.data[i];
+
+                if (!ref.VALID && ref.refs < 1) {
+                    let invalid_state = this.remove_state_at_index(i);
+
+                    invalid_state.rules.length = 0;
+
+                    return invalid_state;
+                }
+
+                i++;
+            }
+        }
+
+        return new KernelState(
+            state.state_buffer,
+            state.lexer_stack[0].input,
+            state.lexer_stack[0].input.length,
+            state.tk_scan
+        );
+    };
+}
+
+export function token_production(
+    lexer: Lexer,
+    production_id: u32,
+    pid: number,
+    _type: number,
+    tk_flag: number,
+    state_buffer: Uint32Array,
+    tk_scan: ScannerFunction,
+): boolean {
+
+    if (lexer._type == _type) {
+        return true;
+    }
+
+    if ((lexer.active_token_productions & tk_flag) > 0) {
+        return false;
+    }
+
+    let data_buffer: KernelStateBuffer = new KernelStateBuffer();
+
+    let state: KernelState = new KernelState(
+        state_buffer,
+        lexer.input,
+        lexer.input.length,
+        tk_scan
+    );
+
+    state.lexer_stack[0].sync(lexer);
+    state.lexer_stack[0].active_token_productions |= tk_flag;
+    state.state_stack[1] = production_id;
+    state.state_stack[0] = 0;
+    state.stack_pointer = 1;
+    state.state = 0;
+
+    if (!kernel_executor(state, data_buffer)) {
+
+        lexer.set_token_span_to(state.lexer_stack[0]);
+
+        lexer._type = _type;
+
+        return true;
+    }
+
+    return false;
+}
+
+function instruction_executor(
+    index: u32,
+    prod: u32,
+    lexer_pointer: u32,
+    kernel_state: KernelState,
+    kernel_states_repo: KernelStateBuffer
+): ({ fail_mode: boolean; prod: u32; }) {
+    while (true) {
+        const instruction = kernel_state.state_buffer[index];
+        index += 1;
+
+        switch ((instruction >> 28) & 0xF) {
+            //Both "pass" and "end";
+            case 0: return ({ fail_mode: false, prod }); //
+            case 1: //InstructionType.consume:
+                //consume(state)
+                kernel_state.consume(lexer_pointer);
+                break;
+            case 2: //InstructionType.goto:
+                console.log(`Goto: ${instruction & 0xFFFFFFF}`);
+                kernel_state.state_stack[kernel_state.stack_pointer + 1] = instruction;
+                kernel_state.stack_pointer += 1;
+                break;
+            case 3: //InstructionType.set_prod:
+                console.log(`Set prod: ${instruction & 0xFFFFFFF}`);
+                prod = instruction & 0xFFFFFFF;
+                break;
+            case 4: //InstructionType.fork_to: 
+                {
+                    // the first state goes to 
+                    // the current process
+                    let length = (instruction & 0xFFFFFFF) - 1;
+
+                    kernel_state.state_stack[kernel_state.stack_pointer + 1] = kernel_state.state_buffer[index];
+                    index += 1;
+
+                    while (length-- > 0) {
+
+                        const fork = kernel_state.fork(kernel_states_repo);
+
+                        fork.state_buffer[fork.stack_pointer + 1] = kernel_state.state_buffer[index];
+
+                        fork.stack_pointer += 1;
+
+                        //fork
+                        index += 1;
+                    }
+
+                    kernel_state.stack_pointer += 1;
+                } break;
+            case 5: // InstructionType.token_length:
+                {
+                    let length = instruction & 0xFFFFFFF;
+
+                    kernel_state.lexer_stack[lexer_pointer].token_length = length;
+                    kernel_state.lexer_stack[lexer_pointer].byte_length = length;
+                    kernel_state.lexer_stack[0].token_length = length;
+                    kernel_state.lexer_stack[0].byte_length = length;
+                }
+                break;
+            case 6: //InstructionType.scan_until:
+                //byte_length += 4 + 4 * instr.token_ids.length;
+                //byte_sequence.push("scan_until", ...instr.token_ids);
+                break;
+            case 7: //InstructionType.pop: 
+                kernel_state.stack_pointer -= (instruction & 0xFFFFFFF);
+                break;
+            case 8: //InstructionType.reduce: 
+
+                const high = (instruction >> 16) & 0xFFFF;
+
+                const low = (instruction) & 0xFFFF;
+
+                kernel_state.add_rule(low);
+
+                if ((low & 0x4) == 0x4)
+                    kernel_state.add_rule(high & 0xFFF);
+
+                break;
+            case 9: //InstructionType.repeat: 
+                kernel_state.stack_pointer += 1;
+                break;;
+            //Fail instructions
+            case 10: return ({ fail_mode: true, prod });
+            case 11: return ({ fail_mode: true, prod });
+            case 12: return ({ fail_mode: true, prod });
+            case 13: return ({ fail_mode: true, prod });
+            case 14: return ({ fail_mode: true, prod });
+            case 15: return ({ fail_mode: true, prod });
+        }
+    }
+
+    return ({ fail_mode: false, prod });
+}
+
+
+function get_token_info(
+    alpha: number,
+    kernel_state: KernelState,
+    gamma: number,
+    auto_accept_with_peek: boolean,
+    auto_consume_with_peek: boolean,
+    basis__: number,
+    prod: any
+): { input_value: number; lexer_pointer: number; } {
+
+    let input_value: i32 = 0;
+
+    const input_type = ((alpha >> 12) & 0xF);
+
+    let lexer = kernel_state.lexer_stack[kernel_state.lexer_pointer];
+
+    let lexer_pointer = kernel_state.lexer_pointer;
+
+    if (input_type == 2) { // Lexer token id input
+
+        const tk_row = gamma >> 16;
+
+        const skip_row = gamma & 0xFFFF;
+
+        const token_transition = ((alpha >> 4) & 0xF);
+
+        switch (token_transition & 0xF) {
+            case 0: /* do nothing */
+                break;
+            case 1: /* set next peek lexer */ /* set next peek lexer *//* set next peek lexer */ /* set next peek lexer */ {
+
+                const prev_lexer = kernel_state.lexer_stack[(kernel_state.lexer_pointer)];
+
+                kernel_state.lexer_pointer += 1;
+
+                lexer = kernel_state.lexer_stack[(kernel_state.lexer_pointer)];
+
+                lexer.sync(prev_lexer);
+
+                lexer.next();
+
+                kernel_state.tk_scan(lexer, tk_row, skip_row);
+
+                lexer_pointer = kernel_state.lexer_pointer;
+
+            } break;
+
+            case 2: /* set primary lexer */
+
+                let consume_index = kernel_state.lexer_pointer >> 16;
+                let peek_level = kernel_state.lexer_pointer & 0xFFFF;
+
+                if ((peek_level - consume_index) > 0
+                    &&
+                    auto_accept_with_peek) {
+
+                    lexer = kernel_state.lexer_stack[consume_index];
+
+                    lexer_pointer = consume_index;
+
+                    if (auto_consume_with_peek) {
+                        kernel_state.lexer_pointer += 1 << 16;
+                        if (consume_index > 0)
+                            kernel_state.lexer_stack[0].sync(kernel_state.lexer_stack[consume_index + 1]);
+                    } else {
+                        kernel_state.lexer_stack[0].sync(kernel_state.lexer_stack[consume_index]);
+                        lexer_pointer = 0;
+                    }
+
+                    lexer._type = basis__;
+
+                } else {
+
+                    kernel_state.lexer_pointer = 0;
+
+                    lexer = kernel_state.lexer_stack[0];
+
+                    kernel_state.tk_scan(lexer, tk_row, skip_row);
+
+                    lexer_pointer = 0;
+
+                }
+                break;
+            case 3: /*do nothing */ break;
+        }
+
+        input_value = lexer._type - basis__;
+
+    } else {
+        // Production id input
+        input_value = prod - basis__;
+    }
+    return { input_value, lexer_pointer };
+}
+
+
+function state_executor(
+    state_pointer: u32,
+    prod: u32,
+    kernel_state: KernelState,
+    kernel_states_repo: KernelStateBuffer,
+    reverse_state_lookup?: Map<number, string>
+): ({ prod: u32; fail_mode: boolean; }) {
+
+    let fail_mode = false;
+
+    // Decode state information and proceed run either the basic
+    // state executor or the table executor (scanner executor is 
+    // not yet implemented )
+    let alpha = kernel_state.state_buffer[state_pointer];
+
+    let beta = kernel_state.state_buffer[state_pointer + 1];
+
+    let gamma = kernel_state.state_buffer[state_pointer + 2];
+
+    let delta = kernel_state.state_buffer[state_pointer + 3];
+
+
+    // If the state value is true then increment stack pointer
+    // after setting the stack pointer with the fail state value.
+    // However, if the previous state is the same as the failure state,
+    // do not increment. This prevents the stack from needlessly growing
+    // from repeating states that are linked to failures states. 
+
+    let previous_state = kernel_state.state_stack[kernel_state.stack_pointer];
+
+    kernel_state.state_stack[kernel_state.stack_pointer + 1] = beta;
+
+    let failure_bit = (alpha & alpha_increment_stack_pointer_mask) & +((previous_state ^ beta) > 0);
+
+    kernel_state.stack_pointer += failure_bit;
+
+    let auto_accept_with_peek = (alpha & alpha_auto_accept_with_peek_mask) > 0;
+    let auto_consume_with_peek = (alpha & alpha_auto_consume_with_peek_mask) > 0;
+
+    // Main instruction process ----------------------
+    let process_type = (alpha >> 8) & 0xF;
+
+
+    switch (process_type) {
+        case 0: break;
+        case 1: //basic 
+            {
+                let lexer_pointer = kernel_state.lexer_pointer;
+                // The instructions start at the 16 byte offset and 
+                // is directly handled by the instruction executor
+                ({ fail_mode, prod } = instruction_executor(
+                    state_pointer + 4,
+                    prod,
+                    lexer_pointer,
+                    kernel_state,
+                    kernel_states_repo
+                ));
+
+            } break;
+        case 2: //table 
+            {
+                let basis__ = (delta >> 16) & 0xFFFF;
+
+                let { input_value, lexer_pointer } =
+                    get_token_info(alpha, kernel_state, gamma, auto_accept_with_peek, auto_consume_with_peek, basis__, prod);
+
+                let number_of_rows = alpha >> 16;
+
+                let row_size = delta & 0xFFFF;
+
+                if (input_value >= 0 && input_value < number_of_rows) {
+                    ({ fail_mode, prod } = instruction_executor(
+                        state_pointer + 4 + input_value * row_size,
+                        prod,
+                        lexer_pointer,
+                        kernel_state,
+                        kernel_states_repo
+                    ));
+                } else {
+
+                    // Use default behavior found at the end of the 
+                    // state table
+                    ({ fail_mode, prod } = instruction_executor(
+                        state_pointer + 4 + number_of_rows * row_size,
+                        prod,
+                        lexer_pointer,
+                        kernel_state,
+                        kernel_states_repo
+                    ));
+                }
+
+            } break;
+        case 3: //scanner 
+            {
+                let { input_value, lexer_pointer } =
+                    get_token_info(alpha, kernel_state, gamma, auto_accept_with_peek, auto_consume_with_peek, 0, prod);
+
+                let scan_field_length = alpha >> 16;
+
+                let instruction_field_size = delta & 0xFFFF;
+
+                let i = state_pointer + 4;
+
+                let scan_field_end = i + scan_field_length;
+
+                let instruction_field_start = scan_field_end;
+
+                //Default instructions
+                let selected_instruction_field_start = instruction_field_start + instruction_field_size;
+
+                while (i < scan_field_end) {
+
+                    if (kernel_state.state_buffer[i] == input_value) {
+                        selected_instruction_field_start = instruction_field_start + kernel_state.state_buffer[i + 1];
+                        break;
+                    }
+                    i += 2;
+                }
+
+                ({ fail_mode, prod } = instruction_executor(
+                    selected_instruction_field_start,
+                    prod,
+                    lexer_pointer,
+                    kernel_state,
+                    kernel_states_repo
+                ));
+
+            } break;
+    }
+
+    return { prod, fail_mode };
+}
+
+export function kernel_executor(
+    kernel_state: KernelState,
+    kernel_states_repo: KernelStateBuffer,
+    reverse_state_lookup?: Map<number, string>
+) {
+
+    //Kernel
+    //Input
+    let fail_mode = false;
+    let prod = 0;
+
+    let last_good_state = 0;
+
+    while (true) {
+
+        let i = 0;
+
+        while (i++ < 4) {
+            // Hint to the compiler to inline this section 4 times
+            const state = kernel_state.state_stack[kernel_state.stack_pointer];
+
+            kernel_state.stack_pointer -= 1;
+
+            if (state > 0) {
+
+                /**
+                 * A state pointer is divided into three data segments
+                 *   Meta ______ State info     Array Index
+                 *   _|  _|_ ___________________|___
+                 *  |  ||  ||                       |
+                 * [31 .28 .24 . . .16 . . .8. . . .0]
+                 *
+                 * Meta data relates to found within the meta
+                 * executor and is within state pointers
+                 * that are stored in state buffers. An example
+                 * usage of this section is for goto instruction,
+                 * which is simply copied to the state_stack as
+                 * the instruction already contains the goto state
+                 * pointer information
+                 *
+                 *
+                 * State info segment store the information
+                 * necessary to handle kernel switching tasks,
+                 * namely, whether to use the state for failure
+                 * recovery or to use it for normal parser
+                 * duties.
+                 *
+                 */
+                const state_pointer = state & state_index_mask;
+
+                if (!fail_mode && ((state & fail_state_mask) == 0)) {
+
+                    if (reverse_state_lookup)
+                        console.log("\n at state: \n", reverse_state_lookup.get(state & 0xFFFFFFF), "\n");
+
+                    ({ fail_mode, prod } = state_executor(
+                        state_pointer,
+                        prod,
+                        kernel_state,
+                        kernel_states_repo
+                    ));
+
+                    last_good_state = state_pointer;
+
+                } else if ((state & fail_state_mask) != 0) {
+
+                    if (reverse_state_lookup)
+                        console.log("\n [IN FAILURE MODE] \n at state: \n", reverse_state_lookup.get(state & 0xFFFFFFF), "\n");
+
+                    ({ fail_mode, prod } = state_executor(
+                        state_pointer,
+                        prod,
+                        kernel_state,
+                        kernel_states_repo
+                    ));
+                }
+            }
+        }
+
+        if (kernel_state.stack_pointer < 1)
+            break;
+    }
+
+    return fail_mode;
+
+}
+
+export function run(
+    state_buffer: Uint32Array,
+    input_buffer: Uint8Array,
+    input_byte_length: number,
+    state_pointer: number,
+    scanner_function: ScannerFunction,
+    reverse_state_lookup?: Map<number, string>
+): { invalid: KernelStateBuffer, valid: KernelStateBuffer; } {
+
+    let valid = new KernelStateBuffer;
+    let invalid = new KernelStateBuffer;
+    let process_buffer = new KernelStateBuffer;
+
+    let state = process_buffer.create_state(
+        state_buffer,
+        input_buffer,
+        input_byte_length,
+        scanner_function
+    );
+
+    state.state_stack[0] = 0;
+    state.state_stack[1] = state_pointer;
+
+    while (process_buffer.len() > 0) {
+
+        let i = 0;
+
+        for (; i < process_buffer.len();) {
+
+            let kernel_state: KernelState = process_buffer.data[i];
+
+            const FAILED = kernel_executor(kernel_state, invalid, reverse_state_lookup);
+
+            state.COMPLETED = true;
+
+            state.VALID = !FAILED;
+
+            if (state.VALID) {
+                valid
+                    .add_state_pointer_and_sort(process_buffer.remove_state_at_index(i));
+            }
+            else {
+                process_buffer
+                    .add_state_pointer_and_sort(process_buffer.remove_state_at_index(i));
+            }
+        }
+
+        while (invalid.have_valid())
+            process_buffer.add_state_pointer(invalid.remove_valid_parser_state());
+
+    }
+
+    return { invalid, valid };
+}

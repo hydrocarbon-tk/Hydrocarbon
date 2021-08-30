@@ -1,14 +1,13 @@
 import spark from "@candlelib/spark";
 import { WorkerRunner } from "../build/workers/worker_runner.js";
 import { getProductionByName } from '../grammar/nodes/common.js';
+import { fail_state_mask } from '../runtime/kernel.js';
+import { BlockData, Instruction, InstructionType, State } from '../types/build_types';
 import { HCG3Grammar } from "../types/grammar_nodes";
 import { RDProductionFunction } from "../types/rd_production_function.js";
 import { getSymbolMapFromIds } from '../utilities/code_generating.js';
-import { fail_state_mask } from './kernel.js';
-import { BlockData, Instruction, InstructionType, State } from '../types/build_types';
-import parser_loader from "./table_code.js";
-import { Sym_Is_Not_Consumed } from '../grammar/nodes/symbol.js';
 import { compileRecognizerConstructs } from './compileRecognizerConstructs.js';
+import parser_loader from "./table_code.js";
 
 const parse_table_code = await parser_loader;
 
