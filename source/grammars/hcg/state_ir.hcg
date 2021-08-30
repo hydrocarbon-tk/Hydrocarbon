@@ -20,7 +20,7 @@
                                             f:r { { type:"state", id:$1, instructions: $2, fail: $3, symbol_meta:$4 } }
 
 <> grammar_injection > \<[ tk:state_hash_token \] top_level_instructions on_fail? expected_symbols? \>
-                                            f:r { { type:"state", id:$1, instructions: $2, fail: $3, symbol_meta:$4 } }
+                                            f:r { { type:"state", id:$2, instructions: $4, fail: $5, symbol_meta:$6 } }
 
 <> state_declaration > t:state \[ ( tk:state_hash_token | sym::production_symbol | sym::imported_production_symbol ) \]     
                                             f:r { $3 }
