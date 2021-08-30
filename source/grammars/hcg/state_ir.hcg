@@ -40,17 +40,17 @@
 
 <> prod_branch_instruction >
 
-    t:on t:prod id_list \( instruction_sequence \)        
+    t:on t:prod production_id_list \( instruction_sequence \)        
                                             f:r { { type:"prod", ids:$3, instructions: $5  } }
 
 <> token_branch_instruction >
-    t:noconsume id_list  \( instruction_sequence \)                     
+    t:noconsume token_id_list  \( instruction_sequence \)                     
                                             f:r { { type:"no-consume", ids: $2, instructions: $4} }
-    | t:consume id_list  \( instruction_sequence \)                     
+    | t:consume token_id_list  \( instruction_sequence \)                     
                                             f:r { { type:"consume", ids: $2, instructions: $4} }
-    | t:peek id_list \( instruction_sequence \)                    
+    | t:peek token_id_list \( instruction_sequence \)                    
                                             f:r { { type:"peek", ids: $2, instructions: $4} }
-    | t:assert id_list \( instruction_sequence \)                     
+    | t:assert token_id_list \( instruction_sequence \)                     
                                             f:r { { type:"assert", ids: $2,instructions: $4} }
 
 <> goto_instruction > 
@@ -68,17 +68,17 @@
     | t:fork t:to \( state_declaration(+\, ) \)
                                             f:r { { type:"fork-to", states: $4  } }
 
-    | t:scan t:until id_list
-                                            f:r { { type:"scan-until", token_ids: $3  } }
+    | t:scan t:back? t:until token_id_list
+                                            f:r { { type: $$1 ? "scan-back-until" : "scan-until", token_ids: $4, } }
 
     | t:pop g:num
                                             f:r { { type:"pop", len: parseInt($2)  } }
 
-    | t:set g:token g:length g:num
+    | t:set t:token t:length g:num
                                             f:r { { type:"token-length", len: parseInt($4)  } }
 
-    | t:set g:token g:id g:num
-                                            f:r { { type:"token-id", id: parseInt($4)  } }
+    | t:set t:token t:id ( g:num f:r { parseInt($1) } | sym::terminal_symbol )
+                                            f:r { { type:"token-id", id: $4  } }
 
     | t:pass
                                             f:r { { type:"pass"  } }
@@ -92,16 +92,22 @@
 <> on_fail > t:on t:fail state_declaration top_level_instructions on_fail? expected_symbols?
                                             f:r { { type:"on-fail-state", id:$3, instructions: $4, symbol_meta: $6, fail: $5 } }
 
-<> expected_symbols > \symbols: \expected id_list
+<> expected_symbols > \symbols: \expected token_id_list
 
     ( \skipped id_list f:r{ $2 } )?
 
     f:r { { type:"symbols", expected:$3, skipped:$$4 || [] } }
 
-<> id_list > \[ 
+<> token_id_list > \[ 
         ( 
             g:num f:r{ parseInt($1) } 
             | sym::terminal_symbol 
+        )(+) 
+    \] f:r { $2 }
+
+<> production_id_list > \[ 
+        ( 
+            g:num f:r{ parseInt($1) } 
             | sym::production_symbol 
             | sym::imported_production_symbol 
         )(+) 
