@@ -8,13 +8,15 @@ const string = await fs.promises.readFile("../wick/source/grammars/wick.hcg", { 
 
 
 console.dir(parser(`
-state [S_goto]
-    on prod [ 1] (
-        goto state [5105c42d] then repeat state
+state [c3eb751f]
+    consume [22] (
+        goto state [A] then repeat state
+    )
 
-    on prod [ 2] (
-        goto state [63a41105] then repeat state
+    noconsume [22] (
+        goto state [c3eb751f]
+    )
 
-    on fail state[S_goto_failed] 
-        on prod [ 0 ] ( pass )
+    
+
 `), { depth: null });
