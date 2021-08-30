@@ -3,7 +3,7 @@
  * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
  * disclaimer notice.
  */
-import { getRootSym, Sym_Is_EOP } from "../../grammar/nodes/symbol.js";
+import { getRootSym, Sym_Is_EOP, Sym_Is_Not_Consumed } from "../../grammar/nodes/symbol.js";
 import { sk } from "../../skribble/skribble.js";
 import { SKExpression } from "../../skribble/types/node";
 import { RenderBodyOptions } from "../../types/render_body_options";
@@ -97,7 +97,12 @@ export function table_resolveBranches(
                 transition_types[0] == TRANSITION_TYPE.ASSERT_CONSUME
                 ||
                 transition_types[0] == TRANSITION_TYPE.POST_PEEK_CONSUME
-            ) local_lexer_state = "consume";
+            ) {
+                if (syms.length == 1 && Sym_Is_Not_Consumed(syms[0]))
+                    local_lexer_state = "noconsume";
+                else
+                    local_lexer_state = "consume";
+            }
 
             let symbol_ids = null;
 

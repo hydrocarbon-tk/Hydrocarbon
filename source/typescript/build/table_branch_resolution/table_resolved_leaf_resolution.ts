@@ -3,7 +3,7 @@
  * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
  * disclaimer notice.
  */
-import { getRootSym, Sym_Is_A_Production, Sym_Is_A_Token } from "../../grammar/nodes/symbol.js";
+import { getRootSym, Sym_Is_A_Production, Sym_Is_A_Token, Sym_Is_Not_Consumed } from "../../grammar/nodes/symbol.js";
 import { RenderBodyOptions } from "../../types/render_body_options";
 import { SingleItemReturnObject } from "../../types/transition_generating";
 import { TransitionNode, TRANSITION_TYPE } from "../../types/transition_node.js";
@@ -87,7 +87,12 @@ function renderItem(item: Item, options: RenderBodyOptions): string {
 
         } else if (Sym_Is_A_Token(sym)) {
 
-            hash_basis = `consume [${convert_sym_to_code(sym, null, null)}] ( goto state [${next_state}] )`;
+            let consumption = "consume";
+
+            if (Sym_Is_Not_Consumed(sym))
+                consumption = "noconsume";
+
+            hash_basis = `${consumption} [${convert_sym_to_code(sym, null, null)}] ( goto state [${next_state}] )`;
 
             code += create_symbol_clause([item], [item.getProduction(grammar).id], options);
 

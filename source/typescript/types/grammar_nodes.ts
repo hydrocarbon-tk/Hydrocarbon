@@ -161,7 +161,7 @@ export interface HCG3Grammar extends HCG3GrammarNode {
 
         ignore?: HCG3Symbol[];
 
-        all_symbols?: Map<string, HCG3Symbol>;
+        all_symbols?: Map<string, HCG3Symbol> & { by_id: Map<number, HCG3Symbol>; };
 
         symbol?: Map<string, HCG3Symbol>;
 

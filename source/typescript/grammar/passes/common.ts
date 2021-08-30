@@ -111,7 +111,9 @@ export function processSymbols(grammar: HCG3Grammar, errors: Error[] = []) {
         }
     }
 
-    grammar.meta.all_symbols = unique_map;
+
+    grammar.meta.all_symbols = <any>unique_map;
+
     grammar.bodies = bodies;
 
     for (const g of [grammar, ...grammar.imported_grammars.map(g => g.grammar)])
@@ -120,6 +122,8 @@ export function processSymbols(grammar: HCG3Grammar, errors: Error[] = []) {
 
     const symbol_ids_array = [...unique_map.values()].filter(s => s.id).map(s => s.id).sort((a, b) => a - b).filter(i => i >= 1);
 
+
+    grammar.meta.all_symbols.by_id = new Map([...unique_map.values()].map((sym) => [sym.id, sym]));
     grammar.meta.token_row_size = (Math.ceil(symbol_ids_array.slice(-1)[0] / 32) * 32) / token_lu_bit_size;
 
 

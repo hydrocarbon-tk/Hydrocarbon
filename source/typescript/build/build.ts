@@ -1,15 +1,14 @@
 import spark from "@candlelib/spark";
 import { WorkerRunner } from "../build/workers/worker_runner.js";
 import { getProductionByName } from '../grammar/nodes/common.js';
-import { createActiveTokenSK, extractAndReplaceTokenMapRefs } from '../render/render.js';
-import { compare } from '../runtime/core_parser.js';
-import { skRenderAsJavaScript } from '../skribble/skribble.js';
-import { HCG3Grammar } from "../types/grammar_nodes.js";
+import { HCG3Grammar } from "../types/grammar_nodes";
 import { RDProductionFunction } from "../types/rd_production_function.js";
-import { getSymbolMapFromIds, getSymbolScannerFunctions, token_lu_bit_size } from '../utilities/code_generating.js';
-import { fail_state_mask, run, token_production } from './kernel.js';
+import { getSymbolMapFromIds } from '../utilities/code_generating.js';
+import { fail_state_mask } from './kernel.js';
 import { BlockData, Instruction, InstructionType, State } from '../types/build_types';
 import parser_loader from "./table_code.js";
+import { Sym_Is_Not_Consumed } from '../grammar/nodes/symbol.js';
+import { compileRecognizerConstructs } from './compileRecognizerConstructs.js';
 
 const parse_table_code = await parser_loader;
 
@@ -33,6 +32,8 @@ export async function buildRecognizer(
     //convert states to code
 
     for (const state_string of states) {
+
+        //console.log(state_string);
 
         const state_ast = parse_table_code(state_string, {}).result[0];
 
@@ -88,56 +89,11 @@ export async function buildRecognizer(
 
     const state_buffer = new Uint32Array(statesOutputsBuildPass(states_map, grammar, sym_map));
 
-    //Build Recognizer Components -------------------------------------------------------------
+    //Compile Recognizer Components -------------------------------------------------------------
 
-    const token_sequence_lookup = new Uint8Array(grammar.sequence_string.split("").map(s => s.charCodeAt(0)));
-    const entry_pointers = grammar.productions.filter(p => p.IS_ENTRY).map(p => ({ name: p.name, pointer: states_map.get(p.name).pointer }));
-    const reverse_state_lookup = new Map([...states_map.entries()].map(([key, val]) => [val.pointer, val.string]));
-    //Attempt to parse input
-
-    const token_lookup_functions = extractAndReplaceTokenMapRefs(getSymbolScannerFunctions(grammar)
-        .map(skRenderAsJavaScript)
-        .join("\n\n"), sym_map);
-
-    const token_lookup_array = new ({ 8: Uint8Array, 16: Uint8Array, 32: Uint32Array }[token_lu_bit_size])([...sym_map.keys()].flatMap(s => s.split("_")));
-
-    let tk_scan = (Function(
-        "token_lookup",
-        "token_sequence_lookup",
-        "compare",
-        "token_production",
-        "state_buffer",
-        `${skRenderAsJavaScript(createActiveTokenSK(grammar))}
-         ${token_lookup_functions}
-         return scan;
-        `.replace(/_A_([\w\_\d]+)_A_/g,
-            (name, sub: string, ...args) => {
-                const { pointer } = states_map.get(sub);
-                return pointer + "";
-            }))
-    )(
-        token_lookup_array,
-        token_sequence_lookup,
-        compare,
-        token_production,
-        state_buffer
-    );
-    //Go through the build pass
-
-    const input_string = "[ test + 4 ]";
-    const input_buffer = new Uint8Array(input_string.split("").map(c => c.charCodeAt(0)));
-
-    const { invalid, valid } = run(
-        state_buffer,
-        input_buffer,
-        input_buffer.length,
-        [...entry_pointers.values()][0].pointer,
-        tk_scan,
-        reverse_state_lookup
-    );
+    compileRecognizerConstructs(grammar, state_buffer, sym_map, states_map);
 
     console.log(`Buffer size = ${state_buffer.length * 4}bytes`);
-
 
     return {
         recognizer_functions: mt_code_compiler.functions
@@ -311,7 +267,7 @@ interface StateData {
     attributes: StateAttrib;
 }
 
-type StateMap = Map<string, StateData>;
+export type StateMap = Map<string, StateData>;
 
 const enum StateAttrib {
     HAS_GOTOS = 1 << 0,
@@ -355,6 +311,7 @@ function statesOutputsInitialPass(StateMap: StateMap, grammar: HCG3Grammar) {
                 case InstructionType.prod:
                 case InstructionType.peek:
                 case InstructionType.consume:
+                case InstructionType.no_consume:
                 case InstructionType.assert:
                     {
                         instructions.push(...instruction.instructions);
@@ -371,6 +328,7 @@ function statesOutputsInitialPass(StateMap: StateMap, grammar: HCG3Grammar) {
         const token_instr_types = {
             [InstructionType.assert]: StateAttrib.ASSERT_BRANCH,
             [InstructionType.consume]: StateAttrib.CONSUME_BRANCH,
+            [InstructionType.no_consume]: StateAttrib.CONSUME_BRANCH,
             [InstructionType.peek]: StateAttrib.PEEK_BRANCH,
             [InstructionType.prod]: StateAttrib.PROD_BRANCH
         };
@@ -491,6 +449,8 @@ function statesOutputsOptimizationPass(StateMap: StateMap, grammar: HCG3Grammar,
                         (
                             instruction.type == InstructionType.assert
                             ||
+                            instruction.type == InstructionType.no_consume
+                            ||
                             instruction.type == InstructionType.consume
                             ||
                             instruction.type == InstructionType.prod)
@@ -536,10 +496,6 @@ function statesOutputsOptimizationPass(StateMap: StateMap, grammar: HCG3Grammar,
                                     )*/
                                 )
                             ) {
-                                console.log("====================================================");
-                                console.log(string);
-                                console.log(goto_string);
-                                console.log("====================================================");
                                 instructions.splice(j, 1, ...state_ast.instructions);
                                 state_ast.instructions.forEach(({ type, state }) => {
                                     if (type == InstructionType.goto) {
@@ -632,7 +588,7 @@ function decreaseReference(goto_state: StateData, to_remove: string[]) {
     }
 }
 
-function statesOutputsBuildPass(StateMap: StateMap, grammar: HCG3Grammar, sym_map: Map<string, number> = new Map()) {
+function statesOutputsBuildPass(StateMap: StateMap, grammar: HCG3Grammar, sym_map: Map<string, number> = new Map(),) {
 
     let total_instruction_byte_size = 0;
 
@@ -674,9 +630,13 @@ function statesOutputsBuildPass(StateMap: StateMap, grammar: HCG3Grammar, sym_ma
         if ((attributes & (StateAttrib.PROD_BRANCH)) > 0) {
             const
 
-                table_block_info = buildBranchTableBlock(state_ast, attributes, tok_id, skip_id, "production"),
+                table_block_info = buildBranchTableBlock(
+                    state_ast, attributes, tok_id, skip_id, "production", "peek", grammar
+                ),
 
-                scan_block_info = buildScanningBranchBlock(state_ast, attributes, tok_id, skip_id, "production"),
+                scan_block_info = buildScanningBranchBlock(
+                    state_ast, attributes, tok_id, skip_id, "production", "peek", grammar
+                ),
 
                 block = selectBestFitBlockType(table_block_info, scan_block_info);
 
@@ -690,11 +650,11 @@ function statesOutputsBuildPass(StateMap: StateMap, grammar: HCG3Grammar, sym_ma
                 lexer_state = (attributes & (StateAttrib.PEEK_BRANCH)) ? "peek" : "assert",
 
                 table_block_info = buildBranchTableBlock(
-                    state_ast, attributes, tok_id, skip_id, "token", lexer_state
+                    state_ast, attributes, tok_id, skip_id, "token", lexer_state, grammar
                 ),
 
                 scan_block_info = buildScanningBranchBlock(
-                    state_ast, attributes, tok_id, skip_id, "token", lexer_state
+                    state_ast, attributes, tok_id, skip_id, "token", lexer_state, grammar
                 ),
 
                 block = selectBestFitBlockType(table_block_info, scan_block_info);
@@ -835,7 +795,8 @@ function buildBranchTableBlock(
     tok_id = 0,
     skip_id = 0,
     input_type: BlockData["table_header"]["input_type"] = "production",
-    lexer_type: BlockData["table_header"]["lexer_type"] = "assert"
+    lexer_type: BlockData["table_header"]["lexer_type"] = "assert",
+    grammar: HCG3Grammar
 ): BlockData {
 
     const instructions = state_ast.instructions;
@@ -856,10 +817,7 @@ function buildBranchTableBlock(
 
             const instr = createInstructionSequence(instructions);
 
-            if (type == "consume") {
-                instr.byte_sequence.unshift("consume");
-                instr.byte_length += 4;
-            }
+            addAdditionalInstructions(type, ids, grammar, instr);
             return ids.map(i => ({ id: i, code: instr }));
         });
 
@@ -924,13 +882,29 @@ function buildBranchTableBlock(
     };
 }
 
+function addAdditionalInstructions(
+    type: InstructionType,
+    ids: number[],
+    grammar: HCG3Grammar,
+    instr: { byte_length: number; byte_sequence: any; }
+) {
+    if (type == InstructionType.consume) {
+        instr.byte_sequence.unshift(InstructionType.consume);
+        instr.byte_length += 4;
+    } else if (type == InstructionType.no_consume) {
+        instr.byte_sequence.unshift(InstructionType.token_length, InstructionType.consume);
+        instr.byte_length += 8;
+    }
+}
+
 function buildScanningBranchBlock(
     state_ast: State,
     attributes: StateAttrib,
     tok_id = 0,
     skip_id = 0,
     input_type: BlockData["table_header"]["input_type"] = "production",
-    lexer_type: BlockData["table_header"]["lexer_type"] = "assert"
+    lexer_type: BlockData["table_header"]["lexer_type"] = "assert",
+    grammar: HCG3Grammar
 ): BlockData {
 
     const instructions = state_ast.instructions;
@@ -946,14 +920,11 @@ function buildScanningBranchBlock(
     let instruction_field_size = 0;
 
     const standard_byte_codes = standard_instructions
-        .map(({ instructions, type }) => {
+        .map(({ instructions, type, ids }) => {
 
             const instr = createInstructionSequence(instructions);
 
-            if (type == "consume") {
-                instr.byte_sequence.unshift("consume");
-                instr.byte_length += 4;
-            }
+            addAdditionalInstructions(type, ids, grammar, instr);
 
             //@ts-expect-error
             instr.pointer = instruction_field_size / 4;
