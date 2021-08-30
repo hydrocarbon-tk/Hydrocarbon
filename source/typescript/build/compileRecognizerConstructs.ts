@@ -4,7 +4,7 @@ import { skRenderAsJavaScript } from '../skribble/skribble.js';
 import { HCG3Grammar } from "../types/grammar_nodes";
 import { getSymbolScannerFunctions, token_lu_bit_size } from '../utilities/code_generating.js';
 import { run, token_production } from '../runtime/kernel.js';
-import { StateMap } from './build';
+import { StateMap } from "../types/ir_state_data";
 
 export function compileRecognizerConstructs(
     grammar: HCG3Grammar,
@@ -43,7 +43,7 @@ export function compileRecognizerConstructs(
         state_buffer
     );
     //Go through the build pass
-    const input_string = "notConsumed a b c";
+    const input_string = "a b r";
     const input_buffer = new Uint8Array(input_string.split("").map(c => c.charCodeAt(0)));
 
     const { invalid, valid } = run(

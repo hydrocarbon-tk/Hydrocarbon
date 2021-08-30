@@ -7,6 +7,17 @@
 #    scan until [ \r ] then pass
 #>
 
-<> A > ?=\notConsumed B \a \b \c
+<> A > \a \b \c
 
-<> B > \notConsumed
+
+#<> ASI > \;
+#
+#<[ ASI_recovery]
+#
+#scan until [ $eof \}  ] then set token length 0 then consume
+#
+#on fail state [ASI_recovery_look_back]
+#
+#scan back until [ g:nl ] then consume
+#
+#>

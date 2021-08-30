@@ -250,7 +250,7 @@ function yieldSingleItemNode(items: Item[], { grammar }: RenderBodyOptions, offs
 
             transition_type: TRANSITION_TYPE = IS_SYM_PRODUCTION
                 ? TRANSITION_TYPE.ASSERT_PRODUCTION_SYMBOLS
-                : TRANSITION_TYPE.ASSERT_CONSUME;
+                : TRANSITION_TYPE.ASSERT;
 
         return [createTransitionNode(items, symbols, transition_type, offset)];
     }

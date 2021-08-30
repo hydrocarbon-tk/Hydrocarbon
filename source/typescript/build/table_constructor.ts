@@ -3,11 +3,13 @@
  * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
  * disclaimer notice.
  */
-import { Sym_Is_A_Production } from "../grammar/nodes/symbol.js";
+import { getRootSym, Sym_Is_A_Production, Sym_Is_EOP } from "../grammar/nodes/symbol.js";
 import { HCG3Grammar, HCG3Production } from "../types/grammar_nodes.js";
 import { RenderBodyOptions } from "../types/render_body_options";
+import { getFollow } from '../utilities/follow.js';
 import { Item } from "../utilities/item.js";
 import { getProductionClosure } from "../utilities/production.js";
+import { convert_sym_to_code } from './table_branch_resolution/create_symbol_clause.js';
 import { table_resolveBranches } from "./table_branch_resolution/table_branch_resolution.js";
 import { table_resolveGOTOBranches } from "./table_branch_resolution/table_goto_resolution.js";
 import { table_resolveResolvedLeaf } from "./table_branch_resolution/table_resolved_leaf_resolution.js";
@@ -36,6 +38,10 @@ export function constructTableParser(production: HCG3Production, grammar: HCG3Gr
     grammar.bodies.length = body_len;
     grammar.productions.length = production_len;
     grammar.item_map = cached_item_map;
+
+
+
+
 
     return {
         tables: RDOptions.table.map,
@@ -104,12 +110,24 @@ export function compileProductionTables(
             table_resolveUnresolvedLeaves,
             table_resolveResolvedLeaf
         );
+    const follow = getFollow(productions[0].id, grammar).filter(s => !Sym_Is_EOP(s))
+        .map(s => getRootSym(s, grammar))
+        .map(convert_sym_to_code)
+        .setFilter();
 
-    const code = `
+    let code = `
 state [${productions[0].name}]    
 
     goto state [${hash}] ${GOTO_Options.NO_GOTOS ? `` : `then goto state [${productions[0].name}_goto]`}
     `;
+
+    const scan_till_symbols =
+        //WIP: Construct failure state
+        code += `\non fail state[${productions[0].name}_recovery]
+    scan until [ ${follow.join(" ")} ] then set prod to ${productions[0].id}
+
+`;
+
 
     RDOptions.table.map.set(productions[0].name, code);
     RDOptions.table.entries.push(code);
@@ -140,15 +158,9 @@ export function createBuildOptions(
             p => getGotoItemsFromProductionClosure(p, grammar)
         ).setFilter(i => i.id),
         extended_goto_items: new Set(),
-        called_productions: new Set(),
-        leaf_productions: new Set(),
-        active_keys: [],
-        leaves: [],
-        branches: [],
         VIRTUAL_LEVEL: IS_VIRTUAL,
         NO_GOTOS: false,
-        table: table,
-        global_production_items: [...grammar.item_map.values()].map(i => i.item).filter(i => !i.atEND && Sym_Is_A_Production(i.sym(grammar)))
+        table: table
     };
 }
 
