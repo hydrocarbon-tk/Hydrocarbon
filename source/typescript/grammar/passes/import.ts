@@ -41,8 +41,10 @@ function processImportedObjects(grammar: HCG3Grammar, errors: Error[], imported_
 
     // Now remove merge productions and insert their bodies into the imported production. 
     // If the import does not exists, then the merge production is discarded
-    for (const grmmr of [grammar, ...grammar.imported_grammars.map(g => g.grammar)])
+    for (const grmmr of [grammar, ...grammar.imported_grammars.map(g => g.grammar)]) {
+
         for (const { node: production, meta: { mutate } } of traverse(grmmr, "productions").makeMutable())
+
             if (production.type == "production-import") {
 
                 const imported = getImportedGrammarFromReference(grmmr, production.name.module);
@@ -73,6 +75,17 @@ function processImportedObjects(grammar: HCG3Grammar, errors: Error[], imported_
                     mutate(null);
                 }
             }
+
+        for (const ir_state of grmmr.ir_states) {
+
+            
+
+            if (grammar != grmmr)
+                grammar.ir_states.push(ir_state);
+        }
+    }
+
+
 }
 
 function integrateImportedProductions(root_grammar: HCG3Grammar, local_grammar: HCG3Grammar, production: HCG3Production, imported_productions: Map<any, any>) {

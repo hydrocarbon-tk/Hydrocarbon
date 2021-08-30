@@ -3,7 +3,7 @@ import {
     HCG3EmptySymbol,
     HCG3Function,
     HCG3Grammar,
-    HCG3GrammarNode,
+    HCGGrammarNode,
     HCG3GroupProduction,
     HCG3ListProductionSymbol,
     HCG3Production,
@@ -112,7 +112,7 @@ export function Sym_Is_Group_Production(sym: any): sym is HCG3GroupProduction {
     return sym.type && (<HCG3GroupProduction>sym).type == "group-production";
 }
 
-export function createProductionSymbol(name: string, IS_OPTIONAL: number = 0, mapped_sym: HCG3GrammarNode = null): HCG3ProductionSymbol {
+export function createProductionSymbol(name: string, IS_OPTIONAL: number = 0, mapped_sym: HCGGrammarNode = null): HCG3ProductionSymbol {
     return {
         type: 'sym-production',
         id: -1,
@@ -144,7 +144,7 @@ function createZeroedPosition(): HCG3TokenPosition {
         offset: 0
     };
 }
-export function createProduction(name: string, mapped_sym: HCG3GrammarNode = null): HCG3Production {
+export function createProduction(name: string, mapped_sym: HCGGrammarNode = null): HCG3Production {
     return {
         type: "production",
         name: name,
@@ -155,7 +155,7 @@ export function createProduction(name: string, mapped_sym: HCG3GrammarNode = nul
         RECURSIVE: 0
     };
 }
-export function createProductionBody(mapped_sym: HCG3GrammarNode = null): HCG3ProductionBody {
+export function createProductionBody(mapped_sym: HCGGrammarNode = null): HCG3ProductionBody {
     return {
         type: "body",
         FORCE_FORK: false,

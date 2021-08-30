@@ -1,8 +1,8 @@
-import { BlockData, State } from './build_types';
+import { BlockData, IR_State } from './ir_types';
 
-export interface StateData {
+export interface IRStateData {
     string: string;
-    ir_state_ast: State;
+    ir_state_ast: IR_State;
     pointer: number;
     block_offset: number;
     block: BlockData;
@@ -12,7 +12,7 @@ export interface StateData {
     skipped_tokens?: number[];
 }
 
-export type StateMap = Map<string, StateData>;
+export type StateMap = Map<string, IRStateData>;
 export const enum StateAttrib {
     HAS_GOTOS = 1 << 0,
     PROD_BRANCH = 1 << 1,

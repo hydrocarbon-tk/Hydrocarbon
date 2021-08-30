@@ -62,8 +62,8 @@
     t:reduce g:num g:num           
                                             f:r { { type:"reduce", len: parseInt($2), reduce_fn: parseInt($3) } }
 
-    | t:set t:prod t:to ( g:num | sym::production_symbol | sym::imported_production_symbol )
-                                            f:r { { type:"set-prod", id: parseInt($4)  } }
+    | t:set t:prod t:to ( g:num f:r{parseInt($1)} | sym::production_symbol | sym::imported_production_symbol )
+                                            f:r { { type:"set-prod", id: $4  } }
 
     | t:fork t:to \( state_declaration(+\, ) \)
                                             f:r { { type:"fork-to", states: $4  } }
@@ -84,7 +84,7 @@
                                             f:r { { type:"pass"  } }
 
     | t:end
-                                            f:r { { type:"end"  } }
+                                            f:r { { type:"pass"  } }
 
     | t:fail
                                             f:r { { type:"fail"  } }

@@ -38,6 +38,7 @@
 
 @IMPORT ./preambles.hcg as pre
 
+
 # For example: The `pre` reference to the preambles.hcg file, and the `prd` reference to `./productions.hcg` 
 # is used in the last production of this grammar file:
 # `<> head > pre::preamble?  prd::productions` 
@@ -53,9 +54,9 @@
 # and by doing so, allow the generated parser to work multi modes depending on the exported productions. 
 # This preamble is ignored in any grammar file except the root source grammar file.
 
-@EXPORT hydrocarbon
+#@EXPORT hydrocarbon as hc
 
-@EXPORT ir::start 
+#@EXPORT ir::start as ir
 
 
 # Grammar productions are normally defined by using the following syntax:
@@ -78,17 +79,13 @@
 # Production from imported files can be accessed by using the syntax 
 # <imported_grammar_reference>::<imported_production>
 
-<> head > pre::preamble?  prd::productions                             
+<> head > pre::preamble?  prd::productions    
 
-# Action functions can be defined at the end of production bodies to add custom parsing behavior
-# once a production has been parsed. These actions are parsed as JavaScript, and any valid
-# JavaScript expression (NOT statements) can be used. A caveat to this is when targeting 
-# Rust or C++, in which case a restricted syntax must be used in order to properly target 
-# those outputs. ( further information can be found in ./functions.hcg )
 
                             f:r { { 
-                                type:"hc-grammar-3", 
+                                type:"hc-grammar-4", 
                                 preamble:$$1 || [], 
+                                ir_states:$$2.ir || [],
                                 productions:$$2.productions, 
                                 functions:$$2.functions || [], 
                                 imported_grammars: [],
@@ -98,5 +95,13 @@
                                 bodies:[]
                                 } }
 
+# Action functions can be defined at the end of production bodies to add custom parsing behavior
+# once a production has been parsed. These actions are parsed as JavaScript, and any valid
+# JavaScript expression (NOT statements) can be used. A caveat to this is when targeting 
+# Rust or C++, in which case a restricted syntax must be used in order to properly target 
+# those outputs. ( further information can be found in ./functions.hcg )
+
+
 # This annotated grammar definition is continued in ./preambles.hcg
 
+<> __entries__ > hydrocarbon | ir::state_ir

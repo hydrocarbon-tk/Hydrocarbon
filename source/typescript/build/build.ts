@@ -3,9 +3,9 @@ import { WorkerRunner } from "../build/workers/worker_runner.js";
 import { getProductionByName } from '../grammar/nodes/common.js';
 import { getRootSym, Sym_Is_A_Token } from '../grammar/nodes/symbol.js';
 import { fail_state_mask } from '../runtime/kernel.js';
-import { BlockData, Instruction, InstructionType, State } from '../types/build_types';
+import { BlockData, IR_Instruction, InstructionType, IR_State } from '../types/ir_types';
 import { HCG3Grammar, HCG3Symbol } from "../types/grammar_nodes";
-import { StateAttrib, StateData, StateMap } from '../types/ir_state_data';
+import { StateAttrib, IRStateData, StateMap } from '../types/ir_state_data';
 import { RDProductionFunction } from "../types/rd_production_function.js";
 import { getSymbolMapFromIds } from '../utilities/code_generating.js';
 import { compileRecognizerConstructs } from './compileRecognizerConstructs.js';
@@ -270,7 +270,7 @@ function convertBlockDataToBufferData(block_info: BlockData, state_map: StateMap
 
 
 
-function createInstructionSequence(active_instructions: Instruction[], grammar: HCG3Grammar): { byte_length: number, byte_sequence: any; } {
+function createInstructionSequence(active_instructions: IR_Instruction[], grammar: HCG3Grammar): { byte_length: number, byte_sequence: any; } {
 
     const byte_sequence = [];
 
@@ -450,7 +450,7 @@ function convertTokenIDsToSymbolIds(ids: (number | HCG3Symbol)[], grammar: HCG3G
     return out_ids;
 }
 
-function extractTokenSymbols(state_data: StateData, grammar: HCG3Grammar) {
+function extractTokenSymbols(state_data: IRStateData, grammar: HCG3Grammar) {
 
     const expected_symbols = [];
     const skipped_symbols = [];
@@ -472,7 +472,7 @@ function extractTokenSymbols(state_data: StateData, grammar: HCG3Grammar) {
 }
 
 function processInstructionTokens(
-    instructions: Instruction[],
+    instructions: IR_Instruction[],
     expected_symbols: number[],
     grammar: HCG3Grammar
 ) {
@@ -713,7 +713,7 @@ function statesOutputsOptimizationPass(StateMap: StateMap, grammar: HCG3Grammar,
     return MUTATION_OCCURRED;
 }
 
-function decreaseReference(goto_state: StateData, to_remove: string[]) {
+function decreaseReference(goto_state: IRStateData, to_remove: string[]) {
 
     goto_state.reference_count--;
 
@@ -853,7 +853,7 @@ function get32AlignedOffset(request_size: number) {
 }
 
 function buildBranchTableBlock(
-    state_ast: State,
+    state_ast: IR_State,
     attributes: StateAttrib,
     tok_id = 0,
     skip_id = 0,
@@ -961,7 +961,7 @@ function addAdditionalInstructions(
 }
 
 function buildScanningBranchBlock(
-    state_ast: State,
+    state_ast: IR_State,
     attributes: StateAttrib,
     tok_id = 0,
     skip_id = 0,
@@ -1053,7 +1053,7 @@ function buildScanningBranchBlock(
 }
 
 
-function getPeekConsumptionFlags(attributes: StateAttrib, state_ast: State) {
+function getPeekConsumptionFlags(attributes: StateAttrib, state_ast: IR_State) {
     const use_peek_for_assert_or_consume = (!(attributes & (StateAttrib.MULTI_BRANCH)))
         &&
         !(attributes & (StateAttrib.PEEK_BRANCH))
@@ -1070,7 +1070,7 @@ function getPeekConsumptionFlags(attributes: StateAttrib, state_ast: State) {
     return { use_peek_for_assert_or_consume, consume_peek };
 }
 
-function buildBasicInstructionBlock(state_ast: State, tok_id = 0, skip_id = 0, grammar: HCG3Grammar): BlockData {
+function buildBasicInstructionBlock(state_ast: IR_State, tok_id = 0, skip_id = 0, grammar: HCG3Grammar): BlockData {
 
     const increment_stack_pointer_for_failure = !!state_ast.fail;
 

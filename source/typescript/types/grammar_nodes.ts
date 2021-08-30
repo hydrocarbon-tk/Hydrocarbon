@@ -8,6 +8,7 @@ import { CompilableStruct } from "./compilable_nodes";
 import { TokenTypes } from "../runtime/TokenTypes";
 import { Item } from "../utilities/item";
 import { ItemMapEntry } from "./item_map";
+import { IR_State } from './ir_types';
 export const enum RECURSIVE_STATE {
     UNKNOWN = 0,
     LEFT = 1,
@@ -41,30 +42,30 @@ export interface HCG3TokenPosition {
     column: number;
     length: number;
 }
-export interface HCG3GrammarNode {
+export interface HCGGrammarNode {
     type: string;
     pos?: HCG3TokenPosition;
 }
 
 
-export interface HCG3PreambleNode extends HCG3GrammarNode { }
+export interface HCG3PreambleNode extends HCGGrammarNode { }
 
-export interface HCG3ReferencedFunction extends HCG3GrammarNode {
+export interface HCG3ReferencedFunction extends HCGGrammarNode {
     type: "ref-function";
     id: string;
     txt: string;
 }
 
-export interface HCGENVFunctionRef extends HCG3GrammarNode {
+export interface HCGENVFunctionRef extends HCGGrammarNode {
     type: "env-function-reference";
     ref: string;
 }
 
-export interface HCGLocalFunctionRef extends HCG3GrammarNode {
+export interface HCGLocalFunctionRef extends HCGGrammarNode {
     type: "local-function-reference";
     ref: string;
 }
-export interface HCG3Function extends HCG3GrammarNode {
+export interface HCG3Function extends HCGGrammarNode {
     type: "RETURNED";
     txt: string;
     js?: string;
@@ -74,19 +75,19 @@ export interface HCG3Function extends HCG3GrammarNode {
     compilable_ast?: any;
 }
 
-export interface HCG3Comment extends HCG3GrammarNode {
+export interface HCGComment extends HCGGrammarNode {
     type: "comment", val: string;
 }
 
-export interface HCG3Ignore extends HCG3GrammarNode {
+export interface HCG3Ignore extends HCGGrammarNode {
     type: "ignore", symbols: HCG3SymbolNode[];
 }
 
-export interface HCG3Import extends HCG3GrammarNode {
+export interface HCG3Import extends HCGGrammarNode {
     type: "import", val: string; uri: string, reference: string;
 }
 
-export interface HCG3ProductionNode extends HCG3GrammarNode {
+export interface HCG3ProductionNode extends HCGGrammarNode {
     name: any;
     bodies: HCG3ProductionBody[];
     id: number;
@@ -133,7 +134,7 @@ export interface HCG3MergedProduction extends HCG3ProductionNode {
 
 export type HCG3Production = HCG3GeneralProduction | HCG3VirtualProduction | HCG3ImportProduction | HCG3MergedProduction;
 
-export interface HCG3ProductionBody extends HCG3GrammarNode {
+export interface HCG3ProductionBody extends HCGGrammarNode {
     type: "body",
     reduce_function?: HCG3Function | HCGLocalFunctionRef | HCGENVFunctionRef;
     sym: HCG3Symbol[];
@@ -147,11 +148,11 @@ export interface HCG3ProductionBody extends HCG3GrammarNode {
     reduce_id?: number;
 }
 
-export interface HCGConditionNode extends HCG3GrammarNode {
+export interface HCGConditionNode extends HCGGrammarNode {
     type: "condition";
 }
-export interface HCG3Grammar extends HCG3GrammarNode {
-    type: "hc-grammar-3";
+export interface HCG3Grammar extends HCGGrammarNode {
+    type: "hc-grammar-4";
     preamble: (HCG3Import | HCG3Ignore)[];
     productions: HCG3Production[];
     functions: HCG3ReferencedFunction[];
@@ -185,6 +186,10 @@ export interface HCG3Grammar extends HCG3GrammarNode {
      */
     collision_matrix: boolean[][];
 
+    /**
+     * A list of author defined intermediate states.
+     */
+    ir_states?: IR_State[];
 
     /**
      * An byte buffer of all defined characters sequences that can show up in the grammar. 
@@ -226,7 +231,7 @@ export interface HCG3Grammar extends HCG3GrammarNode {
 
 ////////////////////////////////////////////////////////////////////
 //// SYMBOLS
-export interface HCG3SymbolNode extends HCG3GrammarNode {
+export interface HCG3SymbolNode extends HCGGrammarNode {
     val: any;
     IS_OPTIONAL?: number;
     IS_NON_CAPTURE?: boolean;

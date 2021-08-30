@@ -1,5 +1,5 @@
 import { Lexer } from "./lexer.js";
-import { i32, u32 } from "../types/build_types";
+import { i32, u32 } from "../types/ir_types";
 
 //Global Constants
 const state_index_mask = (1 << 24) - 1;

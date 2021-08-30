@@ -3,9 +3,6 @@ import { exp, JSNodeClass, JSNodeType, renderCompressed } from "@candlelib/js";
 import { HCG3Grammar, HCG3ProductionBody } from "../../types/grammar_nodes";
 
 
-
-
-
 export function createJSFunctionsFromExpressions(grammar: HCG3Grammar, error) {
     // Reset the reduce_functions lookup to prepare the grammar for output
     // to JavaScript/TypeScript format. 

@@ -34,6 +34,7 @@
 
 <> preamble_clause >  ignore_preamble
     | import_preamble
+    | export_preamble
     | cm::comment
 
 
@@ -55,10 +56,10 @@
 
 <> import_preamble >         \@IMPORT g:sp(*) ( g:id | g:sym  )(+\" ) g:sp(+) ( t:AS | t:as ) sym::identifier g:nl  
                                                                         
-                                                                        f:r { { type:"import", uri: $4, reference:$7 } } 
+                                                                        f:r { { type:"import", uri: $3, reference:$6 } } 
 
-<> export_preamble >         \@EXPORT ( sym::imported_production_symbol | sym::production_symbol )(+) 
+<> export_preamble >         \@EXPORT g:sp(*) ( sym::imported_production_symbol | sym::production_symbol ) g:sp(+) ( t:AS | t:as ) g:id g:nl
                                                                         
-                                                                        f:r { { type:"export", production_names: $2, } } 
+                                                                        f:r { { type:"export", production: $3, reference:$6 } } 
 
 
