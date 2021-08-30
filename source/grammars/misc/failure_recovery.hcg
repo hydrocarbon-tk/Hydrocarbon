@@ -1,6 +1,11 @@
 @IGNORE g:sp
 
-<> S > A
+<> S > A \r
+
+#<[S_recovery] 
+#
+#    scan until [ \r ] then pass
+#>
 
 <> A > ?=\notConsumed B \a \b \c
 

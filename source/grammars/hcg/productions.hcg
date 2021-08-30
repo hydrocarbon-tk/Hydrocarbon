@@ -2,7 +2,7 @@
 # see /source/typescript/hydrocarbon.ts for full copyright and warranty 
 # disclaimer notice.
 
-# version 3.0
+# version 4.0
 
 @IMPORT ./production_bodies.hcg as pb
 
@@ -12,6 +12,8 @@
 
 @IMPORT ./comments.hcg as cm
 
+@IMPORT ./state_ir.hcg as ir
+
 @IGNORE g:sp g:nl
 
 ########################################################################################################################
@@ -19,15 +21,19 @@
 ########################################################################################################################
 
 <> productions > production                                          
-                                                            f:r {  { type:"production-section", functions:[], productions:[$1]   } }
+                                                            f:r {  { type:"production-section", functions:[], productions:[$1], ir:[]   } }
     | fn::referenced_function                                    
-                                                            f:r {  { type:"production-section", functions:[$1], productions:[]   } }
+                                                            f:r {  { type:"production-section", functions:[], productions:[], ir:[$1]   } }
+    | ir::grammar_injection
+                                                            f:r {  { type:"production-section", functions:[$1], productions:[], ir:[]   } }
     | productions production                                  
                                                             f:r {  $1.productions.push($2), $1 }
-    | productions cm::comment                                      
-                                                            f:r { $1 }
     | productions fn::referenced_function                        
                                                             f:r {  $1.functions.push($2), $1 }
+    | productions ir::grammar_injection
+                                                            f:r {  $1.ir.push($2), $1 }
+    | productions cm::comment                                      
+                                                            f:r { $1 }
 
  
 <> production > \<> \* ? ( sym::production_id f:r{ env.prod_name = $1 } ) production_start_symbol  pb::production_bodies? 

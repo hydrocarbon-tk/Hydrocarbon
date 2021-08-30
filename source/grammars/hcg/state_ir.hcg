@@ -1,0 +1,96 @@
+# Copyright (C) 2021 Anthony Weathersby - The Hydrocarbon Parser Compiler
+# see /source/typescript/hydrocarbon.ts for full copyright and warranty 
+# disclaimer notice.
+
+# version 4.0
+
+# This grammar file defines the intermediate representation used by Hydrocarbon
+# to define parser states. Its purpose is to provide a human readable intermediary
+# representation of a state before it is optimized and compiled into binary parser tables.  
+#
+# These states are normally automatically generated and are not manipulated by grammar 
+# authors, however the use of the syntax is made available within grammar files to give 
+# author more control over state transformation of the HC parser virtual machine.
+
+@IGNORE g:sp g:nl tk:comment
+
+@IMPORT ./symbols.hcg as sym
+
+<> state_ir > state_declaration top_level_instructions on_fail? expected_symbols?   
+                                            f:r { { type:"state", id:$1, instructions: $2, fail: $3, symbol_meta:$4 } }
+
+<> grammar_injection > \<[ tk:state_hash_token \] top_level_instructions on_fail? expected_symbols? \>
+                                            f:r { { type:"state", id:$1, instructions: $2, fail: $3, symbol_meta:$4 } }
+
+<> state_declaration > t:state \[ ( tk:state_hash_token | sym::production_symbol | sym::imported_production_symbol ) \]     
+                                            f:r { $3 }
+
+<> top_level_instructions > 
+     prod_branch_instruction(+) 
+     | token_branch_instruction(+) 
+     | instruction_sequence                             
+
+<> instruction_sequence > sequence_instruction(+ \then ) ( \then goto_instruction(+ \then ) )? ( \then t:repeat t:state f:r{ { type:"repeat-state" } } )? f:r{ [...$1, ...$2, $3] }
+    | goto_instruction(* \then ) ( \then t:repeat t:state f:r{ { type:"repeat-state" } } )? f:r{ [...$1, $2] }
+
+<> prod_branch_instruction >
+
+    t:on t:prod id_list \( instruction_sequence \)        
+                                            f:r { { type:"prod", ids:$3, instructions: $5  } }
+
+<> token_branch_instruction >
+    t:noconsume id_list  \( instruction_sequence \)                     
+                                            f:r { { type:"no-consume", ids: $2, instructions: $4} }
+    | t:consume id_list  \( instruction_sequence \)                     
+                                            f:r { { type:"consume", ids: $2, instructions: $4} }
+    | t:peek id_list \( instruction_sequence \)                    
+                                            f:r { { type:"peek", ids: $2, instructions: $4} }
+    | t:assert id_list \( instruction_sequence \)                     
+                                            f:r { { type:"assert", ids: $2,instructions: $4} }
+
+<> goto_instruction > 
+
+    t:goto state_declaration
+                                            f:r { { type:"goto", state: $2 } }
+<> sequence_instruction >
+
+    t:reduce g:num g:num           
+                                            f:r { { type:"reduce", len: parseInt($2), reduce_fn: parseInt($3) } }
+    | t:set t:prod t:to g:num             
+                                            f:r { { type:"set-prod", id: parseInt($4)  } }
+    | t:fork t:to \( state_declaration(+\, ) \)
+                                            f:r { { type:"fork-to", states: $4  } }
+    | t:scan t:until id_list
+                                            f:r { { type:"scan-until", token_ids: $3  } }
+    | t:pop g:num
+                                            f:r { { type:"pop", len: parseInt($2)  } }
+    | t:set g:token g:length g:num
+                                            f:r { { type:"token-length", len: parseInt($4)  } }
+    | t:set g:token g:id g:num
+                                            f:r { { type:"token-id", id: parseInt($4)  } }
+    | t:pass
+                                            f:r { { type:"pass"  } }
+    | t:end
+                                            f:r { { type:"end"  } }
+    | t:fail
+                                            f:r { { type:"fail"  } }                                                
+
+<> on_fail > t:on t:fail state_declaration top_level_instructions expected_symbols?                                 
+                                            f:r { { type:"on-fail-state", id:$3, instructions: $4, symbol_meta: $5  } }
+
+<> expected_symbols > \symbols: \expected id_list
+
+    ( \skipped id_list f:r{ $2 } )?
+
+    f:r { { type:"symbols", expected:$3, skipped:$$4 || [] } }
+
+<> id_list > \[ ( g:num f:r{ parseInt($1) } | sym::terminal_symbol | sym::production_symbol | sym::imported_production_symbol )(+) \]
+
+<> state_hash_token > 
+    state_hash_token (RST g:sp g:nl)  ( \_ | \- | g:id | g:num )
+    | g:id
+    | g:num
+    | \_
+    | \-
+
+<> comment > \/* ( g:sp | g:nl | g:id | g:num | g:sym )(*) \*/

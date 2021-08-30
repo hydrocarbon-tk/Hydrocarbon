@@ -1,0 +1,102 @@
+########################################################################################################################
+############################################## Hydrocarbon Grammar #####################################################
+########################################################################################################################
+
+# Copyright (C) 2021 Anthony Weathersby - The Hydrocarbon Parser Compiler
+# see /source/typescript/hydrocarbon.ts for full copyright and warranty
+# disclaimer notice.
+
+# version 4.0
+
+# This is the Hydrocarbon Grammar Definition and parser file. It contains information to build the Hydrocarbon 
+# Grammar parser.
+
+# This file begins with an optional preamble clauses, which define meta information that is used throughout 
+# the compilation process of this grammar. Preambles begin with the @ symbol followed by a specific identifier.
+
+# The possible preamble types are @IGNORE, @IMPORT, and @EXPORT. 
+
+# The @IGNORE preamble defines tokens that should be ignored when the parser encounters then while parsing an input. 
+# This tokens can be overridden per production body with an `(IGN <symbol>)` clause or by explicitly declaring 
+# the ignored symbol within a production body. 
+
+@IGNORE g:sp g:nl
+
+# For example: If a hypothetical parser where to parse the input `Hello World` using the production 
+# `<> X > \Hello \World` 
+# it would fail by default as it would encounter the ' ' character ( space or 0x1E )
+# And not be able to match `World`. Adding 
+# `++++ | @IGNORE g:sp
+#       | <> X > \Hello \World`
+# allows the parser to skip the space and subsequently match `World`.
+
+# The @IMPORT preamble allows productions to be defined in external files and incorporated into the host file,
+# accessible by the identifier defined after the `as` keyword. This is typically used to add imported productions
+# to the bodies of productions defined within the host file. 
+
+@IMPORT ./productions.hcg as prd
+
+@IMPORT ./preambles.hcg as pre
+
+# For example: The `pre` reference to the preambles.hcg file, and the `prd` reference to `./productions.hcg` 
+# is used in the last production of this grammar file:
+# `<> head > pre::preamble?  prd::productions` 
+# to import the `preambles` and `productions` symbols and use them within the `head` production.
+
+@IMPORT ./state_ir.hcg as ir
+
+# The @EXPORT preamble identifies the production that serve as entry points for parsing operations. 
+#
+# By default, the first production defined in the root grammar file is the default entry point 
+# for parsing, and the grammar it defines must be matched entirely by a given input for that input 
+# to be successfully parsed. The grammar author may allow other productions to serve as entry points, 
+# and by doing so, allow the generated parser to work multi modes depending on the exported productions. 
+# This preamble is ignored in any grammar file except the root source grammar file.
+
+@EXPORT hydrocarbon
+
+@EXPORT ir::start 
+
+
+# Grammar productions are normally defined by using the following syntax:
+# 
+# ` <> <production identifier> > <body symbols>... `
+#
+# (see ./symbols.hcg for more for information on body symbol types)
+# 
+# An imported production may be amended by using `+>` in place of `<>` as in:
+#
+# `+> imported_grammar_reference::imported_production > ...`;
+# this will insert the body symbols into the imported production instead of 
+# defining a new production in the local grammar. 
+
+# The following is the default goal production. Additional goal productions may be defined through @EXPORT 
+# preambles as mentioned above. 
+
+<> hydrocarbon > head                                                  
+
+# Production from imported files can be accessed by using the syntax 
+# <imported_grammar_reference>::<imported_production>
+
+<> head > pre::preamble?  prd::productions                             
+
+# Action functions can be defined at the end of production bodies to add custom parsing behavior
+# once a production has been parsed. These actions are parsed as JavaScript, and any valid
+# JavaScript expression (NOT statements) can be used. A caveat to this is when targeting 
+# Rust or C++, in which case a restricted syntax must be used in order to properly target 
+# those outputs. ( further information can be found in ./functions.hcg )
+
+                            f:r { { 
+                                type:"hc-grammar-3", 
+                                preamble:$$1 || [], 
+                                productions:$$2.productions, 
+                                functions:$$2.functions || [], 
+                                imported_grammars: [],
+                                meta:null,
+                                ignore:[],
+                                all_symbols:[],
+                                bodies:[]
+                                } }
+
+# This annotated grammar definition is continued in ./preambles.hcg
+

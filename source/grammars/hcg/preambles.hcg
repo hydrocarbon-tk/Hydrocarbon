@@ -2,14 +2,13 @@
 # see /source/typescript/hydrocarbon.ts for full copyright and warranty 
 # disclaimer notice.
 
-# version 3.0
+# version 4.0
 
 #
-# This annotated grammar definition is continued from hcg.hcg
+# continued from ./hcg.hcg
 #
 # Imported files can have their own imports. Hydrocarbon automatically resolves 
-# dependency loops and prevents duplication of imported productions.
-
+# relative references and deduplicate imports.
 
 @IMPORT ./comments.hcg as cm
 
@@ -17,40 +16,29 @@
 
 @IGNORE g:sp g:nl
 
-# ----------- Used for testing ---------------
-
 <> hcg_preamble > preamble
 
-# ----------- ---------------- ---------------
-
-# Productions can be defined through the [ <> ID > symbol ... ] form as will 
-# as using parenthesis ( ) to define a production group. The production group is 
-# a virtual production that can have multiple production bodies within it separated by
-# the | symbol ( U+2502 BOX DRAWINGS LIGHT VERTICAL )
-
+# Repetition of symbols can be achieved through appending `(*)` or `(+)` to the end
+# of the symbol.  `(*)` indicates zero or more iterations of the symbol should occur, 
+# and `(+)` indicates one or more iterations should occur. 
 
 <> preamble > preamble_clause(*)
 
-# The symbol represents a zero-or-more repeating pattern and is bound to the 
-# preceding symbol. In this case the preamble production is composed of zero-or-more 
-# preamble clauses. Symbols defined this way are reduced to an array containing 
-# the matching productions.
-#
-#
-# Multiple bodies in a single production are be separated by the | symbol 
-# ( U+2502 BOX DRAWINGS LIGHT VERTICAL )
+# Separating symbols can also be defined through `(+ <separator-symbols>)` or 
+# `(* <separator-symbols>)`. 
+# For example:
+# `g:num(*,)` would match inputs of one or more series integers separated by a comma, 
+# such as `1,2,3,4,5,6,7,8,9`, `123456789`, or `12,345,6789`.
 
+# TODO: Detailed annotation on production body separator `|`
 
 <> preamble_clause >  ignore_preamble
     | import_preamble
     | cm::comment
 
 
-
-# Production bodies can contain a mixture of non-terminal production names,
-# terminal symbols, meta statements such as "(ERR g:sp)", and inline production 
-# functions. 
-#
+# Production bodies, the symbols defined after `<> <production-name> >` can contain a mixture of 
+# non-terminal production names, terminal symbols, and meta statements such as "(ERR g:sp)"
 
 # In either the Constructor Reduce function or the Return Expression Reduce function
 # the symbols of the production can be addressed using the $ operator, which resolves
@@ -60,13 +48,17 @@
 # and is not an actual symbol of the production body). $4 resolves to the g:num symbol.
                                                   
 
-<> ignore_preamble >         \@ t:IGNORE sym::ignore_symbols g:nl                
+<> ignore_preamble >         \@IGNORE sym::ignore_symbols g:nl                
                                                                         
                                                                         f:r { { type:"ignore", symbols : $3 } }
 
 
-<> import_preamble >         \@ t:IMPORT g:sp(*) ( g:id | g:sym  )(+\" ) g:sp(+) ( t:AS | t:as ) sym::identifier g:nl  
+<> import_preamble >         \@IMPORT g:sp(*) ( g:id | g:sym  )(+\" ) g:sp(+) ( t:AS | t:as ) sym::identifier g:nl  
                                                                         
                                                                         f:r { { type:"import", uri: $4, reference:$7 } } 
+
+<> export_preamble >         \@EXPORT ( sym::imported_production_symbol | sym::production_symbol )(+) 
+                                                                        
+                                                                        f:r { { type:"export", production_names: $2, } } 
 
 
