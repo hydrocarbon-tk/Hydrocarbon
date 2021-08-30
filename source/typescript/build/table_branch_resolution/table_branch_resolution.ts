@@ -3,20 +3,19 @@
  * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
  * disclaimer notice.
  */
-import { ttt } from "../../utilities/transition_type_to_string.js";
-import { convertSymbolToString, getFollowSymbolsFromItems, getRootSym, getSkippableSymbolsFromItems, getSymbolsFromClosure, getTokenSymbolsFromItems, getTrueSymbolValue, getUniqueSymbolName, Sym_Is_EOP } from "../../grammar/nodes/symbol.js";
+import { getRootSym, Sym_Is_EOP } from "../../grammar/nodes/symbol.js";
 import { sk } from "../../skribble/skribble.js";
 import { SKExpression } from "../../skribble/types/node";
 import { RenderBodyOptions } from "../../types/render_body_options";
-import { TransitionClauseGenerator } from "../../types/transition_generating";
+import { TransitionClauseGenerator, TransitionGroup } from "../../types/transition_generating";
 import { TransitionNode, TRANSITION_TYPE } from "../../types/transition_node.js";
 import {
     hashString
 } from "../../utilities/code_generating.js";
 import { Item } from "../../utilities/item.js";
+import { ttt } from "../../utilities/transition_type_to_string.js";
 import { Some_Items_Are_In_Extended_Goto } from "../transitions/yield_transitions.js";
-import { getClosure, getFollowClosure } from "../../utilities/closure.js";
-import { default_EOP } from 'source/typescript/grammar/nodes/default_symbols.js';
+import { convert_sym_to_code, create_symbol_clause } from './create_symbol_clause.js';
 
 /**
  * Handles intermediate state transitions. 
@@ -26,8 +25,7 @@ export function table_resolveBranches(
     state: TransitionNode,
     items: Item[],
     level: number,
-    options: RenderBodyOptions,
-    FORCE_ASSERTIONS: boolean = false
+    options: RenderBodyOptions
 ): SKExpression[] {
 
     //Remove extended goto items
@@ -40,45 +38,44 @@ export function table_resolveBranches(
         return [];
     }
 
-    const nodes = [...gen];//.filter(node => node.hash != "ignore");
+    const
+        nodes = [...gen],
 
-    const prods = state.prods;
+        { prods, closure } = state,
 
-    let symbols = nodes.flatMap(n => n.syms).setFilter(getUniqueSymbolName);
+        branches = [];
 
-    const sym_to_state_map = nodes.flatMap(node => node.syms.map(sym => ({ sym, node })));
+    let
+        hash_string = "", //items.map(i => i.id).join("--"),
 
-    const hash = hashString(nodes.map(n => n.hash).sort().join("-----------------------------")).slice(0, 8);
+        code = "",
 
-    let code = (`state [${hash}] /* peek_level: ${state.peek_level} ${state.goto_prod_id} */\n\n`);
+        lexer_state = "assert";
 
-    let lexer_state = "assert";
 
-    if (state.peek_level > 0) {
+    if (state.peek_level > 0)
         lexer_state = "peek";
-    }
-
-    const branches = [];
-    let i = 0;
 
     const none_end_items_symbol_ids = new Set(nodes.filter(t => t.transition_types[0] != TRANSITION_TYPE.ASSERT_END).flatMap(t => t.syms.flatMap(i => i.id)));
 
-    for (const { syms, items, hash, transition_types } of nodes) {
+    for (const transition_group of nodes.filter(i => !Some_Items_Are_In_Extended_Goto(i.items, options))) {
+
+        const { syms, closure, items, hash, transition_types, LAST, FIRST }: TransitionGroup = transition_group;
 
         if (transition_types[0] == TRANSITION_TYPE.ASSERT_PRODUCTION_CALL && nodes.length == 1) {
 
             const production_name = options.grammar.productions[syms[0].val].name;
 
-            branches.push(`
-            
-                /*  ${ttt(transition_types[0])}
+            branches.push(`/*  
+        ${ttt(transition_types[0])}
 
-                =================================================================================
-                    ${items.map(i => i.renderUnformattedWithProduction(options.grammar)).join("\n    ")}
-                */
+        =================================================================================
+            ${items.map(i => i.renderUnformattedWithProduction(options.grammar)).join("\n        ")}
+    */
 
-                goto state [${production_name}] then goto state[${hash}]
-            `);
+    goto state [${production_name}] then goto state[${hash}]`);
+
+            hash_string += `goto state [${production_name}] then goto state[${hash}]`;
         } else {
 
 
@@ -102,8 +99,6 @@ export function table_resolveBranches(
                 transition_types[0] == TRANSITION_TYPE.POST_PEEK_CONSUME
             ) local_lexer_state = "consume";
 
-
-
             let symbol_ids = null;
 
             if (
@@ -114,7 +109,7 @@ export function table_resolveBranches(
                         .map(s => getRootSym(s, options.grammar))
                         .map(convert_sym_to_code)
                         .setFilter();
-                if (i == nodes.length - 1)
+                if (LAST)
                     symbol_ids.push(`9999 /*default branch*/`);
             } else symbol_ids =
                 syms.filter(s => !Sym_Is_EOP(s))
@@ -122,22 +117,32 @@ export function table_resolveBranches(
                     .map(convert_sym_to_code)
                     .setFilter();
 
-            branches.push(`
+            branches.push(`/* 
+    ${ttt(transition_types[0])}
 
-    /* ${ttt(transition_types[0])}
-    ${items.map(i => i.renderUnformattedWithProduction(options.grammar)).join("\n    ").replace(/\*\//g, "asterisk/")}
+        Root Items:
+        ${items.map(i => i.renderUnformattedWithProduction(options.grammar)).join("\n        ").replace(/\*\//g, "asterisk/")}
+
+        Peek Closure:
+        ${closure.map(i => i.renderUnformattedWithProduction(options.grammar)).join("\n        ").replace(/\*\//g, "asterisk/")}
+
     */
     
     ${local_lexer_state}[${symbol_ids.join(" ")} ]\n        (goto state[${hash}])`);
-            i++;
+            hash_string += `${local_lexer_state}[${symbol_ids.join(" ")} ]\n        (goto state[${hash}])`;
         }
     }
 
-    code += "    " + branches.join("\n\n    ");
+    code += "    " + branches.join("\n    ");
 
-    code += create_symbol_claues(items, prods, options);
+    code += create_symbol_clause(closure, prods, options);
+
+    const hash = hashString(hash_string);
+
+    code = (`state [${hash}] /* peek_level: ${state.peek_level} */\n\n`) + code;
 
     options.table.map.set(hash, code);
+
     options.table.entries.push(code);
 
     state.hash = hash;
@@ -146,40 +151,4 @@ export function table_resolveBranches(
 }
 
 
-export function create_symbol_claues(items: Item[], prods: number[], { scope, grammar }: RenderBodyOptions) {
-    const active_items = items.filter(i => !i.atEND);
-    const end_items = items.filter(i => i.atEND);
 
-    const expected_symbols = [
-        ...getSymbolsFromClosure([
-            ...active_items.flatMap(i => getClosure([i], grammar, false)),
-            ...prods.flatMap(i => grammar.productions[i].bodies).map(b => new Item(b.id, b.length, b.length)),
-        ], grammar),
-        ...getFollowSymbolsFromItems(end_items, grammar)
-    ].setFilter(getUniqueSymbolName);
-
-    const skipped_symbols = getSkippableSymbolsFromItems(getFollowClosure(
-        [...items,
-
-        ...(scope == "GOTO"
-            ? prods.flatMap(i => grammar.productions[i].bodies).map(b => new Item(b.id, b.length, b.length))
-            : [])
-        ],
-        grammar.lr_items,
-        grammar
-    ), grammar);
-    let code =
-        `
-        
-    symbols: 
-        expected[${expected_symbols.map(convert_sym_to_code).join("   ")}]`;
-
-    if (skipped_symbols.length > 0)
-        code += `\n        skipped[${skipped_symbols.map(convert_sym_to_code).join("   ")}]`;
-    return code;
-}
-
-export function convert_sym_to_code(sym, ..._) {
-
-    return `${sym.id} /* ${convertSymbolToString(sym).replace(/\*\//g, "asterisk/")} */`;
-};

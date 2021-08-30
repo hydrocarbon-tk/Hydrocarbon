@@ -3,21 +3,16 @@
  * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
  * disclaimer notice.
  */
-import { convertSymbolToString, getRootSym, getUniqueSymbolName, Sym_Is_A_Production } from "../../grammar/nodes/symbol.js";
-import { HCG3Grammar } from "../../types/grammar_nodes.js";
+import { getRootSym, Sym_Is_A_Production, Sym_Is_A_Token } from "../../grammar/nodes/symbol.js";
 import { RenderBodyOptions } from "../../types/render_body_options";
 import { SingleItemReturnObject } from "../../types/transition_generating";
 import { TransitionNode, TRANSITION_TYPE } from "../../types/transition_node.js";
 import { hashString } from "../../utilities/code_generating.js";
 import { Item } from "../../utilities/item.js";
 import { Some_Items_Are_In_Extended_Goto } from "../transitions/yield_transitions.js";
-import { create_symbol_claues, convert_sym_to_code } from './table_branch_resolution.js';
-
-let grammar: HCG3Grammar = null;
+import { convert_sym_to_code, create_symbol_clause } from "./create_symbol_clause.js";
 
 export function table_resolveResolvedLeaf(item: Item, state: TransitionNode, options: RenderBodyOptions): SingleItemReturnObject {
-
-    grammar = options.grammar;
 
     if (Some_Items_Are_In_Extended_Goto([item], options) && false) {
         state.transition_type = TRANSITION_TYPE.IGNORE;
@@ -54,7 +49,7 @@ export function table_resolveResolvedLeaf(item: Item, state: TransitionNode, opt
 
 function renderItem(item: Item, options: RenderBodyOptions): string {
 
-    let hash = "----", code = "";
+    let code = "", hash_basis = "", leaf_state = "";
 
     const { grammar } = options;
 
@@ -62,49 +57,59 @@ function renderItem(item: Item, options: RenderBodyOptions): string {
 
         const body = item.body_(grammar);
 
-        let hash_basis = "";
-
         const set_prod_clause = `set prod to ${body.production.id}`;
 
         if (body.reduce_id >= 0)
+
             hash_basis = `reduce ${item.len} ${body.reduce_id} then ${set_prod_clause}`;
         else if (item.len > 1)
+
             hash_basis = `reduce ${item.len} 0 then ${set_prod_clause}`;
         else
+
             hash_basis = `${set_prod_clause}`;
 
-        hash = hashString(hash_basis).slice(0, 8);
-
-        code = `state [${hash}]\n    /* 
-        ${item.renderUnformattedWithProduction(options.grammar).replace(/\*\//g, "asterisk/")}\n    */\n    ${hash_basis}`;
+        leaf_state = "leaf-end";
 
     } else {
+
         const sym = item.sym(grammar);
 
         const next_state = renderItem(item.increment(), options);
 
         if (Sym_Is_A_Production(sym)) {
+
             const cardinal = getRootSym(sym, grammar);
-            const hash_basis = `goto state [${cardinal.production.name}] then goto state [${next_state}]`;
-            hash = hashString(hash_basis).slice(0, 8);
-            code = `state [${hash}]\n    /* 
-            ${item.renderUnformattedWithProduction(options.grammar).replace(/\*\//g, "asterisk/")}\n     */\n    ${hash_basis} `;
-        } else {
 
-            const hash_basis = `consume [${convert_sym_to_code(sym)}] ( goto state [${next_state}] )`;
+            hash_basis = `goto state [${cardinal.production.name}] then goto state [${next_state}]`;
 
-            hash = hashString(hash_basis).slice(0, 8);
+            leaf_state = "leaf-production-call";
 
-            code = `state [${hash}] \n     /* 
-            ${item.renderUnformattedWithProduction(options.grammar).replace(/\*\//g, "asterisk/")} \n    */\n    ${hash_basis}`;
+        } else if (Sym_Is_A_Token(sym)) {
 
-            code += create_symbol_claues([item], [item.getProduction(grammar).id], options);
+            hash_basis = `consume [${convert_sym_to_code(sym, null, null)}] ( goto state [${next_state}] )`;
+
+            code += create_symbol_clause([item], [item.getProduction(grammar).id], options);
+
+            leaf_state = "leaf-assert";
         }
     }
+
+    code = `/*
+    ${leaf_state}
+    
+        ${item.renderUnformattedWithProduction(options.grammar).replace(/\*\//g, "asterisk/")}\n    
+    */
+    
+    ${hash_basis}` + code;
+
+    const hash = hashString(hash_basis);
+
+    code = `state [${hash}] \n     ` + code;
 
     options.table.map.set(hash, code);
     options.table.entries.push(code);
 
     return hash;
 
-}
+};;

@@ -8,7 +8,7 @@ import {
     getSkippableSymbolsFromItems, getTokenSymbolsFromItems, getUniqueSymbolName,
     Sym_Is_A_Generic_Type,
     Sym_Is_A_Production_Token,
-    Sym_Is_A_Terminal,
+    Sym_Is_A_Token,
     Sym_Is_Defined,
     Sym_Is_EOF,
     Sym_Is_EOP,
@@ -18,18 +18,14 @@ import {
 } from "../grammar/nodes/symbol.js";
 import { sk, skRenderAsSK } from "../skribble/skribble.js";
 import {
-    SKBlock,
-    SKCall,
-    SKExpression,
+    SKBlock, SKExpression,
     SKFunction, SKIf,
     SKMatch
 } from "../skribble/types/node.js";
 import {
     DefinedSymbol,
     HCG3Grammar,
-    HCG3LookBehind,
-    HCG3Production,
-    HCG3Symbol,
+    HCG3LookBehind, HCG3Symbol,
     ProductionTokenSymbol,
     SymbolType, TokenSymbol,
     VirtualTokenSymbol
@@ -42,7 +38,7 @@ import { getSymbolTree, TokenTreeNode } from "./getSymbolValueAtOffset.js";
 import { Item } from "./item.js";
 import { getProductionClosure, getProductionID } from "./production.js";
 
-export const getProductionFunctionNameSk = (production: HCG3Production): string => "hc_" + production.name;
+
 export function sanitizeSymbolValForComment(sym: string | TokenSymbol): string {
     if (typeof sym == "string")
         return sym.replace(/\*/g, "asterisk");
@@ -138,7 +134,7 @@ export function expressionListHash(exprs: SKExpression[]) {
 }
 
 export function hashString(string: string) {
-    return crypto.createHash('md5').update(string).digest("hex");
+    return crypto.createHash('md5').update(string).digest("hex").slice(0, 16);
 }
 
 function createIfClause(symbol: DefinedSymbol | VirtualTokenSymbol, offset: number, length: number, grammar: HCG3Grammar, expressions: SKExpression[]) {
@@ -275,7 +271,7 @@ export function createProductionTokenCall(tok: ProductionTokenSymbol, grammar: H
 
     const prod_id = getProductionID(tok, grammar);
     const production = grammar.productions[prod_id];
-    const prod_name = getProductionFunctionNameSk(production);
+    const prod_name = production.name;
 
     let pre_scan = "";
 
@@ -288,7 +284,7 @@ export function createProductionTokenCall(tok: ProductionTokenSymbol, grammar: H
         pre_scan = `pre_scan(lexer, ${symbol_map_id}) &&`;
     }
 
-    return `${pre_scan} token_production(lexer, &> ${prod_name}, ${prod_id}, ${tok.id}, ${1 << tok.token_id})`;
+    return `${pre_scan} token_production(lexer, _A_${prod_name}_A_, ${prod_id}, ${tok.id}, ${1 << tok.token_id}, &> state_buffer, &> scan)`;
 }
 export function createScanFunctionCall(
     items: Item[],
@@ -331,7 +327,7 @@ export function getSymbolScannerFunctions(grammar: HCG3Grammar): SKFunction[] {
     const functions = [];
 
     const id_symbols = [...grammar.meta.all_symbols.values()]
-        .filter(s => Sym_Is_A_Terminal(s) || Sym_Is_A_Production_Token(s))
+        .filter(s => Sym_Is_A_Token(s) || Sym_Is_A_Production_Token(s))
         //@ts-expect-error
         .filter(sym => !Sym_Is_EOF(sym) && !Sym_Is_EOP(sym) && !Sym_Is_Hybrid(sym))
 
@@ -361,6 +357,9 @@ export function getSymbolScannerFunctions(grammar: HCG3Grammar): SKFunction[] {
     const gen_syms = tree.symbols.filter(Sym_Is_A_Generic_Type).setFilter(getUniqueSymbolName);
 
     const group_size = 0x7F;
+
+    if (tk_syms.length > 0)
+        functions.push(buildPreScanFunction());
 
     for (const lb_sym of lb_syms.reverse()) {
 
@@ -556,7 +555,7 @@ function renderLeafNew(node: TokenTreeNode, grammar: HCG3Grammar) {
 
     return first ? [...prepend, first, ...append] : [...prepend, ...append];
 }
-export function renderPreScanFunction() {
+export function buildPreScanFunction() {
     return <SKFunction>sk`fn pre_scan:bool(lexer:__Lexer$ref, tk_row:u32){
         
         [mut] tk_length: u16 = lexer.token_length;

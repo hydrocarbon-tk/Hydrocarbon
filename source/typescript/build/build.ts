@@ -2,12 +2,13 @@ import spark from "@candlelib/spark";
 import { WorkerRunner } from "../build/workers/worker_runner.js";
 import { getProductionByName } from '../grammar/nodes/common.js';
 import { createActiveTokenSK, extractAndReplaceTokenMapRefs } from '../render/render.js';
-import { Lexer } from '../runtime/core_parser.js';
-import { Token } from '../runtime/token.js';
+import { compare } from '../runtime/core_parser.js';
 import { skRenderAsJavaScript } from '../skribble/skribble.js';
 import { HCG3Grammar } from "../types/grammar_nodes.js";
 import { RDProductionFunction } from "../types/rd_production_function.js";
 import { getSymbolMapFromIds, getSymbolScannerFunctions, token_lu_bit_size } from '../utilities/code_generating.js';
+import { fail_state_mask, run, token_production } from './kernel.js';
+import { BlockData, Instruction, InstructionType, State } from '../types/build_types';
 import parser_loader from "./table_code.js";
 
 const parse_table_code = await parser_loader;
@@ -33,7 +34,7 @@ export async function buildRecognizer(
 
     for (const state_string of states) {
 
-        const state_ast = parse_table_code(state_string).result[0];
+        const state_ast = parse_table_code(state_string, {}).result[0];
 
         state_ast.__source__ = state_string;
 
@@ -59,7 +60,7 @@ export async function buildRecognizer(
                 block_offset: 0,
                 pointer: 0,
                 attributes: StateAttrib.FAIL_STATE,
-                string: "[ FAILURE HANDLER ]\n\n" + state_string.slice(state_string.indexOf("on fail")),
+                string: "[FAILURE HANDLER]\n\n" + state_string.slice(state_string.indexOf("on fail ") + ("on fail ".length)),
                 state_ast: fail_state,
                 block: null,
             });
@@ -87,11 +88,8 @@ export async function buildRecognizer(
 
     const state_buffer = new Uint32Array(statesOutputsBuildPass(states_map, grammar, sym_map));
 
-    console.log(`Buffer size = ${state_buffer.length * 4}bytes`);
-
     //Build Recognizer Components -------------------------------------------------------------
 
-    const token_lookup_array = new ({ 8: Uint8Array, 16: Uint8Array, 32: Uint32Array }[token_lu_bit_size])([...sym_map.keys()].flatMap(s => s.split("_")));
     const token_sequence_lookup = new Uint8Array(grammar.sequence_string.split("").map(s => s.charCodeAt(0)));
     const entry_pointers = grammar.productions.filter(p => p.IS_ENTRY).map(p => ({ name: p.name, pointer: states_map.get(p.name).pointer }));
     const reverse_state_lookup = new Map([...states_map.entries()].map(([key, val]) => [val.pointer, val.string]));
@@ -101,433 +99,76 @@ export async function buildRecognizer(
         .map(skRenderAsJavaScript)
         .join("\n\n"), sym_map);
 
-    let tk_scan = (Function("token_lookup", "token_sequence_lookup",
+    const token_lookup_array = new ({ 8: Uint8Array, 16: Uint8Array, 32: Uint32Array }[token_lu_bit_size])([...sym_map.keys()].flatMap(s => s.split("_")));
+
+    let tk_scan = (Function(
+        "token_lookup",
+        "token_sequence_lookup",
+        "compare",
+        "token_production",
+        "state_buffer",
         `${skRenderAsJavaScript(createActiveTokenSK(grammar))}
          ${token_lookup_functions}
          return scan;
-        `
-    ))(token_lookup_array, token_sequence_lookup);
+        `.replace(/_A_([\w\_\d]+)_A_/g,
+            (name, sub: string, ...args) => {
+                const { pointer } = states_map.get(sub);
+                return pointer + "";
+            }))
+    )(
+        token_lookup_array,
+        token_sequence_lookup,
+        compare,
+        token_production,
+        state_buffer
+    );
     //Go through the build pass
 
-    const input_string = "aabbbb";
+    const input_string = "[ test + 4 ]";
     const input_buffer = new Uint8Array(input_string.split("").map(c => c.charCodeAt(0)));
 
-    const kernel_states: KernelState[] = [{
-        lexer_pointer: 0,
-        lexer_stack: (new Array(16)).fill(0).map(i => { const lexer = new Lexer(input_buffer, input_buffer.length); lexer.next(); return lexer; }),
-        stack_pointer: 1,
-        state_stack: new Uint32Array(128),
-        reverse_state_lookup: reverse_state_lookup,
-        state_buffer: state_buffer,
-        tk_scan: tk_scan,
-    }];
+    const { invalid, valid } = run(
+        state_buffer,
+        input_buffer,
+        input_buffer.length,
+        [...entry_pointers.values()][0].pointer,
+        tk_scan,
+        reverse_state_lookup
+    );
 
-    kernel_states[0].state_stack[1] = [...entry_pointers.values()][0].pointer;
+    console.log(`Buffer size = ${state_buffer.length * 4}bytes`);
 
-    let SUCCESSFUL_PARSE = false;
-
-    while (kernel_states.length > 0) {
-
-        for (let kernel_state of kernel_states) {
-
-            const { FAILED, last_state } = kernel_executor(kernel_state, kernel_states);
-
-            SUCCESSFUL_PARSE ||= (!FAILED && kernel_state.lexer_stack[0].END());
-
-            if (FAILED || !kernel_state.lexer_stack[0].END()) {
-
-                const token = new Token(input_string, "", kernel_state.lexer_stack[0].byte_length, kernel_state.lexer_stack[0].byte_offset + 1);
-
-                if (kernel_state.lexer_stack[0].END())
-                    console.warn(token.returnError("Unexpected End Of Input").toString());
-                else
-                    console.warn(token.returnError("Unexpected Token").toString());
-            }
-
-            console.log(`Last Good State => {\n${reverse_state_lookup.get(last_state)}\n}`);
-        }
-
-        kernel_states.length = 0;
-    }
-
-    console.log({ SUCCESSFUL_PARSE });
 
     return {
         recognizer_functions: mt_code_compiler.functions
     };
-}
 
-interface KernelState {
-    lexer_pointer: u32,
-    readonly lexer_stack: Lexer[],
-    stack_pointer: u32,
-    state_stack: Uint32Array,
-    tk_scan: (l: Lexer, i: u32, j: u32) => void,
-    readonly state_buffer: Uint32Array;
-    reverse_state_lookup: Map<number, string>;
-};
-
-//Global Constants
-const state_index_mask = (1 << 24) - 1;
-const fail_state_mask = 1 << 26;
-
-function kernel_executor(
-    kernel_state: KernelState,
-    kernel_states: KernelState[]
-) {
-
-    const {
-        state_stack,
-        reverse_state_lookup,
-    } = kernel_state;
-    //Kernel
-
-    //Input
-    let fail_mode = false;
-    let prod = 0;
-
-    let last_good_state = 0, previous_good_state = 0;
-
-    while (true) {
-
-        let i = 0;
-
-        while (i++ < 4) {
-            // Hint to the compiler to inline this section 4 times
-
-            const state = state_stack[kernel_state.stack_pointer];
-
-            kernel_state.stack_pointer -= 1;
-
-            if (state > 0) {
-
-                if (fail_mode)
-                    console.log("\n [IN FAILURE MODE] \n at state: \n", reverse_state_lookup.get(state & 0xFFFFFFF), "\n");
-                else
-                    console.log("\n at state: \n", reverse_state_lookup.get(state & 0xFFFFFFF), "\n");
-
-                /**
-                 * A state pointer is divided into three data segments
-                 *   Meta ______ State info     Array Index  
-                 *   _|  _|_ ___________________|___
-                 *  |  ||  ||                       |
-                 * [31 .28 .24 . . .16 . . .8. . . .0]
-                 * 
-                 * Meta data relates to found within the meta
-                 * executor and is within state pointers
-                 * that are stored in state buffers. An example
-                 * usage of this section is for goto instruction,
-                 * which is simply copied to the state_stack as
-                 * the instruction already contains the goto state
-                 * pointer information
-                 * 
-                 * 
-                 * State info segment store the information
-                 * necessary to handle kernel switching tasks,
-                 * namely, whether to use the state for failure
-                 * recovery or to use it for normal parser 
-                 * duties. 
-                 * 
-                 */
-
-                const state_pointer = state & state_index_mask;
-
-                if (!fail_mode) {
-                    ({ fail_mode, prod } = state_executor(
-                        state_pointer,
-                        prod,
-                        kernel_state,
-                        kernel_states,
-                    ));
-
-                    last_good_state = state_pointer;
-
-                } else if ((state & fail_state_mask) != 0) {
-                    ({ fail_mode, prod } = state_executor(
-                        state_pointer,
-                        prod,
-                        kernel_state,
-                        kernel_states,
-                    ));
-                }
-            }
-        }
-
-        if (kernel_state.stack_pointer < 1)
-            break;
-    }
-
-    return { FAILED: fail_mode, last_state: last_good_state };
-
-}
-
-function state_executor(
-    state_pointer: u32,
-    prod,
-    kernel_state: KernelState,
-    kernel_states: KernelState[]
-): ({ prod: u32, fail_mode: boolean, }) {
-
-    let fail_mode = false;
-
-    // Decode state information and proceed run either the basic
-    // state executor or the table executor (scanner executor is 
-    // not yet implemented )
-
-    const Alpha_u32 = kernel_state.state_buffer[state_pointer];
-    const Beta__u32 = kernel_state.state_buffer[state_pointer + 1];
-    const Gamma_u32 = kernel_state.state_buffer[state_pointer + 2];
-    const Delta_u32 = kernel_state.state_buffer[state_pointer + 3];
-
-    // If the state value is true then increment stack pointer
-    // after setting the stack pointer with the fail state value.
-    // However, if the previous state is the same as the failure state,
-    // do not increment. This prevents the stack from needlessly growing
-    // from repeating states that are linked to failures states. 
-
-    const increment_stack_pointer_mask = 1;
-
-    const previous_state = kernel_state.state_stack[kernel_state.stack_pointer];
-
-    kernel_state.state_stack[kernel_state.stack_pointer + 1] = Beta__u32;
-
-    const failure_bit = (Alpha_u32 & increment_stack_pointer_mask) & +((previous_state ^ Beta__u32) > 0);
-
-    kernel_state.stack_pointer += failure_bit;
-
-    // Main instruction process ----------------------
-
-    const process_type = (Alpha_u32 >> 8) & 0xF;
-
-    let lexer = kernel_state.lexer_stack[kernel_state.lexer_pointer];
-
-    switch (process_type) {
-        case 1: //basic 
-            {
-                // The instructions start at the 16 byte offset and 
-                // is directly handled by the instruction executor
-
-                ({ fail_mode, prod } = instruction_executor(
-                    state_pointer + 4,
-                    prod,
-                    lexer,
-                    kernel_state,
-                    kernel_states
-                ));
-
-            } break;
-        case 2: //table 
-            {
-                let input_value: i32 = 0;
-
-                const number_of_rows = Alpha_u32 >> 16;
-                const row_size = Delta_u32 & 0xFFFF;
-                const basis__ = (Delta_u32 >> 16) & 0xFFFF;
-
-                const input_type = ((Alpha_u32 >> 12) & 0xF);
-
-
-                if (input_type == 2) { // Lexer token id input
-
-                    const tk_row = Gamma_u32 >> 16;
-                    const skip_row = Gamma_u32 & 0xFFFF;
-
-                    const token_transition = ((Alpha_u32 >> 4) & 0xF);
-
-                    switch (token_transition & 0xF) {
-                        case 0: /* do nothing */
-                            break;
-                        case 1: /* set next peek lexer */{
-
-                            const prev_lexer = kernel_state.lexer_stack[kernel_state.lexer_pointer];
-
-                            kernel_state.lexer_pointer += 1;
-
-                            lexer = kernel_state.lexer_stack[kernel_state.lexer_pointer];
-
-                            lexer.sync(prev_lexer);
-
-                            kernel_state.tk_scan(lexer, tk_row, skip_row);
-
-                        } break;
-                        case 2: /* set primary lexer */
-                            kernel_state.lexer_pointer = 0;
-                            lexer = kernel_state.lexer_stack[kernel_state.lexer_pointer];
-                            kernel_state.tk_scan(lexer, tk_row, skip_row);
-                            break;
-                        case 3: /* force evaluation of primary lexer */ break;
-                            break;
-                    }
-
-                    input_value = lexer._type - basis__;
-
-                } else {
-                    // Production id input
-                    input_value = prod - basis__;
-                }
-
-                if (input_value >= 0 && input_value < number_of_rows) {
-                    ({ fail_mode, prod } = instruction_executor(
-                        state_pointer + 4 + input_value * row_size,
-                        prod,
-                        lexer,
-                        kernel_state,
-                        kernel_states
-                    ));
-                } else {
-
-                    // Use default behavior found at the end of the 
-                    // state table
-                    ({ fail_mode, prod } = instruction_executor(
-                        state_pointer + 4 + number_of_rows * row_size,
-                        prod,
-                        lexer,
-                        kernel_state,
-                        kernel_states
-                    ));
-
-                }
-
-            } break;
-        case 3: //scanner 
-            {
-                /* NOT IMPLEMENTED */
-            } break;
-    }
-
-    return { prod, fail_mode };
-};
-
-function consume_temp(lexer: Lexer) {
-
-    console.log(`consuming: ${String.fromCharCode(...lexer.input.slice(lexer.byte_offset, lexer.byte_offset + lexer.byte_length))
-        } from offset ${lexer.byte_offset}`);
-
-    lexer.next();
-}
-function fork(fork_to_state, kernel_state: KernelState, kernel_states: KernelState[]) {
-
-    const new_state: KernelState = {
-
-        lexer_pointer: kernel_state.lexer_pointer,
-        lexer_stack: kernel_state.lexer_stack.map(l => l.copy_in_place()),
-
-        reverse_state_lookup: kernel_state.reverse_state_lookup,
-
-        stack_pointer: kernel_state.stack_pointer,
-
-        state_buffer: kernel_state.state_buffer,
-
-        state_stack: new Uint32Array(kernel_state.state_stack),
-
-        tk_scan: kernel_state.tk_scan,
-    };
-
-    new_state.state_stack[new_state.stack_pointer + 1] = fork_to_state;
-
-    new_state.stack_pointer += 1;
-
-    kernel_states.push(new_state);
-}
-
-function instruction_executor(
-    index: u32,
-    prod: u32,
-    lexer: Lexer,
-    kernel_state: KernelState,
-    kernel_states: KernelState[]
-): ({ fail_mode: boolean, prod: u32; }) {
-    while (true) {
-        const instruction = kernel_state.state_buffer[index];
-        index += 1;
-
-        switch ((instruction >> 28) & 0xF) {
-            //Both "pass" and "end";
-            case 0: return ({ fail_mode: false, prod }); //
-            case 1: //InstructionType.consume:
-                //consume(state)
-                consume_temp(lexer);
-                break;
-            case 2: //InstructionType.goto:
-                kernel_state.state_stack[kernel_state.stack_pointer + 1] = instruction;
-                kernel_state.stack_pointer += 1;
-                break;
-            case 3://InstructionType.set_prod:
-                prod = instruction & 0xFFFFFFF;
-                break;
-            case 4://InstructionType.fork_to: 
-                {
-                    // the first state goes to 
-                    // the current process
-                    let length = (instruction & 0xFFFFFFF) - 1;
-
-                    kernel_state.state_stack[kernel_state.stack_pointer + 1] = kernel_state.state_buffer[index];
-                    index += 1;
-
-                    while (length-- > 0) {
-
-                        fork(kernel_state.state_buffer[index], kernel_state, kernel_states);
-                        //fork
-                        index += 1;
-                    }
-
-                    kernel_state.stack_pointer += 1;
-                } break;
-            case 5:// InstructionType.token_length:
-                //byte_length += 4 + 4 * instr.token_ids.length;
-                //byte_sequence.push("scan_until", ...instr.token_ids);
-                break;
-            case 6://InstructionType.scan_until:
-                //byte_length += 4 + 4 * instr.token_ids.length;
-                //byte_sequence.push("scan_until", ...instr.token_ids);
-                break;
-            case 7://InstructionType.pop: 
-                kernel_state.stack_pointer -= (instruction & 0xFFFFFFF);
-                break;
-            case 8://InstructionType.reduce: 
-                const high = (instruction >> 16) & 0xFFFF;
-                const low = (instruction) & 0xFFFF;
-
-                // /state.add_rule(low);
-                // /
-                // /if ((low & 0x4) == 0x4)
-                // /    state.add_rule(high & 0xFFF);
-                break;
-            case 9://InstructionType.repeat: 
-                kernel_state.stack_pointer += 1;
-                break;;
-            //Fail instructions
-            case 10: return ({ fail_mode: true, prod });
-            case 11: return ({ fail_mode: true, prod });
-            case 12: return ({ fail_mode: true, prod });
-            case 13: return ({ fail_mode: true, prod });
-            case 14: return ({ fail_mode: true, prod });
-            case 15: return ({ fail_mode: true, prod }); //
-        }
-    }
-
-    return ({ fail_mode: false, prod });
 }
 
 const numeric_sort = (a: number, b: number): number => a - b;
-
 function convertBlockDataToBufferData(block_info: BlockData, state_map: StateMap): number[] {
     const buffer = [];
 
     //Alpha 32 bits
 
     buffer.push(
-        ((block_info.table_header.number_of_rows & 0xFFFF) << 16)
-        |
-        (+block_info.table_header.have_default_action << 1)
-        |
         (+block_info.table_header.increment_stack_pointer_for_failure << 0)
+        // All states have a default action
+        //|
+        //(+block_info.table_header.have_default_action << 1)
+        |
+        (+block_info.table_header.use_peek_for_assert_or_consume << 2)
+        |
+        (+block_info.table_header.consume_peek << 3)
         |
         ((["peek", "assert"].indexOf(block_info.table_header.lexer_type) + 1) << 4)
         |
         ((["basic", "table", "scanner"].indexOf(block_info.table_header.state_type) + 1) << 8)
         |
         ((["production", "token"].indexOf(block_info.table_header.input_type) + 1) << 12)
+        |
+        ((block_info.table_header.number_of_instruction_rows_or_scanfield_length & 0xFFFF) << 16)
+
     );
 
     //Beta 32 bits
@@ -547,12 +188,22 @@ function convertBlockDataToBufferData(block_info: BlockData, state_map: StateMap
 
     //Delta 32bits
     buffer.push(
-        (block_info.table_header.row_size & 0xFFFF)
+        (block_info.table_header.row_size_or_instruction_field_size & 0xFFFF)
         |
-        ((block_info.table_header.prod_or_tok_basis & 0xFFFF) << 16)
+        ((block_info.table_header.token_basis & 0xFFFF) << 16)
     );
 
-    for (const data of [...block_info.table_entries, block_info.default_entry].filter(n => !!n)) {
+    if (block_info.table_header.state_type == "scanner") {
+
+        const { scanner_key_index_pairs } = block_info;
+
+        for (const [key, val] of scanner_key_index_pairs)
+            buffer.push(key, val);
+    }
+
+    const instruction_sections = [...block_info.table_entries, block_info.default_entry].filter(n => !!n);
+
+    for (const data of instruction_sections) {
         let i = 0;
         let temp_buffer = [];
         for (; i < data.length; i++) {
@@ -629,8 +280,12 @@ function convertBlockDataToBufferData(block_info: BlockData, state_map: StateMap
             }
         }
 
-        if (block_info.table_header.state_type != "scanner") {
-            while (temp_buffer.length < (block_info.table_header.row_size))
+        if (
+            block_info.table_header.state_type != "scanner"
+            &&
+            block_info.default_entry != data
+        ) {
+            while (temp_buffer.length < (block_info.table_header.row_size_or_instruction_field_size))
                 temp_buffer.push(0);
         }
 
@@ -756,9 +411,10 @@ function statesOutputsOptimizationPass(StateMap: StateMap, grammar: HCG3Grammar,
 
         const { instructions, symbol_meta } = state_ast;
 
-        if (attributes & StateAttrib.ASSERT_BRANCH
+        if ((
+            attributes & StateAttrib.ASSERT_BRANCH
             ||
-            attributes & StateAttrib.CONSUME_BRANCH
+            attributes & StateAttrib.CONSUME_BRANCH)
         ) {
             if (
                 !(attributes & StateAttrib.MULTI_BRANCH)
@@ -797,6 +453,7 @@ function statesOutputsOptimizationPass(StateMap: StateMap, grammar: HCG3Grammar,
                 const instruction = instructions[i];
 
                 if (
+
                     instruction.type == InstructionType.assert
                     &&
                     instruction.instructions[0].type == InstructionType.goto
@@ -831,11 +488,12 @@ function statesOutputsOptimizationPass(StateMap: StateMap, grammar: HCG3Grammar,
 
                 if (
                     (
-                        instruction.type == InstructionType.assert
-                        ||
-                        instruction.type == InstructionType.consume
-                        ||
-                        instruction.type == InstructionType.prod
+                        (
+                            instruction.type == InstructionType.assert
+                            ||
+                            instruction.type == InstructionType.consume
+                            ||
+                            instruction.type == InstructionType.prod)
                     )
                 ) {
 
@@ -854,30 +512,34 @@ function statesOutputsOptimizationPass(StateMap: StateMap, grammar: HCG3Grammar,
                             if (
                                 !(attributes & (StateAttrib.TOKEN_BRANCH | StateAttrib.PROD_BRANCH))
                                 &&
-                                (!(attributes & StateAttrib.HAS_GOTOS) || (
-                                    (instructions.length == 1)
-                                    ||
-                                    (j == instructions.length - 1)
-                                    ||
-                                    (
-                                        (
-                                            instructions[j + 1].type == InstructionType.goto
+                                (
+                                    !(attributes & StateAttrib.HAS_GOTOS) /*|| (
+                                        ((instructions.length == 1)
                                             ||
-                                            instructions[j + 1].type == InstructionType.repeat
-                                        )
-                                        &&
-                                        (
-                                            j == 0 || !(
-                                                instructions[j - 1].type == InstructionType.goto
-                                                ||
-                                                instructions[j - 1].type == InstructionType.repeat
-                                            )
-                                        )
-                                    )
-                                ))
+                                            (j == instructions.length - 1)
+                                            ||
+                                            (
+                                                (
+                                                    instructions[j + 1].type == InstructionType.goto
+                                                    ||
+                                                    instructions[j + 1].type == InstructionType.repeat
+                                                )
+                                                &&
+                                                (
+                                                    j == 0 || !(
+                                                        instructions[j - 1].type == InstructionType.goto
+                                                        ||
+                                                        instructions[j - 1].type == InstructionType.repeat
+                                                    )
+                                                )
+                                            )) && state_ast.instructions.slice(-1)[0].type != InstructionType.repeat
+                                    )*/
+                                )
                             ) {
-                                //console.log(string);
-                                //console.log(goto_string);
+                                console.log("====================================================");
+                                console.log(string);
+                                console.log(goto_string);
+                                console.log("====================================================");
                                 instructions.splice(j, 1, ...state_ast.instructions);
                                 state_ast.instructions.forEach(({ type, state }) => {
                                     if (type == InstructionType.goto) {
@@ -893,6 +555,7 @@ function statesOutputsOptimizationPass(StateMap: StateMap, grammar: HCG3Grammar,
                             }
                         }
                     }
+                    continue;
                 }
 
                 if (
@@ -930,6 +593,13 @@ function statesOutputsOptimizationPass(StateMap: StateMap, grammar: HCG3Grammar,
                     ) {
 
                         instructions.splice(i, 1, ...state_ast.instructions);
+
+                        state_ast.instructions.forEach(({ type, state }) => {
+                            if (type == InstructionType.goto) {
+                                StateMap.get(state).reference_count++;
+                            }
+                        });
+
 
                         decreaseReference(goto_state, to_remove);
 
@@ -982,7 +652,7 @@ function statesOutputsBuildPass(StateMap: StateMap, grammar: HCG3Grammar, sym_ma
             skipped = skipped.setFilter().sort(numeric_sort);
 
             if (expected.length > 0) {
-                const id_string = getSymbolMapFromIds(expected, grammar).join('_');
+                const id_string = getSymbolMapFromIds(expected, grammar).map(i => (i >>> 0) + "").join('_');
                 if (!sym_map.has(id_string))
                     sym_map.set(id_string, sym_map.size);
 
@@ -990,7 +660,7 @@ function statesOutputsBuildPass(StateMap: StateMap, grammar: HCG3Grammar, sym_ma
             }
 
             if (skipped.length > 0) {
-                const id_string = getSymbolMapFromIds(skipped, grammar).join('_');
+                const id_string = getSymbolMapFromIds(skipped, grammar).map(i => (i >>> 0) + "").join('_');
 
                 if (!sym_map.has(id_string))
                     sym_map.set(id_string, sym_map.size);
@@ -1002,26 +672,43 @@ function statesOutputsBuildPass(StateMap: StateMap, grammar: HCG3Grammar, sym_ma
         state_data.block_offset = total_instruction_byte_size;
 
         if ((attributes & (StateAttrib.PROD_BRANCH)) > 0) {
-            const block_info = buildBranchTableBlock(state_ast, tok_id, skip_id, "production");
-            total_instruction_byte_size += block_info.total_size;
-            state_data.block = block_info;
+            const
+
+                table_block_info = buildBranchTableBlock(state_ast, attributes, tok_id, skip_id, "production"),
+
+                scan_block_info = buildScanningBranchBlock(state_ast, attributes, tok_id, skip_id, "production"),
+
+                block = selectBestFitBlockType(table_block_info, scan_block_info);
+
+            total_instruction_byte_size += block.total_size;
+
+            state_data.block = block;
 
         } else if ((attributes & (StateAttrib.TOKEN_BRANCH)) > 0) {
-            const block_info = buildBranchTableBlock(
-                state_ast,
-                tok_id,
-                skip_id,
-                "token",
-                (attributes & (StateAttrib.PEEK_BRANCH))
-                    ? "peek"
-                    : "assert"
-            );
-            total_instruction_byte_size += block_info.total_size;
-            state_data.block = block_info;
+
+            const
+                lexer_state = (attributes & (StateAttrib.PEEK_BRANCH)) ? "peek" : "assert",
+
+                table_block_info = buildBranchTableBlock(
+                    state_ast, attributes, tok_id, skip_id, "token", lexer_state
+                ),
+
+                scan_block_info = buildScanningBranchBlock(
+                    state_ast, attributes, tok_id, skip_id, "token", lexer_state
+                ),
+
+                block = selectBestFitBlockType(table_block_info, scan_block_info);
+
+            total_instruction_byte_size += block.total_size;
+
+            state_data.block = block;
 
         } else {
+
             const block_info = buildBasicInstructionBlock(state_ast, tok_id, skip_id);
+
             total_instruction_byte_size += block_info.total_size;
+
             state_data.block = block_info;
         }
 
@@ -1043,6 +730,22 @@ function statesOutputsBuildPass(StateMap: StateMap, grammar: HCG3Grammar, sym_ma
 
     return out_buffer;
 }
+function selectBestFitBlockType(table_block_info: BlockData, scan_block_info: BlockData) {
+    const block_size_ratio = table_block_info.total_size / scan_block_info.total_size;
+    //Ratio between
+    const sparse_table_fill_ratio = table_block_info.table_header.number_of_instruction_rows_or_scanfield_length
+        / (scan_block_info.table_header.number_of_instruction_rows_or_scanfield_length / 2);
+
+    const block = (
+        (!isNaN(sparse_table_fill_ratio) && !isNaN(block_size_ratio)) &&
+        (sparse_table_fill_ratio > 1.8 || block_size_ratio > 1.5)) ? scan_block_info : table_block_info;
+
+    console.log(
+        `sparse_table_fill_ratio: ${sparse_table_fill_ratio} block_size ${block_size_ratio}`
+    );
+    return block;
+}
+
 function createInstructionSequence(active_instructions: Instruction[]): { byte_length: number, byte_sequence: any; } {
 
     const byte_sequence = [];
@@ -1128,6 +831,7 @@ function get32AlignedOffset(request_size: number) {
 
 function buildBranchTableBlock(
     state_ast: State,
+    attributes: StateAttrib,
     tok_id = 0,
     skip_id = 0,
     input_type: BlockData["table_header"]["input_type"] = "production",
@@ -1154,7 +858,7 @@ function buildBranchTableBlock(
 
             if (type == "consume") {
                 instr.byte_sequence.unshift("consume");
-                instr.byte_length++;
+                instr.byte_length += 4;
             }
             return ids.map(i => ({ id: i, code: instr }));
         });
@@ -1172,21 +876,26 @@ function buildBranchTableBlock(
     let last_offset = basis;
     for (const { id, code } of standard_byte_codes.sort((a, b) => a.id - b.id)) {
 
-        while (++last_offset < id) {
+        while (++last_offset <= id) {
             table_entries.push(["fail"]);
         }
 
         table_entries.push(code.byte_sequence);
     }
 
+    const { use_peek_for_assert_or_consume, consume_peek }
+        = getPeekConsumptionFlags(attributes, state_ast);
+
     const table_header: BlockData["table_header"] = {
+        use_peek_for_assert_or_consume,
+        consume_peek,
         increment_stack_pointer_for_failure,
-        number_of_rows: span,
+        number_of_instruction_rows_or_scanfield_length: span,
         have_default_action: !!default_instruction,
         skip_table_row: skip_id,
         token_table_row: tok_id,
-        row_size: max_instruction_byte_size / 4,
-        prod_or_tok_basis: basis,
+        row_size_or_instruction_field_size: max_instruction_byte_size / 4,
+        token_basis: basis,
         input_type,
         failure_state_data: state_ast.fail ? state_ast.fail.id : "",
         state_type: "table",
@@ -1215,6 +924,117 @@ function buildBranchTableBlock(
     };
 }
 
+function buildScanningBranchBlock(
+    state_ast: State,
+    attributes: StateAttrib,
+    tok_id = 0,
+    skip_id = 0,
+    input_type: BlockData["table_header"]["input_type"] = "production",
+    lexer_type: BlockData["table_header"]["lexer_type"] = "assert"
+): BlockData {
+
+    const instructions = state_ast.instructions;
+
+    const default_instruction = instructions.filter(i => i.ids.some(i => i == 9999))[0];
+    const standard_instructions = instructions.filter(i => !i.ids.some(i => i == 9999));
+
+    if (standard_instructions.length == 0 && default_instruction) {
+        const new_state = Object.assign({}, state_ast, { instructions: default_instruction.instructions });
+        return buildBasicInstructionBlock(new_state, tok_id, skip_id);
+    }
+
+    let instruction_field_size = 0;
+
+    const standard_byte_codes = standard_instructions
+        .map(({ instructions, type }) => {
+
+            const instr = createInstructionSequence(instructions);
+
+            if (type == "consume") {
+                instr.byte_sequence.unshift("consume");
+                instr.byte_length += 4;
+            }
+
+            //@ts-expect-error
+            instr.pointer = instruction_field_size / 4;
+
+            instruction_field_size += instr.byte_length;
+
+            return instr;
+        });
+
+    const scanner_key_index_pairs = standard_instructions
+        //@ts-expect-error
+        .flatMap(({ ids }, instr_idx) => ids.map(id => [id, standard_byte_codes[instr_idx].pointer]))
+        .sort(([a], [b]) => a - b);
+
+    const scan_field_length = scanner_key_index_pairs.length * 2;
+
+    const sequence_entries = [];
+
+    for (const code of standard_byte_codes)
+        sequence_entries.push(code.byte_sequence);
+
+    const { use_peek_for_assert_or_consume, consume_peek }
+        = getPeekConsumptionFlags(attributes, state_ast);
+
+    const table_header: BlockData["table_header"] = {
+        use_peek_for_assert_or_consume,
+        consume_peek,
+        increment_stack_pointer_for_failure: !!state_ast.fail,
+        number_of_instruction_rows_or_scanfield_length: scan_field_length,
+        have_default_action: !!default_instruction,
+        skip_table_row: skip_id,
+        token_table_row: tok_id,
+        row_size_or_instruction_field_size: instruction_field_size / 4,
+        token_basis: 0,
+        input_type,
+        failure_state_data: state_ast.fail ? state_ast.fail.id : "",
+        state_type: "scanner",
+        lexer_type: lexer_type
+    };
+
+    if (default_instruction) {
+
+        const default_data = createInstructionSequence(default_instruction.instructions);
+
+        const default_block_size = get8AlignedOffset(default_data.byte_length);
+
+        return {
+            table_header,
+            scanner_key_index_pairs,
+            table_entries: sequence_entries,
+            default_entry: default_data.byte_sequence,
+            total_size: get32AlignedOffset(16 + default_block_size + instruction_field_size + scan_field_length * 4)
+        };
+    }
+
+    return {
+        table_header,
+        scanner_key_index_pairs,
+        table_entries: sequence_entries,
+        default_entry: ["fail", "end"],
+        total_size: get32AlignedOffset(16 + 8 + instruction_field_size + scan_field_length * 4)
+    };
+}
+
+
+function getPeekConsumptionFlags(attributes: StateAttrib, state_ast: State) {
+    const use_peek_for_assert_or_consume = (!(attributes & (StateAttrib.MULTI_BRANCH)))
+        &&
+        !(attributes & (StateAttrib.PEEK_BRANCH))
+        &&
+        (state_ast.instructions[0].type == InstructionType.consume
+            ||
+            state_ast.instructions[0].type == InstructionType.assert);
+
+    const consume_peek = (!(attributes & (StateAttrib.MULTI_BRANCH)))
+        &&
+        (!(attributes & (StateAttrib.ASSERT_BRANCH)))
+        &&
+        state_ast.instructions[0].type == InstructionType.consume;
+    return { use_peek_for_assert_or_consume, consume_peek };
+}
 
 function buildBasicInstructionBlock(state_ast: State, tok_id = 0, skip_id = 0): BlockData {
 
@@ -1226,14 +1046,23 @@ function buildBasicInstructionBlock(state_ast: State, tok_id = 0, skip_id = 0): 
 
     const instruction_byte_size = get8AlignedOffset(byte_length);
 
+    const use_peek_for_assert_or_consume =
+        state_ast.instructions[0].type == InstructionType.consume
+        ||
+        state_ast.instructions[0].type == InstructionType.assert;
+
+    const consume_peek = state_ast.instructions[0].type == InstructionType.consume;
+
     const table_header: BlockData["table_header"] = {
+        use_peek_for_assert_or_consume,
+        consume_peek,
         increment_stack_pointer_for_failure,
-        number_of_rows: 0,
+        number_of_instruction_rows_or_scanfield_length: 0,
         have_default_action: true,
         skip_table_row: skip_id,
         token_table_row: tok_id,
-        row_size: instruction_byte_size / 4,
-        prod_or_tok_basis: 0,
+        row_size_or_instruction_field_size: instruction_byte_size / 4,
+        token_basis: 0,
         failure_state_data: state_ast.fail ? state_ast.fail.id : "",
         state_type: "basic",
         input_type: "token",
@@ -1248,134 +1077,3 @@ function getInstructionComplexity(instr) {
 }
 
 
-interface State {
-    type: "state" | "on-fail-state";
-    id: string;
-    instructions: Instruction[];
-    symbol_meta?: {
-        type: "symbols",
-        expected: number[],
-        skipped: number[],
-    };
-    fail?: {
-        type: "on-fail-state",
-        id: string,
-        instructions: Instruction[];
-        symbol_meta?: {
-            type: "symbols",
-            expected: number[],
-            skipped: number[],
-        };
-    };
-}
-
-const enum InstructionType {
-    prod = "prod",
-    consume = "consume",
-    peek = "peek",
-    assert = "assert",
-    goto = "goto",
-    reduce = "reduce",
-    set_prod = "set-prod",
-    fork_to = "fork-to",
-    scan_until = "scan-until",
-    pop = "pop",
-    on_fail = "on-fail",
-    token_length = "token-length",
-    pass = "pass",
-    fail = "fail",
-    repeat = "repeat-state"
-}
-
-interface Instruction {
-    type: InstructionType;
-    ids?: number[];
-    state?: string;
-    states?: string[];
-    id?: number;
-    instructions?: Instruction[];
-    token_ids: number[];
-    len?: number,
-    reduce_fn?: number,
-}
-type i32 = number;
-type bit = number;
-type u32 = number;
-type u16 = number;
-type u8 = number;
-type u2 = number;
-type u3 = number;
-type u10 = number;
-
-interface StateTableEntryHeader {
-
-    //32bytes
-    number_of_rows: u16;
-    increment_stack_pointer_for_failure: bit,
-    have_default_action: bit,
-    undefined2: u2;
-    undefined3: u2;
-    undefined1: u2;
-    state_type: u2;
-    undefined4: u2;
-    undefined5: u2;
-    undefined6: u2;
-
-
-    //32 Bytes
-    failure_state_data: u32,
-
-    //32Bytes
-    skip_table_row: u16;
-    token_table_row: u16;
-
-    //32 Bytes
-    row_size: u16;
-    prod_or_tok_basis: u16;
-}
-
-
-interface BlockData {
-    table_header: {
-        increment_stack_pointer_for_failure: boolean;
-        number_of_rows: number;
-        have_default_action: boolean;
-        input_type: "production" | "token",
-        skip_table_row: number;
-        token_table_row: number;
-        row_size: number;
-        prod_or_tok_basis: number;
-        failure_state_data: string;
-        state_type: "basic" | "table" | "scanner";
-        lexer_type: "peek" | "assert";
-    };
-    table_entries: string[][];
-    default_entry: string[];
-    total_size: number;
-}
-interface StateTableEntryHeader {
-
-    //32bytes
-    number_of_rows: u16;
-    increment_stack_pointer_for_failure: bit,
-    have_default_action: bit,
-    undefined2: u2;
-    undefined3: u2;
-    undefined1: u2;
-    state_type: u2;
-    undefined4: u2;
-    undefined5: u2;
-    undefined6: u2;
-
-
-    //32 Bytes
-    failure_state_data: u32,
-
-    //32Bytes
-    skip_table_row: u16;
-    token_table_row: u16;
-
-    //32 Bytes
-    row_size: u16;
-    prod_or_tok_basis: u16;
-}

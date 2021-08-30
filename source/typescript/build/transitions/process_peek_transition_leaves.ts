@@ -266,7 +266,7 @@ export function yieldPeekedNodes(
             {
                 expanded_limit: 10,
                 max_tree_depth: 10,
-                max_no_progress: 3,
+                max_no_progress: 10,
                 max_time_limit: 300,
             }
         );

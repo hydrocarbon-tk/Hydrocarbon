@@ -32,6 +32,7 @@ export const enum SymbolType {
     VIRTUAL_TOKEN = "v-token-production",
     GROUP_PRODUCTION = "group-production",
     LIST_PRODUCTION = "list-production",
+    AMBIGUOUS = "hybrid"
 }
 
 export interface HCG3TokenPosition {
@@ -407,6 +408,17 @@ export interface EOFSymbol extends HCG3EOFSymbol {
 }
 
 export interface ProductionSymbol extends HCG3ProductionSymbol { }
+/**
+ * Symbol represents an ambiguous mix of tokens;
+ * i.e:
+ *      a DefinedIdentifierSymbol token and a 
+ *      GeneratedIdentifier identifier token.
+ */
+export interface AmbiguousSymbol extends HCG3SymbolNode {
+    type: SymbolType.AMBIGUOUS,
+    syms: HCG3Symbol[],
+    val: string;
+}
 
 export interface VirtualTokenSymbol extends HCG3SymbolNode {
     type: SymbolType.VIRTUAL_TOKEN;
@@ -441,7 +453,9 @@ export type TokenSymbol =
     | HCG3EOFSymbol
     | HCG3EOPSymbol
     | HCG3EmptySymbol
-    | HCG3ProductionTokenSymbol;
+    | HCG3ProductionTokenSymbol
+    | HCG3LookBehind
+    | AmbiguousSymbol;
 export type HCG3Symbol =
     HCG3ListProductionSymbol
     | HCG3GroupProduction

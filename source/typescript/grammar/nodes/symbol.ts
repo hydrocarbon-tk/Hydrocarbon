@@ -16,7 +16,8 @@ import {
     HCG3Symbol,
     TokenSymbol,
     VirtualTokenSymbol,
-    SymbolType
+    SymbolType,
+    AmbiguousSymbol
 } from "../../types/grammar_nodes.js";
 import { Item } from "../../utilities/item.js";
 
@@ -39,7 +40,7 @@ export function characterToUTF8(char: string) {
     }
 }
 
-export function convertSymbolToString(sym: HCG3Symbol) {
+export function convert_symbol_to_string(sym: TokenSymbol) {
     switch (sym.type) {
         case SymbolType.GENERATED:
             return `g:${sym.val}`;
@@ -56,7 +57,9 @@ export function convertSymbolToString(sym: HCG3Symbol) {
         case SymbolType.PRODUCTION_TOKEN_SYMBOL:
             return `tk:${sym.name}`;
         case "look-behind":
-            return `lb[${convertSymbolToString(sym.phased)}]`;
+            return `lb[${convert_symbol_to_string(sym.phased)}]`;
+        case SymbolType.AMBIGUOUS:
+            return `ambiguous [ ${sym.syms.map(convert_symbol_to_string).join(" | ")} ]`;
         default:
             return sym.val + (sym.IS_NON_CAPTURE ? "-ns" : "");
     }
@@ -100,6 +103,10 @@ export function Sym_Is_Virtual_Token(s: HCG3Symbol): s is VirtualTokenSymbol {
     return s && s.type == SymbolType.VIRTUAL_TOKEN;
 }
 
+export function Sym_Is_Ambiguous(s: HCG3Symbol): s is AmbiguousSymbol {
+    return s && s.type == SymbolType.AMBIGUOUS;
+}
+
 export function Sym_Is_A_Production(s: HCG3Symbol): s is ProductionSymbol {
     if (!s) return false;
     return s.type == SymbolType.PRODUCTION;
@@ -110,7 +117,7 @@ export function Sym_Is_A_Production_Token(s: HCG3Symbol): s is (ProductionTokenS
     return (s.type == SymbolType.PRODUCTION_TOKEN_SYMBOL);
 }
 
-export function Sym_Is_A_Terminal(s: HCG3Symbol): s is TokenSymbol {
+export function Sym_Is_A_Token(s: HCG3Symbol): s is TokenSymbol {
     return !Sym_Is_A_Production(s);
 }
 
@@ -202,6 +209,7 @@ export function getFollowSymbolsFromItems(items: Item[], grammar: HCG3Grammar): 
 export function getTokenSymbolsFromItems(items: Item[], grammar: HCG3Grammar): TokenSymbol[] {
     return items.filter(i => !i.atEND)
         .flatMap(i => getTrueSymbolValue(<TokenSymbol>i.sym(grammar), grammar))
+
         .setFilter(getUniqueSymbolName)
         .filter(sym => !Sym_Is_A_Production(sym));
 }

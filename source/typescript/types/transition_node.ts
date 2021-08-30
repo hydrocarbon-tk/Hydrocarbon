@@ -5,7 +5,7 @@
  */
 import { SKExpression } from "../skribble/types/node";
 import { Item } from "../utilities/item.js";
-import { HCG3Symbol } from "./grammar_nodes";
+import { HCG3Symbol, TokenSymbol } from "./grammar_nodes";
 
 /**
  * Attribute that indicates the type of tree that
@@ -104,17 +104,11 @@ export const enum TRANSITION_TYPE {
  */
 export interface TransitionNode {
     /**
-     * Code that should be added to the proceeding node's execution scope. May 
-     * need to be gated by this node's symbol
-     */
-    code: SKExpression[];
-
-    /**
      * MD5 hash string of code
      */
     hash: string;
 
-    symbols?: HCG3Symbol[];
+    symbols?: TokenSymbol[];
 
     /**
      * The depth of the peeking node relative to the initiation of the peek.
@@ -136,7 +130,7 @@ export interface TransitionNode {
     /**
      * Current closure at this Z. 
      */
-    closure?: Item[];
+    closure: Item[];
 
     /**
      * production_ids that can be generated from this sequence
@@ -197,7 +191,6 @@ export interface Leaf {
 
 export interface GeneratorStateReturn {
     hash: string,
-    code: SKExpression[],
     prods: number[];
     leaves: Leaf[];
 }

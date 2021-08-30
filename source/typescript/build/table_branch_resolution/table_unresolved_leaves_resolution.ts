@@ -14,9 +14,8 @@ export function table_resolveUnresolvedLeaves(node: TransitionNode, nodes: Trans
 
     const items = node.items;
 
-    if (nodes.length == 1) {
-        return { leaves: node.leaves, root: [], prods: node.prods };
-    }
+    if (nodes.length == 1)
+        return { leaves: node.leaves, prods: node.prods };
 
 
     const output_nodes = nodes.sort((a, b) =>
@@ -31,7 +30,7 @@ export function table_resolveUnresolvedLeaves(node: TransitionNode, nodes: Trans
         out_leaves.push(...leaves);
     }
 
-    const hash = hashString(nodes.map(i => i.hash).join("----!merged!merged!---")).slice(0, 8);
+    const hash = hashString(nodes.map(i => i.hash).join("----!merged!merged!---"));
 
     const code = `
 state [${hash}] 
@@ -47,5 +46,5 @@ state [${hash}]
 
     node.hash = hash;
 
-    return { leaves: node.leaves, root: [], prods: node.prods };
+    return { leaves: node.leaves, prods: node.prods };
 }

@@ -18,7 +18,6 @@ import { SKExpression } from "../../skribble/types/node";
 import { RenderBodyOptions } from "../../types/render_body_options";
 import { MultiItemReturnObject, SingleItemReturnObject, TransitionClauseGenerator, TransitionGroup } from "../../types/transition_generating";
 import { GeneratorStateReturn, TransitionNode, TRANSITION_TYPE } from "../../types/transition_node.js";
-import { expressionListHash } from "../../utilities/code_generating.js";
 import { Item } from "../../utilities/item.js";
 import { table_resolveBranches } from '../table_branch_resolution/table_branch_resolution.js';
 import { table_resolveResolvedLeaf } from '../table_branch_resolution/table_resolved_leaf_resolution.js';
@@ -41,7 +40,7 @@ export function processTransitionNodes(
 ): GeneratorStateReturn {
 
     if (nodes.length == 0)
-        return { code: [], prods: [], leaves: [], hash: "" };
+        return { prods: [], leaves: [], hash: "" };
 
     const finale_node = { ast: <TransitionNode>null };
 
@@ -77,11 +76,7 @@ export function processTransitionNodes(
                 let
                     leaves = nodes.flatMap(g => g.leaves);
 
-                //Set the transition type of any state with a null code property to IGNORE
-                nodes.forEach(g => { if (!g.code) g.transition_type = TRANSITION_TYPE.IGNORE; g.PROCESSED = true; });
-
-                let
-                    root: SKExpression[] = [], hash = "ignore";
+                let hash = "ignore";
 
                 if (filtered_nodes.length > 0) {
 
@@ -91,11 +86,10 @@ export function processTransitionNodes(
                         PROCESSED: false,
                         nodes: [],
                         symbols: [],
-                        code: filtered_nodes[0].code,
                         hash: "", //filtered_nodes[0].hash,
                         prods,
                         items,
-                        goto_prod_id: node.goto_prod_id,
+                        closure: filtered_nodes.flatMap(n => n.closure).setFilter(i => i.id),
                         root_id: node.root_id,
                         peek_level: filtered_nodes[0].peek_level,
                         offset: filtered_nodes[0].offset,
@@ -105,11 +99,11 @@ export function processTransitionNodes(
 
                     if (WE_HAVE_UNRESOLVED_LEAVES) {
 
-                        ({ root, leaves } = conflicting_leaf_resolve_function(virtual_state, nodes, options));
+                        ({ leaves } = conflicting_leaf_resolve_function(virtual_state, nodes, options));
 
                     } else {
 
-                        root = branch_resolve_function(
+                        branch_resolve_function(
                             traverseInteriorNodes(filtered_nodes, options, grouping_fn),
                             virtual_state,
                             items,
@@ -117,14 +111,12 @@ export function processTransitionNodes(
                             options
                         );
                     }
-                    hash = virtual_state.hash || expressionListHash(root);
-                } else {
-                    root = null;
+
+                    hash = virtual_state.hash;
                 }
 
                 node.leaves = leaves;
                 node.prods = prods;
-                node.code = root;
                 node.hash = hash;
                 node.PROCESSED = true;
 
@@ -140,7 +132,6 @@ export function processTransitionNodes(
 
                     const { leaf } = leaf_resolve_function(node.items[0], node, options);
 
-                    node.code = leaf.root;
                     node.hash = leaf.hash;
                     node.prods = leaf.prods;
                     node.leaves = [leaf];
@@ -150,9 +141,9 @@ export function processTransitionNodes(
         }
     }
 
-    const { code, prods, hash, leaves } = finale_node.ast;
+    const { prods, hash, leaves } = finale_node.ast;
 
-    return { code, prods, hash, leaves };
+    return { prods, hash, leaves };
 }
 
 function* traverseInteriorNodes(
@@ -164,18 +155,29 @@ function* traverseInteriorNodes(
     const
         groups = group.group(g => grouping_fn(g, g.peek_level, g.peek_level >= 0)),
 
-        sel_group: TransitionGroup[] = groups.map((group) => {
+        sel_group: TransitionGroup[] = groups.map((group): TransitionGroup => {
 
             const
+                closure = group.flatMap(i => i.closure).setFilter(i => i.id),
                 syms = group.flatMap(s => s.symbols),
-                code = group[0].code,
-                PUIDABLE = group.every(g => g.PUIDABLE),
+
                 hash = group[0].hash,
                 items = group.flatMap(g => g.items).setFilter(i => i.id),
                 leaves = group.flatMap(g => g.leaves),
                 yielders = group.map(i => i.transition_type).setFilter();
 
-            return { root_id: group[0].root_id, PUIDABLE, leaves, transition_types: yielders, syms, code, items, hash, LAST: false, FIRST: false, prods: group.flatMap(g => g.prods).setFilter() };
+            return {
+                root_id: group[0].root_id,
+                leaves,
+                transition_types: yielders,
+                syms,
+                items,
+                hash,
+                closure,
+                LAST: false,
+                FIRST: false,
+                prods: group.flatMap(g => g.prods).setFilter()
+            };
         });
     let i = 0;
     for (const group of sel_group.sort((a, b) => {

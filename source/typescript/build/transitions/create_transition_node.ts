@@ -29,6 +29,7 @@ export function createTransitionNode(
         peek_level,
         root_id,
         nodes: [],
+        closure: items,
         //t_items,
         PUIDABLE: false,
         completing: false

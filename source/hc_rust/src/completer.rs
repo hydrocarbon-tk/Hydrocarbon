@@ -3,6 +3,7 @@ use super::core_parser::ParserState;
 use super::core_parser::ParserStateBuffer;
 use super::core_parser::ParserStateIterator;
 use super::core_parser::StackFunction;
+use super::core_parser::*;
 
 ///
 /// Base string container.
@@ -23,15 +24,8 @@ impl ASTRefString {
     pub fn slice<'a>(&self, source: &'a [u8]) -> &'a [u8] {
         return &source[self.offset..(self.offset + self.length)];
     }
-    //To utf8 string
-    //To floating point
-    //To integer
-    /// fn metrics()->u32{5}
 
-    /// Get information on the line and character offset of the of
-    /// the ASTRefString
-    /// (lines proceeding offset: u32, character offset from line start: u32)
-    /// *
+
     pub fn metrics<'a>(&self, source: &'a [u8]) -> (u32, u32) {
         (0, 0)
     }
@@ -129,6 +123,7 @@ pub fn parser_core<T: std::fmt::Debug>(
     entry_functions: StackFunction,
     reduce_functions: &[ReduceFunction<T>],
 ) -> OptionedBoxedASTRef<T> {
+    
     let (success, failure) = recognize(
         utf_8_input,
         utf_8_input.len() as u32,

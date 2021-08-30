@@ -4,7 +4,7 @@
  * disclaimer notice.
  */
 import { HCG3Production, HCG3ProductionBody, HCG3VirtualProduction } from "../types/grammar_nodes";
-import { getSymbolsFromClosure, getUniqueSymbolName, Sym_Is_A_Terminal } from "../grammar/nodes/symbol.js";
+import { getSymbolsFromClosure, getUniqueSymbolName, Sym_Is_A_Token } from "../grammar/nodes/symbol.js";
 import { buildItemMaps, getItemMapEntry } from "../grammar/passes/item_map.js";
 import { RenderBodyOptions } from "../types/render_body_options.js";
 import { Item } from "./item.js";

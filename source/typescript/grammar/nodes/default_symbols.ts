@@ -1,12 +1,11 @@
-import { HCG3EOPSymbol } from "@candlelib/hydrocarbon/build/types/types/grammar_nodes";
 import { TokenTypes } from "../../runtime/TokenTypes.js";
 import {
-
+    EOFSymbol,
     GeneratedIdentifier,
     GeneratedNewLine,
     GeneratedNumber,
     GeneratedSpace,
-    GeneratedSymbol
+    GeneratedSymbol, HCG3EOPSymbol, SymbolType
 } from "../../types/grammar_nodes";
 
 /**
@@ -15,49 +14,49 @@ import {
 
 export const
     default_EOP: HCG3EOPSymbol = {
-        type: "eop",
+        type: SymbolType.END_OF_PRODUCTION,
         val: "END_OF_PRODUCTION",
         id: TokenTypes.END_OF_FILE,
         pos: {},
         meta: null,
     },
     default_EOF: EOFSymbol = {
-        type: "eof",
+        type: SymbolType.END_OF_FILE,
         val: "END_OF_FILE",
         id: TokenTypes.END_OF_FILE,
         pos: {},
         meta: null,
     },
     default_GEN_SPACE: GeneratedSpace = {
-        type: "generated",
+        type: SymbolType.GENERATED,
         val: "sp",
         id: TokenTypes.SPACE,
         pos: {},
         meta: null,
     },
     default_GEN_ID: GeneratedIdentifier = {
-        type: "generated",
+        type: SymbolType.GENERATED,
         val: "id",
         id: TokenTypes.IDENTIFIER,
         pos: {},
         meta: null,
     },
     default_GEN_SYM: GeneratedSymbol = {
-        type: "generated",
+        type: SymbolType.GENERATED,
         val: "sym",
         id: TokenTypes.SYMBOL,
         pos: {},
         meta: null,
     },
     default_GEN_NEWLINE: GeneratedNewLine = {
-        type: "generated",
+        type: SymbolType.GENERATED,
         val: "nl",
         id: TokenTypes.NEW_LINE,
         pos: {},
         meta: null,
     },
     default_GEN_NUMBER: GeneratedNumber = {
-        type: "generated",
+        type: SymbolType.GENERATED,
         val: "num",
         id: TokenTypes.NUMBER,
         pos: {},

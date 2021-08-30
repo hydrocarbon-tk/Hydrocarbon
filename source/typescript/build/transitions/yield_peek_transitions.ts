@@ -3,7 +3,6 @@
  * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
  * disclaimer notice.
  */
-import { HCG3Grammar } from "source/typescript/types/grammar_nodes.js";
 import { getSymbolFromUniqueName } from "../../grammar/nodes/symbol.js";
 import { RenderBodyOptions } from "../../types/render_body_options.js";
 import { TransitionNode, TRANSITION_TYPE } from "../../types/transition_node.js";
@@ -13,14 +12,6 @@ import { processPeekTransitionLeaves } from "./process_peek_transition_leaves.js
 
 
 export type leafHandler = (node: TransitionNode, options: RenderBodyOptions, root_depth: number, leaf_depth: number) => void;
-
-export function convertTransitionTreeNodeToRenderable(node: TransitionTreeNode, grammar: HCG3Grammar) {
-    return Object.assign({}, node, {
-        roots: node.roots.map(r => r.renderUnformattedWithProduction(grammar)),
-        next: node.next.map(n => convertTransitionTreeNodeToRenderable(n, grammar)),
-        closure: node.closure.map(r => r.renderUnformattedWithProduction(grammar))
-    });
-}
 
 export function buildPeekTransitions(
     peek_nodes: TransitionTreeNode[],
@@ -71,7 +62,7 @@ export function buildPeekTransitions(
             ss.add(id);
         }
 
-        node.closure = group.flatMap(g => g.starts).setFilter(s => s.id);
+        node.closure = group.flatMap(g => g.closure.map(i => i.decrement())).setFilter(s => s.id);
 
         if (HAVE_NEXT)
             node.nodes.push(

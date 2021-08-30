@@ -150,9 +150,9 @@ export class ParserStateIterator {
     }
 }
 
-/////////////////////////////////////////////
+// ///////////////////////////////////////////
 // PARSER STATE BUFFER
-/////////////////////////////////////////////
+// ///////////////////////////////////////////
 
 export class ParserStateBuffer {
 
@@ -376,8 +376,8 @@ export class Lexer {
         this.byte_length = source.byte_length;
         this.token_length = source.token_length;
         this.token_offset = source.token_offset;
-        this.prev_byte_offset = source.prev_byte_offset;
-        this.prev_token_offset = source.prev_token_offset;
+        this.prev_byte_offset = source.byte_offset;
+        this.prev_token_offset = source.token_offset;
         this.line = source.line;
         this._type = source._type;
         this.current_byte = source.current_byte;
@@ -598,10 +598,12 @@ function step_kernel(state: ParserState, data_buffer: ParserStateBuffer, base: n
     return false;
 }
 
-function run(process_buffer: ParserStateBuffer,
+function run(
+    process_buffer: ParserStateBuffer,
     invalid_buffer: ParserStateBuffer,
     valid_buffer: ParserStateBuffer,
-    prod_id: number): number {
+    prod_id: number
+): number {
     while (process_buffer.len() > 0) {
         let i = 0;
         for (; i < process_buffer.len();) {

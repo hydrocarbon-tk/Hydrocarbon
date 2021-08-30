@@ -20,6 +20,8 @@ export interface TransitionTreeNode {
     starts?: Item[];
     final_count: number;
 
+    tree_depth: number;
+
     root_id?: number;
 }
 export interface ClosureGroup {

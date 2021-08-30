@@ -14,7 +14,7 @@ import {
     Sym_Is_A_Production_Token,
     Sym_Is_Defined, Sym_Is_Exclusive
 } from "../grammar/nodes/symbol.js";
-import { HCG3Grammar } from "../types/grammar_nodes";
+import { HCG3Grammar, AmbiguousSymbol } from "../types/grammar_nodes";
 import { ClosureGroup, TransitionTreeNode } from "../types/transition_tree_nodes";
 import { getClosure, getFollowClosure } from "./closure.js";
 import { generateHybridIdentifier } from "./code_generating.js";
@@ -115,7 +115,8 @@ export function getTransitionTree(
                     roots: root_items,
                     sym: null,
                     closure: [],
-                    final_count: 0
+                    final_count: 0,
+                    tree_depth: 0
                 }
             ]
         };
@@ -287,7 +288,7 @@ export function getTransitionTree(
                 //generate a hybrid symbol
                 const id = generateHybridIdentifier(considered_syms);
 
-                sym = {
+                sym = <AmbiguousSymbol>{
                     type: "hybrid",
                     val: "hybrid-" + id + `[${considered_syms.map(getUniqueSymbolName).join("  ")}]`,
                     syms: considered_syms,
@@ -299,6 +300,8 @@ export function getTransitionTree(
             }
             //*/
         }
+
+
 
         tree_nodes.push({
             last_progress: __depth__ - __last_progress__,

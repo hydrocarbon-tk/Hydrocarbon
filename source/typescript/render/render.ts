@@ -8,13 +8,13 @@ import { sk } from "../skribble/skribble.js";
 import { SKExpression, SKNode } from "../skribble/types/node.js";
 import { HCG3Grammar } from "../types/grammar_nodes.js";
 import { RDProductionFunction } from "../types/rd_production_function.js";
-import { renderPreScanFunction, token_lu_bit_size, token_lu_bit_size_offset } from "../utilities/code_generating.js";
+import { buildPreScanFunction, token_lu_bit_size, token_lu_bit_size_offset } from "../utilities/code_generating.js";
 
 
 function createGrammarFunctionArray(meta: Helper, recognizer_functions: RDProductionFunction[]) {
     const
 
-        { const: constants_a, fn: const_functions_a } = meta.render_constants(), grammar_functions = [renderPreScanFunction(), ...constants_a, ...const_functions_a];
+        { const: constants_a, fn: const_functions_a } = meta.render_constants(), grammar_functions = [buildPreScanFunction(), ...constants_a, ...const_functions_a];
 
     for (const { entry, goto, reduce } of recognizer_functions)
         grammar_functions.push(...[entry, goto, reduce].filter(i => i));
@@ -22,11 +22,11 @@ function createGrammarFunctionArray(meta: Helper, recognizer_functions: RDProduc
 }
 
 export function extractAndReplaceTokenMapRefs(token_lookup_functions: string, sym_map: Map<any, any>) {
-    return token_lookup_functions.replace(/symbollookup(\_\d+)+/g, (a, b, c) => {
-        if (!sym_map.has(a)) {
-            sym_map.set(a, sym_map.size);
+    return token_lookup_functions.replace(/symbollookup\_((\d+\_?)+)/g, (a, b, c) => {
+        if (!sym_map.has(b)) {
+            sym_map.set(b, sym_map.size);
         }
-        return sym_map.get(a);
+        return sym_map.get(b);
     });
 }
 

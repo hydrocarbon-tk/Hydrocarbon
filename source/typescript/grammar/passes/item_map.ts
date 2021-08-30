@@ -3,7 +3,6 @@
  * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
  * disclaimer notice.
  */
-import { HCG3Symbol } from '@candlelib/hydrocarbon/build/types/types/grammar_nodes';
 import { getStartItemsFromProduction } from '../../build/table_constructor.js';
 import { ProductionSymbol, TokenSymbol } from "../../types/grammar_nodes";
 import { HCG3Grammar, HCG3Production } from "../../types/grammar_nodes.js";
@@ -62,8 +61,8 @@ export function buildItemMaps(grammar: HCG3Grammar, productions: HCG3Production[
 
 function getItemMapVariables(grammar: HCG3Grammar, productions: HCG3Production[]) {
     const
-        extant_production_item_maps = (grammar.productions ?? grammar).map(p => ({
-            count: 0, item_maps: (grammar.productions ?? grammar) != productions ? getInterMediateItemMapEntriesFromProduction(p, grammar) : []
+        extant_production_item_maps = grammar.productions.map(p => ({
+            count: 0, item_maps: grammar.productions != productions ? getInterMediateItemMapEntriesFromProduction(p, grammar) : []
         })),
 
         item_maps_in_process: ItemMapEntry[] = productions.flatMap((p) => {
@@ -140,7 +139,7 @@ function addFollowInformation(item: Item, grammar: HCG3Grammar, check_set: Set<s
 
     item_map.push(item.renderUnformattedWithProduction(grammar));
 
-    let sym: HCG3Symbol = <any>
+    let sym: TokenSymbol = <any>
         (!item.increment().atEND
             ? item.increment().sym(grammar)
             : null),
@@ -402,7 +401,7 @@ function addItemMapsToGrammar(item_maps_in_process: ItemMapEntry[], grammar: HCG
 
 
 function processFollowSymbols(grammar: HCG3Grammar, productions: HCG3Production[]) {
-    const check_set: Set<string>[] = (grammar.productions ?? grammar).map(() => new Set());
+    const check_set: Set<string>[] = grammar.productions.map(() => new Set());
     const item_map = [];
 
     for (const production of productions) {

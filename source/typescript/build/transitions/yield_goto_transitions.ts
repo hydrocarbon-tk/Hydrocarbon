@@ -1,3 +1,4 @@
+
 /* 
  * Copyright (C) 2021 Anthony Weathersby - The Hydrocarbon Parser Compiler
  * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
@@ -111,12 +112,9 @@ export function yieldGOTOTransitions(
 
                     items_to_process = goto_groups.get(production_id).map(i => i.increment()).setFilter(i => i.id),
 
-                    nodes = yieldTransitions(items_to_process, options, 1).map(node => {
-                        node.goto_prod_id = <any>production_id;
-                        return node;
-                    }),
+                    nodes = yieldTransitions(items_to_process, options, 1),
 
-                    { code, hash, leaves, prods } = processTransitionNodes(options, nodes, resolveBranches, resolveUnresolvedLeaves, resolveResolvedLeaf),
+                    { hash, leaves, prods } = processTransitionNodes(options, nodes, resolveBranches, resolveUnresolvedLeaves, resolveResolvedLeaf),
 
                     node = createTransitionNode(
                         items_to_process/*.filter(i => i.offset == 1)*/,
@@ -125,11 +123,6 @@ export function yieldGOTOTransitions(
                         0
                     );
 
-                const d = [];
-
-                code.unshift(...d);
-
-                node.code = code;
                 node.hash = hash;
                 node.prods = prods;
                 node.leaves = leaves;
