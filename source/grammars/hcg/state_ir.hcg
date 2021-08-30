@@ -94,7 +94,7 @@
 
 <> expected_symbols > \symbols: \expected token_id_list
 
-    ( \skipped id_list f:r{ $2 } )?
+    ( \skipped token_id_list f:r{ $2 } )?
 
     f:r { { type:"symbols", expected:$3, skipped:$$4 || [] } }
 
