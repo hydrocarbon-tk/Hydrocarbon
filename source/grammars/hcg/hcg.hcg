@@ -24,8 +24,8 @@
 
 # For example: If a hypothetical parser where to parse the input `Hello World` using the production 
 # `<> X > \Hello \World` 
-# it would fail by default as it would encounter the ' ' character ( space or 0x1E )
-# And not be able to match `World`. Adding 
+# it would fail by default as it would encounter the ' ' character ( space or 0x1E ) and not be able to match `World`. 
+# Adding 
 # `++++ | @IGNORE g:sp
 #       | <> X > \Hello \World`
 # allows the parser to skip the space and subsequently match `World`.

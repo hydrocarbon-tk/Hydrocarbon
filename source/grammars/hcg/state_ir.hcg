@@ -84,7 +84,7 @@
 
     f:r { { type:"symbols", expected:$3, skipped:$$4 || [] } }
 
-<> id_list > \[ ( g:num f:r{ parseInt($1) } | sym::terminal_symbol | sym::production_symbol | sym::imported_production_symbol )(+) \]
+<> id_list > \[ ( g:num f:r{ parseInt($1) } | sym::terminal_symbol | sym::production_symbol | sym::imported_production_symbol )(+) \] f:r { $2 }
 
 <> state_hash_token > 
     state_hash_token (RST g:sp g:nl)  ( \_ | \- | g:id | g:num )

@@ -1,4 +1,4 @@
-import parser_loader from "../build/library/build/table_code.js";
+import parser_loader from "../build/library/build/state_ir.js";
 import { JSParserEnvironment } from "@candlelib/js";
 const parser = await parser_loader;
 
@@ -17,6 +17,10 @@ state [c3eb751f]
         goto state [c3eb751f]
     )
 
+    on fail state [failed_state]
+        on prod [ g:sp ] (
+            pass
+        )
     
 
 `), { depth: null });
