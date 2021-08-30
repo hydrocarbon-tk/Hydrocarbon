@@ -88,13 +88,7 @@ function processImportedBody(symbols: HCG3Symbol[], root_grammar: HCG3Grammar, l
 function processSymbol(sym: HCG3Symbol, NOT_ORIGIN: boolean, root_grammar: HCG3Grammar, local_grammar: HCG3Grammar, imported_productions: Map<any, any>):
     HCG3Symbol {
 
-    if (NOT_ORIGIN && sym.type == "list-production") {
-
-        const list_sym = sym.val;
-
-        processImportedBody([list_sym], root_grammar, local_grammar, imported_productions);
-
-    } if (NOT_ORIGIN && (sym.type == "sym-production" || sym.type == "production_token")) {
+    if (NOT_ORIGIN && (sym.type == "sym-production" || sym.type == "production_token")) {
 
         const original_name = sym.name;
 
@@ -120,6 +114,8 @@ function processSymbol(sym: HCG3Symbol, NOT_ORIGIN: boolean, root_grammar: HCG3G
                 integrateImportedProductions(root_grammar, local_grammar, cp, imported_productions);
             }
         }
+    } else if (sym.type == "list-production") {
+        sym.val = processImportedBody([sym.val], root_grammar, local_grammar, imported_productions)[0];
     } else if (sym.type == "group-production") {
 
         for (const body of sym.val)

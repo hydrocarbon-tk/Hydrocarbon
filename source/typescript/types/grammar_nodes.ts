@@ -241,7 +241,7 @@ export interface HCG3SymbolNode extends HCG3GrammarNode {
 
 export interface HCG3ListProductionSymbol extends HCG3SymbolNode {
     type: SymbolType.LIST_PRODUCTION;
-    val: HCG3SymbolNode;
+    val: HCG3Symbol;
     terminal_symbol: HCG3Symbol;
     OPTIONAL: boolean;
     meta: false;
