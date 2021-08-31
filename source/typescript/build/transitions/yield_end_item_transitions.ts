@@ -5,7 +5,7 @@
  */
 import { default_EOP } from "../../grammar/nodes/default_symbols.js";
 import { getSymbolsFromClosure } from "../../grammar/nodes/symbol.js";
-import { HCG3Grammar } from "../../types/grammar_nodes";
+import { GrammarObject } from "../../types/grammar_nodes";
 import { RenderBodyOptions } from "../../types/render_body_options";
 import { TransitionNode, TRANSITION_TYPE } from "../../types/transition_node.js";
 import { getClosure, getFollowClosure } from "../../utilities/closure.js";
@@ -136,7 +136,7 @@ export function yieldEndItemTransitions(end_items: Item[], options: RenderBodyOp
     return output_nodes;
 }
 
-function DoesItemReduceTo(production_id: number, item: Item, grammar: HCG3Grammar, goto_items: Item[], visited = new Set): boolean {
+function DoesItemReduceTo(production_id: number, item: Item, grammar: GrammarObject, goto_items: Item[], visited = new Set): boolean {
     if (item.atEND) {
 
         const id = item.getProduction(grammar).id;

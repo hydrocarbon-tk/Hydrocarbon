@@ -1,5 +1,5 @@
 import { NodeMapping, NodeMappings } from "@candlelib/conflagrate/build/types/types/node_mappings";
-import { HCG3Grammar, HCGGrammarNode, HCG3MetaExclude } from "../../types/grammar_nodes";
+import { GrammarObject, HCGGrammarNode, MetaExcludeSymbol } from "../../types/grammar_nodes";
 
 const hcg3_mappings: NodeMappings<HCGGrammarNode, "type"> = <NodeMappings<HCGGrammarNode, "type">>{
     typename: "type",
@@ -7,12 +7,12 @@ const hcg3_mappings: NodeMappings<HCGGrammarNode, "type"> = <NodeMappings<HCGGra
     mappings: [
         { type: "null", template: "tempster @type" },
 
-        <NodeMapping<HCG3Grammar>>{
+        <NodeMapping<GrammarObject>>{
             type: "hc-grammar-3",
             child_keys: ["preamble", "productions", "function"],
             template: "\\#HCG3 o:n @preamble...[o:n] o:n @productions"
         },
-        <NodeMapping<HCG3MetaExclude>>{
+        <NodeMapping<MetaExcludeSymbol>>{
             type: "meta-exclude", child_keys: ["sym"],
             template: "\\(EXC m:s @sym...[m:s] m:s \\)"
         },

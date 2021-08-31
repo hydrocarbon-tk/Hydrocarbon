@@ -1,7 +1,7 @@
 import { traverse } from "@candlelib/conflagrate";
 import {
-    HCG3Grammar,
-    HCG3Production,
+    GrammarObject,
+    GrammarProduction,
     HCG3ProductionBody
 } from "../../types/grammar_nodes";
 import {
@@ -12,7 +12,7 @@ import {
 import { expandOptionalBody, getProductionSignature } from "./common.js";
 import { processGroupSymbol } from "./convert_group_productions.js";
 
-export function convertListProductions(grammar: HCG3Grammar, error: Error[]): HCG3Grammar {
+export function convertListProductions(grammar: GrammarObject, error: Error[]): GrammarObject {
     let index = 0;
     for (const production of grammar.productions) {
         for (const body of production.bodies) {
@@ -47,7 +47,7 @@ export function convertListProductions(grammar: HCG3Grammar, error: Error[]): HC
 }
 
 
-export function processListSymbol(sym: any, body: HCG3ProductionBody, production: HCG3Production, meta: any, grammar: HCG3Grammar, index: number) {
+export function processListSymbol(sym: any, body: HCG3ProductionBody, production: GrammarProduction, meta: any, grammar: GrammarObject, index: number) {
     if (Sym_Is_List_Production(sym)) {
 
         if (body.sym.length == 1 && !Body_Has_Reduce_Action(body) && production.bodies.length == 1) {

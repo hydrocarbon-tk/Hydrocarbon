@@ -24,8 +24,8 @@ import {
 } from "../skribble/types/node.js";
 import {
     DefinedSymbol,
-    HCG3Grammar,
-    HCG3LookBehind, HCG3Symbol,
+    GrammarObject,
+    LookBehindSymbol, HCG3Symbol,
     ProductionTokenSymbol,
     SymbolType, TokenSymbol,
     VirtualTokenSymbol
@@ -45,7 +45,7 @@ export function sanitizeSymbolValForComment(sym: string | TokenSymbol): string {
     return sym.val.toString().replace(/\*/g, "asterisk");
 }
 
-export function getSymbolBoolean(sym: TokenSymbol, grammar: HCG3Grammar, lex_name: string = "state.lexer"): string {
+export function getSymbolBoolean(sym: TokenSymbol, grammar: GrammarObject, lex_name: string = "state.lexer"): string {
 
     const
         char_len = sym.val.toString().length,
@@ -82,7 +82,7 @@ export function getSymbolBoolean(sym: TokenSymbol, grammar: HCG3Grammar, lex_nam
 }
 
 
-function createNonCaptureLookBehind(symbol: HCG3LookBehind, grammar: HCG3Grammar): SKFunction {
+function createNonCaptureLookBehind(symbol: LookBehindSymbol, grammar: GrammarObject): SKFunction {
 
     const phased_symbol = getCardinalSymbol(grammar, symbol.phased);
 
@@ -121,7 +121,7 @@ function getUTF8ByteAt(s: DefinedSymbol, off: number): number {
     return s.val.charCodeAt(off);
 }
 
-function getCardinalSymbol<T = HCG3Symbol>(grammar: HCG3Grammar, sym: T): T {
+function getCardinalSymbol<T = HCG3Symbol>(grammar: GrammarObject, sym: T): T {
     return <any>grammar.meta.all_symbols.get(getUniqueSymbolName(<any>sym));
 }
 
@@ -137,7 +137,7 @@ export function hashString(string: string) {
     return crypto.createHash('md5').update(string).digest("hex").slice(0, 16);
 }
 
-function createIfClause(symbol: DefinedSymbol | VirtualTokenSymbol, offset: number, length: number, grammar: HCG3Grammar, expressions: SKExpression[]) {
+function createIfClause(symbol: DefinedSymbol | VirtualTokenSymbol, offset: number, length: number, grammar: GrammarObject, expressions: SKExpression[]) {
 
     const start = offset;
 
@@ -158,7 +158,7 @@ function createIfClause(symbol: DefinedSymbol | VirtualTokenSymbol, offset: numb
     return _if;
 }
 
-function getIfClausePreamble(length: number, start: number, symbol: DefinedSymbol, offset: number, grammar: HCG3Grammar, ADD_TOKEN_QUERY = true) {
+function getIfClausePreamble(length: number, start: number, symbol: DefinedSymbol, offset: number, grammar: GrammarObject, ADD_TOKEN_QUERY = true) {
 
     symbol = getCardinalSymbol(grammar, symbol);
 
@@ -177,7 +177,7 @@ export function generateHybridIdentifier(symbols: HCG3Symbol[]) {
 
 export const token_lu_bit_size_offset = 5;
 export const token_lu_bit_size = 1 << token_lu_bit_size_offset;
-export function getSymbolMap(symbols: TokenSymbol[], grammar: HCG3Grammar): number[] {
+export function getSymbolMap(symbols: TokenSymbol[], grammar: GrammarObject): number[] {
     const ids = symbols.filter(s => s.id).map(s => s.id).sort((a, b) => a - b).filter(i => i >= 1);
 
     const max = grammar.meta.token_row_size * token_lu_bit_size;
@@ -203,7 +203,7 @@ export function getSymbolMap(symbols: TokenSymbol[], grammar: HCG3Grammar): numb
     return flags;
 }
 
-export function getSymbolMapFromIds(ids: number[], grammar: HCG3Grammar): number[] {
+export function getSymbolMapFromIds(ids: number[], grammar: GrammarObject): number[] {
     ids = ids.sort((a, b) => a - b).filter(i => i >= 1);
 
     const max = grammar.meta.token_row_size * token_lu_bit_size;
@@ -228,14 +228,14 @@ export function getSymbolMapFromIds(ids: number[], grammar: HCG3Grammar): number
 
     return flags;
 }
-export function getSymbolMapPlaceHolder(symbols: TokenSymbol[], grammar: HCG3Grammar) {
+export function getSymbolMapPlaceHolder(symbols: TokenSymbol[], grammar: GrammarObject) {
     return "symbollookup_" + getSymbolMap(symbols, grammar).map(i => i >>> 0).join("_");
 }
 
 
 export function getIncludeBooleans(
     syms: TokenSymbol[],
-    grammar: HCG3Grammar,
+    grammar: GrammarObject,
     lex_name: string = "state.lexer",
 ): SKExpression {
     const types = [];
@@ -267,7 +267,7 @@ export function getIncludeBooleans(
     return convertExpressionArrayToBoolean(types);
 }
 
-export function createProductionTokenCall(tok: ProductionTokenSymbol, grammar: HCG3Grammar, ADD_PRE_SCAN_BOOLEAN: boolean = false): string {
+export function createProductionTokenCall(tok: ProductionTokenSymbol, grammar: GrammarObject, ADD_PRE_SCAN_BOOLEAN: boolean = false): string {
 
     const prod_id = getProductionID(tok, grammar);
     const production = grammar.productions[prod_id];
@@ -310,7 +310,7 @@ export function createScanFunctionCall(
 
 export function createSymbolScanFunctionCall(
     symbols: TokenSymbol[],
-    grammar: HCG3Grammar,
+    grammar: GrammarObject,
     lex_name: string = "state.lexer",
     PEEK: boolean = false,
 ): SKExpression {
@@ -322,7 +322,7 @@ function getActiveTokenQuery(symbol: TokenSymbol | ProductionTokenSymbol): strin
     return Sym_Is_Virtual_Token(symbol) ? `isTokenActive(${symbol.root.id}, tk_row)` : `isTokenActive(${symbol.id}, tk_row)`;
 }
 
-export function getSymbolScannerFunctions(grammar: HCG3Grammar): SKFunction[] {
+export function getSymbolScannerFunctions(grammar: GrammarObject): SKFunction[] {
 
     const functions = [];
 
@@ -443,7 +443,7 @@ function Sym_Is_Hybrid(sym: TokenSymbol): sym is any {
     return sym.type == "hybrid";
 }
 
-function renderNew(node: TokenTreeNode, grammar: HCG3Grammar, insert_expression: SKExpression[] = [], USE_BOOLEAN: boolean = false) {
+function renderNew(node: TokenTreeNode, grammar: GrammarObject, insert_expression: SKExpression[] = [], USE_BOOLEAN: boolean = false) {
 
     let ifs = [];
 
@@ -489,7 +489,7 @@ function renderNew(node: TokenTreeNode, grammar: HCG3Grammar, insert_expression:
     return first ? [...insert_expression, first] : [...insert_expression];
 }
 
-function renderLeafNew(node: TokenTreeNode, grammar: HCG3Grammar) {
+function renderLeafNew(node: TokenTreeNode, grammar: GrammarObject) {
 
     let
         ifs = [],

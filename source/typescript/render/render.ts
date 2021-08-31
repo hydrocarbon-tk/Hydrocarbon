@@ -6,7 +6,7 @@
 import { Helper } from "../build/helper.js";
 import { sk } from "../skribble/skribble.js";
 import { SKExpression, SKNode } from "../skribble/types/node.js";
-import { HCG3Grammar } from "../types/grammar_nodes.js";
+import { GrammarObject } from "../types/grammar_nodes.js";
 import { RDProductionFunction } from "../types/rd_production_function.js";
 import { buildPreScanFunction, token_lu_bit_size, token_lu_bit_size_offset } from "../utilities/code_generating.js";
 
@@ -32,7 +32,7 @@ export function extractAndReplaceTokenMapRefs(token_lookup_functions: string, sy
 
 
 
-export function createActiveTokenSK(grammar: HCG3Grammar): SKNode {
+export function createActiveTokenSK(grammar: GrammarObject): SKNode {
     return <SKExpression>sk`
             fn isTokenActive:bool(token_id:u32, row:u32) {
 
@@ -49,7 +49,7 @@ function createTokenLUSK(sym_map: Map<any, any>): SKNode {
     return <SKExpression>sk`[mut] token_lookup: array_u${token_lu_bit_size} = array_u${token_lu_bit_size}(${[...sym_map.keys()].flatMap(s => s.split("_").slice(1)).join(",")});`;
 }
 
-function createSequenceArraySk(grammar: HCG3Grammar): SKNode {
+function createSequenceArraySk(grammar: GrammarObject): SKNode {
     return <SKNode>sk`[static new] token_sequence_lookup : array_u8 = a(${grammar.sequence_string.split("").map(s => s.charCodeAt(0)).join(",")})`;
 }
 
@@ -65,7 +65,7 @@ function createSequenceArraySk(grammar: HCG3Grammar): SKNode {
  * @returns 
  */
 export async function generateTSParser(
-    grammar: HCG3Grammar,
+    grammar: GrammarObject,
     recognizer_functions: RDProductionFunction[],
     meta: Helper,
     hydrocarbon_import_path: string = "@candlelib/hydrocarbon",
@@ -75,11 +75,11 @@ export async function generateTSParser(
     return generateScriptParser(grammar, recognizer_functions, meta, hydrocarbon_import_path, export_expression_preamble, true);
 }
 
-function createEntryList(grammar: HCG3Grammar) {
+function createEntryList(grammar: GrammarObject) {
     return "{" + grammar.productions.filter(p => p.IS_ENTRY).map((p, i) => p.name.replace(/\:\:/, "_") + ":" + i).join(",") + "}";
 }
 
-export function renderJavaScriptReduceFunctionLookupArray(grammar: HCG3Grammar): string {
+export function renderJavaScriptReduceFunctionLookupArray(grammar: GrammarObject): string {
     const reduce_functions_str = [...grammar.reduce_functions.keys()].map((b, i) =>
         b + `/*${i}*/`
     ).join(",\n");
@@ -87,7 +87,7 @@ export function renderJavaScriptReduceFunctionLookupArray(grammar: HCG3Grammar):
     return `[(_,s)=>s[s.length-1], ${reduce_functions_str}]`;
 }
 
-export function renderCPPReduceFunctionLookupArray(grammar: HCG3Grammar): string {
+export function renderCPPReduceFunctionLookupArray(grammar: GrammarObject): string {
     const reduce_functions_str = [...grammar.reduce_functions.keys()].map((b, i) => b).join(",\n");
 
     return `{[](HYDROCARBON::ASTRef * stack, int len){return stack[len-1];}, ${reduce_functions_str}}`;

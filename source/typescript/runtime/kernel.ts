@@ -2,8 +2,10 @@ import { Lexer } from "./lexer.js";
 import { i32, u32 } from "../types/ir_types";
 
 //Global Constants
-const state_index_mask = (1 << 24) - 1;
-export const fail_state_mask = 1 << 26;
+const state_index_mask = (1 << 16) - 1;
+
+const acc_sym_mask = ((1 << 27) - 1) ^ ((1 << 16) - 1);
+export const fail_state_mask = 1 << 27;
 export const alpha_increment_stack_pointer_mask = 1 << 0;
 export const alpha_have_default_action_mask = 1 << 1;
 export const alpha_auto_accept_with_peek_mask = 1 << 2;
@@ -20,6 +22,9 @@ export interface KernelStateType {
     readonly state_buffer: Uint32Array;
 }
 
+/////////////////////////////////////////////
+// Kernel State 
+/////////////////////////////////////////////
 export class KernelState implements KernelStateType {
     lexer_pointer: u32;
     readonly lexer_stack: Lexer[];
@@ -30,6 +35,7 @@ export class KernelState implements KernelStateType {
     // 8 byte +
     rules: number[];
     origin: KernelState;
+    symbol_accumulator: number;
 
     // 4 byte
     state: number;
@@ -73,6 +79,8 @@ export class KernelState implements KernelStateType {
         this.COMPLETED = false;
 
         this.refs = 0;
+
+        this.symbol_accumulator = 0;
     }
 
     get_rules_len(): number {
@@ -96,6 +104,7 @@ export class KernelState implements KernelStateType {
         forked_state.lexer_pointer = this.lexer_pointer;
         forked_state.origin_fork = this.get_rules_len();
         forked_state.state = this.state;
+        forked_state.symbol_accumulator = this.symbol_accumulator;
         forked_state.VALID = true;
 
         this.refs++;
@@ -111,6 +120,9 @@ export class KernelState implements KernelStateType {
     add_reduce(sym_len: number, fn_id: number): void {
 
         if (0 != (this.state & 2)) {
+
+            this.symbol_accumulator -= ((sym_len - 1) << 16);
+
             let total = fn_id + sym_len;
             if ((total) == 0)
                 return;
@@ -169,6 +181,8 @@ export class KernelState implements KernelStateType {
             this.add_skip(skip_delta);
 
             this.add_shift(l.token_length);
+
+            this.symbol_accumulator += 1 << 16;
         }
 
         l.prev_byte_offset = l.byte_offset + l.byte_length;
@@ -180,6 +194,9 @@ export class KernelState implements KernelStateType {
     }
 }
 
+/////////////////////////////////////////////
+// Kernel State Buffer
+/////////////////////////////////////////////
 export class KernelStateBuffer {
 
     data: KernelState[];
@@ -285,6 +302,59 @@ export class KernelStateBuffer {
     };
 }
 
+/////////////////////////////////////////////
+// Kernel State Iterator
+/////////////////////////////////////////////
+
+export class KernelStateIterator {
+    private current: KernelState;
+    private refs: KernelState[];
+    private index: number;
+    private final_index: number;
+    private valid: boolean;
+
+    constructor(state: KernelState) {
+        let active = state;
+
+        this.refs = [];
+
+        this.refs.push(active);
+
+        while (active.origin) {
+            active = active.origin;
+            this.refs.push(active);
+        }
+
+        let last = this.refs.pop();
+
+        this.current = last;
+        this.final_index = this.refs.length > 0 ? this.refs[this.refs.length - 1].origin_fork : last.get_rules_len() - 1;
+        this.index = 0;
+        this.valid = true;
+    }
+
+    is_valid(): boolean {
+        return this.valid;
+    }
+
+    next(): number {
+        if (this.index > this.final_index) {
+            if (this.refs.length > 0) {
+                let last = this.refs.pop();
+                this.index = 0;
+                this.final_index = this.refs.length > 0 ? this.refs[this.refs.length - 1].origin_fork : last.get_rules_len() - 1;
+                this.current = last;
+            }
+            else {
+                this.valid = false;
+                return 0;
+            }
+        }
+
+        return this.current.rules[this.index++];
+    }
+}
+
 export function token_production(
     lexer: Lexer,
     production_id: u32,
@@ -332,6 +402,7 @@ export function token_production(
 }
 
 function instruction_executor(
+    state: u32,
     index: u32,
     gamma: u32,
     prod: u32,
@@ -353,8 +424,9 @@ function instruction_executor(
                 kernel_state.consume(lexer_pointer);
                 break;
             case 2: //InstructionType.goto:
-                console.log(`Goto: ${instruction & 0xFFFFFFF}`);
-                kernel_state.state_stack[kernel_state.stack_pointer + 1] = instruction;
+                console.log(`Goto: ${instruction & 0xFFFF}`);
+                kernel_state.state_stack[kernel_state.stack_pointer + 1] = instruction | ((kernel_state.symbol_accumulator) & acc_sym_mask);
+                //| ((kernel_state.symbol_accumulator) & acc_sym_mask);
                 kernel_state.stack_pointer += 1;
                 break;
             case 3: //InstructionType.set_prod:
@@ -405,6 +477,9 @@ function instruction_executor(
                     let lexer = kernel_state.lexer_stack[lexer_pointer];
                     let synced_lexer = kernel_state.lexer_stack[(lexer_pointer + 1) % 10];
 
+                    let start_byte_offset = lexer.prev_byte_offset;
+                    let start_token_offset = lexer.prev_token_offset;
+
                     synced_lexer.sync(lexer);
 
                     lexer.byte_length = 1;
@@ -415,6 +490,7 @@ function instruction_executor(
                     index += length;
 
                     while (RUN) {
+
                         kernel_state.tk_scan(lexer, tk_row, skip_row);
 
                         for (let i = start; i < end; i++) {
@@ -429,6 +505,8 @@ function instruction_executor(
 
                         if (lexer.END()) {
                             lexer.sync(synced_lexer);
+                            lexer.prev_byte_offset = start_byte_offset;
+                            lexer.prev_token_offset = start_token_offset;
                             return ({ fail_mode: true, prod });
                         }
 
@@ -438,6 +516,9 @@ function instruction_executor(
                     //Reset peek stack;
                     kernel_state.lexer_pointer = 0;
                     kernel_state.lexer_stack[0].sync(lexer);
+
+                    lexer.prev_byte_offset = start_byte_offset;
+                    lexer.prev_token_offset = start_token_offset;
                 }
                 break;
             case 7: //InstructionType.pop: 
@@ -445,14 +526,24 @@ function instruction_executor(
                 break;
             case 8: //InstructionType.reduce: 
 
-                const high = (instruction >> 16) & 0xFFFF;
+                const fn_id = (instruction >> 16) & 0x0FFF;
 
-                const low = (instruction) & 0xFFFF;
+                const length = (instruction) & 0xFFFF;
 
-                kernel_state.add_rule(low);
+                const accumulated_symbols =
+                    (kernel_state.symbol_accumulator
+                        -
+                        ((state & acc_sym_mask))) >> 16;
 
-                if ((low & 0x4) == 0x4)
-                    kernel_state.add_rule(high & 0xFFF);
+                if ((length & 0xFFFF) == 0xFFFF) {
+                    //Extract accumulated symbols inform
+
+
+                    kernel_state.add_reduce(accumulated_symbols, fn_id);
+
+                } else {
+                    kernel_state.add_reduce(length, fn_id);
+                }
 
                 break;
             case 9: //InstructionType.repeat: 
@@ -573,12 +664,14 @@ function get_token_info(
 
 
 function state_executor(
-    state_pointer: u32,
+    state: u32,
     prod: u32,
     kernel_state: KernelState,
     kernel_states_repo: KernelStateBuffer,
     reverse_state_lookup?: Map<number, string>
 ): ({ prod: u32; fail_mode: boolean; }) {
+
+    const state_pointer = state & state_index_mask;
 
     let fail_mode = false;
 
@@ -602,7 +695,7 @@ function state_executor(
 
     let previous_state = kernel_state.state_stack[kernel_state.stack_pointer];
 
-    kernel_state.state_stack[kernel_state.stack_pointer + 1] = beta;
+    kernel_state.state_stack[kernel_state.stack_pointer + 1] = beta | ((kernel_state.symbol_accumulator) & acc_sym_mask);
 
     let failure_bit = (alpha & alpha_increment_stack_pointer_mask) & +((previous_state ^ beta) > 0);
 
@@ -699,6 +792,7 @@ function state_executor(
     }
 
     return instruction_executor(
+        state,
         instruction_pointer,
         token_row_switches,
         prod,
@@ -718,8 +812,6 @@ export function kernel_executor(
     //Input
     let fail_mode = false;
     let prod = 0;
-
-    let last_good_state = 0;
 
     while (true) {
 
@@ -756,29 +848,28 @@ export function kernel_executor(
                  * duties.
                  *
                  */
-                const state_pointer = state & state_index_mask;
+
+
 
                 if (!fail_mode && ((state & fail_state_mask) == 0)) {
 
                     if (reverse_state_lookup)
-                        console.log("\n at state: \n", reverse_state_lookup.get(state & 0xFFFFFFF), "\n");
+                        console.log(`\n at state: ${state & 0xFFFF} \n`, reverse_state_lookup.get(state & 0xFFFF), "\n");
 
                     ({ fail_mode, prod } = state_executor(
-                        state_pointer,
+                        state,
                         prod,
                         kernel_state,
                         kernel_states_repo
                     ));
 
-                    last_good_state = state_pointer;
-
                 } else if (fail_mode && (state & fail_state_mask) != 0) {
 
                     if (reverse_state_lookup)
-                        console.log("\n [IN FAILURE MODE] \n at state: \n", reverse_state_lookup.get(state & 0xFFFFFFF), "\n");
+                        console.log("\n [IN FAILURE MODE] \n at state: \n", reverse_state_lookup.get(state & 0x0800FFFF), "\n");
 
                     ({ fail_mode, prod } = state_executor(
-                        state_pointer,
+                        state,
                         prod,
                         kernel_state,
                         kernel_states_repo

@@ -5,7 +5,7 @@
  */
 import { default_EOF } from "../../grammar/nodes/default_symbols.js";
 import { getTokenSymbolsFromItems, Sym_Is_A_Production } from "../../grammar/nodes/symbol.js";
-import { HCG3Grammar } from "../../types/grammar_nodes.js";
+import { GrammarObject } from "../../types/grammar_nodes.js";
 import { RenderBodyOptions } from "../../types/render_body_options";
 import { TransitionNode, TRANSITION_TYPE } from "../../types/transition_node.js";
 import { TransitionTreeNode } from "../../types/transition_tree_nodes.js";
@@ -110,7 +110,7 @@ export function getMaxOffsetOfItems(active_items: Item[]) {
     return active_items.reduce((r, i) => Math.max(i.offset, r), 0);
 }
 
-export function Items_Are_From_Same_Production(active_items: Item[], grammar: HCG3Grammar) {
+export function Items_Are_From_Same_Production(active_items: Item[], grammar: GrammarObject) {
     return active_items.setFilter(i => i.getProduction(grammar).id).length == 1;
 }
 

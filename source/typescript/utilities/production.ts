@@ -4,17 +4,17 @@
  * disclaimer notice.
  */
 import { getStartItemsFromProduction } from '../build/table_constructor.js';
-import { HCG3Grammar, HCG3ProductionTokenSymbol, ProductionSymbol, SymbolType } from "../types/grammar_nodes.js";
+import { GrammarObject, ProductionTokenSymbol, ProductionSymbol, SymbolType } from "../types/grammar_nodes.js";
 import { getClosure } from "./closure.js";
 import { Item } from "./item.js";
 
 
-export function getProductionClosure(production_id: number, grammar: HCG3Grammar, ENTER_TOKEN_PRODUCTIONS: boolean = false) {
+export function getProductionClosure(production_id: number, grammar: GrammarObject, ENTER_TOKEN_PRODUCTIONS: boolean = false) {
     const prod = grammar.productions[production_id];
     return getClosure(getStartItemsFromProduction(prod), grammar, ENTER_TOKEN_PRODUCTIONS);
 }
 
-export function doesProductionHaveEmpty(production_id: number, grammar: HCG3Grammar) {
+export function doesProductionHaveEmpty(production_id: number, grammar: GrammarObject) {
     const production = grammar.productions[production_id];
 
     if (production.CHECKED_FOR_EMPTY)
@@ -33,7 +33,7 @@ export function doesProductionHaveEmpty(production_id: number, grammar: HCG3Gram
  * @param object
  * @param grammar
  */
-export function getProductionID(object: HCG3ProductionTokenSymbol | ProductionSymbol | Item, grammar: HCG3Grammar): number {
+export function getProductionID(object: ProductionTokenSymbol | ProductionSymbol | Item, grammar: GrammarObject): number {
     if (object instanceof Item)
         return object.getProduction(grammar).id;
     else

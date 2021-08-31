@@ -3,7 +3,7 @@
  * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
  * disclaimer notice.
  */
-import { HCG3Grammar } from "source/typescript/types/grammar_nodes.js";
+import { GrammarObject } from "source/typescript/types/grammar_nodes.js";
 import { getFollowSymbolsFromItems, getUniqueSymbolName, Sym_Is_A_Production } from "../../grammar/nodes/symbol.js";
 import { RenderBodyOptions } from "../../types/render_body_options.js";
 import { TransitionNode, TRANSITION_TYPE } from "../../types/transition_node.js";
@@ -211,7 +211,7 @@ function addUnresolvedNode(node: TransitionNode, options: RenderBodyOptions, off
 
 
 
-function Active_Symbol_Of_First_Item_Is_A_Production(node: TransitionNode, grammar: HCG3Grammar) {
+function Active_Symbol_Of_First_Item_Is_A_Production(node: TransitionNode, grammar: GrammarObject) {
     return Sym_Is_A_Production(node.items[0].sym(grammar));
 }
 

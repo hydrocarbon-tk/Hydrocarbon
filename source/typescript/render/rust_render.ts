@@ -1,7 +1,7 @@
 import { copy, experimentalConstructRenderers, experimentalRender, filter, NodeMapping } from "@candlelib/conflagrate";
 import { render_mappings } from "@candlelib/js";
 import { CompilableStruct } from "../types/compilable_nodes";
-import { HCG3Grammar } from "../types/grammar_nodes";
+import { GrammarObject } from "../types/grammar_nodes";
 import { getEnumTypeName } from "./cpp_render.js";
 
 
@@ -107,7 +107,7 @@ duplicate.type_lookup = (node, name) => lu_table.get(node.type) || -1;
 export const renderers = experimentalConstructRenderers(duplicate);
 
 
-export function buildCompilableStructs(grammar: HCG3Grammar):
+export function buildCompilableStructs(grammar: GrammarObject):
     string[] {
 
     const processed_structs: CompilableStruct[] = grammar.compiled.structs;
@@ -157,7 +157,7 @@ export function buildCompilableStructs(grammar: HCG3Grammar):
 
 function parseAndRenderCPP(ast) { return experimentalRender(ast, duplicate, renderers); }
 
-export function renderRustFunctionLUArray(grammar: HCG3Grammar): string {
+export function renderRustFunctionLUArray(grammar: GrammarObject): string {
 
     const reduce_functions_str = [...grammar.reduce_functions.values()].map(({ data }) => {
         const fn = `|mut stack: Vec<BoxedNodeRef>, body_len: u32| -> BoxedNodeRef{ ${parseAndRenderCPP(data)} }`;
@@ -166,7 +166,7 @@ export function renderRustFunctionLUArray(grammar: HCG3Grammar): string {
 
     return `static reduce_functions : [ReduceFunction<TypeEnum>; ${grammar.reduce_functions.size + 1}] = [\n|mut data: Vec<BoxedNodeRef>, body_len: u32| -> BoxedNodeRef { data.remove(data.len() - 1) },\n${reduce_functions_str}]`;
 }
-export function createRustEnumList(grammar: HCG3Grammar) {
+export function createRustEnumList(grammar: GrammarObject) {
     const list_contents = grammar
         .compiled.structs
         .map(({ cardinal_name__ }) => `${cardinal_name__}(${cardinal_name__})`)

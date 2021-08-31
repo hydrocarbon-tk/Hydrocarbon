@@ -4,7 +4,7 @@
  * disclaimer notice.
  */
 import { getStartItemsFromProduction } from "../build/function_constructor.js";
-import { HCG3Grammar } from "../types/grammar_nodes.js";
+import { GrammarObject } from "../types/grammar_nodes.js";
 import { getGotoItems, Item, itemsToProductionIDs } from "./item.js";
 import { getProductionID } from "./production.js";
 import { Sym_Is_A_Production_Token } from "../grammar/nodes/symbol.js";
@@ -25,7 +25,7 @@ import { Sym_Is_A_Production_Token } from "../grammar/nodes/symbol.js";
  */
 export function getClosure(
     items: Item[],
-    grammar: HCG3Grammar,
+    grammar: GrammarObject,
     ENTER_TOKEN_PRODUCTIONS: boolean = false
 ): Item[] {
 
@@ -59,7 +59,7 @@ export function getClosure(
 export function getFollowClosure(
     closure: Item[],
     goto_transition_items: Item[],
-    grammar: HCG3Grammar,
+    grammar: GrammarObject,
     productions: Set<number> = new Set,
     internal$item_track: Set<string> = new Set,
     KEEP_END_ITEMS = false

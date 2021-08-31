@@ -1,8 +1,8 @@
-import { BlockData, IR_State } from './ir_types';
+import { BlockData, IR_State, Resolved_IR_State } from './ir_types';
 
 export interface IRStateData {
     string: string;
-    ir_state_ast: IR_State;
+    ir_state_ast: Resolved_IR_State;
     pointer: number;
     block_offset: number;
     block: BlockData;

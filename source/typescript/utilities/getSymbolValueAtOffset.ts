@@ -1,6 +1,6 @@
 import { Lexer } from "@candlelib/wind";
 import { getSkippableSymbolsFromItems, getUniqueSymbolName, Sym_Is_A_Generic_Type, Sym_Is_A_Production, Sym_Is_A_Production_Token, Sym_Is_Defined, Sym_Is_Empty, Sym_Is_Look_Behind, Sym_Is_Virtual_Token } from "../grammar/nodes/symbol.js";
-import { HCG3Grammar, TokenSymbol, VirtualTokenSymbol } from "../types/grammar_nodes";
+import { GrammarObject, TokenSymbol, VirtualTokenSymbol } from "../types/grammar_nodes";
 import { getClosure, getFollowClosure } from "./closure.js";
 import { Item } from "./item";
 import { getProductionClosure } from "./production.js";
@@ -41,7 +41,7 @@ function getCharType(id) {
 
 function getTKProdSymbolsFromClosure(
     closure: Item[],
-    grammar: HCG3Grammar,
+    grammar: GrammarObject,
     defined_buckets: TokenNode[],
     generic_buckets: TokenNode[],
     symbol: VirtualTokenSymbol,

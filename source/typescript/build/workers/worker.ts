@@ -3,7 +3,7 @@
  * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
  * disclaimer notice.
  */
-import { HCG3Grammar } from "source/typescript/types/grammar_nodes.js";
+import { GrammarObject } from "source/typescript/types/grammar_nodes.js";
 import { parentPort, workerData } from "worker_threads";
 import { HybridDispatch, HybridDispatchResponse } from "../../types/worker_messaging.js";
 import "../../utilities/array_globals.js";
@@ -18,7 +18,7 @@ import { constructTableParser } from '../table_constructor.js';
  * 
  * Returns nothing
  */
-export function filloutWorkerGrammar(grammar: HCG3Grammar) {
+export function filloutWorkerGrammar(grammar: GrammarObject) {
     for (const [key, val] of grammar.item_map.entries()) {
         val.item = Item.fromArray(val.item);
     }
@@ -26,7 +26,7 @@ export function filloutWorkerGrammar(grammar: HCG3Grammar) {
 
 export class Worker {
 
-    grammar: HCG3Grammar;
+    grammar: GrammarObject;
     id: number;
     pp: typeof parentPort;
 

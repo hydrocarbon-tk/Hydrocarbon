@@ -3,13 +3,11 @@
  * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
  * disclaimer notice.
  */
-import { getRootSym, Sym_Is_A_Production, Sym_Is_EOP } from "../grammar/nodes/symbol.js";
-import { HCG3Grammar, HCG3Production } from "../types/grammar_nodes.js";
+import { Sym_Is_A_Production } from "../grammar/nodes/symbol.js";
+import { GrammarObject, GrammarProduction } from "../types/grammar_nodes.js";
 import { RenderBodyOptions } from "../types/render_body_options";
-import { getFollow } from '../utilities/follow.js';
 import { Item } from "../utilities/item.js";
 import { getProductionClosure } from "../utilities/production.js";
-import { convert_sym_to_code } from './table_branch_resolution/create_symbol_clause.js';
 import { table_resolveBranches } from "./table_branch_resolution/table_branch_resolution.js";
 import { table_resolveGOTOBranches } from "./table_branch_resolution/table_goto_resolution.js";
 import { table_resolveResolvedLeaf } from "./table_branch_resolution/table_resolved_leaf_resolution.js";
@@ -18,7 +16,7 @@ import { processTransitionNodes } from "./transitions/process_transition_nodes.j
 import { yieldGOTOTransitions } from "./transitions/yield_goto_transitions.js";
 import { yieldTransitions } from "./transitions/yield_transitions.js";
 
-export function constructTableParser(production: HCG3Production, grammar: HCG3Grammar): {
+export function constructTableParser(production: GrammarProduction, grammar: GrammarObject): {
     tables: Map<string, string>;
     id: number;
 } {
@@ -50,8 +48,8 @@ export function constructTableParser(production: HCG3Production, grammar: HCG3Gr
 }
 
 export function compileProductionTables(
-    grammar: HCG3Grammar,
-    productions: HCG3Production[],
+    grammar: GrammarObject,
+    productions: GrammarProduction[],
     /** 
      * Only include transitions with the
      * with the matching symbols. Only applies
@@ -110,23 +108,12 @@ export function compileProductionTables(
             table_resolveUnresolvedLeaves,
             table_resolveResolvedLeaf
         );
-    const follow = getFollow(productions[0].id, grammar).filter(s => !Sym_Is_EOP(s))
-        .map(s => getRootSym(s, grammar))
-        .map(convert_sym_to_code)
-        .setFilter();
 
     let code = `
 state [${productions[0].name}]    
 
     goto state [${hash}] ${GOTO_Options.NO_GOTOS ? `` : `then goto state [${productions[0].name}_goto]`}
     `;
-
-    const scan_till_symbols =
-        //WIP: Construct failure state
-        code += `\non fail state[${productions[0].name}_recovery]
-    scan until [ ${follow.join(" ")} ] then set prod to ${productions[0].id}
-
-`;
 
 
     RDOptions.table.map.set(productions[0].name, code);
@@ -137,11 +124,11 @@ state [${productions[0].name}]
     return { RDOptions, GOTO_Options };
 }
 export function createBuildOptions(
-    grammar: HCG3Grammar,
+    grammar: GrammarObject,
     /**
      * The production currently being processed.
      */
-    productions: HCG3Production[],
+    productions: GrammarProduction[],
     IS_VIRTUAL: number = 0,
     scope: "RD" | "GOTO" = "RD",
     table: RenderBodyOptions["table"] = {
@@ -164,15 +151,15 @@ export function createBuildOptions(
     };
 }
 
-export function getGotoItemsFromProductionClosure(production: HCG3Production, grammar: HCG3Grammar): Item[] {
+export function getGotoItemsFromProductionClosure(production: GrammarProduction, grammar: GrammarObject): Item[] {
     return getProductionClosure(production.id, grammar).filter(i => !i.atEND && Sym_Is_A_Production(i.sym(grammar)));
 }
 
-export function getStartItemsFromProduction(production: HCG3Production): Item[] {
+export function getStartItemsFromProduction(production: GrammarProduction): Item[] {
     return production.bodies.map(b => new Item(b.id, b.length, 0));
 }
 
-export function getProductionItemsThatAreNotRightRecursive(productions: HCG3Production[], grammar: HCG3Grammar): Item[] {
+export function getProductionItemsThatAreNotRightRecursive(productions: GrammarProduction[], grammar: GrammarObject): Item[] {
     return productions.flatMap(p => getStartItemsFromProduction(p).filter(i => {
 
         const sym = i.sym(grammar);

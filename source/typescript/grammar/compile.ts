@@ -1,5 +1,5 @@
 import URI from "@candlelib/uri";
-import { HCG3Grammar, HCG3ProductionBody } from "../types/grammar_nodes";
+import { GrammarObject, HCG3ProductionBody } from "../types/grammar_nodes";
 import { HCGParser } from "../types/parser";
 import {
     buildSequenceString,
@@ -25,7 +25,7 @@ class GrammarCompilationReport extends Error {
     }
 }
 
-function deduplicateProductionBodies(grammar: HCG3Grammar, error: Error[]) {
+function deduplicateProductionBodies(grammar: GrammarObject, error: Error[]) {
 
     for (const production of grammar.productions) {
 
@@ -47,7 +47,7 @@ function deduplicateProductionBodies(grammar: HCG3Grammar, error: Error[]) {
     }
 }
 
-export async function compileGrammar(grammar: HCG3Grammar) {
+export async function compileGrammar(grammar: GrammarObject) {
 
     const errors: Error[] = [];
 

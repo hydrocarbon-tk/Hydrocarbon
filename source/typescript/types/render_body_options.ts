@@ -4,13 +4,13 @@
  * disclaimer notice.
  */
 import { Item } from "../utilities/item.js";
-import { HCG3Grammar, HCG3Production } from "./grammar_nodes.js";
+import { GrammarObject, GrammarProduction } from "./grammar_nodes.js";
 
 export interface BaseOptions {
     /**
      * Source grammar for the language
      */
-    grammar?: HCG3Grammar;
+    grammar?: GrammarObject;
 }
 
 export interface RenderBodyOptions extends BaseOptions {
@@ -20,7 +20,7 @@ export interface RenderBodyOptions extends BaseOptions {
     /**
      * Production currently being processed
      */
-    productions?: HCG3Production[];
+    productions?: GrammarProduction[];
 
     /**
      * Ids of all productions

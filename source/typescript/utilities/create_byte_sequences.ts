@@ -4,7 +4,7 @@
  * disclaimer notice.
  */
 import { Sym_Is_Defined, Sym_Is_Defined_Symbol } from "../grammar/nodes/symbol.js";
-import { DefinedSymbol, HCG3Grammar } from "../types/grammar_nodes.js";
+import { DefinedSymbol, GrammarObject } from "../types/grammar_nodes.js";
 
 
 /************ Grammar Production Functions *****************************/
@@ -13,7 +13,7 @@ import { DefinedSymbol, HCG3Grammar } from "../types/grammar_nodes.js";
  * Niave implementation ATM
  * @param grammar 
  */
-export function createSequenceData(grammar: HCG3Grammar, rounds = 2): string {
+export function createSequenceData(grammar: GrammarObject, rounds = 2): string {
 
     const symbols = [...grammar.meta.all_symbols.values()].filter(Sym_Is_Defined);
 

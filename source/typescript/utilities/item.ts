@@ -5,7 +5,7 @@
  */
 import { default_EOF } from "../grammar/nodes/default_symbols.js";
 import { convert_symbol_to_string, getRootSym, Sym_Is_A_Production } from "../grammar/nodes/symbol.js";
-import { HCG3Grammar, HCG3Production, HCG3ProductionBody, HCG3Symbol } from "../types/grammar_nodes.js";
+import { GrammarObject, GrammarProduction, HCG3ProductionBody, HCG3Symbol } from "../types/grammar_nodes.js";
 
 export const enum ItemIndex {
     body_id = 0,
@@ -73,15 +73,15 @@ export class Item extends Array {
         return this[ItemIndex.offset];
     }
 
-    body_(grammar: HCG3Grammar): HCG3ProductionBody {
+    body_(grammar: GrammarObject): HCG3ProductionBody {
         return grammar.bodies[this.body];
     }
 
-    sym(grammar: HCG3Grammar): HCG3Symbol {
+    sym(grammar: GrammarObject): HCG3Symbol {
         return this.body_(grammar).sym[this.offset] || default_EOF;
     }
 
-    render(grammar: HCG3Grammar): string {
+    render(grammar: GrammarObject): string {
 
         const a = this.body_(grammar).sym
             .map(sym => Sym_Is_A_Production(sym) ? { val: "\x1b[38;5;8m" + grammar.productions[sym.val].name.replace(/\$/, "::\x1b[38;5;153m") } : sym)
@@ -92,7 +92,7 @@ export class Item extends Array {
         return a.join(" ");
     }
 
-    renderUnformatted(grammar: HCG3Grammar): string {
+    renderUnformatted(grammar: GrammarObject): string {
 
         const a = this.body_(grammar).sym
             .map(sym => Sym_Is_A_Production(sym) ? Object.assign({}, sym, { val: grammar.productions[sym.val].name }) : sym)
@@ -105,7 +105,7 @@ export class Item extends Array {
         return a.join(" ");
     }
 
-    renderUnformattedWithProduction(grammar: HCG3Grammar): string {
+    renderUnformattedWithProduction(grammar: GrammarObject): string {
         //const all_items = [...grammar.item_map.values()].map(e => e.item).filter(i => !i.atEND && i.sym(grammar).type == "sym-production");
 
         //const closure = this.atEND ? getFollowClosure(getClosure([this], grammar, true), all_items, grammar) : getClosure([this], grammar, true);
@@ -116,11 +116,11 @@ export class Item extends Array {
     }
 
     //@ts-ignore
-    getProduction(grammar: HCG3Grammar): HCG3Production {
+    getProduction(grammar: GrammarObject): GrammarProduction {
         return this.body_(grammar).production;
     }
 
-    getProductionAtSymbol(grammar: HCG3Grammar): HCG3Production {
+    getProductionAtSymbol(grammar: GrammarObject): GrammarProduction {
         //@ts-ignore
         const prod = this.sym(grammar).val;
 
@@ -160,7 +160,7 @@ export class Item extends Array {
     }
 
 }
-export function getGotoItems(grammar: HCG3Grammar, active_productions: number[], items: Item[], out: Item[] = [], all = false) {
+export function getGotoItems(grammar: GrammarObject, active_productions: number[], items: Item[], out: Item[] = [], all = false) {
 
     const
         prod_id = new Set(active_productions),
@@ -187,11 +187,11 @@ export function getGotoItems(grammar: HCG3Grammar, active_productions: number[],
     return out;
 }
 
-export function itemsToProductionIDs(items: Item[], grammar: HCG3Grammar): number[] {
+export function itemsToProductionIDs(items: Item[], grammar: GrammarObject): number[] {
     return items.map(i => i.getProduction(grammar).id);
 }
 
-export function Items_Have_The_Same_Active_Symbol(items: Item[], grammar: HCG3Grammar) {
+export function Items_Have_The_Same_Active_Symbol(items: Item[], grammar: GrammarObject) {
     return items.every(
         i => !i.atEND
             &&

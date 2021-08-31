@@ -10,7 +10,7 @@ import {
     DefinedIdentifierSymbol,
     DefinedNumericSymbol,
     DefinedSymbol, EOFSymbol,
-    GeneratedSymbol, HCG3EmptySymbol, HCG3EOPSymbol, HCG3Grammar, HCG3LookBehind,
+    GeneratedSymbol, EmptySymbol, EOPSymbol, GrammarObject, LookBehindSymbol,
     ProductionSymbol,
     ProductionTokenSymbol,
     HCG3Symbol,
@@ -22,7 +22,7 @@ import {
 import { Item } from "../../utilities/item.js";
 
 
-export function getTrueSymbolValue(sym: TokenSymbol, grammar: HCG3Grammar): TokenSymbol[] {
+export function getTrueSymbolValue(sym: TokenSymbol, grammar: GrammarObject): TokenSymbol[] {
     return [<TokenSymbol>sym];
 }
 export function characterToUTF8(char: string) {
@@ -81,17 +81,17 @@ export function Sym_Is_Not_Consumed(s: HCG3Symbol): boolean {
     return !!s.IS_NON_CAPTURE || Sym_Is_Look_Behind(s);
 }
 
-export function Sym_Is_Look_Behind(s: HCG3Symbol): s is HCG3LookBehind {
+export function Sym_Is_Look_Behind(s: HCG3Symbol): s is LookBehindSymbol {
     return s.type == SymbolType.LOOK_BEHIND;
 }
 export function Sym_Is_EOF(s: HCG3Symbol): s is EOFSymbol {
     return s.type == SymbolType.END_OF_FILE || s.val == "END_OF_FILE";
 }
-export function Sym_Is_Empty(s: HCG3Symbol): s is HCG3EmptySymbol {
+export function Sym_Is_Empty(s: HCG3Symbol): s is EmptySymbol {
     return s.type == SymbolType.EMPTY;
 }
 
-export function Sym_Is_EOP(s: HCG3Symbol): s is HCG3EOPSymbol {
+export function Sym_Is_EOP(s: HCG3Symbol): s is EOPSymbol {
     return s.type == SymbolType.END_OF_PRODUCTION || s.val == "END_OF_PRODUCTION";
 }
 
@@ -199,14 +199,14 @@ export function Sym_Is_A_Generic_Number(sym: HCG3Symbol): sym is GeneratedSymbol
 
 export function Sym_Is_A_Space_Generic(sym: HCG3Symbol): sym is GeneratedSymbol { return sym.val == "ws"; }
 
-export function getFollowSymbolsFromItems(items: Item[], grammar: HCG3Grammar): TokenSymbol[] {
+export function getFollowSymbolsFromItems(items: Item[], grammar: GrammarObject): TokenSymbol[] {
     return items.filter(i => i.atEND)
         .flatMap(i => [...grammar.item_map.get(i.id).follow.values()])
         .setFilter()
         .map(sym => <TokenSymbol>grammar.meta.all_symbols.get(sym));
 }
 
-export function getTokenSymbolsFromItems(items: Item[], grammar: HCG3Grammar): TokenSymbol[] {
+export function getTokenSymbolsFromItems(items: Item[], grammar: GrammarObject): TokenSymbol[] {
     return items.filter(i => !i.atEND)
         .flatMap(i => getTrueSymbolValue(<TokenSymbol>i.sym(grammar), grammar))
 
@@ -214,7 +214,7 @@ export function getTokenSymbolsFromItems(items: Item[], grammar: HCG3Grammar): T
         .filter(sym => !Sym_Is_A_Production(sym));
 }
 
-export function getSkippableSymbolsFromItems(items: Item[], grammar: HCG3Grammar): TokenSymbol[] {
+export function getSkippableSymbolsFromItems(items: Item[], grammar: GrammarObject): TokenSymbol[] {
 
     return items.flatMap(i => [...grammar.item_map.get(i.id).skippable.values()])
         .group()
@@ -236,11 +236,11 @@ export function getComplementOfSymbolSets(setA: TokenSymbol[], setB: TokenSymbol
     });
 }
 
-export function getSymbolFromUniqueName(grammar: HCG3Grammar, name: string): HCG3Symbol {
+export function getSymbolFromUniqueName(grammar: GrammarObject, name: string): HCG3Symbol {
     return grammar.meta.all_symbols.get(name);
 }
 
-export function getRootSym<T = HCG3Symbol>(sym: T, grammar: HCG3Grammar): T {
+export function getRootSym<T = HCG3Symbol>(sym: T, grammar: GrammarObject): T {
     if ((<HCG3Symbol><any>sym).type == SymbolType.END_OF_FILE)
         return sym;
 
@@ -289,11 +289,11 @@ export function Symbols_Are_The_Same(a: HCG3Symbol, b: HCG3Symbol) {
     return getUniqueSymbolName(a) == getUniqueSymbolName(b);
 }
 
-export function getUnskippableSymbolsFromClosure(closure: Item[], grammar: HCG3Grammar): any {
+export function getUnskippableSymbolsFromClosure(closure: Item[], grammar: GrammarObject): any {
     return [...new Set(closure.flatMap(i => grammar.item_map.get(i.id).reset_sym)).values()].map(sym => grammar.meta.all_symbols.get(sym));
 }
 
-export function getSymbolsFromClosure(closure: Item[], grammar: HCG3Grammar): HCG3Symbol[] {
+export function getSymbolsFromClosure(closure: Item[], grammar: GrammarObject): HCG3Symbol[] {
     return [
         ...new Set(
             closure
@@ -304,6 +304,6 @@ export function getSymbolsFromClosure(closure: Item[], grammar: HCG3Grammar): HC
     ];
 }
 
-export function SymbolsCollide(symA: HCG3Symbol, symB: HCG3Symbol, grammar: HCG3Grammar): boolean {
+export function SymbolsCollide(symA: HCG3Symbol, symB: HCG3Symbol, grammar: GrammarObject): boolean {
     return grammar.collision_matrix[symA.id][symB.id];
 };

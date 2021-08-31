@@ -1,13 +1,20 @@
 @IGNORE g:sp
 
-<> S > A \r
+@IMPORT ./failure_recovery_lib.hcg as flib
 
-#<[S_recovery] 
-#
-#    scan until [ \r ] then pass
-#>
+<> S > A \r
+            f:r { { sym: $1  } }
+
+<[recover A] 
+
+    scan until [ \r ] then reduce 
+            f:r { { type:"failed A", pos, sym } }
+>
+
+
 
 <> A > \a \b \c
+            f:r { { type: "good A", a:$1, b:$2, c:$3  } }
 
 
 #<> ASI > \;

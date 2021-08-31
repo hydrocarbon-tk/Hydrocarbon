@@ -6,8 +6,6 @@
 
 @IMPORT ./production_bodies.hcg as pb
 
-@IMPORT ../misc/default-productions.hcg as def
-
 @IGNORE g:sp g:nl
 
 #######################################################################################################################

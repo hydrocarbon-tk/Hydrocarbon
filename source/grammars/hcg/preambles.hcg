@@ -51,7 +51,7 @@
 
 <> ignore_preamble >         \@IGNORE sym::ignore_symbols g:nl                
                                                                         
-                                                                        f:r { { type:"ignore", symbols : $3 } }
+                                                                        f:r { { type:"ignore", symbols : $2 } }
 
 
 <> import_preamble >         \@IMPORT g:sp(*) ( g:id | g:sym  )(+\" ) g:sp(+) ( t:AS | t:as ) sym::identifier g:nl  

@@ -1,7 +1,7 @@
 import { experimentalConstructRenderers } from "@candlelib/conflagrate";
 import { render_mappings } from "@candlelib/js";
 import { CompilableStruct, CompilableTypes } from "../types/compilable_nodes";
-import { HCG3Grammar } from "../types/grammar_nodes";
+import { GrammarObject } from "../types/grammar_nodes";
 
 export const duplicate = Object.assign({}, render_mappings);
 duplicate.mappings = render_mappings.mappings.slice();
@@ -54,7 +54,7 @@ duplicate.type_lookup = (node, name) => lu_table.get(node.type) || -1;
 export const renderers = experimentalConstructRenderers(duplicate);
 
 
-function buildCompilableStructs(processed_structs: CompilableStruct[], grammar: HCG3Grammar):
+function buildCompilableStructs(processed_structs: CompilableStruct[], grammar: GrammarObject):
     string[] {
 
     const cpp_classes = [];

@@ -1,20 +1,20 @@
 import spark from "@candlelib/spark";
 import { WorkerRunner } from "../build/workers/worker_runner.js";
+import parser_loader from "../grammar/hcg_parser.js";
 import { getProductionByName } from '../grammar/nodes/common.js';
 import { getRootSym, Sym_Is_A_Token } from '../grammar/nodes/symbol.js';
 import { fail_state_mask } from '../runtime/kernel.js';
-import { BlockData, IR_Instruction, InstructionType, IR_State } from '../types/ir_types';
-import { HCG3Grammar, HCG3Symbol } from "../types/grammar_nodes";
-import { StateAttrib, IRStateData, StateMap } from '../types/ir_state_data';
+import { GrammarObject, ProductionImportSymbol, ProductionSymbol, TokenSymbol } from "../types/grammar_nodes";
+import { IRStateData, StateAttrib, StateMap } from '../types/ir_state_data';
+import { BlockData, InstructionType, IR_Instruction, ResolvedIRBranch, Resolved_IR_State } from '../types/ir_types';
 import { RDProductionFunction } from "../types/rd_production_function.js";
 import { getSymbolMapFromIds } from '../utilities/code_generating.js';
 import { compileRecognizerConstructs } from './compileRecognizerConstructs.js';
-import parser_loader from "./state_ir.js";
 
-const intermediate_representation_parser = await parser_loader;
+const ir_parser = await parser_loader;
 
 export async function buildRecognizer(
-    grammar: HCG3Grammar,
+    grammar: GrammarObject,
     number_of_workers: number = 1
 ): Promise<{
     recognizer_functions: RDProductionFunction[];
@@ -32,49 +32,29 @@ export async function buildRecognizer(
 
     //convert states to code
 
-    for (const ir_state_string of ir_states) {
+    for (const ir_state_ast of <Resolved_IR_State[]>[
+        ...ir_states.map(
+            str => ir_parser(str, {}, ir_parser.ir_state)
+                .result[0]
+        ),
+        ...grammar.ir_states
+    ])
+        insertIrStateBlock(ir_state_ast, grammar, states_map);
 
-        //console.log(state_string);
+    // Map recovery states to state of their target production ---------------------
+    for (const [id, state] of states_map) {
 
-        const ir_state_ast = intermediate_representation_parser(ir_state_string, {}).result[0];
+        if (id.slice(0, 4) == "%%%%") {
 
-        ir_state_ast.__source__ = ir_state_string;
+            const target_production = id.slice(4);
 
-        const IS_PRODUCTION_ENTRY = getProductionByName(grammar, ir_state_ast.id) != null;
+            if (states_map.has(target_production)) {
+                //@ts-ignore
+                states_map.get(target_production).ir_state_ast.fail = state.ir_state_ast;
 
-        states_map.set(ir_state_ast.id, {
-            reference_count: 0,
-            block_offset: 0,
-            pointer: -1,
-            attributes: IS_PRODUCTION_ENTRY ? StateAttrib.PRODUCTION_ENTRY : 0,
-            string: ir_state_string,
-            ir_state_ast: ir_state_ast,
-            block: null,
-        });
-
-        //Extract and create failed states
-        if (ir_state_ast.fail) {
-
-            let fail = ir_state_ast.fail;
-
-            while (fail) {
-
-                const fail_state = ir_state_ast.fail;
-
-                states_map.set(fail_state.id, {
-                    reference_count: 1,
-                    block_offset: 0,
-                    pointer: 0,
-                    attributes: StateAttrib.FAIL_STATE,
-                    string: "[FAILURE HANDLER]\n\n" + ir_state_string.slice(ir_state_string.indexOf("on fail ") + ("on fail ".length)),
-                    ir_state_ast: fail_state,
-                    block: null,
-                });
-
-                fail = fail_state.fail;
+                state.attributes |= StateAttrib.FAIL_STATE;
             }
         }
-
 
     }
 
@@ -112,7 +92,35 @@ export async function buildRecognizer(
 
 }
 
+
 const numeric_sort = (a: number, b: number): number => a - b;
+
+function insertIrStateBlock(
+    ir_state_ast: Resolved_IR_State,
+    grammar: GrammarObject,
+    states_map: StateMap,
+    state_attributes: StateAttrib = 0
+) {
+    const id = ir_state_ast.id;
+
+    const IS_PRODUCTION_ENTRY = getProductionByName(grammar, id) != null;
+
+    states_map.set(id, {
+        reference_count: 0,
+        block_offset: 0,
+        pointer: -1,
+        attributes: (IS_PRODUCTION_ENTRY ? StateAttrib.PRODUCTION_ENTRY : 0) | state_attributes,
+        string: ((StateAttrib.FAIL_STATE & state_attributes) ? "[FAILURE HANDLER]\n\n" : "") + ir_state_ast.pos.slice(),
+        ir_state_ast: ir_state_ast,
+        block: null,
+    });
+
+    console.log(id, ((StateAttrib.FAIL_STATE & state_attributes) ? "[FAILURE HANDLER]\n\n" : "") + ir_state_ast.pos.slice());
+
+    if (ir_state_ast.fail)
+        insertIrStateBlock(ir_state_ast.fail, grammar, states_map, StateAttrib.FAIL_STATE);
+}
+
 function convertBlockDataToBufferData(block_info: BlockData, state_map: StateMap): number[] {
     const buffer = [];
 
@@ -222,20 +230,14 @@ function convertBlockDataToBufferData(block_info: BlockData, state_map: StateMap
 
                 case InstructionType.reduce: {
 
-                    let low = 0;
-                    let high = 0;
-
                     let sym_len = +data[++i];
+
                     let reduce_fn_id = +data[++i];
 
-                    if (reduce_fn_id > 0xFF || sym_len > 0x1F) {
-                        low = 4 | (reduce_fn_id << 3);
-                        high = sym_len;
-                    } else {
-                        low = ((sym_len & 0x1F) << 3) | ((reduce_fn_id & 0xFF) << 8);
-                    };
+                    if (sym_len == 0x90FA0102)
+                        sym_len = 0xFFFF;
 
-                    temp_buffer.push(8 << 28 | high << 16 | low);
+                    temp_buffer.push(8 << 28 | reduce_fn_id << 16 | sym_len & 0xFFFF);
 
                 } break;
 
@@ -270,7 +272,7 @@ function convertBlockDataToBufferData(block_info: BlockData, state_map: StateMap
 
 
 
-function createInstructionSequence(active_instructions: IR_Instruction[], grammar: HCG3Grammar): { byte_length: number, byte_sequence: any; } {
+function createInstructionSequence(active_instructions: IR_Instruction[], grammar: GrammarObject): { byte_length: number, byte_sequence: any; } {
 
     const byte_sequence = [];
 
@@ -317,8 +319,8 @@ function createInstructionSequence(active_instructions: IR_Instruction[], gramma
                 break;
 
             case InstructionType.scan_until:
-                byte_length += 4 + 4 * instr.token_ids.length;
-                byte_sequence.push(InstructionType.scan_until, instr.token_ids.length, ...convertTokenIDsToSymbolIds(instr.token_ids, grammar));
+                byte_length += 4 + 4 * instr.ids.length;
+                byte_sequence.push(InstructionType.scan_until, instr.ids.length, ...convertTokenIDsToSymbolIds(instr.ids, grammar));
                 break;
 
             case InstructionType.pop:
@@ -345,7 +347,16 @@ function createInstructionSequence(active_instructions: IR_Instruction[], gramma
     return { byte_length, byte_sequence };
 }
 
-function statesOutputsInitialPass(StateMap: StateMap, grammar: HCG3Grammar) {
+function getStateName(
+    name_candidate: ProductionSymbol | ProductionImportSymbol | string
+): string {
+    if (typeof name_candidate == "string")
+        return name_candidate;
+
+    return name_candidate.name;
+}
+
+function statesOutputsInitialPass(StateMap: StateMap, grammar: GrammarObject) {
 
 
     for (const [state_name, state_data] of StateMap) {
@@ -363,15 +374,19 @@ function statesOutputsInitialPass(StateMap: StateMap, grammar: HCG3Grammar) {
 
                     attributes |= StateAttrib.HAS_GOTOS;
 
-                    const state = instruction.state;
+                    const state = getStateName(instruction.state);
 
                     StateMap.get(state).reference_count++;
 
                 } break;
 
                 case InstructionType.fork_to: {
-                    for (const state of instruction.states)
-                        StateMap.get(state).reference_count++;
+                    for (const state of instruction.states) {
+
+                        StateMap
+                            .get(getStateName(state))
+                            .reference_count++;
+                    }
                 } break;
 
                 case InstructionType.prod:
@@ -428,12 +443,12 @@ function statesOutputsInitialPass(StateMap: StateMap, grammar: HCG3Grammar) {
     }
 }
 
-function convertTokenIDsToSymbolIds(ids: (number | HCG3Symbol)[], grammar: HCG3Grammar): (string | number)[] {
+function convertTokenIDsToSymbolIds(ids: (number | string | TokenSymbol | ProductionSymbol)[], grammar: GrammarObject): (string | number)[] {
     let out_ids = [];
 
     for (const id of ids) {
 
-        if (typeof id == "number")
+        if (typeof id == "number" || typeof id == "string")
 
             out_ids.push(id);
 
@@ -450,7 +465,30 @@ function convertTokenIDsToSymbolIds(ids: (number | HCG3Symbol)[], grammar: HCG3G
     return out_ids;
 }
 
-function extractTokenSymbols(state_data: IRStateData, grammar: HCG3Grammar) {
+function processInstructionTokens(
+    instructions: IR_Instruction[],
+    expected_symbols: number[],
+    grammar: GrammarObject
+) {
+    for (const instruction of instructions) {
+        switch (instruction.type) {
+            case InstructionType.assert:
+            case InstructionType.consume:
+            case InstructionType.no_consume:
+            case InstructionType.peek:
+                //@ts-ignore
+                expected_symbols.push(...convertTokenIDsToSymbolIds(instruction.ids, grammar));
+                processInstructionTokens(instruction.instructions, expected_symbols, grammar);
+                break;
+            case InstructionType.scan_until:
+                //@ts-ignore
+                expected_symbols.push(...convertTokenIDsToSymbolIds(instruction.ids, grammar));
+                break;
+
+        }
+    }
+}
+function extractTokenSymbols(state_data: IRStateData, grammar: GrammarObject) {
 
     const expected_symbols = [];
     const skipped_symbols = [];
@@ -471,31 +509,7 @@ function extractTokenSymbols(state_data: IRStateData, grammar: HCG3Grammar) {
     state_data.skipped_tokens = skipped_symbols;
 }
 
-function processInstructionTokens(
-    instructions: IR_Instruction[],
-    expected_symbols: number[],
-    grammar: HCG3Grammar
-) {
-    for (const instruction of instructions) {
-        switch (instruction.type) {
-            case InstructionType.assert:
-            case InstructionType.consume:
-            case InstructionType.no_consume:
-            case InstructionType.peek:
-                //@ts-ignore
-                expected_symbols.push(...convertTokenIDsToSymbolIds(instruction.ids, grammar));
-                processInstructionTokens(instruction.instructions, expected_symbols, grammar);
-                break;
-            case InstructionType.scan_until:
-                //@ts-ignore
-                expected_symbols.push(...convertTokenIDsToSymbolIds(instruction.token_ids, grammar));
-                break;
-
-        }
-    }
-}
-
-function statesOutputsOptimizationPass(StateMap: StateMap, grammar: HCG3Grammar, StateMap_: StateMap): boolean {
+function statesOutputsOptimizationPass(StateMap: StateMap, grammar: GrammarObject, StateMap_: StateMap): boolean {
 
     let MUTATION_OCCURRED = false;
 
@@ -512,6 +526,9 @@ function statesOutputsOptimizationPass(StateMap: StateMap, grammar: HCG3Grammar,
             ||
             attributes & StateAttrib.CONSUME_BRANCH)
         ) {
+
+            const state_name = getStateName(instructions[0].instructions[0].state);
+
             if (
                 !(attributes & StateAttrib.MULTI_BRANCH)
                 &&
@@ -519,10 +536,10 @@ function statesOutputsOptimizationPass(StateMap: StateMap, grammar: HCG3Grammar,
                 &&
                 instructions[0].instructions[0].type == InstructionType.goto
                 &&
-                (StateMap.get(instructions[0].instructions[0].state).attributes & StateAttrib.PRODUCTION_ENTRY)
+                (StateMap.get(state_name).attributes & StateAttrib.PRODUCTION_ENTRY)
             ) {
                 //Replace the state with contents of the production state
-                const prod_state = StateMap.get(instructions[0].instructions[0].state);
+                const prod_state = StateMap.get(state_name);
 
                 //console.log("woopah", instructions[0].instructions[0].state);
                 //console.log(string);
@@ -531,10 +548,17 @@ function statesOutputsOptimizationPass(StateMap: StateMap, grammar: HCG3Grammar,
                 state_data.attributes = prod_state.attributes ^ StateAttrib.PRODUCTION_ENTRY;
                 // Flatten the state since the assert is now superfluous.
                 // The production state will make the same assertion
+
                 state_ast.instructions = state_ast.instructions[0].instructions;
+
+
                 state_ast.instructions.splice(0, 1, ...prod_state.ir_state_ast.instructions);
-                prod_state.ir_state_ast.instructions.forEach(({ type, state }) => {
-                    if (type == InstructionType.goto) {
+
+                prod_state.ir_state_ast.instructions.forEach((instr) => {
+                    if (instr.type == InstructionType.goto) {
+
+                        const state = getStateName(instr.state);
+
                         StateMap.get(state).reference_count++;
                     }
                 });
@@ -555,7 +579,10 @@ function statesOutputsOptimizationPass(StateMap: StateMap, grammar: HCG3Grammar,
                     instruction.instructions[0].type == InstructionType.goto
                 ) {
                     //Reduce asserts with consumes form single branch productions
-                    const goto_state = StateMap.get(instruction.instructions[0].state);
+
+                    const state = getStateName(instruction.instructions[0].state);
+
+                    const goto_state = StateMap.get(state);
 
                     const { ir_state_ast: state_ast, attributes, string: goto_string } = goto_state;
 
@@ -568,11 +595,8 @@ function statesOutputsOptimizationPass(StateMap: StateMap, grammar: HCG3Grammar,
                         instruction.type = InstructionType.consume;
 
                         instruction.instructions.splice(0, 1, ...state_ast.instructions[0].instructions);
-                        state_ast.instructions[0].instructions.forEach(({ type, state }) => {
-                            if (type == InstructionType.goto) {
-                                StateMap.get(state).reference_count++;
-                            }
-                        });
+
+                        incrementGotoReferenceCounts(state_ast.instructions[0].instructions, grammar, StateMap);
 
                         decreaseReference(goto_state, to_remove);
 
@@ -603,7 +627,8 @@ function statesOutputsOptimizationPass(StateMap: StateMap, grammar: HCG3Grammar,
                             instruction.type == InstructionType.goto
                         ) {
                             //Reduce asserts with consumes form single branch productions
-                            const goto_state = StateMap.get(instruction.state);
+
+                            const goto_state = StateMap.get(getStateName(instruction.state));
 
                             const { ir_state_ast: state_ast, attributes, string: goto_string } = goto_state;
 
@@ -635,11 +660,8 @@ function statesOutputsOptimizationPass(StateMap: StateMap, grammar: HCG3Grammar,
                                 )
                             ) {
                                 instructions.splice(j, 1, ...state_ast.instructions);
-                                state_ast.instructions.forEach(({ type, state }) => {
-                                    if (type == InstructionType.goto) {
-                                        StateMap.get(state).reference_count++;
-                                    }
-                                });
+
+                                incrementGotoReferenceCounts(state_ast.instructions, grammar, StateMap);
 
                                 decreaseReference(goto_state, to_remove);
 
@@ -656,7 +678,8 @@ function statesOutputsOptimizationPass(StateMap: StateMap, grammar: HCG3Grammar,
                     instruction.type == InstructionType.goto
                 ) {
                     //Reduce asserts with consumes form single branch productions
-                    const goto_state = StateMap.get(instruction.state);
+
+                    const goto_state = StateMap.get(getStateName(instruction.state));
 
                     const { ir_state_ast: state_ast, attributes, string: goto_string } = goto_state;
 
@@ -688,12 +711,7 @@ function statesOutputsOptimizationPass(StateMap: StateMap, grammar: HCG3Grammar,
 
                         instructions.splice(i, 1, ...state_ast.instructions);
 
-                        state_ast.instructions.forEach(({ type, state }) => {
-                            if (type == InstructionType.goto) {
-                                StateMap.get(state).reference_count++;
-                            }
-                        });
-
+                        incrementGotoReferenceCounts(state_ast.instructions, grammar, StateMap);
 
                         decreaseReference(goto_state, to_remove);
 
@@ -713,6 +731,17 @@ function statesOutputsOptimizationPass(StateMap: StateMap, grammar: HCG3Grammar,
     return MUTATION_OCCURRED;
 }
 
+function incrementGotoReferenceCounts(instructions: IR_Instruction[], grammar: GrammarObject, StateMap: StateMap) {
+    instructions.forEach((instr) => {
+        if (instr.type == InstructionType.goto) {
+
+            const state = getStateName(instr.state);
+
+            StateMap.get(state).reference_count++;
+        }
+    });
+}
+
 function decreaseReference(goto_state: IRStateData, to_remove: string[]) {
 
     goto_state.reference_count--;
@@ -722,11 +751,11 @@ function decreaseReference(goto_state: IRStateData, to_remove: string[]) {
         &&
         !(goto_state.attributes & StateAttrib.PRODUCTION_ENTRY)
     ) {
-        to_remove.push(goto_state.ir_state_ast.id);
+        to_remove.push(getStateName(goto_state.ir_state_ast.id));
     }
 }
 
-function statesOutputsBuildPass(StateMap: StateMap, grammar: HCG3Grammar, sym_map: Map<string, number> = new Map(),) {
+function statesOutputsBuildPass(StateMap: StateMap, grammar: GrammarObject, sym_map: Map<string, number> = new Map(),) {
 
     let total_instruction_byte_size = 0;
 
@@ -853,16 +882,16 @@ function get32AlignedOffset(request_size: number) {
 }
 
 function buildBranchTableBlock(
-    state_ast: IR_State,
+    state_ast: Resolved_IR_State,
     attributes: StateAttrib,
     tok_id = 0,
     skip_id = 0,
     input_type: BlockData["table_header"]["input_type"] = "production",
     lexer_type: BlockData["table_header"]["lexer_type"] = "assert",
-    grammar: HCG3Grammar
+    grammar: GrammarObject
 ): BlockData {
 
-    const instructions = state_ast.instructions;
+    const instructions = state_ast.instructions as ResolvedIRBranch[];
 
     const default_instruction = instructions.filter(i => i.ids.some(i => i == 9999))[0];
 
@@ -948,7 +977,7 @@ function buildBranchTableBlock(
 function addAdditionalInstructions(
     type: InstructionType,
     ids: number[],
-    grammar: HCG3Grammar,
+    grammar: GrammarObject,
     instr: { byte_length: number; byte_sequence: any; }
 ) {
     if (type == InstructionType.consume) {
@@ -961,16 +990,16 @@ function addAdditionalInstructions(
 }
 
 function buildScanningBranchBlock(
-    state_ast: IR_State,
+    state_ast: Resolved_IR_State,
     attributes: StateAttrib,
     tok_id = 0,
     skip_id = 0,
     input_type: BlockData["table_header"]["input_type"] = "production",
     lexer_type: BlockData["table_header"]["lexer_type"] = "assert",
-    grammar: HCG3Grammar
+    grammar: GrammarObject
 ): BlockData {
 
-    const instructions = state_ast.instructions;
+    const instructions = state_ast.instructions as ResolvedIRBranch[];
 
     const default_instruction = instructions.filter(i => i.ids.some(i => i == 9999))[0];
     const standard_instructions = instructions.filter(i => !i.ids.some(i => i == 9999));
@@ -1053,7 +1082,7 @@ function buildScanningBranchBlock(
 }
 
 
-function getPeekConsumptionFlags(attributes: StateAttrib, state_ast: IR_State) {
+function getPeekConsumptionFlags(attributes: StateAttrib, state_ast: Resolved_IR_State) {
     const use_peek_for_assert_or_consume = (!(attributes & (StateAttrib.MULTI_BRANCH)))
         &&
         !(attributes & (StateAttrib.PEEK_BRANCH))
@@ -1070,7 +1099,7 @@ function getPeekConsumptionFlags(attributes: StateAttrib, state_ast: IR_State) {
     return { use_peek_for_assert_or_consume, consume_peek };
 }
 
-function buildBasicInstructionBlock(state_ast: IR_State, tok_id = 0, skip_id = 0, grammar: HCG3Grammar): BlockData {
+function buildBasicInstructionBlock(state_ast: Resolved_IR_State, tok_id = 0, skip_id = 0, grammar: GrammarObject): BlockData {
 
     const increment_stack_pointer_for_failure = !!state_ast.fail;
 
@@ -1097,7 +1126,7 @@ function buildBasicInstructionBlock(state_ast: IR_State, tok_id = 0, skip_id = 0
         token_table_row: tok_id,
         row_size_or_instruction_field_size: instruction_byte_size / 4,
         token_basis: 0,
-        failure_state_data: state_ast.fail ? state_ast.fail.id : "",
+        failure_state_data: state_ast.fail ? getStateName(state_ast.fail.id) : "",
         state_type: "basic",
         input_type: "token",
         lexer_type: "assert"

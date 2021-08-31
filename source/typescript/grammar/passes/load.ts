@@ -1,6 +1,6 @@
 import URI from "@candlelib/uri";
-import { HCG3Function, HCG3Grammar } from "../../types/grammar_nodes";
-import loader from "../grammar_parser.js";
+import { ProductionFunction, GrammarObject } from "../../types/grammar_nodes";
+import loader from "../hcg_parser.js";
 import { default_map } from "../../utilities/default_map.js";
 import { HCGParser } from "../../types/parser";
 
@@ -13,7 +13,7 @@ import { HCGParser } from "../../types/parser";
 await URI.server();
 
 const parser = await loader;
-export function loadGrammarFromString(str: string, grammar_parser: HCGParser = parser): HCG3Grammar {
+export function loadGrammarFromString(str: string, grammar_parser: HCGParser = parser): GrammarObject {
 
     const grammar = grammar_parser(str, { group_id: 0 }).result[0];
 
@@ -25,15 +25,17 @@ export function loadGrammarFromString(str: string, grammar_parser: HCGParser = p
  * Entry point to loading a grammar file from a URI
  */
 
-export async function loadGrammarFromFile(uri: URI | string, grammar_parser: HCGParser = parser): Promise<HCG3Grammar> {
+export async function loadGrammarFromFile(uri: URI | string, grammar_parser: HCGParser = parser): Promise<GrammarObject> {
 
     const uri_string = uri + "";
 
     const internal_uri = new URI(uri_string);
 
-    const existing_grammars: Map<string, HCG3Grammar> = new Map;
+    const existing_grammars: Map<string, GrammarObject> = new Map;
 
     const grammar = await loadGrammar(internal_uri, grammar_parser, existing_grammars);
+
+    console.log(grammar);
 
     existing_grammars.set("root", grammar);
 
@@ -70,7 +72,7 @@ export async function loadGrammarFromFile(uri: URI | string, grammar_parser: HCG
 }
 ;
 
-async function loadGrammar(uri: URI, grammar_parser: any = parser, existing_grammars: Map<string, HCG3Grammar>): Promise<HCG3Grammar> {
+async function loadGrammar(uri: URI, grammar_parser: any = parser, existing_grammars: Map<string, GrammarObject>): Promise<GrammarObject> {
 
     uri = getResolvedURI(uri);
 
@@ -118,7 +120,7 @@ async function loadGrammar(uri: URI, grammar_parser: any = parser, existing_gram
 
     return grammar;
 }
-function resolveReferencedFunctions(grammar: HCG3Grammar) {
+function resolveReferencedFunctions(grammar: GrammarObject) {
     const fn_lu = grammar.functions.reduce((r, v) => (r.set(v.id, v), r), new Map);
 
     for (const production of grammar.productions) {
@@ -131,7 +133,7 @@ function resolveReferencedFunctions(grammar: HCG3Grammar) {
                 body.reduce_function.ref
                 &&
                 fn_lu.has(body.reduce_function.ref)) {
-                body.reduce_function = <HCG3Function>{
+                body.reduce_function = <ProductionFunction>{
                     js: "",
                     txt: fn_lu.get(body.reduce_function.ref).txt,
                     type: "RETURNED",

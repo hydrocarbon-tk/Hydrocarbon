@@ -3,14 +3,14 @@
  * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
  * disclaimer notice.
  */
-import { HCG3Grammar } from "source/typescript/types/grammar_nodes.js";
+import { GrammarObject } from "source/typescript/types/grammar_nodes.js";
 import { Worker } from "worker_threads";
 import { RDProductionFunction } from "../../types/rd_production_function.js";
 import { WorkerContainer } from "../../types/worker_container";
 import { HybridDispatch, HybridDispatchResponse, HybridJobType } from "../../types/worker_messaging.js";
 import { LocalWorker } from "./local_worker.js";
 export class WorkerRunner {
-    grammar: HCG3Grammar;
+    grammar: GrammarObject;
     RUN: boolean;
     module_url: string;
     number_of_workers: number;
@@ -22,7 +22,7 @@ export class WorkerRunner {
     tables: Map<string, string>;
 
     constructor(
-        grammar: HCG3Grammar,
+        grammar: GrammarObject,
         number_of_workers = 2
     ) {
         let id = 0;

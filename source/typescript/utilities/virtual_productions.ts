@@ -3,7 +3,7 @@
  * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
  * disclaimer notice.
  */
-import { HCG3Production, HCG3ProductionBody, HCG3VirtualProduction } from "../types/grammar_nodes";
+import { GrammarProduction, HCG3ProductionBody, VirtualProductionNode } from "../types/grammar_nodes";
 import { getSymbolsFromClosure, getUniqueSymbolName, Sym_Is_A_Token } from "../grammar/nodes/symbol.js";
 import { buildItemMaps, getItemMapEntry } from "../grammar/passes/item_map.js";
 import { RenderBodyOptions } from "../types/render_body_options.js";
@@ -13,7 +13,7 @@ function remapBodyModifiers(map: any[], item: Item): any[] {
     return map
         .filter((v, i) => i >= item.offset);
 }
-export type VirtualProductionLinks = Map<string, { p: HCG3Production; i: number; }>;
+export type VirtualProductionLinks = Map<string, { p: GrammarProduction; i: number; }>;
 export function createVirtualProductions(items: Item[], options: RenderBodyOptions): {
     V_PRODS_ALREADY_EXIST: boolean;
     links: VirtualProductionLinks;
@@ -58,7 +58,7 @@ export function createVirtualProductions(items: Item[], options: RenderBodyOptio
                     production: null,
                 },
 
-                production = <HCG3VirtualProduction>{
+                production = <VirtualProductionNode>{
                     id: grammar.productions.length,
                     name: `virtual-${item.id}-lvl:${options.VIRTUAL_LEVEL}`,
                     type: "virtual-production",

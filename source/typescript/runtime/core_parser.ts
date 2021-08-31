@@ -104,7 +104,7 @@ export class ParserStateIterator {
     private current: ParserState;
     private refs: ParserState[];
     private index: number;
-    private limit: number;
+    private final_index: number;
     private valid: boolean;
 
     constructor(state: ParserState) {
@@ -122,7 +122,7 @@ export class ParserStateIterator {
         let last = this.refs.pop();
 
         this.current = last;
-        this.limit = this.refs.length > 0 ? this.refs[this.refs.length - 1].origin_fork : last.get_rules_len();
+        this.final_index = this.refs.length > 0 ? this.refs[this.refs.length - 1].origin_fork : last.get_rules_len() - 1;
         this.index = 0;
         this.valid = true;
     }
@@ -132,11 +132,11 @@ export class ParserStateIterator {
     }
 
     next(): number {
-        if (this.index >= this.limit) {
+        if (this.index > this.final_index) {
             if (this.refs.length > 0) {
                 let last = this.refs.pop();
                 this.index = 0;
-                this.limit = this.refs.length > 0 ? this.refs[this.refs.length - 1].origin_fork : last.get_rules_len();
+                this.final_index = this.refs.length > 0 ? this.refs[this.refs.length - 1].origin_fork : last.get_rules_len() - 1;
                 this.current = last;
             }
             else {

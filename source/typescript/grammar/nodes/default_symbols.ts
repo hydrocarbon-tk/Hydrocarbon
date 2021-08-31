@@ -5,7 +5,7 @@ import {
     GeneratedNewLine,
     GeneratedNumber,
     GeneratedSpace,
-    GeneratedSymbol, HCG3EOPSymbol, SymbolType
+    GeneratedSymbol, EOPSymbol, SymbolType
 } from "../../types/grammar_nodes";
 
 /**
@@ -13,7 +13,7 @@ import {
  */
 
 export const
-    default_EOP: HCG3EOPSymbol = {
+    default_EOP: EOPSymbol = {
         type: SymbolType.END_OF_PRODUCTION,
         val: "END_OF_PRODUCTION",
         id: TokenTypes.END_OF_FILE,

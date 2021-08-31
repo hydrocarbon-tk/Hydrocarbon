@@ -8,7 +8,7 @@ import { Token } from "../runtime/token";
 import { ParserEnvironment } from "./parser_environment";
 
 export type HCGParser<T = any, R = any> = {
-    (input: string, env: any): {
+    (input: string, env: any, production_selector: number): {
         result: T[];
     };
 } & R;

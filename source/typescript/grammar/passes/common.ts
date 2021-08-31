@@ -3,11 +3,11 @@ import { copy, experimentalConstructRenderers, experimentalRender, traverse } fr
 import { TokenTypes } from "../../runtime/TokenTypes";
 import { token_lu_bit_size } from "../../utilities/code_generating.js";
 import {
-    HCG3Grammar,
-    HCG3Production,
-    HCG3ProductionBody, HCG3ProductionSymbol,
-    HCG3ProductionTokenSymbol,
-    HCG3Symbol, HCG3SymbolNode
+    GrammarObject,
+    GrammarProduction,
+    HCG3ProductionBody, ProductionSymbol,
+    ProductionTokenSymbol,
+    HCG3Symbol, SymbolNode
 } from "../../types/grammar_nodes";
 import { createSequenceData } from "../../utilities/create_byte_sequences.js";
 import { getSymbolTreeLeaves, getSymbolTree } from "../../utilities/getSymbolValueAtOffset.js";
@@ -18,7 +18,8 @@ import {
 } from "../nodes/common.js";
 import { default_array } from "../nodes/default_symbols.js";
 import { hcg3_mappings } from "../nodes/mappings.js";
-import { getUniqueSymbolName, Sym_Is_A_Production, Sym_Is_A_Production_Token, Sym_Is_Defined, Sym_Is_EOF, Sym_Is_EOP, Sym_Is_Exclusive, Sym_Is_Look_Behind } from "../nodes/symbol.js";
+import { getUniqueSymbolName, Sym_Is_A_Production, Sym_Is_A_Production_Token, Sym_Is_A_Token, Sym_Is_Defined, Sym_Is_EOF, Sym_Is_EOP, Sym_Is_Exclusive, Sym_Is_Look_Behind } from "../nodes/symbol.js";
+import { InstructionType, IR_Instruction, IR_State } from '../../types/ir_types';
 let renderers = null;
 export const render = (grammar_node) => {
     if (!renderers)
@@ -26,7 +27,7 @@ export const render = (grammar_node) => {
     return experimentalRender(grammar_node, hcg3_mappings, renderers);
 };
 
-function assignEntryProductions(grammar: HCG3Grammar, production_lookup) {
+function assignEntryProductions(grammar: GrammarObject, production_lookup) {
     let i = 0;
 
     let HAVE_ENTRY_PRODUCTIONS = false;
@@ -66,7 +67,7 @@ function assignEntryProductions(grammar: HCG3Grammar, production_lookup) {
  * of c
  * @param grammar 
  */
-export function processSymbols(grammar: HCG3Grammar, errors: Error[] = []) {
+export function processSymbols(grammar: GrammarObject, errors: Error[] = []) {
 
 
     let id_offset = TokenTypes.CUSTOM_START_POINT;
@@ -80,7 +81,7 @@ export function processSymbols(grammar: HCG3Grammar, errors: Error[] = []) {
 
     let b_counter = 0, p_counter = 0, bodies = [];
 
-    const production_lookup = new Map();
+    const production_lookup: Map<string, GrammarProduction> = new Map();
 
     grammar.productions[0].ROOT_PRODUCTION = true;
 
@@ -95,21 +96,29 @@ export function processSymbols(grammar: HCG3Grammar, errors: Error[] = []) {
         production.id = p_counter++;
 
 
-    for (const production of grammar.productions) {
-        for (const body of production.bodies) {
+    for (const production of grammar.productions)
+        ({ b_counter, id_offset } = processProductionBodySymbols(
+            production,
+            bodies,
+            b_counter,
+            id_offset,
+            production_lookup,
+            unique_map,
+            token_production_set,
+            errors
+        ));
 
-            body.production = production;
 
-            bodies.push(body);
+    for (const ir_state of grammar.ir_states)
 
-            body.id = b_counter++;
-
-            body.length = body.sym.length;
-
-            for (const sym of body.sym)
-                id_offset = processSymbol(sym, production_lookup, unique_map, token_production_set, errors, id_offset);
-        }
-    }
+        id_offset = processIRStateSymbols(
+            ir_state,
+            id_offset,
+            production_lookup,
+            unique_map,
+            token_production_set,
+            errors
+        );
 
 
     grammar.meta.all_symbols = <any>unique_map;
@@ -122,14 +131,129 @@ export function processSymbols(grammar: HCG3Grammar, errors: Error[] = []) {
 
     const symbol_ids_array = [...unique_map.values()].filter(s => s.id).map(s => s.id).sort((a, b) => a - b).filter(i => i >= 1);
 
-
+    console.log(unique_map);
     grammar.meta.all_symbols.by_id = new Map([...unique_map.values()].map((sym) => [sym.id, sym]));
     grammar.meta.token_row_size = (Math.ceil(symbol_ids_array.slice(-1)[0] / 32) * 32) / token_lu_bit_size;
 
 
 }
 
-export function createCollisionMatrix(grammar: HCG3Grammar) {
+function processProductionBodySymbols(production: GrammarProduction,
+    bodies: any[],
+    b_counter: number,
+    id_offset: TokenTypes,
+    production_lookup: Map<any, any>,
+    unique_map: Map<string, HCG3Symbol>,
+    token_production_set: Set<string>,
+    errors: Error[]
+) {
+    for (const body of production.bodies) {
+
+        body.production = production;
+
+        bodies.push(body);
+
+        body.id = b_counter++;
+
+        body.length = body.sym.length;
+
+        for (const sym of body.sym)
+            id_offset = processSymbol(sym, production_lookup, unique_map, token_production_set, errors, id_offset);
+    }
+    return { b_counter, id_offset };
+}
+
+function processIRStateSymbols(ir_state: IR_State,
+    id_offset: TokenTypes,
+    production_lookup: Map<any, any>,
+    unique_map: Map<string, HCG3Symbol>,
+    token_production_set: Set<string>,
+    errors: Error[]
+) {
+
+
+    const instructions = ir_state.instructions;
+
+    id_offset = processIRInstructionSymbols(instructions, id_offset, production_lookup, unique_map, token_production_set, errors);
+    console.log(ir_state);
+    if (ir_state.fail) {
+        id_offset = processIRStateSymbols(ir_state.fail, id_offset, production_lookup, unique_map, token_production_set, errors);
+    }
+
+    return id_offset;
+}
+
+function processIRInstructionSymbols(
+    instructions: IR_Instruction[],
+    id_offset: TokenTypes,
+    production_lookup: Map<any, any>,
+    unique_map: Map<string, HCG3Symbol>,
+    token_production_set: Set<string>,
+    errors: Error[]
+) {
+    for (const instruction of instructions) {
+        switch (instruction.type) {
+            case InstructionType.assert:
+            case InstructionType.consume:
+            case InstructionType.no_consume:
+            case InstructionType.peek:
+            case InstructionType.prod:
+            case InstructionType.scan_back_until:
+            case InstructionType.scan_until:
+                const new_ids: number[] = [];
+                for (const sym of instruction.ids)
+                    if (typeof sym != "number") {
+                        id_offset = processSymbol(sym, production_lookup, unique_map, token_production_set, errors, id_offset);
+                        if (Sym_Is_A_Token(sym)) {
+                            new_ids.push(sym.id);
+                        } else {
+                            //@ts-ignore
+                            new_ids.push(sym.production.id);
+                        }
+                    } else
+                        new_ids.push(sym);
+
+                instruction.ids = new_ids;
+
+                if ("instructions" in instruction) {
+                    processIRInstructionSymbols(instruction.instructions, id_offset, production_lookup, unique_map, token_production_set, errors);
+                } break;
+            case InstructionType.set_prod:
+                //case InstructionType.set_token:
+                if (typeof instruction.id != "number") {
+
+                    id_offset = processSymbol(instruction.id, production_lookup, unique_map, token_production_set, errors, id_offset);
+                    //@ts-ignore
+                    instruction.id = instruction.id.production.id;
+
+                } break;
+            case InstructionType.fork_to: {
+
+                const new_states: string[] = [];
+
+                for (const sym of instruction.states)
+                    if (typeof sym != "string") {
+                        id_offset = processSymbol(sym, production_lookup, unique_map, token_production_set, errors, id_offset);
+                        new_states.push(sym.name);
+                    } else
+                        new_states.push(sym);
+
+                instruction.states = new_states;
+
+            } break;
+            case InstructionType.goto:
+                if (typeof instruction.state != "string") {
+
+                    id_offset = processSymbol(instruction.state, production_lookup, unique_map, token_production_set, errors, id_offset);
+
+                    instruction.state = instruction.state.name;
+                } break;
+        }
+    }
+    return id_offset;
+}
+
+export function createCollisionMatrix(grammar: GrammarObject) {
 
     const collision_matrix: boolean[][] = [];
 
@@ -181,7 +305,7 @@ function Symbols_Are_Ambiguous(symA, symB, grammar) {
 
 
 class MissingProduction extends Error {
-    constructor(ref_sym: HCG3ProductionSymbol | HCG3ProductionTokenSymbol) {
+    constructor(ref_sym: ProductionSymbol | ProductionTokenSymbol) {
         super(`Missing production ${ref_sym.name}`);
     }
     get stack() { return ""; }
@@ -189,7 +313,7 @@ class MissingProduction extends Error {
 
 export function processSymbol(
     sym: HCG3Symbol,
-    production_lookup: Map<any, any>,
+    production_lookup: Map<string, GrammarProduction>,
     unique_map: Map<string, HCG3Symbol>,
     token_production_set: Set<string>,
     errors: Error[],
@@ -258,11 +382,11 @@ export function processSymbol(
 }
 
 
-export function buildSequenceString(grammar: HCG3Grammar) {
+export function buildSequenceString(grammar: GrammarObject) {
     grammar.sequence_string = createSequenceData(grammar);
 }
 
-export function expandOptionalBody(production: HCG3Production) {
+export function expandOptionalBody(production: GrammarProduction) {
     const processed_set = new Set();
 
     let i = 0n;
@@ -276,7 +400,7 @@ export function expandOptionalBody(production: HCG3Production) {
 
     for (const body of production.bodies) {
         for (const { node, meta } of traverse(body, "sym").makeMutable()) {
-            const sym: HCG3SymbolNode = <any>node;
+            const sym: SymbolNode = <any>node;
             if (sym.IS_OPTIONAL) {
                 const OPTIONAL_CLASS = sym.IS_OPTIONAL >> 8;
                 if (OPTIONAL_CLASS == 0 || body.sym.filter(s => s.IS_OPTIONAL && (s.IS_OPTIONAL >> 8) == OPTIONAL_CLASS && s !== sym).length > 0) {
@@ -297,7 +421,7 @@ export function expandOptionalBody(production: HCG3Production) {
     }
 }
 
-export function getProductionSignature(production: HCG3Production) {
+export function getProductionSignature(production: GrammarProduction) {
 
     const body_strings = production.bodies.map(getBodySignature).sort();
 

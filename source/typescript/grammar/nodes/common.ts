@@ -1,20 +1,20 @@
 import { copy } from "@candlelib/conflagrate";
 import {
-    HCG3EmptySymbol,
-    HCG3Function,
-    HCG3Grammar,
+    EmptySymbol,
+    ProductionFunction,
+    GrammarObject,
     HCGGrammarNode,
-    HCG3GroupProduction,
-    HCG3ListProductionSymbol,
-    HCG3Production,
+    GroupProductionSymbol,
+    ListProductionSymbol,
+    GrammarProduction,
     HCG3ProductionBody,
-    HCG3ProductionSymbol,
+    ProductionSymbol,
     HCG3Symbol,
     HCG3TokenPosition
 } from "../../types/grammar_nodes";
 
 
-export function getProductionByName(grammar: HCG3Grammar, name: string): HCG3Production {
+export function getProductionByName(grammar: GrammarObject, name: string): GrammarProduction {
     if (grammar.productions.some(p => p.name == name))
         return grammar.productions.filter(p => p.name == name)[0];
 
@@ -85,7 +85,7 @@ export function removeBodySymbol(body: HCG3ProductionBody, index: number, opt_id
 }
 export function setBodyReduceExpressionAction(body: HCG3ProductionBody, reduce_function_string: string) {
 
-    const function_node: HCG3Function = {
+    const function_node: ProductionFunction = {
         js: null,
         type: "RETURNED",
         txt: reduce_function_string
@@ -96,23 +96,23 @@ export function setBodyReduceExpressionAction(body: HCG3ProductionBody, reduce_f
 export function replaceAllBodySymbols(body: HCG3ProductionBody, ...symbols: HCG3Symbol[]) {
     body.sym = [...symbols];
 }
-export function addSymbolToBody(new_production_body: HCG3ProductionBody, sym: HCG3ListProductionSymbol) {
+export function addSymbolToBody(new_production_body: HCG3ProductionBody, sym: ListProductionSymbol) {
     new_production_body.sym.push(sym);
 }
-export function addBodyToProduction(new_production: HCG3Production, new_production_body: HCG3ProductionBody) {
+export function addBodyToProduction(new_production: GrammarProduction, new_production_body: HCG3ProductionBody) {
     new_production.bodies.push(new_production_body);
 }
-export function addProductionToGrammar(grammar: HCG3Grammar, new_production: HCG3Production) {
+export function addProductionToGrammar(grammar: GrammarObject, new_production: GrammarProduction) {
     grammar.productions.push(new_production);
 }
-export function Sym_Is_List_Production(sym: any): sym is HCG3ListProductionSymbol {
-    return sym.type && (<HCG3ListProductionSymbol>sym).type == "list-production";
+export function Sym_Is_List_Production(sym: any): sym is ListProductionSymbol {
+    return sym.type && (<ListProductionSymbol>sym).type == "list-production";
 }
-export function Sym_Is_Group_Production(sym: any): sym is HCG3GroupProduction {
-    return sym.type && (<HCG3GroupProduction>sym).type == "group-production";
+export function Sym_Is_Group_Production(sym: any): sym is GroupProductionSymbol {
+    return sym.type && (<GroupProductionSymbol>sym).type == "group-production";
 }
 
-export function createProductionSymbol(name: string, IS_OPTIONAL: number = 0, mapped_sym: HCGGrammarNode = null): HCG3ProductionSymbol {
+export function createProductionSymbol(name: string, IS_OPTIONAL: number = 0, mapped_sym: HCGGrammarNode = null): ProductionSymbol {
     return {
         type: 'sym-production',
         id: -1,
@@ -124,7 +124,7 @@ export function createProductionSymbol(name: string, IS_OPTIONAL: number = 0, ma
         meta: false
     };
 }
-function createEmptySymbol(): HCG3EmptySymbol {
+function createEmptySymbol(): EmptySymbol {
     return {
         type: 'empty',
         val: "",
@@ -144,7 +144,7 @@ function createZeroedPosition(): HCG3TokenPosition {
         offset: 0
     };
 }
-export function createProduction(name: string, mapped_sym: HCGGrammarNode = null): HCG3Production {
+export function createProduction(name: string, mapped_sym: HCGGrammarNode = null): GrammarProduction {
     return {
         type: "production",
         name: name,
@@ -166,7 +166,7 @@ export function createProductionBody(mapped_sym: HCGGrammarNode = null): HCG3Pro
     };
 }
 
-export function registerProduction(grammar: HCG3Grammar, hash_string, production: HCG3Production): HCG3Production {
+export function registerProduction(grammar: GrammarObject, hash_string, production: GrammarProduction): GrammarProduction {
 
     if (!grammar.production_hash_lookup)
         grammar.production_hash_lookup = new Map;

@@ -3,13 +3,13 @@
  * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
  * disclaimer notice.
  */
-import { HCG3Grammar } from "../../types/grammar_nodes";
+import { GrammarObject } from "../../types/grammar_nodes";
 import { HybridDispatch, HybridDispatchResponse } from "../../types/worker_messaging.js";
 import { constructTableParser } from "../table_constructor.js";
 
 export class LocalWorker {
 
-    grammar: HCG3Grammar;
+    grammar: GrammarObject;
     id: number;
     response: any;
     parent_postMessage: (data: HybridDispatchResponse) => void;

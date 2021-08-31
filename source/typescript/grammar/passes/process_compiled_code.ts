@@ -2,12 +2,12 @@ import { experimentalRender, traverse } from "@candlelib/conflagrate";
 import { exp, JSIdentifierReference, JSNodeType, JSObjectLiteral } from "@candlelib/js";
 import { duplicate as cpp_duplicate, renderers as cpp_renderers } from "../../render/cpp_render.js";
 import { BOOLType, CompilableStruct, DBLType, EnumType, ValType } from "../../types/compilable_nodes";
-import { HCG3Grammar, HCG3ProductionBody } from "../../types/grammar_nodes";
+import { GrammarObject, HCG3ProductionBody } from "../../types/grammar_nodes";
 import { addReduceFNStringToLUT } from "./process_js_code.js";
 
 function parseAndRenderCPP(ast) { return experimentalRender(ast, cpp_duplicate, cpp_renderers); }
 
-export function createCompilableCode(grammar: HCG3Grammar): void {
+export function createCompilableCode(grammar: GrammarObject): void {
     // Reset the reduce_functions lookup to prepare the grammar for output
     // to C++ format. 
     grammar.reduce_functions = <Map<string, { id: number, data: any; }>>new Map();
@@ -77,7 +77,7 @@ export function createCompilableCode(grammar: HCG3Grammar): void {
 }
 
 
-function convertBodyFunctionsToLambdas(grammar: HCG3Grammar) {
+function convertBodyFunctionsToLambdas(grammar: GrammarObject) {
 
     for (const body of grammar.bodies) {
 
@@ -187,7 +187,7 @@ function JSIdentifierRefToCompilableVal(val: JSIdentifierReference, type_name: s
 }
 
 
-function processStructs(class_types: any[], grammar: HCG3Grammar): CompilableStruct[] {
+function processStructs(class_types: any[], grammar: GrammarObject): CompilableStruct[] {
 
     const enum_types = class_types.groupMap(groupEnums);
 
@@ -255,7 +255,7 @@ function groupEnums(s) {
 };
 
 
-function processClassInfo(class_name: string, class_values: CompilableStruct[], grammar: HCG3Grammar) {
+function processClassInfo(class_name: string, class_values: CompilableStruct[], grammar: GrammarObject) {
 
     const
         cardinal_class = { type: "class", cardinal_name__: class_name, properties: {} },

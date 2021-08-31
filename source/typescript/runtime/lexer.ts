@@ -139,6 +139,7 @@ export class Lexer {
         return destination;
     }
     sync(source: Lexer) {
+
         this.byte_offset = source.byte_offset;
         this.byte_length = source.byte_length;
         this.token_length = source.token_length;
@@ -150,6 +151,7 @@ export class Lexer {
         this.current_byte = source.current_byte;
         this.active_token_productions = source.active_token_productions;
     }
+
     set_token_span_to(source: Lexer) {
         this.byte_length = source.prev_byte_offset - this.byte_offset;
         this.token_length = source.prev_token_offset - this.token_offset;

@@ -1,5 +1,6 @@
-import { HCG3ImportProduction, HCG3Symbol, ProductionTokenSymbol, TokenSymbol } from '@candlelib/hydrocarbon/build/types/types/grammar_nodes';
+
 import { Token } from '../runtime/token';
+import { ENVFunctionRef, LocalFunctionRef, ProductionFunction, ProductionImportSymbol, ProductionSymbol, TokenSymbol } from './grammar_nodes';
 
 export type i32 = number;
 type bit = number;
@@ -12,18 +13,26 @@ type u10 = number;
 
 export interface BaseIRState {
     type: "state" | string;
-    id: string;
+    id: string | ProductionImportSymbol | ProductionSymbol;
     instructions: IR_Instruction[];
     symbol_meta?: {
         type: "symbols";
         expected: (number | TokenSymbol)[];
         skipped: (number | TokenSymbol)[];
     };
-    fail?: FailedIRState;
+    fail?: FailedIRState | ResolvedFailedIRState;
     pos: Token;
 }
-
 export interface FailedIRState extends BaseIRState {
+    type: "on-fail-state";
+}
+
+export interface ResolvedIRState extends BaseIRState {
+    id: string;
+
+    fail?: ResolvedFailedIRState;
+}
+export interface ResolvedFailedIRState extends ResolvedIRState {
     type: "on-fail-state";
 }
 
@@ -47,6 +56,17 @@ export const enum InstructionType {
     fail = "fail",
     repeat = "repeat-state"
 }
+
+
+export interface ResolvedIRBranch {
+    type: InstructionType.consume |
+    InstructionType.no_consume |
+    InstructionType.prod |
+    InstructionType.no_consume |
+    InstructionType.assert;
+    ids: number[];
+    instructions: IR_Instruction[];
+}
 export interface Base_IR_Instruction {
     type: InstructionType;
     pos: Token;
@@ -54,46 +74,49 @@ export interface Base_IR_Instruction {
 export interface IRTokenBranch {
     ids: (number | TokenSymbol)[];
 
+    instructions: IR_Instruction[];
+
 }
 export interface IRConsume extends IRTokenBranch {
     type: InstructionType.consume;
 }
 export interface IRAssert extends IRTokenBranch {
-    type: InstructionType.no_consume;
+    type: InstructionType.assert | InstructionType.consume;
 }
 export interface IRNoConsume extends IRTokenBranch {
-    type: InstructionType.peek;
+    type: InstructionType.no_consume;
 }
 export interface IRPeek extends IRTokenBranch {
-    type: InstructionType.assert;
+    type: InstructionType.peek;
 }
 export interface IRProductionBranch extends Base_IR_Instruction {
     type: InstructionType.prod;
-    ids: (number | ProductionTokenSymbol | HCG3ImportProduction)[];
+    ids: (number | ProductionSymbol | ProductionImportSymbol)[];
+    instructions: IR_Instruction[];
 
 }
 export interface IRReduce extends Base_IR_Instruction {
     type: InstructionType.reduce;
     len: number;
-    reduce_fn: number;
+    reduce_fn: number | ProductionFunction | LocalFunctionRef | ENVFunctionRef;
 }
 export interface IRSetProd extends Base_IR_Instruction {
     type: InstructionType.set_prod;
-    id: (number | ProductionTokenSymbol | HCG3ImportProduction);
+    id: (number | ProductionSymbol | ProductionImportSymbol);
 }
 export interface IRFork extends Base_IR_Instruction {
     type: InstructionType.fork_to;
-    states: (number | ProductionTokenSymbol | HCG3ImportProduction)[];
+    states: (string | ProductionSymbol | ProductionImportSymbol)[];
 }
 
 export interface IRScanTo extends Base_IR_Instruction {
     type: InstructionType.scan_until;
-    token_ids: (number | TokenSymbol)[];
+    ids: (number | TokenSymbol)[];
 }
 
 export interface IRScanBackTo extends Base_IR_Instruction {
     type: InstructionType.scan_back_until;
-    token_ids: (number | TokenSymbol)[];
+    ids: (number | TokenSymbol)[];
 }
 
 export interface IRPop extends Base_IR_Instruction {
@@ -123,13 +146,28 @@ export interface IRFail extends Base_IR_Instruction {
 export interface IREnd extends Base_IR_Instruction {
     type: InstructionType.pass;
 }
+
+export interface IRGoto extends Base_IR_Instruction {
+    type: InstructionType.goto;
+    state: string | ProductionImportSymbol | ProductionSymbol;
+}
+
+export interface IRRepeat extends Base_IR_Instruction {
+    type: InstructionType.repeat;
+}
+
+export type Resolved_IR_State = ResolvedIRState
+    | ResolvedFailedIRState;
 export type IR_State = BaseIRState | FailedIRState;
 export type IR_Instruction = IRConsume |
     IRAssert |
+    IRRepeat |
     IRNoConsume |
     IRPeek |
     IRProductionBranch |
     IRFork |
+    IRSetProd |
+    IRReduce |
     IRScanTo |
     IRScanBackTo |
     IRPop |
@@ -137,7 +175,9 @@ export type IR_Instruction = IRConsume |
     IRSetTokenLength |
     IRPass |
     IRFail |
-    IREnd;
+    IRGoto |
+    IREnd |
+    ResolvedIRBranch;
 
 export interface BlockData {
     table_header: {

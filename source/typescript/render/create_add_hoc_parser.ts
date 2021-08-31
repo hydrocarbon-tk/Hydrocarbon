@@ -3,7 +3,7 @@ import { Helper } from "../build/helper.js";
 import * as ParserCore from "../runtime/core_parser.js";
 import { ParserFactory } from "../runtime/parser_loader_gamma.js";
 import { fillByteBufferWithUTF8FromString } from "../runtime/utf8.js";
-import { HCG3Grammar } from "../types/grammar_nodes.js";
+import { GrammarObject } from "../types/grammar_nodes.js";
 import { HCGParserConstructor } from "../types/parser.js";
 import { ParserGenerator } from "../types/ParserGenerator";
 import { RDProductionFunction } from "../types/rd_production_function.js";
@@ -23,7 +23,7 @@ import { RDProductionFunction } from "../types/rd_production_function.js";
 
 
 export async function createAddHocParser<T = any>(
-    grammar: HCG3Grammar,
+    grammar: GrammarObject,
     recognizer_functions: RDProductionFunction[],
     meta: Helper,
     fn_generate_parser: ParserGenerator //= generateScriptParser

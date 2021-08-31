@@ -1,7 +1,7 @@
 import { traverse } from "@candlelib/conflagrate";
-import { HCG3Grammar, HCG3Symbol } from "../../types/grammar_nodes";
+import { GrammarObject, HCG3Symbol } from "../../types/grammar_nodes";
 
-export function extractMetaSymbolsFromBodies(grammar: HCG3Grammar, error: Error[]) {
+export function extractMetaSymbolsFromBodies(grammar: GrammarObject, error: Error[]) {
     for (const production of grammar.productions) {
         for (const body of production.bodies) {
             body.excludes = [];

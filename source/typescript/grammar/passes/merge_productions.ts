@@ -1,6 +1,6 @@
 import { copy, traverse } from "@candlelib/conflagrate";
 import {
-    HCG3Grammar,
+    GrammarObject,
     HCG3Symbol,
     RECURSIVE_STATE
 } from "../../types/grammar_nodes";
@@ -20,7 +20,7 @@ import { render } from "./common.js";
  * @param error
  */
 
-export function generateProductionRecursionStates(grammar: HCG3Grammar, error) {
+export function generateProductionRecursionStates(grammar: GrammarObject, error) {
     // Gather all nodes that are reachable 
     const splat = new Map();
 
@@ -82,7 +82,7 @@ export function generateProductionRecursionStates(grammar: HCG3Grammar, error) {
  * @param grammar
  * @param error
  */
-export function mergeProductions(grammar: HCG3Grammar, error) {
+export function mergeProductions(grammar: GrammarObject, error) {
 
     generateProductionRecursionStates(grammar, error);
 

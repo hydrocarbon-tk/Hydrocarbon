@@ -48,7 +48,7 @@ export interface HCGGrammarNode {
 }
 
 
-export interface HCG3PreambleNode extends HCGGrammarNode { }
+export interface PreambleNode extends HCGGrammarNode { }
 
 export interface HCG3ReferencedFunction extends HCGGrammarNode {
     type: "ref-function";
@@ -56,16 +56,16 @@ export interface HCG3ReferencedFunction extends HCGGrammarNode {
     txt: string;
 }
 
-export interface HCGENVFunctionRef extends HCGGrammarNode {
+export interface ENVFunctionRef extends HCGGrammarNode {
     type: "env-function-reference";
     ref: string;
 }
 
-export interface HCGLocalFunctionRef extends HCGGrammarNode {
+export interface LocalFunctionRef extends HCGGrammarNode {
     type: "local-function-reference";
     ref: string;
 }
-export interface HCG3Function extends HCGGrammarNode {
+export interface ProductionFunction extends HCGGrammarNode {
     type: "RETURNED";
     txt: string;
     js?: string;
@@ -75,23 +75,23 @@ export interface HCG3Function extends HCGGrammarNode {
     compilable_ast?: any;
 }
 
-export interface HCGComment extends HCGGrammarNode {
+export interface GrammarComment extends HCGGrammarNode {
     type: "comment", val: string;
 }
 
-export interface HCG3Ignore extends HCGGrammarNode {
-    type: "ignore", symbols: HCG3SymbolNode[];
+export interface IgnorePreamble extends HCGGrammarNode {
+    type: "ignore", symbols: SymbolNode[];
 }
 
-export interface HCG3Import extends HCGGrammarNode {
+export interface ImportPreamble extends HCGGrammarNode {
     type: "import", val: string; uri: string, reference: string;
 }
 
-export interface HCG3ProductionNode extends HCGGrammarNode {
+export interface ProductionNode extends HCGGrammarNode {
     name: any;
     bodies: HCG3ProductionBody[];
     id: number;
-    recovery_handler: HCG3Function;
+    recovery_handler: ProductionFunction;
     RECURSIVE: RECURSIVE_STATE,
     /**
      * A production that represents the root of the grammar or sub-grammar. 
@@ -111,36 +111,36 @@ export interface HCG3ProductionNode extends HCGGrammarNode {
     CHECKED_FOR_EMPTY?: boolean;
     HAS_EMPTY?: boolean;
 }
-export interface HCG3GeneralProduction extends HCG3ProductionNode {
+export interface GeneralProductionNode extends ProductionNode {
     type: "production",
 }
 
-export interface HCG3VirtualProduction extends HCG3ProductionNode {
+export interface VirtualProductionNode extends ProductionNode {
     type: "virtual-production",
 }
 
-export interface HCG3ImportProduction extends HCG3ProductionNode {
+export interface ImportProductionNode extends ProductionNode {
     type: "production-import",
 
-    name: HCG3ProductionImportSymbol;
+    name: ProductionImportSymbol;
 }
 
-export interface HCG3MergedProduction extends HCG3ProductionNode {
+export interface MergedProductionNode extends ProductionNode {
     type: "production-merged-import",
 
-    name: HCG3ProductionImportSymbol;
+    name: ProductionImportSymbol;
 
 }
 
-export type HCG3Production = HCG3GeneralProduction | HCG3VirtualProduction | HCG3ImportProduction | HCG3MergedProduction;
+export type GrammarProduction = GeneralProductionNode | VirtualProductionNode | ImportProductionNode | MergedProductionNode;
 
 export interface HCG3ProductionBody extends HCGGrammarNode {
     type: "body",
-    reduce_function?: HCG3Function | HCGLocalFunctionRef | HCGENVFunctionRef;
+    reduce_function?: ProductionFunction | LocalFunctionRef | ENVFunctionRef;
     sym: HCG3Symbol[];
     FORCE_FORK: boolean;
     id: number;
-    production?: HCG3Production;
+    production?: GrammarProduction;
     length?: number;
     excludes?: TokenSymbol[][][];
     ignore?: TokenSymbol[][];
@@ -148,15 +148,15 @@ export interface HCG3ProductionBody extends HCGGrammarNode {
     reduce_id?: number;
 }
 
-export interface HCGConditionNode extends HCGGrammarNode {
+export interface ConditionNode extends HCGGrammarNode {
     type: "condition";
 }
-export interface HCG3Grammar extends HCGGrammarNode {
+export interface GrammarObject extends HCGGrammarNode {
     type: "hc-grammar-4";
-    preamble: (HCG3Import | HCG3Ignore)[];
-    productions: HCG3Production[];
+    preamble: (ImportPreamble | IgnorePreamble)[];
+    productions: GrammarProduction[];
     functions: HCG3ReferencedFunction[];
-    imported_grammars: { reference: string, uri: string, grammar: HCG3Grammar; }[];
+    imported_grammars: { reference: string, uri: string, grammar: GrammarObject; }[];
 
     meta?: {
 
@@ -231,7 +231,7 @@ export interface HCG3Grammar extends HCGGrammarNode {
 
 ////////////////////////////////////////////////////////////////////
 //// SYMBOLS
-export interface HCG3SymbolNode extends HCGGrammarNode {
+export interface SymbolNode extends HCGGrammarNode {
     val: any;
     IS_OPTIONAL?: number;
     IS_NON_CAPTURE?: boolean;
@@ -244,7 +244,7 @@ export interface HCG3SymbolNode extends HCGGrammarNode {
     id: number;
 }
 
-export interface HCG3ListProductionSymbol extends HCG3SymbolNode {
+export interface ListProductionSymbol extends SymbolNode {
     type: SymbolType.LIST_PRODUCTION;
     val: HCG3Symbol;
     terminal_symbol: HCG3Symbol;
@@ -252,24 +252,25 @@ export interface HCG3ListProductionSymbol extends HCG3SymbolNode {
     meta: false;
 }
 
-export interface HCG3GroupProduction extends HCG3SymbolNode {
+export interface GroupProductionSymbol extends SymbolNode {
     type: SymbolType.GROUP_PRODUCTION;
     val: HCG3ProductionBody[];
     meta: false;
 }
 
-export interface HCG3EOFSymbol extends HCG3SymbolNode {
+export interface EOFSymbol extends SymbolNode {
     type: SymbolType.END_OF_FILE;
     val: "END_OF_FILE";
+    id: TokenTypes.END_OF_FILE;
     meta: false;
 }
-export interface HCG3EOPSymbol extends HCG3SymbolNode {
+export interface EOPSymbol extends SymbolNode {
     type: SymbolType.END_OF_PRODUCTION;
     val: "END_OF_PRODUCTION";
     meta: false;
 }
 
-export interface HCG3EmptySymbol extends HCG3SymbolNode {
+export interface EmptySymbol extends SymbolNode {
     type: SymbolType.EMPTY;
     val: "";
     byte_length: 0;
@@ -277,12 +278,12 @@ export interface HCG3EmptySymbol extends HCG3SymbolNode {
     meta: false;
 }
 
-export interface HCG3GeneratedSymbol extends HCG3SymbolNode {
+export interface BaseGeneratedSymbol extends SymbolNode {
     type: SymbolType.GENERATED;
     meta: false;
 }
 
-export interface HCG3LiteralSymbol extends HCG3SymbolNode {
+export interface LiteralSymbol extends SymbolNode {
     type: SymbolType.LITERAL;
 
     /**
@@ -299,7 +300,7 @@ export interface HCG3LiteralSymbol extends HCG3SymbolNode {
 
 }
 
-export interface HCG3ExclusiveLiteralSymbol extends HCG3SymbolNode {
+export interface ExclusiveLiteralSymbol extends SymbolNode {
     type: SymbolType.EXCLUSIVE_LITERAL;
 
     /**
@@ -316,121 +317,117 @@ export interface HCG3ExclusiveLiteralSymbol extends HCG3SymbolNode {
 
 }
 
-export interface HCG3ProductionTokenSymbol extends HCG3SymbolNode {
+export interface ProductionTokenSymbol extends SymbolNode {
     type: SymbolType.PRODUCTION_TOKEN_SYMBOL;
     name: string;
     val: number;
-    production?: HCG3Production; END_OF_PRODUCTION;
+    production?: GrammarProduction;
     meta: false;
     token_id: number;
 }
 
-export interface HCG3ProductionSymbol extends HCG3SymbolNode {
+export interface ProductionSymbol extends SymbolNode {
     type: SymbolType.PRODUCTION;
 
     name: string;
 
     val: number;
-
-    production?: HCG3Production;
+    production?: GrammarProduction;
     meta: false;
 }
 
-export interface HCG3ProductionImportSymbol extends HCG3SymbolNode {
+export interface ProductionImportSymbol extends SymbolNode {
     type: SymbolType.IMPORT_PRODUCTION;
     production?: string;
     module: any;
     meta: false;
+    name: string;
 }
 
-export interface HCG3LookBehind extends HCG3SymbolNode {
+export interface LookBehindSymbol extends SymbolNode {
     type: SymbolType.LOOK_BEHIND;
     phased: TokenSymbol;
 }
 
-export interface HCG3MetaExclude extends HCG3SymbolNode {
+export interface MetaExcludeSymbol extends SymbolNode {
     type: "meta-exclude",
     sym: TokenSymbol[],
     meta: true;
     index: number;
 }
-export interface HCG3MetaError extends HCG3SymbolNode {
+export interface MetaErrorSymbol extends SymbolNode {
     type: "meta-error",
     sym: HCG3Symbol[],
     meta: true;
     index: number;
 }
-export interface HCG3MetaIgnore extends HCG3SymbolNode {
+export interface MetaIgnoreSymbol extends SymbolNode {
     type: "meta-ignore",
     sym: TokenSymbol[],
     meta: true;
     index: number;
 }
-export interface HCG3MetaReset extends HCG3SymbolNode {
+export interface MetaResetSymbol extends SymbolNode {
     type: "meta-reset",
     sym: TokenSymbol[],
     meta: true;
     index: number;
 }
-export interface HCG3MetaReduce extends HCG3SymbolNode {
+export interface MetaReduceSymbol extends SymbolNode {
     type: "meta-reduce",
     sym: HCG3Symbol,
     meta: true;
     index: number;
 }
 
-export interface DefinedNumericSymbol extends HCG3LiteralSymbol { }
+export interface DefinedNumericSymbol extends LiteralSymbol { }
 
-export interface DefinedIdentifierSymbol extends HCG3LiteralSymbol { }
+export interface DefinedIdentifierSymbol extends LiteralSymbol { }
 
-export interface DefinedCharacterSymbol extends HCG3LiteralSymbol { }
+export interface DefinedCharacterSymbol extends LiteralSymbol { }
 
-export interface GeneratedSymbol extends HCG3GeneratedSymbol {
+export interface GeneratedSymbol extends BaseGeneratedSymbol {
     val: "sym";
     id: TokenTypes.SYMBOL;
 }
 
-export interface GeneratedNewLine extends HCG3GeneratedSymbol {
+export interface GeneratedNewLine extends BaseGeneratedSymbol {
     val: "nl";
     id: TokenTypes.NEW_LINE;
 }
-export interface GeneratedNumber extends HCG3GeneratedSymbol {
+export interface GeneratedNumber extends BaseGeneratedSymbol {
 
     val: "num";
     id: TokenTypes.NUMBER;
 }
-export interface GeneratedSpace extends HCG3GeneratedSymbol {
+export interface GeneratedSpace extends BaseGeneratedSymbol {
 
     val: "sp";
     id: TokenTypes.SPACE;
 }
-export interface GeneratedIdentifier extends HCG3GeneratedSymbol {
+export interface GeneratedIdentifier extends BaseGeneratedSymbol {
     val: "id";
     id: TokenTypes.IDENTIFIER;
 }
-export interface EOFSymbol extends HCG3EOFSymbol {
-    id: TokenTypes.END_OF_FILE;
-}
 
-export interface ProductionSymbol extends HCG3ProductionSymbol { }
 /**
  * Symbol represents an ambiguous mix of tokens;
  * i.e:
  *      a DefinedIdentifierSymbol token and a 
  *      GeneratedIdentifier identifier token.
  */
-export interface AmbiguousSymbol extends HCG3SymbolNode {
+export interface AmbiguousSymbol extends SymbolNode {
     type: SymbolType.AMBIGUOUS,
     syms: HCG3Symbol[],
     val: string;
 }
 
-export interface VirtualTokenSymbol extends HCG3SymbolNode {
+export interface VirtualTokenSymbol extends SymbolNode {
     type: SymbolType.VIRTUAL_TOKEN;
     val: number;
     symbol: HCG3Symbol;
     item: Item;
-    root: HCG3ProductionTokenSymbol;
+    root: ProductionTokenSymbol;
     root_offset: number;
     token_offset: number;
     peek_depth: number;
@@ -439,7 +436,6 @@ export interface VirtualTokenSymbol extends HCG3SymbolNode {
 
 }
 
-export interface ProductionTokenSymbol extends HCG3ProductionTokenSymbol { }
 /**
  * Any symbol that is not a ProductionSymbol, ProductionTokenSymbol, AssertionFunctionSymbol, or GeneratedSymbol.
  * 
@@ -449,34 +445,34 @@ export interface ProductionTokenSymbol extends HCG3ProductionTokenSymbol { }
 export type DefinedSymbol =
     | DefinedCharacterSymbol
     | DefinedIdentifierSymbol
-    | HCG3ExclusiveLiteralSymbol
+    | ExclusiveLiteralSymbol
     | DefinedNumericSymbol;
 export type TokenSymbol =
     | VirtualTokenSymbol
     | DefinedSymbol
-    | HCG3GeneratedSymbol
-    | HCG3EOFSymbol
-    | HCG3EOPSymbol
-    | HCG3EmptySymbol
-    | HCG3ProductionTokenSymbol
-    | HCG3LookBehind
+    | BaseGeneratedSymbol
+    | EOFSymbol
+    | EOPSymbol
+    | EmptySymbol
+    | ProductionTokenSymbol
+    | LookBehindSymbol
     | AmbiguousSymbol;
 export type HCG3Symbol =
-    HCG3ListProductionSymbol
-    | HCG3GroupProduction
-    | HCG3EOFSymbol
-    | HCG3EmptySymbol
-    | HCG3GeneratedSymbol
-    | HCG3ExclusiveLiteralSymbol
-    | HCG3LiteralSymbol
-    | HCG3ProductionTokenSymbol
-    | HCG3ProductionSymbol
-    | HCG3ProductionImportSymbol
-    | HCG3MetaExclude
-    | HCG3MetaError
-    | HCG3MetaIgnore
-    | HCG3MetaReset
-    | HCG3MetaReduce
-    | HCG3LookBehind
-    | HCG3EOPSymbol
+    ListProductionSymbol
+    | GroupProductionSymbol
+    | EOFSymbol
+    | EmptySymbol
+    | BaseGeneratedSymbol
+    | ExclusiveLiteralSymbol
+    | LiteralSymbol
+    | ProductionTokenSymbol
+    | ProductionSymbol
+    | ProductionImportSymbol
+    | MetaExcludeSymbol
+    | MetaErrorSymbol
+    | MetaIgnoreSymbol
+    | MetaResetSymbol
+    | MetaReduceSymbol
+    | LookBehindSymbol
+    | EOPSymbol
     | TokenSymbol;

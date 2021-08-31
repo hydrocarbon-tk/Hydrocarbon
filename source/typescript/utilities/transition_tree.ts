@@ -14,7 +14,7 @@ import {
     Sym_Is_A_Production_Token,
     Sym_Is_Defined, Sym_Is_Exclusive
 } from "../grammar/nodes/symbol.js";
-import { HCG3Grammar, AmbiguousSymbol } from "../types/grammar_nodes";
+import { GrammarObject, AmbiguousSymbol } from "../types/grammar_nodes";
 import { ClosureGroup, TransitionTreeNode } from "../types/transition_tree_nodes";
 import { getClosure, getFollowClosure } from "./closure.js";
 import { generateHybridIdentifier } from "./code_generating.js";
@@ -31,7 +31,7 @@ const goto_items = new Map();
  * Default depth is 1.
  */
 export function getTransitionTree(
-    grammar: HCG3Grammar,
+    grammar: GrammarObject,
     root_items: Item[],
     lr_transition_items: Item[],
     {
@@ -324,7 +324,7 @@ export function getTransitionTree(
     return { tree_nodes, clear: false, AMBIGUOUS, max_depth: max_depth };
 }
 function getClosureGroups(
-    grammar: HCG3Grammar,
+    grammar: GrammarObject,
     incoming_group: ClosureGroup,
     lr_transition_items: Item[],
     root_items: Item[],
@@ -485,7 +485,7 @@ function getClosureGroups(
 
     return group;
 }
-function incrementWithClosure(grammar: HCG3Grammar, item: Item): Item[] {
+function incrementWithClosure(grammar: GrammarObject, item: Item): Item[] {
     return getClosure([item.increment()], grammar);
 }
 

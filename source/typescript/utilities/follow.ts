@@ -3,11 +3,11 @@
  * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
  * disclaimer notice.
  */
-import { HCG3Grammar, TokenSymbol } from "../types/grammar_nodes";
+import { GrammarObject, TokenSymbol } from "../types/grammar_nodes";
 import { Item } from "./item.js";
 
 
-export function getFollow(production_id: number, grammar: HCG3Grammar): TokenSymbol[] {
+export function getFollow(production_id: number, grammar: GrammarObject): TokenSymbol[] {
 
     const prod = grammar.productions[production_id];
 
