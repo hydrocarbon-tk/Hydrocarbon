@@ -180,23 +180,7 @@ export type IR_Instruction = IRConsume |
     ResolvedIRBranch;
 
 export interface BlockData {
-    table_header: {
-        increment_stack_pointer_for_failure: boolean;
-        consume_peek: boolean;
-        use_peek_for_assert_or_consume: boolean;
-        number_of_instruction_rows_or_scanfield_length: number;
-        have_default_action: boolean;
-        input_type: "production" | "token";
-        skip_table_row: number;
-        token_table_row: number;
-        row_size_or_instruction_field_size: number;
-        token_basis: number;
-        failure_state_data: string;
-        state_type: "basic" | "table" | "scanner";
-        lexer_type: "peek" | "assert";
-    };
-    scanner_key_index_pairs?: number[][];
-    table_entries: string[][];
-    default_entry: string[];
+    number_of_entries: number,
+    instruction_sequence: any[][];
     total_size: number;
 }

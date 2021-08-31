@@ -8,8 +8,8 @@ const acc_sym_mask = ((1 << 27) - 1) ^ ((1 << 16) - 1);
 export const fail_state_mask = 1 << 27;
 export const alpha_increment_stack_pointer_mask = 1 << 0;
 export const alpha_have_default_action_mask = 1 << 1;
-export const alpha_auto_accept_with_peek_mask = 1 << 2;
-export const alpha_auto_consume_with_peek_mask = 1 << 3;
+export const alpha_auto_accept_with_peek_mask = 1 << 16;
+export const alpha_auto_consume_with_peek_mask = 1 << 17;
 
 type ScannerFunction = (l: Lexer, i: u32, j: u32) => void;
 
@@ -121,6 +121,9 @@ export class KernelState implements KernelStateType {
 
         if (0 != (this.state & 2)) {
 
+            // Sym len -1 is important because something is always
+            // added to the stack, even if there where zero symbols
+            // consumed. 
             this.symbol_accumulator -= ((sym_len - 1) << 16);
 
             let total = fn_id + sym_len;
@@ -357,7 +360,7 @@ export class KernelStateIterator {
 
 export function token_production(
     lexer: Lexer,
-    production_id: u32,
+    production_state_pointer: u32,
     pid: number,
     _type: number,
     tk_flag: number,
@@ -384,7 +387,7 @@ export function token_production(
 
     state.lexer_stack[0].sync(lexer);
     state.lexer_stack[0].active_token_productions |= tk_flag;
-    state.state_stack[1] = production_id;
+    state.state_stack[1] = production_state_pointer;
     state.state_stack[0] = 0;
     state.stack_pointer = 1;
     state.state = 0;
@@ -403,19 +406,22 @@ export function token_production(
 
 function instruction_executor(
     state: u32,
-    index: u32,
-    gamma: u32,
     prod: u32,
-    lexer_pointer: u32,
     kernel_state: KernelState,
     kernel_states_repo: KernelStateBuffer
 ): ({ fail_mode: boolean; prod: u32; }) {
+
+    let index = state & state_index_mask;
+
+    let lexer_pointer = kernel_state.lexer_pointer;
+
     while (true) {
         const instruction = kernel_state.state_buffer[index];
 
         switch ((instruction >> 28) & 0xF) {
-            //Both "pass" and "end";
-            case 0: return ({ fail_mode: false, prod }); //
+            //Default
+            case 0: default: return ({ fail_mode: false, prod }); //
+
             case 1: //InstructionType.consume:
                 let lexer = kernel_state.lexer_stack[lexer_pointer];
                 const slice = Array.from(lexer.input.slice(lexer.byte_offset, lexer.byte_offset + lexer.byte_length)).map(i => String.fromCharCode(i)).join("");
@@ -433,7 +439,46 @@ function instruction_executor(
                 console.log(`Set prod: ${instruction & 0xFFFFFFF}`);
                 prod = instruction & 0xFFFFFFF;
                 break;
-            case 4: //InstructionType.fork_to: 
+            case 4: //InstructionType.reduce: 
+
+                let low = (instruction) & 0xFFFF;
+
+                if ((low & 0xFFFF) == 0xFFFF) {
+
+                    let accumulated_symbols =
+                        kernel_state.symbol_accumulator
+                        -
+                        ((state & acc_sym_mask) >> 16);
+
+                    let fn_id = (instruction >> 16) & 0x0FFF;
+
+                    //Extract accumulated symbols inform
+                    kernel_state.add_reduce(accumulated_symbols, fn_id);
+                } else {
+
+                    kernel_state.add_rule(low);
+
+                    if ((low & 0x4) == 0x4) {
+                        let high_len = (instruction >> 16) & 0xFFFF;
+                        kernel_state.symbol_accumulator -= (high_len - 1) << 16;
+                        kernel_state.add_rule(high_len & 0xFFF);
+                    } else {
+                        kernel_state.symbol_accumulator -= (((low >> 3) & 0x1F) - 1) << 16;
+                    }
+                }
+
+                break;
+            case 5: // InstructionType.token_length:
+                {
+                    let length = instruction & 0xFFFFFFF;
+
+                    kernel_state.lexer_stack[lexer_pointer].token_length = length;
+                    kernel_state.lexer_stack[lexer_pointer].byte_length = length;
+                    kernel_state.lexer_stack[0].token_length = length;
+                    kernel_state.lexer_stack[0].byte_length = length;
+                }
+                break;
+            case 6: //InstructionType.fork_to: 
                 {
                     // the first state goes to 
                     // the current process
@@ -449,7 +494,7 @@ function instruction_executor(
 
                         const fork = kernel_state.fork(kernel_states_repo);
 
-                        fork.state_buffer[fork.stack_pointer + 1] = kernel_state.state_buffer[index];
+                        fork.state_stack[fork.stack_pointer + 1] = kernel_state.state_stack[index];
 
                         fork.stack_pointer += 1;
 
@@ -458,21 +503,14 @@ function instruction_executor(
 
                     kernel_state.stack_pointer += 1;
                 } break;
-            case 5: // InstructionType.token_length:
+            case 7: //InstructionType.scan_until:
                 {
                     let length = instruction & 0xFFFFFFF;
-
-                    kernel_state.lexer_stack[lexer_pointer].token_length = length;
-                    kernel_state.lexer_stack[lexer_pointer].byte_length = length;
-                    kernel_state.lexer_stack[0].token_length = length;
-                    kernel_state.lexer_stack[0].byte_length = length;
-                }
-                break;
-            case 6: //InstructionType.scan_until:
-                {
-                    let length = instruction & 0xFFFFFFF;
+                    const gamma = kernel_state.state_buffer[1 + index];
                     const tk_row = gamma >> 16;
                     const skip_row = gamma & 0xFFFF;
+
+                    index += 1;
 
                     let lexer = kernel_state.lexer_stack[lexer_pointer];
                     let synced_lexer = kernel_state.lexer_stack[(lexer_pointer + 1) % 10];
@@ -521,40 +559,125 @@ function instruction_executor(
                     lexer.prev_token_offset = start_token_offset;
                 }
                 break;
-            case 7: //InstructionType.pop: 
+            case 8: //InstructionType.pop: 
                 kernel_state.stack_pointer -= (instruction & 0xFFFFFFF);
                 break;
-            case 8: //InstructionType.reduce: 
-
-                const fn_id = (instruction >> 16) & 0x0FFF;
-
-                const length = (instruction) & 0xFFFF;
-
-                const accumulated_symbols =
-                    (kernel_state.symbol_accumulator
-                        -
-                        ((state & acc_sym_mask))) >> 16;
-
-                if ((length & 0xFFFF) == 0xFFFF) {
-                    //Extract accumulated symbols inform
+            //State Instructions
+            case 9: { //table_jump
+                let token_row_switches = kernel_state.state_buffer[index + 1];
+                let table_data = kernel_state.state_buffer[index + 2];
 
 
-                    kernel_state.add_reduce(accumulated_symbols, fn_id);
 
+                let auto_accept_with_peek = (instruction & alpha_auto_accept_with_peek_mask) > 0;
+                let auto_consume_with_peek = (instruction & alpha_auto_consume_with_peek_mask) > 0;
+
+                let basis__ = instruction & 0xFFFF;
+
+                const input_type = ((instruction >> 24) & 0x3);
+                const token_transition = ((instruction >> 26) & 0x3);
+
+                let { input_value, lexer_pointer: lp } =
+                    get_token_info(
+                        kernel_state,
+                        input_type,
+                        token_transition,
+                        token_row_switches,
+                        auto_accept_with_peek,
+                        auto_consume_with_peek,
+                        basis__,
+                        prod
+                    );
+
+                lexer_pointer = lp;
+
+                let number_of_rows = table_data >> 16;
+                let row_size = table_data & 0xFFFF;
+
+                console.log(`Jump table: from ${basis__} to ${basis__ + number_of_rows - 1} on value ${input_value + basis__}`);
+
+                if (input_value >= 0 && input_value < number_of_rows) {
+                    index += input_value * row_size + 2;
                 } else {
-                    kernel_state.add_reduce(length, fn_id);
+                    // Use default behavior found at the end of the 
+                    // state table
+                    index += number_of_rows * row_size + 2;
                 }
+            }; break;
 
-                break;
-            case 9: //InstructionType.repeat: 
+            case 10: { //Scanner
+                let alpha = instruction;
+                let token_row_switches = kernel_state.state_buffer[index + 1];
+                let scanner_data = kernel_state.state_buffer[index + 2];
+
+                let auto_accept_with_peek = (alpha & alpha_auto_accept_with_peek_mask) > 0;
+                let auto_consume_with_peek = (alpha & alpha_auto_consume_with_peek_mask) > 0;
+
+                const input_type = ((instruction >> 24) & 0x3);
+                const token_transition = ((instruction >> 26) & 0x3);
+
+                let { input_value, lexer_pointer: lp } =
+                    get_token_info(
+                        kernel_state,
+                        input_type,
+                        token_transition,
+                        token_row_switches,
+                        auto_accept_with_peek,
+                        auto_consume_with_peek,
+                        0,
+                        prod
+                    );
+
+                lexer_pointer = lp;
+
+                let scan_field_length = scanner_data >> 16;
+
+                let instruction_field_size = scanner_data & 0xFFFF;
+
+                let i = index + 3;
+
+                let scan_field_end = i + scan_field_length;
+
+                let instruction_field_start = scan_field_end;
+
+                //default instruction
+                index = instruction_field_start + instruction_field_size;
+
+                console.log(`Scanner: expecting ${kernel_state.state_buffer.slice(i, instruction_field_start)}`);
+
+                while (i < scan_field_end) {
+
+                    if (kernel_state.state_buffer[i] == input_value) {
+                        console.log("    Matched:" + input_value);
+                        index = instruction_field_start + kernel_state.state_buffer[i + 1];
+                        break;
+                    }
+                    i += 2;
+                }
+            }; break;
+            case 11: { //Set Fail State
+                // Store accumulator information in failed states for use later to determine
+                // how many symbols have been added to the stack since the initialization of
+                // the original state.
+
+                console.log(`Set Failure state ${instruction & 0xFFFFFF}`);
+
+                kernel_state.state_stack[kernel_state.stack_pointer + 1] = instruction | ((kernel_state.symbol_accumulator) & acc_sym_mask);
+
                 kernel_state.stack_pointer += 1;
-                break;;
-            //Fail instructions
-            case 10: return ({ fail_mode: true, prod });
-            case 11: return ({ fail_mode: true, prod });
-            case 12: return ({ fail_mode: true, prod });
-            case 13: return ({ fail_mode: true, prod });
-            case 14: return ({ fail_mode: true, prod });
+
+            }; break;
+            case 12: //InstructionType.repeat: 
+                kernel_state.stack_pointer += 1;
+                break;
+            case 13: {
+                return ({ fail_mode: true, prod });
+            };
+            case 14: {
+                return ({ fail_mode: true, prod });
+            };
+
+            //Both "pass" and "end";
             case 15: return ({ fail_mode: true, prod });
         }
 
@@ -566,8 +689,9 @@ function instruction_executor(
 
 
 function get_token_info(
-    alpha: number,
     kernel_state: KernelState,
+    input_type: number,
+    token_transition: number,
     token_row_switches: number,
     auto_accept_with_peek: boolean,
     auto_consume_with_peek: boolean,
@@ -576,8 +700,6 @@ function get_token_info(
 ): { input_value: number; lexer_pointer: number; } {
 
     let input_value: i32 = 0;
-
-    const input_type = ((alpha >> 12) & 0xF);
 
     let lexer = kernel_state.lexer_stack[kernel_state.lexer_pointer];
 
@@ -589,9 +711,7 @@ function get_token_info(
 
         const skip_row = token_row_switches & 0xFFFF;
 
-        const token_transition = ((alpha >> 4) & 0xF);
-
-        switch (token_transition & 0xF) {
+        switch (token_transition) {
             case 0: /* do nothing */
                 break;
             case 1: /* set next peek lexer */ {
@@ -663,145 +783,6 @@ function get_token_info(
 }
 
 
-function state_executor(
-    state: u32,
-    prod: u32,
-    kernel_state: KernelState,
-    kernel_states_repo: KernelStateBuffer,
-    reverse_state_lookup?: Map<number, string>
-): ({ prod: u32; fail_mode: boolean; }) {
-
-    const state_pointer = state & state_index_mask;
-
-    let fail_mode = false;
-
-    // Decode state information and proceed run either the basic
-    // state executor or the table executor (scanner executor is 
-    // not yet implemented )
-    let alpha = kernel_state.state_buffer[state_pointer];
-
-    let beta = kernel_state.state_buffer[state_pointer + 1];
-
-    let token_row_switches = kernel_state.state_buffer[state_pointer + 2];
-
-    let delta = kernel_state.state_buffer[state_pointer + 3];
-
-
-    // If the state value is true then increment stack pointer
-    // after setting the stack pointer with the fail state value.
-    // However, if the previous state is the same as the failure state,
-    // do not increment. This prevents the stack from needlessly growing
-    // from repeating states that are linked to failures states. 
-
-    let previous_state = kernel_state.state_stack[kernel_state.stack_pointer];
-
-    kernel_state.state_stack[kernel_state.stack_pointer + 1] = beta | ((kernel_state.symbol_accumulator) & acc_sym_mask);
-
-    let failure_bit = (alpha & alpha_increment_stack_pointer_mask) & +((previous_state ^ beta) > 0);
-
-    kernel_state.stack_pointer += failure_bit;
-
-    let auto_accept_with_peek = (alpha & alpha_auto_accept_with_peek_mask) > 0;
-    let auto_consume_with_peek = (alpha & alpha_auto_consume_with_peek_mask) > 0;
-
-    // Main instruction process ----------------------
-    let process_type = (alpha >> 8) & 0xF;
-
-    let instruction_pointer = 0;
-
-    let lexer_pointer = kernel_state.lexer_pointer;
-
-    switch (process_type) {
-        case 0: break;
-        case 1: //basic 
-            {
-                // The instructions start at the 16 byte offset and 
-                // is directly handled by the instruction executor
-                instruction_pointer = state_pointer + 4;
-
-            } break;
-        case 2: //table 
-            {
-                let basis__ = (delta >> 16) & 0xFFFF;
-
-                let { input_value, lexer_pointer: lp } =
-                    get_token_info(
-                        alpha,
-                        kernel_state,
-                        token_row_switches,
-                        auto_accept_with_peek,
-                        auto_consume_with_peek,
-                        basis__,
-                        prod
-                    );
-
-                lexer_pointer = lp;
-
-                let number_of_rows = alpha >> 16;
-
-                let row_size = delta & 0xFFFF;
-
-                if (input_value >= 0 && input_value < number_of_rows) {
-                    instruction_pointer = state_pointer + 4 + input_value * row_size;
-                } else {
-                    // Use default behavior found at the end of the 
-                    // state table
-                    instruction_pointer = state_pointer + 4 + number_of_rows * row_size;
-                }
-
-            } break;
-        case 3: //scanner 
-            {
-                let { input_value,
-                    lexer_pointer: lp } =
-                    get_token_info(
-                        alpha,
-                        kernel_state,
-                        token_row_switches,
-                        auto_accept_with_peek,
-                        auto_consume_with_peek,
-                        0,
-                        prod
-                    );
-
-                lexer_pointer = lp;
-
-                let scan_field_length = alpha >> 16;
-
-                let instruction_field_size = delta & 0xFFFF;
-
-                let i = state_pointer + 4;
-
-                let scan_field_end = i + scan_field_length;
-
-                let instruction_field_start = scan_field_end;
-
-                //default instruction
-                instruction_pointer = instruction_field_start + instruction_field_size;
-
-                while (i < scan_field_end) {
-
-                    if (kernel_state.state_buffer[i] == input_value) {
-                        instruction_pointer = instruction_field_start + kernel_state.state_buffer[i + 1];
-                        break;
-                    }
-                    i += 2;
-                }
-
-            } break;
-    }
-
-    return instruction_executor(
-        state,
-        instruction_pointer,
-        token_row_switches,
-        prod,
-        lexer_pointer,
-        kernel_state,
-        kernel_states_repo
-    );
-}
-
 export function kernel_executor(
     kernel_state: KernelState,
     kernel_states_repo: KernelStateBuffer,
@@ -851,24 +832,16 @@ export function kernel_executor(
 
 
 
-                if (!fail_mode && ((state & fail_state_mask) == 0)) {
+                if ((!fail_mode && ((state & fail_state_mask) == 0))
+                    || (fail_mode && (state & fail_state_mask) != 0)) {
 
                     if (reverse_state_lookup)
-                        console.log(`\n at state: ${state & 0xFFFF} \n`, reverse_state_lookup.get(state & 0xFFFF), "\n");
+                        if (!fail_mode)
+                            console.log(`\n at state: ${state & 0xFFFF} \n`, reverse_state_lookup.get(state & 0xFFFF), "\n");
+                        else
+                            console.log("\n [IN FAILURE MODE] \n at state: \n", reverse_state_lookup.get(state & 0x0800FFFF), "\n");
 
-                    ({ fail_mode, prod } = state_executor(
-                        state,
-                        prod,
-                        kernel_state,
-                        kernel_states_repo
-                    ));
-
-                } else if (fail_mode && (state & fail_state_mask) != 0) {
-
-                    if (reverse_state_lookup)
-                        console.log("\n [IN FAILURE MODE] \n at state: \n", reverse_state_lookup.get(state & 0x0800FFFF), "\n");
-
-                    ({ fail_mode, prod } = state_executor(
+                    ({ fail_mode, prod } = instruction_executor(
                         state,
                         prod,
                         kernel_state,
