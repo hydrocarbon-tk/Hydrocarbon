@@ -1,9 +1,5 @@
-use super::core_parser::recognize;
-use super::core_parser::ParserState;
-use super::core_parser::ParserStateBuffer;
-use super::core_parser::ParserStateIterator;
-use super::core_parser::StackFunction;
-use super::core_parser::*;
+use super::kernel_parser::recognize;
+use super::kernel_parser::*;
 
 ///
 /// Base string container.
@@ -24,7 +20,6 @@ impl ASTRefString {
     pub fn slice<'a>(&self, source: &'a [u8]) -> &'a [u8] {
         return &source[self.offset..(self.offset + self.length)];
     }
-
 
     pub fn metrics<'a>(&self, source: &'a [u8]) -> (u32, u32) {
         (0, 0)
@@ -119,21 +114,23 @@ pub type ReduceFunction<T: std::fmt::Debug> =
 
 pub fn parser_core<T: std::fmt::Debug>(
     utf_8_input: &[u8],
-    expected_resolved_id: i32,
-    entry_functions: StackFunction,
+    state_buffer: &[u32],
+    start_state_pointer: u32,
+    scanner_function: ScannerFunction,
     reduce_functions: &[ReduceFunction<T>],
 ) -> OptionedBoxedASTRef<T> {
-    
     let (success, failure) = recognize(
-        utf_8_input,
-        utf_8_input.len() as u32,
-        expected_resolved_id,
-        entry_functions,
+        state_buffer.as_ptr(),
+        state_buffer.len(),
+        utf_8_input.as_ptr(),
+        utf_8_input.len(),
+        start_state_pointer,
+        scanner_function,
     );
 
     if success.len() > 0 {
         if let Some(longest_success) = success.get_ref_state(0) {
-            if (longest_success.lexer.byte_offset >= utf_8_input.len() as u32) {
+            if longest_success.get_root_lexer().byte_offset >= utf_8_input.len() as u32 {
                 return convert_fork_to_astref(longest_success, reduce_functions);
             }
         }
@@ -142,8 +139,8 @@ pub fn parser_core<T: std::fmt::Debug>(
     if failure.len() > 0 {
         if let Some(longest_failure) = failure.get_ref_state(0) {
             return Some(Box::new(ASTRef::FAILED_TOKEN(ASTRefString {
-                offset: longest_failure.lexer.byte_offset as usize,
-                length: longest_failure.lexer.byte_length as usize,
+                offset: longest_failure.get_root_lexer().byte_offset as usize,
+                length: longest_failure.get_root_lexer().byte_length as usize,
             })));
         }
     }
@@ -152,10 +149,10 @@ pub fn parser_core<T: std::fmt::Debug>(
 }
 
 fn convert_fork_to_astref<T: std::fmt::Debug>(
-    parser_data: &ParserState,
+    parser_data: &KernelState,
     reduce_functions: &[ReduceFunction<T>],
 ) -> OptionedBoxedASTRef<T> {
-    let mut iter = ParserStateIterator::new(parser_data);
+    let mut iter = KernelStateIterator::new(parser_data);
     let mut stack: Vec<BoxedASTRef<T>> = Vec::with_capacity(128);
     let mut stack_pointer: usize = 0;
     let mut token_offset: usize = 0;
@@ -230,9 +227,7 @@ fn convert_fork_to_astref<T: std::fmt::Debug>(
 //*/
 #[cfg(test)]
 mod completer_test {
-
-    use super::super::core_parser::add_reduce;
-    use super::super::core_parser::consume;
+    /*
     use super::*;
 
     type NodeRef = ASTRef<Test>;
@@ -254,8 +249,8 @@ mod completer_test {
     }
 
     fn testFNForked(
-        data: &mut ParserState,
-        buffer: &mut ParserStateBuffer,
+        data: &mut KernelState,
+        buffer: &mut KernelStateBuffer,
         prop: i32,
         cache: i32,
     ) -> i32 {
@@ -291,5 +286,5 @@ mod completer_test {
                 }
             }
         }
-    }
+    }*/
 }

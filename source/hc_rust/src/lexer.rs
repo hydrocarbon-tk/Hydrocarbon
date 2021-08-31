@@ -4,7 +4,7 @@ use super::character_lookup_table::CHAR_LU_TABLE;
 // LEXER
 /////////////////////////////////////////////
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub struct Lexer {
     pub byte_offset: u32,
     pub token_offset: u32,
@@ -16,14 +16,14 @@ pub struct Lexer {
     pub _type: i32,
     pub current_byte: u8,
     pub active_token_productions: u32,
-    input: &'static [u8],
+    pub input: &'static [u8],
 }
 
 impl Lexer {
-    pub fn new<'a>(input_buffer: *const u8, input_len_in: u32) -> Lexer {
+    pub fn new<'a>(input_buffer: *const u8, input_len_in: usize) -> Lexer {
         use std::slice;
 
-        let u8_slice: &[u8] = unsafe { slice::from_raw_parts(input_buffer, input_len_in as usize) };
+        let u8_slice: &[u8] = unsafe { slice::from_raw_parts(input_buffer, input_len_in) };
 
         Lexer {
             byte_offset: 0,
@@ -158,7 +158,7 @@ impl Lexer {
     }
 
     pub fn copy_in_place(&self) -> Lexer {
-        let mut destination: Lexer = Lexer::new(self.input.as_ptr(), self.input.len() as u32);
+        let mut destination: Lexer = Lexer::new(self.input.as_ptr(), self.input.len());
         destination.sync(self);
         return destination;
     }
