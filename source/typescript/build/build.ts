@@ -3,22 +3,20 @@ import { WorkerRunner } from "../build/workers/worker_runner.js";
 import parser_loader from "../grammar/hcg_parser.js";
 import { getProductionByName } from '../grammar/nodes/common.js';
 import { getRootSym, Sym_Is_A_Token } from '../grammar/nodes/symbol.js';
+import { BuildPack, renderToJavaScript } from "../render/render.js";
 import { fail_state_mask } from '../runtime/kernel.js';
 import { GrammarObject, ProductionImportSymbol, ProductionSymbol, TokenSymbol } from "../types/grammar_nodes";
 import { IRStateData, StateAttrib, StateMap } from '../types/ir_state_data';
 import { BlockData, InstructionType, IR_Instruction, ResolvedIRBranch, Resolved_IR_State } from '../types/ir_types';
 import { RDProductionFunction } from "../types/rd_production_function.js";
 import { getSymbolMapFromIds } from '../utilities/code_generating.js';
-import { compileRecognizerConstructs } from './compileRecognizerConstructs.js';
 
 const ir_parser = await parser_loader;
 
 export async function buildRecognizer(
     grammar: GrammarObject,
     number_of_workers: number = 1
-): Promise<{
-    recognizer_functions: RDProductionFunction[];
-}> {
+): Promise<BuildPack> {
 
     const
         mt_code_compiler = new WorkerRunner(grammar, number_of_workers);
@@ -26,22 +24,28 @@ export async function buildRecognizer(
     for (const updates of mt_code_compiler.run())
         await spark.sleep(1);
 
-    const ir_states = [...mt_code_compiler.tables.values()];
+    const ir_states = [...mt_code_compiler.tables.entries()];
 
     const states_map: StateMap = new Map();
 
-    //convert states to code
-
-    for (const ir_state_ast of <Resolved_IR_State[]>[
+    for (const [string, ir_state_ast] of <([string, Resolved_IR_State])[]>[
         ...ir_states.map(
 
             //@ts-ignore
-            str => ir_parser(str, {}, ir_parser.ir_state)
-                .result[0]
+            ([hash, str], i) => {
+
+                console.log(str);
+
+                return [str, (
+                    ir_parser(str, {}, ir_parser.ir_state)
+                        .result[0]
+                )];
+            }
         ),
         ...grammar.ir_states
     ])
-        insertIrStateBlock(ir_state_ast, grammar, states_map);
+        insertIrStateBlock(ir_state_ast, string, grammar, states_map);
+
 
     // Map recovery states to state of their target production ---------------------
     for (const [id, state] of states_map) {
@@ -84,14 +88,14 @@ export async function buildRecognizer(
 
     //Compile Recognizer Components -------------------------------------------------------------
 
-    compileRecognizerConstructs(grammar, state_buffer, sym_map, states_map);
-
     console.log(`Buffer size = ${state_buffer.length * 4}bytes`);
 
-    return {
-        recognizer_functions: mt_code_compiler.functions
+    return <BuildPack>{
+        grammar,
+        state_buffer,
+        states_map,
+        sym_map
     };
-
 }
 
 
@@ -99,10 +103,12 @@ const numeric_sort = (a: number, b: number): number => a - b;
 
 function insertIrStateBlock(
     ir_state_ast: Resolved_IR_State,
+    string: string,
     grammar: GrammarObject,
     states_map: StateMap,
     state_attributes: StateAttrib = 0
 ) {
+
     const id = ir_state_ast.id;
 
     const IS_PRODUCTION_ENTRY = getProductionByName(grammar, id) != null;
@@ -112,15 +118,13 @@ function insertIrStateBlock(
         block_offset: 0,
         pointer: -1,
         attributes: (IS_PRODUCTION_ENTRY ? StateAttrib.PRODUCTION_ENTRY : 0) | state_attributes,
-        string: ((StateAttrib.FAIL_STATE & state_attributes) ? "[FAILURE HANDLER]\n\n" : "") + ir_state_ast.pos.slice(),
+        string: ((StateAttrib.FAIL_STATE & state_attributes) ? "[FAILURE HANDLER]\n\n" : "") + string,
         ir_state_ast: ir_state_ast,
         block: null,
     });
 
-    console.log(id, ((StateAttrib.FAIL_STATE & state_attributes) ? "[FAILURE HANDLER]\n\n" : "") + ir_state_ast.pos.slice());
-
     if (ir_state_ast.fail)
-        insertIrStateBlock(ir_state_ast.fail, grammar, states_map, StateAttrib.FAIL_STATE);
+        insertIrStateBlock(ir_state_ast.fail, ir_state_ast.fail.pos.slice(), grammar, states_map, StateAttrib.FAIL_STATE);
 }
 
 function convertBlockDataToBufferData(block_info: BlockData, state_map: StateMap): number[] {
@@ -149,6 +153,9 @@ function insertInstructionSequences(
     block_info: BlockData,
     default_block_size: number = 0
 ): number[] {
+    if (!instruction_sections)
+        debugger;
+
     let buffer = [];
     for (const data of instruction_sections) {
         let i = 0;
@@ -289,17 +296,19 @@ function insertInstructionSequences(
                             skip_table_row,
                             token_table_row,
                             scan_field_length,
-                            instruction_field_size
-                        ] = data.slice(i + 1, i + 9);
+                            instruction_field_size,
+                            scanner_key_index_pairs,
+                            sequence_entries
+                        ] = data.slice(i + 1, i + 11);
 
-                    i += 8;
+                    i += 10;
 
                     const
                         table_header =
                             (10 << 28) |
                             ((["production", "token"].indexOf(input_type) + 1) << 24)
                             |
-                            ((["peek", "assert"].indexOf(input_type) + 1) << 26)
+                            ((["peek", "assert"].indexOf(lexer_type) + 1) << 26)
                             |
                             (+use_peek_for_assert_or_consume << 2)
                             |
@@ -319,8 +328,14 @@ function insertInstructionSequences(
 
                     temp_buffer.push(table_header, token_info, table_info);
 
+                    for (const [key, val] of scanner_key_index_pairs) {
+                        temp_buffer.push(key, val);
+                    }
+
+
+
                     temp_buffer.push(...insertInstructionSequences(
-                        <any>data[++i], state_map, block_info, 0
+                        sequence_entries, state_map, block_info, 0
                     ));
                 } break;
                 case "set fail": {
@@ -584,8 +599,8 @@ function extractTokenSymbols(state_data: IRStateData, grammar: GrammarObject) {
         skipped_symbols.push(...skipped);
     }
 
-    state_data.expected_tokens = expected_symbols;
-    state_data.skipped_tokens = skipped_symbols;
+    state_data.expected_tokens = expected_symbols.filter(s => s != 9999); // <- remove default value
+    state_data.skipped_tokens = skipped_symbols.filter(s => s != 9999);// <- remove default value
 }
 
 function statesOutputsOptimizationPass(StateMap: StateMap, grammar: GrammarObject, StateMap_: StateMap): boolean {
@@ -620,9 +635,6 @@ function statesOutputsOptimizationPass(StateMap: StateMap, grammar: GrammarObjec
                 //Replace the state with contents of the production state
                 const prod_state = StateMap.get(state_name);
 
-                //console.log("woopah", instructions[0].instructions[0].state);
-                //console.log(string);
-                //console.log(prod_state.string);
 
                 state_data.attributes = prod_state.attributes ^ StateAttrib.PRODUCTION_ENTRY;
                 // Flatten the state since the assert is now superfluous.
@@ -1012,33 +1024,32 @@ function buildBranchTableBlock(
 
     let base_size = 12;
 
-    const main_sequence = [];
+    const instruction_sequence = [];
 
     if (state_ast.fail) {
         base_size += 4;
-        main_sequence
+        instruction_sequence
             .push(["set fail", state_ast.fail.id]);
     }
+
     const { use_peek_for_assert_or_consume, consume_peek }
         = getPeekConsumptionFlags(attributes, state_ast);
 
     const row_size = max_instruction_byte_size / 4;
 
-    main_sequence.push(
-        "table",
-        input_type,
-        lexer_type,
-        use_peek_for_assert_or_consume,
-        consume_peek,
-        skip_id,
-        tok_id,
-        basis,
-        number_of_rows,
-        row_size,
-        table_entries,
+    instruction_sequence.push(
+        ["table",
+            input_type,
+            lexer_type,
+            use_peek_for_assert_or_consume,
+            consume_peek,
+            skip_id,
+            tok_id,
+            basis,
+            number_of_rows,
+            row_size,
+            table_entries,]
     );
-
-    const instruction_sequence = [main_sequence];
 
     if (default_instruction) {
 
@@ -1116,29 +1127,30 @@ function buildScanningBranchBlock(
     const { use_peek_for_assert_or_consume, consume_peek }
         = getPeekConsumptionFlags(attributes, state_ast);
 
-    const main_sequence = [];
-
     let base_byte_size = 12;
+
+    const instruction_sequence = [];
 
     if (state_ast.fail) {
         base_byte_size += 4;
-        main_sequence
+        instruction_sequence
             .push(["set fail", state_ast.fail.id]);
     }
 
-    main_sequence.push(
-        "scanner",
-        input_type,
-        lexer_type,
-        use_peek_for_assert_or_consume,
-        consume_peek,
-        skip_id,
-        tok_id,
-        scan_field_length,
-        instruction_field_size / 4
+    instruction_sequence.push(
+        ["scanner",
+            input_type,
+            lexer_type,
+            use_peek_for_assert_or_consume,
+            consume_peek,
+            skip_id,
+            tok_id,
+            scan_field_length,
+            instruction_field_size / 4,
+            scanner_key_index_pairs,
+            sequence_entries]
     );
 
-    const instruction_sequence = [main_sequence];
 
     if (default_instruction) {
 

@@ -69,10 +69,18 @@ export class WorkerRunner {
 
     mergeWorkerData(worker: WorkerContainer, response: HybridDispatchResponse) {
 
-        const { tables } = response;
+        const { tables, production_id } = response;
 
-        for (const [key, val] of tables.entries())
-            this.tables.set(key, val);
+        const production_name = this.grammar.productions[production_id].name;
+
+        for (const [key, val] of tables.entries()) {
+
+            if (this.tables.has(key)) {
+                if (key == production_name)
+                    this.tables.set(key, val);
+            } else
+                this.tables.set(key, val);
+        }
 
         this.IN_FLIGHT_JOBS--;
 

@@ -3,22 +3,158 @@
  * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
  * disclaimer notice.
  */
-import { Helper } from "../build/helper.js";
-import { sk } from "../skribble/skribble.js";
+import { sk, skRenderAsJavaScript } from "../skribble/skribble.js";
 import { SKExpression, SKNode } from "../skribble/types/node.js";
 import { GrammarObject } from "../types/grammar_nodes.js";
-import { RDProductionFunction } from "../types/rd_production_function.js";
-import { buildPreScanFunction, token_lu_bit_size, token_lu_bit_size_offset } from "../utilities/code_generating.js";
+import { StateMap } from '../types/ir_state_data.js';
+import { getSymbolScannerFunctions, token_lu_bit_size, token_lu_bit_size_offset } from "../utilities/code_generating.js";
+
+export interface BuildPack {
+    grammar: GrammarObject;
+    state_buffer: Uint32Array;
+    sym_map: Map<string, number>;
+    states_map: StateMap;
+}
+
+export function renderToJavaScript(
+    { grammar, state_buffer, sym_map, states_map }: BuildPack,
+) {
+    const entry_pointers = grammar.productions.filter(p => p.IS_ENTRY).map(p => ({ name: p.entry_name, pointer: states_map.get(p.name).pointer }));
+    //Attempt to parse input
+    const token_lookup_functions = extractAndReplaceTokenMapRefs(getSymbolScannerFunctions(grammar)
+        .map(skRenderAsJavaScript)
+        .join("\n\n"), sym_map);
+
+    const array_row_size = 75;
+    const script = `
+import {
+    ParserFramework,
+    KernelParserCore,
+    fillByteBufferWithUTF8FromString
+} from "@candlelib/hydrocarbon";
 
 
-function createGrammarFunctionArray(meta: Helper, recognizer_functions: RDProductionFunction[]) {
-    const
+const {
+    token_production,
+    init_table,
+    KernelStateIterator,
+    run,
+    compare
+} = KernelParserCore;
 
-        { const: constants_a, fn: const_functions_a } = meta.render_constants(), grammar_functions = [buildPreScanFunction(), ...constants_a, ...const_functions_a];
+const reverse_state_lookup = new Map([
+    ${[...states_map.entries()].map(([key, { pointer, string }]) => {
+        return `[${pointer}, \`${string.replace(/\`/g, "\\`")}\`]`;
+    }).join(",\n")}
+])
 
-    for (const { entry, goto, reduce } of recognizer_functions)
-        grammar_functions.push(...[entry, goto, reduce].filter(i => i));
-    return grammar_functions;
+const token_sequence_lookup = new Uint8Array([
+${/**/
+        grammar.sequence_string
+            .split("")
+            .map(s => s.charCodeAt(0))
+            .reduce((r, v, i) => {
+                if (r.length == 0) return [v + ""];
+                else if (r[r.length - 1].length >= array_row_size)
+                    r.push(v);
+                else
+                    r[r.length - 1] += "," + v;
+                return r;
+            }, []).join(",\n")
+        }
+])
+
+const token_lookup = new ${
+        /**/
+        { 8: "Uint8Array", 16: "Uint8Array", 32: "Uint32Array" }[token_lu_bit_size]
+        }([
+${/**/
+        ([...sym_map.keys()]
+            .flatMap(s => s.split("_"))
+            .reduce((r, v, i) => {
+                if (r.length == 0) return [v + ""];
+                else if (r[r.length - 1].length >= array_row_size)
+                    r.push(v);
+                else
+                    r[r.length - 1] += "," + v;
+                return r;
+            }, []).join(",\n"))
+        }
+]);
+
+const states_buffer = new Uint32Array([
+${ /**/
+        Array.from(state_buffer).map(v => (v >>> 0) + "")
+            .reduce((r, v, i) => {
+                if (r.length == 0) return [v + ""];
+                else if (r[r.length - 1].length >= array_row_size)
+                    r.push(v);
+                else
+                    r[r.length - 1] += "," + v;
+                return r;
+            }, []).join(",\n")
+        }
+]);
+
+${skRenderAsJavaScript(createActiveTokenSK(grammar))}
+
+${token_lookup_functions}
+
+const js_parser_pack = ()=>({
+
+    init_table: () => {
+        const table = new Uint8Array(382976);
+        init_table(table);
+        return table;
+    },
+
+    create_iterator: (data) => {
+        return new KernelStateIterator(data);
+    },
+
+    recognize: (string, entry_index) => {
+
+        const temp_buffer = new Uint8Array(string.length * 4);
+
+        const actual_length = fillByteBufferWithUTF8FromString(string, temp_buffer, temp_buffer.length);
+
+        const input_buffer = new Uint8Array(temp_buffer.buffer, 0, actual_length);
+
+        let entry_pointer = 0;
+
+        switch(entry_index){
+
+            ${entry_pointers.map(({ pointer }, i) =>
+/**/`case ${i}: ${i == 0 ? "default: " : ""} entry_pointer = ${pointer}; break;`).join("\n\n            ")}
+        }
+        
+        return run(
+            states_buffer,
+            input_buffer,
+            input_buffer.length,
+            entry_pointer,
+            scan,
+            reverse_state_lookup
+        );
+    }
+});
+
+const reduce_functions = ${renderJavaScriptReduceFunctionLookupArray(grammar)};
+
+export default ParserFramework(
+    reduce_functions,
+    undefined,
+    js_parser_pack,
+    {
+${entry_pointers.map(({ name }, i) => `        ${name}:${i}`).join(",\n")}
+    }
+);`.replace(/_A_([\w\_\d]+)_A_/g,
+            (name, sub: string, ...args) => {
+                const { pointer } = states_map.get(sub);
+                return pointer + "";
+            });
+
+    return script;
 }
 
 export function extractAndReplaceTokenMapRefs(token_lookup_functions: string, sym_map: Map<any, any>) {
@@ -29,8 +165,6 @@ export function extractAndReplaceTokenMapRefs(token_lookup_functions: string, sy
         return sym_map.get(b);
     });
 }
-
-
 
 export function createActiveTokenSK(grammar: GrammarObject): SKNode {
     return <SKExpression>sk`
@@ -51,32 +185,6 @@ function createTokenLUSK(sym_map: Map<any, any>): SKNode {
 
 function createSequenceArraySk(grammar: GrammarObject): SKNode {
     return <SKNode>sk`[static new] token_sequence_lookup : array_u8 = a(${grammar.sequence_string.split("").map(s => s.charCodeAt(0)).join(",")})`;
-}
-
-/**
- * Constructs a parser string based on grammar and it's build artifacts.
- * 
- * @param grammar 
- * @param recognizer_functions 
- * @param meta 
- * @param hydrocarbon_import_path - Optional: Adds an import line for Hydrocarbon~ParserFactory
- *  to the top of script. The <hydrocarbon_import_path> will be used to assign the correct
- *  import path from 
- * @returns 
- */
-export async function generateTSParser(
-    grammar: GrammarObject,
-    recognizer_functions: RDProductionFunction[],
-    meta: Helper,
-    hydrocarbon_import_path: string = "@candlelib/hydrocarbon",
-    export_expression_preamble: string = "export default"
-): Promise<string> {
-
-    return generateScriptParser(grammar, recognizer_functions, meta, hydrocarbon_import_path, export_expression_preamble, true);
-}
-
-function createEntryList(grammar: GrammarObject) {
-    return "{" + grammar.productions.filter(p => p.IS_ENTRY).map((p, i) => p.name.replace(/\:\:/, "_") + ":" + i).join(",") + "}";
 }
 
 export function renderJavaScriptReduceFunctionLookupArray(grammar: GrammarObject): string {

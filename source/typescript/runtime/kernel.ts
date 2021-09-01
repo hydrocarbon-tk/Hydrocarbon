@@ -1,5 +1,7 @@
-import { Lexer } from "./lexer.js";
+import { Lexer, init_table, compare } from "./lexer.js";
 import { i32, u32 } from "../types/ir_types";
+
+export { init_table, compare };
 
 //Global Constants
 const state_index_mask = (1 << 16) - 1;
@@ -10,6 +12,8 @@ export const alpha_increment_stack_pointer_mask = 1 << 0;
 export const alpha_have_default_action_mask = 1 << 1;
 export const alpha_auto_accept_with_peek_mask = 1 << 16;
 export const alpha_auto_consume_with_peek_mask = 1 << 17;
+
+const log = console.log;
 
 type ScannerFunction = (l: Lexer, i: u32, j: u32) => void;
 
@@ -366,6 +370,7 @@ export function token_production(
     tk_flag: number,
     state_buffer: Uint32Array,
     tk_scan: ScannerFunction,
+    reverse_state_lookup
 ): boolean {
 
     if (lexer._type == _type) {
@@ -376,6 +381,7 @@ export function token_production(
         return false;
     }
 
+
     let data_buffer: KernelStateBuffer = new KernelStateBuffer();
 
     let state: KernelState = new KernelState(
@@ -383,6 +389,7 @@ export function token_production(
         lexer.input,
         lexer.input.length,
         tk_scan
+
     );
 
     state.lexer_stack[0].sync(lexer);
@@ -392,7 +399,11 @@ export function token_production(
     state.stack_pointer = 1;
     state.state = 0;
 
-    if (!kernel_executor(state, data_buffer)) {
+
+    if (!kernel_executor(state, data_buffer, reverse_state_lookup)) {
+
+        if (reverse_state_lookup)
+            log("\n-----------------END TOKEN PRODUCTION------------------------\n");
 
         lexer.set_token_span_to(state.lexer_stack[0]);
 
@@ -400,6 +411,10 @@ export function token_production(
 
         return true;
     }
+
+
+    if (reverse_state_lookup)
+        log("\n-----------------END TOKEN PRODUCTION------------------------\n");
 
     return false;
 }
@@ -426,21 +441,20 @@ function instruction_executor(
                 let lexer = kernel_state.lexer_stack[lexer_pointer];
                 const slice = Array.from(lexer.input.slice(lexer.byte_offset, lexer.byte_offset + lexer.byte_length)).map(i => String.fromCharCode(i)).join("");
 
-                console.log(`Consume: ${slice}`);
+                log(`INSTRUCTION: Consume: ${slice}`);
                 kernel_state.consume(lexer_pointer);
                 break;
             case 2: //InstructionType.goto:
-                console.log(`Goto: ${instruction & 0xFFFF}`);
+                log(`INSTRUCTION: Goto: ${instruction & 0xFFFF}`);
                 kernel_state.state_stack[kernel_state.stack_pointer + 1] = instruction | ((kernel_state.symbol_accumulator) & acc_sym_mask);
                 //| ((kernel_state.symbol_accumulator) & acc_sym_mask);
                 kernel_state.stack_pointer += 1;
                 break;
             case 3: //InstructionType.set_prod:
-                console.log(`Set prod: ${instruction & 0xFFFFFFF}`);
+                log(`INSTRUCTION: Set Production: ${instruction & 0xFFFFFFF}`);
                 prod = instruction & 0xFFFFFFF;
                 break;
             case 4: //InstructionType.reduce: 
-
                 let low = (instruction) & 0xFFFF;
 
                 if ((low & 0xFFFF) == 0xFFFF) {
@@ -452,6 +466,7 @@ function instruction_executor(
 
                     let fn_id = (instruction >> 16) & 0x0FFF;
 
+                    log(`INSTRUCTION: Reduce: ${accumulated_symbols}`);
                     //Extract accumulated symbols inform
                     kernel_state.add_reduce(accumulated_symbols, fn_id);
                 } else {
@@ -460,9 +475,11 @@ function instruction_executor(
 
                     if ((low & 0x4) == 0x4) {
                         let high_len = (instruction >> 16) & 0xFFFF;
+                        log(`INSTRUCTION: Reduce: ${high_len}`);
                         kernel_state.symbol_accumulator -= (high_len - 1) << 16;
                         kernel_state.add_rule(high_len & 0xFFF);
                     } else {
+                        log(`INSTRUCTION: Reduce: ${(((low >> 3) & 0x1F))}`);
                         kernel_state.symbol_accumulator -= (((low >> 3) & 0x1F) - 1) << 16;
                     }
                 }
@@ -482,6 +499,8 @@ function instruction_executor(
                 {
                     // the first state goes to 
                     // the current process
+                    log(`INSTRUCTION: Fork: `);
+
                     let length = (instruction & 0xFFFFFFF) - 1;
 
                     index += 1;
@@ -495,6 +514,8 @@ function instruction_executor(
                         const fork = kernel_state.fork(kernel_states_repo);
 
                         fork.state_stack[fork.stack_pointer + 1] = kernel_state.state_stack[index];
+
+                        log(`---- State ${kernel_state.state_stack[index]}`);
 
                         fork.stack_pointer += 1;
 
@@ -564,6 +585,8 @@ function instruction_executor(
                 break;
             //State Instructions
             case 9: { //table_jump
+
+                log(`INSTRUCTION: Table Jump `);
                 let token_row_switches = kernel_state.state_buffer[index + 1];
                 let table_data = kernel_state.state_buffer[index + 2];
 
@@ -594,7 +617,7 @@ function instruction_executor(
                 let number_of_rows = table_data >> 16;
                 let row_size = table_data & 0xFFFF;
 
-                console.log(`Jump table: from ${basis__} to ${basis__ + number_of_rows - 1} on value ${input_value + basis__}`);
+                log(`Jump table: from ${basis__} to ${basis__ + number_of_rows - 1} on value ${input_value + basis__}`);
 
                 if (input_value >= 0 && input_value < number_of_rows) {
                     index += input_value * row_size + 2;
@@ -606,6 +629,7 @@ function instruction_executor(
             }; break;
 
             case 10: { //Scanner
+                log(`INSTRUCTION: Symbol Scan `);
                 let alpha = instruction;
                 let token_row_switches = kernel_state.state_buffer[index + 1];
                 let scanner_data = kernel_state.state_buffer[index + 2];
@@ -641,15 +665,15 @@ function instruction_executor(
                 let instruction_field_start = scan_field_end;
 
                 //default instruction
-                index = instruction_field_start + instruction_field_size;
+                index = instruction_field_start + instruction_field_size - 1;
 
-                console.log(`Scanner: expecting ${kernel_state.state_buffer.slice(i, instruction_field_start)}`);
+                log(`Scanner: expecting ${kernel_state.state_buffer.slice(i, instruction_field_start)} with value ${input_value}`);
 
                 while (i < scan_field_end) {
 
                     if (kernel_state.state_buffer[i] == input_value) {
-                        console.log("    Matched:" + input_value);
-                        index = instruction_field_start + kernel_state.state_buffer[i + 1];
+                        log("    Matched:" + input_value);
+                        index = instruction_field_start + kernel_state.state_buffer[i + 1] - 1;
                         break;
                     }
                     i += 2;
@@ -660,11 +684,16 @@ function instruction_executor(
                 // how many symbols have been added to the stack since the initialization of
                 // the original state.
 
-                console.log(`Set Failure state ${instruction & 0xFFFFFF}`);
+                log(`Set Failure state ${instruction & 0xFFFFFF}`);
 
-                kernel_state.state_stack[kernel_state.stack_pointer + 1] = instruction | ((kernel_state.symbol_accumulator) & acc_sym_mask);
+                let fail_state_pointer = instruction | ((kernel_state.symbol_accumulator) & acc_sym_mask);
 
-                kernel_state.stack_pointer += 1;
+                if (kernel_state.state_stack[kernel_state.stack_pointer] != fail_state_pointer) {
+
+                    kernel_state.state_stack[kernel_state.stack_pointer + 1] = fail_state_pointer;
+
+                    kernel_state.stack_pointer += 1;
+                }
 
             }; break;
             case 12: //InstructionType.repeat: 
@@ -677,7 +706,7 @@ function instruction_executor(
                 return ({ fail_mode: true, prod });
             };
 
-            //Both "pass" and "end";
+            //Failure
             case 15: return ({ fail_mode: true, prod });
         }
 
@@ -773,6 +802,12 @@ function get_token_info(
             case 3: /*do nothing */ break;
         }
 
+        log("INSTRUCTION: Lexer value: " +
+            Array.from(lexer.input.slice(lexer.byte_offset - 5, lexer.byte_offset)).map(i => String.fromCharCode(i)).join("") + "| "
+            + Array.from(lexer.input.slice(lexer.byte_offset, lexer.byte_offset + lexer.byte_length)).map(i => String.fromCharCode(i)).join("") + " |"
+            + Array.from(lexer.input.slice(lexer.byte_offset + lexer.byte_length, lexer.byte_offset + lexer.byte_length + 5)).map(i => String.fromCharCode(i)).join("")
+        );
+
         input_value = lexer._type - basis__;
 
     } else {
@@ -829,7 +864,8 @@ export function kernel_executor(
                  * duties.
                  *
                  */
-
+                if (fail_mode && reverse_state_lookup)
+                    log("FAIL MODE ------");
 
 
                 if ((!fail_mode && ((state & fail_state_mask) == 0))
@@ -837,9 +873,9 @@ export function kernel_executor(
 
                     if (reverse_state_lookup)
                         if (!fail_mode)
-                            console.log(`\n at state: ${state & 0xFFFF} \n`, reverse_state_lookup.get(state & 0xFFFF), "\n");
+                            log(`\n at state: ${state & 0xFFFF} \n`, reverse_state_lookup.get(state & 0xFFFF), "\n");
                         else
-                            console.log("\n [IN FAILURE MODE] \n at state: \n", reverse_state_lookup.get(state & 0x0800FFFF), "\n");
+                            log("\n [IN FAILURE MODE] \n at state: \n", reverse_state_lookup.get(state & 0x0800FFFF), "\n");
 
                     ({ fail_mode, prod } = instruction_executor(
                         state,
@@ -897,10 +933,12 @@ export function run(
             state.VALID = !FAILED;
 
             if (state.VALID) {
+                log("Complete valid parser run");
                 valid
                     .add_state_pointer_and_sort(process_buffer.remove_state_at_index(i));
             }
             else {
+                log("Invalid parser run exited");
                 process_buffer
                     .add_state_pointer_and_sort(process_buffer.remove_state_at_index(i));
             }

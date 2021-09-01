@@ -28,11 +28,15 @@ import { ParserFactory as ParserFactoryNext } from "../runtime/parser_loader_nex
 import { Token } from "../runtime/token.js";
 import { fillByteBufferWithUTF8FromString } from "../runtime/utf8.js";
 export * as ParserCore from "../runtime/core_parser.js";
+export * as KernelParserCore from "../runtime/kernel.js";
+
+
 
 //Diagnostics
 import { ParserEnvironment } from "../types/parser_environment.js";
 import { compileGrammarFromString, compileGrammarFromURI } from "../grammar/compile.js";
 import { HCGParser } from "../types/parser.js";
+export { ParserFrameWork as ParserFramework } from '../runtime/parser_framework.js';
 
 export {
     //Types

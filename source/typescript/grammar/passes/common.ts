@@ -7,7 +7,7 @@ import {
     GrammarProduction,
     HCG3ProductionBody, ProductionSymbol,
     ProductionTokenSymbol,
-    HCG3Symbol, SymbolNode
+    HCG3Symbol, SymbolNode, ExportPreamble, ProductionNode
 } from "../../types/grammar_nodes";
 import { createSequenceData } from "../../utilities/create_byte_sequences.js";
 import { getSymbolTreeLeaves, getSymbolTree } from "../../utilities/getSymbolValueAtOffset.js";
@@ -28,36 +28,23 @@ export const render = (grammar_node) => {
 };
 
 function assignEntryProductions(grammar: GrammarObject, production_lookup) {
-    let i = 0;
 
     let HAVE_ENTRY_PRODUCTIONS = false;
     //*
-    for (const production of grammar.productions) {
+    for (const { production: { production }, reference } of grammar.preamble.filter((p): p is ExportPreamble => p.type == "export")) {
 
-        if (production.name == "__entries__") {
-
-            for (const body of production.bodies) {
-
-                const [sym] = body.sym;
-
-                if (sym.type == "sym-production") {
-
-                    production_lookup.get(sym.name).IS_ENTRY = true;
-
-                    HAVE_ENTRY_PRODUCTIONS = true;
-                }
-            }
-
-            grammar.productions.splice(i, 1);
-
-            break;
+        if (production) {
+            production.IS_ENTRY = true;
+            production.entry_name = reference;
+            HAVE_ENTRY_PRODUCTIONS = true;
         }
-        i++;
     }
     //*/
 
-    if (!HAVE_ENTRY_PRODUCTIONS)
+    if (!HAVE_ENTRY_PRODUCTIONS) {
         grammar.productions[0].IS_ENTRY = true;
+        grammar.productions[0].entry_name = grammar.productions[0].name;
+    }
 
 }
 
@@ -89,8 +76,6 @@ export function processSymbols(grammar: GrammarObject, errors: Error[] = []) {
     for (const production of grammar.productions)
         production_lookup.set(production.name, production);
 
-    assignEntryProductions(grammar, production_lookup);
-
 
     for (const production of grammar.productions)
         production.id = p_counter++;
@@ -108,6 +93,16 @@ export function processSymbols(grammar: GrammarObject, errors: Error[] = []) {
             errors
         ));
 
+    for (const export_preamble of grammar.preamble.filter((p): p is ExportPreamble => p.type == "export")) {
+        id_offset = processSymbol(
+            export_preamble.production,
+            production_lookup,
+            unique_map,
+            token_production_set,
+            errors,
+            id_offset
+        );
+    }
 
     for (const ir_state of grammar.ir_states)
 
@@ -130,12 +125,10 @@ export function processSymbols(grammar: GrammarObject, errors: Error[] = []) {
             id_offset = processSymbol(sym, production_lookup, unique_map, token_production_set, errors, id_offset);
 
     const symbol_ids_array = [...unique_map.values()].filter(s => s.id).map(s => s.id).sort((a, b) => a - b).filter(i => i >= 1);
-
-    console.log(unique_map);
     grammar.meta.all_symbols.by_id = new Map([...unique_map.values()].map((sym) => [sym.id, sym]));
     grammar.meta.token_row_size = (Math.ceil(symbol_ids_array.slice(-1)[0] / 32) * 32) / token_lu_bit_size;
 
-
+    assignEntryProductions(grammar, production_lookup);
 }
 
 function processProductionBodySymbols(production: GrammarProduction,
@@ -175,7 +168,7 @@ function processIRStateSymbols(ir_state: IR_State,
     const instructions = ir_state.instructions;
 
     id_offset = processIRInstructionSymbols(instructions, id_offset, production_lookup, unique_map, token_production_set, errors);
-    console.log(ir_state);
+
     if (ir_state.fail) {
         id_offset = processIRStateSymbols(ir_state.fail, id_offset, production_lookup, unique_map, token_production_set, errors);
     }

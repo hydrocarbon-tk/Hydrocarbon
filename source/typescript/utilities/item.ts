@@ -126,8 +126,11 @@ export class Item extends Array {
 
         return grammar.productions[prod];
     }
-
-    toEND() {
+    /**
+     * Returns the item incremented to its final position.
+     * @returns Item
+     */
+    toEND(): Item {
         const item = this.decrement();
 
         item[ItemIndex.offset] = item[ItemIndex.length];

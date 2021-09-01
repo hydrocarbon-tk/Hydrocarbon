@@ -9,6 +9,7 @@ import { TokenTypes } from "../runtime/TokenTypes";
 import { Item } from "../utilities/item";
 import { ItemMapEntry } from "./item_map";
 import { IR_State } from './ir_types';
+import { Token } from '../runtime/token';
 export const enum RECURSIVE_STATE {
     UNKNOWN = 0,
     LEFT = 1,
@@ -44,7 +45,7 @@ export interface HCG3TokenPosition {
 }
 export interface HCGGrammarNode {
     type: string;
-    pos?: HCG3TokenPosition;
+    pos?: Token;
 }
 
 
@@ -87,6 +88,10 @@ export interface ImportPreamble extends HCGGrammarNode {
     type: "import", val: string; uri: string, reference: string;
 }
 
+export interface ExportPreamble extends HCGGrammarNode {
+    type: "export", production: (ProductionSymbol); reference: string;
+}
+
 export interface ProductionNode extends HCGGrammarNode {
     name: any;
     bodies: HCG3ProductionBody[];
@@ -103,6 +108,7 @@ export interface ProductionNode extends HCGGrammarNode {
      */
     IS_ENTRY: boolean;
 
+    entry_name?: string;
     /**
      * The original identifier of the source grammar if it 
      * has been imported
@@ -153,7 +159,7 @@ export interface ConditionNode extends HCGGrammarNode {
 }
 export interface GrammarObject extends HCGGrammarNode {
     type: "hc-grammar-4";
-    preamble: (ImportPreamble | IgnorePreamble)[];
+    preamble: (ImportPreamble | IgnorePreamble | ExportPreamble)[];
     productions: GrammarProduction[];
     functions: HCG3ReferencedFunction[];
     imported_grammars: { reference: string, uri: string, grammar: GrammarObject; }[];
@@ -239,7 +245,7 @@ export interface SymbolNode extends HCGGrammarNode {
     subtype?: string;
     opt_id?: bigint;
     precedence?: number;
-    pos: any;
+    pos: Token;
     meta: boolean;
     id: number;
 }
@@ -342,6 +348,7 @@ export interface ProductionImportSymbol extends SymbolNode {
     module: any;
     meta: false;
     name: string;
+    reference: string;
 }
 
 export interface LookBehindSymbol extends SymbolNode {

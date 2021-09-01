@@ -1,5 +1,6 @@
 import { copy, traverse } from "@candlelib/conflagrate";
 import {
+    ExportPreamble,
     GrammarObject,
     GrammarProduction,
     HCG3Symbol
@@ -64,6 +65,8 @@ function processImportedObjects(grammar: GrammarObject, errors: Error[], importe
 
                 const imported = getImportedGrammarFromReference(grmmr, production.name.module);
 
+
+
                 const name = imported.grammar.common_import_name + "__" + production.name.production;
 
                 if (imported_productions.has(name)) {
@@ -83,6 +86,11 @@ function processImportedObjects(grammar: GrammarObject, errors: Error[], importe
 
             if (grammar != grmmr)
                 grammar.ir_states.push(ir_state);
+        }
+
+        for (const export_preamble of grmmr.preamble.filter((p): p is ExportPreamble => p.type == "export")) {
+            //@ts-ignore
+            export_preamble.production = processImportedBody([export_preamble.production], grammar, grmmr, imported_productions)[0];
         }
     }
 
@@ -213,6 +221,11 @@ function processSymbol(sym: HCG3Symbol, NOT_ORIGIN: boolean, root_grammar: Gramm
         //Convert symbol to a local name
         //Find the production that is referenced in the grammar
         const prd = getProductionByName(imported.grammar, sym.production);
+
+        if (!prd) {
+            sym.pos.throw(`Unable to import production [${sym.production}] from [${sym.module}]\n ( alias of file://${imported.uri} ):
+    Production was not found.`);
+        }
 
 
         const name = imported.grammar.common_import_name + "__" + prd.name;

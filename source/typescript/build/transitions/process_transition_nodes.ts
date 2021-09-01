@@ -98,7 +98,6 @@ export function processTransitionNodes(
                     };
 
                     if (WE_HAVE_UNRESOLVED_LEAVES) {
-
                         ({ leaves } = conflicting_leaf_resolve_function(virtual_state, nodes, options));
 
                     } else {
@@ -113,6 +112,10 @@ export function processTransitionNodes(
                     }
 
                     hash = virtual_state.hash;
+
+
+
+
                 }
 
                 node.leaves = leaves;
@@ -126,8 +129,10 @@ export function processTransitionNodes(
 
                 if (node.items.length > 1) {
                     throw new Error("Flow should not enter this block: Multi-item moved to group section");
-                } else if (node.items.length == 0)
+                } else if (node.items.length == 0) {
+
                     throw new Error("Transition node has no items");
+                }
                 else {
 
                     const { leaf } = leaf_resolve_function(node.items[0], node, options);
@@ -135,7 +140,11 @@ export function processTransitionNodes(
                     node.hash = leaf.hash;
                     node.prods = leaf.prods;
                     node.leaves = [leaf];
+
+                    if (!node.hash)
+                        debugger;
                 }
+
                 break;
 
         }

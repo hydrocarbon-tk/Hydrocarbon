@@ -4,15 +4,23 @@ import {
     getSkippableSymbolsFromItems,
     getTokenSymbolsFromItems,
     getUniqueSymbolName,
+    SymbolsCollide,
+    Symbols_Are_The_Same,
     Sym_Is_Ambiguous, Sym_Is_Defined
 } from "../../grammar/nodes/symbol.js";
 import { TokenSymbol } from '../../types/grammar_nodes';
 import { RenderBodyOptions } from "../../types/render_body_options";
 import { getClosure, getFollowClosure } from "../../utilities/closure.js";
 import { Item } from "../../utilities/item.js";
-export function create_symbol_clause(items: Item[], prods: number[], { scope, grammar }: RenderBodyOptions) {
+export function create_symbol_clause(items: Item[], prods: number[], { scope, grammar, production_ids }: RenderBodyOptions) {
     const active_items = items.filter(i => !i.atEND);
     const end_items = items.filter(i => i.atEND);
+
+    if (scope == "GOTO") {
+        let left_recursive_items = active_items.filter(i => i.offset == 1).filter(i => production_ids.includes(i.decrement().getProductionAtSymbol(grammar)?.id ?? -1));
+
+        end_items.push(...left_recursive_items.map(i => i.toEND()));
+    }
 
     const expected_symbols = [
         ...getTokenSymbolsFromItems([
@@ -25,20 +33,34 @@ export function create_symbol_clause(items: Item[], prods: number[], { scope, gr
     const skipped_symbols = getSkippableSymbolsFromItems(getFollowClosure(
         [...items,
 
-        ...(scope == "GOTO"
-            ? prods.flatMap(i => grammar.productions[i].bodies).map(b => new Item(b.id, b.length, b.length))
-            : [])
+            //...(scope == "GOTO" && 
+            //    ? prods.flatMap(i => grammar.productions[i].bodies).map(b => new Item(b.id, b.length, b.length))
+            //    : [])
         ],
         grammar.lr_items,
         grammar
-    ), grammar);
+    ), grammar).filter(skipped => !expected_symbols.some(
+        expected => Symbols_Are_The_Same(expected, skipped) || SymbolsCollide(expected, skipped, grammar))
+    );
     let code = `
         
     symbols: 
+        
         expected[${expected_symbols.flatMap(convert_sym_to_code).setFilter().sort().join("   ")}]`;
 
     if (skipped_symbols.length > 0)
-        code += `\n        skipped[${skipped_symbols.flatMap(convert_sym_to_code).setFilter().sort().join("   ")}]`;
+        code += `
+        
+        skipped[${skipped_symbols.flatMap(convert_sym_to_code).setFilter().sort().join("   ")}]
+
+    /* Expected symbols  */
+
+    ${expected_symbols.map(create_symbol_comment).join(" ")}
+
+    /* Skipped symbols  */
+
+   ${skipped_symbols.map(create_symbol_comment).join(" ")}`;
+
     return code;
 }
 
@@ -50,10 +72,10 @@ export function convert_sym_to_code(input: any, index: number, array: any[]): st
 
         const defined_symbols = sym.syms.filter(Sym_Is_Defined);
 
-        return [create_symbol_comment(sym), ...defined_symbols.flatMap(convert_sym_to_code)].join("  ");
+        return [...defined_symbols.flatMap(convert_sym_to_code)].join("  ");
     }
 
-    return `${sym.id} ${create_symbol_comment(sym)}`;
+    return `${sym.id}`;
 }
 ;
 export function create_symbol_comment(sym: TokenSymbol) {

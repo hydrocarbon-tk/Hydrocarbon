@@ -38,6 +38,8 @@ export function table_resolveGOTOBranches(
 
         const prods = new Set();
         for (const { hash: goto_hash, transition_types, syms } of states.sort(((a, b) => a.prods.sort()[0] - b.prods.sort()[0]))) {
+
+            if (goto_hash == "ignore") continue;
             const keys = (<number[]><any>syms).setFilter(s => s + "");
 
             for (const key of keys)

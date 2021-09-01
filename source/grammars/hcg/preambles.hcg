@@ -54,12 +54,12 @@
                                                                         f:r { { type:"ignore", symbols : $2 } }
 
 
-<> import_preamble >         \@IMPORT g:sp(*) ( g:id | g:sym  )(+\" ) g:sp(+) ( t:AS | t:as ) sym::identifier g:nl  
+<> import_preamble >         \@IMPORT ( g:id | g:sym  )(+\" ) ( t:AS | t:as ) sym::identifier 
                                                                         
-                                                                        f:r { { type:"import", uri: $3, reference:$6 } } 
+                                                                        f:r { { type:"import", uri: $2, reference:$4 } } 
 
-<> export_preamble >         \@EXPORT g:sp(*) ( sym::imported_production_symbol | sym::production_symbol ) g:sp(+) ( t:AS | t:as ) g:id g:nl
+<> export_preamble >         \@EXPORT ( sym::imported_production_symbol | sym::production_symbol ) ( t:AS | t:as ) g:id
                                                                         
-                                                                        f:r { { type:"export", production: $3, reference:$6 } } 
+                                                                        f:r { { type:"export", production: $2, reference:$4 } } 
 
 

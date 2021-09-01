@@ -191,8 +191,6 @@ function addUnresolvedNode(node: TransitionNode, options: RenderBodyOptions, off
 
             node.transition_type = TRANSITION_TYPE.ASSERT_PEEK_VP;
         } else {
-            console.log(items.map(i => i.renderUnformattedWithProduction(options.grammar)));
-
             for (const items_with_same_symbol of filtered_items.group(i => getUniqueSymbolName(i.sym(options.grammar)))) {
 
                 const unresolved_leaf_node = createTransitionNode(items_with_same_symbol, node.symbols, TRANSITION_TYPE.ASSERT, offset, node.peek_level, true);

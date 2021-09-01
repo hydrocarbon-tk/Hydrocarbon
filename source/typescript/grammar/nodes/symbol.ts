@@ -215,13 +215,11 @@ export function getTokenSymbolsFromItems(items: Item[], grammar: GrammarObject):
 }
 
 export function getSkippableSymbolsFromItems(items: Item[], grammar: GrammarObject): TokenSymbol[] {
-
     return items.flatMap(i => [...grammar.item_map.get(i.id).skippable.values()])
-        .group()
-        .filter(grp => grp.length == items.length)
-        .map(grp => grp[0])
+
         .map(sym => <TokenSymbol>grammar.meta.all_symbols.get(sym))
-        .flatMap(sym => <TokenSymbol[]>getTrueSymbolValue(sym, grammar));
+
+        .setFilter(getUniqueSymbolName);
 }
 
 /**

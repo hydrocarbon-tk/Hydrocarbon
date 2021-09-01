@@ -51,12 +51,6 @@ export function buildPeekTransitions(
 
         for (const { id } of symbols) {
             if (ss.has(id)) {
-
-                console.log(peek_groups.map(i => {
-                    return i.map(i => {
-                        return i.roots.map(i => i.renderUnformattedWithProduction(options.grammar)).join("\n") + "\n^^^^^^^^^^^\n\n" + i.closure.map(i => i.renderUnformattedWithProduction(options.grammar)) + "\n>>>>>>>>>>>>>>>>>>>>>>>>..\n";
-                    });
-                }).join("\n--------\n"));
                 throw "WTF";
             }
             ss.add(id);

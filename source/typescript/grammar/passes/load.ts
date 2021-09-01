@@ -35,8 +35,6 @@ export async function loadGrammarFromFile(uri: URI | string, grammar_parser: HCG
 
     const grammar = await loadGrammar(internal_uri, grammar_parser, existing_grammars);
 
-    console.log(grammar);
-
     existing_grammars.set("root", grammar);
 
     const import_grammars = new Map(grammar.imported_grammars.map(g => [g.uri, g]));

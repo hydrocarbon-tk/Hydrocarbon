@@ -267,7 +267,7 @@ export function getIncludeBooleans(
     return convertExpressionArrayToBoolean(types);
 }
 
-export function createProductionTokenCall(tok: ProductionTokenSymbol, grammar: GrammarObject, ADD_PRE_SCAN_BOOLEAN: boolean = false): string {
+export function createProductionTokenCall(tok: ProductionTokenSymbol, grammar: GrammarObject, ADD_PRE_SCAN_BOOLEAN: boolean = false, ALLOW_RSL: boolean = true): string {
 
     const prod_id = getProductionID(tok, grammar);
     const production = grammar.productions[prod_id];
@@ -284,7 +284,7 @@ export function createProductionTokenCall(tok: ProductionTokenSymbol, grammar: G
         pre_scan = `pre_scan(lexer, ${symbol_map_id}) &&`;
     }
 
-    return `${pre_scan} token_production(lexer, _A_${prod_name}_A_, ${prod_id}, ${tok.id}, ${1 << tok.token_id}, &> state_buffer, &> scan)`;
+    return `${pre_scan} token_production(lexer, _A_${prod_name}_A_, ${prod_id}, ${tok.id}, ${1 << tok.token_id}, &> states_buffer, &> scan${ALLOW_RSL ? ", reverse_state_lookup" : ""})`;
 }
 export function createScanFunctionCall(
     items: Item[],

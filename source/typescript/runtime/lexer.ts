@@ -226,3 +226,20 @@ function get_utf8_code_point_at(index: number, buffer: Uint8Array): number {
     return 0;
 }
 function getTypeAt(code_point: number): number { return (char_lu_table[code_point] & 0x1F); }
+
+export function compare(
+    lexer: Lexer,
+    data_offset: number,
+    sequence_offset: number,
+    byte_length: number,
+    sequence: Uint8Array
+): number {
+    let i = data_offset;
+    let j = sequence_offset;
+    let len = j + byte_length;
+    for (; j < len; i++, j++)
+        if ((lexer.get_byte_at(i) != sequence[j]))
+            return j - sequence_offset;
+    ;
+    return byte_length;
+}

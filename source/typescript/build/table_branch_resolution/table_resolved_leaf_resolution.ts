@@ -14,7 +14,7 @@ import { convert_sym_to_code, create_symbol_clause } from "./create_symbol_claus
 
 export function table_resolveResolvedLeaf(item: Item, state: TransitionNode, options: RenderBodyOptions): SingleItemReturnObject {
 
-    if (Some_Items_Are_In_Extended_Goto([item], options) && false) {
+    if (Some_Items_Are_In_Extended_Goto([item], options) && options.scope == "GOTO") {
         state.transition_type = TRANSITION_TYPE.IGNORE;
         return {
             leaf: {
@@ -22,7 +22,7 @@ export function table_resolveResolvedLeaf(item: Item, state: TransitionNode, opt
                 leaf: [],
                 prods: options.production_ids.slice(),
                 original_prods: [],
-                hash: "",
+                hash: "ignore",
                 transition_type: TRANSITION_TYPE.IGNORE
             }
         };
@@ -32,6 +32,9 @@ export function table_resolveResolvedLeaf(item: Item, state: TransitionNode, opt
 
     const hash = renderItem(item, options);
 
+
+    if (hash == "")
+        debugger;
     return {
         leaf: {
             hash: hash,
@@ -94,7 +97,11 @@ function renderItem(item: Item, options: RenderBodyOptions): string {
 
             hash_basis = `${consumption} [${convert_sym_to_code(sym, null, null)}] ( goto state [${next_state}] )`;
 
-            code += create_symbol_clause([item], [item.getProduction(grammar).id], options);
+            const symbols_clause = create_symbol_clause([item], [item.getProduction(grammar).id], options);
+
+            code += symbols_clause;
+
+            hash_basis += symbols_clause;
 
             leaf_state = "leaf-assert";
         }
@@ -114,6 +121,11 @@ function renderItem(item: Item, options: RenderBodyOptions): string {
 
     options.table.map.set(hash, code);
     options.table.entries.push(code);
+
+
+
+    if (hash == "")
+        debugger;
 
     return hash;
 

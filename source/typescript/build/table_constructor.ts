@@ -38,9 +38,6 @@ export function constructTableParser(production: GrammarProduction, grammar: Gra
     grammar.item_map = cached_item_map;
 
 
-
-
-
     return {
         tables: RDOptions.table.map,
         id: production.id,
@@ -115,11 +112,8 @@ state [${productions[0].name}]
     goto state [${hash}] ${GOTO_Options.NO_GOTOS ? `` : `then goto state [${productions[0].name}_goto]`}
     `;
 
-
     RDOptions.table.map.set(productions[0].name, code);
     RDOptions.table.entries.push(code);
-
-
 
     return { RDOptions, GOTO_Options };
 }

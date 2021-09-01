@@ -7,23 +7,42 @@ import { hashString } from "../../utilities/code_generating.js";
 import { RenderBodyOptions } from "../../types/render_body_options";
 import { MultiItemReturnObject } from "../../types/transition_generating.js";
 import { TransitionNode, TRANSITION_TYPE } from "../../types/transition_node.js";
+import { table_resolveResolvedLeaf } from './table_resolved_leaf_resolution.js';
 
 export function table_resolveUnresolvedLeaves(node: TransitionNode, nodes: TransitionNode[], options: RenderBodyOptions): MultiItemReturnObject {
 
     //remove extended goto transition
 
     const items = node.items;
+    if (nodes.length == 1) {
+        console.log("A--------------------------------------------------");
+        debugger;
 
-    if (nodes.length == 1)
         return { leaves: node.leaves, prods: node.prods };
+    }
 
 
-    const output_nodes = nodes.sort((a, b) =>
+    const output_nodes = nodes.filter(m => m.hash != "ignore").sort((a, b) =>
         b.items.sort((a, b) => b.len - a.len)[0].len
         -
         a.items.sort((a, b) => b.len - a.len)[0].len),
 
         out_prods = [], out_leaves = [];
+
+
+    if (output_nodes.length < 1) {
+        node.hash = "ignore";
+        return { leaves: node.leaves, prods: [] };
+    }
+
+    if (output_nodes.length == 1) {
+
+        node.hash = output_nodes[0].hash;
+
+        if (!node.hash) debugger;
+
+        return { leaves: node.leaves, prods: output_nodes[0].prods };
+    }
 
     for (const { prods, leaves } of output_nodes) {
         out_prods.push(...prods);
@@ -45,6 +64,8 @@ state [${hash}]
     options.table.entries.push(code);
 
     node.hash = hash;
+
+    if (!hash) debugger;
 
     return { leaves: node.leaves, prods: node.prods };
 }
