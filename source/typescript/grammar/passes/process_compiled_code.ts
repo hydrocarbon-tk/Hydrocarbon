@@ -9,7 +9,9 @@ function parseAndRenderCPP(ast) { return experimentalRender(ast, cpp_duplicate, 
 
 export function createCompilableCode(grammar: GrammarObject): void {
     // Reset the reduce_functions lookup to prepare the grammar for output
-    // to C++ format. 
+    // to Struct / Class formats. 
+
+
     grammar.reduce_functions = <Map<string, { id: number, data: any; }>>new Map();
     grammar.compiled = {
         structs: null,
@@ -87,10 +89,9 @@ function convertBodyFunctionsToLambdas(grammar: GrammarObject) {
 
             const fn = `[](HYDROCARBON::ASTRef * stack, int len){return (${parseAndRenderCPP(reduce_function.compilable_ast)}); }`;
 
-            addReduceFNStringToLUT(body, grammar, fn, reduce_function.compilable_ast);
+            body.reduce_id = addReduceFNStringToLUT(grammar, fn, reduce_function.compilable_ast);
         } else {
-
-            addReduceFNStringToLUT(body, grammar);
+            body.reduce_id = -1;
         }
     }
 }

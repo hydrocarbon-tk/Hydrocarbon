@@ -154,13 +154,34 @@ export const rust_mappings: NodeMappings<SKNode, "type"> = <NodeMappings<SKNode,
         <NodeMapping<SKIf>>{
             type: "if",
             child_keys: ["assertion", "expression", "else"],
-            template: "if o:s @assertion {IS_BLOCKLESS: \\{ }o:s @expression {IS_BLOCKLESS: \\} } {else: m:s  else  m:s \\{ @else \\} }",
+            template: `if o:s @assertion {IS_BLOCKLESS: \\{ } i:s o:s @expression i:e {IS_BLOCKLESS: \\} } 
+            
+            {else: m:s  else  m:s \\{ i:s o:n o:n @else i:e o:n \\} } 
+            
+            {else_if: m:s else m:s @else_if }
+            `,
 
             custom_render: (state, template_fn) => {
                 const { node } = state;
 
-                if (node.expression.type !== "block") {
+                if (node.expression.type != "block") {
                     node.IS_BLOCKLESS = true;
+                }
+
+                //Add else
+
+                if (node.else && node.else.type == "if") {
+                    //@ts-ignore
+                    node.else_if = node.else;
+                    //@ts-ignore
+                    node.else = null;
+                    //@ts-ignore
+                    const string = template_fn(state);
+                    //@ts-ignore
+                    node.else = node.else_if;
+                    //@ts-ignore
+                    node.else_if = null;
+                    return string;
                 }
 
                 return template_fn(state);

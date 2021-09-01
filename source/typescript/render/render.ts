@@ -3,17 +3,139 @@
  * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
  * disclaimer notice.
  */
-import { sk, skRenderAsJavaScript } from "../skribble/skribble.js";
+import { sk, skRenderAsJavaScript, skRenderAsRust } from "../skribble/skribble.js";
 import { SKExpression, SKNode } from "../skribble/types/node.js";
 import { GrammarObject } from "../types/grammar_nodes.js";
 import { StateMap } from '../types/ir_state_data.js';
 import { getSymbolScannerFunctions, token_lu_bit_size, token_lu_bit_size_offset } from "../utilities/code_generating.js";
-
+import * as cpp from "./cpp_render.js";
+import * as rust from "./rust_render.js";
 export interface BuildPack {
     grammar: GrammarObject;
     state_buffer: Uint32Array;
     sym_map: Map<string, number>;
     states_map: StateMap;
+}
+
+export function renderToCPP(
+    { grammar, state_buffer, sym_map, states_map }: BuildPack,
+) {
+
+}
+
+export function renderToRust(
+    { grammar, state_buffer, sym_map, states_map }: BuildPack,
+) {
+    const rendered_structs = rust.buildCompilableStructs(grammar);
+    const main_enum_list = rust.createRustEnumList(grammar);
+    const array_row_size = 75;
+
+    const entry_pointers = grammar.productions.filter(p => p.IS_ENTRY).map(p => ({ name: p.entry_name, pointer: states_map.get(p.name).pointer }));
+    //Attempt to parse input
+    const token_lookup_functions = extractAndReplaceTokenMapRefs(getSymbolScannerFunctions(grammar)
+
+        .map(skRenderAsRust)
+
+        .join("\n\n"), sym_map);
+
+
+    const rust_file = `
+use candlelib_hydrocarbon::framework::*;
+use super::spec_parser::*;
+
+const token_sequence_lookup: [u8:${grammar.sequence_string.length}] = [
+${/**/
+        grammar.sequence_string
+            .split("")
+            .map(s => s.charCodeAt(0))
+            .reduce((r, v, i) => {
+                if (r.length == 0) return [v + ""];
+                else if (r[r.length - 1].length >= array_row_size)
+                    r.push(v);
+                else
+                    r[r.length - 1] += "," + v;
+                return r;
+            }, []).join(",\n")
+        }
+];
+
+const token_lookup: [${{ 8: "u8", 16: "u16", 32: "u32" }[token_lu_bit_size]};${0}] =[
+${/**/
+        ([...sym_map.keys()]
+            .flatMap(s => s.split("_"))
+            .reduce((r, v, i) => {
+                if (r.length == 0) return [v + ""];
+                else if (r[r.length - 1].length >= array_row_size)
+                    r.push(v);
+                else
+                    r[r.length - 1] += "," + v;
+                return r;
+            }, []).join(",\n"))
+        }
+];
+
+const states_buffer: [u32;${state_buffer.length}] = [
+${ /**/
+        Array.from(state_buffer).map(v => (v >>> 0) + "")
+            .reduce((r, v, i) => {
+                if (r.length == 0) return [v + ""];
+                else if (r[r.length - 1].length >= array_row_size)
+                    r.push(v);
+                else
+                    r[r.length - 1] += "," + v;
+                return r;
+            }, []).join(",\n")
+        }
+];
+
+fn isTokenActive(token_id: i32, row: u32) -> bool {
+    let index = ((row * 6) + (token_id >> 4) as u32) as usize;
+    let shift: u16 = 1 << (15 & (token_id));
+    return (token_lookup[index] & shift) > 0;
+}
+
+${token_lookup_functions}
+
+${rendered_structs.map(s => `#[derive(Debug)]\n${s}`).join("\n\n")}
+
+pub type NodeRef = ASTRef<TypeEnum>;
+pub type BoxedNodeRef = Box<ASTRef<TypeEnum>>;
+
+${rust.renderRustFunctionLUArray(grammar)};
+
+#[derive(Debug)]
+${main_enum_list}
+
+pub enum EntryPoint {
+${entry_pointers.map(({ name }, i) => `        ${name}`).join(",\n")},
+}
+
+pub fn parse(string_data: &[u8], entry_point:EntryPoint) -> OptionedBoxedASTRef<TypeEnum> {
+
+    let entry_pointer:u32 = 0;
+
+    match entry_point as u32 {
+        ${entry_pointers.map(({ name, pointer }, i) =>
+    /**/`${name} ${i == 0 ? "| _ " : ""} => { entry_pointer = ${pointer};} `).join("\n\n            ")}
+    }
+
+    let state_buffer_ref = states_buffer[..];
+
+    run(
+        entry_pointer,
+        string_data,
+        state_buffer_ref, 
+        scan,
+        reduce_functions
+    )
+}
+`.replace(/_A_([\w\_\d]+)_A_/g,
+            (name, sub: string, ...args) => {
+                const { pointer } = states_map.get(sub);
+                return pointer + "";
+            });
+
+    return rust_file;
 }
 
 export function renderToJavaScript(
@@ -177,10 +299,6 @@ export function createActiveTokenSK(grammar: GrammarObject): SKNode {
                 return : (token_lookup[index] & shift) != 0;
             }
         `;
-}
-
-function createTokenLUSK(sym_map: Map<any, any>): SKNode {
-    return <SKExpression>sk`[mut] token_lookup: array_u${token_lu_bit_size} = array_u${token_lu_bit_size}(${[...sym_map.keys()].flatMap(s => s.split("_").slice(1)).join(",")});`;
 }
 
 function createSequenceArraySk(grammar: GrammarObject): SKNode {

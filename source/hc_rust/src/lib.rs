@@ -1,4 +1,4 @@
 mod character_lookup_table;
-pub mod completer;
-pub mod kernel_parser;
+pub mod framework;
+pub mod kernel;
 pub mod lexer;

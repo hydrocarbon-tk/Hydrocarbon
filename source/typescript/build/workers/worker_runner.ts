@@ -149,7 +149,7 @@ export class WorkerRunner {
                 COMPLETE: false
             };
         }
-
+        /*
 
         const pending = [this.functions[0], ...this.functions.filter(f => f.RENDER)], reached = new Set([0]);
 
@@ -171,6 +171,7 @@ export class WorkerRunner {
                 COMPLETED: true
             };
         }
+        */
 
         //Clean up workers.
         this.workers.forEach(wk => wk.target.terminate());
