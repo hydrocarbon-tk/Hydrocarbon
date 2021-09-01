@@ -1,3 +1,9 @@
+/*
+ * Copyright (C) 2021 Anthony Weathersby - The Hydrocarbon Parser Compiler
+ * see /source/typescript/hydrocarbon.ts for full copyright and warranty
+ * disclaimer notice.
+ */
+
 import { Lexer, init_table, compare } from "./lexer.js";
 import { i32, u32 } from "../types/ir_types";
 
@@ -198,6 +204,15 @@ export class KernelState implements KernelStateType {
         l.next();
 
         return true;
+    }
+
+    /**
+     * Return a reference to the main parsing lexer. 
+     * ( the zero indexed lexer)
+     */
+
+    get_root_lexer() {
+        return this.lexer_stack[0];
     }
 }
 
@@ -764,6 +779,7 @@ function get_token_info(
             case 2: /* set primary lexer */
 
                 let consume_index = kernel_state.lexer_pointer >> 16;
+
                 let peek_level = kernel_state.lexer_pointer & 0xFFFF;
 
                 if ((peek_level - consume_index) > 0
@@ -802,10 +818,10 @@ function get_token_info(
             case 3: /*do nothing */ break;
         }
 
-        log("INSTRUCTION: Lexer value: " +
-            Array.from(lexer.input.slice(lexer.byte_offset - 5, lexer.byte_offset)).map(i => String.fromCharCode(i)).join("") + "| "
-            + Array.from(lexer.input.slice(lexer.byte_offset, lexer.byte_offset + lexer.byte_length)).map(i => String.fromCharCode(i)).join("") + " |"
-            + Array.from(lexer.input.slice(lexer.byte_offset + lexer.byte_length, lexer.byte_offset + lexer.byte_length + 5)).map(i => String.fromCharCode(i)).join("")
+        log(`INSTRUCTION: Lexer type: [${lexer._type}] | value: ` +
+            Array.from(lexer.input.slice(lexer.byte_offset - 5, lexer.byte_offset)).map(i => String.fromCodePoint(i)).join("") + "| "
+            + Array.from(lexer.input.slice(lexer.byte_offset, lexer.byte_offset + lexer.byte_length)).map(i => String.fromCodePoint(i)).join("") + " |"
+            + Array.from(lexer.input.slice(lexer.byte_offset + lexer.byte_length, lexer.byte_offset + lexer.byte_length + 5)).map(i => String.fromCodePoint(i)).join("")
         );
 
         input_value = lexer._type - basis__;
@@ -843,9 +859,10 @@ export function kernel_executor(
 
                 /**
                  * A state pointer is divided into three data segments
-                 *   Meta ______ State info     Array Index
-                 *   _|  _|_ ___________________|___
-                 *  |  ||  ||                       |
+                 *        __Is fail state bit
+                 *   Meta|  __ Accumulator Delta  _ Pointer 
+                 *   _|_ | _|_______ _____________|_
+                 *  |   |||         |               |
                  * [31 .28 .24 . . .16 . . .8. . . .0]
                  *
                  * Meta data relates to found within the meta
@@ -864,9 +881,6 @@ export function kernel_executor(
                  * duties.
                  *
                  */
-                if (fail_mode && reverse_state_lookup)
-                    log("FAIL MODE ------");
-
 
                 if ((!fail_mode && ((state & fail_state_mask) == 0))
                     || (fail_mode && (state & fail_state_mask) != 0)) {
@@ -936,11 +950,13 @@ export function run(
                 log("Complete valid parser run");
                 valid
                     .add_state_pointer_and_sort(process_buffer.remove_state_at_index(i));
+
             }
             else {
                 log("Invalid parser run exited");
-                process_buffer
+                invalid
                     .add_state_pointer_and_sort(process_buffer.remove_state_at_index(i));
+
             }
         }
 

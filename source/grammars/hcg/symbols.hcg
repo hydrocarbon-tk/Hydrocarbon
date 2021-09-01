@@ -64,7 +64,7 @@
 
     | symbol ( \(+ | \(* )  terminal_symbol?  \)                f:r { { type:"list-production", terminal_symbol:$$3, IS_OPTIONAL:+($2 == "(*"), val:$1, pos:pos, meta:false } }
 
-    | g:sym                                                     f:r { { type:"literal", val:$1, pos:pos, meta:false } }
+    
 
 <> EOF_symbol > 
     \$eof                                                       f:r { { type:"eof", val:"END_OF_FILE", pos:pos, meta:false } }
@@ -78,6 +78,8 @@
 <> literal_symbol > 
     \t: ( g:id | g:num )(+\" ) sym_delimiter? 
                                                                 f:r { { type:"exclusive-literal", val:""+$2, pos:pos, meta:false } }
+    | g:sym                                                    
+                                                                f:r { { type:"literal", val:$1, pos:pos, meta:false } }
 
 <> escaped_symbol > 
     \\ ( g:id | g:sym | g:num )(+\" ) sym_delimiter             f:r { { type:"literal", val:$2, pos:pos, meta:false } }

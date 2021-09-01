@@ -100,7 +100,7 @@ ${skRenderAsJavaScript(createActiveTokenSK(grammar))}
 
 ${token_lookup_functions}
 
-const js_parser_pack = ()=>({
+const js_parser_pack = {
 
     init_table: () => {
         const table = new Uint8Array(382976);
@@ -137,17 +137,17 @@ const js_parser_pack = ()=>({
             reverse_state_lookup
         );
     }
-});
+};
 
 const reduce_functions = ${renderJavaScriptReduceFunctionLookupArray(grammar)};
 
 export default ParserFramework(
     reduce_functions,
-    undefined,
-    js_parser_pack,
     {
-${entry_pointers.map(({ name }, i) => `        ${name}:${i}`).join(",\n")}
-    }
+${entry_pointers.map(({ name }, i) => `        ${name}:${i}`).join(",\n")},
+    },
+    js_parser_pack,
+
 );`.replace(/_A_([\w\_\d]+)_A_/g,
             (name, sub: string, ...args) => {
                 const { pointer } = states_map.get(sub);

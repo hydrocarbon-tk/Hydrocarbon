@@ -4,49 +4,58 @@
  * disclaimer notice.
  */
 import URI from "@candlelib/uri";
-import { HCGParser, HCGProductionFunction } from "../types/parser";
-import { RecognizeInitializer } from "../types/parser_data";
-import { ParserEnvironment } from "../types/parser_environment.js";
+import {
+    ParserPack,
+    ProductionFunction,
+    ParserEnvironment,
+    RecognizeInitializer
+} from "../types/parser_framework_types";
 import { initializeUTFLookupTableNewPlus as initialize_character_lut } from "./parser_memory_new.js";
 import { Token } from "./token.js";
-import { load_wasm_recognizer } from "./wasm_loader_gamma.js";
+import { load_wasm_recognizer } from "./parser_framework_wasm.js";
 
 export { initialize_character_lut as initializeUTFLookupTableNewPlus };
 
 /**
  * Provides 
- * @param functions 
+ * @param reduce_functions 
  * @param wasm_binary_string 
  * @param load_js_recognizer 
- * @param entry_name_list 
+ * @param production_entry_names 
  * @returns 
  */
-export async function ParserFrameWork<T, R = {}>(
+export async function ParserFrameWork<T, R, K extends keyof R>(
 
-    functions: HCGProductionFunction<T>[],
+    reduce_functions: ProductionFunction<T>[],
 
-    wasm_binary_source_path?: URI,
+    production_entry_names: R,
 
-    load_js_recognizer?: () => RecognizeInitializer,
+    js_parser_pack: RecognizeInitializer<R, K> = null,
 
-    entry_name_list: R = <R><any>{}
+    wasm_binary_source_path: URI = null,
 
-): Promise<HCGParser<T, R>> {
+): Promise<ParserPack<T, R, K>> {
 
-    let { recognize, init_table: get_character_lut, create_iterator }: RecognizeInitializer = <any>{};
+    let { recognize, init_table: get_character_lut, create_iterator }: RecognizeInitializer<R, K> = <any>{};
 
     if (wasm_binary_source_path)
-        ({ recognize, init_table: get_character_lut, create_iterator } = await load_wasm_recognizer(wasm_binary_source_path));
+        (
+            { recognize, init_table: get_character_lut, create_iterator }
+            = await load_wasm_recognizer(wasm_binary_source_path)
+        );
     else
-        ({ recognize, init_table: get_character_lut, create_iterator } = load_js_recognizer());
+        (
+            { recognize, init_table: get_character_lut, create_iterator }
+            = js_parser_pack
+        );
 
     initialize_character_lut(get_character_lut());
 
-    const out: any = function (input_string: string, env: ParserEnvironment = {}, production_id = 0) {
+    const out: any = function (input_string: string, production_id: R[K], env: ParserEnvironment = {}) {
 
         const
 
-            fns = functions,
+            fns = reduce_functions,
 
             { valid, invalid } = recognize(input_string, production_id);
 
@@ -129,12 +138,14 @@ export async function ParserFrameWork<T, R = {}>(
         }
 
         if (invalid.len() > 0) {
+            // Furthest invalid state
+            const fail_state = invalid.get_mut_state(0);
 
-            const farthest_invalid_state = invalid.get_mut_state(0);
+            const lexer = fail_state.get_root_lexer();
 
             const token = new Token(input_string, "",
-                farthest_invalid_state.lexer.byte_length,
-                farthest_invalid_state.lexer.byte_offset
+                lexer.token_length,
+                lexer.token_offset
             );
 
             token.throw(`Unexpected token [${token.slice()}]`);
@@ -143,8 +154,5 @@ export async function ParserFrameWork<T, R = {}>(
         return { result: null };
     };
 
-    for (const key in entry_name_list)
-        out[key] = entry_name_list[key];
-
-    return out;
+    return { parse: out, entry_points: production_entry_names };
 };

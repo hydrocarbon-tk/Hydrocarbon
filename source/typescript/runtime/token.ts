@@ -9,7 +9,7 @@ export class Token {
     readonly path: string;
     readonly source: string;
     readonly off: number;
-    readonly tl: number;
+    readonly length: number;
     private _line: number;
 
     static fromRange(start: Token, end: Token): Token {
@@ -17,22 +17,39 @@ export class Token {
         return new Token(
             start.source,
             start.path,
-            end.off - start.off + end.tl,
+            end.off - start.off + end.length,
             start.off
         );
     }
 
 
-    constructor(source: string, source_path: string, token_length: number, offset: number, line: number = -1) {
-        this.source = source;
-        this.path = source_path;
-        this.tl = token_length;
-        this._line = line;
-        this.off = offset;
+    constructor(source: string, source_path: string, token_length: number, token_offset: number, line: number = -1) {
+        Object.defineProperty(this, 'source', {
+            enumerable: false,
+            value: source
+        });
+        Object.defineProperty(this, 'length', {
+            enumerable: false,
+            value: token_length
+        });
+        Object.defineProperty(this, 'off', {
+            enumerable: false,
+            value: token_offset
+        });
+        Object.defineProperty(this, '_line', {
+            enumerable: false,
+            writable: true,
+            value: line
+        });
+        Object.defineProperty(this, 'path', {
+            enumerable: false,
+            writable: true,
+            value: source_path
+        });
     }
 
     slice() {
-        return this.source.slice(this.off, this.off + this.tl);
+        return this.source.slice(this.off, this.off + this.length);
     }
 
     toString() {
@@ -40,6 +57,10 @@ export class Token {
     }
     toJSON() {
         return [``];
+    }
+
+    get len() {
+        return this.length;
     }
 
     get line() {
@@ -56,14 +77,14 @@ export class Token {
         const lex = new Lexer(this.source);
 
         lex.off = this.off;
-        lex.tl = this.tl;
+        lex.tl = this.length;
         lex.line = this.line;
 
         let i = this.off;
 
         for (; this.source[i] != "\n" && i >= 0; --i);
 
-        lex.column = this.off - i - 1;
+        lex.column = this.off - i;
 
         return new Error(lex.errorMessage(message));
     }
@@ -72,3 +93,5 @@ export class Token {
         throw this.returnError(message);
     }
 };
+
+

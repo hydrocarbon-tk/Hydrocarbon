@@ -28,11 +28,6 @@ export function table_resolveBranches(
     options: RenderBodyOptions
 ): SKExpression[] {
 
-    //Remove extended goto items
-
-    //Convert this into a state table
-
-
     const
         nodes = [...gen],
 
@@ -41,35 +36,27 @@ export function table_resolveBranches(
         branches = [];
 
     let
-        hash_string = "", //items.map(i => i.id).join("--"),
+        hash_string = "",
 
         code = "",
 
-        lexer_state = "assert";
+        lexer_state = "assert",
 
-    let real_nodes = nodes.filter(i => !Some_Items_Are_In_Extended_Goto(i.items, options));
+        header = "",
+        active_nodes = nodes.filter(i => !Some_Items_Are_In_Extended_Goto(i.items, options));
 
-    if (real_nodes.length == 0) {
-        console.log(items);
-        debugger;
-    }
-    if (real_nodes.length == 0 || items.every(i => Some_Items_Are_In_Extended_Goto([i], options))) {
+    if (active_nodes.length == 0 || items.every(i => Some_Items_Are_In_Extended_Goto([i], options))) {
         state.transition_type == TRANSITION_TYPE.IGNORE;
         state.hash = "ignore";
         return [];
     }
-
 
     if (state.peek_level > 0)
         lexer_state = "peek";
 
     const none_end_items_symbol_ids = new Set(nodes.filter(t => t.transition_types[0] != TRANSITION_TYPE.ASSERT_END).flatMap(t => t.syms.flatMap(i => i.id)));
 
-
-
-    let header = "";
-
-    for (const transition_group of real_nodes) {
+    for (const transition_group of active_nodes) {
 
         const { syms, closure, items, hash, transition_types, LAST, FIRST }: TransitionGroup = transition_group;
 

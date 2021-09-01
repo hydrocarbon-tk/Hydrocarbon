@@ -33,9 +33,6 @@ export async function buildRecognizer(
 
             //@ts-ignore
             ([hash, str], i) => {
-
-                console.log(str);
-
                 return [str, (
                     ir_parser(str, {}, ir_parser.ir_state)
                         .result[0]
