@@ -3,12 +3,11 @@ import { WorkerRunner } from "../build/workers/worker_runner.js";
 import parser_loader from "../grammar/hcg_parser.js";
 import { getProductionByName } from '../grammar/nodes/common.js';
 import { getRootSym, Sym_Is_A_Token } from '../grammar/nodes/symbol.js';
-import { BuildPack, renderToJavaScript } from "../render/render.js";
+import { BuildPack } from "../render/render.js";
 import { fail_state_mask } from '../runtime/kernel.js';
 import { GrammarObject, ProductionImportSymbol, ProductionSymbol, TokenSymbol } from "../types/grammar_nodes";
 import { IRStateData, StateAttrib, StateMap } from '../types/ir_state_data';
 import { BlockData, InstructionType, IR_Instruction, ResolvedIRBranch, Resolved_IR_State } from '../types/ir_types';
-import { RDProductionFunction } from "../types/rd_production_function.js";
 import { getSymbolMapFromIds } from '../utilities/code_generating.js';
 
 const ir_parser = await parser_loader;
@@ -21,7 +20,7 @@ export async function buildRecognizer(
     const
         mt_code_compiler = new WorkerRunner(grammar, number_of_workers);
 
-    for (const updates of mt_code_compiler.run())
+    for await (const updates of mt_code_compiler.run())
         await spark.sleep(1);
 
     const ir_states = [...mt_code_compiler.tables.entries()];
@@ -33,10 +32,14 @@ export async function buildRecognizer(
 
             //@ts-ignore
             ([hash, str], i) => {
-                return [str, (
-                    ir_parser(str, {}, ir_parser.ir_state)
-                        .result[0]
-                )];
+                try {
+                    const ir_state = ir_parser(str, {}, ir_parser.ir_state)
+                        .result[0];
+                    return [str, ir_state];
+                } catch (e) {
+                    console.log(hash, str);
+                    throw e;
+                }
             }
         ),
         ...grammar.ir_states
@@ -69,7 +72,7 @@ export async function buildRecognizer(
 
     let prev_size = states_map.size;
 
-    let ALLOW_OPTIMIZATIONS = true;
+    let ALLOW_OPTIMIZATIONS = false;
 
     let original_states = new Map(states_map);
 
@@ -955,9 +958,7 @@ function selectBestFitBlockType(table_block_info: BlockData, scan_block_info: Bl
         (!isNaN(sparse_table_fill_ratio) && !isNaN(block_size_ratio)) &&
         (sparse_table_fill_ratio > 1.8 || block_size_ratio > 1.5)) ? scan_block_info : table_block_info;
 
-    console.log(
-        `sparse_table_fill_ratio: ${sparse_table_fill_ratio} block_size ${block_size_ratio}`
-    );
+
     return block;
 }
 

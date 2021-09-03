@@ -3,8 +3,8 @@
  * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
  * disclaimer notice.
  */
+import URI from '@candlelib/uri';
 import { GrammarObject } from "source/typescript/types/grammar_nodes.js";
-import { Worker } from "worker_threads";
 import { RDProductionFunction } from "../../types/rd_production_function.js";
 import { WorkerContainer } from "../../types/worker_container";
 import { HybridDispatch, HybridDispatchResponse, HybridJobType } from "../../types/worker_messaging.js";
@@ -25,7 +25,6 @@ export class WorkerRunner {
         grammar: GrammarObject,
         number_of_workers = 2
     ) {
-        let id = 0;
 
         this.grammar = grammar;
 
@@ -35,36 +34,9 @@ export class WorkerRunner {
         this.functions = [];
         this.RUN = true;
 
-        this.module_url = ((process.platform == "win32") ?
-            import.meta.url.replace(/file\:\/\/\//g, "")
-            : (new URL(import.meta.url)).pathname)
-            .replace("worker_runner", "worker");
+        this.module_url = URI.getEXEURL(import.meta).pathname.replace("worker_runner", "worker");
 
         this.number_of_workers = number_of_workers;
-        this.workers = (new Array(this.number_of_workers))
-            .fill(0)
-            .map((obj) => (obj = <WorkerContainer>{
-                id,
-                READY: true,
-                target: this.number_of_workers == 1 ?
-                    new LocalWorker(
-                        { workerData: { id: id++, grammar } },
-                        (data: HybridDispatchResponse) => this.mergeWorkerData(<WorkerContainer>obj, data)
-                    )
-                    : new Worker(this.module_url, { workerData: { id: id++, grammar } })
-            }));
-
-        this.workers.forEach(
-            wkr => {
-
-                wkr.target.on("error", e => {
-                    console.log({ e });
-                    this.RUN = false;
-                });
-
-                wkr.target.on("message", data => this.mergeWorkerData(wkr, data));
-            }
-        );
     }
 
     mergeWorkerData(worker: WorkerContainer, response: HybridDispatchResponse) {
@@ -87,7 +59,51 @@ export class WorkerRunner {
         worker.READY = true;
     }
 
-    *run() {
+    async *run() {
+
+        //Load workers. Depending on platform and number of workers, web worker, node worker or local worker
+
+        let id = 0;
+
+        const workerClass = this.number_of_workers <= 1
+            ? LocalWorker :
+            (typeof globalThis["process"] != "undefined")
+                ? (await import("worker_threads")).Worker
+                : (class extends Worker {
+                    constructor(uri, ...rest) { super(uri, { type: "module" }); }
+                    on(event: "error" | "message", handler) {
+                        switch (event) {
+                            case 'error': this.onmessage = handler; return;
+                            case 'message': this.onerror = handler; return;
+                        }
+                    }
+                });
+
+        this.workers = (new Array(this.number_of_workers))
+            .fill(0)
+            .map((obj) => (obj = <WorkerContainer>{
+                id: id++,
+                READY: true,
+                target: new workerClass(
+                    (this.module_url),
+                    {},
+                    (data: HybridDispatchResponse) => this.mergeWorkerData(<WorkerContainer>obj, data)
+                )
+            }));
+
+        this.workers.forEach(
+            wkr => {
+
+                wkr.target.on("error", e => {
+                    console.log({ e });
+                    this.RUN = false;
+                });
+
+                wkr.target.on("message", data => this.mergeWorkerData(wkr, data));
+
+                wkr.target.postMessage({ job_type: HybridJobType.INITIALIZE, id: wkr.id, grammar: this.grammar );
+            }
+        );
 
         while (this.RUN) {
 
@@ -98,7 +114,10 @@ export class WorkerRunner {
 
                 if (worker.READY) {
 
-                    let JOB: HybridDispatch = { job_type: HybridJobType.UNDEFINED };
+                    let JOB = <HybridDispatch>{
+                        job_type: HybridJobType.UNDEFINED,
+                        production_id: -1
+                    };
 
                     // Dispatch all LL functions first
                     for (let i = 0; i < this.to_process_rd_fn.length; i++) {
@@ -106,8 +125,11 @@ export class WorkerRunner {
                         const production_id = this.to_process_rd_fn[i];
 
                         if (production_id > 0) {
+
                             JOB.job_type = HybridJobType.CONSTRUCT_RD_FUNCTION;
+                            //@ts-ignore
                             JOB.production_id = production_id - 1;
+
                             this.to_process_rd_fn[i] = 0;
                             this.IN_FLIGHT_JOBS++;
                             break;
@@ -149,29 +171,6 @@ export class WorkerRunner {
                 COMPLETE: false
             };
         }
-        /*
-
-        const pending = [this.functions[0], ...this.functions.filter(f => f.RENDER)], reached = new Set([0]);
-
-        try {
-            for (let i = 0; i < pending.length; i++) {
-                const fn = pending[i];
-                fn.RENDER = true;
-                for (const production of fn.productions.values()) {
-                    if (!reached.has(production)) {
-                        pending.push(this.functions[production]);
-                        reached.add(production);
-                    }
-                }
-            }
-        } catch (e) {
-            return yield {
-                jobs: 0,
-                errors: [e],
-                COMPLETED: true
-            };
-        }
-        */
 
         //Clean up workers.
         this.workers.forEach(wk => wk.target.terminate());

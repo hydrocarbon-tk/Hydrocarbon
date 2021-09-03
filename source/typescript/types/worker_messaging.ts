@@ -4,15 +4,25 @@
  * disclaimer notice.
  */
 
-export enum HybridJobType {
+import { GrammarObject } from './grammar_nodes';
+
+export const enum HybridJobType {
     UNDEFINED,
-    CONSTRUCT_RD_FUNCTION
+    CONSTRUCT_RD_FUNCTION,
+    INITIALIZE
 }
 
-export interface HybridDispatch {
-    job_type: HybridJobType;
+export type HybridDispatch = {
+    job_type: HybridJobType.CONSTRUCT_RD_FUNCTION;
     production_id?: number;
-}
+} | {
+    job_type: HybridJobType.INITIALIZE;
+    grammar: GrammarObject;
+    id: number;
+} | {
+    job_type: HybridJobType.UNDEFINED;
+    production_id?: -1;
+};
 
 export interface HybridDispatchResponse {
     production_id?: number;

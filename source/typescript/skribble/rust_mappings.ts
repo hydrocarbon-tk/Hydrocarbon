@@ -84,7 +84,6 @@ export const rust_mappings: NodeMappings<SKNode, "type"> = <NodeMappings<SKNode,
 
 
                     node.value = (first ?? "") + `[${name}]` + (_rest ? "$" + _rest : "");
-                    console.log({ val, first, rest, name, _rest, val1: node.value });
                 }
 
                 val = node.value;

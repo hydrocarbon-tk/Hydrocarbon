@@ -4,7 +4,7 @@
  * disclaimer notice.
  */
 import { GrammarObject } from "../../types/grammar_nodes";
-import { HybridDispatch, HybridDispatchResponse } from "../../types/worker_messaging.js";
+import { HybridDispatch, HybridDispatchResponse, HybridJobType } from "../../types/worker_messaging.js";
 import { constructTableParser } from "../table_constructor.js";
 
 export class LocalWorker {
@@ -14,13 +14,11 @@ export class LocalWorker {
     response: any;
     parent_postMessage: (data: HybridDispatchResponse) => void;
 
-    constructor(wd, postMessage) {
+    constructor(uri: string, worker_data, postMessage) {
 
-        const { workerData: { grammar, env_path, id, ANNOTATED, DEBUG } } = wd;
+        this.grammar = null;
 
-        this.grammar = grammar;
-
-        this.id = id;
+        this.id = -1;
 
         this.response = null;
 
@@ -29,15 +27,28 @@ export class LocalWorker {
 
     postMessage(job: HybridDispatch) {
 
-        let Response: HybridDispatchResponse = {};
+        const { job_type } = job;
 
-        const { tables, id } = constructTableParser(this.grammar.productions[job.production_id], this.grammar);
+        if (job.job_type == HybridJobType.INITIALIZE) {
 
-        Response.tables = tables;
+            const { grammar, id } = job;
 
-        Response.production_id = job.production_id;
+            this.grammar = grammar;
 
-        this.parent_postMessage(Response);
+            this.id = id;
+
+        } else if (job.job_type == HybridJobType.CONSTRUCT_RD_FUNCTION) {
+
+            let Response: HybridDispatchResponse = {};
+
+            const { tables, id } = constructTableParser(this.grammar.productions[job.production_id], this.grammar);
+
+            Response.tables = tables;
+
+            Response.production_id = job.production_id;
+
+            this.parent_postMessage(Response);
+        }
     }
 
     on(type, fn) {

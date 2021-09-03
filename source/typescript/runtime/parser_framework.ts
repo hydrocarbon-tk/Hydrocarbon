@@ -61,15 +61,16 @@ export async function ParserFrameWork<T, R, K extends keyof R>(
 
         if (valid.have_valid()) {
 
-            const data = valid.get_mut_state(0);
-            const iter = create_iterator(data);
+            const
+                data = valid.get_mut_state(0),
+                history = data.state_history.slice(),
+                iter = create_iterator(data),
+                default_token: Token = new Token(input_string, "", 0, 0);
 
             let stack = [],
                 tokens = [],
                 token_offset = 0;
 
-            const
-                default_token: Token = new Token(input_string, "", 0, 0);
 
             while (iter.is_valid()) {
 
@@ -134,7 +135,7 @@ export async function ParserFrameWork<T, R, K extends keyof R>(
                     }
                 }
             }
-            return { result: stack };
+            return { result: stack, history: history };
         }
 
         if (invalid.len() > 0) {
@@ -148,10 +149,9 @@ export async function ParserFrameWork<T, R, K extends keyof R>(
                 lexer.token_offset
             );
 
-            token.throw(`Unexpected token [${token.slice()}]`);
+            const err = token.returnError(`Unexpected token [${token.slice()}]`);
+            return { result: [], history: fail_state.state_history, err };
         }
-
-        return { result: null };
     };
 
     return { parse: out, entry_points: production_entry_names };

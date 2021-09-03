@@ -86,9 +86,6 @@ duplicate.mappings.push(
 
         custom_render(state, template_fn) {
 
-
-            //console.log(state.node);
-
             const out_props = Object.entries(state.node.properties).map(([k, v]) => (v.name = k, v)).filter(v => v.type != "ENUM");
 
 

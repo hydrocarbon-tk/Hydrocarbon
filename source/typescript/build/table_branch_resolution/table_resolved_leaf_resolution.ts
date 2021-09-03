@@ -28,9 +28,23 @@ export function table_resolveResolvedLeaf(item: Item, state: TransitionNode, opt
         };
     }
 
+    let hash = "";
+
+    if (state.transition_type == TRANSITION_TYPE.DIVERT_PRODUCTION_CALL) {
+
+        const production_name = item.getProduction(options.grammar).name;
+
+        hash = production_name;
+
+        console.log("Direct function call");
+
+    } else {
+
+        hash = renderItem(item, options);
+    }
+
     // The state should be ignored do something
 
-    const hash = renderItem(item, options);
 
 
     if (hash == "")

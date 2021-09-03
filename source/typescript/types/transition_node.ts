@@ -51,6 +51,13 @@ export const enum TRANSITION_TYPE {
     ASSERT_PRODUCTION_CALL,
 
     /**
+     * Directly transition to production
+     * 
+     * Friendly name:  `divert-production-call`
+     */
+    DIVERT_PRODUCTION_CALL,
+
+    /**
      * Like ASSERT, except the assertion can be made from through a 
      * production call.
      * 

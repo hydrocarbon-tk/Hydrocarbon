@@ -3,10 +3,13 @@ import {
     ExportPreamble,
     GrammarObject,
     GrammarProduction,
-    HCG3Symbol
+    HCG3Symbol,
+    ImportProductionNode,
+    ProductionNode
 } from '../../types/grammar_nodes';
 import { InstructionType, IR_Instruction, IR_State } from '../../types/ir_types';
 import { createProductionSymbol, getProductionByName } from "../nodes/common.js";
+import { getUniqueSymbolName } from '../nodes/symbol.js';
 
 /**
  * Responsible discovering and collecting ALL imported modules.
@@ -30,7 +33,7 @@ export function integrateImportedGrammars(grammar: GrammarObject, errors: Error[
     processImportedObjects(grammar, errors, imported_productions);
 
 }
-function processImportedObjects(grammar: GrammarObject, errors: Error[], imported_productions = new Map()) {
+function processImportedObjects(grammar: GrammarObject, errors: Error[], imported_productions: Map<string, ProductionNode> = new Map) {
 
     // In primary grammar, find all import symbols. For each import symbol
     // look in respective grammar file for symbol. Import the production into the 
@@ -38,14 +41,15 @@ function processImportedObjects(grammar: GrammarObject, errors: Error[], importe
     // not yet been imported. Repeat until all imported production symbols have been handled
 
 
-    for (const production of grammar.productions)
-        integrateImportedProductions(grammar, grammar, production, imported_productions);
 
     // Now remove merge productions and insert their bodies into the imported production. 
     // If the import does not exists, then the merge production is discarded
+
     for (const grmmr of [grammar, ...grammar.imported_grammars.map(g => g.grammar)]) {
 
-        for (const { node: production, meta: { mutate } } of traverse(grmmr, "productions").makeMutable())
+        for (const { node, meta: { mutate } } of traverse(grmmr, "productions").makeMutable()) {
+
+            const production: (GrammarProduction) = <any>node;
 
             if (production.type == "production-import") {
 
@@ -56,8 +60,8 @@ function processImportedObjects(grammar: GrammarObject, errors: Error[], importe
                 if (imported_productions.has(name)) {
 
                     // //Integrate the production 
-                    processImportedObjects(grammar, errors);
-                    //And merge the production body into the target production
+                    integrateImportedProductions(grammar, grmmr, production, imported_productions);
+                    //And merge the production body into mthe target production
                     imported_productions.get(name).bodies = [...production.bodies];
                 }
 
@@ -65,20 +69,21 @@ function processImportedObjects(grammar: GrammarObject, errors: Error[], importe
 
                 const imported = getImportedGrammarFromReference(grmmr, production.name.module);
 
-
-
                 const name = imported.grammar.common_import_name + "__" + production.name.production;
 
                 if (imported_productions.has(name)) {
 
                     //  //Integrate the production 
-                    processImportedObjects(grammar, errors);
+                    integrateImportedProductions(grammar, grmmr, production, imported_productions);
                     //And merge the production body into the target production
                     imported_productions.get(name).bodies.push(...production.bodies);
 
                     mutate(null);
                 }
+            } else {
+                integrateImportedProductions(grammar, grmmr, production, imported_productions);
             }
+        }
 
         for (const ir_state of grmmr.ir_states) {
 
@@ -124,6 +129,7 @@ function remapImportedIRSymbols(
     source_grammar: GrammarObject,
     imported_productions: Map<any, any>
 ) {
+
     for (const instruction of instructions) {
         switch (instruction.type) {
             case InstructionType.assert:
@@ -132,7 +138,7 @@ function remapImportedIRSymbols(
             case InstructionType.prod:
             case InstructionType.scan_back_until:
             case InstructionType.scan_until:
-                console.log({ instruction });
+
                 instruction.ids = instruction.ids.map(
                     d => {
                         if (typeof d == "number")
@@ -177,10 +183,16 @@ function processImportedBody(symbols: HCG3Symbol[], root_grammar: GrammarObject,
 
     const NOT_ORIGIN = root_grammar != local_grammar;
 
-    return symbols.map(sym => processSymbol(sym, NOT_ORIGIN, root_grammar, local_grammar, imported_productions));
+    const syms = [];
+
+    for (const symbol of symbols)
+        syms.push(processSymbol(symbol, NOT_ORIGIN, root_grammar, local_grammar, imported_productions));
+
+    return syms;
 }
 function processSymbol(sym: HCG3Symbol, NOT_ORIGIN: boolean, root_grammar: GrammarObject, local_grammar: GrammarObject, imported_productions: Map<any, any>):
     HCG3Symbol {
+
 
     if (NOT_ORIGIN && (sym.type == "sym-production" || sym.type == "production_token")) {
 
@@ -208,6 +220,7 @@ function processSymbol(sym: HCG3Symbol, NOT_ORIGIN: boolean, root_grammar: Gramm
                 integrateImportedProductions(root_grammar, local_grammar, cp, imported_productions);
             }
         }
+
     } else if (sym.type == "list-production") {
         sym.val = processImportedBody([sym.val], root_grammar, local_grammar, imported_productions)[0];
     } else if (sym.type == "group-production") {
@@ -232,7 +245,6 @@ function processSymbol(sym: HCG3Symbol, NOT_ORIGIN: boolean, root_grammar: Gramm
 
         const prod = createProductionSymbol(name, sym.IS_OPTIONAL || 0, sym);
 
-
         if (!imported_productions.has(name)) {
 
             //copy production and convert the copies name to a local name 
@@ -244,6 +256,9 @@ function processSymbol(sym: HCG3Symbol, NOT_ORIGIN: boolean, root_grammar: Gramm
             cp.grammar_id = imported.grammar.common_import_name;
 
             imported_productions.set(name, cp);
+
+            if (name == "html__ATTRIBUTES")
+                debugger;
 
             root_grammar.productions.push(cp);
 

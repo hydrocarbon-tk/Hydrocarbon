@@ -14,12 +14,7 @@ export function table_resolveUnresolvedLeaves(node: TransitionNode, nodes: Trans
     //remove extended goto transition
 
     const items = node.items;
-    if (nodes.length == 1) {
-        console.log("A--------------------------------------------------");
-        debugger;
 
-        return { leaves: node.leaves, prods: node.prods };
-    }
 
 
     const output_nodes = nodes.filter(m => m.hash != "ignore").sort((a, b) =>
@@ -42,6 +37,12 @@ export function table_resolveUnresolvedLeaves(node: TransitionNode, nodes: Trans
         if (!node.hash) debugger;
 
         return { leaves: node.leaves, prods: output_nodes[0].prods };
+    }
+
+    if (nodes.length == 1) {
+        debugger;
+
+        return { leaves: node.leaves, prods: node.prods };
     }
 
     for (const { prods, leaves } of output_nodes) {

@@ -4,7 +4,6 @@
 * disclaimer notice.
 */
 
-import { performance } from "perf_hooks";
 import { default_EOF } from '../grammar/nodes/default_symbols.js';
 import {
     getUniqueSymbolName, SymbolsCollide,
@@ -23,6 +22,66 @@ import { Item } from "./item.js";
 
 const goto_items = new Map();
 
+
+interface TransitionForestOptions {
+    expanded_limit: number;
+    max_tree_depth: number;
+    max_no_progress: number;
+    /**
+     * Max amount of time the search process may take,
+     * measured in milliseconds.
+     *
+     * Default is 150 milliseconds
+     */
+    max_time_limit: number;
+}
+
+/**
+ * This system is essentially an Earley parser that attempts to 
+ * disambiguate the parse decision encountered for a given set 
+ * of items `roots` by constructing the Earley parser forest up
+ * to a depth `options.max_tree_depth`. 
+ * 
+ * @param grammar 
+ * @param roots 
+ * @param lr_transition_items 
+ * @param options 
+ * @param __depth__ 
+ * @param __groups__ 
+ * @param __len__ 
+ * @param __last_progress__ 
+ * @param __root_time__ 
+ * @param __new_roots__ 
+ * @param __seen_hashes__ 
+ * @returns 
+ */
+export function constructTransitionForest(
+    grammar: GrammarObject,
+    root_items: Item[],
+    lr_transition_items: Item[],
+    {
+        expanded_limit = 0,
+        max_tree_depth = 1,
+        max_no_progress = 3,
+        max_time_limit = 150,
+    }: TransitionForestOptions = {
+            expanded_limit: 0,
+            max_tree_depth: 4,
+            max_no_progress: 8,
+            max_time_limit: 150,
+        },
+    //Internal arguments
+    __depth__: number = -1,
+    __groups__: ClosureGroup[] = null,
+    __len__ = 0,
+    __last_progress__ = 0,
+    __root_time__ = performance.now(),
+    __new_roots__: Item[] = [],
+    __seen_hashes__: Map<string, number> = new Map()
+) {
+
+}
+
 /**
  * Givin a set of root items, return a tree of nodes where each node represents a
  * transition on a symbol and a the collection of root items that still exist at
@@ -39,18 +98,7 @@ export function getTransitionTree(
         max_tree_depth = 1,
         max_no_progress = 3,
         max_time_limit = 150,
-    }: {
-        expanded_limit: number,
-        max_tree_depth: number,
-        max_no_progress: number,
-        /**
-         * Max amount of time the search process may take,
-         * measured in milliseconds.
-         *
-         * Default is 150 milliseconds
-         */
-        max_time_limit: number,
-    } = {
+    }: TransitionForestOptions = {
             expanded_limit: 0,
             max_tree_depth: 4,
             max_no_progress: 8,
@@ -125,11 +173,12 @@ export function getTransitionTree(
     if (__new_roots__.length == 1)
         return { tree_nodes: [], clear: true, AMBIGUOUS: false, max_depth: __depth__ };
 
+
     if (
 
         // If the represented root items can be transitioned on the same symbol, then perform an early exit
-        (__new_roots__.length > 1 && __new_roots__.map(i => i.sym(grammar).id).setFilter().length == 1)
-        ||
+        //(__new_roots__.length > 1 && __new_roots__.map(i => i.sym(grammar).id).setFilter().length == 1)
+        //||
         performance.now() - __root_time__ > max_time_limit
         ||
         __depth__ > max_tree_depth
@@ -181,12 +230,12 @@ export function getTransitionTree(
     const new_hash = new Map(__seen_hashes__.entries());
 
 
-
     const hash = groups.map(g => g.map(g => g.closure[0].id).setFilter().sort().join("---")).setFilter().sort().join("----");
 
 
     if (!new_hash.has(hash))
         new_hash.set(hash, 0);
+
     else if (__depth__ > max_no_progress) {
         return { tree_nodes: [], clear: true, AMBIGUOUS: true, max_depth: __depth__ };
     }
@@ -204,13 +253,14 @@ export function getTransitionTree(
 
             new_roots = group.map(cg => cg.index).setFilter().map(i => root_items[i]),
 
-            closure = group.flatMap(g => g.closure).filter(i => i.offset > 0).setFilter(i => i.id),
+            closure: Item[] = group.flatMap(g => g.closure).filter(i => i.offset > 0).setFilter(i => i.id),
 
             starts = group.flatMap(g => g.starts ?? []).setFilter(i => i.id);
 
 
         if (!new_hash.has(hash))
             new_hash.set(hash, 0);
+
         else if (__depth__ > max_no_progress) {
 
             __last_progress__ = -Infinity;
@@ -228,17 +278,29 @@ export function getTransitionTree(
             GLOBAL_PROGRESS = true;
 
         const bodies = group.map(g => g.closure[0]).map(a => a ? a.body : -1).setFilter();
+
         if (
             bodies.length == 1
             &&
             new_roots.some(s => bodies[0] == s.body)
         ) {
             // All current active items are the same representation 
-            // of one of  root items at an offset > 0
+            // of one of root items at an offset > 0
 
             new_roots.length = 0;
             new_roots.push(...root_items.filter(a => a.body == bodies[0]));
 
+        } else if (
+            Common_Descendent_Production(new_roots, closure, grammar)
+            &&
+            __depth__ == 0
+        ) {
+            // If the roots have a common left most production closure, where
+            //    A. All items in closure are of the same production 
+            //    B. The root items are at offset 0
+            // Then allow early exit
+            new_roots.length = 0;
+            new_roots.push(...closure.map(i => i.decrement()));
         } else if (!quit) {
 
             const { tree_nodes, clear, AMBIGUOUS: A, max_depth: md }
@@ -323,6 +385,25 @@ export function getTransitionTree(
 
     return { tree_nodes, clear: false, AMBIGUOUS, max_depth: max_depth };
 }
+function Common_Descendent_Production(new_roots: Item[], closure: Item[], grammar: GrammarObject) {
+
+    const set_items = closure.map(i => i.decrement());
+
+    const closure_productions = set_items.map(i => i.getProduction(grammar).id).setFilter();
+    const sym_ids = set_items.filter(i => Sym_Is_A_Production(i.sym(grammar))).map(i => i.getProductionAtSymbol(grammar).id).setFilter();
+    const root_productions = new_roots.map(i => i.getProduction(grammar).id).setFilter();
+    return new_roots.length > 1
+        &&
+        new_roots.every(i => i.offset == 0)
+        &&
+        set_items.every(i => i.offset == 0)
+        &&
+        closure_productions.length == 1
+        &&
+        //Make sure there is no left recursion present
+        !((closure_productions.concat(sym_ids)).some(i => root_productions.includes(i)));
+}
+
 function getClosureGroups(
     grammar: GrammarObject,
     incoming_group: ClosureGroup,
@@ -405,7 +486,12 @@ function getClosureGroups(
                 prev = prev.previous_group;
             }
 
-            if (NO_TRANSITIONS && !prev) {
+            if (NO_TRANSITIONS
+                && !prev
+                && previous_group
+                && previous_group.final < Infinity
+                && previous_group.final > -Infinity
+            ) {
 
                 // Stack is exhausted and any other transitions exist outside
                 // the scope of the root items. We may proceed to consider transitions

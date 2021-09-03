@@ -58,13 +58,18 @@ export function table_resolveBranches(
 
     for (const transition_group of active_nodes) {
 
-        const { syms, closure, items, hash, transition_types, LAST, FIRST }: TransitionGroup = transition_group;
+        let { syms, closure, items, hash, transition_types, LAST, FIRST }: TransitionGroup = transition_group;
 
 
         if (transition_types[0] == TRANSITION_TYPE.IGNORE || hash == "ignore")
             continue;
 
-        if (transition_types[0] == TRANSITION_TYPE.ASSERT_PRODUCTION_CALL && nodes.length == 1) {
+
+
+        if (
+            transition_types[0] == TRANSITION_TYPE.ASSERT_PRODUCTION_CALL
+            && nodes.length == 1
+        ) {
 
             const production_name = options.grammar.productions[syms[0].val].name;
             header += ` 
@@ -76,10 +81,38 @@ export function table_resolveBranches(
             `;
             branches.push(`
 
-    goto state [${production_name}] then goto state[${hash}]`);
+            goto state [${production_name}] then goto state[${hash}]`);
 
             hash_string += `goto state [${production_name}] then goto state[${hash}]`;
+
         } else {
+
+            if (transition_types[0] == TRANSITION_TYPE.DIVERT_PRODUCTION_CALL) {
+
+                const production_name = items[0].getProduction(options.grammar).name;
+
+                hash = production_name;
+
+            };
+
+            let symbols = null;
+
+            if (
+                transition_types[0] == TRANSITION_TYPE.ASSERT_END
+            ) {
+                symbols =
+                    syms.filter(s => !Sym_Is_EOP(s) && !none_end_items_symbol_ids.has(s.id))
+                        .map(s => getRootSym(s, options.grammar))
+                        .map(convert_sym_to_code)
+                        .setFilter();
+                if (LAST)
+                    symbols.push(`9999`);
+            } else symbols =
+                syms.filter(s => !Sym_Is_EOP(s))
+                    .map(s => getRootSym(s, options.grammar))
+                    .map(convert_sym_to_code)
+                    .setFilter();
+
 
 
             let local_lexer_state = lexer_state;
@@ -102,25 +135,6 @@ export function table_resolveBranches(
                 else
                     local_lexer_state = "consume";
             }
-
-            let symbols = null;
-
-            if (
-                transition_types[0] == TRANSITION_TYPE.ASSERT_END
-            ) {
-                symbols =
-                    syms.filter(s => !Sym_Is_EOP(s) && !none_end_items_symbol_ids.has(s.id))
-                        .map(s => getRootSym(s, options.grammar))
-                        .map(convert_sym_to_code)
-                        .setFilter();
-                if (LAST)
-                    symbols.push(`9999`);
-            } else symbols =
-                syms.filter(s => !Sym_Is_EOP(s))
-                    .map(s => getRootSym(s, options.grammar))
-                    .map(convert_sym_to_code)
-                    .setFilter();
-
             header += `
     ${ttt(transition_types[0])}
 

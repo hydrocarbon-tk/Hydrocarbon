@@ -133,9 +133,9 @@ export function yieldGOTOTransitions(
 
                 pending_productions.push(...prods.setFilter());
 
-            } else if (!production_ids.includes(production_id)) {
-                throw new Error("Missing goto group for " + grammar.productions[production_id].name);
-            }
+            } //else if (!production_ids.includes(production_id)) {
+            // throw new Error("Missing goto group for " + grammar.productions[production_id].name);
+            //  }
         }
 
         return output_nodes;

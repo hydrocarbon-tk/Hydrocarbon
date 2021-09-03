@@ -164,12 +164,6 @@ const {
     compare
 } = KernelParserCore;
 
-const reverse_state_lookup = new Map([
-    ${[...states_map.entries()].map(([key, { pointer, string }]) => {
-        return `[${pointer}, \`${string.replace(/\`/g, "\\`")}\`]`;
-    }).join(",\n")}
-])
-
 const token_sequence_lookup = new Uint8Array([
 ${/**/
         grammar.sequence_string
@@ -256,7 +250,7 @@ const js_parser_pack = {
             input_buffer.length,
             entry_pointer,
             scan,
-            reverse_state_lookup
+            false
         );
     }
 };

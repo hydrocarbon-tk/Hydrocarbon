@@ -51,7 +51,7 @@ export function buildPeekTransitions(
 
         for (const { id } of symbols) {
             if (ss.has(id)) {
-                throw "WTF";
+                //throw "WTF";
             }
             ss.add(id);
         }

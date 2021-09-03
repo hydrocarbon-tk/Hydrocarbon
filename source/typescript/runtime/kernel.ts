@@ -29,8 +29,13 @@ export interface KernelStateType {
     stack_pointer: u32;
     state_stack: Uint32Array;
     tk_scan: ScannerFunction;
-    readonly state_buffer: Uint32Array;
+    readonly instruction_buffer: Uint32Array;
 }
+
+type state_pointer = number;
+type lexer_type = number;
+type lexer_token_offset = number;
+type lexer_token_length = number;
 
 /////////////////////////////////////////////
 // Kernel State 
@@ -41,7 +46,7 @@ export class KernelState implements KernelStateType {
     stack_pointer: u32;
     state_stack: Uint32Array;
     tk_scan: ScannerFunction;
-    readonly state_buffer: Uint32Array;
+    readonly instruction_buffer: Uint32Array;
     // 8 byte +
     rules: number[];
     origin: KernelState;
@@ -56,6 +61,7 @@ export class KernelState implements KernelStateType {
     VALID: boolean;
     COMPLETED: boolean;
     refs: number;
+    state_history: [state_pointer, lexer_type, lexer_token_offset, lexer_token_length,][];
     constructor(
         state_buffer: Uint32Array,
         input_buffer: Uint8Array,
@@ -68,13 +74,13 @@ export class KernelState implements KernelStateType {
 
         this.state_stack = new Uint32Array(128);
 
-        this.stack_pointer = 1;
+        this.stack_pointer = 0;
 
         this.lexer_pointer = 0;
 
         this.tk_scan = tk_scan;
 
-        this.state_buffer = state_buffer;
+        this.instruction_buffer = state_buffer;
 
         this.rules = [];
 
@@ -91,11 +97,36 @@ export class KernelState implements KernelStateType {
         this.refs = 0;
 
         this.symbol_accumulator = 0;
+
+        this.state_history = [];
     }
 
     get_rules_len(): number {
         return this.rules.length;
     };
+
+    add_state_to_history(kernel_state: number, enable_history: boolean = false) {
+
+        if (enable_history) {
+            console.log(this.lexer_pointer);
+            const lexer = this.lexer_stack[this.lexer_pointer % 10];
+            this.state_history.push([kernel_state, lexer._type, lexer.token_offset, lexer.token_length]);
+        }
+
+    }
+
+    push_state(kernel_state: number, enable_history: boolean = false) {
+
+        this.state_stack[++this.stack_pointer] = kernel_state;
+    }
+
+    pop_state(): number {
+        return this.state_stack[this.stack_pointer--];
+    }
+
+    get_state(): number {
+        return this.state_stack[this.stack_pointer];
+    }
 
     fork(process_buffer: KernelStateBuffer): KernelState {
 
@@ -116,6 +147,7 @@ export class KernelState implements KernelStateType {
         forked_state.state = this.state;
         forked_state.symbol_accumulator = this.symbol_accumulator;
         forked_state.VALID = true;
+        forked_state.state_history = this.state_history.slice();
 
         this.refs++;
 
@@ -208,7 +240,7 @@ export class KernelState implements KernelStateType {
 
     /**
      * Return a reference to the main parsing lexer. 
-     * ( the zero indexed lexer)
+     * ( the zero indexed lexer )
      */
 
     get_root_lexer() {
@@ -316,7 +348,7 @@ export class KernelStateBuffer {
         }
 
         return new KernelState(
-            state.state_buffer,
+            state.instruction_buffer,
             state.lexer_stack[0].input,
             state.lexer_stack[0].input.length,
             state.tk_scan
@@ -385,7 +417,7 @@ export function token_production(
     tk_flag: number,
     state_buffer: Uint32Array,
     tk_scan: ScannerFunction,
-    reverse_state_lookup
+    enable_history: boolean = false
 ): boolean {
 
     if (lexer._type == _type) {
@@ -415,9 +447,9 @@ export function token_production(
     state.state = 0;
 
 
-    if (!kernel_executor(state, data_buffer, reverse_state_lookup)) {
+    if (!kernel_executor(state, data_buffer, enable_history)) {
 
-        if (reverse_state_lookup)
+        if (enable_history)
             log("\n-----------------END TOKEN PRODUCTION------------------------\n");
 
         lexer.set_token_span_to(state.lexer_stack[0]);
@@ -428,7 +460,7 @@ export function token_production(
     }
 
 
-    if (reverse_state_lookup)
+    if (enable_history)
         log("\n-----------------END TOKEN PRODUCTION------------------------\n");
 
     return false;
@@ -438,7 +470,7 @@ function instruction_executor(
     state: u32,
     prod: u32,
     kernel_state: KernelState,
-    kernel_states_repo: KernelStateBuffer
+    kernel_state_repo: KernelStateBuffer,
 ): ({ fail_mode: boolean; prod: u32; }) {
 
     let index = state & state_index_mask;
@@ -446,7 +478,7 @@ function instruction_executor(
     let lexer_pointer = kernel_state.lexer_pointer;
 
     while (true) {
-        const instruction = kernel_state.state_buffer[index];
+        const instruction = kernel_state.instruction_buffer[index];
 
         switch ((instruction >> 28) & 0xF) {
             //Default
@@ -461,9 +493,11 @@ function instruction_executor(
                 break;
             case 2: //InstructionType.goto:
                 log(`INSTRUCTION: Goto: ${instruction & 0xFFFF}`);
-                kernel_state.state_stack[kernel_state.stack_pointer + 1] = instruction | ((kernel_state.symbol_accumulator) & acc_sym_mask);
-                //| ((kernel_state.symbol_accumulator) & acc_sym_mask);
-                kernel_state.stack_pointer += 1;
+
+                kernel_state.push_state(
+                    instruction | ((kernel_state.symbol_accumulator) & acc_sym_mask)
+                );
+
                 break;
             case 3: //InstructionType.set_prod:
                 log(`INSTRUCTION: Set Production: ${instruction & 0xFFFFFFF}`);
@@ -520,29 +554,26 @@ function instruction_executor(
 
                     index += 1;
 
-                    kernel_state.state_stack[kernel_state.stack_pointer + 1] = kernel_state.state_buffer[index];
+                    const state = kernel_state.instruction_buffer[index];
+
 
                     while (length-- > 0) {
 
                         index += 1;
 
-                        const fork = kernel_state.fork(kernel_states_repo);
+                        const fork = kernel_state.fork(kernel_state_repo);
 
-                        fork.state_stack[fork.stack_pointer + 1] = kernel_state.state_stack[index];
+                        log(`---- State ${kernel_state.instruction_buffer[index]}`);
 
-                        log(`---- State ${kernel_state.state_stack[index]}`);
-
-                        fork.stack_pointer += 1;
-
-                        //fork
+                        fork.push_state(kernel_state.instruction_buffer[index]);
                     }
 
-                    kernel_state.stack_pointer += 1;
+                    kernel_state.push_state(state);
                 } break;
             case 7: //InstructionType.scan_until:
                 {
                     let length = instruction & 0xFFFFFFF;
-                    const gamma = kernel_state.state_buffer[1 + index];
+                    const gamma = kernel_state.instruction_buffer[1 + index];
                     const tk_row = gamma >> 16;
                     const skip_row = gamma & 0xFFFF;
 
@@ -569,7 +600,7 @@ function instruction_executor(
 
                         for (let i = start; i < end; i++) {
 
-                            if (lexer._type == kernel_state.state_buffer[i]) {
+                            if (lexer._type == kernel_state.instruction_buffer[i]) {
                                 RUN = false;
                                 break;
                             }
@@ -602,8 +633,8 @@ function instruction_executor(
             case 9: { //table_jump
 
                 log(`INSTRUCTION: Table Jump `);
-                let token_row_switches = kernel_state.state_buffer[index + 1];
-                let table_data = kernel_state.state_buffer[index + 2];
+                let token_row_switches = kernel_state.instruction_buffer[index + 1];
+                let table_data = kernel_state.instruction_buffer[index + 2];
 
 
 
@@ -646,8 +677,8 @@ function instruction_executor(
             case 10: { //Scanner
                 log(`INSTRUCTION: Symbol Scan `);
                 let alpha = instruction;
-                let token_row_switches = kernel_state.state_buffer[index + 1];
-                let scanner_data = kernel_state.state_buffer[index + 2];
+                let token_row_switches = kernel_state.instruction_buffer[index + 1];
+                let scanner_data = kernel_state.instruction_buffer[index + 2];
 
                 let auto_accept_with_peek = (alpha & alpha_auto_accept_with_peek_mask) > 0;
                 let auto_consume_with_peek = (alpha & alpha_auto_consume_with_peek_mask) > 0;
@@ -682,13 +713,13 @@ function instruction_executor(
                 //default instruction
                 index = instruction_field_start + instruction_field_size - 1;
 
-                log(`Scanner: expecting ${kernel_state.state_buffer.slice(i, instruction_field_start)} with value ${input_value}`);
+                log(`Scanner: expecting ${kernel_state.instruction_buffer.slice(i, instruction_field_start)} with value ${input_value}`);
 
                 while (i < scan_field_end) {
 
-                    if (kernel_state.state_buffer[i] == input_value) {
+                    if (kernel_state.instruction_buffer[i] == input_value) {
                         log("    Matched:" + input_value);
-                        index = instruction_field_start + kernel_state.state_buffer[i + 1] - 1;
+                        index = instruction_field_start + kernel_state.instruction_buffer[i + 1] - 1;
                         break;
                     }
                     i += 2;
@@ -703,12 +734,9 @@ function instruction_executor(
 
                 let fail_state_pointer = instruction | ((kernel_state.symbol_accumulator) & acc_sym_mask);
 
-                if (kernel_state.state_stack[kernel_state.stack_pointer] != fail_state_pointer) {
+                if (kernel_state.get_state() != fail_state_pointer)
 
-                    kernel_state.state_stack[kernel_state.stack_pointer + 1] = fail_state_pointer;
-
-                    kernel_state.stack_pointer += 1;
-                }
+                    kernel_state.push_state(fail_state_pointer);
 
             }; break;
             case 12: //InstructionType.repeat: 
@@ -837,7 +865,7 @@ function get_token_info(
 export function kernel_executor(
     kernel_state: KernelState,
     kernel_states_repo: KernelStateBuffer,
-    reverse_state_lookup?: Map<number, string>
+    enable_history: boolean
 ) {
 
     //Kernel
@@ -851,11 +879,11 @@ export function kernel_executor(
 
         while (i++ < 4) {
             // Hint to the compiler to inline this section 4 times
-            const state = kernel_state.state_stack[kernel_state.stack_pointer];
-
-            kernel_state.stack_pointer -= 1;
+            const state = kernel_state.pop_state();
 
             if (state > 0) {
+
+
 
                 /**
                  * A state pointer is divided into three data segments
@@ -885,11 +913,13 @@ export function kernel_executor(
                 if ((!fail_mode && ((state & fail_state_mask) == 0))
                     || (fail_mode && (state & fail_state_mask) != 0)) {
 
-                    if (reverse_state_lookup)
-                        if (!fail_mode)
-                            log(`\n at state: ${state & 0xFFFF} \n`, reverse_state_lookup.get(state & 0xFFFF), "\n");
-                        else
-                            log("\n [IN FAILURE MODE] \n at state: \n", reverse_state_lookup.get(state & 0x0800FFFF), "\n");
+                    kernel_state.add_state_to_history(state, enable_history);
+
+                    //  if (reverse_state_lookup)
+                    //      if (!fail_mode)
+                    //          log(`\n at state: ${state & 0xFFFF} \n`, reverse_state_lookup.get(state & 0xFFFF), "\n");
+                    //      else
+                    //          log("\n [IN FAILURE MODE] \n at state: \n", reverse_state_lookup.get(state & 0x0800FFFF), "\n");
 
                     ({ fail_mode, prod } = instruction_executor(
                         state,
@@ -906,7 +936,6 @@ export function kernel_executor(
     }
 
     return fail_mode;
-
 }
 
 export function run(
@@ -915,7 +944,7 @@ export function run(
     input_byte_length: number,
     state_pointer: number,
     scanner_function: ScannerFunction,
-    reverse_state_lookup?: Map<number, string>
+    enable_history: boolean = false
 ): { invalid: KernelStateBuffer, valid: KernelStateBuffer; } {
 
     let valid = new KernelStateBuffer;
@@ -930,7 +959,7 @@ export function run(
     );
 
     state.state_stack[0] = 0;
-    state.state_stack[1] = state_pointer;
+    state.push_state(state_pointer);
 
     while (process_buffer.len() > 0) {
 
@@ -940,7 +969,7 @@ export function run(
 
             let kernel_state: KernelState = process_buffer.data[i];
 
-            const FAILED = kernel_executor(kernel_state, invalid, reverse_state_lookup);
+            const FAILED = kernel_executor(kernel_state, invalid, enable_history);
 
             state.COMPLETED = true;
 

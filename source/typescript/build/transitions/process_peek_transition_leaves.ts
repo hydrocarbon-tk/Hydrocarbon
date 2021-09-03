@@ -3,7 +3,8 @@
  * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
  * disclaimer notice.
  */
-import { GrammarObject } from "source/typescript/types/grammar_nodes.js";
+import { default_EOF } from '../../grammar/nodes/default_symbols.js';
+import { GrammarObject } from "../../types/grammar_nodes.js";
 import { getFollowSymbolsFromItems, getUniqueSymbolName, Sym_Is_A_Production } from "../../grammar/nodes/symbol.js";
 import { RenderBodyOptions } from "../../types/render_body_options.js";
 import { TransitionNode, TRANSITION_TYPE } from "../../types/transition_node.js";
@@ -31,11 +32,17 @@ export function processPeekTransitionLeaves(
 
     if (node.items.length > 0) {
 
-        if (Items_From_Same_Production_Allow_Production_Call(node, options, root_depth))
+        if (Items_From_Same_Production_Allow_Production_Call(node, options, root_depth)) {
 
-            throw new Error("This case should have been handled in yieldNodes");
+            const first = node.items[0];
 
-        if (node.items.length > 1) {
+            node.items = [new Item(first.body, first.len, 0)];
+
+            node.transition_type = TRANSITION_TYPE.DIVERT_PRODUCTION_CALL;
+
+            console.warn("This case should have been handled in yieldNodes");
+
+        } else if (node.items.length > 1) {
 
             if (node.items.some(i => i.atEND))
 

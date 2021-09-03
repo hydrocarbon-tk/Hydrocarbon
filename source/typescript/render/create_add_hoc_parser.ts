@@ -1,56 +1,114 @@
-import URI from "@candlelib/uri";
-import { Helper } from "../build/helper.js";
-import * as ParserCore from "../runtime/core_parser.js";
-import { ParserFactory } from "../runtime/parser_loader_gamma.js";
-import { fillByteBufferWithUTF8FromString } from "../runtime/utf8.js";
-import { GrammarObject } from "../types/grammar_nodes.js";
-import { HCGParserConstructor } from "../types/parser.js";
-import { ParserGenerator } from "../types/ParserGenerator";
-import { RDProductionFunction } from "../types/rd_production_function.js";
-//import { generateScriptParser } from "./render.js";
-
+/* 
+ * Copyright (C) 2021 Anthony Weathersby - The Hydrocarbon Parser Compiler
+ * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
+ * disclaimer notice.
+ */
+import { ParserEnvironment } from '@candlelib/hydrocarbon';
+import { buildRecognizer } from '../build/build.js';
+import { compileGrammarFromString } from '../grammar/compile.js';
+import { compare, init_table, KernelStateIterator, run, token_production } from '../runtime/kernel.js';
+import { ParserFrameWork } from '../runtime/parser_framework.js';
+import { skRenderAsJavaScript } from '../skribble/skribble.js';
+import { GrammarObject } from '../types/grammar_nodes.js';
+import { getSymbolScannerFunctions, token_lu_bit_size } from '../utilities/code_generating.js';
+import {
+    BuildPack, createActiveTokenSK,
+    extractAndReplaceTokenMapRefs, renderJavaScriptReduceFunctionLookupArray
+} from './render.js';
 
 /**
- * Constructs a JavaScript based parser from a grammar, 
- * and optionally recognizer and completer strings.
- * If the recognizer or completer string is empty, then these strings will be compiled before the parser
- * function is created.
- * @param grammar
- * @param recognizer_script
- * @param completer_script
+ * Constructs a JavaScript based parser from a grammar string or build pack.
+ * @param build_pack
  * @returns
  */
 
-
 export async function createAddHocParser<T = any>(
-    grammar: GrammarObject,
-    recognizer_functions: RDProductionFunction[],
-    meta: Helper,
-    fn_generate_parser: ParserGenerator //= generateScriptParser
-): Promise<HCGParserConstructor<T>> {
+    build_pack: BuildPack | string,
+): Promise<{
+    parse: (input: string, production_selector: 0, env: ParserEnvironment) => T[],
+    reverse_state_lookup,
+    grammar: GrammarObject;
+}> {
 
-    const parser_string = await fn_generate_parser(
-        grammar,
-        recognizer_functions,
-        meta,
-        "",
-        "return",
-        "temp_parser",
-        "",
-        "",
-    );
+    let resolved_build_pack: BuildPack = null;
 
-    return new Function(
-        "ParserFactory",
-        "fillByteBufferWithUTF8FromString",
-        "ParserCore",
-        "URI",
-        parser_string
+    if (typeof build_pack == "string") {
+        const grammar = await compileGrammarFromString(build_pack);
+
+        resolved_build_pack = await buildRecognizer(grammar);
+    } else {
+        resolved_build_pack = build_pack;
+    }
+
+    const { grammar, state_buffer, sym_map, states_map } = resolved_build_pack;
+
+    const token_sequence_lookup = new Uint8Array(grammar.sequence_string.split("").map(s => s.charCodeAt(0)));
+
+    const entry_pointers = grammar.productions.filter(p => p.IS_ENTRY).map(p => ({ name: p.name, pointer: states_map.get(p.name).pointer }));
+
+    const reverse_state_lookup = new Map([...states_map.entries()].map(([key, val]) => [0xFFFF & val.pointer, val.string]));
+    //Attempt to parse input
+
+    const token_lookup_functions = extractAndReplaceTokenMapRefs(getSymbolScannerFunctions(grammar)
+        .map(skRenderAsJavaScript)
+        .join("\n\n"), sym_map);
+
+    const token_lookup_array = new ({
+        8: Uint8Array,
+        16: Uint8Array,
+        32: Uint32Array
+    }[token_lu_bit_size])([...sym_map.keys()].flatMap(s => s.split("_")));
+
+    const input_string = `${skRenderAsJavaScript(createActiveTokenSK(grammar))}
+    ${token_lookup_functions}
+    const functions = ${renderJavaScriptReduceFunctionLookupArray(grammar)};
+     return { scan, functions };
+    `.replace(/_A_([\w\_\d]+)_A_/g,
+        (name, sub: string, ...args) => {
+            const { pointer } = states_map.get(sub);
+            return pointer + "";
+        });
+    let { scan: tk_scan, functions: fns } = (Function(
+        "token_lookup",
+        "token_sequence_lookup",
+        "compare",
+        "token_production",
+        "states_buffer",
+        input_string)
+
     )(
-        ParserFactory,
-        fillByteBufferWithUTF8FromString,
-        ParserCore,
-        URI
+        token_lookup_array,
+        token_sequence_lookup,
+        compare,
+        token_production,
+        state_buffer
     );
+
+    const { parse } = await ParserFrameWork<T, { null: 0; }, "null">(fns, undefined, {
+
+        init_table: () => {
+            const table = new Uint8Array(382976);
+            init_table(table);
+            return table;
+        },
+        create_iterator: (data: any) => {
+            return new KernelStateIterator(data);
+        },
+        recognize: (string: string, entry_pointer: number) => {
+
+            const input_buffer = new Uint8Array(string.split("").map(c => c.charCodeAt(0)));
+
+            return run(
+                state_buffer,
+                input_buffer,
+                input_buffer.length,
+                entry_pointers[0].pointer,
+                tk_scan,
+                true
+            );
+        }
+    });
+
+    return { parse, rlu: reverse_state_lookup, grammar };
 }
 

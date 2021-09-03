@@ -10,7 +10,8 @@ import { default as URI, default as URL } from "@candlelib/uri";
 import { buildRecognizer } from "../build/build.js";
 import { compileGrammarFromURI } from "../grammar/compile.js";
 import { createCompilableCode } from "../grammar/passes/process_compiled_code.js";
-import { generateCPPParser, generateRustParser, generateScriptParser, generateWebAssemblyParser, writeJSBasedParserScriptFile } from "../render/render.js";
+import { renderToJavaScript } from '../render/render.js';
+
 
 await URL.server();
 
@@ -130,15 +131,6 @@ Must be one of:
     wasm : WebAssembly`,
 });
 
-const annotated = addCLIConfig("compile", {
-    key: "annotated",
-    REQUIRES_VALUE: false,
-    help_brief:
-        `
-Include annotation strings within the recognizer code for manual debugging. Applies
-only to JavaScript/TypeScript based recognizers.`,
-});
-
 const namespace = addCLIConfig("compile", {
     key: "namespace",
     REQUIRES_VALUE: true,
@@ -185,7 +177,7 @@ addCLIConfig("compile", {
         cli_log(`Compiling grammar`);
 
         const
-            threads = parseInt(number_of_workers.value ?? "2"),
+            threads = parseInt(number_of_workers.value ?? "1"),
             grammar = await compileGrammarFromURI(file_path);
 
         if (type.value == "rust" || type.value == "c++")
@@ -199,7 +191,7 @@ addCLIConfig("compile", {
         cli_log(`Starting recognizer compilation with ${number_of_workers.value || 1} threads`);
 
         // Compile recognizer code
-        const { recognizer_functions } = await buildRecognizer(grammar, threads);
+        const build_pack = await buildRecognizer(grammar, threads);
 
         cli_log("Completed recognizer compilation");
 
@@ -210,6 +202,8 @@ addCLIConfig("compile", {
                     // installation's hc_rust source to the cargo file's dependencies.
                     //
                     cli_log("Writing cpp files");
+
+
 
                     const ns = namespace.value || "parser";
 
@@ -264,29 +258,32 @@ mod spec_parser;
                     break;
                 }
             case "wasm":
+                break;
             case "ts":
-            case "js":
-                if (!output_path.filename)
-                    output_path.path = output_path.dir + file_path.filename + (type.value == "ts" ? ".ts" : ".js");
-
-                cli_log("Building parser script");
-
-                const generator = (recognizer.value == "wasm")
-                    ? generateWebAssemblyParser
-                    : generateScriptParser;
-
-
-                // await writeJSBasedParserScriptFile(
-                //     output_path,
-                //     grammar,
-                //     recognizer_functions,
-                //     meta,
-                //     "@candlelib/hydrocarbon",
-                //     generator,
-                // );
-
                 break;
             default:
+            case "js":
+
+                const fsp = (await import("fs")).promises;
+
+                let file_uri = new URI(output_path);
+                if (!file_uri.filename) {
+                    file_uri.path += "/parser.js";
+                }
+                if (!file_uri.ext) {
+                    file_uri.path += ".js";
+                }
+
+                const script = renderToJavaScript(build_pack);
+
+                await fsp.mkdir(output_path.path + "", { recursive: true });
+
+                cli_log(`Writing file to ${file_uri + ""}`);
+
+                await fsp.writeFile(file_uri + "", script);
+
+                break;
+
                 break;
         }
 

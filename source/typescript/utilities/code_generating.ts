@@ -3,9 +3,8 @@
  * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
  * disclaimer notice.
  */
-import crypto from "crypto";
 import {
-    getSkippableSymbolsFromItems, getTokenSymbolsFromItems, getUniqueSymbolName,
+    getTokenSymbolsFromItems, getUniqueSymbolName,
     Sym_Is_A_Generic_Type,
     Sym_Is_A_Production_Token,
     Sym_Is_A_Token,
@@ -16,7 +15,7 @@ import {
     Sym_Is_Look_Behind,
     Sym_Is_Virtual_Token
 } from "../grammar/nodes/symbol.js";
-import { sk, skRenderAsSK } from "../skribble/skribble.js";
+import { sk } from "../skribble/skribble.js";
 import {
     SKBlock, SKExpression,
     SKFunction, SKIf,
@@ -24,20 +23,76 @@ import {
 } from "../skribble/types/node.js";
 import {
     DefinedSymbol,
-    GrammarObject,
-    LookBehindSymbol, HCG3Symbol,
+    GrammarObject, HCG3Symbol,
     ProductionTokenSymbol,
     SymbolType, TokenSymbol,
     VirtualTokenSymbol
 } from "../types/grammar_nodes.js";
-import {
-    BaseOptions
-} from "../types/render_body_options.js";
-import { getClosure } from "./closure.js";
 import { getSymbolTree, TokenTreeNode } from "./getSymbolValueAtOffset.js";
-import { Item } from "./item.js";
 import { getProductionClosure, getProductionID } from "./production.js";
+const string_to_md5 = await (async (crypto) => {
 
+    return typeof globalThis["window"]
+        ? (() => {
+
+            //  A formatted version of a popular md5 implementation.
+            //  Copyright(c) Denes Kellner 2020
+            //  https://deneskellner.com/
+            //  Original copyright (c) Paul Johnston & Greg Holt.
+            //  The function itself is now 42 lines long.
+
+            // Retrieved 2021 https://stackoverflow.com/a/60467595
+
+            function md5(inputString) {
+                var hc = "0123456789abcdef";
+                function rh(n) { var j, s = ""; for (j = 0; j <= 3; j++) s += hc.charAt((n >> (j * 8 + 4)) & 0x0F) + hc.charAt((n >> (j * 8)) & 0x0F); return s; }
+                function ad(x, y) { var l = (x & 0xFFFF) + (y & 0xFFFF); var m = (x >> 16) + (y >> 16) + (l >> 16); return (m << 16) | (l & 0xFFFF); }
+                function rl(n, c) { return (n << c) | (n >>> (32 - c)); }
+                function cm(q, a, b, x, s, t) { return ad(rl(ad(ad(a, q), ad(x, t)), s), b); }
+                function ff(a, b, c, d, x, s, t) { return cm((b & c) | ((~b) & d), a, b, x, s, t); }
+                function gg(a, b, c, d, x, s, t) { return cm((b & d) | (c & (~d)), a, b, x, s, t); }
+                function hh(a, b, c, d, x, s, t) { return cm(b ^ c ^ d, a, b, x, s, t); }
+                function ii(a, b, c, d, x, s, t) { return cm(c ^ (b | (~d)), a, b, x, s, t); }
+                function sb(x) {
+                    var i; var nblk = ((x.length + 8) >> 6) + 1; var blks = new Array(nblk * 16); for (i = 0; i < nblk * 16; i++) blks[i] = 0;
+                    for (i = 0; i < x.length; i++) blks[i >> 2] |= x.charCodeAt(i) << ((i % 4) * 8);
+                    blks[i >> 2] |= 0x80 << ((i % 4) * 8); blks[nblk * 16 - 2] = x.length * 8; return blks;
+                }
+                var i, x = sb(inputString), a = 1732584193, b = -271733879, c = -1732584194, d = 271733878, olda, oldb, oldc, oldd;
+                for (i = 0; i < x.length; i += 16) {
+                    olda = a; oldb = b; oldc = c; oldd = d;
+                    a = ff(a, b, c, d, x[i + 0], 7, -680876936); d = ff(d, a, b, c, x[i + 1], 12, -389564586); c = ff(c, d, a, b, x[i + 2], 17, 606105819);
+                    b = ff(b, c, d, a, x[i + 3], 22, -1044525330); a = ff(a, b, c, d, x[i + 4], 7, -176418897); d = ff(d, a, b, c, x[i + 5], 12, 1200080426);
+                    c = ff(c, d, a, b, x[i + 6], 17, -1473231341); b = ff(b, c, d, a, x[i + 7], 22, -45705983); a = ff(a, b, c, d, x[i + 8], 7, 1770035416);
+                    d = ff(d, a, b, c, x[i + 9], 12, -1958414417); c = ff(c, d, a, b, x[i + 10], 17, -42063); b = ff(b, c, d, a, x[i + 11], 22, -1990404162);
+                    a = ff(a, b, c, d, x[i + 12], 7, 1804603682); d = ff(d, a, b, c, x[i + 13], 12, -40341101); c = ff(c, d, a, b, x[i + 14], 17, -1502002290);
+                    b = ff(b, c, d, a, x[i + 15], 22, 1236535329); a = gg(a, b, c, d, x[i + 1], 5, -165796510); d = gg(d, a, b, c, x[i + 6], 9, -1069501632);
+                    c = gg(c, d, a, b, x[i + 11], 14, 643717713); b = gg(b, c, d, a, x[i + 0], 20, -373897302); a = gg(a, b, c, d, x[i + 5], 5, -701558691);
+                    d = gg(d, a, b, c, x[i + 10], 9, 38016083); c = gg(c, d, a, b, x[i + 15], 14, -660478335); b = gg(b, c, d, a, x[i + 4], 20, -405537848);
+                    a = gg(a, b, c, d, x[i + 9], 5, 568446438); d = gg(d, a, b, c, x[i + 14], 9, -1019803690); c = gg(c, d, a, b, x[i + 3], 14, -187363961);
+                    b = gg(b, c, d, a, x[i + 8], 20, 1163531501); a = gg(a, b, c, d, x[i + 13], 5, -1444681467); d = gg(d, a, b, c, x[i + 2], 9, -51403784);
+                    c = gg(c, d, a, b, x[i + 7], 14, 1735328473); b = gg(b, c, d, a, x[i + 12], 20, -1926607734); a = hh(a, b, c, d, x[i + 5], 4, -378558);
+                    d = hh(d, a, b, c, x[i + 8], 11, -2022574463); c = hh(c, d, a, b, x[i + 11], 16, 1839030562); b = hh(b, c, d, a, x[i + 14], 23, -35309556);
+                    a = hh(a, b, c, d, x[i + 1], 4, -1530992060); d = hh(d, a, b, c, x[i + 4], 11, 1272893353); c = hh(c, d, a, b, x[i + 7], 16, -155497632);
+                    b = hh(b, c, d, a, x[i + 10], 23, -1094730640); a = hh(a, b, c, d, x[i + 13], 4, 681279174); d = hh(d, a, b, c, x[i + 0], 11, -358537222);
+                    c = hh(c, d, a, b, x[i + 3], 16, -722521979); b = hh(b, c, d, a, x[i + 6], 23, 76029189); a = hh(a, b, c, d, x[i + 9], 4, -640364487);
+                    d = hh(d, a, b, c, x[i + 12], 11, -421815835); c = hh(c, d, a, b, x[i + 15], 16, 530742520); b = hh(b, c, d, a, x[i + 2], 23, -995338651);
+                    a = ii(a, b, c, d, x[i + 0], 6, -198630844); d = ii(d, a, b, c, x[i + 7], 10, 1126891415); c = ii(c, d, a, b, x[i + 14], 15, -1416354905);
+                    b = ii(b, c, d, a, x[i + 5], 21, -57434055); a = ii(a, b, c, d, x[i + 12], 6, 1700485571); d = ii(d, a, b, c, x[i + 3], 10, -1894986606);
+                    c = ii(c, d, a, b, x[i + 10], 15, -1051523); b = ii(b, c, d, a, x[i + 1], 21, -2054922799); a = ii(a, b, c, d, x[i + 8], 6, 1873313359);
+                    d = ii(d, a, b, c, x[i + 15], 10, -30611744); c = ii(c, d, a, b, x[i + 6], 15, -1560198380); b = ii(b, c, d, a, x[i + 13], 21, 1309151649);
+                    a = ii(a, b, c, d, x[i + 4], 6, -145523070); d = ii(d, a, b, c, x[i + 11], 10, -1120210379); c = ii(c, d, a, b, x[i + 2], 15, 718787259);
+                    b = ii(b, c, d, a, x[i + 9], 21, -343485551); a = ad(a, olda); b = ad(b, oldb); c = ad(c, oldc); d = ad(d, oldd);
+                }
+                return rh(a) + rh(b) + rh(c) + rh(d);
+            }
+
+            return md5;
+        })()
+        : (crypto = (await import("crypto")), str => {
+            return crypto.createHash('md5').update(str).digest("hex");
+        });
+})(null);
 
 export function sanitizeSymbolValForComment(sym: string | TokenSymbol): string {
     if (typeof sym == "string")
@@ -81,42 +136,6 @@ export function getSymbolBoolean(sym: TokenSymbol, grammar: GrammarObject, lex_n
     }
 }
 
-
-function createNonCaptureLookBehind(symbol: LookBehindSymbol, grammar: GrammarObject): SKFunction {
-
-    const phased_symbol = getCardinalSymbol(grammar, symbol.phased);
-
-    const type_info = symbol.id;
-
-    const boolean = getIncludeBooleans([phased_symbol], grammar, "pk");
-
-    const token_function = <SKFunction>sk`
-        fn no_cap_lb_${symbol.id}:bool(lexer:__Lexer$ref){
-
-            if (lexer._type) == ${type_info} : return : true;
-
-            [mut]pk:Lexer = lexer.copy_in_place();
-            
-            pk.byte_offset = lexer.prev_byte_offset;
-            pk.byte_length = 0;
-
-            loop((pk.byte_offset < lexer.byte_offset)) {
-                ${createSymbolScanFunctionCall([phased_symbol], grammar, "pk")};
-                if ${boolean}: { 
-                    lexer.setToken(${type_info},0,0);
-                    return : true;
-                };
-                pk.next();
-            };
-
-            return : false;        
-        }`;
-
-    return token_function;
-}
-
-
-
 function getUTF8ByteAt(s: DefinedSymbol, off: number): number {
     return s.val.charCodeAt(off);
 }
@@ -125,16 +144,10 @@ function getCardinalSymbol<T = HCG3Symbol>(grammar: GrammarObject, sym: T): T {
     return <any>grammar.meta.all_symbols.get(getUniqueSymbolName(<any>sym));
 }
 
-function convertExpressionArrayToBoolean(array: SKExpression[], delimiter: string = "||"): SKExpression {
-    return <SKExpression>sk`${array.flatMap(m => [m, delimiter]).slice(0, -1)}`;
-}
-
-export function expressionListHash(exprs: SKExpression[]) {
-    return hashString(exprs.map(skRenderAsSK).join(""));
-}
-
 export function hashString(string: string) {
-    return crypto.createHash('md5').update(string).digest("hex").slice(0, 16);
+
+    return string_to_md5(string).slice(0, 16);
+
 }
 
 function createIfClause(symbol: DefinedSymbol | VirtualTokenSymbol, offset: number, length: number, grammar: GrammarObject, expressions: SKExpression[]) {
@@ -166,8 +179,8 @@ function getIfClausePreamble(length: number, start: number, symbol: DefinedSymbo
 
 
     return length == 1
-        ? `if ${active_token_query} lexer.get_byte_at(lexer.byte_offset ${start > 0 ? "+" + start : ""}) ~= ${getUTF8ByteAt(symbol, offset)} :`
-        : `if ${active_token_query} ${length} == compare(lexer, lexer.byte_offset  ${start > 0 ? "+" + start : ""}, ${symbol.byte_offset + offset}, ${length}, &>>token_sequence_lookup) :`;
+        ? `if ${active_token_query} l.get_byte_at(l.byte_offset ${start > 0 ? "+" + start : ""}) ~= ${getUTF8ByteAt(symbol, offset)} :`
+        : `if ${active_token_query} ${length} == compare(l, l.byte_offset  ${start > 0 ? "+" + start : ""}, ${symbol.byte_offset + offset}, ${length}, &>>token_sequence_lookup) :`;
 }
 
 export function generateHybridIdentifier(symbols: HCG3Symbol[]) {
@@ -232,41 +245,6 @@ export function getSymbolMapPlaceHolder(symbols: TokenSymbol[], grammar: Grammar
     return "symbollookup_" + getSymbolMap(symbols, grammar).map(i => i >>> 0).join("_");
 }
 
-
-export function getIncludeBooleans(
-    syms: TokenSymbol[],
-    grammar: GrammarObject,
-    lex_name: string = "state.lexer",
-): SKExpression {
-    const types = [];
-    // Dump hybrid symbols into own bucket.
-    const used_syms = syms.flatMap(s => {
-        if (Sym_Is_Hybrid(s)) {
-            //@ts-expect-error
-            return [s, ...s.syms];
-        }
-        return s;
-    }).setFilter(getUniqueSymbolName);
-
-    if (used_syms.length < 5) {
-        types.push(...used_syms.map(s => {
-            return <SKExpression>sk`${lex_name}._type ~= ${s.id}}`;
-        }));
-    } else {
-        const tabled = used_syms.filter(sym => sym.id <= 255 && sym.id >= 1);
-        const non_table = used_syms.filter(sym => sym.id > 255 && sym.id < 1);
-
-        types.push(...non_table.map(sym => {
-            return <SKExpression>sk`${lex_name}._type ~= ${sym.id}}`;
-        }));
-
-        const symbol_map_id = getSymbolMapPlaceHolder(tabled, grammar);
-
-        types.push(sk`isTokenActive(${lex_name}._type, ${symbol_map_id})`);
-    }
-    return convertExpressionArrayToBoolean(types);
-}
-
 export function createProductionTokenCall(tok: ProductionTokenSymbol, grammar: GrammarObject, ADD_PRE_SCAN_BOOLEAN: boolean = false, ALLOW_RSL: boolean = true): string {
 
     const prod_id = getProductionID(tok, grammar);
@@ -281,41 +259,10 @@ export function createProductionTokenCall(tok: ProductionTokenSymbol, grammar: G
 
         const symbol_map_id = getSymbolMapPlaceHolder(symbols, grammar);
 
-        pre_scan = `pre_scan(lexer, ${symbol_map_id}) &&`;
+        pre_scan = `pre_scan(l, ${symbol_map_id}) &&`;
     }
 
-    return `${pre_scan} token_production(lexer, _A_${prod_name}_A_, ${prod_id}, ${tok.id}, ${1 << tok.token_id}, &> states_buffer, &> scan${ALLOW_RSL ? ", reverse_state_lookup" : ""})`;
-}
-export function createScanFunctionCall(
-    items: Item[],
-    options: BaseOptions,
-    lex_name: string = "state.lexer",
-    PEEK: boolean = false,
-    extra_symbols: TokenSymbol[] = [],
-): SKExpression {
-
-    const { grammar } = options;
-
-    const symbols = [...getTokenSymbolsFromItems(getClosure(items, grammar), grammar), ...extra_symbols].setFilter(getUniqueSymbolName);
-    const skippable = getSkippableSymbolsFromItems(items, grammar).filter(sym => !symbols.some(s => getUniqueSymbolName(s) == getUniqueSymbolName(sym)));
-
-    const full_mapped_symbols = symbols.concat(skippable).setFilter(getUniqueSymbolName);
-
-    const symbol_map_id = getSymbolMapPlaceHolder(full_mapped_symbols, grammar);
-
-    const skippable_map_id = (skippable.length > 0) ? getSymbolMapPlaceHolder(skippable, grammar) : "0";
-
-    return <SKExpression>sk`scan(${lex_name}, ${symbol_map_id}, ${skippable_map_id});`;
-}
-
-export function createSymbolScanFunctionCall(
-    symbols: TokenSymbol[],
-    grammar: GrammarObject,
-    lex_name: string = "state.lexer",
-    PEEK: boolean = false,
-): SKExpression {
-    const symbol_map_id = getSymbolMapPlaceHolder(symbols, grammar);
-    return <SKExpression>sk`scan(${lex_name}, ${symbol_map_id}, 0);`;
+    return `${pre_scan} token_production(l, _A_${prod_name}_A_, ${prod_id}, ${tok.id}, ${1 << tok.token_id}, &> states_buffer, &> scan)`;
 }
 
 function getActiveTokenQuery(symbol: TokenSymbol | ProductionTokenSymbol): string {
@@ -334,23 +281,21 @@ export function getSymbolScannerFunctions(grammar: GrammarObject): SKFunction[] 
         .setFilter(getUniqueSymbolName);
 
     const outer_fn = <SKFunction>sk`
-    fn scan:void(lexer:__Lexer$ref, tk_row:u32, pk_row:u32){
+    fn scan:void(l:__Lexer$ref, token:u32, skip:u32){
         //Do look behind        
-        if((lexer._type) <= 0) : 
-            scan_core(lexer, tk_row);
+        if((l._type) <= 0) : 
+            scan_core(l, token);
 
-        if(pk_row > 0 && isTokenActive(lexer._type, pk_row)) : {
-            loop((isTokenActive(lexer._type, pk_row))){
-                lexer.next();
-                scan_core(lexer, tk_row);
+        if(skip > 0 && isTokenActive(l._type, skip)) : {
+            loop((isTokenActive(l._type, skip))){
+                l.next();
+                scan_core(l, token);
             };
         }
     }
     `;
 
     const tree = getSymbolTree(<any>id_symbols, grammar);
-
-    const lb_syms = tree.symbols.filter(Sym_Is_Look_Behind).setFilter(getUniqueSymbolName);
 
     const tk_syms = tree.symbols.filter(Sym_Is_A_Production_Token).setFilter(getUniqueSymbolName);
 
@@ -361,21 +306,11 @@ export function getSymbolScannerFunctions(grammar: GrammarObject): SKFunction[] 
     if (tk_syms.length > 0)
         functions.push(buildPreScanFunction());
 
-    for (const lb_sym of lb_syms.reverse()) {
-
-        const lb_function = createNonCaptureLookBehind(<any>lb_sym, grammar);
-
-        functions.push(lb_function);
-
-        outer_fn.expressions.splice(1, 0, (<SKExpression>sk`if ${getActiveTokenQuery(lb_sym)} && ${lb_function.name}(lexer) : { return }`));
-    }
-
-    const fn = <SKFunction>sk`fn scan_core:void(lexer:__Lexer$ref, tk_row:u32){  }`;
-
+    const fn = <SKFunction>sk`fn scan_core:void(l:__Lexer$ref, tk_row:u32){  }`;
 
     const expression_array = fn.expressions;
 
-    const match_stmt: SKMatch = <SKMatch>sk`match (lexer.get_byte_at(lexer.byte_offset) & ${group_size}): default:break`;
+    const match_stmt: SKMatch = <SKMatch>sk`match (l.get_byte_at(l.byte_offset) & ${group_size}): default:break`;
 
     expression_array.push(match_stmt);
 
@@ -415,7 +350,7 @@ export function getSymbolScannerFunctions(grammar: GrammarObject): SKFunction[] 
     }
 
     for (const gen_sym of gen_syms)
-        ifs.push(sk`if ${getActiveTokenQuery(gen_sym)} && ${getSymbolBoolean(gen_sym, grammar, "lexer")} : { return }`);
+        ifs.push(sk`if ${getActiveTokenQuery(gen_sym)} && ${getSymbolBoolean(gen_sym, grammar, "l")} : { return }`);
 
     const [first] = mergeIfStatement(ifs);
 
@@ -439,7 +374,7 @@ function mergeIfStatement(ifs: SKIf[]) {
 }
 
 function Sym_Is_Hybrid(sym: TokenSymbol): sym is any {
-    //@ts-expect-error
+
     return sym.type == "hybrid";
 }
 
@@ -507,7 +442,7 @@ function renderLeafNew(node: TokenTreeNode, grammar: GrammarObject) {
 
         default_bin = node.offset >= 0 ? ifs : append,
 
-        length_assertion = (node.offset >= 0) ? `&& lexer.byte_length > ${node.offset}` : "";
+        length_assertion = (node.offset >= 0) ? `&& l.byte_length > ${node.offset}` : "";
 
     for (const tk_sym of tk_syms) {
 
@@ -518,7 +453,7 @@ function renderLeafNew(node: TokenTreeNode, grammar: GrammarObject) {
 
     for (const gen_sym of gen_syms) {
 
-        default_bin.push(sk`if ${getActiveTokenQuery(gen_sym)} && ${getSymbolBoolean(gen_sym, grammar, "lexer")} ${length_assertion} : { return  }`);
+        default_bin.push(sk`if ${getActiveTokenQuery(gen_sym)} && ${getSymbolBoolean(gen_sym, grammar, "l")} ${length_assertion} : { return  }`);
     }
 
     for (const defined of id) {
@@ -529,7 +464,7 @@ function renderLeafNew(node: TokenTreeNode, grammar: GrammarObject) {
                 ? "if " + getActiveTokenQuery(defined) + ":"
                 : getIfClausePreamble(defined.byte_length - node.offset, node.offset, defined, node.offset, grammar);
 
-            ifs.push(sk`${preamble}{lexer.setToken(${defined.id}, ${defined.byte_length},${defined.val.length}); return;}`);
+            ifs.push(sk`${preamble}{l.setToken(${defined.id}, ${defined.byte_length},${defined.val.length}); return;}`);
 
         }/* else {
 
@@ -556,19 +491,19 @@ function renderLeafNew(node: TokenTreeNode, grammar: GrammarObject) {
     return first ? [...prepend, first, ...append] : [...prepend, ...append];
 }
 export function buildPreScanFunction() {
-    return <SKFunction>sk`fn pre_scan:bool(lexer:__Lexer$ref, tk_row:u32){
+    return <SKFunction>sk`fn pre_scan:bool(l:__Lexer$ref, token:u32){
         
-        [mut] tk_length: u16 = lexer.token_length;
-        [mut] bt_length: u16 = lexer.byte_length;
-        [mut] type_cache: u32 = lexer._type;
+        [mut] tk_length: u16 = l.token_length;
+        [mut] bt_length: u16 = l.byte_length;
+        [mut] type_cache: u32 = l._type;
         
-        scan(lexer, tk_row, 0);
+        scan(l, token, 0);
         
-        [mut] type_out:i32 = lexer._type;
+        [mut] type_out:i32 = l._type;
     
-        lexer._type = type_cache;
-        lexer.token_length = tk_length;
-        lexer.byte_length = bt_length;
+        l._type = type_cache;
+        l.token_length = tk_length;
+        l.byte_length = bt_length;
     
         return : type_out > 0;
     }`;
