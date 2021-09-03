@@ -25,5 +25,6 @@
         "declaration": true,
         "moduleResolution": "node",
         "sourceMap": true,
+        //"sourceRoot": "/@cl/hydrocarbon/"
     }
 }

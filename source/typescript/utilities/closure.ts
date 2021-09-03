@@ -3,11 +3,8 @@
  * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
  * disclaimer notice.
  */
-import { getStartItemsFromProduction } from "../build/function_constructor.js";
 import { GrammarObject } from "../types/grammar_nodes.js";
 import { getGotoItems, Item, itemsToProductionIDs } from "./item.js";
-import { getProductionID } from "./production.js";
-import { Sym_Is_A_Production_Token } from "../grammar/nodes/symbol.js";
 
 /**
  * Get set of all items that can be derived from the parameter items.

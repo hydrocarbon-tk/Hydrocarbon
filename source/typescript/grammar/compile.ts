@@ -17,37 +17,13 @@ import {
 } from "./passes/load.js";
 import { createJSFunctionsFromExpressions } from "./passes/process_js_code.js";
 
-class GrammarCompilationReport extends Error {
-    constructor(errors: Error[]) {
-        const messages = errors.map(e => "\n-----\n" + e.stack).join("\n----\n");
-
-        super(messages);
-    }
-}
-
-function deduplicateProductionBodies(grammar: GrammarObject, error: Error[]) {
-
-    for (const production of grammar.productions) {
-
-        const valid_bodies = [];
-
-        const signatures = new Set;
-
-        for (const body of production.bodies) {
-
-            const sig = render(Object.assign({}, body, <HCG3ProductionBody>{ reduce_function: null }));
-
-            if (!signatures.has(sig)) {
-                valid_bodies.push(body);
-                signatures.add(sig);
-            }
-        }
-
-        production.bodies = valid_bodies;
-    }
-}
-
-export async function compileGrammar(grammar: GrammarObject) {
+/**
+ * Takes a raw root grammar object and applies transformation
+ * operations to it to prepare the grammar for consumption by 
+ * the compiler build and render processes.
+ */
+export async function compileGrammar(grammar: GrammarObject):
+    Promise<GrammarObject> {
 
     const errors: Error[] = [];
 
@@ -85,7 +61,6 @@ export async function compileGrammarFromString(
     return await compileGrammar(grammar);
 }
 
-
 export async function compileGrammarFromURI(
     uri: URI,
     parser?: HCGParser
@@ -94,4 +69,35 @@ export async function compileGrammarFromURI(
 
     return await compileGrammar(grammar);
 }
+
+class GrammarCompilationReport extends Error {
+    constructor(errors: Error[]) {
+        const messages = errors.map(e => "\n-----\n" + e.stack).join("\n----\n");
+
+        super(messages);
+    }
+}
+
+function deduplicateProductionBodies(grammar: GrammarObject, error: Error[]) {
+
+    for (const production of grammar.productions) {
+
+        const valid_bodies = [];
+
+        const signatures = new Set;
+
+        for (const body of production.bodies) {
+
+            const sig = render(Object.assign({}, body, <HCG3ProductionBody>{ reduce_function: null }));
+
+            if (!signatures.has(sig)) {
+                valid_bodies.push(body);
+                signatures.add(sig);
+            }
+        }
+
+        production.bodies = valid_bodies;
+    }
+}
+
 

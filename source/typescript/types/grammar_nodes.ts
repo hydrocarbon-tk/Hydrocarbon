@@ -232,7 +232,7 @@ export interface GrammarObject extends HCGGrammarNode {
      * All items that are `A => . A` a
      * for some production A
      */
-    lr_items?: Item[];
+    lr_items?: Map<number, Item[]>;
 }
 
 ////////////////////////////////////////////////////////////////////

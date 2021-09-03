@@ -62,7 +62,7 @@ export function yieldEndItemTransitions(end_items: Item[], options: RenderBodyOp
                     expanded_limit: 5,
                     max_tree_depth: 10,
                     max_no_progress: 8,
-                    max_time_limit: 200,
+                    time_limit: 200,
                 },
                 0,
                 goto_items.filter(i => original_prods.includes(+(i.sym(grammar).val))).map(i => {

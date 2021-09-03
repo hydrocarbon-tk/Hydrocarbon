@@ -56,7 +56,6 @@ export function compileProductionTables(
 ) {
     if (IS_VIRTUAL > 32) throw new Error("Virtual production depth is too high");
 
-    grammar.lr_items = [...grammar.item_map.values()].filter(i => !i.item.atEND && Sym_Is_A_Production(i.item.sym(grammar))).map(i => i.item);
 
     const
 

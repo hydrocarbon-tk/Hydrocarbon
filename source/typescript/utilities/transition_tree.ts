@@ -4,7 +4,8 @@
 * disclaimer notice.
 */
 
-import { default_EOF } from '../grammar/nodes/default_symbols.js';
+import { EOFSymbol, TokenSymbol } from '@candlelib/hydrocarbon/build/types/types/grammar_nodes';
+import { default_EOF, default_EOP } from '../grammar/nodes/default_symbols.js';
 import {
     getUniqueSymbolName, SymbolsCollide,
     Symbols_Are_The_Same,
@@ -14,10 +15,12 @@ import {
     Sym_Is_Defined, Sym_Is_Exclusive
 } from "../grammar/nodes/symbol.js";
 import { GrammarObject, AmbiguousSymbol } from "../types/grammar_nodes";
-import { ClosureGroup, TransitionTreeNode } from "../types/transition_tree_nodes";
+import { TRANSITION_TYPE } from '../types/transition_node.js';
+import { TransitionForestState, TransitionForestNode, TransitionForestStateA, TransitionStateType } from "../types/transition_tree_nodes";
 import { getClosure, getFollowClosure } from "./closure.js";
 import { generateHybridIdentifier } from "./code_generating.js";
 import { Item } from "./item.js";
+import { getProductionClosure } from './production.js';
 
 
 const goto_items = new Map();
@@ -33,53 +36,414 @@ interface TransitionForestOptions {
      *
      * Default is 150 milliseconds
      */
-    max_time_limit: number;
+    time_limit: number;
 }
 
 /**
- * This system is essentially an Earley parser that attempts to 
+ * This system is essentially an Earley recognizer that attempts to 
  * disambiguate the parse decision encountered for a given set 
- * of items `roots` by constructing the Earley parser forest up
- * to a depth `options.max_tree_depth`. 
+ * of items `roots` by constructing the parser forest of those 
+ * roots up to a depth `options.max_state_depth`. 
+ * 
+ * Returns a tree of transition states that have leaf states of 
+ * either a single root item or set of root items that could not 
+ * be disambiguated, or that meets some condition of an acceptable 
+ * ambiguous state. In that case the ambiguous nature of the leaf 
+ * state is caused by one of the following conditions:
+ * 
+ * - A: The parse of the root items is not finite within the 
+ *    constraints of `options.time_limit` or `options.max_state_depth`. 
+ *    If recognition where to continue, the depth of the 
+ *    resulting parse forest could be unbounded.
+ * 
+ * 
+ * - B: The root items have a common descendent production that 
+ *    allows LR behaviour to occur. This means the root items
+ *    have been replaced by the items of this common descendent
+ *    with the expectation that the compiled parser should
+ *    transition to the initial production state that will be 
+ *    common to the set of new root items.
+ * 
+ * 
+ * - C: The items transition on the same production and can be
+ *    exited early. The consumer of these root items can 
+ *    make a state to transition directly to parse tree of
+ *    this production and then re-enter the parse forest 
+ *    with new root items that have transitioned on this 
+ *    production. 
  * 
  * @param grammar 
  * @param roots 
  * @param lr_transition_items 
  * @param options 
- * @param __depth__ 
- * @param __groups__ 
- * @param __len__ 
- * @param __last_progress__ 
- * @param __root_time__ 
- * @param __new_roots__ 
- * @param __seen_hashes__ 
+ * @param __depth__ - Internal Iteration Usage
+ * @param __states__ - Internal Iteration Usage
+ * @param __len__ - Internal Iteration Usage
+ * @param __last_progress__ - Internal Iteration Usage
+ * @param __root_time__ - Internal Iteration Usage
+ * @param __new_roots__ - Internal Iteration Usage
+ * @param __seen_hashes__ - Internal Iteration Usage
  * @returns 
  */
 export function constructTransitionForest(
     grammar: GrammarObject,
-    root_items: Item[],
-    lr_transition_items: Item[],
-    {
-        expanded_limit = 0,
-        max_tree_depth = 1,
-        max_no_progress = 3,
-        max_time_limit = 150,
-    }: TransitionForestOptions = {
+    roots: Item[],
+    options: TransitionForestOptions = null,
+    //Internal recursive arguments
+): TransitionForestStateA {
+
+    const resolved_options: TransitionForestOptions = Object.assign(
+        {},
+        {
             expanded_limit: 0,
             max_tree_depth: 4,
             max_no_progress: 8,
-            max_time_limit: 150,
+            time_limit: 150,
         },
-    //Internal arguments
-    __depth__: number = -1,
-    __groups__: ClosureGroup[] = null,
+        options || {},
+    );
+
+    // Initial construction of the root state of the 
+    // transition forest. 
+
+    const initial_state = <TransitionForestStateA>{
+        type: TransitionStateType.START,
+        parent: null,
+        states: [],
+        roots: roots,
+        transitioned_items: getClosure(roots, grammar),
+        closure: getClosure(roots, grammar),
+        depth: 0,
+        symbols: [],
+    };
+
+    if (Divert_To_Production_Condition_Met(initial_state)) {
+
+        initial_state.roots = initial_state.transitioned_items.slice();
+    } else {
+
+        constructTransitionForest_Iteration(
+            grammar,
+            initial_state,
+            resolved_options
+        );
+    }
+
+    return initial_state;
+}
+/**
+ * Takes an initial TransitionForest state and iteratively 
+ * constructs the transition forest.
+ */
+function constructTransitionForest_Iteration(
+    grammar: GrammarObject,
+    previous_state: TransitionForestStateA,
+    options: TransitionForestOptions,
+    //Internal recursive arguments
+    __depth__: number = 0,
     __len__ = 0,
     __last_progress__ = 0,
     __root_time__ = performance.now(),
-    __new_roots__: Item[] = [],
     __seen_hashes__: Map<string, number> = new Map()
 ) {
 
+    const {
+        roots,
+        transitioned_items,
+        states,
+        depth,
+        type: par_type,
+        closure,
+    } = previous_state;
+
+    let type: TransitionStateType = (
+        par_type &
+        (
+            TransitionStateType.PEEK
+            |
+            TransitionStateType.EXTENDED
+            |
+            TransitionStateType.UNDEFINED)
+    );
+
+    const end_body_id_set = new Set(roots.map(i => i.body));
+
+    //Resolve any items that are in the end position
+    const local_closure = transitioned_items.slice(); //closure.slice();//getClosure(transitioned_items, grammar);
+    const seen = new Set(local_closure.map(i => i.id));
+    const end_items = local_closure.filter(i => i.atEND);
+    const active_items = local_closure.filter(i => !i.atEND);
+
+    const resolved_items: Item[] = [];
+
+    for (const end_item of end_items) {
+
+        const body_id = end_item.body;
+        if ((type & TransitionStateType.EXTENDED) > 0) {
+
+        } else {
+            // if the end_item is of the same body
+            // as one of the root items, then this 
+            // state is a potential leaf. 
+
+            if (roots.some(i => i.body == body_id))
+                resolved_items.push(end_item);
+
+            type |= TransitionStateType.END;
+
+            // Walk the previous states and collect a 
+            // set of items that have production symbols that match
+            // the end item's production id. 
+            const production_id = end_item.getProductionID(grammar);
+            let matching_items: Item[] = [];
+            let prev = previous_state;
+
+            while (prev) {
+
+                const { closure, parent } = prev;
+                matching_items.push(...closure.filter(i => {
+                    const sym = i.sym(grammar);
+                    if (Sym_Is_A_Production(sym) && sym.val == production_id)
+                        return true;
+                    return false;
+                }));
+
+                prev = parent;
+            }
+
+            if (matching_items.length == 0) {
+
+                resolved_items.push(end_item);
+
+            } else {
+
+
+
+                // Make sure we are only dealing with items that have not
+                // yet encountered and increment items that are not in the
+                // end position.
+                matching_items = matching_items.setFilter(i => i.id)
+                    .filter(i => !seen.has(i.id))
+                    .map(i => (i.atEND ? i : i.increment()))
+                    .map(i => (seen.add(i.id), i));
+
+                // These items will be incorporated in the existing closure 
+                // for further parsing.
+                end_items.push(...matching_items.filter(i => i.atEND));
+
+                active_items.push(...matching_items.filter(
+                    i => !i.atEND
+                ));
+
+            }
+
+        }
+    }
+
+
+
+    //Create transition states to resolved items
+    if (resolved_items.length > 0) {
+        const root_lookup = roots.groupMap(i => i.body);
+        const new_roots = resolved_items.flatMap(i => root_lookup.get(i.body));
+        const production_ids = new_roots.map(i => i.getProductionID(grammar)).setFilter();
+
+        if (resolved_items.length > 1) {
+
+            if (
+                production_ids.length == 1
+                ||
+                (type & TransitionStateType.EXTENDED) > 0
+            ) {
+
+                // TODO: Resolve ambiguities resulting from bodies of the same
+                //       production having the same parse path.
+
+                states.push({
+                    type: TransitionStateType.ACCEPT
+                        | TransitionStateType.AMBIGUOUS,
+                    depth,
+                    roots: new_roots,
+                    transitioned_items: resolved_items,
+                    closure: [],
+                    parent: previous_state,
+                    states: [],
+                    symbols: []
+                });
+
+            } else {
+
+                // If at this point then there is general ambiguity that cannot be resolved
+                // through current scope provided by the root items. 
+
+                // The decision is made to extend our search scope to include all items
+                // that can transition on the production id
+
+                type |= TransitionStateType.EXTENDED | TransitionStateType.START;
+
+                const closure = getClosure(
+                    production_ids.flatMap(p_id =>
+                        grammar.lr_items.get(p_id)
+                    ).map(i => i.increment()),
+                    grammar
+                );
+
+                console.log("-------------------------------------------------------------");
+
+                const state = {
+
+                };
+                //states.push(state);
+            }
+        } else {
+            states.push({
+                str: resolved_items.map(i => i.renderUnformattedWithProduction(grammar)).join("\n"),
+                str_cls: closure.map(i => i.renderUnformattedWithProduction(grammar)).join("\n"),
+                symbols: [default_EOF, default_EOP],
+                roots: new_roots,
+                depth: depth + 1,
+                transitioned_items: resolved_items,
+                parent: previous_state,
+                states: [],
+                type: type | TransitionStateType.ACCEPT | TransitionStateType.END
+            });
+        }
+    }
+
+
+    if (depth > 10 /* options.max_tree_depth */) {
+        states.push({
+            type: TransitionStateType.ACCEPT
+                | TransitionStateType.AMBIGUOUS,
+            depth: depth + 1,
+            roots,
+            transitioned_items: closure,
+            closure: closure,
+            parent: previous_state,
+            states: [],
+            symbols: []
+        });
+        return;
+    }
+
+    //Create transition states groups for terminal symbols
+    const terminal_token_groups = active_items.filter(
+        item => !Sym_Is_A_Production(item.sym(grammar))
+    ).groupMap(
+        item => {
+            const sym = item.sym(grammar);
+            return getUniqueSymbolName(sym);
+        }
+    );
+
+    // This is used for handling ambiguous tokens.
+    const ambiguated_groups = [...terminal_token_groups]
+        .map(i => {
+
+        });
+
+    type |= TransitionStateType.TERMINAL;
+
+    for (const [sym, group] of terminal_token_groups) {
+        const
+            symbols: TokenSymbol[] = <any>group
+                .map(g => g.sym(grammar))
+                .setFilter(getUniqueSymbolName);
+
+        if (group.some(i => i.offset == 0)) {
+
+            type |= TransitionStateType.PRODUCTION;
+
+            const ALL_PRODUCTION_TRANSITION =
+                group.every(i => i.offset == 0);
+
+            const ALL_PRODUCTIONS_ARE_THE_SAME =
+                group.setFilter(i => i.getProductionID(grammar)).length == 1;
+
+            if (depth > 0) {
+
+                if (
+                    ALL_PRODUCTION_TRANSITION
+                    &&
+                    ALL_PRODUCTIONS_ARE_THE_SAME
+                    &&
+                    (type & (TransitionStateType.EXTENDED)) == 0
+                ) {
+                    // Can transition on a single production.
+                    // Care must be made to ensure that we 
+                    // reenter the transition tree with all items 
+                    // incremented by one
+
+                    const production_id = group[0].getProductionID(grammar);
+                    const transitioned_items = closure
+                        .filter(i => i.getProductionAtSymbol(grammar)?.id == production_id)
+                        .map(i => i.increment());
+                    const new_transitioned_items = group.map(i => i.toEND()).slice(1);
+
+                    const state = {
+                        str: group[0].getProduction(grammar).name,
+                        str_clrs: transitioned_items
+                            .map(i => i.decrement().renderUnformattedWithProduction(grammar)).join("\n"),
+                        type: type,
+                        symbols: symbols,
+                        roots: roots,
+                        transitioned_items: transitioned_items,
+                        closure: getClosure(transitioned_items, grammar),
+                        depth: depth + 1,
+                        parent: previous_state.parent, //Popping the stack
+                        states: [],
+                    };
+
+                    constructTransitionForest_Iteration(grammar, state, options);
+
+                    //parent_state.states.push(state);
+                    states.push(state);
+
+                    continue;
+                } //else if (!ALL_PRODUCTIONS_ARE_THE_SAME) {
+                //  type |= TransitionStateType.PEEK;
+                //}
+            }
+        }
+
+        const
+            transitioned_items = group.map(i => i.increment()),
+
+            state = {
+                str: transitioned_items.map(i => i.renderUnformattedWithProduction(grammar)).join("\n"),
+                str_clrs: closure.map(i => i.renderUnformattedWithProduction(grammar)).join("\n"),
+                type: type,
+                symbols: symbols,
+                roots: roots,
+                transitioned_items: transitioned_items,
+                closure: getClosure(transitioned_items, grammar),
+                depth: depth + 1,
+                parent: previous_state,
+                states: [],
+            };
+
+        constructTransitionForest_Iteration(grammar, state, options);
+
+        states.push(state);
+    }
+
+    return null;
+}
+
+function Divert_To_Production_Condition_Met(state: TransitionForestStateA): boolean {
+
+    // here we can check for early exit condition C.
+    // This condition is only applies if the following
+    // sub conditions are met:
+    //
+    //      A: The root items must all be at offset 0
+    //      B: TODO
+
+    // If the roots have a common left most production closure, where
+    //    A. All items in closure are of the same production 
+    //    B. The root items are at offset 0
+    // Then allow early exit
+    return false;
 }
 
 /**
@@ -97,22 +461,22 @@ export function getTransitionTree(
         expanded_limit = 0,
         max_tree_depth = 1,
         max_no_progress = 3,
-        max_time_limit = 150,
+        time_limit: max_time_limit = 150,
     }: TransitionForestOptions = {
             expanded_limit: 0,
             max_tree_depth: 4,
             max_no_progress: 8,
-            max_time_limit: 150,
+            time_limit: 150,
         },
     //Internal arguments
     __depth__: number = -1,
-    __groups__: ClosureGroup[] = null,
+    __groups__: TransitionForestState[] = null,
     __len__ = 0,
     __last_progress__ = 0,
     __root_time__ = performance.now(),
     __new_roots__: Item[] = [],
     __seen_hashes__: Map<string, number> = new Map()
-): { tree_nodes: TransitionTreeNode[]; clear: boolean; AMBIGUOUS: boolean; max_depth: number; } {
+): { tree_nodes: TransitionForestNode[]; clear: boolean; AMBIGUOUS: boolean; max_depth: number; } {
 
     if (!__groups__) {
 
@@ -140,7 +504,7 @@ export function getTransitionTree(
                 expanded_limit,
                 max_tree_depth,
                 max_no_progress,
-                max_time_limit,
+                time_limit: max_time_limit,
             },
             0,
             __groups__,
@@ -206,7 +570,7 @@ export function getTransitionTree(
                 return getUniqueSymbolName(cg.sym);
             }),
 
-        tree_nodes: TransitionTreeNode[] = [];
+        tree_nodes: TransitionForestNode[] = [];
 
     const collision_groups = [];
 
@@ -311,7 +675,7 @@ export function getTransitionTree(
                     {
                         max_tree_depth,
                         max_no_progress,
-                        max_time_limit,
+                        time_limit: max_time_limit,
                         expanded_limit
                     },
                     __depth__ + 1,
@@ -406,13 +770,13 @@ function Common_Descendent_Production(new_roots: Item[], closure: Item[], gramma
 
 function getClosureGroups(
     grammar: GrammarObject,
-    incoming_group: ClosureGroup,
+    incoming_group: TransitionForestState,
     lr_transition_items: Item[],
     root_items: Item[],
     expanded_limit = 0,
     new_previous_group = incoming_group,
     production_trap = new Set
-): ClosureGroup[] {
+): TransitionForestState[] {
 
     const { index, closure, final, starts, production_shift_items, tree_depth, previous_group } = incoming_group;
 
@@ -421,7 +785,7 @@ function getClosureGroups(
     }
 
     const
-        group: ClosureGroup[] = [];
+        group: TransitionForestState[] = [];
 
     for (const item of closure) {
 

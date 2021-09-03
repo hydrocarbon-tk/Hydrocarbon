@@ -23,9 +23,9 @@
 <> productions > production                                          
                                                             f:r {  { type:"production-section", functions:[], productions:[$1], ir:[]   } }
     | fn::referenced_function                                    
-                                                            f:r {  { type:"production-section", functions:[], productions:[], ir:[$1]   } }
-    | ir::grammar_injection
                                                             f:r {  { type:"production-section", functions:[$1], productions:[], ir:[]   } }
+    | ir::grammar_injection
+                                                            f:r {  { type:"production-section", functions:[], productions:[], ir:[$1]   } }
     | productions production                                  
                                                             f:r {  $1.productions.push($2), $1 }
     | productions fn::referenced_function                        

@@ -1,5 +1,6 @@
 import parser_loader from "../build/library/grammar/hcg_parser.js";
 import { JSParserEnvironment } from "@candlelib/js";
+
 const parser = await parser_loader;
 
 import fs from "fs";

@@ -6,7 +6,7 @@
 import { getSymbolFromUniqueName } from "../../grammar/nodes/symbol.js";
 import { RenderBodyOptions } from "../../types/render_body_options.js";
 import { TransitionNode, TRANSITION_TYPE } from "../../types/transition_node.js";
-import { TransitionTreeNode } from "../../types/transition_tree_nodes";
+import { TransitionForestNode } from "../../types/transition_tree_nodes";
 import { createTransitionNode } from "./create_transition_node.js";
 import { processPeekTransitionLeaves } from "./process_peek_transition_leaves.js";
 
@@ -14,7 +14,7 @@ import { processPeekTransitionLeaves } from "./process_peek_transition_leaves.js
 export type leafHandler = (node: TransitionNode, options: RenderBodyOptions, root_depth: number, leaf_depth: number) => void;
 
 export function buildPeekTransitions(
-    peek_nodes: TransitionTreeNode[],
+    peek_nodes: TransitionForestNode[],
     options: RenderBodyOptions,
     offset: number,
     leafHandler: leafHandler = processPeekTransitionLeaves,
@@ -85,7 +85,7 @@ export function buildPeekTransitions(
 }
 
 
-function getPeekGroupIdentifier(item: TransitionTreeNode): string {
+function getPeekGroupIdentifier(item: TransitionForestNode): string {
     const item_id = item.roots.map(i => i.id).sort().join("-");
     const next = item.next.length > 0;
     return item_id;

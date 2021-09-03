@@ -8,14 +8,14 @@ import { getTokenSymbolsFromItems, Sym_Is_A_Production } from "../../grammar/nod
 import { GrammarObject } from "../../types/grammar_nodes.js";
 import { RenderBodyOptions } from "../../types/render_body_options";
 import { TransitionNode, TRANSITION_TYPE } from "../../types/transition_node.js";
-import { TransitionTreeNode } from "../../types/transition_tree_nodes.js";
+import { TransitionForestNode } from "../../types/transition_tree_nodes.js";
 import { getClosure } from "../../utilities/closure.js";
 import { Item, Items_Have_The_Same_Active_Symbol } from "../../utilities/item.js";
 import { createTransitionNode } from "./create_transition_node.js";
 import { processPeekTransitionLeaves, yieldPeekedNodes } from "./process_peek_transition_leaves.js";
 import { yieldEndItemTransitions } from "./yield_end_item_transitions.js";
 
-export function Every_Leaf_Of_TransitionTree_Contain_One_Root_Item(node: TransitionTreeNode) {
+export function Every_Leaf_Of_TransitionTree_Contain_One_Root_Item(node: TransitionForestNode) {
 
     if (node.next.length > 0)
         return node.next.every(Every_Leaf_Of_TransitionTree_Contain_One_Root_Item);
@@ -152,7 +152,7 @@ function yieldNodesOfItemsWithSameSymbol(active_items: Item[],
                 HAVE_GOTO
                     ? TRANSITION_TYPE.ASSERT_PEEK
                     : Sym_Is_A_Production(sym)
-                        ? TRANSITION_TYPE.ASSERT_PRODUCTION_CALL
+                        ? TRANSITION_TYPE.bui
                         : (FROM_PEEKED_TRANSITION)
                             ? TRANSITION_TYPE.POST_PEEK_CONSUME
                             : TRANSITION_TYPE.ASSERT_CONSUME,

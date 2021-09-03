@@ -101,7 +101,7 @@ export class WorkerRunner {
 
                 wkr.target.on("message", data => this.mergeWorkerData(wkr, data));
 
-                wkr.target.postMessage({ job_type: HybridJobType.INITIALIZE, id: wkr.id, grammar: this.grammar );
+                wkr.target.postMessage({ job_type: HybridJobType.INITIALIZE, id: wkr.id, grammar: this.grammar });
             }
         );
 

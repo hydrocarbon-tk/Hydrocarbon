@@ -114,7 +114,9 @@ export class Item extends Array {
 
         return (this.getProduction(grammar).id + ":" + this.body) + " " + this.body_(grammar).production.name + "=>" + this.renderUnformatted(grammar); //+ ` [ ${syms.join(", ")} ]`;
     }
-
+    getProductionID(grammar: GrammarObject): number {
+        return this.body_(grammar).production.id;
+    }
     //@ts-ignore
     getProduction(grammar: GrammarObject): GrammarProduction {
         return this.body_(grammar).production;
@@ -161,7 +163,6 @@ export class Item extends Array {
     toString(): string {
         return this.id;
     }
-
 }
 export function getGotoItems(grammar: GrammarObject, active_productions: number[], items: Item[], out: Item[] = [], all = false) {
 

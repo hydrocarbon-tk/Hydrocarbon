@@ -56,7 +56,18 @@ export function buildItemMaps(grammar: GrammarObject, productions: GrammarProduc
     ////////////////////////////////////////////////////////////
     addPositionalItemIds(grammar, productions);
 
+
+    ////////////////////////////////////////////////////////////
+    createLRMaps(grammar);
+
     return item_maps_in_process;
+}
+
+function createLRMaps(grammar: GrammarObject) {
+    grammar.lr_items = ([...grammar.item_map.values()]
+        .filter(i => !i.item.atEND && Sym_Is_A_Production(i.item.sym(grammar)))
+        .map(i => i.item))
+        .groupMap(i => i.getProductionAtSymbol(grammar).id);
 }
 
 function getItemMapVariables(grammar: GrammarObject, productions: GrammarProduction[]) {

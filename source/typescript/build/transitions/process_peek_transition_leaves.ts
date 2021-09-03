@@ -79,7 +79,7 @@ export function processPeekTransitionLeaves(
                             expanded_limit: 0,
                             max_tree_depth: 0,
                             max_no_progress: 10,
-                            max_time_limit: 8,
+                            time_limit: 8,
                         }).tree_nodes[0]
                     )
                 )
@@ -272,7 +272,7 @@ export function yieldPeekedNodes(
                 expanded_limit: 10,
                 max_tree_depth: 10,
                 max_no_progress: 10,
-                max_time_limit: 300,
+                time_limit: 300,
             }
         );
 
