@@ -52,11 +52,14 @@ export async function compileGrammar(grammar: GrammarObject) {
     const errors: Error[] = [];
 
     try {
+
+        //Production and Body transformations.
         integrateImportedGrammars(grammar, errors);
         convertListProductions(grammar, errors);
         extractMetaSymbolsFromBodies(grammar, errors);
         deduplicateProductionBodies(grammar, errors);
-        //mergeProductions(grammar, errors); // Optional
+
+        //Meta transformations: Symbols, Functions & Items
         createJSFunctionsFromExpressions(grammar, errors);
         processSymbols(grammar, errors);
         buildSequenceString(grammar);
