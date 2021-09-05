@@ -69,7 +69,7 @@ export function getSymbolName(sym: HCG3Symbol) {
 
     if (!sym) return "";
 
-    return sym.type + " [" + (sym.val ? `"${sym.val}"` : sym.name) + "]";
+    return sym.type + " [" + (sym.val ? `"${sym.val}"` : (<any>sym).name) + "]";
 }
 
 export function getUniqueSymbolName(sym: HCG3Symbol, _a?: any, _b?: any) {
@@ -199,12 +199,6 @@ export function Sym_Is_A_Generic_Number(sym: HCG3Symbol): sym is GeneratedSymbol
 
 export function Sym_Is_A_Space_Generic(sym: HCG3Symbol): sym is GeneratedSymbol { return sym.val == "ws"; }
 
-export function getFollowSymbolsFromItems(items: Item[], grammar: GrammarObject): TokenSymbol[] {
-    return items.filter(i => i.atEND)
-        .flatMap(i => [...grammar.item_map.get(i.id).follow.values()])
-        .setFilter()
-        .map(sym => <TokenSymbol>grammar.meta.all_symbols.get(sym));
-}
 
 export function getTokenSymbolsFromItems(items: Item[], grammar: GrammarObject): TokenSymbol[] {
     return items.filter(i => !i.atEND)

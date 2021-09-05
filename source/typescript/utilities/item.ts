@@ -106,11 +106,6 @@ export class Item extends Array {
     }
 
     renderUnformattedWithProduction(grammar: GrammarObject): string {
-        //const all_items = [...grammar.item_map.values()].map(e => e.item).filter(i => !i.atEND && i.sym(grammar).type == "sym-production");
-
-        //const closure = this.atEND ? getFollowClosure(getClosure([this], grammar, true), all_items, grammar) : getClosure([this], grammar, true);
-
-        // const syms = getSymbolsFromClosure(closure, grammar).map(convertSymbolToString).setFilter();
 
         return (this.getProduction(grammar).id + ":" + this.body) + " " + this.body_(grammar).production.name + "=>" + this.renderUnformatted(grammar); //+ ` [ ${syms.join(", ")} ]`;
     }

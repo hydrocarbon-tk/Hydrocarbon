@@ -22,8 +22,7 @@ import { getGotoItems, Item, itemsToProductionIDs } from "./item.js";
  */
 export function getClosure(
     items: Item[],
-    grammar: GrammarObject,
-    ENTER_TOKEN_PRODUCTIONS: boolean = false
+    grammar: GrammarObject
 ): Item[] {
 
     let closure = [];
@@ -34,9 +33,7 @@ export function getClosure(
 
         closure.push(
             ...(
-                ENTER_TOKEN_PRODUCTIONS
-                    ? grammar.item_map.get(item_id).closure
-                    : grammar.item_map.get(item_id).non_token_closure
+                grammar.item_map.get(item_id).closure
             )
         );
     }

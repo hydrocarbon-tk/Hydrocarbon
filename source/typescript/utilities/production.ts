@@ -3,15 +3,21 @@
  * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
  * disclaimer notice.
  */
-import { getStartItemsFromProduction } from '../build/table_constructor.js';
-import { GrammarObject, ProductionTokenSymbol, ProductionSymbol, SymbolType } from "../types/grammar_nodes.js";
+import {
+    GrammarObject, GrammarProduction, ProductionSymbol, ProductionTokenSymbol, SymbolType
+} from "../types/grammar_nodes.js";
 import { getClosure } from "./closure.js";
 import { Item } from "./item.js";
 
 
+export function getStartItemsFromProduction(production: GrammarProduction): Item[] {
+    return production.bodies.map(b => new Item(b.id, b.length, 0));
+}
+
+
 export function getProductionClosure(production_id: number, grammar: GrammarObject, ENTER_TOKEN_PRODUCTIONS: boolean = false) {
     const prod = grammar.productions[production_id];
-    return getClosure(getStartItemsFromProduction(prod), grammar, ENTER_TOKEN_PRODUCTIONS);
+    return getClosure(getStartItemsFromProduction(prod), grammar);
 }
 
 export function doesProductionHaveEmpty(production_id: number, grammar: GrammarObject) {

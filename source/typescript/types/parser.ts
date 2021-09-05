@@ -13,23 +13,7 @@ export type HCGParser<T = any, R = any> = {
     };
 } & R;
 
-export interface HCGTokenPosition {
-    line: number,
-    column: number,
-    offset: number,
-}
 
 export interface HCGProductionFunction<T> {
     (env: ParserEnvironment, sym: (string | T)[], pos: Token): T;
-}
-/**
- * Loads parser recognizer and links with completer, memory, and production functions
- * 
- * return memory and parser
- */
-export interface HCGParserConstructor<T> {
-    (fns: HCGProductionFunction<T>[], memory?: WebAssembly.Memory): {
-        parser: HCGParser<T>;
-        memory: WebAssembly.Memory;
-    };
 }

@@ -3,13 +3,12 @@
  * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
  * disclaimer notice.
  */
-import { getStartItemsFromProduction } from '../../build/table_constructor.js';
 import { ProductionSymbol, TokenSymbol } from "../../types/grammar_nodes";
 import { GrammarObject, GrammarProduction } from "../../types/grammar_nodes.js";
 import { ItemMapEntry } from "../../types/item_map.js";
 import { getFirstTerminalSymbols } from "../../utilities/first.js";
 import { Item } from "../../utilities/item.js";
-import { doesProductionHaveEmpty, getProductionID } from "../../utilities/production.js";
+import { doesProductionHaveEmpty, getProductionID, getStartItemsFromProduction } from "../../utilities/production.js";
 import { default_EOF, default_EOP } from "../nodes/default_symbols.js";
 import {
     getSymbolName,
@@ -29,6 +28,7 @@ type ItemMapVariables = {
         item_maps: IntermediateItemMapEntry[];
     }[];
 };
+
 
 export function buildItemMaps(grammar: GrammarObject, productions: GrammarProduction[] = grammar.productions) {
 
@@ -172,7 +172,7 @@ function addFollowInformation(item: Item, grammar: GrammarObject, check_set: Set
                     if (Sym_Is_A_Production(sym)) {
                         follow = follow.concat(getFirstTerminalSymbols(getProductionID(sym, grammar), grammar)).setFilter(getUniqueSymbolName);
                     } else {
-                        follow = follow.concat(sym).setFilter(getUniqueSymbolName);
+                        follow = follow.concat(<any>sym).setFilter(getUniqueSymbolName);
                         break;
                     }
 
@@ -346,7 +346,6 @@ function processClosures(
         }
 
         item_map.closure = pending_items.map(i => i.id).setFilter();
-        item_map.non_token_closure = pending_non_token_items.map(i => i.id).setFilter();
         item_map.hash = item_map.closure.sort().join("");
     }
 }
