@@ -96,7 +96,6 @@ export interface ProductionNode extends HCGGrammarNode {
     name: any;
     bodies: HCG3ProductionBody[];
     id: number;
-    recovery_handler: ProductionFunction;
     RECURSIVE: RECURSIVE_STATE,
     /**
      * A production that represents the root of the grammar or sub-grammar. 
@@ -230,7 +229,11 @@ export interface GrammarObject extends HCGGrammarNode {
     };
     /**
      * All items that are `A => . A` a
-     * for some production A
+     * for some production A. 
+     * 
+     * The key is the numerical id of the production 
+     * and value are and array items  of the left 
+     * recursive bodies of the production.
      */
     lr_items?: Map<number, Item[]>;
 }

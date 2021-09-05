@@ -50,10 +50,9 @@ export interface TransitionForestStateA {
     depth: number;
     parent: TransitionForestStateA;
     states: TransitionForestStateA[];
-    closure: Item[];
     roots: Item[];
     transitioned_items: Item[];
-    symbols: TokenSymbol[],
+    symbols: HCG3Symbol[],
 }
 export const enum TransitionStateType {
     UNDEFINED = 0,
@@ -98,5 +97,7 @@ export const enum TransitionStateType {
     /**
      * Consumption of tokens is not allowed
      */
-    PEEK = 1 << 8
+    PEEK = 1 << 8,
+
+    FORK = 1 << 9
 }

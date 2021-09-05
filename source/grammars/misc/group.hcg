@@ -4,7 +4,7 @@
 
 <> B > ( A | B | C | D )? D 
 
-<> C > ( \( B \) | ( \test6 | \test3 \test5 f:r{ $sym1 + $sym2 } )? f:r{ $sym1 + hello } ) \test4
+<> C > ( \( B \) | ( \test6 | \test3 \test5 f:r{ $1 + $2 } )? f:r{ $1 + hello } ) \test4
 
 <> D > D \test2
    | \test1
