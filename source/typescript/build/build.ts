@@ -35,24 +35,6 @@ export async function createBuildPack(
 
     const states_map: StateMap = new Map();
 
-    console.log(ir_states, [
-        ...ir_states.map(
-
-            //@ts-ignore
-            ([hash, str], i) => {
-                try {
-                    const ir_state = ir_parser(str, {}, ir_parser.ir_state)
-                        .result[0];
-                    return [str, ir_state];
-                } catch (e) {
-                    console.log(hash, str);
-                    throw e;
-                }
-            }
-        ),
-        ...grammar.ir_states
-    ]);
-
     for (const [string, ir_state_ast] of <([string, Resolved_IR_State])[]>[
         ...ir_states.map(
 
