@@ -14,6 +14,7 @@ import { GrammarObject, ProductionImportSymbol, ProductionSymbol, TokenSymbol } 
 import { IRStateData, StateAttrib, StateMap } from '../types/ir_state_data';
 import { BlockData, InstructionType, IR_Instruction, ResolvedIRBranch, Resolved_IR_State } from '../types/ir_types';
 import { getSymbolMapFromIds } from '../utilities/code_generating.js';
+import { ir_reduce_numeric_len_id } from './ir_reduce_numeric_len_id.js';
 
 const ir_parser = await parser_loader;
 
@@ -34,7 +35,7 @@ export async function createBuildPack(
 
     const states_map: StateMap = new Map();
 
-    for (const [string, ir_state_ast] of <([string, Resolved_IR_State])[]>[
+    console.log(ir_states, [
         ...ir_states.map(
 
             //@ts-ignore
@@ -50,6 +51,27 @@ export async function createBuildPack(
             }
         ),
         ...grammar.ir_states
+    ]);
+
+    for (const [string, ir_state_ast] of <([string, Resolved_IR_State])[]>[
+        ...ir_states.map(
+
+            //@ts-ignore
+            ([hash, str], i) => {
+                try {
+                    const ir_state = ir_parser(str, {}, ir_parser.ir_state)
+                        .result[0];
+                    return [str, ir_state];
+                } catch (e) {
+                    console.log(hash, str);
+                    throw e;
+                }
+            }
+        ),
+        ...grammar.ir_states.map(ir => [
+            ir.pos.slice(),
+            ir
+        ])
     ])
         insertIrStateBlock(ir_state_ast, string, grammar, states_map);
 
@@ -192,7 +214,7 @@ function insertInstructionSequences(
 
                     let sym_len = +data[++i];
 
-                    if (sym_len == 0x90FA0102) {
+                    if (sym_len == ir_reduce_numeric_len_id) {
                         sym_len = 0xFFFF;
 
                         let reduce_fn_id = +data[++i];
@@ -233,9 +255,17 @@ function insertInstructionSequences(
 
                 } break;
 
-                case InstructionType.scan_until: {
+                case InstructionType.scan_back_until: {
+                    let token_id = +data[++i];
                     let length = +data[++i];
-                    temp_buffer.push(7 << 28 | length, ...data.slice(i + 1, i + 1 + length));
+                    temp_buffer.push(7 << 28 | 0x00100000 | (length & 0xFFFF), token_id << 16, ...data.slice(i + 1, i + 1 + length));
+                    i += length;
+                } break;
+
+                case InstructionType.scan_until: {
+                    let token_id = +data[++i];
+                    let length = +data[++i];
+                    temp_buffer.push(7 << 28 | (length & 0xFFFF), token_id << 16, ...data.slice(i + 1, i + 1 + length));
                     i += length;
                 } break;
 
@@ -416,7 +446,10 @@ function createInstructionSequence(
                 byte_length += 4 + 4 * (instr.states.length);
                 byte_sequence.push(InstructionType.fork_to, instr.states.length, ...instr.states);
                 break;
-
+            case InstructionType.scan_back_until:
+                byte_length += 8 + 4 * instr.ids.length;
+                byte_sequence.push(InstructionType.scan_back_until, token_id, instr.ids.length, ...convertTokenIDsToSymbolIds(instr.ids, grammar));
+                break;
             case InstructionType.scan_until:
                 byte_length += 8 + 4 * instr.ids.length;
                 byte_sequence.push(InstructionType.scan_until, token_id, instr.ids.length, ...convertTokenIDsToSymbolIds(instr.ids, grammar));
@@ -861,13 +894,12 @@ function statesOutputsBuildPass(StateMap: StateMap, grammar: GrammarObject, sym_
 
         const { ir_state_ast: state_ast, attributes, string } = state_data;
 
-        const { instructions, symbol_meta } = state_ast;
+        let { expected_tokens, skipped_tokens } = state_data;
 
         let skip_id = 0, tok_id = 0;
 
-        if (symbol_meta) {
+        if (expected_tokens.length > 0 || skipped_tokens.length > 0) {
             //create a meta lookup instruction
-            let { expected_tokens, skipped_tokens } = state_data;
 
             const expected = expected_tokens.concat(skipped_tokens).setFilter().sort(numeric_sort);
             const skipped = skipped_tokens.setFilter().sort(numeric_sort);

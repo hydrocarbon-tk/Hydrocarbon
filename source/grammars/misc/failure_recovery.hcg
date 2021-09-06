@@ -7,8 +7,16 @@
 
 <[recover A] 
 
-    scan until [ \r ] then reduce 
+    scan until [ g:sp ] then reduce
+
             f:r { { type:"failed A", pos, sym } }
+
+    on fail state [ A_scan_forward ] 
+
+        scan back until [ g:sp ] then reduce 
+
+            f:r { { type:"failed A", pos } }
+
 >
 
 

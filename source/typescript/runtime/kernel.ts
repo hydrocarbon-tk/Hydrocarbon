@@ -97,7 +97,7 @@ export class KernelState implements KernelStateType {
 
         this.refs = 0;
 
-        this.symbol_accumulator = 0;
+        this.symbol_accumulator = 1 << 16;
 
         this.state_history = [];
     }
@@ -486,8 +486,8 @@ function instruction_executor(
 
         switch ((instruction >> 28) & 0xF) {
             //Default
-            case 0: default: return ({ fail_mode: false, prod }); //
 
+            case 0: default: return ({ fail_mode: false, prod }); //
             case 1: //InstructionType.consume:
                 let lexer = kernel_state.lexer_stack[lexer_pointer];
                 const slice = Array.from(lexer.input.slice(lexer.byte_offset, lexer.byte_offset + lexer.byte_length)).map(i => String.fromCharCode(i)).join("");
@@ -515,13 +515,15 @@ function instruction_executor(
                     let accumulated_symbols =
                         kernel_state.symbol_accumulator
                         -
-                        ((state & acc_sym_mask) >> 16);
+                        ((state & acc_sym_mask));
+
+                    let len = accumulated_symbols >> 16;
 
                     let fn_id = (instruction >> 16) & 0x0FFF;
 
                     log(`INSTRUCTION: Reduce: ${accumulated_symbols}`);
                     //Extract accumulated symbols inform
-                    kernel_state.add_reduce(accumulated_symbols, fn_id);
+                    kernel_state.add_reduce(len, fn_id);
                 } else {
 
                     kernel_state.add_rule(low);
@@ -576,10 +578,11 @@ function instruction_executor(
                 } break;
             case 7: //InstructionType.scan_until:
                 {
-                    let length = instruction & 0xFFFFFFF;
+                    let length = instruction & 0xFFFF;
                     const gamma = kernel_state.instruction_buffer[1 + index];
                     const tk_row = gamma >> 16;
                     const skip_row = gamma & 0xFFFF;
+                    const scan_back = (instruction & 0x00100000) > 0;
 
                     index += 1;
 
@@ -596,15 +599,31 @@ function instruction_executor(
                     let RUN = true;
                     let start = index + 1;
                     let end = index + 1 + length;
+                    let end_offset = lexer.input_len;
                     index += length;
+
+                    const temp_lexer = lexer.copy_in_place();
+
+                    if (scan_back) {
+                        // scan "backwards" towards the previously accepted token.
+                        // really we just set the scan start position to 
+                        // lexer.previous_byte and end to the current position of 
+                        // the lexer and rescan forward.
+                        end_offset = temp_lexer.byte_offset;
+                        temp_lexer.byte_offset = temp_lexer.prev_byte_offset;
+                        temp_lexer.token_offset = temp_lexer.prev_token_offset;
+                        temp_lexer.byte_length = 0;
+                        temp_lexer.token_length = 0;
+                        temp_lexer.next();
+                    }
 
                     while (RUN) {
 
-                        kernel_state.tk_scan(lexer, tk_row, skip_row);
+                        kernel_state.tk_scan(temp_lexer, tk_row, skip_row);
 
                         for (let i = start; i < end; i++) {
 
-                            if (lexer._type == kernel_state.instruction_buffer[i]) {
+                            if (temp_lexer._type == kernel_state.instruction_buffer[i]) {
                                 RUN = false;
                                 break;
                             }
@@ -612,22 +631,21 @@ function instruction_executor(
 
                         if (!RUN) break;
 
-                        if (lexer.END()) {
-                            lexer.sync(synced_lexer);
-                            lexer.prev_byte_offset = start_byte_offset;
-                            lexer.prev_token_offset = start_token_offset;
+                        if (temp_lexer.byte_offset >= end_offset) {
                             return ({ fail_mode: true, prod });
                         }
 
-                        lexer.next();
+                        temp_lexer.next();
                     }
 
-                    //Reset peek stack;
-                    kernel_state.lexer_pointer = 0;
-                    kernel_state.lexer_stack[0].sync(lexer);
+                    if (!scan_back) {
 
-                    lexer.prev_byte_offset = start_byte_offset;
-                    lexer.prev_token_offset = start_token_offset;
+                        //Reset peek stack;
+                        kernel_state.lexer_pointer = 0;
+                        kernel_state.lexer_stack[0].peek_unroll_sync(temp_lexer);
+                        kernel_state.lexer_stack[0].prev_byte_offset = start_byte_offset;
+                        kernel_state.lexer_stack[0].prev_token_offset = start_token_offset;
+                    }
                 }
                 break;
             case 8: //InstructionType.pop: 
@@ -734,13 +752,21 @@ function instruction_executor(
                 // how many symbols have been added to the stack since the initialization of
                 // the original state.
 
+                // If already in a failure state then set the accumulator value
+                // to the existing failure state.
+
                 log(`Set Failure state ${instruction & 0xFFFFFF}`);
 
-                let fail_state_pointer = instruction | ((kernel_state.symbol_accumulator) & acc_sym_mask);
+                let fail_state_pointer = (instruction) >>> 0;
+
+                if ((state & fail_state_mask) > 0) {
+                    fail_state_pointer |= acc_sym_mask & state;
+                } else {
+                    fail_state_pointer |= kernel_state.symbol_accumulator & acc_sym_mask;
+                }
 
                 if (kernel_state.get_state() != fail_state_pointer)
-
-                    kernel_state.push_state(fail_state_pointer);
+                    kernel_state.push_state(fail_state_pointer >>> 0);
 
             }; break;
             case 12: //InstructionType.repeat: 

@@ -17,6 +17,7 @@ export class Lexer {
     prev_token_offset: number;
     line: number;
     _type: number;
+    private type: number;
     previous_type: number; //JS ONLY
     current_byte: number;
     input: Uint8Array;
@@ -32,10 +33,19 @@ export class Lexer {
         this.prev_byte_offset = 0;
         this.prev_token_offset = 0;
         this.active_token_productions = 0;
-        this._type = 0;
+        this.type = 0;
         this.line = 0;
         this.current_byte = 0;
         this.previous_type = 0;
+    }
+
+    get _type(): number {
+        return this.type;
+    }
+
+    set _type(v: number) {
+        this.previous_type = v;
+        this.type = v;
     }
     setToken(type_in: number, byte_length_in: number, token_length_in: number): number {
         this._type = type_in;
@@ -137,7 +147,7 @@ export class Lexer {
 
     copy_in_place(): Lexer {
         const destination = new Lexer(this.input, this.input_len);
-        destination.sync(this);
+        destination.peek_unroll_sync(this);
         return destination;
     }
     sync(source: Lexer) {
@@ -181,10 +191,10 @@ export class Lexer {
     next() {
         this.byte_offset += this.byte_length;
         this.token_offset += this.token_length;
-        this.previous_type = this._type;
 
         if (this.input.length <= this.byte_offset) {
             this._type = 1;
+            this.previous_type = 1;
             this.byte_length = 0;
             this.token_length = 0;
             this.current_byte = 0;
@@ -194,7 +204,7 @@ export class Lexer {
             if (this.current_byte == 10)
                 this.line += 1;
 
-            this._type = 0;
+            this.type = 0;
             this.byte_length = 1;
             this.token_length = 1;
         };

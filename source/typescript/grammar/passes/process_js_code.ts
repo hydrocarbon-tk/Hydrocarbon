@@ -1,6 +1,7 @@
 import { traverse } from "@candlelib/conflagrate";
 import { exp, JSNodeClass, JSNodeType, renderCompressed } from "@candlelib/js";
-import { ENVFunctionRef, GrammarObject, HCG3ProductionBody, LocalFunctionRef, ProductionFunction } from "../../types/grammar_nodes";
+import { ir_reduce_numeric_len_id } from '../../build/ir_reduce_numeric_len_id.js';
+import { ENVFunctionRef, GrammarObject, LocalFunctionRef, ProductionFunction } from "../../types/grammar_nodes";
 import { InstructionType, IR_Instruction } from '../../types/ir_types';
 
 
@@ -25,8 +26,15 @@ export function createJSFunctionsFromExpressions(grammar: GrammarObject, error) 
         }
     }
 
-    for (const ir_state of grammar.ir_states)
+    for (const ir_state of grammar.ir_states) {
         processIRReduce(ir_state.instructions, grammar);
+        let fail_state = ir_state.fail;
+
+        while (fail_state) {
+            processIRReduce(fail_state.instructions, grammar);
+            fail_state = fail_state.fail;
+        }
+    }
 
 }
 
@@ -53,7 +61,7 @@ function processIRReduce(instructions: IR_Instruction[], grammar: GrammarObject)
                     else
                         instruction.reduce_fn = addReduceFNStringToLUT(grammar, js) + 1;
 
-                    instruction.len = (0x90FA0102) >>> 0;
+                    instruction.len = ir_reduce_numeric_len_id >>> 0;
                 }
                 break;
         }
