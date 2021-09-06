@@ -36,6 +36,7 @@ type state_pointer = number;
 type lexer_type = number;
 type lexer_token_offset = number;
 type lexer_token_length = number;
+type production_id = number;
 
 /////////////////////////////////////////////
 // Kernel State 
@@ -61,7 +62,7 @@ export class KernelState implements KernelStateType {
     VALID: boolean;
     COMPLETED: boolean;
     refs: number;
-    state_history: [state_pointer, lexer_type, lexer_token_offset, lexer_token_length,][];
+    state_history: [state_pointer, lexer_type, lexer_token_offset, lexer_token_length, production_id][];
     constructor(
         state_buffer: Uint32Array,
         input_buffer: Uint8Array,
@@ -105,12 +106,15 @@ export class KernelState implements KernelStateType {
         return this.rules.length;
     };
 
-    add_state_to_history(kernel_state: number, enable_history: boolean = false) {
+    /**
+     * JS Only 
+     */
+    add_state_to_history(kernel_state: number, prod: number, enable_history: boolean = false) {
 
         if (enable_history) {
-            console.log(this.lexer_pointer);
-            const lexer = this.lexer_stack[this.lexer_pointer % 10];
-            this.state_history.push([kernel_state, lexer._type, lexer.token_offset, lexer.token_length]);
+            const lexer = this.lexer_stack[this.lexer_pointer % 16];
+
+            this.state_history.push([kernel_state, lexer.previous_type, lexer.token_offset, lexer.token_length, prod]);
         }
 
     }
@@ -917,20 +921,14 @@ export function kernel_executor(
                 if ((!fail_mode && ((state & fail_state_mask) == 0))
                     || (fail_mode && (state & fail_state_mask) != 0)) {
 
-                    kernel_state.add_state_to_history(state, enable_history);
-
-                    //  if (reverse_state_lookup)
-                    //      if (!fail_mode)
-                    //          log(`\n at state: ${state & 0xFFFF} \n`, reverse_state_lookup.get(state & 0xFFFF), "\n");
-                    //      else
-                    //          log("\n [IN FAILURE MODE] \n at state: \n", reverse_state_lookup.get(state & 0x0800FFFF), "\n");
-
                     ({ fail_mode, prod } = instruction_executor(
                         state,
                         prod,
                         kernel_state,
                         kernel_states_repo
                     ));
+
+                    kernel_state.add_state_to_history(state, prod, enable_history);
                 }
             }
         }

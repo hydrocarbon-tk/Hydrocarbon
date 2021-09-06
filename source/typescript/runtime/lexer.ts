@@ -17,6 +17,7 @@ export class Lexer {
     prev_token_offset: number;
     line: number;
     _type: number;
+    previous_type: number; //JS ONLY
     current_byte: number;
     input: Uint8Array;
     input_len: number;
@@ -34,6 +35,7 @@ export class Lexer {
         this._type = 0;
         this.line = 0;
         this.current_byte = 0;
+        this.previous_type = 0;
     }
     setToken(type_in: number, byte_length_in: number, token_length_in: number): number {
         this._type = type_in;
@@ -179,6 +181,8 @@ export class Lexer {
     next() {
         this.byte_offset += this.byte_length;
         this.token_offset += this.token_length;
+        this.previous_type = this._type;
+
         if (this.input.length <= this.byte_offset) {
             this._type = 1;
             this.byte_length = 0;
