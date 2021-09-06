@@ -90,20 +90,24 @@ function processReduceFunction(
                     replaceParent
                 ) => {
                     if (child == null) {
-                        if ((parent.type &
-                            (
-                                JSNodeClass.UNARY_EXPRESSION
-                                | JSNodeClass.TERNARY_EXPRESSION
-                            )
+
+                        if (
+                            (parent.type &
+                                (
+                                    JSNodeClass.UNARY_EXPRESSION
+                                    | JSNodeClass.TERNARY_EXPRESSION
+                                )
+
+
+                                || parent.type == JSNodeType.AssignmentExpression
+                                || parent.type == JSNodeType.PropertyBinding
+                                || parent.type == JSNodeType.VariableStatement
+                                || parent.type == JSNodeType.BindingExpression
+                                || parent.type == JSNodeType.MemberExpression
+                                || parent.type == JSNodeType.SpreadExpression
+                                || parent.type == JSNodeType.Parenthesized
+                                || parent.type == JSNodeType.ExpressionStatement)
                         )
-                            || parent.type == JSNodeType.AssignmentExpression
-                            || parent.type == JSNodeType.PropertyBinding
-                            || parent.type == JSNodeType.VariableStatement
-                            || parent.type == JSNodeType.BindingExpression
-                            || parent.type == JSNodeType.MemberExpression
-                            || parent.type == JSNodeType.SpreadExpression
-                            || parent.type == JSNodeType.Parenthesized
-                            || parent.type == JSNodeType.ExpressionStatement)
                             return null;
 
                         if (parent.type == JSNodeType.Arguments && children.length <= 1) {
@@ -184,7 +188,11 @@ function processReduceFunction(
                 }
             }
 
-            js = `(env, sym, pos)=> ${renderCompressed(receiver.ast)} `;
+            const text = renderCompressed(receiver.ast);
+
+            if (text)
+                js = `(env, sym, pos)=> ${text} `;
+            else js = "";
         }
     }
 

@@ -1,6 +1,6 @@
 <> start > A
 
-<> A >  [ \A ?  \B ? \C ? ] \D f:r{ $sym1 + $sym2 + $sym3 + $sym4 } 
+<> A >  [ \A ?  \B ? \C ? ] \D f:r{ $1 + $2 + $3 + $4 } 
 
-<> B > \X ?  \Y ? \Z ? f:r{ $sym1 + $sym2 + $sym3 }
+<> B > \X ?  \Y ? \Z ? f:r{ $1 + $2 + $3 }
 
