@@ -50,10 +50,11 @@ export interface TransitionForestStateA {
     depth: number;
     parent: TransitionForestStateA;
     states: TransitionForestStateA[];
-    roots: Item[];
-    transitioned_items: Item[];
+    roots: (number | Item)[];
+    items: Item[];
     symbols: HCG3Symbol[],
-    hash_action?: { hash: string, action: string; };
+    hash_action?: { hash: string, action: string, assertion: string; };
+    USED: boolean;
 }
 export const enum TransitionStateType {
     UNDEFINED = 0,

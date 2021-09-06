@@ -22,7 +22,8 @@ import { getGotoItems, Item, itemsToProductionIDs } from "./item.js";
  */
 export function getClosure(
     items: Item[],
-    grammar: GrammarObject
+    grammar: GrammarObject,
+    depth: number = 0
 ): Item[] {
 
     let closure = [];
@@ -40,7 +41,15 @@ export function getClosure(
 
     closure = closure.setFilter();
 
-    return closure.map(i => grammar.item_map.get(i).item);
+    return items.concat(closure.map(i => {
+        const item = grammar.item_map.get(i).item;
+        return new Item(
+            item.body,
+            item.len,
+            item.offset,
+            depth
+        );
+    })).setFilter();
 }
 
 /**

@@ -6,11 +6,13 @@
 import { default_EOF } from "../grammar/nodes/default_symbols.js";
 import { convert_symbol_to_string, getRootSym, Sym_Is_A_Production } from "../grammar/nodes/symbol.js";
 import { GrammarObject, GrammarProduction, HCG3ProductionBody, HCG3Symbol } from "../types/grammar_nodes.js";
+import { This } from '../types/skribble.js';
 
 export const enum ItemIndex {
     body_id = 0,
     length = 1,
-    offset = 2
+    offset = 2,
+    depth = 3
 }
 export class ItemGraphNode {
     subitems: ItemGraphNode[];
@@ -47,9 +49,9 @@ export class Item extends Array {
         return new Item(array[ItemIndex.body_id], array[ItemIndex.length], array[ItemIndex.offset]);
     }
 
-    constructor(body_id: number, length: number, offset: number) {
+    constructor(body_id: number, length: number, offset: number, depth: number = 0) {
         //@ts-ignore
-        super(body_id, length, offset);
+        super(body_id, length, offset, depth);
     }
 
     get atEND(): boolean {
@@ -68,9 +70,21 @@ export class Item extends Array {
         return this[ItemIndex.length];
     }
 
+    get depth(): number {
+        return this[ItemIndex.depth];
+    }
 
     get offset(): number {
         return this[ItemIndex.offset];
+    }
+
+    copy(
+        body = this.body,
+        length = this.len,
+        offset = this.offset,
+        depth = this.depth
+    ): Item {
+        return new Item(body, length, offset, depth);
     }
 
     body_(grammar: GrammarObject): HCG3ProductionBody {
@@ -138,7 +152,7 @@ export class Item extends Array {
     increment(): Item | null {
         if (this.offset < this.len) {
 
-            const item = new Item(this.body, this.len, this.offset + 1);
+            const item = new Item(this.body, this.len, this.offset + 1, this.depth);
 
             return item;
         }
@@ -146,7 +160,7 @@ export class Item extends Array {
     }
 
     decrement(): Item | null {
-        const item = new Item(this.body, this.len, this.offset);
+        const item = new Item(this.body, this.len, this.offset, this.depth);
         item[ItemIndex.offset] = Math.max(0, item[ItemIndex.offset] - 1);
         return item;
     }
