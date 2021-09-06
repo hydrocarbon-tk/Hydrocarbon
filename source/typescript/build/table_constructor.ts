@@ -9,6 +9,7 @@ import { GrammarObject, GrammarProduction, TokenSymbol } from "../types/grammar_
 import { TransitionForestStateA, TransitionStateType } from '../types/transition_tree_nodes.js';
 import { hashString } from '../utilities/code_generating.js';
 import { Item } from "../utilities/item.js";
+import { default_case_indicator } from './build.js';
 import { create_symbol_clause } from './create_symbol_clause.js';
 import { constructTransitionForest, getDescentItems, getGotoItems } from './transition_tree.js';
 
@@ -155,7 +156,7 @@ function processTransitionNode(
 
         global_symbols = [], global_items = [];
 
-    if (state.states.length > 1) {
+    if (state.type & TransitionStateType.MULTI) {
 
         //join all types that have the same hash
 
@@ -222,7 +223,7 @@ function generateStateHashAction(
     if (state.hash_action)
         return state.hash_action;
 
-    if (state.states.length > 1) {
+    if (state.type & TransitionStateType.MULTI) {
 
         for (const { symbols, type, items: transitioned_items } of state.states) {
 
@@ -287,19 +288,36 @@ function processMultiChildStates(
 
     } else {
 
-        const state_groups = state.states.groupMap(
-            s => generateStateHashAction(s, grammar).hash + (
-                s.type & TransitionStateType.PRODUCTION
-                    ? s.symbols.filter(Sym_Is_A_Production).map(getUniqueSymbolName).sort().join()
-                    : ""
-            )
-        );
+        const state_groups = state.states.group(
+            s => {
+                if (s.items.some(i => i.depth <= -9999)) {
+                    return "out_of_scope";
+                } else {
+                    return generateStateHashAction(s, grammar).hash + (
+                        s.type & TransitionStateType.PRODUCTION
+                            ? s.symbols.filter(Sym_Is_A_Production).map(getUniqueSymbolName).sort().join()
+                            : ""
+                    );
+                }
+            }).sort(([a], [b]) => {
 
-        for (const [_, states] of state_groups) {
+                const a_type = a.type + a.items[0].depth;
+                const b_type = b.type + b.items[0].depth;
 
-            const depth = states[0].depth;
+                return a_type - b_type;
+            });
 
-            const { hash, assertion, action } = generateStateHashAction(states[0], grammar);
+        let i = 0;
+
+        const group_length_m_one = state_groups.length - 1;
+
+        for (const states of state_groups) {
+            let AUTO_FAIL = states[0].items.some(i => i.depth <= -9999);
+            let AUTO_PASS = states[0].items.some(i => i.depth >= 9999);
+
+            const IS_LAST_GROUP = AUTO_PASS; //(i >= group_length_m_one && i >= 1);
+
+            const { assertion, action } = generateStateHashAction(states[0], grammar);
 
             states.forEach(s => s.USED = true);
             const type = states.reduce((r, s) => r | s.type, 0);
@@ -312,6 +330,10 @@ function processMultiChildStates(
                 ||
                 (state.depth > 0 ? "peek" : "assert");
 
+            const action_string = AUTO_FAIL
+                ? "fail"
+                : action + default_clause;
+
             if (type & TransitionStateType.PRODUCTION) {
 
                 //lexer_state = depth > 0 ? "peek" : "assert";
@@ -323,8 +345,8 @@ function processMultiChildStates(
 
                 states_string.push(
                     f`${4}
-                    ${lexer_state} [ ${assertion_symbols.map(i => i.id).sort((a, b) => a - b).join(" ")} ](
-                        ${action}${default_clause}
+                    ${lexer_state} [ ${assertion_symbols.map(i => i.id).sort((a, b) => a - b).join(" ")}${IS_LAST_GROUP ? " " + default_case_indicator : ""} ](
+                        ${action_string}
                     )`
                 );
 
@@ -332,12 +354,12 @@ function processMultiChildStates(
 
                 states_string.push(
                     f`${4}
-                    ${lexer_state} [ ${symbols.map(i => i.id).sort((a, b) => a - b).join(" ")} ](
-                        ${action}${default_clause}
+                    ${lexer_state} [ ${symbols.map(i => i.id).sort((a, b) => a - b).join(" ")} ${IS_LAST_GROUP ? " " + default_case_indicator : ""} ](
+                        ${action_string}
                     )`
                 );
             }
-
+            i++;
         }
     }
 

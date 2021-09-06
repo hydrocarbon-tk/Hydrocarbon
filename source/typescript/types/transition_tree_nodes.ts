@@ -72,13 +72,13 @@ export const enum TransitionStateType {
      * completion of non-terminal symbol.
      */
     PRODUCTION = 1 << 3,
-
     /**
-     * Transition has occurred from the 
-     * accepting of a root item.
+     * Node represents a branch of one or
+     * more sub-nodes. Each sub-node should 
+     * should be gated by an assert, peek, or 
+     * consume verification instruction.
      */
-    END = 1 << 4,
-
+    MULTI = 1 << 4,
     /**
      * Transition has occurred from the 
      * accepting of a completed root item.
@@ -101,5 +101,12 @@ export const enum TransitionStateType {
      */
     PEEK = 1 << 8,
 
-    FORK = 1 << 9
+    FORK = 1 << 9,
+
+    /**
+     * Transition has occurred from the 
+     * accepting of a root item.
+     */
+    END = 1 << 10,
+
 }

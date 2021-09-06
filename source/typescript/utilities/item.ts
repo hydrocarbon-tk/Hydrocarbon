@@ -121,7 +121,7 @@ export class Item extends Array {
 
     renderUnformattedWithProduction(grammar: GrammarObject): string {
 
-        return (this.getProduction(grammar).id + ":" + this.body) + " " + this.body_(grammar).production.name + "=>" + this.renderUnformatted(grammar); //+ ` [ ${syms.join(", ")} ]`;
+        return (this.getProduction(grammar).id + ":" + this.body + ":" + this.depth) + " " + this.body_(grammar).production.name + "=>" + this.renderUnformatted(grammar); //+ ` [ ${syms.join(", ")} ]`;
     }
     getProductionID(grammar: GrammarObject): number {
         return this.body_(grammar).production.id;

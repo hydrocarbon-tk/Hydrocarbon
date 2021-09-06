@@ -3,7 +3,7 @@
  * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
  * disclaimer notice.
  */
-import { default_GEN_SYM } from '../grammar/nodes/default_symbols.js';
+import { default_EOF, default_GEN_SYM } from '../grammar/nodes/default_symbols.js';
 import {
     getSymbolFromUniqueName,
     getUniqueSymbolName, SymbolsCollide,
@@ -17,6 +17,8 @@ import { TransitionForestStateA, TransitionStateType } from "../types/transition
 import { getClosure } from "../utilities/closure.js";
 import { Item } from "../utilities/item.js";
 import { getProductionClosure } from '../utilities/production.js';
+
+const end_item_addendum = 1 << 20;
 
 export function constructTransitionForest(
     grammar: GrammarObject,
@@ -42,7 +44,7 @@ export function constructTransitionForest(
         createTransitionForestState(
             TransitionStateType.START,
             [],
-            -300,
+            -1,
             [],
             null,
         );
@@ -53,7 +55,7 @@ export function constructTransitionForest(
         createTransitionForestState(
             TransitionStateType.START,
             [],
-            -100,
+            -1,
             [],
             null,
         );
@@ -77,7 +79,7 @@ export function constructTransitionForest(
     grammar.bodies = body_cache;
     grammar.productions = production_cache;
 
-    return initial_state.states.length > 1
+    return initial_state.type & TransitionStateType.MULTI
         ? initial_state
         : initial_state.states[0];
 }
@@ -125,7 +127,15 @@ function recognize(
     const symbols_groups = incremented_items
         .group(s => getUniqueSymbolName(s.sym(grammar)));
 
-    if (symbols_groups.length == 1) {
+    if (
+        symbols_groups.length == 1
+        &&
+        (
+            !Sym_Is_EOF(transitioned_items[0].sym(grammar))
+            ||
+            transitioned_items.length == 1
+        )
+    ) {
         //Create a new state that transitions on the symbol
 
         const val = symbols_groups[0];
@@ -152,13 +162,23 @@ function recognize(
 
         states.push(state);
 
-    } else if (symbols_groups.length > 1) {
+    } else {
 
         // Heuristic, if some the items are end items, then simply differ to the shift 
         // of the non end items. Turn the end item into its own substate.
-        const end_items = incremented_items.filter(i => i.atEND);
+
         const active_items = incremented_items;//.filter(i => !i.atEND);
-        const symbols_groups = active_items.group(s => getUniqueSymbolName(s.sym(grammar)));
+        let end_item = 0;
+        const symbols_groups = active_items.group(
+            s => {
+                if (s.atEND) {
+                    return "end" + end_item++;
+                } else {
+                    return getUniqueSymbolName(s.sym(grammar));
+                }
+            }
+
+        );
 
         const leaf_states = [];
 
@@ -166,7 +186,7 @@ function recognize(
 
         const contextual_state: TransitionForestStateA =
             createTransitionForestState(
-                TransitionStateType.START, [], -2, [], null
+                TransitionStateType.START, [], -1, [], root_peek_state
             );
 
         const u = undefined;
@@ -196,8 +216,7 @@ function recognize(
             origin_symbols.push(sym);
 
             initial_state.depth = -1;
-
-            initial_state.roots = <any>[i++];
+            initial_state.roots = <any>[(group.some(g => g.atEND) ? end_item_addendum : 0) | i++];
 
             initial_state.items = removeLeftRecursiveItems(roots, getClosure(roots, grammar, -1), grammar)
                 .map(i => i.copy(u, u, u, -1));
@@ -207,16 +226,20 @@ function recognize(
 
         const graph = disambiguate(grammar, root_states, options, true);
 
-        if (graph.AMBIGUOUS && depth == 0) {
+        if (graph.AMBIGUOUS && depth == -1) {
             debugger;
         }
 
-        //Convert graph into a tree and yield leaves
+        // Convert the previous state into multi branch state if there are 
+        // more than one branch state
+        if (graph.nodes.length > 1)
+            previous_state.type |= TransitionStateType.MULTI;
 
         states.push(...graph.nodes.map((n => (n.state.parent = null, n.state))));
 
         //Build in new states and create transition for each one.
 
+        //Convert graph into a transition tree and yield leaves
         for (const leaf of yieldPeekGraphLeaves(graph)) {
             /*
                 At this point the leaf indicates a set of successful resolution of 
@@ -235,13 +258,21 @@ function recognize(
                 : [leaf];
 
             for (const origin_state of candidate_states) {
-                const groups = (<any>origin_state.roots as number[]).map(i => symbols_groups[i]);
+                const groups = (<any>origin_state.roots as number[]).map(i => symbols_groups[i & (end_item_addendum - 1)]);
 
                 if (groups.length > 1) {
+
+                    //TODO Rebuild the groups while removing out of scope items.
 
                     origin_state.type |= TransitionStateType.FORK;
 
                     for (const group of groups) {
+
+                        if (group[0].depth <= -9999) {
+                            // This is an out of scope item, and 
+                            // should be removed from the finale
+                            debugger;
+                        }
 
                         const sym = group[0].sym(grammar);
 
@@ -285,10 +316,13 @@ function recognize(
 
                     origin_state.items = group.map(r => r.atEND ? r : r);
 
-                    if (origin_state.items[0].atEND)
+                    if (origin_state.items[0].atEND) {
+                        //No need to process this state further
                         origin_state.type |= TransitionStateType.END;
+                    } else {
+                        leaf_states.push(origin_state);
+                    }
 
-                    leaf_states.push(origin_state);
 
                 }
             }
@@ -415,6 +449,19 @@ function disambiguate(
 
                 states.push(state);
             }
+        } else {
+            // The only solution at this point is an end of file state.
+            let state: TransitionForestStateA =
+                createTransitionForestState(TransitionStateType.UNDEFINED,
+                    [default_EOF],
+                    depth + 1,
+                    roots,
+                    previous_state
+                );
+
+            state.items = incremented_items.filter(i => i.atEND);
+
+            states.push(state);
         }
     }
 
@@ -451,7 +498,7 @@ function disambiguate(
             roots: [],
             states: [],
             symbols: [],
-            type: TransitionStateType.PEEK,
+            type: TransitionStateType.PEEK | TransitionStateType.MULTI,
             items: [],
         },
 
@@ -470,6 +517,7 @@ function disambiguate(
         nodes: []
     };
 
+    let REQUIRE_MULTI_DISAMBIGUATE_NODE = false;
 
     for (const [key, states] of grouped_roots) {
 
@@ -499,10 +547,13 @@ function disambiguate(
             dissambiguated_multi_node.state.items.push(
                 ...states[0].items.map(i => i.increment())
             );
+
+            if (states[0].roots.some(i => i <= end_item_addendum))
+                REQUIRE_MULTI_DISAMBIGUATE_NODE = true;
         }
     }
 
-    if (dissambiguated_multi_node.state.states.length > 1) {
+    if (dissambiguated_multi_node.state.states.length > 1 || REQUIRE_MULTI_DISAMBIGUATE_NODE) {
 
         graph_node.nodes.push(dissambiguated_multi_node);
 
@@ -635,6 +686,7 @@ function resolveEndItem(
             }
         }
     }
+
     return active_items.setFilter(i => i.id);
 }
 function createTransitionForestState(
@@ -693,7 +745,24 @@ export function getGotoItems(production: GrammarProduction, seed_items: Item[], 
 
         if (!output.has(id) && lr_items.has(id)) {
 
-            const items = lr_items.get(id);
+            let items = lr_items.get(id);
+
+            if (id == production.id) {
+
+                /**
+                 * Mark items with depth (state) 9999 as "in scope" and items
+                 * -9999 as "out of scope". Out of scope items are only used
+                 * to determine if a production should be reduced to another
+                 * production or left alone.
+                 */
+
+                items = [
+                    ...items.map(i => i.copy(undefined, undefined, undefined, 9999)),
+                    ...grammar.lr_items.get(production.id).map(i =>
+                        i.copy(undefined, undefined, undefined, -9999)))
+                ].setFilter(i => i.id);
+            }
+
 
             output.set(id, items);
             batch.push(...items.map(i => i.getProductionID(grammar)));

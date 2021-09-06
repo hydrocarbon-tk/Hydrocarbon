@@ -17,6 +17,8 @@ import { getSymbolMapFromIds } from '../utilities/code_generating.js';
 
 const ir_parser = await parser_loader;
 
+export const default_case_indicator = 9999;
+
 export async function createBuildPack(
     grammar: GrammarObject,
     number_of_workers: number = 1
@@ -604,8 +606,8 @@ function extractTokenSymbols(state_data: IRStateData, grammar: GrammarObject) {
         skipped_symbols.push(...skipped);
     }
 
-    state_data.expected_tokens = expected_symbols.filter(s => s != 9999); // <- remove default value
-    state_data.skipped_tokens = skipped_symbols.filter(s => s != 9999);// <- remove default value
+    state_data.expected_tokens = expected_symbols.filter(s => s != default_case_indicator); // <- remove default value
+    state_data.skipped_tokens = skipped_symbols.filter(s => s != default_case_indicator);// <- remove default value
 }
 
 function statesOutputsOptimizationPass(StateMap: StateMap, grammar: GrammarObject, StateMap_: StateMap): boolean {
@@ -987,9 +989,9 @@ function buildBranchTableBlock(
 
     const instructions = state_ast.instructions as ResolvedIRBranch[];
 
-    const default_instruction = instructions.filter(i => i.ids.some(i => i == 9999))[0];
+    const default_instruction = instructions.filter(i => i.ids.some(i => i == default_case_indicator))[0];
 
-    const standard_instructions = instructions.filter(i => !i.ids.some(i => i == 9999));
+    const standard_instructions = instructions.filter(i => !i.ids.some(i => i == default_case_indicator));
 
     if (standard_instructions.length == 0 && default_instruction) {
         const new_state = Object.assign({}, state_ast, { instructions: default_instruction.instructions });
@@ -1090,8 +1092,8 @@ function buildScanningBranchBlock(
 
     const instructions = state_ast.instructions as ResolvedIRBranch[];
 
-    const default_instruction = instructions.filter(i => i.ids.some(i => i == 9999))[0];
-    const standard_instructions = instructions.filter(i => !i.ids.some(i => i == 9999));
+    const default_instruction = instructions.filter(i => i.ids.some(i => i == default_case_indicator))[0];
+    const standard_instructions = instructions.filter(i => !i.ids.some(i => i == default_case_indicator));
 
     if (standard_instructions.length == 0 && default_instruction) {
         const new_state = Object.assign({}, state_ast, { instructions: default_instruction.instructions });
