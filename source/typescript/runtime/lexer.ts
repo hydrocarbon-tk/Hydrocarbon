@@ -152,6 +152,25 @@ export class Lexer {
         this.active_token_productions = source.active_token_productions;
     }
 
+    sync_offsets() {
+        this.prev_byte_offset = this.byte_offset;
+        this.prev_token_offset = this.token_offset;
+    }
+
+    peek_unroll_sync(source: Lexer) {
+
+        this.byte_offset = source.byte_offset;
+        this.byte_length = source.byte_length;
+        this.token_length = source.token_length;
+        this.token_offset = source.token_offset;
+        this.prev_byte_offset = source.prev_byte_offset;
+        this.prev_token_offset = source.prev_token_offset;
+        this.line = source.line;
+        this._type = source._type;
+        this.current_byte = source.current_byte;
+        this.active_token_productions = source.active_token_productions;
+    }
+
     set_token_span_to(source: Lexer) {
         this.byte_length = source.prev_byte_offset - this.byte_offset;
         this.token_length = source.prev_token_offset - this.token_offset;

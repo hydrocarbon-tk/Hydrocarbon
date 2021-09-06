@@ -7,7 +7,7 @@ import {
     addCLIConfig, processCLIConfig
 } from "@candlelib/paraffin";
 import { default as URI, default as URL } from "@candlelib/uri";
-import { buildRecognizer } from "../build/build.js";
+import { createBuildPack } from "../build/build.js";
 import { compileGrammarFromURI } from "../grammar/compile.js";
 import { createCompilableCode } from "../grammar/passes/process_compiled_code.js";
 import { renderToJavaScript } from '../render/render.js';
@@ -191,7 +191,7 @@ addCLIConfig("compile", {
         cli_log(`Starting recognizer compilation with ${number_of_workers.value || 1} threads`);
 
         // Compile recognizer code
-        const build_pack = await buildRecognizer(grammar, threads);
+        const build_pack = await createBuildPack(grammar, threads);
 
         cli_log("Completed recognizer compilation");
 
@@ -308,7 +308,7 @@ addCLIConfig("create-staged", {
         bootstrapped_compiled_grammar = await compileGrammarFromURI(hcg_grammar_file),
         {
             recognizer_functions: bootstrapped_recognizer_functions
-        } = await buildRecognizer(bootstrapped_compiled_grammar, 1);
+        } = await createBuildPack(bootstrapped_compiled_grammar, 1);
 
     let SUCCESS = await writeJSBasedParserScriptFile(
         URI.resolveRelative("./build/staged/hcg3_parser.staged.ts") + "",

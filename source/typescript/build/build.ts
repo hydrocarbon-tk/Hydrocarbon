@@ -1,3 +1,8 @@
+/* 
+ * Copyright (C) 2021 Anthony Weathersby - The Hydrocarbon Parser Compiler
+ * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
+ * disclaimer notice.
+ */
 import spark from "@candlelib/spark";
 import { WorkerRunner } from "../build/workers/worker_runner.js";
 import parser_loader from "../grammar/hcg_parser.js";
@@ -12,7 +17,7 @@ import { getSymbolMapFromIds } from '../utilities/code_generating.js';
 
 const ir_parser = await parser_loader;
 
-export async function buildRecognizer(
+export async function createBuildPack(
     grammar: GrammarObject,
     number_of_workers: number = 1
 ): Promise<BuildPack> {
@@ -848,7 +853,7 @@ function decreaseReference(goto_state: IRStateData, to_remove: string[]) {
 
 function statesOutputsBuildPass(StateMap: StateMap, grammar: GrammarObject, sym_map: Map<string, number> = new Map(),) {
 
-    let total_instruction_byte_size = 0;
+    let total_instruction_byte_size = 8; // Ensure the zero position is reserved for the "null" state
 
     for (const [state_name, state_data] of StateMap) {
 
@@ -937,7 +942,7 @@ function statesOutputsBuildPass(StateMap: StateMap, grammar: GrammarObject, sym_
 
     }
 
-    const out_buffer = [];
+    const out_buffer = [0, 0];
 
     for (const [_, { block }] of StateMap) {
 

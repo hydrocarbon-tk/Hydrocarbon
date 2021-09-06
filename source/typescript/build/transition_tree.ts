@@ -9,7 +9,7 @@ import {
     Symbols_Are_The_Same,
     Sym_Is_A_Generic_Identifier,
     Sym_Is_A_Production,
-    Sym_Is_A_Production_Token, Sym_Is_EOF
+    Sym_Is_A_Production_Token, Sym_Is_Defined, Sym_Is_EOF
 } from "../grammar/nodes/symbol.js";
 import { GrammarObject, GrammarProduction, HCG3Symbol, ProductionNode, TokenSymbol } from '../types/grammar_nodes';
 import { TransitionForestStateA, TransitionStateType } from "../types/transition_tree_nodes";
@@ -137,7 +137,7 @@ export function constructTransitionForest(
         createTransitionForestState(
             TransitionStateType.START,
             [],
-            <any>{ roots, depth: -3 }
+            <any>{ roots, depth: -300 }
         );
 
     root_peek_state.parent = null;
@@ -148,7 +148,7 @@ export function constructTransitionForest(
         createTransitionForestState(
             TransitionStateType.START,
             [],
-            <any>{ roots, depth: -1 }
+            <any>{ roots, depth: -300 }
         );
 
     initial_state.parent = null;
@@ -226,10 +226,12 @@ function recognize(
             previous_state,
         );
 
-        if (Sym_Is_EOF(sym))
-            state.type |= TransitionStateType.END;
+        state.depth = -100;
 
         state.transitioned_items = val.filter(i => !i.atEND).map(i => i.increment());
+
+        if (state.transitioned_items.some(i => i.atEND) || Sym_Is_EOF(sym))
+            state.type |= TransitionStateType.END;
 
         states.push(state);
 
@@ -274,7 +276,7 @@ function recognize(
 
             origin_symbols.push(sym);
 
-            initial_state.depth = 0;
+            initial_state.depth = -1;
 
             initial_state.roots = <any>[i++];
 
@@ -317,9 +319,12 @@ function recognize(
             ) {
                 leaf.type |= TransitionStateType.FORK;
 
+                console.log({ ld: leaf.depth });
+
                 for (const group of groups) {
 
                     const sym = group[0].sym(grammar);
+
                     const state = createTransitionForestState(
                         0,
                         [],
@@ -327,13 +332,18 @@ function recognize(
                     );
 
                     if (Sym_Is_A_Production(sym)) {
-                        state.type = TransitionStateType.PRODUCTION;
+
+                        state.type |= TransitionStateType.PRODUCTION;
+
                         state.symbols.push(Object.assign({}, sym, { production: null }));
+
                     } else {
-                        state.type = TransitionStateType.TERMINAL;
+                        state.transitioned_items = group;
+                        state.type |= TransitionStateType.TERMINAL;
                     }
 
-                    state.transitioned_items = group.map(i => i);
+                    state.transitioned_items = group;
+
 
                     leaf_states.push(state);
                     leaf.states.push(state);
@@ -350,7 +360,9 @@ function recognize(
                 if (Sym_Is_A_Production(sym)) {
                     leaf.type |= TransitionStateType.PRODUCTION;
                     leaf.symbols.push(Object.assign({}, sym, { production: null }));
-                } else { }
+                } else {
+                    leaf.depth = -1;
+                }
 
                 leaf.transitioned_items = group.map(r => r.increment());
 
@@ -379,8 +391,14 @@ function* yieldPeekGraphLeaves(graph: TransitionForestGraph): Generator<Transiti
 
 }
 
-
 function mergeStates(type, states: TransitionForestStateA[]): TransitionForestStateA {
+    const symbols = states.flatMap(s => s.symbols).setFilter(getUniqueSymbolName);
+
+    let resolved_symbols = symbols.slice();
+
+    if (symbols.length > 1)
+        resolved_symbols = resolved_symbols.filter(Sym_Is_Defined);
+
     return {
 
         type: type,
@@ -390,7 +408,7 @@ function mergeStates(type, states: TransitionForestStateA[]): TransitionForestSt
         parent: null,
         roots: states.flatMap(r => r.roots),
         states: [],
-        symbols: states.flatMap(s => s.symbols).setFilter(getUniqueSymbolName),
+        symbols: resolved_symbols,
         transitioned_items: states.flatMap(i => i.transitioned_items).setFilter(i => i.id)
     };
 }
@@ -455,8 +473,6 @@ function disambiguate(
         //Do one level of Earley 
         const { depth, type: par_type, parent, roots, symbols, transitioned_items } = previous_state;
 
-        //const local_closure = getClosure(transitioned_items.slice(), grammar); //closure.slice();//getClosure(transitioned_items, grammar);
-        //const root_production_ids = roots.map(i => i.getProductionID(grammar)).setFilter();
         previous_state.transitioned_items = getClosure(
             [...transitioned_items, ...resolveEndItem(0, previous_state, grammar)],
             grammar
@@ -642,7 +658,7 @@ function createTransitionForestState(
 
     return {
         type: type,
-        depth: depth + 1,
+        depth: depth >= -1 ? depth + 1 : -2,
         symbols: symbols,
         roots: roots,
         states: [],

@@ -4,7 +4,7 @@
  * disclaimer notice.
  */
 import { ParserEnvironment } from '@candlelib/hydrocarbon';
-import { buildRecognizer } from '../build/build.js';
+import { createBuildPack } from '../build/build.js';
 import { compileGrammarFromString } from '../grammar/compile.js';
 import { compare, init_table, KernelStateIterator, run, token_production } from '../runtime/kernel.js';
 import { ParserFrameWork } from '../runtime/parser_framework.js';
@@ -23,7 +23,7 @@ import {
  */
 
 export async function createAddHocParser<T = any>(
-    build_pack: BuildPack | string,
+    build_pack: BuildPack | string | Promise<BuildPack | string>,
 ): Promise<{
     parse: (input: string, production_selector: 0, env: ParserEnvironment) => T[],
     reverse_state_lookup,
@@ -32,12 +32,14 @@ export async function createAddHocParser<T = any>(
 
     let resolved_build_pack: BuildPack = null;
 
-    if (typeof build_pack == "string") {
-        const grammar = await compileGrammarFromString(build_pack);
+    const test_pack = await build_pack;
 
-        resolved_build_pack = await buildRecognizer(grammar);
+    if (typeof test_pack == "string") {
+        const grammar = await compileGrammarFromString(test_pack);
+
+        resolved_build_pack = await createBuildPack(grammar);
     } else {
-        resolved_build_pack = build_pack;
+        resolved_build_pack = test_pack;
     }
 
     const { grammar, state_buffer, sym_map, states_map } = resolved_build_pack;

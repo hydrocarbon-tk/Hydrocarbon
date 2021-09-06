@@ -69,12 +69,15 @@ export async function ParserFrameWork<T, R, K extends keyof R>(
 
             let stack = [],
                 tokens = [],
+                rules = [],
                 token_offset = 0;
 
 
             while (iter.is_valid()) {
 
                 let low = iter.next();
+
+                rules.push(low);
 
                 if (low == 0) break;
 

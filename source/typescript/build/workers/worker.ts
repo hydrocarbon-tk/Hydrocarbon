@@ -61,7 +61,7 @@ export class Worker {
 
                 let Response: HybridDispatchResponse = {};
 
-                const { tables, id } = constructTableParser(this.grammar.productions[job.production_id], this.grammar);
+                const { parse_code_blocks: tables, id } = constructTableParser(this.grammar.productions[job.production_id], this.grammar);
 
                 Response.tables = tables;
 

@@ -53,6 +53,7 @@ export interface TransitionForestStateA {
     roots: Item[];
     transitioned_items: Item[];
     symbols: HCG3Symbol[],
+    hash_action?: { hash: string, action: string; };
 }
 export const enum TransitionStateType {
     UNDEFINED = 0,

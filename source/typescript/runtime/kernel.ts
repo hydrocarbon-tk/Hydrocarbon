@@ -382,7 +382,7 @@ export class KernelStateIterator {
         let last = this.refs.pop();
 
         this.current = last;
-        this.final_index = this.refs.length > 0 ? this.refs[this.refs.length - 1].origin_fork : last.get_rules_len() - 1;
+        this.final_index = this.refs.length > 0 ? this.refs[this.refs.length - 1].origin_fork : last.get_rules_len();
         this.index = 0;
         this.valid = true;
     }
@@ -392,11 +392,11 @@ export class KernelStateIterator {
     }
 
     next(): number {
-        if (this.index > this.final_index) {
+        if (this.index >= this.final_index) {
             if (this.refs.length > 0) {
                 let last = this.refs.pop();
                 this.index = 0;
-                this.final_index = this.refs.length > 0 ? this.refs[this.refs.length - 1].origin_fork : last.get_rules_len() - 1;
+                this.final_index = this.refs.length > 0 ? this.refs[this.refs.length - 1].origin_fork : last.get_rules_len();
                 this.current = last;
             }
             else {
@@ -798,6 +798,8 @@ function get_token_info(
 
                 lexer.next();
 
+                lexer.sync_offsets();
+
                 kernel_state.tk_scan(lexer, tk_row, skip_row);
 
                 lexer_pointer = kernel_state.lexer_pointer;
@@ -810,9 +812,11 @@ function get_token_info(
 
                 let peek_level = kernel_state.lexer_pointer & 0xFFFF;
 
-                if ((peek_level - consume_index) > 0
+                if (
+                    (peek_level - consume_index) > 0
                     &&
-                    auto_accept_with_peek) {
+                    auto_accept_with_peek
+                ) {
 
                     /* consume peek stack */
 
@@ -823,9 +827,9 @@ function get_token_info(
                     if (auto_consume_with_peek) {
                         kernel_state.lexer_pointer += 1 << 16;
                         if (consume_index > 0)
-                            kernel_state.lexer_stack[0].sync(kernel_state.lexer_stack[consume_index + 1]);
+                            kernel_state.lexer_stack[0].peek_unroll_sync(kernel_state.lexer_stack[consume_index + 1]);
                     } else {
-                        kernel_state.lexer_stack[0].sync(kernel_state.lexer_stack[consume_index]);
+                        kernel_state.lexer_stack[0].peek_unroll_sync(kernel_state.lexer_stack[consume_index]);
                         lexer_pointer = 0;
                     }
 
