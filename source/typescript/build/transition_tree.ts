@@ -230,12 +230,12 @@ function recognize(
             debugger;
         }
 
+        states.push(...graph.nodes.map((n => (n.state.parent = null, n.state))));
+
         // Convert the previous state into multi branch state if there are 
         // more than one branch state
-        if (graph.nodes.length > 1)
+        if (states.length > 1)
             previous_state.type |= TransitionStateType.MULTI;
-
-        states.push(...graph.nodes.map((n => (n.state.parent = null, n.state))));
 
         //Build in new states and create transition for each one.
 
@@ -253,6 +253,8 @@ function recognize(
 
                 In the multi-root case the leaf is used to fork to new actions
             */
+            leaf.items.length = 0;
+
             const candidate_states = leaf.states.length > 0
                 ? leaf.states
                 : [leaf];
@@ -260,11 +262,13 @@ function recognize(
             for (const origin_state of candidate_states) {
                 const groups = (<any>origin_state.roots as number[]).map(i => symbols_groups[i & (end_item_addendum - 1)]);
 
+                leaf.items.push(...groups.flat().setFilter(i => i.id));
+
                 if (groups.length > 1) {
 
                     //TODO Rebuild the groups while removing out of scope items.
 
-                    origin_state.type |= TransitionStateType.FORK;
+                    origin_state.type |= TransitionStateType.FORK | TransitionStateType.MULTI;
 
                     for (const group of groups) {
 
@@ -407,7 +411,7 @@ function disambiguate(
         const considered_items = incremented_items
             .flatMap(i =>
                 i.atEND
-                    ? resolveEndItem(i, previous_state, grammar)
+                    ? getClosure(resolveEndItem(i, previous_state, grammar), grammar, i.depth)
                     : getClosure([i], grammar, depth + 1)
             )
             .setFilter(i => i.id);
@@ -577,12 +581,13 @@ function disambiguate(
 
 function* yieldPeekGraphLeaves(graph: TransitionForestGraph): Generator<TransitionForestStateA> {
     const parent = graph.state;
-    if (graph.nodes.length > 0)
+    if (graph.nodes.length > 0) {
         for (let node of graph.nodes) {
             node.state.parent = parent;
             parent.states.push(node.state);
             yield* yieldPeekGraphLeaves(node);
         }
+    }
     else
         yield graph.state;
 
@@ -641,8 +646,8 @@ function resolveEndItem(
                     i => ((i.getProductionAtSymbol(grammar)?.id ?? -1) == production_id)
                 ));
 
-                if (matching_items.length > 0)
-                    break;
+                //if (matching_items.length > 0)
+                //    break;
             }
 
             prev = parent;

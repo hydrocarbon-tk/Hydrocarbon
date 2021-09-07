@@ -4,10 +4,12 @@
  * disclaimer notice.
  */
 import { traverse } from "@candlelib/conflagrate";
-import { getUniqueSymbolName, Sym_Is_A_Production, Sym_Is_A_Token } from "../grammar/nodes/symbol.js";
+import { getUniqueSymbolName, Sym_Is_A_Production, Sym_Is_A_Token, Sym_Is_EOF } from "../grammar/nodes/symbol.js";
 import { GrammarObject, GrammarProduction, TokenSymbol } from "../types/grammar_nodes.js";
 import { TransitionForestStateA, TransitionStateType } from '../types/transition_tree_nodes.js';
+import { getFollowClosure } from '../utilities/closure.js';
 import { hashString } from '../utilities/code_generating.js';
+import { getFollow } from '../utilities/follow.js';
 import { Item } from "../utilities/item.js";
 import { default_case_indicator } from './build.js';
 import { create_symbol_clause } from './create_symbol_clause.js';
@@ -115,23 +117,28 @@ export function constructTableParser(
     };
 }
 
+
+
 function processTransitionForest(
-    root_state: TransitionForestStateA,
+    state: TransitionForestStateA,
     grammar: GrammarObject,
     parse_code_blocks: Map<string, string>,
     scope: "DESCENT" | "GOTO",
-    default_hash?: string,
-    default_goto_hash?: string
+    default_hash: string = undefined,
+    default_goto_hash: string = undefined,
+    depth = 0
 ) {
-    for (const { node: state, meta: { depth, parent } } of
-        traverse<TransitionForestStateA, "states">(root_state, "states")
-    ) {
-        if (state.USED) continue;
+    if (!state.USED) {
 
         if (depth == 0)
             processTransitionNode(state, grammar, parse_code_blocks, scope, default_hash, default_goto_hash);
         else
             processTransitionNode(state, grammar, parse_code_blocks, scope);
+    }
+
+    for (const child_state of state.states) {
+
+        processTransitionForest(child_state, grammar, parse_code_blocks, scope, undefined, undefined, depth + 1);
     }
 }
 
@@ -154,7 +161,9 @@ function processTransitionNode(
             }\n*/`
         ],
 
-        global_symbols = [], global_items = [];
+        global_symbols = [],
+
+        global_items: Item[] = [];
 
     if (state.type & TransitionStateType.MULTI) {
 
@@ -193,9 +202,17 @@ function processTransitionNode(
 
     }
 
+    if (global_items.some(i => i.offset == 1 && i.depth >= 9999)) {
+        // Include the items from the productions follow
+        const production = (global_items.filter(i => i.depth >= 9999)[0]).getProductionID(grammar);
+        const follow = getFollow(production, grammar).filter(s => !Sym_Is_EOF(s) && s.type != "eop" && !Sym_Is_A_Production(s));
+
+        global_symbols.push(...follow);
+    }
+
     const symbol_clause = create_symbol_clause(
         global_items,
-        [],
+        global_symbols.filter(Sym_Is_A_Token),
         grammar,
         scope
     );
@@ -203,7 +220,9 @@ function processTransitionNode(
     if (symbol_clause)
         state_string.push(symbol_clause);
 
-    parse_code_blocks.set(default_hash, state_string.join("\n    "));
+    const string = state_string.join("\n    ");
+
+    parse_code_blocks.set(default_hash, string);
 }
 
 
@@ -218,8 +237,10 @@ function generateStateHashAction(
 ): { hash: string, action: string, assertion: string; } {
 
     let action_string = [], assertion_type = "";
+
     if (!state)
         debugger;
+
     if (state.hash_action)
         return state.hash_action;
 
@@ -288,7 +309,15 @@ function processMultiChildStates(
 
     } else {
 
-        const state_groups = state.states.group(
+        //merge multi item states into this state 
+
+        const states = state.states.flatMap(i => {
+            if (i.type & TransitionStateType.MULTI)
+                return i.states;
+            return i;
+        });
+
+        const state_groups = states.group(
             s => {
                 if (s.items.some(i => i.depth <= -9999)) {
                     return "out_of_scope";

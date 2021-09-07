@@ -13,7 +13,7 @@ import { getClosure, getFollowClosure } from "../utilities/closure.js";
 import { Item } from "../utilities/item.js";
 export function create_symbol_clause(
     items: Item[],
-    prods: number[],
+    additional_tokens: TokenSymbol[],
     grammar: GrammarObject,
     scope: "GOTO" | "DESCENT" = "DESCENT"
 ) {
@@ -22,14 +22,14 @@ export function create_symbol_clause(
     const end_items = items.filter(i => i.atEND);
 
     if (scope == "GOTO") {
-        let left_recursive_items = active_items.filter(i => i.offset == 1).filter(i => prods.includes(i.decrement().getProductionAtSymbol(grammar)?.id ?? -1));
+        let left_recursive_items = active_items.filter(i => i.offset == 1);
         end_items.push(...left_recursive_items.map(i => i.toEND()));
     }
 
     const expected_symbols = [
+        ...additional_tokens,
         ...getTokenSymbolsFromItems([
             ...active_items.flatMap(i => getClosure([i], grammar)),
-            ...prods.flatMap(i => grammar.productions[i].bodies).map(b => new Item(b.id, b.length, b.length)),
         ], grammar),
         ...getFollowSymbolsFromItems(end_items, grammar)
     ].setFilter(getUniqueSymbolName);
