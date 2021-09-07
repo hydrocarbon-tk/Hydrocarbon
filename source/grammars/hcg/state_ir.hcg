@@ -96,6 +96,10 @@
 
     | t:fail
                                             f:r { { type:"fail", pos } }
+                                            
+    | t:assert t:left
+                                            f:r { { type:"assert-left", pos } }
+      
 
 <> on_fail > t:on t:fail state_declaration top_level_instructions on_fail? expected_symbols?
                                             f:r { { type:"on-fail-state", id:$3, instructions: $4, symbol_meta: $6, fail: $5, pos } }
