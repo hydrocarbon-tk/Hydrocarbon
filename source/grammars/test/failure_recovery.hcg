@@ -1,7 +1,5 @@
 @IGNORE g:sp
 
-@IMPORT ./failure_recovery_lib.hcg as flib
-
 <> S > A \r
             f:r { { sym: $1  } }
 
@@ -16,7 +14,6 @@
         scan back until [ g:sp ] then reduce 
 
             f:r { { type:"failed A", pos } }
-
 >
 
 

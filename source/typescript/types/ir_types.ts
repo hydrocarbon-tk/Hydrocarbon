@@ -54,7 +54,9 @@ export const enum InstructionType {
     token_id = "token-id",
     pass = "pass",
     fail = "fail",
-    repeat = "repeat-state"
+    repeat = "repeat-state",
+    left_most = "assert-left"
+
 }
 
 
@@ -124,6 +126,10 @@ export interface IRPop extends Base_IR_Instruction {
     len: number;
 }
 
+export interface IRLeftMost extends Base_IR_Instruction {
+    type: InstructionType.left_most;
+}
+
 
 export interface IRSetTokenID extends Base_IR_Instruction {
     type: InstructionType.token_id;
@@ -177,6 +183,7 @@ export type IR_Instruction = IRConsume |
     IRFail |
     IRGoto |
     IREnd |
+    IRLeftMost |
     ResolvedIRBranch;
 
 export interface BlockData {

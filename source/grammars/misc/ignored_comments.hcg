@@ -1,7 +1,0 @@
-@IGNORE g:sp g:nl tk:comment
-
-<> info > data(*)
-
-<> data > g:id 
-
-<> comment > \# ( g:num | g:sym | g:id | g:sp)(*) g:nl?

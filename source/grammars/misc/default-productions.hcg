@@ -62,11 +62,10 @@
 
 <> identifier > tk:identifier_symbols 
 
-<> identifier_symbols >  identifier_symbols g:id        f:r { $1 + $2 }
-    | identifier_symbols \_                             f:r { $1 + $2 }
-    | identifier_symbols \-                             f:r { $1 + $2 }
-    | identifier_symbols \$                             f:r { $1 + $2 }
-    | identifier_symbols g:num                          f:r { $1 + $2 }
+<> identifier_symbols >  identifier_symbols (RST g:sp g:nl) g:id        f:r { $1 + $2 }
+    | identifier_symbols (RST g:sp g:nl) \_                             f:r { $1 + $2 }
+    | identifier_symbols (RST g:sp g:nl) \$                             f:r { $1 + $2 }
+    | identifier_symbols (RST g:sp g:nl) g:num                          f:r { $1 + $2 }
     | \_ 
     | \$ 
     | g:id

@@ -1,0 +1,9 @@
+@IGNORE g:sp  tk:comment g:nl
+
+<> S > info
+
+<> info > data(*)
+
+<> data > g:id 
+
+<> comment > \# ( g:num | g:sym | g:id | g:sp )(*) g:nl
