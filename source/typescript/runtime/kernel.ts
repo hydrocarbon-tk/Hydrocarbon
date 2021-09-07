@@ -97,7 +97,7 @@ export class KernelState implements KernelStateType {
 
         this.refs = 0;
 
-        this.symbol_accumulator = 1 << 16;
+        this.symbol_accumulator = 0; 1 << 16;
 
         this.state_history = [];
     }
@@ -755,8 +755,6 @@ function instruction_executor(
                 // If already in a failure state then set the accumulator value
                 // to the existing failure state.
 
-                log(`Set Failure state ${instruction & 0xFFFFFF}`);
-
                 let fail_state_pointer = (instruction) >>> 0;
 
                 if ((state & fail_state_mask) > 0) {
@@ -765,16 +763,20 @@ function instruction_executor(
                     fail_state_pointer |= kernel_state.symbol_accumulator & acc_sym_mask;
                 }
 
-                if (kernel_state.get_state() != fail_state_pointer)
+                if (kernel_state.get_state() != (fail_state_pointer >>> 0)) {
+                    log(`Set Failure state ${instruction & 0xFFFFFF}`);
                     kernel_state.push_state(fail_state_pointer >>> 0);
+                }
 
             }; break;
             case 12: //InstructionType.repeat: 
                 kernel_state.stack_pointer += 1;
                 break;
-            case 13: {
-                return ({ fail_mode: true, prod });
-            };
+            case 13: //InstructionType.left_most
+                {
+                    if (kernel_state.symbol_accumulator > 1 << 16)
+                        return ({ fail_mode: true, prod });
+                } break;
             case 14: {
                 return ({ fail_mode: true, prod });
             };

@@ -312,12 +312,22 @@ function processMultiChildStates(
         const group_length_m_one = state_groups.length - 1;
 
         for (const states of state_groups) {
+
+            let { assertion, action } = generateStateHashAction(states[0], grammar);
+            //if State is multi merge the states of the multi state?
             let AUTO_FAIL = states[0].items.some(i => i.depth <= -9999);
-            let AUTO_PASS = states[0].items.some(i => i.depth >= 9999);
+            let AUTO_PASS = states[0].items.some(i => i.depth >= 9999) && !assertion;
 
             const IS_LAST_GROUP = AUTO_PASS; //(i >= group_length_m_one && i >= 1);
 
-            const { assertion, action } = generateStateHashAction(states[0], grammar);
+            if (
+                states[0].items.some(i => i.depth >= 9999)
+                &&
+                states[0].items.some(i => i.atEND)
+            )
+                //assertion = "assert left then " + assertion;
+                action = "pop 1 then " + action;
+
 
             states.forEach(s => s.USED = true);
             const type = states.reduce((r, s) => r | s.type, 0);

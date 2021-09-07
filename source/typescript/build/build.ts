@@ -152,7 +152,7 @@ function convertBlockDataToBufferData(block_info: BlockData, state_map: StateMap
         buffer.push(0);
 
     if (buffer.length > (block_info.total_size / 4))
-        debugger;
+        throw new Error("Buffer data length does not match length calculated in BlockData");
 
     return buffer;
 }
@@ -177,6 +177,9 @@ function insertInstructionSequences(
                 case "end": case InstructionType.pass:
                     temp_buffer.push(0 >>> 0); break;
 
+                case InstructionType.left_most: {
+                    temp_buffer.push(13 << 28);
+                } break;
 
                 case InstructionType.consume: {
                     temp_buffer.push(1 << 28);
@@ -421,7 +424,7 @@ function createInstructionSequence(
 
             case InstructionType.set_prod:
                 byte_length += 4;
-                byte_sequence.push(InstructionType.set_prod, ...convertTokenIDsToSymbolIds([instr.id], grammar));
+                byte_sequence.push(InstructionType.set_prod, ...convertTokenIDsToSymbolIds([<any>instr.id], grammar));
                 break;
 
             case InstructionType.fork_to:
@@ -437,9 +440,14 @@ function createInstructionSequence(
                 byte_sequence.push(InstructionType.scan_until, token_id, instr.ids.length, ...convertTokenIDsToSymbolIds(instr.ids, grammar));
                 break;
 
+            //case InstructionType.pop:
+            //byte_length += 4;
+            //byte_sequence.push(InstructionType.pop, instr.len);
+            //break;
             case InstructionType.pop:
+            case InstructionType.left_most:
                 byte_length += 4;
-                byte_sequence.push(InstructionType.pop, instr.len);
+                byte_sequence.push(InstructionType.left_most);
                 break;
 
             case InstructionType.reduce:
