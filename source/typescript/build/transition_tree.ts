@@ -171,6 +171,7 @@ function recognize(
         let end_item = 0;
         const symbols_groups = active_items.group(
             s => {
+                return s.id;
                 if (s.atEND) {
                     return "end" + end_item++;
                 } else {
@@ -264,6 +265,8 @@ function recognize(
 
                 leaf.items.push(...groups.flat().setFilter(i => i.id));
 
+                origin_state.peek_items = origin_state.items;
+
                 if (groups.length > 1) {
 
                     //TODO Rebuild the groups while removing out of scope items.
@@ -288,14 +291,26 @@ function recognize(
                             origin_state,
                         );
 
+                        /*  if (Sym_Is_A_Production(sym)) {
+                             new_state.type |= TransitionStateType.PRODUCTION;
+                             new_state.symbols.push(Object.assign({}, sym, { production: null }));
+                         } else {
+                             new_state.depth = origin_state.depth;
+                         } */
+
                         if (Sym_Is_A_Production(sym)) {
                             new_state.type |= TransitionStateType.PRODUCTION;
                             new_state.symbols.push(Object.assign({}, sym, { production: null }));
+                            //   if (new_state.depth <= 0)
+                            new_state.depth = -202;
+                            // new_state.type ^= TransitionStateType.PEEK;
+                            new_state.items = group.map(r => r.increment());
                         } else {
-                            new_state.depth = origin_state.depth;
+                            new_state.depth = -1;
+                            new_state.items = group.slice();
                         }
 
-                        new_state.items = group;
+                        //new_state.items = group;
 
                         leaf_states.push(new_state);
 
@@ -306,34 +321,49 @@ function recognize(
                     origin_state.states.length = 0;
 
                     const group = groups[0];
-
                     const sym = group[0].sym(grammar);
 
-                    origin_state.type ^= TransitionStateType.PEEK;
-
                     if (Sym_Is_A_Production(sym)) {
-                        origin_state.type |= TransitionStateType.PRODUCTION;
-                        origin_state.symbols.push(Object.assign({}, sym, { production: null }));
-                    } else {
-                        origin_state.depth = leaf.depth;
-                    }
+                        //origin_state.type |= TransitionStateType.PRODUCTION;
 
-                    origin_state.items = group.map(r => r.atEND ? r : r);
+                        //origin_state.symbols.push(Object.assign({}, sym, { production: null }));
+
+                        //origin_state.type ^= TransitionStateType.PEEK;
+                        origin_state.items = group.slice();
+
+                    } else {
+
+                        origin_state.depth = leaf.depth;
+
+                        if (origin_state.depth <= -200) {
+                            // If the offset remains at zero than this state can be
+                            // turned into a consume an the items can be shifted 
+                            // by 1 to take into account this consume.
+
+                            origin_state.items = group.map(r => r.atEND ? r : r.increment());
+                            origin_state.type ^= TransitionStateType.PEEK;
+                            origin_state.depth = -101;
+                        } else {
+                            origin_state.items = group.slice();
+                        }
+                    }
 
                     if (origin_state.items[0].atEND) {
                         //No need to process this state further
+                        origin_state.type ^= TransitionStateType.PEEK;
                         origin_state.type |= TransitionStateType.END;
                     } else {
                         leaf_states.push(origin_state);
                     }
-
-
                 }
             }
         }
 
-        for (const state of leaf_states)
-            recognize(grammar, state, root_peek_state, options);
+        for (const state of leaf_states) {
+            recognize(grammar, state, root_peek_state, options, true);
+            if (state.peek_items)
+                state.items = state.peek_items;
+        }
     }
 }
 
@@ -349,10 +379,10 @@ function recognize(
  * ambiguous state. In that case the ambiguous nature of the leaf 
  * state is caused by one of the following conditions:
  * 
- * - A: The parse of the root items is not finite within the 
- *    constraints of `options.time_limit` or `options.max_state_depth`. 
- *    If recognition where to continue, the depth of the 
- *    resulting parse forest could be unbounded.
+ * - A: The parse of the root items is not finite (leading to a single 
+ *      leaf with one root) within the constraints of `options.time_limit` 
+ *      or `options.max_state_depth`. If recognition where to continue, 
+ *      the depth of the resulting parse forest could be unbounded.
  * 
  * @param grammar 
  * @param roots 
@@ -497,7 +527,7 @@ function disambiguate(
         AMBIGUOUS: false,
 
         state: {
-            depth: peek_states[0].depth,
+            depth: peek_states[0].depth + 1,
             parent: null,
             roots: [],
             states: [],
@@ -777,20 +807,21 @@ export function getGotoItems(production: GrammarProduction, seed_items: Item[], 
     return output;
 }
 
-export function getDescentItems(production: GrammarProduction, grammar: GrammarObject) {
+export function getSTARTs(production: GrammarProduction, grammar: GrammarObject) {
+
     const initial_candidates = getStartItemsFromProduction(production);
-    const output_items = initial_candidates.filter(i => !Sym_Is_A_Production(i.sym(grammar)));
+    const START_set = initial_candidates.filter(i => !Sym_Is_A_Production(i.sym(grammar)));
     const descend_candidates = initial_candidates.filter(i => Sym_Is_A_Production(i.sym(grammar)));
 
     for (const descend_candidate of descend_candidates)
-        extractAcceptableDescendItems(production, descend_candidate, output_items, grammar);
-    return output_items.setFilter(i => i.id);
+        extractSTARTItems(production, descend_candidate, START_set, grammar);
+    return START_set.setFilter(i => i.id);
 }
 
-function extractAcceptableDescendItems(
+function extractSTARTItems(
     root_production: GrammarProduction,
     candidate_item: Item,
-    output_items: Item[],
+    START_set: Item[],
     grammar: GrammarObject,
     check_items: Set<string> = new Set
 ) {
@@ -805,7 +836,8 @@ function extractAcceptableDescendItems(
             grammar.productions[candidate_item.getProductionAtSymbol(grammar).id];
 
         const initial_candidates = getStartItemsFromProduction(production_candidate);
-        output_items.push(...initial_candidates.filter(i => !Sym_Is_A_Production(i.sym(grammar))));
+        START_set.push(...initial_candidates.filter(i => !Sym_Is_A_Production(i.sym(grammar))));
+
         const descend_candidates = initial_candidates.filter(
             i => Sym_Is_A_Production(i.sym(grammar))
                 && i.getProductionID(grammar) != root_production.id
@@ -814,16 +846,16 @@ function extractAcceptableDescendItems(
 
         for (const descend_candidate of descend_candidates) {
             check_items.add(descend_candidate.id);
-            extractAcceptableDescendItems(
+            extractSTARTItems(
                 root_production,
                 descend_candidate,
-                output_items,
+                START_set,
                 grammar,
                 check_items
             );
         }
 
     } else {
-        output_items.push(candidate_item);
+        START_set.push(candidate_item);
     }
 }

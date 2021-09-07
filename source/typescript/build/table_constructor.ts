@@ -3,17 +3,15 @@
  * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
  * disclaimer notice.
  */
-import { traverse } from "@candlelib/conflagrate";
 import { getUniqueSymbolName, Sym_Is_A_Production, Sym_Is_A_Token, Sym_Is_EOF } from "../grammar/nodes/symbol.js";
 import { GrammarObject, GrammarProduction, TokenSymbol } from "../types/grammar_nodes.js";
 import { TransitionForestStateA, TransitionStateType } from '../types/transition_tree_nodes.js';
-import { getFollowClosure } from '../utilities/closure.js';
 import { hashString } from '../utilities/code_generating.js';
 import { getFollow } from '../utilities/follow.js';
 import { Item } from "../utilities/item.js";
 import { default_case_indicator } from './build.js';
 import { create_symbol_clause } from './create_symbol_clause.js';
-import { constructTransitionForest, getDescentItems, getGotoItems } from './transition_tree.js';
+import { constructTransitionForest, getGotoItems, getSTARTs as getSTARTItems } from './transition_tree.js';
 
 export function constructTableParser(
     production: GrammarProduction,
@@ -31,7 +29,7 @@ export function constructTableParser(
 
     const parse_code_blocks: Map<string, string> = new Map;
 
-    const recursive_descent_items = getDescentItems(production, grammar);
+    const recursive_descent_items = getSTARTItems(production, grammar);
 
     const goto_item_map = getGotoItems(production, recursive_descent_items, grammar);
 
@@ -184,7 +182,7 @@ function processTransitionNode(
 
         const postlude = default_goto_hash ? ` then goto state [ ${default_goto_hash} ]` : "";
 
-        if (assertion) {
+        if (assertion && state.symbols.filter(s => !(Sym_Is_EOF(s) || Sym_Is_A_Production(s))).length > 0) {
 
             state_string.push(`
                 ${assertion} [ ${state.symbols.map(i => i.id).join(" ")} ] (
@@ -344,8 +342,10 @@ function processMultiChildStates(
 
             let { assertion, action } = generateStateHashAction(states[0], grammar);
             //if State is multi merge the states of the multi state?
-            let AUTO_FAIL = states[0].items.some(i => i.depth <= -9999);
-            let AUTO_PASS = states[0].items.some(i => i.depth >= 9999) && !assertion;
+            let IS_OUT_OF_SCOPE = states[0].items.some(i => i.depth <= -9999);
+
+            let AUTO_FAIL = IS_OUT_OF_SCOPE;
+            let AUTO_PASS = false && (states[0].items.some(i => i.depth >= 9999) && !assertion);
 
             const IS_LAST_GROUP = AUTO_PASS; //(i >= group_length_m_one && i >= 1);
 
@@ -354,9 +354,7 @@ function processMultiChildStates(
                 &&
                 states[0].items.some(i => i.atEND)
             )
-                //assertion = "assert left then " + assertion;
                 action = "pop 1 then " + action;
-
 
             states.forEach(s => s.USED = true);
             const type = states.reduce((r, s) => r | s.type, 0);
@@ -373,31 +371,13 @@ function processMultiChildStates(
                 ? "fail"
                 : action + default_clause;
 
-            if (type & TransitionStateType.PRODUCTION) {
-
-                //lexer_state = depth > 0 ? "peek" : "assert";
-
-                const production_symbol = symbols.filter(Sym_Is_A_Production)[0];
-                const assertion_symbols = <TokenSymbol[]>symbols.filter(s => !Sym_Is_A_Production(s));
-
-                global_symbols.push(...assertion_symbols);
-
-                states_string.push(
-                    f`${4}
-                    ${lexer_state} [ ${assertion_symbols.map(i => i.id).sort((a, b) => a - b).join(" ")}${IS_LAST_GROUP ? " " + default_case_indicator : ""} ](
-                        ${action_string}
-                    )`
-                );
-
-            } else {
-
-                states_string.push(
-                    f`${4}
+            states_string.push(
+                f`${4}
                     ${lexer_state} [ ${symbols.map(i => i.id).sort((a, b) => a - b).join(" ")} ${IS_LAST_GROUP ? " " + default_case_indicator : ""} ](
                         ${action_string}
                     )`
-                );
-            }
+            );
+
             i++;
         }
     }
@@ -442,20 +422,36 @@ function generateSingleStateAction(
 
         const [child_state] = state.states;
 
-        const { symbols, depth } = state;
-
-        if (symbols.some(Sym_Is_A_Production)) {
-            console.log(symbols, state);
-            throw "WTF";
-        }
+        if (!child_state)
+            debugger;
 
         const hash = generateStateHashAction(child_state, grammar).hash;
 
+        let { symbols, depth } = state;
+
+        if (symbols.some(Sym_Is_A_Production)) {
+            console.log(symbols, state);
+            debugger;
+        }
+
         assertion = depth > 0 ? "peek" : "assert";
 
-        action_string = `goto state [ ${hash} ]`;
-        combined_string = `${assertion} [ ${symbols.map(s => s.id).sort((a, b) => a - b).join(" ")} ] ( ${action_string} )`;
+        if (type & TransitionStateType.PRODUCTION) {
 
+            const production_symbol = symbols.filter(Sym_Is_A_Production)[0];
+
+            action_string = `goto state [ ${production_symbol.name}  then goto state [ ${hash} ]`;
+
+            const assertion_symbols = <TokenSymbol[]>symbols.filter(s => !Sym_Is_A_Production(s));
+
+            combined_string = `${assertion} [ ${assertion_symbols.map(i => i.id).sort((a, b) => a - b).join(" ")} ] ( ${action_string} )`;
+
+        } else {
+
+            action_string = `goto state [ ${hash} ]`;
+
+            combined_string = `${assertion} [ ${symbols.map(s => s.id).sort((a, b) => a - b).join(" ")} ] ( ${action_string} )`;
+        }
 
     } else if (type & TransitionStateType.END) {
 
@@ -474,6 +470,7 @@ function generateSingleStateAction(
             action_string = `reduce ${item.len} 0 then ${set_prod_clause}`;
         else
             action_string = `${set_prod_clause}`;
+
 
         combined_string = action_string;
 
@@ -507,6 +504,8 @@ function generateSingleStateAction(
             combined_string = action_string;
         }
 
+        assertion = state.depth > 0 ? "peek" : "assert";
+
     } else if (state.type & TransitionStateType.TERMINAL) {
 
         const [child_state] = state.states;
@@ -521,9 +520,9 @@ function generateSingleStateAction(
         const hash = generateStateHashAction(child_state, grammar).hash;
 
         action_string = `goto state [ ${hash} ]`;
-        combined_string = `consume [ ${symbols.map(s => s.id).sort((a, b) => a - b).join(" ")} ] ( ${action_string} )`;
+        combined_string = `assert [ ${symbols.map(s => s.id).sort((a, b) => a - b).join(" ")} ] ( ${action_string} )`;
 
-        assertion = "consume";
+        assertion = "assert";
     }
 
     return { action: action_string, combined: "\n    " + combined_string, assertion };

@@ -52,6 +52,7 @@ export interface TransitionForestStateA {
     states: TransitionForestStateA[];
     roots: (number | Item)[];
     items: Item[];
+    peek_items: Item[];
     symbols: HCG3Symbol[],
     hash_action?: { hash: string, action: string, assertion: string; };
     USED: boolean;
