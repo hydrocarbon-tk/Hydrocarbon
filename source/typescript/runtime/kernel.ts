@@ -112,9 +112,9 @@ export class KernelState implements KernelStateType {
     add_state_to_history(kernel_state: number, prod: number, enable_history: boolean = false) {
 
         if (enable_history) {
-            const lexer = this.lexer_stack[this.lexer_pointer % 16];
+            const lexer = this.lexer_stack[0];
 
-            this.state_history.push([kernel_state, lexer.previous_type, lexer.token_offset, lexer.token_length, prod]);
+            this.state_history.push([kernel_state, lexer.previous_type, lexer.byte_offset, lexer.token_length, prod]);
         }
 
     }
@@ -651,6 +651,7 @@ function instruction_executor(
             case 8: //InstructionType.pop: 
                 kernel_state.stack_pointer -= (instruction & 0xFFFFFFF);
                 break;
+
             //State Instructions
             case 9: { //table_jump
 
@@ -747,6 +748,7 @@ function instruction_executor(
                     i += 2;
                 }
             }; break;
+
             case 11: { //Set Fail State
                 // Store accumulator information in failed states for use later to determine
                 // how many symbols have been added to the stack since the initialization of
@@ -769,14 +771,17 @@ function instruction_executor(
                 }
 
             }; break;
+
             case 12: //InstructionType.repeat: 
                 kernel_state.stack_pointer += 1;
                 break;
+
             case 13: //InstructionType.left_most
                 {
                     if (kernel_state.symbol_accumulator > 1 << 16)
                         return ({ fail_mode: true, prod });
                 } break;
+
             case 14: {
                 return ({ fail_mode: true, prod });
             };

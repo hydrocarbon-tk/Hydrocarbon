@@ -186,13 +186,13 @@ function processIRInstructionSymbols(
 ) {
     for (const instruction of instructions) {
         switch (instruction.type) {
+
             case InstructionType.assert:
-            case InstructionType.consume:
-            case InstructionType.no_consume:
             case InstructionType.peek:
             case InstructionType.prod:
             case InstructionType.scan_back_until:
             case InstructionType.scan_until:
+
                 const new_ids: number[] = [];
                 for (const sym of instruction.ids)
                     if (typeof sym != "number") {
@@ -211,6 +211,7 @@ function processIRInstructionSymbols(
                 if ("instructions" in instruction) {
                     processIRInstructionSymbols(instruction.instructions, id_offset, production_lookup, unique_map, token_production_set, errors);
                 } break;
+
             case InstructionType.set_prod:
                 //case InstructionType.set_token:
                 if (typeof instruction.id != "number") {
@@ -220,6 +221,7 @@ function processIRInstructionSymbols(
                     instruction.id = instruction.id.production.id;
 
                 } break;
+
             case InstructionType.fork_to: {
 
                 const new_states: string[] = [];
@@ -234,6 +236,7 @@ function processIRInstructionSymbols(
                 instruction.states = new_states;
 
             } break;
+
             case InstructionType.goto:
                 if (typeof instruction.state != "string") {
 

@@ -18,44 +18,63 @@
 
 @IMPORT ./functions.hcg as fn
 
-<> state_ir > state_declaration top_level_instructions on_fail? expected_symbols?   
+<> state_ir > 
+        
+        state_declaration top_level_instructions on_fail? expected_symbols?   
+                                            
                                             f:r { { type:"state", id:$1, instructions: $2, fail: $3, symbol_meta:$4, pos } }
 
-<> grammar_injection > \<[ ( tk:state_hash_token | t:recover ( sym::production_symbol | sym::imported_production_symbol ) ) \] top_level_instructions on_fail? expected_symbols? \>
+<> grammar_injection > 
+        
+        \<[ ( tk:state_hash_token | t:recover ( sym::production_symbol | sym::imported_production_symbol ) ) \] top_level_instructions on_fail? expected_symbols? \>
+                                            
                                             f:r { { type:"state", id:$2, instructions: $4, fail: $5, symbol_meta:$6, pos } }
 
-<> state_declaration > t:state \[  tk:state_hash_token \]     
+<> state_declaration > 
+        
+        t:state \[  tk:state_hash_token \]     
                                             f:r { $3 }
 
-<> state_reference > t:state \[ ( tk:state_hash_token | \& ( sym::production_symbol | sym::imported_production_symbol ) ) \]     
+<> state_reference > 
+        
+        t:state \[ ( tk:state_hash_token | \& ( sym::production_symbol | sym::imported_production_symbol ) ) \]     
+                                            
                                             f:r { $3 }
 
 <> top_level_instructions > 
-     prod_branch_instruction(+) 
-     | token_branch_instruction(+) 
-     | instruction_sequence                             
+    
+        prod_branch_instruction(+) 
+    
+    |   token_branch_instruction(+) 
+    
+    |   instruction_sequence                             
 
-<> instruction_sequence > sequence_instruction(+ \then ) 
-    ( \then goto_instruction(+ \then ) )? 
-    ( \then t:repeat t:state f:r{ { type:"repeat-state" } } )? 
+<> instruction_sequence > 
+
+        sequence_instruction(+ \then ) 
+        ( \then goto_instruction(+ \then ) )? 
+        ( \then t:repeat t:state f:r{ { type:"repeat-state" } } )? 
+        
                                             f:r{ [...$1, ...$2, $3] }
 
-    | goto_instruction(* \then ) ( \then t:repeat t:state f:r{ { type:"repeat-state", pos } } )? 
+    |   goto_instruction(* \then ) ( \then t:repeat t:state f:r{ { type:"repeat-state", pos } } )? 
+        
                                             f:r{ [...$1, $2] }
 
 <> prod_branch_instruction >
 
-    t:on t:prod production_id_list \( instruction_sequence \)        
+        t:on t:prod production_id_list \( instruction_sequence \)        
+                                            
                                             f:r { { type:"prod", ids:$3, instructions: $5, pos  } }
 
 <> token_branch_instruction >
-    t:noconsume token_id_list  \( instruction_sequence \)                     
-                                            f:r { { type:"no-consume", ids: $2, instructions: $4, pos} }
-    | t:consume token_id_list  \( instruction_sequence \)                     
-                                            f:r { { type:"consume", ids: $2, instructions: $4, pos} }
-    | t:peek token_id_list \( instruction_sequence \)                    
+    
+        t:peek token_id_list \( instruction_sequence \)                    
+                                            
                                             f:r { { type:"peek", ids: $2, instructions: $4, pos} }
-    | t:assert token_id_list \( instruction_sequence \)                     
+    
+    |   t:assert token_id_list \( instruction_sequence \)                     
+                                            
                                             f:r { { type:"assert", ids: $2,instructions: $4, pos} }
 
 <> goto_instruction > 
@@ -64,72 +83,100 @@
                                             f:r { { type:"goto", state: $2, pos } }
 <> sequence_instruction >
 
-    t:reduce g:num g:num           
+        t:reduce g:num g:num           
                                             f:r { { type:"reduce", len: parseInt($2), reduce_fn: parseInt($3), pos } }
 
-    | t:reduce (fn::referenced_function | fn::reduce_function)          
+    |   t:reduce ( fn::referenced_function | fn::reduce_function)          
+                                            
                                             f:r { { type:"reduce", len: -1, reduce_fn: $2, pos } }
 
-    | t:set t:prod t:to ( g:num f:r{parseInt($1)} | sym::production_symbol | sym::imported_production_symbol )
+    |   t:set t:prod t:to ( 
+                    g:num f:r{ parseInt($1) } 
+
+                |   sym::production_symbol 
+                
+                |   sym::imported_production_symbol 
+            )
+                                            
                                             f:r { { type:"set-prod", id: $4, pos  } }
 
-    | t:fork t:to \( state_reference(+\, ) \)
+    |   t:fork t:to \( state_reference(+\, ) \)
+                                            
                                             f:r { { type:"fork-to", states: $4, pos  } }
 
-    | t:scan t:back? t:until token_id_list
+    |   t:scan t:back? t:until token_id_list
                                             f:r { { type: $$2 ? "scan-back-until" : "scan-until", ids: $4, pos } }
 
-    | t:pop g:num
+    |   t:pop g:num
                                             f:r { { type:"pop", len: parseInt($2), pos  } }
 
-    | t:set t:token t:length g:num
+    |   t:set t:token t:length g:num
                                             f:r { { type:"token-length", len: parseInt($4), pos  } }
 
-    | t:set t:token t:id ( g:num f:r { parseInt($1) } | sym::terminal_symbol )
+    |   t:set t:token t:id ( g:num f:r { parseInt($1) } | sym::terminal_symbol )
+                                           
                                             f:r { { type:"token-id", id: $4, pos  } }
 
-    | t:pass
+    |   t:pass
                                             f:r { { type:"pass", pos  } }
 
-    | t:end
-                                            f:r { { type:"pass", pos  } }
-
-    | t:fail
+    |   t:fail
                                             f:r { { type:"fail", pos } }
-                                            
-    | t:assert t:left
+                                  
+    |   t:assert t:left
                                             f:r { { type:"assert-left", pos } }
+                                            
+    |   t:consume t:nothing?
+                                            f:r { { type:"consume", EMPTY:!!$2, pos } }
+                                    
       
 
-<> on_fail > t:on t:fail state_declaration top_level_instructions on_fail? expected_symbols?
+<> on_fail > 
+    
+    t:on t:fail state_declaration top_level_instructions on_fail? expected_symbols?
+                                            
                                             f:r { { type:"on-fail-state", id:$3, instructions: $4, symbol_meta: $6, fail: $5, pos } }
 
-<> expected_symbols > \symbols: \expected token_id_list
+<> expected_symbols > 
 
-    ( \skipped token_id_list f:r{ $2 } )?
+        \symbols: \expected token_id_list
+        ( \skipped token_id_list f:r{ $2 } )?
 
-    f:r { { type:"symbols", expected:$3, skipped:$$4 || [], pos } }
+                                            f:r { { type:"symbols", expected:$3, skipped:$$4 || [], pos } }
 
-<> token_id_list > \[ 
-        ( 
-            g:num f:r{ parseInt($1) } 
-            | sym::terminal_symbol 
-        )(+) 
-    \] f:r { $2 }
+<> token_id_list > 
 
-<> production_id_list > \[ 
-        ( 
-            g:num f:r{ parseInt($1) } 
-            | sym::production_symbol 
-            | sym::imported_production_symbol 
-        )(+) 
-    \] f:r { $2 }
+        \[ 
+            ( 
+                    g:num f:r{ parseInt($1) } 
+                |   sym::terminal_symbol 
+            )(+) 
+        \] 
+                                            f:r { $2 }
+
+<> production_id_list > 
+
+        \[ 
+            ( 
+                    g:num f:r{ parseInt($1) } 
+
+                |   sym::production_symbol 
+
+                |   sym::imported_production_symbol 
+            )(+) 
+        \] 
+                                            f:r { $2 }
 
 <> state_hash_token > 
-    state_hash_token (RST g:sp g:nl)  ( \_ | \- | g:id | g:num )
-    | g:id
-    | g:num
-    | \_
-    | \-
+
+        state_hash_token (RST g:sp g:nl)  ( \_ | \- | g:id | g:num )
+
+    |   g:id
+
+    |   g:num
+
+    |   \_
+
+    |   \-
 
 <> comment > \/* ( g:sp | g:nl | g:id | g:num | g:sym )(*) \*/

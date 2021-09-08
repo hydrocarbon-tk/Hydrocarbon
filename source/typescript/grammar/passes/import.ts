@@ -132,8 +132,8 @@ function remapImportedIRSymbols(
 
     for (const instruction of instructions) {
         switch (instruction.type) {
+
             case InstructionType.assert:
-            case InstructionType.consume:
             case InstructionType.peek:
             case InstructionType.prod:
             case InstructionType.scan_back_until:
@@ -150,12 +150,14 @@ function remapImportedIRSymbols(
                 if ("instructions" in instruction) {
                     remapImportedIRSymbols(instruction.instructions, root_grammar, source_grammar, imported_productions);
                 } break;
+
             case InstructionType.set_prod:
                 //case InstructionType.set_token:
                 if (typeof instruction.id != "number") {
                     //@ts-ignore
                     instruction.id = processImportedBody([instruction.id], root_grammar, source_grammar, imported_productions)[0];
                 } break;
+
             case InstructionType.fork_to:
 
                 instruction.states = instruction.states.map(

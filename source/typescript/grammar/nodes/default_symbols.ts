@@ -14,7 +14,7 @@ import {
 
 export const
     default_EOP: EOPSymbol = {
-        type: SymbolType.END_OF_PRODUCTION,
+        type: SymbolType.END_OF_FILE,
         val: "END_OF_PRODUCTION",
         id: TokenTypes.END_OF_FILE,
         pos: {},

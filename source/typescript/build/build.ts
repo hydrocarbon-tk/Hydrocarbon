@@ -5,7 +5,7 @@
  */
 import spark from "@candlelib/spark";
 import { WorkerRunner } from "../build/workers/worker_runner.js";
-import parser_loader from "../grammar/hcg_parser.js";
+import parser_loader from "../grammar/ir_parser.js";
 import { getProductionByName } from '../grammar/nodes/common.js';
 import { getRootSym, Sym_Is_A_Token } from '../grammar/nodes/symbol.js';
 import { BuildPack } from "../render/render.js";
@@ -17,9 +17,7 @@ import { getSymbolMapFromIds } from '../utilities/code_generating.js';
 import { ir_reduce_numeric_len_id } from './ir_reduce_numeric_len_id.js';
 
 const ir_parser = await parser_loader;
-
 export const default_case_indicator = 9999;
-
 export async function createBuildPack(
     grammar: GrammarObject,
     number_of_workers: number = 1
@@ -41,8 +39,9 @@ export async function createBuildPack(
             //@ts-ignore
             ([hash, str], i) => {
                 try {
-                    const ir_state = ir_parser(str, {}, ir_parser.ir_state)
+                    const ir_state = ir_parser(str, {}/* , ir_parser.ir_state */)
                         .result[0];
+                    console.log(str);
                     return [str, ir_state];
                 } catch (e) {
                     console.log(hash, str);
@@ -56,6 +55,7 @@ export async function createBuildPack(
         ])
     ])
         insertIrStateBlock(ir_state_ast, string, grammar, states_map);
+
 
 
     // Map recovery states to state of their target production ---------------------
@@ -75,6 +75,8 @@ export async function createBuildPack(
 
     }
 
+    await spark.sleep(5000);
+
     //Process States -------------------------------------------------------------
 
     const sym_map: Map<string, number> = new Map();
@@ -83,17 +85,17 @@ export async function createBuildPack(
 
     let prev_size = states_map.size;
 
-    let ALLOW_OPTIMIZATIONS = false;
+    // let ALLOW_OPTIMIZATIONS = false;
 
     let original_states = new Map(states_map);
 
-    if (ALLOW_OPTIMIZATIONS)
-        while (statesOutputsOptimizationPass(states_map, grammar, original_states)) {
-
-            console.log(`reduction ratio ${Math.round((1 - (states_map.size / prev_size)) * 100)}% - prev size ${prev_size} - current size ${states_map.size}`);
-
-            prev_size = states_map.size;
-        }
+    //  if (ALLOW_OPTIMIZATIONS)
+    //      while (statesOutputsOptimizationPass(states_map, grammar, original_states)) {
+    //
+    //          console.log(`reduction ratio ${Math.round((1 - (states_map.size / prev_size)) * 100)}% - prev size ${prev_size} - current size ${states_map.size}`);
+    //
+    //          prev_size = states_map.size;
+    //      }
 
     const state_buffer = new Uint32Array(statesOutputsBuildPass(states_map, grammar, sym_map));
 
@@ -412,6 +414,16 @@ function createInstructionSequence(
                 byte_sequence.push(InstructionType.pass);
                 break;
 
+            case InstructionType.consume:
+                byte_length += 4;
+
+                if (instr.EMPTY) {
+                    byte_sequence.push(InstructionType.empty_consume);
+                } else
+                    byte_sequence.push(InstructionType.consume);
+
+                break;
+
             case InstructionType.fail:
                 byte_length += 4;
                 byte_sequence.push(InstructionType.fail);
@@ -431,20 +443,22 @@ function createInstructionSequence(
                 byte_length += 4 + 4 * (instr.states.length);
                 byte_sequence.push(InstructionType.fork_to, instr.states.length, ...instr.states);
                 break;
+
             case InstructionType.scan_back_until:
                 byte_length += 8 + 4 * instr.ids.length;
                 byte_sequence.push(InstructionType.scan_back_until, token_id, instr.ids.length, ...convertTokenIDsToSymbolIds(instr.ids, grammar));
                 break;
+
             case InstructionType.scan_until:
                 byte_length += 8 + 4 * instr.ids.length;
                 byte_sequence.push(InstructionType.scan_until, token_id, instr.ids.length, ...convertTokenIDsToSymbolIds(instr.ids, grammar));
                 break;
 
-            //case InstructionType.pop:
-            //byte_length += 4;
-            //byte_sequence.push(InstructionType.pop, instr.len);
-            //break;
             case InstructionType.pop:
+                byte_length += 4;
+                byte_sequence.push(InstructionType.pop, instr.len);
+                break;
+
             case InstructionType.left_most:
                 byte_length += 4;
                 byte_sequence.push(InstructionType.left_most);
@@ -456,7 +470,6 @@ function createInstructionSequence(
                 break;
 
             case InstructionType.repeat:
-
                 byte_length += 4;
                 byte_sequence.push(InstructionType.repeat);
                 break;
@@ -515,8 +528,6 @@ function statesOutputsInitialPass(StateMap: StateMap, grammar: GrammarObject) {
 
                 case InstructionType.prod:
                 case InstructionType.peek:
-                case InstructionType.consume:
-                case InstructionType.no_consume:
                 case InstructionType.assert:
                     {
                         instructions.push(...instruction.instructions);
@@ -532,8 +543,6 @@ function statesOutputsInitialPass(StateMap: StateMap, grammar: GrammarObject) {
 
         const token_instr_types = {
             [InstructionType.assert]: StateAttrib.ASSERT_BRANCH,
-            [InstructionType.consume]: StateAttrib.CONSUME_BRANCH,
-            [InstructionType.no_consume]: StateAttrib.CONSUME_BRANCH,
             [InstructionType.peek]: StateAttrib.PEEK_BRANCH,
             [InstructionType.prod]: StateAttrib.PROD_BRANCH
         };
@@ -541,7 +550,7 @@ function statesOutputsInitialPass(StateMap: StateMap, grammar: GrammarObject) {
         attributes |= state_data.ir_state_ast.instructions.reduce((r, v) =>
             r | (token_instr_types[v.type] ?? 0), 0);
 
-        if ((attributes & (StateAttrib.TOKEN_BRANCH | StateAttrib.CONSUME_BRANCH)) > 0
+        if ((attributes & (StateAttrib.TOKEN_BRANCH)) > 0
             &&
             state_data.ir_state_ast.instructions.length > 1
         ) attributes |= StateAttrib.MULTI_BRANCH;
@@ -550,13 +559,13 @@ function statesOutputsInitialPass(StateMap: StateMap, grammar: GrammarObject) {
             (attributes & StateAttrib.TOKEN_BRANCH) > 0
             &&
             (attributes & StateAttrib.PROD_BRANCH) > 0
-        ) new Error(`Unsupported mixture of token branch (assert | consume | peek) and production branch ( on prod ) instructions`);
+        ) new Error(`Unsupported mixture of token branch (assert | peek) and production branch ( on prod ) instructions`);
 
         if (
-            (attributes & (StateAttrib.ASSERT_BRANCH | StateAttrib.CONSUME_BRANCH)) > 0
+            (attributes & (StateAttrib.ASSERT_BRANCH)) > 0
             &&
             (attributes & StateAttrib.PEEK_BRANCH) > 0
-        ) new Error(`Unsupported mixture of assertion branch (assert | consume ) and peek branch ( peek ) instructions`);
+        ) new Error(`Unsupported mixture of assertion branch ( assert ) and peek branch ( peek ) instructions`);
 
         state_data.attributes = attributes;
 
@@ -597,8 +606,6 @@ function processInstructionTokens(
     for (const instruction of instructions) {
         switch (instruction.type) {
             case InstructionType.assert:
-            case InstructionType.consume:
-            case InstructionType.no_consume:
             case InstructionType.peek:
                 //@ts-ignore
                 expected_symbols.push(...convertTokenIDsToSymbolIds(instruction.ids, grammar));
@@ -633,224 +640,6 @@ function extractTokenSymbols(state_data: IRStateData, grammar: GrammarObject) {
     state_data.skipped_tokens = skipped_symbols.filter(s => s != default_case_indicator);// <- remove default value
 }
 
-function statesOutputsOptimizationPass(StateMap: StateMap, grammar: GrammarObject, StateMap_: StateMap): boolean {
-
-    let MUTATION_OCCURRED = false;
-
-    const to_remove = [];
-
-    for (const [state_name, state_data] of StateMap) {
-
-        const { ir_state_ast: state_ast, attributes, string } = state_data;
-
-        const { instructions, symbol_meta } = state_ast;
-
-        if ((
-            attributes & StateAttrib.ASSERT_BRANCH
-            ||
-            attributes & StateAttrib.CONSUME_BRANCH)
-        ) {
-
-            const state_name = getStateName(instructions[0].instructions[0].state);
-
-            if (
-                !(attributes & StateAttrib.MULTI_BRANCH)
-                &&
-                instructions[0].type == InstructionType.assert
-                &&
-                instructions[0].instructions[0].type == InstructionType.goto
-                &&
-                (StateMap.get(state_name).attributes & StateAttrib.PRODUCTION_ENTRY)
-            ) {
-                //Replace the state with contents of the production state
-                const prod_state = StateMap.get(state_name);
-
-
-                state_data.attributes = prod_state.attributes ^ StateAttrib.PRODUCTION_ENTRY;
-                // Flatten the state since the assert is now superfluous.
-                // The production state will make the same assertion
-
-                state_ast.instructions = state_ast.instructions[0].instructions;
-
-
-                state_ast.instructions.splice(0, 1, ...prod_state.ir_state_ast.instructions);
-
-                prod_state.ir_state_ast.instructions.forEach((instr) => {
-                    if (instr.type == InstructionType.goto) {
-
-                        const state = getStateName(instr.state);
-
-                        StateMap.get(state).reference_count++;
-                    }
-                });
-
-
-                MUTATION_OCCURRED = true;
-                continue;
-            }
-
-            for (let i = 0; i < instructions.length; i++) {
-
-                const instruction = instructions[i];
-
-                if (
-
-                    instruction.type == InstructionType.assert
-                    &&
-                    instruction.instructions[0].type == InstructionType.goto
-                ) {
-                    //Reduce asserts with consumes form single branch productions
-
-                    const state = getStateName(instruction.instructions[0].state);
-
-                    const goto_state = StateMap.get(state);
-
-                    const { ir_state_ast: state_ast, attributes, string: goto_string } = goto_state;
-
-                    if (
-                        (attributes & StateAttrib.CONSUME_BRANCH)
-                        &&
-                        !(attributes & StateAttrib.MULTI_BRANCH)
-                    ) {
-
-                        instruction.type = InstructionType.consume;
-
-                        instruction.instructions.splice(0, 1, ...state_ast.instructions[0].instructions);
-
-                        incrementGotoReferenceCounts(state_ast.instructions[0].instructions, grammar, StateMap);
-
-                        decreaseReference(goto_state, to_remove);
-
-                        MUTATION_OCCURRED = true;
-
-                        continue;
-                    }
-                }
-
-                if (
-                    (
-                        (
-                            instruction.type == InstructionType.assert
-                            ||
-                            instruction.type == InstructionType.no_consume
-                            ||
-                            instruction.type == InstructionType.consume
-                            ||
-                            instruction.type == InstructionType.prod)
-                    )
-                ) {
-
-                    const instructions = instruction.instructions;
-
-                    for (let j = 0; j < instructions.length; j++) {
-                        const instruction = instructions[j];
-                        if (
-                            instruction.type == InstructionType.goto
-                        ) {
-                            //Reduce asserts with consumes form single branch productions
-
-                            const goto_state = StateMap.get(getStateName(instruction.state));
-
-                            const { ir_state_ast: state_ast, attributes, string: goto_string } = goto_state;
-
-                            if (
-                                !(attributes & (StateAttrib.TOKEN_BRANCH | StateAttrib.PROD_BRANCH))
-                                &&
-                                (
-                                    !(attributes & StateAttrib.HAS_GOTOS) /*|| (
-                                        ((instructions.length == 1)
-                                            ||
-                                            (j == instructions.length - 1)
-                                            ||
-                                            (
-                                                (
-                                                    instructions[j + 1].type == InstructionType.goto
-                                                    ||
-                                                    instructions[j + 1].type == InstructionType.repeat
-                                                )
-                                                &&
-                                                (
-                                                    j == 0 || !(
-                                                        instructions[j - 1].type == InstructionType.goto
-                                                        ||
-                                                        instructions[j - 1].type == InstructionType.repeat
-                                                    )
-                                                )
-                                            )) && state_ast.instructions.slice(-1)[0].type != InstructionType.repeat
-                                    )*/
-                                )
-                            ) {
-                                instructions.splice(j, 1, ...state_ast.instructions);
-
-                                incrementGotoReferenceCounts(state_ast.instructions, grammar, StateMap);
-
-                                decreaseReference(goto_state, to_remove);
-
-                                MUTATION_OCCURRED = true;
-
-                                continue;
-                            }
-                        }
-                    }
-                    continue;
-                }
-
-                if (
-                    instruction.type == InstructionType.goto
-                ) {
-                    //Reduce asserts with consumes form single branch productions
-
-                    const goto_state = StateMap.get(getStateName(instruction.state));
-
-                    const { ir_state_ast: state_ast, attributes, string: goto_string } = goto_state;
-
-                    if (
-                        !(attributes & (StateAttrib.TOKEN_BRANCH | StateAttrib.PROD_BRANCH))
-                        &&
-                        (!(attributes & StateAttrib.HAS_GOTOS) || (
-                            (instructions.length == 1)
-                            ||
-                            (i == instructions.length - 1)
-                            ||
-                            (
-                                (
-                                    instructions[i + 1].type == InstructionType.goto
-                                    ||
-                                    instructions[i + 1].type == InstructionType.repeat
-                                )
-                                &&
-                                (
-                                    i == 0 || !(
-                                        instructions[i - 1].type == InstructionType.goto
-                                        ||
-                                        instructions[i - 1].type == InstructionType.repeat
-                                    )
-                                )
-                            )
-                        ))
-                    ) {
-
-                        instructions.splice(i, 1, ...state_ast.instructions);
-
-                        incrementGotoReferenceCounts(state_ast.instructions, grammar, StateMap);
-
-                        decreaseReference(goto_state, to_remove);
-
-                        MUTATION_OCCURRED = true;
-
-                        continue;
-                    }
-                }
-            }
-        }
-    }
-
-    for (const state_name of to_remove)
-        StateMap.delete(state_name);
-
-
-    return MUTATION_OCCURRED;
-}
 
 function incrementGotoReferenceCounts(instructions: IR_Instruction[], grammar: GrammarObject, StateMap: StateMap) {
     instructions.forEach((instr) => {
@@ -1026,8 +815,6 @@ function buildBranchTableBlock(
         .flatMap(({ ids, instructions, type }) => {
 
             const instr = createInstructionSequence(instructions, grammar, tok_id, skip_id);
-
-            addAdditionalInstructions(type, ids, grammar, instr);
             return ids.map(i => ({ id: i, code: instr }));
         });
 
@@ -1129,8 +916,6 @@ function buildScanningBranchBlock(
 
             const instr = createInstructionSequence(instructions, grammar, tok_id, skip_id);
 
-            addAdditionalInstructions(type, ids, grammar, instr);
-
             //@ts-expect-error
             instr.pointer = instruction_field_size / 4;
 
@@ -1221,35 +1006,21 @@ function buildBasicInstructionBlock(state_ast: Resolved_IR_State, tok_id = 0, sk
     return { number_of_entries: 1, instruction_sequence: instruction_sequence, total_size: byte_length };
 }
 
-function addAdditionalInstructions(
-    type: InstructionType,
-    ids: number[],
-    grammar: GrammarObject,
-    instr: { byte_length: number; byte_sequence: any; }
-) {
-    if (type == InstructionType.consume) {
-        instr.byte_sequence.unshift(InstructionType.consume);
-        instr.byte_length += 4;
-    } else if (type == InstructionType.no_consume) {
-        instr.byte_sequence.unshift(InstructionType.token_length, InstructionType.consume);
-        instr.byte_length += 8;
-    }
-}
-
 function getPeekConsumptionFlags(attributes: StateAttrib, state_ast: Resolved_IR_State) {
+
     const use_peek_for_assert_or_consume = (!(attributes & (StateAttrib.MULTI_BRANCH)))
         &&
         !(attributes & (StateAttrib.PEEK_BRANCH))
         &&
-        (state_ast.instructions[0].type == InstructionType.consume
-            ||
-            state_ast.instructions[0].type == InstructionType.assert);
+        (state_ast.instructions[0].type == InstructionType.assert);
+
 
     const consume_peek = (!(attributes & (StateAttrib.MULTI_BRANCH)))
         &&
         (!(attributes & (StateAttrib.ASSERT_BRANCH)))
         &&
         state_ast.instructions[0].type == InstructionType.consume;
+
     return { use_peek_for_assert_or_consume, consume_peek };
 }
 

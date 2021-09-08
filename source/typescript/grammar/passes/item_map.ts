@@ -65,7 +65,7 @@ export function buildItemMaps(grammar: GrammarObject, productions: GrammarProduc
 
 function createLRMaps(grammar: GrammarObject) {
     grammar.lr_items = ([...grammar.item_map.values()]
-        .filter(i => i.item.offset == 0 && !i.item.atEND && Sym_Is_A_Production(i.item.sym(grammar)))
+        .filter(i => !i.item.atEND && Sym_Is_A_Production(i.item.sym(grammar)))
         .map(i => i.item))
         .groupMap(i => i.getProductionAtSymbol(grammar).id);
 }
@@ -416,7 +416,7 @@ function processFollowSymbols(grammar: GrammarObject, productions: GrammarProduc
 
     for (const production of productions) {
 
-        const start_symbol = production.ROOT_PRODUCTION ? default_EOF : default_EOP;
+        const start_symbol = production.ROOT_PRODUCTION ? default_EOF : default_EOF;
 
         for (const item of getStartItemsFromProduction(production))
             addFollowInformation(item, grammar, check_set, start_symbol, [item.body_(grammar).production.id], item_map);

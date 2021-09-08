@@ -42,8 +42,6 @@ function processIRReduce(instructions: IR_Instruction[], grammar: GrammarObject)
     for (const instruction of instructions) {
         switch (instruction.type) {
             case InstructionType.assert:
-            case InstructionType.consume:
-            case InstructionType.no_consume:
             case InstructionType.peek:
             case InstructionType.prod:
                 processIRReduce(instruction.instructions, grammar);

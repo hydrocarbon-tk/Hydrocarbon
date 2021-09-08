@@ -38,7 +38,7 @@ export interface ResolvedFailedIRState extends ResolvedIRState {
 
 export const enum InstructionType {
     prod = "prod",
-    no_consume = "no-consume",
+    empty_consume = "empty-consume",
     consume = "consume",
     peek = "peek",
     assert = "assert",
@@ -61,10 +61,8 @@ export const enum InstructionType {
 
 
 export interface ResolvedIRBranch {
-    type: InstructionType.consume |
-    InstructionType.no_consume |
+    type:
     InstructionType.prod |
-    InstructionType.no_consume |
     InstructionType.assert;
     ids: number[];
     instructions: IR_Instruction[];
@@ -79,14 +77,8 @@ export interface IRTokenBranch {
     instructions: IR_Instruction[];
 
 }
-export interface IRConsume extends IRTokenBranch {
-    type: InstructionType.consume;
-}
 export interface IRAssert extends IRTokenBranch {
-    type: InstructionType.assert | InstructionType.consume;
-}
-export interface IRNoConsume extends IRTokenBranch {
-    type: InstructionType.no_consume;
+    type: InstructionType.assert;
 }
 export interface IRPeek extends IRTokenBranch {
     type: InstructionType.peek;
@@ -116,6 +108,15 @@ export interface IRScanTo extends Base_IR_Instruction {
     ids: (number | TokenSymbol)[];
 }
 
+export interface IRNoConsume extends Base_IR_Instruction {
+    type: InstructionType.empty_consume;
+}
+
+
+export interface IRConsume extends Base_IR_Instruction {
+    type: InstructionType.consume;
+    EMPTY: boolean;
+}
 export interface IRScanBackTo extends Base_IR_Instruction {
     type: InstructionType.scan_back_until;
     ids: (number | TokenSymbol)[];

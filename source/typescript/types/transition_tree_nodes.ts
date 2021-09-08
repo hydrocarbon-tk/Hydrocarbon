@@ -43,7 +43,7 @@ export interface TransitionForestState {
 
 export interface TransitionForestStateA {
     /**
-     * The type of transition that occured
+     * The type of transition that occurred
      * from the parent state to this one.
      */
     type: TransitionStateType,

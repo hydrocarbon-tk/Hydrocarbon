@@ -172,6 +172,13 @@ export class Item extends Array {
     toString(): string {
         return this.id;
     }
+    /**
+     * returns new Item that is a copy of this except
+     * depth is set to d
+     */
+    setDepth(d: number) {
+        return this.copy(undefined, undefined, undefined, d);
+    }
 }
 export function getGotoItems(grammar: GrammarObject, active_productions: number[], items: Item[], out: Item[] = [], all = false) {
 

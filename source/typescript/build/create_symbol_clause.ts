@@ -41,7 +41,7 @@ export function create_symbol_clause(
             //    ? prods.flatMap(i => grammar.productions[i].bodies).map(b => new Item(b.id, b.length, b.length))
             //    : [])
         ],
-        [...grammar.lr_items.values()].flat(),
+        [...grammar.lr_items.values()].flat().filter(i => i.offset == 0),
         grammar
     ), grammar).filter(skipped => !expected_symbols.some(
         expected => Symbols_Are_The_Same(expected, skipped) || SymbolsCollide(expected, skipped, grammar))

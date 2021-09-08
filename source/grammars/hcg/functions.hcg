@@ -86,13 +86,6 @@
     | g:num 
     | g:sp 
     | g:sym 
-    | sym::generated_symbol 
-    | sym::literal_symbol
-    | sym::escaped_symbol
-    | sym::EOF_symbol
-      
-    
-                                                                    f:r { "<--" + $1.type + "^^" + $1.val + "-->" }
 
 <> js_data_block > \{ js_data \}                                    f:r { $1 + $2 + $3 }
 
