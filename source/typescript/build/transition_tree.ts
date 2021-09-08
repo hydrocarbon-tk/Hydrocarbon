@@ -64,12 +64,6 @@ export function constructTransitionForest(
 
     initial_state.items = removeLeftRecursiveItems(roots, roots, grammar);
 
-    const production_cache = grammar.productions;
-    grammar.productions = grammar.productions.slice();
-
-    const body_cache = grammar.bodies;
-    grammar.bodies = grammar.bodies.slice();
-
     recognize(
         grammar,
         initial_state,
@@ -77,9 +71,6 @@ export function constructTransitionForest(
         resolved_options,
         true
     );
-
-    grammar.bodies = body_cache;
-    grammar.productions = production_cache;
 
     return initial_state.type & TransitionStateType.MULTI
         ? initial_state
@@ -172,7 +163,9 @@ function recognize(
                         .filter(s => !Sym_Is_EOF(s))
                         .map(i => i.id)
                 );
-                const follow = getFollowSymbolsFromItems(end_items, grammar).filter(i => !first.has(i.id));
+
+                const follow = getFollowSymbolsFromItems(end_items, grammar)
+                    .filter(i => !first.has(i.id));
 
                 const multi_item_state = createTransitionForestState(
                     TransitionStateType.MULTI,
@@ -198,7 +191,7 @@ function recognize(
     }
 
     /**
-     * Resolves all conflicts
+     * Resolves all other conflicts
      */
     createPeekTreeStates(
         incremented_items,
@@ -285,6 +278,10 @@ function createPeekTreeStates(
 
     const symbols_groups = active_items.group(
         s => {
+            if (s.state <= -9999) {
+                return "out-of-scope-scope";
+            }
+
             if (s.atEND) {
                 return "end" + end_item++;
             } else {
@@ -325,14 +322,10 @@ function createPeekTreeStates(
         initial_state.depth = -1;
         initial_state.roots = <any>[(group.some(g => g.atEND) ? end_item_addendum : 0) | i++];
 
-        initial_state.items = removeLeftRecursiveItems(roots, getClosure(roots, grammar, -1), grammar)
-            .map(i => i.copy(u, u, u, -1));
+        initial_state.items = //removeLeftRecursiveItems(roots, getClosure(roots, grammar, -1), grammar);
+            roots.map(i => i.copy(u, u, u, -1));
 
         root_states.push(initial_state);
-    }
-
-    if (incremented_items.some(i => i.body == 84 && i.offset == 0)) {
-        debugger;
     }
 
     const graph = disambiguate(grammar, root_states, options, true);
@@ -365,8 +358,17 @@ function createPeekTreeStates(
             ? leaf.states
             : [leaf];
 
+        //Filter out of scope leafs
+
+
+
         for (const origin_state of candidate_states) {
-            const groups = (<any>origin_state.roots.setFilter() as number[]).map(i => symbols_groups[i & (end_item_addendum - 1)]);
+
+
+            const groups = (<any>origin_state.roots.setFilter() as number[])
+                .map(i => symbols_groups[i & (end_item_addendum - 1)])
+                .filter(g => g.some(i => i.state > -9999));
+
 
             origin_state.peek_items = origin_state.items;
 
@@ -377,17 +379,14 @@ function createPeekTreeStates(
                     leaf.items.length = 0;
                     leaf.items.push(...groups.flat().setFilter(i => i.id));
                     leaf_states.push(leaf);
-                    debugger;
                     continue;
-
                 }
-
                 //TODO Rebuild the groups while removing out of scope items.
                 origin_state.type |= TransitionStateType.FORK | TransitionStateType.MULTI;
 
                 for (const group of groups) {
 
-                    if (group[0].depth <= -9999) {
+                    if (group[0].state <= -9999) {
                         // This is an out of scope item, and 
                         // should be removed from the finale
                         debugger;
@@ -459,9 +458,8 @@ function createPeekTreeStates(
                         origin_state.items = group.slice();
                     }
                 }
-                if (group.some(g => g.depth <= -9999)) {
+                if (group.some(g => g.state <= -9999))
                     origin_state.type |= TransitionStateType.EXTENDED;
-                }
 
                 if (origin_state.items[0].atEND) {
                     //No need to process this state further
@@ -497,7 +495,8 @@ function createPeekTreeStates(
  * - A: The parse of the root items is not finite (leading to a single 
  *      leaf with one root) within the constraints of `options.time_limit` 
  *      or `options.max_state_depth`. If recognition where to continue, 
- *      the depth of the resulting parse forest could be unbounded.
+ *      the depth of the resulting parse forest could be unbounded and 
+ *      the function may not return.
  * 
  * @param grammar 
  * @param roots 
@@ -517,7 +516,8 @@ function disambiguate(
     peek_states: TransitionForestStateA[],
     options: TransitionForestOptions,
     INITIAL_STATE: boolean = false,
-    start_time: number = performance.now()
+    start_time: number = performance.now(),
+    AUTO_EXIT: boolean = false
 ): TransitionForestGraph {
 
     const graph_node: TransitionForestGraph = {
@@ -536,8 +536,10 @@ function disambiguate(
 
     if (
         peek_states[0].depth > options.max_tree_depth
+        //||
+        //(performance.now() - start_time) > options.time_limit
         ||
-        (performance.now() - start_time) > options.time_limit
+        AUTO_EXIT
     )
         return graph_node;
 
@@ -561,8 +563,8 @@ function disambiguate(
         const considered_items = incremented_items
             .flatMap(i =>
                 i.atEND
-                    ? getClosure(resolveEndItem(i, previous_state, grammar), grammar, i.depth)
-                    : getClosure([i], grammar, depth + 1)
+                    ? getClosure(resolveEndItem(i, previous_state, grammar), grammar, i.state)
+                    : getClosure([i], grammar, i.state)
             )
             .setFilter(i => i.id);
 
@@ -595,11 +597,7 @@ function disambiguate(
                         depth + 1,
                         roots,
                         previous_state);
-
-                const
-                    transitioned_items = group.map(i => i).filter(i => !!i);
-
-                state.items = considered_items;
+                state.items = considered_items.filter(i => Sym_Is_A_Token(i.sym(grammar)));
 
                 states.push(state);
             }
@@ -712,7 +710,12 @@ function disambiguate(
             if (INITIAL_STATE)
                 start_time = performance.now();
 
-            child_graph_node = disambiguate(grammar, states, options, false, start_time);
+            if (key == getUniqueSymbolName(default_EOF)) {
+                //do nothing, this is as far as we get with these states
+                child_graph_node = disambiguate(grammar, states, options, false, start_time, true);
+            } else {
+                child_graph_node = disambiguate(grammar, states, options, false, start_time);
+            }
 
             child_graph_node.symbol = key;
 
@@ -737,7 +740,7 @@ function disambiguate(
                 ...states[0].items.map(i => i.atEND ? i : i.increment())
             );
 
-            if (states[0].roots.some(i => i <= end_item_addendum))
+            if (states[0].roots.some(i => i >= end_item_addendum))
                 REQUIRE_MULTI_DISAMBIGUATE_NODE = true;
         }
     }
@@ -783,16 +786,18 @@ function* yieldPeekGraphLeaves(graph: TransitionForestGraph): Generator<Transiti
 
         for (let node of graph.nodes) {
             node.state.parent = parent;
-            parent.states.push(node.state);
             yield* yieldPeekGraphLeaves(node);
+
+            if (node.state.states.length > 0)
+                parent.states.push(node.state);
         }
 
-        if (graph.nodes.length > 1) {
+        if (graph.nodes.length > 1 && parent.states.length > 0) {
 
             const multi_item_state = createTransitionForestState(
-                TransitionStateType.MULTI,
+                TransitionStateType.MULTI | TransitionStateType.PEEK,
                 [],
-                -103,
+                parent.depth + 1, // Always a peek level
                 [],
                 parent
             );
@@ -826,9 +831,15 @@ function mergeStates(type, states: TransitionForestStateA[]): TransitionForestSt
 
         parent: null,
         roots: states.flatMap(r => r.roots),
+
         states: [],
+
         symbols: resolved_symbols,
-        items: states.flatMap(i => i.items).setFilter(i => i.id)
+        items: states.flatMap(i => i.items).setFilter(i => i.id),
+
+        peek_items: [],
+
+        hash_action: null
     };
 }
 function resolveEndItem(
@@ -856,11 +867,11 @@ function resolveEndItem(
 
             const { items, parent, depth } = prev;
 
-            if (depth == end_item.depth) {
+            if (depth == end_item.state) {
 
                 matching_items.push(...items.filter(
                     i => ((i.getProductionAtSymbol(grammar)?.id ?? -1) == production_id)
-                ).map(i => i.setDepth(end_item.depth)));
+                ).map(i => i.setDepth(end_item.state)));
 
                 //if (matching_items.length > 0)
                 //    break;
@@ -873,7 +884,7 @@ function resolveEndItem(
 
         } else {
 
-            for (const item of matching_items) {
+            for (const item of matching_items.setFilter(i => i.id)) {
                 // Make sure we are only dealing with items that have not
                 // yet encountered and increment items that are not in the
                 // end position.
@@ -926,6 +937,8 @@ function createTransitionForestState(
         roots: roots,
         states: [],
         items: [],
+        peek_items: [],
+        hash_action: null,
         parent: previous_state,
     };
 }
@@ -974,9 +987,6 @@ export function getGotoItems(production: GrammarProduction, seed_items: Item[], 
                 lr_items.get(id).some(i => i.increment().atEND)
             ) {
 
-                console.log({ id });
-
-
                 const seen = new Set([]);
 
                 /**
@@ -1024,18 +1034,72 @@ function getOuterScopeGotoItems(grammar: GrammarObject, seen: Set<number>, i: It
 export function getSTARTs(production: GrammarProduction, grammar: GrammarObject) {
 
     const initial_candidates = getStartItemsFromProduction(production);
-    const START_set = initial_candidates.filter(i => !Sym_Is_A_Production(i.sym(grammar)));
-    const descend_candidates = initial_candidates.filter(i => Sym_Is_A_Production(i.sym(grammar)));
 
-    for (const descend_candidate of descend_candidates)
-        extractSTARTItems(production, descend_candidate, START_set, grammar);
+    let START_set = [];
+
+    let descend_candidates = initial_candidates;
+
+    let seen_candidates = new Set([production.id]);
+
+    while (descend_candidates.length > 0) {
+
+        const START_set_candidates = START_set.slice();
+
+        for (const descend_candidate of descend_candidates)
+            extractSTARTCandidates(production, descend_candidate, START_set_candidates, grammar);
+
+        descend_candidates.length = 0;
+
+        START_set = START_set_candidates
+            .filter(i => Sym_Is_A_Token(i.sym(grammar)));
+
+        const production_items = START_set_candidates
+            .filter(i => Sym_Is_A_Production(i.sym(grammar)))
+            .setFilter(i => i.id);
+
+        //Remove mutual conflicts
+        const production_conflicts =
+            production_items.group(i => {
+                const closure = getClosure([i], grammar);
+                return closure.map(i => i.id);
+            });
+
+        let seen = new Set();
+        for (const mutual_conflict of production_conflicts.sort((a, b) => b.length - a.length)) {
+            //<<<<<<< KEEP
+            if (mutual_conflict.length == 1) { //<-- Uncomment and COMMIT this line
+                //=======
+                //if (mutual_conflict.length > 0) { // <--- REMOVE THIS LINE
+                //>>>>>>> REMOVE
+                START_set.push(...mutual_conflict.filter(i => !seen.has(i.id)));
+            } else {
+
+                //Add the production to descend_candidates
+                const production = mutual_conflict[0].getProductionAtSymbol(grammar);
+
+                if (!seen_candidates.has(production.id)) {
+
+                    descend_candidates.push(...getStartItemsFromProduction(production));
+
+                    seen_candidates.add(production.id);
+                }
+            }
+
+            for (const id of mutual_conflict.map(i => i.id))
+                seen.add(id);
+        }
+
+        START_set = START_set.setFilter(i => i.id);;
+    }
+
+
     return START_set.setFilter(i => i.id);
 }
 
-function extractSTARTItems(
+function extractSTARTCandidates(
     root_production: GrammarProduction,
     candidate_item: Item,
-    START_set: Item[],
+    START_candidate_set: Item[],
     grammar: GrammarObject,
     check_items: Set<string> = new Set
 ) {
@@ -1044,13 +1108,17 @@ function extractSTARTItems(
     // for use with the original grammar. 
 
     const closure = getClosure([candidate_item], grammar);
-    if (closure.some(i => (i.getProductionAtSymbol(grammar)?.id ?? -1) == root_production.id)) {
+    if (
+        closure.some(i => (i.getProductionAtSymbol(grammar)?.id ?? -1) == root_production.id)
+        ||
+        closure.every(i => Sym_Is_A_Production(i.sym(grammar)))
+    ) {
 
         const production_candidate =
             grammar.productions[candidate_item.getProductionAtSymbol(grammar).id];
 
         const initial_candidates = getStartItemsFromProduction(production_candidate);
-        START_set.push(...initial_candidates.filter(i => !Sym_Is_A_Production(i.sym(grammar))));
+        START_candidate_set.push(...initial_candidates.filter(i => !Sym_Is_A_Production(i.sym(grammar))));
 
         const descend_candidates = initial_candidates.filter(
             i => Sym_Is_A_Production(i.sym(grammar))
@@ -1060,16 +1128,16 @@ function extractSTARTItems(
 
         for (const descend_candidate of descend_candidates) {
             check_items.add(descend_candidate.id);
-            extractSTARTItems(
+            extractSTARTCandidates(
                 root_production,
                 descend_candidate,
-                START_set,
+                START_candidate_set,
                 grammar,
                 check_items
             );
         }
 
     } else {
-        START_set.push(candidate_item);
+        START_candidate_set.push(candidate_item);
     }
 }

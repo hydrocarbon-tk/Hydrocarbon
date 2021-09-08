@@ -41,7 +41,6 @@ export async function createBuildPack(
                 try {
                     const ir_state = ir_parser(str, {}/* , ir_parser.ir_state */)
                         .result[0];
-                    console.log(str);
                     return [str, ir_state];
                 } catch (e) {
                     console.log(hash, str);
@@ -72,10 +71,7 @@ export async function createBuildPack(
                 state.attributes |= StateAttrib.FAIL_STATE;
             }
         }
-
     }
-
-    await spark.sleep(5000);
 
     //Process States -------------------------------------------------------------
 

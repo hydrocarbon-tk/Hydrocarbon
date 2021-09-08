@@ -90,7 +90,7 @@ export function constructTableParser(
             let prelude = "";
 
             if (
-                state.items.some(i => i.depth >= 9999)
+                state.items.some(i => i.state >= 9999)
                 &&
                 state.items.some(i => i.atEND)
             )
@@ -176,9 +176,6 @@ function processTransitionNode(
 
         global_items: Item[] = [];
 
-    if (default_hash == "hfkqmnelqrjrk")
-        debugger;
-
     if (state.type & TransitionStateType.MULTI) {
 
         //join all types that have the same hash
@@ -197,9 +194,6 @@ function processTransitionNode(
         let { action, assertion } = generateSingleStateAction(state, grammar);
 
         const postlude = default_goto_hash ? ` then goto state [ ${default_goto_hash} ]` : "";
-
-        if (!action)
-            debugger;
 
         if (
             assertion
@@ -225,9 +219,9 @@ function processTransitionNode(
 
     }
 
-    if (global_items.some(i => i.offset == 1 && i.depth >= 9999)) {
+    if (global_items.some(i => i.offset == 1 && i.state >= 9999)) {
         // Include the items from the productions follow
-        const production = (global_items.filter(i => i.depth >= 9999)[0]).getProductionID(grammar);
+        const production = (global_items.filter(i => i.state >= 9999)[0]).getProductionID(grammar);
         const follow = getFollow(production, grammar).filter(s => !Sym_Is_EOF(s) && s.type != "eop" && !Sym_Is_A_Production(s));
 
         global_symbols.push(...follow);
@@ -245,8 +239,6 @@ function processTransitionNode(
 
     const string = state_string.join("\n    ");
 
-    //  console.log(string + "\n========================================");
-
     parse_code_blocks.set(default_hash, string);
 }
 
@@ -261,10 +253,7 @@ function generateStateHashAction(
 
 ): { hash: string, action: string, assertion: string; } {
 
-    let action_string = [], assertion_type = "";
-
-    if (!state)
-        debugger;
+    let action_string = [], assertion_type = "", symbol_ids = [];
 
     if (state.hash_action)
         return state.hash_action;
@@ -284,8 +273,9 @@ function generateStateHashAction(
         }
     } else {
 
-        const { action, assertion } = generateSingleStateAction(state, grammar);
+        const { action, assertion, symbol_ids: ids } = generateSingleStateAction(state, grammar);
 
+        symbol_ids = ids;
 
         action_string.push(action);
 
@@ -293,11 +283,14 @@ function generateStateHashAction(
 
     }
 
-    const string = action_string.join("-");
+    const string = action_string.join(" ");
 
-    if (!hash_cache.has(string))
-        hash_cache.set(string, {
-            hash: "h" + hashString(assertion_type + string)
+    const hash_basis_string = string + symbol_ids.sort((a, b) => a - b).join(" ");
+
+
+    if (!hash_cache.has(hash_basis_string))
+        hash_cache.set(hash_basis_string, {
+            hash: "h" + hashString(assertion_type + hash_basis_string)
                 .slice(0, 12)
                 .split("")
                 .map(p => (("hjklmnpqrst".split(""))[parseInt(p)] ?? p))
@@ -306,7 +299,7 @@ function generateStateHashAction(
             assertion: assertion_type
         });
 
-    return hash_cache.get(string);
+    return hash_cache.get(hash_basis_string);
 }
 
 
@@ -344,7 +337,7 @@ function processMultiChildStates(
 
         const state_groups = states.group(
             s => {
-                if (s.items.some(i => i.depth <= -9999)) {
+                if (s.items.some(i => i.state <= -9999)) {
                     return "out_of_scope";
                 } else {
                     return generateStateHashAction(s, grammar).hash + (
@@ -355,8 +348,8 @@ function processMultiChildStates(
                 }
             }).sort(([a], [b]) => {
 
-                const a_type = a.type + a.items[0].depth;
-                const b_type = b.type + b.items[0].depth;
+                const a_type = a.type + a.items[0].state;
+                const b_type = b.type + b.items[0].state;
 
                 return a_type - b_type;
             });
@@ -371,12 +364,12 @@ function processMultiChildStates(
             let IS_OUT_OF_SCOPE = states.some(i => i.type & TransitionStateType.EXTENDED);
 
             let AUTO_FAIL = IS_OUT_OF_SCOPE;
-            let AUTO_PASS = false && (states[0].items.some(i => i.depth >= 9999) && !assertion);
+            let AUTO_PASS = false && (states[0].items.some(i => i.state >= 9999) && !assertion);
 
             const IS_LAST_GROUP = AUTO_PASS; //(i >= group_length_m_one && i >= 1);
 
             if (
-                states[0].items.some(i => i.depth >= 9999)
+                states[0].items.some(i => i.state >= 9999)
                 &&
                 states[0].items.some(i => i.atEND)
             )
@@ -386,9 +379,6 @@ function processMultiChildStates(
             const symbols = <TokenSymbol[]>states.flatMap(s => s.symbols)
                 .setFilter(getUniqueSymbolName)
                 .filter(Sym_Is_A_Token);
-
-            if (symbols.length < 1)
-                debugger;
 
             global_symbols.push(...symbols);
 
@@ -432,16 +422,18 @@ function f(strings: TemplateStringsArray, ...args: any[]) {
 function generateSingleStateAction(
     state: TransitionForestStateA,
     grammar: GrammarObject,
-): { action: string; assertion: string; combined: string; } {
+): { action: string; assertion: string; combined: string; symbol_ids: number[]; } {
 
     const { symbols, states, type, items } = state;
     const token_symbols = <TokenSymbol[]>symbols.filter(s => !Sym_Is_A_Production(s));
 
+    let symbol_ids = [];
+
     let assertion = "";
 
     let action_string = "";
-    let combined_string = "";
 
+    let combined_string = "";
 
     if (states.length > 1)
         throw new Error("Single item states should need lead to multiple branches");
@@ -456,7 +448,7 @@ function generateSingleStateAction(
         let { symbols, depth, items } = state;
 
         assertion = depth > 0 ? "peek" : "assert";
-        if (items.some(i => i.depth <= -9999))
+        if (items.some(i => i.state <= -9999))
 
             action_string = `fail`;
 
@@ -469,7 +461,9 @@ function generateSingleStateAction(
         } else
             action_string = `goto state [ ${hash} ]`;
 
-        combined_string = `${assertion} [ ${token_symbols.map(s => s.id).sort((a, b) => a - b).join(" ")} ] ( ${action_string} )`;
+        symbol_ids.push(...token_symbols.map(i => i.id));
+
+        combined_string = `${assertion} [ ${symbol_ids.sort((a, b) => a - b).join(" ")} ] ( ${action_string} )`;
 
     } else if (type & TransitionStateType.END) {
 
@@ -493,8 +487,6 @@ function generateSingleStateAction(
             action_string = `reduce ${item.len} 0 then ${set_prod_clause}`;
         else
             action_string = `${set_prod_clause}`;
-
-
 
         combined_string = action_string;
 
@@ -542,11 +534,11 @@ function generateSingleStateAction(
 
         else
             action_string = `consume then goto state [ ${hash} ]`;
-
-        combined_string = `assert [ ${token_symbols.map(s => s.id).sort((a, b) => a - b).join(" ")} ] ( ${action_string} )`;
+        symbol_ids.push(...token_symbols.map(i => i.id));
+        combined_string = `assert [ ${symbol_ids.sort((a, b) => a - b).join(" ")} ] ( ${action_string} )`;
 
         assertion = "assert";
     }
 
-    return { action: action_string, combined: "\n    " + combined_string, assertion };
+    return { action: action_string, combined: "\n    " + combined_string, assertion, symbol_ids };
 }

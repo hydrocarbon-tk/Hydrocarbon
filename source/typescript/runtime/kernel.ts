@@ -293,21 +293,17 @@ export class KernelStateBuffer {
     }
     add_state_pointer_and_sort(state: KernelState): number {
 
-        let index = 0;
+        let index = -1;
 
-        while (index < this.data.length) {
+        while (++index < this.data.length) {
+
             let exist_ref = this.data[index];
 
-            if (state.VALID &&
-                (!exist_ref.VALID)) {
+            if (exist_ref.VALID && !state.VALID)
+                continue;
+
+            if (exist_ref.lexer_stack[0].byte_offset < state.lexer_stack[0].byte_offset)
                 break;
-            }
-            else {
-                if (exist_ref.lexer_stack[0].byte_offset < state.lexer_stack[0].byte_offset) {
-                    break;
-                }
-            };
-            index++;
         }
 
         this.data.splice(index, 0, state);
@@ -821,8 +817,10 @@ function get_token_info(
         const skip_row = token_row_switches & 0xFFFF;
 
         switch (token_transition) {
+
             case 0: /* do nothing */
                 break;
+
             case 1: /* set next peek lexer */ {
 
                 const prev_lexer = kernel_state.lexer_stack[(kernel_state.lexer_pointer)];
