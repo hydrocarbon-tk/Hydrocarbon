@@ -188,7 +188,7 @@ export type IR_Instruction = IRConsume |
     ResolvedIRBranch;
 
 export interface BlockData {
-    number_of_entries: number,
+    number_of_elements: number,
     instruction_sequence: any[][];
     total_size: number;
 }

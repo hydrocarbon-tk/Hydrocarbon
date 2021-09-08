@@ -651,11 +651,9 @@ function instruction_executor(
             //State Instructions
             case 9: { //table_jump
 
-                log(`INSTRUCTION: Table Jump `);
+                log(`INSTRUCTION: Jump Table Lookup `);
                 let token_row_switches = kernel_state.instruction_buffer[index + 1];
                 let table_data = kernel_state.instruction_buffer[index + 2];
-
-
 
                 let auto_accept_with_peek = (instruction & alpha_auto_accept_with_peek_mask) > 0;
                 let auto_consume_with_peek = (instruction & alpha_auto_consume_with_peek_mask) > 0;
@@ -694,16 +692,19 @@ function instruction_executor(
             }; break;
 
             case 10: { //Scanner
-                log(`INSTRUCTION: Symbol Scan `);
-                let alpha = instruction;
-                let token_row_switches = kernel_state.instruction_buffer[index + 1];
-                let scanner_data = kernel_state.instruction_buffer[index + 2];
-
-                let auto_accept_with_peek = (alpha & alpha_auto_accept_with_peek_mask) > 0;
-                let auto_consume_with_peek = (alpha & alpha_auto_consume_with_peek_mask) > 0;
+                log(`INSTRUCTION: Hash Table Lookup `);
 
                 const input_type = ((instruction >> 24) & 0x3);
                 const token_transition = ((instruction >> 26) & 0x3);
+                let auto_accept_with_peek = (instruction & alpha_auto_accept_with_peek_mask) > 0;
+                let auto_consume_with_peek = (instruction & alpha_auto_consume_with_peek_mask) > 0;
+                let token_row_switches = kernel_state.instruction_buffer[index + 1];
+                let table_data = kernel_state.instruction_buffer[index + 2];
+
+                const mod = (1 << ((table_data >>> 16) & 0xFFFF)) - 1;
+                const table_size = (table_data) & 0xFFFF;
+                const instruction_field_start = table_size + 2;
+                const instruction_field_size = instruction & 0xFFFF;
 
                 let { input_value, lexer_pointer: lp } =
                     get_token_info(
@@ -719,29 +720,28 @@ function instruction_executor(
 
                 lexer_pointer = lp;
 
-                let scan_field_length = scanner_data >> 16;
+                let hash_index = input_value & mod;
+                const hash_table_start = index + 3;
 
-                let instruction_field_size = scanner_data & 0xFFFF;
+                while (true) {
 
-                let i = index + 3;
+                    const cell = kernel_state.instruction_buffer[hash_table_start + hash_index];
 
-                let scan_field_end = i + scan_field_length;
+                    const value = cell & 0x7FF;
+                    const next = ((cell >>> 22) & 0x3FF) - 512;
 
-                let instruction_field_start = scan_field_end;
-
-                //default instruction
-                index = instruction_field_start + instruction_field_size - 1;
-
-                log(`Scanner: expecting ${kernel_state.instruction_buffer.slice(i, instruction_field_start)} with value ${input_value}`);
-
-                while (i < scan_field_end) {
-
-                    if (kernel_state.instruction_buffer[i] == input_value) {
-                        log("    Matched:" + input_value);
-                        index = instruction_field_start + kernel_state.instruction_buffer[i + 1] - 1;
+                    if (value == input_value) {
+                        const instruction_start = (cell >> 11) & 0x7FF;
+                        index += instruction_field_start + instruction_start;
                         break;
                     }
-                    i += 2;
+                    if (next == 0) {
+                        //Failure
+                        index += instruction_field_size + instruction_field_start;
+                        break;
+                    }
+
+                    hash_index += next;
                 }
             }; break;
 

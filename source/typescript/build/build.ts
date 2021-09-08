@@ -323,6 +323,79 @@ function insertInstructionSequences(
 
                     i += 10;
 
+                    //construct the hash entries
+
+                    const hash_entries = (new Array(scanner_key_index_pairs.length))
+                        .fill(0, 0, scanner_key_index_pairs.length);
+
+                    const pending_pairs = scanner_key_index_pairs.slice();
+
+                    const mod_base = Math.floor(Math.log2(scanner_key_index_pairs.length));
+
+                    const mod_mask = (1 << mod_base) - 1;
+
+                    for (let i = 0, j = 0; i < (1 << mod_base); i++) {
+
+                        for (let j = 0; j < pending_pairs.length; j++) {
+                            const [val, instr] = pending_pairs[j];
+                            if ((val & mod_mask) == i) {
+                                pending_pairs.splice(j, 1);
+                                hash_entries[i] = (
+                                    (val & 0x7FF)
+                                    |
+                                    ((instr & 0x7FF) << 11)
+                                    |
+                                    (512 << 22)
+                                ) >>> 0;
+                                break;
+                            }
+                        }
+                    }
+
+                    for (let i = 0; i < pending_pairs.length; i++) {
+
+                        const [val, instr] = pending_pairs[i];
+
+                        let pointer = 0;
+
+                        let node = val & mod_mask;
+
+                        while (true) {
+
+                            pointer = ((hash_entries[node] >>> 22) & 0x3FF) - 512;
+
+                            if (pointer == 0)
+                                break;
+
+                            else
+                                node += (pointer - 512);
+                        }
+
+                        for (let j = 0; j < hash_entries.length; j++) {
+                            if (hash_entries[j] == 0) {
+
+                                hash_entries[node] =
+                                    (
+                                        ((((j - node) + 512) & 0x3FF) << 22)
+                                        |
+                                        (hash_entries[node] & ((1 << 22) - 1))
+                                    ) >>> 0;
+
+                                hash_entries[node] = hash_entries[node] >>> 0;
+
+                                hash_entries[j] = (
+                                    (val & 0x7FF)
+                                    |
+                                    ((instr & 0x7FF) << 11)
+                                    |
+                                    (512 << 22)
+                                ) >>> 0;
+
+                                break;
+                            }
+                        }
+                    }
+
                     const
                         table_header =
                             (10 << 28) |
@@ -330,11 +403,11 @@ function insertInstructionSequences(
                             |
                             ((["peek", "assert"].indexOf(lexer_type) + 1) << 26)
                             |
-                            (+use_peek_for_assert_or_consume << 2)
+                            (+use_peek_for_assert_or_consume << 16)
                             |
-                            (+consume_peek << 3)
+                            (+consume_peek << 17)
                             |
-                            (0 & 0xFFFF),
+                            (instruction_field_size & 0xFFFF),
 
                         token_info =
                             (skip_table_row & 0xFFFF)
@@ -342,17 +415,13 @@ function insertInstructionSequences(
                             ((token_table_row & 0xFFFF) << 16),
 
                         table_info =
-                            ((scan_field_length & 0xFFFF) << 16)
+                            ((mod_base & 0xFFFF) << 16)
                             |
-                            (instruction_field_size & 0xFFFF);
+                            (scanner_key_index_pairs.length & 0xFFFF);
 
                     temp_buffer.push(table_header, token_info, table_info);
 
-                    for (const [key, val] of scanner_key_index_pairs) {
-                        temp_buffer.push(key, val);
-                    }
-
-
+                    temp_buffer.push(...hash_entries);
 
                     temp_buffer.push(...insertInstructionSequences(
                         sequence_entries, state_map, block_info, 0
@@ -702,15 +771,16 @@ function statesOutputsBuildPass(StateMap: StateMap, grammar: GrammarObject, sym_
         if ((attributes & (StateAttrib.PROD_BRANCH)) > 0) {
             const
 
-                table_block_info = buildBranchTableBlock(
+                table_block_info = buildJumpTableBranchBlock(
                     state_ast, attributes, tok_id, skip_id, "production", "peek", grammar
                 ),
 
-                scan_block_info = buildScanningBranchBlock(
+                scan_block_info = buildHashTableBranchBlock(
                     state_ast, attributes, tok_id, skip_id, "production", "peek", grammar
                 ),
 
-                block = selectBestFitBlockType(table_block_info, scan_block_info);
+                block = scan_block_info ? selectBestFitBlockType(table_block_info, scan_block_info)
+                    : table_block_info;
 
             total_instruction_byte_size += block.total_size;
 
@@ -721,15 +791,16 @@ function statesOutputsBuildPass(StateMap: StateMap, grammar: GrammarObject, sym_
             const
                 lexer_state = (attributes & (StateAttrib.PEEK_BRANCH)) ? "peek" : "assert",
 
-                table_block_info = buildBranchTableBlock(
+                table_block_info = buildJumpTableBranchBlock(
                     state_ast, attributes, tok_id, skip_id, "token", lexer_state, grammar
                 ),
 
-                scan_block_info = buildScanningBranchBlock(
+                scan_block_info = buildHashTableBranchBlock(
                     state_ast, attributes, tok_id, skip_id, "token", lexer_state, grammar
                 ),
 
-                block = selectBestFitBlockType(table_block_info, scan_block_info);
+                block = scan_block_info ? selectBestFitBlockType(table_block_info, scan_block_info)
+                    : table_block_info;
 
             total_instruction_byte_size += block.total_size;
 
@@ -762,15 +833,29 @@ function statesOutputsBuildPass(StateMap: StateMap, grammar: GrammarObject, sym_
 
     return out_buffer;
 }
-function selectBestFitBlockType(table_block_info: BlockData, scan_block_info: BlockData) {
-    const block_size_ratio = table_block_info.total_size / scan_block_info.total_size;
-    //Ratio between
-    const sparse_table_fill_ratio = table_block_info.number_of_entries
-        / (scan_block_info.number_of_entries);
+function selectBestFitBlockType(jump_table_block: BlockData, hash_table_block: BlockData) {
+
+    // How much bigger a jump table block is compared to a hash table block
+    // in ratio form
+    const block_size_ratio = jump_table_block.total_size / hash_table_block.total_size;
+
+    // How many more jump table entries there are compared to hash table entries
+    // in ratio form
+    const sparse_table_fill_ratio = jump_table_block.number_of_elements
+        / (hash_table_block.number_of_elements);
+
+    console.log({
+        jump_table_byte_size: jump_table_block.total_size,
+        jump_table_element_count: jump_table_block.number_of_elements,
+        hash_table_byte_size: hash_table_block.total_size,
+        hash_table_element_count: hash_table_block.number_of_elements,
+        block_size_ratio,
+        sparse_table_fill_ratio
+    });
 
     const block = (
         (!isNaN(sparse_table_fill_ratio) && !isNaN(block_size_ratio)) &&
-        (sparse_table_fill_ratio > 1.8 || block_size_ratio > 1.5)) ? scan_block_info : table_block_info;
+        (sparse_table_fill_ratio < 1.05 && block_size_ratio < 1.05)) ? jump_table_block : hash_table_block;
 
 
     return block;
@@ -784,7 +869,7 @@ function get32AlignedOffset(request_size: number) {
     return Math.ceil(request_size / 32) * 32;
 }
 
-function buildBranchTableBlock(
+function buildJumpTableBranchBlock(
     state_ast: Resolved_IR_State,
     attributes: StateAttrib,
     tok_id = 0,
@@ -868,9 +953,9 @@ function buildBranchTableBlock(
         instruction_sequence.push(default_data.byte_sequence);
 
         return {
-            number_of_entries: number_of_rows,
+            number_of_elements: number_of_rows,
             instruction_sequence,
-            total_size: get8AlignedOffset(base_size + default_data.byte_length + max_instruction_byte_size * number_of_rows + 1)
+            total_size: get8AlignedOffset(base_size + default_data.byte_length + max_instruction_byte_size * (number_of_rows + 1))
         };
     }
 
@@ -879,13 +964,13 @@ function buildBranchTableBlock(
     base_size += 4;
 
     return {
-        number_of_entries: number_of_rows,
+        number_of_elements: number_of_rows,
         instruction_sequence,
-        total_size: get8AlignedOffset(base_size + max_instruction_byte_size * number_of_rows + 1)
+        total_size: get8AlignedOffset(base_size + max_instruction_byte_size * (number_of_rows + 1))
     };
 }
 
-function buildScanningBranchBlock(
+function buildHashTableBranchBlock(
     state_ast: Resolved_IR_State,
     attributes: StateAttrib,
     tok_id = 0,
@@ -905,7 +990,7 @@ function buildScanningBranchBlock(
         return buildBasicInstructionBlock(new_state, tok_id, skip_id, grammar);
     }
 
-    let instruction_field_size = 0;
+    let instruction_field_byte_size = 0;
 
     const standard_byte_codes = standard_instructions
         .map(({ instructions, type, ids }) => {
@@ -913,9 +998,9 @@ function buildScanningBranchBlock(
             const instr = createInstructionSequence(instructions, grammar, tok_id, skip_id);
 
             //@ts-expect-error
-            instr.pointer = instruction_field_size / 4;
+            instr.pointer = instruction_field_byte_size / 4;
 
-            instruction_field_size += instr.byte_length;
+            instruction_field_byte_size += instr.byte_length;
 
             return instr;
         });
@@ -925,7 +1010,17 @@ function buildScanningBranchBlock(
         .flatMap(({ ids }, instr_idx) => ids.map(id => [id, standard_byte_codes[instr_idx].pointer]))
         .sort(([a], [b]) => a - b);
 
-    const scan_field_length = scanner_key_index_pairs.length * 2;
+    if (
+        scanner_key_index_pairs.length > 512
+        ||
+        scanner_key_index_pairs.slice(-1)[0][0] > 2048
+        ||
+        (instruction_field_byte_size / 4) > 2048
+    ) {
+        return null;
+    }
+
+    const scan_field_length = scanner_key_index_pairs.length;
 
     const sequence_entries = [];
 
@@ -954,9 +1049,10 @@ function buildScanningBranchBlock(
             skip_id,
             tok_id,
             scan_field_length,
-            instruction_field_size / 4,
+            instruction_field_byte_size / 4,
             scanner_key_index_pairs,
-            sequence_entries]
+            sequence_entries
+        ]
     );
 
 
@@ -967,9 +1063,9 @@ function buildScanningBranchBlock(
         instruction_sequence.push(default_data.byte_sequence);
 
         return {
-            number_of_entries: standard_instructions.length,
+            number_of_elements: scanner_key_index_pairs.length,
             instruction_sequence,
-            total_size: get8AlignedOffset(base_byte_size + default_data.byte_length + instruction_field_size + scan_field_length * 4)
+            total_size: get8AlignedOffset(base_byte_size + default_data.byte_length + instruction_field_byte_size + scan_field_length * 4)
         };
     }
 
@@ -978,9 +1074,9 @@ function buildScanningBranchBlock(
     base_byte_size += 4;
 
     return {
-        number_of_entries: standard_instructions.length,
+        number_of_elements: scanner_key_index_pairs.length,
         instruction_sequence,
-        total_size: get8AlignedOffset(base_byte_size + instruction_field_size + scan_field_length * 4)
+        total_size: get8AlignedOffset(base_byte_size + instruction_field_byte_size + scan_field_length * 4)
     };
 }
 function buildBasicInstructionBlock(state_ast: Resolved_IR_State, tok_id = 0, skip_id = 0, grammar: GrammarObject): BlockData {
@@ -999,7 +1095,7 @@ function buildBasicInstructionBlock(state_ast: Resolved_IR_State, tok_id = 0, sk
             .unshift(["set fail", state_ast.fail.id]);
     }
 
-    return { number_of_entries: 1, instruction_sequence: instruction_sequence, total_size: byte_length };
+    return { number_of_elements: 1, instruction_sequence: instruction_sequence, total_size: byte_length };
 }
 
 function getPeekConsumptionFlags(attributes: StateAttrib, state_ast: Resolved_IR_State) {
