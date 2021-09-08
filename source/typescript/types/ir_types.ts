@@ -192,3 +192,7 @@ export interface BlockData {
     instruction_sequence: any[][];
     total_size: number;
 }
+
+export type IRNode =
+    IR_State
+    | IR_Instruction;

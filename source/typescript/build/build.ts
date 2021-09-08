@@ -15,6 +15,8 @@ import { IRStateData, StateAttrib, StateMap } from '../types/ir_state_data';
 import { BlockData, InstructionType, IR_Instruction, ResolvedIRBranch, Resolved_IR_State } from '../types/ir_types';
 import { getSymbolMapFromIds } from '../utilities/code_generating.js';
 import { ir_reduce_numeric_len_id } from './ir_reduce_numeric_len_id.js';
+import { optimize } from './optimize.js';
+import { renderIRNode } from './render_ir_state.js';
 
 const ir_parser = await parser_loader;
 export const default_case_indicator = 9999;
@@ -81,17 +83,27 @@ export async function createBuildPack(
 
     let prev_size = states_map.size;
 
-    // let ALLOW_OPTIMIZATIONS = false;
-
     let original_states = new Map(states_map);
 
-    //  if (ALLOW_OPTIMIZATIONS)
-    //      while (statesOutputsOptimizationPass(states_map, grammar, original_states)) {
-    //
-    //          console.log(`reduction ratio ${Math.round((1 - (states_map.size / prev_size)) * 100)}% - prev size ${prev_size} - current size ${states_map.size}`);
-    //
-    //          prev_size = states_map.size;
-    //      }
+    let OPTIMIZE = true;
+    if (OPTIMIZE) {
+        while (optimize(states_map, grammar, original_states)) {
+
+            console.log(`reduction ratio ${Math.round((1 - (states_map.size / prev_size)) * 100)}% - prev size ${prev_size} - current size ${states_map.size}`);
+
+            prev_size = states_map.size;
+        }
+
+        prev_size = original_states.size;
+
+        console.log(`Total reduction ratio ${Math.round((1 - (states_map.size / prev_size)) * 100)}% - prev size ${prev_size} - current size ${states_map.size}`);
+    }
+
+    //Render state strings for later reference
+
+    for (const [, state] of states_map) {
+        state.string = renderIRNode(state.ir_state_ast);
+    }
 
     const state_buffer = new Uint32Array(statesOutputsBuildPass(states_map, grammar, sym_map));
 
@@ -563,42 +575,7 @@ function statesOutputsInitialPass(StateMap: StateMap, grammar: GrammarObject) {
 
     for (const [state_name, state_data] of StateMap) {
 
-
-        //Build reference counts
-        const instructions = [...state_data.ir_state_ast.instructions];
-
         let attributes = state_data.attributes;
-
-        for (const instruction of instructions) {
-            switch (instruction.type) {
-
-                case InstructionType.goto: {
-
-                    attributes |= StateAttrib.HAS_GOTOS;
-
-                    const state = getStateName(instruction.state);
-
-                    StateMap.get(state).reference_count++;
-
-                } break;
-
-                case InstructionType.fork_to: {
-                    for (const state of instruction.states) {
-
-                        StateMap
-                            .get(getStateName(state))
-                            .reference_count++;
-                    }
-                } break;
-
-                case InstructionType.prod:
-                case InstructionType.peek:
-                case InstructionType.assert:
-                    {
-                        instructions.push(...instruction.instructions);
-                    } break;
-            }
-        }
 
         //Construct base state attributes 
 
@@ -844,15 +821,6 @@ function selectBestFitBlockType(jump_table_block: BlockData, hash_table_block: B
     const sparse_table_fill_ratio = jump_table_block.number_of_elements
         / (hash_table_block.number_of_elements);
 
-    console.log({
-        jump_table_byte_size: jump_table_block.total_size,
-        jump_table_element_count: jump_table_block.number_of_elements,
-        hash_table_byte_size: hash_table_block.total_size,
-        hash_table_element_count: hash_table_block.number_of_elements,
-        block_size_ratio,
-        sparse_table_fill_ratio
-    });
-
     const block = (
         (!isNaN(sparse_table_fill_ratio) && !isNaN(block_size_ratio)) &&
         (sparse_table_fill_ratio < 1.05 && block_size_ratio < 1.05)) ? jump_table_block : hash_table_block;
@@ -955,7 +923,7 @@ function buildJumpTableBranchBlock(
         return {
             number_of_elements: number_of_rows,
             instruction_sequence,
-            total_size: get8AlignedOffset(base_size + default_data.byte_length + max_instruction_byte_size * (number_of_rows + 1))
+            total_size: get8AlignedOffset(base_size + default_data.byte_length + max_instruction_byte_size * (number_of_rows))
         };
     }
 
@@ -966,7 +934,7 @@ function buildJumpTableBranchBlock(
     return {
         number_of_elements: number_of_rows,
         instruction_sequence,
-        total_size: get8AlignedOffset(base_size + max_instruction_byte_size * (number_of_rows + 1))
+        total_size: get8AlignedOffset(base_size + max_instruction_byte_size * (number_of_rows))
     };
 }
 
