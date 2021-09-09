@@ -25,13 +25,17 @@ function optimizeState(state: IRStateData, states: StateMap) {
     /**
      * Replace
      *
-     *      <multi|single> (prod|assert) [A] => goto(X) ;
+     *      <multi|single> (prod|assert) [A] => goto(X) ... goto(A*) ;
      *
      *      with
      *
-     *      (X) <single> (prod|assert) [B] => instr(*) ... goto(*) ;
+     *      (X) <single> (prod|assert) [B] => instr(*) ... goto(*) ... goto(A*) ;
      *
-     *      if B == A || no assert [B]
+     *      if 
+     *          prod [B] == prod [A] || assert [B] == assert [A] || no (prod|assert) [B]
+     * 
+     *      and not 
+     *          prod [B] == assert [A] || assert [B] == prod [A]
      */
     for (const instruction of ir_state_ast.instructions) {
         if (
@@ -42,9 +46,9 @@ function optimizeState(state: IRStateData, states: StateMap) {
             const sub_instructions = instruction.instructions;
             const ids = instruction.ids.sort((a, b) => a - b).join("-");
 
-            if (sub_instructions.length == 1 && sub_instructions[0].type == InstructionType.goto) {
+            if (sub_instructions.every(i => i.type == InstructionType.goto)) {
 
-                const goto = sub_instructions[0];
+                const goto = <IRGoto>sub_instructions[0];
 
                 const { ir_state_ast, attributes } = states.get(getStateName(goto.state));
 
@@ -52,23 +56,23 @@ function optimizeState(state: IRStateData, states: StateMap) {
 
                     if ((!((attributes & StateAttrib.TOKEN_BRANCH) || (attributes & StateAttrib.PROD_BRANCH)))) {
 
+                        const cache = sub_instructions.slice(1);
+
                         sub_instructions.length = 0;
 
-                        sub_instructions.push(...ir_state_ast.instructions);
+                        sub_instructions.push(...ir_state_ast.instructions, ...cache);
 
                         MODIFIED = true;
                     } else if (
-                        (
-                            ir_state_ast.instructions[0].type == InstructionType.assert
-                            ||
-                            ir_state_ast.instructions[0].type == InstructionType.peek
-                        )
+                        ir_state_ast.instructions[0].type == instruction.type
                         &&
                         ids == ir_state_ast.instructions[0].ids.sort((a, b) => a - b).join("-")
                     ) {
+                        const cache = sub_instructions.slice(1);
+
                         sub_instructions.length = 0;
 
-                        sub_instructions.push(...ir_state_ast.instructions[0].instructions);
+                        sub_instructions.push(...ir_state_ast.instructions[0].instructions, ...cache);
 
                         MODIFIED = true;
                     }
