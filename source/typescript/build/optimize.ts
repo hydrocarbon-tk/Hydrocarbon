@@ -218,7 +218,7 @@ function optimizeState(state: IRStateData, states: StateMap) {
      *
      *      (A) <single> => ( (X) <single> (assert|prod) => ... instr(X*) ... goto(X*) ... goto(A*) ; ) ; 
      * 
-     *      only if fork not in (... instr(X*)) 
+     *      only if fork not in (... instr(X*)) and X does not have fail 
      */
     if (!((attributes & StateAttrib.TOKEN_BRANCH) || (attributes & StateAttrib.PROD_BRANCH))) {
 
@@ -228,7 +228,7 @@ function optimizeState(state: IRStateData, states: StateMap) {
 
             const first_goto: IRGoto = <IRGoto>sub_instructions[0];
 
-            const { ir_state_ast: { type, instructions: foreign_instructions, symbol_meta }, attributes } = states.get(getStateName(first_goto.state));
+            const { ir_state_ast: { fail, type, instructions: foreign_instructions, symbol_meta }, attributes } = states.get(getStateName(first_goto.state));
 
             if (
                 !(attributes & StateAttrib.MULTI_BRANCH)
@@ -238,6 +238,9 @@ function optimizeState(state: IRStateData, states: StateMap) {
                     foreign_instructions[0].type == InstructionType.assert)
                 &&
                 !foreign_instructions[0].instructions.some(i => i.type == InstructionType.fork_to)
+                &&
+                !fail
+
             ) {
                 const own_instructions = sub_instructions.slice(1);
 
@@ -249,7 +252,9 @@ function optimizeState(state: IRStateData, states: StateMap) {
                     ir_state_ast.symbol_meta = symbol_meta;
                 else {
                     ir_state_ast.symbol_meta.skipped.push(...symbol_meta.skipped);
+                    ir_state_ast.symbol_meta.skipped = ir_state_ast.symbol_meta.skipped.setFilter();
                     ir_state_ast.symbol_meta.expected.push(...symbol_meta.expected);
+                    ir_state_ast.symbol_meta.expected = ir_state_ast.symbol_meta.expected.setFilter();
                 }
 
                 state.attributes |= attributes;

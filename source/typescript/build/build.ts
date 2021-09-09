@@ -43,6 +43,7 @@ export async function createBuildPack(
                 try {
                     const ir_state = ir_parser(str, {}/* , ir_parser.ir_state */)
                         .result[0];
+                    //console.log(str);
                     return [str, ir_state];
                 } catch (e) {
                     console.log(hash, str);
@@ -56,7 +57,6 @@ export async function createBuildPack(
         ])
     ])
         insertIrStateBlock(ir_state_ast, string, grammar, states_map);
-
 
 
     // Map recovery states to state of their target production ---------------------
@@ -106,7 +106,7 @@ export async function createBuildPack(
     //Render state strings for later reference
 
     for (const [, state_data] of states_map) {
-        state_data.string = renderIRNode(state_data.ir_state_ast);
+        state_data.string = (state_data.string.match(/\/\*[^\*]+\*\//sm)?.[0] ?? "") + "\n" + renderIRNode(state_data.ir_state_ast);
         extractTokenSymbols(state_data, grammar);
     }
 

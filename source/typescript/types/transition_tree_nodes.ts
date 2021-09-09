@@ -93,10 +93,12 @@ export const enum TransitionStateType {
     AMBIGUOUS = 1 << 6,
 
     /**
-     * Closure includes extended items that 
-     * should be used for peeking. 
+     * State includes items out of the scope of the current production 
+     * that should be used for disambiguating states that would
+     * cause a reduction to a production ID other thane the current
+     * production. 
      */
-    EXTENDED = 1 << 7,
+    OUT_OF_SCOPE = 1 << 7,
     /**
      * Consumption of tokens is not allowed
      */

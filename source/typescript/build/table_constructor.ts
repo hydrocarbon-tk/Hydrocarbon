@@ -12,7 +12,9 @@ import { getFollow } from '../utilities/follow.js';
 import { Item } from "../utilities/item.js";
 import { default_case_indicator } from './build.js';
 import { create_symbol_clause } from './create_symbol_clause.js';
-import { constructTransitionForest, getGotoItems, getSTARTs as getSTARTItems } from './transition_tree.js';
+import { constructTransitionForest, OutOfScopeItemState, getGotoItems, getSTARTs as getSTARTItems } from './transition_tree.js';
+
+
 
 export function constructTableParser(
     production: GrammarProduction,
@@ -160,6 +162,9 @@ function processTransitionNode(
     default_hash = generateStateHashAction(state, grammar).hash,
     default_goto_hash = ""
 ) {
+
+    if (state.type & TransitionStateType.OUT_OF_SCOPE)
+        return;
 
 
     generateStateHashAction(state, grammar);
@@ -316,6 +321,8 @@ function processMultiChildStates(
         : "";
 
 
+
+
     items.push(...state.items);
 
     if (state.type & TransitionStateType.FORK) {
@@ -336,7 +343,7 @@ function processMultiChildStates(
 
         const state_groups = states.group(
             s => {
-                if (s.items.some(i => i.state <= -9999)) {
+                if (s.items.some(i => i.state == OutOfScopeItemState) || s.type & TransitionStateType.OUT_OF_SCOPE) {
                     return "out_of_scope";
                 } else {
                     return generateStateHashAction(s, grammar).action + (
@@ -360,13 +367,13 @@ function processMultiChildStates(
 
             let { assertion, action } = generateStateHashAction(states[0], grammar);
             //if State is multi merge the states of the multi state?
-            let IS_OUT_OF_SCOPE = states.some(i => i.type & TransitionStateType.EXTENDED);
+            let IS_OUT_OF_SCOPE = states.some(i => i.type & TransitionStateType.OUT_OF_SCOPE);
 
             let AUTO_FAIL = IS_OUT_OF_SCOPE;
 
             let AUTO_PASS = false && (states[0].items.some(i => i.state >= 9999) && !assertion);
 
-            const IS_LAST_GROUP = AUTO_PASS; //(i >= group_length_m_one && i >= 1);
+            const IS_LAST_GROUP = AUTO_PASS;
 
             if (
                 states[0].items.some(i => i.state >= 9999)
@@ -439,6 +446,7 @@ function generateSingleStateAction(
     if (states.length > 1)
         throw new Error("Single item states should need lead to multiple branches");
 
+
     if (type & TransitionStateType.PEEK) {
         //Assert the children symbols
 
@@ -449,7 +457,7 @@ function generateSingleStateAction(
         let { symbols, depth, items } = state;
 
         assertion = depth > 0 ? "peek" : "assert";
-        if (items.some(i => i.state <= -9999))
+        if (items.some(i => i.state == OutOfScopeItemState))
 
             action_string = `fail`;
 
@@ -470,7 +478,7 @@ function generateSingleStateAction(
 
         const [item] = state.items;
 
-        if (type & TransitionStateType.EXTENDED) {
+        if (type & TransitionStateType.OUT_OF_SCOPE) {
             throw new Error("TSTS");
             action_string = `fail`;
         }

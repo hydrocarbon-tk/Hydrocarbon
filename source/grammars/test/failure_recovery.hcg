@@ -9,7 +9,7 @@
 
             f:r { { type:"failed A", pos, sym } }
 
-    on fail state [ A_scan_forward ] 
+    on fail state [ A_scan_backward ] 
 
         scan back until [ g:sp ] then reduce 
 

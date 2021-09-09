@@ -866,6 +866,7 @@ function get_token_info(
                     } else {
                         kernel_state.lexer_stack[0].peek_unroll_sync(kernel_state.lexer_stack[consume_index]);
                         lexer_pointer = 0;
+                        kernel_state.lexer_pointer = 0;
                     }
 
                     lexer._type = basis__;

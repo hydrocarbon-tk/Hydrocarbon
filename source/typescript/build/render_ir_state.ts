@@ -123,7 +123,7 @@ export const ir_state_mappings: NodeMappings<IRNode, "type"> = <NodeMappings<IRN
         <NodeMapping<IRLeftMost>>{
             type: "assert-left",
             child_keys: [],
-            template: "assert o:n left"
+            template: "assert o:s left"
         },
 
         <NodeMapping<IRSetProd>>{
