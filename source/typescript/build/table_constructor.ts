@@ -532,6 +532,8 @@ function generateSingleStateAction(
 
             action_string = `consume nothing then goto state [ ${hash} ]`;
 
+        else if (symbols.length == 1 && Sym_Is_EOF(symbols[0]))
+            action_string = `goto state [ ${hash} ]`;
         else
             action_string = `consume then goto state [ ${hash} ]`;
         symbol_ids.push(...token_symbols.map(i => i.id));
