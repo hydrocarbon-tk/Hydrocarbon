@@ -261,17 +261,14 @@ function generateStateHashAction(
 
     if (state.type & TransitionStateType.MULTI) {
 
-        for (const { symbols, type, items: transitioned_items } of state.states) {
+        for (const child_state of state.states) {
 
-            const state_string = [];
+            if (child_state.type != TransitionStateType.OUT_OF_SCOPE) {
+                const hash = generateStateHashAction(child_state, grammar).hash;
+                action_string.push(hash);
+            }
 
-            state_string.push(...symbols.map(getUniqueSymbolName).sort());
-
-            state_string.push(type + "");
-
-            state_string.push(transitioned_items.map(i => i.id).sort().join("-"));
-
-            action_string.push(state_string.join("-"));
+            action_string.sort();
         }
     } else {
 
