@@ -565,7 +565,7 @@ function instruction_executor(
 
                         const fork = kernel_state.fork(kernel_state_repo);
 
-                        log(`---- State ${kernel_state.instruction_buffer[index]}`);
+                        log(`INSTRUCTION: fork to State ${kernel_state.instruction_buffer[index]}`);
 
                         fork.push_state(kernel_state.instruction_buffer[index]);
                     }
@@ -680,7 +680,7 @@ function instruction_executor(
                 let number_of_rows = table_data >> 16;
                 let row_size = table_data & 0xFFFF;
 
-                log(`Jump table: from ${basis__} to ${basis__ + number_of_rows - 1} on value ${input_value + basis__}`);
+                log(`INSTRUCTION: Jump table: from ${basis__} to ${basis__ + number_of_rows - 1} on value ${input_value + basis__}`);
 
                 if (input_value >= 0 && input_value < number_of_rows) {
                     index += input_value * row_size + 2;
@@ -762,7 +762,7 @@ function instruction_executor(
                 }
 
                 if (kernel_state.get_state() != (fail_state_pointer >>> 0)) {
-                    log(`Set Failure state ${instruction & 0xFFFFFF}`);
+                    log(`INSTRUCTION: Set Failure state ${instruction & 0xFFFFFF}`);
                     kernel_state.push_state(fail_state_pointer >>> 0);
                 }
 

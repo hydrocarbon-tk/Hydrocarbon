@@ -24,7 +24,7 @@ export function constructTableParser(
 
     const root_prod_name = production.name;
 
-    let goto_hash = root_prod_name + "_goto";
+    const goto_hash = root_prod_name + "_goto";
 
     const root_prod_id = production.id;
 
@@ -222,6 +222,7 @@ function processTransitionNode(
     if (global_items.some(i => i.offset == 1 && i.state >= 9999)) {
         // Include the items from the productions follow
         const production = (global_items.filter(i => i.state >= 9999)[0]).getProductionID(grammar);
+
         const follow = getFollow(production, grammar).filter(s => !Sym_Is_EOF(s) && s.type != "eop" && !Sym_Is_A_Production(s));
 
         global_symbols.push(...follow);
@@ -267,6 +268,7 @@ function generateStateHashAction(
             state_string.push(...symbols.map(getUniqueSymbolName).sort());
 
             state_string.push(type + "");
+
             state_string.push(transitioned_items.map(i => i.id).sort().join("-"));
 
             action_string.push(state_string.join("-"));
@@ -340,7 +342,7 @@ function processMultiChildStates(
                 if (s.items.some(i => i.state <= -9999)) {
                     return "out_of_scope";
                 } else {
-                    return generateStateHashAction(s, grammar).hash + (
+                    return generateStateHashAction(s, grammar).action + (
                         s.type & TransitionStateType.PRODUCTION
                             ? s.symbols.filter(Sym_Is_A_Production).map(getUniqueSymbolName).sort().join()
                             : ""
@@ -364,6 +366,7 @@ function processMultiChildStates(
             let IS_OUT_OF_SCOPE = states.some(i => i.type & TransitionStateType.EXTENDED);
 
             let AUTO_FAIL = IS_OUT_OF_SCOPE;
+
             let AUTO_PASS = false && (states[0].items.some(i => i.state >= 9999) && !assertion);
 
             const IS_LAST_GROUP = AUTO_PASS; //(i >= group_length_m_one && i >= 1);
@@ -425,6 +428,7 @@ function generateSingleStateAction(
 ): { action: string; assertion: string; combined: string; symbol_ids: number[]; } {
 
     const { symbols, states, type, items } = state;
+
     const token_symbols = <TokenSymbol[]>symbols.filter(s => !Sym_Is_A_Production(s));
 
     let symbol_ids = [];
@@ -495,6 +499,7 @@ function generateSingleStateAction(
         if (symbols.length > 1) {
 
             const production_symbol = symbols.filter(Sym_Is_A_Production)[0];
+
             const assertion_symbols = <TokenSymbol[]>symbols.filter(s => !Sym_Is_A_Production(s));
 
             const { hash } = generateStateHashAction(state.states[0], grammar);

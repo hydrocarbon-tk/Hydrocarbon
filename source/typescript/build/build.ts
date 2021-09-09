@@ -15,7 +15,7 @@ import { IRStateData, StateAttrib, StateMap } from '../types/ir_state_data';
 import { BlockData, InstructionType, IR_Instruction, ResolvedIRBranch, Resolved_IR_State } from '../types/ir_types';
 import { getSymbolMapFromIds } from '../utilities/code_generating.js';
 import { ir_reduce_numeric_len_id } from './ir_reduce_numeric_len_id.js';
-import { optimize } from './optimize.js';
+import { garbageCollect, optimize } from './optimize.js';
 import { renderIRNode } from './render_ir_state.js';
 
 const ir_parser = await parser_loader;
@@ -60,6 +60,7 @@ export async function createBuildPack(
 
 
     // Map recovery states to state of their target production ---------------------
+
     for (const [id, state] of states_map) {
 
         if (id.slice(0, 4) == "%%%%") {
@@ -75,19 +76,22 @@ export async function createBuildPack(
         }
     }
 
-    //Process States -------------------------------------------------------------
+    // Process States -------------------------------------------------------------
 
     const sym_map: Map<string, number> = new Map();
 
-    statesOutputsInitialPass(states_map, grammar);
+    let OPTIMIZE = true;
+
+    garbageCollect(states_map, grammar);
+
+    assignStateAttributeInformation(states_map, grammar);
 
     let prev_size = states_map.size;
 
     let original_states = new Map(states_map);
 
-    let OPTIMIZE = true;
     if (OPTIMIZE) {
-        while (optimize(states_map, grammar, original_states)) {
+        while (optimize(states_map, grammar)) {
 
             console.log(`reduction ratio ${Math.round((1 - (states_map.size / prev_size)) * 100)}% - prev size ${prev_size} - current size ${states_map.size}`);
 
@@ -101,13 +105,14 @@ export async function createBuildPack(
 
     //Render state strings for later reference
 
-    for (const [, state] of states_map) {
-        state.string = renderIRNode(state.ir_state_ast);
+    for (const [, state_data] of states_map) {
+        state_data.string = renderIRNode(state_data.ir_state_ast);
+        extractTokenSymbols(state_data, grammar);
     }
 
-    const state_buffer = new Uint32Array(statesOutputsBuildPass(states_map, grammar, sym_map));
+    //Build states buffer -------------------------------------------------------------
 
-    //Compile Recognizer Components -------------------------------------------------------------
+    const state_buffer = new Uint32Array(statesOutputsBuildPass(states_map, grammar, sym_map));
 
     console.log(`Buffer size = ${state_buffer.length * 4}bytes`);
 
@@ -380,7 +385,7 @@ function insertInstructionSequences(
                                 break;
 
                             else
-                                node += (pointer - 512);
+                                node += pointer;
                         }
 
                         for (let j = 0; j < hash_entries.length; j++) {
@@ -570,7 +575,7 @@ function getStateName(
     return name_candidate.name;
 }
 
-function statesOutputsInitialPass(StateMap: StateMap, grammar: GrammarObject) {
+function assignStateAttributeInformation(StateMap: StateMap, grammar: GrammarObject) {
 
 
     for (const [state_name, state_data] of StateMap) {
@@ -610,11 +615,6 @@ function statesOutputsInitialPass(StateMap: StateMap, grammar: GrammarObject) {
         ) new Error(`Unsupported mixture of assertion branch ( assert ) and peek branch ( peek ) instructions`);
 
         state_data.attributes = attributes;
-
-
-        //Collect all symbols that this state references
-
-        extractTokenSymbols(state_data, grammar);
     }
 }
 
@@ -680,31 +680,6 @@ function extractTokenSymbols(state_data: IRStateData, grammar: GrammarObject) {
 
     state_data.expected_tokens = expected_symbols.filter(s => s != default_case_indicator); // <- remove default value
     state_data.skipped_tokens = skipped_symbols.filter(s => s != default_case_indicator);// <- remove default value
-}
-
-
-function incrementGotoReferenceCounts(instructions: IR_Instruction[], grammar: GrammarObject, StateMap: StateMap) {
-    instructions.forEach((instr) => {
-        if (instr.type == InstructionType.goto) {
-
-            const state = getStateName(instr.state);
-
-            StateMap.get(state).reference_count++;
-        }
-    });
-}
-
-function decreaseReference(goto_state: IRStateData, to_remove: string[]) {
-
-    goto_state.reference_count--;
-
-    if (
-        goto_state.reference_count <= 0
-        &&
-        !(goto_state.attributes & StateAttrib.PRODUCTION_ENTRY)
-    ) {
-        to_remove.push(getStateName(goto_state.ir_state_ast.id));
-    }
 }
 
 function statesOutputsBuildPass(StateMap: StateMap, grammar: GrammarObject, sym_map: Map<string, number> = new Map(),) {
@@ -1083,9 +1058,4 @@ function getPeekConsumptionFlags(attributes: StateAttrib, state_ast: Resolved_IR
 
     return { use_peek_for_assert_or_consume, consume_peek };
 }
-
-function getInstructionComplexity(instr) {
-    return 1 + (instr?.then?.length ?? 0);
-}
-
 

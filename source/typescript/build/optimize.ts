@@ -1,3 +1,9 @@
+/* 
+ * Copyright (C) 2021 Anthony Weathersby - The Hydrocarbon Parser Compiler
+ * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
+ * disclaimer notice.
+ */
+import { Sym_Is_A_Production_Token } from '../grammar/nodes/symbol.js';
 import { GrammarObject, ProductionImportSymbol, ProductionSymbol } from '../types/grammar_nodes';
 import { IRStateData, StateAttrib, StateMap } from '../types/ir_state_data';
 import { InstructionType, IRGoto } from '../types/ir_types';
@@ -189,7 +195,7 @@ function optimizeState(state: IRStateData, states: StateMap) {
             const gotos = <IRGoto[]>sub_instructions.filter(i => i.type == InstructionType.goto);
 
             if (gotos.length == 1 && gotos[0].state == id) {
-
+                /*
                 sub_instructions.pop();
 
                 sub_instructions.push({
@@ -198,83 +204,136 @@ function optimizeState(state: IRStateData, states: StateMap) {
                 });
 
                 MODIFIED = true;
+                */
             }
         }
     }
+
+    /**
+     * Upgrade State Optimization
+     *
+     *      (A) <single> => goto(X) ... goto(A*) ;
+     *
+     *      with
+     *
+     *      (A) <single> => ( (X) <single> (assert|prod) => ... instr(X*) ... goto(X*) ... goto(A*) ; ) ; 
+     * 
+     *      only if fork not in (... instr(X*)) 
+     */
+    if (!((attributes & StateAttrib.TOKEN_BRANCH) || (attributes & StateAttrib.PROD_BRANCH))) {
+
+        const sub_instructions = ir_state_ast.instructions;
+
+        if (sub_instructions.every(i => i.type == InstructionType.goto)) {
+
+            const first_goto: IRGoto = <IRGoto>sub_instructions[0];
+
+            const { ir_state_ast: { type, instructions: foreign_instructions, symbol_meta }, attributes } = states.get(getStateName(first_goto.state));
+
+            if (
+                !(attributes & StateAttrib.MULTI_BRANCH)
+                &&
+                (foreign_instructions[0].type == InstructionType.prod
+                    ||
+                    foreign_instructions[0].type == InstructionType.assert)
+                &&
+                !foreign_instructions[0].instructions.some(i => i.type == InstructionType.fork_to)
+            ) {
+                const own_instructions = sub_instructions.slice(1);
+
+                ir_state_ast.instructions = [Object.assign({}, foreign_instructions[0], {
+                    instructions: foreign_instructions[0].instructions.concat(own_instructions)
+                })];
+
+                if (!ir_state_ast.symbol_meta)
+                    ir_state_ast.symbol_meta = symbol_meta;
+                else {
+                    ir_state_ast.symbol_meta.skipped.push(...symbol_meta.skipped);
+                    ir_state_ast.symbol_meta.expected.push(...symbol_meta.expected);
+                }
+
+                state.attributes |= attributes;
+
+                MODIFIED = true;
+            }
+        }
+    }
+
+
 
     return MODIFIED;
 }
 
-export function optimize(StateMap: StateMap, grammar: GrammarObject, StateMap_: StateMap) {
-    const entry_names = grammar.productions.filter(p => p.IS_ENTRY).map(i => i.name);
+export function optimize(StateMap: StateMap, grammar: GrammarObject) {
 
     let MODIFIED = false;
 
-    //Optimize state
     for (const [, state] of StateMap)
         MODIFIED ||= optimizeState(state, StateMap);
 
+    garbageCollect(StateMap, grammar);
 
-    // Garbage Collect
-    if (true) {
-        const marked_map = new Map([...StateMap].map(([name]) => [name, false]));
+    return MODIFIED;
+}
 
-        const pending = entry_names.slice();
+export function garbageCollect(StateMap: StateMap, grammar: GrammarObject,) {
 
-        for (const name of pending) {
+    const entry_names = [
+        ...grammar.productions.filter(p => p.IS_ENTRY).map(i => i.name),
+        ...[...grammar.meta.all_symbols.values()].filter(Sym_Is_A_Production_Token).map(i => i.name)
+    ].setFilter();
+    const marked_map = new Map([...StateMap].map(([name]) => [name, false]));
 
-            const state = StateMap.get(name);
+    const pending = entry_names.slice();
 
-            marked_map.set(name, true);
+    for (const name of pending) {
 
-            const names: Set<string> = new Set();
+        const state = StateMap.get(name);
 
-            const instructions = state.ir_state_ast.instructions.slice();
+        marked_map.set(name, true);
 
-            for (const instruction of instructions) {
+        const names: Set<string> = new Set();
 
-                switch (instruction.type) {
+        const instructions = state.ir_state_ast.instructions.slice();
 
-                    case InstructionType.goto: {
+        for (const instruction of instructions) {
 
-                        names.add(getStateName(instruction.state));
+            switch (instruction.type) {
 
+                case InstructionType.goto: {
+
+                    names.add(getStateName(instruction.state));
+
+                } break;
+
+                case InstructionType.fork_to: {
+                    for (const state of instruction.states) {
+                        names.add(getStateName(state));
+                    }
+                } break;
+
+                case InstructionType.prod:
+                case InstructionType.peek:
+                case InstructionType.assert:
+                    {
+                        instructions.push(...instruction.instructions);
                     } break;
-
-                    case InstructionType.fork_to: {
-                        for (const state of instruction.states) {
-
-                            StateMap
-                                .get(getStateName(state))
-                                .reference_count++;
-                        }
-                    } break;
-
-                    case InstructionType.prod:
-                    case InstructionType.peek:
-                    case InstructionType.assert:
-                        {
-                            instructions.push(...instruction.instructions);
-                        } break;
-                }
-            }
-
-            if (state.ir_state_ast.fail)
-                names.add(state.ir_state_ast.fail.id);
-
-            for (const name of names) {
-                if (!marked_map.get(name))
-                    pending.push(name);
             }
         }
 
-        for (const [name, marked] of marked_map) {
-            if (!marked) {
-                StateMap.delete(name);
-            }
+        if (state.ir_state_ast.fail)
+            names.add(state.ir_state_ast.fail.id);
+
+        for (const name of names) {
+            if (!marked_map.get(name))
+                pending.push(name);
         }
     }
 
-    return MODIFIED;
+    for (const [name, marked] of marked_map) {
+        if (!marked) {
+            StateMap.delete(name);
+        }
+    }
 }
 

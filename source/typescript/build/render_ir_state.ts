@@ -1,6 +1,46 @@
+/* 
+ * Copyright (C) 2021 Anthony Weathersby - The Hydrocarbon Parser Compiler
+ * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
+ * disclaimer notice.
+ */
 import { experimentalConstructRenderers, experimentalRender, NodeMapping, NodeMappings } from "@candlelib/conflagrate";
-import { IRStateData } from '../types/ir_state_data';
-import { BaseIRState, FailedIRState, InstructionType, IRAssert, IRConsume, IRFail, IRGoto, IRNode, IRPass, IRPeek, IRProductionBranch, IRReduce, IRSetProd } from '../types/ir_types';
+
+import {
+    BaseIRState,
+    FailedIRState,
+    InstructionType,
+    IRAssert,
+    IRConsume,
+    IRFail,
+    IRFork,
+    IRGoto,
+    IRLeftMost,
+    IRNode,
+    IRPass,
+    IRPeek,
+    IRProductionBranch,
+    IRReduce,
+    IRScanBackTo,
+    IRScanTo,
+    IRSetProd
+} from '../types/ir_types';
+
+function state_custom_render(state, render_fn) {
+    const node = Object.assign({}, state.node);
+
+    if (node.instructions[0].type == InstructionType.assert
+        ||
+        node.instructions[0].type == InstructionType.prod
+        ||
+        node.instructions[0].type == InstructionType.peek)
+        node.instructs = node.instructions.map(i => render_fn(state, i))
+            .join("\n").split("\n").join("\n" + " ".repeat(state.indent + 4));
+
+    else
+        node.instructs = node.instructions.map(i => render_fn(state, i)).join(" then ");
+
+    return render_fn(state, node);
+}
 export const ir_state_mappings: NodeMappings<IRNode, "type"> = <NodeMappings<IRNode, "type">>{
     typename: "type",
     type_lookup: () => 0,
@@ -9,49 +49,15 @@ export const ir_state_mappings: NodeMappings<IRNode, "type"> = <NodeMappings<IRN
         <NodeMapping<BaseIRState>>{
             type: "state",
             child_keys: ["instructions", "symbol_meta", "fail"],
-            template: "state \\[ m:s @id m:s \\] i:s o:n o:n @instructs...[ o:n ] o:n o:n { symbol_meta: @symbol_meta o:n o:n } @fail? i:e",
-            custom_render: (state, render_fn) => {
-                const node = Object.assign({}, state.node);
-
-                if (
-                    node.instructions[0].type == InstructionType.assert
-                    ||
-                    node.instructions[0].type == InstructionType.prod
-                    ||
-                    node.instructions[0].type == InstructionType.peek
-                )
-                    node.instructs = node.instructions.map(i => render_fn(state, i))
-                        .join("\n").split("\n").join("\n" + " ".repeat(state.indent + 4));
-                else
-                    node.instructs = node.instructions.map(i => render_fn(state, i)).join(" then ");
-
-
-                return render_fn(state, node);
-            }
+            template: "state \\[ m:s @id m:s \\] i:s o:n o:n @instructs...[ o:n ] o:n o:n { symbol_meta: @symbol_meta o:n o:n } { fail: on o:s fail o:s @fail} i:e",
+            custom_render: state_custom_render
         },
 
         <NodeMapping<FailedIRState>>{
             type: "on-fail-state",
             child_keys: ["instructions", "symbol_meta", "fail"],
             template: "state \\[ m:s @id m:s \\] i:s o:n o:n @instructs...[ o:n ] o:n o:n { symbol_meta: @symbol_meta o:n o:n } @fail? i:e",
-            custom_render: (state, render_fn) => {
-                const node = Object.assign({}, state.node);
-
-                if (
-                    node.instructions[0].type == InstructionType.assert
-                    ||
-                    node.instructions[0].type == InstructionType.prod
-                    ||
-                    node.instructions[0].type == InstructionType.peek
-                )
-                    node.instructs = node.instructions.map(i => render_fn(state, i))
-                        .join("\n").split("\n").join("\n" + " ".repeat(state.indent + 4));
-                else
-                    node.instructs = node.instructions.map(i => render_fn(state, i)).join(" then ");
-
-
-                return render_fn(state, node);
-            }
+            custom_render: state_custom_render
         },
 
         <NodeMapping<IRGoto>>{
@@ -94,6 +100,30 @@ export const ir_state_mappings: NodeMappings<IRNode, "type"> = <NodeMappings<IRN
             type: "consume",
             child_keys: [],
             template: "{nothing: consume o:n nothing or consume  }"
+        },
+
+        <NodeMapping<IRFork>>{
+            type: "fork-to",
+            child_keys: [],
+            template: "fork o:s to o:s \\( o:s state \\[ o:s @states...[ o:s \\] o:s state \\[ o:s ] o:s \\] o:s \\)",
+        },
+
+        <NodeMapping<IRScanTo>>{
+            type: "scan-until",
+            child_keys: [],
+            template: "scan o:s until o:s \\[ o:s @ids...[o:s] o:s \\]"
+        },
+
+        <NodeMapping<IRScanBackTo>>{
+            type: "scan-back-until",
+            child_keys: [],
+            template: "scan o:s back o:s until o:s \\[ o:s @ids...[o:s] o:s \\]"
+        },
+
+        <NodeMapping<IRLeftMost>>{
+            type: "assert-left",
+            child_keys: [],
+            template: "assert o:n left"
         },
 
         <NodeMapping<IRSetProd>>{
