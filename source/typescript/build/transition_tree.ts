@@ -8,17 +8,13 @@ import {
     getUniqueSymbolName, Sym_Is_A_Production,
     Sym_Is_A_Token, Sym_Is_EOF
 } from "../grammar/nodes/symbol.js";
-import { GrammarObject, GrammarProduction, HCG3Symbol, ProductionNode } from '../types/grammar_nodes';
+import { GrammarObject, HCG3Symbol } from '../types/grammar_nodes';
 import { TransitionForestStateA, TransitionStateType } from "../types/transition_tree_nodes";
 import { getClosure } from "../utilities/closure.js";
 import { getFirstTerminalSymbols } from '../utilities/first.js';
 import { Item } from "../utilities/item.js";
-import { getProductionClosure } from '../utilities/production.js';
 import { disambiguate } from './disambiguate.js';
-
-export const end_item_addendum = 1 << 20;
-export const OutOfScopeItemState = -9999;
-
+import { end_item_addendum, OutOfScopeItemState } from './magic_numbers.js';
 export function constructTransitionForest(
     grammar: GrammarObject,
     roots: Item[],
@@ -111,14 +107,14 @@ function recognize(
 
         ? transitioned_items
         : transitioned_items.map(i => i.increment());
-
-    if (attemptSingleGroupShift(
-        incremented_items,
-        grammar,
-        previous_state,
-        root_peek_state,
-        options,
-    )) return;
+    if (!transitioned_items.some(i => i.state == OutOfScopeItemState))
+        if (attemptSingleGroupShift(
+            incremented_items,
+            grammar,
+            previous_state,
+            root_peek_state,
+            options,
+        )) return;
 
     /**
      * Resolves SHIFT-REDUCE conflicts
@@ -388,7 +384,9 @@ function createPeekTreeStates(
                     );
 
                     if (Sym_Is_A_Production(sym)) {
+
                         new_state.type |= TransitionStateType.PRODUCTION;
+
                         new_state.symbols.push(Object.assign({}, sym, { production: null }));
 
                         new_state.depth = -203;
@@ -522,195 +520,4 @@ export interface TransitionForestOptions {
      * Default is 150 milliseconds
      */
     time_limit: number;
-}
-
-export function getStartItemsFromProduction(production: GrammarProduction): Item[] {
-    return production.bodies.map(b => new Item(b.id, b.length, 0));
-}
-
-export function getGotoItems(production: GrammarProduction, seed_items: Item[], grammar: GrammarObject): Map<number, Item[]> {
-
-    const lr_items = getProductionClosure(production.id, grammar).filter(i =>
-        i.offset == 0
-        &&
-        !i.atEND
-        &&
-        Sym_Is_A_Production(i.sym(grammar))
-    ).groupMap(i => i.getProductionAtSymbol(grammar).id);
-    const batch = seed_items.map(i => i.getProductionID(grammar)).setFilter();
-
-    const output: Map<number, Item[]> = new Map();
-
-    for (const id of batch) {
-
-        if (!output.has(id) && lr_items.has(id)) {
-
-            let items = lr_items.get(id);
-
-            const ACTIVE_IDS = new Set(items.filter(i => i.increment().atEND).map(i => i.getProductionID(grammar)));
-
-            if (
-                id == production.id
-                &&
-                lr_items.get(id).some(i => i.increment().atEND)
-            ) {
-
-                const seen = new Set([]);
-
-                /**
-                 * Mark items with depth (state) 9999 as "in scope" and items
-                 * -9999 as "out of scope". Out of scope items are only used
-                 * to determine if a production should be reduced to another
-                 * production or left alone.
-                 */
-
-                items = [
-                    ...items.map(i => i.copy(undefined, undefined, undefined, 9999)),
-                    ...grammar.lr_items.get(production.id)
-                        .flatMap(s => getOuterScopeGotoItems(grammar, seen, s))
-                        .map(i => i.copy(undefined, undefined, undefined, OutOfScopeItemState))
-                        .filter(i => !i.increment().atEND || !ACTIVE_IDS.has(i.getProductionID(grammar)))
-                ].setFilter(i => i.id);
-            }
-
-
-            output.set(id, items);
-            batch.push(...items.map(i => i.getProductionID(grammar)));
-        }
-    }
-
-    return output;
-}
-
-function getOuterScopeGotoItems(grammar: GrammarObject, seen: Set<number>, i: Item, out: Item[] = []) {
-    out.push(i);
-
-    const id = i.getProductionAtSymbol(grammar).id;
-
-    if (!seen.has(id) && i.increment().atEND) {
-
-        let id = i.getProductionAtSymbol(grammar).id;
-
-        seen.add(id);
-
-        out.push(...(grammar.lr_items.get(id) ?? []).flatMap(s => getOuterScopeGotoItems(grammar, seen, s)));
-    }
-
-    return out;
-
-}
-
-export function getSTARTs(production: GrammarProduction, grammar: GrammarObject) {
-
-    const initial_candidates = getStartItemsFromProduction(production);
-
-    let START_set = [];
-
-    let descend_candidates = initial_candidates;
-
-    let seen_candidates = new Set([production.id]);
-
-    while (descend_candidates.length > 0) {
-
-        const START_set_candidates = START_set.slice();
-
-        for (const descend_candidate of descend_candidates)
-            extractSTARTCandidates(production, descend_candidate, START_set_candidates, grammar);
-
-        descend_candidates.length = 0;
-
-        START_set = START_set_candidates
-            .filter(i => Sym_Is_A_Token(i.sym(grammar)));
-
-        const production_items = START_set_candidates
-            .filter(i => Sym_Is_A_Production(i.sym(grammar)))
-            .setFilter(i => i.id);
-
-        //Remove mutual conflicts
-        const production_conflicts =
-            production_items.group(i => {
-                const closure = getClosure([i], grammar);
-                return closure.map(i => i.id);
-            });
-
-        let seen = new Set();
-        for (const mutual_conflict of production_conflicts.sort((a, b) => b.length - a.length)) {
-            //<<<<<<< KEEP
-            if (
-                mutual_conflict.length == 1
-                ||
-                mutual_conflict.group(i => i.getProductionAtSymbol(grammar).id).length == 1
-            ) { //<-- Uncomment and COMMIT this line
-                //=======
-                //if (mutual_conflict.length > 0) { // <--- REMOVE THIS LINE
-                //>>>>>>> REMOVE
-                START_set.push(...mutual_conflict.filter(i => !seen.has(i.id)));
-            } else {
-
-                //Add the production to descend_candidates
-                const production = mutual_conflict[0].getProductionAtSymbol(grammar);
-
-                if (!seen_candidates.has(production.id)) {
-
-                    descend_candidates.push(...getStartItemsFromProduction(production));
-
-                    seen_candidates.add(production.id);
-                }
-            }
-
-            for (const id of mutual_conflict.map(i => i.id))
-                seen.add(id);
-        }
-
-        START_set = START_set.setFilter(i => i.id);;
-    }
-
-
-    return START_set.setFilter(i => i.id);
-}
-
-function extractSTARTCandidates(
-    root_production: GrammarProduction,
-    candidate_item: Item,
-    START_candidate_set: Item[],
-    grammar: GrammarObject,
-    check_items: Set<string> = new Set
-) {
-    // Check for recursion with root candidate. If 
-    // known is found than the candidate is available
-    // for use with the original grammar. 
-
-    const closure = getClosure([candidate_item], grammar);
-    if (
-        closure.some(i => (i.getProductionAtSymbol(grammar)?.id ?? -1) == root_production.id)
-        ||
-        closure.every(i => Sym_Is_A_Production(i.sym(grammar)))
-    ) {
-
-        const production_candidate =
-            grammar.productions[candidate_item.getProductionAtSymbol(grammar).id];
-
-        const initial_candidates = getStartItemsFromProduction(production_candidate);
-        START_candidate_set.push(...initial_candidates.filter(i => !Sym_Is_A_Production(i.sym(grammar))));
-
-        const descend_candidates = initial_candidates.filter(
-            i => Sym_Is_A_Production(i.sym(grammar))
-                && i.getProductionID(grammar) != root_production.id
-                && !check_items.has(i.id)
-        );
-
-        for (const descend_candidate of descend_candidates) {
-            check_items.add(descend_candidate.id);
-            extractSTARTCandidates(
-                root_production,
-                descend_candidate,
-                START_candidate_set,
-                grammar,
-                check_items
-            );
-        }
-
-    } else {
-        START_candidate_set.push(candidate_item);
-    }
 }

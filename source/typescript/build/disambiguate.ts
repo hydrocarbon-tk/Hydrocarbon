@@ -4,14 +4,16 @@ import {
     getUniqueSymbolName, SymbolsCollide,
     Symbols_Are_The_Same,
     Sym_Is_A_Generic_Identifier,
+    Sym_Is_A_Generic_Symbol,
     Sym_Is_A_Production,
-    Sym_Is_A_Production_Token, Sym_Is_A_Token, Sym_Is_Defined, Sym_Is_Defined_Identifier, Sym_Is_Exclusive
+    Sym_Is_A_Production_Token, Sym_Is_A_Token, Sym_Is_Defined, Sym_Is_Defined_Identifier, Sym_Is_Defined_Symbol, Sym_Is_Exclusive
 } from "../grammar/nodes/symbol.js";
 import { GrammarObject, TokenSymbol } from '../types/grammar_nodes';
 import { TransitionForestStateA, TransitionStateType } from "../types/transition_tree_nodes";
 import { getClosure } from "../utilities/closure.js";
 import { Item } from "../utilities/item.js";
-import { TransitionForestOptions, TransitionForestGraph, createTransitionForestState, end_item_addendum } from './transition_tree.js';
+import { end_item_addendum } from './magic_numbers.js';
+import { TransitionForestOptions, TransitionForestGraph, createTransitionForestState } from './transition_tree.js';
 
 /**
  * This system is essentially an Earley recognizer that attempts to
@@ -153,44 +155,7 @@ export function disambiguate(
     //Group states by symbol. Join groups that have mutually ambiguous symbols
     const grouped_roots = states.groupMap(s => s.symbols.map(getUniqueSymbolName));
 
-
-    for (const [key, group_a] of grouped_roots) {
-
-        const incoming_sym = getSymbolFromUniqueName(grammar, key);
-        if (Sym_Is_A_Production_Token(incoming_sym)
-            ||
-            Sym_Is_A_Generic_Identifier(incoming_sym))
-            for (const [key, group_b] of grouped_roots) {
-
-                const root_sym = getSymbolFromUniqueName(grammar, key);
-                const existing_states = new Set(group_b.flatMap(i => i.roots));
-
-                if (Sym_Is_Defined_Identifier(root_sym)
-                    &&
-                    !Sym_Is_Exclusive(root_sym)
-                    &&
-                    !Symbols_Are_The_Same(incoming_sym, root_sym)
-                    &&
-                    SymbolsCollide(incoming_sym, root_sym, grammar)) {
-
-
-                    group_b.push(
-                        ...group_a
-                            /*
-                            .filter(
-                                a => {
-                                    return !group_b.includes(a)
-                                        &&
-                                        a.roots.some(r => !existing_states.has(r));
-                                }
-        
-                            )*/
-                            //Remove states to prevent symbol overlapping
-                            .map(g => Object.assign({}, g, { states: [] }))
-                    );
-                }
-            }
-    }
+    mergeGroupsWithOccludingSymbols(grouped_roots, grammar);
 
     const dissambiguated_multi_node = <TransitionForestGraph>{
         symbol: null,
@@ -301,10 +266,62 @@ export function disambiguate(
         ||
         graph_node.nodes.length == 0;
 
-    //if (graph_node.AMBIGUOUS)
-    //    graph_node.nodes.length = 0;
     return graph_node;
 }
+
+
+function mergeGroupsWithOccludingSymbols(grouped_roots: Map<string, TransitionForestStateA[]>, grammar: GrammarObject) {
+    for (const [key, group_a] of grouped_roots) {
+
+        const incoming_sym = getSymbolFromUniqueName(grammar, key);
+        if (
+            Sym_Is_A_Production_Token(incoming_sym)
+            ||
+            Sym_Is_A_Generic_Identifier(incoming_sym)
+            //||
+            //Sym_Is_A_Generic_Symbol(incoming_sym)
+        )
+            for (const [key, group_b] of grouped_roots) {
+
+                const root_sym = getSymbolFromUniqueName(grammar, key);
+                const existing_states = new Set(group_b.flatMap(i => i.roots));
+
+                if (
+                    (
+                        Sym_Is_Defined_Identifier(root_sym)
+                        //  ||
+                        //  (
+                        //      Sym_Is_Defined_Symbol(root_sym)
+                        //      &&
+                        //      root_sym.byte_length == 1
+                        //  )
+                    )
+                    &&
+                    !Sym_Is_Exclusive(root_sym)
+                    &&
+                    !Symbols_Are_The_Same(incoming_sym, root_sym)
+                    &&
+                    SymbolsCollide(incoming_sym, root_sym, grammar)) {
+
+                    group_b.push(
+                        ...group_a
+                            /*
+                            .filter(
+                                a => {
+                                    return !group_b.includes(a)
+                                        &&
+                                        a.roots.some(r => !existing_states.has(r));
+                                }
+        
+                            )*/
+                            //Remove states to prevent symbol overlapping
+                            .map(g => Object.assign({}, g, { states: [] }))
+                    );
+                }
+            }
+    }
+}
+
 function mergeStates(type, states: TransitionForestStateA[]): TransitionForestStateA {
     const symbols = states.flatMap(s => s.symbols).setFilter(getUniqueSymbolName);
 
@@ -359,7 +376,6 @@ function resolveEndItem(
             const { items, parent, depth } = prev;
 
             if (depth == end_item.state) {
-
                 matching_items.push(...items.filter(
                     i => ((i.getProductionAtSymbol(grammar)?.id ?? -1) == production_id)
                 ).map(i => i.setDepth(end_item.state)));

@@ -3,7 +3,6 @@
  * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
  * disclaimer notice.
  */
-import { debug } from 'console';
 import { getUniqueSymbolName, Sym_Is_A_Production, Sym_Is_A_Token, Sym_Is_EOF, Sym_Is_Not_Consumed } from "../grammar/nodes/symbol.js";
 import { GrammarObject, GrammarProduction, TokenSymbol } from "../types/grammar_nodes.js";
 import { TransitionForestStateA, TransitionStateType } from '../types/transition_tree_nodes.js';
@@ -12,17 +11,20 @@ import { getFollow } from '../utilities/follow.js';
 import { Item } from "../utilities/item.js";
 import { default_case_indicator } from './build.js';
 import { create_symbol_clause } from './create_symbol_clause.js';
-import { constructTransitionForest, OutOfScopeItemState, getGotoItems, getSTARTs as getSTARTItems } from './transition_tree.js';
+import { OutOfScopeItemState } from './magic_numbers.js';
+import { getGotoSTARTs, getSTARTs as getSTARTItems } from "./STARTs.js";
+import { constructTransitionForest } from './transition_tree.js';
 
 
 
-export function constructTableParser(
+export function constructProductionStates(
     production: GrammarProduction,
     grammar: GrammarObject
 ): {
-    parse_code_blocks: Map<string, string>;
+    parse_states: Map<string, string>;
     id: number;
 } {
+
 
     const root_prod_name = production.name;
 
@@ -30,16 +32,21 @@ export function constructTableParser(
 
     const root_prod_id = production.id;
 
-    const parse_code_blocks: Map<string, string> = new Map;
+    const parse_states: Map<string, string> = new Map;
 
     const recursive_descent_items = getSTARTItems(production, grammar);
 
-    const goto_item_map = getGotoItems(production, recursive_descent_items, grammar);
+    const goto_item_map = getGotoSTARTs(production, recursive_descent_items, grammar);
 
     const recursive_descent_graph = constructTransitionForest(
         grammar,
         recursive_descent_items
     );
+
+    // If forks seperate out the conflicting items into 
+    // parse paths and use fork mechanism to run concurrent
+    // parses of the input and then join at the end of the
+    // production
 
     const goto_item_map_graphs = ([...goto_item_map.entries()]
         .map(([production_id, items]) =>
@@ -54,7 +61,7 @@ export function constructTableParser(
     processTransitionForest(
         recursive_descent_graph,
         grammar,
-        parse_code_blocks,
+        parse_states,
         "DESCENT",
         root_prod_name,
         goto_item_map_graphs.length > 0
@@ -82,7 +89,7 @@ export function constructTableParser(
                 processTransitionForest(
                     gotostate,
                     grammar,
-                    parse_code_blocks,
+                    parse_states,
                     "GOTO"
                 );
             const state = goto_group[0][1];
@@ -91,13 +98,13 @@ export function constructTableParser(
 
             let prelude = "";
 
-            if (
-                state.items.some(i => i.state >= 9999)
-                &&
-                state.items.some(i => i.atEND)
-            )
-                prelude = "assert left then ";
-
+            // if (
+            //     state.items.some(i => i.state >= 9999)
+            //     &&
+            //     state.items.some(i => i.atEND)
+            // )
+            //     prelude = "assert left then ";
+            //
             goto_function_code.push(
                 f`${4}
                 on prod [ ${production_ids.join(" ")} ] ( 
@@ -119,12 +126,12 @@ export function constructTableParser(
             );
         }
 
-        parse_code_blocks.set(goto_hash, goto_function_code.join("\n"));
+        parse_states.set(goto_hash, goto_function_code.join("\n"));
     }
 
 
     return {
-        parse_code_blocks,
+        parse_states: parse_states,
         id: production.id,
     };
 }
@@ -479,8 +486,7 @@ function generateSingleStateAction(
         const [item] = state.items;
 
         if (type & TransitionStateType.OUT_OF_SCOPE) {
-            throw new Error("TSTS");
-            action_string = `fail`;
+            throw new Error("Out of scope states should not be outputted");
         }
 
         if (!item.atEND)
@@ -500,6 +506,10 @@ function generateSingleStateAction(
         combined_string = action_string;
 
     } else if (type & TransitionStateType.PRODUCTION) {
+
+        if (type & TransitionStateType.OUT_OF_SCOPE) {
+            throw new Error("Out of scope states should not be outputted");
+        }
 
         if (symbols.length > 1) {
 
@@ -533,6 +543,10 @@ function generateSingleStateAction(
         assertion = state.depth > 0 ? "peek" : "assert";
 
     } else if (state.type & TransitionStateType.TERMINAL) {
+
+        if (type & TransitionStateType.OUT_OF_SCOPE) {
+            throw new Error("Out of scope states should not be outputted");
+        }
 
         const [child_state] = state.states;
 

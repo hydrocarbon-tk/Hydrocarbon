@@ -14,7 +14,7 @@ import { GrammarObject, ProductionImportSymbol, ProductionSymbol, TokenSymbol } 
 import { IRStateData, StateAttrib, StateMap } from '../types/ir_state_data';
 import { BlockData, InstructionType, IR_Instruction, ResolvedIRBranch, Resolved_IR_State } from '../types/ir_types';
 import { getSymbolMapFromIds } from '../utilities/code_generating.js';
-import { ir_reduce_numeric_len_id } from './ir_reduce_numeric_len_id.js';
+import { ir_reduce_numeric_len_id } from './magic_numbers.js';
 import { garbageCollect, optimize } from './optimize.js';
 import { renderIRNode } from './render_ir_state.js';
 
@@ -31,7 +31,7 @@ export async function createBuildPack(
     for await (const updates of mt_code_compiler.run())
         await spark.sleep(1);
 
-    const ir_states = [...mt_code_compiler.tables.entries()];
+    const ir_states = [...mt_code_compiler.states.entries()];
 
     const states_map: StateMap = new Map();
 

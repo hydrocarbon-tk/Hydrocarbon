@@ -5,7 +5,7 @@
  */
 import { GrammarObject } from "../../types/grammar_nodes";
 import { HybridDispatch, HybridDispatchResponse, HybridJobType } from "../../types/worker_messaging.js";
-import { constructTableParser } from "../table_constructor.js";
+import { constructProductionStates } from "../state_constructor.js";
 
 export class LocalWorker {
 
@@ -41,9 +41,9 @@ export class LocalWorker {
 
             let Response: HybridDispatchResponse = {};
 
-            const { parse_code_blocks: tables, id } = constructTableParser(this.grammar.productions[job.production_id], this.grammar);
+            const { parse_states, id } = constructProductionStates(this.grammar.productions[job.production_id], this.grammar);
 
-            Response.tables = tables;
+            Response.states = parse_states;
 
             Response.production_id = job.production_id;
 

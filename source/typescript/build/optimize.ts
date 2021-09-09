@@ -20,7 +20,6 @@ function getStateName(
     return name_candidate.name;
 }
 
-
 function optimizeState(state: IRStateData, states: StateMap) {
 
     let MODIFIED = false;

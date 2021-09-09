@@ -228,12 +228,11 @@ export interface GrammarObject extends HCGGrammarNode {
 
     };
     /**
-     * All items that are `A => . A` a
-     * for some production A. 
+     * All items that are `S => β • A γ`
+     * for some production `A`. 
      * 
      * The key is the numerical id of the production 
-     * and value are and array items  of the left 
-     * recursive bodies of the production.
+     * and values are array items with matching keys.
      */
     lr_items?: Map<number, Item[]>;
 }
@@ -485,4 +484,7 @@ export type HCG3Symbol =
     | MetaReduceSymbol
     | LookBehindSymbol
     | EOPSymbol
-    | TokenSymbol;
+    | TokenSymbol
+    | DefinedCharacterSymbol
+    | DefinedNumericSymbol
+    | DefinedIdentifierSymbol;

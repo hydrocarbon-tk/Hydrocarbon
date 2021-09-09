@@ -3,6 +3,7 @@
  * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
  * disclaimer notice.
  */
+
 /**
  * A "magic" number assigned to a reduce node's length
  * value to indicate that it is to use the symbol accumulator
@@ -10,3 +11,7 @@
  * parse stack when the reduce function is called.
  */
 export const ir_reduce_numeric_len_id = 0x90FA0102;
+export const end_item_addendum = 1 << 20;
+export const OutOfScopeItemState = -9999;
+
+export const GlobalState = -1;

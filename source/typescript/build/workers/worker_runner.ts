@@ -19,7 +19,7 @@ export class WorkerRunner {
     errors: any;
     to_process_rd_fn: number[];
     IN_FLIGHT_JOBS: number;
-    tables: Map<string, string>;
+    states: Map<string, string>;
 
     constructor(
         grammar: GrammarObject,
@@ -28,7 +28,7 @@ export class WorkerRunner {
 
         this.grammar = grammar;
 
-        this.tables = new Map;
+        this.states = new Map;
         this.to_process_rd_fn = this.grammar.productions.map((a, i) => i + 1);
         this.IN_FLIGHT_JOBS = 0;
         this.functions = [];
@@ -41,17 +41,17 @@ export class WorkerRunner {
 
     mergeWorkerData(worker: WorkerContainer, response: HybridDispatchResponse) {
 
-        const { tables, production_id } = response;
+        const { states, production_id } = response;
 
         const production_name = this.grammar.productions[production_id].name;
 
-        for (const [key, val] of tables.entries()) {
+        for (const [key, val] of states.entries()) {
 
-            if (this.tables.has(key)) {
+            if (this.states.has(key)) {
                 if (key == production_name)
-                    this.tables.set(key, val);
+                    this.states.set(key, val);
             } else
-                this.tables.set(key, val);
+                this.states.set(key, val);
         }
 
         this.IN_FLIGHT_JOBS--;
@@ -119,7 +119,6 @@ export class WorkerRunner {
                         production_id: -1
                     };
 
-                    // Dispatch all LL functions first
                     for (let i = 0; i < this.to_process_rd_fn.length; i++) {
 
                         const production_id = this.to_process_rd_fn[i];

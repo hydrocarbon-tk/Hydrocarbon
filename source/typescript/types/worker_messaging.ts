@@ -26,5 +26,5 @@ export type HybridDispatch = {
 
 export interface HybridDispatchResponse {
     production_id?: number;
-    tables?: Map<string, string>;
+    states?: Map<string, string>;
 }
