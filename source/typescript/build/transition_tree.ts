@@ -299,27 +299,22 @@ function createPeekTreeStates(
 
     let i = 0;
 
-    const origin_symbols = [];
-
     for (const group of symbols_groups) {
 
         const
 
-            sym = group[0].sym(grammar), roots = Sym_Is_A_Production(sym)
-                ? sym.production.bodies.map(b => new Item(b.id, b.length, 0))
-                : group.slice(), initial_state: TransitionForestStateA = createTransitionForestState(
+            initial_state: TransitionForestStateA =
+                createTransitionForestState(
                     TransitionStateType.START,
                     [], -1, [],
                     contextual_state
                 );
 
-        origin_symbols.push(sym);
-
         initial_state.depth = -1;
         initial_state.roots = <any>[(group.some(g => g.atEND) ? end_item_addendum : 0) | i++];
 
-        initial_state.items = //removeLeftRecursiveItems(roots, getClosure(roots, grammar, -1), grammar);
-            roots.map(i => i.copy(u, u, u, -1));
+        initial_state.items =
+            group.map(i => i.copy(u, u, u, -1));
 
         root_states.push(initial_state);
     }
