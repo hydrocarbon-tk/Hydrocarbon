@@ -7,6 +7,7 @@ import { Sym_Is_A_Production_Token } from '../grammar/nodes/symbol.js';
 import { GrammarObject, ProductionImportSymbol, ProductionSymbol } from '../types/grammar_nodes';
 import { IRStateData, StateAttrib, StateMap } from '../types/ir_state_data';
 import { InstructionType, IRAssert, IRGoto, IRPeek, IRProductionBranch, IR_State } from '../types/ir_types';
+import { renderIRNode } from './render_ir_state.js';
 
 function getStateName(
     name_candidate: ProductionSymbol | ProductionImportSymbol | string
@@ -307,7 +308,7 @@ function optimizeState(state: IRStateData, states: StateMap) {
         }
     }
 
-
+    mergeDuplicateBodies(ir_state_ast, attributes);
 
     return MODIFIED;
 }
@@ -403,3 +404,20 @@ export function garbageCollect(StateMap: StateMap, grammar: GrammarObject,) {
     }
 }
 
+function mergeDuplicateBodies(ir_state_ast: IR_State, attributes: StateAttrib) {
+
+    if (attributes & StateAttrib.MULTI_BRANCH) {
+
+        const groups = (<(IRProductionBranch | IRPeek | IRAssert)[]>ir_state_ast.instructions)
+            .group(i => i.instructions.map(i => renderIRNode(i)).join(""));
+
+        ir_state_ast.instructions.length = 0;
+
+        for (const group of groups) {
+
+            ir_state_ast.instructions.push(group[0]);
+
+            group[0].ids = group.flatMap(g => <number[]>g.ids).setFilter().sort((a, b) => a - b);
+        }
+    }
+}

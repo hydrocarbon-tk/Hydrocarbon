@@ -106,7 +106,9 @@ export async function createBuildPack(
     //Render state strings for later reference
 
     for (const [, state_data] of states_map) {
-        state_data.string = (state_data.string.match(/\/\*[^\*]+\*\//sm)?.[0] ?? "") + "\n" + renderIRNode(state_data.ir_state_ast);
+        state_data.string = (state_data.string.match(/\/\*[^\*]+\*\//sm)?.[0] ?? "")
+            + "\n"
+            + renderIRNode(state_data.ir_state_ast);
         extractTokenSymbols(state_data, grammar);
     }
 
