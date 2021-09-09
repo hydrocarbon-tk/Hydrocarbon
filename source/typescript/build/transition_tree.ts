@@ -536,8 +536,8 @@ function disambiguate(
 
     if (
         peek_states[0].depth > options.max_tree_depth
-        //||
-        //(performance.now() - start_time) > options.time_limit
+        ||
+        (performance.now() - start_time) > options.time_limit
         ||
         AUTO_EXIT
     )
@@ -581,7 +581,6 @@ function disambiguate(
             );
 
             for (const [sym, group] of terminal_token_groups) {
-                //If sym is eof create states from active_states found in resolved end items
 
                 const
 
@@ -1067,7 +1066,11 @@ export function getSTARTs(production: GrammarProduction, grammar: GrammarObject)
         let seen = new Set();
         for (const mutual_conflict of production_conflicts.sort((a, b) => b.length - a.length)) {
             //<<<<<<< KEEP
-            if (mutual_conflict.length == 1) { //<-- Uncomment and COMMIT this line
+            if (
+                mutual_conflict.length == 1
+                ||
+                mutual_conflict.group(i => i.getProductionAtSymbol(grammar).id).length == 1
+            ) { //<-- Uncomment and COMMIT this line
                 //=======
                 //if (mutual_conflict.length > 0) { // <--- REMOVE THIS LINE
                 //>>>>>>> REMOVE
