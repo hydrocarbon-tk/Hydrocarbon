@@ -6,7 +6,7 @@
 import { Sym_Is_A_Production_Token } from '../grammar/nodes/symbol.js';
 import { GrammarObject, ProductionImportSymbol, ProductionSymbol } from '../types/grammar_nodes';
 import { IRStateData, StateAttrib, StateMap } from '../types/ir_state_data';
-import { InstructionType, IRGoto } from '../types/ir_types';
+import { InstructionType, IRAssert, IRGoto, IRPeek, IRProductionBranch, IR_State } from '../types/ir_types';
 
 function getStateName(
     name_candidate: ProductionSymbol | ProductionImportSymbol | string
@@ -210,6 +210,49 @@ function optimizeState(state: IRStateData, states: StateMap) {
     }
 
     /**
+    * Remove redundant production assignments
+    *
+    *      (A) (*) => instr(*) ... set-prod(0) ... instr(*) ... set-prod(n) ... ;
+    *
+    *      with
+    *
+    *      (A) (*) => instr(*) ...  instr(*) ... set-prod(n) ... ;
+    */
+    if (attributes & StateAttrib.TOKEN_BRANCH || attributes & StateAttrib.PROD_BRANCH) {
+        for (const instruction of ir_state_ast.instructions) {
+            const candidate = <IRProductionBranch | IRPeek | IRAssert>instruction;
+            removeRedundantProdSet(candidate);
+        }
+    } else {
+        removeRedundantProdSet(ir_state_ast);
+    }
+    for (const instruction of ir_state_ast.instructions) {
+        if (
+            instruction.type == InstructionType.assert
+            ||
+            instruction.type == InstructionType.prod
+        ) {
+            const sub_instructions = instruction.instructions;
+
+            const gotos = <IRGoto[]>sub_instructions.filter(i => i.type == InstructionType.goto);
+
+            if (gotos.length == 1 && gotos[0].state == id) {
+                /*
+                sub_instructions.pop();
+ 
+                sub_instructions.push({
+                    type: InstructionType.repeat,
+                    pos: gotos[0].pos
+                });
+ 
+                MODIFIED = true;
+                */
+            }
+        }
+    }
+
+
+    /**
      * Upgrade State Optimization
      *
      *      (A) <single> => goto(X) ... goto(A*) ;
@@ -267,6 +310,24 @@ function optimizeState(state: IRStateData, states: StateMap) {
 
 
     return MODIFIED;
+}
+
+function removeRedundantProdSet(candidate: IR_State | IRProductionBranch | IRPeek | IRAssert) {
+    const instructions = candidate.instructions;
+    const prod_instr = instructions.filter(i => i.type == InstructionType.set_prod);
+    if (prod_instr.length > 1) {
+        const regular_instructions = instructions.filter(i => i.type != InstructionType.set_prod
+            &&
+            i.type != InstructionType.goto
+        );
+        const goto_instructions = instructions.filter(i =>
+            i.type == InstructionType.goto
+        );
+
+        instructions.length = 0;
+
+        instructions.push(...regular_instructions, prod_instr.pop(), ...goto_instructions);
+    }
 }
 
 export function optimize(StateMap: StateMap, grammar: GrammarObject) {
