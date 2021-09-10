@@ -132,6 +132,10 @@ export class KernelState implements KernelStateType {
         this.state_stack[++this.stack_pointer] = kernel_state;
     }
 
+    replace_top_state(kernel_state: number) {
+        this.state_stack[this.stack_pointer] = kernel_state;
+    }
+
     pop_state(): number {
         return this.state_stack[this.stack_pointer--];
     }
@@ -852,12 +856,14 @@ function push_fail_state(instruction: number, state_pointer: number, kernel_stat
         fail_state_pointer |= kernel_state.symbol_accumulator & acc_sym_mask;
     }
 
-    if (kernel_state.get_state() != (fail_state_pointer >>> 0)) {
+    if ((kernel_state.get_state() & 0xFFFF) != ((fail_state_pointer >>> 0) & 0xFFFF)) {
         {
             Logger.get("HC-Kernel-Debug")
                 .log(`INSTRUCTION: Set Failure state ${instruction & 0xFFFFFF}`);
         }
         kernel_state.push_state(fail_state_pointer >>> 0);
+    } else {
+        kernel_state.replace_top_state(fail_state_pointer);
     }
 }
 
@@ -1025,6 +1031,7 @@ export function kernel_executor(
                  */
                 Logger.get("HC-Kernel-Debug")
                     .log(`PARSER: << On state ${state & 0xFFFF} >>`);
+
 
                 if ((!fail_mode && ((state & fail_state_mask) == 0))
                     || (fail_mode && (state & fail_state_mask) != 0)) {
