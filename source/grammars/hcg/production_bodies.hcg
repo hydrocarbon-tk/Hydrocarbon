@@ -20,7 +20,7 @@
 
 <> production_bodies > (  production_body | cm::comment )(+\| )  
 
-<> production_body > ( \( t:FORK \) )? entries fn::reduce_function?                      
+<> production_body > entries fn::reduce_function?                      
                                                                     f:r { { type:"body", sym:$2, reduce_function:$$3, FORCE_FORK:!!$$1, id:-1, production:null } }
 
 <> entries > entries body_entry 
