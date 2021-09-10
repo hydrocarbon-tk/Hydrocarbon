@@ -180,7 +180,7 @@ export class Item extends Array {
      * returns new Item that is a copy of this except
      * depth is set to d
      */
-    setDepth(d: number) {
+    toState(d: number) {
         return this.copy(undefined, undefined, undefined, d);
     }
 }

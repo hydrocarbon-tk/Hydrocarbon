@@ -14,7 +14,7 @@ import { getClosure } from "../utilities/closure.js";
 import { getFirstTerminalSymbols } from '../utilities/first.js';
 import { Item } from "../utilities/item.js";
 import { disambiguate } from './disambiguate.js';
-import { end_item_addendum, OutOfScopeItemState } from './magic_numbers.js';
+import { end_item_addendum, GlobalState, OutOfScopeItemState } from './magic_numbers.js';
 export function constructTransitionForest(
     grammar: GrammarObject,
     roots: Item[],
@@ -44,7 +44,7 @@ export function constructTransitionForest(
             null,
         );
 
-    root_peek_state.items = [...grammar.lr_items.values()].flat();//.filter(i => i.offset == 0);
+    root_peek_state.items = [...grammar.lr_items.values()].flat().map(i => i.toState(GlobalState));//.filter(i => i.offset == 0);
 
     const initial_state: TransitionForestStateA =
         createTransitionForestState(
@@ -117,74 +117,7 @@ function recognize(
         )) return;
 
     /**
-     * Resolves SHIFT-REDUCE conflicts
-     */
-    if (
-        incremented_items.group(i => i.getProductionID(grammar)).length == 1
-        &&
-        incremented_items.some(i => i.atEND)
-    ) {
-
-        const active_items = incremented_items.filter(i => !i.atEND);
-        const end_items = incremented_items.filter(i => i.atEND);
-
-        if (attemptSingleGroupShift(
-            active_items,
-            grammar,
-            previous_state,
-            root_peek_state,
-            options,
-        )) {
-
-            if (end_items.length > 1) {
-                //Multiple end items are resolved through the peek
-                debugger;
-            }
-
-            if (attemptSingleGroupShift(
-                end_items,
-                grammar,
-                previous_state,
-                root_peek_state,
-                options,
-            )) {
-
-                const first = new Set(
-                    previous_state.states[0]
-                        .symbols
-                        .filter(Sym_Is_A_Token)
-                        .filter(s => !Sym_Is_EOF(s))
-                        .map(i => i.id)
-                );
-
-                const follow = getFollowSymbolsFromItems(end_items, grammar)
-                    .filter(i => !first.has(i.id));
-
-                const multi_item_state = createTransitionForestState(
-                    TransitionStateType.MULTI,
-                    [],
-                    -103,
-                    [],
-                    previous_state
-                );
-
-                previous_state.states[1].symbols.push(...follow);
-
-                //This is a free action state.
-                multi_item_state.items = incremented_items;
-
-                multi_item_state.states = previous_state.states;
-                previous_state.states = [multi_item_state];
-
-                return;
-            }
-        }
-
-        previous_state.states.length = 0;
-    }
-
-    /**
-     * Resolves all other conflicts
+     * Resolves conflicts
      */
     createPeekTreeStates(
         incremented_items,
@@ -286,12 +219,29 @@ function createPeekTreeStates(
 
     const root_states: TransitionForestStateA[] = [];
 
+    const active_productions = new Set(active_items
+        .filter(i => !i.atEND && Sym_Is_A_Production(i.sym(grammar)))
+        .map(i => i.getProductionAtSymbol(grammar).id));
+
+    const LocalState = 0;
+
     const contextual_state: TransitionForestStateA = createTransitionForestState(
-        TransitionStateType.START, [], -1, [], root_peek_state
+        TransitionStateType.START, [], LocalState, [], Object.assign({},
+            root_peek_state, {
+            items: root_peek_state.items.filter(
+                i => !Sym_Is_A_Production(i.sym(grammar))
+                    ||
+                    !(
+                        active_productions.has(i.getProductionAtSymbol(grammar).id)
+                        ||
+                        active_productions.has(i.getProductionID(grammar))
+                    )
+            )
+        })
     );
 
     const u = undefined;
-    contextual_state.items = getClosure(incremented_items.slice().map(i => i.copy(u, u, u, -2)), grammar, -2);
+    contextual_state.items = getClosure(incremented_items, grammar).map(i => i.toState(LocalState));
 
     let i = 0;
 
@@ -302,41 +252,68 @@ function createPeekTreeStates(
             initial_state: TransitionForestStateA =
                 createTransitionForestState(
                     TransitionStateType.START,
-                    [], -1, [],
+                    [],
+                    -1, <any>[(group.some(g => g.atEND) ? end_item_addendum : 0) | i++],
                     contextual_state
                 );
 
-        initial_state.depth = -1;
-        initial_state.roots = <any>[(group.some(g => g.atEND) ? end_item_addendum : 0) | i++];
+        const state = group.some(i => i.atEND || i.state == OutOfScopeItemState)
+            ? GlobalState
+            : LocalState;
+
+        initial_state.depth = state;
 
         initial_state.items =
-            group.map(i => i.copy(u, u, u, -1));
+            group.map(i => i.toState(state));
 
         root_states.push(initial_state);
     }
 
-    const graph = disambiguate(grammar, root_states, options, true);
+    const disambiguated_tree = disambiguate(grammar, root_states, options, true);
 
-    states.push(...graph.nodes.map((n => (n.state.parent = null, n.state))));
+    const branch_states = disambiguated_tree.nodes.map((n => (n.state.parent = null, n.state)));
 
     // Convert the previous state into multi branch state if there are 
     // more than one branch state
-    if (states.length > 1)
-        previous_state.type |= TransitionStateType.MULTI;
+    if (branch_states.length > 1) {
+        //*
+        const multi_item_state = createTransitionForestState(
+            TransitionStateType.MULTI,
+            [],
+            -103,
+            [],
+            previous_state
+        );
+
+        //This is a free action state.
+        multi_item_state.items = incremented_items;
+
+        multi_item_state.states = branch_states;
+
+        branch_states.map(s => s.parent = multi_item_state);
+
+        states.push(multi_item_state);
+
+    } else {
+        disambiguated_tree.state.depth = -1;
+        //previous_state.depth = -1;
+        branch_states[0].parent = previous_state;
+        states.push(...branch_states);
+    }
 
     //Build in new states and create transition for each one.
     //Convert graph into a transition tree and yield leaves
-    for (const leaf of yieldPeekGraphLeaves(graph)) {
+    for (const leaf of yieldPeekGraphLeaves(disambiguated_tree)) {
         /*
             At this point the leaf indicates a set of successful resolution of
             conflicting actions on given sequence of symbols, or the
             conflicts could not be reasonably resolved. In the former case,
             the leaf will map to one set of root items to it, whereas
             in tha latter case the leaf will map to multiple root item groups.
-
+ 
             In the single root item case the leaf can serve as the post peek
             state and directly lead to the continuing parse of the root items.
-
+ 
             In the multi-root case the leaf is used to fork to new actions
         */
 
@@ -415,11 +392,13 @@ function createPeekTreeStates(
                 const sym = group[0].sym(grammar);
 
                 if (Sym_Is_A_Production(sym)) {
+
                     origin_state.items = group.slice();
 
                 } else {
 
-                    origin_state.depth = leaf.depth;
+                    if (origin_state !== leaf)
+                        origin_state.depth = -1;
 
                     if (origin_state.depth <= -200) {
                         // If the offset remains at zero than this state can be
@@ -453,14 +432,19 @@ function createPeekTreeStates(
 
 function* yieldPeekGraphLeaves(graph: TransitionForestGraph): Generator<TransitionForestStateA> {
     const parent = graph.state;
+
     if (graph.nodes.length > 0) {
 
         for (let node of graph.nodes) {
+
             node.state.parent = parent;
+
             yield* yieldPeekGraphLeaves(node);
 
-            if (node.state.states.length > 0)
+            if (node.state.states.length > 0) {
+                node.state.depth = parent.depth + 1;
                 parent.states.push(node.state);
+            }
         }
 
         if (graph.nodes.length > 1 && parent.states.length > 0) {

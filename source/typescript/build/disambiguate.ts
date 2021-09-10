@@ -197,12 +197,19 @@ export function disambiguate(
 
             if (INITIAL_STATE)
                 start_time = performance.now();
+            const key_symbol = getSymbolFromUniqueName(grammar, key);
+            let new_states = states.map(s => Object.assign({}, s, {
+                items: s.items.filter(
+                    i => i.sym(grammar).id == key_symbol.id
+                        ||
+                        SymbolsCollide(i.sym(grammar), key_symbol, grammar))
+            }));
 
             if (key == getUniqueSymbolName(default_EOF)) {
                 //do nothing, this is as far as we get with these states
-                child_graph_node = disambiguate(grammar, states, options, false, start_time, true);
+                child_graph_node = disambiguate(grammar, new_states, options, false, start_time, true);
             } else {
-                child_graph_node = disambiguate(grammar, states, options, false, start_time);
+                child_graph_node = disambiguate(grammar, new_states, options, false, start_time);
             }
 
             child_graph_node.symbol = key;
@@ -216,8 +223,8 @@ export function disambiguate(
 
             disambiguated_node.symbol = key;
 
-            if (key == getUniqueSymbolName(default_EOF))
-                disambiguated_node.AMBIGUOUS = true;
+            //if (key == getUniqueSymbolName(default_EOF))
+            //    disambiguated_node.AMBIGUOUS = true;
 
             dissambiguated_multi_node.symbol = key;
 
@@ -262,7 +269,7 @@ export function disambiguate(
         graph_node.nodes.push(disambiguated_node);
 
 
-    graph_node.AMBIGUOUS = graph_node.nodes.every(n => n.AMBIGUOUS)
+    graph_node.AMBIGUOUS = graph_node.nodes.some(n => n.AMBIGUOUS)
         ||
         graph_node.nodes.length == 0;
 
@@ -271,6 +278,7 @@ export function disambiguate(
 
 
 function mergeGroupsWithOccludingSymbols(grouped_roots: Map<string, TransitionForestStateA[]>, grammar: GrammarObject) {
+    let i = 0;
     for (const [key, group_a] of grouped_roots) {
 
         const incoming_sym = getSymbolFromUniqueName(grammar, key);
@@ -324,8 +332,8 @@ function mergeGroupsWithOccludingSymbols(grouped_roots: Map<string, TransitionFo
                             .map(g => Object.assign({}, g, { states: [] }))
                     );
 
-                    if (Sym_Is_Exclusive(incoming_sym))
-                        grouped_roots.delete(key);
+                    //  if (Sym_Is_Exclusive(incoming_sym))
+                    //      grouped_roots.delete(key);
                 }
             }
     }
@@ -384,13 +392,11 @@ function resolveEndItem(
 
             const { items, parent, depth } = prev;
 
-            if (depth == end_item.state) {
+            if (depth == end_item.state || (matching_items.length == 0 && depth < 0)) {
+
                 matching_items.push(...items.filter(
                     i => ((i.getProductionAtSymbol(grammar)?.id ?? -1) == production_id)
-                ).map(i => i.setDepth(end_item.state)));
-
-                //if (matching_items.length > 0)
-                //    break;
+                ).map(i => i.toState(end_item.state)));
             }
 
             prev = parent;
