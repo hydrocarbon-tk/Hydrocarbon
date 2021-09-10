@@ -4,9 +4,7 @@
  * disclaimer notice.
  */
 import {
-    getFollowSymbolsFromItems,
-    getUniqueSymbolName, Sym_Is_A_Production,
-    Sym_Is_A_Token, Sym_Is_EOF
+    getUniqueSymbolName, Sym_Is_A_Production, Sym_Is_EOF
 } from "../grammar/nodes/symbol.js";
 import { GrammarObject, HCG3Symbol } from '../types/grammar_nodes';
 import { TransitionForestStateA, TransitionStateType } from "../types/transition_tree_nodes";
@@ -303,6 +301,7 @@ function createPeekTreeStates(
 
     //Build in new states and create transition for each one.
     //Convert graph into a transition tree and yield leaves
+
     for (const leaf of yieldPeekGraphLeaves(disambiguated_tree)) {
         /*
             At this point the leaf indicates a set of successful resolution of
