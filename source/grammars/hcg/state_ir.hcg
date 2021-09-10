@@ -9,8 +9,10 @@
 # representation of a state before it is optimized and compiled into binary parser tables.  
 #
 # These states are normally automatically generated and are not manipulated by grammar 
-# authors, however the use of the syntax is made available within grammar files to give 
-# author more control over state transformation of the HC parser virtual machine.
+# authors, however the use of the syntax is made available within HCG grammar files to give 
+# the author more control over state transformation within the HC parser virtual machine,
+# particularly when dealing with error recovery.
+# 
 
 @IGNORE g:sp g:nl tk:comment
 
