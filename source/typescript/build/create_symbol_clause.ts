@@ -65,13 +65,18 @@ export function create_symbol_clause(
         
         skipped [ ${skipped_symbols.flatMap(convert_sym_to_code).setFilter().sort().join("  ")} ]
 
-    /* Expected symbols  */
+    /* Expected symbols 
 
-    ${expected_symbols.map(create_symbol_comment).join(" ")}
+    ${expected_symbols.sort((a, b) => a.id - b.id).map(create_symbol_comment).join(" ")}
 
-    /* Skipped symbols  */
+    */
 
-   ${skipped_symbols.map(create_symbol_comment).join(" ")}`;
+
+    /* Skipped symbols  
+
+   ${skipped_symbols.sort((a, b) => a.id - b.id).map(create_symbol_comment).join(" ")}
+   
+   */`;
 
     return code;
 }
@@ -91,6 +96,6 @@ export function convert_sym_to_code(input: any, index: number, array: any[]): st
 };
 
 export function create_symbol_comment(sym: TokenSymbol) {
-    return `/* ${convert_symbol_to_string(<any>sym).replace(/\*\//g, "asterisk/")} */`;
+    return ` ${sym.id}[ ${convert_symbol_to_string(<any>sym).replace(/\*\//g, "asterisk/")} ]`;
 }
 
