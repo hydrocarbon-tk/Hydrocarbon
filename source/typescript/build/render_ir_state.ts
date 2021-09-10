@@ -14,12 +14,14 @@ import {
     IRFail,
     IRFork,
     IRGoto,
+    IRInlineAssert,
     IRLeftMost,
     IRNode,
     IRPass,
     IRPeek,
     IRProductionBranch,
     IRReduce,
+    IRRepeat,
     IRScanBackTo,
     IRScanTo,
     IRSetProd
@@ -64,6 +66,12 @@ export const ir_state_mappings: NodeMappings<IRNode, "type"> = <NodeMappings<IRN
             type: "goto",
             child_keys: [],
             template: "goto o:s state o:s \\[ o:s @state o:s \\] o:s"
+        },
+
+        <NodeMapping<IRRepeat>>{
+            type: "repeat-state",
+            child_keys: [],
+            template: "repeat"
         },
 
         <NodeMapping<IRAssert>>{
@@ -124,6 +132,17 @@ export const ir_state_mappings: NodeMappings<IRNode, "type"> = <NodeMappings<IRN
             type: "assert-left",
             child_keys: [],
             template: "assert o:s left"
+        },
+
+        <NodeMapping<IRInlineAssert>>{
+            type: "inline-assert",
+            child_keys: [],
+            template: `o:n inline-assert o:s \\[ o:s @id o:s \\] i:s o:n 
+                       { token_ids: token_ids o:s \\[ o:s @token_ids...[o:s] o:s \\] o:n } 
+                       { skipped_ids: skipped o:s \\[ o:s @skipped_ids...[o:s] o:s \\] o:n }
+                       i:e
+                       o:n 
+                    `
         },
 
         <NodeMapping<IRSetProd>>{

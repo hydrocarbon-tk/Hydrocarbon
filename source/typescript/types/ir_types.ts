@@ -38,8 +38,11 @@ export interface ResolvedFailedIRState extends ResolvedIRState {
 
 export const enum InstructionType {
     prod = "prod",
+
+    increment = "increment",
     empty_consume = "empty-consume",
     consume = "consume",
+    inline_assert = "inline-assert",
     peek = "peek",
     assert = "assert",
     goto = "goto",
@@ -80,6 +83,14 @@ export interface IRTokenBranch {
 export interface IRAssert extends IRTokenBranch {
     type: InstructionType.assert;
 }
+
+export interface IRInlineAssert extends Base_IR_Instruction {
+    type: InstructionType.inline_assert;
+    id: number,
+    token_ids: number[];
+    skipped_ids: number[];
+}
+
 export interface IRPeek extends IRTokenBranch {
     type: InstructionType.peek;
 }
@@ -184,6 +195,7 @@ export type IR_Instruction = IRConsume |
     IRFail |
     IRGoto |
     IREnd |
+    IRInlineAssert |
     IRLeftMost |
     ResolvedIRBranch;
 

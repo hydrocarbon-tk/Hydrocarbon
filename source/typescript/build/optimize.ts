@@ -6,7 +6,7 @@
 import { Sym_Is_A_Production_Token } from '../grammar/nodes/symbol.js';
 import { GrammarObject, ProductionImportSymbol, ProductionSymbol } from '../types/grammar_nodes';
 import { IRStateData, StateAttrib, StateMap } from '../types/ir_state_data';
-import { InstructionType, IRAssert, IRGoto, IRPeek, IRProductionBranch, IR_State } from '../types/ir_types';
+import { InstructionType, IRAssert, IRGoto, IRInlineAssert, IRPeek, IRProductionBranch, IRSetProd, IR_Instruction, IR_State } from '../types/ir_types';
 import { renderIRNode } from './render_ir_state.js';
 
 function getStateName(
@@ -137,6 +137,73 @@ function optimizeState(state: IRStateData, states: StateMap) {
     /**
      * Replace
      *
+     *      <multi|single> (prod) [*] => goto(X) ... goto(*) ;
+     *
+     *      with
+     *
+     *     <multi|single> (prod) [*] => instr(*) < inline-assert(T) X ... > ... goto(*) ;
+     * 
+     *     for some state X that is 
+     * 
+     *     (X) <single> (assert) [T] => instr(*) ... goto(*)
+     * 
+     *      where T is a single token identifier and X does not have a fail state
+     */
+    for (const instruction of ir_state_ast.instructions) {
+        if (
+            instruction.type == InstructionType.prod
+        ) {
+            const sub_instructions = instruction.instructions;
+
+            let i = 0;
+
+            for (const instruction of sub_instructions) {
+
+                if (instruction.type == InstructionType.goto) {
+
+                    const goto = instruction;
+
+                    const { ir_state_ast, attributes } = states.get(getStateName(goto.state));
+
+                    const { instructions, symbol_meta } = ir_state_ast;
+
+                    if (
+                        instructions.length == 1
+                        &&
+                        instructions[0].type == InstructionType.assert
+                        &&
+                        instructions[0].ids.length == 1
+                        &&
+                        !ir_state_ast.fail
+                    ) {
+                        const assert = instructions[0];
+
+                        const inline_assert: IRInlineAssert = {
+                            type: InstructionType.inline_assert,
+                            id: <number>assert.ids[0],
+                            skipped_ids: <number[]>(symbol_meta?.skipped ?? []),
+                            token_ids: <number[]>(symbol_meta?.expected ?? []),
+                            pos: null
+                        };
+
+                        sub_instructions.splice(i, 1, inline_assert, ...assert.instructions);
+
+                        MODIFIED = true;
+                    }
+
+                    //Break no matter the outcome
+                    break;
+                }
+
+                i++;
+            }
+
+        }
+    }
+
+    /**
+     * Replace
+     *
      *      <single> => instr(*) goto(X) ... goto(*) ;
      *
      *      with
@@ -185,6 +252,7 @@ function optimizeState(state: IRStateData, states: StateMap) {
      *      (A) <multi|single> (prod|assert|peek) [*] => instr(0) ... instr(N) repeat ;
      */
     for (const instruction of ir_state_ast.instructions) {
+
         if (
             instruction.type == InstructionType.assert
             ||
@@ -195,7 +263,6 @@ function optimizeState(state: IRStateData, states: StateMap) {
             const gotos = <IRGoto[]>sub_instructions.filter(i => i.type == InstructionType.goto);
 
             if (gotos.length == 1 && gotos[0].state == id) {
-                /*
                 sub_instructions.pop();
 
                 sub_instructions.push({
@@ -204,7 +271,6 @@ function optimizeState(state: IRStateData, states: StateMap) {
                 });
 
                 MODIFIED = true;
-                */
             }
         }
     }
@@ -226,7 +292,18 @@ function optimizeState(state: IRStateData, states: StateMap) {
     } else {
         removeRedundantProdSet(ir_state_ast);
     }
+
+    /**
+     * Remove Fail States
+     * 
+     *  Fail States represent implicit actions and do not need to be actually represented
+     *  in outputted code.
+     * 
+     *  (A) (prod|assert) => instr(fail) ;
+     */
+    let i = 0;
     for (const instruction of ir_state_ast.instructions) {
+
         if (
             instruction.type == InstructionType.assert
             ||
@@ -234,23 +311,50 @@ function optimizeState(state: IRStateData, states: StateMap) {
         ) {
             const sub_instructions = instruction.instructions;
 
-            const gotos = <IRGoto[]>sub_instructions.filter(i => i.type == InstructionType.goto);
-
-            if (gotos.length == 1 && gotos[0].state == id) {
-                /*
-                sub_instructions.pop();
- 
-                sub_instructions.push({
-                    type: InstructionType.repeat,
-                    pos: gotos[0].pos
-                });
- 
+            if (sub_instructions.length == 1 && sub_instructions[0].type == InstructionType.fail) {
+                ir_state_ast.instructions.splice(i, 1);
                 MODIFIED = true;
-                */
+            }
+        }
+        i++;
+    }
+
+    /**
+     * Remove Redundant Production Sets
+     * 
+     *  
+     *  (prod)[X] => instr... set-prod(X) ... ;
+     *  
+     *  to
+     * 
+     *  (prod)[X] => instr...;
+     * 
+     *  if set-prod(X) is only instruction of its type 
+     * 
+     *  and (prod)[X] has no goto instructions
+     */
+    for (const instruction of ir_state_ast.instructions) {
+
+        if (
+            instruction.type == InstructionType.prod
+            &&
+            instruction.ids.length == 1
+        ) {
+            const sub_instructions = instruction.instructions;
+
+            const prods = sub_instructions.map((i, j) => <[IRSetProd, number]>[i, j])
+                .filter(([i]) => i.type == InstructionType.set_prod);
+
+            if (prods.length == 1 && instruction.ids.includes(<number>prods[0][0].id)
+                &&
+                sub_instructions.filter(i => i.type == InstructionType.goto).length == 0
+            ) {
+                const index = prods[0][1];
+                sub_instructions.splice(index, 1);
+                MODIFIED = true;
             }
         }
     }
-
 
     /**
      * Upgrade State Optimization

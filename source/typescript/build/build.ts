@@ -43,7 +43,6 @@ export async function createBuildPack(
                 try {
                     const ir_state = ir_parser(str, {}/* , ir_parser.ir_state */)
                         .result[0];
-                    //console.log(str);
                     return [str, ir_state];
                 } catch (e) {
                     console.log(hash, str);
@@ -181,10 +180,9 @@ function insertInstructionSequences(
     block_info: BlockData,
     default_block_size: number = 0
 ): number[] {
-    if (!instruction_sections)
-        debugger;
 
     let buffer = [];
+
     for (const data of instruction_sections) {
         let i = 0;
         let temp_buffer = [];
@@ -317,8 +315,6 @@ function insertInstructionSequences(
                             (row_size & 0xFFFF);
 
                     temp_buffer.push(table_header >>> 0, token_info >>> 0, table_info >>> 0);
-
-                    let default_row_size: number = data[++i];
 
                     temp_buffer.push(...insertInstructionSequences(
                         table_entries, state_map, block_info, row_size
@@ -471,10 +467,11 @@ function createInstructionSequence(
     active_instructions: IR_Instruction[],
     grammar: GrammarObject,
     token_id: number,
-    skip_id: number
+    skip_id: number,
+    sym_map: Map<string, number>
 ): { byte_length: number, byte_sequence: any; } {
 
-    const byte_sequence = [];
+    const instruction_sequence = [];
 
     // The order of the goto instructions are reversed to change 
     // their execution order from FIFO to FILO, conforming to 
@@ -488,82 +485,113 @@ function createInstructionSequence(
     for (const instr of [...standard_instructions, ...goto_instructions]) {
         switch (instr.type) {
 
+            case InstructionType.inline_assert: {
+
+                byte_length += 16;
+
+                const basis = instr.id;
+
+                const token_id = createSymMapId(instr.token_ids.concat(instr.skipped_ids), grammar, sym_map);
+
+                const skip_id = createSymMapId(instr.skipped_ids, grammar, sym_map);
+
+                const instruction = createTableInstruction(
+                    "token",
+                    "assert",
+                    false,
+                    false,
+                    skip_id,
+                    token_id,
+                    basis,
+                    1,
+                    1,
+                    [["fail"]]
+                );
+
+                instruction_sequence.push(...instruction);
+            } break;
+
             case InstructionType.token_length:
                 byte_length += 4;
-                byte_sequence.push(InstructionType.token_length, instr.len);
+                instruction_sequence.push(InstructionType.token_length, instr.len);
                 break;
 
             case InstructionType.pass:
                 byte_length += 4;
-                byte_sequence.push(InstructionType.pass);
+                instruction_sequence.push(InstructionType.pass);
                 break;
 
             case InstructionType.consume:
                 byte_length += 4;
 
                 if (instr.EMPTY) {
-                    byte_sequence.push(InstructionType.empty_consume);
+                    instruction_sequence.push(InstructionType.empty_consume);
                 } else
-                    byte_sequence.push(InstructionType.consume);
+                    instruction_sequence.push(InstructionType.consume);
 
                 break;
 
             case InstructionType.fail:
                 byte_length += 4;
-                byte_sequence.push(InstructionType.fail);
+                instruction_sequence.push(InstructionType.fail);
                 break;
 
             case InstructionType.goto:
                 byte_length += 4;
-                byte_sequence.push(InstructionType.goto, instr.state);
+                instruction_sequence.push(InstructionType.goto, instr.state);
                 break;
 
             case InstructionType.set_prod:
                 byte_length += 4;
-                byte_sequence.push(InstructionType.set_prod, ...convertTokenIDsToSymbolIds([<any>instr.id], grammar));
+                instruction_sequence.push(InstructionType.set_prod, ...convertTokenIDsToSymbolIds([<any>instr.id], grammar));
                 break;
 
             case InstructionType.fork_to:
                 byte_length += 4 + 4 * (instr.states.length);
-                byte_sequence.push(InstructionType.fork_to, instr.states.length, ...instr.states);
+                instruction_sequence.push(InstructionType.fork_to, instr.states.length, ...instr.states);
                 break;
 
             case InstructionType.scan_back_until:
                 byte_length += 8 + 4 * instr.ids.length;
-                byte_sequence.push(InstructionType.scan_back_until, token_id, instr.ids.length, ...convertTokenIDsToSymbolIds(instr.ids, grammar));
+                instruction_sequence.push(InstructionType.scan_back_until, token_id, instr.ids.length, ...convertTokenIDsToSymbolIds(instr.ids, grammar));
                 break;
 
             case InstructionType.scan_until:
                 byte_length += 8 + 4 * instr.ids.length;
-                byte_sequence.push(InstructionType.scan_until, token_id, instr.ids.length, ...convertTokenIDsToSymbolIds(instr.ids, grammar));
+                instruction_sequence.push(InstructionType.scan_until, token_id, instr.ids.length, ...convertTokenIDsToSymbolIds(instr.ids, grammar));
                 break;
 
             case InstructionType.pop:
                 byte_length += 4;
-                byte_sequence.push(InstructionType.pop, instr.len);
+                instruction_sequence.push(InstructionType.pop, instr.len);
                 break;
 
             case InstructionType.left_most:
                 byte_length += 4;
-                byte_sequence.push(InstructionType.left_most);
+                instruction_sequence.push(InstructionType.left_most);
                 break;
 
             case InstructionType.reduce:
                 byte_length += 4;
-                byte_sequence.push(InstructionType.reduce, instr.len, instr.reduce_fn);
+                instruction_sequence.push(InstructionType.reduce, instr.len, instr.reduce_fn);
                 break;
 
             case InstructionType.repeat:
                 byte_length += 4;
-                byte_sequence.push(InstructionType.repeat);
+                instruction_sequence.push(InstructionType.repeat);
                 break;
         }
     }
 
-    byte_sequence.push("end");
-    byte_length += 4;
+    const last = instruction_sequence.slice().pop();
 
-    return { byte_length, byte_sequence };
+    if (last != InstructionType.pass && last != InstructionType.fail) {
+        instruction_sequence.push("end");
+        byte_length += 4;
+    }
+
+
+    return { byte_length, byte_sequence: instruction_sequence };
 }
 
 function getStateName(
@@ -700,24 +728,14 @@ function statesOutputsBuildPass(StateMap: StateMap, grammar: GrammarObject, sym_
             //create a meta lookup instruction
 
             const expected = expected_tokens.concat(skipped_tokens).setFilter().sort(numeric_sort);
+
             const skipped = skipped_tokens.setFilter().sort(numeric_sort);
 
-            if (expected.length > 0) {
-                const id_string = getSymbolMapFromIds(expected, grammar).map(i => (i >>> 0) + "").join('_');
-                if (!sym_map.has(id_string))
-                    sym_map.set(id_string, sym_map.size);
+            if (expected.length > 0)
+                tok_id = createSymMapId(expected, grammar, sym_map);
 
-                tok_id = sym_map.get(id_string);
-            }
-
-            if (skipped.length > 0) {
-                const id_string = getSymbolMapFromIds(skipped, grammar).map(i => (i >>> 0) + "").join('_');
-
-                if (!sym_map.has(id_string))
-                    sym_map.set(id_string, sym_map.size);
-
-                skip_id = sym_map.get(id_string);
-            }
+            if (skipped.length > 0)
+                skip_id = createSymMapId(skipped, grammar, sym_map);
         }
 
         state_data.block_offset = total_instruction_byte_size;
@@ -725,16 +743,16 @@ function statesOutputsBuildPass(StateMap: StateMap, grammar: GrammarObject, sym_
         if ((attributes & (StateAttrib.PROD_BRANCH)) > 0) {
             const
 
-                table_block_info = buildJumpTableBranchBlock(
-                    state_ast, attributes, tok_id, skip_id, "production", "peek", grammar
+                jump_block_info = buildJumpTableBranchBlock(
+                    state_ast, attributes, tok_id, skip_id, "production", "peek", grammar, sym_map
                 ),
 
-                scan_block_info = buildHashTableBranchBlock(
-                    state_ast, attributes, tok_id, skip_id, "production", "peek", grammar
+                hash_block_info = buildHashTableBranchBlock(
+                    state_ast, attributes, tok_id, skip_id, "production", "peek", grammar, sym_map
                 ),
 
-                block = scan_block_info ? selectBestFitBlockType(table_block_info, scan_block_info)
-                    : table_block_info;
+                block = hash_block_info ? selectBestFitBlockType(jump_block_info, hash_block_info)
+                    : jump_block_info;
 
             total_instruction_byte_size += block.total_size;
 
@@ -745,16 +763,16 @@ function statesOutputsBuildPass(StateMap: StateMap, grammar: GrammarObject, sym_
             const
                 lexer_state = (attributes & (StateAttrib.PEEK_BRANCH)) ? "peek" : "assert",
 
-                table_block_info = buildJumpTableBranchBlock(
-                    state_ast, attributes, tok_id, skip_id, "token", lexer_state, grammar
+                jump_block_info = buildJumpTableBranchBlock(
+                    state_ast, attributes, tok_id, skip_id, "token", lexer_state, grammar, sym_map
                 ),
 
-                scan_block_info = buildHashTableBranchBlock(
-                    state_ast, attributes, tok_id, skip_id, "token", lexer_state, grammar
+                hash_block_info = buildHashTableBranchBlock(
+                    state_ast, attributes, tok_id, skip_id, "token", lexer_state, grammar, sym_map
                 ),
 
-                block = scan_block_info ? selectBestFitBlockType(table_block_info, scan_block_info)
-                    : table_block_info;
+                block = hash_block_info ? selectBestFitBlockType(jump_block_info, hash_block_info)
+                    : jump_block_info;
 
             total_instruction_byte_size += block.total_size;
 
@@ -762,7 +780,7 @@ function statesOutputsBuildPass(StateMap: StateMap, grammar: GrammarObject, sym_
 
         } else {
 
-            const block_info = buildBasicInstructionBlock(state_ast, tok_id, skip_id, grammar);
+            const block_info = buildBasicInstructionBlock(state_ast, tok_id, skip_id, grammar, sym_map);
 
             total_instruction_byte_size += block_info.total_size;
 
@@ -776,7 +794,7 @@ function statesOutputsBuildPass(StateMap: StateMap, grammar: GrammarObject, sym_
 
     }
 
-    const out_buffer = [0, 0];
+    const out_buffer = [0 << 28, 15 << 28]; // The pass and fail instructions
 
     for (const [_, { block }] of StateMap) {
 
@@ -787,6 +805,15 @@ function statesOutputsBuildPass(StateMap: StateMap, grammar: GrammarObject, sym_
 
     return out_buffer;
 }
+function createSymMapId(expected: number[], grammar: GrammarObject, sym_map: Map<string, number>) {
+    const id_string = getSymbolMapFromIds(expected, grammar).map(i => (i >>> 0) + "").join('_');
+
+    if (!sym_map.has(id_string))
+        sym_map.set(id_string, sym_map.size);
+
+    return sym_map.get(id_string);
+}
+
 function selectBestFitBlockType(jump_table_block: BlockData, hash_table_block: BlockData) {
 
     // How much bigger a jump table block is compared to a hash table block
@@ -821,7 +848,8 @@ function buildJumpTableBranchBlock(
     skip_id = 0,
     input_type: "production" | "token" = "production",
     lexer_type: "assert" | "peek" = "assert",
-    grammar: GrammarObject
+    grammar: GrammarObject,
+    sym_map: Map<string, number>
 ): BlockData {
 
     const instructions = state_ast.instructions as ResolvedIRBranch[];
@@ -833,18 +861,18 @@ function buildJumpTableBranchBlock(
     if (standard_instructions.length == 0 && default_instruction) {
         const new_state = Object.assign({}, state_ast, { instructions: default_instruction.instructions });
 
-        return buildBasicInstructionBlock(new_state, tok_id, skip_id, grammar);
+        return buildBasicInstructionBlock(new_state, tok_id, skip_id, grammar, sym_map);
     }
     const ids = standard_instructions.flatMap(i => i.ids).sort(numeric_sort);
 
     const standard_byte_codes = standard_instructions
         .flatMap(({ ids, instructions, type }) => {
 
-            const instr = createInstructionSequence(instructions, grammar, tok_id, skip_id);
+            const instr = createInstructionSequence(instructions, grammar, tok_id, skip_id, sym_map);
             return ids.map(i => ({ id: i, code: instr }));
         });
 
-    const max_instruction_byte_size = (standard_byte_codes.map(i => i.code.byte_length).sort(numeric_sort).pop());
+    let max_instruction_byte_size = (standard_byte_codes.map(i => i.code.byte_length).sort(numeric_sort).pop());
 
     const number_of_rows = 1 + ids[ids.length - 1] - ids[0];
 
@@ -875,10 +903,25 @@ function buildJumpTableBranchBlock(
     const { use_peek_for_assert_or_consume, consume_peek }
         = getPeekConsumptionFlags(attributes, state_ast);
 
+
+    if (default_instruction) {
+
+        const default_data = createInstructionSequence(default_instruction.instructions, grammar, tok_id, skip_id, sym_map);
+
+        if (default_data.byte_length > max_instruction_byte_size)
+            max_instruction_byte_size = default_data.byte_length;
+
+        table_entries.unshift(default_data.byte_sequence);
+
+    } else {
+
+        table_entries.unshift(["fail"]);
+    }
+
     const row_size = max_instruction_byte_size / 4;
 
     instruction_sequence.push(
-        ["table",
+        createTableInstruction(
             input_type,
             lexer_type,
             use_peek_for_assert_or_consume,
@@ -888,31 +931,40 @@ function buildJumpTableBranchBlock(
             basis,
             number_of_rows,
             row_size,
-            table_entries,]
+            table_entries
+        )
     );
-
-    if (default_instruction) {
-
-        const default_data = createInstructionSequence(default_instruction.instructions, grammar, tok_id, skip_id);
-
-        instruction_sequence.push(default_data.byte_sequence);
-
-        return {
-            number_of_elements: number_of_rows,
-            instruction_sequence,
-            total_size: get8AlignedOffset(base_size + default_data.byte_length + max_instruction_byte_size * (number_of_rows))
-        };
-    }
-
-    instruction_sequence.push(["fail"]);
-
-    base_size += 4;
 
     return {
         number_of_elements: number_of_rows,
         instruction_sequence,
-        total_size: get8AlignedOffset(base_size + max_instruction_byte_size * (number_of_rows))
+        total_size: get8AlignedOffset(base_size + max_instruction_byte_size * (number_of_rows + 1))
     };
+}
+
+function createTableInstruction(
+    input_type: "production" | "token" = "production",
+    lexer_type: "assert" | "peek" = "assert",
+    use_peek_for_assert_or_consume: boolean,
+    consume_peek: boolean,
+    skip_id: number,
+    tok_id: number,
+    basis: number,
+    number_of_rows: number,
+    row_32bit_size: number,
+    table_entries: any[]
+): any {
+    return ["table",
+        input_type,
+        lexer_type,
+        use_peek_for_assert_or_consume,
+        consume_peek,
+        skip_id,
+        tok_id,
+        basis,
+        number_of_rows,
+        row_32bit_size,
+        table_entries,];
 }
 
 function buildHashTableBranchBlock(
@@ -922,7 +974,8 @@ function buildHashTableBranchBlock(
     skip_id = 0,
     input_type: "production" | "token" = "production",
     lexer_type: "assert" | "peek" = "assert",
-    grammar: GrammarObject
+    grammar: GrammarObject,
+    sym_map: Map<string, number>
 ): BlockData {
 
     const instructions = state_ast.instructions as ResolvedIRBranch[];
@@ -932,7 +985,7 @@ function buildHashTableBranchBlock(
 
     if (standard_instructions.length == 0 && default_instruction) {
         const new_state = Object.assign({}, state_ast, { instructions: default_instruction.instructions });
-        return buildBasicInstructionBlock(new_state, tok_id, skip_id, grammar);
+        return buildBasicInstructionBlock(new_state, tok_id, skip_id, grammar, sym_map);
     }
 
     let instruction_field_byte_size = 0;
@@ -940,7 +993,7 @@ function buildHashTableBranchBlock(
     const standard_byte_codes = standard_instructions
         .map(({ instructions, type, ids }) => {
 
-            const instr = createInstructionSequence(instructions, grammar, tok_id, skip_id);
+            const instr = createInstructionSequence(instructions, grammar, tok_id, skip_id, sym_map);
 
             //@ts-expect-error
             instr.pointer = instruction_field_byte_size / 4;
@@ -1003,7 +1056,7 @@ function buildHashTableBranchBlock(
 
     if (default_instruction) {
 
-        const default_data = createInstructionSequence(default_instruction.instructions, grammar, tok_id, skip_id);
+        const default_data = createInstructionSequence(default_instruction.instructions, grammar, tok_id, skip_id, sym_map);
 
         instruction_sequence.push(default_data.byte_sequence);
 
@@ -1024,11 +1077,17 @@ function buildHashTableBranchBlock(
         total_size: get8AlignedOffset(base_byte_size + instruction_field_byte_size + scan_field_length * 4)
     };
 }
-function buildBasicInstructionBlock(state_ast: Resolved_IR_State, tok_id = 0, skip_id = 0, grammar: GrammarObject): BlockData {
+function buildBasicInstructionBlock(
+    state_ast: Resolved_IR_State,
+    tok_id = 0,
+    skip_id = 0,
+    grammar: GrammarObject,
+    sym_map: Map<string, number>
+): BlockData {
 
     const increment_stack_pointer_for_failure = !!state_ast.fail;
 
-    let { byte_length, byte_sequence } = createInstructionSequence(state_ast.instructions, grammar, tok_id, skip_id);
+    let { byte_length, byte_sequence } = createInstructionSequence(state_ast.instructions, grammar, tok_id, skip_id, sym_map);
 
 
     const instruction_sequence = [byte_sequence];
