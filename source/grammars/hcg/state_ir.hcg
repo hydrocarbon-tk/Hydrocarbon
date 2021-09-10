@@ -104,11 +104,12 @@
                                             
                                             f:r { { type:"fork-to", states: $4, pos  } }
 
+    |   t:decide \( state_reference(+\, ) \)
+                                            
+                                            f:r { { type:"decide", states: $4, pos  } }
+
     |   t:scan t:back? t:until token_id_list
                                             f:r { { type: $$2 ? "scan-back-until" : "scan-until", ids: $4, pos } }
-
-    |   t:pop g:num
-                                            f:r { { type:"pop", len: parseInt($2), pos  } }
 
     |   t:set t:token t:length g:num
                                             f:r { { type:"token-length", len: parseInt($4), pos  } }

@@ -42,13 +42,13 @@
                                                                         }
                                                                     }
 
-     | js_function_start_symbol ( t:return | \r ) \^  sym::identifier     
+     | js_function_start_symbol ( t:return | t:r ) \^  sym::identifier     
                                                                      f:r { {
                                                                             type:"env-function-reference",             
                                                                             ref:$4,
                                                                         }
                                                                     }
-    | js_function_start_symbol ( t:return | \r ) \=>  sym::identifier    
+    | js_function_start_symbol ( t:return | t:r ) \=>  sym::identifier    
                                                                     f:r { {
                                                                             type:"local-function-reference",             
                                                                             ref:$4,
