@@ -12,7 +12,7 @@ import { getClosure } from "../utilities/closure.js";
 import { Item } from "../utilities/item.js";
 import { getProductionClosure } from '../utilities/production.js';
 import { getStartItemsFromProduction } from "./get_start_items_from_production.js";
-import { OutOfScopeItemState } from './magic_numbers.js';
+import { GlobalState, OutOfScopeItemState } from './magic_numbers.js';
 
 
 export function getGotoSTARTs(
@@ -41,8 +41,13 @@ export function getGotoSTARTs(
 
             if (
                 id == production.id
-                //&&
-                //lr_items.get(id).some(i => i.increment().atEND)
+                &&
+                (true ||
+                    lr_items.get(id).some(i => i.increment().atEND)
+                    ||
+                    lr_items.get(id).group(i => i.getProductionID(grammar)).length > 1
+                )
+
             ) {
 
                 // This is responsible for generating items that 
