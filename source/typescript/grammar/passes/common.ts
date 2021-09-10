@@ -18,7 +18,7 @@ import {
 } from "../nodes/common.js";
 import { default_array } from "../nodes/default_symbols.js";
 import { hcg3_mappings } from "../nodes/mappings.js";
-import { getUniqueSymbolName, Sym_Is_A_Production, Sym_Is_A_Production_Token, Sym_Is_A_Token, Sym_Is_Defined, Sym_Is_EOF, Sym_Is_EOP, Sym_Is_Exclusive, Sym_Is_Look_Behind } from "../nodes/symbol.js";
+import { getUniqueSymbolName, Symbols_Are_The_Same, Sym_Is_A_Production, Sym_Is_A_Production_Token, Sym_Is_A_Token, Sym_Is_Defined, Sym_Is_EOF, Sym_Is_EOP, Sym_Is_Exclusive, Sym_Is_Look_Behind } from "../nodes/symbol.js";
 import { InstructionType, IR_Instruction, IR_State } from '../../types/ir_types';
 let renderers = null;
 export const render = (grammar_node) => {
@@ -274,8 +274,10 @@ export function createCollisionMatrix(grammar: GrammarObject) {
             } else if (Sym_Is_A_Production(symB)) {
                 continue;
             }
-
-            if (Symbols_Are_Ambiguous(symA, symB, grammar)) {
+            if (Sym_Is_Defined(symA) && Sym_Is_Defined(symB) &&
+                symA.val == symB.val && !Symbols_Are_The_Same(symB, symA)) {
+                j[symB.id] = (!!1);
+            } else if (Symbols_Are_Ambiguous(symA, symB, grammar)) {
                 j[symB.id] = (!!1);
             } else {
                 j[symB.id] = (!!0);
@@ -287,6 +289,7 @@ export function createCollisionMatrix(grammar: GrammarObject) {
 }
 
 function Symbols_Are_Ambiguous(symA, symB, grammar) {
+
     for (const node of getSymbolTreeLeaves(getSymbolTree([symA, symB], grammar))) {
         if (node.symbols.length > 1 && node.offset > 0) {
             if (node.symbols.filter(Sym_Is_Exclusive).length > 0)

@@ -278,6 +278,12 @@ function mergeGroupsWithOccludingSymbols(grouped_roots: Map<string, TransitionFo
             Sym_Is_A_Production_Token(incoming_sym)
             ||
             Sym_Is_A_Generic_Identifier(incoming_sym)
+            ||
+            (
+                Sym_Is_Defined_Identifier(incoming_sym)
+                &&
+                Sym_Is_Exclusive(incoming_sym)
+            )
             //||
             //Sym_Is_A_Generic_Symbol(incoming_sym)
         )
@@ -317,6 +323,9 @@ function mergeGroupsWithOccludingSymbols(grouped_roots: Map<string, TransitionFo
                             //Remove states to prevent symbol overlapping
                             .map(g => Object.assign({}, g, { states: [] }))
                     );
+
+                    if (Sym_Is_Exclusive(incoming_sym))
+                        grouped_roots.delete(key);
                 }
             }
     }
