@@ -77,19 +77,19 @@ export const ir_state_mappings: NodeMappings<IRNode, "type"> = <NodeMappings<IRN
         <NodeMapping<IRAssert>>{
             type: "assert",
             child_keys: [],
-            template: "assert o:s \\[ o:s @ids...[o:s] o:s \\] \\( i:s o:n @instructions...[ o:s \\then o:s ] i:e o:n \\) "
+            template: "assert o:s \\[ o:s @ids...[o:s] o:s \\] \\( i:s o:n @instructions...[ o:n \\then o:n ] i:e o:n \\) "
         },
 
         <NodeMapping<IRPeek>>{
             type: "peek",
             child_keys: [],
-            template: "peek o:s \\[ o:s @ids...[o:s] o:s \\] \\( i:s o:n @instructions...[ o:s \\then o:s ] i:e o:n \\) "
+            template: "peek o:s \\[ o:s @ids...[o:s] o:s \\] \\( i:s o:n @instructions...[ o:n \\then o:n ] i:e o:n \\) "
         },
 
         <NodeMapping<IRProductionBranch>>{
             type: "prod",
             child_keys: [],
-            template: "on o:s prod o:s \\[ o:s @ids...[o:s] o:s \\] \\( i:s o:n @instructions...[ o:s \\then o:s ] i:e o:n \\) "
+            template: "on o:s prod o:s \\[ o:s @ids...[o:s] o:s \\] \\( i:s o:n @instructions...[ o:n \\then o:n ] i:e o:n \\) "
         },
 
         <NodeMapping<IRPass>>{

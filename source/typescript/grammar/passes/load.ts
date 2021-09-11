@@ -3,6 +3,7 @@ import { ProductionFunction, GrammarObject } from "../../types/grammar_nodes";
 import loader from "../hcg_parser.js";
 import { default_map } from "../../utilities/default_map.js";
 import { HCGParser } from "../../types/parser";
+import { Logger } from '../../runtime/logger.js';
 
 /**
  * Entry point to loading a grammar from a string
@@ -11,6 +12,8 @@ import { HCGParser } from "../../types/parser";
  * @returns
  */
 await URI.server();
+
+const grammar_logger = Logger.get("MAIN").createLogger("GRAMMAR");
 
 const parser = await loader;
 export function loadGrammarFromString(str: string, grammar_parser: HCGParser = parser): GrammarObject {
@@ -76,9 +79,11 @@ async function loadGrammar(uri: URI, grammar_parser: any = parser, existing_gram
 
     const str = await uri.fetchText();
 
-    console.log(`Grammar: Loading ${uri}`);
+    grammar_logger.debug(`Loading ${uri}`);
 
     const grammar = loadGrammarFromString(str, grammar_parser);
+
+    grammar_logger.debug(`Loaded ${uri}. ${grammar.productions.length} productions identified`);
 
     grammar.URI = uri + "";
 

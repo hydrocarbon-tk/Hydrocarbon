@@ -9,5 +9,6 @@ import { LocalWorker } from "../build/workers/local_worker";
 export type WorkerContainer = {
     target: Worker | LocalWorker;
     id: number;
+    time: number;
     READY: boolean;
 };

@@ -3,6 +3,7 @@
  * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
  * disclaimer notice.
  */
+import { Logger } from '../runtime/logger.js';
 import { sk, skRenderAsJavaScript, skRenderAsRust } from "../skribble/skribble.js";
 import { SKExpression, SKNode } from "../skribble/types/node.js";
 import { GrammarObject } from "../types/grammar_nodes.js";
@@ -17,11 +18,14 @@ export interface BuildPack {
     states_map: StateMap;
 }
 
+const render_logger = Logger.get("MAIN").createLogger("RENDER");
+
 export function renderToCPP(
     { grammar, state_buffer, sym_map, states_map }: BuildPack,
 ) {
 
 }
+
 
 export function renderToRust(
     { grammar, state_buffer, sym_map, states_map }: BuildPack,
@@ -141,6 +145,7 @@ pub fn parse(string_data: &[u8], entry_point:EntryPoint) -> OptionedBoxedASTRef<
 export function renderToJavaScript(
     { grammar, state_buffer, sym_map, states_map }: BuildPack,
 ) {
+    render_logger.log("Rendering JS File");
     const entry_pointers = grammar.productions.filter(p => p.IS_ENTRY).map(p => ({ name: p.entry_name, pointer: states_map.get(p.name).pointer }));
     //Attempt to parse input
     const token_lookup_functions = extractAndReplaceTokenMapRefs(getSymbolScannerFunctions(grammar)
@@ -269,6 +274,8 @@ ${entry_pointers.map(({ name }, i) => `        ${name}:${i}`).join(",\n")},
                 const { pointer } = states_map.get(sub);
                 return pointer + "";
             });
+
+    render_logger.log("JS File Rendering Complete");
 
     return script;
 }

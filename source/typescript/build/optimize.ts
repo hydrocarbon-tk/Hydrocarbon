@@ -4,6 +4,7 @@
  * disclaimer notice.
  */
 import { Sym_Is_A_Production_Token } from '../grammar/nodes/symbol.js';
+import { Logger } from '../runtime/logger.js';
 import { GrammarObject, ProductionImportSymbol, ProductionSymbol } from '../types/grammar_nodes';
 import { IRStateData, StateAttrib, StateMap } from '../types/ir_state_data';
 import { InstructionType, IRAssert, IRGoto, IRInlineAssert, IRPeek, IRProductionBranch, IRSetProd, IR_Instruction, IR_State } from '../types/ir_types';
@@ -20,6 +21,8 @@ function getStateName(
     return name_candidate.name;
 }
 
+const optimize_logger = Logger.get("MAIN").createLogger("OPTIMIZER");
+
 function optimizeState(state: IRStateData, states: StateMap) {
 
     let MODIFIED = false;
@@ -27,6 +30,8 @@ function optimizeState(state: IRStateData, states: StateMap) {
     const { attributes, ir_state_ast, } = state;
 
     const { id } = ir_state_ast;
+
+    const root_id = id;
 
     /**
      * Replace
@@ -80,6 +85,8 @@ function optimizeState(state: IRStateData, states: StateMap) {
 
                         sub_instructions.push(...ir_state_ast.instructions[0].instructions, ...cache);
 
+                        optimize_logger.debug(`${goto.state} inlined into ${root_id}`);
+
                         MODIFIED = true;
                     }
                 }
@@ -124,6 +131,8 @@ function optimizeState(state: IRStateData, states: StateMap) {
                         sub_instructions.splice(i, 1, ...ir_state_ast.instructions);
 
                         MODIFIED = true;
+
+                        optimize_logger.debug(`${goto.state} inlined into ${root_id}`);
                     }
 
                     break;
@@ -188,6 +197,8 @@ function optimizeState(state: IRStateData, states: StateMap) {
 
                         sub_instructions.splice(i, 1, inline_assert, ...assert.instructions);
 
+                        optimize_logger.debug(`State ${goto.state} replaced with inline assertion in ${root_id}`);
+
                         MODIFIED = true;
                     }
 
@@ -233,6 +244,8 @@ function optimizeState(state: IRStateData, states: StateMap) {
                     sub_instructions.splice(i, 1, ...ir_state_ast.instructions);
 
                     MODIFIED = true;
+
+                    optimize_logger.debug(`${goto.state} inlined into ${root_id}`);
                 }
 
                 break;
@@ -270,6 +283,8 @@ function optimizeState(state: IRStateData, states: StateMap) {
                     pos: gotos[0].pos
                 });
 
+                optimize_logger.debug(`Goto ${gotos[0].state} replaced with repeat in ${root_id}`);
+
                 MODIFIED = true;
             }
         }
@@ -287,10 +302,10 @@ function optimizeState(state: IRStateData, states: StateMap) {
     if (attributes & StateAttrib.TOKEN_BRANCH || attributes & StateAttrib.PROD_BRANCH) {
         for (const instruction of ir_state_ast.instructions) {
             const candidate = <IRProductionBranch | IRPeek | IRAssert>instruction;
-            removeRedundantProdSet(candidate);
+            removeRedundantProdSet(candidate, ir_state_ast);
         }
     } else {
-        removeRedundantProdSet(ir_state_ast);
+        removeRedundantProdSet(ir_state_ast, ir_state_ast);
     }
 
     /**
@@ -312,7 +327,11 @@ function optimizeState(state: IRStateData, states: StateMap) {
             const sub_instructions = instruction.instructions;
 
             if (sub_instructions.length == 1 && sub_instructions[0].type == InstructionType.fail) {
+
                 ir_state_ast.instructions.splice(i, 1);
+
+                optimize_logger.debug(`Redundant fail branch removed in ${root_id}`);
+
                 MODIFIED = true;
             }
         }
@@ -329,7 +348,7 @@ function optimizeState(state: IRStateData, states: StateMap) {
      * 
      *  (prod)[X] => instr...;
      * 
-     *  if set-prod(X) is only instruction of its type 
+     *  if set-prod(X) is the only instruction of its type 
      * 
      *  and (prod)[X] has no goto instructions
      */
@@ -350,7 +369,11 @@ function optimizeState(state: IRStateData, states: StateMap) {
                 sub_instructions.filter(i => i.type == InstructionType.goto).length == 0
             ) {
                 const index = prods[0][1];
+
                 sub_instructions.splice(index, 1);
+
+                optimize_logger.debug(`1 redundant production assignment removed in ${root_id}`);
+
                 MODIFIED = true;
             }
         }
@@ -406,6 +429,8 @@ function optimizeState(state: IRStateData, states: StateMap) {
 
                 state.attributes |= attributes;
 
+                optimize_logger.debug(`${root_id} upgraded to branch state from ${first_goto.state}`);
+
                 MODIFIED = true;
             }
         }
@@ -416,7 +441,7 @@ function optimizeState(state: IRStateData, states: StateMap) {
     return MODIFIED;
 }
 
-function removeRedundantProdSet(candidate: IR_State | IRProductionBranch | IRPeek | IRAssert) {
+function removeRedundantProdSet(candidate: IR_State | IRProductionBranch | IRPeek | IRAssert, state: IR_State) {
     const instructions = candidate.instructions;
     const prod_instr = instructions.filter(i => i.type == InstructionType.set_prod);
     if (prod_instr.length > 1) {
@@ -431,17 +456,28 @@ function removeRedundantProdSet(candidate: IR_State | IRProductionBranch | IRPee
         instructions.length = 0;
 
         instructions.push(...regular_instructions, prod_instr.pop(), ...goto_instructions);
+
+        optimize_logger.debug(`${prod_instr.length} redundant production${prod_instr.length > 1 ? "s" : ""} assignment removed in ${state.id}`);
     }
 }
 
 export function optimize(StateMap: StateMap, grammar: GrammarObject) {
 
+    optimize_logger.debug(`---------------- Processing States ----------------`);
+
     let MODIFIED = false;
 
-    for (const [, state] of StateMap)
-        MODIFIED ||= optimizeState(state, StateMap);
+    for (const [, state] of StateMap) {
+
+        const result = optimizeState(state, StateMap);
+
+        MODIFIED ||= result;
+    }
 
     garbageCollect(StateMap, grammar);
+
+    if (!MODIFIED)
+        optimize_logger.debug(`---------------- Processing Completed ----------------`);
 
     return MODIFIED;
 }
@@ -500,8 +536,11 @@ export function garbageCollect(StateMap: StateMap, grammar: GrammarObject,) {
         }
     }
 
+
+    optimize_logger.debug(`---------------- Removing unreferenced states ----------------`);
     for (const [name, marked] of marked_map) {
         if (!marked) {
+            optimize_logger.debug(`Removing state ${name}`);
             StateMap.delete(name);
         }
     }

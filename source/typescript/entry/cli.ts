@@ -22,6 +22,7 @@ import { createBuildPack } from "../build/build.js";
 import { compileGrammarFromURI } from "../grammar/compile.js";
 import { createCompilableCode } from "../grammar/passes/process_compiled_code.js";
 import { renderToJavaScript } from '../render/render.js';
+import { Logger, LogLevel } from '../runtime/logger.js';
 
 
 await URL.server();
@@ -169,6 +170,16 @@ addCLIConfig("compile", {
     Compile new parser from a hydrocarbon grammar source file (.hcg)
 `
 }).callback = (async (args) => {
+
+    const cli_logger = Logger.get("MAIN");
+
+    cli_logger.name = "cli-compile";
+
+    //cli_logger.deactivate();
+
+    cli_logger.activate(LogLevel.INFO | LogLevel.ERROR);
+
+
     try {
 
         const
@@ -185,7 +196,7 @@ addCLIConfig("compile", {
                 process.exit();
             }
 
-        cli_log(`Compiling grammar`);
+        cli_logger.log(`Compiling grammar`);
 
         const
             threads = parseInt(number_of_workers.value ?? "1"),
@@ -197,14 +208,15 @@ addCLIConfig("compile", {
             // hence the if gate.
             createCompilableCode(grammar);
 
-        cli_log("Completed grammar compilation");
 
-        cli_log(`Starting recognizer compilation with ${number_of_workers.value || 1} threads`);
+        cli_logger.log("Completed grammar compilation");
+
+        cli_logger.log(`Starting recognizer compilation with ${number_of_workers.value || 1} threads`);
 
         // Compile recognizer code
         const build_pack = await createBuildPack(grammar, threads);
 
-        cli_log("Completed recognizer compilation");
+        cli_logger.log("Completed recognizer compilation");
 
         switch (type.value) {
             case "c++":
@@ -289,7 +301,7 @@ mod spec_parser;
 
                 await fsp.mkdir(output_path.path + "", { recursive: true });
 
-                cli_log(`Writing file to ${file_uri + ""}`);
+                cli_logger.log(`Writing file to ${file_uri + ""}`);
 
                 await fsp.writeFile(file_uri + "", script);
 
@@ -298,9 +310,9 @@ mod spec_parser;
                 break;
         }
 
-        cli_log("Process complete");
+        cli_logger.log("Process complete");
     } catch (e) {
-        cli_log(e);
+        cli_logger.error(e);
     }
 });
 

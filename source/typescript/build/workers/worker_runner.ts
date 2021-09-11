@@ -4,11 +4,15 @@
  * disclaimer notice.
  */
 import URI from '@candlelib/uri';
-import { GrammarObject } from "source/typescript/types/grammar_nodes.js";
+import { Logger } from '../../runtime/logger.js';
+import { GrammarObject } from "../../types/grammar_nodes.js";
 import { RDProductionFunction } from "../../types/rd_production_function.js";
 import { WorkerContainer } from "../../types/worker_container";
 import { HybridDispatch, HybridDispatchResponse, HybridJobType } from "../../types/worker_messaging.js";
 import { LocalWorker } from "./local_worker.js";
+
+const build_logger = Logger.get("MAIN").createLogger("Worker-Runner");
+
 export class WorkerRunner {
     grammar: GrammarObject;
     RUN: boolean;
@@ -43,7 +47,11 @@ export class WorkerRunner {
 
         const { states, production_id } = response;
 
+        const time = performance.now() - worker.time;
+
         const production_name = this.grammar.productions[production_id].name;
+
+        build_logger.debug(`Built ${states.size} States For ${production_name} in ${time}ms`);
 
         for (const [key, val] of states.entries()) {
 
@@ -79,6 +87,9 @@ export class WorkerRunner {
                     }
                 });
 
+
+        build_logger.log(`Creating ${this.number_of_workers} worker${this.number_of_workers > 1 ? "s" : ""} with worker class [${workerClass.name}]`);
+
         this.workers = (new Array(this.number_of_workers))
             .fill(0)
             .map((obj) => (obj = <WorkerContainer>{
@@ -95,7 +106,7 @@ export class WorkerRunner {
             wkr => {
 
                 wkr.target.on("error", e => {
-                    console.log({ e });
+                    build_logger.error(e);
                     this.RUN = false;
                 });
 
@@ -125,19 +136,25 @@ export class WorkerRunner {
 
                         if (production_id > 0) {
 
+
                             JOB.job_type = HybridJobType.CONSTRUCT_RD_FUNCTION;
                             //@ts-ignore
                             JOB.production_id = production_id - 1;
 
                             this.to_process_rd_fn[i] = 0;
                             this.IN_FLIGHT_JOBS++;
+
                             break;
                         }
                     }
 
                     if (JOB.job_type != HybridJobType.UNDEFINED) {
+                        //@ts-ignore
+                        build_logger.debug(`Building States For ${this.grammar.productions[JOB.production_id].name}`);
+
                         worker.READY = false;
                         worker.target.postMessage(JOB);
+                        worker.time = performance.now();
                     } else {
                         break;
                     }

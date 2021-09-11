@@ -10,6 +10,7 @@ import { getProductionByName } from '../grammar/nodes/common.js';
 import { getRootSym, Sym_Is_A_Token } from '../grammar/nodes/symbol.js';
 import { BuildPack } from "../render/render.js";
 import { fail_state_mask } from '../runtime/kernel.js';
+import { Logger } from '../runtime/logger.js';
 import { GrammarObject, ProductionImportSymbol, ProductionSymbol, TokenSymbol } from "../types/grammar_nodes";
 import { IRStateData, StateAttrib, StateMap } from '../types/ir_state_data';
 import { BlockData, InstructionType, IR_Instruction, ResolvedIRBranch, Resolved_IR_State } from '../types/ir_types';
@@ -20,6 +21,9 @@ import { renderIRNode } from './render_ir_state.js';
 
 const ir_parser = await parser_loader;
 export const default_case_indicator = 9999;
+
+const build_logger = Logger.get("MAIN").createLogger("COMPILER");
+
 export async function createBuildPack(
     grammar: GrammarObject,
     number_of_workers: number = 1
@@ -27,9 +31,16 @@ export async function createBuildPack(
 
     const
         mt_code_compiler = new WorkerRunner(grammar, number_of_workers);
-
-    for await (const updates of mt_code_compiler.run())
-        await spark.sleep(1);
+    let old_val = -1;
+    for await (const updates of mt_code_compiler.run()) {
+        if (!updates.COMPLETE) {
+            const val = Math.round(updates.v.reduce((r, i) => r + (i == 0 ? 1 : 0), 0) * 100 / updates.v.length);
+            if (val != old_val)
+                build_logger.debug(`Runner update ${val}%`);
+            old_val = val;
+            await spark.sleep(10);
+        }
+    }
 
     const ir_states = [...mt_code_compiler.states.entries()];
 
@@ -45,7 +56,7 @@ export async function createBuildPack(
                         .result[0];
                     return [str, ir_state];
                 } catch (e) {
-                    console.log(hash, str);
+                    console.debug(hash, str);
                     throw e;
                 }
             }
@@ -89,20 +100,33 @@ export async function createBuildPack(
 
     let original_states = new Map(states_map);
 
+    build_logger.log(`Created ${prev_size} raw parse states`);
+
     if (OPTIMIZE) {
+
+        build_logger.debug("Optimizing States");
+
+        let round = 0;
+
+        build_logger.debug(`Optimizing State round ${++round}`);
         while (optimize(states_map, grammar)) {
-
-            console.log(`reduction ratio ${Math.round((1 - (states_map.size / prev_size)) * 100)}% - prev size ${prev_size} - current size ${states_map.size}`);
-
+            build_logger.debug(`Reduction ratio ${Math.round((1 - (states_map.size / prev_size)) * 100)}%`);
             prev_size = states_map.size;
+            build_logger.debug(`Optimizing State round ${++round}`);
         }
 
         prev_size = original_states.size;
 
-        console.log(`Total reduction ratio ${Math.round((1 - (states_map.size / prev_size)) * 100)}% - prev size ${prev_size} - current size ${states_map.size}`);
+        build_logger.debug(`Reduced ${prev_size} raw states to ${states_map.size} optimized states`);
+
+        build_logger.debug(`Total reduction ratio ${Math.round((1 - (states_map.size / prev_size)) * 100)}%`);
+
+        build_logger.log(`Optimized ${states_map.size} in ${round - 1} rounds`);
     }
 
     //Render state strings for later reference
+
+
 
     for (const [, state_data] of states_map) {
         state_data.string = (state_data.string.match(/\/\*[^\*]+\*\//sm)?.[0] ?? "")
@@ -115,7 +139,9 @@ export async function createBuildPack(
 
     const state_buffer = new Uint32Array(statesOutputsBuildPass(states_map, grammar, sym_map));
 
-    console.log(`Buffer size = ${state_buffer.length * 4}bytes`);
+    build_logger.log(`Parse states have been compiled into a ${state_buffer.length * 4}byte states buffer.`);
+
+    build_logger.debug(`Outputting BuildPack`);
 
     return <BuildPack>{
         grammar,

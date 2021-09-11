@@ -20,8 +20,6 @@ export const alpha_have_default_action_mask = 1 << 1;
 export const alpha_auto_accept_with_peek_mask = 1 << 16;
 export const alpha_auto_consume_with_peek_mask = 1 << 17;
 
-const log = console.log;
-
 type ScannerFunction = (l: Lexer, i: u32, j: u32) => void;
 
 export interface KernelStateType {
@@ -1289,7 +1287,7 @@ export function run(
         scanner_function
     );
 
-    //Logger.get("HC-Kernel-Debug").deactivate();
+    Logger.get("HC-Kernel-Debug").deactivate();
 
     state.state_stack[0] = 0;
     state.push_state(state_pointer);
