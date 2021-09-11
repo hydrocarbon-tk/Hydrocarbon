@@ -12,7 +12,7 @@ import { GrammarObject, TokenSymbol } from '../types/grammar_nodes';
 import { TransitionForestStateA, TransitionStateType } from "../types/transition_tree_nodes";
 import { getClosure } from "../utilities/closure.js";
 import { Item } from "../utilities/item.js";
-import { end_item_addendum } from './magic_numbers.js';
+import { end_item_addendum, GlobalState } from './magic_numbers.js';
 import { TransitionForestOptions, TransitionForestGraph, createTransitionForestState } from './transition_tree.js';
 
 /**
@@ -189,9 +189,31 @@ export function disambiguate(
 
     let REQUIRE_MULTI_DISAMBIGUATE_NODE = false;
 
-    for (const [key, states] of grouped_roots) {
+    for (let [key, states] of grouped_roots) {
 
         let child_graph_node = null;
+
+        if (
+            states.length > 1
+            &&
+            states.some(i => i.items.some(i => i.state == 0))
+            &&
+            states.some(i => i.items.some(i => i.state == GlobalState))
+        ) {
+            //Modify states that are SHIFT/REDUCE Conflicts in favor of SHIFT
+            const shift_states = states.filter(i => i.items.some(i => i.state == 0));
+            const reduce_states = states.filter(i => i.items.some(i => i.state == GlobalState));
+            const reduce_keeps = [], shift_items = new Set(shift_states.flatMap(s => s.items.map(i => i.id)));
+
+            for (const reduce_state of reduce_states) {
+                if (reduce_state.items.some(i => shift_items.has(i.id)))
+                    continue;
+
+                reduce_keeps.push(reduce_state);
+            }
+
+            states = shift_states.concat(reduce_keeps);
+        }
 
         if (states.length > 1) {
 

@@ -217,24 +217,27 @@ function createPeekTreeStates(
 
     const root_states: TransitionForestStateA[] = [];
 
-    const active_productions = new Set(active_items
+    const active_productions = new Set([...active_items
         .filter(i => !i.atEND && Sym_Is_A_Production(i.sym(grammar)))
-        .map(i => i.getProductionAtSymbol(grammar).id));
+        .map(i => i.getProductionAtSymbol(grammar).id),
+        // ...active_items.filter(i => i.atEND).map(i => i.getProductionID(grammar))
+    ]);
 
     const LocalState = 0;
 
     const contextual_state: TransitionForestStateA = createTransitionForestState(
         TransitionStateType.START, [], LocalState, [], Object.assign({},
             root_peek_state, {
-            items: root_peek_state.items.filter(
-                i => !Sym_Is_A_Production(i.sym(grammar))
-                    ||
-                    !(
-                        active_productions.has(i.getProductionAtSymbol(grammar).id)
+            items: root_peek_state.items
+                .filter(
+                    i => !Sym_Is_A_Production(i.sym(grammar))
                         ||
-                        active_productions.has(i.getProductionID(grammar))
-                    )
-            )
+                        !(
+                            // active_productions.has(i.getProductionAtSymbol(grammar).id)
+                            // ||
+                            active_productions.has(i.getProductionID(grammar))
+                        )
+                )
         })
     );
 
