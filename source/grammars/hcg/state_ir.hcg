@@ -53,13 +53,13 @@
 
 <> instruction_sequence > 
 
-        sequence_instruction(+ \then ) 
-        ( \then goto_instruction(+ \then ) )? 
+        sequence_instruction(+ t:then ) 
+        ( \then goto_instruction(+ t:then ) )? 
         ( \then t:repeat t:state f:r{ { type:"repeat-state" } } )? 
         
                                             f:r{ [...$1, ...$2, $3] }
 
-    |   goto_instruction(* \then ) ( \then t:repeat t:state f:r{ { type:"repeat-state", pos } } )? 
+    |   goto_instruction(* t:then ) ( t:then t:repeat t:state f:r{ { type:"repeat-state", pos } } )? 
         
                                             f:r{ [...$1, $2] }
 

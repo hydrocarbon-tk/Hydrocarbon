@@ -54,9 +54,9 @@
 # and by doing so, allow the generated parser to work multi modes depending on the exported productions. 
 # This preamble is ignored in any grammar file except the root source grammar file.
 
-#@EXPORT hydrocarbon as hc
+@EXPORT hydrocarbon as hc
 
-#@EXPORT ir::state_ir as ir
+@EXPORT ir::state_ir as ir
 
 
 # Grammar productions are normally defined by using the following syntax:
@@ -104,4 +104,4 @@
 
 # This annotated grammar definition is continued in ./preambles.hcg
 
-<> __entries__ > hydrocarbon | ir::state_ir
+# TODO: REMOVE <> __entries__ > hydrocarbon | ir::state_ir
