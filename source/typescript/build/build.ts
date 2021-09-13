@@ -34,7 +34,7 @@ export async function createBuildPack(
     let old_val = -1;
     for await (const updates of mt_code_compiler.run()) {
         if (!updates.COMPLETE) {
-            const val = Math.round(updates.v.reduce((r, i) => r + (i == 0 ? 1 : 0), 0) * 100 / updates.v.length);
+            const val = Math.round((updates.v.reduce((r, i) => r + (i == 0 ? 1 : 0), 0) - updates.jobs) * 100 / updates.v.length);
             if (val != old_val)
                 build_logger.debug(`Runner update ${val}%`);
             old_val = val;
@@ -90,7 +90,7 @@ export async function createBuildPack(
 
     const sym_map: Map<string, number> = new Map();
 
-    let OPTIMIZE = true;
+    let OPTIMIZE = false;
 
     garbageCollect(states_map, grammar);
 
@@ -281,6 +281,18 @@ function insertInstructionSequences(
 
                 } break;
 
+                case InstructionType.not_in_scopes: {
+                    let length = +data[++i];
+                    temp_buffer.push(13 << 28 | (length & 0xFFFFFFF), ...data.slice(i + 1, i + 1 + length));
+
+                    i += length;
+                } break;
+
+                case InstructionType.set_scope: {
+                    let scope = +data[++i];
+                    temp_buffer.push(8 << 28 | scope);
+                } break;
+
                 case InstructionType.scan_back_until: {
                     let token_id = +data[++i];
                     let length = +data[++i];
@@ -293,11 +305,6 @@ function insertInstructionSequences(
                     let length = +data[++i];
                     temp_buffer.push(7 << 28 | (length & 0xFFFF), token_id << 16, ...data.slice(i + 1, i + 1 + length));
                     i += length;
-                } break;
-
-                case InstructionType.pop: {
-                    let length = +data[++i];
-                    temp_buffer.push(8 << 28 | length);
                 } break;
 
                 case "table": {
@@ -480,7 +487,6 @@ function insertInstructionSequences(
             }
         }
 
-
         while (temp_buffer.length < default_block_size)
             temp_buffer.push(0);
 
@@ -592,9 +598,14 @@ function createInstructionSequence(
                 instruction_sequence.push(InstructionType.pop, instr.len);
                 break;
 
-            case InstructionType.left_most:
+            case InstructionType.set_scope:
                 byte_length += 4;
-                instruction_sequence.push(InstructionType.left_most);
+                instruction_sequence.push(InstructionType.set_scope, instr.scope);
+                break;
+
+            case InstructionType.not_in_scopes:
+                byte_length += 4 + 4 * instr.ids.length;
+                instruction_sequence.push(InstructionType.not_in_scopes, instr.ids.length, ...instr.ids);
                 break;
 
             case InstructionType.reduce:
@@ -740,7 +751,7 @@ function extractTokenSymbols(state_data: IRStateData, grammar: GrammarObject) {
 
 function statesOutputsBuildPass(StateMap: StateMap, grammar: GrammarObject, sym_map: Map<string, number> = new Map(),) {
 
-    let total_instruction_byte_size = 8; // Ensure the zero position is reserved for the "null" state
+    let total_instruction_byte_size = 16; // Ensure the zero position is reserved for the "null" state
 
     for (const [state_name, state_data] of StateMap) {
 
@@ -820,7 +831,12 @@ function statesOutputsBuildPass(StateMap: StateMap, grammar: GrammarObject, sym_
 
     }
 
-    const out_buffer = [0 << 28, 15 << 28]; // The pass and fail instructions
+    const out_buffer = [
+        0 << 28,
+        15 << 28,
+        (8 << 28) | (1 << 24),
+        (15 << 28) | 1
+    ]; // The pass, fail, scope pop, and pass through return instructions
 
     for (const [_, { block }] of StateMap) {
 

@@ -13,5 +13,5 @@
 export const ir_reduce_numeric_len_id = 0x90FA0102;
 export const end_item_addendum = 1 << 20;
 export const OutOfScopeItemState = -9999;
-
+export const LocalState = 0;
 export const GlobalState = -1;

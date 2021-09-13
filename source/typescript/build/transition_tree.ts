@@ -12,7 +12,8 @@ import { getClosure } from "../utilities/closure.js";
 import { getFirstTerminalSymbols } from '../utilities/first.js';
 import { Item } from "../utilities/item.js";
 import { disambiguate } from './disambiguate.js';
-import { end_item_addendum, GlobalState, OutOfScopeItemState } from './magic_numbers.js';
+import { end_item_addendum, GlobalState, LocalState, OutOfScopeItemState } from './magic_numbers.js';
+
 export function constructTransitionForest(
     grammar: GrammarObject,
     roots: Item[],
@@ -105,6 +106,8 @@ function recognize(
 
         ? transitioned_items
         : transitioned_items.map(i => i.increment());
+    if (transitioned_items.some(i => !i))
+        debugger;
     if (!transitioned_items.some(i => i.state == OutOfScopeItemState))
         if (attemptSingleGroupShift(
             incremented_items,
@@ -196,15 +199,14 @@ function createPeekTreeStates(
 
     const { roots, depth, items: transitioned_items, states } = previous_state;
 
-    const active_items = incremented_items; //.filter(i => !i.atEND);
+    const active_items = incremented_items;
 
     let end_item = 0;
 
     const symbols_groups = active_items.group(
         s => {
             if (s.state == OutOfScopeItemState)
-                return "out-of-scope-state";
-
+                return "out-of-scope-state-" + getUniqueSymbolName(s.sym(grammar));
             if (s.atEND) {
                 return "end" + end_item++;
             } else {
@@ -213,17 +215,26 @@ function createPeekTreeStates(
         }
     );
 
-    const leaf_states = [];
+    const token_leaf_states = [], production_leaf_states = [];
 
     const root_states: TransitionForestStateA[] = [];
 
     const active_productions = new Set([...active_items
         .filter(i => !i.atEND && Sym_Is_A_Production(i.sym(grammar)))
         .map(i => i.getProductionAtSymbol(grammar).id),
-        // ...active_items.filter(i => i.atEND).map(i => i.getProductionID(grammar))
     ]);
 
-    const LocalState = 0;
+
+    const filter_out_productions = new Set([...active_items
+        .filter(i => i.state != OutOfScopeItemState)
+        .flatMap(i => {
+            if (i.offset == 0 || i.atEND)
+                return i.getProductionID(grammar);
+            return [i.getProductionID(grammar), i.getProductionAtSymbol(grammar)?.id ?? -1];
+        }),
+    ]);
+
+
 
     const contextual_state: TransitionForestStateA = createTransitionForestState(
         TransitionStateType.START, [], LocalState, [], Object.assign({},
@@ -232,16 +243,11 @@ function createPeekTreeStates(
                 .filter(
                     i => !Sym_Is_A_Production(i.sym(grammar))
                         ||
-                        !(
-                            // active_productions.has(i.getProductionAtSymbol(grammar).id)
-                            // ||
-                            active_productions.has(i.getProductionID(grammar))
-                        )
+                        !active_productions.has(i.getProductionID(grammar))
                 )
         })
     );
 
-    const u = undefined;
     contextual_state.items = getClosure(incremented_items, grammar).map(i => i.toState(LocalState));
 
     let i = 0;
@@ -258,30 +264,32 @@ function createPeekTreeStates(
                     contextual_state
                 );
 
-        const state = group.some(i => i.atEND || i.state == OutOfScopeItemState)
-            ? GlobalState
-            : LocalState;
+        const state = group.every(i => !i.atEND)
+            ? LocalState
+            : GlobalState;
 
-        initial_state.depth = state;
+        initial_state.depth = -1;
 
-        initial_state.items =
-            group.map(i => i.toState(state));
+        if (group.some(i => i.state == OutOfScopeItemState))
+            initial_state.type |= TransitionStateType.OUT_OF_SCOPE;
+        initial_state.items = group.map(i => i.toState(state));
 
         root_states.push(initial_state);
     }
 
-    const disambiguated_tree = disambiguate(grammar, root_states, options, true);
+    const disambiguated_tree = disambiguate(grammar, filter_out_productions, root_states, options, true);
 
     const branch_states = disambiguated_tree.nodes.map((n => (n.state.parent = null, n.state)));
 
     // Convert the previous state into multi branch state if there are 
     // more than one branch state
     if (branch_states.length > 1) {
+
         //*
         const multi_item_state = createTransitionForestState(
             TransitionStateType.MULTI,
             [],
-            -103,
+            -1001,
             [],
             previous_state
         );
@@ -319,40 +327,72 @@ function createPeekTreeStates(
             In the multi-root case the leaf is used to fork to new actions
         */
 
+
+        if (leaf.states.length > 0) {
+            //merge leaf states
+            const pending_leaf_states: Map<string, TransitionForestStateA> = new Map();
+
+            for (const state of leaf.states) {
+                const id = state.roots.sort().join("") + state.items.map(i => i.id).sort().join("");
+
+                if (!pending_leaf_states.has(id))
+                    pending_leaf_states.set(id, state);
+                else
+                    pending_leaf_states.get(id).symbols.push(...state.symbols);
+            }
+
+            leaf.states.length = 0;
+
+            for (const [, state] of pending_leaf_states) {
+                state.symbols = state.symbols.setFilter(getUniqueSymbolName);
+                leaf.states.push(state);
+            }
+        }
         const candidate_states = leaf.states.length > 0
             ? leaf.states
             : [leaf];
 
-        //Filter out of scope leafs
-
         for (const origin_state of candidate_states) {
 
-            const groups = (<any>origin_state.roots.setFilter() as number[])
+            let groups = (<any>origin_state.roots.setFilter() as number[])
                 .map(i => symbols_groups[i & (end_item_addendum - 1)]);
 
             origin_state.peek_items = origin_state.items;
 
-            if (groups.some(g => g.some(i => i.state == OutOfScopeItemState))) {
-                //Remove this item from consideration
+            if (groups.every(g => g.every(i => i.state == OutOfScopeItemState))) {
                 origin_state.type = TransitionStateType.OUT_OF_SCOPE;
                 continue;
+            }
+
+            if (groups.every(g => g.every(i => i.atEND))) {
+                groups = groups.filter(i => !i.some(i => i.state == OutOfScopeItemState));
             }
 
             if (groups.length > 1) {
 
                 //Heuristic: If all items shift on the same symbol then simply yield a shift.
-                if (groups.flat().group(i => getUniqueSymbolName(i.sym(grammar))).length == 1) {
+                if (
+                    groups.every(g => g.every(i => !i.atEND))
+                    &&
+                    !groups.some(g => g.some(i => i.state == OutOfScopeItemState))
+                    &&
+                    groups.flat().group(i => getUniqueSymbolName(i.sym(grammar))).length == 1
+                ) {
                     leaf.items.length = 0;
                     leaf.items.push(...groups.flat().setFilter(i => i.id));
-                    leaf_states.push(leaf);
+                    token_leaf_states.push(leaf);
                     continue;
                 }
+
+                origin_state.type |= TransitionStateType.FORK | TransitionStateType.MULTI;
+
                 //TODO Rebuild the groups while removing out of scope items.
                 leaf.type |= TransitionStateType.FORK | TransitionStateType.MULTI;
 
                 for (const group of groups) {
 
                     const sym = group[0].sym(grammar);
+
 
                     const new_state = createTransitionForestState(
                         TransitionStateType.UNDEFINED,
@@ -361,8 +401,13 @@ function createPeekTreeStates(
                         [],
                         origin_state
                     );
+                    if (group.some(i => i.state == OutOfScopeItemState)) {
 
-                    if (Sym_Is_A_Production(sym)) {
+                        new_state.type |= TransitionStateType.OUT_OF_SCOPE;
+
+                        new_state.symbols.push(sym);
+
+                    } else if (Sym_Is_A_Production(sym)) {
 
                         new_state.type |= TransitionStateType.PRODUCTION;
 
@@ -372,63 +417,63 @@ function createPeekTreeStates(
 
                         new_state.symbols.push(...getFirstTerminalSymbols(sym.val, grammar));
                         new_state.items = group.map(r => r.increment());
+
                     } else {
+
                         new_state.symbols.push(sym);
 
-                        new_state.depth = -103;
-                        new_state.items = group.map(r => r);
+                        new_state.depth = -1033;
+                        new_state.items = group.map(r => r.atEND ? r : r.increment());
+
                         new_state.type |= TransitionStateType.TERMINAL;
                     }
 
                     //new_state.items = group;
-                    leaf_states.push(new_state);
+                    if (!(new_state.type & TransitionStateType.OUT_OF_SCOPE))
+                        token_leaf_states.push(new_state);
 
                     origin_state.states.push(new_state);
                 }
             } else {
 
                 origin_state.states.length = 0;
-                origin_state.type |= TransitionStateType.PEEK;
 
                 const group = groups[0];
                 const sym = group[0].sym(grammar);
 
                 if (Sym_Is_A_Production(sym)) {
-
-                    origin_state.items = group.slice();
-
+                    origin_state.depth = -1004;
+                    origin_state.type |= TransitionStateType.PRODUCTION;
+                    //origin_state.depth = -104;
+                    origin_state.items = group.slice().map(i => i);
+                    origin_state.symbols.push(sym);
                 } else {
-
-                    if (origin_state !== leaf)
-                        origin_state.depth = -1;
-
-                    if (origin_state.depth <= -200) {
-                        // If the offset remains at zero than this state can be
-                        // turned into a consume an the items can be shifted 
-                        // by 1 to take into account this consume.
-                        origin_state.items = group.map(r => r.atEND ? r : r.increment());
-                        origin_state.type ^= TransitionStateType.PEEK;
-                        origin_state.depth = -104;
-                    } else {
-                        origin_state.items = group.slice();
+                    origin_state.depth = -1005;
+                    if (!group.some(i => i.atEND)) {
+                        origin_state.symbols = [sym];
                     }
+
+                    origin_state.type |= TransitionStateType.TERMINAL;
+                    origin_state.items = group.slice();
                 }
 
                 if (origin_state.items[0].atEND) {
                     //No need to process this state further
                     origin_state.type ^= TransitionStateType.PEEK;
                     origin_state.type |= TransitionStateType.END;
-                } else {
-                    leaf_states.push(origin_state);
-                }
+                } else if (origin_state.type & TransitionStateType.PRODUCTION)
+                    production_leaf_states.push(origin_state);
+                else
+                    token_leaf_states.push(origin_state);
             }
         }
     }
 
-    for (const state of leaf_states) {
-        if (state.items.length > incremented_items.length)
-            debugger;
+    for (const state of token_leaf_states) {
         recognize(grammar, state, root_peek_state, options, true);
+    }
+    for (const state of production_leaf_states) {
+        recognize(grammar, state, root_peek_state, options);
     }
 }
 

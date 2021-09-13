@@ -17,6 +17,7 @@ import {
     IRInlineAssert,
     IRLeftMost,
     IRNode,
+    IRNotInScopes,
     IRPass,
     IRPeek,
     IRProductionBranch,
@@ -24,7 +25,9 @@ import {
     IRRepeat,
     IRScanBackTo,
     IRScanTo,
-    IRSetProd
+    IRSetProd,
+    IRSetScope,
+    IRSetTokenLength
 } from '../types/ir_types';
 
 function state_custom_render(state, render_fn) {
@@ -66,6 +69,12 @@ export const ir_state_mappings: NodeMappings<IRNode, "type"> = <NodeMappings<IRN
             type: "goto",
             child_keys: [],
             template: "goto o:s state o:s \\[ o:s @state o:s \\] o:s"
+        },
+
+        <NodeMapping<IRSetTokenLength>>{
+            type: "token-length",
+            child_keys: [],
+            template: "set o:s token o:s length o:s @len"
         },
 
         <NodeMapping<IRRepeat>>{
@@ -128,10 +137,16 @@ export const ir_state_mappings: NodeMappings<IRNode, "type"> = <NodeMappings<IRN
             template: "scan o:s back o:s until o:s \\[ o:s @ids...[o:s] o:s \\]"
         },
 
-        <NodeMapping<IRLeftMost>>{
-            type: "assert-left",
+        <NodeMapping<IRNotInScopes>>{
+            type: "not-in-scopes",
             child_keys: [],
-            template: "assert o:s left"
+            template: "not o:s in o:s scopes o:s \\[ o:s @ids...[o:s]  o:s\\]"
+        },
+
+        <NodeMapping<IRSetScope>>{
+            type: "set-scope",
+            child_keys: [],
+            template: "set o:s scope o:s to o:s @scope"
         },
 
         <NodeMapping<IRInlineAssert>>{

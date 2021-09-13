@@ -1,18 +1,18 @@
-# Copyright (C) 2021 Anthony Weathersby - The Hydrocarbon Parser Compiler
-# see /source/typescript/hydrocarbon.ts for full copyright and warranty 
-# disclaimer notice.
 
-# version 4.0
 
-# This grammar file defines the intermediate representation used by Hydrocarbon
-# to define parser states. Its purpose is to provide a human readable intermediary
-# representation of a state before it is optimized and compiled into binary parser tables.  
-#
-# These states are normally automatically generated and are not manipulated by grammar 
-# authors, however the use of the syntax is made available within HCG grammar files to give 
-# the author more control over state transformation within the HC parser virtual machine,
-# particularly when dealing with error recovery.
-# 
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 @IGNORE g:sp g:nl tk:comment
 
@@ -28,7 +28,9 @@
 
 <> grammar_injection > 
         
-        \<[ ( tk:state_hash_token | t:recover ( sym::production_symbol | sym::imported_production_symbol ) ) \] top_level_instructions on_fail? expected_symbols? \>
+        \<[ ( tk:state_hash_token 
+
+            ) \] top_level_instructions on_fail? expected_symbols? \>
                                             
                                             f:r { { type:"state", id:$2, instructions: $4, fail: $5, symbol_meta:$6, pos } }
 
@@ -39,7 +41,10 @@
 
 <> state_reference > 
         
-        t:state \[ ( tk:state_hash_token | \& ( sym::production_symbol | sym::imported_production_symbol ) ) \]     
+        t:state \[ ( tk:state_hash_token 
+
+
+                ) \]     
                                             
                                             f:r { $3 }
 
@@ -54,8 +59,8 @@
 <> instruction_sequence > 
 
         sequence_instruction(+ t:then ) 
-        ( \then goto_instruction(+ t:then ) )? 
-        ( \then t:repeat t:state f:r{ { type:"repeat-state" } } )? 
+        ( t:then goto_instruction(+ t:then ) )? 
+        ( t:then t:repeat t:state f:r{ { type:"repeat-state" } } )? 
         
                                             f:r{ [...$1, ...$2, $3] }
 
@@ -88,16 +93,16 @@
         t:reduce g:num g:num           
                                             f:r { { type:"reduce", len: parseInt($2), reduce_fn: parseInt($3), pos } }
 
-    |   t:reduce ( fn::referenced_function | fn::reduce_function)          
+    |   t:reduce ( fn::referenced_function | fn::reduce_function )          
                                             
                                             f:r { { type:"reduce", len: -1, reduce_fn: $2, pos } }
 
     |   t:set t:prod t:to ( 
                     g:num f:r{ parseInt($1) } 
 
-                |   sym::production_symbol 
-                
-                |   sym::imported_production_symbol 
+
+
+
             )
                                             
                                             f:r { { type:"set-prod", id: $4, pos  } }
@@ -106,17 +111,10 @@
                                             
                                             f:r { { type:"fork-to", states: $4, pos  } }
 
-    |   t:decide \( state_reference(+\, ) \)
-                                            
-                                            f:r { { type:"decide", states: $4, pos  } }
-
     |   t:scan t:back? t:until token_id_list
                                             f:r { { type: $$2 ? "scan-back-until" : "scan-until", ids: $4, pos } }
 
-    |   t:set t:token t:length g:num
-                                            f:r { { type:"token-length", len: parseInt($4), pos  } }
-
-    |   t:set t:token t:id ( g:num f:r { parseInt($1) } | sym::terminal_symbol )
+    |   t:set t:token t:id ( g:num f:r { parseInt($1) } | sym::terminal_symbol ) g:num
                                            
                                             f:r { { type:"token-id", id: $4, pos  } }
 
@@ -125,9 +123,25 @@
 
     |   t:fail
                                             f:r { { type:"fail", pos } }
+
+    |   t:not t:within t:scopes \[ 
+                (    g:num f:r{ parseInt($1) } 
+
+
+
+
+                )(+)
+    \]
+                                            f:r { { type:"not-in-scopes", ids:$5, pos } }
                                   
-    |   t:assert t:left
-                                            f:r { { type:"assert-left", pos } }
+    |   t:set t:scope t:to ( 
+                    g:num f:r{ parseInt($1) } 
+
+
+
+
+            )
+                                            f:r { { type:"set-scope", scope:$4, pos } }
                                             
     |   t:consume t:nothing?
                                             f:r { { type:"consume", EMPTY:!!$2, pos } }
@@ -152,7 +166,7 @@
         \[ 
             ( 
                     g:num f:r{ parseInt($1) } 
-                |   sym::terminal_symbol 
+
             )(+) 
         \] 
                                             f:r { $2 }
@@ -163,9 +177,9 @@
             ( 
                     g:num f:r{ parseInt($1) } 
 
-                |   sym::production_symbol 
 
-                |   sym::imported_production_symbol 
+
+
             )(+) 
         \] 
                                             f:r { $2 }

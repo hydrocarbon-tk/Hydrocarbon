@@ -19,6 +19,7 @@ export const alpha_increment_stack_pointer_mask = 1 << 0;
 export const alpha_have_default_action_mask = 1 << 1;
 export const alpha_auto_accept_with_peek_mask = 1 << 16;
 export const alpha_auto_consume_with_peek_mask = 1 << 17;
+export const production_scope_pop_pointer = 2;
 
 type ScannerFunction = (l: Lexer, i: u32, j: u32) => void;
 
@@ -46,6 +47,8 @@ export class KernelState implements KernelStateType {
     readonly lexer_stack: Lexer[];
     stack_pointer: u32;
     state_stack: Uint32Array;
+    prod_pointer: u32;
+    prod_stack: Uint16Array;
     tk_scan: ScannerFunction;
     readonly instruction_buffer: Uint32Array;
     // 8 byte +
@@ -76,6 +79,10 @@ export class KernelState implements KernelStateType {
             .map(i => { const lexer = new Lexer(input_buffer, input_buffer.length); lexer.next(); return lexer; });
 
         this.state_stack = new Uint32Array(128);
+
+        this.prod_stack = new Uint16Array(128);
+
+        this.prod_pointer = -1;
 
         this.stack_pointer = 0;
 
@@ -445,6 +452,7 @@ export class KernelStateIterator {
 function instruction_executor(
     state_pointer: u32,
     prod: u32,
+    fail_mode: boolean,
     kernel_state: KernelState,
     kernel_state_repo: KernelStateBuffer,
 ): ({ fail_mode: boolean; prod: u32; }) {
@@ -462,7 +470,7 @@ function instruction_executor(
         switch ((instruction >> 28) & 0xF) {
             //Default
 
-            case 0: default: return ({ fail_mode: false, prod });
+            case 0: default: return pass(prod);
 
             case 1: consume(kernel_state); break;
 
@@ -478,37 +486,90 @@ function instruction_executor(
 
             case 7: index = scan_to(kernel_state, index, instruction); break;
 
-            case 8: index = increment(index, instruction); break;
+            case 8: index = set_production_scope(instruction, kernel_state, index); break;
 
             case 9: index = index_jump(kernel_state, index, instruction, prod); break;
 
             case 10: index = hash_jump(kernel_state, index, instruction, prod); break;
 
-            case 11: repeat_offset++; push_fail_state(instruction, state_pointer, kernel_state); break;
+            case 11: repeat_offset++; push_fail_state(instruction, state_pointer, kernel_state, prod); break;
 
             case 12: index = repeat(index, state_pointer, repeat_offset); break;
 
-            case 13: index = assert_leftmost(kernel_state, index); break;
+            case 13: index = not_in_scope(kernel_state, index, instruction); break;
 
             case 14: /*NOOP*/;
 
-            case 15: return fail(prod);
+            case 15: return advanced_return(instruction, prod, fail_mode);
         }
     }
 }
-
-function increment(instruction: number, index: number) {
-    {
-        Logger.get("HC-Kernel-Debug")
-            .log(`INSTRUCTION: Increment instruction pointer ${(instruction & 0xFFFFFFF)} `);
-    }
-    return index + (instruction & 0xFFFFFFF);
+function pass(prod: number) {
+    return ({ fail_mode: false, prod });
 }
 
-function assert_leftmost(kernel_state: KernelState, index: number) {
+function advanced_return(instruction: number, prod: number, fail_mode: boolean): { fail_mode: boolean; prod: u32; } {
+    if (instruction & 1) {
+        //
+        {
+            Logger.get("HC-Kernel-Debug")
+                .log(`INSTRUCTION: Pass Through Return `);
+        }
+        return ({ fail_mode, prod });
+    }
+    {
+        Logger.get("HC-Kernel-Debug")
+            .log(`INSTRUCTION: Fail State Return`);
+    }
+    return ({ fail_mode: true, prod });
+}
 
-    if (kernel_state.symbol_accumulator > 1 << 16)
-        index = 1;
+function set_production_scope(instruction: number, kernel_state: KernelState, index: number) {
+
+    if (instruction & (0x1 << 24)) {
+        kernel_state.prod_pointer -= 1;
+        index = 3; //Passthrough return
+    } else {
+        const prod_scope = instruction & 0xFFFFFFF;
+        kernel_state.prod_stack[++kernel_state.prod_pointer] = prod_scope;
+        kernel_state.push_state(2); //Scope pop instruction location
+    }
+
+    return index;
+}
+
+function not_in_scope(kernel_state: KernelState, index: number, instruction: number): number {
+
+    let length = instruction & 0xFFFFFFF;
+
+    let RUN = true;
+
+    let start = index;
+
+    let end = index + length;
+
+    index += length;
+
+    let j = 0;
+
+    for (; j <= kernel_state.prod_pointer; j++) {
+
+        const prod = kernel_state.prod_stack[j];
+
+        for (let i = start; i < end; i++) {
+
+            if (kernel_state.instruction_buffer[i] == prod) {
+                RUN = false;
+                break;
+            }
+        }
+
+        if (!RUN) break;
+    }
+
+    if (j >= 0 && j <= kernel_state.prod_pointer)
+        return 1;
+
 
     return index;
 }
@@ -736,7 +797,7 @@ function index_jump(kernel_state: KernelState, index: number, instruction: numbe
         return index;
     }
 }
-}
+
 
 function set_token_length(instruction: number, kernel_state: KernelState) {
 
@@ -829,13 +890,7 @@ function consume(kernel_state: KernelState) {
     kernel_state.consume(kernel_state.lexer_pointer);
 }
 
-function fail(prod: number): { fail_mode: boolean; prod: u32; } {
-    {
-        Logger.get("HC-Kernel-Debug")
-            .log(`INSTRUCTION: Fail State `);
-    }
-    return ({ fail_mode: true, prod });
-}
+
 
 function repeat(index: number, state_pointer: number, repeat_offset: number = 0) {
     Logger.get("HC-Kernel-Debug")
@@ -844,7 +899,7 @@ function repeat(index: number, state_pointer: number, repeat_offset: number = 0)
     return index;
 }
 
-function push_fail_state(instruction: number, state_pointer: number, kernel_state: KernelState) {
+function push_fail_state(instruction: number, state_pointer: number, kernel_state: KernelState, prod: number) {
 
     let fail_state_pointer = (instruction) >>> 0;
 
@@ -977,139 +1032,6 @@ function get_token_info(
         input_value = prod - basis__;
     }
     return { input_value, lexer_pointer };
-}
-
-
-export function kernel_executor(
-    kernel_state: KernelState,
-    kernel_states_repo: KernelStateBuffer,
-    enable_history: boolean
-) {
-
-    //Kernel
-    //Input
-    let fail_mode = false;
-    let prod = 0;
-
-    while (true) {
-
-        let i = 0;
-
-        while (i++ < 4) {
-            // Hint to the compiler to inline this section 4 times
-            const state = kernel_state.pop_state();
-
-            if (state > 0) {
-
-
-
-                /**
-                 * A state pointer is divided into three data segments
-                 *        __Is fail state bit
-                 *   Meta|  __ Accumulator Delta  _ Pointer 
-                 *   _|_ | _|_______ _____________|_
-                 *  |   |||         |               |
-                 * [31 .28 .24 . . .16 . . .8. . . .0]
-                 *
-                 * Meta data relates to found within the meta
-                 * executor and is within state pointers
-                 * that are stored in state buffers. An example
-                 * usage of this section is for goto instruction,
-                 * which is simply copied to the state_stack as
-                 * the instruction already contains the goto state
-                 * pointer information
-                 *
-                 *
-                 * State info segment store the information
-                 * necessary to handle kernel switching tasks,
-                 * namely, whether to use the state for failure
-                 * recovery or to use it for normal parser
-                 * duties.
-                 *
-                 */
-                Logger.get("HC-Kernel-Debug")
-                    .log(`PARSER: << On state ${state & 0xFFFF} >>`);
-
-
-                if ((!fail_mode && ((state & fail_state_mask) == 0))
-                    || (fail_mode && (state & fail_state_mask) != 0)) {
-
-                    ({ fail_mode, prod } = instruction_executor(
-                        state,
-                        prod,
-                        kernel_state,
-                        kernel_states_repo
-                    ));
-
-                    kernel_state.add_state_to_history(state, prod, enable_history);
-                }
-            }
-        }
-
-        if (kernel_state.stack_pointer < 1)
-            break;
-    }
-
-    return fail_mode;
-}
-
-export function token_production(
-    lexer: Lexer,
-    production_state_pointer: u32,
-    pid: number,
-    _type: number,
-    tk_flag: number,
-    state_buffer: Uint32Array,
-    tk_scan: ScannerFunction,
-    enable_history: boolean = false
-): boolean {
-
-    if (lexer._type == _type) {
-        return true;
-    }
-
-    if ((lexer.active_token_productions & tk_flag) > 0) {
-        return false;
-    }
-
-
-    let data_buffer: KernelStateBuffer = new KernelStateBuffer();
-
-    let state: KernelState = new KernelState(
-        state_buffer,
-        lexer.input,
-        lexer.input.length,
-        tk_scan
-
-    );
-
-    state.lexer_stack[0].sync(lexer);
-    state.lexer_stack[0].active_token_productions |= tk_flag;
-    state.state_stack[1] = production_state_pointer;
-    state.state_stack[0] = 0;
-    state.stack_pointer = 1;
-    state.state = 0;
-
-
-    if (!kernel_executor(state, data_buffer, enable_history)) {
-
-        if (enable_history)
-            Logger
-                .get("HC-Kernel-Debug").log("\n-----------------END TOKEN PRODUCTION------------------------\n");
-
-        lexer.set_token_span_to(state.lexer_stack[0]);
-
-        lexer._type = _type;
-
-        return true;
-    }
-
-
-    if (enable_history)
-        Logger
-            .get("HC-Kernel-Debug").log("\n-----------------END TOKEN PRODUCTION------------------------\n");
-
-    return false;
 }
 
 function fork(
@@ -1265,6 +1187,142 @@ function fork(
     // Then create a new forward state the linked states reference.
 
     return index;
+}
+
+export function token_production(
+    lexer: Lexer,
+    production_state_pointer: u32,
+    pid: number,
+    _type: number,
+    tk_flag: number,
+    state_buffer: Uint32Array,
+    tk_scan: ScannerFunction,
+    enable_history: boolean = false
+): boolean {
+
+    if (lexer._type == _type) {
+        return true;
+    }
+
+    if ((lexer.active_token_productions & tk_flag) > 0) {
+        return false;
+    }
+
+
+    let data_buffer: KernelStateBuffer = new KernelStateBuffer();
+
+    let state: KernelState = new KernelState(
+        state_buffer,
+        lexer.input,
+        lexer.input.length,
+        tk_scan
+
+    );
+
+    state.lexer_stack[0].sync(lexer);
+    state.lexer_stack[0].active_token_productions |= tk_flag;
+    state.state_stack[1] = production_state_pointer;
+    state.state_stack[0] = 0;
+    state.stack_pointer = 1;
+    state.state = 0;
+
+
+    if (!kernel_executor(state, data_buffer, enable_history)) {
+
+        if (enable_history)
+            Logger
+                .get("HC-Kernel-Debug").log("\n-----------------END TOKEN PRODUCTION------------------------\n");
+
+        lexer.set_token_span_to(state.lexer_stack[0]);
+
+        lexer._type = _type;
+
+        return true;
+    }
+
+
+    if (enable_history)
+        Logger
+            .get("HC-Kernel-Debug").log("\n-----------------END TOKEN PRODUCTION------------------------\n");
+
+    return false;
+}
+
+
+
+export function kernel_executor(
+    kernel_state: KernelState,
+    kernel_states_repo: KernelStateBuffer,
+    enable_history: boolean
+) {
+
+    //Kernel
+    //Input
+    let fail_mode = false;
+    let prod = 0;
+
+    while (true) {
+
+        let i = 0;
+
+        while (i++ < 4) {
+            // Hint to the compiler to inline this section 4 times
+            const state = kernel_state.pop_state();
+
+            if (state > 0) {
+
+
+
+                /**
+                 * A state pointer is divided into three data segments
+                 *        __Is fail state bit
+                 *   Meta|  __ Accumulator Delta  _ Pointer 
+                 *   _|_ | _|_______ _____________|_
+                 *  |   |||         |               |
+                 * [31 .28 .24 . . .16 . . .8. . . .0]
+                 *
+                 * Meta data relates to found within the meta
+                 * executor and is within state pointers
+                 * that are stored in state buffers. An example
+                 * usage of this section is for goto instruction,
+                 * which is simply copied to the state_stack as
+                 * the instruction already contains the goto state
+                 * pointer information
+                 *
+                 *
+                 * State info segment store the information
+                 * necessary to handle kernel switching tasks,
+                 * namely, whether to use the state for failure
+                 * recovery or to use it for normal parser
+                 * duties.
+                 *
+                 */
+                Logger.get("HC-Kernel-Debug")
+                    .log(`PARSER: << On state ${state & 0xFFFF} >>`);
+
+
+                if ((!fail_mode && ((state & fail_state_mask) == 0))
+                    || (fail_mode && (state & fail_state_mask) != 0)
+                    || (state & 0xFFFFF) == production_scope_pop_pointer) {
+
+                    ({ fail_mode, prod } = instruction_executor(
+                        state,
+                        prod,
+                        fail_mode,
+                        kernel_state,
+                        kernel_states_repo
+                    ));
+
+                    kernel_state.add_state_to_history(state, prod, enable_history);
+                }
+            }
+        }
+
+        if (kernel_state.stack_pointer < 1)
+            break;
+    }
+
+    return fail_mode;
 }
 
 export function run(

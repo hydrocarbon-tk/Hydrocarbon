@@ -4,14 +4,13 @@
  * disclaimer notice.
  */
 import { getUniqueSymbolName, Sym_Is_A_Production, Sym_Is_A_Token, Sym_Is_EOF, Sym_Is_Not_Consumed } from "../grammar/nodes/symbol.js";
-import { GrammarObject, GrammarProduction, TokenSymbol } from "../types/grammar_nodes.js";
+import { GrammarObject, GrammarProduction, HCG3Symbol, TokenSymbol } from "../types/grammar_nodes.js";
 import { TransitionForestStateA, TransitionStateType } from '../types/transition_tree_nodes.js';
 import { hashString } from '../utilities/code_generating.js';
 import { getFollow } from '../utilities/follow.js';
 import { Item } from "../utilities/item.js";
 import { default_case_indicator } from './build.js';
 import { create_symbol_clause } from './create_symbol_clause.js';
-import { OutOfScopeItemState } from './magic_numbers.js';
 import { getGotoSTARTs, getSTARTs as getSTARTItems } from "./STARTs.js";
 import { constructTransitionForest } from './transition_tree.js';
 
@@ -28,7 +27,7 @@ export function constructProductionStates(
 
     const root_prod_name = production.name;
 
-    const goto_hash = root_prod_name + "_goto";
+    const goto_hash = createProductionGotoName(production);
 
     const root_prod_id = production.id;
 
@@ -63,54 +62,59 @@ export function constructProductionStates(
         grammar,
         parse_states,
         "DESCENT",
+        -1,
         root_prod_name,
-        goto_item_map_graphs.length > 0
-            ? goto_hash
-            : ""
+        ` then goto state [ ${goto_hash} ]`,
+        `set scope to ${root_prod_id} then `
     );
+
+    let goto_function_code = [`state [ ${goto_hash} ]`];
 
     if (goto_item_map_graphs.length > 0) {
 
         const goto_groups = goto_item_map_graphs.group(
-            ([, g]) => generateStateHashAction(g, grammar).hash
+            ([i, g]) => generateStateHashAction(g, grammar, i == production.id ? production.id : -1).hash
         );
-
-        let goto_function_code = [`state [ ${goto_hash} ]`];
 
         let HAVE_ROOT_PRODUCTION_GOTO = false;
 
         for (const goto_group of goto_groups) {
+
+            let LOCAL_HAVE_ROOT_PRODUCTION_GOTO = false;
             const production_ids = goto_group.map(([pid]) => pid);
 
             if (production_ids.includes(root_prod_id))
-                HAVE_ROOT_PRODUCTION_GOTO = true;
+                LOCAL_HAVE_ROOT_PRODUCTION_GOTO = true;
 
             for (const [_, gotostate] of goto_group)
                 processTransitionForest(
                     gotostate,
                     grammar,
                     parse_states,
-                    "GOTO"
+                    "GOTO",
+                    LOCAL_HAVE_ROOT_PRODUCTION_GOTO ? production.id : -1,
+                    undefined,
+                    ` then goto state [ ${goto_hash} ]`,
+                    undefined,
+                    1
                 );
+
             const state = goto_group[0][1];
 
-            const { hash, action } = generateStateHashAction(state, grammar);
+            const { hash, action } = generateStateHashAction(state, grammar,
+                LOCAL_HAVE_ROOT_PRODUCTION_GOTO ? production.id : -1
+            );
 
             let prelude = "";
 
-            // if (
-            //     state.items.some(i => i.state >= 9999)
-            //     &&
-            //     state.items.some(i => i.atEND)
-            // )
-            //     prelude = "assert left then ";
-            //
             goto_function_code.push(
                 f`${4}
                 on prod [ ${production_ids.join(" ")} ] ( 
                     ${prelude}goto state [ ${hash} ] then goto state [ ${goto_hash} ]
                 )`
             );
+
+            HAVE_ROOT_PRODUCTION_GOTO ||= LOCAL_HAVE_ROOT_PRODUCTION_GOTO;
         }
 
         if (HAVE_ROOT_PRODUCTION_GOTO) {
@@ -126,9 +130,11 @@ export function constructProductionStates(
             );
         }
 
-        parse_states.set(goto_hash, goto_function_code.join("\n"));
+    } else {
+        goto_function_code.push("    pass");
     }
 
+    parse_states.set(goto_hash, goto_function_code.join("\n"));
 
     return {
         parse_states: parse_states,
@@ -138,26 +144,29 @@ export function constructProductionStates(
 
 
 
+function createProductionGotoName(production: GrammarProduction) {
+    return production.name + "_goto";
+}
+
 function processTransitionForest(
     state: TransitionForestStateA,
     grammar: GrammarObject,
     parse_code_blocks: Map<string, string>,
     scope: "DESCENT" | "GOTO",
+    root_prod: number,
     default_hash: string = undefined,
     default_goto_hash: string = undefined,
+    default_prelude_hash: string = undefined,
     depth = 0
 ) {
-    // if (!state.USED) {
-
     if (depth == 0)
-        processTransitionNode(state, grammar, parse_code_blocks, scope, default_hash, default_goto_hash);
+        processTransitionNode(state, grammar, parse_code_blocks, scope, root_prod, default_hash, default_goto_hash, default_prelude_hash);
     else
-        processTransitionNode(state, grammar, parse_code_blocks, scope);
-    // }
+        processTransitionNode(state, grammar, parse_code_blocks, scope, root_prod);
 
     for (const child_state of state.states) {
 
-        processTransitionForest(child_state, grammar, parse_code_blocks, scope, undefined, undefined, depth + 1);
+        processTransitionForest(child_state, grammar, parse_code_blocks, scope, root_prod, undefined, undefined, undefined, depth + 1);
     }
 }
 
@@ -166,15 +175,13 @@ function processTransitionNode(
     grammar: GrammarObject,
     parse_code_blocks: Map<string, string>,
     scope: "DESCENT" | "GOTO",
-    default_hash = generateStateHashAction(state, grammar).hash,
-    default_goto_hash = ""
+    root_prod: number,
+    default_hash = generateStateHashAction(state, grammar, root_prod).hash,
+    postlude_command = "",
+    prelude_command = ""
 ) {
 
-    if (state.type & TransitionStateType.OUT_OF_SCOPE)
-        return;
-
-
-    generateStateHashAction(state, grammar);
+    generateStateHashAction(state, grammar, root_prod);
 
     const
 
@@ -195,17 +202,27 @@ function processTransitionNode(
         processMultiChildStates(
             state,
             grammar,
+            root_prod,
             state_string,
             global_symbols,
             global_items,
-            default_goto_hash
+            postlude_command,
+            prelude_command,
         );
 
     } else {
 
-        let { action, assertion } = generateSingleStateAction(state, grammar);
+        /* if (
+            scope == "GOTO" 
+            && state.items[0].offset == 1 
+            && root_prod >= 0 
+            && state.items.length == 1
+            && state.
+        ) {
+            
+        } */
 
-        const postlude = default_goto_hash ? ` then goto state [ ${default_goto_hash} ]` : "";
+        let { action, assertion } = generateSingleStateAction(state, grammar, root_prod);
 
         if (
             assertion
@@ -217,12 +234,11 @@ function processTransitionNode(
 
             state_string.push(`
                 ${assertion} [ ${state.symbols.filter(Sym_Is_A_Token).map(i => i.id).join(" ")} ] (
-                    ${action}${postlude}
+                    ${prelude_command}${action}${postlude_command}
                 )
             `);
         } else {
-
-            state_string.push(action + postlude);
+            state_string.push(prelude_command + action + postlude_command);
         }
 
         global_symbols.push(...state.symbols.filter(Sym_Is_A_Token));
@@ -264,49 +280,62 @@ function generateStateHashAction(
 
     grammar: GrammarObject,
 
+    root_prod: number
+
 ): { hash: string, action: string, assertion: string; } {
 
-    let action_string = [], assertion_type = "", symbol_ids = [];
+    let action_string = [],
+        hash_string = [],
+        assertion_type = "",
+        symbol_ids = [];
 
     if (state.hash_action)
         return state.hash_action;
 
     if (state.type & TransitionStateType.MULTI) {
 
-        for (const child_state of state.states) {
+        processMultiChildStates(
+            state,
+            grammar,
+            root_prod,
+            action_string,
+            [],
+            []
+        );
 
-            if (child_state.type != TransitionStateType.OUT_OF_SCOPE) {
-                const hash = generateStateHashAction(child_state, grammar).hash;
-                action_string.push(hash);
-            }
+        action_string.sort();
 
-            action_string.sort();
-        }
+        hash_string = action_string;
     } else {
 
-        const { action, assertion, symbol_ids: ids } = generateSingleStateAction(state, grammar);
+        const { combined, action, assertion, symbol_ids: ids } = generateSingleStateAction(state, grammar, root_prod);
+
+        hash_string.push(combined);
 
         symbol_ids = ids;
 
         action_string.push(action);
 
         assertion_type = assertion;
-
     }
 
-    const string = action_string.join(" ");
+    const action = action_string.join(" ");
 
-    const hash_basis_string = string + symbol_ids.sort((a, b) => a - b).join(" ");
+    const hash_basis_string = hash_string.join("") + symbol_ids.sort((a, b) => a - b).join(" ");
 
+    const hash = "h" + hashString(assertion_type + hash_basis_string)
+        .slice(0, 12)
+        .split("")
+        .map(p => (("hjklmnpqrst".split(""))[parseInt(p)] ?? p))
+        .join("");
+
+    if (hash == "hnmahqeahbenj")
+        debugger;
 
     if (!hash_cache.has(hash_basis_string))
         hash_cache.set(hash_basis_string, {
-            hash: "h" + hashString(assertion_type + hash_basis_string)
-                .slice(0, 12)
-                .split("")
-                .map(p => (("hjklmnpqrst".split(""))[parseInt(p)] ?? p))
-                .join(""),
-            action: string,
+            hash: hash,
+            action: action,
             assertion: assertion_type
         });
 
@@ -317,62 +346,34 @@ function generateStateHashAction(
 function processMultiChildStates(
     state: TransitionForestStateA,
     grammar: GrammarObject,
+    root_prod: number,
     state_string: string[],
     global_symbols: TokenSymbol[],
     items: Item[],
-    default_goto_hash = ""
+    postlude_command = "",
+    prelude_command = "",
+    scope: string = ""
 ) {
 
-    const states_string = [], default_clause = default_goto_hash
-        ? ` then goto state [ ${default_goto_hash} ]`
-        : "";
-
-
-
+    const states_string = [];
 
     items.push(...state.items);
 
     if (state.type & TransitionStateType.FORK) {
 
-        const hashes = state.states.map(s => (s.USED = false, generateStateHashAction(s, grammar).hash));
+        const hashes = state.states.map(s => (generateStateHashAction(s, grammar, root_prod).hash));
 
         state_string.push(`\n    fork to ( ${hashes.map(h => `state [ ${h} ]`).join(", ")} )`);
 
     } else {
 
-        //merge multi item states into this state 
-
-        const states = state.states.flatMap(i => {
-            if (i.type & TransitionStateType.MULTI)
-                return i.states;
-            return i;
-        });
-
-        const state_groups = states.group(
-            s => {
-                if (s.items.some(i => i.state == OutOfScopeItemState) || s.type & TransitionStateType.OUT_OF_SCOPE) {
-                    return "out_of_scope";
-                } else {
-                    return generateStateHashAction(s, grammar).action + (
-                        s.type & TransitionStateType.PRODUCTION
-                            ? s.symbols.filter(Sym_Is_A_Production).map(getUniqueSymbolName).sort().join()
-                            : ""
-                    );
-                }
-            }).sort(([a], [b]) => {
-
-                const a_type = a.type + a.items[0].state;
-                const b_type = b.type + b.items[0].state;
-
-                return a_type - b_type;
-            });
         let i = 0;
 
-        const group_length_m_one = state_groups.length - 1;
+        for (const states of state.states.map(i => [i])) {
 
-        for (const states of state_groups) {
+            let { assertion, hash } = generateStateHashAction(states[0], grammar, root_prod);
 
-            let { assertion, action } = generateStateHashAction(states[0], grammar);
+            let action = `goto state [ ${hash} ]`;
             //if State is multi merge the states of the multi state?
             let IS_OUT_OF_SCOPE = states.some(i => i.type & TransitionStateType.OUT_OF_SCOPE);
 
@@ -382,17 +383,10 @@ function processMultiChildStates(
 
             const IS_LAST_GROUP = AUTO_PASS;
 
-            if (
-                states[0].items.some(i => i.state >= 9999)
-                &&
-                states[0].items.some(i => i.atEND)
-            )
-                action = "assert left then " + action;
+            const symbols = getSymbolsFromStates(states).filter(Sym_Is_A_Token);
 
-            states.forEach(s => s.USED = true);
-            const symbols = <TokenSymbol[]>states.flatMap(s => s.symbols)
-                .setFilter(getUniqueSymbolName)
-                .filter(Sym_Is_A_Token);
+            if (symbols.length == 0)
+                debugger;
 
             global_symbols.push(...symbols);
 
@@ -400,7 +394,7 @@ function processMultiChildStates(
 
             const action_string = AUTO_FAIL
                 ? "fail"
-                : action + default_clause;
+                : prelude_command + action + postlude_command;
 
             states_string.push(
                 f`${4}
@@ -414,6 +408,20 @@ function processMultiChildStates(
     }
 
     state_string.push(...states_string);
+}
+
+function getSymbolsFromStates(states: TransitionForestStateA[]): HCG3Symbol[] {
+
+    const symbols: HCG3Symbol[] = [];
+    for (const state of states) {
+        if (state.type & TransitionStateType.MULTI) {
+            symbols.push(...getSymbolsFromStates(state.states));
+        }
+        else
+            symbols.push(...state.symbols);
+    }
+
+    return symbols.setFilter(getUniqueSymbolName);
 }
 
 function f(strings: TemplateStringsArray, ...args: any[]) {
@@ -436,6 +444,7 @@ function f(strings: TemplateStringsArray, ...args: any[]) {
 function generateSingleStateAction(
     state: TransitionForestStateA,
     grammar: GrammarObject,
+    root_prod: number
 ): { action: string; assertion: string; combined: string; symbol_ids: number[]; } {
 
     const { symbols, states, type, items } = state;
@@ -454,25 +463,32 @@ function generateSingleStateAction(
         throw new Error("Single item states should need lead to multiple branches");
 
 
-    if (type & TransitionStateType.PEEK) {
+    if (type & TransitionStateType.OUT_OF_SCOPE) {
+
+        let { depth } = state;
+
+        assertion = depth > 0 ? "peek" : "assert";
+
+        action_string = `set prod to ${root_prod} then fail`;
+        symbol_ids.push(...token_symbols.map(i => i.id));
+        combined_string = `${assertion} [ ${symbol_ids.sort((a, b) => a - b).join(" ")} ] ( ${action_string} )`;
+
+    } else if (type & TransitionStateType.PEEK) {
         //Assert the children symbols
 
         const [child_state] = state.states;
 
-        const hash = generateStateHashAction(child_state, grammar).hash;
+        const hash = generateStateHashAction(child_state, grammar, root_prod).hash;
 
         let { symbols, depth, items } = state;
 
         assertion = depth > 0 ? "peek" : "assert";
-        if (items.some(i => i.state == OutOfScopeItemState))
 
-            action_string = `fail`;
-
-        else if (type & TransitionStateType.PRODUCTION) {
+        if (type & TransitionStateType.PRODUCTION) {
 
             const production_symbol = symbols.filter(Sym_Is_A_Production)[0];
 
-            action_string = `goto state [ ${production_symbol.name}  then goto state [ ${hash} ]`;
+            action_string = `goto state [ ${production_symbol.name} ] then goto state [ ${hash} ]`;
 
         } else
             action_string = `goto state [ ${hash} ]`;
@@ -485,31 +501,34 @@ function generateSingleStateAction(
 
         const [item] = state.items;
 
-        if (type & TransitionStateType.OUT_OF_SCOPE) {
-            throw new Error("Out of scope states should not be outputted");
-        }
+        if (!item.atEND) {
 
-        if (!item.atEND)
             throw new Error("Item should be at end position in this branch");
 
-        const body = item.body_(grammar);
+        } else {
 
-        const set_prod_clause = `set prod to ${body.production.id}`;
+            const body = item.body_(grammar);
 
-        if (body.reduce_id >= 0)
-            action_string = `reduce ${item.len} ${body.reduce_id} then ${set_prod_clause}`;
-        else if (item.len > 1)
-            action_string = `reduce ${item.len} 0 then ${set_prod_clause}`;
-        else
-            action_string = `${set_prod_clause}`;
+            const production = item.getProduction(grammar);
+
+            const set_prod_clause = `set prod to ${body.production.id}`;
+
+            if (body.reduce_id >= 0)
+                action_string = `reduce ${item.len} ${body.reduce_id} then ${set_prod_clause}`;
+            else if (item.len > 1)
+                action_string = `reduce ${item.len} 0 then ${set_prod_clause}`;
+            else
+                action_string = `${set_prod_clause}`;
+
+            if (root_prod >= 0 && production.id != root_prod) {
+                //This will allow upgrade to complete
+                action_string += ` then goto state [ ${createProductionGotoName(production)} ]`;
+            }
+        }
 
         combined_string = action_string;
 
     } else if (type & TransitionStateType.PRODUCTION) {
-
-        if (type & TransitionStateType.OUT_OF_SCOPE) {
-            throw new Error("Out of scope states should not be outputted");
-        }
 
         if (symbols.length > 1) {
 
@@ -517,40 +536,34 @@ function generateSingleStateAction(
 
             const assertion_symbols = <TokenSymbol[]>symbols.filter(s => !Sym_Is_A_Production(s));
 
-            const { hash } = generateStateHashAction(state.states[0], grammar);
+            const { hash } = generateStateHashAction(state.states[0], grammar, root_prod);
 
             action_string =
                 f`${4}
                     goto state [ ${production_symbol.name} ] then goto state [ ${hash} ]
                     `;
 
-            combined_string = action_string;
-
         } else {
 
             const [production_symbol] = symbols;
 
-            const { hash } = generateStateHashAction(state.states[0], grammar);
+            const { hash } = generateStateHashAction(state.states[0], grammar, root_prod);
 
             if (!Sym_Is_A_Production(production_symbol))
                 throw new Error(`Production type states should contain a production symbol`);
 
             action_string = `goto state [ ${production_symbol.name} ] then goto state [ ${hash} ]`;
-
-            combined_string = action_string;
         }
+
+        combined_string = action_string;
 
         assertion = state.depth > 0 ? "peek" : "assert";
 
     } else if (state.type & TransitionStateType.TERMINAL) {
 
-        if (type & TransitionStateType.OUT_OF_SCOPE) {
-            throw new Error("Out of scope states should not be outputted");
-        }
-
         const [child_state] = state.states;
 
-        const hash = generateStateHashAction(child_state, grammar).hash;
+        const hash = generateStateHashAction(child_state, grammar, root_prod).hash;
 
         if (symbols.some(s => Sym_Is_Not_Consumed(s)))
 
@@ -565,6 +578,17 @@ function generateSingleStateAction(
 
         assertion = "assert";
     }
+
+    if (
+        (!(state.type & TransitionStateType.PEEK) || state.type & TransitionStateType.PRODUCTION)
+        &&
+        (root_prod >= 0 && state.items[0].getProductionID(grammar) != root_prod)
+        &&
+        state.items.some(i => i.state >= 9999)
+        &&
+        state.items.some(i => i.offset == 1)
+    )
+        action_string = `not within scopes [ ${state.items[0].getProductionID(grammar)} ] then set scope to ${state.items[0].getProductionID(grammar)} then ` + action_string;
 
     return { action: action_string, combined: "\n    " + combined_string, assertion, symbol_ids };
 }

@@ -3,17 +3,15 @@ import {
     getSymbolFromUniqueName,
     getUniqueSymbolName, SymbolsCollide,
     Symbols_Are_The_Same,
-    Sym_Is_A_Generic_Identifier,
-    Sym_Is_A_Generic_Symbol,
-    Sym_Is_A_Production,
-    Sym_Is_A_Production_Token, Sym_Is_A_Token, Sym_Is_Defined, Sym_Is_Defined_Identifier, Sym_Is_Defined_Symbol, Sym_Is_Exclusive
+    Sym_Is_A_Generic_Identifier, Sym_Is_A_Production,
+    Sym_Is_A_Production_Token, Sym_Is_A_Token, Sym_Is_Defined, Sym_Is_Defined_Identifier, Sym_Is_Exclusive
 } from "../grammar/nodes/symbol.js";
 import { GrammarObject, TokenSymbol } from '../types/grammar_nodes';
 import { TransitionForestStateA, TransitionStateType } from "../types/transition_tree_nodes";
 import { getClosure } from "../utilities/closure.js";
 import { Item } from "../utilities/item.js";
-import { end_item_addendum, GlobalState } from './magic_numbers.js';
-import { TransitionForestOptions, TransitionForestGraph, createTransitionForestState } from './transition_tree.js';
+import { end_item_addendum, GlobalState, LocalState, OutOfScopeItemState } from './magic_numbers.js';
+import { createTransitionForestState, TransitionForestGraph, TransitionForestOptions } from './transition_tree.js';
 
 /**
  * This system is essentially an Earley recognizer that attempts to
@@ -48,11 +46,12 @@ import { TransitionForestOptions, TransitionForestGraph, createTransitionForestS
  */
 export function disambiguate(
     grammar: GrammarObject,
+    filter_out_productions: Set<number>,
     peek_states: TransitionForestStateA[],
     options: TransitionForestOptions,
     INITIAL_STATE: boolean = false,
     start_time: number = performance.now(),
-    AUTO_EXIT: boolean = false
+    AUTO_EXIT: boolean = false,
 ): TransitionForestGraph {
 
     const graph_node: TransitionForestGraph = {
@@ -95,12 +94,23 @@ export function disambiguate(
                 }
             );
 
-        const considered_items = incremented_items
+        let considered_items = incremented_items
             .flatMap(i => i.atEND
                 ? getClosure(resolveEndItem(i, previous_state, grammar), grammar, i.state)
                 : getClosure([i], grammar, i.state)
             )
             .setFilter(i => i.id);
+
+        if (depth < 0 && par_type & TransitionStateType.OUT_OF_SCOPE) {
+            // Filter out of scope out items that would 
+            // conflict with the in scope items.
+
+            considered_items = considered_items.filter(i => {
+                if (filter_out_productions.has(i.getProductionID(grammar)))
+                    return false;
+                return true;
+            });
+        }
 
         if (considered_items.length > 0) {
 
@@ -135,8 +145,8 @@ export function disambiguate(
             }
         }
 
-        if (incremented_items.some(i => i.atEND)
-            //considered_items.length == 0
+        if (
+            considered_items.length == 0
         ) {
             // The only solution at this point is an end of file state.
             let state: TransitionForestStateA = createTransitionForestState(TransitionStateType.UNDEFINED,
@@ -196,12 +206,12 @@ export function disambiguate(
         if (
             states.length > 1
             &&
-            states.some(i => i.items.some(i => i.state == 0))
+            states.some(i => i.items.some(i => i.state == LocalState))
             &&
             states.some(i => i.items.some(i => i.state == GlobalState))
         ) {
-            //Modify states that are SHIFT/REDUCE Conflicts in favor of SHIFT
-            const shift_states = states.filter(i => i.items.some(i => i.state == 0));
+            //Modify states whose roots that are SHIFT/REDUCE conflicts in favor of SHIFT
+            const shift_states = states.filter(i => i.items.some(i => i.state == LocalState));
             const reduce_states = states.filter(i => i.items.some(i => i.state == GlobalState));
             const reduce_keeps = [], shift_items = new Set(shift_states.flatMap(s => s.items.map(i => i.id)));
 
@@ -227,11 +237,29 @@ export function disambiguate(
                         SymbolsCollide(i.sym(grammar), key_symbol, grammar))
             }));
 
-            if (key == getUniqueSymbolName(default_EOF)) {
+            if (
+                key == getUniqueSymbolName(default_EOF)
+                ||
+                //If States have identical closures, then there will be now way to disambiguate
+                states.group(s => s.items.map(i => i.id).sort().join()).length == 1
+            ) {
                 //do nothing, this is as far as we get with these states
-                child_graph_node = disambiguate(grammar, new_states, options, false, start_time, true);
+                child_graph_node = disambiguate(grammar,
+                    filter_out_productions,
+                    new_states,
+                    options,
+                    false,
+                    start_time,
+                    true
+                );
             } else {
-                child_graph_node = disambiguate(grammar, new_states, options, false, start_time);
+                child_graph_node = disambiguate(grammar,
+                    filter_out_productions,
+                    new_states,
+                    options,
+                    false,
+                    start_time
+                );
             }
 
             child_graph_node.symbol = key;
@@ -300,7 +328,7 @@ export function disambiguate(
 
 
 function mergeGroupsWithOccludingSymbols(grouped_roots: Map<string, TransitionForestStateA[]>, grammar: GrammarObject) {
-    let i = 0;
+
     for (const [key, group_a] of grouped_roots) {
 
         const incoming_sym = getSymbolFromUniqueName(grammar, key);
@@ -369,6 +397,7 @@ function mergeStates(type, states: TransitionForestStateA[]): TransitionForestSt
     if (symbols.length > 1)
         resolved_symbols = resolved_symbols.filter(Sym_Is_Defined);
 
+
     return {
         USED: false,
 
@@ -392,7 +421,8 @@ function mergeStates(type, states: TransitionForestStateA[]): TransitionForestSt
 function resolveEndItem(
     end_item: Item,
     state: TransitionForestStateA,
-    grammar: GrammarObject
+    grammar: GrammarObject,
+    depth: number = 0
 
 ): Item[] {
 
@@ -414,7 +444,11 @@ function resolveEndItem(
 
             const { items, parent, depth } = prev;
 
-            if (depth == end_item.state || (matching_items.length == 0 && depth < 0)) {
+            if (
+                depth == end_item.state
+                ||
+                ((matching_items.length == 0 || end_item.state == OutOfScopeItemState) && depth < 0)
+            ) {
 
                 matching_items.push(...items.filter(
                     i => ((i.getProductionAtSymbol(grammar)?.id ?? -1) == production_id)
@@ -428,6 +462,7 @@ function resolveEndItem(
         } else {
 
             for (const item of matching_items.setFilter(i => i.id)) {
+
                 // Make sure we are only dealing with items that have not
                 // yet encountered and increment items that are not in the
                 // end position.

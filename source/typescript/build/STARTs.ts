@@ -50,6 +50,9 @@ export function getGotoSTARTs(
 
             ) {
 
+                if (items.length == 0)
+                    continue;
+
                 // This is responsible for generating items that 
                 // provide FOLLOW information. 
 
@@ -71,7 +74,6 @@ export function getGotoSTARTs(
                         .filter(i => !i.increment().atEND || !ACTIVE_IDS.has(i.getProductionID(grammar)))
                 ].setFilter(i => i.id);
             }
-
 
             output.set(id, items);
             batch.push(...items.map(i => i.getProductionID(grammar)));
@@ -97,25 +99,33 @@ function getOuterScopeGotoItems(grammar: GrammarObject, seen: Set<number>, i: It
     }
 
     return out;
-
 }
 
 export function getSTARTs(production: GrammarProduction, grammar: GrammarObject) {
-
     const initial_candidates = getStartItemsFromProduction(production);
+
+    return getStartsFromItems(initial_candidates, new Set([production.id]), grammar,);
+}
+
+export function getStartsFromItems(
+    initial_candidates: Item[],
+    root_productions: Set<number>,
+    grammar: GrammarObject
+) {
+
 
     let START_set = [];
 
-    let descend_candidates = initial_candidates;
+    const seen_candidates = new Set(root_productions);
 
-    let seen_candidates = new Set([production.id]);
+    let descend_candidates = initial_candidates.slice();
 
     while (descend_candidates.length > 0) {
 
         const START_set_candidates = START_set.slice();
 
         for (const descend_candidate of descend_candidates)
-            extractSTARTCandidates(production, descend_candidate, START_set_candidates, grammar);
+            extractSTARTCandidates(root_productions, descend_candidate, START_set_candidates, grammar);
 
         descend_candidates.length = 0;
 
@@ -162,7 +172,7 @@ export function getSTARTs(production: GrammarProduction, grammar: GrammarObject)
     return START_set.setFilter(i => i.id);
 }
 function extractSTARTCandidates(
-    root_production: GrammarProduction,
+    root_productions: Set<number>,
     candidate_item: Item,
     START_candidate_set: Item[],
     grammar: GrammarObject,
@@ -172,7 +182,7 @@ function extractSTARTCandidates(
     // known is found than the candidate is available
     // for use with the original grammar. 
     const closure = getClosure([candidate_item], grammar);
-    if (closure.some(i => (i.getProductionAtSymbol(grammar)?.id ?? -1) == root_production.id)
+    if (closure.some(i => root_productions.has((i.getProductionAtSymbol(grammar)?.id ?? -1)))
         ||
         closure.every(i => Sym_Is_A_Production(i.sym(grammar)))) {
 
@@ -183,14 +193,14 @@ function extractSTARTCandidates(
 
         const descend_candidates = initial_candidates.filter(
             i => Sym_Is_A_Production(i.sym(grammar))
-                && i.getProductionID(grammar) != root_production.id
+                && !root_productions.has(i.getProductionID(grammar))
                 && !check_items.has(i.id)
         );
 
         for (const descend_candidate of descend_candidates) {
             check_items.add(descend_candidate.id);
             extractSTARTCandidates(
-                root_production,
+                root_productions,
                 descend_candidate,
                 START_candidate_set,
                 grammar,

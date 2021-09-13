@@ -58,7 +58,9 @@ export const enum InstructionType {
     pass = "pass",
     fail = "fail",
     repeat = "repeat-state",
-    left_most = "assert-left"
+    left_most = "assert-left",
+    set_scope = "set-scope",
+    not_in_scopes = "not-in-scopes"
 
 }
 
@@ -138,8 +140,14 @@ export interface IRPop extends Base_IR_Instruction {
     len: number;
 }
 
-export interface IRLeftMost extends Base_IR_Instruction {
-    type: InstructionType.left_most;
+export interface IRSetScope extends Base_IR_Instruction {
+    type: InstructionType.set_scope;
+    scope: number;
+}
+
+export interface IRNotInScopes extends Base_IR_Instruction {
+    type: InstructionType.not_in_scopes;
+    ids: number[];
 }
 
 
@@ -196,7 +204,8 @@ export type IR_Instruction = IRConsume |
     IRGoto |
     IREnd |
     IRInlineAssert |
-    IRLeftMost |
+    IRNotInScopes |
+    IRSetScope |
     ResolvedIRBranch;
 
 export interface BlockData {
