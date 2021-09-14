@@ -9,7 +9,7 @@ import parser_loader from "../grammar/ir_parser.js";
 import { getProductionByName } from '../grammar/nodes/common.js';
 import { getRootSym, Sym_Is_A_Token } from '../grammar/nodes/symbol.js';
 import { BuildPack } from "../render/render.js";
-import { fail_state_mask } from '../runtime/kernel.js';
+import { fail_state_mask, normal_state_mask } from '../runtime/kernel.js';
 import { Logger } from '../runtime/logger.js';
 import { GrammarObject, ProductionImportSymbol, ProductionSymbol, TokenSymbol } from "../types/grammar_nodes";
 import { IRStateData, StateAttrib, StateMap } from '../types/ir_state_data';
@@ -228,7 +228,7 @@ function insertInstructionSequences(
 
                 case InstructionType.goto: {
                     i++;
-                    temp_buffer.push(2 << 28 | state_map.get(data[i]).pointer);
+                    temp_buffer.push((2 << 28) | normal_state_mask | state_map.get(data[i]).pointer);
                 } break;
 
                 case InstructionType.set_prod: {
@@ -353,6 +353,7 @@ function insertInstructionSequences(
                         table_entries, state_map, block_info, row_size
                     ));
                 } break;
+
                 case "scanner": {
 
                     const
@@ -475,6 +476,7 @@ function insertInstructionSequences(
                         sequence_entries, state_map, block_info, 0
                     ));
                 } break;
+
                 case "set fail": {
                     temp_buffer.push(11 << 28 | fail_state_mask | state_map.get(data[++i]).pointer);
                 } break;
@@ -554,6 +556,7 @@ function createInstructionSequence(
                 break;
 
             case InstructionType.consume:
+
                 byte_length += 4;
 
                 if (instr.EMPTY) {
@@ -828,6 +831,8 @@ function statesOutputsBuildPass(StateMap: StateMap, grammar: GrammarObject, sym_
 
         if ((attributes & StateAttrib.FAIL_STATE) > 0)
             state_data.pointer |= fail_state_mask;
+        else
+            state_data.pointer |= normal_state_mask;
 
     }
 

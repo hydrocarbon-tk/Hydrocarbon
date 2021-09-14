@@ -414,7 +414,7 @@ function getSymbolsFromStates(states: TransitionForestStateA[]): HCG3Symbol[] {
 
     const symbols: HCG3Symbol[] = [];
     for (const state of states) {
-        if (state.type & TransitionStateType.MULTI) {
+        if (state.type & TransitionStateType.MULTI && !(state.type & TransitionStateType.FORK)) {
             symbols.push(...getSymbolsFromStates(state.states));
         }
         else
@@ -581,6 +581,8 @@ function generateSingleStateAction(
 
     if (
         (!(state.type & TransitionStateType.PEEK) || state.type & TransitionStateType.PRODUCTION)
+        &&
+        !(state.type & TransitionStateType.OUT_OF_SCOPE)
         &&
         (root_prod >= 0 && state.items[0].getProductionID(grammar) != root_prod)
         &&

@@ -13,13 +13,15 @@ export { init_table, compare };
 //Global Constants
 const state_index_mask = (1 << 16) - 1;
 
-const acc_sym_mask = ((1 << 27) - 1) ^ ((1 << 16) - 1);
+const acc_sym_mask = ((1 << 26) - 1) ^ ((1 << 25) - 1);
 export const fail_state_mask = 1 << 27;
+export const normal_state_mask = 1 << 26;
 export const alpha_increment_stack_pointer_mask = 1 << 0;
 export const alpha_have_default_action_mask = 1 << 1;
 export const alpha_auto_accept_with_peek_mask = 1 << 16;
 export const alpha_auto_consume_with_peek_mask = 1 << 17;
 export const production_scope_pop_pointer = 2;
+export const instruction_pointer_mask = 0xFFFFFF;
 
 type ScannerFunction = (l: Lexer, i: u32, j: u32) => void;
 
@@ -164,6 +166,13 @@ export class KernelState implements KernelStateType {
             destination_state.lexer_stack[i].peek_unroll_sync(this.lexer_stack[i]);
     }
 
+    copy_production_stack(destination_state: KernelState) {
+        for (let i = 0; i <= this.prod_pointer; i++)
+            destination_state.prod_stack[i] = (this.prod_stack[i]);
+
+        destination_state.prod_pointer = this.prod_pointer;
+    }
+
     transfer_state_stack(new_state: KernelState) {
 
         this.copy_state_stack(new_state);
@@ -183,6 +192,8 @@ export class KernelState implements KernelStateType {
         this.copy_lexer_stack(forked_state);
         //Increment the refs count to prevent the
         //KernelState from being recycled.
+        this.copy_production_stack(forked_state);
+
         forked_state.origin = this;
         forked_state.next = [];
         forked_state.stack_pointer = this.stack_pointer;
@@ -532,7 +543,7 @@ function set_production_scope(instruction: number, kernel_state: KernelState, in
     } else {
         const prod_scope = instruction & 0xFFFFFFF;
         kernel_state.prod_stack[++kernel_state.prod_pointer] = prod_scope;
-        kernel_state.push_state(2); //Scope pop instruction location
+        kernel_state.push_state(fail_state_mask | normal_state_mask | 2); //Scope pop instruction location
     }
 
     return index;
@@ -904,12 +915,14 @@ function push_fail_state(instruction: number, state_pointer: number, kernel_stat
     let fail_state_pointer = (instruction) >>> 0;
 
     if ((state_pointer & fail_state_mask) > 0) {
-        fail_state_pointer |= acc_sym_mask & state_pointer;
+        fail_state_pointer |= state_pointer;
     } else {
-        fail_state_pointer |= kernel_state.symbol_accumulator & acc_sym_mask;
+        //fail_state_pointer |= kernel_state.symbol_accumulator & acc_sym_mask;
     }
 
-    if ((kernel_state.get_state() & 0xFFFF) != ((fail_state_pointer >>> 0) & 0xFFFF)) {
+    //Only need to set new failure state if the previous state
+    //Is not identical to the pending fail state.
+    if ((kernel_state.get_state() & instruction_pointer_mask) != ((fail_state_pointer >>> 0) & instruction_pointer_mask)) {
         {
             Logger.get("HC-Kernel-Debug")
                 .log(`INSTRUCTION: Set Failure state ${instruction & 0xFFFFFF}`);
@@ -1298,12 +1311,19 @@ export function kernel_executor(
                  *
                  */
                 Logger.get("HC-Kernel-Debug")
-                    .log(`PARSER: << On state ${state & 0xFFFF} >>`);
+                    .log(`PARSER: << On state ${state & instruction_pointer_mask} >>`);
 
+                // If in failure mode, the shift with the truthy fail_mode
+                // mode boolean value will turn the success_state_mask
+                // into the fail_state_mask, effectively blocking all
+                // states that do not have the failure bit set.
+                const mask_gate = normal_state_mask << +fail_mode;
 
-                if ((!fail_mode && ((state & fail_state_mask) == 0))
-                    || (fail_mode && (state & fail_state_mask) != 0)
-                    || (state & 0xFFFFF) == production_scope_pop_pointer) {
+                if (state & mask_gate) {
+
+                    //if ((!fail_mode && ((state & fail_state_mask) == 0))
+                    //    || (fail_mode && (state & fail_state_mask) != 0)
+                    //    || (state & 0xFFFFF) == production_scope_pop_pointer) {
 
                     ({ fail_mode, prod } = instruction_executor(
                         state,
