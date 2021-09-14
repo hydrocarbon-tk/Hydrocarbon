@@ -56,7 +56,7 @@ export async function createBuildPack(
                         .result[0];
                     return [str, ir_state];
                 } catch (e) {
-                    console.debug(hash, str);
+                    build_logger.error(hash, str);
                     throw e;
                 }
             }
@@ -126,12 +126,13 @@ export async function createBuildPack(
 
     //Render state strings for later reference
 
-
-
     for (const [, state_data] of states_map) {
         state_data.string = (state_data.string.match(/\/\*[^\*]+\*\//sm)?.[0] ?? "")
             + "\n"
             + renderIRNode(state_data.ir_state_ast);
+
+        build_logger.debug(state_data.string);
+
         extractTokenSymbols(state_data, grammar);
     }
 
@@ -180,7 +181,9 @@ function insertIrStateBlock(
         insertIrStateBlock(ir_state_ast.fail, ir_state_ast.fail.pos.slice(), grammar, states_map, StateAttrib.FAIL_STATE);
 }
 
-function convertBlockDataToBufferData(block_info: BlockData, state_map: StateMap): number[] {
+function convertBlockDataToBufferData(state_data: IRStateData, state_map: StateMap): number[] {
+
+    const block_info = state_data.block;
 
     const buffer = [];
 
@@ -193,8 +196,9 @@ function convertBlockDataToBufferData(block_info: BlockData, state_map: StateMap
     while (buffer.length < (block_info.total_size / 4))
         buffer.push(0);
 
-    if (buffer.length > (block_info.total_size / 4))
-        throw new Error("Buffer data length does not match length calculated in BlockData");
+    if (buffer.length > (block_info.total_size / 4)) {
+        throw new Error(`Buffer data length does not match length calculated in BlockData. Original state [ ${state_data.ir_state_ast.id} ]: \n\n${state_data.string}\n\n`);
+    }
 
     return buffer;
 }
@@ -843,9 +847,9 @@ function statesOutputsBuildPass(StateMap: StateMap, grammar: GrammarObject, sym_
         (15 << 28) | 1
     ]; // The pass, fail, scope pop, and pass through return instructions
 
-    for (const [_, { block }] of StateMap) {
+    for (const [_, state_data] of StateMap) {
 
-        const buffer = convertBlockDataToBufferData(block, StateMap);
+        const buffer = convertBlockDataToBufferData(state_data, StateMap);
 
         out_buffer.push(...buffer);
     }
