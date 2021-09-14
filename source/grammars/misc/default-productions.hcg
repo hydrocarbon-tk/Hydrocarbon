@@ -33,7 +33,7 @@
 
 <> number >  tk:scientific_token
 
-<> scientific_token > float_token ( (\e | \E ) \- ? g:num )?
+<> scientific_token > float_token ( ( (RST g:sp g:nl) t:e | (RST g:sp g:nl) t:E ) \- ? g:num )?
 
 <> float_token > g:num ( \. g:num )?
 
