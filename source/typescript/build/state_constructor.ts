@@ -12,9 +12,9 @@ import { Item } from "../utilities/item.js";
 import { default_case_indicator } from './build.js';
 import { create_symbol_clause } from './create_symbol_clause.js';
 import { getGotoSTARTs, getSTARTs as getSTARTItems } from "./STARTs.js";
-import { constructTransitionForest } from './transition_tree.js';
+import { constructTransitionForest, TransitionForestOptions } from './transition_tree.js';
 
-
+const numeric_sort: (a: any, b: any) => number = (z, w) => z - w;
 
 export function constructProductionStates(
     production: GrammarProduction,
@@ -241,7 +241,7 @@ function processTransitionNode(
         ) {
 
             state_string.push(`
-                ${assertion} [ ${state.symbols.filter(Sym_Is_A_Token).map(i => i.id).join(" ")} ] (
+                ${assertion} [ ${state.symbols.filter(Sym_Is_A_Token).map(i => i.id).setFilter().join(" ")} ] (
                     ${prelude_command}${action}${postlude_command}
                 )
             `);
@@ -329,7 +329,7 @@ function generateStateHashAction(
 
     const action = action_string.join(" ");
 
-    const hash_basis_string = hash_string.join("") + symbol_ids.sort((a, b) => a - b).join(" ");
+    const hash_basis_string = hash_string.join("") + symbol_ids.sort(numeric_sort).join(" ");
 
     const hash = "h" + hashString(assertion_type + hash_basis_string)
         .slice(0, 12)
@@ -406,7 +406,7 @@ function processMultiChildStates(
 
             states_string.push(
                 f`${4}
-                    ${lexer_state} [ ${symbols.map(i => i.id).sort((a, b) => a - b).join(" ")} ${IS_LAST_GROUP ? " " + default_case_indicator : ""} ](
+                    ${lexer_state} [ ${symbols.map(i => i.id).setFilter().sort(numeric_sort).join(" ")} ${IS_LAST_GROUP ? " " + default_case_indicator : ""} ](
                         ${action_string}
                     )`
             );
@@ -449,6 +449,7 @@ function f(strings: TemplateStringsArray, ...args: any[]) {
     return output.join("");
 }
 
+
 function generateSingleStateAction(
     state: TransitionForestStateA,
     grammar: GrammarObject,
@@ -478,8 +479,9 @@ function generateSingleStateAction(
         assertion = depth > 0 ? "peek" : "assert";
 
         action_string = `set prod to ${root_prod} then fail`;
-        symbol_ids.push(...token_symbols.map(i => i.id));
-        combined_string = `${assertion} [ ${symbol_ids.sort((a, b) => a - b).join(" ")} ] ( ${action_string} )`;
+        symbol_ids.push(...token_symbols.map(i => i.id).setFilter());
+
+        combined_string = `${assertion} [ ${symbol_ids.sort(numeric_sort).join(" ")} ] ( ${action_string} )`;
 
     } else if (type & TransitionStateType.PEEK) {
         //Assert the children symbols
@@ -501,9 +503,9 @@ function generateSingleStateAction(
         } else
             action_string = `goto state [ ${hash} ]`;
 
-        symbol_ids.push(...token_symbols.map(i => i.id));
+        symbol_ids.push(...token_symbols.map(i => i.id).setFilter());
 
-        combined_string = `${assertion} [ ${symbol_ids.sort((a, b) => a - b).join(" ")} ] ( ${action_string} )`;
+        combined_string = `${assertion} [ ${symbol_ids.sort(numeric_sort).join(" ")} ] ( ${action_string} )`;
 
     } else if (type & TransitionStateType.END) {
 
@@ -590,8 +592,10 @@ function generateSingleStateAction(
             action_string = `goto state [ ${hash} ]`;
         else
             action_string = `consume then goto state [ ${hash} ]`;
-        symbol_ids.push(...token_symbols.map(i => i.id));
-        combined_string = `assert [ ${symbol_ids.sort((a, b) => a - b).join(" ")} ] ( ${action_string} )`;
+
+        symbol_ids.push(...token_symbols.map(i => i.id).setFilter());
+
+        combined_string = `assert [ ${symbol_ids.sort(numeric_sort).join(" ")} ] ( ${action_string} )`;
 
         assertion = "assert";
     }
