@@ -37,9 +37,16 @@ export function constructProductionStates(
 
     const goto_item_map = getGotoSTARTs(production, recursive_descent_items, grammar);
 
+    const tt_options: TransitionForestOptions = {
+        root_production: production.id,
+        max_tree_depth: 10,
+        time_limit: 150
+    };
+
     const recursive_descent_graph = constructTransitionForest(
         grammar,
-        recursive_descent_items
+        recursive_descent_items,
+        tt_options
     );
 
     // If forks seperate out the conflicting items into 
@@ -51,7 +58,8 @@ export function constructProductionStates(
         .map(([production_id, items]) =>
             [production_id, constructTransitionForest(
                 grammar,
-                items.map(i => i.increment())
+                items.map(i => i.increment()),
+                tt_options
             )]
         ) as [number, TransitionForestStateA][])
         .sort(([a], [b]) => b - a);
@@ -530,29 +538,38 @@ function generateSingleStateAction(
 
     } else if (type & TransitionStateType.PRODUCTION) {
 
+        let postamble = "";
+
+        if (state.states.length > 0) {
+
+            const { hash } = generateStateHashAction(state.states[0], grammar, root_prod);
+
+            postamble = ` then goto state [ ${hash} ]`;
+        }
+
         if (symbols.length > 1) {
 
             const production_symbol = symbols.filter(Sym_Is_A_Production)[0];
 
             const assertion_symbols = <TokenSymbol[]>symbols.filter(s => !Sym_Is_A_Production(s));
 
-            const { hash } = generateStateHashAction(state.states[0], grammar, root_prod);
+
 
             action_string =
                 f`${4}
-                    goto state [ ${production_symbol.name} ] then goto state [ ${hash} ]
+                    goto state [ ${production_symbol.name} ]${postamble}
                     `;
 
         } else {
 
             const [production_symbol] = symbols;
 
-            const { hash } = generateStateHashAction(state.states[0], grammar, root_prod);
+
 
             if (!Sym_Is_A_Production(production_symbol))
                 throw new Error(`Production type states should contain a production symbol`);
 
-            action_string = `goto state [ ${production_symbol.name} ] then goto state [ ${hash} ]`;
+            action_string = `goto state [ ${production_symbol.name} ]${postamble}`;
         }
 
         combined_string = action_string;

@@ -6,13 +6,15 @@
 import {
     getUniqueSymbolName, Sym_Is_A_Production, Sym_Is_EOF
 } from "../grammar/nodes/symbol.js";
-import { GrammarObject, HCG3Symbol } from '../types/grammar_nodes';
+import { GrammarObject, HCG3Symbol, SymbolType } from '../types/grammar_nodes';
 import { TransitionForestStateA, TransitionStateType } from "../types/transition_tree_nodes";
 import { getClosure } from "../utilities/closure.js";
 import { getFirstTerminalSymbols } from '../utilities/first.js';
 import { Item } from "../utilities/item.js";
+import { getStartItemsFromProduction } from '../utilities/production.js';
 import { disambiguate } from './disambiguate.js';
 import { end_item_addendum, GlobalState, LocalState, OutOfScopeItemState } from './magic_numbers.js';
+import { isRecursive } from './STARTs.js';
 
 export function constructTransitionForest(
     grammar: GrammarObject,
@@ -327,7 +329,6 @@ function createPeekTreeStates(
             In the multi-root case the leaf is used to fork to new actions
         */
 
-
         if (leaf.states.length > 0) {
             //merge leaf states
             const pending_leaf_states: Map<string, TransitionForestStateA> = new Map();
@@ -378,6 +379,7 @@ function createPeekTreeStates(
                     &&
                     groups.flat().group(i => getUniqueSymbolName(i.sym(grammar))).length == 1
                 ) {
+
                     leaf.items.length = 0;
                     leaf.items.push(...groups.flat().setFilter(i => i.id));
                     token_leaf_states.push(leaf);
@@ -393,7 +395,6 @@ function createPeekTreeStates(
 
                     const sym = group[0].sym(grammar);
 
-
                     const new_state = createTransitionForestState(
                         TransitionStateType.UNDEFINED,
                         [],
@@ -401,13 +402,14 @@ function createPeekTreeStates(
                         [],
                         origin_state
                     );
+
                     if (group.some(i => i.state == OutOfScopeItemState)) {
 
                         new_state.type |= TransitionStateType.OUT_OF_SCOPE;
 
                         new_state.symbols.push(sym);
 
-                    } else if (Sym_Is_A_Production(sym)) {
+                    } if (Sym_Is_A_Production(sym)) {
 
                         new_state.type |= TransitionStateType.PRODUCTION;
 
@@ -418,6 +420,8 @@ function createPeekTreeStates(
                         new_state.symbols.push(...getFirstTerminalSymbols(sym.val, grammar));
                         new_state.items = group.map(r => r.increment());
 
+                        token_leaf_states.push(new_state);
+
                     } else {
 
                         new_state.symbols.push(sym);
@@ -426,11 +430,10 @@ function createPeekTreeStates(
                         new_state.items = group.map(r => r.atEND ? r : r.increment());
 
                         new_state.type |= TransitionStateType.TERMINAL;
+
+                        token_leaf_states.push(new_state);
                     }
 
-                    //new_state.items = group;
-                    if (!(new_state.type & TransitionStateType.OUT_OF_SCOPE))
-                        token_leaf_states.push(new_state);
 
                     origin_state.states.push(new_state);
                 }
@@ -441,30 +444,49 @@ function createPeekTreeStates(
                 const group = groups[0];
                 const sym = group[0].sym(grammar);
 
-                if (Sym_Is_A_Production(sym)) {
+                if (
+
+                    group.every(i => i.offset == 0)
+                    && group.group(i => i.getProductionID(grammar)).length == 1
+
+                    && group[0].getProductionID(grammar) != options.root_production
+
+                    && !isRecursive(options.root_production, getStartItemsFromProduction(group[0].getProduction(grammar)), grammar)
+                ) {
+                    const id = group[0].getProductionID(grammar);
+
+                    origin_state.type = TransitionStateType.PRODUCTION;
+
+                    origin_state.depth = -5005;
+
+                    origin_state.symbols.push({
+                        type: SymbolType.PRODUCTION,
+                        name: grammar.productions[id].name,
+                        pos: null,
+                        meta: null,
+                        val: id
+                    });
+
+                    continue;
+                } else if (Sym_Is_A_Production(sym)) {
                     origin_state.depth = -1004;
                     origin_state.type |= TransitionStateType.PRODUCTION;
-                    //origin_state.depth = -104;
                     origin_state.items = group.slice().map(i => i);
                     origin_state.symbols.push(sym);
+                    production_leaf_states.push(origin_state);
                 } else {
                     origin_state.depth = -1005;
-                    if (!group.some(i => i.atEND)) {
-                        origin_state.symbols = [sym];
-                    }
-
                     origin_state.type |= TransitionStateType.TERMINAL;
                     origin_state.items = group.slice();
-                }
+                    if (!group.some(i => i.atEND)) {
+                        origin_state.symbols = [sym];
+                        token_leaf_states.push(origin_state);
+                    } else {
+                        origin_state.type ^= TransitionStateType.PEEK;
+                        origin_state.type |= TransitionStateType.END;
+                    }
 
-                if (origin_state.items[0].atEND) {
-                    //No need to process this state further
-                    origin_state.type ^= TransitionStateType.PEEK;
-                    origin_state.type |= TransitionStateType.END;
-                } else if (origin_state.type & TransitionStateType.PRODUCTION)
-                    production_leaf_states.push(origin_state);
-                else
-                    token_leaf_states.push(origin_state);
+                }
             }
         }
     }
@@ -541,9 +563,13 @@ export function createTransitionForestState(
 
 
 export interface TransitionForestOptions {
-    expanded_limit: number;
+
+    /**
+     * The maximum peek depth allowed before a branch
+     * is deemed ambiguous
+     */
     max_tree_depth: number;
-    max_no_progress: number;
+
     /**
      * Max amount of time the search process may take,
      * measured in milliseconds.
@@ -551,4 +577,8 @@ export interface TransitionForestOptions {
      * Default is 150 milliseconds
      */
     time_limit: number;
+    /**
+     * The id of the root production
+     */
+    root_production: number;
 }

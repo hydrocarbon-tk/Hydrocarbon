@@ -151,13 +151,14 @@ export function getStartsFromItems(
             } else {
 
                 //Add the production to descend_candidates
-                const production = mutual_conflict[0].getProductionAtSymbol(grammar);
 
-                if (!seen_candidates.has(production.id)) {
+                for (const production of mutual_conflict.map(i => i.getProductionAtSymbol(grammar))) {
+                    if (!seen_candidates.has(production.id)) {
 
-                    descend_candidates.push(...getStartItemsFromProduction(production));
+                        descend_candidates.push(...getStartItemsFromProduction(production));
 
-                    seen_candidates.add(production.id);
+                        seen_candidates.add(production.id);
+                    }
                 }
             }
 
@@ -212,3 +213,13 @@ function extractSTARTCandidates(
         START_candidate_set.push(candidate_item);
     }
 }
+
+
+export function isRecursive(
+    root_production: number,
+    candidate_items: Item[],
+    grammar: GrammarObject
+) {
+    return getClosure(candidate_items, grammar).map(i => i.getProductionAtSymbol(grammar)?.id ?? -1).includes(root_production);
+}
+
