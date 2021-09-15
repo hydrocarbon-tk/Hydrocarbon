@@ -249,7 +249,7 @@ export interface SymbolNode extends HCGGrammarNode {
     precedence?: number;
     pos: Token;
     meta: boolean;
-    id: number;
+    id?: number;
 }
 
 export interface ListProductionSymbol extends SymbolNode {
@@ -472,7 +472,6 @@ export type HCG3Symbol =
     | EOFSymbol
     | EmptySymbol
     | BaseGeneratedSymbol
-    | ExclusiveLiteralSymbol
     | LiteralSymbol
     | ProductionTokenSymbol
     | ProductionSymbol
