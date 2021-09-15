@@ -328,11 +328,11 @@ function optimizeState(state: IRStateData, states: StateMap) {
 
             if (sub_instructions.length == 1 && sub_instructions[0].type == InstructionType.fail) {
 
-                ir_state_ast.instructions.splice(i, 1);
+                // ir_state_ast.instructions.splice(i, 1);
 
                 optimize_logger.debug(`Redundant fail branch removed in ${root_id}`);
 
-                MODIFIED = true;
+                //  MODIFIED = true;
             }
         }
         i++;
@@ -494,37 +494,46 @@ export function garbageCollect(StateMap: StateMap, grammar: GrammarObject,) {
 
     for (const name of pending) {
 
+
+
         const state = StateMap.get(name);
 
         marked_map.set(name, true);
 
         const names: Set<string> = new Set();
 
-        const instructions = state.ir_state_ast.instructions.slice();
+        try {
 
-        for (const instruction of instructions) {
 
-            switch (instruction.type) {
+            const instructions = state.ir_state_ast.instructions.slice();
 
-                case InstructionType.goto: {
+            for (const instruction of instructions) {
 
-                    names.add(getStateName(instruction.state));
+                switch (instruction.type) {
 
-                } break;
+                    case InstructionType.goto: {
 
-                case InstructionType.fork_to: {
-                    for (const state of instruction.states) {
-                        names.add(getStateName(state));
-                    }
-                } break;
+                        names.add(getStateName(instruction.state));
 
-                case InstructionType.prod:
-                case InstructionType.peek:
-                case InstructionType.assert:
-                    {
-                        instructions.push(...instruction.instructions);
                     } break;
+
+                    case InstructionType.fork_to: {
+                        for (const state of instruction.states) {
+                            names.add(getStateName(state));
+                        }
+                    } break;
+
+                    case InstructionType.prod:
+                    case InstructionType.peek:
+                    case InstructionType.assert:
+                        {
+                            instructions.push(...instruction.instructions);
+                        } break;
+                }
             }
+        } catch (e) {
+            console.log(state.string);
+            throw e;
         }
 
         if (state.ir_state_ast.fail)
@@ -553,13 +562,22 @@ function mergeDuplicateBodies(ir_state_ast: IR_State, attributes: StateAttrib) {
         const groups = (<(IRProductionBranch | IRPeek | IRAssert)[]>ir_state_ast.instructions)
             .group(i => i.instructions.map(i => renderIRNode(i)).join(""));
 
-        ir_state_ast.instructions.length = 0;
+        const original_length = ir_state_ast.instructions.length;
 
-        for (const group of groups) {
 
-            ir_state_ast.instructions.push(group[0]);
+        if (groups.length < original_length) {
+            ir_state_ast.instructions.length = 0;
 
-            group[0].ids = group.flatMap(g => <number[]>g.ids).setFilter().sort((a, b) => a - b);
+            optimize_logger.debug(`Removed duplicate branches in ${ir_state_ast.id}`);
+
+            for (const group of groups) {
+
+                ir_state_ast.instructions.push(group[0]);
+
+                group[0].ids = group.flatMap(g => <number[]>g.ids).setFilter().sort((a, b) => a - b);
+            }
+
+
         }
     }
 }

@@ -12,6 +12,7 @@ import {
     IRAssert,
     IRConsume,
     IRFail,
+    IRFallThrough,
     IRFork,
     IRGoto,
     IRInlineAssert,
@@ -111,6 +112,12 @@ export const ir_state_mappings: NodeMappings<IRNode, "type"> = <NodeMappings<IRN
             type: "fail",
             child_keys: [],
             template: "fail"
+        },
+
+        <NodeMapping<IRFallThrough>>{
+            type: "fall_through",
+            child_keys: [],
+            template: "fall_through"
         },
 
         <NodeMapping<IRConsume>>{

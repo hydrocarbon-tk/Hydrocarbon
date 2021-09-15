@@ -7,6 +7,7 @@ import spark from "@candlelib/spark";
 import { WorkerRunner } from "../build/workers/worker_runner.js";
 import parser_loader from "../grammar/ir_parser.js";
 import { getProductionByName } from '../grammar/nodes/common.js';
+import { default_EOF, default_GEN_NEWLINE } from '../grammar/nodes/default_symbols.js';
 import { getRootSym, Sym_Is_A_Token } from '../grammar/nodes/symbol.js';
 import { BuildPack } from "../render/render.js";
 import { fail_state_mask, normal_state_mask } from '../runtime/kernel.js';
@@ -72,16 +73,42 @@ export async function createBuildPack(
     // Map recovery states to state of their target production ---------------------
 
     for (const [id, state] of states_map) {
+        for (const instruction of state.ir_state_ast.instructions) {
+            if (instruction.type == InstructionType.assert
+                ||
+                instruction.type == InstructionType.peek
+            ) {
+                if (instruction.ids.includes(0))
+                    instruction.ids.push(default_case_indicator);
+            }
+        }
 
         if (id.slice(0, 4) == "%%%%") {
 
             const target_production = id.slice(4);
 
+
+
             if (states_map.has(target_production)) {
+
                 //@ts-ignore
                 states_map.get(target_production).ir_state_ast.fail = state.ir_state_ast;
-
                 state.attributes |= StateAttrib.FAIL_STATE;
+
+                // If there is a "pass" only goto state for the production, replace
+                // the pass instruction with a fall through instruction
+
+                const { ir_state_ast } = states_map.get(target_production + "_goto");
+
+                if (
+                    ir_state_ast.instructions.length == 1
+                    &&
+                    ir_state_ast.instructions[0].type == InstructionType.pass
+                ) {
+                    //@ts-ignore
+                    ir_state_ast.instructions[0].type = InstructionType.fall_through;
+                }
+
             }
         }
     }
@@ -127,6 +154,11 @@ export async function createBuildPack(
     //Render state strings for later reference
 
     for (const [, state_data] of states_map) {
+
+        //Replace id 0 with 9999
+
+
+
         state_data.string = (state_data.string.match(/\/\*[^\*]+\*\//sm)?.[0] ?? "")
             + "\n"
             + renderIRNode(state_data.ir_state_ast);
@@ -228,6 +260,10 @@ function insertInstructionSequences(
 
                 case InstructionType.consume: {
                     temp_buffer.push(1 << 28);
+                } break;
+
+                case InstructionType.empty_consume: {
+                    temp_buffer.push((1 << 28) | 1);
                 } break;
 
                 case InstructionType.goto: {
@@ -490,6 +526,8 @@ function insertInstructionSequences(
                 } break;
 
                 case InstructionType.fail: temp_buffer.push((15 << 28) >>> 0); break;
+
+                case InstructionType.fall_through: temp_buffer.push((15 << 28) | 1); break;
             }
         }
 
@@ -559,13 +597,18 @@ function createInstructionSequence(
                 instruction_sequence.push(InstructionType.pass);
                 break;
 
+            case InstructionType.fall_through:
+                byte_length += 4;
+                instruction_sequence.push(InstructionType.fall_through);
+                break;
+
             case InstructionType.consume:
 
                 byte_length += 4;
 
-                if (instr.EMPTY) {
+                if (instr.EMPTY)
                     instruction_sequence.push(InstructionType.empty_consume);
-                } else
+                else
                     instruction_sequence.push(InstructionType.consume);
 
                 break;

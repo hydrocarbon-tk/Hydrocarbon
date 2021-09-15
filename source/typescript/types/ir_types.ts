@@ -56,6 +56,7 @@ export const enum InstructionType {
     token_length = "token-length",
     token_id = "token-id",
     pass = "pass",
+    fall_through = "fall_through",
     fail = "fail",
     repeat = "repeat-state",
     left_most = "assert-left",
@@ -169,6 +170,10 @@ export interface IRFail extends Base_IR_Instruction {
     type: InstructionType.fail;
 }
 
+export interface IRFallThrough extends Base_IR_Instruction {
+    type: InstructionType.fall_through;
+}
+
 export interface IREnd extends Base_IR_Instruction {
     type: InstructionType.pass;
 }
@@ -201,6 +206,7 @@ export type IR_Instruction = IRConsume |
     IRSetTokenLength |
     IRPass |
     IRFail |
+    IRFallThrough |
     IRGoto |
     IREnd |
     IRInlineAssert |

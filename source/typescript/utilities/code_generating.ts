@@ -350,7 +350,7 @@ export function getSymbolScannerFunctions(grammar: GrammarObject): SKFunction[] 
     }
 
     for (const gen_sym of gen_syms)
-        ifs.push(sk`if ${getActiveTokenQuery(gen_sym)} && ${getSymbolBoolean(gen_sym, grammar, "l")} : { return }`);
+        ifs.push(sk`if ${getActiveTokenQuery(gen_sym)} && ${getSymbolBoolean(gen_sym, grammar, "l")} : { l._type = ${gen_sym.id} ; return }`);
 
     const [first] = mergeIfStatement(ifs);
 

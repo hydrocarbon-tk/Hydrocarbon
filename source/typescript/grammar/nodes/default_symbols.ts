@@ -5,7 +5,7 @@ import {
     GeneratedNewLine,
     GeneratedNumber,
     GeneratedSpace,
-    GeneratedSymbol, EOPSymbol, SymbolType
+    GeneratedSymbol, EOPSymbol, SymbolType, RecoverySymbol
 } from "../../types/grammar_nodes";
 
 /**
@@ -61,10 +61,18 @@ export const
         id: TokenTypes.NUMBER,
         pos: {},
         meta: null,
+    },
+    default_RECOVERY: RecoverySymbol = {
+        type: SymbolType.GENERATED,
+        val: "rec",
+        id: TokenTypes.RECOVERY,
+        pos: {},
+        meta: null,
     };
 
 
 export const default_array = [
+    default_RECOVERY,
     default_EOP,
     default_EOF,
     default_GEN_SPACE,

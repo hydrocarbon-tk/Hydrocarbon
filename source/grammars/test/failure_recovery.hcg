@@ -3,23 +3,21 @@
 <> S > A \r
             f:r { { sym: $1  } }
 
+<> A > \a \b \c
+            f:r { { type: "good A", a:$1, b:$2, c:$3  } }
+
 <[recover A] 
 
-    scan until [ g:sp ] then reduce
-
-            f:r { { type:"failed A", pos, sym } }
+    scan until [ \r ] 
+        then reduce f:r { { type:"failed A", pos, sym } } 
+        then set prod to A
 
     on fail state [ A_scan_backward ] 
 
-        scan back until [ g:sp ] then reduce 
-
-            f:r { { type:"failed A", pos } }
+        scan back until [ g:sp ] 
+            then reduce f:r { { type:"failed A", pos } } 
+            then set prod to A
 >
-
-
-
-<> A > \a \b \c
-            f:r { { type: "good A", a:$1, b:$2, c:$3  } }
 
 
 #<> ASI > \;

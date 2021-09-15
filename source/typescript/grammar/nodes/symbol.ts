@@ -17,7 +17,8 @@ import {
     TokenSymbol,
     VirtualTokenSymbol,
     SymbolType,
-    AmbiguousSymbol
+    AmbiguousSymbol,
+    RecoverySymbol
 } from "../../types/grammar_nodes.js";
 import { Item } from "../../utilities/item.js";
 
@@ -71,7 +72,9 @@ export function getSymbolName(sym: HCG3Symbol) {
 
     return sym.type + " [" + (sym.val ? `"${sym.val}"` : (<any>sym).name) + "]";
 }
-
+export function Sym_Is_Recovery(sym: HCG3Symbol): sym is RecoverySymbol {
+    return sym.id == 0;
+}
 export function getUniqueSymbolName(sym: HCG3Symbol, _a?: any, _b?: any) {
     if (!sym)
         return "not-a-symbol";

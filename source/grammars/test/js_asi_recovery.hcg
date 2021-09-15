@@ -1,0 +1,21 @@
+@IGNORE g:sp g:nl
+
+<> S > statements
+
+<> statements > statement(+)
+
+<> statement > exp_stmt asi f:r { $1 }
+
+<> asi > ( g:rec | \; )  
+
+
+<> exp_stmt > exp_stmt \, exp   f:r { ( $1.exprs.push($3) , $1) }
+    | exp                       f:r { { type:"exp-stmt", exprs:[$1] } }
+
+<> exp > term \+ exp        
+    | term
+
+<> term > g:id 
+    | g:num
+
+

@@ -3,7 +3,7 @@
  * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
  * disclaimer notice.
  */
-import { getUniqueSymbolName, Sym_Is_A_Production, Sym_Is_A_Token, Sym_Is_EOF, Sym_Is_Not_Consumed } from "../grammar/nodes/symbol.js";
+import { getUniqueSymbolName, Sym_Is_A_Production, Sym_Is_A_Token, Sym_Is_EOF, Sym_Is_Not_Consumed, Sym_Is_Recovery } from "../grammar/nodes/symbol.js";
 import { GrammarObject, GrammarProduction, HCG3Symbol, TokenSymbol } from "../types/grammar_nodes.js";
 import { TransitionForestStateA, TransitionStateType } from '../types/transition_tree_nodes.js';
 import { hashString } from '../utilities/code_generating.js';
@@ -23,7 +23,6 @@ export function constructProductionStates(
     parse_states: Map<string, string>;
     id: number;
 } {
-
 
     const root_prod_name = production.name;
 
@@ -49,7 +48,7 @@ export function constructProductionStates(
         tt_options
     );
 
-    // If forks seperate out the conflicting items into 
+    // If forks separate out the conflicting items into 
     // parse paths and use fork mechanism to run concurrent
     // parses of the input and then join at the end of the
     // production
@@ -554,9 +553,6 @@ function generateSingleStateAction(
             const production_symbol = symbols.filter(Sym_Is_A_Production)[0];
 
             const assertion_symbols = <TokenSymbol[]>symbols.filter(s => !Sym_Is_A_Production(s));
-
-
-
             action_string =
                 f`${4}
                     goto state [ ${production_symbol.name} ]${postamble}
@@ -583,8 +579,15 @@ function generateSingleStateAction(
         const [child_state] = state.states;
 
         const hash = generateStateHashAction(child_state, grammar, root_prod).hash;
+        if (symbols.some(s => Sym_Is_Recovery(s))) {
 
-        if (symbols.some(s => Sym_Is_Not_Consumed(s)))
+            const item = state.items[0];
+
+            const production = item.getProduction(grammar);
+
+            action_string = `goto state [ ${production.name}_recover_${1 + item.offset} ] then goto state [ ${hash} ]`;
+
+        } else if (symbols.some(s => Sym_Is_Not_Consumed(s)))
 
             action_string = `consume nothing then goto state [ ${hash} ]`;
 

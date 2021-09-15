@@ -409,6 +409,14 @@ export interface GeneratedNumber extends BaseGeneratedSymbol {
     val: "num";
     id: TokenTypes.NUMBER;
 }
+
+export interface RecoverySymbol extends BaseGeneratedSymbol {
+
+    val: "rec";
+    id: TokenTypes.RECOVERY;
+}
+
+;
 export interface GeneratedSpace extends BaseGeneratedSymbol {
 
     val: "sp";
@@ -468,6 +476,7 @@ export type TokenSymbol =
     | AmbiguousSymbol;
 export type HCG3Symbol =
     ListProductionSymbol
+    | RecoverySymbol
     | GroupProductionSymbol
     | EOFSymbol
     | EmptySymbol

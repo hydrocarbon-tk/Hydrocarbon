@@ -37,6 +37,7 @@
 <>  terminal_symbol > generated_symbol
     | literal_symbol
     | escaped_symbol
+    | EOF_symbol
     
 
 <> symbol > symbol \?                                            f:r { $1.IS_OPTIONAL = 1, $1 }

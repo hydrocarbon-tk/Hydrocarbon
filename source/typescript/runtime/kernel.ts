@@ -4,7 +4,7 @@
  * disclaimer notice.
  */
 
-import { Lexer, init_table, compare } from "./lexer.js";
+import { Lexer, init_table, compare } from "./kernel_lexer.js";
 import { i32, u32 } from "../types/ir_types";
 import { Logger } from './logger.js';
 
@@ -12,8 +12,6 @@ export { init_table, compare };
 
 //Global Constants
 const state_index_mask = (1 << 16) - 1;
-
-const acc_sym_mask = ((1 << 26) - 1) ^ ((1 << 25) - 1);
 export const fail_state_mask = 1 << 27;
 export const normal_state_mask = 1 << 26;
 export const alpha_increment_stack_pointer_mask = 1 << 0;
@@ -50,7 +48,7 @@ export class KernelState implements KernelStateType {
     stack_pointer: u32;
     state_stack: Uint32Array;
     prod_pointer: u32;
-    prod_stack: Uint16Array;
+    meta_stack: Uint32Array;
     tk_scan: ScannerFunction;
     readonly instruction_buffer: Uint32Array;
     // 8 byte +
@@ -82,7 +80,9 @@ export class KernelState implements KernelStateType {
 
         this.state_stack = new Uint32Array(128);
 
-        this.prod_stack = new Uint16Array(128);
+        this.meta_stack = new Uint32Array(128);
+
+        this.meta_stack[0] = -1;
 
         this.prod_pointer = -1;
 
@@ -129,14 +129,15 @@ export class KernelState implements KernelStateType {
         if (enable_history) {
             const lexer = this.lexer_stack[this.lexer_pointer];
 
-            this.state_history.push([kernel_state, lexer.previous_type, lexer.byte_offset, lexer.token_length, prod]);
+            this.state_history.push([kernel_state, lexer._type, lexer.byte_offset, lexer.token_length, prod]);
         }
 
     }
 
-    push_state(kernel_state: number, enable_history: boolean = false) {
+    push_state(kernel_state: number, UPDATE_META: boolean = true) {
 
         this.state_stack[++this.stack_pointer] = kernel_state;
+        this.meta_stack[this.stack_pointer] = (this.meta_stack[this.stack_pointer - 1] & 0xFFFF) | this.symbol_accumulator;
     }
 
     replace_top_state(kernel_state: number) {
@@ -167,8 +168,8 @@ export class KernelState implements KernelStateType {
     }
 
     copy_production_stack(destination_state: KernelState) {
-        for (let i = 0; i <= this.prod_pointer; i++)
-            destination_state.prod_stack[i] = (this.prod_stack[i]);
+        for (let i = 0; i <= this.stack_pointer; i++)
+            destination_state.meta_stack[i] = (this.meta_stack[i]);
 
         destination_state.prod_pointer = this.prod_pointer;
     }
@@ -483,13 +484,13 @@ function instruction_executor(
 
             case 0: default: return pass(prod);
 
-            case 1: consume(kernel_state); break;
+            case 1: consume(instruction, kernel_state); break;
 
             case 2: goto(instruction, kernel_state); break;
 
             case 3: prod = set_production(instruction, prod, kernel_state); break;
 
-            case 4: reduce(instruction, kernel_state, state_pointer); break;
+            case 4: reduce(instruction, kernel_state); break;
 
             case 5: set_token_length(instruction, kernel_state); break;
 
@@ -524,7 +525,7 @@ function advanced_return(instruction: number, prod: number, fail_mode: boolean):
         //
         {
             Logger.get("HC-Kernel-Debug")
-                .log(`INSTRUCTION: Pass Through Return `);
+                .log(`INSTRUCTION: Fall Through Return `);
         }
         return ({ fail_mode, prod });
     }
@@ -542,7 +543,7 @@ function set_production_scope(instruction: number, kernel_state: KernelState, in
         index = 3; //Passthrough return
     } else {
         const prod_scope = instruction & 0xFFFFFFF;
-        kernel_state.prod_stack[++kernel_state.prod_pointer] = prod_scope;
+        kernel_state.meta_stack[kernel_state.stack_pointer] = prod_scope | (kernel_state.meta_stack[kernel_state.stack_pointer] & 0xFFFF0000);
         kernel_state.push_state(fail_state_mask | normal_state_mask | 2); //Scope pop instruction location
     }
 
@@ -563,9 +564,9 @@ function not_in_scope(kernel_state: KernelState, index: number, instruction: num
 
     let j = 0;
 
-    for (; j <= kernel_state.prod_pointer; j++) {
+    for (; j <= kernel_state.stack_pointer; j++) {
 
-        const prod = kernel_state.prod_stack[j];
+        const prod = kernel_state.meta_stack[j] & 0xFFFF;
 
         for (let i = start; i < end; i++) {
 
@@ -578,7 +579,7 @@ function not_in_scope(kernel_state: KernelState, index: number, instruction: num
         if (!RUN) break;
     }
 
-    if (j >= 0 && j <= kernel_state.prod_pointer)
+    if (j >= 0 && j <= kernel_state.stack_pointer)
         return 1;
 
 
@@ -823,16 +824,16 @@ function set_token_length(instruction: number, kernel_state: KernelState) {
 
 }
 
-function reduce(instruction: number, kernel_state: KernelState, state_pointer: number) {
+function reduce(instruction: number, kernel_state: KernelState) {
     let low = (instruction) & 0xFFFF;
 
     if ((low & 0xFFFF) == 0xFFFF) {
 
         let accumulated_symbols = kernel_state.symbol_accumulator
             -
-            ((state_pointer & acc_sym_mask));
+            (kernel_state.meta_stack[kernel_state.stack_pointer - 1] & 0xFFFF0000);
 
-        let len = accumulated_symbols >> 16;
+        let len = (accumulated_symbols >> 16);
 
         let fn_id = (instruction >> 16) & 0x0FFF;
 
@@ -860,6 +861,11 @@ function reduce(instruction: number, kernel_state: KernelState, state_pointer: n
                     .log(`INSTRUCTION: Reduce: ${(((low >> 3) & 0x1F))}`);
             }
             kernel_state.symbol_accumulator -= (((low >> 3) & 0x1F) - 1) << 16;
+
+            kernel_state.meta_stack[kernel_state.stack_pointer] =
+                kernel_state.symbol_accumulator
+                |
+                (kernel_state.meta_stack[kernel_state.stack_pointer] & 0xFFFF);
         }
     }
 }
@@ -870,22 +876,22 @@ function set_production(instruction: number, prod: number, kernel_state: KernelS
             .log(`INSTRUCTION: Set Production: ${instruction & 0xFFFFFFF}`);
     }
     prod = instruction & 0xFFFFFFF;
+    kernel_state.meta_stack[kernel_state.stack_pointer] = kernel_state.meta_stack[kernel_state.stack_pointer] | (instruction & 0xFFFF);
     kernel_state.prod = instruction & 0xFFFFFFF;
     return prod;
 }
 
 function goto(instruction: number, kernel_state: KernelState) {
+
     {
         Logger.get("HC-Kernel-Debug")
             .log(`INSTRUCTION: Goto: ${instruction & 0xFFFF}`);
     }
 
-    kernel_state.push_state(
-        instruction | ((kernel_state.symbol_accumulator) & acc_sym_mask)
-    );
+    kernel_state.push_state(instruction);
 }
 
-function consume(kernel_state: KernelState) {
+function consume(instruction: number, kernel_state: KernelState) {
 
 
     if (Logger.get("HC-Kernel-Debug").ACTIVE) { //Reference Debug
@@ -896,6 +902,12 @@ function consume(kernel_state: KernelState) {
             lexer.input.slice(lexer.byte_offset, lexer.byte_offset + lexer.byte_length)).map(i => String.fromCharCode(i)).join("");
         Logger.get("HC-Kernel-Debug")
             .log(`INSTRUCTION: Consume: ${slice}`);
+    }
+
+    if (instruction & 1) {
+        let lexer = kernel_state.lexer_stack[kernel_state.lexer_pointer];
+        lexer.token_length = 0;
+        lexer.byte_length = 0;
     }
 
     kernel_state.consume(kernel_state.lexer_pointer);
@@ -913,16 +925,10 @@ function repeat(index: number, state_pointer: number, repeat_offset: number = 0)
 function push_fail_state(instruction: number, state_pointer: number, kernel_state: KernelState, prod: number) {
 
     let fail_state_pointer = (instruction) >>> 0;
-
-    if ((state_pointer & fail_state_mask) > 0) {
-        fail_state_pointer |= state_pointer;
-    } else {
-        //fail_state_pointer |= kernel_state.symbol_accumulator & acc_sym_mask;
-    }
-
+    const current_state = (kernel_state.get_state() & instruction_pointer_mask);
     //Only need to set new failure state if the previous state
     //Is not identical to the pending fail state.
-    if ((kernel_state.get_state() & instruction_pointer_mask) != ((fail_state_pointer >>> 0) & instruction_pointer_mask)) {
+    if (current_state != ((fail_state_pointer >>> 0) & instruction_pointer_mask)) {
         {
             Logger.get("HC-Kernel-Debug")
                 .log(`INSTRUCTION: Set Failure state ${instruction & 0xFFFFFF}`);
