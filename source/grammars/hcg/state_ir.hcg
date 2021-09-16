@@ -60,7 +60,7 @@
 
         sequence_instruction(+ t:then ) 
         ( t:then goto_instruction(+ t:then ) )? 
-        ( t:then t:repeat t:state f:r{ { type:"repeat-state" } } )? 
+        ( t:then t:repeat t:state f:r{ { type:"repeat-state", pos } } )? 
         
                                             f:r{ [...$1, ...$2, $3] }
 

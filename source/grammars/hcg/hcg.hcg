@@ -103,5 +103,3 @@
 
 
 # This annotated grammar definition is continued in ./preambles.hcg
-
-# TODO: REMOVE <> __entries__ > hydrocarbon | ir::state_ir

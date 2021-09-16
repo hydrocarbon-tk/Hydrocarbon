@@ -15,7 +15,7 @@ await URI.server();
 
 const grammar_logger = Logger.get("MAIN").createLogger("GRAMMAR");
 
-const parser = await loader;
+const { parse: parser } = await loader;
 export function loadGrammarFromString(str: string, grammar_parser: HCGParser = parser): GrammarObject {
 
     const grammar = grammar_parser(str, { group_id: 0 }).result[0];

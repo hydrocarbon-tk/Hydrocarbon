@@ -51,7 +51,7 @@ export async function ParserFrameWork<T, R, K extends keyof R>(
 
     initialize_character_lut(get_character_lut());
 
-    const out: any = function (input_string: string, production_id: R[K], env: ParserEnvironment = {}) {
+    const out: any = function (input_string: string, env: ParserEnvironment = {}, production_id: R[K] = <any>0) {
 
         const
 

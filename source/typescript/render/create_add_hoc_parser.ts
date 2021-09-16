@@ -25,7 +25,7 @@ import {
 export async function createAddHocParser<T = any>(
     build_pack: BuildPack | string | Promise<BuildPack | string>,
 ): Promise<{
-    parse: (input: string, production_selector: 0, env: ParserEnvironment) => T[],
+    parse: (input: string, env: ParserEnvironment, production_selector: number) => T[],
     reverse_state_lookup,
     grammar: GrammarObject;
 }> {
