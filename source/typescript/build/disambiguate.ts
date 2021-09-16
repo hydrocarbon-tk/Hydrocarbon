@@ -459,6 +459,7 @@ function resolveEndItem(
         }
 
         if (matching_items.length == 0) {
+            active_items.push(end_item);
         } else {
 
             for (const item of matching_items.setFilter(i => i.id)) {
