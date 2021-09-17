@@ -24,6 +24,13 @@ export function constructProductionStates(
     id: number;
 } {
 
+    /*  if (production.name != "state_ir__instruction_sequence_list_289")
+         return {
+             id: 0,
+             parse_states: new Map
+         };
+     debugger; */
+
     const root_prod_name = production.name;
 
     const goto_hash = createProductionGotoName(production);
@@ -378,7 +385,21 @@ function processMultiChildStates(
 
         for (const states of state.states.map(i => [i])) {
 
-            let { assertion, hash } = generateStateHashAction(states[0], grammar, root_prod);
+            const { depth, type } = states[0];
+
+            let assertion = null, hash = "";
+
+            // If a single item state is at peek depth that is the same
+            // as this multi item state we have reached the end of the 
+            // peek sequence. The peek that would otherwise be performed
+            // in the single item state has been performed by this multi
+            // state. Thus, instead of a GOTO to the leaf state, we goto
+            // the leaf state's child state, to ensure erroneous peek commands
+            // are not generated.
+            if (depth == state.depth && !(type & TransitionStateType.MULTI) && type & TransitionStateType.PEEK)
+                ({ assertion, hash } = generateStateHashAction(states[0].states[0], grammar, root_prod));
+            else
+                ({ assertion, hash } = generateStateHashAction(states[0], grammar, root_prod));
 
             let action = `goto state [ ${hash} ]`;
             //if State is multi merge the states of the multi state?
@@ -391,9 +412,6 @@ function processMultiChildStates(
             const IS_LAST_GROUP = AUTO_PASS;
 
             const symbols = getSymbolsFromStates(states).filter(Sym_Is_A_Token);
-
-            if (symbols.length == 0)
-                debugger;
 
             global_symbols.push(...symbols);
 

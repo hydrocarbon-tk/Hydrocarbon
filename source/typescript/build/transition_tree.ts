@@ -475,11 +475,9 @@ function createPeekTreeStates(
                     origin_state.symbols.push(sym);
                     production_leaf_states.push(origin_state);
                 } else {
-                    origin_state.depth = -1005;
                     origin_state.type |= TransitionStateType.TERMINAL;
                     origin_state.items = group.slice();
                     if (!group.some(i => i.atEND)) {
-                        origin_state.symbols = [sym];
                         token_leaf_states.push(origin_state);
                     } else {
                         origin_state.type ^= TransitionStateType.PEEK;
