@@ -110,7 +110,7 @@ addCLIConfig("check-emsdk", {
 
 
 const out_dir = addCLIConfig("compile", {
-    key: "out_path",
+    key: "output",
     REQUIRES_VALUE: true,
     help_brief: "Directory to write compiled parser files. Defaults to CWD",
 });
@@ -119,6 +119,7 @@ const type = addCLIConfig("compile", {
     key: "type",
     REQUIRES_VALUE: true,
     accepted_values: ["c++", "js", "ts", "rust"],
+    default: "js",
     help_brief:
         `
 Target output language of the parser.
@@ -183,11 +184,11 @@ addCLIConfig("compile", {
     try {
 
         const
-            path = args.trailing_arguments.pop(),
-            file_path = URL.resolveRelative(path),
+            input_path = args.trailing_arguments.pop(),
+            input_file = URL.resolveRelative(input_path),
             output_path = URL.resolveRelative(out_dir.value || "./");
 
-        if (file_path.ext !== "hcg")
+        if (input_file.ext !== "hcg")
             throw new Error("Expected source file to be a hydrocarbon grammar file (.hcg)");
 
         if (recognizer.value == "wasm")
@@ -200,7 +201,7 @@ addCLIConfig("compile", {
 
         const
             threads = parseInt(number_of_workers.value ?? "1"),
-            grammar = await compileGrammarFromURI(file_path);
+            grammar = await compileGrammarFromURI(input_file);
 
         if (type.value == "rust" || type.value == "c++")
             // Compile the extended reduce actions function and classes
@@ -282,20 +283,20 @@ mod spec_parser;
                 }
             case "wasm":
                 break;
-            case "ts":
-                break;
             default:
+            case "ts":
             case "js":
+
 
                 const fsp = (await import("fs")).promises;
 
                 let file_uri = new URI(output_path);
-                if (!file_uri.filename) {
-                    file_uri.path += "/parser.js";
-                }
-                if (!file_uri.ext) {
-                    file_uri.path += ".js";
-                }
+
+                if (!file_uri.filename)
+                    file_uri.path += "/" + input_file.filename + "." + type.value;
+
+                if (!file_uri.ext)
+                    file_uri.path += "." + type.value;
 
                 const script = renderToJavaScript(build_pack);
 
@@ -304,8 +305,6 @@ mod spec_parser;
                 cli_logger.log(`Writing file to ${file_uri + ""}`);
 
                 await fsp.writeFile(file_uri + "", script);
-
-                break;
 
                 break;
         }
