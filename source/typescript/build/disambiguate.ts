@@ -432,6 +432,8 @@ function resolveEndItem(
 
     const seen = new Set();
 
+    const exported_productions = new Set(grammar.productions.filter(p => p.IS_ENTRY).map(p => p.id));
+
     for (const end_item of end_items) {
 
         const production_id = end_item.getProductionID(grammar);
@@ -439,6 +441,9 @@ function resolveEndItem(
         let matching_items: Item[] = [];
 
         let prev = state;
+
+        if (exported_productions.has(end_item.getProductionID(grammar)))
+            active_items.push(end_item);
 
         while (prev) {
 
