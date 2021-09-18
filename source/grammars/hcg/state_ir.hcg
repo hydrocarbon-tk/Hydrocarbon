@@ -1,18 +1,6 @@
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+# Copyright (C) 2021 Anthony Weathersby - The Hydrocarbon Parser Compiler
+# see /source/typescript/hydrocarbon.ts for full copyright and warranty 
+# disclaimer notice.
 
 @IGNORE g:sp g:nl tk:comment
 
@@ -41,9 +29,10 @@
 
 <> state_reference > 
         
-        t:state \[ ( tk:state_hash_token 
-
-
+        t:state \[ ( 
+                tk:state_hash_token
+                |       sym::production_symbol
+                |       sym::imported_production_symbol
                 ) \]     
                                             
                                             f:r { $3 }
@@ -99,10 +88,8 @@
 
     |   t:set t:prod t:to ( 
                     g:num f:r{ parseInt($1) } 
-
-
-
-
+                |   sym::production_symbol
+                |   sym::imported_production_symbol
             )
                                             
                                             f:r { { type:"set-prod", id: $4, pos  } }
@@ -126,8 +113,6 @@
 
     |   t:not t:within t:scopes \[ 
                 (    g:num f:r{ parseInt($1) } 
-
-
 
 
                 )(+)
@@ -165,8 +150,8 @@
 
         \[ 
             ( 
-                    g:num f:r{ parseInt($1) } 
-
+                        g:num f:r{ parseInt($1) } 
+                |       sym::terminal_symbol
             )(+) 
         \] 
                                             f:r { $2 }
@@ -175,11 +160,9 @@
 
         \[ 
             ( 
-                    g:num f:r{ parseInt($1) } 
-
-
-
-
+                        g:num f:r{ parseInt($1) } 
+                |       sym::production_symbol
+                |       sym::imported_production_symbol
             )(+) 
         \] 
                                             f:r { $2 }
