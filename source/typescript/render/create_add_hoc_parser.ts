@@ -7,7 +7,7 @@ import { ParserEnvironment } from '@candlelib/hydrocarbon';
 import { createBuildPack } from '../build/build.js';
 import { compileGrammarFromString } from '../grammar/compile.js';
 import { compare, init_table, KernelStateIterator, run, token_production } from '../runtime/kernel.js';
-import { ParserFrameWork } from '../runtime/parser_framework.js';
+import { ParserFramework } from '../runtime/parser_framework.js';
 import { skRenderAsJavaScript } from '../skribble/skribble.js';
 import { GrammarObject } from '../types/grammar_nodes.js';
 import { getSymbolScannerFunctions, token_lu_bit_size } from '../utilities/code_generating.js';
@@ -86,7 +86,7 @@ export async function createAddHocParser<T = any>(
         state_buffer
     );
 
-    const { parse } = await ParserFrameWork<T, { null: 0; }, "null">(fns, undefined, {
+    const { parse } = await ParserFramework<T, { null: 0; }, "null">(fns, undefined, {
 
         init_table: () => {
             const table = new Uint8Array(382976);
