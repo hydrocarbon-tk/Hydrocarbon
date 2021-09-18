@@ -18,7 +18,11 @@ const grammar_logger = Logger.get("MAIN").createLogger("GRAMMAR");
 const { parse: parser } = await loader;
 export function loadGrammarFromString(str: string, grammar_parser: HCGParser = parser): GrammarObject {
 
-    const grammar = grammar_parser(str, { group_id: 0 }).result[0];
+    const { result: [grammar], err } = grammar_parser(str, { group_id: 0 });
+
+    if (err) {
+        throw err;
+    }
 
     resolveReferencedFunctions(grammar);
 
