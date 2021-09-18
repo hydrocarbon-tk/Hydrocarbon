@@ -35,7 +35,7 @@ import { ParserEnvironment } from "../types/parser_environment.js";
 import { compileGrammarFromString, compileGrammarFromURI } from "../grammar/compile.js";
 import { HCGParser } from "../types/parser.js";
 import { createAddHocParser } from '../render/create_add_hoc_parser.js';
-export { ParserFrameWork as ParserFramework } from '../runtime/parser_framework.js';
+export { ParserFramework as ParserFramework } from '../runtime/parser_framework.js';
 
 export {
     //Types

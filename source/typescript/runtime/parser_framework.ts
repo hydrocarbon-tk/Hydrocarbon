@@ -14,6 +14,8 @@ import { initializeUTFLookupTableNewPlus as initialize_character_lut } from "./p
 import { Token } from "./token.js";
 import { load_wasm_recognizer } from "./parser_framework_wasm.js";
 
+
+
 export { initialize_character_lut as initializeUTFLookupTableNewPlus };
 
 /**
@@ -24,7 +26,7 @@ export { initialize_character_lut as initializeUTFLookupTableNewPlus };
  * @param production_entry_names 
  * @returns 
  */
-export async function ParserFrameWork<T, R, K extends keyof R>(
+export async function ParserFramework<T, R, K extends keyof R>(
 
     reduce_functions: ProductionFunction<T>[],
 
