@@ -24,12 +24,13 @@ export function constructProductionStates(
     id: number;
 } {
 
-    /*  if (production.name != "state_ir__instruction_sequence_list_289")
-         return {
-             id: 0,
-             parse_states: new Map
-         };
-     debugger; */
+    /* 
+    if (production.id != 1)
+        return {
+            id: 0,
+            parse_states: new Map
+        };
+    debugger; //*/
 
     const root_prod_name = production.name;
 
@@ -540,10 +541,14 @@ function generateSingleStateAction(
 
             const set_prod_clause = `set prod to ${body.production.id}`;
 
+            const len = Sym_Is_EOF(item.decrement().sym(grammar))
+                ? item.len - 1
+                : item.len;
+
             if (body.reduce_id >= 0)
-                action_string = `reduce ${item.len} ${body.reduce_id} then ${set_prod_clause}`;
-            else if (item.len > 1)
-                action_string = `reduce ${item.len} 0 then ${set_prod_clause}`;
+                action_string = `reduce ${len} ${body.reduce_id} then ${set_prod_clause}`;
+            else if (len > 1)
+                action_string = `reduce ${len} 0 then ${set_prod_clause}`;
             else
                 action_string = `${set_prod_clause}`;
 
