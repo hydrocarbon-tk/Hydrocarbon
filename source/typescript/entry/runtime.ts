@@ -14,6 +14,7 @@
  * Contact: acweathersby.codes@gmail.com
  */
 
+export { ParserFramework } from '../runtime/parser_framework.js';
 import { ParserFactory } from "../runtime/parser_loader.js";
 import { ParserFactory as ParserFactoryNew } from "../runtime/parser_loader_alpha.js";
 import { ParserFactory as ParserFactoryBeta } from "../runtime/parser_loader_beta.js";
@@ -29,7 +30,10 @@ import { HCGParser } from "../types/parser.js";
 import { ParserEnvironment } from "../types/parser_environment.js";
 import "../utilities/array_globals.js";
 
+export * as KernelParserCore from "../runtime/kernel.js";
+
 export * as ParserCore from "../runtime/core_parser.js";
+
 export {
     //Types
     HCGParser,
@@ -46,8 +50,6 @@ export {
     ParserFactoryGamma,
     buildParserMemoryBuffer,
     initializeUTFLookupTableNewPlus,
-
-
     initializeUTFLookupTable,
 };
 

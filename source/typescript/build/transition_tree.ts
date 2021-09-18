@@ -483,7 +483,6 @@ function createPeekTreeStates(
                         origin_state.type ^= TransitionStateType.PEEK;
                         origin_state.type |= TransitionStateType.END;
                     }
-
                 }
             }
         }
