@@ -23,7 +23,7 @@ export class Logger {
 
     deactivate(log_level: LogLevel = LogLevel.THROW | LogLevel.ERROR | LogLevel.WARN | LogLevel.DEBUG | LogLevel.INFO) {
 
-        this.ACTIVE ^= log_level;
+        this.ACTIVE &= ~(0xFFFFFFFF & log_level);
 
         for (const child of this.children)
             child.deactivate(log_level);
@@ -92,7 +92,9 @@ export class Logger {
         this.render_name = name;
         this.children = [];
         this.parent = null;
-        this.ACTIVE = LogLevel.THROW | LogLevel.ERROR | LogLevel.WARN | LogLevel.DEBUG | LogLevel.INFO;
+        //Logger is deactivated by default
+        this.ACTIVE = 0;
+        //this.ACTIVE = LogLevel.THROW | LogLevel.ERROR | LogLevel.WARN | LogLevel.DEBUG | LogLevel.INFO;
     }
     private update_name() {
         this.render_name = (this?.parent?.render_name ? this?.parent?.render_name + "-" : "") + this._name;
