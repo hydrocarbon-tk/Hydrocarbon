@@ -318,26 +318,26 @@ function optimizeState(state: IRStateData, states: StateMap) {
      *  (A) (prod|assert) => instr(fail) ;
      */
     let i = 0;
-    for (const instruction of ir_state_ast.instructions) {
+    if (ir_state_ast.instructions.length > 1)
+        for (const instruction of ir_state_ast.instructions) {
+            if (
+                instruction.type == InstructionType.assert
+                ||
+                instruction.type == InstructionType.prod
+            ) {
+                const sub_instructions = instruction.instructions;
 
-        if (
-            instruction.type == InstructionType.assert
-            ||
-            instruction.type == InstructionType.prod
-        ) {
-            const sub_instructions = instruction.instructions;
+                if (sub_instructions.length == 1 && sub_instructions[0].type == InstructionType.fail) {
 
-            if (sub_instructions.length == 1 && sub_instructions[0].type == InstructionType.fail) {
+                    ir_state_ast.instructions.splice(i, 1);
 
-                ir_state_ast.instructions.splice(i, 1);
+                    optimize_logger.debug(`Redundant fail branch removed in ${root_id}`);
 
-                optimize_logger.debug(`Redundant fail branch removed in ${root_id}`);
-
-                MODIFIED = true;
+                    MODIFIED = true;
+                }
             }
+            i++;
         }
-        i++;
-    }
 
     /**
      * Remove Redundant Production Sets
