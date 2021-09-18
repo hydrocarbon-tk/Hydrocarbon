@@ -453,37 +453,16 @@ function renderLeafNew(node: TokenTreeNode, grammar: GrammarObject) {
 
     for (const gen_sym of gen_syms) {
 
-        default_bin.push(sk`if ${getActiveTokenQuery(gen_sym)} && ${getSymbolBoolean(gen_sym, grammar, "l")} ${length_assertion} : { return  }`);
+        default_bin.push(sk`if ${getActiveTokenQuery(gen_sym)} && ${getSymbolBoolean(gen_sym, grammar, "l")} ${length_assertion} :  { l._type = ${gen_sym.id} ; return }`);
     }
 
     for (const defined of id) {
 
-        if (true  /*Sym_Is_Exclusive(defined) || (tk_syms.length + gen_syms.length) < 1*/) {
+        const preamble = defined.byte_length <= node.offset
+            ? "if " + getActiveTokenQuery(defined) + ":"
+            : getIfClausePreamble(defined.byte_length - node.offset, node.offset, defined, node.offset, grammar);
 
-            const preamble = defined.byte_length <= node.offset
-                ? "if " + getActiveTokenQuery(defined) + ":"
-                : getIfClausePreamble(defined.byte_length - node.offset, node.offset, defined, node.offset, grammar);
-
-            ifs.push(sk`${preamble}{l.setToken(${defined.id}, ${defined.byte_length},${defined.val.length}); return;}`);
-
-        }/* else {
-
-            const preamble = defined.byte_length <= node.offset
-                ? "if " + getActiveTokenQuery(defined) + ":"
-                : getIfClausePreamble(defined.byte_length - node.offset, node.offset, defined, node.offset, options);
-
-            const symbols = [...tk_syms, ...gen_syms].map(s => Sym_Is_Virtual_Token(s) ? s.root : s).setFilter(getUniqueSymbolName);
-
-            const id = defined.id; //generateHybridIdentifier([defined, ...symbols]);
-
-            ifs.push(sk`${preamble}{
-                if ${symbols.filter(s => s.id != defined.id).map(getActiveTokenQuery).join("  || ")}: {
-                    lexer.setToken(${id}, ${defined.byte_length},${defined.val.length}); return;
-                }else if ${getActiveTokenQuery(defined)} : {
-                    lexer.setToken(${defined.id}, ${defined.byte_length},${defined.val.length}); return;
-                }
-            }`);
-        }*/
+        ifs.push(sk`${preamble}{l.setToken(${defined.id}, ${defined.byte_length},${defined.val.length}); return;}`);
     }
 
     const [first] = mergeIfStatement(ifs);
