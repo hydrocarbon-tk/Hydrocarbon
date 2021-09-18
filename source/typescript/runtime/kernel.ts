@@ -24,8 +24,6 @@ export const instruction_pointer_mask = 0xFFFFFF;
 type ScannerFunction = (l: Lexer, i: u32, j: u32) => void;
 
 export interface KernelStateType {
-    lexer_pointer: u32;
-    readonly lexer_stack: Lexer[];
     stack_pointer: u32;
     state_stack: Uint32Array;
     tk_scan: ScannerFunction;
@@ -43,8 +41,8 @@ type production_id = number;
 // Kernel State 
 /////////////////////////////////////////////
 export class KernelState implements KernelStateType {
-    lexer_pointer: u32;
-    readonly lexer_stack: Lexer[];
+    lexer: Lexer;
+    peek_lexer: Lexer;
     stack_pointer: u32;
     state_stack: Uint32Array;
     prod_pointer: u32;
@@ -74,9 +72,12 @@ export class KernelState implements KernelStateType {
         input_len_in: number,
         tk_scan: ScannerFunction,
     ) {
-        this.lexer_stack = (new Array(16))
-            .fill(0)
-            .map(i => { const lexer = new Lexer(input_buffer, input_buffer.length); lexer.next(); return lexer; });
+
+        this.lexer = new Lexer(input_buffer, input_buffer.length);
+        this.lexer.next();
+
+        this.peek_lexer = new Lexer(input_buffer, input_buffer.length);
+        this.peek_lexer.next();
 
         this.state_stack = new Uint32Array(128);
 
@@ -87,8 +88,6 @@ export class KernelState implements KernelStateType {
         this.prod_pointer = -1;
 
         this.stack_pointer = 0;
-
-        this.lexer_pointer = 0;
 
         this.tk_scan = tk_scan;
 
@@ -127,14 +126,14 @@ export class KernelState implements KernelStateType {
     add_state_to_history(kernel_state: number, prod: number, enable_history: boolean = false) {
 
         if (enable_history) {
-            const lexer = this.lexer_stack[this.lexer_pointer];
+            const lexer = this.lexer;
 
             this.state_history.push([kernel_state, lexer._type, lexer.byte_offset, lexer.token_length, prod]);
         }
 
     }
 
-    push_state(kernel_state: number, UPDATE_META: boolean = true) {
+    push_state(kernel_state: number) {
 
         this.state_stack[++this.stack_pointer] = kernel_state;
         this.meta_stack[this.stack_pointer] = (this.meta_stack[this.stack_pointer - 1] & 0xFFFF) | this.symbol_accumulator;
@@ -154,17 +153,8 @@ export class KernelState implements KernelStateType {
 
     copy_state_stack(destination_state: KernelState) {
 
-        //for (let i = 0; i < 10; i++)
-        //    destination_state.lexer_stack[i].peek_unroll_sync(this.lexer_stack[i]);
-
         for (let i = 0; i <= this.stack_pointer; i++)
             destination_state.state_stack[i] = this.state_stack[i];
-    }
-
-    copy_lexer_stack(destination_state: KernelState) {
-
-        for (let i = 0; i < 10; i++)
-            destination_state.lexer_stack[i].peek_unroll_sync(this.lexer_stack[i]);
     }
 
     copy_production_stack(destination_state: KernelState) {
@@ -190,7 +180,7 @@ export class KernelState implements KernelStateType {
 
         let forked_state: KernelState = process_buffer.get_recycled_KernelState(this);
 
-        this.copy_lexer_stack(forked_state);
+        forked_state.lexer.peek_unroll_sync(this.lexer);
         //Increment the refs count to prevent the
         //KernelState from being recycled.
         this.copy_production_stack(forked_state);
@@ -198,7 +188,6 @@ export class KernelState implements KernelStateType {
         forked_state.origin = this;
         forked_state.next = [];
         forked_state.stack_pointer = this.stack_pointer;
-        forked_state.lexer_pointer = this.lexer_pointer;
         forked_state.origin_fork = this.get_rules_len();
         forked_state.state = this.state;
         forked_state.symbol_accumulator = this.symbol_accumulator;
@@ -271,9 +260,9 @@ export class KernelState implements KernelStateType {
         };
     }
 
-    consume(lexer_pointer: number): boolean {
+    consume(): boolean {
 
-        const l = this.lexer_stack[lexer_pointer];
+        const l = this.lexer;
 
         if (0 != (this.state & 2)) {
 
@@ -300,7 +289,7 @@ export class KernelState implements KernelStateType {
      */
 
     get_root_lexer() {
-        return this.lexer_stack[0];
+        return this.lexer;
     }
 }
 
@@ -354,7 +343,7 @@ export class KernelStateBuffer {
             if (exist_ref.VALID && !state.VALID)
                 continue;
 
-            if (exist_ref.lexer_stack[0].byte_offset < state.lexer_stack[0].byte_offset)
+            if (exist_ref.lexer.byte_offset < state.lexer.byte_offset)
                 break;
         }
 
@@ -401,8 +390,8 @@ export class KernelStateBuffer {
 
         return new KernelState(
             state.instruction_buffer,
-            state.lexer_stack[0].input,
-            state.lexer_stack[0].input.length,
+            state.lexer.input,
+            state.lexer.input.length,
             state.tk_scan
         );
     };
@@ -471,7 +460,7 @@ function instruction_executor(
 
     let index = state_pointer & state_index_mask;
 
-    let repeat_offset =  0;
+    let repeat_offset = 0;
 
     while (true) {
 
@@ -600,17 +589,13 @@ function scan_to(kernel_state: KernelState, index: number, instruction: number):
 
     const scan_back = (instruction & 0x00100000) > 0;
 
-    const lexer_pointer = kernel_state.lexer_pointer;
-
-    let lexer = kernel_state.lexer_stack[lexer_pointer];
-
-    let synced_lexer = kernel_state.lexer_stack[(lexer_pointer + 1) % 10];
+    let lexer = kernel_state.lexer;
 
     let start_byte_offset = lexer.prev_byte_offset;
 
     let start_token_offset = lexer.prev_token_offset;
 
-    synced_lexer.sync(lexer);
+    //   synced_lexer.sync(lexer);
 
     lexer.byte_length = 1;
 
@@ -662,10 +647,9 @@ function scan_to(kernel_state: KernelState, index: number, instruction: number):
     if (!scan_back) {
 
         //Reset peek stack;
-        kernel_state.lexer_pointer = 0;
-        kernel_state.lexer_stack[0].peek_unroll_sync(temp_lexer);
-        kernel_state.lexer_stack[0].prev_byte_offset = start_byte_offset;
-        kernel_state.lexer_stack[0].prev_token_offset = start_token_offset;
+        kernel_state.lexer.peek_unroll_sync(temp_lexer);
+        kernel_state.lexer.prev_byte_offset = start_byte_offset;
+        kernel_state.lexer.prev_token_offset = start_token_offset;
     }
 
     return index;
@@ -701,7 +685,7 @@ function hash_jump(kernel_state: KernelState, index: number, instruction: number
 
     const instruction_field_size = instruction & 0xFFFF;
 
-    let { input_value, lexer_pointer: lp } =
+    let input_value =
         get_token_info(
             kernel_state,
             input_type,
@@ -713,8 +697,6 @@ function hash_jump(kernel_state: KernelState, index: number, instruction: number
             prod
         );
     let hash_index = input_value & mod;
-
-    kernel_state.lexer_pointer = lp;
 
     if (Logger.get("HC-Kernel-Debug").ACTIVE) {//Reference Debug
         const data =
@@ -779,7 +761,7 @@ function index_jump(kernel_state: KernelState, index: number, instruction: numbe
 
     const token_transition = ((instruction >> 26) & 0x3);
 
-    let { input_value, lexer_pointer: lp } = get_token_info(
+    let input_value = get_token_info(
         kernel_state,
         input_type,
         token_transition,
@@ -789,8 +771,6 @@ function index_jump(kernel_state: KernelState, index: number, instruction: numbe
         basis__,
         prod
     );
-
-    kernel_state.lexer_pointer = lp;
 
     let number_of_rows = table_data >> 16;
     let row_size = table_data & 0xFFFF;
@@ -815,12 +795,10 @@ function set_token_length(instruction: number, kernel_state: KernelState) {
 
     let length = instruction & 0xFFFFFFF;
 
-    let lexer_pointer = kernel_state.lexer_pointer;
-
-    kernel_state.lexer_stack[lexer_pointer].token_length = length;
-    kernel_state.lexer_stack[lexer_pointer].byte_length = length;
-    kernel_state.lexer_stack[0].token_length = length;
-    kernel_state.lexer_stack[0].byte_length = length;
+    kernel_state.lexer.token_length = length;
+    kernel_state.lexer.byte_length = length;
+    kernel_state.lexer.token_length = length;
+    kernel_state.lexer.byte_length = length;
 
 }
 
@@ -876,7 +854,7 @@ function set_production(instruction: number, prod: number, kernel_state: KernelS
             .log(`INSTRUCTION: Set Production: ${instruction & 0xFFFFFFF}`);
     }
     prod = instruction & 0xFFFFFFF;
-    kernel_state.meta_stack[kernel_state.stack_pointer+1] = kernel_state.meta_stack[kernel_state.stack_pointer] | (instruction & 0xFFFF);
+    kernel_state.meta_stack[kernel_state.stack_pointer + 1] = kernel_state.meta_stack[kernel_state.stack_pointer] | (instruction & 0xFFFF);
     kernel_state.prod = instruction & 0xFFFFFFF;
     return prod;
 }
@@ -896,7 +874,7 @@ function consume(instruction: number, kernel_state: KernelState) {
 
     if (Logger.get("HC-Kernel-Debug").ACTIVE) { //Reference Debug
 
-        let lexer = kernel_state.lexer_stack[kernel_state.lexer_pointer];
+        let lexer = kernel_state.lexer;
 
         const slice = Array.from(
             lexer.input.slice(lexer.byte_offset, lexer.byte_offset + lexer.byte_length)).map(i => String.fromCharCode(i)).join("");
@@ -905,17 +883,17 @@ function consume(instruction: number, kernel_state: KernelState) {
     }
 
     if (instruction & 1) {
-        let lexer = kernel_state.lexer_stack[kernel_state.lexer_pointer];
+        let lexer = kernel_state.lexer;
         lexer.token_length = 0;
         lexer.byte_length = 0;
     }
 
-    kernel_state.consume(kernel_state.lexer_pointer);
+    kernel_state.consume();
 }
 
 
 
-function repeat(index: number, state_pointer: number, repeat_offset: number = 0) {
+function repeat(index: number, state_pointer: number, repeat_offset: number) {
     Logger.get("HC-Kernel-Debug")
         .log(`INSTRUCTION: Repeat`);
     index = (state_pointer & state_index_mask) + repeat_offset;
@@ -948,13 +926,11 @@ function get_token_info(
     auto_consume_with_peek: boolean,
     basis__: number,
     prod: any
-): { input_value: number; lexer_pointer: number; } {
+): number {
 
-    let input_value: i32 = 0;
+    const peek_lexer = kernel_state.peek_lexer;
 
-    let lexer = kernel_state.lexer_stack[kernel_state.lexer_pointer];
-
-    let lexer_pointer = kernel_state.lexer_pointer;
+    let lexer = kernel_state.lexer;
 
     if (input_type == 2) { // Lexer token id input
 
@@ -969,70 +945,41 @@ function get_token_info(
 
             case 1: /* set next peek lexer */ {
 
-                const prev_lexer = kernel_state.lexer_stack[(kernel_state.lexer_pointer)];
 
-                kernel_state.lexer_pointer += 1;
 
-                lexer = kernel_state.lexer_stack[(kernel_state.lexer_pointer)];
+                if (peek_lexer.byte_offset <= lexer.byte_offset) {
+                    peek_lexer.sync(lexer);
+                }
 
-                lexer.sync(prev_lexer);
+                peek_lexer.next();
 
-                lexer.next();
+                peek_lexer.sync_offsets();
 
-                lexer.sync_offsets();
+                kernel_state.tk_scan(peek_lexer, tk_row, skip_row);
 
-                kernel_state.tk_scan(lexer, tk_row, skip_row);
-
-                lexer_pointer = kernel_state.lexer_pointer;
+                lexer = peek_lexer;
 
             } break;
 
             case 2: /* set primary lexer */
 
-                let consume_index = kernel_state.lexer_pointer >> 16;
-
-                let peek_level = kernel_state.lexer_pointer & 0xFFFF;
-
                 if (
-                    (peek_level - consume_index) > 0
-                    &&
-                    auto_accept_with_peek
+                    peek_lexer.byte_offset >= lexer.byte_offset
                 ) {
 
+                    peek_lexer.byte_offset = 0;
 
-                    /* consume peek stack */
-
-                    /*  lexer = kernel_state.lexer_stack[consume_index];
- 
-                     lexer_pointer = consume_index;
- 
-                     if (auto_consume_with_peek) {
-                         kernel_state.lexer_pointer += 1 << 16;
-                         if (consume_index > 0)
-                             kernel_state.lexer_stack[0].peek_unroll_sync(kernel_state.lexer_stack[consume_index + 1]);
-                     } else {
-                         kernel_state.lexer_stack[0].peek_unroll_sync(kernel_state.lexer_stack[consume_index]);
-                         lexer_pointer = 0;
-                         kernel_state.lexer_pointer = 0;
-                     } */
-
-                    //lexer._type = basis__;
-
-                    lexer = kernel_state.lexer_stack[0];
+                    lexer = kernel_state.lexer;
 
                     lexer._type = 0;
 
-                } {
-
-                    kernel_state.lexer_pointer = 0;
-
-                    lexer = kernel_state.lexer_stack[0];
-
-                    kernel_state.tk_scan(lexer, tk_row, skip_row);
-
-                    lexer_pointer = 0;
-
                 }
+
+                lexer = kernel_state.lexer;
+
+                kernel_state.tk_scan(lexer, tk_row, skip_row);
+
+
                 break;
             case 3: /*do nothing */ break;
         }
@@ -1044,13 +991,12 @@ function get_token_info(
                 + Array.from(lexer.input.slice(lexer.byte_offset + lexer.byte_length, lexer.byte_offset + lexer.byte_length + 5)).map(i => String.fromCodePoint(i)).join("")
             );
 
-        input_value = lexer._type - basis__;
+        return lexer._type - basis__;
 
     } else {
         // Production id input
-        input_value = prod - basis__;
+        return prod - basis__;
     }
-    return { input_value, lexer_pointer };
 }
 
 function fork(
@@ -1139,13 +1085,11 @@ function fork(
             //Set index so that it points to the pass instruction block;
             index = 0;
 
-            tip.lexer_pointer = 0;
-
         } else {
 
             Logger.get("HC-Kernel-Debug").log("PARSER: Multiple valid parse paths exist");
 
-            let furthest_byte = valid.data[0].lexer_stack[0].byte_offset;
+            let furthest_byte = valid.data[0].lexer.byte_offset;
 
             let furthest_index = 0;
 
@@ -1153,10 +1097,10 @@ function fork(
 
             for (let i = 1; i < valid.len(); i++)
 
-                if (valid.data[i].lexer_stack[0].byte_offset != furthest_byte) {
+                if (valid.data[i].lexer.byte_offset != furthest_byte) {
                     // Extract the longest parsers
                     for (let i = 1; i < valid.len(); i++) {
-                        let len = valid.data[i].lexer_stack[0].byte_offset;
+                        let len = valid.data[i].lexer.byte_offset;
 
                         if (len > furthest_byte) {
                             furthest_byte = len;
@@ -1185,8 +1129,6 @@ function fork(
 
                         //Set index so that it points to the null instruction block;
                         index = 0;
-
-                        tip.lexer_pointer = 0;
 
                     } else {
                         throw new Error("Multiple uneven parse paths exist, no resolution mechanism has been implemented for this situation. Exiting");
@@ -1238,8 +1180,8 @@ export function token_production(
 
     );
 
-    state.lexer_stack[0].sync(lexer);
-    state.lexer_stack[0].active_token_productions |= tk_flag;
+    state.lexer.sync(lexer);
+    state.lexer.active_token_productions |= tk_flag;
     state.state_stack[1] = production_state_pointer;
     state.state_stack[0] = 0;
     state.stack_pointer = 1;
@@ -1252,7 +1194,7 @@ export function token_production(
             Logger
                 .get("HC-Kernel-Debug").log("\n-----------------END TOKEN PRODUCTION------------------------\n");
 
-        lexer.set_token_span_to(state.lexer_stack[0]);
+        lexer.set_token_span_to(state.lexer);
 
         lexer._type = _type;
 
@@ -1390,7 +1332,7 @@ export function run(
 
             kernel_state.VALID = !FAILED;
 
-            if (kernel_state.lexer_stack[0].byte_offset < kernel_state.lexer_stack[0].input.length)
+            if (kernel_state.lexer.byte_offset < kernel_state.lexer.input.length)
                 kernel_state.VALID = false;
 
             if (kernel_state.FORKED)
@@ -1419,4 +1361,4 @@ export function run(
     }
 
     return { invalid, valid };
-}
+};;
