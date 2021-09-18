@@ -7,7 +7,7 @@ import { Sym_Is_A_Production_Token } from '../grammar/nodes/symbol.js';
 import { Logger } from '../runtime/logger.js';
 import { GrammarObject, ProductionImportSymbol, ProductionSymbol } from '../types/grammar_nodes';
 import { IRStateData, StateAttrib, StateMap } from '../types/ir_state_data';
-import { InstructionType, IRAssert, IRGoto, IRInlineAssert, IRPeek, IRProductionBranch, IRSetProd, IR_Instruction, IR_State } from '../types/ir_types';
+import { InstructionType, IRAssert, IRGoto, IRInlineAssert, IRPeek, IRProductionBranch, IRSetProd, IRTokenBranch, IR_Instruction, IR_State, Resolved_IR_State } from '../types/ir_types';
 import { renderIRNode } from './render_ir_state.js';
 
 function getStateName(
@@ -32,6 +32,7 @@ function optimizeState(state: IRStateData, states: StateMap) {
     const { id } = ir_state_ast;
 
     const root_id = id;
+
 
     /**
      * Replace
@@ -328,11 +329,11 @@ function optimizeState(state: IRStateData, states: StateMap) {
 
             if (sub_instructions.length == 1 && sub_instructions[0].type == InstructionType.fail) {
 
-                // ir_state_ast.instructions.splice(i, 1);
+                ir_state_ast.instructions.splice(i, 1);
 
                 optimize_logger.debug(`Redundant fail branch removed in ${root_id}`);
 
-                //  MODIFIED = true;
+                MODIFIED = true;
             }
         }
         i++;
@@ -375,6 +376,89 @@ function optimizeState(state: IRStateData, states: StateMap) {
                 optimize_logger.debug(`1 redundant production assignment removed in ${root_id}`);
 
                 MODIFIED = true;
+            }
+        }
+    }
+
+    /**
+     * Remove gotos that lead to pass states. These are absolutely 
+     * unnecessary.
+     */
+
+    for (const instruction_sequence of yieldInstructionSequences(ir_state_ast)) {
+
+        if (instruction_sequence.length > 1)
+
+            for (let i = 0; i < instruction_sequence.length; i++) {
+
+                const instruction = instruction_sequence[i];
+
+                if (instruction.type == InstructionType.goto) {
+
+                    const { ir_state_ast } = states.get(getStateName(instruction.state));
+
+                    if (ir_state_ast.instructions.length == 1 && ir_state_ast.instructions[0].type == InstructionType.pass) {
+                        instruction_sequence.splice(i, 1);
+                        i--;
+                        MODIFIED = true;
+                    }
+                }
+            }
+    }
+
+
+    /**
+     * Remove Inline pass instruction_sections
+     * 
+     * Pass instructions that have been inline MUST be removed
+     * to prevent premature exit from a sequence of instructions
+     * 
+     *  () => instr... pass ... ;
+     *  
+     *  to
+     * 
+     *  () => instr...;
+     */
+
+    for (const instruction_sequence of yieldInstructionSequences(ir_state_ast)) {
+
+        if (instruction_sequence.length > 1)
+            for (let i = 0; i < instruction_sequence.length; i++) {
+                const instruction = instruction_sequence[i];
+
+                if (instruction.type == InstructionType.pass) {
+                    instruction_sequence.splice(i, 1);
+                    i--;
+                    MODIFIED = true;
+                }
+            }
+    }
+
+    /**
+     * Remove sequential inline asserts
+     */
+
+    for (const instruction_sequence of yieldInstructionSequences(ir_state_ast)) {
+
+        if (instruction_sequence.length > 1) {
+
+            let prev = instruction_sequence[0];
+
+            for (let i = 1; i < instruction_sequence.length; i++) {
+
+                const instruction = instruction_sequence[i];
+
+                if (
+                    prev.type == InstructionType.inline_assert
+                    &&
+                    instruction.type == InstructionType.inline_assert
+                ) {
+                    instruction_sequence.splice(i, 1);
+                    i--;
+                    MODIFIED = true;
+                } else {
+                    prev = instruction;
+                }
             }
         }
     }
@@ -439,6 +523,20 @@ function optimizeState(state: IRStateData, states: StateMap) {
     mergeDuplicateBodies(ir_state_ast, attributes);
 
     return MODIFIED;
+}
+
+function* yieldInstructionSequences(ir_state_ast: Resolved_IR_State): Generator<IR_Instruction[]> {
+
+    if (ir_state_ast.instructions.every(
+        i => i.type == InstructionType.prod ||
+            i.type == InstructionType.peek ||
+            i.type == InstructionType.assert
+    ))
+        for (const instruction of <[IRProductionBranch | IRTokenBranch]>ir_state_ast.instructions)
+            yield instruction.instructions;
+    else
+        yield ir_state_ast.instructions;
+
 }
 
 function removeRedundantProdSet(candidate: IR_State | IRProductionBranch | IRPeek | IRAssert, state: IR_State) {

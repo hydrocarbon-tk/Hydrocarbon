@@ -117,7 +117,7 @@ export async function createBuildPack(
 
     const sym_map: Map<string, number> = new Map();
 
-    let OPTIMIZE = false;
+    let OPTIMIZE = true;
 
     garbageCollect(states_map, grammar);
 

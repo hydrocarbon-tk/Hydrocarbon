@@ -471,7 +471,7 @@ function instruction_executor(
 
     let index = state_pointer & state_index_mask;
 
-    let repeat_offset = 0;
+    let repeat_offset =  0;
 
     while (true) {
 
@@ -876,7 +876,7 @@ function set_production(instruction: number, prod: number, kernel_state: KernelS
             .log(`INSTRUCTION: Set Production: ${instruction & 0xFFFFFFF}`);
     }
     prod = instruction & 0xFFFFFFF;
-    kernel_state.meta_stack[kernel_state.stack_pointer] = kernel_state.meta_stack[kernel_state.stack_pointer] | (instruction & 0xFFFF);
+    kernel_state.meta_stack[kernel_state.stack_pointer+1] = kernel_state.meta_stack[kernel_state.stack_pointer] | (instruction & 0xFFFF);
     kernel_state.prod = instruction & 0xFFFFFFF;
     return prod;
 }
@@ -1390,10 +1390,15 @@ export function run(
 
             kernel_state.VALID = !FAILED;
 
+            if (kernel_state.lexer_stack[0].byte_offset < kernel_state.lexer_stack[0].input.length)
+                kernel_state.VALID = false;
+
             if (kernel_state.FORKED)
                 // Remove state. It is now only
                 // referenced by its leaf states
                 process_buffer.remove_state_at_index(i);
+
+
             else if (kernel_state.VALID) {
                 Logger.get("HC-Kernel-Debug").log("PARSER: Complete valid parser run");
                 valid
