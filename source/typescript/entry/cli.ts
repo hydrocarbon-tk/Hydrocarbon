@@ -300,7 +300,7 @@ mod spec_parser;
 
                 const script = renderToJavaScript(build_pack);
 
-                await fsp.mkdir(output_path.path + "", { recursive: true });
+                await fsp.mkdir(file_uri.dir + "", { recursive: true });
 
                 cli_logger.log(`Writing file to ${file_uri + ""}`);
 
