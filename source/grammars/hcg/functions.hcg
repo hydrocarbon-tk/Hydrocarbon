@@ -19,7 +19,7 @@
     | reduce_function
     | function_clause
 
-<> referenced_function > (js_function_start_symbol f:r { $1+"GG" })  sym::identifier  { js_data }          
+<> referenced_function > js_function_start_symbol sym::identifier { js_data }          
                                                                     f:r {  { 
                                                                             type:"ref-function",  
                                                                             id:$2,     

@@ -48,6 +48,9 @@ function optimizeState(state: IRStateData, states: StateMap) {
      * 
      *      and not 
      *          prod [B] == assert [A] || assert [B] == prod [A]
+     *      and not
+     *          
+     *          (X) => fail
      */
     for (const instruction of ir_state_ast.instructions) {
         if (
@@ -64,7 +67,7 @@ function optimizeState(state: IRStateData, states: StateMap) {
 
                 const { ir_state_ast, attributes } = states.get(getStateName(goto.state));
 
-                if (!(attributes & StateAttrib.MULTI_BRANCH)) {
+                if (!(attributes & StateAttrib.MULTI_BRANCH) && !ir_state_ast.fail) {
 
                     if ((!((attributes & StateAttrib.TOKEN_BRANCH) || (attributes & StateAttrib.PROD_BRANCH)))) {
 

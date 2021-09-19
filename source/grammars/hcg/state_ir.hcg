@@ -16,9 +16,9 @@
 
 <> grammar_injection > 
         
-        \<[ ( tk:state_hash_token 
-
-            ) \] top_level_instructions on_fail? expected_symbols? \>
+        \<[ ( tk:state_hash_token | t:recover ( sym::production_symbol | sym::imported_production_symbol ) ) \] 
+        
+                top_level_instructions on_fail? expected_symbols? \>
                                             
                                             f:r { { type:"state", id:$2, instructions: $4, fail: $5, symbol_meta:$6, pos } }
 
@@ -82,7 +82,7 @@
         t:reduce g:num g:num           
                                             f:r { { type:"reduce", len: parseInt($2), reduce_fn: parseInt($3), pos } }
 
-    |   t:reduce ( fn::referenced_function | fn::reduce_function )          
+    |   t:reduce fn::reduce_function   
                                             
                                             f:r { { type:"reduce", len: -1, reduce_fn: $2, pos } }
 

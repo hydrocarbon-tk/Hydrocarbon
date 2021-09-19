@@ -103,7 +103,7 @@
     | \_ 
     | g:id
 
-<> sym_delimiter >  g:sp | $eof  | g:nl 
+<> sym_delimiter >  g:sp | g:nl 
 
 <> meta_symbol >   \(EXC condition_symbol_list \)                     
                                                                 f:r { { type:"meta-exclude", sym : $2, meta:true, index:-1} }

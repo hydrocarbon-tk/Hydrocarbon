@@ -462,6 +462,8 @@ function instruction_executor(
 
     let repeat_offset = 0;
 
+    let recover_data = kernel_state.meta_stack[kernel_state.stack_pointer + 1];
+
     while (true) {
 
         const instruction = kernel_state.instruction_buffer[index];
@@ -479,7 +481,7 @@ function instruction_executor(
 
             case 3: prod = set_production(instruction, prod, kernel_state); break;
 
-            case 4: reduce(instruction, kernel_state); break;
+            case 4: reduce(instruction, kernel_state, recover_data); break;
 
             case 5: set_token_length(instruction, kernel_state); break;
 
@@ -802,14 +804,14 @@ function set_token_length(instruction: number, kernel_state: KernelState) {
 
 }
 
-function reduce(instruction: number, kernel_state: KernelState) {
+function reduce(instruction: number, kernel_state: KernelState, recover_data: number) {
     let low = (instruction) & 0xFFFF;
 
     if ((low & 0xFFFF) == 0xFFFF) {
 
         let accumulated_symbols = kernel_state.symbol_accumulator
             -
-            (kernel_state.meta_stack[kernel_state.stack_pointer - 1] & 0xFFFF0000);
+            (recover_data & 0xFFFF0000);
 
         let len = (accumulated_symbols >> 16);
 
