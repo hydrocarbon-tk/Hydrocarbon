@@ -16,7 +16,6 @@ export class Lexer {
     prev_byte_offset: number;
     prev_token_offset: number;
     line: number;
-    _type: number;
     private type: number;
     previous_type: number; //JS ONLY
     current_byte: number;
