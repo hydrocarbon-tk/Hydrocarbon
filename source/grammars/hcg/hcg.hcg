@@ -6,7 +6,7 @@
 # see /source/typescript/hydrocarbon.ts for full copyright and warranty
 # disclaimer notice.
 
-# version 4.0
+# version 5.0
 
 # This is the Hydrocarbon Grammar Definition and parser file. It contains information to build the Hydrocarbon 
 # Grammar parser.
@@ -38,13 +38,15 @@
 
 @IMPORT ./preambles.hcg as pre
 
+@IMPORT ./symbols.hcg as sym
+
 
 # For example: The `pre` reference to the preambles.hcg file, and the `prd` reference to `./productions.hcg` 
 # is used in the last production of this grammar file:
 # `<> head > pre::preamble?  prd::productions` 
 # to import the `preambles` and `productions` symbols and use them within the `head` production.
 
-@IMPORT ./state_ir.hcg as ir
+@IMPORT ./ir_state.hcg as ir
 
 # The @EXPORT preamble identifies the production that serve as entry points for parsing operations. 
 #
@@ -57,6 +59,10 @@
 @EXPORT hydrocarbon as hc
 
 @EXPORT ir::state_ir as ir
+
+@EXPORT sym::annotated_symbol as sym
+
+@EXPORT prd::production as prd
 
 
 # Grammar productions are normally defined by using the following syntax:
@@ -83,7 +89,7 @@
 
 
                             f:r { { 
-                                type:"hc-grammar-4", 
+                                type:"hc-grammar-5", 
                                 preamble:$$1 || [], 
                                 ir_states:$$2.ir || [],
                                 productions:$$2.productions, 

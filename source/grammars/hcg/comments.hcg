@@ -2,16 +2,20 @@
 # see /source/typescript/hydrocarbon.ts for full copyright and warranty 
 # disclaimer notice.
 
-# version 4.0
+# version 5.0
 
 @IGNORE g:sp g:nl
 
-<> hcg_comment > comment 
+<> comment > shell
+    | cpp_line
+    | cpp_block
 
-<> comment > cm
+<> cpp_block > \/* ( g:nl | comment_primitive )(+) \*/
 
-<> cm >  \# comment_primitive(+\' ) comment_delimiter             f:r { { type:"comment", value: $2 } }
+<> cpp_line > \// comment_primitive(+) comment_delimiter
 
-<> comment_delimiter > g:nl 
+<> shell > \# comment_primitive(+) comment_delimiter
+
+<> comment_delimiter > ?=g:nl | ?=$eof
 
 <> comment_primitive > g:sym | g:id | g:num | g:sp

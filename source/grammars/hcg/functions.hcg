@@ -2,7 +2,7 @@
 # see /source/typescript/hydrocarbon.ts for full copyright and warranty 
 # disclaimer notice.
 
-# version 4.0
+# version 5.0
 
 @IMPORT ./symbols.hcg as sym
 
@@ -27,9 +27,12 @@
                                                                         }  }
 
 <> error_function > js_function_start_symbol t:erh { js_data } { js_data }                    f:r { 
-                                                                       { type:"ERROR_RECOVERY",     
-                                                                        lexer_text:$4, 
-                                                                        body_text:$7}
+                                                                       { 
+                                                                           type:"ERROR_RECOVERY",     
+                                                                        
+                                                                            lexer_text:$4, 
+                                                                            body_text:$7
+                                                                        }
                                                                     }
 <> reduce_function > js_function_start_symbol ( t:return | t:r ) { js_data }                                 
                                                                     f:r { {

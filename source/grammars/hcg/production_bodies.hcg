@@ -2,7 +2,7 @@
 # see /source/typescript/hydrocarbon.ts for full copyright and warranty 
 # disclaimer notice.
 
-# version 4.0
+# version 5.0
 
 @IMPORT ./symbols.hcg as sym
 
@@ -31,11 +31,17 @@
                                                                     f:r { [] }
 
 
-<> body_entry >  sym::symbol                                        f:r { [$1] }
-        
-      | sym::meta_symbol                                            f:r { [$1] }
+<> body_entry >  
+            sym::annotated_symbol                                        
 
-      | \[ body_entry(+) \]                                        
-                                                                    f:r { env.group_id++, $2.flat().map(e => (e.IS_OPTIONAL ? e.IS_OPTIONAL |= env.group_id << 8 : 0, e) ) }
+            f:r { [$1] }
+        
+      |     sym::meta_symbol                                            
+
+            f:r { [$1] }
+
+      |     \[ body_entry(+) \]                                        
+                                                                    
+            f:r { env.group_id++, $2.flat().map(e => (e.IS_OPTIONAL ? e.IS_OPTIONAL |= env.group_id << 8 : 0, e) ) }
 
 

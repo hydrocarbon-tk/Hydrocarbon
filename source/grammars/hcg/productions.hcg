@@ -2,7 +2,7 @@
 # see /source/typescript/hydrocarbon.ts for full copyright and warranty 
 # disclaimer notice.
 
-# version 4.0
+# version 5.0
 
 @IMPORT ./production_bodies.hcg as pb
 
@@ -12,7 +12,7 @@
 
 @IMPORT ./comments.hcg as cm
 
-@IMPORT ./state_ir.hcg as ir
+@IMPORT ./ir_state.hcg as ir
 
 @IGNORE g:sp g:nl
 
@@ -21,11 +21,11 @@
 ########################################################################################################################
 
 <> productions > production                                          
-                                                            f:r {  { type:"production-section", functions:[], productions:[$1], ir:[]   } }
+                                                            f:r {  { type:"production-section", functions:[], productions:[$1], ir:[], pos  } }
     | fn::referenced_function                                    
-                                                            f:r {  { type:"production-section", functions:[$1], productions:[], ir:[]   } }
+                                                            f:r {  { type:"production-section", functions:[$1], productions:[], ir:[], pos  } }
     | ir::grammar_injection
-                                                            f:r {  { type:"production-section", functions:[], productions:[], ir:[$1]   } }
+                                                            f:r {  { type:"production-section", functions:[], productions:[], ir:[$1], pos  } }
     | productions production                                  
                                                             f:r {  $1.productions.push($2), $1 }
     | productions fn::referenced_function                        
@@ -33,20 +33,18 @@
     | productions ir::grammar_injection
                                                             f:r {  $1.ir.push($2), $1 }
     | productions cm::comment                                      
-                                                            f:r { $1 }
+                                                            f:r {  $1 }
 
  
-<> production > \<> \* ? ( sym::production_id f:r{ env.prod_name = $1 } ) production_start_symbol  pb::production_bodies? 
+<> production > \<> sym::production_symbol \>  pb::production_bodies? 
                                                                         
                                                             f:r { {
-                                                                type:"production", name:$3, bodies:$$5, id:-1, recovery_handler:$6, pos:pos, recursion:0, ROOT_PRODUCTION:!!$$2
+                                                                type:"production", symbol:$2, bodies:$$5, id:-1, pos
                                                             } }
 
-    | \+> ( sym::imported_production_symbol f:r{ env.prod_name = $1.val, $1 } ) production_start_symbol  pb::production_bodies
+    | \+> sym::production_symbol  \>  pb::production_bodies
 
                                                             f:r { {
-                                                                type:"production-merged-import", name:$2, bodies:$4, id:-1, recovery_handler:$5, ROOT_PRODUCTION:false
+                                                                type:"production-merged", symbol:$2, bodies:$4, id:-1, pos
                                                             } }
-    
-<> production_start_symbol > \> 
-    
+        
