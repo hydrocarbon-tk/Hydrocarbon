@@ -37,12 +37,7 @@ export const enum SymbolType {
     AMBIGUOUS = "hybrid"
 }
 
-export interface HCG3TokenPosition {
-    offset: number;
-    line: number;
-    column: number;
-    length: number;
-}
+export type HCG3TokenPosition = Token;
 export interface HCGGrammarNode {
     type: string;
     pos?: Token;

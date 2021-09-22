@@ -77,9 +77,12 @@ export class Token {
         }
         return this._line;
     }
-    
-    returnError(message) {
+
+    createError(message, source = "") {
+
         const lex = new Lexer(this.source);
+
+        lex.source = source;
 
         lex.off = this.off;
         lex.tl = this.length;
@@ -94,8 +97,8 @@ export class Token {
         return new Error(lex.errorMessage(message));
     }
 
-    throw(message) {
-        throw this.returnError(message);
+    throw(message, source = "") {
+        throw this.createError(message, source);
     }
 };
 

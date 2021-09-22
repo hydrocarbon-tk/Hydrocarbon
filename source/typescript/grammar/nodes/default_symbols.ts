@@ -12,6 +12,8 @@ import {
  * Default Symbols
  */
 
+export const user_defined_state_mux = "__USER_DEFINED__";
+
 export const
     default_EOP: EOPSymbol = {
         type: SymbolType.END_OF_FILE,

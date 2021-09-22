@@ -3,13 +3,11 @@ import {
     ExportPreamble,
     GrammarObject,
     GrammarProduction,
-    HCG3Symbol,
-    ImportProductionNode,
-    ProductionNode
+    HCG3Symbol, ProductionImportSymbol, ProductionNode
 } from '../../types/grammar_nodes';
 import { InstructionType, IR_Instruction, IR_State } from '../../types/ir_types';
 import { createProductionSymbol, getProductionByName } from "../nodes/common.js";
-import { getUniqueSymbolName } from '../nodes/symbol.js';
+import { user_defined_state_mux } from '../nodes/default_symbols.js';
 
 /**
  * Responsible discovering and collecting ALL imported modules.
@@ -31,7 +29,6 @@ export function integrateImportedGrammars(grammar: GrammarObject, errors: Error[
     }
 
     processImportedObjects(grammar, errors, imported_productions);
-
 }
 function processImportedObjects(grammar: GrammarObject, errors: Error[], imported_productions: Map<string, ProductionNode> = new Map) {
 
@@ -98,8 +95,6 @@ function processImportedObjects(grammar: GrammarObject, errors: Error[], importe
             export_preamble.production = processImportedBody([export_preamble.production], grammar, grmmr, imported_productions)[0];
         }
     }
-
-
 }
 
 function remapImportedIRStates(ir_state: IR_State, grammar: GrammarObject, grmmr: GrammarObject, imported_productions: Map<any, any>) {
@@ -109,17 +104,18 @@ function remapImportedIRStates(ir_state: IR_State, grammar: GrammarObject, grmmr
         //@ts-ignore
         ir_state.id = processImportedBody([ir_state.id], grammar, grmmr, imported_productions)[0];
 
+
         // Replace symbol with the string literal name
         // Append %%%% this state is used for recovery
         // of the target production.
         //@ts-ignore
-        ir_state.id = "%%%%" + ir_state.id.name;
+        ir_state.id = user_defined_state_mux + ir_state.id.name;
     }
 
     remapImportedIRSymbols(ir_state.instructions, grammar, grmmr, imported_productions);
 
     if (ir_state.fail) {
-        remapImportedIRStates(ir_state.fail, grammar, grammar, imported_productions);
+        remapImportedIRStates(ir_state.fail, grammar, grmmr, imported_productions);
     }
 }
 
@@ -154,8 +150,10 @@ function remapImportedIRSymbols(
             case InstructionType.set_prod:
                 //case InstructionType.set_token:
                 if (typeof instruction.id != "number") {
+
                     //@ts-ignore
                     instruction.id = processImportedBody([instruction.id], root_grammar, source_grammar, imported_productions)[0];
+
                 } break;
 
             case InstructionType.fork_to:
@@ -233,15 +231,16 @@ function processSymbol(sym: HCG3Symbol, NOT_ORIGIN: boolean, root_grammar: Gramm
     } else if (sym.type == "sym-production-import") {
 
         const imported = getImportedGrammarFromReference(local_grammar, sym.module);
+
+        if (!imported)
+            throwModuleNotFound(sym, local_grammar);
+
         //Convert symbol to a local name
         //Find the production that is referenced in the grammar
         const prd = getProductionByName(imported.grammar, sym.production);
 
-        if (!prd) {
-            sym.pos.throw(`Unable to import production [${sym.production}] from [${sym.module}]\n ( alias of file://${imported.uri} ):
-    Production was not found.`);
-        }
-
+        if (!prd)
+            throwProductionNotFound(sym, imported, local_grammar);
 
         const name = imported.grammar.common_import_name + "__" + prd.name;
 
@@ -253,7 +252,6 @@ function processSymbol(sym: HCG3Symbol, NOT_ORIGIN: boolean, root_grammar: Gramm
             const cp = copy(prd);
 
             cp.name = name;
-
 
             cp.grammar_id = imported.grammar.common_import_name;
 
@@ -275,4 +273,21 @@ function processSymbol(sym: HCG3Symbol, NOT_ORIGIN: boolean, root_grammar: Gramm
 
 function getImportedGrammarFromReference(local_grammar: GrammarObject, module_name: string) {
     return local_grammar.imported_grammars.filter(g => g.reference == module_name)[0];
+}
+
+
+function throwProductionNotFound(sym: ProductionImportSymbol, imported: {
+    reference: string; uri: string; //@ts-ignore
+    //@ts-ignore
+    grammar: GrammarObject;
+}, local_grammar: GrammarObject) {
+    sym.pos.throw(`Unable to import production [${sym.production}] from [${sym.module}]\n ( alias of file://${imported.uri} ):
+    Production was not found.`, local_grammar.URI + "");
+}
+
+function throwModuleNotFound(sym: ProductionImportSymbol, local_grammar: GrammarObject) {
+    sym.pos.throw(`Could not find module ${sym.module}. 
+    Available imported modules within this context are [${[...local_grammar.imported_grammars.values()].map(i => i.reference)}]`
+        , local_grammar.URI + "");
+    console.log(sym);
 }

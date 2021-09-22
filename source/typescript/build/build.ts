@@ -7,6 +7,7 @@ import spark from "@candlelib/spark";
 import { WorkerRunner } from "../build/workers/worker_runner.js";
 import parser_loader from "../grammar/ir_parser.js";
 import { getProductionByName } from '../grammar/nodes/common.js';
+import { user_defined_state_mux } from '../grammar/nodes/default_symbols.js';
 import { getRootSym, Sym_Is_A_Token } from '../grammar/nodes/symbol.js';
 import { BuildPack } from "../render/render.js";
 import { fail_state_mask, normal_state_mask } from '../runtime/kernel.js';
@@ -82,11 +83,10 @@ export async function createBuildPack(
             }
         }
 
-        if (id.slice(0, 4) == "%%%%") {
 
-            const target_production = id.slice(4);
+        if (id.slice(0, user_defined_state_mux.length) == user_defined_state_mux) {
 
-
+            const target_production = id.slice(user_defined_state_mux.length);
 
             if (states_map.has(target_production)) {
 

@@ -1,4 +1,5 @@
 import { copy } from "@candlelib/conflagrate";
+import { Token } from '../../runtime/token.js';
 import {
     EmptySymbol,
     ProductionFunction,
@@ -34,8 +35,10 @@ export function replaceBodySymbol(body: HCG3ProductionBody, index: number, ...sy
 
     body.sym.splice(index, 1, ...symbols);
 
-    if (body.sym.length == 0)
-        body.sym.push(createEmptySymbol());
+    if (body.sym.length == 0) {
+        body.length = 0;
+        //body.sym.push(createEmptySymbol());
+    }
 }
 export function getRealSymbolCount(symbols: (HCG3Symbol)[]) {
 
@@ -137,12 +140,7 @@ function createEmptySymbol(): EmptySymbol {
     };
 }
 function createZeroedPosition(): HCG3TokenPosition {
-    return {
-        column: 0,
-        length: 0,
-        line: 0,
-        offset: 0
-    };
+    return new Token("", "", 0, 0, 0);
 }
 export function createProduction(name: string, mapped_sym: HCGGrammarNode = null): GrammarProduction {
     return {
