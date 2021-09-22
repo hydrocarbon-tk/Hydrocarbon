@@ -18,7 +18,18 @@ import {
 } from "../nodes/common.js";
 import { default_array } from "../nodes/default_symbols.js";
 import { hcg3_mappings } from "../nodes/mappings.js";
-import { getUniqueSymbolName, Symbols_Are_The_Same, Sym_Is_A_Production, Sym_Is_A_Production_Token, Sym_Is_A_Token, Sym_Is_Defined, Sym_Is_EOF, Sym_Is_EOP, Sym_Is_Exclusive, Sym_Is_Look_Behind } from "../nodes/symbol.js";
+import {
+    getUniqueSymbolName,
+    Symbols_Are_The_Same,
+    Sym_Is_A_Production,
+    Sym_Is_A_Production_Token,
+    Sym_Is_A_Token,
+    Sym_Is_Defined,
+    Sym_Is_EOF,
+    Sym_Is_EOP,
+    Sym_Is_Exclusive,
+    Sym_Is_Look_Behind
+} from "../nodes/symbol.js";
 import { InstructionType, IR_Instruction, IR_State } from '../../types/ir_types';
 let renderers = null;
 export const render = (grammar_node) => {
@@ -319,7 +330,7 @@ export function processSymbol(
     id_offset: number
 ): number {
     //-----------------------
-    sym.pos = {};
+
     //-----------------------
 
     if (Sym_Is_A_Production(sym) || Sym_Is_A_Production_Token(sym)) {
@@ -328,8 +339,7 @@ export function processSymbol(
 
         if (!prod) {
             console.dir(production_lookup, { depth: 1 });
-
-            errors.push(new MissingProduction(sym));
+            addProductionNotFoundError(errors, sym);
         } else
             sym.val = production_lookup.get(sym.name)?.id;
     }
@@ -380,6 +390,18 @@ export function processSymbol(
     return id_offset;
 }
 
+
+function addProductionNotFoundError(errors: Error[], sym: ProductionSymbol | ProductionTokenSymbol) {
+    const pos = sym.pos;
+
+    if (pos.createError) {
+        errors.push(pos.createError(
+            `Production [${sym.name}] not found`
+        ));
+    } else {
+        errors.push(new Error(`Production [${sym.name}] not found`));
+    }
+}
 
 export function buildSequenceString(grammar: GrammarObject) {
     grammar.sequence_string = createSequenceData(grammar);

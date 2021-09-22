@@ -20,7 +20,7 @@
 ######################################  PRODUCTIONS
 ########################################################################################################################
 
-<> productions > production                                          
+<>  productions > production                                          
                                                             f:r {  { type:"production-section", functions:[], productions:[$1], ir:[], pos  } }
     | fn::referenced_function                                    
                                                             f:r {  { type:"production-section", functions:[$1], productions:[], ir:[], pos  } }
@@ -36,10 +36,10 @@
                                                             f:r {  $1 }
 
  
-<> production > \<> sym::production_symbol \>  pb::production_bodies? 
+<> production > \<> \! ? sym::production_symbol \>  pb::production_bodies? 
                                                                         
                                                             f:r { {
-                                                                type:"production", symbol:$2, bodies:$$5, id:-1, pos
+                                                                type:"production", priority: $$2 ? 1000 : 0, symbol:$3, bodies:$$5, id:-1, pos
                                                             } }
 
     | \+> sym::production_symbol  \>  pb::production_bodies

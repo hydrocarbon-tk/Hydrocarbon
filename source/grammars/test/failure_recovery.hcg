@@ -9,8 +9,8 @@
 <[recover A] 
 
     scan until [ \r ] 
-        then reduce f:r { { type:"failed A", pos, sym } } 
         then set prod to A
+        then reduce f:r { { type:"failed A", pos, sym } } 
 
     on fail state [ A_scan_backward ] 
 

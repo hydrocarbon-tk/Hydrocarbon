@@ -25,8 +25,11 @@ export function generateProductionRecursionStates(grammar: GrammarObject, error)
     const splat = new Map();
 
     for (const production of grammar.productions) {
+
         production.RECURSIVE = RECURSIVE_STATE.UNKNOWN;
+
         const called_names = new Set;
+
         splat.set(production.name, called_names);
 
         for (const body of production.bodies) {
@@ -106,9 +109,10 @@ export function mergeProductions(grammar: GrammarObject, error) {
                 if (sym.type == "sym-production") {
 
                     if (depth++ > 1) break;
-                    const name = sym.name;
 
-                    const ref_prod = getProductionByName(grammar, name);
+                    const ref_prod = getProductionByName(grammar, sym);
+
+                    const name = ref_prod.name;
 
                     // This process will fail horribly on Productions that are recursive
                     // so we will avoid them?

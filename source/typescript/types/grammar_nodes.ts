@@ -88,7 +88,8 @@ export interface ExportPreamble extends HCGGrammarNode {
 }
 
 export interface ProductionNode extends HCGGrammarNode {
-    name: any;
+    name: string;
+    symbol: ProductionSymbol | ProductionImportSymbol;
     bodies: HCG3ProductionBody[];
     id: number;
     RECURSIVE: RECURSIVE_STATE,
@@ -110,29 +111,19 @@ export interface ProductionNode extends HCGGrammarNode {
     grammar_id?: string;
     CHECKED_FOR_EMPTY?: boolean;
     HAS_EMPTY?: boolean;
+
+    priority: number;
 }
 export interface GeneralProductionNode extends ProductionNode {
     type: "production",
 }
 
-export interface VirtualProductionNode extends ProductionNode {
-    type: "virtual-production",
-}
-
-export interface ImportProductionNode extends ProductionNode {
-    type: "production-import",
-
-    name: ProductionImportSymbol;
-}
-
 export interface MergedProductionNode extends ProductionNode {
-    type: "production-merged-import",
-
-    name: ProductionImportSymbol;
+    type: "production-merged";
 
 }
 
-export type GrammarProduction = GeneralProductionNode | VirtualProductionNode | ImportProductionNode | MergedProductionNode;
+export type GrammarProduction = GeneralProductionNode  /* | ImportProductionNode */ | MergedProductionNode;
 
 export interface HCG3ProductionBody extends HCGGrammarNode {
     type: "body",
@@ -146,13 +137,16 @@ export interface HCG3ProductionBody extends HCGGrammarNode {
     ignore?: TokenSymbol[][];
     reset?: TokenSymbol[][];
     reduce_id?: number;
+    priority: number;
+
+
 }
 
 export interface ConditionNode extends HCGGrammarNode {
     type: "condition";
 }
 export interface GrammarObject extends HCGGrammarNode {
-    type: "hc-grammar-4";
+    type: "hc-grammar-5";
     preamble: (ImportPreamble | IgnorePreamble | ExportPreamble)[];
     productions: GrammarProduction[];
     functions: HCG3ReferencedFunction[];
@@ -245,6 +239,7 @@ export interface SymbolNode extends HCGGrammarNode {
     pos: Token;
     meta: boolean;
     id?: number;
+    annotation?: string;
 }
 
 export interface ListProductionSymbol extends SymbolNode {
@@ -341,7 +336,7 @@ export interface ProductionSymbol extends SymbolNode {
 
 export interface ProductionImportSymbol extends SymbolNode {
     type: SymbolType.IMPORT_PRODUCTION;
-    production?: string;
+    production?: ProductionNode;
     module: any;
     meta: false;
     name: string;

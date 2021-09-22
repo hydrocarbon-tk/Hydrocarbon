@@ -16,20 +16,17 @@
 
 <> condition_symbol_list > terminal_symbol(+)
 
-<> lexer_symbols > lexer_symbol(+)                                     
+<> lexer_symbols > lexer_symbol(+)
 
-<> ignore_symbols > ignore_symbol(+)                                      
+<> ignore_symbols > ignore_symbol(+)
 
 <> lexer_symbol > 
 
-        terminal_symbol                               
+        terminal_symbol
 
 <> ignore_symbol > 
         
         terminal_symbol
-
-    |   production_token_symbol
-
 
 <> annotated_symbol > symbol    
 
@@ -39,19 +36,17 @@
 
 <> symbol > 
 
-        symbol \?                                            
+        symbol \?      
         
         f:r { $1.IS_OPTIONAL = 1, $1 }
     
-    |   \<= symbol                                                 
+    |   \<= symbol           
         
-        f:r { { type:"look-behind", val:$2.val, phased: $2 } }
+        f:r { { type:"look-behind", val:$2.val, phased: $2, pos } }
 
     |   \?= symbol
         
         f:r { $2.IS_NON_CAPTURE = true, $2 }
-    
-    |   production_token_symbol
 
     |   terminal_symbol
 
@@ -59,21 +54,17 @@
 
     |   production_symbol
 
-    |   production_token_symbol     
-
-    |   symbol ( \(+ | \(* )  terminal_symbol?  \)                
+    |   symbol ( \(+ | \(* )  terminal_symbol?  \)
         
         f:r { { type:"list-production", terminal_symbol:$$3, IS_OPTIONAL:+($2 == "(*"), val:$1, pos:pos, meta:false } }
 
-<> annotated_symbol > 
-
-<> group_symbol > \( pb::production_bodies \)                        
-                                                                
+<> group_symbol > \( pb::production_bodies \)        
+          
         f:r { { type:"group-production", val:$2, pos:pos, meta:false } }  
 
 <> production_token_symbol > 
     
-    \tk: production_symbol_types       
+    \tk: production_symbol       
     
         f:r { { type:"production_token", name:$2.name, production:$2, val:-1, pos:pos, meta:false } }
 
@@ -91,35 +82,38 @@
 
     |   escaped_symbol
 
-    |   EOF_symbol    
+    |   EOF_symbol
+
+    |   production_token_symbol     
+
 
 <> EOF_symbol > 
     
-    \$eof                                                       
+    \$eof
     
         f:r { { type:"eof", val:"END_OF_FILE", pos:pos, meta:false } }
 
 <> empty_symbol > 
     
-    \$empty                                                     
+    \$empty
     
         f:r { { type:"empty", val:"", pos:pos, meta:false } }
 
 <> generated_symbol > 
     
-    \g: tk:identifier_syms                                      
+    \g: tk:identifier_syms
     
         f:r { { type:"generated", val:$2, pos:pos, meta:false } }
 
 <> literal_symbol > 
     
         \t: ( g:id | g:num )(+\" ) sym_delimiter? 
-                                                                
+          
         f:r { { type:"exclusive-literal", val:""+$2, pos:pos, meta:false, annotation:null } }
     
-    |   ( g:sym | g:id | g:num )(+\" )                                                     
-                                                                
-        f:r { { type:"literal", val:$1, pos:pos, meta:false, annotation:null } }                                               
+    |   ( g:sym | g:num )(+\" )
+
+        f:r { { type:"literal", val:$1, pos:pos, meta:false, annotation:null } }
 
 
 <> escaped_symbol > 
@@ -130,15 +124,15 @@
 
 <> local_production_symbol > 
     
-    tk:identifier_syms                                          
+    tk:identifier_syms
         
         f:r { { type:"sym-production", name:$1, production:null, val:-1, pos:pos, meta:false, annotation:null } }
 
 <> imported_production_symbol > 
 
-    tk:identifier_syms \:: tk:identifier_syms                   
+    tk:identifier_syms \:: tk:identifier_syms
         
-        f:r { { type:"sym-production-import", module:$1, production:$3, name:"", pos:pos, meta:false, annotation:null } } 
+        f:r { { type:"sym-production-import", module:$1, name:$3,  production:null, pos:pos, meta:false, annotation:null } } 
 
 <> annotation_identifier > ( g:sym | g:id | g:num )(+\" ) g:sp? f:r { $1 }
 
@@ -148,15 +142,15 @@
 
 <> identifier_syms >  
 
-        identifier_syms (RST g:sp g:nl) g:id         
+        identifier_syms (RST g:sp g:nl) g:id
         
         f:r { $1 + $2 }
 
-    |   identifier_syms (RST g:sp g:nl) \_                           
+    |   identifier_syms (RST g:sp g:nl) \_
         
         f:r { $1 + $2 }
 
-    |   identifier_syms (RST g:sp g:nl) g:num                        
+    |   identifier_syms (RST g:sp g:nl) g:num      
         
         f:r { $1 + $2 }
 
@@ -168,15 +162,15 @@
 
 <> meta_symbol >   
         
-        \(EXC condition_symbol_list \)                     
-                                                                
-        f:r { { type:"meta-exclude", sym : $2, meta:true, index:-1} }
+        \(EXC condition_symbol_list \)
 
-    |   \(IGN condition_symbol_list \)                    
-                                                                
-        f:r { { type:"meta-ignore",  sym : $2, meta:true, index:-1} }
+        f:r { { type:"meta-exclude", sym : $2, meta:true, index:-1, pos:pos} }
 
-    |   \(RST condition_symbol_list \)                     
-                                                                
-        f:r { { type:"meta-reset",   sym : $2, meta:true, index:-1} }
+    |   \(IGN condition_symbol_list \)    
+
+        f:r { { type:"meta-ignore",  sym : $2, meta:true, index:-1, pos:pos} }
+
+    |   \(RST condition_symbol_list \)
+
+        f:r { { type:"meta-reset",   sym : $2, meta:true, index:-1, pos:pos} }
 

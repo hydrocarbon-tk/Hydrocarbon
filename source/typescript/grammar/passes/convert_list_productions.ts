@@ -13,9 +13,13 @@ import { expandOptionalBody, getProductionSignature } from "./common.js";
 import { processGroupSymbol } from "./convert_group_productions.js";
 
 export function convertListProductions(grammar: GrammarObject, error: Error[]): GrammarObject {
+
     let index = 0;
+
     for (const production of grammar.productions) {
+
         for (const body of production.bodies) {
+
             for (const { node, meta } of traverse(body, "sym").skipRoot().makeMutable()) {
 
                 const sym: any = node;
@@ -48,6 +52,7 @@ export function convertListProductions(grammar: GrammarObject, error: Error[]): 
 
 
 export function processListSymbol(sym: any, body: HCG3ProductionBody, production: GrammarProduction, meta: any, grammar: GrammarObject, index: number) {
+
     if (Sym_Is_List_Production(sym)) {
 
         if (body.sym.length == 1 && !Body_Has_Reduce_Action(body) && production.bodies.length == 1) {
@@ -97,6 +102,8 @@ export function processListSymbol(sym: any, body: HCG3ProductionBody, production
                 new_production_name = production.name + "_list_" + index,
                 new_production = createProduction(new_production_name, sym),
                 new_production_body = createProductionBody(sym);
+
+            new_production_body.priority = body.priority;
 
             addSymbolToBody(new_production_body, sym);
 

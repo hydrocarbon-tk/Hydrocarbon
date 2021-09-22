@@ -22,7 +22,7 @@ const hcg3_mappings: NodeMappings<HCGGrammarNode, "type"> = <NodeMappings<HCGGra
         },
         {
             type: "production", child_keys: ["bodies"],
-            template: "\\<> m:s @name m:s \\> m:s i:s @bodies...[ o:n | m:s ] i:e"
+            template: "\\<> { priority: \\! } m:s @name m:s \\> m:s i:s @bodies...[ o:n | m:s ] i:e"
         },
         {
             type: "production-merge", child_keys: ["bodies"],
@@ -34,7 +34,7 @@ const hcg3_mappings: NodeMappings<HCGGrammarNode, "type"> = <NodeMappings<HCGGra
         },
         {
             type: "body", child_keys: ["sym"],
-            template: "@sym...[ m:s ] {reduce_function: @reduce_function}"
+            template: "{ priority: \\! } @sym...[ m:s ] {reduce_function: @reduce_function}"
         },
         {
             type: "comment",

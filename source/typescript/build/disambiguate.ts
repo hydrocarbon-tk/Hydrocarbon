@@ -207,13 +207,13 @@ export function disambiguate(
         if (
             states.length > 1
             &&
-            states.some(i => i.items.some(i => i.state == LocalState))
+            states.some(i => i.items.some(i => i.state >= LocalState))
             &&
-            states.some(i => i.items.some(i => i.state == GlobalState))
+            states.some(i => i.items.some(i => i.state <= GlobalState))
         ) {
             //Modify states whose roots that are SHIFT/REDUCE conflicts in favor of SHIFT
-            const shift_states = states.filter(i => i.items.some(i => i.state == LocalState));
-            const reduce_states = states.filter(i => i.items.some(i => i.state == GlobalState));
+            const shift_states = states.filter(i => i.items.some(i => i.state >= LocalState));
+            const reduce_states = states.filter(i => i.items.some(i => i.state <= GlobalState));
             const reduce_keeps = [], shift_items = new Set(shift_states.flatMap(s => s.items.map(i => i.id)));
 
             for (const reduce_state of reduce_states) {
@@ -309,9 +309,7 @@ export function disambiguate(
         graph_node.nodes.push(dissambiguated_multi_node);
 
         dissambiguated_multi_node.state.items =
-            dissambiguated_multi_node.state.items
-                //.map(i => i.atEND ? i : i.decrement())
-                .setFilter(i => i.id);
+            dissambiguated_multi_node.state.items;
 
         dissambiguated_multi_node.AMBIGUOUS =
             dissambiguated_multi_node.state.items.every(i => i.atEND)
@@ -414,7 +412,7 @@ function mergeStates(type, states: TransitionForestStateA[]): TransitionForestSt
         states: [],
 
         symbols: resolved_symbols,
-        items: states.flatMap(i => i.items).setFilter(i => i.id),
+        items: states.flatMap(i => i.items),
 
         peek_items: [],
 

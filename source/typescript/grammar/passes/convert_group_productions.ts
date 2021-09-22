@@ -27,16 +27,15 @@ import { getProductionSignature } from "./common.js";
 
 
 export function convertGroupProductions(grammar: GrammarObject): GrammarObject {
+    let i = 0;
     for (const production of grammar.productions) {
         for (const { node: body, meta: b_meta } of traverse(production, "bodies").makeMutable()) {
             let REMOVE_ORIGINAL_BODY = false;
             for (const { node, meta } of traverse(body, "sym").makeMutable()) {
                 const sym: any = node;
 
-                REMOVE_ORIGINAL_BODY = processGroupSymbol(sym, REMOVE_ORIGINAL_BODY, body, meta, production, grammar);
+                processGroupSymbol(sym, body, meta, production, grammar, i++);
             }
-            if (REMOVE_ORIGINAL_BODY)
-                b_meta.mutate(null);
         }
     }
     return grammar;
@@ -70,10 +69,11 @@ export function processGroupSymbol(sym: any, body: HCG3ProductionBody, meta: any
                 const
                     new_production_name = production.name + "_group_" + index + "_" + i + "_";
 
-
                 let new_production = createProduction(new_production_name, sym);
 
                 addBodyToProduction(new_production, group_body);
+
+                new_production.priority = group_body.priority || 0;
 
                 new_production = registerProduction(grammar, getProductionSignature(new_production), new_production);
 

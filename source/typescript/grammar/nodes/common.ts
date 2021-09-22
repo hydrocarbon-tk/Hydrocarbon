@@ -11,13 +11,29 @@ import {
     HCG3ProductionBody,
     ProductionSymbol,
     HCG3Symbol,
-    HCG3TokenPosition
+    HCG3TokenPosition,
+    ProductionImportSymbol,
+    SymbolType,
+    ProductionTokenSymbol
 } from "../../types/grammar_nodes";
 
 
-export function getProductionByName(grammar: GrammarObject, name: string): GrammarProduction {
-    if (grammar.productions.some(p => p.name == name))
-        return grammar.productions.filter(p => p.name == name)[0];
+export function getProductionByName(grammar: GrammarObject, ref_symbol: ProductionTokenSymbol | ProductionSymbol | ProductionImportSymbol): GrammarProduction {
+
+    if (ref_symbol.type == SymbolType.IMPORT_PRODUCTION) {
+        const ref_grammar = grammar.imported_grammars.filter(s => s.reference == ref_symbol.module).pop();
+
+        if (ref_grammar) {
+            return ref_grammar.grammar.productions.filter(p => p.name == ref_symbol.name).pop();
+        }
+
+    } else {
+
+        const name = ref_symbol.name;
+
+        if (grammar.productions.some(p => p.name == name))
+            return grammar.productions.filter(p => p.name == name)[0];
+    }
 
     return null;
 }
