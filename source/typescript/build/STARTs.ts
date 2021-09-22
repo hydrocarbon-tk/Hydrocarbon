@@ -116,10 +116,10 @@ export function getStartsFromItems(
 
     let START_set = [];
 
-    const seen_candidates = new Set(root_productions);
 
     let descend_candidates = initial_candidates.slice();
 
+    const seen_candidates = new Set(root_productions);
     while (descend_candidates.length > 0) {
 
         const START_set_candidates = START_set.slice();
@@ -133,7 +133,7 @@ export function getStartsFromItems(
             .filter(i => Sym_Is_A_Token(i.sym(grammar)));
 
         const production_items = START_set_candidates
-            .filter(i => Sym_Is_A_Production(i.sym(grammar)))
+            //  .filter(i => Sym_Is_A_Production(i.sym(grammar)))
             .setFilter(i => i.id);
 
         //Remove mutual conflicts
@@ -144,15 +144,22 @@ export function getStartsFromItems(
 
         let seen = new Set();
         for (const mutual_conflict of production_conflicts.sort((a, b) => b.length - a.length)) {
-            if (mutual_conflict.length == 1
+
+            const candidate_production_items = mutual_conflict
+                .filter(i => Sym_Is_A_Production(i.sym(grammar)));
+
+            if (
+                mutual_conflict.length == 1
                 ||
-                mutual_conflict.group(i => i.getProductionAtSymbol(grammar).id).length == 1) {
-                START_set.push(...mutual_conflict.filter(i => !seen.has(i.id)));
+                candidate_production_items.group(i => i.getProductionAtSymbol(grammar).id).length == 1
+            ) {
+                START_set.push(...candidate_production_items.filter(i => !seen.has(i.id)));
             } else {
 
                 //Add the production to descend_candidates
 
-                for (const production of mutual_conflict.map(i => i.getProductionAtSymbol(grammar))) {
+                for (const production of candidate_production_items
+                    .map(i => i.getProductionAtSymbol(grammar))) {
                     if (!seen_candidates.has(production.id)) {
 
                         descend_candidates.push(...getStartItemsFromProduction(production));
@@ -166,11 +173,15 @@ export function getStartsFromItems(
                 seen.add(id);
         }
 
-        START_set = START_set.setFilter(i => i.id);;
+        START_set = START_set.setFilter(i => i.id);
+
+        // seen_candidates.clear();
     }
 
 
-    return START_set.setFilter(i => i.id);
+    const filtered_START = START_set.setFilter(i => i.id);
+
+    return filtered_START;
 }
 function extractSTARTCandidates(
     root_productions: Set<number>,
@@ -185,12 +196,18 @@ function extractSTARTCandidates(
     const closure = getClosure([candidate_item], grammar);
     if (closure.some(i => root_productions.has((i.getProductionAtSymbol(grammar)?.id ?? -1)))
         ||
-        closure.every(i => Sym_Is_A_Production(i.sym(grammar)))) {
+        closure.every(i => Sym_Is_A_Production(i.sym(grammar)))
+        ||
+        closure.some(i => grammar.item_map.get(i.id).excludes.length > 0)
+    ) {
 
         const production_candidate = grammar.productions[candidate_item.getProductionAtSymbol(grammar).id];
 
         const initial_candidates = getStartItemsFromProduction(production_candidate);
-        START_candidate_set.push(...initial_candidates.filter(i => !Sym_Is_A_Production(i.sym(grammar))));
+
+        START_candidate_set.push(
+            ...initial_candidates.filter(i => !Sym_Is_A_Production(i.sym(grammar)))
+        );
 
         const descend_candidates = initial_candidates.filter(
             i => Sym_Is_A_Production(i.sym(grammar))
