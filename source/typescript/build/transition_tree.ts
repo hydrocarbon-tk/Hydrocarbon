@@ -20,6 +20,7 @@ export function constructTransitionForest(
     grammar: GrammarObject,
     roots: Item[],
     options: TransitionForestOptions = null,
+    root_scope: Item[] = []
     //Internal recursive arguments
 ): TransitionForestStateA {
 
@@ -45,7 +46,19 @@ export function constructTransitionForest(
             null,
         );
 
-    root_peek_state.items = [...grammar.lr_items.values()].flat().map(i => i.toState(GlobalState));//.filter(i => i.offset == 0);
+    root_peek_state.items = [...grammar.lr_items.values()].flat().map(i => i.toState(GlobalState));//.filter(i => i.offset == (GOTO ? 1 : 0));
+
+
+    const root_scope_state: TransitionForestStateA =
+        createTransitionForestState(
+            TransitionStateType.START,
+            [],
+            LocalState,
+            [],
+            root_peek_state,
+        );
+
+    root_scope_state.items = root_scope;
 
     const initial_state: TransitionForestStateA =
         createTransitionForestState(
@@ -61,7 +74,7 @@ export function constructTransitionForest(
     recognize(
         grammar,
         initial_state,
-        root_peek_state,
+        root_scope_state,
         resolved_options,
         true
     );
@@ -226,6 +239,23 @@ function createPeekTreeStates(
         .map(i => i.getProductionAtSymbol(grammar).id),
     ]);
 
+    const active_bodies = new Set(/* [
+        ...active_items
+            .map(i => i.id),
+        ...active_items.filter(i => !i.atEND && Sym_Is_A_Production(i.sym(grammar)))
+            .flatMap(i => getStartItemsFromProduction(i.getProductionAtSymbol(grammar)))
+            .map(i => i.id)
+    ] */);
+
+    const active_bodies2 = new Set([
+        ...active_items
+            .map(i => i.id),
+        ...active_items.filter(i => !i.atEND && Sym_Is_A_Production(i.sym(grammar)))
+            .flatMap(i => getStartItemsFromProduction(i.getProductionAtSymbol(grammar)))
+            .map(i => i.id)
+    ]);
+
+
 
     const filter_out_productions = new Set([...active_items
         .filter(i => i.state != OutOfScopeItemState)
@@ -238,19 +268,16 @@ function createPeekTreeStates(
 
 
 
-    const contextual_state: TransitionForestStateA = createTransitionForestState(
-        TransitionStateType.START, [], LocalState, [], Object.assign({},
-            root_peek_state, {
-            items: root_peek_state.items
-                .filter(
-                    i => !Sym_Is_A_Production(i.sym(grammar))
-                        ||
-                        !active_productions.has(i.getProductionID(grammar))
-                )
-        })
-    );
-
-    contextual_state.items = getClosure(incremented_items, grammar).map(i => i.toState(LocalState));
+    const contextual_state: TransitionForestStateA = Object.assign({},
+        root_peek_state, {
+        items: root_peek_state.items
+            .filter(
+                i =>
+                    !active_productions.has(i.getProductionID(grammar))
+                    &&
+                    !active_bodies2.has(i.id)
+            )
+    });
 
     let i = 0;
 
@@ -274,12 +301,12 @@ function createPeekTreeStates(
 
         if (group.some(i => i.state == OutOfScopeItemState))
             initial_state.type |= TransitionStateType.OUT_OF_SCOPE;
-        initial_state.items = group.map(i => i.toState(state));
+        initial_state.items = getClosure(group.map(i => i.toState(state)), grammar, state);
 
         root_states.push(initial_state);
     }
 
-    const disambiguated_tree = disambiguate(grammar, filter_out_productions, root_states, options, true);
+    const disambiguated_tree = disambiguate(grammar, filter_out_productions, root_states, options, active_bodies, true);
 
     const branch_states = disambiguated_tree.nodes.map((n => (n.state.parent = null, n.state)));
 

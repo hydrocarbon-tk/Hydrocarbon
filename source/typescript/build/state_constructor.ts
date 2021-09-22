@@ -3,12 +3,14 @@
  * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
  * disclaimer notice.
  */
+import { user_defined_state_mux } from '../grammar/nodes/default_symbols.js';
 import { getUniqueSymbolName, Sym_Is_A_Production, Sym_Is_A_Token, Sym_Is_EOF, Sym_Is_Not_Consumed, Sym_Is_Recovery } from "../grammar/nodes/symbol.js";
 import { GrammarObject, GrammarProduction, HCG3Symbol, TokenSymbol } from "../types/grammar_nodes.js";
 import { TransitionForestStateA, TransitionStateType } from '../types/transition_tree_nodes.js';
 import { hashString } from '../utilities/code_generating.js';
 import { getFollow } from '../utilities/follow.js';
 import { Item } from "../utilities/item.js";
+import { getProductionClosure } from '../utilities/production.js';
 import { default_case_indicator } from './build.js';
 import { create_symbol_clause } from './create_symbol_clause.js';
 import { getGotoSTARTs, getSTARTs as getSTARTItems } from "./STARTs.js";
@@ -53,7 +55,8 @@ export function constructProductionStates(
     const recursive_descent_graph = constructTransitionForest(
         grammar,
         recursive_descent_items,
-        tt_options
+        tt_options,
+        getProductionClosure(production.id, grammar).filter(i => Sym_Is_A_Production(i.sym(grammar)))
     );
 
     // If forks separate out the conflicting items into 
