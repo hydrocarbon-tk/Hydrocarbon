@@ -32,10 +32,12 @@ export async function createBuildPack(
 
     const
         mt_code_compiler = new WorkerRunner(grammar, number_of_workers);
+
     let old_val = -1;
-    for await (const updates of mt_code_compiler.run()) {
-        if (!updates.COMPLETE) {
-            const val = Math.round((updates.v.reduce((r, i) => r + (i == 0 ? 1 : 0), 0) - updates.jobs) * 100 / updates.v.length);
+
+    for await (const { COMPLETE, total_jobs, completed_jobs } of mt_code_compiler.run()) {
+        if (!COMPLETE) {
+            const val = Math.round(completed_jobs * 100 / total_jobs);
             if (val != old_val)
                 build_logger.debug(`Runner update ${val}%`);
             old_val = val;
@@ -116,7 +118,7 @@ export async function createBuildPack(
 
     const sym_map: Map<string, number> = new Map();
 
-    let OPTIMIZE = true;
+    let OPTIMIZE = false;
 
     garbageCollect(states_map, grammar);
 
@@ -239,15 +241,21 @@ function insertInstructionSequences(
     instruction_sections: any[][],
     state_map: StateMap,
     block_info: BlockData,
-    default_block_size: number = 0
+    default_block_size: number = 0,
+    instruction_offset = 0,
 ): number[] {
 
     let buffer = [];
+
+    let local_offset = instruction_offset;
 
     for (const data of instruction_sections) {
         let i = 0;
         let temp_buffer = [];
         for (; i < data.length; i++) {
+
+            local_offset = instruction_offset + buffer.length + temp_buffer.length;
+
             switch (data[i]) {
 
                 case "end": case InstructionType.pass:
@@ -389,7 +397,8 @@ function insertInstructionSequences(
                     temp_buffer.push(table_header >>> 0, token_info >>> 0, table_info >>> 0);
 
                     temp_buffer.push(...insertInstructionSequences(
-                        table_entries, state_map, block_info, row_size
+                        table_entries, state_map, block_info, row_size,
+                        local_offset + temp_buffer.length
                     ));
                 } break;
 
@@ -512,7 +521,8 @@ function insertInstructionSequences(
                     temp_buffer.push(...hash_entries);
 
                     temp_buffer.push(...insertInstructionSequences(
-                        sequence_entries, state_map, block_info, 0
+                        sequence_entries, state_map, block_info, 0,
+                        local_offset + temp_buffer.length
                     ));
                 } break;
 
@@ -521,7 +531,8 @@ function insertInstructionSequences(
                 } break;
 
                 case InstructionType.repeat: {
-                    temp_buffer.push(12 << 28);
+                    const origin = local_offset + 1;
+                    temp_buffer.push(12 << 28 | origin);
                 } break;
 
                 case InstructionType.fail: temp_buffer.push((15 << 28) >>> 0); break;
@@ -534,6 +545,8 @@ function insertInstructionSequences(
             temp_buffer.push(0);
 
         buffer.push(...temp_buffer);
+
+        local_offset = instruction_offset + buffer.length;
     }
     return buffer;
 }

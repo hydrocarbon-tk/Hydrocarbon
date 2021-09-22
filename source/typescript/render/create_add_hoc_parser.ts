@@ -6,10 +6,10 @@
 import { ParserEnvironment } from '@candlelib/hydrocarbon';
 import { createBuildPack } from '../build/build.js';
 import { compileGrammarFromString } from '../grammar/compile.js';
-import { compare, init_table, KernelStateIterator, run, token_production } from '../runtime/kernel.js';
+import { compare, init_table, KernelStateIterator, run, token_production } from '../runtime/kernel_new.js';
 import { ParserFramework } from '../runtime/parser_framework.js';
 import { skRenderAsJavaScript } from '../skribble/skribble.js';
-import { GrammarObject } from '../types/grammar_nodes.js';
+import { GrammarObject } from '../types/grammar_nodes';
 import { getSymbolScannerFunctions, token_lu_bit_size } from '../utilities/code_generating.js';
 import {
     BuildPack, createActiveTokenSK,
