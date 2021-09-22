@@ -23,6 +23,7 @@ export class WorkerRunner {
     errors: any;
     to_process_rd_fn: number[];
     IN_FLIGHT_JOBS: number;
+    COMPLETED_JOBS: number;
     states: Map<string, string>;
 
     constructor(
@@ -35,6 +36,7 @@ export class WorkerRunner {
         this.states = new Map;
         this.to_process_rd_fn = this.grammar.productions.map((a, i) => i + 1);
         this.IN_FLIGHT_JOBS = 0;
+        this.COMPLETED_JOBS = 0;
         this.functions = [];
         this.RUN = true;
 
@@ -61,7 +63,7 @@ export class WorkerRunner {
             } else
                 this.states.set(key, val);
         }
-
+        this.COMPLETED_JOBS++;
         this.IN_FLIGHT_JOBS--;
 
         worker.READY = true;
@@ -170,7 +172,8 @@ export class WorkerRunner {
                 yield {
                     wk: this.workers.some(w => w.READY),
                     v: this.to_process_rd_fn,
-                    jobs: this.IN_FLIGHT_JOBS,
+                    total_jobs: this.to_process_rd_fn.length,
+                    completed_jobs: this.COMPLETED_JOBS,
                     errors: this.errors,
                     COMPLETE: false
                 };
@@ -182,7 +185,8 @@ export class WorkerRunner {
             yield {
                 wk: this.workers.some(w => w.READY),
                 v: this.to_process_rd_fn,
-                jobs: this.IN_FLIGHT_JOBS,
+                total_jobs: this.to_process_rd_fn.length,
+                completed_jobs: this.COMPLETED_JOBS,
                 errors: this.errors,
                 COMPLETE: false
             };
@@ -192,7 +196,8 @@ export class WorkerRunner {
         this.workers.forEach(wk => wk.target.terminate());
 
         return yield {
-            jobs: this.IN_FLIGHT_JOBS,
+            total_jobs: this.to_process_rd_fn.length,
+            completed_jobs: this.COMPLETED_JOBS,
             errors: this.errors,
             COMPLETE: true
         };
