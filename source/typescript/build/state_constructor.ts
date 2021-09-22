@@ -611,7 +611,7 @@ function generateSingleStateAction(
 
             const production = item.getProduction(grammar);
 
-            action_string = `goto state [ ${production.name}_recover_${1 + item.offset} ] then goto state [ ${hash} ]`;
+            action_string = `goto state [ ${user_defined_state_mux}${production.name}_${1 + item.offset} ] then goto state [ ${hash} ]`;
 
         } else if (symbols.some(s => Sym_Is_Not_Consumed(s)))
 
