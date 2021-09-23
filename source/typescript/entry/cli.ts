@@ -155,10 +155,16 @@ folder name for C++ and RUST output which will be placed within the output file 
 Defaults to "parser" `,
 });
 
+import { cpus } from "os";
 
 const number_of_workers = addCLIConfig("compile", {
     key: "threads",
-    accepted_values: [Number],
+    validate: val => {
+        if (parseInt(val) <= cpus().length && parseInt(val) >= 1) {
+            return;
+        }
+        return `Invalid value for --threads [${val}]`;
+    },
     REQUIRES_VALUE: true,
     help_brief: `Number of worker threads to use during compilation. Defaults to 1`,
 });
