@@ -34,6 +34,7 @@ export async function compileGrammar(grammar: GrammarObject):
         convertListProductions(grammar, errors);
         extractMetaSymbolsFromBodies(grammar, errors);
         deduplicateProductionBodies(grammar, errors);
+        distributePriorities(grammar, errors);
 
         //Meta transformations: Symbols, Functions & Items
         createJSFunctionsFromExpressions(grammar, errors);
@@ -100,4 +101,15 @@ function deduplicateProductionBodies(grammar: GrammarObject, error: Error[]) {
     }
 }
 
+function distributePriorities(grammar: GrammarObject, error: Error[]) {
 
+    for (const production of grammar.productions) {
+
+        if (production.priority > 0)
+
+            for (const body of production.bodies) {
+
+                body.priority = production.priority;
+            }
+    }
+}

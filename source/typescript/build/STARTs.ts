@@ -132,18 +132,17 @@ export function getStartsFromItems(
         START_set = START_set_candidates
             .filter(i => Sym_Is_A_Token(i.sym(grammar)));
 
-        const production_items = START_set_candidates
-            //  .filter(i => Sym_Is_A_Production(i.sym(grammar)))
+        const conflict_items = START_set_candidates
             .setFilter(i => i.id);
 
         //Remove mutual conflicts
-        const production_conflicts = production_items.group(i => {
+        const conflicts = conflict_items.group(i => {
             const closure = getClosure([i], grammar);
             return closure.map(i => i.id);
         });
 
         let seen = new Set();
-        for (const mutual_conflict of production_conflicts.sort((a, b) => b.length - a.length)) {
+        for (const mutual_conflict of conflicts.sort((a, b) => b.length - a.length)) {
 
             const candidate_production_items = mutual_conflict
                 .filter(i => Sym_Is_A_Production(i.sym(grammar)));

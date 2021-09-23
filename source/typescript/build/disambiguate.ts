@@ -49,7 +49,6 @@ export function disambiguate(
     filter_out_productions: Set<number>,
     peek_states: TransitionForestStateA[],
     options: TransitionForestOptions,
-    active_bodies: Set<string>,
     INITIAL_STATE: boolean = false,
     start_time: number = performance.now(),
     AUTO_EXIT: boolean = false,
@@ -97,7 +96,7 @@ export function disambiguate(
 
         let considered_items = incremented_items
             .flatMap(i => i.atEND
-                ? getClosure(resolveEndItem(i, previous_state, grammar, active_bodies), grammar, i.state)
+                ? getClosure(resolveEndItem(i, previous_state, grammar), grammar, i.state)
                 : getClosure([i], grammar, i.state)
             )
             .setFilter(i => i.id);
@@ -249,7 +248,6 @@ export function disambiguate(
                     filter_out_productions,
                     new_states,
                     options,
-                    INITIAL_STATE ? active_bodies : new Set(),
                     false,
                     start_time,
                     true
@@ -259,7 +257,6 @@ export function disambiguate(
                     filter_out_productions,
                     new_states,
                     options,
-                    INITIAL_STATE ? active_bodies : new Set(),
                     false,
                     start_time
                 );
@@ -423,7 +420,6 @@ function resolveEndItem(
     end_item: Item,
     state: TransitionForestStateA,
     grammar: GrammarObject,
-    active_bodies: Set<string>,
 ): Item[] {
 
     const active_items = [];
@@ -459,8 +455,7 @@ function resolveEndItem(
                     ...items.filter(
                         i => ((i.getProductionAtSymbol(grammar)?.id ?? -1) == production_id)
                     )
-                        .map(i => i.toState(end_item.state))
-                        .filter(i => i.atEND || !active_bodies.has(i.id)))
+                        .map(i => i.toState(end_item.state)))
                     ;
             }
 

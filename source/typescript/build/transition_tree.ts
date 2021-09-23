@@ -239,23 +239,13 @@ function createPeekTreeStates(
         .map(i => i.getProductionAtSymbol(grammar).id),
     ]);
 
-    const active_bodies = new Set(/* [
-        ...active_items
-            .map(i => i.id),
-        ...active_items.filter(i => !i.atEND && Sym_Is_A_Production(i.sym(grammar)))
-            .flatMap(i => getStartItemsFromProduction(i.getProductionAtSymbol(grammar)))
-            .map(i => i.id)
-    ] */);
-
-    const active_bodies2 = new Set([
+    const active_bodies = new Set([
         ...active_items
             .map(i => i.id),
         ...active_items.filter(i => !i.atEND && Sym_Is_A_Production(i.sym(grammar)))
             .flatMap(i => getStartItemsFromProduction(i.getProductionAtSymbol(grammar)))
             .map(i => i.id)
     ]);
-
-
 
     const filter_out_productions = new Set([...active_items
         .filter(i => i.state != OutOfScopeItemState)
@@ -273,16 +263,19 @@ function createPeekTreeStates(
             i =>
                 !active_productions.has(i.getProductionID(grammar))
                 &&
-                !active_bodies2.has(i.id)
+                !active_bodies.has(i.id)
         );
 
     for (const group of symbols_groups) {
 
-        const state = group.every(i => !i.atEND)
-            ? 1 + (1 * i)
-            : -1 + (-1 * i);
+        const state =
+            (group.some(i => i.state == OutOfScopeItemState))
+                ? OutOfScopeItemState :
+                group.some(i => !i.atEND)
+                    ? 1 + (1 * i)
+                    : -1 + (-1 * i);
 
-        const contextual_state: TransitionForestStateA = state >= 0 ? Object.assign({},
+        const contextual_state: TransitionForestStateA = (state >= 0) ? Object.assign({},
             root_peek_state, {
             items: contextual_items.map(i => i.toState(state))
         }) : Object.assign({},
@@ -312,7 +305,7 @@ function createPeekTreeStates(
         i++;
     }
 
-    const disambiguated_tree = disambiguate(grammar, filter_out_productions, root_states, options, active_bodies, true);
+    const disambiguated_tree = disambiguate(grammar, filter_out_productions, root_states, options, true);
 
     const branch_states = disambiguated_tree.nodes.map((n => (n.state.parent = null, n.state)));
 
@@ -382,6 +375,7 @@ function createPeekTreeStates(
                 leaf.states.push(state);
             }
         }
+
         const candidate_states = leaf.states.length > 0
             ? leaf.states
             : [leaf];
@@ -402,22 +396,29 @@ function createPeekTreeStates(
 
                 const dependent_states = new Map(leaf.items.map(i => [i.state, 0]));
 
-                const priority_graph = [];
+                const getClosureStates =
+
+                    (node: TransitionForestStateA) =>
+                        node.items.filter(i => dependent_states.has(i.state)).group(i => i.state);
+
+                const priority_graph = (root_states.filter(i => dependent_states.has(i.items[0].state))
+                    .map(s => getClosureStates(s)));
 
                 let node = leaf;
 
                 while (node) {
-                    priority_graph.push(node.items.filter(i => dependent_states.has(i.state)).group(i => i.state));
+                    priority_graph.push(getClosureStates(node));
                     node = node.parent;
                 }
 
                 let highest_priority = 0;
 
                 for (const level of priority_graph) {
+
                     for (const group of level) {
 
                         const state = group[0].state;
-                        const priority = group.reduce((r, i) => (i.getProduction(grammar)?.priority ?? 0) + r, 0);
+                        const priority = group.reduce((r, i) => (i.body_(grammar)?.priority ?? 0) + r, 0);
 
                         let temp = dependent_states.get(state) + priority;
 
@@ -440,12 +441,26 @@ function createPeekTreeStates(
                 }
             }
 
+            if (
+                groups.length > 1
+                &&
+                leaf.items.some(i => i.state == OutOfScopeItemState)
+                &&
+                leaf.items.every(i => !Sym_Is_A_Production(i.sym(grammar)))
+            ) {
+                groups = leaf.items.map(i => i.state)
+                    .setFilter()
+                    .filter(i => i != OutOfScopeItemState)
+                    .map(i => Math.abs(i) - 1)
+                    .map(i => symbols_groups[i & (end_item_addendum - 1)]);
+            }
+
 
             if (groups.length > 1) {
 
                 const dependent_states = new Map(leaf.items.map(i => [i.state, 0]));
 
-                const priority_graph = [];
+                const priority_graph: Item[][][] = [];
 
                 let node = leaf;
 
@@ -459,7 +474,7 @@ function createPeekTreeStates(
                     for (const group of level) {
 
                         const state = group[0].state;
-                        const priority = group.reduce((r, i) => (i.getProductionAtSymbol(grammar)?.priority ?? 0) + r, 0);
+                        const priority = group.reduce((r, i) => (i.body_(grammar)?.priority ?? 0) + r, 0);
 
                         dependent_states.set(state, dependent_states.get(state) + priority);
                     }
@@ -626,6 +641,8 @@ function* yieldPeekGraphLeaves(graph: TransitionForestGraph): Generator<Transiti
     }
     else
         yield graph.state;
+
+    parent.items = parent.items.setFilter(i => i.id);
 
 }
 

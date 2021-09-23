@@ -87,7 +87,7 @@ const hcg3_mappings: NodeMappings<HCGGrammarNode, "type"> = <NodeMappings<HCGGra
         },
         {
             type: "sym-production-import",
-            template: "@module \\:: @production "
+            template: "@module \\:: @name "
         },
         {
             type: "group-production",

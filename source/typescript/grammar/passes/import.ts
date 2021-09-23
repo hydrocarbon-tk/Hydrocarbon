@@ -56,7 +56,7 @@ function processImportedObjects(grammar: GrammarObject, errors: Error[], importe
 
                     const imported = getImportedGrammarFromReference(grmmr, production.symbol.module);
 
-                    const name = imported.grammar.common_import_name + "__" + production.symbol.production;
+                    const name = imported.grammar.common_import_name + "__" + production.symbol.name;
 
                     if (imported_productions.has(name)) {
 
@@ -73,7 +73,7 @@ function processImportedObjects(grammar: GrammarObject, errors: Error[], importe
 
                     const imported = getImportedGrammarFromReference(grmmr, production.symbol.module);
 
-                    const name = imported.grammar.common_import_name + "__" + production.symbol.production;
+                    const name = imported.grammar.common_import_name + "__" + production.symbol.name;
 
                     if (imported_productions.has(name)) {
 
