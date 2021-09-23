@@ -1,7 +1,7 @@
 import URI from "@candlelib/uri";
 import { ProductionFunction, GrammarObject } from "../../types/grammar_nodes";
 //import loader from "../hcg_parser.js";
-import loader from "../hcg_parser_pending.js";
+import loader from "../hcg_parser.js";
 import { default_map } from "../../utilities/default_map.js";
 import { HCGParser } from "../../types/parser";
 import { Logger } from '../../runtime/logger.js';
