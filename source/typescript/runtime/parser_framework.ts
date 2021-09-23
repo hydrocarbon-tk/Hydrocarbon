@@ -53,116 +53,120 @@ export async function ParserFramework<T, R, K extends keyof R>(
 
     initialize_character_lut(get_character_lut());
 
-    const out: any = function (input_string: string, env: ParserEnvironment = {}, production_id: R[K] = <any>0) {
-
-        const
-
-            fns = reduce_functions,
-
-            { valid, invalid } = recognize(input_string, production_id);
-
-        if (valid.have_valid()) {
-
+    const out: ParserPack<T, R, K>["parse"] = <ParserPack<T, R, K>["parse"]>(
+        (input_string: string, env: ParserEnvironment = {}, production_id: R[K] = <any>0) => {
 
             const
-                data = valid.get_mut_state(0),
-                history = data.state_history.slice(),
-                iter = create_iterator(data),
-                default_token: Token = new Token(input_string, "", 0, 0);
 
-            let stack = [],
-                tokens = [],
-                rules = [],
-                token_offset = 0;
+                fns = reduce_functions,
 
-            try {
+                { valid, invalid } = recognize(input_string, production_id);
 
-                while (iter.is_valid()) {
+            if (valid.have_valid()) {
 
-                    let low = iter.next();
 
-                    rules.push(low);
+                const
+                    data = valid.get_mut_state(0),
+                    history = data.state_history.slice(),
+                    iter = create_iterator(data),
+                    default_token: Token = new Token(input_string, "", 0, 0);
 
-                    if (low == 0) break;
+                let stack = [],
+                    tokens = [],
+                    rules = [],
+                    token_offset = 0;
 
-                    const rule = low & 3;
+                try {
 
-                    switch (rule) {
-                        case 0: //REDUCE;
-                            {
-                                let
-                                    body = (low >> 8) & 0xFF,
-                                    len = ((low >> 3) & 0x1F);
+                    while (iter.is_valid()) {
 
-                                if (low & 4) {
-                                    body = (low >> 3);
-                                    len = iter.next();
-                                }
+                        let low = iter.next();
 
-                                const
-                                    pos_a = tokens[tokens.length - len] || default_token,
+                        rules.push(low);
 
-                                    pos_b = tokens[tokens.length - 1] || default_token,
+                        if (low == 0) break;
 
-                                    e = stack.slice(-len),
+                        const rule = low & 3;
 
-                                    token = Token.fromRange(pos_a, pos_b);
+                        switch (rule) {
+                            case 0: //REDUCE;
+                                {
+                                    let
+                                        body = (low >> 8) & 0xFF,
+                                        len = ((low >> 3) & 0x1F);
 
-                                tokens[stack.length - len] = token;
+                                    if (low & 4) {
+                                        body = (low >> 3);
+                                        len = iter.next();
+                                    }
 
-                                stack[stack.length - len] = fns[body](env, e, token);
+                                    const
+                                        pos_a = tokens[tokens.length - len] || default_token,
 
-                                stack.length = stack.length - len + 1;
+                                        pos_b = tokens[tokens.length - 1] || default_token,
 
-                                tokens.length = tokens.length - len + 1;
+                                        e = stack.slice(-len),
+
+                                        token = Token.fromRange(pos_a, pos_b);
+
+                                    tokens[stack.length - len] = token;
+
+                                    stack[stack.length - len] = fns[body](env, e, token);
+
+                                    stack.length = stack.length - len + 1;
+
+                                    tokens.length = tokens.length - len + 1;
+
+                                } break;
+
+                            case 1: { //SHIFT;
+
+                                let length = (low >>> 3) & 0x1FFF;
+
+                                if (low & 4) length = ((length << 16) | iter.next());
+
+                                stack.push(input_string.slice(token_offset, token_offset + length));
+
+                                tokens.push(new Token(input_string, "", length, token_offset));
+
+                                token_offset += length;
 
                             } break;
 
-                        case 1: { //SHIFT;
+                            case 2: { //SKIP
 
-                            let length = (low >>> 3) & 0x1FFF;
+                                let length = (low >>> 3) & 0x1FFF;
 
-                            if (low & 4) length = ((length << 16) | iter.next());
+                                if (low & 4) length = ((length << 16) | iter.next());
 
-                            stack.push(input_string.slice(token_offset, token_offset + length));
-
-                            tokens.push(new Token(input_string, "", length, token_offset));
-
-                            token_offset += length;
-
-                        } break;
-
-                        case 2: { //SKIP
-
-                            let length = (low >>> 3) & 0x1FFF;
-
-                            if (low & 4) length = ((length << 16) | iter.next());
-
-                            token_offset += length;
+                                token_offset += length;
+                            }
                         }
                     }
+                    return { result: <T[]>stack, history: history, err: null };
+                } catch (e) {
+                    return { result: <T[]>[], history: history, err: e };
                 }
-                return { result: stack, history: history, err: null };
-            } catch (e) {
-                return { result: [], history: history, err: e };
             }
-        }
 
-        if (invalid.len() > 0) {
-            // Furthest invalid state
-            const fail_state = invalid.get_mut_state(0);
+            if (invalid.len() > 0) {
+                // Furthest invalid state
+                const fail_state = invalid.get_mut_state(0);
 
-            const lexer = fail_state.get_root_lexer();
+                const lexer = fail_state.get_root_lexer();
 
-            const token = new Token(input_string, "",
-                lexer.token_length,
-                lexer.token_offset
-            );
+                const token = new Token(input_string, "",
+                    lexer.token_length,
+                    lexer.token_offset
+                );
 
-            const err = token.returnError(`Unexpected token [${token.slice()}]`);
-            return { result: [], history: fail_state.state_history, err };
-        }
-    };
+                const err = token.createError(`Unexpected token [${token.slice()}]`);
+
+                return { result: <T[]>[], history: fail_state.state_history, err };
+            }
+
+            return { result: <T[]>[], history: fail_state.state_history, err };
+        });
 
     return { parse: out, entry_points: production_entry_names };
 };

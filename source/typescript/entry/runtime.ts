@@ -29,7 +29,7 @@ import { HCGParser } from "../types/parser.js";
 //Diagnostics
 import { ParserEnvironment } from "../types/parser_environment.js";
 import "../utilities/array_globals.js";
-
+import { ParserPack } from '../types/parser_framework_types.js';
 export * as KernelParserCore from "../runtime/kernel.js";
 
 export * as ParserCore from "../runtime/core_parser.js";
@@ -39,6 +39,7 @@ export {
     HCGParser,
     ParserEnvironment,
     Token,
+    ParserPack,
 
     //Code
     fillByteBufferWithUTF8FromString,

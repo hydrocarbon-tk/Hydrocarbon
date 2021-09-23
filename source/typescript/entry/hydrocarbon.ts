@@ -29,21 +29,27 @@ import { Token } from "../runtime/token.js";
 import { fillByteBufferWithUTF8FromString } from "../runtime/utf8.js";
 export * as ParserCore from "../runtime/core_parser.js";
 export * as KernelParserCore from "../runtime/kernel.js";
+export * as KernelParserCore2 from "../runtime/kernel_new.js";
 
 //Diagnostics
 import { ParserEnvironment } from "../types/parser_environment.js";
 import { compileGrammarFromString, compileGrammarFromURI } from "../grammar/compile.js";
 import { HCGParser } from "../types/parser.js";
 import { createAddHocParser } from '../render/create_add_hoc_parser.js';
-export { ParserFramework as ParserFramework } from '../runtime/parser_framework.js';
+import { ParserFramework } from '../runtime/parser_framework.js';
+import { ParserPack } from '../types/parser_framework_types.js';
 
 export {
     //Types
     HCGParser,
     ParserEnvironment,
     Token,
+    ParserPack,
 
     //Code
+    ParserFramework,
+
+
     createAddHocParser,
     fillByteBufferWithUTF8FromString,
     loadWASM,

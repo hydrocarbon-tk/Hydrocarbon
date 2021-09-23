@@ -34,7 +34,11 @@ export interface RecognizeInitializer<R, K extends keyof R> {
 
 
 export type ParserPack<T, R, K extends keyof R> = {
-    parse: (input: string, env?: ParserEnvironment, production_selector?: R[K]) => T[],
+    parse: (input: string, env?: ParserEnvironment, production_selector?: R[K]) => {
+        history?: any,
+        result: T[];
+        err?: Error;
+    },
     entry_points: R;
 };
 
