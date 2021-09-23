@@ -144,8 +144,11 @@ pub fn parse(string_data: &[u8], entry_point:EntryPoint) -> OptionedBoxedASTRef<
 
 export function renderToJavaScript(
     { grammar, state_buffer, sym_map, states_map }: BuildPack,
+    ADD_TYPE_ANNOTATIONS: boolean = false
 ) {
     render_logger.log("Rendering JS File");
+
+    const ATA = ADD_TYPE_ANNOTATIONS;
     const entry_pointers = grammar.productions.filter(p => p.IS_ENTRY).map(p => ({ name: p.entry_name, pointer: states_map.get(p.name).pointer }));
     //Attempt to parse input
     const token_lookup_functions = extractAndReplaceTokenMapRefs(getSymbolScannerFunctions(grammar)
@@ -260,6 +263,23 @@ const js_parser_pack = {
     }
 };
 
+${/**/
+        ATA
+            ?
+            `
+const reduce_functions = ${renderJavaScriptReduceFunctionLookupArray(grammar)};
+
+export default <ParserFramework>ParserFramework(
+    reduce_functions,
+    {
+${entry_pointers.map(({ name }, i) => `        ${name}:${i}`).join(",\n")},
+    },
+    js_parser_pack,
+
+);
+            `
+            :
+            `
 const reduce_functions = ${renderJavaScriptReduceFunctionLookupArray(grammar)};
 
 export default ParserFramework(
@@ -269,7 +289,10 @@ ${entry_pointers.map(({ name }, i) => `        ${name}:${i}`).join(",\n")},
     },
     js_parser_pack,
 
-);`.replace(/_A_([\w\_\d]+)_A_/g,
+);`
+        }
+
+`.replace(/_A_([\w\_\d]+)_A_/g,
             (name, sub: string, ...args) => {
                 const { pointer } = states_map.get(sub);
                 return pointer + "";
