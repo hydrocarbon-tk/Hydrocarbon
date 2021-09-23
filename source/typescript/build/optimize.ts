@@ -128,15 +128,24 @@ function optimizeState(state: IRStateData, states: StateMap) {
 
                     const goto = instruction;
 
-                    const { ir_state_ast, attributes } = states.get(getStateName(goto.state));
+                    const { ir_state_ast: import_ir_state, attributes } = states.get(getStateName(goto.state));
 
-                    if (!((attributes & StateAttrib.TOKEN_BRANCH) || (attributes & StateAttrib.PROD_BRANCH))) {
+                    const { fail } = import_ir_state;
 
-                        sub_instructions.splice(i, 1, ...ir_state_ast.instructions);
+                    if (
+                        !((attributes & StateAttrib.TOKEN_BRANCH) || (attributes & StateAttrib.PROD_BRANCH))
+                        &&
+                        (!fail || !ir_state_ast.fail)
+                    ) {
+
+                        sub_instructions.splice(i, 1, ...import_ir_state.instructions);
 
                         MODIFIED = true;
 
                         optimize_logger.debug(`${goto.state} inlined into ${root_id}`);
+
+                        if (!ir_state_ast.fail)
+                            ir_state_ast.fail = fail;
                     }
 
                     break;
