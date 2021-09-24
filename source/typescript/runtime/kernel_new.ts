@@ -11,7 +11,7 @@ import { Logger } from './logger.js';
 export { init_table, compare };
 
 //Global Constants
-const state_index_mask = (1 << 16) - 1;
+const state_index_mask = (1 << 24) - 1;
 export const fail_state_mask = 1 << 27;
 export const normal_state_mask = 1 << 26;
 export const alpha_increment_stack_pointer_mask = 1 << 0;
