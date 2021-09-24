@@ -26,13 +26,6 @@ export function constructProductionStates(
     id: number;
 } {
 
-    /* 
-    if (production.id != 1)
-        return {
-            id: 0,
-            parse_states: new Map
-        };
-    debugger; //*/
 
     const root_prod_name = production.name;
 
