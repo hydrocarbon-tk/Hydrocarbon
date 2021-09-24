@@ -238,7 +238,7 @@ const js_parser_pack = {
 
     recognize: (string, entry_index) => {
 
-        const temp_buffer = new Uint8Array(string.length * 4);
+        const temp_buffer = new Uint8Array((string.length+1) * 4);
 
         const actual_length = fillByteBufferWithUTF8FromString(string, temp_buffer, temp_buffer.length);
 
