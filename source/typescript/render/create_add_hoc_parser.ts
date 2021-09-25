@@ -6,8 +6,9 @@
 import { ParserEnvironment } from '@candlelib/hydrocarbon';
 import { createBuildPack } from '../build/build.js';
 import { compileGrammarFromString } from '../grammar/compile.js';
-import { compare, init_table, KernelStateIterator, run, token_production } from '../runtime/kernel_new.js';
+import { compare, init_table, KernelState, KernelStateIterator, run, token_production } from '../runtime/kernel_new.js';
 import { ParserFramework } from '../runtime/parser_framework.js';
+import { fillByteBufferWithUTF8FromString } from '../runtime/utf8.js';
 import { skRenderAsJavaScript } from '../skribble/skribble.js';
 import { GrammarObject } from '../types/grammar_nodes';
 import { getSymbolScannerFunctions, token_lu_bit_size } from '../utilities/code_generating.js';
@@ -15,6 +16,7 @@ import {
     BuildPack, createActiveTokenSK,
     extractAndReplaceTokenMapRefs, renderJavaScriptReduceFunctionLookupArray
 } from './render.js';
+
 
 /**
  * Constructs a JavaScript based parser from a grammar string or build pack.
@@ -94,12 +96,16 @@ export async function createAddHocParser<T = any>(
             init_table(table);
             return table;
         },
-        create_iterator: (data: any) => {
+        create_iterator: (data: KernelState) => {
             return new KernelStateIterator(data);
         },
         recognize: (string: string, entry_pointer: number) => {
 
-            const input_buffer = new Uint8Array(string.split("").map(c => c.charCodeAt(0)));
+            const temp_buffer = new Uint8Array((string.length + 1) * 4);
+
+            const actual_length = fillByteBufferWithUTF8FromString(string, temp_buffer, temp_buffer.length);
+
+            const input_buffer = new Uint8Array(temp_buffer.buffer, 0, actual_length);
 
             return run(
                 state_buffer,

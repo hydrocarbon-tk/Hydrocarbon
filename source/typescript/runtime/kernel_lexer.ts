@@ -67,7 +67,10 @@ export class Lexer {
             }
             else {
                 let code_point: number = get_utf8_code_point_at(this.byte_offset, this.input);
+
                 this.byte_length = get_ut8_byte_length_from_code_point(code_point);
+                this.token_length = get_token_length_from_code_point(code_point);
+
                 t = getTypeAt(code_point);
             };
         };
@@ -75,10 +78,9 @@ export class Lexer {
     }
     isSym(USE_UNICODE: boolean): boolean {
         if (this._type == 0 && this.getType(USE_UNICODE) == 2) {
-            this.byte_length = get_ut8_byte_length_from_code_point(
-                get_utf8_code_point_at(this.byte_offset, this.input)
-            );
-            //   this._type = 2;
+            const code_point = get_utf8_code_point_at(this.byte_offset, this.input);
+            this.byte_length = get_ut8_byte_length_from_code_point(code_point);
+            this.token_length = get_token_length_from_code_point(code_point);
             return true;
         };
         return this._type == 2;
@@ -123,19 +125,24 @@ export class Lexer {
                 let l: number = this.input.length;
                 let off: number = this.byte_offset;
                 let prev_byte_len: number = this.byte_length;
+                let prev_token_len: number = this.token_length;
                 while ((off + this.byte_length) < l) {
                     let code_point = get_utf8_code_point_at(this.byte_offset + this.byte_length, this.input);
                     if ((96 & char_lu_table[code_point]) > 0) {
                         this.byte_length += get_ut8_byte_length_from_code_point(code_point);
+                        this.token_length += get_token_length_from_code_point(code_point);
                         prev_byte_len = this.byte_length;
-                        this.token_length += 1;
+                        prev_token_len = this.token_length;
                     }
                     else {
                         break;
                     };
                 };
+
                 this.byte_length = prev_byte_len;
-                //this._type = 3;
+
+                this.token_length = prev_token_len;
+
                 return true;
             }
 
@@ -233,6 +240,13 @@ function get_ut8_byte_length_from_code_point(code_point: number): number {
         return 4;
     };
 }
+
+function get_token_length_from_code_point(code_point: number): number {
+    if (code_point > 0xFFFF)
+        return 2;
+    return 1;
+}
+
 function get_utf8_code_point_at(index: number, buffer: Uint8Array): number {
     const flag = +buffer[index + 0] << 24
         | (buffer[index + 1] ?? 0) << 16
