@@ -118,7 +118,7 @@ export async function createBuildPack(
 
     const sym_map: Map<string, number> = new Map();
 
-    let OPTIMIZE = true;
+    let OPTIMIZE = false;
 
     garbageCollect(states_map, grammar);
 
@@ -960,15 +960,25 @@ function buildJumpTableBranchBlock(
 
     const instructions = state_ast.instructions as ResolvedIRBranch[];
 
-    const default_instruction = instructions.filter(i => i.ids.some(i => i == default_case_indicator))[0];
+    let default_instruction = instructions.filter(i => i.ids.some(i => i == default_case_indicator))[0];
 
-    const standard_instructions = instructions.filter(i => !i.ids.some(i => i == default_case_indicator));
+    let standard_instructions = instructions.filter(i => !i.ids.some(i => i == default_case_indicator));
+
+
+
+    if (!default_instruction && input_type == "token") {
+
+        const end_sym = 1;
+        default_instruction = instructions.filter(i => i.ids.some(i => i == end_sym))[0];
+        standard_instructions = instructions.filter(i => !i.ids.some(i => i == end_sym));
+    }
 
     if (standard_instructions.length == 0 && default_instruction) {
         const new_state = Object.assign({}, state_ast, { instructions: default_instruction.instructions });
 
         return buildBasicInstructionBlock(new_state, tok_id, skip_id, grammar, sym_map);
     }
+
     const ids = standard_instructions.flatMap(i => i.ids).sort(numeric_sort);
 
     const standard_byte_codes = standard_instructions
@@ -1086,8 +1096,15 @@ function buildHashTableBranchBlock(
 
     const instructions = state_ast.instructions as ResolvedIRBranch[];
 
-    const default_instruction = instructions.filter(i => i.ids.some(i => i == default_case_indicator))[0];
-    const standard_instructions = instructions.filter(i => !i.ids.some(i => i == default_case_indicator));
+    let default_instruction = instructions.filter(i => i.ids.some(i => i == default_case_indicator))[0];
+    let standard_instructions = instructions.filter(i => !i.ids.some(i => i == default_case_indicator));
+
+    if (!default_instruction && input_type == "token") {
+
+        const end_sym = 1;
+        default_instruction = instructions.filter(i => i.ids.some(i => i == end_sym))[0];
+        standard_instructions = instructions.filter(i => !i.ids.some(i => i == end_sym));
+    }
 
     if (standard_instructions.length == 0 && default_instruction) {
         const new_state = Object.assign({}, state_ast, { instructions: default_instruction.instructions });
