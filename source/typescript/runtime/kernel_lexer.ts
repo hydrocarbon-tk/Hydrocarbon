@@ -122,6 +122,8 @@ export class Lexer {
     isUniID(): boolean {
         if (this._type == 0) {
             if (this.getType(true) == 3) {
+                this.byte_length = 1;
+                this.token_length = 1;
                 let l: number = this.input.length;
                 let off: number = this.byte_offset;
                 let prev_byte_len: number = this.byte_length;
@@ -193,9 +195,11 @@ export class Lexer {
     }
 
     set_token_span_to(source: Lexer) {
-        this.byte_length = source.prev_byte_offset - this.byte_offset;
-        this.token_length = source.prev_token_offset - this.token_offset;
-        this._type = source._type;
+        if (source.prev_byte_offset > this.byte_offset) {
+            this.byte_length = source.prev_byte_offset - this.byte_offset;
+            this.token_length = source.prev_token_offset - this.token_offset;
+        }
+        //this._type = source._type;
     };
     next() {
         this.byte_offset += this.byte_length;

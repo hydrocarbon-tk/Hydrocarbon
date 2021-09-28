@@ -36,6 +36,8 @@ type lexer_token_offset = number;
 type lexer_token_length = number;
 type production_id = number;
 
+const state_history = [];
+
 
 /////////////////////////////////////////////
 // Kernel State 
@@ -114,8 +116,6 @@ export class KernelState implements KernelStateType {
         this.refs = 0;
 
         this.symbol_accumulator = 0; 1 << 16;
-
-        this.state_history = [];
     }
 
     get_rules_len(): number {
@@ -130,13 +130,13 @@ export class KernelState implements KernelStateType {
         if (enable_history) {
             const lexer = this.lexer;
 
-            this.state_history.push([
+            state_history.push([
                 kernel_state,
                 lexer._type,
-                lexer.byte_offset,
+                lexer.token_offset,
                 lexer.token_length,
                 this.stack_pointer,
-                this.meta_stack[this.stack_pointer] & 0xFFFF,
+                this.prod, //this.meta_stack[this.stack_pointer] & 0xFFFF,
                 Array.from(this.meta_stack).map(i => i & 0xFFFF).slice(0, this.stack_pointer + 3)
 
             ]);
@@ -513,7 +513,7 @@ function instruction_executor(
 
             case 14: /*NOOP*/;
 
-            case 15: return advanced_return(instruction, fail_mode);
+            case 15: return advanced_return(kernel_state, instruction, fail_mode);
         }
     }
 }
@@ -521,10 +521,19 @@ function pass() {
     return false;
 }
 
-function advanced_return(instruction: number, fail_mode: boolean): boolean {
+function advanced_return(kernel_state: KernelState, instruction: number, fail_mode: boolean): boolean {
     if (instruction & 1) {
 
         return fail_mode;
+    }
+
+    if (!kernel_state.lexer.END()) {
+        kernel_state.lexer._type = 0;
+        kernel_state.lexer.token_length = 1;
+        kernel_state.lexer.byte_length = 1;
+        kernel_state.peek_lexer._type = 0;
+        kernel_state.peek_lexer.token_length = 1;
+        kernel_state.peek_lexer.byte_length = 1;
     }
 
     return true;
@@ -1034,10 +1043,7 @@ function fork(
 
                     if (furthest_matching_count == 1) {
 
-
-
                         origin_kernel_state.FORKED = true;
-
 
                         //Continue Parsing from the end of the previous KernelState
                         //Continue Parsing from the end of the previous KernelState
@@ -1057,6 +1063,8 @@ function fork(
                         //Set index so that it points to the null instruction block;
                         index = 0;
 
+                        console.log("aAAA");
+
                     } else {
                         throw new Error("Multiple uneven parse paths exist, no resolution mechanism has been implemented for this situation. Exiting");
                     }
@@ -1068,7 +1076,17 @@ function fork(
 
         }
     } else {
-        return 1;
+        const tip = invalid.get_mut_state(0);
+
+        origin_kernel_state.next.push(tip);
+
+        origin_kernel_state.transfer_state_stack(tip);
+
+        tip.push_state(normal_state_mask | fail_state_mask | 1);
+
+        origin_kernel_state_repo.add_state_pointer(tip);
+
+        return 0;
         throw new Error("All parse paths exhausted");
     }
 
@@ -1107,8 +1125,11 @@ export function token_production(
         tk_scan
 
     );
-
-    state.lexer.sync(lexer);
+    state.lexer.byte_offset = lexer.byte_offset;
+    state.lexer.token_offset = lexer.token_offset;
+    state.lexer.byte_length = 0;
+    state.lexer.token_length = 0;
+    state.lexer.next();
     state.lexer.active_token_productions |= tk_flag;
     state.state_stack[1] = production_state_pointer;
     state.state_stack[0] = 0;
@@ -1120,7 +1141,7 @@ export function token_production(
 
         lexer.set_token_span_to(state.lexer);
 
-        lexer._type = _type;
+        //lexer._type = _type;
 
         return true;
     }
@@ -1191,7 +1212,7 @@ export function kernel_executor(
                     //if ((!fail_mode && ((state & fail_state_mask) == 0))
                     //    || (fail_mode && (state & fail_state_mask) != 0)
                     //    || (state & 0xFFFFF) == production_scope_pop_pointer) {
-                    kernel_state.add_state_to_history(state, enable_history);
+                    kernel_state.add_state_to_history(state, true);
 
                     fail_mode = instruction_executor(
                         state,
@@ -1234,6 +1255,8 @@ export function run(
         scanner_function
     );
 
+    state_history.length = 0;
+
     //Logger.get("HC-Kernel-Debug").deactivate();
 
     state.state_stack[0] = 0;
@@ -1255,6 +1278,7 @@ export function run(
 
             if (kernel_state.lexer.byte_offset < kernel_state.lexer.input.length)
                 kernel_state.VALID = false;
+            kernel_state.state_history = state_history;
 
             if (kernel_state.FORKED)
                 // Remove state. It is now only
@@ -1280,6 +1304,5 @@ export function run(
             process_buffer.add_state_pointer(invalid.remove_valid_parser_state());
 
     }
-
     return { invalid, valid };
 };;
