@@ -84,9 +84,9 @@ export function disambiguate(
         //Do one level of Earley 
         const { depth, type: par_type, parent, roots, symbols, items } = previous_state;
 
-        const incremented_items = INITIAL_STATE
+        const incremented_items = (INITIAL_STATE || true)
             ? items
-            : items.map(
+            : items.filter(i => i.atEND || !Sym_Is_A_Production(i.sym(grammar))).map(
                 i => {
                     if (i.atEND || Sym_Is_A_Production(i.sym(grammar)))
                         return i;
@@ -203,6 +203,20 @@ export function disambiguate(
 
         let child_graph_node = null;
 
+        //Merge states with same roots
+        let out_states: TransitionForestStateA[] = [];
+        for (const state of states) {
+            const pair = out_states.filter(i => i.roots[0] == state.roots[0])[0];
+            if (pair) {
+                pair.items.push(...state.items);
+                pair.items = state.items.setFilter(i => i.id);
+            } else {
+                out_states.push(state);
+            }
+        }
+
+        states = out_states;
+
         if (
             states.length > 1
             &&
@@ -229,19 +243,27 @@ export function disambiguate(
 
             if (INITIAL_STATE)
                 start_time = performance.now();
+
             const key_symbol = getSymbolFromUniqueName(grammar, key);
             let new_states = states.map(s => Object.assign({}, s, {
                 items: s.items.filter(
                     i => i.sym(grammar).id == key_symbol.id
                         ||
-                        SymbolsCollide(i.sym(grammar), key_symbol, grammar))
+                        Sym_Is_A_Production(i.sym(grammar))
+                        ||
+                        SymbolsCollide(i.sym(grammar), key_symbol, grammar)
+                ).map(i => {
+                    if (!i.atEND || Sym_Is_A_Production(i.sym(grammar)))
+                        return i.increment();
+                    return i;
+                })
             }));
 
             if (
                 key == getUniqueSymbolName(default_EOF)
-                ||
-                //If States have identical closures, then there will be now way to disambiguate
-                states.group(s => s.items.map(i => i.id).sort().join()).length == 1
+                //If States have identical closures, then there will be no way to disambiguate
+                //||
+                //states.group(s => s.items.map(i => i.id).sort().join()).length == 1
             ) {
                 //do nothing, this is as far as we get with these states
                 child_graph_node = disambiguate(grammar,
@@ -385,6 +407,8 @@ function mergeGroupsWithOccludingSymbols(grouped_roots: Map<string, TransitionFo
                 }
             }
     }
+
+
 }
 
 function mergeStates(type, states: TransitionForestStateA[]): TransitionForestStateA {
@@ -446,9 +470,10 @@ function resolveEndItem(
             const { items, parent, depth } = prev;
 
             if (
-                depth == end_item.state
-                ||
-                ((matching_items.length == 0 || end_item.state == OutOfScopeItemState) && depth < 0)
+                items.length > 0
+                && (items[0].state == end_item.state
+                    ||
+                    ((matching_items.length == 0 || end_item.state == OutOfScopeItemState) && depth < 0))
             ) {
 
                 matching_items.push(

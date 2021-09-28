@@ -266,6 +266,8 @@ function createPeekTreeStates(
                 !active_bodies.has(i.id)
         );
 
+
+
     for (const group of symbols_groups) {
 
         const state =
@@ -341,7 +343,7 @@ function createPeekTreeStates(
     //Build in new states and create transition for each one.
     //Convert graph into a transition tree and yield leaves
 
-    for (const leaf of yieldPeekGraphLeaves(disambiguated_tree)) {
+    for (const leaf of yieldPeekGraphLeaves(disambiguated_tree, grammar)) {
         /*
             At this point the leaf indicates a set of successful resolution of
             conflicting actions on given sequence of symbols, or the
@@ -432,7 +434,7 @@ function createPeekTreeStates(
 
                 for (const [group_id, priority] of dependent_states) {
 
-                    if (priority >= highest_priority) {
+                    if (priority >= highest_priority && group_id > OutOfScopeItemState) {
 
                         let root_index = Math.abs(group_id) - 1;
 
@@ -457,48 +459,15 @@ function createPeekTreeStates(
 
 
             if (groups.length > 1) {
-
-                const dependent_states = new Map(leaf.items.map(i => [i.state, 0]));
-
-                const priority_graph: Item[][][] = [];
-
-                let node = leaf;
-
-                while (node) {
-                    priority_graph.push(node.items.filter(i => dependent_states.has(i.state)).group(i => Math.abs(i.state) - 1));
-                    node = node.parent;
-                }
-
-                for (const level of priority_graph) {
-
-                    for (const group of level) {
-
-                        const state = group[0].state;
-                        const priority = group.reduce((r, i) => (i.body_(grammar)?.priority ?? 0) + r, 0);
-
-                        dependent_states.set(state, dependent_states.get(state) + priority);
-                    }
-                }
-
-                //Heuristic: If all items shift on the same symbol then simply yield a shift.
-                if (
-                    groups.every(g => g.every(i => !i.atEND))
-                    &&
-                    !groups.some(g => g.some(i => i.state == OutOfScopeItemState))
-                    &&
-                    groups.flat().group(i => getUniqueSymbolName(i.sym(grammar))).length == 1
-                ) {
-
-                    leaf.items.length = 0;
-                    leaf.items.push(...groups.flat().setFilter(i => i.id));
-                    token_leaf_states.push(leaf);
-                    continue;
-                }
+                if (groups.some(i => i.some(i => i.body == 467)) && groups.length > 1)
+                    debugger;
 
                 origin_state.type |= TransitionStateType.FORK | TransitionStateType.MULTI;
 
                 //TODO Rebuild the groups while removing out of scope items.
                 leaf.type |= TransitionStateType.FORK | TransitionStateType.MULTI;
+
+
 
                 for (const group of groups) {
 
@@ -605,7 +574,7 @@ function createPeekTreeStates(
     }
 }
 
-function* yieldPeekGraphLeaves(graph: TransitionForestGraph): Generator<TransitionForestStateA> {
+function* yieldPeekGraphLeaves(graph: TransitionForestGraph, grammar: GrammarObject): Generator<TransitionForestStateA> {
     const parent = graph.state;
 
     if (graph.nodes.length > 0) {
@@ -614,10 +583,11 @@ function* yieldPeekGraphLeaves(graph: TransitionForestGraph): Generator<Transiti
 
             node.state.parent = parent;
 
-            yield* yieldPeekGraphLeaves(node);
+            //node.state.items = node.state.items.map(i => i.decrement());
+
+            yield* yieldPeekGraphLeaves(node, grammar);
 
             if (node.state.states.length > 0) {
-                node.state.depth = parent.depth + 1;
                 parent.states.push(node.state);
             }
         }
@@ -633,17 +603,32 @@ function* yieldPeekGraphLeaves(graph: TransitionForestGraph): Generator<Transiti
             );
 
             //This is a free action state.
-            multi_item_state.items = parent.states.flatMap(s => s.items);
-            multi_item_state.states = parent.states;
+            multi_item_state.states = parent.states.flatMap(flattenMulti(multi_item_state.depth));
+            multi_item_state.items = multi_item_state.states.flatMap(s => s.items.map(i => i/* .decrement() */));
             parent.states = [multi_item_state];
-
         }
     }
-    else
-        yield graph.state;
+    else {
+        const state = graph.state;
+
+        yield state;
+    }
 
     parent.items = parent.items.setFilter(i => i.id);
+}
 
+function flattenMulti(depth: number): (
+    value: TransitionForestStateA,
+    index: number,
+    array: TransitionForestStateA[]
+) => TransitionForestStateA | TransitionForestStateA[] {
+    const fn = s => {
+        if (s.type & TransitionStateType.MULTI && s.depth == depth)
+            return s.states.map(fn);
+
+        return s;
+    };
+    return fn;
 }
 
 export function createTransitionForestState(
