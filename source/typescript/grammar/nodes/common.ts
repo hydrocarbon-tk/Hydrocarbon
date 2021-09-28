@@ -82,11 +82,18 @@ export function removeBodySymbol(body: HCG3ProductionBody, index: number, opt_id
     if (Body_Has_Reduce_Action(body)) {
 
         if (body.reduce_function.type != "env-function-reference") {
+
+            const removal_index = body.sym.reduce((r, s, i) => {
+                if (!s.meta && i <= index && i > 0)
+                    return r + 1;
+                return r;
+            }, 0);
+
             body.reduce_function.txt = body.reduce_function.txt.replace(/\$(\d+)/g, (m, p1) => {
                 const val = parseInt(p1);
-                if (val - 1 > index)
+                if (val - 1 > removal_index)
                     return "$" + (val - 1);
-                if (val - 1 == index)
+                if (val - 1 == removal_index)
                     return "\$NULL";
                 return m;
 
@@ -102,6 +109,7 @@ export function removeBodySymbol(body: HCG3ProductionBody, index: number, opt_id
     if (body.sym.length == 0)
         body.sym.push(createEmptySymbol());
 }
+
 export function setBodyReduceExpressionAction(body: HCG3ProductionBody, reduce_function_string: string) {
 
     const function_node: ProductionFunction = {
@@ -112,28 +120,35 @@ export function setBodyReduceExpressionAction(body: HCG3ProductionBody, reduce_f
 
     body.reduce_function = function_node;
 }
+
 export function replaceAllBodySymbols(body: HCG3ProductionBody, ...symbols: HCG3Symbol[]) {
     body.sym = [...symbols];
 }
+
 export function addSymbolToBody(new_production_body: HCG3ProductionBody, sym: ListProductionSymbol) {
     new_production_body.sym.push(sym);
 }
+
 export function addBodyToProduction(new_production: GrammarProduction, new_production_body: HCG3ProductionBody) {
     new_production.bodies.push(new_production_body);
 }
+
 export function addProductionToGrammar(grammar: GrammarObject, new_production: GrammarProduction) {
     grammar.productions.push(new_production);
 }
+
 export function Sym_Is_List_Production(sym: any): sym is ListProductionSymbol {
     return sym.type && (<ListProductionSymbol>sym).type == "list-production";
 }
+
 export function Sym_Is_Group_Production(sym: any): sym is GroupProductionSymbol {
     return sym.type && (<GroupProductionSymbol>sym).type == "group-production";
 }
 
 export function createProductionSymbol(name: string, IS_OPTIONAL: number = 0, mapped_sym: HCGGrammarNode = null): ProductionSymbol {
+
     return {
-        type: 'sym-production',
+        type: SymbolType.PRODUCTION,
         id: -1,
         val: -1,
         name: name,
@@ -145,12 +160,12 @@ export function createProductionSymbol(name: string, IS_OPTIONAL: number = 0, ma
 }
 function createEmptySymbol(): EmptySymbol {
     return {
-        type: 'empty',
+        type: SymbolType.EMPTY,
         val: "",
         byte_length: 0,
         byte_offset: 0,
         IS_NON_CAPTURE: false,
-        IS_OPTIONAL: false,
+        IS_OPTIONAL: 0,
         pos: createZeroedPosition(),
         meta: false
     };

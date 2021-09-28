@@ -37,10 +37,7 @@ export function convertListProductions(grammar: GrammarObject, error: Error[]): 
 
         //Remove bodies that are direct recursion: S=>S
         production.bodies = production.bodies.filter(b => {
-            if (b.sym.length == 1 && b.sym[0].type == "sym-production" && b.sym[0].name == production.name) {
-
-                return false;
-            }
+            if (b.sym.length == 1 && b.sym[0].type == "sym-production" && b.sym[0].name == production.name) { return false; }
             return true;
         });
     }
@@ -65,7 +62,7 @@ export function processListSymbol(sym: any, body: HCG3ProductionBody, production
                 /** Contains the normal pattern */
                 new_production_body = createProductionBody(sym),
                 /** Contains the left recursive pattern */
-                new_production_symbol = createProductionSymbol(production.name),
+                new_production_symbol = createProductionSymbol(production.name, 0, sym),
 
                 TERMINAL_SYMBOL_IS_QUOTE = ["\"", "'", "`"].includes(terminal_symbol?.val);
 

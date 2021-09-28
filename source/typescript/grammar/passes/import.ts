@@ -183,8 +183,10 @@ function remapImportedIRSymbols(
 }
 
 function integrateImportedProductions(root_grammar: GrammarObject, local_grammar: GrammarObject, production: GrammarProduction, imported_productions: Map<any, any>) {
-    for (const body of production.bodies)
+    for (const body of production.bodies) {
         body.sym = processImportedBody(body.sym, root_grammar, local_grammar, imported_productions);
+
+    }
 }
 function processImportedBody(
     symbols: HCG3Symbol[],
@@ -197,8 +199,19 @@ function processImportedBody(
 
     const syms = [];
 
-    for (const symbol of symbols)
+    for (const symbol of symbols) {
+        if (
+            symbol.type == "meta-exclude"
+            ||
+            symbol.type == "meta-ignore"
+            ||
+            symbol.type == "meta-reset"
+        ) {
+            symbol.sym.map(s => processSymbol(s, NOT_ORIGIN, root_grammar, local_grammar, imported_productions));
+
+        }
         syms.push(processSymbol(symbol, NOT_ORIGIN, root_grammar, local_grammar, imported_productions));
+    }
 
     return syms;
 }

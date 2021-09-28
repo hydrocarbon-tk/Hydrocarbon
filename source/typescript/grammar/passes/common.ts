@@ -164,7 +164,16 @@ function processProductionBodySymbols(
         body.length = body.sym.length;
 
         for (const sym of body.sym)
-            id_offset = processSymbol(sym, production_lookup, unique_map, token_production_set, errors, id_offset);
+            id_offset = processSymbol(grammar, sym, production_lookup, unique_map, token_production_set, errors, id_offset);
+
+        for (const sym of body.reset.flat())
+            id_offset = processSymbol(grammar, sym, production_lookup, unique_map, token_production_set, errors, id_offset);
+
+        for (const sym of body.ignore.flat())
+            id_offset = processSymbol(grammar, sym, production_lookup, unique_map, token_production_set, errors, id_offset);
+
+        for (const sym of body.excludes.flat(2))
+            id_offset = processSymbol(grammar, sym, production_lookup, unique_map, token_production_set, errors, id_offset);
     }
     return { b_counter, id_offset };
 }
@@ -494,17 +503,17 @@ export function buildSequenceString(grammar: GrammarObject) {
 export function expandOptionalBody(production: GrammarProduction) {
     const processed_set = new Set();
 
-    let i = 0n;
+    let i = -1n;
 
     for (const body of production.bodies)
         for (const sym of body.sym) {
-            sym.opt_id = 1n << (i);
             if (!sym.meta) i++;
+            sym.opt_id = 1n << (i);
         }
 
 
     for (const body of production.bodies) {
-        for (const { node, meta } of traverse(body, "sym").makeMutable()) {
+        for (const { node, meta } of traverse(body, "sym", 2).skipRoot().makeMutable()) {
             const sym: SymbolNode = <any>node;
             if (sym.IS_OPTIONAL) {
                 const OPTIONAL_CLASS = sym.IS_OPTIONAL >> 8;

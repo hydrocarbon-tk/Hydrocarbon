@@ -81,29 +81,15 @@ function getItemMapVariables(grammar: GrammarObject, productions: GrammarProduct
             const array_of_item_maps = getStartItemsFromProduction(p).map(item => {
 
 
-                const out_syms: IntermediateItemMapEntry[] = [];
-
-                const b = item.body_(grammar);
+                const out_entry: IntermediateItemMapEntry[] = [];
 
                 do {
+                    const b = item.body_(grammar);
 
-                    if (!item.atEND) {
-                        const sym = item.sym(grammar);
-                        if (Sym_Is_A_Production(sym) && sym.subtype) {
-                            const sub_production = grammar.productions[sym.val];
-
-                            for (const body of sub_production.bodies) {
-                                body.reset[0] = b.reset[0];
-                            }
-                        }
-                    }
-
-                    const reset_sym = item.offset >= 0 ? (b.reset[item.offset] ?? []).map(getUniqueSymbolName) : [];
-
-                    out_syms.push(<IntermediateItemMapEntry>{
+                    out_entry.push(<IntermediateItemMapEntry>{
                         item,
                         closure: [],
-                        reset_sym,
+                        reset_sym: [],
                         excludes: b.excludes[item.offset] ?? [],
                         rank: item.offset,
                         hash: "",
@@ -117,7 +103,7 @@ function getItemMapVariables(grammar: GrammarObject, productions: GrammarProduct
                     // depth++;
                 } while (item = item.increment());
 
-                return out_syms;
+                return out_entry;
             });
             extant_production_item_maps[p.id].item_maps = array_of_item_maps.map(i => i[0]);
 
@@ -352,13 +338,7 @@ function processClosures(
 
 function addPositionalItemIds(grammar: GrammarObject, productions: GrammarProduction[]) {
     for (const production of productions)
-        if (production.type != "virtual-production")
-            addPositionalSymbolId(grammar, production);
-        else for (let item of getStartItemsFromProduction(production))
-            do {
-                grammar.item_map.get(item.id).sym_uid = 0;
-                item = item.increment();
-            } while (!item.atEND);
+        addPositionalSymbolId(grammar, production);
 };
 
 function addPositionalSymbolId(grammar: GrammarObject, production: GrammarProduction) {
@@ -455,11 +435,27 @@ function processSkippedSymbols(grammar: GrammarObject, item_maps_in_process: Ite
                 ? new Set(getFirstTerminalSymbols(+item_map.item.sym(grammar).val, grammar).map(getSymbolName))
                 : new Set((getTrueSymbolValue(<TokenSymbol>item_map.item.sym(grammar), grammar)).map(getSymbolName));
 
+        const item = item_map.item;
+
+        const b = item.body_(grammar);
+
+        if (!item.atEND) {
+            const sym = item.sym(grammar);
+            if (Sym_Is_A_Production(sym) && sym.subtype) {
+                const sub_production = grammar.productions[sym.val];
+
+                for (const body of sub_production.bodies) {
+                    body.reset[0] = b.reset[0];
+                }
+            }
+        }
+
+        const reset_sym = item.offset >= 0 ? (b.reset[item.offset] ?? []).map(getUniqueSymbolName) : [];
 
         item_map.skippable = new Set(
             standard_skips
                 .map(getSymbolName)
-                .filter(i => !item_map.reset_sym.includes(i))
+                .filter(i => !reset_sym.includes(i))
                 .filter(i => !first.has(i))
         );
     }
