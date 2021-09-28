@@ -104,84 +104,105 @@ function getOuterScopeGotoItems(grammar: GrammarObject, seen: Set<number>, i: It
 export function getSTARTs(production: GrammarProduction, grammar: GrammarObject) {
     const initial_candidates = getStartItemsFromProduction(production);
 
-    return getStartsFromItems(initial_candidates, new Set([production.id]), grammar,);
+    return getStartsFromItems(production.id, initial_candidates, grammar,);
 }
-
 export function getStartsFromItems(
+    root_production: number,
     initial_candidates: Item[],
-    root_productions: Set<number>,
     grammar: GrammarObject
 ) {
-
-
     let START_set = [];
 
+    return extractSTARTCandidates2(root_production, initial_candidates, START_set, grammar);
+}
 
-    let descend_candidates = initial_candidates.slice();
+function extractSTARTCandidates2(
+    root_production: number,
+    initial_candidates: Item[],
+    START_candidate_set: Item[],
+    grammar: GrammarObject,
+) {
+    // Check for recursion with root candidate. If 
+    // known is found than the candidate is available
+    // for use with the original grammar. 
+    const closure = getClosure(initial_candidates, grammar);
 
-    const seen_candidates = new Set(root_productions);
-    while (descend_candidates.length > 0) {
 
-        const START_set_candidates = START_set.slice();
+    // Separate into groups comprised of productions
+    const production_groups = closure.groupMap(i => i.getProductionID(grammar));
 
-        for (const descend_candidate of descend_candidates)
-            extractSTARTCandidates(root_productions, descend_candidate, START_set_candidates, grammar);
+    // Get production_items 
+    const production_items = closure.filter(i => Sym_Is_A_Production(i.sym(grammar)));
 
-        descend_candidates.length = 0;
+    // Create reverse lookups
+    let reverse_lookups: [number, number][] = <any>production_items
+        .map(i => [i.getProductionAtSymbol(grammar).id, i.getProduction(grammar).id])
+        .setFilter(i => i.join(":"))
+        .sort((a, b) => a[0] - b[0]);
 
-        START_set = START_set_candidates
-            .filter(i => Sym_Is_A_Token(i.sym(grammar)));
+    reverse_lookups.push([root_production, root_production]);
 
-        const conflict_items = START_set_candidates
-            .setFilter(i => i.id);
+    //Remove top-down recursion conflicts
+    //reverse_lookups = reverse_lookups.filter(a => !reverse_lookups.some(b => a[0] == b[1] && a[1] < b[1]));
 
-        //Remove mutual conflicts
-        const conflicts = conflict_items.group(i => {
-            const closure = getClosure([i], grammar);
-            return closure.map(i => i.id);
-        });
+    // Find conflicting reductions, these productions will be invalid for use in LL style 
+    // parsing. Remove direct left recursion first.
+    const conflict_groups = reverse_lookups
+        //.filter(a => a[0] != a[1])
+        .group(a => a[0]).filter(i => i.length > 1);
 
-        let seen = new Set();
-        for (const mutual_conflict of conflicts.sort((a, b) => b.length - a.length)) {
+    //Add invalid productions to no fly set
+    const no_fly = new Set(conflict_groups.flatMap(i => i.map(i => i[1]).filter(i => i >= 0)));
+    const no_fly_list = [...no_fly.values()];
 
-            const candidate_production_items = mutual_conflict
-                .filter(i => Sym_Is_A_Production(i.sym(grammar)));
-
-            if (
-                mutual_conflict.length == 1
-                ||
-                candidate_production_items.group(i => i.getProductionAtSymbol(grammar).id).length == 1
-            ) {
-                START_set.push(...candidate_production_items.filter(i => !seen.has(i.id)));
-            } else {
-
-                //Add the production to descend_candidates
-
-                for (const production of candidate_production_items
-                    .map(i => i.getProductionAtSymbol(grammar))) {
-                    if (!seen_candidates.has(production.id)) {
-
-                        descend_candidates.push(...getStartItemsFromProduction(production));
-
-                        seen_candidates.add(production.id);
-                    }
-                }
+    //For every invalid production add its caller to the list
+    for (const p of no_fly_list) {
+        for (const [callee, caller] of reverse_lookups) {
+            if (p == callee && !no_fly.has(caller) && caller >= 0) {
+                no_fly_list.push(caller);
+                no_fly.add(caller);
             }
-
-            for (const id of mutual_conflict.map(i => i.id))
-                seen.add(id);
         }
-
-        START_set = START_set.setFilter(i => i.id);
-
-        // seen_candidates.clear();
     }
 
+    //From the no fly list add their terminal symbols
+    for (const p of no_fly) {
+        START_candidate_set.push(...production_groups.get(p).filter(i => !Sym_Is_A_Production(i.sym(grammar))));
+    }
+    const canfly = new Set([...production_groups.keys()].filter(p => !no_fly.has(p)));
 
-    const filtered_START = START_set.setFilter(i => i.id);
+    // For canfly, reduce to top level caller production that is not
+    // in the no_fly_list
 
-    return filtered_START;
+    const fly_list = new Set();
+
+    for (const p of canfly) {
+        let top_prod = p;
+        let seen = new Set();
+
+        while (!no_fly.has(top_prod)) {
+            const ps = reverse_lookups.filter(i => i[0] == top_prod);
+
+            if (ps.length < 1 || ps.length > 1 || seen.has(ps[0][1]) || no_fly.has(ps[0][1]))
+                break;
+
+            top_prod = ps[0][1];
+
+            seen.add(top_prod);
+        }
+
+        fly_list.add(top_prod);
+    }
+
+    //For every other production, add their callers to the START_candidate_set. 
+    for (const p of fly_list) {
+        START_candidate_set.push(...production_groups.get(p));
+        //START_candidate_set.push(...closure.filter(i => (i.getProductionAtSymbol(grammar)?.id ?? -1) == p));
+    }
+
+    return START_candidate_set.setFilter(i => i.id);
 }
+
 function extractSTARTCandidates(
     root_productions: Set<number>,
     candidate_item: Item,
