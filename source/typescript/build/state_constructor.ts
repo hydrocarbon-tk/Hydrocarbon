@@ -62,7 +62,9 @@ export function constructProductionStates(
             grammar,
             recursive_descent_items,
             tt_options,
-            getProductionClosure(production.id, grammar).filter(i => Sym_Is_A_Production(i.sym(grammar)))
+            [...(grammar.lr_items.get(production.id) ?? []), ...getProductionClosure(production.id, grammar).filter(i => Sym_Is_A_Production(i.sym(grammar)))]
+                .setFilter(i => i.id).map(i => i.toState(5555))
+            //getProductionClosure(production.id, grammar).filter(i => Sym_Is_A_Production(i.sym(grammar)))
         );
 
         // If forks separate out the conflicting items into 

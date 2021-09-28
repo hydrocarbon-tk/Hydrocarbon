@@ -471,9 +471,13 @@ function resolveEndItem(
 
             if (
                 items.length > 0
-                && (items[0].state == end_item.state
+                && (
+                    items[0].state == end_item.state
                     ||
-                    ((matching_items.length == 0 || end_item.state == OutOfScopeItemState) && depth < 0))
+                    items[0].state == 5555
+                    ||
+                    ((matching_items.length == 0 || end_item.state == OutOfScopeItemState) && depth < 0)
+                )
             ) {
 
                 matching_items.push(

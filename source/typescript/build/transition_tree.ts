@@ -60,6 +60,8 @@ export function constructTransitionForest(
 
     root_scope_state.items = root_scope;
 
+
+
     const initial_state: TransitionForestStateA =
         createTransitionForestState(
             TransitionStateType.START,
@@ -68,6 +70,8 @@ export function constructTransitionForest(
             [],
             null,
         );
+
+
 
     initial_state.items = removeLeftRecursiveItems(roots, roots, grammar);
 
