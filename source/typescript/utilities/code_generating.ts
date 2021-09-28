@@ -346,7 +346,7 @@ export function getSymbolScannerFunctions(grammar: GrammarObject): SKFunction[] 
     for (const tk_sym of tk_syms) {
         const token_production_call = createProductionTokenCall(tk_sym, grammar, true);
 
-        ifs.push(sk`if ${getActiveTokenQuery(tk_sym)} && ${token_production_call} : { return }`);
+        ifs.push(sk`if ${getActiveTokenQuery(tk_sym)} && ${token_production_call} : { l.setToken( ${tk_sym.id} , l.byte_length, l.token_length); return }`);
     }
 
     for (const gen_sym of gen_syms)
@@ -355,14 +355,14 @@ export function getSymbolScannerFunctions(grammar: GrammarObject): SKFunction[] 
     const [first] = mergeIfStatement(ifs);
 
     if (first)
-        expression_array.push(first);
+        expression_array.push(sk`if((l._type) > 0) :  return;`, first);
 
     functions.push(fn, outer_fn);
 
     return functions;
 }
 /**
- * Combine a list of seperate SK if nodes into an if-else chain.
+ * Combine a list of separate SK if nodes into an if-else chain.
  * Return a tuple containing the first and last if node (may be aliased 
  * or undefined if ifs.length == 0)
  * @param ifs <SKIF>  A list of if statements
@@ -390,6 +390,21 @@ function renderNew(node: TokenTreeNode, grammar: GrammarObject, insert_expressio
 
         let base = node;
 
+        const completed_ids = base.symbols.filter(Sym_Is_Defined).filter(s => s.val.length == node.offset).setFilter(getUniqueSymbolName);
+
+        if (completed_ids.length > 0) {
+            const copy = Object.assign({}, base);
+            copy.symbols = copy.symbols.filter(s => {
+                if (Sym_Is_Defined(s))
+                    if (s.val.length > node.offset)
+                        return false;
+                return true;
+            }
+
+            );
+            insert_expression.push(...renderLeafNew(copy, grammar));
+        }
+
         if (base.nodes.length == 1) {
 
             const tk_len = base.tk_length;
@@ -403,20 +418,7 @@ function renderNew(node: TokenTreeNode, grammar: GrammarObject, insert_expressio
             ifs.push(createIfClause(<any>n.symbols[0], node.offset, n.offset - node.offset, grammar, renderNew(n, grammar, [], USE_BOOLEAN)));
         }
 
-        const completed_ids = base.symbols.filter(Sym_Is_Defined).filter(s => s.val.length == node.offset).setFilter(getUniqueSymbolName);
 
-        if (completed_ids.length > 0) {
-            const copy = Object.assign({}, base);
-            copy.symbols = copy.symbols.filter(s => {
-                if (Sym_Is_Defined(s))
-                    if (s.val.length > node.offset)
-                        return false;
-                return true;
-            }
-
-            );
-            ifs.push(...renderLeafNew(copy, grammar));
-        }
     }
 
     const [first] = mergeIfStatement(ifs);
@@ -444,17 +446,6 @@ function renderLeafNew(node: TokenTreeNode, grammar: GrammarObject) {
 
         length_assertion = (node.offset >= 0) ? `&& l.byte_length > ${node.offset}` : "";
 
-    for (const tk_sym of tk_syms) {
-
-        const token_production_call = createProductionTokenCall(Sym_Is_Virtual_Token(tk_sym) ? tk_sym.root : tk_sym, grammar);
-
-        default_bin.push(sk`if ${getActiveTokenQuery(tk_sym)} && ${token_production_call} ${length_assertion} : { return; }`);
-    }
-
-    for (const gen_sym of gen_syms) {
-
-        default_bin.push(sk`if ${getActiveTokenQuery(gen_sym)} && ${getSymbolBoolean(gen_sym, grammar, "l")} ${length_assertion} :  { l._type = ${gen_sym.id} ; return }`);
-    }
 
     for (const defined of id) {
 
@@ -462,8 +453,24 @@ function renderLeafNew(node: TokenTreeNode, grammar: GrammarObject) {
             ? "if " + getActiveTokenQuery(defined) + ":"
             : getIfClausePreamble(defined.byte_length - node.offset, node.offset, defined, node.offset, grammar);
 
-        ifs.push(sk`${preamble}{l.setToken(${defined.id}, ${defined.byte_length},${defined.val.length}); return;}`);
+        prepend.push(sk`${preamble}{l.setToken(${defined.id}, ${defined.byte_length},${defined.val.length});}`);
     }
+
+    for (const tk_sym of tk_syms) {
+
+        const sym = Sym_Is_Virtual_Token(tk_sym) ? tk_sym.root : tk_sym;
+
+        const token_production_call = createProductionTokenCall(sym, grammar);
+
+        default_bin.push(sk`if ${getActiveTokenQuery(tk_sym)} && ${token_production_call} ${length_assertion} : { l.setToken(${sym.id + ""}, l.byte_length, l.token_length); }`);
+    }
+
+    for (const gen_sym of gen_syms) {
+
+        default_bin.push(sk`if ${getActiveTokenQuery(gen_sym)} && ${getSymbolBoolean(gen_sym, grammar, "l")} ${length_assertion} :  { l._type = ${gen_sym.id} ; }`);
+    }
+
+
 
     const [first] = mergeIfStatement(ifs);
 

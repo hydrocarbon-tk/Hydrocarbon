@@ -4,6 +4,7 @@
  * disclaimer notice.
  */
 import { ParserEnvironment } from '@candlelib/hydrocarbon';
+import { instruction_pointer_mask } from '../runtime/kernel_new.js';
 import { createBuildPack } from '../build/build.js';
 import { compileGrammarFromString } from '../grammar/compile.js';
 import { compare, init_table, KernelState, KernelStateIterator, run, token_production } from '../runtime/kernel_new.js';
@@ -51,7 +52,7 @@ export async function createAddHocParser<T = any>(
 
     const entry_pointers = grammar.productions.filter(p => p.IS_ENTRY).map(p => ({ name: p.name, pointer: states_map.get(p.name).pointer }));
 
-    const reverse_state_lookup = new Map([...states_map.entries()].map(([key, val]) => [0xFFFF & val.pointer, val.string]));
+    const reverse_state_lookup = new Map([...states_map.entries()].map(([key, val]) => [instruction_pointer_mask & val.pointer, val.string]));
     //Attempt to parse input
 
     const token_lookup_functions = extractAndReplaceTokenMapRefs(getSymbolScannerFunctions(grammar)
@@ -70,7 +71,7 @@ export async function createAddHocParser<T = any>(
      return { scan, functions };
     `.replace(/_A_([\w\_\d]+)_A_/g,
         (name, sub: string, ...args) => {
-            const { pointer } = states_map.get(sub);
+            const { pointer } = states_map.get("tok_" + sub);
             return pointer + "";
         });
     let { scan: tk_scan, functions: fns } = (Function(

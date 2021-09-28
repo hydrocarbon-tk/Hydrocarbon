@@ -219,7 +219,6 @@ export function getTokenSymbolsFromItems(items: Item[], grammar: GrammarObject):
 
 export function getSkippableSymbolsFromItems(items: Item[], grammar: GrammarObject): TokenSymbol[] {
     return items.flatMap(i => [...grammar.item_map.get(i.id).skippable.values()])
-
         .map(sym => <TokenSymbol>grammar.meta.all_symbols.get(sym))
 
         .setFilter(getUniqueSymbolName);

@@ -26,6 +26,18 @@ export function constructProductionStates(
     id: number;
 } {
 
+    /*  
+    if (production.name == "tok_css__declaration_values_sentineled") {
+        // debugger; 
+    }
+    else {
+        return {
+            id: 0,
+            parse_states: new Map
+        };
+    } //*/
+
+    const IS_TOKEN = production.name.slice(0, 4) == "tok_";
 
     const root_prod_name = production.name;
 
@@ -39,118 +51,125 @@ export function constructProductionStates(
 
     const goto_item_map = getGotoSTARTs(production, recursive_descent_items, grammar);
 
-    const tt_options: TransitionForestOptions = {
-        root_production: production.id,
-        max_tree_depth: 10,
-        time_limit: 150
-    };
+    try {
+        const tt_options: TransitionForestOptions = {
+            root_production: production.id,
+            max_tree_depth: 10,
+            time_limit: 150
+        };
 
-    const recursive_descent_graph = constructTransitionForest(
-        grammar,
-        recursive_descent_items,
-        tt_options,
-        getProductionClosure(production.id, grammar).filter(i => Sym_Is_A_Production(i.sym(grammar)))
-    );
-
-    // If forks separate out the conflicting items into 
-    // parse paths and use fork mechanism to run concurrent
-    // parses of the input and then join at the end of the
-    // production
-
-    const goto_item_map_graphs = ([...goto_item_map.entries()]
-        .map(([production_id, items]) =>
-            [production_id, constructTransitionForest(
-                grammar,
-                items.map(i => i.increment()),
-                tt_options
-            )]
-        ) as [number, TransitionForestStateA][])
-        .sort(([a], [b]) => b - a);
-
-    //Output code for recursive descent items.
-    processTransitionForest(
-        recursive_descent_graph,
-        grammar,
-        parse_states,
-        "DESCENT",
-        -1,
-        root_prod_name,
-        ` then goto state [ ${goto_hash} ]`,
-        `set scope to ${root_prod_id} then `
-    );
-
-    let goto_function_code = [`state [ ${goto_hash} ]`];
-
-    if (goto_item_map_graphs.length > 0) {
-
-        const goto_groups = goto_item_map_graphs.group(
-            ([i, g]) => generateStateHashAction(g, grammar, i == production.id ? production.id : -1).hash
+        const recursive_descent_graph = constructTransitionForest(
+            grammar,
+            recursive_descent_items,
+            tt_options,
+            getProductionClosure(production.id, grammar).filter(i => Sym_Is_A_Production(i.sym(grammar)))
         );
 
-        let HAVE_ROOT_PRODUCTION_GOTO = false;
+        // If forks separate out the conflicting items into 
+        // parse paths and use fork mechanism to run concurrent
+        // parses of the input and then join at the end of the
+        // production
 
-        for (const goto_group of goto_groups) {
-
-            let LOCAL_HAVE_ROOT_PRODUCTION_GOTO = false;
-            const production_ids = goto_group.map(([pid]) => pid);
-
-            if (production_ids.includes(root_prod_id))
-                LOCAL_HAVE_ROOT_PRODUCTION_GOTO = true;
-
-            for (const [_, gotostate] of goto_group)
-                processTransitionForest(
-                    gotostate,
+        const goto_item_map_graphs = ([...goto_item_map.entries()]
+            .map(([production_id, items]) =>
+                [production_id, constructTransitionForest(
                     grammar,
-                    parse_states,
-                    "GOTO",
-                    LOCAL_HAVE_ROOT_PRODUCTION_GOTO ? production.id : -1,
-                    undefined,
-                    ` then goto state [ ${goto_hash} ]`,
-                    undefined,
-                    1
-                );
+                    items.map(i => i.increment()),
+                    tt_options
+                )]
+            ) as [number, TransitionForestStateA][])
+            .sort(([a], [b]) => b - a);
 
-            const state = goto_group[0][1];
+        //Output code for recursive descent items.
+        processTransitionForest(
+            recursive_descent_graph,
+            grammar,
+            IS_TOKEN,
+            parse_states,
+            "DESCENT",
+            -1,
+            root_prod_name,
+            ` then goto state [ ${goto_hash} ]`,
+            `set scope to ${root_prod_id} then `
+        );
 
-            const { hash, action } = generateStateHashAction(state, grammar,
-                LOCAL_HAVE_ROOT_PRODUCTION_GOTO ? production.id : -1
+        let goto_function_code = [`state [ ${goto_hash} ]`];
+
+        if (goto_item_map_graphs.length > 0) {
+
+            const goto_groups = goto_item_map_graphs.group(
+                ([i, g]) => generateStateHashAction(g, grammar, i == production.id ? production.id : -1).hash
             );
 
-            let prelude = "";
+            let HAVE_ROOT_PRODUCTION_GOTO = false;
 
-            goto_function_code.push(
-                f`${4}
+            for (const goto_group of goto_groups) {
+
+                let LOCAL_HAVE_ROOT_PRODUCTION_GOTO = false;
+                const production_ids = goto_group.map(([pid]) => pid);
+
+                if (production_ids.includes(root_prod_id))
+                    LOCAL_HAVE_ROOT_PRODUCTION_GOTO = true;
+
+                for (const [_, gotostate] of goto_group)
+                    processTransitionForest(
+                        gotostate,
+                        grammar,
+                        IS_TOKEN,
+                        parse_states,
+                        "GOTO",
+                        LOCAL_HAVE_ROOT_PRODUCTION_GOTO ? production.id : -1,
+                        undefined,
+                        ` then goto state [ ${goto_hash} ]`,
+                        undefined,
+                        1
+                    );
+
+                const state = goto_group[0][1];
+
+                const { hash, action } = generateStateHashAction(state, grammar,
+                    LOCAL_HAVE_ROOT_PRODUCTION_GOTO ? production.id : -1
+                );
+
+                let prelude = "";
+
+                goto_function_code.push(
+                    f`${4}
                 on prod [ ${production_ids.join(" ")} ] ( 
                     ${prelude}goto state [ ${hash} ] then goto state [ ${goto_hash} ]
                 )`
-            );
+                );
 
-            HAVE_ROOT_PRODUCTION_GOTO ||= LOCAL_HAVE_ROOT_PRODUCTION_GOTO;
-        }
+                HAVE_ROOT_PRODUCTION_GOTO ||= LOCAL_HAVE_ROOT_PRODUCTION_GOTO;
+            }
 
-        if (HAVE_ROOT_PRODUCTION_GOTO) {
-            goto_function_code.push(
-                f`${4}
+            if (HAVE_ROOT_PRODUCTION_GOTO) {
+                goto_function_code.push(
+                    f`${4}
                 on fail state [ ${root_prod_name}_goto_failed ]
                     on prod [ ${root_prod_id} ] ( pass )`
-            );
+                );
+
+            } else {
+                goto_function_code.push(
+                    `   on prod [ ${root_prod_id} ] ( pass )`
+                );
+            }
 
         } else {
-            goto_function_code.push(
-                `   on prod [ ${root_prod_id} ] ( pass )`
-            );
+            goto_function_code.push("    pass");
         }
 
-    } else {
-        goto_function_code.push("    pass");
+        parse_states.set(goto_hash, goto_function_code.join("\n"));
+
+        return {
+            parse_states: parse_states,
+            id: production.id,
+        };
+
+    } catch (e) {
+        throw new Error(`Error encountered while compiling [${production.name}]\n${recursive_descent_items.map(i => i.rup(grammar)).join("\n\n")} \n${e.stack}`);
     }
-
-    parse_states.set(goto_hash, goto_function_code.join("\n"));
-
-    return {
-        parse_states: parse_states,
-        id: production.id,
-    };
 }
 
 
@@ -162,6 +181,7 @@ function createProductionGotoName(production: GrammarProduction) {
 function processTransitionForest(
     state: TransitionForestStateA,
     grammar: GrammarObject,
+    IS_TOKEN: boolean,
     parse_code_blocks: Map<string, string>,
     scope: "DESCENT" | "GOTO",
     root_prod: number,
@@ -171,19 +191,20 @@ function processTransitionForest(
     depth = 0
 ) {
     if (depth == 0)
-        processTransitionNode(state, grammar, parse_code_blocks, scope, root_prod, default_hash, default_goto_hash, default_prelude_hash);
+        processTransitionNode(state, grammar, IS_TOKEN, parse_code_blocks, scope, root_prod, default_hash, default_goto_hash, default_prelude_hash);
     else
-        processTransitionNode(state, grammar, parse_code_blocks, scope, root_prod);
+        processTransitionNode(state, grammar, IS_TOKEN, parse_code_blocks, scope, root_prod);
 
     for (const child_state of state.states) {
 
-        processTransitionForest(child_state, grammar, parse_code_blocks, scope, root_prod, undefined, undefined, undefined, depth + 1);
+        processTransitionForest(child_state, grammar, IS_TOKEN, parse_code_blocks, scope, root_prod, undefined, undefined, undefined, depth + 1);
     }
 }
 
 function processTransitionNode(
     state: TransitionForestStateA,
     grammar: GrammarObject,
+    IS_TOKEN: boolean,
     parse_code_blocks: Map<string, string>,
     scope: "DESCENT" | "GOTO",
     root_prod: number,
@@ -223,16 +244,6 @@ function processTransitionNode(
 
     } else {
 
-        /* if (
-            scope == "GOTO" 
-            && state.items[0].offset == 1 
-            && root_prod >= 0 
-            && state.items.length == 1
-            && state.
-        ) {
-            
-        } */
-
         let { action, assertion } = generateSingleStateAction(state, grammar, root_prod);
 
         if (
@@ -255,7 +266,6 @@ function processTransitionNode(
         global_symbols.push(...state.symbols.filter(Sym_Is_A_Token));
 
         global_items.push(...state.items);
-
     }
 
     if (global_items.some(i => i.offset == 1 && i.state >= 9999)) {
@@ -271,7 +281,8 @@ function processTransitionNode(
         global_items,
         global_symbols.filter(Sym_Is_A_Token),
         grammar,
-        scope
+        scope,
+        !IS_TOKEN
     );
 
     if (symbol_clause)
@@ -317,6 +328,7 @@ function generateStateHashAction(
         action_string.sort();
 
         hash_string = action_string;
+
     } else {
 
         const { combined, action, assertion, symbol_ids: ids } = generateSingleStateAction(state, grammar, root_prod);
@@ -339,9 +351,6 @@ function generateStateHashAction(
         .split("")
         .map(p => (("hjklmnpqrst".split(""))[parseInt(p)] ?? p))
         .join("");
-
-    if (hash == "hnmahqeahbenj")
-        debugger;
 
     if (!hash_cache.has(hash_basis_string))
         hash_cache.set(hash_basis_string, {

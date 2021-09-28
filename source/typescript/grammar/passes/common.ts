@@ -83,17 +83,15 @@ export function processSymbols(grammar: GrammarObject, errors: Error[] = []) {
 
     grammar.productions[0].ROOT_PRODUCTION = true;
 
-
     for (const production of grammar.productions)
         production_lookup.set(production.name, production);
-
 
     for (const production of grammar.productions)
         production.id = p_counter++;
 
-
     for (const production of grammar.productions)
         ({ b_counter, id_offset } = processProductionBodySymbols(
+            grammar,
             production,
             bodies,
             b_counter,
@@ -106,6 +104,7 @@ export function processSymbols(grammar: GrammarObject, errors: Error[] = []) {
 
     for (const export_preamble of grammar.preamble.filter((p): p is ExportPreamble => p.type == "export")) {
         id_offset = processSymbol(
+            grammar,
             export_preamble.production,
             production_lookup,
             unique_map,
@@ -118,6 +117,7 @@ export function processSymbols(grammar: GrammarObject, errors: Error[] = []) {
     for (const ir_state of grammar.ir_states)
 
         id_offset = processIRStateSymbols(
+            grammar,
             ir_state,
             id_offset,
             production_lookup,
@@ -133,7 +133,7 @@ export function processSymbols(grammar: GrammarObject, errors: Error[] = []) {
 
     for (const g of [grammar, ...grammar.imported_grammars.map(g => g.grammar)])
         for (const sym of g.meta.ignore)
-            id_offset = processSymbol(sym, production_lookup, unique_map, token_production_set, errors, id_offset);
+            id_offset = processSymbol(grammar, sym, production_lookup, unique_map, token_production_set, errors, id_offset);
 
     const symbol_ids_array = [...unique_map.values()].filter(s => s.id).map(s => s.id).sort((a, b) => a - b).filter(i => i >= 1);
     grammar.meta.all_symbols.by_id = new Map([...unique_map.values()].map((sym) => [sym.id, sym]));
@@ -142,7 +142,9 @@ export function processSymbols(grammar: GrammarObject, errors: Error[] = []) {
     assignEntryProductions(grammar, production_lookup);
 }
 
-function processProductionBodySymbols(production: GrammarProduction,
+function processProductionBodySymbols(
+    grammar: GrammarObject,
+    production: GrammarProduction,
     bodies: any[],
     b_counter: number,
     id_offset: TokenTypes,
@@ -167,7 +169,9 @@ function processProductionBodySymbols(production: GrammarProduction,
     return { b_counter, id_offset };
 }
 
-function processIRStateSymbols(ir_state: IR_State,
+function processIRStateSymbols(
+    grammar: GrammarObject,
+    ir_state: IR_State,
     id_offset: TokenTypes,
     production_lookup: Map<any, any>,
     unique_map: Map<string, HCG3Symbol>,
@@ -178,16 +182,17 @@ function processIRStateSymbols(ir_state: IR_State,
 
     const instructions = ir_state.instructions;
 
-    id_offset = processIRInstructionSymbols(instructions, id_offset, production_lookup, unique_map, token_production_set, errors);
+    id_offset = processIRInstructionSymbols(grammar, instructions, id_offset, production_lookup, unique_map, token_production_set, errors);
 
     if (ir_state.fail) {
-        id_offset = processIRStateSymbols(ir_state.fail, id_offset, production_lookup, unique_map, token_production_set, errors);
+        id_offset = processIRStateSymbols(grammar, ir_state.fail, id_offset, production_lookup, unique_map, token_production_set, errors);
     }
 
     return id_offset;
 }
 
 function processIRInstructionSymbols(
+    grammar: GrammarObject,
     instructions: IR_Instruction[],
     id_offset: TokenTypes,
     production_lookup: Map<any, any>,
@@ -207,7 +212,7 @@ function processIRInstructionSymbols(
                 const new_ids: number[] = [];
                 for (const sym of instruction.ids)
                     if (typeof sym != "number") {
-                        id_offset = processSymbol(sym, production_lookup, unique_map, token_production_set, errors, id_offset);
+                        id_offset = processSymbol(grammar, sym, production_lookup, unique_map, token_production_set, errors, id_offset);
                         if (Sym_Is_A_Token(sym)) {
                             new_ids.push(sym.id);
                         } else {
@@ -220,14 +225,14 @@ function processIRInstructionSymbols(
                 instruction.ids = new_ids;
 
                 if ("instructions" in instruction) {
-                    processIRInstructionSymbols(instruction.instructions, id_offset, production_lookup, unique_map, token_production_set, errors);
+                    processIRInstructionSymbols(grammar, instruction.instructions, id_offset, production_lookup, unique_map, token_production_set, errors);
                 } break;
 
             case InstructionType.set_prod:
                 //case InstructionType.set_token:
                 if (typeof instruction.id != "number") {
 
-                    id_offset = processSymbol(instruction.id, production_lookup, unique_map, token_production_set, errors, id_offset);
+                    id_offset = processSymbol(grammar, instruction.id, production_lookup, unique_map, token_production_set, errors, id_offset);
                     //@ts-ignore
                     instruction.id = instruction.id.production.id;
 
@@ -239,7 +244,7 @@ function processIRInstructionSymbols(
 
                 for (const sym of instruction.states)
                     if (typeof sym != "string") {
-                        id_offset = processSymbol(sym, production_lookup, unique_map, token_production_set, errors, id_offset);
+                        id_offset = processSymbol(grammar, sym, production_lookup, unique_map, token_production_set, errors, id_offset);
                         new_states.push(sym.name);
                     } else
                         new_states.push(sym);
@@ -251,7 +256,7 @@ function processIRInstructionSymbols(
             case InstructionType.goto:
                 if (typeof instruction.state != "string") {
 
-                    id_offset = processSymbol(instruction.state, production_lookup, unique_map, token_production_set, errors, id_offset);
+                    id_offset = processSymbol(grammar, instruction.state, production_lookup, unique_map, token_production_set, errors, id_offset);
 
                     instruction.state = instruction.state.name;
                 } break;
@@ -321,7 +326,66 @@ class MissingProduction extends Error {
     get stack() { return ""; }
 }
 
+export function createTokenProductions(
+    name: string,
+    grammar: GrammarObject,
+    production_lookup: Map<string, GrammarProduction>,
+    unique_map: Map<string, HCG3Symbol>,
+    token_production_set: Set<string>,
+    errors: Error[],
+    id_offset: number
+) {
+    const production = production_lookup.get(name);
+
+    const to_process = [production], new_syms = [];
+
+    for (const prod of to_process) {
+
+        const name = "tok_" + prod.name;
+
+        if (production_lookup.has(name))
+            continue;
+
+        const cp = Object.assign({}, prod);
+
+        production_lookup.set(name, cp);
+
+        cp.name = name;
+
+        cp.id = grammar.productions.push(cp) - 1;
+        cp.bodies = cp.bodies.map(b => {
+
+            let cb = Object.assign({}, b);
+
+            cb.sym = cb.sym.map(s => {
+
+                if (Sym_Is_A_Production(s)) {
+
+                    let cs = Object.assign({}, s);
+
+                    cs.name = "tok_" + cs.name;
+
+                    if (!production_lookup.has(cs.name))
+                        to_process.push(production_lookup.get(s.name));
+
+                    new_syms.push(cs);
+
+                    return cs;
+                }
+                return s;
+            });
+
+            return cb;
+        });
+    }
+
+    for (const sym of new_syms)
+        processSymbol(grammar, sym, production_lookup, unique_map, token_production_set, errors, id_offset);
+}
+
+
 export function processSymbol(
+    grammar: GrammarObject,
     sym: HCG3Symbol,
     production_lookup: Map<string, GrammarProduction>,
     unique_map: Map<string, HCG3Symbol>,
@@ -335,7 +399,24 @@ export function processSymbol(
 
     if (Sym_Is_A_Production(sym) || Sym_Is_A_Production_Token(sym)) {
 
-        const prod = production_lookup.get(sym.name);
+        let prod = production_lookup.get(sym.name);
+
+        if (Sym_Is_A_Production_Token(sym)) {
+
+            const name = "tok_" + sym.name;
+
+            if (!production_lookup.get(name))
+                createTokenProductions(
+                    sym.name,
+                    grammar,
+                    production_lookup,
+                    unique_map,
+                    token_production_set,
+                    errors,
+                    id_offset
+                );
+            prod = production_lookup.get(name);
+        }
 
         if (!prod) {
             console.dir(production_lookup, { depth: 1 });
@@ -351,10 +432,13 @@ export function processSymbol(
         if (Sym_Is_Defined(sym))
             sym.byte_length = sym.val.length;
 
-        const copy_sym = copy(sym);
+        const copy_sym = Object.assign({}, sym);
 
-        if (Sym_Is_A_Production(copy_sym) || Sym_Is_A_Production_Token(copy_sym))
+        if (Sym_Is_A_Production(copy_sym))
             copy_sym.production = production_lookup.get(copy_sym.name);
+
+        if (Sym_Is_A_Production_Token(copy_sym))
+            copy_sym.production = production_lookup.get("tok_" + copy_sym.name);
 
         if (Sym_Is_A_Production_Token(copy_sym) && !token_production_set.has(unique_name)) {
             copy_sym.token_id = token_production_set.size;

@@ -135,7 +135,8 @@ pub fn parse(string_data: &[u8], entry_point:EntryPoint) -> OptionedBoxedASTRef<
 }
 `.replace(/_A_([\w\_\d]+)_A_/g,
             (name, sub: string, ...args) => {
-                const { pointer } = states_map.get(sub);
+                console.log(sub);
+                const { pointer } = states_map.get("tok_" + sub);
                 return pointer + "";
             });
 
@@ -159,7 +160,7 @@ export function renderToJavaScript(
     const script = `
 import {
     ParserFramework,
-    KernelParserCore,
+    KernelParserCore2,
     fillByteBufferWithUTF8FromString
 } from "@candlelib/hydrocarbon";
 
@@ -170,7 +171,7 @@ const {
     KernelStateIterator,
     run,
     compare
-} = KernelParserCore;
+} = KernelParserCore2;
 
 const token_sequence_lookup = new Uint8Array([
 ${/**/
@@ -294,7 +295,7 @@ ${entry_pointers.map(({ name }, i) => `        ${name}:${i}`).join(",\n")},
 
 `.replace(/_A_([\w\_\d]+)_A_/g,
             (name, sub: string, ...args) => {
-                const { pointer } = states_map.get(sub);
+                const { pointer } = states_map.get("tok_" + sub);
                 return pointer + "";
             });
 

@@ -596,7 +596,7 @@ export function garbageCollect(StateMap: StateMap, grammar: GrammarObject,) {
 
     const entry_names = [
         ...grammar.productions.filter(p => p.IS_ENTRY).map(i => i.name),
-        ...[...grammar.meta.all_symbols.values()].filter(Sym_Is_A_Production_Token).map(i => i.name)
+        ...[...grammar.meta.all_symbols.values()].filter(Sym_Is_A_Production_Token).map(i => "tok_" + i.name)
     ].setFilter();
     const marked_map = new Map([...StateMap].map(([name]) => [name, false]));
 

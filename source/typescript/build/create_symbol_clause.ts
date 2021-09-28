@@ -20,7 +20,8 @@ export function create_symbol_clause(
     items: Item[],
     additional_tokens: TokenSymbol[],
     grammar: GrammarObject,
-    scope: "GOTO" | "DESCENT" = "DESCENT"
+    scope: "GOTO" | "DESCENT" = "DESCENT",
+    INCLUDE_SKIPS: boolean = true
 ) {
 
     const active_items = items.filter(i => !i.atEND);
@@ -39,18 +40,9 @@ export function create_symbol_clause(
         ...getFollowSymbolsFromItems(end_items, grammar)
     ].setFilter(getUniqueSymbolName);
 
-    const skipped_symbols = getSkippableSymbolsFromItems(getFollowClosure(
-        [...items,
-
-            //...(scope == "GOTO" && 
-            //    ? prods.flatMap(i => grammar.productions[i].bodies).map(b => new Item(b.id, b.length, b.length))
-            //    : [])
-        ],
-        [...grammar.lr_items.values()].flat().filter(i => i.offset == 0),
-        grammar
-    ), grammar).filter(skipped => !expected_symbols.some(
-        expected => Symbols_Are_The_Same(expected, skipped) || SymbolsCollide(expected, skipped, grammar))
-    );
+    const skipped_symbols = INCLUDE_SKIPS ? getSkippableSymbolsFromItems(items, grammar).filter(skipped => !expected_symbols.some(
+        expected => Symbols_Are_The_Same(expected, skipped) /* || SymbolsCollide(expected, skipped, grammar) */)
+    ) : [];
 
     if (expected_symbols.length < 1)
         return "";
