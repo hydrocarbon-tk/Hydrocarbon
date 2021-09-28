@@ -115,6 +115,8 @@ export class KernelState implements KernelStateType {
 
         this.refs = 0;
 
+        this.state_history = state_history;
+
         this.symbol_accumulator = 0; 1 << 16;
     }
 
@@ -202,7 +204,7 @@ export class KernelState implements KernelStateType {
         forked_state.state = this.state;
         forked_state.symbol_accumulator = this.symbol_accumulator;
         forked_state.VALID = true;
-        forked_state.state_history = this.state_history.slice();
+        // /forked_state.state_history = this.state_history.slice();
 
         this.refs++;
 
@@ -1013,7 +1015,7 @@ function fork(
             //after the fork.
             tip.push_state(normal_state_mask | index);
 
-            origin_kernel_state_repo.add_state_pointer(tip);
+            origin_kernel_state_repo.add_state_pointer_and_sort(tip);
 
             //Set index so that it points to the pass instruction block;
             index = 0;
@@ -1058,7 +1060,7 @@ function fork(
                         //after the fork.
                         tip.push_state(index);
 
-                        origin_kernel_state_repo.add_state_pointer(tip);
+                        origin_kernel_state_repo.add_state_pointer_and_sort(tip);
 
                         //Set index so that it points to the null instruction block;
                         index = 0;
@@ -1278,13 +1280,13 @@ export function run(
 
             if (kernel_state.lexer.byte_offset < kernel_state.lexer.input.length)
                 kernel_state.VALID = false;
+
             kernel_state.state_history = state_history;
 
             if (kernel_state.FORKED)
                 // Remove state. It is now only
                 // referenced by its leaf states
                 process_buffer.remove_state_at_index(i);
-
 
             else if (kernel_state.VALID) {
                 Logger.get("HC-Kernel-Debug").log("PARSER: Complete valid parser run");
@@ -1304,5 +1306,7 @@ export function run(
             process_buffer.add_state_pointer(invalid.remove_valid_parser_state());
 
     }
+
+    state_history.length = 0;
     return { invalid, valid };
 };;
