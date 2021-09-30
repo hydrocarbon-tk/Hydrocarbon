@@ -32,7 +32,7 @@ import {
 } from "../nodes/symbol.js";
 import { InstructionType, IR_Instruction, IR_State } from '../../types/ir_types';
 let renderers = null;
-export const render = (grammar_node) => {
+export const render_grammar = (grammar_node) => {
     if (!renderers)
         renderers = experimentalConstructRenderers(hcg3_mappings);
     return experimentalRender(grammar_node, hcg3_mappings, renderers);
@@ -544,7 +544,7 @@ export function getProductionSignature(production: GrammarProduction) {
 
 export function getBodySignature(body: HCG3ProductionBody) {
 
-    return render(body) || "$EMPTY";
+    return render_grammar(body) || "$EMPTY";
 }
 
 

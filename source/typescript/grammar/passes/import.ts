@@ -1,4 +1,5 @@
 import { copy, traverse } from "@candlelib/conflagrate";
+import { HCG3ProductionBody } from '../../types/grammar_nodes';
 import {
     ExportPreamble,
     GrammarObject,
@@ -99,7 +100,7 @@ function processImportedObjects(grammar: GrammarObject, errors: Error[], importe
 
         for (const export_preamble of grmmr.preamble.filter((p): p is ExportPreamble => p.type == "export")) {
             //@ts-ignore
-            export_preamble.production = processImportedBody([export_preamble.production], grammar, grmmr, imported_productions)[0];
+            export_preamble.production = processImportedSymbolArray([export_preamble.production], grammar, grmmr, imported_productions)[0];
         }
     }
 }
@@ -109,7 +110,7 @@ function remapImportedIRStates(ir_state: IR_State, grammar: GrammarObject, grmmr
     if (typeof ir_state.id != "string") {
 
         //@ts-ignore
-        ir_state.id = processImportedBody([ir_state.id], grammar, grmmr, imported_productions)[0];
+        ir_state.id = processImportedSymbolArray([ir_state.id], grammar, grmmr, imported_productions)[0];
 
 
         // Replace symbol with the string literal name
@@ -146,7 +147,7 @@ function remapImportedIRSymbols(
                     d => {
                         if (typeof d == "number")
                             return d;
-                        return <any>processImportedBody([d], root_grammar, source_grammar, imported_productions)[0];
+                        return <any>processImportedSymbolArray([d], root_grammar, source_grammar, imported_productions)[0];
                     }
                 );
 
@@ -159,7 +160,7 @@ function remapImportedIRSymbols(
                 if (typeof instruction.id != "number") {
 
                     //@ts-ignore
-                    instruction.id = processImportedBody([instruction.id], root_grammar, source_grammar, imported_productions)[0];
+                    instruction.id = processImportedSymbolArray([instruction.id], root_grammar, source_grammar, imported_productions)[0];
 
                 } break;
 
@@ -170,13 +171,13 @@ function remapImportedIRSymbols(
                         if (typeof d == "string")
                             return d;
                         //@ts-ignore
-                        return <any>processImportedBody([d], root_grammar, source_grammar, imported_productions)[0];
+                        return <any>processImportedSymbolArray([d], root_grammar, source_grammar, imported_productions)[0];
                     }
                 ); break;
             case InstructionType.goto:
                 if (typeof instruction.state != "string") {
                     //@ts-ignore
-                    instruction.state = processImportedBody([instruction.state], root_grammar, source_grammar, imported_productions)[0];
+                    instruction.state = processImportedSymbolArray([instruction.state], root_grammar, source_grammar, imported_productions)[0];
                 } break;
         }
     }
@@ -184,37 +185,64 @@ function remapImportedIRSymbols(
 
 function integrateImportedProductions(root_grammar: GrammarObject, local_grammar: GrammarObject, production: GrammarProduction, imported_productions: Map<any, any>) {
     for (const body of production.bodies) {
-        body.sym = processImportedBody(body.sym, root_grammar, local_grammar, imported_productions);
+        processImportedBody(body, root_grammar, local_grammar, imported_productions);
 
     }
 }
 function processImportedBody(
+    body: HCG3ProductionBody,
+    root_grammar: GrammarObject,
+    local_grammar: GrammarObject,
+    imported_productions: Map<any, any>
+) {
+    //Resolve locally referenced functions before further processing
+    resolveLocalReferencedFunctions(body, local_grammar);
+
+    body.sym = processImportedSymbolArray(body.sym, root_grammar, local_grammar, imported_productions);
+}
+function resolveLocalReferencedFunctions(body: HCG3ProductionBody, local_grammar: GrammarObject) {
+    if (body.reduce_function) {
+
+        const fn = body.reduce_function;
+
+        if (fn.type == "local-function-reference") {
+            const resolved_fn = local_grammar.functions.filter(i => i.id == fn.ref)[0];
+
+            if (resolved_fn) {
+                body.reduce_function = Object.assign({}, resolved_fn, { type: "RETURNED" });
+            }
+            else
+                fn.pos.throw(`Could not resolve referenced function [${fn.ref}]`);
+
+        }
+    }
+}
+
+function processImportedSymbolArray(
     symbols: HCG3Symbol[],
     root_grammar: GrammarObject,
     local_grammar: GrammarObject,
     imported_productions: Map<any, any>
 ): HCG3Symbol[] {
+    const syms = [];
+
 
     const NOT_ORIGIN = root_grammar != local_grammar;
 
-    const syms = [];
-
     for (const symbol of symbols) {
-        if (
-            symbol.type == "meta-exclude"
+        if (symbol.type == "meta-exclude"
             ||
             symbol.type == "meta-ignore"
             ||
-            symbol.type == "meta-reset"
-        ) {
+            symbol.type == "meta-reset") {
             symbol.sym.map(s => processSymbol(s, NOT_ORIGIN, root_grammar, local_grammar, imported_productions));
 
         }
         syms.push(processSymbol(symbol, NOT_ORIGIN, root_grammar, local_grammar, imported_productions));
     }
-
     return syms;
 }
+
 function processSymbol(
     sym: HCG3Symbol,
     NOT_ORIGIN: boolean,
@@ -257,12 +285,12 @@ function processSymbol(
 
     } else if (sym.type == SymbolType.LIST_PRODUCTION) {
 
-        sym.val = processImportedBody([sym.val], root_grammar, local_grammar, imported_productions)[0];
+        sym.val = processImportedSymbolArray([sym.val], root_grammar, local_grammar, imported_productions)[0];
 
     } else if (sym.type == SymbolType.GROUP_PRODUCTION) {
 
         for (const body of sym.val)
-            body.sym = processImportedBody(body.sym, root_grammar, local_grammar, imported_productions);
+            processImportedBody(body, root_grammar, local_grammar, imported_productions);
 
     } else if (sym.type == SymbolType.IMPORT_PRODUCTION) {
 

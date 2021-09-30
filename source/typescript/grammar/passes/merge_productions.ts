@@ -12,7 +12,7 @@ import {
     replaceBodySymbol
 } from "../nodes/common.js";
 import { getUniqueSymbolName, Sym_Is_A_Production, Sym_Is_A_Production_Token } from "../nodes/symbol.js";
-import { render } from "./common.js";
+import { render_grammar } from "./common.js";
 
 /**
  * Sets the recursion state on all productions in a grammar

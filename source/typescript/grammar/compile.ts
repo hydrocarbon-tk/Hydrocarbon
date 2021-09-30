@@ -5,7 +5,7 @@ import {
     buildSequenceString,
     createCollisionMatrix,
     processSymbols,
-    render
+    render_grammar
 } from "./passes/common.js";
 import { convertListProductions } from "./passes/convert_list_productions.js";
 import { extractMetaSymbolsFromBodies } from "./passes/extract_meta_symbols.js";
@@ -89,7 +89,7 @@ function deduplicateProductionBodies(grammar: GrammarObject, error: Error[]) {
 
         for (const body of production.bodies) {
 
-            const sig = render(Object.assign({}, body, <HCG3ProductionBody>{ reduce_function: null }));
+            const sig = render_grammar(Object.assign({}, body, <HCG3ProductionBody>{ reduce_function: null }));
 
             if (!signatures.has(sig)) {
                 valid_bodies.push(body);
