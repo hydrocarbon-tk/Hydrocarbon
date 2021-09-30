@@ -4,8 +4,8 @@
  * disclaimer notice.
  */
 
-import { Lexer, init_table, compare } from "./kernel_lexer.js";
-import { i32, u32 } from "../types/ir_types";
+import { u32 } from "../types/ir_types";
+import { compare, init_table, Lexer } from "./kernel_lexer.js";
 import { Logger } from './logger.js';
 
 export { init_table, compare };
@@ -36,7 +36,7 @@ type lexer_token_offset = number;
 type lexer_token_length = number;
 type production_id = number;
 
-const state_history = [];
+let state_history = [];
 
 
 /////////////////////////////////////////////
@@ -352,8 +352,9 @@ export class KernelStateBuffer {
 
             let exist_ref = this.data[index];
 
-            if (exist_ref.VALID && !state.VALID)
-                continue;
+            //Valid states are always sorted first
+            if (!exist_ref.VALID && state.VALID)
+                break;
 
             if (exist_ref.lexer.byte_offset < state.lexer.byte_offset)
                 break;
@@ -918,7 +919,8 @@ function get_token_info(
                     lexer = kernel_state.lexer;
 
                     lexer._type = 0;
-
+                    lexer.token_length = 1;
+                    lexer.byte_length = 1;
                 }
 
                 lexer = kernel_state.lexer;
@@ -954,7 +956,7 @@ function fork(
 
     while (length-- > 0) {
 
-        let kernel_state = origin_kernel_state.fork(process_buffer, false);
+        let kernel_state = origin_kernel_state.fork(process_buffer);
 
         const new_state = origin_kernel_state.instruction_buffer[index];
 
@@ -1046,8 +1048,6 @@ function fork(
                     if (furthest_matching_count == 1) {
 
                         origin_kernel_state.FORKED = true;
-
-                        //Continue Parsing from the end of the previous KernelState
                         //Continue Parsing from the end of the previous KernelState
                         const tip = valid.data[furthest_index];
 
@@ -1064,8 +1064,6 @@ function fork(
 
                         //Set index so that it points to the null instruction block;
                         index = 0;
-
-                        console.log("aAAA");
 
                     } else {
                         throw new Error("Multiple uneven parse paths exist, no resolution mechanism has been implemented for this situation. Exiting");
@@ -1200,8 +1198,6 @@ export function kernel_executor(
                  * duties.
                  *
                  */
-                //Logger.get("HC-Kernel-Debug")
-                //    .log(`PARSER: << On state ${state & instruction_pointer_mask} >>`);
 
                 // If in failure mode, the shift with the truthy fail_mode
                 // mode boolean value will turn the success_state_mask
@@ -1211,10 +1207,7 @@ export function kernel_executor(
 
                 if (state & mask_gate) {
 
-                    //if ((!fail_mode && ((state & fail_state_mask) == 0))
-                    //    || (fail_mode && (state & fail_state_mask) != 0)
-                    //    || (state & 0xFFFFF) == production_scope_pop_pointer) {
-                    kernel_state.add_state_to_history(state, true);
+                    //kernel_state.add_state_to_history(state, true);
 
                     fail_mode = instruction_executor(
                         state,
@@ -1243,7 +1236,8 @@ export function run(
     input_byte_length: number,
     state_pointer: number,
     scanner_function: ScannerFunction,
-    enable_history: boolean = false
+    enable_history: boolean = false,
+    history_array: any[] = null
 ): { invalid: KernelStateBuffer, valid: KernelStateBuffer; } {
 
     let valid = new KernelStateBuffer;
@@ -1257,7 +1251,12 @@ export function run(
         scanner_function
     );
 
-    state_history.length = 0;
+    if (history_array) {
+        state_history = history_array;
+        state_history.length = 0;
+    } else {
+        state_history = [];
+    }
 
     //Logger.get("HC-Kernel-Debug").deactivate();
 
@@ -1307,6 +1306,6 @@ export function run(
 
     }
 
-    state_history.length = 0;
+    //state_history.length = 0;
     return { invalid, valid };
 };;
