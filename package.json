@@ -1,6 +1,6 @@
 {
     "name": "@candlelib/hydrocarbon",
-    "version": "0.13.1-canary",
+    "version": "0.13.1",
     "description": "Parser Compiler",
     "main": "./build/library/entry/hydrocarbon.js",
     "types": "./build/types/entry/hydrocarbon.d.ts",
