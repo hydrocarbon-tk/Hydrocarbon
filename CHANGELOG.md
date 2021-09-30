@@ -1,3 +1,13 @@
+## [v0.13.1-canary] - 2021-09-30 
+
+- [2021-07-17]
+
+    Added code to handle special case of production "__entries__" which allows user to define a list of productions names that can be used to to enter the grammar at a particular production, effectively creating sub-grammar parsers using the same base parser.
+
+- [2021-07-17]
+
+    Added exclusive literals to employ defined IDs that always capture even in the presence of generated ids. This allows reserved "keywords" to be defined in grammars.
+
 ## [v0.12.0] - 2021-06-28 
 
 - [2021-06-25]
