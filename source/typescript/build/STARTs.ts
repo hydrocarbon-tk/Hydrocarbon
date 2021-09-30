@@ -4,15 +4,14 @@
  * disclaimer notice.
  */
 import {
-    Sym_Is_A_Production,
-    Sym_Is_A_Token
+    Sym_Is_A_Production
 } from "../grammar/nodes/symbol.js";
 import { GrammarObject, GrammarProduction } from '../types/grammar_nodes';
 import { getClosure } from "../utilities/closure.js";
 import { Item } from "../utilities/item.js";
 import { getProductionClosure } from '../utilities/production.js';
 import { getStartItemsFromProduction } from "./get_start_items_from_production.js";
-import { GlobalState, OutOfScopeItemState } from './magic_numbers.js';
+import { OutOfScopeItemState } from './magic_numbers.js';
 
 
 export function getGotoSTARTs(
@@ -41,13 +40,6 @@ export function getGotoSTARTs(
 
             if (
                 id == production.id
-                &&
-                (true ||
-                    lr_items.get(id).some(i => i.increment().atEND)
-                    ||
-                    lr_items.get(id).group(i => i.getProductionID(grammar)).length > 1
-                )
-
             ) {
 
                 if (items.length == 0)
@@ -203,7 +195,6 @@ function extractSTARTCandidates2(
     //For every other production, add their callers to the START_candidate_set. 
     for (const p of fly_list) {
         START_candidate_set.push(...production_groups.get(p));
-        //START_candidate_set.push(...closure.filter(i => (i.getProductionAtSymbol(grammar)?.id ?? -1) == p));
     }
 
     return START_candidate_set.setFilter(i => i.id);
