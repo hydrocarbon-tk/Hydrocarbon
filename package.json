@@ -14,8 +14,7 @@
         "test": "candle.cure --threads 2 ./test/",
         "test.hcg_grammar_parser": "candle.cure ./test/bootstrap/hcg3-bootstrap.spec.js",
         "compile.skribble.debug": "./source/cli/cli.js compile --workers 10 --annotations --recognizer_type js --output_dir ./source/typescript/parsers/ ./source/grammars/misc/skribble.hcg",
-        "compile.grammar": "yarn test.hcg_grammar_parser &&  hydrocarbon compile --threads 5 --recognizer wasm --out_path ./source/typescript/grammar/hcg3_parser.ts ./source/grammars/hcg-3/hcg.hcg",
-        "compile.default": "./source/cli/cli.js compile --parser glalr -d -u -m ./source/grammars/misc/default-productions.hcg"
+        "compile.grammar": "yarn test.hcg_grammar_parser &&  hydrocarbon compile --threads 5 --recognizer wasm --out_path ./source/typescript/grammar/hcg3_parser.ts ./source/grammars/hcg-3/hcg.hcg"
     },
     "repository": {
         "type": "git",
@@ -42,6 +41,7 @@
     "dependencies": {
         "@candlelib/conflagrate": "0.4.3",
         "@candlelib/js": "0.5.9",
+        "@candlelib/log": "^0.1.0",
         "@candlelib/paraffin": "0.1.9",
         "@candlelib/uri": "0.2.4",
         "@candlelib/wind": "0.5.3"
