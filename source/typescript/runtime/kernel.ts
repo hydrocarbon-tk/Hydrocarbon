@@ -1200,6 +1200,7 @@ export function kernel_executor(
                     //if ((!fail_mode && ((state & fail_state_mask) == 0))
                     //    || (fail_mode && (state & fail_state_mask) != 0)
                     //    || (state & 0xFFFFF) == production_scope_pop_pointer) {
+                    //kernel_state.add_state_to_history(state, enable_history);
 
                     fail_mode = instruction_executor(
                         state,
@@ -1209,7 +1210,6 @@ export function kernel_executor(
                         pointer
                     );
 
-                    kernel_state.add_state_to_history(state, enable_history);
                 }
             } else {
                 break;
