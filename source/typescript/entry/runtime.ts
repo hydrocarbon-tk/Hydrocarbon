@@ -28,9 +28,10 @@ import { fillByteBufferWithUTF8FromString } from "../runtime/utf8.js";
 import { HCGParser } from "../types/parser.js";
 //Diagnostics
 import { ParserEnvironment } from "../types/parser_environment.js";
-import "../utilities/array_globals.js";
+//import "../utilities/array_globals.js";
 import { ParserPack } from '../types/parser_framework_types.js';
 export * as KernelParserCore from "../runtime/kernel.js";
+export * as KernelParserCore2 from "../runtime/kernel_new.js";
 
 export * as ParserCore from "../runtime/core_parser.js";
 
