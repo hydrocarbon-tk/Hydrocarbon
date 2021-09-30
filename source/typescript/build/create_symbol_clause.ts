@@ -32,13 +32,7 @@ export function create_symbol_clause(
         end_items.push(...left_recursive_items.map(i => i.toEND()));
     }
 
-    const expected_symbols = [
-        ...additional_tokens,
-        ...getTokenSymbolsFromItems([
-            ...active_items.flatMap(i => getClosure([i], grammar)),
-        ], grammar),
-        ...getFollowSymbolsFromItems(end_items, grammar)
-    ].setFilter(getUniqueSymbolName);
+    const expected_symbols = additional_tokens.setFilter(getUniqueSymbolName);
 
     const skipped_symbols = INCLUDE_SKIPS ? getSkippableSymbolsFromItems(items, grammar).filter(skipped => !expected_symbols.some(
         expected => Symbols_Are_The_Same(expected, skipped) /* || SymbolsCollide(expected, skipped, grammar) */)
