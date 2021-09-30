@@ -1,6 +1,7 @@
 import URI from "@candlelib/uri";
-import { GrammarObject, HCG3ProductionBody } from "../types/grammar_nodes";
+import { DefinedSymbol, GeneralProductionNode, GrammarObject, HCG3ProductionBody, ProductionNode, TokenSymbol } from "../types/grammar_nodes";
 import { HCGParser } from "../types/parser";
+import { Sym_Is_A_Generic_Symbol, Sym_Is_A_Production, Sym_Is_A_Production_Token, Sym_Is_Defined } from './nodes/symbol.js';
 import {
     buildSequenceString,
     createCollisionMatrix,
@@ -39,6 +40,7 @@ export async function compileGrammar(grammar: GrammarObject):
         //Meta transformations: Symbols, Functions & Items
         createJSFunctionsFromExpressions(grammar, errors);
         processSymbols(grammar, errors);
+        //buildScannerProductions(grammar);
         buildSequenceString(grammar);
         buildItemMaps(grammar);
         createCollisionMatrix(grammar);
@@ -113,3 +115,45 @@ function distributePriorities(grammar: GrammarObject, error: Error[]) {
             }
     }
 }
+/*
+function buildScannerProductions(grammar: GrammarObject) {
+
+    const symbol_productions = [];
+
+    for (const [name, sym] of grammar.meta.all_symbols) {
+
+        if (!Sym_Is_A_Production(sym) && Sym_Is_Defined(sym)) {
+            if (Sym_Is_A_Production_Token(sym)) {
+
+
+            } else {
+                const val = sym.val;
+
+                console.log({ sym });
+
+                let production = <GeneralProductionNode>{
+                    type: "production",
+                    name: "symbol--" + val,
+                    bodies: [],
+                    pos: sym.pos
+                };
+                const body_symbols = sym.val.split("").map(i => {
+                    return <DefinedSymbol>{
+                        type: "token",
+                        val: i,
+                        id: [i.codePointAt(0)],
+                        pos: sym.pos
+                    };
+                });
+
+                production.bodies = body_symbols;
+
+                symbol_productions.push(production);
+
+                console.log(production);
+            }
+        }
+    }
+
+    debugger;
+} */

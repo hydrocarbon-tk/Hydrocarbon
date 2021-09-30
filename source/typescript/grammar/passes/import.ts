@@ -1,5 +1,5 @@
 import { copy, traverse } from "@candlelib/conflagrate";
-import { HCG3ProductionBody } from '../../types/grammar_nodes';
+import { HCG3ProductionBody, ProductionSymbol } from '../../types/grammar_nodes';
 import {
     ExportPreamble,
     GrammarObject,
@@ -208,9 +208,9 @@ function resolveLocalReferencedFunctions(body: HCG3ProductionBody, local_grammar
         if (fn.type == "local-function-reference") {
             const resolved_fn = local_grammar.functions.filter(i => i.id == fn.ref)[0];
 
-            if (resolved_fn) {
-                body.reduce_function = Object.assign({}, resolved_fn, { type: "RETURNED" });
-            }
+            if (resolved_fn)
+                body.reduce_function = <any>Object.assign({}, resolved_fn, { type: "RETURNED" });
+
             else
                 fn.pos.throw(`Could not resolve referenced function [${fn.ref}]`);
 
@@ -253,14 +253,47 @@ function processSymbol(
 
 
     if (NOT_ORIGIN && (
-        sym.type == SymbolType.PRODUCTION
-        ||
-        sym.type == SymbolType.PRODUCTION_TOKEN_SYMBOL)
+        sym.type == SymbolType.PRODUCTION)
     ) {
 
         const original_name = sym.name;
 
         const name = local_grammar.common_import_name + "__" + original_name;
+
+        if (!imported_productions.has(name)) {
+
+            const prd = getProductionByName(local_grammar, sym);
+
+            if (prd) {
+                const cp = copy(prd);
+
+                cp.name = name;
+
+                cp.grammar_id = local_grammar.common_import_name;
+
+                imported_productions.set(name, cp);
+
+                root_grammar.productions.push(cp);
+
+                integrateImportedProductions(root_grammar, local_grammar, cp, imported_productions);
+            }
+        }
+
+        sym.name = name;
+
+    } else if (NOT_ORIGIN && (
+        sym.type == SymbolType.PRODUCTION_TOKEN_SYMBOL)
+    ) {
+
+        const original_name = sym.name;
+
+        let name = local_grammar.common_import_name + "__" + original_name;
+
+        if (sym.production.type == SymbolType.IMPORT_PRODUCTION) {
+            sym.production = <ProductionSymbol>processSymbol(sym.production, NOT_ORIGIN, root_grammar, local_grammar, imported_productions);
+            sym.name = sym.production.name;
+            name = sym.name;
+        }
 
         if (!imported_productions.has(name)) {
 

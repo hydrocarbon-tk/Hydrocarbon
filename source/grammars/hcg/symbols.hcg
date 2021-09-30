@@ -4,9 +4,11 @@
 
 # version 5.0
 
+@IMPORT ./comments.hcg as cm
+
 @IMPORT ./production_bodies.hcg as pb
 
-@IGNORE g:sp g:nl
+@IGNORE g:sp g:nl tk:cm::comment
 
 #######################################################################################################################
 ######################################  SYMBOLS
@@ -118,7 +120,7 @@
 
 <> escaped_symbol > 
     
-    \\ ( g:id | g:sym | g:num )(+\" ) sym_delimiter             
+    \\ ( g:id | g:sym | g:num )(+\" ) sym_delimiter           
     
         f:r { { type:"literal", val:$2, pos:pos, meta:false, annotation:null } }
 
@@ -158,7 +160,7 @@
 
     |   g:id
 
-<> sym_delimiter >  g:sp | g:nl 
+<> sym_delimiter >  g:sp | g:nl | ?=$eof
 
 <> meta_symbol >   
         

@@ -25,7 +25,7 @@ export interface RecognizeInitializer<R, K extends keyof R> {
      * Returns the number of KernelData blocks that where created during the 
      * recognition processing.
      */
-    recognize: (string: string, production_id: R[K]) => {
+    recognize: (string: string, production_id: R[K], history_array?: any[]) => {
         valid: KernelStateBuffer, invalid: KernelStateBuffer;
     };
 

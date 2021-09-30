@@ -4,11 +4,14 @@
 
 # version 5.0
 
-@IGNORE g:sp g:nl tk:comment
+
+@IMPORT ./comments.hcg as cm
 
 @IMPORT ./symbols.hcg as sym
 
 @IMPORT ./functions.hcg as fn
+
+@IGNORE g:sp g:nl tk:cm::comment
 
 <> state_ir > 
         
@@ -168,5 +171,3 @@
     |   \_
 
     |   \-
-
-<> comment > \/* ( g:sp | g:nl | g:id | g:num | g:sym )(*) \*/

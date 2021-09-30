@@ -14,7 +14,7 @@
 
 @IMPORT ./ir_state.hcg as ir
 
-@IGNORE g:sp g:nl
+@IGNORE g:sp g:nl tk:cm::comment
 
 ########################################################################################################################
 ######################################  PRODUCTIONS
@@ -32,8 +32,6 @@
                                                             f:r {  $1.functions.push($2), $1 }
     | productions ir::grammar_injection
                                                             f:r {  $1.ir.push($2), $1 }
-    | productions cm::comment                                      
-                                                            f:r {  $1 }
 
  
 <> production > \<> \! ? sym::production_symbol \>  pb::production_bodies? 

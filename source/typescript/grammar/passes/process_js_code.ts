@@ -3,6 +3,7 @@ import { exp, JSNodeClass, JSNodeType, renderCompressed } from "@candlelib/js";
 import { ir_reduce_numeric_len_id } from '../../build/magic_numbers.js';
 import { ENVFunctionRef, GrammarObject, LocalFunctionRef, ProductionFunction } from "../../types/grammar_nodes";
 import { InstructionType, IR_Instruction } from '../../types/ir_types';
+import { render_grammar } from './common.js';
 
 
 export function createJSFunctionsFromExpressions(grammar: GrammarObject, error) {
@@ -12,7 +13,9 @@ export function createJSFunctionsFromExpressions(grammar: GrammarObject, error) 
 
     for (const production of grammar.productions) {
 
+
         for (const body of production.bodies) {
+
 
             const { fn, js } = processReduceFunction(body.reduce_function, body.sym.length);
 
@@ -74,6 +77,7 @@ function processReduceFunction(
     let js = "";
 
     if (fn) {
+
 
         if (fn.type == "env-function-reference") {
             js = fn.js = `(env, sym, pos)=> env.functions.${fn.ref} (env, sym, pos)`;

@@ -25,7 +25,7 @@ assert_group(
         const
             compiled_grammar = await compileGrammarFromURI(hcg_grammar_file);
 
-        assert(compiled_grammar.type == "hc-grammar-4");
+        assert(compiled_grammar.type == "hc-grammar-5");
         assert(compiled_grammar.URI + "" == hcg_grammar_file);
 
     });
@@ -52,8 +52,8 @@ assert_group(
             { parse } = await createAddHocParser(build_pack),
             { result } = parse("\n <> test > t:r ( \\hello_world (+) ) ");
 
-        assert(result[0].type == "hc-grammar-4");
-        assert(result[0].productions[0].name == "test");
+        assert(result[0].type == "hc-grammar-5");
+        assert(result[0].productions[0].symbol.name == "test");
 
     });
 
@@ -70,8 +70,8 @@ assert_group(
 
         const { result } = parse(await hcg_grammar_file.fetchText());
 
-        assert(result[0].type == "hc-grammar-4");
-        assert(result[0].productions[0].name == "hydrocarbon");
+        assert(result[0].type == "hc-grammar-5");
+        assert(result[0].productions[0].symbol.name == "hydrocarbon");
         assert(result[0].productions.length == 2);
     });
 
@@ -89,12 +89,12 @@ assert_group(
         const bootstrapped_compiled_grammar = await compileGrammarFromURI(hcg_grammar_file, bootstrapped_parse);
 
         assert(bootstrapped_compiled_grammar !== null);
-        assert(bootstrapped_compiled_grammar.type == "hc-grammar-4");
+        assert(bootstrapped_compiled_grammar.type == "hc-grammar-5");
         assert(bootstrapped_compiled_grammar.URI + "" == hcg_grammar_file);
     });
 
 
-assert_group(
+/* assert_group(
     skip,
     "Should be able to use bootstrapped parser to compile another bootstrapped parser: WASM",
     20000, sequence, () => {
@@ -115,10 +115,10 @@ assert_group(
 
         const { result } = parse("\n <> test > t:r ( \\hello_world (+) ) ");
 
-        assert(result[0].type == "hc-grammar-4");
+        assert(result[0].type == "hc-grammar-5");
 
         assert(result[0].productions[0].name == "test");
-    });
+    }); */
 
 assert_group(
     "Should be able to use bootstrapped parser to compile another bootstrapped parser: JavaScript",
@@ -137,13 +137,13 @@ assert_group(
 
             { parse } = await createAddHocParser(build_pack_2);
 
-        const { result } = parser("\n <> test > t:r ( \\hello_world (+) ) ");
+        const { result } = parse("\n <> test > t:r ( \\hello_world (+) ) ");
 
-        assert(result[0].type == "hc-grammar-4");
-        assert(result[0].productions[0].name == "test");
+        assert(result[0].type == "hc-grammar-5");
+        assert(result[0].productions[0].symbol.name == "test");
     });
 
-assert_group(
+/* assert_group(
     "Should be able to write bootstrapped parser to staging file",
     20000, sequence, () => {
 
@@ -173,4 +173,4 @@ assert_group(
         ));
 
         assert(SUCCESS == true);
-    });
+    }); */

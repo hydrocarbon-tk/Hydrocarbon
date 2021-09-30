@@ -17,7 +17,6 @@ export class Lexer {
     prev_token_offset: number;
     line: number;
     private type: number;
-    previous_type: number; //JS ONLY
     current_byte: number;
     input: Uint8Array;
     input_len: number;
@@ -35,7 +34,6 @@ export class Lexer {
         this.type = 0;
         this.line = 0;
         this.current_byte = 0;
-        this.previous_type = 0;
     }
 
     get _type(): number {
@@ -43,7 +41,6 @@ export class Lexer {
     }
 
     set _type(v: number) {
-        this.previous_type = v;
         this.type = v;
     }
     setToken(type_in: number, byte_length_in: number, token_length_in: number): number {
@@ -100,15 +97,19 @@ export class Lexer {
         return this._type == 8;
     }
     isNum(): boolean {
+
         if (this._type == 0) {
+
             if (this.getType(false) == 5) {
+
                 let l = this.input.length;
                 let off = this.byte_offset;
+
                 while ((off++ < l) && 47 < this.input[off] && this.input[off] < 58) {
                     this.byte_length += 1;
                     this.token_length += 1;
                 };
-                // this._type = 5;
+
                 return true;
             }
 
@@ -122,12 +123,17 @@ export class Lexer {
     isUniID(): boolean {
         if (this._type == 0) {
             if (this.getType(true) == 3) {
+
                 this.byte_length = 1;
                 this.token_length = 1;
+
                 let l: number = this.input.length;
+
                 let off: number = this.byte_offset;
+
                 let prev_byte_len: number = this.byte_length;
                 let prev_token_len: number = this.token_length;
+
                 while ((off + this.byte_length) < l) {
                     let code_point = get_utf8_code_point_at(this.byte_offset + this.byte_length, this.input);
                     if ((96 & char_lu_table[code_point]) > 0) {
@@ -199,7 +205,6 @@ export class Lexer {
             this.byte_length = source.prev_byte_offset - this.byte_offset;
             this.token_length = source.prev_token_offset - this.token_offset;
         }
-        //this._type = source._type;
     };
     next() {
         this.byte_offset += this.byte_length;
@@ -207,7 +212,6 @@ export class Lexer {
 
         if (this.input.length <= this.byte_offset) {
             this._type = 1;
-            this.previous_type = 1;
             this.byte_length = 0;
             this.token_length = 0;
             this.current_byte = 0;

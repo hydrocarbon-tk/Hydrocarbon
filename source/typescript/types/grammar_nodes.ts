@@ -319,7 +319,7 @@ export interface ProductionTokenSymbol extends SymbolNode {
     type: SymbolType.PRODUCTION_TOKEN_SYMBOL;
     name: string;
     val: number;
-    production?: GrammarProduction;
+    production?: ProductionSymbol | ProductionImportSymbol;
     meta: false;
     token_id: number;
 }

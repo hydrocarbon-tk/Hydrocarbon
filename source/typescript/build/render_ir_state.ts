@@ -55,27 +55,27 @@ export const ir_state_mappings: NodeMappings<IRNode, "type"> = <NodeMappings<IRN
         <NodeMapping<BaseIRState>>{
             type: "state",
             child_keys: ["instructions", "symbol_meta", "fail"],
-            template: "state \\[ m:s @id m:s \\] i:s o:n o:n @instructs...[ o:n ] o:n o:n { symbol_meta: @symbol_meta o:n o:n } { fail: on o:s fail o:s @fail} i:e",
+            template: "state \\[ m:s @id m:s \\] i:s m:n o:n @instructs...[ m:s ] o:n o:n { symbol_meta: @symbol_meta o:n o:n } { fail: on o:s fail o:s @fail} i:e",
             custom_render: state_custom_render
         },
 
         <NodeMapping<FailedIRState>>{
             type: "on-fail-state",
             child_keys: ["instructions", "symbol_meta", "fail"],
-            template: "state \\[ m:s @id m:s \\] i:s o:n o:n @instructs...[ o:n ] o:n o:n { symbol_meta: @symbol_meta o:n o:n } @fail? i:e",
+            template: "state \\[ m:s @id m:s \\] i:s o:n o:n @instructs...[ m:s ] o:n o:n { symbol_meta: @symbol_meta o:n o:n } @fail? i:e",
             custom_render: state_custom_render
         },
 
         <NodeMapping<IRGoto>>{
             type: "goto",
             child_keys: [],
-            template: "goto o:s state o:s \\[ o:s @state o:s \\] o:s"
+            template: "goto m:s state o:s \\[ o:s @state o:s \\] o:s"
         },
 
         <NodeMapping<IRSetTokenLength>>{
             type: "token-length",
             child_keys: [],
-            template: "set o:s token o:s length o:s @len"
+            template: "set m:s token m:s length m:s @len"
         },
 
         <NodeMapping<IRRepeat>>{
@@ -87,19 +87,19 @@ export const ir_state_mappings: NodeMappings<IRNode, "type"> = <NodeMappings<IRN
         <NodeMapping<IRAssert>>{
             type: "assert",
             child_keys: [],
-            template: "assert o:s \\[ o:s @ids...[o:s] o:s \\] \\( i:s o:n @instructions...[ o:n \\then o:n ] i:e o:n \\) "
+            template: "assert o:s \\[ o:s @ids...[m:s] o:s \\] \\( i:s o:n @instructions...[ o:n m:s \\then m:s o:n ] i:e o:n \\) "
         },
 
         <NodeMapping<IRPeek>>{
             type: "peek",
             child_keys: [],
-            template: "peek o:s \\[ o:s @ids...[o:s] o:s \\] \\( i:s o:n @instructions...[ o:n \\then o:n ] i:e o:n \\) "
+            template: "peek o:s \\[ o:s @ids...[m:s] o:s \\] \\( i:s o:n @instructions...[ o:n m:s \\then m:s o:n ] i:e o:n \\) "
         },
 
         <NodeMapping<IRProductionBranch>>{
             type: "prod",
             child_keys: [],
-            template: "on o:s prod o:s \\[ o:s @ids...[o:s] o:s \\] \\( i:s o:n @instructions...[ o:n \\then o:n ] i:e o:n \\) "
+            template: "on m:s prod o:s \\[ o:s @ids...[m:s] o:s \\] \\( i:s o:n @instructions...[ o:n m:s \\then m:s o:n ] i:e o:n \\) "
         },
 
         <NodeMapping<IRPass>>{
@@ -123,45 +123,45 @@ export const ir_state_mappings: NodeMappings<IRNode, "type"> = <NodeMappings<IRN
         <NodeMapping<IRConsume>>{
             type: "consume",
             child_keys: [],
-            template: "{nothing: consume o:n nothing or consume  }"
+            template: "{nothing: consume m:s nothing or consume  }"
         },
 
         <NodeMapping<IRFork>>{
             type: "fork-to",
             child_keys: [],
-            template: "fork o:s to o:s \\( o:s state \\[ o:s @states...[ o:s \\] o:s state \\[ o:s ] o:s \\] o:s \\)",
+            template: "fork m:s to o:s \\( o:s state \\[ o:s @states...[ o:s \\] o:s state \\[ o:s ] o:s \\] o:s \\)",
         },
 
         <NodeMapping<IRScanTo>>{
             type: "scan-until",
             child_keys: [],
-            template: "scan o:s until o:s \\[ o:s @ids...[o:s] o:s \\]"
+            template: "scan m:s until o:s \\[ o:s @ids...[m:s] o:s \\]"
         },
 
         <NodeMapping<IRScanBackTo>>{
             type: "scan-back-until",
             child_keys: [],
-            template: "scan o:s back o:s until o:s \\[ o:s @ids...[o:s] o:s \\]"
+            template: "scan m:s back m:s until o:s \\[ o:s @ids...[m:s] o:s \\]"
         },
 
         <NodeMapping<IRNotInScopes>>{
             type: "not-in-scopes",
             child_keys: [],
-            template: "not o:s in o:s scopes o:s \\[ o:s @ids...[o:s]  o:s\\]"
+            template: "not m:s in m:s scopes o:s \\[ o:s @ids...[m:s]  o:s\\]"
         },
 
         <NodeMapping<IRSetScope>>{
             type: "set-scope",
             child_keys: [],
-            template: "set o:s scope o:s to o:s @scope"
+            template: "set m:s scope m:s to m:s @scope"
         },
 
         <NodeMapping<IRInlineAssert>>{
             type: "inline-assert",
             child_keys: [],
             template: `o:n inline-assert o:s \\[ o:s @id o:s \\] i:s o:n 
-                       { token_ids: token_ids o:s \\[ o:s @token_ids...[o:s] o:s \\] o:n } 
-                       { skipped_ids: skipped o:s \\[ o:s @skipped_ids...[o:s] o:s \\] o:n }
+                       { token_ids: token_ids o:s \\[ o:s @token_ids...[m:s] o:s \\] o:n } 
+                       { skipped_ids: skipped o:s \\[ o:s @skipped_ids...[m:s] o:s \\] o:n }
                        i:e
                        o:n 
                     `
@@ -170,19 +170,19 @@ export const ir_state_mappings: NodeMappings<IRNode, "type"> = <NodeMappings<IRN
         <NodeMapping<IRSetProd>>{
             type: "set-prod",
             child_keys: [],
-            template: "set o:s prod o:s to o:s @id"
+            template: "set m:s prod m:s to m:s @id"
         },
 
         <NodeMapping<IRReduce>>{
             type: "reduce",
             child_keys: [],
-            template: "reduce o:s @len o:s @reduce_fn"
+            template: "reduce m:s @len m:s @reduce_fn"
         },
 
         <NodeMapping<BaseIRState["symbol_meta"]>>{
             type: "symbols",
             child_keys: [],
-            template: "symbols: i:s o:n  { expected: expected o:s \\[ o:s @expected...[o:s] o:s \\] o:n } { skipped: o:n skipped o:s \\[ o:s @skipped...[o:s] o:s \\] o:n } i:e"
+            template: "symbols: i:s o:n  { expected: expected o:s \\[ o:s @expected...[m:s] o:s \\] o:n } { skipped: o:n skipped o:s \\[ o:s @skipped...[m:s] o:s \\] o:n } i:e"
         }
 
 

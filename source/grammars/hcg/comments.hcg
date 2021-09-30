@@ -4,18 +4,14 @@
 
 # version 5.0
 
-@IGNORE g:sp g:nl
-
 <> comment > shell
     | cpp_line
     | cpp_block
 
 <> cpp_block > \/* ( g:nl | comment_primitive )(+) \*/
 
-<> cpp_line > \// comment_primitive(+) comment_delimiter
+<> cpp_line > \// comment_primitive(*)
 
-<> shell > \# comment_primitive(+) comment_delimiter
-
-<> comment_delimiter > ?=g:nl | ?=$eof
+<> shell > \# comment_primitive(*)
 
 <> comment_primitive > g:sym | g:id | g:num | g:sp

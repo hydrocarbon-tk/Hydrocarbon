@@ -14,7 +14,7 @@
 
 @IMPORT ./symbols.hcg as sym
 
-@IGNORE g:sp g:nl
+@IGNORE g:sp g:nl tk:cm::comment
 
 <> hcg_preamble > preamble
 
@@ -35,7 +35,6 @@
 <> preamble_clause >  ignore_preamble
     | import_preamble
     | export_preamble
-    | cm::comment
 
 
 # Production bodies, the symbols defined after `<> <production-name> >` can contain a mixture of 

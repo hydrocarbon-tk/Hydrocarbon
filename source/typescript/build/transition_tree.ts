@@ -209,16 +209,16 @@ function attemptSingleGroupShift(
 }
 
 function createPeekTreeStates(
-    incremented_items: Item[],
+    active_items: Item[],
     grammar: GrammarObject,
     previous_state: TransitionForestStateA,
     root_peek_state: TransitionForestStateA,
     options: TransitionForestOptions,
 ) {
 
-    const { roots, depth, items: transitioned_items, states } = previous_state;
+    const { states } = previous_state;
 
-    const active_items = incremented_items;
+    const in_scope_items = active_items.filter(i => i.state != OutOfScopeItemState);
 
     let end_item = 0;
 
@@ -239,20 +239,22 @@ function createPeekTreeStates(
     const root_states: TransitionForestStateA[] = [];
 
     const active_productions = new Set([
-        ...active_items
-            .filter(i => !i.atEND && Sym_Is_A_Production(i.sym(grammar)))
+        ...in_scope_items
+            .filter(
+                i => !i.atEND && Sym_Is_A_Production(i.sym(grammar))
+            )
             .map(i => i.getProductionAtSymbol(grammar).id),
     ]);
 
     const active_bodies = new Set([
-        ...active_items
+        ...in_scope_items
             .map(i => i.id),
-        ...active_items.filter(i => !i.atEND && Sym_Is_A_Production(i.sym(grammar)))
+        ...in_scope_items.filter(i => !i.atEND && Sym_Is_A_Production(i.sym(grammar)))
             .flatMap(i => getStartItemsFromProduction(i.getProductionAtSymbol(grammar)))
             .map(i => i.id)
     ]);
 
-    const filter_out_productions = new Set([...active_items.map(i => i.getProductionAtSymbol(grammar)?.id ?? -1)]);
+    const filter_out_productions = new Set([...in_scope_items.map(i => i.getProductionAtSymbol(grammar)?.id ?? -1)]);
 
     let i = 0;
 
@@ -284,6 +286,8 @@ function createPeekTreeStates(
         ) {
             // Ignore groups that transition on the same PRODUCTION
             // that in scope groups also transition on
+            console.log(group.map(i => i.rup(grammar)));
+            console.log(active_items.map(i => i.rup(grammar)));
             continue;
         }
 
@@ -335,7 +339,7 @@ function createPeekTreeStates(
         );
 
         //This is a free action state.
-        multi_item_state.items = incremented_items;
+        multi_item_state.items = active_items;
 
         multi_item_state.states = branch_states;
 
