@@ -1,3 +1,9 @@
+## [v0.14.0] - 2021-09-30 
+
+- [2021-09-30]
+
+    Rebuilt parser system. It now employs a stack machine that reads byte instructions compiled by Hydrocarbon.  Updated HCG grammar to version 5.  Introduce an intermediate state representation that is utilized by the compiler to handle state->byte instruction transformation and optimizations. Grammar authors can also write custom IR states within regular .hcg v5 grammars, enabling Feat such as error recovery and custom parse states.
+
 ## [v0.13.1-canary] - 2021-09-30 
 
 - [2021-07-17]
