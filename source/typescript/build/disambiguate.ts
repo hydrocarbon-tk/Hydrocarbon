@@ -46,7 +46,6 @@ import { createTransitionForestState, TransitionForestGraph, TransitionForestOpt
  */
 export function disambiguate(
     grammar: GrammarObject,
-    filter_out_productions: Set<number>,
     peek_states: TransitionForestStateA[],
     options: TransitionForestOptions,
     INITIAL_STATE: boolean = false,
@@ -101,17 +100,6 @@ export function disambiguate(
             )
             .setFilter(i => i.id);
 
-        if (depth < 0 && par_type & TransitionStateType.OUT_OF_SCOPE) {
-            // Filter out of scope out items that would 
-            // conflict with the in scope items.
-
-            considered_items = considered_items.filter(i => {
-                if (filter_out_productions.has(i.getProductionID(grammar)))
-                    return false;
-                return true;
-            });
-        }
-
         if (considered_items.length > 0) {
 
             //Create transition states groups for terminal symbols
@@ -144,22 +132,6 @@ export function disambiguate(
                 states.push(state);
             }
         }
-
-        /* if (
-            considered_items.length == 0
-        ) {
-            // The only solution at this point is an end of file state.
-            let state: TransitionForestStateA = createTransitionForestState(TransitionStateType.UNDEFINED,
-                [default_EOF],
-                depth + 1,
-                roots,
-                previous_state
-            );
-
-            state.items = incremented_items.filter(i => i.atEND);
-
-            states.push(state);
-        } */
     }
 
     //Group states by symbol. Join groups that have mutually ambiguous symbols
@@ -201,7 +173,7 @@ export function disambiguate(
 
     for (let [key, states] of grouped_roots) {
 
-        let child_graph_node = null;
+        let child_graph_node: TransitionForestGraph = null;
 
         //Merge states with same roots
         let out_states: TransitionForestStateA[] = [];
@@ -253,36 +225,20 @@ export function disambiguate(
                         ||
                         SymbolsCollide(i.sym(grammar), key_symbol, grammar)
                 ).map(i => {
-                    if (!i.atEND || Sym_Is_A_Production(i.sym(grammar)))
+                    if (!i.atEND && !Sym_Is_A_Production(i.sym(grammar)))
                         return i.increment();
                     return i;
                 })
             }));
 
-            if (
+            child_graph_node = disambiguate(
+                grammar,
+                new_states,
+                options,
+                false,
+                start_time,
                 key == getUniqueSymbolName(default_EOF)
-                //If States have identical closures, then there will be no way to disambiguate
-                //||
-                //states.group(s => s.items.map(i => i.id).sort().join()).length == 1
-            ) {
-                //do nothing, this is as far as we get with these states
-                child_graph_node = disambiguate(grammar,
-                    filter_out_productions,
-                    new_states,
-                    options,
-                    false,
-                    start_time,
-                    true
-                );
-            } else {
-                child_graph_node = disambiguate(grammar,
-                    filter_out_productions,
-                    new_states,
-                    options,
-                    false,
-                    start_time
-                );
-            }
+            );
 
             child_graph_node.symbol = key;
 
@@ -334,7 +290,7 @@ export function disambiguate(
             dissambiguated_multi_node.state.items.every(i => i.atEND)
             &&
             dissambiguated_multi_node.state.items.length > 1;
-        //dissambiguated_multi_node.AMBIGUOUS = dissambiguated_multi_node.state.items.every(i => i.atEND);
+
     } else if (disambiguated_node.state != null)
         graph_node.nodes.push(disambiguated_node);
 
@@ -362,8 +318,6 @@ function mergeGroupsWithOccludingSymbols(grouped_roots: Map<string, TransitionFo
                 &&
                 Sym_Is_Exclusive(incoming_sym)
             )
-            //||
-            //Sym_Is_A_Generic_Symbol(incoming_sym)
         )
             for (const [key, group_b] of grouped_roots) {
 
@@ -373,12 +327,6 @@ function mergeGroupsWithOccludingSymbols(grouped_roots: Map<string, TransitionFo
                 if (
                     (
                         Sym_Is_Defined_Identifier(root_sym)
-                        //  ||
-                        //  (
-                        //      Sym_Is_Defined_Symbol(root_sym)
-                        //      &&
-                        //      root_sym.byte_length == 1
-                        //  )
                     )
                     &&
                     !Sym_Is_Exclusive(root_sym)
@@ -389,21 +337,9 @@ function mergeGroupsWithOccludingSymbols(grouped_roots: Map<string, TransitionFo
 
                     group_b.push(
                         ...group_a
-                            /*
-                            .filter(
-                                a => {
-                                    return !group_b.includes(a)
-                                        &&
-                                        a.roots.some(r => !existing_states.has(r));
-                                }
-        
-                            )*/
                             //Remove states to prevent symbol overlapping
                             .map(g => Object.assign({}, g, { states: [] }))
                     );
-
-                    //  if (Sym_Is_Exclusive(incoming_sym))
-                    //      grouped_roots.delete(key);
                 }
             }
     }

@@ -27,7 +27,7 @@ export function constructProductionStates(
 } {
 
     /*  
-    if (production.name == "tok_css__declaration_values_sentineled") {
+    if (production.name == "tok_css__declaration_values") {
         // debugger; 
     }
     else {
@@ -62,9 +62,11 @@ export function constructProductionStates(
             grammar,
             recursive_descent_items,
             tt_options,
-            [...(grammar.lr_items.get(production.id) ?? []), ...getProductionClosure(production.id, grammar).filter(i => Sym_Is_A_Production(i.sym(grammar)))]
+            [
+                ...(grammar.lr_items.get(production.id) ?? []),
+                ...getProductionClosure(production.id, grammar).filter(i => Sym_Is_A_Production(i.sym(grammar)))
+            ]
                 .setFilter(i => i.id).map(i => i.toState(5555))
-            //getProductionClosure(production.id, grammar).filter(i => Sym_Is_A_Production(i.sym(grammar)))
         );
 
         // If forks separate out the conflicting items into 
@@ -74,11 +76,13 @@ export function constructProductionStates(
 
         const goto_item_map_graphs = ([...goto_item_map.entries()]
             .map(([production_id, items]) =>
-                [production_id, constructTransitionForest(
-                    grammar,
-                    items.map(i => i.increment()),
-                    tt_options
-                )]
+                [
+                    production_id, constructTransitionForest(
+                        grammar,
+                        items.map(i => i.increment()),
+                        tt_options
+                    )
+                ]
             ) as [number, TransitionForestStateA][])
             .sort(([a], [b]) => b - a);
 
@@ -163,6 +167,9 @@ export function constructProductionStates(
         }
 
         parse_states.set(goto_hash, goto_function_code.join("\n"));
+        /* 
+                for (const [, state] of parse_states)
+                    console.log(state); */
 
         return {
             parse_states: parse_states,

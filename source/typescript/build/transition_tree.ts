@@ -238,9 +238,10 @@ function createPeekTreeStates(
 
     const root_states: TransitionForestStateA[] = [];
 
-    const active_productions = new Set([...active_items
-        .filter(i => !i.atEND && Sym_Is_A_Production(i.sym(grammar)))
-        .map(i => i.getProductionAtSymbol(grammar).id),
+    const active_productions = new Set([
+        ...active_items
+            .filter(i => !i.atEND && Sym_Is_A_Production(i.sym(grammar)))
+            .map(i => i.getProductionAtSymbol(grammar).id),
     ]);
 
     const active_bodies = new Set([
@@ -251,14 +252,7 @@ function createPeekTreeStates(
             .map(i => i.id)
     ]);
 
-    const filter_out_productions = new Set([...active_items
-        .filter(i => i.state != OutOfScopeItemState)
-        .flatMap(i => {
-            if (i.offset == 0 || i.atEND)
-                return i.getProductionID(grammar);
-            return [i.getProductionID(grammar), i.getProductionAtSymbol(grammar)?.id ?? -1];
-        }),
-    ]);
+    const filter_out_productions = new Set([...active_items.map(i => i.getProductionAtSymbol(grammar)?.id ?? -1)]);
 
     let i = 0;
 
@@ -280,6 +274,18 @@ function createPeekTreeStates(
                 group.some(i => !i.atEND)
                     ? 1 + (1 * i)
                     : -1 + (-1 * i);
+
+        if (
+            state == OutOfScopeItemState
+            &&
+            Sym_Is_A_Production(group[0].sym(grammar))
+            &&
+            filter_out_productions.has(group[0].getProductionAtSymbol(grammar).id)
+        ) {
+            // Ignore groups that transition on the same PRODUCTION
+            // that in scope groups also transition on
+            continue;
+        }
 
         const contextual_state: TransitionForestStateA = (state >= 0) ? Object.assign({},
             root_peek_state, {
@@ -311,7 +317,7 @@ function createPeekTreeStates(
         i++;
     }
 
-    const disambiguated_tree = disambiguate(grammar, filter_out_productions, root_states, options, true);
+    const disambiguated_tree = disambiguate(grammar, root_states, options, true);
 
     const branch_states = disambiguated_tree.nodes.map((n => (n.state.parent = null, n.state)));
 
@@ -338,9 +344,11 @@ function createPeekTreeStates(
         states.push(multi_item_state);
 
     } else {
+
         disambiguated_tree.state.depth = -1;
-        //previous_state.depth = -1;
+
         branch_states[0].parent = previous_state;
+
         states.push(...branch_states);
     }
 

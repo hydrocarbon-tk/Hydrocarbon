@@ -65,14 +65,20 @@ export function getGotoSTARTs(
                  * should be reduced to another production or left as is.
                  */
                 items = [
-                    ...items.map(i => i.copy(undefined, undefined, undefined, 9999)),
-                    ...grammar.lr_items.get(production.id)
-                        .flatMap(s => getOuterScopeGotoItems(grammar, seen, s))
-                        //Prevent self intersection
-                        .filter(i => i.getProductionID(grammar) != id)
-                        .map(i => i.copy(undefined, undefined, undefined, OutOfScopeItemState))
-                        .filter(i => !i.increment().atEND || !ACTIVE_IDS.has(i.getProductionID(grammar)))
+                    ...items.map(i => i.toState(9999)),
+                    ...(
+                        (
+                            grammar.lr_items.get(id)
+                                ?.flatMap(s => getOuterScopeGotoItems(grammar, seen, s))
+                                //Prevent self intersection
+                                .filter(i => (i.getProductionID(grammar) != id) || i.offset != 0)
+                                .map(i => i.toState(OutOfScopeItemState))
+                                .filter(i => !i.increment().atEND || !ACTIVE_IDS.has(i.getProductionID(grammar)))
+                        ) ?? []
+                    )
                 ].setFilter(i => i.id);
+
+
             }
 
             output.set(id, items);
