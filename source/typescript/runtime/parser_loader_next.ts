@@ -4,13 +4,13 @@
  * disclaimer notice.
  */
 import { Lexer } from "@candlelib/wind";
-import { fillByteBufferWithUTF8FromString } from "./utf8.js";
 import { HCGParser, HCGProductionFunction } from "../types/parser";
 import { ForkData, RecognizeInitializer } from "../types/parser_data";
-import { initializeUTFLookupTableNew, initializeUTFLookupTableNewPlus } from "./parser_memory_new.js";
-import { loadWASM } from "./wasm_loader_next.js";
 import { ParserEnvironment } from "../types/parser_environment.js";
+import { initializeUTFLookupTableNew, initializeUTFLookupTableNewPlus } from "./parser_memory_new.js";
 import { Token } from "./token.js";
+import { fillByteBufferWithUTF8FromString } from "./utf8.js";
+import { loadWASM } from "./wasm_loader_next.js";
 
 export { initializeUTFLookupTableNewPlus };
 

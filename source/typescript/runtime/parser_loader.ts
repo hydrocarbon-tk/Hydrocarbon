@@ -3,13 +3,13 @@
  * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
  * disclaimer notice.
  */
-import { loadWASM } from "./wasm_loader.js";
+import { Lexer } from "@candlelib/wind";
 import { HCGProductionFunction } from "../types/parser";
 import { RecognizeInitializer } from "../types/parser_data";
-import { initializeUTFLookupTable } from "./parser_memory_new.js";
-import { Lexer } from "@candlelib/wind";
-import { fillByteBufferWithUTF8FromString } from "./utf8.js";
 import { ParserEnvironment } from "../types/parser_environment.js";
+import { initializeUTFLookupTable } from "./parser_memory_new.js";
+import { fillByteBufferWithUTF8FromString } from "./utf8.js";
+import { loadWASM } from "./wasm_loader.js";
 
 export type HCParser<T = any> = (str: string, env?: ParserEnvironment, production_id?: number) => {
     result: T[];
