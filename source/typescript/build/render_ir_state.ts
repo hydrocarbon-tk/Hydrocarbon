@@ -55,7 +55,7 @@ export const ir_state_mappings: NodeMappings<IRNode, "type"> = <NodeMappings<IRN
         <NodeMapping<BaseIRState>>{
             type: "state",
             child_keys: ["instructions", "symbol_meta", "fail"],
-            template: "state \\[ m:s @id m:s \\] i:s m:n o:n @instructs...[ m:s ] o:n o:n { symbol_meta: @symbol_meta o:n o:n } { fail: on o:s fail o:s @fail} i:e",
+            template: "state \\[ m:s @id m:s \\] i:s m:n o:n @instructs...[ m:s ] o:n o:n { symbol_meta: m:n @symbol_meta o:n o:n } { fail: on o:s fail o:s @fail} i:e",
             custom_render: state_custom_render
         },
 
