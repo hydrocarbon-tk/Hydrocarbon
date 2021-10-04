@@ -2,14 +2,13 @@
     "name": "@candlelib/hydrocarbon",
     "version": "0.14.4",
     "description": "Parser Compiler",
-    "main": "./build/library/entry/hydrocarbon.js",
-    "types": "./build/types/entry/hydrocarbon.d.ts",
+    "main": "./build/library/entry/runtime.js",
+    "types": "./build/types/entry/runtime.d.ts",
     "bin": {
         "hydrocarbon": "./index.js"
     },
     "type": "module",
     "scripts": {
-        "build": "tsc",
         "prepublishOnly": "rm -rf ./build/library && rm -rf ./build/types && tsc & sleep 20",
         "test": "candle.cure --threads 2 ./test/",
         "test.hcg_grammar_parser": "candle.cure ./test/bootstrap/hcg3-bootstrap.spec.js",
