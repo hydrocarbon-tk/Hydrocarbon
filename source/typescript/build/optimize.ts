@@ -89,7 +89,7 @@ function optimizeState(state: IRStateData, states: StateMap) {
 
                         sub_instructions.push(...ir_state_ast.instructions[0].instructions, ...cache);
 
-                        optimize_logger.debug(`${goto.state} inlined into ${root_id}`);
+                        optimize_logger.debug(`[1] ${goto.state} inlined into ${root_id}`);
 
                         MODIFIED = true;
                     }
@@ -135,14 +135,14 @@ function optimizeState(state: IRStateData, states: StateMap) {
                     if (
                         !((attributes & StateAttrib.TOKEN_BRANCH) || (attributes & StateAttrib.PROD_BRANCH))
                         &&
-                        (!fail || !ir_state_ast.fail)
+                        (!fail && !ir_state_ast.fail)
                     ) {
 
                         sub_instructions.splice(i, 1, ...import_ir_state.instructions);
 
                         MODIFIED = true;
 
-                        optimize_logger.debug(`${goto.state} inlined into ${root_id}`);
+                        optimize_logger.debug(`[2] ${goto.state} inlined into ${root_id}`);
 
                         if (!ir_state_ast.fail)
                             ir_state_ast.fail = fail;
@@ -210,7 +210,7 @@ function optimizeState(state: IRStateData, states: StateMap) {
 
                         sub_instructions.splice(i, 1, inline_assert, ...assert.instructions);
 
-                        optimize_logger.debug(`State ${goto.state} replaced with inline assertion in ${root_id}`);
+                        optimize_logger.debug(`[3] State ${goto.state} replaced with inline assertion in ${root_id}`);
 
                         MODIFIED = true;
                     }
@@ -252,13 +252,13 @@ function optimizeState(state: IRStateData, states: StateMap) {
 
                 const { ir_state_ast, attributes } = states.get(getStateName(goto.state));
 
-                if (!((attributes & StateAttrib.TOKEN_BRANCH) || (attributes & StateAttrib.PROD_BRANCH))) {
+                if (!((attributes & StateAttrib.TOKEN_BRANCH) || (attributes & StateAttrib.PROD_BRANCH)) && !ir_state_ast.fail) {
 
                     sub_instructions.splice(i, 1, ...ir_state_ast.instructions);
 
                     MODIFIED = true;
 
-                    optimize_logger.debug(`${goto.state} inlined into ${root_id}`);
+                    optimize_logger.debug(`[4] ${goto.state} inlined into ${root_id}`);
                 }
 
                 break;
@@ -296,7 +296,7 @@ function optimizeState(state: IRStateData, states: StateMap) {
                     pos: gotos[0].pos
                 });
 
-                optimize_logger.debug(`Goto ${gotos[0].state} replaced with repeat in ${root_id}`);
+                optimize_logger.debug(`[5] Goto ${gotos[0].state} replaced with repeat in ${root_id}`);
 
                 MODIFIED = true;
             }
@@ -343,7 +343,7 @@ function optimizeState(state: IRStateData, states: StateMap) {
 
                     ir_state_ast.instructions.splice(i, 1);
 
-                    optimize_logger.debug(`Redundant fail branch removed in ${root_id}`);
+                    optimize_logger.debug(`[7] Redundant fail branch removed in ${root_id}`);
 
                     MODIFIED = true;
                 }
@@ -385,7 +385,7 @@ function optimizeState(state: IRStateData, states: StateMap) {
 
                 sub_instructions.splice(index, 1);
 
-                optimize_logger.debug(`1 redundant production assignment removed in ${root_id}`);
+                optimize_logger.debug(`[8] 1 redundant production assignment removed in ${root_id}`);
 
                 MODIFIED = true;
             }
@@ -525,7 +525,7 @@ function optimizeState(state: IRStateData, states: StateMap) {
 
                 state.attributes |= attributes;
 
-                optimize_logger.debug(`${root_id} upgraded to branch state from ${first_goto.state}`);
+                optimize_logger.debug(`[9] ${root_id} upgraded to branch state from ${first_goto.state}`);
 
                 MODIFIED = true;
             }
@@ -642,6 +642,8 @@ export function garbageCollect(StateMap: StateMap, grammar: GrammarObject,) {
                 }
             }
         } catch (e) {
+            console.log(name);
+            console.error(e);
             console.log(state.string);
             throw e;
         }
