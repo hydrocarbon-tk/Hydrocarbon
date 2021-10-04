@@ -3,7 +3,6 @@ import { exp, JSNodeClass, JSNodeType, renderCompressed } from "@candlelib/js";
 import { ir_reduce_numeric_len_id } from '../../build/magic_numbers.js';
 import { ENVFunctionRef, GrammarObject, LocalFunctionRef, ProductionFunction } from "../../types/grammar_nodes";
 import { InstructionType, IR_Instruction } from '../../types/ir_types';
-import { render_grammar } from './common.js';
 
 
 export function createJSFunctionsFromExpressions(grammar: GrammarObject, error) {

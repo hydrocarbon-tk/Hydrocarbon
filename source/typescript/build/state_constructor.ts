@@ -27,7 +27,7 @@ export function constructProductionStates(
 } {
 
     /*  
-    if (production.name == "tok_css__declaration_values") {
+    if (production.name == "tok_comment_list_7") {
         // debugger; 
     }
     else {
@@ -589,7 +589,6 @@ function generateSingleStateAction(
 
             const production_symbol = symbols.filter(Sym_Is_A_Production)[0];
 
-            const assertion_symbols = <TokenSymbol[]>symbols.filter(s => !Sym_Is_A_Production(s));
             action_string =
                 f`${4}
                     goto state [ ${production_symbol.name} ]${postamble}

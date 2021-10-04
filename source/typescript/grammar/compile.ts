@@ -1,4 +1,5 @@
 import URI from "@candlelib/uri";
+import "../utilities/array_globals.js";
 import { DefinedSymbol, GeneralProductionNode, GrammarObject, HCG3ProductionBody, ProductionNode, TokenSymbol } from "../types/grammar_nodes";
 import { HCGParser } from "../types/parser";
 import { Sym_Is_A_Generic_Symbol, Sym_Is_A_Production, Sym_Is_A_Production_Token, Sym_Is_Defined } from './nodes/symbol.js';

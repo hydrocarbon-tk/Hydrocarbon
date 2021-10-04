@@ -109,7 +109,6 @@ export async function createBuildPack(
                     //@ts-ignore
                     ir_state_ast.instructions[0].type = InstructionType.fall_through;
                 }
-
             }
         }
     }

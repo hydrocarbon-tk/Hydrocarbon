@@ -355,7 +355,6 @@ function mergeStates(type, states: TransitionForestStateA[]): TransitionForestSt
     if (symbols.length > 1)
         resolved_symbols = resolved_symbols.filter(Sym_Is_Defined);
 
-
     return {
         USED: false,
 

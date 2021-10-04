@@ -36,7 +36,7 @@ type lexer_token_offset = number;
 type lexer_token_length = number;
 type production_id = number;
 
-let state_history = [];
+export let state_history = [];
 
 
 /////////////////////////////////////////////
@@ -1208,8 +1208,7 @@ export function run(
     input_byte_length: number,
     state_pointer: number,
     scanner_function: ScannerFunction,
-    enable_history: boolean = false,
-    history_array: any[] = null
+    enable_history: boolean = false
 ): { invalid: KernelStateBuffer, valid: KernelStateBuffer; } {
 
     let valid = new KernelStateBuffer;
@@ -1223,12 +1222,7 @@ export function run(
         scanner_function
     );
 
-    if (history_array) {
-        state_history = history_array;
-        state_history.length = 0;
-    } else {
-        state_history = [];
-    }
+    state_history.length = 0;
 
     //Logger.get("HC-Kernel-Debug").deactivate();
 
@@ -1278,6 +1272,5 @@ export function run(
 
     }
 
-    //state_history.length = 0;
     return { invalid, valid };
 };;
