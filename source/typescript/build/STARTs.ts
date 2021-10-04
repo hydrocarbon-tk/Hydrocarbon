@@ -181,10 +181,13 @@ function extractSTARTCandidates2(
         while (!no_fly.has(top_prod)) {
             const ps = reverse_lookups.filter(i => i[0] == top_prod);
 
-            if (ps.length < 1 || ps.length > 1 || seen.has(ps[0][1]) || no_fly.has(ps[0][1]))
+            if (ps.length < 1 || ps.length > 1 || no_fly.has(ps[0][1]))
                 break;
 
             top_prod = ps[0][1];
+
+            if (seen.has(top_prod))
+                break;
 
             seen.add(top_prod);
         }
@@ -194,60 +197,24 @@ function extractSTARTCandidates2(
 
     //For every other production, add their callers to the START_candidate_set. 
     for (const p of fly_list) {
-        START_candidate_set.push(...production_groups.get(p));
+        const starts =
+            closure.filter(
+                i =>
+                    Sym_Is_A_Production(i.sym(grammar))
+                    &&
+                    i.getProductionAtSymbol(grammar).id == p
+            ).filter(i => i.getProductionID(grammar) != p);
+
+        if (starts.length > 0) {
+            START_candidate_set.push(...starts);
+        } else {
+            START_candidate_set.push(
+                ...production_groups.get(p).filter(i => i.getProductionAtSymbol(grammar)?.id != p));
+        }
     }
 
     return START_candidate_set.setFilter(i => i.id);
 }
-
-function extractSTARTCandidates(
-    root_productions: Set<number>,
-    candidate_item: Item,
-    START_candidate_set: Item[],
-    grammar: GrammarObject,
-    check_items: Set<string> = new Set
-) {
-    // Check for recursion with root candidate. If 
-    // known is found than the candidate is available
-    // for use with the original grammar. 
-    const closure = getClosure([candidate_item], grammar);
-    if (closure.some(i => root_productions.has((i.getProductionAtSymbol(grammar)?.id ?? -1)))
-        ||
-        closure.every(i => Sym_Is_A_Production(i.sym(grammar)))
-        ||
-        closure.some(i => grammar.item_map.get(i.id).excludes.length > 0)
-    ) {
-
-        const production_candidate = grammar.productions[candidate_item.getProductionAtSymbol(grammar).id];
-
-        const initial_candidates = getStartItemsFromProduction(production_candidate);
-
-        START_candidate_set.push(
-            ...initial_candidates.filter(i => !Sym_Is_A_Production(i.sym(grammar)))
-        );
-
-        const descend_candidates = initial_candidates.filter(
-            i => Sym_Is_A_Production(i.sym(grammar))
-                && !root_productions.has(i.getProductionID(grammar))
-                && !check_items.has(i.id)
-        );
-
-        for (const descend_candidate of descend_candidates) {
-            check_items.add(descend_candidate.id);
-            extractSTARTCandidates(
-                root_productions,
-                descend_candidate,
-                START_candidate_set,
-                grammar,
-                check_items
-            );
-        }
-
-    } else {
-        START_candidate_set.push(candidate_item);
-    }
-}
-
 
 export function isRecursive(
     root_production: number,
