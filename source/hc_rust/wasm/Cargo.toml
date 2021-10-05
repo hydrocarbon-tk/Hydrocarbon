@@ -5,7 +5,7 @@ edition = "2018"
 
 [lib]
 crate-type = ["cdylib"]
-path = "src/wasm_entry.rs"
+path = "../source/wasm_entry.rs"
 
 [dependencies]
 js-sys = "0.3.52"

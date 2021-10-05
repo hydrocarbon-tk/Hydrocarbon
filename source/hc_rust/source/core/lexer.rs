@@ -67,6 +67,7 @@ impl Lexer {
                         get_utf8_code_point_at(self.byte_offset as usize, self.input);
 
                     self.byte_length = get_ut8_byte_length_from_code_point(code_point) as u16;
+                    self.token_length = get_token_length_from_code_point(code_point) as u16;
 
                     _type = get_type_at(code_point);
                 }
@@ -77,21 +78,24 @@ impl Lexer {
 
     pub fn isSym(&mut self, USE_UNICODE: bool) -> bool {
         if (self._type) == 0 && self.getType(USE_UNICODE) == 2 {
-            self._type = 2;
+            let code_point = get_utf8_code_point_at(self.byte_offset, self.input);
+            self.byte_length = get_ut8_byte_length_from_code_point(code_point) as u16;
+            self.token_length = get_token_length_from_code_point(code_point) as u16;
+            return true;
         };
         return (self._type) == 2;
     }
 
     pub fn isNL(&mut self) -> bool {
         if (self._type) == 0 && (self.current_byte) == 10 || (self.current_byte) == 13 {
-            self._type = 7;
+            return true;
         };
         return (self._type) == 7;
     }
 
     pub fn isSP(&mut self, USE_UNICODE: bool) -> bool {
         if (self._type) == 0 && (self.current_byte) == 32 {
-            self._type = 8;
+            return true;
         };
         return (self._type) == 8;
     }
@@ -99,8 +103,8 @@ impl Lexer {
     pub fn isNum(&mut self) -> bool {
         if (self._type) == 0 {
             if self.getType(false) == 5 {
-                let l: usize = self.input.len() as usize;
 
+                let l: usize = self.input.len() as usize;
                 let mut off: usize = self.byte_offset as usize;
 
                 while off < l {
@@ -111,7 +115,7 @@ impl Lexer {
                     self.byte_length += 1;
                     self.token_length += 1;
                 }
-                self._type = 5;
+                
                 return true;
             } else {
                 return false;
@@ -124,11 +128,16 @@ impl Lexer {
     pub fn isUniID(&mut self) -> bool {
         if (self._type) == 0 {
             if self.getType(true) == 3 {
+                
+                self.byte_length = 1;
+                self.token_len = 1;
+                
                 let l: usize = self.input.len() as usize;
 
                 let off: usize = self.byte_offset as usize;
 
                 let mut prev_byte_len: usize = self.byte_length as usize;
+                let mut prev_token_len: usize = self.token_len as usize;
 
                 while (off + self.byte_length as usize) < l {
                     let code_point = get_utf8_code_point_at(
@@ -138,8 +147,9 @@ impl Lexer {
 
                     if ((96) & CHAR_LU_TABLE[code_point as usize]) > 0 {
                         self.byte_length += get_ut8_byte_length_from_code_point(code_point) as u16;
+                        self.token_length += get_token_length_from_code_point(code_point)  as u16;
                         prev_byte_len = self.byte_length as usize;
-                        self.token_length += 1;
+                        prev_token_len += self.token_length as usize;
                     } else {
                         {
                             break;
@@ -147,7 +157,7 @@ impl Lexer {
                     };
                 }
                 self.byte_length = prev_byte_len as u16;
-                self._type = 3;
+                self.token_len = prev_token_len as u16;
                 return true;
             } else {
                 return false;
@@ -168,17 +178,37 @@ impl Lexer {
         self.byte_length = source.byte_length;
         self.token_length = source.token_length;
         self.token_offset = source.token_offset;
-        self.prev_byte_offset = source.prev_byte_offset;
-        self.prev_byte_offset = self.prev_token_offset;
+        self.prev_byte_offset = source.byte_offset;
+        self.prev_byte_offset = source.token_offset;
         self.line = source.line;
         self._type = source._type;
         self.current_byte = source.current_byte;
-        self.active_token_productions = self.active_token_productions;
+        self.active_token_productions = source.active_token_productions;
     }
+    
+    pub fn sync_offsets(&mut self) {
+        self.prev_byte_offset = self.byte_offset;
+        self.prev_token_offset = self.token_offset;
+    }
+
+    pub fn peek_unroll_sync(&mut self, source: &Lexer) {
+        self.byte_offset = source.byte_offset;
+        self.byte_length = source.byte_length;
+        self.token_length = source.token_length;
+        self.token_offset = source.token_offset;
+        self.prev_byte_offset = source.prev_byte_offset;
+        self.prev_byte_offset = source.prev_token_offset;
+        self.line = source.line;
+        self._type = source._type;
+        self.current_byte = source.current_byte;
+        self.active_token_productions = source.active_token_productions;
+    }
+
     pub fn set_token_span_to(&mut self, source: &Lexer) {
+        if source.prev_byte_offset > self.byte_offset {
         self.byte_length = (source.prev_byte_offset - self.byte_offset) as u16;
         self.token_length = (source.prev_token_offset - self.token_offset) as u16;
-        self._type = source._type;
+        }
     }
 
     pub fn next(&mut self) {
@@ -210,7 +240,7 @@ impl Lexer {
 // OTHER FUNCTIONS
 /////////////////////////////////////////////
 
-fn get_ut8_byte_length_from_code_point(code_point: u32) -> u8 {
+fn get_ut8_byte_length_from_code_point(code_point: u32) -> u32 {
     if (code_point) == 0 {
         return 1;
     } else if (code_point & 0x7F) == code_point {
@@ -224,6 +254,12 @@ fn get_ut8_byte_length_from_code_point(code_point: u32) -> u8 {
     }
 }
 
+fn get_token_length_from_code_point(code_point: u32): -> u32 {
+    if code_point > 0xFFFF
+        {return 2;}
+    return 1;
+}
+
 fn get_utf8_code_point_at(index: usize, buffer: &[u8]) -> u32 {
     let a: u32 = buffer[(index + 0)] as u32;
     let mut b: u32 = buffer[(index + 1)] as u32;
@@ -232,20 +268,16 @@ fn get_utf8_code_point_at(index: usize, buffer: &[u8]) -> u32 {
 
     let flag: u32 = a << 24 | b << 16 | c << 8 | d;
 
-    if flag & 0x80000000 > 0 {
-        b &= 0x3F;
-
-        if (flag & 0xE0C00000) == 0xC0800000 {
+    if (flag & 0x80000000) > 0 {
+        if ((flag & 0xE0C00000) == 0xC0800000) {
             return ((a & 0x1F) << 6) | b;
         }
-        c &= 0x3F;
 
-        if (flag & 0xF0C0C000) == 0xE0808000 {
+        if ((flag & 0xF0C0C000) == 0xE0808000) {
             return ((a & 0xF) << 12) | (b << 6) | c;
         }
-        d &= 0x3F;
 
-        if (flag & 0xF8C0C0C0) == 0xF0808080 {
+        if ((flag & 0xF8C0C0C0) == 0xF0808080) {
             return ((a & 0x7) << 18) | (b << 12) | (c << 6) | d;
         }
     } else {
