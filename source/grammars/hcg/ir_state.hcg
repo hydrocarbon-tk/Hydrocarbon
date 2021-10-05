@@ -114,7 +114,11 @@
     |   t:fail
                                             f:r { { type:"fail", pos } }
 
-    |   t:not t:within t:scopes \[   (  g:num f:r{ parseInt($1) }  )(+)    \]
+    |   t:not t:within t:scopes \[   ( 
+                        g:num f:r{ parseInt($1) } 
+                |       sym::production_symbol
+            )(+)     
+        \]
                                             f:r { { type:"not-in-scopes", ids:$5, pos } }
                                   
     |   t:set t:scope t:to ( 
