@@ -100,6 +100,17 @@ export class Token {
     throw(message, source = "") {
         throw this.createError(message, source);
     }
+    /**
+     * Return the source string with the section covered 
+     * by this token replaced with the given string.
+     */
+    replace(replacement_string: string) {
+        return [
+            this.source.slice(0, this.off),
+            replacement_string,
+            this.source.slice(this.off + this.len)
+        ].join("");
+    }
 };
 
 
