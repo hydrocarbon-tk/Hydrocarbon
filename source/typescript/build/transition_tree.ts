@@ -95,7 +95,7 @@ export interface TransitionForestGraph {
 
     state: TransitionForestStateA;
 }
-function removeLeftRecuposrsiveItems(roots: Item[], root_closure: Item[], grammar: GrammarObject): Item[] {
+function removeLeftRecursiveItems(roots: Item[], root_closure: Item[], grammar: GrammarObject): Item[] {
     const root_prods = new Set(roots.map(i => i.getProductionID(grammar)));
 
     return root_closure
