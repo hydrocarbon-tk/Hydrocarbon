@@ -143,7 +143,7 @@ function convertObjectLiteralNodeToCPPClassNode(obj_literal: JSObjectLiteral, bo
                         break;
                     }
                 default:
-                    throw new Error("Unable to convert type object literal type :" + node.pos.toString());
+                    throw new Error("Unable to convert type object literal type :" + node.tok.toString());
 
             }
         }

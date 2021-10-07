@@ -10,12 +10,12 @@
 
     scan until [ \r ] 
         then set prod to A
-        then reduce f:r { { type:"failed A", pos, sym } } 
+        then reduce f:r { { type:"failed A", tok, sym } } 
 
     on fail state [ A_scan_backward ] 
 
         scan back until [ g:sp ] 
-            then reduce f:r { { type:"failed A", pos } } 
+            then reduce f:r { { type:"failed A", tok } } 
             then set prod to A
 >
 

@@ -136,14 +136,14 @@ function buildScannerProductions(grammar: GrammarObject) {
                     type: "production",
                     name: "symbol--" + val,
                     bodies: [],
-                    pos: sym.pos
+                    tok: sym.tok
                 };
                 const body_symbols = sym.val.split("").map(i => {
                     return <DefinedSymbol>{
                         type: "token",
                         val: i,
                         id: [i.codePointAt(0)],
-                        pos: sym.pos
+                        tok: sym.tok
                     };
                 });
 

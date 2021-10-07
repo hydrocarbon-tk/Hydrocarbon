@@ -95,7 +95,7 @@ export interface TransitionForestGraph {
 
     state: TransitionForestStateA;
 }
-function removeLeftRecursiveItems(roots: Item[], root_closure: Item[], grammar: GrammarObject): Item[] {
+function removeLeftRecuposrsiveItems(roots: Item[], root_closure: Item[], grammar: GrammarObject): Item[] {
     const root_prods = new Set(roots.map(i => i.getProductionID(grammar)));
 
     return root_closure
@@ -556,7 +556,7 @@ function createPeekTreeStates(
                     origin_state.symbols.push({
                         type: SymbolType.PRODUCTION,
                         name: grammar.productions[id].name,
-                        pos: null,
+                        tok: null,
                         meta: null,
                         val: id
                     });

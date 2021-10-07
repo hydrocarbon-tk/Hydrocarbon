@@ -40,7 +40,7 @@ export const enum SymbolType {
 export type HCG3TokenPosition = Token;
 export interface HCGGrammarNode {
     type: string;
-    pos?: Token;
+    tok?: Token;
 }
 
 
@@ -236,7 +236,7 @@ export interface SymbolNode extends HCGGrammarNode {
     subtype?: string;
     opt_id?: bigint;
     precedence?: number;
-    pos: Token;
+    tok: Token;
     meta: boolean;
     id?: number;
     annotation?: string;

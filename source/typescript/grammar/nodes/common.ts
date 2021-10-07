@@ -154,7 +154,7 @@ export function createProductionSymbol(name: string, IS_OPTIONAL: number = 0, ma
         name: name,
         IS_NON_CAPTURE: false,
         IS_OPTIONAL: IS_OPTIONAL,
-        pos: mapped_sym?.pos ?? createZeroedPosition(),
+        tok: mapped_sym?.tok ?? createZeroedPosition(),
         meta: false
     };
 }
@@ -166,7 +166,7 @@ function createEmptySymbol(): EmptySymbol {
         byte_offset: 0,
         IS_NON_CAPTURE: false,
         IS_OPTIONAL: 0,
-        pos: createZeroedPosition(),
+        tok: createZeroedPosition(),
         meta: false
     };
 }
@@ -180,7 +180,7 @@ export function createProduction(name: string, mapped_sym: HCGGrammarNode = null
         bodies: [],
         id: -1,
         recovery_handler: null,
-        pos: mapped_sym?.pos ?? createZeroedPosition(),
+        tok: mapped_sym?.tok ?? createZeroedPosition(),
         RECURSIVE: 0
     };
 }
@@ -190,7 +190,7 @@ export function createProductionBody(mapped_sym: HCGGrammarNode = null): HCG3Pro
         FORCE_FORK: false,
         id: -1,
         sym: [],
-        pos: mapped_sym?.pos ?? createZeroedPosition(),
+        tok: mapped_sym?.tok ?? createZeroedPosition(),
         reduce_function: null,
     };
 }

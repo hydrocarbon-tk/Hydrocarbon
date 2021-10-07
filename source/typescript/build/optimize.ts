@@ -205,7 +205,7 @@ function optimizeState(state: IRStateData, states: StateMap) {
                             id: <number>assert.ids[0],
                             skipped_ids: <number[]>(symbol_meta?.skipped ?? []),
                             token_ids: <number[]>(symbol_meta?.expected ?? []),
-                            pos: null
+                            tok: null
                         };
 
                         sub_instructions.splice(i, 1, inline_assert, ...assert.instructions);
@@ -293,7 +293,7 @@ function optimizeState(state: IRStateData, states: StateMap) {
 
                 sub_instructions.push({
                     type: InstructionType.repeat,
-                    pos: gotos[0].pos
+                    tok: gotos[0].tok
                 });
 
                 optimize_logger.debug(`[5] Goto ${gotos[0].state} replaced with repeat in ${root_id}`);

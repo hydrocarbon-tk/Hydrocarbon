@@ -19,12 +19,20 @@
     | reduce_function
     | function_clause
 
-<> referenced_function > js_function_start_symbol sym::identifier { js_data }          
+<> referenced_function > js_function_start_symbol sym::reference_symbol? { js_data }          
                                                                     f:r {  { 
                                                                             type:"ref-function",  
                                                                             id:$2,     
                                                                             txt:$4,
-                                                                            pos
+                                                                            tok
+                                                                        }  }
+
+<> out_of_band_function > js_function_start_symbol \^ sym::identifier { js_data }          
+                                                                    f:r {  { 
+                                                                            type:"out_of_band",  
+                                                                            id:$3,     
+                                                                            txt:$5,
+                                                                            tok
                                                                         }  }
 
 <> error_function > js_function_start_symbol t:erh { js_data } { js_data }                    f:r { 
@@ -33,7 +41,7 @@
                                                                         
                                                                             lexer_text:$4, 
                                                                             body_text:$7,
-                                                                            pos
+                                                                            tok
                                                                         }
                                                                     }
 <> reduce_function > js_function_start_symbol ( t:return | t:r ) { js_data }                                 
@@ -44,7 +52,7 @@
                                                                         env:false,
                                                                         ref:"",     
                                                                         IS_CONDITION:true,
-                                                                            pos
+                                                                            tok
                                                                         }
                                                                     }
 
@@ -52,14 +60,14 @@
                                                                      f:r { {
                                                                             type:"env-function-reference",             
                                                                             ref:$4,
-                                                                            pos
+                                                                            tok
                                                                         }
                                                                     }
     | js_function_start_symbol ( t:return | t:r ) \=>  sym::identifier    
                                                                     f:r { {
                                                                             type:"local-function-reference",             
                                                                             ref:$4,
-                                                                            pos
+                                                                            tok
                                                                         } 
                                                                     }
 
@@ -72,7 +80,7 @@
                                                                             name:"",     
                                                                             env:false,
                                                                             IS_CONDITION:true,
-                                                                            pos
+                                                                            tok
                                                                         }
                                                                     }
 
@@ -83,7 +91,7 @@
                                                                         name:$3,     
                                                                         env:true,
                                                                         IS_CONDITION:true,
-                                                                        pos
+                                                                        tok
                                                                         }
                                                                     }
 
@@ -100,5 +108,5 @@
 
 <> js_data_block > \{ js_data \}                                    f:r { $1 + $2 + $3 }
 
-<> js_function_start_symbol > \f:                                   f:r { "FN:F" }
+<> js_function_start_symbol > \f:                                  
     

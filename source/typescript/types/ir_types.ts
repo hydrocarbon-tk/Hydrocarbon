@@ -21,7 +21,7 @@ export interface BaseIRState {
         skipped: (number | TokenSymbol)[];
     };
     fail?: FailedIRState | ResolvedFailedIRState;
-    pos: Token;
+    tok: Token;
 }
 export interface FailedIRState extends BaseIRState {
     type: "on-fail-state";
@@ -75,7 +75,7 @@ export interface ResolvedIRBranch {
 }
 export interface Base_IR_Instruction {
     type: InstructionType;
-    pos: Token;
+    tok: Token;
 }
 export interface IRTokenBranch {
     ids: (number | TokenSymbol)[];

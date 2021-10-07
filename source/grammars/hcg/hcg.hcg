@@ -98,7 +98,8 @@
                                 meta:null,
                                 ignore:[],
                                 all_symbols:[],
-                                bodies:[]
+                                bodies:[],
+                                tok
                                 } }
 
 # Action functions can be defined at the end of production bodies to add custom parsing behavior

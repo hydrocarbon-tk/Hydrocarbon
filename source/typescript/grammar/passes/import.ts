@@ -212,7 +212,7 @@ function resolveLocalReferencedFunctions(body: HCG3ProductionBody, local_grammar
                 body.reduce_function = <any>Object.assign({}, resolved_fn, { type: "RETURNED" });
 
             else
-                fn.pos.throw(`Could not resolve referenced function [${fn.ref}]`);
+                fn.tok.throw(`Could not resolve referenced function [${fn.ref}]`);
 
         }
     }
@@ -375,12 +375,12 @@ function throwProductionNotFound(sym: ProductionImportSymbol, imported: {
     //@ts-ignore
     grammar: GrammarObject;
 }, local_grammar: GrammarObject) {
-    sym.pos.throw(`Unable to import production [${sym.production}] from [${sym.module}]\n ( alias of file://${imported.uri} ):
+    sym.tok.throw(`Unable to import production [${sym.production}] from [${sym.module}]\n ( alias of file://${imported.uri} ):
     Production was not found.`, local_grammar.URI + "");
 }
 
 function throwModuleNotFound(sym: ProductionImportSymbol, local_grammar: GrammarObject) {
-    sym.pos.throw(`Could not find module ${sym.module}. 
+    sym.tok.throw(`Could not find module ${sym.module}. 
     Available imported modules within this context are [${[...local_grammar.imported_grammars.values()].map(i => i.reference)}]`
         , local_grammar.URI + "");
 

@@ -485,10 +485,10 @@ export function processSymbol(
 
 
 function addProductionNotFoundError(errors: Error[], sym: ProductionSymbol | ProductionTokenSymbol) {
-    const pos = sym.pos;
+    const tok = sym.tok;
 
-    if (pos.createError) {
-        errors.push(pos.createError(
+    if (tok.createError) {
+        errors.push(tok.createError(
             `Production [${sym.name}] not found`
         ));
     } else {

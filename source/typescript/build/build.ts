@@ -65,7 +65,7 @@ export async function createBuildPack(
             }
         ),
         ...grammar.ir_states.map(ir => [
-            ir.pos.slice(),
+            ir.tok.slice(),
             ir
         ])
     ])
@@ -210,7 +210,7 @@ function insertIrStateBlock(
     });
 
     if (ir_state_ast.fail)
-        insertIrStateBlock(ir_state_ast.fail, ir_state_ast.fail.pos.slice(), grammar, states_map, StateAttrib.FAIL_STATE);
+        insertIrStateBlock(ir_state_ast.fail, ir_state_ast.fail.tok.slice(), grammar, states_map, StateAttrib.FAIL_STATE);
 }
 
 function convertBlockDataToBufferData(state_data: IRStateData, state_map: StateMap): number[] {

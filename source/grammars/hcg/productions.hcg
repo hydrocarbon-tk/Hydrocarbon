@@ -21,11 +21,11 @@
 ########################################################################################################################
 
 <>  productions > production                                          
-                                                            f:r {  { type:"production-section", functions:[], productions:[$1], ir:[], pos  } }
+                                                            f:r {  { type:"production-section", functions:[], productions:[$1], ir:[], tok  } }
     | fn::referenced_function                                    
-                                                            f:r {  { type:"production-section", functions:[$1], productions:[], ir:[], pos  } }
+                                                            f:r {  { type:"production-section", functions:[$1], productions:[], ir:[], tok  } }
     | ir::grammar_injection
-                                                            f:r {  { type:"production-section", functions:[], productions:[], ir:[$1], pos  } }
+                                                            f:r {  { type:"production-section", functions:[], productions:[], ir:[$1], tok  } }
     | productions production                                  
                                                             f:r {  $1.productions.push($2), $1 }
     | productions fn::referenced_function                        
@@ -37,12 +37,12 @@
 <> production > \<> \! ? sym::production_symbol \>  pb::production_bodies? 
                                                                         
                                                             f:r { {
-                                                                type:"production", priority: $$2 ? 1000 : 0, symbol:$3, bodies:$$5, id:-1, pos
+                                                                type:"production", priority: $$2 ? 1000 : 0, symbol:$3, bodies:$$5, id:-1, tok
                                                             } }
 
     | \+> sym::production_symbol  \>  pb::production_bodies
 
                                                             f:r { {
-                                                                type:"production-merged", symbol:$2, bodies:$4, id:-1, pos
+                                                                type:"production-merged", symbol:$2, bodies:$4, id:-1, tok
                                                             } }
         

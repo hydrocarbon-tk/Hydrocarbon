@@ -8,7 +8,7 @@ import { instruction_pointer_mask } from '../runtime/kernel_new.js';
 import { createBuildPack } from '../build/build.js';
 import { compileGrammarFromString } from '../grammar/compile.js';
 import { compare, init_table, KernelState, KernelStateIterator, run, token_production } from '../runtime/kernel_new.js';
-import { ParserFramework } from '../runtime/parser_framework.js';
+import { ParserFramework } from '../runtime/parser_framework_new.js';
 import { fillByteBufferWithUTF8FromString } from '../runtime/utf8.js';
 import { skRenderAsJavaScript } from '../skribble/skribble.js';
 import { GrammarObject } from '../types/grammar_nodes';

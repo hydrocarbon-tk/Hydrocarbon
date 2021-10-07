@@ -79,12 +79,13 @@ function processReduceFunction(
 
 
         if (fn.type == "env-function-reference") {
-            js = fn.js = `(env, sym, pos)=> env.functions.${fn.ref} (env, sym, pos)`;
-            //continue;
+            //@ts-ignore
+            js = fn.js = `(env, sym, tok)=> env.functions.${fn.ref} (env, sym, tok)`;
+            //@ts-ignore
         } else if (!fn.txt) {
             fn = null;
         } else {
-
+            //@ts-ignore
             const expression = exp(`(${fn.txt.replace(/(\${1,2}\d+)/g, "$1_")})`);
 
             const receiver = { ast: null };
@@ -161,8 +162,6 @@ function processReduceFunction(
 
                         if (IS_NULLIFY_SYM)
                             replace(exp("null"));
-
-
                         else
                             replace(null, true);
 
@@ -200,7 +199,7 @@ function processReduceFunction(
             const text = renderCompressed(receiver.ast);
 
             if (text)
-                js = `(env, sym, pos)=> ${text} `;
+                js = `(env, sym, tok)=> ${text} `;
             else js = "";
         }
     }

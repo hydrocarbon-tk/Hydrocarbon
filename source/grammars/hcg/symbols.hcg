@@ -32,9 +32,9 @@
 
 <> annotated_symbol > symbol    
 
-    |   symbol \^ annotation_identifier
+    |   symbol reference_symbol
         
-        f:r { ($1.annotation = $3, $1) }
+        f:r { ($1.annotation = $2, $1) }
 
 <> symbol > 
 
@@ -44,7 +44,7 @@
     
     |   \<= symbol           
         
-        f:r { { type:"look-behind", val:$2.val, phased: $2, pos } }
+        f:r { { type:"look-behind", val:$2.val, phased: $2, tok } }
 
     |   \?= symbol
         
@@ -58,17 +58,17 @@
 
     |   symbol ( \(+ | \(* )  terminal_symbol?  \)
         
-        f:r { { type:"list-production", terminal_symbol:$$3, IS_OPTIONAL:+($2 == "(*"), val:$1, pos:pos, meta:false } }
+        f:r { { type:"list-production", terminal_symbol:$$3, IS_OPTIONAL:+($2 == "(*"), val:$1, tok, meta:false } }
 
 <> group_symbol > \( pb::production_bodies \)        
           
-        f:r { { type:"group-production", val:$2, pos:pos, meta:false } }  
+        f:r { { type:"group-production", val:$2, tok, meta:false } }  
 
 <> production_token_symbol > 
     
     \tk: production_symbol       
     
-        f:r { { type:"production_token", name:$2.name, production:$2, val:-1, pos:pos, meta:false } }
+        f:r { { type:"production_token", name:$2.name, production:$2, val:-1, tok, meta:false } }
 
 <> production_symbol >
 
@@ -88,53 +88,58 @@
 
     |   production_token_symbol     
 
+<> reference_symbol > tk:reference_symbol_token
+
+        f:r { { type:"reference", val:tok.slice(), tok } }
+
+<> reference_symbol_token > \^ sym::identifier
 
 <> EOF_symbol > 
     
     \$eof
     
-        f:r { { type:"eof", val:"END_OF_FILE", pos:pos, meta:false } }
+        f:r { { type:"eof", val:"END_OF_FILE", tok, meta:false } }
 
 <> empty_symbol > 
     
     \$empty
     
-        f:r { { type:"empty", val:"", pos:pos, meta:false } }
+        f:r { { type:"empty", val:"", tok, meta:false } }
 
 <> generated_symbol > 
     
     \g: tk:identifier_syms
     
-        f:r { { type:"generated", val:$2, pos:pos, meta:false } }
+        f:r { { type:"generated", val:$2.toString(), tok, meta:false } }
 
 <> literal_symbol > 
     
         \t: ( g:id | g:num )(+\" ) sym_delimiter? 
           
-        f:r { { type:"exclusive-literal", val:""+$2, pos:pos, meta:false, annotation:null } }
+        f:r { { type:"exclusive-literal", val:$2.toString(), tok, meta:false, annotation:null } }
     
     |   ( g:sym | g:num )(+\" )
 
-        f:r { { type:"literal", val:$1, pos:pos, meta:false, annotation:null } }
+        f:r { { type:"literal", val:$1.toString(), tok, meta:false, annotation:null } }
 
 
 <> escaped_symbol > 
     
     \\ ( g:id | g:sym | g:num )(+\" ) sym_delimiter           
     
-        f:r { { type:"literal", val:$2, pos:pos, meta:false, annotation:null } }
+        f:r { { type:"literal", val:$2.toString(), tok, meta:false, annotation:null } }
 
 <> local_production_symbol > 
     
     tk:identifier_syms
         
-        f:r { { type:"sym-production", name:$1, production:null, val:-1, pos:pos, meta:false, annotation:null } }
+        f:r { { type:"sym-production", name:$1.toString(), production:null, val:-1, tok, meta:false, annotation:null } }
 
 <> imported_production_symbol > 
 
     tk:identifier_syms \:: tk:identifier_syms
         
-        f:r { { type:"sym-production-import", module:$1, name:$3,  production:null, pos:pos, meta:false, annotation:null } } 
+        f:r { { type:"sym-production-import", module:$1.toString(), name:$3.toString(),  production:null, tok, meta:false, annotation:null } } 
 
 <> annotation_identifier > ( g:sym | g:id | g:num )(+\" ) g:sp? f:r { $1 }
 
@@ -166,13 +171,13 @@
         
         \(EXC condition_symbol_list \)
 
-        f:r { { type:"meta-exclude", sym : $2, meta:true, index:-1, pos:pos} }
+        f:r { { type:"meta-exclude", sym: $2, meta:true, index:-1, tok} }
 
     |   \(IGN condition_symbol_list \)    
 
-        f:r { { type:"meta-ignore",  sym : $2, meta:true, index:-1, pos:pos} }
+        f:r { { type:"meta-ignore",  sym: $2, meta:true, index:-1, tok} }
 
     |   \(RST condition_symbol_list \)
 
-        f:r { { type:"meta-reset",   sym : $2, meta:true, index:-1, pos:pos} }
+        f:r { { type:"meta-reset",   sym: $2, meta:true, index:-1, tok} }
 
