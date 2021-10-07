@@ -14,26 +14,44 @@
 ######################################  FUNCTIONS
 ########################################################################################################################
 
-<> hcg_functions > referenced_function
-    | error_function
-    | reduce_function
-    | function_clause
+<> hcg_functions > 
+        out_of_band_function
+    |   error_function
+    |   reduce_function
+    |   function_clause
 
-<> referenced_function > js_function_start_symbol sym::reference_symbol? { js_data }          
+<> out_of_band_function > 
+
+        js_function_start_symbol sym::reference_symbol { js_data } 
+                 
                                                                     f:r {  { 
-                                                                            type:"ref-function",  
-                                                                            id:$2,     
+                                                                            type:"out_of_band",  
+                                                                            reference:$2,     
                                                                             txt:$4,
                                                                             tok
                                                                         }  }
 
-<> out_of_band_function > js_function_start_symbol \^ sym::identifier { js_data }          
+    |   js_function_start_symbol sym::production function_body_index? { js_data } 
+
                                                                     f:r {  { 
                                                                             type:"out_of_band",  
-                                                                            id:$3,     
+                                                                            production:$2,
+                                                                            index:$3 || [0],
                                                                             txt:$5,
                                                                             tok
                                                                         }  }
+    |    js_function_start_symbol sym::production function_body_index? \^ sym::production
+
+                                                                    f:r {  { 
+                                                                            type:"out_of_band",  
+                                                                            production:$2,
+                                                                            index:$3 || 0,
+                                                                            reference:$5,
+                                                                            tok
+                                                                        }  }      
+<> function_body_index > ( \. ( g:num | \* ) f:r{ $1.toString() == "*" ? Infinity : parseInt($1.toString()) } )(+)
+
+                                                                                              
 
 <> error_function > js_function_start_symbol t:erh { js_data } { js_data }                    f:r { 
                                                                        { 
@@ -56,24 +74,17 @@
                                                                         }
                                                                     }
 
-     | js_function_start_symbol ( t:return | t:r ) \^  sym::identifier     
+     | js_function_start_symbol ( t:return | t:r ) sym::reference_symbol     
                                                                      f:r { {
                                                                             type:"env-function-reference",             
-                                                                            ref:$4,
+                                                                            ref:$3,
                                                                             tok
                                                                         }
-                                                                    }
-    | js_function_start_symbol ( t:return | t:r ) \=>  sym::identifier    
-                                                                    f:r { {
-                                                                            type:"local-function-reference",             
-                                                                            ref:$4,
-                                                                            tok
-                                                                        } 
                                                                     }
 
 <> function_clause > 
     
-    (js_function_start_symbol f:r { $1+"DD" }) { js_data }                                 
+    js_function_start_symbol { js_data }                                 
                                                                     f:r { { 
                                                                             type:"function-inline",     
                                                                             txt:$3, 
@@ -84,11 +95,11 @@
                                                                         }
                                                                     }
 
-    | (js_function_start_symbol f:r { $1+"DD" }) \^ sym::identifier                             
+    | js_function_start_symbol  sym::reference_symbol                            
                                                                     f:r {
                                                                         {type:"INLINE",     
                                                                         txt:"", 
-                                                                        name:$3,     
+                                                                        name:$2,     
                                                                         env:true,
                                                                         IS_CONDITION:true,
                                                                         tok

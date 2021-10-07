@@ -1,0 +1,10 @@
+<div>
+    <h5><pre>g:sp</pre></h5>
+    <p>
+    Space characters. These include ASCII character code 32
+    </p>
+    <h5><pre>g:sp</pre></h5>
+    <p>
+    Ignore all space characters. These include ASCII character code 32
+    </p>
+</div>

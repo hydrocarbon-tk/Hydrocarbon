@@ -58,17 +58,17 @@
 
     |   symbol ( \(+ | \(* )  terminal_symbol?  \)
         
-        f:r { { type:"list-production", terminal_symbol:$$3, IS_OPTIONAL:+($2 == "(*"), val:$1, tok, meta:false } }
+        f:r { { type:"list-production", terminal_symbol:$$3, IS_OPTIONAL:+($2 == "(*"), val:$1, tok, meta:false, annotation:null } }
 
 <> group_symbol > \( pb::production_bodies \)        
           
-        f:r { { type:"group-production", val:$2, tok, meta:false } }  
+        f:r { { type:"group-production", val:$2, tok, meta:false, annotation:null } }  
 
 <> production_token_symbol > 
     
     \tk: production_symbol       
     
-        f:r { { type:"production_token", name:$2.name, production:$2, val:-1, tok, meta:false } }
+        f:r { { type:"production_token", name:$2.name, production:$2, val:-1, tok, meta:false, annotation:null } }
 
 <> production_symbol >
 
@@ -92,25 +92,25 @@
 
         f:r { { type:"reference", val:tok.slice(), tok } }
 
-<> reference_symbol_token > \^ sym::identifier
+<> reference_symbol_token > \^ identifier
 
 <> EOF_symbol > 
     
     \$eof
     
-        f:r { { type:"eof", val:"END_OF_FILE", tok, meta:false } }
+        f:r { { type:"eof", val:"END_OF_FILE", tok, meta:false, annotation:null } }
 
 <> empty_symbol > 
     
     \$empty
     
-        f:r { { type:"empty", val:"", tok, meta:false } }
+        f:r { { type:"empty", val:"", tok, meta:false, annotation:null } }
 
 <> generated_symbol > 
     
     \g: tk:identifier_syms
     
-        f:r { { type:"generated", val:$2.toString(), tok, meta:false } }
+        f:r { { type:"generated", val:$2.toString(), tok, meta:false, annotation:null } }
 
 <> literal_symbol > 
     
@@ -171,13 +171,13 @@
         
         \(EXC condition_symbol_list \)
 
-        f:r { { type:"meta-exclude", sym: $2, meta:true, index:-1, tok} }
+        f:r { { type:"meta-exclude", sym: $2, meta:true, index:-1, tok, annotation:null} }
 
     |   \(IGN condition_symbol_list \)    
 
-        f:r { { type:"meta-ignore",  sym: $2, meta:true, index:-1, tok} }
+        f:r { { type:"meta-ignore",  sym: $2, meta:true, index:-1, tok, annotation:null} }
 
     |   \(RST condition_symbol_list \)
 
-        f:r { { type:"meta-reset",   sym: $2, meta:true, index:-1, tok} }
+        f:r { { type:"meta-reset",   sym: $2, meta:true, index:-1, tok, annotation:null} }
 
