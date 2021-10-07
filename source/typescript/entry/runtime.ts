@@ -35,6 +35,8 @@ export * as KernelParserCore2 from "../runtime/kernel_new.js";
 
 export * as ParserCore from "../runtime/core_parser.js";
 
+import { ParserFramework as ParserFrameworkNew } from '../runtime/parser_framework_new.js';
+
 export {
     //Types
     HCGParser,
@@ -50,6 +52,7 @@ export {
     ParserFactoryNext,
     ParserFactoryBeta,
     ParserFactoryGamma,
+    ParserFrameworkNew,
     buildParserMemoryBuffer,
     initializeUTFLookupTableNewPlus,
     initializeUTFLookupTable,

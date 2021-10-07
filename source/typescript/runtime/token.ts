@@ -34,26 +34,22 @@ export class Token {
         line: number = -1
     ) {
         Object.defineProperty(this, 'source', {
-            enumerable: false,
+            enumerable: true,
+            writable: false,
             value: source
         });
         Object.defineProperty(this, 'length', {
-            enumerable: false,
+            enumerable: true,
             value: token_length
         });
         Object.defineProperty(this, 'off', {
-            enumerable: false,
+            enumerable: true,
             value: token_offset
         });
         Object.defineProperty(this, '_line', {
-            enumerable: false,
+            enumerable: true,
             writable: true,
             value: line
-        });
-        Object.defineProperty(this, 'path', {
-            enumerable: false,
-            writable: true,
-            value: source_path
         });
     }
 
@@ -141,7 +137,7 @@ export class Token {
 
         return new Token(
             this.source,
-            this.path,
+            '',
             adjusted_end - adjusted_start,
             adjusted_start,
             this.line
@@ -169,11 +165,11 @@ export class Token {
         return this._line;
     }
 
-    createError(message, source = "") {
+    createError(message, source_path = "") {
 
         const lex = new Lexer(this.source);
 
-        lex.source = source;
+        lex.source = source_path;
 
         lex.off = this.off;
         lex.tl = this.length;

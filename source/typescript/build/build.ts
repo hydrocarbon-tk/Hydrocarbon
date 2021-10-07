@@ -36,10 +36,11 @@ export async function createBuildPack(
     let old_val = -1;
 
     for await (const { COMPLETE, total_jobs, completed_jobs } of mt_code_compiler.run()) {
+
         if (!COMPLETE) {
             const val = Math.round(completed_jobs * 100 / total_jobs);
             if (val != old_val)
-                build_logger.debug(`Runner update ${val}%`);
+                build_logger.rewrite_log(`Productions processed ${val}%`);
             old_val = val;
             await spark.sleep(10);
         }
@@ -65,7 +66,7 @@ export async function createBuildPack(
             }
         ),
         ...grammar.ir_states.map(ir => [
-            ir.tok.slice(),
+            ir.pos.slice(),
             ir
         ])
     ])
@@ -131,15 +132,20 @@ export async function createBuildPack(
 
     if (OPTIMIZE) {
 
-        build_logger.debug("Optimizing States");
+        build_logger.log("Optimizing States");
 
         let round = 0;
 
-        build_logger.debug(`Optimizing State round ${++round}`);
+        //build_logger.debug(`Optimizing State round ${++round}`);
+
         while (optimize(states_map, grammar)) {
-            build_logger.debug(`Reduction ratio ${Math.round((1 - (states_map.size / prev_size)) * 100)}%`);
+            const p = prev_size;
+
             prev_size = states_map.size;
-            build_logger.debug(`Optimizing State round ${++round}`);
+
+            round++;
+
+            build_logger.rewrite_log(`Optimizing State round ${round}: Reduction ratio ${Math.round((1 - (states_map.size / p)) * 100)}%`);
         }
 
         prev_size = original_states.size;
@@ -148,7 +154,7 @@ export async function createBuildPack(
 
         build_logger.debug(`Total reduction ratio ${Math.round((1 - (states_map.size / prev_size)) * 100)}%`);
 
-        build_logger.log(`Optimized ${states_map.size} in ${round - 1} rounds`);
+        build_logger.log(`Optimized ${states_map.size} states in ${round} rounds`);
     }
 
     //Render state strings for later reference
@@ -210,7 +216,7 @@ function insertIrStateBlock(
     });
 
     if (ir_state_ast.fail)
-        insertIrStateBlock(ir_state_ast.fail, ir_state_ast.fail.tok.slice(), grammar, states_map, StateAttrib.FAIL_STATE);
+        insertIrStateBlock(ir_state_ast.fail, ir_state_ast.fail.pos.slice(), grammar, states_map, StateAttrib.FAIL_STATE);
 }
 
 function convertBlockDataToBufferData(state_data: IRStateData, state_map: StateMap): number[] {

@@ -90,7 +90,7 @@
 
 <> reference_symbol > tk:reference_symbol_token
 
-        f:r { { type:"reference", val:tok.slice(), tok } }
+        f:r { { type:"reference", val:tok.slice(1), tok } }
 
 <> reference_symbol_token > \^ identifier
 

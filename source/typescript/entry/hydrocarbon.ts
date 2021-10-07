@@ -37,6 +37,7 @@ import { compileGrammarFromString, compileGrammarFromURI } from "../grammar/comp
 import { HCGParser } from "../types/parser.js";
 import { createAddHocParser } from '../render/create_add_hoc_parser.js';
 import { ParserFramework } from '../runtime/parser_framework.js';
+import { ParserFramework as ParserFrameworkNew } from '../runtime/parser_framework_new.js';
 import { ParserPack } from '../types/parser_framework_types.js';
 
 export {
@@ -48,6 +49,7 @@ export {
 
     //Code
     ParserFramework,
+    ParserFrameworkNew,
 
 
     createAddHocParser,
