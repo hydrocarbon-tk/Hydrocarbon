@@ -11,7 +11,7 @@ import { user_defined_state_mux } from '../grammar/nodes/default_symbols.js';
 import { getRootSym, Sym_Is_A_Token } from '../grammar/nodes/symbol.js';
 import { BuildPack } from "../render/render.js";
 import { fail_state_mask, normal_state_mask } from '../runtime/kernel.js';
-import { Logger } from '../runtime/logger.js';
+import { Logger } from '@candlelib/log';
 import { GrammarObject, ProductionImportSymbol, ProductionSymbol, TokenSymbol } from "../types/grammar_nodes";
 import { IRStateData, StateAttrib, StateMap } from '../types/ir_state_data';
 import { BlockData, InstructionType, IR_Instruction, ResolvedIRBranch, Resolved_IR_State } from '../types/ir_types';

@@ -4,7 +4,7 @@
  * disclaimer notice.
  */
 import URI from '@candlelib/uri';
-import { Logger } from '../../runtime/logger.js';
+import { Logger } from '@candlelib/log';
 import { GrammarObject } from "../../types/grammar_nodes.js";
 import { RDProductionFunction } from "../../types/rd_production_function.js";
 import { WorkerContainer } from "../../types/worker_container";

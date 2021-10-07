@@ -3,7 +3,7 @@
  * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
  * disclaimer notice.
  */
-import { Logger } from '../runtime/logger.js';
+import { Logger } from '@candlelib/log';
 import { sk, skRenderAsJavaScript, skRenderAsRust } from "../skribble/skribble.js";
 import { SKExpression, SKNode } from "../skribble/types/node.js";
 import { GrammarObject } from "../types/grammar_nodes.js";

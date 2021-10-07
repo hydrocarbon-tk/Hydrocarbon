@@ -4,7 +4,7 @@
  * disclaimer notice.
  */
 import { Sym_Is_A_Production_Token } from '../grammar/nodes/symbol.js';
-import { Logger } from '../runtime/logger.js';
+import { Logger } from '@candlelib/log';
 import { GrammarObject, ProductionImportSymbol, ProductionSymbol } from '../types/grammar_nodes';
 import { IRStateData, StateAttrib, StateMap } from '../types/ir_state_data';
 import { InstructionType, IRAssert, IRGoto, IRInlineAssert, IRPeek, IRProductionBranch, IRSetProd, IRTokenBranch, IR_Instruction, IR_State, Resolved_IR_State } from '../types/ir_types';
@@ -604,8 +604,6 @@ export function garbageCollect(StateMap: StateMap, grammar: GrammarObject,) {
 
     for (const name of pending) {
 
-
-
         const state = StateMap.get(name);
 
         marked_map.set(name, true);
@@ -613,7 +611,6 @@ export function garbageCollect(StateMap: StateMap, grammar: GrammarObject,) {
         const names: Set<string> = new Set();
 
         try {
-
 
             const instructions = state.ir_state_ast.instructions.slice();
 

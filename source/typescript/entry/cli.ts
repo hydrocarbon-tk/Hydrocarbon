@@ -22,7 +22,7 @@ import { createBuildPack } from "../build/build.js";
 import { compileGrammarFromURI } from "../grammar/compile.js";
 import { createCompilableCode } from "../grammar/passes/process_compiled_code.js";
 import { renderToJavaScript } from '../render/render.js';
-import { Logger, LogLevel } from '../runtime/logger.js';
+import { Logger, LogLevel } from '@candlelib/log';
 
 
 await URL.server();

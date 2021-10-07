@@ -6,7 +6,7 @@
 
 import { Lexer, init_table, compare } from "./kernel_lexer.js";
 import { i32, u32 } from "../types/ir_types";
-import { Logger } from './logger.js';
+import { Logger } from '@candlelib/log';
 
 export { init_table, compare };
 
