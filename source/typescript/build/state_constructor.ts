@@ -10,7 +10,7 @@ import { TransitionForestStateA, TransitionStateType } from '../types/transition
 import { hashString } from '../utilities/code_generating.js';
 import { getFollow } from '../utilities/follow.js';
 import { Item } from "../utilities/item.js";
-import { getProductionClosure } from '../utilities/production.js';
+import { getProductionClosure, getStartItemsFromProduction } from '../utilities/production.js';
 import { default_case_indicator } from './build.js';
 import { create_symbol_clause } from './create_symbol_clause.js';
 import { getGotoSTARTs, getSTARTs as getSTARTItems } from "./STARTs.js";
@@ -26,9 +26,9 @@ export function constructProductionStates(
     id: number;
 } {
 
-    /*  
-    if (production.name == "tok_comment_list_7") {
-        // debugger; 
+    //*  
+    if (production.name == "__SCANNER__") {
+        debugger;
     }
     else {
         return {
@@ -47,7 +47,10 @@ export function constructProductionStates(
 
     const parse_states: Map<string, string> = new Map;
 
-    const recursive_descent_items = getSTARTItems(production, grammar);
+    const recursive_descent_items = getProductionClosure(production.id, grammar).filter(
+        i => !i.atEND && !Sym_Is_A_Production(i.sym(grammar))
+    );
+    //getSTARTItems(production, grammar);
 
     const goto_item_map = getGotoSTARTs(production, recursive_descent_items, grammar);
 
@@ -167,9 +170,10 @@ export function constructProductionStates(
         }
 
         parse_states.set(goto_hash, goto_function_code.join("\n"));
-        /* 
-                for (const [, state] of parse_states)
-                    console.log(state); */
+        //* 
+        for (const [, state] of parse_states)
+            console.log(state);
+        //*/
 
         return {
             parse_states: parse_states,

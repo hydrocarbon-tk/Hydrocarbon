@@ -139,12 +139,16 @@ export interface GeneralProductionNode extends ProductionNode {
     type: "production",
 }
 
+export interface ScannerProductionNode extends ProductionNode {
+    type: "scanner-production",
+}
+
 export interface MergedProductionNode extends ProductionNode {
     type: "production-merged";
 
 }
 
-export type GrammarProduction = GeneralProductionNode  /* | ImportProductionNode */ | MergedProductionNode;
+export type GrammarProduction = GeneralProductionNode | ScannerProductionNode | MergedProductionNode;
 
 export interface HCG3ProductionBody extends HCGGrammarNode {
     type: "body",
@@ -349,7 +353,7 @@ export interface ProductionTokenSymbol extends SymbolNode {
     type: SymbolType.PRODUCTION_TOKEN_SYMBOL;
     name: string;
     val: number;
-    production?: ProductionSymbol | ProductionImportSymbol;
+    production?: GeneralProductionNode;
     meta: false;
     token_id: number;
 }
@@ -360,7 +364,7 @@ export interface ProductionSymbol extends SymbolNode {
     name: string;
 
     val: number;
-    production?: GrammarProduction;
+    production?: GeneralProductionNode;
     meta: false;
 }
 
@@ -512,7 +516,14 @@ export type HCG3Symbol =
     | MetaResetSymbol
     | MetaReduceSymbol
     | LookBehindSymbol
+    | GeneratedSymbol
     | EOPSymbol
+    | GeneratedSymbol
+    | GeneratedNewLine
+    | GeneratedNumber
+    | RecoverySymbol
+    | GeneratedSpace
+    | GeneratedIdentifier
     | TokenSymbol
     | DefinedCharacterSymbol
     | DefinedNumericSymbol

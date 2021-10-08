@@ -8,9 +8,9 @@ const hcg3_mappings: NodeMappings<ReferencedFunction, "type"> = <NodeMappings<Re
         { type: "null", template: "tempster @type" },
 
         <NodeMapping<GrammarObject>>{
-            type: "hc-grammar-3",
+            type: "hc-grammar-5",
             child_keys: ["preamble", "productions", "function"],
-            template: "\\#HCG3 o:n @preamble...[o:n] o:n @productions"
+            template: "\\#Hydrocarbon m:s Grammar m:s Version m:s 5 m:n m:n @preamble...[o:n] o:n @productions...[m:n m:n]"
         },
         <NodeMapping<MetaExcludeSymbol>>{
             type: "meta-exclude", child_keys: ["sym"],
@@ -22,7 +22,11 @@ const hcg3_mappings: NodeMappings<ReferencedFunction, "type"> = <NodeMappings<Re
         },
         {
             type: "production", child_keys: ["bodies"],
-            template: "\\<> { priority: \\! } m:s @name m:s \\> m:s i:s @bodies...[ o:n | m:s ] i:e"
+            template: "\\<> { priority: \\! } m:s @name m:s \\> { bodies[1] : i:s m:n m:s m:s @bodies...[ m:n | m:s ] i:e or m:s @bodies...[m:s] }"
+        },
+        {
+            type: "scanner-production", child_keys: ["bodies"],
+            template: "\\<> m:s /* scanner */ { priority: \\! } m:s @name m:s \\> { bodies[1] : i:s m:n m:s m:s @bodies...[ m:n | m:s ] i:e or m:s @bodies...[m:s] }"
         },
         {
             type: "production-merge", child_keys: ["bodies"],
@@ -70,7 +74,7 @@ const hcg3_mappings: NodeMappings<ReferencedFunction, "type"> = <NodeMappings<Re
         },
         {
             type: "exclusive-literal",
-            template: "\\l: @val m:s"
+            template: "\\t: @val m:s"
         },
 
         {

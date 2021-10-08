@@ -1,8 +1,8 @@
 import URI from "@candlelib/uri";
 import "../utilities/array_globals.js";
-import { DefinedSymbol, GeneralProductionNode, GrammarObject, HCG3ProductionBody, HCG3Symbol, ProductionFunction, ProductionNode, SymbolType, TokenSymbol } from "../types/grammar_nodes";
+import { DefinedSymbol, GeneralProductionNode, GrammarObject, HCG3ProductionBody, HCG3Symbol, ProductionFunction, ProductionNode, RECURSIVE_STATE, ScannerProductionNode, SymbolType, TokenSymbol } from "../types/grammar_nodes";
 import { HCGParser } from "../types/parser";
-import { getSymbolName, Sym_Is_A_Generic_Symbol, Sym_Is_A_Production, Sym_Is_A_Production_Token, Sym_Is_Defined } from './nodes/symbol.js';
+import { getSymbolName, Sym_Is_A_Generic_Symbol, Sym_Is_A_Generic_Type, Sym_Is_A_Production, Sym_Is_A_Production_Token, Sym_Is_Defined, Sym_Is_Empty, Sym_Is_EOF } from './nodes/symbol.js';
 import {
     buildSequenceString,
     createCollisionMatrix,
@@ -19,6 +19,7 @@ import {
 } from "./passes/load.js";
 import { createJSFunctionsFromExpressions } from "./passes/process_js_code.js";
 import grammar_parser from './grammar_parser.js';
+import { Token } from '../runtime/token.js';
 
 /**
  * Takes a raw root grammar object and applies transformation
@@ -34,18 +35,29 @@ export async function compileGrammar(grammar: GrammarObject):
 
         //Production and Body transformations.
         integrateImportedGrammars(grammar, errors);
+
         integrateReferencedProductions(grammar, errors);
+
         convertListProductions(grammar, errors);
+
         extractMetaSymbolsFromBodies(grammar, errors);
+
         deduplicateProductionBodies(grammar, errors);
+
         distributePriorities(grammar, errors);
 
         //Meta transformations: Symbols, Functions & Items
         createJSFunctionsFromExpressions(grammar, errors);
+
         processSymbols(grammar, errors);
-        //buildScannerProductions(grammar);
-        buildSequenceString(grammar);
+
+        buildScannerProduction(grammar);
+
+        // Reprocess symbols to incorporate symbols from scanner productions
+        processSymbols(grammar, errors);
+
         buildItemMaps(grammar);
+
         createCollisionMatrix(grammar);
 
     } catch (e) {
@@ -238,45 +250,113 @@ function distributePriorities(grammar: GrammarObject, error: Error[]) {
             }
     }
 }
-/*
-function buildScannerProductions(grammar: GrammarObject) {
 
-    const symbol_productions = [];
+function buildScannerProduction(grammar: GrammarObject) {
+
+    const scanner_production: GeneralProductionNode = {
+        type: "production",
+        name: "__SCANNER__",
+        bodies: [],
+        tok: new Token("scanner", "", 0, 0),
+        id: -1,
+        IS_ENTRY: false,
+        RECURSIVE: RECURSIVE_STATE.LEFT_RIGHT,
+        priority: 0,
+    };
+
+    const productions: ScannerProductionNode[] = [], seen = new Set();
 
     for (const [name, sym] of grammar.meta.all_symbols) {
 
-        if (!Sym_Is_A_Production(sym) && Sym_Is_Defined(sym)) {
-            if (Sym_Is_A_Production_Token(sym)) {
+        if (!Sym_Is_A_Production(sym)) {
+            if (Sym_Is_A_Generic_Type(sym)) {
+                if (sym.type == SymbolType.END_OF_FILE || sym.val == "rec")
+                    continue;
+                const val = sym.val;
+                if (["num", "id"].includes(val)) {
+                    productions.push(
+                        <ScannerProductionNode>
+                        loadGrammarFromString(`<> __${val}__ > g:${val} | __${val}__ g:${val}\n`).productions[0]
+                    );
+                } else {
+                    productions.push(
+                        <ScannerProductionNode>
+                        loadGrammarFromString(`<> __${val}__ > g:${val}\n`).productions[0]
+                    );
+                }
+            } else if (Sym_Is_A_Production_Token(sym)) {
 
+                let prods: GeneralProductionNode[] = [sym.production];
 
-            } else {
+                for (const production of prods) {
+
+                    const name = `__${production.name}__`;
+
+                    if (seen.has(name))
+                        continue;
+
+                    seen.add(name);
+
+                    const bodies = [];
+
+                    for (const body of production.bodies) {
+                        let str = [];
+                        for (const sym of body.sym) {
+                            if (Sym_Is_A_Generic_Type(sym)) {
+                                if (Sym_Is_EOF(sym)) continue;
+                                str.push(`__${sym.val}__`);
+                            } else if (Sym_Is_A_Production(sym) || Sym_Is_A_Production_Token(sym)) {
+                                const name = sym.name;
+                                str.push(`__${name}__`);
+                                prods.push(sym.production);
+                            } else if (Sym_Is_Defined(sym)) {
+                                const val = sym.val;
+                                const syms = val.split("");
+                                str.push(...syms.map(s => `\\${s} `));
+                            }
+                        }
+
+                        bodies.push(str.join(" "));
+                    }
+
+                    productions.push(
+                        <ScannerProductionNode>
+                        loadGrammarFromString(`<> ${name} > ${bodies.join(" | ")}\n`).productions[0]
+                    );
+                }
+
+            } else if (Sym_Is_Defined(sym) &&
+                !(Sym_Is_Empty(sym) || Sym_Is_EOF(sym))) {
+
                 const val = sym.val;
 
-                console.log({ sym });
+                const syms = val.split("");
 
-                let production = <GeneralProductionNode>{
-                    type: "production",
-                    name: "symbol--" + val,
-                    bodies: [],
-                    tok: sym.tok
-                };
-                const body_symbols = sym.val.split("").map(i => {
-                    return <DefinedSymbol>{
-                        type: "token",
-                        val: i,
-                        id: [i.codePointAt(0)],
-                        tok: sym.tok
-                    };
-                });
+                productions.push(
+                    <ScannerProductionNode>
+                    loadGrammarFromString(`<> __${val}__ > ${syms.map(s => `\\${s} `).join(" ")}\n`).productions[0]
+                );
 
-                production.bodies = body_symbols;
-
-                symbol_productions.push(production);
-
-                console.log(production);
             }
         }
     }
 
-    debugger;
-} */
+    for (const production of productions) {
+        production.name = production.symbol.name;
+        production.type = "scanner-production";
+    }
+    const ubber_prod =
+        <ScannerProductionNode>
+        loadGrammarFromString(`<> __SCANNER__ > ${productions.map(p => p.name).join(" | ")}\n`).productions[0];
+    ubber_prod.name = ubber_prod.symbol.name;;
+    ubber_prod.type = "scanner-production";
+
+    productions.unshift(ubber_prod);
+
+    console.log(render_grammar({
+        type: "hc-grammar-5",
+        productions
+    }));
+
+    grammar.productions.push(...productions);
+}

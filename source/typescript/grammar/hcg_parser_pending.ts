@@ -1,8 +1,6 @@
 
 import {
-    ParserFrameworkNew as ParserFramework,
-    KernelParserCore2,
-    fillByteBufferWithUTF8FromString
+    fillByteBufferWithUTF8FromString, KernelParserCore2, ParserFrameworkNew as ParserFramework
 } from "@candlelib/hydrocarbon";
 
 
@@ -578,7 +576,9 @@ function pre_scan(l, token) { var tk_length = l.token_length;; var bt_length = l
 function scan_core(l, tk_row) {
     switch ((l.get_byte_at(l.byte_offset) & 127)) {
         case 33:
-            { if (l.get_byte_at(l.byte_offset) == 33) { if (isTokenActive(27, tk_row)) { l.setToken(27, 1, 1); } } } break; case 35:
+            {
+                if (l.get_byte_at(l.byte_offset) == 33) { if (isTokenActive(27, tk_row)) { l.setToken(27, 1, 1); } }
+            } break; case 35:
             { if (l.get_byte_at(l.byte_offset) == 35) { if (isTokenActive(9, tk_row)) { l.setToken(9, 1, 1); }; if (isTokenActive(91, tk_row) && token_production(l, 67113549, 2, 91, 16, states_buffer, scan) && l.byte_length > 1) { l.setToken(91, l.byte_length, l.token_length); } } } break; case 36:
             { if (2 == compare(l, l.byte_offset, 23, 2, token_sequence_lookup)) { if (l.get_byte_at(l.byte_offset + 2) == 109) { if (isTokenActive(45, tk_row) && 3 == compare(l, l.byte_offset + 3, 26, 3, token_sequence_lookup)) { l.setToken(45, 6, 6); } } else if (l.get_byte_at(l.byte_offset + 2) == 111) { if (isTokenActive(19, tk_row) && l.get_byte_at(l.byte_offset + 3) == 102) { l.setToken(19, 4, 4); } } } } break; case 40:
             { if (l.get_byte_at(l.byte_offset) == 40) { if (isTokenActive(41, tk_row)) { l.setToken(41, 1, 1); }; if (l.get_byte_at(l.byte_offset + 1) == 69) { if (isTokenActive(42, tk_row) && 2 == compare(l, l.byte_offset + 2, 44, 2, token_sequence_lookup)) { l.setToken(42, 4, 4); } } else if (l.get_byte_at(l.byte_offset + 1) == 73) { if (isTokenActive(43, tk_row) && 2 == compare(l, l.byte_offset + 2, 145, 2, token_sequence_lookup)) { l.setToken(43, 4, 4); } } else if (l.get_byte_at(l.byte_offset + 1) == 82) { if (isTokenActive(44, tk_row) && 2 == compare(l, l.byte_offset + 2, 187, 2, token_sequence_lookup)) { l.setToken(44, 4, 4); } } else if (l.get_byte_at(l.byte_offset + 1) == 42) { if (isTokenActive(38, tk_row)) { l.setToken(38, 2, 2); } } else if (l.get_byte_at(l.byte_offset + 1) == 43) { if (isTokenActive(40, tk_row)) { l.setToken(40, 2, 2); } } } } break; case 41:

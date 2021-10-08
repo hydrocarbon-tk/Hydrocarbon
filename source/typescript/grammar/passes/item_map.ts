@@ -90,7 +90,7 @@ function getItemMapVariables(grammar: GrammarObject, productions: GrammarProduct
                         item,
                         closure: [],
                         reset_sym: [],
-                        excludes: b.excludes[item.offset] ?? [],
+                        excludes: b?.excludes?.[item.offset] ?? [],
                         rank: item.offset,
                         hash: "",
                         follow: new Set,
@@ -450,7 +450,7 @@ function processSkippedSymbols(grammar: GrammarObject, item_maps_in_process: Ite
             }
         }
 
-        const reset_sym = item.offset >= 0 ? (b.reset[item.offset] ?? []).map(getUniqueSymbolName) : [];
+        const reset_sym = item.offset >= 0 ? (b.reset?.[item.offset] ?? []).map(getUniqueSymbolName) : [];
 
         item_map.skippable = new Set(
             standard_skips

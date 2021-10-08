@@ -137,6 +137,7 @@ export function processSymbols(grammar: GrammarObject, errors: Error[] = []) {
 
     const symbol_ids_array = [...unique_map.values()].filter(s => s.id).map(s => s.id).sort((a, b) => a - b).filter(i => i >= 1);
     grammar.meta.all_symbols.by_id = new Map([...unique_map.values()].map((sym) => [sym.id, sym]));
+
     grammar.meta.token_row_size = (Math.ceil(symbol_ids_array.slice(-1)[0] / 32) * 32) / token_lu_bit_size;
 
     assignEntryProductions(grammar, production_lookup);
@@ -166,13 +167,13 @@ function processProductionBodySymbols(
         for (const sym of body.sym)
             id_offset = processSymbol(grammar, sym, production_lookup, unique_map, token_production_set, errors, id_offset);
 
-        for (const sym of body.reset.flat())
+        for (const sym of body?.reset?.flat() ?? [])
             id_offset = processSymbol(grammar, sym, production_lookup, unique_map, token_production_set, errors, id_offset);
 
-        for (const sym of body.ignore.flat())
+        for (const sym of body?.ignore?.flat() ?? [])
             id_offset = processSymbol(grammar, sym, production_lookup, unique_map, token_production_set, errors, id_offset);
 
-        for (const sym of body.excludes.flat(2))
+        for (const sym of body?.excludes?.flat(2) ?? [])
             id_offset = processSymbol(grammar, sym, production_lookup, unique_map, token_production_set, errors, id_offset);
     }
     return { b_counter, id_offset };
@@ -410,7 +411,7 @@ export function processSymbol(
 
         let prod = production_lookup.get(sym.name);
 
-        if (Sym_Is_A_Production_Token(sym)) {
+        /* if (Sym_Is_A_Production_Token(sym)) {
 
             const name = "tok_" + sym.name;
 
@@ -425,7 +426,7 @@ export function processSymbol(
                     id_offset
                 );
             prod = production_lookup.get(name);
-        }
+        } */
 
         if (!prod) {
             console.dir(production_lookup, { depth: 1 });
@@ -446,8 +447,8 @@ export function processSymbol(
         if (Sym_Is_A_Production(copy_sym))
             copy_sym.production = production_lookup.get(copy_sym.name);
 
-        if (Sym_Is_A_Production_Token(copy_sym))
-            copy_sym.production = production_lookup.get("tok_" + copy_sym.name);
+        /* if (Sym_Is_A_Production_Token(copy_sym))
+            copy_sym.production = production_lookup.get("tok_" + copy_sym.name); */
 
         if (Sym_Is_A_Production_Token(copy_sym) && !token_production_set.has(unique_name)) {
             copy_sym.token_id = token_production_set.size;

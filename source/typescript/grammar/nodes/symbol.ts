@@ -18,7 +18,11 @@ import {
     VirtualTokenSymbol,
     SymbolType,
     AmbiguousSymbol,
-    RecoverySymbol
+    RecoverySymbol,
+    GeneratedIdentifier,
+    GeneratedSpace,
+    GeneratedNumber,
+    GeneratedNewLine
 } from "../../types/grammar_nodes.js";
 import { Item } from "../../utilities/item.js";
 
@@ -128,7 +132,15 @@ export function Sym_Is_An_Assert_Function(s: HCG3Symbol): s is any {
     return false;
 }
 
-export function Sym_Is_A_Generic_Type(s: HCG3Symbol): s is (GeneratedSymbol | EOFSymbol) {
+export function Sym_Is_A_Generic_Type(s: HCG3Symbol): s is (
+    GeneratedSymbol
+    | GeneratedNewLine
+    | GeneratedNumber
+    | RecoverySymbol
+    | GeneratedSpace
+    | GeneratedIdentifier
+    | EOFSymbol
+) {
     return (s.type == SymbolType.GENERATED || Sym_Is_EOF(s));
 }
 
