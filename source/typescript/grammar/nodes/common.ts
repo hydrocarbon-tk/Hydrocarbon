@@ -4,7 +4,7 @@ import {
     EmptySymbol,
     ProductionFunction,
     GrammarObject,
-    HCGGrammarNode,
+    ReferencedFunction,
     GroupProductionSymbol,
     ListProductionSymbol,
     GrammarProduction,
@@ -18,7 +18,10 @@ import {
 } from "../../types/grammar_nodes";
 
 
-export function getProductionByName(grammar: GrammarObject, ref_symbol: ProductionTokenSymbol | ProductionSymbol | ProductionImportSymbol): GrammarProduction {
+export function getProductionByName(
+    grammar: GrammarObject,
+    ref_symbol: ProductionTokenSymbol | ProductionSymbol | ProductionImportSymbol
+): GrammarProduction {
 
     if (ref_symbol.type == SymbolType.IMPORT_PRODUCTION) {
         const ref_grammar = grammar.imported_grammars.filter(s => s.reference == ref_symbol.module).pop();
@@ -145,7 +148,7 @@ export function Sym_Is_Group_Production(sym: any): sym is GroupProductionSymbol 
     return sym.type && (<GroupProductionSymbol>sym).type == "group-production";
 }
 
-export function createProductionSymbol(name: string, IS_OPTIONAL: number = 0, mapped_sym: HCGGrammarNode = null): ProductionSymbol {
+export function createProductionSymbol(name: string, IS_OPTIONAL: number = 0, mapped_sym: HCG3Symbol = null): ProductionSymbol {
 
     return {
         type: SymbolType.PRODUCTION,
@@ -155,7 +158,8 @@ export function createProductionSymbol(name: string, IS_OPTIONAL: number = 0, ma
         IS_NON_CAPTURE: false,
         IS_OPTIONAL: IS_OPTIONAL,
         tok: mapped_sym?.tok ?? createZeroedPosition(),
-        meta: false
+        meta: false,
+        annotation: mapped_sym.annotation
     };
 }
 function createEmptySymbol(): EmptySymbol {
@@ -173,7 +177,7 @@ function createEmptySymbol(): EmptySymbol {
 function createZeroedPosition(): HCG3TokenPosition {
     return new Token("", "", 0, 0, 0);
 }
-export function createProduction(name: string, mapped_sym: HCGGrammarNode = null): GrammarProduction {
+export function createProduction(name: string, mapped_sym: ReferencedFunction = null): GrammarProduction {
     return {
         type: "production",
         name: name,
@@ -184,7 +188,7 @@ export function createProduction(name: string, mapped_sym: HCGGrammarNode = null
         RECURSIVE: 0
     };
 }
-export function createProductionBody(mapped_sym: HCGGrammarNode = null): HCG3ProductionBody {
+export function createProductionBody(mapped_sym: ReferencedFunction = null): HCG3ProductionBody {
     return {
         type: "body",
         FORCE_FORK: false,

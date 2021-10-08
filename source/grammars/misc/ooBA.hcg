@@ -1,0 +1,8 @@
+f:^test { test }
+
+<> start > 
+        state ( g:id f:r{ A } | g:num^a (g:num)(+)^b )(+)
+
+   |    g:num 
+
+<> state > ( t:A | t:B f:r ^test )(*) f:r ^test

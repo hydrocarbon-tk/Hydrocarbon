@@ -1,10 +1,11 @@
+import "@candlelib/paraffin";
+import { Logger, LogLevel } from '@candlelib/log';
 import URI from "@candlelib/uri";
-import { ProductionFunction, GrammarObject } from "../../types/grammar_nodes";
+import { GrammarObject } from "../../types/grammar_nodes";
+import { HCGParser } from "../../types/parser";
+import { default_map } from "../../utilities/default_map.js";
 //import loader from "../hcg_parser.js";
 import loader from "../hcg_parser.js";
-import { default_map } from "../../utilities/default_map.js";
-import { HCGParser } from "../../types/parser";
-import { Logger } from '../../runtime/logger.js';
 
 /**
  * Entry point to loading a grammar from a string
@@ -78,11 +79,19 @@ export async function loadGrammarFromFile(uri: URI | string, grammar_parser: HCG
 }
 ;
 
-async function loadGrammar(uri: URI, grammar_parser: any = parser, existing_grammars: Map<string, GrammarObject>): Promise<GrammarObject> {
+async function loadGrammar(
+    uri: URI,
+    grammar_parser: any = parser,
+    existing_grammars: Map<string, GrammarObject>,
+): Promise<GrammarObject> {
 
     uri = getResolvedURI(uri);
 
-    const str = await uri.fetchText();
+    let str = "";
+
+
+    str = await uri.fetchText();
+
 
     grammar_logger.debug(`Loading ${uri}`);
 
@@ -118,10 +127,23 @@ async function loadGrammar(uri: URI, grammar_parser: any = parser, existing_gram
                 // can be completed
                 existing_grammars.set(location_string, null);
 
-                const import_grammar = await loadGrammar(location, grammar_parser, existing_grammars);
+                try {
+                    const import_grammar = await loadGrammar(location, grammar_parser, existing_grammars);
 
-                existing_grammars.set(location_string, import_grammar);
+                    if (import_grammar)
+                        existing_grammars.set(location_string, import_grammar);
+                } catch (e) {
 
+                    Logger
+                        .get("hydrocarbon")
+                        .get("file-loader")
+                        .activate(LogLevel.ERROR)
+                        .error(`Unable to open ${uri}`);
+
+                    preamble.tok.token_slice(8).throw("Unable to load import", uri + "");
+
+                    return null;
+                }
             }
         }
     }
@@ -129,28 +151,30 @@ async function loadGrammar(uri: URI, grammar_parser: any = parser, existing_gram
     return grammar;
 }
 function resolveReferencedFunctions(grammar: GrammarObject) {
-    const fn_lu = grammar.functions.reduce((r, v) => (r.set(v.id, v), r), new Map);
 
-    for (const production of grammar.productions) {
 
-        production.name = production.symbol.name;
-
-        for (const body of production.bodies)
-
-            if (body.reduce_function
-                &&
-                body.reduce_function.ref
-                &&
-                fn_lu.has(body.reduce_function.ref)) {
-                body.reduce_function = <ProductionFunction>{
-                    js: "",
-                    txt: fn_lu.get(body.reduce_function.ref).txt,
-                    type: "RETURNED",
-                };
-            }
-
-    }
-
+    /*     const fn_lu = grammar.functions.reduce((r, v) => (r.set(v.id, v), r), new Map);
+    
+        for (const production of grammar.productions) {
+    
+            production.name = production.symbol.name;
+    
+            for (const body of production.bodies)
+    
+                if (body.reduce_function
+                    &&
+                    body.reduce_function.ref
+                    &&
+                    fn_lu.has(body.reduce_function.ref)) {
+                    body.reduce_function = <ProductionFunction>{
+                        js: "",
+                        txt: fn_lu.get(body.reduce_function.ref).txt,
+                        type: "RETURNED",
+                    };
+                }
+    
+        }
+     */
     grammar.meta = {};
 
     grammar.meta.ignore = <any[]>[grammar.preamble.filter(t => t.type == "ignore")[0]].filter(i => !!i)[0]?.symbols ?? [];

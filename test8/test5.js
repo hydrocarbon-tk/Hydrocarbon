@@ -9,6 +9,12 @@ import env from "../../wick/build/library/compiler/source-code-parse/env.js";
 import { convertMarkdownToHTMLNodes } from "../../wick/build/library/compiler/common/markdown.js";
 import { state_history } from "../build/library/runtime/kernel_new.js";
 
+import framework from "../build/library/grammar/hcg_parser_pending.js";
+
+const {
+    parse: parser
+} = await framework;
+
 
 //const grammar = await compileGrammarFromURI("./source/grammars/test/utf8_test.hcg");
 //const grammar = await compileGrammarFromURI("../ts/source/grammar/typescript.hcg");
@@ -25,7 +31,8 @@ import { state_history } from "../build/library/runtime/kernel_new.js";
 //const grammar = await compileGrammarFromURI("./source/grammars/test/ambiguous.hcg");
 //const grammar = await compileGrammarFromURI("./source/grammars/misc/ruminate_formatter.hcg");
 //const grammar = await compileGrammarFromURI("./source/grammars/test/failure_recovery.hcg");
-const grammar = await compileGrammarFromURI("./source/grammars/hcg/hcg.hcg");
+//const grammar = await compileGrammarFromURI("./source/grammars/hcg/hcg.hcg");
+const grammar = await compileGrammarFromURI("./source/grammars/misc/oob.hcg", parser);
 //const grammar = await compileGrammarFromURI("./source/grammars/hcg/state_ir.hcg");
 //const grammar = await compileGrammarFromURI("./source/grammars/test/peeking.hcg");
 //const grammar = await compileGrammarFromURI("./source/grammars/test/tight_loop.hcg");
@@ -109,6 +116,14 @@ This is a day to remember
 
 const string = `
 
+<> Test > ^TempA temp^TempA /* Test */ \\2 f:r { tok }
+
+f: ^canary {   test   } 
+
+f: Test.0 { test }
+
+f: Test.0 { test }
+
 <> Test > ^TempA temp^TempA /* Test */ \\2 f:r { tok }    
 
 //Mango
@@ -127,7 +142,7 @@ try {
     const { result, err } = parse(string, env, 0);
     console.error(err);
     console.log("ABABABABABABABAABABABABABABABA");
-    console.dir(result[0].tok.slice(0, -10), { depth: null });
+    console.dir(result[0], { depth: null });
     // console.dir(convertMarkdownToHTMLNodes(result[0]), { depth: null });;
     //history.length = 0;
 } catch (e) {

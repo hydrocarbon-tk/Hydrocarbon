@@ -34,7 +34,8 @@ export const enum SymbolType {
     VIRTUAL_TOKEN = "v-token-production",
     GROUP_PRODUCTION = "group-production",
     LIST_PRODUCTION = "list-production",
-    AMBIGUOUS = "hybrid"
+    AMBIGUOUS = "hybrid",
+    REFERENCE = "reference"
 }
 
 export type HCG3TokenPosition = Token;
@@ -46,27 +47,47 @@ export interface HCGGrammarNode {
 
 export interface PreambleNode extends HCGGrammarNode { }
 
-export interface HCG3ReferencedFunction extends HCGGrammarNode {
-    type: "ref-function";
-    id: string;
+
+
+export interface OutOfBandFunctionDeclaration extends HCGGrammarNode {
+    type: "out_of_band";
+    reference: ReferenceSymbol;
     txt: string;
+    tok: Token;
+}
+export interface OutOfBandReduceFunctionDeclaration extends HCGGrammarNode {
+
+    type: "out_of_band";
+    production?: ProductionSymbol | ProductionImportSymbol;
+    index: number[];
+    txt: string;
+    tok: Token;
+}
+export interface OutOfBandReduceFunctionReference extends HCGGrammarNode {
+
+    type: "out_of_band";
+
+    production?: ProductionSymbol | ProductionImportSymbol;
+
+    index: number[];
+    reference: ReferenceSymbol;
+    tok: Token;
 }
 
-export interface ENVFunctionRef extends HCGGrammarNode {
-    type: "env-function-reference";
-    ref: string;
+export type OutOfBandFunction = OutOfBandFunctionDeclaration | OutOfBandReduceFunctionDeclaration | OutOfBandReduceFunctionReference;
+
+export interface ReferencedFunction extends HCGGrammarNode {
+    type: "referenced-function";
+    ref: ReferenceSymbol;
 }
 
-export interface LocalFunctionRef extends HCGGrammarNode {
-    type: "local-function-reference";
-    ref: string;
-}
+
 export interface ProductionFunction extends HCGGrammarNode {
     type: "RETURNED";
     txt: string;
     js?: string;
     cpp?: string;
-    ref?: string;
+    ref?: ReferenceSymbol;
     name?: string;
     compilable_ast?: any;
 }
@@ -127,7 +148,7 @@ export type GrammarProduction = GeneralProductionNode  /* | ImportProductionNode
 
 export interface HCG3ProductionBody extends HCGGrammarNode {
     type: "body",
-    reduce_function?: ProductionFunction | LocalFunctionRef | ENVFunctionRef;
+    reduce_function?: ProductionFunction | ReferencedFunction;
     sym: HCG3Symbol[];
     FORCE_FORK: boolean;
     id: number;
@@ -149,7 +170,11 @@ export interface GrammarObject extends HCGGrammarNode {
     type: "hc-grammar-5";
     preamble: (ImportPreamble | IgnorePreamble | ExportPreamble)[];
     productions: GrammarProduction[];
-    functions: HCG3ReferencedFunction[];
+    functions: (
+        OutOfBandFunctionDeclaration
+        | OutOfBandReduceFunctionDeclaration
+        | OutOfBandReduceFunctionReference
+    )[];
     imported_grammars: { reference: string, uri: string, grammar: GrammarObject; }[];
 
     meta?: {
@@ -248,6 +273,11 @@ export interface ListProductionSymbol extends SymbolNode {
     terminal_symbol: HCG3Symbol;
     OPTIONAL: boolean;
     meta: false;
+}
+
+export interface ReferenceSymbol extends SymbolNode {
+    type: SymbolType.REFERENCE;
+    val: string;
 }
 
 export interface GroupProductionSymbol extends SymbolNode {
@@ -466,6 +496,7 @@ export type TokenSymbol =
     | AmbiguousSymbol;
 export type HCG3Symbol =
     ListProductionSymbol
+    | ReferenceSymbol
     | RecoverySymbol
     | GroupProductionSymbol
     | EOFSymbol

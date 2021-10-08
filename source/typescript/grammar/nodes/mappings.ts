@@ -1,7 +1,7 @@
 import { NodeMapping, NodeMappings } from "@candlelib/conflagrate/build/types/types/node_mappings";
-import { GrammarObject, HCGGrammarNode, MetaExcludeSymbol } from "../../types/grammar_nodes";
+import { GrammarObject, ReferencedFunction, MetaExcludeSymbol } from "../../types/grammar_nodes";
 
-const hcg3_mappings: NodeMappings<HCGGrammarNode, "type"> = <NodeMappings<HCGGrammarNode, "type">>{
+const hcg3_mappings: NodeMappings<ReferencedFunction, "type"> = <NodeMappings<ReferencedFunction, "type">>{
     typename: "type",
     type_lookup: () => 0,
     mappings: [

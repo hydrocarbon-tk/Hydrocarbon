@@ -1,5 +1,5 @@
 import { copy, traverse } from "@candlelib/conflagrate";
-import { HCG3ProductionBody, ProductionSymbol } from '../../types/grammar_nodes';
+import { HCG3ProductionBody, ProductionSymbol, SymbolNode } from '../../types/grammar_nodes';
 import {
     ExportPreamble,
     GrammarObject,
@@ -45,11 +45,28 @@ function processImportedObjects(grammar: GrammarObject, errors: Error[], importe
 
     for (const grmmr of [grammar, ...grammar.imported_grammars.map(g => g.grammar)]) {
 
+        //Map all normal production name symbols to the production's name
+        for (const p of grmmr.productions)
+            if (p.symbol.type == "sym-production") {
+                p.name = p.symbol.name;
+            } else {
+                const imported = getImportedGrammarFromReference(grmmr, p.symbol.module);
+                p.name = imported.grammar.common_import_name + "__" + p.symbol.name;
+            }
+    }
+
+    for (const export_preamble of grammar.preamble.filter((p): p is ExportPreamble => p.type == "export")) {
+        //@ts-ignore
+        export_preamble.production = processImportedSymbolArray([export_preamble.production], grammar, grammar, imported_productions)[0];
+    }
+
+    for (const grmmr of [grammar, ...grammar.imported_grammars.map(g => g.grammar)]) {
+
         for (const { node, meta: { mutate } } of traverse(grmmr, "productions").skipRoot().makeMutable()) {
 
             const production: (GrammarProduction) = <any>node;
 
-            //if (production.type == "production-import") {
+            production.loc = grmmr.URI;
 
             if (production.symbol.type == SymbolType.IMPORT_PRODUCTION) {
 
@@ -63,6 +80,7 @@ function processImportedObjects(grammar: GrammarObject, errors: Error[], importe
 
                         //  //Integrate the production 
                         integrateImportedProductions(grammar, grmmr, production, imported_productions);
+
                         //And merge the production body into the target production
                         imported_productions.get(name).bodies.push(...production.bodies);
 
@@ -70,7 +88,6 @@ function processImportedObjects(grammar: GrammarObject, errors: Error[], importe
                     }
 
                 } else {
-
 
                     const imported = getImportedGrammarFromReference(grmmr, production.symbol.module);
 
@@ -89,6 +106,29 @@ function processImportedObjects(grammar: GrammarObject, errors: Error[], importe
                 integrateImportedProductions(grammar, grmmr, production, imported_productions);
             }
         }
+    }
+
+    for (const grmmr of [grammar, ...grammar.imported_grammars.map(g => g.grammar)]) {
+
+        for (const fn of grmmr.functions) {
+
+            if ("production" in fn) {
+                fn.production = processImportedSymbolArray<ProductionSymbol>([fn.production], grammar, grmmr, imported_productions)[0];
+            }
+
+            if ("reference" in fn && "production" in fn) {
+                fn.reference = processImportedSymbolArray<ProductionSymbol>([<any>fn.reference], grammar, grmmr, imported_productions)[0];
+            }
+
+            if ("reference" in fn && "txt" in fn && grmmr != grammar) {
+                fn.reference.val = grmmr.common_import_name + "__" + fn.reference.val;
+            }
+
+            fn.loc = grmmr.URI;
+
+            if (grammar != grmmr)
+                grammar.functions.push(fn);
+        }
 
         for (const ir_state of grmmr.ir_states) {
 
@@ -96,11 +136,6 @@ function processImportedObjects(grammar: GrammarObject, errors: Error[], importe
 
             if (grammar != grmmr)
                 grammar.ir_states.push(ir_state);
-        }
-
-        for (const export_preamble of grmmr.preamble.filter((p): p is ExportPreamble => p.type == "export")) {
-            //@ts-ignore
-            export_preamble.production = processImportedSymbolArray([export_preamble.production], grammar, grmmr, imported_productions)[0];
         }
     }
 }
@@ -201,33 +236,31 @@ function processImportedBody(
     body.sym = processImportedSymbolArray(body.sym, root_grammar, local_grammar, imported_productions);
 }
 function resolveLocalReferencedFunctions(body: HCG3ProductionBody, local_grammar: GrammarObject) {
+
     if (body.reduce_function) {
 
         const fn = body.reduce_function;
 
-        if (fn.type == "local-function-reference") {
-            const resolved_fn = local_grammar.functions.filter(i => i.id == fn.ref)[0];
+        if (fn.type == "referenced-function") {
 
-            if (resolved_fn)
-                body.reduce_function = <any>Object.assign({}, resolved_fn, { type: "RETURNED" });
+            fn.type = "resolved-referenced-function";
 
-            else
-                fn.tok.throw(`Could not resolve referenced function [${fn.ref}]`);
-
+            fn.ref.val = local_grammar.common_import_name + "__" + fn.ref.val;
         }
     }
 }
 
-function processImportedSymbolArray(
+function processImportedSymbolArray<T>(
     symbols: HCG3Symbol[],
     root_grammar: GrammarObject,
     local_grammar: GrammarObject,
     imported_productions: Map<any, any>
-): HCG3Symbol[] {
+): T[] {
     const syms = [];
 
 
     const NOT_ORIGIN = root_grammar != local_grammar;
+
 
     for (const symbol of symbols) {
         if (symbol.type == "meta-exclude"
@@ -243,13 +276,13 @@ function processImportedSymbolArray(
     return syms;
 }
 
-function processSymbol(
+function processSymbol<T = HCG3Symbol>(
     sym: HCG3Symbol,
     NOT_ORIGIN: boolean,
     root_grammar: GrammarObject,
     local_grammar: GrammarObject,
     imported_productions: Map<any, any>
-): HCG3Symbol {
+): T {
 
 
     if (NOT_ORIGIN && (
@@ -278,6 +311,8 @@ function processSymbol(
                 integrateImportedProductions(root_grammar, local_grammar, cp, imported_productions);
             }
         }
+
+        sym.production = imported_productions.get(name);
 
         sym.name = name;
 
@@ -314,6 +349,8 @@ function processSymbol(
             }
         }
 
+        sym.production = imported_productions.get(name);
+
         sym.name = name;
 
     } else if (sym.type == SymbolType.LIST_PRODUCTION) {
@@ -339,9 +376,9 @@ function processSymbol(
         if (!prd)
             throwProductionNotFound(sym, imported, local_grammar);
 
-        const name = imported.grammar.common_import_name + "__" + prd.name;
+        const name = imported.grammar.common_import_name + "__" + prd.symbol.name;
 
-        const prod = createProductionSymbol(name, sym.IS_OPTIONAL || 0, sym);
+        sym = createProductionSymbol(name, sym.IS_OPTIONAL || 0, sym);
 
         if (!imported_productions.has(name)) {
 
@@ -359,7 +396,7 @@ function processSymbol(
             integrateImportedProductions(root_grammar, imported.grammar, cp, imported_productions);
         }
 
-        return prod;
+        sym.production = imported_productions.get(name);
     }
 
     return sym;
@@ -369,13 +406,13 @@ function getImportedGrammarFromReference(local_grammar: GrammarObject, module_na
     return local_grammar.imported_grammars.filter(g => g.reference == module_name)[0];
 }
 
-
 function throwProductionNotFound(sym: ProductionImportSymbol, imported: {
     reference: string; uri: string; //@ts-ignore
     //@ts-ignore
     grammar: GrammarObject;
 }, local_grammar: GrammarObject) {
-    sym.tok.throw(`Unable to import production [${sym.production}] from [${sym.module}]\n ( alias of file://${imported.uri} ):
+    console.log(sym);
+    sym.tok.throw(`Unable to import production [ ${sym.name} ] from \n    [ ${sym.module} ( local alias of file://${imported.uri} ) ]:
     Production was not found.`, local_grammar.URI + "");
 }
 

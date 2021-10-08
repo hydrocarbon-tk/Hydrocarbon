@@ -1,7 +1,7 @@
 import { traverse } from "@candlelib/conflagrate";
 import { exp, JSNodeClass, JSNodeType, renderCompressed } from "@candlelib/js";
 import { ir_reduce_numeric_len_id } from '../../build/magic_numbers.js';
-import { ENVFunctionRef, GrammarObject, LocalFunctionRef, ProductionFunction } from "../../types/grammar_nodes";
+import { ReferencedFunction, GrammarObject, ReferencedFunction, ProductionFunction, HCG3Symbol } from "../../types/grammar_nodes";
 import { InstructionType, IR_Instruction } from '../../types/ir_types';
 
 
@@ -16,7 +16,7 @@ export function createJSFunctionsFromExpressions(grammar: GrammarObject, error) 
         for (const body of production.bodies) {
 
 
-            const { fn, js } = processReduceFunction(body.reduce_function, body.sym.length);
+            const { fn, js } = processReduceFunction(body.reduce_function, body.sym);
 
             if (!js) {
                 body.reduce_id = -1;
@@ -53,7 +53,7 @@ function processIRReduce(instructions: IR_Instruction[], grammar: GrammarObject)
 
                 if (typeof instruction.reduce_fn != "number") {
 
-                    const { js } = processReduceFunction(instruction.reduce_fn, 0);
+                    const { js } = processReduceFunction(instruction.reduce_fn);
 
                     if (!js)
                         instruction.reduce_fn = 0;
@@ -69,11 +69,13 @@ function processIRReduce(instructions: IR_Instruction[], grammar: GrammarObject)
 }
 
 function processReduceFunction(
-    fn: ProductionFunction | LocalFunctionRef | ENVFunctionRef,
-    sym_length: number = 0
+    fn: ProductionFunction | ReferencedFunction | ReferencedFunction,
+    syms: HCG3Symbol[] = []
 ) {
 
     let js = "";
+
+    const sym_length = syms.length;
 
     if (fn) {
 
@@ -85,8 +87,9 @@ function processReduceFunction(
         } else if (!fn.txt) {
             fn = null;
         } else {
+            const txt = `(${fn.txt.replace(/(\${1,2}\d+)/g, "$1_")})`;
             //@ts-ignore
-            const expression = exp(`(${fn.txt.replace(/(\${1,2}\d+)/g, "$1_")})`);
+            const expression = exp(txt);
 
             const receiver = { ast: null };
 
@@ -147,7 +150,9 @@ function processReduceFunction(
 
 
                 const
-                    value = <string>node.value, IS_REPLACE_SYM = value.slice(0, 1) == "$", IS_NULLIFY_SYM = value.slice(0, 2) == "$$";
+                    value = <string>node.value,
+                    IS_REPLACE_SYM = value.slice(0, 1) == "$",
+                    IS_NULLIFY_SYM = value.slice(0, 2) == "$$";
 
 
                 if (IS_NULLIFY_SYM || IS_REPLACE_SYM) {
@@ -182,11 +187,28 @@ function processReduceFunction(
                                 case "string_join":
                                     replace(exp(`sym[${0}] + sym[${sym_length - 1}]`));
                                     break;
-                                default:
-                                    throw new Error(`Unexpected non integer value from ${val} ${index} ${node.value}`);
 
+                                default: {
+                                    for (let i = 0; i < sym_length; i++) {
+                                        const sym = syms[i];
+
+                                        if (sym.annotation && sym.annotation.val == val) {
+                                            index = i;
+                                            break;
+                                        }
+                                    }
+
+                                    if (isNaN(index)) {
+                                        if (IS_NULLIFY_SYM)
+                                            replace(exp("null"));
+                                        else
+                                            replace(null, true);
+                                    }
+                                }
                             }
-                        } else {
+                        }
+
+                        if (!isNaN(index)) {
 
                             if (index >= 100)
                                 index = sym_length - 1;

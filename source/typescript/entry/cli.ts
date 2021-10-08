@@ -184,7 +184,7 @@ addCLIConfig("compile", {
 
     //cli_logger.deactivate();
 
-    cli_logger.activate(LogLevel.INFO | LogLevel.ERROR);
+    cli_logger.activate().deactivate(LogLevel.DEBUG);
 
 
     try {

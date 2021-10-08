@@ -159,7 +159,7 @@ export function renderToJavaScript(
     const array_row_size = 75;
     const script = `
 import {
-    ParserFramework,
+    ParserFrameworkNew as ParserFramework,
     KernelParserCore2,
     fillByteBufferWithUTF8FromString
 } from "@candlelib/hydrocarbon";

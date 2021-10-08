@@ -1,6 +1,6 @@
 
 import { Token } from '../runtime/token';
-import { ENVFunctionRef, LocalFunctionRef, ProductionFunction, ProductionImportSymbol, ProductionSymbol, TokenSymbol } from './grammar_nodes';
+import { ReferencedFunction, ReferencedFunction, ProductionFunction, ProductionImportSymbol, ProductionSymbol, TokenSymbol } from './grammar_nodes';
 
 export type i32 = number;
 type bit = number;
@@ -106,7 +106,7 @@ export interface IRProductionBranch extends Base_IR_Instruction {
 export interface IRReduce extends Base_IR_Instruction {
     type: InstructionType.reduce;
     len: number;
-    reduce_fn: number | ProductionFunction | LocalFunctionRef | ENVFunctionRef;
+    reduce_fn: number | ProductionFunction | ReferencedFunction;
 }
 export interface IRSetProd extends Base_IR_Instruction {
     type: InstructionType.set_prod;
