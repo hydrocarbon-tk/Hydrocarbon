@@ -242,7 +242,7 @@ export function disambiguate(
 
             child_graph_node.symbol = key;
 
-            if (child_graph_node.AMBIGUOUS)
+            if (child_graph_node.AMBIGUOUS && !options.PRODUCTION_IS_SCANNER)
                 child_graph_node.nodes.length = 0;
 
             graph_node.nodes.push(child_graph_node);
@@ -251,8 +251,8 @@ export function disambiguate(
 
             disambiguated_node.symbol = key;
 
-            //if (key == getUniqueSymbolName(default_EOF))
-            //    disambiguated_node.AMBIGUOUS = true;
+            if (key == getUniqueSymbolName(default_EOF)  && options.PRODUCTION_IS_SCANNER)
+                disambiguated_node.AMBIGUOUS = true;
 
             dissambiguated_multi_node.symbol = key;
 
@@ -262,9 +262,7 @@ export function disambiguate(
 
             dissambiguated_multi_node.state.states.push(states[0]);
 
-            dissambiguated_multi_node.state.items.push(
-                ...states[0].items//.map(i => i)
-            );
+            dissambiguated_multi_node.state.items.push(...states[0].items);
 
             if (states[0].roots.some(i => i >= end_item_addendum))
                 REQUIRE_MULTI_DISAMBIGUATE_NODE = true;

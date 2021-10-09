@@ -3,7 +3,6 @@
  * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
  * disclaimer notice.
  */
-import { Sym_Is_A_Production_Token } from '../grammar/nodes/symbol.js';
 import { Logger } from '@candlelib/log';
 import { GrammarObject, ProductionImportSymbol, ProductionSymbol } from '../types/grammar_nodes';
 import { IRStateData, StateAttrib, StateMap } from '../types/ir_state_data';
@@ -595,8 +594,8 @@ export function optimize(StateMap: StateMap, grammar: GrammarObject) {
 export function garbageCollect(StateMap: StateMap, grammar: GrammarObject,) {
 
     const entry_names = [
-        ...grammar.productions.filter(p => p.IS_ENTRY).map(i => i.name),
-        ...[...grammar.meta.all_symbols.values()].filter(Sym_Is_A_Production_Token).map(i => "tok_" + i.name)
+        "__SCANNER__",
+        ...grammar.productions.filter(p => p.IS_ENTRY).map(i => i.name)
     ].setFilter();
     const marked_map = new Map([...StateMap].map(([name]) => [name, false]));
 

@@ -253,17 +253,6 @@ function distributePriorities(grammar: GrammarObject, error: Error[]) {
 
 function buildScannerProduction(grammar: GrammarObject) {
 
-    const scanner_production: GeneralProductionNode = {
-        type: "production",
-        name: "__SCANNER__",
-        bodies: [],
-        tok: new Token("scanner", "", 0, 0),
-        id: -1,
-        IS_ENTRY: false,
-        RECURSIVE: RECURSIVE_STATE.LEFT_RIGHT,
-        priority: 0,
-    };
-
     const productions: ScannerProductionNode[] = [], seen = new Set();
 
     for (const [name, sym] of grammar.meta.all_symbols) {
@@ -348,7 +337,9 @@ function buildScannerProduction(grammar: GrammarObject) {
     const ubber_prod =
         <ScannerProductionNode>
         loadGrammarFromString(`<> __SCANNER__ > ${productions.map(p => p.name).join(" | ")}\n`).productions[0];
-    ubber_prod.name = ubber_prod.symbol.name;;
+
+    ubber_prod.name = ubber_prod.symbol.name;
+
     ubber_prod.type = "scanner-production";
 
     productions.unshift(ubber_prod);

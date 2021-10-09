@@ -44,19 +44,20 @@ export function create_symbol_clause(
     let code = `
     symbols: 
         
-        expected [ ${expected_symbols.flatMap(convert_sym_to_code).setFilter().sort().join("  ")} ]`;
+        expected [ ${expected_symbols.flatMap(convert_sym_to_code).setFilter().sort().join("  ")} ]
+
+        /* Expected symbols 
+
+        ${expected_symbols.sort((a, b) => a.id - b.id).map(create_symbol_comment).join(" ")}
+    
+        */
+        
+    `;
 
     if (skipped_symbols.length > 0)
         code += `
         
         skipped [ ${skipped_symbols.flatMap(convert_sym_to_code).setFilter().sort().join("  ")} ]
-
-    /* Expected symbols 
-
-    ${expected_symbols.sort((a, b) => a.id - b.id).map(create_symbol_comment).join(" ")}
-
-    */
-
 
     /* Skipped symbols  
 

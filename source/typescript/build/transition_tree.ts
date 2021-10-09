@@ -3,6 +3,7 @@
  * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
  * disclaimer notice.
  */
+import { copy } from '@candlelib/conflagrate';
 import {
     getUniqueSymbolName, Sym_Is_A_Production, Sym_Is_EOF
 } from "../grammar/nodes/symbol.js";
@@ -20,7 +21,8 @@ export function constructTransitionForest(
     grammar: GrammarObject,
     roots: Item[],
     options: TransitionForestOptions = null,
-    root_scope: Item[] = []
+    root_scope: Item[] = [],
+
     //Internal recursive arguments
 ): TransitionForestStateA {
 
@@ -216,8 +218,6 @@ function createPeekTreeStates(
     options: TransitionForestOptions,
 ) {
 
-    const { states } = previous_state;
-
     const in_scope_items = active_items.filter(i => i.state != OutOfScopeItemState);
 
     let end_item = 0;
@@ -233,8 +233,6 @@ function createPeekTreeStates(
             }
         }
     );
-
-    const token_leaf_states = [], production_leaf_states = [];
 
     const root_states: TransitionForestStateA[] = [];
 
@@ -266,8 +264,6 @@ function createPeekTreeStates(
                 !active_bodies.has(i.id)
         );
 
-
-
     for (const group of symbols_groups) {
 
         const state =
@@ -286,20 +282,17 @@ function createPeekTreeStates(
         ) {
             // Ignore groups that transition on the same PRODUCTION
             // that in scope groups also transition on
-            console.log(group.map(i => i.rup(grammar)));
-            console.log(active_items.map(i => i.rup(grammar)));
             continue;
         }
 
-        const contextual_state: TransitionForestStateA = (state >= 0) ? Object.assign({},
-            root_peek_state, {
-            items: contextual_items.map(i => i.toState(state))
-        }) : Object.assign({},
-            root_peek_state.parent, {
-            items: root_peek_state.parent.items.map(i => i.toState(state))
-        });
-
         const
+            contextual_state: TransitionForestStateA = (state >= 0) ? Object.assign({},
+                root_peek_state, {
+                items: contextual_items.map(i => i.toState(state))
+            }) : Object.assign({},
+                root_peek_state.parent, {
+                items: root_peek_state.parent.items.map(i => i.toState(state))
+            }),
 
             initial_state: TransitionForestStateA =
                 createTransitionForestState(
@@ -321,11 +314,199 @@ function createPeekTreeStates(
         i++;
     }
 
+    if (options.PRODUCTION_IS_SCANNER)
+        processPeekGraphLeavesScanner(
+            grammar,
+            active_items,
+            previous_state,
+            root_peek_state,
+            symbols_groups,
+            root_states,
+            options
+        );
+    else
+        processPeekGraphLeavesStandard(
+            grammar,
+            active_items,
+            previous_state,
+            root_peek_state,
+            symbols_groups,
+            root_states,
+            options
+        );
+
+}
+function processPeekGraphLeavesScanner(
+    grammar: GrammarObject,
+    active_items: Item[],
+    previous_state: TransitionForestStateA,
+    root_peek_state: TransitionForestStateA,
+    symbols_groups: Item[][],
+    root_states: TransitionForestStateA[],
+    options: TransitionForestOptions,
+) {
+
+    const { states } = previous_state,
+
+        disambiguated_tree = createDisambiguatedTree(
+            grammar,
+            root_states,
+            options,
+            previous_state,
+            active_items,
+            states
+        );
+
+    //Build in new states and create transition for each one.
+    //Convert graph into a transition tree and yield leaves
+    const token_leaf_states = [], production_leaf_states = [];
+
+    for (const leaf of yieldPeekGraphLeaves(disambiguated_tree, grammar)) {
+        /*
+            At this point the leaf indicates a set of successful resolution of
+            conflicting actions on given sequence of symbols, or the
+            conflicts could not be reasonably resolved. In the former case,
+            the leaf will map to one set of root items to it, whereas
+            in tha latter case the leaf will map to multiple root item groups.
+ 
+            In the single root item case the leaf can serve as the post peek
+            state and directly lead to the continuing parse of the root items.
+ 
+            In the multi-root case the leaf is used to fork to new actions
+        */
+
+        const candidate_states = leaf.states.length > 0
+            ? leaf.states
+            : [leaf];
+
+        for (const origin_state of candidate_states) {
+
+            let groups = (<any>origin_state.roots.setFilter() as number[])
+                .map(i => symbols_groups[i & (end_item_addendum - 1)]);
+
+            origin_state.peek_items = origin_state.items;
+
+            if (groups.every(g => g.every(i => i.state == OutOfScopeItemState))) {
+                origin_state.type = TransitionStateType.OUT_OF_SCOPE;
+                continue;
+            }
+
+            if (groups.length > 1) {
+
+                origin_state.type |= TransitionStateType.FORK | TransitionStateType.MULTI;
+
+                //TODO Rebuild the groups while removing out of scope items.
+                leaf.type |= TransitionStateType.FORK | TransitionStateType.MULTI;
+
+                for (const group of groups) {
+
+                    const sym = group[0].sym(grammar);
+
+                    const new_state = createTransitionForestState(
+                        TransitionStateType.UNDEFINED,
+                        [],
+                        0,
+                        [],
+                        origin_state
+                    );
+
+                    if (group.some(i => i.state == OutOfScopeItemState)) {
+
+                        new_state.type |= TransitionStateType.OUT_OF_SCOPE;
+
+                        new_state.symbols.push(sym);
+
+                    } if (Sym_Is_A_Production(sym)) {
+
+                        new_state.type |= TransitionStateType.PRODUCTION;
+
+                        new_state.symbols.push(Object.assign({}, sym, { production: null }));
+
+                        new_state.depth = -203;
+
+                        new_state.symbols.push(...getFirstTerminalSymbols(sym.val, grammar));
+                        new_state.items = group.map(r => r.increment());
+
+                        token_leaf_states.push(new_state);
+
+                    } else {
+
+                        new_state.symbols.push(sym);
+
+                        new_state.depth = -1033;
+                        new_state.items = group.map(r => r.atEND ? r : r.increment());
+
+                        new_state.type |= TransitionStateType.TERMINAL;
+
+                        token_leaf_states.push(new_state);
+                    }
+
+
+                    origin_state.states.push(new_state);
+                }
+            } else {
+
+                origin_state.states.length = 0;
+
+                const group = groups[0];
+                const sym = group[0].sym(grammar);
+
+                if (
+
+                    group.every(i => i.offset == 0)
+                    && group.group(i => i.getProductionID(grammar)).length == 1
+
+                    && group[0].getProductionID(grammar) != options.root_production
+
+                    && !isRecursive(options.root_production, getStartItemsFromProduction(group[0].getProduction(grammar)), grammar)
+                ) {
+                    const id = group[0].getProductionID(grammar);
+
+                    origin_state.type = TransitionStateType.PRODUCTION;
+
+                    origin_state.depth = -5005;
+
+                    origin_state.symbols.push({
+                        type: SymbolType.PRODUCTION,
+                        name: grammar.productions[id].name,
+                        tok: null,
+                        meta: null,
+                        val: id
+                    });
+
+                    continue;
+                } else if (Sym_Is_A_Production(sym)) {
+                    origin_state.depth = -1004;
+                    origin_state.type |= TransitionStateType.PRODUCTION;
+                    origin_state.items = group.slice().map(i => i);
+                    origin_state.symbols.push(sym);
+                    production_leaf_states.push(origin_state);
+                } else {
+                    origin_state.type |= TransitionStateType.TERMINAL;
+                    origin_state.items = group.slice();
+                    if (!group.some(i => i.atEND)) {
+                        token_leaf_states.push(origin_state);
+                    } else {
+                        origin_state.type ^= TransitionStateType.PEEK;
+                        origin_state.type |= TransitionStateType.END;
+                    }
+                }
+            }
+        }
+    }
+
+    for (const state of token_leaf_states)
+        recognize(grammar, state, root_peek_state, options, true);
+
+    for (const state of production_leaf_states)
+        recognize(grammar, state, root_peek_state, options);
+}
+function createDisambiguatedTree(grammar: GrammarObject, root_states: TransitionForestStateA[], options: TransitionForestOptions, previous_state: TransitionForestStateA, active_items: Item[], states: TransitionForestStateA[]) {
     const disambiguated_tree = disambiguate(grammar, root_states, options, true);
 
     const branch_states = disambiguated_tree.nodes.map((n => (n.state.parent = null, n.state)));
 
-    // Convert the previous state into multi branch state if there are 
+    // Convert the previous state into multi branch state if there is 
     // more than one branch state
     if (branch_states.length > 1) {
 
@@ -355,9 +536,33 @@ function createPeekTreeStates(
 
         states.push(...branch_states);
     }
+    return disambiguated_tree;
+}
+
+function processPeekGraphLeavesStandard(
+    grammar: GrammarObject,
+    active_items: Item[],
+    previous_state: TransitionForestStateA,
+    root_peek_state: TransitionForestStateA,
+    symbols_groups: Item[][],
+    root_states: TransitionForestStateA[],
+    options: TransitionForestOptions,
+) {
+
+    const { states } = previous_state,
+
+        disambiguated_tree = createDisambiguatedTree(
+            grammar,
+            root_states,
+            options,
+            previous_state,
+            active_items,
+            states
+        );
 
     //Build in new states and create transition for each one.
     //Convert graph into a transition tree and yield leaves
+    const token_leaf_states = [], production_leaf_states = [];
 
     for (const leaf of yieldPeekGraphLeaves(disambiguated_tree, grammar)) {
         /*
@@ -603,9 +808,8 @@ function* yieldPeekGraphLeaves(graph: TransitionForestGraph, grammar: GrammarObj
 
             yield* yieldPeekGraphLeaves(node, grammar);
 
-            if (node.state.states.length > 0) {
+            if (node.state.states.length > 0)
                 parent.states.push(node.state);
-            }
         }
 
         if (graph.nodes.length > 1 && parent.states.length > 0) {
@@ -620,6 +824,7 @@ function* yieldPeekGraphLeaves(graph: TransitionForestGraph, grammar: GrammarObj
 
             //This is a free action state.
             multi_item_state.states = parent.states.flatMap(flattenMulti(multi_item_state.depth));
+
             multi_item_state.items = multi_item_state.states.flatMap(s => s.items.map(i => i/* .decrement() */));
             parent.states = [multi_item_state];
         }
@@ -689,4 +894,6 @@ export interface TransitionForestOptions {
      * The id of the root production
      */
     root_production: number;
+
+    PRODUCTION_IS_SCANNER: boolean;
 }
