@@ -53,8 +53,59 @@ export class Token {
         });
     }
 
-    slice() {
-        return this.source.slice(this.off, this.off + this.length);
+    /**
+     * Return a string slice of the source bounded buy the token 
+     * or a portion of the token.
+     * @param start 
+     * @param end 
+     * @returns 
+     */
+    slice(start: number = 0, end: number = this.length) {
+
+        let adjusted_start = start < 0
+            ? Math.max(this.off, this.off + this.length + start)
+            : Math.min(this.off + start, this.off + this.length);
+
+        let adjusted_end = end < 0
+            ? Math.max(this.off, this.off + this.length + end)
+            : Math.min(this.off + end, this.off + this.length);
+
+        if (adjusted_end < adjusted_start) {
+            adjusted_end = this.off;
+            adjusted_start = this.off;
+        }
+
+        return this.source.slice(adjusted_start, adjusted_end);
+    }
+
+    /**
+     * Return a new Token of the source bounded buy the existing 
+     * token  or a portion of the existing token.
+     * @param start 
+     * @param end 
+     * @returns 
+     */
+    token_slice(start: number = 0, end: number = this.length) {
+        let adjusted_start = start < 0
+            ? Math.max(this.off, this.off + this.length + start)
+            : Math.min(this.off + start, this.off + this.length);
+
+        let adjusted_end = end < 0
+            ? Math.max(this.off, this.off + this.length + end)
+            : Math.min(this.off + end, this.off + this.length);
+
+        if (adjusted_end < adjusted_start) {
+            adjusted_end = this.off;
+            adjusted_start = this.off;
+        }
+
+        return new Token(
+            this.source,
+            this.path,
+            adjusted_end - adjusted_start,
+            adjusted_start,
+            this.line
+        );
     }
 
     toString() {
