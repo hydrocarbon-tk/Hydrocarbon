@@ -639,9 +639,8 @@ function flattenMulti(depth: number): (
     array: TransitionForestStateA[]
 ) => TransitionForestStateA | TransitionForestStateA[] {
     const fn = s => {
-        if (s.type & TransitionStateType.MULTI && s.depth == depth)
-            return s.states.map(fn);
-
+        if ((s.type & TransitionStateType.MULTI && !(s.type & TransitionStateType.FORK)) && s.depth == depth)
+            return s.states.flatMap(fn);
         return s;
     };
     return fn;
