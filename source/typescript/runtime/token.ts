@@ -30,26 +30,22 @@ export class Token {
 
     constructor(source: string, source_path: string, token_length: number, token_offset: number, line: number = -1) {
         Object.defineProperty(this, 'source', {
-            enumerable: false,
+            enumerable: true,
+            writable: false,
             value: source
         });
         Object.defineProperty(this, 'length', {
-            enumerable: false,
+            enumerable: true,
             value: token_length
         });
         Object.defineProperty(this, 'off', {
-            enumerable: false,
+            enumerable: true,
             value: token_offset
         });
         Object.defineProperty(this, '_line', {
-            enumerable: false,
+            enumerable: true,
             writable: true,
             value: line
-        });
-        Object.defineProperty(this, 'path', {
-            enumerable: false,
-            writable: true,
-            value: source_path
         });
     }
 
@@ -119,18 +115,7 @@ export class Token {
      */
     slice(start: number = 0, end: number = this.length) {
 
-        let adjusted_start = start < 0
-            ? Math.max(this.off, this.off + this.length + start)
-            : Math.min(this.off + start, this.off + this.length);
-
-        let adjusted_end = end < 0
-            ? Math.max(this.off, this.off + this.length + end)
-            : Math.min(this.off + end, this.off + this.length);
-
-        if (adjusted_end < adjusted_start) {
-            adjusted_end = this.off;
-            adjusted_start = this.off;
-        }
+        let { start: adjusted_start, end: adjusted_end } = this.getSliceRange(start, end);
 
         return this.source.slice(adjusted_start, adjusted_end);
     }
@@ -143,22 +128,12 @@ export class Token {
      * @returns 
      */
     token_slice(start: number = 0, end: number = this.length) {
-        let adjusted_start = start < 0
-            ? Math.max(this.off, this.off + this.length + start)
-            : Math.min(this.off + start, this.off + this.length);
 
-        let adjusted_end = end < 0
-            ? Math.max(this.off, this.off + this.length + end)
-            : Math.min(this.off + end, this.off + this.length);
-
-        if (adjusted_end < adjusted_start) {
-            adjusted_end = this.off;
-            adjusted_start = this.off;
-        }
+        let { start: adjusted_start, end: adjusted_end } = this.getSliceRange(start, end);
 
         return new Token(
             this.source,
-            this.path,
+            '',
             adjusted_end - adjusted_start,
             adjusted_start,
             this.line
@@ -186,11 +161,11 @@ export class Token {
         return this._line;
     }
 
-    createError(message, source = "") {
+    createError(message, source_path = "") {
 
         const lex = new Lexer(this.source);
 
-        lex.source = source;
+        lex.source = source_path;
 
         lex.off = this.off;
         lex.tl = this.length;
