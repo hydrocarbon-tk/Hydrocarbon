@@ -86,7 +86,8 @@ grammar, we can add a reduce function to the `num` production's body to convert 
 <> num > g:num f:r { parseInt($1 + "") }
 ```
 
-> By default, when a *terminal-symbol* is passed to a reduce function, it is represented by a Token object. 
+> When a *terminal-symbol* is passed to a reduce function, it is represented by a [Token](#todo) object. This object provides several utilty
+> methods useful when anylizing and transforming an AST into other forms. 
 
 We're using JavaScript expressions to define action used in the reduce function `f:r { ... }`. Hydrocarbon supports other syntaxes, but
 its native form is JavaScript, so we'll stick with that. The contents of a reduce function is an expression that takes the parsed symbols
@@ -204,4 +205,3 @@ The following grammar exports two entry points `str` and `num`, which allows the
 ## Symbols
 
 ## Functions
-
