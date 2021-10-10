@@ -14,7 +14,7 @@ of a basic production is `"<>" <production_name> ">" <production_bodies>`, where
 <> Start_Production > body1 | body2 | body3 | ...
 ```
 Production bodies are comprised of symbols that can represent sequences of characters, known as *terminal* symbols, 
-and/or names that refer to other productions, called *non-terminal* symbols. 
+and/or identifiers that refer to other productions, called *non-terminal* symbols. 
 
 ```hydrocarbon
 <> Start_Production > body1 | body2 | body3 | ...
