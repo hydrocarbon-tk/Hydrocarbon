@@ -27,6 +27,11 @@ $ yarn global add @candlelib/hydrocarbon
 ```bash
 $ npm install -g @candlelib/hydrocarbon
 ```
+## Build a parser
+
+```bash
+$ hydrocarbon compile --threads 2 --output ./parser.js ./my_grammar.hcg
+```
 
 ## Write A Grammar
 
