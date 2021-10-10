@@ -76,20 +76,22 @@ This single production represents the same grammar as our first version, but mor
 
 #### Functions
 
-As it is, this grammar will produce a parser that will do nothing more than tell us if a givin input can be produced by the grammar,
-in effect the parser can only recognize an input as being part of the grammar. However, if we want are parse to do something more 
-interesting, we can provide reduce functions that act on the recognized symbols of the grammar symbols. A reduce function is called 
-when the parser recognizes an input as being part of a particular body of a production. Going back to an early iteration of the 
-grammar, we can add a reduce function to the `num` production body to convert the recognized `g:num` symbol into a numeric object:
+As it is, this grammar will produce a parser that can do nothing more than tell us if a givin input can be produced by the grammar,
+in effect the parser can only recognize an input as being part of the grammar. However, if we want are parser to do something more 
+interesting, we can provide reduce functions that act on the recognized symbols of the grammar symbols. Hydrocarbon calls a reduce
+function when the parser recognizes an input as being part of a particular production body. Going back to an early iteration of our 
+grammar, we can add a reduce function to the `num` production's body to convert the `g:num` symbol into a numeric object:
 
 ```hydrocarbon
 <> num > g:num f:r { parseInt($1 + "") }
 ```
 
+> By default, when a *terminal-symbol* is passed to a reduce function, it is represented by a Token object. 
+
 We're using JavaScript expressions to define action used in the reduce function `f:r { ... }`. Hydrocarbon supports other syntaxes, but
-its native form is JavaScript, so we'll stick with that. The contents of a reduce function is an expression that takes the parsed symbols of a production
-body, modifies them in some way, and returns a new object or primitive. Inside a reduce function symbols are referenced by the syntax `\$ g:num`, where `g:num` is
-the one-based index position of the symbol.
+its native form is JavaScript, so we'll stick with that. The contents of a reduce function is an expression that takes the parsed symbols
+of a production body, modifies them in some way, and returns a new object or primitive. Inside a reduce function symbols are referenced 
+by the syntax `\$ g:num`, where `g:num` is the one-based index position of the symbol.
 
 An alternative to using the `\$ g:num` syntax to reference a symbol in a production body is to use *annotated* symbols and define a
 reference name for a symbol: 
@@ -130,7 +132,8 @@ A parse produced by this grammar will now be able to take an input such as `"1+2
 
 This many more topics not covered in this introduction that you may want to have a deeper look into, including 
 importing a merging grammars from different files, using the intermediate representation syntax to gain deeper control over parsing,
-and using the "out-of-band" function reference syntax to define reduce functions for production bodies in other files. Check out the API documentation for more information on writing HCG files.
+and using the "out-of-band" function reference syntax to define reduce functions for production bodies in other files. 
+Check out the API documentation for more information on writing HCG files.
 
 # API
 
