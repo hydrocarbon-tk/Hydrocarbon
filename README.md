@@ -27,15 +27,39 @@ $ yarn global add @candlelib/hydrocarbon
 ```bash
 $ npm install -g @candlelib/hydrocarbon
 ```
+## Write A Grammar
+
+[Checkout The Doc](./site/creating_a_grammar.index.md)
+
+```
+@IGNORE g:sp
+
+<> hw > t:hello t:world f:r { { type:"Hello World" } }
+
+```
+
+
 ## Build a parser
 
 ```bash
 $ hydrocarbon compile --threads 2 --output ./parser.js ./my_grammar.hcg
 ```
 
-## Write A Grammar
+## Use your new parser
 
-[Checkout The Doc](./site/creating_a_grammar.index.md)
+```ts
+
+import loader from "./parser.js";
+
+const { parse } = await loader;
+
+const { result } =  parse(" hello world ");
+
+console.log(result);
+
+//-> [{ type:"Hello World" }]
+
+```
 
 # Contribution
 
