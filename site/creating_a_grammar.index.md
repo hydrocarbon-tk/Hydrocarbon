@@ -53,13 +53,13 @@ The second production `num` contains multiple bodies, each with a single termina
 > It is actually encouraged to use left recursion, since this leads to the compilation of a more efficient parser.
 
 Hydrocarbon provides some modifiers and built in symbols that make it easier to write complex grammars. In our example
-grammar, we can use the *generic* symbol `g:num` to represent a character in the range [0..9]. 
+grammar, we can use the *generated* symbol `g:num` to represent a character in the range [0..9]. 
 
 ```hydrocarbon
 <> num > g:num
 ```
 
-We may also to replace the trivial non-terminal `num` with this generic symbol, which in turn allows us to remove the 
+We may also to replace the trivial non-terminal `num` with this generated symbol, which in turn allows us to remove the 
 `num` production entirely.
 
 ```hydrocarbon
