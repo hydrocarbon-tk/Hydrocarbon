@@ -6,7 +6,7 @@ grammars that can be composed in various ways to suite particular purposes.
 
 ## A Brief Introduction
 
-A single grammar is composed of on or productions that define how a particular subset of grammar should be parsed. The syntax
+A single grammar is composed of one or more productions that define how a particular subset of grammar should be parsed. The syntax
 of a basic production is `"<>" <production_name> ">" <production_bodies>`, where `production_name` is a sequence of alphanumeric 
  and/or `_` underscore characters, and `production_bodies` is one or more production bodies separated by a `|` character:
 
