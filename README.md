@@ -2,7 +2,7 @@
 
 <h3 align=center>Hybrid Parser Compiler</h3>
 
-<p align=center> <sub><b>v0.14.7</b></sub> </p>
+<p align=center> <img alt="npm (tag)" src="https://img.shields.io/npm/v/@candlelib/hydrocarbon?style=for-the-badge&logo=appveyor"> </p>
 
 
 CandleLibrary Hydrocarbon is a parser compiler that is able to create a hybrid parsers from grammars described in Hydrocarbon 
