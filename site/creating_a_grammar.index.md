@@ -1,7 +1,3 @@
----
-import <from>
----
-
 # Creating A Grammar
 
 A Hydrocarbon grammar file is a document written in an [BNF](https://en.wikipedia.org/wiki/Backus%E2%80%93Naur_form) inspired 
