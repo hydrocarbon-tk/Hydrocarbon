@@ -20,7 +20,6 @@ export class Token {
     static fromRange(start: Token, end: Token): Token {
         return new Token(
             start.source,
-            start.path,
             end.off - start.off + end.length,
             start.off
         );
@@ -28,26 +27,27 @@ export class Token {
 
     constructor(
         source: string,
-        source_path: string,
         token_length: number,
         token_offset: number,
         line: number = -1
     ) {
         Object.defineProperty(this, 'source', {
-            enumerable: true,
+            enumerable: false,
             writable: false,
             value: source
         });
         Object.defineProperty(this, 'length', {
             enumerable: true,
+            writable: false,
             value: token_length
         });
         Object.defineProperty(this, 'off', {
             enumerable: true,
+            writable: false,
             value: token_offset
         });
         Object.defineProperty(this, '_line', {
-            enumerable: true,
+            enumerable: false,
             writable: true,
             value: line
         });
@@ -137,7 +137,6 @@ export class Token {
 
         return new Token(
             this.source,
-            '',
             adjusted_end - adjusted_start,
             adjusted_start,
             this.line

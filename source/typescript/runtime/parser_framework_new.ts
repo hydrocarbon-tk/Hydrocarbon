@@ -68,7 +68,7 @@ export async function ParserFramework<T, R, K extends keyof R>(
                     data = valid.get_mut_state(0),
                     history = data.state_history.slice(),
                     iter = create_iterator(data),
-                    default_token: Token = new Token(input_string, "", 0, 0);
+                    default_token: Token = new Token(input_string, 0, 0);
 
                 let
                     stack = [],
@@ -125,7 +125,7 @@ export async function ParserFramework<T, R, K extends keyof R>(
 
                                 if (low & 4) length = ((length << 16) | iter.next());
 
-                                const tok = new Token(input_string, "", length, token_offset);
+                                const tok = new Token(input_string, length, token_offset);
 
                                 stack.push(tok);
 
@@ -157,7 +157,7 @@ export async function ParserFramework<T, R, K extends keyof R>(
 
                 const lexer = fail_state.get_root_lexer();
 
-                const token = new Token(input_string, "",
+                const token = new Token(input_string,
                     lexer.token_length,
                     lexer.token_offset
                 );

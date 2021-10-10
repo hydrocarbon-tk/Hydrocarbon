@@ -69,7 +69,7 @@ export async function ParserFramework<T, R, K extends keyof R>(
                     data = valid.get_mut_state(0),
                     history = data.state_history.slice(),
                     iter = create_iterator(data),
-                    default_token: Token = new Token(input_string, "", 0, 0);
+                    default_token: Token = new Token(input_string, 0, 0);
 
                 let stack = [],
                     tokens = [],
@@ -127,7 +127,7 @@ export async function ParserFramework<T, R, K extends keyof R>(
 
                                 stack.push(input_string.slice(token_offset, token_offset + length));
 
-                                tokens.push(new Token(input_string, "", length, token_offset));
+                                tokens.push(new Token(input_string, length, token_offset));
 
                                 token_offset += length;
 
@@ -143,6 +143,7 @@ export async function ParserFramework<T, R, K extends keyof R>(
                             }
                         }
                     }
+
                     return { result: <T[]>stack, history: history, err: null };
                 } catch (e) {
                     return { result: <T[]>[], history: history, err: e };
