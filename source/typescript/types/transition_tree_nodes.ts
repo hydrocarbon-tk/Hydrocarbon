@@ -112,4 +112,6 @@ export const enum TransitionStateType {
      */
     END = 1 << 10,
 
+    TOKEN_ASSIGNMENT = 1 << 11,
+
 }

@@ -139,7 +139,7 @@ export function disambiguate(
 
     mergeGroupsWithOccludingSymbols(grouped_roots, grammar);
 
-    const dissambiguated_multi_node = <TransitionForestGraph>{
+    const disambiguated_multi_node = <TransitionForestGraph>{
         symbol: null,
 
         AMBIGUOUS: false,
@@ -242,7 +242,7 @@ export function disambiguate(
 
             child_graph_node.symbol = key;
 
-            if (child_graph_node.AMBIGUOUS && !options.PRODUCTION_IS_SCANNER)
+            if (child_graph_node.AMBIGUOUS /* && !options.PRODUCTION_IS_SCANNER */)
                 child_graph_node.nodes.length = 0;
 
             graph_node.nodes.push(child_graph_node);
@@ -251,18 +251,18 @@ export function disambiguate(
 
             disambiguated_node.symbol = key;
 
-            if (key == getUniqueSymbolName(default_EOF)  && options.PRODUCTION_IS_SCANNER)
+            if (key == getUniqueSymbolName(default_EOF)/*  && !options.PRODUCTION_IS_SCANNER */)
                 disambiguated_node.AMBIGUOUS = true;
 
-            dissambiguated_multi_node.symbol = key;
+            disambiguated_multi_node.symbol = key;
 
             disambiguated_node.state = states[0];
 
             states[0].type = TransitionStateType.PEEK | TransitionStateType.TERMINAL;
 
-            dissambiguated_multi_node.state.states.push(states[0]);
+            disambiguated_multi_node.state.states.push(states[0]);
 
-            dissambiguated_multi_node.state.items.push(...states[0].items);
+            disambiguated_multi_node.state.items.push(...states[0].items);
 
             if (states[0].roots.some(i => i >= end_item_addendum))
                 REQUIRE_MULTI_DISAMBIGUATE_NODE = true;
@@ -270,24 +270,24 @@ export function disambiguate(
     }
 
     if (
-        dissambiguated_multi_node.state.states.length > 1
+        disambiguated_multi_node.state.states.length > 1
         ||
         REQUIRE_MULTI_DISAMBIGUATE_NODE
     ) {
 
         REQUIRE_MULTI_DISAMBIGUATE_NODE = true;
 
-        dissambiguated_multi_node.symbol = getUniqueSymbolName(default_GEN_SYM);
+        disambiguated_multi_node.symbol = getUniqueSymbolName(default_GEN_SYM);
 
-        graph_node.nodes.push(dissambiguated_multi_node);
+        graph_node.nodes.push(disambiguated_multi_node);
 
-        dissambiguated_multi_node.state.items =
-            dissambiguated_multi_node.state.items;
+        disambiguated_multi_node.state.items =
+            disambiguated_multi_node.state.items;
 
-        dissambiguated_multi_node.AMBIGUOUS =
-            dissambiguated_multi_node.state.items.every(i => i.atEND)
+        disambiguated_multi_node.AMBIGUOUS =
+            disambiguated_multi_node.state.items.every(i => i.atEND)
             &&
-            dissambiguated_multi_node.state.items.length > 1;
+            disambiguated_multi_node.state.items.length > 1;
 
     } else if (disambiguated_node.state != null)
         graph_node.nodes.push(disambiguated_node);

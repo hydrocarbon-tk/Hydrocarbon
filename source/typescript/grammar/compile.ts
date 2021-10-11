@@ -253,7 +253,7 @@ function distributePriorities(grammar: GrammarObject, error: Error[]) {
 
 function buildScannerProduction(grammar: GrammarObject) {
 
-    const productions: ScannerProductionNode[] = [], seen = new Set();
+    const productions: ScannerProductionNode[] = [], root_productions = [], seen = new Set();
 
     for (const [name, sym] of grammar.meta.all_symbols) {
 
@@ -262,13 +262,13 @@ function buildScannerProduction(grammar: GrammarObject) {
                 if (sym.type == SymbolType.END_OF_FILE || sym.val == "rec")
                     continue;
                 const val = sym.val;
-                if (["num", "id"].includes(val)) {
-                    productions.push(
+                if (["nums", "ids"].includes(val)) {
+                    root_productions.push(
                         <ScannerProductionNode>
                         loadGrammarFromString(`<> __${val}__ > g:${val} | __${val}__ g:${val}\n`).productions[0]
                     );
                 } else {
-                    productions.push(
+                    root_productions.push(
                         <ScannerProductionNode>
                         loadGrammarFromString(`<> __${val}__ > g:${val}\n`).productions[0]
                     );
@@ -276,6 +276,8 @@ function buildScannerProduction(grammar: GrammarObject) {
             } else if (Sym_Is_A_Production_Token(sym)) {
 
                 let prods: GeneralProductionNode[] = [sym.production];
+
+                let root = true;
 
                 for (const production of prods) {
 
@@ -293,7 +295,7 @@ function buildScannerProduction(grammar: GrammarObject) {
                         for (const sym of body.sym) {
                             if (Sym_Is_A_Generic_Type(sym)) {
                                 if (Sym_Is_EOF(sym)) continue;
-                                str.push(`__${sym.val}__`);
+                                str.push(`g:${sym.val}`);
                             } else if (Sym_Is_A_Production(sym) || Sym_Is_A_Production_Token(sym)) {
                                 const name = sym.name;
                                 str.push(`__${name}__`);
@@ -308,10 +310,15 @@ function buildScannerProduction(grammar: GrammarObject) {
                         bodies.push(str.join(" "));
                     }
 
-                    productions.push(
+                    const new_production =
                         <ScannerProductionNode>
-                        loadGrammarFromString(`<> ${name} > ${bodies.join(" | ")}\n`).productions[0]
-                    );
+                        loadGrammarFromString(`<> ${name} > ${bodies.join(" | ")}\n`).productions[0];
+
+                    if (root) {
+                        root = false;
+                        root_productions.push(new_production);
+                    } else
+                        productions.push(new_production);
                 }
 
             } else if (Sym_Is_Defined(sym) &&
@@ -321,7 +328,7 @@ function buildScannerProduction(grammar: GrammarObject) {
 
                 const syms = val.split("");
 
-                productions.push(
+                root_productions.push(
                     <ScannerProductionNode>
                     loadGrammarFromString(`<> __${val}__ > ${syms.map(s => `\\${s} `).join(" ")}\n`).productions[0]
                 );
@@ -330,24 +337,24 @@ function buildScannerProduction(grammar: GrammarObject) {
         }
     }
 
-    for (const production of productions) {
+    for (const production of [...productions, ...root_productions]) {
         production.name = production.symbol.name;
         production.type = "scanner-production";
     }
     const ubber_prod =
         <ScannerProductionNode>
-        loadGrammarFromString(`<> __SCANNER__ > ${productions.map(p => p.name).join(" | ")}\n`).productions[0];
+        loadGrammarFromString(`<> __SCANNER__ > ${root_productions.map(p => p.name).join(" | ")}\n`).productions[0];
 
     ubber_prod.name = ubber_prod.symbol.name;
 
     ubber_prod.type = "scanner-production";
 
-    productions.unshift(ubber_prod);
+    root_productions.unshift(ubber_prod);
 
     console.log(render_grammar({
         type: "hc-grammar-5",
-        productions
+        productions: [...root_productions, ...productions]
     }));
 
-    grammar.productions.push(...productions);
+    grammar.productions.push(...root_productions, ...productions);
 }

@@ -4,7 +4,7 @@
  * disclaimer notice.
  */
 import { user_defined_state_mux } from '../grammar/nodes/default_symbols.js';
-import { getUniqueSymbolName, Sym_Is_A_Production, Sym_Is_A_Token, Sym_Is_EOF, Sym_Is_Not_Consumed, Sym_Is_Recovery } from "../grammar/nodes/symbol.js";
+import { getUniqueSymbolName, Sym_Is_A_Generic_Type, Sym_Is_A_Production, Sym_Is_A_Token, Sym_Is_EOF, Sym_Is_Not_Consumed, Sym_Is_Recovery } from "../grammar/nodes/symbol.js";
 import { GrammarObject, GrammarProduction, HCG3Symbol, TokenSymbol } from "../types/grammar_nodes.js";
 import { TransitionForestStateA, TransitionStateType } from '../types/transition_tree_nodes.js';
 import { hashString } from '../utilities/code_generating.js';
@@ -48,7 +48,7 @@ export function constructProductionStates(
 
         parse_states: Map<string, string> = new Map,
 
-        recursive_descent_items = PRODUCTION_IS_SCANNER
+        recursive_descent_items = (PRODUCTION_IS_SCANNER)
             ? getProductionClosure(production.id, grammar).filter(
                 i => !i.atEND && !Sym_Is_A_Production(i.sym(grammar)))
             : getSTARTItems(production, grammar),
@@ -157,24 +157,29 @@ export function constructProductionStates(
 
                 goto_function_code.push(
                     f`${4}
-                on prod [ ${production_ids.join(" ")} ] ( 
+                assert PRODUCTION [ ${production_ids.join(" ")} ] ( 
                     ${prelude}goto state [ ${hash} ] then goto state [ ${goto_hash} ]
                 )`
                 );
 
                 HAVE_ROOT_PRODUCTION_GOTO ||= LOCAL_HAVE_ROOT_PRODUCTION_GOTO;
             }
-
-            if (HAVE_ROOT_PRODUCTION_GOTO) {
+            if (production.name == "__SCANNER__") {
                 goto_function_code.push(
                     f`${4}
                 on fail state [ ${root_prod_name}_goto_failed ]
-                    on prod [ ${root_prod_id} ] ( pass )`
+                    pass`
+                );
+            } else if (HAVE_ROOT_PRODUCTION_GOTO) {
+                goto_function_code.push(
+                    f`${4}
+                on fail state [ ${root_prod_name}_goto_failed ]
+                    assert PRODUCTION [ ${root_prod_id} ] ( pass )`
                 );
 
             } else {
                 goto_function_code.push(
-                    `   on prod [ ${root_prod_id} ] ( pass )`
+                    `   assert PRODUCTION [ ${root_prod_id} ] ( pass )`
                 );
             }
 
@@ -253,7 +258,21 @@ function processTransitionNode(
 
         global_items: Item[] = [];
 
-    if (state.type & TransitionStateType.MULTI) {
+    if (state.type & TransitionStateType.TOKEN_ASSIGNMENT) {
+
+        let hash = "";
+
+        if (state.states.length > 0)
+            ({ hash } = generateStateHashAction(state.states[0], grammar, PRODUCTION_IS_SCANNER, root_prod));
+        const end_items = state.items.filter(i => i.atEND);
+        const root_items = end_items.filter(i => i.getProduction(grammar).name == "__SCANNER__").map(i => i.decrement().getProductionAtSymbol(grammar).id);
+        const interior_items = end_items.filter(i => i.getProduction(grammar).name != "__SCANNER__").map(i => i.getProductionID(grammar));
+
+        state_string.push(`
+                token_assign [ ${[...root_items, ...interior_items].join("  ")} ]`
+            + (hash ? ` then goto [ ${hash} ]` : ""));
+
+    } else if (state.type & TransitionStateType.MULTI) {
 
         //join all types that have the same hash
 
@@ -281,8 +300,10 @@ function processTransitionNode(
             state.symbols.filter(s => !(Sym_Is_EOF(s) || Sym_Is_A_Production(s))).length > 0
         ) {
 
+            const mode = getSymbolMode(state.symbols.filter(Sym_Is_A_Token)[0], PRODUCTION_IS_SCANNER);
+
             state_string.push(`
-                ${assertion} [ ${state.symbols.filter(Sym_Is_A_Token).map(i => i.id).setFilter().join(" ")} ] (
+                ${assertion} ${mode} [ ${state.symbols.filter(Sym_Is_A_Token).map(i => getSymbolID(i, PRODUCTION_IS_SCANNER)).setFilter().join(" ")} ] (
                     ${prelude_command}${action}${postlude_command}
                 )
             `);
@@ -323,6 +344,10 @@ function processTransitionNode(
 
 const hash_cache: Map<string, { hash: string, action: string, assertion: string; }> = new Map();
 
+function convertSymbolToPoint(PRODUCTION_IS_SCANNER: boolean): (value: TokenSymbol, index: number, array: TokenSymbol[]) => number {
+    return i => PRODUCTION_IS_SCANNER ? i.val.codePointAt(0) : i.id;
+}
+
 function generateStateHashAction(
 
     state: TransitionForestStateA,
@@ -334,6 +359,9 @@ function generateStateHashAction(
     root_prod: number
 
 ): { hash: string, action: string, assertion: string; } {
+
+    if (!state)
+        debugger;
 
     let action_string = [],
         hash_string = [],
@@ -358,6 +386,25 @@ function generateStateHashAction(
         action_string.sort();
 
         hash_string = action_string;
+
+    } else if (state.type & TransitionStateType.TOKEN_ASSIGNMENT) {
+
+        if (state.states.length > 0) {
+
+            processMultiChildStates(
+                state,
+                grammar,
+                PRODUCTION_IS_SCANNER,
+                root_prod,
+                action_string,
+                [],
+                []
+            );
+
+            action_string.sort();
+        }
+
+        hash_string = action_string.concat(state.items.map(i => i.id).join(""));
 
     } else {
 
@@ -450,6 +497,9 @@ function processMultiChildStates(
 
             const symbols = getSymbolsFromStates(states).filter(Sym_Is_A_Token);
 
+            if (symbols.length < 1)
+                debugger;
+
             global_symbols.push(...symbols);
 
             let lexer_state = state.depth > 0 ? "peek" : "assert";
@@ -458,9 +508,15 @@ function processMultiChildStates(
                 ? "fail"
                 : prelude_command + action + postlude_command;
 
+            const mode = symbols.map(s => getSymbolMode(symbols[0], PRODUCTION_IS_SCANNER)).setFilter();
+
+            if (mode.length > 1)
+                debugger;
+
             states_string.push(
                 f`${4}
-                    ${lexer_state} [ ${symbols.map(i => i.id).setFilter().sort(numeric_sort).join(" ")} ${IS_LAST_GROUP ? " " + default_case_indicator : ""} ](
+                    ${lexer_state} ${mode.join(" ")} [ ${symbols.map(s => getSymbolID(s, PRODUCTION_IS_SCANNER))
+                        .setFilter().sort(numeric_sort).join(" ")} ${IS_LAST_GROUP ? " " + default_case_indicator : ""} ](
                         ${action_string}
                     )`
             );
@@ -524,8 +580,7 @@ function generateSingleStateAction(
     let combined_string = "";
 
     if (states.length > 1)
-        throw new Error("Single item states should need lead to multiple branches");
-
+        throw new Error("Single item states should not lead to multiple branches");
 
     if (type & TransitionStateType.OUT_OF_SCOPE) {
 
@@ -536,7 +591,9 @@ function generateSingleStateAction(
         action_string = `set prod to ${root_prod} then fail`;
         symbol_ids.push(...token_symbols.map(i => i.id).setFilter());
 
-        combined_string = `${assertion} [ ${symbol_ids.sort(numeric_sort).join(" ")} ] ( ${action_string} )`;
+        const mode = getSymbolMode(token_symbols[0], PRODUCTION_IS_SCANNER);
+
+        combined_string = `${assertion} ${mode} [ ${symbol_ids.sort(numeric_sort).join(" ")} ] ( ${action_string} )`;
 
     } else if (type & TransitionStateType.PEEK) {
         //Assert the children symbols
@@ -560,7 +617,9 @@ function generateSingleStateAction(
 
         symbol_ids.push(...token_symbols.map(i => i.id).setFilter());
 
-        combined_string = `${assertion} [ ${symbol_ids.sort(numeric_sort).join(" ")} ] ( ${action_string} )`;
+        const mode = getSymbolMode(token_symbols[0], PRODUCTION_IS_SCANNER);
+
+        combined_string = `${assertion} ${mode} [ ${symbol_ids.sort(numeric_sort).join(" ")} ] ( ${action_string} )`;
 
     } else if (type & TransitionStateType.END) {
 
@@ -582,9 +641,13 @@ function generateSingleStateAction(
                 ? item.len - 1
                 : item.len;
 
-            if (PRODUCTION_IS_SCANNER)
-                action_string = `${set_prod_clause}`;
-            else if (body.reduce_id >= 0)
+            if (PRODUCTION_IS_SCANNER) {
+                if (body.production.name == "__SCANNER__") {
+                    action_string = `token_assign [ ${item.decrement().getProductionAtSymbol(grammar).id} ] then ${set_prod_clause}`;
+                } else {
+                    action_string = `token_assign [ ${item.getProductionID(grammar)} ]`;
+                }
+            } else if (body.reduce_id >= 0)
                 action_string = `reduce ${len} ${body.reduce_id} then ${set_prod_clause}`;
             else if (len > 1)
                 action_string = `reduce ${len} 0 then ${set_prod_clause}`;
@@ -657,9 +720,14 @@ function generateSingleStateAction(
         else
             action_string = `consume then goto state [ ${hash} ]`;
 
-        symbol_ids.push(...token_symbols.map(i => i.id).setFilter());
 
-        combined_string = `assert [ ${symbol_ids.sort(numeric_sort).join(" ")} ] ( ${action_string} )`;
+
+
+        symbol_ids.push(...token_symbols.setFilter(i => i.id));
+
+        const mode = getSymbolMode(token_symbols[0], PRODUCTION_IS_SCANNER);
+
+        combined_string = `assert ${mode} [ ${symbol_ids.sort(numeric_sort).join(" ")} ] ( ${action_string} )`;
 
         assertion = "assert";
     }
@@ -678,4 +746,42 @@ function generateSingleStateAction(
         action_string = `not within scopes [ ${state.items[0].getProductionID(grammar)} ] then set scope to ${state.items[0].getProductionID(grammar)} then ` + action_string;
 
     return { action: action_string, combined: "\n    " + combined_string, assertion, symbol_ids };
+}
+
+
+function getSymbolMode(sym: TokenSymbol, SCANNER) {
+
+    if (SCANNER) {
+
+        if (Sym_Is_A_Generic_Type(sym)) {
+            return "CLASS";
+        } else {
+            const cp = sym.val.codePointAt(0);
+            if (cp < 128) {
+                return "BYTE";
+            } else {
+                return "";
+            }
+        }
+    }
+
+    return sym.id;
+}
+
+function getSymbolID(sym: TokenSymbol, SCANNER) {
+
+    if (SCANNER) {
+        if (Sym_Is_A_Generic_Type(sym)) {
+            return sym.id;
+        } else {
+            const cp = sym.val.codePointAt(0);
+            if (cp < 128) {
+                return cp;
+            } else {
+                return cp;
+            }
+        }
+    }
+
+    return sym.id;
 }

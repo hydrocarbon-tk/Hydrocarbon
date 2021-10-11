@@ -4,6 +4,7 @@
  * disclaimer notice.
  */
 import { copy } from '@candlelib/conflagrate';
+import { default_EOF } from '../grammar/nodes/default_symbols.js';
 import {
     getUniqueSymbolName, Sym_Is_A_Production, Sym_Is_EOF
 } from "../grammar/nodes/symbol.js";
@@ -375,9 +376,32 @@ function processPeekGraphLeavesScanner(
             In the multi-root case the leaf is used to fork to new actions
         */
 
+        if (leaf.states.length > 0) {
+            //merge leaf states
+            const pending_leaf_states: Map<string, TransitionForestStateA> = new Map();
+
+            for (const state of leaf.states) {
+                const id = state.roots.sort().join("") + state.items.map(i => i.id).sort().join("");
+
+                if (!pending_leaf_states.has(id))
+                    pending_leaf_states.set(id, state);
+                else
+                    pending_leaf_states.get(id).symbols.push(...state.symbols);
+            }
+
+            leaf.states.length = 0;
+
+            for (const [, state] of pending_leaf_states) {
+                state.symbols = state.symbols.setFilter(getUniqueSymbolName);
+                leaf.states.push(state);
+            }
+        }
+
         const candidate_states = leaf.states.length > 0
             ? leaf.states
             : [leaf];
+
+        let end_items = [];
 
         for (const origin_state of candidate_states) {
 
@@ -386,10 +410,30 @@ function processPeekGraphLeavesScanner(
 
             origin_state.peek_items = origin_state.items;
 
+            end_items.push(
+                ...origin_state.items.filter(i => i.atEND),
+                ...groups.flat().filter(i => i.atEND)
+            );
+
             if (groups.every(g => g.every(i => i.state == OutOfScopeItemState))) {
                 origin_state.type = TransitionStateType.OUT_OF_SCOPE;
                 continue;
             }
+
+            if (
+                groups.length > 1
+                &&
+                leaf.items.some(i => i.state == OutOfScopeItemState)
+                &&
+                leaf.items.every(i => !Sym_Is_A_Production(i.sym(grammar)))
+            ) {
+                groups = leaf.items.map(i => i.state)
+                    .setFilter()
+                    .filter(i => i != OutOfScopeItemState)
+                    .map(i => Math.abs(i) - 1)
+                    .map(i => symbols_groups[i & (end_item_addendum - 1)]);
+            }
+
 
             if (groups.length > 1) {
 
@@ -397,6 +441,10 @@ function processPeekGraphLeavesScanner(
 
                 //TODO Rebuild the groups while removing out of scope items.
                 leaf.type |= TransitionStateType.FORK | TransitionStateType.MULTI;
+
+                if (groups.every(i => i.atEND)) {
+
+                }
 
                 for (const group of groups) {
 
@@ -493,15 +541,51 @@ function processPeekGraphLeavesScanner(
                 }
             }
         }
+
+        //if (candidate_states[0] != leaf) {
+
+        end_items = end_items.filter(i => i.getProduction(grammar).name == "__SCANNER__");
+
+        if (end_items.length > 0) {
+
+            const new_state = createTransitionForestState(
+                leaf.type,
+                leaf.states.flatMap(s => s.symbols),
+                leaf.depth,
+                [],
+                leaf
+            );
+
+            leaf.symbols.push(default_EOF);
+
+            leaf.type = TransitionStateType.TOKEN_ASSIGNMENT;
+
+            new_state.items = leaf.items;
+
+            leaf.items = end_items;
+
+            new_state.states = leaf.states;
+
+            leaf.states = [new_state];
+        }
+        // }
     }
 
-    for (const state of token_leaf_states)
+    for (const state of token_leaf_states) {
         recognize(grammar, state, root_peek_state, options, true);
-
-    for (const state of production_leaf_states)
+    }
+    for (const state of production_leaf_states) {
         recognize(grammar, state, root_peek_state, options);
+    }
 }
-function createDisambiguatedTree(grammar: GrammarObject, root_states: TransitionForestStateA[], options: TransitionForestOptions, previous_state: TransitionForestStateA, active_items: Item[], states: TransitionForestStateA[]) {
+function createDisambiguatedTree(
+    grammar: GrammarObject,
+    root_states: TransitionForestStateA[],
+    options: TransitionForestOptions,
+    previous_state: TransitionForestStateA,
+    active_items: Item[],
+    states: TransitionForestStateA[]
+) {
     const disambiguated_tree = disambiguate(grammar, root_states, options, true);
 
     const branch_states = disambiguated_tree.nodes.map((n => (n.state.parent = null, n.state)));
