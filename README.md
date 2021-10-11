@@ -70,5 +70,5 @@ If you would like to contribute to the development of hydrocarbon, fork the repo
 
 # License
 
-Licensed under [GNU GPL v3](./LICENSE)
+[GNU GPL v3](./LICENSE) License
 
