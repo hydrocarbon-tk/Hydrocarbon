@@ -17,11 +17,11 @@ Production bodies are comprised of symbols that can represent sequences of chara
 and/or identifiers that refer to other productions, called *non-terminal* symbols. 
 
 ```hydrocarbon
-<> Start_Production > body1 | body2 | body3 | ...
+<> ... > \im_a_terminal_symbol t:im_also_a_terminal_symbol im_a_non_terminal_symbol
 ```
 <dance/>
 
-Terminal symbols can be written in *escaped literal* form by preceding a sequence of characters with a `\` character and following the character 
+Terminal symbols can be defined in *escaped literal* form by preceding a sequence of characters with a `\` character and following the character 
 sequence with a newline or space. An example of this is the sequence `\hello \world `, which defines the terminal symbols
 `hello` and `world`, which is differs from `\hello\world `, which defines the single terminal symbol `hello\world`.
 
