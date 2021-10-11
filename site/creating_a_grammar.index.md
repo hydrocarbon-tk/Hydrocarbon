@@ -21,7 +21,7 @@ and/or identifiers that refer to other productions, called *non-terminal* symbol
 ```
 <dance/>
 
-Terminal symbols can be defined in *escaped literal* form by preceding a sequence of characters with a `\` character and following the character 
+Terminal symbols can be defined in *escaped literal* form by preceding a sequence of characters with a `\` character and following that character 
 sequence with a newline or space. An example of this is the sequence `\hello \world `, which defines the terminal symbols
 `hello` and `world`, which is differs from `\hello\world `, which defines the single terminal symbol `hello\world`.
 
