@@ -14,6 +14,7 @@ export { init_table };
 const state_index_mask = (1 << 24) - 1;
 export const fail_state_mask = 1 << 27;
 export const normal_state_mask = 1 << 26;
+export const goto_state_mask = 1 << 25;
 export const alpha_increment_stack_pointer_mask = 1 << 0;
 export const alpha_have_default_action_mask = 1 << 1;
 export const production_scope_pop_pointer = 2;
@@ -34,18 +35,22 @@ type lexer_token_length = number;
 type production_id = number;
 
 export let state_history = [];
+let peek = null;
+
+export function assign_peek(fn) {
+    peek = fn;
+}
 
 
 /////////////////////////////////////////////
 // Kernel State 
 /////////////////////////////////////////////
 export class KernelState implements KernelStateType {
+    readonly instruction_buffer: Uint32Array;
     lexer: Lexer;
-    peek_lexer: Lexer;
     stack_pointer: u32;
     state_stack: Uint32Array;
     meta_stack: Uint32Array;
-    readonly instruction_buffer: Uint32Array;
 
     // 8 byte +
     rules: number[];
@@ -59,6 +64,9 @@ export class KernelState implements KernelStateType {
     origin_fork: number;
     input_len: number;
     token_scope_row: number;
+    last_byte_offset: number;
+    last_token_offset: number;
+    last_token_type: number;
 
     // 1 byte
     VALID: boolean;
@@ -75,10 +83,6 @@ export class KernelState implements KernelStateType {
         this.lexer = new Lexer(input_buffer, input_buffer.length);
 
         this.lexer.next();
-
-        this.peek_lexer = new Lexer(input_buffer, input_buffer.length);
-
-        this.peek_lexer.next();
 
         this.state_stack = new Uint32Array(128);
 
@@ -111,6 +115,12 @@ export class KernelState implements KernelStateType {
         this.refs = 0;
 
         this.token_scope_row = 0;
+
+        this.last_byte_offset = 0;
+
+        this.last_token_offset = 0;
+
+        this.last_token_type = 0;
 
         this.symbol_accumulator = 0;
     }
@@ -163,10 +173,13 @@ export class KernelState implements KernelStateType {
             destination_state.state_stack[i] = this.state_stack[i];
     }
 
-    copy_production_stack(destination_state: KernelState) {
+    copy_production_stack(destination_state: KernelState, cutoff: number) {
         for (let i = 0; i <= this.stack_pointer; i++) {
             destination_state.meta_stack[i] = (this.meta_stack[i]);
-            destination_state.state_stack[i] = 0;
+            if (i > this.stack_pointer - cutoff)
+                destination_state.state_stack[i] = this.state_stack[i];
+            else
+                destination_state.state_stack[i] = 0;
         }
     }
 
@@ -182,14 +195,14 @@ export class KernelState implements KernelStateType {
         this.stack_pointer = 0;
     }
 
-    fork(process_buffer: KernelStateBuffer): KernelState {
+    fork(process_buffer: KernelStateBuffer, cutoff: number): KernelState {
 
         let forked_state: KernelState = process_buffer.get_recycled_KernelState(this);
 
         forked_state.lexer.peek_unroll_sync(this.lexer);
         //Increment the refs count to prevent the
         //KernelState from being recycled.
-        this.copy_production_stack(forked_state);
+        this.copy_production_stack(forked_state, cutoff);
 
         forked_state.origin = this;
         forked_state.next = [];
@@ -197,6 +210,9 @@ export class KernelState implements KernelStateType {
         forked_state.origin_fork = this.get_rules_len();
         forked_state.state = this.state;
         forked_state.symbol_accumulator = this.symbol_accumulator;
+        forked_state.token_scope_row = this.token_scope_row;
+        forked_state.last_byte_offset = this.last_byte_offset;
+        forked_state.last_token_offset = this.last_token_offset;
         forked_state.VALID = true;
 
         this.refs++;
@@ -271,7 +287,7 @@ export class KernelState implements KernelStateType {
 
         if (0 != (this.state & 2)) {
 
-            let skip_delta = l.token_offset - l.prev_token_offset;
+            let skip_delta = l.token_offset - l.skip_token_offset;
 
             this.add_skip(skip_delta);
 
@@ -280,10 +296,9 @@ export class KernelState implements KernelStateType {
             this.symbol_accumulator += 1 << 16;
         }
 
-        l.prev_byte_offset = l.byte_offset + l.byte_length;
-        l.prev_token_offset = l.token_offset + l.token_length;
-
         l.next();
+
+        l.skip_token_offset = l.token_offset;
 
         return true;
     }
@@ -513,18 +528,14 @@ function pass() {
 }
 
 function advanced_return(kernel_state: KernelState, instruction: number, fail_mode: boolean): boolean {
-    if (instruction & 1) {
 
+    if (instruction & 1)
         return fail_mode;
-    }
 
     if (!kernel_state.lexer.END()) {
         kernel_state.lexer.token_type = 0;
         kernel_state.lexer.token_length = 1;
         kernel_state.lexer.byte_length = 1;
-        kernel_state.peek_lexer.token_type = 0;
-        kernel_state.peek_lexer.token_length = 1;
-        kernel_state.peek_lexer.byte_length = 1;
     }
 
     return true;
@@ -768,8 +779,10 @@ function set_token(instruction: number, kernel_state: KernelState, index: number
         for (let i = 0; i < length; i++) {
             const type = data[i + index];
             if (isTokenActive(type, token_scope, kernel_state.instruction_buffer)) {
-                kernel_state.token_type = type;
-                kernel_state.prod = type;
+                const lexer = kernel_state.lexer;
+                kernel_state.last_byte_offset = lexer.byte_offset + lexer.byte_length;
+                kernel_state.last_token_offset = lexer.token_offset + lexer.token_length;
+                kernel_state.last_token_type = type;
                 break;
             }
         }
@@ -830,7 +843,7 @@ function goto(instruction: number, kernel_state: KernelState) {
 
 function consume(instruction: number, kernel_state: KernelState) {
 
-    if (instruction & 1) {
+    if (instruction & 1) { //Consume nothing
         let lexer = kernel_state.lexer;
         lexer.token_length = 0;
         lexer.byte_length = 0;
@@ -870,8 +883,6 @@ function get_input_value(
     token_row_switches: number,
 ): number {
 
-    const peek_lexer = kernel_state.peek_lexer;
-
     let lexer = kernel_state.lexer;
 
     if (input_type > 0) { // Lexer token id input
@@ -887,34 +898,13 @@ function get_input_value(
 
             case 1: /* set next peek lexer */ {
 
-                if (peek_lexer.byte_offset <= lexer.byte_offset) {
-                    peek_lexer.sync(lexer);
-                }
-
-                peek_lexer.next();
-
-                peek_lexer.sync_offsets();
-
-                lexer = peek_lexer;
+                lexer.peek();
 
             } break;
 
             case 2: /* set primary lexer */
 
-                if (
-                    peek_lexer.byte_offset >= lexer.byte_offset
-                ) {
-
-                    peek_lexer.byte_offset = 0;
-
-                    lexer = kernel_state.lexer;
-
-                    lexer.token_type = 0;
-                    lexer.token_length = 1;
-                    lexer.byte_length = 1;
-                }
-
-                lexer = kernel_state.lexer;
+                lexer.reset();
 
                 break;
 
@@ -930,7 +920,7 @@ function get_input_value(
             case 3:
                 return lexer.code_point();
             case 4:
-                return lexer.current_byte;
+                return lexer.byte();
         }
 
     } else {
@@ -983,6 +973,8 @@ function scanner_core(
 
     state.state_stack[0] = 0;
 
+    state.state = 0;
+
     state.push_state(root_state.instruction_buffer[4]);
 
     scanner_process_buffer.add_state(state);
@@ -998,11 +990,11 @@ function scanner_core(
 
             const state = scanner_valid.get_ref_state(0);
 
-            if (isTokenActive(state.token_type, tk_row, state.instruction_buffer)) {
+            if (isTokenActive(state.last_token_type, tk_row, state.instruction_buffer)) {
 
                 const sync_lexer = state.lexer;
 
-                lexer.token_type = state.token_type;
+                lexer.token_type = state.last_token_type;
 
                 lexer.byte_length = sync_lexer.byte_offset - lexer.byte_offset;
 
@@ -1030,16 +1022,24 @@ function fork(
     let valid = new KernelStateBuffer;
     let invalid = new KernelStateBuffer;
     let process_buffer = new KernelStateBuffer;
+    let pointer = origin_kernel_state.stack_pointer;
 
     let length = (instruction & 0xFFFFFFF);
+    let depth = 0;
+
+    //Include the GOTO state and its fail state
+    if (origin_kernel_state.state_stack[pointer] & goto_state_mask) {
+        depth = 1;
+        if (origin_kernel_state.state_stack[pointer - 1] & fail_state_mask) {
+            depth = 2;
+        }
+    }
 
     while (length-- > 0) {
 
-        let kernel_state = origin_kernel_state.fork(process_buffer);
+        let kernel_state = origin_kernel_state.fork(process_buffer, depth);
 
-        const new_state = origin_kernel_state.instruction_buffer[index];
-
-        kernel_state.push_state(new_state);
+        kernel_state.push_state(origin_kernel_state.instruction_buffer[index]);
 
         index += 1;
     }
@@ -1244,6 +1244,10 @@ export function kernel_executor(
                 // into the fail_state_mask, effectively blocking all
                 // states that do not have the failure bit set.
                 const mask_gate = normal_state_mask << +fail_mode;
+
+                if (peek) {
+                    peek(state, kernel_state);
+                }
 
                 if (state & mask_gate) {
 

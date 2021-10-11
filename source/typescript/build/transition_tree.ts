@@ -542,33 +542,33 @@ function processPeekGraphLeavesScanner(
             }
         }
 
-        //if (candidate_states[0] != leaf) {
+        if (candidate_states[0] != leaf) {
 
-        end_items = end_items.filter(i => i.getProduction(grammar).name == "__SCANNER__");
+            end_items = end_items.filter(i => i.getProduction(grammar).name == "__SCANNER__");
 
-        if (end_items.length > 0) {
+            if (end_items.length > 0) {
 
-            const new_state = createTransitionForestState(
-                leaf.type,
-                leaf.states.flatMap(s => s.symbols),
-                leaf.depth,
-                [],
-                leaf
-            );
+                const new_state = createTransitionForestState(
+                    leaf.type,
+                    leaf.symbols,
+                    leaf.depth,
+                    [],
+                    leaf
+                );
 
-            leaf.symbols.push(default_EOF);
+                //leaf.symbols.push(default_EOF);
 
-            leaf.type = TransitionStateType.TOKEN_ASSIGNMENT;
+                leaf.type = TransitionStateType.TOKEN_ASSIGNMENT;
 
-            new_state.items = leaf.items;
+                new_state.items = leaf.items;
 
-            leaf.items = end_items;
+                leaf.items = end_items;
 
-            new_state.states = leaf.states;
+                new_state.states = leaf.states;
 
-            leaf.states = [new_state];
+                leaf.states = [new_state];
+            }
         }
-        // }
     }
 
     for (const state of token_leaf_states) {

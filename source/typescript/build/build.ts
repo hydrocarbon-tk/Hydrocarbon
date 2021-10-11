@@ -3,7 +3,7 @@
  * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
  * disclaimer notice.
  */
-import { Logger } from '@candlelib/log';
+import { Logger, LogLevel } from '@candlelib/log';
 import spark from "@candlelib/spark";
 import { WorkerRunner } from "../build/workers/worker_runner.js";
 import loader from "../grammar/hcg_parser_pending.js";
@@ -11,7 +11,7 @@ import { getProductionByName } from '../grammar/nodes/common.js';
 import { user_defined_state_mux } from '../grammar/nodes/default_symbols.js';
 import { getRootSym, Sym_Is_A_Token } from '../grammar/nodes/symbol.js';
 import { BuildPack } from "../render/render.js";
-import { fail_state_mask, normal_state_mask } from '../runtime/kernel.js';
+import { fail_state_mask, goto_state_mask, normal_state_mask } from '../runtime/kernel_next.js';
 import { Token } from '../runtime/token.js';
 import { GrammarObject, ProductionImportSymbol, ProductionSymbol, TokenSymbol } from "../types/grammar_nodes";
 import { BranchIRStateData, IRStateData, StateAttrib, StateMap } from '../types/ir_state_data';
@@ -27,6 +27,7 @@ const { parse: parser, entry_points: { ir } } = await loader;
 export const default_case_indicator = 9999;
 
 const build_logger = Logger.get("MAIN").createLogger("COMPILER");
+build_logger.get("PARSER").activate();
 
 export async function createBuildPack(
     grammar: GrammarObject,
@@ -61,11 +62,12 @@ export async function createBuildPack(
                 try {
                     const { result: [ir_state], err } = parser(str, {}, ir);
 
-                    if (err)
-                        build_logger.error(err);
+                    if (err) throw err;
+
                     return [str, ir_state];
                 } catch (e) {
-                    build_logger.error(hash, str);
+                    build_logger.get("PARSER").debug(str);
+                    build_logger.get("PARSER").critical(hash, str);
                     throw e;
                 }
             }
@@ -86,7 +88,7 @@ export async function createBuildPack(
                 ||
                 instruction.type == InstructionType.peek
             ) {
-                if (instruction.ids.includes(0))
+                if (instruction.ids.includes(0) && instruction.mode != "PRODUCTION")
                     instruction.ids.push(default_case_indicator);
             }
         }
@@ -205,6 +207,7 @@ function insertIrStateBlock(
 ) {
 
     const id = ir_state_ast.id;
+
 
     const IS_PRODUCTION_ENTRY = getProductionByName(grammar, id) != null;
 
@@ -342,7 +345,7 @@ function insertInstructionSequences(
                     temp_buffer.push(6 << 28 | length);
 
                     while (length-- > 0)
-                        temp_buffer.push(state_map.get(data[++i]).pointer);
+                        temp_buffer.push(state_map.get(getStateName(data[++i])).pointer);
 
                 } break;
 
@@ -729,6 +732,9 @@ function assignStateAttributeInformation(StateMap: StateMap, grammar: GrammarObj
         // assert all top level instructions are of the
         // the same class [prod or token]
 
+        if (state_name.match(/_goto/))
+            attributes |= StateAttrib.REQUIRED_GOTO;
+
         const token_instr_types = {
             [InstructionType.assert]: StateAttrib.ASSERT_BRANCH,
             [InstructionType.peek]: StateAttrib.PEEK_BRANCH,
@@ -944,6 +950,9 @@ function statesOutputsBuildPass(StateMap: StateMap, grammar: GrammarObject, sym_
         else
             state_data.pointer |= normal_state_mask;
 
+        if (attributes & StateAttrib.REQUIRED_GOTO)
+            state_data.pointer |= goto_state_mask;
+
     }
 
     const out_buffer = [
@@ -1087,7 +1096,7 @@ function buildJumpTableBranchBlock(
         if (default_block.total_size > max_instruction_byte_size)
             max_instruction_byte_size = default_block.total_size;
 
-        table_entries.unshift(default_block.instruction_sequence);
+        table_entries.unshift(...default_block.instruction_sequence);
 
     } else {
         table_entries.unshift(["fail"]);
@@ -1192,7 +1201,7 @@ function buildHashTableBranchBlock(
 
     if (default_block) {
 
-        instruction_sequence.push(default_block.instruction_sequence);
+        instruction_sequence.push(...default_block.instruction_sequence);
 
         return {
             number_of_elements: scanner_key_index_pairs.length,

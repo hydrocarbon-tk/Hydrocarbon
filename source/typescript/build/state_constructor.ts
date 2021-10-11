@@ -265,8 +265,8 @@ function processTransitionNode(
         if (state.states.length > 0)
             ({ hash } = generateStateHashAction(state.states[0], grammar, PRODUCTION_IS_SCANNER, root_prod));
         const end_items = state.items.filter(i => i.atEND);
-        const root_items = end_items.filter(i => i.getProduction(grammar).name == "__SCANNER__").map(i => i.decrement().getProductionAtSymbol(grammar).id);
-        const interior_items = end_items.filter(i => i.getProduction(grammar).name != "__SCANNER__").map(i => i.getProductionID(grammar));
+        const root_items = end_items.filter(i => i.getProduction(grammar).name == "__SCANNER__").map(i => i.decrement().getProductionAtSymbol(grammar).token_id);
+        const interior_items = end_items.filter(i => i.getProduction(grammar).name != "__SCANNER__").map(i => i.getProduction(grammar).token_id);
 
         state_string.push(`
                 assign token [ ${[...root_items, ...interior_items].join("  ")} ]`
@@ -742,8 +742,11 @@ function generateSingleStateAction(
         state.items.some(i => i.state >= 9999)
         &&
         state.items.some(i => i.offset == 1)
-    )
-        action_string = `not within scopes [ ${state.items[0].getProductionID(grammar)} ] then set scope to ${state.items[0].getProductionID(grammar)} then ` + action_string;
+    ) {
+        debugger;
+
+        action_string = action_string;
+    }
 
     return { action: action_string, combined: "\n    " + combined_string, assertion, symbol_ids };
 }

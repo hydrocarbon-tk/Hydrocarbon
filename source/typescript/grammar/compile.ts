@@ -265,7 +265,7 @@ function buildScannerProduction(grammar: GrammarObject) {
                 if (["nums", "ids"].includes(val)) {
                     root_productions.push(
                         <ScannerProductionNode>
-                        addRootScannerFunction(`<> __${val}__ > g:${val} | __${val}__ g:${val}\n`, sym.id)
+                        addRootScannerFunction(`<> __${val}__ > g:${val.slice(0, -1)} g:${val.slice(0, -1)} | __${val}__ g:${val.slice(0, -1)}\n`, sym.id)
                     );
                 } else {
                     root_productions.push(

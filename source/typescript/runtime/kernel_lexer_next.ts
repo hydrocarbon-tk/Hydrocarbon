@@ -15,6 +15,7 @@ export class Lexer {
     byte_length: number;
     prev_byte_offset: number;
     prev_token_offset: number;
+    skip_token_offset: number;
     line: number;
     token_type: number;
     current_byte: number;
@@ -30,17 +31,13 @@ export class Lexer {
         this.token_offset = 0;
         this.prev_byte_offset = 0;
         this.prev_token_offset = 0;
+        this.skip_token_offset = 0;
         this.active_token_productions = 0;
         this.token_type = 0;
         this.line = 0;
         this.current_byte = 0;
     }
-    setToken(type_in: number, byte_length_in: number, token_length_in: number): number {
-        this.token_type = type_in;
-        this.byte_length = byte_length_in;
-        this.token_length = token_length_in;
-        return type_in;
-    }
+
     code_point() {
         const cp = get_utf8_code_point_at(this.byte_offset, this.input);
         this.byte_length = get_ut8_byte_length_from_code_point(cp);
@@ -63,24 +60,6 @@ export class Lexer {
         destination.peek_unroll_sync(this);
         return destination;
     }
-    sync(source: Lexer) {
-
-        this.byte_offset = source.byte_offset;
-        this.byte_length = source.byte_length;
-        this.token_length = source.token_length;
-        this.token_offset = source.token_offset;
-        this.prev_byte_offset = source.byte_offset;
-        this.prev_token_offset = source.token_offset;
-        this.line = source.line;
-        this.token_type = source.token_type;
-        this.current_byte = source.current_byte;
-        this.active_token_productions = source.active_token_productions;
-    }
-
-    sync_offsets() {
-        this.prev_byte_offset = this.byte_offset;
-        this.prev_token_offset = this.token_offset;
-    }
 
     peek_unroll_sync(source: Lexer) {
 
@@ -96,13 +75,7 @@ export class Lexer {
         this.active_token_productions = source.active_token_productions;
     }
 
-    set_token_span_to(source: Lexer) {
-        if (source.prev_byte_offset > this.byte_offset) {
-            this.byte_length = source.prev_byte_offset - this.byte_offset;
-            this.token_length = source.prev_token_offset - this.token_offset;
-        }
-    };
-    next() {
+    peek() {
         this.byte_offset += this.byte_length;
         this.token_offset += this.token_length;
 
@@ -111,9 +84,10 @@ export class Lexer {
             this.byte_length = 0;
             this.token_length = 0;
             this.current_byte = 0;
-        }
-        else {
+        } else {
+
             this.current_byte = this.input[this.byte_offset];
+
             if (this.current_byte == 10)
                 this.line += 1;
 
@@ -121,6 +95,22 @@ export class Lexer {
             this.byte_length = 1;
             this.token_length = 1;
         };
+    }
+
+    reset() {
+        if (this.prev_byte_offset != this.byte_offset) {
+            this.byte_offset = this.prev_byte_offset;
+            this.prev_token_offset = this.token_offset;
+            this.token_length = 1;
+            this.byte_length = 1;
+            this.token_type = 0;
+        }
+    }
+
+    next() {
+        this.peek();
+        this.prev_byte_offset = this.byte_offset;
+        this.prev_token_offset = this.token_offset;
     }
     END(): boolean { return this.byte_offset >= this.input.length; };
 }

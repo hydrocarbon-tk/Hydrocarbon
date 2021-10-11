@@ -55,15 +55,13 @@ export function create_symbol_clause(
     `;
 
     if (skipped_symbols.length > 0)
-        code += `
+        code += `/* Skipped symbols  
+
+        ${skipped_symbols.sort((a, b) => a.id - b.id).map(create_symbol_comment).join(" ")}
         
-        skipped [ ${skipped_symbols.flatMap(convert_sym_to_code).setFilter().sort().join("  ")} ]
-
-    /* Skipped symbols  
-
-   ${skipped_symbols.sort((a, b) => a.id - b.id).map(create_symbol_comment).join(" ")}
-   
-   */`;
+        */
+        
+        skipped [ ${skipped_symbols.flatMap(convert_sym_to_code).setFilter().sort().join("  ")} ]`;
 
     return code;
 }

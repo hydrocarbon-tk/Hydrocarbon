@@ -26,5 +26,6 @@ export const enum StateAttrib {
     MULTI_BRANCH = 1 << 4,
     FAIL_STATE = 1 << 5,
     PRODUCTION_ENTRY = 1 << 6,
+    REQUIRED_GOTO = 1 << 7,
     TOKEN_BRANCH = ASSERT_BRANCH | PEEK_BRANCH
 }
