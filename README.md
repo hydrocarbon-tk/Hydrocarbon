@@ -31,7 +31,8 @@ $ npm install -g @candlelib/hydrocarbon
 
 [Checkout The Doc](./site/creating_a_grammar.index.md)
 
-```
+**example**
+```hydrocarbon
 @IGNORE g:sp
 
 <> hw > t:hello t:world f:r { { type:"Hello World" } }
