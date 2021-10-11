@@ -42,10 +42,8 @@
                                             f:r { $3 }
 
 <> top_level_instructions > 
-    
-        prod_branch_instruction(+) 
-    
-    |   token_branch_instruction(+) 
+
+        assertion_instruction(+) 
     
     |   instruction_sequence                             
 
@@ -61,21 +59,17 @@
         
                                             f:r{ [...$1, $2] }
 
-<> prod_branch_instruction >
+<> assertion_instruction >
 
-        t:on t:prod production_id_list \( instruction_sequence \)        
+        t:assert  \PRODUCTION  production_id_list \( instruction_sequence \)                     
                                             
                                             f:r { { type:"prod", ids:$3, instructions: $5, pos  } }
 
-<> token_branch_instruction >
+        |
     
-        t:peek token_id_list \( instruction_sequence \)                    
+        ( t:assert | t:peek ) ( \TOKEN | \BYTE | \CODEPOINT | \CLASS ) token_id_list \( instruction_sequence \)                     
                                             
-                                            f:r { { type:"peek", ids: $2, instructions: $4, pos} }
-    
-    |   t:assert token_id_list \( instruction_sequence \)                     
-                                            
-                                            f:r { { type:"assert", ids: $2,instructions: $4, pos} }
+                                            f:r { { type: $1, mode:$3, ids: $5, instructions: $7, tok} }
 
 <> goto_instruction > 
 
@@ -88,14 +82,17 @@
 
     |   t:reduce fn::reduce_function   
                                             
-                                            f:r { { type:"reduce", len: -1, reduce_fn: $2, pos } }
+                                            f:r { { type:"reduce", len: -1, reduce_fn: $2, tok } }
+    |   t:assign t:token token_id_list  
+                                            
+                                            f:r { { type:"token-assign", ids: $3, tok } }
 
     |   t:set t:prod t:to ( 
                   g:num f:r{ parseInt($1) } 
                 |   sym::production_symbol
             )
                                             
-                                            f:r { { type:"set-prod", id: $4, pos  } }
+                                            f:r { { type:"set-prod", id: $4, tok  } }
 
     |   t:fork t:to \( state_reference(+\, ) \)
                                             
