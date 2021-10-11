@@ -265,12 +265,12 @@ function buildScannerProduction(grammar: GrammarObject) {
                 if (["nums", "ids"].includes(val)) {
                     root_productions.push(
                         <ScannerProductionNode>
-                        loadGrammarFromString(`<> __${val}__ > g:${val} | __${val}__ g:${val}\n`).productions[0]
+                        addRootScannerFunction(`<> __${val}__ > g:${val} | __${val}__ g:${val}\n`, sym.id)
                     );
                 } else {
                     root_productions.push(
                         <ScannerProductionNode>
-                        loadGrammarFromString(`<> __${val}__ > g:${val}\n`).productions[0]
+                        addRootScannerFunction(`<> __${val}__ > g:${val}\n`, sym.id)
                     );
                 }
             } else if (Sym_Is_A_Production_Token(sym)) {
@@ -309,16 +309,11 @@ function buildScannerProduction(grammar: GrammarObject) {
 
                         bodies.push(str.join(" "));
                     }
-
-                    const new_production =
-                        <ScannerProductionNode>
-                        loadGrammarFromString(`<> ${name} > ${bodies.join(" | ")}\n`).productions[0];
-
                     if (root) {
                         root = false;
-                        root_productions.push(new_production);
+                        root_productions.push(addRootScannerFunction(`<> ${name} > ${bodies.join(" | ")}\n`, sym.id));
                     } else
-                        productions.push(new_production);
+                        productions.push(addRootScannerFunction(`<> ${name} > ${bodies.join(" | ")}\n`, sym.id));
                 }
 
             } else if (Sym_Is_Defined(sym) &&
@@ -330,7 +325,7 @@ function buildScannerProduction(grammar: GrammarObject) {
 
                 root_productions.push(
                     <ScannerProductionNode>
-                    loadGrammarFromString(`<> __${val}__ > ${syms.map(s => `\\${s} `).join(" ")}\n`).productions[0]
+                    addRootScannerFunction(`<> __${val}__ > ${syms.map(s => `\\${s} `).join(" ")}\n`, sym.id)
                 );
 
             }
@@ -343,7 +338,7 @@ function buildScannerProduction(grammar: GrammarObject) {
     }
     const ubber_prod =
         <ScannerProductionNode>
-        loadGrammarFromString(`<> __SCANNER__ > ${root_productions.map(p => p.name).join(" | ")}\n`).productions[0];
+        addRootScannerFunction(`<> __SCANNER__ > ${root_productions.map(p => p.name).join(" | ")}\n`, 9999);
 
     ubber_prod.name = ubber_prod.symbol.name;
 
@@ -357,4 +352,10 @@ function buildScannerProduction(grammar: GrammarObject) {
     }));
 
     grammar.productions.push(...root_productions, ...productions);
+}
+
+function addRootScannerFunction(val: string, token_id: number): ScannerProductionNode {
+    const production = <ScannerProductionNode>loadGrammarFromString(val).productions[0];
+    production.token_id = token_id;
+    return production;
 }

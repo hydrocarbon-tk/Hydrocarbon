@@ -4,15 +4,19 @@
  * disclaimer notice.
  */
 import { Logger } from '@candlelib/log';
+import { Token } from '../runtime/token.js';
 import { GrammarObject, ProductionImportSymbol, ProductionSymbol } from '../types/grammar_nodes';
 import { IRStateData, StateAttrib, StateMap } from '../types/ir_state_data';
-import { InstructionType, IRAssert, IRGoto, IRInlineAssert, IRPeek, IRProductionBranch, IRSetProd, IRTokenBranch, IR_Instruction, IR_State, Resolved_IR_State } from '../types/ir_types';
+import { InstructionType, IRAssert, IRGoto, IRInlineAssert, IRPeek, IRProductionBranch, IRSetProd, IRBranch, IR_Instruction, IR_State, Resolved_IR_State } from '../types/ir_types';
 import { renderIRNode } from './render_ir_state.js';
 
 function getStateName(
     name_candidate: ProductionSymbol | ProductionImportSymbol | string
 ): string {
     if (!name_candidate) return "";
+
+    if (name_candidate instanceof Token)
+        return name_candidate + "";
 
     if (typeof name_candidate == "string")
         return name_candidate;
@@ -543,7 +547,7 @@ function* yieldInstructionSequences(ir_state_ast: Resolved_IR_State): Generator<
             i.type == InstructionType.peek ||
             i.type == InstructionType.assert
     ))
-        for (const instruction of <[IRProductionBranch | IRTokenBranch]>ir_state_ast.instructions)
+        for (const instruction of <[IRProductionBranch | IRBranch]>ir_state_ast.instructions)
             yield instruction.instructions;
     else
         yield ir_state_ast.instructions;
@@ -595,9 +599,9 @@ export function garbageCollect(StateMap: StateMap, grammar: GrammarObject,) {
 
     const entry_names = [
         "__SCANNER__",
-        ...grammar.productions.filter(p => p.IS_ENTRY).map(i => i.name)
+        ...grammar.productions.filter(p => p.IS_ENTRY).map(i => i.name + "")
     ].setFilter();
-    const marked_map = new Map([...StateMap].map(([name]) => [name, false]));
+    const marked_map = new Map([...StateMap].map(([name]) => [name + "", false]));
 
     const pending = entry_names.slice();
 
@@ -645,7 +649,7 @@ export function garbageCollect(StateMap: StateMap, grammar: GrammarObject,) {
         }
 
         if (state.ir_state_ast.fail)
-            names.add(state.ir_state_ast.fail.id);
+            names.add(state.ir_state_ast.fail.id + "");
 
         for (const name of names) {
             if (!marked_map.get(name))

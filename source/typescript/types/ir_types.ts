@@ -23,6 +23,10 @@ export interface BaseIRState {
     fail?: FailedIRState | ResolvedFailedIRState;
     tok: Token;
 }
+
+export interface BranchIRState extends BaseIRState {
+    instructions: (IRAssert | IRPeek)[];
+}
 export interface FailedIRState extends BaseIRState {
     type: "on-fail-state";
 }
@@ -38,8 +42,8 @@ export interface ResolvedFailedIRState extends ResolvedIRState {
 
 export const enum InstructionType {
     prod = "prod",
-
     increment = "increment",
+    token_assign = "token-assign",
     empty_consume = "empty-consume",
     consume = "consume",
     inline_assert = "inline-assert",
@@ -77,25 +81,32 @@ export interface Base_IR_Instruction {
     type: InstructionType;
     tok: Token;
 }
-export interface IRTokenBranch {
+export interface IRBranch {
     ids: (number | TokenSymbol)[];
-
     instructions: IR_Instruction[];
+    mode: "PRODUCTION" | "TOKEN" | "BYTE" | "CODEPOINT" | "CLASS";
 
 }
-export interface IRAssert extends IRTokenBranch {
+export interface IRAssert extends IRBranch {
     type: InstructionType.assert;
 }
 
 export interface IRInlineAssert extends Base_IR_Instruction {
     type: InstructionType.inline_assert;
+    mode: "PRODUCTION" | "TOKEN" | "BYTE" | "CODEPOINT" | "CLASS";
     id: number,
     token_ids: number[];
     skipped_ids: number[];
 }
 
-export interface IRPeek extends IRTokenBranch {
+export interface IRTokenAssign extends Base_IR_Instruction {
+    type: InstructionType.token_assign;
+    ids: number[];
+}
+export interface IRPeek extends IRBranch {
     type: InstructionType.peek;
+
+
 }
 export interface IRProductionBranch extends Base_IR_Instruction {
     type: InstructionType.prod;
@@ -188,8 +199,8 @@ export interface IRRepeat extends Base_IR_Instruction {
 }
 
 export type Resolved_IR_State = ResolvedIRState
-    | ResolvedFailedIRState;
-export type IR_State = BaseIRState | FailedIRState;
+    | ResolvedFailedIRState | BranchIRState;
+export type IR_State = BaseIRState | BranchIRState | FailedIRState;
 export type IR_Instruction = IRConsume |
     IRAssert |
     IRRepeat |
@@ -209,6 +220,7 @@ export type IR_Instruction = IRConsume |
     IRFallThrough |
     IRGoto |
     IREnd |
+    IRTokenAssign |
     IRInlineAssert |
     IRNotInScopes |
     IRSetScope |

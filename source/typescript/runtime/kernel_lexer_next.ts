@@ -16,7 +16,7 @@ export class Lexer {
     prev_byte_offset: number;
     prev_token_offset: number;
     line: number;
-    private type: number;
+    token_type: number;
     current_byte: number;
     input: Uint8Array;
     input_len: number;
@@ -31,20 +31,12 @@ export class Lexer {
         this.prev_byte_offset = 0;
         this.prev_token_offset = 0;
         this.active_token_productions = 0;
-        this.type = 0;
+        this.token_type = 0;
         this.line = 0;
         this.current_byte = 0;
     }
-
-    get _type(): number {
-        return this.type;
-    }
-
-    set _type(v: number) {
-        this.type = v;
-    }
     setToken(type_in: number, byte_length_in: number, token_length_in: number): number {
-        this._type = type_in;
+        this.token_type = type_in;
         this.byte_length = byte_length_in;
         this.token_length = token_length_in;
         return type_in;
@@ -80,7 +72,7 @@ export class Lexer {
         this.prev_byte_offset = source.byte_offset;
         this.prev_token_offset = source.token_offset;
         this.line = source.line;
-        this._type = source._type;
+        this.token_type = source.token_type;
         this.current_byte = source.current_byte;
         this.active_token_productions = source.active_token_productions;
     }
@@ -99,7 +91,7 @@ export class Lexer {
         this.prev_byte_offset = source.prev_byte_offset;
         this.prev_token_offset = source.prev_token_offset;
         this.line = source.line;
-        this._type = source._type;
+        this.token_type = source.token_type;
         this.current_byte = source.current_byte;
         this.active_token_productions = source.active_token_productions;
     }
@@ -115,7 +107,7 @@ export class Lexer {
         this.token_offset += this.token_length;
 
         if (this.input.length <= this.byte_offset) {
-            this._type = 1;
+            this.token_type = 1;
             this.byte_length = 0;
             this.token_length = 0;
             this.current_byte = 0;
@@ -125,7 +117,7 @@ export class Lexer {
             if (this.current_byte == 10)
                 this.line += 1;
 
-            this.type = 0;
+            this.token_type = 0;
             this.byte_length = 1;
             this.token_length = 1;
         };

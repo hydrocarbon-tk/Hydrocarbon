@@ -51,6 +51,7 @@ export class Token {
             writable: true,
             value: line
         });
+        this.IS_TOKEN = true;
     }
 
     private getSliceRange(start: number, end: number) {

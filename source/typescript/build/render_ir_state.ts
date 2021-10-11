@@ -4,7 +4,7 @@
  * disclaimer notice.
  */
 import { experimentalConstructRenderers, experimentalRender, NodeMapping, NodeMappings } from "@candlelib/conflagrate";
-
+import { Token } from '../runtime/token.js';
 import {
     BaseIRState,
     FailedIRState,
@@ -15,14 +15,10 @@ import {
     IRFallThrough,
     IRFork,
     IRGoto,
-    IRInlineAssert,
-    IRLeftMost,
-    IRNode,
+    IRInlineAssert, IRNode,
     IRNotInScopes,
     IRPass,
-    IRPeek,
-    IRProductionBranch,
-    IRReduce,
+    IRPeek, IRReduce,
     IRRepeat,
     IRScanBackTo,
     IRScanTo,
@@ -31,19 +27,34 @@ import {
     IRSetTokenLength
 } from '../types/ir_types';
 
+
 function state_custom_render(state, render_fn) {
     const node = Object.assign({}, state.node);
 
-    if (node.instructions[0].type == InstructionType.assert
-        ||
-        node.instructions[0].type == InstructionType.prod
-        ||
-        node.instructions[0].type == InstructionType.peek)
-        node.instructs = node.instructions.map(i => render_fn(state, i))
-            .join("\n").split("\n").join("\n" + " ".repeat(state.indent + 4));
+    if (node.type == "sym-production")
+        return node.name;
 
-    else
-        node.instructs = node.instructions.map(i => render_fn(state, i)).join(" then ");
+    if (node instanceof Token)
+
+        debugger;
+
+    try {
+
+
+        if (node.instructions[0].type == InstructionType.assert
+            ||
+            node.instructions[0].type == InstructionType.prod
+            ||
+            node.instructions[0].type == InstructionType.peek)
+            node.instructs = node.instructions.map(i => render_fn(state, i))
+                .join("\n").split("\n").join("\n" + " ".repeat(state.indent + 4));
+
+        else
+            node.instructs = node.instructions.map(i => render_fn(state, i)).join(" then ");
+    } catch (e) {
+        debugger;
+        throw e;
+    }
 
     return render_fn(state, node);
 }
@@ -87,19 +98,13 @@ export const ir_state_mappings: NodeMappings<IRNode, "type"> = <NodeMappings<IRN
         <NodeMapping<IRAssert>>{
             type: "assert",
             child_keys: [],
-            template: "assert o:s \\[ o:s @ids...[m:s] o:s \\] \\( i:s o:n @instructions...[ o:n m:s \\then m:s o:n ] i:e o:n \\) "
+            template: "assert m:s @mode m:s \\[ o:s @ids...[m:s] o:s \\] \\( i:s o:n @instructions...[ o:n m:s \\then m:s o:n ] i:e o:n \\) "
         },
 
         <NodeMapping<IRPeek>>{
             type: "peek",
             child_keys: [],
-            template: "peek o:s \\[ o:s @ids...[m:s] o:s \\] \\( i:s o:n @instructions...[ o:n m:s \\then m:s o:n ] i:e o:n \\) "
-        },
-
-        <NodeMapping<IRProductionBranch>>{
-            type: "prod",
-            child_keys: [],
-            template: "on m:s prod o:s \\[ o:s @ids...[m:s] o:s \\] \\( i:s o:n @instructions...[ o:n m:s \\then m:s o:n ] i:e o:n \\) "
+            template: "peek m:s @mode m:s \\[ o:s @ids...[m:s] o:s \\] \\( i:s o:n @instructions...[ o:n m:s \\then m:s o:n ] i:e o:n \\) "
         },
 
         <NodeMapping<IRPass>>{
@@ -136,6 +141,12 @@ export const ir_state_mappings: NodeMappings<IRNode, "type"> = <NodeMappings<IRN
             type: "scan-until",
             child_keys: [],
             template: "scan m:s until o:s \\[ o:s @ids...[m:s] o:s \\]"
+        },
+
+        <NodeMapping<IRScanTo>>{
+            type: "token-assign",
+            child_keys: [],
+            template: "assign m:s token m:s \\[ o:s @ids...[m:s] o:s \\]"
         },
 
         <NodeMapping<IRScanBackTo>>{

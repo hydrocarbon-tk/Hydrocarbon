@@ -11,6 +11,8 @@ export const enum TokenTypes {
     FULL_NUMBER,
     NEW_LINE,
     SPACE,
+    IDENTIFIERS,
+    NUMBERS,
     CUSTOM_START_POINT,
     RECOVERY = 0,
 }

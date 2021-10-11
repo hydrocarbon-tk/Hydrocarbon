@@ -26,7 +26,7 @@ export function constructProductionStates(
     id: number;
 } {
 
-    //*  
+    /*  
     if (production.name == "__SCANNER__") {
         // debugger;
     }
@@ -105,7 +105,7 @@ export function constructProductionStates(
             ` then goto state [ ${goto_hash} ]`,
             PRODUCTION_IS_SCANNER
                 ? ""
-                : `set scope to ${root_prod_id} then `
+                : ""//`set scope to ${root_prod_id} then `
         );
 
         let goto_function_code = [`state [ ${goto_hash} ]`];
@@ -188,7 +188,7 @@ export function constructProductionStates(
         }
 
         parse_states.set(goto_hash, goto_function_code.join("\n"));
-        //* 
+        /* 
         for (const [, state] of parse_states)
             console.log(state);
         //*/
@@ -269,8 +269,8 @@ function processTransitionNode(
         const interior_items = end_items.filter(i => i.getProduction(grammar).name != "__SCANNER__").map(i => i.getProductionID(grammar));
 
         state_string.push(`
-                token_assign [ ${[...root_items, ...interior_items].join("  ")} ]`
-            + (hash ? ` then goto [ ${hash} ]` : ""));
+                assign token [ ${[...root_items, ...interior_items].join("  ")} ]`
+            + (hash ? ` then goto state [ ${hash} ]` : ""));
 
     } else if (state.type & TransitionStateType.MULTI) {
 
@@ -643,9 +643,9 @@ function generateSingleStateAction(
 
             if (PRODUCTION_IS_SCANNER) {
                 if (body.production.name == "__SCANNER__") {
-                    action_string = `token_assign [ ${item.decrement().getProductionAtSymbol(grammar).id} ] then ${set_prod_clause}`;
+                    action_string = `assign token [ ${item.decrement().getProductionAtSymbol(grammar).token_id} ] then ${set_prod_clause}`;
                 } else {
-                    action_string = `token_assign [ ${item.getProductionID(grammar)} ]`;
+                    action_string = set_prod_clause;
                 }
             } else if (body.reduce_id >= 0)
                 action_string = `reduce ${len} ${body.reduce_id} then ${set_prod_clause}`;
@@ -760,12 +760,12 @@ function getSymbolMode(sym: TokenSymbol, SCANNER) {
             if (cp < 128) {
                 return "BYTE";
             } else {
-                return "";
+                return "CODEPOINT";
             }
         }
     }
 
-    return sym.id;
+    return "TOKEN";
 }
 
 function getSymbolID(sym: TokenSymbol, SCANNER) {

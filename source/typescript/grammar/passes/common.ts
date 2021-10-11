@@ -71,9 +71,13 @@ export function processSymbols(grammar: GrammarObject, errors: Error[] = []) {
     let id_offset = TokenTypes.CUSTOM_START_POINT;
 
     //Add default generated symbols to grammar
-    const unique_map: Map<string, HCG3Symbol> = <Map<string, HCG3Symbol>>new Map(
-        default_array.map(sym => [getUniqueSymbolName(sym), sym])
-    );
+    const unique_map: Map<string, HCG3Symbol> = <Map<string, HCG3Symbol>>
+        grammar.meta.all_symbols
+        ??
+        new Map(default_array.map(sym => [getUniqueSymbolName(sym), sym]));
+
+    if (grammar.meta.all_symbols)
+        id_offset = grammar.meta.all_symbols.by_id.size;
 
     const token_production_set: Set<string> = new Set();
 
@@ -126,14 +130,22 @@ export function processSymbols(grammar: GrammarObject, errors: Error[] = []) {
             errors
         );
 
-
-    grammar.meta.all_symbols = <any>unique_map;
-
-    grammar.bodies = bodies;
-
     for (const g of [grammar, ...grammar.imported_grammars.map(g => g.grammar)])
         for (const sym of g.meta.ignore)
             id_offset = processSymbol(grammar, sym, production_lookup, unique_map, token_production_set, errors, id_offset);
+
+    grammar.bodies = bodies;
+
+    buildSymbolContainers(grammar, production_lookup, unique_map);
+}
+
+function buildSymbolContainers(
+    grammar: GrammarObject,
+    production_lookup: Map<string, GrammarProduction>,
+    unique_map: Map<string, HCG3Symbol>,
+) {
+
+    grammar.meta.all_symbols = <any>unique_map;
 
     const symbol_ids_array = [...unique_map.values()].filter(s => s.id).map(s => s.id).sort((a, b) => a - b).filter(i => i >= 1);
     grammar.meta.all_symbols.by_id = new Map([...unique_map.values()].map((sym) => [sym.id, sym]));
@@ -336,63 +348,6 @@ class MissingProduction extends Error {
     get stack() { return ""; }
 }
 
-export function createTokenProductions(
-    name: string,
-    grammar: GrammarObject,
-    production_lookup: Map<string, GrammarProduction>,
-    unique_map: Map<string, HCG3Symbol>,
-    token_production_set: Set<string>,
-    errors: Error[],
-    id_offset: number
-) {
-    const production = production_lookup.get(name);
-
-    const to_process = [production], new_syms = [];
-
-    for (const prod of to_process) {
-
-        const name = "tok_" + prod.name;
-
-        if (production_lookup.has(name))
-            continue;
-
-        const cp = Object.assign({}, prod);
-
-        production_lookup.set(name, cp);
-
-        cp.name = name;
-
-        cp.id = grammar.productions.push(cp) - 1;
-        cp.bodies = cp.bodies.map(b => {
-
-            let cb = Object.assign({}, b);
-
-            cb.sym = cb.sym.map(s => {
-
-                if (Sym_Is_A_Production(s)) {
-
-                    let cs = Object.assign({}, s);
-
-                    cs.name = "tok_" + cs.name;
-
-                    if (!production_lookup.has(cs.name))
-                        to_process.push(production_lookup.get(s.name));
-
-                    new_syms.push(cs);
-
-                    return cs;
-                }
-                return s;
-            });
-
-            return cb;
-        });
-    }
-
-    for (const sym of new_syms)
-        processSymbol(grammar, sym, production_lookup, unique_map, token_production_set, errors, id_offset);
-}
-
 
 export function processSymbol(
     grammar: GrammarObject,
@@ -411,23 +366,6 @@ export function processSymbol(
 
         let prod = production_lookup.get(sym.name);
 
-        /* if (Sym_Is_A_Production_Token(sym)) {
-
-            const name = "tok_" + sym.name;
-
-            if (!production_lookup.get(name))
-                createTokenProductions(
-                    sym.name,
-                    grammar,
-                    production_lookup,
-                    unique_map,
-                    token_production_set,
-                    errors,
-                    id_offset
-                );
-            prod = production_lookup.get(name);
-        } */
-
         if (!prod) {
             console.dir(production_lookup, { depth: 1 });
             addProductionNotFoundError(errors, sym);
@@ -444,11 +382,8 @@ export function processSymbol(
 
         const copy_sym = Object.assign({}, sym);
 
-        if (Sym_Is_A_Production(copy_sym))
+        if (Sym_Is_A_Production(sym) || Sym_Is_A_Production_Token(sym))
             copy_sym.production = production_lookup.get(copy_sym.name);
-
-        /* if (Sym_Is_A_Production_Token(copy_sym))
-            copy_sym.production = production_lookup.get("tok_" + copy_sym.name); */
 
         if (Sym_Is_A_Production_Token(copy_sym) && !token_production_set.has(unique_name)) {
             copy_sym.token_id = token_production_set.size;

@@ -141,6 +141,7 @@ export interface GeneralProductionNode extends ProductionNode {
 
 export interface ScannerProductionNode extends ProductionNode {
     type: "scanner-production",
+    token_id: number;
 }
 
 export interface MergedProductionNode extends ProductionNode {
@@ -434,6 +435,12 @@ export interface GeneratedNumber extends BaseGeneratedSymbol {
     id: TokenTypes.NUMBER;
 }
 
+export interface GeneratedNumbers extends BaseGeneratedSymbol {
+
+    val: "nums";
+    id: TokenTypes.NUMBERS;
+}
+
 export interface RecoverySymbol extends BaseGeneratedSymbol {
 
     val: "rec";
@@ -445,6 +452,17 @@ export interface GeneratedSpace extends BaseGeneratedSymbol {
 
     val: "sp";
     id: TokenTypes.SPACE;
+}
+
+export interface GeneratedSpace extends BaseGeneratedSymbol {
+
+    val: "sp";
+    id: TokenTypes.SPACE;
+}
+
+export interface GeneratedIdentifiers extends BaseGeneratedSymbol {
+    val: "ids";
+    id: TokenTypes.IDENTIFIERS;
 }
 export interface GeneratedIdentifier extends BaseGeneratedSymbol {
     val: "id";

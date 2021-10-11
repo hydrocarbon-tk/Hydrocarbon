@@ -188,7 +188,7 @@ export function generateHybridIdentifier(symbols: HCG3Symbol[]) {
 }
 
 
-export const token_lu_bit_size_offset = 5;
+export const token_lu_bit_size_offset = 5; // 32bits 
 export const token_lu_bit_size = 1 << token_lu_bit_size_offset;
 export function getSymbolMap(symbols: TokenSymbol[], grammar: GrammarObject): number[] {
     const ids = symbols.filter(s => s.id).map(s => s.id).sort((a, b) => a - b).filter(i => i >= 1);

@@ -30,12 +30,14 @@
 <> state_declaration > 
         
         t:state \[  tk:state_hash_token \]     
-                                            f:r { $3 }
+                                            f:r { $3 + "" }
 
 <> state_reference > 
         
         t:state \[ ( 
-                tk:state_hash_token
+                        tk:state_hash_token             
+                        
+                        f:r { $1 + "" }
                 |       sym::production_symbol
                 ) \]     
                                             
@@ -63,13 +65,13 @@
 
         t:assert  \PRODUCTION  production_id_list \( instruction_sequence \)                     
                                             
-                                            f:r { { type: $1, mode:$3, ids: $5, instructions: $7, tok} }
+                                            f:r { { type: $1 + "", mode:$2 + "", ids: $3, instructions: $5, tok} }
 
         |
     
         ( t:assert | t:peek ) ( \TOKEN | \BYTE | \CODEPOINT | \CLASS ) token_id_list \( instruction_sequence \)                     
                                             
-                                            f:r { { type: $1, mode:$3, ids: $5, instructions: $7, tok} }
+                                            f:r { { type: $1 + "", mode:$2 + "", ids: $3, instructions: $5, tok} }
 
 <> goto_instruction > 
 

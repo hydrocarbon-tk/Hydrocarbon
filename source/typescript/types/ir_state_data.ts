@@ -1,4 +1,4 @@
-import { BlockData, IR_State, Resolved_IR_State } from './ir_types';
+import { BlockData, BranchIRState, IR_State, Resolved_IR_State } from './ir_types';
 
 export interface IRStateData {
     string: string;
@@ -10,6 +10,11 @@ export interface IRStateData {
     attributes: StateAttrib;
     expected_tokens?: number[];
     skipped_tokens?: number[];
+}
+
+export interface BranchIRStateData extends IRStateData {
+
+    ir_state_ast: BranchIRState;
 }
 
 export type StateMap = Map<string, IRStateData>;

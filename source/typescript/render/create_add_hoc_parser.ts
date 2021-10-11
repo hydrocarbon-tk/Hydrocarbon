@@ -4,18 +4,15 @@
  * disclaimer notice.
  */
 import { ParserEnvironment } from '@candlelib/hydrocarbon';
-import { instruction_pointer_mask } from '../runtime/kernel_new.js';
 import { createBuildPack } from '../build/build.js';
 import { compileGrammarFromString } from '../grammar/compile.js';
-import { compare, init_table, KernelState, KernelStateIterator, run, token_production } from '../runtime/kernel_new.js';
+import { init_table, instruction_pointer_mask, KernelState, KernelStateIterator, run } from '../runtime/kernel_next.js';
 import { ParserFramework } from '../runtime/parser_framework_new.js';
 import { fillByteBufferWithUTF8FromString } from '../runtime/utf8.js';
 import { skRenderAsJavaScript } from '../skribble/skribble.js';
 import { GrammarObject } from '../types/grammar_nodes';
-import { getSymbolScannerFunctions, token_lu_bit_size } from '../utilities/code_generating.js';
 import {
-    BuildPack, createActiveTokenSK,
-    extractAndReplaceTokenMapRefs, renderJavaScriptReduceFunctionLookupArray
+    BuildPack, createActiveTokenSK, renderJavaScriptReduceFunctionLookupArray
 } from './render.js';
 
 
@@ -48,45 +45,26 @@ export async function createAddHocParser<T = any>(
 
     const { grammar, state_buffer, sym_map, states_map } = resolved_build_pack;
 
-    const token_sequence_lookup = new Uint8Array(grammar.sequence_string.split("").map(s => s.charCodeAt(0)));
-
     const entry_pointers = grammar.productions.filter(p => p.IS_ENTRY).map(p => ({ name: p.name, pointer: states_map.get(p.name).pointer }));
 
     const reverse_state_lookup = new Map([...states_map.entries()].map(([key, val]) => [instruction_pointer_mask & val.pointer, val.string]));
     //Attempt to parse input
 
-    const token_lookup_functions = extractAndReplaceTokenMapRefs(getSymbolScannerFunctions(grammar)
-        .map(skRenderAsJavaScript)
-        .join("\n\n"), sym_map);
-
-    const token_lookup_array = new ({
-        8: Uint8Array,
-        16: Uint8Array,
-        32: Uint32Array
-    }[token_lu_bit_size])([...sym_map.keys()].flatMap(s => s.split("_")));
-
     const input_string = `${skRenderAsJavaScript(createActiveTokenSK(grammar))}
-    ${token_lookup_functions}
+   
     const functions = ${renderJavaScriptReduceFunctionLookupArray(grammar)};
-     return { scan, functions };
+
+     return { functions };
     `.replace(/_A_([\w\_\d]+)_A_/g,
         (name, sub: string, ...args) => {
             const { pointer } = states_map.get("tok_" + sub);
             return pointer + "";
         });
     let { scan: tk_scan, functions: fns } = (Function(
-        "token_lookup",
-        "token_sequence_lookup",
-        "compare",
-        "token_production",
         "states_buffer",
         input_string)
 
     )(
-        token_lookup_array,
-        token_sequence_lookup,
-        compare,
-        token_production,
         state_buffer
     );
 
