@@ -1,9 +1,9 @@
-@IMPORT ./ooBA.hcg as oobA
+@IGNORE g:sp
 
-@EXPORT oobA::start as start
+<> test > ( A | B ) g:id 
 
-f:oobA::start.0.1.1 { { start:$a, end:$b, c:$c, d:0 } }
+<> A > g:id(+) tk:s g:id(+)
 
-f:oobA::state.0.0.1 { "A" }
+<> B > g:id(+) tk:s g:num(+)
 
-f:oobA::state.0.0.1 { "B" }
+<> s > g:id g:num
