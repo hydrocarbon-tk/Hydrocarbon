@@ -179,9 +179,9 @@ resolves to a single `*.hcg` grammar file.
 
 #### Entry Points
 
-The design of Hydrocarbon allows any production to serve as an entry point from which parse run will begin. By default the first production defined
-in the root grammar file as used as the sole entry point for a parse run. By using the `@EXPORT` directive, any number of entry points can be defined
-to as an alternate start point for a parse run. 
+The design of Hydrocarbon allows any production to serve as an entry point from which a parse run will begin. By default, the first production defined
+in the root grammar file as used as the sole entry point for a parse run. By using the `@EXPORT` preamble, any number of entry points can be defined
+to use an alternate start point for a parse run. 
 
 #### Example
 
