@@ -35,7 +35,7 @@ let renderers = null;
 export const render_grammar = (grammar_node) => {
     if (!renderers)
         renderers = experimentalConstructRenderers(hcg3_mappings);
-    return experimentalRender(grammar_node, hcg3_mappings, renderers);
+    return experimentalRender(grammar_node, hcg3_mappings, renderers).string;
 };
 
 function assignEntryProductions(grammar: GrammarObject, production_lookup) {

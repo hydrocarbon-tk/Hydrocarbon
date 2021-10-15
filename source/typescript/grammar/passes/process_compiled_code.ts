@@ -5,7 +5,7 @@ import { BOOLType, CompilableStruct, DBLType, EnumType, ValType } from "../../ty
 import { GrammarObject, HCG3ProductionBody } from "../../types/grammar_nodes";
 import { addReduceFNStringToLUT } from "./process_js_code.js";
 
-function parseAndRenderCPP(ast) { return experimentalRender(ast, cpp_duplicate, cpp_renderers); }
+function parseAndRenderCPP(ast) { return experimentalRender(ast, cpp_duplicate, cpp_renderers).string; }
 
 export function createCompilableCode(grammar: GrammarObject): void {
     // Reset the reduce_functions lookup to prepare the grammar for output

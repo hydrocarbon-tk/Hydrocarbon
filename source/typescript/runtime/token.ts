@@ -161,6 +161,15 @@ export class Token {
         return this._line;
     }
 
+    get column() {
+        
+        let i = this.off;
+
+        for (; this.source[i] != "\n" && i >= 0; --i);
+
+        return this.off - i;
+    }
+
     createError(message, source_path = "") {
 
         const lex = new Lexer(this.source);

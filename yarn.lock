@@ -2,103 +2,112 @@
 # yarn lockfile v1
 
 
-"@candlelib/conflagrate@0.4.3":
-  version "0.4.3"
-  resolved "https://registry.yarnpkg.com/@candlelib/conflagrate/-/conflagrate-0.4.3.tgz#522494c87902f4bd558648c0997f3c5a0bc0aab4"
-  integrity sha512-2EidsycmsXDJwxOIQa8qrLchoMDjEXZin7HngMA01VGfgoMzPKcxYABU/O990W/HMZG3Jc3Wc6uKBeybmmKYFg==
+"@candlelib/conflagrate@0.5.2":
+  version "0.5.2"
+  resolved "https://registry.npmjs.org/@candlelib/conflagrate/-/conflagrate-0.5.2.tgz#c17e42ec2604a4dba7a5ef6999152a0eae1294bc"
+  integrity sha512-ZnCgfPz2YD5S/Bai0hDW9KUWTeBKBsauUaK5xRRoH1XOIpyBN/QdbF1YfJg7FJugNsL7+JtlLzwtX5LB8VjBZA==
   dependencies:
-    "@candlelib/uri" "0.2.4"
-    "@candlelib/wind" "0.5.3"
+    "@candlelib/hydrocarbon" "0.14.7"
+    "@candlelib/uri" "0.3.0"
+    "@candlelib/wind" "0.5.4"
 
-"@candlelib/css@0.3.9":
-  version "0.3.9"
-  resolved "https://registry.yarnpkg.com/@candlelib/css/-/css-0.3.9.tgz#e1dc646a84d5f89d1144a02f9666cda2bd4d0ee6"
-  integrity sha512-3kMNYfJEG6ZIOrF0GQONGF2Mj0fYnLibcz2Rgkts5IAo9k/mCIvCDPcc7oD4Oi1skZ0k7E1ZTB3b/pfElNOXPQ==
+"@candlelib/css@0.3.18":
+  version "0.3.18"
+  resolved "https://registry.npmjs.org/@candlelib/css/-/css-0.3.18.tgz#09738b1f748ed6c94667caef24801be6b6fa6345"
+  integrity sha512-ucid6vt/jDpdSklrh46TIYz5jhLJ/236cGLHgozMTVb9SR85vEyEYa+U8qxnPrHNkdkQlRfBqVaq+L6Dy2TMQw==
   dependencies:
-    "@candlelib/conflagrate" "0.4.3"
-    "@candlelib/hydrocarbon" "0.12.0"
-    "@candlelib/uri" "0.2.4"
+    "@candlelib/conflagrate" "0.5.2"
+    "@candlelib/hydrocarbon" "0.14.7"
+    "@candlelib/uri" "0.3.0"
 
-"@candlelib/glow@0.4.8":
-  version "0.4.8"
-  resolved "https://registry.yarnpkg.com/@candlelib/glow/-/glow-0.4.8.tgz#e913300a509afa8880d1d1f365f551cfad0d8be1"
-  integrity sha512-nxmcky8gVWufuzmTKiowD1iOiPKX2zEQJJgEnzGpfKaWiaBgQ57KIuttxKPd/23R3yIPZ/DkPHP5yVU6H1ybQg==
+"@candlelib/glow@0.4.17":
+  version "0.4.17"
+  resolved "https://registry.npmjs.org/@candlelib/glow/-/glow-0.4.17.tgz#367821ec09a58d271bb50af47d94216e5a2e60b5"
+  integrity sha512-5owG8KG1nvRLgfSiPSb0x0AyCzKvHM+GuxYH6b0RROLRna3m17aTuFxRObddmz81yADnL7YhCrjv7qA3UOy0OQ==
   dependencies:
-    "@candlelib/css" "0.3.9"
-    "@candlelib/spark" "0.3.3"
+    "@candlelib/css" "0.3.18"
+    "@candlelib/spark" "0.3.4"
 
-"@candlelib/html@0.2.4":
-  version "0.2.4"
-  resolved "https://registry.yarnpkg.com/@candlelib/html/-/html-0.2.4.tgz#694891b9e6b392f9fbe169f48c141318c905782b"
-  integrity sha512-liMsWlai1Nqn2O/XCrqCid7YxQeblkzfmphDSMJcZAl0MMN36qio89jJwuNF1xDUSZEQEPpatOtdq52M7PUlow==
+"@candlelib/html@0.2.5":
+  version "0.2.5"
+  resolved "https://registry.npmjs.org/@candlelib/html/-/html-0.2.5.tgz#d0d5f945118a38b5c3ad45a3b3c523a3b30cad88"
+  integrity sha512-wmPzS6YR8/RXjZhFNveVvY4qa931CTRG/wZLMB/lhjE2WZ5Aukc9/znA11UCmDp0vhAVY9qBdU51dX8duzCWTQ==
   dependencies:
-    "@candlelib/uri" "0.2.4"
-    "@candlelib/wind" "0.5.3"
+    "@candlelib/uri" "0.3.0"
+    "@candlelib/wind" "0.5.4"
 
-"@candlelib/hydrocarbon@0.12.0":
-  version "0.12.0"
-  resolved "https://registry.yarnpkg.com/@candlelib/hydrocarbon/-/hydrocarbon-0.12.0.tgz#bbba87f03243775ec3f841497c02f20ac7a07060"
-  integrity sha512-GmO/X9zmAFVT8GRc4Ji3OMIwRfCdKqpoE1XpQOkHlcGT62TvI1/gR5ThdTPa8HyouNoumQdYoKfrbzVEGcrI8g==
+"@candlelib/hydrocarbon@0.14.7":
+  version "0.14.7"
+  resolved "https://registry.npmjs.org/@candlelib/hydrocarbon/-/hydrocarbon-0.14.7.tgz#445b80aab88879f3614573c4eebe02c90881e101"
+  integrity sha512-pwC4oA8oQIctS6WCh3E28so1d60Z0ZcSoMfO2XNNysth3mr/XJ95HxOlafGndIpABrHqJTTTWq2INkMpiEx31Q==
   dependencies:
-    "@candlelib/conflagrate" "0.4.3"
-    "@candlelib/js" "0.5.9"
-    "@candlelib/paraffin" "0.1.9"
-    "@candlelib/uri" "0.2.4"
-    "@candlelib/wind" "0.5.3"
+    "@candlelib/conflagrate" "0.5.2"
+    "@candlelib/js" "0.5.18"
+    "@candlelib/log" "0.2.0"
+    "@candlelib/paraffin" "0.1.18"
+    "@candlelib/uri" "0.3.0"
+    "@candlelib/wind" "0.5.4"
 
-"@candlelib/js@0.5.9":
-  version "0.5.9"
-  resolved "https://registry.yarnpkg.com/@candlelib/js/-/js-0.5.9.tgz#e82c331305126aad3a8282faa109f0032850a516"
-  integrity sha512-W9tLcXT+Xs0p4JOXy8gHPix+K1fMHBzFEwyuDqqDnNzNcwhClVsjuqHjbUe1vIZ7bKqnOjbmBlzamYAPRIl23g==
+"@candlelib/js@0.5.18":
+  version "0.5.18"
+  resolved "https://registry.npmjs.org/@candlelib/js/-/js-0.5.18.tgz#3c06ee17b74b87e43c2d73ca833952372c68119e"
+  integrity sha512-1Eg7f9o38lRsH6wWJtEr6gfFrUYOcWKwZlne574AuYu5+F2MHM5qH2MZ6mDUrmR+cqUFaFUe3cbb0k7Tyk/HYA==
   dependencies:
-    "@candlelib/conflagrate" "0.4.3"
-    "@candlelib/hydrocarbon" "0.12.0"
-    "@candlelib/uri" "0.2.4"
-    "@candlelib/wind" "0.5.3"
+    "@candlelib/conflagrate" "0.5.2"
+    "@candlelib/hydrocarbon" "0.14.7"
+    "@candlelib/uri" "0.3.0"
+    "@candlelib/wind" "0.5.4"
 
-"@candlelib/paraffin@0.1.9":
-  version "0.1.9"
-  resolved "https://registry.yarnpkg.com/@candlelib/paraffin/-/paraffin-0.1.9.tgz#bf35745084e0f4ed48eaa49fc311cf6428a8efb9"
-  integrity sha512-NGDWimamLcbFOS0NCJbmIe9MS6D4g3AbGezA6LHCDDaLxRqhb6rmhEGGUcKfJJ1v2F546dY7IdjM0oHJTGstWQ==
+"@candlelib/log@0.2.0":
+  version "0.2.0"
+  resolved "https://registry.npmjs.org/@candlelib/log/-/log-0.2.0.tgz#409a1cea8a74e17b797a7e679af56e0fa5ad7b17"
+  integrity sha512-efkfuQlBLMWLrqShmnEbtBiPFcNnuP2r9dh25rQCVGhsyNmmQ6EiaLPY1cfXm0wB3hxF5/TNeWgfKM0iP3yGzg==
+
+"@candlelib/paraffin@0.1.18":
+  version "0.1.18"
+  resolved "https://registry.npmjs.org/@candlelib/paraffin/-/paraffin-0.1.18.tgz#b336d79ac53289a4c9a3a2088a176b89304665c5"
+  integrity sha512-YopuGhsulossHwGiDaCrtzRrB3Ogsn7PlUPq7rgo7T7x4YFJvFomyOWSwdOSxI16qXlIeGispv7iUA3oH0zC6w==
   dependencies:
-    "@candlelib/conflagrate" "0.4.3"
-    "@candlelib/css" "0.3.9"
-    "@candlelib/html" "0.2.4"
-    "@candlelib/hydrocarbon" "0.12.0"
-    "@candlelib/uri" "0.2.4"
-    "@candlelib/wick" "0.15.9"
-    "@candlelib/wind" "0.5.3"
+    "@candlelib/conflagrate" "0.5.2"
+    "@candlelib/css" "0.3.18"
+    "@candlelib/html" "0.2.5"
+    "@candlelib/hydrocarbon" "0.14.7"
+    "@candlelib/log" "0.2.0"
+    "@candlelib/uri" "0.3.0"
+    "@candlelib/wick" "0.16.1"
+    "@candlelib/wind" "0.5.4"
 
-"@candlelib/spark@0.3.3":
-  version "0.3.3"
-  resolved "https://registry.yarnpkg.com/@candlelib/spark/-/spark-0.3.3.tgz#d536e9115e1cc8d9fe7a240a37589a2c9edebb6c"
-  integrity sha512-fyyKl09HCHRymf5kHiUkFG3uL7Q9NbGvBGyxAMUsi0e2n4qAKSnw7ifuWeD9S/kGT+uchkYoqwivBx0u9T7PRQ==
+"@candlelib/spark@0.3.4":
+  version "0.3.4"
+  resolved "https://registry.npmjs.org/@candlelib/spark/-/spark-0.3.4.tgz#5fdc6644d5370ce315397c8249a514eee2cf850b"
+  integrity sha512-OKIMTqZCh6euH4Y5dQuL2RbaLAw0/HVr+prZ+K1Zmm/hdom+wlI0GS1z/Bgrk6qQZLFfjO4EMJ3f5jKYKtxULA==
 
-"@candlelib/uri@0.2.4":
-  version "0.2.4"
-  resolved "https://registry.yarnpkg.com/@candlelib/uri/-/uri-0.2.4.tgz#20382d5a41a510e844cdba5027ff663f7d5f2ae5"
-  integrity sha512-YCXCx50IZfhRmygXLyT3gB8Vdd6KQbp3NSY1MpNsgaCpJBn5y8IH2IutVEQJPXeLbXMCcXmAWppoSOOnB4ut8g==
+"@candlelib/uri@0.3.0":
+  version "0.3.0"
+  resolved "https://registry.npmjs.org/@candlelib/uri/-/uri-0.3.0.tgz#fb31bb17fd53b87aaaf90116d1dc0c0e7747372b"
+  integrity sha512-ojm4nSpYum3+VNgjOz0rWLCvUn2tgXzqrVu+CTAoORsCX246orFD3V3NA+lYd2/F/q4oUll2UelM9kPN7Ads8Q==
 
-"@candlelib/wick@0.15.9":
-  version "0.15.9"
-  resolved "https://registry.yarnpkg.com/@candlelib/wick/-/wick-0.15.9.tgz#85e4e3eb8f7821cc2c987f2997532a2870d5f3bd"
-  integrity sha512-F8x3tbL/wCLrLAJfM18CkqP48uxLGWv6MGx8xWIV7+EsXnnaM2wssn709eV8V4UwGdII7Xfdd1c+pA8Yv05hKg==
+"@candlelib/wick@0.16.1":
+  version "0.16.1"
+  resolved "https://registry.npmjs.org/@candlelib/wick/-/wick-0.16.1.tgz#fef5bf1ac6e52ddfcbce18def94e48830ffe6cb8"
+  integrity sha512-AP7gGpaBK5L8dE7rUHsUWoZBk9f++Z6Cp+omeqnY/q+qWLq8qJm2Q+bOS9/fCykANYVN4VJtHkw8CtrDsF5k1g==
   dependencies:
-    "@candlelib/conflagrate" "0.4.3"
-    "@candlelib/css" "0.3.9"
-    "@candlelib/glow" "0.4.8"
-    "@candlelib/html" "0.2.4"
-    "@candlelib/hydrocarbon" "0.12.0"
-    "@candlelib/js" "0.5.9"
-    "@candlelib/paraffin" "0.1.9"
-    "@candlelib/spark" "0.3.3"
-    "@candlelib/uri" "0.2.4"
-    "@candlelib/wind" "0.5.3"
+    "@candlelib/conflagrate" "0.5.2"
+    "@candlelib/css" "0.3.18"
+    "@candlelib/glow" "0.4.17"
+    "@candlelib/html" "0.2.5"
+    "@candlelib/hydrocarbon" "0.14.7"
+    "@candlelib/js" "0.5.18"
+    "@candlelib/log" "0.2.0"
+    "@candlelib/paraffin" "0.1.18"
+    "@candlelib/spark" "0.3.4"
+    "@candlelib/uri" "0.3.0"
+    "@candlelib/wind" "0.5.4"
 
-"@candlelib/wind@0.5.3":
-  version "0.5.3"
-  resolved "https://registry.yarnpkg.com/@candlelib/wind/-/wind-0.5.3.tgz#5fac6a6cfcfb08a15fa8082b675b7bee0f062465"
-  integrity sha512-QvKE41M42FrkfyKDluNadtjR1ILS69uOWWElh9tr7bBeT2CmBaGTtSarhjhUIuEWAKqFV3IQptdy7ww4RWGnJg==
+"@candlelib/wind@0.5.4":
+  version "0.5.4"
+  resolved "https://registry.npmjs.org/@candlelib/wind/-/wind-0.5.4.tgz#30a76620c74d15e919e232f689b426e285b154fe"
+  integrity sha512-dLFmWIVWM715sFefBKOs5Vc9sz3MzgVWHkXzwjVP2VtgGQxG8a+nfOS1J0IfoL0l9bFbKntKXc9j79NPepwCaw==
 
 "@types/node@^16.4.13":
   version "16.4.13"
