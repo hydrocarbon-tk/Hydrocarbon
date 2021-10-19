@@ -11,7 +11,7 @@ import { Lexer } from "@candlelib/wind";
  * sequences.
  */
 export class Token {
-    readonly path: string;
+    path: string;
     readonly source: string;
     readonly off: number;
     readonly length: number;
@@ -25,33 +25,22 @@ export class Token {
         );
     }
 
-    constructor(
-        source: string,
-        token_length: number,
-        token_offset: number,
-        line: number = -1
-    ) {
-        Object.defineProperty(this, 'source', {
-            enumerable: false,
-            writable: false,
-            value: source
-        });
-        Object.defineProperty(this, 'length', {
-            enumerable: true,
-            writable: false,
-            value: token_length
-        });
-        Object.defineProperty(this, 'off', {
-            enumerable: true,
-            writable: false,
-            value: token_offset
-        });
-        Object.defineProperty(this, '_line', {
-            enumerable: false,
-            writable: true,
-            value: line
-        });
-        this.IS_TOKEN = true;
+
+    constructor(source: string, token_length: number, token_offset: number, line: number = -1) {
+        this.source = source;
+        this.length = token_length;
+        this.off = token_offset;
+        this._line = line;
+        this.path = "";
+    }
+
+    setPath(path: string) {
+        this.path = path;
+        return this;
+    }
+
+    setSource(source: string) {
+        return new Token(source, this.length, this.off, this.line).setPath(this.path);
     }
 
     private getSliceRange(start: number, end: number) {
@@ -141,7 +130,7 @@ export class Token {
             adjusted_end - adjusted_start,
             adjusted_start,
             this.line
-        );
+        ).setPath(this.path);
     }
 
     toString() {
@@ -163,6 +152,15 @@ export class Token {
                     this._line++;
         }
         return this._line;
+    }
+
+    get column() {
+
+        let i = this.off;
+
+        for (; this.source[i] != "\n" && i >= 0; --i);
+
+        return this.off - i;
     }
 
     createError(message, source_path = "") {
