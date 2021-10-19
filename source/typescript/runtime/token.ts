@@ -11,7 +11,7 @@ import { Lexer } from "@candlelib/wind";
  * sequences.
  */
 export class Token {
-    readonly path: string;
+    path: string;
     readonly source: string;
     readonly off: number;
     readonly length: number;
@@ -29,24 +29,15 @@ export class Token {
 
 
     constructor(source: string, source_path: string, token_length: number, token_offset: number, line: number = -1) {
-        Object.defineProperty(this, 'source', {
-            enumerable: true,
-            writable: false,
-            value: source
-        });
-        Object.defineProperty(this, 'length', {
-            enumerable: true,
-            value: token_length
-        });
-        Object.defineProperty(this, 'off', {
-            enumerable: true,
-            value: token_offset
-        });
-        Object.defineProperty(this, '_line', {
-            enumerable: true,
-            writable: true,
-            value: line
-        });
+        this.source = source;
+        this.path = source_path;
+        this.length = token_length;
+        this.off = token_offset;
+        this._line = line;
+    }
+
+    setSource(source: string) {
+        return new Token(source, "", this.length, this.off, this.line);
     }
 
     private getSliceRange(start: number, end: number) {
@@ -162,7 +153,7 @@ export class Token {
     }
 
     get column() {
-        
+
         let i = this.off;
 
         for (; this.source[i] != "\n" && i >= 0; --i);
