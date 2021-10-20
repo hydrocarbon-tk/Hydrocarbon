@@ -74,6 +74,7 @@ export async function createAddHocParser<T = any>(
             const { pointer } = states_map.get("tok_" + sub);
             return pointer + "";
         });
+
     let { scan: tk_scan, functions: fns } = (Function(
         "token_lookup",
         "token_sequence_lookup",
@@ -89,6 +90,7 @@ export async function createAddHocParser<T = any>(
         token_production,
         state_buffer
     );
+
 
     const { parse } = await ParserFramework<T, { null: 0; }, "null">(fns, undefined, {
 
