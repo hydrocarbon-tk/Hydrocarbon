@@ -61,11 +61,15 @@ export async function compileGrammar(grammar: GrammarObject):
         createCollisionMatrix(grammar);
 
     } catch (e) {
+        console.error(e);
         errors.push(e);
     }
 
-    if (errors.length > 0)
+    if (errors.length > 0) {
+
+
         throw new GrammarCompilationReport(errors);
+    }
 
     return grammar;
 }
@@ -251,36 +255,71 @@ function distributePriorities(grammar: GrammarObject, error: Error[]) {
     }
 }
 
+function convertSymbolsToProductionName(name: string) {
+    const output = [];
+
+    for (const char of name) {
+        const cp = char.codePointAt(0);
+
+        if ((cp >= 97 && cp <= 122) || (cp >= 65 && cp <= 90)) {
+            output.push(char);
+        } else if ((cp >= 48 && cp <= 57)) {
+            output.push(`_${char}`);
+        } else {
+            output.push(`_${cp}`);
+        }
+    }
+
+    return output.join("");
+}
+
+export function getSymbolProductionName(sym: HCG3Symbol) {
+    if (Sym_Is_A_Generic_Type(sym) || (Sym_Is_Defined(sym) &&
+        !(Sym_Is_Empty(sym) || Sym_Is_EOF(sym)))) {
+        return `__${convertSymbolsToProductionName(sym.val)}__`;
+    } else if (Sym_Is_A_Production_Token(sym)) {
+        return `__${sym.production.name}__`;
+    }
+
+    return "";
+}
+
 function buildScannerProduction(grammar: GrammarObject) {
 
     const productions: ScannerProductionNode[] = [], root_productions = [], seen = new Set();
+
+    const cName = convertSymbolsToProductionName;
 
     for (const [name, sym] of grammar.meta.all_symbols) {
 
         if (!Sym_Is_A_Production(sym)) {
             if (Sym_Is_A_Generic_Type(sym)) {
+                //* 
                 if (sym.type == SymbolType.END_OF_FILE || sym.val == "rec")
                     continue;
                 const val = sym.val;
+                const name = `__${cName(val)}__`;
                 if (["nums", "ids"].includes(val)) {
                     root_productions.push(
                         <ScannerProductionNode>
-                        addRootScannerFunction(`<> __${val}__ > g:${val.slice(0, -1)} g:${val.slice(0, -1)} | __${val}__ g:${val.slice(0, -1)}\n`, sym.id)
+                        addRootScannerFunction(`<> ${name} > g:${val.slice(0, -1)} g:${val.slice(0, -1)} | ${name} g:${val.slice(0, -1)}\n`, sym.id)
                     );
                 } else {
                     root_productions.push(
                         <ScannerProductionNode>
-                        addRootScannerFunction(`<> __${val}__ > g:${val}\n`, sym.id)
+                        addRootScannerFunction(`<> ${name} > g:${val}\n`, sym.id)
                     );
-                }
+                } //*/
             } else if (Sym_Is_A_Production_Token(sym)) {
+
+                debugger
 
                 let prods: GeneralProductionNode[] = [sym.production];
 
                 let root = true;
 
                 for (const production of prods) {
-
+                    if (!production) debugger;
                     const name = `__${production.name}__`;
 
                     if (seen.has(name))
@@ -291,7 +330,9 @@ function buildScannerProduction(grammar: GrammarObject) {
                     const bodies = [];
 
                     for (const body of production.bodies) {
+
                         let str = [];
+
                         for (const sym of body.sym) {
                             if (Sym_Is_A_Generic_Type(sym)) {
                                 if (Sym_Is_EOF(sym)) continue;
@@ -307,7 +348,9 @@ function buildScannerProduction(grammar: GrammarObject) {
                             }
                         }
 
-                        bodies.push(str.join(" "));
+                        if (str.length > 0)
+
+                            bodies.push(str.join(" "));
                     }
                     if (root) {
                         root = false;
@@ -320,14 +363,14 @@ function buildScannerProduction(grammar: GrammarObject) {
                 !(Sym_Is_Empty(sym) || Sym_Is_EOF(sym))) {
 
                 const val = sym.val;
+                const name = `__${cName(val)}__`;
 
                 const syms = val.split("");
 
                 root_productions.push(
                     <ScannerProductionNode>
-                    addRootScannerFunction(`<> __${val}__ > ${syms.map(s => `\\${s} `).join(" ")}\n`, sym.id)
+                    addRootScannerFunction(`<> ${name} > ${syms.map(s => `\\${s} `).join(" ")}\n`, sym.id)
                 );
-
             }
         }
     }
@@ -336,26 +379,17 @@ function buildScannerProduction(grammar: GrammarObject) {
         production.name = production.symbol.name;
         production.type = "scanner-production";
     }
-    const ubber_prod =
-        <ScannerProductionNode>
-        addRootScannerFunction(`<> __SCANNER__ > ${root_productions.map(p => p.name).join(" | ")}\n`, 9999);
-
-    ubber_prod.name = ubber_prod.symbol.name;
-
-    ubber_prod.type = "scanner-production";
-
-    root_productions.unshift(ubber_prod);
-
-    console.log(render_grammar({
-        type: "hc-grammar-5",
-        productions: [...root_productions, ...productions]
-    }));
 
     grammar.productions.push(...root_productions, ...productions);
 }
 
-function addRootScannerFunction(val: string, token_id: number): ScannerProductionNode {
+export function addRootScannerFunction(val: string, token_id: number): ScannerProductionNode {
+
     const production = <ScannerProductionNode>loadGrammarFromString(val).productions[0];
+
     production.token_id = token_id;
+
+    production.type = "scanner-production";
+
     return production;
 }

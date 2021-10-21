@@ -8,7 +8,6 @@ export const enum TokenTypes {
     IDENTIFIER,
     UNICODE_IDENTIFIER,
     NUMBER,
-    FULL_NUMBER,
     NEW_LINE,
     SPACE,
     IDENTIFIERS,

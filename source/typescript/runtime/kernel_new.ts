@@ -1145,8 +1145,6 @@ export function kernel_executor(
 
             if (state > 0) {
 
-
-
                 /**
                  * A state pointer is divided into three data segments
                  *        __Is fail state bit

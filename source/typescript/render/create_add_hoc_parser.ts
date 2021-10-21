@@ -44,9 +44,7 @@ export async function createAddHocParser<T = any>(
     }
 
     const { grammar, state_buffer, sym_map, states_map } = resolved_build_pack;
-
     const entry_pointers = grammar.productions.filter(p => p.IS_ENTRY).map(p => ({ name: p.name, pointer: states_map.get(p.name).pointer }));
-
     const reverse_state_lookup = new Map([...states_map.entries()].map(([key, val]) => [instruction_pointer_mask & val.pointer, val.string]));
     //Attempt to parse input
 
@@ -60,6 +58,7 @@ export async function createAddHocParser<T = any>(
             const { pointer } = states_map.get("tok_" + sub);
             return pointer + "";
         });
+
     let { scan: tk_scan, functions: fns } = (Function(
         "states_buffer",
         input_string)

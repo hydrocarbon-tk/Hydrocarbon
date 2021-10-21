@@ -17,6 +17,9 @@ import {
     ProductionTokenSymbol
 } from "../../types/grammar_nodes";
 
+export function getImportedGrammarFromReference(local_grammar: GrammarObject, module_name: string) {
+    return local_grammar.imported_grammars.filter(g => g.reference == module_name)[0];
+}
 
 export function getProductionByName(
     grammar: GrammarObject,
@@ -24,10 +27,40 @@ export function getProductionByName(
 ): GrammarProduction {
 
     if (ref_symbol.type == SymbolType.IMPORT_PRODUCTION) {
-        const ref_grammar = grammar.imported_grammars.filter(s => s.reference == ref_symbol.module).pop();
+        const ref = grammar.imported_grammars.filter(s => s.reference == ref_symbol.module).pop();
 
-        if (ref_grammar) {
-            return ref_grammar.grammar.productions.filter(p => p.name == ref_symbol.name).pop();
+        if (ref) {
+
+            for (const p of ref.grammar.productions) {
+                if (
+                    (p.name
+                        &&
+                        p.name == ref_symbol.name)
+                    ||
+                    (
+                        p.symbol.type == SymbolType.PRODUCTION
+                        &&
+                        p.symbol.name == ref_symbol.name
+                    )
+                )
+                    return p;
+
+                if (p.symbol.type == SymbolType.IMPORT_PRODUCTION) {
+
+                    const module = p.symbol.module;
+
+                    const inner_ref = getImportedGrammarFromReference(ref.grammar, module);
+
+                    if (inner_ref) {
+
+
+                        let production = getProductionByName(inner_ref.grammar, p.symbol);
+
+                        if (production)
+                            return production;
+                    }
+                }
+            }
         }
 
     } else {

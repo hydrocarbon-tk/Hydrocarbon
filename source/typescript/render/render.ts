@@ -36,11 +36,7 @@ export function renderToRust(
 
     const entry_pointers = grammar.productions.filter(p => p.IS_ENTRY).map(p => ({ name: p.entry_name, pointer: states_map.get(p.name).pointer }));
     //Attempt to parse input
-    const token_lookup_functions = extractAndReplaceTokenMapRefs(getSymbolScannerFunctions(grammar)
-
-        .map(skRenderAsRust)
-
-        .join("\n\n"), sym_map);
+    const token_lookup_functions = "";
 
 
     const rust_file = `
@@ -152,9 +148,7 @@ export function renderToJavaScript(
     const ATA = ADD_TYPE_ANNOTATIONS;
     const entry_pointers = grammar.productions.filter(p => p.IS_ENTRY).map(p => ({ name: p.entry_name, pointer: states_map.get(p.name).pointer }));
     //Attempt to parse input
-    const token_lookup_functions = extractAndReplaceTokenMapRefs(getSymbolScannerFunctions(grammar)
-        .map(skRenderAsJavaScript)
-        .join("\n\n"), sym_map);
+    const token_lookup_functions = "";
 
     const array_row_size = 75;
     const script = `

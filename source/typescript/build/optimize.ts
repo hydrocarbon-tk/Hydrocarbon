@@ -598,7 +598,6 @@ export function optimize(StateMap: StateMap, grammar: GrammarObject) {
 export function garbageCollect(StateMap: StateMap, grammar: GrammarObject,) {
 
     const entry_names = [
-        "__SCANNER__",
         ...grammar.productions.filter(p => p.IS_ENTRY).map(i => i.name + "")
     ].setFilter();
     const marked_map = new Map([...StateMap].map(([name]) => [name + "", false]));

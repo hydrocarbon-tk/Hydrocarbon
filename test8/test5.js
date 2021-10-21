@@ -31,8 +31,8 @@ const {
 //const grammar = await compileGrammarFromURI("./source/grammars/test/ambiguous.hcg");
 //const grammar = await compileGrammarFromURI("./source/grammars/misc/ruminate_formatter.hcg");
 //const grammar = await compileGrammarFromURI("./source/grammars/test/failure_recovery.hcg");
-//const grammar = await compileGrammarFromURI("./source/grammars/hcg/hcg.hcg");
-const grammar = await compileGrammarFromURI("./source/grammars/misc/oob.hcg", parser);
+const grammar = await compileGrammarFromURI("./source/grammars/hcg/hcg.hcg");
+//const grammar = await compileGrammarFromURI("./source/grammars/misc/oob.hcg", parser);
 //const grammar = await compileGrammarFromURI("./source/grammars/hcg/state_ir.hcg");
 //const grammar = await compileGrammarFromURI("./source/grammars/test/peeking.hcg");
 //const grammar = await compileGrammarFromURI("./source/grammars/test/tight_loop.hcg");
@@ -132,7 +132,7 @@ f: Test.0 { test }
 
 `;
 
-string = "A A B B g2 2 2 A";
+//string = "A A B B g2 2 2 A";
 
 const history = state_history;
 

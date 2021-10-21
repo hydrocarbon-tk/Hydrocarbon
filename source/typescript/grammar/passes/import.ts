@@ -7,7 +7,7 @@ import {
     HCG3Symbol, ProductionImportSymbol, ProductionNode, SymbolType
 } from '../../types/grammar_nodes';
 import { InstructionType, IR_Instruction, IR_State } from '../../types/ir_types';
-import { createProductionSymbol, getProductionByName } from "../nodes/common.js";
+import { createProductionSymbol, getImportedGrammarFromReference, getProductionByName } from "../nodes/common.js";
 import { user_defined_state_mux } from '../nodes/default_symbols.js';
 
 /**
@@ -47,12 +47,13 @@ function processImportedObjects(grammar: GrammarObject, errors: Error[], importe
 
         //Map all normal production name symbols to the production's name
         for (const p of grmmr.productions)
-            if (p.symbol.type == "sym-production") {
-                p.name = p.symbol.name;
-            } else {
-                const imported = getImportedGrammarFromReference(grmmr, p.symbol.module);
-                p.name = imported.grammar.common_import_name + "__" + p.symbol.name;
-            }
+            if (!p.name)
+                if (p.symbol.type == "sym-production") {
+                    p.name = p.symbol.name;
+                } else {
+                    const imported = getImportedGrammarFromReference(grmmr, p.symbol.module);
+                    p.name = imported.grammar.common_import_name + "__" + p.symbol.name;
+                }
     }
 
     for (const export_preamble of grammar.preamble.filter((p): p is ExportPreamble => p.type == "export")) {
@@ -382,7 +383,7 @@ function processSymbol<T = HCG3Symbol>(
 
         if (!imported_productions.has(name)) {
 
-            //copy production and convert the copies name to a local name 
+            //copy production and convert the copy's name to a local name 
             const cp = copy(prd);
 
             cp.name = name;
@@ -402,17 +403,12 @@ function processSymbol<T = HCG3Symbol>(
     return sym;
 }
 
-function getImportedGrammarFromReference(local_grammar: GrammarObject, module_name: string) {
-    return local_grammar.imported_grammars.filter(g => g.reference == module_name)[0];
-}
-
 function throwProductionNotFound(sym: ProductionImportSymbol, imported: {
     reference: string; uri: string; //@ts-ignore
     //@ts-ignore
     grammar: GrammarObject;
 }, local_grammar: GrammarObject) {
-    console.log(sym);
-    sym.tok.throw(`Unable to import production [ ${sym.name} ] from \n    [ ${sym.module} ( local alias of file://${imported.uri} ) ]:
+    (sym.tok || sym.pos).throw(`Unable to import production [ ${sym.name} ] from \n    [ ${sym.module} ( local alias of file://${imported.uri} ) ]:
     Production was not found.`, local_grammar.URI + "");
 }
 

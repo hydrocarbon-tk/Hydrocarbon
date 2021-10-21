@@ -184,11 +184,11 @@ export interface GrammarObject extends HCGGrammarNode {
 
     meta?: {
 
+        id_offset?: number;
+
         ignore?: HCG3Symbol[];
 
         all_symbols?: Map<string, HCG3Symbol> & { by_id: Map<number, HCG3Symbol>; };
-
-        symbol?: Map<string, HCG3Symbol>;
 
         reduce_functions?: Map<any, string>;
         /**

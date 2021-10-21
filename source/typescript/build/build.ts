@@ -6,10 +6,13 @@
 import { Logger, LogLevel } from '@candlelib/log';
 import spark from "@candlelib/spark";
 import { WorkerRunner } from "../build/workers/worker_runner.js";
+import { addRootScannerFunction, getSymbolProductionName } from '../grammar/compile.js';
 import loader from "../grammar/hcg_parser_pending.js";
 import { getProductionByName } from '../grammar/nodes/common.js';
 import { user_defined_state_mux } from '../grammar/nodes/default_symbols.js';
 import { getRootSym, Sym_Is_A_Token } from '../grammar/nodes/symbol.js';
+import { createProductionLookup, processSymbol } from '../grammar/passes/common.js';
+import { buildItemMaps } from '../grammar/passes/item_map.js';
 import { BuildPack } from "../render/render.js";
 import { fail_state_mask, goto_state_mask, normal_state_mask } from '../runtime/kernel_next.js';
 import { Token } from '../runtime/token.js';
@@ -20,6 +23,7 @@ import { getSymbolMapFromIds } from '../utilities/code_generating.js';
 import { ir_reduce_numeric_len_id } from './magic_numbers.js';
 import { garbageCollect, optimize } from './optimize.js';
 import { renderIRNode } from './render_ir_state.js';
+import { constructProductionStates } from './state_constructor.js';
 
 
 const { parse: parser, entry_points: { ir } } = await loader;
@@ -29,11 +33,97 @@ export const default_case_indicator = 9999;
 const build_logger = Logger.get("MAIN").createLogger("COMPILER");
 build_logger.get("PARSER").activate();
 
+let scanners = new Map();
+
+export function constructScannerState(
+    ids: number[],
+    grammar: GrammarObject
+) {
+    const symbols = ids.filter(
+        i => i > 1 && i != default_case_indicator
+    ).map(i => grammar.meta.all_symbols.by_id.get(i));
+
+    if (symbols.length < 1)
+        return "";
+
+
+    let scanner_id = symbols.map(i => i.id).setFilter().sort((a, b) => a - b).join("-");
+
+    if (scanners.has(scanner_id)) {
+        return scanners.get(scanner_id);
+    }
+    //Create checkpoints for original grammar data
+    let productions_length = grammar.productions.length;
+    let bodies_length = grammar.bodies.length;
+    let old_item_map = grammar.item_map;
+    grammar.item_map = new Map(old_item_map);
+
+    let old_symbol_offset = grammar.meta.id_offset;
+    let old_symbols = grammar.meta.all_symbols;
+
+    grammar.meta.all_symbols = Object.assign(
+        new Map(grammar.meta.all_symbols),
+        { by_id: new Map(grammar.meta.all_symbols.by_id) }
+    );
+
+    const local_id = scanners.size;
+    const name = `__SCANNER${local_id}__`;
+
+    //Insert a generated production for these symbols
+
+    let entry = addRootScannerFunction(`<> ${name} > ${symbols.map(sym => {
+        return getSymbolProductionName(sym);
+    }).filter(a => !!a).join("\n    | ")
+        }\n`, 9999);
+
+    entry.id = grammar.productions.push(entry) - 1;
+    entry.name = name;
+    entry.bodies.forEach((b, i) => {
+        b.production = entry;
+        b.length = 1;
+        const sym = b.sym[0];
+        const production_lookup = createProductionLookup(grammar);
+        processSymbol(
+            grammar,
+            sym,
+            production_lookup,
+            grammar.meta.all_symbols,
+        );
+
+        b.id = i + grammar.bodies.length;
+    });
+
+    grammar.bodies.push(...entry.bodies);
+
+    buildItemMaps(grammar, [entry]);
+
+    const data = constructProductionStates(
+        entry,
+        grammar,
+    );
+
+    for (const [name, state] of data.parse_states) {
+        console.log(state);
+    }
+
+    scanners.set(scanner_id, name);
+
+    //Restore the original grammar
+
+    grammar.productions.length = productions_length;
+    grammar.bodies.length = bodies_length;
+    grammar.item_map = old_item_map;
+    grammar.meta.id_offset = old_symbol_offset;
+    grammar.meta.all_symbols = old_symbols;
+
+    return name;
+}
+
 export async function createBuildPack(
     grammar: GrammarObject,
     number_of_workers: number = 1
 ): Promise<BuildPack> {
-
+    debugger;
     const
         mt_code_compiler = new WorkerRunner(grammar, number_of_workers);
 
@@ -59,6 +149,7 @@ export async function createBuildPack(
 
             //@ts-ignore
             ([hash, str], i) => {
+
                 try {
                     const { result: [ir_state], err } = parser(str, {}, ir);
 
@@ -78,6 +169,10 @@ export async function createBuildPack(
         ])
     ])
         insertIrStateBlock(ir_state_ast, string, grammar, states_map);
+
+    // Build Scanner states based on the transition requirements of each core state. 
+
+
 
 
     // Map recovery states to state of their target production ---------------------
@@ -796,9 +891,13 @@ function processInstructionTokens(
         switch (instruction.type) {
             case InstructionType.assert:
             case InstructionType.peek:
-                //@ts-ignore
-                expected_symbols.push(...convertTokenIDsToSymbolIds(instruction.ids, grammar));
-                processInstructionTokens(instruction.instructions, expected_symbols, grammar);
+
+                if (instruction.mode == "TOKEN") {
+                    //@ts-ignore
+                    expected_symbols.push(...convertTokenIDsToSymbolIds(instruction.ids, grammar));
+                    processInstructionTokens(instruction.instructions, expected_symbols, grammar);
+                }
+
                 break;
             case InstructionType.scan_until:
                 //@ts-ignore
@@ -833,24 +932,7 @@ function statesOutputsBuildPass(StateMap: StateMap, grammar: GrammarObject, sym_
 
     let total_instruction_byte_size = 24; // Ensure the zero position is reserved for the "null" state
 
-    for (const [, state_data] of StateMap) {
-
-        let { expected_tokens, skipped_tokens } = state_data;
-
-        if (expected_tokens.length > 0 || skipped_tokens.length > 0) {
-            //create a meta lookup instruction
-
-            const expected = expected_tokens.concat(skipped_tokens).setFilter().sort(numeric_sort);
-
-            const skipped = skipped_tokens.setFilter().sort(numeric_sort);
-
-            if (expected.length > 0)
-                createSymMapId(expected, grammar, sym_map);
-
-            if (skipped.length > 0)
-                createSymMapId(skipped, grammar, sym_map);
-        }
-    }
+    createItemReferences(StateMap, grammar, sym_map);
     const sym_map_buffer = [...sym_map.keys()].flatMap(s => s.split("_")).map(i => parseInt(i));
 
     total_instruction_byte_size += sym_map_buffer.length * 4;
@@ -974,6 +1056,28 @@ function statesOutputsBuildPass(StateMap: StateMap, grammar: GrammarObject, sym_
 
     return out_buffer;
 }
+function createItemReferences(StateMap: StateMap, grammar: GrammarObject, sym_map: Map<string, number>) {
+    for (const [, state_data] of StateMap) {
+
+        let { expected_tokens, skipped_tokens } = state_data;
+
+        if (expected_tokens.length > 0 || skipped_tokens.length > 0) {
+            //create a meta lookup instruction
+            const expected = expected_tokens.concat(skipped_tokens).setFilter().sort(numeric_sort);
+
+            const skipped = skipped_tokens.setFilter().sort(numeric_sort);
+
+            constructScannerState(expected, grammar);
+
+            if (expected.length > 0)
+                createSymMapId(expected, grammar, sym_map);
+
+            if (skipped.length > 0)
+                createSymMapId(skipped, grammar, sym_map);
+        }
+    }
+}
+
 function stateHasBranchIR(state_data: IRStateData): state_data is BranchIRStateData {
     return (
         state_data.ir_state_ast.instructions[0].type == InstructionType.assert

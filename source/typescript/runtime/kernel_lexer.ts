@@ -75,6 +75,7 @@ export class Lexer {
     }
     isSym(USE_UNICODE: boolean): boolean {
         if (this._type == 0 && this.getType(USE_UNICODE) == 2) {
+
             const code_point = get_utf8_code_point_at(this.byte_offset, this.input);
             this.byte_length = get_ut8_byte_length_from_code_point(code_point);
             this.token_length = get_token_length_from_code_point(code_point);
@@ -124,8 +125,8 @@ export class Lexer {
         if (this._type == 0) {
             if (this.getType(true) == 3) {
 
-                this.byte_length = 1;
-                this.token_length = 1;
+                this.byte_length = 0;
+                this.token_length = 0;
 
                 let l: number = this.input.length;
 

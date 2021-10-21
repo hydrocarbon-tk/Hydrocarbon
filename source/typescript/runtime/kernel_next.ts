@@ -266,6 +266,7 @@ export class KernelState implements KernelStateType {
         };
     }
     add_skip(skip_delta: number) {
+
         if (skip_delta < 1)
             return;
         ;
@@ -941,7 +942,8 @@ function scanner(
         scanner_core(
             root_state,
             lexer,
-            tk_row
+            tk_row,
+            skip_row
         );
     }
 
@@ -951,7 +953,8 @@ function scanner(
             scanner_core(
                 root_state,
                 lexer,
-                tk_row
+                tk_row,
+                skip_row
             );
         }
     }
@@ -964,7 +967,8 @@ let scanner_process_buffer = new KernelStateBuffer;
 function scanner_core(
     root_state: KernelState,
     lexer: Lexer,
-    tk_row: number
+    tk_row: number,
+    sk_row: number
 ) {
 
     let state = scanner_invalid.get_recycled_KernelState(root_state);
@@ -986,11 +990,16 @@ function scanner_core(
     const len = scanner_valid.len();
 
     if (len > 0) {
+        let i = 0;
         while (scanner_valid.len() > 0) {
 
-            const state = scanner_valid.get_ref_state(0);
+            const state = scanner_valid.remove_state_at_index(0);
 
-            if (isTokenActive(state.last_token_type, tk_row, state.instruction_buffer)) {
+            if (
+                isTokenActive(state.last_token_type, tk_row, state.instruction_buffer)
+                ||
+                isTokenActive(state.last_token_type, sk_row, state.instruction_buffer)
+            ) {
 
                 const sync_lexer = state.lexer;
 
@@ -1002,6 +1011,9 @@ function scanner_core(
 
                 break;
             }
+
+            state.VALID = false;
+            scanner_invalid.add_state(state);
         }
     }
 

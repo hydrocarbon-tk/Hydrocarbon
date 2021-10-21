@@ -556,9 +556,9 @@ function processPeekGraphLeavesScanner(
                     leaf
                 );
 
-                //leaf.symbols.push(default_EOF);
 
                 leaf.type = TransitionStateType.TOKEN_ASSIGNMENT;
+                leaf.symbols = leaf.states.flatMap(s => s.symbols).setFilter(getUniqueSymbolName);
 
                 new_state.items = leaf.items;
 

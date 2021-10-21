@@ -615,7 +615,17 @@ function scan_core(l, tk_row) {
     }; if (((l._type) > 0)) return;; if (isTokenActive(15, tk_row) && pre_scan(l, 164) && token_production(l, 67113162, 14, 15, 1, states_buffer, scan)) { l.setToken(15, l.byte_length, l.token_length); return; } else if (isTokenActive(31, tk_row) && pre_scan(l, 167) && token_production(l, 67113220, 31, 31, 2, states_buffer, scan)) { l.setToken(31, l.byte_length, l.token_length); return; } else if (isTokenActive(48, tk_row) && pre_scan(l, 169) && token_production(l, 67113243, 42, 48, 4, states_buffer, scan)) { l.setToken(48, l.byte_length, l.token_length); return; } else if (isTokenActive(55, tk_row) && pre_scan(l, 175) && token_production(l, 67113408, 48, 55, 8, states_buffer, scan)) { l.setToken(55, l.byte_length, l.token_length); return; } else if (isTokenActive(97, tk_row) && pre_scan(l, 6) && token_production(l, 67113492, 2, 97, 16, states_buffer, scan)) { l.setToken(97, l.byte_length, l.token_length); return; } else if (isTokenActive(0, tk_row) && false) { l._type = 0; return; } else if (isTokenActive(8, tk_row) && l.isSP(true)) { l._type = 8; return; } else if (isTokenActive(3, tk_row) && l.isUniID()) { l._type = 3; return; } else if (isTokenActive(2, tk_row) && l.isSym(true)) { l._type = 2; return; } else if (isTokenActive(7, tk_row) && l.isNL()) { l._type = 7; return; } else if (isTokenActive(5, tk_row) && l.isNum()) { l._type = 5; return; } else if (isTokenActive(52, tk_row) && false) { l._type = 52; return; }
 }
 
-function scan(l, token, skip) { if (((l._type) <= 0)) scan_core(l, token);; if ((skip > 0 && isTokenActive(l._type, skip))) { while ((isTokenActive(l._type, skip))) { l.next(); scan_core(l, token); } } }
+function scan(l, token, skip) {
+
+    if (((l._type) <= 0)) scan_core(l, token);;
+
+    if ((skip > 0 && isTokenActive(l._type, skip))) {
+
+        while ((isTokenActive(l._type, skip))) {
+            l.next(); scan_core(l, token);
+        }
+    }
+}
 
 const js_parser_pack = {
 

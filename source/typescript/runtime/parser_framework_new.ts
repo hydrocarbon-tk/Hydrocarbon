@@ -66,7 +66,7 @@ export async function ParserFramework<T, R, K extends keyof R>(
 
                 const
                     data = valid.get_mut_state(0),
-                    history = data.state_history.slice(),
+                    //history = data.state_history.slice(),
                     iter = create_iterator(data),
                     default_token: Token = new Token(input_string, 0, 0);
 
@@ -127,6 +127,9 @@ export async function ParserFramework<T, R, K extends keyof R>(
 
                                 const tok = new Token(input_string, length, token_offset);
 
+                                if (tok.slice(-1) == " ")
+                                    debugger;
+
                                 stack.push(tok);
 
                                 tokens.push(tok);
@@ -139,15 +142,18 @@ export async function ParserFramework<T, R, K extends keyof R>(
 
                                 let length = (low >>> 3) & 0x1FFF;
 
-                                if (low & 4) length = ((length << 16) | iter.next());
+                                if (low & 4) {
+                                    length = ((length << 16) | iter.next());
+                                };
 
                                 token_offset += length;
                             }
                         }
                     }
-                    return { result: <T[]>stack, history: history, err: null };
+
+                    return { result: <T[]>stack, err: null };
                 } catch (e) {
-                    return { result: <T[]>[], history: history, err: e };
+                    return { result: <T[]>[], err: e };
                 }
             }
 

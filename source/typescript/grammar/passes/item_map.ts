@@ -73,7 +73,9 @@ function createLRMaps(grammar: GrammarObject) {
 function getItemMapVariables(grammar: GrammarObject, productions: GrammarProduction[]) {
     const
         extant_production_item_maps = grammar.productions.map(p => ({
-            count: 0, item_maps: grammar.productions != productions ? getInterMediateItemMapEntriesFromProduction(p, grammar) : []
+            count: 0, item_maps: grammar.productions != productions
+                ? getInterMediateItemMapEntriesFromProduction(p, grammar)
+                : []
         })),
 
         item_maps_in_process: ItemMapEntry[] = productions.flatMap((p) => {

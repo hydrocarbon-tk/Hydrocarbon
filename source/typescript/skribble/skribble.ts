@@ -109,41 +109,41 @@ let cpp_def_renderers = null;
 export function skRenderAsSK(node: SKNode): string {
     if (!renderers)
         renderers = experimentalConstructRenderers(<NodeMappings<SKNode, "type">>skribble_mappings);
-    return experimentalRender(node, <NodeMappings<SKNode, "type">>skribble_mappings, renderers);
+    return experimentalRender(node, <NodeMappings<SKNode, "type">>skribble_mappings, renderers).string;
 }
 
 export function skRenderAsTypeScript(node: SKNode): string {
     if (!ts_renderers)
         ts_renderers = experimentalConstructRenderers(<NodeMappings<SKNode, "type">>ts_mappings);
-    return experimentalRender(node, <NodeMappings<SKNode, "type">>ts_mappings, ts_renderers);
+    return experimentalRender(node, <NodeMappings<SKNode, "type">>ts_mappings, ts_renderers).string;
 }
 
 export function skRenderAsJavaScript(node: SKNode): string {
     if (!js_renderers)
         js_renderers = experimentalConstructRenderers(<NodeMappings<SKNode, "type">>js_mappings);
-    return experimentalRender(node, <NodeMappings<SKNode, "type">>js_mappings, js_renderers);
+    return experimentalRender(node, <NodeMappings<SKNode, "type">>js_mappings, js_renderers).string;
 }
 
 export function skRenderAsRust(node: SKNode): string {
     if (!rust_renderers)
         rust_renderers = experimentalConstructRenderers(<NodeMappings<SKNode, "type">>rust_mappings);
-    return experimentalRender(node, <NodeMappings<SKNode, "type">>rust_mappings, rust_renderers);
+    return experimentalRender(node, <NodeMappings<SKNode, "type">>rust_mappings, rust_renderers).string;
 }
 
 export function skRenderAsCPP(node: SKNode): string {
     if (!cpp_renderers)
         cpp_renderers = experimentalConstructRenderers(<NodeMappings<SKNode, "type">>cpp_mappings);
-    return experimentalRender(node, <NodeMappings<SKNode, "type">>cpp_mappings, cpp_renderers);
+    return experimentalRender(node, <NodeMappings<SKNode, "type">>cpp_mappings, cpp_renderers).string;
 }
 
 export function skRenderAsCPPDeclarations(node: SKNode): string {
     if (!cpp_decl_renderers)
         cpp_decl_renderers = experimentalConstructRenderers(<NodeMappings<SKNode, "type">>cpp_declaration_mappings);
-    return experimentalRender(node, <NodeMappings<SKNode, "type">>cpp_declaration_mappings, cpp_decl_renderers);
+    return experimentalRender(node, <NodeMappings<SKNode, "type">>cpp_declaration_mappings, cpp_decl_renderers).string;
 }
 
 export function skRenderAsCPPDefinitions(node: SKNode): string {
     if (!cpp_def_renderers)
         cpp_def_renderers = experimentalConstructRenderers(<NodeMappings<SKNode, "type">>cpp_definition_mappings);
-    return experimentalRender(node, <NodeMappings<SKNode, "type">>cpp_definition_mappings, cpp_def_renderers);
+    return experimentalRender(node, <NodeMappings<SKNode, "type">>cpp_definition_mappings, cpp_def_renderers).string;
 }

@@ -33,9 +33,11 @@ import {
 import { InstructionType, IR_Instruction, IR_State } from '../../types/ir_types';
 let renderers = null;
 export const render_grammar = (grammar_node) => {
+
     if (!renderers)
         renderers = experimentalConstructRenderers(hcg3_mappings);
-    return experimentalRender(grammar_node, hcg3_mappings, renderers);
+
+    return experimentalRender(grammar_node, hcg3_mappings, renderers).string;
 };
 
 function assignEntryProductions(grammar: GrammarObject, production_lookup) {
@@ -71,24 +73,19 @@ export function processSymbols(grammar: GrammarObject, errors: Error[] = []) {
     let id_offset = TokenTypes.CUSTOM_START_POINT;
 
     //Add default generated symbols to grammar
-    const unique_map: Map<string, HCG3Symbol> = <Map<string, HCG3Symbol>>
-        grammar.meta.all_symbols
-        ??
-        new Map(default_array.map(sym => [getUniqueSymbolName(sym), sym]));
+    const unique_map: Map<string, HCG3Symbol> = getUniqueSymbolMap(grammar);
 
-    if (grammar.meta.all_symbols)
-        id_offset = grammar.meta.all_symbols.by_id.size;
+    if (grammar.meta.id_offset)
+        id_offset = grammar.meta.id_offset;
 
     const token_production_set: Set<string> = new Set();
 
     let b_counter = 0, p_counter = 0, bodies = [];
 
-    const production_lookup: Map<string, GrammarProduction> = new Map();
-
     grammar.productions[0].ROOT_PRODUCTION = true;
 
-    for (const production of grammar.productions)
-        production_lookup.set(production.name, production);
+    const production_lookup: Map<string, GrammarProduction>
+        = createProductionLookup(grammar);
 
     for (const production of grammar.productions)
         production.id = p_counter++;
@@ -134,9 +131,26 @@ export function processSymbols(grammar: GrammarObject, errors: Error[] = []) {
         for (const sym of g.meta.ignore)
             id_offset = processSymbol(grammar, sym, production_lookup, unique_map, token_production_set, errors, id_offset);
 
+
     grammar.bodies = bodies;
 
+    grammar.meta.id_offset = id_offset;
+
     buildSymbolContainers(grammar, production_lookup, unique_map);
+}
+
+function getUniqueSymbolMap(grammar: GrammarObject): Map<string, HCG3Symbol> {
+    return <Map<string, HCG3Symbol>>grammar.meta.all_symbols
+        ??
+        new Map(default_array.map(sym => [getUniqueSymbolName(sym), sym]));
+}
+
+export function createProductionLookup(grammar: GrammarObject) {
+    const production_lookup: Map<string, GrammarProduction> = new Map();
+
+    for (const production of grammar.productions)
+        production_lookup.set(production.name, production);
+    return production_lookup;
 }
 
 function buildSymbolContainers(
@@ -354,9 +368,9 @@ export function processSymbol(
     sym: HCG3Symbol,
     production_lookup: Map<string, GrammarProduction>,
     unique_map: Map<string, HCG3Symbol>,
-    token_production_set: Set<string>,
-    errors: Error[],
-    id_offset: number
+    token_production_set: Set<string> = new Set,
+    errors: Error[] = [],
+    id_offset: number = 0
 ): number {
     //-----------------------
 
@@ -367,23 +381,22 @@ export function processSymbol(
         let prod = production_lookup.get(sym.name);
 
         if (!prod) {
-            console.dir(production_lookup, { depth: 1 });
             addProductionNotFoundError(errors, sym);
         } else
-            sym.val = production_lookup.get(sym.name)?.id;
+            sym.val = prod.id;
     }
+
+
+    if (Sym_Is_A_Production(sym) || Sym_Is_A_Production_Token(sym))
+        sym.production = production_lookup.get(sym.name);
 
     const unique_name = getUniqueSymbolName(sym, true);
 
     if (!unique_map.has(unique_name)) {
-
         if (Sym_Is_Defined(sym))
             sym.byte_length = sym.val.length;
 
         const copy_sym = Object.assign({}, sym);
-
-        if (Sym_Is_A_Production(sym) || Sym_Is_A_Production_Token(sym))
-            copy_sym.production = production_lookup.get(copy_sym.name);
 
         if (Sym_Is_A_Production_Token(copy_sym) && !token_production_set.has(unique_name)) {
             copy_sym.token_id = token_production_set.size;
@@ -392,17 +405,15 @@ export function processSymbol(
 
         if (Sym_Is_A_Production(sym))
             copy_sym.id = -1;
-        else
+        else {
+
             copy_sym.id = id_offset++;
+        }
 
         copy_sym.IS_NON_CAPTURE = undefined;
 
         unique_map.set(unique_name, copy_sym);
     }
-
-
-    if (Sym_Is_A_Production(sym) || Sym_Is_A_Production_Token(sym))
-        sym.production = production_lookup.get(sym.name);
 
     const prime = unique_map.get(unique_name);
 
@@ -421,7 +432,7 @@ export function processSymbol(
 
 
 function addProductionNotFoundError(errors: Error[], sym: ProductionSymbol | ProductionTokenSymbol) {
-    const tok = sym.tok;
+    const tok = (sym.tok || sym.pos);
 
     if (tok.createError) {
         errors.push(tok.createError(

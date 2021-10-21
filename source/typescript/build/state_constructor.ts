@@ -18,6 +18,9 @@ import { constructTransitionForest, TransitionForestOptions } from './transition
 
 const numeric_sort: (a: any, b: any) => number = (z, w) => z - w;
 
+
+
+
 export function constructProductionStates(
     production: GrammarProduction,
     grammar: GrammarObject
@@ -508,18 +511,17 @@ function processMultiChildStates(
                 ? "fail"
                 : prelude_command + action + postlude_command;
 
-            const mode = symbols.map(s => getSymbolMode(symbols[0], PRODUCTION_IS_SCANNER)).setFilter();
+            const mode_groups = symbols.groupMap(s => getSymbolMode(s, PRODUCTION_IS_SCANNER));
 
-            if (mode.length > 1)
-                debugger;
-
-            states_string.push(
-                f`${4}
-                    ${lexer_state} ${mode.join(" ")} [ ${symbols.map(s => getSymbolID(s, PRODUCTION_IS_SCANNER))
-                        .setFilter().sort(numeric_sort).join(" ")} ${IS_LAST_GROUP ? " " + default_case_indicator : ""} ](
-                        ${action_string}
-                    )`
-            );
+            for (const [mode, symbols] of mode_groups) {
+                states_string.push(
+                    f`${4}
+                        ${lexer_state} ${mode} [ ${symbols.map(s => getSymbolID(s, PRODUCTION_IS_SCANNER))
+                            .setFilter().sort(numeric_sort).join(" ")} ${IS_LAST_GROUP ? " " + default_case_indicator : ""} ](
+                            ${action_string}
+                        )`
+                );
+            }
 
             i++;
         }
@@ -727,7 +729,20 @@ function generateSingleStateAction(
 
         const mode = getSymbolMode(token_symbols[0], PRODUCTION_IS_SCANNER);
 
-        combined_string = `assert ${mode} [ ${symbol_ids.sort(numeric_sort).join(" ")} ] ( ${action_string} )`;
+
+        const mode_groups = token_symbols.groupMap(s => getSymbolMode(s, PRODUCTION_IS_SCANNER));
+
+        for (const [mode, symbols] of mode_groups) {
+            combined_string += (
+                f`${4}
+                        assert ${mode} [ ${symbols.map(s => getSymbolID(s, PRODUCTION_IS_SCANNER))
+                        .setFilter().sort(numeric_sort).join(" ")} ](
+                            ${action_string}
+                        )`
+            );
+        }
+
+        // combined_string = `assert ${mode} [ ${symbol_ids.sort(numeric_sort).join(" ")} ] ( ${action_string} )`;
 
         assertion = "assert";
     }
@@ -752,7 +767,7 @@ function generateSingleStateAction(
 }
 
 
-function getSymbolMode(sym: TokenSymbol, SCANNER) {
+function getSymbolMode(sym: TokenSymbol, SCANNER: boolean) {
 
     if (SCANNER) {
 
