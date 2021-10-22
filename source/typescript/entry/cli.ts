@@ -109,8 +109,10 @@ addCLIConfig("check-emsdk", {
 }).callback = CheckForSDK;
 
 
-const out_dir = addCLIConfig("compile", {
+const out_dir_arg = addCLIConfig<URI>("compile", {
     key: "output",
+    default: (new URI),
+    accepted_values: [URI],
     REQUIRES_VALUE: true,
     help_brief: "Directory to write compiled parser files. Defaults to CWD",
 });
@@ -122,30 +124,24 @@ const type = addCLIConfig("compile", {
     default: "js",
     help_brief:
         `
-Target output language of the parser.
-Must be one of: 
-    c++ : C++ Dir with Header & Source Folders
-    rust : Rust Cargo Directory
-    js : Single File JavaScript  
-    ts : Single File TypeScript`,
+Target output language of the parser.`,
 });
 
 const recognizer = addCLIConfig("compile", {
     key: "recognizer",
     REQUIRES_VALUE: true,
+    default: "js",
     accepted_values: ["js", "wasm"],
     help_brief:
         `
 Language in which to encode the recognizer. This only applies if the output targets
-TypeScript or JavaScript.
-
-Must be one of: 
-    js   : JavaScript
-    wasm : WebAssembly`,
+TypeScript or JavaScript.`,
 });
 
 const namespace = addCLIConfig("compile", {
     key: "namespace",
+    default: "",
+    accepted_values: [String],
     REQUIRES_VALUE: true,
     help_brief:
         `
@@ -157,26 +153,29 @@ Defaults to "parser" `,
 
 import { cpus } from "os";
 
-const number_of_workers = addCLIConfig("compile", {
+const number_of_workers = addCLIConfig<Number>("compile", {
     key: "threads",
     validate: val => {
         if (parseInt(val) <= cpus().length && parseInt(val) >= 1) {
             return;
         }
-        return `Invalid value for --threads [${val}]`;
+        return `Invalid number of threads. Upper limit is [ ${cpus().length} ] and the lower limit is [ 1 ]`;
     },
+    default: 1,
+    accepted_values: [Number],
     REQUIRES_VALUE: true,
     help_brief: `Number of worker threads to use during compilation. Defaults to 1`,
 });
 
-addCLIConfig("compile", {
+addCLIConfig<URI>("compile", {
     key: "compile",
+    REQUIRES_VALUE: true,
+    accepted_values: [URI],
     help_brief: `
-    Usage: compile <path_to_source_grammar>
     
     Compile new parser from a hydrocarbon grammar source file (.hcg)
 `
-}).callback = (async (args) => {
+}).callback = (async (val) => {
 
     const cli_logger = Logger.get("MAIN");
 
@@ -190,15 +189,15 @@ addCLIConfig("compile", {
     try {
 
         const
-            input_path = args.trailing_arguments.pop(),
+            input_path = val,
             input_file = URL.resolveRelative(input_path),
-            output_path = URL.resolveRelative(out_dir.value || "./");
+            output_path = URL.resolveRelative(out_dir_arg.value || "./");
 
         if (input_file.ext !== "hcg")
             throw new Error("Expected source file to be a hydrocarbon grammar file (.hcg)");
 
         if (recognizer.value == "wasm")
-            if (!await CheckForSDK(args)) {
+            if (!await CheckForSDK(input_path)) {
                 cli_log("Could not locate EMSDK installation. Aborting");
                 process.exit();
             }
