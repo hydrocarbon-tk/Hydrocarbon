@@ -3,7 +3,7 @@
  * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
  * disclaimer notice.
  */
-import { Logger, LogLevel } from '@candlelib/log';
+import { Logger } from '@candlelib/log';
 import spark from "@candlelib/spark";
 import { WorkerRunner } from "../build/workers/worker_runner.js";
 import { addRootScannerFunction, getSymbolProductionName } from '../grammar/compile.js';
@@ -35,9 +35,24 @@ build_logger.get("PARSER").activate();
 
 let scanners = new Map();
 
+function createSymMapId(ids: number[], grammar: GrammarObject) {
+
+    const symbols = ids.filter(
+        i => i > 1 && i != default_case_indicator
+    ).map(i => grammar.meta.all_symbols.by_id.get(i));
+
+    if (symbols.length < 1)
+        return "";
+
+    return symbols.map(i => i.id).setFilter().sort(numeric_sort).join("-");
+}
+
+
 export function constructScannerState(
     ids: number[],
-    grammar: GrammarObject
+    grammar: GrammarObject,
+    scanner_id_to_state: Map<string, string>,
+    scanner_states: Map<string, string>
 ) {
     const symbols = ids.filter(
         i => i > 1 && i != default_case_indicator
@@ -46,12 +61,13 @@ export function constructScannerState(
     if (symbols.length < 1)
         return "";
 
+    let scanner_id = createSymMapId(ids, grammar);
 
-    let scanner_id = symbols.map(i => i.id).setFilter().sort((a, b) => a - b).join("-");
-
-    if (scanners.has(scanner_id)) {
-        return scanners.get(scanner_id);
+    if (scanner_id_to_state.has(scanner_id)) {
+        return scanner_id_to_state.get(scanner_id);
     }
+
+
     //Create checkpoints for original grammar data
     let productions_length = grammar.productions.length;
     let bodies_length = grammar.bodies.length;
@@ -66,7 +82,7 @@ export function constructScannerState(
         { by_id: new Map(grammar.meta.all_symbols.by_id) }
     );
 
-    const local_id = scanners.size;
+    const local_id = scanner_id_to_state.size;
     const name = `__SCANNER${local_id}__`;
 
     //Insert a generated production for these symbols
@@ -103,10 +119,11 @@ export function constructScannerState(
     );
 
     for (const [name, state] of data.parse_states) {
-        console.log(state);
+        if (!scanner_states.has(name))
+            scanner_states.set(name, state);
     }
 
-    scanners.set(scanner_id, name);
+    scanner_id_to_state.set(scanner_id, name);
 
     //Restore the original grammar
 
@@ -123,7 +140,7 @@ export async function createBuildPack(
     grammar: GrammarObject,
     number_of_workers: number = 1
 ): Promise<BuildPack> {
-    debugger;
+
     const
         mt_code_compiler = new WorkerRunner(grammar, number_of_workers);
 
@@ -140,40 +157,15 @@ export async function createBuildPack(
         }
     }
 
-    const ir_states = [...mt_code_compiler.states.entries()];
+    const raw_states = [...mt_code_compiler.states.entries()];
 
     const states_map: StateMap = new Map();
 
-    for (const [string, ir_state_ast] of <([string, Resolved_IR_State])[]>[
-        ...ir_states.map(
+    const scanner_states_map: StateMap = new Map();
 
-            //@ts-ignore
-            ([hash, str], i) => {
-
-                try {
-                    const { result: [ir_state], err } = parser(str, {}, ir);
-
-                    if (err) throw err;
-
-                    return [str, ir_state];
-                } catch (e) {
-                    build_logger.get("PARSER").debug(str);
-                    build_logger.get("PARSER").critical(hash, str);
-                    throw e;
-                }
-            }
-        ),
-        ...grammar.ir_states.map(ir => [
-            ir.tok.slice(),
-            ir
-        ])
-    ])
-        insertIrStateBlock(ir_state_ast, string, grammar, states_map);
+    convertParseProductsIntoStatesMap(raw_states, grammar, states_map);
 
     // Build Scanner states based on the transition requirements of each core state. 
-
-
-
 
     // Map recovery states to state of their target production ---------------------
 
@@ -218,11 +210,15 @@ export async function createBuildPack(
 
     // Process States -------------------------------------------------------------
 
-    const sym_map: Map<string, number> = new Map();
+    const sym_map: Map<string, string> = new Map();
 
     let OPTIMIZE = false;
 
-    garbageCollect(states_map, grammar);
+    const reserved_states = [
+        ...grammar.productions.filter(p => p.IS_ENTRY || p.type == "scanner-production").map(i => i.name + "")
+    ].setFilter();
+
+    garbageCollect(states_map, grammar, reserved_states);
 
     assignStateAttributeInformation(states_map, grammar);
 
@@ -240,7 +236,7 @@ export async function createBuildPack(
 
         //build_logger.debug(`Optimizing State round ${++round}`);
 
-        while (optimize(states_map, grammar)) {
+        while (optimize(states_map, grammar, reserved_states)) {
             const p = prev_size;
 
             prev_size = states_map.size;
@@ -276,7 +272,21 @@ export async function createBuildPack(
 
     //Build states buffer -------------------------------------------------------------
 
-    const state_buffer = new Uint32Array(statesOutputsBuildPass(states_map, grammar, sym_map));
+    const {
+        scanner_states,
+        scanner_id_to_state,
+    } = compileScannerStates(states_map, grammar);
+
+    // Merge scanner_states and normal states into a single 
+    // uber state collection
+
+    const uber_collection: StateMap = new Map([...scanner_states, ...states_map]);
+
+    reserved_states.push(...scanner_id_to_state.values());
+
+    garbageCollect(uber_collection, grammar, reserved_states);
+
+    const state_buffer = new Uint32Array(statesOutputsBuildPass(uber_collection, grammar, scanner_id_to_state));
 
     build_logger.log(`Parse states have been compiled into a ${state_buffer.length * 4}byte states buffer.`);
 
@@ -285,13 +295,41 @@ export async function createBuildPack(
     return <BuildPack>{
         grammar,
         state_buffer,
-        states_map,
-        sym_map
+        states_map: uber_collection
     };
 }
 
 
 const numeric_sort = (a: number, b: number): number => a - b;
+
+function convertParseProductsIntoStatesMap(ir_states: [string, string][], grammar: GrammarObject, states_map: StateMap) {
+    for (const [string, ir_state_ast] of <([string, Resolved_IR_State])[]>[
+        ...ir_states.map(
+
+            //@ts-ignore
+            function ([hash, str]) {
+
+                try {
+                    const { result: [ir_state], err } = parser(str, {}, ir);
+
+                    if (err)
+                        throw err;
+
+                    return [str, ir_state];
+                } catch (e) {
+                    build_logger.get("PARSER").debug(str);
+                    build_logger.get("PARSER").critical(hash, str);
+                    throw e;
+                }
+            }
+        ),
+        ...grammar.ir_states.map(ir => [
+            ir.tok.slice(),
+            ir
+        ])
+    ])
+        insertIrStateBlock(ir_state_ast, string, grammar, states_map);
+}
 
 function insertIrStateBlock(
     ir_state_ast: Resolved_IR_State,
@@ -350,6 +388,8 @@ function insertInstructionSequences(
     default_block_size: number = 0,
     instruction_offset = 0,
 ): number[] {
+
+
 
     let buffer = [];
 
@@ -457,16 +497,16 @@ function insertInstructionSequences(
                 } break;
 
                 case InstructionType.scan_back_until: {
-                    let token_id = +data[++i];
+                    let token_state = data[++i];
                     let length = +data[++i];
-                    temp_buffer.push(7 << 28 | 0x00100000 | (length & 0xFFFF), token_id << 16, ...data.slice(i + 1, i + 1 + length));
+                    temp_buffer.push(7 << 28 | 0x00100000 | (length & 0xFFFF), state_map.get(token_state)?.pointer ?? 0, ...data.slice(i + 1, i + 1 + length));
                     i += length;
                 } break;
 
                 case InstructionType.scan_until: {
-                    let token_id = +data[++i];
+                    let token_state = data[++i];
                     let length = +data[++i];
-                    temp_buffer.push(7 << 28 | (length & 0xFFFF), token_id << 16, ...data.slice(i + 1, i + 1 + length));
+                    temp_buffer.push(7 << 28 | (length & 0xFFFF), state_map.get(token_state)?.pointer ?? 0, ...data.slice(i + 1, i + 1 + length));
                     i += length;
                 } break;
 
@@ -475,8 +515,7 @@ function insertInstructionSequences(
                     const [
                         input_type,
                         lexer_type,
-                        skip_table_row,
-                        token_table_row,
+                        token_state,
                         token_basis,
                         number_of_rows,
                         row_size,
@@ -494,10 +533,7 @@ function insertInstructionSequences(
                             |
                             (token_basis & 0xFFFF),
 
-                        token_info =
-                            (skip_table_row & 0xFFFF)
-                            |
-                            ((token_table_row & 0xFFFF) << 16),
+                        token_info = state_map.get(token_state)?.pointer ?? 0,
 
                         table_info =
                             ((number_of_rows & 0xFFFF) << 16)
@@ -518,8 +554,7 @@ function insertInstructionSequences(
                         [
                             input_type,
                             lexer_type,
-                            skip_table_row,
-                            token_table_row,
+                            token_state,
                             scan_field_length,
                             instruction_field_size,
                             scanner_key_index_pairs,
@@ -610,10 +645,7 @@ function insertInstructionSequences(
                             |
                             (instruction_field_size & 0xFFFF),
 
-                        token_info =
-                            (skip_table_row & 0xFFFF)
-                            |
-                            ((token_table_row & 0xFFFF) << 16),
+                        token_info = (state_map.get(token_state)?.pointer ?? 0),
 
                         table_info =
                             ((mod_base & 0xFFFF) << 16)
@@ -658,9 +690,8 @@ function insertInstructionSequences(
 function createInstructionSequence(
     active_instructions: IR_Instruction[],
     grammar: GrammarObject,
-    token_id: number,
-    skip_id: number,
-    sym_map: Map<string, number>
+    token_state: string,
+    token_id_to_state: Map<string, string>
 ): { byte_length: number, byte_sequence: any; } {
 
     const instruction_sequence = [];
@@ -683,15 +714,17 @@ function createInstructionSequence(
 
                 const basis = instr.id;
 
-                const token_id = createSymMapId(instr.token_ids.concat(instr.skipped_ids), grammar, sym_map);
+                const expected = instr.token_ids.concat(instr.skipped_ids).setFilter();
+                const skipped = instr.skipped_ids.setFilter().sort(numeric_sort);
 
-                const skip_id = createSymMapId(instr.skipped_ids, grammar, sym_map);
+                const id = createSymMapId(expected, grammar);
+
+                token_state = token_id_to_state.get(id);
 
                 const instruction = createTableInstruction(
                     instr.mode,
                     "assert",
-                    skip_id,
-                    token_id,
+                    token_state,
                     basis,
                     1,
                     1,
@@ -754,12 +787,12 @@ function createInstructionSequence(
 
             case InstructionType.scan_back_until:
                 byte_length += 8 + 4 * instr.ids.length;
-                instruction_sequence.push(InstructionType.scan_back_until, token_id, instr.ids.length, ...convertTokenIDsToSymbolIds(instr.ids, grammar));
+                instruction_sequence.push(InstructionType.scan_back_until, token_state, instr.ids.length, ...convertTokenIDsToSymbolIds(instr.ids, grammar));
                 break;
 
             case InstructionType.scan_until:
                 byte_length += 8 + 4 * instr.ids.length;
-                instruction_sequence.push(InstructionType.scan_until, token_id, instr.ids.length, ...convertTokenIDsToSymbolIds(instr.ids, grammar));
+                instruction_sequence.push(InstructionType.scan_until, token_state, instr.ids.length, ...convertTokenIDsToSymbolIds(instr.ids, grammar));
                 break;
 
             case InstructionType.pop:
@@ -928,14 +961,9 @@ function extractTokenSymbols(state_data: IRStateData, grammar: GrammarObject) {
     state_data.skipped_tokens = skipped_symbols.filter(s => s != default_case_indicator);// <- remove default value
 }
 
-function statesOutputsBuildPass(StateMap: StateMap, grammar: GrammarObject, sym_map: Map<string, number> = new Map(),) {
+function statesOutputsBuildPass(StateMap: StateMap, grammar: GrammarObject, sym_map: Map<string, string>) {
 
     let total_instruction_byte_size = 24; // Ensure the zero position is reserved for the "null" state
-
-    createItemReferences(StateMap, grammar, sym_map);
-    const sym_map_buffer = [...sym_map.keys()].flatMap(s => s.split("_")).map(i => parseInt(i));
-
-    total_instruction_byte_size += sym_map_buffer.length * 4;
 
     for (const [, state_data] of StateMap) {
 
@@ -943,20 +971,17 @@ function statesOutputsBuildPass(StateMap: StateMap, grammar: GrammarObject, sym_
 
         let { expected_tokens, skipped_tokens } = state_data;
 
-        let skip_id = 0, tok_id = 0;
+        let token_state: string = "";
 
-        if (expected_tokens.length > 0 || skipped_tokens.length > 0) {
+        if (expected_tokens?.length > 0 || skipped_tokens?.length > 0) {
             //create a meta lookup instruction
 
-            const expected = expected_tokens.concat(skipped_tokens).setFilter().sort(numeric_sort);
-
+            const expected = expected_tokens.concat(skipped_tokens).setFilter();
             const skipped = skipped_tokens.setFilter().sort(numeric_sort);
 
-            if (expected.length > 0)
-                tok_id = createSymMapId(expected, grammar, sym_map);
+            const id = createSymMapId(expected, grammar);
 
-            if (skipped.length > 0)
-                skip_id = createSymMapId(skipped, grammar, sym_map);
+            token_state = sym_map.get(id);
         }
 
         state_data.block_offset = total_instruction_byte_size;
@@ -973,7 +998,7 @@ function statesOutputsBuildPass(StateMap: StateMap, grammar: GrammarObject, sym_
                 .group(s => s.mode);
 
             if (_default)
-                state_data.block = buildBasicInstructionBlock(state_ast, _default, tok_id, skip_id, grammar, sym_map);
+                state_data.block = buildBasicInstructionBlock(state_ast, _default, token_state, grammar, sym_map);
 
             modes.sort(([a], [b]) => {
 
@@ -987,12 +1012,12 @@ function statesOutputsBuildPass(StateMap: StateMap, grammar: GrammarObject, sym_
                 const
 
                     jump_block_info = buildJumpTableBranchBlock(
-                        state_ast, mode, attributes, tok_id, skip_id, grammar, sym_map,
+                        state_ast, mode, attributes, token_state, grammar, sym_map,
                         state_data.block
                     ),
 
                     hash_block_info = buildHashTableBranchBlock(
-                        state_ast, mode, attributes, tok_id, skip_id, grammar, sym_map,
+                        state_ast, mode, attributes, token_state, grammar, sym_map,
                         state_data.block
                     ),
 
@@ -1014,8 +1039,7 @@ function statesOutputsBuildPass(StateMap: StateMap, grammar: GrammarObject, sym_
             const block_info = buildBasicInstructionBlock(
                 state_ast,
                 state_ast.instructions,
-                tok_id,
-                skip_id,
+                token_state,
                 grammar,
                 sym_map
             );
@@ -1042,9 +1066,8 @@ function statesOutputsBuildPass(StateMap: StateMap, grammar: GrammarObject, sym_
         15 << 28, // Default Fail
         (8 << 28) | (1 << 24), // Scope Pop
         (15 << 28) | 1, // Default Pass Through
-        StateMap.get("__SCANNER__").pointer | normal_state_mask,
+        0 | normal_state_mask,
         grammar.meta.token_row_size,
-        ...sym_map_buffer
     ]; // The pass, fail, scope pop, and pass through return instructions
 
     for (const [_, state_data] of StateMap) {
@@ -1056,26 +1079,41 @@ function statesOutputsBuildPass(StateMap: StateMap, grammar: GrammarObject, sym_
 
     return out_buffer;
 }
-function createItemReferences(StateMap: StateMap, grammar: GrammarObject, sym_map: Map<string, number>) {
-    for (const [, state_data] of StateMap) {
+function compileScannerStates(
+    states_map: StateMap,
+    grammar: GrammarObject,
+) {
+
+    const scanner_states: StateMap = new Map;
+
+    const raw_scanner_states = new Map;
+
+    const scanner_id_to_state = new Map;
+
+    for (const [, state_data] of states_map) {
 
         let { expected_tokens, skipped_tokens } = state_data;
 
         if (expected_tokens.length > 0 || skipped_tokens.length > 0) {
+
             //create a meta lookup instruction
             const expected = expected_tokens.concat(skipped_tokens).setFilter().sort(numeric_sort);
 
             const skipped = skipped_tokens.setFilter().sort(numeric_sort);
 
-            constructScannerState(expected, grammar);
-
-            if (expected.length > 0)
-                createSymMapId(expected, grammar, sym_map);
-
-            if (skipped.length > 0)
-                createSymMapId(skipped, grammar, sym_map);
+            constructScannerState(expected, grammar, scanner_id_to_state, raw_scanner_states);
         }
     }
+
+    convertParseProductsIntoStatesMap(
+        [...raw_scanner_states.entries()]
+        , grammar, scanner_states
+    );
+
+    return {
+        scanner_states,
+        scanner_id_to_state
+    };
 }
 
 function stateHasBranchIR(state_data: IRStateData): state_data is BranchIRStateData {
@@ -1086,14 +1124,6 @@ function stateHasBranchIR(state_data: IRStateData): state_data is BranchIRStateD
     );
 }
 
-function createSymMapId(expected: number[], grammar: GrammarObject, sym_map: Map<string, number>) {
-    const id_string = getSymbolMapFromIds(expected, grammar).map(i => (i >>> 0) + "").join('_');
-
-    if (!sym_map.has(id_string))
-        sym_map.set(id_string, sym_map.size);
-
-    return sym_map.get(id_string);
-}
 
 function selectBestFitBlockType(jump_table_block: BlockData, hash_table_block: BlockData) {
 
@@ -1125,8 +1155,7 @@ function get32AlignedOffset(request_size: number) {
 function createTableInstruction(
     input_type: "PRODUCTION" | "TOKEN" | "BYTE" | "CODEPOINT" | "CLASS",
     lexer_type: "assert" | "peek" = "assert",
-    skip_id: number,
-    tok_id: number,
+    token_state: string,
     basis: number,
     number_of_rows: number,
     row_32bit_size: number,
@@ -1135,8 +1164,7 @@ function createTableInstruction(
     return ["table",
         input_type,
         lexer_type,
-        skip_id,
-        tok_id,
+        token_state,
         basis,
         number_of_rows,
         row_32bit_size,
@@ -1147,10 +1175,9 @@ function buildJumpTableBranchBlock(
     state_ast: BranchIRState,
     instructions: (IRPeek | IRAssert)[],
     attributes: StateAttrib,
-    tok_id = 0,
-    skip_id = 0,
+    token_state: string,
     grammar: GrammarObject,
-    sym_map: Map<string, number>,
+    token_id_to_state: Map<string, string>,
     default_block: BlockData = null
 ): BlockData {
 
@@ -1165,7 +1192,7 @@ function buildJumpTableBranchBlock(
     const standard_byte_codes = standard_instructions
         .flatMap(({ ids, instructions, type }) => {
 
-            const instr = createInstructionSequence(instructions, grammar, tok_id, skip_id, sym_map);
+            const instr = createInstructionSequence(instructions, grammar, token_state, token_id_to_state);
             return ids.map(i => ({ id: i, code: instr }));
         });
 
@@ -1212,8 +1239,7 @@ function buildJumpTableBranchBlock(
         createTableInstruction(
             input_type,
             lexer_type,
-            skip_id,
-            tok_id,
+            token_state,
             basis,
             number_of_rows,
             row_size,
@@ -1232,10 +1258,9 @@ function buildHashTableBranchBlock(
     state_ast: BranchIRState,
     instructions: (IRPeek | IRAssert)[],
     attributes: StateAttrib,
-    tok_id = 0,
-    skip_id = 0,
+    token_state: string,
     grammar: GrammarObject,
-    sym_map: Map<string, number>,
+    token_ids_to_state: Map<string, string>,
     default_block: BlockData = null
 ): BlockData {
 
@@ -1250,7 +1275,7 @@ function buildHashTableBranchBlock(
     const standard_byte_codes = standard_instructions
         .map(({ instructions, type, ids }) => {
 
-            const instr = createInstructionSequence(instructions, grammar, tok_id, skip_id, sym_map);
+            const instr = createInstructionSequence(instructions, grammar, token_state, token_ids_to_state);
 
             //@ts-expect-error
             instr.pointer = instruction_field_byte_size / 4;
@@ -1293,8 +1318,7 @@ function buildHashTableBranchBlock(
         ["scanner",
             input_type,
             lexer_type,
-            skip_id,
-            tok_id,
+            token_state,
             scan_field_length,
             instruction_field_byte_size / 4,
             scanner_key_index_pairs,
@@ -1327,13 +1351,12 @@ function buildHashTableBranchBlock(
 function buildBasicInstructionBlock(
     state_ast: Resolved_IR_State,
     instructions: IR_Instruction[],
-    tok_id = 0,
-    skip_id = 0,
+    token_state: string,
     grammar: GrammarObject,
-    sym_map: Map<string, number>
+    sym_map: Map<string, string>
 ): BlockData {
 
-    let { byte_length, byte_sequence } = createInstructionSequence(instructions, grammar, tok_id, skip_id, sym_map);
+    let { byte_length, byte_sequence } = createInstructionSequence(instructions, grammar, token_state, sym_map);
 
 
     const instruction_sequence = [byte_sequence];

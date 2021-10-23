@@ -63,7 +63,6 @@ export class KernelState implements KernelStateType {
     state: number;
     origin_fork: number;
     input_len: number;
-    token_scope_row: number;
     last_byte_offset: number;
     last_token_offset: number;
     last_token_type: number;
@@ -113,8 +112,6 @@ export class KernelState implements KernelStateType {
         this.FORKED = false;
 
         this.refs = 0;
-
-        this.token_scope_row = 0;
 
         this.last_byte_offset = 0;
 
@@ -210,7 +207,6 @@ export class KernelState implements KernelStateType {
         forked_state.origin_fork = this.get_rules_len();
         forked_state.state = this.state;
         forked_state.symbol_accumulator = this.symbol_accumulator;
-        forked_state.token_scope_row = this.token_scope_row;
         forked_state.last_byte_offset = this.last_byte_offset;
         forked_state.last_token_offset = this.last_token_offset;
         forked_state.VALID = true;
@@ -773,19 +769,14 @@ function set_token(instruction: number, kernel_state: KernelState, index: number
 
     if (instruction & 0x08000000) {
 
-        const token_scope = kernel_state.token_scope_row;
-
         const data = kernel_state.instruction_buffer;
 
         for (let i = 0; i < length; i++) {
-            const type = data[i + index];
-            if (isTokenActive(type, token_scope, kernel_state.instruction_buffer)) {
-                const lexer = kernel_state.lexer;
-                kernel_state.last_byte_offset = lexer.byte_offset + lexer.byte_length;
-                kernel_state.last_token_offset = lexer.token_offset + lexer.token_length;
-                kernel_state.last_token_type = type;
-                break;
-            }
+            const lexer = kernel_state.lexer;
+            kernel_state.last_byte_offset = lexer.byte_offset + lexer.byte_length;
+            kernel_state.last_token_offset = lexer.token_offset + lexer.token_length;
+            kernel_state.last_token_type = data[i + index];
+            break;
         }
 
         index += (length);
@@ -888,10 +879,6 @@ function get_input_value(
 
     if (input_type > 0) { // Lexer token id input
 
-        const tk_row = token_row_switches >> 16;
-
-        const skip_row = token_row_switches & 0xFFFF;
-
         switch (token_transition) {
 
             case 0: /* do nothing */
@@ -914,7 +901,7 @@ function get_input_value(
 
         switch (input_type) {
             case 1:
-                scanner(kernel_state, lexer, tk_row, skip_row);
+                scanner(kernel_state, lexer, token_row_switches);
                 return lexer.token_type;
             case 2:
                 return lexer.class();
@@ -933,31 +920,28 @@ function get_input_value(
 function scanner(
     root_state: KernelState,
     lexer: Lexer,
-    tk_row: number,
-    skip_row: number
+    token_row_state: number,
 ) {
-    const buffer = root_state.instruction_buffer;
+    //const buffer = root_state.instruction_buffer;
 
     if (lexer.token_type <= 0) {
         scanner_core(
             root_state,
             lexer,
-            tk_row,
-            skip_row
+            token_row_state
         );
     }
 
-    if (skip_row > 0 && isTokenActive(lexer.token_type, skip_row, buffer)) {
+    /* if (skip_row > 0 && isTokenActive(lexer.token_type, skip_row, buffer)) {
         while (isTokenActive(lexer.token_type, skip_row, buffer)) {
             lexer.next();
             scanner_core(
                 root_state,
                 lexer,
-                tk_row,
-                skip_row
+                token_row_state
             );
         }
-    }
+    } */
 }
 
 let scanner_valid = new KernelStateBuffer;
@@ -967,19 +951,16 @@ let scanner_process_buffer = new KernelStateBuffer;
 function scanner_core(
     root_state: KernelState,
     lexer: Lexer,
-    tk_row: number,
-    sk_row: number
+    token_row_state: number
 ) {
 
     let state = scanner_invalid.get_recycled_KernelState(root_state);
-
-    state.token_scope_row = tk_row;
 
     state.state_stack[0] = 0;
 
     state.state = 0;
 
-    state.push_state(root_state.instruction_buffer[4]);
+    state.push_state(token_row_state);
 
     scanner_process_buffer.add_state(state);
 
@@ -995,11 +976,7 @@ function scanner_core(
 
             const state = scanner_valid.remove_state_at_index(0);
 
-            if (
-                isTokenActive(state.last_token_type, tk_row, state.instruction_buffer)
-                ||
-                isTokenActive(state.last_token_type, sk_row, state.instruction_buffer)
-            ) {
+            if (true) {
 
                 const sync_lexer = state.lexer;
 

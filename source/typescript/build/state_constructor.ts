@@ -328,16 +328,19 @@ function processTransitionNode(
         global_symbols.push(...follow);
     }
 
-    const symbol_clause = create_symbol_clause(
-        global_items,
-        global_symbols.filter(Sym_Is_A_Token),
-        grammar,
-        scope,
-        !PRODUCTION_IS_SCANNER
-    );
+    if (!PRODUCTION_IS_SCANNER) {
 
-    if (symbol_clause)
-        state_string.push(symbol_clause);
+        const symbol_clause = create_symbol_clause(
+            global_items,
+            global_symbols.filter(Sym_Is_A_Token),
+            grammar,
+            scope,
+            !PRODUCTION_IS_SCANNER
+        );
+
+        if (symbol_clause)
+            state_string.push(symbol_clause);
+    }
 
     const string = state_string.join("\n    ");
 
@@ -644,17 +647,17 @@ function generateSingleStateAction(
                 : item.len;
 
             if (PRODUCTION_IS_SCANNER) {
-                if (body.production.name == "__SCANNER__") {
-                    action_string = `assign token [ ${item.decrement().getProductionAtSymbol(grammar).token_id} ] then ${set_prod_clause}`;
-                } else {
+                const token_id = item.getProduction(grammar)?.token_id;
+                if (token_id !== undefined && token_id != 9999)
+                    action_string = `assign token [ ${token_id} ] then ${set_prod_clause}`;
+                else
                     action_string = set_prod_clause;
-                }
             } else if (body.reduce_id >= 0)
                 action_string = `reduce ${len} ${body.reduce_id} then ${set_prod_clause}`;
             else if (len > 1)
                 action_string = `reduce ${len} 0 then ${set_prod_clause}`;
             else
-                action_string = `${set_prod_clause}`;
+                action_string = set_prod_clause;
 
             if (root_prod >= 0 && production.id != root_prod) {
                 //This will allow upgrade to complete

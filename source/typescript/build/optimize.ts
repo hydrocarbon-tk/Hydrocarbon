@@ -574,7 +574,7 @@ function removeRedundantProdSet(candidate: IR_State | IRProductionBranch | IRPee
     }
 }
 
-export function optimize(StateMap: StateMap, grammar: GrammarObject) {
+export function optimize(StateMap: StateMap, grammar: GrammarObject, entry_names: string[]) {
 
     optimize_logger.debug(`---------------- Processing States ----------------`);
 
@@ -587,7 +587,7 @@ export function optimize(StateMap: StateMap, grammar: GrammarObject) {
         MODIFIED ||= result;
     }
 
-    garbageCollect(StateMap, grammar);
+    garbageCollect(StateMap, grammar, entry_names);
 
     if (!MODIFIED)
         optimize_logger.debug(`---------------- Processing Completed ----------------`);
@@ -595,11 +595,14 @@ export function optimize(StateMap: StateMap, grammar: GrammarObject) {
     return MODIFIED;
 }
 
-export function garbageCollect(StateMap: StateMap, grammar: GrammarObject,) {
-
-    const entry_names = [
+export function garbageCollect(
+    StateMap: StateMap,
+    grammar: GrammarObject,
+    entry_names: string[] = [
         ...grammar.productions.filter(p => p.IS_ENTRY).map(i => i.name + "")
-    ].setFilter();
+    ].setFilter()) {
+
+
     const marked_map = new Map([...StateMap].map(([name]) => [name + "", false]));
 
     const pending = entry_names.slice();

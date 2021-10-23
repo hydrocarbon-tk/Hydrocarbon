@@ -4,17 +4,15 @@
  * disclaimer notice.
  */
 import { Logger } from '@candlelib/log';
-import { sk, skRenderAsJavaScript, skRenderAsRust } from "../skribble/skribble.js";
+import { sk, skRenderAsJavaScript } from "../skribble/skribble.js";
 import { SKExpression, SKNode } from "../skribble/types/node.js";
 import { GrammarObject } from "../types/grammar_nodes.js";
 import { StateMap } from '../types/ir_state_data.js';
-import { getSymbolScannerFunctions, token_lu_bit_size, token_lu_bit_size_offset } from "../utilities/code_generating.js";
-import * as cpp from "./cpp_render.js";
+import { token_lu_bit_size, token_lu_bit_size_offset } from "../utilities/code_generating.js";
 import * as rust from "./rust_render.js";
 export interface BuildPack {
     grammar: GrammarObject;
     state_buffer: Uint32Array;
-    sym_map: Map<string, number>;
     states_map: StateMap;
 }
 

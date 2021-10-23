@@ -31,14 +31,14 @@ const {
 //const grammar = await compileGrammarFromURI("./source/grammars/test/ambiguous.hcg");
 //const grammar = await compileGrammarFromURI("./source/grammars/misc/ruminate_formatter.hcg");
 //const grammar = await compileGrammarFromURI("./source/grammars/test/failure_recovery.hcg");
-const grammar = await compileGrammarFromURI("./source/grammars/hcg/hcg.hcg");
+//const grammar = await compileGrammarFromURI("./source/grammars/hcg/hcg.hcg");
 //const grammar = await compileGrammarFromURI("./source/grammars/misc/oob.hcg", parser);
 //const grammar = await compileGrammarFromURI("./source/grammars/hcg/state_ir.hcg");
 //const grammar = await compileGrammarFromURI("./source/grammars/test/peeking.hcg");
 //const grammar = await compileGrammarFromURI("./source/grammars/test/tight_loop.hcg");
 //const grammar = await compileGrammarFromURI("./source/grammars/test/ambiguity_resolution.hcg");
 //const grammar = await compileGrammarFromURI("./source/grammars/test/out_of_scope.hcg");
-//const grammar = await compileGrammarFromURI("./source/grammars/test/arithmetic_expression.hcg");
+const grammar = await compileGrammarFromURI("./source/grammars/test/arithmetic_expression.hcg");
 //const grammar = await compileGrammarFromURI("./source/grammars/test/large_switch_hash_table.hcg");
 //const grammar = await compileGrammarFromURI("./source/grammars/test/shift_reduce_conflict.hcg");
 //const grammar = await compileGrammarFromURI("./source/grammars/hcg/state_ir.hcg");
@@ -132,7 +132,7 @@ f: Test.0 { test }
 
 `;
 
-//string = "A A B B g2 2 2 A";
+string = "two+three";
 
 const history = state_history;
 
@@ -141,12 +141,12 @@ const history = state_history;
 console.log("ABABABABABABABAABABABABABABABA");
 try {
     assign_peek(state => {
-        console.log(rlu.get(state & 0xFFFFFF));
+        //console.log(rlu.get(state & 0xFFFFFF));
     });
     const { result, err } = parse(string, env, 0);
     console.error(err);
     console.log("ABABABABABABABAABABABABABABABA");
-    console.dir(result[0], { depth: null });
+    console.dir({ result }, { depth: null });
     // console.dir(convertMarkdownToHTMLNodes(result[0]), { depth: null });;
     //history.length = 0;
 } catch (e) {
