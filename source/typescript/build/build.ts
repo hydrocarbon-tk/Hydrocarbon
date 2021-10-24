@@ -19,7 +19,6 @@ import { Token } from '../runtime/token.js';
 import { GrammarObject, ProductionImportSymbol, ProductionSymbol, TokenSymbol } from "../types/grammar_nodes";
 import { BranchIRStateData, IRStateData, StateAttrib, StateMap } from '../types/ir_state_data';
 import { BlockData, BranchIRState, InstructionType, IRAssert, IRPeek, IR_Instruction, Resolved_IR_State } from '../types/ir_types';
-import { getSymbolMapFromIds } from '../utilities/code_generating.js';
 import { ir_reduce_numeric_len_id } from './magic_numbers.js';
 import { garbageCollect, optimize } from './optimize.js';
 import { renderIRNode } from './render_ir_state.js';
@@ -33,45 +32,64 @@ export const default_case_indicator = 9999;
 const build_logger = Logger.get("MAIN").createLogger("COMPILER");
 build_logger.get("PARSER").activate();
 
-let scanners = new Map();
+function createSymMapId(
+    consumed_ids: number[],
+    skipped_ids: number[],
+    grammar: GrammarObject
+) {
 
-function createSymMapId(ids: number[], grammar: GrammarObject) {
-
-    const symbols = ids.filter(
+    const consumed = consumed_ids.filter(
         i => i > 1 && i != default_case_indicator
     ).map(i => grammar.meta.all_symbols.by_id.get(i));
 
-    if (symbols.length < 1)
+    const skipped = skipped_ids.filter(
+        i => i > 1 && i != default_case_indicator
+    ).map(i => grammar.meta.all_symbols.by_id.get(i));
+
+    if (consumed.length < 1)
         return "";
 
-    return symbols.map(i => i.id).setFilter().sort(numeric_sort).join("-");
+    return (
+        consumed.map(i => i.id).setFilter().sort(numeric_sort).join("-")
+        + "-s-" +
+
+        skipped.map(i => i.id).setFilter().sort(numeric_sort).join("-")
+    );
 }
 
 
 export function constructScannerState(
-    ids: number[],
+    consumed_ids: number[],
+    skipped_ids: number[],
     grammar: GrammarObject,
     scanner_id_to_state: Map<string, string>,
     scanner_states: Map<string, string>
 ) {
-    const symbols = ids.filter(
-        i => i > 1 && i != default_case_indicator
-    ).map(i => grammar.meta.all_symbols.by_id.get(i));
+    let scanner_id = createSymMapId(consumed_ids, skipped_ids, grammar);
 
-    if (symbols.length < 1)
-        return "";
-
-    let scanner_id = createSymMapId(ids, grammar);
+    if (!scanner_id) return scanner_id;
 
     if (scanner_id_to_state.has(scanner_id)) {
         return scanner_id_to_state.get(scanner_id);
     }
+
+    const consumed_symbols = consumed_ids
+        .filter(i => i > 1 && i != default_case_indicator)
+        .setFilter()
+        .map(i => grammar.meta.all_symbols.by_id.get(i));
+
+    const skipped_symbols = skipped_ids
+        .filter(s => !consumed_ids.includes(s))
+        .filter(i => i > 1 && i != default_case_indicator)
+        .setFilter()
+        .map(i => grammar.meta.all_symbols.by_id.get(i));
 
 
     //Create checkpoints for original grammar data
     let productions_length = grammar.productions.length;
     let bodies_length = grammar.bodies.length;
     let old_item_map = grammar.item_map;
+
     grammar.item_map = new Map(old_item_map);
 
     let old_symbol_offset = grammar.meta.id_offset;
@@ -83,14 +101,23 @@ export function constructScannerState(
     );
 
     const local_id = scanner_id_to_state.size;
+
     const name = `__SCANNER${local_id}__`;
 
     //Insert a generated production for these symbols
-
-    let entry = addRootScannerFunction(`<> ${name} > ${symbols.map(sym => {
-        return getSymbolProductionName(sym);
-    }).filter(a => !!a).join("\n    | ")
-        }\n`, 9999);
+    let entry = addRootScannerFunction(
+        `<> ${name} > ${consumed_symbols.map(
+            sym => {
+                return getSymbolProductionName(sym);
+            }).filter(a => !!a).join("\n    | ")
+        + (skipped_symbols.length > 0 ? "\n    | " : "") +
+        skipped_symbols.map(
+            sym => {
+                return "! " + getSymbolProductionName(sym);
+            }).filter(a => !!a).join("\n    | ")
+        }\n`,
+        9999
+    );
 
     entry.id = grammar.productions.push(entry) - 1;
     entry.name = name;
@@ -714,10 +741,11 @@ function createInstructionSequence(
 
                 const basis = instr.id;
 
-                const expected = instr.token_ids.concat(instr.skipped_ids).setFilter();
-                const skipped = instr.skipped_ids.setFilter().sort(numeric_sort);
-
-                const id = createSymMapId(expected, grammar);
+                const id = createSymMapId(
+                    instr.token_ids.setFilter(),
+                    instr.skipped_ids.setFilter(),
+                    grammar
+                );
 
                 token_state = token_id_to_state.get(id);
 
@@ -976,10 +1004,11 @@ function statesOutputsBuildPass(StateMap: StateMap, grammar: GrammarObject, sym_
         if (expected_tokens?.length > 0 || skipped_tokens?.length > 0) {
             //create a meta lookup instruction
 
-            const expected = expected_tokens.concat(skipped_tokens).setFilter();
-            const skipped = skipped_tokens.setFilter().sort(numeric_sort);
-
-            const id = createSymMapId(expected, grammar);
+            const id = createSymMapId(
+                expected_tokens.setFilter(),
+                skipped_tokens.setFilter(),
+                grammar
+            );
 
             token_state = sym_map.get(id);
         }
@@ -1097,11 +1126,13 @@ function compileScannerStates(
         if (expected_tokens.length > 0 || skipped_tokens.length > 0) {
 
             //create a meta lookup instruction
-            const expected = expected_tokens.concat(skipped_tokens).setFilter().sort(numeric_sort);
-
-            const skipped = skipped_tokens.setFilter().sort(numeric_sort);
-
-            constructScannerState(expected, grammar, scanner_id_to_state, raw_scanner_states);
+            constructScannerState(
+                expected_tokens.setFilter(),
+                skipped_tokens.setFilter(),
+                grammar,
+                scanner_id_to_state,
+                raw_scanner_states
+            );
         }
     }
 

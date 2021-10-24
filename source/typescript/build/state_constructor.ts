@@ -5,7 +5,7 @@
  */
 import { user_defined_state_mux } from '../grammar/nodes/default_symbols.js';
 import { getUniqueSymbolName, Sym_Is_A_Generic_Type, Sym_Is_A_Production, Sym_Is_A_Token, Sym_Is_EOF, Sym_Is_Not_Consumed, Sym_Is_Recovery } from "../grammar/nodes/symbol.js";
-import { GrammarObject, GrammarProduction, HCG3Symbol, TokenSymbol } from "../types/grammar_nodes.js";
+import { GrammarObject, GrammarProduction, HCG3Symbol, ProductionSymbol, TokenSymbol } from "../types/grammar_nodes.js";
 import { TransitionForestStateA, TransitionStateType } from '../types/transition_tree_nodes.js';
 import { hashString } from '../utilities/code_generating.js';
 import { getFollow } from '../utilities/follow.js';
@@ -158,15 +158,45 @@ export function constructProductionStates(
 
                 let prelude = "";
 
-                goto_function_code.push(
-                    f`${4}
-                assert PRODUCTION [ ${production_ids.join(" ")} ] ( 
-                    ${prelude}goto state [ ${hash} ] then goto state [ ${goto_hash} ]
-                )`
-                );
+                if (PRODUCTION_IS_SCANNER && production.name.slice(0, 9) == "__SCANNER") {
+
+                    for (const id of production_ids) {
+                        const body
+                            = production.bodies.filter(b => b.sym[0].val == id)[0];
+
+                        let prelude = "";
+
+                        if (body.priority > 0) {
+                            prelude = `assign token [ 9999 ] then `;
+                        } else {
+                            const token_id = grammar.productions[body.sym[0].val].token_id;
+
+                            prelude = `assign token [ ${token_id} ] then `;
+                        }
+
+                        goto_function_code.push(
+                            f`${6}
+                            assert PRODUCTION [ ${id} ] ( 
+                                ${prelude}goto state [ ${hash} ] then goto state [ ${goto_hash} ]
+                            )`
+                        );
+                    }
+
+                } else {
+
+                    goto_function_code.push(
+                        f`${4}
+                        assert PRODUCTION [ ${production_ids.join(" ")} ] ( 
+                            ${prelude}goto state [ ${hash} ] then goto state [ ${goto_hash} ]
+                            )`
+                    );
+                }
 
                 HAVE_ROOT_PRODUCTION_GOTO ||= LOCAL_HAVE_ROOT_PRODUCTION_GOTO;
             }
+
+
+
             if (production.name == "__SCANNER__") {
                 goto_function_code.push(
                     f`${4}
@@ -647,11 +677,7 @@ function generateSingleStateAction(
                 : item.len;
 
             if (PRODUCTION_IS_SCANNER) {
-                const token_id = item.getProduction(grammar)?.token_id;
-                if (token_id !== undefined && token_id != 9999)
-                    action_string = `assign token [ ${token_id} ] then ${set_prod_clause}`;
-                else
-                    action_string = set_prod_clause;
+                action_string = set_prod_clause;
             } else if (body.reduce_id >= 0)
                 action_string = `reduce ${len} ${body.reduce_id} then ${set_prod_clause}`;
             else if (len > 1)

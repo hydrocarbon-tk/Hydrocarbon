@@ -103,9 +103,6 @@ export class Token {
     /**
      * Return a string slice of the source bounded buy the token 
      * or a portion of the token.
-     * @param start 
-     * @param end 
-     * @returns 
      */
     slice(start: number = 0, end: number = this.length) {
 
@@ -117,9 +114,6 @@ export class Token {
     /**
      * Return a new Token of the source bounded buy the existing 
      * token  or a portion of the existing token.
-     * @param start 
-     * @param end 
-     * @returns 
      */
     token_slice(start: number = 0, end: number = this.length) {
 

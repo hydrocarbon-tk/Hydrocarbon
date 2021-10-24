@@ -127,9 +127,6 @@ export async function ParserFramework<T, R, K extends keyof R>(
 
                                 const tok = new Token(input_string, length, token_offset);
 
-                                if (tok.slice(-1) == " ")
-                                    debugger;
-
                                 stack.push(tok);
 
                                 tokens.push(tok);

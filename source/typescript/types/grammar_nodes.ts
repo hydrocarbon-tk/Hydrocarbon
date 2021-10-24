@@ -361,12 +361,12 @@ export interface ProductionTokenSymbol extends SymbolNode {
 
 export interface ProductionSymbol extends SymbolNode {
     type: SymbolType.PRODUCTION;
-
     name: string;
-
     val: number;
     production?: GeneralProductionNode;
     meta: false;
+
+    
 }
 
 export interface ProductionImportSymbol extends SymbolNode {
