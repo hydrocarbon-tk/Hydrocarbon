@@ -235,8 +235,6 @@ func instruction_executor(
 			return advanced_return(kernel_state, instruction, fail_mode)
 		}
 	}
-
-	return fail_mode
 }
 
 func pass() uint32 {
@@ -266,7 +264,8 @@ func set_production_scope(instruction uint32, kernel_state *KernelState) {
 
 	prod_scope := instruction & 0xFFFFFFF
 
-	kernel_state.meta_stack[kernel_state.stack_pointer] = prod_scope | (kernel_state.meta_stack[kernel_state.stack_pointer] & 0xFFFF0000)
+	kernel_state.meta_stack[kernel_state.stack_pointer] =
+		prod_scope | (kernel_state.meta_stack[kernel_state.stack_pointer] & 0xFFFF0000)
 }
 
 func reduce(instruction uint32, kernel_state *KernelState, recover_data uint32) {
@@ -403,9 +402,9 @@ func advanced_return(kernel_state *KernelState, instruction uint32, fail_mode ui
 	}
 
 	if !kernel_state.P_lexer.END() {
-		kernel_state.P_lexer.token_type = 0
-		kernel_state.P_lexer.token_length = 1
-		kernel_state.P_lexer.byte_length = 1
+		//kernel_state.P_lexer.token_type = 0
+		//kernel_state.P_lexer.token_length = 1
+		//kernel_state.P_lexer.byte_length = 1
 	}
 
 	return 1 /*true*/
@@ -628,7 +627,7 @@ func hash_jump(kernel_state *KernelState, index uint32, instruction uint32) uint
 
 	token_transition := ((instruction >> 26) & 0x3)
 
-	token_row_switches := instruction_buffer[index]
+	scanner_start_pointer := instruction_buffer[index]
 
 	table_data := instruction_buffer[index+1]
 
@@ -648,7 +647,7 @@ func hash_jump(kernel_state *KernelState, index uint32, instruction uint32) uint
 			kernel_state,
 			input_type,
 			token_transition,
-			token_row_switches,
+			scanner_start_pointer,
 		)
 	hash_index := input_value & mod
 
@@ -658,7 +657,7 @@ func hash_jump(kernel_state *KernelState, index uint32, instruction uint32) uint
 
 		value := cell & 0x7FF
 
-		next := ((cell >> 22) & 0x3FF) - 512
+		next := int((cell>>22)&0x3FF) - 512
 
 		if value == input_value {
 
@@ -672,7 +671,7 @@ func hash_jump(kernel_state *KernelState, index uint32, instruction uint32) uint
 			return instruction_field_size + instruction_field_start
 		}
 
-		hash_index += next
+		hash_index = uint32(int(hash_index) + next)
 	}
 
 }
@@ -681,7 +680,7 @@ func index_jump(kernel_state *KernelState, index uint32, instruction uint32) uin
 
 	instruction_buffer := *kernel_state.instructions
 
-	token_row_switches := instruction_buffer[index]
+	scanner_start_pointer := instruction_buffer[index]
 
 	table_data := instruction_buffer[index+1]
 
@@ -697,7 +696,7 @@ func index_jump(kernel_state *KernelState, index uint32, instruction uint32) uin
 		kernel_state,
 		input_type,
 		token_transition,
-		token_row_switches,
+		scanner_start_pointer,
 	) - basis__
 
 	number_of_rows := table_data >> 16
@@ -719,7 +718,7 @@ func get_input_value(
 	kernel_state *KernelState,
 	input_type uint32,
 	token_transition uint32,
-	token_row_switches uint32,
+	scanner_start_pointer uint32,
 ) uint32 {
 
 	lexer := kernel_state.get_root_lexer()
@@ -746,7 +745,7 @@ func get_input_value(
 		switch input_type {
 
 		case 1:
-			scanner(kernel_state, lexer, token_row_switches)
+			scanner(kernel_state, lexer, scanner_start_pointer)
 
 			return lexer.token_type
 		case 2:
@@ -768,7 +767,7 @@ func get_input_value(
 func scanner(
 	root_state *KernelState,
 	lexer *KernelLexer,
-	token_row_state uint32,
+	scanner_start_pointer uint32,
 ) {
 	if lexer.token_type <= 0 {
 
@@ -780,7 +779,7 @@ func scanner(
 
 			state.state = 0
 
-			state.push_state(token_row_state)
+			state.push_state(scanner_start_pointer)
 
 			state.P_lexer.scanner_sync(lexer)
 

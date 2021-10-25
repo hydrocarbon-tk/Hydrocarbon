@@ -1,0 +1,18 @@
+[package]
+name = "candlelib_hc_sandbox"
+version = "0.1.0"
+edition = "2018"
+
+[[bin]]
+name = "sandbox"
+path = "source/main.rs"
+
+[dependencies]
+candlelib_hydrocarbon = {path="../core", version="0.1.0"}
+coz = "0.1"
+
+[profile.dev]
+debug = 2
+
+[profile.release]
+debug = 1

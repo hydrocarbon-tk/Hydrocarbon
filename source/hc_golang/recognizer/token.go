@@ -137,7 +137,7 @@ func (tok *Token) getRange(
 		end_col += 1
 	}
 
-	return
+	return 
 }
 
 /**

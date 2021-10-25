@@ -1,5 +1,5 @@
-use super::kernel_parser::run;
-use super::kernel_parser::*;
+use super::state_machine::run;
+use super::state_machine::*;
 
 ///
 /// Base string container.

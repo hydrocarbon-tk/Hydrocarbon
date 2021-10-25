@@ -67,7 +67,7 @@ func (s *KernelState) swap_state(kernel_state_pointer uint32) {
 }
 
 func (s *KernelState) pop_state() uint32 {
-	state := s.state_stack[s.stack_pointer]
+	state := s.read_state()
 	s.stack_pointer -= 1
 	return state
 }
@@ -137,7 +137,7 @@ func (s *KernelState) add_rule(val uint16) {
 
 func (s *KernelState) add_reduce(sym_len uint32, fn_id uint32) {
 
-	if 0 != (s.state & 2) {
+	if (s.state & 2) != 0 {
 
 		// Sym len -1 is important because something is always
 		// added to the stack, even if there where zero symbols
@@ -146,7 +146,6 @@ func (s *KernelState) add_reduce(sym_len uint32, fn_id uint32) {
 
 		total := fn_id + sym_len
 		if (total) == 0 {
-
 			return
 		}
 
@@ -162,7 +161,7 @@ func (s *KernelState) add_reduce(sym_len uint32, fn_id uint32) {
 	}
 }
 func (s *KernelState) add_shift(tok_len uint32) {
-	if tok_len < 0 {
+	if tok_len == 0 {
 		return
 	}
 

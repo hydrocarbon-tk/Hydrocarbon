@@ -10,6 +10,8 @@ type KernelLexer struct {
 	byte_length       uint32
 	prev_byte_offset  uint32
 	prev_token_offset uint32
+	peek_byte_offset  uint32
+	peek_token_offset uint32
 	line              uint32
 	token_type        uint32
 	input_len         uint32
@@ -25,6 +27,8 @@ func newKernelLexer(input *[]uint8) *KernelLexer {
 		byte_length:       1,
 		prev_byte_offset:  0,
 		prev_token_offset: 0,
+		peek_byte_offset:  0,
+		peek_token_offset: 0,
 		line:              0,
 		token_type:        0,
 		input_len:         uint32(len(*input)),
@@ -33,14 +37,14 @@ func newKernelLexer(input *[]uint8) *KernelLexer {
 	return &p
 }
 
+func getTypeAt(code_point uint32) uint32 { return uint32(Jumptable[code_point] & 0x1F) }
+
 func (s *KernelLexer) codepoint() uint32 {
 	cp := get_utf8_code_point_at(s.byte_offset, *s.input)
 	s.byte_length = get_utf8_byte_length_from_code_point(cp)
 	s.token_length = get_token_length_from_code_point(cp)
 	return cp
 }
-
-func getTypeAt(code_point uint32) uint32 { return uint32(Jumptable[code_point] & 0x1F) }
 
 func (s *KernelLexer) class() uint32 {
 	return getTypeAt(s.codepoint())
@@ -102,9 +106,9 @@ func (s *KernelLexer) peek() {
 }
 
 func (s *KernelLexer) reset() {
-	if s.prev_byte_offset != s.byte_offset {
-		s.byte_offset = s.prev_byte_offset
-		s.token_offset = s.prev_token_offset
+	if s.byte_offset > s.peek_byte_offset {
+		s.byte_offset = s.peek_byte_offset
+		s.token_offset = s.peek_token_offset
 		s.token_length = 1
 		s.byte_length = 1
 		s.token_type = 0
@@ -115,7 +119,11 @@ func (s *KernelLexer) skip_delta() uint32 {
 	return s.token_offset - s.prev_token_offset
 }
 
-func (s *KernelLexer) next() { s.peek() }
+func (s *KernelLexer) next() {
+	s.peek()
+	s.peek_byte_offset = s.byte_offset
+	s.peek_token_offset = s.token_offset
+}
 
 func (s *KernelLexer) consume() {
 	s.prev_byte_offset = s.byte_offset
