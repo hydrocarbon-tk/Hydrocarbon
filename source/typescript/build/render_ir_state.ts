@@ -43,8 +43,6 @@ function state_custom_render(state, render_fn) {
 
         if (node.instructions[0].type == InstructionType.assert
             ||
-            node.instructions[0].type == InstructionType.prod
-            ||
             node.instructions[0].type == InstructionType.peek)
             node.instructs = node.instructions.map(i => render_fn(state, i))
                 .join("\n").split("\n").join("\n" + " ".repeat(state.indent + 4));
@@ -170,7 +168,7 @@ export const ir_state_mappings: NodeMappings<IRNode, "type"> = <NodeMappings<IRN
         <NodeMapping<IRInlineAssert>>{
             type: "inline-assert",
             child_keys: [],
-            template: `o:n inline-assert o:s \\[ o:s @id o:s \\] i:s o:n 
+            template: `o:n inline-assert m:s @mode m:s \\[ o:s @id o:s \\] i:s o:n 
                        { token_ids: token_ids o:s \\[ o:s @token_ids...[m:s] o:s \\] o:n } 
                        { skipped_ids: skipped o:s \\[ o:s @skipped_ids...[m:s] o:s \\] o:n }
                        i:e

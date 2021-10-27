@@ -37,6 +37,9 @@ export * as ParserCore from "../runtime/core_parser.js";
 
 import { ParserFramework as ParserFrameworkNew } from '../runtime/parser_framework_new.js';
 
+export { complete } from '../runtime/complete.js';
+export { recognize } from '../runtime/recognize.js';
+
 export {
     //Types
     HCGParser,

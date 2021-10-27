@@ -1,14 +1,28 @@
 package hc_recognizer
 
-import "candlelib/hc_kernel"
+import (
+	"candlelib/hc_kernel"
+	"fmt"
+	"time"
+)
+
+type CompleterError struct {
+	Where Token
+	What  string
+	When  time.Time
+}
+
+func (e *CompleterError) Error() string {
+	return fmt.Sprintf("at %v, %s \n %s",
+		e.When, e.What, e.Where.blame())
+}
 
 func Complete(
 	input *[]uint8,
 	valid *hc_kernel.KernelStateBuffer,
 	invalid *hc_kernel.KernelStateBuffer,
-	//fn_maps
-	//fns
-) {
+	reduce_functions []ReduceFunction,
+) (HCObj, error) {
 
 	if valid.P_have_valid() {
 
@@ -16,11 +30,11 @@ func Complete(
 
 		iter := newKernelStateIterator(state)
 
-		//default_tok := newToken(input, 0, 0, -1)
+		stack := make([]HCObj, 16)
+		tokens := make([]*Token, 16)
 
-		stack := make([]*Token, 64)
-
-		tokens := make([]*Token, 64)
+		stack = stack[0:0]
+		tokens = tokens[0:0]
 
 		token_offset := 0
 
@@ -35,10 +49,13 @@ func Complete(
 			rule := low & 0x3
 
 			switch rule {
+
 			case 0: //REDUCE;
+
 				{
 
-					//body := (low >> 8) & 0xFF
+					body := (low >> 8) & 0xFF
+
 					length := int(((low >> 3) & 0x1F))
 
 					if (low & 4) != 0 {
@@ -50,13 +67,13 @@ func Complete(
 
 					pos_b := tokens[len(tokens)-1]
 
-					//e := stack[-length:]
+					e := stack[len(tokens)-length : len(tokens)]
 
 					token := TokenFromRange(pos_a, pos_b)
 
-					tokens[len(stack)-length] = token
+					tokens[len(tokens)-length] = token
 
-					//stack[stack.length-length] = fns[body](env, e, token)
+					stack[len(stack)-length] = reduce_functions[body](e, token)
 
 					stack = append(stack[:len(stack)-length+1], stack[len(stack):]...)
 
@@ -64,6 +81,7 @@ func Complete(
 				}
 
 			case 1:
+
 				{ //SHIFT;
 
 					length := int((low >> 3) & 0x1FFF)
@@ -73,8 +91,6 @@ func Complete(
 					}
 
 					tok := newToken(input, length, token_offset, -1)
-
-					//println(tok.String())
 
 					stack = append(stack, tok)
 
@@ -99,8 +115,21 @@ func Complete(
 			}
 		}
 
-	} else {
+		return stack[0], nil
 
+	} else {
+		state := invalid.P_get_state(0)
+		lexer := state.P_lexer
+		tok := newToken(
+			input, int(lexer.P_token_offset()), int(lexer.P_token_length()), int(lexer.P_line()),
+		)
+
+		return NILHCObj{}, &CompleterError{
+			Where: *tok,
+			What:  "Invalid Token",
+			When:  time.Now(),
+		}
 	}
-	//iter := newKernelStateIterator()
+
+	return NILHCObj{}, nil
 }

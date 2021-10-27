@@ -41,7 +41,6 @@ export interface ResolvedFailedIRState extends ResolvedIRState {
 }
 
 export const enum InstructionType {
-    prod = "prod",
     increment = "increment",
     token_assign = "token-assign",
     empty_consume = "empty-consume",
@@ -72,10 +71,11 @@ export const enum InstructionType {
 
 export interface ResolvedIRBranch {
     type:
-    InstructionType.prod |
+    InstructionType.peek |
     InstructionType.assert;
     ids: number[];
     instructions: IR_Instruction[];
+    mode: "PRODUCTION" | "TOKEN" | "BYTE" | "CODEPOINT" | "CLASS";
 }
 export interface Base_IR_Instruction {
     type: InstructionType;
@@ -89,6 +89,11 @@ export interface IRBranch {
 }
 export interface IRAssert extends IRBranch {
     type: InstructionType.assert;
+}
+
+export interface IRProdAssert extends IRAssert {
+    type: InstructionType.assert;
+    mode: "PRODUCTION";
 }
 
 export interface IRInlineAssert extends Base_IR_Instruction {
@@ -105,14 +110,6 @@ export interface IRTokenAssign extends Base_IR_Instruction {
 }
 export interface IRPeek extends IRBranch {
     type: InstructionType.peek;
-
-
-}
-export interface IRProductionBranch extends Base_IR_Instruction {
-    type: InstructionType.prod;
-    ids: (number | ProductionSymbol | ProductionImportSymbol)[];
-    instructions: IR_Instruction[];
-
 }
 export interface IRReduce extends Base_IR_Instruction {
     type: InstructionType.reduce;
@@ -202,11 +199,11 @@ export type Resolved_IR_State = ResolvedIRState
     | ResolvedFailedIRState | BranchIRState;
 export type IR_State = BaseIRState | BranchIRState | FailedIRState;
 export type IR_Instruction = IRConsume |
+    IRProdAssert |
     IRAssert |
     IRRepeat |
     IRNoConsume |
     IRPeek |
-    IRProductionBranch |
     IRFork |
     IRSetProd |
     IRReduce |

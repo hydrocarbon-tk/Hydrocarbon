@@ -678,12 +678,8 @@ function generateSingleStateAction(
 
             if (PRODUCTION_IS_SCANNER) {
                 action_string = set_prod_clause;
-            } else if (body.reduce_id >= 0)
-                action_string = `reduce ${len} ${body.reduce_id} then ${set_prod_clause}`;
-            else if (len > 1)
-                action_string = `reduce ${len} 0 then ${set_prod_clause}`;
-            else
-                action_string = set_prod_clause;
+            } else
+                action_string = `reduce ${len} ${body.id} then ${set_prod_clause}`;
 
             if (root_prod >= 0 && production.id != root_prod) {
                 //This will allow upgrade to complete

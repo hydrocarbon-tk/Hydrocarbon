@@ -25,6 +25,16 @@ func Init() {
 	}
 }
 
+func Clear(valid *KernelStateBuffer, invalid *KernelStateBuffer) {
+	for valid.len() > 0 {
+		valid.remove_state_at_index(0)
+	}
+
+	for invalid.len() > 0 {
+		invalid.remove_state_at_index(0)
+	}
+}
+
 func Run(
 	instructions *[]uint32,
 	input_buffer *[]uint8,
@@ -113,35 +123,6 @@ func kernel_executor(
 
 			if state_pointer > 0 {
 
-				/**
-				 * A state pointer is divided into three data segments
-				 *        __Is fail state bit
-				 *   Meta|  __ Accumulator Delta  _ Pointer
-				 *   _|_ | _|_______ _____________|_
-				 *  |   |||         |               |
-				 * [31 .28 .24 . . .16 . . .8. . . .0]
-				 *
-				 * Meta data relates to found within the meta
-				 * executor and is within state pointers
-				 * that are stored in state buffers. An example
-				 * usage of this section is for goto instruction,
-				 * which is simply copied to the state_stack as
-				 * the instruction already contains the goto state
-				 * pointer information
-				 *
-				 *
-				 * State info segment store the information
-				 * necessary to handle kernel switching tasks,
-				 * namely, whether to use the state for failure
-				 * recovery or to use it for normal parser
-				 * duties.
-				 *
-				 */
-
-				// If in failure mode, the shift with the truthy fail_mode
-				// mode boolean value will turn the success_state_mask
-				// into the fail_state_mask, effectively blocking all
-				// states that do not have the failure bit set.
 				mask_gate := M_normal_state_mask << uint32(fail_mode)
 
 				if (state_pointer & mask_gate) != 0 {
@@ -152,7 +133,6 @@ func kernel_executor(
 						kernel_state,
 						kernel_states_repo,
 					)
-
 				}
 			} else {
 				break

@@ -207,7 +207,7 @@ addCLIConfig("compile", {
 
         const
             threads = parseInt(number_of_workers.value ?? "1"),
-            grammar = await compileGrammarFromURI(input_file);
+            { grammar, asytrip_context } = await compileGrammarFromURI(input_file);
 
         if (type.value == "rust" || type.value == "c++")
             // Compile the extended reduce actions function and classes
@@ -332,8 +332,8 @@ addCLIConfig("create-staged", {
 }).callback = (async (args) => {
     const
         hcg_grammar_file = URI.resolveRelative("./source/grammars/hcg-3-alpha/hcg.hcg"),
-        compiled_grammar = await compileGrammarFromURI(hcg_grammar_file),
-        bootstrapped_compiled_grammar = await compileGrammarFromURI(hcg_grammar_file),
+        { grammar: compiled_grammar } = await compileGrammarFromURI(hcg_grammar_file),
+        { grammar: bootstrapped_compiled_grammar } = await compileGrammarFromURI(hcg_grammar_file),
         {
             recognizer_functions: bootstrapped_recognizer_functions
         } = await createBuildPack(bootstrapped_compiled_grammar, 1);

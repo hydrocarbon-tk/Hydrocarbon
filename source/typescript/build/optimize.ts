@@ -7,7 +7,7 @@ import { Logger } from '@candlelib/log';
 import { Token } from '../runtime/token.js';
 import { GrammarObject, ProductionImportSymbol, ProductionSymbol } from '../types/grammar_nodes';
 import { IRStateData, StateAttrib, StateMap } from '../types/ir_state_data';
-import { InstructionType, IRAssert, IRGoto, IRInlineAssert, IRPeek, IRProductionBranch, IRSetProd, IRBranch, IR_Instruction, IR_State, Resolved_IR_State } from '../types/ir_types';
+import { InstructionType, IRAssert, IRGoto, IRInlineAssert, IRPeek, IRSetProd, IRBranch, IR_Instruction, IR_State, Resolved_IR_State, IRProdAssert, BranchIRState } from '../types/ir_types';
 import { renderIRNode } from './render_ir_state.js';
 
 function getStateName(
@@ -26,518 +26,605 @@ function getStateName(
 
 const optimize_logger = Logger.get("MAIN").createLogger("OPTIMIZER");
 
-function optimizeState(state: IRStateData, states: StateMap) {
+type OptimizationFunction = (state: Resolved_IR_State, attribute: StateAttrib, data: IRStateData, states: StateMap) => boolean;
 
-    let MODIFIED = false;
+const optimizations: Optimization[] = [];
 
+
+type Optimization = {
+    name: string;
+    processor: OptimizationFunction;
+};
+
+function addOptimization(
+    fn: Optimization
+) {
+    optimizations.push(fn);
+}
+
+function runOptimizations(state: IRStateData, states: StateMap) {
     const { attributes, ir_state_ast, } = state;
 
     const { id } = ir_state_ast;
 
     const root_id = id;
 
-
-    /**
-     * Replace
-     *
-     *      <multi|single> (prod|assert) [A] => goto(X) ... goto(A*) ;
-     *
-     *      with
-     *
-     *      (X) <single> (prod|assert) [B] => instr(*) ... goto(*) ... goto(A*) ;
-     *
-     *      if 
-     *          prod [B] == prod [A] || assert [B] == assert [A] || no (prod|assert) [B]
-     * 
-     *      and not 
-     *          prod [B] == assert [A] || assert [B] == prod [A]
-     *      and not
-     *          
-     *          (X) => fail
-     */
-    for (const instruction of ir_state_ast.instructions) {
-        if (
-            instruction.type == InstructionType.assert
-            ||
-            instruction.type == InstructionType.prod
-        ) {
-            const sub_instructions = instruction.instructions;
-            const ids = instruction.ids.sort((a, b) => a - b).join("-");
-
-            if (sub_instructions.every(i => i.type == InstructionType.goto)) {
-
-                const goto = <IRGoto>sub_instructions[0];
-
-                const { ir_state_ast, attributes } = states.get(getStateName(goto.state));
-
-                if (!(attributes & StateAttrib.MULTI_BRANCH) && !ir_state_ast.fail) {
-
-                    if ((!((attributes & StateAttrib.TOKEN_BRANCH) || (attributes & StateAttrib.PROD_BRANCH)))) {
-
-                        const cache = sub_instructions.slice(1);
-
-                        sub_instructions.length = 0;
-
-                        sub_instructions.push(...ir_state_ast.instructions, ...cache);
-
-                        MODIFIED = true;
-                    } else if (
-                        ir_state_ast.instructions[0].type == instruction.type
-                        &&
-                        ids == ir_state_ast.instructions[0].ids.sort((a, b) => a - b).join("-")
-                    ) {
-                        const cache = sub_instructions.slice(1);
-
-                        sub_instructions.length = 0;
-
-                        sub_instructions.push(...ir_state_ast.instructions[0].instructions, ...cache);
-
-                        optimize_logger.debug(`[1] ${goto.state} inlined into ${root_id}`);
-
-                        MODIFIED = true;
-                    }
-                }
-            }
-        }
-    }
-
-
-    /**
-     * Replace
-     *
-     *      <multi|single> (prod|assert) [*] => instr(*) goto(X) ... goto(*) ;
-     *
-     *      with
-     *
-     *     <multi|single> (prod|assert) [*] => instr(*) (X ... ) ... goto(*) ;
-     * 
-     *     for some state X that is 
-     * 
-     *      (X) <single> => instr(*) ... goto(*)
-     */
-    for (const instruction of ir_state_ast.instructions) {
-        if (
-            instruction.type == InstructionType.assert
-            ||
-            instruction.type == InstructionType.prod
-        ) {
-            const sub_instructions = instruction.instructions;
-
-            let i = 0;
-
-            for (const instruction of sub_instructions) {
-
-                if (instruction.type == InstructionType.goto) {
-
-                    const goto = instruction;
-
-                    const { ir_state_ast: import_ir_state, attributes } = states.get(getStateName(goto.state));
-
-                    const { fail } = import_ir_state;
-
-                    if (
-                        !((attributes & StateAttrib.TOKEN_BRANCH) || (attributes & StateAttrib.PROD_BRANCH))
-                        &&
-                        (!fail && !ir_state_ast.fail)
-                    ) {
-
-                        sub_instructions.splice(i, 1, ...import_ir_state.instructions);
-
-                        MODIFIED = true;
-
-                        optimize_logger.debug(`[2] ${goto.state} inlined into ${root_id}`);
-
-                        if (!ir_state_ast.fail)
-                            ir_state_ast.fail = fail;
-                    }
-
-                    break;
-                }
-
-                i++;
-            }
-        }
-    }
-
-    /**
-     * Replace
-     *
-     *      <multi|single> (prod) [*] => goto(X) ... goto(*) ;
-     *
-     *      with
-     *
-     *     <multi|single> (prod) [*] => instr(*) < inline-assert(T) X ... > ... goto(*) ;
-     * 
-     *     for some state X that is 
-     * 
-     *     (X) <single> (assert) [T] => instr(*) ... goto(*)
-     * 
-     *      where T is a single token identifier and X does not have a fail state
-     */
-    for (const instruction of ir_state_ast.instructions) {
-        if (
-            instruction.type == InstructionType.prod
-        ) {
-            const sub_instructions = instruction.instructions;
-
-            let i = 0;
-
-            for (const instruction of sub_instructions) {
-
-                if (instruction.type == InstructionType.goto) {
-
-                    const goto = instruction;
-
-                    const { ir_state_ast, attributes } = states.get(getStateName(goto.state));
-
-                    const { instructions, symbol_meta } = ir_state_ast;
-
-                    if (
-                        instructions.length == 1
-                        &&
-                        instructions[0].type == InstructionType.assert
-                        &&
-                        instructions[0].ids.length == 1
-                        &&
-                        !ir_state_ast.fail
-                    ) {
-                        const assert = instructions[0];
-
-                        const inline_assert: IRInlineAssert = {
-                            type: InstructionType.inline_assert,
-                            id: <number>assert.ids[0],
-                            skipped_ids: <number[]>(symbol_meta?.skipped ?? []),
-                            token_ids: <number[]>(symbol_meta?.expected ?? []),
-                            tok: null
-                        };
-
-                        sub_instructions.splice(i, 1, inline_assert, ...assert.instructions);
-
-                        optimize_logger.debug(`[3] State ${goto.state} replaced with inline assertion in ${root_id}`);
-
-                        MODIFIED = true;
-                    }
-
-                    //Break no matter the outcome
-                    break;
-                }
-
-                i++;
-            }
-
-        }
-    }
-
-    /**
-     * Replace
-     *
-     *      <single> => instr(*) goto(X) ... goto(*) ;
-     *
-     *      with
-     *
-     *     <single> => instr(*) (X ... ) ... goto(*) ;
-     * 
-     *     for some state X that is 
-     * 
-     *      (X) <single> => instr(*) ... goto(*)
-     */
-    if (!((attributes & StateAttrib.TOKEN_BRANCH) || (attributes & StateAttrib.PROD_BRANCH))) {
-
-        const sub_instructions = ir_state_ast.instructions;
-
-        let i = 0;
-
-        for (const instruction of sub_instructions) {
-
-            if (instruction.type == InstructionType.goto) {
-
-                const goto = instruction;
-
-                const { ir_state_ast, attributes } = states.get(getStateName(goto.state));
-
-                if (!((attributes & StateAttrib.TOKEN_BRANCH) || (attributes & StateAttrib.PROD_BRANCH)) && !ir_state_ast.fail) {
-
-                    sub_instructions.splice(i, 1, ...ir_state_ast.instructions);
-
-                    MODIFIED = true;
-
-                    optimize_logger.debug(`[4] ${goto.state} inlined into ${root_id}`);
-                }
-
-                break;
-            }
-
-            i++;
-        }
-    }
-
-    /**
-     * Replace
-     *
-     *      (A) <multi|single> (prod|assert|peek) [*] => instr(0) ... instr(N) goto(A) ;
-     *
-     *      with
-     *
-     *      (A) <multi|single> (prod|assert|peek) [*] => instr(0) ... instr(N) repeat ;
-     */
-    for (const instruction of ir_state_ast.instructions) {
-
-        if (
-            instruction.type == InstructionType.assert
-            ||
-            instruction.type == InstructionType.prod
-        ) {
-            const sub_instructions = instruction.instructions;
-
-            const gotos = <IRGoto[]>sub_instructions.filter(i => i.type == InstructionType.goto);
-
-            if (gotos.length == 1 && gotos[0].state == id) {
-                sub_instructions.pop();
-
-                sub_instructions.push({
-                    type: InstructionType.repeat,
-                    tok: gotos[0].tok
-                });
-
-                optimize_logger.debug(`[5] Goto ${gotos[0].state} replaced with repeat in ${root_id}`);
-
-                MODIFIED = true;
-            }
-        }
-    }
-
-    /**
-    * Remove redundant production assignments
-    *
-    *      (A) (*) => instr(*) ... set-prod(0) ... instr(*) ... set-prod(n) ... ;
-    *
-    *      with
-    *
-    *      (A) (*) => instr(*) ...  instr(*) ... set-prod(n) ... ;
-    */
-    if (attributes & StateAttrib.TOKEN_BRANCH || attributes & StateAttrib.PROD_BRANCH) {
-        for (const instruction of ir_state_ast.instructions) {
-            const candidate = <IRProductionBranch | IRPeek | IRAssert>instruction;
-            removeRedundantProdSet(candidate, ir_state_ast);
-        }
-    } else {
-        removeRedundantProdSet(ir_state_ast, ir_state_ast);
-    }
-
-    /**
-     * Remove Fail States
-     * 
-     *  Fail States represent implicit actions and do not need to be actually represented
-     *  in outputted code.
-     * 
-     *  (A) (prod|assert) => instr(fail) ;
-     */
-    let i = 0;
-    if (ir_state_ast.instructions.length > 1)
-        for (const instruction of ir_state_ast.instructions) {
-            if (
-                instruction.type == InstructionType.assert
-                ||
-                instruction.type == InstructionType.prod
-            ) {
-                const sub_instructions = instruction.instructions;
-
-                if (sub_instructions.length == 1 && sub_instructions[0].type == InstructionType.fail) {
-
-                    ir_state_ast.instructions.splice(i, 1);
-
-                    optimize_logger.debug(`[7] Redundant fail branch removed in ${root_id}`);
-
-                    MODIFIED = true;
-                }
-            }
-            i++;
-        }
-
-    /**
-     * Remove Redundant Production Sets
-     * 
-     *  
-     *  (prod)[X] => instr... set-prod(X) ... ;
-     *  
-     *  to
-     * 
-     *  (prod)[X] => instr...;
-     * 
-     *  if set-prod(X) is the only instruction of its type 
-     * 
-     *  and (prod)[X] has no goto instructions
-     */
-    for (const instruction of ir_state_ast.instructions) {
-
-        if (
-            instruction.type == InstructionType.prod
-            &&
-            instruction.ids.length == 1
-        ) {
-            const sub_instructions = instruction.instructions;
-
-            const prods = sub_instructions.map((i, j) => <[IRSetProd, number]>[i, j])
-                .filter(([i]) => i.type == InstructionType.set_prod);
-
-            if (prods.length == 1 && instruction.ids.includes(<number>prods[0][0].id)
-                &&
-                sub_instructions.filter(i => i.type == InstructionType.goto).length == 0
-            ) {
-                const index = prods[0][1];
-
-                sub_instructions.splice(index, 1);
-
-                optimize_logger.debug(`[8] 1 redundant production assignment removed in ${root_id}`);
-
-                MODIFIED = true;
-            }
-        }
-    }
-
-    /**
-     * Remove gotos that lead to pass states. These are absolutely 
-     * unnecessary.
-     */
-
-    for (const instruction_sequence of yieldInstructionSequences(ir_state_ast)) {
-
-        if (instruction_sequence.length > 1)
-
-            for (let i = 0; i < instruction_sequence.length; i++) {
-
-                const instruction = instruction_sequence[i];
-
-                if (instruction.type == InstructionType.goto) {
-
-                    const { ir_state_ast } = states.get(getStateName(instruction.state));
-
-                    if (ir_state_ast.instructions.length == 1 && ir_state_ast.instructions[0].type == InstructionType.pass) {
-                        instruction_sequence.splice(i, 1);
-                        i--;
-                        MODIFIED = true;
-                    }
-                }
-            }
-    }
-
-
-    /**
-     * Remove Inline pass instruction_sections
-     * 
-     * Pass instructions that have been inline MUST be removed
-     * to prevent premature exit from a sequence of instructions
-     * 
-     *  () => instr... pass ... ;
-     *  
-     *  to
-     * 
-     *  () => instr...;
-     */
-
-    for (const instruction_sequence of yieldInstructionSequences(ir_state_ast)) {
-
-        if (instruction_sequence.length > 1)
-            for (let i = 0; i < instruction_sequence.length; i++) {
-                const instruction = instruction_sequence[i];
-
-                if (instruction.type == InstructionType.pass) {
-                    instruction_sequence.splice(i, 1);
-                    i--;
-                    MODIFIED = true;
-                }
-            }
-    }
-
-    /**
-     * Remove sequential inline asserts
-     */
-
-    for (const instruction_sequence of yieldInstructionSequences(ir_state_ast)) {
-
-        if (instruction_sequence.length > 1) {
-
-            let prev = instruction_sequence[0];
-
-            for (let i = 1; i < instruction_sequence.length; i++) {
-
-                const instruction = instruction_sequence[i];
-
-                if (
-                    prev.type == InstructionType.inline_assert
-                    &&
-                    instruction.type == InstructionType.inline_assert
-                ) {
-                    instruction_sequence.splice(i, 1);
-                    i--;
-                    MODIFIED = true;
-                } else {
-                    prev = instruction;
-                }
-            }
-        }
-    }
-
-    /**
-     * Upgrade State Optimization
-     *
-     *      (A) <single> => goto(X) ... goto(A*) ;
-     *
-     *      with
-     *
-     *      (A) <single> => ( (X) <single> (assert|prod) => ... instr(X*) ... goto(X*) ... goto(A*) ; ) ; 
-     * 
-     *      only if fork not in (... instr(X*)) and X does not have fail 
-     */
-    if (!((attributes & StateAttrib.TOKEN_BRANCH) || (attributes & StateAttrib.PROD_BRANCH))) {
-
-        const sub_instructions = ir_state_ast.instructions;
-
-        if (sub_instructions.every(i => i.type == InstructionType.goto)) {
-
-            const first_goto: IRGoto = <IRGoto>sub_instructions[0];
-
-            const { ir_state_ast: { fail, type, instructions: foreign_instructions, symbol_meta }, attributes } = states.get(getStateName(first_goto.state));
-
-            if (
-                !(attributes & StateAttrib.MULTI_BRANCH)
-                &&
-                (foreign_instructions[0].type == InstructionType.prod
-                    ||
-                    foreign_instructions[0].type == InstructionType.assert)
-                &&
-                !foreign_instructions[0].instructions.some(i => i.type == InstructionType.fork_to)
-                &&
-                !fail
-
-            ) {
-                const own_instructions = sub_instructions.slice(1);
-
-                ir_state_ast.instructions = [Object.assign({}, foreign_instructions[0], {
-                    instructions: foreign_instructions[0].instructions.concat(own_instructions)
-                })];
-
-                if (!ir_state_ast.symbol_meta)
-                    ir_state_ast.symbol_meta = symbol_meta;
-                else {
-                    ir_state_ast.symbol_meta.skipped.push(...symbol_meta.skipped);
-                    ir_state_ast.symbol_meta.skipped = ir_state_ast.symbol_meta.skipped.setFilter();
-                    ir_state_ast.symbol_meta.expected.push(...symbol_meta.expected);
-                    ir_state_ast.symbol_meta.expected = ir_state_ast.symbol_meta.expected.setFilter();
-                }
-
-                state.attributes |= attributes;
-
-                optimize_logger.debug(`[9] ${root_id} upgraded to branch state from ${first_goto.state}`);
-
-                MODIFIED = true;
-            }
-        }
-    }
-
-    mergeDuplicateBodies(ir_state_ast, attributes);
+    let MODIFIED = false;
+
+    for (const optimization of optimizations)
+        MODIFIED ||= optimization.processor(
+            ir_state_ast, attributes, state, states
+        );
 
     return MODIFIED;
+}
+
+addOptimization({
+    name: "Goto Inline",
+    processor: (
+        state: Resolved_IR_State,
+        attribute: StateAttrib,
+        data: IRStateData,
+        states: StateMap
+    ): boolean => {
+        let MODIFIED = false;
+        /**
+         * Goto Dereference:
+         * 
+         * Keynote: Goto instructions MUST be order AFTER instructions of other types.
+         *      The order of a goto instruction implies the execution order of the goto 
+         *      states, with the FIRST goto state execution immediately after the current
+         *      state, and with SECOND executing after the completion of the FIRST, and
+         *      so on and so forth.
+         * 
+         * A goto may be dereferenced if one several conditions are met.
+         * 
+         * - The GOTO to be dereferenced is the FIRST goto within a sequence goto instructions.
+         * 
+         * - The GOTO state to be merged is one of:
+         *      - Plain
+         *      - Single assert branch with branching types that:
+         *            Matches the host branch type and ids
+         *            or
+         *            Have fewer than 3 asserts 
+         *      
+         *        
+         */
+        const progressions = [["Before ----\n", renderIRNode(state), "\n"]];
+
+        if (stateIsBranch(state)) {
+
+            for (const instruction of state.instructions) {
+
+                if (IsPeekInstruction(instruction)) {
+                    const instructions = instruction.instructions;
+                    const instruction_length = instruction.instructions.length;
+                    const IS_POST_CONSUME = ContainsConsume(instruction);
+                    const first_goto = getFirstGoto(instructions);
+                    if (first_goto) {
+                        const { ir_state_ast: goto_state } = getGotState(first_goto, states);
+
+                        if (!HasFailState(goto_state)) {
+
+                        }
+                    }
+                } else if (IsAssertInstruction(instruction)) {
+
+                    const instructions = instruction.instructions;
+                    const instruction_length = instruction.instructions.length;
+                    const IS_POST_CONSUME = ContainsConsume(instruction);
+                    const first_goto = getFirstGoto(instructions);
+
+                    if (first_goto) {
+
+                        const { ir_state_ast: goto_state } = getGotState(first_goto, states);
+
+                        if (!HasFailState(goto_state)) {
+                            if (stateIsBranch(goto_state)) {
+                                if (goto_state.instructions.length == 1) {
+                                    const branch = goto_state.instructions[0];
+                                    if (IsAssertInstruction(branch)) {
+                                        if (!IS_POST_CONSUME && BranchSignaturesMatch(branch, instruction)) {
+                                            progressions.push(["INLINED ----\n", renderIRNode(goto_state), "\n"]);
+                                            replaceGoto(instructions, states, true);
+                                            MODIFIED = true;
+                                        } else {
+                                            progressions.push(["INLINED ----\n", renderIRNode(goto_state), "\n"]);
+                                            replaceGoto(instructions, states, false);
+                                            MODIFIED = true;
+                                        }
+                                    }
+                                }
+                            } else {
+                                replaceGoto(instructions, states, false);
+                                MODIFIED = true;
+                            }
+                        }
+                    }
+                }
+            }
+        } else {
+
+        }
+        if (MODIFIED) {
+            //for (const prog of progressions)
+            //    console.log(...prog);
+            //console.log("AFTER ----\n", renderIRNode(state), "\n");
+        }
+
+        return MODIFIED;
+    }
+});
+
+addOptimization({
+    name: "Production Unroll",
+    processor: (
+        state: Resolved_IR_State,
+        attribute: StateAttrib,
+        data: IRStateData,
+        states: StateMap
+    ): boolean => {
+        let MODIFIED = false;
+        /**
+         * Production Unroll
+         * 
+         * If a sequence of instructions is in state where the last and only goto 
+         * instruction points to a state that has production assertions, and 
+         * the penultimate instruction is a production assignment there may be 
+         * an opportunity to merge the appropriate production branch state into 
+         * the existing production.
+         */
+        const progressions = [["Before ----\n", renderIRNode(state), "\n"]];
+
+
+        if (IsProductionBranchState(state)) {
+            for (const instruction of <IRProdAssert[]>state.instructions) {
+
+                const block = instruction.instructions;
+
+                if (getNumberOfGotos(block) == 1) {
+
+                    const first_goto_index = firstGotoIndex(block);
+
+                    if (first_goto_index > 0) {
+
+                        const penultimate = block[first_goto_index - 1];
+
+                        if (IsProductionAssignment(penultimate)) {
+
+                            const prod = <number>penultimate.id;
+
+                            const first_goto = getFirstGoto(block);
+
+                            const goto_state = getGotState(first_goto, states).ir_state_ast;
+
+                            if (IsProductionBranchState(goto_state)) {
+                                for (const branch of <IRProdAssert[]>goto_state.instructions) {
+                                    if (branch.ids.includes(prod)) {
+                                        if (branch == instruction) {
+                                            progressions.push(["REPEATED ----\n", renderIRNode(goto_state), "\n"]);
+                                            //Replace goto with repeat
+                                            block.splice(first_goto_index, 1, {
+                                                type: InstructionType.repeat,
+                                                tok: first_goto.tok
+                                            });
+                                            MODIFIED = true;
+                                        } else {
+                                            progressions.push(["INLINED ----\n", renderIRNode(goto_state), "\n"]);
+                                            //Remove goto AND prod set as this is now redudant
+                                            block.splice(first_goto_index, 1,
+                                                ...mapInlinedInstructions(
+                                                    branch.instructions, goto_state
+                                                )
+                                            );
+                                            MODIFIED = true;
+                                        }
+
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+        } else {
+
+            const instruction_blocks: IR_Instruction[][] = [];
+
+            if (stateIsBranch(state)) {
+                for (const instruction of state.instructions) {
+                    if (IsPeekInstruction(instruction) || IsAssertInstruction(instruction))
+                        instruction_blocks.push(instruction.instructions);
+                }
+            } else {
+                instruction_blocks.push(state.instructions);
+            }
+
+            for (const block of instruction_blocks) {
+
+                if (getNumberOfGotos(block) == 1) {
+
+                    const first_goto_index = firstGotoIndex(block);
+
+                    if (first_goto_index > 0) {
+
+                        const penultimate = block[first_goto_index - 1];
+
+                        if (IsProductionAssignment(penultimate)) {
+
+                            const prod = <number>penultimate.id;
+
+                            const first_goto = getFirstGoto(block);
+
+                            const goto_state = getGotState(first_goto, states).ir_state_ast;
+
+                            if (IsProductionBranchState(goto_state) && !HasFailState(goto_state)) {
+                                for (const branch of <IRProdAssert[]>goto_state.instructions) {
+                                    if (branch.ids.includes(prod)) {
+
+                                        progressions.push(["INLINED ----\n", renderIRNode(goto_state), "\n"]);
+                                        //Remove goto AND prod set as this is now redudant
+                                        block.splice(first_goto_index, 1,
+                                            ...mapInlinedInstructions(
+                                                branch.instructions, goto_state
+                                            )
+                                        );
+                                        MODIFIED = true;
+
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        if (MODIFIED) {
+            //for (const prog of progressions)
+            //    console.log(...prog);
+            //console.log("AFTER ----\n", renderIRNode(state), "\n");
+            ////debugger;
+        }
+
+        return MODIFIED;
+    }
+});
+
+
+
+
+addOptimization({
+    name: "Remove Redundant Instructions",
+    processor: (
+        state: Resolved_IR_State,
+        attribute: StateAttrib,
+        data: IRStateData,
+        states: StateMap
+    ): boolean => {
+
+        let MODIFIED = false;
+
+        const progressions = [["Before ----\n", renderIRNode(state), "\n"]];
+
+        const instruction_blocks: IR_Instruction[][] = [];
+
+        if (stateIsBranch(state)) {
+            for (const instruction of state.instructions) {
+                if (IsPeekInstruction(instruction) || IsAssertInstruction(instruction))
+                    instruction_blocks.push(instruction.instructions);
+            }
+        } else {
+            instruction_blocks.push(state.instructions);
+        }
+
+        for (const block of instruction_blocks) {
+            let prod_assignments = block.filter(IsProductionAssignment).length;
+            if (prod_assignments > 1) {
+                for (let i = 0, j = 0; i < block.length, j < (prod_assignments - 1); i++) {
+                    if (IsProductionAssignment(block[i])) {
+                        j++;
+                        block.splice(i--, 1);
+                    }
+                }
+                MODIFIED = true;
+            }
+        }
+
+
+        if (MODIFIED) {
+            // for (const prog of progressions)
+            //     console.log(...prog);
+            // console.log("AFTER ----\n", renderIRNode(state), "\n");
+            // debugger;
+        }
+
+        return MODIFIED;
+    }
+});
+
+addOptimization({
+    name: "Remove redundant assert",
+    processor: (
+        state: Resolved_IR_State,
+        attribute: StateAttrib,
+        data: IRStateData,
+        states: StateMap
+    ): boolean => {
+
+        let MODIFIED = false;
+
+        const progressions = [["Before ----\n", renderIRNode(state), "\n"]];
+
+        if (stateIsBranch(state)) {
+            const instr = state.instructions[0];
+            if (state.instructions.length == 1 && IsAssertInstruction(instr)) {
+
+                const mode = instr.mode;
+
+                const ids = instr.ids;
+
+                if (instr.instructions[0].type == InstructionType.goto) {
+
+                    const goto_state = getGotState(getFirstGoto(instr.instructions), states).ir_state_ast;
+                    const goto_instructions: IRBranch[] = <any>goto_state.instructions;
+
+                    if (
+                        stateIsBranch(goto_state)
+                        &&
+                        goto_instructions.every(i => i.mode == mode)
+                        &&
+                        goto_instructions.flatMap(i => i.ids).every(i => ids.includes(i))
+
+                    ) {
+                        //Remove redundant assertions
+                        state.instructions = instr.instructions;
+                        MODIFIED = true;
+                    }
+
+                }
+            }
+        }
+
+        if (MODIFIED) {
+            //for (const prog of progressions)
+            //    console.log(...prog);
+            //console.log("AFTER ----\n", renderIRNode(state), "\n");
+            //debugger;
+        }
+
+        return MODIFIED;
+    }
+});
+
+addOptimization({
+    name: "Remove pure fail branch states",
+    processor: (
+        state: Resolved_IR_State,
+        attribute: StateAttrib,
+        data: IRStateData,
+        states: StateMap
+    ): boolean => {
+
+        let MODIFIED = false;
+
+        const progressions = [["Before ----\n", renderIRNode(state), "\n"]];
+
+        if (stateIsBranch(state)) {
+
+
+            state.instructions = state.instructions.filter((s: IRBranch) => {
+                if (s.instructions.length == 1
+                    &&
+                    s.instructions[0].type == InstructionType.fail) {
+                    MODIFIED = true;
+                    return false;
+                }
+                return true;
+            });
+        }
+
+
+        if (MODIFIED) {
+            // for (const prog of progressions)
+            //     console.log(...prog);
+            // console.log("AFTER ----\n", renderIRNode(state), "\n");
+            // debugger;
+        }
+
+        return MODIFIED;
+    }
+});
+
+addOptimization({
+    name: "Merge Branch States",
+    processor: (
+        state: Resolved_IR_State,
+        attribute: StateAttrib,
+        data: IRStateData,
+        states: StateMap
+    ): boolean => {
+
+        let MODIFIED = false;
+
+        const progressions = [["Before ----\n", renderIRNode(state), "\n"]];
+
+        const instruction_blocks: IR_Instruction[][] = [];
+
+        if (stateIsBranch(state)) {
+
+            const length = state.instructions.length;
+
+            const groups = (<IRBranch[]>state.instructions).group(i => {
+                return i.type + i.mode + i.instructions.map(renderIRNode).join("");
+            });
+
+            if (groups.length != length) {
+
+                state.instructions = groups.map(g => {
+                    const first = g[0];
+
+                    first.ids = g.flatMap(i => i.ids).setFilter().sort();
+
+                    return first;
+                });
+
+                MODIFIED = true;
+
+            }
+        }
+
+
+        if (MODIFIED) {
+            //for (const prog of progressions)
+            //    console.log(...prog);
+            //console.log("AFTER ----\n", renderIRNode(state), "\n");
+            //debugger;
+        }
+
+        return MODIFIED;
+    }
+});
+function IsProductionAssignment(instr: IR_Instruction): instr is IRSetProd {
+    return <any>instr.type == InstructionType.set_prod;
+}
+
+function IsProductionBranch(s): s is IRProdAssert {
+    return IsAssertInstruction(s) && s.mode == "PRODUCTION";
+}
+function IsProductionBranchState(goto_state: Resolved_IR_State) {
+    return stateIsBranch(goto_state) && goto_state.instructions.every(IsProductionBranch);
+}
+
+function getNumberOfGotos(block: IR_Instruction[]) {
+    return block.filter(g => g.type == InstructionType.goto).length;
+}
+
+function BranchSignaturesMatch(A: IRAssert | IRPeek, B: IRAssert | IRPeek) {
+    return A.type == B.type && A.mode == B.mode && A.ids.every(i => B.ids.includes(i));
+}
+
+/**
+ * Indiscriminantly merges the instructions found at the first goto state
+ * into the current instructions array at the index of the goto instruction.
+ * 
+ * The exception is if there are any branch instructions, these are converted 
+ * into inline branch instructions.
+ * 
+ * Returns `true` if the FIRST goto state has been replaced, `false` otherwise
+ * 
+ * WARNING: Use of this function may lead to invalid states.
+ * @param instructions 
+ * @returns 
+ */
+function replaceGoto(
+    instructions: IR_Instruction[],
+    ir_states: StateMap,
+    /**
+     * Replace assert instructions with 
+     * the contents of the assert instruction
+     * `instructions` property. Otherwise,
+     * convert the assert instruction into an
+     * inline-assert instruction.
+     * 
+     * This DOES NOT effect peek instructions.
+     */
+    FLATTEN_ASSERT: boolean
+): boolean {
+
+    const first_goto_index = firstGotoIndex(instructions);
+
+    if (first_goto_index >= 0) {
+
+        const goto = getFirstGoto(instructions);
+
+        const state = getGotState(goto, ir_states);
+
+        const ast = state.ir_state_ast;
+
+        instructions.splice(first_goto_index, 1, ...mapInlinedInstructions(ast.instructions, ast, FLATTEN_ASSERT));
+
+        return true;
+    }
+
+    return false;
+}
+
+function mapInlinedInstructions(
+    instructions: IR_Instruction[], state: IR_State, FLATTEN_ASSERT: boolean = false) {
+    return instructions.flatMap(b => {
+        // Remove inline pass instructions as these will create
+        // dead code.
+        if (b.type == InstructionType.pass)
+            return [];
+
+        if (IsAssertInstruction(b)) {
+
+
+            if (FLATTEN_ASSERT) {
+                return b.instructions;
+            } else {
+
+                const { symbol_meta } = state;
+
+                const inline_assert: IRInlineAssert = {
+                    type: InstructionType.inline_assert,
+                    id: <number>b.ids[0],
+                    skipped_ids: <number[]>(symbol_meta?.skipped ?? []),
+                    token_ids: <number[]>(symbol_meta?.expected ?? []),
+                    mode: b.mode,
+                    tok: b.tok
+                };
+
+                return [inline_assert, ...b.instructions];
+            }
+        }
+        return b;
+    });
+}
+
+
+function stateIsBranch(state: IR_State): boolean {
+    return state.instructions.every(
+        s => s.type == InstructionType.assert
+            ||
+            s.type == InstructionType.peek
+    );
+}
+
+function getGotState(goto: IRGoto, ir_states: StateMap): IRStateData {
+    return ir_states.get(getStateName(goto.state));
+}
+
+function firstGotoIndex(instructions: IR_Instruction[]): number {
+    return instructions.findIndex(d => d.type == InstructionType.goto);
+}
+
+function getFirstGoto(instructions: IR_Instruction[]): IRGoto {
+    return <any>instructions.filter(i => i.type == InstructionType.goto)[0];
+}
+
+function firstConsumeIndex(instruction: IRBranch) {
+    return instruction.instructions.findIndex(d => d.type == InstructionType.consume);
+}
+
+function ContainsConsume(instruction: IRBranch) {
+    return instruction.instructions.some(d => d.type == InstructionType.consume);
+}
+
+function IsPeekInstruction(instruction: IR_Instruction): instruction is IRPeek {
+    return instruction.type == InstructionType.peek;
+}
+
+function IsAssertInstruction(instruction: IR_Instruction): instruction is IRAssert {
+    return instruction.type == InstructionType.assert;
+}
+
+function HasFailState(state: IR_State): boolean {
+    return !!state.fail;
 }
 
 function* yieldInstructionSequences(ir_state_ast: Resolved_IR_State): Generator<IR_Instruction[]> {
@@ -547,14 +634,14 @@ function* yieldInstructionSequences(ir_state_ast: Resolved_IR_State): Generator<
             i.type == InstructionType.peek ||
             i.type == InstructionType.assert
     ))
-        for (const instruction of <[IRProductionBranch | IRBranch]>ir_state_ast.instructions)
+        for (const instruction of <[IRBranch]>ir_state_ast.instructions)
             yield instruction.instructions;
     else
         yield ir_state_ast.instructions;
 
 }
 
-function removeRedundantProdSet(candidate: IR_State | IRProductionBranch | IRPeek | IRAssert, state: IR_State) {
+function removeRedundantProdSet(candidate: IR_State | IRPeek | IRAssert, state: IR_State) {
     const instructions = candidate.instructions;
     const prod_instr = instructions.filter(i => i.type == InstructionType.set_prod);
     if (prod_instr.length > 1) {
@@ -582,7 +669,7 @@ export function optimize(StateMap: StateMap, grammar: GrammarObject, entry_names
 
     for (const [, state] of StateMap) {
 
-        const result = optimizeState(state, StateMap);
+        const result = runOptimizations(state, StateMap);
 
         MODIFIED ||= result;
     }
@@ -619,7 +706,16 @@ export function garbageCollect(
 
             const instructions = state.ir_state_ast.instructions.slice();
 
-            for (const instruction of instructions) {
+            let seen = new WeakSet;
+
+            while (instructions.length > 0) {
+
+                const instruction = instructions.shift();
+
+                if (seen.has(instruction))
+                    continue;
+
+                seen.add(instruction);
 
                 switch (instruction.type) {
 
@@ -635,14 +731,20 @@ export function garbageCollect(
                         }
                     } break;
 
-                    case InstructionType.prod:
                     case InstructionType.peek:
                     case InstructionType.assert:
                         {
-                            instructions.push(...instruction.instructions);
+                            try {
+
+                                instructions.push(...instruction.instructions);
+                            } catch (e) {
+                                debugger;
+                                throw e;
+                            }
                         } break;
                 }
             }
+
         } catch (e) {
             console.log(name);
             console.error(e);
@@ -673,7 +775,7 @@ function mergeDuplicateBodies(ir_state_ast: IR_State, attributes: StateAttrib) {
 
     if (attributes & StateAttrib.MULTI_BRANCH) {
 
-        const groups = (<(IRProductionBranch | IRPeek | IRAssert)[]>ir_state_ast.instructions)
+        const groups = (<(IRPeek | IRAssert)[]>ir_state_ast.instructions)
             .group(i => i.instructions.map(i => renderIRNode(i)).join(""));
 
         const original_length = ir_state_ast.instructions.length;

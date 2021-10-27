@@ -155,7 +155,6 @@ export interface HCG3ProductionBody extends HCGGrammarNode {
     type: "body",
     reduce_function?: ProductionFunction | ReferencedFunction;
     sym: HCG3Symbol[];
-    FORCE_FORK: boolean;
     id: number;
     production?: GrammarProduction;
     length?: number;
@@ -366,7 +365,7 @@ export interface ProductionSymbol extends SymbolNode {
     production?: GeneralProductionNode;
     meta: false;
 
-    
+
 }
 
 export interface ProductionImportSymbol extends SymbolNode {

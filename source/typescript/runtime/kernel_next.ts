@@ -78,7 +78,7 @@ export class KernelState implements KernelStateType {
         input_len_in: number
     ) {
 
-        this.lexer = new Lexer(input_buffer, input_buffer.length);
+        this.lexer = new Lexer(input_buffer);
 
         this.lexer.next();
 
@@ -533,9 +533,9 @@ function advanced_return(kernel_state: KernelState, instruction: number, fail_mo
         return fail_mode;
 
     if (!kernel_state.lexer.END()) {
-        kernel_state.lexer.token_type = 0;
-        kernel_state.lexer.token_length = 1;
-        kernel_state.lexer.byte_length = 1;
+        //kernel_state.lexer.token_type = 0;
+        //kernel_state.lexer.token_length = 1;
+        //kernel_state.lexer.byte_length = 1;
     }
 
     return true;
@@ -910,72 +910,48 @@ function get_input_value(
     }
 }
 
-function scanner(
-    root_state: KernelState,
-    lexer: Lexer,
-    token_row_state: number,
-) {
-    //const buffer = root_state.instruction_buffer;
-
-    if (lexer.token_type <= 0) {
-        scanner_core(
-            root_state,
-            lexer,
-            token_row_state
-        );
-    }
-
-    /* if (skip_row > 0 && isTokenActive(lexer.token_type, skip_row, buffer)) {
-        while (isTokenActive(lexer.token_type, skip_row, buffer)) {
-            lexer.next();
-            scanner_core(
-                root_state,
-                lexer,
-                token_row_state
-            );
-        }
-    } */
-}
 
 let scanner_invalid = new KernelStateBuffer;
 
-function scanner_core(
+function scanner(
     root_state: KernelState,
     lexer: Lexer,
     token_row_state: number
 ) {
-    let state = scanner_invalid.get_recycled_KernelState(root_state);
+    if (lexer.token_type <= 0) {
+        let state = scanner_invalid.get_recycled_KernelState(root_state);
 
-    while (true) {
+        while (true) {
 
-        state.state_stack[0] = 0;
+            state.state_stack[0] = 0;
 
-        state.state = 0;
+            state.state = 0;
 
-        state.push_state(token_row_state);
+            state.push_state(token_row_state);
 
-        state.lexer.scanner_sync(lexer);
+            state.lexer.scanner_sync(lexer);
 
-        if (!kernel_executor(state, scanner_invalid)) {
-            if (state.last_token_type == 9999) {
-                lexer.byte_offset = state.lexer.byte_offset;
-                lexer.token_offset = state.lexer.token_offset;
-                state.reset();
+            if (!kernel_executor(state, scanner_invalid)) {
+                if (state.last_token_type == 9999) {
+                    lexer.byte_offset = state.lexer.byte_offset;
+                    lexer.token_offset = state.lexer.token_offset;
+                    state.reset();
+                } else {
+                    const sync_lexer = state.lexer;
+                    lexer.token_type = state.last_token_type;
+                    lexer.byte_length = sync_lexer.byte_offset - lexer.byte_offset;
+                    lexer.token_length = sync_lexer.token_offset - lexer.token_offset;
+                    break;
+                }
             } else {
-                const sync_lexer = state.lexer;
-                lexer.token_type = state.last_token_type;
-                lexer.byte_length = sync_lexer.byte_offset - lexer.byte_offset;
-                lexer.token_length = sync_lexer.token_offset - lexer.token_offset;
                 break;
             }
-        } else {
-            break;
         }
+
+        state.VALID = false;
+
+        scanner_invalid.add_state(state);
     }
-
-    state.VALID = false;
-
-    scanner_invalid.add_state(state);
 }
 
 function fork(

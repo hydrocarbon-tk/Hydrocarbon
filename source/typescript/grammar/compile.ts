@@ -20,6 +20,8 @@ import {
 import { createJSFunctionsFromExpressions } from "./passes/process_js_code.js";
 import grammar_parser from './grammar_parser.js';
 import { Token } from '../runtime/token.js';
+import { createAsytripContext } from './passes/asytrip/process_asytrip.js';
+import { ASYTRIPContext } from './passes/asytrip/types.js';
 
 /**
  * Takes a raw root grammar object and applies transformation
@@ -27,10 +29,13 @@ import { Token } from '../runtime/token.js';
  * the compiler build and render processes.
  */
 export async function compileGrammar(grammar: GrammarObject):
-    Promise<GrammarObject> {
+    Promise<{
+        grammar: GrammarObject;
+        asytrip_context?: ASYTRIPContext;
+    }> {
 
     const errors: Error[] = [];
-
+    let asytrip_context = null;
     try {
 
         //Production and Body transformations.
@@ -47,14 +52,18 @@ export async function compileGrammar(grammar: GrammarObject):
         distributePriorities(grammar, errors);
 
         //Meta transformations: Symbols, Functions & Items
-        createJSFunctionsFromExpressions(grammar, errors);
-
         processSymbols(grammar, errors);
 
         buildScannerProduction(grammar);
 
         // Reprocess symbols to incorporate symbols from scanner productions
         processSymbols(grammar, errors);
+
+        asytrip_context = createAsytripContext(grammar, errors);
+
+        if (!asytrip_context) {
+            createJSFunctionsFromExpressions(grammar, errors);
+        }
 
         buildItemMaps(grammar);
 
@@ -71,7 +80,10 @@ export async function compileGrammar(grammar: GrammarObject):
         throw new GrammarCompilationReport(errors);
     }
 
-    return grammar;
+    return {
+        grammar,
+        asytrip_context
+    };
 }
 
 
@@ -312,7 +324,7 @@ function buildScannerProduction(grammar: GrammarObject) {
                 } //*/
             } else if (Sym_Is_A_Production_Token(sym)) {
 
-                debugger
+                debugger;
 
                 let prods: GeneralProductionNode[] = [sym.production];
 

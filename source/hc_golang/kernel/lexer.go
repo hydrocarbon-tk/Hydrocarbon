@@ -39,6 +39,18 @@ func newKernelLexer(input *[]uint8) *KernelLexer {
 
 func getTypeAt(code_point uint32) uint32 { return uint32(Jumptable[code_point] & 0x1F) }
 
+func (s *KernelLexer) P_token_offset() uint32 {
+	return s.token_offset
+}
+
+func (s *KernelLexer) P_token_length() uint32 {
+	return s.token_length
+}
+
+func (s *KernelLexer) P_line() uint32 {
+	return s.line
+}
+
 func (s *KernelLexer) codepoint() uint32 {
 	cp := get_utf8_code_point_at(s.byte_offset, *s.input)
 	s.byte_length = get_utf8_byte_length_from_code_point(cp)

@@ -36,7 +36,7 @@ export async function createAddHocParser<T = any>(
     const test_pack = await build_pack;
 
     if (typeof test_pack == "string") {
-        const grammar = await compileGrammarFromString(test_pack);
+        const { grammar } = await compileGrammarFromString(test_pack);
 
         resolved_build_pack = await createBuildPack(grammar);
     } else {
@@ -67,6 +67,10 @@ export async function createAddHocParser<T = any>(
         state_buffer
     );
 
+    console.log({
+        pt: entry_pointers[0].pointer
+    });
+
     const { parse } = await ParserFramework<T, { null: 0; }, "null">(fns, undefined, {
 
         init_table: () => {
@@ -90,7 +94,6 @@ export async function createAddHocParser<T = any>(
                 input_buffer,
                 input_buffer.length,
                 entry_pointers[0].pointer,
-                tk_scan,
                 true
             );
         }

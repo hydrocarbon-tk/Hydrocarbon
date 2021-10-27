@@ -137,7 +137,7 @@ func (tok *Token) getRange(
 		end_col += 1
 	}
 
-	return 
+	return
 }
 
 /**
@@ -300,3 +300,9 @@ func line_number(n int) string {
 
 	return str
 }
+
+func (tok *Token) GetType() uint32 { return 1 }
+
+func (tok *Token) Iterate(yield HCObjIterator, par HCObj) {}
+
+func (tok *Token) Double() float64 { return 0 }

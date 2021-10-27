@@ -57,7 +57,6 @@ function createSymMapId(
     );
 }
 
-
 export function constructScannerState(
     consumed_ids: number[],
     skipped_ids: number[],
@@ -239,7 +238,7 @@ export async function createBuildPack(
 
     const sym_map: Map<string, string> = new Map();
 
-    let OPTIMIZE = false;
+    let OPTIMIZE = true;
 
     const reserved_states = [
         ...grammar.productions.filter(p => p.IS_ENTRY || p.type == "scanner-production").map(i => i.name + "")
@@ -249,55 +248,24 @@ export async function createBuildPack(
 
     assignStateAttributeInformation(states_map, grammar);
 
-    let prev_size = states_map.size;
-
     let original_states = new Map(states_map);
 
-    build_logger.log(`Created ${prev_size} raw parse states`);
+    build_logger.log(`Created ${states_map.size} raw parse states`);
 
     if (OPTIMIZE) {
 
-        build_logger.log("Optimizing States");
+        optimizeStates(states_map, grammar, reserved_states);
 
-        let round = 0;
+        build_logger.debug(`Reduced ${original_states.size} raw states to ${states_map.size} optimized states`);
 
-        //build_logger.debug(`Optimizing State round ${++round}`);
+        build_logger.debug(`Total reduction ratio ${Math.round((1 - (states_map.size / original_states.size)) * 100)}%`);
 
-        while (optimize(states_map, grammar, reserved_states)) {
-            const p = prev_size;
-
-            prev_size = states_map.size;
-
-            round++;
-
-            build_logger.rewrite_log(`Optimizing State round ${round}: Reduction ratio ${Math.round((1 - (states_map.size / p)) * 100)}%`);
-        }
-
-        prev_size = original_states.size;
-
-        build_logger.debug(`Reduced ${prev_size} raw states to ${states_map.size} optimized states`);
-
-        build_logger.debug(`Total reduction ratio ${Math.round((1 - (states_map.size / prev_size)) * 100)}%`);
-
-        build_logger.log(`Optimized ${states_map.size} states in ${round} rounds`);
     }
 
     //Render state strings for later reference
 
-    for (const [, state_data] of states_map) {
-
-        //Replace id 0 with 9999
-
-        state_data.string = (state_data.string.match(/\/\*[^\*]+\*\//sm)?.[0] ?? "")
-            + "\n"
-            + renderIRNode(state_data.ir_state_ast);
-
-        build_logger.debug(state_data.string);
-
+    for (const [, state_data] of states_map)
         extractTokenSymbols(state_data, grammar);
-    }
-
-    //Build states buffer -------------------------------------------------------------
 
     const {
         scanner_states,
@@ -307,17 +275,49 @@ export async function createBuildPack(
     // Merge scanner_states and normal states into a single 
     // uber state collection
 
+    assignStateAttributeInformation(scanner_states, grammar);
+
     const uber_collection: StateMap = new Map([...scanner_states, ...states_map]);
 
-    reserved_states.push(...scanner_id_to_state.values());
+    reserved_states.length = 0;
+    reserved_states.push(...scanner_id_to_state.values(), ...grammar.productions.filter(p => p.IS_ENTRY).map(i => i.name + ""));
 
     garbageCollect(uber_collection, grammar, reserved_states);
+
+    if (OPTIMIZE) {
+
+        optimizeStates(uber_collection, grammar, reserved_states);
+
+        build_logger.debug(`Reduced ${original_states.size} raw states to ${states_map.size} optimized states`);
+
+        build_logger.debug(`Total reduction ratio ${Math.round((1 - (states_map.size / original_states.size)) * 100)}%`);
+
+    }
+
+    for (const [, state_data] of uber_collection) {
+
+        //Replace id 0 with 9999
+
+        state_data.string = (state_data.string.match(/\/\*[^\*]+\*\//sm)?.[0] ?? "")
+            + "\n"
+            + renderIRNode(state_data.ir_state_ast);
+
+        console.log("\n======================", state_data.string, "\n");
+
+        build_logger.debug(state_data.string);
+    }
+
+    //Build states buffer -------------------------------------------------------------
 
     const state_buffer = new Uint32Array(statesOutputsBuildPass(uber_collection, grammar, scanner_id_to_state));
 
     build_logger.log(`Parse states have been compiled into a ${state_buffer.length * 4}byte states buffer.`);
 
     build_logger.debug(`Outputting BuildPack`);
+
+    console.dir(state_buffer, {
+        maxArrayLength: Infinity
+    });
 
     return <BuildPack>{
         grammar,
@@ -328,6 +328,28 @@ export async function createBuildPack(
 
 
 const numeric_sort = (a: number, b: number): number => a - b;
+
+function optimizeStates(
+    states_map: StateMap,
+    grammar: GrammarObject,
+    reserved_states: string[],
+    prev_size: number = states_map.size
+) {
+    build_logger.log("Optimizing States");
+
+    let round = 0;
+
+    //build_logger.debug(`Optimizing State round ${++round}`);
+    while (optimize(states_map, grammar, reserved_states)) {
+        const p = prev_size;
+
+        prev_size = states_map.size;
+
+        round++;
+
+        build_logger.rewrite_log(`Optimizing State round ${round}: Reduction ratio ${Math.round((1 - (states_map.size / p)) * 100)}%`);
+    }
+}
 
 function convertParseProductsIntoStatesMap(ir_states: [string, string][], grammar: GrammarObject, states_map: StateMap) {
     for (const [string, ir_state_ast] of <([string, Resolved_IR_State])[]>[
@@ -542,14 +564,14 @@ function insertInstructionSequences(
                     const [
                         input_type,
                         lexer_type,
-                        token_state,
+                        token_state = "",
                         token_basis,
                         number_of_rows,
                         row_size,
                         table_entries
-                    ] = data.slice(i + 1, i + 11);
+                    ] = data.slice(i + 1, i + 8);
 
-                    i += 10;
+                    i += 7;
 
                     const
                         table_header =
@@ -586,9 +608,9 @@ function insertInstructionSequences(
                             instruction_field_size,
                             scanner_key_index_pairs,
                             sequence_entries
-                        ] = data.slice(i + 1, i + 11);
+                        ] = data.slice(i + 1, i + 8);
 
-                    i += 10;
+                    i += 7;
 
                     //construct the hash entries
 
@@ -894,7 +916,6 @@ function assignStateAttributeInformation(StateMap: StateMap, grammar: GrammarObj
         const token_instr_types = {
             [InstructionType.assert]: StateAttrib.ASSERT_BRANCH,
             [InstructionType.peek]: StateAttrib.PEEK_BRANCH,
-            [InstructionType.prod]: StateAttrib.PROD_BRANCH
         };
 
         attributes |= state_data.ir_state_ast.instructions.reduce(
@@ -1249,10 +1270,6 @@ function buildJumpTableBranchBlock(
 
     const instruction_sequence = [];
 
-    const { use_peek_for_assert_or_consume, consume_peek }
-        = getPeekConsumptionFlags(attributes, state_ast);
-
-
     if (default_block) {
 
         if (default_block.total_size > max_instruction_byte_size)
@@ -1337,9 +1354,6 @@ function buildHashTableBranchBlock(
 
     for (const code of standard_byte_codes)
         sequence_entries.push(code.byte_sequence);
-
-    const { use_peek_for_assert_or_consume, consume_peek }
-        = getPeekConsumptionFlags(attributes, state_ast);
 
     let base_byte_size = 12;
 

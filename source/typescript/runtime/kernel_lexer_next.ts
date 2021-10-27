@@ -15,10 +15,12 @@ export class Lexer {
     byte_length: number;
     prev_byte_offset: number;
     prev_token_offset: number;
+    peek_byte_offset: number;
+    peek_token_offset: number;
     line: number;
     token_type: number;
     input: Uint8Array;
-    constructor(input_buffer: Uint8Array, input_len_in: number) {
+    constructor(input_buffer: Uint8Array) {
         this.input = input_buffer;
         this.byte_offset = 0;
         this.byte_length = 0;
@@ -26,6 +28,8 @@ export class Lexer {
         this.token_offset = 0;
         this.prev_byte_offset = 0;
         this.prev_token_offset = 0;
+        this.peek_byte_offset = 0;
+        this.peek_token_offset = 0;
         this.token_type = 0;
         this.line = 0;
     }
@@ -48,7 +52,7 @@ export class Lexer {
     }
 
     copy_in_place(): Lexer {
-        const destination = new Lexer(this.input, this.input_len);
+        const destination = new Lexer(this.input);
         destination.peek_unroll_sync(this);
         return destination;
     }
@@ -96,9 +100,9 @@ export class Lexer {
     }
 
     reset() {
-        if (this.prev_byte_offset != this.byte_offset) {
-            this.byte_offset = this.prev_byte_offset;
-            this.token_offset = this.prev_token_offset;
+        if (this.byte_offset > this.peek_byte_offset) {
+            this.byte_offset = this.peek_byte_offset;
+            this.token_offset = this.peek_token_offset;
             this.token_length = 1;
             this.byte_length = 1;
             this.token_type = 0;
@@ -109,7 +113,11 @@ export class Lexer {
         return this.token_offset - this.prev_token_offset;
     }
 
-    next() { this.peek(); }
+    next() {
+        this.peek();
+        this.peek_byte_offset = this.byte_offset;
+        this.peek_token_offset = this.token_offset;
+    }
 
     consume() {
         this.prev_byte_offset = this.byte_offset;
