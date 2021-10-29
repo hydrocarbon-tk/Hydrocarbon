@@ -17,7 +17,7 @@
         
         state_declaration top_level_instructions on_fail? expected_symbols?   
                                             
-                                            f:r { { type:"state", id:$1, instructions: $2, fail: $3, symbol_meta:$4 } }
+                                            f:r { { type:t_IR_STATE | c_IR | c_IrState, id:$1, instructions: $2, fail: $3, symbol_meta:$4 } }
 
 <> grammar_injection > 
         
@@ -25,7 +25,7 @@
         
                 top_level_instructions on_fail? expected_symbols? \>
                                             
-                                            f:r { { type:"state", id:$2, instructions: $4, fail: $5, symbol_meta:$6 } }
+                                            f:r { { type:t_IR_STATE | c_IR | c_IrState, id:$2, instructions: $4, fail: $5, symbol_meta:$6 } }
 
 <> state_declaration > 
         
@@ -53,11 +53,11 @@
 
         sequence_instruction(+ t:then ) 
         ( t:then goto_instruction(+ t:then ) )? 
-        ( t:then t:repeat t:state f:r{ { type:"repeat-state" } } )? 
+        ( t:then t:repeat t:state f:r{ { type:t_Repeat | c_IR | c_IR_Instruction } } )? 
         
                                             f:r{ [...$1, ...$2, $3] }
 
-    |   goto_instruction(* t:then ) ( t:then t:repeat t:state f:r{ { type:"repeat-state" } } )? 
+    |   goto_instruction(* t:then ) ( t:then t:repeat t:state f:r{ { type:t_Repeat | c_IR | c_IR_Instruction } } )? 
         
                                             f:r{ [...$1, $2] }
 
@@ -76,57 +76,57 @@
 <> goto_instruction > 
 
     t:goto state_reference
-                                            f:r { { type:"goto", state: $2 } }
+                                            f:r { { type:t_Goto | c_IR | c_IR_Instruction, state: $2 } }
 <> sequence_instruction >
 
         t:reduce g:num g:num           
-                                            f:r { { type:"reduce", len: +$2, reduce_fn: +$3 } }
+                                            f:r { { type:t_Reduce | c_IR | c_IR_Instruction, len: +$2, reduce_fn: +$3 } }
 
     |   t:reduce fn::reduce_function   
                                             
-                                            f:r { { type:"reduce", len: -1, reduce_fn: $2 } }
+                                            f:r { { type:t_Reduce | c_IR | c_IR_Instruction, len: -1, reduce_fn: $2 } }
     |   t:assign t:token token_id_list  
                                             
-                                            f:r { { type:"token-assign", ids: $3 } }
+                                            f:r { { type:t_TokenAssign | c_IR | c_IR_Instruction, ids: $3 } }
 
     |   t:set t:prod t:to ( 
                   g:num f:r{ parseInt($1) } 
                 |   sym::production_symbol
             )
                                             
-                                            f:r { { type:"set-prod", id: $4  } }
+                                            f:r { { type:t_SetProd | c_IR | c_IR_Instruction, id: $4  } }
 
     |   t:fork t:to \( state_reference(+\, ) \)
                                             
-                                            f:r { { type:"fork-to", states: $4  } }
+                                            f:r { { type:t_ForkTo | c_IR | c_IR_Instruction, states: $4  } }
 
     |   t:scan t:back? t:until token_id_list
-                                            f:r { { type: $2 ? "scan-back-until" : "scan-until", ids: $4 } }
+                                            f:r { { type: t_ScanUntil | c_IR | c_IR_Instruction, ids: $4, SCAN_BACKWARDS:!!$2 } }
 
     |   t:set t:token t:id ( ! g:num f:r { parseInt($1) } | sym::terminal_symbol ) g:num
                                            
-                                            f:r { { type:"token-id", id: $4  } }
+                                            f:r { { type:t_TokenId | c_IR | c_IR_Instruction, id: $4  } }
 
     |   t:pass
-                                            f:r { { type:"pass"  } }
+                                            f:r { { type:t_Pass | c_IR | c_IR_Instruction  } }
 
     |   t:fail
-                                            f:r { { type:"fail" } }
+                                            f:r { { type:t_Fail | c_IR | c_IR_Instruction } }
 
     |   t:not t:within t:scopes \[   ( 
                         g:num f:r{ parseInt($1) } 
                 |       sym::production_symbol
             )(+)     
         \]
-                                            f:r { { type:"not-in-scopes", ids:$5 } }
+                                            f:r { { type:t_NotInScope | c_IR | c_IR_Instruction, ids:$5 } }
                                   
     |   t:set t:scope t:to ( 
                     g:num f:r{ parseInt($1) } 
             )
-                                            f:r { { type:"set-scope", scope:$4 } }
+                                            f:r { { type:t_SetScope | c_IR | c_IR_Instruction, scope:$4 } }
                                             
     |   t:consume t:nothing?
-                                            f:r { { type:"consume", EMPTY:!!$2 } }
+                                            f:r { { type:t_Consume | c_IR | c_IR_Instruction, EMPTY:!!$2 } }
                                     
       
 
@@ -134,14 +134,14 @@
     
     t:on t:fail state_declaration top_level_instructions on_fail? expected_symbols?
                                             
-                                            f:r { { type:"on-fail-state", id:$3, instructions: $4, symbol_meta: $6, fail: $5 } }
+                                            f:r { { type:t_FailState | c_IR | c_IR_State, id:$3, instructions: $4, symbol_meta: $6, fail: $5 } }
 
 <> expected_symbols > 
 
         \symbols: \expected token_id_list
         ( \skipped token_id_list f:r{ $2 } )?
 
-                                            f:r { { type:"symbols", expected:$3, skipped:$4 || [] } }
+                                            f:r { { type:t_Symbols | c_IR, expected:$3, skipped:$4 || [] } }
 
 <> token_id_list > 
 
@@ -157,7 +157,7 @@
 
         \[ 
             ( 
-                        g:num f:r{ parseInt($1) } 
+                        g:num f:r{ +$1 } 
                 |       sym::production_symbol
             )(+) 
         \] 

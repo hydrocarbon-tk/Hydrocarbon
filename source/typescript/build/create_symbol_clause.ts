@@ -5,16 +5,12 @@
  */
 import {
     convert_symbol_to_string,
-    getFollowSymbolsFromItems,
     getSkippableSymbolsFromItems,
-    getTokenSymbolsFromItems,
     getUniqueSymbolName,
-    SymbolsCollide,
     Symbols_Are_The_Same,
     Sym_Is_Ambiguous, Sym_Is_Defined
 } from "../grammar/nodes/symbol.js";
 import { GrammarObject, TokenSymbol } from '../types/grammar_nodes';
-import { getClosure, getFollowClosure } from "../utilities/closure.js";
 import { Item } from "../utilities/item.js";
 export function create_symbol_clause(
     items: Item[],

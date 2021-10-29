@@ -20,7 +20,7 @@ import { GrammarObject, ProductionImportSymbol, ProductionSymbol, TokenSymbol } 
 import { BranchIRStateData, IRStateData, StateAttrib, StateMap } from '../types/ir_state_data';
 import { BlockData, BranchIRState, InstructionType, IRAssert, IRPeek, IR_Instruction, Resolved_IR_State } from '../types/ir_types';
 import { ir_reduce_numeric_len_id } from './magic_numbers.js';
-import { garbageCollect, optimize } from './optimize.js';
+import { garbageCollect, IsAssertInstruction, IsPeekInstruction, optimize } from './optimize.js';
 import { renderIRNode } from './render_ir_state.js';
 import { constructProductionStates } from './state_constructor.js';
 
@@ -314,10 +314,6 @@ export async function createBuildPack(
     build_logger.log(`Parse states have been compiled into a ${state_buffer.length * 4}byte states buffer.`);
 
     build_logger.debug(`Outputting BuildPack`);
-
-    console.dir(state_buffer, {
-        maxArrayLength: Infinity
-    });
 
     return <BuildPack>{
         grammar,
@@ -763,13 +759,18 @@ function createInstructionSequence(
 
                 const basis = instr.id;
 
-                const id = createSymMapId(
-                    instr.token_ids.setFilter(),
-                    instr.skipped_ids.setFilter(),
-                    grammar
-                );
+                let token_state = "";
 
-                token_state = token_id_to_state.get(id);
+                if (instr.mode == "TOKEN") {
+
+                    const id = createSymMapId(
+                        [...instr.token_ids, basis].setFilter(),
+                        instr.skipped_ids.setFilter(),
+                        grammar
+                    );
+
+                    token_state = token_id_to_state.get(id);
+                }
 
                 const instruction = createTableInstruction(
                     instr.mode,
@@ -1142,7 +1143,7 @@ function compileScannerStates(
 
     for (const [, state_data] of states_map) {
 
-        let { expected_tokens, skipped_tokens } = state_data;
+        let { expected_tokens, skipped_tokens, ir_state_ast } = state_data;
 
         if (expected_tokens.length > 0 || skipped_tokens.length > 0) {
 
@@ -1154,6 +1155,29 @@ function compileScannerStates(
                 scanner_id_to_state,
                 raw_scanner_states
             );
+        }
+
+        const potential_scanner_instructions = [...ir_state_ast.instructions];
+
+        for (const instruction of potential_scanner_instructions) {
+            if (IsAssertInstruction(instruction) || IsPeekInstruction(instruction)) {
+                if (instruction.mode == "TOKEN" || instruction.mode == "PRODUCTION")
+                    potential_scanner_instructions.push(...instruction.instructions);
+            } else if (instruction.type == InstructionType.inline_assert) {
+                if (instruction.mode == "TOKEN") {
+
+                    const expected_tokens = [instruction.id, ...instruction.token_ids];
+                    const skipped_tokens = instruction.skipped_ids;
+
+                    constructScannerState(
+                        expected_tokens.setFilter(),
+                        skipped_tokens.setFilter(),
+                        grammar,
+                        scanner_id_to_state,
+                        raw_scanner_states
+                    );
+                }
+            }
         }
     }
 

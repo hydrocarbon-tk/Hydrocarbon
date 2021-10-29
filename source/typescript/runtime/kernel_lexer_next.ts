@@ -1,8 +1,12 @@
+import { initializeUTFLookupTableNewPlus, jump8bit_table_byte_size } from './parser_memory_new.js';
+
 export const init_table = lu_table => {
     char_lu_table = lu_table;
 };
 
-export let char_lu_table: Uint8Array = null;
+export let char_lu_table: Uint8Array = new Uint8Array(jump8bit_table_byte_size);
+
+initializeUTFLookupTableNewPlus(char_lu_table);
 
 /////////////////////////////////////////////
 // LEXER
@@ -15,8 +19,8 @@ export class Lexer {
     byte_length: number;
     prev_byte_offset: number;
     prev_token_offset: number;
-    peek_byte_offset: number;
-    peek_token_offset: number;
+    //peek_byte_offset: number;
+    //peek_token_offset: number;
     line: number;
     token_type: number;
     input: Uint8Array;
@@ -28,8 +32,8 @@ export class Lexer {
         this.token_offset = 0;
         this.prev_byte_offset = 0;
         this.prev_token_offset = 0;
-        this.peek_byte_offset = 0;
-        this.peek_token_offset = 0;
+        //this.peek_byte_offset = 0;
+        //this.peek_token_offset = 0;
         this.token_type = 0;
         this.line = 0;
     }
@@ -99,15 +103,15 @@ export class Lexer {
         };
     }
 
-    reset() {
+    /* reset() {
         if (this.byte_offset > this.peek_byte_offset) {
             this.byte_offset = this.peek_byte_offset;
             this.token_offset = this.peek_token_offset;
-            this.token_length = 1;
-            this.byte_length = 1;
-            this.token_type = 0;
+            //this.token_length = this.peek_token_length;
+            //this.byte_length = this.peek_byte_length;
+            //this.token_type = this.peek_token_type;
         }
-    }
+    } */
 
     skip_delta() {
         return this.token_offset - this.prev_token_offset;
@@ -115,8 +119,8 @@ export class Lexer {
 
     next() {
         this.peek();
-        this.peek_byte_offset = this.byte_offset;
-        this.peek_token_offset = this.token_offset;
+        //this.peek_byte_offset = this.byte_offset;
+        //this.peek_token_offset = this.token_offset;
     }
 
     consume() {

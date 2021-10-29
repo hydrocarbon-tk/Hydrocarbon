@@ -1,5 +1,5 @@
 import { Token } from '../../runtime/token.js';
-import { TokenTypes } from "../../runtime/TokenTypes.js";
+import { TokenTypes } from "../../types/TokenTypes.js";
 import {
     EOFSymbol,
     GeneratedIdentifier,

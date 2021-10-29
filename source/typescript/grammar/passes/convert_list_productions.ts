@@ -69,14 +69,14 @@ export function processListSymbol(sym: any, body: HCG3ProductionBody, production
 
             if (TERMINAL_SYMBOL_IS_QUOTE) {
 
-                setBodyReduceExpressionAction(body, "$$string_create");
+                setBodyReduceExpressionAction(body, "$1 + \"\"");
 
-                setBodyReduceExpressionAction(new_production_body, "$$string_join");
+                setBodyReduceExpressionAction(new_production_body, "$1 + $2");
             } else {
 
-                setBodyReduceExpressionAction(body, "$$vec_create");
+                setBodyReduceExpressionAction(body, "[$1]");
 
-                setBodyReduceExpressionAction(new_production_body, "$$vec_join");
+                setBodyReduceExpressionAction(new_production_body, "[$1] + $2");
             }
 
             //replaceAllBodySymbols(body, inner_symbol);

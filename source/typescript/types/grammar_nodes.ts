@@ -5,7 +5,7 @@
  */
 
 import { CompilableStruct } from "./compilable_nodes";
-import { TokenTypes } from "../runtime/TokenTypes";
+import { TokenTypes } from "./TokenTypes";
 import { Item } from "../utilities/item";
 import { ItemMapEntry } from "./item_map";
 import { IR_State } from './ir_types';

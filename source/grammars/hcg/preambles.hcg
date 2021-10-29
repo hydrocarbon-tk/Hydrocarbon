@@ -50,15 +50,15 @@
 
 <> ignore_preamble >         \@IGNORE sym::ignore_symbols g:nl                
                                                                         
-                                                                        f:r { { type:"ignore", symbols : $2 } }
+                                                                        f:r { { type:t_Ignore | c_Preamble, symbols : $2 } }
 
 
 <> import_preamble >         \@IMPORT ( g:id | g:sym  )(+\" ) ( t:AS | t:as ) sym::identifier 
                                                                         
-                                                                        f:r { { type:"import", uri: $2, reference:$4 } } 
+                                                                        f:r { { type:t_Import | c_Preamble, uri: $2, reference:$4 } } 
 
 <> export_preamble >         \@EXPORT sym::production_symbol ( t:AS | t:as ) g:id
                                                                         
-                                                                        f:r { { type:"export", production: $2, reference:$4 } } 
+                                                                        f:r { { type:t_Export | c_Preamble, production: $2, reference:$4 } } 
 
 

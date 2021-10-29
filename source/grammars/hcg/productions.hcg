@@ -21,28 +21,28 @@
 ########################################################################################################################
 
 <>  productions > production                                          
-                                                            f:r {  { type:"production-section", functions:[], productions:[$1], ir:[]  } }
+                                                            f:r {  { type:t_Productions, functions:[], productions:[$1], ir:[]  } }
     | fn::out_of_band_function                                     
-                                                            f:r {  { type:"production-section", functions:[$1], productions:[], ir:[]  } }
+                                                            f:r {  { type:t_Productions, functions:[$1], productions:[], ir:[]  } }
     | ir::grammar_injection
-                                                            f:r {  { type:"production-section", functions:[], productions:[], ir:[$1]  } }
+                                                            f:r {  { type:t_Productions, functions:[], productions:[], ir:[$1]  } }
     | productions production                                  
-                                                            f:r {  $1.productions.push($2), $1 }
+                                                            f:r {  $1.productions + $2, $1 }
     | productions fn::out_of_band_function                         
-                                                            f:r {  $1.functions.push($2), $1 }
+                                                            f:r {  $1.functions + $2, $1 }
     | productions ir::grammar_injection
-                                                            f:r {  $1.ir.push($2), $1 }
+                                                            f:r {  $1.ir + $2, $1 }
 
  
 <> production > \<> \! ? sym::production_symbol \>  pb::production_bodies? 
                                                                         
                                                             f:r { {
-                                                                type:"production", priority: $2 ? 1000 : 0, symbol:$3, bodies:$5, id:-1
+                                                                type:t_Production | c_Production, priority: $2 ? 1000 : 0, symbol:$3, bodies:$5, id:-1
                                                             } }
 
     | \+> sym::production_symbol  \>  pb::production_bodies
 
                                                             f:r { {
-                                                                type:"production-merged", symbol:$2, bodies:$4, id:-1
+                                                                type:t_ProductionMerged | c_Production, symbol:$2, bodies:$4, id:-1
                                                             } }
         

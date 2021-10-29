@@ -9,7 +9,7 @@ normal parse states save for a few notable differences:
 - Scanner states do not generate completer rules
 - Scanner state branches do not utilize the `token` lexer mode. They instead have access to `byte`, `codepoint` and `class` lexer modes.
 - The completion of a scanner parser yields `token_type` and `token_length` values which can then be used by parse states to branch to 
-appropriate states that ultimitaly consume the token span.
+appropriate states that ultimitally consume the token span.
 
 <!-- Bitfield data -->
 ### Pointer

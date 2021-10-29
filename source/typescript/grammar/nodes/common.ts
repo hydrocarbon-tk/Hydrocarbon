@@ -151,7 +151,8 @@ export function setBodyReduceExpressionAction(body: HCG3ProductionBody, reduce_f
     const function_node: ProductionFunction = {
         js: null,
         type: "RETURNED",
-        txt: reduce_function_string
+        txt: reduce_function_string,
+        pos: new Token("     " + reduce_function_string, 0, reduce_function_string.length + 5, 0)
     };
 
     body.reduce_function = function_node;

@@ -22,7 +22,6 @@ export function recognize(
         instructions,
         input_buffer,
         input_buffer.length,
-        start_pointer,
-        true
+        start_pointer
     );
 }

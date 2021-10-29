@@ -317,9 +317,7 @@ function processSymbol<T = HCG3Symbol>(
 
         sym.name = name;
 
-    } else if (NOT_ORIGIN && (
-        sym.type == SymbolType.PRODUCTION_TOKEN_SYMBOL)
-    ) {
+    } else if (sym.type == SymbolType.PRODUCTION_TOKEN_SYMBOL) {
 
         const original_name = sym.name;
 
@@ -331,28 +329,31 @@ function processSymbol<T = HCG3Symbol>(
             name = sym.name;
         }
 
-        if (!imported_productions.has(name)) {
+        if (NOT_ORIGIN) {
 
-            const prd = getProductionByName(local_grammar, sym);
+            if (!imported_productions.has(name)) {
 
-            if (prd) {
-                const cp = copy(prd);
+                const prd = getProductionByName(local_grammar, sym);
 
-                cp.name = name;
+                if (prd) {
+                    const cp = copy(prd);
 
-                cp.grammar_id = local_grammar.common_import_name;
+                    cp.name = name;
 
-                imported_productions.set(name, cp);
+                    cp.grammar_id = local_grammar.common_import_name;
 
-                root_grammar.productions.push(cp);
+                    imported_productions.set(name, cp);
 
-                integrateImportedProductions(root_grammar, local_grammar, cp, imported_productions);
+                    root_grammar.productions.push(cp);
+
+                    integrateImportedProductions(root_grammar, local_grammar, cp, imported_productions);
+                }
             }
+
+            sym.production = imported_productions.get(name);
+
+            sym.name = name;
         }
-
-        sym.production = imported_productions.get(name);
-
-        sym.name = name;
 
     } else if (sym.type == SymbolType.LIST_PRODUCTION) {
 

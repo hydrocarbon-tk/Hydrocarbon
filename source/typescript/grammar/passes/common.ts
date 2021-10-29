@@ -1,6 +1,6 @@
 
 import { copy, experimentalConstructRenderers, experimentalRender, traverse } from "@candlelib/conflagrate";
-import { TokenTypes } from "../../runtime/TokenTypes";
+import { TokenTypes } from "../../types/TokenTypes";
 import { token_lu_bit_size } from "../../utilities/code_generating.js";
 import {
     GrammarObject,
