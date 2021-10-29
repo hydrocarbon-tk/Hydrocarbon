@@ -2,7 +2,7 @@
 # see /source/typescript/hydrocarbon.ts for full copyright and warranty 
 # disclaimer notice.
 
-# version 5.0
+# version 6.0
 
 @IMPORT ./production_bodies.hcg as pb
 
@@ -21,11 +21,11 @@
 ########################################################################################################################
 
 <>  productions > production                                          
-                                                            f:r {  { type:"production-section", functions:[], productions:[$1], ir:[], tok  } }
+                                                            f:r {  { type:"production-section", functions:[], productions:[$1], ir:[]  } }
     | fn::out_of_band_function                                     
-                                                            f:r {  { type:"production-section", functions:[$1], productions:[], ir:[], tok  } }
+                                                            f:r {  { type:"production-section", functions:[$1], productions:[], ir:[]  } }
     | ir::grammar_injection
-                                                            f:r {  { type:"production-section", functions:[], productions:[], ir:[$1], tok  } }
+                                                            f:r {  { type:"production-section", functions:[], productions:[], ir:[$1]  } }
     | productions production                                  
                                                             f:r {  $1.productions.push($2), $1 }
     | productions fn::out_of_band_function                         
@@ -37,12 +37,12 @@
 <> production > \<> \! ? sym::production_symbol \>  pb::production_bodies? 
                                                                         
                                                             f:r { {
-                                                                type:"production", priority: $$2 ? 1000 : 0, symbol:$3, bodies:$$5, id:-1, tok
+                                                                type:"production", priority: $2 ? 1000 : 0, symbol:$3, bodies:$5, id:-1
                                                             } }
 
     | \+> sym::production_symbol  \>  pb::production_bodies
 
                                                             f:r { {
-                                                                type:"production-merged", symbol:$2, bodies:$4, id:-1, tok
+                                                                type:"production-merged", symbol:$2, bodies:$4, id:-1
                                                             } }
         

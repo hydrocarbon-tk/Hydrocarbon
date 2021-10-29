@@ -6,7 +6,7 @@
 # see /source/typescript/hydrocarbon.ts for full copyright and warranty
 # disclaimer notice.
 
-# version 5.0
+# version 6.0
 
 # This is the Hydrocarbon Grammar Definition and parser file. It contains information to build the Hydrocarbon 
 # Grammar parser.
@@ -89,11 +89,11 @@
 
 
                             f:r { { 
-                                type:"hc-grammar-5", 
-                                preamble:$$1 || [], 
-                                ir_states:$$2.ir || [],
-                                productions:$$2.productions, 
-                                functions:$$2.functions || [], 
+                                type:t_Grammar | c_Grammar | c_Version_6, 
+                                preamble:$1 || [], 
+                                ir_states:$2.ir || [],
+                                productions:$2.productions, 
+                                functions:$2.functions || [], 
                                 imported_grammars: [],
                                 meta:null,
                                 ignore:[],

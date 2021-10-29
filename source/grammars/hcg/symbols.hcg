@@ -2,7 +2,7 @@
 # see /source/typescript/hydrocarbon.ts for full copyright and warranty 
 # disclaimer notice.
 
-# version 5.0
+# version 6.0
 
 @IMPORT ./comments.hcg as cm
 
@@ -42,9 +42,9 @@
         
         f:r { $1.IS_OPTIONAL = 1, $1 }
     
-    |   \<= symbol           
+    |   \<= terminal_symbol           
         
-        f:r { { type:"look-behind", val:$2.val, phased: $2, tok } }
+        f:r { { type:t_Look_Behind | c_Symbol, val:$2.val, symbol: $2 } }
 
     |   \?= symbol
         
@@ -58,17 +58,17 @@
 
     |   symbol ( \(+ | \(* )  terminal_symbol?  \)
         
-        f:r { { type:"list-production", terminal_symbol:$$3, IS_OPTIONAL:+($2 == "(*"), val:$1, tok, meta:false, annotation:null } }
+        f:r { { type:t_List_Production | c_Symbol, terminal_symbol:$3, IS_OPTIONAL:+($2 == "(*"), symbols:$1, meta:false, annotation:"" } }
 
 <> group_symbol > \( pb::production_bodies \)        
           
-        f:r { { type:"group-production", val:$2, tok, meta:false, annotation:null } }  
+        f:r { { type:t_Group_Production | c_Symbol, bodies:$2, meta:false, annotation:"" } }  
 
 <> production_token_symbol > 
     
     \tk: production_symbol       
     
-        f:r { { type:"production_token", name:$2.name, production:$2, val:-1, tok, meta:false, annotation:null } }
+        f:r { { type:t_Production_Token | c_Symbol, name:$2.name, production:$2, val:-1, meta:false, annotation:"" } }
 
 <> production_symbol >
 
@@ -90,7 +90,7 @@
 
 <> reference_symbol > tk:reference_symbol_token
 
-        f:r { { type:"reference", val:tok.slice(1), tok } }
+        f:r { { type:t_Reference | c_Symbol } }
 
 <> reference_symbol_token > \^ identifier
 
@@ -98,48 +98,48 @@
     
     \$eof
     
-        f:r { { type:"eof", val:"END_OF_FILE", tok, meta:false, annotation:null } }
+        f:r { { type:t_End_Of_File | c_Symbol, val:"END_OF_FILE", meta:false, annotation:"" } }
 
 <> empty_symbol > 
     
     \$empty
     
-        f:r { { type:"empty", val:"", tok, meta:false, annotation:null } }
+        f:r { { type:t_Empty | c_Symbol, val:"", meta:false, annotation:"" } }
 
 <> generated_symbol > 
     
     \g: tk:identifier_syms
     
-        f:r { { type:"generated", val:$2.toString(), tok, meta:false, annotation:null } }
+        f:r { { type:t_Generated | c_Symbol, val:$2 + "", meta:false, annotation:"" } }
 
 <> literal_symbol > 
     
         \t: ( g:id | g:num )(+\" ) sym_delimiter? 
           
-        f:r { { type:"exclusive-literal", val:$2.toString(), tok, meta:false, annotation:null } }
+        f:r { { type:t_Exclusive_Literal | c_Symbol, val:$2 + "", meta:false, annotation:"" } }
     
     |   ( g:sym | g:num )(+\" )
 
-        f:r { { type:"literal", val:$1.toString(), tok, meta:false, annotation:null } }
+        f:r { { type:t_Literal | c_Symbol, val:$1 + "", meta:false, annotation:"" } }
 
 
 <> escaped_symbol > 
     
     \\ ( g:id | g:sym | g:num )(+\" ) sym_delimiter           
     
-        f:r { { type:"literal", val:$2.toString(), tok, meta:false, annotation:null } }
+        f:r { { type:t_Literal | c_Symbol, val:$2 + "", meta:false, annotation:"" } }
 
 <> local_production_symbol > 
     
     tk:identifier_syms
         
-        f:r { { type:"sym-production", name:$1.toString(), production:null, val:-1, tok, meta:false, annotation:null } }
+        f:r { { type:t_Production_Symbol | c_Symbol, name:$1 + "", production:"", val:-1, meta:false, annotation:"" } }
 
 <> imported_production_symbol > 
 
     tk:identifier_syms \:: tk:identifier_syms
         
-        f:r { { type:"sym-production-import", module:$1.toString(), name:$3.toString(),  production:null, tok, meta:false, annotation:null } } 
+        f:r { { type:t_Production_Import_Symbol | c_Symbol, module:$1 + "", name:$3 + "",  production:"", meta:false, annotation:"" } } 
 
 <> annotation_identifier > ( g:sym | g:id | g:num )(+\" ) g:sp? f:r { $1 }
 
@@ -171,13 +171,12 @@
         
         \(EXC condition_symbol_list \)
 
-        f:r { { type:"meta-exclude", sym: $2, meta:true, index:-1, tok, annotation:null} }
+        f:r { { type:t_Exclude | c_Symbol | c_Meta, sym: $2, meta:true, index:-1, annotation:""} }
 
     |   \(IGN condition_symbol_list \)    
 
-        f:r { { type:"meta-ignore",  sym: $2, meta:true, index:-1, tok, annotation:null} }
+        f:r { { type:t_Look_Ignore | c_Symbol | c_Meta,  sym: $2, meta:true, index:-1, annotation:""} }
 
     |   \(RST condition_symbol_list \)
 
-        f:r { { type:"meta-reset",   sym: $2, meta:true, index:-1, tok, annotation:null} }
-
+        f:r { { type:t_Look_Ignore | c_Symbol | c_Meta,   sym: $2, meta:true, index:-1, annotation:""} }
