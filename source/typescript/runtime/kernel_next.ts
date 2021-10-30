@@ -34,7 +34,6 @@ type lexer_token_offset = number;
 type lexer_token_length = number;
 type production_id = number;
 
-export let state_history = [];
 let peek = null;
 
 export function assign_peek(fn) {
@@ -48,6 +47,7 @@ export function assign_peek(fn) {
 export class KernelState implements KernelStateType {
     readonly instructions: Uint32Array;
     lexer: Lexer;
+    peek_lexer: Lexer;
     stack_pointer: u32;
     state_stack: Uint32Array;
     meta_stack: Uint32Array;
@@ -81,6 +81,8 @@ export class KernelState implements KernelStateType {
         this.lexer = new Lexer(input_buffer);
 
         this.lexer.next();
+
+        this.peek_lexer = new Lexer(input_buffer);
 
         this.state_stack = new Uint32Array(128);
 
@@ -124,28 +126,6 @@ export class KernelState implements KernelStateType {
     get_rules_len(): number {
         return this.rules.length;
     };
-
-    /**
-     * JS Only 
-     */
-    add_state_to_history(kernel_state: number, enable_history: boolean = false) {
-
-        if (enable_history) {
-            const lexer = this.lexer;
-
-            state_history.push([
-                kernel_state,
-                lexer.token_type,
-                lexer.token_offset,
-                lexer.token_length,
-                this.stack_pointer,
-                this.prod,
-                Array.from(this.meta_stack).map(i => i & 0xFFFF).slice(0, this.stack_pointer + 3)
-
-            ]);
-        }
-
-    }
 
     push_state(kernel_state: number) {
         this.state_stack[++this.stack_pointer] = kernel_state;
@@ -878,13 +858,22 @@ function get_input_value(
 
             case 1: /* set next peek lexer */ {
 
-                lexer.peek();
+                if (
+                    kernel_state.peek_lexer.byte_offset < kernel_state.lexer.byte_offset
+                    ||
+                    kernel_state.peek_lexer.byte_length < kernel_state.lexer.byte_length
+                ) {
+                    kernel_state.peek_lexer.peek_unroll_sync(kernel_state.lexer);
+                    kernel_state.peek_lexer.next();
+                }
+
+                lexer = kernel_state.peek_lexer;
 
             } break;
 
             case 2: /* set primary lexer */
-
-                lexer.reset();
+                kernel_state.peek_lexer.byte_offset = 0;
+                //lexer.reset();
 
                 break;
 
@@ -1187,14 +1176,10 @@ export function kernel_executor(
                 // states that do not have the failure bit set.
                 const mask_gate = normal_state_mask << +fail_mode;
 
-                if (peek) {
-                    peek(state, kernel_state);
-                }
-
                 if (state & mask_gate) {
-
-                    kernel_state.add_state_to_history(state, true);
-
+                    if (peek) {
+                        peek(state, kernel_state);
+                    }
                     fail_mode = instruction_executor(
                         state,
                         fail_mode,
@@ -1220,7 +1205,6 @@ export function run(
     input_buffer: Uint8Array,
     input_byte_length: number,
     state_pointer: number,
-    enable_history: boolean = false
 ): { invalid: KernelStateBuffer, valid: KernelStateBuffer; } {
 
     let valid = new KernelStateBuffer;
@@ -1232,8 +1216,6 @@ export function run(
         input_buffer,
         input_byte_length
     );
-
-    state_history.length = 0;
 
     state.state_stack[0] = 0;
 

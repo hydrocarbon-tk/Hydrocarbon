@@ -166,12 +166,14 @@ export function constructProductionStates(
 
                         let prelude = "";
 
-                        if (body.priority > 0) {
-                            prelude = `assign token [ 9999 ] then `;
-                        } else {
-                            const token_id = grammar.productions[body.sym[0].val].token_id;
 
-                            prelude = `assign token [ ${token_id} ] then `;
+                        if (body) {
+                            if (body.priority > 0) {
+                                prelude = `assign token [ 9999 ] then `;
+                            } else {
+                                const token_id = grammar.productions[body.sym[0].val].token_id;
+                                prelude = `assign token [ ${token_id} ] then `;
+                            }
                         }
 
                         goto_function_code.push(

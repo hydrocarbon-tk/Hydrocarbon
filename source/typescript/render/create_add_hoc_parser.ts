@@ -25,6 +25,7 @@ import {
 
 export async function createAddHocParser<T = any>(
     build_pack: BuildPack | string | Promise<BuildPack | string>,
+
 ): Promise<{
     parse: (input: string, env: ParserEnvironment, production_selector: number) => T[],
     reverse_state_lookup,
@@ -48,7 +49,7 @@ export async function createAddHocParser<T = any>(
     const reverse_state_lookup = new Map([...states_map.entries()].map(([key, val]) => [instruction_pointer_mask & val.pointer, val.string]));
     //Attempt to parse input
 
-    const input_string = `${skRenderAsJavaScript(createActiveTokenSK(grammar))}
+    const input_string = `
    
     const functions = ${renderJavaScriptReduceFunctionLookupArray(grammar)};
 

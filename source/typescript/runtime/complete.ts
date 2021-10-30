@@ -10,8 +10,12 @@ export function complete<T>(
     input_string: string,
     valid: KernelStateBuffer,
     invalid: KernelStateBuffer,
-    functions: any[]
-) {
+    functions: any[],
+    source_path: string = ""
+): {
+    result: T,
+    err: any;
+} {
     if (valid.have_valid()) {
 
         const
@@ -21,7 +25,6 @@ export function complete<T>(
 
         let stack = [],
             tokens = [],
-            rules = [],
             token_offset = 0;
 
         try {
@@ -29,8 +32,6 @@ export function complete<T>(
             while (iter.is_valid()) {
 
                 let low = iter.next();
-
-                rules.push(low);
 
                 if (low == 0) break;
 
@@ -73,9 +74,13 @@ export function complete<T>(
 
                         if (low & 4) length = ((length << 16) | iter.next());
 
-                        stack.push(input_string.slice(token_offset, token_offset + length));
+                        const token = new Token(input_string, length, token_offset);
 
-                        tokens.push(new Token(input_string, length, token_offset));
+                        token.setPath(source_path);
+
+                        stack.push(token);
+
+                        tokens.push(token);
 
                         token_offset += length;
 
@@ -92,7 +97,7 @@ export function complete<T>(
                 }
             }
 
-            return { result: <T[]>stack[0], err: null };
+            return { result: <T>stack[0], err: null };
         } catch (e) {
             return { result: null, err: e };
         }
@@ -115,5 +120,5 @@ export function complete<T>(
         return { result: null, err };
     }
 
-    return { result: null, err };
+    return { result: null, err: null };
 }

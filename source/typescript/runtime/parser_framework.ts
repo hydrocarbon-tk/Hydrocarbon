@@ -12,7 +12,6 @@ import {
 } from "../types/parser_framework_types";
 import { initializeUTFLookupTableNewPlus as initialize_character_lut } from "./parser_memory_new.js";
 import { Token } from "./token.js";
-import { load_wasm_recognizer } from "./parser_framework_wasm.js";
 
 
 
@@ -40,12 +39,12 @@ export async function ParserFramework<T, R, K extends keyof R>(
 
     let { recognize, init_table: get_character_lut, create_iterator }: RecognizeInitializer<R, K> = <any>{};
 
-    if (wasm_binary_source_path)
-        (
+    if (wasm_binary_source_path) {
+        /* (
             { recognize, init_table: get_character_lut, create_iterator }
             = await load_wasm_recognizer(wasm_binary_source_path)
-        );
-    else
+        ); */
+    } else
         (
             { recognize, init_table: get_character_lut, create_iterator }
             = js_parser_pack

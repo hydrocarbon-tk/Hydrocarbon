@@ -1,0 +1,36 @@
+# Copyright (C) 2021 Anthony Weathersby - The Hydrocarbon Parser Compiler
+# see /source/typescript/hydrocarbon.ts for full copyright and warranty 
+# disclaimer notice.
+
+# version 6.0
+
+
+@IGNORE g:sp g:nl tk:comment
+
+########################################################################################################################
+######################################  PRODUCTIONS
+########################################################################################################################
+
+<>  productions > production                                          
+                                                            f:r {  { type:t_Productions, functions:[], productions:[$1] } }
+    | function                                     
+                                                            f:r {  { type:t_Productions, functions:[$1], productions:[] } }
+    | productions production                                  
+                                                            f:r {  $1.productions + $2, $1 }
+    | productions function                        
+                                                            f:r {  $1.functions + $2, $1 }
+
+ 
+<> production > \<> g:ids
+                                                                        
+                                                            f:r { {
+                                                                type:t_Production | c_Production, name:$2 + "", id:-1
+                                                            } }
+<> function > t:func g:ids
+
+                                                            f:r { {
+                                                                type:t_Function | c_Function, name:$2 + "", id:-1
+                                                            } }
+        
+
+<> comment > \/* ( g:id | g:num | g:nl | g:sp )(*) \*/

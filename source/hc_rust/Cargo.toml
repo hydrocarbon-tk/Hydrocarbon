@@ -5,4 +5,4 @@ members = ["./core", "./sandbox"]
 debug = 2
 
 [profile.release]
-debug = 1
+opt-level=3

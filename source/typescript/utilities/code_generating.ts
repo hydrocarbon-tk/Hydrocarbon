@@ -3,9 +3,6 @@
  * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
  * disclaimer notice.
  */
-import {
-    GrammarObject, TokenSymbol
-} from "../types/grammar_nodes.js";
 const string_to_md5 = await (async (crypto) => {
 
     return typeof globalThis["window"]
@@ -78,29 +75,3 @@ export function hashString(string: string) {
 
 export const token_lu_bit_size_offset = 5; // 32bits 
 export const token_lu_bit_size = 1 << token_lu_bit_size_offset;
-
-export function getSymbolMapFromIds(ids: number[], grammar: GrammarObject): number[] {
-    ids = ids.sort((a, b) => a - b).filter(i => i >= 1);
-
-    const max = grammar.meta.token_row_size * token_lu_bit_size;
-    const flags = [0];
-    let base = 0;
-    let index = 0;
-
-    for (const id of ids) {
-        while (id >= (base + token_lu_bit_size)) {
-            base += token_lu_bit_size;
-            index++;
-            flags.push(0);
-        }
-        flags[index] |= 1 << (id - base);
-    }
-
-    while (max > (base + token_lu_bit_size)) {
-        base += token_lu_bit_size;
-        index++;
-        flags.push(0);
-    }
-
-    return flags;
-}

@@ -570,6 +570,9 @@ function mapInlinedInstructions(
 
                 const { symbol_meta } = state;
 
+                if (b.ids.includes(1) || b.ids.includes(9999))
+                    return b.instructions;
+
                 const inline_assert: IRInlineAssert = {
                     type: InstructionType.inline_assert,
                     id: <number>b.ids[0],
@@ -615,11 +618,11 @@ function ContainsConsume(instruction: IRBranch) {
     return instruction.instructions.some(d => d.type == InstructionType.consume);
 }
 
-function IsPeekInstruction(instruction: IR_Instruction): instruction is IRPeek {
+export function IsPeekInstruction(instruction: IR_Instruction): instruction is IRPeek {
     return instruction.type == InstructionType.peek;
 }
 
-function IsAssertInstruction(instruction: IR_Instruction): instruction is IRAssert {
+export function IsAssertInstruction(instruction: IR_Instruction): instruction is IRAssert {
     return instruction.type == InstructionType.assert;
 }
 

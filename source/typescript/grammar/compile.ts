@@ -1,10 +1,9 @@
 import URI from "@candlelib/uri";
-import "../utilities/array_globals.js";
-import { DefinedSymbol, GeneralProductionNode, GrammarObject, HCG3ProductionBody, HCG3Symbol, ProductionFunction, ProductionNode, RECURSIVE_STATE, ScannerProductionNode, SymbolType, TokenSymbol } from "../types/grammar_nodes";
+import { GeneralProductionNode, GrammarObject, HCG3ProductionBody, HCG3Symbol, ProductionFunction, ProductionTokenSymbol, ScannerProductionNode, SymbolType } from "../types/grammar_nodes";
 import { HCGParser } from "../types/parser";
-import { getSymbolName, Sym_Is_A_Generic_Symbol, Sym_Is_A_Generic_Type, Sym_Is_A_Production, Sym_Is_A_Production_Token, Sym_Is_Defined, Sym_Is_Empty, Sym_Is_EOF } from './nodes/symbol.js';
+import "../utilities/array_globals.js";
+import { getSymbolName, Sym_Is_A_Generic_Type, Sym_Is_A_Production, Sym_Is_A_Production_Token, Sym_Is_Defined, Sym_Is_Empty, Sym_Is_EOF } from './nodes/symbol.js';
 import {
-    buildSequenceString,
     createCollisionMatrix,
     processSymbols,
     render_grammar
@@ -18,10 +17,6 @@ import {
     loadGrammarFromString
 } from "./passes/load.js";
 import { createJSFunctionsFromExpressions } from "./passes/process_js_code.js";
-import grammar_parser from './grammar_parser.js';
-import { Token } from '../runtime/token.js';
-import { createAsytripContext } from './passes/asytrip/process_asytrip.js';
-import { ASYTRIPContext } from './passes/asytrip/types.js';
 
 /**
  * Takes a raw root grammar object and applies transformation
@@ -29,13 +24,10 @@ import { ASYTRIPContext } from './passes/asytrip/types.js';
  * the compiler build and render processes.
  */
 export async function compileGrammar(grammar: GrammarObject):
-    Promise<{
-        grammar: GrammarObject;
-        asytrip_context?: ASYTRIPContext;
-    }> {
+    Promise<GrammarObject> {
 
     const errors: Error[] = [];
-    let asytrip_context = null;
+
     try {
 
         //Production and Body transformations.
@@ -59,12 +51,6 @@ export async function compileGrammar(grammar: GrammarObject):
         // Reprocess symbols to incorporate symbols from scanner productions
         processSymbols(grammar, errors);
 
-        asytrip_context = createAsytripContext(grammar, errors);
-
-        if (!asytrip_context) {
-            createJSFunctionsFromExpressions(grammar, errors);
-        }
-
         buildItemMaps(grammar);
 
         createCollisionMatrix(grammar);
@@ -80,10 +66,7 @@ export async function compileGrammar(grammar: GrammarObject):
         throw new GrammarCompilationReport(errors);
     }
 
-    return {
-        grammar,
-        asytrip_context
-    };
+    return grammar;
 }
 
 
@@ -193,13 +176,13 @@ function integrateReferencedProductions(grammar: GrammarObject, errors) {
                 production_body.reduce_function = {
                     type: "referenced-function",
                     ref: fn.reference,
-                    tok: fn.tok
+                    pos: fn.tok
                 };
             } else {
                 production_body.reduce_function = {
                     type: "RETURNED",
                     txt: fn.txt,
-                    tok: fn.tok
+                    pos: fn.tok
                 };
             }
         }
@@ -324,14 +307,13 @@ function buildScannerProduction(grammar: GrammarObject) {
                 } //*/
             } else if (Sym_Is_A_Production_Token(sym)) {
 
-                debugger;
-
-                let prods: GeneralProductionNode[] = [sym.production];
+                let prods: [ProductionTokenSymbol, GeneralProductionNode][] = [[sym, sym.production]];
 
                 let root = true;
 
-                for (const production of prods) {
+                for (const [sym, production] of prods) {
                     if (!production) debugger;
+
                     const name = `__${production.name}__`;
 
                     if (seen.has(name))
@@ -352,7 +334,7 @@ function buildScannerProduction(grammar: GrammarObject) {
                             } else if (Sym_Is_A_Production(sym) || Sym_Is_A_Production_Token(sym)) {
                                 const name = sym.name;
                                 str.push(`__${name}__`);
-                                prods.push(sym.production);
+                                prods.push([sym, sym.production]);
                             } else if (Sym_Is_Defined(sym)) {
                                 const val = sym.val;
                                 const syms = val.split("");

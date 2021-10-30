@@ -13,7 +13,7 @@ import {
     uni_id_start_discrete,
     uni_id_start_ranges
 } from "@candlelib/wind";
-import { TokenTypes } from "./TokenTypes";
+import { TokenTypes } from "../types/TokenTypes";
 
 
 export const jump8bit_table_byte_size = 382976;

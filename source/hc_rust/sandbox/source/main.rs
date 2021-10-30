@@ -40,6 +40,95 @@ static instructions: [u32; 323] = [
 fn main() {
     coz::thread_init();
     let input = "two + three";
+
+    let scan_input = "scan_input := []uint8(`export function createCompilableCode(grammar: GrammarObject): void {
+		// Reset the reduce_functions lookup to prepare the grammar for output
+		// to Struct / Class formats. 
+	
+	
+		grammar.reduce_functions = <Map<string, { id: number, data: any; }>>new Map();
+		grammar.compiled = {
+			structs: null,
+			primary_enum: null
+		};
+	
+		const class_types = [];
+	
+		//Create classes based on return values
+		for (const production of grammar.productions) {
+	
+			// Store type information per production
+			// this will be used later to assign types to
+			// class members. 
+			for (const body of production.bodies) {
+	
+				if (body.reduce_function) {
+	
+					const fn = body.reduce_function;
+	
+					if (fn.type == \"env-function-reference\") {
+						// TODO - Reference reduce function in CPP output
+						continue;
+					} else if (!fn.txt) {
+						body.reduce_function = null;
+						continue;
+					}
+	
+					const expression = exp(`(${fn.txt.replace(/(\\${1,2}\\d+)/g, \"$1_\")})`).nodes[0];
+	
+					const receiver = { ast: null };
+	
+					for (const { node, meta: { mutate } } of traverse(expression, \"nodes\").makeMutable().extract(receiver)) {
+						//Object literals serve as the main AST node definition type. 
+						if (node.type == JSNodeType.ObjectLiteral) {
+							// CPP only accepts basic member types:
+							// PropertyBinding with identifiers keys
+	
+							const cpp_type = <any>convertObjectLiteralNodeToCPPClassNode(node, body);
+							mutate(cpp_type);
+							class_types.push(cpp_type);
+						} else {
+							if (node.type == JSNodeType.ArrayLiteral) {
+	
+								//@ts-ignore
+								node.type = \"cpp_ast_ref_vector\";
+	
+							} else if (node.type == JSNodeType.IdentifierReference) {
+								const val = JSIdentifierRefToCompilableVal(node, \"\", body);
+								if (val)
+									mutate(<any>val);
+							}
+						}
+					}
+	
+					body.reduce_function.compilable_ast = receiver.ast;
+				}
+			}
+		}
+	
+		//Merge class types that have the same enum
+		grammar.compiled.structs = processStructs(class_types, grammar);
+	
+		convertBodyFunctionsToLambdas(grammar);
+	}}".as_bytes();
+
+    let start_laz = time::Instant::now();
+
+    let mut i = 0;
+    let mut scope = 1;
+
+    while scope > 0 {
+        let v = scan_input[i];
+        if v == 123 {
+            scope += 1;
+        } else if v == 125 {
+            scope -= 1;
+        }
+        i += 1;
+    }
+
+    let elapsed = start_laz.elapsed();
+    println!("Elapsed lazy: {:.2?}", elapsed);
     let start = time::Instant::now();
     coz::begin!("recog");
     let (mut valid, mut invalid) = run(
@@ -49,10 +138,10 @@ fn main() {
         input.len(),
         67109064,
     );
+    let elapsed = start.elapsed();
     coz::progress!("apple");
     coz::end!("recog");
     complete(input.as_ptr(), input.len(), &mut valid);
-    let elapsed = start.elapsed();
 
     println!("Elapsed: {:.2?}", elapsed);
 }

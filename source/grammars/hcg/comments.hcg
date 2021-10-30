@@ -2,7 +2,7 @@
 # see /source/typescript/hydrocarbon.ts for full copyright and warranty 
 # disclaimer notice.
 
-# version 5.0
+# version 6.0
 
 <> comment > shell
     | cpp_line
