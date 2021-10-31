@@ -6,7 +6,9 @@
 import { Logger } from '@candlelib/log';
 import URI from '@candlelib/uri';
 import { writeFile } from "fs/promises";
+import { createCPPTypes } from '../asytrip/asytrip_to_cpp.js';
 import { createGoTypes } from '../asytrip/asytrip_to_go.js';
+import { createRustTypes } from '../asytrip/asytrip_to_rust.js';
 import { createTsTypes } from '../asytrip/asytrip_to_ts.js';
 import { ASYTRIPContext } from '../asytrip/types.js';
 import { GrammarObject } from "../types/grammar_nodes.js";
@@ -20,17 +22,55 @@ export interface BuildPack {
 
 const render_logger = Logger.get("MAIN").createLogger("RENDER");
 
-export function renderToCPP(
+export async function renderToCPP(
     { grammar, state_buffer, states_map }: BuildPack,
+    asytrip_context: ASYTRIPContext,
+    path: URI
 ) {
+    const entry_pointers = grammar.productions.filter(p => p.IS_ENTRY)
+        .map(p => ({ name: p.name, pointer: states_map.get(p.name).pointer }));
 
+    let array_row_size = 80;
+
+    await writeFile(URI.resolveRelative("./data.go", path) + "",
+        `package main
+
+var instructions = []uint32  {
+    ${formatArray(state_buffer, array_row_size)}
+}`);
+
+    await writeFile(URI.resolveRelative("./ast.go", path) + "",
+        `package main
+
+${createCPPTypes(grammar, asytrip_context)}`);
 }
 
 
-export function renderToRust(
+export async function renderToRust(
     { grammar, state_buffer, states_map }: BuildPack,
+    asytrip_context: ASYTRIPContext,
+    path: URI
 ) {
+    const entry_pointers = grammar.productions.filter(p => p.IS_ENTRY)
+        .map(p => ({ name: p.name, pointer: states_map.get(p.name).pointer }));
 
+    let array_row_size = 80;
+
+    await writeFile(URI.resolveRelative("./data.rs", path) + "",
+        `
+static instructions: [u32; ${state_buffer.length}] = [
+    ${formatArray(state_buffer, array_row_size)}
+];`);
+
+    await writeFile(URI.resolveRelative("./ast.rs", path) + "",
+        `
+pub enum EntryPoints {
+    ${entry_pointers.map(p => {
+            return `${p.name}:${p.pointer}`;
+        }).join(",\n")}
+}
+
+${createRustTypes(grammar, asytrip_context)}`);
 }
 
 export async function renderToGo(
