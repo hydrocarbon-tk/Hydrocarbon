@@ -1,5 +1,7 @@
 # Creating A Grammar
 
+*7 min read*
+
 A Hydrocarbon grammar file is a document written in a [BNF](https://en.wikipedia.org/wiki/Backus%E2%80%93Naur_form) influenced 
 syntax that describes a parser or set of parsers. Hydrocarbon grammars are modular in that then can be defined in multiple files, 
 productions from different files can be combined in numerous ways, and  multiple sub-grammars that can be exposed as separate parsers 
