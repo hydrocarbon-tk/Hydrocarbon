@@ -9,7 +9,28 @@ normal parse states save for a few notable differences:
 - Scanner states do not generate completer rules
 - Scanner state branches do not utilize the `token` lexer mode. They instead have access to `byte`, `codepoint` and `class` lexer modes.
 - The completion of a scanner parser yields `token_type` and `token_length` values which can then be used by parse states to branch to 
-appropriate states that ultimitally consume the token span.
+appropriate states that ultimately consume the token span.
+
+Recognizer 
+- Streaming Mode
+- Lazy Mode
+- Custom Lexer
+
+```rust
+use candlelib_hydrocarbon::completer::complete;
+use candlelib_hydrocarbon::recognizer::recognize;
+
+let (mut valid, mut invalid) = run(
+        instructions.as_ptr(),
+        instructions.len(),
+        input.as_ptr(),
+        input.len(),
+        67109064,
+    );
+
+complete(input.as_ptr(), input.len(), &mut valid);
+
+```
 
 <!-- Bitfield data -->
 ### Pointer
