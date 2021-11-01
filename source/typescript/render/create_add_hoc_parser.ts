@@ -3,16 +3,14 @@
  * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
  * disclaimer notice.
  */
-import { ParserEnvironment } from '@candlelib/hydrocarbon';
+import { ASYTRIPContext } from '../asytrip/types.js';
 import { createBuildPack } from '../build/build.js';
 import { compileGrammarFromString } from '../grammar/compile.js';
-import { init_table, instruction_pointer_mask, KernelState, KernelStateIterator, run } from '../runtime/kernel_next.js';
-import { ParserFramework } from '../runtime/parser_framework_new.js';
-import { fillByteBufferWithUTF8FromString } from '../runtime/utf8.js';
-import { skRenderAsJavaScript } from '../skribble/skribble.js';
+import { complete } from '../runtime/completer/complete.js';
+import { instruction_pointer_mask } from '../runtime/kernel_next.js';
 import { GrammarObject } from '../types/grammar_nodes';
 import {
-    BuildPack, createActiveTokenSK, renderJavaScriptReduceFunctionLookupArray
+    BuildPack, renderJavaScriptReduceFunctionLookupArray
 } from './render.js';
 
 
@@ -25,10 +23,12 @@ import {
 
 export async function createAddHocParser<T = any>(
     build_pack: BuildPack | string | Promise<BuildPack | string>,
+    asytrip_context?: ASYTRIPContext,
+    js_context?: any
 
 ): Promise<{
-    parse: (input: string, env: ParserEnvironment, production_selector: number) => T[],
-    reverse_state_lookup,
+    parse: (input: string, production_selector: number) => any,
+    rlu,
     grammar: GrammarObject;
 }> {
 
@@ -37,21 +37,26 @@ export async function createAddHocParser<T = any>(
     const test_pack = await build_pack;
 
     if (typeof test_pack == "string") {
-        const { grammar } = await compileGrammarFromString(test_pack);
+
+        const grammar = await compileGrammarFromString(test_pack);
 
         resolved_build_pack = await createBuildPack(grammar);
     } else {
         resolved_build_pack = test_pack;
     }
 
-    const { grammar, state_buffer, sym_map, states_map } = resolved_build_pack;
+    const { grammar, state_buffer, states_map } = resolved_build_pack;
     const entry_pointers = grammar.productions.filter(p => p.IS_ENTRY).map(p => ({ name: p.name, pointer: states_map.get(p.name).pointer }));
     const reverse_state_lookup = new Map([...states_map.entries()].map(([key, val]) => [instruction_pointer_mask & val.pointer, val.string]));
     //Attempt to parse input
 
     const input_string = `
-   
-    const functions = ${renderJavaScriptReduceFunctionLookupArray(grammar)};
+
+    const rfn0 = (_,s)=>s[s.length-1];;
+
+    ${[...js_context.reduce_functions.keys()].map((f, i) => `const rfn${i + 1}=${f};`).join("\n    ")}
+
+    const functions = [${js_context.body_maps.map(b => `rfn${b}`)}];
 
      return { functions };
     `.replace(/_A_([\w\_\d]+)_A_/g,
@@ -60,46 +65,22 @@ export async function createAddHocParser<T = any>(
             return pointer + "";
         });
 
-    let { scan: tk_scan, functions: fns } = (Function(
-        "states_buffer",
-        input_string)
-
-    )(
-        state_buffer
-    );
+    let { functions: fns } = (Function(input_string))();
 
     console.log({
         pt: entry_pointers[0].pointer
     });
 
-    const { parse } = await ParserFramework<T, { null: 0; }, "null">(fns, undefined, {
-
-        init_table: () => {
-            const table = new Uint8Array(382976);
-            init_table(table);
-            return table;
-        },
-        create_iterator: (data: KernelState) => {
-            return new KernelStateIterator(data);
-        },
-        recognize: (string: string, entry_pointer: number) => {
-
-            const temp_buffer = new Uint8Array((string.length + 1) * 4);
-
-            const actual_length = fillByteBufferWithUTF8FromString(string, temp_buffer, temp_buffer.length);
-
-            const input_buffer = new Uint8Array(temp_buffer.buffer, 0, actual_length);
-
-            return run(
-                state_buffer,
-                input_buffer,
-                input_buffer.length,
+    return {
+        parse: (string: string, entry_pointer: number) => {
+            return complete(
+                string,
                 entry_pointers[0].pointer,
-                true
+                state_buffer,
+                fns
             );
-        }
-    });
-
-    return { parse, rlu: reverse_state_lookup, grammar };
+        },
+        rlu: reverse_state_lookup,
+        grammar
+    };
 }
-

@@ -58,7 +58,7 @@ export async function renderToRust(
 
     await writeFile(URI.resolveRelative("./data.rs", path) + "",
         `
-static instructions: [u32; ${state_buffer.length}] = [
+pub static instructions: [u32; ${state_buffer.length}] = [
     ${formatArray(state_buffer, array_row_size)}
 ];`);
 
@@ -115,12 +115,4 @@ export const instructions = new Uint32Array([
     await writeFile(URI.resolveRelative("./ast.ts", path) + "", createTsTypes(grammar, asytrip_context));
 
     console.log({ entry_pointers });
-}
-
-export function renderJavaScriptReduceFunctionLookupArray(grammar: GrammarObject): string {
-    const reduce_functions_str = [...grammar.reduce_functions.keys()].map((b, i) =>
-        b + `/*${i}*/`
-    ).join(",\n");
-
-    return `[(_,s)=>s[s.length-1], ${reduce_functions_str}]`;
 }

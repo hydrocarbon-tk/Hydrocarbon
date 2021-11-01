@@ -1,3 +1,8 @@
+
+
+
+
+
 export const init_table = lu_table => {
     char_lu_table = lu_table;
 };

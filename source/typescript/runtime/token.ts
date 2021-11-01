@@ -192,4 +192,65 @@ export class Token {
     }
 };
 
+export class KernelToken {
 
+    // The type value of this token. A type value of 0 indicates this
+    // token has not yet been assigned a type value
+    type: number;
+
+    byte_offset: number;
+
+    byte_length: number;
+
+    // The offset to the head UTF8 codepoint
+    codepoint_offset: number;
+
+    // The combined number of codepoints with the range covered by this token
+    codepoint_length: number;
+
+    line: number;
+
+    static new(): KernelToken {
+        return new KernelToken(0, 0, 0, 0, 0);
+    }
+
+    constructor(
+        type: number,
+        byte_offset: number,
+        byte_length: number,
+        codepoint_offset: number,
+        codepoint_length: number
+    ) {
+        this.type = type;
+        this.byte_offset = byte_offset;
+        this.byte_length = byte_length;
+        this.codepoint_offset = codepoint_offset;
+        this.codepoint_length = codepoint_length;
+    }
+
+    copy() {
+        const tok = new KernelToken(this.type, this.byte_offset, this.byte_length, this.codepoint_offset, this.codepoint_length);
+
+        tok.line = this.line;
+
+        return tok;
+    }
+
+    clone(token: KernelToken) {
+        this.type = token.type;
+        this.byte_offset = token.byte_offset;
+        this.byte_length = token.byte_length;
+        this.codepoint_offset = token.codepoint_offset;
+        this.codepoint_length = token.codepoint_length;
+        this.line = token.line;
+    }
+
+    reset() {
+        this.type = 0;
+        this.byte_offset = 0;
+        this.byte_length = 0;
+        this.codepoint_offset = 0;
+        this.codepoint_length = 0;
+        this.line = 0;
+    }
+}

@@ -2,7 +2,7 @@ import {
     KernelStateBuffer,
     run
 } from './kernel_next.js';
-import { fillByteBufferWithUTF8FromString } from './utf8.js';
+import { fillByteBufferWithUTF8FromString } from './common/utf8.js';
 
 export function recognize(
     instructions: Uint32Array,

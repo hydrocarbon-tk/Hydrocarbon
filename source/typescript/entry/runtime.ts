@@ -18,7 +18,7 @@ export { ParserFramework } from '../runtime/parser_framework.js';
 //Runtime - Hybrid
 import { initializeUTFLookupTable, initializeUTFLookupTableNewPlus } from "../runtime/parser_memory_new.js";
 import { Token } from "../runtime/token.js";
-import { fillByteBufferWithUTF8FromString } from "../runtime/utf8.js";
+import { fillByteBufferWithUTF8FromString } from "../runtime/common/utf8.js";
 import { HCGParser } from "../types/parser.js";
 //Diagnostics
 import { ParserEnvironment } from "../types/parser_environment.js";

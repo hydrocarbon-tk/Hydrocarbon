@@ -1,29 +1,31 @@
 import { traverse } from "@candlelib/conflagrate";
 import { exp, JSNodeClass, JSNodeType, renderCompressed } from "@candlelib/js";
 import { ir_reduce_numeric_len_id } from '../../build/magic_numbers.js';
-import { ReferencedFunction, GrammarObject, ReferencedFunction, ProductionFunction, HCG3Symbol } from "../../types/grammar_nodes";
+import { ReferencedFunction, GrammarObject, ProductionFunction, HCG3Symbol } from "../../types/grammar_nodes";
 import { InstructionType, IR_Instruction } from '../../types/ir_types';
 
 
 export function createJSFunctionsFromExpressions(grammar: GrammarObject, error) {
     // Reset the reduce_functions lookup to prepare the grammar for output
     // to JavaScript/TypeScript format. 
-    grammar.reduce_functions = <Map<string, { id: number; data: any; }>>new Map();
+    const reduce_functions = <Map<string, { id: number; data: any; }>>new Map();
+    const body_maps = [];
 
     for (const production of grammar.productions) {
 
+        if (production.type == "scanner-production")
+            continue;
 
         for (const body of production.bodies) {
 
 
             const { fn, js } = processReduceFunction(body.reduce_function, body.sym);
 
-            if (!js) {
-                body.reduce_id = -1;
-                body.reduce_function = null;
+
+            if (js) {
+                body_maps[body.id] = addReduceFNStringToLUT(reduce_functions, js);
             } else {
-                body.reduce_id = addReduceFNStringToLUT(grammar, js) + 1;
-                body.reduce_function = fn;
+                body_maps[body.id] = 0;
             }
         }
     }
@@ -37,6 +39,8 @@ export function createJSFunctionsFromExpressions(grammar: GrammarObject, error) 
             fail_state = fail_state.fail;
         }
     }
+
+    return { reduce_functions, body_maps };
 
 }
 
@@ -229,14 +233,18 @@ function processReduceFunction(
     return { fn, js };
 }
 
-export function addReduceFNStringToLUT(grammar: GrammarObject, txt: string = null, data = null): number {
+export function addReduceFNStringToLUT(
+    reduce_functions: Map<string, { id: number; data: any; }>,
+    txt: string = null,
+    data = null
+): number {
 
     if (txt) {
 
-        if (!grammar.reduce_functions.has(txt))
-            grammar.reduce_functions.set(txt, { id: grammar.reduce_functions.size, data });
+        if (!reduce_functions.has(txt))
+            reduce_functions.set(txt, { id: reduce_functions.size, data });
 
-        return grammar.reduce_functions.get(txt).id;
+        return reduce_functions.get(txt).id;
 
     } else
         return -1;

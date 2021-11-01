@@ -7,6 +7,7 @@
 import { Lexer, init_table, compare } from "./kernel_lexer.js";
 import { i32, u32 } from "../types/ir_types";
 import { Logger } from '@candlelib/log';
+import { inherits } from 'util';
 
 export { init_table, compare };
 
@@ -1292,3 +1293,4 @@ export function run(
 
     return { invalid, valid };
 };;
+

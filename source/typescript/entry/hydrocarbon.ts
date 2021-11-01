@@ -26,7 +26,7 @@ import { ParserFactory as ParserFactoryBeta } from "../runtime/parser_loader_bet
 import { ParserFactory as ParserFactoryGamma } from "../runtime/parser_loader_gamma.js";
 import { ParserFactory as ParserFactoryNext } from "../runtime/parser_loader_next.js";
 import { Token } from "../runtime/token.js";
-import { fillByteBufferWithUTF8FromString } from "../runtime/utf8.js";
+import { fillByteBufferWithUTF8FromString } from "../runtime/common/utf8.js";
 export * as ParserCore from "../runtime/core_parser.js";
 export * as KernelParserCore from "../runtime/kernel.js";
 export * as KernelParserCore2 from "../runtime/kernel_new.js";
