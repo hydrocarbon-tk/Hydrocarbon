@@ -479,25 +479,14 @@ function insertInstructionSequences(
                     let sym_len = +data[++i];
 
                     if (sym_len == ir_reduce_numeric_len_id) {
-                        sym_len = 0xFFFF;
-
                         let reduce_fn_id = +data[++i];
 
-                        temp_buffer.push(4 << 28 | reduce_fn_id << 16 | sym_len & 0xFFFF);
+                        temp_buffer.push(4 << 28 | reduce_fn_id << 16 | 0xFFFF);
                     } else {
-                        let low = 0;
-                        let high = 0;
 
                         let reduce_fn_id = +data[++i];
 
-                        if (reduce_fn_id > 0xFF || sym_len > 0x1F) {
-                            low = 4 | (reduce_fn_id << 3);
-                            high = sym_len;
-                        } else {
-                            low = ((sym_len & 0x1F) << 3) | ((reduce_fn_id & 0xFF) << 8);
-                        };
-
-                        temp_buffer.push(4 << 28 | high << 16 | low);
+                        temp_buffer.push(4 << 28 | sym_len << 16 | reduce_fn_id);
                     }
 
                 } break;

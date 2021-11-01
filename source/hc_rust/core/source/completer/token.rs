@@ -1,27 +1,13 @@
-use std::slice;
-
 #[derive(Debug, Copy, Clone)]
 pub struct Token {
-    pub input: &'static [u8],
-    input_len: usize,
     length: usize,
     offset: usize,
     _line: usize,
-    //path: string,
 }
 
 impl Token {
-    pub fn new(
-        input_buffer: *const u8,
-        input_length: usize,
-        length: usize,
-        offset: usize,
-        line: usize,
-    ) -> Token {
-        let input: &[u8] = unsafe { slice::from_raw_parts(input_buffer, input_length) };
+    pub fn new(length: usize, offset: usize, line: usize) -> Token {
         Token {
-            input,
-            input_len: input_length,
             length,
             offset,
             _line: line,
@@ -34,8 +20,6 @@ impl Token {
 
     pub fn token_from_range(start: Token, end: Token) -> Token {
         return Token {
-            input: start.input,
-            input_len: start.input_len,
             length: end.offset - start.offset + end.length,
             offset: start.offset,
             _line: start._line,
@@ -74,7 +58,7 @@ impl Token {
         (start as usize, end as usize)
     }
 
-    fn get_range(&self, start: i32, end: i32) -> (usize, usize, usize, usize) {
+    fn get_range(&self, input: &[u8], start: i32, end: i32) -> (usize, usize, usize, usize) {
         let (adjusted_start, adjusted_end) = self.get_slice_range(start, end);
 
         let start_line = self._line;
@@ -83,7 +67,7 @@ impl Token {
 
         for i in (1..=adjusted_start).rev() {
             start_col += 1;
-            if self.input[i] == 10 {
+            if input[i] == 10 {
                 break;
             }
         }
@@ -91,7 +75,7 @@ impl Token {
         let mut end_col = start_col;
 
         for i in adjusted_start..adjusted_end {
-            if self.input[i] == 10 {
+            if input[i] == 10 {
                 end_line += 1;
                 end_col = 0;
             }
@@ -102,17 +86,20 @@ impl Token {
         (start_line, start_col, end_line, end_col)
     }
 
-    fn slice<'a>(&self, start: i32, end: i32) -> &'a [u8] {
+    fn slice<'a>(&self, input: &'a [u8], start: i32, end: i32) -> &'a [u8] {
         let (adjusted_start, adjusted_end) = self.get_slice_range(start, end);
 
-        return &self.input[adjusted_start..adjusted_end];
+        return &input[adjusted_start..adjusted_end];
     }
 
-    fn string<'a>(&self) -> &'a str {
+    fn string<'a>(&self, input: &'a [u8]) -> &'a str {
         use std::str;
 
-        let result =
-            str::from_utf8(self.slice(self.offset as i32, (self.offset + self.length) as i32));
+        let result = str::from_utf8(self.slice(
+            input,
+            self.offset as i32,
+            (self.offset + self.length) as i32,
+        ));
 
         if let Ok(string) = result {
             string

@@ -227,8 +227,6 @@ export interface GrammarObject extends HCGGrammarNode {
 
     bodies?: HCG3ProductionBody[];
 
-    reduce_functions: Map<string, { id: number, data: any; }>;
-
     production_hash_lookup?: any;
     /**
      * Properties for producing a JS/TS/WASM module
