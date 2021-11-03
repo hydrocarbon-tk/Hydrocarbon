@@ -20,7 +20,7 @@ syntax that allows separation of language description and parse actions.
 - Modular Grammars
 - Custom Lexers 
 - Multiple Language Targets
-- Arbitrary Grammar Entrypoints
+- Arbitrary Parser Entry-points
 - Rich parser diagnostics
 - Native UTF8 support
 
