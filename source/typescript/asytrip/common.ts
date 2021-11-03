@@ -85,6 +85,8 @@ export function parseAsytripStruct(
             }
         }
     } else {
+
+
         const struct = {
             name: type_name,
             classes: classes,
@@ -106,6 +108,7 @@ function extractPropInfo(
     val: JSRightHandExpressionClass,
     properties: Map<string, ASYTRIPProperty>
 ) {
+
     const property: ASYTRIPProperty = getPropertyFromExpression(
         body,
         val,
@@ -113,7 +116,6 @@ function extractPropInfo(
     );
 
     property.name = name;
-
     // Can be: STRING, Reference, Double, or a simple expression 
     // comprised of a set of those values;
     // 
@@ -139,6 +141,11 @@ export function getPropertyFromExpression(
     );
 
     prop.types = [out_type];
+
+
+
+    if (prop.types.some(t => !t))
+        debugger;
 
     return prop;
 }
@@ -187,7 +194,8 @@ function parseExpression(
             }
             if (sym) {
                 if (Sym_Is_A_Production(sym)) {
-                    return { type: ASYTRIPType.PRODUCTION, val: sym.val, arg_pos: index, args: [] };
+
+                    return { type: ASYTRIPType.PRODUCTION, val: sym.val, arg_pos: index, args: [], tok: tok.token_slice(node.pos.off, node.pos.off + node.pos.len) };
                 } else {
                     return { type: ASYTRIPType.TOKEN, arg_pos: index };
                 }
@@ -392,11 +400,14 @@ function parseExpression(
     } else {
         throwAsytripTokenError(tok, node, "ASYTRIP_Invalid_Expression");
     }
+
+    debugger;
 }
 export function getResolvedType(
     node: ASYTRIPTypeObj[ASYTRIPType],
     context: ASYTRIPContext,
-    _structs: Set<string> = new Set
+    _structs: Set<string> = new Set,
+    productions: any[] = []
 ): ASYTRIPTypeObj[ASYTRIPType][] {
     if (node)
         switch (node.type) {
@@ -415,13 +426,13 @@ export function getResolvedType(
                 return [{ type: ASYTRIPType.STRING, val: "" }];
             case ASYTRIPType.VECTOR: {
                 const types = node.types
-                    .flatMap(a => getResolvedType(a, context, _structs))
+                    .flatMap(a => getResolvedType(a, context, _structs, productions))
                     .setFilter(JSONFilter);
 
                 return [{ type: ASYTRIPType.VECTOR, args: [], types, arg_pos: node.arg_pos }];
             }
             case ASYTRIPType.STRUCT_PROP_REF: {
-                const values = getResolvedType(node.struct, context);
+                const values = getResolvedType(node.struct, context, undefined, productions);
                 const structs = values.filter(TypeIsStruct);
                 if (structs.length == 0) {
                     throw new Error("Structs undefined");
@@ -436,7 +447,7 @@ export function getResolvedType(
                     const prop = struct.properties.get(node.property);
 
                     if (prop) {
-                        const vals = prop.types.flatMap(c => getResolvedType(c, context, _structs));
+                        const vals = prop.types.flatMap(c => getResolvedType(c, context, _structs, productions));
 
                         results.push(...vals);
                     }
@@ -447,29 +458,31 @@ export function getResolvedType(
             case ASYTRIPType.EXPRESSIONS:
                 return getResolvedType(
                     node.expressions[node.expressions.length - 1],
-                    context
+                    context,
+                    undefined,
+                    productions
                 );
             case ASYTRIPType.VECTOR_PUSH:
                 const types = node.vector.args.slice();
                 const args = node.args.slice();
 
                 types.push(...args);
+
                 const results = types
-                    .flatMap(v => getResolvedType(v, context))
+                    .flatMap(v => getResolvedType(v, context, undefined, productions))
                     .setFilter(JSONFilter);
 
-                if (args.length == 0)
-                    debugger;
                 return [{ type: ASYTRIPType.VECTOR, args: results, types: results }];
             case ASYTRIPType.PRODUCTION:
                 const val = node.val;
                 if (!context.resolved_return_types.has(val)) {
                     context.resolved_return_types.set(val, []);
                     const results = context.return_types.get(val)
-                        .flatMap(v => getResolvedType(v, context))
+                        .flatMap(v => getResolvedType(v, context, undefined, productions))
                         .setFilter(JSONFilter);
                     context.resolved_return_types.set(val, results);
                 }
+                productions.push(node);
                 return context.resolved_return_types.get(val);
 
             case ASYTRIPType.ADD:
@@ -483,10 +496,10 @@ export function getResolvedType(
 
 
                 if (left.type == ASYTRIPType.ADD)
-                    return getResolvedType(left, context);
+                    return getResolvedType(left, context, undefined, productions);
 
-                const l = getResolvedType(left, context);
-                const r = getResolvedType(right, context);
+                const l = getResolvedType(left, context, undefined, productions);
+                const r = getResolvedType(right, context, undefined, productions);
 
                 if (TypesInclude(l, TypeIsVector))
                     return l.filter(TypeIsVector);
@@ -504,19 +517,20 @@ export function getResolvedType(
 
             case ASYTRIPType.OR:
                 return [
-                    ...getResolvedType(node.left, context, _structs),
-                    ...getResolvedType(node.right, context, _structs)
+                    ...getResolvedType(node.left, context, _structs, productions),
+                    ...getResolvedType(node.right, context, _structs, productions)
                 ].setFilter(JSONFilter);
 
             case ASYTRIPType.TERNARY:
                 return [
-                    ...getResolvedType(node.left, context, _structs),
-                    ...getResolvedType(node.right, context, _structs)
+                    ...getResolvedType(node.left, context, _structs, productions),
+                    ...getResolvedType(node.right, context, _structs, productions)
                 ].setFilter(JSONFilter);
         }
 
     return [];
 }
+
 function extractTypeInfo(
     val: JSRightHandExpressionClass,
     tok: Token,
@@ -548,7 +562,9 @@ function extractTypeInfo(
                     type_name = name;
                     asytrip_context.type_names.add(name);
                 } else {
-                    throwAsytripTokenError(tok, node, "ASYTRIP_Invalid_Type_Value");
+                    throwAsytripTokenError(tok, node,
+                        InvalidTypeSpecifier
+                    );
                 }
         }
     }
@@ -570,7 +586,7 @@ export function TypesRequiresDynamic(types: ASYTRIPTypeObj[ASYTRIPType][]): bool
             return false;
     }
 
-    return true;
+    return types.setFilter(t => t.type).length > 1;
 }
 export function TypesInclude<T, B>(types: (T | B)[], fn: (d: (B | T)) => d is B): boolean {
     return types.some(fn);
@@ -612,3 +628,7 @@ export function TypeIsNull(t: ASYTRIPTypeObj[ASYTRIPType]): t is ASYTRIPTypeObj[
 export function TypeIsNotNull(t: ASYTRIPTypeObj[ASYTRIPType]) {
     return !TypeIsNull(t);
 }
+
+
+const InvalidTypeSpecifier =
+    "ASYTRIP_Invalid_Type_Value:\n Expected either a type specifier [ t_[\\d\\w\_]+ ] \n or a class specifier [ c_[\\d\\w\_]+ ]";

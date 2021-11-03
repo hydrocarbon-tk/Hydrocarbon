@@ -33,7 +33,7 @@ func main() {
 		if ok {
 			hc_completer.IterateHCObj(r, func(node hc_completer.HCNode, par hc_completer.HCNode) {
 
-				//log.Println(node.String())
+				log.Println(node.String())
 			})
 		}
 	}

@@ -1,14 +1,20 @@
-use super::token::Token;
-use crate::{ByteReader, StateIterator};
+use std::{cell::UnsafeCell, fmt::Debug};
 
-pub fn complete<T: 'static + ByteReader>(
+use super::token::Token;
+use crate::{
+    ast::{HCObj, ReduceFunction},
+    ByteReader, StateIterator,
+};
+
+pub fn complete<T: 'static + ByteReader, Node: Debug>(
     mut reader: T,
     bytecode: &'static [u32],
     entry_pointer: u32,
-    //invalid: &mut KernelStateBuffer,
-) -> Result<Token, String> {
+    fns: &[ReduceFunction<Node>],
+) -> Result<HCObj<Node>, String> {
     let mut iterator = StateIterator::new(reader, bytecode, entry_pointer, false);
     let mut tokens: Vec<Token> = Vec::with_capacity(8);
+    let mut nodes: Vec<HCObj<Node>> = Vec::with_capacity(8);
     let mut stack_pointer: usize = 0;
     let mut token_offset: usize = 0;
     loop {
@@ -28,7 +34,7 @@ pub fn complete<T: 'static + ByteReader>(
                 return Err(String::from("Fork"));
             }
             crate::ParseAction::ACCEPT {} => {
-                return Ok(tokens.remove(0));
+                return Ok(nodes.remove(0));
             }
             crate::ParseAction::REDUCE {
                 body,
@@ -51,11 +57,9 @@ pub fn complete<T: 'static + ByteReader>(
                     tokens.set_len(root + 1);
                 }
 
-                /* let range = stack
-                .drain((stack_pointer - len)..(stack_pointer))
-                .collect(); */
+                let node = fns[body as usize](&mut nodes, token);
 
-                //stack.push(reduce_functions[body](range, len as u32));
+                nodes.push(node);
 
                 stack_pointer = stack_pointer - len + 1;
             }
@@ -64,9 +68,11 @@ pub fn complete<T: 'static + ByteReader>(
                 line,
                 token_type,
             } => {
-                let tok = Token::new(length as usize, token_offset, line as usize);
+                let tok = Token::new(length, token_offset as u32, line);
 
-                //stack.push(tok);
+                let node = HCObj::TOKEN(tok);
+
+                nodes.push(node);
 
                 tokens.push(tok);
 

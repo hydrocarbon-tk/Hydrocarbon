@@ -1,7 +1,3 @@
-use std::iter::Scan;
-
-use crate::UTF8StringReader;
-
 use super::reader::ByteReader;
 use super::stack::KernelStack;
 
@@ -163,7 +159,7 @@ impl<T: ByteReader> StateIterator<T> {
                         return ParseAction::TOKEN { token };
                     }
 
-                    if self.reader.END() {
+                    if self.reader.offsetAtEND(self.tokens[1].byte_offset) {
                         return ParseAction::ACCEPT {};
                     } else {
                         return ParseAction::ERROR {
@@ -171,12 +167,18 @@ impl<T: ByteReader> StateIterator<T> {
                         };
                     }
                 } else {
-                    let mask_gate = normal_state_mask << fail_mode;
+                    // let mask_gate = normal_state_mask << fail_mode;
 
-                    if (mask_gate & state) != 0 {
-                        fail_mode = self.instruction_executor(state, fail_mode);
-                        //coz::progress!();
-                    }
+                    let mask_mult_gate = 26 + fail_mode;
+
+                    let entry = (state >> mask_mult_gate) & 0x1;
+
+                    //if (mask_gate & state) != 0 {
+                    fail_mode = self.instruction_executor(state * entry, fail_mode);
+                    //coz::progress!();
+                    //} else {
+                    //    dbg!(1);
+                    //}
                 }
             }
         }
@@ -188,82 +190,70 @@ impl<T: ByteReader> StateIterator<T> {
     fn instruction_executor(&mut self, state_pointer: u32, fail_mode: u32) -> u32 {
         let mut index = (state_pointer & state_index_mask) as usize;
 
-        let recover_data = 0; //self.stack.meta_stack[(self.stack.stack_pointer as usize) + 1];
-
         loop {
-            let instruction = self.bytecode[index];
-
-            index += 1;
-
-            match ((instruction >> 28) & 0xF) as u8 {
-                1 => {
-                    index = self.consume(index, instruction, fail_mode);
+            match self.bytecode[index] & 0xF0000000 as u32 {
+                0x10000000 => {
+                    index = self.consume(index, fail_mode);
                 }
 
-                2 => {
-                    index = self.goto(index, instruction, fail_mode);
+                0x20000000 => {
+                    index = self.goto(index, fail_mode);
                 }
 
-                3 => {
-                    index = self.set_production(index, instruction, fail_mode);
+                0x30000000 => {
+                    index = self.set_production(index, fail_mode);
                 }
 
-                4 => {
-                    index = self.reduce(index, instruction, fail_mode);
+                0x40000000 => {
+                    index = self.reduce(index, fail_mode);
                 }
 
-                5 => {
-                    index = self.set_token(index, instruction, fail_mode);
+                0x50000000 => {
+                    index = self.set_token(index, fail_mode);
                 }
 
-                6 => {
-                    index = self.fork(index, instruction, fail_mode);
+                0x60000000 => {
+                    index = self.fork(index, fail_mode);
                 }
 
-                7 => {
-                    index = self.scan_to(index, instruction, fail_mode);
+                0x70000000 => {
+                    index = self.scan_to(index, fail_mode);
                 }
 
-                8 => {
-                    index = self.noop(index, instruction, fail_mode);
+                0x80000000 => {
+                    index = self.noop(index, fail_mode);
                 }
 
-                9 => {
-                    index = self.index_jump(index, instruction, fail_mode);
+                0x90000000 => {
+                    index = self.index_jump(index, fail_mode);
                 }
 
-                10 => {
-                    index = self.hash_jump(index, instruction, fail_mode);
+                0xA0000000 => {
+                    index = self.hash_jump(index, fail_mode);
                 }
 
-                11 => {
-                    self.push_fail_state(index, instruction, fail_mode);
+                0xB0000000 => {
+                    index = self.push_fail_state(index, fail_mode);
                 }
 
-                12 => {
-                    index = self.repeat(index, instruction, fail_mode);
+                0xC0000000 => {
+                    index = self.repeat(index, fail_mode);
                 }
 
-                13 => {
-                    index = self.noop(index, instruction, fail_mode);
+                0xD0000000 => {
+                    index = self.noop(index, fail_mode);
                 }
 
-                14 => {
-                    index = self.noop(index, instruction, fail_mode);
+                0xE0000000 => {
+                    index = self.noop(index, fail_mode);
                 }
 
-                15 => {
-                    index = self.advanced_return(index, instruction, fail_mode);
+                0xF0000000 => {
+                    return self.advanced_return(index, fail_mode) as u32;
                 }
-                0 | _ => {
-                    index = self.pass(index, instruction, fail_mode);
+                0x00000000 | _ => {
+                    return self.pass(index + 1, fail_mode) as u32;
                 }
-            }
-
-            //coz::progress!();
-
-            if index < 2 {
-                return index as u32;
             }
         }
     } //*/
@@ -271,6 +261,8 @@ impl<T: ByteReader> StateIterator<T> {
         let index = self.action_buffer_end;
 
         self.action_buffer_end = (index + 1) & 0x7;
+
+        debug_assert!(self.action_buffer_end != self.action_buffer_start);
 
         self.buffer[index] = action;
     }
@@ -301,45 +293,6 @@ impl<T: ByteReader> StateIterator<T> {
             length: symbol_length,
             production: self.production_id,
         });
-    }
-
-    const INSTR: [fn(&mut StateIterator<T>, usize, u32, u32) -> usize; 16] = [
-        StateIterator::pass,
-        StateIterator::consume,
-        StateIterator::goto,
-        StateIterator::set_production,
-        StateIterator::reduce,
-        StateIterator::set_token,
-        StateIterator::fork,
-        StateIterator::scan_to,
-        StateIterator::noop,
-        StateIterator::index_jump,
-        StateIterator::hash_jump,
-        StateIterator::push_fail_state,
-        StateIterator::repeat,
-        StateIterator::noop,
-        StateIterator::noop,
-        StateIterator::advanced_return,
-    ];
-
-    fn instruction_executor2(&mut self, state_pointer: u32, fail_mode: u32) -> u32 {
-        let mut index = (state_pointer & state_index_mask) as usize;
-
-        loop {
-            let instruction = self.bytecode[index];
-
-            index += 1;
-
-            let val = (instruction >> 28) as usize;
-
-            index = StateIterator::INSTR[val](self, index, instruction, fail_mode);
-
-            //coz::progress!();
-
-            if index < 2 {
-                return index as u32;
-            }
-        }
     }
 
     pub fn scanner(
@@ -391,23 +344,34 @@ impl<T: ByteReader> StateIterator<T> {
         current_token
     }
 
-    fn noop(&mut self, mut index: usize, ___: u32, _: u32) -> usize {
+    fn noop(&mut self, mut index: usize, _: u32) -> usize {
         return index;
     }
 
-    fn pass(&mut self, mut __: usize, ___: u32, _: u32) -> usize {
+    fn pass(&mut self, mut __: usize, _: u32) -> usize {
         return 0;
     }
 
-    fn goto(&mut self, mut index: usize, instruction: u32, _: u32) -> usize {
+    fn goto(&mut self, mut index: usize, a: u32) -> usize {
+        let instruction = self.bytecode[index];
+
         self.stack.push_state(instruction);
+
+        index += 1;
+
+        if (self.bytecode[index] & 0xF0000000) == 0x20000000 {
+            return self.goto(index, a);
+        }
 
         index
     }
 
-    fn consume(&mut self, mut index: usize, instruction: u32, _: u32) -> usize {
+    fn consume(&mut self, mut index: usize, _: u32) -> usize {
         let mut token = self.tokens[1];
+
         let prev = self.tokens[0];
+
+        let instruction = self.bytecode[index];
 
         if (instruction & 1) != 0 {
             token.cp_length = 0;
@@ -447,10 +411,11 @@ impl<T: ByteReader> StateIterator<T> {
 
         self.tokens[1] = token;
 
-        index
+        index + 1
     }
 
-    fn reduce(&mut self, mut index: usize, instruction: u32, recover_data: u32) -> usize {
+    fn reduce(&mut self, mut index: usize, recover_data: u32) -> usize {
+        let instruction = self.bytecode[index];
         let body_id = (instruction) & 0xFFFF;
         let length = (instruction >> 16) & 0xFFF;
 
@@ -467,24 +432,33 @@ impl<T: ByteReader> StateIterator<T> {
             self.emitReduce(length, body_id);
         }
 
-        index
+        index += 1;
+
+        //TODO: ASSERT the production is ALWAYS set after a reduction
+        if (self.bytecode[index] & 0xF0000000) == 0x30000000 {
+            self.set_production(index, recover_data)
+        } else {
+            index
+        }
     }
 
-    fn set_production(&mut self, mut index: usize, instruction: u32, _: u32) -> usize {
+    fn set_production(&mut self, mut index: usize, _: u32) -> usize {
+        let instruction = self.bytecode[index];
         self.production_id = instruction & 0xFFFFFFF;
-
-        index
+        index + 1
     }
 
-    fn repeat(&mut self, mut index: usize, instruction: u32, _: u32) -> usize {
+    fn repeat(&mut self, mut index: usize, _: u32) -> usize {
+        let instruction = self.bytecode[index];
         let origin_offset = 0xFFFFFFF & instruction;
 
         index -= origin_offset as usize;
 
-        index
+        index + 1
     }
 
-    fn push_fail_state(&mut self, mut index: usize, instruction: u32, _: u32) -> usize {
+    fn push_fail_state(&mut self, mut index: usize, _: u32) -> usize {
+        let instruction = self.bytecode[index];
         let fail_state_pointer = instruction;
 
         let current_state = self.stack.read_state() & instruction_pointer_mask;
@@ -496,30 +470,27 @@ impl<T: ByteReader> StateIterator<T> {
             self.stack.swap_state(fail_state_pointer);
         }
 
-        index
+        index + 1
     }
 
-    fn set_token(&mut self, mut index: usize, instruction: u32, _: u32) -> usize {
-        let length = instruction & 0xFFFFFF;
-
+    fn set_token(&mut self, mut index: usize, _: u32) -> usize {
+        let instruction = self.bytecode[index];
+        let val = instruction & 0xFFFFFF;
         let token = &mut self.tokens[1];
-
         if (instruction & 0x08000000) != 0 {
-            let data = self.bytecode;
-
-            self.tokens[0].typ = data[index] as u16;
-
-            index += 1;
+            self.tokens[0].typ = val as u16;
         } else {
-            token.cp_length = length;
+            token.cp_length = val;
 
-            token.byte_length = length;
+            token.byte_length = val;
         }
 
-        index
+        index + 1
     }
 
-    fn advanced_return(&mut self, mut index: usize, instruction: u32, fail_mode: u32) -> usize {
+    fn advanced_return(&mut self, mut index: usize, fail_mode: u32) -> usize {
+        let instruction = self.bytecode[index];
+
         if (instruction & 1) != 0 {
             return fail_mode as usize;
         }
@@ -533,11 +504,12 @@ impl<T: ByteReader> StateIterator<T> {
         1 /* true */
     }
 
-    fn fork(&mut self, mut index: usize, instruction: u32, _: u32) -> usize {
-        index
+    fn fork(&mut self, mut index: usize, _: u32) -> usize {
+        let instruction = self.bytecode[index];
+        0
     }
 
-    fn scan_to(&mut self, mut index: usize, instruction: u32, _: u32) -> usize {
+    fn scan_to(&mut self, mut index: usize, _: u32) -> usize {
         /* let length = instruction & 0xFFFF;
 
         let scanner_start_pointer = self.bytecode[index];
@@ -615,16 +587,18 @@ impl<T: ByteReader> StateIterator<T> {
         index
     }
 
-    fn hash_jump(&mut self, mut index: usize, instruction: u32, _: u32) -> usize {
+    fn hash_jump(&mut self, mut index: usize, _: u32) -> usize {
+        let instruction = self.bytecode[index];
+
         let input_type = (instruction >> 22) & 0x7;
 
         let token_transition = (instruction >> 26) & 0x3;
 
-        let scanner_start_pointer = self.bytecode[index];
+        let scanner_start_pointer = self.bytecode[index + 1];
 
-        let table_data = self.bytecode[index + 1];
+        let table_data = self.bytecode[index + 2];
 
-        index += 2;
+        index += 3;
 
         let modulus = (1 << ((table_data >> 16) & 0xFFFF)) - 1;
 
@@ -652,9 +626,7 @@ impl<T: ByteReader> StateIterator<T> {
                 let instruction_start = (cell >> 11) & 0x7FF;
 
                 return (instruction_field_start + instruction_start) as usize;
-            }
-
-            if next == 0 {
+            } else if next == 0 {
                 //Failure
                 return (instruction_field_size + instruction_field_start) as usize;
             }
@@ -663,12 +635,14 @@ impl<T: ByteReader> StateIterator<T> {
         }
     }
 
-    fn index_jump(&mut self, mut index: usize, instruction: u32, _: u32) -> usize {
-        let scanner_start_pointer = self.bytecode[index];
+    fn index_jump(&mut self, mut index: usize, _: u32) -> usize {
+        let instruction = self.bytecode[index];
 
-        let table_data = self.bytecode[index + 1];
+        let scanner_start_pointer = self.bytecode[index + 1];
 
-        index += 2;
+        let table_data = self.bytecode[index + 2];
+
+        index += 3;
 
         let basis__ = instruction & 0xFFFF;
 

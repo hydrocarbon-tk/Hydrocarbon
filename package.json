@@ -46,7 +46,9 @@
         "@candlelib/wind": "0.5.4"
     },
     "devDependencies": {
-        "@types/node": "^16.4.13"
+        "@types/node": "^16.4.13",
+        "bit-field": "^1.5.3",
+        "onml": "^2.1.0"
     },
     "eslintConfig": {
         "parserOptions": {

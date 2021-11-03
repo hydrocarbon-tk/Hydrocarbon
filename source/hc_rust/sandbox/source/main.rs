@@ -1,33 +1,73 @@
 use std::time;
+mod ast;
 mod data;
 
-use candlelib_hydrocarbon::{completer, UTF8StringReader};
+use candlelib_hydrocarbon::{ast::HCObj, completer, UTF8StringReader};
+
+use crate::ast::{ASTNodeTraits, NodeIteration};
 
 fn main() {
     //coz::thread_init();
-    let input = "two s three ";
+    let input = "two+three two two one";
+
+    for i in 0..100000 {
+        let mut result = completer(
+            UTF8StringReader::new(&input.as_bytes()),
+            &data::Bytecode,
+            data::EntryPoint_Start,
+            &ast::FunctionMaps,
+        );
+    }
 
     //*
-    for i in 0..1000000 {
-        let result = completer(
-            UTF8StringReader::new(&input.as_bytes()),
-            &data::instructions,
-            67108956,
-        );
-        /* if let Ok(lex) = result {
-            println!("{:?}", lex)
-        } */
-    } //*/
+    /*
     let start = time::Instant::now();
-    let result = completer(
-        UTF8StringReader::new(&input.as_bytes()),
-        &data::instructions,
-        67108956,
-    );
+
+    let reader = UTF8StringReader::new(&input.as_bytes());
+
     let elapsed = start.elapsed();
 
-    println!("Elapsed: {:?}", elapsed);
-    if let Ok(lex) = result {
-        println!("{:?}", lex)
+    println!("SR: {:?}", elapsed); */
+
+    let start2 = time::Instant::now();
+
+    let mut result = completer(
+        UTF8StringReader::new(&input.as_bytes()),
+        &data::Bytecode,
+        data::EntryPoint_Start,
+        &ast::FunctionMaps,
+    );
+
+    let elapsed2 = start2.elapsed();
+
+    println!("PARSE: {:?}", elapsed2);
+
+    if let Ok(node) = &mut result {
+        dbg!(&node);
+        use HCObj::*;
+        match node {
+            NODE(node) => {
+                use ast::ASTNode::*;
+                match node {
+                    ROOT(root) => {
+                        root.iterator(&mut |a, b| {
+                            use ast::ASTNode::*;
+                            use NodeIteration::*;
+
+                            match b {
+                                NodeIteration::ROOT(a) => {}
+                                _ => {}
+                            }
+
+                            CONTINUE
+                        });
+                    }
+                    _ => {}
+                }
+            }
+            _ => {}
+        }
+
+        //println!("{:?}", lex)
     }
 }

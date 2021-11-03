@@ -1,6 +1,6 @@
 
 import { Token } from '../runtime/token';
-import { ReferencedFunction, ReferencedFunction, ProductionFunction, ProductionImportSymbol, ProductionSymbol, TokenSymbol } from './grammar_nodes';
+import { ReferencedFunction, ProductionFunction, ProductionImportSymbol, ProductionSymbol, TokenSymbol } from './grammar_nodes';
 
 export type i32 = number;
 type bit = number;
@@ -54,7 +54,6 @@ export const enum InstructionType {
     fork_to = "fork-to",
     scan_until = "scan-until",
     scan_back_until = "scan-back-until",
-    pop = "pop",
     on_fail = "on-fail",
     token_length = "token-length",
     token_id = "token-id",
@@ -99,7 +98,7 @@ export interface IRProdAssert extends IRAssert {
 export interface IRInlineAssert extends Base_IR_Instruction {
     type: InstructionType.inline_assert;
     mode: "PRODUCTION" | "TOKEN" | "BYTE" | "CODEPOINT" | "CLASS";
-    id: number,
+    ids: number[],
     token_ids: number[];
     skipped_ids: number[];
 }
@@ -142,11 +141,6 @@ export interface IRConsume extends Base_IR_Instruction {
 export interface IRScanBackTo extends Base_IR_Instruction {
     type: InstructionType.scan_back_until;
     ids: (number | TokenSymbol)[];
-}
-
-export interface IRPop extends Base_IR_Instruction {
-    type: InstructionType.pop;
-    len: number;
 }
 
 export interface IRSetScope extends Base_IR_Instruction {
@@ -209,7 +203,6 @@ export type IR_Instruction = IRConsume |
     IRReduce |
     IRScanTo |
     IRScanBackTo |
-    IRPop |
     IRSetTokenID |
     IRSetTokenLength |
     IRPass |
@@ -225,10 +218,77 @@ export type IR_Instruction = IRConsume |
 
 export interface BlockData {
     number_of_elements: number,
-    instruction_sequence: any[][];
+    instruction_sequence: Instruction[];
     total_size: number;
 }
 
 export type IRNode =
     IR_State
     | IR_Instruction;
+
+
+export type Instruction =
+    [
+        "scanner",
+        "PRODUCTION" | "TOKEN" | "BYTE" | "CODEPOINT" | "CLASS",
+        InstructionType.peek | InstructionType.assert,
+        string,
+        number,
+        number,
+        [number, number][],
+        Instruction[][]
+
+    ] |
+    [
+        "table",
+        "PRODUCTION" | "TOKEN" | "BYTE" | "CODEPOINT" | "CLASS",
+        InstructionType.peek | InstructionType.assert,
+        string,
+        number,
+        number,
+        number,
+        Instruction[][]
+
+    ] | [
+        InstructionType.pass | "end",
+    ] | [
+        InstructionType.left_most,
+    ] | [
+        InstructionType.empty_consume,
+    ] | [
+        InstructionType.goto,
+        string,
+    ] | [
+        InstructionType.set_prod,
+        number,
+    ] | [
+        InstructionType.reduce,
+        number,
+        number
+    ] | [
+        InstructionType.token_length,
+        number
+    ] | [
+        InstructionType.token_assign,
+        number[]
+    ] | [
+        InstructionType.fork_to,
+        number,
+        string[]
+    ] | [
+        InstructionType.scan_back_until,
+        string,
+        number,
+        number[]
+    ] |
+    [
+        InstructionType.scan_until,
+        string,
+        number,
+        number[]
+    ] |
+    [InstructionType.fall_through] |
+    [InstructionType.repeat] |
+    [InstructionType.fail] |
+    [InstructionType.consume] |
+    ["set fail", string];

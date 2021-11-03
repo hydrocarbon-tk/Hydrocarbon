@@ -1,16 +1,34 @@
 export class Inits {
-    refs: Map<string, string>;
-    vals: { str: string, init: string | boolean; }[];
+    private refs: Map<string, string>;
+    private closure: string[];
+    private vals: { str: string, init: string | boolean; }[];
+
+    private sequence: {
+        t: "refs" | "closure" | "vals",
+        str: string;
+        init?: string | boolean;
+        ref?: string;
+    }[];
     constructor() {
         this.refs = new Map();
+        this.closure = [];
         this.vals = [];
+        this.sequence = [];
     }
 
     push(string: string, initialize: string | boolean = true) {
 
         const ref = "ref_" + this.vals.length;
 
+
         this.vals.push({ str: string, init: initialize });
+
+        this.sequence.push({
+            t: "vals",
+            str: string,
+            init: initialize,
+            ref
+        });
 
         return ref;
     }
@@ -23,6 +41,31 @@ export class Inits {
         const ref = "r_" + this.refs.size;
 
         this.refs.set(string, ref);
+
+        this.sequence.push({
+            t: "refs",
+            str: string,
+            ref: ref
+        });
+
+        return ref;
+    }
+
+    push_closure(string: string) {
+
+
+        const ref = "r_" + this.closure.length;
+
+        string = string.replace("$$", ref);
+
+
+        this.sequence.push({
+            t: "closure",
+            str: string,
+            ref: ref
+        });
+
+        this.closure.push(string);
 
         return ref;
     }
@@ -58,13 +101,27 @@ export class Inits {
             })].join("\n");
     }
 
-    render_rust() {
-        return this.vals.map(({ str, init }, i) => {
-            if (init)
-                return `let ref_${i}${typeof init == "string" ? ":" + init : ""} = ${str};`;
-            else
-                return str;
-        }).join("\n");
+    render_rust(closure: string = "", sequence: Inits["sequence"] = this.sequence) {
+        let string = "";
+        let i = 0;
+        for (let { t, str, init, ref } of sequence) {
+            i++;
+            switch (t) {
+                case "closure":
+                    return `${string}\n ${str} { ${this.render_rust(closure, sequence.slice(i))} }`;
+                    break;
+                case "refs":
+                    break;
+                case "vals":
+                    if (init)
+                        string += `\n let mut ${ref}${typeof init == "string" ? ":" + init : ""} = ${str};`;
+                    else
+                        string += "\n" + str;
+                    break;
+            }
+        }
+
+        return string + "\n" + closure;
     }
 
     render_cpp() {
@@ -83,5 +140,9 @@ export class Inits {
             else
                 return str;
         }).join("\n");
+    }
+
+    get HAVE_CLOSURE() {
+        return this.closure.length > 0;
     }
 }
