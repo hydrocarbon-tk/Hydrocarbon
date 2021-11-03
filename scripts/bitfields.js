@@ -43,14 +43,6 @@ to the recognizer to start the parsing at a suitable entry state.`, render: [
 }, {
     label: "Reduce Normal", render: [
         [{ bits: 3, },
-        { bits: 5, name: "# of Sym" },
-        { bits: 8, name: "Body Id" },
-        { bits: 12 },
-        { bits: 4, name: "Instr=4" },]
-    ]
-}, {
-    label: "Reduce Alternate", render: [
-        [{ bits: 3, },
         { bits: 13, name: "Body Id" },
         { bits: 12, name: "# of Sym" },
         { bits: 4, name: "Instr=4" },]

@@ -1,5 +1,19 @@
 # API::Symbols
 
+Symbols make up the bulk of any grammar and represent the parsable entities that may be
+encountered within an acceptable input. Hydrocarbon makes four distinct symbol classifications:
+
+- Non-Terminal Symbols: 
+These symbols are primarily references to productions within the current grammar file or
+external grammar files. 
+
+- Terminal Symbols:
+These symbols represent author prescribed character sequences and general character sequences
+in form of generated symbols that are converted into Tokens.
+
+- Modify Symbols:
+These 
+
 ## Non-Terminal Symbols
 
 ### Production Symbol
@@ -8,11 +22,37 @@
 
 `<module-name>::<production-symbol>`
 
+### Recovery Symbol
+
+`g:rec`
+
+### Inline Production
+
+`( sub_bodyA | sub_bodyB | sub_bodyC )`
+
+### List Production
+
+`g:sp`
+
 ## Terminal Symbols
+
+### Escaped Terminal Symbol
+
+`\ <character> `
+
+### Exclusive Terminal Symbol
 
 ### Generated Symbol
 
-## Modifier Symbols
+- `g:sp`
+
+- `g:nl`
+
+- `g:num`
+
+- `g:id`
+
+- `g:sym`
 
 ### Production Token Symbol
 
@@ -30,8 +70,27 @@ A common use case for such symbols are when defining comments that should be ign
 
 ```
 
+## Modifier Symbols
+
 > One note concerning production tokens. Productions tokens are greedy. This means that when parsing an input where 
 
 ### Annotated Symbol
 
-### Inline Production
+`<symbol>^<identifier>`
+
+example:`g:id^primary_ident`
+
+### Non-Capture Symbol
+
+`<symbol>^<identifier>`
+
+example:`g:id^primary_ident`
+
+### Optional Symbol
+
+`<symbol>^<identifier>`
+
+example:`g:id^primary_ident`
+
+
+

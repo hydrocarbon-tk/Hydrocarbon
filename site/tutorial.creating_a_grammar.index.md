@@ -1,4 +1,4 @@
-# Creating A Grammar
+# Writing A Hydrocarbon Grammar
 
 *7 min read*
 
