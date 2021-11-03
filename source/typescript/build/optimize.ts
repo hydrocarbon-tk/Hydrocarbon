@@ -504,7 +504,7 @@ function getNumberOfGotos(block: IR_Instruction[]) {
 }
 
 function BranchSignaturesMatch(A: IRAssert | IRPeek, B: IRAssert | IRPeek) {
-    return A.type == B.type && A.mode == B.mode && A.ids.every(i => B.ids.includes(i));
+    return A.type == B.type && A.mode == B.mode && A.ids.every(i => B.ids.includes(i)) && A.ids.length == 1 && B.ids.length == 1;
 }
 
 /**
@@ -575,7 +575,7 @@ function mapInlinedInstructions(
 
                 const inline_assert: IRInlineAssert = {
                     type: InstructionType.inline_assert,
-                    id: <number>b.ids[0],
+                    ids: <number[]>b.ids,
                     skipped_ids: <number[]>(symbol_meta?.skipped ?? []),
                     token_ids: <number[]>(symbol_meta?.expected ?? []),
                     mode: b.mode,

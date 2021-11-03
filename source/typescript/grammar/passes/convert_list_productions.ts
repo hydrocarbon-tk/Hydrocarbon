@@ -76,7 +76,7 @@ export function processListSymbol(sym: any, body: HCG3ProductionBody, production
 
                 setBodyReduceExpressionAction(body, "[$1]");
 
-                setBodyReduceExpressionAction(new_production_body, "[$1] + $2");
+                setBodyReduceExpressionAction(new_production_body, "$1 + $2");
             }
 
             //replaceAllBodySymbols(body, inner_symbol);

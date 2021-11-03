@@ -157,8 +157,7 @@ export class Token {
         return this.off - i;
     }
 
-    createError(message, source_path = "") {
-
+    blameDiagram(message: string, source_path: string = "") {
         const lex = new Lexer(this.source);
 
         lex.source = source_path;
@@ -173,7 +172,11 @@ export class Token {
 
         lex.column = this.off - i;
 
-        return new Error(lex.errorMessage(message));
+        return lex.errorMessage(message);
+    }
+
+    createError(message: string, source_path: string = "") {
+        return new Error(this.blameDiagram(message, source_path));
     }
 
     throw(message, source = "") {

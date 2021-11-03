@@ -109,3 +109,6 @@
 
 
 # This annotated grammar definition is continued in ./preambles.hcg
+
+
+<> statement >  \;^lazy 

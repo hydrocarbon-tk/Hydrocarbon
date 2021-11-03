@@ -10,6 +10,10 @@ pub trait ByteReader {
      */
     fn END(&self) -> bool;
 
+    fn offsetAtEND(&self, offset: u32) -> bool {
+        self.length() <= offset
+    }
+
     /**
      * Advances the cursor up-to 4-bytes forward and
      * returns a Word (4byte) covering the next 4 bytes at
@@ -30,6 +34,11 @@ pub trait ByteReader {
      * Returns the byte at the current cursor position.
      */
     fn byte(&self) -> u8;
+
+    /**
+     * Returns the byte at the current cursor position.
+     */
+    fn length(&self) -> u32;
 
     /**
      * Resets the cursor back to the value of the `offset`
@@ -108,6 +117,10 @@ impl ByteReader for UTF8StringReader {
             word: self.word,
             codepoint: self.codepoint,
         }
+    }
+
+    fn length(&self) -> u32 {
+        self.length as u32
     }
 
     fn byte(&self) -> u8 {

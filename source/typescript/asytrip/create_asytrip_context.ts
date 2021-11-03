@@ -1,11 +1,12 @@
 import {
     exp, JSNodeType
 } from "@candlelib/js";
-import { GrammarObject, HCG3ProductionBody, ProductionFunction } from "../types/grammar_nodes";
 import { Sym_Is_A_Production } from '../grammar/nodes/symbol.js';
-import { getPropertyFromExpression, getResolvedType, JSONFilter, parseAsytripStruct, TypeIsVector } from './common.js';
-import { ASYTRIPContext, ASYTRIPProperty, ASYTRIPType } from './types.js';
+import { render_grammar } from '../grammar/passes/common.js';
 import { Token } from '../runtime/token.js';
+import { GrammarObject, HCG3ProductionBody, ProductionFunction } from "../types/grammar_nodes";
+import { getPropertyFromExpression, getResolvedType, JSONFilter, parseAsytripStruct, TypeIsNotNull, TypeIsStruct, TypeIsVector, TypesAre, TypesInclude } from './common.js';
+import { ASYTRIPContext, ASYTRIPProperty, ASYTRIPType, ASYTRIPTypeObj } from './types.js';
 
 export function createAsytripContext(grammar: GrammarObject): ASYTRIPContext {
 
@@ -30,6 +31,7 @@ export function createAsytripContext(grammar: GrammarObject): ASYTRIPContext {
 
         const fn_map: Map<number, {
             args: ASYTRIPProperty[];
+            length: number;
             struct: string;
         }> = new Map;
 
@@ -73,6 +75,8 @@ export function createAsytripContext(grammar: GrammarObject): ASYTRIPContext {
                 if (!(fn?.txt)) {
                     body.reduce_function = null;
                 }
+
+                console.log(render_grammar(body));
 
                 fns.push({
                     production_id: production.id,
@@ -120,6 +124,7 @@ export function createAsytripContext(grammar: GrammarObject): ASYTRIPContext {
 
                     fn_map.set(body.id, {
                         args: args,
+                        length: body.sym.length,
                         struct: name
                     });
 
@@ -132,6 +137,7 @@ export function createAsytripContext(grammar: GrammarObject): ASYTRIPContext {
 
                     fn_map.set(body.id, {
                         args: [prop],
+                        length: body.sym.length,
                         struct: ""
                     });
 
@@ -139,7 +145,7 @@ export function createAsytripContext(grammar: GrammarObject): ASYTRIPContext {
                 }
             } else {
 
-                fn_map.set(body.id, { args: [], struct: "" });
+                fn_map.set(body.id, { args: [], length: body.sym.length, struct: "" });
 
                 //get last symbol
                 const sym = body.sym.slice(-1)[0];
@@ -173,8 +179,11 @@ export function createAsytripContext(grammar: GrammarObject): ASYTRIPContext {
         const type_lookup = context.type;
 
         let counter = 1;
-
+        /**
+         * Set type ids for all nodes
+         */
         for (const [name, { classes }] of context.structs) {
+
             const type = ((counter++) << class_size) | [...classes].map(
                 v => class_lookup.get(v)
             ).reduce((r, v) => r | v, 0);
@@ -184,8 +193,8 @@ export function createAsytripContext(grammar: GrammarObject): ASYTRIPContext {
         // For each struct compile the properties into 
         // Sets of prop types
         for (const [name, struct] of context.structs) {
-
             for (const [name, prop] of struct.properties) {
+
                 const types = (prop.types.flatMap(v => {
                     return v;
                     return getResolvedType(v, context);
@@ -193,17 +202,80 @@ export function createAsytripContext(grammar: GrammarObject): ASYTRIPContext {
 
                 //Resolves production types
                 struct.properties.get(name).types = types;
+
+
             }
         }
 
         for (const [id, types] of context.return_types) {
-
-
             context.resolved_return_types.set(id,
                 types
                     .flatMap(t => getResolvedType(t, context))
                     .setFilter(t => JSON.stringify(t))
             );
+        }
+
+        for (const [s_name, struct] of context.structs) {
+            for (const [name, prop] of struct.properties) {
+
+                // For simplicities sake, ensure properties 
+                // are one of Struct Type | Vector<Struct Type> | Other
+                //
+                // Do not allow mixing of Structs|Vector<Struct> and other types.
+                const productions: ASYTRIPTypeObj[ASYTRIPType.PRODUCTION][] = [];
+                const real_types = prop.types.flatMap(
+                    t => getResolvedType(t, context, new Set([struct.name]), productions)
+                )
+                    .filter(TypeIsNotNull);
+
+                if (TypesInclude(real_types, TypeIsStruct)
+                    && !TypesAre(real_types, TypeIsStruct)
+                ) {
+
+                    const message = [
+                        `Invalid property ${name} of struct ${s_name}:
+
+Struct properties that can be assigned to struct types 
+MUST only be assigned to Struct types or Null. 
+This is not the case with ${s_name}~${name}`];
+
+                    for (const args of productions) {
+                        const production = grammar.productions[args.val];
+                        const types = context.resolved_return_types.get(production.id);
+                        const bad_types = types.filter(t => !TypeIsStruct(t)).setFilter(JSONFilter);
+                        message.push(args.tok.createError(
+                            `Production ${production.name} assigned to reference ${args.tok.slice()} produces non Struct types [ ${bad_types.map(t => {
+                                if (TypeIsVector(t)) {
+                                    return `${ASYTRIPType[t.type]}<${t.types.map(t => ASYTRIPType[t.type]).setFilter(JSONFilter).join(" | ")}>`;
+                                }
+                                else return ASYTRIPType[t.type];
+                            }).join(" | ")
+                            } ]`
+                        ).message);
+                    }
+
+                    const invalid = real_types.filter(t => !TypeIsStruct(t));
+                    const valid = real_types.filter(TypeIsStruct);
+
+                    throw new Error(message.join("\n") + "\n\n");
+
+                    debugger;
+                } else if (TypesInclude(real_types, TypeIsVector)) {
+
+                    const vector_types = real_types.filter(TypeIsVector);
+                    const non_vector_types = real_types.filter(v => !TypeIsVector(v));
+                    if (non_vector_types.length > 0) {
+                        debugger;
+                    } else if (vector_types.some(v => TypesInclude(v.types, TypeIsStruct))) {
+
+                        if (vector_types.some(v => !TypesAre(v.types, TypeIsStruct))
+                            || non_vector_types.length > 0
+                        ) {
+                            debugger;
+                        }
+                    }
+                }
+            }
         }
 
         context.type_mask = type_mask;

@@ -45,7 +45,7 @@ export enum ASYTRIPType {
     TERNARY,
     OR
 }
-interface ASYTRIPStruct {
+export interface ASYTRIPStruct {
     name: string;
     classes: Set<string>;
     properties: Map<string, ASYTRIPProperty>;
@@ -93,7 +93,7 @@ export interface ASYTRIPTypeObj {
         type: ASYTRIPType.TOKEN;
     };
     [ASYTRIPType.PRODUCTION]: {
-        type: ASYTRIPType.PRODUCTION; args: ASYTRIPTypeObj[ASYTRIPType][]; val: number; arg_pos?: number;
+        type: ASYTRIPType.PRODUCTION; args: ASYTRIPTypeObj[ASYTRIPType][]; val: number; arg_pos?: number; tok?: Token;
     };
     [ASYTRIPType.EXPRESSIONS]: {
         type: ASYTRIPType.EXPRESSIONS; expressions: ASYTRIPTypeObj[ASYTRIPType][];
@@ -139,4 +139,17 @@ export interface ASYTRIPTypeObj {
     [ASYTRIPType.CONVERT_STRING]: {
         type: ASYTRIPType.CONVERT_STRING; value: ASYTRIPTypeObj[ASYTRIPType];
     };
+}
+
+export type getTypeString<T extends keyof ASYTRIPTypeObj> = (
+    v: ASYTRIPTypeObj[T],
+    c: ASYTRIPContext
+) => string;
+export interface ResolvedProp {
+    REQUIRES_DYNAMIC: boolean,
+    types: ASYTRIPTypeObj[ASYTRIPType][];
+    name: string;
+    HAS_NULL: boolean;
+    type: string;
+    prop: ASYTRIPProperty;
 }

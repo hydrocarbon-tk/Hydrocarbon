@@ -1,16 +1,18 @@
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub struct Token {
-    length: usize,
-    offset: usize,
-    _line: usize,
+    length: u32,
+    offset: u32,
+    _line: u32,
+    input: Option<&'static [u8]>,
 }
 
 impl Token {
-    pub fn new(length: usize, offset: usize, line: usize) -> Token {
+    pub fn new(length: u32, offset: u32, line: u32) -> Token {
         Token {
             length,
             offset,
             _line: line,
+            input: None,
         }
     }
 
@@ -23,6 +25,7 @@ impl Token {
             length: end.offset - start.offset + end.length,
             offset: start.offset,
             _line: start._line,
+            input: None,
         };
     }
 
@@ -58,11 +61,11 @@ impl Token {
         (start as usize, end as usize)
     }
 
-    fn get_range(&self, input: &[u8], start: i32, end: i32) -> (usize, usize, usize, usize) {
+    fn get_range(&self, input: &[u8], start: i32, end: i32) -> (u32, u32, u32, u32) {
         let (adjusted_start, adjusted_end) = self.get_slice_range(start, end);
 
         let start_line = self._line;
-        let mut start_col: usize = 0;
+        let mut start_col: u32 = 0;
         let mut end_line = self._line;
 
         for i in (1..=adjusted_start).rev() {
@@ -72,7 +75,7 @@ impl Token {
             }
         }
 
-        let mut end_col = start_col;
+        let mut end_col = start_col as u32;
 
         for i in adjusted_start..adjusted_end {
             if input[i] == 10 {
@@ -86,25 +89,23 @@ impl Token {
         (start_line, start_col, end_line, end_col)
     }
 
-    fn slice<'a>(&self, input: &'a [u8], start: i32, end: i32) -> &'a [u8] {
-        let (adjusted_start, adjusted_end) = self.get_slice_range(start, end);
-
-        return &input[adjusted_start..adjusted_end];
+    fn slice<'a>(&self, start: i32, end: i32) -> String {
+        if let Some(input) = self.input {
+            let (adjusted_start, adjusted_end) = self.get_slice_range(start, end);
+            return unsafe {
+                String::from_utf8_unchecked(Vec::from(&input[adjusted_start..adjusted_end]))
+            };
+        }
+        return String::from("");
     }
 
-    fn string<'a>(&self, input: &'a [u8]) -> &'a str {
-        use std::str;
+    pub fn String<'a>(&self) -> String {
+        if let Some(input) = self.input {
+            let result = self.slice(self.offset as i32, (self.offset + self.length) as i32);
 
-        let result = str::from_utf8(self.slice(
-            input,
-            self.offset as i32,
-            (self.offset + self.length) as i32,
-        ));
-
-        if let Ok(string) = result {
-            string
-        } else {
-            ""
+            return result;
         }
+
+        String::from("")
     }
 }

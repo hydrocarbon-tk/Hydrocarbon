@@ -1,3 +1,4 @@
+pub mod ast;
 mod completer;
 mod recognizer;
 

@@ -210,10 +210,6 @@ export class StateIterator {
 
             this.tokens[0].clone(token);
         }
-
-
-
-
     }
 
     private emitReduce(symbol_length: number, body_id: number) {
@@ -229,7 +225,7 @@ export class StateIterator {
     }
 
 
-    private reduce(instruction: number, recover_data: number) {
+    private reduce(instruction: number, index: number, recover_data: number) {
         let body_id = (instruction) & 0xFFFF;
         let length = ((instruction >> 16) & 0xFFF);
 
@@ -248,6 +244,14 @@ export class StateIterator {
         } else {
             this.emitReduce(length, body_id);
         }
+
+        //TODO: ASSERT the production is ALWAYS set after a reduction
+        if ((this.bytecode[index] & 0xF0000000) == 0x30000000) {
+            this.set_production(this.bytecode[index]);
+            return index + 1;
+        }
+
+        return index;
     }
 
 
@@ -287,7 +291,10 @@ export class StateIterator {
                         type: ParseActionType.ACCEPT
                     };
 
-                else this.error("Unexpected end of input");
+                else return {
+                    type: ParseActionType.ERROR,
+                    production: this.production_id
+                };
 
                 return this.nextAction();
             }
@@ -335,11 +342,11 @@ export class StateIterator {
 
                 case 1: this.consume(instruction); break;
 
-                case 2: this.goto(instruction); break;
+                case 2: index = this.goto(instruction, index); break;
 
                 case 3: this.set_production(instruction); break;
 
-                case 4: this.reduce(instruction, recover_data); break;
+                case 4: index = this.reduce(instruction, index, recover_data); break;
 
                 case 5: index = this.set_token(instruction, index); break;
 
@@ -660,18 +667,12 @@ export class StateIterator {
 
         const length = instruction & 0xFFFFFF;
 
-        const token = this.tokens[1];
-
         if (instruction & 0x08000000) {
 
-            const data = this.bytecode;
-
-            this.tokens[0]
-                .type = data[index];
-
-            index += 1;
+            this.tokens[0].type = length;
 
         } else {
+            const token = this.tokens[1];
 
             token.codepoint_length = length;
 
@@ -681,8 +682,13 @@ export class StateIterator {
 
     }
 
-    private goto(instruction: number) {
+    private goto(instruction: number, index: number) {
         this.stack.push_state(instruction);
+        while ((this.bytecode[index] & 0xF0000000) == 0x20000000) {
+            this.stack.push_state(this.bytecode[index]);
+            index++;
+        }
+        return index;
     }
 
     private repeat(index: number, instruction: number) {

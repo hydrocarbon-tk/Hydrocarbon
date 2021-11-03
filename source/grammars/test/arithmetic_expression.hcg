@@ -1,18 +1,19 @@
 @IGNORE g:sp
 
-<> start > E            f:r { { type: type__ROOT | class__MAIN, root:$1, scoop:2 } }
+<> start > E            f:r { { type: t_ROOT | c_MAIN, root:$1, scoop:2 } }
 
 <> E > 
-        E  ( + | - ) B
-                        f:r { { type: type__MIN | class__MAIN, pickles:$1 } }
+        E  ( + | - ) B(*)
+                        f:r { { type: t_MIN | c_MAIN, pickles:$3 } }
     |   B
-                        f:r { { type: type__MIN | class__MAIN, root:$1 } }
+                        f:r { { type: t_MIN, root:$1 } }
 
 <> B >
         B  ( * | / ) B 
-                        f:r { { type: type__MIN | class__MAIN, root: "(" + $1 + $2 + $3 + ")"} }
+                        f:r { { type: t_B | c_MAIN, root: "(" + $1 + $2 + $3 + ")"} }
     |   \( E^p \)
-                        f:r { "(" + $p + ")" }
+                        f:r { { type: t_B, root: "(" + $p + ")"} }
+                    
 
-    |   ( t:one | t:two | t:three )            
-                        f:r { [0, "two", "three"].push($1) }
+    |   ( t:one | t:two | t:three )
+                        f:r { { type: t_B, vecs: [0, "two", "three"].push($1)} }
