@@ -1,3 +1,8 @@
+use std::iter::Scan;
+use std::marker::PhantomData;
+use std::sync::mpsc::{self, Receiver, Sender};
+use std::thread;
+
 use super::reader::ByteReader;
 use super::stack::KernelStack;
 
@@ -73,6 +78,94 @@ pub enum ParseAction {
     FORK {},
 }
 
+/**
+ * Represents a single Iterator
+ * that can parse an input when
+ * with parser byte code,  entry pointer
+ * and parse action handler function.
+ */
+pub trait ParseIterator<T: ByteReader> {
+    fn new(reader: T, entry_pointer: u32, bytecode: &'static [u32]) -> Self;
+    /**
+     * Starts parsing the input and emits
+     * parse actions to the handleAction function
+     */
+    fn start(&mut self, handle_action: &mut impl FnMut(ParseAction));
+}
+pub struct ReferenceIterator<T: ByteReader> {
+    bytecode: &'static [u32],
+    entry_pointer: u32,
+    reader: T,
+}
+
+impl<T: ByteReader> ParseIterator<T> for ReferenceIterator<T> {
+    fn new(reader: T, entry_pointer: u32, bytecode: &'static [u32]) -> Self {
+        ReferenceIterator {
+            entry_pointer,
+            reader,
+            bytecode,
+        }
+    }
+
+    fn start(&mut self, handle_action: &mut impl FnMut(ParseAction)) {
+        let mut parser: StateIterator<T> =
+            StateIterator::new(self.reader.clone(), self.entry_pointer, handle_action);
+
+        parser.parse(self.bytecode);
+    }
+}
+
+pub struct ThreadedIterator<T> {
+    job_start: Sender<bool>,
+    data: Receiver<ParseAction>,
+    _reader_: PhantomData<T>,
+}
+
+impl<T: 'static + ByteReader + Send> ParseIterator<T> for ThreadedIterator<T> {
+    fn new(reader: T, entry_pointer: u32, bytecode: &'static [u32]) -> Self {
+        let (job_tx, job_rx) = mpsc::channel::<bool>();
+        let (tx, rx) = mpsc::channel::<ParseAction>();
+
+        let iterator = ThreadedIterator {
+            data: rx,
+            job_start: job_tx,
+            _reader_: PhantomData,
+        };
+
+        let handle = thread::spawn(move || match job_rx.recv() {
+            Ok(job) => {
+                let i = 0;
+
+                let mut action_handler = |action| {
+                    tx.send(action);
+                };
+
+                let mut parser = StateIterator::new(reader, entry_pointer, &mut action_handler);
+
+                parser.parse(bytecode);
+            }
+            Err(e) => {}
+        });
+
+        iterator
+    }
+
+    fn start(&mut self, handle_action: &mut impl FnMut(ParseAction)) {
+        self.job_start.send(true);
+        loop {
+            match self.data.recv() {
+                Ok(action) => {
+                    handle_action(action);
+                }
+                Err(e) => {
+                    println!("{:?}", e);
+                    break;
+                }
+            }
+        }
+    }
+}
+
 /*
 * This represents the core context in which a parser machine
 * operators.
@@ -80,16 +173,12 @@ pub enum ParseAction {
 * It yields parse Actions and reduce information that can be consumed
 * by completers to apply reduce actions on the token values
 */
-pub struct StateIterator<T: ByteReader> {
+pub struct StateIterator<'a, T: ByteReader> {
     stack: KernelStack,
-
-    bytecode: &'static [u32],
 
     reader: T,
 
     forks: [u32; 8],
-
-    buffer: [ParseAction; 8],
 
     tokens: [KernelToken; 8],
 
@@ -103,29 +192,30 @@ pub struct StateIterator<T: ByteReader> {
 
     production_id: u32,
 
-    SCANNER: bool,
+    scanner_iterator: ScannerIterator<T>,
+
+    emit: &'a mut dyn FnMut(ParseAction),
 }
 
-impl<T: ByteReader> StateIterator<T> {
+impl<'a, T: ByteReader> StateIterator<'a, T> {
     pub fn new(
         reader: T,
-        bytecode: &'static [u32],
         entry_pointer: u32,
-        IS_SCANNER: bool,
-    ) -> StateIterator<T> {
+        emit: &'a mut impl FnMut(ParseAction),
+    ) -> StateIterator<'a, T> {
+        let cloned_reader = reader.clone();
         let mut iterator = StateIterator {
             stack: KernelStack::new(),
             reader: reader,
-            bytecode: bytecode,
             forks: [0; 8],
-            buffer: [ParseAction::NONE {}; 8],
             tokens: [KernelToken::new(); 8],
             symbol_accumulator: 0,
             action_buffer_start: 0,
             action_buffer_end: 0,
             production_id: 0,
             token_end: 1,
-            SCANNER: IS_SCANNER,
+            scanner_iterator: ScannerIterator::new(cloned_reader, 0),
+            emit,
         };
 
         iterator.stack.reset(entry_pointer);
@@ -133,87 +223,572 @@ impl<T: ByteReader> StateIterator<T> {
         iterator
     }
 
-    pub fn nextAction(&mut self) -> ParseAction {
+    pub fn parse(&mut self, bytecode: &[u32]) {
         let mut fail_mode: u32 = 0;
 
-        if self.action_buffer_start != self.action_buffer_end {
-            let index = self.action_buffer_start;
+        loop {
+            let state = self.stack.pop_state();
 
-            self.action_buffer_start = (index + 1) & 0x7;
-
-            return self.buffer[index];
-        }
-
-        while self.action_buffer_start == self.action_buffer_end {
-            for _ in 0..2 {
-                let state = self.stack.pop_state();
-
-                if state < 1 {
-                    if self.SCANNER {
-                        let mut token = self.tokens[0];
-                        let tokenB = self.tokens[1];
-
-                        token.byte_length = tokenB.byte_offset - token.byte_offset;
-                        token.cp_length = tokenB.cp_offset - token.cp_offset;
-
-                        return ParseAction::TOKEN { token };
-                    }
-
-                    if self.reader.offsetAtEND(self.tokens[1].byte_offset) {
-                        return ParseAction::ACCEPT {};
-                    } else {
-                        return ParseAction::ERROR {
-                            production: self.production_id,
-                        };
-                    }
+            if state < 1 {
+                if self.reader.offsetAtEND(self.tokens[1].byte_offset) {
+                    self.emitAction(ParseAction::ACCEPT {});
+                    return;
                 } else {
-                    // let mask_gate = normal_state_mask << fail_mode;
+                    self.emitAction(ParseAction::ERROR {
+                        production: self.production_id,
+                    });
+                    return;
+                }
+            } else {
+                let mask_mult_gate = 26 + fail_mode;
 
-                    let mask_mult_gate = 26 + fail_mode;
+                let entry = (state >> mask_mult_gate) & 0x1;
 
-                    let entry = (state >> mask_mult_gate) & 0x1;
+                fail_mode = self.instruction_executor(state * entry, fail_mode, bytecode);
+            }
+        }
+    }
 
-                    //if (mask_gate & state) != 0 {
-                    fail_mode = self.instruction_executor(state * entry, fail_mode);
-                    //coz::progress!();
-                    //} else {
-                    //    dbg!(1);
-                    //}
+    fn scanner(
+        &mut self,
+        mut current_token: KernelToken,
+        scanner_start_pointer: u32,
+        bytecode: &[u32],
+    ) -> KernelToken {
+        if current_token.typ == 0 {
+            {
+                let scanner = &mut self.scanner_iterator;
+
+                scanner.stack.reset(scanner_start_pointer);
+
+                scanner.reader.setTo(self.reader.cursor());
+
+                scanner.tokens[1] = current_token;
+
+                scanner.tokens[0] = current_token;
+            }
+
+            loop {
+                let result = self.scanner_iterator.parse(bytecode);
+
+                match result {
+                    ParseAction::ACCEPT {} => {
+                        break;
+                    }
+                    ParseAction::TOKEN { token } => {
+                        if token.typ == 9999 {
+                            self.scanner_iterator.stack.reset(scanner_start_pointer);
+
+                            self.scanner_iterator.tokens[0] = self.scanner_iterator.tokens[1];
+
+                            continue;
+                        }
+
+                        return token;
+                    }
+                    ParseAction::FORK {} => {
+                        self.emitAction(ParseAction::ERROR {
+                            production: self.production_id,
+                        });
+                    }
+                    _ => {
+                        self.emitAction(ParseAction::ERROR {
+                            production: self.production_id,
+                        });
+                        break;
+                    }
                 }
             }
         }
 
-        self.nextAction()
+        current_token
+    }
+}
+
+impl<'a, T: ByteReader> ParserCoreIterator<T> for StateIterator<'a, T> {
+    fn push_state(&mut self, state: u32) {
+        self.stack.push_state(state)
     }
 
+    fn pop_state(&mut self) -> u32 {
+        self.stack.pop_state()
+    }
+
+    fn read_state(&self) -> u32 {
+        self.stack.read_state()
+    }
+
+    fn swap_state(&mut self, state: u32) {
+        self.stack.swap_state(state);
+    }
+
+    fn getProduction(&self) -> u32 {
+        self.production_id
+    }
+
+    fn setProduction(&mut self, val: u32) {
+        self.production_id = val;
+    }
+
+    fn getAccumulator(&mut self) -> u32 {
+        self.symbol_accumulator
+    }
+
+    fn setAccumulator(&mut self, val: u32) {
+        self.symbol_accumulator = val;
+    }
+
+    fn getTokenTop(&self) -> usize {
+        self.token_end
+    }
+
+    fn setTokenTop(&mut self, index: usize) {
+        self.token_end = index;
+    }
+
+    fn getToken(&mut self, index: usize) -> KernelToken {
+        self.tokens[index]
+    }
+
+    fn setToken(&mut self, index: usize, token: KernelToken) {
+        self.tokens[index] = token;
+    }
+
+    fn getReader(&mut self) -> &mut T {
+        &mut self.reader
+    }
+
+    fn emitAction(&mut self, action: ParseAction) {
+        (self.emit)(action);
+    }
+
+    fn consume(&mut self, mut index: usize, _: u32, bytecode: &[u32]) -> usize {
+        let mut token = self.getToken(1);
+
+        let prev = self.getToken(0);
+
+        let instruction = bytecode[index];
+
+        if (instruction & 1) != 0 {
+            token.cp_length = 0;
+            token.byte_length = 0;
+        }
+
+        self.emitShift();
+
+        self.reader
+            .next(token.byte_offset - prev.byte_offset + token.byte_length);
+
+        token.cp_offset += token.cp_length;
+
+        token.byte_offset += token.byte_length;
+
+        token.cp_length = 0;
+
+        token.byte_length = 0;
+
+        token.typ = 0;
+
+        self.setToken(0, token);
+
+        self.setToken(1, token);
+
+        index + 1
+    }
+
+    fn get_input_value(
+        &mut self,
+        input_type: u32,
+        token_transition: u32,
+        scanner_start_pointer: u32,
+        bytecode: &[u32],
+    ) -> i32 {
+        if input_type > 0 {
+            // Lexer token id input
+
+            if self.reader.END() {
+                return 0;
+            }
+
+            if token_transition != 1 {
+                /* set primary lexer */
+                let mut token_top = self.getTokenTop();
+
+                if token_top > 1 {
+                    token_top = 1;
+
+                    self.setTokenTop(token_top);
+
+                    self.getToken(token_top).typ = 0;
+
+                    if !self.reader.setTo(self.tokens[1].byte_offset) {
+                        //self.error();
+                        return 0;
+                    };
+                }
+
+                match input_type {
+                    1 => {
+                        let tok = self.getToken(1);
+                        self.tokens[1] = self.scanner(tok, scanner_start_pointer, bytecode);
+                        self.tokens[1].typ as i32
+                    }
+                    _ => 0,
+                }
+            } else {
+                /* set next peek lexer */
+
+                let prev_token = self.tokens[self.token_end];
+
+                self.token_end += 1;
+
+                self.reader.next(prev_token.byte_length);
+
+                self.tokens[self.token_end] = prev_token.next();
+
+                match input_type {
+                    1 => {
+                        let token = self.tokens[self.token_end];
+
+                        self.tokens[self.token_end] =
+                            self.scanner(token, scanner_start_pointer, bytecode);
+
+                        return self.tokens[self.token_end].typ as i32;
+                    }
+                    _ => 0,
+                }
+            }
+        } else {
+            // Production id input
+            self.getProduction() as i32
+        }
+    }
+}
+pub struct ScannerIterator<T: ByteReader> {
+    stack: KernelStack,
+
+    reader: T,
+
+    tokens: [KernelToken; 8],
+
+    symbol_accumulator: u32,
+
+    action_buffer_start: usize,
+
+    action_buffer_end: usize,
+
+    token_end: usize,
+
+    production_id: u32,
+}
+
+impl<T: ByteReader> ScannerIterator<T> {
+    pub fn new(reader: T, entry_pointer: u32) -> ScannerIterator<T> {
+        let mut iterator = ScannerIterator {
+            stack: KernelStack::new(),
+            reader: reader,
+            tokens: [KernelToken::new(); 8],
+            symbol_accumulator: 0,
+            action_buffer_start: 0,
+            action_buffer_end: 0,
+            production_id: 0,
+            token_end: 1,
+        };
+
+        iterator.stack.reset(entry_pointer);
+
+        iterator
+    }
+
+    pub fn parse(&mut self, bytecode: &[u32]) -> ParseAction {
+        let mut fail_mode: u32 = 0;
+
+        loop {
+            let state = self.stack.pop_state();
+
+            if state < 1 {
+                let mut token = self.tokens[0];
+
+                let tokenB = self.tokens[1];
+
+                token.byte_length = tokenB.byte_offset - token.byte_offset;
+
+                token.cp_length = tokenB.cp_offset - token.cp_offset;
+
+                return ParseAction::TOKEN { token };
+            } else {
+                let mask_mult_gate = 26 + fail_mode;
+
+                let entry = (state >> mask_mult_gate) & 0x1;
+
+                fail_mode = self.instruction_executor(state * entry, fail_mode, bytecode);
+            }
+        }
+    }
+}
+
+impl<T: ByteReader> ParserCoreIterator<T> for ScannerIterator<T> {
+    fn push_state(&mut self, state: u32) {
+        self.stack.push_state(state)
+    }
+
+    fn pop_state(&mut self) -> u32 {
+        self.stack.pop_state()
+    }
+
+    fn read_state(&self) -> u32 {
+        self.stack.read_state()
+    }
+
+    fn swap_state(&mut self, state: u32) {
+        self.stack.swap_state(state);
+    }
+
+    fn getProduction(&self) -> u32 {
+        self.production_id
+    }
+
+    fn setProduction(&mut self, val: u32) {
+        self.production_id = val;
+    }
+
+    fn getAccumulator(&mut self) -> u32 {
+        self.symbol_accumulator
+    }
+
+    fn setAccumulator(&mut self, val: u32) {
+        self.symbol_accumulator = val;
+    }
+
+    fn getTokenTop(&self) -> usize {
+        self.token_end
+    }
+
+    fn setTokenTop(&mut self, index: usize) {
+        self.token_end = index;
+    }
+
+    fn getToken(&mut self, index: usize) -> KernelToken {
+        self.tokens[index]
+    }
+
+    fn setToken(&mut self, index: usize, token: KernelToken) {
+        self.tokens[index] = token;
+    }
+
+    fn getReader(&mut self) -> &mut T {
+        &mut self.reader
+    }
+    fn consume(&mut self, mut index: usize, _: u32, bytecode: &[u32]) -> usize {
+        let mut token = self.getToken(1);
+
+        let prev = self.getToken(0);
+
+        let instruction = bytecode[index];
+
+        if (instruction & 1) != 0 {
+            token.cp_length = 0;
+            token.byte_length = 0;
+        }
+
+        self.reader.next(token.byte_length);
+
+        token.cp_offset += token.cp_length;
+
+        token.byte_offset += token.byte_length;
+
+        token.cp_length = 0;
+
+        token.byte_length = 0;
+
+        token.typ = 0;
+
+        self.setToken(1, token);
+
+        index + 1
+    }
+
+    fn get_input_value(
+        &mut self,
+        input_type: u32,
+        token_transition: u32,
+        scanner_start_pointer: u32,
+        bytecode: &[u32],
+    ) -> i32 {
+        if input_type > 0 {
+            // Lexer token id input
+
+            if self.reader.END() {
+                return 0;
+            }
+
+            if token_transition != 1 {
+                /* set primary lexer */
+                let mut token_top = self.getTokenTop();
+
+                if token_top > 1 {
+                    token_top = 1;
+
+                    self.setTokenTop(token_top);
+
+                    self.getToken(token_top).typ = 0;
+
+                    if !self.reader.setTo(self.tokens[1].byte_offset) {
+                        //self.error();
+                        return 0;
+                    };
+                }
+
+                match input_type {
+                    2 => {
+                        let token = &mut self.tokens[self.token_end];
+                        token.byte_length = self.reader.codepoint_byte_length();
+                        token.cp_length = self.reader.codepoint_length();
+                        self.reader.class() as i32
+                    }
+                    3 => {
+                        let token = &mut self.tokens[self.token_end];
+                        token.byte_length = self.reader.codepoint_byte_length();
+                        token.cp_length = self.reader.codepoint_length();
+                        self.reader.codepoint() as i32
+                    }
+                    4 => {
+                        let token = &mut self.tokens[self.token_end];
+                        token.byte_length = 1;
+                        token.cp_length = 1;
+                        self.reader.byte() as i32
+                    }
+                    _ => 0,
+                }
+            } else {
+                /* set next peek lexer */
+
+                let prev_token = self.tokens[self.token_end];
+
+                self.token_end += 1;
+
+                self.reader.next(prev_token.byte_length);
+
+                self.tokens[self.token_end] = prev_token.next();
+
+                match input_type {
+                    2 => {
+                        let token = &mut self.tokens[self.token_end];
+                        token.byte_length = self.reader.codepoint_byte_length();
+                        token.cp_length = self.reader.codepoint_length();
+                        return self.reader.class() as i32;
+                    }
+                    3 => {
+                        let token = &mut self.tokens[self.token_end];
+                        token.byte_length = self.reader.codepoint_byte_length();
+                        token.cp_length = self.reader.codepoint_length();
+                        return self.reader.codepoint() as i32;
+                    }
+                    4 => {
+                        let token = &mut self.tokens[self.token_end];
+                        token.byte_length = 1;
+                        token.cp_length = 1;
+                        return self.reader.byte() as i32;
+                    }
+                    _ => 0,
+                }
+            }
+        } else {
+            // Production id input
+            self.getProduction() as i32
+        }
+    }
+}
+
+trait ParserCoreIterator<R: ByteReader> {
+    fn getProduction(&self) -> u32;
+
+    fn setProduction(&mut self, val: u32);
+
+    fn getAccumulator(&mut self) -> u32;
+
+    fn setAccumulator(&mut self, val: u32);
+
+    fn getTokenTop(&self) -> usize;
+
+    fn setTokenTop(&mut self, index: usize);
+
+    fn getToken(&mut self, index: usize) -> KernelToken;
+
+    fn setToken(&mut self, index: usize, token: KernelToken);
+
+    fn push_state(&mut self, state: u32);
+
+    fn swap_state(&mut self, state: u32);
+
+    fn read_state(&self) -> u32;
+
+    fn pop_state(&mut self) -> u32;
+
+    fn getReader(&mut self) -> &mut R;
+
+    fn emitAction(&mut self, action: ParseAction) {}
+
+    fn emitShift(&mut self) {
+        let token = self.getToken(1);
+
+        let prev_token = self.getToken(0);
+
+        if prev_token.byte_offset + prev_token.byte_length != token.byte_offset {
+            self.emitAction(ParseAction::SKIP {
+                length: token.cp_offset - (prev_token.cp_length + prev_token.cp_offset),
+                line: prev_token.line,
+                token_type: 0,
+            });
+        }
+
+        self.emitAction(ParseAction::SHIFT {
+            length: token.cp_length,
+            line: prev_token.line,
+            token_type: token.typ as u32,
+        });
+    }
+
+    fn emitReduce(&mut self, symbol_length: u32, body_id: u32) {
+        self.emitAction(ParseAction::REDUCE {
+            body: body_id,
+            length: symbol_length,
+            production: self.getProduction(),
+        });
+    }
     //*
-    fn instruction_executor(&mut self, state_pointer: u32, fail_mode: u32) -> u32 {
+    fn instruction_executor(
+        &mut self,
+        state_pointer: u32,
+        fail_mode: u32,
+        bytecode: &[u32],
+    ) -> u32 {
         let mut index = (state_pointer & state_index_mask) as usize;
 
         loop {
-            match self.bytecode[index] & 0xF0000000 as u32 {
+            match bytecode[index] & 0xF0000000 as u32 {
                 0x10000000 => {
-                    index = self.consume(index, fail_mode);
+                    index = self.consume(index, fail_mode, bytecode);
                 }
 
                 0x20000000 => {
-                    index = self.goto(index, fail_mode);
+                    index = self.goto(index, fail_mode, bytecode);
                 }
 
                 0x30000000 => {
-                    index = self.set_production(index, fail_mode);
+                    index = self.set_production(index, fail_mode, bytecode);
                 }
 
                 0x40000000 => {
-                    index = self.reduce(index, fail_mode);
+                    index = self.reduce(index, fail_mode, bytecode);
                 }
 
                 0x50000000 => {
-                    index = self.set_token(index, fail_mode);
+                    index = self.set_token(index, fail_mode, bytecode);
                 }
 
                 0x60000000 => {
-                    index = self.fork(index, fail_mode);
+                    index = self.fork(index, fail_mode, bytecode);
                 }
 
                 0x70000000 => {
@@ -225,19 +800,19 @@ impl<T: ByteReader> StateIterator<T> {
                 }
 
                 0x90000000 => {
-                    index = self.index_jump(index, fail_mode);
+                    index = self.index_jump(index, fail_mode, bytecode);
                 }
 
                 0xA0000000 => {
-                    index = self.hash_jump(index, fail_mode);
+                    index = self.hash_jump(index, fail_mode, bytecode);
                 }
 
                 0xB0000000 => {
-                    index = self.push_fail_state(index, fail_mode);
+                    index = self.push_fail_state(index, fail_mode, bytecode);
                 }
 
                 0xC0000000 => {
-                    index = self.repeat(index, fail_mode);
+                    index = self.repeat(index, fail_mode, bytecode);
                 }
 
                 0xD0000000 => {
@@ -245,11 +820,11 @@ impl<T: ByteReader> StateIterator<T> {
                 }
 
                 0xE0000000 => {
-                    index = self.noop(index, fail_mode);
+                    index = self.assert_consume(index, fail_mode, bytecode);
                 }
 
                 0xF0000000 => {
-                    return self.advanced_return(index, fail_mode) as u32;
+                    return self.advanced_return(index, fail_mode, bytecode) as u32;
                 }
                 0x00000000 | _ => {
                     return self.pass(index + 1, fail_mode) as u32;
@@ -257,93 +832,6 @@ impl<T: ByteReader> StateIterator<T> {
             }
         }
     } //*/
-    fn pushAction(&mut self, action: ParseAction) {
-        let index = self.action_buffer_end;
-
-        self.action_buffer_end = (index + 1) & 0x7;
-
-        debug_assert!(self.action_buffer_end != self.action_buffer_start);
-
-        self.buffer[index] = action;
-    }
-
-    fn emitShift(&mut self) {
-        let token = self.tokens[1];
-
-        let prev_token = self.tokens[0];
-
-        if prev_token.byte_offset + prev_token.byte_length != token.byte_offset {
-            self.pushAction(ParseAction::SKIP {
-                length: token.cp_offset - (prev_token.cp_length + prev_token.cp_offset),
-                line: prev_token.line,
-                token_type: 0,
-            });
-        }
-
-        self.pushAction(ParseAction::SHIFT {
-            length: token.cp_length,
-            line: prev_token.line,
-            token_type: token.typ as u32,
-        });
-    }
-
-    fn emitReduce(&mut self, symbol_length: u32, body_id: u32) {
-        self.pushAction(ParseAction::REDUCE {
-            body: body_id,
-            length: symbol_length,
-            production: self.production_id,
-        });
-    }
-
-    pub fn scanner(
-        &mut self,
-        mut current_token: KernelToken,
-        scanner_start_pointer: u32,
-    ) -> KernelToken {
-        if current_token.typ == 0 {
-            let mut reader = self.reader.clone();
-            let mut scanner =
-                StateIterator::new(reader, self.bytecode, scanner_start_pointer, true);
-
-            scanner.tokens[1] = current_token;
-            scanner.tokens[0] = current_token;
-
-            loop {
-                let result = scanner.nextAction();
-
-                match result {
-                    ParseAction::ACCEPT {} => {
-                        break;
-                    }
-                    ParseAction::TOKEN { token } => {
-                        if token.typ == 9999 {
-                            scanner.stack.reset(scanner_start_pointer);
-
-                            scanner.tokens[0] = scanner.tokens[1];
-
-                            continue;
-                        }
-
-                        return token;
-                    }
-                    ParseAction::FORK {} => {
-                        self.pushAction(ParseAction::ERROR {
-                            production: self.production_id,
-                        });
-                    }
-                    _ => {
-                        self.pushAction(ParseAction::ERROR {
-                            production: self.production_id,
-                        });
-                        break;
-                    }
-                }
-            }
-        }
-
-        current_token
-    }
-
     fn noop(&mut self, mut index: usize, _: u32) -> usize {
         return index;
     }
@@ -352,75 +840,75 @@ impl<T: ByteReader> StateIterator<T> {
         return 0;
     }
 
-    fn goto(&mut self, mut index: usize, a: u32) -> usize {
-        let instruction = self.bytecode[index];
+    fn assert_consume(&mut self, mut index: usize, a: u32, bytecode: &[u32]) -> usize {
+        let instruction = bytecode[index];
+        let mode = instruction & 0x0F000000;
+        let val = instruction & 0x00FFFFFF;
 
-        self.stack.push_state(instruction);
+        let mut token = self.getToken(1);
+
+        {
+            let reader = self.getReader();
+
+            match mode {
+                0x00000000 => {
+                    //CLASS
+                    token.byte_length = reader.codepoint_byte_length();
+                    token.cp_length = reader.codepoint_length();
+                    if val != reader.class() {
+                        return 2;
+                    }
+                }
+                0x01000000 => {
+                    //CODEPOINT
+                    token.byte_length = reader.codepoint_byte_length();
+                    token.cp_length = reader.codepoint_length();
+                    if val != reader.codepoint() {
+                        return 2;
+                    }
+                }
+                0x02000000 => {
+                    //BYTE
+                    token.byte_length = 1;
+                    token.cp_length = 1;
+                    if val != reader.byte() as u32 {
+                        return 2;
+                    }
+                }
+                _ => {}
+            }
+        }
+
+        self.setToken(1, token);
+
+        self.consume(1, 0, bytecode);
+
+        return index + 1;
+    }
+
+    fn goto(&mut self, mut index: usize, a: u32, bytecode: &[u32]) -> usize {
+        let instruction = bytecode[index];
+
+        self.push_state(instruction);
 
         index += 1;
 
-        if (self.bytecode[index] & 0xF0000000) == 0x20000000 {
-            return self.goto(index, a);
+        if (bytecode[index] & 0xF0000000) == 0x20000000 {
+            return self.goto(index, a, bytecode);
         }
 
         index
     }
 
-    fn consume(&mut self, mut index: usize, _: u32) -> usize {
-        let mut token = self.tokens[1];
+    fn consume(&mut self, index: usize, _: u32, bytecode: &[u32]) -> usize;
 
-        let prev = self.tokens[0];
-
-        let instruction = self.bytecode[index];
-
-        if (instruction & 1) != 0 {
-            token.cp_length = 0;
-            token.byte_length = 0;
-        }
-
-        if self.SCANNER {
-            self.reader.next(token.byte_length);
-
-            token.cp_offset += token.cp_length;
-
-            token.byte_offset += token.byte_length;
-
-            token.cp_length = 0;
-
-            token.byte_length = 0;
-
-            token.typ = 0;
-        } else {
-            self.emitShift();
-
-            self.reader
-                .next(token.byte_offset - prev.byte_offset + token.byte_length);
-
-            token.cp_offset += token.cp_length;
-
-            token.byte_offset += token.byte_length;
-
-            token.cp_length = 0;
-
-            token.byte_length = 0;
-
-            token.typ = 0;
-
-            self.tokens[0] = token;
-        }
-
-        self.tokens[1] = token;
-
-        index + 1
-    }
-
-    fn reduce(&mut self, mut index: usize, recover_data: u32) -> usize {
-        let instruction = self.bytecode[index];
+    fn reduce(&mut self, mut index: usize, recover_data: u32, bytecode: &[u32]) -> usize {
+        let instruction = bytecode[index];
         let body_id = (instruction) & 0xFFFF;
         let length = (instruction >> 16) & 0xFFF;
 
         if (body_id & 0xFFFF) == 0xFFFF {
-            let accumulated_symbols = self.symbol_accumulator - (recover_data & 0xFFFF0000);
+            let accumulated_symbols = self.getAccumulator() - (recover_data & 0xFFFF0000);
 
             let len = accumulated_symbols >> 16;
 
@@ -435,21 +923,22 @@ impl<T: ByteReader> StateIterator<T> {
         index += 1;
 
         //TODO: ASSERT the production is ALWAYS set after a reduction
-        if (self.bytecode[index] & 0xF0000000) == 0x30000000 {
-            self.set_production(index, recover_data)
+        if (bytecode[index] & 0xF0000000) == 0x30000000 {
+            self.set_production(index, recover_data, bytecode)
         } else {
             index
         }
     }
 
-    fn set_production(&mut self, mut index: usize, _: u32) -> usize {
-        let instruction = self.bytecode[index];
-        self.production_id = instruction & 0xFFFFFFF;
+    fn set_production(&mut self, mut index: usize, _: u32, bytecode: &[u32]) -> usize {
+        let instruction = bytecode[index];
+        self.setProduction(instruction & 0xFFFFFFF);
         index + 1
     }
 
-    fn repeat(&mut self, mut index: usize, _: u32) -> usize {
-        let instruction = self.bytecode[index];
+    fn repeat(&mut self, mut index: usize, _: u32, bytecode: &[u32]) -> usize {
+        let instruction = bytecode[index];
+
         let origin_offset = 0xFFFFFFF & instruction;
 
         index -= origin_offset as usize;
@@ -457,28 +946,30 @@ impl<T: ByteReader> StateIterator<T> {
         index + 1
     }
 
-    fn push_fail_state(&mut self, mut index: usize, _: u32) -> usize {
-        let instruction = self.bytecode[index];
+    fn push_fail_state(&mut self, mut index: usize, _: u32, bytecode: &[u32]) -> usize {
+        let instruction = bytecode[index];
         let fail_state_pointer = instruction;
 
-        let current_state = self.stack.read_state() & instruction_pointer_mask;
+        let current_state = self.read_state() & instruction_pointer_mask;
         //Only need to set new failure state if the previous state
         //Is not identical to the pending fail state.
         if current_state != ((fail_state_pointer) & instruction_pointer_mask) {
-            self.stack.push_state(fail_state_pointer);
+            self.push_state(fail_state_pointer);
         } else {
-            self.stack.swap_state(fail_state_pointer);
+            self.swap_state(fail_state_pointer);
         }
 
         index + 1
     }
 
-    fn set_token(&mut self, mut index: usize, _: u32) -> usize {
-        let instruction = self.bytecode[index];
+    fn set_token(&mut self, mut index: usize, _: u32, bytecode: &[u32]) -> usize {
+        let instruction = bytecode[index];
         let val = instruction & 0xFFFFFF;
-        let token = &mut self.tokens[1];
+        let token = &mut self.getToken(1);
         if (instruction & 0x08000000) != 0 {
-            self.tokens[0].typ = val as u16;
+            let mut tok = self.getToken(0);
+            tok.typ = val as u16;
+            self.setToken(0, tok)
         } else {
             token.cp_length = val;
 
@@ -488,24 +979,18 @@ impl<T: ByteReader> StateIterator<T> {
         index + 1
     }
 
-    fn advanced_return(&mut self, mut index: usize, fail_mode: u32) -> usize {
-        let instruction = self.bytecode[index];
+    fn advanced_return(&mut self, mut index: usize, fail_mode: u32, bytecode: &[u32]) -> usize {
+        let instruction = bytecode[index];
 
         if (instruction & 1) != 0 {
             return fail_mode as usize;
         }
 
-        if !self.reader.END() {
-            //self.state.lexer._type = 0;
-            //self.state.lexer.token_length = 1;
-            //self.state.lexer.byte_length = 1;
-        }
-
         1 /* true */
     }
 
-    fn fork(&mut self, mut index: usize, _: u32) -> usize {
-        let instruction = self.bytecode[index];
+    fn fork(&mut self, mut index: usize, _: u32, bytecode: &[u32]) -> usize {
+        let instruction = bytecode[index];
         0
     }
 
@@ -587,16 +1072,16 @@ impl<T: ByteReader> StateIterator<T> {
         index
     }
 
-    fn hash_jump(&mut self, mut index: usize, _: u32) -> usize {
-        let instruction = self.bytecode[index];
+    fn hash_jump(&mut self, mut index: usize, _: u32, bytecode: &[u32]) -> usize {
+        let instruction = bytecode[index];
 
         let input_type = (instruction >> 22) & 0x7;
 
         let token_transition = (instruction >> 26) & 0x3;
 
-        let scanner_start_pointer = self.bytecode[index + 1];
+        let scanner_start_pointer = bytecode[index + 1];
 
-        let table_data = self.bytecode[index + 2];
+        let table_data = bytecode[index + 2];
 
         index += 3;
 
@@ -610,13 +1095,17 @@ impl<T: ByteReader> StateIterator<T> {
 
         let instruction_field_size = instruction & 0xFFFF;
 
-        let input_value =
-            self.get_input_value(input_type, token_transition, scanner_start_pointer) as u32;
+        let input_value = self.get_input_value(
+            input_type,
+            token_transition,
+            scanner_start_pointer,
+            bytecode,
+        ) as u32;
 
         let mut hash_index = input_value & modulus;
 
         loop {
-            let cell = self.bytecode[(hash_table_start + hash_index) as usize];
+            let cell = bytecode[(hash_table_start + hash_index) as usize];
 
             let value = cell & 0x7FF;
 
@@ -635,12 +1124,12 @@ impl<T: ByteReader> StateIterator<T> {
         }
     }
 
-    fn index_jump(&mut self, mut index: usize, _: u32) -> usize {
-        let instruction = self.bytecode[index];
+    fn index_jump(&mut self, mut index: usize, _: u32, bytecode: &[u32]) -> usize {
+        let instruction = bytecode[index];
 
-        let scanner_start_pointer = self.bytecode[index + 1];
+        let scanner_start_pointer = bytecode[index + 1];
 
-        let table_data = self.bytecode[index + 2];
+        let table_data = bytecode[index + 2];
 
         index += 3;
 
@@ -650,9 +1139,12 @@ impl<T: ByteReader> StateIterator<T> {
 
         let token_transition = (instruction >> 26) & 0x3;
 
-        let input_value =
-            (self.get_input_value(input_type, token_transition, scanner_start_pointer)
-                - (basis__ as i32)) as u32;
+        let input_value = (self.get_input_value(
+            input_type,
+            token_transition,
+            scanner_start_pointer,
+            bytecode,
+        ) - (basis__ as i32)) as u32;
 
         let number_of_rows = table_data >> 16;
 
@@ -672,98 +1164,6 @@ impl<T: ByteReader> StateIterator<T> {
         input_type: u32,
         token_transition: u32,
         scanner_start_pointer: u32,
-    ) -> i32 {
-        if input_type > 0 {
-            // Lexer token id input
-
-            if self.reader.END() {
-                return 0;
-            }
-
-            if token_transition != 1 {
-                /* set primary lexer */
-
-                if self.token_end > 1 {
-                    self.token_end = 1;
-
-                    self.tokens[1].typ = 0;
-
-                    if !self.reader.setTo(self.tokens[1].byte_offset) {
-                        //self.error();
-                        return 0;
-                    };
-                }
-
-                match input_type {
-                    1 => {
-                        self.tokens[1] = self.scanner(self.tokens[1], scanner_start_pointer);
-                        self.tokens[1].typ as i32
-                    }
-
-                    2 => {
-                        let token = &mut self.tokens[self.token_end];
-                        token.byte_length = self.reader.codepoint_byte_length();
-                        token.cp_length = self.reader.codepoint_length();
-                        self.reader.class() as i32
-                    }
-                    3 => {
-                        let token = &mut self.tokens[self.token_end];
-                        token.byte_length = self.reader.codepoint_byte_length();
-                        token.cp_length = self.reader.codepoint_length();
-                        self.reader.codepoint() as i32
-                    }
-                    4 => {
-                        let token = &mut self.tokens[self.token_end];
-                        token.byte_length = 1;
-                        token.cp_length = 1;
-                        self.reader.byte() as i32
-                    }
-                    _ => 0,
-                }
-            } else {
-                /* set next peek lexer */
-
-                let prev_token = self.tokens[self.token_end];
-
-                self.token_end += 1;
-
-                self.reader.next(prev_token.byte_length);
-
-                self.tokens[self.token_end] = prev_token.next();
-
-                match input_type {
-                    1 => {
-                        let token = self.tokens[self.token_end];
-
-                        self.tokens[self.token_end] = self.scanner(token, scanner_start_pointer);
-
-                        return self.tokens[self.token_end].typ as i32;
-                    }
-
-                    2 => {
-                        let token = &mut self.tokens[self.token_end];
-                        token.byte_length = self.reader.codepoint_byte_length();
-                        token.cp_length = self.reader.codepoint_length();
-                        return self.reader.class() as i32;
-                    }
-                    3 => {
-                        let token = &mut self.tokens[self.token_end];
-                        token.byte_length = self.reader.codepoint_byte_length();
-                        token.cp_length = self.reader.codepoint_length();
-                        return self.reader.codepoint() as i32;
-                    }
-                    4 => {
-                        let token = &mut self.tokens[self.token_end];
-                        token.byte_length = 1;
-                        token.cp_length = 1;
-                        return self.reader.byte() as i32;
-                    }
-                    _ => 0,
-                }
-            }
-        } else {
-            // Production id input
-            self.production_id as i32
-        }
-    }
+        bytecode: &[u32],
+    ) -> i32;
 }

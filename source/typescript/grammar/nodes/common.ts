@@ -218,7 +218,7 @@ export function createProduction(name: string, mapped_sym: ReferencedFunction = 
         bodies: [],
         id: -1,
         recovery_handler: null,
-        tok: mapped_sym?.tok ?? createZeroedPosition(),
+        tok: mapped_sym?.pos ?? mapped_sym?.tok ?? createZeroedPosition(),
         RECURSIVE: 0
     };
 }
@@ -228,7 +228,7 @@ export function createProductionBody(mapped_sym: ReferencedFunction = null): HCG
         FORCE_FORK: false,
         id: -1,
         sym: [],
-        tok: mapped_sym?.tok ?? createZeroedPosition(),
+        tok: mapped_sym?.pos ?? mapped_sym?.tok ?? createZeroedPosition(),
         reduce_function: null,
     };
 }

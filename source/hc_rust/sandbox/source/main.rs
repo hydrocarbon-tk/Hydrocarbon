@@ -2,24 +2,28 @@ use std::time;
 mod ast;
 mod data;
 
-use candlelib_hydrocarbon::{ast::HCObj, completer, UTF8StringReader};
+use candlelib_hydrocarbon::{
+    ast::HCObj, completer, ParseIterator, ReferenceIterator, ThreadedIterator, UTF8StringReader,
+};
 
-use crate::ast::{ASTNodeTraits, NodeIteration};
+use crate::ast::{ASTNode, ASTNodeTraits, NodeIteration};
 
 fn main() {
     //coz::thread_init();
     let input = "two+three two two one";
-
-    for i in 0..100000 {
-        let mut result = completer(
-            UTF8StringReader::new(&input.as_bytes()),
-            &data::Bytecode,
-            data::EntryPoint_Start,
+    //*
+    for i in 0..100 {
+        let result = completer(
+            ReferenceIterator::new(
+                UTF8StringReader::new(&input.as_bytes()),
+                data::EntryPoint_Start,
+                &data::Bytecode,
+            ),
             &ast::FunctionMaps,
         );
     }
 
-    //*
+    //*///*
     /*
     let start = time::Instant::now();
 
@@ -29,14 +33,14 @@ fn main() {
 
     println!("SR: {:?}", elapsed); */
 
-    let start2 = time::Instant::now();
-
-    let mut result = completer(
+    let iterator = ReferenceIterator::new(
         UTF8StringReader::new(&input.as_bytes()),
-        &data::Bytecode,
         data::EntryPoint_Start,
-        &ast::FunctionMaps,
+        &data::Bytecode,
     );
+
+    let start2 = time::Instant::now();
+    let mut result = completer(iterator, &ast::FunctionMaps);
 
     let elapsed2 = start2.elapsed();
 
@@ -48,11 +52,14 @@ fn main() {
         match node {
             NODE(node) => {
                 use ast::ASTNode::*;
+                let d = 0;
                 match node {
                     ROOT(root) => {
-                        root.iterator(&mut |a, b| {
+                        root.iterate(&mut |a, b| {
                             use ast::ASTNode::*;
                             use NodeIteration::*;
+
+                            println!("{:?}", a.name());
 
                             match b {
                                 NodeIteration::ROOT(a) => {}

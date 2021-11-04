@@ -333,8 +333,9 @@ function optimizeStates(
 
     let round = 0;
 
+    const excludes = new Set(["Advanced State Analysis"]);
     //build_logger.debug(`Optimizing State round ${++round}`);
-    while (optimize(states_map, grammar, reserved_states)) {
+    while (optimize(states_map, grammar, reserved_states, excludes)) {
         const p = prev_size;
 
         prev_size = states_map.size;
@@ -342,6 +343,11 @@ function optimizeStates(
         round++;
 
         build_logger.rewrite_log(`Optimizing State round ${round}: Reduction ratio ${Math.round((1 - (states_map.size / p)) * 100)}%`);
+    }
+
+    while (optimize(states_map, grammar, reserved_states)) {
+        //Include last ditch optimizations
+        round++;
     }
 }
 
@@ -463,6 +469,13 @@ function insertInstructionSequences(
                     temp_buffer.push(4 << 28 | sym_len << 16 | reduce_fn_id);
                 }
 
+            } break;
+
+            case InstructionType.assert_consume: {
+
+                let mode = ((["CLASS", "CODEPOINT", "BYTE"].indexOf(instruction[1])) << 24);
+
+                temp_buffer.push(14 << 28 | mode | (instruction[2] & 0xFFFFFF));
             } break;
 
             case InstructionType.token_length: {
@@ -745,6 +758,12 @@ function renderInstructionSequences(
                 count.c += 4 + gotos.length * 4;
             } break;
 
+            case InstructionType.assert_consume: {
+                const [, mode, val] = instruction;
+                buffer.push(`${address(count)}:                 ASCS MODE:${mode} VAL:${val}`);
+                count.c += 4;
+            } break;
+
             case InstructionType.scan_back_until: {
                 const [, token_state, length, ids] = instruction;
                 buffer.push(`${address(count)}:                 SCNF %${token_state}% ${ids.map(i => `%${i}`).join(" | ")}`);
@@ -905,8 +924,12 @@ function createInstructionSequence(
     const standard_instructions = active_instructions.filter(i => !(i.type == InstructionType.goto || i.type == InstructionType.repeat));
 
     let byte_length = 0;
+    const combined = [...standard_instructions, ...goto_instructions];
 
-    for (const instr of [...standard_instructions, ...goto_instructions]) {
+    for (let i = 0; i < combined.length; i++) {
+
+        const instr = combined[i];
+
         switch (instr.type) {
             case InstructionType.inline_assert: {
 
@@ -921,6 +944,17 @@ function createInstructionSequence(
                     );
 
                     token_state = token_id_to_state.get(id);
+                } else if (instr.mode != "PRODUCTION" && instr.ids.length == 1) {
+                    if (combined[i + 1] && combined[i + 1].type == InstructionType.consume) {
+                        i++; byte_length += 4;
+                        instruction_sequence.push([
+                            InstructionType.assert_consume,
+                            instr.mode,
+                            instr.ids[0]
+                        ]);
+
+                    }
+                    continue;
                 }
 
                 let instruction: Instruction = null;
@@ -1292,7 +1326,7 @@ function statesOutputsBuildPass(StateMap: StateMap, grammar: GrammarObject, sym_
     const offset = { c: out_buffer.length * 4 };
 
     for (const [_, state_data] of StateMap) {
-        console.log(
+        /* console.log(
             "\n\nSTATE " + state_data.ir_state_ast.id + "\n",
             `e-size ${state_data.block.total_size}`,
             "-------------------------------------------------------------",
@@ -1303,7 +1337,7 @@ function statesOutputsBuildPass(StateMap: StateMap, grammar: GrammarObject, sym_
                 StateMap,
                 offset,
                 state_data.block.total_size
-            ).join("\n"));
+            ).join("\n")); */
 
         const buffer = convertBlockDataToBufferData(state_data, StateMap);
 

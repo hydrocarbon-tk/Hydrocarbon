@@ -42,7 +42,8 @@ function addOptimization(
     optimizations.push(fn);
 }
 
-function runOptimizations(state: IRStateData, states: StateMap) {
+function runOptimizations(state: IRStateData, states: StateMap, exclude_optimization: Set<string>) {
+
     const { attributes, ir_state_ast, } = state;
 
     const { id } = ir_state_ast;
@@ -51,14 +52,175 @@ function runOptimizations(state: IRStateData, states: StateMap) {
 
     let MODIFIED = false;
 
-    for (const optimization of optimizations)
+    for (const optimization of optimizations) {
+        if (exclude_optimization.has(optimization.name))
+            continue;
         MODIFIED ||= optimization.processor(
             ir_state_ast, attributes, state, states
         );
 
+    }
     return MODIFIED;
 }
 
+addOptimization({
+    name: "Advanced State Analysis",
+    processor: (
+        state: Resolved_IR_State,
+        attribute: StateAttrib,
+        data: IRStateData,
+        states: StateMap
+    ): boolean => {
+        let MODIFIED = false;
+
+        /**
+         * Scanner states may be able to complete without assigning a production value.
+         * 
+         * This is the case on entry scanner states if the last instruction is a set prod       
+         */
+        const progressions = [["Before ----\n", renderIRNode(state), "\n"]];
+
+        if (stateIsBranch(state)) {
+
+            for (const instruction of state.instructions) {
+
+                if (IsAssertInstruction(instruction) || IsPeekInstruction(instruction)) {
+
+                    const instructions = instruction.instructions;
+                    const last = instructions.slice(-1)[0];
+                    if (last.type == InstructionType.goto && getStateName(last.state).slice(-4) == "goto") {
+                        const penultimate = instructions.slice(-2)[0];
+                        const third = instructions.slice(-3)[0];
+
+                        if (
+                            third
+                            &&
+                            third.type != InstructionType.goto
+                            &&
+                            penultimate.type == InstructionType.goto
+                        ) {
+                            const target_state = getStateName(penultimate.state);
+                            const { ir_state_ast: ref_state, refs } = getGotoState(penultimate, states);
+                            if ([...refs].every(r => r.slice(-4) != "goto")) {
+                                //get all gotos that would affect this ref state
+                                const host_branches: IRBranch[] = [...refs].map(s => states.get(s).ir_state_ast).flatMap(s => {
+                                    let out = [];
+                                    if (stateIsBranch(s)) {
+                                        return s.instructions;
+                                    } else {
+                                        out.push(s);
+                                    }
+                                    return out;
+                                }).filter(s => {
+                                    const penultimate = s.instructions.slice(-2)[0];
+                                    if (penultimate.type == InstructionType.goto && getStateName(penultimate.state) == target_state)
+                                        return true;
+                                    return false;
+                                });
+
+                                if (host_branches.length != refs.size || host_branches.some(b => {
+                                    let last = b.instructions.slice(-1)[0]; return last.type != InstructionType.goto || getStateName(last.state).slice(-4) != "goto";
+                                }))
+                                    continue;
+
+                                let ref_branches: IRBranch[] = <any[]>[ref_state];
+
+                                if (stateIsBranch(ref_state))
+                                    ref_branches = <any>ref_state.instructions;
+
+                                let combines = [];
+
+                                for (const branch of ref_branches) {
+                                    const id = branch.instructions.filter(i => i.type == InstructionType.set_prod).map(i => i.id).pop();
+
+                                    if (id) {
+                                        const gotos: IRBranch[] = <any[]>host_branches
+                                            .map(b => getGotoState(<IRGoto>b.instructions.slice(-1)[0], states))
+                                            .flatMap(({ ir_state_ast }) => {
+                                                if (stateIsBranch(ir_state_ast)) {
+                                                    return ir_state_ast.instructions.filter(i => i.ids.includes(id));
+                                                }
+                                            });
+
+                                        const sigs = gotos.map(i => renderIRNode(i)).setFilter();
+
+                                        if (refs.size > 1 && sigs.length == 1) {
+
+                                            const instructions = gotos[0].instructions;
+
+                                            combines.push([branch, instructions]);
+                                        }
+                                    }
+                                }
+
+                                if (combines.length == ref_branches.length) {
+                                    for (const [branch, from] of combines) {
+                                        branch.instructions = branch.instructions.filter(i => i.type != InstructionType.set_prod).concat(...from);
+
+                                    }
+
+                                    for (const host of host_branches) {
+                                        host.instructions.pop();
+                                    }
+                                    MODIFIED = true;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        return MODIFIED;
+    }
+});
+addOptimization({
+    name: "Remove unnecessary production assigns",
+    processor: (
+        state: Resolved_IR_State,
+        attribute: StateAttrib,
+        data: IRStateData,
+        states: StateMap
+    ): boolean => {
+        let MODIFIED = false;
+        /**
+         * Scanner states may be able to complete without assigning a production value.
+         * 
+         * This is the case on entry scanner states if the last instruction is a set prod       
+         */
+        const progressions = [["Before ----\n", renderIRNode(state), "\n"]];
+
+        if (stateIsBranch(state) && (<string>state.id).slice(0, 9) == "__SCANNER") {
+
+            for (const instruction of state.instructions) {
+
+                if (IsAssertInstruction(instruction)) {
+
+                    const instructions = instruction.instructions;
+                    const last = instructions.slice(-1)[0];
+                    if (
+                        last.type != InstructionType.goto &&
+                        last.type != InstructionType.repeat &&
+                        instructions.some(i => i.type == InstructionType.set_prod)
+                    ) {
+                        instruction.instructions = instructions.filter(s => s.type != InstructionType.set_prod);
+                        if (instruction.instructions.length != instructions.length)
+                            MODIFIED = true;
+                    }
+                }
+            }
+        } else {
+
+        }
+        if (MODIFIED) {
+            //for (const prog of progressions)
+            //    console.log(...prog);
+            //console.log("AFTER ----\n", renderIRNode(state), "\n");
+        }
+
+        return MODIFIED;
+    }
+});
 addOptimization({
     name: "Goto Inline",
     processor: (
@@ -102,7 +264,7 @@ addOptimization({
                     const IS_POST_CONSUME = ContainsConsume(instruction);
                     const first_goto = getFirstGoto(instructions);
                     if (first_goto) {
-                        const { ir_state_ast: goto_state } = getGotState(first_goto, states);
+                        const { ir_state_ast: goto_state } = getGotoState(first_goto, states);
 
                         if (!HasFailState(goto_state)) {
 
@@ -117,7 +279,7 @@ addOptimization({
 
                     if (first_goto) {
 
-                        const { ir_state_ast: goto_state } = getGotState(first_goto, states);
+                        const { ir_state_ast: goto_state } = getGotoState(first_goto, states);
 
                         if (!HasFailState(goto_state)) {
                             if (stateIsBranch(goto_state)) {
@@ -196,7 +358,7 @@ addOptimization({
 
                             const first_goto = getFirstGoto(block);
 
-                            const goto_state = getGotState(first_goto, states).ir_state_ast;
+                            const goto_state = getGotoState(first_goto, states).ir_state_ast;
 
                             if (IsProductionBranchState(goto_state)) {
                                 for (const branch of <IRProdAssert[]>goto_state.instructions) {
@@ -258,7 +420,7 @@ addOptimization({
 
                             const first_goto = getFirstGoto(block);
 
-                            const goto_state = getGotState(first_goto, states).ir_state_ast;
+                            const goto_state = getGotoState(first_goto, states).ir_state_ast;
 
                             if (IsProductionBranchState(goto_state) && !HasFailState(goto_state)) {
                                 for (const branch of <IRProdAssert[]>goto_state.instructions) {
@@ -369,7 +531,7 @@ addOptimization({
 
                 if (instr.instructions[0].type == InstructionType.goto) {
 
-                    const goto_state = getGotState(getFirstGoto(instr.instructions), states).ir_state_ast;
+                    const goto_state = getGotoState(getFirstGoto(instr.instructions), states).ir_state_ast;
                     const goto_instructions: IRBranch[] = <any>goto_state.instructions;
 
                     if (
@@ -541,7 +703,7 @@ function replaceGoto(
 
         const goto = getFirstGoto(instructions);
 
-        const state = getGotState(goto, ir_states);
+        const state = getGotoState(goto, ir_states);
 
         const ast = state.ir_state_ast;
 
@@ -598,7 +760,7 @@ function stateIsBranch(state: IR_State): boolean {
     );
 }
 
-function getGotState(goto: IRGoto, ir_states: StateMap): IRStateData {
+function getGotoState(goto: IRGoto, ir_states: StateMap): IRStateData {
     return ir_states.get(getStateName(goto.state));
 }
 
@@ -664,7 +826,12 @@ function removeRedundantProdSet(candidate: IR_State | IRPeek | IRAssert, state: 
     }
 }
 
-export function optimize(StateMap: StateMap, grammar: GrammarObject, entry_names: string[]) {
+export function optimize(
+    StateMap: StateMap,
+    grammar: GrammarObject,
+    entry_names: string[],
+    exclude_optimization: Set<string> = new Set()
+) {
 
     optimize_logger.debug(`---------------- Processing States ----------------`);
 
@@ -672,7 +839,7 @@ export function optimize(StateMap: StateMap, grammar: GrammarObject, entry_names
 
     for (const [, state] of StateMap) {
 
-        const result = runOptimizations(state, StateMap);
+        const result = runOptimizations(state, StateMap, exclude_optimization);
 
         MODIFIED ||= result;
     }
@@ -693,7 +860,7 @@ export function garbageCollect(
     ].setFilter()) {
 
 
-    const marked_map = new Map([...StateMap].map(([name]) => [name + "", false]));
+    const marked_map = new Map([...StateMap].map(([name]) => [name + "", null]));
 
     const pending = entry_names.slice();
 
@@ -701,7 +868,8 @@ export function garbageCollect(
 
         const state = StateMap.get(name);
 
-        marked_map.set(name, true);
+        if (marked_map.get(name) == null)
+            marked_map.set(name, new Set);
 
         const names: Set<string> = new Set();
 
@@ -758,18 +926,24 @@ export function garbageCollect(
         if (state.ir_state_ast.fail)
             names.add(state.ir_state_ast.fail.id + "");
 
-        for (const name of names) {
-            if (!marked_map.get(name))
-                pending.push(name);
+        for (const n of names) {
+            if (!n) debugger;
+            if (!marked_map.get(n)) {
+                pending.push(n);
+                marked_map.set(n, new Set);
+            }
+            marked_map.get(n).add(name);
         }
     }
 
 
     optimize_logger.debug(`---------------- Removing unreferenced states ----------------`);
-    for (const [name, marked] of marked_map) {
-        if (!marked) {
+    for (const [name, refs] of marked_map) {
+        if (refs == null) {
             optimize_logger.debug(`Removing state ${name}`);
             StateMap.delete(name);
+        } else {
+            StateMap.get(name).refs = refs;
         }
     }
 }

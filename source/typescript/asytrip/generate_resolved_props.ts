@@ -37,16 +37,16 @@ export function generateResolvedProps(
 
         let type = real_types[0];
 
-        if (REQUIRES_DYNAMIC)
-            type_string = "HCO";
-        else if (TypesAre(real_types, TypeIsStruct)) {
+        if (TypesAre(real_types, TypeIsStruct)) {
             if (real_types.length > 1)
-                type_string = "HCNode";
+                type_string = "ASTNode";
             else if (type) {
                 type_string = getTypeString(type, context);
                 if (HAS_NULL)
                     type_string = `Option<${type_string}>`;
             }
+        } else if (REQUIRES_DYNAMIC) {
+            type_string = "HCO";
         } else if (TypesAre(real_types, TypeIsVector)) {
             type_string = getTypeString(real_types[0], context);
         } else if (type)

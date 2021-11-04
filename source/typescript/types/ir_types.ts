@@ -41,6 +41,8 @@ export interface ResolvedFailedIRState extends ResolvedIRState {
 }
 
 export const enum InstructionType {
+
+    assert_consume = "assert-consume",
     increment = "increment",
     token_assign = "token-assign",
     empty_consume = "empty-consume",
@@ -249,6 +251,10 @@ export type Instruction =
         number,
         Instruction[][]
 
+    ] | [
+        InstructionType.assert_consume,
+        "BYTE" | "CODEPOINT" | "CLASS",
+        number,
     ] | [
         InstructionType.pass | "end",
     ] | [

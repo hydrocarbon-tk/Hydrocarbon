@@ -243,8 +243,12 @@ This is not the case with ${s_name}~${name}`];
                         const production = grammar.productions[args.val];
                         const types = context.resolved_return_types.get(production.id);
                         const bad_types = types.filter(t => !TypeIsStruct(t)).setFilter(JSONFilter);
+
+                        if (bad_types.length == 0)
+                            continue;
+
                         message.push(args.tok.createError(
-                            `Production ${production.name} assigned to reference ${args.tok.slice()} produces non Struct types [ ${bad_types.map(t => {
+                            `Production ${production.name}: \n--------------------------\n ${render_grammar(production)} \n--------------------------\n  assigned to reference ${args.tok.slice()} produces non Struct types [ ${bad_types.map(t => {
                                 if (TypeIsVector(t)) {
                                     return `${ASYTRIPType[t.type]}<${t.types.map(t => ASYTRIPType[t.type]).setFilter(JSONFilter).join(" | ")}>`;
                                 }

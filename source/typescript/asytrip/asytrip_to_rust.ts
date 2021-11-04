@@ -149,15 +149,30 @@ pub enum NodeIteration<'a> {
         }).join(",\n")}
 }
 
+impl<'a> NodeIteration<'a> {
+    pub fn name(&self) -> &str {
+        use NodeIteration::*;
+        match self {
+            STOP => "stop",
+            ${structs.map(([n, s]) => `
+                ${n}(_0) => {
+                    "node-${n}"
+                }`)}
+            REPLACE(node) => "replace",
+            _ => "unknown",
+        }
+    }
+}
+
 pub trait ASTNodeTraits<'a>
 where
     Self: Sized,
 {
-    fn iterator(
+    fn iterate(
         self: &'a mut Box<Self>,
         _yield: &'a mut impl FnMut(&mut NodeIteration<'a>, &mut NodeIteration<'a>) -> NodeIteration<'a>,
     ) {
-        let mut closure = |a: &mut NodeIteration<'a>, b: &mut NodeIteration<'a>, c: i32, d: i32| {
+        let mut closure = |a: &mut NodeIteration<'a>, b: &mut NodeIteration<'a>, ty:u32, c: i32, d: i32| {
             use NodeIteration::*;
             match _yield(a, b) {
                 STOP => false,
@@ -176,12 +191,12 @@ where
 
         self.Iterate(&mut closure, &mut NodeIteration::NONE, 0, 0)
     }
-    fn Replace(&mut self, node: ASTNode, i: i32, j: i32) -> Option<ASTNode> {
-        None
+    fn Replace(&mut self, node: ASTNode, i: i32, j: i32) -> ASTNode {
+        ASTNode::NONE
     }
     fn Iterate(
         self: &'a mut Box<Self>,
-        _yield: &mut impl FnMut(&mut NodeIteration<'a>, &mut NodeIteration<'a>, i32, i32) -> bool,
+        _yield: &mut impl FnMut(&mut NodeIteration<'a>, &mut NodeIteration<'a>,u32, i32, i32) -> bool,
         parent: &mut NodeIteration<'a>,
         i: i32,
         j: i32,
@@ -194,7 +209,7 @@ where
 
 
     //Structs ------------------------------------------------------------------------
-    for (const [name, struct] of context.structs) {
+    for (const [struct_name, struct] of context.structs) {
         const prop_vals = generateResolvedProps(struct,
             context,
             resolved_struct_types,
@@ -205,20 +220,20 @@ where
         const struct_strings = [`
 
 #[derive(Debug, Clone)]
-pub struct ${name} {
+pub struct ${struct_name} {
     pub tok:Token,
     ${prop_vals.map(({ name: n, type: v }) => `pub ${n}:${v}`).join(",\n")}
 }
 
-impl Drop for ${name} {
+/* impl Drop for ${struct_name} {
     fn drop(&mut self) {
-        println!("DROPPED ${name}");
+        println!("DROPPED ${struct_name}");
     }
 }
-
-impl ${name} {
+ */
+impl ${struct_name} {
 fn new( tok: Token, ${prop_vals.map(({ name: n, type: v }) => `_${n}:${v}`).join(", ")}) -> Box<Self> {
-    Box::new(${name}{
+    Box::new(${struct_name}{
         tok: tok,
         ${prop_vals.map(({ name: n }) => {
             return `${n} : _${n}`;
@@ -240,22 +255,17 @@ ${prop_vals.flatMap(({ name: prop_name, type: v, types, prop: p, HAS_NULL }, j) 
                     if (structs.length > 1) {
                         ifs.push([
                             `
-    match &mut (unsafe { (*node.get()).as_mut() }.${prop_name}){
-        _ => {},
-        HCO::NODE(child) => {
-
-            ${structs.length > 1 ? `match child {
-            ${structs.map(({ name }) => {
-                                return `ASTNode::${name}(child) => { child.Iterate(_yield, ty, ${i}, 0)   }`;
-                            }).join(",\n")}
-            _ => {}
-            }` :
-                                `if let ASTNode::${structs[0].name}(child) = child {
-                let mut_me_b = unsafe { (*node.get()).as_mut() };
-                child.Iterate( _yield, &NodeIteration::${name}(mut_me_b), ${i}, 0);
-            }
-            `}
+    match &child {
+        ASTNode::NONE => {
+            let old = std::mem::replace(&mut self.${prop_name}, ASTNode::NONE);
+            return Some(old);
         }
+        ${structs.map(({ name }) => `
+        ASTNode::${name}(_child) => { 
+            return Some(std::mem::replace(&mut self.${prop_name}, child));
+        }`).join(",\n")}
+        _ => None
+        
     }`
                         ].join("\n"));
                     } else if (TypesRequiresDynamic(types)) {
@@ -324,27 +334,36 @@ ${prop_vals.flatMap(({ name: prop_name, type: v, types, prop: p, HAS_NULL }, j) 
 
                     if (HAS_STRUCTS) {
 
-                        if (types.length > 1 && vectors.length !== types.length) {
-                            ifs.push([
-                                /* `if(Array.isArray(self.${prop_name})){`,
-                                `   for i := 0; i < len(self.${prop_name}); i+=1 { `,
-                                `       self.${prop_name}[i].Iterate(_yield, self, ${i}, i);`,
-                                `   }`,
-                                `}` */
-                            ].join("\n"));
+                        const structs = vectors.flatMap(v => v.types).filter(TypeIsStruct).setFilter(JSONFilter);
 
-                        } else {
-                            ifs.push([
-                                /* `for i := 0; i < len(self.${prop_name}); i+=1 { `,
-                                `   self.${prop_name}[i].Iterate(_yield, self, ${i}, i);`,
-                                `}` */
-                            ].join("\n"));
-                        }
+                        ifs.push([
+                            `
+    match &child {
+        ${structs.map(({ name }, i) => `ASTNode::${name}(_${i})`).join("|")} => {
+            if index as usize >= self.${prop_name}.len() {
+                self.${prop_name}.push(child);
+                None
+            }else {
+                self.${prop_name}.push(child);
+                let node = self.${prop_name}.swap_remove(index as usize);
+                Some(node)
+            }
+        }
+        ASTNode::NONE => {
+            if (index as usize)< self.${prop_name}.len() {
+                let node = self.${prop_name}.remove(index as usize);
+                Some(node)
+            }else {
+                None
+            }
+        }
+        _ => None
+    }`].join("\n"));
                     }
                 }
                 i++;
                 return `
-fn  replace_${prop_name}(&mut self, child: ASTNode) -> Option<${out_type}> {
+fn  replace_${prop_name}(&mut self, child: ASTNode,${HAVE_STRUCT_VECTORS ? "index: i32," : ""}) -> Option<${out_type}> {
     ${ifs.join(" else ")}
 }`;
             } else {
@@ -355,14 +374,14 @@ fn  replace_${prop_name}(&mut self, child: ASTNode) -> Option<${out_type}> {
 `,
         //Iterator Implementation ------------------------------------------------------------------------
         `
-impl<'a> ASTNodeTraits<'a> for ${name}
+impl<'a> ASTNodeTraits<'a> for ${struct_name}
 where
     Self: Sized,
 {
 
 fn Iterate(
     self: &'a mut Box<Self>,
-    _yield: &mut impl FnMut(&mut NodeIteration<'a>, &mut NodeIteration<'a>, i32, i32) -> bool,
+    _yield: &mut impl FnMut(&mut NodeIteration<'a>, &mut NodeIteration<'a>,u32, i32, i32) -> bool,
     parent: &mut NodeIteration<'a>,
     i: i32,
     j: i32,
@@ -372,7 +391,7 @@ fn Iterate(
     {
         let mut_me = unsafe { (*node.get()).as_mut() };
 
-        if !_yield(&mut NodeIteration::${name}(mut_me), parent, i, j) { return };
+        if !_yield(&mut NodeIteration::${struct_name}(mut_me), parent, ${context.type.get(struct_name)}, i, j) { return };
     }
         
     ${prop_vals.flatMap(({ name: n, type: v, types, prop: p, HAS_NULL }, j) => {
@@ -384,40 +403,35 @@ fn Iterate(
                 const structs = types.filter(TypeIsStruct);
                 if (TypesRequiresDynamic(types)) {
                     ifs.push([
-                        `match &mut (unsafe { (*node.get()).as_mut() }.${n}){
-            _ => {},
-            HCO::NODE(child) => {
-                
-                    ${structs.length > 1 ? `match child {
-                        ${structs.map(({ name }) => {
-                            return `ASTNode::${name}(child) => { child.Iterate(_yield, ty, ${i}, 0)   }`;
-                        }).join(",\n")}
-                        _ => {}
-                    }` :
-                            `if let ASTNode::${name}(child) = child {
-                                let mut_me_b = unsafe { (*node.get()).as_mut() };
-                                child.Iterate( _yield, &mut NodeIteration::${name}(mut_me_b), ${i}, 0);
-                            }
                         `
-                        }
-            }
+        match &mut (unsafe { (*node.get()).as_mut() }.${n}){
+            ${structs.map(({ name }) => {
+                            return `
+                ASTNode::${name}(child) => { 
+                    let mut_me_b = unsafe { (*node.get()).as_mut() };
+                    child.Iterate( _yield, &mut NodeIteration::${struct_name}(mut_me_b), ${i}, 0);
+                }`;
+                        }).join(",\n")}
+            _ => {}
+            
         }`
                     ].join("\n"));
                 } else if (HAS_NULL) {
                     ifs.push([
-                        `{
-                        if let Some(child) = &mut (unsafe { (*node.get()).as_mut() }.${n}) {
-                            let mut_me_b = unsafe { (*node.get()).as_mut() };
-                            child.Iterate(_yield, &mut NodeIteration::${name}(mut_me_b), ${i}, 0);
-                        }
-                    }`
+                        `
+        {
+            if let Some(child) = &mut (unsafe { (*node.get()).as_mut() }.${n}) {
+                let mut_me_b = unsafe { (*node.get()).as_mut() };
+                child.Iterate(_yield, &mut NodeIteration::${struct_name}(mut_me_b), ${i}, 0);
+            }
+        }`
                     ].join("\n"));
                 } else {
                     ifs.push([
                         `
         {
             let mut_me_b = unsafe { (*node.get()).as_mut() };
-            (unsafe { (*node.get()).as_mut() }.${n}).Iterate( _yield, &mut NodeIteration::${name}(mut_me_b), ${i}, 0);
+            (unsafe { (*node.get()).as_mut() }.${n}).Iterate( _yield, &mut NodeIteration::${struct_name}(mut_me_b), ${i}, 0);
             
         }`,
                     ].join("\n"));
@@ -429,22 +443,36 @@ fn Iterate(
 
                 if (HAS_STRUCTS) {
 
-                    if (types.length > 1 && vectors.length !== types.length) {
-                        ifs.push([
-                            /* `if(Array.isArray(self.${n})){`,
-                            `   for i := 0; i < len(self.${n}); i+=1 { `,
-                            `       self.${n}[i].Iterate(_yield, self, ${i}, i);`,
-                            `   }`,
-                            `}` */
-                        ].join("\n"));
+                    const structs = vectors.flatMap(v => v.types).filter(TypeIsStruct).setFilter(JSONFilter);
 
-                    } else {
-                        ifs.push([
-                            /* `for i := 0; i < len(self.${n}); i+=1 { `,
-                            `   self.${n}[i].Iterate(_yield, self, ${i}, i);`,
-                            `}` */
-                        ].join("\n"));
-                    }
+                    ifs.push([
+                        `
+        {
+
+            let mut_me_a = unsafe { (*node.get()).as_mut() };
+            for j in 0..mut_me_a.${n}.len() {
+                let mut_me_b = unsafe { (*node.get()).as_mut() };
+                let child = &mut mut_me_b.${n}[j];
+
+                ${structs.length > 1 ? `match child {
+                    ${structs.map(({ name }) => {
+                            return `
+                        ASTNode::${name}(child) => { 
+                            let mut_me = unsafe { (*node.get()).as_mut() };
+                            child.Iterate(_yield, &mut NodeIteration::${struct_name}(mut_me) ${i}, j as i32)   
+                        }`;
+                        }).join(",\n")}
+                    _ => {}
+                }` :
+                            `
+                if let ASTNode::${structs[0].name}(child) = child {
+                    let mut_me = unsafe { (*node.get()).as_mut() };
+                    child.Iterate( _yield, &mut NodeIteration::${struct_name}(mut_me), ${i}, j as i32);
+                }`}
+            }
+        }`
+                    ].join("\n"));
+
                 }
             }
             i++;
@@ -452,66 +480,35 @@ fn Iterate(
         }).filter(i => !!i).join("\n    ")}
     
 }
-/*
+
 fn Replace(&mut self, child: ASTNode, i: i32, j: i32) -> ASTNode{
 
     match i{
     ${prop_vals.flatMap(({ name: n, type: v, types, prop: p, HAS_NULL }, j) => {
-
-
             if (j == 0) i = 0;
-
             const HAVE_STRUCT = TypesInclude(types, TypeIsStruct);
-
             const ifs = [];
             if (HAVE_STRUCT) {
                 const structs = types.filter(TypeIsStruct);
-                if (TypesRequiresDynamic(types)) {
-                    ifs.push([
-                        `match child { 
-                            ${structs.map(e =>
-                            `ASTNode::${e.name}(_) => {
-                                let old = self.${n};
-                                self.${n} = HCO::NODE(child);
-                                if let HCO::NODE(node) = old {
-                                    return node;
-                                }},`).join("\n")}
-                            _ => {},
-                            }`].join("\n"));
-                } else {
-                    const s = structs[0];
-                    ifs.push([
-                        `if let ASTNode::${s.name}(bx) = child {
-                            let old = self.${n};
-                                self.${n} = ${HAS_NULL ? `Some(bx)` : "bx"};
-                                ${HAS_NULL ? `
-                                if let Some(old) = old {
-                                    return ASTNode::${s.name}(old);
-                                }` : `return ASTNode::${s.name}(old);`
-                        }}`].join("\n"));
-                }
-            } else if (TypesInclude(types, TypeIsVector)) {
+                ifs.push([
+                    `
+        if let Some(old) = self.replace_${n}(child){ 
+                return old;
+            }else{
+                return ASTNode::NONE;
+            }`].join("\n"));
 
+            } else if (TypesInclude(types, TypeIsVector)) {
                 const vectors = types.filter(TypeIsVector);
                 const HAS_STRUCTS = vectors.some(v => TypesInclude(v.types, TypeIsStruct));
-
                 if (HAS_STRUCTS) {
-
-                    if (types.length > 1 && vectors.length !== types.length) {
-                        ifs.push([
-                            `_array, ok := node.${n}(HCGObjNodeArray)`,
-                            `if ok {`,
-                            `   //node.${j}[i] = child`,
-                            `}`
-                        ].join("\n"));
-
-                    } else {
-                        ifs.push([
-                            `for i := 0; i < len(node.${n}); i+=1 { `,
-                            `   //node.${n}[i].Iterate(_yield, child, ${i}, i);`,
-                            `}`
-                        ].join("\n"));
-                    }
+                    ifs.push([
+                        `
+        if let Some(old) = self.replace_${n}(child, j){ 
+            return old;
+        }else{
+            return ASTNode::NONE;
+        }`].join("\n"));
                 }
             }
 
@@ -523,22 +520,23 @@ fn Replace(&mut self, child: ASTNode, i: i32, j: i32) -> ASTNode{
 
             return "";
         }).filter(i => !!i).join("\n    ")}
-    }
+        _ => {}
+    };
 
     ASTNode::NONE
 }
-*/
+
 
 fn Token(&self) -> Token{
     return self.tok;
 }
 
 fn Type()-> u32{
-    return ${context.type.get(name)};
+    return ${context.type.get(struct_name)};
 }
 
 fn GetType(&self) -> u32 {
-    return ${context.type.get(name)};
+    return ${context.type.get(struct_name)};
 }
 }
 `];
@@ -645,8 +643,22 @@ fn GetType(&self) -> u32 {
                         const type = source_arg.types[0];
                         const arg_types = getResolvedType(type, context).filter(TypeIsNotNull);
                         const val = typeToExpression(type, context, inits);
+                        if (TypesInclude(arg_types, TypeIsStruct)) {
 
-                        if (REQUIRES_DYNAMIC) {
+                            const arg = arg_types[0];
+
+                            let ref = inits.push_closure(`if let HCO::NODE($$) = ${val}`);
+
+                            if (target_structs.length == 1) {
+                                ref = inits.push_closure(`if let ASTNode::${arg.name}($$) = ${ref}`);
+                                if (TARGET_HAS_NULL)
+                                    return `Some(${ref})`;
+                            }
+
+                            return ref;
+
+
+                        } else if (REQUIRES_DYNAMIC) {
 
                             if ("arg_pos" in type)
                                 return val;
@@ -664,12 +676,13 @@ fn GetType(&self) -> u32 {
                                 default: return val;
                             }
                         } else if (TypesAre(arg_types, TypeIsVector)) {
+
+                            if (val == "__NULL__") {
+                                return "Vec::new()";
+                            }
                             const types = arg_types.flatMap(t => t.types);
                             if (TypesAre(types, TypeIsStruct)) {
                                 return inits.push_closure(`if let HCO::NODES($$) = ${val}`);
-
-                                debugger;
-
                             }
 
                         } else if (arg_types.length == 1) {
@@ -677,37 +690,26 @@ fn GetType(&self) -> u32 {
                             switch (arg.type) {
                                 case ASYTRIPType.STRING:
                                     return;
-                                case ASYTRIPType.STRUCT:
-                                    let ref = inits.push_closure(`if let HCO::NODE($$) = ${val}`);
-
-                                    if (target_structs.length == 1)
-                                        ref = inits.push_closure(`if let ASTNode::${arg.name}($$) = ${ref}`);
-
-                                    if (TARGET_HAS_NULL)
-                                        return `Some(${ref})`;
-                                    else
-                                        return ref;
-                                    return;
                             }
                         }
 
                         return val;
 
                     } else {
-                        if (REQUIRES_DYNAMIC) {
-                            return "HCO::NONE";
-                        } else if (TypesAre(target_types, TypeIsStruct)) {
-                            if (target_types.length > 1) {
+                        if (TypesInclude(target_types, TypeIsStruct)) {
+                            if (target_structs.length > 1) {
                                 //This will be an ASTNode enum type
                                 return "ASTNode::NONE";
                             } else {
                                 return "None";
                             }
+                        } else if (REQUIRES_DYNAMIC) {
+                            return "HCO::NONE";
                         } else {
                             const type = target_types[0];
                             switch (type.type) {
                                 case ASYTRIPType.VECTOR:
-                                    return "vec![]";
+                                    return "Vec::new()";
                                 case ASYTRIPType.BOOL:
                                     return false;
                                 case ASYTRIPType.DOUBLE:
@@ -731,8 +733,8 @@ fn GetType(&self) -> u32 {
             let i = fns.size;
             fns.set(str, {
                 size: fns.size,
-                name: `_FN${i}_`,
-                str: `fn _FN${i}_ (args:&mut Vec<HCO>, tok: Token) -> HCO ` + str
+                name: `_fn${i}`,
+                str: `fn _fn${i} (args:&mut Vec<HCO>, tok: Token) -> HCO ` + str
             });
         }
 
@@ -842,7 +844,7 @@ addExpressMap(ASYTRIPType.TERNARY, (v, c, inits) => {
     return ref;
 });
 
-addExpressMap(ASYTRIPType.NULL, (v, c, inits) => "nil");
+addExpressMap(ASYTRIPType.NULL, (v, c, inits) => "__NULL__");
 
 addExpressMap(ASYTRIPType.BOOL, (v, c, inits) => (v.val + "") || "false");
 
@@ -857,7 +859,7 @@ addExpressMap(ASYTRIPType.DOUBLE, (v, c, inits) => {
 addExpressMap(ASYTRIPType.CONVERT_BOOL, (v, c, inits) => {
     const val = typeToExpression(v.value, c, inits);
 
-    if (val == "nil" || val == "false")
+    if (val == "__NULL__" || val == "false")
         return "false";
 
     if (val == "true")
@@ -991,7 +993,7 @@ addExpressMap(ASYTRIPType.VECTOR_PUSH, (v, c, inits) => {
             inits.push(`${push_ref}.(*HCGObjStringArray).Append(${vals.join(", ")})`, false);
         }
     } else if (TypesAre(types, TypeIsStruct)) {
-        const vals = v.args.map(convertArgsToType(c, inits, TypeIsStruct, _ => `nil`));
+        const vals = v.args.map(convertArgsToType(c, inits, TypeIsStruct, _ => `niil`));
 
         return inits.push(`&HCNode{Val: [HCNode] { ${vals.join(", ")}}}`);
     } else {

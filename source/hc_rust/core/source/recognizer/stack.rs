@@ -43,7 +43,7 @@ impl KernelStack {
         return state;
     }
 
-    pub fn read_state(&mut self) -> u32 {
+    pub fn read_state(&self) -> u32 {
         (self.state_stack[self.stack_pointer as usize] & 0xFFFF_FFFF) as u32
     }
 

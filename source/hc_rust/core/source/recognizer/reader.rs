@@ -75,8 +75,10 @@ pub trait ByteReader {
     fn class(&self) -> u32 {
         return getTypeAt(self.codepoint());
     }
-}
 
+    fn cursor(&self) -> u32;
+}
+#[derive(Debug, Clone)]
 pub struct UTF8StringReader {
     length: usize,
     cursor: usize,
@@ -105,7 +107,11 @@ impl ByteReader for UTF8StringReader {
     }
 
     fn setTo(&mut self, offset: u32) -> bool {
-        self.cursor = offset as usize;
+        if self.cursor != offset as usize {
+            self.cursor = offset as usize;
+            self.next(0);
+        }
+
         true
     }
 
@@ -167,5 +173,9 @@ impl ByteReader for UTF8StringReader {
         }
 
         self.codepoint = get_utf8_code_point_from(self.word);
+    }
+
+    fn cursor(&self) -> u32 {
+        self.cursor as u32
     }
 }

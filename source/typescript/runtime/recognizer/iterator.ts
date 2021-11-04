@@ -366,11 +366,45 @@ export class StateIterator {
 
                 case 13:/*NOOP*/;
 
-                case 14: /*NOOP*/;
+                case 14: index = this.assert_consume(index, instruction); break;
 
                 case 15: return this.advanced_return(instruction, fail_mode);
             }
         }
+    }
+
+    private assert_consume(index, instruction) {
+
+        const mode = instruction & 0x0F000000;
+        let val = instruction & 0x00FFFFFF;
+
+        let token = this.tokens[1];
+
+        switch (mode) {
+            case 0x00000000: //CLASS
+                token.byte_length = this.reader.codepoint_byte_length();
+                token.codepoint_length = this.reader.codepoint_length();
+                if (val != this.reader.class())
+                    return 2;
+                break;
+            case 0x01000000://CODEPOINT
+                token.byte_length = this.reader.codepoint_byte_length();
+                token.codepoint_length = this.reader.codepoint_length();
+                if (val != this.reader.codepoint())
+                    return 2;
+                break;
+            case 0x02000000://BYTE
+                token.byte_length = 1;
+                token.codepoint_length = 1;
+                if (val != this.reader.byte())
+                    return 2;
+                break;
+        }
+
+        this.consume(0);
+
+        return index;
+
     }
 
     private pass() {

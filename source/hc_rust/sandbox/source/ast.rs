@@ -20,6 +20,7 @@ pub enum ASTNode {
     ROOT(Box<ROOT>),
     MIN(Box<MIN>),
     B(Box<B>),
+    num_literal(Box<num_literal>),
 }
 
 impl HCObjTrait for ASTNode {
@@ -43,47 +44,69 @@ pub enum NodeIteration<'a> {
     ROOT(&'a mut ROOT),
     MIN(&'a mut MIN),
     B(&'a mut B),
+    num_literal(&'a mut num_literal),
+}
+
+impl<'a> NodeIteration<'a> {
+    pub fn name(&self) -> &str {
+        use NodeIteration::*;
+        match self {
+            STOP => "stop",
+
+            ROOT(_0) => "node-ROOT",
+            MIN(_0) => "node-MIN",
+            B(_0) => "node-B",
+            num_literal(_0) => "node-num_literal",
+            REPLACE(node) => "replace",
+            _ => "unknown",
+        }
+    }
 }
 
 pub trait ASTNodeTraits<'a>
 where
     Self: Sized,
 {
-    fn iterator(
+    fn iterate(
         self: &'a mut Box<Self>,
         _yield: &'a mut impl FnMut(&mut NodeIteration<'a>, &mut NodeIteration<'a>) -> NodeIteration<'a>,
     ) {
-        let mut closure = |a: &mut NodeIteration<'a>, b: &mut NodeIteration<'a>, c: i32, d: i32| {
-            use NodeIteration::*;
-            match _yield(a, b) {
-                STOP => false,
-                REPLACE(node) => match b {
-                    ROOT(par) => {
-                        par.Replace(node, c, d);
-                        true
-                    }
-                    MIN(par) => {
-                        par.Replace(node, c, d);
-                        true
-                    }
-                    B(par) => {
-                        par.Replace(node, c, d);
-                        true
-                    }
+        let mut closure =
+            |a: &mut NodeIteration<'a>, b: &mut NodeIteration<'a>, ty: u32, c: i32, d: i32| {
+                use NodeIteration::*;
+                match _yield(a, b) {
+                    STOP => false,
+                    REPLACE(node) => match b {
+                        ROOT(par) => {
+                            par.Replace(node, c, d);
+                            true
+                        }
+                        MIN(par) => {
+                            par.Replace(node, c, d);
+                            true
+                        }
+                        B(par) => {
+                            par.Replace(node, c, d);
+                            true
+                        }
+                        num_literal(par) => {
+                            par.Replace(node, c, d);
+                            true
+                        }
+                        _ => true,
+                    },
                     _ => true,
-                },
-                _ => true,
-            }
-        };
+                }
+            };
 
         self.Iterate(&mut closure, &mut NodeIteration::NONE, 0, 0)
     }
-    fn Replace(&mut self, node: ASTNode, i: i32, j: i32) -> Option<ASTNode> {
-        None
+    fn Replace(&mut self, node: ASTNode, i: i32, j: i32) -> ASTNode {
+        ASTNode::NONE
     }
     fn Iterate(
         self: &'a mut Box<Self>,
-        _yield: &mut impl FnMut(&mut NodeIteration<'a>, &mut NodeIteration<'a>, i32, i32) -> bool,
+        _yield: &mut impl FnMut(&mut NodeIteration<'a>, &mut NodeIteration<'a>, u32, i32, i32) -> bool,
         parent: &mut NodeIteration<'a>,
         i: i32,
         j: i32,
@@ -100,12 +123,12 @@ pub struct ROOT {
     pub scoop: f64,
 }
 
-impl Drop for ROOT {
+/* impl Drop for ROOT {
     fn drop(&mut self) {
         println!("DROPPED ROOT");
     }
 }
-
+ */
 impl ROOT {
     fn new(tok: Token, _root: Box<MIN>, _scoop: f64) -> Box<Self> {
         Box::new(ROOT {
@@ -130,7 +153,7 @@ where
 {
     fn Iterate(
         self: &'a mut Box<Self>,
-        _yield: &mut impl FnMut(&mut NodeIteration<'a>, &mut NodeIteration<'a>, i32, i32) -> bool,
+        _yield: &mut impl FnMut(&mut NodeIteration<'a>, &mut NodeIteration<'a>, u32, i32, i32) -> bool,
         parent: &mut NodeIteration<'a>,
         i: i32,
         j: i32,
@@ -140,7 +163,7 @@ where
         {
             let mut_me = unsafe { (*node.get()).as_mut() };
 
-            if !_yield(&mut NodeIteration::ROOT(mut_me), parent, i, j) {
+            if !_yield(&mut NodeIteration::ROOT(mut_me), parent, 6, i, j) {
                 return;
             };
         }
@@ -155,21 +178,21 @@ where
             );
         }
     }
-    /*
-    fn Replace(&mut self, child: ASTNode, i: i32, j: i32) -> ASTNode{
 
-        match i{
-        0 => {
-                        if let ASTNode::MIN(bx) = child {
-                                let old = self.root;
-                                    self.root = bx;
-                                    return ASTNode::MIN(old);}
-                    }
-        }
+    fn Replace(&mut self, child: ASTNode, i: i32, j: i32) -> ASTNode {
+        match i {
+            0 => {
+                if let Some(old) = self.replace_root(child) {
+                    return old;
+                } else {
+                    return ASTNode::NONE;
+                }
+            }
+            _ => {}
+        };
 
         ASTNode::NONE
     }
-    */
 
     fn Token(&self) -> Token {
         return self.tok;
@@ -191,12 +214,12 @@ pub struct MIN {
     pub root: Option<Box<B>>,
 }
 
-impl Drop for MIN {
+/* impl Drop for MIN {
     fn drop(&mut self) {
         println!("DROPPED MIN");
     }
 }
-
+ */
 impl MIN {
     fn new(tok: Token, _pickles: Vec<ASTNode>, _root: Option<Box<B>>) -> Box<Self> {
         Box::new(MIN {
@@ -206,7 +229,29 @@ impl MIN {
         })
     }
 
-    fn replace_pickles(&mut self, child: ASTNode) -> Option<ASTNode> {}
+    fn replace_pickles(&mut self, child: ASTNode, index: i32) -> Option<ASTNode> {
+        match &child {
+            ASTNode::B(_0) => {
+                if index as usize >= self.pickles.len() {
+                    self.pickles.push(child);
+                    None
+                } else {
+                    self.pickles.push(child);
+                    let node = self.pickles.swap_remove(index as usize);
+                    Some(node)
+                }
+            }
+            ASTNode::NONE => {
+                if (index as usize) < self.pickles.len() {
+                    let node = self.pickles.remove(index as usize);
+                    Some(node)
+                } else {
+                    None
+                }
+            }
+            _ => None,
+        }
+    }
 
     fn replace_root(&mut self, child: ASTNode) -> Option<ASTNode> {
         match child {
@@ -242,7 +287,7 @@ where
 {
     fn Iterate(
         self: &'a mut Box<Self>,
-        _yield: &mut impl FnMut(&mut NodeIteration<'a>, &mut NodeIteration<'a>, i32, i32) -> bool,
+        _yield: &mut impl FnMut(&mut NodeIteration<'a>, &mut NodeIteration<'a>, u32, i32, i32) -> bool,
         parent: &mut NodeIteration<'a>,
         i: i32,
         j: i32,
@@ -252,9 +297,22 @@ where
         {
             let mut_me = unsafe { (*node.get()).as_mut() };
 
-            if !_yield(&mut NodeIteration::MIN(mut_me), parent, i, j) {
+            if !_yield(&mut NodeIteration::MIN(mut_me), parent, 10, i, j) {
                 return;
             };
+        }
+
+        {
+            let mut_me_a = unsafe { (*node.get()).as_mut() };
+            for j in 0..mut_me_a.pickles.len() {
+                let mut_me_b = unsafe { (*node.get()).as_mut() };
+                let child = &mut mut_me_b.pickles[j];
+
+                if let ASTNode::B(child) = child {
+                    let mut_me = unsafe { (*node.get()).as_mut() };
+                    child.Iterate(_yield, &mut NodeIteration::MIN(mut_me), 0, j as i32);
+                }
+            }
         }
 
         {
@@ -264,30 +322,28 @@ where
             }
         }
     }
-    /*
-    fn Replace(&mut self, child: ASTNode, i: i32, j: i32) -> ASTNode{
 
-        match i{
-        0 => {
-                        _array, ok := node.pickles(HCGObjNodeArray)
-    if ok {
-       //node.0[i] = child
-    }
-                    }
-        1 => {
-                        if let ASTNode::B(bx) = child {
-                                let old = self.root;
-                                    self.root = Some(bx);
-
-                                    if let Some(old) = old {
-                                        return ASTNode::B(old);
-                                    }}
-                    }
-        }
+    fn Replace(&mut self, child: ASTNode, i: i32, j: i32) -> ASTNode {
+        match i {
+            0 => {
+                if let Some(old) = self.replace_pickles(child, j) {
+                    return old;
+                } else {
+                    return ASTNode::NONE;
+                }
+            }
+            1 => {
+                if let Some(old) = self.replace_root(child) {
+                    return old;
+                } else {
+                    return ASTNode::NONE;
+                }
+            }
+            _ => {}
+        };
 
         ASTNode::NONE
     }
-    */
 
     fn Token(&self) -> Token {
         return self.tok;
@@ -306,22 +362,44 @@ where
 pub struct B {
     pub tok: Token,
     pub root: HCO,
-    pub vecs: Vec<HCO>,
+    pub vecs: ASTNode,
 }
 
-impl Drop for B {
+/* impl Drop for B {
     fn drop(&mut self) {
         println!("DROPPED B");
     }
 }
-
+ */
 impl B {
-    fn new(tok: Token, _root: HCO, _vecs: Vec<HCO>) -> Box<Self> {
+    fn new(tok: Token, _root: HCO, _vecs: ASTNode) -> Box<Self> {
         Box::new(B {
             tok: tok,
             root: _root,
             vecs: _vecs,
         })
+    }
+
+    fn replace_vecs(&mut self, child: ASTNode) -> Option<ASTNode> {
+        match &child {
+            ASTNode::NONE => {
+                let old = std::mem::replace(&mut self.vecs, ASTNode::NONE);
+                return Some(old);
+            }
+
+            ASTNode::num_literal(_child) => {
+                return Some(std::mem::replace(&mut self.vecs, child));
+            }
+
+            ASTNode::num_literal(_child) => {
+                return Some(std::mem::replace(&mut self.vecs, child));
+            }
+
+            ASTNode::num_literal(_child) => {
+                return Some(std::mem::replace(&mut self.vecs, child));
+            }
+            _ => None,
+        }
     }
 }
 
@@ -331,7 +409,7 @@ where
 {
     fn Iterate(
         self: &'a mut Box<Self>,
-        _yield: &mut impl FnMut(&mut NodeIteration<'a>, &mut NodeIteration<'a>, i32, i32) -> bool,
+        _yield: &mut impl FnMut(&mut NodeIteration<'a>, &mut NodeIteration<'a>, u32, i32, i32) -> bool,
         parent: &mut NodeIteration<'a>,
         i: i32,
         j: i32,
@@ -341,21 +419,44 @@ where
         {
             let mut_me = unsafe { (*node.get()).as_mut() };
 
-            if !_yield(&mut NodeIteration::B(mut_me), parent, i, j) {
+            if !_yield(&mut NodeIteration::B(mut_me), parent, 14, i, j) {
                 return;
             };
         }
-    }
-    /*
-    fn Replace(&mut self, child: ASTNode, i: i32, j: i32) -> ASTNode{
 
-        match i{
+        match &mut (unsafe { (*node.get()).as_mut() }.vecs) {
+            ASTNode::num_literal(child) => {
+                let mut_me_b = unsafe { (*node.get()).as_mut() };
+                child.Iterate(_yield, &mut NodeIteration::B(mut_me_b), 1, 0);
+            }
 
+            ASTNode::num_literal(child) => {
+                let mut_me_b = unsafe { (*node.get()).as_mut() };
+                child.Iterate(_yield, &mut NodeIteration::B(mut_me_b), 1, 0);
+            }
+
+            ASTNode::num_literal(child) => {
+                let mut_me_b = unsafe { (*node.get()).as_mut() };
+                child.Iterate(_yield, &mut NodeIteration::B(mut_me_b), 1, 0);
+            }
+            _ => {}
         }
+    }
+
+    fn Replace(&mut self, child: ASTNode, i: i32, j: i32) -> ASTNode {
+        match i {
+            0 => {
+                if let Some(old) = self.replace_vecs(child) {
+                    return old;
+                } else {
+                    return ASTNode::NONE;
+                }
+            }
+            _ => {}
+        };
 
         ASTNode::NONE
     }
-    */
 
     fn Token(&self) -> Token {
         return self.tok;
@@ -370,7 +471,68 @@ where
     }
 }
 
-fn _FN0_(args: &mut Vec<HCO>, tok: Token) -> HCO {
+#[derive(Debug, Clone)]
+pub struct num_literal {
+    pub tok: Token,
+    pub v: String,
+}
+
+/* impl Drop for num_literal {
+    fn drop(&mut self) {
+        println!("DROPPED num_literal");
+    }
+}
+ */
+impl num_literal {
+    fn new(tok: Token, _v: String) -> Box<Self> {
+        Box::new(num_literal { tok: tok, v: _v })
+    }
+}
+
+impl<'a> ASTNodeTraits<'a> for num_literal
+where
+    Self: Sized,
+{
+    fn Iterate(
+        self: &'a mut Box<Self>,
+        _yield: &mut impl FnMut(&mut NodeIteration<'a>, &mut NodeIteration<'a>, u32, i32, i32) -> bool,
+        parent: &mut NodeIteration<'a>,
+        i: i32,
+        j: i32,
+    ) {
+        let node = UnsafeCell::from(self);
+
+        {
+            let mut_me = unsafe { (*node.get()).as_mut() };
+
+            if !_yield(&mut NodeIteration::num_literal(mut_me), parent, 16, i, j) {
+                return;
+            };
+        }
+    }
+
+    fn Replace(&mut self, child: ASTNode, i: i32, j: i32) -> ASTNode {
+        match i {
+            _ => {}
+        };
+
+        ASTNode::NONE
+    }
+
+    fn Token(&self) -> Token {
+        return self.tok;
+    }
+
+    fn Type() -> u32 {
+        return 16;
+    }
+
+    fn GetType(&self) -> u32 {
+        return 16;
+    }
+}
+
+fn _fn0(args: &mut Vec<HCO>, tok: Token) -> HCO {
     let mut i = args.len() - 1;
     let mut v0 = args.remove(i - 0);
     if let HCO::NODE(r_0) = v0 {
@@ -380,7 +542,7 @@ fn _FN0_(args: &mut Vec<HCO>, tok: Token) -> HCO {
     };
     return HCO::NONE;
 }
-fn _FN1_(args: &mut Vec<HCO>, tok: Token) -> HCO {
+fn _fn1(args: &mut Vec<HCO>, tok: Token) -> HCO {
     let mut i = args.len() - 1;
     let mut v2 = args.remove(i - 0);
     let mut v1 = args.remove(i - 1);
@@ -390,26 +552,23 @@ fn _FN1_(args: &mut Vec<HCO>, tok: Token) -> HCO {
     };
     return HCO::NONE;
 }
-fn _FN2_(args: &mut Vec<HCO>, tok: Token) -> HCO {
+fn _fn2(args: &mut Vec<HCO>, tok: Token) -> HCO {
     let mut i = args.len() - 1;
     let mut v0 = args.remove(i - 0);
     if let HCO::NODE(r_0) = v0 {
         if let ASTNode::B(r_1) = r_0 {
-            return HCO::NODE(ASTNode::MIN(MIN::new(tok, vec![], Some(r_1))));
+            return HCO::NODE(ASTNode::MIN(MIN::new(tok, Vec::new(), Some(r_1))));
         }
     };
     return HCO::NONE;
 }
-fn _FN3_(args: &mut Vec<HCO>, tok: Token) -> HCO {
+fn _fn3(args: &mut Vec<HCO>, tok: Token) -> HCO {
     let mut i = args.len() - 1;
     let mut v1 = args.remove(i - 0);
     let mut v0 = args.remove(i - 1);
-    if let HCO::NODES(r_0) = nil {
-        return HCO::NODE(ASTNode::MIN(MIN::new(tok, r_0, None)));
-    };
-    return HCO::NONE;
+    return HCO::NODE(ASTNode::MIN(MIN::new(tok, Vec::new(), None)));
 }
-fn _FN4_(args: &mut Vec<HCO>, tok: Token) -> HCO {
+fn _fn4(args: &mut Vec<HCO>, tok: Token) -> HCO {
     let mut i = args.len() - 1;
     let mut v2 = args.remove(i - 0);
     let mut v1 = args.remove(i - 1);
@@ -419,10 +578,10 @@ fn _FN4_(args: &mut Vec<HCO>, tok: Token) -> HCO {
         HCO::STRING(
             String::from("(") + &v0.String() + &v1.String() + &v2.String() + &String::from(")"),
         ),
-        vec![],
+        ASTNode::NONE,
     )));
 }
-fn _FN5_(args: &mut Vec<HCO>, tok: Token) -> HCO {
+fn _fn5(args: &mut Vec<HCO>, tok: Token) -> HCO {
     let mut i = args.len() - 1;
     let mut v2 = args.remove(i - 0);
     let mut v1 = args.remove(i - 1);
@@ -430,20 +589,26 @@ fn _FN5_(args: &mut Vec<HCO>, tok: Token) -> HCO {
     return HCO::NODE(ASTNode::B(B::new(
         tok,
         HCO::STRING(String::from("(") + &v1.String() + &String::from(")")),
-        vec![],
+        ASTNode::NONE,
     )));
 }
-fn _FN6_(args: &mut Vec<HCO>, tok: Token) -> HCO {
+fn _fn6(args: &mut Vec<HCO>, tok: Token) -> HCO {
     let mut i = args.len() - 1;
     let mut v0 = args.remove(i - 0);
-    let mut ref_0: Vec<HCO> = Vec::new();
-    ref_0.push(HCO::DOUBLE(0.0));
-    ref_0.push(HCO::STRING(String::from("two")));
-    ref_0.push(HCO::STRING(String::from("three")));
-    ref_0.push(v0);
-    return HCO::NODE(ASTNode::B(B::new(tok, HCO::NONE, ref_0)));
+    if let HCO::NODE(r_0) = v0 {
+        return HCO::NODE(ASTNode::B(B::new(tok, HCO::NONE, r_0)));
+    };
+    return HCO::NONE;
 }
-fn _FN7_(args: &mut Vec<HCO>, tok: Token) -> HCO {
+fn _fn7(args: &mut Vec<HCO>, tok: Token) -> HCO {
+    let mut i = args.len() - 1;
+    let mut v0 = args.remove(i - 0);
+    return HCO::NODE(ASTNode::num_literal(num_literal::new(
+        tok,
+        tok.String() + "",
+    )));
+}
+fn _fn8(args: &mut Vec<HCO>, tok: Token) -> HCO {
     let mut i = args.len() - 1;
     let mut v0 = args.remove(i - 0);
 
@@ -453,7 +618,7 @@ fn _FN7_(args: &mut Vec<HCO>, tok: Token) -> HCO {
     }
     HCO::NODES(ref_0)
 }
-fn _FN8_(args: &mut Vec<HCO>, tok: Token) -> HCO {
+fn _fn9(args: &mut Vec<HCO>, tok: Token) -> HCO {
     let mut i = args.len() - 1;
     let mut v1 = args.remove(i - 0);
     let mut v0 = args.remove(i - 1);
@@ -466,7 +631,7 @@ fn _FN8_(args: &mut Vec<HCO>, tok: Token) -> HCO {
     v0
 }
 
-pub const FunctionMaps: [RF; 14] = [
-    _FN0_, _FN1_, _FN2_, _FN1_, _FN3_, _FN3_, _FN4_, _FN5_, _FN6_, _FN4_, _FN6_, _FN6_, _FN7_,
-    _FN8_,
+pub const FunctionMaps: [RF; 17] = [
+    _fn0, _fn1, _fn2, _fn1, _fn3, _fn3, _fn4, _fn5, _fn6, _fn4, _fn6, _fn6, _fn8, _fn9, _fn7, _fn7,
+    _fn7,
 ];

@@ -15,5 +15,9 @@
                         f:r { { type: t_B, root: "(" + $p + ")"} }
                     
 
-    |   ( t:one | t:two | t:three )
-                        f:r { { type: t_B, vecs: [0, "two", "three"].push($1)} }
+    |   ( 
+                t:one   f:r { { type: t_num_literal, v:$1+"" } } 
+        |       t:two   f:r { { type: t_num_literal, v:$1+"" } } 
+        |       t:three f:r { { type: t_num_literal, v:$1+"" } } 
+        )
+                        f:r { { type: t_B, vecs: $1} }
