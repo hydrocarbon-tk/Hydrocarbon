@@ -1,12 +1,17 @@
+/* 
+ * Copyright (C) 2021 Anthony Weathersby - The Hydrocarbon Parser Compiler
+ * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
+ * disclaimer notice.
+ */
 import {
-    exp, JSNodeType
+    exp, JSNode, JSNodeType
 } from "@candlelib/js";
 import { Sym_Is_A_Production } from '../grammar/nodes/symbol.js';
 import { render_grammar } from '../grammar/passes/common.js';
 import { Token } from '../runtime/token.js';
 import { GrammarObject, HCG3ProductionBody, ProductionFunction } from "../types/grammar_nodes";
-import { getPropertyFromExpression, getResolvedType, JSONFilter, parseAsytripStruct, TypeIsNotNull, TypeIsStruct, TypeIsVector, TypesAre, TypesInclude } from './common.js';
-import { ASYTRIPContext, ASYTRIPProperty, ASYTRIPType, ASYTRIPTypeObj } from './types.js';
+import { ASYTRIPContext, ASYTRIPProperty, ASYTRIPType, ASYTRIPTypeObj } from '../types/index.js';
+import { getPropertyFromExpression, getResolvedType, JSONFilter, TypeIsNotNull, TypeIsStruct, TypeIsVector, TypesAre, TypesInclude } from './common.js';
 
 export function createAsytripContext(grammar: GrammarObject): ASYTRIPContext {
 
@@ -33,9 +38,11 @@ export function createAsytripContext(grammar: GrammarObject): ASYTRIPContext {
             args: ASYTRIPProperty[];
             length: number;
             struct: string;
+            source: string;
         }> = new Map;
 
         const context: ASYTRIPContext = {
+            resolved_struct_types: new Map(),
             structs: new Map(),
             type_names: new Set(),
             class_names: new Set(),
@@ -60,6 +67,7 @@ export function createAsytripContext(grammar: GrammarObject): ASYTRIPContext {
             fn: JSNode | null,
             production_id: number,
             tok: Token;
+            source: string,
         }[] = [];
 
         for (const production of grammar.productions) {
@@ -113,13 +121,13 @@ export function createAsytripContext(grammar: GrammarObject): ASYTRIPContext {
             if (fn) {
 
                 const prop = getPropertyFromExpression(
-                    body, fn, tok, context
+                    body, <any>fn, tok, context
                 );
 
                 fn_map.set(body.id, {
                     args: [prop],
                     length: body.sym.length,
-                    struct: ""
+                    struct: "",
                     source: source
                 });
 

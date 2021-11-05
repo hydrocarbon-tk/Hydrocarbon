@@ -1,3 +1,8 @@
+/* 
+ * Copyright (C) 2021 Anthony Weathersby - The Hydrocarbon Parser Compiler
+ * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
+ * disclaimer notice.
+ */
 import { traverse } from "@candlelib/conflagrate";
 import {
     GrammarObject,
@@ -34,7 +39,7 @@ export function convertGroupProductions(grammar: GrammarObject): GrammarObject {
             for (const { node, meta } of traverse(body, "sym").makeMutable()) {
                 const sym: any = node;
 
-                processGroupSymbol(sym, body, meta, production, grammar, i++);
+                processGroupSymbol(sym, <any>body, meta, production, grammar, i++);
             }
         }
     }

@@ -1,3 +1,8 @@
+/* 
+ * Copyright (C) 2021 Anthony Weathersby - The Hydrocarbon Parser Compiler
+ * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
+ * disclaimer notice.
+ */
 import { JSExpressionClass, JSIdentifierReference, JSNumericLiteral, JSStringLiteral } from "@candlelib/js";
 import { Token } from '../runtime/token.js';
 
@@ -11,6 +16,7 @@ export type ASYTRIPContext = {
     fn_map: Map<number, {
         args: ASYTRIPProperty[];
         struct: string;
+        source: string;
     }>,
     type_mask: number,
     class_mask: number,
@@ -21,6 +27,7 @@ export type ASYTRIPContext = {
      */
     return_types: Map<number, ASYTRIPTypeObj[ASYTRIPType][]>;
     resolved_return_types: Map<number, ASYTRIPTypeObj[ASYTRIPType][]>;
+    resolved_struct_types: Map<string, Map<string, ResolvedProp>>;
 };
 
 export enum ASYTRIPType {
@@ -43,10 +50,14 @@ export enum ASYTRIPType {
     CONVERT_BOOL,
     CONVERT_STRING,
     TERNARY,
-    OR
+    OR,
+    STRUCT_CLASS,
+    STRUCT_TYPE,
+    STRUCT_CLASSIFICATION
 }
 export interface ASYTRIPStruct {
     name: string;
+    type: number;
     classes: Set<string>;
     properties: Map<string, ASYTRIPProperty>;
 }
@@ -64,7 +75,18 @@ export interface ASYTRIPProperty {
     source: Token;
 }
 export interface ASYTRIPTypeObj {
-
+    [ASYTRIPType.STRUCT_CLASSIFICATION]: {
+        type: ASYTRIPType.STRUCT_CLASSIFICATION,
+        vals: ASYTRIPTypeObj[ASYTRIPType.STRUCT_CLASS | ASYTRIPType.STRUCT_TYPE][];
+    },
+    [ASYTRIPType.STRUCT_TYPE]: {
+        type: ASYTRIPType.STRUCT_TYPE;
+        val: string;
+    },
+    [ASYTRIPType.STRUCT_CLASS]: {
+        type: ASYTRIPType.STRUCT_CLASS;
+        val: string;
+    };
     [ASYTRIPType.VECTOR_PUSH]: {
         type: ASYTRIPType.VECTOR_PUSH;
         vector: ASYTRIPTypeObj[ASYTRIPType.VECTOR];
@@ -99,17 +121,17 @@ export interface ASYTRIPTypeObj {
         type: ASYTRIPType.EXPRESSIONS; expressions: ASYTRIPTypeObj[ASYTRIPType][];
     };
     [ASYTRIPType.STRUCT]: {
-        type: ASYTRIPType.STRUCT; name: string; arg_pos?: number;
+        type: ASYTRIPType.STRUCT; name: string; arg_pos?: number; args?: ASYTRIPProperty[];
     };
     [ASYTRIPType.STRUCT_ASSIGN]: {
         type: ASYTRIPType.STRUCT_ASSIGN;
-        struct: ASYTRIPTypeObj[ASYTRIPType.PRODUCTION] | ASYTRIPTypeObj[ASYTRIPType.STRUCT];
+        struct: ASYTRIPTypeObj[ASYTRIPType.PRODUCTION | ASYTRIPType.STRUCT];
         property: string,
         value: ASYTRIPTypeObj[ASYTRIPType];
     };
     [ASYTRIPType.STRUCT_PROP_REF]: {
         type: ASYTRIPType.STRUCT_PROP_REF;
-        struct: ASYTRIPTypeObj[ASYTRIPType.PRODUCTION] | ASYTRIPTypeObj[ASYTRIPType.STRUCT];
+        struct: ASYTRIPTypeObj[ASYTRIPType.PRODUCTION | ASYTRIPType.STRUCT];
         property: string;
     };
     [ASYTRIPType.ADD]: {
@@ -147,9 +169,13 @@ export type getTypeString<T extends keyof ASYTRIPTypeObj> = (
 ) => string;
 export interface ResolvedProp {
     REQUIRES_DYNAMIC: boolean,
+    HAVE_STRUCT: boolean,
+    HAVE_STRUCT_VECTORS: boolean,
     types: ASYTRIPTypeObj[ASYTRIPType][];
     name: string;
     HAS_NULL: boolean;
     type: string;
     prop: ASYTRIPProperty;
+    structs: ASYTRIPStruct[];
+
 }

@@ -4,10 +4,18 @@
  * disclaimer notice.
  */
 import { Logger } from '@candlelib/log';
-import { Token } from '../runtime/token.js';
-import { GrammarObject, ProductionImportSymbol, ProductionSymbol } from '../types/grammar_nodes';
-import { IRStateData, StateAttrib, StateMap } from '../types/ir_state_data';
-import { InstructionType, IRAssert, IRGoto, IRInlineAssert, IRPeek, IRSetProd, IRBranch, IR_Instruction, IR_State, Resolved_IR_State, IRProdAssert, BranchIRState } from '../types/ir_types';
+import { Token } from '../../runtime/token.js';
+import { GrammarObject, ProductionImportSymbol, ProductionSymbol } from '../../types/grammar_nodes';
+import { IRStateData, StateAttrib, StateMap } from '../../types/ir_state_data';
+import {
+    InstructionType,
+    IRAssert,
+    IRBranch, IRGoto,
+    IRInlineAssert,
+    IRPeek, IRProdAssert, IRSetProd, IR_Instruction,
+    IR_State,
+    Resolved_IR_State
+} from '../../types/ir_types';
 import { renderIRNode } from './render_ir_state.js';
 
 function getStateName(
@@ -578,15 +586,24 @@ addOptimization({
         if (stateIsBranch(state)) {
 
 
-            state.instructions = state.instructions.filter((s: IRBranch) => {
+            const new_instructions = state.instructions.filter((s: IRBranch) => {
                 if (s.instructions.length == 1
                     &&
                     s.instructions[0].type == InstructionType.fail) {
-                    MODIFIED = true;
+
                     return false;
                 }
                 return true;
             });
+
+            if (new_instructions.length > 0 &&
+                new_instructions.length
+                !=
+                state.instructions.length
+            ) {
+                state.instructions = new_instructions;
+                MODIFIED = true;
+            }
         }
 
 

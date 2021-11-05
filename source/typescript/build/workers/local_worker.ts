@@ -5,7 +5,7 @@
  */
 import { GrammarObject } from "../../types/grammar_nodes";
 import { HybridDispatch, HybridDispatchResponse, HybridJobType } from "../../types/worker_messaging.js";
-import { constructProductionStates } from "../state_constructor.js";
+import { constructProductionStates } from "../ir_state_compiler/state_constructor.js";
 
 export class LocalWorker {
 

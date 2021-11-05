@@ -1,3 +1,8 @@
+/* 
+ * Copyright (C) 2021 Anthony Weathersby - The Hydrocarbon Parser Compiler
+ * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
+ * disclaimer notice.
+ */
 import { traverse } from "@candlelib/conflagrate";
 import {
     GrammarObject,
@@ -60,7 +65,7 @@ export function processListSymbol(sym: any, body: HCG3ProductionBody, production
             const inner_symbol = sym.val,
                 terminal_symbol = sym.terminal_symbol,
                 /** Contains the normal pattern */
-                new_production_body = createProductionBody(sym),
+                new_production_body = createProductionBody(<any>sym),
                 /** Contains the left recursive pattern */
                 new_production_symbol = createProductionSymbol(production.name, 0, sym),
 
@@ -76,7 +81,7 @@ export function processListSymbol(sym: any, body: HCG3ProductionBody, production
 
                 setBodyReduceExpressionAction(body, "[$1]");
 
-                setBodyReduceExpressionAction(new_production_body, "$1 + $2");
+                setBodyReduceExpressionAction(new_production_body, "$__first__ + $__last__");
             }
 
             //replaceAllBodySymbols(body, inner_symbol);
@@ -97,8 +102,8 @@ export function processListSymbol(sym: any, body: HCG3ProductionBody, production
             // subsequently be converted.
             let
                 new_production_name = production.name + "_list_" + index,
-                new_production = createProduction(new_production_name, sym),
-                new_production_body = createProductionBody(sym);
+                new_production = createProduction(new_production_name, <any>sym),
+                new_production_body = createProductionBody(<any>sym);
 
             new_production_body.priority = body.priority;
 

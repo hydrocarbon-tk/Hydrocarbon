@@ -54,15 +54,13 @@ export function complete<T>(
 
                                 pos_b = tokens[tokens.length - 1] || default_token,
 
-                                e = stack.slice(-len),
-
                                 token = Token.fromRange(pos_a, pos_b);
 
                             tokens[stack.length - len] = token;
 
-                            stack[stack.length - len] = functions[body](e, token);
+                            stack.push(functions[body](stack, token));
 
-                            stack.length = stack.length - len + 1;
+                            //stack.length = stack.length - len + 1;
 
                             tokens.length = tokens.length - len + 1;
 

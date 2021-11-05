@@ -8,7 +8,7 @@ import { parentPort, workerData } from "worker_threads";
 import { HybridDispatch, HybridDispatchResponse, HybridJobType } from "../../types/worker_messaging.js";
 import "../../utilities/array_globals.js";
 import { Item } from "../../utilities/item.js";
-import { constructProductionStates } from '../state_constructor.js';
+import { constructProductionStates } from '../ir_state_compiler/state_constructor.js';
 
 /**
  * Takes an existing filled out grammar that has been transferred to 

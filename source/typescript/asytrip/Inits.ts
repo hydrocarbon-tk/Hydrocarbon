@@ -1,3 +1,8 @@
+/* 
+ * Copyright (C) 2021 Anthony Weathersby - The Hydrocarbon Parser Compiler
+ * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
+ * disclaimer notice.
+ */
 export class Inits {
     private refs: Map<string, string>;
     private closure: string[];
@@ -70,22 +75,26 @@ export class Inits {
         return ref;
     }
 
-    render_js() {
-        return this.vals.map(({ str, init }, i) => {
-            if (init)
-                return `const ref_${i} = ${str};`;
-            else
-                return str;
-        }).join("\n");
-    }
-
-    render_ts() {
-        return this.vals.map(({ str, init }, i) => {
-            if (init)
-                return `const ref_${i}${typeof init == "string" ? ":" + init : ""} = ${str};`;
-            else
-                return str;
-        }).join("\n");
+    render_ts(closure: string = "", sequence: Inits["sequence"] = this.sequence) {
+        let string = "";
+        let i = 0;
+        for (let { t, str, init, ref } of sequence) {
+            i++;
+            switch (t) {
+                case "closure":
+                    return `${string}\n ${str} { ${this.render_rust(closure, sequence.slice(i))} }`;
+                case "refs":
+                    string += `\n let ${ref} = ${str};`;
+                    break;
+                case "vals":
+                    if (init)
+                        string += `\n let ${ref}${typeof init == "string" ? ":" + init : ""} = ${str};`;
+                    else
+                        string += "\n" + str;
+                    break;
+            }
+        }
+        return string + "\n" + closure;
     }
 
     render_go() {
@@ -109,7 +118,6 @@ export class Inits {
             switch (t) {
                 case "closure":
                     return `${string}\n ${str} { ${this.render_rust(closure, sequence.slice(i))} }`;
-                    break;
                 case "refs":
                     break;
                 case "vals":

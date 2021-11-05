@@ -1,4 +1,4 @@
-import { BlockData, BranchIRState, IR_State, Resolved_IR_State } from './ir_types';
+import { BlockData, BranchIRState, Resolved_IR_State } from './ir_types';
 
 export interface IRStateData {
     string: string;

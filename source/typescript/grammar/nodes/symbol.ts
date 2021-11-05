@@ -5,25 +5,14 @@
  */
 import { Lexer } from "@candlelib/wind";
 import {
-
-    DefinedCharacterSymbol,
+    AmbiguousSymbol, DefinedCharacterSymbol,
     DefinedIdentifierSymbol,
     DefinedNumericSymbol,
-    DefinedSymbol, EOFSymbol,
-    GeneratedSymbol, EmptySymbol, EOPSymbol, GrammarObject, LookBehindSymbol,
+    DefinedSymbol, EmptySymbol, EOFSymbol, EOPSymbol, GeneratedIdentifier, GeneratedNewLine, GeneratedNumber, GeneratedSpace, GeneratedSymbol, GrammarObject, HCG3Symbol, LookBehindSymbol,
     ProductionSymbol,
-    ProductionTokenSymbol,
-    HCG3Symbol,
-    TokenSymbol,
-    VirtualTokenSymbol,
-    SymbolType,
-    AmbiguousSymbol,
-    RecoverySymbol,
-    GeneratedIdentifier,
-    GeneratedSpace,
-    GeneratedNumber,
-    GeneratedNewLine
-} from "../../types/grammar_nodes.js";
+    ProductionTokenSymbol, RecoverySymbol, SymbolType, TokenSymbol,
+    VirtualTokenSymbol
+} from "../../types/";
 import { Item } from "../../utilities/item.js";
 
 

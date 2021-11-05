@@ -10,16 +10,10 @@ import { createCPPTypes } from '../asytrip/asytrip_to_cpp.js';
 import { createGoTypes } from '../asytrip/asytrip_to_go.js';
 import { createRustTypes } from '../asytrip/asytrip_to_rust.js';
 import { createTsTypes } from '../asytrip/asytrip_to_ts.js';
-import { ASYTRIPContext } from '../asytrip/types.js';
 import { render_grammar } from '../grammar/passes/common.js';
-import { GrammarObject } from "../types/grammar_nodes.js";
-import { StateMap } from '../types/ir_state_data.js';
+import { ASYTRIPContext } from '../types/asytrip.js';
+import { BuildPack } from '../types/build_pack';
 import { formatArray } from '../utilities/format_array.js';
-export interface BuildPack {
-    grammar: GrammarObject;
-    state_buffer: Uint32Array;
-    states_map: StateMap;
-}
 
 const render_logger = Logger.get("MAIN").createLogger("RENDER");
 

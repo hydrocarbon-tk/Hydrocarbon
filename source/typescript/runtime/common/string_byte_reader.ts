@@ -1,3 +1,9 @@
+/* 
+ * Copyright (C) 2021 Anthony Weathersby - The Hydrocarbon Parser Compiler
+ * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
+ * disclaimer notice.
+ */
+
 import { fillByteBufferWithUTF8FromString, get_utf8_code_point_from } from './utf8.js';
 import { ByteReader } from './byte_reader.js';
 

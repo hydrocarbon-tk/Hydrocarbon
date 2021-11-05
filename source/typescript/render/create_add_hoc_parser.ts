@@ -3,15 +3,13 @@
  * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
  * disclaimer notice.
  */
-import { ASYTRIPContext } from '../asytrip/types.js';
 import { createBuildPack } from '../build/build.js';
 import { compileGrammarFromString } from '../grammar/compile.js';
 import { complete } from '../runtime/completer/complete.js';
 import { instruction_pointer_mask } from '../runtime/kernel_next.js';
+import { ASYTRIPContext } from '../types/asytrip.js';
+import { BuildPack } from "../types/build_pack";
 import { GrammarObject } from '../types/grammar_nodes';
-import {
-    BuildPack, renderJavaScriptReduceFunctionLookupArray
-} from './render.js';
 
 
 /**

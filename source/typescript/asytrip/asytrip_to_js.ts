@@ -1,10 +1,13 @@
-import { GrammarObject } from '../types/grammar_nodes';
+/* 
+ * Copyright (C) 2021 Anthony Weathersby - The Hydrocarbon Parser Compiler
+ * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
+ * disclaimer notice.
+ */
+import { ASYTRIPContext, ASYTRIPType, ASYTRIPTypeObj, GrammarObject } from '../types/index.js';
 import {
-    getResolvedType, TypeIsNotNull, TypeIsString,
-    TypeIsStruct,
+    getResolvedType, TypeIsNotNull, TypeIsStruct,
     TypeIsVector, TypesAre, TypesInclude
 } from './common.js';
-import { ASYTRIPContext, ASYTRIPType, ASYTRIPTypeObj } from './types.js';
 
 class Inits {
 

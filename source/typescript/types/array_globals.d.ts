@@ -3,6 +3,7 @@
  * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
  * disclaimer notice.
  */
+//@ts-ignore
 export declare global {
     interface Array<T> {
         /**

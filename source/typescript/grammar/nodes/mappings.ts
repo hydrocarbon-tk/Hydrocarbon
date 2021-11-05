@@ -1,5 +1,10 @@
+/* 
+ * Copyright (C) 2021 Anthony Weathersby - The Hydrocarbon Parser Compiler
+ * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
+ * disclaimer notice.
+ */
 import { NodeMapping, NodeMappings } from "@candlelib/conflagrate/build/types/types/node_mappings";
-import { GrammarObject, ReferencedFunction, MetaExcludeSymbol } from "../../types/grammar_nodes";
+import { GrammarObject, ReferencedFunction, MetaExcludeSymbol } from "../../types/";
 
 const hcg3_mappings: NodeMappings<ReferencedFunction, "type"> = <NodeMappings<ReferencedFunction, "type">>{
     typename: "type",

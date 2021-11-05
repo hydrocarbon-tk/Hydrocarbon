@@ -9,9 +9,9 @@ import {
     getUniqueSymbolName,
     Symbols_Are_The_Same,
     Sym_Is_Ambiguous, Sym_Is_Defined
-} from "../grammar/nodes/symbol.js";
-import { GrammarObject, TokenSymbol } from '../types/grammar_nodes';
-import { Item } from "../utilities/item.js";
+} from "../../grammar/nodes/symbol.js";
+import { GrammarObject, TokenSymbol } from '../../types/grammar_nodes';
+import { Item } from "../../utilities/item.js";
 export function create_symbol_clause(
     items: Item[],
     additional_tokens: TokenSymbol[],

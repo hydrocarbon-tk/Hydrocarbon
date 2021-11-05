@@ -4,7 +4,7 @@
  * disclaimer notice.
  */
 import { experimentalConstructRenderers, experimentalRender, NodeMapping, NodeMappings } from "@candlelib/conflagrate";
-import { Token } from '../runtime/token.js';
+import { Token } from '../../runtime/token.js';
 import {
     BaseIRState,
     FailedIRState,
@@ -24,8 +24,9 @@ import {
     IRScanTo,
     IRSetProd,
     IRSetScope,
-    IRSetTokenLength
-} from '../types/ir_types';
+    IRSetTokenLength,
+    IRTokenAssign
+} from '../../types/ir_types';
 
 
 function state_custom_render(state, render_fn) {
@@ -40,6 +41,8 @@ function state_custom_render(state, render_fn) {
 
     try {
 
+        if (!node?.instructions[0])
+            debugger;
 
         if (node.instructions[0].type == InstructionType.assert
             ||
@@ -85,6 +88,11 @@ export const ir_state_mappings: NodeMappings<IRNode, "type"> = <NodeMappings<IRN
             type: "token-length",
             child_keys: [],
             template: "set m:s token m:s length m:s @len"
+        },
+        <NodeMapping<IRTokenAssign>>{
+            type: "token-assign",
+            child_keys: [],
+            template: "assign m:s token m:s \\[ o:s @ids...[m:s] o:s \\]"
         },
 
         <NodeMapping<IRRepeat>>{
@@ -139,12 +147,6 @@ export const ir_state_mappings: NodeMappings<IRNode, "type"> = <NodeMappings<IRN
             type: "scan-until",
             child_keys: [],
             template: "scan m:s until o:s \\[ o:s @ids...[m:s] o:s \\]"
-        },
-
-        <NodeMapping<IRScanTo>>{
-            type: "token-assign",
-            child_keys: [],
-            template: "assign m:s token m:s \\[ o:s @ids...[m:s] o:s \\]"
         },
 
         <NodeMapping<IRScanBackTo>>{

@@ -3,23 +3,22 @@
  * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
  * disclaimer notice.
  */
-import { user_defined_state_mux } from '../grammar/nodes/default_symbols.js';
-import { getUniqueSymbolName, Sym_Is_A_Generic_Type, Sym_Is_A_Production, Sym_Is_A_Token, Sym_Is_EOF, Sym_Is_Not_Consumed, Sym_Is_Recovery } from "../grammar/nodes/symbol.js";
-import { GrammarObject, GrammarProduction, HCG3Symbol, ProductionSymbol, TokenSymbol } from "../types/grammar_nodes.js";
-import { TransitionForestStateA, TransitionStateType } from '../types/transition_tree_nodes.js';
-import { hashString } from '../utilities/code_generating.js';
-import { getFollow } from '../utilities/follow.js';
-import { Item } from "../utilities/item.js";
-import { getProductionClosure } from '../utilities/production.js';
-import { default_case_indicator } from './build.js';
-import { create_symbol_clause } from './create_symbol_clause.js';
+import { user_defined_state_mux } from '../../grammar/nodes/default_symbols.js';
+import { getUniqueSymbolName, Sym_Is_A_Generic_Type, Sym_Is_A_Production, Sym_Is_A_Token, Sym_Is_Defined, Sym_Is_EOF, Sym_Is_Not_Consumed, Sym_Is_Recovery } from "../../grammar/nodes/symbol.js";
+import {
+    GrammarObject, GrammarProduction, HCG3Symbol, TokenSymbol,
+    TransitionForestStateA, TransitionStateType
+} from '../../types/index.js';;
+import { hashString } from '../../utilities/code_generating.js';
+import { getFollow } from '../../utilities/follow.js';
+import { Item } from "../../utilities/item.js";
+import { default_case_indicator } from '../../utilities/magic_numbers.js';
+import { getProductionClosure } from '../../utilities/production.js';
+import { create_symbol_clause } from '../ir/create_symbol_clause.js';
 import { getGotoSTARTs, getSTARTs as getSTARTItems } from "./STARTs.js";
 import { constructTransitionForest, TransitionForestOptions } from './transition_tree.js';
 
 const numeric_sort: (a: any, b: any) => number = (z, w) => z - w;
-
-
-
 
 export function constructProductionStates(
     production: GrammarProduction,
@@ -29,18 +28,13 @@ export function constructProductionStates(
     id: number;
 } {
 
-    /*  
-    if (production.name == "__SCANNER__") {
-        // debugger;
-    }
-    else {
-        return {
-            id: 0,
-            parse_states: new Map
-        };
-    } //*/
+    let TRUE_LAZY = false;
+    let lazy_start = null;
+    let lazy_end = null;
 
     const
+        POSSIBLE_LAZY = production.name.slice(-5) == '_lazy',
+
         PRODUCTION_IS_SCANNER = production.type == "scanner-production",
 
         root_prod_name = production.name,
@@ -57,6 +51,37 @@ export function constructProductionStates(
             : getSTARTItems(production, grammar),
 
         goto_item_map = getGotoSTARTs(production, recursive_descent_items, grammar);
+
+    if (POSSIBLE_LAZY && !PRODUCTION_IS_SCANNER) {
+        /** 
+         * The only true lazy productions allowed at this point are ones which 
+         * are defined with sentinel characters in the first and last position
+         * of the only body within the production.
+         */
+        const last = production.bodies.map(b => b.sym[0]).group(g => getUniqueSymbolName(g));
+        const first = production.bodies.map(b => b.sym.slice(-1)[0]).group(g => getUniqueSymbolName(g));
+
+        if (last.length == 1 && first.length == 1) {
+            const first_sym = first[0][0];
+            const last_sym = last[0][0];
+
+            if (
+                Sym_Is_Defined(first_sym)
+                &&
+                Sym_Is_Defined(last_sym)
+                &&
+                first_sym.val.length == 1
+                &&
+                last_sym.val.length == 1
+                &&
+                first_sym.val != last_sym.val
+            ) {
+                lazy_start = first_sym;
+                lazy_end = last_sym;
+                TRUE_LAZY = true;
+            }
+        }
+    }
 
     try {
         const
@@ -227,6 +252,21 @@ export function constructProductionStates(
         for (const [, state] of parse_states)
             console.log(state);
         //*/
+
+        if (TRUE_LAZY) {
+            const lazy_hash = `lazy_production_${production.name}`;
+            parse_states.set(lazy_hash,
+                `
+state [${lazy_hash}]
+
+    lazy [ ${lazy_start.val.codePointAt(0)} ${lazy_end.val.codePointAt(0)} ] ( ${root_prod_name} )
+
+                `);
+
+            console.log(parse_states.get(lazy_hash));
+
+            debugger;
+        }
 
         return {
             parse_states: parse_states,

@@ -1,4 +1,10 @@
+/* 
+ * Copyright (C) 2021 Anthony Weathersby - The Hydrocarbon Parser Compiler
+ * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
+ * disclaimer notice.
+ */
 
+import { TokenTypes } from '../../types/TokenTypes.js';
 import { ByteReader } from '../common/byte_reader.js';
 import { KernelToken } from '../token.js';
 import { KernelStack } from './stack.js';
@@ -25,6 +31,14 @@ export interface ParseAction {
         body: number,
         length: number,
         production: number;
+    };
+
+    [ParseActionType.LAZY]: {
+        type: ParseActionType.LAZY;
+        state_pointer: number,
+        line: number,
+        offset: number,
+        length: number,
     };
 
     [ParseActionType.ACCEPT]: {
@@ -74,7 +88,9 @@ export const enum ParseActionType {
 
     FORK,
 
-    TOKEN
+    TOKEN,
+
+    LAZY
 }
 
 
@@ -364,13 +380,78 @@ export class StateIterator {
 
                 case 12: index = this.repeat(index, instruction); break;
 
-                case 13:/*NOOP*/;
+                case 13: index = this.try_lazy(index, instruction); break;
 
                 case 14: index = this.assert_consume(index, instruction); break;
 
                 case 15: return this.advanced_return(instruction, fail_mode);
             }
         }
+    }
+
+    private try_lazy(index, instruction) {
+        let production_pointer = instruction;
+        let sentinel_open = this.bytecode[index];
+        let sentinel_close = this.bytecode[index + 1];
+
+        let counter = 1;
+
+        let scan_ahead = this.reader.clone();
+
+        let byte_offset = this.tokens[1].byte_offset;
+        let cp_offset = this.tokens[1].codepoint_offset;
+        let line = this.tokens[1].line;
+
+        while (!scan_ahead.END()) {
+
+            const cp = scan_ahead.codepoint();
+
+            byte_offset += scan_ahead.codepoint_byte_length();
+            cp_offset += 1;
+
+            if (cp == sentinel_open)
+                counter++;
+
+            if (cp == sentinel_close)
+                counter--;
+
+            if (scan_ahead.class() == TokenTypes.NEW_LINE)
+                line += 1;
+
+            if (counter <= 0)
+                break;
+
+            scan_ahead.next(byte_offset);
+        }
+
+        if (counter == 0) {
+
+            this.reader.setTo(byte_offset);
+
+            this.ACTION_BUFFER_EMPTY = false;
+
+            this.buffer.push({
+                type: ParseActionType.LAZY,
+                state_pointer: production_pointer,
+                line: this.tokens[1].line,
+                offset: this.tokens[1].byte_offset,
+                length: byte_offset - this.tokens[1].byte_offset,
+            });
+
+            this.tokens[0].byte_offset = byte_offset;
+            this.tokens[0].codepoint_offset = cp_offset;
+            this.tokens[0].codepoint_length = 1;
+            this.tokens[0].byte_length = 1;
+            this.tokens[0].line += line;
+
+            this.tokens[1].byte_offset = byte_offset;
+            this.tokens[1].codepoint_offset = cp_offset;
+            this.tokens[1].codepoint_length = 1;
+            this.tokens[1].byte_length = 1;
+            this.tokens[1].line += line;
+        }
+
+        return index + 2;
     }
 
     private assert_consume(index, instruction) {

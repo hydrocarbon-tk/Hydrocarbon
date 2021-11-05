@@ -5,13 +5,13 @@
  */
 import {
     Sym_Is_A_Production
-} from "../grammar/nodes/symbol.js";
-import { GrammarObject, GrammarProduction } from '../types/grammar_nodes';
-import { getClosure } from "../utilities/closure.js";
-import { Item } from "../utilities/item.js";
-import { getProductionClosure } from '../utilities/production.js';
+} from "../../grammar/nodes/symbol.js";
+import { GrammarObject, GrammarProduction } from '../../types/index.js';;
+import { getClosure } from "../../utilities/closure.js";
+import { Item } from "../../utilities/item.js";
+import { getProductionClosure } from '../../utilities/production.js';
 import { getStartItemsFromProduction } from "./get_start_items_from_production.js";
-import { OutOfScopeItemState } from './magic_numbers.js';
+import { OutOfScopeItemState } from '../../utilities/magic_numbers.js';
 
 
 export function getGotoSTARTs(
@@ -172,7 +172,7 @@ function extractSTARTCandidates2(
     // For canfly, reduce to top level caller production that is not
     // in the no_fly_list
 
-    const fly_list = new Set();
+    const fly_list: Set<number> = new Set();
 
     for (const p of canfly) {
         let top_prod = p;

@@ -1,16 +1,20 @@
-
-import { copy, experimentalConstructRenderers, experimentalRender, traverse } from "@candlelib/conflagrate";
+/* 
+ * Copyright (C) 2021 Anthony Weathersby - The Hydrocarbon Parser Compiler
+ * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
+ * disclaimer notice.
+ */
+import { experimentalConstructRenderers, experimentalRender, traverse } from "@candlelib/conflagrate";
+import {
+    ExportPreamble, GrammarObject,
+    GrammarProduction,
+    HCG3ProductionBody, HCG3Symbol, ProductionSymbol,
+    ProductionTokenSymbol, SymbolNode
+} from "../../types/grammar_nodes";
+import { InstructionType, IR_Instruction, IR_State } from '../../types/ir_types';
 import { TokenTypes } from "../../types/TokenTypes";
 import { token_lu_bit_size } from "../../utilities/code_generating.js";
-import {
-    GrammarObject,
-    GrammarProduction,
-    HCG3ProductionBody, ProductionSymbol,
-    ProductionTokenSymbol,
-    HCG3Symbol, SymbolNode, ExportPreamble, ProductionNode
-} from "../../types/grammar_nodes";
 import { createSequenceData } from "../../utilities/create_byte_sequences.js";
-import { getSymbolTreeLeaves, getSymbolTree } from "../../utilities/getSymbolValueAtOffset.js";
+import { getSymbolTree, getSymbolTreeLeaves } from "../../utilities/getSymbolValueAtOffset.js";
 import {
     addBodyToProduction,
     copyBody,
@@ -30,7 +34,6 @@ import {
     Sym_Is_Exclusive,
     Sym_Is_Look_Behind
 } from "../nodes/symbol.js";
-import { InstructionType, IR_Instruction, IR_State } from '../../types/ir_types';
 let renderers = null;
 export const render_grammar = (grammar_node) => {
 
@@ -241,7 +244,6 @@ function processIRInstructionSymbols(
 
             case InstructionType.assert:
             case InstructionType.peek:
-            case InstructionType.prod:
             case InstructionType.scan_back_until:
             case InstructionType.scan_until:
 
@@ -388,7 +390,7 @@ export function processSymbol(
 
 
     if (Sym_Is_A_Production(sym) || Sym_Is_A_Production_Token(sym))
-        sym.production = production_lookup.get(sym.name);
+        sym.production = <any>production_lookup.get(sym.name);
 
     const unique_name = getUniqueSymbolName(sym, true);
 
@@ -432,7 +434,7 @@ export function processSymbol(
 
 
 function addProductionNotFoundError(errors: Error[], sym: ProductionSymbol | ProductionTokenSymbol) {
-    const tok = (sym.tok || sym.pos);
+    const tok = (sym.tok || (<any>sym).pos);
 
     if (tok.createError) {
         errors.push(tok.createError(

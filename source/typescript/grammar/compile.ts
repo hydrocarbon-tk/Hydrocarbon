@@ -1,3 +1,8 @@
+/* 
+ * Copyright (C) 2021 Anthony Weathersby - The Hydrocarbon Parser Compiler
+ * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
+ * disclaimer notice.
+ */
 import URI from "@candlelib/uri";
 import { GeneralProductionNode, GrammarObject, HCG3ProductionBody, HCG3Symbol, ProductionFunction, ProductionTokenSymbol, ScannerProductionNode, SymbolType } from "../types/grammar_nodes";
 import { HCGParser } from "../types/parser";

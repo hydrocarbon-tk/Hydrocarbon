@@ -1,16 +1,20 @@
-import { default_EOF, default_GEN_SYM } from '../grammar/nodes/default_symbols.js';
+/* 
+ * Copyright (C) 2021 Anthony Weathersby - The Hydrocarbon Parser Compiler
+ * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
+ * disclaimer notice.
+ */
+import { default_EOF, default_GEN_SYM } from '../../grammar/nodes/default_symbols.js';
 import {
     getSymbolFromUniqueName,
     getUniqueSymbolName, SymbolsCollide,
     Symbols_Are_The_Same,
     Sym_Is_A_Generic_Identifier, Sym_Is_A_Production,
     Sym_Is_A_Production_Token, Sym_Is_A_Token, Sym_Is_Defined, Sym_Is_Defined_Identifier, Sym_Is_Exclusive
-} from "../grammar/nodes/symbol.js";
-import { GrammarObject, TokenSymbol } from '../types/grammar_nodes';
-import { TransitionForestStateA, TransitionStateType } from "../types/transition_tree_nodes";
-import { getClosure } from "../utilities/closure.js";
-import { Item } from "../utilities/item.js";
-import { end_item_addendum, GlobalState, LocalState, OutOfScopeItemState } from './magic_numbers.js';
+} from "../../grammar/nodes/symbol.js";
+import { GrammarObject, TokenSymbol, TransitionForestStateA, TransitionStateType } from '../../types/index.js';;
+import { getClosure } from "../../utilities/closure.js";
+import { Item } from "../../utilities/item.js";
+import { end_item_addendum, GlobalState, LocalState, OutOfScopeItemState } from '../../utilities/magic_numbers.js';
 import { createTransitionForestState, TransitionForestGraph, TransitionForestOptions } from './transition_tree.js';
 
 /**

@@ -1,3 +1,8 @@
+/* 
+ * Copyright (C) 2021 Anthony Weathersby - The Hydrocarbon Parser Compiler
+ * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
+ * disclaimer notice.
+ */
 import { copy } from "@candlelib/conflagrate";
 import { Token } from '../../runtime/token.js';
 import {
@@ -23,10 +28,14 @@ export function getImportedGrammarFromReference(local_grammar: GrammarObject, mo
 
 export function getProductionByName(
     grammar: GrammarObject,
-    ref_symbol: ProductionTokenSymbol | ProductionSymbol | ProductionImportSymbol
+    ref_symbol: ProductionTokenSymbol | ProductionSymbol | ProductionImportSymbol | string
 ): GrammarProduction {
 
-    if (ref_symbol.type == SymbolType.IMPORT_PRODUCTION) {
+    if (typeof ref_symbol == "string") {
+        if (grammar.productions.some(p => p.name == ref_symbol))
+            return grammar.productions.filter(p => p.name == ref_symbol)[0];
+
+    } else if (ref_symbol.type == SymbolType.IMPORT_PRODUCTION) {
         const ref = grammar.imported_grammars.filter(s => s.reference == ref_symbol.module).pop();
 
         if (ref) {
@@ -209,7 +218,7 @@ function createEmptySymbol(): EmptySymbol {
     };
 }
 function createZeroedPosition(): HCG3TokenPosition {
-    return new Token("", "", 0, 0, 0);
+    return new Token("", 0, 0, 0);
 }
 export function createProduction(name: string, mapped_sym: ReferencedFunction = null): GrammarProduction {
     return {

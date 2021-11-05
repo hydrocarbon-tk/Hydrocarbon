@@ -1,3 +1,9 @@
+/* 
+ * Copyright (C) 2021 Anthony Weathersby - The Hydrocarbon Parser Compiler
+ * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
+ * disclaimer notice.
+ */
+import { ASYTRIPContext, ASYTRIPStruct, getTypeString, ResolvedProp } from '../types/index.js';
 import {
     getResolvedType, JSONFilter, TypeIsNotNull,
     TypeIsNull, TypeIsStruct, TypeIsVector,
@@ -5,7 +11,6 @@ import {
     TypesInclude,
     TypesRequiresDynamic
 } from './common.js';
-import { ASYTRIPContext, ASYTRIPStruct, ASYTRIPType, ASYTRIPTypeObj, getTypeString, ResolvedProp } from './types.js';
 
 type GenTypeInfo = (
     context: ASYTRIPContext,

@@ -43,3 +43,5 @@ Array.prototype.setFilter = function <T>(
 Array.prototype.group = function <T, KeyType>(this: Array<T>, fn: (T, G: T[]) => (KeyType | KeyType[]) = _ => _ ? _.toString() : ""): T[][] {
     return [...this.groupMap(fn).values()];
 };
+
+export const numeric_sort = (a: number, b: number): number => a - b;

@@ -3,19 +3,16 @@
  * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
  * disclaimer notice.
  */
-import { copy } from '@candlelib/conflagrate';
-import { default_EOF } from '../grammar/nodes/default_symbols.js';
 import {
     getUniqueSymbolName, Sym_Is_A_Production, Sym_Is_EOF
-} from "../grammar/nodes/symbol.js";
-import { GrammarObject, HCG3Symbol, SymbolType } from '../types/grammar_nodes';
-import { TransitionForestStateA, TransitionStateType } from "../types/transition_tree_nodes";
-import { getClosure } from "../utilities/closure.js";
-import { getFirstTerminalSymbols } from '../utilities/first.js';
-import { Item } from "../utilities/item.js";
-import { getStartItemsFromProduction } from '../utilities/production.js';
+} from "../../grammar/nodes/symbol.js";
+import { GrammarObject, HCG3Symbol, SymbolType, TransitionForestStateA, TransitionStateType } from "../../types/";
+import { getClosure } from "../../utilities/closure.js";
+import { getFirstTerminalSymbols } from '../../utilities/first.js';
+import { Item } from "../../utilities/item.js";
+import { end_item_addendum, GlobalState, LocalState, OutOfScopeItemState } from '../../utilities/magic_numbers.js';
+import { getStartItemsFromProduction } from '../../utilities/production.js';
 import { disambiguate } from './disambiguate.js';
-import { end_item_addendum, GlobalState, LocalState, OutOfScopeItemState } from './magic_numbers.js';
 import { isRecursive } from './STARTs.js';
 
 export function constructTransitionForest(
@@ -441,10 +438,6 @@ function processPeekGraphLeavesScanner(
 
                 //TODO Rebuild the groups while removing out of scope items.
                 leaf.type |= TransitionStateType.FORK | TransitionStateType.MULTI;
-
-                if (groups.every(i => i.atEND)) {
-
-                }
 
                 for (const group of groups) {
 

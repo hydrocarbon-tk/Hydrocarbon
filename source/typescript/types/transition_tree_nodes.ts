@@ -3,7 +3,6 @@
  * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
  * disclaimer notice.
  */
-import { TokenSymbol } from '@candlelib/hydrocarbon/build/types/types/grammar_nodes';
 import { Item } from "../utilities/item";
 import { HCG3Symbol } from './grammar_nodes';
 

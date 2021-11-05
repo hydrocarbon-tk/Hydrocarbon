@@ -15,3 +15,4 @@ export const end_item_addendum = 1 << 20;
 export const OutOfScopeItemState = -9999;
 export const LocalState = 0;
 export const GlobalState = -1;
+export const default_case_indicator = 9999;

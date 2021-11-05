@@ -1,6 +1,11 @@
+/* 
+ * Copyright (C) 2021 Anthony Weathersby - The Hydrocarbon Parser Compiler
+ * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
+ * disclaimer notice.
+ */
 import { traverse } from "@candlelib/conflagrate";
 import { exp, JSNodeClass, JSNodeType, renderCompressed } from "@candlelib/js";
-import { ir_reduce_numeric_len_id } from '../../build/magic_numbers.js';
+import { ir_reduce_numeric_len_id } from '../../utilities/magic_numbers.js';
 import { ReferencedFunction, GrammarObject, ProductionFunction, HCG3Symbol } from "../../types/grammar_nodes";
 import { InstructionType, IR_Instruction } from '../../types/ir_types';
 

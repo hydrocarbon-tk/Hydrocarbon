@@ -1,4 +1,9 @@
-import { GrammarObject } from '../types/grammar_nodes';
+/* 
+ * Copyright (C) 2021 Anthony Weathersby - The Hydrocarbon Parser Compiler
+ * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
+ * disclaimer notice.
+ */
+import { ASYTRIPContext, ASYTRIPType, ASYTRIPTypeObj, GrammarObject, ResolvedProp } from '../types/index.js';
 import {
     getResolvedType,
     JSONFilter,
@@ -14,7 +19,6 @@ import {
 } from './common.js';
 import { generateResolvedProps } from './generate_resolved_props.js';
 import { Inits } from './Inits.js';
-import { ASYTRIPContext, ASYTRIPType, ASYTRIPTypeObj, ResolvedProp } from './types.js';
 
 const type_mapper = new Map();
 const expr_mapper = new Map();

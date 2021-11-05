@@ -1,3 +1,8 @@
+/* 
+ * Copyright (C) 2021 Anthony Weathersby - The Hydrocarbon Parser Compiler
+ * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
+ * disclaimer notice.
+ */
 import { traverse } from "@candlelib/conflagrate";
 import {
     JSBindingProperty,
@@ -7,21 +12,20 @@ import {
     JSObjectLiteral,
     JSRightHandExpressionClass
 } from "@candlelib/js";
-import { Token } from '../runtime/token.js';
-import { HCG3ProductionBody } from "../types/grammar_nodes";
 import { Sym_Is_A_Production } from '../grammar/nodes/symbol.js';
+import { Token } from '../runtime/token.js';
 import {
     ASYTRIPContext,
     ASYTRIPProperty,
     ASYTRIPType,
-    ASYTRIPTypeObj
-} from './types.js';
+    ASYTRIPTypeObj, HCG3ProductionBody
+} from '../types/index.js';
 
 export function parseAsytripStruct(
     body: HCG3ProductionBody,
     expr: JSObjectLiteral,
     tok: Token,
-    asytrip_context: ASYTRIPContext): {
+    context: ASYTRIPContext): {
         name: string;
         args: ASYTRIPProperty[];
     } {
@@ -44,19 +48,19 @@ export function parseAsytripStruct(
         if (name == "type") {
             // Special handler that expects values of the form:
             // type_****** | class_*******
-            type_name = extractTypeInfo(val, tok, asytrip_context, classes, type_name);
+            type_name = extractTypeInfo(val, tok, context, classes, type_name);
         } else {
             //Create a property 
-            extractPropInfo(body, name, tok, val, properties);
+            extractPropInfo(context, body, name, tok, val, properties);
         }
     }
 
     if (!type_name)
         throwAsytripTokenError(tok, expr, "ASYTRIP_Struct_No_Type_Name");
 
-    if (asytrip_context.structs.has(type_name)) {
+    if (context.structs.has(type_name)) {
 
-        const struct = asytrip_context.structs.get(type_name);
+        const struct = context.structs.get(type_name);
 
         for (const [, _class] of classes)
             struct.classes.add(_class);
@@ -69,8 +73,11 @@ export function parseAsytripStruct(
 
                 const vectors = types.filter(TypeIsVector);
                 const rest = types.filter(t => !TypeIsVector(t));
-                const vector_args = vectors.flatMap(v => v.args).setFilter(JSONFilter);
-                vectors.forEach(v => v.types = vector_args);
+                const vector_types = [
+                    ...vectors.flatMap(v => v.types),
+                    ...vectors.flatMap(v => v.args)
+                ].setFilter(JSONFilter);
+                vectors.forEach(v => v.types = vector_types);
 
                 prop.types = [...rest, ...vectors];
             } else {
@@ -85,14 +92,12 @@ export function parseAsytripStruct(
             }
         }
     } else {
-
-
         const struct = {
             name: type_name,
             classes: classes,
             properties: properties,
         };
-        asytrip_context.structs.set(type_name, struct);
+        context.structs.set(type_name, struct);
     }
 
     return { name: type_name, args: [...properties.values()] };
@@ -102,6 +107,7 @@ export function JSONFilter(v: any) {
 }
 
 function extractPropInfo(
+    context: ASYTRIPContext,
     body: HCG3ProductionBody,
     name: any,
     source: Token,
@@ -112,7 +118,8 @@ function extractPropInfo(
     const property: ASYTRIPProperty = getPropertyFromExpression(
         body,
         val,
-        source
+        source,
+        context
     );
 
     property.name = name;
@@ -124,7 +131,9 @@ function extractPropInfo(
 export function getPropertyFromExpression(
     body: HCG3ProductionBody,
     node: JSRightHandExpressionClass,
-    tok: Token): ASYTRIPProperty {
+    tok: Token,
+    context: ASYTRIPContext
+): ASYTRIPProperty {
 
     const prop: ASYTRIPProperty = {
         name: "",
@@ -137,7 +146,8 @@ export function getPropertyFromExpression(
     const out_type = parseExpression(
         body,
         node,
-        tok
+        tok,
+        context
     );
 
     prop.types = [out_type];
@@ -151,13 +161,22 @@ export function getPropertyFromExpression(
 }
 function parseExpression(
     body: HCG3ProductionBody,
-    node: JSNode,
-    tok: Token
+    node: any,
+    tok: Token,
+    context: ASYTRIPContext,
 ): ASYTRIPTypeObj[ASYTRIPType] {
-    if (node.type == JSNodeType.ExpressionList) {
+    if (node.type == JSNodeType.ObjectLiteral) {
+        const {
+            name,
+            args
+        } = parseAsytripStruct(body, node, tok, context);
+
+        return { type: ASYTRIPType.STRUCT, name: name, arg_pos: null, args: args };
+
+    } else if (node.type == JSNodeType.ExpressionList) {
         const expressions = [];
         for (const expr of node.nodes) {
-            expressions.push(parseExpression(body, expr, tok));
+            expressions.push(parseExpression(body, expr, tok, context));
         }
 
         return {
@@ -168,14 +187,23 @@ function parseExpression(
 
         let ref = node.value;
 
-
-        if (ref[0] == "$" && ref[1] != "$") {
+        if (ref.slice(0, 2) == "t_") {
+            return { type: ASYTRIPType.STRUCT_CLASSIFICATION, vals: [{ type: ASYTRIPType.STRUCT_TYPE, val: ref.slice(2) }] };
+        } else if (ref.slice(0, 2) == "c_") {
+            return { type: ASYTRIPType.STRUCT_CLASSIFICATION, vals: [{ type: ASYTRIPType.STRUCT_CLASS, val: ref.slice(2) }] };
+        } else if (ref[0] == "$" && ref[1] != "$") {
             const syms = body.sym;
             ref = ref.slice(1);
             let sym = null;
             let index = parseInt(ref) - 1;
 
-            if (!isNaN(index)) {
+            if (ref == "__last__") {
+                sym = syms.slice(-1)[0];
+                index = syms.length - 1;
+            } else if (ref == "__first__") {
+                sym = syms[0];
+                index = 0;
+            } else if (!isNaN(index)) {
                 sym = syms[index] ?? null;
             } else {
                 for (let i = 0; i < syms.length; i++) {
@@ -195,7 +223,13 @@ function parseExpression(
             if (sym) {
                 if (Sym_Is_A_Production(sym)) {
 
-                    return { type: ASYTRIPType.PRODUCTION, val: sym.val, arg_pos: index, args: [], tok: tok.token_slice(node.pos.off, node.pos.off + node.pos.len) };
+                    return {
+                        type: ASYTRIPType.PRODUCTION,
+                        val: sym.val,
+                        arg_pos: index,
+                        args: [],
+                        tok: tok.token_slice(node.pos.off, node.pos.off + node.pos.len)
+                    };
                 } else {
                     return { type: ASYTRIPType.TOKEN, arg_pos: index };
                 }
@@ -213,9 +247,9 @@ function parseExpression(
 
         const [left, right] = node.nodes;
 
-        const left_val = parseExpression(body, left, tok);
+        const left_val = parseExpression(body, left, tok, context);
 
-        const right_val = parseExpression(body, right, tok);
+        const right_val = parseExpression(body, right, tok, context);
 
         if (TypeIsVector(left_val) || TypeIsVector(right_val)) {
             if (TypeIsVector(left_val)) return {
@@ -250,9 +284,9 @@ function parseExpression(
         };
     } else if (node.type == JSNodeType.ConditionalExpression) {
         const [assert, left, right] = node.nodes;
-        const assertion = parseExpression(body, assert, tok);
-        const left_val = parseExpression(body, left, tok);
-        const right_val = parseExpression(body, right, tok);
+        const assertion = parseExpression(body, assert, tok, context);
+        const left_val = parseExpression(body, left, tok, context);
+        const right_val = parseExpression(body, right, tok, context);
         return <ASYTRIPTypeObj[ASYTRIPType.TERNARY]>{
             type: ASYTRIPType.TERNARY,
             assertion,
@@ -262,8 +296,8 @@ function parseExpression(
     } else if (node.type == JSNodeType.LogicalExpression) {
         if (node.symbol == "||") {
             const [left, right] = node.nodes;
-            const left_val = parseExpression(body, left, tok);
-            const right_val = parseExpression(body, right, tok);
+            const left_val = parseExpression(body, left, tok, context);
+            const right_val = parseExpression(body, right, tok, context);
 
             return {
                 type: ASYTRIPType.OR,
@@ -271,10 +305,26 @@ function parseExpression(
                 right: right_val,
             };
         }
+    } else if (node.type == JSNodeType.BitwiseExpression) {
+        let vals = [];
+
+        for (const type of [
+            parseExpression(body, node.nodes[0], tok, context),
+            parseExpression(body, node.nodes[1], tok, context)
+        ]) {
+            if (TypeIsClassification(type)) {
+                vals.push(...type.vals);
+            } else {
+                throwAsytripTokenError(tok, node, "ASYTRIP_Invalid_Use_Of_Struct_Classification_Union");
+            }
+        }
+
+        return { type: ASYTRIPType.STRUCT_CLASSIFICATION, vals };
+
     } else if (node.type == JSNodeType.EqualityExpression) {
         const [left, right] = node.nodes;
-        const left_val = parseExpression(body, left, tok);
-        const right_val = parseExpression(body, right, tok);
+        const left_val = parseExpression(body, left, tok, context);
+        const right_val = parseExpression(body, right, tok, context);
 
         if (node.symbol == "==")
             return {
@@ -287,19 +337,19 @@ function parseExpression(
             case "+":
                 return <ASYTRIPTypeObj[ASYTRIPType.CONVERT_DOUBLE]>{
                     type: ASYTRIPType.CONVERT_DOUBLE,
-                    value: parseExpression(body, <any>node.nodes[0], tok)
+                    value: parseExpression(body, <any>node.nodes[0], tok, context)
                 };
             case "!":
                 if (node.nodes[0].type == JSNodeType.UnaryExpression
                     && (node.nodes[0].symbol == "!")
                 ) return <ASYTRIPTypeObj[ASYTRIPType.CONVERT_BOOL]>{
                     type: ASYTRIPType.CONVERT_BOOL,
-                    value: parseExpression(body, <any>node.nodes[0].nodes[0], tok)
+                    value: parseExpression(body, <any>node.nodes[0].nodes[0], tok, context)
                 };
         }
         throwAsytripTokenError(tok, node, "ASYTRIP_Invalid_Unary_Expression");
     } else if (node.type == JSNodeType.Parenthesized) {
-        return parseExpression(body, <any>node.nodes[0], tok);
+        return parseExpression(body, <any>node.nodes[0], tok, context);
     } else if (node.type == JSNodeType.NullLiteral) {
         return <ASYTRIPTypeObj[ASYTRIPType.NULL]>{
             type: ASYTRIPType.NULL
@@ -317,9 +367,11 @@ function parseExpression(
         return { type: ASYTRIPType.BOOL, val: (node.value + "") == "true" };
 
     } else if (node.type == JSNodeType.ArrayLiteral) {
-        const members = node.nodes.map(n => parseExpression(body, n, tok));
+        const members = node.nodes.map(n => parseExpression(body, n, tok, context));
 
-        return { type: ASYTRIPType.VECTOR, args: members, types: members };
+        const args = members.filter(TypeIsNotClassification);
+
+        return { type: ASYTRIPType.VECTOR, args: args, types: members, arg_pos: undefined };
 
     } else if (node.type == JSNodeType.MemberExpression) {
 
@@ -330,7 +382,7 @@ function parseExpression(
             &&
             (ref.type == JSNodeType.IdentifierReference && ref.value[0] == "$")
         ) {
-            const struct = parseExpression(body, ref, tok);
+            const struct = parseExpression(body, ref, tok, context);
             const property = prop.value;
 
             return <ASYTRIPTypeObj[ASYTRIPType.STRUCT_PROP_REF]>{
@@ -352,9 +404,9 @@ function parseExpression(
                 &&
                 (ref.type == JSNodeType.IdentifierReference && ref.value[0] == "$")
             ) {
-                const struct = parseExpression(body, ref, tok);
+                const struct = parseExpression(body, ref, tok, context);
                 const property = prop.value;
-                const value = parseExpression(body, args, tok);
+                const value = parseExpression(body, args, tok, context);
 
                 return <ASYTRIPTypeObj[ASYTRIPType.STRUCT_ASSIGN]>{
                     type: ASYTRIPType.STRUCT_ASSIGN,
@@ -376,7 +428,7 @@ function parseExpression(
 
             const [expr, call_identifier] = id.nodes;
 
-            const expression = parseExpression(body, expr, tok);
+            const expression = parseExpression(body, expr, tok, context);
 
             if (call_identifier.type == (JSNodeType.IdentifierName | JSNodeClass.PROPERTY_NAME)) {
 
@@ -388,7 +440,7 @@ function parseExpression(
                         ||
                         expression.type == ASYTRIPType.PRODUCTION
                     )) {
-                    const args_ = args.nodes.map(n => parseExpression(body, n, tok));
+                    const args_ = args.nodes.map(n => parseExpression(body, n, tok, context));
                     return { type: ASYTRIPType.VECTOR_PUSH, vector: expression, args: args_ };
                 }
             }
@@ -411,11 +463,45 @@ export function getResolvedType(
 ): ASYTRIPTypeObj[ASYTRIPType][] {
     if (node)
         switch (node.type) {
+            case ASYTRIPType.STRUCT_CLASSIFICATION:
+                const structs: ASYTRIPTypeObj[ASYTRIPType.STRUCT][] = [];
+                const seen = new Set;
+
+                for (const type of node.vals) {
+                    if (type.type == ASYTRIPType.STRUCT_TYPE) {
+                        const struct = context.structs.get(type.val);
+                        if (struct && !seen.has(struct.name)) {
+                            structs.push({
+                                type: ASYTRIPType.STRUCT,
+                                name: struct.name,
+                                arg_pos: undefined
+                            });
+                            seen.add(struct.name);
+                        }
+                    } else {
+                        for (const [, struct] of context.structs) {
+                            if (struct.classes.has(type.val)) {
+                                if (struct && !seen.has(struct.name)) {
+                                    structs.push({
+                                        type: ASYTRIPType.STRUCT,
+                                        name: struct.name,
+                                        arg_pos: undefined
+                                    });
+                                    seen.add(struct.name);
+                                }
+                            }
+                        }
+                    }
+                }
+
+
+                return structs;
+            case ASYTRIPType.STRUCT:
+                return [{ type: ASYTRIPType.STRUCT, name: node.name, arg_pos: undefined, args: undefined }];
             case ASYTRIPType.DOUBLE:
             case ASYTRIPType.STRING:
             case ASYTRIPType.NULL:
             case ASYTRIPType.TOKEN:
-            case ASYTRIPType.STRUCT:
             case ASYTRIPType.BOOL:
                 return [node];
             case ASYTRIPType.CONVERT_DOUBLE:
@@ -463,7 +549,8 @@ export function getResolvedType(
                     productions
                 );
             case ASYTRIPType.VECTOR_PUSH:
-                const types = node.vector.args.slice();
+
+                const types = node?.vector?.args?.slice() ?? [];
                 const args = node.args.slice();
 
                 types.push(...args);
@@ -472,15 +559,40 @@ export function getResolvedType(
                     .flatMap(v => getResolvedType(v, context, undefined, productions))
                     .setFilter(JSONFilter);
 
-                return [{ type: ASYTRIPType.VECTOR, args: results, types: results }];
+                return [{ type: ASYTRIPType.VECTOR, args: results, types: results, arg_pos: undefined }];
             case ASYTRIPType.PRODUCTION:
                 const val = node.val;
                 if (!context.resolved_return_types.has(val)) {
-                    context.resolved_return_types.set(val, []);
-                    const results = context.return_types.get(val)
-                        .flatMap(v => getResolvedType(v, context, undefined, productions))
-                        .setFilter(JSONFilter);
-                    context.resolved_return_types.set(val, results);
+
+                    let recursive = [];
+
+                    let non_recursive = [];
+
+                    context.resolved_return_types.set(val, null);
+
+                    for (const v of context.return_types.get(val)) {
+                        try {
+                            const types = getResolvedType(v, context, undefined, productions);
+                            non_recursive.push(...types);
+                        } catch (E) {
+                            if (E == "Unresolved recursion") {
+                                recursive.push(v);
+                            } else {
+                                throw E;
+                            }
+                        }
+                    }
+
+                    context.resolved_return_types.set(val, non_recursive.setFilter(JSONFilter));
+
+                    for (const v of recursive) {
+                        const types = getResolvedType(v, context, undefined, productions);
+                        non_recursive.push(...types);
+                    }
+
+                    context.resolved_return_types.set(val, non_recursive.setFilter(JSONFilter));
+                } else if (context.resolved_return_types.get(val) == null) {
+                    throw "Unresolved recursion";
                 }
                 productions.push(node);
                 return context.resolved_return_types.get(val);
@@ -488,27 +600,54 @@ export function getResolvedType(
             case ASYTRIPType.ADD:
                 const { left, right } = node;
 
+
+                // If either type is a vector then 
+                // do a vector merge or vector push
+                if (TypeIsVector(left)) {
+                    return [{
+                        type: ASYTRIPType.VECTOR_PUSH, vector: left,
+                        args: getResolvedType(right, context, _structs, productions)
+                    }];
+                } else if (TypeIsVector(right)) {
+                    return [{
+                        type: ASYTRIPType.VECTOR_PUSH, vector: right,
+                        args: getResolvedType(left, context, _structs, productions)
+                    }];
+                }
+
                 if (
                     left.type == ASYTRIPType.STRING
                     ||
                     right.type == ASYTRIPType.STRING
                 ) return [{ type: ASYTRIPType.STRING, val: "" }];
 
-
-                if (left.type == ASYTRIPType.ADD)
-                    return getResolvedType(left, context, undefined, productions);
-
                 const l = getResolvedType(left, context, undefined, productions);
                 const r = getResolvedType(right, context, undefined, productions);
 
-                if (TypesInclude(l, TypeIsVector))
-                    return l.filter(TypeIsVector);
+                let vector_types = [], IS_VECTOR = false;
+
+                for (const v of [l, r])
+
+                    if (TypesInclude(v, TypeIsVector)) {
+                        IS_VECTOR = true;
+                        vector_types.push(...v.filter(TypeIsVector).flatMap(v => v.types));
+                    } else {
+                        vector_types.push(...v);
+                    }
+
+                if (IS_VECTOR) {
+                    return [{ type: ASYTRIPType.VECTOR, args: [], types: vector_types.setFilter(JSONFilter), arg_pos: undefined }];
+                }
 
                 if (TypesInclude(l, TypeIsToken) || TypesInclude(l, TypeIsString))
                     return [{ type: ASYTRIPType.STRING, val: "" }];
 
                 if (TypesInclude(r, TypeIsToken) || TypesInclude(r, TypeIsString))
                     return [{ type: ASYTRIPType.STRING, val: "" }];
+
+                if (l[0].type == ASYTRIPType.NULL || r[0].type == ASYTRIPType.NULL) {
+                    return left.type == ASYTRIPType.NULL ? r : l;
+                }
 
                 return [{ type: ASYTRIPType.STRING, val: "" }];
             case ASYTRIPType.SUB:
@@ -625,7 +764,13 @@ export function TypeIsVector(t: ASYTRIPTypeObj[ASYTRIPType]): t is ASYTRIPTypeOb
 export function TypeIsNull(t: ASYTRIPTypeObj[ASYTRIPType]): t is ASYTRIPTypeObj[ASYTRIPType.NULL] {
     return t.type == ASYTRIPType.NULL;
 }
-export function TypeIsNotNull(t: ASYTRIPTypeObj[ASYTRIPType]) {
+export function TypeIsClassification(t: ASYTRIPTypeObj[ASYTRIPType]): t is ASYTRIPTypeObj[ASYTRIPType.STRUCT_CLASSIFICATION] {
+    return t.type == ASYTRIPType.STRUCT_CLASSIFICATION;
+}
+export function TypeIsNotClassification(t: ASYTRIPTypeObj[ASYTRIPType]): boolean {
+    return !TypeIsClassification(t);
+}
+export function TypeIsNotNull(t: ASYTRIPTypeObj[ASYTRIPType]): boolean {
     return !TypeIsNull(t);
 }
 
