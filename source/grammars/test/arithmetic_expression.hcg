@@ -1,4 +1,4 @@
-@IGNORE g:sp
+@IGNORE g:sp g:nl
 
 <> start > E            f:r { { type: t_ROOT | c_MAIN, root:$1, scoop:2 } }
 

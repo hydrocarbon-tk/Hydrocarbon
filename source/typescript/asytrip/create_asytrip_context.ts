@@ -76,13 +76,12 @@ export function createAsytripContext(grammar: GrammarObject): ASYTRIPContext {
                     body.reduce_function = null;
                 }
 
-                console.log(render_grammar(body));
-
                 fns.push({
                     production_id: production.id,
                     body,
                     tok: body?.reduce_function?.pos.token_slice(5) ?? new Token("", 0, 0, 0),
-                    fn: fn?.txt ? exp(`${fn.txt.replace(/(\${1,2}\d+)/g, "$1")}`) : null
+                    fn: fn?.txt ? exp(`${fn.txt.replace(/(\${1,2}\d+)/g, "$1")}`) : null,
+                    source: fn?.txt ?? ""
                 });
             }
             // Get the return types for each body. 
@@ -107,45 +106,28 @@ export function createAsytripContext(grammar: GrammarObject): ASYTRIPContext {
         });
 
 
-        for (const { fn, production_id, body, tok } of fns) {
+        for (const { fn, production_id, body, tok, source } of fns) {
 
             const return_type = [];
 
             if (fn) {
 
-                if (fn.type == JSNodeType.ObjectLiteral) {
+                const prop = getPropertyFromExpression(
+                    body, fn, tok, context
+                );
 
-                    const { name, args } = parseAsytripStruct(
-                        body,
-                        fn,
-                        tok,
-                        context
-                    );
+                fn_map.set(body.id, {
+                    args: [prop],
+                    length: body.sym.length,
+                    struct: ""
+                    source: source
+                });
 
-                    fn_map.set(body.id, {
-                        args: args,
-                        length: body.sym.length,
-                        struct: name
-                    });
+                return_type.push(...prop.types);
 
-                    return_type.push({ type: ASYTRIPType.STRUCT, name: name });
-                } else {
-
-                    const prop = getPropertyFromExpression(
-                        body, fn, tok,
-                    );
-
-                    fn_map.set(body.id, {
-                        args: [prop],
-                        length: body.sym.length,
-                        struct: ""
-                    });
-
-                    return_type.push(...prop.types);
-                }
             } else {
 
-                fn_map.set(body.id, { args: [], length: body.sym.length, struct: "" });
+                fn_map.set(body.id, { args: [], length: body.sym.length, struct: "", source });
 
                 //get last symbol
                 const sym = body.sym.slice(-1)[0];
@@ -208,14 +190,20 @@ export function createAsytripContext(grammar: GrammarObject): ASYTRIPContext {
         }
 
         for (const [id, types] of context.return_types) {
-            context.resolved_return_types.set(id,
-                types
-                    .flatMap(t => getResolvedType(t, context))
-                    .setFilter(t => JSON.stringify(t))
-            );
+
+            let r_types = [];
+
+            for (const type of types) {
+                r_types.push(...getResolvedType(type, context));
+            }
+
+            context.resolved_return_types.set(id, r_types.setFilter());
         }
 
         for (const [s_name, struct] of context.structs) {
+
+            struct.type = context.type.get(s_name);
+
             for (const [name, prop] of struct.properties) {
 
                 // For simplicities sake, ensure properties 
@@ -248,7 +236,11 @@ This is not the case with ${s_name}~${name}`];
                             continue;
 
                         message.push(args.tok.createError(
-                            `Production ${production.name}: \n--------------------------\n ${render_grammar(production)} \n--------------------------\n  assigned to reference ${args.tok.slice()} produces non Struct types [ ${bad_types.map(t => {
+                            `Production ${production.name}: 
+-------------------------- 
+${render_grammar(production)} 
+-------------------------- 
+ assigned to reference ${args.tok.slice()} produces non Struct types [ ${bad_types.map(t => {
                                 if (TypeIsVector(t)) {
                                     return `${ASYTRIPType[t.type]}<${t.types.map(t => ASYTRIPType[t.type]).setFilter(JSONFilter).join(" | ")}>`;
                                 }
@@ -268,6 +260,7 @@ This is not the case with ${s_name}~${name}`];
 
                     const vector_types = real_types.filter(TypeIsVector);
                     const non_vector_types = real_types.filter(v => !TypeIsVector(v));
+
                     if (non_vector_types.length > 0) {
                         debugger;
                     } else if (vector_types.some(v => TypesInclude(v.types, TypeIsStruct))) {

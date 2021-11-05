@@ -1,17 +1,26 @@
 import {
-    getResolvedType, TypeIsNotNull,
+    getResolvedType, JSONFilter, TypeIsNotNull,
     TypeIsNull, TypeIsStruct, TypeIsVector,
     TypesAre,
     TypesInclude,
     TypesRequiresDynamic
 } from './common.js';
-import { ASYTRIPContext, ASYTRIPStruct, getTypeString, ResolvedProp } from './types.js';
+import { ASYTRIPContext, ASYTRIPStruct, ASYTRIPType, ASYTRIPTypeObj, getTypeString, ResolvedProp } from './types.js';
 
+type GenTypeInfo = (
+    context: ASYTRIPContext,
+    prop: ResolvedProp) => string;
+/**
+ * Generates a list of objects that contain crucial
+ * resolved type information for each the structs properties.
+ */
 export function generateResolvedProps(
     struct: ASYTRIPStruct,
     context: ASYTRIPContext,
     resolved_structs: Map<string, Map<string, ResolvedProp>>,
-    getTypeString: getTypeString<any>) {
+    getTypeString: getTypeString<any>,
+    GenerateTypeString: GenTypeInfo
+): ResolvedProp[] {
 
     const name = struct.name;
 
@@ -25,45 +34,50 @@ export function generateResolvedProps(
     const props = [...struct.properties];
 
     const prop_vals = props.map(([n, p]) => {
-        const types = p.types.flatMap(t => getResolvedType(t, context, new Set([struct.name])));
 
-        let type_string = "interface{}";
+        const types = p.types.flatMap(t => getResolvedType(t, context, new Set([struct.name])));
 
         const real_types = types.filter(TypeIsNotNull);
 
         const HAS_NULL = TypesInclude(types, TypeIsNull);
 
-        const REQUIRES_DYNAMIC = TypesRequiresDynamic(types);
+        const REQUIRES_DYNAMIC = real_types.length > 0 && TypesRequiresDynamic(real_types);
 
-        let type = real_types[0];
+        const HAVE_STRUCT = TypesInclude(types, TypeIsStruct);
+        const HAVE_STRUCT_VECTORS = TypesInclude(types, TypeIsVector) && types.filter(TypeIsVector).some(t => t.types.length > 0 && TypesAre(t.types, TypeIsStruct));
 
-        if (TypesAre(real_types, TypeIsStruct)) {
-            if (real_types.length > 1)
-                type_string = "ASTNode";
-            else if (type) {
-                type_string = getTypeString(type, context);
-                if (HAS_NULL)
-                    type_string = `Option<${type_string}>`;
-            }
-        } else if (REQUIRES_DYNAMIC) {
-            type_string = "HCO";
-        } else if (TypesAre(real_types, TypeIsVector)) {
-            type_string = getTypeString(real_types[0], context);
-        } else if (type)
-            type_string = getTypeString(type, context);
+        const structs = [];
 
-
-        else
-            type_string = "HCNode";
-
-        resolved_props.set(n, {
+        if (HAVE_STRUCT) {
+            structs.push(...types.filter(TypeIsStruct)
+                .setFilter(JSONFilter)
+                .map(s => context.structs.get(s.name)));
+        } else if (HAVE_STRUCT_VECTORS) {
+            structs.push(...types.filter(TypeIsVector)
+                .flatMap(t => t.types)
+                .filter(TypeIsStruct)
+                .setFilter(JSONFilter)
+                .map(s => context.structs.get(s.name))
+            );
+        }
+        const prop: ResolvedProp = {
             REQUIRES_DYNAMIC,
+            HAVE_STRUCT,
+            HAVE_STRUCT_VECTORS,
             name: n,
-            type: type_string,
+            type: "",
             HAS_NULL,
-            types,
-            prop: p
-        });
+            types: real_types,
+            prop: p,
+            structs
+        };
+
+        prop.type = GenerateTypeString(
+            context,
+            prop
+        );
+
+        resolved_props.set(n, prop);
 
         return resolved_props.get(n);
     });

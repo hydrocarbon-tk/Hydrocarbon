@@ -22,7 +22,7 @@
 
 <> production_body >  \! ? sym::reference_symbol? entries fn::reduce_function?                      
             
-            f:r { { type:t_Body | c_Production, priority:!!$1 ? 1000 : 0, symbols:$3, ref:$2, reduce_function:$4, FORCE_FORK:false, id:-1, production:null } }
+            f:r { { type:t_Body | c_Production, priority:!!$1 ? 1000 : 0, symbols:$3, ref:$2, reduce_function:$4, FORCE_FORK:false, id:-1, production:t_Production } }
 
 <> entries > entries body_entry 
             

@@ -81,6 +81,39 @@ function convertArgsToType(
     };
 }
 
+function GenerateTypeString(
+    context: ASYTRIPContext,
+    real_types: ASYTRIPTypeObj[ASYTRIPType][],
+    HAS_NULL: boolean,
+    REQUIRES_DYNAMIC: boolean,
+    HAVE_STRUCT: boolean,
+    HAVE_STRUCT_VECTORS: boolean
+): string {
+    let type = real_types[0];
+
+    let type_string = "HCO";
+
+    if (TypesAre(real_types, TypeIsStruct)) {
+        if (real_types.length > 1)
+            type_string = "ASTNode";
+        else if (type) {
+            type_string = getTypeString(type, context);
+            if (HAS_NULL)
+                type_string = `Option<${type_string}>`;
+        }
+    } else if (REQUIRES_DYNAMIC) {
+        type_string = "HCO";
+    } else if (TypesAre(real_types, TypeIsVector)) {
+        type_string = getTypeString(real_types[0], context);
+    } else if (type)
+        type_string = getTypeString(type, context);
+
+    else
+        type_string = "HCNode";
+
+    return type_string;
+}
+
 export function createRustTypes(grammar: GrammarObject, context: ASYTRIPContext) {
 
     const structs = [...context.structs];
@@ -213,7 +246,8 @@ where
         const prop_vals = generateResolvedProps(struct,
             context,
             resolved_struct_types,
-            getTypeString
+            getTypeString,
+            GenerateTypeString
         );
 
         let i = 0;
@@ -689,7 +723,7 @@ fn GetType(&self) -> u32 {
                             const arg = arg_types[0];
                             switch (arg.type) {
                                 case ASYTRIPType.STRING:
-                                    return;
+                                    return val;
                             }
                         }
 
@@ -770,7 +804,7 @@ addTypeMap(ASYTRIPType.STRING, (v, c) => {
     if (v.val) {
         return `"${v.val}"`;
     } else {
-        return "str";
+        return "String";
     }
 });
 addTypeMap(ASYTRIPType.TOKEN, (v, c) => "Token");
@@ -868,9 +902,9 @@ addExpressMap(ASYTRIPType.CONVERT_BOOL, (v, c, inits) => {
     return `(${val}).Bool()`;
 });
 
-addExpressMap(ASYTRIPType.CONVERT_DOUBLE, (v, c, inits) => `&(${typeToExpression(v.value, c, inits)}).Double()`);
+addExpressMap(ASYTRIPType.CONVERT_DOUBLE, (v, c, inits) => `(${typeToExpression(v.value, c, inits)}).Double()`);
 
-addExpressMap(ASYTRIPType.CONVERT_STRING, (v, c, inits) => `&(${typeToExpression(v.value, c, inits)}).String()`);
+addExpressMap(ASYTRIPType.CONVERT_STRING, (v, c, inits) => `(${typeToExpression(v.value, c, inits)}).String()`);
 
 addExpressMap(ASYTRIPType.PRODUCTION, (v, c, inits) => {
 

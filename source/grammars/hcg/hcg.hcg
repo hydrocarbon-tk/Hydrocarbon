@@ -90,16 +90,18 @@
 
                             f:r { { 
                                 type:t_Grammar | c_Grammar | c_Version_6, 
-                                preamble:$1 || [], 
-                                ir_states:$2.ir || [],
+                                preamble:$1, 
+                                ir_states:$2.ir,
                                 productions:$2.productions, 
-                                functions:$2.functions || [], 
-                                imported_grammars: [],
-                                meta:null,
-                                ignore:[],
-                                all_symbols:[],
-                                bodies:[]
-                                } }
+                                functions:$2.functions, 
+                                imported_grammars: [t_Grammar],
+                                meta:{
+                                    type:t_Meta,
+                                    all_symbols: [c_Symbol],
+                                    ignore_symbols: [c_Symbol]
+                                },
+                                bodies:[t_Body]
+                            } }
 
 # Action functions can be defined at the end of production bodies to add custom parsing behavior
 # once a production has been parsed. These actions are parsed as JavaScript, and any valid
@@ -109,6 +111,3 @@
 
 
 # This annotated grammar definition is continued in ./preambles.hcg
-
-
-<> statement >  \;^lazy 
