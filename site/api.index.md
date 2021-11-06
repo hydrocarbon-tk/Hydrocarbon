@@ -13,6 +13,10 @@
 > adequetly represented with a particular syntax form. In general, atomic
 > constructs will be represented by RegEx, and composite constructs will use
 > HCG Syntax.
+> 
+> Most of the HCG syntax definitions are built from symbols defined within
+> [Symbol](./api.symbols.index.md), which have definitions written exclusively
+> in RegEx.
 
 - [Preambles](./api.preambles.index.md)
 - [Production](./api.production.index.md)
