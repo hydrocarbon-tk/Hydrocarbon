@@ -23,26 +23,32 @@ These symbols augment existing symbols and change how the parser treats theme.
 ```regex
 [\w\_][\w\d\_]*
 ```
-----
-
 Production that is defined within the current grammar module.
 
 ### Import Production Symbol
 
-`<module-name>::<production-symbol>`
-
+###### RegEx Syntax
+```regex
+(?<moduleName>[\w\_][\w\d\_]*)\s*::\s*(?<productionName>[\w\_][\w\d\_]*)
+```
 Productions referenced from another grammar module.
 
 ### Recovery Symbol
 
-`g:rec` 
+###### RegEx Syntax
+```regex
+g:rec
+```
 
 The recovery symbol can be used in conjunction with user defined IR blocks to handle
 parse errors. 
 
 ### Inline Production
 
-`( sub_bodyA | sub_bodyB | sub_bodyC )`
+###### RegEx Syntax
+```regex
+\((<body>.+)(|.+)*\)
+```
 
 Declares an anonymous production with it's own distinct set 
 of bodies. 
@@ -50,10 +56,26 @@ of bodies.
 
 ### List Production
 
-- One or more: `<symbol> (+)` 
-- Zero or more: `<symbol>  (*)` 
-- One or more with seperator: `<symbol> (+ <seperator> )`
-- Zero or more with seperator: `<symbol> (* <seperator> )`
+- One or more: 
+###### RegEx Syntax
+```regex
+(?<symbol>.*)\(\+\)
+```
+- Zero or more: 
+###### RegEx Syntax
+```regex
+(?<symbol>.*)\(\+\)
+``` 
+- One or more with seperator: 
+###### RegEx Syntax
+```regex
+(?<symbol>.*)\(\+(?<symbol>.*)\)
+```
+- Zero or more with seperator: 
+###### RegEx Syntax
+```regex
+(?<symbol>.*)\(\*(?<symbol>.*)\)
+```
 
 Note the lack of space between `(` and `*`, or `(` and `+`. This is important; `<symbol> ( * )` will not
 be parsed as a list production, but `<symbol> (* )` or `<symbol> (*)` will.
@@ -62,12 +84,9 @@ be parsed as a list production, but `<symbol> (* )` or `<symbol> (*)` will.
 
 ### Escaped Terminal Symbol
 
-###### HCG Syntax
-```
-\\ ( g:ids | g:syms | g:nums )(+\" ) sym_delimiter
-
-/* where sym_delimiter is: */
-g:sp | g:nl | ?=$eof
+###### RegEx Syntax
+```regex
+\\.*+\s
 ```
 ----
 
@@ -93,7 +112,10 @@ Hydrocarbon provides several generated symbols similar to character classes foun
 
 ### Production Token Symbol
 
-`tk: <production-symbol>`
+###### RegEx Syntax
+```
+regextk:(?<productionSymbol>)
+```
 
 *Production Token* symbols use a [production](./api.production.index.md) to serve as the basis for a token symbol. This allows complex tokens to be described using the same syntax as one would use for normal productions. The difference is a *production token* is atomic; that is whatever characters where recognized in the parsing of the production are returned as a single, irreducible token. Any reduce actions described in the production or it's sub-productions are ignored. 
 
@@ -113,7 +135,10 @@ A common use case for such symbols are when defining comments that should be ign
 
 ### Annotated Symbol
 
-`<symbol>^<identifier>`
+###### RegEx Syntax
+```regex
+(?<symbol>.*)^(?<identifier>[\w\_][\w\d\_]*)
+```
 
 example:`g:id^primary_ident`
 
@@ -121,17 +146,22 @@ An annotation can be applied to a symbol for referential use within reduce actio
 
 ### Non-Capture Symbol
 
-`?=<identifier>`
-
-example:`g:id^primary_ident`
+###### RegEx Syntax
+```regex
+\?\=(?<symbol>.*)
+```
+example:`g:num ?=g:id`
 
 Used to define a symbol that should be match but should not be included within the current production body. Most often used when a trivial lookahead is required.
 
 ### Optional Symbol
 
-`<symbol>^<identifier>`
+###### RegEx Syntax
+```regex
+(?<symbol>.*)\?
+```
 
-example:`g:id^primary_ident`
+examples: `g:id?` | `\hello \world ?`
 
 
 
