@@ -19,10 +19,9 @@ These symbols augment existing symbols and change how the parser treats theme.
 
 ### Production Symbol
 
-###### HCG Syntax
-
-```
-<production-symbol>
+###### RegEx Syntax
+```regex
+[\w\_][\w\d\_]*
 ```
 ----
 
