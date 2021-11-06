@@ -1,6 +1,18 @@
 # API
 
+
+
 ## Grammar
+
+> ### Syntax Definitions
+> 
+> Syntax definitions for various grammar constructs are given in one of 
+> two forms: Regular Expressions and Hydrocarbon Grammar Syntax. 
+> 
+> The choice of syntax form is determined by conciseness or whether an expression can be 
+> adequetly represented with a particular syntax form. In general, atomic
+> constructs will be represented by RegEx, and composite constructs will use
+> HCG Syntax.
 
 - [Preambles](./api.preambles.index.md)
 - [Production](./api.production.index.md)
