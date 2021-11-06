@@ -88,11 +88,15 @@ be parsed as a list production, but `<symbol> (* )` or `<symbol> (*)` will.
 ```regex
 \\.*+\s
 ```
-----
 
 This is the general form of a specified sequence of characters / codepoints
 
 ### Exclusive Terminal Symbol
+
+###### RegEx Syntax
+```regex
+t:[\w\d\_\-]+
+```
 
 This type of symbol will always match even if a generated symbol or an non-exclusive symbol would also match.
 
