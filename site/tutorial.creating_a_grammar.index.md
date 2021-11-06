@@ -30,7 +30,7 @@ sequence with a newline or space. An example of this is the sequence `\hello \wo
 
 > An alternate terminal symbol syntax, *exclusive literal*, uses the prefix `t:` define a sequence of characters, e.g. 
 > `t:hello t:world`. There certain cases where you would want to define an *exclusive literal* over an *escaped literal*. Check
-> out [grammar symbols](./api.symbols.index.md#) to find out about the use cases for these symbol types.
+> out [grammar symbols](./api.symbols.index.md#exclusive-terminal-symbol) to find out about the use cases for these symbol types.
 
 #### A Simple Grammar
 
