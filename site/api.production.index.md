@@ -6,8 +6,8 @@
 ````
 ----
 
-The production is the highest abstraction of a grammar description. It represents one or more distinct set of parsable symbol symbols that combined are
-interpreted as a derivative of the production. Productions allow a grammar to divided up into distinct, parsable units that can be referenced by other productions, encouraging composition and DRY descriptions of a language. 
+The production is the highest abstraction of a grammar description. It represents one or more distinct set of symbols that combined are
+represent a derivative of the production. These derivations are called production bodies. Productions allow a grammar to be divided up into distinct, parsable units that can be referenced by other productions, encouraging composition and DRY descriptions of a language syntax. 
 
 A production is defined with a production header, `<>` followed by a [production identifier symbol](./api.symbols.index.md#Production%20Symbol), which is then followed by header closing symbol `>` and finally followed by one or more [production bodies](./api.production_body.index.md) separated by `|` symbols.
 
