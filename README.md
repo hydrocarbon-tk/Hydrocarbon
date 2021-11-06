@@ -63,7 +63,7 @@ $ hydrocarbon compile --type rust ./grammar.hcg
 
 - [Getting Started: Writing A Grammar](./site/tutorial.creating_a_grammar.index.md)
 - [API](./site/api.index.md)
-- [Parser Architecture](./site/architecture/parser_architecture.index.md)
+- [Parser Architecture](./site/architecture.index.md)
 
 ## Licenses
 

@@ -1,16 +1,19 @@
 # API
 
-## Grammars
+## Grammar
 
 - [Preambles](./api.preambles.index.md)
-- [Productions](./api.comments.index.md)
-- [Symbols](./api.symbols.index.md)
-- [Functions](./api.functions.index.md)
+- [Production](./api.production.index.md)
+- [Production Body](./api.production_body.index.md)
+- [Symbol](./api.symbols.index.md)
+- [Reduce Actions](./api.reduce_actions.index.md)
+- [Intermediate Representation (IR) States](./api.ir.index.md)
 
 ## Command Line Interface
 
 ## Runtime
 
-## ASYTrip
+## [ASYTrip](./api.asytrip.index.md)
 
-## Architecture
+## [Architecture](./architecture.index.md)
+- [State Machine](./architecture.state_machine.index.md)

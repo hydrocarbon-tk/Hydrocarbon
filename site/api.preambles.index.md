@@ -1,6 +1,6 @@
-# API::Preambles
+# [API](./api.index.md)::Preambles
 
-Preambles are special meta directives that can be defined at the top of the grammar file. As of HCG version 5, There are currently three preambles
+Preambles are special directives that can be defined at the top of the grammar file. As of HCG version 5, There are currently three preambles
 that can be defined in this section: Export, Import, and Ignore.
 ### `@IMPORT`
 
@@ -51,9 +51,3 @@ The following grammar exports two entry points `str` and `num`, which allows the
 <> number > g:nums ( . g:nums )? ( \e \- ? g:nums )?
 ```
 
-
-
-
-## Symbols
-
-## Functions
