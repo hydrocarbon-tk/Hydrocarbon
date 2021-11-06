@@ -5,7 +5,11 @@ that can be defined in this section: Export, Import, and Ignore.
 ### `@IMPORT`
 
 #### Definition 
-` \@IMPORT filepath \as namespace` 
+
+###### HCG Syntax
+```hcg
+\@IMPORT filepath \as namespace
+``` 
 
 #### Grammar Composition
 
@@ -16,8 +20,7 @@ resolves to a single `*.hcg` grammar file.
 
 #### Example 
 
-```hydrocarbon
-
+```hcg
 @IMPORT ./my_other_grammar.hcg as other
 
 <> start > other::start
@@ -27,7 +30,11 @@ resolves to a single `*.hcg` grammar file.
 ### `@EXPORT`
 
 #### Definition 
-` \@EXPORT production_name \as reference` 
+
+###### HCG Syntax
+``` 
+\@EXPORT production_name \as reference
+``` 
 
 #### Entry Points
 
