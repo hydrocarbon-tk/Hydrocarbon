@@ -64,7 +64,7 @@ of bodies.
 - Zero or more: 
 ###### RegEx Syntax
 ```regex
-(?<symbol>.*)\(\+\)
+(?<symbol>.*)\(\*\)
 ``` 
 - One or more with seperator: 
 ###### RegEx Syntax
