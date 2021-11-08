@@ -65,6 +65,9 @@ export function generateResolvedProps(
                 .map(s => context.structs.get(s.name))
             );
         }
+
+        const struct_types = getStructClassTypes(structs, context);
+
         const prop: ResolvedProp = {
             REQUIRES_DYNAMIC,
             HAVE_STRUCT,
@@ -74,7 +77,8 @@ export function generateResolvedProps(
             HAS_NULL,
             types: real_types,
             prop: p,
-            structs
+            structs,
+            struct_types
         };
 
         prop.type = GenerateTypeString(
@@ -89,3 +93,31 @@ export function generateResolvedProps(
 
     return prop_vals;
 }
+
+export function getStructClassTypes(structs: ASYTRIPStruct[], context: ASYTRIPContext, _data: {
+    classes: string[],
+    structs: string[];
+} = { classes: [], structs: [] }): { classes: string[], structs: string[]; } {
+    const class_groups = [...structs.groupMap((s) => [...s.classes])].filter(
+        ([name, g]) => context.class_groups.get(name).length == g.length
+    ).sort((a, b) => b[1].length - a[1].length);
+
+    if (class_groups.length > 0 && class_groups[0].length > 1) {
+
+        let longest = class_groups[0];
+
+        _data.classes.push(longest[0]);
+
+        if (longest[1].length < structs.length) {
+            const outliers = structs.filter(s => !longest[1].includes(s));
+
+            getStructClassTypes(outliers, context, _data);
+        }
+
+    } else {
+        _data.structs.push(...structs.map(s => s.name));
+    }
+
+    return _data;
+}
+

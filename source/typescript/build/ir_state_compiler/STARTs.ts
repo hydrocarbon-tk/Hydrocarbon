@@ -11,7 +11,7 @@ import { getClosure } from "../../utilities/closure.js";
 import { Item } from "../../utilities/item.js";
 import { getProductionClosure } from '../../utilities/production.js';
 import { getStartItemsFromProduction } from "./get_start_items_from_production.js";
-import { OutOfScopeItemState } from '../../utilities/magic_numbers.js';
+import { InScopeItemState, OutOfScopeItemState } from '../../utilities/magic_numbers.js';
 
 
 export function getGotoSTARTs(
@@ -51,13 +51,13 @@ export function getGotoSTARTs(
                 const seen = new Set([]);
 
                 /**
-                 * Mark items with depth (state) 9999 as "in scope" and items
+                 * Mark items with state [InScopeItemState] as "in scope" and items
                  * with states that match `OutOfScopeItemState` as "out of scope".
                  * Out of scope items are only used to determine if a production
                  * should be reduced to another production or left as is.
                  */
                 items = [
-                    ...items.map(i => i.toState(9999)),
+                    ...items.map(i => i.toState(InScopeItemState)),
                     ...(
                         (
                             grammar.lr_items.get(id)

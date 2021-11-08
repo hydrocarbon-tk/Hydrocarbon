@@ -4,6 +4,7 @@
  * disclaimer notice.
  */
 import { Logger } from '@candlelib/log';
+import { default_case_indicator } from '../../utilities/magic_numbers.js';
 import { Token } from '../../runtime/token.js';
 import { GrammarObject, ProductionImportSymbol, ProductionSymbol } from '../../types/grammar_nodes';
 import { IRStateData, StateAttrib, StateMap } from '../../types/ir_state_data';
@@ -478,8 +479,6 @@ addOptimization({
 
         let MODIFIED = false;
 
-        const progressions = [["Before ----\n", renderIRNode(state), "\n"]];
-
         const instruction_blocks: IR_Instruction[][] = [];
 
         if (stateIsBranch(state)) {
@@ -504,14 +503,6 @@ addOptimization({
             }
         }
 
-
-        if (MODIFIED) {
-            // for (const prog of progressions)
-            //     console.log(...prog);
-            // console.log("AFTER ----\n", renderIRNode(state), "\n");
-            // debugger;
-        }
-
         return MODIFIED;
     }
 });
@@ -526,8 +517,6 @@ addOptimization({
     ): boolean => {
 
         let MODIFIED = false;
-
-        const progressions = [["Before ----\n", renderIRNode(state), "\n"]];
 
         if (stateIsBranch(state)) {
             const instr = state.instructions[0];
@@ -559,19 +548,12 @@ addOptimization({
             }
         }
 
-        if (MODIFIED) {
-            //for (const prog of progressions)
-            //    console.log(...prog);
-            //console.log("AFTER ----\n", renderIRNode(state), "\n");
-            //debugger;
-        }
-
         return MODIFIED;
     }
 });
 
 addOptimization({
-    name: "Remove pure fail branch states",
+    name: "Remove redundant inline-assert",
     processor: (
         state: Resolved_IR_State,
         attribute: StateAttrib,
@@ -581,13 +563,133 @@ addOptimization({
 
         let MODIFIED = false;
 
-        const progressions = [["Before ----\n", renderIRNode(state), "\n"]];
+        if (stateIsBranch(state)) {
+
+            for (const branch of state.instructions) {
+                if (IsAssertInstruction(branch)) {
+                    const instr = branch.instructions[0];
+                    if (instr.type == InstructionType.inline_assert) {
+                        if (instr.mode == branch.mode && instr.ids.every(i => branch.ids.includes(i))) {
+                            branch.instructions.splice(0, 1);
+                            MODIFIED = true;
+                        }
+                    }
+                }
+            }
+        }
+        const branches: IRBranch[] = <any[]>(stateIsBranch(state) ? state.instructions : [state]);
+
+
+        for (const branch of branches) {
+            for (let i = 0; i < branch.instructions.length; i++) {
+                if (i < branch.instructions.length - 1) {
+                    let instr = branch.instructions[i];
+                    let instr2 = branch.instructions[i + 1];
+                    if (instr2.type == InstructionType.inline_assert && instr.type == InstructionType.inline_assert) {
+                        if (instr2.mode == instr.mode && instr2.ids.every(i => (<any>instr).ids.includes(i))) {
+                            branch.instructions.splice(i + 1, 1);
+                            i--;
+                            MODIFIED = true;
+                        }
+                    }
+                }
+            }
+        }
+
+        return MODIFIED;
+    }
+});
+
+
+addOptimization({
+    name: "Remove redundant token|set-prod and token|token pairs",
+    processor: (
+        state: Resolved_IR_State,
+        attribute: StateAttrib,
+        data: IRStateData,
+        states: StateMap
+    ): boolean => {
+
+        let MODIFIED = false;
+
+        const branches: IRBranch[] = <any[]>(stateIsBranch(state) ? state.instructions : [state]);
+
+        for (const branch of branches) {
+            for (let i = 0; i < branch.instructions.length; i++) {
+                if (i < branch.instructions.length - 1) {
+                    let instr = branch.instructions[i];
+                    let instr2 = branch.instructions[i + 1];
+                    if (instr.type == InstructionType.token_assign && instr2.type == InstructionType.set_prod) {
+                        if (instr.ids[0] == instr2.id) {
+                            branch.instructions.splice(i + 1, 1);
+                            i--;
+                            MODIFIED = true;
+                        }
+                    } else if (instr.type == InstructionType.token_assign && instr2.type == InstructionType.token_assign) {
+                        branch.instructions.splice(i, 1);
+                        i--;
+                        MODIFIED = true;
+                    }
+                }
+            }
+        }
+
+        return MODIFIED;
+    }
+});
+
+addOptimization({
+    name: "Remove redundant token assigns",
+    processor: (
+        state: Resolved_IR_State,
+        attribute: StateAttrib,
+        data: IRStateData,
+        states: StateMap
+    ): boolean => {
+
+        let MODIFIED = false;
+
+        const instructions = stateIsBranch(state) ? state.instructions : [state];
+
+        for (const branch of instructions) {
+            let token_set = new Set();
+            branch.instructions = branch.instructions.filter(i => {
+                if (i.type == InstructionType.token_assign) {
+                    if (!token_set.has(i.ids[0])) {
+                        token_set.add(i.ids[0]);
+                        return true;
+                    }
+                    MODIFIED = true;
+                    return false;
+                }
+
+                return true;
+            });
+        }
+
+        return MODIFIED;
+    }
+});
+
+addOptimization({
+    name: "Remove pure fail branch states in non-scanner states",
+    processor: (
+        state: Resolved_IR_State,
+        attribute: StateAttrib,
+        data: IRStateData,
+        states: StateMap
+    ): boolean => {
+
+        let MODIFIED = false;
 
         if (stateIsBranch(state)) {
 
-
             const new_instructions = state.instructions.filter((s: IRBranch) => {
-                if (s.instructions.length == 1
+
+                if (
+                    (s.mode == "PRODUCTION" || s.mode == "TOKEN")
+                    &&
+                    s.instructions.length == 1
                     &&
                     s.instructions[0].type == InstructionType.fail) {
 
@@ -606,14 +708,6 @@ addOptimization({
             }
         }
 
-
-        if (MODIFIED) {
-            // for (const prog of progressions)
-            //     console.log(...prog);
-            // console.log("AFTER ----\n", renderIRNode(state), "\n");
-            // debugger;
-        }
-
         return MODIFIED;
     }
 });
@@ -628,10 +722,6 @@ addOptimization({
     ): boolean => {
 
         let MODIFIED = false;
-
-        const progressions = [["Before ----\n", renderIRNode(state), "\n"]];
-
-        const instruction_blocks: IR_Instruction[][] = [];
 
         if (stateIsBranch(state)) {
 
@@ -654,14 +744,6 @@ addOptimization({
                 MODIFIED = true;
 
             }
-        }
-
-
-        if (MODIFIED) {
-            //for (const prog of progressions)
-            //    console.log(...prog);
-            //console.log("AFTER ----\n", renderIRNode(state), "\n");
-            //debugger;
         }
 
         return MODIFIED;
@@ -749,7 +831,7 @@ function mapInlinedInstructions(
 
                 const { symbol_meta } = state;
 
-                if (b.ids.includes(1) || b.ids.includes(9999))
+                if (b.ids.includes(1) || b.ids.includes(default_case_indicator))
                     return b.instructions;
 
                 const inline_assert: IRInlineAssert = {
@@ -873,7 +955,7 @@ export function garbageCollect(
     StateMap: StateMap,
     grammar: GrammarObject,
     entry_names: string[] = [
-        ...grammar.productions.filter(p => p.IS_ENTRY).map(i => i.name + "")
+        ...grammar.productions.filter(p => p.IS_ENTRY).map(i => (i.entry_name + "_open"))
     ].setFilter()) {
 
 

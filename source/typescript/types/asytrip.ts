@@ -28,26 +28,31 @@ export type ASYTRIPContext = {
     return_types: Map<number, ASYTRIPTypeObj[ASYTRIPType][]>;
     resolved_return_types: Map<number, ASYTRIPTypeObj[ASYTRIPType][]>;
     resolved_struct_types: Map<string, Map<string, ResolvedProp>>;
+    class_groups: Map<string, [string, ASYTRIPStruct][]>;
 };
 
 export enum ASYTRIPType {
     NULL,
     PRODUCTION,
     STRUCT,
+    VECTOR,
     STRING,
     TOKEN,
-    DOUBLE,
-    VECTOR,
+    I64,
+    I32,
+    I16,
+    I8,
+    F64,
+    F32,
     ADD,
     SUB,
+    BOOL,
     EQUALS,
     VECTOR_PUSH,
     EXPRESSIONS,
     STRUCT_ASSIGN,
     STRUCT_PROP_REF,
-    BOOL,
-    CONVERT_DOUBLE,
-    CONVERT_BOOL,
+    CONVERT_TYPE,
     CONVERT_STRING,
     TERNARY,
     OR,
@@ -78,88 +83,162 @@ export interface ASYTRIPTypeObj {
     [ASYTRIPType.STRUCT_CLASSIFICATION]: {
         type: ASYTRIPType.STRUCT_CLASSIFICATION,
         vals: ASYTRIPTypeObj[ASYTRIPType.STRUCT_CLASS | ASYTRIPType.STRUCT_TYPE][];
+        body: number[];
     },
     [ASYTRIPType.STRUCT_TYPE]: {
         type: ASYTRIPType.STRUCT_TYPE;
         val: string;
+        body: number[];
     },
     [ASYTRIPType.STRUCT_CLASS]: {
         type: ASYTRIPType.STRUCT_CLASS;
         val: string;
+        body: number[];
     };
     [ASYTRIPType.VECTOR_PUSH]: {
         type: ASYTRIPType.VECTOR_PUSH;
         vector: ASYTRIPTypeObj[ASYTRIPType.VECTOR];
         args: ASYTRIPTypeObj[ASYTRIPType][];
+        body: number[];
     };
     [ASYTRIPType.VECTOR]: {
         type: ASYTRIPType.VECTOR;
         args: ASYTRIPTypeObj[ASYTRIPType][];
         types: ASYTRIPTypeObj[ASYTRIPType][];
         arg_pos?: number;
+        body: number[];
     };
     [ASYTRIPType.BOOL]: {
         type: ASYTRIPType.BOOL; val: boolean;
+        body: number[];
     };
-    [ASYTRIPType.DOUBLE]: {
-        type: ASYTRIPType.DOUBLE; val: string;
+    [ASYTRIPType.I64]: {
+        type: ASYTRIPType.I64;
+        val?: string;
+        body: number[];
+    };
+    [ASYTRIPType.I32]: {
+        type: ASYTRIPType.I32;
+        val?: string;
+        body: number[];
+    };
+    [ASYTRIPType.I16]: {
+        type: ASYTRIPType.I16;
+        val?: string;
+        body: number[];
+    };
+    [ASYTRIPType.I8]: {
+        type: ASYTRIPType.I8;
+        val?: string;
+        body: number[];
+    };
+    [ASYTRIPType.F64]: {
+        type: ASYTRIPType.F64;
+        val?: string;
+        body: number[];
+    };
+    [ASYTRIPType.F32]: {
+        type: ASYTRIPType.F32;
+        val?: string;
+        body: number[];
     };
     [ASYTRIPType.STRING]: {
-        type: ASYTRIPType.STRING; val?: string;
+        type: ASYTRIPType.STRING;
+        val?: string;
+        body: number[];
     };
     [ASYTRIPType.NULL]: {
         type: ASYTRIPType.NULL;
+        body: number[];
     };
     [ASYTRIPType.TOKEN]: {
         arg_pos?: number;
         type: ASYTRIPType.TOKEN;
+        body: number[];
     };
     [ASYTRIPType.PRODUCTION]: {
-        type: ASYTRIPType.PRODUCTION; args: ASYTRIPTypeObj[ASYTRIPType][]; val: number; arg_pos?: number; tok?: Token;
+        type: ASYTRIPType.PRODUCTION;
+        args: ASYTRIPTypeObj[ASYTRIPType][];
+        val: number;
+        arg_pos?: number;
+        tok?: Token;
+        body: number[];
     };
     [ASYTRIPType.EXPRESSIONS]: {
-        type: ASYTRIPType.EXPRESSIONS; expressions: ASYTRIPTypeObj[ASYTRIPType][];
+        type: ASYTRIPType.EXPRESSIONS;
+        expressions: ASYTRIPTypeObj[ASYTRIPType][];
+        body: number[];
     };
     [ASYTRIPType.STRUCT]: {
-        type: ASYTRIPType.STRUCT; name: string; arg_pos?: number; args?: ASYTRIPProperty[];
+        type: ASYTRIPType.STRUCT;
+        name: string;
+        arg_pos?: number;
+        args?: ASYTRIPProperty[];
+        body: number[];
     };
     [ASYTRIPType.STRUCT_ASSIGN]: {
         type: ASYTRIPType.STRUCT_ASSIGN;
         struct: ASYTRIPTypeObj[ASYTRIPType.PRODUCTION | ASYTRIPType.STRUCT];
         property: string,
         value: ASYTRIPTypeObj[ASYTRIPType];
+        body: number[];
     };
     [ASYTRIPType.STRUCT_PROP_REF]: {
         type: ASYTRIPType.STRUCT_PROP_REF;
         struct: ASYTRIPTypeObj[ASYTRIPType.PRODUCTION | ASYTRIPType.STRUCT];
         property: string;
+        body: number[];
     };
     [ASYTRIPType.ADD]: {
-        type: ASYTRIPType.ADD; left: ASYTRIPTypeObj[ASYTRIPType]; right: ASYTRIPTypeObj[ASYTRIPType];
+        type: ASYTRIPType.ADD;
+        left: ASYTRIPTypeObj[ASYTRIPType];
+        right: ASYTRIPTypeObj[ASYTRIPType];
+        body: number[];
     };
     [ASYTRIPType.TERNARY]: {
         type: ASYTRIPType.TERNARY;
         assertion: ASYTRIPTypeObj[ASYTRIPType];
         left: ASYTRIPTypeObj[ASYTRIPType];
         right: ASYTRIPTypeObj[ASYTRIPType];
+        body: number[];
     };
     [ASYTRIPType.OR]: {
-        type: ASYTRIPType.OR; left: ASYTRIPTypeObj[ASYTRIPType]; right: ASYTRIPTypeObj[ASYTRIPType];
+        type: ASYTRIPType.OR;
+        left: ASYTRIPTypeObj[ASYTRIPType];
+        right: ASYTRIPTypeObj[ASYTRIPType];
+        body: number[];
     };
     [ASYTRIPType.EQUALS]: {
-        type: ASYTRIPType.EQUALS; left: ASYTRIPTypeObj[ASYTRIPType]; right: ASYTRIPTypeObj[ASYTRIPType];
+        type: ASYTRIPType.EQUALS;
+        left: ASYTRIPTypeObj[ASYTRIPType];
+        right: ASYTRIPTypeObj[ASYTRIPType];
+        body: number[];
     };
     [ASYTRIPType.SUB]: {
-        type: ASYTRIPType.SUB; left: ASYTRIPTypeObj[ASYTRIPType]; right: ASYTRIPTypeObj[ASYTRIPType];
+        type: ASYTRIPType.SUB;
+        left: ASYTRIPTypeObj[ASYTRIPType];
+        right: ASYTRIPTypeObj[ASYTRIPType];
+        body: number[];
     };
-    [ASYTRIPType.CONVERT_DOUBLE]: {
-        type: ASYTRIPType.CONVERT_DOUBLE; value: ASYTRIPTypeObj[ASYTRIPType];
-    };
-    [ASYTRIPType.CONVERT_BOOL]: {
-        type: ASYTRIPType.CONVERT_BOOL; value: ASYTRIPTypeObj[ASYTRIPType];
+    [ASYTRIPType.CONVERT_TYPE]: {
+        type: ASYTRIPType.CONVERT_TYPE;
+        conversion_type: ASYTRIPTypeObj[
+        ASYTRIPType.BOOL
+        | ASYTRIPType.STRING
+        | ASYTRIPType.I64
+        | ASYTRIPType.I32
+        | ASYTRIPType.I16
+        | ASYTRIPType.I8
+        | ASYTRIPType.F64
+        | ASYTRIPType.F32
+        ];
+        value: ASYTRIPTypeObj[ASYTRIPType];
+        body: number[];
     };
     [ASYTRIPType.CONVERT_STRING]: {
-        type: ASYTRIPType.CONVERT_STRING; value: ASYTRIPTypeObj[ASYTRIPType];
+        type: ASYTRIPType.CONVERT_STRING;
+        value: ASYTRIPTypeObj[ASYTRIPType];
+        body: number[];
     };
 }
 
@@ -177,5 +256,14 @@ export interface ResolvedProp {
     type: string;
     prop: ASYTRIPProperty;
     structs: ASYTRIPStruct[];
+    /**
+     * A combination of Class Types 
+     * and struct types that cover 
+     * the range of structs types
+     */
+    struct_types: {
+        structs: string[],
+        classes: string[];
+    };
 
 }

@@ -9,7 +9,7 @@ import {
     getUniqueSymbolName, SymbolsCollide,
     Symbols_Are_The_Same,
     Sym_Is_A_Generic_Identifier, Sym_Is_A_Production,
-    Sym_Is_A_Production_Token, Sym_Is_A_Token, Sym_Is_Defined, Sym_Is_Defined_Identifier, Sym_Is_Exclusive
+    Sym_Is_A_Production_Token, Sym_Is_A_Token, Sym_Is_Defined, Sym_Is_Defined_Identifier, Sym_Is_Exclusive,
 } from "../../grammar/nodes/symbol.js";
 import { GrammarObject, TokenSymbol, TransitionForestStateA, TransitionStateType } from '../../types/index.js';;
 import { getClosure } from "../../utilities/closure.js";
@@ -72,7 +72,8 @@ export function disambiguate(
         )
     };
 
-    if (peek_states[0].depth > options.max_tree_depth
+    if (
+        peek_states[0].depth > options.max_tree_depth
         ||
         (performance.now() - start_time) > options.time_limit
         ||
@@ -86,6 +87,12 @@ export function disambiguate(
 
         //Do one level of Earley 
         const { depth, type: par_type, parent, roots, symbols, items } = previous_state;
+
+
+        let COMPLETED = items.some(i => i.atEND);
+
+        if (COMPLETED)
+            previous_state.type |= (COMPLETED ? TransitionStateType.COMPLETED : TransitionStateType.UNDEFINED);
 
         const incremented_items = (INITIAL_STATE || true)
             ? items
@@ -126,7 +133,9 @@ export function disambiguate(
                         .setFilter(getUniqueSymbolName);
 
 
-                let state: TransitionForestStateA = createTransitionForestState(TransitionStateType.UNDEFINED,
+                let state: TransitionForestStateA = createTransitionForestState(
+                    TransitionStateType.UNDEFINED
+                    | (COMPLETED ? TransitionStateType.COMPLETED : TransitionStateType.UNDEFINED),
                     symbols,
                     depth + 1,
                     roots,
@@ -246,7 +255,7 @@ export function disambiguate(
 
             child_graph_node.symbol = key;
 
-            if (child_graph_node.AMBIGUOUS /* && !options.PRODUCTION_IS_SCANNER */)
+            if (child_graph_node.AMBIGUOUS && !options.PRODUCTION_IS_SCANNER)
                 child_graph_node.nodes.length = 0;
 
             graph_node.nodes.push(child_graph_node);
@@ -262,7 +271,7 @@ export function disambiguate(
 
             disambiguated_node.state = states[0];
 
-            states[0].type = TransitionStateType.PEEK | TransitionStateType.TERMINAL;
+            states[0].type |= TransitionStateType.PEEK | TransitionStateType.TERMINAL;
 
             disambiguated_multi_node.state.states.push(states[0]);
 
@@ -295,7 +304,6 @@ export function disambiguate(
 
     } else if (disambiguated_node.state != null)
         graph_node.nodes.push(disambiguated_node);
-
 
     graph_node.AMBIGUOUS = graph_node.nodes.some(n => n.AMBIGUOUS)
         ||

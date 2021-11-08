@@ -3,7 +3,6 @@
  * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
  * disclaimer notice.
  */
-import { Lexer } from "@candlelib/wind";
 
 /**
  * Small class to that methods to extract string information
@@ -158,21 +157,25 @@ export class Token {
     }
 
     blameDiagram(message: string, source_path: string = "") {
-        const lex = new Lexer(this.source);
 
-        lex.source = source_path;
-
-        lex.off = this.off;
-        lex.tl = this.length;
-        lex.line = this.line;
+        const source = source_path || this.path;
+        const off = this.off;
+        const tl = this.length;
+        const line = this.line;
 
         let i = this.off;
 
         for (; this.source[i] != "\n" && i >= 0; --i);
 
-        lex.column = this.off - i;
+        const column = this.off - i;
 
-        return lex.errorMessage(message);
+        return message + "\n" + blame(
+            this.source,
+            off,
+            tl,
+            line,
+            column
+        );
     }
 
     createError(message: string, source_path: string = "") {
@@ -256,4 +259,101 @@ export class KernelToken {
         this.codepoint_length = 0;
         this.line = 0;
     }
+}
+
+const HORIZONTAL_TAB = 9,
+    arrow = "^",
+    line = "-",
+    thick_line = "=";
+
+export function blame(
+    source: string,
+    offset: number,
+    token_length: number,
+    line: number,
+    column: number
+) {
+    const tab_size = 4, window_size = 400;
+    // Get the text from the proceeding and the following lines; 
+    // If current line is at index 0 then there will be no proceeding line;
+    // Likewise for the following line if current line is the last one in the string.
+
+    let
+        line_start = offset - column,
+        char = column,
+        l = line,
+        str = source,
+        len = str.length,
+        sp = " ";
+
+    token_length = token_length;
+
+    let prev_start = 0,
+        next_start = 0,
+        next_end = 0,
+        i = 0;
+
+    //get the start of the proceeding line
+    for (i = line_start; --i > 0 && str.codePointAt(i) !== 10;);
+    prev_start = i;
+
+
+    //get the end of the current line...
+    for (i = offset + token_length; i < len && str.codePointAt(i) !== 10; i++);
+    next_start = i;
+
+    //and the next line
+    for (i++; i < len && str.codePointAt(i) !== 10; i++);
+    next_end = i;
+
+    let pointer_pos = char - (line_start > 0 ? 1 : 0);
+
+    for (i = line_start; i < offset; i++)
+        if (str.codePointAt(i) == HORIZONTAL_TAB)
+            pointer_pos += tab_size - 1;
+
+    prev_start = Math.max(prev_start, 0);
+    line_start = Math.max(line_start, 0);
+    next_start = Math.max(next_start, 0);
+    //find the location of the offending symbol
+    const
+        prev_line = str.slice(prev_start + (prev_start > 0 ? 1 : 0), line_start).replace(/\n/g, "").replace(/\t/g, sp.repeat(tab_size)),
+        curr_line = str.slice(line_start + (line_start > 0 ? 1 : 0), next_start).replace(/\n/g, "").replace(/\t/g, sp.repeat(tab_size)),
+        next_line = str.slice(next_start + (next_start > 0 ? 1 : 0), next_end).replace(/\n/g, "").replace(/\t/g, " "),
+
+        //get the max line length;
+
+        max_length = Math.max(prev_line.length, curr_line.length, next_line.length),
+        min_length = Math.min(prev_line.length, curr_line.length, next_line.length),
+        length_diff = max_length - min_length,
+
+        //Get the window size;
+        w_size = window_size,
+        w_start = Math.max(0, Math.min(pointer_pos - w_size / 2, max_length)),
+        w_end = Math.max(0, Math.min(pointer_pos + w_size / 2, max_length)),
+        w_pointer_pos = Math.max(0, Math.min(pointer_pos, max_length)) - w_start - (line_start == 0 ? 1 : 0),
+
+
+        //append the difference of line lengths to the end of the lines as space characters;
+
+        prev_line_o = (prev_line + sp.repeat(length_diff)).slice(w_start, w_end),
+        curr_line_o = (curr_line + sp.repeat(length_diff)).slice(w_start, w_end),
+        next_line_o = (next_line + sp.repeat(length_diff)).slice(w_start, w_end),
+
+        trunc = w_start !== 0 ? "..." : "",
+
+        line_number = n => ` ${(sp.repeat(3) + (n + 1)).slice(-(l + 1 + "").length)}: `,
+
+        error_border = thick_line.repeat(curr_line_o.length + line_number.length + 8 + trunc.length);
+
+    return [
+        //* brdr */`\n${error_border}`,
+        /* prev */`\n\n${l - 1 > -1 ? line_number(l - 1) + trunc + prev_line_o + (prev_line_o.length < prev_line.length ? "..." : "") : ""}`,
+        /* curr */`${true ? line_number(l) + trunc + curr_line_o + (curr_line_o.length < curr_line.length ? "..." : "") : ""}`,
+        /* arrw */`***${(" ").repeat(w_pointer_pos + trunc.length + line_number(l + 1).length - 4) + arrow.repeat(token_length)}`,
+        /* next */`${next_start < str.length ? line_number(l + 1) + trunc + next_line_o + (next_line_o.length < next_line.length ? "..." : "") : ""}\n`,
+        ///* brdr */`${error_border}`
+    ]
+        .filter(e => !!e)
+        .join("\n");
 }

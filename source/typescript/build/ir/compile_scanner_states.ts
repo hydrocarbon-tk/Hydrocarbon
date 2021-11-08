@@ -7,15 +7,16 @@ import { Logger } from '@candlelib/log';
 import { addRootScannerFunction, getSymbolProductionName } from '../../grammar/compile.js';
 import loader from "../../grammar/hcg_parser_pending.js";
 import { getProductionByName } from '../../grammar/nodes/common.js';
+import { Sym_Is_Exclusive } from '../../grammar/nodes/symbol.js';
 import { createProductionLookup, processSymbol } from '../../grammar/passes/common.js';
 import { buildItemMaps } from '../../grammar/passes/item_map.js';
 import { GrammarObject } from "../../types/grammar_nodes";
 import { StateAttrib, StateMap } from '../../types/ir_state_data';
 import { InstructionType, Resolved_IR_State } from '../../types/ir_types';
 import { numeric_sort } from '../../utilities/array_globals.js';
-import { default_case_indicator } from '../../utilities/magic_numbers.js';
-import { IsAssertInstruction, IsPeekInstruction } from './optimize.js';
+import { default_case_indicator, skipped_scan_prod } from '../../utilities/magic_numbers.js';
 import { constructProductionStates } from '../ir_state_compiler/state_constructor.js';
+import { IsAssertInstruction, IsPeekInstruction } from './optimize.js';
 const { parse: parser, entry_points: { ir } } = await loader;
 
 const build_logger = Logger.get("MAIN").createLogger("COMPILER").get("SCANNER").activate();
@@ -133,12 +134,12 @@ export function constructScannerState(
     let entry = addRootScannerFunction(
         `<> ${name} > ${consumed_symbols.map(
             sym => {
-                return getSymbolProductionName(sym);
+                return `${Sym_Is_Exclusive(sym) ? "!" : ""}` + getSymbolProductionName(sym);
             }).filter(a => !!a).join("\n    | ")
-        + (skipped_symbols.length > 0 ? "\n    | " : "") +
+        + ((skipped_symbols.length > 0 && consumed_symbols.length > 0) ? "\n    | " : "") +
         skipped_symbols.map(
             sym => {
-                return "! " + getSymbolProductionName(sym);
+                return "skip " + getSymbolProductionName(sym);
             }).filter(a => !!a).join("\n    | ")
         }\n`,
         9999
@@ -149,6 +150,12 @@ export function constructScannerState(
     entry.bodies.forEach((b, i) => {
         b.production = entry;
         b.length = 1;
+
+        if (b.sym[0].name == "skip") {
+            b.sym.splice(0, 1);
+            b.priority = skipped_scan_prod;
+        }
+
         const sym = b.sym[0];
         const production_lookup = createProductionLookup(grammar);
         processSymbol(
@@ -258,7 +265,7 @@ export function createSymMapId(
         i => i > 1 && i != default_case_indicator
     ).map(i => grammar.meta.all_symbols.by_id.get(i));
 
-    if (consumed.length < 1)
+    if (consumed.length < 1 && skipped_ids.length < 1)
         return "";
 
     return (

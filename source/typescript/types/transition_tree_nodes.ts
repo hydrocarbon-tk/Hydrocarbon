@@ -113,4 +113,11 @@ export const enum TransitionStateType {
 
     TOKEN_ASSIGNMENT = 1 << 11,
 
+    /**
+     * The current state represents a completed 
+     * production. Used by scanner to determine
+     * when to apply token assignments
+     */
+    COMPLETED = 1 << 12,
+
 }

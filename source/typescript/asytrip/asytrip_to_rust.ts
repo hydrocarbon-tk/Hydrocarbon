@@ -87,12 +87,17 @@ function convertArgsToType(
 
 function GenerateTypeString(
     context: ASYTRIPContext,
-    real_types: ASYTRIPTypeObj[ASYTRIPType][],
-    HAS_NULL: boolean,
-    REQUIRES_DYNAMIC: boolean,
-    HAVE_STRUCT: boolean,
-    HAVE_STRUCT_VECTORS: boolean
+    prop: ResolvedProp,
 ): string {
+
+    const {
+        types,
+        REQUIRES_DYNAMIC,
+        HAVE_STRUCT,
+        HAVE_STRUCT_VECTORS,
+    } = prop;
+
+
     let type = real_types[0];
 
     let type_string = "HCO";
@@ -609,7 +614,7 @@ fn GetType(&self) -> u32 {
             const resolved_type = getResolvedType(type, context)[0];
             let data = typeToExpression(type, context, inits);
             switch (resolved_type.type) {
-                case ASYTRIPType.DOUBLE:
+                case ASYTRIPType.F64:
                     str = `{${init_string} ${inits.render_rust(`return HCO::DOUBLE(${data})`)}}`;
                     break;
                 case ASYTRIPType.STRING:
@@ -750,7 +755,7 @@ fn GetType(&self) -> u32 {
                                     return "Vec::new()";
                                 case ASYTRIPType.BOOL:
                                     return false;
-                                case ASYTRIPType.DOUBLE:
+                                case ASYTRIPType.F64:
                                     return 0;
                                 case ASYTRIPType.STRING:
                                     return "String::from('')";
@@ -812,7 +817,7 @@ addTypeMap(ASYTRIPType.STRING, (v, c) => {
     }
 });
 addTypeMap(ASYTRIPType.TOKEN, (v, c) => "Token");
-addTypeMap(ASYTRIPType.DOUBLE, (v, c) => "f64");
+addTypeMap(ASYTRIPType.F64, (v, c) => "f64");
 addTypeMap(ASYTRIPType.BOOL, (v, c) => "bool");
 addTypeMap(ASYTRIPType.VECTOR, (v, c) => {
     const types = v.types.flatMap(v => getResolvedType(v, c));
@@ -886,7 +891,7 @@ addExpressMap(ASYTRIPType.NULL, (v, c, inits) => "__NULL__");
 
 addExpressMap(ASYTRIPType.BOOL, (v, c, inits) => (v.val + "") || "false");
 
-addExpressMap(ASYTRIPType.DOUBLE, (v, c, inits) => {
+addExpressMap(ASYTRIPType.F64, (v, c, inits) => {
     const val = parseFloat(v.val).toFixed(20).replace(/0/g, " ").trim().replace(/ /g, "0") + "0";
     if (val[0] == ".")
         return "0" + val;
@@ -906,7 +911,7 @@ addExpressMap(ASYTRIPType.CONVERT_BOOL, (v, c, inits) => {
     return `(${val}).Bool()`;
 });
 
-addExpressMap(ASYTRIPType.CONVERT_DOUBLE, (v, c, inits) => `(${typeToExpression(v.value, c, inits)}).Double()`);
+addExpressMap(ASYTRIPType.CONVERT_TYPE, (v, c, inits) => `(${typeToExpression(v.value, c, inits)}).Double()`);
 
 addExpressMap(ASYTRIPType.CONVERT_STRING, (v, c, inits) => `(${typeToExpression(v.value, c, inits)}).String()`);
 
@@ -1044,7 +1049,7 @@ addExpressMap(ASYTRIPType.VECTOR_PUSH, (v, c, inits) => {
                 case ASYTRIPType.STRING:
                     val = `HCO::STRING(${val})`;
                     break;
-                case ASYTRIPType.DOUBLE:
+                case ASYTRIPType.F64:
                     val = `HCO::DOUBLE(${val})`;
                     break;
             }
@@ -1119,7 +1124,7 @@ addExpressMap(ASYTRIPType.VECTOR, (v, c, inits) => {
                 case ASYTRIPType.STRING:
                     val = `HCO::STRING(${val})`;
                     break;
-                case ASYTRIPType.DOUBLE:
+                case ASYTRIPType.F64:
                     val = `HCO::DOUBLE(${val})`;
                     break;
             }

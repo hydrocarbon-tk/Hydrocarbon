@@ -170,8 +170,8 @@ export const ir_state_mappings: NodeMappings<IRNode, "type"> = <NodeMappings<IRN
         <NodeMapping<IRInlineAssert>>{
             type: "inline-assert",
             child_keys: [],
-            template: `o:n inline-assert m:s @mode m:s \\[ o:s @ids...[m:s] o:s \\] i:s o:n 
-                       { token_ids: token_ids o:s \\[ o:s @token_ids...[m:s] o:s \\] o:n } 
+            template: `o:n inline-assert m:s @mode m:s \\[ o:s @ids...[m:s] o:s \\] i:s o:n m:s 
+                       { token_ids: token_ids o:s \\[ o:s @token_ids...[m:s] o:s \\] o:n m:s } 
                        { skipped_ids: skipped o:s \\[ o:s @skipped_ids...[m:s] o:s \\] o:n }
                        i:e
                        o:n 

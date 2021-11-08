@@ -30,10 +30,10 @@ export * as KernelParserCore2 from "../runtime/kernel_new.js";
 export * as ParserCore from "../runtime/core_parser.js";
 
 import { ParserFramework as ParserFrameworkNew } from '../runtime/parser_framework_new.js';
-export { assign_peek } from '../runtime/kernel_next.js';
+export { assign_peek } from '../runtime/recognizer/iterator.js';
 
-export { complete } from '../runtime/complete.js';
-export { recognize } from '../runtime/recognize.js';
+export { complete } from '../runtime/completer/complete.js';
+
 export { ASTNode, HCObjIterator, iterate } from "../runtime/ast_node.js";
 export {
     //Types

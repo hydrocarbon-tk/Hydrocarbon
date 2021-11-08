@@ -27,17 +27,17 @@ export async function createBuildPack(
 
     // Process States -------------------------------------------------------------
 
-    const sym_map: Map<string, string> = new Map();
-
     let OPTIMIZE = true;
 
     const reserved_states = [
-        ...grammar.productions.filter(p => p.IS_ENTRY || p.type == "scanner-production").map(i => i.name + "")
+        ...grammar.productions.filter(p => p.IS_ENTRY).map(i => i.entry_name + "_open"),
+        ...grammar.productions.filter(p => p.type == "scanner-production").map(i => i.name + "")
     ].setFilter();
 
     garbageCollect(states_map, grammar, reserved_states);
 
     assignStateAttributeInformation(states_map, grammar);
+
 
     let original_states = new Map(states_map);
 
@@ -71,7 +71,7 @@ export async function createBuildPack(
     const uber_collection: StateMap = new Map([...scanner_states, ...states_map]);
 
     reserved_states.length = 0;
-    reserved_states.push(...scanner_id_to_state.values(), ...grammar.productions.filter(p => p.IS_ENTRY).map(i => i.name + ""));
+    reserved_states.push(...scanner_id_to_state.values(), ...grammar.productions.filter(p => p.IS_ENTRY).map(i => i.entry_name + "_open"));
 
     garbageCollect(uber_collection, grammar, reserved_states);
 
@@ -86,8 +86,6 @@ export async function createBuildPack(
     }
 
     for (const [, state_data] of uber_collection) {
-
-        //Replace id 0 with 9999
 
         state_data.string = (state_data.string.match(/\/\*[^\*]+\*\//sm)?.[0] ?? "")
             + "\n"

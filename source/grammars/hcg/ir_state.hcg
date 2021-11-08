@@ -38,7 +38,9 @@
                         tk:state_hash_token             
                         
                         f:r { { type: t_HASH_NAME, val:$1 + "" } }
-                |       sym::production_symbol
+                        
+                |       \<> sym::production_symbol
+                        f:r { $2 } 
                 ) \]     
                                             
                                             f:r { $3 }
@@ -59,10 +61,10 @@
 
     |   goto_instruction(* t:then ) ( t:then t:repeat t:state f:r{ { type:t_Repeat | c_IR | c_IR_Instruction } } )? 
         
-                                            f:r{ $1 + $2 }
+                                            f:r{ $1 + [$2] }
         
     |   ( 
-            t:lazy \( g:num g:num \) state_reference 
+            t:lazy \( g:nums g:nums \) state_reference 
             
                                            f:r { { type: t_Lazy, cp_start:$3, cp_end:$4, state: $6 } }
         )                                       
@@ -73,13 +75,13 @@
 
         t:assert  ( \PRODUCTION | \TOKEN | \BYTE | \CODEPOINT | \CLASS )  production_id_list \( instruction_sequence \)                     
                                             
-                                            f:r { { type: t_ASSERT, mode:$2 + "", ids: $3, instructions: $5} }
+                                            f:r { { type: t_ASSERT, mode:str($2), ids: $3, instructions: $5} }
 
         |
         
         t:peek  ( \TOKEN | \BYTE | \CODEPOINT | \CLASS ) token_id_list \( instruction_sequence \)                     
                                             
-                                            f:r { { type: t_PEEK, mode:$2 + "", ids: $3, instructions: $5} }
+                                            f:r { { type: t_PEEK, mode:str($2), ids: $3, instructions: $5} }
 
 <> goto_instruction > 
 
@@ -88,7 +90,7 @@
 <> sequence_instruction >
 
         t:reduce g:num g:num           
-                                            f:r { { type:t_Reduce | c_IR | c_IR_Instruction, len: +$2, body_id: +$3 } }
+                                            f:r { { type:t_Reduce | c_IR | c_IR_Instruction, len: i64($2), body_id: i64($3) } }
 
     |   t:reduce fn::reduce_function   
                                             
@@ -98,7 +100,7 @@
                                             f:r { { type:t_TokenAssign | c_IR | c_IR_Instruction, ids: $3 } }
 
     |   t:set t:prod t:to ( 
-                  g:num f:r{ { type:t_Num, val: +$1 } }
+                  g:num f:r{ { type:t_Num, val: i64($1) } }
                 |   sym::production_symbol
             )
                                             
@@ -109,9 +111,9 @@
                                             f:r { { type:t_ForkTo | c_IR | c_IR_Instruction, states: $4  } }
 
     |   t:scan t:back? t:until token_id_list
-                                            f:r { { type: t_ScanUntil | c_IR | c_IR_Instruction, ids: $4, SCAN_BACKWARDS:!!$2 } }
+                                            f:r { { type: t_ScanUntil | c_IR | c_IR_Instruction, ids: $4, SCAN_BACKWARDS:bool($2) } }
 
-    |   t:set t:token t:id ( ! g:num f:r{ { type:t_Num, val: +$1 } } | sym::terminal_symbol ) g:num
+    |   t:set t:token t:id ( ! g:num f:r{ { type:t_Num, val: i64($1) } } | sym::terminal_symbol ) g:num
                                            
                                             f:r { { type:t_TokenId | c_IR | c_IR_Instruction, id: $4  } }
 
@@ -122,19 +124,19 @@
                                             f:r { { type:t_Fail | c_IR | c_IR_Instruction } }
 
     |   t:not t:within t:scopes \[   ( 
-                        g:num f:r{ { type:t_Num, val: +$1 } }
+                        g:num f:r{ { type:t_Num, val: i64($1) } }
                 |       sym::production_symbol
             )(+)     
         \]
                                             f:r { { type:t_NotInScope | c_IR | c_IR_Instruction, ids:$5 } }
                                   
     |   t:set t:scope t:to ( 
-                    g:num f:r{ +$1 } 
+                    g:num f:r{ i64($1) } 
             )
                                             f:r { { type:t_SetScope | c_IR | c_IR_Instruction, scope:$4 } }
                                             
     |   t:consume t:nothing?
-                                            f:r { { type:t_Consume | c_IR | c_IR_Instruction, EMPTY:!!$2 } }
+                                            f:r { { type:t_Consume | c_IR | c_IR_Instruction, EMPTY:i64($2) } }
                                     
       
 
@@ -155,7 +157,7 @@
 
         \[ 
             ( 
-                        ! g:num f:r{ +$1 } 
+                        ! g:num f:r{ { type:t_Num, val: i64($1) } } 
                 |       sym::terminal_symbol
             )(+) 
         \] 
@@ -165,7 +167,7 @@
 
         \[ 
             ( 
-                        g:num f:r{ +$1 } 
+                        g:num f:r{ { type:t_Num, val: i64($1) } } 
                 |       sym::production_symbol
             )(+) 
         \] 

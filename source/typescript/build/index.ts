@@ -7,4 +7,5 @@ import {
     createBuildPack
 } from "./build.js";
 
+export { disassemble } from "./bytecode/assembly.js";
 export { createBuildPack as compileBuildPack };

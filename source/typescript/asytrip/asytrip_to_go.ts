@@ -76,9 +76,6 @@ function convertValToDouble(v, t) {
     return `(${v}).Double()`;
 };
 
-
-
-
 function convertArgsToType(
     c: ASYTRIPContext,
     inits: Inits,
@@ -109,6 +106,7 @@ import (
     const class_type = `const ( \n    ${[...context.class].map(([name, value]) => {
         return `Class${name} ${value_type} = ${value}`;
     }).join("\n")} \n)`;
+
 
     const type_type = `const ( \n    ${[...context.type].map(([name, value]) => {
         return `Type_${name} ${value_type} = ${value}`;
@@ -424,7 +422,7 @@ addTypeMap(ASYTRIPType.STRING, (v, c) => {
     }
 });
 addTypeMap(ASYTRIPType.TOKEN, (v, c) => "* Token");
-addTypeMap(ASYTRIPType.DOUBLE, (v, c) => "float64");
+addTypeMap(ASYTRIPType.F64, (v, c) => "float64");
 addTypeMap(ASYTRIPType.BOOL, (v, c) => "bool");
 addTypeMap(ASYTRIPType.VECTOR, (v, c) => {
     const types = v.types.flatMap(v => getResolvedType(v, c));
@@ -498,7 +496,7 @@ addExpressMap(ASYTRIPType.NULL, (v, c, inits) => "nil");
 
 addExpressMap(ASYTRIPType.BOOL, (v, c, inits) => (v.val + "") || "false");
 
-addExpressMap(ASYTRIPType.DOUBLE, (v, c, inits) => v.val);
+addExpressMap(ASYTRIPType.F64, (v, c, inits) => v.val);
 
 addExpressMap(ASYTRIPType.CONVERT_BOOL, (v, c, inits) => {
     const val = typeToExpression(v.value, c, inits);
@@ -512,7 +510,7 @@ addExpressMap(ASYTRIPType.CONVERT_BOOL, (v, c, inits) => {
     return `(${val}).Bool()`;
 });
 
-addExpressMap(ASYTRIPType.CONVERT_DOUBLE, (v, c, inits) => `(${typeToExpression(v.value, c, inits)}).Double()`);
+addExpressMap(ASYTRIPType.CONVERT_TYPE, (v, c, inits) => `(${typeToExpression(v.value, c, inits)}).Double()`);
 
 addExpressMap(ASYTRIPType.CONVERT_STRING, (v, c, inits) => `(${typeToExpression(v.value, c, inits)}).String()`);
 

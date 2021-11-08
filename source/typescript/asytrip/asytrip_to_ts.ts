@@ -3,7 +3,7 @@
  * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
  * disclaimer notice.
  */
-import { ASYTRIPContext, ASYTRIPType, ASYTRIPTypeObj, GrammarObject, ResolvedProp } from '../types/index.js';
+import { ASYTRIPContext, ASYTRIPType, ASYTRIPTypeObj, GrammarObject, ResolvedProp, ASYTRIPStruct } from '../types/index.js';
 import {
     getResolvedType,
     JSONFilter,
@@ -17,7 +17,7 @@ import {
     TypesAre,
     TypesRequiresDynamic
 } from './common.js';
-import { generateResolvedProps } from './generate_resolved_props.js';
+import { generateResolvedProps, getStructClassTypes } from './generate_resolved_props.js';
 import { Inits } from './Inits.js';
 
 const type_mapper = new Map();
@@ -83,20 +83,16 @@ function convertArgsToType(
         return val;
     };
 }
-
 function GenerateTypeString(
     context: ASYTRIPContext,
     prop: ResolvedProp,
 ): string {
 
-
     const {
         types,
-        HAS_NULL,
         REQUIRES_DYNAMIC,
         HAVE_STRUCT,
         HAVE_STRUCT_VECTORS,
-        structs
     } = prop;
 
     let type_string = "any";
@@ -104,9 +100,23 @@ function GenerateTypeString(
     if (types.length == 0) {
         type_string = "null";
     } else if (HAVE_STRUCT) {
-        type_string = `(${structs.map(s => s.name).join(" | ")})`;
+        const names = [
+            ...prop.struct_types.classes.map(s => "c_" + s),
+            ...prop.struct_types.structs
+        ];
+        type_string = `${names.join(" | ")}`;
+        if (names.length > 1)
+            type_string = `(${type_string})`;
+
     } else if (HAVE_STRUCT_VECTORS) {
-        type_string = `(${structs.map(s => s.name).join(" | ")})[]`;
+        const names = [
+            ...prop.struct_types.classes.map(s => "c_" + s),
+            ...prop.struct_types.structs
+        ];
+        type_string = `${names.join(" | ")}`;
+        if (names.length > 1)
+            type_string = `(${type_string})`;
+        type_string = `${type_string}[]`;
     } else if (REQUIRES_DYNAMIC) {
         type_string = `(${types.filter(TypeIsNotNull).map(t => getTypeString(t, context)).join(" | ")})`;
     } else if (TypesAre(types, TypeIsVector)) {
@@ -118,33 +128,48 @@ function GenerateTypeString(
 
     return type_string;
 }
-
 export function createTsTypes(grammar: GrammarObject, context: ASYTRIPContext) {
     //Imports for you file
 
-    context.resolved_struct_types = new Map();
+
 
     const strings = [
         //Header ------------------------------------------------------------------------
         `import {ASTNode, Token} from "@candlelib/hydrocarbon";`
     ];
 
+
+
+
     //Class Filters --------------------------------------------------------------------
-    strings.push(`
+
+    for (const [class_, structs] of context.class_groups) {
+        strings.push(`export type c_${class_} = ${structs.map(s => s[1].name).join("\n   | ")};`);
+
+        strings.push(`
+export function is${class_}(s:ASTNode<ASTType>): s is c_${class_}{
+    return (s.type & ${context.class.get(class_)}) ==  ${context.class.get(class_)};
+}
+        `);
+    }
+    if (context.class.size > 0)
+        strings.push(`
 export enum ASTClass {
 ${[...context.class].map(([k, v]) => `${k} = ${v}`).join(",\n")}
 }
 `);
-
-    strings.push(`
+    if (context.type.size > 0)
+        strings.push(`
 export enum ASTType {
 ${[...context.type].map(([k, v]) => `${k} = ${v}`).join(",\n")}
 }
 `);
 
 
+
     //Structs ------------------------------------------------------------------------
     for (const [name, struct] of context.structs) {
+
         const prop_vals = generateResolvedProps(struct,
             context,
             context.resolved_struct_types,
@@ -156,8 +181,7 @@ ${[...context.type].map(([k, v]) => `${k} = ${v}`).join(",\n")}
 
         const struct_strings = [`
 export class ${name} extends ASTNode<ASTType> {
-    type: ASTType.${name};
-    tok:Token;
+    
     ${prop_vals.map(({ name: n, type: v, HAS_NULL: nil }) => `${n}${nil ? "?" : ""}:${v};`).join("\n")}
 
     constructor(
@@ -168,8 +192,14 @@ export class ${name} extends ASTNode<ASTType> {
             return `this.${n} = _${n};`;
         }).join("\n        ")}
         
-    }${struct_props.flatMap(({ name: prop_name, HAS_NULL, HAVE_STRUCT, structs }, j) => {
+    }${struct_props.flatMap(({ name: prop_name, HAS_NULL, HAVE_STRUCT, struct_types }, j) => {
             const ifs = [];
+
+            const validators = [
+                ...struct_types.classes.map(c => `is${c}(child)`),
+                ...struct_types.structs.map(n => `${n}.nodeIs(child)`)
+            ].join(`
+    || `);
 
             let out_type = "ASTNode<ASTType>";
 
@@ -186,10 +216,7 @@ export class ${name} extends ASTNode<ASTType> {
                     `);
                 }
                 ifs.push([`
-        if(
-            ${structs.map(s => s.name + ".nodeIs(child)").join(`
-            || `)}
-        ){
+        if(${validators}){
             
             let old = this.${prop_name};           
 
@@ -204,10 +231,7 @@ export class ${name} extends ASTNode<ASTType> {
             if(j < this.${prop_name}.length && j >= 0){
                 return this.${prop_name}.splice(j, 1)[0];
             }
-        }else if(
-            ${structs.map(s => s.name + ".nodeIs(child)").join(`
-            || `)}
-        ){
+        }else if(${validators}){
             if(j < 0){
                 this.${prop_name}.unshift(child);
             }else if(j >= this.${prop_name}.length){
@@ -256,20 +280,24 @@ export class ${name} extends ASTNode<ASTType> {
             return ifs.join(" else ");
         }).filter(i => !!i).join("\n    ")}
     }
-    
-    Replace(child: ASTNode<ASTType>, i: number, j: number) : ASTNode<ASTType> | null {
+    ${struct_props.length > 0 ?
+            `Replace(child: ASTNode<ASTType>, i: number, j: number) : ASTNode<ASTType> | null {
 
         switch(i){
             ${struct_props.flatMap(({ name: prop_name, HAVE_STRUCT }, j) => {
-            if (HAVE_STRUCT) {
-                return `case ${j}: return this.replace_${prop_name}(child);`;
-            } else {
-                return `case ${j}: return this.replace_${prop_name}(child, j);`;
-            }
-        }).filter(i => !!i).join("\n    ")}
+                if (HAVE_STRUCT) {
+                    return `case ${j}: return this.replace_${prop_name}(child);`;
+                } else {
+                    return `case ${j}: return this.replace_${prop_name}(child, j);`;
+                }
+            }).filter(i => !!i).join("\n    ")}
     }
         return null;
-    }
+    }`
+            :
+            `
+    Replace(child: ASTNode<ASTType>, i: number, j: number) : ASTNode<ASTType> | null {return null;}
+` }
 
     Token(): Token{
         return this.tok;
@@ -302,7 +330,7 @@ export class ${name} extends ASTNode<ASTType> {
 
         const length = grammar.bodies[id].sym.length;
 
-        const init = [/* "let i = args.length()-1;" */];
+        const init = [];
 
         for (let i = 0; i < length; i++) {
             init.push(`let v${length - i - 1} = args.pop();`);
@@ -313,7 +341,10 @@ export class ${name} extends ASTNode<ASTType> {
         let str = "", inits = new Inits();
 
         if (args.length == 0 && !name) {
-            str = `{  ${init_string} return v${length - 1}; }`;
+            if (length == 1)
+                str = "{}";
+            else
+                str = `{  ${init_string}\n args.push(v${length - 1}); }`;
         } else {
 
             const expression = args[0];
@@ -321,11 +352,11 @@ export class ${name} extends ASTNode<ASTType> {
             const resolved_type = getResolvedType(type, context)[0];
             let data = getExpressionString(type, context, inits);
             switch (resolved_type.type) {
-                case ASYTRIPType.DOUBLE:
-                    str = `{${init_string} ${inits.render_ts(`return ${data}`)}}`;
+                case ASYTRIPType.F64:
+                    str = `{${init_string} ${inits.render_ts(`args.push(${data})`)}}`;
                     break;
                 case ASYTRIPType.STRING:
-                    str = `{ ${init_string} ${inits.render_ts(` return ${data}`)}}`;
+                    str = `{ ${init_string} ${inits.render_ts(` args.push(${data})`)}}`;
                     break;
                 case ASYTRIPType.VECTOR_PUSH:
                 case ASYTRIPType.VECTOR:
@@ -338,26 +369,26 @@ export class ${name} extends ASTNode<ASTType> {
                             str = `{ 
                                 ${init_string}
                                 ${inits.render_ts(` `)}
-                                return ${data} } `;
+                                args.push(${data}) } `;
                         } else {
 
                             //Dereference the vector
                             str = `{ 
                                 ${init_string}
                                 ${inits.render_ts(` `)}
-                                return ${data} } `;
+                                args.push(${data}) } `;
                         }
                     } else if (unique_types.length > 1) {
                         str = `{ 
                                 ${init_string}
                                 ${inits.render_ts(`
-                                return ${data}; `)}
+                                args.push(${data}); `)}
                             }`;
                     } else {
                         str = `{
                             ${init_string} 
                                 ${inits.render_ts(`
-                                return ${data} `)}
+                                args.push(${data}) `)}
                             }`;
                     }
                     break;
@@ -365,24 +396,24 @@ export class ${name} extends ASTNode<ASTType> {
                     str = `{ 
                         ${init_string}
                                 ${inits.render_ts(`
-                                return ${data} `)}
+                                args.push(${data}) `)}
                             }`;
             }
         }
 
+        const hash = str.replace(/[ \n]/g, "");
 
-
-        if (!fns.has(str)) {
+        if (!fns.has(hash)) {
             let i = fns.size;
 
-            fns.set(str, {
+            fns.set(hash, {
                 size: fns.size,
                 name: `_FN${i}_`,
-                str: `/*\n${source}\n*/\nfunction _FN${i}_ (args: any[], tok: Token) : any ` + str
+                str: `/**\n\`\`\`\n${source}\n\`\`\`\*/\nfunction _FN${i}_ (args: any[], tok: Token) : any ` + str
             });
         }
 
-        ids[id] = fns.get(str).name;
+        ids[id] = fns.get(hash).name;
 
     }
     const functions = `
@@ -423,8 +454,6 @@ addExpressMap(ASYTRIPType.STRUCT, (v, c, inits) => {
 
         //ASTNode Struct Initialization ----------------------------------------------
         const struct = c.structs.get(name);
-
-
 
         const resolved_props = c.resolved_struct_types.get(name);
 
@@ -495,7 +524,7 @@ addExpressMap(ASYTRIPType.STRUCT, (v, c, inits) => {
                                 return "[]";
                             case ASYTRIPType.BOOL:
                                 return false;
-                            case ASYTRIPType.DOUBLE:
+                            case ASYTRIPType.F64:
                                 return 0;
                             case ASYTRIPType.STRING:
                                 return "''";
@@ -517,12 +546,25 @@ addExpressMap(ASYTRIPType.STRUCT, (v, c, inits) => {
 // STRUCT_PROP_REF -----------------------------------------
 
 addTypeMap(ASYTRIPType.STRUCT_PROP_REF, (v, c) => {
+
     const types = getResolvedType(v.struct, c);
+    const structs = types.map(t => getTypeString(t, c)).setFilter().map(s => c.structs.get(s));
 
-    const r_names = types.map(t => getTypeString(t, c)).setFilter();
+    const struct_types = getStructClassTypes(structs, c);
 
-    return `(${r_names.join(" | ")})`;
+    const names = [
+        ...struct_types.classes.map(s => "c_" + s),
+        ...struct_types.structs
+    ];
+    let type_string = `${names.join(" | ")}`;
+
+    if (names.length > 1)
+        type_string = `(${type_string})`;
+
+    return type_string;
 });
+
+
 addExpressMap(ASYTRIPType.STRUCT_PROP_REF, (v, c, inits) => {
 
     const ref = getExpressionString(v.struct, c, inits);
@@ -588,16 +630,54 @@ addExpressMap(ASYTRIPType.STRING, (v, c, inits) => {
 
 addTypeMap(ASYTRIPType.TOKEN, (v, c) => "Token");
 
-// DOUBLE -------------------------------------------------
-addTypeMap(ASYTRIPType.DOUBLE, (v, c) => "number");
+// NUMERIC TYPES-------------------------------------------
+addTypeMap(ASYTRIPType.F64, (v, c) => "number");
+addTypeMap(ASYTRIPType.F32, (v, c) => "number");
+addTypeMap(ASYTRIPType.I64, (v, c) => "number");
+addTypeMap(ASYTRIPType.I32, (v, c) => "number");
+addTypeMap(ASYTRIPType.I16, (v, c) => "number");
+addTypeMap(ASYTRIPType.I8, (v, c) => "number");
 
-addExpressMap(ASYTRIPType.DOUBLE, (v, c, inits) => {
+addExpressMap(ASYTRIPType.F64, (v, c, inits) => {
     const val = parseFloat(v.val).toFixed(20).replace(/0/g, " ").trim().replace(/ /g, "0") + "0";
     if (val[0] == ".")
         return "0" + val;
     return val;
-}
-);
+});
+
+addExpressMap(ASYTRIPType.F32, (v, c, inits) => {
+    const val = parseFloat(v.val).toFixed(20).replace(/0/g, " ").trim().replace(/ /g, "0") + "0";
+    if (val[0] == ".")
+        return "0" + val;
+    return val;
+});
+
+addExpressMap(ASYTRIPType.I64, (v, c, inits) => {
+    const val = parseFloat(v.val).toFixed(20).replace(/0/g, " ").trim().replace(/ /g, "0") + "0";
+    if (val[0] == ".")
+        return "0" + val;
+    return val;
+});
+
+addExpressMap(ASYTRIPType.I32, (v, c, inits) => {
+    const val = parseFloat(v.val).toFixed(20).replace(/0/g, " ").trim().replace(/ /g, "0") + "0";
+    if (val[0] == ".")
+        return "0" + val;
+    return val;
+});
+addExpressMap(ASYTRIPType.I16, (v, c, inits) => {
+    const val = parseFloat(v.val).toFixed(20).replace(/0/g, " ").trim().replace(/ /g, "0") + "0";
+    if (val[0] == ".")
+        return "0" + val;
+    return val;
+});
+
+addExpressMap(ASYTRIPType.I8, (v, c, inits) => {
+    const val = parseFloat(v.val).toFixed(20).replace(/0/g, " ").trim().replace(/ /g, "0") + "0";
+    if (val[0] == ".")
+        return "0" + val;
+    return val;
+});
 
 // BOOL ---------------------------------------------------
 addTypeMap(ASYTRIPType.BOOL, (v, c) => "boolean");
@@ -774,21 +854,52 @@ addExpressMap(ASYTRIPType.TERNARY, (v, c, inits) => {
 
 addExpressMap(ASYTRIPType.NULL, (v, c, inits) => "null");
 
-
-
-addExpressMap(ASYTRIPType.CONVERT_BOOL, (v, c, inits) => {
+addExpressMap(ASYTRIPType.CONVERT_TYPE, (v, c, inits) => {
     const val = getExpressionString(v.value, c, inits);
+    const type = getResolvedType(v.value, c)[0];
 
-    if (val == "null" || val == "false")
-        return "false";
+    switch (v.conversion_type.type) {
+        case ASYTRIPType.F32:
+        case ASYTRIPType.F64:
+            if (type.type == ASYTRIPType.BOOL)
+                return (val == "true" ? 1 : 0) + "";
+            if (type.type == ASYTRIPType.NULL)
+                return "0";
+            if (type.type == ASYTRIPType.F32 || type.type == ASYTRIPType.F64)
+                return val;
+            return `parseFloat((${val}).toString())`;
+        case ASYTRIPType.I64:
+            if (type.type == ASYTRIPType.NULL)
+                return "0";
+            return `parseInt((${val}).toString())`;
+        case ASYTRIPType.I32:
+            if (type.type == ASYTRIPType.NULL)
+                return "0";
+            return `parseInt((${val}).toString())`;
+        case ASYTRIPType.I16:
+            if (type.type == ASYTRIPType.NULL)
+                return "0";
+            return `parseInt((${val}).toString())`;
+        case ASYTRIPType.I8:
+            if (type.type == ASYTRIPType.NULL)
+                return "0";
+            return `parseInt((${val}).toString())`;
+        case ASYTRIPType.BOOL: {
 
-    if (val == "true")
-        return "true";
+            if (type.type == ASYTRIPType.BOOL)
+                return val;
 
-    return `(!!${val})`;
+            if (val == "null")
+                return "false";
+
+            return `(!!${val})`;
+        }
+        case ASYTRIPType.STRING:
+            if (type.type == ASYTRIPType.STRING)
+                return val;
+            return `(${val}).toString()`;
+    }
 });
-
-addExpressMap(ASYTRIPType.CONVERT_DOUBLE, (v, c, inits) => `parseFloat((${getExpressionString(v.value, c, inits)}).toString())`);
 
 addExpressMap(ASYTRIPType.CONVERT_STRING, (v, c, inits) => `(${getExpressionString(v.value, c, inits)}).toString()`);
 

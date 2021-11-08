@@ -21,7 +21,6 @@ import {
     loadGrammarFromFile,
     loadGrammarFromString
 } from "./passes/load.js";
-import { createJSFunctionsFromExpressions } from "./passes/process_js_code.js";
 
 /**
  * Takes a raw root grammar object and applies transformation
@@ -302,7 +301,7 @@ function buildScannerProduction(grammar: GrammarObject) {
                 if (["nums", "ids"].includes(val)) {
                     root_productions.push(
                         <ScannerProductionNode>
-                        addRootScannerFunction(`<> ${name} > g:${val.slice(0, -1)} g:${val.slice(0, -1)} | ${name} g:${val.slice(0, -1)}\n`, sym.id)
+                        addRootScannerFunction(`<> ${name} > g:${val.slice(0, -1)}  | ${name} g:${val.slice(0, -1)}\n`, sym.id)
                     );
                 } else {
                     root_productions.push(

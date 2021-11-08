@@ -34,13 +34,13 @@
                                                             f:r {  $1.ir + $2, $1 }
 
  
-<> production > \<> \! ? sym::production_symbol \>  pb::production_bodies? 
+<> production > \<> t:lazy?^l \! ?^p sym::annotated_production_symbol^s \>  pb::production_bodies^b
                                                                         
                                                             f:r { {
-                                                                type:t_Production | c_Production, priority: $2 ? 1000 : 0, symbol:$3, bodies:$5, id:-1
+                                                                type:t_Production | c_Production, priority: $p ? 1000 : 0, symbol:$s, bodies:$b, id:-1, LAZY:bool($l), entry_name:""
                                                             } }
 
-    | \+> sym::production_symbol  \>  pb::production_bodies
+    | \+> sym::annotated_production_symbol  \>  pb::production_bodies
 
                                                             f:r { {
                                                                 type:t_ProductionMerged | c_Production, symbol:$2, bodies:$4, id:-1

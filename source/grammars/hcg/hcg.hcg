@@ -20,7 +20,7 @@
 # This tokens can be overridden per production body with an `(IGN <symbol>)` clause or by explicitly declaring 
 # the ignored symbol within a production body. 
 
-@IGNORE g:sp g:nl
+@IGNORE g:sp g:nl tk:cmt::comment
 
 # For example: If a hypothetical parser where to parse the input `Hello World` using the production 
 # `<> X > \Hello \World` 
@@ -39,6 +39,8 @@
 @IMPORT ./preambles.hcg as pre
 
 @IMPORT ./symbols.hcg as sym
+
+@IMPORT ./comments.hcg as cmt
 
 
 # For example: The `pre` reference to the preambles.hcg file, and the `prd` reference to `./productions.hcg` 
@@ -98,7 +100,7 @@
                                 meta:{
                                     type:t_Meta,
                                     all_symbols: [c_Symbol],
-                                    ignore_symbols: [c_Symbol]
+                                    ignore_symbols: [c_TokenSymbol]
                                 },
                                 bodies:[t_Body]
                             } }

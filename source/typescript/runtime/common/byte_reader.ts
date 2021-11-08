@@ -94,6 +94,8 @@ export class ByteReader {
      * data at different cursor positions.
      */
     clone(): ByteReader { return new ByteReader; }
+
+    offset_at_end(index: number) { return false; };
 }
 
 

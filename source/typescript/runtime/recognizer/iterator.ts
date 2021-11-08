@@ -5,6 +5,7 @@
  */
 
 import { TokenTypes } from '../../types/TokenTypes.js';
+import { skipped_scan_prod } from '../../utilities/magic_numbers.js';
 import { ByteReader } from '../common/byte_reader.js';
 import { KernelToken } from '../token.js';
 import { KernelStack } from './stack.js';
@@ -166,7 +167,7 @@ export class StateIterator {
         if (prev_token.byte_offset + prev_token.byte_length != token.byte_offset) {
             this.buffer.push({
                 type: ParseActionType.SKIP,
-                length: token.codepoint_offset - prev_token.codepoint_length + prev_token.codepoint_offset,
+                length: token.codepoint_offset - (prev_token.codepoint_length + prev_token.codepoint_offset),
                 line: prev_token.line,
                 token_type: 0
             });
@@ -286,13 +287,13 @@ export class StateIterator {
         let fail_mode = false;
 
         while (this.ACTION_BUFFER_EMPTY) {
-
             if (this.stack.pointer < 1) {
+
                 const token = this.tokens[0];
                 const advanced = this.tokens[1];
 
-                token.byte_length = advanced.codepoint_offset;
-                token.codepoint_length = advanced.codepoint_offset;
+                token.byte_length = advanced.byte_offset - token.byte_offset;
+                token.codepoint_length = advanced.codepoint_offset - token.codepoint_offset;
 
 
                 if (this.SCANNER) {
@@ -302,7 +303,7 @@ export class StateIterator {
                     };
                 }
 
-                if (this.reader.END())
+                if (this.reader.offset_at_end(this.tokens[1].byte_offset))
                     return {
                         type: ParseActionType.ACCEPT
                     };
@@ -691,7 +692,7 @@ export class StateIterator {
 
         const input_type = ((instruction >> 22) & 0x7);
 
-        const token_transition = ((instruction >> 26) & 0x3);
+        const lexer_type = ((instruction >> 26) & 0x3);
 
         let token_row_switches = this.bytecode[index];
 
@@ -712,7 +713,7 @@ export class StateIterator {
         let input_value =
             this.get_input_value(
                 input_type,
-                token_transition,
+                lexer_type,
                 token_row_switches,
             );
         let hash_index = input_value & mod;
@@ -780,18 +781,21 @@ export class StateIterator {
 
     private set_token(instruction: number, index: number) {
 
-        const length = instruction & 0xFFFFFF;
+        const value = instruction & 0xFFFFFF;
 
         if (instruction & 0x08000000) {
 
-            this.tokens[0].type = length;
+            this.tokens[0].type = value;
+
+            this.production_id = value;
 
         } else {
             const token = this.tokens[1];
 
-            token.codepoint_length = length;
+            token.codepoint_length = value;
 
-            token.byte_length = length;
+            token.byte_length = value;
+
         }
         return index;
 
@@ -839,6 +843,7 @@ export class StateIterator {
 
         if (current_token.type <= 0) {
 
+
             const scanner_iterator = new StateIterator(
                 this.reader.clone(),
                 this.bytecode,
@@ -856,18 +861,19 @@ export class StateIterator {
 
                         const token = result.token;
 
-                        if (token.type == 9999) {
+                        if (token.type == skipped_scan_prod) {
 
                             current_token.codepoint_offset += token.codepoint_length;
-
                             current_token.byte_offset += token.byte_length;
 
                             //Need to reset the state iterator 
 
                             scanner_iterator.stack.reset(token_row_state);
 
-                            scanner_iterator.tokens[0].reset();
-                            scanner_iterator.tokens[1].reset();
+                            scanner_iterator.tokens[0].clone(scanner_iterator.tokens[1]);
+
+                            //scanner_iterator.tokens[0].reset();
+                            //scanner_iterator.tokens[1].reset();
 
                             continue;
                         }
@@ -880,6 +886,16 @@ export class StateIterator {
                     } break;
 
                     case ParseActionType.FORK: {
+                        console.log({ result });
+
+                        const instruction = this.bytecode[result.pointer];
+
+                        const forked_states =
+
+                            console.log({ instruction });
+
+
+
                         throw new Error("Scanner Fork Not Implemented");
                     }
 
@@ -908,6 +924,15 @@ export class StateIterator {
         instruction: number,
         index: number,
     ): number {
+
+        console.log({ instruction });
+
+        this.ACTION_BUFFER_EMPTY = false;
+
+        this.buffer.push({
+            type: ParseActionType.FORK,
+            pointer: index - 1,
+        });
 
         return 0;
 

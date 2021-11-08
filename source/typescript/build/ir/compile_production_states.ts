@@ -5,13 +5,15 @@
  */
 import { Logger } from '@candlelib/log';
 import spark from "@candlelib/spark";
-import { user_defined_state_mux } from '../../grammar/nodes/default_symbols.js';
+import { getStartItemsFromProduction } from '../../utilities/production.js';
+import { default_EOF, user_defined_state_mux } from '../../grammar/nodes/default_symbols.js';
 import { GrammarObject } from "../../types/grammar_nodes";
 import { StateAttrib, StateMap } from '../../types/ir_state_data';
 import { InstructionType } from '../../types/ir_types';
 import { default_case_indicator } from '../../utilities/magic_numbers.js';
 import { WorkerRunner } from "../workers/worker_runner.js";
 import { convertParseProductsIntoStatesMap } from './compile_scanner_states.js';
+import { create_symbol_clause } from './create_symbol_clause.js';
 
 export const build_logger = Logger.get("MAIN").createLogger("COMPILER");
 
@@ -34,9 +36,36 @@ export async function createIrStates(grammar: GrammarObject, number_of_workers: 
 
     const raw_states = [...mt_code_compiler.states.entries()];
 
-    const states_map: StateMap = new Map();
+    for (const entry_production of grammar.productions.filter(p => p.IS_ENTRY)) {
 
-    const scanner_states_map: StateMap = new Map();
+        const { name, entry_name } = entry_production;
+
+        const open_state_name = entry_name + "_open";
+        const close_state_name = entry_name + "_close";
+
+        const open_state = `
+state [${open_state_name}] 
+
+        goto state [${name}] then goto state [${close_state_name}]
+        
+`;
+
+        const end_body_items = getStartItemsFromProduction(entry_production).map(i => i.toEND());
+
+        const clause = create_symbol_clause(end_body_items, [default_EOF], grammar, "DESCENT", true);
+
+        const close_state = `
+state [${close_state_name}]
+
+        assert TOKEN [1] ( pass )
+
+        ${clause}`;
+
+        raw_states.unshift([open_state_name, open_state], [close_state_name, close_state]);
+
+    }
+
+    const states_map: StateMap = new Map();
 
     convertParseProductsIntoStatesMap(raw_states, grammar, states_map);
 

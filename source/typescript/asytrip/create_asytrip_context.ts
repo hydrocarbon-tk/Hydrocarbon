@@ -4,8 +4,9 @@
  * disclaimer notice.
  */
 import {
-    exp, JSNode, JSNodeType
+    exp, JSNode, JSNodeType, renderWithFormatting
 } from "@candlelib/js";
+import { Logger } from '@candlelib/log';
 import { Sym_Is_A_Production } from '../grammar/nodes/symbol.js';
 import { render_grammar } from '../grammar/passes/common.js';
 import { Token } from '../runtime/token.js';
@@ -31,6 +32,8 @@ export function createAsytripContext(grammar: GrammarObject): ASYTRIPContext {
     // 
     // Anything else will invalidate the asytrip syntax and fall back
     // to JavaScript evaluation
+
+    const errors = [];
     try {
 
 
@@ -42,7 +45,8 @@ export function createAsytripContext(grammar: GrammarObject): ASYTRIPContext {
         }> = new Map;
 
         const context: ASYTRIPContext = {
-            resolved_struct_types: new Map(),
+            class_groups: null,
+            resolved_struct_types: null,
             structs: new Map(),
             type_names: new Set(),
             class_names: new Set(),
@@ -84,12 +88,14 @@ export function createAsytripContext(grammar: GrammarObject): ASYTRIPContext {
                     body.reduce_function = null;
                 }
 
+                const expr = fn?.txt ? exp(`${fn.txt.replace(/(\${1,2}\d+)/g, "$1")}`) : null;
+
                 fns.push({
                     production_id: production.id,
                     body,
                     tok: body?.reduce_function?.pos.token_slice(5) ?? new Token("", 0, 0, 0),
-                    fn: fn?.txt ? exp(`${fn.txt.replace(/(\${1,2}\d+)/g, "$1")}`) : null,
-                    source: fn?.txt ?? ""
+                    fn: expr,
+                    source: renderWithFormatting(expr)
                 });
             }
             // Get the return types for each body. 
@@ -130,6 +136,8 @@ export function createAsytripContext(grammar: GrammarObject): ASYTRIPContext {
                     struct: "",
                     source: source
                 });
+
+
 
                 return_type.push(...prop.types);
 
@@ -199,13 +207,16 @@ export function createAsytripContext(grammar: GrammarObject): ASYTRIPContext {
 
         for (const [id, types] of context.return_types) {
 
-            let r_types = [];
+            let intermediate_types = [];
 
             for (const type of types) {
-                r_types.push(...getResolvedType(type, context));
+                intermediate_types.push(...getResolvedType(type, context));
             }
 
-            context.resolved_return_types.set(id, r_types.setFilter());
+            const resolved_types
+                = mergeVectorTypes(intermediate_types.setFilter(JSONFilter));
+
+            context.resolved_return_types.set(id, resolved_types.setFilter(JSONFilter));
         }
 
         for (const [s_name, struct] of context.structs) {
@@ -229,7 +240,8 @@ export function createAsytripContext(grammar: GrammarObject): ASYTRIPContext {
                 ) {
 
                     const message = [
-                        `Invalid property ${name} of struct ${s_name}:
+                        `
+Invalid Struct property <${name}> of struct <${s_name}>
 
 Struct properties that can be assigned to struct types 
 MUST only be assigned to Struct types or Null. 
@@ -248,22 +260,18 @@ This is not the case with ${s_name}~${name}`];
 -------------------------- 
 ${render_grammar(production)} 
 -------------------------- 
- assigned to reference ${args.tok.slice()} produces non Struct types [ ${bad_types.map(t => {
+ assigned to reference ${args.tok.slice()} produces non-Vector<Struct> types [ Vector<${bad_types.map(t => {
                                 if (TypeIsVector(t)) {
                                     return `${ASYTRIPType[t.type]}<${t.types.map(t => ASYTRIPType[t.type]).setFilter(JSONFilter).join(" | ")}>`;
                                 }
                                 else return ASYTRIPType[t.type];
                             }).join(" | ")
-                            } ]`
+                            }> ]`
                         ).message);
                     }
 
-                    const invalid = real_types.filter(t => !TypeIsStruct(t));
-                    const valid = real_types.filter(TypeIsStruct);
+                    errors.push(["0x014", message.join("")]);
 
-                    throw new Error(message.join("\n") + "\n\n");
-
-                    debugger;
                 } else if (TypesInclude(real_types, TypeIsVector)) {
 
                     const vector_types = real_types.filter(TypeIsVector);
@@ -273,10 +281,35 @@ ${render_grammar(production)}
                         debugger;
                     } else if (vector_types.some(v => TypesInclude(v.types, TypeIsStruct))) {
 
-                        if (vector_types.some(v => !TypesAre(v.types, TypeIsStruct))
-                            || non_vector_types.length > 0
-                        ) {
-                            debugger;
+                        if (vector_types.some(v => !TypesAre(v.types, TypeIsStruct))) {
+                            const non_vector_types = vector_types.flatMap(v => v.types).filter(v => !TypeIsStruct(v));
+                            const message = [
+                                `
+Invalid Vector<Struct> property <${name}> of struct <${s_name}>
+        
+Vector<Struct> properties that can contain struct types MUST NOT contain
+types that are not structs. This is not the case with ${s_name}.${name}:`];
+                            for (const nvt of non_vector_types) {
+                                let body = grammar.bodies[0];
+                                if (nvt.body)
+                                    body = grammar.bodies[nvt.body[0]];
+
+                                if (body) {
+                                    message.push(body.pos.createError(
+                                        `\nProduction ${body.production.name}[${body.production.bodies.indexOf(body)}]:`
+                                    ).message,
+                                        `
+produces non-struct types [ ${[nvt].map(t => {
+                                            if (TypeIsVector(t)) {
+                                                return `${ASYTRIPType[t.type]}<${t.types.map(t => ASYTRIPType[t.type]).setFilter(JSONFilter).join(" | ")}>`;
+                                            }
+                                            else return ASYTRIPType[t.type];
+                                        }).join(" | ")} ] that prevents ${s_name}.${name} from being a Vector that only contains structs`
+                                    );
+                                }
+                            }
+
+                            errors.push(["0x015", message.join("")]);
                         }
                     }
                 }
@@ -285,12 +318,51 @@ ${render_grammar(production)}
 
         context.type_mask = type_mask;
         context.class_mask = class_mask;
+        context.resolved_struct_types = new Map();
+        context.class_groups = [...context.structs].groupMap(([, s]) => [...s.classes]);
+
+
+
+        if (errors.length > 0)
+            throw errors;
 
         return context;
     } catch (e) {
+        if (Array.isArray(e))
+            for (const [code, message] of e) {
+                Logger.get("ASYTrip").get(`[${code}]`).activate().error(message);
+            }
+
+        else
+            Logger.get("ASYTrip").activate().error(e);
         // Asytrip failed, fall back to whatever mode is suitable
         // to correctly parse reduce expressions.
-        console.log(e);
+
+        Logger.get("ASYTrip").activate().warn("Unable to compile ASYTrip context\n");
         return null;
     };
 }
+function mergeVectorTypes(r_types: any[]) {
+    const vectors = r_types.filter(TypeIsVector);
+    const rest = r_types.filter(t => !TypeIsVector(t));
+
+    if (vectors.length > 0) {
+
+
+        const vector = vectors.reduce((r, t) => {
+            r.types.push(...t.types);
+            return r;
+        }, <ASYTRIPTypeObj[ASYTRIPType.VECTOR]>{
+            type: ASYTRIPType.VECTOR,
+            args: [],
+            types: [],
+            arg_pos: undefined
+        });
+
+        vector.types = vector.types.filter(TypeIsNotNull).setFilter(JSONFilter);
+
+        rest.push(vector);
+    }
+    return rest;
+}
+

@@ -48,7 +48,11 @@
                                                                         }  }
 
 <> function_body_index > ( 
-    \. ( g:num f:r{ +$1 } | \* f:r{ ""+$1 } | sym::reference_symbol ) 
+    \. ( 
+                g:num                       f:r{ f64($1) } 
+            |   \*                          f:r{ str($1) } 
+            |   sym::reference_symbol 
+    ) 
  )(+)
 
                                                                         }

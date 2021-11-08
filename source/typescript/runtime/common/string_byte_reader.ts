@@ -53,7 +53,7 @@ export class StringByteReader extends ByteReader {
 
 
         if (amount == 1) {
-            this.internal_word = ((this.internal_word << 8) & 0xFFFFFF00) | this.byte();
+            this.internal_word = (this.internal_word >> 8) | (this.byte() << 24);
         } else {
 
             const diff = Math.max(Math.min(4, this.buffer.length - this.cursor), 0);
@@ -112,4 +112,8 @@ export class StringByteReader extends ByteReader {
         br.cursor = this.cursor;
         return br;
     }
+
+    offset_at_end(index: number) {
+        return index >= this.buffer.length;
+    };
 }

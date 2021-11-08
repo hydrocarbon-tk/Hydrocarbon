@@ -51,12 +51,20 @@ export function compileIRStatesIntoBytecode(StateMap: StateMap, grammar: Grammar
         if (stateHasBranchIR(state_data)) {
             //sort branch instructions into groups
             const { ir_state_ast: state_ast, attributes } = state_data;
+            let _default = null, modes = null;
 
-            let _default = state_ast.instructions.filter(g => g.mode != "PRODUCTION" && g.ids.some(i => i == 9999 || i == 1))[0]
-                ?.instructions;
+            if (
+                state_ast.instructions.length > 1
+                &&
+                state_ast.instructions.some(g => g.mode != "PRODUCTION" && g.ids.some(i => i == default_case_indicator || i == 1))) {
+                _default = state_ast.instructions.filter(g => g.mode != "PRODUCTION" && g.ids.some(i => i == default_case_indicator || i == 1))[0]
+                    ?.instructions;
+                modes = state_ast.instructions.filter(g => !(g.mode != "PRODUCTION" && g.ids.some(i => i == default_case_indicator || i == 1)))
+                    .group(s => s.mode);
 
-            const modes = state_ast.instructions.filter(g => !(g.mode != "PRODUCTION" && g.ids.some(i => i == 9999 || i == 1)))
-                .group(s => s.mode);
+            } else {
+                modes = modes = state_ast.instructions.group(s => s.mode);
+            }
 
             if (_default)
                 state_data.block = buildBasicInstructionBlock(state_ast, _default, token_state, grammar, sym_map);
@@ -132,6 +140,7 @@ export function compileIRStatesIntoBytecode(StateMap: StateMap, grammar: Grammar
 
     for (const [_, state_data] of StateMap) {
         console.log(
+            state_data.pointer.toString(16),
             "\n\nSTATE " + state_data.ir_state_ast.id + "\n",
             `e-size ${state_data.block.total_size}`,
             "-------------------------------------------------------------",

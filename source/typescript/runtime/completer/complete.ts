@@ -35,7 +35,6 @@ export function complete<T>(
 
         switch (action.type) {
             case ParseActionType.ACCEPT: {
-                console.log(tokens);
                 return { result: stack[0], err: null };
             }; break;
 
@@ -61,9 +60,7 @@ export function complete<T>(
 
                 tokens[stack.length - length] = token;
 
-                stack[stack.length - length] = null; //functions[body](e, token);
-
-                stack.length = stack.length - length + 1;
+                functions[body](stack, token);
 
                 tokens.length = tokens.length - length + 1;
 

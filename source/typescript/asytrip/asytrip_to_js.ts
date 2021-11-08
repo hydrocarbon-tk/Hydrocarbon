@@ -328,7 +328,7 @@ export const FunctionMaps = [
 
 addTypeMap(ASYTRIPType.NULL, (v, c) => "null");
 addTypeMap(ASYTRIPType.TOKEN, (v, c) => "Token");
-addTypeMap(ASYTRIPType.DOUBLE, (v, c) => "number");
+addTypeMap(ASYTRIPType.F64, (v, c) => "number");
 addTypeMap(ASYTRIPType.BOOL, (v, c) => "boolean");
 
 addTypeMap(ASYTRIPType.PRODUCTION, (v, c) => {
@@ -390,7 +390,7 @@ addExpressMap(ASYTRIPType.CONVERT_BOOL, (v, c, inits) => {
 
     return `!!(${val})`;
 });
-addExpressMap(ASYTRIPType.CONVERT_DOUBLE, (v, c, inits) => `+(${typeToExpression(v.value, c, inits)})`);
+addExpressMap(ASYTRIPType.CONVERT_TYPE, (v, c, inits) => `+(${typeToExpression(v.value, c, inits)})`);
 
 addExpressMap(ASYTRIPType.CONVERT_STRING, (v, c, inits) => `""+(${typeToExpression(v.value, c, inits)})`);
 addExpressMap(ASYTRIPType.PRODUCTION, (v, c, inits) => {
@@ -434,7 +434,7 @@ addExpressMap(ASYTRIPType.TOKEN, (v, c, inits) => {
     }
     return "null";
 });
-addExpressMap(ASYTRIPType.DOUBLE, (v, c, inits) => v.val);
+addExpressMap(ASYTRIPType.F64, (v, c, inits) => v.val);
 addExpressMap(ASYTRIPType.VECTOR, (v, c, inits) => {
     return inits.push(`[${v.args.map(t => typeToExpression(t, c, inits))
         .setFilter().join(",")}]`);

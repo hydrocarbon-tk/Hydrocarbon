@@ -8,15 +8,16 @@ import { getUniqueSymbolName, Sym_Is_A_Generic_Type, Sym_Is_A_Production, Sym_Is
 import {
     GrammarObject, GrammarProduction, HCG3Symbol, TokenSymbol,
     TransitionForestStateA, TransitionStateType
-} from '../../types/index.js';;
+} from '../../types/index.js';
 import { hashString } from '../../utilities/code_generating.js';
 import { getFollow } from '../../utilities/follow.js';
 import { Item } from "../../utilities/item.js";
-import { default_case_indicator } from '../../utilities/magic_numbers.js';
+import { default_case_indicator, InScopeItemState, skipped_scan_prod } from '../../utilities/magic_numbers.js';
 import { getProductionClosure } from '../../utilities/production.js';
 import { create_symbol_clause } from '../ir/create_symbol_clause.js';
 import { getGotoSTARTs, getSTARTs as getSTARTItems } from "./STARTs.js";
 import { constructTransitionForest, TransitionForestOptions } from './transition_tree.js';
+;
 
 const numeric_sort: (a: any, b: any) => number = (z, w) => z - w;
 
@@ -48,9 +49,9 @@ export function constructProductionStates(
         recursive_descent_items = (PRODUCTION_IS_SCANNER)
             ? getProductionClosure(production.id, grammar).filter(
                 i => !i.atEND && !Sym_Is_A_Production(i.sym(grammar)))
-            : getSTARTItems(production, grammar),
+            : getSTARTItems(production, grammar);
 
-        goto_item_map = getGotoSTARTs(production, recursive_descent_items, grammar);
+
 
     if (POSSIBLE_LAZY && !PRODUCTION_IS_SCANNER) {
         /** 
@@ -90,7 +91,8 @@ export function constructProductionStates(
                 root_production: production.id,
                 max_tree_depth: 10,
                 time_limit: 150,
-                PRODUCTION_IS_SCANNER
+                PRODUCTION_IS_SCANNER,
+                resolved_items: [],
             },
 
             recursive_descent_graph = constructTransitionForest(
@@ -108,6 +110,8 @@ export function constructProductionStates(
             // parse paths and use fork mechanism to run concurrent
             // parses of the input and then join at the end of the
             // production
+
+            goto_item_map = getGotoSTARTs(production, [...recursive_descent_items, ...tt_options.resolved_items], grammar),
 
             goto_item_map_graphs = ([...goto_item_map.entries()]
                 .map(([production_id, items]) =>
@@ -145,7 +149,10 @@ export function constructProductionStates(
                     g,
                     grammar,
                     PRODUCTION_IS_SCANNER,
-                    i == production.id ? production.id : -1).hash
+                    i == production.id ? production.id : -1,
+                    "GOTO"
+                ).hash,
+
             );
 
             let HAVE_ROOT_PRODUCTION_GOTO = false;
@@ -178,7 +185,8 @@ export function constructProductionStates(
                     state,
                     grammar,
                     PRODUCTION_IS_SCANNER,
-                    LOCAL_HAVE_ROOT_PRODUCTION_GOTO ? production.id : -1
+                    LOCAL_HAVE_ROOT_PRODUCTION_GOTO ? production.id : -1,
+                    "GOTO",
                 );
 
                 let prelude = "";
@@ -193,11 +201,12 @@ export function constructProductionStates(
 
 
                         if (body) {
-                            if (body.priority > 0) {
-                                prelude = `assign token [ 9999 ] then `;
+                            if (body.priority == skipped_scan_prod) {
+                                prelude = `assign token [ ${skipped_scan_prod} ] then `;
                             } else {
                                 const token_id = grammar.productions[body.sym[0].val].token_id;
-                                prelude = `assign token [ ${token_id} ] then `;
+                                if (token_id >= 0)
+                                    prelude = `assign token [ ${token_id} ] then `;
                             }
                         }
 
@@ -314,17 +323,17 @@ function processTransitionNode(
     parse_code_blocks: Map<string, string>,
     scope: "DESCENT" | "GOTO",
     root_prod: number,
-    default_hash = generateStateHashAction(state, grammar, PRODUCTION_IS_SCANNER, root_prod).hash,
+    default_hash = generateStateHashAction(state, grammar, PRODUCTION_IS_SCANNER, root_prod, scope).hash,
     postlude_command = "",
     prelude_command = "",
 ) {
 
-    generateStateHashAction(state, grammar, PRODUCTION_IS_SCANNER, root_prod);
+    generateStateHashAction(state, grammar, PRODUCTION_IS_SCANNER, root_prod, scope);
 
     const
 
         state_string = [`state [ ${default_hash} ] `
-            + `\n/* ${state.depth} \n   ${/**/
+            + `\n/* ${state.depth} ${state.type & TransitionStateType.COMPLETED ? "COMPLETED" : ""}\n   ${/**/
             state.items.map(i => i.renderUnformattedWithProduction(grammar).replace(/\*/g, "ast")).join("\n  ")
             }\n*/`
         ],
@@ -338,7 +347,7 @@ function processTransitionNode(
         let hash = "";
 
         if (state.states.length > 0)
-            ({ hash } = generateStateHashAction(state.states[0], grammar, PRODUCTION_IS_SCANNER, root_prod));
+            ({ hash } = generateStateHashAction(state.states[0], grammar, PRODUCTION_IS_SCANNER, root_prod, scope));
         const end_items = state.items.filter(i => i.atEND);
         const root_items = end_items.filter(i => i.getProduction(grammar).name == "__SCANNER__").map(i => i.decrement().getProductionAtSymbol(grammar).token_id);
         const interior_items = end_items.filter(i => i.getProduction(grammar).name != "__SCANNER__").map(i => i.getProduction(grammar).token_id);
@@ -361,11 +370,12 @@ function processTransitionNode(
             global_items,
             postlude_command,
             prelude_command,
+            scope
         );
 
     } else {
 
-        let { action, assertion } = generateSingleStateAction(state, grammar, PRODUCTION_IS_SCANNER, root_prod);
+        let { action, assertion } = generateSingleStateAction(state, grammar, PRODUCTION_IS_SCANNER, root_prod, scope);
 
         if (
             assertion
@@ -391,9 +401,9 @@ function processTransitionNode(
         global_items.push(...state.items);
     }
 
-    if (global_items.some(i => i.offset == 1 && i.state >= 9999)) {
+    if (global_items.some(i => i.offset == 1 && i.state >= InScopeItemState)) {
         // Include the items from the productions follow
-        const production = (global_items.filter(i => i.state >= 9999)[0]).getProductionID(grammar);
+        const production = (global_items.filter(i => i.state >= InScopeItemState)[0]).getProductionID(grammar);
 
         const follow = getFollow(production, grammar).filter(s => !Sym_Is_EOF(s) && s.type != "eop" && !Sym_Is_A_Production(s));
 
@@ -434,7 +444,9 @@ function generateStateHashAction(
 
     PRODUCTION_IS_SCANNER: boolean,
 
-    root_prod: number
+    root_prod: number,
+
+    scope: "DESCENT" | "GOTO",
 
 ): { hash: string, action: string, assertion: string; } {
 
@@ -458,7 +470,10 @@ function generateStateHashAction(
             root_prod,
             action_string,
             [],
-            []
+            [],
+            undefined,
+            undefined,
+            scope
         );
 
         action_string.sort();
@@ -476,7 +491,10 @@ function generateStateHashAction(
                 root_prod,
                 action_string,
                 [],
-                []
+                [],
+                undefined,
+                undefined,
+                scope
             );
 
             action_string.sort();
@@ -486,7 +504,7 @@ function generateStateHashAction(
 
     } else {
 
-        const { combined, action, assertion, symbol_ids: ids } = generateSingleStateAction(state, grammar, PRODUCTION_IS_SCANNER, root_prod);
+        const { combined, action, assertion, symbol_ids: ids } = generateSingleStateAction(state, grammar, PRODUCTION_IS_SCANNER, root_prod, scope);
 
         hash_string.push(combined);
 
@@ -528,7 +546,7 @@ function processMultiChildStates(
     items: Item[],
     postlude_command = "",
     prelude_command = "",
-    scope: string = ""
+    scope: "DESCENT" | "GOTO",
 ) {
 
     const states_string = [];
@@ -537,7 +555,7 @@ function processMultiChildStates(
 
     if (state.type & TransitionStateType.FORK) {
 
-        const hashes = state.states.map(s => (generateStateHashAction(s, grammar, PRODUCTION_IS_SCANNER, root_prod).hash));
+        const hashes = state.states.map(s => (generateStateHashAction(s, grammar, PRODUCTION_IS_SCANNER, root_prod, scope).hash));
 
         state_string.push(`\n    fork to ( ${hashes.map(h => `state [ ${h} ]`).join(", ")} )`);
 
@@ -559,9 +577,9 @@ function processMultiChildStates(
             // the leaf state's child state, to ensure erroneous peek commands
             // are not generated.
             if (depth == state.depth && !(type & TransitionStateType.MULTI) && type & TransitionStateType.PEEK)
-                ({ assertion, hash } = generateStateHashAction(states[0].states[0], grammar, PRODUCTION_IS_SCANNER, root_prod));
+                ({ assertion, hash } = generateStateHashAction(states[0].states[0], grammar, PRODUCTION_IS_SCANNER, root_prod, scope));
             else
-                ({ assertion, hash } = generateStateHashAction(states[0], grammar, PRODUCTION_IS_SCANNER, root_prod));
+                ({ assertion, hash } = generateStateHashAction(states[0], grammar, PRODUCTION_IS_SCANNER, root_prod, scope));
 
             let action = `goto state [ ${hash} ]`;
             //if State is multi merge the states of the multi state?
@@ -569,18 +587,18 @@ function processMultiChildStates(
 
             let AUTO_FAIL = IS_OUT_OF_SCOPE;
 
-            let AUTO_PASS = false && (states[0].items.some(i => i.state >= 9999) && !assertion);
+            let AUTO_PASS = false && (states[0].items.some(i => i.state >= InScopeItemState) && !assertion);
 
             const IS_LAST_GROUP = AUTO_PASS;
 
             const symbols = getSymbolsFromStates(states).filter(Sym_Is_A_Token);
 
-            if (symbols.length < 1)
+            if (symbols.length == 0)
                 debugger;
 
             global_symbols.push(...symbols);
 
-            let lexer_state = state.depth > 0 ? "peek" : "assert";
+            let lexer_state = state.type & TransitionStateType.PEEK ? "peek" : "assert";
 
             const action_string = AUTO_FAIL
                 ? "fail"
@@ -611,8 +629,7 @@ function getSymbolsFromStates(states: TransitionForestStateA[]): HCG3Symbol[] {
     for (const state of states) {
         if (state.type & TransitionStateType.MULTI && !(state.type & TransitionStateType.FORK)) {
             symbols.push(...getSymbolsFromStates(state.states));
-        }
-        else
+        } else
             symbols.push(...state.symbols);
     }
 
@@ -642,9 +659,12 @@ function generateSingleStateAction(
     grammar: GrammarObject,
     PRODUCTION_IS_SCANNER: boolean,
     root_prod: number,
+    scope: "DESCENT" | "GOTO",
 ): { action: string; assertion: string; combined: string; symbol_ids: number[]; } {
 
     const { symbols, states, type, items } = state;
+
+    const peek = (type & TransitionStateType.PEEK) > 0;
 
     const token_symbols = <TokenSymbol[]>symbols.filter(s => !Sym_Is_A_Production(s));
 
@@ -661,9 +681,7 @@ function generateSingleStateAction(
 
     if (type & TransitionStateType.OUT_OF_SCOPE) {
 
-        let { depth } = state;
-
-        assertion = depth > 0 ? "peek" : "assert";
+        assertion = peek ? "peek" : "assert";
 
         action_string = `set prod to ${root_prod} then fail`;
         symbol_ids.push(...token_symbols.map(i => i.id).setFilter());
@@ -677,11 +695,11 @@ function generateSingleStateAction(
 
         const [child_state] = state.states;
 
-        const hash = generateStateHashAction(child_state, grammar, PRODUCTION_IS_SCANNER, root_prod).hash;
+        const hash = generateStateHashAction(child_state, grammar, PRODUCTION_IS_SCANNER, root_prod, scope).hash;
 
-        let { symbols, depth, items } = state;
+        let { symbols } = state;
 
-        assertion = depth > 0 ? "peek" : "assert";
+        assertion = peek ? "peek" : "assert";
 
         if (type & TransitionStateType.PRODUCTION) {
 
@@ -712,16 +730,37 @@ function generateSingleStateAction(
 
             const production = item.getProduction(grammar);
 
-            const set_prod_clause = `set prod to ${body.production.id}`;
+            const set_prod_clause = `set prod to ${production.id}`;
 
             const len = Sym_Is_EOF(item.decrement().sym(grammar))
                 ? item.len - 1
                 : item.len;
 
             if (PRODUCTION_IS_SCANNER) {
-                action_string = set_prod_clause;
-            } else
+                let set_token = "";
+                if (production.name.slice(0, 2) == "__") {
+                    let prod = production;
+                    if (production.name.slice(0, 9) == "__SCANNER") {
+                        prod = item.decrement().getProductionAtSymbol(grammar);
+                    }
+                    //set_token id 
+                    if (body.priority == skipped_scan_prod) {
+                        set_token = `assign token [ ${skipped_scan_prod} ] then `;
+                    } else {
+                        const token_id = prod.token_id;
+                        if (token_id >= 0)
+                            set_token = `assign token [ ${token_id} ] then `;
+                    }
+                }
+                if (production.name.slice(0, 9) == "__SCANNER" && scope != "GOTO") {
+                    const token_prod = item.decrement().getProductionAtSymbol(grammar);
+                    action_string = `${set_token}set prod to ${token_prod.id}`;
+                } else {
+                    action_string = set_token + set_prod_clause;
+                }
+            } else {
                 action_string = `reduce ${len} ${body.id} then ${set_prod_clause}`;
+            }
 
             if (root_prod >= 0 && production.id != root_prod) {
                 //This will allow upgrade to complete
@@ -737,7 +776,7 @@ function generateSingleStateAction(
 
         if (state.states.length > 0) {
 
-            const { hash } = generateStateHashAction(state.states[0], grammar, PRODUCTION_IS_SCANNER, root_prod);
+            const { hash } = generateStateHashAction(state.states[0], grammar, PRODUCTION_IS_SCANNER, root_prod, scope);
 
             postamble = ` then goto state [ ${hash} ]`;
         }
@@ -765,13 +804,13 @@ function generateSingleStateAction(
 
         combined_string = action_string;
 
-        assertion = state.depth > 0 ? "peek" : "assert";
+        assertion = peek ? "peek" : "assert";
 
     } else if (state.type & TransitionStateType.TERMINAL) {
 
         const [child_state] = state.states;
 
-        const hash = generateStateHashAction(child_state, grammar, PRODUCTION_IS_SCANNER, root_prod).hash;
+        const hash = generateStateHashAction(child_state, grammar, PRODUCTION_IS_SCANNER, root_prod, scope).hash;
         if (symbols.some(s => Sym_Is_Recovery(s))) {
 
             const item = state.items[0];
@@ -781,16 +820,12 @@ function generateSingleStateAction(
             action_string = `goto state [ ${user_defined_state_mux}${production.name}_${1 + item.offset} ] then goto state [ ${hash} ]`;
 
         } else if (symbols.some(s => Sym_Is_Not_Consumed(s)))
-
             action_string = `consume nothing then goto state [ ${hash} ]`;
-
-        else if (symbols.length == 1 && Sym_Is_EOF(symbols[0]))
+        else if (symbols.length == 1 && Sym_Is_EOF(symbols[0])) {
             action_string = `goto state [ ${hash} ]`;
-        else
+        } else {
             action_string = `consume then goto state [ ${hash} ]`;
-
-
-
+        }
 
         symbol_ids.push(...token_symbols.setFilter(i => i.id));
 
@@ -821,7 +856,7 @@ function generateSingleStateAction(
         &&
         (root_prod >= 0 && state.items[0].getProductionID(grammar) != root_prod)
         &&
-        state.items.some(i => i.state >= 9999)
+        state.items.some(i => i.state >= InScopeItemState)
         &&
         state.items.some(i => i.offset == 1)
     ) {
