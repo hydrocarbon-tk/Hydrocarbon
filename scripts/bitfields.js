@@ -158,9 +158,18 @@ for (const { label, description, svg } of data.map(d => ({
 }))) {
     const name = label.split(/ /g).join("_");
 
-    fsp.writeFile(`./site/resources/img/${name}.bytecode.svg`, svg.join("\n"), { encoding: "utf8" });
+    let i = 0;
+
+    for (const svg_file of svg) {
+        fsp.writeFile(`./site/resources/img/${name}.${i++}.bytecode.svg`, svg_file, { encoding: "utf8" });
+    }
+
     out_data.push(`### ${label}\n`);
-    out_data.push(`![${label} SVG](./resources/img/${name})`);
+
+    i = 0;
+    for (const _ of svg) {
+        out_data.push(`![${label} SVG](./resources/img/${name}.${i++}.bytecode.svg)`);
+    }
     out_data.push("\n");
     out_data.push(description ?? "");
     out_data.push("\n");

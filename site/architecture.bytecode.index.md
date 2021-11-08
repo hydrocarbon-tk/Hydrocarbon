@@ -1,6 +1,6 @@
 ### Pointer
 
-![Pointer SVG](./resources/img/Pointer.bytecode.svg)
+![Pointer SVG](./resources/img/Pointer.0.bytecode.svg)
 
 
 Every state is represented by a series of bytecode instructions stored in 
@@ -11,7 +11,7 @@ to the recognizer to start the parsing at a suitable entry state.
 
 ### Pass
 
-![Pass SVG](./resources/img/Pass.bytecode.svg)
+![Pass SVG](./resources/img/Pass.0.bytecode.svg)
 
 
 
@@ -19,7 +19,7 @@ to the recognizer to start the parsing at a suitable entry state.
 
 ### Consume
 
-![Consume SVG](./resources/img/Consume.bytecode.svg)
+![Consume SVG](./resources/img/Consume.0.bytecode.svg)
 
 
 
@@ -27,7 +27,7 @@ to the recognizer to start the parsing at a suitable entry state.
 
 ### GOTO
 
-![GOTO SVG](./resources/img/GOTO.bytecode.svg)
+![GOTO SVG](./resources/img/GOTO.0.bytecode.svg)
 
 
 
@@ -35,7 +35,7 @@ to the recognizer to start the parsing at a suitable entry state.
 
 ### Set Production
 
-![Set Production SVG](./resources/img/Set_Production.bytecode.svg)
+![Set Production SVG](./resources/img/Set_Production.0.bytecode.svg)
 
 
 
@@ -43,7 +43,7 @@ to the recognizer to start the parsing at a suitable entry state.
 
 ### Reduce Accumulated
 
-![Reduce Accumulated SVG](./resources/img/Reduce_Accumulated.bytecode.svg)
+![Reduce Accumulated SVG](./resources/img/Reduce_Accumulated.0.bytecode.svg)
 
 
 
@@ -51,7 +51,7 @@ to the recognizer to start the parsing at a suitable entry state.
 
 ### Reduce Normal
 
-![Reduce Normal SVG](./resources/img/Reduce_Normal.bytecode.svg)
+![Reduce Normal SVG](./resources/img/Reduce_Normal.0.bytecode.svg)
 
 
 
@@ -59,7 +59,7 @@ to the recognizer to start the parsing at a suitable entry state.
 
 ### Token Length
 
-![Token Length SVG](./resources/img/Token_Length.bytecode.svg)
+![Token Length SVG](./resources/img/Token_Length.0.bytecode.svg)
 
 
 
@@ -67,7 +67,7 @@ to the recognizer to start the parsing at a suitable entry state.
 
 ### Token Assign
 
-![Token Assign SVG](./resources/img/Token_Assign.bytecode.svg)
+![Token Assign SVG](./resources/img/Token_Assign.0.bytecode.svg)
 
 
 
@@ -75,7 +75,7 @@ to the recognizer to start the parsing at a suitable entry state.
 
 ### Fork To
 
-![Fork To SVG](./resources/img/Fork_To.bytecode.svg)
+![Fork To SVG](./resources/img/Fork_To.0.bytecode.svg)
 
 
 
@@ -83,7 +83,7 @@ to the recognizer to start the parsing at a suitable entry state.
 
 ### Scan Back Until
 
-![Scan Back Until SVG](./resources/img/Scan_Back_Until.bytecode.svg)
+![Scan Back Until SVG](./resources/img/Scan_Back_Until.0.bytecode.svg)
 
 
 
@@ -91,7 +91,7 @@ to the recognizer to start the parsing at a suitable entry state.
 
 ### Scan Until
 
-![Scan Until SVG](./resources/img/Scan_Until.bytecode.svg)
+![Scan Until SVG](./resources/img/Scan_Until.0.bytecode.svg)
 
 
 
@@ -99,7 +99,7 @@ to the recognizer to start the parsing at a suitable entry state.
 
 ### Set Scope
 
-![Set Scope SVG](./resources/img/Set_Scope.bytecode.svg)
+![Set Scope SVG](./resources/img/Set_Scope.0.bytecode.svg)
 
 
 
@@ -107,7 +107,9 @@ to the recognizer to start the parsing at a suitable entry state.
 
 ### Table Branch
 
-![Table Branch SVG](./resources/img/Table_Branch.bytecode.svg)
+![Table Branch SVG](./resources/img/Table_Branch.0.bytecode.svg)
+![Table Branch SVG](./resources/img/Table_Branch.1.bytecode.svg)
+![Table Branch SVG](./resources/img/Table_Branch.2.bytecode.svg)
 
 
 
@@ -115,7 +117,9 @@ to the recognizer to start the parsing at a suitable entry state.
 
 ### Hash Branch
 
-![Hash Branch SVG](./resources/img/Hash_Branch.bytecode.svg)
+![Hash Branch SVG](./resources/img/Hash_Branch.0.bytecode.svg)
+![Hash Branch SVG](./resources/img/Hash_Branch.1.bytecode.svg)
+![Hash Branch SVG](./resources/img/Hash_Branch.2.bytecode.svg)
 
 
 
@@ -123,7 +127,7 @@ to the recognizer to start the parsing at a suitable entry state.
 
 ### Set Fail State
 
-![Set Fail State SVG](./resources/img/Set_Fail_State.bytecode.svg)
+![Set Fail State SVG](./resources/img/Set_Fail_State.0.bytecode.svg)
 
 
 
@@ -131,7 +135,7 @@ to the recognizer to start the parsing at a suitable entry state.
 
 ### Repeat
 
-![Repeat SVG](./resources/img/Repeat.bytecode.svg)
+![Repeat SVG](./resources/img/Repeat.0.bytecode.svg)
 
 
 
@@ -139,7 +143,7 @@ to the recognizer to start the parsing at a suitable entry state.
 
 ### Not In Scopes
 
-![Not In Scopes SVG](./resources/img/Not_In_Scopes.bytecode.svg)
+![Not In Scopes SVG](./resources/img/Not_In_Scopes.0.bytecode.svg)
 
 
 
@@ -147,7 +151,7 @@ to the recognizer to start the parsing at a suitable entry state.
 
 ### Not Used
 
-![Not Used SVG](./resources/img/Not_Used.bytecode.svg)
+![Not Used SVG](./resources/img/Not_Used.0.bytecode.svg)
 
 
 
@@ -155,7 +159,7 @@ to the recognizer to start the parsing at a suitable entry state.
 
 ### Fail
 
-![Fail SVG](./resources/img/Fail.bytecode.svg)
+![Fail SVG](./resources/img/Fail.0.bytecode.svg)
 
 
 
@@ -163,7 +167,7 @@ to the recognizer to start the parsing at a suitable entry state.
 
 ### Fall Through
 
-![Fall Through SVG](./resources/img/Fall_Through.bytecode.svg)
+![Fall Through SVG](./resources/img/Fall_Through.0.bytecode.svg)
 
 
 
