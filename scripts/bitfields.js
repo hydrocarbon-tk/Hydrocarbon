@@ -147,15 +147,23 @@ const options = {
 
 };
 
+import fsp from "fs/promises";
+
+const out_data = [];
 
 for (const { label, description, svg } of data.map(d => ({
     label: d.label,
     description: d.description,
     svg: d.render.map(d => onml.stringify(render(d, options)))
 }))) {
-    console.log(`### ${label}\n`);
-    console.log(svg.join("\n"));
-    console.log("\n");
-    console.log(description ?? "");
-    console.log("\n");
+    const name = label.split(/ /g).join("_");
+
+    fsp.writeFile(`./site/resources/img/${name}.bytecode.svg`, svg.join("\n"), { encoding: "utf8" });
+    out_data.push(`### ${label}\n`);
+    out_data.push(`![${label} SVG](./resources/img/${name})`);
+    out_data.push("\n");
+    out_data.push(description ?? "");
+    out_data.push("\n");
 }
+
+fsp.writeFile("./site/architecture.bytecode.index.md", out_data.join("\n"), { encoding: "utf8" });
