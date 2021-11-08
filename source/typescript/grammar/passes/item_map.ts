@@ -9,7 +9,7 @@ import { ItemMapEntry } from "../../types/item_map.js";
 import { getFirstTerminalSymbols } from "../../utilities/first.js";
 import { Item } from "../../utilities/item.js";
 import { doesProductionHaveEmpty, getProductionID, getStartItemsFromProduction } from "../../utilities/production.js";
-import { default_EOF, default_EOP } from "../nodes/default_symbols.js";
+import { default_EOF } from "../nodes/default_symbols.js";
 import {
     getSymbolName,
     getTrueSymbolValue, getUniqueSymbolName,

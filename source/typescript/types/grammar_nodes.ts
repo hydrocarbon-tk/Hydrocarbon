@@ -28,7 +28,6 @@ export const enum SymbolType {
     END_OF_FILE = "eof",
     PRODUCTION_ASSERTION_FUNCTION = "assert_token_function",
     PRODUCTION_TOKEN_SYMBOL = "production_token",
-    END_OF_PRODUCTION = "eop",
     IMPORT_PRODUCTION = "sym-production-import",
     LOOK_BEHIND = "look-behind",
     VIRTUAL_TOKEN = "v-token-production",
@@ -294,11 +293,6 @@ export interface EOFSymbol extends SymbolNode {
     id: TokenTypes.END_OF_FILE;
     meta: false;
 }
-export interface EOPSymbol extends SymbolNode {
-    type: SymbolType.END_OF_PRODUCTION;
-    val: "END_OF_PRODUCTION";
-    meta: false;
-}
 
 export interface EmptySymbol extends SymbolNode {
     type: SymbolType.EMPTY;
@@ -508,7 +502,6 @@ export type TokenSymbol =
     | DefinedSymbol
     | BaseGeneratedSymbol
     | EOFSymbol
-    | EOPSymbol
     | EmptySymbol
     | ProductionTokenSymbol
     | LookBehindSymbol
@@ -532,8 +525,7 @@ export type HCG3Symbol =
     | MetaReduceSymbol
     | LookBehindSymbol
     | GeneratedSymbol
-    | EOPSymbol
-    | GeneratedSymbol
+    | GeneratedSymbols
     | GeneratedNewLine
     | GeneratedNumber
     | RecoverySymbol

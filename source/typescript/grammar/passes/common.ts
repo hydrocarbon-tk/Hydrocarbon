@@ -320,8 +320,8 @@ export function createCollisionMatrix(grammar: GrammarObject) {
 
             if (
                 symB == symA
-                || Sym_Is_EOF(symA) || Sym_Is_EOP(symA)
-                || Sym_Is_EOF(symB) || Sym_Is_EOP(symB)
+                || Sym_Is_EOF(symA)
+                || Sym_Is_EOF(symB)
                 || Sym_Is_Look_Behind(symA) || Sym_Is_Look_Behind(symB)
             ) {
                 j[symB.id] = (!!0);

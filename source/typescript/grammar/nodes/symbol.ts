@@ -35,6 +35,8 @@ export function characterToUTF8(char: string) {
 }
 
 export function convert_symbol_to_string(sym: TokenSymbol) {
+    if (!sym || !sym.type)
+        return "<unknown>";
     switch (sym.type) {
         case SymbolType.GENERATED:
             return `g:${sym.val}`;
@@ -46,8 +48,6 @@ export function convert_symbol_to_string(sym: TokenSymbol) {
             return `ɛ`;
         case SymbolType.END_OF_FILE:
             return `END_OF_FILE`;
-        case SymbolType.END_OF_PRODUCTION:
-            return `END_OF_PRODUCTION`;
         case SymbolType.PRODUCTION_TOKEN_SYMBOL:
             return `tk:${sym.name}`;
         case "look-behind":
@@ -85,10 +85,6 @@ export function Sym_Is_EOF(s: HCG3Symbol): s is EOFSymbol {
 }
 export function Sym_Is_Empty(s: HCG3Symbol): s is EmptySymbol {
     return s.type == SymbolType.EMPTY;
-}
-
-export function Sym_Is_EOP(s: HCG3Symbol): s is EOPSymbol {
-    return s.type == SymbolType.END_OF_PRODUCTION || s.val == "END_OF_PRODUCTION";
 }
 
 export function Sym_Is_Consumed(s: HCG3Symbol): boolean {
