@@ -12,10 +12,12 @@ can be combined and transformed into new types. The default language for reduce 
 uses a subset of the JavaScript syntax to allow you to define AST node types. Based on these definitions, ASyTrip 
 will find or infer suitable permutations and combinations of these node types to create appropriate 
 reduce actions transformations that will convert the recognized Token's into your AST description. These types
-will either inherited or have generated methods and properties that provide the mechanism 
+will either inherited or have generated methods and properties that provide the mechanism necessary to traverse
+transform, and analyze the AST structure. 
 
 
 ## Core Types
+
 ### Structs
 
 An ASYTrip struct is the backbone of an AST. It defines the nodes that can be present within the tree. A struct 
@@ -77,32 +79,86 @@ for (const {node} of my_ast.iterate().filter(Class.Block)){
     */
 }
 ```
-
-
-### Vector
-
-
-### Double
-
-64bit Floating Point value
-
-### Boolean
-
-Boolean `true` or `false` value
-
-### String
-
-A target language native string type. 
-
 ### Token
 
 Similar to string, can store source file information and 
 directly references the source data instead of copying a section of
 data to a new String buffer.
 
+### Vector
+
+
+## Numerical Types
+
+### I8
+
+```Javascript
+f:r { i8($1) }
+```
+
+8bit Integer. May be interpreted as signed or unsigned. 
+
+### I16
+
+```Javascript
+f:r { i16($1) }
+```
+
+16bit Integer. May be interpreted as signed or unsigned. 
+
+### I32
+
+```Javascript
+f:r { i32($1) }
+```
+
+32bit Integer. May be interpreted as signed or unsigned. 
+
+### I64
+
+```Javascript
+f:r { i64($1) }
+```
+
+64bit Integer. May be interpreted as signed or unsigned. 
+
+### F32
+```Javascript
+f:r { f32($1) }
+```
+
+32bit Floating Point value
+
+### F64
+```Javascript
+f:r { f64($1) }
+```
+
+64bit Floating Point value. Only true numeric type available in JavaScript.
+
+## Other
+
+### Boolean
+```Javascript
+f:r { bool($1) } || f:r { !!($1) }
+```
+
+Boolean `true` or `false` value.
+
+### String
+```Javascript
+f:r { string($1) } or f:r { "" + ($1) } or f:r { ($1) + "" }
+```
+
+A target language native string container type. 
+
+
+
 ### Null
 
-
+```Javascript
+f:r { null }
+```
 
 
 

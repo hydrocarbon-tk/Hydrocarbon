@@ -108,9 +108,16 @@ This type of symbol will always match even if a generated symbol or an non-exclu
 
 - `g:num`
 
+- `g:nums`
+
 - `g:id`
 
+- `g:ids`
+
 - `g:sym`
+
+- `g:syms`
+
 
 Hydrocarbon provides several generated symbols similar to character classes found within RegEx. 
 
