@@ -12,12 +12,12 @@ import {
 } from "../../grammar/nodes/symbol.js";
 import { GrammarObject, TokenSymbol } from '../../types/grammar_nodes';
 import { Item } from "../../utilities/item.js";
+import { ConstructionOptions } from '../ir_state_compiler/ConstructionOptions.js';
 export function create_symbol_clause(
     items: Item[],
     additional_tokens: TokenSymbol[],
     grammar: GrammarObject,
-    scope: "GOTO" | "DESCENT" = "DESCENT",
-    INCLUDE_SKIPS: boolean = true
+    { scope, IS_SCANNER }: ConstructionOptions
 ) {
 
     const active_items = items.filter(i => !i.atEND);
@@ -30,7 +30,7 @@ export function create_symbol_clause(
 
     const expected_symbols = additional_tokens.setFilter(getUniqueSymbolName);
 
-    const skipped_symbols = INCLUDE_SKIPS ? getSkippableSymbolsFromItems(items, grammar).filter(skipped => !expected_symbols.some(
+    const skipped_symbols = !IS_SCANNER ? getSkippableSymbolsFromItems(items, grammar).filter(skipped => !expected_symbols.some(
         expected => Symbols_Are_The_Same(expected, skipped) /* || SymbolsCollide(expected, skipped, grammar) */)
     ) : [];
 
