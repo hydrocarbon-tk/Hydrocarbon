@@ -51,7 +51,7 @@ function getExpressionString<T extends keyof ASYTRIPTypeObj>(
     c: ASYTRIPContext,
     inits: Inits
 ): string {
-
+    if (!v) debugger;
     if (!expr_mapper.has(v.type))
         throw new Error(`Cannot expression mapper for ${ASYTRIPType[v.type]}`);
 
@@ -60,8 +60,8 @@ function getExpressionString<T extends keyof ASYTRIPTypeObj>(
 
 function convertValToString(v, t) {
     if (TypeIsString(t))
-        return `(HCGObjDouble{Val:${v}}).String()`;
-    return `(${v}).String()`;
+        return `(HCGObjDouble{Val:${v}}).toString()`;
+    return `(${v}).toString()`;
 };
 function convertValToDouble(v, t) {
     if (TypeIsString(t))
@@ -129,17 +129,11 @@ function GenerateTypeString(
     return type_string;
 }
 export function createTsTypes(grammar: GrammarObject, context: ASYTRIPContext) {
-    //Imports for you file
-
-
 
     const strings = [
         //Header ------------------------------------------------------------------------
         `import {ASTNode, Token} from "@candlelib/hydrocarbon";`
     ];
-
-
-
 
     //Class Filters --------------------------------------------------------------------
 
@@ -630,6 +624,13 @@ addExpressMap(ASYTRIPType.STRING, (v, c, inits) => {
 
 addTypeMap(ASYTRIPType.TOKEN, (v, c) => "Token");
 
+addExpressMap(ASYTRIPType.TOKEN, (v, c, inits) => {
+    if (!isNaN(v.arg_pos)) {
+        return `v${v.arg_pos}`;
+    }
+    return "null";
+});
+
 // NUMERIC TYPES-------------------------------------------
 addTypeMap(ASYTRIPType.F64, (v, c) => "number");
 addTypeMap(ASYTRIPType.F32, (v, c) => "number");
@@ -854,52 +855,6 @@ addExpressMap(ASYTRIPType.TERNARY, (v, c, inits) => {
 
 addExpressMap(ASYTRIPType.NULL, (v, c, inits) => "null");
 
-addExpressMap(ASYTRIPType.CONVERT_TYPE, (v, c, inits) => {
-    const val = getExpressionString(v.value, c, inits);
-    const type = getResolvedType(v.value, c)[0];
-
-    switch (v.conversion_type.type) {
-        case ASYTRIPType.F32:
-        case ASYTRIPType.F64:
-            if (type.type == ASYTRIPType.BOOL)
-                return (val == "true" ? 1 : 0) + "";
-            if (type.type == ASYTRIPType.NULL)
-                return "0";
-            if (type.type == ASYTRIPType.F32 || type.type == ASYTRIPType.F64)
-                return val;
-            return `parseFloat((${val}).toString())`;
-        case ASYTRIPType.I64:
-            if (type.type == ASYTRIPType.NULL)
-                return "0";
-            return `parseInt((${val}).toString())`;
-        case ASYTRIPType.I32:
-            if (type.type == ASYTRIPType.NULL)
-                return "0";
-            return `parseInt((${val}).toString())`;
-        case ASYTRIPType.I16:
-            if (type.type == ASYTRIPType.NULL)
-                return "0";
-            return `parseInt((${val}).toString())`;
-        case ASYTRIPType.I8:
-            if (type.type == ASYTRIPType.NULL)
-                return "0";
-            return `parseInt((${val}).toString())`;
-        case ASYTRIPType.BOOL: {
-
-            if (type.type == ASYTRIPType.BOOL)
-                return val;
-
-            if (val == "null")
-                return "false";
-
-            return `(!!${val})`;
-        }
-        case ASYTRIPType.STRING:
-            if (type.type == ASYTRIPType.STRING)
-                return val;
-            return `(${val}).toString()`;
-    }
-});
 
 addExpressMap(ASYTRIPType.CONVERT_STRING, (v, c, inits) => `(${getExpressionString(v.value, c, inits)}).toString()`);
 
@@ -910,12 +865,7 @@ addExpressMap(ASYTRIPType.PRODUCTION, (v, c, inits) => {
     }
     return "null";
 });
-addExpressMap(ASYTRIPType.TOKEN, (v, c, inits) => {
-    if (!isNaN(v.arg_pos)) {
-        return `v${v.arg_pos}`;
-    }
-    return "null";
-});
+
 addExpressMap(ASYTRIPType.OR, (v, c, inits) => {
 
     const { left: l, right: r } = v;
@@ -976,4 +926,40 @@ addExpressMap(ASYTRIPType.ADD, (v, c, inits) => {
 addExpressMap(ASYTRIPType.SUB, (v, c, inits) => {
     debugger;
     return "";
+});
+
+// CONVERT_TYPE ------------------------------------------
+
+const A = ASYTRIPType;
+
+const conversion_table =
+{
+    [A.F64]:
+        (t, v) => ({ [A.F64]: /*       */ v, [A.F32]: `${v} `, [A.I64]: `${v} `, [A.I32]: `${v} `, [A.I16]: `${v} `, [A.I8]: `${v} `, [A.BOOL]: `+${v} `, [A.NULL]: "0.0", [A.TOKEN]: `parseFloat(${v}.toString())`, [A.STRUCT]: `parseFloat(${v}.toString())`, [A.VECTOR]: `parseFloat(${v}.toString()))` })[t],
+    [A.F32]:
+        (t, v) => ({ [A.F64]: `${v} `, [A.F32]: /*       */ v, [A.I64]: `${v} `, [A.I32]: `${v} `, [A.I16]: `${v} `, [A.I8]: `${v} `, [A.BOOL]: `+${v} `, [A.NULL]: "0.0", [A.TOKEN]: `parseFloat(${v}.toString())`, [A.STRUCT]: `parseFloat(${v}.toString())`, [A.VECTOR]: `parseFloat(${v}.toString()))` })[t],
+    [A.I64]:
+        (t, v) => ({ [A.F64]: `${v} `, [A.F32]: `${v} `, [A.I64]: /*       */ v, [A.I32]: `${v} `, [A.I16]: `${v} `, [A.I8]: `${v} `, [A.BOOL]: `+${v} `, [A.NULL]: " 0 ", [A.TOKEN]: `parseInt(${v}.toString())`, [A.STRUCT]: `parseInt(${v}.toString())`, [A.VECTOR]: `parseInt(${v}.toString()))` })[t],
+    [A.I32]:
+        (t, v) => ({ [A.F64]: `${v} `, [A.F32]: `${v} `, [A.I64]: `${v} `, [A.I32]: /*       */ v, [A.I16]: `${v} `, [A.I8]: `${v} `, [A.BOOL]: `+${v} `, [A.NULL]: " 0 ", [A.TOKEN]: `parseInt(${v}.toString())`, [A.STRUCT]: `parseInt(${v}.toString())`, [A.VECTOR]: `parseInt(${v}.toString()))` })[t],
+    [A.I16]:
+        (t, v) => ({ [A.F64]: `${v} `, [A.F32]: `${v} `, [A.I64]: `${v} `, [A.I32]: `${v} `, [A.I16]: /*       */ v, [A.I8]: `${v} `, [A.BOOL]: `+${v} `, [A.NULL]: " 0 ", [A.TOKEN]: `parseInt(${v}.toString())`, [A.STRUCT]: `parseInt(${v}.toString())`, [A.VECTOR]: `parseInt(${v}.toString()))` })[t],
+    [A.I8]:
+        (t, v) => ({ [A.F64]: `${v}  `, [A.F32]: `${v}  `, [A.I64]: `${v}  `, [A.I32]: `${v}  `, [A.I16]: `${v}  `, [A.I8]: /*       */ v, [A.BOOL]: `${v}  `, [A.NULL]: " 0 ", [A.TOKEN]: `${v}.to_i8() `, [A.STRUCT]: `${v}.to_i8() `, [A.VECTOR]: `${v}.to_i8() `, })[t],
+    [A.BOOL]:
+        (t, v) => ({ [A.F64]: `!!${v} `, [A.F32]: `!!${v} `, [A.I64]: `!!${v} `, [A.I32]: `!!${v} `, [A.I16]: `!!${v} `, [A.I8]: `!!${v} `, [A.BOOL]: /**/ v, [A.NULL]: "false", [A.TOKEN]: `!!${v}`, [A.STRUCT]: `!!${v}`, [A.VECTOR]: `!!${v}` })[t],
+    [A.NULL]:
+        (t, v) => ({ [A.F64]: "null", [A.F32]: "null", [A.I64]: "null", [A.I32]: "null", [A.I16]: "null", [A.I8]: "null", [A.BOOL]: "null", [A.NULL]: /*       */ v, [A.TOKEN]: `null`, [A.STRUCT]: "null", [A.VECTOR]: "null" })[t],
+    [A.STRING]:
+        (t, v) => ({
+            [A.F64]: `${v}.toString()`, [A.F32]: `${v}.toString()`, [A.I64]: `${v}.toString()`, [A.I32]: `${v}.toString()`, [A.I16]: `${v}.toString()`, [A.I8]: `${v}.toString()`,
+            [A.BOOL]: `${v}.toString()`, [A.NULL]: /*       */ "\"\"", [A.TOKEN]: `${v}.toString()`, [A.STRUCT]: `${v}.toString()`, [A.VECTOR]: `${v}.toString()`
+        })[t],
+};
+
+addExpressMap(ASYTRIPType.CONVERT_TYPE, (v, c, inits) => {
+    const val = getExpressionString(v.value, c, inits);
+    const type = getResolvedType(v.value, c)[0];
+
+    return conversion_table[v.conversion_type.type](type.type, val);
 });

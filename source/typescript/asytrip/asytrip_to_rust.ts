@@ -47,7 +47,7 @@ export function getTypeString<T extends keyof ASYTRIPTypeObj>(
     return type_mapper.get(v.type)(v, c);
 }
 
-function typeToExpression<T extends keyof ASYTRIPTypeObj>(
+function getExpressionString<T extends keyof ASYTRIPTypeObj>(
     v: ASYTRIPTypeObj[T],
     c: ASYTRIPContext,
     inits: Inits
@@ -77,7 +77,7 @@ function convertArgsToType(
     convert: (a: string, t: ASYTRIPTypeObj[ASYTRIPType]) => string
 ): (val: ASYTRIPTypeObj[ASYTRIPType]) => string {
     return v => {
-        const val = typeToExpression(v, c, inits);
+        const val = getExpressionString(v, c, inits);
         const type = getResolvedType(v, c)[0];
         if (!check(type))
             return convert(val, type);
@@ -97,28 +97,47 @@ function GenerateTypeString(
         HAVE_STRUCT_VECTORS,
     } = prop;
 
+    let type_string = "any";
 
-    let type = real_types[0];
-
-    let type_string = "HCO";
-
-    if (TypesAre(real_types, TypeIsStruct)) {
-        if (real_types.length > 1)
-            type_string = "ASTNode";
-        else if (type) {
-            type_string = getTypeString(type, context);
-            if (HAS_NULL)
-                type_string = `Option<${type_string}>`;
-        }
-    } else if (REQUIRES_DYNAMIC) {
+    if (types.length == 0) {
         type_string = "HCO";
-    } else if (TypesAre(real_types, TypeIsVector)) {
-        type_string = getTypeString(real_types[0], context);
-    } else if (type)
-        type_string = getTypeString(type, context);
+    } else if (HAVE_STRUCT) {
+        /* const names = [
+            ...prop.struct_types.classes.map(s => "c_" + s),
+            ...prop.struct_types.structs
+        ];
+        type_string = `${names.join(" | ")}`; */
+        if (types.length > 1)
+            type_string = `ASTNode`;
+        else
+            type_string = `Box<${types[0].name}>`;
 
+    } else if (HAVE_STRUCT_VECTORS) {
+        /* const names = [
+            ...prop.struct_types.classes.map(s => "c_" + s),
+            ...prop.struct_types.structs
+        ];
+        type_string = `${names.join(" | ")}`;
+        if (names.length > 1)
+            type_string = `(${type_string})`; */
+        if (types[0].type == ASYTRIPType.VECTOR) {
+
+            const vec_types: ASYTRIPTypeObj[ASYTRIPType.STRUCT][] = <any[]>types[0].types;
+
+            if (vec_types.length > 1)
+                type_string = `Vec<ASTNode>`;
+            else
+                type_string = `Vec<Box<${vec_types[0].name}>>`;
+        }
+
+    } else if (REQUIRES_DYNAMIC) {
+        type_string = `(${types.filter(TypeIsNotNull).map(t => getTypeString(t, context)).join(" | ")})`;
+    } else if (TypesAre(types, TypeIsVector)) {
+        type_string = getTypeString(types[0], context);
+    } else if (types[0])
+        type_string = getTypeString(types[0], context);
     else
-        type_string = "HCNode";
+        type_string = "any";
 
     return type_string;
 }
@@ -126,7 +145,6 @@ function GenerateTypeString(
 export function createRustTypes(grammar: GrammarObject, context: ASYTRIPContext) {
 
     const structs = [...context.structs];
-    //Imports for you file
 
     const resolved_struct_types: Map<string, Map<string, ResolvedProp>> = new Map();
 
@@ -170,9 +188,10 @@ impl HCObjTrait for ASTNode {
     fn String(&self) -> String {
         use ASTNode::*;
         match self {
-            ROOT(bx) => bx.tok.String(),
-            MIN(bx) => bx.tok.String(),
-
+            ${structs.map(([name, value]) => {
+            return `
+            ${name}(bx) => bx.tok.String(),`;
+        }).join("\n")}
             _ => String::from(""),
         }
     }
@@ -259,6 +278,8 @@ where
             GenerateTypeString
         );
 
+        const struct_props = prop_vals.filter(p => p.HAVE_STRUCT || p.HAVE_STRUCT_VECTORS);
+
         let i = 0;
         const struct_strings = [`
 
@@ -268,12 +289,6 @@ pub struct ${struct_name} {
     ${prop_vals.map(({ name: n, type: v }) => `pub ${n}:${v}`).join(",\n")}
 }
 
-/* impl Drop for ${struct_name} {
-    fn drop(&mut self) {
-        println!("DROPPED ${struct_name}");
-    }
-}
- */
 impl ${struct_name} {
 fn new( tok: Token, ${prop_vals.map(({ name: n, type: v }) => `_${n}:${v}`).join(", ")}) -> Box<Self> {
     Box::new(${struct_name}{
@@ -284,55 +299,35 @@ fn new( tok: Token, ${prop_vals.map(({ name: n, type: v }) => `_${n}:${v}`).join
     })
 }
 
-${prop_vals.flatMap(({ name: prop_name, type: v, types, prop: p, HAS_NULL }, j) => {
+${struct_props.flatMap(({ name: prop_name, type: v, types, prop: p, HAS_NULL }, j) => {
             const HAVE_STRUCT = TypesInclude(types, TypeIsStruct);
             const HAVE_STRUCT_VECTORS = types.filter(TypeIsVector).some(v => TypesInclude(v.types, TypeIsStruct));
             const ifs = [];
 
             let out_type = "ASTNode";
 
-            if (HAVE_STRUCT || HAVE_STRUCT_VECTORS) {
-
-                if (HAVE_STRUCT) {
-                    const structs = types.filter(TypeIsStruct);
-                    if (structs.length > 1) {
-                        ifs.push([
-                            `
+            if (HAVE_STRUCT) {
+                const structs = types.filter(TypeIsStruct);
+                if (structs.length > 1) {
+                    ifs.push([
+                        `
     match &child {
         ASTNode::NONE => {
             let old = std::mem::replace(&mut self.${prop_name}, ASTNode::NONE);
             return Some(old);
         }
         ${structs.map(({ name }) => `
-        ASTNode::${name}(_child) => { 
+        ASTNode::${name}(_) => { 
             return Some(std::mem::replace(&mut self.${prop_name}, child));
         }`).join(",\n")}
         _ => None
         
     }`
-                        ].join("\n"));
-                    } else if (TypesRequiresDynamic(types)) {
-                        out_type = "HCO";
-                        ifs.push([
-                            `
-    match child {
-        ASTNode::NONE => {
-            let old = std::mem::replace(&mut self.${prop_name}, HCO::NONE);
-            return Some(old);
-        }
-
-        ASTNode::MIN(_) => {
-            let old = std::mem::replace(&mut self.${prop_name}, HCO::NODE(child));
-            return Some(old);
-        }
-        _ => None,
-    }
-        `
-                        ]);
-                    } else if (HAS_NULL) {
-                        const { name } = structs[0];
-                        ifs.push([
-                            `
+                    ].join("\n"));
+                } else if (HAS_NULL) {
+                    const { name } = structs[0];
+                    ifs.push([
+                        `
     match child {
         ASTNode::NONE => {
             if self.${prop_name}.is_some() {
@@ -357,32 +352,32 @@ ${prop_vals.flatMap(({ name: prop_name, type: v, types, prop: p, HAS_NULL }, j) 
         _ => {}
     }
     None`
-                        ].join("\n"));
-                    } else {
-                        const { name } = structs[0];
-                        ifs.push([
-                            `
+                    ].join("\n"));
+                } else {
+                    const { name } = structs[0];
+                    ifs.push([
+                        `
     if let ASTNode::${name}(child) = child {
         return Some(ASTNode::${name}(std::mem::replace(&mut self.${prop_name}, child)))
     }else {
         return None
     }
     `,
-                        ].join("\n"));
-                    }
-                } else if (TypesInclude(types, TypeIsVector)) {
+                    ].join("\n"));
+                }
+            } else {
 
-                    const vectors = types.filter(TypeIsVector);
-                    const HAS_STRUCTS = vectors.some(v => TypesInclude(v.types, TypeIsStruct));
+                const vectors = types.filter(TypeIsVector);
+                const HAS_STRUCTS = vectors.some(v => TypesInclude(v.types, TypeIsStruct));
 
-                    if (HAS_STRUCTS) {
+                if (HAS_STRUCTS) {
 
-                        const structs = vectors.flatMap(v => v.types).filter(TypeIsStruct).setFilter(JSONFilter);
+                    const structs = vectors.flatMap(v => v.types).filter(TypeIsStruct).setFilter(JSONFilter);
 
-                        ifs.push([
-                            `
+                    ifs.push([
+                        `
     match &child {
-        ${structs.map(({ name }, i) => `ASTNode::${name}(_${i})`).join("|")} => {
+        ${structs.map(({ name }, i) => `ASTNode::${name}(_)`).join("|")} => {
             if index as usize >= self.${prop_name}.len() {
                 self.${prop_name}.push(child);
                 None
@@ -402,16 +397,14 @@ ${prop_vals.flatMap(({ name: prop_name, type: v, types, prop: p, HAS_NULL }, j) 
         }
         _ => None
     }`].join("\n"));
-                    }
                 }
-                i++;
-                return `
+            }
+            i++;
+            return `
 fn  replace_${prop_name}(&mut self, child: ASTNode,${HAVE_STRUCT_VECTORS ? "index: i32," : ""}) -> Option<${out_type}> {
     ${ifs.join(" else ")}
 }`;
-            } else {
-                return "";
-            }
+
         }).join("\n")}
 }
 `,
@@ -437,10 +430,9 @@ fn Iterate(
         if !_yield(&mut NodeIteration::${struct_name}(mut_me), parent, ${context.type.get(struct_name)}, i, j) { return };
     }
         
-    ${prop_vals.flatMap(({ name: n, type: v, types, prop: p, HAS_NULL }, j) => {
+    ${struct_props.flatMap(({ name: n, type: v, types, prop: p, HAS_NULL, HAVE_STRUCT }, j) => {
 
             if (j == 0) i = 0;
-            const HAVE_STRUCT = TypesInclude(types, TypeIsStruct);
             const ifs = [];
             if (HAVE_STRUCT) {
                 const structs = types.filter(TypeIsStruct);
@@ -479,17 +471,14 @@ fn Iterate(
         }`,
                     ].join("\n"));
                 }
-            } else if (TypesInclude(types, TypeIsVector)) {
+            } else {
 
                 const vectors = types.filter(TypeIsVector);
-                const HAS_STRUCTS = vectors.some(v => TypesInclude(v.types, TypeIsStruct));
 
-                if (HAS_STRUCTS) {
+                const structs = vectors.flatMap(v => v.types).filter(TypeIsStruct).setFilter(JSONFilter);
 
-                    const structs = vectors.flatMap(v => v.types).filter(TypeIsStruct).setFilter(JSONFilter);
-
-                    ifs.push([
-                        `
+                ifs.push([
+                    `
         {
 
             let mut_me_a = unsafe { (*node.get()).as_mut() };
@@ -499,25 +488,25 @@ fn Iterate(
 
                 ${structs.length > 1 ? `match child {
                     ${structs.map(({ name }) => {
-                            return `
+                        return `
                         ASTNode::${name}(child) => { 
                             let mut_me = unsafe { (*node.get()).as_mut() };
-                            child.Iterate(_yield, &mut NodeIteration::${struct_name}(mut_me) ${i}, j as i32)   
+                            child.Iterate(_yield, &mut NodeIteration::${struct_name}(mut_me), ${i}, j as i32)   
                         }`;
-                        }).join(",\n")}
+                    }).join(",\n")}
                     _ => {}
                 }` :
-                            `
+                        `
                 if let ASTNode::${structs[0].name}(child) = child {
                     let mut_me = unsafe { (*node.get()).as_mut() };
                     child.Iterate( _yield, &mut NodeIteration::${struct_name}(mut_me), ${i}, j as i32);
                 }`}
             }
         }`
-                    ].join("\n"));
+                ].join("\n"));
 
-                }
             }
+
             i++;
             return ifs.join(" else ");
         }).filter(i => !!i).join("\n    ")}
@@ -527,9 +516,8 @@ fn Iterate(
 fn Replace(&mut self, child: ASTNode, i: i32, j: i32) -> ASTNode{
 
     match i{
-    ${prop_vals.flatMap(({ name: n, type: v, types, prop: p, HAS_NULL }, j) => {
+    ${struct_props.flatMap(({ name: n, type: v, types, prop: p, HAS_NULL, HAVE_STRUCT }, j) => {
             if (j == 0) i = 0;
-            const HAVE_STRUCT = TypesInclude(types, TypeIsStruct);
             const ifs = [];
             if (HAVE_STRUCT) {
                 const structs = types.filter(TypeIsStruct);
@@ -541,19 +529,18 @@ fn Replace(&mut self, child: ASTNode, i: i32, j: i32) -> ASTNode{
                 return ASTNode::NONE;
             }`].join("\n"));
 
-            } else if (TypesInclude(types, TypeIsVector)) {
+            } else {
                 const vectors = types.filter(TypeIsVector);
-                const HAS_STRUCTS = vectors.some(v => TypesInclude(v.types, TypeIsStruct));
-                if (HAS_STRUCTS) {
-                    ifs.push([
-                        `
+
+                ifs.push([
+                    `
         if let Some(old) = self.replace_${n}(child, j){ 
             return old;
         }else{
             return ASTNode::NONE;
         }`].join("\n"));
-                }
             }
+
 
             if (ifs.length > 0) {
                 return `${i++} => {
@@ -591,7 +578,8 @@ fn GetType(&self) -> u32 {
     const fns = new Map();
     const ids = [];
 
-    for (const [id, { args, struct: name }] of context.fn_map) {
+
+    for (const [id, { args, struct: name, source }] of context.fn_map) {
 
         const length = grammar.bodies[id].sym.length;
 
@@ -606,13 +594,16 @@ fn GetType(&self) -> u32 {
         let str = "", inits = new Inits();
 
         if (args.length == 0 && !name) {
-            str = `{  ${init_string} v${length - 1} }`;
-        } else if (!name) {
+            if (length == 1)
+                str = "{}";
+            else
+                str = `{  ${init_string}\n args.push(v${length - 1}); }`;
+        } else {
 
             const expression = args[0];
             const [type] = expression.types;
             const resolved_type = getResolvedType(type, context)[0];
-            let data = typeToExpression(type, context, inits);
+            let data = getExpressionString(type, context, inits);
             switch (resolved_type.type) {
                 case ASYTRIPType.F64:
                     str = `{${init_string} ${inits.render_rust(`return HCO::DOUBLE(${data})`)}}`;
@@ -623,11 +614,10 @@ fn GetType(&self) -> u32 {
                 case ASYTRIPType.VECTOR_PUSH:
                 case ASYTRIPType.VECTOR:
 
-                    let vector = typeToExpression(resolved_type, context, new Inits);
+                    let vector = getExpressionString(resolved_type, context, new Inits);
 
                     if (type.type == ASYTRIPType.ADD)
-                        vector = typeToExpression(type.left, context, new Inits);
-
+                        vector = getExpressionString(type.left, context, new Inits);
 
                     const types = getResolvedType(type, context)[0].types;
                     const unique_types = types.setFilter(t => t.type);
@@ -637,27 +627,27 @@ fn GetType(&self) -> u32 {
                             str = `{ 
                                 ${init_string}
                                 ${inits.render_rust(` `)}
-                                ${data} } `;
+                                args.push(${data}) } `;
                         } else {
 
                             //Dereference the vector
                             str = `{ 
                                 ${init_string}
                                 ${inits.render_rust(``)}
-                                HCO::NODES(${vector}) } `;
+                                args.push(HCO::NODES(${vector})); } `;
                         }
                     } else if (unique_types.length > 1) {
                         //Returns a HCO::OBJECTS<Vec<HCO>>
                         str = `{ 
                                 ${init_string}
                                 ${inits.render_rust(`
-                                return HCO::OBJECTS(${data}); `)}
+                                args.push(HCO::OBJECTS(${data})); `)}
                             }`;
                     } else {
                         str = `{
                             ${init_string} 
                                 ${inits.render_rust(`
-                                return ${data} `)}
+                                args.push(${data}); `)}
                             }`;
                     }
                     break;
@@ -665,125 +655,26 @@ fn GetType(&self) -> u32 {
                     str = `{ 
                         ${init_string}
                                 ${inits.render_rust(`
-                                return ${data} `)}
+                                args.push(${data}); `)}
                             }`;
             }
-        } else {
-            const struct = context.structs.get(name);
-            const resolved_props = resolved_struct_types.get(name);
-            //Create an initializer function for this object
-            const data = [...struct.properties]
-                .map(([name]) => {
-
-                    const {
-                        REQUIRES_DYNAMIC,
-                        HAS_NULL: TARGET_HAS_NULL,
-                        types: target_types,
-                    } = resolved_props.get(name);
-                    const source_arg = args.filter(a => a.name == name)[0];
-                    let target_structs = target_types.filter(TypeIsStruct);
-                    if (source_arg) {
-                        const type = source_arg.types[0];
-                        const arg_types = getResolvedType(type, context).filter(TypeIsNotNull);
-                        const val = typeToExpression(type, context, inits);
-                        if (TypesInclude(arg_types, TypeIsStruct)) {
-
-                            const arg = arg_types[0];
-
-                            let ref = inits.push_closure(`if let HCO::NODE($$) = ${val}`);
-
-                            if (target_structs.length == 1) {
-                                ref = inits.push_closure(`if let ASTNode::${arg.name}($$) = ${ref}`);
-                                if (TARGET_HAS_NULL)
-                                    return `Some(${ref})`;
-                            }
-
-                            return ref;
-
-
-                        } else if (REQUIRES_DYNAMIC) {
-
-                            if ("arg_pos" in type)
-                                return val;
-
-                            switch (type.type) {
-                                case ASYTRIPType.ADD:
-                                case ASYTRIPType.SUB:
-                                case ASYTRIPType.VECTOR_PUSH:
-
-                                    switch (arg_types[0].type) {
-                                        case ASYTRIPType.STRING:
-                                            return `HCO::STRING(${val})`;
-                                    }
-
-                                default: return val;
-                            }
-                        } else if (TypesAre(arg_types, TypeIsVector)) {
-
-                            if (val == "__NULL__") {
-                                return "Vec::new()";
-                            }
-                            const types = arg_types.flatMap(t => t.types);
-                            if (TypesAre(types, TypeIsStruct)) {
-                                return inits.push_closure(`if let HCO::NODES($$) = ${val}`);
-                            }
-
-                        } else if (arg_types.length == 1) {
-                            const arg = arg_types[0];
-                            switch (arg.type) {
-                                case ASYTRIPType.STRING:
-                                    return val;
-                            }
-                        }
-
-                        return val;
-
-                    } else {
-                        if (TypesInclude(target_types, TypeIsStruct)) {
-                            if (target_structs.length > 1) {
-                                //This will be an ASTNode enum type
-                                return "ASTNode::NONE";
-                            } else {
-                                return "None";
-                            }
-                        } else if (REQUIRES_DYNAMIC) {
-                            return "HCO::NONE";
-                        } else {
-                            const type = target_types[0];
-                            switch (type.type) {
-                                case ASYTRIPType.VECTOR:
-                                    return "Vec::new()";
-                                case ASYTRIPType.BOOL:
-                                    return false;
-                                case ASYTRIPType.F64:
-                                    return 0;
-                                case ASYTRIPType.STRING:
-                                    return "String::from('')";
-                            }
-                            return "None";
-                        }
-                    }
-                }
-                ).map(s => s + ",").join("\n        ");
-
-            str = `{${init_string} ${inits.render_rust(`return HCO::NODE(ASTNode::${name}(${name}::new(\n        tok,\n        ${data}\n    ) \n));`)}; 
-            ${inits.HAVE_CLOSURE ? "return HCO::NONE;" : ""}}`;
         }
 
+        const hash = str.replace(/[ \n]/g, "");
 
-
-        if (!fns.has(str)) {
+        if (!fns.has(hash)) {
             let i = fns.size;
-            fns.set(str, {
+            fns.set(hash, {
                 size: fns.size,
                 name: `_fn${i}`,
-                str: `fn _fn${i} (args:&mut Vec<HCO>, tok: Token) -> HCO ` + str
+                str: `fn _fn${i} (args:&mut Vec<HCO>, tok: Token)` + str
             });
         }
 
-        ids[id] = fns.get(str).name;
+        ids[id] = fns.get(hash).name;
 
     }
+
     const functions = `
 ${[...fns.values()].map(k => k.str).join("\n")}
 `;
@@ -809,16 +700,8 @@ addTypeMap(ASYTRIPType.PRODUCTION, (v, c) => {
 addTypeMap(ASYTRIPType.STRUCT, (v, c) => {
     return `Box<${v.name}>`;
 });
-addTypeMap(ASYTRIPType.STRING, (v, c) => {
-    if (v.val) {
-        return `"${v.val}"`;
-    } else {
-        return "String";
-    }
-});
-addTypeMap(ASYTRIPType.TOKEN, (v, c) => "Token");
-addTypeMap(ASYTRIPType.F64, (v, c) => "f64");
-addTypeMap(ASYTRIPType.BOOL, (v, c) => "bool");
+
+
 addTypeMap(ASYTRIPType.VECTOR, (v, c) => {
     const types = v.types.flatMap(v => getResolvedType(v, c));
 
@@ -848,22 +731,22 @@ addExpressMap(ASYTRIPType.EXPRESSIONS, (v, c, inits) => {
     const last = v.expressions.slice(-1)[0];
 
     for (const expression of v.expressions.slice(0, -1)) {
-        inits.push(typeToExpression(expression, c, inits), false);
+        inits.push(getExpressionString(expression, c, inits), false);
     }
 
-    return typeToExpression(last, c, inits);
+    return getExpressionString(last, c, inits);
 });
 
 addExpressMap(ASYTRIPType.STRUCT_ASSIGN, (v, c, inits) => {
-    const ref = typeToExpression(v.struct, c, inits);
+    const ref = getExpressionString(v.struct, c, inits);
     const prop = v.property;
-    const value = typeToExpression(v.value, c, inits);
+    const value = getExpressionString(v.value, c, inits);
     return `${ref}.${prop} = ${value}`;
 });
 addExpressMap(ASYTRIPType.EQUALS, (v, c, inits) => {
     const { left: l, right: r } = v;
-    const left = typeToExpression(l, c, inits);
-    const right = typeToExpression(r, c, inits);
+    const left = getExpressionString(l, c, inits);
+    const right = getExpressionString(r, c, inits);
     return `${left} == ${right}`;
 });
 
@@ -871,9 +754,9 @@ addExpressMap(ASYTRIPType.EQUALS, (v, c, inits) => {
 
 addExpressMap(ASYTRIPType.TERNARY, (v, c, inits) => {
     const { assertion: a, left: l, right: r } = v;
-    const boolean = typeToExpression(a, c, inits);
-    const left = typeToExpression(l, c, inits);
-    const right = typeToExpression(r, c, inits);
+    const boolean = getExpressionString(a, c, inits);
+    const left = getExpressionString(l, c, inits);
+    const right = getExpressionString(r, c, inits);
 
     if (boolean == "false")
         return right;
@@ -887,33 +770,10 @@ addExpressMap(ASYTRIPType.TERNARY, (v, c, inits) => {
     return ref;
 });
 
-addExpressMap(ASYTRIPType.NULL, (v, c, inits) => "__NULL__");
 
-addExpressMap(ASYTRIPType.BOOL, (v, c, inits) => (v.val + "") || "false");
+addExpressMap(ASYTRIPType.CONVERT_TYPE, (v, c, inits) => `(${getExpressionString(v.value, c, inits)}).Double()`);
 
-addExpressMap(ASYTRIPType.F64, (v, c, inits) => {
-    const val = parseFloat(v.val).toFixed(20).replace(/0/g, " ").trim().replace(/ /g, "0") + "0";
-    if (val[0] == ".")
-        return "0" + val;
-    return val;
-}
-);
-
-addExpressMap(ASYTRIPType.CONVERT_BOOL, (v, c, inits) => {
-    const val = typeToExpression(v.value, c, inits);
-
-    if (val == "__NULL__" || val == "false")
-        return "false";
-
-    if (val == "true")
-        return "true";
-
-    return `(${val}).Bool()`;
-});
-
-addExpressMap(ASYTRIPType.CONVERT_TYPE, (v, c, inits) => `(${typeToExpression(v.value, c, inits)}).Double()`);
-
-addExpressMap(ASYTRIPType.CONVERT_STRING, (v, c, inits) => `(${typeToExpression(v.value, c, inits)}).String()`);
+addExpressMap(ASYTRIPType.CONVERT_STRING, (v, c, inits) => `(${getExpressionString(v.value, c, inits)}).String()`);
 
 addExpressMap(ASYTRIPType.PRODUCTION, (v, c, inits) => {
 
@@ -923,22 +783,126 @@ addExpressMap(ASYTRIPType.PRODUCTION, (v, c, inits) => {
     return "null";
 });
 addExpressMap(ASYTRIPType.STRUCT, (v, c, inits) => {
-    return v.name;
-});
-addExpressMap(ASYTRIPType.STRING, (v, c, inits) => {
 
-    if (v.val) {
-        return `String::from("${v.val}")`;
-    } else {
-        return "String::from(\"\")";
-    }
+    const name = v.name;
+
+    if (v.args) {
+
+        const args = v.args;
+
+        const struct = c.structs.get(name);
+
+        const resolved_props = c.resolved_struct_types.get(name);
+        //Create an initializer function for this object
+        const data = [...struct.properties]
+            .map(([name]) => {
+
+                const {
+                    REQUIRES_DYNAMIC,
+                    HAS_NULL: TARGET_HAS_NULL,
+                    types: target_types,
+                } = resolved_props.get(name);
+                const source_arg = args.filter(a => a.name == name)[0];
+
+                let target_structs = target_types.filter(TypeIsStruct);
+
+                if (source_arg) {
+
+                    const type = source_arg.types[0];
+
+                    const arg_types = getResolvedType(type, c).filter(TypeIsNotNull);
+
+                    const val = getExpressionString(type, c, inits);
+
+                    if (TypesInclude(arg_types, TypeIsStruct)) {
+
+                        const arg = arg_types[0];
+
+                        let ref = inits.push_closure(`if let HCO::NODE($$) = ${val}`);
+
+                        if (target_structs.length == 1) {
+                            ref = inits.push_closure(`if let ASTNode::${arg.name}($$) = ${ref}`);
+                            if (TARGET_HAS_NULL)
+                                return `Some(${ref})`;
+                        }
+
+                        return ref;
+
+
+                    } else if (REQUIRES_DYNAMIC) {
+
+                        if ("arg_pos" in type)
+                            return val;
+
+                        switch (type.type) {
+                            case ASYTRIPType.ADD:
+                            case ASYTRIPType.SUB:
+                            case ASYTRIPType.VECTOR_PUSH:
+
+                                switch (arg_types[0].type) {
+                                    case ASYTRIPType.STRING:
+                                        return `HCO::STRING(${val})`;
+                                }
+
+                            default: return val;
+                        }
+                    } else if (TypesAre(arg_types, TypeIsVector)) {
+
+                        if (val == "__NULL__") {
+                            return "Vec::new()";
+                        }
+                        const types = arg_types.flatMap(t => t.types);
+                        if (TypesAre(types, TypeIsStruct)) {
+                            return inits.push_closure(`if let HCO::NODES($$) = ${val}`);
+                        }
+
+                    } else if (arg_types.length == 1) {
+                        const arg = arg_types[0];
+                        switch (arg.type) {
+                            case ASYTRIPType.STRING:
+                                return val;
+                        }
+                    }
+
+                    return val;
+
+                } else {
+                    if (TypesInclude(target_types, TypeIsStruct)) {
+                        if (target_structs.length > 1) {
+                            //This will be an ASTNode enum type
+                            return "ASTNode::NONE";
+                        } else {
+                            return "None";
+                        }
+                    } else if (REQUIRES_DYNAMIC) {
+                        return "HCO::NONE";
+                    } else {
+                        const type = target_types[0];
+                        switch (type.type) {
+                            case ASYTRIPType.VECTOR:
+                                return "Vec::new()";
+                            case ASYTRIPType.BOOL:
+                                return false;
+                            case ASYTRIPType.F64:
+                                return 0;
+                            case ASYTRIPType.STRING:
+                                return "String::from('')";
+                        }
+                        return "None";
+                    }
+                }
+            }
+            ).map(s => s + ",").join("\n        ");
+
+        const ref = inits.push(`HCO::NODE(ASTNode::${name}(${name}::new(\n        tok,\n        ${data}\n    ) \n));`);
+
+        return ref;
+    } else if (v.arg_pos) {
+        return "v" + v.arg_pos;
+    } else
+        return v.name;
 });
-addExpressMap(ASYTRIPType.TOKEN, (v, c, inits) => {
-    if (!isNaN(v.arg_pos)) {
-        return `v${v.arg_pos}`;
-    }
-    return "null";
-});
+
 addExpressMap(ASYTRIPType.OR, (v, c, inits) => {
 
     const { left: l, right: r } = v;
@@ -946,23 +910,23 @@ addExpressMap(ASYTRIPType.OR, (v, c, inits) => {
     const rv = getTypeString(r, c);
 
     if (lv == "null")
-        return typeToExpression(r, c, inits);
+        return getExpressionString(r, c, inits);
 
     if (rv == "null")
-        return typeToExpression(l, c, inits);
+        return getExpressionString(l, c, inits);
 
-    return `${typeToExpression(l, c, inits)} || ${typeToExpression(r, c, inits)}`;
+    return `${getExpressionString(l, c, inits)} || ${getExpressionString(r, c, inits)}`;
 });
 addExpressMap(ASYTRIPType.ADD, (v, c, inits) => {
     const { left: l, right: r } = v;
     const type_l = getResolvedType(l, c)[0];
     const type_r = getResolvedType(r, c)[0];
-    const left = typeToExpression(l, c, inits);
-    const right = typeToExpression(r, c, inits);
+    const left = getExpressionString(l, c, inits);
+    const right = getExpressionString(r, c, inits);
 
 
     if (TypeIsVector(type_l)) {
-        return typeToExpression(<ASYTRIPTypeObj[ASYTRIPType.VECTOR_PUSH]>{
+        return getExpressionString(<ASYTRIPTypeObj[ASYTRIPType.VECTOR_PUSH]>{
             type: ASYTRIPType.VECTOR_PUSH,
             args: [r],
             vector: l
@@ -970,7 +934,7 @@ addExpressMap(ASYTRIPType.ADD, (v, c, inits) => {
     }
 
     if (TypeIsVector(type_r)) {
-        return typeToExpression(<ASYTRIPTypeObj[ASYTRIPType.VECTOR_PUSH]>{
+        return getExpressionString(<ASYTRIPTypeObj[ASYTRIPType.VECTOR_PUSH]>{
             type: ASYTRIPType.VECTOR_PUSH,
             args: [l],
             vector: r
@@ -995,7 +959,7 @@ addExpressMap(ASYTRIPType.SUB, (v, c, inits) => {
 
 addExpressMap(ASYTRIPType.STRUCT_PROP_REF, (v, c, inits) => {
 
-    const ref = inits.push_ref(`(${typeToExpression(v.struct, c, inits)}).(${getTypeString(v.struct, c)})`);
+    const ref = inits.push_ref(`(${getExpressionString(v.struct, c, inits)}).(${getTypeString(v.struct, c)})`);
 
     const prop = v.property;
 
@@ -1004,7 +968,7 @@ addExpressMap(ASYTRIPType.STRUCT_PROP_REF, (v, c, inits) => {
 
 addExpressMap(ASYTRIPType.VECTOR_PUSH, (v, c, inits) => {
 
-    let vector = typeToExpression(v.vector, c, inits);
+    let vector = getExpressionString(v.vector, c, inits);
     let push_ref = vector;
     const vector_types = getResolvedType(v.vector, c).setFilter(t => {
         return t.type;
@@ -1021,7 +985,7 @@ addExpressMap(ASYTRIPType.VECTOR_PUSH, (v, c, inits) => {
 
         for (const arg of v.args) {
 
-            let val = typeToExpression(arg, c, inits);
+            let val = getExpressionString(arg, c, inits);
 
             if (!isNaN(arg.arg_pos)) {
                 val = inits.push_closure(`if let HCO::NODE($$) = ${val}`);
@@ -1043,7 +1007,7 @@ addExpressMap(ASYTRIPType.VECTOR_PUSH, (v, c, inits) => {
 
         for (const arg of v.args) {
 
-            let val = typeToExpression(arg, c, inits);
+            let val = getExpressionString(arg, c, inits);
 
             switch (arg.type) {
                 case ASYTRIPType.STRING:
@@ -1080,7 +1044,7 @@ addExpressMap(ASYTRIPType.VECTOR, (v, c, inits) => {
 
         for (const arg of v.args) {
 
-            let val = typeToExpression(arg, c, inits);
+            let val = getExpressionString(arg, c, inits);
 
             let node = inits.push_closure(`if let HCO::NODE($$) = ${val}`);
 
@@ -1107,7 +1071,7 @@ addExpressMap(ASYTRIPType.VECTOR, (v, c, inits) => {
 
             return inits.push(`${getTypeString(v, c)}{ ${vals.join(", ")}}`, true);
         } else {
-            return `[${v.args.map(t => typeToExpression(t, c, inits))
+            return `[${v.args.map(t => getExpressionString(t, c, inits))
                 .setFilter().join(",")}]`;
         }
     } else {
@@ -1118,7 +1082,7 @@ addExpressMap(ASYTRIPType.VECTOR, (v, c, inits) => {
 
         for (const arg of v.args) {
 
-            let val = typeToExpression(arg, c, inits);
+            let val = getExpressionString(arg, c, inits);
 
             switch (arg.type) {
                 case ASYTRIPType.STRING:
@@ -1136,4 +1100,115 @@ addExpressMap(ASYTRIPType.VECTOR, (v, c, inits) => {
     }
 });
 
+// STRING --------------------------------------------------
 
+addTypeMap(ASYTRIPType.STRING, (v, c) => {
+    return "String";
+});
+
+addExpressMap(ASYTRIPType.STRING, (v, c, inits) => {
+
+    if (v.val) {
+        return `String::from("${v.val}")`;
+    } else {
+        return "String::from(\"\")";
+    }
+});
+
+// TOKEN --------------------------------------------------
+
+addTypeMap(ASYTRIPType.TOKEN, (v, c) => "Token");
+
+addExpressMap(ASYTRIPType.TOKEN, (v, c, inits) => {
+    if (!isNaN(v.arg_pos)) {
+        return `v${v.arg_pos}`;
+    }
+    return "null";
+});
+
+
+// NUMERIC TYPES-------------------------------------------
+addTypeMap(ASYTRIPType.F64, (v, c) => "f64");
+addTypeMap(ASYTRIPType.F32, (v, c) => "f32");
+addTypeMap(ASYTRIPType.I64, (v, c) => "164");
+addTypeMap(ASYTRIPType.I32, (v, c) => "i32");
+addTypeMap(ASYTRIPType.I16, (v, c) => "i16");
+addTypeMap(ASYTRIPType.I8, (v, c) => "i8");
+
+addExpressMap(ASYTRIPType.F64, (v, c, inits) => {
+    const val = parseFloat(v.val).toFixed(20).replace(/0/g, " ").trim().replace(/ /g, "0") + "0";
+    if (val[0] == ".")
+        return "0" + val;
+    return val;
+});
+
+addExpressMap(ASYTRIPType.F32, (v, c, inits) => {
+    const val = parseFloat(v.val).toFixed(20).replace(/0/g, " ").trim().replace(/ /g, "0") + "0";
+    if (val[0] == ".")
+        return "0" + val;
+    return val;
+});
+
+addExpressMap(ASYTRIPType.I64, (v, c, inits) => {
+    const val = parseInt(v.val).toFixed(20).replace(/0/g, " ").trim().replace(/ /g, "0") + "0";
+    return val;
+});
+
+addExpressMap(ASYTRIPType.I32, (v, c, inits) => {
+    const val = parseInt(v.val).toFixed(20).replace(/0/g, " ").trim().replace(/ /g, "0") + "0";
+    return val;
+});
+addExpressMap(ASYTRIPType.I16, (v, c, inits) => {
+    const val = parseInt(v.val).toFixed(20).replace(/0/g, " ").trim().replace(/ /g, "0") + "0";
+    return val;
+});
+
+addExpressMap(ASYTRIPType.I8, (v, c, inits) => {
+    const val = parseInt(v.val).toFixed(20).replace(/0/g, " ").trim().replace(/ /g, "0") + "0";
+    return val;
+});
+
+// NULL ---------------------------------------------------
+
+addExpressMap(ASYTRIPType.NULL, (v, c, inits) => "__NULL__");
+
+// BOOL ---------------------------------------------------
+addTypeMap(ASYTRIPType.BOOL, (v, c) => "boolean");
+
+addExpressMap(ASYTRIPType.BOOL, (v, c, inits) => (v.val + "") || "false");
+
+// CONVERT_TYPE ------------------------------------------
+
+const A = ASYTRIPType;
+
+const conversion_table =
+{
+    [A.F64]:
+        (t, v) => ({ [A.F64]: /*       */ v, [A.F32]: `${v} as f64`, [A.I64]: `${v} as f64`, [A.I32]: `${v} as f64`, [A.I16]: `${v} as f64`, [A.I8]: `${v} as f64`, [A.BOOL]: `${v} as f64`, [A.NULL]: "0.0", [A.TOKEN]: `${v}.to_f64()`, [A.STRUCT]: `${v}.to_f64()`, [A.VECTOR]: `${v}.to_f64()` })[t],
+    [A.F32]:
+        (t, v) => ({ [A.F64]: `${v} as f32`, [A.F32]: /*       */ v, [A.I64]: `${v} as f32`, [A.I32]: `${v} as f32`, [A.I16]: `${v} as f32`, [A.I8]: `${v} as f32`, [A.BOOL]: `${v} as f32`, [A.NULL]: "0.0", [A.TOKEN]: `${v}.to_f32()`, [A.STRUCT]: `${v}.to_f32()`, [A.VECTOR]: `${v}.to_f32()` })[t],
+    [A.I64]:
+        (t, v) => ({ [A.F64]: `${v} as i64`, [A.F32]: `${v} as i64`, [A.I64]: /*       */ v, [A.I32]: `${v} as i64`, [A.I16]: `${v} as i64`, [A.I8]: `${v} as i64`, [A.BOOL]: `${v} as i64`, [A.NULL]: " 0 ", [A.TOKEN]: `${v}.to_i64()`, [A.STRUCT]: `${v}.to_i64()`, [A.VECTOR]: `${v}.to_i64()` })[t],
+    [A.I32]:
+        (t, v) => ({ [A.F64]: `${v} as i32`, [A.F32]: `${v} as i32`, [A.I64]: `${v} as i32`, [A.I32]: /*       */ v, [A.I16]: `${v} as i32`, [A.I8]: `${v} as i32`, [A.BOOL]: `${v} as i32`, [A.NULL]: " 0 ", [A.TOKEN]: `${v}.to_i32()`, [A.STRUCT]: `${v}.to_i32()`, [A.VECTOR]: `${v}.to_i32()` })[t],
+    [A.I16]:
+        (t, v) => ({ [A.F64]: `${v} as i16`, [A.F32]: `${v} as i16`, [A.I64]: `${v} as i16`, [A.I32]: `${v} as i16`, [A.I16]: /*       */ v, [A.I8]: `${v} as i16`, [A.BOOL]: `${v} as i16`, [A.NULL]: " 0 ", [A.TOKEN]: `${v}.to_i16()`, [A.STRUCT]: `${v}.to_i16()`, [A.VECTOR]: `${v}.to_i16()` })[t],
+    [A.I8]:
+        (t, v) => ({ [A.F64]: `${v} as i8 `, [A.F32]: `${v} as i8 `, [A.I64]: `${v} as i8 `, [A.I32]: `${v} as i8 `, [A.I16]: `${v} as i8 `, [A.I8]: /*       */ v, [A.BOOL]: `${v} as i8 `, [A.NULL]: " 0 ", [A.TOKEN]: `${v}.to_i8() `, [A.STRUCT]: `${v}.to_i8() `, [A.VECTOR]: `${v}.to_i8() `, })[t],
+    [A.BOOL]:
+        (t, v) => ({ [A.F64]: `${v} as bool`, [A.F32]: `${v} as bool`, [A.I64]: `${v} as bool`, [A.I32]: `${v} as bool`, [A.I16]: `${v} as bool`, [A.I8]: `${v} as bool`, [A.BOOL]: /**/ v, [A.NULL]: "false", [A.TOKEN]: `${v}.to_bool()`, [A.STRUCT]: `${v}.to_bool()`, [A.VECTOR]: `${v}.to_bool()` })[t],
+    [A.NULL]:
+        (t, v) => ({ [A.F64]: "null", [A.F32]: "null", [A.I64]: "null", [A.I32]: "null", [A.I16]: "null", [A.I8]: "null", [A.BOOL]: "null", [A.NULL]: /*       */ v, [A.TOKEN]: `null`, [A.STRUCT]: "null", [A.VECTOR]: "null" })[t],
+    [A.STRING]:
+        (t, v) => ({
+            [A.F64]: `${v}.String()`, [A.F32]: `${v}.String()`, [A.I64]: `${v}.String()`, [A.I32]: `${v}.String()`, [A.I16]: `${v}.String()`, [A.I8]: `${v}.String()`,
+            [A.BOOL]: `${v}.String()`, [A.NULL]: /*       */ "String::from(\"\")", [A.TOKEN]: `${v}.String()`, [A.STRUCT]: `${v}.String()`, [A.VECTOR]: `${v}.String()`
+        })[t],
+};
+
+addExpressMap(ASYTRIPType.CONVERT_TYPE, (v, c, inits) => {
+    const val = getExpressionString(v.value, c, inits);
+    const type = getResolvedType(v.value, c)[0];
+
+    return conversion_table[v.conversion_type.type](type.type, val);
+});
