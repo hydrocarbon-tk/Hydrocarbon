@@ -1,255 +1,482 @@
 package main
 
+
 import (
-	. "candlelib/hc_completer"
+    . "candlelib/hc_completer"
 )
 
-const (
-	ClassProduction uint32 = 2
-	ClassFunction   uint32 = 4
-)
 
-const (
-	Type_Productions uint32 = 8
-	Type_Production  uint32 = 18
-	Type_Function    uint32 = 28
-)
-
-type Productions struct {
-	_type       uint32
-	tok         Token
-	functions   []*Function
-	productions []*Production
+type QueryBody struct {
+    tok Token
+    container &ContainerClause
+filter interface{}
+sort interface{}
+}
+func newQueryBody( tok *Token, _container &ContainerClause, _filter interface{}, _sort interface{}) *QueryBody {
+    return &QueryBody{
+        tok: *tok,
+        container : _container,
+        filter : _filter,
+        sort : _sort,
+    }
 }
 
-func newProductions(tok *Token, _functions []*Function, _productions []*Production) *Productions {
-	return &Productions{
-		_type:       Type_Productions,
-		tok:         *tok,
-		functions:   _functions,
-		productions: _productions,
-	}
+
+
+
+
+
+func (node *QueryBody) Iterate( yield HCNodeIterator, parent HCNode, i int, j int,) {
+    
+    yield(node, parent, i, j);
+        
+    
+    
 }
 
-func (node *Productions) GetType() uint32 {
-	return node._type
+func (node *QueryBody) Replace(child HCNode, i int, j int){
+
+/*     match i{
+    0 => {
+                    
+        if let Some(old) = self.replace_container(child){ 
+                return old;
+            }else{
+                return ASTNode::NONE;
+            }
+                }
+        _ => {}
+    }; */
 }
 
-func (node *Productions) Iterate(yield HCNodeIterator, parent HCNode, i int, j int) {
 
-	yield(node, parent, i, j)
-	for i := 0; i < len(node.functions); i += 1 {
-		node.functions[i].Iterate(yield, node, 0, i)
-	}
-	for i := 0; i < len(node.productions); i += 1 {
-		node.productions[i].Iterate(yield, node, 1, i)
-	}
+func (node *QueryBody) String() string{
+    return node.tok.String()
 }
 
-func (node *Productions) Replace(child HCNode, i int, j int) {
+func (node *QueryBody) F64() float64{ return 0 }
+func (node *QueryBody) F32() float32{ return 0 }
+func (node *QueryBody) I64() int64{ return 0 }
+func (node *QueryBody) I32() int32{ return 0 }
+func (node *QueryBody) I16() int16{ return 0 }
+func (node *QueryBody) I8() int8{ return 0 }
 
-	switch i {
-	case 0:
-		for i := 0; i < len(node.functions); i += 1 {
-			//node.functions[i].Iterate(yield, child, 0, i);
-		}
+func (node *QueryBody) BOOL() bool{ return false }
 
-	case 1:
-		for i := 0; i < len(node.productions); i += 1 {
-			//node.productions[i].Iterate(yield, child, 1, i);
-		}
 
-	}
+func (node *QueryBody) Token() *Token{
+    return &node.tok
+}
+func (node *QueryBody) GetType() uint32{
+    return 2
+}
+func (node *QueryBody) Type() uint32{
+    return 2
 }
 
-func (node *Productions) String() string {
-	return node.tok.String()
+
+
+type ContainerClause struct {
+    tok Token
+    path [] &undefined
+container HCNode
+}
+func newContainerClause( tok *Token, _path [] &undefined, _container HCNode) *ContainerClause {
+    return &ContainerClause{
+        tok: *tok,
+        path : _path,
+        container : _container,
+    }
 }
 
-func (node *Productions) Double() float64 {
-	return 0
+
+
+
+
+
+
+func (node *ContainerClause) Iterate( yield HCNodeIterator, parent HCNode, i int, j int,) {
+    
+    yield(node, parent, i, j);
+        
+    
+    
 }
 
-func (node *Productions) Token() *Token {
-	return &node.tok
+func (node *ContainerClause) Replace(child HCNode, i int, j int){
+
+/*     match i{
+    0 => {
+                    
+        if let Some(old) = self.replace_path(child, j){ 
+            return old;
+        }else{
+            return ASTNode::NONE;
+        }
+                }
+    1 => {
+                    
+        if let Some(old) = self.replace_container(child){ 
+                return old;
+            }else{
+                return ASTNode::NONE;
+            }
+                }
+        _ => {}
+    }; */
 }
 
-func (node *Productions) Type() uint32 {
-	return node._type
+
+func (node *ContainerClause) String() string{
+    return node.tok.String()
 }
 
-type Production struct {
-	_type uint32
-	tok   Token
-	name  string
-	id    float64
+func (node *ContainerClause) F64() float64{ return 0 }
+func (node *ContainerClause) F32() float32{ return 0 }
+func (node *ContainerClause) I64() int64{ return 0 }
+func (node *ContainerClause) I32() int32{ return 0 }
+func (node *ContainerClause) I16() int16{ return 0 }
+func (node *ContainerClause) I8() int8{ return 0 }
+
+func (node *ContainerClause) BOOL() bool{ return false }
+
+
+func (node *ContainerClause) Token() *Token{
+    return &node.tok
+}
+func (node *ContainerClause) GetType() uint32{
+    return 4
+}
+func (node *ContainerClause) Type() uint32{
+    return 4
 }
 
-func newProduction(tok *Token, _name string, _id float64) *Production {
-	return &Production{
-		_type: Type_Production,
-		tok:   *tok,
-		name:  _name,
-		id:    _id,
-	}
+
+
+type IDENTIFIERS struct {
+    tok Token
+    ids Vec<Token>
+}
+func newIDENTIFIERS( tok *Token, _ids Vec<Token>) *IDENTIFIERS {
+    return &IDENTIFIERS{
+        tok: *tok,
+        ids : _ids,
+    }
 }
 
-func (node *Production) GetType() uint32 {
-	return node._type
+
+
+
+
+
+func (node *IDENTIFIERS) Iterate( yield HCNodeIterator, parent HCNode, i int, j int,) {
+    
+    yield(node, parent, i, j);
+        
+    
+    
 }
 
-func (node *Production) Iterate(yield HCNodeIterator, parent HCNode, i int, j int) {
+func (node *IDENTIFIERS) Replace(child HCNode, i int, j int){
 
-	yield(node, parent, i, j)
-
+/*     match i{
+    
+        _ => {}
+    }; */
 }
 
-func (node *Production) Replace(child HCNode, i int, j int) {
 
-	switch i {
-
-	}
+func (node *IDENTIFIERS) String() string{
+    return node.tok.String()
 }
 
-func (node *Production) String() string {
-	return node.tok.String()
+func (node *IDENTIFIERS) F64() float64{ return 0 }
+func (node *IDENTIFIERS) F32() float32{ return 0 }
+func (node *IDENTIFIERS) I64() int64{ return 0 }
+func (node *IDENTIFIERS) I32() int32{ return 0 }
+func (node *IDENTIFIERS) I16() int16{ return 0 }
+func (node *IDENTIFIERS) I8() int8{ return 0 }
+
+func (node *IDENTIFIERS) BOOL() bool{ return false }
+
+
+func (node *IDENTIFIERS) Token() *Token{
+    return &node.tok
+}
+func (node *IDENTIFIERS) GetType() uint32{
+    return 6
+}
+func (node *IDENTIFIERS) Type() uint32{
+    return 6
 }
 
-func (node *Production) Double() float64 {
-	return 0
+
+
+func _FN0_ (args []HCObj, tok *Token) []HCObj { 
+    i := len(args)-1
+v0 := args[i]
+args = append(args[:i], args[i+1:]...)
+i--
+    
+ref_0 := newQueryBody(
+        tok,
+        (v0).(*ContainerClause),
+        nil,
+        nil,
+    ) 
+
+
+    return append(args, ref_0)
+    
 }
+func _FN1_ (args []HCObj, tok *Token) []HCObj { 
+    i := len(args)-1
+v2 := args[i]
+args = append(args[:i], args[i+1:]...)
+i--
+v1 := args[i]
+args = append(args[:i], args[i+1:]...)
+i--
+v0 := args[i]
+args = append(args[:i], args[i+1:]...)
+i--
+    
+ref_0 := newContainerClause(
+        tok,
+        v1,
+        (v2).(*IDENTIFIERS),
+    ) 
 
-func (node *Production) Token() *Token {
-	return &node.tok
+
+    return append(args, ref_0)
+    
 }
+func _FN2_ (args []HCObj, tok *Token) []HCObj { 
+    i := len(args)-1
+v1 := args[i]
+args = append(args[:i], args[i+1:]...)
+i--
+v0 := args[i]
+args = append(args[:i], args[i+1:]...)
+i--
+    
+ref_0 := newContainerClause(
+        tok,
+        v0,
+        (v1).(*IDENTIFIERS),
+    ) 
 
-func (node *Production) Type() uint32 {
-	return node._type
+
+    return append(args, ref_0)
+    
 }
+func _FN3_ (args []HCObj, tok *Token) []HCObj { 
+    i := len(args)-1
+v1 := args[i]
+args = append(args[:i], args[i+1:]...)
+i--
+v0 := args[i]
+args = append(args[:i], args[i+1:]...)
+i--
+    
+ref_0 := newContainerClause(
+        tok,
+        nil,
+        (v1).(*IDENTIFIERS),
+    ) 
 
-type Function struct {
-	_type uint32
-	tok   Token
-	name  string
-	id    float64
+
+    return append(args, ref_0)
+    
 }
+func _FN4_ (args []HCObj, tok *Token) []HCObj { 
+    i := len(args)-1
+v1 := args[i]
+args = append(args[:i], args[i+1:]...)
+i--
+v0 := args[i]
+args = append(args[:i], args[i+1:]...)
+i--
+    
+ref_0 := newContainerClause(
+        tok,
+        v1,
+        nil,
+    ) 
 
-func newFunction(tok *Token, _name string, _id float64) *Function {
-	return &Function{
-		_type: Type_Function,
-		tok:   *tok,
-		name:  _name,
-		id:    _id,
-	}
+
+    return append(args, ref_0)
+    
 }
+func _FN5_ (args []HCObj, tok *Token) []HCObj { 
+    i := len(args)-1
+v0 := args[i]
+args = append(args[:i], args[i+1:]...)
+i--
+    
+ref_0 := newContainerClause(
+        tok,
+        nil,
+        (v0).(*IDENTIFIERS),
+    ) 
 
-func (node *Function) GetType() uint32 {
-	return node._type
+
+    return append(args, ref_0)
+    
 }
+func _FN6_ (args []HCObj, tok *Token) []HCObj { 
+    i := len(args)-1
+v0 := args[i]
+args = append(args[:i], args[i+1:]...)
+i--
+    
+ref_0 := newContainerClause(
+        tok,
+        v0,
+        nil,
+    ) 
 
-func (node *Function) Iterate(yield HCNodeIterator, parent HCNode, i int, j int) {
 
-	yield(node, parent, i, j)
-
+    return append(args, ref_0)
+    
 }
+func _FN7_ (args []HCObj, tok *Token) []HCObj { 
+    i := len(args)-1
+v0 := args[i]
+args = append(args[:i], args[i+1:]...)
+i--
+    
+ref_0 := newIDENTIFIERS(
+        tok,
+        v0,
+    ) 
 
-func (node *Function) Replace(child HCNode, i int, j int) {
 
-	switch i {
+    return append(args, ref_0)
+    
+}
+func _FN8_ (args []HCObj, tok *Token) []HCObj { 
+    i := len(args)-1
+v1 := args[i]
+args = append(args[:i], args[i+1:]...)
+i--
+v0 := args[i]
+args = append(args[:i], args[i+1:]...)
+i--
+    
 
-	}
+    return append(args, v0)
+    
 }
+func _FN9_ (args []HCObj, tok *Token) []HCObj { 
+    i := len(args)-1
+v2 := args[i]
+args = append(args[:i], args[i+1:]...)
+i--
+v1 := args[i]
+args = append(args[:i], args[i+1:]...)
+i--
+v0 := args[i]
+args = append(args[:i], args[i+1:]...)
+i--
+    
 
-func (node *Function) String() string {
-	return node.tok.String()
+    val := (v1).String()
+    return append(args, HCGObjString{Val:val})
+    
 }
+func _FN10_ (args []HCObj, tok *Token) []HCObj { 
+    i := len(args)-1
+v0 := args[i]
+args = append(args[:i], args[i+1:]...)
+i--
+    
+ref_0 := Vec<ASTNode>{ (v0).(Box<IDENTIFIERS>)}
 
-func (node *Function) Double() float64 {
-	return 0
+    return append(args, ref_0)
+    
 }
+func _FN11_ (args []HCObj, tok *Token) []HCObj { 
+    i := len(args)-1
+v1 := args[i]
+args = append(args[:i], args[i+1:]...)
+i--
+v0 := args[i]
+args = append(args[:i], args[i+1:]...)
+i--
+    
+ref_0 := v0.(*[]interface{})
+ref_1 := v1
+ref_0.push(ref_1);
 
-func (node *Function) Token() *Token {
-	return &node.tok
+    return append(args, v0)
+    
 }
+func _FN12_ (args []HCObj, tok *Token) []HCObj { 
+    i := len(args)-1
+v0 := args[i]
+args = append(args[:i], args[i+1:]...)
+i--
+    
+ref_0 := &HCGObjStringArray{Val: []string { &(v0).String()}}
 
-func (node *Function) Type() uint32 {
-	return node._type
+    return append(args, ref_0)
+    
 }
+func _FN13_ (args []HCObj, tok *Token) []HCObj { 
+    i := len(args)-1
+v1 := args[i]
+args = append(args[:i], args[i+1:]...)
+i--
+v0 := args[i]
+args = append(args[:i], args[i+1:]...)
+i--
+    
+v0.(*HCGObjStringArray).Append(&(v1).String())
 
-func _FN0_(args []HCObj, tok *Token) HCObj {
-	ref_0 := []*Function{}
-	ref_1 := []*Production{(args[0]).(*Production)}
-	return newProductions(
-		tok,
-		ref_0,
-		ref_1,
-	)
+    return append(args, v0)
+    
 }
-func _FN1_(args []HCObj, tok *Token) HCObj {
-	ref_0 := []*Function{(args[0]).(*Function)}
-	ref_1 := []*Production{}
-	return newProductions(
-		tok,
-		ref_0,
-		ref_1,
-	)
-}
-func _FN2_(args []HCObj, tok *Token) HCObj {
+func _FN14_ (args []HCObj, tok *Token) []HCObj { return args }
+func _FN15_ (args []HCObj, tok *Token) []HCObj {  i := len(args)-1
+v1 := args[i]
+args = append(args[:i], args[i+1:]...)
+i--
+v0 := args[i]
+args = append(args[:i], args[i+1:]...)
+i--
+ return append(args, v1); }
 
-	return newProduction(
-		tok,
-		(args[1]).String(),
-		1,
-	)
-}
-func _FN3_(args []HCObj, tok *Token) HCObj {
 
-	return newFunction(
-		tok,
-		(args[1]).String(),
-		1,
-	)
-}
-func _FN4_(args []HCObj, tok *Token) HCObj {
-	r_0 := (args[0]).(*Productions)
-	r_0.productions = append(r_0.productions, (args[1]).(*Production))
 
-	return args[0]
-}
-func _FN5_(args []HCObj, tok *Token) HCObj {
-	r_0 := (args[0]).(*Productions)
-	r_0.functions = append(r_0.functions, (args[1]).(*Function))
-
-	return args[0]
-}
-func _FN6_(args []HCObj, tok *Token) HCObj {
-	ref_0 := &HCGObjStringArray{Val: []string{(args[0]).String()}}
-	return ref_0
-}
-func _FN7_(args []HCObj, tok *Token) HCObj {
-	args[0].(*HCGObjStringArray).Append((args[1]).String())
-	return args[0]
-}
-func _FN8_(args []HCObj, tok *Token) HCObj {
-
-	return args[len(args)-1]
-}
-
-var FunctionMaps = []ReduceFunction{
-	_FN0_,
-	_FN1_,
-	_FN4_,
-	_FN5_,
-	_FN2_,
-	_FN3_,
-	_FN8_,
-	_FN8_,
-	_FN6_,
-	_FN7_,
-	_FN6_,
-	_FN6_,
-	_FN6_,
-	_FN7_,
-	_FN7_,
-	_FN7_,
+var FunctionMaps = []ReduceFunction  {
+    _FN14_,
+    _FN0_,
+    _FN1_,
+    _FN2_,
+    _FN3_,
+    _FN4_,
+    _FN5_,
+    _FN6_,
+    _FN8_,
+    _FN7_,
+    _FN14_,
+    _FN14_,
+    _FN9_,
+    _FN9_,
+    _FN15_,
+    _FN14_,
+    _FN14_,
+    _FN14_,
+    _FN14_,
+    _FN14_,
+    _FN15_,
+    _FN14_,
+    _FN14_,
+    _FN10_,
+    _FN11_,
+    _FN12_,
+    _FN13_,
+    _FN12_,
+    _FN13_,
 }
