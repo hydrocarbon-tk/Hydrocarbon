@@ -11,10 +11,27 @@ normal parse states save for a few notable differences:
 - The completion of a scanner parser yields `token_type` and `token_length` values which can then be used by parse states to branch to 
 appropriate states that ultimately consume the token span.
 
-Recognizer 
-- Streaming Mode
-- Lazy Mode
-- Custom Lexer
+- `FAIL` flag
+- State Decoder
+- Instruction Dispatch
+    
+    see [bytecode]("./architecture.bytecode.index.md)
+
+Byte code buffer:
+
+Every bytecode buffer contains the following values in word positions
+`0x0`-`0x5`. This means that first state of a compiled grammar is found at 
+`0x6` 
+
+[source file](../source/typescript/build/bytecode.ts)
+
+- `0x0` Default Fail Instruction
+- `0x1` Default Pass Instruction
+- `0x2` Default Fall Through Instruction
+- `0x3` NOOP
+- `0x4` Default Pass State Pointer
+- `0x5` NOOP
+
 
 ```rust
 use candlelib_hydrocarbon::completer::complete;
