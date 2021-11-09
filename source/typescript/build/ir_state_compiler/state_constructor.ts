@@ -327,9 +327,9 @@ function processTransitionNode(
     const
 
         state_string = [`state [ ${default_hash} ] `
-            + `\n/* ${state.depth} ${state.type & TransitionStateType.COMPLETED ? "COMPLETED" : ""}\n   ${/**/
-            state.items.map(i => i.renderUnformattedWithProduction(grammar).replace(/\*/g, "ast")).join("\n  ")
-            }\n*/`
+            + `\n/*\n    ${/**/
+            state.items.map(i => i.renderUnformattedWithProduction(grammar).replace(/\*/g, "ast")).join("\n    ")
+            }\n*/\n`
         ],
 
         global_symbols = [],

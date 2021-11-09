@@ -13,9 +13,8 @@ import { createTsTypes } from '../asytrip/asytrip_to_ts.js';
 import { render_grammar } from '../grammar/passes/common.js';
 import { ASYTRIPContext } from '../types/asytrip.js';
 import { BuildPack } from '../types/build_pack';
-import { GrammarObject } from '../types/grammar_nodes.js';
-import { StateMap } from '../types/ir_state_data.js';
 import { formatArray } from '../utilities/format_array.js';
+import { getEntryPointers } from './getEntryPointers.js';
 
 const render_logger = Logger.get("MAIN").createLogger("RENDER");
 
@@ -72,7 +71,7 @@ pub const EntryPoint_${p.name[0].toUpperCase() + p.name.slice(1)}:u32=${p.pointe
         }).join("\n")}
 
        
-pub static Bytecode: [u32; ${state_buffer.length}] = [
+pub static BYTECODE: [u32; ${state_buffer.length}] = [
     ${formatArray(state_buffer, array_row_size)}
 ];`)
         ;
@@ -86,15 +85,6 @@ ${createRustTypes(grammar, asytrip_context)}`);
     const cp = await import("child_process");
 
     cp.spawn("rustfmt", [ast_path, data_path]);
-}
-
-function getEntryPointers(grammar: GrammarObject, states_map: StateMap) {
-    return grammar.productions.filter(p => p.IS_ENTRY)
-        .map(p => ({
-            production: p,
-            name: p.entry_name ?? p.name[0].toUpperCase() + p.name.slice(1),
-            pointer: states_map.get(p.entry_name + "_open")?.pointer ?? 0
-        }));
 }
 
 export async function renderToGo(
@@ -150,6 +140,4 @@ export const Bytecode = new Uint32Array([
 ])`);
 
     await writeFile(URI.resolveRelative("./ast.ts", path) + "", createTsTypes(grammar, asytrip_context));
-
-    console.log({ entry_pointers });
 }
