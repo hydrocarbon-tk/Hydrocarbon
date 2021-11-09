@@ -16,12 +16,18 @@ pub fn complete<'b, I: ParseIterator<T>, T: 'b + ByteReader, Node: Debug>(
     let mut token_offset: usize = 0;
     let mut state: ParseAction = ParseAction::NONE {};
 
-    let mut action_block = |action| match action {
-        crate::ParseAction::TOKEN { token } => {
+    let mut action_block = |action, reader: &T| match action {
+        crate::ParseAction::TOKEN { token: _ } => {
             state = action;
         }
         crate::ParseAction::NONE {} => {}
-        crate::ParseAction::ERROR { production } => {
+        crate::ParseAction::ERROR {
+            production: _,
+            reason,
+        } => {
+            if let Some(res) = reason {
+                println!("{:?}", res);
+            }
             state = action;
         }
         crate::ParseAction::FORK {} => {
@@ -33,7 +39,7 @@ pub fn complete<'b, I: ParseIterator<T>, T: 'b + ByteReader, Node: Debug>(
         crate::ParseAction::REDUCE {
             body,
             length,
-            production,
+            production: _,
         } => {
             let len = length as usize;
 
@@ -43,6 +49,8 @@ pub fn complete<'b, I: ParseIterator<T>, T: 'b + ByteReader, Node: Debug>(
 
             let token = Token::token_from_range(pos_a, pos_b);
 
+            
+
             let root = tokens.len() - len;
 
             tokens[root] = token;
@@ -51,18 +59,18 @@ pub fn complete<'b, I: ParseIterator<T>, T: 'b + ByteReader, Node: Debug>(
                 tokens.set_len(root + 1);
             }
 
-            let node = fns[body as usize](&mut nodes, token);
-
-            nodes.push(node);
+            fns[body as usize](&mut nodes, token);
 
             stack_pointer = stack_pointer - len + 1;
         }
         crate::ParseAction::SHIFT {
             length,
             line,
-            token_type,
+            token_type: _,
         } => {
-            let tok = Token::new(length, token_offset as u32, line);
+            let mut tok = Token::new(length, token_offset as u32, line);
+
+            tok.set_source(reader);
 
             let node = HCObj::TOKEN(tok);
 
@@ -76,8 +84,8 @@ pub fn complete<'b, I: ParseIterator<T>, T: 'b + ByteReader, Node: Debug>(
         }
         crate::ParseAction::SKIP {
             length,
-            line,
-            token_type,
+            line: _,
+            token_type: _,
         } => {
             token_offset += length as usize;
         }

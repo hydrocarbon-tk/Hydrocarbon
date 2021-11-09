@@ -1,15 +1,15 @@
-const jump8bit_table_byte_size: usize = 382976;
+const JMPTBLE_BYTE_SIZE: usize = 382976;
 
-pub type CharLUType = [u8; jump8bit_table_byte_size];
+pub type CharLUType = [u8; JMPTBLE_BYTE_SIZE];
 
 const IDENTIFIER: u8 = 3;
-const UNICODE_IDENTIFIER: u8 = 4;
-const NUMBER: u8 = 5;
-const NEW_LINE: u8 = 6;
-const SPACE: u8 = 7;
-const IDENTIFIERS: u8 = 8;
-const NUMBERS: u8 = 9;
-const SYMBOL: u8 = 9;
+const NUMBER: u8 = 4;
+const NEW_LINE: u8 = 5;
+const SPACE: u8 = 6;
+const _IDENTIFIERS: u8 = 7;
+const _NUMBERS: u8 = 8;
+const _SYMBOL: u8 = 9;
+const _UNICODE_IDENTIFIER: u8 = 10;
 const UNICODE_ID_START: u8 = 32;
 const UNICODE_ID_CONT: u8 = 64;
 
@@ -34,7 +34,7 @@ const fn aii(mut table: CharLUType, value: u8, indices: &[usize], indice_len: us
 const fn air(mut table: CharLUType, value: u8, indices: &[usize], indice_len: usize) -> CharLUType {
     let mut i: usize = 0;
 
-    let mut a: [usize; jump8bit_table_byte_size / 8] = [0; jump8bit_table_byte_size / 8];
+    let mut a: [usize; JMPTBLE_BYTE_SIZE / 8] = [0; JMPTBLE_BYTE_SIZE / 8];
 
     while i < indice_len {
         let r1 = indices[i];
@@ -58,10 +58,10 @@ const fn air(mut table: CharLUType, value: u8, indices: &[usize], indice_len: us
     table
 }
 
-const fn charLUTableInit() -> CharLUType {
+const fn char_lu_table_init() -> CharLUType {
     /* Unicode character class definitions */
 
-    const uni_id_start_discrete: [usize; 147] = [
+    const UNI_ID_START_INDICES: [usize; 147] = [
         170, 181, 186, 748, 750, 895, 902, 908, 1369, 1749, 1791, 1808, 1969, 2042, 2074, 2084,
         2088, 2365, 2384, 2482, 2493, 2510, 2556, 2654, 2749, 2768, 2809, 2877, 2929, 2947, 2972,
         3024, 3133, 3200, 3261, 3294, 3389, 3406, 3517, 3716, 3749, 3773, 3782, 3840, 4159, 4193,
@@ -75,7 +75,7 @@ const fn charLUTableInit() -> CharLUType {
         126590, 131072, 173782, 173824, 177972, 177984, 178205, 178208, 183969, 183984, 191456,
     ];
 
-    const uni_id_start_ranges: [usize; 946] = [
+    const UNI_ID_START_RANGES: [usize; 946] = [
         65, 90, 97, 122, 192, 214, 216, 246, 248, 705, 710, 721, 736, 740, 880, 884, 886, 887, 890,
         893, 904, 906, 910, 929, 931, 1013, 1015, 1153, 1162, 1327, 1329, 1366, 1376, 1416, 1488,
         1514, 1519, 1522, 1568, 1610, 1646, 1647, 1649, 1747, 1765, 1766, 1774, 1775, 1786, 1788,
@@ -148,7 +148,7 @@ const fn charLUTableInit() -> CharLUType {
         126588, 126592, 126601, 126603, 126619, 126625, 126627, 126629, 126633, 126635, 126651,
     ];
 
-    const uni_id_cont_discrete: [usize; 57] = [
+    const UNI_ID_CONT_DISCRETE: [usize; 57] = [
         95, 1471, 1479, 1648, 1809, 2045, 2492, 2519, 2558, 2620, 2641, 2677, 2748, 2876, 2946,
         3031, 3260, 3415, 3530, 3542, 3633, 3761, 3893, 3895, 3897, 4038, 6109, 6313, 7405, 7412,
         8276, 8417, 11647, 42607, 43010, 43014, 43019, 43493, 43587, 43696, 43713, 64286, 65343,
@@ -156,7 +156,7 @@ const fn charLUTableInit() -> CharLUType {
         121476,
     ];
 
-    const uni_id_cont_ranges: [usize; 564] = [
+    const UNI_ID_CONT_RANGES: [usize; 564] = [
         48, 57, 768, 879, 1155, 1159, 1425, 1469, 1473, 1474, 1476, 1477, 1552, 1562, 1611, 1641,
         1750, 1756, 1759, 1764, 1767, 1768, 1770, 1773, 1776, 1785, 1840, 1866, 1958, 1968, 1984,
         1993, 2027, 2035, 2070, 2073, 2075, 2083, 2085, 2087, 2089, 2093, 2137, 2139, 2259, 2273,
@@ -201,20 +201,20 @@ const fn charLUTableInit() -> CharLUType {
         125273,
     ];
 
-    let mut jump_table: CharLUType = [2; jump8bit_table_byte_size];
+    let mut jump_table: CharLUType = [2; JMPTBLE_BYTE_SIZE];
 
     jump_table = air(
         jump_table,
         IDENTIFIER,
-        &uni_id_start_ranges,
-        uni_id_start_ranges.len(),
+        &UNI_ID_START_RANGES,
+        UNI_ID_START_RANGES.len(),
     );
 
     jump_table = aii(
         jump_table,
         IDENTIFIER,
-        &uni_id_start_discrete,
-        uni_id_start_discrete.len(),
+        &UNI_ID_START_INDICES,
+        UNI_ID_START_INDICES.len(),
     );
 
     // 4. SPACE
@@ -244,31 +244,31 @@ const fn charLUTableInit() -> CharLUType {
     jump_table = air(
         jump_table,
         UNICODE_ID_START,
-        &uni_id_start_ranges,
-        uni_id_start_ranges.len(),
+        &UNI_ID_START_RANGES,
+        UNI_ID_START_RANGES.len(),
     );
     jump_table = aii(
         jump_table,
         UNICODE_ID_START,
-        &uni_id_start_discrete,
-        uni_id_start_discrete.len(),
+        &UNI_ID_START_INDICES,
+        UNI_ID_START_INDICES.len(),
     );
     jump_table = air(
         jump_table,
         UNICODE_ID_CONT,
-        &uni_id_cont_ranges,
-        uni_id_cont_ranges.len(),
+        &UNI_ID_CONT_RANGES,
+        UNI_ID_CONT_RANGES.len(),
     );
     jump_table = aii(
         jump_table,
         UNICODE_ID_CONT,
-        &uni_id_cont_discrete,
-        uni_id_cont_discrete.len(),
+        &UNI_ID_CONT_DISCRETE,
+        UNI_ID_CONT_DISCRETE.len(),
     );
 
     /* let mut i = 0;
 
-    /* while i < jump8bit_table_byte_size {
+    /* while i < JMPTBLE_BYTE_SIZE {
         if jump_table[i] == 0 {
             jump_table[i] = SYMBOL;
         }
@@ -278,7 +278,7 @@ const fn charLUTableInit() -> CharLUType {
     jump_table
 }
 
-pub static CHAR_LU_TABLE: CharLUType = charLUTableInit();
+pub static CHAR_LU_TABLE: CharLUType = char_lu_table_init();
 
 #[cfg(test)]
 mod tests {

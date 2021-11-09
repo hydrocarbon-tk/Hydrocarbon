@@ -1,9 +1,29 @@
-#[derive(Debug, Clone, Copy)]
+use std::fmt;
+
+use crate::ByteReader;
+
+#[derive(Clone, Copy)]
 pub struct Token {
     length: u32,
     offset: u32,
     _line: u32,
     input: Option<&'static [u8]>,
+}
+
+impl fmt::Debug for Token {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut bug = f.debug_struct("Token");
+
+        bug.field("length", &self.length)
+            .field("offset", &self.offset)
+            .field("line", &self._line);
+
+        if let Some(_) = self.input {
+            bug.field("value", &self.String());
+        }
+
+        bug.finish()
+    }
 }
 
 impl Token {
@@ -18,14 +38,16 @@ impl Token {
 
     pub fn set_path() {}
 
-    pub fn setSource() {}
+    pub fn set_source<Reader: ByteReader>(&mut self, rdr: &Reader) {
+        self.input = rdr.getSource();
+    }
 
     pub fn token_from_range(start: Token, end: Token) -> Token {
         return Token {
             length: end.offset - start.offset + end.length,
             offset: start.offset,
             _line: start._line,
-            input: None,
+            input: start.input,
         };
     }
 
@@ -47,10 +69,7 @@ impl Token {
         if end < 0 {
             end = max(self.offset as i32, (self.offset + self.length) as i32 + end)
         } else {
-            end = min(
-                self.offset as i32 + start,
-                (self.offset + self.length) as i32,
-            )
+            end = min(self.offset as i32 + end, (self.offset + self.length) as i32)
         }
 
         if end < start {
@@ -100,8 +119,8 @@ impl Token {
     }
 
     pub fn String<'a>(&self) -> String {
-        if let Some(input) = self.input {
-            let result = self.slice(self.offset as i32, (self.offset + self.length) as i32);
+        if let Some(_) = self.input {
+            let result = self.slice(0 as i32, (self.length) as i32);
 
             return result;
         }

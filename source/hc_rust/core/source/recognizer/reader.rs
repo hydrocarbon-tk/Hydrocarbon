@@ -1,6 +1,6 @@
 use crate::{
-    getTypeAt, get_token_length_from_code_point, get_utf8_byte_length_from_code_point,
-    get_utf8_code_point_from,
+    get_token_class_from_codepoint, get_token_length_from_code_point,
+    get_utf8_byte_length_from_code_point, get_utf8_code_point_from,
 };
 
 pub trait ByteReader {
@@ -8,9 +8,9 @@ pub trait ByteReader {
      * Returns true if the cursor has reached the end of
      * the input stream.
      */
-    fn END(&self) -> bool;
+    fn at_end(&self) -> bool;
 
-    fn offsetAtEND(&self, offset: u32) -> bool {
+    fn offset_at_end(&self, offset: u32) -> bool {
         self.length() <= offset
     }
 
@@ -47,7 +47,7 @@ pub trait ByteReader {
      * , indicating a parse failure as the input stream can
      * no longer satisfy the requirements of the parser.
      */
-    fn setTo(&mut self, offset: u32) -> bool;
+    fn set_cursor_to(&mut self, offset: u32) -> bool;
 
     /**
      * Return a new instance of byte reader with the same
@@ -61,7 +61,7 @@ pub trait ByteReader {
      * Returns UTF8 codepoint information at the current cursor position.
      */
     fn codepoint(&self) -> u32 {
-        return get_utf8_code_point_from(self.codepoint());
+        return 0;
     }
 
     fn codepoint_byte_length(&self) -> u32 {
@@ -73,10 +73,12 @@ pub trait ByteReader {
     }
 
     fn class(&self) -> u32 {
-        return getTypeAt(self.codepoint());
+        return get_token_class_from_codepoint(self.codepoint());
     }
 
     fn cursor(&self) -> u32;
+
+    fn getSource(&self) -> Option<&'static [u8]>;
 }
 #[derive(Debug, Clone)]
 pub struct UTF8StringReader {
@@ -102,11 +104,15 @@ impl UTF8StringReader {
 }
 
 impl ByteReader for UTF8StringReader {
-    fn END(&self) -> bool {
+    fn getSource(&self) -> Option<&'static [u8]> {
+        return Some(self.string);
+    }
+
+    fn at_end(&self) -> bool {
         self.cursor >= self.length
     }
 
-    fn setTo(&mut self, offset: u32) -> bool {
+    fn set_cursor_to(&mut self, offset: u32) -> bool {
         if self.cursor != offset as usize {
             self.cursor = offset as usize;
             self.next(0);
@@ -146,7 +152,7 @@ impl ByteReader for UTF8StringReader {
 
         self.codepoint = 0;
 
-        if self.END() {
+        if self.at_end() {
             return;
         }
 

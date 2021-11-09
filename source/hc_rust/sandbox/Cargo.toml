@@ -10,6 +10,7 @@ path = "source/main.rs"
 [dependencies]
 candlelib_hydrocarbon = {path="../core", version="0.1.0"}
 coz = "0.1"
+bumpalo = "3.8.0"
 
 [profile.dev]
 debug = 2

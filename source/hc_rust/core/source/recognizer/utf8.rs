@@ -1,21 +1,21 @@
 use super::lookup_table::CHAR_LU_TABLE;
 
-pub fn get_utf8_byte_length_from_code_point(code_point: u32) -> u32 {
-    if (code_point) == 0 {
+pub fn get_utf8_byte_length_from_code_point(codepoint: u32) -> u32 {
+    if (codepoint) == 0 {
         return 1;
-    } else if (code_point & 0x7F) == code_point {
+    } else if (codepoint & 0x7F) == codepoint {
         return 1;
-    } else if (code_point & 0x7FF) == code_point {
+    } else if (codepoint & 0x7FF) == codepoint {
         return 2;
-    } else if (code_point & 0xFFFF) == code_point {
+    } else if (codepoint & 0xFFFF) == codepoint {
         return 3;
     } else {
         return 4;
     }
 }
 
-pub fn get_token_length_from_code_point(code_point: u32) -> u32 {
-    if code_point > 0xFFFF {
+pub fn get_token_length_from_code_point(codepoint: u32) -> u32 {
+    if codepoint > 0xFFFF {
         return 2;
     }
     return 1;
@@ -42,6 +42,6 @@ pub fn get_utf8_code_point_from(word: u32) -> u32 {
     }
 }
 
-pub fn getTypeAt(code_point: u32) -> u32 {
-    (CHAR_LU_TABLE[code_point as usize] & 0x1F) as u32
+pub fn get_token_class_from_codepoint(codepoint: u32) -> u32 {
+    (CHAR_LU_TABLE[codepoint as usize] & 0x1F) as u32
 }
