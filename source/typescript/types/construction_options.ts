@@ -1,8 +1,8 @@
-import { GrammarProduction, TokenSymbol } from '../../types/index.js';
+import { GrammarProduction, TokenSymbol } from './index.js';
 
 export interface ConstructionOptions {
     production: GrammarProduction;
-    scope: "REDUCE" | "GOTO";
+    scope: "DESCENT" | "GOTO";
     IS_LAZY: boolean;
     lazy_start_sym?: TokenSymbol;
     lazy_end_sym?: TokenSymbol;

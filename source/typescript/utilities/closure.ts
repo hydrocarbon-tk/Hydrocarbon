@@ -41,7 +41,7 @@ export function getClosure(
 
     closure = closure.setFilter();
 
-    return items.concat(closure.map(i => {
+    return closure.map(i => {
         const item = grammar.item_map.get(i).item;
         return new Item(
             item.body,
@@ -49,7 +49,7 @@ export function getClosure(
             item.offset,
             depth
         );
-    })).setFilter();
+    }).setFilter(i => i.id);
 }
 
 /**

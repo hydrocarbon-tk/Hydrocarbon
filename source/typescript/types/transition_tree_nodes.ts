@@ -56,7 +56,7 @@ export interface TransitionForestStateA {
     hash_action?: { hash: string, action: string, assertion: string; };
     USED: boolean;
 }
-export const enum TransitionStateType {
+export enum TransitionStateType {
     UNDEFINED = 0,
     START = 1 << 1,
     /**
@@ -66,12 +66,12 @@ export const enum TransitionStateType {
      * have this set except for the 
      * initial state and the goal state.
      */
-    TERMINAL = 1 << 2,
+    O_TERMINAL = 1 << 2,
     /**
      * Transition has occurred from the 
      * completion of non-terminal symbol.
      */
-    PRODUCTION = 1 << 3,
+    O_PRODUCTION = 1 << 3,
     /**
      * Node represents a branch of one or
      * more sub-nodes. Each sub-node should 
@@ -97,27 +97,40 @@ export const enum TransitionStateType {
      * cause a reduction to a production ID other thane the current
      * production. 
      */
-    OUT_OF_SCOPE = 1 << 7,
+    I_OUT_OF_SCOPE = 1 << 7,
     /**
      * Consumption of tokens is not allowed
      */
-    PEEK = 1 << 8,
+    O_PEEK = 1 << 8,
 
-    FORK = 1 << 9,
+    I_FORK = 1 << 9,
 
     /**
      * Transition has occurred from the 
      * accepting of a root item.
      */
-    END = 1 << 10,
-
-    TOKEN_ASSIGNMENT = 1 << 11,
+    I_END = 1 << 10,
 
     /**
      * The current state represents a completed 
      * production. Used by scanner to determine
      * when to apply token assignments
      */
-    COMPLETED = 1 << 12,
+    COMPLETED = 1 << 11,
 
+    O_GOTO = 1 << 12,
+
+    LOOP = 1 << 13,
+
+    I_GOTO_START = 1 << 14,
+
+    I_DESCENT_START = 1 << 15,
+
+    I_CONSUME = 1 << 16,
+
+    I_SCANNER = 1 << 17,
+
+    I_PASS = 1 << 18,
+
+    I_FAIL = 1 << 19
 }

@@ -6,7 +6,6 @@
 import { default_EOF } from "../grammar/nodes/default_symbols.js";
 import { convert_symbol_to_string, getRootSym, Sym_Is_A_Production } from "../grammar/nodes/symbol.js";
 import { GrammarObject, GrammarProduction, HCG3ProductionBody, HCG3Symbol } from "../types/grammar_nodes.js";
-import { This } from '../types/skribble.js';
 
 export const enum ItemIndex {
     body_id = 0,
@@ -109,7 +108,7 @@ export class Item extends Array {
     renderUnformatted(grammar: GrammarObject): string {
 
         const a = this.body_(grammar).sym
-            .map(sym => Sym_Is_A_Production(sym) ? Object.assign({}, sym, { val: grammar.productions[sym.val].name }) : sym)
+            .map(sym => Sym_Is_A_Production(sym) ? Object.assign({}, sym, { val: grammar.productions[sym.val]?.name ?? "" }) : sym)
             .map(sym => getRootSym(sym, grammar))
             //@ts-ignore
             .flatMap((sym, i) => (i == this.offset) ? ["•", convert_symbol_to_string(sym)] : convert_symbol_to_string(sym));
