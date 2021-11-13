@@ -13,9 +13,7 @@ that can be defined in this section: Export, Import, and Ignore.
 
 #### Grammar Composition
 
-A Hydrocarbon grammar can be derived from multiple sub-grammars defined in multiple files. The `@IMPORT` preamble allows productions from other grammars
-to be accessed through a `namespace` reference and integrated within the productions of the importer source file. Such productions are accessed through
-a syntax similar to C/C++ namespace reference: `namespace_reference \:: production`. The `filepath` can be a relative or absolute posix file path that 
+A Hydrocarbon grammar can be derived from multiple sub-grammars defined in files other than the root source file. The `@IMPORT` preamble allows productions defined in other grammars to be accessed through a `namespace` reference and integrated within the productions of the importer source file. Such productions are accessed through a syntax similar to C/C++ namespace reference: `namespace_reference \:: production`. The `filepath` can be a relative or absolute posix file path that 
 resolves to a single `*.hcg` grammar file.
 
 #### Example 
