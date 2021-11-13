@@ -3,27 +3,22 @@
  * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
  * disclaimer notice.
  */
-import URI from '@candlelib/uri';
-import { getEntryPointers } from '../../render/getEntryPointers.js';
-import { convert_symbol_to_string, getRootSym, Sym_Is_A_Token } from '../../grammar/nodes/symbol.js';
+import { getRootSym, Sym_Is_A_Token } from '../../grammar/nodes/symbol.js';
 import { fail_state_mask, goto_state_mask, normal_state_mask } from '../../runtime/kernel_next.js';
 import {
     BlockData,
     BranchIRState,
     BranchIRStateData, GrammarObject, Instruction,
-    InstructionType,
-    IRAssert,
-    IRPeek,
-    IRStateData,
-    IR_Instruction, ProductionSymbol, Resolved_IR_State,
+    InstructionType, InternalStateData, IRAssert,
+    IRPeek, IR_Instruction, ProductionSymbol, Resolved_IR_State,
     StateAttrib,
     StateMap, TokenSymbol
-} from '../../types/index.js';;
+} from '../../types/index.js';
 import { numeric_sort } from '../../utilities/array_globals.js';
 import { default_case_indicator, ir_reduce_numeric_len_id } from '../../utilities/magic_numbers.js';
 import { createSymMapId } from "../ir/compile_scanner_states.js";
-import { renderHTMLState, renderInstructionSequences } from './assembly.js';
 import { getStateName } from './get_state_name.js';
+;
 
 export function compileIRStatesIntoBytecode(StateMap: StateMap, grammar: GrammarObject, sym_map: Map<string, string>) {
 
@@ -138,300 +133,12 @@ export function compileIRStatesIntoBytecode(StateMap: StateMap, grammar: Grammar
         grammar.meta.token_row_size,
     ]; // The pass, fail, scope pop, and pass through return instructions
 
-    const offset = { c: out_buffer.length * 4 };
-
-    const name = new URI(grammar.URI).filename;
-
-    const entry = getEntryPointers(grammar, StateMap);
-
-    const html_buffer = [];
-
     for (const [_, state_data] of StateMap) {
-
-        html_buffer.push(renderHTMLState(
-            grammar,
-            state_data,
-            StateMap,
-            offset
-        ));
 
         const buffer = convertBlockDataToBufferData(state_data, StateMap);
 
         out_buffer.push(...buffer);
     }
-
-    html_buffer.unshift(`
-    <DOCTYPE html>
-    <html>
-        <head>
-            <title>${name} Bytecode Sheet </title>
-            <style>
-                body{
-                    max-width:960px;
-                    margin:auto;
-                    font-family: ubuntu, roboto, arial, "sans-serif";
-                    font-size:12px;
-                    color:#333;
-                }
-
-                a {
-                    text-decoration:none;
-                    color:unset;
-                    outline:none;
-                }
-    
-                h1 {
-                    font-size: 4em
-                }
-    
-                h1, h2 {
-                    margin: 40px 0 10px;
-                }
-    
-                .ir pre{ 
-                    font-size:10px;
-                    padding:20px;
-                    overflow-x: auto;
-                    white-space: pre-wrap;
-                    white-space: -moz-pre-wrap;
-                    white-space: -pre-wrap;
-                    white-space: -o-pre-wrap;
-                    word-wrap: break-word;
-                }
-    
-                .state {
-                    margin: 10px 0 20px 0;
-                    border-top: 4px solid #e9e9e9;
-                }
-    
-                .state-header h2 {
-                    display:inline-block;
-                }
-    
-                .address {
-                    font-family: monospace;
-                    display:inline-block;
-                    padding:0 3px;
-                    color: #ffffff;
-                    background-color: rgb(203 122 64);
-                    border-radius:2px;
-                    font-weight:bold;
-                }
-    
-                .instruction-label {
-                    font-family: monospace;
-                    width: 80px;
-                    margin-left: 120px;
-                    display: inline-block;
-                    padding: 0 3px;
-                    color: white;
-                    background-color: rgb(126 114 149);
-                    border-radius: 2px;
-                    font-weight: bold;
-                    margin-right: 13px;
-                    text-align: center;
-                }
-    
-                .goto {
-                    margin: 0 10px;
-                    text-transform: uppercase;
-                    text-decoration:none;
-                    color:#68a5ff;
-                    outline:none;
-                    font-weight:bold;
-                }
-    
-                .goto:hover {
-                    color: #0067ff;
-                }
-    
-                .instruction-line {
-                    padding:2px;
-                    padding-left: 50px;
-                    margin: 0px;
-                    font-weight: bold;
-                }
-    
-                *.instruction-line:nth-child(2n){
-                    background-color:#e5e5e5
-                }
-    
-                *.instruction-line:nth-child(2n) .address{
-                    background-color:rgb(159 92 23);
-                }
-    
-                .jumptable, .hashtable {
-                    position:relative;
-                    background-color: #908b9714;
-                    padding: 10px 0;
-                    margin: 30px 0px 5px 0px;
-                    border-radius: 2px;
-                    box-shadow: 2px 5px 10px #8f8f8f;
-                    z-index:1;
-                }
-    
-                .table-branch h5 {
-                    font-size: 1.1em;
-                    margin: 10px 50px;
-                }
-    
-                .table-data {
-                    width: fit-content;
-                    position: relative;
-                    display: block;
-                    margin: 5px 50px;
-                    padding: 10px;
-                    font-size: 1em;
-                }
-    
-                .instructions {
-                    padding: 0 20px;
-                }
-    
-                .hash-pointers {
-                    font-size: 1em;
-                    margin-left: 50px;
-                }
-    
-                .character-position {
-                    position:absolute;
-                    left:222px;
-                }
-    
-                .class {
-                    display:inline-block;
-                    padding: 3px;
-                    color: white;
-                    background-color: #ff5656;
-                    border-radius: 2px;
-                    min-width: 80px;
-                    text-align: center;
-                }
-    
-                .codepoint {
-                    display:inline-block;
-                    padding: 3px;
-                    color: white;
-                    background-color: #3ca99e;
-                    border-radius: 2px;
-                    width: 80px;
-                    text-align: center;
-                }
-    
-                .token {
-                    display: inline-block;
-                    padding: 3px;
-                    color: white;
-                    background-color: #3ca99e;
-                    border-radius: 2px;
-                    min-width: 80px;
-                    text-align: center;
-                }
-    
-                .production {
-                    padding: 3px;
-                    color: white;
-                    background-color: #713399;
-                    border-radius: 2px;
-                    text-align: center;
-                }
-
-                .state-index {
-                    display: grid;
-                    grid-template-columns: 25% 25% 25% 25%;
-                    /* flex-basis: fit-content; */
-                    /* flex-direction: row; */
-                    width: 100%;
-                    /* position: relative; */
-                    /* flex-wrap: wrap; */
-                }
-
-                .state-ref {
-                    margin: 10px 38px 10px 0px;
-                    padding: 3px;
-                    border: 1px solid #ededed;
-                    border-radius: 4px;
-                    transition:all 100ms;
-                }
-
-                .state-ref:hover {
-                    color:white;
-                    background-color: #544a4a;
-                }
-
-                .state-ref a {
-                    outline:none;
-                    text-decoration:none;
-                }
-
-                .state-ref p { 
-                    padding:1px;
-                    margin:1px;
-                    border:none;
-                }
-
-                .goto-marker, .fail-marker, .reg-marker {
-                    display:inline-block;
-                    position:relative;
-                    width:10px;
-                    height:10px;
-                    margin: 0 2px;
-                    border-radius:2px;
-                    float:right;
-                }
-                .fail-marker {
-                    background-color:#c15f5f;
-                }
-                .goto-marker {
-                    background-color:#78d578;
-                }
-                .reg-marker {
-                    background-color:#777797;
-                }
-            </style>
-        <body>
-        <h1>${name} Bytecode Sheet </h1>
-        
-        <p> Total Size: ${(out_buffer.length * 4).toLocaleString()} bytes</p>
-        <p> Number of states: ${StateMap.size}</p>
-  
-        <h2>Entry Productions</h2>
-            <ol>
-            ${entry.map(e => {
-        return `<li><h4><a href="#${e.production.name}_open">${e.name}</a></h4></li>`;
-    })}</ol>
-        <h2>States</h2>
-        
-        <ol class="state-index">
-        ${[...StateMap.entries()].map(([name, state], i) => {
-
-        const markers = [];
-        if (state.pointer & goto_state_mask)
-            markers.push("<span class=\"goto-marker\"></span>");
-
-
-        if (state.pointer & fail_state_mask)
-            markers.push("<span class=\"fail-marker\"></span>");
-
-        if (state.pointer & normal_state_mask)
-            markers.push("<span class=\"reg-marker\"></span>");
-
-        return `<li class="state-ref"><a href="#${name}"><p>${name.replace(/\_+/g, " ")}</p><p>ptr: 0x${(state.pointer & 0xFFFFFF) * 4}${markers.join(" ")}</p></a></li>`;
-    }).join("")}</ol>
-        <h2>Token Reference</h2>
-        <div class="tokens">
-            ${[...grammar.meta.all_symbols.by_id.entries()].map(([key, val]) => {
-        if (key >= 0) {
-            return `<div class="token-ref">[${key}] ${convert_symbol_to_string(<any>val)}</div>`;
-        } else {
-            return "";
-        }
-    }).join("\n")}
-        </div>
-        `);
-    html_buffer.push("</body></html>");
-
-    console.log(html_buffer.join("\n"));
 
     return out_buffer;
 }
@@ -969,7 +676,7 @@ function processInstructionTokens(
         }
     }
 }
-export function extractTokenSymbols(state_data: IRStateData, grammar: GrammarObject) {
+export function extractTokenSymbols(state_data: InternalStateData, grammar: GrammarObject) {
 
     const expected_symbols = [];
     const skipped_symbols = [];
@@ -989,7 +696,7 @@ export function extractTokenSymbols(state_data: IRStateData, grammar: GrammarObj
     state_data.expected_tokens = expected_symbols.filter(s => s != default_case_indicator); // <- remove default value
     state_data.skipped_tokens = skipped_symbols.filter(s => s != default_case_indicator); // <- remove default value
 }
-function convertBlockDataToBufferData(state_data: IRStateData, state_map: StateMap): number[] {
+function convertBlockDataToBufferData(state_data: InternalStateData, state_map: StateMap): number[] {
 
     const block_info = state_data.block;
 
@@ -1016,7 +723,7 @@ function convertBlockDataToBufferData(state_data: IRStateData, state_map: StateM
     return buffer;
 }
 
-function stateHasBranchIR(state_data: IRStateData): state_data is BranchIRStateData {
+function stateHasBranchIR(state_data: InternalStateData): state_data is BranchIRStateData {
     return (
         state_data.ir_state_ast.instructions[0].type == InstructionType.assert
         ||

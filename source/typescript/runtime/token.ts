@@ -4,6 +4,13 @@
  * disclaimer notice.
  */
 
+
+/**
+ * Stores source string in a global repo for use in 
+ * serialization and unserialization of Tokens.
+ */
+
+
 /**
  * Small class to that methods to extract string information
  * and retrieve text meta data for particular tokens and token
@@ -16,12 +23,41 @@ export class Token {
     readonly length: number;
     private _line: number;
 
+
+
     static fromRange(start: Token, end: Token): Token {
         return new Token(
             start.source,
             end.off - start.off + end.length,
             start.off
         );
+    }
+
+
+    toJSON() {
+        return {
+            path: this.path,
+            off: this.off,
+            len: this.len,
+            line: this.line,
+            source: ""
+        };
+    }
+
+    /**
+     * Does the conversion
+     */
+    static from(obj: object) {
+        if (typeof obj == "object")
+            if ("len" in obj && "source" in obj && "off" in obj && "line" in obj) {
+                return new Token(
+                    (<any>obj).source,
+                    +(<any>obj).len,
+                    +(<any>obj).off,
+                    +(<any>obj).line
+                );
+            }
+        return new Token("", 0, 0, 0);
     }
 
 
@@ -128,9 +164,6 @@ export class Token {
 
     toString() {
         return this.slice();
-    }
-    toJSON() {
-        return [``];
     }
 
     get len() {

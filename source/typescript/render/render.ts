@@ -14,7 +14,7 @@ import { render_grammar } from '../grammar/passes/common.js';
 import { ASYTRIPContext } from '../types/asytrip.js';
 import { BuildPack } from '../types/build_pack';
 import { formatArray } from '../utilities/format_array.js';
-import { getEntryPointers } from './getEntryPointers.js';
+import { getEntryPointers } from './entry_pointers.js';
 
 const render_logger = Logger.get("MAIN").createLogger("RENDER");
 

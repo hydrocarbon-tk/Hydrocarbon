@@ -73,6 +73,89 @@ export async function compileGrammar(grammar: GrammarObject):
     return grammar;
 }
 
+export async function compileResourceFile(grammar: GrammarObject):
+    Promise<GrammarObject> {
+
+    const errors: Error[] = [];
+
+    try {
+
+        //Production and Body transformations.
+        integrateImportedGrammars(grammar, errors);
+
+        integrateReferencedProductions(grammar, errors);
+
+        convertListProductions(grammar, errors);
+
+        extractMetaSymbolsFromBodies(grammar, errors);
+
+        deduplicateProductionBodies(grammar, errors);
+
+        //distributePriorities(grammar, errors);
+
+        //Meta transformations: Symbols, Functions & Items
+        // processSymbols(grammar, errors);
+
+        //buildScannerProduction(grammar);
+
+        // Reprocess symbols to incorporate symbols from scanner productions
+        // processSymbols(grammar, errors);
+
+        //buildItemMaps(grammar);
+
+        //  createCollisionMatrix(grammar);
+
+    } catch (e) {
+        console.error(e);
+        errors.push(e);
+    }
+
+    if (errors.length > 0) {
+
+
+        throw new GrammarCompilationReport(errors);
+    }
+
+    return grammar;
+}
+
+
+export async function resolveResourceFile(grammar: GrammarObject):
+    Promise<GrammarObject> {
+
+    const errors: Error[] = [];
+
+    try {
+
+
+        //distributePriorities(grammar, errors);
+
+        //Meta transformations: Symbols, Functions & Items
+        processSymbols(grammar, errors);
+
+        buildScannerProduction(grammar);
+
+        // Reprocess symbols to incorporate symbols from scanner productions
+        processSymbols(grammar, errors);
+
+        buildItemMaps(grammar);
+
+        createCollisionMatrix(grammar);
+
+    } catch (e) {
+        console.error(e);
+        errors.push(e);
+    }
+
+    if (errors.length > 0) {
+
+
+        throw new GrammarCompilationReport(errors);
+    }
+
+    return grammar;
+}
+
 
 function integrateReferencedProductions(grammar: GrammarObject, errors) {
     const fn_lu = grammar.functions.filter(fn =>
