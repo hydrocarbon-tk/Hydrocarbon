@@ -3,6 +3,7 @@
  * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
  * disclaimer notice.
  */
+//@ts-nocheck
 const string_to_md5 = await (async (crypto) => {
 
     return typeof globalThis["window"]

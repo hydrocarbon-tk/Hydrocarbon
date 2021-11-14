@@ -3,12 +3,13 @@
  * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
  * disclaimer notice.
  */
-import { default_array } from '../grammar/nodes/default_symbols.js';
 import {
-    convert_symbol_to_string
-} from '../grammar/nodes/symbol.js';
-import { GrammarObject, ReverseStateLookupMap } from '../../../../source/typescript/types/index.js';
-import { numeric_sort } from '../../hc_ts_common/source/utilities/array_globals.js';
+    convert_symbol_to_string,
+    default_array,
+    GrammarObject,
+    numeric_sort,
+    ReverseStateLookupMap
+} from '@hc/common';
 ;
 export function address(count: { c: number; }) {
     return ("000000000" + count.c.toString(16)).slice(-6);

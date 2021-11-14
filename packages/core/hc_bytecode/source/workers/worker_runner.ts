@@ -3,12 +3,11 @@
  * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
  * disclaimer notice.
  */
-import URI from '@candlelib/uri';
 import { Logger } from '@candlelib/log';
-import { GrammarObject } from "../../types/grammar_nodes.js";
-import { RDProductionFunction } from "../../types/rd_production_function.js";
-import { WorkerContainer } from "../../types/worker_container";
-import { HybridDispatch, HybridDispatchResponse, HybridJobType } from "../../types/worker_messaging.js";
+import URI from '@candlelib/uri';
+import { GrammarObject, ProductionFunction } from "@hc/common";
+import { WorkerContainer } from "../types/worker_container";
+import { HybridDispatch, HybridDispatchResponse, HybridJobType } from "../types/worker_messaging.js";
 import { LocalWorker } from "./local_worker.js";
 
 const build_logger = Logger.get("MAIN").createLogger("Worker-Runner");
@@ -19,7 +18,7 @@ export class WorkerRunner {
     module_url: string;
     number_of_workers: number;
     workers: Array<WorkerContainer>;
-    functions: Array<RDProductionFunction>;
+    functions: Array<ProductionFunction>;
     errors: any;
     to_process_rd_fn: number[];
     IN_FLIGHT_JOBS: number;

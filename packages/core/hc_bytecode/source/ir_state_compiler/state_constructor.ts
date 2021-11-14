@@ -3,27 +3,28 @@
  * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
  * disclaimer notice.
  */
-import { ProductionSymbol } from '@hc/common';
-import { user_defined_state_mux } from '@hc/common';
 import {
+    getStartItemsFromProduction,
     getUniqueSymbolName,
-    Sym_Is_A_Generic_Type, Sym_Is_A_Token,
+    GrammarObject,
+    GrammarProduction,
+    hashString,
+    ProductionSymbol,
+    skipped_scan_prod,
+    Sym_Is_A_Generic_Type,
+    Sym_Is_A_Token,
     Sym_Is_Defined,
     Sym_Is_EOF,
     Sym_Is_Not_Consumed,
-    Sym_Is_Recovery
-} from "@hc/common";
+    Sym_Is_Recovery,
+    TokenSymbol,
+    user_defined_state_mux
+} from '@hc/common';
+import { create_symbol_clause } from '../ir/create_symbol_clause';
 import { ConstructionOptions } from '../types/construction_options';
-import {
-
-    TransitionStateType as TST
-} from '../types/transition_tree_nodes';
-import { TransitionGraphOptions } from "@hc/common";
-import { GrammarObject, GrammarProduction, TokenSymbol, hashString } from '@hc/common';
-import { skipped_scan_prod } from '@hc/common';
-import { getStartItemsFromProduction } from '@hc/common';
-import { create_symbol_clause } from '../ir/create_symbol_clause.js';
-import { constructDescent, constructGoto, createNode, Node } from './transition_graph.js';
+import { TransitionGraphOptions } from '../types/transition_graph_options';
+import { TransitionStateType as TST } from '../types/transition_tree_nodes';
+import { constructDescent, constructGoto, createNode, Node } from './transition_graph';
 
 export function constructProductionStates(
     production: GrammarProduction,
@@ -39,8 +40,8 @@ export function constructProductionStates(
             production,
             scope: "DESCENT",
             IS_LAZY: production.name.slice(-5) == '_lazy',
-            lazy_end_sym: null,
-            lazy_start_sym: null,
+            lazy_end_sym: undefined,
+            lazy_start_sym: undefined,
             IS_SCANNER: production.type == "scanner-production",
             IS_ROOT_SCANNER: production.name.slice(0, 9) == "__SCANNER",
             LOCAL_HAVE_ROOT_PRODUCTION_GOTO: false

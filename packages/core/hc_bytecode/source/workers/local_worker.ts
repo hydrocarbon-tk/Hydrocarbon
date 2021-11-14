@@ -3,9 +3,9 @@
  * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
  * disclaimer notice.
  */
-import { GrammarObject } from "../../types/grammar_nodes";
-import { HybridDispatch, HybridDispatchResponse, HybridJobType } from "../../types/worker_messaging.js";
+import { GrammarObject } from "@hc/common";
 import { constructProductionStates } from "../ir_state_compiler/state_constructor.js";
+import { HybridDispatch, HybridDispatchResponse, HybridJobType } from "../types/worker_messaging.js";
 
 export class LocalWorker {
 

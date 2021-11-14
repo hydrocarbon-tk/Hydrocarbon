@@ -1,9 +1,14 @@
 import URI from '@candlelib/uri';
-import { goto_state_mask, fail_state_mask, normal_state_mask } from "../../../../source/typescript/utilities/magic_numbers.js";
-import { GrammarObject, ReverseStateLookupMap } from '../../../../source/typescript/types/index.js';
+import {
+    convert_symbol_to_string,
+    fail_state_mask,
+    getEntryPointers,
+    goto_state_mask,
+    GrammarObject,
+    normal_state_mask,
+    ReverseStateLookupMap
+} from "@hc/common";
 import { renderHTMLStateFromBytecode } from './assembly.js';
-import { getEntryPointers } from '../../../../source/typescript/render/entry_pointers.js';
-import { convert_symbol_to_string } from '../grammar/nodes/symbol.js';
 
 export function renderByteCodeSheet(
     bytecode: Uint32Array,

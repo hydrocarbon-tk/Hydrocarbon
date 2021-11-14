@@ -8,10 +8,10 @@ import {
     addCLIConfig, processCLIConfig
 } from "@candlelib/paraffin";
 import URI from '@candlelib/uri';
+import { GrammarObject } from '@hc/common';
+import { resolveResourceFile } from '@hc/grammar';
 import { writeFile } from 'fs/promises';
 import { cpus } from 'os';
-import { resolveResourceFile } from '../grammar/compile.js';
-import { GrammarObject } from '../types/grammar_nodes.js';
 import { compileBuildPack } from './index.js';
 
 await URI.server();

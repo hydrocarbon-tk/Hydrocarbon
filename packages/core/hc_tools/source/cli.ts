@@ -8,11 +8,10 @@ import {
     addCLIConfig, processCLIConfig
 } from "@candlelib/paraffin";
 import URI from '@candlelib/uri';
+import { GrammarObject, ReverseStateLookupMap, StateData } from '@hc/common';
+import { resolveResourceFile } from '@hc/grammar';
 import { writeFile } from 'fs/promises';
 import { stdout } from 'process';
-import { resolveResourceFile } from '../grammar/compile.js';
-import { GrammarObject } from '../types/grammar_nodes.js';
-import { ReverseStateLookupMap, StateData } from '../types/ir_state_data.js';
 import { renderByteCodeSheet } from './html.js';
 
 await URI.server();

@@ -4,21 +4,28 @@
  * disclaimer notice.
  */
 import { Logger } from '@candlelib/log';
-import { default_case_indicator } from '../../utilities/magic_numbers.js';
-import { Token } from '../../runtime/token.js';
-import { GrammarObject, ProductionImportSymbol, ProductionSymbol } from '../../types/grammar_nodes';
-import { InternalStateData, StateAttrib, StateMap } from '../../types/ir_state_data';
 import {
+    default_case_indicator,
+    GrammarObject,
     InstructionType,
+    InternalStateData,
     IRAssert,
-    IRBranch, IRGoto,
+    IRBranch,
+    IRGoto,
     IRInlineAssert,
-    IRPeek, IRProdAssert, IRSetProd, IR_Instruction,
+    IRPeek,
+    IRProdAssert,
+    IRSetProd,
+    IR_Instruction,
     IR_State,
-    Resolved_IR_State
-} from '../../types/ir_types';
+    ProductionImportSymbol,
+    ProductionSymbol,
+    Resolved_IR_State,
+    StateAttrib,
+    StateMap,
+    Token
+} from '@hc/common';
 import { renderIRNode } from './render_ir_state.js';
-import { byte } from 'source/typescript/runtime/recognizer/lexer.js';
 
 function getStateName(
     name_candidate: ProductionSymbol | ProductionImportSymbol | string

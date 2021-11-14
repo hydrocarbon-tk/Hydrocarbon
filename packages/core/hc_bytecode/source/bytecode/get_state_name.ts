@@ -3,8 +3,7 @@
  * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
  * disclaimer notice.
  */
-import { Token } from '../../../../source/typescript/runtime/token.js';
-import { ProductionImportSymbol, ProductionSymbol } from "../../../../source/typescript/types";
+import { ProductionImportSymbol, ProductionSymbol, Token } from '@hc/common';
 
 export function getStateName(
     name_candidate: ProductionSymbol | ProductionImportSymbol | string

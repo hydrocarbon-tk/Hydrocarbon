@@ -5,12 +5,15 @@
  */
 import { Logger } from '@candlelib/log';
 import spark from "@candlelib/spark";
-import { getStartItemsFromProduction } from '../../utilities/production.js';
-import { default_EOF, user_defined_state_mux } from '../../grammar/nodes/default_symbols.js';
-import { GrammarObject } from "../../types/grammar_nodes";
-import { StateAttrib, StateMap } from '../../types/ir_state_data';
-import { InstructionType } from '../../types/ir_types';
-import { default_case_indicator } from '../../utilities/magic_numbers.js';
+import {
+    default_case_indicator,
+    getStartItemsFromProduction,
+    GrammarObject,
+    InstructionType,
+    StateAttrib,
+    StateMap,
+    user_defined_state_mux
+} from '@hc/common';
 import { WorkerRunner } from "../workers/worker_runner.js";
 import { convertParseProductsIntoStatesMap } from './compile_scanner_states.js';
 import { create_symbol_clause } from './create_symbol_clause.js';
@@ -52,7 +55,7 @@ state [${open_state_name}]
 
         const end_body_items = getStartItemsFromProduction(entry_production).map(i => i.toEND());
 
-        const clause = create_symbol_clause(end_body_items, grammar, "DESCENT", true);
+        const clause = create_symbol_clause(end_body_items, grammar, "DESCENT");
 
         const close_state = `
 state [${close_state_name}]
@@ -94,13 +97,18 @@ state [${close_state_name}]
 
                 // If there is a "pass" only goto state for the production, replace
                 // the pass instruction with a fall through instruction
-                const { ir_state_ast } = states_map.get(target_production + "_goto");
+                const result = states_map.get(target_production + "_goto");
 
-                if (ir_state_ast.instructions.length == 1
-                    &&
-                    ir_state_ast.instructions[0].type == InstructionType.pass) {
-                    //@ts-ignore
-                    ir_state_ast.instructions[0].type = InstructionType.fall_through;
+                if (result) {
+
+                    const { ir_state_ast } = result;
+
+                    if (ir_state_ast.instructions.length == 1
+                        &&
+                        ir_state_ast.instructions[0].type == InstructionType.pass) {
+                        //@ts-ignore
+                        ir_state_ast.instructions[0].type = InstructionType.fall_through;
+                    }
                 }
             }
         }

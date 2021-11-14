@@ -3,8 +3,12 @@
  * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
  * disclaimer notice.
  */
-import { experimentalConstructRenderers, experimentalRender, NodeMapping, NodeMappings } from "@candlelib/conflagrate";
-import { Token } from '../../runtime/token.js';
+import {
+    experimentalConstructRenderers,
+    experimentalRender,
+    NodeMapping,
+    NodeMappings
+} from "@candlelib/conflagrate";
 import {
     BaseIRState,
     FailedIRState,
@@ -25,11 +29,11 @@ import {
     IRSetProd,
     IRSetScope,
     IRSetTokenLength,
-    IRTokenAssign
-} from '../../types/ir_types';
+    IRTokenAssign, Token
+} from '@hc/common';
 
 
-function state_custom_render(state, render_fn) {
+function state_custom_render(state: any, render_fn: any) {
     const node = Object.assign({}, state.node);
 
     if (node.type == "sym-production")
@@ -50,11 +54,11 @@ function state_custom_render(state, render_fn) {
         if (node.instructions[0].type == InstructionType.assert
             ||
             node.instructions[0].type == InstructionType.peek)
-            node.instructs = node.instructions.map(i => render_fn(state, i))
+            node.instructs = node.instructions.map((i: any) => render_fn(state, i))
                 .join("\n").split("\n").join("\n" + " ".repeat(state.indent + 4));
 
         else
-            node.instructs = node.instructions.map(i => render_fn(state, i)).join(" then ");
+            node.instructs = node.instructions.map((i: any) => render_fn(state, i)).join(" then ");
     } catch (e) {
         debugger;
         throw e;
@@ -206,9 +210,11 @@ export const ir_state_mappings: NodeMappings<IRNode, "type"> = <NodeMappings<IRN
 const lu_table = new Map(ir_state_mappings.mappings.map((i, j) => [i.type, j]));
 ir_state_mappings.type_lookup = (node, name) => lu_table.get(node.type) || -1;
 
-let renderers;
+var renderers: any;
 export function renderIRNode(node: IRNode): string {
+
     if (!renderers)
         renderers = experimentalConstructRenderers(<NodeMappings<IRNode, "type">>ir_state_mappings);
+
     return experimentalRender(node, <NodeMappings<IRNode, "type">>ir_state_mappings, renderers).string;
 }

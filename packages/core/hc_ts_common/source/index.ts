@@ -10,6 +10,7 @@ export * from "./utilities/get_sym_val_at_offset";
 export * from "./utilities/item";
 export * from "./utilities/magic_numbers";
 export * from "./utilities/production";
+export * from "./utilities/grammar";
 export * from "./objects/token";
 export * from "./objects/default_symbols";
 export * from "./objects/symbol";

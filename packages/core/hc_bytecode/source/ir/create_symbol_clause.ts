@@ -3,18 +3,22 @@
  * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
  * disclaimer notice.
  */
-import { default_EOF } from '../../grammar/nodes/default_symbols.js';
 import {
     convert_symbol_to_string,
+    default_EOF,
+    getClosure,
     getSkippableSymbolsFromItems,
     getUniqueSymbolName,
+    GrammarObject,
+    Item,
     Symbols_Are_The_Same,
-    Sym_Is_Ambiguous, Sym_Is_A_Production, Sym_Is_A_Token, Sym_Is_Defined
-} from "../../grammar/nodes/symbol.js";
-import { ConstructionOptions } from '../../types/construction_options.js';
-import { GrammarObject, TokenSymbol } from '../../types/grammar_nodes';
-import { getClosure } from '../../utilities/closure.js';
-import { Item } from "../../utilities/item.js";
+    Sym_Is_Ambiguous,
+    Sym_Is_A_Production,
+    Sym_Is_A_Token,
+    Sym_Is_Defined,
+    TokenSymbol
+} from '@hc/common';
+import { ConstructionOptions } from '../types/construction_options';
 export function create_symbol_clause(
     items: Item[],
     grammar: GrammarObject,

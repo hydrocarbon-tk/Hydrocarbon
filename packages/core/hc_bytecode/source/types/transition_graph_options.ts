@@ -1,5 +1,4 @@
-import { GrammarProduction } from '@hc/common/source/types/grammar_nodes';
-import { Item } from "@hc/common/source/utilities/item";
+import { GrammarProduction, Item } from '@hc/common';
 
 
 

@@ -4,14 +4,12 @@
  * disclaimer notice.
  */
 import { Logger } from '@candlelib/log';
-import { BuildPack } from "../types/build_pack";
-import { GrammarObject } from "../types/grammar_nodes";
-import { StateMap } from '../types/ir_state_data';
-import { assignStateAttributeInformation, extractTokenSymbols, compileIRStatesIntoBytecode } from './bytecode/bytecode.js';
+import { BuildPack, GrammarObject, StateMap } from "@hc/common";
+import { assignStateAttributeInformation, compileIRStatesIntoBytecode, extractTokenSymbols } from './bytecode/bytecode.js';
+import { createIrStates } from './ir/compile_production_states.js';
 import { compileScannerStates } from './ir/compile_scanner_states.js';
 import { garbageCollect, optimize } from './ir/optimize.js';
 import { renderIRNode } from './ir/render_ir_state.js';
-import { createIrStates } from './ir/compile_production_states.js';
 
 
 export const build_logger = Logger.get("MAIN").createLogger("COMPILER");

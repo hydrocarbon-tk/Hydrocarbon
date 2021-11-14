@@ -4,15 +4,25 @@
  * disclaimer notice.
  */
 import { Logger } from '@candlelib/log';
-import { default_case_indicator, GrammarObject, InstructionType, numeric_sort, Resolved_IR_State, skipped_scan_prod, StateAttrib, StateMap, Sym_Is_Exclusive } from '@hc/common';
-import { addRootScannerFunction, getSymbolProductionName } from '../../grammar/compile.js';
-import loader from "../../grammar/hcg_parser_pending.js";
-import { getProductionByName } from '../../grammar/nodes/common.js';
-import { createProductionLookup, processSymbol } from '../../grammar/passes/common.js';
-import { buildItemMaps } from '../../grammar/passes/item_map.js';
+import {
+    default_case_indicator,
+    getProductionByName,
+    GrammarObject,
+    InstructionType,
+    numeric_sort,
+    Resolved_IR_State,
+    skipped_scan_prod,
+    StateAttrib,
+    StateMap,
+    Sym_Is_Exclusive
+} from '@hc/common';
+import { addRootScannerFunction, entry_points, getSymbolProductionName, parser } from '@hc/grammar';
+import { createProductionLookup, processSymbol } from '@hc/grammar/build/passes/common';
+import { buildItemMaps } from '@hc/grammar/build/passes/item_map';
 import { constructProductionStates } from '../ir_state_compiler/state_constructor.js';
 import { IsAssertInstruction, IsPeekInstruction } from './optimize.js';
-const { parse: parser, entry_points: { ir } } = await loader;
+
+const ir = entry_points.ir;
 
 const build_logger = Logger.get("MAIN").createLogger("COMPILER").get("SCANNER").activate();
 

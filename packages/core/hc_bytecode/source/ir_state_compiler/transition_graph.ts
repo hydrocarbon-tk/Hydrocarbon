@@ -3,32 +3,39 @@
  * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
  * disclaimer notice.
  */
-import { default_EOF } from '../../grammar/nodes/default_symbols.js';
 import {
+    default_EOF,
+    getClosure,
+    getProductionClosure,
+    getStartItemsFromProduction,
     getSymbolFromUniqueName,
     getUniqueSymbolName as gusn,
+    GrammarObject,
+    GrammarProduction,
+    HCG3Symbol,
+    Item,
+    OutOfScopeItemState,
+    ProductionSymbol,
     SymbolsCollide,
+    SymbolType,
     Sym_Is_A_Generic_Identifier,
     Sym_Is_A_Production,
     Sym_Is_A_Production_Token,
-    Sym_Is_Defined_Identifier, Sym_Is_Exclusive
-} from '../../grammar/nodes/symbol.js';
-import { Token } from '../../runtime/token.js';
-import {
-    GrammarObject, GrammarProduction,
-    HCG3Symbol, ProductionSymbol, SymbolType, TokenSymbol, TransitionGraphOptions, TransitionStateType as TST
-} from '../../types/index.js';
-import { getClosure } from '../../utilities/closure.js';
-import { Item } from "../../utilities/item.js";
-import { OutOfScopeItemState } from '../../utilities/magic_numbers.js';
-import { getProductionClosure, getStartItemsFromProduction } from '../../utilities/production.js';
+    Sym_Is_Defined_Identifier,
+    Sym_Is_Exclusive,
+    Token,
+    TokenSymbol,
+} from '@hc/common';
+import { TransitionGraphOptions as TGO } from '../types/transition_graph_options';
+import { TransitionStateType as TST } from '../types/transition_tree_nodes';
 
-let GRAMMAR: GrammarObject = null;
+//Module scoped variable for convenience
+var GRAMMAR: GrammarObject;
 
 export function constructDescent(
     grammar: GrammarObject,
     production: GrammarProduction,
-    options: TransitionGraphOptions = null,
+    options: TGO,
 
     //Internal recursive arguments
 ): Node {
@@ -45,7 +52,7 @@ export function constructDescent(
 
     const node = createNode(options, default_EOF, production_items);
 
-    let tpn = [];
+    let tpn: Node[] = [];
 
     node.addType(TST.I_DESCENT_START);
 
@@ -62,7 +69,7 @@ export function constructDescent(
 export function constructGoto(
     grammar: GrammarObject,
     production: GrammarProduction,
-    options: TransitionGraphOptions,
+    options: TGO,
     goto_items: Item[]
 ): Node {
 
@@ -89,13 +96,13 @@ function getOuterScopeGotoItems(grammar: GrammarObject, seen: Set<number>, i: It
 
     const id = i.getProductionAtSymbol(grammar).id;
 
-    if (!seen.has(id) && i.increment().atEND) {
+    if (!seen.has(id) && i.increment()?.atEND) {
 
         let id = i.getProductionAtSymbol(grammar).id;
 
         seen.add(id);
 
-        out.push(...(grammar.lr_items.get(id) ?? []).flatMap(s => getOuterScopeGotoItems(grammar, seen, s)));
+        out.push(...(grammar.lr_items?.get(id) ?? []).flatMap(s => getOuterScopeGotoItems(grammar, seen, s)));
     }
 
     return out;
@@ -131,7 +138,7 @@ export function getGotoSTARTs(
     return output;
 }
 
-function processGoto(options: TransitionGraphOptions, goto_items: Item[], parent = null): Node {
+function processGoto(options: TGO, goto_items: Item[], parent = null): Node {
 
     const goto_item_map = getGotoSTARTs(options.root_production, goto_items, GRAMMAR);
 
@@ -211,7 +218,7 @@ function get_sym(i: Item) {
 }
 
 function processNode(
-    opt: TransitionGraphOptions,
+    opt: TGO,
     node: Node,
     /** To Process Nodes */
     tpn: Node[],
@@ -362,7 +369,7 @@ function processNode(
     );
 }
 function createPeek(
-    opt: TransitionGraphOptions,
+    opt: TGO,
     parent: Node,
     items: Item[],
     tpn: Node[]
@@ -416,7 +423,7 @@ function createPeek(
         }), roots, tpn, [], parent);
 }
 function disambiguate(
-    opt: TransitionGraphOptions,
+    opt: TGO,
     nodes: Node[],
     roots: Node[],
     tpn: Node[],
@@ -539,7 +546,7 @@ function disambiguate(
         }
     }
 }
-function handleTransitionCollision(step: Node[], options: TransitionGraphOptions, tpn: Node[]) {
+function handleTransitionCollision(step: Node[], options: TGO, tpn: Node[]) {
 
     if (options.IS_SCANNER) {
 
@@ -555,7 +562,7 @@ function handleTransitionCollision(step: Node[], options: TransitionGraphOptions
 function completeRoots(
     node: Node,
     parent: Node,
-    opt: TransitionGraphOptions,
+    opt: TGO,
     tpn: Node[]
 ) {
     const root = node.root.clone();
@@ -592,7 +599,7 @@ function getNodesId(step: Node[]) {
 }
 
 function handleUnresolvedRoots(
-    opt: TransitionGraphOptions,
+    opt: TGO,
     roots: Node[],
     parent: Node,
     tpn: Node[]
@@ -719,13 +726,13 @@ function handleUnresolvedRoots(
 }
 
 
-function createFailState(opt: TransitionGraphOptions, parent: Node, items: Item[] = []): Node {
+function createFailState(opt: TGO, parent: Node, items: Item[] = []): Node {
     const node = createNode(opt, default_EOF, items, parent);
     node.addType(TST.I_FAIL);
     return node;
 }
 
-function processLoopBackNode(opt: TransitionGraphOptions, node: Node, tpn: Node[]) {
+function processLoopBackNode(opt: TGO, node: Node, tpn: Node[]) {
 
     const id = getNodesId([node]);
 
@@ -803,7 +810,7 @@ function mergeOccludingGroups(
 }
 
 function createNodeClosure(
-    opt: TransitionGraphOptions,
+    opt: TGO,
     parent_node: Node,
     root: Node
 ): (this: undefined, value: Item, index: number, array: Item[]) => any {
@@ -835,7 +842,7 @@ function createNodeClosure(
     };
 }
 function createTermedProductionCall(
-    opt: TransitionGraphOptions,
+    opt: TGO,
     symbol: TokenSymbol,
     production: ProductionSymbol,
     n_nonterm: Item[],
@@ -851,7 +858,7 @@ function createTermedProductionCall(
 }
 
 function createProductionCall(
-    opt: TransitionGraphOptions,
+    opt: TGO,
     production: ProductionSymbol,
     n_nonterm: Item[],
     parent: Node,
@@ -865,7 +872,7 @@ function createProductionCall(
 }
 
 function processFirstEndItem(
-    options: TransitionGraphOptions,
+    options: TGO,
     node: Node,
     end_item: Item,
 ) {
@@ -878,7 +885,7 @@ function processFirstEndItem(
 }
 
 function incrementTerminals(
-    options: TransitionGraphOptions,
+    options: TGO,
     node: Node,
     items: Item[],
     to_process_nodes: Node[]
@@ -970,7 +977,7 @@ function nonRecursive(
 }
 
 export function createNode(
-    options: TransitionGraphOptions,
+    options: TGO,
     sym: HCG3Symbol,
     items: Item[],
     parent: Node = null,
@@ -1190,6 +1197,7 @@ ${this.children.flatMap(c => c.debug.split("\n")).join("\n  ")}
 
         return out.setFilter(item_id);
     }
+
     sym: HCG3Symbol;
     items: Item[];
     children: Node[];
@@ -1197,8 +1205,7 @@ ${this.children.flatMap(c => c.debug.split("\n")).join("\n  ")}
     depth: number;
     closure: Item[];
     root: Node;
-    hash_action: { hash: string, action: string, assertion: string; };
-    mode: "GOTO" | "DESCENT";
+    hash_action?: { hash: string, action: string, assertion: string; };
     private type: TST;
     private _prior: number;
 }

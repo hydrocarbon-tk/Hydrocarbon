@@ -19,7 +19,7 @@ export function filloutWorkerGrammar(grammar: GrammarObject) {
         val.item = Item.fromArray(val.item);
     }
 
-    for (const [key, array] of grammar.lr_items.entries()) {
+    for (const [key, array] of grammar.lr_items?.entries() ?? []) {
         const cache = array.slice();
 
         array.length = 0;
