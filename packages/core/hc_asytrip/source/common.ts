@@ -93,6 +93,8 @@ export function parseAsytripStruct(
             }
         }
     } else {
+
+
         const struct = {
             name: type_name,
             classes: classes,
@@ -152,11 +154,6 @@ export function getPropertyFromExpression(
     );
 
     prop.types = [out_type];
-
-
-
-    if (prop.types.some(t => !t))
-        debugger;
 
     return prop;
 }
