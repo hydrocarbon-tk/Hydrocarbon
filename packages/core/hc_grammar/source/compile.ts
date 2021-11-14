@@ -4,10 +4,16 @@
  * disclaimer notice.
  */
 import URI from "@candlelib/uri";
-import { GeneralProductionNode, GrammarObject, HCG3ProductionBody, HCG3Symbol, ProductionFunction, ProductionTokenSymbol, ScannerProductionNode, SymbolType } from "../types/grammar_nodes";
-import { HCGParser } from "../types/parser";
-import "../utilities/array_globals.js";
-import { getSymbolName, Sym_Is_A_Generic_Type, Sym_Is_A_Production, Sym_Is_A_Production_Token, Sym_Is_Defined, Sym_Is_Empty, Sym_Is_EOF } from './nodes/symbol.js';
+import {
+    GeneralProductionNode, getSymbolName, GrammarObject,
+    HCG3ProductionBody,
+    HCG3Symbol,
+
+    ProductionFunction,
+    ProductionTokenSymbol,
+    ScannerProductionNode,
+    SymbolType, Sym_Is_A_Generic_Type, Sym_Is_A_Production, Sym_Is_A_Production_Token, Sym_Is_Defined, Sym_Is_Empty, Sym_Is_EOF
+} from "@hc/common";
 import {
     createCollisionMatrix,
     processSymbols,
@@ -21,6 +27,13 @@ import {
     loadGrammarFromFile,
     loadGrammarFromString
 } from "./passes/load.js";
+
+
+
+
+
+
+
 
 /**
  * Takes a raw root grammar object and applies transformation
@@ -60,8 +73,9 @@ export async function compileGrammar(grammar: GrammarObject):
         createCollisionMatrix(grammar);
 
     } catch (e) {
-        console.error(e);
-        errors.push(e);
+
+        if (e instanceof Error)
+            errors.push(e);
     }
 
     if (errors.length > 0) {
@@ -91,23 +105,11 @@ export async function compileResourceFile(grammar: GrammarObject):
 
         deduplicateProductionBodies(grammar, errors);
 
-        //distributePriorities(grammar, errors);
-
-        //Meta transformations: Symbols, Functions & Items
-        // processSymbols(grammar, errors);
-
-        //buildScannerProduction(grammar);
-
-        // Reprocess symbols to incorporate symbols from scanner productions
-        // processSymbols(grammar, errors);
-
-        //buildItemMaps(grammar);
-
-        //  createCollisionMatrix(grammar);
-
     } catch (e) {
         console.error(e);
-        errors.push(e);
+
+        if (e instanceof Error)
+            errors.push(e);
     }
 
     if (errors.length > 0) {
@@ -296,7 +298,7 @@ export async function compileGrammarFromURI(
 
 class GrammarCompilationReport extends Error {
     constructor(errors: Error[]) {
-        const messages = errors.map(e => "\n-----\n" + e.message).join("\n----\n");
+        const messages = errors.map(e => "\n-----\n" + e.stack).join("\n----\n");
 
         super(messages);
     }

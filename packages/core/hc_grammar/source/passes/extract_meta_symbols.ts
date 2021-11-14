@@ -4,7 +4,7 @@
  * disclaimer notice.
  */
 import { traverse } from "@candlelib/conflagrate";
-import { GrammarObject, HCG3Symbol } from "../../types/grammar_nodes";
+import { GrammarObject, HCG3Symbol } from "@hc/common";
 
 export function extractMetaSymbolsFromBodies(grammar: GrammarObject, error: Error[]) {
     for (const production of grammar.productions) {
@@ -43,7 +43,7 @@ export function extractMetaSymbolsFromBodies(grammar: GrammarObject, error: Erro
                     }
 
 
-                    mutate(null);
+                    mutate(<any>null);
                 }
             }
         }

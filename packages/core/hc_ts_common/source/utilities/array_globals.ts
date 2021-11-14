@@ -3,9 +3,11 @@
  * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
  * disclaimer notice.
  */
+import "../types/array_globals";
+
 Array.prototype.groupMap = function <T, KeyType>(
     this: Array<T>,
-    fn: (T, G: T[]) => (KeyType | KeyType[])
+    fn: (arg: T, G: T[]) => (KeyType | KeyType[])
 ): Map<KeyType, T[]> {
 
     const groups: Map<KeyType, T[]> = new Map;
@@ -15,8 +17,11 @@ Array.prototype.groupMap = function <T, KeyType>(
         const id = fn(e, this);
 
         for (const ident of Array.isArray(id) ? id : [id]) {
+
             if (!groups.has(ident))
                 groups.set(ident, []);
+
+            //@ts-ignore
             groups.get(ident).push(e);
         }
     });
@@ -25,7 +30,7 @@ Array.prototype.groupMap = function <T, KeyType>(
 };
 Array.prototype.setFilter = function <T>(
     this: Array<T>,
-    fn: (T) => (string | number) = _ => _ ? _.toString() : ""
+    fn: (arg: T) => (string | number) = _ => _ ? (<any>_).toString() : ""
 ): T[] {
 
     const set = new Set;
@@ -40,7 +45,7 @@ Array.prototype.setFilter = function <T>(
     });
 };
 
-Array.prototype.group = function <T, KeyType>(this: Array<T>, fn: (T, G: T[]) => (KeyType | KeyType[]) = _ => _ ? _.toString() : ""): T[][] {
+Array.prototype.group = function <T, KeyType>(this: Array<T>, fn: (arg: T, G: T[]) => (KeyType | KeyType[]) = _ => _ ? (<any>_).toString() : ""): T[][] {
     return [...this.groupMap(fn).values()];
 };
 

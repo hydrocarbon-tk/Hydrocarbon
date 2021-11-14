@@ -34,7 +34,14 @@ const out_dir = addCLIConfig<URI | "stdout">("disassemble", {
     REQUIRES_VALUE: true,
     help_arg_name: "Output Directory Path",
     help_brief: `
-    Directory within which files will be created/overwritten. Defaults to CWD`,
+    Directory within which files will be created/overwritten. Defaults to CWD. 
+    If the directory path is not terminated with a forward slash '/', then the 
+    last path part is taken to mean the filename of the output. Otherwise,
+    the filename of the source grammar file will be used.
+
+    All output files will have the extension "*.hcgr".
+
+     `,
 });
 
 addCLIConfig<URI | "stdin">("disassemble", {

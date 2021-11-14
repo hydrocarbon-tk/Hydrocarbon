@@ -16,7 +16,7 @@ const string_to_md5 = await (async (crypto) => {
 
             // Retrieved 2021 https://stackoverflow.com/a/60467595
 
-            function md5(inputString) {
+            function md5(inputString: string) {
                 var hc = "0123456789abcdef";
                 function rh(n) { var j, s = ""; for (j = 0; j <= 3; j++) s += hc.charAt((n >> (j * 8 + 4)) & 0x0F) + hc.charAt((n >> (j * 8)) & 0x0F); return s; }
                 function ad(x, y) { var l = (x & 0xFFFF) + (y & 0xFFFF); var m = (x >> 16) + (y >> 16) + (l >> 16); return (m << 16) | (l & 0xFFFF); }

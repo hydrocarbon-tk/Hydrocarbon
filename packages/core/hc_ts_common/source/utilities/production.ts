@@ -5,7 +5,7 @@
  */
 import {
     GrammarObject, GrammarProduction, ProductionSymbol, ProductionTokenSymbol, SymbolType
-} from "../types/grammar_nodes.js";
+} from "../types/grammar.js";
 import { getClosure } from "./closure.js";
 import { Item } from "./item.js";
 
@@ -15,7 +15,7 @@ export function getStartItemsFromProduction(production: GrammarProduction): Item
 }
 
 
-export function getProductionClosure(production_id: number, grammar: GrammarObject, ENTER_TOKEN_PRODUCTIONS: boolean = false) {
+export function getProductionClosure(production_id: number, grammar: GrammarObject) {
     const prod = grammar.productions[production_id];
     return getClosure(getStartItemsFromProduction(prod), grammar);
 }

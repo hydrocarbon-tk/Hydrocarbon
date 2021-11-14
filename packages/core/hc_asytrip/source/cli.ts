@@ -9,8 +9,8 @@ import {
 } from "@candlelib/paraffin";
 import URI from '@candlelib/uri';
 import { writeFile } from 'fs/promises';
-import { resolveResourceFile } from '../grammar/compile.js';
-import { GrammarObject } from '../types/grammar_nodes.js';
+import { resolveResourceFile } from '@hc/grammar';
+import { GrammarObject } from '@hc/common';
 import { createGoTypes } from './asytrip_to_go.js';
 import { createTsTypes } from './asytrip_to_js.js';
 import { createRustTypes } from './asytrip_to_rust.js';

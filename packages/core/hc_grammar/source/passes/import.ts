@@ -3,17 +3,30 @@
  * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
  * disclaimer notice.
  */
-import { copy, traverse } from "@candlelib/conflagrate";
-import { HCG3ProductionBody, ProductionSymbol, SymbolNode } from '../../types/grammar_nodes';
+import {
+    copy,
+    traverse
+} from "@candlelib/conflagrate";
 import {
     ExportPreamble,
     GrammarObject,
     GrammarProduction,
-    HCG3Symbol, ProductionImportSymbol, ProductionNode, SymbolType
-} from '../../types/grammar_nodes';
-import { InstructionType, IR_Instruction, IR_State } from '../../types/ir_types';
-import { createProductionSymbol, getImportedGrammarFromReference, getProductionByName } from "../nodes/common.js";
-import { user_defined_state_mux } from '../nodes/default_symbols.js';
+    HCG3ProductionBody,
+    HCG3Symbol,
+    InstructionType,
+    IR_Instruction,
+    IR_State,
+    ProductionImportSymbol,
+    ProductionNode,
+    ProductionSymbol,
+    SymbolType,
+    user_defined_state_mux
+} from '@hc/common';
+import {
+    createProductionSymbol,
+    getImportedGrammarFromReference,
+    getProductionByName
+} from "../nodes/common.js";
 
 /**
  * Responsible discovering and collecting ALL imported modules.

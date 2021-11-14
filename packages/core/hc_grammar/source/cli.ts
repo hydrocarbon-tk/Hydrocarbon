@@ -8,8 +8,7 @@ import {
     addCLIConfig, fsp, processCLIConfig
 } from "@candlelib/paraffin";
 import URI from '@candlelib/uri';
-import { GrammarObject } from '../types/grammar_nodes.js';
-import { compileResourceFile, resolveResourceFile } from './compile.js';
+import { compileResourceFile } from './compile.js';
 import { loadGrammarFromFile } from './passes/load.js';
 await URI.server();
 
@@ -23,12 +22,20 @@ Copyright (C) 2021 Anthony Weathersby - The Hydrocarbon Toolkit
 `
 });
 
-const out_dir = addCLIConfig<URI | string>("compile", {
+const out_dir = addCLIConfig<URI | "stdout">("compile", {
     default: URI.getCWDURL(),
     accepted_values: ["stdout", URI],
     key: "o",
     REQUIRES_VALUE: true,
-    help_brief: "Directory to write a Hydrocarbon grammar resource file (.hcgr). Defaults to CWD",
+    help_brief: `
+    Directory to write a Hydrocarbon grammar resource file (.hcgr).  Defaults to 
+    The current working directory. 
+
+    If the directory path is not terminated with a forward slash '/', then the 
+    last path part is taken to mean the filename of the output. Otherwise,
+    the filename of the source grammar file will be used.
+
+    All output files will have the extension "*.hcgr".`,
 });
 
 const stdin = addCLIConfig<URI | string>("compile", {
@@ -54,97 +61,45 @@ addCLIConfig<URI | string>("compile", {
     const
         input_file = URI.resolveRelative(arg);
 
-    if (!(await input_file.DOES_THIS_EXIST())) {
+
+    if (!input_file || !(await input_file.DOES_THIS_EXIST())) {
 
         throw new Error(`${arg} does not exists`);
 
     } else {
         let grammar = await loadGrammarFromFile(input_file);
 
-        grammar = await compileResourceFile(grammar);
+        if (grammar) {
 
-        grammar.resource_path = null;
+            grammar = await compileResourceFile(grammar);
 
-        if (out_dir.value === "stdout") {
+            grammar.resource_path = null;
 
-            process.stdout.write(JSON.stringify(grammar, undefined, 2));
+            if (out_dir.value === "stdout") {
 
-            return 0;
+                process.stdout.write(JSON.stringify(grammar, undefined, 2));
 
-        } else {
+                return 0;
 
-            const output_path = URI.resolveRelative(`./${input_file.filename}.hcgr`, out_dir.value);
+            } else {
 
-            grammar.resource_path = output_path + "";
+                let filename = input_file.filename;
 
-            await fsp.writeFile(output_path + "", JSON.stringify(grammar, undefined, 2), { encoding: "utf8" });
+                if (out_dir.value.filename)
+                    filename = out_dir.value.filename;
 
-            logger.log(`Resource file successfully written to ${output_path}`);
+                const output_path = URI.resolveRelative(`./${filename}.hcgr`, out_dir.value);
 
-            return 0;
+                grammar.resource_path = output_path + "";
+
+                await fsp.writeFile(output_path + "", JSON.stringify(grammar, undefined, 2), { encoding: "utf8" });
+
+                logger.log(`Resource file successfully written to ${output_path}`);
+
+                return 0;
+            }
         }
     }
-});
-addCLIConfig<URI | string>("deserialize", {
-    key: "deserialize",
-    help_arg_name: "HCG file path",
-    REQUIRES_VALUE: true,
-    accepted_values: ["stdin", URI],
-    help_brief: `
-
-    Deserialize a Hydrocarbon grammar resource file (.hcgr)
-`
-}).callback = (async (arg) => {
-
-    const logger = Logger.createLogger("compiler").activate();
-
-    if (arg === "stdin") {
-
-        return new Promise((complete, error) => {
-
-            process.stdin.resume();
-            process.stdin.setEncoding('utf8');
-
-            let data = [];
-            process.stdin.on('data', function (chunk) {
-
-                data.push(chunk);
-
-            });
-            process.stdin.on('end', async function () {
-                console.log(data);
-
-                let grammar = await resolveResourceFile(JSON.parse(data.join("")));
-
-                console.log(grammar);
-
-                complete();
-            });
-
-            process.stdin.on("error", function (e) {
-                logger.error(e);
-                error(1);
-            });
-        });
-
-    } else {
-        const
-            input_file = URI.resolveRelative(arg);
-
-        if (!(await input_file.DOES_THIS_EXIST())) {
-
-            throw new Error(`${arg} does not exists`);
-
-        } else {
-
-            let grammar: GrammarObject = <any>await input_file.fetchJSON();
-
-            grammar = await resolveResourceFile(grammar);
-
-            console.log(grammar);
-        }
-    }
-
 });
 
 processCLIConfig();

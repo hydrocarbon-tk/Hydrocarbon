@@ -3,7 +3,7 @@
  * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
  * disclaimer notice.
  */
-import { GrammarObject, TokenSymbol } from "../types/grammar_nodes";
+import { GrammarObject, TokenSymbol } from "../types/grammar";
 import { Item } from "./item.js";
 
 

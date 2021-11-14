@@ -3,8 +3,8 @@
  * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
  * disclaimer notice.
  */
-import { Sym_Is_Defined, Sym_Is_Defined_Symbol } from "../grammar/nodes/symbol.js";
-import { DefinedSymbol, GrammarObject } from "../types/grammar_nodes.js";
+import { Sym_Is_Defined, Sym_Is_Defined_Symbol } from "../objects/symbol.js";
+import { DefinedSymbol, GrammarObject } from "../types/grammar.js";
 
 
 /************ Grammar Production Functions *****************************/

@@ -3,9 +3,9 @@
  * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
  * disclaimer notice.
  */
-import { default_EOF } from "../grammar/nodes/default_symbols.js";
-import { convert_symbol_to_string, getRootSym, Sym_Is_A_Production } from "../grammar/nodes/symbol.js";
-import { GrammarObject, GrammarProduction, HCG3ProductionBody, HCG3Symbol } from "../types/grammar_nodes.js";
+import { default_EOF } from "../index";
+import { convert_symbol_to_string, getRootSym, Sym_Is_A_Production } from "../objects/symbol";
+import { GrammarObject, GrammarProduction, HCG3ProductionBody, HCG3Symbol } from "../types/grammar";
 
 export const enum ItemIndex {
     body_id = 0,
@@ -196,7 +196,9 @@ export function getGotoItems(grammar: GrammarObject, active_productions: number[
         if (Sym_Is_A_Production(sym) && prod_id.has(<number>sym.val)) {
 
             out.push(item);
-            if (item.increment().atEND) {
+
+            const incremented_item = item.increment();
+            if (incremented_item && incremented_item.atEND) {
                 to_process.push(item);
             }
         }

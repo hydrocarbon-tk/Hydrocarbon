@@ -3,7 +3,7 @@
  * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
  * disclaimer notice.
  */
-import { ASYTRIPContext, ASYTRIPStruct, getTypeString, ResolvedProp } from '../types/index.js';
+import { ASYTRIPContext, ASYTRIPStruct, getTypeString, ResolvedProp } from '@hc/common';
 import {
     getResolvedType, JSONFilter, TypeIsNotNull,
     TypeIsNull, TypeIsStruct, TypeIsVector,

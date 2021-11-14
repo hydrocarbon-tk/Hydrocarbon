@@ -8,11 +8,18 @@ import {
     GrammarObject,
     GrammarProduction,
     HCG3ProductionBody
-} from "../../types/grammar_nodes";
+} from "@hc/common";
 import {
-    addBodyToProduction, addSymbolToBody, Body_Has_Reduce_Action,
-    createProduction, createProductionBody, createProductionSymbol,
-    registerProduction, replaceAllBodySymbols, setBodyReduceExpressionAction, Sym_Is_List_Production
+    addBodyToProduction,
+    addSymbolToBody,
+    Body_Has_Reduce_Action,
+    createProduction,
+    createProductionBody,
+    createProductionSymbol,
+    registerProduction,
+    replaceAllBodySymbols,
+    setBodyReduceExpressionAction,
+    Sym_Is_List_Production
 } from "../nodes/common.js";
 import { expandOptionalBody, getProductionSignature } from "./common.js";
 import { processGroupSymbol } from "./convert_group_productions.js";

@@ -52,7 +52,7 @@ jspm_packages/
 .serverless
 
 #Build directory
-/build/
+*build/
 
 # Temporary test files
 test/**/*temp*/*

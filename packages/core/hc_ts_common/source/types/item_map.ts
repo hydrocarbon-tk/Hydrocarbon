@@ -4,7 +4,7 @@
  * disclaimer notice.
  */
 import { Item } from "../utilities/item";
-import { TokenSymbol } from "./grammar_nodes";
+import { TokenSymbol } from "./grammar";
 
 export interface ItemMapEntry {
     item: Item;

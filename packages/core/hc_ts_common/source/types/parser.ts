@@ -4,7 +4,7 @@
  * disclaimer notice.
  */
 
-import { Token } from "../runtime/token";
+import { Token } from "../objects/token";
 import { ParserEnvironment } from "./parser_environment";
 
 export type HCGParser<T = any, R = any> = {

@@ -7,23 +7,17 @@ import { traverse } from "@candlelib/conflagrate";
 import {
     GrammarObject,
     GrammarProduction,
-
-
-
     HCG3ProductionBody
-} from "../../types/grammar_nodes";
+} from "@hc/common";
 import {
     addBodyToProduction,
-
     Body_Has_Reduce_Action,
     copyBody,
     createProduction,
-
     createProductionSymbol,
     offsetReduceFunctionSymRefs,
     registerProduction,
     removeBodySymbol,
-
     replaceBodySymbol,
     Sym_Is_Group_Production
 } from "../nodes/common.js";
@@ -34,8 +28,11 @@ import { getProductionSignature } from "./common.js";
 export function convertGroupProductions(grammar: GrammarObject): GrammarObject {
     let i = 0;
     for (const production of grammar.productions) {
-        for (const { node: body, meta: b_meta } of traverse(production, "bodies").makeMutable()) {
-            let REMOVE_ORIGINAL_BODY = false;
+
+        for (const { node } of traverse(production, "bodies").makeMutable()) {
+
+            const body: HCG3ProductionBody = <any>node;
+
             for (const { node, meta } of traverse(body, "sym").makeMutable()) {
                 const sym: any = node;
 

@@ -3,7 +3,7 @@
  * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
  * disclaimer notice.
  */
-import { ASYTRIPContext, ASYTRIPType, ASYTRIPTypeObj, GrammarObject, ResolvedProp } from '../../../../source/typescript/types/index.js';
+import { ASYTRIPContext, ASYTRIPType, ASYTRIPTypeObj, GrammarObject, ResolvedProp } from '@hc/common';
 import {
     getResolvedType,
     JSONFilter,
@@ -17,9 +17,9 @@ import {
     TypesAre,
     TypesInclude,
     TypesRequiresDynamic
-} from '../../../source/typescript/asytrip/common.js';
-import { generateResolvedProps } from '../../../source/typescript/asytrip/generate_resolved_props.js';
-import { Inits } from '../../../source/typescript/asytrip/Inits.js';
+} from './common.js';
+import { generateResolvedProps } from './generate_resolved_props.js';
+import { Inits } from './Inits.js';
 
 const type_mapper = new Map();
 const expr_mapper = new Map();

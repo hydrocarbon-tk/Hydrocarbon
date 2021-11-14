@@ -5,25 +5,21 @@
  */
 import { experimentalConstructRenderers, experimentalRender, traverse } from "@candlelib/conflagrate";
 import {
-    ExportPreamble, GrammarObject,
-    GrammarProduction,
-    HCG3ProductionBody, HCG3Symbol, ProductionSymbol,
-    ProductionTokenSymbol, SymbolNode
-} from "../../types/grammar_nodes";
-import { InstructionType, IR_Instruction, IR_State } from '../../types/ir_types';
-import { TokenTypes } from "../../types/TokenTypes";
-import { token_lu_bit_size } from "../../utilities/code_generating.js";
-import { createSequenceData } from "../../utilities/create_byte_sequences.js";
-import { getSymbolTree, getSymbolTreeLeaves } from "../../utilities/getSymbolValueAtOffset.js";
-import {
-    addBodyToProduction,
-    copyBody,
-    removeBodySymbol
-} from "../nodes/common.js";
-import { default_array } from "../nodes/default_symbols.js";
-import { hcg3_mappings } from "../nodes/mappings.js";
-import {
+    createSequenceData,
+    default_array,
+    ExportPreamble,
+    getSymbolTree,
+    getSymbolTreeLeaves,
     getUniqueSymbolName,
+    GrammarObject,
+    GrammarProduction,
+    HCG3ProductionBody,
+    HCG3Symbol,
+    InstructionType,
+    IR_Instruction,
+    IR_State,
+    ProductionSymbol,
+    ProductionTokenSymbol, SymbolNode,
     Symbols_Are_The_Same,
     Sym_Is_A_Production,
     Sym_Is_A_Production_Token,
@@ -31,10 +27,19 @@ import {
     Sym_Is_Defined,
     Sym_Is_EOF,
     Sym_Is_Exclusive,
-    Sym_Is_Look_Behind
-} from "../nodes/symbol.js";
-let renderers = null;
-export const render_grammar = (grammar_node) => {
+    Sym_Is_Look_Behind,
+    TokenTypes,
+    token_lu_bit_size
+} from "@hc/common";
+import {
+    addBodyToProduction,
+    copyBody,
+    removeBodySymbol
+} from "../nodes/common.js";
+import { hcg3_mappings } from "../nodes/mappings.js";
+
+let renderers: any[] = [];
+export const render_grammar = (grammar_node: any) => {
 
     if (!renderers)
         renderers = experimentalConstructRenderers(hcg3_mappings);
@@ -42,7 +47,7 @@ export const render_grammar = (grammar_node) => {
     return experimentalRender(grammar_node, hcg3_mappings, renderers).string;
 };
 
-function assignEntryProductions(grammar: GrammarObject, production_lookup) {
+function assignEntryProductions(grammar: GrammarObject) {
 
     let HAVE_ENTRY_PRODUCTIONS = false;
     //*
@@ -306,37 +311,38 @@ export function createCollisionMatrix(grammar: GrammarObject) {
 
     const collision_matrix: boolean[][] = [];
 
-    for (const symA of grammar.meta.all_symbols.values()) {
+    if (grammar.meta?.all_symbols)
+        for (const symA of grammar.meta.all_symbols.values()) {
 
-        if (Sym_Is_A_Production(symA))
-            continue;
-
-        const j = [];
-
-        collision_matrix[symA.id] = j;
-
-        for (const symB of grammar.meta.all_symbols.values()) {
-
-            if (
-                symB == symA
-                || Sym_Is_EOF(symA)
-                || Sym_Is_EOF(symB)
-                || Sym_Is_Look_Behind(symA) || Sym_Is_Look_Behind(symB)
-            ) {
-                j[symB.id] = (!!0);
-            } else if (Sym_Is_A_Production(symB)) {
+            if (!symA || Sym_Is_A_Production(symA))
                 continue;
-            }
-            if (Sym_Is_Defined(symA) && Sym_Is_Defined(symB) &&
-                symA.val == symB.val && !Symbols_Are_The_Same(symB, symA)) {
-                j[symB.id] = (!!1);
-            } else if (Symbols_Are_Ambiguous(symA, symB, grammar)) {
-                j[symB.id] = (!!1);
-            } else {
-                j[symB.id] = (!!0);
+
+            const j: boolean[][] = [];
+
+            collision_matrix[symA.id] = j;
+
+            for (const symB of grammar.meta.all_symbols.values()) {
+
+                if (
+                    symB == symA
+                    || Sym_Is_EOF(symA)
+                    || Sym_Is_EOF(symB)
+                    || Sym_Is_Look_Behind(symA) || Sym_Is_Look_Behind(symB)
+                ) {
+                    j[symB.id] = (!!0);
+                } else if (Sym_Is_A_Production(symB)) {
+                    continue;
+                }
+                if (Sym_Is_Defined(symA) && Sym_Is_Defined(symB) &&
+                    symA.val == symB.val && !Symbols_Are_The_Same(symB, symA)) {
+                    j[symB.id] = (!!1);
+                } else if (Symbols_Are_Ambiguous(symA, symB, grammar)) {
+                    j[symB.id] = (!!1);
+                } else {
+                    j[symB.id] = (!!0);
+                }
             }
         }
-    }
 
     grammar.collision_matrix = collision_matrix;
 }

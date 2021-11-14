@@ -3,7 +3,7 @@
  * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
  * disclaimer notice.
  */
-import { ASYTRIPContext, ASYTRIPType, ASYTRIPTypeObj, GrammarObject } from '../types/index.js';
+import { ASYTRIPContext, ASYTRIPType, ASYTRIPTypeObj, GrammarObject } from '@hc/common';
 import {
     getResolvedType, TypeIsNotNull, TypeIsStruct,
     TypeIsVector, TypesAre, TypesInclude

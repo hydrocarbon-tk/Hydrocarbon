@@ -1,6 +1,6 @@
 
-import { Token } from '../runtime/token';
-import { ReferencedFunction, ProductionFunction, ProductionImportSymbol, ProductionSymbol, TokenSymbol } from './grammar_nodes';
+import { Token } from '../objects/token';
+import { ReferencedFunction, ProductionFunction, ProductionImportSymbol, ProductionSymbol, TokenSymbol } from './grammar';
 
 export type i32 = number;
 type bit = number;
@@ -40,7 +40,7 @@ export interface ResolvedFailedIRState extends ResolvedIRState {
     type: "on-fail-state";
 }
 
-export const enum InstructionType {
+export enum InstructionType {
 
     assert_consume = "assert-consume",
     increment = "increment",

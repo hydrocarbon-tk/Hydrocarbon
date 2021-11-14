@@ -1,0 +1,47 @@
+{
+    "name": "@hc/grammar",
+    "description": "Hydrocarbon Grammar Compiler",
+    "version": "1.0.0",
+    "bin": {
+        "hc.grammar": "bin/index.js"
+    },
+    "main": "./build/index.js",
+    "type": "module",
+    "scripts": {
+        "test": "candle.cure ./test/*"
+    },
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/CandleLibrary/Hydrocarbon.git"
+    },
+    "files": [
+        "/build/",
+        "/README.md",
+        "/LICENSE",
+        "/bin/cli.js"
+    ],
+    "keywords": [
+        "Compiler",
+        "Parser"
+    ],
+    "author": "Anthony Weathersby",
+    "license": "GPL-3.0+",
+    "bugs": {
+        "url": "https://github.com/CandleLibrary/Hydrocarbon/issues"
+    },
+    "homepage": "https://github.com/CandleLibrary/Hydrocarbon#readme",
+    "dependencies": {
+        "@candlelib/log": "0.1.2",
+        "@candlelib/paraffin": "0.1.15",
+        "@candlelib/uri": "0.3.0",
+        "@candlelib/hydrocarbon": "0.3.0",
+        "@hc/common": "*"
+    },
+    "devDependencies": {
+        "@candlelib/cure": "*",
+        "@types/node": "^16.4.13"
+    },
+    "engine": {
+        "node": ">=13.7.0"
+    }
+}

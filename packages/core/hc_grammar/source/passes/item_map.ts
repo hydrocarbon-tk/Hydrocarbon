@@ -3,20 +3,25 @@
  * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
  * disclaimer notice.
  */
-import { ProductionSymbol, TokenSymbol } from "../../types/grammar_nodes";
-import { GrammarObject, GrammarProduction } from "../../types/grammar_nodes.js";
-import { ItemMapEntry } from "../../types/item_map.js";
-import { getFirstTerminalSymbols } from "../../utilities/first.js";
-import { Item } from "../../utilities/item.js";
-import { doesProductionHaveEmpty, getProductionID, getStartItemsFromProduction } from "../../utilities/production.js";
-import { default_EOF } from "../nodes/default_symbols.js";
 import {
+    default_EOF,
+    doesProductionHaveEmpty,
+    getFirstTerminalSymbols,
+    getProductionID,
+    getStartItemsFromProduction,
     getSymbolName,
-    getTrueSymbolValue, getUniqueSymbolName,
+    getTrueSymbolValue,
+    getUniqueSymbolName,
+    GrammarObject,
+    GrammarProduction,
+    Item,
+    ItemMapEntry,
+    ProductionSymbol,
     Sym_Is_A_Production,
     Sym_Is_A_Production_Token,
-    Sym_Is_Look_Behind
-} from "../nodes/symbol.js";
+    Sym_Is_Look_Behind,
+    TokenSymbol,
+} from "@hc/common";
 
 type IntermediateItemMapEntry = (ItemMapEntry & {
     closure: Item[];
@@ -80,30 +85,30 @@ function getItemMapVariables(grammar: GrammarObject, productions: GrammarProduct
 
         item_maps_in_process: ItemMapEntry[] = productions.flatMap((p) => {
 
-            const array_of_item_maps = getStartItemsFromProduction(p).map(item => {
+            const array_of_item_maps = getStartItemsFromProduction(p).map((item: Item | null) => {
 
 
                 const out_entry: IntermediateItemMapEntry[] = [];
+                if (item)
+                    do {
+                        const b = item.body_(grammar);
 
-                do {
-                    const b = item.body_(grammar);
-
-                    out_entry.push(<IntermediateItemMapEntry>{
-                        item,
-                        closure: [],
-                        reset_sym: [],
-                        excludes: b?.excludes?.[item.offset] ?? [],
-                        rank: item.offset,
-                        hash: "",
-                        follow: new Set,
-                        skippable: null,
-                        containing_items: new Set,
-                        breadcrumbs: new Set,
-                        sym_uid: 0,
-                        id: -1
-                    });
-                    // depth++;
-                } while (item = item.increment());
+                        out_entry.push(<IntermediateItemMapEntry>{
+                            item,
+                            closure: [],
+                            reset_sym: [],
+                            excludes: b?.excludes?.[item.offset] ?? [],
+                            rank: item.offset,
+                            hash: "",
+                            follow: new Set,
+                            skippable: new Set,
+                            containing_items: new Set,
+                            breadcrumbs: new Set,
+                            sym_uid: 0,
+                            id: -1
+                        });
+                        // depth++;
+                    } while (item = item.increment());
 
                 return out_entry;
             });
@@ -117,30 +122,39 @@ function getItemMapVariables(grammar: GrammarObject, productions: GrammarProduct
 
 function getInterMediateItemMapEntriesFromProduction(p: GrammarProduction, grammar: GrammarObject): (ItemMapEntry & { closure: Item[]; })[] {
     return getStartItemsFromProduction(p).map(i => getItemMapEntry(grammar, i.id))
-        .filter(_ => _)
-        .map(i => Object.assign({}, i, { closure: i.closure.map(i => getItemMapEntry(grammar, i).item) }));
+        .filter((_): _ is ItemMapEntry => _ != null)
+        .map(i => Object.assign({}, i, { closure: i.closure.map(i => getItemMapEntry(grammar, i)?.item).filter((i): i is Item => !!i) }));
 }
 
 function ensureGrammarHasItemMap(grammar: GrammarObject) {
     if (!grammar.item_map) grammar.item_map = new Map;
 }
 
-function addFollowInformation(item: Item, grammar: GrammarObject, check_set: Set<string>[], follow_sym: TokenSymbol = null, breadcrumbs = [], item_map) {
+function addFollowInformation(
+    item: Item | null, grammar: GrammarObject,
+    check_set: Set<string>[],
+    follow_sym: TokenSymbol | null = null,
+    breadcrumbs = [],
+    item_map
+) {
+
+    if (!item)
+        return;
 
     for (const crumb of breadcrumbs)
-        grammar.item_map.get(item.id).breadcrumbs.add(crumb);
+        grammar.item_map.get(item.id)?.breadcrumbs.add(crumb);
 
     if (item.atEND) {
         if (follow_sym && !Sym_Is_Look_Behind(follow_sym))
-            grammar.item_map.get(item.id).follow.add(getUniqueSymbolName(follow_sym));
+            grammar.item_map.get(item.id)?.follow.add(getUniqueSymbolName(follow_sym));
         return;
     }
 
     item_map.push(item.renderUnformattedWithProduction(grammar));
 
     let sym: TokenSymbol = <any>
-        (!item.increment().atEND
-            ? item.increment().sym(grammar)
+        (!item.increment()?.atEND
+            ? item.increment()?.sym(grammar)
             : null),
         item_sym = item.sym(grammar),
         follow: TokenSymbol[] = follow_sym ? [follow_sym] : [];
@@ -150,28 +164,32 @@ function addFollowInformation(item: Item, grammar: GrammarObject, check_set: Set
 
             follow = [];
 
-            let look_ahead = item.increment(),
-                sym = look_ahead.sym(grammar);
+            let look_ahead = item.increment();
 
-            do {
+            if (look_ahead) {
 
-                if (!look_ahead.atEND) {
+                let sym = look_ahead.sym(grammar);
 
-                    if (Sym_Is_A_Production(sym)) {
-                        follow = follow.concat(getFirstTerminalSymbols(getProductionID(sym, grammar), grammar)).setFilter(getUniqueSymbolName);
-                    } else {
-                        follow = follow.concat(<any>sym).setFilter(getUniqueSymbolName);
+                do {
+
+                    if (!look_ahead.atEND) {
+
+                        if (Sym_Is_A_Production(sym)) {
+                            follow = follow.concat(getFirstTerminalSymbols(getProductionID(sym, grammar), grammar)).setFilter(getUniqueSymbolName);
+                        } else {
+                            follow = follow.concat(<any>sym).setFilter(getUniqueSymbolName);
+                            break;
+                        }
+
+                    } else if (follow_sym) {
+                        follow.push(follow_sym);
                         break;
                     }
 
-                } else {
-                    follow.push(follow_sym);
-                    break;
-                }
+                    look_ahead = look_ahead.increment();
 
-                look_ahead = look_ahead.increment();
-
-            } while (false && doesProductionHaveEmpty(getProductionID(<ProductionSymbol>sym, grammar), grammar));
+                } while (false && doesProductionHaveEmpty(getProductionID(<ProductionSymbol>sym, grammar), grammar));
+            }
 
         } else follow = [sym];
 
@@ -212,12 +230,12 @@ function addFollowInformation(item: Item, grammar: GrammarObject, check_set: Set
     addFollowInformation(item.increment(), grammar, check_set, follow_sym, breadcrumbs, item_map);
 }
 
-export function getItemMapEntry(grammar: GrammarObject, item_id: string): ItemMapEntry {
+export function getItemMapEntry(grammar: GrammarObject, item_id: string): ItemMapEntry | null {
 
     if (!grammar.item_map.has(item_id))
         return null;
 
-    return grammar.item_map.get(item_id);
+    return grammar.item_map.get(item_id) ?? null;
 }
 /**
  * Builds the closure of every item 
@@ -428,7 +446,7 @@ function processSkippedSymbols(grammar: GrammarObject, item_maps_in_process: Ite
 
         const standard_skips = [];
 
-        for (const skipped_symbol of getOriginGrammarOfProduction(production, grammar).meta.ignore)
+        for (const skipped_symbol of getOriginGrammarOfProduction(production, grammar)?.meta?.ignore ?? [])
             standard_skips.push(skipped_symbol);
 
         const first = item_map.item.atEND
@@ -441,13 +459,14 @@ function processSkippedSymbols(grammar: GrammarObject, item_maps_in_process: Ite
 
         const b = item.body_(grammar);
 
-        if (!item.atEND) {
+        if (!item.atEND && b.reset?.[0]) {
             const sym = item.sym(grammar);
             if (Sym_Is_A_Production(sym) && sym.subtype) {
                 const sub_production = grammar.productions[sym.val];
 
                 for (const body of sub_production.bodies) {
-                    body.reset[0] = b.reset[0];
+                    if (body.reset?.[0])
+                        body.reset[0] = b.reset[0];
                 }
             }
         }

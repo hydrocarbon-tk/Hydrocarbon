@@ -4,10 +4,10 @@
  * disclaimer notice.
  */
 import { ParseActionType, StateIterator } from '../recognizer/iterator.js';
-import { Token } from "../token.js";
+import { Token } from "@hc/common";
 import { StringByteReader } from '../common/string_byte_reader.js';
 import { ParseAction } from '../recognizer/iterator.js';
-import { goto_state_mask } from "../../utilities/magic_numbers.js";
+import { goto_state_mask } from "@hc/common";
 
 export function complete<T>(
     input_string: string,

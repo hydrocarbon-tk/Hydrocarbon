@@ -4,23 +4,22 @@
  * disclaimer notice.
  */
 import { copy } from "@candlelib/conflagrate";
-import { Token } from '../../runtime/token.js';
 import {
     EmptySymbol,
-    ProductionFunction,
     GrammarObject,
-    ReferencedFunction,
-    GroupProductionSymbol,
-    ListProductionSymbol,
     GrammarProduction,
+    GroupProductionSymbol,
     HCG3ProductionBody,
-    ProductionSymbol,
     HCG3Symbol,
     HCG3TokenPosition,
+    ListProductionSymbol,
+    ProductionFunction,
     ProductionImportSymbol,
+    ProductionSymbol,
+    ProductionTokenSymbol,
     SymbolType,
-    ProductionTokenSymbol
-} from "../../types/grammar_nodes";
+    Token
+} from '@hc/common';
 
 export function getImportedGrammarFromReference(local_grammar: GrammarObject, module_name: string) {
     return local_grammar.imported_grammars.filter(g => g.reference == module_name)[0];
@@ -231,18 +230,18 @@ function createEmptySymbol(): EmptySymbol {
 function createZeroedPosition(): HCG3TokenPosition {
     return new Token("", 0, 0, 0);
 }
-export function createProduction(name: string, mapped_sym: ReferencedFunction = null): GrammarProduction {
+export function createProduction(name: string, mapped_sym: { pos?: Token, tok?: Token; } | null = null): GrammarProduction {
     return {
         type: "production",
         name: name,
         bodies: [],
         id: -1,
-        recovery_handler: null,
         tok: mapped_sym?.pos ?? mapped_sym?.tok ?? createZeroedPosition(),
-        RECURSIVE: 0
+        RECURSIVE: 0,
+        recovery_handler: null,
     };
 }
-export function createProductionBody(mapped_sym: ReferencedFunction = null): HCG3ProductionBody {
+export function createProductionBody(mapped_sym: { pos?: Token, tok?: Token; } | null = null): HCG3ProductionBody {
     return {
         type: "body",
         FORCE_FORK: false,
@@ -253,7 +252,11 @@ export function createProductionBody(mapped_sym: ReferencedFunction = null): HCG
     };
 }
 
-export function registerProduction(grammar: GrammarObject, hash_string, production: GrammarProduction): GrammarProduction {
+export function registerProduction(
+    grammar: GrammarObject,
+    hash_string: string,
+    production: GrammarProduction
+): GrammarProduction {
 
     if (!grammar.production_hash_lookup)
         grammar.production_hash_lookup = new Map;

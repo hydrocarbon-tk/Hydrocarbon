@@ -3,8 +3,8 @@
  * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
  * disclaimer notice.
  */
-import { NodeMapping, NodeMappings } from "@candlelib/conflagrate/build/types/types/node_mappings";
-import { GrammarObject, ReferencedFunction, MetaExcludeSymbol } from "../../types/";
+import { NodeMapping, NodeMappings } from "@candlelib/conflagrate";
+import { GrammarObject, MetaExcludeSymbol, ReferencedFunction } from "@hc/common";
 
 const hcg3_mappings: NodeMappings<ReferencedFunction, "type"> = <NodeMappings<ReferencedFunction, "type">>{
     typename: "type",

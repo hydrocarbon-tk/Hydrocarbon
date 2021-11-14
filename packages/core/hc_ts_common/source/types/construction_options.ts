@@ -1,4 +1,4 @@
-import { GrammarProduction, TokenSymbol } from './index.js';
+import { GrammarProduction, TokenSymbol } from './index';
 
 export interface ConstructionOptions {
     production: GrammarProduction;

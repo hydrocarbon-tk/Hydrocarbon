@@ -6,10 +6,10 @@
 
 import { copy, traverse } from "@candlelib/conflagrate";
 import {
-    GrammarObject,
+    getUniqueSymbolName, GrammarObject,
     HCG3Symbol,
-    RECURSIVE_STATE
-} from "../../types/grammar_nodes";
+    RECURSIVE_STATE, Sym_Is_A_Production
+} from "@hc/common";
 import {
     addBodyToProduction,
     getProductionByName,
@@ -17,8 +17,8 @@ import {
     offsetReduceFunctionSymRefs,
     replaceBodySymbol
 } from "../nodes/common.js";
-import { getUniqueSymbolName, Sym_Is_A_Production, Sym_Is_A_Production_Token } from "../nodes/symbol.js";
-import { render_grammar } from "./common.js";
+
+
 
 /**
  * Sets the recursion state on all productions in a grammar
@@ -26,7 +26,7 @@ import { render_grammar } from "./common.js";
  * @param error
  */
 
-export function generateProductionRecursionStates(grammar: GrammarObject, error) {
+export function generateProductionRecursionStates(grammar: GrammarObject, error: Error[]) {
     // Gather all nodes that are reachable 
     const splat = new Map();
 
@@ -59,11 +59,12 @@ export function generateProductionRecursionStates(grammar: GrammarObject, error)
             production.RECURSIVE |= RECURSIVE_STATE.RIGHT;
         } else {
             //Do a system traversal. 
-            function batch(root_name, name, splat: Map<string, Set<string>>, lu = new Set) {
-                if (splat.get(name).has(root_name))
+            function batch(root_name: string, name: string, splat: Map<string, Set<string>>, lu = new Set) {
+
+                if (splat.get(name)?.has(root_name))
                     return true;
 
-                for (const n of splat.get(name)) {
+                for (const n of splat.get(name) ?? []) {
 
                     if (lu.has(n))
                         continue;
@@ -91,7 +92,7 @@ export function generateProductionRecursionStates(grammar: GrammarObject, error)
  * @param grammar
  * @param error
  */
-export function mergeProductions(grammar: GrammarObject, error) {
+export function mergeProductions(grammar: GrammarObject, error: Error[]) {
 
     generateProductionRecursionStates(grammar, error);
 
@@ -143,7 +144,7 @@ export function mergeProductions(grammar: GrammarObject, error) {
 
                     for (const body of ref_prod.bodies) {
                         //Bodies that are left recursive
-                        if (body.reduce_function || body.sym[0].name == ref_prod.name) {
+                        if (body.reduce_function || (<any>body.sym[0]).name == ref_prod.name) {
                             HAS_REDUCED_BODY = true;
                             break;
                         }
@@ -165,7 +166,7 @@ export function mergeProductions(grammar: GrammarObject, error) {
                             if (!Sym_Is_A_Production(active_symbol)) {
 
                                 for (let i = 0; i <= index; i++) {
-                                    const excludes = body.excludes[i];
+                                    const excludes = body.excludes?.[i];
                                     if (excludes) {
                                         for (let j = 0; j < excludes.length; j++) {
                                             const block = excludes[j];
@@ -211,7 +212,7 @@ export function mergeProductions(grammar: GrammarObject, error) {
 
                                 offsetReduceFunctionSymRefs(body, index, getRealSymbolCount(cpu_body.sym) - 1);
 
-                                mutate(cpu_body.sym, true);
+                                mutate(<any>cpu_body.sym, true);
                             }
                         }
                     }

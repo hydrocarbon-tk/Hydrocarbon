@@ -4,7 +4,7 @@
  * disclaimer notice.
  */
 import { Item } from "../utilities/item.js";
-import { GrammarObject, GrammarProduction } from "./grammar_nodes.js";
+import { GrammarObject, GrammarProduction } from "./grammar.js";
 
 export interface BaseOptions {
     /**

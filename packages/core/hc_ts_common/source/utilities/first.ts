@@ -3,9 +3,9 @@
  * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
  * disclaimer notice.
  */
-import { GrammarObject, TokenSymbol } from "../types/grammar_nodes.js";
+import { GrammarObject, TokenSymbol } from "../types/grammar.js";
 import { getProductionClosure } from "./production.js";
-import { getTrueSymbolValue, getUniqueSymbolName, Sym_Is_A_Production } from "../grammar/nodes/symbol.js";
+import { getTrueSymbolValue, getUniqueSymbolName, Sym_Is_A_Production } from "../objects/symbol.js";
 
 
 export function getFirstTerminalSymbols(production_id: number, grammar: GrammarObject) {

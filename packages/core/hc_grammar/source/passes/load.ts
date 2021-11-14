@@ -3,14 +3,13 @@
  * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
  * disclaimer notice.
  */
-import "@candlelib/paraffin";
+import { HCGParser } from "@candlelib/hydrocarbon";
 import { Logger, LogLevel } from '@candlelib/log';
+import "@candlelib/paraffin";
 import URI from "@candlelib/uri";
-import { GrammarObject } from "../../types/grammar_nodes";
-import { HCGParser } from "../../types/parser";
-import { default_map } from "../../utilities/default_map.js";
-//import loader from "../hcg_parser.js";
+import { GrammarObject } from "@hc/common";
 import loader from "../hcg_parser.js";
+import { default_map } from './default_map.js';
 
 /**
  * Entry point to loading a grammar from a string
@@ -39,7 +38,7 @@ export function loadGrammarFromString(str: string, grammar_parser: HCGParser = p
  * Entry point to loading a grammar file from a URI
  */
 
-export async function loadGrammarFromFile(uri: URI | string, grammar_parser: HCGParser = parser): Promise<GrammarObject> {
+export async function loadGrammarFromFile(uri: URI | string, grammar_parser: HCGParser = parser): Promise<GrammarObject | null> {
 
     const uri_string = uri + "";
 
@@ -49,36 +48,44 @@ export async function loadGrammarFromFile(uri: URI | string, grammar_parser: HCG
 
     const grammar = await loadGrammar(internal_uri, grammar_parser, existing_grammars);
 
-    existing_grammars.set("root", grammar);
+    if (grammar) {
 
-    const import_grammars = new Map(grammar.imported_grammars.map(g => [g.uri, g]));
+        existing_grammars.set("root", grammar);
 
-    for (const gmmr of existing_grammars.values()) {
+        const import_grammars = new Map(grammar.imported_grammars.map(g => [g.uri, g]));
 
-        if (gmmr == grammar) continue;
+        for (const gmmr of existing_grammars.values()) {
 
-        gmmr.common_import_name = (new URI(gmmr.URI)).filename.replace(/-/g, "_");
+            if (gmmr == grammar) continue;
 
-        if (!import_grammars.has(gmmr.URI)) {
-            import_grammars.set(gmmr.URI, {
-                reference: gmmr.common_import_name,
-                uri: gmmr.URI,
-                grammar: null,
-            });
+            gmmr.common_import_name = (new URI(gmmr.URI)).filename.replace(/-/g, "_");
+
+            if (!import_grammars.has(gmmr.URI)) {
+                import_grammars.set(gmmr.URI, {
+                    reference: gmmr.common_import_name,
+                    uri: gmmr.URI,
+                    grammar: <any>undefined,
+                });
+            }
+
+            for (const imported_grammar of gmmr.imported_grammars)
+                imported_grammar.grammar = <any>existing_grammars.get(imported_grammar.uri);
+
+            const obj = import_grammars.get(gmmr.URI);
+
+            if (obj) {
+
+                obj.grammar = gmmr;
+
+                const ref_name = obj.grammar.common_import_name;
+
+                for (const production of gmmr.productions)
+                    production.grammar_id = ref_name;
+            }
         }
 
-        for (const imported_grammar of gmmr.imported_grammars)
-            imported_grammar.grammar = existing_grammars.get(imported_grammar.uri);
-
-        import_grammars.get(gmmr.URI).grammar = gmmr;
-
-        const ref_name = import_grammars.get(gmmr.URI).grammar.common_import_name;
-
-        for (const production of gmmr.productions)
-            production.grammar_id = ref_name;
+        grammar.imported_grammars = [...import_grammars.values()];
     }
-
-    grammar.imported_grammars = [...import_grammars.values()];
 
     return grammar;
 }
@@ -88,7 +95,7 @@ async function loadGrammar(
     uri: URI,
     grammar_parser: any = parser,
     existing_grammars: Map<string, GrammarObject>,
-): Promise<GrammarObject> {
+): Promise<GrammarObject | null> {
 
     uri = getResolvedURI(uri);
 
@@ -120,7 +127,7 @@ async function loadGrammar(
 
             grammar.imported_grammars.push({
                 uri: location_string,
-                grammar: null,
+                grammar: <any>null,
                 reference: preamble.reference
             });
 
@@ -130,7 +137,7 @@ async function loadGrammar(
 
                 // temporarily assign empty value until the import 
                 // can be completed
-                existing_grammars.set(location_string, null);
+                existing_grammars.set(location_string, <any>null);
 
                 try {
                     const import_grammar = await loadGrammar(location, grammar_parser, existing_grammars);
@@ -145,7 +152,7 @@ async function loadGrammar(
                         .activate(LogLevel.ERROR)
                         .error(`Unable to open ${uri}`);
 
-                    preamble.tok.token_slice(8).throw("Unable to load import", uri + "");
+                    (<any>preamble.tok).token_slice(8).throw("Unable to load import", uri + "");
 
                     return null;
                 }
@@ -180,16 +187,22 @@ function resolveReferencedFunctions(grammar: GrammarObject) {
     
         }
      */
-    grammar.meta = {};
-
-    grammar.meta.ignore = <any[]>[grammar.preamble.filter(t => t.type == "ignore")[0]].filter(i => !!i)[0]?.symbols ?? [];
+    grammar.meta = {
+        token_row_size: 0,
+        ignore: <any[]>[grammar.preamble.filter(t => t.type == "ignore")[0]].filter(i => !!i)[0]?.symbols ?? []
+    };
 }
 
 export function getResolvedURI(uri: URI, source?: URI) {
+
     uri = default_map[uri + ""] ?? uri;
 
-    if (uri.IS_RELATIVE)
-        uri = URI.resolveRelative(uri, source);
+    if (uri.IS_RELATIVE) {
+        const candidate = URI.resolveRelative(uri, source);
+        if (candidate)
+            uri = candidate;
+    }
+
     return uri;
 }
 
