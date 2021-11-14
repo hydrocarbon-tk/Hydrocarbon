@@ -1,0 +1,15 @@
+@IGNORE g:sp
+
+<> S > add
+
+<> add > num        
+    | add \+ num    
+    | num \* add    
+    | add \+ let    
+
+<> num > 
+     \a \b
+    | \a        
+
+<> let > \c        
+

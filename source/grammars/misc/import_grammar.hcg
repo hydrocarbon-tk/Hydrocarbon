@@ -1,5 +1,0 @@
-@IMPORT ./importee_grammar.hcg as import
-
-<> start > import::A
-
-+> import::B > \test

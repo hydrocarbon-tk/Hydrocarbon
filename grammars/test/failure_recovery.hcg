@@ -1,0 +1,33 @@
+@IGNORE g:sp
+
+<> S > A \r
+            f:r { { sym: $1  } }
+
+<> A > \a \b \c
+            f:r { { type: "good A", a:$1, b:$2, c:$3  } }
+
+<[recover A] 
+
+    scan until [ \r ] 
+        then set prod to A
+        then reduce f:r { { type:"failed A", tok, sym } } 
+
+    on fail state [ A_scan_backward ] 
+
+        scan back until [ g:sp ] 
+            then reduce f:r { { type:"failed A", tok } } 
+            then set prod to A
+>
+
+
+#<> ASI > \;
+#
+#<[ ASI_recovery]
+#
+#scan until [ $eof \}  ] then set token length 0 then consume
+#
+#on fail state [ASI_recovery_look_back]
+#
+#scan back until [ g:nl ] then consume
+#
+#>

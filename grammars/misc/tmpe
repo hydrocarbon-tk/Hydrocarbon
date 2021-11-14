@@ -1,0 +1,37 @@
+# Ruminate Query Language
+
+@IGNORE g:sp g:nl
+
+<> RNQL > container_clause
+
+<> query_body > container_clause      f:r { { type : t_QueryBody, container:$1, filter:$2, sort:$3 } }
+
+## Container Clause
+
+<> container_clause >  [ \/ ?  container_identifier(*) identifier? ]      f:r { { type : t_ContainerClause, path:$2, container:$3 } }
+
+<> container_identifier > identifier \/                                 f:r { $1 }
+
+<> identifier > identifier_part(+)                                  
+                                                                        f:r { { type:t_IDENTIFIERS, ids:$1 } }
+
+<> identifier_part > wild_card                                              
+    | string_data
+
+<> sentence > \" tk:string_data \"                                  
+                                                                        f:r {$2 + ""}
+    | \' tk:string_data \'                                          
+                                                                        f:r {$2 + ""}
+
+<> string_data > string_symbols string_data_val(*)                
+
+<> wild_card > \*
+
+<> string_data_val > string_symbols 
+    | escaped_value
+    | g:sp
+
+<> escaped_value > \\ string_symbols                                
+
+<> string_symbols > g:num | g:id
+

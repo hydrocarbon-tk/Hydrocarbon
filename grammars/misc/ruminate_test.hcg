@@ -1,0 +1,20 @@
+@IGNORE g:sp
+
+@EXPORT S as start
+
+@EXPORT id as identifier
+
+<> S > B A                f:r { [$1, $2] }
+     | B                    f:r { [$1] }
+
+<> A > ident                
+
+<> B > B ident \/           f:r { $1.idents + $2, $1 }
+    | ident \/              f:r { { type: t_Path, idents:[$1] } }
+
+
+<> ident > id^val           f:r { { type: t_Ident, val:$val } } 
+
+<> id > id g:id             f:r { $1 + $2 } 
+    | g:id                  f:r { str($1) } 
+

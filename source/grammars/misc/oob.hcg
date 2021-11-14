@@ -1,9 +1,0 @@
-@IGNORE g:sp
-
-<> test > ( A | B ) g:id 
-
-<> A > g:id(+) tk:s g:id(+)
-
-<> B > g:id(+) tk:s g:num(+)
-
-<> s > g:id g:num

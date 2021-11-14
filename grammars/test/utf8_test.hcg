@@ -1,0 +1,5 @@
+
+
+<> S > \" (g:sym | g:id | g:nl | g:sp )(+) \" 
+
+f:r{ { type:"String", d:$2}  } 

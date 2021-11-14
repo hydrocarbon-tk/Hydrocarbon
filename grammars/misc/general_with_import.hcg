@@ -1,0 +1,17 @@
+@IMPORT ./general_import_2.hcg as gen2
+@IMPORT ./general_import_1.hcg as gen1
+
+<> start > A
+
+<> A >  ( A \mangos | B \avocados )(*) \grapes (+\, )
+    | g:id? g:num f:r{ $1 + $2 }
+    | gen1::A
+    
+
+<> B > ( ( \tomatoes | \watermellon )(*\; )  )(*)
+    | gen2::A
+  
+    
+
+<> C > \a | \b ? | \c | \d | \e | \f | \g
+

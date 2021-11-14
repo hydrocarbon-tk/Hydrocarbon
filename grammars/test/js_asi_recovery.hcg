@@ -1,0 +1,27 @@
+@IGNORE g:sp g:nl
+
+<> S > statements
+
+<> statements > statement(+)
+
+<> statement > exp_stmt asi f:r { $1 }
+
+<> asi > ( g:rec | \; )  
+
+<[ recover asi_1 ] 
+
+    scan back until [ g:nl ] then consume nothing
+
+    on fail state [ asi_forward_scan ] 
+
+    scan until [ \} $eof ] then consume nothing
+>
+
+<> exp_stmt > exp_stmt \, exp   f:r { ( $1.exprs.push($3) , $1) }
+    | exp                       f:r { { type:"exp-stmt", exprs:[$1] } }
+
+<> exp > term \+ exp        
+    | term
+
+<> term > g:id 
+    | g:num

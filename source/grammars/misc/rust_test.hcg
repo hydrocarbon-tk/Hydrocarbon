@@ -1,8 +1,0 @@
-@IGNORE g:sp
-
-<> S > A \r
-            f:r { { node_type : enum__TAG, d:$1  } }
-
-
-<> A > \a \b \c
-            f:r { { node_type : enum__CREATED, a:$1, b:$2, c:$3  } }

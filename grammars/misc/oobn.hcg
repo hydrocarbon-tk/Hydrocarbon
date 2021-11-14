@@ -1,0 +1,9 @@
+@IMPORT ./ooBA.hcg as oobA
+
+@EXPORT oobA::start as start
+
+f:oobA::start.0.1.1 { { start:$a, end:$b, c:$c, d:0 } }
+
+f:oobA::state.0.0.0 { "A" }
+
+f:oobA::state.0.0.1 { "B" }

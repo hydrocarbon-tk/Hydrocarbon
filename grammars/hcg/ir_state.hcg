@@ -1,0 +1,186 @@
+# Copyright (C) 2021 Anthony Weathersby - The Hydrocarbon Parser Compiler
+# see /source/typescript/hydrocarbon.ts for full copyright and warranty 
+# disclaimer notice.
+
+# version 6.0
+
+
+@IMPORT ./comments.hcg as cm
+
+@IMPORT ./symbols.hcg as sym
+
+@IMPORT ./functions.hcg as fn
+
+@IGNORE g:sp g:nl tk:cm::comment
+
+<> state_ir > 
+        
+        state_declaration top_level_instructions on_fail? expected_symbols?   
+                                            
+                                            f:r { { type:t_IR_STATE | c_IR | c_IrState, id:$1, instructions: $2, fail: $3, symbol_meta:$4 } }
+
+<> grammar_injection > 
+        
+        \<[ ( t:recover sym::production_symbol ) \] 
+        
+                top_level_instructions on_fail? expected_symbols? \>
+                                            
+                                            f:r { { type:t_IR_STATE | c_IR | c_IrState, prod:$2, instructions: $4, fail: $5, symbol_meta:$6 } }
+
+<> state_declaration > 
+        
+        t:state \[  tk:state_hash_token \]     
+                                            f:r { $3 + "" }
+
+<> state_reference > 
+        
+        t:state \[ ( 
+                        tk:state_hash_token             
+                        
+                        f:r { { type: t_HASH_NAME, val:$1 + "" } }
+                        
+                |       \<> sym::production_symbol
+                        f:r { $2 } 
+                ) \]     
+                                            
+                                            f:r { $3 }
+
+<> top_level_instructions > 
+
+        assertion_instruction(+) 
+    
+    |   instruction_sequence                             
+
+<> instruction_sequence > 
+
+        sequence_instruction(+ t:then ) 
+        ( t:then goto_instruction(+ t:then ) )? 
+        ( t:then t:repeat t:state f:r{ { type:t_Repeat | c_IR | c_IR_Instruction } } )? 
+        
+                                            f:r{ $1 + $2 + [$3] }
+
+    |   goto_instruction(* t:then ) ( t:then t:repeat t:state f:r{ { type:t_Repeat | c_IR | c_IR_Instruction } } )? 
+        
+                                            f:r{ $1 + [$2] }
+        
+    |   ( 
+            t:lazy \( g:nums g:nums \) state_reference 
+            
+                                           f:r { { type: t_Lazy, cp_start:$3, cp_end:$4, state: $6 } }
+        )                                       
+
+                                            f:r { [$1] }
+
+<> assertion_instruction >
+
+        t:assert  ( \PRODUCTION | \TOKEN | \BYTE | \CODEPOINT | \CLASS )  production_id_list \( instruction_sequence \)                     
+                                            
+                                            f:r { { type: t_ASSERT, mode:str($2), ids: $3, instructions: $5} }
+
+        |
+        
+        t:peek  ( \TOKEN | \BYTE | \CODEPOINT | \CLASS ) token_id_list \( instruction_sequence \)                     
+                                            
+                                            f:r { { type: t_PEEK, mode:str($2), ids: $3, instructions: $5} }
+
+<> goto_instruction > 
+
+    t:goto state_reference
+                                            f:r { { type:t_Goto | c_IR | c_IR_Instruction, state: $2 } }
+<> sequence_instruction >
+
+        t:reduce g:num g:num           
+                                            f:r { { type:t_Reduce | c_IR | c_IR_Instruction, len: i64($2), body_id: i64($3) } }
+
+    |   t:reduce fn::reduce_function   
+                                            
+                                            f:r { { type:t_Reduce | c_IR | c_IR_Instruction, len: -1, reduce_fn: $2 } }
+    |   t:assign t:token token_id_list  
+                                            
+                                            f:r { { type:t_TokenAssign | c_IR | c_IR_Instruction, ids: $3 } }
+
+    |   t:set t:prod t:to ( 
+                  g:num f:r{ { type:t_Num, val: i64($1) } }
+                |   sym::production_symbol
+            )
+                                            
+                                            f:r { { type:t_SetProd | c_IR | c_IR_Instruction, id: $4  } }
+
+    |   t:fork t:to \( state_reference(+\, ) \)
+                                            
+                                            f:r { { type:t_ForkTo | c_IR | c_IR_Instruction, states: $4  } }
+
+    |   t:scan t:back? t:until token_id_list
+                                            f:r { { type: t_ScanUntil | c_IR | c_IR_Instruction, ids: $4, SCAN_BACKWARDS:bool($2) } }
+
+    |   t:set t:token t:id ( ! g:num f:r{ { type:t_Num, val: i64($1) } } | sym::terminal_symbol ) g:num
+                                           
+                                            f:r { { type:t_TokenId | c_IR | c_IR_Instruction, id: $4  } }
+
+    |   t:pass
+                                            f:r { { type:t_Pass | c_IR | c_IR_Instruction  } }
+
+    |   t:fail
+                                            f:r { { type:t_Fail | c_IR | c_IR_Instruction } }
+
+    |   t:not t:within t:scopes \[   ( 
+                        g:num f:r{ { type:t_Num, val: i64($1) } }
+                |       sym::production_symbol
+            )(+)     
+        \]
+                                            f:r { { type:t_NotInScope | c_IR | c_IR_Instruction, ids:$5 } }
+                                  
+    |   t:set t:scope t:to ( 
+                    g:num f:r{ i64($1) } 
+            )
+                                            f:r { { type:t_SetScope | c_IR | c_IR_Instruction, scope:$4 } }
+                                            
+    |   t:consume t:nothing?
+                                            f:r { { type:t_Consume | c_IR | c_IR_Instruction, EMPTY:i64($2) } }
+                                    
+      
+
+<> on_fail > 
+    
+    t:on t:fail state_declaration top_level_instructions on_fail? expected_symbols?
+                                            
+                                            f:r { { type:t_FailState | c_IR | c_IR_State, id:$3, instructions: $4, symbol_meta: $6, fail: $5 } }
+
+<> expected_symbols > 
+
+        \symbols: \expected token_id_list
+        ( \skipped token_id_list f:r{ $2 } )?
+
+                                            f:r { { type:t_Symbols | c_IR, expected:$3, skipped:$4 } }
+
+<> token_id_list > 
+
+        \[ 
+            ( 
+                        ! g:num f:r{ { type:t_Num, val: i64($1) } } 
+                |       sym::terminal_symbol
+            )(+) 
+        \] 
+                                            f:r { $2 }
+
+<> production_id_list > 
+
+        \[ 
+            ( 
+                        g:num f:r{ { type:t_Num, val: i64($1) } } 
+                |       sym::production_symbol
+            )(+) 
+        \] 
+                                            f:r { $2 }
+
+<> state_hash_token > 
+
+        state_hash_token (RST g:sp g:nl)  ( \_ | \- | g:id | g:num )
+
+    |   g:id
+
+    |   g:num
+
+    |   \_
+
+    |   \-

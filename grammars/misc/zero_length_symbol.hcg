@@ -1,0 +1,7 @@
+@IGNORE g:sp
+
+<> S > A
+
+<> A > ?=\notConsumed B \a \b \c
+
+<> B > \notConsumed

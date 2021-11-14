@@ -1,0 +1,16 @@
+[workspace]
+members = ["./core", "./sandbox"]
+
+[profile.dev]
+debug = 2
+
+[profile.release]
+opt-level=3
+debug =0
+debug-assertions = false
+overflow-checks = false
+incremental = true
+rpath = false
+lto = true
+codegen-units=32
+panic = "abort"

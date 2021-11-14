@@ -1,9 +1,0 @@
-@IGNORE g:sp
-
-<> start > \b B \a \b   f:r{ $2 + 1 }
-
-<> A > \b               f:r{ 0 }
-
-   | B \a               f:r{ $1 + 1 }
-
-<> B > A

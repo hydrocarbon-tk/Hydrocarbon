@@ -1,11 +1,15 @@
 {
-    "name": "@candlelib/hydrocarbon",
+    "name": "@hydrocarbon/core",
     "version": "0.14.4",
     "description": "Parser Compiler",
     "main": "./build/library/entry/runtime.js",
     "types": "./build/types/entry/runtime.d.ts",
     "bin": {
-        "hydrocarbon": "./index.js"
+        "hc.grammar": "./bin/grammar.cli.js",
+        "hc.asytrip": "./bin/asytrip.cli.js",
+        "hc.bytecode": "./bin/compile.cli.js",
+        "hc.tools": "./bin/tools.cli.js",
+        "hc": "./bin/hc.cli.js"
     },
     "type": "module",
     "scripts": {
@@ -42,8 +46,7 @@
         "@candlelib/js": "0.5.15",
         "@candlelib/log": "0.1.2",
         "@candlelib/paraffin": "0.1.15",
-        "@candlelib/uri": "0.3.0",
-        "@candlelib/wind": "0.5.4"
+        "@candlelib/uri": "0.3.0"
     },
     "devDependencies": {
         "@types/node": "^16.4.13",

@@ -71,6 +71,7 @@ rust/
 # temp folder
 ./temp
 
-# debug folders
+# target folders
 **/target/debug
 **/debug
+**/target/

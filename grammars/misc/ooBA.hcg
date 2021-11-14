@@ -1,0 +1,18 @@
+f:^test { test }
+
+<> start > 
+        ( state | cake ) ( g:id f:r{ A } | g:num^a (g:num)(+)^b )(+)
+
+   |    tk:p g:num 
+
+   |    tk:r g:num 
+
+<> state > ( \get | t:B  )(*) f:r ^test
+
+<> cake > t:getter 
+
+<> r > g:num(+) 
+
+<> p > g:num(+) u
+
+<> u > g:sp? \a g:num

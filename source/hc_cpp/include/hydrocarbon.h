@@ -1,6 +1,0 @@
-#include "./type_defs.h"
-#include "./character_lookup_table.h"
-#include "./node.h"
-#include "./ast_ref.h"
-#include "./core_parser.h"
-#include "./completer.h"

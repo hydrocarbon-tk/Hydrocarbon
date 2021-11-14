@@ -1,5 +1,0 @@
-@IGNORE g:sp g:nl tk:comment
-
-<> info > data(*)
-
-<> data > g:id 

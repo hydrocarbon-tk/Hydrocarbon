@@ -1,0 +1,10 @@
+@IGNORE g:sp
+
+<> start > A 
+
+<> A > C \u
+    | R \d 
+
+<> R > C \b
+
+<> C > \a

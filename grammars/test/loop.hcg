@@ -1,0 +1,9 @@
+@IGNORE g:sp
+
+<> start > A 
+
+<> A > A(+\; ) B \;    f:r{ $1.reduce((a,r)=>a+r,0) + $1.length + $2 }
+
+    | \test (+\, )     f:r{ $1.length }
+
+<> B > \r (+)          f:r{ $1.length }

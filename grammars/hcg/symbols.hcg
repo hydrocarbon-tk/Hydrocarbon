@@ -1,0 +1,188 @@
+# Copyright (C) 2021 Anthony Weathersby - The Hydrocarbon Parser Compiler
+# see /source/typescript/hydrocarbon.ts for full copyright and warranty 
+# disclaimer notice.
+
+# version 6.0
+
+@IMPORT ./comments.hcg as cm
+
+@IMPORT ./production_bodies.hcg as pb
+
+@IGNORE g:sp g:nl tk:cm::comment
+
+#######################################################################################################################
+######################################  SYMBOLS
+########################################################################################################################
+
+<> hcg_symbols > symbol(+)
+
+<> condition_symbol_list > terminal_symbol(+)
+
+<> lexer_symbols > lexer_symbol(+)
+
+<> ignore_symbols > ignore_symbol(+)
+
+<> lexer_symbol > 
+
+        terminal_symbol
+
+<> ignore_symbol > 
+        
+        terminal_symbol
+
+<> annotated_symbol > symbol    
+
+    |   symbol reference_symbol
+        
+        f:r { ($1.annotation = $2, $1) }
+
+<> annotated_production_symbol > production_symbol    
+
+    |   production_symbol reference_symbol
+        
+        f:r { ($1.annotation = $2, $1) }
+
+<> symbol > 
+
+        symbol \?      
+        
+        f:r { $1.IS_OPTIONAL = 1, $1 }
+    
+    |   \<= terminal_symbol           
+        
+        f:r { { type:t_Look_Behind | c_Symbol, val:$2.val, symbol: $2 } }
+
+    |   \?= symbol
+        
+        f:r { $2.IS_NON_CAPTURE = true, $2 }
+
+    |   terminal_symbol
+
+    |   group_symbol
+
+    |   production_symbol
+
+    |   symbol ( \(+ | \(* )  terminal_symbol?  \)
+        
+        f:r { { type:t_List_Production | c_Symbol, terminal_symbol:$3, IS_OPTIONAL:f64($2 == "(*"), symbols:$1, meta:false, annotation:"" } }
+
+<> group_symbol > \( pb::production_bodies \)        
+          
+        f:r { { type:t_Group_Production | c_Symbol, bodies:$2, meta:false, annotation:"" } }  
+
+<> production_token_symbol > 
+    
+    \tk: production_symbol       
+    
+        f:r { { type:t_Production_Token | c_Symbol | c_Token, name:$2.name, production:$2, val:-1, meta:false, annotation:"" } }
+
+<> production_symbol >
+
+        local_production_symbol
+    
+    |   imported_production_symbol
+
+<>  terminal_symbol > 
+
+        generated_symbol
+
+    |   literal_symbol
+
+    |   escaped_symbol
+
+    |   EOF_symbol
+
+    |   production_token_symbol     
+
+<> reference_symbol > tk:reference_symbol_token
+
+        f:r { { type:t_Reference | c_Symbol } }
+
+<> reference_symbol_token > \^ identifier
+
+<> EOF_symbol > 
+    
+    \$eof
+    
+        f:r { { type:t_End_Of_File | c_Symbol | c_Token, val:"END_OF_FILE", meta:false, annotation:"" } }
+
+<> empty_symbol > 
+    
+    \$empty
+    
+        f:r { { type:t_Empty | c_Symbol , val:"", meta:false, annotation:"" } }
+
+<> generated_symbol > 
+    
+    \g: tk:identifier_syms
+    
+        f:r { { type:t_Generated | c_Symbol | c_Token, val:$2 + "", meta:false, annotation:"" } }
+
+<> literal_symbol > 
+    
+        \t: ( g:id | g:num )(+\" ) sym_delimiter? 
+          
+        f:r { { type:t_Exclusive_Literal | c_Symbol | c_Token, val:$2 + "", meta:false, annotation:"" } }
+    
+    |   ( g:sym | g:num )(+\" )
+
+        f:r { { type:t_Literal | c_Symbol | c_Token, val:$1 + "", meta:false, annotation:"" } }
+
+
+<> escaped_symbol > 
+    
+    \\ ( g:ids | g:syms | g:nums )(+\" ) sym_delimiter           
+    
+        f:r { { type:t_Literal | c_Symbol | c_Token, val:$2 + "", meta:false, annotation:"" } }
+
+<> local_production_symbol > 
+    
+    tk:identifier_syms
+        
+        f:r { { type:t_Production_Symbol | c_Symbol, name:$1 + "", production:"", val:-1, meta:false, annotation:"" } }
+
+<> imported_production_symbol > 
+
+    tk:identifier_syms \:: tk:identifier_syms
+        
+        f:r { { type:t_Production_Import_Symbol | c_Symbol , module:$1 + "", name:$3 + "",  production:"", meta:false, annotation:"" } } 
+
+<> annotation_identifier > ( g:sym | g:id | g:num )(+\" ) g:sp? f:r { $1 }
+
+<> production_id > tk:identifier_syms
+
+<> identifier > tk:identifier_syms 
+
+<> identifier_syms >  
+
+        identifier_syms (RST g:sp g:nl) g:id
+        
+        f:r { $1 + $2 }
+
+    |   identifier_syms (RST g:sp g:nl) \_
+        
+        f:r { $1 + $2 }
+
+    |   identifier_syms (RST g:sp g:nl) g:num      
+        
+        f:r { $1 + $2 }
+
+    |   \_ 
+
+    |   g:id
+
+<> sym_delimiter >  g:sp | g:nl | ?=$eof
+
+<> meta_symbol >   
+        
+        \(EXC condition_symbol_list \)
+
+        f:r { { type:t_Exclude | c_Symbol | c_Meta, sym: $2, meta:true, index:-1, annotation:""} }
+
+    |   \(IGN condition_symbol_list \)    
+
+        f:r { { type:t_Look_Ignore | c_Symbol | c_Meta,  sym: $2, meta:true, index:-1, annotation:""} }
+
+    |   \(RST condition_symbol_list \)
+
+        f:r { { type:t_Look_Ignore | c_Symbol | c_Meta,   sym: $2, meta:true, index:-1, annotation:""} }

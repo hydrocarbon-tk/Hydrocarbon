@@ -1,0 +1,7 @@
+@SYMBOL ((  ))
+
+@IGNORE θnl θws
+
+
+<> binding → \(( ((θany│θws))(+")  \)) ↦c {this.val = sym[1]}
+

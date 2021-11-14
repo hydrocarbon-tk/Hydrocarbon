@@ -1,0 +1,53 @@
+# Copyright (C) 2021 Anthony Weathersby - The Hydrocarbon Parser Compiler
+# see /source/typescript/hydrocarbon.ts for full copyright and warranty 
+# disclaimer notice.
+
+# version 6.0
+
+@IMPORT ./symbols.hcg as sym
+
+@IMPORT ./comments.hcg as cm
+
+@IMPORT ./functions.hcg as fn
+
+@IGNORE g:sp g:nl tk:cm::comment
+
+########################################################################################################################
+######################################  PRODUCTION BODIES
+########################################################################################################################
+
+<> hcg_production_bodies > production_bodies
+
+<> production_bodies > production_body(+\| )  
+
+<> production_body >  \! ? sym::reference_symbol? entries fn::reduce_function?                      
+            
+            f:r { { type:t_Body | c_Production, priority:bool($1) ? 1000 : 0, symbols:$3, ref:$2, reduce_function:$4, FORCE_FORK:false, id:-1, production:t_Production } }
+
+<> entries > entries body_entry 
+            
+            f:r { $1 + $2 }
+            
+        |   body_entry                         
+            
+            f:r { $1 }
+
+        |   sym::empty_symbol                                              
+            
+            f:r { [] }
+
+
+<> body_entry >  
+            sym::annotated_symbol                                        
+
+            f:r { [$1] }
+        
+      |     sym::meta_symbol                                            
+
+            f:r { [$1] }
+
+      |     \[ body_entry(+) \]   
+
+            f:r { [$2] }                                     
+                                                                    
+            # f:r { /*, env.group_id++  $2.flat().map(e => (e.IS_OPTIONAL ? e.IS_OPTIONAL |= env.group_id << 8 : 0, e) )*/ }
