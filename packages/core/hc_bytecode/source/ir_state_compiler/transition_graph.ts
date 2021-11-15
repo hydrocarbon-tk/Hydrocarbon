@@ -25,7 +25,7 @@ import {
     Sym_Is_Exclusive,
     Token,
     TokenSymbol,
-} from '@hc/common';
+} from '@hctoolkit/common';
 import { TransitionGraphOptions as TGO } from '../types/transition_graph_options';
 import { TransitionStateType as TST } from '../types/transition_tree_nodes';
 

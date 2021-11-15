@@ -1,4 +1,4 @@
-import { GrammarProduction, TokenSymbol } from '@hc/common';
+import { GrammarProduction, TokenSymbol } from '@hctoolkit/common';
 
 export interface ConstructionOptions {
     production: GrammarProduction;

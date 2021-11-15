@@ -3,7 +3,7 @@
  * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
  * disclaimer notice.
  */
-import { HCG3Symbol, Item } from "@hc/common";
+import { HCG3Symbol, Item } from "@hctoolkit/common";
 
 
 export interface TransitionForestNode {

@@ -17,7 +17,7 @@ import {
     Sym_Is_A_Token,
     Sym_Is_Defined,
     TokenSymbol
-} from '@hc/common';
+} from '@hctoolkit/common';
 import { ConstructionOptions } from '../types/construction_options';
 export function create_symbol_clause(
     items: Item[],

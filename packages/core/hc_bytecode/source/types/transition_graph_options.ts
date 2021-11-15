@@ -1,4 +1,4 @@
-import { GrammarProduction, Item } from '@hc/common';
+import { GrammarProduction, Item } from '@hctoolkit/common';
 
 
 

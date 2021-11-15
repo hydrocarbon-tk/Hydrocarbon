@@ -5,7 +5,7 @@
  */
 import { Logger } from '@candlelib/log';
 import URI from '@candlelib/uri';
-import { GrammarObject, ProductionFunction } from "@hc/common";
+import { GrammarObject, ProductionFunction } from "@hctoolkit/common";
 import { WorkerContainer } from "../types/worker_container";
 import { HybridDispatch, HybridDispatchResponse, HybridJobType } from "../types/worker_messaging.js";
 import { LocalWorker } from "./local_worker.js";
@@ -41,7 +41,9 @@ export class WorkerRunner {
 
         this.module_url = URI.getEXEURL(import.meta).pathname.replace("worker_runner", "worker");
 
-        this.number_of_workers = number_of_workers;
+        this.number_of_workers = Math.max(1, number_of_workers);
+
+        this.workers = [];
     }
 
     mergeWorkerData(worker: WorkerContainer, response: HybridDispatchResponse) {
@@ -68,7 +70,14 @@ export class WorkerRunner {
         worker.READY = true;
     }
 
-    async *run() {
+    async *run(): AsyncGenerator<{
+        wk: boolean,
+        v: number[],
+        total_jobs: number,
+        completed_jobs: number,
+        errors: any[],
+        COMPLETE: boolean;
+    }> {
 
         //Load workers. Depending on platform and number of workers, web worker, node worker or local worker
 
@@ -79,8 +88,8 @@ export class WorkerRunner {
             (typeof globalThis["process"] != "undefined")
                 ? (await import("worker_threads")).Worker
                 : (class extends Worker {
-                    constructor(uri, ...rest) { super(uri, { type: "module" }); }
-                    on(event: "error" | "message", handler) {
+                    constructor(uri: string, ..._: any[]) { super(uri, { type: "module" }); }
+                    on(event: "error" | "message", handler: any) {
                         switch (event) {
                             case 'error': this.onmessage = handler; return;
                             case 'message': this.onerror = handler; return;
@@ -195,6 +204,8 @@ export class WorkerRunner {
         this.workers.forEach(wk => wk.target.terminate());
 
         return yield {
+            wk: false,
+            v: [],
             total_jobs: this.to_process_rd_fn.length,
             completed_jobs: this.COMPLETED_JOBS,
             errors: this.errors,

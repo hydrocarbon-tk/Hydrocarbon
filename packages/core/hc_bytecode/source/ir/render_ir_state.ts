@@ -30,7 +30,7 @@ import {
     IRSetScope,
     IRSetTokenLength,
     IRTokenAssign, Token
-} from '@hc/common';
+} from '@hctoolkit/common';
 
 
 function state_custom_render(state: any, render_fn: any) {

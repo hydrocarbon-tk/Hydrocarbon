@@ -19,7 +19,7 @@ import {
     Sym_Is_Recovery,
     TokenSymbol,
     user_defined_state_mux
-} from '@hc/common';
+} from '@hctoolkit/common';
 import { create_symbol_clause } from '../ir/create_symbol_clause';
 import { ConstructionOptions } from '../types/construction_options';
 import { TransitionGraphOptions } from '../types/transition_graph_options';

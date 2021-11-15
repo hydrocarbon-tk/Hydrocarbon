@@ -3,20 +3,18 @@
  * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
  * disclaimer notice.
  */
-import { GrammarObject } from "@hc/common";
+import { GrammarObject } from "@hctoolkit/common";
 import { constructProductionStates } from "../ir_state_compiler/state_constructor.js";
 import { HybridDispatch, HybridDispatchResponse, HybridJobType } from "../types/worker_messaging.js";
 
 export class LocalWorker {
 
-    grammar: GrammarObject;
+    grammar?: GrammarObject;
     id: number;
     response: any;
     parent_postMessage: (data: HybridDispatchResponse) => void;
 
-    constructor(uri: string, worker_data, postMessage) {
-
-        this.grammar = null;
+    constructor(uri: string, worker_data: any, postMessage: (data: HybridDispatchResponse) => void) {
 
         this.id = -1;
 
@@ -26,8 +24,6 @@ export class LocalWorker {
     }
 
     postMessage(job: HybridDispatch) {
-
-        const { job_type } = job;
 
         if (job.job_type == HybridJobType.INITIALIZE) {
 
@@ -39,19 +35,22 @@ export class LocalWorker {
 
         } else if (job.job_type == HybridJobType.CONSTRUCT_RD_FUNCTION) {
 
-            let Response: HybridDispatchResponse = {};
+            if (this.grammar) {
 
-            const { parse_states, id } = constructProductionStates(this.grammar.productions[job.production_id], this.grammar);
+                let Response: HybridDispatchResponse = <any>{};
 
-            Response.states = parse_states;
+                const { parse_states, id } = constructProductionStates(this.grammar.productions[job.production_id], this.grammar);
 
-            Response.production_id = job.production_id;
+                Response.states = parse_states;
 
-            this.parent_postMessage(Response);
+                Response.production_id = job.production_id;
+
+                this.parent_postMessage(Response);
+            }
         }
     }
 
-    on(type, fn) {
+    on(type: string, fn: (t: any) => any) {
         if (type == "message")
             this.response = fn;
     }

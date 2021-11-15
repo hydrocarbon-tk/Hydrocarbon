@@ -8,8 +8,8 @@ import {
     addCLIConfig, processCLIConfig
 } from "@candlelib/paraffin";
 import URI from '@candlelib/uri';
-import { GrammarObject } from '@hc/common';
-import { resolveResourceFile } from '@hc/grammar';
+import { GrammarObject } from '@hctoolkit/common';
+import { resolveResourceGrammarCLI } from '@hctoolkit/grammar';
 import { writeFile } from 'fs/promises';
 import { cpus } from 'os';
 import { compileBuildPack } from './index.js';
@@ -72,73 +72,38 @@ addCLIConfig<URI | "stdin">("compile", {
         output_file = URI.resolveRelative(out_dir.value);
     }
 
-    let grammar: GrammarObject = null;
-
-    if (arg === "stdin") {
-        await new Promise((ok, fail) => {
-            process.stdin.resume();
-            process.stdin.setEncoding('utf8');
-
-            let data = [];
-            process.stdin.on('data', function (chunk) {
-
-                data.push(chunk);
-
-            });
-            process.stdin.on('end', async function () {
-
-                grammar = JSON.parse(data.join(""));
-
-                ok(0);
-            });
-
-            process.stdin.on("error", function (e) {
-                logger.error(e);
-                fail(1);
-            });
-        });
-    } else {
-
-        input_file = URI.resolveRelative(arg);
-
-        if (!(await input_file.DOES_THIS_EXIST()))
-
-            throw new Error(`${arg} does not exists`);
-
-        grammar = <any>await input_file.fetchJSON();
-
-        if (!("type" in grammar) || grammar.type != "hc-grammar-5")
-            throw new Error("Unable to recognize Hydrocarbon Resource File");
-    }
-
-    grammar = await resolveResourceFile(grammar);
+    var grammar: GrammarObject = await resolveResourceGrammarCLI(arg, logger);
 
     const build_pack = await compileBuildPack(grammar, threads.value, optimizations.value);
 
     const output_dir = URI.resolveRelative(out_dir.value);
 
-    const name = output_dir.filename || (new URI(grammar.URI)).filename || "parser";
+    if (output_dir) {
 
-    const binary_path = URI.resolveRelative(`./${name}.hcb`, output_dir);
+        const name = output_dir.filename || (new URI(grammar.URI)).filename || "parser";
 
-    const states_path = URI.resolveRelative(`./${name}.hcs`, output_dir);
+        const binary_path = URI.resolveRelative(`./${name}.hcb`, output_dir);
 
-    await writeFile(binary_path + "", build_pack.state_buffer, { encoding: 'binary' });
+        const states_path = URI.resolveRelative(`./${name}.hcs`, output_dir);
 
-    await writeFile(states_path + "", JSON.stringify({
-        bytecode_path: binary_path + "",
-        grammar_resource_path: USE_STDOUT ? "" : grammar.resource_path || "",
-        states: Object.fromEntries([...build_pack.states_map].map(([k, v]) => {
-            return [k, {
-                name: k,
-                block_offset: v.block_offset,
-                pointer: v.pointer,
-                string: v.string,
-            }];
-        }))
-    }), { encoding: 'utf8' });
+        await writeFile(binary_path + "", build_pack.state_buffer, { encoding: 'binary' });
 
-    process.stdout.write(states_path + "");
+        await writeFile(states_path + "", JSON.stringify({
+            bytecode_path: binary_path + "",
+            grammar_resource_path: USE_STDOUT ? "" : grammar.resource_path || "",
+            states: Object.fromEntries([...build_pack.states_map].map(([k, v]) => {
+                return [k, {
+                    name: k,
+                    block_offset: v.block_offset,
+                    pointer: v.pointer,
+                    string: v.string,
+                }];
+            }))
+        }), { encoding: 'utf8' });
+
+        process.stdout.write(states_path + "");
+    }
 });
 
 processCLIConfig();
+

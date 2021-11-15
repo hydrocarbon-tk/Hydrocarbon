@@ -24,7 +24,7 @@ import {
     StateAttrib,
     StateMap,
     Token
-} from '@hc/common';
+} from '@hctoolkit/common';
 import { renderIRNode } from './render_ir_state.js';
 
 function getStateName(

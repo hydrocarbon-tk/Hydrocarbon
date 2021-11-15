@@ -13,7 +13,7 @@ import {
     StateAttrib,
     StateMap,
     user_defined_state_mux
-} from '@hc/common';
+} from '@hctoolkit/common';
 import { WorkerRunner } from "../workers/worker_runner.js";
 import { convertParseProductsIntoStatesMap } from './compile_scanner_states.js';
 import { create_symbol_clause } from './create_symbol_clause.js';

@@ -15,10 +15,10 @@ import {
     StateAttrib,
     StateMap,
     Sym_Is_Exclusive
-} from '@hc/common';
-import { addRootScannerFunction, entry_points, getSymbolProductionName, parser } from '@hc/grammar';
-import { createProductionLookup, processSymbol } from '@hc/grammar/build/passes/common';
-import { buildItemMaps } from '@hc/grammar/build/passes/item_map';
+} from '@hctoolkit/common';
+import { addRootScannerFunction, entry_points, getSymbolProductionName, parser } from '@hctoolkit/grammar';
+import { createProductionLookup, processSymbol } from '@hctoolkit/grammar/build/passes/common';
+import { buildItemMaps } from '@hctoolkit/grammar/build/passes/item_map';
 import { constructProductionStates } from '../ir_state_compiler/state_constructor.js';
 import { IsAssertInstruction, IsPeekInstruction } from './optimize.js';
 

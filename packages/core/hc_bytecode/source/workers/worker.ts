@@ -3,8 +3,8 @@
  * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
  * disclaimer notice.
  */
-import { GrammarObject, Item } from "@hc/common";
-import { parentPort } from "worker_threads";
+import { GrammarObject, Item } from "@hctoolkit/common";
+import { parentPort, MessagePort } from "worker_threads";
 import { constructProductionStates } from '../ir_state_compiler/state_constructor';
 import { HybridDispatch, HybridDispatchResponse, HybridJobType } from "../types/worker_messaging";
 
@@ -30,17 +30,15 @@ export function filloutWorkerGrammar(grammar: GrammarObject) {
 
 export class Worker {
 
-    grammar: GrammarObject;
+    grammar?: GrammarObject;
     id: number;
-    pp: typeof parentPort;
+    pp: MessagePort;
 
-    constructor(pp) {
+    constructor(pp: MessagePort) {
 
-        this.grammar = null;
+        this.id = -1;
 
-        this.id = null;
-
-        this.pp = parentPort;
+        this.pp = pp;
 
         this.start();
     }
@@ -60,16 +58,19 @@ export class Worker {
 
             } else if (job.job_type == HybridJobType.CONSTRUCT_RD_FUNCTION) {
 
-                let Response: HybridDispatchResponse = {};
+                if (this.grammar) {
 
-                const { parse_states } =
-                    constructProductionStates(this.grammar.productions[job.production_id], this.grammar);
+                    let Response: HybridDispatchResponse = <any>{};
 
-                Response.states = parse_states;
+                    const { parse_states } =
+                        constructProductionStates(this.grammar.productions[job.production_id], this.grammar);
 
-                Response.production_id = job.production_id;
+                    Response.states = parse_states;
 
-                parentPort.postMessage(Response);
+                    Response.production_id = job.production_id;
+
+                    this.pp.postMessage(Response);
+                }
             }
         });
     }

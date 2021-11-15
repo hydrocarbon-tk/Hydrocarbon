@@ -25,7 +25,7 @@ import {
     Resolved_IR_State,
     StateAttrib,
     StateMap, Sym_Is_A_Token, TokenSymbol
-} from '@hc/common';
+} from '@hctoolkit/common';
 import { createSymMapId } from "../ir/compile_scanner_states.js";
 import { getStateName } from './get_state_name.js';
 ;

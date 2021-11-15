@@ -4,7 +4,7 @@
  * disclaimer notice.
  */
 import { Logger } from '@candlelib/log';
-import { BuildPack, GrammarObject, StateMap } from "@hc/common";
+import { BuildPack, GrammarObject, StateMap } from "@hctoolkit/common";
 import { assignStateAttributeInformation, compileIRStatesIntoBytecode, extractTokenSymbols } from './bytecode/bytecode.js';
 import { createIrStates } from './ir/compile_production_states.js';
 import { compileScannerStates } from './ir/compile_scanner_states.js';

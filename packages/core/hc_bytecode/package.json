@@ -1,7 +1,9 @@
 {
-    "name": "@hc/bytecode",
+    "name": "@hctoolkit/bytecode",
     "version": "1.0.0",
-    "bin": {},
+    "bin": {
+        "hc.bytecode": "./bin/index.sh"
+    },
     "type": "module",
     "scripts": {},
     "repository": {
@@ -28,7 +30,7 @@
         "@candlelib/log": "0.1.2",
         "@candlelib/paraffin": "0.1.15",
         "@candlelib/uri": "0.3.0",
-        "@hc/common": "*"
+        "@hctoolkit/common": "*"
     },
     "devDependencies": {
         "@types/node": "^16.4.13"

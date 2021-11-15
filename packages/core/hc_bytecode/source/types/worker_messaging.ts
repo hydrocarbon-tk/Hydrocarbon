@@ -4,7 +4,7 @@
  * disclaimer notice.
  */
 
-import { GrammarObject } from '@hc/common';
+import { GrammarObject } from '@hctoolkit/common';
 
 export const enum HybridJobType {
     UNDEFINED,
@@ -14,17 +14,17 @@ export const enum HybridJobType {
 
 export type HybridDispatch = {
     job_type: HybridJobType.CONSTRUCT_RD_FUNCTION;
-    production_id?: number;
+    production_id: number;
 } | {
     job_type: HybridJobType.INITIALIZE;
     grammar: GrammarObject;
     id: number;
 } | {
     job_type: HybridJobType.UNDEFINED;
-    production_id?: -1;
+    production_id: -1;
 };
 
 export interface HybridDispatchResponse {
-    production_id?: number;
-    states?: Map<string, string>;
+    production_id: number;
+    states: Map<string, string>;
 }
