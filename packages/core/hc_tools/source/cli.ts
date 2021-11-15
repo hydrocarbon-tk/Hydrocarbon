@@ -8,11 +8,12 @@ import {
     addCLIConfig, processCLIConfig
 } from "@candlelib/paraffin";
 import URI from '@candlelib/uri';
-import { GrammarObject, ReverseStateLookupMap, StateData } from '@hc/common';
-import { resolveResourceFile } from '@hc/grammar';
+import { GrammarObject, ReverseStateLookupMap, StateData } from '@hctoolkit/common';
+import { resolveResourceFile, resolveResourceGrammarCLI } from '@hctoolkit/grammar';
 import { writeFile } from 'fs/promises';
 import { stdout } from 'process';
-import { renderByteCodeSheet } from './html.js';
+import { renderByteCodeSheet } from './bytecode/html.js';
+import { createFuzz } from './fuzz/index.js';
 
 await URI.server();
 
@@ -64,17 +65,23 @@ addCLIConfig<URI | "stdin">("disassemble", {
             process.stdin.resume();
             process.stdin.setEncoding('utf8');
 
-            let data = [];
-            process.stdin.on('data', function (chunk) {
+            let data: string[] = [];
+
+            process.stdin.on('data', function (chunk: string) {
 
                 data.push(chunk);
 
             });
             process.stdin.on('end', async function () {
+                const val = URI.resolveRelative(data.join(""));
 
-                arg = URI.resolveRelative(data.join(""));
+                if (val) {
+                    arg = val;
 
-                ok(0);
+                    ok(0);
+                }
+
+                fail(1);
             });
 
             process.stdin.on("error", function (e) {
@@ -87,7 +94,12 @@ addCLIConfig<URI | "stdin">("disassemble", {
     if (USE_STDOUT)
         logger.deactivate();
 
-    states_path = URI.resolveRelative(arg);
+    const arg_val = URI.resolveRelative(arg);
+
+    if (!arg_val)
+        throw new Error(`${arg} does not exists or is not a Hydrocarbon States file`);
+
+    states_path = arg_val;
 
     if (!(await states_path.DOES_THIS_EXIST()) || states_path.ext !== "hcs")
 
@@ -101,17 +113,15 @@ addCLIConfig<URI | "stdin">("disassemble", {
         };
     } = <any>await states_path.fetchJSON();
 
-    let binary: Uint32Array = null;
+    var binary: Uint32Array | undefined;
 
-    let grammar: GrammarObject = null;
-
-
+    var grammar: GrammarObject | undefined;
 
     if ("bytecode_path" in states) {
 
         const binary_path = URI.resolveRelative(states.bytecode_path, states_path);
 
-        if (!(await binary_path.DOES_THIS_EXIST()) || binary_path.ext !== "hcb")
+        if (!binary_path || !(await binary_path.DOES_THIS_EXIST()) || binary_path.ext !== "hcb")
             throw new Error(`Parser binary cannot be found: ${binary_path + ""} does not exists`);
 
         binary = new Uint32Array(await binary_path.fetchBuffer());
@@ -120,7 +130,7 @@ addCLIConfig<URI | "stdin">("disassemble", {
     if ("grammar_resource_path" in states) {
         const grammar_path = URI.resolveRelative(states.grammar_resource_path, states_path);
 
-        if (!(await grammar_path.DOES_THIS_EXIST()) || grammar_path.ext !== "hcgr") {
+        if (!grammar_path || !(await grammar_path.DOES_THIS_EXIST()) || grammar_path.ext !== "hcgr") {
 
             logger.warn(`Grammar Resource file ${grammar_path + ""} is not found or is not a Hydrocarbon Grammar Resource file.
                 Details will be diminished.`);
@@ -133,27 +143,36 @@ addCLIConfig<URI | "stdin">("disassemble", {
         }
     }
 
-    const states_lookup: ReverseStateLookupMap =
-        new Map(Object.entries(states.states).map(([k, v]) => {
-            return [v.pointer & 0xFFFFFF, v];
-        }));
+    if (binary) {
 
-    const sheet = renderByteCodeSheet(binary, states_lookup, grammar);
+        const states_lookup: ReverseStateLookupMap =
+            new Map(Object.entries(states.states).map(([k, v]) => {
+                return [v.pointer & 0xFFFFFF, v];
+            }));
 
-    if (USE_STDOUT) {
-        stdout.write(sheet);
-    } else {
-        let out_path = URI.resolveRelative(out_dir.value);
+        const sheet = renderByteCodeSheet(binary, states_lookup, grammar);
 
-        if (!out_path.filename) {
-            out_path = URI.resolveRelative(`./${states_path.filename}.html`, out_path);
+        if (USE_STDOUT) {
+            stdout.write(sheet);
+        } else {
+            let out_path = URI.resolveRelative(out_dir.value);
+
+            if (out_path) {
+
+                if (!out_path.filename) {
+                    out_path = URI.resolveRelative(`./${states_path.filename}.html`, out_path);
+                }
+
+                if (out_path) {
+
+                    if (!out_path.ext || out_path.ext != "html") {
+                        out_path = URI.resolveRelative(`./${out_path.filename}.html`, out_path);
+                    }
+                }
+                
+                await writeFile(out_path + "", sheet);
+            }
         }
-
-        if (!out_path.ext || out_path.ext != "html") {
-            out_path = URI.resolveRelative(`./${out_path.filename}.html`, out_path);
-        }
-
-        await writeFile(out_path + "", sheet);
     }
 
 });
@@ -170,222 +189,28 @@ addCLIConfig<URI | "stdin">("railroad", {
 `
 }).callback = (async (arg) => {
 
-    const logger = Logger.createLogger("Disassembler").activate();
+    const logger = Logger.createLogger("Railroad").activate();
 
-    let USE_STDOUT = out_dir.value == "stdout",
-        output_file = new URI,
-        states_path = new URI;
+    var grammar: GrammarObject = await resolveResourceGrammarCLI(arg, logger);
 
-    if (arg === "stdin") {
-        await new Promise((ok, fail) => {
-            process.stdin.resume();
-            process.stdin.setEncoding('utf8');
-
-            let data = [];
-            process.stdin.on('data', function (chunk) {
-
-                data.push(chunk);
-
-            });
-            process.stdin.on('end', async function () {
-
-                arg = URI.resolveRelative(data.join(""));
-
-                ok(0);
-            });
-
-            process.stdin.on("error", function (e) {
-                logger.error(e);
-                fail(1);
-            });
-        });
-    }
-
-    if (USE_STDOUT)
-        logger.deactivate();
-
-    states_path = URI.resolveRelative(arg);
-
-    if (!(await states_path.DOES_THIS_EXIST()) || states_path.ext !== "hcs")
-
-        throw new Error(`${arg} does not exists or is not a Hydrocarbon States file`);
-
-    const states: {
-        bytecode_path: string;
-        grammar_resource_path: string,
-        states: {
-            [name: string]: StateData;
-        };
-    } = <any>await states_path.fetchJSON();
-
-    let binary: Uint32Array = null;
-
-    let grammar: GrammarObject = null;
-
-
-
-    if ("bytecode_path" in states) {
-
-        const binary_path = URI.resolveRelative(states.bytecode_path, states_path);
-
-        if (!(await binary_path.DOES_THIS_EXIST()) || binary_path.ext !== "hcb")
-            throw new Error(`Parser binary cannot be found: ${binary_path + ""} does not exists`);
-
-        binary = new Uint32Array(await binary_path.fetchBuffer());
-    }
-
-    if ("grammar_resource_path" in states) {
-        const grammar_path = URI.resolveRelative(states.grammar_resource_path, states_path);
-
-        if (!(await grammar_path.DOES_THIS_EXIST()) || grammar_path.ext !== "hcgr") {
-
-            logger.warn(`Grammar Resource file ${grammar_path + ""} is not found or is not a Hydrocarbon Grammar Resource file.
-                Details will be diminished.`);
-
-        } else {
-
-            grammar = <GrammarObject>await grammar_path.fetchJSON();
-
-            grammar = await resolveResourceFile(grammar);
-        }
-    }
-
-    const states_lookup: ReverseStateLookupMap =
-        new Map(Object.entries(states.states).map(([k, v]) => {
-            return [v.pointer & 0xFFFFFF, v];
-        }));
-
-    const sheet = renderByteCodeSheet(binary, states_lookup, grammar);
-
-    if (USE_STDOUT) {
-        stdout.write(sheet);
-    } else {
-        let out_path = URI.resolveRelative(out_dir.value);
-
-        if (!out_path.filename) {
-            out_path = URI.resolveRelative(`./${states_path.filename}.html`, out_path);
-        }
-
-        if (!out_path.ext || out_path.ext != "html") {
-            out_path = URI.resolveRelative(`./${out_path.filename}.html`, out_path);
-        }
-
-        await writeFile(out_path + "", sheet);
-    }
 });
 
 addCLIConfig<URI | "stdin">("fuzz", {
-    key: "railroad",
+    key: "fuzz",
     help_arg_name: "Path to *.hcgr",
     REQUIRES_VALUE: true,
     accepted_values: ["stdin", URI],
     help_brief: `
-    Create a Bytecode sheet from a Hydrocarbon Grammar Resource file  (*.hcgr)
+    Create a random string from a Hydrocarbon Grammar Resource file  (*.hcgr)
 `
 }).callback = (async (arg) => {
 
-    const logger = Logger.createLogger("Disassembler").activate();
+    const logger = Logger.createLogger("Fuzzer").activate();
 
-    let USE_STDOUT = out_dir.value == "stdout",
-        output_file = new URI,
-        states_path = new URI;
+    var grammar: GrammarObject = await resolveResourceGrammarCLI(arg, logger);
 
-    if (arg === "stdin") {
-        await new Promise((ok, fail) => {
-            process.stdin.resume();
-            process.stdin.setEncoding('utf8');
+    console.log(createFuzz(grammar));
 
-            let data = [];
-            process.stdin.on('data', function (chunk) {
-
-                data.push(chunk);
-
-            });
-            process.stdin.on('end', async function () {
-
-                arg = URI.resolveRelative(data.join(""));
-
-                ok(0);
-            });
-
-            process.stdin.on("error", function (e) {
-                logger.error(e);
-                fail(1);
-            });
-        });
-    }
-
-    if (USE_STDOUT)
-        logger.deactivate();
-
-    states_path = URI.resolveRelative(arg);
-
-    if (!(await states_path.DOES_THIS_EXIST()) || states_path.ext !== "hcs")
-
-        throw new Error(`${arg} does not exists or is not a Hydrocarbon States file`);
-
-    const states: {
-        bytecode_path: string;
-        grammar_resource_path: string,
-        states: {
-            [name: string]: StateData;
-        };
-    } = <any>await states_path.fetchJSON();
-
-    let binary: Uint32Array = null;
-
-    let grammar: GrammarObject = null;
-
-
-
-    if ("bytecode_path" in states) {
-
-        const binary_path = URI.resolveRelative(states.bytecode_path, states_path);
-
-        if (!(await binary_path.DOES_THIS_EXIST()) || binary_path.ext !== "hcb")
-            throw new Error(`Parser binary cannot be found: ${binary_path + ""} does not exists`);
-
-        binary = new Uint32Array(await binary_path.fetchBuffer());
-    }
-
-    if ("grammar_resource_path" in states) {
-        const grammar_path = URI.resolveRelative(states.grammar_resource_path, states_path);
-
-        if (!(await grammar_path.DOES_THIS_EXIST()) || grammar_path.ext !== "hcgr") {
-
-            logger.warn(`Grammar Resource file ${grammar_path + ""} is not found or is not a Hydrocarbon Grammar Resource file.
-                Details will be diminished.`);
-
-        } else {
-
-            grammar = <GrammarObject>await grammar_path.fetchJSON();
-
-            grammar = await resolveResourceFile(grammar);
-        }
-    }
-
-    const states_lookup: ReverseStateLookupMap =
-        new Map(Object.entries(states.states).map(([k, v]) => {
-            return [v.pointer & 0xFFFFFF, v];
-        }));
-
-    const sheet = renderByteCodeSheet(binary, states_lookup, grammar);
-
-    if (USE_STDOUT) {
-        stdout.write(sheet);
-    } else {
-        let out_path = URI.resolveRelative(out_dir.value);
-
-        if (!out_path.filename) {
-            out_path = URI.resolveRelative(`./${states_path.filename}.html`, out_path);
-        }
-
-        if (!out_path.ext || out_path.ext != "html") {
-            out_path = URI.resolveRelative(`./${out_path.filename}.html`, out_path);
-        }
-
-        await writeFile(out_path + "", sheet);
-    }
 });
 
 processCLIConfig();
