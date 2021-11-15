@@ -9,7 +9,7 @@ import {
     getUniqueSymbolName, GrammarObject,
     HCG3Symbol,
     RECURSIVE_STATE, Sym_Is_A_Production
-} from "@hc/common";
+} from "@hctoolkit/common";
 import {
     addBodyToProduction,
     getProductionByName,

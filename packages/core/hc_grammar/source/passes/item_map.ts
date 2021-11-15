@@ -21,7 +21,7 @@ import {
     Sym_Is_A_Production_Token,
     Sym_Is_Look_Behind,
     TokenSymbol,
-} from "@hc/common";
+} from "@hctoolkit/common";
 
 type IntermediateItemMapEntry = (ItemMapEntry & {
     closure: Item[];

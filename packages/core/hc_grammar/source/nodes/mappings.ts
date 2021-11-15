@@ -4,7 +4,7 @@
  * disclaimer notice.
  */
 import { NodeMapping, NodeMappings } from "@candlelib/conflagrate";
-import { GrammarObject, MetaExcludeSymbol, ReferencedFunction } from "@hc/common";
+import { GrammarObject, MetaExcludeSymbol, ReferencedFunction } from "@hctoolkit/common";
 
 const hcg3_mappings: NodeMappings<ReferencedFunction, "type"> = <NodeMappings<ReferencedFunction, "type">>{
     typename: "type",

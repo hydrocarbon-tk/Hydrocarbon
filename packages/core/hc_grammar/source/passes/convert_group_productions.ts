@@ -8,7 +8,7 @@ import {
     GrammarObject,
     GrammarProduction,
     HCG3ProductionBody
-} from "@hc/common";
+} from "@hctoolkit/common";
 import {
     addBodyToProduction,
     Body_Has_Reduce_Action,

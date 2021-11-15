@@ -21,7 +21,7 @@ import {
     ProductionSymbol,
     SymbolType,
     user_defined_state_mux
-} from '@hc/common';
+} from '@hctoolkit/common';
 import {
     createProductionSymbol,
     getImportedGrammarFromReference,
@@ -41,10 +41,15 @@ export function integrateImportedGrammars(grammar: GrammarObject, errors: Error[
     const imported_productions = new Map();
 
     //Process all imported ignored symbols
-    grammar.meta.ignore = grammar.meta.ignore.map(s => processSymbol(s, false, grammar, grammar, imported_productions));
 
-    for (const { grammar: gmmr, reference } of grammar.imported_grammars) {
-        gmmr.meta.ignore = gmmr.meta.ignore.map(s => processSymbol(s, true, grammar, gmmr, imported_productions));
+    if (grammar.meta && grammar.meta.ignore) {
+        grammar.meta.ignore = grammar.meta.ignore.map(s => processSymbol(s, false, grammar, grammar, imported_productions));
+
+        for (const { grammar: gmmr, reference } of grammar.imported_grammars) {
+
+            if (gmmr.meta && gmmr.meta.ignore)
+                gmmr.meta.ignore = gmmr.meta.ignore.map(s => processSymbol(s, true, grammar, gmmr, imported_productions));
+        }
     }
 
     processImportedObjects(grammar, errors, imported_productions);
@@ -149,13 +154,14 @@ function processImportedObjects(grammar: GrammarObject, errors: Error[], importe
                 grammar.functions.push(fn);
         }
 
-        for (const ir_state of grmmr.ir_states) {
+        if (grmmr.ir_states)
+            for (const ir_state of grmmr.ir_states) {
 
-            remapImportedIRStates(ir_state, grammar, grmmr, imported_productions);
+                remapImportedIRStates(ir_state, grammar, grmmr, imported_productions);
 
-            if (grammar != grmmr)
-                grammar.ir_states.push(ir_state);
-        }
+                if (grammar != grmmr && grammar.ir_states)
+                    grammar.ir_states.push(ir_state);
+            }
     }
 }
 
@@ -269,7 +275,7 @@ function resolveLocalReferencedFunctions(body: HCG3ProductionBody, local_grammar
     }
 }
 
-function processImportedSymbolArray<T>(
+function processImportedSymbolArray<T extends HCG3Symbol>(
     symbols: HCG3Symbol[],
     root_grammar: GrammarObject,
     local_grammar: GrammarObject,
@@ -292,11 +298,12 @@ function processImportedSymbolArray<T>(
         }
         syms.push(processSymbol(symbol, NOT_ORIGIN, root_grammar, local_grammar, imported_productions));
     }
+
     return syms;
 }
 
-function processSymbol<T = HCG3Symbol>(
-    sym: HCG3Symbol,
+function processSymbol<T extends HCG3Symbol>(
+    sym: T,
     NOT_ORIGIN: boolean,
     root_grammar: GrammarObject,
     local_grammar: GrammarObject,
@@ -341,7 +348,7 @@ function processSymbol<T = HCG3Symbol>(
 
         let name = local_grammar.common_import_name + "__" + original_name;
 
-        if (sym.production.type == SymbolType.IMPORT_PRODUCTION) {
+        if (sym?.production?.type == SymbolType.IMPORT_PRODUCTION) {
             sym.production = <ProductionSymbol>processSymbol(sym.production, NOT_ORIGIN, root_grammar, local_grammar, imported_productions);
             sym.name = sym.production.name;
             name = sym.name;

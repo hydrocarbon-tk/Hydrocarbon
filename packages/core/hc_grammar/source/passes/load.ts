@@ -7,8 +7,8 @@ import { HCGParser } from "@candlelib/hydrocarbon";
 import { Logger, LogLevel } from '@candlelib/log';
 import "@candlelib/paraffin";
 import URI from "@candlelib/uri";
-import { GrammarObject } from "@hc/common";
-import loader from "../hcg_parser.js";
+import { GrammarObject } from "@hctoolkit/common";
+import loader from "../parser/hcg_parser.js";
 import { default_map } from './default_map.js';
 
 /**

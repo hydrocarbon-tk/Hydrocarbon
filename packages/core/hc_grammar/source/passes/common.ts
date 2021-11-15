@@ -9,7 +9,6 @@ import {
     default_array,
     ExportPreamble,
     getSymbolTree,
-    getSymbolTreeLeaves,
     getUniqueSymbolName,
     GrammarObject,
     GrammarProduction,
@@ -30,7 +29,7 @@ import {
     Sym_Is_Look_Behind,
     TokenTypes,
     token_lu_bit_size
-} from "@hc/common";
+} from "@hctoolkit/common";
 import {
     addBodyToProduction,
     copyBody,
@@ -38,7 +37,7 @@ import {
 } from "../nodes/common.js";
 import { hcg3_mappings } from "../nodes/mappings.js";
 
-let renderers: any[] = [];
+var renderers: any[];
 export const render_grammar = (grammar_node: any) => {
 
     if (!renderers)
@@ -347,7 +346,18 @@ export function createCollisionMatrix(grammar: GrammarObject) {
     grammar.collision_matrix = collision_matrix;
 }
 
-function Symbols_Are_Ambiguous(symA, symB, grammar) {
+
+export function* getSymbolTreeLeaves(out: any): Iterable<any> {
+
+    if (out.nodes.length == 0) {
+        yield out;
+    } else {
+        for (const node of out.nodes)
+            yield* getSymbolTreeLeaves(node);
+    }
+}
+
+function Symbols_Are_Ambiguous(symA: any, symB: any, grammar: GrammarObject) {
 
     for (const node of getSymbolTreeLeaves(getSymbolTree([symA, symB], grammar))) {
         if (node.symbols.length > 1 && node.offset > 0) {
@@ -448,14 +458,14 @@ export function buildSequenceString(grammar: GrammarObject) {
 export function expandOptionalBody(production: GrammarProduction) {
     const processed_set = new Set();
 
-    let i = -1n;
+    let i = 0n;
 
-    const sym_ids: WeakMap<SymbolNode, bigint> = new WeakMap();
+    const sym_ids: Map<SymbolNode, bigint> = new Map();
 
     for (const body of production.bodies)
         for (const sym of body.sym) {
             if (!sym.meta) i++;
-
+            sym.temp_id = 1n << (i);
             sym_ids.set(sym, 1n << (i));
         }
 
@@ -467,11 +477,11 @@ export function expandOptionalBody(production: GrammarProduction) {
                 const OPTIONAL_CLASS = sym.IS_OPTIONAL >> 8;
                 if (OPTIONAL_CLASS == 0 || body.sym.filter(s => s.IS_OPTIONAL && (s.IS_OPTIONAL >> 8) == OPTIONAL_CLASS && s !== sym).length > 0) {
 
-                    const sym_id = sym_ids.get(sym);
+                    const sym_id = sym.temp_id;
 
                     const new_id = body.sym
-                        .filter((s) => sym_ids.get(s) != sym_id)
-                        .reduce((r, n) => (sym_ids.get(n) | r), 0n);
+                        .filter((s) => s.temp_id != sym_id)
+                        .reduce((r, n) => ((n.temp_id ?? 0n) | r), 0n);
 
                     if (!processed_set.has(new_id)) {
 
@@ -489,6 +499,11 @@ export function expandOptionalBody(production: GrammarProduction) {
             }
         }
     }
+
+    for (const body of production.bodies)
+        for (const sym of body.sym) {
+            sym.temp_id = undefined;
+        }
 }
 
 export function getProductionSignature(production: GrammarProduction) {

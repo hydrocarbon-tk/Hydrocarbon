@@ -17,9 +17,10 @@ import {
     ProductionImportSymbol,
     ProductionSymbol,
     ProductionTokenSymbol,
+    SymbolNode,
     SymbolType,
     Token
-} from '@hc/common';
+} from '@hctoolkit/common';
 
 export function getImportedGrammarFromReference(local_grammar: GrammarObject, module_name: string) {
     return local_grammar.imported_grammars.filter(g => g.reference == module_name)[0];
@@ -124,8 +125,8 @@ export function offsetReduceFunctionSymRefs(body: HCG3ProductionBody, offset_sta
 export function removeBodySymbol(
     body: HCG3ProductionBody,
     index: number,
-    opt_id: bigint = null,
-    sym_ids: WeakMap<SymbolNode, bigint> = null
+    opt_id: bigint = -1n,
+    sym_ids?: WeakMap<SymbolNode, bigint>
 ) {
     // Extend index values after the first body 
     if (Body_Has_Reduce_Action(body)) {
@@ -157,9 +158,11 @@ export function removeBodySymbol(
 
     if (sym_ids) {
 
-        body.sym = body.sym.filter(s => sym_ids.get(s) != opt_id);
+        body.sym = body.sym.filter(s => s.temp_id != opt_id);
     } else
         body.sym.splice(index, 1);
+
+
 
     if (body.sym.length == 0)
         body.sym.push(createEmptySymbol());

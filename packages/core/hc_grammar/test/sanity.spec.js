@@ -1,5 +1,5 @@
 import { assert } from "console";
-import { SymbolType } from "../../hc_ts_common/build/index.js";
+import { SymbolType } from "@hctoolkit/common";
 import { compileGrammarFromString } from "../build/compile.js";
 
 

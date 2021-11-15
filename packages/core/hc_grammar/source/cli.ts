@@ -8,7 +8,7 @@ import {
     addCLIConfig, fsp, processCLIConfig
 } from "@candlelib/paraffin";
 import URI from '@candlelib/uri';
-import { compileResourceFile } from './compile.js';
+import { compileResourceFile } from "./compile/resource_grammar";
 import { loadGrammarFromFile } from './passes/load.js';
 await URI.server();
 
@@ -42,7 +42,7 @@ const stdin = addCLIConfig<URI | string>("compile", {
     default: URI.getCWDURL(),
     key: "stdin",
     REQUIRES_VALUE: false,
-    help_brief: "Receive input from stdin instead from a file.",
+    help_brief: "Receive input from stdin instead of a file.",
 });
 
 addCLIConfig<URI | string>("compile", {
