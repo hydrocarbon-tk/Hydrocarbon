@@ -11,6 +11,8 @@ export * from "./utilities/item";
 export * from "./utilities/magic_numbers";
 export * from "./utilities/production";
 export * from "./utilities/grammar";
+export * from "./utilities/entry_pointers";
 export * from "./objects/token";
 export * from "./objects/default_symbols";
 export * from "./objects/symbol";
+export * from "./types/array_globals";

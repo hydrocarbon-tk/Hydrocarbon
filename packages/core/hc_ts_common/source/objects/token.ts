@@ -307,6 +307,8 @@ export function blame(
     line: number,
     column: number
 ) {
+    if (!source) return "";
+    
     const tab_size = 4, window_size = 400;
     // Get the text from the proceeding and the following lines; 
     // If current line is at index 0 then there will be no proceeding line;
@@ -384,7 +386,7 @@ export function blame(
         //* brdr */`\n${error_border}`,
         /* prev */`\n\n${l - 1 > -1 ? line_number(l - 1) + trunc + prev_line_o + (prev_line_o.length < prev_line.length ? "..." : "") : ""}`,
         /* curr */`${true ? line_number(l) + trunc + curr_line_o + (curr_line_o.length < curr_line.length ? "..." : "") : ""}`,
-        /* arrw */`***${(" ").repeat(w_pointer_pos + trunc.length + line_number(l + 1).length - 4) + arrow.repeat(token_length)}`,
+        /* arrw */`***${(" ").repeat(Math.max(0, w_pointer_pos + trunc.length + line_number(l + 1).length - 4)) + arrow.repeat(token_length)}`,
         /* next */`${next_start < str.length ? line_number(l + 1) + trunc + next_line_o + (next_line_o.length < next_line.length ? "..." : "") : ""}\n`,
         ///* brdr */`${error_border}`
     ]

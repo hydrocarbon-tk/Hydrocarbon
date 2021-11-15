@@ -11,7 +11,7 @@ import { Item } from "./item.js";
 
 
 export function getStartItemsFromProduction(production: GrammarProduction): Item[] {
-    return production.bodies.map(b => new Item(b.id, b.length, 0));
+    return production.bodies.map(b => new Item(b.id, b?.length ?? 0, 0));
 }
 
 
@@ -41,7 +41,7 @@ export function doesProductionHaveEmpty(production_id: number, grammar: GrammarO
  */
 export function getProductionID(object: ProductionTokenSymbol | ProductionSymbol | Item, grammar: GrammarObject): number {
     if (object instanceof Item)
-        return object.getProduction(grammar).id;
+        return object.getProduction(grammar)?.id ?? -1;
     else
         return object.val;
 }

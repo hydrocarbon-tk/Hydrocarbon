@@ -13,18 +13,7 @@ export const enum ItemIndex {
     offset = 2,
     state = 3
 }
-export class ItemGraphNode {
-    subitems: ItemGraphNode[];
-    supitems: ItemGraphNode[];
-    item: Item;
-    id?: number;
-    name?: string;
 
-    /**
-     * Higher score represents a greater depth from the root nodes. 
-     */
-    score?: number;
-}
 /**
  * Represents a state within a production body, with an offset
  * indicating the current considered symbol of the body. If offset
@@ -86,52 +75,61 @@ export class Item extends Array {
         return new Item(body, length, offset, state);
     }
 
-    body_(grammar: GrammarObject): HCG3ProductionBody {
-        return grammar.bodies[this.body];
+    body_(grammar: GrammarObject): HCG3ProductionBody | void {
+        return grammar.bodies?.[this.body];
     }
 
     sym(grammar: GrammarObject): HCG3Symbol {
-        return this.body_(grammar).sym[this.offset] || default_EOF;
+        return this.body_(grammar)?.sym[this.offset] || default_EOF;
     }
 
     render(grammar: GrammarObject): string {
 
-        const a = this.body_(grammar).sym
+        const a = this.body_(grammar)?.sym
             .map(sym => Sym_Is_A_Production(sym) ? { val: "\x1b[38;5;8m" + grammar.productions[sym.val].name.replace(/\$/, "::\x1b[38;5;153m") } : sym)
             //@ts-ignore
             .flatMap((sym, i) => (i == this.offset) ? ["\x1b[38;5;226m•", SymbolToString(sym)] : SymbolToString(sym));
+
+        if (!a)
+            return "";
+
         if (a.length == this.offset)
             a.push("\x1b[38;5;226m•");
+
         return a.join(" ");
     }
 
     renderUnformatted(grammar: GrammarObject): string {
 
-        const a = this.body_(grammar).sym
+        const a = this.body_(grammar)?.sym
             .map(sym => Sym_Is_A_Production(sym) ? Object.assign({}, sym, { val: grammar.productions[sym.val]?.name ?? "" }) : sym)
             .map(sym => getRootSym(sym, grammar))
             //@ts-ignore
             .flatMap((sym, i) => (i == this.offset) ? ["•", convert_symbol_to_string(sym)] : convert_symbol_to_string(sym));
+
+        if (!a)
+            return "";
+
         if (a.length == this.offset)
             a.push("•");
 
         return a.join(" ");
     }
 
-    rup(grammar) {
+    rup(grammar: GrammarObject) {
         return this.renderUnformattedWithProduction(grammar);
     }
 
     renderUnformattedWithProduction(grammar: GrammarObject): string {
 
-        return (this.getProduction(grammar).id + ":" + this.body + ":" + this.state) + " " + this.body_(grammar).production.name + "=>" + this.renderUnformatted(grammar); //+ ` [ ${syms.join(", ")} ]`;
+        return ((this.getProduction(grammar)?.id ?? -1) + ":" + this.body + ":" + this.state) + " " + (this.body_(grammar)?.production?.name ?? "not-found") + "=>" + this.renderUnformatted(grammar); //+ ` [ ${syms.join(", ")} ]`;
     }
     getProductionID(grammar: GrammarObject): number {
-        return this.body_(grammar).production.id;
+        return this.body_(grammar)?.production?.id ?? 0;
     }
     //@ts-ignore
-    getProduction(grammar: GrammarObject): GrammarProduction {
-        return this.body_(grammar).production;
+    getProduction(grammar: GrammarObject): GrammarProduction | void {
+        return this.body_(grammar)?.production;
     }
 
     getProductionAtSymbol(grammar: GrammarObject): GrammarProduction {
@@ -162,9 +160,11 @@ export class Item extends Array {
         return null;
     }
 
-    decrement(): Item | null {
+    decrement(): Item {
         const item = new Item(this.body, this.len, this.offset, this.state);
+
         item[ItemIndex.offset] = Math.max(0, item[ItemIndex.offset] - 1);
+
         return item;
     }
 
@@ -206,14 +206,14 @@ export function getGotoItems(grammar: GrammarObject, active_productions: number[
 
     if (all)
         for (const item of to_process) {
-            getGotoItems(grammar, item.getProduction(grammar).id, items, out, all);
+            getGotoItems(grammar, [item.getProduction(grammar)?.id ?? 0], items, out, all);
         }
 
     return out;
 }
 
 export function itemsToProductionIDs(items: Item[], grammar: GrammarObject): number[] {
-    return items.map(i => i.getProduction(grammar).id);
+    return items.map(i => i.getProduction(grammar)?.id ?? -1);
 }
 
 export function Items_Have_The_Same_Active_Symbol(items: Item[], grammar: GrammarObject) {

@@ -226,7 +226,7 @@ export interface GrammarObject extends HCGGrammarNode {
 
     common_import_name: string;
 
-    bodies?: HCG3ProductionBody[];
+    bodies: HCG3ProductionBody[];
 
     production_hash_lookup?: any;
     /**

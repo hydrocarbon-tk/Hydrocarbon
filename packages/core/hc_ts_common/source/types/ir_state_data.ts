@@ -14,7 +14,7 @@ export interface InternalStateData {
 }
 
 export interface StateData {
-    name?: string;
+    name: string;
     string: string;
     pointer: number;
     block_offset: number;

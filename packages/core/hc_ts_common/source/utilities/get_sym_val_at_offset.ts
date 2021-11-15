@@ -251,12 +251,3 @@ export function getSymbolTree(symbols: TokenSymbol[], grammar, offset = 0): Toke
 
     return { id, symbols: syms, nodes, offset, tk_length };
 }
-
-export function* getSymbolTreeLeaves(out) {
-    if (out.nodes.length == 0) {
-        yield out;
-    } else {
-        for (const node of out.nodes)
-            yield* getSymbolTreeLeaves(node);
-    }
-}
