@@ -13,7 +13,7 @@ import {
     ir_reduce_numeric_len_id,
     ProductionFunction,
     ReferencedFunction
-} from '@hc/common';
+} from '@hctoolkit/common';
 
 
 export function createJSFunctionsFromExpressions(grammar: GrammarObject, error) {

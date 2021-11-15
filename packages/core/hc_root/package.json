@@ -1,7 +1,7 @@
 {
-    "name": "@hc/root",
+    "name": "hctoolkit",
     "description": "Hydrocarbon: Core CommandLine Interface",
-    "version": "1.0.0",
+    "version": "0.0.1",
     "bin": {
         "hc": "./bin/index.js"
     },
@@ -31,7 +31,11 @@
         "@candlelib/log": "0.1.2",
         "@candlelib/paraffin": "0.1.15",
         "@candlelib/uri": "0.3.0",
-        "@hc/common": "*"
+        "@hctoolkit/grammar": "*",
+        "@hctoolkit/bytecode": "*",
+        "@hctoolkit/asytrip": "*",
+        "@hctoolkit/tools": "*",
+        "@hctoolkit/common": "*"
     },
     "devDependencies": {
         "@types/node": "^16.4.13"

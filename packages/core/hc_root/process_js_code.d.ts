@@ -1,4 +1,4 @@
-import { GrammarObject } from '@hc/common';
+import { GrammarObject } from '@hctoolkit/common';
 export declare function createJSFunctionsFromExpressions(grammar: GrammarObject, error: any): {
     reduce_functions: Map<string, {
         id: number;
