@@ -3,8 +3,8 @@
  * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
  * disclaimer notice.
  */
-export { createCPPTypes } from "./asytrip_to_cpp.js";
-export { createGoTypes } from "./asytrip_to_go.js";
-export { createRustTypes } from "./asytrip_to_rust.js";
-export { createTsTypes } from "./asytrip_to_ts.js";
-export { createASYTRripContext as createAsytripContext } from "./create_asytrip_context.js";
+export { createCPPTypes } from "./targets/asytrip_to_cpp.js";
+export { createGoTypes } from "./targets/asytrip_to_go.js";
+export { createRustTypes } from "./targets/asytrip_to_rust.js";
+export { createTsTypes } from "./targets/asytrip_to_ts.js";
+export { createASYTRripContext as createAsytripContext } from "./context/create_asytrip_context.js";

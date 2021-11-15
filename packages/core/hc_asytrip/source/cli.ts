@@ -8,13 +8,12 @@ import {
     addCLIConfig, processCLIConfig
 } from "@candlelib/paraffin";
 import URI from '@candlelib/uri';
+import { resolveResourceGrammarCLI } from '@hctoolkit/grammar';
 import { writeFile } from 'fs/promises';
-import { resolveResourceFile } from '@hc/grammar';
-import { GrammarObject } from '@hc/common';
-import { createGoTypes } from './asytrip_to_go.js';
-import { createTsTypes } from './asytrip_to_js.js';
-import { createRustTypes } from './asytrip_to_rust.js';
-import { createASYTRripContext } from './create_asytrip_context.js';
+import { createGoTypes } from './targets/asytrip_to_go.js';
+import { createTsTypes } from './targets/asytrip_to_ts.js';
+import { createRustTypes } from './targets/asytrip_to_rust.js';
+import { createASYTRripContext } from './context/create_asytrip_context.js';
 
 await URI.server();
 
@@ -69,49 +68,12 @@ addCLIConfig<URI | "stdin">("compile", {
 
     if (out_dir.value !== "stdout") {
         USE_STDOUT = false;
-        output_file = URI.resolveRelative(out_dir.value);
+        const dir = URI.resolveRelative(out_dir.value);
+        if (dir)
+            output_file = dir;
     }
 
-    let grammar: GrammarObject = null;
-
-    if (arg === "stdin") {
-        await new Promise((ok, fail) => {
-            process.stdin.resume();
-            process.stdin.setEncoding('utf8');
-
-            let data = [];
-            process.stdin.on('data', function (chunk) {
-
-                data.push(chunk);
-
-            });
-            process.stdin.on('end', async function () {
-
-                grammar = JSON.parse(data.join(""));
-
-                ok(0);
-            });
-
-            process.stdin.on("error", function (e) {
-                logger.error(e);
-                fail(1);
-            });
-        });
-    } else {
-
-        input_file = URI.resolveRelative(arg);
-
-        if (!(await input_file.DOES_THIS_EXIST()))
-
-            throw new Error(`${arg} does not exists`);
-
-        grammar = <any>await input_file.fetchJSON();
-
-        if (!("type" in grammar) || grammar.type != "hc-grammar-5")
-            throw new Error("Unable to recognize Hydrocarbon Resource File");
-    }
-
-    grammar = await resolveResourceFile(grammar);
+    let grammar = await resolveResourceGrammarCLI(arg, logger);
 
     const asytrip_context = createASYTRripContext(grammar, logger);
 
@@ -119,32 +81,40 @@ addCLIConfig<URI | "stdin">("compile", {
         try {
             let file_path = "", output_data = "";
 
+            let file_name = [
+                "unnamed",
+                new URI(grammar.URI).filename,
+                new URI(grammar.resource_path).filename,
+                input_file.filename,
+                output_file.filename,
+            ].filter(a => !!a).pop();
+
             switch (target.value) {
 
                 case "js":
                     file_path = URI.resolveRelative(
-                        `./${input_file.filename}-ast.js`, output_file) + "";
+                        `./${file_name}-ast.js`, output_file) + "";
 
                     output_data = createTsTypes(grammar, asytrip_context);
                     break;
 
                 case "ts":
                     file_path = URI.resolveRelative(
-                        `./${input_file.filename}-ast.ts`, output_file) + "";
+                        `./${file_name}-ast.ts`, output_file) + "";
 
                     output_data = createTsTypes(grammar, asytrip_context);
                     break;
 
                 case "rust":
                     file_path = URI.resolveRelative(
-                        `./${input_file.filename}-ast.rust`, output_file) + "";
+                        `./${file_name}-ast.rust`, output_file) + "";
 
                     output_data = createRustTypes(grammar, asytrip_context);
                     break;
                 case "go":
 
                     file_path = URI.resolveRelative(
-                        `./${input_file.filename}-ast.go`, output_file) + "";
+                        `./${file_name}-ast.go`, output_file) + "";
 
                     output_data = createGoTypes(grammar, asytrip_context);
                     break;
