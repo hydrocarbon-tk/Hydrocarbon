@@ -65,10 +65,6 @@ export async function createAddHocParser<T = any>(
 
     let { functions: fns } = (Function(input_string))();
 
-    console.log({
-        pt: entry_pointers[0].pointer
-    });
-
     return {
         parse: (string: string, entry_pointer: number) => {
             return complete(

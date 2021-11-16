@@ -5,16 +5,9 @@
  */
 import { Logger } from '@candlelib/log';
 import URI from '@candlelib/uri';
+import { GrammarProduction, GrammarObject, formatArray } from '@hctoolkit/common';
 import { writeFile } from "fs/promises";
-import { createCPPTypes } from '../../../packages/core/hc_asytrip/source/asytrip_to_cpp.js';
-import { createGoTypes } from '../asytrip/asytrip_to_go.js';
-import { createRustTypes } from '../asytrip/asytrip_to_rust.js';
-import { createTsTypes } from '../asytrip/asytrip_to_ts.js';
-import { render_grammar } from '../grammar/passes/common.js';
-import { ASYTRIPContext } from '../types/asytrip.js';
-import { BuildPack } from '../types/build_pack';
-import { formatArray } from '../utilities/format_array.js';
-import { getEntryPointers } from './entry_pointers.js';
+import { render_grammar } from '@hctoolkit/grammar';
 
 const render_logger = Logger.get("MAIN").createLogger("RENDER");
 
@@ -109,35 +102,35 @@ var instructions = []uint32  {
 ${createGoTypes(grammar, asytrip_context)}`);
 }
 
-export async function renderToTypeScript(
-    { grammar, state_buffer, states_map }: BuildPack,
-    asytrip_context: ASYTRIPContext,
-    path: URI
+export function renderTypeScriptParserData(
+    grammar: GrammarObject,
+    bytecode: Uint32Array,
+    entry_pointers: {
+        production: GrammarProduction;
+        name: string;
+        pointer: number;
+    }[],
 ) {
-    const entry_pointers = getEntryPointers(grammar, states_map);
 
     let array_row_size = 80;
 
-    await writeFile(URI.resolveRelative("./data.ts", path) + "",
-        `
+    return `
         
 export enum Entrypoint { ${entry_pointers.map(p => {
-            return `
+        return `
 /**
 Bytecode pointer for the [${p.name}](${grammar.URI + ""}) production parser.
 \`\`\`
 ${render_grammar(p.production)}
-${p.production.pos.blameDiagram("", grammar.URI + "")}
 \`\`\`
 */
 ${p.name}=${p.pointer}`;
-        }).join(",\n")}
+    }).join(",\n")}
 }
 
 
 export const Bytecode = new Uint32Array([    
-    ${formatArray(state_buffer, array_row_size)}
-])`);
+    ${formatArray(bytecode, array_row_size)}
+])`;
 
-    await writeFile(URI.resolveRelative("./ast.ts", path) + "", createTsTypes(grammar, asytrip_context));
 }

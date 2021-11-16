@@ -14,335 +14,131 @@
  * Contact: acweathersby.codes@gmail.com
  */
 
-import {
-    addCLIConfig, processCLIConfig
-} from "@candlelib/paraffin";
-import { default as URI, default as URL } from "@candlelib/uri";
-import { createBuildPack } from "../build/build.js";
-import { compileGrammarFromURI } from "../grammar/compile.js";
-import { createCompilableCode } from "../grammar/passes/process_compiled_code.js";
-import { renderToJavaScript } from '../render/render.js';
-import { Logger, LogLevel } from '@candlelib/log';
+import { Logger } from '@candlelib/log';
+import { addCLIConfig, processCLIConfig, args } from '@candlelib/paraffin';
+import URI from '@candlelib/uri';
+import { getEntryPointers, GrammarObject, ReverseStateLookupMap } from '@hctoolkit/common';
+import { resolveResourceGrammarCLI } from '@hctoolkit/grammar';
+import { spawn, spawnSync } from 'child_process';
+import { writeFile } from 'fs/promises';
+import { tmpdir } from 'os';
+import { renderTypeScriptParserData } from './render';
 
+const target = addCLIConfig<"rust" | "go" | "ts">("parse", {
+    key: "t",
+    default: "ts",
+    accepted_values: ["rust", "go", "ts"],
+    REQUIRES_VALUE: true,
+    help_arg_name: "Target Language",
+    help_brief: "Target language to write parser in. Defaults to TypeScript",
+});
 
-await URL.server();
+const asytrip = addCLIConfig("parse", {
+    key: "asytrip",
+    REQUIRES_VALUE: false,
+    help_brief: "Compile ASYTrip",
+});
 
-const cli_log = console.log;
+const parse_loglevel = addCLIConfig("parse", args.log_level_properties);
 
-async function CheckForSDK(args): Promise<boolean> {
+addCLIConfig<URI | string>("parse", {
+    key: "parse",
+    help_arg_name: "HCG file path",
+    REQUIRES_VALUE: true,
+    accepted_values: ["stdin", URI],
+    help_brief: `
 
-    const cp = (await import("child_process")).default;
+    Compile a Hydrocarbon parser system for a target language
+`
+}).callback = (async arg => {
+    await URI.server();
 
-    let HAVE_VERSION = false;
+    const logger = Logger.createLogger("HCToolkit").activate(parse_loglevel.value);
 
-    //Checking for emcc installation
-    try {
-        const emcc_version = cp.spawnSync("emcc", ["--version"], {}).stdout.toString("utf8");
+    const dir = new URI(tmpdir() + "/");
 
-        const version_number = emcc_version.match(/\d+\.\d+\.\d+/g)[0]?.split(".").map(s => parseInt(s));
+    const resource_path = <URI>URI.resolveRelative("./tmp.hcgr", dir);
+    const states_path = <URI>URI.resolveRelative("./tmp.hcs", dir);
+    const binary_path = <URI>URI.resolveRelative("./tmp.hcb", dir);
 
-        if (version_number[0] < 2)
-            cli_log(`emcc version ${version_number.join(".")} too old`);
-        else {
-            cli_log("Found compatible version of EMSDK");
-            HAVE_VERSION = true;
-        }
+    spawnSync("hc.grammar", ["compile", "--o", resource_path + "", arg + ""], {
+        stdio: ['inherit', "inherit", "inherit"]
+    });
 
-    } catch (e) {
-        //Check local install
-        const emsdk_env_path = URI.resolveRelative("../../emsdk/emsdk_env.sh", URI.getEXEURL(import.meta));
+    let grammar: GrammarObject | null = null;
 
-
-        try {
-            if (await emsdk_env_path.fetchText()) {
-                cli_log("Local EMSDK installation found");
-                HAVE_VERSION = true;
-            }
-        } catch (e) {
-            cli_log("Could not find EMSDK installation");
-        }
-    }
-
-    if (!HAVE_VERSION) {
-        const readline = (await import("readline")).default;
-
-        const rl = readline.createInterface({
-            input: process.stdin,
-            output: process.stdout
-        });
-
-        return new Promise((res) => {
-            rl.question("Would you like install a local version of emsdk for @candlelib/hydrocarbon? [y/n]\n", (reply: string) => {
-
-                rl.close();
-                if ("yes".includes(reply.toLowerCase())) {
-                    cli_log("Installing emsdk");
-
-                    const install_script_path = URI.resolveRelative("../../../scripts/install.sh", URI.getEXEURL(import.meta));
-                    const install_script_cwd = URI.resolveRelative("../../../", URI.getEXEURL(import.meta));
-
-                    cp.execFileSync(install_script_path + "", {
-                        cwd: install_script_cwd.dir,
-                        stdio: "inherit"
-                    });
-
-                    res(true);
-                } else {
-                    cli_log("No changes have been made");
-                    res(false);
-                }
+    await Promise.all([
+        new Promise(complete => {
+            const bc_handle = spawn("hc.bytecode", ["compile", "--o", dir + "", resource_path + ""], {
+                stdio: ['inherit', "inherit", "inherit"]
             });
-        });
-    }
+            bc_handle.addListener("close", () => {
+                complete(true);
+            });
 
-    return HAVE_VERSION;
-};
+        }), new Promise(complete => {
+            if (asytrip.value) {
+                const at_handle = spawn("hc.asytrip", ["compile", "--o", dir + "", "--t", target.value, resource_path + ""], {
+                    stdio: ['inherit', "inherit", "inherit"]
+                });
+                at_handle.addListener("close", () => {
+                    complete(true);
+                });
+            } else complete(true);
+        }),
+        new Promise(async complete => {
 
-addCLIConfig("check-emsdk", {
-    key: "check-emsdk",
-    help_brief: `
-    Usage: check-emsdk
-    
-    Checks for an installation EMSDK and emcc. If the installation cannot be located, then it will prompt
-    to download and install the package for use by Hydrocarbon.
-`
-}).callback = CheckForSDK;
+            grammar = await resolveResourceGrammarCLI(resource_path, logger);
 
+            complete(true);
+        })
+    ]);
 
-const out_dir = addCLIConfig("compile", {
-    key: "output",
-    REQUIRES_VALUE: true,
-    help_brief: "Directory to write compiled parser files. Defaults to CWD",
-});
+    if (grammar) {
 
-const type = addCLIConfig("compile", {
-    key: "type",
-    REQUIRES_VALUE: true,
-    accepted_values: ["c++", "js", "ts", "rust"],
-    default: "js",
-    help_brief:
-        `
-Target output language of the parser.
-Must be one of: 
-    c++ : C++ Dir with Header & Source Folders
-    rust : Rust Cargo Directory
-    js : Single File JavaScript  
-    ts : Single File TypeScript`,
-});
+        const states = <any>await states_path.fetchJSON();
 
-const recognizer = addCLIConfig("compile", {
-    key: "recognizer",
-    REQUIRES_VALUE: true,
-    accepted_values: ["js", "wasm"],
-    help_brief:
-        `
-Language in which to encode the recognizer. This only applies if the output targets
-TypeScript or JavaScript.
-
-Must be one of: 
-    js   : JavaScript
-    wasm : WebAssembly`,
-});
-
-const namespace = addCLIConfig("compile", {
-    key: "namespace",
-    REQUIRES_VALUE: true,
-    help_brief:
-        `
-A unique name to give to the parser's namespace. Should only contain characters in 
-the set described by this regex: [a-zA-Z\_][a-zA-Z\_]*. This will also serve as the 
-folder name for C++ and RUST output which will be placed within the output file path.
-Defaults to "parser" `,
-});
-
-import { cpus } from "os";
-
-const number_of_workers = addCLIConfig("compile", {
-    key: "threads",
-    validate: val => {
-        if (parseInt(val) <= cpus().length && parseInt(val) >= 1) {
-            return;
-        }
-        return `Invalid value for --threads [${val}]`;
-    },
-    REQUIRES_VALUE: true,
-    help_brief: `Number of worker threads to use during compilation. Defaults to 1`,
-});
-
-addCLIConfig("compile", {
-    key: "compile",
-    help_brief: `
-    Usage: compile <path_to_source_grammar>
-    
-    Compile new parser from a hydrocarbon grammar source file (.hcg)
-`
-}).callback = (async (args) => {
-
-    const cli_logger = Logger.get("MAIN");
-
-    cli_logger.name = "cli-compile";
-
-    //cli_logger.deactivate();
-
-    cli_logger.activate().deactivate(LogLevel.DEBUG);
+        const states_lookup: ReverseStateLookupMap =
+            <any>new Map(Object.entries(states.states).map(([k, v]) => {
+                return [v.pointer & 0xFFFFFF, v];
+            }));
 
 
-    try {
-
-        const
-            input_path = args.trailing_arguments.pop(),
-            input_file = URL.resolveRelative(input_path),
-            output_path = URL.resolveRelative(out_dir.value || "./");
-
-        if (input_file.ext !== "hcg")
-            throw new Error("Expected source file to be a hydrocarbon grammar file (.hcg)");
-
-        if (recognizer.value == "wasm")
-            if (!await CheckForSDK(args)) {
-                cli_log("Could not locate EMSDK installation. Aborting");
-                process.exit();
-            }
-
-        cli_logger.log(`Compiling grammar`);
-
-        const
-            threads = parseInt(number_of_workers.value ?? "1"),
-            { grammar, asytrip_context } = await compileGrammarFromURI(input_file);
-
-        if (type.value == "rust" || type.value == "c++")
-            // Compile the extended reduce actions function and classes
-            // this destroys any code generate for TypeScript or JavaScript outputs
-            // hence the if gate.
-            createCompilableCode(grammar);
+        const entry_pointers = getEntryPointers(<GrammarObject>grammar, new Map([
+            ...states_lookup.entries()
+        ].map(([, b]) => {
+            return [b.name, b.pointer];
+        })));
 
 
-        cli_logger.log("Completed grammar compilation");
+        //compile the source file
 
-        cli_logger.log(`Starting recognizer compilation with ${number_of_workers.value || 1} threads`);
+        const binary = new Uint32Array(await binary_path.fetchBuffer());
 
-        // Compile recognizer code
-        const build_pack = await createBuildPack(grammar, threads);
+        switch (target.value) {
+            case "ts": {
 
-        cli_logger.log("Completed recognizer compilation");
+                const parser_data = renderTypeScriptParserData(grammar, binary, entry_pointers);
+                const ast_temp_path = <URI>URI.resolveRelative("./tmp-ast.ts", dir);
+                const ast_path = URI.resolveRelative("./ast.ts");
+                const data_path = URI.resolveRelative("./parser_data.ts");
 
-        switch (type.value) {
-            case "c++":
-                {
-                    // Need to generate source and cargo file, and map this
-                    // installation's hc_rust source to the cargo file's dependencies.
-                    //
-                    cli_log("Writing cpp files");
+                await Promise.all([
+                    await writeFile(ast_path + "", await ast_temp_path.fetchText()),
+                    await writeFile(data_path + "", parser_data),
+                ]);
 
-
-
-                    const ns = namespace.value || "parser";
-
-                    const folder = URL.resolveRelative(`./${ns}/`, output_path);
-
-                    //Source files
-                    await generateCPPParser(grammar, recognizer_functions, meta, folder + "", ns);
-
-                }
+            } break;
+            case "go":
                 break;
             case "rust":
-                { // Need to generate source and cargo file, and map this
-                    // installation's hc_rust source to the cargo file's dependencies.
-                    //
-                    cli_log("Writing rust files");
-
-                    const ns = namespace.value || "parser";
-
-                    const folder = URL.resolveRelative(`./${ns}/`, output_path);
-
-                    //Source files
-                    await generateRustParser(grammar, recognizer_functions, meta, folder + "", ns);
-
-                    const fsp = (await import("fs")).promises;
-
-                    //Cargo file
-                    const cargo_path = URL.resolveRelative("./Cargo.toml", folder);
-                    const lib_path = URL.resolveRelative("./lib.rs", folder);
-                    const hc_depend_path = URL.resolveRelative("../../../source/hc_rust", URI.getEXEURL(import.meta));
-
-                    const cargo_file = `[package]
-name = "${ns}"
-version = "0.0.1"
-edition = "2018"
-
-[lib]
-name = "${ns}"
-crate-type = ["lib"]
-path = "./lib.rs"
-
-[dependencies]
-candlelib_hydrocarbon = { path = "${hc_depend_path}" }
-`;
-                    const lib_file = `#![allow(warnings)]
-pub mod parser;
-mod spec_parser;
-`;
-
-                    await fsp.writeFile(cargo_path + "", cargo_file);
-                    await fsp.writeFile(lib_path + "", lib_file);
-
-                    break;
-                }
-            case "wasm":
-                break;
-            default:
-            case "ts":
-            case "js":
-
-
-                const fsp = (await import("fs")).promises;
-
-                let file_uri = new URI(output_path);
-
-                if (!file_uri.filename)
-                    file_uri.path += "/" + input_file.filename + "." + type.value;
-
-                if (!file_uri.ext)
-                    file_uri.path += "." + type.value;
-
-                const script = renderToJavaScript(build_pack);
-
-                await fsp.mkdir(file_uri.dir + "", { recursive: true });
-
-                cli_logger.log(`Writing file to ${file_uri + ""}`);
-
-                await fsp.writeFile(file_uri + "", script);
-
                 break;
         }
 
-        cli_logger.log("Process complete");
-    } catch (e) {
-        cli_logger.error(e);
+        logger.debug();
+
+        logger.debug("Complete");
     }
 });
 
-
-addCLIConfig("create-staged", {
-    key: "create-staged",
-    help_brief: `
-    Usage: create-staged
-    
-    Create a new HCG parser and place in @candlelib/hydrocarbon/build/staged folder
-`
-}).callback = (async (args) => {
-    const
-        hcg_grammar_file = URI.resolveRelative("./source/grammars/hcg-3-alpha/hcg.hcg"),
-        { grammar: compiled_grammar } = await compileGrammarFromURI(hcg_grammar_file),
-        { grammar: bootstrapped_compiled_grammar } = await compileGrammarFromURI(hcg_grammar_file),
-        {
-            recognizer_functions: bootstrapped_recognizer_functions
-        } = await createBuildPack(bootstrapped_compiled_grammar, 1);
-
-    let SUCCESS = await writeJSBasedParserScriptFile(
-        URI.resolveRelative("./build/staged/hcg3_parser.staged.ts") + "",
-        bootstrapped_compiled_grammar, bootstrapped_recognizer_functions, bootstrapped_meta,
-        "../runtime/parser_loader_next.js",
-        generateWebAssemblyParser
-    );
-});
 processCLIConfig();

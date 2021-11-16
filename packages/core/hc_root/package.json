@@ -3,7 +3,7 @@
     "description": "Hydrocarbon: Core CommandLine Interface",
     "version": "0.0.1",
     "bin": {
-        "hc": "./bin/index.js"
+        "hc": "./bin/index.sh"
     },
     "type": "module",
     "scripts": {},
@@ -12,6 +12,7 @@
         "url": "git+https://github.com/CandleLibrary/Hydrocarbon.git"
     },
     "files": [
+        "/bin/",
         "/build/",
         "/README.md",
         "/LICENSE",
