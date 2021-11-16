@@ -20,25 +20,29 @@
         "module": "ESNext",
         "declaration": true,
         "moduleResolution": "node",
+        "noResolve": true,
         "sourceMap": false,
         "paths": {
-            "@hc/root": [
+            "@hctoolkit/root": [
                 "./hc_root/"
             ],
-            "@hc/bytecode": [
+            "@hctoolkit/bytecode": [
                 "./hc_bytecode/"
             ],
-            "@hc/grammar": [
+            "@hctoolkit/grammar": [
                 "./hc_grammar/"
             ],
-            "@hc/tools": [
+            "@hctoolkit/tools": [
                 "./hc_tools/"
             ],
-            "@hc/common": [
+            "@hctoolkit/common": [
                 "./hc_common/"
             ],
-            "@hc/asytrip": [
+            "@hctoolkit/asytrip": [
                 "./hc_asytrip/"
+            ],
+            "@hctoolkit/runtime": [
+                "../rt_typescript/"
             ]
         }
     }
