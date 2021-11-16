@@ -26,10 +26,6 @@ export function renderByteCodeSheet(
 
     const html_buffer = [];
 
-    console.log(entry.map(e => {
-        return `<li><h4><a href="#${e.name}_open">${e.name}</a></h4></li>`;
-    }));
-
     for (const [ptr] of states_lookup)
         html_buffer.push(renderHTMLStateFromBytecode(ptr, bytecode, states_lookup, grammar));
 
