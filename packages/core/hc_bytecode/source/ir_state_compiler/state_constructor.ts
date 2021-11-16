@@ -131,14 +131,14 @@ export function constructProductionStates(
                 parse_states.set(goto_hash, `state [ ${goto_hash} ] \n    pass`);
             }
 
-            if (production.name == "B") {
+            /* if (production.name == "B") {
 
 
-                console.log(goto_graph.debug);
+                console.debug(goto_graph.debug);
                 for (const [, state] of parse_states)
-                    console.log(state, "\n\n\n");
+                    console.debug(state, "\n\n\n");
 
-            }
+            } */
         }
 
 

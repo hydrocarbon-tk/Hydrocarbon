@@ -6,7 +6,6 @@
 import { Logger } from '@candlelib/log';
 import {
     default_case_indicator,
-    getProductionByName,
     GrammarObject,
     InstructionType,
     numeric_sort,
@@ -16,7 +15,7 @@ import {
     StateMap,
     Sym_Is_Exclusive
 } from '@hctoolkit/common';
-import { addRootScannerFunction, entry_points, getSymbolProductionName, parser } from '@hctoolkit/grammar';
+import { addRootScannerFunction, entry_points, getSymbolProductionName, parser, getProductionByName } from '@hctoolkit/grammar';
 import { createProductionLookup, processSymbol } from '@hctoolkit/grammar/build/passes/common';
 import { buildItemMaps } from '@hctoolkit/grammar/build/passes/item_map';
 import { constructProductionStates } from '../ir_state_compiler/state_constructor.js';

@@ -26,10 +26,10 @@ Copyright (C) 2021 Anthony Weathersby - The Hydrocarbon Toolkit
 `
 });
 
-const out_dir = addCLIConfig<URI | "stdout">("compile", {
+const out_dir = addCLIConfig<URI | "stdout" | "">("compile", {
     key: "o",
     default: URI.getCWDURL(),
-    accepted_values: [URI],
+    accepted_values: ["", "stdout", URI],
     REQUIRES_VALUE: true,
     help_arg_name: "Output Directory Path",
     help_brief: `
@@ -54,14 +54,14 @@ const threads = addCLIConfig<number>("compile", {
 addCLIConfig<URI | "stdin">("compile", {
     key: "compile",
     help_arg_name: "Path to *.hcgr",
-    REQUIRES_VALUE: true,
+    REQUIRES_VALUE: false,
     accepted_values: ["stdin", URI],
     help_brief: `
     Compile Hydrocarbon parser bytecode (.hcb) and companion Hydrocarbon ir states (.hcs) from a Hydrocarbon grammar resource file (.hcgr)
 `
 }).callback = (async (arg) => {
 
-    const logger = Logger.createLogger("ASYTrip").activate();
+    const logger = Logger.createLogger("Bytecode").activate();
 
     let USE_STDOUT = true,
         output_file = new URI,
@@ -69,10 +69,10 @@ addCLIConfig<URI | "stdin">("compile", {
 
     if (out_dir.value !== "stdout") {
         USE_STDOUT = false;
-        output_file = URI.resolveRelative(out_dir.value);
+        output_file = <URI>URI.resolveRelative(out_dir.value);
     }
 
-    var grammar: GrammarObject = await resolveResourceGrammarCLI(arg, logger);
+    var grammar: GrammarObject = await resolveResourceGrammarCLI(arg || "", logger);
 
     const build_pack = await compileBuildPack(grammar, threads.value, optimizations.value);
 
@@ -80,17 +80,23 @@ addCLIConfig<URI | "stdin">("compile", {
 
     if (output_dir) {
 
-        const name = output_dir.filename || (new URI(grammar.URI)).filename || "parser";
+        let file_name = [
+            "unnamed",
+            new URI(grammar.URI).filename,
+            new URI(grammar.resource_path).filename,
+            input_file.filename,
+            output_file.filename,
+        ].filter(a => !!a).pop();
 
-        const binary_path = URI.resolveRelative(`./${name}.hcb`, output_dir);
+        const binary_path = URI.resolveRelative(`./${file_name}.hcb`, output_dir);
 
-        const states_path = URI.resolveRelative(`./${name}.hcs`, output_dir);
+        const states_path = URI.resolveRelative(`./${file_name}.hcs`, output_dir);
 
         await writeFile(binary_path + "", build_pack.state_buffer, { encoding: 'binary' });
 
         await writeFile(states_path + "", JSON.stringify({
             bytecode_path: binary_path + "",
-            grammar_resource_path: USE_STDOUT ? "" : grammar.resource_path || "",
+            grammar_resource_path: grammar.resource_path || "",
             states: Object.fromEntries([...build_pack.states_map].map(([k, v]) => {
                 return [k, {
                     name: k,

@@ -43,7 +43,8 @@ function getStateName(
 
 const optimize_logger = Logger.get("MAIN").createLogger("OPTIMIZER");
 
-type OptimizationFunction = (state: Resolved_IR_State, attribute: StateAttrib, data: InternalStateData, states: StateMap) => boolean;
+type OptimizationFunction = (
+    state: Resolved_IR_State, attribute: StateAttrib, data: InternalStateData, states: StateMap) => boolean;
 
 const optimizations: Optimization[] = [];
 
@@ -1058,9 +1059,9 @@ export function garbageCollect(
             }
 
         } catch (e) {
-            console.log(name);
+            console.error(name);
             console.error(e);
-            console.log(state.string);
+            console.error(state.string);
             throw e;
         }
 
