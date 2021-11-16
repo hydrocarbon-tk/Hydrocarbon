@@ -10,6 +10,7 @@ import {
 import URI from '@candlelib/uri';
 import { GrammarObject, ReverseStateLookupMap, StateData } from '@hctoolkit/common';
 import { resolveResourceFile, resolveResourceGrammarCLI } from '@hctoolkit/grammar';
+import { exec, execSync } from 'child_process';
 import { writeFile } from 'fs/promises';
 import { stdout } from 'process';
 import { renderByteCodeSheet } from './bytecode/html.js';
@@ -21,9 +22,9 @@ addCLIConfig("root", {
     key: "root",
     help_brief:
         `
-2021 Hydrocarbon Analysis Toolkit
+# Hydrocarbon Toolkit Tools
 
-Copyright (C) 2021 Anthony Weathersby - The Hydrocarbon Toolkit
+
 `
 });
 
@@ -39,18 +40,25 @@ const out_dir = addCLIConfig<URI | "stdout">("disassemble", {
     last path part is taken to mean the filename of the output. Otherwise,
     the filename of the source grammar file will be used.
 
-    All output files will have the extension "*.hcgr".
-
-     `,
+    All output files will have the extension "*.hcgr".`,
 });
+
+const browse = addCLIConfig<boolean>("disassemble", {
+    key: "browse",
+    REQUIRES_VALUE: false,
+    help_brief: "Open the bytecode sheet in the default browser.",
+});
+
 
 addCLIConfig<URI | "stdin">("disassemble", {
     key: "disassemble",
-    help_arg_name: "Path to *.hcs",
-    REQUIRES_VALUE: true,
+    help_arg_name: "path_to_hcs",
+    REQUIRES_VALUE: false,
     accepted_values: ["stdin", URI],
     help_brief: `
-    Create a Bytecode sheet from a Hydrocarbon States file (*.hcs)
+    Create a Bytecode sheet from a Hydrocarbon States file (*.hcs). 
+    
+    If a <path_to_hcs> is not specified, then input from stdin read.
 `
 }).callback = (async (arg) => {
 
@@ -60,9 +68,10 @@ addCLIConfig<URI | "stdin">("disassemble", {
         output_file = new URI,
         states_path = new URI;
 
-    if (arg === "stdin") {
+    if (arg === "stdin" || !arg) {
         await new Promise((ok, fail) => {
             process.stdin.resume();
+            process.stdin.setTimeout(300000);
             process.stdin.setEncoding('utf8');
 
             let data: string[] = [];
@@ -75,6 +84,8 @@ addCLIConfig<URI | "stdin">("disassemble", {
             process.stdin.on('end', async function () {
                 const val = URI.resolveRelative(data.join(""));
 
+                logger.log("Read from stdin");
+
                 if (val) {
                     arg = val;
 
@@ -84,9 +95,15 @@ addCLIConfig<URI | "stdin">("disassemble", {
                 fail(1);
             });
 
+            process.stdin.on("timeout", function () {
+                logger.warn("stdin timeout");
+                fail({ stack: "" });
+            });
+
+
             process.stdin.on("error", function (e) {
                 logger.error(e);
-                fail(1);
+                fail({ stack: "" });
             });
         });
     }
@@ -139,7 +156,7 @@ addCLIConfig<URI | "stdin">("disassemble", {
 
             grammar = <GrammarObject>await grammar_path.fetchJSON();
 
-            grammar = await resolveResourceFile(grammar);
+            grammar = await resolveResourceFile(grammar, logger);
         }
     }
 
@@ -155,6 +172,7 @@ addCLIConfig<URI | "stdin">("disassemble", {
         if (USE_STDOUT) {
             stdout.write(sheet);
         } else {
+
             let out_path = URI.resolveRelative(out_dir.value);
 
             if (out_path) {
@@ -164,13 +182,18 @@ addCLIConfig<URI | "stdin">("disassemble", {
                 }
 
                 if (out_path) {
-
                     if (!out_path.ext || out_path.ext != "html") {
                         out_path = URI.resolveRelative(`./${out_path.filename}.html`, out_path);
                     }
                 }
-                
+
                 await writeFile(out_path + "", sheet);
+
+                logger.log("Bytesheet written to " + out_path);
+
+                if (browse.value == true) {
+                    execSync("google-chrome " + out_path + "");
+                }
             }
         }
     }
@@ -209,7 +232,7 @@ addCLIConfig<URI | "stdin">("fuzz", {
 
     var grammar: GrammarObject = await resolveResourceGrammarCLI(arg, logger);
 
-    console.log(createFuzz(grammar));
+    process.stdout.write(createFuzz(grammar));
 
 });
 

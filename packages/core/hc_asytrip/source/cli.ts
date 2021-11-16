@@ -21,9 +21,8 @@ addCLIConfig("root", {
     key: "root",
     help_brief:
         `
-2021 Hydrocarbon Abstract Syntax Tree Toolkit
+# Hydrocarbon Abstract Syntax Tree Toolkit
 
-Copyright (C) 2021 Anthony Weathersby - The Hydrocarbon Toolkit
 `
 });
 
@@ -52,7 +51,7 @@ const target = addCLIConfig("compile", {
 addCLIConfig<URI | "stdin">("compile", {
     key: "compile",
     help_arg_name: "Path to *.hcgr",
-    REQUIRES_VALUE: true,
+    REQUIRES_VALUE: false,
     accepted_values: ["stdin", URI],
     help_brief: `
 
@@ -80,6 +79,7 @@ addCLIConfig<URI | "stdin">("compile", {
     if (asytrip_context)
         try {
             let file_path = "", output_data = "";
+
 
             let file_name = [
                 "unnamed",
@@ -118,11 +118,13 @@ addCLIConfig<URI | "stdin">("compile", {
 
                     output_data = createGoTypes(grammar, asytrip_context);
                     break;
+
             }
 
             if (USE_STDOUT) {
                 process.stdout.write(output_data);
             } else {
+
                 await writeFile(file_path, output_data);
                 logger.log(`Created [${target.value}] AST file at ${file_path}`);
             }
