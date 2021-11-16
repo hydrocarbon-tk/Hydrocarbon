@@ -32,7 +32,7 @@ export class KernelStack {
 
     push_state(kernel_state: number) {
         this.state_stack[++this.pointer] = kernel_state;
-        this.meta_stack[this.pointer] = (this.meta_stack[this.pointer - 1] & 0xFFFF) | this.symbol_accumulator;
+        this.meta_stack[this.pointer] = (this.meta_stack[this.pointer - 1] & 0xFFFF) | /* this.symbol_accumulator */ 0;
     }
 
     swap_state(kernel_state: number) {

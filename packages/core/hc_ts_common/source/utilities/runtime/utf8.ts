@@ -10,13 +10,13 @@ export let char_lu_table: Uint8Array = new Uint8Array(jump8bit_table_byte_size);
 
 initLUTable(char_lu_table);
 
-export function fillByteBufferWithUTF8FromString(string: string, buffer: Uint8Array, max_length) {
+export function fillByteBufferWithUTF8FromString(string: string, buffer: Uint8Array, max_length: number) {
 
     let i = 0, j = 0, l = string.length;
 
     for (; i < l && j < max_length - 4; i++) {
 
-        const code_point = string.codePointAt(i);
+        const code_point: number = <number>string.codePointAt(i);
 
         if ((code_point & 0x7F) == code_point) {
             buffer[j++] = (code_point & 0x7F);

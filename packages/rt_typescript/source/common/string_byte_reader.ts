@@ -4,8 +4,7 @@
  * disclaimer notice.
  */
 
-import { fillByteBufferWithUTF8FromString, get_utf8_code_point_from } from './utf8.js';
-import { ByteReader } from './byte_reader.js';
+import { ByteReader, fillByteBufferWithUTF8FromString, get_utf8_code_point_from } from '@hctoolkit/common';
 
 /**
  * Naive implementation of a byte reader for a JS UTF16 string

@@ -4,6 +4,9 @@
  * disclaimer notice.
  */
 
+import { TokenType } from '../utilities/runtime/magic_numbers';
+import { ByteWriter, ByteReader } from './buffer_handlers';
+
 
 /**
  * Stores source string in a global repo for use in 
@@ -229,6 +232,27 @@ export class Token {
             this.source.slice(this.off + this.len)
         ].join("");
     }
+
+    serialize(writer: ByteWriter) {
+        writer.write_word(TokenType);
+        writer.write_word(this.length);
+        writer.write_word(this.off);
+        writer.write_word(this.line);
+        writer.write_string(this.source);
+    }
+
+    static Deserialize(reader: ByteReader): Token {
+
+        if (reader.assert_word(TokenType)) {
+            var length = reader.read_word();
+            var off = reader.read_word();
+            var line = reader.read_word();
+            var str = reader.read_string();
+            return new Token(str, length, off, line);
+        }
+
+        return new Token("", 0, 0, 0);
+    }
 };
 
 export class KernelToken {
@@ -308,7 +332,7 @@ export function blame(
     column: number
 ) {
     if (!source) return "";
-    
+
     const tab_size = 4, window_size = 400;
     // Get the text from the proceeding and the following lines; 
     // If current line is at index 0 then there will be no proceeding line;

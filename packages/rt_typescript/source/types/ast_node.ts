@@ -4,7 +4,7 @@
  * disclaimer notice.
  */
 
-import { Token } from '@hc/common';
+import { ByteWriter } from '@hctoolkit/common';
 
 export type HCObjIterator<T> = (
     node: ASTNode<T>,
@@ -17,10 +17,8 @@ export type HCObjIterator<T> = (
  * compiler. 
  */
 export class ASTNode<T, Type extends keyof T = any> {
-    constructor(type: T, tok: Token) {
-        this.type = type;
-        this.tok = tok;
-    }
+    constructor() { }
+
     Iterate(parent: ASTNode<T>, replace_prop_index: number, replace_array_index: number) { }
     * iterate(parent: ASTNode<T>, replace_prop_index: number, replace_array_index: number) { }
 
@@ -29,19 +27,12 @@ export class ASTNode<T, Type extends keyof T = any> {
     /**
      * Render this node back to its source code representation
      */
-    render(column: number): string {
-        return this.toString();
-    }
+    render(column: number): string { return this.toString(); }
 
-    toString(): string {
-        return this.tok.toString();
-    }
-    Type(): T[keyof T] {
-        return <any>this.type;
-    }
+    toString(): string { return ""; }
+    Type(): T[keyof T] { return <any>0; }
 
-    type: T;
-    tok: Token;
+    serialize(writer: ByteWriter) { };
 }
 
 export function* iterate<T>(node: ASTNode<T>) {

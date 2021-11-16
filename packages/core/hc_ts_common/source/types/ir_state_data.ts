@@ -26,7 +26,7 @@ export interface BranchIRStateData extends InternalStateData {
 }
 export type ReverseStateLookupMap = Map<number, StateData>;
 export type StateMap = Map<string, InternalStateData>;
-export const enum StateAttrib {
+export enum StateAttrib {
     HAS_GOTOS = 1 << 0,
     PROD_BRANCH = 1 << 1,
     PEEK_BRANCH = 1 << 2,

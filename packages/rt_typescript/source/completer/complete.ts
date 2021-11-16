@@ -3,11 +3,9 @@
  * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
  * disclaimer notice.
  */
-import { ParseActionType, StateIterator } from '../recognizer/iterator.js';
-import { Token } from "@hc/common";
+import { goto_state_mask, Token } from "@hctoolkit/common";
 import { StringByteReader } from '../common/string_byte_reader.js';
-import { ParseAction } from '../recognizer/iterator.js';
-import { goto_state_mask } from "@hc/common";
+import { ParseAction, ParseActionType, StateIterator } from '../recognizer/iterator.js';
 
 export function complete<T>(
     input_string: string,
@@ -73,8 +71,6 @@ export function complete<T>(
                 stack.push(token);
 
                 tokens.push(token);
-
-                //console.log(token + "");
 
                 token_offset += length;
 

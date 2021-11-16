@@ -4,20 +4,20 @@
  * disclaimer notice.
  */
 
-import { TokenTypes } from '../../types/TokenTypes.js';
 import {
     instruction_pointer_mask,
     normal_state_mask,
     skipped_scan_prod,
-    state_index_mask
-} from '../../utilities/magic_numbers.js';
-import { ByteReader } from '../common/byte_reader.js';
-import { KernelToken } from '../token.js';
+    state_index_mask,
+    TokenTypes,
+    KernelToken,
+    ByteReader
+} from '@hctoolkit/common';
 import { KernelStack } from './stack.js';
 
-let peek = null;
+let peek: (arg: any) => any = _ => _;
 
-export function assign_peek(fn) {
+export function assign_peek(fn: (arg: any) => any) {
     peek = fn;
 }
 
@@ -960,7 +960,6 @@ export class StateIterator {
                         } break;
 
                         case ParseActionType.FORK: {
-                            console.log({ result });
 
                             const instruction = this.bytecode[result.pointer];
 

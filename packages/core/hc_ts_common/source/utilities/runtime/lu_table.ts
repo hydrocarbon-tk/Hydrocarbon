@@ -13,22 +13,8 @@ import {
     uni_id_start_discrete,
     uni_id_start_ranges
 } from "@candlelib/wind";
+import { TokenTypes } from '../../types/';
 
-export const enum TokenTypes {
-    UNDEFINED,
-    END_OF_FILE,
-    SYMBOL,
-    IDENTIFIER,
-    UNICODE_IDENTIFIER,
-    NUMBER,
-    NEW_LINE,
-    SPACE,
-    IDENTIFIERS,
-    NUMBERS,
-    SYMBOLS,
-    CUSTOM_START_POINT,
-    RECOVERY = 0,
-}
 export const jump8bit_table_byte_size = 382976;
 /**
  * Allocates and initializes a pool of memory large enough to contain the lexer jump table, action array buffer, and error array buffer.
