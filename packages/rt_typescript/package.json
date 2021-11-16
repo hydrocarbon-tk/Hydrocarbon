@@ -1,8 +1,11 @@
 {
-    "name": "@hc/runtime",
+    "name": "@hctoolkit/runtime",
     "description": "Hydrocarbon: Parser Runtime",
     "version": "1.0.0",
     "type": "module",
+    "types": "./build",
+    "library": "./build",
+    "main": "./build/index.js",
     "scripts": {
         "test": "candle.cure ./test/*"
     },
@@ -30,7 +33,7 @@
         "@candlelib/paraffin": "0.1.15",
         "@candlelib/uri": "0.3.0",
         "@candlelib/hydrocarbon": "0.3.0",
-        "@hc/common": "*"
+        "@hctoolkit/common": "*"
     },
     "devDependencies": {
         "@candlelib/cure": "*",
