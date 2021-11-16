@@ -4,7 +4,9 @@
  * disclaimer notice.
  */
 
-import { ByteWriter } from '@hctoolkit/common';
+import {
+    ByteWriter
+} from '@hctoolkit/common';
 
 export type HCObjIterator<T> = (
     node: ASTNode<T>,
@@ -45,3 +47,4 @@ export function* iterate<T>(node: ASTNode<T>) {
 
     }
 }
+

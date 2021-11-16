@@ -14,7 +14,8 @@ export {
     VectorType
 } from '@hctoolkit/common';
 export * from "./completer/complete";
-export * from "./types/ast_node";
+export * from "./ast/ast_node";
+export * from "./ast/serialization";
 
 
 

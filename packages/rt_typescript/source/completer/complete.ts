@@ -4,7 +4,7 @@
  * disclaimer notice.
  */
 import { goto_state_mask, Token } from "@hctoolkit/common";
-import { StringByteReader } from '../common/string_byte_reader.js';
+import { StringByteReader } from '../buffer/string_byte_reader.js';
 import { ParseAction, ParseActionType, StateIterator } from '../recognizer/iterator.js';
 
 export function complete<T>(
@@ -24,8 +24,8 @@ export function complete<T>(
 
     const iterator = new StateIterator(string_byte_reader, bytecode_buffer, entry_pointer, false);
 
-    let stack = [],
-        tokens = [],
+    let stack: any[] = [],
+        tokens: Token[] = [],
         token_offset = 0,
         default_token: Token = new Token(input_string, 0, 0),
         err = null;
@@ -128,7 +128,7 @@ function fork_action_handler(action: ParseAction[ParseActionType], iterator: Sta
 
         let root = pointer + length + 1;
 
-        const buffer = [];
+        const buffer: ParseAction[ParseActionType][] = [];
 
         const state = bytecode[pointer + 1 + i];
 

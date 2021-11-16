@@ -105,7 +105,7 @@ export class StringByteReader extends ByteReader {
     }
 
     clone() {
-        const br = new StringByteReader(null, this.buffer);
+        const br = new StringByteReader("", this.buffer);
         br.internal_code_point = this.internal_code_point;
         br.internal_word = this.internal_word;
         br.cursor = this.cursor;
