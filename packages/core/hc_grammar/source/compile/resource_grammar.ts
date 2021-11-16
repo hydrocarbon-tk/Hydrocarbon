@@ -43,7 +43,7 @@ export async function compileResourceFile(grammar: GrammarObject): Promise<Gramm
     return grammar;
 }
 
-export async function resolveResourceFile(grammar: GrammarObject):
+export async function resolveResourceFile(grammar: GrammarObject, logger: Logger):
     Promise<GrammarObject> {
 
     const errors: Error[] = [];
@@ -53,18 +53,22 @@ export async function resolveResourceFile(grammar: GrammarObject):
 
         //distributePriorities(grammar, errors);
 
-        //Meta transformations: Symbols, Functions & Items
+        logger.rewrite_log("Processing core symbols");
         processSymbols(grammar, errors);
 
+        logger.rewrite_log("Building scanner productions");
         buildScannerProduction(grammar);
 
-        // Reprocess symbols to incorporate symbols from scanner productions
+        logger.rewrite_log("Processing scanner symbols");
         processSymbols(grammar, errors);
 
+        logger.rewrite_log("Building item maps");
         buildItemMaps(grammar);
 
+        logger.rewrite_log("Creating collision matrix");
         createCollisionMatrix(grammar);
 
+        logger.rewrite_log("Grammar hydration complete");
     } catch (e) {
         console.error(e);
 
@@ -82,28 +86,34 @@ export async function resolveResourceFile(grammar: GrammarObject):
 }
 
 export async function resolveResourceGrammarCLI(
-    arg: "stdin" | URI,
+    arg: "stdin" | "" | URI,
     logger: Logger
 ) {
 
     var grammar: GrammarObject;
 
-    if (arg === "stdin") {
+    if (arg === "stdin" || !arg) {
         await new Promise((ok, fail) => {
             process.stdin.resume();
             process.stdin.setEncoding('utf8');
 
             let data: string[] = [];
             process.stdin.on('data', function (chunk: string) {
-
                 data.push(chunk);
 
             });
-            process.stdin.on('end', async function () {
+            process.stdin.on('end', async function stdin_end() {
 
-                grammar = JSON.parse(data.join(""));
+                try {
+                    grammar = JSON.parse(data.join(""));
 
-                ok(0);
+                    logger.log("Read from stdin");
+
+                    ok(0);
+                } catch (e) {
+                    logger.error(new Error("Unable to parse input as grammar file"));
+                    fail(-1);
+                }
             });
 
             process.stdin.on("error", function (e) {
@@ -130,7 +140,7 @@ export async function resolveResourceGrammarCLI(
     }
 
     //@ts-ignore
-    grammar = await resolveResourceFile(grammar);
+    grammar = await resolveResourceFile(grammar, logger);
 
     return grammar;
 }

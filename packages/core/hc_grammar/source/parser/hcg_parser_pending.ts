@@ -6,7 +6,7 @@
  */
 import {
     ParserFramework,
-    KernelParserCore2,
+    KernelParserCore as KernelParserCore2,
     fillByteBufferWithUTF8FromString
 } from "@candlelib/hydrocarbon";
 

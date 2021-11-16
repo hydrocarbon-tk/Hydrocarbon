@@ -8,6 +8,7 @@ import {
     addCLIConfig, fsp, processCLIConfig
 } from "@candlelib/paraffin";
 import URI from '@candlelib/uri';
+import { tmpdir } from 'os';
 import { compileResourceFile } from "./compile/resource_grammar";
 import { loadGrammarFromFile } from './passes/load.js';
 await URI.server();
@@ -45,6 +46,7 @@ const stdin = addCLIConfig<URI | string>("compile", {
     help_brief: "Receive input from stdin instead of a file.",
 });
 
+
 addCLIConfig<URI | string>("compile", {
     key: "compile",
     help_arg_name: "HCG file path",
@@ -56,7 +58,7 @@ addCLIConfig<URI | string>("compile", {
 `
 }).callback = (async (arg) => {
 
-    const logger = Logger.createLogger("compiler").activate();
+    const logger = Logger.createLogger("Grammar").activate();
 
     const
         input_file = URI.resolveRelative(arg);
@@ -73,31 +75,43 @@ addCLIConfig<URI | string>("compile", {
 
             grammar = await compileResourceFile(grammar);
 
-            grammar.resource_path = null;
+            logger.log(`Reading grammar file from ${input_file}`);
+
+            let filename = input_file.filename;
+
+            if (out_dir.value.filename)
+                filename = out_dir.value.filename;
+
+            let path = "";
+
+            if (out_dir.value === "stdout") {
+                path = new URI(tmpdir()) + "/";
+            } else {
+                path = out_dir.value.dir + "/";
+            }
+
+            const output_path = URI.resolveRelative(`./${filename}.hcgr`, path);
+
+            grammar.resource_path = output_path + "";
+
+            await fsp.writeFile(output_path + "", JSON.stringify(grammar, undefined, 2), { encoding: "utf8" });
 
             if (out_dir.value === "stdout") {
 
+                logger.log(`Writing resource file to stdout`);
+
                 process.stdout.write(JSON.stringify(grammar, undefined, 2));
+
 
                 return 0;
 
             } else {
 
-                let filename = input_file.filename;
-
-                if (out_dir.value.filename)
-                    filename = out_dir.value.filename;
-
-                const output_path = URI.resolveRelative(`./${filename}.hcgr`, out_dir.value);
-
-                grammar.resource_path = output_path + "";
-
-                await fsp.writeFile(output_path + "", JSON.stringify(grammar, undefined, 2), { encoding: "utf8" });
-
                 logger.log(`Resource file successfully written to ${output_path}`);
 
                 return 0;
             }
+
         }
     }
 });
