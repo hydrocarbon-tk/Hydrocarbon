@@ -43,8 +43,11 @@ export function parseAsytripStruct(
 
         if (sub_expr.type == (JSNodeType.IdentifierName | JSNodeClass.PROPERTY_NAME)) {
             const val: string = (<any>sub_expr).value;
-
-            if (val.slice(0, 2) == "t_") {
+            if (val == "tok") {
+                eval_node = <any>exp(`{tok:tok}`).nodes[0];
+            } else if (val.slice(0, 2) == "t_") {
+                eval_node = <any>exp(`{type:${val}}`).nodes[0];
+            } else if (val.slice(0, 2) == "c_") {
                 eval_node = <any>exp(`{type:${val}}`).nodes[0];
             } else if (val[0] == "$" && val.slice(1).match(/\w+$/)) {
                 const prop = val.slice(1);
@@ -212,8 +215,9 @@ function parseExpression(
     } else if (node.type == JSNodeType.IdentifierReference) {
 
         let ref = node.value;
-
-        if (ref.slice(0, 2) == "t_") {
+        if (ref == "tok") {
+            return { type: ASYTRIPType.TOKEN, arg_pos: -1, body: [body.id] };
+        } else if (ref.slice(0, 2) == "t_") {
             return { type: ASYTRIPType.STRUCT_CLASSIFICATION, vals: [{ type: ASYTRIPType.STRUCT_TYPE, val: ref.slice(2), body: [body.id] }], body: [body.id] };
         } else if (ref.slice(0, 2) == "c_") {
 

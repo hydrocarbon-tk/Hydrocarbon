@@ -19,7 +19,8 @@ import {
     HCG3ProductionBody,
     ProductionFunction,
     Sym_Is_A_Production,
-    Token
+    Token,
+    TokenType
 } from '@hctoolkit/common';
 import { render_grammar } from '@hctoolkit/grammar';
 import {
@@ -198,15 +199,19 @@ export function createASYTRripContext(
             .map((c, i) => [c, 1 << (i + 1)]));
         const type_lookup = context.type;
 
-        let counter = 1;
+        // Struct types start iterating after the highest non-struct type val
+        let counter = TokenType + 1;
+
         /**
          * Set type ids for all nodes
          */
         for (const [name, { classes }] of context.structs) {
 
-            const type = ((counter++) << class_size) | [...classes].map(
-                v => class_lookup.get(v)
-            ).reduce((r, v) => r | v, 0);
+            const type = ((counter++) << class_size)
+                | ([...classes].map(
+                    v => <number>class_lookup.get(v)
+                ).reduce((r, v) => r | v, 0));
+                
             type_lookup.set(name, type);
         }
 
