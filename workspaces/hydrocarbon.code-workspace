@@ -58,6 +58,14 @@
 			"**/*.code-search": true,
 			"**/build": true,
 			"**/target": true
-		}
+		},
+		"cSpell.words": [
+			"ASYTRIP",
+			"candlelib",
+			"hctoolkit",
+			"Redeclared",
+			"syms",
+			"vals"
+		]
 	}
 }
