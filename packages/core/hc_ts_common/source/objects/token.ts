@@ -10,7 +10,7 @@ import { ByteWriter, ByteReader } from './buffer_handlers';
 
 /**
  * Stores source string in a global repo for use in 
- * serialization and unserialization of Tokens.
+ * serialization and deserialization of Tokens.
  */
 
 
@@ -234,7 +234,7 @@ export class Token {
     }
 
     serialize(writer: ByteWriter) {
-        writer.write_word(TokenType);
+        writer.write_byte(TokenType);
         writer.write_word(this.length);
         writer.write_word(this.off);
         writer.write_word(this.line);
@@ -243,7 +243,7 @@ export class Token {
 
     static Deserialize(reader: ByteReader): Token {
 
-        if (reader.assert_word(TokenType)) {
+        if (reader.assert_byte(TokenType)) {
             var length = reader.read_word();
             var off = reader.read_word();
             var line = reader.read_word();

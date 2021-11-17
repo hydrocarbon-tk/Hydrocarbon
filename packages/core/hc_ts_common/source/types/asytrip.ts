@@ -242,6 +242,8 @@ export interface ASYTRIPTypeObj {
     };
 }
 
+export type ASYType<R extends ASYTRIPType = ASYTRIPType> = ASYTRIPTypeObj[R];
+
 export type getTypeString<T extends keyof ASYTRIPTypeObj> = (
     v: ASYTRIPTypeObj[T],
     c: ASYTRIPContext

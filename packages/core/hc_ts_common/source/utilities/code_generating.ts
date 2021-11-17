@@ -68,7 +68,7 @@ const string_to_md5 = await (async (crypto) => {
         });
 })(null);
 
-export function hashString(string: string) {
+export function hashString(string: string): string {
 
     return string_to_md5(string).slice(0, 16);
 

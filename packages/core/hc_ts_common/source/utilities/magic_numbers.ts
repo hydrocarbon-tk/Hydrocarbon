@@ -17,6 +17,7 @@ export const InScopeItemState = 9999;
 export const LocalState = 0;
 export const GlobalState = -1;
 export const default_case_indicator = 9009;
+export const state_bytecode_byte_start = 24;
 
 /**
  * 
