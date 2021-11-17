@@ -10,7 +10,8 @@ import {
     ASYTRIPType,
     ASYTRIPTypeObj,
     GrammarObject,
-    ResolvedProp
+    ResolvedProp,
+    ASYType
 } from '@hctoolkit/common';
 
 import {
@@ -66,12 +67,13 @@ function getExpressionString<T extends keyof ASYTRIPTypeObj>(
     return expr_mapper.get(v.type)(v, c, inits);
 }
 
-function convertValToString(v, t) {
+
+function convertValToString(v: string, t: ASYType) {
     if (TypeIsString(t))
         return `(HCGObjDouble{Val:${v}}).toString()`;
     return `(${v}).toString()`;
 };
-function convertValToDouble(v, t) {
+function convertValToDouble(v: string, t: ASYType) {
     if (TypeIsString(t))
         return `(HCGObjString{Val:${v}}).Double()`;
     return `(${v}).Double()`;
@@ -81,8 +83,8 @@ function convertArgsToType(
     c: ASYTRIPContext,
     inits: Inits,
     check: (t: any) => boolean,
-    convert: (a: string, t: ASYTRIPTypeObj[ASYTRIPType]) => string
-): (val: ASYTRIPTypeObj[ASYTRIPType]) => string {
+    convert: (a: string, t: ASYType) => string
+): (val: ASYType) => string {
     return v => {
         const val = getExpressionString(v, c, inits);
         const type = getResolvedType(v, c)[0];
@@ -140,22 +142,17 @@ export function createTsTypes(grammar: GrammarObject, context: ASYTRIPContext) {
 
     const strings = [
         //Header ------------------------------------------------------------------------
-        `import {
-            ASTNode, 
-            Token, 
-            ByteReader, 
-            ByteWriter,
-            StructVectorType,
-            VectorType,
-            F64Type,
-            F32Type,
-            I64Type,
-            I32Type,
-            I16Type,
-            I8Type,
-            StringType,
-            TokenType,
-        } from "@hctoolkit/runtime";`
+        `
+import {
+    ASTNode,
+    ByteReader,
+    ByteWriter,
+    Token,
+    Deserialize as InternalDeserialize,
+    SerializeType,
+    SerializeVector,
+    SerializeStructVector
+} from "@hctoolkit/runtime";`
     ];
 
     //Class Filters --------------------------------------------------------------------
@@ -184,112 +181,20 @@ ${[...context.type].map(([k, v]) => `${k} = ${v}`).join(",\n")}
 
 
     strings.push(`
-
-function SerializeStructVector<T extends ASTNode<any>>(vector:T[], writer: ByteWriter){
-    writer.write_byte(StructVectorType);
-    writer.write_word(vector.length);
-    for(const struct of vector)
-        struct.serialize(writer)
+export function Deserialize(reader: ByteReader){
+    return InternalDeserialize(reader, DeserializeStruct)
 }
 
-function DeserializeStructVector<T extends ASTNode<R>, R = any>(reader: ByteReader): T[]{
-    if(reader.assert_byte(StructVectorType)){
-        const length = reader.read_word();
-        const array: T[] = [];
-        for(let i = 0; i < length; i++){
-            array.push(Deserialize(reader));
-        }
-
-        return array;
-    }
-
-    return [];
-}
-
-
-function SerializeVector<T>(vector:T[], writer: ByteWriter){
-    writer.write_byte(VectorType);
-    writer.write_word(vector.length);
-    for(const obj of writer){
-        SerializeType(obj, writer)
-    }   
-}
-
-function DeserializeVector<T = any>(reader: ByteReader): T[]{
-    if(reader.assert_byte(VectorType)){
-        const length = reader.read_word();
-        const array: T[] = [];
-
-        for(let i = 0; i < length; i++){
-            array.push(Deserialize(reader));
-        }
-
-        return array;
-    }
-
-    return [];
-}
-
-function SerializeType<T>(obj: T, writer: ByteWriter) {
-    if (typeof obj == "string") {
-        writer.write_string(obj);
-    } else if (typeof obj == "number") {
-        writer.write_byte(F64Type);
-        writer.write_double_word(obj);
-    } else if (obj instanceof Token) {
-        obj.serialize(writer);
-    }
-}
-
-export function Deserialize(reader: ByteReader): any{
+function DeserializeStruct(reader: ByteReader): ASTNode<ASTType>{
     switch(reader.peek_byte()){
-        case StructVectorType:
-            return DeserializeStructVector<ASTNode<ASTType>>(reader);
-            break;
-        case VectorType:
-            return DeserializeVector(reader);
-            break;
-        case F64Type:
-            reader.assert_byte(F64Type);
-            return reader.read_double_word();
-            break;
-        case F32Type:
-            reader.assert_byte(F32Type);
-            return reader.read_word();
-            break;
-        case I64Type:
-            reader.assert_byte(I64Type);
-            return reader.read_double_word();
-            break;
-        case I32Type:
-            reader.assert_byte(I32Type);
-            return reader.read_word();
-            break;
-        case I16Type:
-            reader.assert_byte(I16Type);
-            return reader.read_short();
-            break;
-        case I8Type:
-            reader.assert_byte(I8Type);
-            return reader.read_byte();
-            break;
-        case StringType:
-            break;
-        case TokenType:
-            break;
         ${[...context.structs].map(([key, struct]) => {
         return `
-        case ${struct.type >> context.type_offset}: {
-            return ${key}.Deserialize(reader);
-        }break;
-`;
+        case ${struct.type >> context.type_offset}: return ${key}.Deserialize(reader);`;
     }).join("")
         }
     }
-
-}
-
-`);
+    throw new Error("Could not deserialize");
+}`);
 
     //Structs ------------------------------------------------------------------------
     for (const [name, struct] of context.structs) {
@@ -440,11 +345,16 @@ export class ${name} extends ASTNode<ASTType> {
         return ASTType.${name};
     }
 
+    get type(): ASTType.${name} {
+        return ASTType.${name};
+    }
+
+
     serialize(writer:ByteWriter){
 
         writer.write_byte(${struct.type >> (context.type_offset)});
         ${prop_vals.map(({ name: n, type: v, types, REQUIRES_DYNAMIC, HAS_NULL, HAVE_STRUCT, HAVE_STRUCT_VECTORS }) => {
-                Logger.get("temp").activate().log(context.class_mask);
+
                 if (HAVE_STRUCT) {
                     if (HAS_NULL)
                         return `
@@ -466,9 +376,9 @@ export class ${name} extends ASTNode<ASTType> {
                     return `
         SerializeStructVector(this.${n}, writer)`;
                 } else if (REQUIRES_DYNAMIC) {
-
+                    return `    SerializeType(this.${n}, writer)`;
                 } else if (TypesAre(types, TypeIsVector)) {
-
+                    return `    SerializeVector(this.${n}, writer)`;
                 } else if (TypesAre(types, TypeIsToken)) {
                     if (HAS_NULL)
                         return `
@@ -483,10 +393,8 @@ export class ${name} extends ASTNode<ASTType> {
                     //Expecting one Type
                     const type = types[0];
                     switch (type.type) {
-                        case ASYTRIPType.I32:
-                            return `
-        writer.write_word(this.${n})`;
-                            break;
+                        case ASYTRIPType.STRING: return `         var ${n} = writer.write_string(this.${n})`;
+                        case ASYTRIPType.I32: return `     writer.write_word(this.${n})`;
                     }
                 }
             }).join("")
@@ -520,11 +428,10 @@ export class ${name} extends ASTNode<ASTType> {
         var ${n} = buffer.read_null() ? null : Deserialize(reader);`;
                 return `
         var ${n} = Deserialize(reader);`;
-
             } else if (REQUIRES_DYNAMIC) {
-
+                return `var ${n} = Deserialize(reader)`;
             } else if (TypesAre(types, TypeIsVector)) {
-
+                return `var ${n} = Deserialize(reader)`;
             } else if (TypesAre(types, TypeIsToken)) {
                 if (HAS_NULL)
                     return `
@@ -535,10 +442,8 @@ export class ${name} extends ASTNode<ASTType> {
                 //Expecting one Type
                 const type = types[0];
                 switch (type.type) {
-                    case ASYTRIPType.I32:
-                        return `
-        var ${n} = reader.read_word()`;
-                        break;
+                    case ASYTRIPType.STRING: return `         var ${n} = reader.read_string()`;
+                    case ASYTRIPType.I32: return `         var ${n} = reader.read_word()`;
                 }
             }
         }).join("")
@@ -1187,23 +1092,23 @@ const A = ASYTRIPType;
 const conversion_table =
 {
     [A.F64]:
-        (t: number, v: string): string => "+" + ({ [A.F64]: /*       */ v, [A.F32]: `${v} `, [A.I64]: `${v} `, [A.I32]: `${v} `, [A.I16]: `${v} `, [A.I8]: `${v} `, [A.BOOL]: `+${v} `, [A.NULL]: "0.0", [A.TOKEN]: `parseFloat(${v}.toString())`, [A.STRUCT]: `parseFloat(${v}.toString())`, [A.VECTOR]: `parseFloat(${v}.toString()))` })[t],
+        (t: number, v: string): string => "" + ({ [A.F64]: /*       */ v, [A.F32]: `${v} `, [A.I64]: `${v} `, [A.I32]: `${v} `, [A.I16]: `${v} `, [A.I8]: `${v} `, [A.BOOL]: `+${v} `, [A.NULL]: "0.0", [A.TOKEN]: `parseFloat(${v}.toString())`, [A.STRUCT]: `parseFloat(${v}.toString())`, [A.VECTOR]: `parseFloat(${v}.toString()))` })[t],
     [A.F32]:
-        (t: number, v: string): string => "+" + ({ [A.F64]: `${v} `, [A.F32]: /*       */ v, [A.I64]: `${v} `, [A.I32]: `${v} `, [A.I16]: `${v} `, [A.I8]: `${v} `, [A.BOOL]: `+${v} `, [A.NULL]: "0.0", [A.TOKEN]: `parseFloat(${v}.toString())`, [A.STRUCT]: `parseFloat(${v}.toString())`, [A.VECTOR]: `parseFloat(${v}.toString()))` })[t],
+        (t: number, v: string): string => "" + ({ [A.F64]: `${v} `, [A.F32]: /*       */ v, [A.I64]: `${v} `, [A.I32]: `${v} `, [A.I16]: `${v} `, [A.I8]: `${v} `, [A.BOOL]: `+${v} `, [A.NULL]: "0.0", [A.TOKEN]: `parseFloat(${v}.toString())`, [A.STRUCT]: `parseFloat(${v}.toString())`, [A.VECTOR]: `parseFloat(${v}.toString()))` })[t],
     [A.I64]:
-        (t: number, v: string): string => "+" + ({ [A.F64]: `${v} `, [A.F32]: `${v} `, [A.I64]: /*       */ v, [A.I32]: `${v} `, [A.I16]: `${v} `, [A.I8]: `${v} `, [A.BOOL]: `+${v} `, [A.NULL]: " 0 ", [A.TOKEN]: `parseInt(${v}.toString())`, [A.STRUCT]: `parseInt(${v}.toString())`, [A.VECTOR]: `parseInt(${v}.toString()))` })[t],
+        (t: number, v: string): string => "" + ({ [A.F64]: `${v} `, [A.F32]: `${v} `, [A.I64]: /*       */ v, [A.I32]: `${v} `, [A.I16]: `${v} `, [A.I8]: `${v} `, [A.BOOL]: `+${v} `, [A.NULL]: " 0 ", [A.TOKEN]: `parseInt(${v}.toString())`, [A.STRUCT]: `parseInt(${v}.toString())`, [A.VECTOR]: `parseInt(${v}.toString()))` })[t],
     [A.I32]:
-        (t: number, v: string): string => "+" + ({ [A.F64]: `${v} `, [A.F32]: `${v} `, [A.I64]: `${v} `, [A.I32]: /*       */ v, [A.I16]: `${v} `, [A.I8]: `${v} `, [A.BOOL]: `+${v} `, [A.NULL]: " 0 ", [A.TOKEN]: `parseInt(${v}.toString())`, [A.STRUCT]: `parseInt(${v}.toString())`, [A.VECTOR]: `parseInt(${v}.toString()))` })[t],
+        (t: number, v: string): string => "" + ({ [A.F64]: `${v} `, [A.F32]: `${v} `, [A.I64]: `${v} `, [A.I32]: /*       */ v, [A.I16]: `${v} `, [A.I8]: `${v} `, [A.BOOL]: `+${v} `, [A.NULL]: " 0 ", [A.TOKEN]: `parseInt(${v}.toString())`, [A.STRUCT]: `parseInt(${v}.toString())`, [A.VECTOR]: `parseInt(${v}.toString()))` })[t],
     [A.I16]:
-        (t: number, v: string): string => "+" + ({ [A.F64]: `${v} `, [A.F32]: `${v} `, [A.I64]: `${v} `, [A.I32]: `${v} `, [A.I16]: /*       */ v, [A.I8]: `${v} `, [A.BOOL]: `+${v} `, [A.NULL]: " 0 ", [A.TOKEN]: `parseInt(${v}.toString())`, [A.STRUCT]: `parseInt(${v}.toString())`, [A.VECTOR]: `parseInt(${v}.toString()))` })[t],
+        (t: number, v: string): string => "" + ({ [A.F64]: `${v} `, [A.F32]: `${v} `, [A.I64]: `${v} `, [A.I32]: `${v} `, [A.I16]: /*       */ v, [A.I8]: `${v} `, [A.BOOL]: `+${v} `, [A.NULL]: " 0 ", [A.TOKEN]: `parseInt(${v}.toString())`, [A.STRUCT]: `parseInt(${v}.toString())`, [A.VECTOR]: `parseInt(${v}.toString()))` })[t],
     [A.I8]:
-        (t: number, v: string): string => "+" + ({ [A.F64]: `${v}  `, [A.F32]: `${v}  `, [A.I64]: `${v}  `, [A.I32]: `${v}  `, [A.I16]: `${v}  `, [A.I8]: /*       */ v, [A.BOOL]: `${v}  `, [A.NULL]: " 0 ", [A.TOKEN]: `${v}.to_i8() `, [A.STRUCT]: `${v}.to_i8() `, [A.VECTOR]: `${v}.to_i8() `, })[t],
+        (t: number, v: string): string => "" + ({ [A.F64]: `${v}  `, [A.F32]: `${v}  `, [A.I64]: `${v}  `, [A.I32]: `${v}  `, [A.I16]: `${v}  `, [A.I8]: /*       */ v, [A.BOOL]: `${v}  `, [A.NULL]: " 0 ", [A.TOKEN]: `${v}.to_i8() `, [A.STRUCT]: `${v}.to_i8() `, [A.VECTOR]: `${v}.to_i8() `, })[t],
     [A.BOOL]:
-        (t: number, v: string): string => "+" + ({ [A.F64]: `!!${v} `, [A.F32]: `!!${v} `, [A.I64]: `!!${v} `, [A.I32]: `!!${v} `, [A.I16]: `!!${v} `, [A.I8]: `!!${v} `, [A.BOOL]: /**/ v, [A.NULL]: "false", [A.TOKEN]: `!!${v}`, [A.STRUCT]: `!!${v}`, [A.VECTOR]: `!!${v}` })[t],
+        (t: number, v: string): string => "" + ({ [A.F64]: `!!${v} `, [A.F32]: `!!${v} `, [A.I64]: `!!${v} `, [A.I32]: `!!${v} `, [A.I16]: `!!${v} `, [A.I8]: `!!${v} `, [A.BOOL]: /**/ v, [A.NULL]: "false", [A.TOKEN]: `!!${v}`, [A.STRUCT]: `!!${v}`, [A.VECTOR]: `!!${v}` })[t],
     [A.NULL]:
-        (t: number, v: string): string => "+" + ({ [A.F64]: "null", [A.F32]: "null", [A.I64]: "null", [A.I32]: "null", [A.I16]: "null", [A.I8]: "null", [A.BOOL]: "null", [A.NULL]: /*       */ v, [A.TOKEN]: `null`, [A.STRUCT]: "null", [A.VECTOR]: "null" })[t],
+        (t: number, v: string): string => "" + ({ [A.F64]: "null", [A.F32]: "null", [A.I64]: "null", [A.I32]: "null", [A.I16]: "null", [A.I8]: "null", [A.BOOL]: "null", [A.NULL]: /*       */ v, [A.TOKEN]: `null`, [A.STRUCT]: "null", [A.VECTOR]: "null" })[t],
     [A.STRING]:
-        (t: number, v: string): string => "+" + ({
+        (t: number, v: string): string => "" + ({
             [A.F64]: `${v}.toString()`, [A.F32]: `${v}.toString()`, [A.I64]: `${v}.toString()`, [A.I32]: `${v}.toString()`, [A.I16]: `${v}.toString()`, [A.I8]: `${v}.toString()`,
             [A.BOOL]: `${v}.toString()`, [A.NULL]: /*       */ "\"\"", [A.TOKEN]: `${v}.toString()`, [A.STRUCT]: `${v}.toString()`, [A.VECTOR]: `${v}.toString()`
         })[t],

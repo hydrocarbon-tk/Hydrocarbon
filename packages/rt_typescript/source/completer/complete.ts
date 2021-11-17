@@ -3,7 +3,7 @@
  * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
  * disclaimer notice.
  */
-import { goto_state_mask, Token } from "@hctoolkit/common";
+import { goto_state_mask, state_index_mask, Token } from "@hctoolkit/common";
 import { StringByteReader } from '../buffer/string_byte_reader.js';
 import { ParseAction, ParseActionType, StateIterator } from '../recognizer/iterator.js';
 
@@ -109,8 +109,6 @@ function fork_action_handler(action: ParseAction[ParseActionType], iterator: Sta
 
     const length = bytecode[pointer] & 0xFFFFFF;
 
-    const root_prod = iterator.production_id;
-
     let goto_start = 0;
 
     fork_iterator.production_id = -1;
@@ -123,6 +121,11 @@ function fork_action_handler(action: ParseAction[ParseActionType], iterator: Sta
             break;
         }
     }
+
+    if (!goto_start)
+        throw new Error("Unable to resolve fork to single production");
+
+    const root_prod = iterator.bytecode[(goto_start & state_index_mask) - 1];
 
     for (let i = 0; i < length; i++) {
 

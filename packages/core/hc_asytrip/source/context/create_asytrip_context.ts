@@ -34,7 +34,7 @@ import {
     TypesInclude
 } from './common.js';
 
-export function createASYTRripContext(
+export function createASYTripContext(
     grammar: GrammarObject,
     logger: Logger = Logger.get("ASYTrip").activate()
 ): ASYTRIPContext {
@@ -211,7 +211,7 @@ export function createASYTRripContext(
                 | ([...classes].map(
                     v => <number>class_lookup.get(v)
                 ).reduce((r, v) => r | v, 0));
-                
+
             type_lookup.set(name, type);
         }
 

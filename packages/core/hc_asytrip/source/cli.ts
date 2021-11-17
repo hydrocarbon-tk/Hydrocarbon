@@ -13,7 +13,7 @@ import { writeFile } from 'fs/promises';
 import { createGoTypes } from './targets/asytrip_to_go.js';
 import { createTsTypes } from './targets/asytrip_to_ts.js';
 import { createRustTypes } from './targets/asytrip_to_rust.js';
-import { createASYTRripContext } from './context/create_asytrip_context.js';
+import { createASYTripContext } from './context/create_asytrip_context.js';
 
 await URI.server();
 
@@ -74,7 +74,7 @@ addCLIConfig<URI | "stdin">("compile", {
 
     let grammar = await resolveResourceGrammarCLI(arg, logger);
 
-    const asytrip_context = createASYTRripContext(grammar, logger);
+    const asytrip_context = createASYTripContext(grammar, logger);
 
     if (asytrip_context)
         try {

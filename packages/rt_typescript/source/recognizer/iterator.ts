@@ -410,7 +410,7 @@ export class StateIterator {
         return this.nextAction();
     } */
 
-    private instruction_executor(
+    private  instruction_executor(
         state_pointer: number,
         fail_mode: boolean,
     ): boolean {

@@ -3,7 +3,7 @@
     "description": "Hydrocarbon Toolkit AST Compiler",
     "version": "0.0.1",
     "bin": {
-        "hc.asytrip": "./bin/index.sh"
+        "hc-ast": "./bin/index.sh"
     },
     "type": "module",
     "scripts": {},

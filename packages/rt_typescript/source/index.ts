@@ -1,3 +1,5 @@
+export { assign_peek } from './recognizer/iterator';
+
 export {
     ByteReader,
     ByteWriter,
@@ -16,7 +18,7 @@ export {
 export * from "./completer/complete";
 export * from "./ast/ast_node";
 export * from "./ast/serialization";
-
+export * from "./buffer/serial_reader";
 
 
 

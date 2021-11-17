@@ -32,7 +32,10 @@ export class ASTNode<T, Type extends keyof T = any> {
     render(column: number): string { return this.toString(); }
 
     toString(): string { return ""; }
-    Type(): T[keyof T] { return <any>0; }
+
+    get type(): T { return <any>0; }
+
+    set type(t: T) { }
 
     serialize(writer: ByteWriter) { };
 }

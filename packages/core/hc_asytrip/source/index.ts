@@ -7,4 +7,4 @@ export { createCPPTypes } from "./targets/asytrip_to_cpp.js";
 export { createGoTypes } from "./targets/asytrip_to_go.js";
 export { createRustTypes } from "./targets/asytrip_to_rust.js";
 export { createTsTypes } from "./targets/asytrip_to_ts.js";
-export { createASYTRripContext as createAsytripContext } from "./context/create_asytrip_context.js";
+export { createASYTripContext as createAsytripContext } from "./context/create_asytrip_context.js";
