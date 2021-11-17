@@ -20,7 +20,6 @@
         "module": "ESNext",
         "declaration": true,
         "moduleResolution": "node",
-        "noResolve": true,
         "sourceMap": false,
         "paths": {
             "@hctoolkit/root": [
