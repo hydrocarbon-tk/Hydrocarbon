@@ -1,4 +1,4 @@
-use super::reader::ByteReader;
+use super::super::ByteReader;
 use super::stack::KernelStack;
 
 //Global Constants
