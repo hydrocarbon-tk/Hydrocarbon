@@ -1,7 +1,4 @@
-
-@SYMBOL => ( ) , { }
-
-@IGNORE θws θnl
+@IGNORE g:sp g:nl
 
 <> S > E
 
@@ -12,18 +9,11 @@
 
 <> P >  \( E \)
 
-<> F >  \( L \) => { E }
+<> F >  \( L \) \=> \{ E \}
 
 <> L > E
  | L , E 
 
-<> I > θid 
+<> I > g:id 
 
-<> parameter > θid
-
-<>S → θnum ↦r { {sym:$sym1, type: "num"} }
-	│ θsci ↦r { {sym:$sym1, type: "sci"} }
-	│ θhex ↦r { {sym:$sym1, type: "hex"} }
-	│ θoct ↦r { {sym:$sym1, type: "oct"} }
-	│ θbin ↦r { {sym:$sym1, type: "bin"} }
-	│ θflt ↦r { {sym:$sym1, type: "flt"} }
+<> parameter > g:id
