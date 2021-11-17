@@ -24,6 +24,13 @@ import { writeFile } from 'fs/promises';
 import { tmpdir } from 'os';
 import { renderTypeScriptParserData } from './render';
 
+const disable_opt = addCLIConfig<boolean>("parse", {
+    key: "O0",
+    default: false,
+    REQUIRES_VALUE: false,
+    help_brief: `Disable optimizations`,
+});
+
 const target = addCLIConfig<"rust" | "go" | "ts">("parse", {
     key: "t",
     default: "ts",
@@ -61,17 +68,26 @@ addCLIConfig<URI | string>("parse", {
     const states_path = <URI>URI.resolveRelative("./tmp.hcs", dir);
     const binary_path = <URI>URI.resolveRelative("./tmp.hcb", dir);
 
-    spawnSync("hc.grammar", ["compile", "--o", resource_path + "", arg + ""], {
+    const grammar_handle = spawn("hc.grammar", ["compile", "--o", resource_path + "", arg + ""], {
         stdio: ['inherit', "inherit", "inherit"]
     });
+
+    await new Promise((res, rej) => grammar_handle.addListener("close", v => {
+        if (v != 0) {
+            rej(new Error("Unable to process grammar"));
+        }
+        res(true);
+    }));
 
     let grammar: GrammarObject | null = null;
 
     await Promise.all([
         new Promise(complete => {
-            const bc_handle = spawn("hc.bytecode", ["compile", "--o", dir + "", resource_path + ""], {
-                stdio: ['inherit', "inherit", "inherit"]
-            });
+            const bc_handle = spawn("hc.bytecode",
+                ["compile", !disable_opt.value ? "" : "--O0", "--o", dir + "", resource_path + ""]
+                , {
+                    stdio: ['inherit', "inherit", "inherit"]
+                });
             bc_handle.addListener("close", () => {
                 complete(true);
             });
@@ -127,6 +143,8 @@ addCLIConfig<URI | string>("parse", {
                     await writeFile(ast_path + "", await ast_temp_path.fetchText()),
                     await writeFile(data_path + "", parser_data),
                 ]);
+
+                logger.log(`Created \n   ${ast_path}\n   ${data_path}  `);
 
             } break;
             case "go":
