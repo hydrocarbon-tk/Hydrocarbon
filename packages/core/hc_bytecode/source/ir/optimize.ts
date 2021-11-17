@@ -171,20 +171,21 @@ addOptimization({
                             const { ir_state_ast: ref_state, refs } = getGotoState(penultimate, states);
                             if ([...refs].every(r => r.slice(-4) != "goto")) {
                                 //get all gotos that would affect this ref state
-                                const host_branches: IRBranch[] = [...refs].map(s => states.get(s).ir_state_ast).flatMap(s => {
-                                    let out = [];
-                                    if (stateIsBranch(s)) {
-                                        return s.instructions;
-                                    } else {
-                                        out.push(s);
-                                    }
-                                    return out;
-                                }).filter(s => {
-                                    const penultimate = s.instructions.slice(-2)[0];
-                                    if (penultimate.type == InstructionType.goto && getStateName(penultimate.state) == target_state)
-                                        return true;
-                                    return false;
-                                });
+                                const host_branches: IRBranch[] = [...refs].map(s => (<InternalStateData>states.get(s)).ir_state_ast)
+                                    .flatMap(s => {
+                                        let out = [];
+                                        if (stateIsBranch(s)) {
+                                            return s.instructions;
+                                        } else {
+                                            out.push(s);
+                                        }
+                                        return out;
+                                    }).filter(s => {
+                                        const penultimate = s.instructions.slice(-2)[0];
+                                        if (penultimate.type == InstructionType.goto && getStateName(penultimate.state) == target_state)
+                                            return true;
+                                        return false;
+                                    });
 
                                 if (host_branches.length != refs.size || host_branches.some(b => {
                                     let last = b.instructions.slice(-1)[0]; return last.type != InstructionType.goto || getStateName(last.state).slice(-4) != "goto";
@@ -903,7 +904,7 @@ function stateIsBranch(state: IR_State): boolean {
 }
 
 function getGotoState(goto: IRGoto, ir_states: StateMap): InternalStateData {
-    return ir_states.get(getStateName(goto.state));
+    return <InternalStateData>ir_states.get(getStateName(goto.state));
 }
 
 function firstGotoIndex(instructions: IR_Instruction[]): number {
@@ -1002,13 +1003,14 @@ export function garbageCollect(
     ].setFilter()) {
 
 
-    const marked_map = new Map([...StateMap].map(([name]) => [name + "", null]));
+    const marked_map: Map<string, null | Set<string>>
+        = new Map([...StateMap].map(([name]) => [name + "", null]));
 
     const pending = entry_names.slice();
 
     for (const name of pending) {
 
-        const state = StateMap.get(name);
+        const state = <InternalStateData>StateMap.get(name);
 
         if (marked_map.get(name) == null)
             marked_map.set(name, new Set);
@@ -1023,7 +1025,7 @@ export function garbageCollect(
 
             while (instructions.length > 0) {
 
-                const instruction = instructions.shift();
+                const instruction = <IR_Instruction>instructions.shift();
 
                 if (seen.has(instruction))
                     continue;
@@ -1059,7 +1061,8 @@ export function garbageCollect(
             }
 
         } catch (e) {
-            console.error(name);
+            console.error(entry_names);
+            console.error({ name });
             console.error(e);
             console.error(state.string);
             throw e;
@@ -1070,11 +1073,12 @@ export function garbageCollect(
 
         for (const n of names) {
             if (!n) debugger;
-            if (!marked_map.get(n)) {
+            if (marked_map.get(n) == null) {
                 pending.push(n);
                 marked_map.set(n, new Set);
             }
-            marked_map.get(n).add(name);
+
+            (<Set<string>>marked_map.get(n)).add(name);
         }
     }
 
@@ -1085,7 +1089,7 @@ export function garbageCollect(
             optimize_logger.debug(`Removing state ${name}`);
             StateMap.delete(name);
         } else {
-            StateMap.get(name).refs = refs;
+            (<InternalStateData>StateMap.get(name)).refs = refs;
         }
     }
 }

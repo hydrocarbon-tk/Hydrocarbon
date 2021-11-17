@@ -39,17 +39,10 @@ function state_custom_render(state: any, render_fn: any) {
     if (node.type == "sym-production")
         return node.name;
 
-    if (node instanceof Token)
-
-        debugger;
-
     try {
 
-
-        if (!node.instructions) {
-            console.log(node);
-            debugger;
-        }
+        if (!node.instructions)
+            throw new Error("Missing instructions in state");
 
         if (node.instructions[0].type == InstructionType.assert
             ||
@@ -60,7 +53,6 @@ function state_custom_render(state: any, render_fn: any) {
         else
             node.instructs = node.instructions.map((i: any) => render_fn(state, i)).join(" then ");
     } catch (e) {
-        debugger;
         throw e;
     }
 

@@ -11,7 +11,7 @@ import URI from '@candlelib/uri';
 import { GrammarObject } from '@hctoolkit/common';
 import { resolveResourceGrammarCLI } from '@hctoolkit/grammar';
 import { writeFile } from 'fs/promises';
-import { cpus } from 'os';
+import { cpus, tmpdir } from 'os';
 import { compileBuildPack } from './index.js';
 
 await URI.server();
@@ -36,8 +36,9 @@ const out_dir = addCLIConfig<URI | "stdout" | "">("compile", {
     Directory within which files will be created/overwritten. Defaults to CWD`,
 });
 
-const optimizations = addCLIConfig<boolean>("compile", {
+const disable_opt = addCLIConfig<boolean>("compile", {
     key: "O0",
+    default: false,
     REQUIRES_VALUE: false,
     help_brief: `Disable optimizations`,
 });
@@ -64,21 +65,27 @@ addCLIConfig<URI | "stdin">("compile", {
     const logger = Logger.createLogger("Bytecode").activate();
 
     let USE_STDOUT = true,
+        out_dir_str: string = tmpdir() + "/",
         output_file = new URI,
         input_file = new URI;
 
     if (out_dir.value !== "stdout") {
         USE_STDOUT = false;
-        output_file = <URI>URI.resolveRelative(out_dir.value);
+        out_dir_str = out_dir.value + "";
+        output_file = <URI>URI.resolveRelative(out_dir_str);
     }
 
     var grammar: GrammarObject = await resolveResourceGrammarCLI(arg || "", logger);
 
-    const build_pack = await compileBuildPack(grammar, threads.value, optimizations.value);
+    const build_pack = await compileBuildPack(grammar, threads.value, !disable_opt.value);
 
-    const output_dir = URI.resolveRelative(out_dir.value);
+    const output_dir = URI.resolveRelative(out_dir_str);
 
     if (output_dir) {
+
+        if (output_dir + "" == "stdout") {
+            output_dir;
+        }
 
         let file_name = [
             "unnamed",
@@ -107,8 +114,14 @@ addCLIConfig<URI | "stdin">("compile", {
             }))
         }), { encoding: 'utf8' });
 
-        process.stdout.write(states_path + "");
+        logger.log(`Created: \n    Bytecode Binary: ${binary_path} \n    States Information: ${states_path} `);
+
+        if (USE_STDOUT)
+            process.stdout.write(states_path + "");
+    } else {
+        logger.warn("Unable to output build data");
     }
+
 });
 
 processCLIConfig();

@@ -9,6 +9,7 @@ import {
     GrammarObject,
     GrammarProduction,
     hashString,
+    HCG3ProductionBody,
     ProductionSymbol,
     skipped_scan_prod,
     Sym_Is_A_Generic_Type,
@@ -25,6 +26,14 @@ import { ConstructionOptions } from '../types/construction_options';
 import { TransitionGraphOptions } from '../types/transition_graph_options';
 import { TransitionStateType as TST } from '../types/transition_tree_nodes';
 import { constructDescent, constructGoto, createNode, Node } from './transition_graph';
+
+const hash_cache: Map<string, HashAction> = new Map();
+
+interface HashAction {
+    hash: string;
+    action: string;
+    assertion: string;
+}
 
 export function constructProductionStates(
     production: GrammarProduction,
@@ -80,17 +89,15 @@ export function constructProductionStates(
                 tt_options,
             );
 
+
             //Output code for recursive descent items.
-            processTransitionForest(
+            processTransitionTree(
                 descent_graph,
                 grammar,
                 options,
                 parse_states,
-                root_prod_name,
-                ` then goto state [ ${goto_hash} ]`,
+                root_prod_name
             );
-
-            // console.log(descent_graph.debug);
         }
 
         {
@@ -107,11 +114,17 @@ export function constructProductionStates(
                     goto_graph.children.some(c => (<ProductionSymbol><any>c.sym).name == production.name);
 
                 if (!HAVE_ROOT_PRODUCTION_GOTO) {
+
+
+
+                    // Ensure correct production id has been assigned to the production's symbol
+                    production.symbol.val = production.id;
+
                     const node = createNode(tt_options, production.symbol, [], goto_graph);
-                    node.addType(TST.O_PRODUCTION, TST.I_PASS);
+                    node.addType(TST.O_GOTO, TST.I_PASS);
                 }
 
-                processTransitionForest(
+                processTransitionTree(
                     goto_graph,
                     grammar,
                     options,
@@ -130,39 +143,36 @@ export function constructProductionStates(
             } else {
                 parse_states.set(goto_hash, `state [ ${goto_hash} ] \n    pass`);
             }
-
-            /* if (production.name == "B") {
-
-
-                console.debug(goto_graph.debug);
-                for (const [, state] of parse_states)
-                    console.debug(state, "\n\n\n");
-
-            } */
         }
 
 
         if (options.IS_LAZY) {
+
             const lazy_hash = `lazy_production_${production.name}`;
+
             const { lazy_end_sym, lazy_start_sym } = options;
-            parse_states.set(lazy_hash,
-                `
-state [${lazy_hash}]
 
-    lazy [ ${lazy_start_sym.val.codePointAt(0)} ${lazy_end_sym.val.codePointAt(0)} ] ( ${root_prod_name} )
+            if (lazy_end_sym && lazy_start_sym) {
 
-                `);
+                parse_states.set(lazy_hash,
+                    `
+                    state [${lazy_hash}]
+                    
+                    lazy [ ${lazy_start_sym.val.codePointAt(0)} ${lazy_end_sym.val.codePointAt(0)} ] ( ${root_prod_name} )
+                    
+                    `);
 
-            console.log(parse_states.get(lazy_hash));
+                console.log(parse_states.get(lazy_hash));
 
-            debugger;
+                debugger;
+            }
         }
         return {
             parse_states: parse_states,
             id: production.id,
         };
 
-    } catch (e) {
+    } catch (e: any) {
         console.log(e);
         throw new Error(`Error encountered while compiling [${production.name}]\n${getStartItemsFromProduction(production).map(i => i.rup(grammar)).join("\n\n")} \n${e.stack}`);
     }
@@ -208,24 +218,22 @@ function createProductionGotoName(production: GrammarProduction) {
     return production.name + "_goto";
 }
 
-function processTransitionForest(
+function processTransitionTree(
     state: Node,
     grammar: GrammarObject,
     options: ConstructionOptions,
     parse_code_blocks: Map<string, string>,
-    default_hash: string = undefined,
-    default_goto_hash: string = undefined,
-    default_prelude_hash: string = undefined,
+    default_hash: string | undefined = undefined,
     depth = 0
 ) {
     if (depth == 0)
-        processTransitionNode(state, grammar, options, parse_code_blocks, default_hash, default_goto_hash, default_prelude_hash);
+        processTransitionNode(state, grammar, options, parse_code_blocks, default_hash);
     else
         processTransitionNode(state, grammar, options, parse_code_blocks);
 
     for (const child_state of state.states) {
 
-        processTransitionForest(child_state, grammar, options, parse_code_blocks, undefined, undefined, undefined, depth + 1);
+        processTransitionTree(child_state, grammar, options, parse_code_blocks, undefined, depth + 1);
     }
 }
 
@@ -234,9 +242,7 @@ function processTransitionNode(
     grammar: GrammarObject,
     options: ConstructionOptions,
     parse_code_blocks: Map<string, string>,
-    default_hash = generateStateHashAction(state, grammar, options).hash,
-    postlude_command = "",
-    prelude_command = "",
+    default_hash = generateStateHashAction(state, grammar, options).hash
 ) {
 
     const
@@ -283,11 +289,6 @@ function processTransitionNode(
 
     parse_code_blocks.set(default_hash, string);
 }
-
-
-const hash_cache: Map<string, { hash: string, action: string, assertion: string; }> = new Map();
-
-
 function generateStateHashAction(
 
     state: Node,
@@ -296,7 +297,7 @@ function generateStateHashAction(
 
     options: ConstructionOptions
 
-): { hash: string, action: string, assertion: string; } {
+): HashAction {
 
     let assertion_type = "";
 
@@ -310,7 +311,7 @@ function generateStateHashAction(
     const hash = "h" + hashString(action)
         .slice(0, 12)
         .split("")
-        .map(p => (("hjklmnpqrst".split(""))[parseInt(p)] ?? p))
+        .map((p) => (("hjklmnpqrst".split(""))[parseInt(p)] ?? p))
         .join("");
 
     if (!hash_cache.has(hash_basis_string))
@@ -320,13 +321,13 @@ function generateStateHashAction(
             assertion: assertion_type
         });
 
-    return hash_cache.get(hash_basis_string);
+    return <HashAction>hash_cache.get(hash_basis_string);
 }
 function generateStateAction(
     state: Node,
     grammar: GrammarObject,
     options: ConstructionOptions
-) {
+): string {
     const branch_actions = [];
 
     let post_amble = state.depth == 1 ? ` then goto state [ ${options.production.name}_goto ]` : " ";
@@ -361,66 +362,79 @@ function generateStateAction(
 
         branch_actions.push(`fork to (  ${hashes.map(h => `state [ ${h} ]`).join(",")}  )`);
 
-    } else for (const child of state.children) {
+    } else/*  if (state.children.length == 1 && state.children[0].is(TST.I_FORK)) {
+        return generateStateAction(state.children[0], grammar, options);
+    } else */ for (const child of state.children) {
 
-        const { action, hash, assertion } = generateStateHashAction(child, grammar, options);
-        const sym = child.sym;
+            let { action, hash, assertion } = generateStateHashAction(child, grammar, options);
+            const sym = child.sym;
 
-        let action_string = "";
+            let action_string = "";
 
-        if ((child.is(TST.I_END) || child.is(TST.I_FAIL)) && state.children.length == 1) {
+            if ((child.is(TST.I_END) || child.is(TST.I_FAIL)) && state.children.length == 1) {
 
-            action_string = action;
-        } else {
+                action_string = action;
+            } else {
 
-            if (child.is(TST.O_PEEK)) {
+                if (child.is(TST.O_PEEK)) {
 
-                const mode = getSymbolMode(<TokenSymbol>sym, options.IS_SCANNER);
+                    const mode = getSymbolMode(<TokenSymbol>sym, options.IS_SCANNER);
 
-                action_string = `peek ${mode} [${sym.id} /* ${getUniqueSymbolName(sym)} */ ] ( goto state [${hash}]${post_amble})`;
+                    action_string = `peek ${mode} [${sym.id} /* ${getUniqueSymbolName(sym)} */ ] ( goto state [${hash}]${post_amble})`;
 
-            } else if (child.is(TST.O_TERMINAL)) {
+                } else if (child.is(TST.O_TERMINAL)) {
 
-                const mode = getSymbolMode(<TokenSymbol>sym, options.IS_SCANNER);
+                    const mode = getSymbolMode(<TokenSymbol>sym, options.IS_SCANNER);
 
-                if (Sym_Is_Recovery(sym)) {
+                    if (Sym_Is_Recovery(sym)) {
 
-                    const item = state.items[0];
+                        const item = state.items[0];
 
-                    const production = item.getProduction(grammar);
+                        const production = <GrammarProduction>item.getProduction(grammar);
 
-                    action_string = `goto state [ ${user_defined_state_mux}${production.name}_${1 + item.offset} ] then goto state [ ${hash} ]${post_amble}`;
+                        action_string = `goto state [ ${user_defined_state_mux}${production.name}_${1 + item.offset} ] then goto state [ ${hash} ]${post_amble}`;
 
-                } else if (Sym_Is_A_Token(sym)) {
+                    } else if (Sym_Is_A_Token(sym)) {
 
-                    if (child.is(TST.I_CONSUME)) {
+                        if (Sym_Is_EOF(sym) && state.children.length == 1) {
+                            action_string = `goto state [${hash}]${post_amble}`;
+                        } else if (child.is(TST.I_CONSUME)) {
 
-                        if (Sym_Is_Not_Consumed(sym)) {
-                            action_string = `assert ${mode} [${getSymbolID(sym, options.IS_SCANNER)} /* ${getUniqueSymbolName(sym)} */ ] ( consume nothing then goto state [${hash}]${post_amble})`;
+                            /*  if (child.children.length == 1) {
+                                 //Skip ahead to the state's child since the state's main action has been performed.
+                                 ({ action, hash, assertion } = generateStateHashAction(child.children[0], grammar, options));
+                             } */
+
+                            if (Sym_Is_Not_Consumed(sym)) {
+                                action_string = `assert ${mode} [${getSymbolID(sym, options.IS_SCANNER)} /* ${getUniqueSymbolName(sym)} */ ] ( consume nothing then goto state [${hash}]${post_amble})`;
+                            } else {
+                                action_string = `assert ${mode} [${getSymbolID(sym, options.IS_SCANNER)} /* ${getUniqueSymbolName(sym)} */ ] ( consume then goto state [${hash}]${post_amble})`;
+                            }
                         } else {
-                            action_string = `assert ${mode} [${getSymbolID(sym, options.IS_SCANNER)} /* ${getUniqueSymbolName(sym)} */ ] ( consume then goto state [${hash}]${post_amble})`;
+                            action_string = `assert ${mode} [${getSymbolID(sym, options.IS_SCANNER)} /* ${getUniqueSymbolName(sym)} */ ] ( goto state [${hash}]${post_amble})`;
                         }
-                    } else {
-                        action_string = `assert ${mode} [${getSymbolID(sym, options.IS_SCANNER)} /* ${getUniqueSymbolName(sym)} */ ] ( goto state [${hash}]${post_amble})`;
                     }
+
+                } else if (child.is(TST.O_GOTO)) {
+
+                    if (child.is(TST.I_PASS))
+                        action_string = `assert PRODUCTION [${sym.val} /* ${getUniqueSymbolName(sym)} */ ] ( pass )`;
+                    else
+                        action_string = `assert PRODUCTION [${sym.val} /* ${getUniqueSymbolName(sym)} */ ] ( goto state [${hash}]${post_amble})`;
+
+                } else if (child.is(TST.O_PRODUCTION)) {
+
+                    action_string = `goto state [${(<any>sym).name}] then goto state [${hash}]${post_amble}`;
+                } else {
+                    action_string = `goto state [${hash}]${post_amble}`;
                 }
-
-            } else if (child.is(TST.O_GOTO)) {
-
-                action_string = `assert PRODUCTION [${sym.val} /* ${getUniqueSymbolName(sym)} */ ] ( goto state [${hash}]${post_amble})`;
-
-            } else if (child.is(TST.O_PRODUCTION)) {
-
-                action_string = `goto state [${(<any>sym).name}] then goto state [${hash}]${post_amble}`;
             }
-        }
 
-        branch_actions.push(action_string);
-    }
+            branch_actions.push(action_string);
+        }
 
     return branch_actions.join("\n    ");
 }
-
 function createEndAction(state: Node, grammar: GrammarObject, options: ConstructionOptions) {
     const [item] = state.items;
 
@@ -432,9 +446,9 @@ function createEndAction(state: Node, grammar: GrammarObject, options: Construct
 
     } else {
 
-        const body = item.body_(grammar);
+        const body = <HCG3ProductionBody>item.body_(grammar);
 
-        const production = item.getProduction(grammar);
+        const production = <GrammarProduction>item.getProduction(grammar);
 
         const set_prod_clause = `set prod to ${production.id}`;
 
@@ -453,7 +467,9 @@ function createEndAction(state: Node, grammar: GrammarObject, options: Construct
                 if (body.priority == skipped_scan_prod) {
                     set_token = `assign token [ ${skipped_scan_prod} ] then `;
                 } else {
-                    const token_id = prod.token_id;
+
+                    const token_id = <number>prod.token_id;
+
                     if (token_id >= 0)
                         set_token = `assign token [ ${token_id} ] then `;
                 }
@@ -490,7 +506,7 @@ function getSymbolMode(sym: TokenSymbol, SCANNER: boolean) {
     return "TOKEN";
 }
 
-function getSymbolID(sym: TokenSymbol, SCANNER) {
+function getSymbolID(sym: TokenSymbol, SCANNER: boolean) {
 
     if (SCANNER) {
         if (Sym_Is_A_Generic_Type(sym)) {

@@ -24,15 +24,19 @@ import {
     ProductionSymbol,
     Resolved_IR_State,
     StateAttrib,
-    StateMap, Sym_Is_A_Token, TokenSymbol
+    StateMap,
+    state_bytecode_byte_start,
+    Sym_Is_A_Token,
+    TokenSymbol
 } from '@hctoolkit/common';
+import { getProductionByName } from '@hctoolkit/grammar';
 import { createSymMapId } from "../ir/compile_scanner_states.js";
 import { getStateName } from './get_state_name.js';
 ;
 
 export function compileIRStatesIntoBytecode(StateMap: StateMap, grammar: GrammarObject, sym_map: Map<string, string>) {
 
-    let total_instruction_byte_size = 24; // Ensure the zero position is reserved for the "null" state
+    let total_instruction_byte_size = state_bytecode_byte_start; // Ensure the zero position is reserved for the "null" state
 
     for (const [, state_data] of StateMap) {
 
@@ -42,96 +46,111 @@ export function compileIRStatesIntoBytecode(StateMap: StateMap, grammar: Grammar
 
         let token_state: string = "";
 
+        //@ts-ignore
         if (expected_tokens?.length > 0 || skipped_tokens?.length > 0) {
             //create a meta lookup instruction
+
             const id = createSymMapId(
+                //@ts-ignore
                 expected_tokens.setFilter(),
+                //@ts-ignore
                 skipped_tokens.setFilter(),
                 grammar
             );
-
+            //@ts-ignore
             token_state = sym_map.get(id);
         }
 
         state_data.block_offset = total_instruction_byte_size;
 
-        if (stateHasBranchIR(state_data)) {
-            //sort branch instructions into groups
-            const { ir_state_ast: state_ast, attributes } = state_data;
-            let _default = null, modes = null;
-
-            if (
-                state_ast.instructions.length > 1
-                &&
-                state_ast.instructions.some(g => g.mode != "PRODUCTION" && g.ids.some(i => i == default_case_indicator || i == 1))) {
-                _default = state_ast.instructions.filter(g => g.mode != "PRODUCTION" && g.ids.some(i => i == default_case_indicator || i == 1))[0]
-                    ?.instructions;
-                modes = state_ast.instructions.filter(g => !(g.mode != "PRODUCTION" && g.ids.some(i => i == default_case_indicator || i == 1)))
-                    .group(s => s.mode);
-
-            } else {
-                modes = modes = state_ast.instructions.group(s => s.mode);
-            }
-
-            if (_default)
-                state_data.block = buildBasicInstructionBlock(state_ast, _default, token_state, grammar, sym_map);
-
-            modes.sort(([a], [b]) => {
-
-                const ids = ["PRODUCTION", "TOKEN", "CLASS", "CODEPOINT", "BYTE"];
-
-                return ids.indexOf(a.mode) - ids.indexOf(b.mode);
-            });
-
-            for (const mode of modes) {
-
-                const
-
-                    jump_block_info = buildJumpTableBranchBlock(
-                        state_ast, mode, attributes, token_state, grammar, sym_map,
-                        state_data.block
-                    ), hash_block_info = buildHashTableBranchBlock(
-                        state_ast, mode, attributes, token_state, grammar, sym_map,
-                        state_data.block
-                    ), block = hash_block_info ? selectBestFitBlockType(jump_block_info, hash_block_info)
-                        : jump_block_info;
-
-                state_data.block = block;
-            }
-
-            if (state_ast.fail) {
-                state_data.block.total_size += 4;
-                state_data.block.instruction_sequence.unshift(["set fail", <string>state_ast.fail.id]);
-            }
-
-            total_instruction_byte_size += state_data.block.total_size;
-
+        if (false && (attributes & StateAttrib.REQUIRED_GOTO)
+            && state_ast.instructions.length == 1
+            && state_ast.instructions[0].type == InstructionType.pass
+        ) {
+            // Without a fail_state_mask or normal_state_mask this 
+            // pointer is equivalent to a fallthrough instruction
+            state_data.pointer = total_instruction_byte_size / 4;
         } else {
 
-            const block_info = buildBasicInstructionBlock(
-                state_ast,
-                state_ast.instructions,
-                token_state,
-                grammar,
-                sym_map
-            );
+            state_data.pointer = (state_data.block_offset / 4);
 
-            total_instruction_byte_size += block_info.total_size;
+            if ((attributes & StateAttrib.FAIL_STATE) > 0)
+                state_data.pointer |= fail_state_mask;
+            else
+                state_data.pointer |= normal_state_mask;
 
-            state_data.block = block_info;
+            if (stateHasBranchIR(state_data)) {
+                //sort branch instructions into groups
+                const { ir_state_ast: state_ast, attributes } = state_data;
+                let _default = null, modes = null;
+
+                if (
+                    state_ast.instructions.length > 1
+                    &&
+                    state_ast.instructions.some(g => g.mode != "PRODUCTION" && g.ids.some(i => i == default_case_indicator || i == 1))) {
+                    _default = state_ast.instructions.filter(g => g.mode != "PRODUCTION" && g.ids.some(i => i == default_case_indicator || i == 1))[0]
+                        ?.instructions;
+                    modes = state_ast.instructions.filter(g => !(g.mode != "PRODUCTION" && g.ids.some(i => i == default_case_indicator || i == 1)))
+                        .group(s => s.mode);
+
+                } else {
+                    modes = modes = state_ast.instructions.group(s => s.mode);
+                }
+
+                if (_default)
+                    state_data.block = buildBasicInstructionBlock(state_ast, _default, token_state, grammar, sym_map);
+
+                modes.sort(([a], [b]) => {
+
+                    const ids = ["PRODUCTION", "TOKEN", "CLASS", "CODEPOINT", "BYTE"];
+
+                    return ids.indexOf(a.mode) - ids.indexOf(b.mode);
+                });
+
+                for (const mode of modes) {
+
+                    const
+
+                        jump_block_info = buildJumpTableBranchBlock(
+                            state_ast, mode, attributes, token_state, grammar, sym_map,
+                            state_data.block
+                        ), hash_block_info = buildHashTableBranchBlock(
+                            state_ast, mode, attributes, token_state, grammar, sym_map,
+                            state_data.block
+                        ), block = hash_block_info ? selectBestFitBlockType(jump_block_info, hash_block_info)
+                            : jump_block_info;
+
+                    state_data.block = block;
+                }
+
+                if (state_ast.fail) {
+                    state_data.block.total_size += 4;
+                    state_data.block.instruction_sequence.unshift(["set fail", <string>state_ast.fail.id]);
+                }
+
+                total_instruction_byte_size += state_data.block.total_size;
+
+            } else {
+
+                const block_info = buildBasicInstructionBlock(
+                    state_ast,
+                    state_ast.instructions,
+                    token_state,
+                    grammar,
+                    sym_map
+                );
+
+                total_instruction_byte_size += block_info.total_size;
+
+                state_data.block = block_info;
+            }
         }
 
-        state_data.pointer = (state_data.block_offset / 4);
-
-        if ((attributes & StateAttrib.FAIL_STATE) > 0)
-            state_data.pointer |= fail_state_mask;
-
-        else
-            state_data.pointer |= normal_state_mask;
-
-        if (attributes & StateAttrib.REQUIRED_GOTO)
+        if (attributes & StateAttrib.REQUIRED_GOTO) {
+            state_data.pointer += 1;
             state_data.pointer |= goto_state_mask;
-
+            total_instruction_byte_size += 4;
+        }
     }
 
     const out_buffer = [
@@ -140,14 +159,25 @@ export function compileIRStatesIntoBytecode(StateMap: StateMap, grammar: Grammar
         15 << 28,
         (8 << 28) | (1 << 24),
         0 | normal_state_mask,
-        grammar.meta.token_row_size,
+        0,
     ]; // The pass, fail, scope pop, and pass through return instructions
 
-    for (const [_, state_data] of StateMap) {
+    for (const [name, state_data] of StateMap) {
 
-        const buffer = convertBlockDataToBufferData(state_data, StateMap);
+        if (state_data.attributes & StateAttrib.REQUIRED_GOTO) {
+            const prod = getProductionByName(grammar, name.slice(0, -5));
+            if (prod) {
+                out_buffer.push(prod.id);
+            } else {
+                out_buffer.push(0xFFFFFFFF);
+            }
+        }
+        if (state_data.block) {
 
-        out_buffer.push(...buffer);
+            const buffer = convertBlockDataToBufferData(state_data, StateMap);
+
+            out_buffer.push(...buffer);
+        }
     }
 
     return out_buffer;
@@ -612,7 +642,7 @@ export function assignStateAttributeInformation(StateMap: StateMap, grammar: Gra
         // Get all initial states. if branch function,
         // assert all top level instructions are of the
         // the same class [prod or token]
-        if (state_name.match(/_goto/))
+        if (state_name.match(/_goto$/))
             attributes |= StateAttrib.REQUIRED_GOTO;
 
         const token_instr_types = {
