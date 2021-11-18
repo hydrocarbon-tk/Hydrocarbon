@@ -55,7 +55,7 @@ $ hc compile parser --asytrip --type <rust|go|ts|js|c++> <grammar_filepath>
 ### Render a [bytcode](./site/architecture.bytecode.index.md) disassembly sheet and open in a browser
 
 ```bash
-$ hc tools disassembly --browse <grammar_filepath>
+$ hc tools disassemble --browse <grammar_filepath>
 ```
 
 ### Create a fuzz string from a grammar
