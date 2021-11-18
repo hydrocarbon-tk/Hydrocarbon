@@ -31,7 +31,7 @@ syntax that allows separation of language description and parse actions.
 
 ### Write A Grammar
 
-Everything Hydrocarbon can do starts with a grammar definition file. Chckout the [writing a grammar](./site/tutorial.creating_a_grammar.index.md) doc for details on writing a grammar that can suite your needs. 
+Everything Hydrocarbon can do starts with a grammar definition file. Checkout the [writing a grammar](./site/tutorial.creating_a_grammar.index.md) doc for details on writing a grammar that can suite your needs. 
 
 ### Install Hydrocarbon
 
