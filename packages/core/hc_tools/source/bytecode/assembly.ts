@@ -6,15 +6,21 @@
 import {
     convert_symbol_to_string,
     default_array,
+    fail_state_mask,
+    formatArray,
+    goto_state_mask,
     GrammarObject,
+    normal_state_mask,
     numeric_sort,
     ReverseStateLookupMap,
+    scanner_state_mask,
+    StateData,
 } from '@hctoolkit/common';
 
 
 export function addressHTML(count: number) {
     const val = ("000000000" + ((count & 0xFFFFFF) * 4).toString(16)).slice(-6);
-    return `<span class="address" id="${count.toString(16)}">${val}</span>`;
+    return `<span class="address" id="${((count & 0xFFFFFF) * 4).toString(16)}">${val}</span>`;
 }
 
 export function dis_address(count: number) {
@@ -103,10 +109,19 @@ export function renderHTMLStateFromBytecode(
             states_lookup,
             grammar
         );
+
+        const labels = [
+            (s: StateData) => (s.pointer & normal_state_mask) ? `<span class="s_label s_label_nm">NORMAL<span>` : "",
+            (s: StateData) => (s.pointer & fail_state_mask) ? `<span class="s_label s_label_fl">FAIL_MODE<span>` : "",
+            (s: StateData) => (s.pointer & goto_state_mask) ? `<span class="s_label s_label_gt">GOTO<span>` : "",
+            (s: StateData) => (s.pointer & scanner_state_mask) ? `<span class="s_label s_label_sc">SCAN<span>` : "",
+        ].map(f => f(state)).filter(s => !!s).join(" ");
+
+
         const string = [
             `<div id="${state.name}" class="state">`,
             `<div class="state-header"> <h2>${state.name.replace(/\_+/g, " ").toUpperCase()} </h2>`,
-            `Address: <b class="address">${dis_address(state.pointer)}</b> | Bytesize: ${(pointer - ip) << 2}</div>`,
+            `Address: <b class="address">${dis_address(state.pointer)}</b> | Bytesize: ${(pointer - ip) << 2} ${labels}</div>`,
             `<div class="ir"><h3>Intermediate Representation</h3><pre><code>${state.string}</code></pre></div>`,
             `<h3>Bytecode</h3>`,
             `<div class="instructions">`,
@@ -317,7 +332,7 @@ export function disassemble(
                     const value = dis_address(ip);
 
                     buffer.push(
-                        `<div id="${value}" class="table-branch">
+                        `<div id="${ip.toString(16)}" class="table-branch">
                         <h5>${t_id} - ${value}</h5><div class="branch-internals">`,
                         (disassemble(
                             ip,
