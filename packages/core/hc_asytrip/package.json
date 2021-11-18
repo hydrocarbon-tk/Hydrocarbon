@@ -1,7 +1,7 @@
 {
     "name": "@hctoolkit/asytrip",
     "description": "Hydrocarbon Toolkit AST Compiler",
-    "version": "0.0.1",
+    "version": "0.0.2",
     "bin": {
         "hc-ast": "./bin/index.sh"
     },
@@ -33,8 +33,8 @@
         "@candlelib/log": "*",
         "@candlelib/paraffin": "*",
         "@candlelib/uri": "*",
-        "@hctoolkit/common": "*",
-        "@hctoolkit/grammar": "*"
+        "@hctoolkit/common": "0.1.0",
+        "@hctoolkit/grammar": "0.0.2"
     },
     "devDependencies": {
         "@types/node": "^16.4.13",
