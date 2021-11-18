@@ -35,7 +35,8 @@
         "@hctoolkit/grammar": "*"
     },
     "devDependencies": {
-        "@types/node": "^16.4.13"
+        "@types/node": "^16.4.13",
+        "@candlelib/cure": "*"
     },
     "engine": {
         "node": ">=13.7.0"

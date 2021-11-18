@@ -93,28 +93,15 @@ export function parseAsytripStruct(
 
         if (struct) {
 
-            for (const _class of classes) {
+            for (const _class of classes)
                 struct.classes.add(_class);
-            }
 
             for (const [name, prop] of struct.properties) {
-                if (properties.has(name)) {
+                if (properties.has(name))
                     //@ts-ignore
-                    const types = [...prop.types, ...properties.get(name).types]
-                        .setFilter(JSONFilter);
-
-                    const vectors = types.filter(TypeIsVector);
-                    const rest = types.filter(t => !TypeIsVector(t));
-                    const vector_types = [
-                        ...vectors.flatMap(v => v.types),
-                        ...vectors.flatMap(v => v.args)
-                    ].setFilter(JSONFilter);
-                    vectors.forEach(v => v.types = vector_types);
-
-                    prop.types = [...rest, ...vectors];
-                } else {
+                    mergeNewTypesIntoProp(prop, properties.get(name)?.types ?? []);
+                else
                     prop.types.push({ type: ASYTRIPType.NULL, body: [body.id] });
-                }
             }
 
             for (const [name, prop] of properties) {
@@ -138,6 +125,28 @@ export function parseAsytripStruct(
 
     return { name: type_name, args: [...properties.values()] };
 }
+/**
+ * Merges an array of ASTType object into the types field of a ASYTRIPType.STRUCT_TYPE 
+ * object. 
+ * 
+ * All vector types are merged into one vector type object.
+ */
+function mergeNewTypesIntoProp(prop: ASYTRIPProperty, new_types: ASYType[]) {
+    const types = [...prop.types, ...new_types]
+        .setFilter(JSONFilter);
+
+    const vectors = types.filter(TypeIsVector);
+    const rest = types.filter(t => !TypeIsVector(t));
+
+    const vector_types = [
+        ...vectors.flatMap(v => v.types),
+        ...vectors.flatMap(v => v.args)
+    ].setFilter(JSONFilter);
+    vectors.forEach(v => v.types = vector_types);
+
+    prop.types = [...rest, ...vectors];
+}
+
 export function JSONFilter(v: any) {
     return JSON.stringify(Object.assign({}, v, { body: [] }));
 }
@@ -175,7 +184,6 @@ export function getPropertyFromExpression(
         name: "",
         node: node,
         source: tok,
-        target_id: body.id,
         types: []
     };
 
@@ -534,10 +542,14 @@ export function getResolvedType(
     _structs: Set<string> = new Set,
     productions: any[] = []
 ): ASYType[] {
+
+
     if (node)
         switch (node.type) {
-            case ASYTRIPType.STRUCT_CLASSIFICATION:
+            case ASYTRIPType.STRUCT_CLASSIFICATION: {
+
                 const structs: ASYType<ASYTRIPType.STRUCT>[] = [];
+
                 const seen = new Set;
 
                 for (const type of node.vals) {
@@ -568,9 +580,82 @@ export function getResolvedType(
                         }
                     }
                 }
-
-
                 return structs;
+            }
+
+            case ASYTRIPType.STRUCT_ASSIGN: {
+
+                const
+                    values = getResolvedType(node.struct, context, undefined, productions),
+                    structs = values.filter(TypeIsStruct),
+                    prop_name = node.property;
+
+                if (structs.length == 0) { throw new Error("Structs undefined"); }
+
+                //Ensure the property exists
+
+                const types = getResolvedType(node.value, context, undefined, productions);
+
+                for (const { name } of structs) {
+
+                    if (_structs.has(name))
+                        continue;
+
+                    _structs.add(name);
+
+                    const struct = context.structs.get(name);
+
+                    if (struct) {
+
+                        const prop = struct.properties.get(prop_name);
+
+                        if (!prop) {
+                            struct.properties.set(prop_name, {
+                                name: prop_name,
+                                node: null,
+                                source: new Token("", 0, 0, 0),
+                                types: types.slice()
+
+                            });
+                        } else {
+                            mergeNewTypesIntoProp(prop, types);
+                        }
+                    }
+                }
+
+                return [];// This does not return any types.
+            }
+
+            case ASYTRIPType.STRUCT_PROP_REF: {
+
+                const values = getResolvedType(node.struct, context, undefined, productions);
+
+                const structs = values.filter(TypeIsStruct);
+
+                if (structs.length == 0) { throw new Error("Structs undefined"); }
+
+                const results = [];
+
+                for (const { name } of structs) {
+
+                    if (_structs.has(name))
+                        continue;
+
+                    _structs.add(name);
+
+                    const struct = <ASYTRIPStruct>context.structs.get(name);
+
+                    const prop = struct.properties.get(node.property);
+
+                    if (prop) {
+                        const vals = prop.types.flatMap(c => getResolvedType(c, context, _structs, productions));
+
+                        results.push(...vals);
+                    }
+                }
+
+                return results.setFilter(JSONFilter);
+            }
             case ASYTRIPType.STRUCT:
                 return [{ type: ASYTRIPType.STRUCT, name: node.name, arg_pos: undefined, args: undefined, body: node.body }];
             case ASYTRIPType.F64:
@@ -591,37 +676,22 @@ export function getResolvedType(
 
                 return [{ type: ASYTRIPType.VECTOR, args: [], types, arg_pos: node.arg_pos, body: node.body }];
             }
-            case ASYTRIPType.STRUCT_PROP_REF: {
-                const values = getResolvedType(node.struct, context, undefined, productions);
-                const structs = values.filter(TypeIsStruct);
-                if (structs.length == 0) {
-                    throw new Error("Structs undefined");
-                }
-                const results = [];
+            case ASYTRIPType.EXPRESSIONS: {
 
-                for (const { name } of structs) {
-                    if (_structs.has(name))
-                        continue;
-                    _structs.add(name);
-                    const struct = context.structs.get(name);
-                    const prop = struct.properties.get(node.property);
+                const types: ASYType[][] = [];
 
-                    if (prop) {
-                        const vals = prop.types.flatMap(c => getResolvedType(c, context, _structs, productions));
-
-                        results.push(...vals);
-                    }
+                for (const n of node.expressions) {
+                    types.push(getResolvedType(
+                        n,
+                        context,
+                        undefined,
+                        productions
+                    ));
                 }
 
-                return results.setFilter(JSONFilter);
+                return types.pop() ?? [];
             }
-            case ASYTRIPType.EXPRESSIONS:
-                return getResolvedType(
-                    node.expressions[node.expressions.length - 1],
-                    context,
-                    undefined,
-                    productions
-                );
+
             case ASYTRIPType.VECTOR_PUSH:
 
                 const vec_args = node?.vector?.args?.slice() ?? [];
