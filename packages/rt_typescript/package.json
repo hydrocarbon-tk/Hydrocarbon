@@ -16,7 +16,8 @@
     "files": [
         "/build/",
         "/README.md",
-        "/LICENSE"
+        "/LICENSE",
+        "/bin/"
     ],
     "keywords": [
         "Compiler",

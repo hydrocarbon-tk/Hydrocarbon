@@ -14,11 +14,10 @@
         "url": "git+https://github.com/CandleLibrary/Hydrocarbon.git"
     },
     "files": [
-        "/bin/",
         "/build/",
         "/README.md",
         "/LICENSE",
-        "/bin/cli.js"
+        "/bin/"
     ],
     "keywords": [
         "Compiler",

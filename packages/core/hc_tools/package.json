@@ -17,7 +17,7 @@
         "/build/",
         "/README.md",
         "/LICENSE",
-        "/bin/cli.js"
+        "/bin/"
     ],
     "keywords": [
         "Compiler",
