@@ -1,19 +1,12 @@
-![Hydrocarbon](./site/resources/img/test.webp)
+<img src="./site/resources/img/test.webp" alt="# Hydrocarbon Toolkit" align=center/>
 
 
-The Hydrocarbon Toolkit is a set of Language compilers and tools that can 
+The Hydrocarbon Toolkit is a set of compilers and tools that can 
 used to generate parsers, AST implementations, and diagrams for domain
 specific languages and general purpose languages. 
 
 It has build targets for several popular languages including TypeScript, Rust, 
 Go, and C++. 
-
-
-Existing projects enhanced by Hydrocarbon:
-
-- Candlelibrary JS
-- Candlelibrary TS
-- CandleLibrary CSS
 
 Hydrocarbon utilize a unique hybrid parser algorithm to deliver
 parsers capable of handling ambiguous grammars outside the 
@@ -30,44 +23,63 @@ syntax that allows separation of language description and parse actions.
 - Rich parser diagnostics
 - Native UTF8 support
 
+> Disclaimer: Hydrocarbon is a work-in-progress and not all features may be fully realized. Please be patient as ongoing dev
+> work completes and improves the feature set. As Hydrocarbon is an open source project, may also want to [contribute](./CONTRIBUTING.md)
+> to make the changes you want.
+
 ## Usage
-
-### Install
-
-At this time the Hydrocarbon compiler is written in Typescript.
-Plans are in motion to convert to a compiled language, but at this point
-a recent version of NodeJS is required to compile `*.hcg` files. Output files are 
-rendered in the target language. 
-
-```bash
-$ npm install -g @candlelib/hydrocarbon 
-```
 
 ### Write A Grammar
 
-Checkout the [writing a grammar](./site/tutorial.creating_a_grammar.index.md) doc for details on writing a grammar to
-suite your needs. 
+Everything Hydrocarbon can do starts with a grammar definition file. Chckout the [writing a grammar](./site/tutorial.creating_a_grammar.index.md) doc for details on writing a grammar that can suite your needs. 
 
-### Compile A Grammar
+### Install Hydrocarbon
 
 ```bash
-# TypeScript
-$ hydrocarbon compile --type ts ./grammar.hcg
-
-# Golang
-$ hydrocarbon compile --type go ./grammar.hcg
-
-# Rust
-$ hydrocarbon compile --type rust ./grammar.hcg
+$ npm i -g hctoolkit
 ```
 
-### CLI 
+### Compile a parser from a grammar
 
-### Docs
+```bash
+# Compiles a TypeScript parser
+$ hc compile parser <grammar file>
+```
+
+### Compile a parser for a target language including [ASYTrip](./site/api.asytrip.index.md) AST code
+
+```bash
+$ hc compile parser --asytrip --type <rust|go|ts|js|c++> <grammar_filepath>
+```
+
+### Render a [bytcode](./site/architecture.bytecode.index.md) disassembly sheet and open in a browser
+
+```bash
+$ hc tools disassemble --browse <grammar_filepath>
+```
+
+### Create a fuzz string from a grammar
+
+```bash
+$ hc tools fuzz <grammar_filepath>
+```
+
+And more: checkout the [CLI reference](./packages/core/hc_root/README.md)
+
+## Want to learn more?
+
+Checkout out the documentation
 
 - [Getting Started: Writing A Grammar](./site/tutorial.creating_a_grammar.index.md)
 - [API](./site/api.index.md)
 - [Parser Architecture](./site/architecture.index.md)
+
+
+## Existing projects enhanced by Hydrocarbon
+
+- Candlelibrary JS
+- Candlelibrary TS
+- CandleLibrary CSS
 
 ## Contributing
 
