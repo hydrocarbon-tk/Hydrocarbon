@@ -15,7 +15,6 @@
 - [ ] Improve toggling of ignored symbols
 - [X] Allow parse functions to be defined in separate files
 - [X] Remove Non Ascii symbols from HCG grammar syntax
-- [ ] Change production head notation from `<> production_id >` and `+ production_id >` to  `< production_id >` and `+ production_id >`?
 
 ### CLI
 - [ ] Improve grammar compilation reporting and error messaging
