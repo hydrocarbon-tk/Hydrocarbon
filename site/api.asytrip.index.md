@@ -34,7 +34,7 @@ property value.
 
 ### Struct Type
 
-The property name `type` is a special field that determines the name of the property and any classes it belongs to ([see below for details](#StructType)). It
+The property name `type` is a special field that determines the name of the property and any classes it belongs to. It
 or its shorthand must be specified in any struct definition. In the above example, ASYtrip will generate a code definition for an `Add` class, structure, or object,
 depending on the target language. That definition will contain the property fields `l` and `r`, initialized with whatever values `expr` and `term` resolve to. 
 
