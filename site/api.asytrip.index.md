@@ -17,7 +17,7 @@ Parse actions take on new meaning within the ASYTrip context. ASYTrip parse acti
 ## Struct
 
 An ASYTrip struct is the primary type of an ASYTrip defined AST. It declare specific nodes that can be present within a tree. A struct 
-is defined using `{ ... }` brackets within a [parse action](./api.parse_action.index.md). Within the those brackets, any number of property fields, of the form `<prop_name>:<prop_value>`,may be defined. ASYTrip will automatically determine what type a givin property field should be, based on the expression used to define the 
+is defined using `{ ... }` brackets within a [parse action](./api.parse_action.index.md). Within the those brackets, any number of property fields, of the form `<prop_name>:<prop_value>`, may be defined. ASYTrip will automatically determine what type a givin property field should be, based on the expression used to define the 
 property value.
 
 ##### example
