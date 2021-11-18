@@ -3,7 +3,7 @@
     "description": "Hydrocarbon Grammar Compiler",
     "version": "0.0.1",
     "bin": {
-        "hc.grammar": "bin/index.sh"
+        "hc-grammar": "bin/index.sh"
     },
     "main": "./build/index.js",
     "type": "module",
@@ -32,10 +32,10 @@
     },
     "homepage": "https://github.com/CandleLibrary/Hydrocarbon#readme",
     "dependencies": {
-        "@candlelib/log": "0.1.2",
-        "@candlelib/paraffin": "0.1.15",
-        "@candlelib/uri": "0.3.0",
-        "@candlelib/hydrocarbon": "0.3.0",
+        "@candlelib/log": "latest",
+        "@candlelib/paraffin": "*",
+        "@candlelib/uri": "*",
+        "@candlelib/hydrocarbon": "*",
         "@hctoolkit/common": "*"
     },
     "devDependencies": {

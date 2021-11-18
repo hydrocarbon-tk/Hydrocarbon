@@ -29,10 +29,10 @@
     },
     "homepage": "https://github.com/CandleLibrary/Hydrocarbon#readme",
     "dependencies": {
-        "@candlelib/log": "0.1.2",
-        "@candlelib/paraffin": "0.1.15",
-        "@candlelib/uri": "0.3.0",
-        "@candlelib/hydrocarbon": "0.3.0",
+        "@candlelib/log": "*",
+        "@candlelib/paraffin": "*",
+        "@candlelib/uri": "*",
+        "@candlelib/hydrocarbon": "*",
         "@hctoolkit/common": "*"
     },
     "devDependencies": {

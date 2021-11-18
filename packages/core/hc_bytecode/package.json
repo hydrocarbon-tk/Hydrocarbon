@@ -5,7 +5,10 @@
         "hcbyte": "./bin/index.sh"
     },
     "type": "module",
-    "scripts": {},
+    "scripts": {
+        "build": "tsc",
+        "test": "NODE_OPTIONS=--experimental-specifier-resolution=node candle.cure --reporter ci ./tests/"
+    },
     "repository": {
         "type": "git",
         "url": "git+https://github.com/CandleLibrary/Hydrocarbon.git"
@@ -27,13 +30,14 @@
     },
     "homepage": "https://github.com/CandleLibrary/Hydrocarbon#readme",
     "dependencies": {
-        "@candlelib/log": "0.1.2",
-        "@candlelib/paraffin": "0.1.15",
-        "@candlelib/uri": "0.3.0",
+        "@candlelib/log": "*",
+        "@candlelib/paraffin": "*",
+        "@candlelib/uri": "*",
         "@hctoolkit/common": "*"
     },
     "devDependencies": {
-        "@types/node": "^16.4.13"
+        "@types/node": "^16.4.13",
+        "@candlelib/cure": "*"
     },
     "engine": {
         "node": ">=13.7.0"

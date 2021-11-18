@@ -3,7 +3,7 @@
     "description": "Hydrocarbon Tools",
     "version": "1.0.0",
     "bin": {
-        "hc.tools": "./bin/index.sh"
+        "hctools": "./bin/index.sh"
     },
     "type": "module",
     "scripts": {},
@@ -28,9 +28,9 @@
     },
     "homepage": "https://github.com/CandleLibrary/Hydrocarbon#readme",
     "dependencies": {
-        "@candlelib/log": "0.1.2",
-        "@candlelib/paraffin": "0.1.15",
-        "@candlelib/uri": "0.3.0",
+        "@candlelib/log": "*",
+        "@candlelib/paraffin": "*",
+        "@candlelib/uri": "*",
         "@hctoolkit/common": "*"
     },
     "devDependencies": {
