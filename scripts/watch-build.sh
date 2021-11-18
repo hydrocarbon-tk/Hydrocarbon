@@ -13,6 +13,7 @@ ts_packages[grammar]="packages/core/hc_grammar"
 ts_packages[root]="packages/core/hc_root"
 ts_packages[tools]="packages/core/hc_tools"
 ts_packages[ts_common]="packages/core/hc_ts_common"
+ts_packages[rt_ts]="packages/rt_typescript"
 
 
 LOC=$(dirname "$(realpath $0)")/../
