@@ -91,10 +91,10 @@
 
 
                             f:r { { 
-                                type:t_Grammar | c_Grammar | c_Version_6, 
-                                preamble:$1, 
+                                t_Grammar , c_Grammar , c_Version_6, 
+                                $preamble, 
+                                $productions, 
                                 ir_states:$2.ir,
-                                productions:$2.productions, 
                                 functions:$2.functions, 
                                 imported_grammars: [t_Grammar],
                                 meta:{
@@ -102,7 +102,8 @@
                                     all_symbols: [c_Symbol],
                                     ignore_symbols: [c_TokenSymbol]
                                 },
-                                bodies:[t_Body]
+                                bodies:[t_Body],
+                                tok
                             } }
 
 # Action functions can be defined at the end of production bodies to add custom parsing behavior

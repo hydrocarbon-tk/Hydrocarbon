@@ -90,11 +90,11 @@
 <> sequence_instruction >
 
         t:reduce g:num g:num           
-                                            f:r { { type:t_Reduce | c_IR | c_IR_Instruction, len: i64($2), body_id: i64($3) } }
+                                            f:r { { type:t_Reduce | c_IR | c_IR_Instruction, len: i32($2), body_id: i32($3) } }
 
     |   t:reduce fn::reduce_function   
                                             
-                                            f:r { { type:t_Reduce | c_IR | c_IR_Instruction, len: -1, reduce_fn: $2 } }
+                                            f:r { { type:t_Reduce | c_IR | c_IR_Instruction, len: i32(-1), reduce_fn: $2 } }
     |   t:assign t:token token_id_list  
                                             
                                             f:r { { type:t_TokenAssign | c_IR | c_IR_Instruction, ids: $3 } }
@@ -113,7 +113,7 @@
     |   t:scan t:back? t:until token_id_list
                                             f:r { { type: t_ScanUntil | c_IR | c_IR_Instruction, ids: $4, SCAN_BACKWARDS:bool($2) } }
 
-    |   t:set t:token t:id ( ! g:num f:r{ { type:t_Num, val: i64($1) } } | sym::terminal_symbol ) g:num
+    |   t:set t:token t:id ( ! g:num f:r{ { type:t_Num, val: i32($1) } } | sym::terminal_symbol ) g:num
                                            
                                             f:r { { type:t_TokenId | c_IR | c_IR_Instruction, id: $4  } }
 
@@ -136,7 +136,7 @@
                                             f:r { { type:t_SetScope | c_IR | c_IR_Instruction, scope:$4 } }
                                             
     |   t:consume t:nothing?
-                                            f:r { { type:t_Consume | c_IR | c_IR_Instruction, EMPTY:i64($2) } }
+                                            f:r { { type:t_Consume | c_IR | c_IR_Instruction, EMPTY:bool($2) } }
                                     
       
 

@@ -8,6 +8,8 @@
 
 @IMPORT ./production_bodies.hcg as pb
 
+@IMPORT ./format.hcg as fm
+
 @IGNORE g:sp g:nl tk:cm::comment
 
 #######################################################################################################################
@@ -61,6 +63,8 @@
     |   group_symbol
 
     |   production_symbol
+
+    |   fm::format_meta_symbol
 
     |   symbol ( \(+ | \(* )  terminal_symbol?  \)
         

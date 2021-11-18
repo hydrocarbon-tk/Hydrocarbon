@@ -90,7 +90,7 @@ f:matchnode     { { node_type : t_MATCH, value:$1   } }
 
 <> modified_statement > 
 
-    (t:modifier | t:MODIFIED) comparison_expression? order?            
+    (t:modified | t:MODIFIED) comparison_expression? order?            
                                                                         f:r { { type : t_MODIFIED,    val:$2,    order: $3 } }
 
 <> size_statement > 
