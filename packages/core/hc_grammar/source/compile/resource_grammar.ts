@@ -111,7 +111,7 @@ export async function resolveResourceGrammarCLI(
 
                     ok(0);
                 } catch (e) {
-                    logger.error(new Error("Unable to parse input as grammar file"));
+                    logger.error("Unable to parse input as grammar file");
                     fail(-1);
                 }
             });
