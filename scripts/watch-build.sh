@@ -1,6 +1,6 @@
 #! /usr/bin/bash
 
-# A small script to start a sperate build TypeScript build process for 
+# A small script to start a seperate TypeScript build process for 
 # each of the TypeScript packages within this repo. Utilizes Linux,
 # BASH, & Tmux to run each tsc process in a seperate shell. 
 
