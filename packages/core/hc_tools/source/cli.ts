@@ -8,7 +8,7 @@ import {
     addCLIConfig, processCLIConfig
 } from "@candlelib/paraffin";
 import URI from '@candlelib/uri';
-import { GrammarObject, ReverseStateLookupMap, StateData } from '@hctoolkit/common';
+import { GrammarObject, ReverseStateLookupMap, ExportableStates, ExportableStateData } from '@hctoolkit/common';
 import { resolveResourceFile, resolveResourceGrammarCLI } from '@hctoolkit/grammar';
 import { exec, execSync } from 'child_process';
 import { writeFile } from 'fs/promises';
@@ -122,13 +122,7 @@ addCLIConfig<URI | "stdin">("disassemble", {
 
         throw new Error(`${arg} does not exists or is not a Hydrocarbon States file`);
 
-    const states: {
-        bytecode_path: string;
-        grammar_resource_path: string,
-        states: {
-            [name: string]: StateData;
-        };
-    } = <any>await states_path.fetchJSON();
+    const states = <ExportableStates>await states_path.fetchJSON();
 
     var binary: Uint32Array | undefined;
 
@@ -205,7 +199,7 @@ addCLIConfig<URI | "stdin">("disassemble", {
 addCLIConfig<URI | "stdin">("railroad", {
     key: "railroad",
     help_arg_name: "Path to *.hcgr",
-    REQUIRES_VALUE: true,
+    REQUIRES_VALUE: false,
     accepted_values: ["stdin", URI],
     help_brief: `
     Create a Bytecode sheet from a Hydrocarbon Grammar Resource file (*.hcgr)
@@ -221,7 +215,7 @@ addCLIConfig<URI | "stdin">("railroad", {
 addCLIConfig<URI | "stdin">("fuzz", {
     key: "fuzz",
     help_arg_name: "Path to *.hcgr",
-    REQUIRES_VALUE: true,
+    REQUIRES_VALUE: false,
     accepted_values: ["stdin", URI],
     help_brief: `
     Create a random string from a Hydrocarbon Grammar Resource file  (*.hcgr)
@@ -230,9 +224,15 @@ addCLIConfig<URI | "stdin">("fuzz", {
 
     const logger = Logger.createLogger("Fuzzer").activate();
 
-    var grammar: GrammarObject = await resolveResourceGrammarCLI(arg, logger);
+    try {
 
-    process.stdout.write(createFuzz(grammar));
+        var grammar: GrammarObject = await resolveResourceGrammarCLI(arg, logger);
+
+        process.stdout.write(createFuzz(grammar));
+
+    } catch (e) {
+        logger.log("Unable read grammar file");
+    }
 
 });
 
