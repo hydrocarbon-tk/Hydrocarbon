@@ -7,6 +7,7 @@ import {
     convert_symbol_to_string,
     default_EOF,
     getClosure,
+    getFollowClosure,
     getSkippableSymbolsFromItems,
     getUniqueSymbolName,
     GrammarObject,
@@ -22,7 +23,7 @@ import { ConstructionOptions } from '../types/construction_options';
 export function create_symbol_clause(
     items: Item[],
     grammar: GrammarObject,
-    { scope, IS_SCANNER }: ConstructionOptions
+    { scope }: ConstructionOptions
 ) {
 
     const active_items = items.filter(i => !i.atEND);
@@ -31,26 +32,28 @@ export function create_symbol_clause(
     if (scope == "GOTO") {
         let left_recursive_items = active_items.filter(i => i.offset == 1);
         end_items.push(...left_recursive_items.map(i => i.toEND()));
+
+
     }
 
-    const expected_symbols = active_items.flatMap(i => {
+    const follow = getFollowClosure(end_items, [], grammar);
+    active_items.push(...follow.filter(i => !i.atEND));
+
+    const expected_symbols: TokenSymbol[] = active_items.flatMap(i => {
         const sym = i.sym(grammar);;
 
         if (Sym_Is_A_Production(sym)) {
-            return getClosure([i], grammar).filter(i => Sym_Is_A_Token(i.sym(grammar))).map(i => i.sym(grammar));
+            return <TokenSymbol[]>getClosure([i], grammar).filter(i => Sym_Is_A_Token(i.sym(grammar))).map(i => i.sym(grammar));
         } else {
-            return sym;
+            return <TokenSymbol>sym;
         }
     }).setFilter(s => getUniqueSymbolName(s));
-
-    if (end_items.length > 0)
-        expected_symbols.push(default_EOF);
-
-    if (!grammar.item_map)
-        debugger;
     const skipped_symbols = getSkippableSymbolsFromItems(items, grammar).filter(skipped => !expected_symbols.some(
         expected => Symbols_Are_The_Same(expected, skipped) /* || SymbolsCollide(expected, skipped, grammar) */)
     );
+
+    if (end_items.length > 0)
+        expected_symbols.push(default_EOF);
 
     if (expected_symbols.length < 1)
         return "";
@@ -62,7 +65,7 @@ export function create_symbol_clause(
 
         /* Expected symbols 
 
-        ${expected_symbols.sort((a, b) => a.id - b.id).map(create_symbol_comment).join(" ")}
+        ${expected_symbols.sort((a, b) => <number>a.id - <number>b.id).map(create_symbol_comment).join(" ")}
     
         */
         
@@ -71,7 +74,7 @@ export function create_symbol_clause(
     if (skipped_symbols.length > 0)
         code += `/* Skipped symbols  
 
-        ${skipped_symbols.sort((a, b) => a.id - b.id).map(create_symbol_comment).join(" ")}
+        ${skipped_symbols.sort((a, b) => <number>a.id - <number>b.id).map(create_symbol_comment).join(" ")}
         
         */
         

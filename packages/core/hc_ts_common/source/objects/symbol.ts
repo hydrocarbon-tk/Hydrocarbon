@@ -61,10 +61,42 @@ export function convert_symbol_to_string(sym: HCG3Symbol): string {
             return `tk:${sym.name}`;
         case "look-behind":
             return `lb[${convert_symbol_to_string(sym.phased)}]`;
-        case SymbolType.AMBIGUOUS:
-            return `ambiguous [ ${sym.syms.map(convert_symbol_to_string).join(" | ")} ]`;
         default:
             return sym.val + (sym.IS_NON_CAPTURE ? "-ns" : "");
+    }
+}
+
+export function convert_symbol_to_friendly_name(sym: HCG3Symbol): string {
+    if (!sym || !sym.type)
+        return "<unknown>";
+    switch (sym.type) {
+        case SymbolType.GENERATED:
+            switch (sym.val) {
+                case "id": return "Letter";
+                case "ids": return "Identifier";
+                case "num": return "Digit";
+                case "nums": return "Number";
+                case "sym": return "Symbol";
+                case "syms": return "Symbols";
+                case "nl": return "New Line";
+                case "sp": return "Space";
+                case "END_OF_FILE": return "<EOF>";
+                default: return "";
+            }
+        case SymbolType.LITERAL:
+            return `"${sym.val}"`;
+        case SymbolType.EXCLUSIVE_LITERAL:
+            return `"${sym.val}"`;
+        case SymbolType.EMPTY:
+            return `ɛ`;
+        case SymbolType.END_OF_FILE:
+            return `<EOF>`;
+        case SymbolType.PRODUCTION_TOKEN_SYMBOL:
+            return `tk:${sym.name}`;
+        case "look-behind":
+            return `lb[${convert_symbol_to_friendly_name(sym.phased)}]`;
+        default:
+            return `"${sym.val}"`;
     }
 }
 

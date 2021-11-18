@@ -17,7 +17,7 @@
 import { Logger } from '@candlelib/log';
 import { addCLIConfig, processCLIConfig, args } from '@candlelib/paraffin';
 import URI from '@candlelib/uri';
-import { getEntryPointers, GrammarObject, ReverseStateLookupMap } from '@hctoolkit/common';
+import { ExportableStates, getEntryPointers, GrammarObject, ReverseStateLookupMap } from '@hctoolkit/common';
 import { resolveResourceGrammarCLI } from '@hctoolkit/grammar';
 import { spawn, spawnSync } from 'child_process';
 import { writeFile } from 'fs/promises';
@@ -112,10 +112,10 @@ addCLIConfig<URI | string>("parse", {
 
     if (grammar) {
 
-        const states = <any>await states_path.fetchJSON();
+        const states = <ExportableStates>await states_path.fetchJSON();
 
         const states_lookup: ReverseStateLookupMap =
-            <any>new Map(Object.entries(states.states).map(([k, v]) => {
+            new Map(Object.entries(states.states).map(([k, v]) => {
                 return [v.pointer & 0xFFFFFF, v];
             }));
 
@@ -134,7 +134,7 @@ addCLIConfig<URI | string>("parse", {
         switch (target.value) {
             case "ts": {
 
-                const parser_data = renderTypeScriptParserData(grammar, binary, entry_pointers);
+                const parser_data = renderTypeScriptParserData(grammar, binary, entry_pointers, states);
                 const ast_temp_path = <URI>URI.resolveRelative("./tmp-ast.ts", dir);
                 const ast_path = URI.resolveRelative("./ast.ts");
                 const data_path = URI.resolveRelative("./parser_data.ts");

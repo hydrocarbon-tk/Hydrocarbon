@@ -8,10 +8,11 @@ import {
     addCLIConfig, processCLIConfig
 } from "@candlelib/paraffin";
 import URI from '@candlelib/uri';
-import { GrammarObject } from '@hctoolkit/common';
+import { GrammarObject, ExportableStates } from '@hctoolkit/common';
 import { resolveResourceGrammarCLI } from '@hctoolkit/grammar';
 import { writeFile } from 'fs/promises';
 import { cpus, tmpdir } from 'os';
+import { createExportableStateData } from './common/state_data';
 import { compileBuildPack } from './index.js';
 
 await URI.server();
@@ -77,7 +78,7 @@ addCLIConfig<URI | "stdin">("compile", {
 
     var grammar: GrammarObject = await resolveResourceGrammarCLI(arg || "", logger);
 
-    const build_pack = await compileBuildPack(grammar, threads.value, !disable_opt.value);
+    const build_pack = await compileBuildPack(grammar, threads.value, !disable_opt.value, logger);
 
     const output_dir = URI.resolveRelative(out_dir_str);
 
@@ -101,18 +102,13 @@ addCLIConfig<URI | "stdin">("compile", {
 
         await writeFile(binary_path + "", build_pack.state_buffer, { encoding: 'binary' });
 
-        await writeFile(states_path + "", JSON.stringify({
+        const exportable_states = <ExportableStates>{
             bytecode_path: binary_path + "",
             grammar_resource_path: grammar.resource_path || "",
-            states: Object.fromEntries([...build_pack.states_map].map(([k, v]) => {
-                return [k, {
-                    name: k,
-                    block_offset: v.block_offset,
-                    pointer: v.pointer,
-                    string: v.string,
-                }];
-            }))
-        }), { encoding: 'utf8' });
+            states: createExportableStateData(build_pack.states_map)
+        };
+
+        await writeFile(states_path + "", JSON.stringify(exportable_states), { encoding: 'utf8' });
 
         logger.log(`Created: \n    Bytecode Binary: ${binary_path} \n    States Information: ${states_path} `);
 
@@ -125,4 +121,5 @@ addCLIConfig<URI | "stdin">("compile", {
 });
 
 processCLIConfig();
+
 

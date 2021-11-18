@@ -15,7 +15,7 @@ import {
     user_defined_state_mux
 } from '@hctoolkit/common';
 import { WorkerRunner } from "../workers/worker_runner.js";
-import { convertParseProductsIntoStatesMap } from './compile_scanner_states.js';
+import { convertParseProductsIntoStatesMap } from "../common/state_data";
 import { create_symbol_clause } from './create_symbol_clause.js';
 
 export const build_logger = Logger.get("MAIN").createLogger("COMPILER");
@@ -37,7 +37,7 @@ export async function createIrStates(grammar: GrammarObject, number_of_workers: 
         }
     }
 
-    const raw_states = [...mt_code_compiler.states.entries()];
+    const raw_states = [...mt_code_compiler.states.values()];
 
     for (const entry_production of grammar.productions.filter(p => p.IS_ENTRY)) {
 
@@ -55,7 +55,7 @@ state [${open_state_name}]
 
         const end_body_items = getStartItemsFromProduction(entry_production).map(i => i.toEND());
 
-        const clause = create_symbol_clause(end_body_items, grammar, "DESCENT");
+        const clause = create_symbol_clause(end_body_items, grammar, <any>{ scope: "DESCENT" });
 
         const close_state = `
 state [${close_state_name}]
@@ -64,7 +64,7 @@ state [${close_state_name}]
 
         ${clause}`;
 
-        raw_states.unshift([open_state_name, open_state], [close_state_name, close_state]);
+        raw_states.unshift(open_state, close_state);
 
     }
 

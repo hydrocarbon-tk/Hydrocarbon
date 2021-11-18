@@ -1000,13 +1000,40 @@ export function garbageCollect(
     grammar: GrammarObject,
     entry_names: string[] = [
         ...grammar.productions.filter(p => p.IS_ENTRY).map(i => (i.entry_name + "_open"))
-    ].setFilter()) {
+    ].setFilter()
+) {
+    const temp_map = new Map(StateMap);
 
+    StateMap.clear();
+
+    for (
+        const { state, name, refs } of iterateStateGraph(temp_map, entry_names)
+    ) {
+
+        StateMap.set(name, state);
+
+        state.refs = refs;
+    }
+}
+/**
+ * Iterates over the state graph, yielding all states that are
+ * reachable from a set of root states. 
+ * 
+ * Root states are identified by an array of state name strings.
+ */
+export function* iterateStateGraph(
+    StateMap: StateMap,
+    root_names: string[]
+): Generator<{
+    name: string,
+    state: InternalStateData,
+    refs: Set<string>;
+}> {
 
     const marked_map: Map<string, null | Set<string>>
         = new Map([...StateMap].map(([name]) => [name + "", null]));
 
-    const pending = entry_names.slice();
+    const pending = root_names.slice();
 
     for (const name of pending) {
 
@@ -1061,7 +1088,7 @@ export function garbageCollect(
             }
 
         } catch (e) {
-            console.error(entry_names);
+            console.error(root_names);
             console.error({ name });
             console.error(e);
             console.error(state.string);
@@ -1085,12 +1112,12 @@ export function garbageCollect(
 
     optimize_logger.debug(`---------------- Removing unreferenced states ----------------`);
     for (const [name, refs] of marked_map) {
-        if (refs == null) {
-            optimize_logger.debug(`Removing state ${name}`);
-            StateMap.delete(name);
-        } else {
-            (<InternalStateData>StateMap.get(name)).refs = refs;
-        }
+        if (refs == null) continue;
+        yield {
+            name: name,
+            state: <InternalStateData>StateMap.get(name),
+            refs: refs
+        };
     }
 }
 

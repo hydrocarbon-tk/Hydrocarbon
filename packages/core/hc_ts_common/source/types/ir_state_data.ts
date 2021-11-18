@@ -6,25 +6,35 @@ export interface InternalStateData {
     ir_state_ast: Resolved_IR_State;
     pointer: number;
     block_offset: number;
-    block: BlockData;
+    block: BlockData | null;
     reference_count: number;
     attributes: StateAttrib;
     expected_tokens?: number[];
     skipped_tokens?: number[];
 }
 
-export interface StateData {
+export interface ExportableStateData {
     name: string;
     string: string;
-    pointer: number;
     block_offset: number;
+    pointer: number;
+    active_tokens: number[];
+    skipped_tokens: number[];
+}
+
+export interface ExportableStates {
+    bytecode_path: string;
+    grammar_resource_path: string;
+    states: {
+        [key: string]: ExportableStateData;
+    };
 }
 
 export interface BranchIRStateData extends InternalStateData {
 
     ir_state_ast: BranchIRState;
 }
-export type ReverseStateLookupMap = Map<number, StateData>;
+export type ReverseStateLookupMap = Map<number, ExportableStateData>;
 export type StateMap = Map<string, InternalStateData>;
 export enum StateAttrib {
     HAS_GOTOS = 1 << 0,
@@ -35,5 +45,6 @@ export enum StateAttrib {
     FAIL_STATE = 1 << 5,
     PRODUCTION_ENTRY = 1 << 6,
     REQUIRED_GOTO = 1 << 7,
+    SCANNER = 1 << 8,
     TOKEN_BRANCH = ASSERT_BRANCH | PEEK_BRANCH
 }

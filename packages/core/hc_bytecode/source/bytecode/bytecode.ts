@@ -14,12 +14,13 @@ import {
     GrammarObject,
     Instruction,
     InstructionType,
-    InternalStateData,
+    InternalStateData as ISD,
     IRAssert,
     IRPeek,
     IR_Instruction,
     ir_reduce_numeric_len_id,
     normal_state_mask,
+    scanner_state_mask,
     numeric_sort,
     ProductionSymbol,
     Resolved_IR_State,
@@ -34,7 +35,11 @@ import { createSymMapId } from "../ir/compile_scanner_states.js";
 import { getStateName } from './get_state_name.js';
 ;
 
-export function compileIRStatesIntoBytecode(StateMap: StateMap, grammar: GrammarObject, sym_map: Map<string, string>) {
+export function compileIRStatesIntoBytecode(
+    StateMap: StateMap,
+    grammar: GrammarObject,
+    sym_map: Map<string, string>
+): number[] {
 
     let total_instruction_byte_size = state_bytecode_byte_start; // Ensure the zero position is reserved for the "null" state
 
@@ -123,12 +128,15 @@ export function compileIRStatesIntoBytecode(StateMap: StateMap, grammar: Grammar
                     state_data.block = block;
                 }
 
-                if (state_ast.fail) {
-                    state_data.block.total_size += 4;
-                    state_data.block.instruction_sequence.unshift(["set fail", <string>state_ast.fail.id]);
-                }
+                if (state_data.block) {
 
-                total_instruction_byte_size += state_data.block.total_size;
+                    if (state_ast.fail) {
+                        state_data.block.total_size += 4;
+                        state_data.block.instruction_sequence.unshift(["set fail", <string>state_ast.fail.id]);
+                    }
+
+                    total_instruction_byte_size += state_data.block.total_size;
+                }
 
             } else {
 
@@ -145,6 +153,10 @@ export function compileIRStatesIntoBytecode(StateMap: StateMap, grammar: Grammar
                 state_data.block = block_info;
             }
         }
+
+        if (attributes & StateAttrib.SCANNER)
+            state_data.pointer |= scanner_state_mask;
+
 
         if (attributes & StateAttrib.REQUIRED_GOTO) {
             state_data.pointer += 1;
@@ -190,8 +202,6 @@ function insertInstructionSequences(
     instruction_offset = 0
 ): number[] {
 
-
-
     let buffer = [];
 
     let local_offset = instruction_offset;
@@ -220,7 +230,9 @@ function insertInstructionSequences(
             } break;
 
             case InstructionType.goto: {
-                temp_buffer.push((2 << 28) | normal_state_mask | state_map.get(getStateName(instruction[1])).pointer);
+                temp_buffer.push((2 << 28)
+                    | normal_state_mask
+                    | (<ISD>state_map.get(getStateName(instruction[1]))).pointer);
             } break;
 
             case InstructionType.set_prod: {
@@ -279,7 +291,7 @@ function insertInstructionSequences(
                 temp_buffer.push(6 << 28 | length);
 
                 for (const gt of gotos)
-                    temp_buffer.push(state_map.get(getStateName(gt)).pointer);
+                    temp_buffer.push((<ISD>state_map.get(getStateName(gt))).pointer);
 
             } break;
 
@@ -422,7 +434,7 @@ function insertInstructionSequences(
             } break;
 
             case "set fail": {
-                temp_buffer.push(11 << 28 | fail_state_mask | state_map.get(getStateName(instruction[1])).pointer);
+                temp_buffer.push(11 << 28 | fail_state_mask | (<ISD>state_map.get(getStateName(instruction[1]))).pointer);
             } break;
 
             case InstructionType.repeat: {
@@ -471,7 +483,7 @@ function createInstructionSequence(
         switch (instr.type) {
             case InstructionType.inline_assert: {
 
-                let token_state = "";
+                let token_state: string = "";
 
                 if (instr.mode == "TOKEN") {
 
@@ -481,7 +493,7 @@ function createInstructionSequence(
                         grammar
                     );
 
-                    token_state = token_id_to_state.get(id);
+                    token_state = <string>token_id_to_state.get(id);
                 } else if (instr.mode != "PRODUCTION" && instr.ids.length == 1) {
                     if (combined[i + 1] && combined[i + 1].type == InstructionType.consume) {
                         i++; byte_length += 4;
@@ -495,11 +507,9 @@ function createInstructionSequence(
                     continue;
                 }
 
-                let instruction: Instruction = null;
-
                 if (instr.ids.length > 1) {
                     byte_length += 12 + instr.ids.length * 4 + 4;
-                    instruction = [
+                    let instruction: Instruction = [
                         "scanner",
                         instr.mode,
                         InstructionType.assert,
@@ -513,7 +523,7 @@ function createInstructionSequence(
                 } else {
                     byte_length += 16;
                     const basis = instr.ids[0];
-                    instruction = createTableInstruction(
+                    let instruction: Instruction = createTableInstruction(
                         instr.mode,
                         InstructionType.assert,
                         token_state,
@@ -621,7 +631,7 @@ function createInstructionSequence(
         }
     }
 
-    const last = instruction_sequence.slice().pop();
+    const last = <Instruction>instruction_sequence.slice().pop();
 
     if (last[0] != InstructionType.pass && last[0] != InstructionType.fail) {
         instruction_sequence.push(["end"]);
@@ -682,7 +692,7 @@ function convertTokenIDsToSymbolIds(ids: (number | string | TokenSymbol | Produc
             out_ids.push(<number>id);
 
         else if (Sym_Is_A_Token(id))
-            out_ids.push(getRootSym(id, grammar).id);
+            out_ids.push(<number>getRootSym(id, grammar).id);
 
         else {
             out_ids.push(grammar.productions[id.val].id);
@@ -716,10 +726,11 @@ function processInstructionTokens(
         }
     }
 }
-export function extractTokenSymbols(state_data: InternalStateData, grammar: GrammarObject) {
+export function extractTokenSymbols(state_data: ISD, grammar: GrammarObject) {
 
-    const expected_symbols = [];
-    const skipped_symbols = [];
+    const expected_symbols: number[] = [];
+
+    const skipped_symbols: number[] = [];
 
     processInstructionTokens(
         state_data.ir_state_ast.instructions,
@@ -729,41 +740,42 @@ export function extractTokenSymbols(state_data: InternalStateData, grammar: Gram
 
     if (state_data.ir_state_ast.symbol_meta) {
         const { expected, skipped } = state_data.ir_state_ast.symbol_meta;
-        expected_symbols.push(...expected);
-        skipped_symbols.push(...skipped);
+        expected_symbols.push(...<number[]>expected);
+        skipped_symbols.push(...<number[]>skipped);
     }
 
     state_data.expected_tokens = expected_symbols.filter(s => s != default_case_indicator); // <- remove default value
     state_data.skipped_tokens = skipped_symbols.filter(s => s != default_case_indicator); // <- remove default value
 }
-function convertBlockDataToBufferData(state_data: InternalStateData, state_map: StateMap): number[] {
+function convertBlockDataToBufferData(state_data: ISD, state_map: StateMap): number[] {
 
     const block_info = state_data.block;
 
     const buffer = [];
 
+    if (block_info) {
 
+        buffer.push(...insertInstructionSequences(
+            block_info.instruction_sequence,
+            state_map,
+            block_info,
+            (block_info.total_size / 4)
+        ));
 
-    buffer.push(...insertInstructionSequences(
-        block_info.instruction_sequence,
-        state_map,
-        block_info,
-        (block_info.total_size / 4)
-    ));
-
-    if (buffer.length != (block_info.total_size / 4)) {
-        throw new Error(
-            `Buffer data length does not match length calculated in BlockData. 
-    Expected a block size of ${block_info.total_size / 4} words;
-         Got a block size of ${buffer.length} words;
-    Original state [ ${state_data.ir_state_ast.id} ]: \n\n${state_data.string}\n\n
-            `);
+        if (buffer.length != (block_info.total_size / 4)) {
+            throw new Error(
+                `Buffer data length does not match length calculated in BlockData. 
+                Expected a block size of ${block_info.total_size / 4} words;
+                Got a block size of ${buffer.length} words;
+                Original state [ ${state_data.ir_state_ast.id} ]: \n\n${state_data.string}\n\n
+                `);
+        }
     }
 
     return buffer;
 }
 
-function stateHasBranchIR(state_data: InternalStateData): state_data is BranchIRStateData {
+function stateHasBranchIR(state_data: ISD): state_data is BranchIRStateData {
     return (
         state_data.ir_state_ast.instructions[0].type == InstructionType.assert
         ||
@@ -819,7 +831,7 @@ function buildJumpTableBranchBlock(
     token_state: string,
     grammar: GrammarObject,
     token_id_to_state: Map<string, string>,
-    default_block: BlockData = null
+    default_block: BlockData | null = null
 ): BlockData {
 
 
@@ -829,7 +841,7 @@ function buildJumpTableBranchBlock(
     const input_type = instructions[0].mode;
     const lexer_type = instructions[0].type;
 
-    const ids: number[] = <number[]>standard_instructions.flatMap(i => i.ids).sort(numeric_sort);
+    const ids: number[] = <number[]>standard_instructions.flatMap(i => <number[]>i.ids).sort(numeric_sort);
 
     const standard_byte_codes = standard_instructions
         .flatMap(({ ids, instructions, type }) => {
@@ -905,8 +917,8 @@ function buildHashTableBranchBlock(
     token_state: string,
     grammar: GrammarObject,
     token_ids_to_state: Map<string, string>,
-    default_block: BlockData = null
-): BlockData {
+    default_block: BlockData | null = null
+): BlockData | null {
 
 
     let standard_instructions = instructions.filter(i => !i.ids.some(i => i == default_case_indicator));
@@ -939,6 +951,7 @@ function buildHashTableBranchBlock(
         scanner_key_index_pairs.slice(-1)[0][0] > 2048
         ||
         (instruction_field_byte_size / 4) > 2048) {
+
         return null;
     }
 

@@ -5,7 +5,7 @@
  */
 import { Logger } from '@candlelib/log';
 import URI from '@candlelib/uri';
-import { GrammarProduction, GrammarObject, formatArray } from '@hctoolkit/common';
+import { GrammarProduction, GrammarObject, formatArray, StateData, ExportableStates, scanner_state_mask, state_index_mask, convert_symbol_to_string, convert_symbol_to_friendly_name } from '@hctoolkit/common';
 import { writeFile } from "fs/promises";
 import { render_grammar } from '@hctoolkit/grammar';
 
@@ -110,14 +110,42 @@ export function renderTypeScriptParserData(
         name: string;
         pointer: number;
     }[],
+    states: ExportableStates,
 ) {
 
     let array_row_size = 80;
 
+    const lookups = [];
+
+    for (const name in states.states) {
+
+        const state = states.states[name];
+
+        if (state.pointer & scanner_state_mask)
+            continue;
+
+        if (state.active_tokens.length > 0)
+            lookups.push(`[${state.pointer & state_index_mask}, [${state.active_tokens}]]`);
+    }
+
     return `
-        
+export const TokenLookup = new Map(
+    [
+        ${[
+            ...(grammar.meta?.all_symbols?.by_id.entries() ?? [])
+        ].map((
+            [id, sym]
+        ) => {
+            return `[${id}, "${convert_symbol_to_friendly_name(sym).replace(/\"/g, "\\\"")}"]`;
+        }).join(",\n")}
+    ]
+);
+
+export const ExpectedTokenLookup = new Map(
+    [${lookups.join(",\n")}]
+);
 export enum Entrypoint { ${entry_pointers.map(p => {
-        return `
+            return `
 /**
 Bytecode pointer for the [${p.name}](${grammar.URI + ""}) production parser.
 \`\`\`
@@ -125,7 +153,7 @@ ${render_grammar(p.production)}
 \`\`\`
 */
 ${p.name}=${p.pointer}`;
-    }).join(",\n")}
+        }).join(",\n")}
 }
 
 

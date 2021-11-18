@@ -25,9 +25,22 @@ export const state_bytecode_byte_start = 24;
 export const skipped_scan_prod = 9009;
 
 export const state_index_mask = (1 << 24) - 1;
+/**
+ * Bit mask for bytecode states that are active during failure mode
+ */
 export const fail_state_mask = 1 << 27;
+/**
+ * Bit mask for bytecode states that are active during normal mode
+ */
 export const normal_state_mask = 1 << 26;
+/**
+ * Bit mask for bytecode states that are GOTO states
+ */
 export const goto_state_mask = 1 << 25;
+/**
+ * Bit mask for bytecode states that are SCANNER states
+ */
+export const scanner_state_mask = 1 << 24;
 export const alpha_increment_stack_pointer_mask = 1 << 0;
 export const alpha_have_default_action_mask = 1 << 1;
 export const production_scope_pop_pointer = 2;
