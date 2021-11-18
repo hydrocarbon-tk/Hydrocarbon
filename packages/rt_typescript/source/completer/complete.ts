@@ -15,7 +15,10 @@ export function complete<T>(
     source_path: string = ""
 ): {
     result: T,
-    err: any;
+    err: null;
+} | {
+    result: null,
+    err: ParseAction[ParseActionType.ERROR];
 } {
 
     //Create a StringByteReader
@@ -28,7 +31,7 @@ export function complete<T>(
         tokens: Token[] = [],
         token_offset = 0,
         default_token: Token = new Token(input_string, 0, 0),
-        err = null;
+        err: ParseAction[ParseActionType.ERROR] | null = null;
 
     iterator.start(action => {
         switch (action.type) {
@@ -36,7 +39,7 @@ export function complete<T>(
             }; break;
 
             case ParseActionType.ERROR: {
-                err = true;
+                err = action;
             }; break;
 
             case ParseActionType.REDUCE: {
@@ -87,8 +90,8 @@ export function complete<T>(
     }, fork_action_handler);
 
 
-    if (err)
-        return { result: null, err: err };
+    if (err) return { result: null, err: err };
+    
     return { result: stack[0], err: null };
 }
 

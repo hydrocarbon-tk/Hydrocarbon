@@ -11,13 +11,14 @@ import {
     state_index_mask,
     TokenTypes,
     KernelToken,
-    ByteReader
+    ByteReader,
+    goto_state_mask
 } from '@hctoolkit/common';
 import { KernelStack } from './stack.js';
 
-let peek: (arg: any) => any = _ => _;
+let peek: (a: number, b: StateIterator) => void = _ => _;
 
-export function assign_peek(fn: (arg: any) => any) {
+export function assign_peek(fn: (a: number, b: StateIterator) => void) {
     peek = fn;
 }
 
@@ -44,6 +45,10 @@ export interface ParseAction {
 
     [ParseActionType.ERROR]: {
         type: ParseActionType.ERROR;
+        tk_type: number,
+        tk_offset: number,
+        tk_length: number,
+        last_state: number,
         production: number;
     };
 
@@ -167,6 +172,8 @@ export class StateIterator {
 
         let fail_mode = false;
 
+        let last_good_state = -1;
+
         while (true) {
 
             if (this.stack.pointer < 1) {
@@ -184,6 +191,10 @@ export class StateIterator {
                 } else if (fail_mode) {
                     this.emit({
                         type: ParseActionType.ERROR,
+                        last_state: last_good_state,
+                        tk_type: advanced.type,
+                        tk_offset: advanced.codepoint_offset,
+                        tk_length: advanced.codepoint_length,
                         production: this.production_id
                     });
                 } else if (root >= 0 && this.production_id == root) {
@@ -198,6 +209,10 @@ export class StateIterator {
                 } else
                     this.emit({
                         type: ParseActionType.ERROR,
+                        last_state: last_good_state,
+                        tk_type: advanced.type,
+                        tk_offset: advanced.codepoint_offset,
+                        tk_length: advanced.codepoint_length,
                         production: this.production_id
                     });
 
@@ -208,7 +223,17 @@ export class StateIterator {
             const state = this.stack.pop_state();
 
             if (state > 0) {
+
                 const mask_gate = normal_state_mask << +fail_mode;
+
+                if (fail_mode) {
+                    if (state & goto_state_mask) {
+                        const production = this.bytecode[(state & state_index_mask) - 1];
+                        console.log({ production });
+                    }
+                } else {
+                    last_good_state = state;
+                }
 
                 if (state & mask_gate) {
 
@@ -410,7 +435,7 @@ export class StateIterator {
         return this.nextAction();
     } */
 
-    private  instruction_executor(
+    private instruction_executor(
         state_pointer: number,
         fail_mode: boolean,
     ): boolean {
