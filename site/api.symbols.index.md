@@ -1,18 +1,22 @@
 # [API](./api.index.md)::Symbol
 
-Symbols make up the bulk of any grammar and represent the acceptable parsable tokens that can be
-encountered within an input. Hydrocarbon makes 3 distinct symbol classifications:
 
-- Non-Terminal Symbols: 
+A symbol either represent a sequence of input characters that are combined together to form
+a token or it represents a unique grouping of symbols. A production body is comprised of one or
+more symbols. There are 3 types of symbols that can be defined in a Hydrocarbon grammar.
+
+
+- **Terminal Symbols**:
+These symbols represent character sequences that form a unique token which which may be encountered
+within an input.
+
+- **Non-Terminal Symbols**: 
 These symbols are primarily references to productions within the current grammar file or
-external grammar files. 
+external grammar files, which intern may define a series of terminal and non-terminal symbols
+within the production's bodies. 
 
-- Terminal Symbols:
-These symbols represent author prescribed character sequences and general character sequences
-in form of generated symbols that are converted into Tokens.
-
-- Modifier Symbols:
-These symbols augment existing symbols and change how the parser treats theme.
+- **Modifier Symbols**:
+These symbols augment existing symbols and change how the parser treats them.
 
 
 ## Non-Terminal Symbols
@@ -45,40 +49,32 @@ parse errors.
 
 ### Inline Production
 
-###### RegEx Syntax
-```regex
-\((<body>.+)(|.+)*\)
-```
+- `( <production_bodies> )` : defines an anonymous production with its own distinct set of [production bodies](./api.production_body.index.md). 
+Multiple production bodies can be defined with the parenthesis by sperating each body with a `|` character. 
 
-Declares an anonymous production with it's own distinct set 
-of bodies. 
+Each body can contain defined using the exact same syntax is as used within normal productions bodies defined in a named production, 
+including a inline productions within inline productions:
+
 
 
 ### List Production
 
-- One or more: 
-###### RegEx Syntax
-```regex
-(?<symbol>.*)\(\+\)
-```
-- Zero or more: 
-###### RegEx Syntax
-```regex
-(?<symbol>.*)\(\*\)
-``` 
-- One or more with seperator: 
-###### RegEx Syntax
-```regex
-(?<symbol>.*)\(\+(?<symbol>.*)\)
-```
-- Zero or more with seperator: 
-###### RegEx Syntax
-```regex
-(?<symbol>.*)\(\*(?<symbol>.*)\)
-```
+Indicates that the proceeding symbol may be repeated a number of times. There are two main forms:
 
-Note the lack of space between `(` and `*`, or `(` and `+`. This is important; `<symbol> ( * )` will not
-be parsed as a list production, but `<symbol> (* )` or `<symbol> (*)` will.
+- `<symbol>(+)` : one or more repetitions of `<symbol>`
+
+- `<symbol>(*)` : zero or more repetitions of `<symbol>`
+
+A terminal symbol may also be specified to indicate that each repetition should be separated by
+the token defined by the terminal symbol.
+
+- `<symbol>(+<terminal-symbol>)`: one or more repetitions of `<symbol>` separated by `<terminal-symbol>` 
+
+- `<symbol>(*<terminal-symbol>)`: zero or more repetitions of `<symbol>` separated by `<terminal-symbol>` 
+
+
+Note the lack of space between `(` and `*`, or `(` and `+`. This is important; `<symbol>( * )` will not
+be parsed as a list production, but `<symbol>(* )` or `<symbol>(*)` will.
 
 ## Terminal Symbols
 
@@ -128,7 +124,7 @@ Hydrocarbon provides several generated symbols similar to character classes foun
 regextk:(?<productionSymbol>)
 ```
 
-*Production Token* symbols use a [production](./api.production.index.md) to serve as the basis for a token symbol. This allows complex tokens to be described using the same syntax as one would use for normal productions. The difference is a *production token* is atomic; that is whatever characters where recognized in the parsing of the production are returned as a single, irreducible token. Any reduce actions described in the production or it's sub-productions are ignored. 
+*Production Token* symbols use a [production](./api.production.index.md) to serve as the basis for a token symbol. This allows complex tokens to be described using the same syntax as one would use for normal productions. The difference is a *production token* is atomic; that is whatever characters where recognized in the parsing of the production are returned as a single, irreducible token. Any parse actions described in the production or it's sub-productions are ignored. 
 
 A common use case for such symbols are when defining comments that should be ignored: 
 ```
@@ -153,7 +149,7 @@ A common use case for such symbols are when defining comments that should be ign
 
 example:`g:id^primary_ident`
 
-An annotation can be applied to a symbol for referential use within reduce actions.
+An annotation can be applied to a symbol for referential use within parse actions.
 
 ### Non-Capture Symbol
 

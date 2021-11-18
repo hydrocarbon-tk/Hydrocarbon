@@ -1,48 +1,60 @@
 # [API](./api.index.md)::ASYTrip
 
-ASYTrip (pronounced Asy~trip) is the moniker givin to the automatic AST generation process provided by Hydrocarbon. It is
-a lazy conglomeration of *AST* and *Script*. Laziness aside, Hydrocarbon is not only able to create
-a custom byte parser for your grammar, it can also create a feature rich AST types in the target language
-of your choice. These types provide facilities for tree *traversal / visiting / walking*, *rendering / printing* code, 
-lazy evaluation, production specific parsing, stream and multithreaded parsing. 
+ASYTrip (pronounced azee~trip) is the moniker givin to the automatic AST generation process provided by Hydrocarbon. It is
+a lazy conglomeration of *AST* and *Script*. Laziness aside, ASYTrip provides a way of creating a rich cross-language AST
+code that supports iteration, transformation, serialization, lazy evaluation. 
 
-The AST generation is not *completely* automatic. By default, Hydrocarbon converts recognized terminal symbols
-into Tokens, and nothing else. Through reduce actions, your are able to specify ways in which these tokens
-can be combined and transformed into new types. The default language for reduce actions is JavaScript. ASyTrip
-uses a subset of the JavaScript syntax to allow you to define AST node types. Based on these definitions, ASyTrip 
-will find or infer suitable permutations and combinations of these node types to create appropriate 
-reduce actions transformations that will convert the recognized Token's into your AST description. These types
-will either inherited or have generated methods and properties that provide the mechanism necessary to traverse
-transform, and analyze the AST structure. 
+By default, Hydrocarbon converts recognized terminal symbols into Tokens, and nothing else. Parse actions may utilized to 
+define more useful behavior. The standard language with which parse actions defined is JavaScript. ASyTrip uses a strict 
+subset of  JavaScript syntax to define a abstraction for strictly typed AST node structures and transformation actions. This 
+abstraction is then used to generate concrete code for target languages. 
 
+## Parse Actions
 
-## Core Types
+Parse actions take on new meaning within the ASYTrip context. An ASYTrip parse action is a restricted set of JavaScript expressions coopted to produce
+a strictly typed AST. 
 
-### Structs
+ASYTrip will automatically determine what type a givin property field will be, based on the parse action definitions defined in each [production body](./api.production_body.index.md). By default,
+a production body resolves to a `Token` type, with the `Token` instance being comprised of the character that 
 
-An ASYTrip struct is the backbone of an AST. It defines the nodes that can be present within the tree. A struct 
-is defined using `{ ... }` brackets within a parse action. 
+# Core Types
 
-```
+## Struct
+
+An ASYTrip struct is the primary type of an ASYTrip defined AST. It declare specific nodes that can be present within a tree. A struct 
+is defined using `{ ... }` brackets within a [parse action](./api.parse_action.index.md). Within the those brackets, any number of property fields, of the form `<prop_name>:<prop_value>`,
+may be defined. 
+
+##### example
+
+```hcg
 /* A simple struct definition */ 
-f:r { { type: t_Sub, left:$1, right:$2 } }
+
+<> expr > expr^l \+ term^r f:r { { type: t_Add, l:$l, r:$r } }
+
 ```
 
-It uses a subset of the JavaScript **object literal** syntax. 
+> If you are more familiar with JSON or JavaScript, then you will recognize the Struct definition being the same as an [Object Literal](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Grammar_and_types#object_literals), with
+> the exceptions that keys may not be computed, prototypical inheritance has no meaning in the ASYTrip context, and values are restricted to the types defined within this document. 
 
-> If you are more familiar with JSON, then you may also consider a struct as an object of 
-> JSON key value pairs, with the additional option of specifying keys without quotes. 
+### Struct Type
 
+The property name `type` is a special field that determines the name of the property and any classes it belongs to ([see below for details](#StructType)). It
+or its shorthand must be specified in any struct definition. In the above example, ASYtrip will generate a code definition for an `Add` class, structure, or object,
+depending on the target language. That definition will contain the property fields `l` and `r`, initialized with whatever values `expr` and `term` resolve to. 
 
-#### Struct Type
 Every struct MUST be defined with a `type` key. The value of the key must be specified with a *type label* of the form `t_<identifier>`, such as
 `type: t_Term` or `type: t_If_Statement`. The *type label* serves as the name of the compiled struct type. Different struct definitions with matching *type labels* will be merged into one struct. A struct can only be defined with one *type label*. An error will be formed if  multiple type labels are defined on a single struct 
 ```
 f:r { { type: t_Sub, type: t_Add } } /* Causes an error */
 ```
 
+#### Type Shorthand
 
-#### Struct Class
+A shorthand form of type may be used
+
+
+### Struct Class
 The *type label* can be augmented with *class descriptors*, of the form `c_<identifier>`. They are combined with the type labels using the join operator `|`, as in `type: t_Term | c_Statement` or `type: t_If_Statement | c_Block`. Think of *Class descriptors* as tags that provide more information on the use and 
 classification of a particular struct type. A struct can be defined with multiple *class descriptors*:
 ```
@@ -63,6 +75,13 @@ the union of the class descriptors will define the class descriptor set used in 
 /* f:r { { type: t_Mult | c_Expression | c_Binary | c_Multiplicative_Operator } } */
 
 ```
+
+### Struct Properties
+
+Other than the `type` property a struct can contain any number of properties defined 
+
+
+
 
 They can be used in conjuction with the iteration system to filter iterated results, returning struct instances that
 match a givin *class descriptor*:

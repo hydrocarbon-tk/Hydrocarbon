@@ -17,11 +17,11 @@ Compiles a given grammar description into a compiled grammer repository (`*.hcg.
 
 ### [ASYTrip AST Compiler](./architecture.asytrip_compiler.index.md)
 
-ASYTrip is a cross language AST compiler that takes reduce actions written in ASYTrip syntax ( a strict subset of ECMAScript ) and converts them into AST construction functions that can target multiple language outputs.
+ASYTrip is a cross language AST compiler that takes parse actions written in ASYTrip syntax ( a strict subset of ECMAScript ) and converts them into AST construction functions that can target multiple language outputs.
 
 ### [JavaScript AST Compiler](./architecture.js_compiler.index.md)
 
-This simple module will convert JavaScript based reduce actions into completer functions.  
+This simple module will convert JavaScript based parse actions into completer functions.  
 
 ### [IR State Compiler](./architecture.ir_compiler.index.md)
 

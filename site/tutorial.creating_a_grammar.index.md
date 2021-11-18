@@ -116,7 +116,7 @@ production to apply the reduce function:
         |   num
 ```
 
-Note in the second production `|  num` we do not need to apply a reduce action, as Hydrocarbon will automatically pass the value of 
+Note in the second production `|  num` we do not need to apply a parse action, as Hydrocarbon will automatically pass the value of 
 number primitive when it completed the production `<> num > g:num^number f:r { parseInt(number + "") }`  
 
 > By default, Hydrocarbon will return the last symbol within a production body when it recognizes that body.
