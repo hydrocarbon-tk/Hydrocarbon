@@ -1,0 +1,18 @@
+# Copyright (C) 2021 Anthony Weathersby - The Hydrocarbon Parser Compiler
+# see /source/typescript/hydrocarbon.ts for full copyright and warranty 
+# disclaimer notice.
+
+# version 6.0
+
+<> format_meta_symbol > 
+
+    space | new_line | increase_indent | decrease_indent
+
+<> space > \_sp                 f:r{ t_Space, c_Meta, c_Format, position: i16(0) }
+
+<> new_line > \_nl              f:r{ t_NewLine, c_Meta, c_Format, position: i16(0) }
+
+<> increase_indent > \_ii       f:r{ t_IncreaseIndent, c_Meta, c_Format, position: i16(0) }
+
+<> decrease_indent > \_di       f:r{ t_DecreaseIndent, c_Meta, c_Format, position: i16(0) }
+
