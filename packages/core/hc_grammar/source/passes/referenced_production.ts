@@ -93,9 +93,9 @@ export function integrateReferencedProductions(grammar: GrammarObject, errors) {
                             production_body
                                 .tok.createError(
                                     `${fn.tok.createError(
-                                        "Cannot set reduce action ", fn.loc + ""
+                                        "Cannot set parse action ", fn.loc + ""
                                     ).message}\n on [ ${production.name}[${index.join(">") || 0}] ]`
-                                ).message + "\n Reduce action has already been set"
+                                ).message + "\n parse action has already been set"
                         )
                     );
 

@@ -12,7 +12,7 @@ import {
 import {
     addBodyToProduction,
     addSymbolToBody,
-    Body_Has_Reduce_Action,
+    Body_Has_Parse_Action,
     createProduction,
     createProductionBody,
     createProductionSymbol,
@@ -64,10 +64,10 @@ export function processListSymbol(sym: any, body: HCG3ProductionBody, production
 
     if (Sym_Is_List_Production(sym)) {
 
-        if (body.sym.length == 1 && !Body_Has_Reduce_Action(body) && production.bodies.length == 1) {
-            // If the body is simple ( P => a(+) ) and contains no reduce actions
+        if (body.sym.length == 1 && !Body_Has_Parse_Action(body) && production.bodies.length == 1) {
+            // If the body is simple ( P => a(+) ) and contains no parse actions
             // then unroll the body into two different bodies with synthesized 
-            // reduce actions that wrap the parsed tokens into an array
+            // parse actions that wrap the parsed tokens into an array
             // ( P => a ) and ( P => P a )
             const inner_symbol = sym.val,
                 terminal_symbol = sym.terminal_symbol,

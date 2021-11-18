@@ -100,7 +100,7 @@ export const enum ParseActionType {
  * This is the core class that drives the recognizer system.
  *
  * It yields Tokens and reduce information that can be consumed
- * by completers to apply reduce actions on the token values
+ * by completers to apply parse actions on the token values
  */
 export class StateIterator {
 

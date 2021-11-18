@@ -50,6 +50,9 @@ export enum ASYTRIPType {
     EQUALS,
     VECTOR_PUSH,
     EXPRESSIONS,
+    /**
+     * An assignment expression to a struct property.
+     */
     STRUCT_ASSIGN,
     STRUCT_PROP_REF,
     CONVERT_TYPE,
@@ -58,6 +61,10 @@ export enum ASYTRIPType {
     OR,
     STRUCT_CLASS,
     STRUCT_TYPE,
+    /**
+     * A set of [`c_<id>` class] and/or [`t_<id>` type] values to be applied to 
+     * a struct.
+     */
     STRUCT_CLASSIFICATION
 }
 export interface ASYTRIPStruct {
@@ -70,12 +77,11 @@ export interface ASYTRIPStruct {
 export interface ASYTRIPProperty {
     name: string;
     types: ASYTRIPTypeObj[ASYTRIPType][];
-    target_id: number;
     node: (
         JSExpressionClass |
         JSIdentifierReference |
         JSNumericLiteral |
-        JSStringLiteral);
+        JSStringLiteral) | null;
 
     source: Token;
 }

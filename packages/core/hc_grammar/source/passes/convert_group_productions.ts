@@ -11,7 +11,7 @@ import {
 } from "@hctoolkit/common";
 import {
     addBodyToProduction,
-    Body_Has_Reduce_Action,
+    Body_Has_Parse_Action,
     copyBody,
     createProduction,
     createProductionSymbol,
@@ -64,9 +64,9 @@ export function processGroupSymbol(sym: any, body: HCG3ProductionBody, meta: any
 
             const new_body: HCG3ProductionBody = (i == sym.val.length - 1) ? body : copyBody(body);
 
-            if (Body_Has_Reduce_Action(group_body)) {
+            if (Body_Has_Parse_Action(group_body)) {
 
-                // Complex grouped productions (those with reduce actions) will need to be
+                // Complex grouped productions (those with parse actions) will need to be
                 // turned into new productions
                 const
                     new_production_name = production.name + "_group_" + index + "_" + i + "_";
@@ -89,7 +89,7 @@ export function processGroupSymbol(sym: any, body: HCG3ProductionBody, meta: any
                     replaceBodySymbol(new_body, meta.index, new_production_symbol);
 
             } else {
-                // Simple grouped productions bodies with no reduce actions can rolled into the original
+                // Simple grouped productions bodies with no parse actions can rolled into the original
                 // production as new bodies. Script refs will need to updated to point to the correct
                 // symbol indexes after this process is completed. 
                 if (new_body == body) {

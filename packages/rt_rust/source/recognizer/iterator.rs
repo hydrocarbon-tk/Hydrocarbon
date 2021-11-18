@@ -174,7 +174,7 @@ impl<T: 'static + ByteReader + Send> ParseIterator<T> for ThreadedIterator<T> {
 * operators.
 *
 * It yields parse Actions and reduce information that can be consumed
-* by completers to apply reduce actions on the token values
+* by completers to apply parse actions on the token values
 */
 pub struct StateIterator<'a, T: ByteReader> {
     stack: KernelStack,

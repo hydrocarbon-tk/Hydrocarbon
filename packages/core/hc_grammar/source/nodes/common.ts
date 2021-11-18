@@ -85,7 +85,7 @@ export function getProductionByName(
 
     return null;
 }
-export function Body_Has_Reduce_Action(body: HCG3ProductionBody) {
+export function Body_Has_Parse_Action(body: HCG3ProductionBody) {
     return body.reduce_function != null;
 }
 export function copyBody(body: HCG3ProductionBody) {
@@ -112,7 +112,7 @@ export function getRealSymbolCount(symbols: (HCG3Symbol)[]) {
 
 export function offsetReduceFunctionSymRefs(body: HCG3ProductionBody, offset_start: number, offset_count: number) {
 
-    if (offset_count > 0 && Body_Has_Reduce_Action(body)) {
+    if (offset_count > 0 && Body_Has_Parse_Action(body)) {
 
         if (body.reduce_function.type != "env-function-reference") {
             body.reduce_function.txt = body.reduce_function.txt.replace(/\$(\d+)/g, (m, p1) => {
@@ -132,7 +132,7 @@ export function removeBodySymbol(
     sym_ids?: WeakMap<SymbolNode, bigint>
 ) {
     // Extend index values after the first body 
-    if (Body_Has_Reduce_Action(body)) {
+    if (Body_Has_Parse_Action(body)) {
 
         if (
             body.reduce_function.type != "env-function-reference"

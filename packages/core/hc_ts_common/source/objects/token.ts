@@ -391,7 +391,7 @@ export function blame(
         w_size = window_size,
         w_start = Math.max(0, Math.min(pointer_pos - w_size / 2, max_length)),
         w_end = Math.max(0, Math.min(pointer_pos + w_size / 2, max_length)),
-        w_pointer_pos = Math.max(0, Math.min(pointer_pos, max_length)) - w_start - (line_start == 0 ? 1 : 0),
+        w_pointer_pos = Math.max(0, Math.min(pointer_pos, max_length + 1)) - w_start - (line_start == 0 ? 1 : 0),
 
 
         //append the difference of line lengths to the end of the lines as space characters;
@@ -410,7 +410,7 @@ export function blame(
         //* brdr */`\n${error_border}`,
         /* prev */`\n\n${l - 1 > -1 ? line_number(l - 1) + trunc + prev_line_o + (prev_line_o.length < prev_line.length ? "..." : "") : ""}`,
         /* curr */`${true ? line_number(l) + trunc + curr_line_o + (curr_line_o.length < curr_line.length ? "..." : "") : ""}`,
-        /* arrw */`***${(" ").repeat(Math.max(0, w_pointer_pos + trunc.length + line_number(l + 1).length - 4)) + arrow.repeat(token_length)}`,
+        /* arrw */`*** ${(" ").repeat(Math.max(0, w_pointer_pos + trunc.length + line_number(l + 1).length - 4)) + arrow.repeat(token_length)}`,
         /* next */`${next_start < str.length ? line_number(l + 1) + trunc + next_line_o + (next_line_o.length < next_line.length ? "..." : "") : ""}\n`,
         ///* brdr */`${error_border}`
     ]
