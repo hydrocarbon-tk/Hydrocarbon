@@ -1,0 +1,11 @@
+{
+    "extends": "../tsconfig.json",
+    "include": [
+        "./source/**/*"
+    ],
+    "compilerOptions": {
+        "outDir": "./build/",
+        "rootDir": "./source/",
+        "target": "ES2020"
+    }
+}

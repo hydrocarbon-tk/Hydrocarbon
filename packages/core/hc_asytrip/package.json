@@ -1,0 +1,44 @@
+{
+    "name": "@hctoolkit/asytrip",
+    "description": "Hydrocarbon Toolkit AST Compiler",
+    "version": "0.0.1",
+    "bin": {
+        "hc-ast": "./bin/index.sh"
+    },
+    "type": "module",
+    "scripts": {},
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/CandleLibrary/Hydrocarbon.git"
+    },
+    "files": [
+        "/build/",
+        "/README.md",
+        "/LICENSE",
+        "/bin/cli.js"
+    ],
+    "keywords": [
+        "Compiler",
+        "Parser"
+    ],
+    "author": "Anthony Weathersby",
+    "license": "GPL-3.0+",
+    "bugs": {
+        "url": "https://github.com/CandleLibrary/Hydrocarbon/issues"
+    },
+    "homepage": "https://github.com/CandleLibrary/Hydrocarbon#readme",
+    "dependencies": {
+        "@candlelib/log": "*",
+        "@candlelib/paraffin": "*",
+        "@candlelib/uri": "*",
+        "@hctoolkit/common": "*",
+        "@hctoolkit/grammar": "*"
+    },
+    "devDependencies": {
+        "@types/node": "^16.4.13",
+        "@candlelib/cure": "*"
+    },
+    "engine": {
+        "node": ">=13.7.0"
+    }
+}

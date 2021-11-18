@@ -1,0 +1,43 @@
+@IGNORE g:sp
+@EXPORT test as t
+@EXPORT start as start
+
+<> start > test(+)^c                f:r { { type: t_Head, prop_string: "", child:$c  } }
+
+<> test > 
+
+     \f: tk:js_data_block           f:r { { type: t_FN | c_Sym, val: str($2) } }
+
+    | g:nums^v3 g:nums^v2 g:nums^v1
+                        
+                                    f:r { 
+                                        { 
+                                            type: t_IntVector| c_Sym, 
+                                            v1: f64($v1),
+                                            v2: f64($v2),
+                                            v3: f64($v3)
+                                        } 
+                                    }
+
+    | tk:sym                       f:r { { type: t_Test | c_Sym, val: $1 + "" } }
+
+<> sym > g:id
+    | sym g:id
+    | sym g:num
+
+
+<> js_data > js_primitive
+| js_data_block
+| js_data js_primitive                                          
+| js_data js_data_block                                        
+| $eof
+
+   
+<> js_primitive > g:id 
+    | g:num 
+    | g:sp 
+    | g:tab 
+    | g:nl 
+    | g:sym 
+
+<> js_data_block > \{ js_data \}   

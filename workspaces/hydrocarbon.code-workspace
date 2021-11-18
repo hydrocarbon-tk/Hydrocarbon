@@ -1,0 +1,71 @@
+{
+	"folders": [
+		{
+			"name": "Repo",
+			"path": "../",
+			"uri": "git@github.com/CandleLibrary/hydrocarbon"
+		},
+		{
+			"name": "Packages",
+			"path": "../packages/",
+		},
+		{
+			"name": "Core - Grammar",
+			"path": "../packages/core/hc_grammar"
+		},
+		{
+			"name": "Core - Asytrip",
+			"path": "../packages/core/hc_asytrip"
+		},
+		{
+			"name": "Core - Tools",
+			"path": "../packages/core/hc_tools"
+		},
+		{
+			"name": "Core - Main",
+			"path": "../packages/core/hc_root"
+		},
+		{
+			"name": "Core - Bytecode",
+			"path": "../packages/core/hc_bytecode"
+		},
+		{
+			"name": "Core - Common",
+			"path": "../packages/core/hc_ts_common"
+		},
+		{
+			"name": "Runtime - Typescript",
+			"path": "../packages/rt_typescript"
+		},
+		{
+			"name": "Runtime - Rust",
+			"path": "../packages/rt_rust"
+		},
+		{
+			"name": "Runtime - C++",
+			"path": "../packages/rt_cpp"
+		},
+		{
+			"name": "Runtime - Go",
+			"path": "../packages/rt_go"
+		}
+	],
+	"settings": {
+		"testing.autoRun.mode": "rerun",
+		"search.exclude": {
+			"**/node_modules": true,
+			"**/bower_components": true,
+			"**/*.code-search": true,
+			"**/build": true,
+			"**/target": true
+		},
+		"cSpell.words": [
+			"ASYTRIP",
+			"candlelib",
+			"hctoolkit",
+			"Redeclared",
+			"syms",
+			"vals"
+		]
+	}
+}

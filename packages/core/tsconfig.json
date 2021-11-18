@@ -1,0 +1,48 @@
+{
+    "compileOnSave": true,
+    "compilerOptions": {
+        "types": [
+            "@types/node"
+        ],
+        "allowJs": true,
+        "alwaysStrict": true,
+        "target": "ES2020",
+        "lib": [
+            "ES2020",
+            "DOM"
+        ],
+        "skipLibCheck": true,
+        "skipDefaultLibCheck": true,
+        "allowSyntheticDefaultImports": false,
+        "disableReferencedProjectLoad": true,
+        "forceConsistentCasingInFileNames": true,
+        "strict": true,
+        "module": "ESNext",
+        "declaration": true,
+        "moduleResolution": "node",
+        "sourceMap": false,
+        "paths": {
+            "@hctoolkit/root": [
+                "./hc_root/"
+            ],
+            "@hctoolkit/bytecode": [
+                "./hc_bytecode/"
+            ],
+            "@hctoolkit/grammar": [
+                "./hc_grammar/"
+            ],
+            "@hctoolkit/tools": [
+                "./hc_tools/"
+            ],
+            "@hctoolkit/common": [
+                "./hc_common/"
+            ],
+            "@hctoolkit/asytrip": [
+                "./hc_asytrip/"
+            ],
+            "@hctoolkit/runtime": [
+                "../rt_typescript/"
+            ]
+        }
+    }
+}

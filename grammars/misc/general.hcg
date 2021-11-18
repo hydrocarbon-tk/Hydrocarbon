@@ -1,0 +1,13 @@
+@IGNORE g:sp 
+
+
+/*sd*/
+//
+<> lazy start > t:test
+
+<> A > ( A | B \avocados )(*) t:grapes
+    | g:id? g:num \r f:r{ $1 + $2 } 
+
+<> B > ( ( t:tomatoes | t:watermellon )(+\; )  )(+)
+  # | g:id C g:id 
+

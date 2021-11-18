@@ -1,0 +1,45 @@
+{
+    "name": "@hctoolkit/bytecode",
+    "version": "1.0.0",
+    "bin": {
+        "hcbyte": "./bin/index.sh"
+    },
+    "type": "module",
+    "scripts": {
+        "build": "tsc",
+        "test": "NODE_OPTIONS=--experimental-specifier-resolution=node candle.cure --reporter ci ./tests/"
+    },
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/CandleLibrary/Hydrocarbon.git"
+    },
+    "files": [
+        "/build/",
+        "/README.md",
+        "/LICENSE",
+        "/bin/cli.js"
+    ],
+    "keywords": [
+        "Compiler",
+        "Parser"
+    ],
+    "author": "Anthony Weathersby",
+    "license": "GPL-3.0+",
+    "bugs": {
+        "url": "https://github.com/CandleLibrary/Hydrocarbon/issues"
+    },
+    "homepage": "https://github.com/CandleLibrary/Hydrocarbon#readme",
+    "dependencies": {
+        "@candlelib/log": "*",
+        "@candlelib/paraffin": "*",
+        "@candlelib/uri": "*",
+        "@hctoolkit/common": "*"
+    },
+    "devDependencies": {
+        "@types/node": "^16.4.13",
+        "@candlelib/cure": "*"
+    },
+    "engine": {
+        "node": ">=13.7.0"
+    }
+}

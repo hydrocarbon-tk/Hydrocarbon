@@ -1,0 +1,298 @@
+{
+	"$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+	"name": "Hydrocarbon Grammar",
+	"scopeName": "source.hydrocarbon",
+	"patterns": [
+		{
+			"include": "#comments"
+		},
+		{
+			"include": "#importPreamble"
+		},
+		{
+			"include": "#exportPreamble"
+		},
+		{
+			"include": "#preamble"
+		},
+		{
+			"include": "#production"
+		}
+	],
+	"repository": {
+		"importPreamble": {
+			"match": "(\\@IMPORT)\\s+([\\w\\-_\\/\\.\\@]+)\\s+(AS|as)\\s+(\\w+)",
+			"captures": {
+				"1": {
+					"name": "keyword"
+				},
+				"2": {
+					"name": "string"
+				},
+				"3": {
+					"name": "keyword"
+				},
+				"4": {
+					"name": "variable.other"
+				}
+			}
+		},
+		"exportPreamble": {
+			"match": "(\\@EXPORT)\\s+([\\w\\-_\\/\\.\\@]+)\\s+(AS|as)\\s+(\\w+)",
+			"captures": {
+				"1": {
+					"name": "keyword"
+				},
+				"2": {
+					"name": "variable.other"
+				},
+				"3": {
+					"name": "keyword"
+				},
+				"4": {
+					"name": "variable.other"
+				}
+			}
+		},
+		"preamble": {
+			"begin": "(\\@\\w+)",
+			"end": "$\\n?",
+			"name": "keyword.other",
+			"patterns": [
+				{
+					"include": "#symbols"
+				}
+			]
+		},
+		"functionReference": {
+			"name": "storage.type",
+			"match": "(f\\:)\\s*\\w*\\s*\\^\\w+\\s*"
+		},
+		"function": {
+			"begin": "(f\\:)\\s*\\w*\\s*{",
+			"end": "}",
+			"captures": {
+				"0": {
+					"name": "storage.type"
+				}
+			},
+			"patterns": [
+				{
+					"name": "meta.definition.property",
+					"match": "\\$\\w+|\\$\\d+"
+				},
+				{
+					"include": "source.js"
+				}
+			]
+		},
+		"symbols": {
+			"name": "keyword.operator",
+			"patterns": [
+				{
+					"include": "#comments"
+				},
+				{
+					"include": "#terminal-escaped-symbol"
+				},
+				{
+					"include": "#production-token"
+				},
+				{
+					"include": "#general-token"
+				},
+				{
+					"include": "#exclusive-token"
+				},
+				{
+					"include": "#terminal-generated"
+				}
+			]
+		},
+		"exclusive-token": {
+			"match": "(((t\\:)[a-zA-Z\\_\\-]*)|(\\$eof))",
+			"name": "keyword.operator"
+		},
+		"terminal-generated": {
+			"match": "((g\\:)(syms|sym|nums|num|ids|id|sp|nl|tabs|tab))",
+			"name": "keyword.operator"
+		},
+		"production-token": {
+			"match": "tk\\:(\\w+)(\\::\\w+)?",
+			"captures": {
+				"0": {
+					"name": "keyword.operator"
+				}
+			}
+		},
+		"general-token": {
+			"match": "[^\\θ\\\\\\w\\↦\\|\\[\\]\\#\\?\\→\\s][^\\\\\\(\\↦\\|\\)\\(\\[\\]\\#\\?\\→\\s]*",
+			"name": "variable.other"
+		},
+		"terminal-escaped-symbol": {
+			"match": "\\\\[^\\s]+",
+			"name": "variable.other"
+		},
+		"nonterm": {
+			"name": "meta.function-call",
+			"match": "\\w+"
+		},
+		"importTerm": {
+			"match": "(\\w+::)(\\w+)",
+			"captures": {
+				"0": {
+					"name": "meta.function-call"
+				}
+			}
+		},
+		"meta": {
+			"patterns": [
+				{
+					"include": "#symbol-modifiers"
+				},
+				{
+					"include": "#symbol-actions"
+				}
+			]
+		},
+		"symbol-actions": {
+			"name": "keyword.operator",
+			"begin": "(\\()\\s*(ERR|IGN|EXC|RED|RES)",
+			"end": "\\)",
+			"patterns": [
+				{
+					"include": "#symbols"
+				}
+			]
+		},
+		"symbol-modifiers": {
+			"name": "keyword.operator",
+			"match": "\\([\\+\\*]([^\\)]*)\\)|\\?|(\\^\\w+)",
+			"captures": {
+				"1": {
+					"name": "variable.other"
+				},
+				"2": {
+					"name": "meta.definition.property"
+				}
+			}
+		},
+		"groupedBody": {
+			"name": "meta.function",
+			"begin": "\\(",
+			"end": "\\)",
+			"patterns": [
+				{
+					"include": "#productionBodyContents"
+				},
+				{
+					"include": "#inlineProductionBody"
+				}
+			]
+		},
+		"production": {
+			"begin": "\\s*(<>|\\+>)\\s*(lazy\\s)?\\s*(\\w+)\\s*(\\^\\w+)?\\s*(?=>)",
+			"end": "^\\s*(?=(<>|\\+>))",
+			"beginCaptures": {
+				"0": {
+					"name": "meta.definition.function"
+				},
+				"2": {
+					"name": "storage.type"
+				},
+				"4": {
+					"name": "meta.definition.property"
+				}
+			},
+			"patterns": [
+				{
+					"include": "#productionBody"
+				}
+			]
+		},
+		"productionBody": {
+			"name": "meta.function",
+			"begin": "\\||\\>",
+			"end": "^\\s*(?=(<>|\\|))",
+			"beginCaptures": {
+				"0": {
+					"name": "meta.definition.function"
+				}
+			},
+			"patterns": [
+				{
+					"include": "#productionBodyContents"
+				}
+			]
+		},
+		"inlineProductionBody": {
+			"name": "meta.function",
+			"begin": "\\|",
+			"end": "\\s*(?=\\)|\\|)",
+			"beginCaptures": {
+				"0": {
+					"name": "meta.definition.function"
+				}
+			},
+			"patterns": [
+				{
+					"include": "#productionBodyContents"
+				},
+				{
+					"include": "#inlineProductionBody"
+				}
+			]
+		},
+		"productionBodyContents": {
+			"patterns": [
+				{
+					"include": "#comments"
+				},
+				{
+					"include": "#meta"
+				},
+				{
+					"include": "#groupedBody"
+				},
+				{
+					"include": "#terminal-escaped-symbol"
+				},
+				{
+					"include": "#symbols"
+				},
+				{
+					"include": "#function"
+				},
+				{
+					"include": "#functionReference"
+				},
+				{
+					"include": "#importTerm"
+				},
+				{
+					"include": "#term"
+				},
+				{
+					"include": "#nonterm"
+				}
+			]
+		},
+		"comments": {
+			"patterns": [
+				{
+					"name": "comment.line",
+					"match": "^\\s*\\#.*"
+				},
+				{
+					"name": "comment.line",
+					"match": "//[^\\n]*"
+				},
+				{
+					"name": "comment.block",
+					"begin": "/\\*",
+					"end": "\\*/"
+				}
+			]
+		}
+	}
+}

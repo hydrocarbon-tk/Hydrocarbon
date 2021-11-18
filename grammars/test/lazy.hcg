@@ -1,0 +1,8 @@
+@IGNORE g:sp
+
+<> start > E_lazy                f:r { { type: t_ROOT | c_MAIN, root:$1, scoop:2 } }
+
+<> E_lazy > \{ B(*) \}    f:r { { type: t_ROOT | c_MAIN, root:$1, scoop:2 } }
+
+<> B >  ( t:one | t:two | t:three )
+                            f:r { { type: t_B, val: $1} }

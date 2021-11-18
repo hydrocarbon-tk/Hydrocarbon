@@ -1,0 +1,48 @@
+# Copyright (C) 2021 Anthony Weathersby - The Hydrocarbon Parser Compiler
+# see /source/typescript/hydrocarbon.ts for full copyright and warranty 
+# disclaimer notice.
+
+# version 6.0
+
+@IMPORT ./production_bodies.hcg as pb
+
+@IMPORT ./functions.hcg as fn
+
+@IMPORT ./symbols.hcg as sym
+
+@IMPORT ./comments.hcg as cm
+
+@IMPORT ./ir_state.hcg as ir
+
+@IGNORE g:sp g:nl tk:cm::comment
+
+########################################################################################################################
+######################################  PRODUCTIONS
+########################################################################################################################
+
+<>  productions > production                                          
+                                                            f:r {  { type:t_Productions, functions:[], productions:[$1], ir:[]  } }
+    | fn::out_of_band_function                                     
+                                                            f:r {  { type:t_Productions, functions:[$1], productions:[], ir:[]  } }
+    | ir::grammar_injection
+                                                            f:r {  { type:t_Productions, functions:[], productions:[], ir:[$1]  } }
+    | productions production                                  
+                                                            f:r {  $1.productions + $2, $1 }
+    | productions fn::out_of_band_function                         
+                                                            f:r {  $1.functions + $2, $1 }
+    | productions ir::grammar_injection
+                                                            f:r {  $1.ir + $2, $1 }
+
+ 
+<> production > \<> t:lazy?^l \! ?^p sym::annotated_production_symbol^s \>  pb::production_bodies^b
+                                                                        
+                                                            f:r { {
+                                                                type:t_Production | c_Production, priority: $p ? 1000 : 0, symbol:$s, bodies:$b, id:-1, LAZY:bool($l), entry_name:""
+                                                            } }
+
+    | \+> sym::annotated_production_symbol  \>  pb::production_bodies
+
+                                                            f:r { {
+                                                                type:t_ProductionMerged | c_Production, symbol:$2, bodies:$4, id:-1
+                                                            } }
+        

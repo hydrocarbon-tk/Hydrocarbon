@@ -25,7 +25,6 @@ build/Release
 
 # Dependency directories
 node_modules/
-jspm_packages/
 
 # Optional npm cache directory
 .npm
@@ -52,7 +51,7 @@ jspm_packages/
 .serverless
 
 #Build directory
-/build/
+*build/
 
 # Temporary test files
 test/**/*temp*/*
@@ -69,8 +68,9 @@ test/**/*temp*/*
 rust/
 
 # temp folder
-./temp
+temp/
 
-# debug folders
+# target folders
 **/target/debug
 **/debug
+**/target/

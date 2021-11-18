@@ -1,0 +1,45 @@
+{
+    "name": "@hctoolkit/runtime",
+    "description": "Hydrocarbon: Parser Runtime",
+    "version": "1.0.0",
+    "type": "module",
+    "types": "./build",
+    "library": "./build",
+    "main": "./build/index.js",
+    "scripts": {
+        "test": "candle.cure ./test/*"
+    },
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/CandleLibrary/Hydrocarbon.git"
+    },
+    "files": [
+        "/build/",
+        "/README.md",
+        "/LICENSE"
+    ],
+    "keywords": [
+        "Compiler",
+        "Parser"
+    ],
+    "author": "Anthony Weathersby",
+    "license": "GPL-3.0+",
+    "bugs": {
+        "url": "https://github.com/CandleLibrary/Hydrocarbon/issues"
+    },
+    "homepage": "https://github.com/CandleLibrary/Hydrocarbon#readme",
+    "dependencies": {
+        "@candlelib/log": "*",
+        "@candlelib/paraffin": "*",
+        "@candlelib/uri": "*",
+        "@candlelib/hydrocarbon": "*",
+        "@hctoolkit/common": "*"
+    },
+    "devDependencies": {
+        "@candlelib/cure": "*",
+        "@types/node": "^16.4.13"
+    },
+    "engine": {
+        "node": ">=13.7.0"
+    }
+}

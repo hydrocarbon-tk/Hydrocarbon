@@ -1,0 +1,156 @@
+# Ruminate Query Language
+
+@IGNORE g:sp g:nl
+
+# Special Search / Filter Types
+
+f:tagnode       { { node_type : t_TAG, id:$2, val:$3,    order:$4 } }
+f:creatednode   { { node_type : t_CREATED,     val:$2,    order: $3 } }
+f:modifiednode  { { node_type : t_MODIFIED,    val:$2,    order: $3 } }
+f:sizenode      { { node_type : t_SIZE,        val:$2,    order: $3 } }
+
+f:andnode       { { node_type : t_AND,  left:$1,   right:$3  } }
+f:ornode        { { node_type : t_OR,  left:$1,   right:$3 } }
+f:notnode       { { node_type : t_NOT,  left:$2   } } 
+f:matchnode     { { node_type : t_MATCH, value:$1   } } 
+
+<> RNQL > start
+
+<> start > query_body
+
+<> query_body > [ container_clause? filter_clause? sort_clause? ]       f:r { { type : t_QueryBody, container:$1, filter:$2, sort:$3 } }
+
+## Container Clause
+
+<> container_clause >  \/ ? [ container_identifier(*) identifier? ]     f:r { { type : t_ContainerClause, path:$2, container:$3 } }
+
+<> container_identifier > identifier \/                                 f:r { $1 }
+
+## Filter Clause ############################################################################################
+
+<> filter_clause > 
+    ( \? :? | t:f :? | t:filter :? | t:Filter | t:FILTER :? )  
+        and_expression                                                 f:r { $2 }      
+
+<> and_expression > or_expression
+
+    | or_expression \&& and_expression                                   
+                                                                        f:r { { type : t_AND,  left:$1,   right:$3  } }
+    | or_expression t:AND and_expression                                 
+                                                                        f:r { { type : t_AND,  left:$1,   right:$3  } }
+    | or_expression t:And and_expression                                 
+                                                                        f:r { { type : t_AND,  left:$1,   right:$3  } }
+    | or_expression t:and and_expression                                 
+                                                                        f:r { { type : t_AND,  left:$1,   right:$3  } }
+
+<> or_expression > not_expression
+
+    | not_expression \|| or_expression                                   
+                                                                        f:r { { type : t_OR,  left:$1,   right:$3 } }
+    | not_expression t:OR or_expression                                  
+                                                                        f:r { { type : t_OR,  left:$1,   right:$3 } }
+    | not_expression t:Or or_expression                                  
+                                                                        f:r { { type : t_OR,  left:$1,   right:$3 } }
+    | not_expression t:or or_expression                                  
+                                                                        f:r { { type : t_OR,  left:$1,   right:$3 } }
+
+<> not_expression > wrapped_expression
+
+    | t:NOT wrapped_expression                                           
+                                                                        f:r { { type : t_NOT,  left:$2   } } 
+    | t:Not wrapped_expression                                           
+                                                                        f:r { { type : t_NOT,  left:$2   } } 
+    | t:not wrapped_expression                                           
+                                                                        f:r { { type : t_NOT,  left:$2   } } 
+    | \!   wrapped_expression                                           
+                                                                        f:r { { type : t_NOT,  left:$2   } } 
+
+<> wrapped_expression > \( statement \)                                 
+                                                                        f:r {$2}
+    | sentence                                                          
+                                                                        f:r { { type : t_MATCH_SENTENCE, value:$1   } }
+    | identifier                                                        
+                                                                        f:r { { type : t_MATCH, value:$1   } }
+    | statement 
+
+## Sort Clause ############################################################################################
+
+<> sort_clause > 
+    ( \| | t:s \: ? | t:sort \: ? | t:SORT \: ? | t:Sort \: ? ) statement(*\, )  
+
+<> statement > created_statement
+    | modified_statement
+    | size_statement
+    | tag_statement
+
+<> created_statement > 
+
+    (t:created | t:CREATED) comparison_expression? order?              
+                                                                        f:r { { type : t_CREATED,     val:$2,    order: $3 } }
+
+<> modified_statement > 
+
+    (t:modified | t:MODIFIED) comparison_expression? order?            
+                                                                        f:r { { type : t_MODIFIED,    val:$2,    order: $3 } }
+
+<> size_statement > 
+
+    ( t:size | t:SIZE) comparison_expression order?                    
+                                                                        f:r { { type : t_SIZE,        val:$2,    order: $3 } }
+
+<> tag_statement >  
+
+    \# identifier comparison_expression? order?                     
+                                                                        f:r { { type : t_TAG, id:$2, val:$3,    order:$4 } }
+    
+<> comparison_expression > 
+
+      (t:is | t:equals | = | t:that t:is )  g:nums                        
+                                                                        f:r { { type: t_EQUALS_QUANTITATIVE, val : f64($2) } }
+    | (t:is | t:equals | = | t:that t:is )  identifier                   
+                                                                        f:r { { type: t_EQUALS_QUALITATIVE, val : $2 } }
+    | (t:is t:greater t:than? | > | t:greater) g:nums                    
+                                                                        f:r { { type: t_GREATERTHAN, val : f64($2) } }
+    | (t:is t:less t:than? | < | t:lesser) g:nums                       
+                                                                        f:r { { type: t_LESSTHAN, val : f64($2) } }
+    | t:is? range_expression                                            
+                                                                       
+    | t:is? date_expression                                             
+                                                                        
+
+<> range_expression > (t:from) g:num 
+    ( (t:to | - | t:TO | t:To | t:through ) g:num f:r { $2 })?          
+                                                                        f:r { { type: t_RANGE, left: f64($1), right: f64($2) } }
+    
+<> date_expression > (t:on | t:date) (string_data | g:num) 
+    ( (t:to | -| t:TO | t:To ) (string_data | g:num) f:r { $2 })?      
+                                                                        f:r { { type: t_DATE,  from: $2, to:$3 }}
+
+<>order > (t:DES | t:des | t:descending | t:DESCENDING | t:down | \> )     
+                                                                        f:r { { type:t_ORDER, val:-1 } }
+    | (t:ASC | t:asc | t:ascending | t:ASCENDING | t:up | \< )             
+                                                                        f:r { { type:t_ORDER, val:1 } }
+
+<> identifier > identifier_part(+)                                  
+                                                                        f:r { { type:t_IDENTIFIERS, ids:$1 } }
+
+<> identifier_part > wild_card                                              
+    | tk:string_data
+
+<> sentence > \" tk:string_data \"                                  
+                                                                        f:r {$2 + ""}
+    | \' tk:string_data \'                                          
+                                                                        f:r {$2 + ""}
+
+<> string_data > string_symbols string_data_val(*)                
+
+<> wild_card > \*
+
+<> string_data_val > string_symbols 
+    | escaped_value
+    | g:sp
+
+<> escaped_value > \\ string_symbols                                
+
+<> string_symbols > g:num | g:id
+

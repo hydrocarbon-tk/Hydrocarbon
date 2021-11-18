@@ -1,0 +1,18 @@
+# Copyright (C) 2021 Anthony Weathersby - The Hydrocarbon Parser Compiler
+# see /source/typescript/hydrocarbon.ts for full copyright and warranty 
+# disclaimer notice.
+
+# version 6.0
+
+<> comment > shell
+    | cpp_line
+    | cpp_block
+
+<> cpp_block > \/* ( g:nl | comment_primitive )(+) \*/
+
+<> cpp_line > \// comment_primitive(*)
+
+<> shell > \# comment_primitive(*)
+
+<> comment_primitive > g:sym | g:id | g:num | g:sp
+

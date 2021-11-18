@@ -1,0 +1,19 @@
+@IGNORE g:sp g:nl
+
+<> S > E
+
+<> E > P
+	| F
+	| I
+	| E ; E
+
+<> P >  \( E \)
+
+<> F >  \( L \) \=> \{ E \}
+
+<> L > E
+ | L , E 
+
+<> I > g:id 
+
+<> parameter > g:id

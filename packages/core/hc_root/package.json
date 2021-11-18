@@ -1,0 +1,47 @@
+{
+    "name": "hctoolkit",
+    "description": "Hydrocarbon: Core CommandLine Interface",
+    "version": "0.0.1",
+    "bin": {
+        "hc": "./bin/index.sh"
+    },
+    "type": "module",
+    "scripts": {},
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/CandleLibrary/Hydrocarbon.git"
+    },
+    "files": [
+        "/bin/",
+        "/build/",
+        "/README.md",
+        "/LICENSE",
+        "/bin/cli.js"
+    ],
+    "keywords": [
+        "Compiler",
+        "Parser"
+    ],
+    "author": "Anthony Weathersby",
+    "license": "GPL-3.0+",
+    "bugs": {
+        "url": "https://github.com/CandleLibrary/Hydrocarbon/issues"
+    },
+    "homepage": "https://github.com/CandleLibrary/Hydrocarbon#readme",
+    "dependencies": {
+        "@candlelib/log": "*",
+        "@candlelib/paraffin": "*",
+        "@candlelib/uri": "*",
+        "@hctoolkit/grammar": "*",
+        "@hctoolkit/bytecode": "*",
+        "@hctoolkit/asytrip": "*",
+        "@hctoolkit/tools": "*",
+        "@hctoolkit/common": "*"
+    },
+    "devDependencies": {
+        "@types/node": "^16.4.13"
+    },
+    "engine": {
+        "node": ">=13.7.0"
+    }
+}

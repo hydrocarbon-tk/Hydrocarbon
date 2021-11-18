@@ -1,94 +1,15 @@
 {
-    "name": "@candlelib/hydrocarbon",
-    "version": "0.14.7",
-    "description": "Parser Compiler",
-    "main": "./build/library/entry/runtime.js",
-    "types": "./build/types/entry/runtime.d.ts",
-    "bin": {
-        "hydrocarbon": "./index.js"
+    "name": "@hydrocarbon/workspace",
+    "version": "1.0.0",
+    "description": "Hydrocarbon Language Toolkit Workspace",
+    "workspaces": [
+        "packages/core/*",
+        "packages/rt_typescript",
+        "packages/vscode/*"
+    ],
+    "devDependencies": {
+        "bit-field": "*"
     },
     "type": "module",
-    "scripts": {
-        "prepublishOnly": "rm -rf ./build/library && rm -rf ./build/types && tsc & sleep 20",
-        "test": "candle.cure --threads 2 ./test/",
-        "test.hcg_grammar_parser": "candle.cure ./test/bootstrap/hcg3-bootstrap.spec.js",
-        "compile.skribble.debug": "./source/cli/cli.js compile --workers 10 --annotations --recognizer_type js --output_dir ./source/typescript/parsers/ ./source/grammars/misc/skribble.hcg",
-        "compile.grammar": "yarn test.hcg_grammar_parser &&  hydrocarbon compile --threads 5 --recognizer wasm --out_path ./source/typescript/grammar/hcg3_parser.ts ./source/grammars/hcg-3/hcg.hcg"
-    },
-    "repository": {
-        "type": "git",
-        "url": "git+https://github.com/CandleLibrary/Hydrocarbon.git"
-    },
-    "files": [
-        "/build/types",
-        "/build/library",
-        "/README.md",
-        "/CHANGELOG.md",
-        "/LICENSE",
-        "/index.js"
-    ],
-    "keywords": [
-        "Compiler",
-        "Parser"
-    ],
-    "author": "Anthony Weathersby",
-    "license": "GPL-3.0+",
-    "bugs": {
-        "url": "https://github.com/CandleLibrary/Hydrocarbon/issues"
-    },
-    "homepage": "https://github.com/CandleLibrary/Hydrocarbon#readme",
-    "dependencies": {
-        "@candlelib/conflagrate": "0.5.2",
-        "@candlelib/js": "0.5.18",
-        "@candlelib/log": "0.2.0",
-        "@candlelib/paraffin": "0.1.18",
-        "@candlelib/uri": "0.3.0",
-        "@candlelib/wind": "0.5.4"
-    },
-    "devDependencies": {
-        "@types/node": "^16.4.13"
-    },
-    "eslintConfig": {
-        "parserOptions": {
-            "sourceType": "module",
-            "ecmaVersion": 2020
-        },
-        "env": {
-            "es6": true,
-            "browser": true,
-            "node": true
-        },
-        "extends": "eslint:recommended",
-        "rules": {
-            "no-fallthrough": [
-                "error",
-                {
-                    "commentPattern": "[iI]ntentional( - [\\w\\W]*){0,1}"
-                }
-            ],
-            "semi-style": [
-                "error",
-                "last"
-            ],
-            "semi": [
-                "warn",
-                "always",
-                {
-                    "omitLastInOneLineBlock": true
-                }
-            ],
-            "prefer-const": "warn",
-            "padding-line-between-statements": [
-                "error",
-                {
-                    "blankLine": "always",
-                    "prev": "function",
-                    "next": "*"
-                }
-            ]
-        }
-    },
-    "engine": {
-        "node": ">=13.7.0"
-    }
+    "private": true
 }

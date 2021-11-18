@@ -1,0 +1,44 @@
+{
+    "name": "@hctoolkit/common",
+    "description": "Common Types, Objects, and Functions for Hydrocarbon Toolkit Modules",
+    "version": "0.0.1",
+    "bin": {},
+    "type": "module",
+    "types": "./build",
+    "library": "./build",
+    "main": "./build/index.js",
+    "scripts": {
+        "build": "tsc",
+        "test": "NODE_OPTIONS=--experimental-specifier-resolution=node candle.cure ./test/"
+    },
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/CandleLibrary/Hydrocarbon.git"
+    },
+    "files": [
+        "/build/",
+        "/README.md",
+        "/LICENSE"
+    ],
+    "keywords": [
+        "Compiler",
+        "Parser"
+    ],
+    "author": "Anthony Weathersby",
+    "license": "GPL-3.0+",
+    "bugs": {
+        "url": "https://github.com/CandleLibrary/Hydrocarbon/issues"
+    },
+    "homepage": "https://github.com/CandleLibrary/Hydrocarbon#readme",
+    "dependencies": {
+        "@candlelib/log": "*",
+        "@candlelib/uri": "*"
+    },
+    "devDependencies": {
+        "@types/node": "^16.4.13",
+        "@candlelib/cure": "*"
+    },
+    "engine": {
+        "node": ">=13.7.0"
+    }
+}
