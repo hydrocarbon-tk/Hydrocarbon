@@ -1,7 +1,7 @@
 {
     "name": "@hctoolkit/tools",
     "description": "Hydrocarbon Tools",
-    "version": "0.0.2",
+    "version": "0.0.3",
     "bin": {
         "hctools": "./bin/index.sh"
     },
