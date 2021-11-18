@@ -1,7 +1,7 @@
 ![Hydrocarbon](./site/resources/img/test.webp)
 
 
-The Hydrocarbon Toolkit is a set of Language compilers and tools that can 
+The Hydrocarbon Toolkit is a set of compilers and tools that can 
 used to generate parsers, AST implementations, and diagrams for domain
 specific languages and general purpose languages. 
 
