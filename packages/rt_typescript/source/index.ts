@@ -13,8 +13,14 @@ export {
     StructVectorType,
     Token,
     TokenType,
-    VectorType
+    VectorType,
+    normal_state_mask,
+    fail_state_mask,
+    goto_state_mask,
+    scanner_state_mask,
+    state_index_mask,
 } from '@hctoolkit/common';
+export { StateIterator } from "./recognizer/iterator";
 export * from "./completer/complete";
 export * from "./ast/ast_node";
 export * from "./ast/serialization";
