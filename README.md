@@ -2,12 +2,20 @@
 
 ![Hydrocarbon](./site/resources/img/test.webp)
 
-Hydrocarbon is a general purpose parser and AST generator 
-with output targets for Typescript, Rust, C++, WebAssembly, and Go.
-It provides utilities for describing both Grammars and language
-agnostic Abstract Syntax Tree, and runtime system for traversing
-and transforming AST nodes. For targets that support such features, it can
-generate multi-threaded, streaming parsers.
+
+The Hydrocarbon Toolkit is a set of Language compilers and tools that can 
+used to generate parsers, AST implementations, and diagrams for domain
+specific languages and general purpose languages. 
+
+It has build targets for several popular languages including TypeScript, Rust, 
+Go, and C++. 
+
+
+Existing projects enhanced by Hydrocarbon:
+
+- Candlelibrary JS
+- Candlelibrary TS
+- CandleLibrary CSS
 
 Hydrocarbon utilize a unique hybrid parser algorithm to deliver
 parsers capable of handling ambiguous grammars outside the 
@@ -57,19 +65,26 @@ $ hydrocarbon compile --type rust ./grammar.hcg
 
 ### CLI 
 
-
-
 ### Docs
 
 - [Getting Started: Writing A Grammar](./site/tutorial.creating_a_grammar.index.md)
 - [API](./site/api.index.md)
 - [Parser Architecture](./site/architecture.index.md)
 
+## Contributing
+
+This project is made with ❤️. The simplest way to give back is by starring and sharing it online.
+
+If the documentation is unclear or has a typo, please click on the page's Edit button (![pencil icon](./site/resources/img/github_pencil.svg)) and suggest a correction.
+
+If you would like to help fix an error or add more information, please check our guidelines. Pull requests are welcome!
+
+- [Contributing](./CONTRIBUTING.md)
+
+- [Code Of Conduct](./CODE_OF_CONDUCT.md)
+
 ## Licenses
 
-The core parser compiler is licensed under GPL-V3.
+The toolkit is licensed under [GPL-V3](LICENSE.md).
 
-Parser runtime modules and generated parser code are licensed under MIT licenses.
-
-## [Contributing](./CONTRIBUTING.md)
-## [Code Of Conduct](./CODE_OF_CONDUCT.md)
+Compiled parsers, AST code, and target language modules licensed under separate MIT licenses.
