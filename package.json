@@ -1,14 +1,27 @@
 {
-    "name": "@hydrocarbon/workspace",
+    "name": "@hctoolkit/workspace",
     "version": "1.0.0",
     "description": "Hydrocarbon Language Toolkit Workspace",
+    "scripts": {
+        "version": "./scripts/version.js"
+    },
     "workspaces": [
         "packages/core/*",
         "packages/rt_typescript",
         "packages/vscode/*"
     ],
+    "devPackages": [
+        "hctoolkit",
+        "@hctoolkit/asytrip",
+        "@hctoolkit/grammar",
+        "@hctoolkit/bytecode",
+        "@hctoolkit/common",
+        "@hctoolkit/tools",
+        "@hctoolkit/runtime"
+    ],
     "devDependencies": {
-        "bit-field": "*"
+        "bit-field": "*",
+        "@types/node": "*"
     },
     "type": "module",
     "private": true
