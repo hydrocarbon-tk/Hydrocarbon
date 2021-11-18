@@ -154,14 +154,14 @@ f:r { f64($1) }
 
 ### Boolean
 ```Javascript
-f:r { bool($1) } || f:r { !!($1) }
+f:r { bool($1) }
 ```
 
 Boolean `true` or `false` value.
 
 ### String
 ```Javascript
-f:r { string($1) } or f:r { "" + ($1) } or f:r { ($1) + "" }
+f:r { str($1) } or f:r { "" + ($1) } or f:r { ($1) + "" }
 ```
 
 A target language native string container type. 
