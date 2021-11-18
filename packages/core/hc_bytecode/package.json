@@ -2,7 +2,7 @@
     "name": "@hctoolkit/bytecode",
     "version": "0.0.3",
     "bin": {
-        "hcbyte": "./bin/index.sh"
+        "hc-byte": "./bin/index.sh"
     },
     "type": "module",
     "scripts": {

@@ -20,11 +20,12 @@ if (FOUND && wksp_pkg.name == "@hctoolkit/workspace") {
     for (const target of target_packages) {
         const bounty_path = URI.resolveRelative("./publish.bounty", target.package._workspace_location + "/");
         if (await bounty_path.DOES_THIS_EXIST()) {
-            console.log(bounty_path);
+
             exec(bounty_path + "", {
                 cwd: bounty_path.dir
             }, (error, stdout) => {
-                console.log(stdout);
+                if (stdout)
+                    console.log(stdout);
                 if (error)
                     console.log(error); // an AbortError
             });

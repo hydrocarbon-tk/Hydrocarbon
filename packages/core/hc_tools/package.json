@@ -3,7 +3,7 @@
     "description": "Hydrocarbon Tools",
     "version": "0.0.3",
     "bin": {
-        "hctools": "./bin/index.sh"
+        "hc-tools": "./bin/index.sh"
     },
     "type": "module",
     "scripts": {

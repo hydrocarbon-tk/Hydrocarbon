@@ -18,8 +18,7 @@
         "/bin/",
         "/build/",
         "/README.md",
-        "/LICENSE",
-        "/bin/cli.js"
+        "/LICENSE"
     ],
     "keywords": [
         "Compiler",
@@ -32,7 +31,7 @@
     },
     "homepage": "https://github.com/CandleLibrary/Hydrocarbon#readme",
     "dependencies": {
-        "@candlelib/log": "latest",
+        "@candlelib/log": "*",
         "@candlelib/paraffin": "*",
         "@candlelib/uri": "*",
         "@candlelib/hydrocarbon": "*",
