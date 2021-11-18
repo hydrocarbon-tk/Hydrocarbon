@@ -7,5 +7,9 @@
         "packages/rt_typescript",
         "packages/vscode/*"
     ],
+    "devDependencies": {
+        "bit-field": "*"
+    },
+    "type": "module",
     "private": true
 }

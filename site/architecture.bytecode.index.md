@@ -13,6 +13,7 @@ The actual pointer index is stored in the first 24bits of the pointer word, givi
 0x000000 to 0xFFFFFF and a maximum bytecode size of 16,777,216 words or 68MB. 
 
 The uppermost 8bits are reserved as "meta" data, including three flag bits:
+- `SC` - bit 24 - Indicates pointed to state is a SCANNER state.
 - `GT` - bit 25 - Indicates pointed to state is a GOTO. This is used to determine fork join points. 
 - `NM` - bit 26 - Indicates the state is active during normal mode parsing.
 - `FL` - bit 27 - Indicates the state is active during fail mode parsing.
