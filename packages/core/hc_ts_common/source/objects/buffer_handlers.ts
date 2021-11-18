@@ -77,16 +77,22 @@ export class ByteReader {
     peek_short(): number { return 0; }
     peek_word(): number { return 0; }
     peek_double_word(): number { return 0; }
+    peek_double(): number { return 0; }
+    peek_float(): number { return 0; }
 
     read_byte(): number { return 0; }
     read_short(): number { return 0; }
     read_word(): number { return 0; }
     read_double_word(): number { return 0; }
+    read_double(): number { return 0; }
+    read_float(): number { return 0; }
 
     assert_byte(val: number): boolean { return false; }
     assert_short(val: number): boolean { return false; }
     assert_word(val: number): boolean { return false; }
     assert_double_word(val: number): boolean { return false; }
+    assert_double(val: number): boolean { return false; }
+    assert_float(val: number): boolean { return false; }
 
     class() {
         return getTypeAt(this.codepoint());
@@ -160,7 +166,19 @@ export class ByteWriter {
         this.cursor += 4;
     }
 
+    write_float(float: number) {
+        if (this.cursor + 4 >= 512) this.purge();
+        this.dv.setFloat32(this.cursor, float);
+        this.cursor += 4;
+    }
+
     write_double_word(double_word: number) {
+        if (this.cursor + 8 >= 512) this.purge();
+        this.dv.setFloat64(this.cursor, double_word);
+        this.cursor += 8;
+    }
+
+    write_double(double_word: number) {
         if (this.cursor + 8 >= 512) this.purge();
         this.dv.setFloat64(this.cursor, double_word);
         this.cursor += 8;

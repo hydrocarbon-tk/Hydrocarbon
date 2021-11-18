@@ -349,7 +349,6 @@ export class ${name} extends ASTNode<ASTType> {
         return ASTType.${name};
     }
 
-
     serialize(writer:ByteWriter){
 
         writer.write_byte(${struct.type >> (context.type_offset)});
@@ -394,10 +393,17 @@ export class ${name} extends ASTNode<ASTType> {
                     const type = types[0];
                     switch (type.type) {
                         case ASYTRIPType.STRING: return `         var ${n} = writer.write_string(this.${n})`;
-                        case ASYTRIPType.I32: return `     writer.write_word(this.${n})`;
+                        case ASYTRIPType.F64: return `            writer.write_double(this.${n})`;
+                        case ASYTRIPType.F32: return `            writer.write_float(this.${n})`;
+                        case ASYTRIPType.I64: return `            writer.write_double_word(this.${n})`;
+                        case ASYTRIPType.I32: return `            writer.write_word(this.${n})`;
+                        case ASYTRIPType.I16: return `            writer.write_short(this.${n})`;
+                        case ASYTRIPType.I8: return `             writer.write_byte(this.${n})`;
+                        case ASYTRIPType.BOOL: return `           writer.write_byte(this.${n} ==  true ? 1 : 0)`;
+                        case ASYTRIPType.NULL: return `           writer.write_null()`;
                     }
                 }
-            }).join("")
+            }).join("\n")
         }
     }
 
@@ -443,10 +449,17 @@ export class ${name} extends ASTNode<ASTType> {
                 const type = types[0];
                 switch (type.type) {
                     case ASYTRIPType.STRING: return `         var ${n} = reader.read_string()`;
-                    case ASYTRIPType.I32: return `         var ${n} = reader.read_word()`;
+                    case ASYTRIPType.F64: return `            var ${n} = reader.read_double()`;
+                    case ASYTRIPType.F32: return `            var ${n} = reader.read_float()`;
+                    case ASYTRIPType.I64: return `            var ${n} = reader.read_double_word()`;
+                    case ASYTRIPType.I32: return `            var ${n} = reader.read_word()`;
+                    case ASYTRIPType.I16: return `            var ${n} = reader.read_short()`;
+                    case ASYTRIPType.I8: return `             var ${n} = reader.read_byte()`;
+                    case ASYTRIPType.BOOL: return `           var ${n} = !!reader.read_byte()`;
+                    case ASYTRIPType.NULL: return `           var ${n} = reader.read_null()`;
                 }
             }
-        }).join("")
+        }).join("\n")
         }
 
         return new ${name}(${prop_vals.map(({ name }) => name).join(", ")});
@@ -1102,7 +1115,7 @@ const conversion_table =
     [A.I16]:
         (t: number, v: string): string => "" + ({ [A.F64]: `${v} `, [A.F32]: `${v} `, [A.I64]: `${v} `, [A.I32]: `${v} `, [A.I16]: /*       */ v, [A.I8]: `${v} `, [A.BOOL]: `+${v} `, [A.NULL]: " 0 ", [A.TOKEN]: `parseInt(${v}.toString())`, [A.STRUCT]: `parseInt(${v}.toString())`, [A.VECTOR]: `parseInt(${v}.toString()))` })[t],
     [A.I8]:
-        (t: number, v: string): string => "" + ({ [A.F64]: `${v}  `, [A.F32]: `${v}  `, [A.I64]: `${v}  `, [A.I32]: `${v}  `, [A.I16]: `${v}  `, [A.I8]: /*       */ v, [A.BOOL]: `${v}  `, [A.NULL]: " 0 ", [A.TOKEN]: `${v}.to_i8() `, [A.STRUCT]: `${v}.to_i8() `, [A.VECTOR]: `${v}.to_i8() `, })[t],
+        (t: number, v: string): string => "" + ({ [A.F64]: `${v}  `, [A.F32]: `${v}  `, [A.I64]: `${v}  `, [A.I32]: `${v}  `, [A.I16]: `${v}  `, [A.I8]: /*       */ v, [A.BOOL]: `${v}  `, [A.NULL]: " 0 ", [A.TOKEN]: `parseInt(${v}.toString())`, [A.STRUCT]: `parseInt(${v}.toString()) || 0`, [A.VECTOR]: `parseInt(${v}.toString()) || 0`, })[t],
     [A.BOOL]:
         (t: number, v: string): string => "" + ({ [A.F64]: `!!${v} `, [A.F32]: `!!${v} `, [A.I64]: `!!${v} `, [A.I32]: `!!${v} `, [A.I16]: `!!${v} `, [A.I8]: `!!${v} `, [A.BOOL]: /**/ v, [A.NULL]: "false", [A.TOKEN]: `!!${v}`, [A.STRUCT]: `!!${v}`, [A.VECTOR]: `!!${v}` })[t],
     [A.NULL]:

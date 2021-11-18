@@ -13,14 +13,20 @@ export class SerialReader extends ByteReader {
         this.dv = new DataView(this.buffer);
         this.interned_strings = new Map;
     }
+    peek_double() { return this.dv.getFloat64(this.cursor); }
+    peek_float() { return this.dv.getFloat32(this.cursor); }
     peek_double_word() { return this.dv.getFloat64(this.cursor); }
     peek_word() { return this.dv.getUint32(this.cursor); }
     peek_short() { return this.dv.getUint16(this.cursor); }
     peek_byte() { return this.dv.getUint8(this.cursor); }
+    assert_double(val: number) { if (this.read_double() == val) { return true; } return false; }
     assert_double_word(val: number) { if (this.read_double_word() == val) { return true; } return false; }
+    assert_float(val: number) { if (this.read_float() == (val >>> 0)) { return true; } return false; }
     assert_word(val: number) { if (this.read_word() == (val >>> 0)) { return true; } return false; }
     assert_short(val: number) { if (this.read_short() == (val >>> 0)) { return true; } return false; }
     assert_byte(val: number) { if (this.read_byte() == (val >>> 0)) { return true; } return false; }
+    read_float() { const val = this.peek_float(); this.cursor += 4; return val; }
+    read_double() { const val = this.peek_double(); this.cursor += 8; return val; }
     read_double_word() { const val = this.peek_double_word(); this.cursor += 8; return val; }
     read_word() { const val = this.peek_word(); this.cursor += 4; return val >>> 0; }
     read_short() { const val = this.peek_short(); this.cursor += 2; return val >>> 0; }
