@@ -21,7 +21,7 @@
 - [ ] Improve asytrip compilation reporting and error messaging
 - [ ] Improve bytecode compilation reporting and error messaging
 
-### Extra Features
+### Extras
 - [ ] Create browser based REPL    
 - [ ] Add new items to TODO list
 
