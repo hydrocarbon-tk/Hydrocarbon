@@ -1,5 +1,3 @@
-# See official repo at [Candlelib/Hydrocarbon](https://github.com/candlelibrary/hydrocarbon)
-
 ![Hydrocarbon](./site/resources/img/test.webp)
 
 
