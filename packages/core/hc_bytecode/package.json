@@ -1,6 +1,6 @@
 {
     "name": "@hctoolkit/bytecode",
-    "version": "0.0.1",
+    "version": "0.0.2",
     "bin": {
         "hcbyte": "./bin/index.sh"
     },
@@ -33,7 +33,7 @@
         "@candlelib/log": "*",
         "@candlelib/paraffin": "*",
         "@candlelib/uri": "*",
-        "@hctoolkit/common": "*"
+        "@hctoolkit/common": "0.1.0"
     },
     "devDependencies": {
         "@types/node": "^16.4.13",
