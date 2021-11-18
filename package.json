@@ -23,7 +23,7 @@
     "devDependencies": {
         "bit-field": "*",
         "@types/node": "*",
-        "@candlelib/dev-tools"
+        "@candlelib/dev-tools": "*"
     },
     "type": "module",
     "private": true
