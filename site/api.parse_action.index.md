@@ -2,11 +2,9 @@
 
 
 A parse action is an expression that is applied to the tokens of an input after a [production body](./api.production_body.index.md) 
-has been recognized. Initially, each production body is assigned a default parse action that converts body's last symbol into a string.  
-If the last symbol is a terminal, then the string is the token defined by that symbol. If instead the symbol is a production reference, 
-then the value is the value returned by the recognized body of the production. 
+has been recognized. Initially, each production body is assigned a default parse action that converts body's last symbol into a string.  If the last symbol is a terminal, then the string is the token defined by that symbol. If instead the symbol is a production reference, then the value is the value returned by the recognized body of the production. 
 
-The default behavior ultimately results in the last token of the input being returned as a string when the root production is finally recognized, 
+This default behavior ultimately results in the last token of the input being returned as a string when the root production is finally recognized, 
 discarding the all other tokens.
 
 > #### example
