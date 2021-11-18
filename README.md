@@ -1,4 +1,4 @@
-![Hydrocarbon](./site/resources/img/test.webp)
+<img src="./site/resources/img/test.webp" alt="# Hydrocarbon Toolkit" align=center/>
 
 
 The Hydrocarbon Toolkit is a set of compilers and tools that can 
