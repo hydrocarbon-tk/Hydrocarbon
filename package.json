@@ -3,7 +3,8 @@
     "version": "1.0.0",
     "description": "Hydrocarbon Language Toolkit Workspace",
     "scripts": {
-        "version": "./scripts/version.js"
+        "version_ts_packages": "./scripts/version.js",
+        "collect_publish_bounties": "./scripts/collect_publish_bounties.js"
     },
     "workspaces": [
         "packages/core/*",
@@ -21,7 +22,8 @@
     ],
     "devDependencies": {
         "bit-field": "*",
-        "@types/node": "*"
+        "@types/node": "*",
+        "@candlelib/dev-tools"
     },
     "type": "module",
     "private": true
