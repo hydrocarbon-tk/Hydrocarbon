@@ -32,6 +32,7 @@
     "dependencies": {
         "@candlelib/log": "*",
         "@candlelib/paraffin": "*",
+        "@candlelib/spark": "*",
         "@candlelib/uri": "*",
         "@hctoolkit/common": "0.1.0"
     },
