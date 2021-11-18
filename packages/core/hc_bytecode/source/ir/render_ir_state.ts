@@ -207,6 +207,5 @@ export function renderIRNode(node: IRNode): string {
 
     if (!renderers)
         renderers = experimentalConstructRenderers(<NodeMappings<IRNode, "type">>ir_state_mappings);
-
     return experimentalRender(node, <NodeMappings<IRNode, "type">>ir_state_mappings, renderers).string;
 }

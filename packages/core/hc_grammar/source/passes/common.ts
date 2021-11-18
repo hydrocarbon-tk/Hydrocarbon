@@ -42,7 +42,6 @@ export const render_grammar = (grammar_node: any) => {
 
     if (!renderers)
         renderers = experimentalConstructRenderers(hcg3_mappings);
-
     return experimentalRender(grammar_node, hcg3_mappings, renderers).string;
 };
 
