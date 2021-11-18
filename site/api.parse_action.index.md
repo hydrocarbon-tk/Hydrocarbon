@@ -5,7 +5,7 @@ A parse action is an expression that is applied to the tokens of an input after 
 has been recognized. Initially, each production body is assigned a default parse action that converts body's last symbol into a string.  If the last symbol is a terminal, then the string is the token defined by that symbol. If instead the symbol is a production reference, then the value is the value returned by the recognized body of the production. 
 
 This default behavior ultimately results in the last token of the input being returned as a string when the root production is finally recognized, 
-discarding the all other tokens.
+discarding all other tokens.
 
 > #### example
 > When the input `2+3-4` is parsed using the following grammar, the string `"4"` is returned by the parse function. 
