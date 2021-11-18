@@ -29,7 +29,10 @@ export function getImportedGrammarFromReference(local_grammar: GrammarObject, mo
 export function getProductionByName(
     grammar: GrammarObject,
     ref_symbol: ProductionTokenSymbol | ProductionSymbol | ProductionImportSymbol | string
-): GrammarProduction {
+): GrammarProduction | null {
+
+    if (!grammar.productions)
+        return null;
 
     if (typeof ref_symbol == "string") {
         if (grammar.productions.some(p => p.name == ref_symbol))
