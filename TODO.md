@@ -1,45 +1,28 @@
 
 ### Documentation 
-- Create documentation for grammar usage
-- Create documentation for parser usage
-
-### Library
-- Make completer a library function
-- Make State & Lexer library functions
+- [ ] Create documentation for grammar usage
+- [ ] Create documentation for parser usage
 
 ### Parser
-- Implement an optional collector for skipped values; Include a flag for non-whitespace skips.
-- Implement error recovery 
-- Implement parse forests <sub>low priority</sub>
-- Make C++ and/or Rust targets for recognizer
-- Implement action streaming for concurrent recognizing/completing
-
-- Implement arbitrary parse entry
-    > Allow parser to start anywhere within an input string with any production set as the goal.
-
-### Recognizer
-- Turn State into a boolean flag to switch off buffer writing
-- Add boolean check of FIRST symbols to production token functions
-- Turn type into flag that store the built in types in 4bit section
+- [ ] Implement an optional collector for skipped tokens; Include a flag for non-whitespace skips.
+- [ ] Implement error recovery mechanism
+- [ ] Implement parse forests <sub>low priority</sub>
+- [ ] Make C++ target for recognizer
+- [X] Implement arbitrary parser entry
+- [ ] Allow parser to start anywhere within an input string with any production set as the goal
 
 ### Grammar
-- Improve toggling of ignored symbols
-- Allow parse functions to be defined in separate files
-- Remove Non Ascii symbols from HCG grammar
-- Change production head notation from `<> production_id >` and `+ production_id >` to  `< production_id >` and `+ production_id >`
-
+- [ ] Improve toggling of ignored symbols
+- [X] Allow parse functions to be defined in separate files
+- [X] Remove Non Ascii symbols from HCG grammar syntax
+- [ ] Change production head notation from `<> production_id >` and `+ production_id >` to  `< production_id >` and `+ production_id >`?
 
 ### CLI
-- Convert interface to wax
-- Add compilation reporting
+- [ ] Improve grammar compilation reporting and error messaging
+- [ ] Improve asytrip compilation reporting and error messaging
+- [ ] Improve bytecode compilation reporting and error messaging
 
 ### Extra Features
-- Create browser based language inspector
-- Create grammar playground
-
-## Reporting
-- ### Compiling
-    - Report failed productions [names, error message]
-    - Report number of productions completed
-    - Report average parse time per production
+- [ ] Create browser based REPL    
+- [ ] Add new items to TODO list
 
