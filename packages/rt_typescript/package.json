@@ -1,13 +1,13 @@
 {
     "name": "@hctoolkit/runtime",
     "description": "Hydrocarbon: Parser Runtime",
-    "version": "1.0.0",
+    "version": "0.0.1",
     "type": "module",
     "types": "./build",
     "library": "./build",
     "main": "./build/index.js",
     "scripts": {
-        "test": "candle.cure ./test/*"
+        "test": "NODE_OPTIONS=--experimental-specifier-resolution=node candle.cure --reporter ci ./tests/"
     },
     "repository": {
         "type": "git",

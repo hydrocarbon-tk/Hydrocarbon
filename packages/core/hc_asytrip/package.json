@@ -6,7 +6,9 @@
         "hc-ast": "./bin/index.sh"
     },
     "type": "module",
-    "scripts": {},
+    "scripts": {
+        "test": "NODE_OPTIONS=--experimental-specifier-resolution=node candle.cure --reporter ci ./tests/"
+    },
     "repository": {
         "type": "git",
         "url": "git+https://github.com/CandleLibrary/Hydrocarbon.git"

@@ -8,7 +8,7 @@
     "main": "./build/index.js",
     "type": "module",
     "scripts": {
-        "test": "NODE_OPTIONS==--experimental-specifier-resolution=node candle.cure ./test/*"
+        "test": "NODE_OPTIONS=--experimental-specifier-resolution=node candle.cure ./tests/"
     },
     "repository": {
         "type": "git",

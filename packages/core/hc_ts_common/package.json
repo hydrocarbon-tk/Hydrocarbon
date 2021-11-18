@@ -2,14 +2,13 @@
     "name": "@hctoolkit/common",
     "description": "Common Types, Objects, and Functions for Hydrocarbon Toolkit Modules",
     "version": "0.0.1",
-    "bin": {},
     "type": "module",
     "types": "./build",
     "library": "./build",
     "main": "./build/index.js",
     "scripts": {
         "build": "tsc",
-        "test": "NODE_OPTIONS=--experimental-specifier-resolution=node candle.cure ./test/"
+        "test": "NODE_OPTIONS=--experimental-specifier-resolution=node candle.cure --reporter ci ./tests/"
     },
     "repository": {
         "type": "git",

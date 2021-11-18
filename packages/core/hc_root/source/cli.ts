@@ -15,23 +15,23 @@
  */
 
 import { Logger } from '@candlelib/log';
-import { addCLIConfig, processCLIConfig, args } from '@candlelib/paraffin';
+import { addCLIConfig, args, processCLIConfig } from '@candlelib/paraffin';
 import URI from '@candlelib/uri';
 import { ExportableStates, getEntryPointers, GrammarObject, ReverseStateLookupMap } from '@hctoolkit/common';
 import { resolveResourceGrammarCLI } from '@hctoolkit/grammar';
-import { spawn, spawnSync } from 'child_process';
+import { spawn } from 'child_process';
 import { writeFile } from 'fs/promises';
 import { tmpdir } from 'os';
 import { renderTypeScriptParserData } from './render';
 
-const disable_opt = addCLIConfig<boolean>("parse", {
+const disable_opt = addCLIConfig<boolean>("compile", "parse", {
     key: "O0",
     default: false,
     REQUIRES_VALUE: false,
     help_brief: `Disable optimizations`,
 });
 
-const target = addCLIConfig<"rust" | "go" | "ts">("parse", {
+const target = addCLIConfig<"rust" | "go" | "ts">("compile", "parse", {
     key: "t",
     default: "ts",
     accepted_values: ["rust", "go", "ts"],
@@ -40,15 +40,15 @@ const target = addCLIConfig<"rust" | "go" | "ts">("parse", {
     help_brief: "Target language to write parser in. Defaults to TypeScript",
 });
 
-const asytrip = addCLIConfig("parse", {
+const asytrip = addCLIConfig("compile", "parse", {
     key: "asytrip",
     REQUIRES_VALUE: false,
     help_brief: "Compile ASYTrip",
 });
 
-const parse_loglevel = addCLIConfig("parse", args.log_level_properties);
+const parse_loglevel = addCLIConfig("compile", "parse", args.log_level_properties);
 
-addCLIConfig<URI | string>("parse", {
+addCLIConfig<URI | string>("compile", "parse", {
     key: "parse",
     help_arg_name: "HCG file path",
     REQUIRES_VALUE: true,
@@ -126,7 +126,6 @@ addCLIConfig<URI | string>("parse", {
             return [b.name, b.pointer];
         })));
 
-
         //compile the source file
 
         const binary = new Uint32Array(await binary_path.fetchBuffer());
@@ -159,7 +158,28 @@ addCLIConfig<URI | string>("parse", {
     }
 });
 
-processCLIConfig();
+addCLIConfig<URI | string>("tools", "disassemble", {
+    key: "disassemble",
+    help_arg_name: "HCG file path",
+    REQUIRES_VALUE: true,
+    accepted_values: ["stdin", URI],
+    help_brief: `
+    Create a disassembly sheet from a Grammar file
+`
+}).callback = async function () { };
+
+addCLIConfig<URI | string>("tools", "fuzz", {
+    key: "fuzz",
+    help_arg_name: "HCG file path",
+    REQUIRES_VALUE: true,
+    accepted_values: ["stdin", URI],
+    help_brief: `
+
+    Created a randomized fuzz string from the input grammar.
+`
+}).callback = async function () { };
+
+processCLIConfig("hc");
 
 const auto_gen_disclaimer_and_license =
     `

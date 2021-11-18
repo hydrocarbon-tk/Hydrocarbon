@@ -1,12 +1,14 @@
 {
     "name": "@hctoolkit/tools",
     "description": "Hydrocarbon Tools",
-    "version": "1.0.0",
+    "version": "0.0.1",
     "bin": {
         "hctools": "./bin/index.sh"
     },
     "type": "module",
-    "scripts": {},
+    "scripts": {
+        "test": "NODE_OPTIONS=--experimental-specifier-resolution=node candle.cure --reporter ci ./tests/"
+    },
     "repository": {
         "type": "git",
         "url": "git+https://github.com/CandleLibrary/Hydrocarbon.git"
@@ -34,7 +36,8 @@
         "@hctoolkit/common": "*"
     },
     "devDependencies": {
-        "@types/node": "^16.4.13"
+        "@types/node": "^16.4.13",
+        "@candlelib/cure": "*"
     },
     "engine": {
         "node": ">=13.7.0"
