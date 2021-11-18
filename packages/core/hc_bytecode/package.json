@@ -1,6 +1,6 @@
 {
     "name": "@hctoolkit/bytecode",
-    "version": "0.0.4",
+    "version": "0.0.5",
     "bin": {
         "hc-byte": "./bin/index.sh"
     },
