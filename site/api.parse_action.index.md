@@ -50,7 +50,7 @@ begin with a `$` character followed by one of the following:
    <> A > \a ^a \b ^b \c ^c f:{ $c + $a } // returns the value "ca";
   ```
 - The name of a symbol if that symbol happens to be a production reference or import production reference:
-```
+  ```
    <> A > a_prod \b ^b c_prod f:{ $c_prod + $b_prod } // returns the concatenated values of a_prod and c_prod;
   ```
 
