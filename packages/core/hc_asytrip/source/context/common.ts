@@ -450,6 +450,13 @@ function parseExpression(
 
                 return type;
             };
+            throwAsytripTokenError(tok, node, `
+            ASYTRIP_Invalid_Call_Expression
+            
+            Expected one of "i8" | "i16" | "i32" | "i64" | "f32" | "f64" | "bool" | "str"
+
+            Did not expect ${ident}
+            `);
         } else if (id.type == JSNodeType.MemberExpression) {
 
             const [expr, call_identifier] = id.nodes;
@@ -472,7 +479,11 @@ function parseExpression(
             }
         }
 
-        throwAsytripTokenError(tok, node, "ASYTRIP_Invalid_Call_Expression");
+        throwAsytripTokenError(tok, node, `
+ASYTRIP_Invalid_Call_Expression
+
+Expected one of 
+`);
     }
 
     throwAsytripTokenError(tok, node, "ASYTRIP_Invalid_Expression");
