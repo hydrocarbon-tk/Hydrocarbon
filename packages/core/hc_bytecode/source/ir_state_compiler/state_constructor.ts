@@ -98,6 +98,9 @@ export function constructProductionStates(
                 parse_states,
                 root_prod_name
             );
+
+
+
         }
 
         {
@@ -161,8 +164,6 @@ export function constructProductionStates(
                     lazy [ ${lazy_start_sym.val.codePointAt(0)} ${lazy_end_sym.val.codePointAt(0)} ] ( ${root_prod_name} )
                     
                     `);
-
-                console.log(parse_states.get(lazy_hash));
 
                 debugger;
             }
@@ -248,12 +249,12 @@ function processTransitionNode(
     const
 
         items = state.children.length > 0
-            ? state.children.flatMap(c => c.items.map(i => i.renderUnformattedWithProduction(grammar).replace(/\*/g, "ast"))).join("\n    ")
-            : state.items.map(i => i.renderUnformattedWithProduction(grammar).replace(/\*/g, "ast")).join("\n    "),
+            ? state.children.flatMap(c => c.items)
+            : state.items,
 
         state_string = [`state [ ${default_hash} ] `
             + `\n/*\n    ${/**/
-            items
+            items.map(i => i.renderUnformattedWithProduction(grammar).replace(/\*/g, "ast")).join("\n    ")
             }\n*/\n`
         ];
 
@@ -276,7 +277,7 @@ function processTransitionNode(
     if (!options.IS_SCANNER && !(state.is(TST.I_GOTO_START) || state.is(TST.O_GOTO))) {
 
         const symbol_clause = create_symbol_clause(
-            state.items,
+            items,
             grammar,
             options
         );

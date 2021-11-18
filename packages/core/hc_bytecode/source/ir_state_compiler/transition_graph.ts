@@ -22,6 +22,7 @@ import {
     Sym_Is_A_Production,
     Sym_Is_A_Production_Token,
     Sym_Is_Defined_Identifier,
+    Sym_Is_EOF,
     Sym_Is_Exclusive,
     Token,
     TokenSymbol,
@@ -425,7 +426,7 @@ function createPeek(
         n.depth = state;
         n.root = n;
 
-        if (opt.mode == "GOTO" && g[0].state != OutOfScopeItemState) {
+        if (/* opt.mode == "GOTO" &&  */g[0].state != OutOfScopeItemState) {
             parent.closure.push(
                 ...[...GRAMMAR.lr_items?.values()].flat()
                     .filter(i => !out_of_scope.has(i.increment().id))
@@ -444,6 +445,7 @@ function createPeek(
     disambiguate(
         opt,
         roots.flatMap((r, j) => {
+
             const nodes = r.items.flatMap(createNodeClosure(opt, parent, r));
 
             for (const node of nodes)
@@ -472,7 +474,9 @@ function disambiguate(
     const end_nodes = nodes.filter(n => n.end_items.length > 0);
     const term_nodes = nodes.filter(n => n.end_items.length == 0);
 
+
     if (end_nodes.length > 0) {
+
 
         // We must first complete end-items and generate new
         // nodes that arise from the completion of a production. 
@@ -484,12 +488,19 @@ function disambiguate(
             const items = node.scanItems();
 
             if (items.length > 0) {
-                const parent = node.pruneLeaf();
+                const parent = <Node>node.parent;
                 term_nodes.push(...items.flatMap(createNodeClosure(opt, parent, <Node>node.root)));
+                if (end_nodes.length > 1) {
+                    node.pruneLeaf();
+                } else {
+                    final_nodes.push(node);
+                }
             } else {
                 final_nodes.push(node);
             }
         }
+
+
 
         // If an end-item is in a state such that it is top most production
         // and cannot be resolved to any other items, then we shall call 
@@ -507,7 +518,7 @@ function disambiguate(
 
                 const node = final_nodes[0];
 
-                if ((node.depth % 10000) > 0)
+                if ((node.depth % 10000) > 0 && node.depth >= 10000)
                     node.addType(TST.O_PEEK);
                 else
                     node.addType(TST.O_TERMINAL);
@@ -523,17 +534,27 @@ function disambiguate(
             }
 
         } else if (final_nodes.length > 0) {
+            const final_node = final_nodes[0];
 
-            if ((final_nodes[0].depth % 10000) > 0)
-                final_nodes[0].addType(TST.O_PEEK);
+            if ((final_node.depth % 10000) > 0 && final_node.depth >= 10000)
+                final_node.addType(TST.O_PEEK);
             else
-                final_nodes[0].addType(TST.O_TERMINAL);
+                final_node.addType(TST.O_TERMINAL);
 
-            completeRoots(final_nodes[0], root, opt, tpn);
+
+            completeRoots(final_node, root, opt, tpn);
         }
     }
 
     const next_steps: Node[][] = [];
+
+    if (term_nodes.every(t => t.root?.is(TST.I_OUT_OF_SCOPE))) {
+        const parent = term_nodes.map(s => s.pruneBranch())[0];
+
+        parent.addType(TST.I_FAIL);
+
+        return;
+    }
 
     const groups = term_nodes.groupMap(n => gusn(n.sym));
 
@@ -544,7 +565,7 @@ function disambiguate(
         //combine the nodes into a single item
         const prime_node = group[0];
 
-        if ((prime_node.depth % 10000) > 0)
+        if (prime_node.depth >= 10000 && (prime_node.depth % 10000) > 0)
             prime_node.addType(TST.O_PEEK);
         else
             prime_node.addType(TST.O_TERMINAL);
@@ -567,7 +588,7 @@ function disambiguate(
 
             next_steps.push(new_groups);
         } else {
-            completeRoots(group[0], root, opt, tpn);
+            completeRoots(prime_node, root, opt, tpn);
         }
     }
 
@@ -680,6 +701,13 @@ function handleUnresolvedRoots(
         // and failing that we use a trivial fail fork, 
         // allowing the fail state to unset the fail mode and
         // pass the already completed production.
+
+        if (roots.every(r => r.is(TST.I_OUT_OF_SCOPE))) {
+            //Prune and set parent to fail
+            const parent = roots.map(r => r.pruneBranch())[0];
+            parent.addType(TST.I_FAIL);
+            return;
+        }
 
 
         //Remove out of scope roots.
@@ -858,29 +886,49 @@ function createNodeClosure(
     parent_node: Node,
     root: Node
 ): (this: undefined, value: Item, index: number, array: Item[]) => any {
-    return i => {
 
-        if (!i)
-            debugger;
+    const EXCLUDE_ROOT = root.is(TST.I_OUT_OF_SCOPE);
+
+    const id = opt.root_production.id;
+    return i => {
 
         const nodes: Node[] = [];
 
         if (nonterm_item(i)) {
 
-            const closure = [i];
+            const closure = [i], seen = new Set();
 
-            for (const item of getClosure(closure, GRAMMAR, root.depth)) {
+            for (const item of closure) {
 
                 if (nonterm_item(item)) {
-                    closure.push(item);
+
+                    const prod = item.getProductionAtSymbol(GRAMMAR);
+
+
+                    if (EXCLUDE_ROOT && prod.id == id) {
+                        continue;
+                    }
+
+                    for (const item of getStartItemsFromProduction(prod)) {
+
+                        if (seen.has(item.id))
+                            continue;
+
+                        seen.add(item.id);
+
+                        closure.push(item);
+                    }
+
                 } else {
-                    return createNode(opt, item.sym(GRAMMAR), [item], parent_node, closure, root.root);
+                    seen.add(item.id);
+                    nodes.push(createNode(opt, item.sym(GRAMMAR), [item], parent_node, closure, root.root));
                 }
 
             }
         }
         else
-            return createNode(opt, i.sym(GRAMMAR), [i], parent_node, [], root.root);
+            nodes.push(createNode(opt, i.sym(GRAMMAR), [i], parent_node, [], root.root));
+
 
         return nodes;
     };
@@ -1205,9 +1253,14 @@ ${this.children.flatMap(c => c.debug.split("\n")).join("\n  ")}
 
         let items = this.end_items.slice();
 
-        let out = [];
+        let out = [], seen = new Set;
 
         for (const item of items) {
+
+            if (seen.has(item.id))
+                continue;
+
+            seen.add(item.id);
 
             const state = item.state;
 
