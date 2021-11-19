@@ -1,7 +1,7 @@
 {
     "name": "@hctoolkit/asytrip",
     "description": "Hydrocarbon Toolkit AST Compiler",
-    "version": "0.0.6",
+    "version": "0.0.7",
     "bin": {
         "hc-ast": "./bin/index.js"
     },
