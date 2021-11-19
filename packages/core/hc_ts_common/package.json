@@ -1,7 +1,7 @@
 {
     "name": "@hctoolkit/common",
     "description": "Common Types, Objects, and Functions for Hydrocarbon Toolkit Modules",
-    "version": "0.1.0",
+    "version": "0.1.1",
     "type": "module",
     "types": "./build",
     "library": "./build",
