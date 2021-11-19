@@ -15,13 +15,16 @@ cache:
     - packages/core/hc_root/build/
     - packages/core/hc_tools/build/
     - packages/rt_typescript/build/
+    - packages/**/publish.bounty
+    - packages/**/package.json
+
+# BUILD ----------------------------------------------------------------------
 
 install_dependency_packages:
   stage: build
   script:
-    - npm config set registry http://192.168.18.12:49155
+    - npm config set registry $PACKAGE_REGISTRY
     - npm install --no-audit
-    - npm install typescript
 
   artifacts:
     paths:
@@ -31,6 +34,7 @@ build_typescript_packages:
   stage: build
 
   script:
+    - npm install typescript
     - npx tsc -p ./packages/core/hc_ts_common/tsconfig.json || true
     - npx tsc -p ./packages/core/hc_asytrip/tsconfig.json || true
     - npx tsc -p ./packages/core/hc_bytecode/tsconfig.json || true
@@ -40,6 +44,7 @@ build_typescript_packages:
     - npx tsc -p ./packages/rt_typescript/tsconfig.json || true
 
   artifacts:
+    expire_in: 15 min
     paths:
       - packages/core/hc_ts_common/build/
       - packages/core/hc_asytrip/build/
@@ -49,6 +54,59 @@ build_typescript_packages:
       - packages/core/hc_tools/build/
       - packages/rt_typescript/build/
 
+  dependencies:
+    - build:install_dependency_packages
+
+# TEST & VERSION -----------------------------------------------------------
+
 version_ts_modules:
   stage: test
-  script: npm run version_ts_packages
+  script:
+    - npm run version_ts_packages
+  artifacts:
+    paths:
+      - packages/**/*.bounty
+      - packages/**/package.json
+
+  dependencies:
+    - build:install_dependency_packages
+    - build:build_typescript_packages
+
+# DEPLOY ------------------------------------------------------------------
+
+publish_ts_packages:
+  stage: deploy
+  script:
+    - npm config set registry $PACKAGE_REGISTRY
+    - npm run collect_publish_bounties
+  dependencies:
+    - test:version_ts_modules
+    - build:build_typescript_packages
+
+deploy_to_gitlab_branch:
+  stage: deploy
+
+  before_script:
+    - apt-get update -y && apt-get install -yqqf openssh-client git unzip sshpass rsync --fix-missing
+    - "which ssh-agent || ( apt-get update -y && apt-get install openssh-client git -y )"
+    - eval $(ssh-agent -s)
+    - echo "$DEPLOY_KEY" | tr -d '\r' | ssh-add - > /dev/null
+    - mkdir -p ~/.ssh
+    - chmod 700 ~/.ssh
+    - ssh-keyscan $GITHUB_REPO >> ~/.ssh/known_hosts
+    - chmod 644 ~/.ssh/known_hosts
+    - git config --global user.email "hydrocarbon-authors@null.io"
+    - git config --global user.name "Gitlab Runner"
+
+  script:
+    - cp $PACKAGE_REGISTRY ~/.ssh/
+    - npm run deploy_to_git
+    - git branch checkout -b temp-staged
+    - npm run create_git_releases
+    - git remote add releases $GITHUB_REPO
+    - git push remote:staged-releases temp-staged
+
+  dependencies:
+    - test:version_ts_modules
+    - build:install_dependency_packages
+    - build:build_typescript_packag
