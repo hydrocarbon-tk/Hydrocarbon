@@ -1,6 +1,6 @@
 {
     "name": "hctoolkit",
-    "description": "Hydrocarbon: Core CommandLine Interface",
+    "description": "Hydrocarbon Toolkit",
     "version": "0.0.11",
     "bin": {
         "hc": "./bin/index.js"
