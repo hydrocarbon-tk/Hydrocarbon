@@ -20,7 +20,7 @@ stages:
 
 # BUILD ----------------------------------------------------------------------
 
-install dependencies:
+build dependencies:
   stage: build
   script:
     - npm config set registry $PACKAGE_REGISTRY
@@ -55,7 +55,7 @@ build_typescript_packages:
       - packages/core/hc_tools/build/
       - packages/rt_typescript/build/
   dependencies:
-    - install:dependencies
+    - build:dependencies
 
 # TEST & VERSION -----------------------------------------------------------
 
@@ -69,7 +69,7 @@ version_ts_modules:
       - packages/**/package.json
 
   dependencies:
-    - install:dependencies
+    - build:dependencies
     - build_typescript_packages
 
 # DEPLOY ------------------------------------------------------------------
@@ -107,7 +107,7 @@ deploy_to_gitlab_branch:
 
   dependencies:
     - version_ts_modules
-    - install:dependencies
+    - build:dependencies
     - build_typescript_packages
 ##
 # reference https://docs.gitlab.com/ee/ci/yaml/
