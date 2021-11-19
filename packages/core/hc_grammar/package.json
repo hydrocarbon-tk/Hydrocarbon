@@ -1,7 +1,7 @@
 {
     "name": "@hctoolkit/grammar",
     "description": "Hydrocarbon Grammar Compiler",
-    "version": "0.0.4",
+    "version": "0.0.5",
     "bin": {
         "hc-grammar": "./bin/index.js"
     },
