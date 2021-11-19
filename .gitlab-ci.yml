@@ -1,0 +1,24 @@
+image: node:latest
+
+stages:
+  - build
+  - test
+
+cache:
+  paths:
+    - node_modules/
+
+install_dependencies:
+  stage: build
+  script:
+    - npm install 
+  artifacts:
+    untracked: false
+    expire_in: 10 min
+    paths:
+      - node_modules/
+
+version_ts_modules:
+  stage: test
+  script: npm run version_ts_packages
+
