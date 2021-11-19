@@ -82,6 +82,7 @@ publish_ts_packages:
     - npm run collect_publish_bounties
   dependencies:
     - version_ts_modules
+    - fetch_dependencies
     - build_typescript_packages
 
 deploy_to_gitlab_branch:
@@ -94,7 +95,7 @@ deploy_to_gitlab_branch:
     - echo "$DEPLOY_KEY" | tr -d '\r' | ssh-add - > /dev/null
     - mkdir -p ~/.ssh
     - chmod 700 ~/.ssh
-    - ssh-keyscan $GITHUB_REPO >> ~/.ssh/known_hosts
+    - ssh-keyscan $GITLAB_HOST >> ~/.ssh/known_hosts
     - chmod 644 ~/.ssh/known_hosts
     - git config --global user.email "hydrocarbon-authors@null.io"
     - git config --global user.name "Gitlab Runner"
