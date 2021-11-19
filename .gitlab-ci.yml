@@ -1,22 +1,23 @@
-image: node:latest
+default:
+  image: node:latest
 
 stages:
   - build
   - test
   - deploy
 
-cache:
-  paths:
-    - node_modules/
-    - packages/core/hc_ts_common/build/
-    - packages/core/hc_asytrip/build/
-    - packages/core/hc_bytecode/build/
-    - packages/core/hc_grammar/build/
-    - packages/core/hc_root/build/
-    - packages/core/hc_tools/build/
-    - packages/rt_typescript/build/
-    - packages/**/publish.bounty
-    - packages/**/package.json
+# cache:
+#   paths:
+#     - node_modules/
+#     - packages/core/hc_ts_common/build/
+#     - packages/core/hc_asytrip/build/
+#     - packages/core/hc_bytecode/build/
+#     - packages/core/hc_grammar/build/
+#     - packages/core/hc_root/build/
+#     - packages/core/hc_tools/build/
+#     - packages/rt_typescript/build/
+#     - packages/**/publish.bounty
+#     - packages/**/package.json
 
 # BUILD ----------------------------------------------------------------------
 
@@ -27,6 +28,7 @@ install_dependency_packages:
     - npm install --no-audit
 
   artifacts:
+    expire_in: 15 min
     paths:
       - node_modules/
 
@@ -53,9 +55,6 @@ build_typescript_packages:
       - packages/core/hc_root/build/
       - packages/core/hc_tools/build/
       - packages/rt_typescript/build/
-
-  dependencies:
-    - build:install_dependency_packages
 
 # TEST & VERSION -----------------------------------------------------------
 
@@ -100,13 +99,12 @@ deploy_to_gitlab_branch:
 
   script:
     - cp $PACKAGE_REGISTRY ~/.ssh/
-    - npm run deploy_to_git
     - git branch checkout -b temp-staged
-    - npm run create_git_releases
+    - npm run collect_commit_bounties
     - git remote add releases $GITHUB_REPO
     - git push remote:staged-releases temp-staged
 
   dependencies:
     - test:version_ts_modules
     - build:install_dependency_packages
-    - build:build_typescript_packag
+    - build:build_typescript_packages
