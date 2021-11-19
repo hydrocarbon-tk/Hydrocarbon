@@ -5,7 +5,7 @@ import {
 } from "@candlelib/dev-tools";
 import { getPackageJsonObject } from "@candlelib/paraffin";
 import URI from "@candlelib/uri";
-import { exec } from "child_process";
+import { exec, execSync } from "child_process";
 await URI.server();
 
 // Grab the names of the hctoolkit packages of which we
@@ -20,14 +20,11 @@ if (FOUND && wksp_pkg.name == "@hctoolkit/workspace") {
         const bounty_path = URI.resolveRelative("./commit.bounty", target.package._workspace_location + "/");
         if (await bounty_path.DOES_THIS_EXIST()) {
 
-            exec(bounty_path + "", {
+            execSync(bounty_path + "", {
                 cwd: bounty_path.dir
-            }, (error, stdout) => {
-                if (stdout)
-                    console.log(stdout);
-                if (error)
-                    console.log(error); // an AbortError
             });
+
+
         }
     }
 
