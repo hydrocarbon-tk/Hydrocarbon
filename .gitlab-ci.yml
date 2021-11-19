@@ -7,17 +7,35 @@ stages:
 cache:
   paths:
     - node_modules/
+    - packages/core/hc_asytrip/build/
+    - packages/core/hc_bytecode/build/
+    - packages/core/hc_grammar/build/
+    - packages/core/hc_root/build/
+    - packages/core/hc_tools/build/
+    - packages/rt_typescript/build/
 
 install_dependencies:
   stage: build
   script:
-    - npm config set registry "http://192.168.18.12:49155"
-    - npm install
+    - npm config set registry http://192.168.18.12:49155
+    - npm install --no-audit
+    - npm install typescript
+    - npx tsc -p ./packages/core/hc_asytrip/tsconfig.json
+    - npx tsc -p ./packages/core/hc_bytecode/tsconfig.json
+    - npx tsc -p ./packages/core/hc_grammar/tsconfig.json
+    - npx tsc -p ./packages/core/hc_root/tsconfig.json
+    - npx tsc -p ./packages/core/hc_tools/tsconfig.json
+    - npx tsc -p ./packages/rt_typescript/tsconfig.json
+
   artifacts:
-    untracked: false
-    expire_in: 10 min
     paths:
       - node_modules/
+      - packages/core/hc_asytrip/build/
+      - packages/core/hc_bytecode/build/
+      - packages/core/hc_grammar/build/
+      - packages/core/hc_root/build/
+      - packages/core/hc_tools/build/
+      - packages/rt_typescript/build/
 
 version_ts_modules:
   stage: test
