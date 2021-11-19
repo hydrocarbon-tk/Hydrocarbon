@@ -104,7 +104,7 @@ deploy_to_gitlab_branch:
     - git checkout -d HEAD
     - npm run collect_commit_bounties
     - git remote add releases $HCTK_GITHUB_REPO || git remote set-url releases $HCTK_GITHUB_REPO
-    - git push releases:staged-releases HEAD
+    - git push releases HEAD:staged-releases
 
   dependencies:
     - version_ts_modules
