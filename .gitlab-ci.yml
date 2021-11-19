@@ -11,7 +11,8 @@ cache:
 install_dependencies:
   stage: build
   script:
-    - npm install 
+    - npm config set registry "http://192.168.18.12:49155"
+    - npm install
   artifacts:
     untracked: false
     expire_in: 10 min
@@ -21,4 +22,3 @@ install_dependencies:
 version_ts_modules:
   stage: test
   script: npm run version_ts_packages
-
