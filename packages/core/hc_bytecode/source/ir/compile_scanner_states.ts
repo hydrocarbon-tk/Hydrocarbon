@@ -26,7 +26,7 @@ import {
 } from '@hctoolkit/grammar/build/passes/common';
 import { buildItemMaps } from '@hctoolkit/grammar/build/passes/item_map';
 import { constructProductionStates } from '../ir_state_compiler/state_constructor.js';
-import { convertParseProductsIntoStatesMap } from '../common/state_data';
+import { convertParseProductsIntoStatesMap } from '../common/state_data.js';
 import {
     IsAssertInstruction,
     IsPeekInstruction

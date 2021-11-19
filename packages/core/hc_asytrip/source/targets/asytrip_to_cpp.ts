@@ -22,8 +22,8 @@ import {
     TypeIsVector,
     TypesAre, TypesRequiresDynamic
 } from '../context/common.js';
-import { generateResolvedProps } from '../context/generate_resolved_props';
-import { Inits } from './Inits';
+import { generateResolvedProps } from '../context/generate_resolved_props.js';
+import { Inits } from './Inits.js';
 
 const type_mapper = new Map();
 const expr_mapper = new Map();

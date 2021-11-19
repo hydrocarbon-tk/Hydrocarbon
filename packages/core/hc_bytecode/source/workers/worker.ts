@@ -5,8 +5,8 @@
  */
 import { GrammarObject, Item } from "@hctoolkit/common";
 import { parentPort, MessagePort } from "worker_threads";
-import { constructProductionStates } from '../ir_state_compiler/state_constructor';
-import { HybridDispatch, HybridDispatchResponse, HybridJobType } from "../types/worker_messaging";
+import { constructProductionStates } from '../ir_state_compiler/state_constructor.js';
+import { HybridDispatch, HybridDispatchResponse, HybridJobType } from "../types/worker_messaging.js";
 
 /**
  * Takes an existing filled out grammar that has been transferred to 

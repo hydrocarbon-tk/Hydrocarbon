@@ -1,8 +1,8 @@
 import { Logger } from '@candlelib/log';
 import URI from '@candlelib/uri';
 import { GrammarObject } from "@hctoolkit/common";
-import { deduplicateProductionBodies, GrammarCompilationReport } from './compile';
-import { integrateReferencedProductions } from "../passes/referenced_production";
+import { deduplicateProductionBodies, GrammarCompilationReport } from './compile.js';
+import { integrateReferencedProductions } from "../passes/referenced_production.js";
 import { createCollisionMatrix, processSymbols } from '../passes/common.js';
 import { convertListProductions } from "../passes/convert_list_productions.js";
 import { extractMetaSymbolsFromBodies } from "../passes/extract_meta_symbols.js";

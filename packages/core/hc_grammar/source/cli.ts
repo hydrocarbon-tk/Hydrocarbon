@@ -9,7 +9,7 @@ import {
 } from "@candlelib/paraffin";
 import URI from '@candlelib/uri';
 import { tmpdir } from 'os';
-import { compileResourceFile } from "./compile/resource_grammar";
+import { compileResourceFile } from "./compile/resource_grammar.js";
 import { loadGrammarFromFile } from './passes/load.js';
 await URI.server();
 

@@ -3,8 +3,8 @@
  * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
  * disclaimer notice.
  */
-import { Item } from "../utilities/item";
-import { TokenSymbol } from "./grammar";
+import { Item } from "../utilities/item.js";
+import { TokenSymbol } from "./grammar.js";
 
 export interface ItemMapEntry {
     item: Item;

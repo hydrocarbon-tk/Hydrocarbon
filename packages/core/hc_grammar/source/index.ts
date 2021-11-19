@@ -1,10 +1,10 @@
-export * from './compile/compile';
-export * from './compile/resource_grammar';
-export { render_grammar } from './passes/common';
-export { buildItemMaps } from './passes/item_map';
-export { addRootScannerFunction, getSymbolProductionName } from './passes/scanner_production';
-export { getProductionByName } from './nodes/common';
+export * from './compile/compile.js';
+export * from './compile/resource_grammar.js';
+export { render_grammar } from './passes/common.js';
+export { buildItemMaps } from './passes/item_map.js';
+export { addRootScannerFunction, getSymbolProductionName } from './passes/scanner_production.js';
+export { getProductionByName } from './nodes/common.js';
 
-import loader from "./parser/hcg_parser_pending";
+import loader from "./parser/hcg_parser_pending.js";
 
 export const { parse: parser, entry_points } = await loader;

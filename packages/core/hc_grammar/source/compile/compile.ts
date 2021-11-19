@@ -9,7 +9,7 @@ import {
     GrammarObject,
     HCG3ProductionBody
 } from "@hctoolkit/common";
-import { buildScannerProduction } from '../passes/scanner_production';
+import { buildScannerProduction } from '../passes/scanner_production.js';
 import {
     createCollisionMatrix,
     processSymbols,
@@ -23,7 +23,7 @@ import {
     loadGrammarFromFile,
     loadGrammarFromString
 } from "../passes/load.js";
-import { integrateReferencedProductions } from '../passes/referenced_production';
+import { integrateReferencedProductions } from '../passes/referenced_production.js';
 
 /**
  * Takes a raw root grammar object and applies transformation

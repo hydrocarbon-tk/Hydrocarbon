@@ -4,7 +4,7 @@
  * disclaimer notice.
  */
 import { JSExpressionClass, JSIdentifierReference, JSNumericLiteral, JSStringLiteral } from "@candlelib/js";
-import { Token } from '../objects/token';
+import { Token } from '../objects/token.js';
 
 export type ASYTRIPContext = {
     structs: Map<string, ASYTRIPStruct>;

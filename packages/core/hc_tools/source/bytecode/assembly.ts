@@ -6,15 +6,14 @@
 import {
     convert_symbol_to_string,
     default_array,
+    ExportableStateData,
     fail_state_mask,
-    formatArray,
     goto_state_mask,
     GrammarObject,
     normal_state_mask,
     numeric_sort,
     ReverseStateLookupMap,
-    scanner_state_mask,
-    StateData,
+    scanner_state_mask
 } from '@hctoolkit/common';
 
 
@@ -111,10 +110,10 @@ export function renderHTMLStateFromBytecode(
         );
 
         const labels = [
-            (s: StateData) => (s.pointer & normal_state_mask) ? `<span class="s_label s_label_nm">NORMAL<span>` : "",
-            (s: StateData) => (s.pointer & fail_state_mask) ? `<span class="s_label s_label_fl">FAIL_MODE<span>` : "",
-            (s: StateData) => (s.pointer & goto_state_mask) ? `<span class="s_label s_label_gt">GOTO<span>` : "",
-            (s: StateData) => (s.pointer & scanner_state_mask) ? `<span class="s_label s_label_sc">SCAN<span>` : "",
+            (s: ExportableStateData) => (s.pointer & normal_state_mask) ? `<span class="s_label s_label_nm">NORMAL<span>` : "",
+            (s: ExportableStateData) => (s.pointer & fail_state_mask) ? `<span class="s_label s_label_fl">FAIL_MODE<span>` : "",
+            (s: ExportableStateData) => (s.pointer & goto_state_mask) ? `<span class="s_label s_label_gt">GOTO<span>` : "",
+            (s: ExportableStateData) => (s.pointer & scanner_state_mask) ? `<span class="s_label s_label_sc">SCAN<span>` : "",
         ].map(f => f(state)).filter(s => !!s).join(" ");
 
 

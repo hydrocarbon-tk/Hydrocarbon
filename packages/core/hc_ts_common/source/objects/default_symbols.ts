@@ -4,7 +4,7 @@
  * disclaimer notice.
  */
 import { Token } from './token.js';
-import { TokenTypes } from "../types/token_types";
+import { TokenTypes } from "../types/token_types.js";
 import {
     EOFSymbol,
     GeneratedIdentifier,
@@ -17,7 +17,7 @@ import {
     RecoverySymbol,
     GeneratedIdentifiers,
     GeneratedNumbers
-} from "../types/grammar";
+} from "../types/grammar.js";
 
 /**
  * Default Symbols

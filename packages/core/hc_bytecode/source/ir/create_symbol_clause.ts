@@ -19,7 +19,7 @@ import {
     Sym_Is_Defined,
     TokenSymbol
 } from '@hctoolkit/common';
-import { ConstructionOptions } from '../types/construction_options';
+import { ConstructionOptions } from '../types/construction_options.js';
 export function create_symbol_clause(
     items: Item[],
     grammar: GrammarObject,

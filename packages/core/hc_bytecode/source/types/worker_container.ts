@@ -4,7 +4,7 @@
  * disclaimer notice.
  */
 import { Worker } from "worker_threads";
-import { LocalWorker } from "../workers/local_worker";
+import { LocalWorker } from "../workers/local_worker.js";
 
 export type WorkerContainer = {
     target: Worker | LocalWorker;

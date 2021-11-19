@@ -1,5 +1,5 @@
-import { GrammarObject } from "./grammar";
-import { StateMap } from './ir_state_data';
+import { GrammarObject } from "./grammar.js";
+import { StateMap } from './ir_state_data.js';
 
 export interface BuildPack {
     grammar: GrammarObject;

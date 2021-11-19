@@ -4,12 +4,12 @@
  * disclaimer notice.
  */
 
-import { CompilableStruct } from "./compilable_nodes";
-import { TokenTypes } from "./token_types";
-import { Item } from "../utilities/item";
-import { ItemMapEntry } from "./item_map";
-import { IR_State } from './ir_types';
-import { Token } from '../objects/token';
+import { CompilableStruct } from "./compilable_nodes.js";
+import { TokenTypes } from "./token_types.js";
+import { Item } from "../utilities/item.js";
+import { ItemMapEntry } from "./item_map.js";
+import { IR_State } from './ir_types.js';
+import { Token } from '../objects/token.js';
 export const enum RECURSIVE_STATE {
     UNKNOWN = 0,
     LEFT = 1,

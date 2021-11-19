@@ -4,7 +4,7 @@
  * disclaimer notice.
  */
 
-import { initLUTable, jump8bit_table_byte_size } from './lu_table';
+import { initLUTable, jump8bit_table_byte_size } from './lu_table.js';
 
 export let char_lu_table: Uint8Array = new Uint8Array(jump8bit_table_byte_size);
 

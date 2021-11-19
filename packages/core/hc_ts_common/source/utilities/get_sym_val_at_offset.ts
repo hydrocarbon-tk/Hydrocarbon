@@ -14,11 +14,11 @@ import {
     Sym_Is_Empty,
     Sym_Is_Look_Behind,
     Sym_Is_Virtual_Token
-} from "../objects/symbol";
-import { GrammarObject, TokenSymbol, VirtualTokenSymbol } from "../types/grammar";
-import { getClosure, getFollowClosure } from "./closure";
-import { Item } from "./item";
-import { getProductionClosure } from "./production";
+} from "../objects/symbol.js";
+import { GrammarObject, TokenSymbol, VirtualTokenSymbol } from "../types/grammar.js";
+import { getClosure, getFollowClosure } from "./closure.js";
+import { Item } from "./item.js";
+import { getProductionClosure } from "./production.js";
 
 
 //Assign unique id to every symbol

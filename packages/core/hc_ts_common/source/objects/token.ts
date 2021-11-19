@@ -4,8 +4,8 @@
  * disclaimer notice.
  */
 
-import { TokenType } from '../utilities/runtime/magic_numbers';
-import { ByteWriter, ByteReader } from './buffer_handlers';
+import { TokenType } from '../utilities/runtime/magic_numbers.js';
+import { ByteWriter, ByteReader } from './buffer_handlers.js';
 
 
 /**

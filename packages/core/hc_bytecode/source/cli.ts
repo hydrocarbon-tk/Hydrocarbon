@@ -12,7 +12,7 @@ import { GrammarObject, ExportableStates } from '@hctoolkit/common';
 import { resolveResourceGrammarCLI } from '@hctoolkit/grammar';
 import { writeFile } from 'fs/promises';
 import { cpus, tmpdir } from 'os';
-import { createExportableStateData } from './common/state_data';
+import { createExportableStateData } from './common/state_data.js';
 import { compileBuildPack } from './index.js';
 
 await URI.server();

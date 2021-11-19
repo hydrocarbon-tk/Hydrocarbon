@@ -2,12 +2,12 @@
     "name": "@hctoolkit/bytecode",
     "version": "0.0.5",
     "bin": {
-        "hc-byte": "./bin/index.sh"
+        "hc-byte": "./bin/index.js"
     },
     "type": "module",
     "scripts": {
         "build": "tsc",
-        "test": "NODE_OPTIONS=--experimental-specifier-resolution=node candle.cure --reporter ci ./tests/"
+        "test": "candle.cure --reporter ci ./tests/"
     },
     "repository": {
         "type": "git",

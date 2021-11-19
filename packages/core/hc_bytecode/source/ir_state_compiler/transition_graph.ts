@@ -27,8 +27,8 @@ import {
     Token,
     TokenSymbol,
 } from '@hctoolkit/common';
-import { TransitionGraphOptions as TGO } from '../types/transition_graph_options';
-import { TransitionStateType as TST } from '../types/transition_tree_nodes';
+import { TransitionGraphOptions as TGO } from '../types/transition_graph_options.js';
+import { TransitionStateType as TST } from '../types/transition_tree_nodes.js';
 
 //Module scoped variable for convenience
 var GRAMMAR: GrammarObject;

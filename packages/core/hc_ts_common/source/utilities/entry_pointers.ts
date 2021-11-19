@@ -1,4 +1,4 @@
-import { GrammarObject, GrammarProduction } from '../types/';
+import { GrammarObject, GrammarProduction } from '../types/index.js';
 
 export function getEntryPointers(grammar: GrammarObject, state_name_to_pointer: Map<string, number>) {
 

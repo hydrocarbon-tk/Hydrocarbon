@@ -6,7 +6,7 @@
 import { Logger } from '@candlelib/log';
 import URI from '@candlelib/uri';
 import { GrammarObject, ProductionFunction } from "@hctoolkit/common";
-import { WorkerContainer } from "../types/worker_container";
+import { WorkerContainer } from "../types/worker_container.js";
 import { HybridDispatch, HybridDispatchResponse, HybridJobType } from "../types/worker_messaging.js";
 import { LocalWorker } from "./local_worker.js";
 

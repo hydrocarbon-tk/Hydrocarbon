@@ -1,4 +1,4 @@
-import { SymbolType } from "../../hc_ts_common";
+import { SymbolType } from "../../hc_ts_common/build/index.js";
 import { compileGrammarFromString } from "../build/compile.js";
 
 

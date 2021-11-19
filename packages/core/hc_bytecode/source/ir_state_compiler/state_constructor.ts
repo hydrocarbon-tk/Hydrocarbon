@@ -21,11 +21,11 @@ import {
     TokenSymbol,
     user_defined_state_mux
 } from '@hctoolkit/common';
-import { create_symbol_clause } from '../ir/create_symbol_clause';
-import { ConstructionOptions } from '../types/construction_options';
-import { TransitionGraphOptions } from '../types/transition_graph_options';
-import { TransitionStateType as TST } from '../types/transition_tree_nodes';
-import { constructDescent, constructGoto, createNode, Node } from './transition_graph';
+import { create_symbol_clause } from '../ir/create_symbol_clause.js';
+import { ConstructionOptions } from '../types/construction_options.js';
+import { TransitionGraphOptions } from '../types/transition_graph_options.js';
+import { TransitionStateType as TST } from '../types/transition_tree_nodes.js';
+import { constructDescent, constructGoto, createNode, Node } from './transition_graph.js';
 
 const hash_cache: Map<string, HashAction> = new Map();
 

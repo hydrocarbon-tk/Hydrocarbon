@@ -3,11 +3,11 @@
     "description": "Hydrocarbon: Core CommandLine Interface",
     "version": "0.0.5",
     "bin": {
-        "hc": "./bin/index.sh"
+        "hc": "./bin/index.js"
     },
     "type": "module",
     "scripts": {
-        "test": "NODE_OPTIONS=--experimental-specifier-resolution=node candle.cure --reporter ci ./tests/"
+        "test": "candle.cure --reporter ci ./tests/"
     },
     "repository": {
         "type": "git",

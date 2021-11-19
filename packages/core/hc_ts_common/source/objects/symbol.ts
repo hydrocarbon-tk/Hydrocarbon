@@ -21,7 +21,7 @@ import {
     ProductionSymbol,
     ProductionTokenSymbol, RecoverySymbol, SymbolType, TokenSymbol,
     VirtualTokenSymbol
-} from "../types/";
+} from "../types/index.js";
 import { Item } from "../utilities/item.js";
 
 

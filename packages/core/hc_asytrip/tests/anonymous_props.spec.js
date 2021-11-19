@@ -1,5 +1,5 @@
-import { ASYTRIPType } from "../../hc_ts_common";
-import { compileGrammarFromString } from "../../hc_grammar";
+import { compileGrammarFromString } from "../../hc_grammar/build/index.js";
+import { ASYTRIPType } from "../../hc_ts_common/build/index.js";
 import { createAsytripContext } from "../build/index.js";
 
 assert_group(`ASYTrip non-struct expressions are allowed to create new properties on structs through

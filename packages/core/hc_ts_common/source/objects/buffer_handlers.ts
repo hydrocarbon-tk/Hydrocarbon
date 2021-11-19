@@ -11,7 +11,7 @@
  */
 
 import { hashString } from '../index.js';
-import { StringType } from "../utilities/runtime/magic_numbers";
+import { StringType } from "../utilities/runtime/magic_numbers.js";
 import {
     getTypeAt,
     get_token_length_from_code_point,

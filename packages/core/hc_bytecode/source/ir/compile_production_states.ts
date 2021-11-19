@@ -15,7 +15,7 @@ import {
     user_defined_state_mux
 } from '@hctoolkit/common';
 import { WorkerRunner } from "../workers/worker_runner.js";
-import { convertParseProductsIntoStatesMap } from "../common/state_data";
+import { convertParseProductsIntoStatesMap } from "../common/state_data.js";
 import { create_symbol_clause } from './create_symbol_clause.js';
 
 export const build_logger = Logger.get("MAIN").createLogger("COMPILER");

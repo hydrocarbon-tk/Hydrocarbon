@@ -3,9 +3,9 @@
  * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
  * disclaimer notice.
  */
-import { default_EOF } from "../index";
-import { convert_symbol_to_string, getRootSym, Sym_Is_A_Production } from "../objects/symbol";
-import { GrammarObject, GrammarProduction, HCG3ProductionBody, HCG3Symbol } from "../types/grammar";
+import { default_EOF } from "../index.js";
+import { convert_symbol_to_string, getRootSym, Sym_Is_A_Production } from "../objects/symbol.js";
+import { GrammarObject, GrammarProduction, HCG3ProductionBody, HCG3Symbol } from "../types/grammar.js";
 
 export const enum ItemIndex {
     body_id = 0,

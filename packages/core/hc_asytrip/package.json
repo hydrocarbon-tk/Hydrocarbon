@@ -3,11 +3,11 @@
     "description": "Hydrocarbon Toolkit AST Compiler",
     "version": "0.0.4",
     "bin": {
-        "hc-ast": "./bin/index.sh"
+        "hc-ast": "./bin/index.js"
     },
     "type": "module",
     "scripts": {
-        "test": "NODE_OPTIONS=--experimental-specifier-resolution=node candle.cure --reporter ci ./tests/"
+        "test": "candle.cure --reporter ci ./tests/"
     },
     "repository": {
         "type": "git",

@@ -4,8 +4,8 @@
  * disclaimer notice.
  */
 
-import { Token } from "../objects/token";
-import { ParserEnvironment } from "./parser_environment";
+import { Token } from "../objects/token.js";
+import { ParserEnvironment } from "./parser_environment.js";
 
 export type HCGParser<T = any, R = any> = {
     (input: string, env: any, production_selector: number): {

@@ -4,7 +4,7 @@ import {
 import {
     getProductionByName, parser
 } from '@hctoolkit/grammar';
-import { build_logger, ir } from '../ir/compile_scanner_states';
+import { build_logger, ir } from '../ir/compile_scanner_states.js';
 
 
 export function convertParseProductsIntoStatesMap(ir_states: string[], grammar: GrammarObject, states_map: StateMap) {

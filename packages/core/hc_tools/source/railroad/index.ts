@@ -1,4 +1,14 @@
-import { GrammarObject, getEntryProductions, GrammarProduction, HCG3ProductionBody, SymbolType, ProductionSymbol, ProductionTokenSymbol, Sym_Is_A_Token, Sym_Is_A_Production } from '@hctoolkit/common';
+import {
+    GrammarObject,
+    getEntryProductions,
+    GrammarProduction,
+    HCG3ProductionBody,
+    SymbolType,
+    ProductionSymbol,
+    ProductionTokenSymbol,
+    Sym_Is_A_Token,
+    Sym_Is_A_Production
+} from '@hctoolkit/common';
 /**
  * Creates a random string that can be produced by the language 
  * defined by the given grammar. 

@@ -3,11 +3,11 @@
     "description": "Hydrocarbon Tools",
     "version": "0.0.4",
     "bin": {
-        "hc-tools": "./bin/index.sh"
+        "hc-tools": "./bin/index.js"
     },
     "type": "module",
     "scripts": {
-        "test": "NODE_OPTIONS=--experimental-specifier-resolution=node candle.cure --reporter ci ./tests/"
+        "test": "candle.cure --reporter ci ./tests/"
     },
     "repository": {
         "type": "git",

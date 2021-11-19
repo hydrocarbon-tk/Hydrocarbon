@@ -1,6 +1,6 @@
 
-import { Token } from '../objects/token';
-import { ReferencedFunction, ProductionFunction, ProductionImportSymbol, ProductionSymbol, TokenSymbol } from './grammar';
+import { Token } from '../objects/token.js';
+import { ReferencedFunction, ProductionFunction, ProductionImportSymbol, ProductionSymbol, TokenSymbol } from './grammar.js';
 
 export type i32 = number;
 type bit = number;

@@ -3,7 +3,7 @@
  * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
  * disclaimer notice.
  */
-import "../types/array_globals";
+import "../types/array_globals.js";
 
 Array.prototype.groupMap = function <T, KeyType>(
     this: Array<T>,
