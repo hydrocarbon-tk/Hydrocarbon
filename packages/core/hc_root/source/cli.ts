@@ -24,6 +24,12 @@ import { writeFile } from 'fs/promises';
 import { tmpdir } from 'os';
 import { renderTypeScriptParserData } from './render.js';
 
+const grammar_path = URI.resolveRelative("./grammar/build/cli.js", <URI>URI.resolveRelative("@hctoolkit/grammar")) + "";
+const bytecode_path = URI.resolveRelative("./bytecode/bin/index.js", <URI>URI.resolveRelative("@hctoolkit/bytecode")) + "";
+const asytrip_path = URI.resolveRelative("./asytrip/bin/index.js", <URI>URI.resolveRelative("@hctoolkit/asytrip")) + "";
+const tools_path = URI.resolveRelative("./tools/bin/index.js", <URI>URI.resolveRelative("@hctoolkit/tools")) + "";
+
+
 const disable_opt = addCLIConfig<boolean>("compile", "parser", {
     key: "O0",
     default: false,
@@ -57,7 +63,7 @@ addCLIConfig<URI | string>("compile", "parser", {
 
     Compile a Hydrocarbon parser system for a target language
 `
-}).callback = (async arg => {
+}).callback = (async (arg) => {
     await URI.server();
 
     const logger = Logger.createLogger("HCToolkit").activate(parse_loglevel.value);
@@ -68,7 +74,7 @@ addCLIConfig<URI | string>("compile", "parser", {
     const states_path = <URI>URI.resolveRelative("./tmp.hcs", dir);
     const binary_path = <URI>URI.resolveRelative("./tmp.hcb", dir);
 
-    const grammar_handle = spawn("npx", ["hc-grammar", "compile", "--o", resource_path + "", arg + ""], {
+    const grammar_handle = spawn("node", [grammar_path + "", "compile", "--o", resource_path + "", arg + ""], {
         stdio: ['inherit', "inherit", "inherit"]
     });
 
@@ -83,20 +89,18 @@ addCLIConfig<URI | string>("compile", "parser", {
 
     await Promise.all([
         new Promise(complete => {
-            const bc_handle = spawn("npx",
-                ["hc-byte", "compile", !disable_opt.value ? "" : "--O0", "--o", dir + "", resource_path + ""]
-                , {
-                    stdio: ['inherit', "inherit", "inherit"]
-                });
+            const bc_handle = spawn("node",
+                [bytecode_path + "", "compile", !disable_opt.value ? "" : "--O0", "--o", dir + "", resource_path + ""],
+                { stdio: ['inherit', "inherit", "inherit"] });
             bc_handle.addListener("close", () => {
                 complete(true);
             });
 
         }), new Promise(complete => {
             if (asytrip.value) {
-                const at_handle = spawn("npx", ["hc-ast", "compile", "--o", dir + "", "--t", target.value, resource_path + ""], {
-                    stdio: ['inherit', "inherit", "inherit"]
-                });
+                const at_handle = spawn("node",
+                    [asytrip_path + "", "compile", "--o", dir + "", "--t", target.value, resource_path + ""],
+                    { stdio: ['inherit', "inherit", "inherit"] });
                 at_handle.addListener("close", () => {
                     complete(true);
                 });
@@ -134,16 +138,18 @@ addCLIConfig<URI | string>("compile", "parser", {
             case "ts": {
 
                 const parser_data = renderTypeScriptParserData(grammar, binary, entry_pointers, states);
-                const ast_temp_path = <URI>URI.resolveRelative("./tmp-ast.ts", dir);
-                const ast_path = URI.resolveRelative("./ast.ts");
+
                 const data_path = URI.resolveRelative("./parser_data.ts");
+                const file_writes = [await writeFile(data_path + "", auto_gen_disclaimer_and_license + parser_data)];
 
-                await Promise.all([
-                    await writeFile(ast_path + "", auto_gen_disclaimer_and_license + (await ast_temp_path.fetchText())),
-                    await writeFile(data_path + "", auto_gen_disclaimer_and_license + parser_data),
-                ]);
+                if (asytrip.value) {
+                    const ast_temp_path = <URI>URI.resolveRelative("./tmp-ast.ts", dir);
+                    const ast_path = URI.resolveRelative("./ast.ts");
+                    file_writes.push(await writeFile(ast_path + "", auto_gen_disclaimer_and_license + (await ast_temp_path.fetchText())));
+                    logger.log(`Created \n   ${ast_path}\n   ${data_path}  `);
+                } else logger.log(`Created \n  ${data_path}  `);
 
-                logger.log(`Created \n   ${ast_path}\n   ${data_path}  `);
+                await Promise.all(file_writes);
 
             } break;
             case "go":
@@ -180,19 +186,19 @@ addCLIConfig<URI>("tools", "disassemble", {
     if (await gram_file.DOES_THIS_EXIST() && gram_file.ext == "hcg") {
 
         const grammar = spawn(
-            "npx", ["hc-grammar", "compile", "--o", "stdout", gram_file + ""],
+            "node", [grammar_path + "", "compile", "--o", "stdout", gram_file + ""],
             { stdio: ["inherit", "pipe", "inherit"] }
         );
 
         const bytecode = spawn(
-            "npx", ["hc-byte", "compile", "--O0", "--o", "stdout"],
+            "node", [bytecode_path + "", "compile", "--O0", "--o", "stdout"],
             { stdio: ["pipe", "pipe", "inherit"] }
         );
 
         grammar.stdout.pipe(bytecode.stdin, { end: true });
 
         const disassemble = spawn(
-            "npx", ["hc-tools", "disassemble", brwsflag, "stdin"],
+            "node", [tools_path + "", "disassemble", brwsflag, "stdin"],
             { stdio: ["pipe", "pipe", "inherit"] }
         );
 
@@ -218,12 +224,12 @@ addCLIConfig<URI>("tools", "fuzz", {
     if (await gram_file.DOES_THIS_EXIST() && gram_file.ext == "hcg") {
 
         const grammar = spawn(
-            "npx", ["hc-grammar", "compile", "--o", "stdout", gram_file + ""],
+            "node", [grammar_path + "", "compile", "--o", "stdout", gram_file + ""],
             { stdio: ["inherit", "pipe", "inherit"] }
         );
 
         const fuzz = spawn(
-            "npx", ["hc-tools", "fuzz", "stdin"],
+            "node", [tools_path + "", "fuzz", "stdin"],
             { stdio: ["pipe", "pipe", "inherit"] }
         );
 
