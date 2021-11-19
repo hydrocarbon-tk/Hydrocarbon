@@ -101,10 +101,10 @@ deploy_to_gitlab_branch:
     - git config --global user.name "Gitlab Runner"
 
   script:
-    - git checkout -b temp-staged
+    - git checkout -d HEAD
     - npm run collect_commit_bounties
     - git remote add releases $HCTK_GITHUB_REPO
-    - git push remote:staged-releases temp-staged
+    - git push remote:staged-releases HEAD
 
   dependencies:
     - version_ts_modules
