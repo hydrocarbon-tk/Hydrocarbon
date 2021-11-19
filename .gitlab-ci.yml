@@ -67,8 +67,8 @@ version_ts_modules:
       - packages/**/package.json
 
   dependencies:
-    - build:install_dependency_packages
-    - build:build_typescript_packages
+    - install_dependency_packages
+    - build_typescript_packages
 
 # DEPLOY ------------------------------------------------------------------
 
@@ -78,8 +78,8 @@ publish_ts_packages:
     - npm config set registry $PACKAGE_REGISTRY
     - npm run collect_publish_bounties
   dependencies:
-    - test:version_ts_modules
-    - build:build_typescript_packages
+    - version_ts_modules
+    - build_typescript_packages
 
 deploy_to_gitlab_branch:
   stage: deploy
@@ -104,6 +104,8 @@ deploy_to_gitlab_branch:
     - git push remote:staged-releases temp-staged
 
   dependencies:
-    - test:version_ts_modules
-    - build:install_dependency_packages
-    - build:build_typescript_packages
+    - version_ts_modules
+    - install_dependency_packages
+    - build_typescript_packages
+##
+# reference https://docs.gitlab.com/ee/ci/yaml/
