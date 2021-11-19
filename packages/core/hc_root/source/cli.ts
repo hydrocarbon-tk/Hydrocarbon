@@ -24,14 +24,14 @@ import { writeFile } from 'fs/promises';
 import { tmpdir } from 'os';
 import { renderTypeScriptParserData } from './render.js';
 
-const disable_opt = addCLIConfig<boolean>("compile", "parse", {
+const disable_opt = addCLIConfig<boolean>("compile", "parser", {
     key: "O0",
     default: false,
     REQUIRES_VALUE: false,
     help_brief: `Disable optimizations`,
 });
 
-const target = addCLIConfig<"rust" | "go" | "ts">("compile", "parse", {
+const target = addCLIConfig<"rust" | "go" | "ts">("compile", "parser", {
     key: "t",
     default: "ts",
     accepted_values: ["rust", "go", "ts"],
@@ -40,16 +40,16 @@ const target = addCLIConfig<"rust" | "go" | "ts">("compile", "parse", {
     help_brief: "Target language to write parser in. Defaults to TypeScript",
 });
 
-const asytrip = addCLIConfig("compile", "parse", {
+const asytrip = addCLIConfig("compile", "parser", {
     key: "asytrip",
     REQUIRES_VALUE: false,
     help_brief: "Compile ASYTrip",
 });
 
-const parse_loglevel = addCLIConfig("compile", "parse", args.log_level_properties);
+const parse_loglevel = addCLIConfig("compile", "parser", args.log_level_properties);
 
-addCLIConfig<URI | string>("compile", "parse", {
-    key: "parse",
+addCLIConfig<URI | string>("compile", "parser", {
+    key: "parser",
     help_arg_name: "HCG file path",
     REQUIRES_VALUE: true,
     accepted_values: ["stdin", URI],
@@ -68,7 +68,7 @@ addCLIConfig<URI | string>("compile", "parse", {
     const states_path = <URI>URI.resolveRelative("./tmp.hcs", dir);
     const binary_path = <URI>URI.resolveRelative("./tmp.hcb", dir);
 
-    const grammar_handle = spawn("hc.grammar", ["compile", "--o", resource_path + "", arg + ""], {
+    const grammar_handle = spawn("npx", ["hc-grammar", "compile", "--o", resource_path + "", arg + ""], {
         stdio: ['inherit', "inherit", "inherit"]
     });
 
@@ -83,8 +83,8 @@ addCLIConfig<URI | string>("compile", "parse", {
 
     await Promise.all([
         new Promise(complete => {
-            const bc_handle = spawn("hc.bytecode",
-                ["compile", !disable_opt.value ? "" : "--O0", "--o", dir + "", resource_path + ""]
+            const bc_handle = spawn("npx",
+                ["hc-byte", "compile", !disable_opt.value ? "" : "--O0", "--o", dir + "", resource_path + ""]
                 , {
                     stdio: ['inherit', "inherit", "inherit"]
                 });
@@ -94,7 +94,7 @@ addCLIConfig<URI | string>("compile", "parse", {
 
         }), new Promise(complete => {
             if (asytrip.value) {
-                const at_handle = spawn("hc.asytrip", ["compile", "--o", dir + "", "--t", target.value, resource_path + ""], {
+                const at_handle = spawn("npx", ["hc-ast", "compile", "--o", dir + "", "--t", target.value, resource_path + ""], {
                     stdio: ['inherit', "inherit", "inherit"]
                 });
                 at_handle.addListener("close", () => {
@@ -158,26 +158,80 @@ addCLIConfig<URI | string>("compile", "parse", {
     }
 });
 
-addCLIConfig<URI | string>("tools", "disassemble", {
+const browse = addCLIConfig<boolean>("tools", "disassemble", {
+    key: "browse",
+    REQUIRES_VALUE: false,
+    help_brief: "Open the bytecode sheet in the default browser.",
+});
+
+
+addCLIConfig<URI>("tools", "disassemble", {
     key: "disassemble",
     help_arg_name: "HCG file path",
     REQUIRES_VALUE: true,
-    accepted_values: ["stdin", URI],
+    accepted_values: [URI],
     help_brief: `
-    Create a disassembly sheet from a Grammar file
+    Create a bytecode disassembly sheet from a grammar
 `
-}).callback = async function () { };
+}).callback = async function (arg) {
+    const gram_file = <URI>URI.resolveRelative(arg);
+    const brwsflag = !!browse.value ? "--browse" : "";
 
-addCLIConfig<URI | string>("tools", "fuzz", {
+    if (await gram_file.DOES_THIS_EXIST() && gram_file.ext == "hcg") {
+
+        const grammar = spawn(
+            "npx", ["hc-grammar", "compile", "--o", "stdout", gram_file + ""],
+            { stdio: ["inherit", "pipe", "inherit"] }
+        );
+
+        const bytecode = spawn(
+            "npx", ["hc-byte", "compile", "--O0", "--o", "stdout"],
+            { stdio: ["pipe", "pipe", "inherit"] }
+        );
+
+        grammar.stdout.pipe(bytecode.stdin, { end: true });
+
+        const disassemble = spawn(
+            "npx", ["hc-tools", "disassemble", brwsflag, "stdin"],
+            { stdio: ["pipe", "pipe", "inherit"] }
+        );
+
+        bytecode.stdout.pipe(disassemble.stdin, { end: true });
+
+        disassemble.stdout.pipe(process.stdout, { end: true });
+    }
+};
+
+addCLIConfig<URI>("tools", "fuzz", {
     key: "fuzz",
     help_arg_name: "HCG file path",
     REQUIRES_VALUE: true,
-    accepted_values: ["stdin", URI],
+    accepted_values: [URI],
     help_brief: `
 
-    Created a randomized fuzz string from the input grammar.
+    Create a randomized fuzz string from a grammar
 `
-}).callback = async function () { };
+}).callback = async function (arg) {
+
+    const gram_file = <URI>URI.resolveRelative(arg);
+
+    if (await gram_file.DOES_THIS_EXIST() && gram_file.ext == "hcg") {
+
+        const grammar = spawn(
+            "npx", ["hc-grammar", "compile", "--o", "stdout", gram_file + ""],
+            { stdio: ["inherit", "pipe", "inherit"] }
+        );
+
+        const fuzz = spawn(
+            "npx", ["hc-tools", "fuzz", "stdin"],
+            { stdio: ["pipe", "pipe", "inherit"] }
+        );
+
+        grammar.stdout.pipe(fuzz.stdin, { end: true });
+
+        fuzz.stdout.pipe(process.stdout, { end: true });
+    }
+};
 
 processCLIConfig("hc");
 

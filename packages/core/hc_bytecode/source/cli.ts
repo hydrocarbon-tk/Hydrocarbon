@@ -120,6 +120,6 @@ addCLIConfig<URI | "stdin">("compile", {
 
 });
 
-processCLIConfig();
+processCLIConfig("hc-byte");
 
 

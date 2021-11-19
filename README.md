@@ -52,7 +52,7 @@ $ hc compile parser <grammar file>
 $ hc compile parser --asytrip --type <rust|go|ts|js|c++> <grammar_filepath>
 ```
 
-### Render a [bytcode](./site/architecture.bytecode.index.md) disassembly sheet and open in a browser
+### Render a [bytecode](./site/architecture.bytecode.index.md) disassembly sheet and open in a browser
 
 ```bash
 $ hc tools disassemble --browse <grammar_filepath>
