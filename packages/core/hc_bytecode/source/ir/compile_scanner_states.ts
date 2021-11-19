@@ -23,8 +23,8 @@ import {
 import {
     createProductionLookup,
     processSymbol
-} from '@hctoolkit/grammar/build/passes/common';
-import { buildItemMaps } from '@hctoolkit/grammar/build/passes/item_map';
+} from '@hctoolkit/grammar/build/passes/common.js';
+import { buildItemMaps } from '@hctoolkit/grammar/build/passes/item_map.js';
 import { constructProductionStates } from '../ir_state_compiler/state_constructor.js';
 import { convertParseProductsIntoStatesMap } from '../common/state_data.js';
 import {

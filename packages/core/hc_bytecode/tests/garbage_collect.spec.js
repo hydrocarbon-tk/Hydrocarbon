@@ -4,7 +4,7 @@
  */
 import { assert, run } from "@candlelib/cure";
 import { garbageCollect } from "../build/ir/optimize.js";
-import { createStateMap } from "./tools";
+import { createStateMap } from "./tools.js";
 const a = 0;
 
 // Build a state graph from a few of states and ensure after GC

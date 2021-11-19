@@ -1,6 +1,6 @@
 import { assert, assert_group } from "@candlelib/cure";
-import { createExportableStateData } from "../build/common/state_data";
-import { createStateMap } from "./tools";
+import { createExportableStateData } from "../build/common/state_data.js";
+import { createStateMap } from "./tools.js";
 
 assert_group("", sequence, () => {
 

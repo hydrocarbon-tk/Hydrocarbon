@@ -3,12 +3,12 @@
     "description": "Hydrocarbon Grammar Compiler",
     "version": "0.0.4",
     "bin": {
-        "hc-grammar": "bin/index.js"
+        "hc-grammar": "./bin/index.js"
     },
     "main": "./build/index.js",
     "type": "module",
     "scripts": {
-        "test": "candle.cure --reporter ci ./tests/"
+        "test": "candle.cure ./tests/"
     },
     "repository": {
         "type": "git",

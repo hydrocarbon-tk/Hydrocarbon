@@ -1,5 +1,5 @@
 import { SymbolType } from "../../hc_ts_common/build/index.js";
-import { compileGrammarFromString } from "../build/compile.js";
+import { compileGrammarFromString } from "../build/index.js";
 
 
 assert_group(sequence, "Parses simple grammar", () => {

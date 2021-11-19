@@ -12,7 +12,7 @@ assert_group("End to End with test grammar - file rename", sequence, () => {
 
     let DELETED = false;
 
-    spawnSync(`npx`, [`./`, `compile`, `--o`, `"${tmpdir()}/test_result"`, `./grammar/test.hcg`]);
+    spawnSync(`./bin/index.js`, [`compile`, `--o`, `"${tmpdir()}/test_result"`, `./grammar/test.hcg`]);
 
     assert("Grammar resource file created", (await expected_path.DOES_THIS_EXIST()) == true);
 
@@ -34,7 +34,7 @@ assert_group("End to End with test grammar - default name", sequence, () => {
 
     let DELETED = false;
 
-    spawnSync(`npx`, [`./`, `compile`, `--o`, `"${tmpdir()}/"`, `./grammar/test.hcg`]);
+    spawnSync(`./bin/index.js`, [`compile`, `--o`, `"${tmpdir()}/"`, `./grammar/test.hcg`]);
 
     assert("Grammar resource file created", (await expected_path.DOES_THIS_EXIST()) == true);
 
