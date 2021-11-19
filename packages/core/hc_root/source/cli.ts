@@ -23,11 +23,12 @@ import { spawn } from 'child_process';
 import { writeFile } from 'fs/promises';
 import { tmpdir } from 'os';
 import { renderTypeScriptParserData } from './render.js';
-
-const grammar_path = URI.resolveRelative("./grammar/build/cli.js", <URI>URI.resolveRelative("@hctoolkit/grammar")) + "";
-const bytecode_path = URI.resolveRelative("./bytecode/bin/index.js", <URI>URI.resolveRelative("@hctoolkit/bytecode")) + "";
-const asytrip_path = URI.resolveRelative("./asytrip/bin/index.js", <URI>URI.resolveRelative("@hctoolkit/asytrip")) + "";
-const tools_path = URI.resolveRelative("./tools/bin/index.js", <URI>URI.resolveRelative("@hctoolkit/tools")) + "";
+const this_directory = URI.getEXEURL(import.meta);
+const RR = URI.resolveRelative;
+const grammar_path = RR("./grammar/build/cli.js", <URI>RR("@hctoolkit/grammar", this_directory)) + "";
+const bytecode_path = RR("./bytecode/bin/index.js", <URI>RR("@hctoolkit/bytecode", this_directory)) + "";
+const asytrip_path = RR("./asytrip/bin/index.js", <URI>RR("@hctoolkit/asytrip", this_directory)) + "";
+const tools_path = RR("./tools/bin/index.js", <URI>RR("@hctoolkit/tools", this_directory)) + "";
 
 
 const disable_opt = addCLIConfig<boolean>("compile", "parser", {
