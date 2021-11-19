@@ -20,14 +20,14 @@ stages:
 
 # BUILD ----------------------------------------------------------------------
 
-install_dependency_packages:
+install dependencies:
   stage: build
   script:
     - npm config set registry $PACKAGE_REGISTRY
     - npm install --no-audit
 
   artifacts:
-    expire_in: 15 min
+    expire_in: 2 hours
     paths:
       - node_modules/
 
@@ -45,7 +45,7 @@ build_typescript_packages:
     - npx tsc -p ./packages/rt_typescript/tsconfig.json || true
 
   artifacts:
-    expire_in: 15 min
+    expire_in: 2 hours
     paths:
       - packages/core/hc_ts_common/build/
       - packages/core/hc_asytrip/build/
@@ -54,6 +54,8 @@ build_typescript_packages:
       - packages/core/hc_root/build/
       - packages/core/hc_tools/build/
       - packages/rt_typescript/build/
+  dependencies:
+    - install:dependencies
 
 # TEST & VERSION -----------------------------------------------------------
 
@@ -67,7 +69,7 @@ version_ts_modules:
       - packages/**/package.json
 
   dependencies:
-    - install_dependency_packages
+    - install:dependencies
     - build_typescript_packages
 
 # DEPLOY ------------------------------------------------------------------
@@ -105,7 +107,7 @@ deploy_to_gitlab_branch:
 
   dependencies:
     - version_ts_modules
-    - install_dependency_packages
+    - install:dependencies
     - build_typescript_packages
 ##
 # reference https://docs.gitlab.com/ee/ci/yaml/
