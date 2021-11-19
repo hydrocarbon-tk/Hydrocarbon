@@ -1,5 +1,4 @@
-default:
-  image: node:latest
+image: node:latest
 
 stages:
   - build
