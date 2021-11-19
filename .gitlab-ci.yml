@@ -103,7 +103,7 @@ deploy_to_gitlab_branch:
   script:
     - git checkout -b temp-staged
     - npm run collect_commit_bounties
-    - git remote add releases $GITHUB_REPO
+    - git remote add releases $HCTK_GITHUB_REPO
     - git push remote:staged-releases temp-staged
 
   dependencies:
