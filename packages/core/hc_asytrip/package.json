@@ -7,7 +7,7 @@
     },
     "type": "module",
     "scripts": {
-        "test": "candle.cure --reporter ci ./tests/"
+        "test": "candle.cure ./tests/"
     },
     "repository": {
         "type": "git",
