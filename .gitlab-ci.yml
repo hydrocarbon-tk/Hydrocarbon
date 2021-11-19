@@ -3,6 +3,7 @@ image: node:latest
 stages:
   - build
   - test
+  - deploy
 
 cache:
   paths:
@@ -15,12 +16,21 @@ cache:
     - packages/core/hc_tools/build/
     - packages/rt_typescript/build/
 
-install_dependencies:
+install_dependency_packages:
   stage: build
   script:
     - npm config set registry http://192.168.18.12:49155
     - npm install --no-audit
     - npm install typescript
+
+  artifacts:
+    paths:
+      - node_modules/
+
+build_typescript_packages:
+  stage: build
+
+  script:
     - npx tsc -p ./packages/core/hc_ts_common/tsconfig.json || true
     - npx tsc -p ./packages/core/hc_asytrip/tsconfig.json || true
     - npx tsc -p ./packages/core/hc_bytecode/tsconfig.json || true
@@ -31,7 +41,6 @@ install_dependencies:
 
   artifacts:
     paths:
-      - node_modules/
       - packages/core/hc_ts_common/build/
       - packages/core/hc_asytrip/build/
       - packages/core/hc_bytecode/build/
