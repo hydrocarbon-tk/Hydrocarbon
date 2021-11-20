@@ -22,7 +22,7 @@ stages:
 fetch_dependencies:
   stage: fetch
   script:
-    - npm config set registry $PACKAGE_REGISTRY
+    - npm config set registry http://$NPM_REGISTRY
     - npm install --no-audit
 
   artifacts:
@@ -77,9 +77,14 @@ version_ts_modules:
 
 publish_ts_packages:
   stage: deploy
+
+  before_script:
+    - echo '//${NPM_REGISTRY}/:_authToken=${NPM_TOKEN}'> ~/.npmrc
+
   script:
-    - npm config set registry $PACKAGE_REGISTRY
+    - npm config set registry http://$NPM_REGISTRY
     - npm run collect_publish_bounties
+
   dependencies:
     - version_ts_modules
     - fetch_dependencies
@@ -107,7 +112,6 @@ deploy_to_gitlab_branch:
     - git push releases HEAD:staged-releases
 
   dependencies:
-  
     - version_ts_modules
     - fetch_dependencies
     - build_typescript_packages
