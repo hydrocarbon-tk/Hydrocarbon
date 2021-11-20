@@ -1,7 +1,7 @@
 {
     "name": "hctoolkit",
     "description": "Hydrocarbon Toolkit",
-    "version": "0.0.12",
+    "version": "0.0.13",
     "bin": {
         "hc": "./bin/index.js"
     },
@@ -34,11 +34,11 @@
         "@candlelib/log": "*",
         "@candlelib/paraffin": "*",
         "@candlelib/uri": "*",
-        "@hctoolkit/grammar": "0.0.5",
-        "@hctoolkit/bytecode": "0.0.8",
-        "@hctoolkit/asytrip": "0.0.7",
-        "@hctoolkit/tools": "0.0.5",
-        "@hctoolkit/common": "0.1.1"
+        "@hctoolkit/grammar": "0.0.6",
+        "@hctoolkit/bytecode": "0.0.9",
+        "@hctoolkit/asytrip": "0.0.8",
+        "@hctoolkit/tools": "0.0.6",
+        "@hctoolkit/common": "0.1.2"
     },
     "devDependencies": {
         "@types/node": "^16.4.13",
