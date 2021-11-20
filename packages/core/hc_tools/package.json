@@ -1,7 +1,7 @@
 {
     "name": "@hctoolkit/tools",
     "description": "Hydrocarbon Tools",
-    "version": "0.0.5",
+    "version": "0.0.6",
     "bin": {
         "hc-tools": "./bin/index.js"
     },
@@ -33,7 +33,7 @@
         "@candlelib/log": "*",
         "@candlelib/paraffin": "*",
         "@candlelib/uri": "*",
-        "@hctoolkit/common": "0.1.1"
+        "@hctoolkit/common": "0.1.2"
     },
     "devDependencies": {
         "@types/node": "^16.4.13",
