@@ -107,6 +107,7 @@ deploy_to_gitlab_branch:
     - git push releases HEAD:staged-releases
 
   dependencies:
+  
     - version_ts_modules
     - fetch_dependencies
     - build_typescript_packages
