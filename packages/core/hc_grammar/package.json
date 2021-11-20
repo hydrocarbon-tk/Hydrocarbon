@@ -1,7 +1,7 @@
 {
     "name": "@hctoolkit/grammar",
     "description": "Hydrocarbon Grammar Compiler",
-    "version": "0.0.5",
+    "version": "0.0.6",
     "bin": {
         "hc-grammar": "./bin/index.js"
     },
@@ -35,7 +35,7 @@
         "@candlelib/paraffin": "*",
         "@candlelib/uri": "*",
         "@candlelib/hydrocarbon": "*",
-        "@hctoolkit/common": "0.1.1"
+        "@hctoolkit/common": "0.1.2"
     },
     "devDependencies": {
         "@candlelib/cure": "*",
