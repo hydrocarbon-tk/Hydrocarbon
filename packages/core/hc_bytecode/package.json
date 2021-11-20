@@ -1,6 +1,6 @@
 {
     "name": "@hctoolkit/bytecode",
-    "version": "0.0.8",
+    "version": "0.0.9",
     "bin": {
         "hc-byte": "./bin/index.js"
     },
@@ -34,7 +34,7 @@
         "@candlelib/paraffin": "*",
         "@candlelib/spark": "*",
         "@candlelib/uri": "*",
-        "@hctoolkit/common": "0.1.1"
+        "@hctoolkit/common": "0.1.2"
     },
     "devDependencies": {
         "@types/node": "^16.4.13",
