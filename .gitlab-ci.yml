@@ -90,7 +90,6 @@ version_ts_modules:
       - "./*.bounty"
       - packages/**/*.bounty
       - packages/**/*.temp.json
-      - packages/**/package.json
 
   dependencies:
     - fetch_dependencies
