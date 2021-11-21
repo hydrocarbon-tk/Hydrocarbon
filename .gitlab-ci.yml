@@ -69,6 +69,9 @@ build_typescript_packages:
 version_ts_modules:
   stage: test
 
+  variables:
+    GIT_STRATEGY: clone
+    
   before_script:
     - TOKENED_REPO=http://git:$GITLAB_ACCESS_TOKEN@$GITLAB_HOST:$GITLAB_HTTP_PORT/$GITLAB_REPO_PATH
     - git remote add gitlab $TOKENED_REPO || git remote set-url gitlab $TOKENED_REPO
@@ -117,6 +120,9 @@ publish_ts_packages:
 
 deploy_to_gitlab_branch:
   stage: deploy
+
+  variables:
+    GIT_STRATEGY: clone
 
   before_script:
     - TOKENED_REPO=http://git:$GITLAB_ACCESS_TOKEN@$GITLAB_HOST:$GITLAB_HTTP_PORT/$GITLAB_REPO_PATH
