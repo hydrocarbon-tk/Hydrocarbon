@@ -134,7 +134,7 @@ deploy_to_gitlab_branch:
 
   script:
     - ./root.commit.bounty
-    - git push -f releases HEAD:$STAGED_VERSION_BRANCH
+    - git push -f gitlab HEAD:$STAGED_VERSION_BRANCH
 
   dependencies:
     - version_ts_modules
