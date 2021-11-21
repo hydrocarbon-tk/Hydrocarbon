@@ -86,10 +86,10 @@ version_ts_modules:
 
   artifacts:
     paths:
-      - "/*.bounty"
-      - "/packages/**/*.bounty"
-      - "/packages/**/*.temp.json"
-      - "/packages/**/package.json"
+      - "./*.bounty"
+      - "./packages/**/*.bounty"
+      - "./packages/**/*.temp.json"
+      - "./packages/**/package.json"
 
   dependencies:
     - fetch_dependencies
