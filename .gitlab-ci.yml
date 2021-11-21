@@ -81,7 +81,8 @@ version_ts_modules:
     - npm run version_ts_packages
 
   after_script:
-    - git checkout --track gitlab/$STAGED_VERSION_BRANCH -B $STAGED_VERSION_BRANCH
+    - git checkout $STAGED_VERSION_BRANCH
+    - get branch -u gitlab/$STAGED_VERSION_BRANCH
     - git push
 
   artifacts:
@@ -123,7 +124,8 @@ deploy_to_gitlab_branch:
     - git remote add gitlab $TOKENED_REPO || git remote set-url gitlab $TOKENED_REPO
     - git config --global user.email "hydrocarbon-authors@null.io"
     - git config --global user.name "Gitlab Runner"
-    - git checkout --track gitlab/$STAGED_VERSION_BRANCH -B $STAGED_VERSION_BRANCH
+    - git checkout $STAGED_VERSION_BRANCH
+    - get branch -u gitlab/$STAGED_VERSION_BRANCH
     - git pull
 
   script:
