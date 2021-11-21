@@ -75,12 +75,13 @@ version_ts_modules:
     - git config --global user.email "hydrocarbon-authors@null.io"
     - git config --global user.name "Gitlab Runner"
     - git fetch --all
+    - npm config set registry http://$NPM_REGISTRY
 
   script:
     - npm run version_ts_packages
 
   after_script:
-    - git checkout --track gitlab/$STAGED_VERSION_BRANCH $STAGED_VERSION_BRANCH
+    - git checkout -B --track gitlab/$STAGED_VERSION_BRANCH $STAGED_VERSION_BRANCH
     - git push
 
   artifacts:
@@ -121,7 +122,7 @@ deploy_to_gitlab_branch:
     - git remote add gitlab $TOKENED_REPO || git remote set-url gitlab $TOKENED_REPO
     - git config --global user.email "hydrocarbon-authors@null.io"
     - git config --global user.name "Gitlab Runner"
-    - git checkout --track gitlab/$STAGED_VERSION_BRANCH
+    - git checkout -B --track gitlab/$STAGED_VERSION_BRANCH $STAGED_VERSION_BRANCH
     - git pull
 
   script:
