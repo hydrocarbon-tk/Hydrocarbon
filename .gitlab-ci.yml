@@ -71,7 +71,9 @@ version_ts_modules:
 
   before_script:
     - TOKENED_REPO=http://git:$GITLAB_ACCESS_TOKEN@$GITLAB_HOST:$GITLAB_HTTP_PORT/$GITLAB_REPO_PATH
-    - git remote add releases $TOKENED_REPO || git remote set-url releases $TOKENED_REPO
+    - git remote add gitlab $TOKENED_REPO || git remote set-url gitlab $TOKENED_REPO
+    - git config --global user.email "hydrocarbon-authors@null.io"
+    - git config --global user.name "Gitlab Runner"
     - git fetch --all
 
   script:
@@ -111,8 +113,10 @@ deploy_to_gitlab_branch:
 
   before_script:
     - TOKENED_REPO=http://git:$GITLAB_ACCESS_TOKEN@$GITLAB_HOST:$GITLAB_HTTP_PORT/$GITLAB_REPO_PATH
-    - git remote add releases $TOKENED_REPO || git remote set-url releases $TOKENED_REPO
-    - git checkout --track releases/$STAGED_VERSION_BRANCH
+    - git remote add gitlab $TOKENED_REPO || git remote set-url gitlab $TOKENED_REPO
+    - git config --global user.email "hydrocarbon-authors@null.io"
+    - git config --global user.name "Gitlab Runner"
+    - git checkout --track gitlab/$STAGED_VERSION_BRANCH
     - git pull
 
   script:
