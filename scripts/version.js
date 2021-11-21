@@ -16,9 +16,11 @@ if (FOUND && wksp_pkg.name == "@hctoolkit/workspace") {
     if (wksp_pkg.devPackages.every(d => d !== null)) {
         try {
 
-            await validateEligibilityPackages(wksp_pkg.devPackages, (pkg) => {
+            if (!await validateEligibilityPackages(wksp_pkg.devPackages, (pkg) => {
                 return Object.getOwnPropertyNames(pkg?.dependencies ?? {}).filter(n => wksp_pkg.devPackages.includes(n));
-            }, false);
+            }, false)) {
+                logger.log("Unable to version packages");
+            };
         } catch (E) {
             logger.log("Unable to version packages");
             process.exit(-1);
