@@ -1,6 +1,6 @@
 {
     "name": "hctoolkit",
-    "description": "Hydrocarbon Toolkit",
+    "description": "Hydrocarbon Toolkit - Testing",
     "version": "0.0.14",
     "bin": {
         "hc": "./bin/index.js"
