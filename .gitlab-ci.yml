@@ -68,11 +68,16 @@ build_typescript_packages:
 
 version_ts_modules:
   stage: test
+
+  before_script:
+    - git fetch --all
+
   script:
     - npm run version_ts_packages
   artifacts:
     paths:
       - "*.bounty"
+      - "*.temp.json"
       - packages/**/package.json
 
   dependencies:
@@ -83,6 +88,9 @@ version_ts_modules:
 
 publish_ts_packages:
   stage: deploy
+
+  rules:
+    - when: never
 
   before_script:
     - echo '//${NPM_REGISTRY}/:_authToken=${NPM_TOKEN}'> ~/.npmrc
@@ -110,11 +118,13 @@ deploy_to_gitlab_branch:
     - chmod 644 ~/.ssh/known_hosts
     - git config --global user.email "hydrocarbon-authors@null.io"
     - git config --global user.name "Gitlab Runner"
+    - git remote add releases $HCTK_GITHUB_REPO || git remote set-url releases $HCTK_GITHUB_REPO
+    - git checkout --track releases/$STAGED_VERSION_BRANCH
+    - git pull
 
   script:
     - ./root.commit.bounty
-    - git remote add releases $HCTK_GITHUB_REPO || git remote set-url releases $HCTK_GITHUB_REPO
-    - git push releases HEAD:staged-releases
+    - git push -f releases HEAD:$STAGED_VERSION_BRANCH
 
   dependencies:
     - version_ts_modules
