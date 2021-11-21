@@ -70,6 +70,8 @@ version_ts_modules:
   stage: test
 
   before_script:
+    - TOKENED_REPO=http://$GITLAB_ACCESS_TOKEN@$GITLAB_HOST:$GITLAB_HTTP_PORT/$GITLAB_REPO_PATH
+    - git remote add releases $TOKENED_REPO || git remote set-url releases $TOKENED_REPO
     - git fetch --all
 
   script:
@@ -108,17 +110,8 @@ deploy_to_gitlab_branch:
   stage: deploy
 
   before_script:
-    - apt-get update -y && apt-get install -yqqf openssh-client git unzip sshpass rsync --fix-missing
-    - "which ssh-agent || ( apt-get update -y && apt-get install openssh-client git -y )"
-    - eval $(ssh-agent -s)
-    - echo "$DEPLOY_KEY" | tr -d '\r' | ssh-add - > /dev/null
-    - mkdir -p ~/.ssh
-    - chmod 700 ~/.ssh
-    - ssh-keyscan -p $GITLAB_PORT $GITLAB_HOST >> ~/.ssh/known_hosts
-    - chmod 644 ~/.ssh/known_hosts
-    - git config --global user.email "hydrocarbon-authors@null.io"
-    - git config --global user.name "Gitlab Runner"
-    - git remote add releases $HCTK_GITHUB_REPO || git remote set-url releases $HCTK_GITHUB_REPO
+    - TOKENED_REPO=http://$GITLAB_ACCESS_TOKEN@$GITLAB_HOST:$GITLAB_HTTP_PORT/$GITLAB_REPO_PATH
+    - git remote add releases $TOKENED_REPO || git remote set-url releases $TOKENED_REPO
     - git checkout --track releases/$STAGED_VERSION_BRANCH
     - git pull
 
