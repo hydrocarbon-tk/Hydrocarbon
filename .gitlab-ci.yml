@@ -78,6 +78,11 @@ version_ts_modules:
 
   script:
     - npm run version_ts_packages
+
+  after_script:
+    - git checkout --track gitlab/$STAGED_VERSION_BRANCH $STAGED_VERSION_BRANCH
+    - git push
+
   artifacts:
     paths:
       - "*.bounty"
