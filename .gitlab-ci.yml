@@ -72,7 +72,7 @@ version_ts_modules:
     - npm run version_ts_packages
   artifacts:
     paths:
-      - packages/**/*.bounty
+      - "*.bounty"
       - packages/**/package.json
 
   dependencies:
@@ -89,7 +89,7 @@ publish_ts_packages:
 
   script:
     - npm config set registry http://$NPM_REGISTRY
-    - npm run collect_publish_bounties
+    - ./root.publish.bounty
 
   dependencies:
     - version_ts_modules
@@ -112,8 +112,7 @@ deploy_to_gitlab_branch:
     - git config --global user.name "Gitlab Runner"
 
   script:
-    - git checkout -d HEAD
-    - npm run collect_commit_bounties
+    - ./root.commit.bounty
     - git remote add releases $HCTK_GITHUB_REPO || git remote set-url releases $HCTK_GITHUB_REPO
     - git push releases HEAD:staged-releases
 
