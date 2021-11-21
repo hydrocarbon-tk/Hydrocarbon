@@ -34,11 +34,11 @@
         "@candlelib/log": "*",
         "@candlelib/paraffin": "*",
         "@candlelib/uri": "*",
-        "@hctoolkit/grammar": "0.0.6",
-        "@hctoolkit/bytecode": "0.0.9",
-        "@hctoolkit/asytrip": "0.0.8",
-        "@hctoolkit/tools": "0.0.6",
-        "@hctoolkit/common": "0.1.2"
+        "@hctoolkit/grammar": "*",
+        "@hctoolkit/bytecode": "*",
+        "@hctoolkit/asytrip": "*",
+        "@hctoolkit/tools": "*",
+        "@hctoolkit/common": "*"
     },
     "devDependencies": {
         "@types/node": "^16.4.13",

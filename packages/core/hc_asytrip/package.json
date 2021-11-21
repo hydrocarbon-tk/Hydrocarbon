@@ -33,8 +33,8 @@
         "@candlelib/log": "*",
         "@candlelib/paraffin": "*",
         "@candlelib/uri": "*",
-        "@hctoolkit/common": "0.1.2",
-        "@hctoolkit/grammar": "0.0.6"
+        "@hctoolkit/common": "*",
+        "@hctoolkit/grammar": "*"
     },
     "devDependencies": {
         "@types/node": "^16.4.13",

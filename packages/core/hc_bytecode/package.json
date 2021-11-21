@@ -34,7 +34,7 @@
         "@candlelib/paraffin": "*",
         "@candlelib/spark": "*",
         "@candlelib/uri": "*",
-        "@hctoolkit/common": "0.1.2"
+        "@hctoolkit/common": "*"
     },
     "devDependencies": {
         "@types/node": "^16.4.13",

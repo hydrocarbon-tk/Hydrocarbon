@@ -34,7 +34,7 @@
         "@candlelib/paraffin": "*",
         "@candlelib/uri": "*",
         "@candlelib/hydrocarbon": "*",
-        "@hctoolkit/common": "0.1.2"
+        "@hctoolkit/common": "*"
     },
     "devDependencies": {
         "@candlelib/cure": "*",
