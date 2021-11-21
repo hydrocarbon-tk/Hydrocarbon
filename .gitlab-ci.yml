@@ -88,7 +88,7 @@ version_ts_modules:
     paths:
       - "/**/*.bounty"
       - "/**/*.temp.json"
-      - "/**/package.json"
+      - "/packages/**/package.json"
 
   dependencies:
     - fetch_dependencies
