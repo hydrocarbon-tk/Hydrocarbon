@@ -82,15 +82,15 @@ version_ts_modules:
 
   after_script:
     - git checkout $STAGED_VERSION_BRANCH
-    - get branch -u gitlab/$STAGED_VERSION_BRANCH
+    - git branch -u gitlab/$STAGED_VERSION_BRANCH
     - git push
 
   artifacts:
     paths:
       - "./*.bounty"
-      - "./packages/**/*.bounty"
-      - "./packages/**/*.temp.json"
-      - "./packages/**/package.json"
+      - packages/**/*.bounty
+      - packages/**/*.temp.json
+      - packages/**/package.json
 
   dependencies:
     - fetch_dependencies
@@ -126,7 +126,6 @@ deploy_to_gitlab_branch:
     - git config --global user.name "Gitlab Runner"
     - git checkout $STAGED_VERSION_BRANCH
     - get branch -u gitlab/$STAGED_VERSION_BRANCH
-    - git pull
 
   script:
     - ./root.commit.bounty
