@@ -3,7 +3,7 @@
     "version": "1.0.0",
     "description": "Hydrocarbon Language Toolkit Workspace",
     "scripts": {
-        "version_ts_packages": "node ./scripts/version.js",
+        "version_ts_packages": "node ./scripts/version.js"
     },
     "workspaces": [
         "packages/core/*",
