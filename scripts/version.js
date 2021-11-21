@@ -1,13 +1,11 @@
 #! /usr/bin/node
 
 import {
-    createDepend,
-    getCandlePackage, validateEligibilityPackages
+    validateEligibilityPackages
 } from "@candlelib/dev-tools";
 import { Logger } from "@candlelib/log";
 import { getPackageJsonObject } from "@candlelib/paraffin";
 import URI from "@candlelib/uri";
-import fs from "fs";
 await URI.server();
 const logger = Logger.get("HCToolkit").activate();
 // Grab the names of the hctoolkit packages of which we
@@ -15,14 +13,10 @@ const logger = Logger.get("HCToolkit").activate();
 const { package: wksp_pkg, FOUND } = await getPackageJsonObject(URI.getCWDURL());
 
 if (FOUND && wksp_pkg.name == "@hctoolkit/workspace") {
-
-
-    const target_packages = await Promise.all(wksp_pkg.devPackages.map(createDepend));
-
-    if (target_packages.every(d => d !== null)) {
+    if (wksp_pkg.devPackages.every(d => d !== null)) {
         try {
 
-            await validateEligibilityPackages(target_packages, (pkg) => {
+            await validateEligibilityPackages(wksp_pkg.devPackages, (pkg) => {
                 return Object.getOwnPropertyNames(pkg?.dependencies ?? {}).filter(n => wksp_pkg.devPackages.includes(n));
             }, false);
         } catch (E) {
