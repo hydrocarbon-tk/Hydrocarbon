@@ -10,6 +10,8 @@ workflow:
   rules:
     - if: $CI_COMMIT_REF_NAME == "gitlab-ci"
       when: always
+    - if: $CI_COMMIT_REF_NAME == "release"
+      when: always
     - when: never
 
 # cache:
@@ -40,6 +42,11 @@ fetch_dependencies:
 
 build_typescript_packages:
   stage: build
+
+  rules:
+    - if: $CI_COMMIT_REF_NAME != "gitlab-ci"
+      when: never
+    - when: always
 
   script:
     - npm install typescript
@@ -72,6 +79,11 @@ version_ts_modules:
 
   variables:
     GIT_STRATEGY: clone
+
+  rules:
+    - if: $CI_COMMIT_REF_NAME != "gitlab-ci"
+      when: never
+    - when: always
 
   before_script:
     - TOKENED_REPO=http://git:$GITLAB_ACCESS_TOKEN@$GITLAB_HOST:$GITLAB_HTTP_PORT/$GITLAB_REPO_PATH
@@ -107,6 +119,11 @@ publish_ts_packages:
   before_script:
     - echo '//${NPM_REGISTRY}/:_authToken=${NPM_TOKEN}'> ~/.npmrc
 
+  rules:
+    - if: $CI_COMMIT_REF_NAME != "gitlab-ci"
+      when: never
+    - when: always
+
   script:
     - npm config set registry http://$NPM_REGISTRY
     - ./root.publish.bounty
@@ -118,6 +135,11 @@ publish_ts_packages:
 
 deploy_to_gitlab_branch:
   stage: deploy
+
+  rules:
+    - if: $CI_COMMIT_REF_NAME != "gitlab-ci"
+      when: never
+    - when: always
 
   variables:
     GIT_STRATEGY: clone
