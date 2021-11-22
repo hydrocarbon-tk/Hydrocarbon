@@ -33,6 +33,11 @@ fetch_dependencies:
     - npm config set registry http://$NPM_REGISTRY
     - npm install --no-audit
 
+  rules:
+    - if: $CI_COMMIT_REF_NAME != "gitlab-ci"
+      when: never
+    - when: always
+
   artifacts:
     expire_in: 15 min
     paths:
