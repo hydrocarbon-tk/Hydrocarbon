@@ -61,6 +61,7 @@ build_typescript_packages:
       - packages/core/hc_root/build/
       - packages/core/hc_tools/build/
       - packages/rt_typescript/build/
+
   dependencies:
     - fetch_dependencies
 
@@ -137,5 +138,25 @@ deploy_to_gitlab_branch:
     - version_ts_modules
     - fetch_dependencies
     - build_typescript_packages
-##
+
+publish_ts_packages_npm:
+  stage: deploy
+
+  rules:
+    - if: $CI_COMMIT_REF_NAME == "release"
+      when: always
+    - when: never
+
+  before_script:
+    - echo '//${PUBLIC_NPM_REGISTRY}/:_authToken=${PUBLIC_NPM_TOKEN}'> ~/.npmrc
+
+  script:
+    - npm publish --access public ./packages/core/hc_ts_common/ || true
+    - npm publish --access public ./packages/core/hc_asytrip/ || true
+    - npm publish --access public ./packages/core/hc_bytecode/ || true
+    - npm publish --access public ./packages/core/hc_grammar/ || true
+    - npm publish --access public ./packages/core/hc_root/ || true
+    - npm publish --access public ./packages/core/hc_tools/ || true
+    - npm publish --access public ./packages/rt_typescript/ || true
 # reference https://docs.gitlab.com/ee/ci/yaml/
+
