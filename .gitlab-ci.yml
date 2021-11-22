@@ -103,9 +103,6 @@ version_ts_modules:
 publish_ts_packages:
   stage: deploy
 
-  rules:
-    - when: never
-
   before_script:
     - echo '//${NPM_REGISTRY}/:_authToken=${NPM_TOKEN}'> ~/.npmrc
 
