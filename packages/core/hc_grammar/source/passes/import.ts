@@ -338,7 +338,7 @@ function processSymbol<T extends HCG3Symbol>(
             }
         }
 
-        sym.production = imported_productions.get(name);
+        // sym.production = imported_productions.get(name);
 
         sym.name = name;
 
@@ -375,7 +375,7 @@ function processSymbol<T extends HCG3Symbol>(
                 }
             }
 
-            sym.production = imported_productions.get(name);
+            //sym.production = imported_productions.get(name);
 
             sym.name = name;
         }
@@ -423,7 +423,7 @@ function processSymbol<T extends HCG3Symbol>(
             integrateImportedProductions(root_grammar, imported.grammar, cp, imported_productions);
         }
 
-        sym.production = imported_productions.get(name);
+        //sym.production = imported_productions.get(name);
     }
 
     return sym;

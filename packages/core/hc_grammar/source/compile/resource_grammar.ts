@@ -40,6 +40,9 @@ export async function compileResourceFile(grammar: GrammarObject): Promise<Gramm
         throw new GrammarCompilationReport(errors);
     }
 
+    for (const grmmr of grammar.imported_grammars)
+        grmmr.grammar.imported_grammars = null;
+
     return grammar;
 }
 
