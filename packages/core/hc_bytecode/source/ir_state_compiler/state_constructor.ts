@@ -23,7 +23,7 @@ import {
     TokenSymbol,
     user_defined_state_mux
 } from '@hctoolkit/common';
-import { create_symbol_clause } from '../ir/create_symbol_clause.js';
+import { create_symbol_clause, create_symbol_comment } from '../ir/create_symbol_clause.js';
 import { ConstructionOptions } from '../types/construction_options.js';
 import { TransitionGraphOptions } from '../types/transition_graph_options.js';
 import { TransitionStateType as TST } from '../types/transition_tree_nodes.js';
@@ -100,9 +100,6 @@ export function constructProductionStates(
                 parse_states,
                 root_prod_name
             );
-
-
-
         }
 
         {
@@ -265,20 +262,6 @@ function processTransitionNode(
 
     state_string.push(generateStateHashAction(state, grammar, options).action);
 
-    if (state.is(TST.I_FORK)) {
-
-        for (const child of state.children) {
-
-            const clone = state.clone();
-
-            clone.children.push(child);
-
-            clone.removeType(TST.I_FORK);
-
-            processTransitionNode(clone, grammar, options, parse_code_blocks, default_hash);
-        }
-    }
-
     if (!options.IS_SCANNER && !(state.is(TST.I_GOTO_START) || state.is(TST.O_GOTO))) {
 
         const symbol_clause = create_symbol_clause(
@@ -355,16 +338,8 @@ function generateStateAction(
 
         const hashes = [];
 
-        for (const child of state.children) {
-
-            const clone = state.clone();
-
-            clone.removeType(TST.I_FORK);
-
-            clone.children.push(child);
-
-            hashes.push(generateStateHashAction(clone, grammar, options).hash);
-        }
+        for (const child of state.children)
+            hashes.push(generateStateHashAction(child, grammar, options).hash);
 
         branch_actions.push(`fork to (  ${hashes.map(h => `state [ ${h} ]`).join(",")}  )`);
 
@@ -386,7 +361,11 @@ function generateStateAction(
 
                     const mode = getSymbolMode(<TokenSymbol>sym, options.IS_SCANNER);
 
-                    action_string = `peek ${mode} [${sym.id} /* ${getUniqueSymbolName(sym)} */ ] ( goto state [${hash}]${post_amble})`;
+                    if (Sym_Is_A_Token(sym))
+
+                        action_string = `peek ${mode} [${sym.id} /* ${create_symbol_comment(sym)} */ ] ( goto state [${hash}]${post_amble})`;
+                    else
+                        throw new Error(`Invalid peek state on non-token symbol ${convert_symbol_to_friendly_name(sym)}`);
 
                 } else if (child.is(TST.O_TERMINAL)) {
 
@@ -412,12 +391,12 @@ function generateStateAction(
                              } */
 
                             if (Sym_Is_Not_Consumed(sym)) {
-                                action_string = `assert ${mode} [${getSymbolID(sym, options.IS_SCANNER)} /* ${getUniqueSymbolName(sym)} */ ] ( consume nothing then goto state [${hash}]${post_amble})`;
+                                action_string = `assert ${mode} [${getSymbolID(sym, options.IS_SCANNER)} /* ${create_symbol_comment(sym)} */ ] ( consume nothing then goto state [${hash}]${post_amble})`;
                             } else {
-                                action_string = `assert ${mode} [${getSymbolID(sym, options.IS_SCANNER)} /* ${getUniqueSymbolName(sym)} */ ] ( consume then goto state [${hash}]${post_amble})`;
+                                action_string = `assert ${mode} [${getSymbolID(sym, options.IS_SCANNER)} /* ${create_symbol_comment(sym)} */ ] ( consume then goto state [${hash}]${post_amble})`;
                             }
                         } else {
-                            action_string = `assert ${mode} [${getSymbolID(sym, options.IS_SCANNER)} /* ${getUniqueSymbolName(sym)} */ ] ( goto state [${hash}]${post_amble})`;
+                            action_string = `assert ${mode} [${getSymbolID(sym, options.IS_SCANNER)} /* ${create_symbol_comment(sym)} */ ] ( goto state [${hash}]${post_amble})`;
                         }
                     }
 

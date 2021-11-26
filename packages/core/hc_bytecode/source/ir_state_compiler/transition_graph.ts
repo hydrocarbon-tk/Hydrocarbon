@@ -21,11 +21,9 @@ import {
     Sym_Is_A_Generic_Identifier,
     Sym_Is_A_Production,
     Sym_Is_A_Production_Token,
-    Sym_Is_Defined_Identifier,
-    Sym_Is_EOF,
-    Sym_Is_Exclusive,
+    Sym_Is_Defined_Identifier, Sym_Is_Exclusive,
     Token,
-    TokenSymbol,
+    TokenSymbol
 } from '@hctoolkit/common';
 import { TransitionGraphOptions as TGO } from '../types/transition_graph_options.js';
 import { TransitionStateType as TST } from '../types/transition_tree_nodes.js';
@@ -209,8 +207,6 @@ function processGoto(options: TGO, goto_items: Item[], parent: Node | null = nul
     return parent;
 }
 
-
-
 function getProductionFollowThrough(id: number, seen: Set<number>): Item[] {
     const seen_ids = new Set([id]);
 
@@ -272,6 +268,7 @@ function processNode(
 
         const productions: ProductionSymbol[] =
             <any[]>n_nonterm.map(get_sym).setFilter(gusn);
+
 
         // If all the non-terminal items are the same 
         // and there are no terminal items then
@@ -346,6 +343,8 @@ function processNode(
 
                     node.items = new_term;
 
+                    node.closure = [...new_nonterm].setFilter(item_id);
+
                     return processNode(
                         opt,
                         node,
@@ -406,8 +405,27 @@ function createPeek(
 
     let end_item = 0;
 
+    let collapsed_closure: Item[] = [];
+
+    if (opt.mode == "GOTO") {
+        collapsed_closure.push(...[...(GRAMMAR.lr_items?.values() ?? [])].flat()
+            .filter(i => !out_of_scope.has(i.increment()?.id ?? "")));
+    } else {
+
+        collapsed_closure.push(...(GRAMMAR.lr_items?.get(opt.root_production.id) ?? []).filter(i => i.getProductionID(GRAMMAR) != opt.root_production.id));
+
+        let n: null | Node = parent;
+
+        while (n) {
+            collapsed_closure.push(...n.closure);
+            n = n.parent;
+        }
+    }
+
+    collapsed_closure = collapsed_closure.setFilter(item_id);
+
     //separate node into a set of groups
-    const roots = items.group(s => {
+    const roots = items.setFilter(item_id).group(s => {
         if (s.state == OutOfScopeItemState)
             return "out-of-scope-state-" + iToSymID(s);
         if (s.atEND) {
@@ -418,7 +436,7 @@ function createPeek(
     }).map((g, j) => {
 
         const state = 10000 * (j + 1);
-        const items = g.map(i => i.toState(state));
+        const items = g.map(i => i.toState(state)).setFilter(item_id);
 
         const n = createNode(opt, item_sym(g[0]), items, null);
 
@@ -426,13 +444,13 @@ function createPeek(
         n.depth = state;
         n.root = n;
 
-        if (/* opt.mode == "GOTO" &&  */g[0].state != OutOfScopeItemState) {
-            parent.closure.push(
-                ...[...GRAMMAR.lr_items?.values()].flat()
-                    .filter(i => !out_of_scope.has(i.increment().id))
-                    .map(i => i.toState(state))
-            );
-        }
+        parent.closure.push(
+            ...collapsed_closure.map(i => i.toState(state))
+        );
+
+        if (g[0].state != OutOfScopeItemState)
+            parent.closure.push(...collapsed_closure.map(i => i.toState(state)));
+
         parent.items.push(...items);
 
         if (g[0].state == OutOfScopeItemState) {
@@ -454,6 +472,8 @@ function createPeek(
             return nodes;
         }), roots, tpn, [], parent);
 
+    parent.items = parent.items.setFilter(item_id);
+
     //Allow resource to be garbage collected
     parent.closure.length = 0;
 }
@@ -466,7 +486,6 @@ function disambiguate(
     root: Node,
     depth: number = 0
 ) {
-
     // We are starting with a set of nodes, each representing either
     // a terminal symbol or an item in the end position. 
     // Each node has a common parent. 
@@ -476,6 +495,8 @@ function disambiguate(
 
 
     if (end_nodes.length > 0) {
+
+        // Detect if else conflicts and find in favo
 
 
         // We must first complete end-items and generate new
@@ -500,8 +521,6 @@ function disambiguate(
             }
         }
 
-
-
         // If an end-item is in a state such that it is top most production
         // and cannot be resolved to any other items, then we shall call 
         // that a FINAL item. If more than one FINAL item is present
@@ -518,15 +537,14 @@ function disambiguate(
 
                 const node = final_nodes[0];
 
-                if ((node.depth % 10000) > 0 && node.depth >= 10000)
-                    node.addType(TST.O_PEEK);
-                else
-                    node.addType(TST.O_TERMINAL);
+                setTransitionType(node);
 
-                if (roots[0].is(TST.I_OUT_OF_SCOPE))
+                if (roots[0].is(TST.I_OUT_OF_SCOPE)) {
+
                     node.addType(TST.I_OUT_OF_SCOPE);
-                else
+                } else {
                     completeRoots(node, roots[0], opt, tpn);
+                }
             } else {
                 const parent = final_nodes.map(s => s.pruneLeaf())[0];
 
@@ -534,13 +552,10 @@ function disambiguate(
             }
 
         } else if (final_nodes.length > 0) {
+
             const final_node = final_nodes[0];
 
-            if ((final_node.depth % 10000) > 0 && final_node.depth >= 10000)
-                final_node.addType(TST.O_PEEK);
-            else
-                final_node.addType(TST.O_TERMINAL);
-
+            setTransitionType(final_node);
 
             completeRoots(final_node, root, opt, tpn);
         }
@@ -548,11 +563,15 @@ function disambiguate(
 
     const next_steps: Node[][] = [];
 
-    if (term_nodes.every(t => t.root?.is(TST.I_OUT_OF_SCOPE))) {
-        const parent = term_nodes.map(s => s.pruneBranch())[0];
+    if (term_nodes.length > 0 && term_nodes.every(t => t.root?.is(TST.I_OUT_OF_SCOPE))) {
+
+        const parents = term_nodes.map(s => s.pruneBranch());
+        const parent = parents[0];
 
         parent.addType(TST.I_FAIL);
 
+        return;
+    } else if (term_nodes.length == 0) {
         return;
     }
 
@@ -565,20 +584,20 @@ function disambiguate(
         //combine the nodes into a single item
         const prime_node = group[0];
 
-        if (prime_node.depth >= 10000 && (prime_node.depth % 10000) > 0)
-            prime_node.addType(TST.O_PEEK);
-        else
-            prime_node.addType(TST.O_TERMINAL);
+        setTransitionType(prime_node);
 
         const new_groups = [];
 
-        if (group.length > 1) {
+        const node_root_id = group.map(s => s.root?.depth + "").setFilter();
+
+        if (group.length > 1 && node_root_id.length > 1) {
 
             for (const node of group) {
 
                 if (node != prime_node) {
                     node.pruneLeaf();
                     prime_node.items.push(...node.items);
+                    //  prime_node.items = prime_node.items.setFilter(i => i.id);
                     prime_node.closure.push(...node.closure);
                 }
 
@@ -586,23 +605,106 @@ function disambiguate(
                     .map(inc).flatMap(createNodeClosure(opt, prime_node, <Node>node.root)));
             }
 
-            next_steps.push(new_groups);
+            if (new_groups.length == 0) {
+                if (group.every(i => i.root?.is((TST.I_OUT_OF_SCOPE)))) {
+                    completeRoots(prime_node, root, opt, tpn);
+                } else {
+                    throw new Error(
+                        "Invalid state, unable to continue disambiguating \n"
+                        +
+                        group.map(i => i.root?.debug).setFilter().join("\n")
+                    );
+                }
+            } else {
+                next_steps.push(new_groups);
+            }
+
+            prime_node.items = prime_node.items.setFilter(item_id);
+
         } else {
+
+            for (const node of group) {
+                if (node != prime_node) {
+                    node.pruneLeaf();
+                    prime_node.items.push(...node.items);
+                    prime_node.closure.push(...node.closure);
+                }
+            }
+
+            prime_node.items = prime_node.items.setFilter(item_id);
+
             completeRoots(prime_node, root, opt, tpn);
         }
     }
 
-    for (const step of next_steps) {
+    for (let step of next_steps) {
 
         const id = getNodesId(step);
 
-        if (ids.includes(id) && step.length > 0) {
-            handleTransitionCollision(step, opt, tpn);
-        } else {
-            disambiguate(opt, step, roots, tpn, ids.concat(id), root, depth + 1);
+        if (step.length > 0) {
+
+            //Check for shift-reduce conflicts
+            if (handleShiftReduceConflicts(opt, step, roots, tpn, root, depth)) {
+                continue;
+            } else if ((ids.includes(id)) /* || depth > 2 */) {
+                handleTransitionCollision(step, opt, tpn);
+            } else {
+                disambiguate(opt, step, roots, tpn, ids.concat(id), root, depth + 1);
+            }
         }
     }
 }
+function handleShiftReduceConflicts(
+    opt: TGO,
+    step: Node[],
+    roots: Node[],
+    tpn: Node[],
+    root: Node,
+    depth: number
+): boolean {
+    const candidate_roots = step.map(s => <Node>s.root).setFilter(r => r.depth);
+    if (candidate_roots.every(r => r.items.length == 1)) {
+        const prod = candidate_roots[0].items[0].getProductionID(GRAMMAR);
+        if (candidate_roots.every(r => r.items[0].getProductionID(GRAMMAR) == prod)) {
+            if (candidate_roots.length == 2) {
+                if (candidate_roots.some(r => r.items[0].atEND) && candidate_roots.some(r => !r.items[0].atEND)) {
+                    const winner = candidate_roots.filter(r => !r.items[0].atEND)[0];
+                    const loser = candidate_roots.filter(r => r.items[0].atEND)[0];
+                    //console.log(`Favoring shift of:\n\t${winner.items[0].rup(GRAMMAR)}\nOver reduce of:\n\t${loser.items[0].rup(GRAMMAR)}\n\n`);
+
+                    const prime_node = step[0];
+
+                    setTransitionType(prime_node);
+
+                    for (const node of step) {
+                        if (node != prime_node) {
+                            node.pruneLeaf();
+                            if (node.root == winner) {
+                                prime_node.items.push(...node.items);
+                                prime_node.closure.push(...node.closure);
+                            }
+                        }
+                    }
+
+                    prime_node.items = prime_node.items.setFilter(item_id);
+
+                    completeRoots(prime_node, root, opt, tpn);
+
+                    return true;
+                }
+            }
+        }
+    }
+    return false;
+}
+
+function setTransitionType(node: Node) {
+    if ((node.depth % 10000) > 0 && node.depth >= 10000)
+        node.addType(TST.O_PEEK);
+    else
+        node.addType(TST.O_TERMINAL);
+}
+
 function handleTransitionCollision(step: Node[], options: TGO, tpn: Node[]) {
 
     if (options.IS_SCANNER) {
@@ -612,8 +714,7 @@ function handleTransitionCollision(step: Node[], options: TGO, tpn: Node[]) {
         const roots = step.map(s => <Node>s.root).setFilter(s => s.items.map(item_id).sort().join("|"));
 
         const sym = step[0].sym;
-
-        const parent = <Node>step.map(s => s.pruneBranch()).pop();
+        const parent = <Node>step.map(s => s.pruneBranch())[0];
 
         handleUnresolvedRoots(options, sym, roots, parent, tpn);
     }
@@ -653,7 +754,7 @@ function completeRoots(
 }
 
 function getNodesId(step: Node[]) {
-    return step.map(i => i.items.map(i => i.id).sort().join("-")).sort().join("|");
+    return step.map(i => i.items.setFilter(i => i.id).map(i => i.id).sort().join("-")).sort().setFilter().join("|");
 }
 
 function handleUnresolvedRoots(
@@ -670,6 +771,7 @@ function handleUnresolvedRoots(
 
     const node = createNode(opt, sym, items, parent);
 
+
     if (roots.length < 2) {
 
         /*  node.items = roots[0].items;
@@ -683,11 +785,7 @@ function handleUnresolvedRoots(
         throw new Error("Unexpected outcome: Single root interpreted as an unresolved root.");
     }
 
-    if (((parent.depth % 10000 > 0) && parent.depth >= 10000))
-        node.addType(TST.O_PEEK);
-    else
-        node.addType(TST.O_TERMINAL);
-
+    setTransitionType(parent);
     if (roots.some(r => r.is(TST.I_OUT_OF_SCOPE))) {
         // We are parsing the root production GOTO
         // and are encountering production out of the 
@@ -706,9 +804,9 @@ function handleUnresolvedRoots(
             //Prune and set parent to fail
             const parent = roots.map(r => r.pruneBranch())[0];
             parent.addType(TST.I_FAIL);
+            node.addType(TST.I_FAIL);
             return;
         }
-
 
         //Remove out of scope roots.
         const oos_roots = roots.filter(r => r.is(TST.I_OUT_OF_SCOPE));
@@ -718,17 +816,7 @@ function handleUnresolvedRoots(
         //Resort to good ol' forks. 
         node.addType(TST.I_FORK);
 
-        for (const fork_items of items.group(s => s.state)) {
-
-            const sym = fork_items[0].sym(GRAMMAR);
-
-            const new_node = createNode(opt, sym, fork_items);
-
-            processNode(opt, new_node, tpn, false);
-
-            node.children.push(...new_node.children.map(c => (c.parent = node, c)));
-        }
-
+        convertStateToFork(node, items, opt, tpn);
         createFailState(opt, node, oos_roots.flatMap(r => r.items).setFilter(item_id));
 
     } else {
@@ -740,29 +828,25 @@ function handleUnresolvedRoots(
         if (priority_ordered_roots[0].priority > 0) {
             const highest_priority_roots = priority_ordered_roots.filter(g => g.priority > 0);
 
-            if (highest_priority_roots.length < 2) {
+            if (highest_priority_roots.length == 1) {
 
-                node.items = highest_priority_roots[0].items;
+                node.items = highest_priority_roots[0].items.setFilter(item_id);
 
                 processNode(opt, node, tpn, false);
 
+                parent.depth += 60;
+
+
+                parent.items = node.items.setFilter(item_id);
+
                 return;
+            } else {
+                const items = highest_priority_roots.flatMap(r => r.items).setFilter();
+                convertStateToFork(node, items, opt, tpn);
             }
-        }
-
-        //Resort to good ol' forks. 
-        node.addType(TST.I_FORK);
-
-        for (const fork_items of items.group(s => s.state)) {
-
-            const sym = fork_items[0].sym(GRAMMAR);
-
-            const new_node = createNode(opt, sym, fork_items);
-
-            processNode(opt, new_node, tpn, false);
-
-            node.children.push(...new_node.children.map(c => (c.parent = node, c)));
-
+        } else {
+            //Resort to good ol' forks. 
+            convertStateToFork(node, items, opt, tpn);
         }
     }
 
@@ -797,6 +881,34 @@ function handleUnresolvedRoots(
     debugger; */
 }
 
+
+function convertStateToFork(node: Node, items: Item[], opt: TGO, tpn: Node[]) {
+
+    node.addType(TST.I_FORK);
+    for (const fork_items of items.setFilter(item_id).group(s => s.state)) {
+
+        const sym = fork_items[0].sym(GRAMMAR);
+
+        const clone = node.clone();
+
+        clone.sym = sym;
+
+        clone.items = fork_items;
+
+        processNode(opt, clone, tpn, false);
+
+        /**
+         * Wrapping each fork group into a clone of the fork allows
+         * the state rendering pass to tree branch states and non-branching
+         * states appropriately and produce correct hashes
+         */
+        //clone.removeType(TST.I_FORK);
+
+        clone.parent = node;
+
+        node.children.push(clone);
+    }
+}
 
 function createFailState(opt: TGO, parent: Node, items: Item[] = []): Node {
     const node = createNode(opt, default_EOF, items, parent);
@@ -885,7 +997,7 @@ function createNodeClosure(
     opt: TGO,
     parent_node: Node,
     root: Node
-): (this: undefined, value: Item, index: number, array: Item[]) => any {
+): (this: undefined, value: Item, index: number, array: Item[]) => Node[] {
 
     const EXCLUDE_ROOT = root.is(TST.I_OUT_OF_SCOPE);
 
@@ -903,7 +1015,6 @@ function createNodeClosure(
                 if (nonterm_item(item)) {
 
                     const prod = item.getProductionAtSymbol(GRAMMAR);
-
 
                     if (EXCLUDE_ROOT && prod.id == id) {
                         continue;
@@ -928,6 +1039,7 @@ function createNodeClosure(
         }
         else
             nodes.push(createNode(opt, i.sym(GRAMMAR), [i], parent_node, [], root.root));
+
 
 
         return nodes;
@@ -982,6 +1094,7 @@ function incrementTerminals(
     items: Item[],
     to_process_nodes: Node[]
 ) {
+
     const symbol_groups = items.filter(i => i.state !== OutOfScopeItemState).group(iToSymID);
 
     for (const group of symbol_groups) {
@@ -1051,8 +1164,8 @@ function iToSymID(i: Item): string {
     return gusn(item_sym(i));
 }
 
-function inc(i: Item) {
-    return i.increment();
+function inc(i: Item): Item {
+    return <Item>i.increment();
 }
 
 function nonRecursive(
@@ -1230,9 +1343,9 @@ export class Node {
         return `
 [${this.depth}] [${gusn(this.sym)}] [${getTypeValue(this.type)}]
 items:
-${itemsDebug(this.items).join("\n")}
+${itemsDebug(this.items.setFilter(item_id)).join("\n")}
 closure:
-${itemsDebug(this.closure).join("\n")} 
+${itemsDebug(this.closure.setFilter(item_id)).join("\n")} 
 ${this.children.flatMap(c => c.debug.split("\n")).join("\n  ")}
 `;
     }
@@ -1254,6 +1367,8 @@ ${this.children.flatMap(c => c.debug.split("\n")).join("\n  ")}
         let items = this.end_items.slice();
 
         let out = [], seen = new Set;
+
+        let i = 0;
 
         for (const item of items) {
 
