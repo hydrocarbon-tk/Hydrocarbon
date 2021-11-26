@@ -3,7 +3,9 @@
  * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
  * disclaimer notice.
  */
+import { Logger } from '@candlelib/log';
 import {
+    convert_symbol_to_friendly_name,
     getStartItemsFromProduction,
     getUniqueSymbolName,
     GrammarObject,
@@ -245,6 +247,9 @@ function processTransitionNode(
     parse_code_blocks: Map<string, string>,
     default_hash = generateStateHashAction(state, grammar, options).hash
 ) {
+
+    if (parse_code_blocks.has(default_hash))
+        return;
 
     const
 
