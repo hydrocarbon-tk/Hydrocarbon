@@ -196,16 +196,20 @@ function processProductionBodySymbols(
         body.length = body.sym.length;
 
         for (const sym of body.sym)
-            id_offset = processSymbol(grammar, sym, production_lookup, unique_map, token_production_set, errors, id_offset);
+            if (sym)
+                id_offset = processSymbol(grammar, sym, production_lookup, unique_map, token_production_set, errors, id_offset);
 
         for (const sym of body?.reset?.flat() ?? [])
-            id_offset = processSymbol(grammar, sym, production_lookup, unique_map, token_production_set, errors, id_offset);
+            if (sym)
+                id_offset = processSymbol(grammar, sym, production_lookup, unique_map, token_production_set, errors, id_offset);
 
         for (const sym of body?.ignore?.flat() ?? [])
-            id_offset = processSymbol(grammar, sym, production_lookup, unique_map, token_production_set, errors, id_offset);
+            if (sym)
+                id_offset = processSymbol(grammar, sym, production_lookup, unique_map, token_production_set, errors, id_offset);
 
         for (const sym of body?.excludes?.flat(2) ?? [])
-            id_offset = processSymbol(grammar, sym, production_lookup, unique_map, token_production_set, errors, id_offset);
+            if (sym)
+                id_offset = processSymbol(grammar, sym, production_lookup, unique_map, token_production_set, errors, id_offset);
     }
     return { b_counter, id_offset };
 }

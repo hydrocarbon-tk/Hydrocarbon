@@ -1044,6 +1044,7 @@ export function* iterateStateGraph(
 
         const names: Set<string> = new Set();
 
+
         try {
 
             const instructions = state.ir_state_ast.instructions.slice();

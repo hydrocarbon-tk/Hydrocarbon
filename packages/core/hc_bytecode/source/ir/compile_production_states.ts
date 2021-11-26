@@ -75,6 +75,8 @@ state [${close_state_name}]
     // Build Scanner states based on the transition requirements of each core state. 
     // Map recovery states to state of their target production ---------------------
     for (const [id, state] of states_map) {
+
+
         for (const instruction of state.ir_state_ast.instructions) {
             if (instruction.type == InstructionType.assert
                 ||
