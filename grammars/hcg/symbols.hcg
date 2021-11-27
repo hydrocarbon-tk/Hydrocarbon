@@ -68,17 +68,17 @@
 
     |   symbol ( \(+ | \(* )  terminal_symbol?  \)
         
-        f:r { { type:t_List_Production | c_Symbol, terminal_symbol:$3, IS_OPTIONAL:f64($2 == "(*"), symbols:$1, meta:false, annotation:"" } }
+        f:r { { type:t_List_Production | c_Symbol, terminal_symbol:$3, IS_OPTIONAL:f64($2 == "(*"), symbols:$1, meta:false, annotation:t_Reference } }
 
 <> group_symbol > \( pb::production_bodies \)        
           
-        f:r { { type:t_Group_Production | c_Symbol, bodies:$2, meta:false, annotation:"" } }  
+        f:r { { type:t_Group_Production | c_Symbol, bodies:$2, meta:false, annotation:t_Reference } }  
 
 <> production_token_symbol > 
     
     \tk: production_symbol       
     
-        f:r { { type:t_Production_Token | c_Symbol | c_Token, name:$2.name, production:$2, val:-1, meta:false, annotation:"" } }
+        f:r { { type:t_Production_Token | c_Symbol | c_Token, name:$2.name, production:$2, val:-1, meta:false, annotation:t_Reference } }
 
 <> production_symbol >
 
@@ -108,48 +108,48 @@
     
     \$eof
     
-        f:r { { type:t_End_Of_File | c_Symbol | c_Token, val:"END_OF_FILE", meta:false, annotation:"" } }
+        f:r { { type:t_End_Of_File | c_Symbol | c_Token, val:"END_OF_FILE", meta:false, annotation:t_Reference } }
 
 <> empty_symbol > 
     
     \$empty
     
-        f:r { { type:t_Empty | c_Symbol , val:"", meta:false, annotation:"" } }
+        f:r { { type:t_Empty | c_Symbol , val:"", meta:false, annotation:t_Reference } }
 
 <> generated_symbol > 
     
     \g: tk:identifier_syms
     
-        f:r { { type:t_Generated | c_Symbol | c_Token, val:$2 + "", meta:false, annotation:"" } }
+        f:r { { type:t_Generated | c_Symbol | c_Token, val:$2 + "", meta:false, annotation:t_Reference } }
 
 <> literal_symbol > 
     
         \t: ( g:id | g:num )(+\" ) sym_delimiter? 
           
-        f:r { { type:t_Exclusive_Literal | c_Symbol | c_Token, val:$2 + "", meta:false, annotation:"" } }
+        f:r { { type:t_Exclusive_Literal | c_Symbol | c_Token, val:$2 + "", meta:false, annotation:t_Reference } }
     
     |   ( g:sym | g:num )(+\" )
 
-        f:r { { type:t_Literal | c_Symbol | c_Token, val:$1 + "", meta:false, annotation:"" } }
+        f:r { { type:t_Literal | c_Symbol | c_Token, val:$1 + "", meta:false, annotation:t_Reference } }
 
 
 <> escaped_symbol > 
     
     \\ ( g:ids | g:syms | g:nums )(+\" ) sym_delimiter           
     
-        f:r { { type:t_Literal | c_Symbol | c_Token, val:$2 + "", meta:false, annotation:"" } }
+        f:r { { type:t_Literal | c_Symbol | c_Token, val:$2 + "", meta:false, annotation:t_Reference } }
 
 <> local_production_symbol > 
     
     tk:identifier_syms
         
-        f:r { { type:t_Production_Symbol | c_Symbol, name:$1 + "", production:"", val:-1, meta:false, annotation:"" } }
+        f:r { { type:t_Production_Symbol | c_Symbol, name:$1 + "", production:"", val:-1, meta:false, annotation:t_Reference } }
 
 <> imported_production_symbol > 
 
     tk:identifier_syms \:: tk:identifier_syms
         
-        f:r { { type:t_Production_Import_Symbol | c_Symbol , module:$1 + "", name:$3 + "",  production:"", meta:false, annotation:"" } } 
+        f:r { { type:t_Production_Import_Symbol | c_Symbol , module:$1 + "", name:$3 + "",  production:"", meta:false, annotation:t_Reference } } 
 
 <> annotation_identifier > ( g:sym | g:id | g:num )(+\" ) g:sp? f:r { $1 }
 
@@ -181,12 +181,12 @@
         
         \(EXC condition_symbol_list \)
 
-        f:r { { type:t_Exclude | c_Symbol | c_Meta, sym: $2, meta:true, index:-1, annotation:""} }
+        f:r { { type:t_Exclude | c_Symbol | c_Meta, sym: $2, meta:true, index:-1, annotation:t_Reference} }
 
     |   \(IGN condition_symbol_list \)    
 
-        f:r { { type:t_Look_Ignore | c_Symbol | c_Meta,  sym: $2, meta:true, index:-1, annotation:""} }
+        f:r { { type:t_Look_Ignore | c_Symbol | c_Meta,  sym: $2, meta:true, index:-1, annotation:t_Reference} }
 
     |   \(RST condition_symbol_list \)
 
-        f:r { { type:t_Look_Ignore | c_Symbol | c_Meta,   sym: $2, meta:true, index:-1, annotation:""} }
+        f:r { { type:t_Look_Ignore | c_Symbol | c_Meta,   sym: $2, meta:true, index:-1, annotation:t_Reference} }
