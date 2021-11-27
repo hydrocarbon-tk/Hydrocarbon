@@ -74,7 +74,7 @@ export function constructGoto(
 
     GRAMMAR = grammar;
 
-    options.mode = "GOTO";
+    options.scope = "GOTO";
 
     options.goto_items = [];
 
@@ -407,7 +407,7 @@ function createPeek(
 
     let collapsed_closure: Item[] = [];
 
-    if (opt.mode == "GOTO") {
+    if (opt.scope == "GOTO") {
         collapsed_closure.push(...[...(GRAMMAR.lr_items?.values() ?? [])].flat()
             .filter(i => !out_of_scope.has(i.increment()?.id ?? "")));
     } else {

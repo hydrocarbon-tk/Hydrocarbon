@@ -75,7 +75,7 @@ export function constructProductionStates(
                 IS_SCANNER: options.IS_SCANNER,
                 resolved_items: [],
                 goto_items: [],
-                mode: "DESCENT",
+                scope: "DESCENT",
                 ambig_ids: new Set
             };
 
@@ -103,6 +103,9 @@ export function constructProductionStates(
         }
 
         {
+            options.scope = "GOTO";
+            tt_options.scope = "GOTO";
+
             const goto_graph = constructGoto(
                 grammar,
                 production,

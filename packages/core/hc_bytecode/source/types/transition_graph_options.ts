@@ -29,7 +29,7 @@ export interface TransitionGraphOptions {
 
     goto_items: Item[];
 
-    mode: "GOTO" | "DESCENT";
+    scope: "GOTO" | "DESCENT";
 
     ambig_ids: Set<string>;
 }
