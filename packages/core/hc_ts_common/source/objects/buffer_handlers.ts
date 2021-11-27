@@ -73,20 +73,27 @@ export class ByteReader {
     codepoint_length() {
         return get_token_length_from_code_point(this.codepoint());
     }
+
     peek_byte(): number { return 0; }
     peek_short(): number { return 0; }
     peek_word(): number { return 0; }
     peek_double_word(): number { return 0; }
     peek_double(): number { return 0; }
     peek_float(): number { return 0; }
-
     read_byte(): number { return 0; }
     read_short(): number { return 0; }
     read_word(): number { return 0; }
     read_double_word(): number { return 0; }
     read_double(): number { return 0; }
     read_float(): number { return 0; }
-
+    /**
+     * Asserts the current byte is null. 
+     * 
+     * If true, then the read cursor is advanced by one byte.
+     * 
+     * if false, the read cursor is left in place.
+     */
+    assert_null(): boolean { return false; }
     assert_byte(val: number): boolean { return false; }
     assert_short(val: number): boolean { return false; }
     assert_word(val: number): boolean { return false; }
@@ -146,6 +153,12 @@ export class ByteWriter {
 
     purge() {
         this.cursor = 0;
+    }
+
+    write_null() {
+        if (this.cursor + 1 >= 512) this.purge();
+        this.dv.setUint8(this.cursor, 0);
+        this.cursor++;
     }
 
     write_byte(byte: number) {
