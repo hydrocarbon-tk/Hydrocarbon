@@ -98,6 +98,6 @@ export function convert_sym_to_code(input: any, index: number, array: any[]): st
 };
 
 export function create_symbol_comment(sym: TokenSymbol) {
-    return ` ${sym.id}[ ${convert_symbol_to_string(<any>sym).replace(/\*\//g, "asterisk/")} ]`;
+    return ` ${sym.id}[ ${convert_symbol_to_string(<any>sym)} ]`.replace(/\*\//g, "asterisk/");
 }
 
