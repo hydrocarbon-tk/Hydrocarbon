@@ -68,8 +68,8 @@ export function createASYTripContext(
         }> = new Map;
 
         const context: ASYTRIPContext = {
-            class_groups: null,
-            resolved_struct_types: null,
+            class_groups: new Map,
+            resolved_struct_types: new Map,
             structs: new Map(),
             type_names: new Set(),
             class_names: new Set(),
@@ -108,7 +108,7 @@ export function createASYTripContext(
                 const fn = <ProductionFunction>body.reduce_function;
 
                 if (!(fn?.txt)) {
-                    body.reduce_function = null;
+                    body.reduce_function = undefined;
                 }
 
                 const expr = fn?.txt ? exp(`${fn.txt.replace(/(\${1,2}\d+)/g, "$1")}`) : null;

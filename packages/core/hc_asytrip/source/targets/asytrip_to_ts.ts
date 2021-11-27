@@ -3,7 +3,6 @@
  * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
  * disclaimer notice.
  */
-import { Logger } from '@candlelib/log';
 import {
     ASYTRIPContext,
     ASYTRIPStruct,
@@ -370,7 +369,7 @@ export class ${name} extends ASTNode<ASTType> {
         if(!this.${n})
             writer.write_null();
         else 
-            SerializeStructVector(this.${n});
+            SerializeStructVector(this.${n}, writer);
         `;
                     return `
         SerializeStructVector(this.${n}, writer)`;
@@ -417,13 +416,13 @@ export class ${name} extends ASTNode<ASTType> {
                 if (types.length > 1) {
                     if (HAS_NULL)
                         return `
-        var ${n} = buffer.read_null() ? null : Deserialize(reader)`;
+        var ${n} = reader.assert_null() ? null : Deserialize(reader)`;
                     return `
         var ${n} = Deserialize(reader)`;
                 } else {
                     if (HAS_NULL)
                         return `
-        var ${n} = buffer.read_null() ? null : ${types[0].name}.Deserialize(reader);`;
+        var ${n} = reader.assert_null() ? null : ${types[0].name}.Deserialize(reader);`;
                     return `
         var ${n} = ${types[0].name}.Deserialize(reader);`;
                 }
@@ -431,7 +430,7 @@ export class ${name} extends ASTNode<ASTType> {
             } else if (HAVE_STRUCT_VECTORS) {
                 if (HAS_NULL)
                     return `
-        var ${n} = buffer.read_null() ? null : Deserialize(reader);`;
+        var ${n} = reader.assert_null() ? null : Deserialize(reader);`;
                 return `
         var ${n} = Deserialize(reader);`;
             } else if (REQUIRES_DYNAMIC) {
@@ -441,7 +440,7 @@ export class ${name} extends ASTNode<ASTType> {
             } else if (TypesAre(types, TypeIsToken)) {
                 if (HAS_NULL)
                     return `
-        var ${n} = buffer.readNull() ? null : Token.deserialize(reader);`;
+        var ${n} = reader.assert_null() ? null : Token.Deserialize(reader);`;
                 return `
         var ${n} = Token.Deserialize(reader);`;
             } else {
@@ -456,7 +455,7 @@ export class ${name} extends ASTNode<ASTType> {
                     case ASYTRIPType.I16: return `            var ${n} = reader.read_short()`;
                     case ASYTRIPType.I8: return `             var ${n} = reader.read_byte()`;
                     case ASYTRIPType.BOOL: return `           var ${n} = !!reader.read_byte()`;
-                    case ASYTRIPType.NULL: return `           var ${n} = reader.read_null()`;
+                    case ASYTRIPType.NULL: return `           var ${n} = reader.assert_null()`;
                 }
             }
         }).join("\n")
@@ -1105,19 +1104,19 @@ const A = ASYTRIPType;
 const conversion_table =
 {
     [A.F64]:
-        (t: number, v: string): string => "" + ({ [A.F64]: /*       */ v, [A.F32]: `${v} `, [A.I64]: `${v} `, [A.I32]: `${v} `, [A.I16]: `${v} `, [A.I8]: `${v} `, [A.BOOL]: `+${v} `, [A.NULL]: "0.0", [A.TOKEN]: `parseFloat(${v}.toString())`, [A.STRUCT]: `parseFloat(${v}.toString())`, [A.VECTOR]: `parseFloat(${v}.toString()))` })[t],
+        (t: number, v: string): string => "" + ({ [A.F64]: /*       */ v, [A.F32]: `${v} `, [A.I64]: `${v} `, [A.I32]: `${v} `, [A.I16]: `${v} `, [A.I8]: `${v} `, [A.BOOL]: `+(${v})`, [A.NULL]: "0.0", [A.TOKEN]: `parseFloat(${v}.toString())`, [A.STRUCT]: `parseFloat(${v}.toString())`, [A.VECTOR]: `parseFloat(${v}.toString()))` })[t],
     [A.F32]:
-        (t: number, v: string): string => "" + ({ [A.F64]: `${v} `, [A.F32]: /*       */ v, [A.I64]: `${v} `, [A.I32]: `${v} `, [A.I16]: `${v} `, [A.I8]: `${v} `, [A.BOOL]: `+${v} `, [A.NULL]: "0.0", [A.TOKEN]: `parseFloat(${v}.toString())`, [A.STRUCT]: `parseFloat(${v}.toString())`, [A.VECTOR]: `parseFloat(${v}.toString()))` })[t],
+        (t: number, v: string): string => "" + ({ [A.F64]: `${v} `, [A.F32]: /*       */ v, [A.I64]: `${v} `, [A.I32]: `${v} `, [A.I16]: `${v} `, [A.I8]: `${v} `, [A.BOOL]: `+(${v})`, [A.NULL]: "0.0", [A.TOKEN]: `parseFloat(${v}.toString())`, [A.STRUCT]: `parseFloat(${v}.toString())`, [A.VECTOR]: `parseFloat(${v}.toString()))` })[t],
     [A.I64]:
-        (t: number, v: string): string => "" + ({ [A.F64]: `${v} `, [A.F32]: `${v} `, [A.I64]: /*       */ v, [A.I32]: `${v} `, [A.I16]: `${v} `, [A.I8]: `${v} `, [A.BOOL]: `+${v} `, [A.NULL]: " 0 ", [A.TOKEN]: `parseInt(${v}.toString())`, [A.STRUCT]: `parseInt(${v}.toString())`, [A.VECTOR]: `parseInt(${v}.toString()))` })[t],
+        (t: number, v: string): string => "" + ({ [A.F64]: `${v} `, [A.F32]: `${v} `, [A.I64]: /*       */ v, [A.I32]: `${v} `, [A.I16]: `${v} `, [A.I8]: `${v} `, [A.BOOL]: `+(${v})`, [A.NULL]: " 0 ", [A.TOKEN]: `parseInt(${v}.toString())`, [A.STRUCT]: `parseInt(${v}.toString())`, [A.VECTOR]: `parseInt(${v}.toString()))` })[t],
     [A.I32]:
-        (t: number, v: string): string => "" + ({ [A.F64]: `${v} `, [A.F32]: `${v} `, [A.I64]: `${v} `, [A.I32]: /*       */ v, [A.I16]: `${v} `, [A.I8]: `${v} `, [A.BOOL]: `+${v} `, [A.NULL]: " 0 ", [A.TOKEN]: `parseInt(${v}.toString())`, [A.STRUCT]: `parseInt(${v}.toString())`, [A.VECTOR]: `parseInt(${v}.toString()))` })[t],
+        (t: number, v: string): string => "" + ({ [A.F64]: `${v} `, [A.F32]: `${v} `, [A.I64]: `${v} `, [A.I32]: /*       */ v, [A.I16]: `${v} `, [A.I8]: `${v} `, [A.BOOL]: `+(${v})`, [A.NULL]: " 0 ", [A.TOKEN]: `parseInt(${v}.toString())`, [A.STRUCT]: `parseInt(${v}.toString())`, [A.VECTOR]: `parseInt(${v}.toString()))` })[t],
     [A.I16]:
-        (t: number, v: string): string => "" + ({ [A.F64]: `${v} `, [A.F32]: `${v} `, [A.I64]: `${v} `, [A.I32]: `${v} `, [A.I16]: /*       */ v, [A.I8]: `${v} `, [A.BOOL]: `+${v} `, [A.NULL]: " 0 ", [A.TOKEN]: `parseInt(${v}.toString())`, [A.STRUCT]: `parseInt(${v}.toString())`, [A.VECTOR]: `parseInt(${v}.toString()))` })[t],
+        (t: number, v: string): string => "" + ({ [A.F64]: `${v} `, [A.F32]: `${v} `, [A.I64]: `${v} `, [A.I32]: `${v} `, [A.I16]: /*       */ v, [A.I8]: `${v} `, [A.BOOL]: `+(${v})`, [A.NULL]: " 0 ", [A.TOKEN]: `parseInt(${v}.toString())`, [A.STRUCT]: `parseInt(${v}.toString())`, [A.VECTOR]: `parseInt(${v}.toString()))` })[t],
     [A.I8]:
         (t: number, v: string): string => "" + ({ [A.F64]: `${v}  `, [A.F32]: `${v}  `, [A.I64]: `${v}  `, [A.I32]: `${v}  `, [A.I16]: `${v}  `, [A.I8]: /*       */ v, [A.BOOL]: `${v}  `, [A.NULL]: " 0 ", [A.TOKEN]: `parseInt(${v}.toString())`, [A.STRUCT]: `parseInt(${v}.toString()) || 0`, [A.VECTOR]: `parseInt(${v}.toString()) || 0`, })[t],
     [A.BOOL]:
-        (t: number, v: string): string => "" + ({ [A.F64]: `!!${v} `, [A.F32]: `!!${v} `, [A.I64]: `!!${v} `, [A.I32]: `!!${v} `, [A.I16]: `!!${v} `, [A.I8]: `!!${v} `, [A.BOOL]: /**/ v, [A.NULL]: "false", [A.TOKEN]: `!!${v}`, [A.STRUCT]: `!!${v}`, [A.VECTOR]: `!!${v}` })[t],
+        (t: number, v: string): string => "" + ({ [A.F64]: `!!(${v})`, [A.F32]: `!!(${v})`, [A.I64]: `!!(${v})`, [A.I32]: `!!(${v})`, [A.I16]: `!!(${v})`, [A.I8]: `!!(${v})`, [A.BOOL]: /**/ v, [A.NULL]: "false", [A.TOKEN]: `!!(${v})`, [A.STRUCT]: `!!(${v})`, [A.VECTOR]: `!!(${v})` })[t],
     [A.NULL]:
         (t: number, v: string): string => "" + ({ [A.F64]: "null", [A.F32]: "null", [A.I64]: "null", [A.I32]: "null", [A.I16]: "null", [A.I8]: "null", [A.BOOL]: "null", [A.NULL]: /*       */ v, [A.TOKEN]: `null`, [A.STRUCT]: "null", [A.VECTOR]: "null" })[t],
     [A.STRING]:
