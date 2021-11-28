@@ -102,13 +102,13 @@ export const default_array = [
     default_RECOVERY,
     default_EOF,
     default_GEN_ID,
+    default_GEN_IDS,
     default_GEN_SYM,
     default_GEN_SYMS,
-    default_GEN_NEWLINE,
     default_GEN_NUMBER,
-    default_GEN_SPACE,
-    default_GEN_IDS,
     default_GEN_NUMBERS,
+    default_GEN_NEWLINE,
+    default_GEN_SPACE,
 ].sort((a, b) => {
     return a.id - b.id;
 });
