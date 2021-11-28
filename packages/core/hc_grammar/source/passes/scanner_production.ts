@@ -30,11 +30,13 @@ function convertSymbolsToProductionName(name: string) {
 }
 
 export function getSymbolProductionName(sym: HCG3Symbol) {
-    if (Sym_Is_A_Generic_Type(sym) || (Sym_Is_Defined(sym) &&
+    if (Sym_Is_A_Generic_Type(sym)) {
+        return `__clss_${convertSymbolsToProductionName(sym.val)}__`;
+    } else if ((Sym_Is_Defined(sym) &&
         !(Sym_Is_Empty(sym) || Sym_Is_EOF(sym)))) {
-        return `__${convertSymbolsToProductionName(sym.val)}__`;
-    } else if (Sym_Is_A_Production_Token(sym)) {
-        return `__${sym?.production?.name ?? "undefined"}__`;
+        return `__dfnd_${convertSymbolsToProductionName(sym.val)}__`;
+    } else if (Sym_Is_A_Production(sym) || Sym_Is_A_Production_Token(sym)) {
+        return `__prod_${sym?.production?.name ?? "undefined"}__`;
     }
 
     return "";
@@ -42,8 +44,6 @@ export function getSymbolProductionName(sym: HCG3Symbol) {
 export function buildScannerProduction(grammar: GrammarObject) {
 
     const productions: ScannerProductionNode[] = [], root_productions = [], seen = new Set();
-
-    const cName = convertSymbolsToProductionName;
 
     for (const [name, sym] of grammar?.meta?.all_symbols ?? []) {
 
@@ -53,7 +53,7 @@ export function buildScannerProduction(grammar: GrammarObject) {
                 if (sym.type == SymbolType.END_OF_FILE || sym.val == "rec")
                     continue;
                 const val = sym.val;
-                const name = `__${cName(val)}__`;
+                const name = getSymbolProductionName(sym);
                 if (["nums", "ids"].includes(val)) {
                     root_productions.push(
                         <ScannerProductionNode>addRootScannerFunction(`<> ${name} > g:${val.slice(0, -1)}  | ${name} g:${val.slice(0, -1)}\n`, sym.id)
@@ -73,7 +73,7 @@ export function buildScannerProduction(grammar: GrammarObject) {
                     if (!production)
                         debugger;
 
-                    const name = `__${production.name}__`;
+                    const name = getSymbolProductionName(sym);
 
                     if (seen.has(name))
                         continue;
@@ -92,8 +92,7 @@ export function buildScannerProduction(grammar: GrammarObject) {
                                     continue;
                                 str.push(`g:${sym.val}`);
                             } else if (Sym_Is_A_Production(sym) || Sym_Is_A_Production_Token(sym)) {
-                                const name = sym.name;
-                                str.push(`__${name}__`);
+                                str.push(getSymbolProductionName(sym));
                                 prods.push([sym, sym.production]);
                             } else if (Sym_Is_Defined(sym)) {
                                 const val = sym.val;
@@ -116,8 +115,9 @@ export function buildScannerProduction(grammar: GrammarObject) {
             } else if (Sym_Is_Defined(sym) &&
                 !(Sym_Is_Empty(sym) || Sym_Is_EOF(sym))) {
 
+                const name = getSymbolProductionName(sym);;
+
                 const val = sym.val;
-                const name = `__${cName(val)}__`;
 
                 const syms = val.split("");
 
