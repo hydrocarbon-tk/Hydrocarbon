@@ -14,6 +14,7 @@ import {
     getUniqueSymbolName,
     GrammarObject,
     GrammarProduction,
+    HCG3ProductionBody,
     Item,
     ItemMapEntry,
     ProductionSymbol,
@@ -134,8 +135,8 @@ function addFollowInformation(
     item: Item | null, grammar: GrammarObject,
     check_set: Set<string>[],
     follow_sym: TokenSymbol | null = null,
-    breadcrumbs = [],
-    item_map
+    breadcrumbs: number[] = [],
+    item_map: any[]
 ) {
 
     if (!item)
@@ -412,7 +413,7 @@ function addItemMapsToGrammar(item_maps_in_process: ItemMapEntry[], grammar: Gra
 
 function processFollowSymbols(grammar: GrammarObject, productions: GrammarProduction[]) {
     const check_set: Set<string>[] = grammar.productions.map(() => new Set());
-    const item_map = [];
+    const item_map: any[] = [];
 
     for (const production of productions) {
 
@@ -444,41 +445,43 @@ function processSkippedSymbols(grammar: GrammarObject, item_maps_in_process: Ite
 
         const production = item_map.item.getProduction(grammar);
 
-        const standard_skips = [];
+        if (production) {
+            const standard_skips = [];
 
-        for (const skipped_symbol of getOriginGrammarOfProduction(production, grammar)?.meta?.ignore ?? [])
-            standard_skips.push(skipped_symbol);
+            for (const skipped_symbol of getOriginGrammarOfProduction(production, grammar)?.meta?.ignore ?? [])
+                standard_skips.push(skipped_symbol);
 
-        const first = item_map.item.atEND
-            ? item_map.follow
-            : Sym_Is_A_Production(item_map.item.sym(grammar))
-                ? new Set(getFirstTerminalSymbols(+item_map.item.sym(grammar).val, grammar).map(getSymbolName))
-                : new Set((getTrueSymbolValue(<TokenSymbol>item_map.item.sym(grammar), grammar)).map(getSymbolName));
+            const first = item_map.item.atEND
+                ? item_map.follow
+                : Sym_Is_A_Production(item_map.item.sym(grammar))
+                    ? new Set(getFirstTerminalSymbols(+item_map.item.sym(grammar).val, grammar).map(getSymbolName))
+                    : new Set((getTrueSymbolValue(<TokenSymbol>item_map.item.sym(grammar), grammar)).map(getSymbolName));
 
-        const item = item_map.item;
+            const item = item_map.item;
 
-        const b = item.body_(grammar);
+            const b = <HCG3ProductionBody>item.body_(grammar);
 
-        if (!item.atEND && b.reset?.[0]) {
-            const sym = item.sym(grammar);
-            if (Sym_Is_A_Production(sym) && sym.subtype) {
-                const sub_production = grammar.productions[sym.val];
+            if (!item.atEND && b.reset?.[0]) {
+                const sym = item.sym(grammar);
+                if (Sym_Is_A_Production(sym) && sym.subtype) {
+                    const sub_production = grammar.productions[sym.val];
 
-                for (const body of sub_production.bodies) {
-                    if (body.reset?.[0])
-                        body.reset[0] = b.reset[0];
+                    for (const body of sub_production.bodies) {
+                        if (body.reset?.[0])
+                            body.reset[0] = b.reset[0];
+                    }
                 }
             }
+
+            const reset_sym = item.offset >= 0 ? (b.reset?.[item.offset] ?? []).map(getUniqueSymbolName) : [];
+
+            item_map.skippable = new Set(
+                standard_skips
+                    .map(getSymbolName)
+                    .filter(i => !reset_sym.includes(i))
+                    .filter(i => !first.has(i))
+            );
         }
-
-        const reset_sym = item.offset >= 0 ? (b.reset?.[item.offset] ?? []).map(getUniqueSymbolName) : [];
-
-        item_map.skippable = new Set(
-            standard_skips
-                .map(getSymbolName)
-                .filter(i => !reset_sym.includes(i))
-                .filter(i => !first.has(i))
-        );
     }
 }
 

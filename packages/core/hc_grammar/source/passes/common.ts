@@ -428,15 +428,18 @@ export function processSymbol(
 
     const prime = unique_map.get(unique_name);
 
-    if (Sym_Is_A_Production_Token(prime))
-        //@ts-ignore
-        sym.token_id = prime.token_id;
+    if (prime) {
 
-    if (Sym_Is_Defined(prime))
-        //@ts-ignore
-        sym.byte_length = prime.byte_length;
+        if (Sym_Is_A_Production_Token(prime))
+            //@ts-ignore
+            sym.token_id = prime.token_id;
 
-    sym.id = prime.id;
+        if (Sym_Is_Defined(prime))
+            //@ts-ignore
+            sym.byte_length = prime.byte_length;
+
+        sym.id = prime.id;
+    }
 
     return id_offset;
 }

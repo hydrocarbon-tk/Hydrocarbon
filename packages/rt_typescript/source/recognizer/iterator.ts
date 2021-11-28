@@ -488,7 +488,7 @@ export class StateIterator {
         }
     }
 
-    private try_lazy(index, instruction) {
+    private try_lazy(index: number, instruction: number) {
         let production_pointer = instruction;
         let sentinel_open = this.bytecode[index];
         let sentinel_close = this.bytecode[index + 1];
@@ -553,7 +553,7 @@ export class StateIterator {
         return index + 2;
     }
 
-    private assert_consume(index, instruction) {
+    private assert_consume(index: number, instruction: number) {
 
         const mode = instruction & 0x0F000000;
         let val = instruction & 0x00FFFFFF;
