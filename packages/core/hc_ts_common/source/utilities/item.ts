@@ -7,6 +7,8 @@ import { default_EOF } from "../index.js";
 import { convert_symbol_to_string, getRootSym, Sym_Is_A_Production } from "../objects/symbol.js";
 import { GrammarObject, GrammarProduction, HCG3ProductionBody, HCG3Symbol } from "../types/grammar.js";
 
+const item_off_sym = ".";
+
 export const enum ItemIndex {
     body_id = 0,
     length = 1,
@@ -88,13 +90,13 @@ export class Item extends Array {
         const a = this.body_(grammar)?.sym
             .map(sym => Sym_Is_A_Production(sym) ? { val: "\x1b[38;5;8m" + grammar.productions[sym.val].name.replace(/\$/, "::\x1b[38;5;153m") } : sym)
             //@ts-ignore
-            .flatMap((sym, i) => (i == this.offset) ? ["\x1b[38;5;226m•", SymbolToString(sym)] : SymbolToString(sym));
+            .flatMap((sym, i) => (i == this.offset) ? [`\x1b[38;5;226m${item_off_sym}`, SymbolToString(sym)] : SymbolToString(sym));
 
         if (!a)
             return "";
 
         if (a.length == this.offset)
-            a.push("\x1b[38;5;226m•");
+            a.push(`\x1b[38;5;226m${item_off_sym}`);
 
         return a.join(" ");
     }
@@ -105,13 +107,13 @@ export class Item extends Array {
             .map(sym => Sym_Is_A_Production(sym) ? Object.assign({}, sym, { val: grammar.productions[sym.val]?.name ?? "" }) : sym)
             .map(sym => getRootSym(sym, grammar))
             //@ts-ignore
-            .flatMap((sym, i) => (i == this.offset) ? ["•", convert_symbol_to_string(sym)] : convert_symbol_to_string(sym));
+            .flatMap((sym, i) => (i == this.offset) ? [item_off_sym, convert_symbol_to_string(sym)] : convert_symbol_to_string(sym));
 
         if (!a)
             return "";
 
         if (a.length == this.offset)
-            a.push("•");
+            a.push(item_off_sym);
 
         return a.join(" ");
     }
