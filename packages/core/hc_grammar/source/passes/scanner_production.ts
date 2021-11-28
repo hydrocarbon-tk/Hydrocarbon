@@ -54,7 +54,7 @@ export function buildScannerProduction(grammar: GrammarObject) {
                     continue;
                 const val = sym.val;
                 const name = getSymbolProductionName(sym);
-                if (["nums", "ids"].includes(val)) {
+                if (["nums", "ids", "syms"].includes(val)) {
                     root_productions.push(
                         <ScannerProductionNode>addRootScannerFunction(`<> ${name} > g:${val.slice(0, -1)}  | ${name} g:${val.slice(0, -1)}\n`, sym.id)
                     );
