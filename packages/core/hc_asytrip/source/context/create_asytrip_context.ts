@@ -302,14 +302,17 @@ ${render_grammar(production)}
                 } else if (TypesInclude(real_types, TypeIsVector)) {
 
                     const vector_types = real_types.filter(TypeIsVector);
+
+                    //Remove null types from consideration
+                    const vector_types_types = vector_types.flatMap(v => v.types).filter(TypeIsNotNull);
                     const non_vector_types = real_types.filter(v => !TypeIsVector(v));
 
                     if (non_vector_types.length > 0) {
                         debugger;
-                    } else if (vector_types.some(v => TypesInclude(v.types, TypeIsStruct))) {
+                    } else if (TypesInclude(vector_types_types, TypeIsStruct)) {
 
-                        if (vector_types.some(v => !TypesAre(v.types, TypeIsStruct))) {
-                            const non_vector_types = vector_types.flatMap(v => v.types).filter(v => !TypeIsStruct(v));
+                        if (!TypesAre(vector_types_types, TypeIsStruct)) {
+                            const non_vector_types = vector_types_types.filter(v => !TypeIsStruct(v));
                             const message = [
                                 `
 Invalid Vector<Struct> property <${name}> of struct <${s_name}>
