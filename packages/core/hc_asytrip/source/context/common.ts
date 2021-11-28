@@ -386,7 +386,7 @@ function parseExpression(
         return { type: ASYTRIPType.BOOL, val: (node.value + "") == "true", body: [body.id] };
 
     } else if (node.type == JSNodeType.ArrayLiteral) {
-        const members = node.nodes.map(n => parseExpression(body, n, tok, context));
+        const members = node.nodes.map((n: any) => parseExpression(body, n, tok, context));
 
         const args = members.filter(TypeIsNotClassification);
 
@@ -548,7 +548,7 @@ export function getResolvedType(
         switch (node.type) {
             case ASYTRIPType.STRUCT_CLASSIFICATION: {
 
-                const structs: ASYType<ASYTRIPType.STRUCT>[] = [];
+                const structs: ASYType<ASYTRIPType.STRUCT | ASYTRIPType.NULL>[] = [{ type: ASYTRIPType.NULL, body: [] }];
 
                 const seen = new Set;
 
