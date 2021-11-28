@@ -314,25 +314,30 @@ export function disassemble(
 
                 let fields = [];
 
+                buffer.push(`<table class="table - data">`);
+
                 for (let i = 0; i < table_size; i++) {
                     const cell = bytecode[hash_table_start + i];
                     const val = cell & 0x7FF;
                     const ip = ((cell >> 11) & 0x7FF) + instruction_field_start;
                     const addrs = dis_address(ip);
-                    fields.push(ip);
-                    const value = getCharacterValueHTML(undefined, <any>input_type, val);
-                    buffer.push(`<tr><td>${val}</td><td>${value}</td><td>=></td><td><a href="#${addrs}">${t_id}::${addrs}</a></td></tr>`);
+                    const value = getCharacterValueHTML(grammar, <any>input_type, val);
+                    fields.push({ ip, value });
+                    buffer.push(`<tr><td>${val}</td><td>=></td><td><a href="#${addrs}">${t_id}::${addrs}</a></td></tr>`);
                 }
 
-                fields = fields.sort(numeric_sort).setFilter();
+                buffer.push("</table>");
 
-                for (const ip of fields) {
+                fields = fields.sort((a, b) => a.ip - b.ip).setFilter(b => b.ip);
+
+                for (const { ip, value: val_rep } of fields) {
 
                     const value = dis_address(ip);
 
                     buffer.push(
                         `<div id="${ip.toString(16)}" class="table-branch">
-                        <h5>${t_id} - ${value}</h5><div class="branch-internals">`,
+                        <h5>${t_id}<span class="character-position">${val_rep}</span></h5>
+                        <div class="branch-internals">`,
                         (disassemble(
                             ip,
                             bytecode,
