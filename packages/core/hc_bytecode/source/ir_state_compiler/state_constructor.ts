@@ -265,7 +265,14 @@ function processTransitionNode(
 
     state_string.push(generateStateHashAction(state, grammar, options).action);
 
-    if (!options.IS_SCANNER && !(state.is(TST.I_GOTO_START) || state.is(TST.O_GOTO))) {
+    /**
+     * The only time we do not determine the composition of expected tokens is
+     * when the current state is a GOTO state comprised of branch instructions
+     * switching on the value of the last reduced production; or, when the state 
+     * is a SCANNER state, and we are directly considering the values of the 
+     * input stream.
+     */
+    if (!options.IS_SCANNER && !(state.is(TST.I_GOTO_START))) {
 
         const symbol_clause = create_symbol_clause(
             items,
