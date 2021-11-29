@@ -398,8 +398,6 @@ function createPeek(
     tpn: Node[]
 ) {
 
-    parent.closure = [];
-    parent.items = [];
 
     const out_of_scope = new Set(items.filter(i => i.state == OutOfScopeItemState).map(i => i.id));
 
@@ -421,6 +419,9 @@ function createPeek(
             n = n.parent;
         }
     }
+
+    parent.closure = [];
+    parent.items = [];
 
     collapsed_closure = collapsed_closure.setFilter(item_id);
 
