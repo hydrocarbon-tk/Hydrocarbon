@@ -92,8 +92,8 @@
 
                             f:r { { 
                                 t_Grammar , c_Grammar , c_Version_6, 
-                                $preamble, 
-                                $productions, 
+                                preamble: $1, 
+                                productions:$2.productions, 
                                 ir_states:$2.ir,
                                 functions:$2.functions, 
                                 imported_grammars: [t_Grammar],

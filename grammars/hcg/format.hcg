@@ -4,11 +4,17 @@
 
 # version 6.0
 
+@IMPORT ./comments.hcg as cm
+
+@IGNORE g:sp g:nl tk:cm::comment
+
+<> s > format_meta_symbol
+
 <> format_meta_symbol > 
 
     space | new_line | increase_indent | decrease_indent
 
-<> space > \_sp                 f:r{ { t_Space, c_Meta, c_Format, position: i16(0) } }
+<> space > \_spd                f:r{ { t_Space, c_Meta, c_Format, position: i16(0) } }
 
 <> new_line > \_nl              f:r{ { t_NewLine, c_Meta, c_Format, position: i16(0) } }
 

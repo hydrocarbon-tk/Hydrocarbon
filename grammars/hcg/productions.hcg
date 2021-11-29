@@ -21,11 +21,11 @@
 ########################################################################################################################
 
 <>  productions > production                                          
-                                                            f:r {  { type:t_Productions, functions:[], productions:[$1], ir:[]  } }
+                                                            f:r {  { type:t_Productions, functions:[], productions:[$1], ir:[], tok  } }
     | fn::out_of_band_function                                     
-                                                            f:r {  { type:t_Productions, functions:[$1], productions:[], ir:[]  } }
+                                                            f:r {  { type:t_Productions, functions:[$1], productions:[], ir:[], tok  } }
     | ir::grammar_injection
-                                                            f:r {  { type:t_Productions, functions:[], productions:[], ir:[$1]  } }
+                                                            f:r {  { type:t_Productions, functions:[], productions:[], ir:[$1], tok  } }
     | productions production                                  
                                                             f:r {  $1.productions + $2, $1 }
     | productions fn::out_of_band_function                         
@@ -37,7 +37,7 @@
 <> production > \<> t:lazy?^l \! ?^p sym::annotated_production_symbol^s \>  pb::production_bodies^b
                                                                         
                                                             f:r { {
-                                                                type:t_Production | c_Production, priority: $p ? 1000 : 0, symbol:$s, bodies:$b, id:-1, LAZY:bool($l), entry_name:""
+                                                                type:t_Production | c_Production, priority: $3 ? 1000 : 0, symbol:$s, bodies:$b, id:-1, LAZY:bool($l), entry_name:""
                                                             } }
 
     | \+> sym::annotated_production_symbol  \>  pb::production_bodies
