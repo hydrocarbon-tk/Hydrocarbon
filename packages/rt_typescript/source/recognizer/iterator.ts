@@ -944,9 +944,11 @@ export class StateIterator {
     ): KernelToken {
 
         if (current_token.type <= 0) {
+            const clone = this.reader.clone();
+            clone.setTo(current_token.byte_offset);
 
             const scanner_iterator = new StateIterator(
-                this.reader.clone(),
+                clone,
                 this.bytecode,
                 token_row_state,
                 true
@@ -1007,7 +1009,7 @@ export class StateIterator {
 
                             throw new Error("Scanner Yielded Invalid Action");
                     }
-                });
+                }, a => []);
             }
         }
 
