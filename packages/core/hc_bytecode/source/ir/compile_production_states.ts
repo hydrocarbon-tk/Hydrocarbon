@@ -6,16 +6,16 @@
 import { Logger } from '@candlelib/log';
 import spark from "@candlelib/spark";
 import {
-    default_case_indicator,
     getStartItemsFromProduction,
     GrammarObject,
     InstructionType,
     StateAttrib,
     StateMap,
+    TokenTypes,
     user_defined_state_mux
 } from '@hctoolkit/common';
-import { WorkerRunner } from "../workers/worker_runner.js";
 import { convertParseProductsIntoStatesMap } from "../common/state_data.js";
+import { WorkerRunner } from "../workers/worker_runner.js";
 import { create_symbol_clause } from './create_symbol_clause.js';
 
 export const build_logger = Logger.get("MAIN").createLogger("COMPILER");
@@ -82,7 +82,7 @@ state [${close_state_name}]
                 ||
                 instruction.type == InstructionType.peek) {
                 if (instruction.ids.includes(0) && instruction.mode != "PRODUCTION")
-                    instruction.ids.push(default_case_indicator);
+                    instruction.ids.push(TokenTypes.DEFAULT);
             }
         }
 

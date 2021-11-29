@@ -8,8 +8,9 @@
  * Base id token integer identifiers 
 */
 export enum TokenTypes {
-    UNDEFINED,
-    END_OF_FILE,
+    RECOVERY = 0,
+    UNDEFINED = 0,
+    EOF,
     SYMBOL,
     IDENTIFIER,
     NUMBER,
@@ -18,8 +19,8 @@ export enum TokenTypes {
     IDENTIFIERS,
     NUMBERS,
     SYMBOLS,
-    CUSTOM_START_POINT,
+    CUSTOM_START_POINT, // <= Do Not Move
     UNICODE_IDENTIFIER,
-    RECOVERY = 0,
+    DEFAULT = 9009,
 }
 

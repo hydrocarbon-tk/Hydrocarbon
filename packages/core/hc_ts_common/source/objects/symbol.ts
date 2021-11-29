@@ -10,7 +10,7 @@ import {
     DefinedNumericSymbol,
     DefinedSymbol,
     EmptySymbol,
-    EOFSymbol,
+    DEFAULTSymbol,
     GeneratedIdentifier,
     GeneratedNewLine,
     GeneratedNumber,
@@ -55,8 +55,8 @@ export function convert_symbol_to_string(sym: HCG3Symbol): string {
             return `t:${sym.val}` + (sym.IS_NON_CAPTURE ? "-ns" : "");
         case SymbolType.EMPTY:
             return `ɛ`;
-        case SymbolType.END_OF_FILE:
-            return `END_OF_FILE`;
+        case SymbolType.DEFAULT:
+            return `DEFAULT`;
         case SymbolType.PRODUCTION_TOKEN_SYMBOL:
             return `tk:${sym.name}`;
         case "look-behind":
@@ -80,7 +80,7 @@ export function convert_symbol_to_friendly_name(sym: HCG3Symbol): string {
                 case "syms": return "Symbols";
                 case "nl": return "New Line";
                 case "sp": return "Space";
-                case "END_OF_FILE": return "<EOF>";
+                case "DEFAULT": return "<EOF>";
                 default: return "";
             }
         case SymbolType.LITERAL:
@@ -89,7 +89,7 @@ export function convert_symbol_to_friendly_name(sym: HCG3Symbol): string {
             return `"${sym.val}"`;
         case SymbolType.EMPTY:
             return `ɛ`;
-        case SymbolType.END_OF_FILE:
+        case SymbolType.DEFAULT:
             return `<EOF>`;
         case SymbolType.PRODUCTION_TOKEN_SYMBOL:
             return `tk:${sym.name}`;
@@ -121,8 +121,8 @@ export function Sym_Is_Not_Consumed(s: HCG3Symbol): boolean {
 export function Sym_Is_Look_Behind(s: HCG3Symbol): s is LookBehindSymbol {
     return s.type == SymbolType.LOOK_BEHIND;
 }
-export function Sym_Is_EOF(s: HCG3Symbol): s is EOFSymbol {
-    return s.type == SymbolType.END_OF_FILE || s.val == "END_OF_FILE";
+export function Sym_Is_DEFAULT(s: HCG3Symbol): s is DEFAULTSymbol {
+    return s.type == SymbolType.DEFAULT || s.val == "DEFAULT";
 }
 export function Sym_Is_Empty(s: HCG3Symbol): s is EmptySymbol {
     return s.type == SymbolType.EMPTY;
@@ -165,9 +165,9 @@ export function Sym_Is_A_Generic_Type(s: HCG3Symbol): s is (
     | RecoverySymbol
     | GeneratedSpace
     | GeneratedIdentifier
-    | EOFSymbol
+    | DEFAULTSymbol
 ) {
-    return (s.type == SymbolType.GENERATED || Sym_Is_EOF(s));
+    return (s.type == SymbolType.GENERATED || Sym_Is_DEFAULT(s));
 }
 
 /**
@@ -180,7 +180,7 @@ export function Sym_Is_Exclusive(s: HCG3Symbol): boolean {
 }
 
 export function Sym_Is_Defined(s: HCG3Symbol): s is DefinedSymbol {
-    return !Sym_Is_A_Production(s) && !Sym_Is_A_Generic_Type(s) && !Sym_Is_Look_Behind(s) && !Sym_Is_A_Production_Token(s) && !Sym_Is_Virtual_Token(s);
+    return !Sym_Is_A_Production(s) && !Sym_Is_A_Generic_Type(s) && !Sym_Is_Look_Behind(s) && !Sym_Is_A_Production_Token(s);
 }
 /**
  * A SpecifiedSymbol that is not a SpecifiedIdentifierSymbol nor a SpecifiedNumericSymbol
@@ -279,7 +279,7 @@ export function getSymbolFromUniqueName(grammar: GrammarObject, name: string): H
 }
 
 export function getRootSym<T = HCG3Symbol>(sym: T, grammar: GrammarObject): T {
-    if ((<HCG3Symbol><any>sym).type == SymbolType.END_OF_FILE)
+    if ((<HCG3Symbol><any>sym).type == SymbolType.DEFAULT)
         return sym;
 
     const name = getUniqueSymbolName(<HCG3Symbol><any>sym);

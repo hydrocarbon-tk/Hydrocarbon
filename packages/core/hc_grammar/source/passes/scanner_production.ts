@@ -6,7 +6,7 @@ import {
     Sym_Is_A_Production,
     Sym_Is_A_Production_Token,
     Sym_Is_Defined,
-    Sym_Is_Empty, Sym_Is_EOF
+    Sym_Is_Empty, Sym_Is_DEFAULT
 } from "@hctoolkit/common";
 import { loadGrammarFromString } from "./load.js";
 
@@ -33,7 +33,7 @@ export function getSymbolProductionName(sym: HCG3Symbol) {
     if (Sym_Is_A_Generic_Type(sym)) {
         return `__clss_${convertSymbolsToProductionName(sym.val)}__`;
     } else if ((Sym_Is_Defined(sym) &&
-        !(Sym_Is_Empty(sym) || Sym_Is_EOF(sym)))) {
+        !(Sym_Is_Empty(sym) || Sym_Is_DEFAULT(sym)))) {
         return `__dfnd_${convertSymbolsToProductionName(sym.val)}__`;
     } else if (Sym_Is_A_Production(sym) || Sym_Is_A_Production_Token(sym)) {
         return `__prod_${sym?.production?.name ?? "undefined"}__`;
@@ -50,7 +50,7 @@ export function buildScannerProduction(grammar: GrammarObject) {
         if (!Sym_Is_A_Production(sym)) {
             if (Sym_Is_A_Generic_Type(sym)) {
                 //* 
-                if (sym.type == SymbolType.END_OF_FILE || sym.val == "rec")
+                if (sym.type == SymbolType.DEFAULT || sym.val == "rec")
                     continue;
                 const val = sym.val;
                 const name = getSymbolProductionName(sym);
@@ -88,7 +88,7 @@ export function buildScannerProduction(grammar: GrammarObject) {
 
                         for (const sym of body.sym) {
                             if (Sym_Is_A_Generic_Type(sym)) {
-                                if (Sym_Is_EOF(sym))
+                                if (Sym_Is_DEFAULT(sym))
                                     continue;
                                 str.push(`g:${sym.val}`);
                             } else if (Sym_Is_A_Production(sym) || Sym_Is_A_Production_Token(sym)) {
@@ -113,7 +113,7 @@ export function buildScannerProduction(grammar: GrammarObject) {
                 }
 
             } else if (Sym_Is_Defined(sym) &&
-                !(Sym_Is_Empty(sym) || Sym_Is_EOF(sym))) {
+                !(Sym_Is_Empty(sym) || Sym_Is_DEFAULT(sym))) {
 
                 const name = getSymbolProductionName(sym);;
 

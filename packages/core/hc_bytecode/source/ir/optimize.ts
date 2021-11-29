@@ -5,7 +5,6 @@
  */
 import { Logger } from '@candlelib/log';
 import {
-    default_case_indicator,
     GrammarObject,
     InstructionType,
     InternalStateData,
@@ -23,7 +22,8 @@ import {
     Resolved_IR_State,
     StateAttrib,
     StateMap,
-    Token
+    Token,
+    TokenTypes
 } from '@hctoolkit/common';
 import { renderIRNode } from './render_ir_state.js';
 
@@ -875,7 +875,7 @@ function mapInlinedInstructions(
 
                 const { symbol_meta } = state;
 
-                if (b.ids.includes(1) || b.ids.includes(default_case_indicator))
+                if (b.ids.includes(TokenTypes.DEFAULT))
                     return b.instructions;
 
                 const inline_assert: IRInlineAssert = {

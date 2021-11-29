@@ -687,7 +687,7 @@ const reduce_functions = [(_, s) => s[s.length - 1], (env, sym, tok) => ({ type:
 (env, sym, tok) => ({ type: "exclusive-literal", val: sym[1].toString(), tok, meta: false, annotation: null }) /*7*/,
 (env, sym, tok) => ({ type: "literal", val: sym[0].toString(), tok, meta: false, annotation: null }) /*8*/,
 (env, sym, tok) => ({ type: "literal", val: sym[1].toString(), tok, meta: false, annotation: null }) /*9*/,
-(env, sym, tok) => ({ type: "eof", val: "END_OF_FILE", tok, meta: false, annotation: null }) /*10*/,
+(env, sym, tok) => ({ type: "eof", val: "DEFAULT", tok, meta: false, annotation: null }) /*10*/,
 (env, sym, tok) => ({ type: "production_token", name: sym[1].name, production: sym[1], val: -1, tok, meta: false, annotation: null }) /*11*/,
 (env, sym, tok) => ({ type: "sym-production", name: sym[0].toString(), production: null, val: -1, tok, meta: false, annotation: null }) /*12*/,
 (env, sym, tok) => ({ type: "sym-production-import", module: sym[0].toString(), name: sym[2].toString(), production: null, tok, meta: false, annotation: null }) /*13*/,

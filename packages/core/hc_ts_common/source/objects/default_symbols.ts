@@ -7,6 +7,7 @@ import { Token } from './token.js';
 import { TokenTypes } from "../types/token_types.js";
 import {
     EOFSymbol,
+    DEFAULTSymbol,
     GeneratedIdentifier,
     GeneratedNewLine,
     GeneratedNumber,
@@ -26,11 +27,11 @@ import {
 export const user_defined_state_mux = "__USER_DEFINED__";
 
 export const
-    default_EOF: EOFSymbol = {
-        type: SymbolType.END_OF_FILE,
-        val: "END_OF_FILE",
-        id: TokenTypes.END_OF_FILE,
-        tok: new Token("$oef", 4, 0),
+    default_DEFAULT: DEFAULTSymbol = {
+        type: SymbolType.DEFAULT,
+        val: "DEFAULT",
+        id: TokenTypes.DEFAULT,
+        tok: new Token("$DEFAULT", 9, 0),
         meta: false,
     },
     default_GEN_SPACE: GeneratedSpace = {
@@ -95,11 +96,19 @@ export const
         id: TokenTypes.RECOVERY,
         tok: new Token("g:rec", 5, 0),
         meta: false,
+    },
+    default_EOF: EOFSymbol = {
+        type: SymbolType.GENERATED,
+        val: "eof",
+        id: TokenTypes.EOF,
+        tok: new Token("g:eof", 5, 0),
+        meta: false,
     };
 
 
 export const default_array = [
     default_RECOVERY,
+    default_DEFAULT,
     default_EOF,
     default_GEN_ID,
     default_GEN_IDS,

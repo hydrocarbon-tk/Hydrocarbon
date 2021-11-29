@@ -5,7 +5,7 @@
  */
 import {
     convert_symbol_to_string,
-    default_EOF,
+    default_DEFAULT,
     getClosure,
     getFollowClosure,
     getSkippableSymbolsFromItems,
@@ -53,7 +53,7 @@ export function create_symbol_clause(
     );
 
     if (end_items.length > 0)
-        expected_symbols.push(default_EOF);
+        expected_symbols.push(default_DEFAULT);
 
     if (expected_symbols.length < 1)
         return "";

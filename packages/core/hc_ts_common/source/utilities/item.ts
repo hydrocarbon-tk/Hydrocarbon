@@ -3,7 +3,7 @@
  * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
  * disclaimer notice.
  */
-import { default_EOF } from "../index.js";
+import { default_DEFAULT } from "../index.js";
 import { convert_symbol_to_string, getRootSym, Sym_Is_A_Production } from "../objects/symbol.js";
 import { GrammarObject, GrammarProduction, HCG3ProductionBody, HCG3Symbol } from "../types/grammar.js";
 
@@ -82,7 +82,7 @@ export class Item extends Array {
     }
 
     sym(grammar: GrammarObject): HCG3Symbol {
-        return this.body_(grammar)?.sym[this.offset] || default_EOF;
+        return this.body_(grammar)?.sym[this.offset] || default_DEFAULT;
     }
 
     render(grammar: GrammarObject): string {

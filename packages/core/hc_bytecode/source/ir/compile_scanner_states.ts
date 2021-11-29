@@ -5,7 +5,6 @@
  */
 import { Logger } from '@candlelib/log';
 import {
-    default_case_indicator,
     GrammarObject,
     HCG3Symbol,
     InstructionType,
@@ -13,7 +12,8 @@ import {
     skipped_scan_prod,
     StateMap,
     Sym_Is_Exclusive,
-    TokenSymbol
+    TokenSymbol,
+    TokenTypes
 } from '@hctoolkit/common';
 import {
     addRootScannerFunction,
@@ -25,8 +25,8 @@ import {
     processSymbol
 } from '@hctoolkit/grammar/build/passes/common.js';
 import { buildItemMaps } from '@hctoolkit/grammar/build/passes/item_map.js';
-import { constructProductionStates } from '../ir_state_compiler/state_constructor.js';
 import { convertParseProductsIntoStatesMap } from '../common/state_data.js';
+import { constructProductionStates } from '../ir_state_compiler/state_constructor.js';
 import {
     IsAssertInstruction,
     IsPeekInstruction
@@ -121,15 +121,15 @@ export function constructScannerState(
     if (all_symbols && by_id && grammar.meta && grammar.meta.all_symbols) {
 
         const consumed_symbols = consumed_ids
-            .filter(i => i > 1 && i != default_case_indicator)
+            .filter(i => i > 0 && i != TokenTypes.DEFAULT)
             .setFilter()
-            .map(i => by_id.get(i));
+            .map(mapIdToSymbol(by_id));
 
         const skipped_symbols = skipped_ids
             .filter(s => !consumed_ids.includes(s))
-            .filter(i => i > 1 && i != default_case_indicator)
+            .filter(i => i > 0 && i != TokenTypes.DEFAULT)
             .setFilter()
-            .map(i => by_id.get(i));
+            .map(mapIdToSymbol(by_id));
 
 
         //Create checkpoints for original grammar data
@@ -215,27 +215,37 @@ export function constructScannerState(
     }
 }
 
+function mapIdToSymbol(by_id: Map<number, HCG3Symbol>):
+    (value: number, index: number, array: number[]) => TokenSymbol {
+    return i => <TokenSymbol>(by_id.get(i));
+}
+
 export function createSymMapId(
     consumed_ids: number[],
     skipped_ids: number[],
     grammar: GrammarObject
 ) {
 
-    const consumed = consumed_ids.filter(
-        i => i > 1 && i != default_case_indicator
-    ).map(i => <TokenSymbol>grammar.meta?.all_symbols?.by_id.get(i));
+    const by_id = grammar.meta?.all_symbols?.by_id;
 
-    const skipped = skipped_ids.filter(
-        i => i > 1 && i != default_case_indicator
-    ).map(i => <TokenSymbol>grammar.meta?.all_symbols?.by_id.get(i));
+    if (by_id) {
 
-    if (consumed.length < 1 && skipped_ids.length < 1)
-        return "";
+        const consumed = consumed_ids.filter(
+            i => i > 0 && TokenTypes.DEFAULT
+        ).map(mapIdToSymbol(by_id));
 
-    return (
-        consumed.map(i => <number>i.id).setFilter().sort(numeric_sort).join("-")
-        + "-s-" +
+        const skipped = skipped_ids.filter(
+            i => i > 0 && TokenTypes.DEFAULT
+        ).map(mapIdToSymbol(by_id));
 
-        skipped.map(i => <number>i.id).setFilter().sort(numeric_sort).join("-")
-    );
+        if (consumed.length < 1 && skipped_ids.length < 1)
+            return "";
+
+        return (
+            consumed.map(i => <number>i.id).setFilter().sort(numeric_sort).join("-")
+            + "-s-" +
+
+            skipped.map(i => <number>i.id).setFilter().sort(numeric_sort).join("-")
+        );
+    }
 }

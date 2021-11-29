@@ -56,7 +56,7 @@ function fuzzBody(body: HCG3ProductionBody, g: GrammarObject): string {
                         case "nl": str.push("\n"); break;
                         case "sym": str.push("$"); break;
                         case "sp": str.push(" "); break;
-                        case "END_OF_FILE": break outer;
+                        case "DEFAULT": break outer;
                     }
                     break;
 
@@ -68,7 +68,7 @@ function fuzzBody(body: HCG3ProductionBody, g: GrammarObject): string {
                     str.push(sym.val);
                     break;
 
-                case SymbolType.END_OF_FILE:
+                case SymbolType.DEFAULT:
                     break outer;
 
                 case SymbolType.PRODUCTION:

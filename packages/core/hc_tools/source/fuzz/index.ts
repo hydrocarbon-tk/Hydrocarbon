@@ -104,7 +104,7 @@ function fuzzBody(
                         case "sym": str.push(getCharSequence(sym_lu)); break;
                         case "nl": str.push("\n"); break;
                         case "sp": str.push(" "); break;
-                        case "END_OF_FILE": break outer;
+                        case "DEFAULT": break outer;
                     }
                     break;
 
@@ -116,7 +116,7 @@ function fuzzBody(
                     str.push(sym.val);
                     break;
 
-                case SymbolType.END_OF_FILE:
+                case SymbolType.DEFAULT:
                     break outer;
 
                 case SymbolType.PRODUCTION:

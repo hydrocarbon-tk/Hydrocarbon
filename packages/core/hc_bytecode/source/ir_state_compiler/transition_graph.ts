@@ -4,7 +4,7 @@
  * disclaimer notice.
  */
 import {
-    default_EOF,
+    default_DEFAULT,
     getClosure,
     getProductionClosure,
     getStartItemsFromProduction,
@@ -49,7 +49,7 @@ export function constructDescent(
 
     options.ambig_ids = new Set;
 
-    const node = createNode(options, default_EOF, production_items);
+    const node = createNode(options, default_DEFAULT, production_items);
 
     let tpn: Node[] = [];
 
@@ -141,7 +141,7 @@ function processGoto(options: TGO, goto_items: Item[], parent: Node | null = nul
 
     const goto_item_map = getGotoSTARTs(options.root_production, goto_items, GRAMMAR);
 
-    parent = createNode(options, default_EOF, goto_items);
+    parent = createNode(options, default_DEFAULT, goto_items);
 
     const nodes: Node[] = [];
 
@@ -911,7 +911,7 @@ function convertStateToFork(node: Node, items: Item[], opt: TGO, tpn: Node[]) {
 }
 
 function createFailState(opt: TGO, parent: Node, items: Item[] = []): Node {
-    const node = createNode(opt, default_EOF, items, parent);
+    const node = createNode(opt, default_DEFAULT, items, parent);
     node.addType(TST.I_FAIL);
     return node;
 }
@@ -1081,7 +1081,7 @@ function processFirstEndItem(
     end_item: Item,
 ) {
 
-    const new_node = createNode(options, default_EOF, [end_item], node);
+    const new_node = createNode(options, default_DEFAULT, [end_item], node);
 
     options.goto_items.push(end_item);
 
@@ -1470,7 +1470,7 @@ function end_item(i: Item) {
 }
 
 function item_sym(i: Item) {
-    return i.atEND ? default_EOF : i.sym(GRAMMAR);
+    return i.atEND ? default_DEFAULT : i.sym(GRAMMAR);
 }
 
 function item_id(i: Item) {

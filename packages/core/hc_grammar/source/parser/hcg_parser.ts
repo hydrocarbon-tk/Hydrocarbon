@@ -1718,7 +1718,7 @@ const reduce_functions = [(_, s) => s[s.length - 1], (env, sym, pos) => ({ type:
 (env, sym, pos) => ({ type: "exclusive-literal", val: "" + sym[1], pos: pos, meta: false, annotation: null }) /*7*/,
 (env, sym, pos) => ({ type: "literal", val: sym[0], pos: pos, meta: false, annotation: null }) /*8*/,
 (env, sym, pos) => ({ type: "literal", val: sym[1], pos: pos, meta: false, annotation: null }) /*9*/,
-(env, sym, pos) => ({ type: "eof", val: "END_OF_FILE", pos: pos, meta: false }) /*10*/,
+(env, sym, pos) => ({ type: "eof", val: "DEFAULT", pos: pos, meta: false }) /*10*/,
 (env, sym, pos) => ({ type: "production_token", name: sym[1].name, production: sym[1], val: -1, pos: pos, meta: false }) /*11*/,
 (env, sym, pos) => ({ type: "sym-production", name: sym[0], production: null, val: -1, pos: pos, meta: false, annotation: null }) /*12*/,
 (env, sym, pos) => ({ type: "sym-production-import", module: sym[0], name: sym[2], production: null, pos: pos, meta: false, annotation: null }) /*13*/,

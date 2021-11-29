@@ -3,7 +3,6 @@
  * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
  * disclaimer notice.
  */
-import { Logger } from '@candlelib/log';
 import {
     convert_symbol_to_friendly_name,
     getStartItemsFromProduction,
@@ -15,10 +14,7 @@ import {
     ProductionSymbol,
     skipped_scan_prod,
     Sym_Is_A_Generic_Type,
-    Sym_Is_A_Token,
-    Sym_Is_Defined,
-    Sym_Is_EOF,
-    Sym_Is_Not_Consumed,
+    Sym_Is_A_Token, Sym_Is_DEFAULT, Sym_Is_Defined, Sym_Is_Not_Consumed,
     Sym_Is_Recovery,
     TokenSymbol,
     user_defined_state_mux
@@ -391,7 +387,7 @@ function generateStateAction(
 
                     } else if (Sym_Is_A_Token(sym)) {
 
-                        if (Sym_Is_EOF(sym) && state.children.length == 1) {
+                        if (Sym_Is_DEFAULT(sym) && state.children.length == 1) {
                             action_string = `goto state [${hash}]${post_amble}`;
                         } else if (child.is(TST.I_CONSUME)) {
 
@@ -447,7 +443,7 @@ function createEndAction(state: Node, grammar: GrammarObject, options: Construct
 
         const set_prod_clause = `set prod to ${production.id}`;
 
-        const len = Sym_Is_EOF(item.decrement().sym(grammar))
+        const len = Sym_Is_DEFAULT(item.decrement().sym(grammar))
             ? item.len - 1
             : item.len;
 

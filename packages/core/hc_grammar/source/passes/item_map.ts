@@ -4,7 +4,7 @@
  * disclaimer notice.
  */
 import {
-    default_EOF,
+    default_DEFAULT,
     doesProductionHaveEmpty,
     getFirstTerminalSymbols,
     getProductionID,
@@ -417,7 +417,7 @@ function processFollowSymbols(grammar: GrammarObject, productions: GrammarProduc
 
     for (const production of productions) {
 
-        const start_symbol = production.ROOT_PRODUCTION ? default_EOF : default_EOF;
+        const start_symbol = default_DEFAULT;
 
         for (const item of getStartItemsFromProduction(production))
             addFollowInformation(item, grammar, check_set, start_symbol, [item.body_(grammar).production.id], item_map);

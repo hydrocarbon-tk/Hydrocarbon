@@ -7,7 +7,6 @@ import {
     BlockData,
     BranchIRState,
     BranchIRStateData,
-    default_case_indicator,
     fail_state_mask,
     getRootSym,
     goto_state_mask,
@@ -19,16 +18,13 @@ import {
     IRPeek,
     IR_Instruction,
     ir_reduce_numeric_len_id,
-    normal_state_mask,
-    scanner_state_mask,
-    numeric_sort,
+    normal_state_mask, numeric_sort,
     ProductionSymbol,
-    Resolved_IR_State,
-    StateAttrib,
+    Resolved_IR_State, scanner_state_mask, StateAttrib,
     StateMap,
     state_bytecode_byte_start,
     Sym_Is_A_Token,
-    TokenSymbol
+    TokenSymbol, TokenTypes
 } from '@hctoolkit/common';
 import { getProductionByName } from '@hctoolkit/grammar';
 import { createSymMapId } from "../ir/compile_scanner_states.js";
@@ -92,10 +88,10 @@ export function compileIRStatesIntoBytecode(
                 if (
                     state_ast.instructions.length > 1
                     &&
-                    state_ast.instructions.some(g => g.mode != "PRODUCTION" && g.ids.some(i => i == default_case_indicator || i == 1))) {
-                    _default = state_ast.instructions.filter(g => g.mode != "PRODUCTION" && g.ids.some(i => i == default_case_indicator || i == 1))[0]
+                    state_ast.instructions.some(g => g.mode != "PRODUCTION" && g.ids.some(i => i == TokenTypes.DEFAULT))) {
+                    _default = state_ast.instructions.filter(g => g.mode != "PRODUCTION" && g.ids.some(i => i == TokenTypes.DEFAULT))[0]
                         ?.instructions;
-                    modes = state_ast.instructions.filter(g => !(g.mode != "PRODUCTION" && g.ids.some(i => i == default_case_indicator || i == 1)))
+                    modes = state_ast.instructions.filter(g => !(g.mode != "PRODUCTION" && g.ids.some(i => i == TokenTypes.DEFAULT)))
                         .group(s => s.mode);
 
                 } else {
@@ -493,7 +489,9 @@ function createInstructionSequence(
                         grammar
                     );
 
-                    token_state = <string>token_id_to_state.get(id);
+                    if (id)
+                        token_state = <string>token_id_to_state.get(id);
+
                 } else if (instr.mode != "PRODUCTION" && instr.ids.length == 1) {
                     if (combined[i + 1] && combined[i + 1].type == InstructionType.consume) {
                         i++; byte_length += 4;
@@ -744,8 +742,8 @@ export function extractTokenSymbols(state_data: ISD, grammar: GrammarObject) {
         skipped_symbols.push(...<number[]>skipped);
     }
 
-    state_data.expected_tokens = expected_symbols.filter(s => s != default_case_indicator); // <- remove default value
-    state_data.skipped_tokens = skipped_symbols.filter(s => s != default_case_indicator); // <- remove default value
+    state_data.expected_tokens = expected_symbols.filter(s => s != TokenTypes.DEFAULT); // <- remove default value
+    state_data.skipped_tokens = skipped_symbols.filter(s => s != TokenTypes.DEFAULT); // <- remove default value
 }
 function convertBlockDataToBufferData(state_data: ISD, state_map: StateMap): number[] {
 
@@ -835,7 +833,7 @@ function buildJumpTableBranchBlock(
 ): BlockData {
 
 
-    let standard_instructions = instructions; //.filter(i => !i.ids.some(i => i == default_case_indicator));
+    let standard_instructions = instructions;
 
 
     const input_type = instructions[0].mode;
@@ -847,7 +845,7 @@ function buildJumpTableBranchBlock(
         .flatMap(({ ids, instructions, type }) => {
 
             const instr = createInstructionSequence(instructions, grammar, token_state, token_id_to_state);
-            return ids.filter(i => i != default_case_indicator).map(i => ({ id: i, code: instr }));
+            return ids.filter(i => i != TokenTypes.DEFAULT).map(i => ({ id: i, code: instr }));
         });
 
 
@@ -921,7 +919,7 @@ function buildHashTableBranchBlock(
 ): BlockData | null {
 
 
-    let standard_instructions = instructions.filter(i => !i.ids.some(i => i == default_case_indicator));
+    let standard_instructions = instructions;
 
     const input_type = instructions[0].mode;
     const lexer_type = instructions[0].type;

@@ -19,13 +19,15 @@ export const enum RECURSIVE_STATE {
 }
 
 export enum SymbolType {
+
+    EOF = "eof",
     PRODUCTION = "sym-production",
     LITERAL = "literal",
     EXCLUSIVE_LITERAL = "exclusive-literal",
     GENERATED = "generated",
     SYMBOL = "symbol",
     EMPTY = "empty",
-    END_OF_FILE = "eof",
+    DEFAULT = "DEFAULT",
     PRODUCTION_ASSERTION_FUNCTION = "assert_token_function",
     PRODUCTION_TOKEN_SYMBOL = "production_token",
     IMPORT_PRODUCTION = "sym-production-import",
@@ -290,10 +292,17 @@ export interface GroupProductionSymbol extends SymbolNode {
     meta: false;
 }
 
+export interface DEFAULTSymbol extends SymbolNode {
+    type: SymbolType.DEFAULT;
+    val: "DEFAULT";
+    id: TokenTypes.DEFAULT;
+    meta: false;
+}
+
 export interface EOFSymbol extends SymbolNode {
-    type: SymbolType.END_OF_FILE;
-    val: "END_OF_FILE";
-    id: TokenTypes.END_OF_FILE;
+    type: SymbolType.GENERATED;
+    val: "eof";
+    id: TokenTypes.EOF;
     meta: false;
 }
 
@@ -508,7 +517,7 @@ export type DefinedSymbol =
 export type TokenSymbol =
     | DefinedSymbol
     | BaseGeneratedSymbol
-    | EOFSymbol
+    | DEFAULTSymbol
     | EmptySymbol
     | ProductionTokenSymbol
     | LookBehindSymbol

@@ -24,7 +24,7 @@ import {
     Sym_Is_A_Production_Token,
     Sym_Is_A_Token,
     Sym_Is_Defined,
-    Sym_Is_EOF,
+    Sym_Is_DEFAULT,
     Sym_Is_Exclusive,
     Sym_Is_Look_Behind,
     TokenTypes,
@@ -327,8 +327,8 @@ export function createCollisionMatrix(grammar: GrammarObject) {
 
                 if (
                     symB == symA
-                    || Sym_Is_EOF(symA)
-                    || Sym_Is_EOF(symB)
+                    || Sym_Is_DEFAULT(symA)
+                    || Sym_Is_DEFAULT(symB)
                     || Sym_Is_Look_Behind(symA) || Sym_Is_Look_Behind(symB)
                 ) {
                     j[symB.id] = (!!0);
