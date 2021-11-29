@@ -19,8 +19,10 @@ import {
     SymbolsCollide,
     SymbolType,
     Sym_Is_A_Generic_Identifier,
+    Sym_Is_A_Generic_Type,
     Sym_Is_A_Production,
     Sym_Is_A_Production_Token,
+    Sym_Is_Defined,
     Sym_Is_Defined_Identifier, Sym_Is_Exclusive,
     Token,
     TokenSymbol
@@ -391,6 +393,41 @@ function processNode(
         tpn
     );
 }
+
+
+function incrementTerminals(
+    opt: TGO,
+    node: Node,
+    items: Item[],
+    tpn: Node[]
+) {
+
+    const symbol_groups = items.filter(i => i.state !== OutOfScopeItemState).group(iToSymID);
+
+    if (opt.IS_SCANNER) {
+        //Combine Generated symbols with terminal symbols 
+        const generated = symbol_groups.filter(g => Sym_Is_A_Generic_Type(g[0].sym(GRAMMAR)));
+        const terminal = symbol_groups.filter(g => Sym_Is_Defined(g[0].sym(GRAMMAR)));
+
+        if (generated.length > 0 && terminal.length > 0) {
+
+            //Disambiguate
+            createPeek(opt, node, items, tpn);
+            return;
+        }
+    }
+
+    for (const group of symbol_groups) {
+
+        const new_node = createNode(opt, item_sym(group[0]), group, node);
+
+        new_node.addType(TST.O_TERMINAL, TST.I_CONSUME);
+
+        tpn.push(new_node);
+    }
+}
+
+
 function createPeek(
     opt: TGO,
     parent: Node,
@@ -410,7 +447,8 @@ function createPeek(
             .filter(i => !out_of_scope.has(i.increment()?.id ?? "")));
     } else {
 
-        collapsed_closure.push(...(GRAMMAR.lr_items?.get(opt.root_production.id) ?? []).filter(i => i.getProductionID(GRAMMAR) != opt.root_production.id));
+        collapsed_closure.push(...(GRAMMAR.lr_items?.get(opt.root_production.id) ?? [])
+            .filter(i => i.getProductionID(GRAMMAR) != opt.root_production.id));
 
         let n: null | Node = parent;
 
@@ -852,34 +890,6 @@ function handleUnresolvedRoots(
     }
 
     return;
-    /* node.type |= ;
-
-    if (!options.depth)
-        options.depth = 0;
-
-
-
-    try {
-        options.depth++;
-        processLoopBackNode(options, node, tpn);
-        options.depth--;
-
-    } catch (e) {
-
-        options.depth--;
-
-        if (options.depth > 0) {
-            throw e;
-        }
-
-        node.type |= TransitionStateType.FORK;
-
-        console.log(e);
-    }
-
-
-    //const id = getNodesId(roots);
-    debugger; */
 }
 
 
@@ -903,7 +913,6 @@ function convertStateToFork(node: Node, items: Item[], opt: TGO, tpn: Node[]) {
          * the state rendering pass to tree branch states and non-branching
          * states appropriately and produce correct hashes
          */
-        //clone.removeType(TST.I_FORK);
 
         clone.parent = node;
 
@@ -917,41 +926,6 @@ function createFailState(opt: TGO, parent: Node, items: Item[] = []): Node {
     return node;
 }
 
-/* function processLoopBackNode(opt: TGO, node: Node, tpn: Node[]) {
-
-    const id = getNodesId([node]);
-
-    if (!opt.ambig_ids.has(id)) {
-
-        opt.ambig_ids.add(id);
-
-        const closure = getClosure(node.items, GRAMMAR);
-
-        const terminals = closure.filter(term_item);
-
-        const non_terminals = closure.filter(nonterm_item);
-
-        const debug_term = terminals.map(iDebug);
-
-        const debug_nonterm = non_terminals.map(iDebug);
-
-        //process terminal items
-
-        const term_node = createNode(opt, node.sym, terminals, node.parent, closure);
-
-        term_node.depth = 0;
-
-        tpn.push(term_node);
-
-        const parent = processGoto(opt, non_terminals, opt);
-
-        node.children.push(parent);
-    } else {
-        throw new Error("Invalid Parse Path");
-    }
-
-    debugger;
-} */
 function mergeOccludingGroups(
     groups: Map<string, Node[]>
 ) {
@@ -1087,25 +1061,6 @@ function processFirstEndItem(
     options.goto_items.push(end_item);
 
     new_node.addType(TST.I_END, TST.O_TERMINAL);
-}
-
-function incrementTerminals(
-    options: TGO,
-    node: Node,
-    items: Item[],
-    to_process_nodes: Node[]
-) {
-
-    const symbol_groups = items.filter(i => i.state !== OutOfScopeItemState).group(iToSymID);
-
-    for (const group of symbol_groups) {
-
-        const new_node = createNode(options, item_sym(group[0]), group, node);
-
-        new_node.addType(TST.O_TERMINAL, TST.I_CONSUME);
-
-        to_process_nodes.push(new_node);
-    }
 }
 
 function createProdGroup(p: Item[]): ProductionGroup {
@@ -1286,6 +1241,7 @@ export class Node {
         if (this.is(TST.O_PEEK)) {
             this.removeType(TST.O_PEEK);
             this.addType(TST.O_TERMINAL);
+            this.addType(TST.I_CONSUME);
             if (this.parent)
                 this.parent.clearPeek();
         }
