@@ -3,7 +3,7 @@ import { GrammarProduction, Item } from '@hctoolkit/common';
 
 
 
-export interface TransitionGraphOptions {
+export interface TransitionGraphOptions<T = any> {
 
     /**
      * The maximum peek depth allowed before a branch
@@ -25,6 +25,8 @@ export interface TransitionGraphOptions {
 
     IS_SCANNER: boolean;
 
+    IS_ROOT_SCANNER: boolean;
+
     resolved_items: Item[];
 
     goto_items: Item[];
@@ -32,4 +34,6 @@ export interface TransitionGraphOptions {
     scope: "GOTO" | "DESCENT";
 
     ambig_ids: Set<string>;
+
+    root: T;
 }

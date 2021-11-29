@@ -23,7 +23,8 @@ import { create_symbol_clause, create_symbol_comment } from '../ir/create_symbol
 import { ConstructionOptions } from '../types/construction_options.js';
 import { TransitionGraphOptions } from '../types/transition_graph_options.js';
 import { TransitionStateType as TST } from '../types/transition_tree_nodes.js';
-import { constructDescent, constructGoto, createNode, Node } from './transition_graph.js';
+import { constructDescent, constructGoto, createNode } from './transition_graph.js';
+import { Node } from "./Node";
 
 const hash_cache: Map<string, HashAction> = new Map();
 
@@ -50,7 +51,7 @@ export function constructProductionStates(
             lazy_end_sym: undefined,
             lazy_start_sym: undefined,
             IS_SCANNER: production.type == "scanner-production",
-            IS_ROOT_SCANNER: production.name.slice(0, 9) == "__SCANNER",
+            IS_ROOT_SCANNER: isRootScanner(production),
             LOCAL_HAVE_ROOT_PRODUCTION_GOTO: false
         },
 
@@ -69,10 +70,12 @@ export function constructProductionStates(
                 max_tree_depth: 10,
                 time_limit: 150,
                 IS_SCANNER: options.IS_SCANNER,
+                IS_ROOT_SCANNER: options.IS_ROOT_SCANNER,
                 resolved_items: [],
                 goto_items: [],
                 scope: "DESCENT",
-                ambig_ids: new Set
+                ambig_ids: new Set,
+                root: null
             };
 
         // If forks separate out the conflicting items into 
@@ -99,8 +102,10 @@ export function constructProductionStates(
         }
 
         {
+
             options.scope = "GOTO";
             tt_options.scope = "GOTO";
+            tt_options.root = null;
 
             const goto_graph = constructGoto(
                 grammar,
@@ -451,7 +456,7 @@ function createEndAction(state: Node, grammar: GrammarObject, options: Construct
             let set_token = "";
             if (production.name.slice(0, 2) == "__") {
                 let prod = production;
-                if (production.name.slice(0, 9) == "__SCANNER") {
+                if (isRootScanner(production)) {
                     prod = item.decrement().getProductionAtSymbol(grammar);
                 }
                 //set_token id 
@@ -465,7 +470,7 @@ function createEndAction(state: Node, grammar: GrammarObject, options: Construct
                         set_token = `assign token [ ${token_id} ] then `;
                 }
             }
-            if (production.name.slice(0, 9) == "__SCANNER" && options.scope != "GOTO") {
+            if (isRootScanner(production) && options.scope != "GOTO") {
                 const token_prod = item.decrement().getProductionAtSymbol(grammar);
                 string = `${set_token}set prod to ${token_prod.id}`;
             } else {
@@ -476,6 +481,10 @@ function createEndAction(state: Node, grammar: GrammarObject, options: Construct
         }
     }
     return string;
+}
+
+function isRootScanner(production: GrammarProduction) {
+    return production.name.slice(0, 9) == "__SCANNER";
 }
 
 function getSymbolMode(sym: TokenSymbol, SCANNER: boolean) {

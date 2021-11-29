@@ -131,5 +131,7 @@ export enum TransitionStateType {
 
     I_PASS = 1 << 18,
 
-    I_FAIL = 1 << 19
+    I_FAIL = 1 << 19,
+
+    I_TEST = 1 << 20
 }

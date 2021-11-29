@@ -22,6 +22,7 @@ import {
     Sym_Is_A_Generic_Type,
     Sym_Is_A_Production,
     Sym_Is_A_Production_Token,
+    Sym_Is_DEFAULT,
     Sym_Is_Defined,
     Sym_Is_Defined_Identifier, Sym_Is_Exclusive,
     Token,
@@ -56,6 +57,8 @@ export function constructDescent(
     let tpn: Node[] = [];
 
     node.addType(TST.I_DESCENT_START);
+
+    options.root = node;
 
     processNode(options, node, tpn, false);
 
@@ -374,7 +377,7 @@ function processNode(
 
     if (n_end.length > 0) {
         if (n_end.length == 1) {
-            processFirstEndItem(
+            processEndItem(
                 opt,
                 node,
                 n_end[0]
@@ -393,7 +396,6 @@ function processNode(
         tpn
     );
 }
-
 
 function incrementTerminals(
     opt: TGO,
@@ -427,6 +429,55 @@ function incrementTerminals(
     }
 }
 
+function processEndItem(
+    options: TGO<Node>,
+    node: Node,
+    end_item: Item,
+) {
+
+
+    if (options.IS_SCANNER
+        &&
+        options.IS_ROOT_SCANNER
+        &&
+        options.root
+        &&
+        /**
+         * If the production that has just been complete is not one of the root
+         * productions found within the scanner function
+         */
+        !options.root.closure.some(
+            i =>
+                i.getProductionID(GRAMMAR) == options.root_production.id
+                && i.getProductionAtSymbol(GRAMMAR)?.id == end_item.getProductionID(GRAMMAR)
+        )
+    ) {
+
+        const new_items = node.scanItems(true);
+
+        node.closure = [...new_items, end_item];
+
+        const root_item = new_items.filter(i => i.atEND && i.getProductionID(GRAMMAR) == options.root_production.id)[0];
+
+        if (root_item) {
+            const new_node = createNode(options, default_DEFAULT, [root_item], node);
+
+            options.goto_items.push(end_item);
+
+            new_node.addType(TST.I_END, TST.O_TERMINAL);
+
+            return;
+        }
+    }
+
+    const new_node = createNode(options, default_DEFAULT, [end_item], node);
+
+    options.goto_items.push(end_item);
+
+    new_node.addType(TST.I_END, TST.O_TERMINAL);
+
+
+}
 
 function createPeek(
     opt: TGO,
@@ -434,7 +485,6 @@ function createPeek(
     items: Item[],
     tpn: Node[]
 ) {
-
 
     const out_of_scope = new Set(items.filter(i => i.state == OutOfScopeItemState).map(i => i.id));
 
@@ -458,7 +508,7 @@ function createPeek(
         }
     }
 
-    parent.closure = [];
+    //parent.closure = [];
     parent.items = [];
 
     collapsed_closure = collapsed_closure.setFilter(item_id);
@@ -508,14 +558,26 @@ function createPeek(
             for (const node of nodes)
                 node.depth = r.depth;
 
-            return nodes;
+            if (opt.IS_SCANNER)
+                nodes.forEach(n=>{if(!Sym_Is_DEFAULT(n.sym)){ n.addType(TST.I_CONSUME) }})
+
+                return nodes;
         }), roots, tpn, [], parent);
 
     parent.items = parent.items.setFilter(item_id);
 
     //Allow resource to be garbage collected
-    parent.closure.length = 0;
+    //parent.closure.length = 0;
 }
+
+/**
+ * Uses a modified Earley parser algorithm to trace the parse forest to leaves
+ * that are unambiguous. 
+ * 
+ * The depth of the trace can be limited through the 
+ * @type {TGO["max_tree_depth"]} parameter
+ * 
+ */
 function disambiguate(
     opt: TGO,
     nodes: Node[],
@@ -592,11 +654,12 @@ function disambiguate(
 
         } else if (final_nodes.length > 0) {
 
-            const final_node = final_nodes[0];
+            let final_node = final_nodes[0];
 
             setTransitionType(final_node);
 
             completeRoots(final_node, root, opt, tpn);
+
         }
     }
 
@@ -682,7 +745,6 @@ function disambiguate(
 
         if (step.length > 0) {
 
-            //Check for shift-reduce conflicts
             if (handleShiftReduceConflicts(opt, step, roots, tpn, root, depth)) {
                 continue;
             } else if ((ids.includes(id)) /* || depth > 2 */) {
@@ -773,12 +835,52 @@ function completeRoots(
 
     } else if (opt.IS_SCANNER) {
 
+        //If the root is a production call try using that
         node.clearPeek();
 
-        processNode(opt, node, tpn, false);
+        if (!Sym_Is_DEFAULT(parent.sym))
+            parent.addType(TST.I_CONSUME);
+
+        parent.addType(TST.I_CONSUME);
+
+        if (root.depth == node.depth && Sym_Is_A_Production(root.sym)) {
+            node.pruneLeaf();
+            parent.addType(TST.I_TEST);
+            createTermedProductionCall(
+                opt,
+                <TokenSymbol>node.sym,
+                <ProductionSymbol>root.sym,
+                root.items,
+                parent,
+                tpn
+            );
+        } else {
+
+            parent.closure.push(...parent.items);
+
+            if (node.items.some(i => i.atEND)) {
+                node.removeType(TST.I_CONSUME);
+                //processEndItem(opt, node, node.items[0]);
+                processNode(opt, node, tpn, false);
+            } else {
+
+                if (!Sym_Is_DEFAULT(node.sym))
+                    node.addType(TST.I_CONSUME);
+
+                node.depth = (parent.depth + 1) % 10000;
+
+                node.closure.push(...getClosure(node.items, GRAMMAR), ...node.items);
+
+                node.closure = node.closure.setFilter(item_id);
+
+                processNode(opt, node, tpn, true);
+            }
+        }
 
     } else {
         const r = (<Node>node.root).clone();
+
+
         r.items = r.items.map(i => i.toState(parent.depth + 1));
         r.depth = parent.depth;
         r.parent = node;
@@ -1050,18 +1152,6 @@ function createProductionCall(
     tpn.push(prod_node);
 }
 
-function processFirstEndItem(
-    options: TGO,
-    node: Node,
-    end_item: Item,
-) {
-
-    const new_node = createNode(options, default_DEFAULT, [end_item], node);
-
-    options.goto_items.push(end_item);
-
-    new_node.addType(TST.I_END, TST.O_TERMINAL);
-}
 
 function createProdGroup(p: Item[]): ProductionGroup {
     return new ProductionGroup(p);
@@ -1319,7 +1409,7 @@ ${this.children.flatMap(c => c.debug.split("\n")).join("\n  ")}
         return this.items.filter(i => i.atEND);
     }
 
-    scanItems(): Item[] {
+    scanItems(IGNORE_STATE: boolean = false): Item[] {
 
         let items = this.end_items.slice();
 
@@ -1340,17 +1430,20 @@ ${this.children.flatMap(c => c.debug.split("\n")).join("\n  ")}
 
             let node: Node | null = this;
 
+            let INCREMENTED = false;
             while (node) {
 
                 if (node.hasState(state)) {
 
                     const production_items = <Item[]>node.closure
+
                         .filter(nonterm_item)
-                        .filter(i => i.state == state && production == i.getProductionAtSymbol(GRAMMAR).id)
+                        .filter(i => (IGNORE_STATE || i.state == state) && production == i.getProductionAtSymbol(GRAMMAR).id)
+
                         .map(inc);
 
                     if (production_items.length > 0) {
-
+                        INCREMENTED = true;
                         for (const item of production_items) {
                             if (item.atEND) {
                                 items.push(item);
@@ -1359,15 +1452,16 @@ ${this.children.flatMap(c => c.debug.split("\n")).join("\n  ")}
                             }
                         }
 
-
-                        break;
-                    } else {
-                        node = node.parent;
+                        if (!IGNORE_STATE)
+                            break;
                     }
-
-                } else {
-                    node = node.parent;
                 }
+
+                node = node.parent;
+            }
+
+            if (IGNORE_STATE && !INCREMENTED) {
+                out.push(item);
             }
         }
 
