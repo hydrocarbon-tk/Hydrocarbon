@@ -7,8 +7,10 @@ import {
     default_DEFAULT,
     getClosure,
     getProductionClosure,
+    getSkippableSymbolsFromItems,
     getStartItemsFromProduction,
     getSymbolFromUniqueName,
+    getUniqueSymbolName,
     getUniqueSymbolName as gusn,
     GrammarObject,
     GrammarProduction,
@@ -383,6 +385,7 @@ function processNode(
                 n_end[0]
             );
         } else {
+
             // We'll need to disambiguate all items.
             createPeek(opt, node, items, tpn);
             return;
@@ -529,6 +532,8 @@ function createPeek(
 
         const n = createNode(opt, item_sym(g[0]), items, null);
 
+
+
         n.closure = getClosure(items, GRAMMAR, state);
         n.depth = state;
         n.root = n;
@@ -548,6 +553,8 @@ function createPeek(
 
         return n;
     });
+
+
 
     disambiguate(
         opt,
@@ -612,6 +619,7 @@ function disambiguate(
             if (items.length > 0) {
                 const parent = <Node>node.parent;
                 term_nodes.push(...items.flatMap(createNodeClosure(opt, parent, <Node>node.root)));
+
                 if (end_nodes.length > 1) {
                     node.pruneLeaf();
                 } else {
@@ -679,7 +687,7 @@ function disambiguate(
 
     const groups = term_nodes.groupMap(n => gusn(n.sym));
 
-    mergeOccludingGroups(groups);
+    mergeOccludingGroups(opt, groups);
 
     for (const [, group] of groups) {
 
@@ -697,15 +705,23 @@ function disambiguate(
             for (const node of group) {
 
                 if (node != prime_node) {
-                    node.pruneLeaf();
-                    prime_node.items.push(...node.items);
-                    //  prime_node.items = prime_node.items.setFilter(i => i.id);
-                    prime_node.closure.push(...node.closure);
-                }
 
-                new_groups.push(...node.items
-                    .map(inc).flatMap(createNodeClosure(opt, prime_node, <Node>node.root)));
+                    node.pruneLeaf();
+
+                    prime_node.items.push(...node.items);
+
+                    prime_node.closure.push(...node.closure);
+
+                    prime_node.makeClosureUnique(true);
+                }
+                if (node.is(TST.I_SKIPPED_COLLISION))
+                    new_groups.push(...node.items
+                        .flatMap(createNodeClosure(opt, prime_node, <Node>node.root)));
+                else
+                    new_groups.push(...node.items
+                        .map(inc).flatMap(createNodeClosure(opt, prime_node, <Node>node.root)));
             }
+
 
             if (new_groups.length == 0) {
                 if (group.every(i => i.root?.is((TST.I_OUT_OF_SCOPE)))) {
@@ -726,10 +742,16 @@ function disambiguate(
         } else {
 
             for (const node of group) {
+
                 if (node != prime_node) {
+
                     node.pruneLeaf();
+
                     prime_node.items.push(...node.items);
+
                     prime_node.closure.push(...node.closure);
+
+                    prime_node.makeClosureUnique();
                 }
             }
 
@@ -746,6 +768,7 @@ function disambiguate(
         if (step.length > 0) {
 
             if (handleShiftReduceConflicts(opt, step, roots, tpn, root, depth)) {
+
                 continue;
             } else if ((ids.includes(id)) /* || depth > 2 */) {
                 handleTransitionCollision(step, opt, tpn);
@@ -754,6 +777,7 @@ function disambiguate(
             }
         }
     }
+
 }
 function handleShiftReduceConflicts(
     opt: TGO,
@@ -764,6 +788,9 @@ function handleShiftReduceConflicts(
     depth: number
 ): boolean {
     const candidate_roots = step.map(s => <Node>s.root).setFilter(r => r.depth);
+
+
+
     if (candidate_roots.every(r => r.items.length == 1)) {
         const prod = candidate_roots[0].items[0].getProductionID(GRAMMAR);
         if (candidate_roots.every(r => r.items[0].getProductionID(GRAMMAR) == prod)) {
@@ -783,6 +810,7 @@ function handleShiftReduceConflicts(
                             if (node.root == winner) {
                                 prime_node.items.push(...node.items);
                                 prime_node.closure.push(...node.closure);
+                                prime_node.makeClosureUnique(true);
                             }
                         }
                     }
@@ -1029,9 +1057,12 @@ function createFailState(opt: TGO, parent: Node, items: Item[] = []): Node {
 }
 
 function mergeOccludingGroups(
+    opt: TGO,
     groups: Map<string, Node[]>
 ) {
+
     for (const [symA, groupA] of groups) {
+        let seen = new WeakMap;
         const sym_A = getSymbolFromUniqueName(GRAMMAR, symA);
         if (
             Sym_Is_A_Production_Token(sym_A)
@@ -1059,6 +1090,8 @@ function mergeOccludingGroups(
                     &&
                     SymbolsCollide(sym_A, sym_B, GRAMMAR)) {
 
+                    seen.set(groupB, new WeakSet(groupA));
+
                     groupB.push(
                         ...groupA
                             //Remove states to prevent symbol overlapping
@@ -1067,7 +1100,59 @@ function mergeOccludingGroups(
                 }
             }
         }
+
+        //check for skipped occlusion
+
+        //Only in production states as peek in scanner states has no purpose
+        if (opt.IS_SCANNER)
+            continue;
+
+        const skipped_symbol_groups = groupA.groupMap(g => getSkippableSymbolsFromItems(g.items, GRAMMAR));
+
+        for (const [skipped_sym, group] of skipped_symbol_groups) {
+            const skipped_id = getUniqueSymbolName(skipped_sym);
+            for (const [symB, groupB] of groups) {
+
+                if (groupA == groupB)
+                    continue;
+
+                if (symB == skipped_id) {
+
+                    if (!seen.has(groupB))
+                        seen.set(groupB, new WeakSet);
+
+
+                    for (const node of group) {
+
+                        if (!(node.root?.is(TST.I_OUT_OF_SCOPE)))
+                            continue;
+
+                        if (groupB.some(s =>
+                            s.items[0].getProductionID(GRAMMAR) == node.items[0].getProductionID(GRAMMAR)
+                        ))
+                            continue;
+
+                        if (seen.get(groupB).has(node))
+                            continue;
+
+                        if (seen.get(groupB).has(node))
+                            continue;
+
+                        seen.get(groupB).add(node);
+
+                        const clone = node.clone();
+
+                        clone.addType(TST.I_SKIPPED_COLLISION);
+
+                        console.error(`ADD Skipped Collision ${skipped_id} \n-->\n${groupB[0].debug} \n-->\n${node.debug}`);
+
+                        groupB.push(clone);
+                    }
+                }
+            }
+        }
     }
+
 }
 
 function createNodeClosure(
@@ -1384,6 +1469,19 @@ export class Node {
                 return true;
 
         return false;
+    }
+    /**
+     * Remove duplicate item entries in this nodes closure.
+     * 
+     * If PRESERVE_STATE is true then consider items that differ 
+     * only in the state value as unique. 
+     * 
+     */
+    makeClosureUnique(PRESERVE_STATE: boolean = false) {
+        if (PRESERVE_STATE)
+            this.closure = this.closure.setFilter(i => i.id + "|" + i.state);
+        else
+            this.closure = this.closure.setFilter(item_id);
     }
 
     get debug(): string {
