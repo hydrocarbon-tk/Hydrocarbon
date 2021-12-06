@@ -23,8 +23,8 @@ import { create_symbol_clause, create_symbol_comment } from '../ir/create_symbol
 import { ConstructionOptions } from '../types/construction_options.js';
 import { TransitionGraphOptions } from '../types/transition_graph_options.js';
 import { TransitionStateType as TST } from '../types/transition_tree_nodes.js';
-import { constructDescent, constructGoto, createNode } from './transition_graph.js';
-import { Node } from "./Node";
+import { constructDescent, constructGoto, createNode, Node } from './transition_graph.js';
+
 
 const hash_cache: Map<string, HashAction> = new Map();
 
