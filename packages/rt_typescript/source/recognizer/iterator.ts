@@ -751,6 +751,8 @@ export class StateIterator {
 
                             return 0;
                         };
+
+                        token.type = 0;
                     }
 
                     if (this.reader.END())
