@@ -38,6 +38,17 @@ export class Inits {
         return ref;
     }
 
+    update_type(ref: string, string: string) {
+
+        for (const obj of this.sequence) {
+            if (obj.ref == ref) {
+                obj.init = string;
+            }
+        }
+
+        return ref;
+    }
+
     push_ref(string: string) {
 
         if (this.refs.has(string))
@@ -97,7 +108,7 @@ export class Inits {
         return string + "\n" + closure;
     }
 
-    render_go(closure: string = "", sequence: Inits["sequence"] = this.sequence) {
+    render_go(closure: string = "", sequence: Inits["sequence"] = this.sequence): string {
         let string = "";
         let i = 0;
         for (let { t, str, init, ref } of sequence) {
@@ -120,7 +131,7 @@ export class Inits {
         return string + "\n" + closure;
     }
 
-    render_rust(closure: string = "", sequence: Inits["sequence"] = this.sequence) {
+    render_rust(closure: string = "", sequence: Inits["sequence"] = this.sequence): string {
         let string = "";
         let i = 0;
         for (let { t, str, init, ref } of sequence) {

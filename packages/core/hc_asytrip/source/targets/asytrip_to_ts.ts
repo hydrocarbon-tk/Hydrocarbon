@@ -23,7 +23,7 @@ import {
     TypeIsStruct,
     TypeIsToken,
     TypeIsVector,
-    TypesAre, TypesRequiresDynamic
+    TypesAre, TypesInclude, TypesRequiresDynamic
 } from '../context/common.js';
 import { generateResolvedProps, getStructClassTypes } from '../context/generate_resolved_props.js';
 import { Inits } from './Inits.js';
@@ -210,9 +210,9 @@ function DeserializeStruct(reader: ByteReader): ASTNode<ASTType>{
         const struct_strings = [`
 export class ${name} extends ASTNode<ASTType> {
     
-    ${prop_vals.map(({ name: n, type: v, HAS_NULL: nil }) => `${n}${nil ? "?" : ""}:${v};`).join("\n")}
+    ${prop_vals.map(({ name: n, type: v, HAS_NULL: nil }) => `${n}:${v}${nil ? "| null" : ""};`).join("\n")}
 
-    constructor(${prop_vals.map(({ name: n, type: v }) => `\n        _${n}:${v},`).join("")}) 
+    constructor(${prop_vals.map(({ name: n, type: v, HAS_NULL: nil }) => `\n        _${n}:${v}${nil ? "| null" : ""},`).join("")}) 
     {
         super();
             ${prop_vals.map(({ name: n }) => {
@@ -391,7 +391,7 @@ export class ${name} extends ASTNode<ASTType> {
                     //Expecting one Type
                     const type = types[0];
                     switch (type.type) {
-                        case ASYTRIPType.STRING: return `         var ${n} = writer.write_string(this.${n})`;
+                        case ASYTRIPType.STRING: return `         writer.write_string(this.${n})`;
                         case ASYTRIPType.F64: return `            writer.write_double(this.${n})`;
                         case ASYTRIPType.F32: return `            writer.write_float(this.${n})`;
                         case ASYTRIPType.I64: return `            writer.write_double_word(this.${n})`;
@@ -478,13 +478,17 @@ export class ${name} extends ASTNode<ASTType> {
 
     return strings.join("\n\n") + "\n";
 }
-
+let TARGET = false;
 
 function buildParseFunctions(context: ASYTRIPContext, grammar: GrammarObject, strings: string[]) {
+
     const fns = new Map();
+
     const ids = [];
 
     for (const [id, { args, struct: name, source }] of context.fn_map) {
+
+        TARGET = source == `{ t_SupportsParenthesis, val:$2, tok }`;
 
         const length = grammar.bodies[id].sym.length;
 
@@ -507,7 +511,7 @@ function buildParseFunctions(context: ASYTRIPContext, grammar: GrammarObject, st
         } else {
 
             const expression = args[0];
-            const [type] = expression.types;
+            const [type] = expression.initializers;
             const resolved_type = getResolvedType(type, context)[0];
             let data = getExpressionString(type, context, inits);
             switch (resolved_type.type) {
@@ -617,78 +621,37 @@ addExpressMap(ASYTRIPType.STRUCT, (v, c, inits) => {
         //Create an initializer function for this object
         const data = [...struct.properties]
             .map(([name]) => {
-
-                const {
-                    REQUIRES_DYNAMIC,
-                    types: target_types,
-                } = <ResolvedProp>resolved_props.get(name);
+                const { types: target_types }
+                    = <ResolvedProp>resolved_props.get(name);
                 const source_arg = args.filter(a => a.name == name)[0];
-                let target_structs = target_types.filter(TypeIsStruct);
+
                 if (source_arg) {
-                    const type = source_arg.types[0];
-                    const arg_types = getResolvedType(type, c).filter(TypeIsNotNull);
+
+                    const type = source_arg.initializers[0];
+
                     const val = getExpressionString(type, c, inits);
 
-                    if (REQUIRES_DYNAMIC) {
-
-                        if ("arg_pos" in type)
-                            return val;
-
-                        switch (type.type) {
-                            case ASYTRIPType.ADD:
-                            case ASYTRIPType.SUB:
-                            case ASYTRIPType.VECTOR_PUSH:
-
-                                switch (arg_types[0].type) {
-                                    case ASYTRIPType.STRING:
-                                        return `${val}`;
-                                }
-
-                            default: return val;
-                        }
-                    } else if (TypesAre(arg_types, TypeIsVector)) {
-                        const types = arg_types.flatMap(t => t.types);
-                        if (TypesAre(types, TypeIsStruct)) {
-                            return val;
-                        }
-
-                    } else if (arg_types.length == 1) {
-                        const arg = arg_types[0];
-                        switch (arg.type) {
-                            case ASYTRIPType.STRING:
-                                break;
-                            case ASYTRIPType.STRUCT:
-                                return val;
-                        }
-                    }
-
-                    return val;
-
-                } else {
-                    if (REQUIRES_DYNAMIC) {
-                        return "null";
-                    } else if (TypesAre(target_types, TypeIsStruct)) {
-                        if (target_types.length > 1) {
-                            //This will be an ASTNode enum type
-                            return "null";
-                        } else {
-                            return "null";
-                        }
-                    } else {
-                        const type = target_types[0];
-                        switch (type.type) {
-                            case ASYTRIPType.VECTOR:
-                                return "[]";
-                            case ASYTRIPType.BOOL:
-                                return false;
-                            case ASYTRIPType.F64:
-                                return 0;
-                            case ASYTRIPType.STRING:
-                                return "''";
-                        }
-                        return "null";
-                    }
+                    if (val != "null") return val;
                 }
+
+                const type = target_types[0];
+
+                switch (type.type) {
+                    case ASYTRIPType.VECTOR:
+                        return "[]";
+                    case ASYTRIPType.BOOL:
+                        return false;
+                    case ASYTRIPType.F64:
+                    case ASYTRIPType.F32:
+                    case ASYTRIPType.I64:
+                    case ASYTRIPType.I32:
+                    case ASYTRIPType.I16:
+                    case ASYTRIPType.I8:
+                        return 0;
+                    case ASYTRIPType.STRING:
+                        return "''";
+                }
+                return "null";
             }
 
             ).map(s => s + ",").join("\n        ");
@@ -858,6 +821,9 @@ addTypeMap(ASYTRIPType.VECTOR, (v, c) => {
     const types = v.types.flatMap(v => getResolvedType(v, c));
 
     if (TypesAre(types, TypeIsStruct)) {
+        try {
+            return getTypeString(types[0], c);
+        } catch (e) { }
         return `ASTNode<ASTType>[]`;
     } else if (types.length == 1) {
         return `${getTypeString(types[0], c)}[]`;
@@ -867,46 +833,44 @@ addTypeMap(ASYTRIPType.VECTOR, (v, c) => {
 });
 
 addExpressMap(ASYTRIPType.VECTOR, (v, c, inits) => {
-
     const types = v.types.flatMap(v => getResolvedType(v, c));
 
-    if (!isNaN(v.arg_pos)) {
+    if (TARGET)
+        console.log({ vector: types, a: v.args });
+
+    if (!isNaN(v.arg_pos ?? NaN))
         return `v${v.arg_pos}`;
-    }
 
     if (v.args.length < 1) {
-        return "[]";
-    } else if (TypesAre(types, TypeIsStruct)) {
-        const type_string = `(${types.map(t => t.name).join(" | ")})`;
 
-        const ref = inits.push(`[${v.args.map(v => getExpressionString(v, c, inits))}]`, `${type_string}[]`);
+        return inits.push(`[]`, getTypeString(v, c));
+
+    } else if (TypesAre(types, TypeIsStruct)) {
+        const type_string = `(${types.map(t => t.name).join(" | ")})[]`;
+        const expr = v.args.map(v => getExpressionString(v, c, inits)).filter(i => i != "null").join(",");
+
+        const ref = inits.push(`[${expr}]`, type_string);
 
         return ref;
     } else if (types.length == 1) {
-        const type = types[0];
+        const [type] = types;
 
         if (TypeIsString(type) || TypeIsToken(type)) {
             const vals = v.args.map(convertArgsToType(c, inits, TypeIsString, convertValToString));
 
-            return inits.push(`[${vals.join(", ")}]`);
+            return inits.push(`[${vals.join(", ")}]`, getTypeString(v, c));
         } else if (TypeIsDouble(type)) {
             const vals = v.args.map(convertArgsToType(c, inits, TypeIsDouble, convertValToDouble));
 
-            return inits.push(`[${vals.join(", ")}]`);
-        } else if (TypeIsStruct(type)) {
-
-            const vals = v.args.map(convertArgsToType(c, inits, TypeIsNull, (a, t) => a));
-
-            return inits.push(`${getTypeString(v, c)} : [ ${vals.join(", ")} ]`, true);
+            return inits.push(`[${vals.join(", ")}]`, getTypeString(v, c));
         } else {
-            return `[${v.args.map(t => getExpressionString(t, c, inits))
-                .setFilter().join(",")}]`;
+            return inits.push(`[${v.args.map(t => getExpressionString(t, c, inits))
+                .setFilter().filter(i => i != "null").join(",")}]`);
         }
     } else {
 
-        const vals = v.args.map(convertArgsToType(c, inits, TypeIsString, convertValToString));
 
-        const ref = inits.push(`[]`, "any[]");
+        const ref = inits.push(`[]`, getTypeString(v, c));
 
         for (const arg of v.args) {
 
@@ -917,6 +881,9 @@ addExpressMap(ASYTRIPType.VECTOR, (v, c, inits) => {
 
             inits.push(`${ref}.push(${val});`, false);
         }
+
+        if (TARGET)
+            console.log(ref);
 
         return ref;
     }
@@ -932,43 +899,51 @@ addTypeMap(ASYTRIPType.VECTOR_PUSH, (v, c) => {
 addExpressMap(ASYTRIPType.VECTOR_PUSH, (v, c, inits) => {
 
     let vector = getExpressionString(v.vector, c, inits);
-    let push_ref = vector;
 
-
-    if (push_ref == "null")
+    if (vector == "null")
         return "[]";
-    const vector_types = getResolvedType(v.vector, c).setFilter(t => {
-        return t.type;
-    }).filter(TypeIsVector);
+
+    const vector_types = getResolvedType(v.vector, c)
+        .setFilter(t => t.type)
+        .filter(TypeIsVector);
 
     const types = vector_types.flatMap(v => v.types)
         .flatMap(v => getResolvedType(v, c))
         .setFilter(JSONFilter);
     if (TypesAre(types, TypeIsStruct)) {
-        if (!isNaN(v.vector.arg_pos)) {
-            //Need to create a local dereference to push values
-            push_ref = vector;
-        }
 
         for (const arg of v.args) {
 
+            const types = getResolvedType(arg, c);
             let val = getExpressionString(arg, c, inits);
 
-            inits.push(`${push_ref}.push(${val});`, false);
+            if (val == "null") continue;
+
+            if (TypesInclude(types, TypeIsVector)) {
+                inits.push(`${vector}.push(...${val});`, false);
+            } else {
+                inits.push(`${vector}.push(${val});`, false);
+            }
         }
+
     } else if (types.length == 1) {
 
         if (TypeIsToken(types[0]) || TypeIsString(types[0])) {
-            const vals = v.args.map(convertArgsToType(c, inits, TypeIsString, convertValToString));
-            inits.push(`${push_ref}.push(${vals.join(", ")})`, false);
+            const vals = v.args.map(convertArgsToType(c, inits, TypeIsString, convertValToString))
+                .filter(v => v != "null");
+
+            if (vals.length > 0)
+                inits.push(`${vector}.push(${vals.join(", ")})`, false);
         }
     } else {
 
         for (const arg of v.args) {
             let val = getExpressionString(arg, c, inits);
 
+            if (val == "null")
+                continue;
 
-            inits.push(`${push_ref}.push(${val});`, false);
+            inits.push(`${vector}.push(${val});`, false);
         }
 
     }
@@ -981,6 +956,50 @@ addTypeMap(ASYTRIPType.ADD, (v, c) => {
     const type = getResolvedType(v, c)[0];
     return getTypeString(type, c);
 });
+addExpressMap(ASYTRIPType.ADD, (v, c, inits) => {
+    const { left: l, right: r } = v;
+    const type_l = getResolvedType(l, c)[0];
+    const type_r = getResolvedType(r, c)[0];
+    const left = getExpressionString(l, c, inits);
+    const right = getExpressionString(r, c, inits);
+
+    if (left == "null" && right == "null")
+        return "null";
+
+    if (right == "null")
+        return left;
+
+    if (left == "null")
+        return right;
+
+    if (TypeIsVector(type_l)) {
+        return getExpressionString(<ASYTRIPTypeObj[ASYTRIPType.VECTOR_PUSH]>{
+            type: ASYTRIPType.VECTOR_PUSH,
+            args: [r],
+            vector: l
+        }, c, inits);
+    }
+
+    if (TypeIsVector(type_r)) {
+        return getExpressionString(<ASYTRIPTypeObj[ASYTRIPType.VECTOR_PUSH]>{
+            type: ASYTRIPType.VECTOR_PUSH,
+            args: [l],
+            vector: r
+        }, c, inits);
+    }
+
+    if (TypeIsString(type_l) && !TypeIsString(type_r)) {
+
+        return `${left} + ${right}.toString()`;
+    } else if (TypeIsString(type_l) && TypeIsString(type_r)) {
+        return `${left} + ${right}`;
+    } else if (TypeIsString(type_r) && !TypeIsString(type_r)) {
+        return `${left}.toString() + ${right}`;
+    }
+
+    return `${left} + ${right}`;
+});
+
 addTypeMap(ASYTRIPType.SUB, (v, c) => {
     return "";
 });
@@ -1049,49 +1068,6 @@ addExpressMap(ASYTRIPType.OR, (v, c, inits) => {
 
     return `${getExpressionString(l, c, inits)} || ${getExpressionString(r, c, inits)}`;
 });
-addExpressMap(ASYTRIPType.ADD, (v, c, inits) => {
-    const { left: l, right: r } = v;
-    const type_l = getResolvedType(l, c)[0];
-    const type_r = getResolvedType(r, c)[0];
-    const left = getExpressionString(l, c, inits);
-    const right = getExpressionString(r, c, inits);
-
-    if (left == "null" && right == "null")
-        return "null";
-
-    if (right == "null")
-        return left;
-
-    if (left == "null")
-        return right;
-
-    if (TypeIsVector(type_l)) {
-        return getExpressionString(<ASYTRIPTypeObj[ASYTRIPType.VECTOR_PUSH]>{
-            type: ASYTRIPType.VECTOR_PUSH,
-            args: [r],
-            vector: l
-        }, c, inits);
-    }
-
-    if (TypeIsVector(type_r)) {
-        return getExpressionString(<ASYTRIPTypeObj[ASYTRIPType.VECTOR_PUSH]>{
-            type: ASYTRIPType.VECTOR_PUSH,
-            args: [l],
-            vector: r
-        }, c, inits);
-    }
-
-    if (TypeIsString(type_l) && !TypeIsString(type_r)) {
-
-        return `${left} + ${right}.toString()`;
-    } else if (TypeIsString(type_l) && TypeIsString(type_r)) {
-        return `${left} + ${right}`;
-    } else if (TypeIsString(type_r) && !TypeIsString(type_r)) {
-        return `${left}.toString() + ${right}`;
-    }
-
-    return `${left} + ${right}`;
-});
 addExpressMap(ASYTRIPType.SUB, (v, c, inits) => {
     debugger;
     return "";
@@ -1104,25 +1080,49 @@ const A = ASYTRIPType;
 const conversion_table =
 {
     [A.F64]:
-        (t: number, v: string): string => "" + ({ [A.F64]: /*       */ v, [A.F32]: `${v} `, [A.I64]: `${v} `, [A.I32]: `${v} `, [A.I16]: `${v} `, [A.I8]: `${v} `, [A.BOOL]: `+(${v})`, [A.NULL]: "0.0", [A.TOKEN]: `parseFloat(${v}.toString())`, [A.STRUCT]: `parseFloat(${v}.toString())`, [A.VECTOR]: `parseFloat(${v}.toString()))` })[t],
+        (t: number, v: string): string => "" + ({
+            [A.F64]: /*       */ v, [A.F32]: `${v} `, [A.I64]: `${v} `, [A.I32]: `${v} `, [A.I16]: `${v} `, [A.I8]: `${v} `, [A.BOOL]: `+(${v})`, [A.NULL]: "0.0",
+            [A.TOKEN]: `parseFloat(${v}.toString())`, [A.STRING]: `parseFloat(${v})`, [A.STRUCT]: `parseFloat(${v}.toString())`, [A.VECTOR]: `parseFloat(${v}.toString()))`
+        })[t],
     [A.F32]:
-        (t: number, v: string): string => "" + ({ [A.F64]: `${v} `, [A.F32]: /*       */ v, [A.I64]: `${v} `, [A.I32]: `${v} `, [A.I16]: `${v} `, [A.I8]: `${v} `, [A.BOOL]: `+(${v})`, [A.NULL]: "0.0", [A.TOKEN]: `parseFloat(${v}.toString())`, [A.STRUCT]: `parseFloat(${v}.toString())`, [A.VECTOR]: `parseFloat(${v}.toString()))` })[t],
+        (t: number, v: string): string => "" + ({
+            [A.F64]: `${v} `, [A.F32]: /*       */ v, [A.I64]: `${v} `, [A.I32]: `${v} `, [A.I16]: `${v} `, [A.I8]: `${v} `, [A.BOOL]: `+(${v})`, [A.NULL]: "0.0",
+            [A.TOKEN]: `parseFloat(${v}.toString())`, [A.STRING]: `parseFloat(${v})`, [A.STRUCT]: `parseFloat(${v}.toString())`, [A.VECTOR]: `parseFloat(${v}.toString()))`
+        })[t],
     [A.I64]:
-        (t: number, v: string): string => "" + ({ [A.F64]: `${v} `, [A.F32]: `${v} `, [A.I64]: /*       */ v, [A.I32]: `${v} `, [A.I16]: `${v} `, [A.I8]: `${v} `, [A.BOOL]: `+(${v})`, [A.NULL]: " 0 ", [A.TOKEN]: `parseInt(${v}.toString())`, [A.STRUCT]: `parseInt(${v}.toString())`, [A.VECTOR]: `parseInt(${v}.toString()))` })[t],
+        (t: number, v: string): string => "" + ({
+            [A.F64]: `${v} `, [A.F32]: `${v} `, [A.I64]: /*       */ v, [A.I32]: `${v} `, [A.I16]: `${v} `, [A.I8]: `${v} `, [A.BOOL]: `+(${v})`, [A.NULL]: " 0 ",
+            [A.TOKEN]: `parseInt(${v}.toString())`, [A.STRING]: `parseInt(${v})`, [A.STRUCT]: `parseInt(${v}.toString())`, [A.VECTOR]: `parseInt(${v}.toString()))`
+        })[t],
     [A.I32]:
-        (t: number, v: string): string => "" + ({ [A.F64]: `${v} `, [A.F32]: `${v} `, [A.I64]: `${v} `, [A.I32]: /*       */ v, [A.I16]: `${v} `, [A.I8]: `${v} `, [A.BOOL]: `+(${v})`, [A.NULL]: " 0 ", [A.TOKEN]: `parseInt(${v}.toString())`, [A.STRUCT]: `parseInt(${v}.toString())`, [A.VECTOR]: `parseInt(${v}.toString()))` })[t],
+        (t: number, v: string): string => "" + ({
+            [A.F64]: `${v} `, [A.F32]: `${v} `, [A.I64]: `${v} `, [A.I32]: /*       */ v, [A.I16]: `${v} `, [A.I8]: `${v} `, [A.BOOL]: `+(${v})`, [A.NULL]: " 0 ",
+            [A.TOKEN]: `parseInt(${v}.toString())`, [A.STRING]: `parseInt(${v})`, [A.STRUCT]: `parseInt(${v}.toString())`, [A.VECTOR]: `parseInt(${v}.toString()))`
+        })[t],
     [A.I16]:
-        (t: number, v: string): string => "" + ({ [A.F64]: `${v} `, [A.F32]: `${v} `, [A.I64]: `${v} `, [A.I32]: `${v} `, [A.I16]: /*       */ v, [A.I8]: `${v} `, [A.BOOL]: `+(${v})`, [A.NULL]: " 0 ", [A.TOKEN]: `parseInt(${v}.toString())`, [A.STRUCT]: `parseInt(${v}.toString())`, [A.VECTOR]: `parseInt(${v}.toString()))` })[t],
+        (t: number, v: string): string => "" + ({
+            [A.F64]: `${v} `, [A.F32]: `${v} `, [A.I64]: `${v} `, [A.I32]: `${v} `, [A.I16]: /*       */ v, [A.I8]: `${v} `, [A.BOOL]: `+(${v})`, [A.NULL]: " 0 ",
+            [A.TOKEN]: `parseInt(${v}.toString())`, [A.STRING]: `parseInt(${v})`, [A.STRUCT]: `parseInt(${v}.toString())`, [A.VECTOR]: `parseInt(${v}.toString()))`
+        })[t],
     [A.I8]:
-        (t: number, v: string): string => "" + ({ [A.F64]: `${v}  `, [A.F32]: `${v}  `, [A.I64]: `${v}  `, [A.I32]: `${v}  `, [A.I16]: `${v}  `, [A.I8]: /*       */ v, [A.BOOL]: `${v}  `, [A.NULL]: " 0 ", [A.TOKEN]: `parseInt(${v}.toString())`, [A.STRUCT]: `parseInt(${v}.toString()) || 0`, [A.VECTOR]: `parseInt(${v}.toString()) || 0`, })[t],
+        (t: number, v: string): string => "" + ({
+            [A.F64]: `${v}  `, [A.F32]: `${v}  `, [A.I64]: `${v}  `, [A.I32]: `${v}  `, [A.I16]: `${v}  `, [A.I8]: v, [A.BOOL]: `${v}  `, [A.NULL]: " 0 ",
+            [A.TOKEN]: `parseInt(${v}.toString())`, [A.STRING]: `parseInt(${v})`, [A.STRUCT]: `parseInt(${v}.toString()) || 0`, [A.VECTOR]: `parseInt(${v}.toString()) || 0`,
+        })[t],
     [A.BOOL]:
-        (t: number, v: string): string => "" + ({ [A.F64]: `!!(${v})`, [A.F32]: `!!(${v})`, [A.I64]: `!!(${v})`, [A.I32]: `!!(${v})`, [A.I16]: `!!(${v})`, [A.I8]: `!!(${v})`, [A.BOOL]: /**/ v, [A.NULL]: "false", [A.TOKEN]: `!!(${v})`, [A.STRUCT]: `!!(${v})`, [A.VECTOR]: `!!(${v})` })[t],
+        (t: number, v: string): string => "" + ({
+            [A.F64]: `!!(${v})`, [A.F32]: `!!(${v})`, [A.I64]: `!!(${v})`, [A.I32]: `!!(${v})`, [A.I16]: `!!(${v})`, [A.I8]: `!!(${v})`, [A.BOOL]: /**/ v, [A.NULL]: "false",
+            [A.TOKEN]: `!!(${v})`, [A.STRING]: `!!(${v})`, [A.STRUCT]: `!!(${v})`, [A.VECTOR]: `!!(${v})`
+        })[t],
     [A.NULL]:
-        (t: number, v: string): string => "" + ({ [A.F64]: "null", [A.F32]: "null", [A.I64]: "null", [A.I32]: "null", [A.I16]: "null", [A.I8]: "null", [A.BOOL]: "null", [A.NULL]: /*       */ v, [A.TOKEN]: `null`, [A.STRUCT]: "null", [A.VECTOR]: "null" })[t],
+        (t: number, v: string): string => "" + ({
+            [A.F64]: "null", [A.F32]: "null", [A.I64]: "null", [A.I32]: "null", [A.I16]: "null", [A.I8]: "null", [A.BOOL]: "null", [A.NULL]: /*       */ v, [A.TOKEN]: `null`,
+            [A.STRUCT]: "null", [A.STRING]: "null", [A.VECTOR]: "null"
+        })[t],
     [A.STRING]:
         (t: number, v: string): string => "" + ({
             [A.F64]: `${v}.toString()`, [A.F32]: `${v}.toString()`, [A.I64]: `${v}.toString()`, [A.I32]: `${v}.toString()`, [A.I16]: `${v}.toString()`, [A.I8]: `${v}.toString()`,
-            [A.BOOL]: `${v}.toString()`, [A.NULL]: /*       */ "\"\"", [A.TOKEN]: `${v}.toString()`, [A.STRUCT]: `${v}.toString()`, [A.VECTOR]: `${v}.toString()`
+            [A.BOOL]: `${v}.toString()`, [A.NULL]: /*       */ "\"\"", [A.TOKEN]: `${v}.toString()`, [A.STRING]: `${v}`, [A.STRUCT]: `${v}.toString()`, [A.VECTOR]: `${v}.toString()`
         })[t],
 };
 

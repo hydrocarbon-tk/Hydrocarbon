@@ -605,7 +605,7 @@ fn GetType(&self) -> u32 {
         } else {
 
             const expression = args[0];
-            const [type] = expression.types;
+            const [type] = expression.initializers;
             const resolved_type = getResolvedType(type, context)[0];
             let data = getExpressionString(type, context, inits);
             switch (resolved_type.type) {
@@ -812,7 +812,7 @@ addExpressMap(ASYTRIPType.STRUCT, (v, c, inits) => {
 
                 if (source_arg) {
 
-                    const type = source_arg.types[0];
+                    const type = source_arg.initializers[0];
 
                     const arg_types = getResolvedType(type, c).filter(TypeIsNotNull);
 

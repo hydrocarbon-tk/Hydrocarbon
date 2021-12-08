@@ -12,7 +12,8 @@ import {
     JSNodeClass,
     JSNodeType,
     JSObjectLiteral,
-    JSRightHandExpressionClass
+    JSRightHandExpressionClass,
+    renderCompressed
 } from "@candlelib/js";
 import {
     ASYTRIPContext,
@@ -99,15 +100,15 @@ export function parseAsytripStruct(
             for (const [name, prop] of struct.properties) {
                 if (properties.has(name))
                     //@ts-ignore
-                    mergeNewTypesIntoProp(prop, properties.get(name)?.types ?? []);
+                    mergeNewTypesIntoProp(prop, properties.get(name)?.initializers ?? []);
                 else
-                    prop.types.push({ type: ASYTRIPType.NULL, body: [body.id] });
+                    prop.initializers.push({ type: ASYTRIPType.NULL, body: [body.id] });
             }
 
             for (const [name, prop] of properties) {
                 if (!struct.properties.has(name)) {
                     struct.properties.set(name, prop);
-                    prop.types.push({ type: ASYTRIPType.NULL, body: [body.id] });
+                    prop.initializers.push({ type: ASYTRIPType.NULL, body: [body.id] });
                 }
             }
         }
@@ -132,7 +133,7 @@ export function parseAsytripStruct(
  * All vector types are merged into one vector type object.
  */
 function mergeNewTypesIntoProp(prop: ASYTRIPProperty, new_types: ASYType[]) {
-    const types = [...prop.types, ...new_types]
+    const types = [...prop.initializers, ...new_types]
         .setFilter(JSONFilter);
 
     const vectors = types.filter(TypeIsVector);
@@ -144,7 +145,7 @@ function mergeNewTypesIntoProp(prop: ASYTRIPProperty, new_types: ASYType[]) {
     ].setFilter(JSONFilter);
     vectors.forEach(v => v.types = vector_types);
 
-    prop.types = [...rest, ...vectors];
+    prop.initializers = [...rest, ...vectors];
 }
 
 export function JSONFilter(v: any) {
@@ -184,7 +185,8 @@ export function getPropertyFromExpression(
         name: "",
         node: node,
         source: tok,
-        types: []
+        initializers: [],
+        resolved_types: []
     };
 
     const out_type = parseExpression(
@@ -194,7 +196,7 @@ export function getPropertyFromExpression(
         context
     );
 
-    prop.types = [out_type];
+    prop.initializers = [out_type];
 
     return prop;
 }
@@ -271,7 +273,7 @@ function parseExpression(
             //     a) If production lookup return types for production and push them to property types
             //     b) If type is a symbol: it's either a vector or a token
         } else {
-            throwAsytripTokenError(tok, node, "ASYTRIP_Invalid_Struct_Property_Value");
+            throwAsytripTokenError(tok, node, "ASYTRIP_Invalid_Struct_Property_Value" + renderCompressed(node));
         }
     } else if (node.type == JSNodeType.AdditiveExpression) {
 
@@ -281,17 +283,27 @@ function parseExpression(
 
         const right_val = parseExpression(body, right, tok, context);
 
-        if (TypeIsVector(left_val) || TypeIsVector(right_val)) {
-            if (TypeIsVector(left_val)) return {
-                type: ASYTRIPType.VECTOR_PUSH,
-                vector: <any>left_val.args[0],
-                args: [right_val],
-                body: [body.id]
+        if (
+            TypeIsVector(left_val)
+            ||
+            TypeIsVector(right_val)
+            ||
+            TypeIsVectorPush(left_val)
+            ||
+            TypeIsVectorPush(right_val)
+        ) {
+            if (TypeIsVector(left_val) || TypeIsVectorPush(left_val)) {
+                return {
+                    type: ASYTRIPType.VECTOR_PUSH,
+                    vector: left_val,
+                    args: [right_val],
+                    body: [body.id]
+                };
             };
 
-            if (TypeIsVector(right_val)) return {
+            if (TypeIsVector(right_val) || TypeIsVectorPush(right_val)) return {
                 type: ASYTRIPType.VECTOR_PUSH,
-                vector: <any>right_val.args[0],
+                vector: right_val,
                 args: [left_val],
                 body: [body.id]
             };
@@ -536,6 +548,20 @@ function getTypeFromIdentifier(body: HCG3ProductionBody,
     }[ident];
 }
 
+export function addTypesToVector(
+    node: ASYType,
+    context: ASYTRIPContext,
+    types: ASYType[]
+) {
+    if (TypeIsVector(node)) {
+        node.types = [...node.types, ...types].setFilter(JSONFilter).filter(TypeIsNotNull);
+    } else if (TypeIsVectorPush(node)) {
+        addTypesToVector(node.vector, context, types);
+        for (const arg of node.args)
+            addTypesToVector(arg, context, types);
+    }
+}
+
 export function getResolvedType(
     node: ASYType,
     context: ASYTRIPContext,
@@ -614,7 +640,7 @@ export function getResolvedType(
                                 name: prop_name,
                                 node: null,
                                 source: new Token("", 0, 0, 0),
-                                types: types.slice()
+                                initializers: types.slice()
 
                             });
                         } else {
@@ -648,7 +674,7 @@ export function getResolvedType(
                     const prop = struct.properties.get(node.property);
 
                     if (prop) {
-                        const vals = prop.types.flatMap(c => getResolvedType(c, context, _structs, productions));
+                        const vals = prop.initializers.flatMap(c => getResolvedType(c, context, _structs, productions));
 
                         results.push(...vals);
                     }
@@ -670,9 +696,10 @@ export function getResolvedType(
             case ASYTRIPType.CONVERT_STRING:
                 return [{ type: ASYTRIPType.STRING, val: "", body: node.body }];
             case ASYTRIPType.VECTOR: {
-                const types = node.types
+                const types = [...node.types, ...node.args]
                     .flatMap(a => getResolvedType(a, context, _structs, productions))
-                    .setFilter(JSONFilter);
+                    .setFilter(JSONFilter)
+                    .filter(TypeIsNotNull);
 
                 return [{ type: ASYTRIPType.VECTOR, args: [], types, arg_pos: node.arg_pos, body: node.body }];
             }
@@ -692,23 +719,28 @@ export function getResolvedType(
                 return types.pop() ?? [];
             }
 
-            case ASYTRIPType.VECTOR_PUSH:
+            case ASYTRIPType.VECTOR_PUSH: {
 
-                const vec_args = node?.vector?.args?.slice() ?? [];
-                const types = node?.vector?.types?.slice() ?? [];
+                const vector_types = getResolvedType(node.vector, context, _structs, productions);
+
                 const args = node.args.slice();
 
-                types.push(...args, ...vec_args);
+                vector_types.push(...args);
 
-                const results = types
-                    .flatMap(v => getResolvedType(v, context, undefined, productions))
+                const results = vector_types
+                    .flatMap(v => getResolvedType(v, context, _structs, productions))
                     .flatMap(v => TypeIsVector(v) ? v.types : v)
-                    .setFilter(JSONFilter);
 
+                    .setFilter(JSONFilter)
 
+                    .filter(TypeIsNotNull);
+
+                //Update vector type
+                addTypesToVector(node, context, results);
 
                 return [{ type: ASYTRIPType.VECTOR, args: [], types: results, arg_pos: undefined, body: node.body }];
-            case ASYTRIPType.PRODUCTION:
+
+            } case ASYTRIPType.PRODUCTION:
                 const val = node.val;
                 if (!context.resolved_return_types.has(val)) {
 
@@ -901,6 +933,23 @@ function TypesNotInclude<T, B>(types: (T | B)[], fn: (d: (B | T)) => d is B): ty
     return !types.some(fn);
 }
 
+export function TypeIsNumber(t: ASYType): t is ASYType<
+    ASYTRIPType.I64 |
+    ASYTRIPType.I32 |
+    ASYTRIPType.I16 |
+    ASYTRIPType.I8 |
+    ASYTRIPType.F64 |
+    ASYTRIPType.F32
+> {
+    return [
+        ASYTRIPType.I64,
+        ASYTRIPType.I32,
+        ASYTRIPType.I16,
+        ASYTRIPType.I8,
+        ASYTRIPType.F64,
+        ASYTRIPType.F32
+    ].includes(t.type);
+}
 
 export function TypeIsString(t: ASYType): t is ASYType<ASYTRIPType.STRING> {
     return t.type == ASYTRIPType.STRING;
@@ -919,6 +968,10 @@ export function TypeIsStruct(t: ASYType): t is ASYType<ASYTRIPType.STRUCT> {
 }
 export function TypeIsVector(t: ASYType): t is ASYType<ASYTRIPType.VECTOR> {
     return t.type == ASYTRIPType.VECTOR;
+}
+
+export function TypeIsVectorPush(t: ASYType): t is ASYType<ASYTRIPType.VECTOR_PUSH> {
+    return t.type == ASYTRIPType.VECTOR_PUSH;
 }
 export function TypeIsNull(t: ASYType): t is ASYType<ASYTRIPType.NULL> {
     return t.type == ASYTRIPType.NULL;

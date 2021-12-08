@@ -28,6 +28,9 @@ import {
     getResolvedType,
     JSONFilter,
     TypeIsNotNull,
+    TypeIsNull,
+    TypeIsNumber,
+    TypeIsString,
     TypeIsStruct,
     TypeIsVector,
     TypesAre,
@@ -37,7 +40,7 @@ import {
 export function createASYTripContext(
     grammar: GrammarObject,
     logger: Logger = Logger.get("ASYTrip").activate()
-): ASYTRIPContext {
+): ASYTRIPContext | null {
 
     let BYPASS_ASYTRIP = false;
 
@@ -116,9 +119,11 @@ export function createASYTripContext(
                 fns.push({
                     production_id: production.id,
                     body,
-                    tok: Token.from(body?.reduce_function?.pos).token_slice(5) ?? new Token("", 0, 0, 0),
+                    tok: body?.reduce_function?.tok ?
+                        Token.from(body?.reduce_function?.tok).token_slice(5)
+                        : new Token("", 0, 0, 0),
                     fn: expr,
-                    source: renderWithFormatting(expr)
+                    source: renderWithFormatting(<any>expr)
                 });
             }
             // Get the return types for each body. 
@@ -162,7 +167,7 @@ export function createASYTripContext(
 
 
 
-                return_type.push(...prop.types);
+                return_type.push(...prop.initializers);
 
             } else {
 
@@ -215,22 +220,6 @@ export function createASYTripContext(
             type_lookup.set(name, type);
         }
 
-        // For each struct compile the properties into 
-        // Sets of prop types
-        for (const [name, struct] of context.structs) {
-            for (const [name, prop] of struct.properties) {
-
-                const types = (prop.types.flatMap(v => {
-                    return v;
-                    return getResolvedType(v, context);
-                })).setFilter(fn => JSON.stringify(fn));
-
-                //Resolves production types
-                struct.properties.get(name).types = types;
-
-
-            }
-        }
 
         for (const [id, types] of context.return_types) {
 
@@ -246,60 +235,96 @@ export function createASYTripContext(
             context.resolved_return_types.set(id, resolved_types.setFilter(JSONFilter));
         }
 
-        for (const [s_name, struct] of context.structs) {
+        // For each struct compile the properties into 
+        // Sets of prop types
+        /* for (const [prop_name, struct] of context.structs) {
+            for (const [name, prop] of struct.properties) {
 
-            struct.type = context.type.get(s_name);
+                const types = (prop.types.flatMap(v => {
+                    return v;
+                    return getResolvedType(v, context);
+                })).setFilter(JSONFilter);
+
+                //Resolves production types
+                struct.properties.get(name).types = types;
+            }
+        } */
+
+        for (const [struct_name, struct] of context.structs) {
 
             for (const [name, prop] of struct.properties) {
 
+                const types = (prop.initializers.flatMap(v => {
+                    return v;
+                })).setFilter(JSONFilter);
+
+                let intermediate_types = [];
+
+                for (const type of types) {
+                    intermediate_types.push(...getResolvedType(type, context));
+                }
+
+                const resolved_types
+                    = mergeVectorTypes(intermediate_types.setFilter(JSONFilter));
+
+                //Resolves production types
+                //@ts-ignore
+                struct.properties.get(name).initializers = types;
+                //@ts-ignore
+                struct.properties.get(name).resolved_types = resolved_types;
+
+                //Assert types are valid:
                 // For simplicities sake, ensure properties 
                 // are one of Struct Type | Vector<Struct Type> | Other
                 //
                 // Do not allow mixing of Structs|Vector<Struct> and other types.
-                const productions: ASYTRIPTypeObj[ASYTRIPType.PRODUCTION][] = [];
-                const real_types = prop.types.flatMap(
-                    t => getResolvedType(t, context, new Set([struct.name]), productions)
-                )
-                    .filter(TypeIsNotNull);
 
-                if (TypesInclude(real_types, TypeIsStruct)
-                    && !TypesAre(real_types, TypeIsStruct)
+                const productions: ASYTRIPTypeObj[ASYTRIPType.PRODUCTION][] = [];
+
+                const real_types = types.flatMap(
+                    t => getResolvedType(t, context, new Set([struct.name]), productions)
+                ).filter(TypeIsNotNull);
+
+                if (TypesInclude(resolved_types, TypeIsStruct)
+                    &&
+                    resolved_types.some(t => !(TypeIsNull(t) || TypeIsStruct(t)))
                 ) {
+
+                    const non_struct_types = real_types.filter(t => !(TypeIsNull(t) || TypeIsStruct(t)));
 
                     const message = [
                         `
-Invalid Struct property <${name}> of struct <${s_name}>
+Invalid property <${name}> of struct <${struct_name}>
 
-Struct properties that can be assigned to struct types 
-MUST only be assigned to Struct types or Null. 
-This is not the case with ${s_name}~${name}`];
+Properties of type struct must not be assigned to 
+any other value type.`];
 
-                    for (const args of productions) {
-                        const production = grammar.productions[args.val];
-                        const types = context.resolved_return_types.get(production.id);
-                        const bad_types = types.filter(t => !TypeIsStruct(t)).setFilter(JSONFilter);
+                    for (const nvt of non_struct_types) {
+                        let body = grammar.bodies[0];
+                        if (nvt.body)
+                            body = grammar.bodies[nvt.body[0]];
 
-                        if (bad_types.length == 0)
-                            continue;
+                        if (body && body.tok && body.production !== undefined) {
 
-                        message.push(args.tok.createError(
-                            `Production ${production.name}: 
--------------------------- 
-${render_grammar(production)} 
--------------------------- 
- assigned to reference ${args.tok.slice()} produces non-Vector<Struct> types [ Vector<${bad_types.map(t => {
-                                if (TypeIsVector(t)) {
-                                    return `${ASYTRIPType[t.type]}<${t.types.map(t => ASYTRIPType[t.type]).setFilter(JSONFilter).join(" | ")}>`;
-                                }
-                                else return ASYTRIPType[t.type];
-                            }).join(" | ")
-                            }> ]`
-                        ).message);
+                            const tok = Token.from(body.tok);
+
+                            message.push(tok.createError(
+                                `\nProduction ${body.production.name}[${body.production.bodies.indexOf(body)}]:`
+                            ).message,
+                                `
+produces non-struct types [ ${[nvt].map(t => {
+                                    if (TypeIsVector(t)) {
+                                        return `${ASYTRIPType[t.type]}<${t.types.map(t => ASYTRIPType[t.type]).setFilter(JSONFilter).join(" | ")}>`;
+                                    }
+                                    else return ASYTRIPType[t.type];
+                                }).join(" | ")} ]`
+                            );
+                        }
                     }
 
                     errors.push(["0x014", message.join("")]);
 
-                } else if (TypesInclude(real_types, TypeIsVector)) {
+                } else if (TypesInclude(resolved_types, TypeIsVector)) {
 
                     const vector_types = real_types.filter(TypeIsVector);
 
@@ -315,17 +340,20 @@ ${render_grammar(production)}
                             const non_vector_types = vector_types_types.filter(v => !TypeIsStruct(v));
                             const message = [
                                 `
-Invalid Vector<Struct> property <${name}> of struct <${s_name}>
+Invalid vector property <${name}> of struct <${struct_name}>
         
 Vector<Struct> properties that can contain struct types MUST NOT contain
-types that are not structs. This is not the case with ${s_name}.${name}:`];
+types that are not structs. This is not the case with ${struct_name}.${name}:`];
                             for (const nvt of non_vector_types) {
                                 let body = grammar.bodies[0];
                                 if (nvt.body)
                                     body = grammar.bodies[nvt.body[0]];
 
-                                if (body) {
-                                    message.push(body.pos.createError(
+                                if (body && body.tok && body.production !== undefined) {
+
+                                    const tok = Token.from(body.tok);
+
+                                    message.push(tok.createError(
                                         `\nProduction ${body.production.name}[${body.production.bodies.indexOf(body)}]:`
                                     ).message,
                                         `
@@ -334,7 +362,7 @@ produces non-struct types [ ${[nvt].map(t => {
                                                 return `${ASYTRIPType[t.type]}<${t.types.map(t => ASYTRIPType[t.type]).setFilter(JSONFilter).join(" | ")}>`;
                                             }
                                             else return ASYTRIPType[t.type];
-                                        }).join(" | ")} ] that prevents ${s_name}.${name} from being a Vector that only contains structs`
+                                        }).join(" | ")} ] that prevents ${struct_name}.${name} from being a Vector that only contains structs`
                                     );
                                 }
                             }
@@ -345,6 +373,7 @@ produces non-struct types [ ${[nvt].map(t => {
                 }
             }
         }
+
 
         context.type_mask = type_mask;
         context.class_mask = class_mask;
@@ -369,15 +398,16 @@ produces non-struct types [ ${[nvt].map(t => {
         // to correctly parse reduce expressions.
 
         logger.warn("Unable to compile ASYTrip context\n");
+
         return null;
     };
 }
+
 function mergeVectorTypes(r_types: any[]) {
     const vectors = r_types.filter(TypeIsVector);
-    const rest = r_types.filter(t => !TypeIsVector(t));
+    let rest = r_types.filter(t => !TypeIsVector(t));
 
     if (vectors.length > 0) {
-
 
         const vector = vectors.reduce((r, t) => {
             r.types.push(...t.types);
@@ -386,13 +416,31 @@ function mergeVectorTypes(r_types: any[]) {
             type: ASYTRIPType.VECTOR,
             args: [],
             types: [],
-            arg_pos: undefined
+            arg_pos: undefined,
+            body: []
         });
 
         vector.types = vector.types.filter(TypeIsNotNull).setFilter(JSONFilter);
 
+
+
         rest.push(vector);
     }
+
+    if (
+        rest.length == 2
+        &&
+        rest.every(t =>
+            TypeIsNull(t)
+            ||
+            TypeIsVector(t)
+            ||
+            TypeIsString(t)
+            ||
+            TypeIsNumber(t)
+        )
+    ) rest = rest.filter(TypeIsNotNull);
+
     return rest;
 }
 

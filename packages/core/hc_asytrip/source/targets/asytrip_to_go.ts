@@ -498,7 +498,7 @@ func (node *${struct_name}) Type() uint32{
         } else {
 
             const expression = args[0];
-            const [type] = expression.types;
+            const [type] = expression.initializers;
             const resolved_type = getResolvedType(type, context)[0];
             const data = getExpressionString(type, context, inits);
             if (TypeIsString(resolved_type)) {
@@ -662,7 +662,7 @@ addExpressMap(ASYTRIPType.STRUCT, (v, c, inits) => {
             .map(([name]) => {
                 const a = args.filter(a => a.name == name)[0];
                 if (a) {
-                    const type = a.types[0];
+                    const type = a.initializers[0];
                     const r_types = getResolvedType(type, c).filter(TypeIsNotNull);
                     const val = getExpressionString(type, c, inits);
                     if (r_types.length == 0) {

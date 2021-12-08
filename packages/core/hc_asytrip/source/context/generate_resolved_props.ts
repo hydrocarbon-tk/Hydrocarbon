@@ -30,6 +30,7 @@ export function generateResolvedProps(
     const name = struct.name;
 
     if (resolved_structs.has(name))
+        //@ts-ignore
         return [...resolved_structs.get(name).values()];
 
     const resolved_props: Map<string, ResolvedProp> = new Map();
@@ -40,7 +41,7 @@ export function generateResolvedProps(
 
     const prop_vals = props.map(([n, p]) => {
 
-        const types = p.types.flatMap(t => getResolvedType(t, context, new Set([struct.name])));
+        const types = p.resolved_types;//p.initializers.flatMap(t => getResolvedType(t, context, new Set([struct.name])));
 
         const real_types = types.filter(TypeIsNotNull);
 
