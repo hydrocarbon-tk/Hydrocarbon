@@ -84,9 +84,9 @@ export function convert_symbol_to_friendly_name(sym: HCG3Symbol): string {
                 default: return "";
             }
         case SymbolType.LITERAL:
-            return `"${sym.val}"`;
+            return `${sym.val}`;
         case SymbolType.EXCLUSIVE_LITERAL:
-            return `"${sym.val}"`;
+            return `${sym.val}`;
         case SymbolType.EMPTY:
             return `ɛ`;
         case SymbolType.DEFAULT:
@@ -96,7 +96,7 @@ export function convert_symbol_to_friendly_name(sym: HCG3Symbol): string {
         case "look-behind":
             return `lb[${convert_symbol_to_friendly_name(sym.phased)}]`;
         default:
-            return `"${sym.val}"`;
+            return `${sym.val}`;
     }
 }
 
