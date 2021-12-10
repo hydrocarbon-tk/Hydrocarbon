@@ -52,7 +52,9 @@ export function constructDescent(
 
     options.root_production = production;
 
-    options.ambig_ids = new Set;
+    options.branch_cache = new Map;
+
+
 
     const node = createNode(options, default_DEFAULT, production_items);
 
@@ -65,9 +67,12 @@ export function constructDescent(
     processNode(options, node, tpn, false);
 
     let v = null;
+    let i = 0;
 
-    while ((v = tpn.shift()))
+    while ((v = tpn.shift())) {
+        i++;
         processNode(options, v, tpn);
+    }
 
     return node;
 }
@@ -78,7 +83,6 @@ export function constructGoto(
     options: TGO,
     goto_items: Item[]
 ): Node {
-
     GRAMMAR = grammar;
 
     options.scope = "GOTO";
@@ -87,7 +91,7 @@ export function constructGoto(
 
     options.root_production = production;
 
-    options.ambig_ids = new Set;
+    options.branch_cache = new Map;
 
     const goto_state = processGoto(options, goto_items);
 
@@ -261,11 +265,11 @@ function processNode(
 
                 : i.increment());
 
-    const n_term = items.filter(term_item);
+    let n_term = items.filter(term_item);
 
     let n_nonterm = items.filter(nonterm_item);
 
-    const n_end = items.filter(end_item);
+    let n_end = items.filter(end_item);
 
     if (n_nonterm.length > 0) {
 
@@ -276,6 +280,7 @@ function processNode(
         const productions: ProductionSymbol[] =
             <any[]>n_nonterm.map(get_sym).setFilter(gusn);
 
+        // Filter out shift reduce conflicts
 
         // If all the non-terminal items are the same 
         // and there are no terminal items then
@@ -283,7 +288,7 @@ function processNode(
         // the production does not loop back into the 
         // host production. 
         if (n_term.length == 0
-            && n_end.length == 0
+            && (n_end.length == 0)
             && productions.length == 1
             && (node.depth > 1 || nonRecursive(n_nonterm, opt.root_production))
         ) {
@@ -400,6 +405,26 @@ function processNode(
     );
 }
 
+function getShiftOnlyItems(items: Item[]) {
+    return items.filter(i => {
+        if (!i.atEND)
+            return true;
+        const segment = i.renderUnformatted(GRAMMAR);
+        for (const item of items) {
+            if (item.atEND)
+                continue;
+
+            if (item.body_ == i.body_
+                &&
+                item.renderUnformatted(GRAMMAR).indexOf(segment) == 0)
+                return false;
+
+        }
+
+        return true;
+    });
+}
+
 function incrementTerminals(
     opt: TGO,
     node: Node,
@@ -495,7 +520,7 @@ function createPeek(
 
     let collapsed_closure: Item[] = [];
 
-    if (opt.scope == "GOTO") {
+    if (opt.scope == "GOTO" || true) {
         collapsed_closure.push(...[...(GRAMMAR.lr_items?.values() ?? [])].flat()
             .filter(i => !out_of_scope.has(i.increment()?.id ?? "")));
     } else {
@@ -554,7 +579,7 @@ function createPeek(
         return n;
     });
 
-
+    const leaves: { node: Node, parent: Node; }[] = [];
 
     disambiguate(
         opt,
@@ -562,16 +587,39 @@ function createPeek(
 
             const nodes = r.items.flatMap(createNodeClosure(opt, parent, r));
 
-            for (const node of nodes)
-                node.depth = r.depth;
+
+            let out = [];
+            //Combine nodes with the same symbol
+            const groups = nodes.group(n => getUniqueSymbolName(n.sym));
+
+            for (const group of groups) {
+
+                const primary = group[0];
+
+                for (const node of group.slice(1)) {
+                    primary.items.push(...node.items);
+                    primary.closure.push(...node.closure);
+                    primary.makeClosureUnique();
+                }
+
+
+                out.push(primary);
+            }
+
+            //out = nodes;
+
+            for (const node of out) node.depth = r.depth;
 
             if (opt.IS_SCANNER)
-                nodes.forEach(n=>{if(!Sym_Is_DEFAULT(n.sym)){ n.addType(TST.I_CONSUME) }})
+                out.forEach(n => { if (!Sym_Is_DEFAULT(n.sym)) { n.addType(TST.I_CONSUME); } });
 
-                return nodes;
-        }), roots, tpn, [], parent);
+            return nodes;
+        }), roots, tpn, leaves, [], parent);
 
     parent.items = parent.items.setFilter(item_id);
+
+
+    completeLeaves(opt, tpn, leaves);
 
     //Allow resource to be garbage collected
     //parent.closure.length = 0;
@@ -590,17 +638,21 @@ function disambiguate(
     nodes: Node[],
     roots: Node[],
     tpn: Node[],
+    leaves: { node: Node, parent: Node; }[],
     ids: string[] = [],
     root: Node,
-    depth: number = 0
+    depth: number = 0,
+    prev_time: number = 0
 ) {
+
     // We are starting with a set of nodes, each representing either
     // a terminal symbol or an item in the end position. 
     // Each node has a common parent. 
 
+    let start = performance.now();
+
     const end_nodes = nodes.filter(n => n.end_items.length > 0);
     const term_nodes = nodes.filter(n => n.end_items.length == 0);
-
 
     if (end_nodes.length > 0) {
 
@@ -649,10 +701,9 @@ function disambiguate(
                 setTransitionType(node);
 
                 if (roots[0].is(TST.I_OUT_OF_SCOPE)) {
-
                     node.addType(TST.I_OUT_OF_SCOPE);
                 } else {
-                    completeRoots(node, roots[0], opt, tpn);
+                    gatherLeaves(node, roots[0], leaves);
                 }
             } else {
                 const parent = final_nodes.map(s => s.pruneLeaf())[0];
@@ -666,7 +717,7 @@ function disambiguate(
 
             setTransitionType(final_node);
 
-            completeRoots(final_node, root, opt, tpn);
+            gatherLeaves(final_node, root, leaves);
 
         }
     }
@@ -675,8 +726,7 @@ function disambiguate(
 
     if (term_nodes.length > 0 && term_nodes.every(t => t.root?.is(TST.I_OUT_OF_SCOPE))) {
 
-        const parents = term_nodes.map(s => s.pruneBranch());
-        const parent = parents[0];
+        const parent = term_nodes.map(s => s.pruneLeaf())[0];
 
         parent.addType(TST.I_FAIL);
 
@@ -725,7 +775,7 @@ function disambiguate(
 
             if (new_groups.length == 0) {
                 if (group.every(i => i.root?.is((TST.I_OUT_OF_SCOPE)))) {
-                    completeRoots(prime_node, root, opt, tpn);
+                    gatherLeaves(prime_node, root, leaves);
                 } else {
                     throw new Error(
                         "Invalid state, unable to continue disambiguating \n"
@@ -757,23 +807,30 @@ function disambiguate(
 
             prime_node.items = prime_node.items.setFilter(item_id);
 
-            completeRoots(prime_node, root, opt, tpn);
+            gatherLeaves(prime_node, root, leaves);
         }
     }
 
+    let end = performance.now();
+
+    let total_time = prev_time + (end - start);
     for (let step of next_steps) {
 
         const id = getNodesId(step);
 
+        // console.log(total_time, prev_time);
+
         if (step.length > 0) {
 
-            if (handleShiftReduceConflicts(opt, step, roots, tpn, root, depth)) {
+            if (handleShiftReduceConflicts(opt, step, roots, tpn, leaves, root, depth)) {
 
                 continue;
-            } else if ((ids.includes(id)) /* || depth > 2 */) {
+            } else if ((ids.includes(id)) /* || depth > 2 */ || total_time > 300) {
+                if (total_time > 300)
+                    console.error("TIMED OUT");
                 handleTransitionCollision(step, opt, tpn);
             } else {
-                disambiguate(opt, step, roots, tpn, ids.concat(id), root, depth + 1);
+                disambiguate(opt, step, roots, tpn, leaves, ids.concat(id), root, depth + 1, total_time);
             }
         }
     }
@@ -784,12 +841,11 @@ function handleShiftReduceConflicts(
     step: Node[],
     roots: Node[],
     tpn: Node[],
+    leaves: { node: Node, parent: Node; }[],
     root: Node,
     depth: number
 ): boolean {
     const candidate_roots = step.map(s => <Node>s.root).setFilter(r => r.depth);
-
-
 
     if (candidate_roots.every(r => r.items.length == 1)) {
         const prod = candidate_roots[0].items[0].getProductionID(GRAMMAR);
@@ -817,7 +873,7 @@ function handleShiftReduceConflicts(
 
                     prime_node.items = prime_node.items.setFilter(item_id);
 
-                    completeRoots(prime_node, root, opt, tpn);
+                    gatherLeaves(prime_node, root, opt, leaves);
 
                     return true;
                 }
@@ -849,81 +905,130 @@ function handleTransitionCollision(step: Node[], options: TGO, tpn: Node[]) {
     }
 }
 
-function completeRoots(
+
+function gatherLeaves(
     node: Node,
     parent: Node,
-    opt: TGO,
-    tpn: Node[]
+    leaves: { node: Node, parent: Node; }[],
 ) {
-    const root = (<Node>node.root).clone();
+    leaves.push({ node, parent });
+}
+function completeLeaves(
+    opt: TGO,
+    tpn: Node[],
+    leaves: { node: Node, parent: Node; }[],
+) {
 
-    if (root.is(TST.I_OUT_OF_SCOPE)) {
+    //for (const leaf of leaves)
+    //    console.error(leaf.debug);
 
-        node.addType(TST.I_FAIL, TST.I_OUT_OF_SCOPE);
+    for (const depth_group of leaves.group(({ node: l }) => l.depth)) {
+        //Join group into one common parent
 
-    } else if (opt.IS_SCANNER) {
+        const { node: first_node, parent: first_parent } = depth_group[0];
 
-        //If the root is a production call try using that
-        node.clearPeek();
+        const central = first_node.clone();
+        central.items = depth_group.flatMap(d => d.node.items).setFilter(item_id);
+        central.closure = depth_group.flatMap(d => d.node.closure).setFilter(item_id);
 
-        if (!Sym_Is_DEFAULT(parent.sym))
-            parent.addType(TST.I_CONSUME);
+        const root = central.root;
 
-        parent.addType(TST.I_CONSUME);
+        const cid = getClosureId([central]);
 
-        if (root.depth == node.depth && Sym_Is_A_Production(root.sym)) {
-            node.pruneLeaf();
-            parent.addType(TST.I_TEST);
-            createTermedProductionCall(
-                opt,
-                <TokenSymbol>node.sym,
-                <ProductionSymbol>root.sym,
-                root.items,
-                parent,
-                tpn
-            );
-        } else {
+        if (!root)
+            throw new Error("Root is not defined");
 
-            parent.closure.push(...parent.items);
-
-            if (node.items.some(i => i.atEND)) {
-                node.removeType(TST.I_CONSUME);
-                //processEndItem(opt, node, node.items[0]);
-                processNode(opt, node, tpn, false);
-            } else {
-
-                if (!Sym_Is_DEFAULT(node.sym))
-                    node.addType(TST.I_CONSUME);
-
-                node.depth = (parent.depth + 1) % 10000;
-
-                node.closure.push(...getClosure(node.items, GRAMMAR), ...node.items);
-
-                node.closure = node.closure.setFilter(item_id);
-
-                processNode(opt, node, tpn, true);
-            }
+        for (const { node, parent } of depth_group) {
+            if (node.parent !== parent)
+                throw new Error("Unexpected: Node is not child of parent");
+            if (node.root !== root)
+                throw new Error("Invalid use of mixed roots!");
         }
 
-    } else {
-        const r = (<Node>node.root).clone();
+        if (root.is(TST.I_OUT_OF_SCOPE)) {
+            depth_group.forEach(n => n.node.addType(TST.I_FAIL, TST.I_OUT_OF_SCOPE));
+
+        } else if (opt.IS_SCANNER) {
+
+            for (const { parent, node } of depth_group) {
+
+                //If the root is a production call try using that
+                node.clearPeek();
 
 
-        r.items = r.items.map(i => i.toState(parent.depth + 1));
-        r.depth = parent.depth;
-        r.parent = node;
+                if (!Sym_Is_DEFAULT(parent.sym))
+                    parent.addType(TST.I_CONSUME);
 
-        processNode(opt, r, tpn, false);
+                parent.addType(TST.I_CONSUME);
 
-        for (const child of r.children) {
-            child.parent = node;
-            node.children.push(child);
+                if (root.depth == node.depth && Sym_Is_A_Production(root.sym)) {
+                    node.pruneLeaf();
+                    parent.addType(TST.I_TEST);
+                    createTermedProductionCall(
+                        opt,
+                        <TokenSymbol>node.sym,
+                        <ProductionSymbol>root.sym,
+                        root.items,
+                        parent,
+                        tpn
+                    );
+                } else {
+
+                    parent.closure.push(...parent.items);
+
+                    if (node.items.some(i => i.atEND)) {
+                        node.removeType(TST.I_CONSUME);
+                        //processEndItem(opt, node, node.items[0]);
+                        processNode(opt, node, tpn, false);
+                    } else {
+
+                        if (!Sym_Is_DEFAULT(node.sym))
+                            node.addType(TST.I_CONSUME);
+
+                        node.depth = (parent.depth + 1) % 10000;
+
+
+                        node.closure.push(...getClosure(node.items, GRAMMAR), ...node.items);
+
+                        node.closure = node.closure.setFilter(item_id);
+
+                        processNode(opt, node, tpn, true);
+                    }
+                }
+            }
+
+        } else {
+
+            const r = root;
+
+            const depth = first_parent.depth;
+
+            if (!depth)
+                throw new Error("Depth not defined");
+            r.items = r.items.map(i => i.toState(depth + 1));
+            r.depth = depth;
+            r.parent = central;
+
+            processNode(opt, r, tpn, false);
+
+            for (const { node } of depth_group) {
+                for (const child of r.children) {
+                    child.parent = node;
+                    node.children.push(child);
+                }
+            }
+
+            //opt.branch_cache.set(cid, central);
         }
     }
 }
 
 function getNodesId(step: Node[]) {
     return step.map(i => i.items.setFilter(i => i.id).map(i => i.id).sort().join("-")).sort().setFilter().join("|");
+}
+
+function getClosureId(step: Node[]) {
+    return step.map(i => i.closure.setFilter(i => i.id).map(i => i.id).sort().join("-")).sort().setFilter().join("|");
 }
 
 function handleUnresolvedRoots(
@@ -1135,9 +1240,6 @@ function mergeOccludingGroups(
                         if (seen.get(groupB).has(node))
                             continue;
 
-                        if (seen.get(groupB).has(node))
-                            continue;
-
                         seen.get(groupB).add(node);
 
                         const clone = node.clone();
@@ -1201,8 +1303,6 @@ function createNodeClosure(
         }
         else
             nodes.push(createNode(opt, i.sym(GRAMMAR), [i], parent_node, [], root.root));
-
-
 
         return nodes;
     };
@@ -1356,6 +1456,11 @@ export class Node {
         this.root = root;
 
         this._prior = -1;
+    }
+
+    merge(node: Node) {
+        this.children = node.children;
+        this.type = node.type;
     }
 
     get priority(): number {
@@ -1529,7 +1634,9 @@ ${this.children.flatMap(c => c.debug.split("\n")).join("\n  ")}
             let node: Node | null = this;
 
             let INCREMENTED = false;
+
             while (node) {
+
 
                 if (node.hasState(state)) {
 
