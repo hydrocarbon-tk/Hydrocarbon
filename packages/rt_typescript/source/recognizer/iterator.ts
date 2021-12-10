@@ -613,21 +613,20 @@ export class StateIterator {
 
     private scan_to(index: number, instruction: number): number {
 
+        debugger;
+
         let length = instruction & 0xFFFF;
 
-        const gamma = this.bytecode[index];
+        const scanner_index = this.bytecode[index];
+
+        const temp_token = this.tokens[1].copy();
+        const prev_token = this.tokens[0];
+
+        temp_token.type = 0;
 
         index += 1;
 
         const scan_back = (instruction & 0x00100000) > 0;
-
-        let lexer = kernel_state.lexer;
-
-        let start_byte_offset = lexer.prev_byte_offset;
-
-        let start_token_offset = lexer.prev_token_offset;
-
-        lexer.byte_length = 1;
 
         let RUN = true;
 
@@ -635,32 +634,22 @@ export class StateIterator {
 
         let end = index + length;
 
-        let end_offset = lexer.input.length;
-
         index += length;
 
-        const temp_lexer = lexer.copy_in_place();
-
         if (scan_back) {
-            // scan "backwards" towards the previously accepted token.
-            // really we just set the scan start position to 
-            // lexer.previous_byte and end to the current position of 
-            // the lexer and rescan forward.
-            end_offset = temp_lexer.byte_offset;
-            temp_lexer.byte_offset = temp_lexer.prev_byte_offset;
-            temp_lexer.token_offset = temp_lexer.prev_token_offset;
-            temp_lexer.byte_length = 0;
-            temp_lexer.codepoint_length = 0;
-            temp_lexer.next();
+            temp_token.byte_offset = prev_token.byte_offset;
+            temp_token.codepoint_offset = prev_token.codepoint_offset;
+            temp_token.byte_length = 0;
+            temp_token.codepoint_length = 0;
         }
 
         while (RUN) {
 
-            this.scanner(kernel_state, temp_lexer, gamma);
+            const token = this.scanner(temp_token, scanner_index);
 
             for (let i = start; i < end; i++) {
 
-                if (temp_lexer.token_type == kernel_state.instructions[i]) {
+                if (token.type == this.bytecode[i]) {
                     RUN = false;
                     break;
                 }
@@ -668,18 +657,13 @@ export class StateIterator {
 
             if (!RUN) break;
 
-            if (temp_lexer.byte_offset >= end_offset)
+            if (this.reader.offset_at_end(token.byte_offset))
                 return 1;
 
-            temp_lexer.next();
-        }
-
-        if (!scan_back) {
-
-            //Reset peek stack;
-            kernel_state.lexer.peek_unroll_sync(temp_lexer);
-            kernel_state.lexer.prev_byte_offset = start_byte_offset;
-            kernel_state.lexer.prev_token_offset = start_token_offset;
+            temp_token.byte_offset += token.byte_length;
+            temp_token.codepoint_offset += token.codepoint_offset;
+            temp_token.byte_length = 0;
+            temp_token.codepoint_length = 0;
         }
 
         return index;
