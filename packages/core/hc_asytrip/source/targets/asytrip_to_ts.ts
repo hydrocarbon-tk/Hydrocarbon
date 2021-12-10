@@ -997,11 +997,11 @@ addExpressMap(ASYTRIPType.ADD, (v, c, inits) => {
 
     if (TypeIsString(type_l) && !TypeIsString(type_r)) {
 
-        return `${left} + ${right}.toString2()`;
+        return `${left} + (${right}).toString()`;
     } else if (TypeIsString(type_l) && TypeIsString(type_r)) {
         return `${left} + ${right}`;
     } else if (TypeIsString(type_r) && !TypeIsString(type_r)) {
-        return `${left}.toString2() + ${right}`;
+        return `(${left}).toString() + ${right}`;
     }
 
     return `${left} + ${right}`;
