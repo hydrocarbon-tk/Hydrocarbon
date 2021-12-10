@@ -12,7 +12,8 @@ export function complete<T>(
     entry_pointer: number,
     bytecode_buffer: Uint32Array,
     functions: any[],
-    source_path: string = ""
+    ReduceNames: string[],
+    source_path: string = "",
 ): {
     result: T,
     err: null;
