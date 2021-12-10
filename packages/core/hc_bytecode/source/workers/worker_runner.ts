@@ -146,6 +146,7 @@ export class WorkerRunner {
 
                         if (production_id > 0) {
 
+                            Logger.get("Bytecode").activate().rewrite_log(`Compiling ${this.grammar.productions[production_id - 1].name}`);
 
                             JOB.job_type = HybridJobType.CONSTRUCT_RD_FUNCTION;
                             //@ts-ignore

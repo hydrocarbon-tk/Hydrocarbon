@@ -133,5 +133,11 @@ export enum TransitionStateType {
 
     I_FAIL = 1 << 19,
 
-    I_TEST = 1 << 20
+    I_TEST = 1 << 20,
+
+    /**
+     * This state is set when the nodes item has a skipped symbol
+     * that occludes another item that consumes that symbol.
+     */
+    I_SKIPPED_COLLISION = 1 << 21,
 }

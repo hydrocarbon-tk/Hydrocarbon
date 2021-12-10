@@ -33,7 +33,7 @@ export interface TransitionGraphOptions<T = any> {
 
     scope: "GOTO" | "DESCENT";
 
-    ambig_ids: Set<string>;
+    branch_cache: Map<string, any>;
 
     root: T;
 }

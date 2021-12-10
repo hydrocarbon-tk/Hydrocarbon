@@ -8,6 +8,7 @@ import { build_logger, ir } from '../ir/compile_scanner_states.js';
 
 
 export function convertParseProductsIntoStatesMap(ir_states: string[], grammar: GrammarObject, states_map: StateMap) {
+
     for (const [string, ir_state_ast] of <([string, Resolved_IR_State])[]>[
         ...ir_states.map(
 
@@ -27,10 +28,12 @@ export function convertParseProductsIntoStatesMap(ir_states: string[], grammar: 
                 }
             }
         ),
-        ...(grammar.ir_states?.map(ir => [
-            ir.tok.slice(),
-            ir
-        ]) ?? [])
+        ...(grammar.ir_states?.map(ir => {
+            return [
+                ir.id,
+                ir
+            ];
+        }) ?? [])
     ])
         insertIrStateBlock(ir_state_ast, string, grammar, states_map);
 }
