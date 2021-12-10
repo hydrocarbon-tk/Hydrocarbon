@@ -142,8 +142,8 @@ function fork_action_handler(action: ParseAction[ParseActionType], iterator: Sta
         fork_iterator.stack.state_stack[0] = 0;
         fork_iterator.stack.push_state(goto_start);
         fork_iterator.stack.push_state(state);
-        fork_iterator.tokens[0].clone(iterator.tokens[0]);
-        fork_iterator.tokens[1].clone(iterator.tokens[1]);
+        fork_iterator.tokens[0].impersonate(iterator.tokens[0]);
+        fork_iterator.tokens[1].impersonate(iterator.tokens[1]);
 
         fork_iterator.reader.setTo(iterator.tokens[1].byte_offset);
 
@@ -196,8 +196,8 @@ function fork_action_handler(action: ParseAction[ParseActionType], iterator: Sta
 
             //iterator.production_id = fork_iterator.production_id;
 
-            iterator.tokens[0].clone(ideal_tokens[0]);
-            iterator.tokens[1].clone(ideal_tokens[1]);
+            iterator.tokens[0].impersonate(ideal_tokens[0]);
+            iterator.tokens[1].impersonate(ideal_tokens[1]);
 
             iterator.reader.setTo(ideal_reader.cursor);
 

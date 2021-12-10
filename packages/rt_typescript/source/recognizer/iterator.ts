@@ -322,7 +322,7 @@ export class StateIterator {
 
             token.type = 0;
 
-            this.tokens[0].clone(token);
+            this.tokens[0].impersonate(token);
         }
     }
 
@@ -976,7 +976,7 @@ export class StateIterator {
 
                                 scanner_iterator.stack.reset(token_row_state);
 
-                                scanner_iterator.tokens[0].clone(scanner_iterator.tokens[1]);
+                                scanner_iterator.tokens[0].impersonate(scanner_iterator.tokens[1]);
 
                                 return;
                             }

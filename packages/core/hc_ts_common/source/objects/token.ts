@@ -300,7 +300,7 @@ export class KernelToken {
         return tok;
     }
 
-    clone(token: KernelToken) {
+    impersonate(token: KernelToken) {
         this.type = token.type;
         this.byte_offset = token.byte_offset;
         this.byte_length = token.byte_length;
