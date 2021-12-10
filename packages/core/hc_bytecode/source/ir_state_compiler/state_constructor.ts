@@ -74,7 +74,7 @@ export function constructProductionStates(
                 resolved_items: [],
                 goto_items: [],
                 scope: "DESCENT",
-                ambig_ids: new Set,
+                branch_cache: new Set,
                 root: null
             };
 
@@ -90,7 +90,6 @@ export function constructProductionStates(
                 tt_options,
             );
 
-
             //Output code for recursive descent items.
             processTransitionTree(
                 descent_graph,
@@ -102,7 +101,6 @@ export function constructProductionStates(
         }
 
         {
-
             options.scope = "GOTO";
             tt_options.scope = "GOTO";
             tt_options.root = null;
@@ -230,6 +228,7 @@ function processTransitionTree(
     default_hash: string | undefined = undefined,
     depth = 0
 ) {
+
     if (depth == 0)
         processTransitionNode(state, grammar, options, parse_code_blocks, default_hash);
     else
@@ -306,6 +305,7 @@ function generateStateHashAction(
 
     const action = generateStateAction(state, grammar, options);
 
+
     const hash_basis_string = action;
 
     const hash = "h" + hashString(action)
@@ -313,15 +313,18 @@ function generateStateHashAction(
         .split("")
         .map((p) => (("hjklmnpqrst".split(""))[parseInt(p)] ?? p))
         .join("");
+    if (!hash_cache.has(hash_basis_string)) {
 
-    if (!hash_cache.has(hash_basis_string))
         hash_cache.set(hash_basis_string, {
             hash: hash,
             action: action,
             assertion: assertion_type
         });
+    }
 
-    return <HashAction>hash_cache.get(hash_basis_string);
+    state.hash_action = <HashAction>hash_cache.get(hash_basis_string);
+
+    return state.hash_action;
 }
 function generateStateAction(
     state: Node,
@@ -329,6 +332,8 @@ function generateStateAction(
     options: ConstructionOptions
 ): string {
     const branch_actions = [];
+
+    let HAVE_PEEK = false;
 
     let post_amble = state.depth == 1 ? ` then goto state [ ${options.production.name}_goto ]` : " ";
 
@@ -369,7 +374,7 @@ function generateStateAction(
             } else {
 
                 if (child.is(TST.O_PEEK)) {
-
+                    HAVE_PEEK = true;
                     const mode = getSymbolMode(<TokenSymbol>sym, options.IS_SCANNER);
 
                     if (Sym_Is_A_Token(sym))
@@ -378,9 +383,8 @@ function generateStateAction(
                     else
                         throw new Error(`Invalid peek state on non-token symbol ${convert_symbol_to_friendly_name(sym)}`);
 
-                } else if (child.is(TST.O_TERMINAL)) {
+                } else if (child.is(TST.O_TERMINAL) && !child.is(TST.O_GOTO)) {
 
-                    const mode = getSymbolMode(<TokenSymbol>sym, options.IS_SCANNER);
 
                     if (Sym_Is_Recovery(sym)) {
 
@@ -392,7 +396,10 @@ function generateStateAction(
 
                     } else if (Sym_Is_A_Token(sym)) {
 
+                        const mode = getSymbolMode(<TokenSymbol>sym, options.IS_SCANNER);
+
                         if (Sym_Is_DEFAULT(sym) && state.children.length == 1) {
+
                             action_string = `goto state [${hash}]${post_amble}`;
                         } else if (child.is(TST.I_CONSUME)) {
 
@@ -409,6 +416,11 @@ function generateStateAction(
                         } else {
                             action_string = `assert ${mode} [${getSymbolID(sym, options.IS_SCANNER)} /* ${create_symbol_comment(sym)} */ ] ( goto state [${hash}]${post_amble})`;
                         }
+                    } else {
+
+                        console.log("PARENT ====================> ", state.debug, "CHILD ====================> ", child.debug);
+
+                        throw new Error("Invalid terminal state!");
                     }
 
                 } else if (child.is(TST.O_GOTO)) {
@@ -422,7 +434,16 @@ function generateStateAction(
 
                     action_string = `goto state [${(<any>sym).name}] then goto state [${hash}]${post_amble}`;
                 } else {
-                    action_string = `goto state [${hash}]${post_amble}`;
+
+                    if (state.children.length == 1)
+                        action_string = `goto state [${hash}]${post_amble}`;
+                    else {
+                        if (Sym_Is_A_Token(sym)) {
+
+                            const mode = getSymbolMode(<TokenSymbol>sym, options.IS_SCANNER);
+                            action_string = `${HAVE_PEEK ? "peek" : "assert"} ${mode} [${getSymbolID(sym, options.IS_SCANNER)} /* ${create_symbol_comment(sym)} */ ] ( goto state [${hash}]${post_amble})`;
+                        } else throw "ETF";
+                    }
                 }
             }
 
@@ -438,7 +459,7 @@ function createEndAction(state: Node, grammar: GrammarObject, options: Construct
 
     if (!item.atEND) {
 
-        throw new Error(`Item [${item.rup(grammar)}] should not be at end position in this branch`);
+        throw new Error(`Item [${item.rup(grammar)}] should not be at end position in this branch \n state: ${state.debug}`);
 
     } else {
 
