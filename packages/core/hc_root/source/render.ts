@@ -145,10 +145,13 @@ export const TokenLookup = new Map(
         ].map((
             [id, sym]
         ) => {
-            return `[${id}, "${convert_symbol_to_friendly_name(sym).replace(/\"/g, "\\\"")}"]`;
+            return `[${id}, "${convert_symbol_to_friendly_name(sym).replace(/\\/g, "\\\\").replace(/\"/g, "\\\"")}"]`;
         }).join(",\n")}
     ]
 );
+
+export const ProductionNames = [${grammar.productions.map((b, i) => `"${b.name ?? "unknown"}"`).join(",\n")}]
+export const ReduceNames = [${grammar.bodies.map((b, i) => `"${b.production?.name ?? "unknown"}[${i}]"`).join(",\n")}]
 
 export const ExpectedTokenLookup = new Map(
     [${lookups.join(",\n")}]
@@ -170,4 +173,4 @@ export const Bytecode = new Uint32Array([
     ${formatArray(bytecode, array_row_size)}
 ])`;
 
-}
+};
