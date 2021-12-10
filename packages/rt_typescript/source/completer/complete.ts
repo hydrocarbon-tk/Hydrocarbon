@@ -45,6 +45,7 @@ export function complete<T>(
 
             case ParseActionType.REDUCE: {
 
+
                 const { body, length, production } = action,
 
                     pos_a = tokens[tokens.length - length] || default_token,
@@ -57,7 +58,12 @@ export function complete<T>(
 
                 tokens[stack.length - length] = token;
 
-                functions[body](stack, token);
+                try {
+                    functions[body](stack, token);
+                } catch (e) {
+                    console.log(token.toString());
+                    token.throw(`Unable to reduce production ${ReduceNames[body]} `);
+                }
 
                 tokens.length = tokens.length - length + 1;
 
@@ -92,7 +98,7 @@ export function complete<T>(
 
 
     if (err) return { result: null, err: err };
-    
+
     return { result: stack[0], err: null };
 }
 
