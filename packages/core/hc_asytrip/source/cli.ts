@@ -107,7 +107,7 @@ addCLIConfig<URI | "stdin">("compile", {
 
                 case "rust":
                     file_path = URI.resolveRelative(
-                        `./${file_name}-ast.rust`, output_file) + "";
+                        `./${file_name}-ast.rs`, output_file) + "";
 
                     output_data = createRustTypes(grammar, asytrip_context);
                     break;
@@ -140,4 +140,4 @@ addCLIConfig<URI | "stdin">("compile", {
 
 });
 
-processCLIConfig();
+processCLIConfig("hc-ast compile");

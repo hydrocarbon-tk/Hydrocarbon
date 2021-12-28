@@ -5,6 +5,7 @@
  */
 import {
     ASYTRIPContext,
+    ASYTRIPStruct,
     ASYTRIPType,
     ASYTRIPTypeObj,
     GrammarObject,
@@ -20,7 +21,7 @@ import {
     TypeIsStruct,
     TypeIsToken,
     TypeIsVector,
-    TypesAre, TypesRequiresDynamic
+    TypesAre, TypesInclude, TypesRequiresDynamic
 } from '../context/common.js';
 import { generateResolvedProps } from '../context/generate_resolved_props.js';
 import { Inits } from './Inits.js';
@@ -150,16 +151,14 @@ export function createRustTypes(grammar: GrammarObject, context: ASYTRIPContext)
 
     const structs = [...context.structs];
 
-    const resolved_struct_types: Map<string, Map<string, ResolvedProp>> = new Map();
-
     const strings = [
         //Header ------------------------------------------------------------------------
         `
 use std::cell::UnsafeCell;
 
-use candlelib_hydrocarbon::ast::{HCObj, HCObjTrait, ReduceFunction};
+use hctk::ast::{HCObj, HCObjTrait, ReduceFunction};
 
-use candlelib_hydrocarbon::Token;
+use hctk::Token;
 
 type RF = ReduceFunction<ASTNode>;
 
@@ -277,7 +276,7 @@ where
     for (const [struct_name, struct] of context.structs) {
         const prop_vals = generateResolvedProps(struct,
             context,
-            resolved_struct_types,
+            context.resolved_struct_types,
             getTypeString,
             GenerateTypeString
         );
@@ -794,9 +793,11 @@ addExpressMap(ASYTRIPType.STRUCT, (v, c, inits) => {
 
         const args = v.args;
 
-        const struct = c.structs.get(name);
+        //ASTNode Struct Initialization ----------------------------------------------
+        const struct = <ASYTRIPStruct>c.structs.get(name);
 
-        const resolved_props = c.resolved_struct_types.get(name);
+        const resolved_props = <Map<string, ResolvedProp>>c.resolved_struct_types.get(name);
+
         //Create an initializer function for this object
         const data = [...struct.properties]
             .map(([name]) => {
@@ -1185,30 +1186,66 @@ addExpressMap(ASYTRIPType.BOOL, (v, c, inits) => (v.val + "") || "false");
 
 const A = ASYTRIPType;
 
+
 const conversion_table =
 {
     [A.F64]:
-        (t, v) => ({ [A.F64]: /*       */ v, [A.F32]: `${v} as f64`, [A.I64]: `${v} as f64`, [A.I32]: `${v} as f64`, [A.I16]: `${v} as f64`, [A.I8]: `${v} as f64`, [A.BOOL]: `${v} as f64`, [A.NULL]: "0.0", [A.TOKEN]: `${v}.to_f64()`, [A.STRUCT]: `${v}.to_f64()`, [A.VECTOR]: `${v}.to_f64()` })[t],
-    [A.F32]:
-        (t, v) => ({ [A.F64]: `${v} as f32`, [A.F32]: /*       */ v, [A.I64]: `${v} as f32`, [A.I32]: `${v} as f32`, [A.I16]: `${v} as f32`, [A.I8]: `${v} as f32`, [A.BOOL]: `${v} as f32`, [A.NULL]: "0.0", [A.TOKEN]: `${v}.to_f32()`, [A.STRUCT]: `${v}.to_f32()`, [A.VECTOR]: `${v}.to_f32()` })[t],
-    [A.I64]:
-        (t, v) => ({ [A.F64]: `${v} as i64`, [A.F32]: `${v} as i64`, [A.I64]: /*       */ v, [A.I32]: `${v} as i64`, [A.I16]: `${v} as i64`, [A.I8]: `${v} as i64`, [A.BOOL]: `${v} as i64`, [A.NULL]: " 0 ", [A.TOKEN]: `${v}.to_i64()`, [A.STRUCT]: `${v}.to_i64()`, [A.VECTOR]: `${v}.to_i64()` })[t],
-    [A.I32]:
-        (t, v) => ({ [A.F64]: `${v} as i32`, [A.F32]: `${v} as i32`, [A.I64]: `${v} as i32`, [A.I32]: /*       */ v, [A.I16]: `${v} as i32`, [A.I8]: `${v} as i32`, [A.BOOL]: `${v} as i32`, [A.NULL]: " 0 ", [A.TOKEN]: `${v}.to_i32()`, [A.STRUCT]: `${v}.to_i32()`, [A.VECTOR]: `${v}.to_i32()` })[t],
-    [A.I16]:
-        (t, v) => ({ [A.F64]: `${v} as i16`, [A.F32]: `${v} as i16`, [A.I64]: `${v} as i16`, [A.I32]: `${v} as i16`, [A.I16]: /*       */ v, [A.I8]: `${v} as i16`, [A.BOOL]: `${v} as i16`, [A.NULL]: " 0 ", [A.TOKEN]: `${v}.to_i16()`, [A.STRUCT]: `${v}.to_i16()`, [A.VECTOR]: `${v}.to_i16()` })[t],
-    [A.I8]:
-        (t, v) => ({ [A.F64]: `${v} as i8 `, [A.F32]: `${v} as i8 `, [A.I64]: `${v} as i8 `, [A.I32]: `${v} as i8 `, [A.I16]: `${v} as i8 `, [A.I8]: /*       */ v, [A.BOOL]: `${v} as i8 `, [A.NULL]: " 0 ", [A.TOKEN]: `${v}.to_i8() `, [A.STRUCT]: `${v}.to_i8() `, [A.VECTOR]: `${v}.to_i8() `, })[t],
-    [A.BOOL]:
-        (t, v) => ({ [A.F64]: `${v} as bool`, [A.F32]: `${v} as bool`, [A.I64]: `${v} as bool`, [A.I32]: `${v} as bool`, [A.I16]: `${v} as bool`, [A.I8]: `${v} as bool`, [A.BOOL]: /**/ v, [A.NULL]: "false", [A.TOKEN]: `${v}.to_bool()`, [A.STRUCT]: `${v}.to_bool()`, [A.VECTOR]: `${v}.to_bool()` })[t],
-    [A.NULL]:
-        (t, v) => ({ [A.F64]: "null", [A.F32]: "null", [A.I64]: "null", [A.I32]: "null", [A.I16]: "null", [A.I8]: "null", [A.BOOL]: "null", [A.NULL]: /*       */ v, [A.TOKEN]: `null`, [A.STRUCT]: "null", [A.VECTOR]: "null" })[t],
-    [A.STRING]:
-        (t, v) => ({
-            [A.F64]: `${v}.String()`, [A.F32]: `${v}.String()`, [A.I64]: `${v}.String()`, [A.I32]: `${v}.String()`, [A.I16]: `${v}.String()`, [A.I8]: `${v}.String()`,
-            [A.BOOL]: `${v}.String()`, [A.NULL]: /*       */ "String::from(\"\")", [A.TOKEN]: `${v}.String()`, [A.STRUCT]: `${v}.String()`, [A.VECTOR]: `${v}.String()`
+        (t: number, v: string): string => "" + ({
+            [A.F64]: v, [A.F32]: `${v} as f64`, [A.I64]: `${v} as f64`, [A.I32]: `${v} as f64`, [A.I16]: `${v} as f64`, [A.I8]: `${v} as f64`, [A.BOOL]: `${v} as f64`, [A.NULL]: "0.0",
+            [A.TOKEN]: `${v}.to_f64()`, [A.STRING]: `${v}`, [A.STRUCT]: `${v}.to_f64()`, [A.VECTOR]: `${v}.to_f64()`
         })[t],
+    [A.F32]:
+        (t: number, v: string): string => "" + ({
+            [A.F64]: `${v} as f32`, [A.F32]: v, [A.I64]: `${v} as f32`, [A.I32]: `${v} as f32`, [A.I16]: `${v} as f32`, [A.I8]: `${v} as f32`, [A.BOOL]: `${v} as f32`, [A.NULL]: "0.0",
+            [A.TOKEN]: `${v}.to_f32()`, [A.STRING]: `${v}`, [A.STRUCT]: `${v}.to_f32()`, [A.VECTOR]: `${v}.to_f32()`
+        })[t],
+    [A.I64]:
+        (t: number, v: string): string => "" + ({
+            [A.F64]: `${v} as i64`, [A.F32]: `${v} as i64`, [A.I64]: v, [A.I32]: `${v} as i64`, [A.I16]: `${v} as i64`, [A.I8]: `${v} as i64`, [A.BOOL]: `${v} as i64`, [A.NULL]: "0i64",
+            [A.TOKEN]: `${v}.to_i64()`, [A.STRING]: `${v}`, [A.STRUCT]: `${v}.to_i64()`, [A.VECTOR]: `${v}.to_i64()`
+        })[t],
+    [A.I32]:
+        (t: number, v: string): string => "" + ({
+            [A.F64]: `${v} as i32`, [A.F32]: `${v} as i32`, [A.I64]: `${v} as i32`, [A.I32]: v, [A.I16]: `${v} as i32`, [A.I8]: `${v} as i32`, [A.BOOL]: `${v} as i32`, [A.NULL]: "0i32",
+            [A.TOKEN]: `${v}.to_i32()`, [A.STRING]: `${v}`, [A.STRUCT]: `${v}.to_i32()`, [A.VECTOR]: `${v}.to_i32()`
+        })[t],
+    [A.I16]:
+        (t: number, v: string): string => "" + ({
+            [A.F64]: `${v} as i16`, [A.F32]: `${v} as i16`, [A.I64]: `${v} as i16`, [A.I32]: `${v} as i16`, [A.I16]: v, [A.I8]: `${v} as i16`, [A.BOOL]: `${v} as i16`, [A.NULL]: "0i16",
+            [A.TOKEN]: `${v}.to_i16()`, [A.STRING]: `${v}`, [A.STRUCT]: `${v}.to_i16()`, [A.VECTOR]: `${v}.to_i16()`
+        })[t],
+    [A.I8]:
+        (t: number, v: string): string => "" + ({
+            [A.F64]: `${v} as i8`, [A.F32]: `${v} as i8`, [A.I64]: `${v} as i8`, [A.I32]: `${v} as i8`, [A.I16]: `${v} as i8`, [A.I8]: v, [A.BOOL]: `${v} as i8`, [A.NULL]: "0i8",
+            [A.TOKEN]: `${v}.to_i8()`, [A.STRING]: `${v}`, [A.STRUCT]: `${v}.to_i8()`, [A.VECTOR]: `${v}.to_i8()`
+        })[t],
+    [A.BOOL]:
+        (t: number, v: string): string => "" + ({
+            [A.F64]: `${v} as bool`, [A.F32]: `${v} as bool`, [A.I64]: `${v} as bool`, [A.I32]: `${v} as bool`, [A.I16]: `${v} as bool`, [A.I8]: `${v} as bool`, [A.BOOL]: v, [A.NULL]: "false",
+            [A.TOKEN]: `${v}.to_bool()`, [A.STRING]: `${v}`, [A.STRUCT]: `${v}.to_bool()`, [A.VECTOR]: `${v}.to_bool()`
+        })[t],
+    [A.NULL]:
+        (t: number, v: string): string => "" + ({
+            [A.F64]: "null", [A.F32]: "null", [A.I64]: "null", [A.I32]: "null", [A.I16]: "null", [A.I8]: "null", [A.BOOL]: "null", [A.NULL]: /*       */ v, [A.TOKEN]: `null`,
+            [A.STRUCT]: "null", [A.STRING]: "null", [A.VECTOR]: "null"
+        })[t],
+    [A.STRING]:
+        (t: number, v: string): string => "" + ({
+            [A.F64]: `${v}.String()`, [A.F32]: `${v}.String()`, [A.I64]: `${v}.String()`, [A.I32]: `${v}.String()`, [A.I16]: `${v}.String()`, [A.I8]: `${v}.String()`,
+            [A.BOOL]: `${v}.String()`, [A.NULL]: /*       */ "\"\"", [A.TOKEN]: `${v}.String()`, [A.STRING]: `${v}`, [A.STRUCT]: `${v}.String()`, [A.VECTOR]: `${v}.String()`
+        })[t],
+    [A.TOKEN]:
+        (t: number, v: string): string => "" + ({
+            [A.F64]: `null`, [A.F32]: `null`, [A.I64]: `null`, [A.I32]: `null`, [A.I16]: `null`, [A.I8]: `null`,
+            [A.BOOL]: `null`, [A.NULL]: /*       */ "null", [A.TOKEN]: v, [A.STRING]: `${v}`, [A.STRUCT]: `null`, [A.VECTOR]: `null`
+        })[t],
+    //[A.VECTOR]:
+    //    (t: number, v: string): string => "" + ({
+    //        [A.F64]: `null`, [A.F32]: `null`, [A.I64]: `null`, [A.I32]: `null`, [A.I16]: `null`, [A.I8]: `null`,
+    //        [A.BOOL]: `null`, [A.NULL]: /*       */ "null", [A.TOKEN]: v, [A.STRING]: `${v}`, [A.STRUCT]: `null`, [A.VECTOR]: `...(${v})`, [A.PRODUCTION]: `...(${v})`
+    //    })[t],
 };
+
 
 addExpressMap(ASYTRIPType.CONVERT_TYPE, (v, c, inits) => {
     const val = getExpressionString(v.value, c, inits);

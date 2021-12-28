@@ -24,12 +24,14 @@ import {
 } from '@hctoolkit/common';
 import { render_grammar } from '@hctoolkit/grammar';
 import {
+    CondenseTypes,
     getPropertyFromExpression,
     getResolvedType,
     JSONFilter,
     TypeIsNotNull,
     TypeIsNull,
     TypeIsNumber,
+    TypeIsProd,
     TypeIsString,
     TypeIsStruct,
     TypeIsVector,
@@ -110,9 +112,9 @@ export function createASYTripContext(
 
                 const fn = <ProductionFunction>body.reduce_function;
 
-                if (!(fn?.txt)) {
+                if (!(fn?.txt))
                     body.reduce_function = undefined;
-                }
+
 
                 const expr = fn?.txt ? exp(`${fn.txt.replace(/(\${1,2}\d+)/g, "$1")}`) : null;
 
@@ -191,7 +193,7 @@ export function createASYTripContext(
         }
 
         for (const [, types] of return_types) {
-            const temp = types.slice().setFilter(JSONFilter);
+            const temp = CondenseTypes(types.slice());
             types.length = 0;
             types.push(...temp);
         }
@@ -225,14 +227,26 @@ export function createASYTripContext(
 
             let intermediate_types = [];
 
-            for (const type of types) {
+            for (const type of types)
                 intermediate_types.push(...getResolvedType(type, context));
-            }
 
             const resolved_types
-                = mergeVectorTypes(intermediate_types.setFilter(JSONFilter));
+                = mergeVectorTypes(CondenseTypes(intermediate_types));
 
-            context.resolved_return_types.set(id, resolved_types.setFilter(JSONFilter));
+            for (const r of resolved_types.filter(TypeIsVector)) {
+                if (r.types.some(TypeIsVector)) {
+
+                    console.dir(resolved_types, { depth: 8 });
+
+
+                    console.dir(types, { depth: 8 });
+                    console.dir(types.map(t => getResolvedType(t, context)), { depth: 8 });
+
+                    throw new Error("Invalid nested vectors 0");
+                }
+            }
+
+            context.resolved_return_types.set(id, CondenseTypes(resolved_types));
         }
 
         // For each struct compile the properties into 
@@ -254,9 +268,9 @@ export function createASYTripContext(
 
             for (const [name, prop] of struct.properties) {
 
-                const types = (prop.initializers.flatMap(v => {
+                const types = (CondenseTypes(prop.initializers.flatMap(v => {
                     return v;
-                })).setFilter(JSONFilter);
+                })));
 
                 let intermediate_types = [];
 
@@ -265,7 +279,7 @@ export function createASYTripContext(
                 }
 
                 const resolved_types
-                    = mergeVectorTypes(intermediate_types.setFilter(JSONFilter));
+                    = mergeVectorTypes(CondenseTypes(intermediate_types));
 
                 //Resolves production types
                 //@ts-ignore
@@ -296,17 +310,18 @@ export function createASYTripContext(
                         `
 Invalid property <${name}> of struct <${struct_name}>
 
-Properties of type struct must not be assigned to 
-any other value type.`];
+Properties of type struct must not be assigned to any other value type.`];
 
                     for (const nvt of non_struct_types) {
                         let body = grammar.bodies[0];
+
                         if (nvt.body)
                             body = grammar.bodies[nvt.body[0]];
+                        let tok_ = body?.tok ?? body?.pos;
 
-                        if (body && body.tok && body.production !== undefined) {
+                        if (body && tok_ && body.production !== undefined) {
 
-                            const tok = Token.from(body.tok);
+                            const tok = Token.from(tok_);
 
                             message.push(tok.createError(
                                 `\nProduction ${body.production.name}[${body.production.bodies.indexOf(body)}]:`
@@ -319,6 +334,9 @@ produces non-struct types [ ${[nvt].map(t => {
                                     else return ASYTRIPType[t.type];
                                 }).join(" | ")} ]`
                             );
+                        } else {
+                            console.log(nvt, body?.pos);
+                            message.push(`\nType ${ASYTRIPType[nvt.type]} is generated`);
                         }
                     }
 
@@ -326,18 +344,21 @@ produces non-struct types [ ${[nvt].map(t => {
 
                 } else if (TypesInclude(resolved_types, TypeIsVector)) {
 
-                    const vector_types = real_types.filter(TypeIsVector);
+
+                    const vector_types = resolved_types.filter(TypeIsVector);
 
                     //Remove null types from consideration
                     const vector_types_types = vector_types.flatMap(v => v.types).filter(TypeIsNotNull);
-                    const non_vector_types = real_types.filter(v => !TypeIsVector(v));
+                    const non_vector_types = resolved_types.filter(v => !TypeIsVector(v));
 
                     if (non_vector_types.length > 0) {
                         debugger;
+                        // throw "WTE";
                     } else if (TypesInclude(vector_types_types, TypeIsStruct)) {
 
                         if (!TypesAre(vector_types_types, TypeIsStruct)) {
                             const non_vector_types = vector_types_types.filter(v => !TypeIsStruct(v));
+
                             const message = [
                                 `
 Invalid vector property <${name}> of struct <${struct_name}>
@@ -349,15 +370,16 @@ types that are not structs. This is not the case with ${struct_name}.${name}:`];
                                 if (nvt.body)
                                     body = grammar.bodies[nvt.body[0]];
 
-                                if (body && body.tok && body.production !== undefined) {
+                                let tok = body.tok ?? body.pos;
 
-                                    const tok = Token.from(body.tok);
+                                if (body && tok && body.production !== undefined) {
+
+                                    tok = Token.from(tok);
 
                                     message.push(tok.createError(
                                         `\nProduction ${body.production.name}[${body.production.bodies.indexOf(body)}]:`
                                     ).message,
-                                        `
-produces non-struct types [ ${[nvt].map(t => {
+                                        `produces non-struct types [ ${[nvt].map(t => {
                                             if (TypeIsVector(t)) {
                                                 return `${ASYTRIPType[t.type]}<${t.types.map(t => ASYTRIPType[t.type]).setFilter(JSONFilter).join(" | ")}>`;
                                             }
@@ -409,20 +431,26 @@ function mergeVectorTypes(r_types: any[]) {
 
     if (vectors.length > 0) {
 
-        const vector = vectors.reduce((r, t) => {
-            r.types.push(...t.types);
-            return r;
-        }, <ASYTRIPTypeObj[ASYTRIPType.VECTOR]>{
+        const vector = <ASYTRIPTypeObj[ASYTRIPType.VECTOR]>{
             type: ASYTRIPType.VECTOR,
             args: [],
             types: [],
             arg_pos: undefined,
             body: []
-        });
+        };
 
-        vector.types = vector.types.filter(TypeIsNotNull).setFilter(JSONFilter);
+        for (const v of vectors) {
+            for (const type of v.types) {
+                if (type.type == ASYTRIPType.PRODUCTION)
+                    throw new Error("Have production at resolved point");
+                if (TypeIsVector(type))
+                    vectors.push(type);
+                else
+                    vector.types.push(type);
+            }
+        }
 
-
+        vector.types = CondenseTypes(vector.types.filter(TypeIsNotNull));
 
         rest.push(vector);
     }

@@ -10,7 +10,8 @@ import {
     ASYTRIPTypeObj,
     GrammarObject,
     ResolvedProp,
-    ASYType
+    ASYType,
+    Item
 } from '@hctoolkit/common';
 
 import {
@@ -351,8 +352,8 @@ export class ${name} extends ASTNode<ASTType> {
     serialize(writer:ByteWriter){
 
         writer.write_byte(${struct.type >> (context.type_offset)});
-        ${prop_vals.map(({ name: n, type: v, types, REQUIRES_DYNAMIC, HAS_NULL, HAVE_STRUCT, HAVE_STRUCT_VECTORS }) => {
-
+        ${prop_vals.map(({ name, type: v, types, REQUIRES_DYNAMIC, HAS_NULL, HAVE_STRUCT, HAVE_STRUCT_VECTORS }) => {
+                const n = `_${name}`;
                 if (HAVE_STRUCT) {
                     if (HAS_NULL)
                         return `
@@ -410,7 +411,8 @@ export class ${name} extends ASTNode<ASTType> {
 
         reader.assert_byte(${struct.type >> (context.type_offset)});
 
-        ${prop_vals.map(({ name: n, type: v, types, REQUIRES_DYNAMIC, HAS_NULL, HAVE_STRUCT, HAVE_STRUCT_VECTORS }) => {
+        ${prop_vals.map(({ name, type: v, types, REQUIRES_DYNAMIC, HAS_NULL, HAVE_STRUCT, HAVE_STRUCT_VECTORS }) => {
+            const n = `_${name}`;
 
             if (HAVE_STRUCT && TypesAre(types, TypeIsStruct)) {
                 if (types.length > 1) {
@@ -505,7 +507,6 @@ function buildParseFunctions(context: ASYTRIPContext, grammar: GrammarObject, st
         if (args.length == 0 && !name) {
             if (length == 1)
                 str = "{}";
-
             else
                 str = `{  ${init_string}\n args.push(v${length - 1}); }`;
         } else {
@@ -513,6 +514,7 @@ function buildParseFunctions(context: ASYTRIPContext, grammar: GrammarObject, st
             const expression = args[0];
             const [type] = expression.initializers;
             const resolved_type = getResolvedType(type, context)[0];
+
             let data = getExpressionString(type, context, inits);
             switch (resolved_type.type) {
                 case ASYTRIPType.F64:
@@ -732,11 +734,7 @@ addExpressMap(ASYTRIPType.STRUCT_CLASSIFICATION, (v, c, inits) => {
 // STRING --------------------------------------------------
 
 addTypeMap(ASYTRIPType.STRING, (v, c) => {
-    if (v.val) {
-        return `"${v.val}"`;
-    } else {
-        return "string";
-    }
+    return "string";
 });
 
 addExpressMap(ASYTRIPType.STRING, (v, c, inits) => {
@@ -835,8 +833,9 @@ addTypeMap(ASYTRIPType.VECTOR, (v, c) => {
 addExpressMap(ASYTRIPType.VECTOR, (v, c, inits) => {
     const types = v.types.flatMap(v => getResolvedType(v, c));
 
-    if (TARGET)
-        console.log({ vector: types, a: v.args });
+
+    if (v.types.some(t => t.type == ASYTRIPType.VECTOR))
+        throw new Error("Have production at resolved point 2");
 
     if (!isNaN(v.arg_pos ?? NaN))
         return `v${v.arg_pos}`;
@@ -853,18 +852,27 @@ addExpressMap(ASYTRIPType.VECTOR, (v, c, inits) => {
 
         return ref;
     } else if (types.length == 1) {
+
+
         const [type] = types;
 
-        const vals = v.args.filter(TypeIsNotNull).map(v => {
-            return getExpressionString(<ASYTRIPTypeObj[ASYTRIPType.CONVERT_TYPE]>{
-                type: ASYTRIPType.CONVERT_TYPE,
-                body: [],
-                conversion_type: type,
-                value: v
-            }, c, inits);
-        }).filter(t => t != 'null');
+        if (TypeIsVector(type)) {
+            const vals = v.args.filter(TypeIsNotNull).map(v => getExpressionString(v, c, inits));
+            return inits.push(`[${vals.map(v => `...${v}`).join(", ")}]`, getTypeString(v, c));
+        } else {
 
-        return inits.push(`[${vals.join(", ")}]`, getTypeString(v, c));
+
+            const vals = v.args.filter(TypeIsNotNull).map(v => {
+                return getExpressionString(<ASYTRIPTypeObj[ASYTRIPType.CONVERT_TYPE]>{
+                    type: ASYTRIPType.CONVERT_TYPE,
+                    body: [],
+                    conversion_type: type,
+                    value: v
+                }, c, inits);
+            }).filter(t => t != 'null');
+
+            return inits.push(`[${vals.join(", ")}]`, getTypeString(v, c));
+        }
     } else {
 
 
@@ -879,9 +887,6 @@ addExpressMap(ASYTRIPType.VECTOR, (v, c, inits) => {
 
             inits.push(`${ref}.push(${val});`, false);
         }
-
-        if (TARGET)
-            console.log(ref);
 
         return ref;
     }
@@ -1143,16 +1148,23 @@ const conversion_table =
             [A.F64]: `null`, [A.F32]: `null`, [A.I64]: `null`, [A.I32]: `null`, [A.I16]: `null`, [A.I8]: `null`,
             [A.BOOL]: `null`, [A.NULL]: /*       */ "null", [A.TOKEN]: v, [A.STRING]: `${v}`, [A.STRUCT]: `null`, [A.VECTOR]: `null`
         })[t],
+    //[A.VECTOR]:
+    //    (t: number, v: string): string => "" + ({
+    //        [A.F64]: `null`, [A.F32]: `null`, [A.I64]: `null`, [A.I32]: `null`, [A.I16]: `null`, [A.I8]: `null`,
+    //        [A.BOOL]: `null`, [A.NULL]: /*       */ "null", [A.TOKEN]: v, [A.STRING]: `${v}`, [A.STRUCT]: `null`, [A.VECTOR]: `...(${v})`, [A.PRODUCTION]: `...(${v})`
+    //    })[t],
 };
 
 addExpressMap(ASYTRIPType.CONVERT_TYPE, (v, c, inits) => {
     const val = getExpressionString(v.value, c, inits);
     const type = getResolvedType(v.value, c)[0];
+
+
     try {
 
         return conversion_table[v.conversion_type.type](type.type, val);
     } catch (e) {
-        console.log(v);
+
         throw new Error(`Cannot convert type ${ASYTRIPType[v.value.type]} to type ${ASYTRIPType[v.conversion_type.type]}`);
     }
 });

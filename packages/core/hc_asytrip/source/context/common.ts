@@ -71,7 +71,7 @@ export function parseAsytripStruct(
             if (name == "type") {
                 // Special handler that expects values of the form:
                 // type_****** | class_*******
-                type_name = extractTypeInfo(val, tok, context, classes, type_name);
+                type_name = extractTypeInfo(val, tok, context, classes, type_name, expr);
 
                 continue;
             } else {
@@ -133,16 +133,15 @@ export function parseAsytripStruct(
  * All vector types are merged into one vector type object.
  */
 function mergeNewTypesIntoProp(prop: ASYTRIPProperty, new_types: ASYType[]) {
-    const types = [...prop.initializers, ...new_types]
-        .setFilter(JSONFilter);
+    const types = CondenseTypes([...prop.initializers, ...new_types]);
 
     const vectors = types.filter(TypeIsVector);
     const rest = types.filter(t => !TypeIsVector(t));
 
-    const vector_types = [
+    const vector_types = CondenseTypes([
         ...vectors.flatMap(v => v.types),
         ...vectors.flatMap(v => v.args)
-    ].setFilter(JSONFilter);
+    ]);
     vectors.forEach(v => v.types = vector_types);
 
     prop.initializers = [...rest, ...vectors];
@@ -476,6 +475,8 @@ function parseExpression(
             Expected one of "i8" | "i16" | "i32" | "i64" | "f32" | "f64" | "bool" | "str"
 
             Did not expect ${ident}
+
+            ${node.pos.blameDiagram()}
             `);
         } else if (id.type == JSNodeType.MemberExpression) {
 
@@ -505,7 +506,7 @@ ASYTRIP_Invalid_Call_Expression
 Expected one of 
 `);
     }
-
+    console.error(renderCompressed(node));
     throwAsytripTokenError(tok, node, "ASYTRIP_Invalid_Expression");
 
     return <any>undefined;
@@ -554,7 +555,7 @@ export function addTypesToVector(
     types: ASYType[]
 ) {
     if (TypeIsVector(node)) {
-        node.types = [...node.types, ...types].setFilter(JSONFilter).filter(TypeIsNotNull);
+        node.types = CondenseTypes([...node.types, ...types]).filter(TypeIsNotNull);
     } else if (TypeIsVectorPush(node)) {
         addTypesToVector(node.vector, context, types);
         for (const arg of node.args)
@@ -680,7 +681,7 @@ export function getResolvedType(
                     }
                 }
 
-                return results.setFilter(JSONFilter);
+                return CondenseTypes(results);
             }
             case ASYTRIPType.STRUCT:
                 return [{ type: ASYTRIPType.STRUCT, name: node.name, arg_pos: undefined, args: undefined, body: node.body }];
@@ -695,11 +696,21 @@ export function getResolvedType(
             }
             case ASYTRIPType.CONVERT_STRING:
                 return [{ type: ASYTRIPType.STRING, val: "", body: node.body }];
+
             case ASYTRIPType.VECTOR: {
-                const types = [...node.types, ...node.args]
+                const types = CondenseTypes([...node.types, ...node.args]
                     .flatMap(a => getResolvedType(a, context, _structs, productions))
-                    .setFilter(JSONFilter)
+                    .flatMap(t => {
+                        if (TypeIsVector(t))
+                            return t.types;
+                        return t;
+                    }))
                     .filter(TypeIsNotNull);
+
+                if (types.some(TypeIsVector)) {
+                    console.dir({ node, types }, { depth: 8 });
+                    throw new Error("Invalid nested vectors");
+                }
 
                 return [{ type: ASYTRIPType.VECTOR, args: [], types, arg_pos: node.arg_pos, body: node.body }];
             }
@@ -727,11 +738,9 @@ export function getResolvedType(
 
                 vector_types.push(...args);
 
-                const results = vector_types
+                const results = CondenseTypes(vector_types
                     .flatMap(v => getResolvedType(v, context, _structs, productions))
-                    .flatMap(v => TypeIsVector(v) ? v.types : v)
-
-                    .setFilter(JSONFilter)
+                    .flatMap(v => TypeIsVector(v) ? v.types : v))
 
                     .filter(TypeIsNotNull);
 
@@ -748,9 +757,9 @@ export function getResolvedType(
 
                     let non_recursive = [];
 
-                    context.resolved_return_types.set(val, null);
+                    context.resolved_return_types.set(val, []);
 
-                    for (const v of context.return_types.get(val)) {
+                    for (const v of context.return_types.get(val) ?? []) {
                         try {
                             const types = getResolvedType(v, context, undefined, productions);
                             non_recursive.push(...types);
@@ -763,23 +772,28 @@ export function getResolvedType(
                         }
                     }
 
-                    context.resolved_return_types.set(val, non_recursive.setFilter(JSONFilter));
+                    context.resolved_return_types.set(val, CondenseTypes(non_recursive));
 
                     for (const v of recursive) {
                         const types = getResolvedType(v, context, undefined, productions);
                         non_recursive.push(...types);
                     }
 
-                    context.resolved_return_types.set(val, non_recursive.setFilter(JSONFilter));
-                } else if (context.resolved_return_types.get(val) == null) {
+                    context.resolved_return_types.set(val, CondenseTypes(non_recursive));
+                } else if (context.resolved_return_types.get(val)?.length == 0) {
                     throw "Unresolved recursion";
                 }
                 productions.push(node);
+
+                if (context.resolved_return_types.get(val)?.some(t => t.type == ASYTRIPType.PRODUCTION))
+                    throw "Unresolved recursion";
+
                 return context.resolved_return_types.get(val);
 
             case ASYTRIPType.ADD:
                 const { left, right } = node;
 
+                const body = (left?.body ?? []).concat(right.body, node.body).setFilter();
 
                 // If either type is a vector then 
                 // do a vector merge or vector push
@@ -787,13 +801,13 @@ export function getResolvedType(
                     return [{
                         type: ASYTRIPType.VECTOR_PUSH, vector: left,
                         args: getResolvedType(right, context, _structs, productions),
-                        body: []
+                        body
                     }];
                 } else if (TypeIsVector(right)) {
                     return [{
                         type: ASYTRIPType.VECTOR_PUSH, vector: right,
                         args: getResolvedType(left, context, _structs, productions),
-                        body: []
+                        body
                     }];
                 }
 
@@ -801,7 +815,7 @@ export function getResolvedType(
                     left.type == ASYTRIPType.STRING
                     ||
                     right.type == ASYTRIPType.STRING
-                ) return [{ type: ASYTRIPType.STRING, val: "", body: node.body }];
+                ) return [{ type: ASYTRIPType.STRING, val: "", body }];
 
                 const l = getResolvedType(left, context, undefined, productions);
                 const r = getResolvedType(right, context, undefined, productions);
@@ -818,41 +832,49 @@ export function getResolvedType(
                     }
 
                 if (IS_VECTOR) {
+
+                    if (vector_types.some(TypeIsVector))
+                        throw new Error("Invalid nested vectors from push");
+
                     return [{
                         type: ASYTRIPType.VECTOR,
                         args: [],
-                        types: vector_types.setFilter(JSONFilter),
+                        types: CondenseTypes(vector_types),
                         arg_pos: undefined,
-                        body: node.body
+                        body
                     }];
                 }
 
-                if (TypesInclude(l, TypeIsToken) || TypesInclude(l, TypeIsString))
-                    return [{ type: ASYTRIPType.STRING, val: "", body: node.body }];
+                if (TypesInclude(l, TypeIsToken) || TypesInclude(l, TypeIsString)) {
 
-                if (TypesInclude(r, TypeIsToken) || TypesInclude(r, TypeIsString))
-                    return [{ type: ASYTRIPType.STRING, val: "", body: node.body }];
+                    return [{ type: ASYTRIPType.STRING, val: "", body }];
+                }
+
+                if (TypesInclude(r, TypeIsToken) || TypesInclude(r, TypeIsString)) {
+                    console.log("---", node, renderCompressed(node), node.body);
+                    return [{ type: ASYTRIPType.STRING, val: "ab", body }];
+                }
 
                 if (l[0].type == ASYTRIPType.NULL || r[0].type == ASYTRIPType.NULL) {
                     return left.type == ASYTRIPType.NULL ? r : l;
                 }
 
-                return [{ type: ASYTRIPType.STRING, val: "", body: node.body }];
+                return [{ type: ASYTRIPType.STRING, val: "", body }];
             case ASYTRIPType.SUB:
                 debugger;
                 break;
 
             case ASYTRIPType.OR:
-                return [
+                return CondenseTypes([
                     ...getResolvedType(node.left, context, _structs, productions),
                     ...getResolvedType(node.right, context, _structs, productions)
-                ].setFilter(JSONFilter);
+                ]);
 
             case ASYTRIPType.TERNARY:
-                return [
+                return CondenseTypes([
                     ...getResolvedType(node.left, context, _structs, productions),
                     ...getResolvedType(node.right, context, _structs, productions)
-                ].setFilter(JSONFilter);
+                ]);
 
             case ASYTRIPType.EQUALS:
                 return [{ type: ASYTRIPType.BOOL, val: false, body: node.body }];
@@ -861,12 +883,23 @@ export function getResolvedType(
     return [];
 }
 
+export function CondenseTypes(types: ASYType[]): ASYType[] {
+    const groups = types.group(JSONFilter);
+
+    return groups.map(g => {
+        g[0].body = g.flatMap(g => g.body).setFilter().filter(i => i !== undefined);
+        return g[0];
+    });
+
+}
+
 function extractTypeInfo(
     val: JSRightHandExpressionClass,
     tok: Token,
     asytrip_context: { type_names: Set<unknown>; class_names: Set<unknown>; },
     classes: Set<unknown>,
-    type_name: string
+    type_name: string,
+    expr: JSNode
 ) {
 
     for (const { node } of traverse(val, "nodes")) {
@@ -892,6 +925,7 @@ function extractTypeInfo(
                     type_name = name;
                     asytrip_context.type_names.add(name);
                 } else {
+                    console.error(renderCompressed(expr));
                     throwAsytripTokenError(tok, node,
                         InvalidTypeSpecifier
                     );
@@ -901,6 +935,7 @@ function extractTypeInfo(
     return type_name;
 }
 function throwAsytripTokenError(tok: Token, node: JSNode, str: string) {
+    console.error(tok);
     tok.token_slice(node.pos.off, node.pos.off + node.pos.len).throw(str);
 }
 
@@ -965,6 +1000,10 @@ export function TypeIsToken(t: ASYType): t is ASYType<ASYTRIPType.TOKEN> {
 }
 export function TypeIsStruct(t: ASYType): t is ASYType<ASYTRIPType.STRUCT> {
     return t.type == ASYTRIPType.STRUCT;
+}
+
+export function TypeIsProd(t: ASYType): t is ASYType<ASYTRIPType.PRODUCTION> {
+    return t.type == ASYTRIPType.PRODUCTION;
 }
 export function TypeIsVector(t: ASYType): t is ASYType<ASYTRIPType.VECTOR> {
     return t.type == ASYTRIPType.VECTOR;
