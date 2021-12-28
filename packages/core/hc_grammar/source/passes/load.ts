@@ -7,7 +7,7 @@ import { HCGParser } from "@candlelib/hydrocarbon";
 import { Logger, LogLevel } from '@candlelib/log';
 import "@candlelib/paraffin";
 import URI from "@candlelib/uri";
-import { GrammarObject } from "@hctoolkit/common";
+import { GrammarObject, ProductionFunction } from "@hctoolkit/common";
 import loader from "../parser/hcg_parser.js";
 import { default_map } from './default_map.js';
 
@@ -117,6 +117,8 @@ async function loadGrammar(
 
     resolveReferencedFunctions(grammar);
 
+    createMeta(grammar);
+
     //Load imported grammars
     for (const preamble of grammar.preamble) {
 
@@ -152,7 +154,10 @@ async function loadGrammar(
                         .activate(LogLevel.ERROR)
                         .error(`Unable to open ${uri}`);
 
-                    (<any>preamble.tok).token_slice(8).throw("Unable to load import", uri + "");
+                    console.log(e);
+
+                    if (preamble.tok || preamble.pos)
+                        (<any>preamble.tok ?? preamble.pos).token_slice(8).throw("Unable to load import", uri + "");
 
                     return null;
                 }
@@ -162,31 +167,37 @@ async function loadGrammar(
 
     return grammar;
 }
+
+/**
+ * Replace function references with function logic from the referenced definition. 
+ */
 function resolveReferencedFunctions(grammar: GrammarObject) {
 
+    const fn_lu = grammar.functions.reduce((r, v) => (r.set(v.id, v), r), new Map);
 
-    /*     const fn_lu = grammar.functions.reduce((r, v) => (r.set(v.id, v), r), new Map);
-    
-        for (const production of grammar.productions) {
-    
-            production.name = production.symbol.name;
-    
-            for (const body of production.bodies)
-    
-                if (body.reduce_function
-                    &&
-                    body.reduce_function.ref
-                    &&
-                    fn_lu.has(body.reduce_function.ref)) {
-                    body.reduce_function = <ProductionFunction>{
-                        js: "",
-                        txt: fn_lu.get(body.reduce_function.ref).txt,
-                        type: "RETURNED",
-                    };
-                }
-    
-        }
-     */
+    for (const production of grammar.productions) {
+
+        production.name = production.symbol.name;
+
+        for (const body of production.bodies)
+
+            if (body.reduce_function
+                &&
+                body.reduce_function.ref
+                &&
+                fn_lu.has(body.reduce_function.ref)) {
+
+                body.reduce_function = <ProductionFunction>{
+                    js: "",
+                    txt: fn_lu.get(body.reduce_function.ref).txt,
+                    type: "RETURNED",
+                };
+            }
+
+    }
+}
+
+function createMeta(grammar: GrammarObject) {
     grammar.meta = {
         token_row_size: 0,
         ignore: <any[]>[grammar.preamble.filter(t => t.type == "ignore")[0]].filter(i => !!i)[0]?.symbols ?? []
