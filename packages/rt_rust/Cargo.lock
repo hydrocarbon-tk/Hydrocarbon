@@ -19,7 +19,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "hctoolkit_runtime"
+name = "hctk"
 version = "0.1.0"
 dependencies = [
  "bumpalo",

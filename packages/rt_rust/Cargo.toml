@@ -1,12 +1,12 @@
 [package]
-name = "hctoolkit_runtime"
+name = "hctk"
 version = "0.1.0"
-edition = "2018"
+edition = "2021"
 
 [lib]
 path = "source/lib.rs"
 
-[dependencies]
+[dev-dependencies]
 coz = "0.1"
 bumpalo = "3.8.0"
 
