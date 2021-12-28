@@ -22,7 +22,7 @@ import { resolveResourceGrammarCLI } from '@hctoolkit/grammar';
 import { spawn } from 'child_process';
 import { writeFile } from 'fs/promises';
 import { tmpdir } from 'os';
-import { renderTypeScriptParserData } from './render.js';
+import { renderRustParserData, renderTypeScriptParserData } from './render.js';
 const this_directory = URI.getEXEURL(import.meta);
 const RR = URI.resolveRelative;
 const grammar_path = RR("./grammar/build/cli.js", <URI>RR("@hctoolkit/grammar", this_directory)) + "";
@@ -36,6 +36,17 @@ const disable_opt = addCLIConfig<boolean>("compile", "parser", {
     default: false,
     REQUIRES_VALUE: false,
     help_brief: `Disable optimizations`,
+});
+
+const out_dir = addCLIConfig<URI | "stdout">("compile", "parser", {
+    key: "o",
+    default: URI.getCWDURL(),
+    accepted_values: [URI],
+    REQUIRES_VALUE: true,
+    help_arg_name: "Output Path",
+    help_brief: `
+    Filepath to the output file that will be created/overwritten. 
+`,
 });
 
 const target = addCLIConfig<"rust" | "go" | "ts">("compile", "parser", {
@@ -131,35 +142,28 @@ addCLIConfig<URI | string>("compile", "parser", {
             return [b.name, b.pointer];
         })));
 
-        //compile the source file
+        //Compile source files
 
         const binary = new Uint32Array(await binary_path.fetchBuffer());
 
-        switch (target.value) {
-            case "ts": {
+        const { renderAST, ext } = {
+            ts: { renderAST: renderTypeScriptParserData, ext: "ts" },
+            go: { renderAST: () => "", ext: "go" },
+            rust: { renderAST: renderRustParserData, ext: "rs" },
+        }[<"ts" | "go" | "rust">target.value];
 
-                const parser_data = renderTypeScriptParserData(grammar, binary, entry_pointers, states);
+        const parser_data = renderAST(grammar, binary, entry_pointers, states);
 
-                const data_path = URI.resolveRelative("./parser_data.ts");
-                const file_writes = [await writeFile(data_path + "", auto_gen_disclaimer_and_license + parser_data)];
+        const data_path = URI.resolveRelative("./parser_data." + ext, out_dir.value);
 
-                if (asytrip.value) {
-                    const ast_temp_path = <URI>URI.resolveRelative("./tmp-ast.ts", dir);
-                    const ast_path = URI.resolveRelative("./ast.ts");
-                    file_writes.push(await writeFile(ast_path + "", auto_gen_disclaimer_and_license + (await ast_temp_path.fetchText())));
-                    logger.log(`Created \n   ${ast_path}\n   ${data_path}  `);
-                } else logger.log(`Created \n  ${data_path}  `);
+        const file_writes = [await writeFile(data_path + "", auto_gen_disclaimer_and_license + parser_data)];
 
-                await Promise.all(file_writes);
-
-            } break;
-            case "go":
-                break;
-            case "rust":
-                break;
-        }
-
-        logger.debug();
+        if (asytrip.value) {
+            const ast_temp_path = <URI>URI.resolveRelative("./tmp-ast." + ext, dir);
+            const ast_path = URI.resolveRelative("./ast." + ext, out_dir.value);
+            file_writes.push(await writeFile(ast_path + "", auto_gen_disclaimer_and_license + (await ast_temp_path.fetchText())));
+            logger.log(`Created \n   ${ast_path}\n   ${data_path}  `);
+        } else logger.log(`Created \n  ${data_path}  `);
 
         logger.debug("Complete");
     }
@@ -250,7 +254,7 @@ const auto_gen_disclaimer_and_license =
  * 
  * ###################################################################
  * 
- * Copyright 2021 Anthony C. Weathersby
+ * Copyright 2022 Anthony C. Weathersby
  * 
  * Permission is hereby granted, free of charge, to any person obtaining 
  * a copy of this software and associated documentation files (the "Software"), 
