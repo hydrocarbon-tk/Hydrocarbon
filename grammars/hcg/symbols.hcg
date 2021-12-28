@@ -164,6 +164,8 @@
         f:r { $1 + $2 }
 
     |   identifier_syms (RST g:sp g:nl) \_
+
+    |   identifier_syms (RST g:sp g:nl) \-
         
         f:r { $1 + $2 }
 
@@ -172,6 +174,8 @@
         f:r { $1 + $2 }
 
     |   \_ 
+
+    |   \- 
 
     |   g:id
 
