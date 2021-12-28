@@ -119,8 +119,6 @@ export function constructProductionStates(
 
                 if (!HAVE_ROOT_PRODUCTION_GOTO) {
 
-
-
                     // Ensure correct production id has been assigned to the production's symbol
                     production.symbol.val = production.id;
 

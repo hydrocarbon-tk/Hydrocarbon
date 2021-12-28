@@ -873,7 +873,9 @@ function handleShiftReduceConflicts(
 
                     prime_node.items = prime_node.items.setFilter(item_id);
 
-                    gatherLeaves(prime_node, root, opt, leaves);
+                    //completeLeaves(opt, tpn, [{ node: prime_node, parent: root }]);
+
+                    gatherLeaves(prime_node, root, leaves);
 
                     return true;
                 }
@@ -922,7 +924,7 @@ function completeLeaves(
     //for (const leaf of leaves)
     //    console.error(leaf.debug);
 
-    for (const depth_group of leaves.group(({ node: l }) => l.depth)) {
+    for (const depth_group of leaves.group(({ node: l }) => l.root)) {
         //Join group into one common parent
 
         const { node: first_node, parent: first_parent } = depth_group[0];
@@ -938,12 +940,12 @@ function completeLeaves(
         if (!root)
             throw new Error("Root is not defined");
 
-        for (const { node, parent } of depth_group) {
-            if (node.parent !== parent)
-                throw new Error("Unexpected: Node is not child of parent");
+        /* for (const { node, parent } of depth_group) {
+            //if (node.parent !== parent)
+            //    throw new Error("Unexpected: Node is not child of parent");
             if (node.root !== root)
                 throw new Error("Invalid use of mixed roots!");
-        }
+        } */
 
         if (root.is(TST.I_OUT_OF_SCOPE)) {
             depth_group.forEach(n => n.node.addType(TST.I_FAIL, TST.I_OUT_OF_SCOPE));
@@ -954,7 +956,6 @@ function completeLeaves(
 
                 //If the root is a production call try using that
                 node.clearPeek();
-
 
                 if (!Sym_Is_DEFAULT(parent.sym))
                     parent.addType(TST.I_CONSUME);
@@ -1005,7 +1006,8 @@ function completeLeaves(
 
             if (!depth)
                 throw new Error("Depth not defined");
-            r.items = r.items.map(i => i.toState(depth + 1));
+
+            r.items = r.items.map(i => i.toState(depth + 1)).setFilter(item_id);
             r.depth = depth;
             r.parent = central;
 
@@ -1246,7 +1248,7 @@ function mergeOccludingGroups(
 
                         clone.addType(TST.I_SKIPPED_COLLISION);
 
-                        console.error(`ADD Skipped Collision ${skipped_id} \n-->\n${groupB[0].debug} \n-->\n${node.debug}`);
+                        //console.error(`ADD Skipped Collision ${skipped_id} \n-->\n${groupB[0].debug} \n-->\n${node.debug}`);
 
                         groupB.push(clone);
                     }
