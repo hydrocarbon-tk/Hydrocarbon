@@ -28,7 +28,7 @@ impl KernelStack {
         self.stack_pointer += 1;
         let sp = self.stack_pointer as usize;
 
-        self.state_stack[sp] = (kernel_state as u64);
+        self.state_stack[sp] = kernel_state as u64;
 
         // self.meta_stack[sp] = (self.meta_stack[sp - 1] & 0xFFFF) | (0 as u32);
     }

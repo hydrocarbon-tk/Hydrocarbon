@@ -596,12 +596,6 @@ export class StateIterator {
         if (instruction & 1)
             return fail_mode;
 
-        if (!this.reader.END()) {
-            //kernel_state.lexer.token_type = 0;
-            //kernel_state.lexer.codepoint_length = 1;
-            //kernel_state.lexer.byte_length = 1;
-        }
-
         return true;
     }
 

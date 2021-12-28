@@ -916,8 +916,6 @@ trait ParserCoreIterator<R: ByteReader> {
             self.emit_reduce(length, body_id);
         }
 
-        index += 1;
-
         //TODO: ASSERT the production is ALWAYS set after a reduction
         if (bytecode[index] & 0xF0000000) == 0x30000000 {
             self.set_production(index, recover_data, bytecode)
