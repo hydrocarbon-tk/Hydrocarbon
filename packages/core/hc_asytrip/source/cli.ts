@@ -82,10 +82,10 @@ addCLIConfig<URI | "stdin">("compile", {
 
 
             let file_name = [
-                "unnamed",
-                new URI(grammar.URI).filename,
-                new URI(grammar.resource_path).filename,
-                input_file.filename,
+                "unnamed-ast",
+                new URI(grammar.URI).filename ? new URI(grammar.URI).filename + "-ast" : "",
+                new URI(grammar.resource_path).filename ? new URI(grammar.resource_path).filename + "-ast" : "",
+                input_file.filename ? input_file.filename + "-ast" : "",
                 output_file.filename,
             ].filter(a => !!a).pop();
 
@@ -93,28 +93,28 @@ addCLIConfig<URI | "stdin">("compile", {
 
                 case "js":
                     file_path = URI.resolveRelative(
-                        `./${file_name}-ast.js`, output_file) + "";
+                        `./${file_name}.js`, output_file) + "";
 
                     output_data = createTsTypes(grammar, asytrip_context);
                     break;
 
                 case "ts":
                     file_path = URI.resolveRelative(
-                        `./${file_name}-ast.ts`, output_file) + "";
+                        `./${file_name}.ts`, output_file) + "";
 
                     output_data = createTsTypes(grammar, asytrip_context);
                     break;
 
                 case "rust":
                     file_path = URI.resolveRelative(
-                        `./${file_name}-ast.rs`, output_file) + "";
+                        `./${file_name}.rs`, output_file) + "";
 
                     output_data = createRustTypes(grammar, asytrip_context);
                     break;
                 case "go":
 
                     file_path = URI.resolveRelative(
-                        `./${file_name}-ast.go`, output_file) + "";
+                        `./${file_name}.go`, output_file) + "";
 
                     output_data = createGoTypes(grammar, asytrip_context);
                     break;
