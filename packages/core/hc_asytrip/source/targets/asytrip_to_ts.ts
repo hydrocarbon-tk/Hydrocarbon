@@ -67,32 +67,6 @@ function getExpressionString<T extends keyof ASYTRIPTypeObj>(
     return expr_mapper.get(v.type)(v, c, inits);
 }
 
-
-function convertValToString(v: string, t: ASYType) {
-    if (TypeIsString(t))
-        return `(HCGObjDouble{Val:${v}}).toString()`;
-    return `(${v}).toString()`;
-};
-function convertValToDouble(v: string, t: ASYType) {
-    if (TypeIsString(t))
-        return `(HCGObjString{Val:${v}}).Double()`;
-    return `(${v}).Double()`;
-};
-
-function convertArgsToType(
-    c: ASYTRIPContext,
-    inits: Inits,
-    check: (t: any) => boolean,
-    convert: (a: string, t: ASYType) => string
-): (val: ASYType) => string {
-    return v => {
-        const val = getExpressionString(v, c, inits);
-        const type = getResolvedType(v, c)[0];
-        if (!check(type))
-            return convert(val, type);
-        return val;
-    };
-}
 function GenerateTypeString(
     context: ASYTRIPContext,
     prop: ResolvedProp,
@@ -832,10 +806,6 @@ addTypeMap(ASYTRIPType.VECTOR, (v, c) => {
 
 addExpressMap(ASYTRIPType.VECTOR, (v, c, inits) => {
     const types = v.types.flatMap(v => getResolvedType(v, c));
-
-
-    if (v.types.some(t => t.type == ASYTRIPType.VECTOR))
-        throw new Error("Have production at resolved point 2");
 
     if (!isNaN(v.arg_pos ?? NaN))
         return `v${v.arg_pos}`;
