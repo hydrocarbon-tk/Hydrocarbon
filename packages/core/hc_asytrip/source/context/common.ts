@@ -954,11 +954,11 @@ export function TypesRequiresDynamic(types: ASYType[]): boolean {
     return types.setFilter(t => t.type).length > 1;
 }
 export function TypesInclude<T, B>(types: (T | B)[], fn: (d: (B | T)) => d is B): boolean {
-    return types.some(fn);
+    return types.length > 0 && types.some(fn);
 }
 
 export function TypesAre<T, B>(types: (T | B)[], fn: (d: (B | T)) => d is B): types is B[] {
-    return types.every(fn);
+    return types.length > 0 && types.every(fn);
 }
 
 export function TypesAreNot<T, B>(types: (T | B)[], fn: (d: (B | T)) => d is B): boolean {
