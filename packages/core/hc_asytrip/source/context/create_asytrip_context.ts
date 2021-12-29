@@ -36,6 +36,7 @@ import {
     TypeIsStruct,
     TypeIsVector,
     TypesAre,
+    TypesAreNot,
     TypesInclude
 } from './common.js';
 
@@ -268,9 +269,7 @@ export function createASYTripContext(
 
             for (const [name, prop] of struct.properties) {
 
-                const types = (CondenseTypes(prop.initializers.flatMap(v => {
-                    return v;
-                })));
+                const types = (CondenseTypes(prop.initializers));
 
                 let intermediate_types = [];
 
@@ -335,7 +334,6 @@ produces non-struct types [ ${[nvt].map(t => {
                                 }).join(" | ")} ]`
                             );
                         } else {
-                            console.log(nvt, body?.pos);
                             message.push(`\nType ${ASYTRIPType[nvt.type]} is generated`);
                         }
                     }
@@ -344,16 +342,53 @@ produces non-struct types [ ${[nvt].map(t => {
 
                 } else if (TypesInclude(resolved_types, TypeIsVector)) {
 
-
                     const vector_types = resolved_types.filter(TypeIsVector);
-
-                    //Remove null types from consideration
                     const vector_types_types = vector_types.flatMap(v => v.types).filter(TypeIsNotNull);
-                    const non_vector_types = resolved_types.filter(v => !TypeIsVector(v));
+                    const non_vector_types = resolved_types.filter(v => !TypeIsVector(v)).filter(TypeIsNotNull);
 
                     if (non_vector_types.length > 0) {
-                        debugger;
-                        // throw "WTE";
+
+
+                        const message = [
+                            `
+Invalid property <${name}> of struct <${struct_name}>
+
+Properties of type Vector must not be assigned to any other value type.`];
+
+                        for (const type of prop.initializers) {
+
+                            const [b] = type.body;
+                            const r_types = getResolvedType(type, context).filter(t => !TypeIsVector(t)).filter(TypeIsNotNull);
+
+                            if (r_types.length > 0) {
+
+                                const body = grammar.bodies[b];
+
+                                let tok_ = body?.tok ?? body?.pos;
+
+                                if (body && tok_ && body.production !== undefined) {
+
+                                    const tok = Token.from(tok_);
+
+                                    message.push(tok.createError(
+                                        `\nProduction ${body.production.name}[${body.production.bodies.indexOf(body)}]:`
+                                    ).message,
+                                        `
+    produces non-vector types [ ${r_types.map(t => {
+                                            if (TypeIsVector(t)) {
+                                                return `${ASYTRIPType[t.type]}<${t.types.map(t => ASYTRIPType[t.type]).setFilter(JSONFilter).join(" | ")}>`;
+                                            }
+                                            else return ASYTRIPType[t.type];
+                                        }).join(" | ")} ]`
+                                    );
+                                } else {
+                                    for (const nvt of r_types)
+                                        message.push(`\nType ${ASYTRIPType[nvt.type]} is generated`);
+                                }
+                            }
+                        }
+
+                        errors.push(["0x014", message.join("")]);
                     } else if (TypesInclude(vector_types_types, TypeIsStruct)) {
 
                         if (!TypesAre(vector_types_types, TypeIsStruct)) {
