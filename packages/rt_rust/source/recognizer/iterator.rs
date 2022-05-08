@@ -45,6 +45,12 @@ impl KernelToken {
         };
     }
 }
+#[derive(Debug, Copy, Clone)]
+pub enum ParseErrorCode {
+    NORMAL,
+    CANNOT_FORK,
+    INVALID_RETURN,
+}
 
 #[derive(Debug, Copy, Clone)]
 pub enum ParseAction {
@@ -57,7 +63,8 @@ pub enum ParseAction {
     ACCEPT {},
     ERROR {
         production: u32,
-        reason: Option<&'static str>,
+        pointer: u32,
+        error_code: ParseErrorCode,
     },
     SHIFT {
         length: u32,
@@ -222,6 +229,10 @@ impl<'a, T: ByteReader> StateIterator<'a, T> {
     pub fn parse(&mut self, bytecode: &[u32]) {
         let mut fail_mode: u32 = 0;
 
+        let mut last_good_state: u32 = 0;
+
+        const normal_state_mask: u32 = 1 << 26;
+
         loop {
             let state = self.stack.pop_state();
 
@@ -232,16 +243,23 @@ impl<'a, T: ByteReader> StateIterator<'a, T> {
                 } else {
                     self.emit_action(ParseAction::ERROR {
                         production: self.production_id,
-                        reason: Some("Invalid state reached"),
+                        pointer: last_good_state,
+                        error_code: ParseErrorCode::NORMAL,
                     });
                     return;
                 }
             } else {
-                let mask_mult_gate = 26 + fail_mode;
+                let mask_gate = normal_state_mask << fail_mode;
 
-                let entry = (state >> mask_mult_gate) & 0x1;
+                //let entry = (state >> mask_gate) & 0x1;
 
-                fail_mode = self.instruction_executor(state * entry, fail_mode, bytecode);
+                if fail_mode == 0 {
+                    last_good_state = state;
+                }
+
+                if (state & mask_gate) != 0 {
+                    fail_mode = self.instruction_executor(state, fail_mode, bytecode);
+                }
             }
         }
     }
@@ -286,11 +304,13 @@ impl<'a, T: ByteReader> StateIterator<'a, T> {
                     ParseAction::FORK {} => {
                         self.emit_action(ParseAction::ERROR {
                             production: self.production_id,
-                            reason: Some("Scanner fork not implemented"),
+                            error_code: ParseErrorCode::CANNOT_FORK,
+                            pointer: 0,
                         });
                     }
                     ParseAction::ERROR {
-                        reason: _,
+                        pointer: 0,
+                        error_code: ParseErrorCode::NORMAL,
                         production: _1,
                     } => {
                         self.emit_action(result);
@@ -298,7 +318,8 @@ impl<'a, T: ByteReader> StateIterator<'a, T> {
                     _ => {
                         self.emit_action(ParseAction::ERROR {
                             production: self.production_id,
-                            reason: Some("Unacceptable return result received"),
+                            error_code: ParseErrorCode::INVALID_RETURN,
+                            pointer: 0,
                         });
                     }
                 }
@@ -829,7 +850,7 @@ trait ParserCoreIterator<R: ByteReader> {
         }
     } //*/
     fn noop(&mut self, index: usize, _: u32) -> usize {
-        return index;
+        return index + 1;
     }
 
     fn pass(&mut self, mut __: usize, _: u32) -> usize {
@@ -918,9 +939,9 @@ trait ParserCoreIterator<R: ByteReader> {
 
         //TODO: ASSERT the production is ALWAYS set after a reduction
         if (bytecode[index] & 0xF0000000) == 0x30000000 {
-            self.set_production(index, recover_data, bytecode)
+            self.set_production(index + 1, recover_data, bytecode)
         } else {
-            index
+            index + 1
         }
     }
 

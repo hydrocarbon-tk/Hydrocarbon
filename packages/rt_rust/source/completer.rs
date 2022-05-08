@@ -1,5 +1,5 @@
 //mod ast;
-mod completer;
+pub mod completer;
 mod token;
 
 //pub use ast::*;

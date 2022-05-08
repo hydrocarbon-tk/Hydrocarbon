@@ -512,11 +512,18 @@ export function expandOptionalBody(production: GrammarProduction) {
         }
 }
 
-export function getProductionSignature(production: GrammarProduction) {
+export function getGeneralProductionSignature(production: GrammarProduction) {
 
     const body_strings = production.bodies.map(getBodySignature).sort();
 
     return body_strings.join("\n | ");
+}
+
+export function getUniqueProductionSignature(production: GrammarProduction) {
+
+    const body_strings = production.bodies.map(getBodySignature).sort();
+
+    return production.name + body_strings.join("\n | ");
 }
 
 export function getBodySignature(body: HCG3ProductionBody) {

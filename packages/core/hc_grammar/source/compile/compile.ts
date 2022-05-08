@@ -7,7 +7,11 @@ import { HCGParser } from "@candlelib/hydrocarbon";
 import URI from "@candlelib/uri";
 import {
     GrammarObject,
-    HCG3ProductionBody
+    HCG3ProductionBody,
+    InstructionType,
+    IsAssertInstruction,
+    IsPeekInstruction,
+    stateIsBranch
 } from "@hctoolkit/common";
 import { buildScannerProduction } from '../passes/scanner_production.js';
 import {
@@ -62,6 +66,8 @@ export async function compileGrammar(grammar: GrammarObject):
 
         createCollisionMatrix(grammar);
 
+        integrateIRReduceFunctions(grammar);
+
     } catch (e) {
 
         if (e instanceof Error)
@@ -75,6 +81,38 @@ export async function compileGrammar(grammar: GrammarObject):
     }
 
     return grammar;
+}
+
+export function integrateIRReduceFunctions(grammar: GrammarObject) {
+    let offset = grammar.productions.reduce((r, v) => {
+        if (v.type == "scanner-production")
+            return r;
+        return r + v.bodies.length;
+    }, 0);
+
+    for (const ir_state of grammar?.ir_states || []) {
+        if (stateIsBranch(ir_state)) {
+            for (const branch of ir_state.instructions) {
+                if (IsPeekInstruction(branch) || IsAssertInstruction(branch)) {
+                    for (const instr of branch.instructions) {
+                        if (typeof instr.reduce_fn == "object") {
+                            instr.len = 1;
+                            instr.reduce_fn.reduce_id = offset++;
+                        }
+                    }
+                }
+            }
+        } else {
+            for (const instr of ir_state.instructions) {
+                if (instr.type == InstructionType.reduce) {
+                    if (typeof instr.reduce_fn == "object") {
+                        instr.len = 1;
+                        instr.reduce_fn.reduce_id = offset++;
+                    }
+                }
+            }
+        }
+    }
 }
 
 export async function compileGrammarFromString(

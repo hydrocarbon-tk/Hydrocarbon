@@ -21,7 +21,7 @@ import {
     setBodyReduceExpressionAction,
     Sym_Is_List_Production
 } from "../nodes/common.js";
-import { expandOptionalBody, getProductionSignature } from "./common.js";
+import { expandOptionalBody, getGeneralProductionSignature, getUniqueProductionSignature } from "./common.js";
 import { processGroupSymbol } from "./convert_group_productions.js";
 
 export function convertListProductions(grammar: GrammarObject, error: Error[]): GrammarObject {
@@ -81,9 +81,9 @@ export function processListSymbol(sym: any, body: HCG3ProductionBody, production
 
             if (TERMINAL_SYMBOL_IS_QUOTE) {
 
-                setBodyReduceExpressionAction(body, "$1 + \"\"");
+                setBodyReduceExpressionAction(body, "str($1)");
 
-                setBodyReduceExpressionAction(new_production_body, "$1 + $2");
+                setBodyReduceExpressionAction(new_production_body, "str($__first__) + str($__last__)");
             } else {
 
                 setBodyReduceExpressionAction(body, "[$1]");
@@ -118,7 +118,7 @@ export function processListSymbol(sym: any, body: HCG3ProductionBody, production
 
             addBodyToProduction(new_production, new_production_body);
 
-            new_production = registerProduction(grammar, getProductionSignature(new_production), new_production);
+            new_production = registerProduction(grammar, getGeneralProductionSignature(new_production), new_production);
 
             const new_production_symbol = createProductionSymbol(new_production.name, sym.IS_OPTIONAL, sym);
 

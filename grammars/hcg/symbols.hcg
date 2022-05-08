@@ -49,6 +49,10 @@
         symbol \?      
         
         f:r { $1.IS_OPTIONAL = 1, $1 }
+
+    |   \?- literal_symbol    
+
+        f:r { { type:t_Not_Symbol | c_Symbol, val:$2.val, symbol: $2, tok } }
     
     |   \<= terminal_symbol           
         

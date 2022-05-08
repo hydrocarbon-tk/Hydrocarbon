@@ -49,12 +49,12 @@ export function parseAsytripStruct(
             if (val == "tok") {
                 eval_node = <any>exp(`{tok:tok}`).nodes[0];
             } else if (val.slice(0, 2) == "t_") {
-                eval_node = <any>exp(`{type:${val}}`).nodes[0];
+                eval_node = <any>exp(`{_type_:${val}}`).nodes[0];
             } else if (val.slice(0, 2) == "c_") {
-                eval_node = <any>exp(`{type:${val}}`).nodes[0];
+                eval_node = <any>exp(`{_type_:${val}}`).nodes[0];
             } else if (val[0] == "$" && val.slice(1).match(/\w+$/)) {
                 const prop = val.slice(1);
-                if (prop !== "type")
+                if (prop !== "_type_")
                     eval_node = <any>exp(`{${prop}:${val}}`).nodes[0];
             }
         }
@@ -68,7 +68,7 @@ export function parseAsytripStruct(
 
             const name = (<any>id).value;
 
-            if (name == "type") {
+            if (name == "_type_") {
                 // Special handler that expects values of the form:
                 // type_****** | class_*******
                 type_name = extractTypeInfo(val, tok, context, classes, type_name, expr);
@@ -294,6 +294,7 @@ function parseExpression(
             if (TypeIsVector(left_val) || TypeIsVectorPush(left_val)) {
                 return {
                     type: ASYTRIPType.VECTOR_PUSH,
+                    PREPEND: false,
                     vector: left_val,
                     args: [right_val],
                     body: [body.id]
@@ -302,6 +303,7 @@ function parseExpression(
 
             if (TypeIsVector(right_val) || TypeIsVectorPush(right_val)) return {
                 type: ASYTRIPType.VECTOR_PUSH,
+                PREPEND: true,
                 vector: right_val,
                 args: [left_val],
                 body: [body.id]
@@ -711,7 +713,6 @@ export function getResolvedType(
                     console.dir({ node, types }, { depth: 8 });
                     throw new Error("Invalid nested vectors");
                 }
-
                 return [{ type: ASYTRIPType.VECTOR, args: [], types, arg_pos: node.arg_pos, body: node.body }];
             }
             case ASYTRIPType.EXPRESSIONS: {
@@ -800,12 +801,14 @@ export function getResolvedType(
                 if (TypeIsVector(left)) {
                     return [{
                         type: ASYTRIPType.VECTOR_PUSH, vector: left,
+                        PREPEND: false,
                         args: getResolvedType(right, context, _structs, productions),
                         body
                     }];
                 } else if (TypeIsVector(right)) {
                     return [{
                         type: ASYTRIPType.VECTOR_PUSH, vector: right,
+                        PREPEND: true,
                         args: getResolvedType(left, context, _structs, productions),
                         body
                     }];
@@ -851,7 +854,6 @@ export function getResolvedType(
                 }
 
                 if (TypesInclude(r, TypeIsToken) || TypesInclude(r, TypeIsString)) {
-                    console.log("---", node, renderCompressed(node), node.body);
                     return [{ type: ASYTRIPType.STRING, val: "ab", body }];
                 }
 

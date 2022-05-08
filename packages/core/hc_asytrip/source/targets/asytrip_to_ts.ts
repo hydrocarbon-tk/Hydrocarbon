@@ -24,6 +24,7 @@ import {
     TypeIsStruct,
     TypeIsToken,
     TypeIsVector,
+    TypeIsVectorPush,
     TypesAre, TypesInclude, TypesRequiresDynamic
 } from '../context/common.js';
 import { generateResolvedProps, getStructClassTypes } from '../context/generate_resolved_props.js';
@@ -100,7 +101,7 @@ function GenerateTypeString(
         type_string = `${names.join(" | ")}`;
         if (names.length > 1)
             type_string = `(${type_string})`;
-        type_string = `${type_string}[]`;
+        type_string = `${type_string.replace(/\[\]/g, "")}[]`;
     } else if (REQUIRES_DYNAMIC) {
         type_string = `(${types.filter(TypeIsNotNull).map(t => getTypeString(t, context)).join(" | ")})`;
     } else if (TypesAre(types, TypeIsVector)) {
@@ -319,7 +320,7 @@ export class ${name} extends ASTNode<ASTType> {
         return ASTType.${name};
     }
 
-    get type(): ASTType.${name} {
+    get node_type(): ASTType.${name} {
         return ASTType.${name};
     }
 
@@ -327,7 +328,7 @@ export class ${name} extends ASTNode<ASTType> {
 
         writer.write_byte(${struct.type >> (context.type_offset)});
         ${prop_vals.map(({ name, type: v, types, REQUIRES_DYNAMIC, HAS_NULL, HAVE_STRUCT, HAVE_STRUCT_VECTORS }) => {
-                const n = `_${name}`;
+                const n = `${name}`;
                 if (HAVE_STRUCT) {
                     if (HAS_NULL)
                         return `
@@ -437,7 +438,7 @@ export class ${name} extends ASTNode<ASTType> {
         }).join("\n")
         }
 
-        return new ${name}(${prop_vals.map(({ name }) => name).join(", ")});
+        return new ${name}(${prop_vals.map(({ name }) => "_" + name).join(", ")});
     }
 }
 `];
@@ -454,7 +455,6 @@ export class ${name} extends ASTNode<ASTType> {
 
     return strings.join("\n\n") + "\n";
 }
-let TARGET = false;
 
 function buildParseFunctions(context: ASYTRIPContext, grammar: GrammarObject, strings: string[]) {
 
@@ -463,8 +463,6 @@ function buildParseFunctions(context: ASYTRIPContext, grammar: GrammarObject, st
     const ids = [];
 
     for (const [id, { args, struct: name, source }] of context.fn_map) {
-
-        TARGET = source == `{ t_SupportsParenthesis, val:$2, tok }`;
 
         const length = grammar.bodies[id].sym.length;
 
@@ -815,7 +813,7 @@ addExpressMap(ASYTRIPType.VECTOR, (v, c, inits) => {
         return inits.push(`[]`, getTypeString(v, c));
 
     } else if (TypesAre(types, TypeIsStruct)) {
-        const type_string = `(${types.map(t => t.name).join(" | ")})[]`;
+        const type_string = `(${types.map(t => t.name).join(" | ").replace(/\[\]/g, "")})[]`;
         const expr = v.args.map(v => getExpressionString(v, c, inits)).filter(i => i != "null").join(",");
 
         const ref = inits.push(`[${expr}]`, type_string);
@@ -893,9 +891,10 @@ addExpressMap(ASYTRIPType.VECTOR_PUSH, (v, c, inits) => {
             if (val == "null") continue;
 
             if (TypesInclude(types, TypeIsVector)) {
-                inits.push(`${vector}.push(...${val});`, false);
+
+                inits.push(`${vector}.${v.PREPEND ? "unshift" : "push"}(...${val});`, false);
             } else {
-                inits.push(`${vector}.push(${val});`, false);
+                inits.push(`${vector}.${v.PREPEND ? "unshift" : "push"}(${val});`, false);
             }
         }
 
@@ -915,7 +914,7 @@ addExpressMap(ASYTRIPType.VECTOR_PUSH, (v, c, inits) => {
             });
 
             if (vals.length > 0)
-                inits.push(`${vector}.push(${vals.join(", ")})`, false);
+                inits.push(`${vector}.${v.PREPEND ? "unshift" : "push"}(${vals.join(", ")})`, false);
         }
     } else {
 
@@ -925,7 +924,7 @@ addExpressMap(ASYTRIPType.VECTOR_PUSH, (v, c, inits) => {
             if (val == "null")
                 continue;
 
-            inits.push(`${vector}.push(${val});`, false);
+            inits.push(`${vector}.${v.PREPEND ? "unshift" : "push"}(${val});`, false);
         }
 
     }
@@ -954,7 +953,7 @@ addExpressMap(ASYTRIPType.ADD, (v, c, inits) => {
     if (left == "null")
         return right;
 
-    if (TypeIsVector(type_l)) {
+    if (TypeIsVector(type_l) || TypeIsVectorPush(type_l)) {
         return getExpressionString(<ASYTRIPTypeObj[ASYTRIPType.VECTOR_PUSH]>{
             type: ASYTRIPType.VECTOR_PUSH,
             args: [r],
@@ -1071,37 +1070,37 @@ const conversion_table =
     [A.F64]:
         (t: number, v: string): string => "" + ({
             [A.F64]: /*       */ v, [A.F32]: `${v} `, [A.I64]: `${v} `, [A.I32]: `${v} `, [A.I16]: `${v} `, [A.I8]: `${v} `, [A.BOOL]: `+(${v})`, [A.NULL]: "0.0",
-            [A.TOKEN]: `parseFloat(${v}.toString())`, [A.STRING]: `parseFloat(${v})`, [A.STRUCT]: `parseFloat(${v}.toString())`, [A.VECTOR]: `parseFloat(${v}.toString()))`
+            [A.TOKEN]: `parseFloat(${v}.toString())`, [A.STRING]: `parseFloat(${v})`, [A.STRUCT]: `parseFloat(${v}.toString())`, [A.VECTOR]: `${v}.length`
         })[t],
     [A.F32]:
         (t: number, v: string): string => "" + ({
             [A.F64]: `${v} `, [A.F32]: /*       */ v, [A.I64]: `${v} `, [A.I32]: `${v} `, [A.I16]: `${v} `, [A.I8]: `${v} `, [A.BOOL]: `+(${v})`, [A.NULL]: "0.0",
-            [A.TOKEN]: `parseFloat(${v}.toString())`, [A.STRING]: `parseFloat(${v})`, [A.STRUCT]: `parseFloat(${v}.toString())`, [A.VECTOR]: `parseFloat(${v}.toString()))`
+            [A.TOKEN]: `parseFloat(${v}.toString())`, [A.STRING]: `parseFloat(${v})`, [A.STRUCT]: `parseFloat(${v}.toString())`, [A.VECTOR]: `${v}.length`
         })[t],
     [A.I64]:
         (t: number, v: string): string => "" + ({
             [A.F64]: `${v} `, [A.F32]: `${v} `, [A.I64]: /*       */ v, [A.I32]: `${v} `, [A.I16]: `${v} `, [A.I8]: `${v} `, [A.BOOL]: `+(${v})`, [A.NULL]: " 0 ",
-            [A.TOKEN]: `parseInt(${v}.toString())`, [A.STRING]: `parseInt(${v})`, [A.STRUCT]: `parseInt(${v}.toString())`, [A.VECTOR]: `parseInt(${v}.toString()))`
+            [A.TOKEN]: `parseInt(${v}.toString())`, [A.STRING]: `parseInt(${v})`, [A.STRUCT]: `parseInt(${v}.toString())`, [A.VECTOR]: `${v}.length`
         })[t],
     [A.I32]:
         (t: number, v: string): string => "" + ({
             [A.F64]: `${v} `, [A.F32]: `${v} `, [A.I64]: `${v} `, [A.I32]: /*       */ v, [A.I16]: `${v} `, [A.I8]: `${v} `, [A.BOOL]: `+(${v})`, [A.NULL]: " 0 ",
-            [A.TOKEN]: `parseInt(${v}.toString())`, [A.STRING]: `parseInt(${v})`, [A.STRUCT]: `parseInt(${v}.toString())`, [A.VECTOR]: `parseInt(${v}.toString()))`
+            [A.TOKEN]: `parseInt(${v}.toString())`, [A.STRING]: `parseInt(${v})`, [A.STRUCT]: `parseInt(${v}.toString())`, [A.VECTOR]: `${v}.length`
         })[t],
     [A.I16]:
         (t: number, v: string): string => "" + ({
             [A.F64]: `${v} `, [A.F32]: `${v} `, [A.I64]: `${v} `, [A.I32]: `${v} `, [A.I16]: /*       */ v, [A.I8]: `${v} `, [A.BOOL]: `+(${v})`, [A.NULL]: " 0 ",
-            [A.TOKEN]: `parseInt(${v}.toString())`, [A.STRING]: `parseInt(${v})`, [A.STRUCT]: `parseInt(${v}.toString())`, [A.VECTOR]: `parseInt(${v}.toString()))`
+            [A.TOKEN]: `parseInt(${v}.toString())`, [A.STRING]: `parseInt(${v})`, [A.STRUCT]: `parseInt(${v}.toString())`, [A.VECTOR]: `${v}.length`
         })[t],
     [A.I8]:
         (t: number, v: string): string => "" + ({
             [A.F64]: `${v}  `, [A.F32]: `${v}  `, [A.I64]: `${v}  `, [A.I32]: `${v}  `, [A.I16]: `${v}  `, [A.I8]: v, [A.BOOL]: `${v}  `, [A.NULL]: " 0 ",
-            [A.TOKEN]: `parseInt(${v}.toString())`, [A.STRING]: `parseInt(${v})`, [A.STRUCT]: `parseInt(${v}.toString()) || 0`, [A.VECTOR]: `parseInt(${v}.toString()) || 0`,
+            [A.TOKEN]: `parseInt(${v}.toString())`, [A.STRING]: `parseInt(${v})`, [A.STRUCT]: `parseInt(${v}.toString()) || 0`, [A.VECTOR]: `${v}.length`,
         })[t],
     [A.BOOL]:
         (t: number, v: string): string => "" + ({
             [A.F64]: `!!(${v})`, [A.F32]: `!!(${v})`, [A.I64]: `!!(${v})`, [A.I32]: `!!(${v})`, [A.I16]: `!!(${v})`, [A.I8]: `!!(${v})`, [A.BOOL]: /**/ v, [A.NULL]: "false",
-            [A.TOKEN]: `!!(${v})`, [A.STRING]: `!!(${v})`, [A.STRUCT]: `!!(${v})`, [A.VECTOR]: `!!(${v})`
+            [A.TOKEN]: `!!(${v})`, [A.STRING]: `!!(${v})`, [A.STRUCT]: `!!(${v})`, [A.VECTOR]: `!!(${v}.length)`
         })[t],
     [A.NULL]:
         (t: number, v: string): string => "" + ({

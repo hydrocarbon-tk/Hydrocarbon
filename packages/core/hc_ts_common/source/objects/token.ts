@@ -324,6 +324,11 @@ const HORIZONTAL_TAB = 9,
     line = "-",
     thick_line = "=";
 
+import { col_x11, xtColor, xtReset, xtF, xtBold, xtUnderline, xtInvert } from "@candlelib/paraffin/build/color/color.js";
+
+
+const u_col = xtF(xtColor(col_x11.Red1), xtBold);
+const u_col_r = xtF(xtReset);
 export function blame(
     source: string,
     offset: number,
@@ -410,7 +415,7 @@ export function blame(
         //* brdr */`\n${error_border}`,
         /* prev */`${l - 1 > -1 ? line_number(l - 1) + trunc + prev_line_o + (prev_line_o.length < prev_line.length ? "..." : "") : ""}`,
         /* curr */`${true ? line_number(l) + trunc + curr_line_o + (curr_line_o.length < curr_line.length ? "..." : "") : ""}`,
-        /* arrw */`    ${(" ").repeat(Math.max(0, w_pointer_pos + trunc.length + line_number(l + 1).length - 4)) + arrow.repeat(token_length)}`,
+        /* arrw */`    ${(" ").repeat(Math.max(0, w_pointer_pos + trunc.length + line_number(l + 1).length - 4)) + u_col + arrow.repeat(token_length) + u_col_r}`,
         /* next */`${next_start < str.length ? line_number(l + 1) + trunc + next_line_o + (next_line_o.length < next_line.length ? "..." : "") : ""}`,
         ///* brdr */`${error_border}`
     ]

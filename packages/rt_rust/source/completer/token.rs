@@ -36,6 +36,15 @@ impl Token {
         }
     }
 
+    pub fn empty() -> Token {
+        Token {
+            length: 0u32,
+            offset: 0u32,
+            _line: 0u32,
+            input: None,
+        }
+    }
+
     pub fn set_path() {}
 
     pub fn set_source<Reader: ByteReader>(&mut self, rdr: &Reader) {
@@ -126,5 +135,21 @@ impl Token {
         }
 
         String::from("")
+    }
+
+    pub fn to_f64(&self) -> f64 {
+        if let Ok(result) = self.String().parse::<f64>() {
+            return result;
+        }
+
+        return 0f64;
+    }
+
+    pub fn to_f32(&self) -> f32 {
+        if let Ok(result) = self.String().parse::<f32>() {
+            return result;
+        }
+
+        return 0f32;
     }
 }

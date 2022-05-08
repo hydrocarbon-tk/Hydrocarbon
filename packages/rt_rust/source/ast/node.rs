@@ -45,6 +45,9 @@ pub trait HCObjTrait {
     fn to_bool(&self) -> bool {
         false
     }
+    fn Token(&self) -> Token {
+        Token::empty()
+    }
 }
 
 impl<T: HCObjTrait> HCObjTrait for HCObj<T> {
@@ -58,10 +61,19 @@ impl<T: HCObjTrait> HCObjTrait for HCObj<T> {
                     String::from("false")
                 }
             }
+            HCObj::STRING(string) => string.to_owned(),
             &HCObj::TOKEN(val) => val.String(),
             _ => String::from(""),
         }
     }
+
+    fn Token(&self) -> Token {
+        match self {
+            &HCObj::TOKEN(val) => val,
+            _ => Token::empty(),
+        }
+    }
+
     fn to_bool(&self) -> bool {
         match self {
             HCObj::TOKEN(tok) => match tok.String().parse::<f64>() {

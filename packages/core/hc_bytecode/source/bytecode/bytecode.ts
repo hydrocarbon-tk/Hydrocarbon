@@ -238,6 +238,9 @@ function insertInstructionSequences(
             case InstructionType.reduce: {
                 let [, sym_len, id] = instruction;
 
+                if (id == 685)
+                    console.error({ instruction });
+
                 if (sym_len == ir_reduce_numeric_len_id) {
                     let reduce_fn_id = id;
 
@@ -298,6 +301,7 @@ function insertInstructionSequences(
 
             case InstructionType.scan_until: {
                 const [, token_state, length, ids] = instruction;
+
                 temp_buffer.push(7 << 28 | (length & 0xFFFF), state_map.get(token_state)?.pointer ?? 0, ...ids);
             } break;
 
@@ -608,6 +612,7 @@ function createInstructionSequence(
                 break;
 
             case InstructionType.scan_until:
+                console.error(active_instructions);
                 byte_length += 8 + 4 * instr.ids.length;
                 instruction_sequence.push([
                     InstructionType.scan_until,
@@ -619,7 +624,16 @@ function createInstructionSequence(
 
             case InstructionType.reduce:
                 byte_length += 4;
-                instruction_sequence.push([InstructionType.reduce, instr.len, <number>instr.reduce_fn]);
+                let fn_id = 0;
+
+                if (typeof instr.reduce_fn == "object") {
+                    fn_id = instr.reduce_fn.reduce_id;
+                    instr.len = ir_reduce_numeric_len_id;
+                } else {
+                    fn_id = instr.reduce_fn;
+                }
+
+                instruction_sequence.push([InstructionType.reduce, instr.len, fn_id]);
                 break;
 
             case InstructionType.repeat:

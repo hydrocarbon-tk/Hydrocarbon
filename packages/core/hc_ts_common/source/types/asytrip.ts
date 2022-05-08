@@ -49,6 +49,7 @@ export enum ASYTRIPType {
     BOOL,
     EQUALS,
     VECTOR_PUSH,
+    VECTOR_PREPEND,
     EXPRESSIONS,
     /**
      * An assignment expression to a struct property.
@@ -103,6 +104,12 @@ export interface ASYTRIPTypeObj {
     };
     [ASYTRIPType.VECTOR_PUSH]: {
         type: ASYTRIPType.VECTOR_PUSH;
+        vector: ASYTRIPTypeObj[ASYTRIPType.VECTOR];
+        args: ASYTRIPTypeObj[ASYTRIPType][];
+        body: number[];
+    };
+    [ASYTRIPType.VECTOR_PREPEND]: {
+        type: ASYTRIPType.VECTOR_PREPEND;
         vector: ASYTRIPTypeObj[ASYTRIPType.VECTOR];
         args: ASYTRIPTypeObj[ASYTRIPType][];
         body: number[];

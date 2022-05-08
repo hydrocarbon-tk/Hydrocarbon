@@ -6,6 +6,9 @@ edition = "2021"
 [lib]
 path = "source/lib.rs"
 
+[dependencies]
+lazy_static = "1.4.0"
+
 [dev-dependencies]
 coz = "0.1"
 bumpalo = "3.8.0"

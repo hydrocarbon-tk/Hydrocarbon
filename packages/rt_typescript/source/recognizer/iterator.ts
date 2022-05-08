@@ -125,11 +125,11 @@ export class StateIterator {
 
     SCANNER: boolean;
 
-    forks: Uint32Array[];
+    forks?: Uint32Array[];
 
-    handler: (arg: ParseAction[ParseActionType]) => void;
+    handler?: (arg: ParseAction[ParseActionType]) => void;
 
-    fork_handler: (arg: ParseAction[ParseActionType], iterator: StateIterator) => ParseAction[ParseActionType][];
+    fork_handler?: (arg: ParseAction[ParseActionType], iterator: StateIterator) => ParseAction[ParseActionType][];
 
     constructor(
         base_byte_reader: ByteReader,
@@ -151,6 +151,8 @@ export class StateIterator {
         this.SCANNER = SCANNER;
 
         this.production_id = -1;
+
+        this.symbol_accumulator = 0;
 
         this.buffer = [];
 
@@ -228,8 +230,8 @@ export class StateIterator {
 
                 if (fail_mode) {
                     if (state & goto_state_mask) {
-                        const production = this.bytecode[(state & state_index_mask) - 1];
-                        console.log({ production });
+                        //const production = this.bytecode[(state & state_index_mask) - 1];
+                        //console.log({ production });
                     }
                 } else {
                     last_good_state = state;
@@ -256,6 +258,8 @@ export class StateIterator {
     private emitShift() {
 
         this.ACTION_BUFFER_EMPTY = false;
+
+        this.symbol_accumulator++;
 
         const token = this.tokens[1];
 
@@ -347,15 +351,16 @@ export class StateIterator {
 
             let accumulated_symbols = this.symbol_accumulator
                 -
-                (recover_data & 0xFFFF0000);
+                (recover_data & 0xFFFF);
 
-            let len = (accumulated_symbols >> 16);
+            let len = accumulated_symbols;
 
             let fn_id = (instruction >> 16) & 0x0FFF;
 
             //Extract accumulated symbols inform
             this.emitReduce(len, fn_id);
         } else {
+            this.symbol_accumulator -= length - 1;
             this.emitReduce(length, body_id);
         }
 
@@ -607,7 +612,6 @@ export class StateIterator {
 
     private scan_to(index: number, instruction: number): number {
 
-        debugger;
 
         let length = instruction & 0xFFFF;
 
@@ -654,10 +658,20 @@ export class StateIterator {
             if (this.reader.offset_at_end(token.byte_offset))
                 return 1;
 
-            temp_token.byte_offset += token.byte_length;
-            temp_token.codepoint_offset += token.codepoint_offset;
+            if (token.byte_length > 0) {
+                temp_token.byte_offset += token.byte_length;
+                temp_token.codepoint_offset += token.codepoint_offset;
+            } else {
+                temp_token.byte_offset += 1;
+                temp_token.codepoint_offset += 1;
+            }
             temp_token.byte_length = 0;
             temp_token.codepoint_length = 0;
+        }
+
+        if (!scan_back) {
+            //Shift any tokens that may have been encountered?
+            this.tokens[1].impersonate(temp_token);
         }
 
         return index;
@@ -884,9 +898,9 @@ export class StateIterator {
     }
 
     private goto(instruction: number, index: number) {
-        this.stack.push_state(instruction);
+        this.stack.push_state(instruction, this.symbol_accumulator);
         while ((this.bytecode[index] & 0xF0000000) == 0x20000000) {
-            this.stack.push_state(this.bytecode[index]);
+            this.stack.push_state(this.bytecode[index], this.symbol_accumulator);
             index++;
         }
         return index;
@@ -909,7 +923,7 @@ export class StateIterator {
         //Is not identical to the pending fail state.
         if (current_state != ((fail_state_pointer >>> 0) & instruction_pointer_mask)) {
 
-            this.stack.push_state(fail_state_pointer >>> 0);
+            this.stack.push_state(fail_state_pointer >>> 0, this.symbol_accumulator);
 
         } else {
             this.stack.swap_state(fail_state_pointer);
@@ -967,13 +981,6 @@ export class StateIterator {
                         } break;
 
                         case ParseActionType.FORK: {
-
-                            const instruction = this.bytecode[result.pointer];
-
-                            const forked_states =
-
-                                console.log({ instruction });
-
 
                             ACTIVE = false;
 

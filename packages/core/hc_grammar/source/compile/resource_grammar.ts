@@ -1,7 +1,7 @@
 import { Logger } from '@candlelib/log';
 import URI from '@candlelib/uri';
 import { GrammarObject } from "@hctoolkit/common";
-import { deduplicateProductionBodies, GrammarCompilationReport } from './compile.js';
+import { deduplicateProductionBodies, GrammarCompilationReport, integrateIRReduceFunctions } from './compile.js';
 import { integrateReferencedProductions } from "../passes/referenced_production.js";
 import { createCollisionMatrix, processSymbols } from '../passes/common.js';
 import { convertListProductions } from "../passes/convert_list_productions.js";
@@ -70,6 +70,9 @@ export async function resolveResourceFile(grammar: GrammarObject, logger: Logger
 
         logger.rewrite_log("Creating collision matrix");
         createCollisionMatrix(grammar);
+
+        logger.rewrite_log("Update reduce function reference indices");
+        integrateIRReduceFunctions(grammar);
 
         logger.rewrite_log("Grammar hydration complete");
     } catch (e) {

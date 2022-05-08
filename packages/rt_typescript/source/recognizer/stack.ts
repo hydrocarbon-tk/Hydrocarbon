@@ -26,13 +26,13 @@ export class KernelStack {
     reset(state: number) {
         this.pointer = 0;
         this.state_stack[0] = 0;
-        this.meta_stack[0] = -1;
-        this.push_state(state);
+        this.meta_stack[0] = 0;
+        this.push_state(state, 0);
     }
 
-    push_state(kernel_state: number) {
+    push_state(kernel_state: number, accumulated_symbols: number) {
         this.state_stack[++this.pointer] = kernel_state;
-        this.meta_stack[this.pointer] = (this.meta_stack[this.pointer - 1] & 0xFFFF) | /* this.symbol_accumulator */ 0;
+        this.meta_stack[this.pointer] = /* (this.meta_stack[this.pointer - 1] & 0xFFFF) | */ accumulated_symbols;
     }
 
     swap_state(kernel_state: number) {

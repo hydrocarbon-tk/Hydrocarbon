@@ -261,13 +261,14 @@ export function createProductionBody(mapped_sym: { pos?: Token, tok?: Token; } |
 export function registerProduction(
     grammar: GrammarObject,
     hash_string: string,
-    production: GrammarProduction
+    production: GrammarProduction,
+    ALLOW_DEDUP: boolean = true
 ): GrammarProduction {
 
     if (!grammar.production_hash_lookup)
         grammar.production_hash_lookup = new Map;
 
-    if (grammar.production_hash_lookup.has(hash_string))
+    if (ALLOW_DEDUP && grammar.production_hash_lookup.has(hash_string))
         return grammar.production_hash_lookup.get(hash_string);
 
     grammar.production_hash_lookup.set(hash_string, production);

@@ -48,3 +48,4 @@ export enum StateAttrib {
     SCANNER = 1 << 8,
     TOKEN_BRANCH = ASSERT_BRANCH | PEEK_BRANCH
 }
+

@@ -61,7 +61,7 @@ export function complete<T>(
                 try {
                     functions[body](stack, token);
                 } catch (e) {
-                    console.log(token.toString());
+
                     token.throw(`Unable to reduce production ${ReduceNames[body]} `);
                 }
 
@@ -190,26 +190,27 @@ function fork_action_handler(action: ParseAction[ParseActionType], iterator: Sta
             i++;
         }
         if (AMBIGUOUS) {
-            throw new Error("Unable To Handle Ambiguous parses");
-        } else {
-
-
-            const ideal_tokens = tokens[IDEAL_INDEX];
-            const ideal_buffer = buffers[IDEAL_INDEX];
-            const ideal_reader = readers[IDEAL_INDEX];
-
-
-            iterator.stack.pointer -= 1;
-
-            //iterator.production_id = fork_iterator.production_id;
-
-            iterator.tokens[0].impersonate(ideal_tokens[0]);
-            iterator.tokens[1].impersonate(ideal_tokens[1]);
-
-            iterator.reader.setTo(ideal_reader.cursor);
-
-            return ideal_buffer.slice(0, -1);
+            console.warn("Using first match to resolve Ambiguous parse " + buffers.length);
+            //throw new Error("Unable To Handle Ambiguous parses");
         }
+
+
+        const ideal_tokens = tokens[IDEAL_INDEX];
+        const ideal_buffer = buffers[IDEAL_INDEX];
+        const ideal_reader = readers[IDEAL_INDEX];
+
+
+        //iterator.stack.pointer -= 1;
+
+        iterator.production_id = fork_iterator.production_id;
+
+        iterator.tokens[0].impersonate(ideal_tokens[0]);
+        iterator.tokens[1].impersonate(ideal_tokens[1]);
+
+        iterator.reader.setTo(ideal_reader.cursor);
+
+        return ideal_buffer.slice(0, -1);
+
     }
 
     return [];

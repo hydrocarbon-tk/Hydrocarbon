@@ -21,7 +21,7 @@ import {
     replaceBodySymbol,
     Sym_Is_Group_Production
 } from "../nodes/common.js";
-import { getProductionSignature } from "./common.js";
+import { getGeneralProductionSignature } from "./common.js";
 
 
 
@@ -77,7 +77,7 @@ export function processGroupSymbol(sym: any, body: HCG3ProductionBody, meta: any
 
                 new_production.priority = group_body.priority || 0;
 
-                new_production = registerProduction(grammar, getProductionSignature(new_production), new_production);
+                new_production = registerProduction(grammar, getGeneralProductionSignature(new_production), new_production);
 
                 const new_production_symbol = createProductionSymbol(new_production.name, sym.IS_OPTIONAL, sym);
 

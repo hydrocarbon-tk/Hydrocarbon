@@ -1,15 +1,14 @@
-use std::fmt::Debug;
-
 use super::token::Token;
 use crate::{
     ast::{HCObj, ReduceFunction},
-    ByteReader, ParseAction, ParseIterator,
+    ByteReader, ParseAction, ParseErrorCode, ParseIterator,
 };
+use std::fmt::Debug;
 
 pub fn complete<'b, I: ParseIterator<T>, T: 'b + ByteReader, Node: Debug>(
-    mut iterator: I,
+    iterator: &mut I,
     fns: &'static [ReduceFunction<Node>],
-) -> Result<HCObj<Node>, String> {
+) -> Result<HCObj<Node>, ParseAction> {
     let mut tokens: Vec<Token> = Vec::with_capacity(8);
     let mut nodes: Vec<HCObj<Node>> = Vec::with_capacity(8);
     let mut stack_pointer: usize = 0;
@@ -21,13 +20,7 @@ pub fn complete<'b, I: ParseIterator<T>, T: 'b + ByteReader, Node: Debug>(
             state = action;
         }
         crate::ParseAction::NONE {} => {}
-        crate::ParseAction::ERROR {
-            production: _,
-            reason,
-        } => {
-            if let Some(res) = reason {
-                println!("{:?}", res);
-            }
+        crate::ParseAction::ERROR { .. } => {
             state = action;
         }
         crate::ParseAction::FORK {} => {
@@ -95,6 +88,13 @@ pub fn complete<'b, I: ParseIterator<T>, T: 'b + ByteReader, Node: Debug>(
         crate::ParseAction::ACCEPT {} => {
             return Ok(nodes.remove(0));
         }
-        _ => Err(String::from("Failed To Parse")),
+        crate::ParseAction::ERROR { .. } => return Err(state),
+        _ => {
+            return Err(ParseAction::ERROR {
+                error_code: ParseErrorCode::NORMAL,
+                pointer: 0,
+                production: 0,
+            })
+        }
     }
 }

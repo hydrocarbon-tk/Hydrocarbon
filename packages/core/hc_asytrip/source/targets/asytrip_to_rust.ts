@@ -60,32 +60,6 @@ function getExpressionString<T extends keyof ASYTRIPTypeObj>(
     return expr_mapper.get(v.type)(v, c, inits);
 }
 
-function convertValToString(v, t) {
-    if (TypeIsString(t))
-        return `(HCGObjDouble{Val:${v}}).String()`;
-    return `&(${v}).String()`;
-};
-function convertValToDouble(v, t) {
-    if (TypeIsString(t))
-        return `(HCGObjString{Val:${v}}).Double()`;
-    return `(${v}).Double()`;
-};
-
-function convertArgsToType(
-    c: ASYTRIPContext,
-    inits: Inits,
-    check: (t: any) => boolean,
-    convert: (a: string, t: ASYTRIPTypeObj[ASYTRIPType]) => string
-): (val: ASYTRIPTypeObj[ASYTRIPType]) => string {
-    return v => {
-        const val = getExpressionString(v, c, inits);
-        const type = getResolvedType(v, c)[0];
-        if (!check(type))
-            return convert(val, type);
-        return val;
-    };
-}
-
 function GenerateTypeString(
     context: ASYTRIPContext,
     prop: ResolvedProp,
@@ -127,10 +101,12 @@ function GenerateTypeString(
             ...prop.struct_types.structs
         ];
         type_string = `${names.join(" | ")}`; */
-        if (types.length > 1)
+        if (types.length > 1) {
+
             type_string = `ASTNode`;
 
-        else {
+
+        } else {
             type_string = `Box<${types[0].name}>`;
 
             if (HAS_NULL)
@@ -191,14 +167,15 @@ pub enum ASTNode {NONE,${structs.map(([name, value]) => {
     
 impl HCObjTrait for ASTNode {
     fn String(&self) -> String {
-        use ASTNode::*;
+        String::from("")
+        /* use ASTNode::*;
         match self {
             ${structs.map(([name, value]) => {
             return `
             ${name}(bx) => bx.tok.String(),`;
         }).join("\n")}
             _ => String::from(""),
-        }
+        } */
     }
 }`,
         //Iterator ------------------------------------------------------------------------
@@ -261,7 +238,7 @@ where
         ASTNode::NONE
     }
     fn Iterate(
-        self: &'a mut Box<Self>,
+        &'a mut self,
         _yield: &mut impl FnMut(&mut NodeIteration<'a>, &mut NodeIteration<'a>,u32, i32, i32) -> bool,
         parent: &mut NodeIteration<'a>,
         i: i32,
@@ -270,7 +247,69 @@ where
     fn Token(&self) -> Token;
     fn Type() -> u32;
     fn GetType(&self) -> u32;
+
+    //fn serialize(ByteWriter) -> none
+    //fn deserialize(ByteReader) -> Self
 }
+`);
+
+    strings.push(`
+impl<'a> ASTNodeTraits<'a> for ASTNode
+where
+    Self: Sized,
+{
+    fn Replace(&mut self, n: ASTNode, i: i32, j: i32) -> ASTNode {
+        use ASTNode::*;
+        match self {
+            _ => ASTNode::NONE,
+            ${structs.map(([n, s]) => `
+                ${n}(node) => {
+                    node.as_mut().Replace(n, i, j)
+            }`)
+        }}
+    }
+
+    fn Iterate(&'a mut self, 
+        _yield: &mut impl FnMut(&mut NodeIteration<'a>, &mut NodeIteration<'a>,u32, i32, i32) -> bool,
+        parent: &mut NodeIteration<'a>,
+        i: i32,
+        j: i32,
+    ){
+        use ASTNode::*;
+        match self {
+            _ => {},
+            ${structs.map(([n, s]) => `
+                ${n}(node) => {
+                    node.as_mut().Iterate(_yield, parent, i, j)
+            }`)
+        }}
+    }
+
+    fn Token(&self) -> Token {
+        Token::empty()
+        /* 
+        use ASTNode::*;
+        match self {
+            _ => Token::empty(),
+            ${structs.map(([n, s]) => `
+                ${n}(node) => node.as_ref().Token()`)
+        }} */
+    }
+
+    fn GetType(&self) -> u32 {
+        use ASTNode::*;
+        match self {
+            _ => 0,
+            ${structs.map(([n, s]) => `
+                ${n}(node) => 
+                    node.as_ref().GetType()`)
+        }}
+    }
+
+    fn Type() -> u32 { 0 }
+    
+}
+
 `);
 
 
@@ -290,19 +329,23 @@ where
 
 #[derive(Debug, Clone)]
 pub struct ${struct_name} {
-    pub tok:Token,
-    ${prop_vals.map(({ name: n, type: v }) => `pub ${n}:${v}`).join(",\n")}
+    ${prop_vals.map(({ name: n, type: v, types }) => `pub ${n}:${v} /* ${types.map(function (t) {
+            if (t.type == ASYTRIPType.STRUCT)
+                return `${t.name}`;
+            else return ASYTRIPType[t.type];
+        }).join(" | ")} */`).join(",\n")}
 }
 
 impl ${struct_name} {
-fn new( tok: Token, ${prop_vals.map(({ name: n, type: v }) => `_${n}:${v}`).join(", ")}) -> Box<Self> {
+fn new( ${prop_vals.map(({ name: n, type: v }) => `_${n}:${v}`).join(", ")}) -> Box<Self> {
     Box::new(${struct_name}{
-        tok: tok,
         ${prop_vals.map(({ name: n }) => {
             return `${n} : _${n}`;
         }).map(s => s + ",").join("\n        ")}
     })
 }
+
+
 
 ${struct_props.flatMap(({ name: prop_name, type: v, types, prop: p, HAS_NULL }, j) => {
             const HAVE_STRUCT = TypesInclude(types, TypeIsStruct);
@@ -419,9 +462,9 @@ impl<'a> ASTNodeTraits<'a> for ${struct_name}
 where
     Self: Sized,
 {
-/*
+
 fn Iterate(
-    self: &'a mut Box<Self>,
+    &'a mut self,
     _yield: &mut impl FnMut(&mut NodeIteration<'a>, &mut NodeIteration<'a>,u32, i32, i32) -> bool,
     parent: &mut NodeIteration<'a>,
     i: i32,
@@ -429,13 +472,13 @@ fn Iterate(
 ) {
     let node = UnsafeCell::from(self);
 
-    {
-        let mut_me = unsafe { (*node.get()).as_mut() };
+    unsafe{
+        let mut_me = node.get();
 
-        if !_yield(&mut NodeIteration::${struct_name}(mut_me), parent, ${context.type.get(struct_name)}, i, j) { return };
+        if !_yield(&mut NodeIteration::${struct_name}(*mut_me), parent, ${context.type.get(struct_name)}, i, j) { return };
     }
         
-    ${struct_props.flatMap(({ name: n, type: v, types, prop: p, HAS_NULL, HAVE_STRUCT }, j) => {
+    ${struct_props.flatMap(({ name: n, type: v, types, prop: p, HAS_NULL, HAVE_STRUCT, REQUIRES_DYNAMIC }, j) => {
 
             if (j == 0) i = 0;
             const ifs = [];
@@ -444,12 +487,14 @@ fn Iterate(
                 if (TypesRequiresDynamic(types)) {
                     ifs.push([
                         `
-        match &mut (unsafe { (*node.get()).as_mut() }.${n}){
+        match &mut (unsafe { (*node.get()) }.${n}){
             ${structs.map(({ name }) => {
                             return `
                 ASTNode::${name}(child) => { 
-                    let mut_me_b = unsafe { (*node.get()).as_mut() };
-                    child.Iterate( _yield, &mut NodeIteration::${struct_name}(mut_me_b), ${i}, 0);
+                    unsafe { 
+                        let mut_me_b = node.get();
+                        child.Iterate( _yield, &mut NodeIteration::${struct_name}(*mut_me_b), ${i}, 0);
+                    };
                 }`;
                         }).join(",\n")}
             _ => {}
@@ -457,21 +502,38 @@ fn Iterate(
         }`
                     ].join("\n"));
                 } else if (HAS_NULL) {
-                    ifs.push([
-                        `
-        {
-            if let Some(child) = &mut (unsafe { (*node.get()).as_mut() }.${n}) {
-                let mut_me_b = unsafe { (*node.get()).as_mut() };
-                child.Iterate(_yield, &mut NodeIteration::${struct_name}(mut_me_b), ${i}, 0);
+                    if (types.length > 1) /* Uses ASTNode type */ {
+                        ifs.push([
+                            `
+        unsafe {
+            let reference = node.get();
+            if let child = &mut (*reference).${n} /* HAS_NULL:${HAS_NULL} */{
+                 
+                let mut_me_b = node.get();
+                child.Iterate( _yield, &mut NodeIteration::${struct_name}(*mut_me_b), ${i}, 0);
+    
             }
         }`
-                    ].join("\n"));
+                        ].join("\n"));
+                    } else
+                        ifs.push([
+                            `
+        unsafe { 
+            let reference = node.get();
+            if let Some(child) = &mut ( *reference).${n} /* HAS_NULL:${HAS_NULL} */{
+                let mut_me_b = node.get();
+                child.Iterate( _yield, &mut NodeIteration::${struct_name}(*mut_me_b), ${i}, 0);
+            }
+        }`
+                        ].join("\n"));
                 } else {
                     ifs.push([
                         `
-        {
-            let mut_me_b = unsafe { (*node.get()).as_mut() };
-            (unsafe { (*node.get()).as_mut() }.${n}).Iterate( _yield, &mut NodeIteration::${struct_name}(mut_me_b), ${i}, 0);
+        unsafe {
+            let mut_me_b = node.get();
+            let mut_me_d = node.get();
+
+            ((*mut_me_d).${n}).Iterate( _yield, &mut NodeIteration::${struct_name}(*mut_me_b), ${i}, 0);
             
         }`,
                     ].join("\n"));
@@ -484,27 +546,31 @@ fn Iterate(
 
                 ifs.push([
                     `
-        {
+        unsafe {
 
-            let mut_me_a = unsafe { (*node.get()).as_mut() };
-            for j in 0..mut_me_a.${n}.len() {
-                let mut_me_b = unsafe { (*node.get()).as_mut() };
-                let child = &mut mut_me_b.${n}[j];
+            let mut_me_a = node.get();
+            for j in 0..(*mut_me_a).${n}.len() {
+                let mut_me_b = node.get();
+                let child = &mut (*mut_me_b).${n}[j];
 
                 ${structs.length > 1 ? `match child {
                     ${structs.map(({ name }) => {
                         return `
                         ASTNode::${name}(child) => { 
-                            let mut_me = unsafe { (*node.get()).as_mut() };
-                            child.Iterate(_yield, &mut NodeIteration::${struct_name}(mut_me), ${i}, j as i32)   
+                            unsafe { 
+                                let mut_me = node.get();
+                                child.Iterate(_yield, &mut NodeIteration::${struct_name}(*mut_me), ${i}, j as i32)   
+                            };
                         }`;
                     }).join(",\n")}
                     _ => {}
                 }` :
                         `
                 if let ASTNode::${structs[0].name}(child) = child {
-                    let mut_me = unsafe { (*node.get()).as_mut() };
-                    child.Iterate( _yield, &mut NodeIteration::${struct_name}(mut_me), ${i}, j as i32);
+                    unsafe { 
+                        let mut_me = node.get();
+                        child.Iterate(_yield, &mut NodeIteration::${struct_name}(*mut_me), ${i}, j as i32)   
+                    };
                 }`}
             }
         }`
@@ -515,8 +581,8 @@ fn Iterate(
             i++;
             return ifs.join(" else ");
         }).filter(i => !!i).join("\n    ")}
-}*/
-/*
+}
+
 fn Replace(&mut self, child: ASTNode, i: i32, j: i32) -> ASTNode{
 
     match i{
@@ -558,11 +624,12 @@ fn Replace(&mut self, child: ASTNode, i: i32, j: i32) -> ASTNode{
     };
 
     ASTNode::NONE
-}*/
+}
 
 
 fn Token(&self) -> Token{
-    return self.tok;
+    Token::empty()
+    //return self.tok;
 }
 
 fn Type()-> u32{
@@ -613,8 +680,10 @@ fn GetType(&self) -> u32 {
                 case ASYTRIPType.F64:
                     str = `{${init_string} ${inits.render_rust(`args.push(HCO::DOUBLE(${data}))`)}}`;
                     break;
-                case ASYTRIPType.STRING:
-                    str = `{ ${init_string} ${inits.render_rust(` args.push(HCO::STRING(${data}))`)}}`;
+                case ASYTRIPType.STRING: {
+                    let val = productionToType(data, inits, ASYTRIPType.STRING);
+                    str = `{ ${init_string} ${inits.render_rust(` args.push(HCO::STRING(${val}))`)}}`;
+                }
                     break;
                 case ASYTRIPType.TOKEN:
                     str = `{ ${init_string} ${inits.render_rust(` args.push(HCO::TOKEN(${data}))`)}}`;
@@ -638,32 +707,32 @@ fn GetType(&self) -> u32 {
                         str = `{ 
                                 ${init_string}
                                 ${inits.render_rust(`
-                                args.push(HCO::NODES(*${data}));`)}
+                                args.push(HCO::NODES(${data}));`)}
                                  } `;
 
-                    } else if (types.length > 1) {
-                        str = `{ 
-                                ${init_string}
-                                ${inits.render_rust(`
-                                args.push(HCO::OBJECTS(*${data})); `)}
-                            }`;
                     } else if (TypesAre(types, TypeIsToken)) {
                         str = `{ 
                             ${init_string}
                             ${inits.render_rust(`
-                            args.push(HCO::TOKENS(*${data}));`)}
+                            args.push(HCO::TOKENS(${data}));`)}
                         }`;
                     } else if (TypesAre(types, TypeIsString)) {
                         str = `{ 
                             ${init_string}
                             ${inits.render_rust(`
-                            args.push(HCO::STRINGS(*${data})); `)}
+                            args.push(HCO::STRINGS(${data})); `)}
                         }`;
+                    } else if (types.length > 1) {
+                        str = `{ 
+                                ${init_string}
+                                ${inits.render_rust(`
+                                args.push(HCO::OBJECTS(${data})); `)}
+                            }`;
                     } else {
                         str = `{
                             ${init_string} 
                                 ${inits.render_rust(`
-                                args.push(*${data});`)}
+                                args.push(${data});`)}
                             }`;
                     }
                     break;
@@ -797,12 +866,16 @@ addExpressMap(ASYTRIPType.PRODUCTION, (v, c, inits) => {
         const resolved_types = getResolvedType(v, c).filter(TypeIsNotNull);
         const val = `v${v.arg_pos}`;
 
+        const r_types = resolved_types.setFilter(JSONFilter);
+
+        let dd = r_types.length > 1 ? `/* multi ${r_types.map(i => ASYTRIPType[i.type]).join(" | ")} */` : "";
+
         if (TypesAre(resolved_types, TypeIsVector))
             return deref_vector(val, resolved_types[0], inits);
         else if (TypesAre(resolved_types.slice(0, 1), TypeIsToken))
-            return inits.push_closure(`if let HCO::TOKEN($$) = ${val}`);
+            return val; //inits.push_closure(`if let HCO::TOKEN($$) = ${val}`);
         else if (TypesAre(resolved_types.slice(0, 1), TypeIsString))
-            return inits.push_closure(`if let HCO::STRING($$) = ${val}`);
+            return val; //inits.push_closure(`if let HCO::STRING($$) = ${val}`);
         else if (TypesAre(resolved_types.slice(0, 1), TypeIsStruct))
             return inits.push_closure(`if let HCO::NODE($$) = ${val}`);
 
@@ -845,18 +918,18 @@ addExpressMap(ASYTRIPType.STRUCT, (v, c, inits) => {
 
                     const arg_types = getResolvedType(type, c).filter(TypeIsNotNull);
 
-                    const val = getExpressionString(type, c, inits);
+                    const temp_val = getExpressionString(type, c, new Inits);
 
-                    if (val !== "null") {
+                    if (temp_val !== "null") {
 
                         if (TypesInclude(arg_types, TypeIsStruct)) {
 
                             const arg = arg_types[0];
 
-                            let ref = val;
+                            let ref = getExpressionString(type, c, inits);
 
                             if (target_structs.length == 1) {
-                                ref = inits.push_closure(`if let ASTNode::${arg.name}($$) = ${val}`);
+                                ref = inits.push_closure(`if let ASTNode::${arg.name}($$) = ${ref}`);
                                 if (TARGET_HAS_NULL)
                                     return `Some(${ref})`;
                             }
@@ -864,6 +937,8 @@ addExpressMap(ASYTRIPType.STRUCT, (v, c, inits) => {
                             return ref;
 
                         } else if (REQUIRES_DYNAMIC) {
+
+                            const val = getExpressionString(type, c, inits);
 
                             if ("arg_pos" in type)
                                 return val;
@@ -881,29 +956,26 @@ addExpressMap(ASYTRIPType.STRUCT, (v, c, inits) => {
                                 default: return val;
                             }
                         } else if (TypesAre(arg_types, TypeIsVector)) {
-                            return "*" + val;
+                            return "" + getExpressionString(type, c, inits);
                             //return "*" + deref_vector(val, arg_types[0], inits);
 
-                        } else if (arg_types.length == 1) {
+                        } else if (arg_types.length == 1 || refIsArg(temp_val)) {
 
                             // if (type == ASYTRIPType.CONVERT_TYPE) {
                             //     return getExpressionString(Object.assign({}, type, { DEREF_PRODUCTIONS: true }), c, inits);
                             // } else {
 
-
-                            const arg = arg_types[0];
-
-                            return getExpressionString(<ASYTRIPTypeObj[ASYTRIPType.CONVERT_TYPE]>{
+                            return "/* AAA */" + getExpressionString(<ASYTRIPTypeObj[ASYTRIPType.CONVERT_TYPE]>{
                                 type: ASYTRIPType.CONVERT_TYPE,
                                 body: [],
-                                conversion_type: arg,
+                                conversion_type: arg_types[0],
                                 value: type,
                                 DEREF_PRODUCTIONS: true
                             }, c, inits);
                             //}
                         }
 
-                        return val;
+                        return getExpressionString(type, c, inits);
                     }
                 }
 
@@ -926,7 +998,7 @@ addExpressMap(ASYTRIPType.STRUCT, (v, c, inits) => {
                         case ASYTRIPType.F64:
                             return 0;
                         case ASYTRIPType.STRING:
-                            return "String::from('')";
+                            return "String::from(\"\")";
                     }
                     return "None";
                 }
@@ -934,7 +1006,7 @@ addExpressMap(ASYTRIPType.STRUCT, (v, c, inits) => {
             }
             ).map(s => s + ",").join("\n        ");
 
-        const ref = inits.push(`ASTNode::${name}(${name}::new(\n        tok,\n        ${data}\n    ) \n);`);
+        const ref = inits.push(`ASTNode::${name}(${name}::new(\n        ${data}\n    ) \n);`);
 
         return ref;
     } else if (v.arg_pos) {
@@ -952,14 +1024,14 @@ function deref_vector(
     const types = vector.types;
 
     if (TypesAre(types, TypeIsStruct)) {
-        return inits.push_closure(`if let HCO::NODES($$) = &mut ${val}`);
+        return inits.push_closure(`if let HCO::NODES(mut $$) = ${val}`);
     } else if (TypesAre(types, TypeIsString))
         //Need to create a local dereference to push values
-        return inits.push_closure(`if let HCO::STRINGS($$) = &mut ${val}`);
+        return inits.push_closure(`if let HCO::STRINGS(mut $$) = ${val}`);
     else if (TypesAre(types, TypeIsToken))
-        return inits.push_closure(`if let HCO::TOKENS($$)= &mut ${val}`);
+        return inits.push_closure(`if let HCO::TOKENS(mut $$)= ${val}`);
     else
-        return inits.push_closure(`if let HCO::OBJECTS($$) = &mut ${val}`);
+        return inits.push_closure(`if let HCO::OBJECTS(mut $$) = ${val}`);
 }
 
 addExpressMap(ASYTRIPType.OR, (v, c, inits) => {
@@ -998,17 +1070,28 @@ addExpressMap(ASYTRIPType.ADD, (v, c, inits) => {
         }, c, inits);
     }
 
+
+    if (TypeIsString(type_l) || TypeIsString(type_r)) {
+        let lval = getExpressionString(<ASYTRIPTypeObj[ASYTRIPType.CONVERT_TYPE]>{
+            type: ASYTRIPType.CONVERT_TYPE,
+            body: [],
+            conversion_type: <any>{ type: ASYTRIPType.STRING },
+            value: l,
+            DEREF_PRODUCTIONS: true
+        }, c, inits);
+        let rval = getExpressionString(<ASYTRIPTypeObj[ASYTRIPType.CONVERT_TYPE]>{
+            type: ASYTRIPType.CONVERT_TYPE,
+            body: [],
+            conversion_type: <any>{ type: ASYTRIPType.STRING },
+            value: r,
+            DEREF_PRODUCTIONS: true
+        }, c, inits);
+        return `${lval} + &${rval}`;
+    }
+
+
     const left = getExpressionString(l, c, inits);
     const right = getExpressionString(r, c, inits);
-
-    if (TypeIsString(type_l) && !TypeIsString(type_r)) {
-
-        return `${left} + &${right}.String()`;
-    } else if (TypeIsString(type_l) && TypeIsString(type_r)) {
-        return `${left} + &${right}`;
-    } else if (TypeIsString(type_r) && !TypeIsString(type_r)) {
-        return `${left}.String() + &${right}`;
-    }
 
     return `${left} + ${right}`;
 });
@@ -1072,6 +1155,12 @@ addExpressMap(ASYTRIPType.VECTOR_PUSH, (v, c, inits) => {
 
             if (TypeIsToken(type) || TypeIsString(type)) {
                 const vals = v.args.filter(TypeIsNotNull).map(v => {
+                    let t = type;
+                    if (refIsArg(ref))
+                        t = <ASYTRIPTypeObj[ASYTRIPType.PRODUCTION]>{
+                            type: ASYTRIPType.PRODUCTION, args: [], body: [], val: 0,
+                        };
+
                     return getExpressionString(<ASYTRIPTypeObj[ASYTRIPType.CONVERT_TYPE]>{
                         type: ASYTRIPType.CONVERT_TYPE,
                         body: [],
@@ -1110,7 +1199,8 @@ addExpressMap(ASYTRIPType.VECTOR, (v, c, inits) => {
     if (TypesAre(types, TypeIsStruct)) {
 
         //const ref = inits.push(` Box::new(Vec::new()).as_mut()`, "Vec<ASTNode>");
-        const ref = inits.push(` Box::new(Vec::new()).as_mut()`, "&mut Vec<ASTNode>");
+        //const ref = inits.push(` Box::new(Vec::new()).as_mut()`, "&mut Vec<ASTNode>");
+        const ref = inits.push(` Vec::new()`, "Vec<ASTNode>");
 
         for (const arg of v.args) {
 
@@ -1132,7 +1222,7 @@ addExpressMap(ASYTRIPType.VECTOR, (v, c, inits) => {
             return inits.push(`[${vals.map(v => `...${v}`).join(", ")}]`, getTypeString(v, c));
         } else {
             //  const ref = inits.push(`Vec::new()`, `Vec<${getTypeString(type, c)}>`);
-            const ref = inits.push(` Box::new(Vec::new()).as_mut()`, `&mut Vec<${getTypeString(type, c)}>`);
+            const ref = inits.push(`Vec::new()`, `Vec<${getTypeString(type, c)}>`);
             const vals = v.args.filter(TypeIsNotNull).map(v => {
                 return getExpressionString(<ASYTRIPTypeObj[ASYTRIPType.CONVERT_TYPE]>{
                     type: ASYTRIPType.CONVERT_TYPE,
@@ -1150,7 +1240,7 @@ addExpressMap(ASYTRIPType.VECTOR, (v, c, inits) => {
         }
     } else {
         //const ref = inits.push(`Vec::new()`, "Vec<HCO>");
-        const ref = inits.push(` Box::new(Vec::new()).as_mut()`, "&mut Vec<HCO>");
+        const ref = inits.push(`Vec::new()`, "Vec<HCO>");
 
         for (const arg of v.args) {
 
@@ -1247,7 +1337,7 @@ addExpressMap(ASYTRIPType.I8, (v, c, inits) => {
 addExpressMap(ASYTRIPType.NULL, (v, c, inits) => "null");
 
 // BOOL ---------------------------------------------------
-addTypeMap(ASYTRIPType.BOOL, (v, c) => "boolean");
+addTypeMap(ASYTRIPType.BOOL, (v, c) => "bool");
 
 addExpressMap(ASYTRIPType.BOOL, (v, c, inits) => (v.val + "") || "false");
 
@@ -1261,37 +1351,37 @@ const conversion_table =
     [A.F64]:
         (t: number, v: string, i: Inits): string => "" + ({
             [A.F64]: v, [A.F32]: `${v} as f64`, [A.I64]: `${v} as f64`, [A.I32]: `${v} as f64`, [A.I16]: `${v} as f64`, [A.I8]: `${v} as f64`, [A.BOOL]: `${v} as f64`, [A.NULL]: "0.0",
-            [A.TOKEN]: `${v}.to_f64()`, [A.STRING]: `${v}`, [A.STRUCT]: `${v}.to_f64()`, [A.VECTOR]: `${v}.to_f64()`, [A.PRODUCTION]: `${v}.to_f64()`
+            [A.TOKEN]: `${v}.to_f64()`, [A.STRING]: `${v}`, [A.STRUCT]: `${v}.to_f64_()`, [A.VECTOR]: `(${v}.len() as f64)`, [A.PRODUCTION]: `(${v}.len() as f64)`
         })[t],
     [A.F32]:
         (t: number, v: string, i: Inits): string => "" + ({
             [A.F64]: `${v} as f32`, [A.F32]: v, [A.I64]: `${v} as f32`, [A.I32]: `${v} as f32`, [A.I16]: `${v} as f32`, [A.I8]: `${v} as f32`, [A.BOOL]: `${v} as f32`, [A.NULL]: "0.0",
-            [A.TOKEN]: `${v}.to_f32()`, [A.STRING]: `${v}`, [A.STRUCT]: `${v}.to_f32()`, [A.VECTOR]: `${v}.to_f32()`, [A.PRODUCTION]: `${v}.to_f64()`
+            [A.TOKEN]: `${v}.to_f32()`, [A.STRING]: `${v}`, [A.STRUCT]: `${v}.to_f32()`, [A.VECTOR]: `(${v}.len() as f32)`, [A.PRODUCTION]: `(${v}.len() as f32)`
         })[t],
     [A.I64]:
         (t: number, v: string, i: Inits): string => "" + ({
             [A.F64]: `${v} as i64`, [A.F32]: `${v} as i64`, [A.I64]: v, [A.I32]: `${v} as i64`, [A.I16]: `${v} as i64`, [A.I8]: `${v} as i64`, [A.BOOL]: `${v} as i64`, [A.NULL]: "0i64",
-            [A.TOKEN]: `${v}.to_i64()`, [A.STRING]: `${v}`, [A.STRUCT]: `${v}.to_i64()`, [A.VECTOR]: `${v}.to_i64()`, [A.PRODUCTION]: `${v}.to_f64()`
+            [A.TOKEN]: `${v}.to_i64()`, [A.STRING]: `${v}`, [A.STRUCT]: `${v}.to_i64()`, [A.VECTOR]: `(${v}.len() as i64)`, [A.PRODUCTION]: `(${v}.len() as i64)`
         })[t],
     [A.I32]:
         (t: number, v: string, i: Inits): string => "" + ({
             [A.F64]: `${v} as i32`, [A.F32]: `${v} as i32`, [A.I64]: `${v} as i32`, [A.I32]: v, [A.I16]: `${v} as i32`, [A.I8]: `${v} as i32`, [A.BOOL]: `${v} as i32`, [A.NULL]: "0i32",
-            [A.TOKEN]: `${v}.to_i32()`, [A.STRING]: `${v}`, [A.STRUCT]: `${v}.to_i32()`, [A.VECTOR]: `${v}.to_i32()`, [A.PRODUCTION]: `${v}.to_f64()`
+            [A.TOKEN]: `${v}.to_i32()`, [A.STRING]: `${v}`, [A.STRUCT]: `${v}.to_i32()`, [A.VECTOR]: `(${v}.len() as i32)`, [A.PRODUCTION]: `(${v}.len() as i32)`
         })[t],
     [A.I16]:
         (t: number, v: string, i: Inits): string => "" + ({
             [A.F64]: `${v} as i16`, [A.F32]: `${v} as i16`, [A.I64]: `${v} as i16`, [A.I32]: `${v} as i16`, [A.I16]: v, [A.I8]: `${v} as i16`, [A.BOOL]: `${v} as i16`, [A.NULL]: "0i16",
-            [A.TOKEN]: `${v}.to_i16()`, [A.STRING]: `${v}`, [A.STRUCT]: `${v}.to_i16()`, [A.VECTOR]: `${v}.to_i16()`, [A.PRODUCTION]: `${v}.to_f64()`
+            [A.TOKEN]: `${v}.to_i16()`, [A.STRING]: `${v}`, [A.STRUCT]: `${v}.to_i16()`, [A.VECTOR]: `(${v}.len() as i16)`, [A.PRODUCTION]: `(${v}.len() as i16)`
         })[t],
     [A.I8]:
         (t: number, v: string, i: Inits): string => "" + ({
             [A.F64]: `${v} as i8`, [A.F32]: `${v} as i8`, [A.I64]: `${v} as i8`, [A.I32]: `${v} as i8`, [A.I16]: `${v} as i8`, [A.I8]: v, [A.BOOL]: `${v} as i8`, [A.NULL]: "0i8",
-            [A.TOKEN]: `${v}.to_i8()`, [A.STRING]: `${v}`, [A.STRUCT]: `${v}.to_i8()`, [A.VECTOR]: `${v}.to_i8()`, [A.PRODUCTION]: `${v}.to_f64()`
+            [A.TOKEN]: `${v}.to_i8()`, [A.STRING]: `${v}`, [A.STRUCT]: `${v}.to_i8()`, [A.VECTOR]: `(${v}.len() as i8)`, [A.PRODUCTION]: `(${v}.len() as i8)`
         })[t],
     [A.BOOL]:
         (t: number, v: string, i: Inits): string => "" + ({
             [A.F64]: `${v} as bool`, [A.F32]: `${v} as bool`, [A.I64]: `${v} as bool`, [A.I32]: `${v} as bool`, [A.I16]: `${v} as bool`, [A.I8]: `${v} as bool`, [A.BOOL]: v, [A.NULL]: "false",
-            [A.TOKEN]: `${v}.to_bool()`, [A.STRING]: `${v}`, [A.STRUCT]: `${v}.to_bool()`, [A.VECTOR]: `${v}.to_bool()`, [A.PRODUCTION]: `${v}.to_f64()`
+            [A.TOKEN]: `${v}.to_bool()`, [A.STRING]: `${v}`, [A.STRUCT]: `${v}.to_bool()`, [A.VECTOR]: `(${v}.len() > 0)`, [A.PRODUCTION]: `${v}.to_f64()`
         })[t],
     [A.NULL]:
         (t: number, v: string, i: Inits): string => "" + ({
@@ -1302,13 +1392,13 @@ const conversion_table =
         (t: number, v: string, i: Inits): string => "" + ({
             [A.F64]: `${v}.String()`, [A.F32]: `${v}.String()`, [A.I64]: `${v}.String()`, [A.I32]: `${v}.String()`, [A.I16]: `${v}.String()`, [A.I8]: `${v}.String()`,
             [A.BOOL]: `${v}.String()`, [A.NULL]: /*       */ "\"\".to_string()", [A.TOKEN]: `${v}.String()`, [A.STRING]: `${v}`, [A.STRUCT]: `${v}.String()`, [A.VECTOR]: `${v}.String()`,
-            [A.PRODUCTION]: `${v}.to_f64()`
+            [A.PRODUCTION]: `${v}.String()`
         })[t],
     [A.TOKEN]:
         (t: number, v: string, i: Inits): string => "" + ({
             [A.F64]: `null`, [A.F32]: `null`, [A.I64]: `null`, [A.I32]: `null`, [A.I16]: `null`, [A.I8]: `null`,
             [A.BOOL]: `null`, [A.NULL]: /*       */ "null", [A.TOKEN]: v, [A.STRING]: `${v}`, [A.STRUCT]: `null`, [A.VECTOR]: `null`,
-            [A.PRODUCTION]: v
+            [A.PRODUCTION]: `${v}.Token()`
         })[t],
     //[A.VECTOR]:
     //    (t: number, v: string, i : Inits): string => "" + ({
@@ -1321,7 +1411,25 @@ const conversion_table =
 addExpressMap(ASYTRIPType.CONVERT_TYPE, (v, c, inits) => {
     const val = getExpressionString(v.value, c, inits);
     const type = getResolvedType(v.value, c)[0];
-    if (v.value.type == ASYTRIPType.PRODUCTION && v.DEREF_PRODUCTIONS)
+    if (v.value.type == ASYTRIPType.PRODUCTION)
         return conversion_table[v.conversion_type.type](v.value.type, val, inits);
     return conversion_table[v.conversion_type.type](type.type, val, inits);
 });
+
+function refIsArg(ref: string) {
+    return ref.match(/^v[0-9]+$/);
+}
+
+function productionToType(ref: string, init: Inits, type: ASYTRIPType) {
+    if (!refIsArg(ref))
+        return ref;
+
+    switch (type) {
+        case ASYTRIPType.STRING:
+            return `${ref}.String()`;
+        case ASYTRIPType.TOKEN:
+            return `${ref}.Token()`;
+    }
+
+    return ref;
+}

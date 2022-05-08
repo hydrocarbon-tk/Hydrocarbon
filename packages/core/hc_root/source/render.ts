@@ -64,11 +64,15 @@ export function renderRustParserData(
             continue;
 
         if (state.active_tokens.length > 0)
-            lookups.push(`(${state.pointer & state_index_mask}i32, vec!([${state.active_tokens.map(t => t + "i16")}]))`);
+            lookups.push(`(${state.pointer & state_index_mask}i32, vec![${state.active_tokens.map(t => t + "i16").join(",")}])`);
     }
 
     return `
-pub let TokenLookup = HashMap::from(
+use hctk::lazy_static;
+use std::collections::HashMap;
+
+lazy_static! {
+pub static ref TokenLookup:HashMap<i16, &'static str> = HashMap::from(
     [
         ${[
             ...(grammar.meta?.all_symbols?.by_id.entries() ?? [])
@@ -79,13 +83,16 @@ pub let TokenLookup = HashMap::from(
         }).join(",\n")}
     ]
 );
+}
 
-pub const ProductionNames:[String; ${grammar.productions.length}] =  {${grammar.productions.map((b, i) => `"${b.name ?? "unknown"}"`).join(",\n")}}
-pub const ReduceNames:[String; ${grammar.bodies.length}] = {${grammar.bodies.map((b, i) => `"${b.production?.name ?? "unknown"}[${i}]"`).join(",\n")}}
+pub const ProductionNames:[&'static str; ${grammar.productions.length}] = [${grammar.productions.map((b, i) => `"${b.name ?? "unknown"}"`).join(",\n")}];
+pub const ReduceNames:[&'static str; ${grammar.bodies.length}] = [${grammar.bodies.map((b, i) => `"${b.production?.name ?? "unknown"}[${i}]"`).join(",\n")}];
 
-pub let ExpectedTokenLookup = HashMap::from(
-    [${lookups.join(",\n")}]
-);
+lazy_static! {
+    pub static ref ExpectedTokenLookup: HashMap<i32, Vec<i16>> = HashMap::from(
+        [${lookups.join(",\n")}]
+    );
+}
 ${entry_pointers.map(p =>
             `
 /**

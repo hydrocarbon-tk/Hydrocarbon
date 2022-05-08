@@ -5,5 +5,6 @@ mod recognizer;
 mod utf8;
 pub use buffer::*;
 pub use completer::*;
+pub use lazy_static::lazy_static;
 pub use recognizer::*;
 use utf8::*;

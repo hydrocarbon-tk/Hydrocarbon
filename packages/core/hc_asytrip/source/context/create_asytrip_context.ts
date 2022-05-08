@@ -17,12 +17,16 @@ import {
     ASYTRIPTypeObj,
     GrammarObject,
     HCG3ProductionBody,
+    InstructionType,
+    IRReduce,
+    IsAssertInstruction,
+    IsPeekInstruction,
     ProductionFunction,
+    stateIsBranch,
     Sym_Is_A_Production,
     Token,
     TokenType
 } from '@hctoolkit/common';
-import { render_grammar } from '@hctoolkit/grammar';
 import {
     CondenseTypes,
     getPropertyFromExpression,
@@ -30,14 +34,11 @@ import {
     JSONFilter,
     TypeIsNotNull,
     TypeIsNull,
-    TypeIsNumber,
-    TypeIsProd,
-    TypeIsString,
+    TypeIsNumber, TypeIsString,
     TypeIsStruct,
     TypeIsVector,
-    TypesAre,
-    TypesAreNot,
-    TypesInclude
+    TypeIsVectorPush,
+    TypesAre, TypesInclude
 } from './common.js';
 
 export function createASYTripContext(
@@ -103,10 +104,13 @@ export function createASYTripContext(
             source: string,
         }[] = [];
 
+        let offset = 0;
         for (const production of grammar.productions) {
 
             if (production.type == "scanner-production")
                 continue;
+
+            //custom function
 
 
             for (const body of production.bodies) {
@@ -119,6 +123,8 @@ export function createASYTripContext(
 
                 const expr = fn?.txt ? exp(`${fn.txt.replace(/(\${1,2}\d+)/g, "$1")}`) : null;
 
+                offset++;
+
                 fns.push({
                     production_id: production.id,
                     body,
@@ -129,7 +135,55 @@ export function createASYTripContext(
                     source: renderWithFormatting(<any>expr)
                 });
             }
+
+
             // Get the return types for each body. 
+        }
+        {
+            function addIRFN(instr: IRReduce) {
+
+                const fn = <ProductionFunction>instr.reduce_fn;
+                const body = {
+                    sym: [],
+                    id: offset++,
+                };
+
+                const expr = fn?.txt ? exp(`${fn.txt.replace(/(\${1,2}\d+)/g, "$1")}`) : null;
+                if (typeof instr.reduce_fn == "object") {
+                    fns.push({
+                        production_id: -1,
+                        body,
+                        tok: Token.from(instr?.tok ?? instr.pos),
+                        fn: expr,
+                        source: renderWithFormatting(<any>expr)
+                    });
+                }
+            }
+
+            // Process user authored IR states. 
+            for (const ir_state of grammar?.ir_states || []) {
+                if (stateIsBranch(ir_state)) {
+                    for (const branch of ir_state.instructions) {
+                        if (IsPeekInstruction(branch) || IsAssertInstruction(branch)) {
+                            for (const instr of branch.instructions) {
+                                if (instr.type == InstructionType.reduce) {
+                                    if (typeof instr.reduce_fn == "object") {
+                                        addIRFN(instr);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    for (const instr of ir_state.instructions) {
+                        if (instr.type == InstructionType.reduce) {
+                            if (typeof instr.reduce_fn == "object") {
+                                addIRFN(instr);
+                            }
+                        }
+                    }
+                }
+            }
         }
 
         fns.sort((a, b) => {
@@ -344,7 +398,7 @@ produces non-struct types [ ${[nvt].map(t => {
 
                     const vector_types = resolved_types.filter(TypeIsVector);
                     const vector_types_types = vector_types.flatMap(v => v.types).filter(TypeIsNotNull);
-                    const non_vector_types = resolved_types.filter(v => !TypeIsVector(v)).filter(TypeIsNotNull);
+                    const non_vector_types = resolved_types.filter(v => !TypeIsVector(v) && !TypeIsVectorPush(v)).filter(TypeIsNotNull);
 
                     if (non_vector_types.length > 0) {
 

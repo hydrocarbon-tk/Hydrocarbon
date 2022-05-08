@@ -47,7 +47,7 @@ export function generateResolvedProps(
 
         const HAS_NULL = TypesInclude(types, TypeIsNull);
 
-        const REQUIRES_DYNAMIC = real_types.length > 0 && TypesRequiresDynamic(real_types);
+        const REQUIRES_DYNAMIC = real_types.length > 1 && TypesRequiresDynamic(real_types);
 
         const HAVE_STRUCT = TypesInclude(types, TypeIsStruct);
         const HAVE_STRUCT_VECTORS = TypesInclude(types, TypeIsVector) && types.filter(TypeIsVector).some(t => t.types.length > 0 && TypesAre(t.types, TypeIsStruct));
