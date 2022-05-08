@@ -30,6 +30,7 @@ import {
     Token,
     TokenSymbol
 } from '@hctoolkit/common';
+import { errorMonitor } from 'events';
 import { TransitionGraphOptions as TGO } from '../types/transition_graph_options.js';
 import { TransitionStateType as TST } from '../types/transition_tree_nodes.js';
 
@@ -232,10 +233,10 @@ function getProductionFollowThrough(id: number, seen: Set<number>): Item[] {
 
             const filtered = outer_scope;
 
-            const end = filtered.filter(i => (<Item>i.increment()).atEND);
+            const end_items = filtered.filter(i => (<Item>i.increment()).atEND);
             items.push(...filtered.filter(i => !(<Item>i.increment()).atEND));
 
-            for (const end_item of end)
+            for (const end_item of end_items)
                 seen_ids.add(end_item.getProductionID(GRAMMAR));
 
         }
@@ -513,7 +514,6 @@ function createPeek(
     items: Item[],
     tpn: Node[]
 ) {
-
     const out_of_scope = new Set(items.filter(i => i.state == OutOfScopeItemState).map(i => i.id));
 
     let end_item = 0;
@@ -536,7 +536,6 @@ function createPeek(
         }
     }
 
-    //parent.closure = [];
     parent.items = [];
 
     collapsed_closure = collapsed_closure.setFilter(item_id);
@@ -556,8 +555,6 @@ function createPeek(
         const items = g.map(i => i.toState(state)).setFilter(item_id);
 
         const n = createNode(opt, item_sym(g[0]), items, null);
-
-
 
         n.closure = getClosure(items, GRAMMAR, state);
         n.depth = state;
@@ -816,14 +813,13 @@ function disambiguate(
     let total_time = prev_time + (end - start);
     for (let step of next_steps) {
 
-        const id = getNodesId(step);
+        const id = getClosureId(step);
 
         // console.log(total_time, prev_time);
 
         if (step.length > 0) {
 
             if (handleShiftReduceConflicts(opt, step, roots, tpn, leaves, root, depth)) {
-
                 continue;
             } else if ((ids.includes(id)) /* || depth > 2 */ || total_time > 300) {
                 if (total_time > 300)
@@ -854,7 +850,6 @@ function handleShiftReduceConflicts(
                 if (candidate_roots.some(r => r.items[0].atEND) && candidate_roots.some(r => !r.items[0].atEND)) {
                     const winner = candidate_roots.filter(r => !r.items[0].atEND)[0];
                     const loser = candidate_roots.filter(r => r.items[0].atEND)[0];
-                    //console.log(`Favoring shift of:\n\t${winner.items[0].rup(GRAMMAR)}\nOver reduce of:\n\t${loser.items[0].rup(GRAMMAR)}\n\n`);
 
                     const prime_node = step[0];
 
@@ -901,7 +896,7 @@ function handleTransitionCollision(step: Node[], options: TGO, tpn: Node[]) {
         const roots = step.map(s => <Node>s.root).setFilter(s => s.items.map(item_id).sort().join("|"));
 
         const sym = step[0].sym;
-        const parent = <Node>step.map(s => s.pruneBranch())[0];
+        const parent = <Node>step.map(s => s.pruneBranch()).pop();
 
         handleUnresolvedRoots(options, sym, roots, parent, tpn);
     }
@@ -921,9 +916,6 @@ function completeLeaves(
     leaves: { node: Node, parent: Node; }[],
 ) {
 
-    //for (const leaf of leaves)
-    //    console.error(leaf.debug);
-
     for (const depth_group of leaves.group(({ node: l }) => l.root)) {
         //Join group into one common parent
 
@@ -934,8 +926,6 @@ function completeLeaves(
         central.closure = depth_group.flatMap(d => d.node.closure).setFilter(item_id);
 
         const root = central.root;
-
-        const cid = getClosureId([central]);
 
         if (!root)
             throw new Error("Root is not defined");
@@ -1019,8 +1009,6 @@ function completeLeaves(
                     node.children.push(child);
                 }
             }
-
-            //opt.branch_cache.set(cid, central);
         }
     }
 }
@@ -1040,13 +1028,11 @@ function handleUnresolvedRoots(
     parent: Node,
     tpn: Node[]
 ) {
-
-    //const sym = parent.sym;
-
     const items = roots.flatMap(i => i.items).setFilter(item_id);
 
     const node = createNode(opt, sym, items, parent);
 
+    parent.addType(TST.I_TEST);
 
     if (roots.length < 2) {
 
@@ -1056,8 +1042,8 @@ function handleUnresolvedRoots(
  
          return;*/
 
-        console.log(parent.debug);
-        console.log(...roots.map(r => r.debug));
+        console.error(parent.debug);
+        console.error(...roots.map(r => r.debug));
         throw new Error("Unexpected outcome: Single root interpreted as an unresolved root.");
     }
 
@@ -1090,8 +1076,6 @@ function handleUnresolvedRoots(
         const items = is_roots.flatMap(i => i.items).setFilter(item_id);
 
         //Resort to good ol' forks. 
-        node.addType(TST.I_FORK);
-
         convertStateToFork(node, items, opt, tpn);
         createFailState(opt, node, oos_roots.flatMap(r => r.items).setFilter(item_id));
 
@@ -1121,6 +1105,7 @@ function handleUnresolvedRoots(
                 convertStateToFork(node, items, opt, tpn);
             }
         } else {
+
             //Resort to good ol' forks. 
             convertStateToFork(node, items, opt, tpn);
         }
@@ -1144,6 +1129,8 @@ function convertStateToFork(node: Node, items: Item[], opt: TGO, tpn: Node[]) {
         clone.items = fork_items;
 
         processNode(opt, clone, tpn, false);
+
+        clone.removeType(TST.I_FORK);
 
         /**
          * Wrapping each fork group into a clone of the fork allows
