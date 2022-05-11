@@ -23,7 +23,7 @@
         "bit-field": "*",
         "@types/node": "*",
         "@candlelib/dev-tools": "*",
-        "@candlelib/cure": "^0.7.1"
+        "@candlelib/cure": "*"
     },
     "type": "module",
     "private": true
