@@ -36,21 +36,21 @@ pub fn complete<'b, I: ParseIterator<T>, T: 'b + ByteReader, Node: Debug>(
         } => {
             let len = length as usize;
 
-            let pos_a = tokens[tokens.len() - len as usize];
+            let pos_a = &tokens[tokens.len() - len as usize];
 
-            let pos_b = tokens[tokens.len() - 1];
+            let pos_b = &tokens[tokens.len() - 1];
 
             let token = Token::token_from_range(pos_a, pos_b);
 
             let root = tokens.len() - len;
 
-            tokens[root] = token;
+            tokens[root] = token.clone();
 
             unsafe {
                 tokens.set_len(root + 1);
             }
 
-            fns[body as usize](&mut nodes, token);
+            fns[body as usize](&mut nodes, token.clone());
 
             stack_pointer = stack_pointer - len + 1;
         }
@@ -61,13 +61,13 @@ pub fn complete<'b, I: ParseIterator<T>, T: 'b + ByteReader, Node: Debug>(
         } => {
             let mut tok = Token::new(length, token_offset as u32, line);
 
-            tok.set_source(reader);
+            //tok.set_source(reader);
 
-            let node = HCObj::TOKEN(tok);
+            let node = HCObj::TOKEN(tok.clone());
 
             nodes.push(node);
 
-            tokens.push(tok);
+            tokens.push(tok.clone());
 
             token_offset += length as usize;
 

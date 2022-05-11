@@ -1,3 +1,5 @@
+use std::{io::Read, rc::Rc};
+
 use crate::{
     get_token_class_from_codepoint, get_token_length_from_code_point,
     get_utf8_byte_length_from_code_point, get_utf8_code_point_from,
@@ -78,22 +80,22 @@ pub trait ByteReader {
 
     fn cursor(&self) -> u32;
 
-    fn getSource(&self) -> Option<&'static [u8]>;
+    fn getSource(&self) -> Option<Rc<Vec<u8>>>;
 }
 #[derive(Debug, Clone)]
 pub struct UTF8StringReader {
     length: usize,
     cursor: usize,
-    string: &'static [u8],
+    string: Rc<Vec<u8>>,
     word: u32,
     codepoint: u32,
 }
 
 impl UTF8StringReader {
-    pub fn new(string: &'static [u8]) -> UTF8StringReader {
+    pub fn new(string: Vec<u8>) -> UTF8StringReader {
         let mut reader = UTF8StringReader {
             length: string.len(),
-            string: string,
+            string: Rc::new(string),
             cursor: 0,
             word: 0,
             codepoint: 0,
@@ -104,8 +106,8 @@ impl UTF8StringReader {
 }
 
 impl ByteReader for UTF8StringReader {
-    fn getSource(&self) -> Option<&'static [u8]> {
-        return Some(self.string);
+    fn getSource(&self) -> Option<Rc<Vec<u8>>> {
+        Some(self.string.clone())
     }
 
     fn at_end(&self) -> bool {
@@ -124,7 +126,7 @@ impl ByteReader for UTF8StringReader {
     fn clone(&self) -> Self {
         UTF8StringReader {
             length: self.length,
-            string: self.string,
+            string: self.string.clone(),
             cursor: self.cursor,
             word: self.word,
             codepoint: self.codepoint,

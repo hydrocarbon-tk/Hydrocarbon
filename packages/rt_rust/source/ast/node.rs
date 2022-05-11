@@ -62,14 +62,14 @@ impl<T: HCObjTrait> HCObjTrait for HCObj<T> {
                 }
             }
             HCObj::STRING(string) => string.to_owned(),
-            &HCObj::TOKEN(val) => val.String(),
+            HCObj::TOKEN(val) => val.String(),
             _ => String::from(""),
         }
     }
 
     fn Token(&self) -> Token {
         match self {
-            &HCObj::TOKEN(val) => val,
+            HCObj::TOKEN(val) => val.clone(),
             _ => Token::empty(),
         }
     }

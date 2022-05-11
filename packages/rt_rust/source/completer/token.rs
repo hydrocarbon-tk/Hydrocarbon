@@ -1,13 +1,13 @@
-use std::fmt;
+use std::{fmt, rc::Rc};
 
 use crate::ByteReader;
 
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 pub struct Token {
     length: u32,
     offset: u32,
     _line: u32,
-    input: Option<&'static [u8]>,
+    input: Option<Rc<Vec<u8>>>,
 }
 
 impl fmt::Debug for Token {
@@ -51,12 +51,12 @@ impl Token {
         self.input = rdr.getSource();
     }
 
-    pub fn token_from_range(start: Token, end: Token) -> Token {
+    pub fn token_from_range(start: &Token, end: &Token) -> Token {
         return Token {
             length: end.offset - start.offset + end.length,
             offset: start.offset,
             _line: start._line,
-            input: start.input,
+            input: start.input.clone(),
         };
     }
 
@@ -118,7 +118,7 @@ impl Token {
     }
 
     fn slice<'a>(&self, start: i32, end: i32) -> String {
-        if let Some(input) = self.input {
+        if let Some(input) = &self.input {
             let (adjusted_start, adjusted_end) = self.get_slice_range(start, end);
             return unsafe {
                 String::from_utf8_unchecked(Vec::from(&input[adjusted_start..adjusted_end]))
