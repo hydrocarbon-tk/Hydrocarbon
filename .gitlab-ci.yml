@@ -6,13 +6,13 @@ stages:
   - test
   - deploy
 
-workflow:
-  rules:
-    - if: $CI_COMMIT_REF_NAME == "gitlab-ci"
-      when: always
-    - if: $CI_COMMIT_REF_NAME == "release"
-      when: always
-    - when: never
+default:
+  before_script:
+    - . /root/.profile
+    - npm config set @candlelib:registry https://$GITLAB_HOST:9443/api/v4/projects/3/packages/npm/
+    - npm config set -- //$GITLAB_HOST:9443/api/v4/projects/3/packages/npm/:_authToken ${NPM_DEPLOY_TOKEN}
+    - export NODE_EXTRA_CA_CERTS=${GITLAB_PUBLIC_CRT}
+    - npm install -g yarn
 
 # cache:
 #   paths:
@@ -30,7 +30,6 @@ workflow:
 fetch_dependencies:
   stage: fetch
   script:
-    - npm config set registry http://$NPM_REGISTRY
     - npm install --no-audit
 
   rules:

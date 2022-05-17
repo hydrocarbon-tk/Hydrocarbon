@@ -787,17 +787,6 @@ addTypeMap(ASYTRIPType.STRUCT, (v, c) => {
 });
 
 
-addTypeMap(ASYTRIPType.VECTOR, (v, c) => {
-    const types = v.types.flatMap(v => getResolvedType(v, c));
-
-    if (TypesAre(types, TypeIsStruct)) {
-        return `Vec<ASTNode>`;
-    } else if (types.length == 1) {
-        return `Vec<${getTypeString(types[0], c)}>`;
-    } else {
-        return `Vec<HCO>`;
-    }
-});
 addTypeMap(ASYTRIPType.ADD, (v, c) => {
     const type = getResolvedType(v, c)[0];
     return getTypeString(type, c);
@@ -1140,7 +1129,7 @@ addExpressMap(ASYTRIPType.VECTOR_PUSH, (v, c, inits) => {
 
 
                 if (TypesInclude(types, TypeIsVector)) {
-                    inits.push(`${ref}.push(...${val});`, false);
+                    inits.push(`${ref}.append(${val});`, false);
                 } else {
 
                     //  let sr_ref = inits.push_closure(`if let HCO::NODE($$) = ${val}`);
@@ -1189,6 +1178,74 @@ addExpressMap(ASYTRIPType.VECTOR_PUSH, (v, c, inits) => {
     return `${vector}`;
 });
 
+addExpressMap(ASYTRIPType.VECTOR_PUSH, (v, c, inits) => {
+
+    let vector = getExpressionString(v.vector, c, inits);
+
+    if (vector == "null")
+        return "vec![]";
+
+    const vector_types = getResolvedType(v.vector, c)
+        .setFilter(t => t.type)
+        .filter(TypeIsVector);
+
+    const types = vector_types.flatMap(v => v.types)
+        .flatMap(v => getResolvedType(v, c))
+        .setFilter(JSONFilter);
+    if (TypesAre(types, TypeIsStruct)) {
+
+        for (const arg of v.args) {
+
+            const types = getResolvedType(arg, c);
+            let val = getExpressionString(arg, c, inits);
+
+            if (val == "null") continue;
+
+            if (TypesInclude(types, TypeIsVector)) {
+
+                inits.push(`${vector}.${v.PREPEND ? "append" : "append"}(&mut ${val});`, false);
+            } else {
+                inits.push(`${vector}.${v.PREPEND ? "push_front" : "push"}(${val});`, false);
+            }
+        }
+
+    } else if (types.length == 1) {
+
+        const [type] = types;
+
+        if (TypeIsToken(type) || TypeIsString(type)) {
+
+            const vals = v.args.filter(TypeIsNotNull).map(v => {
+                return getExpressionString(<ASYTRIPTypeObj[ASYTRIPType.CONVERT_TYPE]>{
+                    type: ASYTRIPType.CONVERT_TYPE,
+                    body: [],
+                    conversion_type: type,
+                    value: v
+                }, c, inits);
+            });
+
+            if (vals.length > 0)
+                for (const val in v.PREPEND ? vals : vals.reverse())
+                    inits.push(`${vector}.${v.PREPEND ? "push_front" : "push"}(${val})`, false);
+        }
+    } else {
+
+        for (const arg of v.args) {
+            let val = getExpressionString(arg, c, inits);
+
+            if (val == "null")
+                continue;
+
+            inits.push(`${vector}.${v.PREPEND ? "push_front" : "push"}(${val});`, false);
+        }
+
+    }
+
+    return `${vector}`;
+});
+
+
+
 addExpressMap(ASYTRIPType.VECTOR, (v, c, inits) => {
     const types = v.types.flatMap(v => getResolvedType(v, c));
 
@@ -1219,7 +1276,10 @@ addExpressMap(ASYTRIPType.VECTOR, (v, c, inits) => {
 
         if (TypeIsVector(type)) {
             const vals = v.args.filter(TypeIsNotNull).map(v => getExpressionString(v, c, inits));
-            return inits.push(`[${vals.map(v => `...${v}`).join(", ")}]`, getTypeString(v, c));
+            const ref = inits.push(`vec![${vals.map(v => `@@@${v}`).join(", ")}]`, getTypeString(v, c));
+            for (const val of vals)
+                inits.push(`${ref}.append(${val});`, false);
+            return ref;
         } else {
             //  const ref = inits.push(`Vec::new()`, `Vec<${getTypeString(type, c)}>`);
             const ref = inits.push(`Vec::new()`, `Vec<${getTypeString(type, c)}>`);
@@ -1284,8 +1344,9 @@ addTypeMap(ASYTRIPType.TOKEN, (v, c) => "Token");
 addExpressMap(ASYTRIPType.TOKEN, (v, c, inits) => {
 
     if (!isNaN(v.arg_pos ?? NaN)) {
+        if (v.arg_pos < 0)
+            return "tok";
         return inits.push_closure(`if let HCO::TOKEN($$) = ${`v` + v.arg_pos}`);
-        return `v` + v.arg_pos;
     }
     return "null";
 });
@@ -1400,11 +1461,6 @@ const conversion_table =
             [A.BOOL]: `null`, [A.NULL]: /*       */ "null", [A.TOKEN]: v, [A.STRING]: `${v}`, [A.STRUCT]: `null`, [A.VECTOR]: `null`,
             [A.PRODUCTION]: `${v}.Token()`
         })[t],
-    //[A.VECTOR]:
-    //    (t: number, v: string, i : Inits): string => "" + ({
-    //        [A.F64]: `null`, [A.F32]: `null`, [A.I64]: `null`, [A.I32]: `null`, [A.I16]: `null`, [A.I8]: `null`,
-    //        [A.BOOL]: `null`, [A.NULL]: /*       */ "null", [A.TOKEN]: v, [A.STRING]: `${v}`, [A.STRUCT]: `null`, [A.VECTOR]: `...(${v})`, [A.PRODUCTION]: `...(${v})`
-    //    })[t],
 };
 
 

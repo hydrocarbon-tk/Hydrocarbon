@@ -21,16 +21,16 @@ import {
     SymbolsCollide,
     SymbolType,
     Sym_Is_A_Generic_Identifier,
+    Sym_Is_A_Generic_Symbol,
     Sym_Is_A_Generic_Type,
     Sym_Is_A_Production,
     Sym_Is_A_Production_Token,
     Sym_Is_DEFAULT,
     Sym_Is_Defined,
-    Sym_Is_Defined_Identifier, Sym_Is_Exclusive,
+    Sym_Is_Defined_Identifier, Sym_Is_Defined_Symbol, Sym_Is_Exclusive,
     Token,
     TokenSymbol
 } from '@hctoolkit/common';
-import { errorMonitor } from 'events';
 import { TransitionGraphOptions as TGO } from '../types/transition_graph_options.js';
 import { TransitionStateType as TST } from '../types/transition_tree_nodes.js';
 
@@ -44,6 +44,8 @@ export function constructDescent(
 
     //Internal recursive arguments
 ): Node {
+
+    if (process.stdout._handle) process.stdout._handle.setBlocking(true);
 
     GRAMMAR = grammar;
 
@@ -101,24 +103,6 @@ export function constructGoto(
     return goto_state;
 }
 
-function getOuterScopeGotoItems(grammar: GrammarObject, seen: Set<number>, i: Item, out: Item[] = []) {
-
-    out.push(i);
-
-    const id = i.getProductionAtSymbol(grammar).id;
-
-    if (!seen.has(id) && i.increment()?.atEND) {
-
-        let id = i.getProductionAtSymbol(grammar).id;
-
-        seen.add(id);
-
-        out.push(...(grammar.lr_items?.get(id) ?? []).flatMap(s => getOuterScopeGotoItems(grammar, seen, s)));
-    }
-
-    return out;
-}
-
 export function getGotoSTARTs(
     production: GrammarProduction,
     seed_items: Item[],
@@ -157,42 +141,17 @@ function processGoto(options: TGO, goto_items: Item[], parent: Node | null = nul
 
     const nodes: Node[] = [];
 
+    let n = null;
+    let g = null;
+
     for (const [id, group] of goto_item_map) {
+        // If some items in the group are completed, we'll use peek to 
+        // disambiguate potential conflicts between oos items and 
+        // any other non-completed items.
 
-        if (id == options.root_production.id) {
-            // Check for any existing productions that can be confused
-            // with this one.
-            const seen: Set<number> = new Set;
+        g = group;
 
-            const new_group = [
-                ...group,
-                ...getProductionFollowThrough(id, seen)
-                    .map(i => i.toState(OutOfScopeItemState))
-            ].setFilter(item_id);
-
-            if (group.length > 0 && new_group.length > group.length) {
-                //This will default to a peek
-                const
-                    items = <Item[]>new_group.map(inc),
-                    prod = GRAMMAR.productions[id],
-                    node = createNode(options, {
-                        type: SymbolType.PRODUCTION,
-                        id: id,
-                        val: id,
-                        name: prod.name,
-                        IS_NON_CAPTURE: false,
-                        tok: new Token("", 0, 0, 0),
-                        meta: false
-                    }, items, parent);
-
-                createPeek(options, node, items, nodes);
-
-                node.addType(TST.O_GOTO);
-
-                continue;
-            }
-        }
-
+        //This will default to a peek
         const
             items = <Item[]>group.map(inc),
             prod = GRAMMAR.productions[id],
@@ -208,7 +167,40 @@ function processGoto(options: TGO, goto_items: Item[], parent: Node | null = nul
 
         node.addType(TST.O_GOTO);
 
-        processNode(options, node, nodes, false);
+        if (id == 10 && options.root_production.name == "element_block_list_2")
+            n = node;
+
+        if (
+            group.length > 1
+            &&
+            (// Have some completed items
+                group.some(i => i.increment()?.atEND ?? false)
+                ||
+                // Is root production 
+                id == options.root_production.id
+            )
+        ) {
+            if (id == options.root_production.id) {
+                // Need to include out of scope states that will be used
+                // to overcome shift reduce ambiguities that may occur
+                // when resolving items that the root production may be 
+                // reduced into.
+
+                //Get all items that the root production may be a member of
+                const
+                    reducible = GRAMMAR.lr_items
+                        ?.get(id)
+                        ?.filter(i => !group.some(g => g.id == i.id))
+                        .map(inc)
+                        .map(s => s.toState(OutOfScopeItemState))
+                        ?? [];
+
+                node.items = node.items.concat(reducible);
+            }
+
+            createPeek(options, node, node.items, nodes);
+        } else
+            processNode(options, node, nodes, false);
     }
 
     let v = null;
@@ -216,33 +208,12 @@ function processGoto(options: TGO, goto_items: Item[], parent: Node | null = nul
     while ((v = nodes.shift()))
         processNode(options, v, nodes);
 
-    return parent;
-}
-
-function getProductionFollowThrough(id: number, seen: Set<number>): Item[] {
-    const seen_ids = new Set([id]);
-
-    let items: Item[] = [];
-
-    for (const id of seen_ids) {
-
-        const lr_items = GRAMMAR.lr_items?.get(id);
-
-        if (lr_items) {
-            const outer_scope = lr_items.flatMap(s => getOuterScopeGotoItems(GRAMMAR, seen, s));
-
-            const filtered = outer_scope;
-
-            const end_items = filtered.filter(i => (<Item>i.increment()).atEND);
-            items.push(...filtered.filter(i => !(<Item>i.increment()).atEND));
-
-            for (const end_item of end_items)
-                seen_ids.add(end_item.getProductionID(GRAMMAR));
-
-        }
+    if (n) {
+        console.error(itemsDebug(g));
+        console.error(n.debug);
     }
 
-    return items.setFilter(item_id).filter(i => (i.getProductionID(GRAMMAR) != id));
+    return parent;
 }
 
 function get_sym(i: Item) {
@@ -283,11 +254,11 @@ function processNode(
 
         // Filter out shift reduce conflicts
 
-        // If all the non-terminal items are the same 
+        // If all the non-terminal items are the same production
         // and there are no terminal items then
         // we can do a production call provided that
         // the production does not loop back into the 
-        // host production. 
+        // host production (Indirect Left Recursion). 
         if (n_term.length == 0
             && (n_end.length == 0)
             && productions.length == 1
@@ -406,26 +377,6 @@ function processNode(
     );
 }
 
-function getShiftOnlyItems(items: Item[]) {
-    return items.filter(i => {
-        if (!i.atEND)
-            return true;
-        const segment = i.renderUnformatted(GRAMMAR);
-        for (const item of items) {
-            if (item.atEND)
-                continue;
-
-            if (item.body_ == i.body_
-                &&
-                item.renderUnformatted(GRAMMAR).indexOf(segment) == 0)
-                return false;
-
-        }
-
-        return true;
-    });
-}
-
 function incrementTerminals(
     opt: TGO,
     node: Node,
@@ -484,7 +435,7 @@ function processEndItem(
 
         const new_items = node.scanItems(true);
 
-        node.closure = [...new_items, end_item];
+        node.closure = [...new_items, end_item].setFilter(item_id);
 
         const root_item = new_items.filter(i => i.atEND && i.getProductionID(GRAMMAR) == options.root_production.id)[0];
 
@@ -514,67 +465,46 @@ function createPeek(
     items: Item[],
     tpn: Node[]
 ) {
-    const out_of_scope = new Set(items.filter(i => i.state == OutOfScopeItemState).map(i => i.id));
 
-    let end_item = 0;
-
-    let collapsed_closure: Item[] = [];
-
-    if (opt.scope == "GOTO" || true) {
-        collapsed_closure.push(...[...(GRAMMAR.lr_items?.values() ?? [])].flat()
-            .filter(i => !out_of_scope.has(i.increment()?.id ?? "")));
-    } else {
-
-        collapsed_closure.push(...(GRAMMAR.lr_items?.get(opt.root_production.id) ?? [])
-            .filter(i => i.getProductionID(GRAMMAR) != opt.root_production.id));
-
-        let n: null | Node = parent;
-
-        while (n) {
-            collapsed_closure.push(...n.closure);
-            n = n.parent;
-        }
-    }
+    let
+        end_item = 0,
+        closure: Item[] =
+            [...(GRAMMAR.lr_items?.values() ?? [])].flat().setFilter(item_id);
 
     parent.items = [];
-
-    collapsed_closure = collapsed_closure.setFilter(item_id);
 
     //separate node into a set of groups
     const roots = items.setFilter(item_id).group(s => {
         if (s.state == OutOfScopeItemState)
             return "out-of-scope-state-" + iToSymID(s);
-        if (s.atEND) {
+        else if (s.atEND)
             return "end" + end_item++;
-        } else {
+        else
             return iToSymID(s);
-        }
     }).map((g, j) => {
 
-        const state = 10000 * (j + 1);
-        const items = g.map(i => i.toState(state)).setFilter(item_id);
+        let
+            state = 10000 * (j + 1),
+            items = g.map(i => i.toState(state)).setFilter(item_id),
+            n = createNode(opt, item_sym(g[0]), items, null);
 
-        const n = createNode(opt, item_sym(g[0]), items, null);
+        if (opt.scope == "GOTO")
+            if (items[0].atEND)
+                n.addType(TST.I_COMPLETE);
 
         n.closure = getClosure(items, GRAMMAR, state);
         n.depth = state;
         n.root = n;
 
-        parent.closure.push(
-            ...collapsed_closure.map(i => i.toState(state))
-        );
+        if (g[0].state == OutOfScopeItemState)
+            n.addType(TST.I_OUT_OF_SCOPE);
 
-        if (g[0].state != OutOfScopeItemState)
-            parent.closure.push(...collapsed_closure.map(i => i.toState(state)));
-
+        parent.closure.push(...closure.map(i => i.toState(state)));
+        parent.makeClosureUnique(true);
         parent.items.push(...items);
 
-        if (g[0].state == OutOfScopeItemState) {
-            n.addType(TST.I_OUT_OF_SCOPE);
-        }
-
         return n;
-    });
+    }).filter(i => !!i);
 
     const leaves: { node: Node, parent: Node; }[] = [];
 
@@ -582,28 +512,30 @@ function createPeek(
         opt,
         roots.flatMap((r, j) => {
 
-            const nodes = r.items.flatMap(createNodeClosure(opt, parent, r));
-
-
-            let out = [];
             //Combine nodes with the same symbol
-            const groups = nodes.group(n => getUniqueSymbolName(n.sym));
+            const
+                out = [],
+                nodes = r.items.flatMap(createNodeClosure(opt, parent, r)),
+                groups = nodes.group(n => getUniqueSymbolName(n.sym));
 
             for (const group of groups) {
 
                 const primary = group[0];
 
                 for (const node of group.slice(1)) {
+
+                    node.makeClosureUnique(true);
+
                     primary.items.push(...node.items);
-                    primary.closure.push(...node.closure);
-                    primary.makeClosureUnique();
+
+                    primary.closure = primary.closure.concat(node.closure);
+
+                    primary.makeClosureUnique(true);
                 }
 
 
                 out.push(primary);
             }
-
-            //out = nodes;
 
             for (const node of out) node.depth = r.depth;
 
@@ -615,11 +547,7 @@ function createPeek(
 
     parent.items = parent.items.setFilter(item_id);
 
-
     completeLeaves(opt, tpn, leaves);
-
-    //Allow resource to be garbage collected
-    //parent.closure.length = 0;
 }
 
 /**
@@ -633,7 +561,7 @@ function createPeek(
 function disambiguate(
     opt: TGO,
     nodes: Node[],
-    roots: Node[],
+    roots_: Node[],
     tpn: Node[],
     leaves: { node: Node, parent: Node; }[],
     ids: string[] = [],
@@ -642,14 +570,19 @@ function disambiguate(
     prev_time: number = 0
 ) {
 
+    if (depth == 0 && root.sym.id == 10 && opt.root_production.name == "element_block_list_2") {
+        console.error(nodes.map(r => r.debug));
+    }
+
     // We are starting with a set of nodes, each representing either
     // a terminal symbol or an item in the end position. 
     // Each node has a common parent. 
 
     let start = performance.now();
 
-    const end_nodes = nodes.filter(n => n.end_items.length > 0);
-    const term_nodes = nodes.filter(n => n.end_items.length == 0);
+    const
+        end_nodes = nodes.filter(n => n.end_items.length > 0),
+        term_nodes = nodes.filter(n => n.end_items.length == 0);
 
     if (end_nodes.length > 0) {
 
@@ -666,8 +599,11 @@ function disambiguate(
             const items = node.scanItems();
 
             if (items.length > 0) {
+
                 const parent = <Node>node.parent;
-                term_nodes.push(...items.flatMap(createNodeClosure(opt, parent, <Node>node.root)));
+
+                if (opt.scope == "GOTO")
+                    term_nodes.push(...items.flatMap(createNodeClosure(opt, parent, <Node>node.root)));
 
                 if (end_nodes.length > 1) {
                     node.pruneLeaf();
@@ -679,17 +615,14 @@ function disambiguate(
             }
         }
 
-        // If an end-item is in a state such that it is top most production
-        // and cannot be resolved to any other items, then we shall call 
-        // that a FINAL item. If more than one FINAL item is present
+        // FINAL item is an end-item  a state such that it is the top 
+        // most production and cannot be resolved to any other items, 
+        // that . If more than one FINAL item is present
         // then we have a GENERAL ambiguity that may only be resolved
         // through the issuance of a fork state. 
 
         if (final_nodes.length > 1) {
-            const roots = <Node[]>final_nodes
-                .map(s => <Node>s.root)
-                .setFilter(s => s.items.map(item_id).sort().join("|"));
-
+            const roots = getRootsFromNodes(final_nodes);
             if (roots.length == 1) {
                 final_nodes.slice(1).map(s => s.pruneLeaf());
 
@@ -697,15 +630,12 @@ function disambiguate(
 
                 setTransitionType(node);
 
-                if (roots[0].is(TST.I_OUT_OF_SCOPE)) {
-                    node.addType(TST.I_OUT_OF_SCOPE);
-                } else {
-                    gatherLeaves(node, roots[0], leaves);
-                }
-            } else {
-                const parent = final_nodes.map(s => s.pruneLeaf())[0];
+                gatherLeaves(node, roots[0], leaves);
 
-                handleUnresolvedRoots(opt, final_nodes[0].sym, roots, parent, tpn);
+            } else {
+                const parent = final_nodes.map(s => s.pruneLeaf()).pop();
+
+                handleUnresolvedRoots(opt, final_nodes[0].sym, getRootsFromNodes(final_nodes), parent, leaves, tpn);
             }
 
         } else if (final_nodes.length > 0) {
@@ -736,7 +666,7 @@ function disambiguate(
 
     mergeOccludingGroups(opt, groups);
 
-    for (const [, group] of groups) {
+    for (const [sym, group] of groups) {
 
         //combine the nodes into a single item
         const prime_node = group[0];
@@ -757,10 +687,11 @@ function disambiguate(
 
                     prime_node.items.push(...node.items);
 
-                    prime_node.closure.push(...node.closure);
+                    prime_node.closure = prime_node.closure.concat(node.closure);
 
                     prime_node.makeClosureUnique(true);
                 }
+
                 if (node.is(TST.I_SKIPPED_COLLISION))
                     new_groups.push(...node.items
                         .flatMap(createNodeClosure(opt, prime_node, <Node>node.root)));
@@ -781,6 +712,7 @@ function disambiguate(
                     );
                 }
             } else {
+                prime_node.addType(TST.I_TEST);
                 next_steps.push(new_groups);
             }
 
@@ -796,9 +728,9 @@ function disambiguate(
 
                     prime_node.items.push(...node.items);
 
-                    prime_node.closure.push(...node.closure);
+                    prime_node.closure = prime_node.closure.concat(node.closure);
 
-                    prime_node.makeClosureUnique();
+                    prime_node.makeClosureUnique(true);
                 }
             }
 
@@ -815,37 +747,56 @@ function disambiguate(
 
         const id = getClosureId(step);
 
-        // console.log(total_time, prev_time);
-
         if (step.length > 0) {
 
-            if (handleShiftReduceConflicts(opt, step, roots, tpn, leaves, root, depth)) {
+            if (false && groupsAreAliased(step)) {
+                console.error(itemsDebug(root.items).join("\n-"));
+                handleTransitionCollision(step, opt, tpn, leaves);
+            } else if (handleShiftReduceConflicts(opt, step, leaves, root, depth)) {
                 continue;
             } else if ((ids.includes(id)) /* || depth > 2 */ || total_time > 300) {
+                //Remove out of scope
                 if (total_time > 300)
                     console.error("TIMED OUT");
-                handleTransitionCollision(step, opt, tpn);
+                if (handleShiftReduceConflicts(opt, step, leaves, root, depth, opt.scope == "GOTO" && root.depth <= 2)) { }
+                else if (step.length > 0)
+                    handleTransitionCollision(step, opt, tpn, leaves);
             } else {
-                disambiguate(opt, step, roots, tpn, leaves, ids.concat(id), root, depth + 1, total_time);
+                disambiguate(opt, step, roots_, tpn, leaves, ids.concat(id), root, depth + 1, total_time);
             }
         }
     }
-
 }
+
+function groupsAreAliased(step: Node[]) {
+    const groups = step.setFilter(g => g.root?.depth + " " + itemsDebug(g.items).join("\n")).groupMap(n => itemsDebug(n.items));
+    // const maps = groups.map(g => g.map(i => itemsDebug(i.items).sort().join("")).sort().join("")).setFilter();
+
+    for (const group of groups.values())
+        if (group.length > 1) {
+            console.error(group.map(g => g.depth + " " + itemsDebug(g.root.items).join("\n") + "\n    " + itemsDebug(g.items).join("\n")));
+            return true;
+        }
+
+    return false;
+}
+
 function handleShiftReduceConflicts(
     opt: TGO,
     step: Node[],
-    roots: Node[],
-    tpn: Node[],
     leaves: { node: Node, parent: Node; }[],
     root: Node,
-    depth: number
+    depth: number,
+    IN_GOTO: boolean = false;
 ): boolean {
-    const candidate_roots = step.map(s => <Node>s.root).setFilter(r => r.depth);
+
+    if (step.length == 0) return false;
+
+    const candidate_roots = getRootsFromNodes(step);
 
     if (candidate_roots.every(r => r.items.length == 1)) {
         const prod = candidate_roots[0].items[0].getProductionID(GRAMMAR);
-        if (candidate_roots.every(r => r.items[0].getProductionID(GRAMMAR) == prod)) {
+        if (candidate_roots.every(r => r.items[0].getProductionID(GRAMMAR) == prod) || IN_GOTO) {
             if (candidate_roots.length == 2) {
                 if (candidate_roots.some(r => r.items[0].atEND) && candidate_roots.some(r => !r.items[0].atEND)) {
                     const winner = candidate_roots.filter(r => !r.items[0].atEND)[0];
@@ -868,8 +819,6 @@ function handleShiftReduceConflicts(
 
                     prime_node.items = prime_node.items.setFilter(item_id);
 
-                    //completeLeaves(opt, tpn, [{ node: prime_node, parent: root }]);
-
                     gatherLeaves(prime_node, root, leaves);
 
                     return true;
@@ -887,21 +836,26 @@ function setTransitionType(node: Node) {
         node.addType(TST.O_TERMINAL);
 }
 
-function handleTransitionCollision(step: Node[], options: TGO, tpn: Node[]) {
+function handleTransitionCollision(step: Node[], options: TGO, tpn: Node[], leaves: { node: Node, parent: Node; }[]) {
 
     if (options.IS_SCANNER) {
+        //Remove generic symbols
 
     } else {
 
-        const roots = step.map(s => <Node>s.root).setFilter(s => s.items.map(item_id).sort().join("|"));
-
+        const roots = getRootsFromNodes(step);
         const sym = step[0].sym;
         const parent = <Node>step.map(s => s.pruneBranch()).pop();
 
-        handleUnresolvedRoots(options, sym, roots, parent, tpn);
+        handleUnresolvedRoots(options, sym, roots, parent, leaves, tpn);
     }
 }
 
+
+function getRootsFromNodes(step: Node[]) {
+    return step.map(s => <Node>s.root).setFilter(s => s.items.map(item_id).sort().join("|"));
+
+}
 
 function gatherLeaves(
     node: Node,
@@ -930,16 +884,8 @@ function completeLeaves(
         if (!root)
             throw new Error("Root is not defined");
 
-        /* for (const { node, parent } of depth_group) {
-            //if (node.parent !== parent)
-            //    throw new Error("Unexpected: Node is not child of parent");
-            if (node.root !== root)
-                throw new Error("Invalid use of mixed roots!");
-        } */
-
         if (root.is(TST.I_OUT_OF_SCOPE)) {
             depth_group.forEach(n => n.node.addType(TST.I_FAIL, TST.I_OUT_OF_SCOPE));
-
         } else if (opt.IS_SCANNER) {
 
             for (const { parent, node } of depth_group) {
@@ -954,7 +900,7 @@ function completeLeaves(
 
                 if (root.depth == node.depth && Sym_Is_A_Production(root.sym)) {
                     node.pruneLeaf();
-                    parent.addType(TST.I_TEST);
+
                     createTermedProductionCall(
                         opt,
                         <TokenSymbol>node.sym,
@@ -967,6 +913,8 @@ function completeLeaves(
 
                     parent.closure.push(...parent.items);
 
+                    parent.makeClosureUnique();
+
                     if (node.items.some(i => i.atEND)) {
                         node.removeType(TST.I_CONSUME);
                         //processEndItem(opt, node, node.items[0]);
@@ -978,10 +926,9 @@ function completeLeaves(
 
                         node.depth = (parent.depth + 1) % 10000;
 
-
                         node.closure.push(...getClosure(node.items, GRAMMAR), ...node.items);
 
-                        node.closure = node.closure.setFilter(item_id);
+                        node.makeClosureUnique();
 
                         processNode(opt, node, tpn, true);
                     }
@@ -1026,13 +973,12 @@ function handleUnresolvedRoots(
     sym: HCG3Symbol,
     roots: Node[],
     parent: Node,
+    leaves: { node: Node, parent: Node; }[],
     tpn: Node[]
 ) {
     const items = roots.flatMap(i => i.items).setFilter(item_id);
 
     const node = createNode(opt, sym, items, parent);
-
-    parent.addType(TST.I_TEST);
 
     if (roots.length < 2) {
 
@@ -1048,70 +994,35 @@ function handleUnresolvedRoots(
     }
 
     setTransitionType(parent);
-    if (roots.some(r => r.is(TST.I_OUT_OF_SCOPE))) {
-        // We are parsing the root production GOTO
-        // and are encountering production out of the 
-        // root production scope that have a series
-        // of tokens that are ambiguous with the
-        // current production.
-        // 
-        // At this point, simplest course of action is to 
-        // create a fork that attempts to consume more tokens that
-        // may be part of this production,
-        // and failing that we use a trivial fail fork, 
-        // allowing the fail state to unset the fail mode and
-        // pass the already completed production.
 
-        if (roots.every(r => r.is(TST.I_OUT_OF_SCOPE))) {
-            //Prune and set parent to fail
-            const parent = roots.map(r => r.pruneBranch())[0];
-            parent.addType(TST.I_FAIL);
-            node.addType(TST.I_FAIL);
+    const priority_ordered_roots = roots.sort((a, b) => b.priority - a.priority);
+
+    // Try filtering out low priority roots 
+
+    if (priority_ordered_roots[0].priority > 0) {
+        const highest_priority_roots = priority_ordered_roots.filter(g => g.priority > 0);
+
+        if (highest_priority_roots.length == 1) {
+
+            node.items = highest_priority_roots[0].items.setFilter(item_id);
+
+            processNode(opt, node, tpn, false);
+
+            parent.depth += 60;
+
+
+            parent.items = node.items.setFilter(item_id);
+
             return;
+        } else {
+            const items = highest_priority_roots.flatMap(r => r.items).setFilter();
+            convertStateToFork(node, items, opt, tpn);
         }
-
-        //Remove out of scope roots.
-        const oos_roots = roots.filter(r => r.is(TST.I_OUT_OF_SCOPE));
-        const is_roots = roots.filter(r => !r.is(TST.I_OUT_OF_SCOPE));
-        const items = is_roots.flatMap(i => i.items).setFilter(item_id);
+    } else {
 
         //Resort to good ol' forks. 
         convertStateToFork(node, items, opt, tpn);
-        createFailState(opt, node, oos_roots.flatMap(r => r.items).setFilter(item_id));
-
-    } else {
-
-        const priority_ordered_roots = roots.sort((a, b) => b.priority - a.priority);
-
-        // Try filtering out low priority roots 
-
-        if (priority_ordered_roots[0].priority > 0) {
-            const highest_priority_roots = priority_ordered_roots.filter(g => g.priority > 0);
-
-            if (highest_priority_roots.length == 1) {
-
-                node.items = highest_priority_roots[0].items.setFilter(item_id);
-
-                processNode(opt, node, tpn, false);
-
-                parent.depth += 60;
-
-
-                parent.items = node.items.setFilter(item_id);
-
-                return;
-            } else {
-                const items = highest_priority_roots.flatMap(r => r.items).setFilter();
-                convertStateToFork(node, items, opt, tpn);
-            }
-        } else {
-
-            //Resort to good ol' forks. 
-            convertStateToFork(node, items, opt, tpn);
-        }
     }
-
-    return;
 }
 
 
@@ -1163,12 +1074,17 @@ function mergeOccludingGroups(
             ||
             Sym_Is_A_Generic_Identifier(sym_A)
             ||
+            (opt.IS_SCANNER && Sym_Is_A_Generic_Symbol(sym_A))
+            ||
             (
                 Sym_Is_Defined_Identifier(sym_A)
                 &&
                 Sym_Is_Exclusive(sym_A)
             )
         ) {
+
+            if (Sym_Is_A_Generic_Symbol(sym_A) && !opt.IS_SCANNER) continue;
+
             for (const [symB, groupB] of groups) {
 
                 if (symA == symB)
@@ -1178,11 +1094,17 @@ function mergeOccludingGroups(
 
                 if (
 
-                    Sym_Is_Defined_Identifier(sym_B)
+                    (Sym_Is_Defined_Identifier(sym_B) || (Sym_Is_Defined_Symbol(sym_B)))
                     &&
                     !Sym_Is_Exclusive(sym_B)
                     &&
                     SymbolsCollide(sym_A, sym_B, GRAMMAR)) {
+
+                    if (Sym_Is_A_Generic_Symbol(sym_A)) {
+                        const min_item_length = Math.min(...groupB.map(g => g.root).flatMap(r => r?.items.flatMap(i => i.len) ?? [0]));
+                        if (min_item_length < 2)
+                            continue;
+                    }
 
                     seen.set(groupB, new WeakSet(groupA));
 
@@ -1198,7 +1120,7 @@ function mergeOccludingGroups(
         //check for skipped occlusion
 
         //Only in production states as peek in scanner states has no purpose
-        if (opt.IS_SCANNER)
+        if (opt.IS_SCANNER || true)
             continue;
 
         const skipped_symbol_groups = groupA.groupMap(g => getSkippableSymbolsFromItems(g.items, GRAMMAR));
@@ -1218,7 +1140,7 @@ function mergeOccludingGroups(
 
                     for (const node of group) {
 
-                        if (!(node.root?.is(TST.I_OUT_OF_SCOPE)))
+                        if (true)
                             continue;
 
                         if (groupB.some(s =>
@@ -1232,6 +1154,8 @@ function mergeOccludingGroups(
                         seen.get(groupB).add(node);
 
                         const clone = node.clone();
+
+                        console.log(symA, symB);
 
                         clone.addType(TST.I_SKIPPED_COLLISION);
 
@@ -1252,10 +1176,9 @@ function createNodeClosure(
     root: Node
 ): (this: undefined, value: Item, index: number, array: Item[]) => Node[] {
 
-    const EXCLUDE_ROOT = root.is(TST.I_OUT_OF_SCOPE);
-
-    const id = opt.root_production.id;
     return i => {
+
+        const state = i.state;
 
         const nodes: Node[] = [];
 
@@ -1269,10 +1192,6 @@ function createNodeClosure(
 
                     const prod = item.getProductionAtSymbol(GRAMMAR);
 
-                    if (EXCLUDE_ROOT && prod.id == id) {
-                        continue;
-                    }
-
                     for (const item of getStartItemsFromProduction(prod)) {
 
                         if (seen.has(item.id))
@@ -1280,7 +1199,7 @@ function createNodeClosure(
 
                         seen.add(item.id);
 
-                        closure.push(item);
+                        closure.push(item.toState(state));
                     }
 
                 } else {
@@ -1576,11 +1495,13 @@ export class Node {
             this.closure = this.closure.setFilter(i => i.id + "|" + i.state);
         else
             this.closure = this.closure.setFilter(item_id);
+
+        this.items = this.items.setFilter(i => i.id + "|" + i.state);
     }
 
     get debug(): string {
         return `
-[${this.depth}] [${gusn(this.sym)}] [${getTypeValue(this.type)}]
+[${this.depth}] [${gusn(this.sym)}] [${getTypeValue(this.type)}]${this.root ? `\n  r: [${this.root.depth}] [${gusn(this.root.sym)}] [${getTypeValue(this.root.type)}]` : ""}
 items:
 ${itemsDebug(this.items.setFilter(item_id)).join("\n")}
 closure:

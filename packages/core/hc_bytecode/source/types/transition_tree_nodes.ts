@@ -93,7 +93,7 @@ export enum TransitionStateType {
     /**
      * State includes items out of the scope of the current production 
      * that should be used for disambiguating states that would
-     * cause a reduction to a production ID other thane the current
+     * cause a reduction to a production ID other than the current
      * production. 
      */
     I_OUT_OF_SCOPE = 1 << 7,
@@ -140,4 +140,6 @@ export enum TransitionStateType {
      * that occludes another item that consumes that symbol.
      */
     I_SKIPPED_COLLISION = 1 << 21,
+
+    I_COMPLETE = 1 << 22
 }

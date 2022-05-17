@@ -1,4 +1,4 @@
-export { assign_peek } from './recognizer/iterator';
+export { assign_peek } from './recognizer/iterator.js';
 
 export {
     ByteReader,
@@ -20,11 +20,11 @@ export {
     scanner_state_mask,
     state_index_mask,
 } from '@hctoolkit/common';
-export { StateIterator } from "./recognizer/iterator";
-export * from "./completer/complete";
-export * from "./ast/ast_node";
-export * from "./ast/serialization";
-export * from "./buffer/serial_reader";
+export { StateIterator } from "./recognizer/iterator.js";
+export * from "./completer/complete.js";
+export * from "./ast/ast_node.js";
+export * from "./ast/serialization.js";
+export * from "./buffer/serial_reader.js";
 
 
 

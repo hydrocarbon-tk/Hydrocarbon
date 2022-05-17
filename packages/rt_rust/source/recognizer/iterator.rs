@@ -401,8 +401,7 @@ impl<'a, T: ByteReader> ParserCoreIterator<T> for StateIterator<'a, T> {
 
         self.emit_shift();
 
-        self.reader
-            .next(token.byte_offset - prev.byte_offset + token.byte_length);
+        self.reader.next(token.byte_length);
 
         token.cp_offset += token.cp_length;
 
@@ -650,10 +649,10 @@ impl<T: ByteReader> ParserCoreIterator<T> for ScannerIterator<T> {
 
                     self.get_tok(token_top).typ = 0;
 
-                    if !self.reader.set_cursor_to(self.tokens[1].byte_offset) {
+                    /* if !self.reader.set_cursor_to(self.tokens[1].byte_offset) {
                         //self.error();
                         return 0;
-                    };
+                    }; */
                 }
 
                 match input_type {

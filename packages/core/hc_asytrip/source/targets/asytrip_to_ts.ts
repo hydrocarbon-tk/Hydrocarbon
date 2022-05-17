@@ -320,7 +320,7 @@ export class ${name} extends ASTNode<ASTType> {
         return ASTType.${name};
     }
 
-    get node_type(): ASTType.${name} {
+    get type(): ASTType.${name} {
         return ASTType.${name};
     }
 
@@ -1117,11 +1117,6 @@ const conversion_table =
             [A.F64]: `null`, [A.F32]: `null`, [A.I64]: `null`, [A.I32]: `null`, [A.I16]: `null`, [A.I8]: `null`,
             [A.BOOL]: `null`, [A.NULL]: /*       */ "null", [A.TOKEN]: v, [A.STRING]: `${v}`, [A.STRUCT]: `null`, [A.VECTOR]: `null`
         })[t],
-    //[A.VECTOR]:
-    //    (t: number, v: string): string => "" + ({
-    //        [A.F64]: `null`, [A.F32]: `null`, [A.I64]: `null`, [A.I32]: `null`, [A.I16]: `null`, [A.I8]: `null`,
-    //        [A.BOOL]: `null`, [A.NULL]: /*       */ "null", [A.TOKEN]: v, [A.STRING]: `${v}`, [A.STRUCT]: `null`, [A.VECTOR]: `...(${v})`, [A.PRODUCTION]: `...(${v})`
-    //    })[t],
 };
 
 addExpressMap(ASYTRIPType.CONVERT_TYPE, (v, c, inits) => {

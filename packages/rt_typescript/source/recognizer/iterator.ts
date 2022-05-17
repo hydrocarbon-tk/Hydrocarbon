@@ -314,7 +314,9 @@ export class StateIterator {
 
             this.emitShift();
 
-            this.reader.next(token.byte_offset - prev.byte_offset + token.byte_length);
+            this.reader.next(token.byte_length);
+
+            // console.log("aa", token.byte_offset, prev.byte_offset, token.byte_offset - prev.byte_offset + token.byte_length);
 
             token.codepoint_offset += token.codepoint_length;
 
@@ -454,6 +456,10 @@ export class StateIterator {
             const instruction = this.bytecode[index];
 
             index += 1;
+
+            if (!this.SCANNER)
+
+                console.log(this.reader.cursor, this.tokens.map(t => t.byte_offset));
 
 
             switch ((instruction >> 28) & 0xF) {
@@ -692,6 +698,7 @@ export class StateIterator {
             switch (token_transition) {
                 case 1: /* set next peek lexer */ {
 
+
                     const token = this.tokens[this.tokens.length - 1];
 
                     this.reader.next(token.byte_length);
@@ -699,31 +706,30 @@ export class StateIterator {
                     if (this.reader.END())
                         return 0;
 
+                    let new_token = token.copy();
+
+                    this.tokens.push(new_token);
+
                     switch (input_type) {
 
                         case 1:
 
-                            let new_token = token.copy();
-
                             new_token.type = 0;
-
+                            new_token.byte_offset = token.byte_offset + token.byte_length;
                             new_token = this.scanner(new_token, token_row_switches);
-
-                            this.tokens.push(new_token);
-
                             return new_token.type;
 
                         case 2:
-                            token.byte_length = this.reader.codepoint_byte_length();
-                            token.codepoint_length = this.reader.codepoint_length();
+                            new_token.byte_length = this.reader.codepoint_byte_length();
+                            new_token.codepoint_length = this.reader.codepoint_length();
                             return this.reader.class();
                         case 3:
-                            token.byte_length = this.reader.codepoint_byte_length();
-                            token.codepoint_length = this.reader.codepoint_length();
+                            new_token.byte_length = this.reader.codepoint_byte_length();
+                            new_token.codepoint_length = this.reader.codepoint_length();
                             return this.reader.codepoint();
                         case 4:
-                            token.byte_length = 1;
-                            token.codepoint_length = 1;
+                            new_token.byte_length = 1;
+                            new_token.codepoint_length = 1;
                             return this.reader.byte();
                     }
 

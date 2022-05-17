@@ -34,7 +34,7 @@ export function getSymbolProductionName(sym: HCG3Symbol) {
         return `__clss_${convertSymbolsToProductionName(sym.val)}__`;
     } else if ((Sym_Is_Defined(sym) &&
         !(Sym_Is_Empty(sym) || Sym_Is_DEFAULT(sym)))) {
-        return `__dfnd_${convertSymbolsToProductionName(sym.val)}__`;
+        return `__defined_${convertSymbolsToProductionName(sym.val)}__`;
     } else if (Sym_Is_A_Production(sym) || Sym_Is_A_Production_Token(sym)) {
         return `__prod_${sym?.production?.name ?? "undefined"}__`;
     }
