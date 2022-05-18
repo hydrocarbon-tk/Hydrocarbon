@@ -183,9 +183,9 @@ export class StateIterator {
                 const token = this.tokens[0];
                 const advanced = this.tokens[1];
 
-                token.byte_length = advanced.byte_offset - token.byte_offset;
-                token.codepoint_length = advanced.codepoint_offset - token.codepoint_offset;
                 if (this.SCANNER) {
+                    //token.byte_length = advanced.byte_offset - token.byte_offset;
+                    //token.codepoint_length = advanced.codepoint_offset - token.codepoint_offset;
                     this.emit({
                         type: ParseActionType.TOKEN,
                         token: token
@@ -287,7 +287,6 @@ export class StateIterator {
     private consume(instruction: number) {
 
         const token = this.tokens[1];
-        const prev = this.tokens[0];
 
         if (instruction & 1) { //Consume nothing
 
@@ -315,8 +314,6 @@ export class StateIterator {
             this.emitShift();
 
             this.reader.next(token.byte_length);
-
-            // console.log("aa", token.byte_offset, prev.byte_offset, token.byte_offset - prev.byte_offset + token.byte_length);
 
             token.codepoint_offset += token.codepoint_length;
 
@@ -887,11 +884,13 @@ export class StateIterator {
 
         if (instruction & 0x08000000) {
 
-            this.tokens[0].type = value;
-
             this.production_id = value;
+            this.tokens[0].type = value;
+            this.tokens[0].byte_length = this.tokens[1].byte_offset - this.tokens[0].byte_offset;
+            this.tokens[0].codepoint_length = this.tokens[1].codepoint_offset - this.tokens[0].codepoint_offset;
 
         } else {
+
             const token = this.tokens[1];
 
             token.codepoint_length = value;

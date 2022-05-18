@@ -57,8 +57,6 @@ export function constructDescent(
 
     options.branch_cache = new Map;
 
-
-
     const node = createNode(options, default_DEFAULT, production_items);
 
     let tpn: Node[] = [];
@@ -70,12 +68,9 @@ export function constructDescent(
     processNode(options, node, tpn, false);
 
     let v = null;
-    let i = 0;
 
-    while ((v = tpn.shift())) {
-        i++;
+    while ((v = tpn.shift()))
         processNode(options, v, tpn);
-    }
 
     return node;
 }
@@ -141,15 +136,10 @@ function processGoto(options: TGO, goto_items: Item[], parent: Node | null = nul
 
     const nodes: Node[] = [];
 
-    let n = null;
-    let g = null;
-
     for (const [id, group] of goto_item_map) {
         // If some items in the group are completed, we'll use peek to 
         // disambiguate potential conflicts between oos items and 
         // any other non-completed items.
-
-        g = group;
 
         //This will default to a peek
         const
@@ -166,9 +156,6 @@ function processGoto(options: TGO, goto_items: Item[], parent: Node | null = nul
             }, items, parent);
 
         node.addType(TST.O_GOTO);
-
-        if (id == 10 && options.root_production.name == "element_block_list_2")
-            n = node;
 
         if (
             group.length > 1
@@ -207,11 +194,6 @@ function processGoto(options: TGO, goto_items: Item[], parent: Node | null = nul
 
     while ((v = nodes.shift()))
         processNode(options, v, nodes);
-
-    if (n) {
-        console.error(itemsDebug(g));
-        console.error(n.debug);
-    }
 
     return parent;
 }
@@ -288,8 +270,8 @@ function processNode(
 
             if (n_end.length == 0)
 
-                if (canCall(p_groups, n_term, opt.root_production)) {
-                    // Each production group consume an independent set of terminal
+                if (!productionStartsIntersect(p_groups, n_term, opt)) {
+                    // Each production group consume a non-intersecting set of terminal
                     // symbols at this point so we can branch to separate production 
                     // calls based on these terminal symbols.
 
@@ -338,6 +320,7 @@ function processNode(
                 }
 
             if (!RESOLVED) {
+
 
                 // Some production groups consume symbols shared with other
                 // production groups or terminal items.
@@ -462,7 +445,7 @@ function processEndItem(
 function createPeek(
     opt: TGO,
     parent: Node,
-    items: Item[],
+    parent_items: Item[],
     tpn: Node[]
 ) {
 
@@ -474,7 +457,7 @@ function createPeek(
     parent.items = [];
 
     //separate node into a set of groups
-    const roots = items.setFilter(item_id).group(s => {
+    const roots = parent_items.setFilter(item_id).group(s => {
         if (s.state == OutOfScopeItemState)
             return "out-of-scope-state-" + iToSymID(s);
         else if (s.atEND)
@@ -486,11 +469,28 @@ function createPeek(
         let
             state = 10000 * (j + 1),
             items = g.map(i => i.toState(state)).setFilter(item_id),
+            _closure = closure,
             n = createNode(opt, item_sym(g[0]), items, null);
 
-        if (opt.scope == "GOTO")
-            if (items[0].atEND)
+        if (opt.scope == "GOTO") {
+            if (items[0].atEND) {
                 n.addType(TST.I_COMPLETE);
+
+                const active_productions = new Set(
+                    parent_items.map(i => i.decrement().getProductionAtSymbol(GRAMMAR).id).setFilter()
+                );
+
+                _closure = closure.filter(
+                    i => {
+                        return !active_productions.has(i.getProductionAtSymbol(GRAMMAR).id);
+                    }
+                );
+
+
+                //if (opt.root_production.name == "element_block_list_2" && state == 10000)
+                //    console.error({ c: itemsDebug(_closure), r: itemsDebug(closure), active_productions, parent_items: itemsDebug(parent_items) });
+            }
+        }
 
         n.closure = getClosure(items, GRAMMAR, state);
         n.depth = state;
@@ -499,7 +499,10 @@ function createPeek(
         if (g[0].state == OutOfScopeItemState)
             n.addType(TST.I_OUT_OF_SCOPE);
 
-        parent.closure.push(...closure.map(i => i.toState(state)));
+        parent.closure.push(..._closure.map(i => i.toState(state)));
+
+
+
         parent.makeClosureUnique(true);
         parent.items.push(...items);
 
@@ -570,10 +573,6 @@ function disambiguate(
     prev_time: number = 0
 ) {
 
-    if (depth == 0 && root.sym.id == 10 && opt.root_production.name == "element_block_list_2") {
-        console.error(nodes.map(r => r.debug));
-    }
-
     // We are starting with a set of nodes, each representing either
     // a terminal symbol or an item in the end position. 
     // Each node has a common parent. 
@@ -602,7 +601,7 @@ function disambiguate(
 
                 const parent = <Node>node.parent;
 
-                if (opt.scope == "GOTO")
+                if (opt.scope == "GOTO" || opt.IS_SCANNER)
                     term_nodes.push(...items.flatMap(createNodeClosure(opt, parent, <Node>node.root)));
 
                 if (end_nodes.length > 1) {
@@ -745,18 +744,55 @@ function disambiguate(
     let total_time = prev_time + (end - start);
     for (let step of next_steps) {
 
-        const id = getClosureId(step);
+        const id = getNodesId(step);
 
         if (step.length > 0) {
-
-            if (false && groupsAreAliased(step)) {
-                console.error(itemsDebug(root.items).join("\n-"));
-                handleTransitionCollision(step, opt, tpn, leaves);
-            } else if (handleShiftReduceConflicts(opt, step, leaves, root, depth)) {
+            if (handleShiftReduceConflicts(opt, step, leaves, root, depth)) {
                 continue;
-            } else if ((ids.includes(id)) /* || depth > 2 */ || total_time > 300) {
+            } else if (groupsAreAliased(step)) {
+
+                if (opt.scope == "GOTO") {
+
+                    const candidate_roots = getRootsFromNodes(step);
+
+                    if (candidate_roots.length == 2) {
+                        //Secondary check of shift reduce conflicts
+
+                        if (candidate_roots.some(r => r.items[0].atEND) && candidate_roots.some(r => !r.items[0].atEND)) {
+                            const winner = candidate_roots.filter(r => !r.items[0].atEND)[0];
+                            const loser = candidate_roots.filter(r => r.items[0].atEND)[0];
+
+                            const prime_node = step[0];
+
+                            setTransitionType(prime_node);
+
+                            for (const node of step) {
+                                if (node != prime_node) {
+                                    node.pruneLeaf();
+                                    if (node.root == winner) {
+                                        prime_node.items.push(...node.items);
+                                        prime_node.closure.push(...node.closure);
+                                        prime_node.makeClosureUnique(true);
+                                    }
+                                }
+                            }
+
+                            prime_node.items = prime_node.items.setFilter(item_id);
+
+                            gatherLeaves(prime_node, root, leaves);
+
+                            console.log("--------");
+
+                            continue;
+                        }
+                    }
+                }
+
+
+                handleTransitionCollision(step, opt, tpn, leaves);
+            } else if ((ids.includes(id)) /* || depth > 2 */ || total_time > 100) {
                 //Remove out of scope
-                if (total_time > 300)
+                if (total_time > 100)
                     console.error("TIMED OUT");
                 if (handleShiftReduceConflicts(opt, step, leaves, root, depth, opt.scope == "GOTO" && root.depth <= 2)) { }
                 else if (step.length > 0)
@@ -768,13 +804,23 @@ function disambiguate(
     }
 }
 
+function getNodesId(step: Node[]) {
+    return step.map(i => i.items.setFilter(i => i.id).map(i => i.id).sort().join("-")).sort().setFilter().join("|");
+}
+
+function getClosureId(step: Node[]) {
+    return step.map(i => i.closure.setFilter(i => i.id).map(i => i.id).sort().join("-")).sort().setFilter().join("|");
+}
+
 function groupsAreAliased(step: Node[]) {
-    const groups = step.setFilter(g => g.root?.depth + " " + itemsDebug(g.items).join("\n")).groupMap(n => itemsDebug(n.items));
+    //const groups = step.setFilter(g => g.root?.depth + " " + itemsDebug(g.items).join("\n")).groupMap(n => itemsDebug(n.items));
+    const groups = step.setFilter(g => g.root?.items.map(i => i.id).sort().join("-") ?? "").groupMap(
+        n => n.items.map(i => i.toState(0).id).setFilter().sort().join("-")
+    );
     // const maps = groups.map(g => g.map(i => itemsDebug(i.items).sort().join("")).sort().join("")).setFilter();
 
     for (const group of groups.values())
         if (group.length > 1) {
-            console.error(group.map(g => g.depth + " " + itemsDebug(g.root.items).join("\n") + "\n    " + itemsDebug(g.items).join("\n")));
             return true;
         }
 
@@ -787,7 +833,7 @@ function handleShiftReduceConflicts(
     leaves: { node: Node, parent: Node; }[],
     root: Node,
     depth: number,
-    IN_GOTO: boolean = false;
+    IN_GOTO: boolean = false
 ): boolean {
 
     if (step.length == 0) return false;
@@ -795,8 +841,11 @@ function handleShiftReduceConflicts(
     const candidate_roots = getRootsFromNodes(step);
 
     if (candidate_roots.every(r => r.items.length == 1)) {
+
         const prod = candidate_roots[0].items[0].getProductionID(GRAMMAR);
+
         if (candidate_roots.every(r => r.items[0].getProductionID(GRAMMAR) == prod) || IN_GOTO) {
+
             if (candidate_roots.length == 2) {
                 if (candidate_roots.some(r => r.items[0].atEND) && candidate_roots.some(r => !r.items[0].atEND)) {
                     const winner = candidate_roots.filter(r => !r.items[0].atEND)[0];
@@ -826,6 +875,11 @@ function handleShiftReduceConflicts(
             }
         }
     }
+    if (opt.root_production.name == "element_block_list_2" && opt.scope == "GOTO")
+        console.error({ r: step.map(i => itemsDebug(i.items)) });
+
+
+
     return false;
 }
 
@@ -960,14 +1014,6 @@ function completeLeaves(
     }
 }
 
-function getNodesId(step: Node[]) {
-    return step.map(i => i.items.setFilter(i => i.id).map(i => i.id).sort().join("-")).sort().setFilter().join("|");
-}
-
-function getClosureId(step: Node[]) {
-    return step.map(i => i.closure.setFilter(i => i.id).map(i => i.id).sort().join("-")).sort().setFilter().join("|");
-}
-
 function handleUnresolvedRoots(
     opt: TGO,
     sym: HCG3Symbol,
@@ -1055,10 +1101,45 @@ function convertStateToFork(node: Node, items: Item[], opt: TGO, tpn: Node[]) {
     }
 }
 
-function createFailState(opt: TGO, parent: Node, items: Item[] = []): Node {
-    const node = createNode(opt, default_DEFAULT, items, parent);
-    node.addType(TST.I_FAIL);
-    return node;
+function symbolsOcclude(
+    symA: string,
+    symB: string,
+    opt: TGO,
+) {
+
+    const
+        sym_A = getSymbolFromUniqueName(GRAMMAR, symA),
+        sym_B = getSymbolFromUniqueName(GRAMMAR, symB);
+
+    if (
+        Sym_Is_A_Production_Token(sym_A)
+        ||
+        Sym_Is_A_Generic_Identifier(sym_A)
+        ||
+        (opt.IS_SCANNER && Sym_Is_A_Generic_Symbol(sym_A))
+        ||
+        (
+            Sym_Is_Defined_Identifier(sym_A)
+            &&
+            Sym_Is_Exclusive(sym_A)
+        )
+    ) {
+
+        if (Sym_Is_A_Generic_Symbol(sym_A) && !opt.IS_SCANNER) return false;
+
+        if (
+
+            (Sym_Is_Defined_Identifier(sym_B) || (Sym_Is_Defined_Symbol(sym_B)))
+            &&
+            !Sym_Is_Exclusive(sym_B)
+            &&
+            SymbolsCollide(sym_A, sym_B, GRAMMAR)) {
+
+            return true;
+        }
+    }
+
+    return false;
 }
 
 function mergeOccludingGroups(
@@ -1066,108 +1147,83 @@ function mergeOccludingGroups(
     groups: Map<string, Node[]>
 ) {
 
+
     for (const [symA, groupA] of groups) {
         let seen = new WeakMap;
         const sym_A = getSymbolFromUniqueName(GRAMMAR, symA);
-        if (
-            Sym_Is_A_Production_Token(sym_A)
-            ||
-            Sym_Is_A_Generic_Identifier(sym_A)
-            ||
-            (opt.IS_SCANNER && Sym_Is_A_Generic_Symbol(sym_A))
-            ||
-            (
-                Sym_Is_Defined_Identifier(sym_A)
-                &&
-                Sym_Is_Exclusive(sym_A)
-            )
-        ) {
 
-            if (Sym_Is_A_Generic_Symbol(sym_A) && !opt.IS_SCANNER) continue;
+        for (const [symB, groupB] of groups) {
 
-            for (const [symB, groupB] of groups) {
+            if (symA == symB)
+                continue;
 
-                if (symA == symB)
-                    continue;
-
-                const sym_B = getSymbolFromUniqueName(GRAMMAR, symB);
-
-                if (
-
-                    (Sym_Is_Defined_Identifier(sym_B) || (Sym_Is_Defined_Symbol(sym_B)))
-                    &&
-                    !Sym_Is_Exclusive(sym_B)
-                    &&
-                    SymbolsCollide(sym_A, sym_B, GRAMMAR)) {
-
-                    if (Sym_Is_A_Generic_Symbol(sym_A)) {
-                        const min_item_length = Math.min(...groupB.map(g => g.root).flatMap(r => r?.items.flatMap(i => i.len) ?? [0]));
-                        if (min_item_length < 2)
-                            continue;
-                    }
-
-                    seen.set(groupB, new WeakSet(groupA));
-
-                    groupB.push(
-                        ...groupA
-                            //Remove states to prevent symbol overlapping
-                            .map(g => g.clone())
-                    );
+            if (symbolsOcclude(symA, symB, opt)) {
+                if (Sym_Is_A_Generic_Symbol(sym_A)) {
+                    const min_item_length = Math.min(...groupB.map(g => g.root).flatMap(r => r?.items.flatMap(i => i.len) ?? [0]));
+                    if (min_item_length < 2)
+                        continue;
                 }
+
+                seen.set(groupB, new WeakSet(groupA));
+
+                groupB.push(
+                    ...groupA
+                        //Remove states to prevent symbol overlapping
+                        .map(g => g.clone())
+                );
             }
         }
 
         //check for skipped occlusion
 
         //Only in production states as peek in scanner states has no purpose
-        if (opt.IS_SCANNER || true)
+        if (opt.IS_SCANNER)
             continue;
 
-        const skipped_symbol_groups = groupA.groupMap(g => getSkippableSymbolsFromItems(g.items, GRAMMAR));
-
-        for (const [skipped_sym, group] of skipped_symbol_groups) {
-            const skipped_id = getUniqueSymbolName(skipped_sym);
-            for (const [symB, groupB] of groups) {
-
-                if (groupA == groupB)
-                    continue;
-
-                if (symB == skipped_id) {
-
-                    if (!seen.has(groupB))
-                        seen.set(groupB, new WeakSet);
-
-
-                    for (const node of group) {
-
-                        if (true)
-                            continue;
-
-                        if (groupB.some(s =>
-                            s.items[0].getProductionID(GRAMMAR) == node.items[0].getProductionID(GRAMMAR)
-                        ))
-                            continue;
-
-                        if (seen.get(groupB).has(node))
-                            continue;
-
-                        seen.get(groupB).add(node);
-
-                        const clone = node.clone();
-
-                        console.log(symA, symB);
-
-                        clone.addType(TST.I_SKIPPED_COLLISION);
-
-                        //console.error(`ADD Skipped Collision ${skipped_id} \n-->\n${groupB[0].debug} \n-->\n${node.debug}`);
-
-                        groupB.push(clone);
-                    }
-                }
-            }
-        }
+        /*    const skipped_symbol_groups = groupA.groupMap(g => getSkippableSymbolsFromItems(g.items, GRAMMAR));
+   
+           for (const [skipped_sym, group] of skipped_symbol_groups) {
+               const skipped_id = getUniqueSymbolName(skipped_sym);
+               for (const [symB, groupB] of groups) {
+   
+                   if (groupA == groupB)
+                       continue;
+   
+                   if (symB == skipped_id) {
+   
+                       if (!seen.has(groupB))
+                           seen.set(groupB, new WeakSet);
+   
+   
+                       for (const node of group) {
+   
+                           if (true)
+                               continue;
+   
+                           if (groupB.some(s =>
+                               s.items[0].getProductionID(GRAMMAR) == node.items[0].getProductionID(GRAMMAR)
+                           ))
+                               continue;
+   
+                           if (seen.get(groupB).has(node))
+                               continue;
+   
+                           seen.get(groupB).add(node);
+   
+                           const clone = node.clone();
+   
+                           console.log(symA, symB);
+   
+                           clone.addType(TST.I_SKIPPED_COLLISION);
+   
+                           //console.error(`ADD Skipped Collision ${skipped_id} \n-->\n${groupB[0].debug} \n-->\n${node.debug}`);
+   
+                           groupB.push(clone);
+                       }
+                   }
+               }
+           } */
     }
-
 }
 
 function createNodeClosure(
@@ -1277,26 +1333,30 @@ class ProductionGroup {
     }
 }
 
-function canCall(
+function productionStartsIntersect(
     production_groups: ProductionGroup[],
     term: Item[],
-    production: GrammarProduction,
+    opt: TGO
 ) {
+
     for (const group of production_groups) {
 
-        const global_terms = [...term, ...production_groups.filter(g => g != group).flatMap(g => g.terms)].groupMap(iToSymID);
+        if (group.ends.length != 0)
+            //This production group contains end items and cannot be assumed to be independent
+            return true;
 
-        if (!(
-            group.ends.length == 0
-            &&
-            group.terms.map(iToSymID).every(i => !global_terms.has(i)))
+        const global_symbols =
+            [...term, ...production_groups.filter(g => g != group).flatMap(g => g.terms)].map(iToSymID).setFilter();
+
+        if (
+            !group.terms.map(iToSymID).every(a => !global_symbols.some(b => b == a || symbolsOcclude(a, b, opt)))
         ) {
-            //We can call this production based on its terminal symbols
-            return false;
+            //We cannot call this production independently based on its terminal symbols
+            return true;
         }
-
     }
-    return true;
+
+    return false;
 }
 
 function iToSymID(i: Item): string {

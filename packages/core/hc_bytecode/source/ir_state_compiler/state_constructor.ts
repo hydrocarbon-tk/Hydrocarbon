@@ -414,11 +414,22 @@ function generateStateAction(
                                  //Skip ahead to the state's child since the state's main action has been performed.
                                  ({ action, hash, assertion } = generateStateHashAction(child.children[0], grammar, options));
                              } */
+                            let id_set = "";
+
+                            if (options.IS_ROOT_SCANNER) {
+                                for (const item of child.items) {
+                                    if (item.increment()?.atEND) {
+                                        const token_id = <number>(<GrammarProduction>item.getProduction(grammar)).token_id;
+                                        id_set = `assign token [ ${token_id} ] then `;
+                                        break;
+                                    }
+                                }
+                            }
 
                             if (Sym_Is_Not_Consumed(sym)) {
                                 action_string = `assert ${mode} [${getSymbolID(sym, options.IS_SCANNER)} /* ${create_symbol_comment(sym)} */ ] ( consume nothing then goto state [${hash}]${post_amble})`;
                             } else {
-                                action_string = `assert ${mode} [${getSymbolID(sym, options.IS_SCANNER)} /* ${create_symbol_comment(sym)} */ ] ( consume then goto state [${hash}]${post_amble})`;
+                                action_string = `assert ${mode} [${getSymbolID(sym, options.IS_SCANNER)} /* ${create_symbol_comment(sym)} */ ] ( consume then ${id_set}goto state [${hash}]${post_amble})`;
                             }
                         } else {
                             action_string = `assert ${mode} [${getSymbolID(sym, options.IS_SCANNER)} /* ${create_symbol_comment(sym)} */ ] ( goto state [${hash}]${post_amble})`;
