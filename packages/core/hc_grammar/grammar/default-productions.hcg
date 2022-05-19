@@ -1,0 +1,71 @@
+@IGNORE g:sp g:nl
+
+<>start > defaultproductions
+
+<> defaultproductions > defaultproduction(+ g:sp )
+
+<> defaultproduction > number
+    | hex
+    | binary
+    | octal
+    | identifier
+    | string
+
+<> hex_digit >  g:num 
+    | t:a 
+    | t:b 
+    | t:c 
+    | t:d 
+    | t:e 
+    | t:f 
+    | t:A 
+    | t:B 
+    | t:C 
+    | t:D 
+    | t:E 
+    | t:F
+
+<> hex >  tk:hex_token                           
+ 
+<> binary >  tk:binary_token                               
+
+<> octal >  tk:octal_token
+
+<> number >  tk:scientific_token
+
+<> scientific_token > float_token ( ( (RST g:sp g:nl) t:e | (RST g:sp g:nl) t:E ) \- ? g:num )?
+
+<> float_token > g:num ( \. g:num )?
+
+<> hex_token > \0x ( g:num | \a | \b | \c | \d | \e | \f | \A | \B | \C | \D | \E | \F )(+)
+
+<> binary_token > \0b ( \0 | \1 )(+)
+
+<> octal_token > ( \0o | \0O ) ( \0 | \1 | \2 | \3 | \4 | \5 | \6 | \7 )(+)
+
+<> string > \" string_token  \"             f:r { $2 }
+    | \' string_token   \'                  f:r { $2 }
+
+<> string_token > string_value(+\" )
+
+<> string_value >  ( g:num | g:id | g:sym | g:sp |  \\ ( g:num | g:id | g:sym | g:sp | g:nl ) ) (+\' )
+
+<> js_identifier > tk:js_id_symbols 
+
+<> js_id_symbols >  js_id_symbols (RST g:sp g:nl) g:id           f:r { $1 + $2 }
+    | js_id_symbols (RST g:sp g:nl) \_                           f:r { $1 + $2 }
+    | js_id_symbols (RST g:sp g:nl) \$                           f:r { $1 + $2 }
+    | js_id_symbols (RST g:sp g:nl) g:num                        f:r { $1 + $2 }
+    | \_ 
+    | \$ 
+    | g:id
+
+<> identifier > tk:identifier_symbols 
+
+<> identifier_symbols >  identifier_symbols (RST g:sp g:nl) g:id        f:r { $1 + $2 }
+    | identifier_symbols (RST g:sp g:nl) \_                             f:r { $1 + $2 }
+    | identifier_symbols (RST g:sp g:nl) \$                             f:r { $1 + $2 }
+    | identifier_symbols (RST g:sp g:nl) g:num                          f:r { $1 + $2 }
+    | \_ 
+    | \$ 
+    | g:id
