@@ -485,10 +485,6 @@ function createPeek(
                         return !active_productions.has(i.getProductionAtSymbol(GRAMMAR).id);
                     }
                 );
-
-
-                //if (opt.root_production.name == "element_block_list_2" && state == 10000)
-                //    console.error({ c: itemsDebug(_closure), r: itemsDebug(closure), active_productions, parent_items: itemsDebug(parent_items) });
             }
         }
 
@@ -781,8 +777,6 @@ function disambiguate(
 
                             gatherLeaves(prime_node, root, leaves);
 
-                            console.log("--------");
-
                             continue;
                         }
                     }
@@ -875,10 +869,6 @@ function handleShiftReduceConflicts(
             }
         }
     }
-    if (opt.root_production.name == "element_block_list_2" && opt.scope == "GOTO")
-        console.error({ r: step.map(i => itemsDebug(i.items)) });
-
-
 
     return false;
 }
@@ -1027,12 +1017,6 @@ function handleUnresolvedRoots(
     const node = createNode(opt, sym, items, parent);
 
     if (roots.length < 2) {
-
-        /*  node.items = roots[0].items;
- 
-         processNode(opt, node, tpn, false);
- 
-         return;*/
 
         console.error(parent.debug);
         console.error(...roots.map(r => r.debug));
