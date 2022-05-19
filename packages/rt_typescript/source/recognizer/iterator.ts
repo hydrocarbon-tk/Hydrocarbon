@@ -1008,14 +1008,6 @@ export class StateIterator {
         return current_token;
     }
 
-    haveForks(): boolean {
-        return this.forks.length > 0;
-    }
-
-    getFork(): StateIterator {
-
-    }
-
     private fork(
         instruction: number,
         index: number,

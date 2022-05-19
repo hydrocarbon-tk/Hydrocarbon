@@ -388,13 +388,13 @@ impl<'a, T: ByteReader> ParserCoreIterator<T> for StateIterator<'a, T> {
     }
 
     fn consume(&mut self, index: usize, _: u32, bytecode: &[u32]) -> usize {
+        
         let mut token = self.get_tok(1);
-
-        let prev = self.get_tok(0);
 
         let instruction = bytecode[index];
 
         if (instruction & 1) != 0 {
+            //Consume Nothing
             token.cp_length = 0;
             token.byte_length = 0;
         }
@@ -485,7 +485,7 @@ impl<'a, T: ByteReader> ParserCoreIterator<T> for StateIterator<'a, T> {
         } else {
             // Production id input
             self.get_prod() as i32
-        }
+        }P
     }
 }
 pub struct ScannerIterator<T: ByteReader> {
@@ -527,11 +527,11 @@ impl<T: ByteReader> ScannerIterator<T> {
             if state < 1 {
                 let mut tok = self.tokens[0];
 
-                let tok_b = self.tokens[1];
+                //let tok_b = self.tokens[1];
 
-                tok.byte_length = tok_b.byte_offset - tok.byte_offset;
+                //tok.byte_length = tok_b.byte_offset - tok.byte_offset;
 
-                tok.cp_length = tok_b.cp_offset - tok.cp_offset;
+                //tok.cp_length = tok_b.cp_offset - tok.cp_offset;
 
                 return ParseAction::TOKEN { token: tok };
             } else {
@@ -603,6 +603,7 @@ impl<T: ByteReader> ParserCoreIterator<T> for ScannerIterator<T> {
         let instruction = bytecode[index];
 
         if (instruction & 1) != 0 {
+            // Consume Nothing
             token.cp_length = 0;
             token.byte_length = 0;
         }
@@ -977,23 +978,30 @@ trait ParserCoreIterator<R: ByteReader> {
     }
 
     fn set_token(&mut self, index: usize, _: u32, bytecode: &[u32]) -> usize {
+        
         let instruction = bytecode[index];
         let val = instruction & 0xFFFFFF;
 
-        let token = &mut self.get_tok(1);
-
+        
         if (instruction & 0x1000000) != 0 {
-            const default_pass_instruction: usize = 1;
-            self.consume(default_pass_instruction, 0, bytecode);
+            const DEFAULT_PASS_INSTRUCTION: usize = 1;
+            self.consume(DEFAULT_PASS_INSTRUCTION, 0, bytecode);
         }
-
+        
         if (instruction & 0x08000000) != 0 {
-            let mut tok = self.get_tok(0);
-            tok.typ = val as u16;
-            self.set_tok(0, tok)
+            // Sets output token
+            let mut token =  self.get_tok(0);
+            let mut lead_token =  self.get_tok(1);
+            self.set_prod(val);
+            token.byte_length = lead_token.byte_offset + token.byte_offset;
+            token.cp_length= lead_token.cp_length + token.cp_length;
+            token.typ = val as u16;
+            self.set_tok(0, token);
         } else {
+            let mut token = self.get_tok(1);
             token.cp_length = val;
             token.byte_length = val;
+            self.set_tok(1, token);
         }
 
         index + 1

@@ -28,7 +28,9 @@ import {
     Sym_Is_Exclusive,
     Sym_Is_Look_Behind,
     TokenTypes,
-    token_lu_bit_size
+    token_lu_bit_size,
+    Sym_Is_Defined_Symbol,
+    Sym_Is_A_Generic_Symbol
 } from "@hctoolkit/common";
 import {
     addBodyToProduction,
@@ -331,17 +333,22 @@ export function createCollisionMatrix(grammar: GrammarObject) {
                     || Sym_Is_DEFAULT(symB)
                     || Sym_Is_Look_Behind(symA) || Sym_Is_Look_Behind(symB)
                 ) {
-                    j[symB.id] = (!!0);
+                    j[symB.id] = false;
                 } else if (Sym_Is_A_Production(symB)) {
                     continue;
-                }
-                if (Sym_Is_Defined(symA) && Sym_Is_Defined(symB) &&
+                } else if (
+                    (Sym_Is_Defined_Symbol(symA) && symA.val.length == 1 && Sym_Is_A_Generic_Symbol(symB))
+                    ||
+                    (Sym_Is_Defined_Symbol(symB) && symB.val.length == 1 && Sym_Is_A_Generic_Symbol(symA))
+                ) {
+                    j[symB.id] = true;
+                } else if (Sym_Is_Defined(symA) && Sym_Is_Defined(symB) &&
                     symA.val == symB.val && !Symbols_Are_The_Same(symB, symA)) {
-                    j[symB.id] = (!!1);
+                    j[symB.id] = true;
                 } else if (Symbols_Are_Ambiguous(symA, symB, grammar)) {
-                    j[symB.id] = (!!1);
+                    j[symB.id] = true;
                 } else {
-                    j[symB.id] = (!!0);
+                    j[symB.id] = false;
                 }
             }
         }
