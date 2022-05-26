@@ -7,6 +7,7 @@ import {
     default_DEFAULT,
     getClosure,
     getProductionClosure,
+    getProductionID,
     getSkippableSymbolsFromItems,
     getStartItemsFromProduction,
     getSymbolFromUniqueName,
@@ -136,6 +137,8 @@ function processGoto(options: TGO, goto_items: Item[], parent: Node | null = nul
 
     const nodes: Node[] = [];
 
+    let d = null;
+
     for (const [id, group] of goto_item_map) {
         // If some items in the group are completed, we'll use peek to 
         // disambiguate potential conflicts between oos items and 
@@ -186,15 +189,21 @@ function processGoto(options: TGO, goto_items: Item[], parent: Node | null = nul
             }
 
             createPeek(options, node, node.items, nodes);
+
+            if (id == 20)
+                d = node;
         } else
             processNode(options, node, nodes, false);
     }
 
     let v = null;
 
+
     while ((v = nodes.shift()))
         processNode(options, v, nodes);
 
+    if (options.root_production.name == "general_data_list_77")
+        console.log(d?.debug);
     return parent;
 }
 
@@ -590,15 +599,40 @@ function disambiguate(
         const final_nodes: Node[] = [];
 
         for (const node of end_nodes) {
+            let items = null;
+            let discard: Set<string> = new Set;
 
-            const items = node.scanItems();
+            if (depth == 0 && opt.scope == "GOTO") {
+
+                // Prevent the aliasing of end items with other transitions
+                // by remove any transition that is present in current term_nodes
+                // or can be generated from left-recursion or re-entry into the 
+                // goto production
+
+                const ias = [
+                    //...getStartItemsFromProduction(node.items[0].getProduction(GRAMMAR)),
+                    ...getStartItemsFromProduction(node.items[0].decrement().getProductionAtSymbol(GRAMMAR)),
+                    ...term_nodes.flatMap(n => n.items)
+                ];
+                discard = new Set(ias.map(i => i.id));
+
+                //if (opt.root_production.name == "general_data_list_77")
+                //    console.log(itemsDebug(ias), ias.map(i => i.id), discard);
+
+                items = node.scanItems();
+            } else
+                items = node.scanItems();
 
             if (items.length > 0) {
 
                 const parent = <Node>node.parent;
 
-                if (opt.scope == "GOTO" || opt.IS_SCANNER)
-                    term_nodes.push(...items.flatMap(createNodeClosure(opt, parent, <Node>node.root)));
+                if ((opt.scope == "GOTO") || opt.IS_SCANNER) {
+                    const nodes = items.flatMap(createNodeClosure(opt, parent, <Node>node.root, discard));
+                    term_nodes.push(...nodes);
+                    if (opt.root_production.name == "general_data_list_77")
+                        console.log("ssss", itemsDebug(nodes.flatMap(n => n.items)));
+                }
 
                 if (end_nodes.length > 1) {
                     node.pruneLeaf();
@@ -1161,59 +1195,57 @@ function mergeOccludingGroups(
         //check for skipped occlusion
 
         //Only in production states as peek in scanner states has no purpose
+        //*
         if (opt.IS_SCANNER)
             continue;
 
-        /*    const skipped_symbol_groups = groupA.groupMap(g => getSkippableSymbolsFromItems(g.items, GRAMMAR));
-   
-           for (const [skipped_sym, group] of skipped_symbol_groups) {
-               const skipped_id = getUniqueSymbolName(skipped_sym);
-               for (const [symB, groupB] of groups) {
-   
-                   if (groupA == groupB)
-                       continue;
-   
-                   if (symB == skipped_id) {
-   
-                       if (!seen.has(groupB))
-                           seen.set(groupB, new WeakSet);
-   
-   
-                       for (const node of group) {
-   
-                           if (true)
-                               continue;
-   
-                           if (groupB.some(s =>
-                               s.items[0].getProductionID(GRAMMAR) == node.items[0].getProductionID(GRAMMAR)
-                           ))
-                               continue;
-   
-                           if (seen.get(groupB).has(node))
-                               continue;
-   
-                           seen.get(groupB).add(node);
-   
-                           const clone = node.clone();
-   
-                           console.log(symA, symB);
-   
-                           clone.addType(TST.I_SKIPPED_COLLISION);
-   
-                           //console.error(`ADD Skipped Collision ${skipped_id} \n-->\n${groupB[0].debug} \n-->\n${node.debug}`);
-   
-                           groupB.push(clone);
-                       }
-                   }
-               }
-           } */
+        const skipped_symbol_groups = groupA.groupMap(g => getSkippableSymbolsFromItems(g.items, GRAMMAR));
+
+        for (const [skipped_sym, group] of skipped_symbol_groups) {
+            const skipped_id = getUniqueSymbolName(skipped_sym);
+            for (const [symB, groupB] of groups) {
+
+                if (groupA == groupB)
+                    continue;
+
+                if (symB == skipped_id) {
+
+                    if (!seen.has(groupB))
+                        seen.set(groupB, new WeakSet(groupA));
+
+
+                    for (const node of group) {
+
+                        //if (true)
+                        //    continue;
+
+                        if (groupB.some(s =>
+                            s.items[0].getProductionID(GRAMMAR) == node.items[0].getProductionID(GRAMMAR)
+                        ))
+                            continue;
+
+                        if (seen.get(groupB).has(node))
+                            continue;
+
+                        seen.get(groupB).add(node);
+
+                        const clone = node.clone();
+
+                        clone.addType(TST.I_SKIPPED_COLLISION);
+
+                        groupB.push(clone);
+                    }
+                }
+            }
+        } //*/
     }
 }
 
 function createNodeClosure(
     opt: TGO,
     parent_node: Node,
-    root: Node
+    root: Node,
+    discard: Set<string> = new Set
 ): (this: undefined, value: Item, index: number, array: Item[]) => Node[] {
 
     return i => {
@@ -1222,11 +1254,14 @@ function createNodeClosure(
 
         const nodes: Node[] = [];
 
+
         if (nonterm_item(i)) {
+
 
             const closure = [i], seen = new Set();
 
             for (const item of closure) {
+
 
                 if (nonterm_item(item)) {
 
@@ -1242,15 +1277,17 @@ function createNodeClosure(
                         closure.push(item.toState(state));
                     }
 
-                } else {
+                } else if (!discard.has(item.id)) {
+
                     seen.add(item.id);
                     nodes.push(createNode(opt, item.sym(GRAMMAR), [item], parent_node, closure, root.root));
                 }
 
             }
         }
-        else
+        else if (!discard.has(i.id)) {
             nodes.push(createNode(opt, i.sym(GRAMMAR), [i], parent_node, [], root.root));
+        }
 
         return nodes;
     };
@@ -1566,11 +1603,11 @@ ${this.children.flatMap(c => c.debug.split("\n")).join("\n  ")}
         return this.items.filter(i => i.atEND);
     }
 
-    scanItems(IGNORE_STATE: boolean = false): Item[] {
+    scanItems(IGNORE_STATE: boolean = false, seen: Set<any> = new Set): Item[] {
 
         let items = this.end_items.slice();
 
-        let out = [], seen = new Set;
+        let out = [];
 
         let i = 0;
 
