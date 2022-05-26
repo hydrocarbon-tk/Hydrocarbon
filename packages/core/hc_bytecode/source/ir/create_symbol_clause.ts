@@ -23,7 +23,8 @@ import { ConstructionOptions } from '../types/construction_options.js';
 export function create_symbol_clause(
     items: Item[],
     grammar: GrammarObject,
-    { scope }: ConstructionOptions
+    { scope }: ConstructionOptions,
+    USE_DEFAULT_SKIP: boolean = false
 ) {
 
     const active_items = items.filter(i => !i.atEND);
@@ -48,9 +49,11 @@ export function create_symbol_clause(
             return <TokenSymbol>sym;
         }
     }).setFilter(s => getUniqueSymbolName(s));
-    const skipped_symbols = getSkippableSymbolsFromItems(items, grammar).filter(skipped => !expected_symbols.some(
-        expected => Symbols_Are_The_Same(expected, skipped) /* || SymbolsCollide(expected, skipped, grammar) */)
-    );
+    const
+        default_skip = USE_DEFAULT_SKIP ? grammar.meta?.ignore ?? [] : [],
+        skipped_symbols = [...default_skip, ...getSkippableSymbolsFromItems(items, grammar)].filter(skipped => USE_DEFAULT_SKIP || !expected_symbols.some(
+            expected => Symbols_Are_The_Same(expected, skipped) /* || SymbolsCollide(expected, skipped, grammar) */)
+        );
 
     if (end_items.length > 0)
         expected_symbols.push(default_DEFAULT);
@@ -74,7 +77,7 @@ export function create_symbol_clause(
     if (skipped_symbols.length > 0)
         code += `/* Skipped symbols  
 
-        ${skipped_symbols.sort((a, b) => <number>a.id - <number>b.id).map(create_symbol_comment).join(" ")}
+        ${skipped_symbols.sort((a, b) => <number>a.id - <number>b.id).map(create_symbol_comment).setFilter().join(" ")}
         
         */
         
