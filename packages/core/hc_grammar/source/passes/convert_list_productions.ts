@@ -30,6 +30,8 @@ export function convertListProductions(grammar: GrammarObject, error: Error[]): 
 
     for (const production of grammar.productions) {
 
+        grammar.production_hash_lookup = new Map;
+
         for (const body of production.bodies) {
 
             for (const { node, meta } of traverse(body, "sym").skipRoot().makeMutable()) {

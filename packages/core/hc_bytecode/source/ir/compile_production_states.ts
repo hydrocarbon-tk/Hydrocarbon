@@ -6,6 +6,7 @@
 import { Logger } from '@candlelib/log';
 import spark from "@candlelib/spark";
 import {
+    getSkippableSymbolsFromItems,
     getStartItemsFromProduction,
     GrammarObject,
     InstructionType,
@@ -55,7 +56,7 @@ state [${open_state_name}]
 
         const end_body_items = getStartItemsFromProduction(entry_production).map(i => i.toEND());
 
-        const clause = create_symbol_clause(end_body_items, grammar, <any>{ scope: "DESCENT" });
+        const clause = create_symbol_clause(end_body_items, grammar, <any>{ scope: "DESCENT" }, true);
 
         const close_state = `
 state [${close_state_name}]
